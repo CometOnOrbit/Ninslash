@@ -15,7 +15,7 @@ config:Add(FreeType.OptFind("freetype", true))
 config:Add(GLEW.OptFind("glew", true))
 config:Finalize("config.lua")
 
-python_in_path = ExecuteSilent("python3 -V") == 0
+python_in_path = ExecuteSilent("python -V") == 0
 
 -- data compiler
 function Python(name)
@@ -26,7 +26,7 @@ function Python(name)
 			return name
 		end
 	end
-	return "python3 " .. name
+	return "python " .. name
 end
 
 function CHash(output, ...)
@@ -320,13 +320,6 @@ release_settings.config_name = "release"
 release_settings.config_ext = ""
 release_settings.debug = 0
 release_settings.optimize = 1
--- Performance optimization: increased optimization level and specific flags
-release_settings.cc.flags:Add("-O3")
-release_settings.cc.flags:Add("-march=native")
-release_settings.cc.flags:Add("-ffast-math")
-release_settings.cc.flags:Add("-funroll-loops")
-release_settings.cc.flags:Add("-flto")
-release_settings.link.flags:Add("-flto")
 release_settings.cc.defines:Add("CONF_RELEASE")
 
 if platform == "macosx" then

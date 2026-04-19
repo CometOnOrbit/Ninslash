@@ -1,7 +1,7 @@
 
 
 #include <base/system.h>
-
+#include <cstdlib>
 
 #include "config.h"
 #include "network.h"
@@ -358,4 +358,64 @@ static const unsigned gs_aFreqTable[256+1] = {
 void CNetBase::Init()
 {
 	ms_Huffman.Init(gs_aFreqTable);
+}
+
+// Network message pool implementation
+CNetMsgPool::CNetMsgPool()
+{
+	Reset();
+}
+
+void* CNetMsgPool::Alloc(int Size)
+{
+	if(Size > MSG_BUFFER_SIZE)
+	{
+		// For large messages, fall back to malloc
+		return malloc(Size);
+	}
+	
+	// Simple linear allocation from pool
+	for(int i = 0; i < MAX_POOL_SIZE; i++)
+	{
+		int idx = (m_NextFree + i) % MAX_POOL_SIZE;
+		if(!m_aMessages[idx].m_InUse)
+		{
+			m_aMessages[idx].m_InUse = true;
+			m_aMessages[idx].m_Size = Size;
+			m_NextFree = (idx + 1) % MAX_POOL_SIZE;
+			return m_aMessages[idx].m_aBuffer;
+		}
+	}
+	
+	// Pool exhausted, fall back to malloc
+	return malloc(Size);
+}
+
+void CNetMsgPool::Free(void* pData)
+{
+	if(!pData)
+		return;
+	
+	// Check if this is from our pool
+	for(int i = 0; i < MAX_POOL_SIZE; i++)
+	{
+		if(m_aMessages[i].m_aBuffer == pData)
+		{
+			m_aMessages[i].m_InUse = false;
+			return;
+		}
+	}
+	
+	// Not from pool, must be malloc'd
+	free(pData);
+}
+
+void CNetMsgPool::Reset()
+{
+	for(int i = 0; i < MAX_POOL_SIZE; i++)
+	{
+		m_aMessages[i].m_InUse = false;
+		m_aMessages[i].m_Size = 0;
+	}
+	m_NextFree = 0;
 }

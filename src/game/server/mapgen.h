@@ -6,6 +6,8 @@
 #include <game/collision.h>
 
 #include <base/tl/array.h>
+#include <vector>
+#include <tuple>
 
 class CMapGen
 {
@@ -48,6 +50,11 @@ class CMapGen
 	
 	void GenerateConveyorBelt(class CGenLayer *pTiles);
 	void GenerateHangables(class CGenLayer *pTiles);
+	
+	// Performance optimization functions
+	void OptimizedWriteForegroundTiles(class CGenLayer *pTiles, int w, int h);
+	void OptimizedWriteBackgroundTiles(class CGenLayer *pTiles, int w, int h);
+	void BatchModifTiles(const std::vector<std::tuple<ivec2, int, int, int>>& tileUpdates);
 	
 	void GenerateSawblade(class CGenLayer *pTiles);
 	void GenerateFiretrap(class CGenLayer *pTiles);

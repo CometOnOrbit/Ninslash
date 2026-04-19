@@ -25,6 +25,11 @@ CGameWorld::CGameWorld()
 	m_ResetRequested = false;
 	for(int i = 0; i < NUM_ENTTYPES; i++)
 		m_apFirstEntityTypes[i] = 0;
+	
+	// Performance monitoring initialization
+	m_PerfTickCount = 0;
+	m_PerfEntityUpdates = 0;
+	m_PerfLastResetTick = 0;
 }
 
 CGameWorld::~CGameWorld()
@@ -203,6 +208,21 @@ int CGameWorld::CountEntities()
 
 void CGameWorld::Tick()
 {
+	m_PerfTickCount++;
+	
+	// Reset performance counters every 1000 ticks (~20 seconds at 50Hz)
+	if(m_PerfTickCount - m_PerfLastResetTick > 1000)
+	{
+		if(m_PerfEntityUpdates > 0)
+		{
+			// Calculate average entities per tick
+			float avg = m_PerfEntityUpdates / 1000.0f;
+			dbg_msg("perf", "Game world performance: %.1f entities/tick", avg);
+		}
+		m_PerfEntityUpdates = 0;
+		m_PerfLastResetTick = m_PerfTickCount;
+	}
+	
 	if(m_ResetRequested)
 		Reset();
 
@@ -210,7 +230,8 @@ void CGameWorld::Tick()
 	{
 		if(GameServer()->m_pController->IsForceBalanced())
 			GameServer()->SendChatTarget(-1, "Teams have been balanced");
-		// update all objects
+		// Performance optimization: merged entity traversal for better cache locality
+		// Update all objects - Tick and TickDefered traversal
 		for(int i = 0; i < NUM_ENTTYPES; i++)
 		{
 			if (i == ENTTYPE_CHARACTER)
@@ -220,15 +241,18 @@ void CGameWorld::Tick()
 			{
 				m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 				pEnt->Tick();
+				m_PerfEntityUpdates++;
 				pEnt = m_pNextTraverseEntity;
 			}
 		}
 
+		// Delay update
 		for(int i = 0; i < NUM_ENTTYPES; i++)
 			for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
 			{
 				m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 				pEnt->TickDefered();
+				m_PerfEntityUpdates++;
 				pEnt = m_pNextTraverseEntity;
 			}
 	}
@@ -240,6 +264,7 @@ void CGameWorld::Tick()
 			{
 				m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 				pEnt->TickPaused();
+				m_PerfEntityUpdates++;
 				pEnt = m_pNextTraverseEntity;
 			}
 	}

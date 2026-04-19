@@ -1,112 +1,245 @@
 #include "localization.h"
 #include <engine/localization.h>
+#include <base/system.h>
+#include <thread>
+#include <atomic>
+#include <cstring>
+
+// Helper macro for safe string operations
+#define LOCALIZATION_SAFE_STRNCPY(dst, src, size) \
+    do { \
+        strncpy(dst, src, size); \
+        dst[(size)-1] = '\0'; \
+    } while(0)
 
 CLocalization::CLocalization(IStorage *pStorage)
+    : m_pStorage(pStorage)
+    , m_Initialized(false)
+    , m_LoadComplete(false)
 {
-    m_pStorage = pStorage;
+}
+
+// Helper function: safely read file contents with RAII
+std::unique_ptr<char[]> CLocalization::ReadFileContents(const char *pFilePath, int &OutFileSize)
+{
+    IOHANDLE File = m_pStorage->OpenFile(pFilePath, IOFLAG_READ, IStorage::TYPE_ALL);
+    if(!File)
+    {
+        OutFileSize = 0;
+        return nullptr;
+    }
+    
+    OutFileSize = (int)io_length(File);
+    if(OutFileSize <= 0)
+    {
+        io_close(File);
+        return nullptr;
+    }
+    
+    std::unique_ptr<char[]> pFileData(new char[OutFileSize + 1]);
+    io_read(File, pFileData.get(), OutFileSize);
+    io_close(File);
+    
+    // Null-terminate for safety
+    pFileData[OutFileSize] = '\0';
+    return pFileData;
+}
+
+// Thread-safe addition of localization entry
+void CLocalization::SafeAddLocalization(const char *pLanguage, const char *pKey, const char *pValue)
+{
+    std::lock_guard<std::mutex> lock(m_LocalizeMutex);
+    AddNewLocalize(pLanguage, pKey, pValue);
 }
 
 void CLocalization::Init()
 {
-	thread_init(LoadLocalizations, this);
+    if(m_Initialized)
+        return;
+        
+    m_Initialized = true;
+    thread_init(LoadLocalizations, this);
 }
 
 void CLocalization::LoadLocalizations(void *pUser)
 {
-	CLocalization *pThis = (CLocalization *)pUser;
-
+    CLocalization *pThis = static_cast<CLocalization*>(pUser);
+    
     const char *pIndex = "./data/server/languages/index.json";
-    IOHANDLE File = pThis->m_pStorage->OpenFile(pIndex, IOFLAG_READ, IStorage::TYPE_ALL);
-	if(!File)
-	{
-		dbg_msg("Localization", "can't open ./server_lang/index.json");
-		return;
-	}
-
-    const int FileSize = (int)io_length(File);
-	char* pFileData = (char*)malloc(FileSize);
-	io_read(File, pFileData, FileSize);
-	io_close(File);
-
-    // parse json data
-    json_settings JsonSettings;
-    mem_zero(&JsonSettings, sizeof(JsonSettings));
-    char aError[256];
-    json_value *pJsonData = json_parse_ex(&JsonSettings, pFileData, FileSize, aError);
-	free(pFileData);
-    if(pJsonData == nullptr)
-	{
-		dbg_msg("Localization", "Can't load the localization file %s : %s", pIndex, aError);
-		return;
-	}
-
-    const json_value &rStart = (*pJsonData)["language indices"];
-
-    if (rStart.type == json_array)
+    int FileSize = 0;
+    std::unique_ptr<char[]> pFileData = pThis->ReadFileContents(pIndex, FileSize);
+    
+    if(!pFileData)
     {
-		// Set i = 1, Skip English
-        for (unsigned i = 1; i < rStart.u.array.length; ++i)
-        {
-			if(!pThis->LoadLanguage(rStart[i]["file"]))
-				dbg_msg("Localization", "Can't load the localization file %s", (const char *)rStart[i]["file"]);
-		}
+        dbg_msg("Localization", "Can't open localization index: %s", pIndex);
+        pThis->m_LoadComplete = true;
+        return;
     }
 
-    // clean up
-    json_value_free(pJsonData);
+    // Parse JSON data
+    json_settings JsonSettings = {};
+    char aError[256] = {0};
+    json_value *pJsonData = json_parse_ex(&JsonSettings, pFileData.get(), FileSize, aError);
+    
+    if(!pJsonData)
+    {
+        dbg_msg("Localization", "Can't parse localization index %s: %s", pIndex, aError);
+        pThis->m_LoadComplete = true;
+        return;
+    }
 
-	dbg_msg("Localization", "Localization loaded");
+    // Use RAII wrapper for json_value
+    struct JsonValueGuard {
+        json_value *pValue;
+        JsonValueGuard(json_value *p) : pValue(p) {}
+        ~JsonValueGuard() { if(pValue) json_value_free(pValue); }
+    } guard(pJsonData);
+
+    const json_value &rStart = (*pJsonData)["language indices"];
+    int loadedCount = 0;
+    int failedCount = 0;
+
+    if(rStart.type == json_array && rStart.u.array.length > 1)
+    {
+        // Start from i = 1 to skip English (assuming English is first)
+        for(unsigned i = 1; i < rStart.u.array.length; ++i)
+        {
+            const json_value &fileEntry = rStart[i];
+            if(fileEntry.type == json_object)
+            {
+                const char *pLanguageFile = fileEntry["file"];
+                if(pLanguageFile)
+                {
+                    if(pThis->LoadLanguage(pLanguageFile))
+                        loadedCount++;
+                    else
+                        failedCount++;
+                }
+            }
+        }
+    }
+    else
+    {
+        dbg_msg("Localization", "Invalid index format in %s", pIndex);
+    }
+
+    pThis->m_LoadComplete = true;
+    dbg_msg("Localization", "Localization loaded: %d languages loaded, %d failed", loadedCount, failedCount);
 }
 
 bool CLocalization::LoadLanguage(const char *pFile)
 {
-    char aFilePath[64];
+    if(!pFile || !pFile[0])
+        return false;
+        
+    char aFilePath[128];
     str_format(aFilePath, sizeof(aFilePath), "./data/server/languages/%s.json", pFile);
-    IOHANDLE File = m_pStorage->OpenFile(aFilePath, IOFLAG_READ, IStorage::TYPE_ALL);
-    int FileSize = (int)io_length(File);
-    char *pFileData = new char[FileSize + 1];
-    io_read(File, pFileData, FileSize);
-    pFileData[FileSize] = 0;
-    io_close(File);
-
-    // parse json data
-    json_settings JsonSettings;
-    mem_zero(&JsonSettings, sizeof(JsonSettings));
-    char aError[256];
-    json_value *pJsonData = json_parse_ex(&JsonSettings, pFileData, FileSize, aError);
-    if(pJsonData == 0)
-	{
-		dbg_msg("Localization", "Can't load the localization file %s : %s", aFilePath, aError);
-		delete[] pFileData;
-		return false;
-	}
-
-    const json_value &rStart = (*pJsonData)["translation"];
-
-    if (rStart.type == json_array)
+    
+    int FileSize = 0;
+    std::unique_ptr<char[]> pFileData = ReadFileContents(aFilePath, FileSize);
+    
+    if(!pFileData)
     {
-		str_copy(m_aLocalize[pFile].m_aLanguageName, pFile, sizeof(m_aLocalize[pFile].m_aLanguageName));
-        for (unsigned i = 0; i < rStart.u.array.length; ++i)
-			AddNewLocalize(pFile, rStart[i]["key"], rStart[i]["value"]);
-	}
+        dbg_msg("Localization", "Can't open language file: %s", aFilePath);
+        return false;
+    }
+    
+    return LoadLanguageFromData(pFile, pFileData.get(), FileSize);
+}
 
-    // clean up
-    json_value_free(pJsonData);
-    delete[] pFileData;
+bool CLocalization::LoadLanguageFromData(const char *pLanguageCode, const char *pFileData, int FileSize)
+{
+    // Parse JSON data
+    json_settings JsonSettings = {};
+    char aError[256] = {0};
+    json_value *pJsonData = json_parse_ex(&JsonSettings, pFileData, FileSize, aError);
+    
+    if(!pJsonData)
+    {
+        dbg_msg("Localization", "Can't parse language file for %s: %s", pLanguageCode, aError);
+        return false;
+    }
+    
+    // RAII guard for json_value
+    struct JsonValueGuard {
+        json_value *pValue;
+        JsonValueGuard(json_value *p) : pValue(p) {}
+        ~JsonValueGuard() { if(pValue) json_value_free(pValue); }
+    } guard(pJsonData);
 
+    const json_value &translations = (*pJsonData)["translation"];
+    int translationCount = 0;
+
+    if(translations.type == json_array)
+    {
+        // Initialize language entry
+        {
+            std::lock_guard<std::mutex> lock(m_LocalizeMutex);
+            LOCALIZATION_SAFE_STRNCPY(m_aLocalize[pLanguageCode].m_aLanguageName, 
+                                     pLanguageCode, 
+                                     sizeof(m_aLocalize[pLanguageCode].m_aLanguageName));
+        }
+        
+        // Load translations
+        for(unsigned i = 0; i < translations.u.array.length; ++i)
+        {
+            const json_value &entry = translations[i];
+            if(entry.type == json_object)
+            {
+                const char *pKey = entry["key"];
+                const char *pValue = entry["value"];
+                
+                if(pKey && pValue)
+                {
+                    SafeAddLocalization(pLanguageCode, pKey, pValue);
+                    translationCount++;
+                }
+            }
+        }
+    }
+    else
+    {
+        dbg_msg("Localization", "Invalid translation format for language %s", pLanguageCode);
+        return false;
+    }
+    
+    dbg_msg("Localization", "Loaded %s: %d translations", pLanguageCode, translationCount);
     return true;
 }
 
 void CLocalization::AddNewLocalize(const char *pName, const char *pKey, const char *pValue)
 {
-	m_aLocalize[pName].m_aLocalizedTexts[pKey] = pValue;
+    if(!pName || !pKey || !pValue)
+        return;
+        
+    // Use emplace for efficiency (avoids extra copy)
+    m_aLocalize[pName].m_aLocalizedTexts.emplace(pKey, pValue);
 }
 
 const char *CLocalization::GetLanguageCode(int Country)
 {
-	// Constants from 'data/countryflags/index.txt'
-	switch(Country)
-	{
+    // Simple cache for frequently used country codes
+    static const std::unordered_map<int, const char*> s_CountryCodeCache = {
+        {826, "en"}, // United Kingdom
+        {840, "en"}, // United States
+        {250, "fr"}, // France
+        {276, "de"}, // Germany
+        {380, "it"}, // Italy
+        {392, "ja"}, // Japan
+        {156, "zh-cn"}, // China
+        {643, "ru"}, // Russia
+        {724, "es"}, // Spain
+        {76,  "pt"}, // Brazil
+    };
+    
+    // Check cache first
+    auto cached = s_CountryCodeCache.find(Country);
+    if(cached != s_CountryCodeCache.end())
+        return cached->second;
+    
+    // Constants from 'data/countryflags/index.txt'
+    switch(Country)
+    {
 		/* ar - Arabic ************************************/
 		case 12: //Algeria
 		case 48: //Bahrain
@@ -262,9 +395,52 @@ const char *CLocalization::GetLanguageCode(int Country)
 
 const char *CLocalization::Localize(const char *pLanguage, const char *pText)
 {
-    if(m_aLocalize[pLanguage].m_aLocalizedTexts[pText].length())
-        return m_aLocalize[pLanguage].m_aLocalizedTexts[pText].c_str();
+    if(!pLanguage || !pText || !pText[0])
+        return pText;
+    
+    // Wait for initialization if needed
+    if(!m_LoadComplete)
+    {
+        // Quick check without waiting if we're still loading
+        static int s_WarningCount = 0;
+        if(s_WarningCount++ < 3)  // Only warn first few times
+            dbg_msg("Localization", "Localization called before initialization complete");
+        return pText;
+    }
+    
+    std::lock_guard<std::mutex> lock(m_LocalizeMutex);
+    
+    // Find language
+    auto languageIt = m_aLocalize.find(pLanguage);
+    if(languageIt == m_aLocalize.end())
+        return pText;
+    
+    // Find translation
+    auto &texts = languageIt->second.m_aLocalizedTexts;
+    auto textIt = texts.find(pText);
+    
+    if(textIt != texts.end() && !textIt->second.empty())
+        return textIt->second.c_str();
+    
     return pText;
+}
+
+bool CLocalization::IsLanguageLoaded(const char *pLanguage) const
+{
+    if(!pLanguage)
+        return false;
+        
+    std::lock_guard<std::mutex> lock(m_LocalizeMutex);
+    return m_aLocalize.find(pLanguage) != m_aLocalize.end();
+}
+
+void CLocalization::WaitForInitialization()
+{
+    // Simple spin wait - in production you might want a condition variable
+    while(!m_LoadComplete)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 }
 
 ILocalization *CreateLocalization(IStorage *pStorage) { return new CLocalization(pStorage); }

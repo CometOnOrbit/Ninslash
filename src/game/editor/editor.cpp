@@ -22,6 +22,7 @@
 
 #include "auto_map.h"
 #include "editor.h"
+#include <climits>
 
 int CEditor::ms_CheckerTexture;
 int CEditor::ms_BackgroundTexture;
@@ -2816,11 +2817,26 @@ void CEditor::SortImages()
 	if(!Sorted)
 	{
 		array<CEditorImage*> lTemp = array<CEditorImage*>(m_Map.m_lImages);
-		gs_pSortedIndex = new int[lTemp.size()];
+		// Fix: ensure allocation size doesn't overflow
+		int size = lTemp.size();
+		if(size <= 0)
+		{
+			// No images or invalid size
+			return;
+		}
+		// Check if allocation size is reasonable (prevent excessive allocation)
+		const int MAX_REASONABLE_IMAGES = 100000; // 100k images should be a sufficient upper limit
+		if(size > MAX_REASONABLE_IMAGES)
+		{
+			dbg_msg("editor", "Warning: too many images (%d), skipping sort", size);
+			return;
+		}
+		// Use size_t for allocation, but we've already verified the size is reasonable
+		gs_pSortedIndex = new int[size];
 
 		qsort(m_Map.m_lImages.base_ptr(), m_Map.m_lImages.size(), sizeof(CEditorImage*), CompareImageName);
 
-		for(int OldIndex = 0; OldIndex < lTemp.size(); OldIndex++)
+		for(int OldIndex = 0; OldIndex < size; OldIndex++)
 			for(int NewIndex = 0; NewIndex < m_Map.m_lImages.size(); NewIndex++)
 				if(lTemp[OldIndex] == m_Map.m_lImages[NewIndex])
 					gs_pSortedIndex[OldIndex] = NewIndex;

@@ -46,6 +46,11 @@ private:
 	class CGameContext *m_pGameServer;
 	class IServer *m_pServer;
 
+	// Performance monitoring
+	int m_PerfTickCount;
+	int m_PerfEntityUpdates;
+	int m_PerfLastResetTick;
+
 public:
 	class CGameContext *GameServer() { return m_pGameServer; }
 	class IServer *Server() { return m_pServer; }

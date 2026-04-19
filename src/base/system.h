@@ -790,6 +790,74 @@ __attribute__ ((format (printf, 3, 4))) /* Warn if you specify wrong arguments i
 void str_format_args(char *buffer, int buffer_size, const char *format, va_list args);
 
 /*
+	Function: str_format_fast (Performance optimized)
+		Optimized version of str_format for common patterns.
+		Reduces overhead by avoiding full format string parsing.
+*/
+void str_format_fast(char *buffer, int buffer_size, const char *format, ...)
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__ ((format (printf, 3, 4)))
+#endif
+;
+
+/*
+	Function: str_format_int (Fast integer formatting)
+		Optimized integer formatting without format string parsing.
+*/
+void str_format_int(char *buffer, int buffer_size, int value);
+
+/*
+	Function: str_format_float (Fast float formatting)
+		Optimized float formatting with limited precision.
+*/
+void str_format_float(char *buffer, int buffer_size, float value, int precision);
+void str_format_float_default(char *buffer, int buffer_size, float value); // precision=2
+
+/*
+	Function: str_format_vec (Fast vector formatting)
+		Optimized vector formatting: "(x, y)".
+*/
+void str_format_vec(char *buffer, int buffer_size, float x, float y);
+
+/*
+	Memory alignment and cache optimization macros
+*/
+
+// Cache line size (typically 64 bytes on modern CPUs)
+#ifndef CACHE_LINE_SIZE
+#define CACHE_LINE_SIZE 64
+#endif
+
+// Force alignment for performance
+#if defined(__GNUC__) || defined(__clang__)
+#define ALIGNAS(alignment) __attribute__((aligned(alignment)))
+#define ALIGNOF(type) __alignof__(type)
+#define PREFETCH(addr, rw, locality) __builtin_prefetch(addr, rw, locality)
+#elif defined(_MSC_VER)
+#define ALIGNAS(alignment) __declspec(align(alignment))
+#define ALIGNOF(type) __alignof(type)
+#define PREFETCH(addr, rw, locality) __prefetch(addr)
+#else
+#define ALIGNAS(alignment)
+#define ALIGNOF(type) sizeof(type) // Fallback
+#define PREFETCH(addr, rw, locality)
+#endif
+
+// Align to cache line to avoid false sharing
+#define CACHE_ALIGNED ALIGNAS(CACHE_LINE_SIZE)
+
+// Prefetch hints
+#define PREFETCH_READ(addr) PREFETCH(addr, 0, 3)
+#define PREFETCH_WRITE(addr) PREFETCH(addr, 1, 3)
+
+// Check if address is cache line aligned
+#define IS_CACHE_ALIGNED(ptr) (((uintptr_t)(ptr) & (CACHE_LINE_SIZE - 1)) == 0)
+
+// Pad structure to cache line size to avoid false sharing
+#define PAD_TO_CACHE_LINE(type) \
+    char __pad__[CACHE_LINE_SIZE - (sizeof(type) % CACHE_LINE_SIZE)]
+
+/*
 	Function: str_sanitize_strong
 		Replaces all characters below 32 and above 127 with whitespace.
 

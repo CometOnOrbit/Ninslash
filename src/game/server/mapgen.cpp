@@ -1,4 +1,6 @@
 #include <random>
+#include <vector>
+#include <tuple>
 
 #include <stdio.h>	// sscanf
 #include <base/system.h>
@@ -1601,33 +1603,15 @@ void CMapGen::WriteLayers(CGenLayer *pTiles)
 	int w = m_pLayers->GameLayer()->m_Width;
 	int h = m_pLayers->GameLayer()->m_Height;
 	
-	// write to layers; foreground
-	for(int x = 0; x < w; x++)
-		for(int y = 0; y < h; y++)
-		{
-			int i = pTiles->Get(x, y);
-			
-			if (i > 0)
-			{
-				int f = pTiles->GetFlags(x, y);
-				ModifTile(ivec2(x, y), m_pLayers->GetForegroundLayerIndex(), i, f);
-				
-				// slopes
-				if (i == 20 && f == TILEFLAG_VFLIP)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_RAMP_RIGHT);
-				else if (i == 20 && f == 0)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_RAMP_LEFT);
-				else if (i == 20 && f == TILEFLAG_HFLIP+TILEFLAG_VFLIP)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_ROOFSLOPE_RIGHT);
-				else if (i == 20 && f == TILEFLAG_HFLIP)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_ROOFSLOPE_LEFT);
-				else
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), 1);
-			}
-		}
-		
+	// Performance optimization: use optimized tile writing
+	OptimizedWriteForegroundTiles(pTiles, w, h);
+	
 	// write to layers; FGOBJECTS to foreground
+	std::vector<std::tuple<ivec2, int, int, int>> fgObjectUpdates;
+	fgObjectUpdates.reserve(w * h * 2);
+	
 	for(int x = 0; x < w; x++)
+	{
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y, CGenLayer::FGOBJECTS);
@@ -1635,15 +1619,24 @@ void CMapGen::WriteLayers(CGenLayer *pTiles)
 			if (i > 0)
 			{
 				int f = pTiles->GetFlags(x, y, CGenLayer::FGOBJECTS);
-				ModifTile(ivec2(x, y), m_pLayers->GetForegroundLayerIndex(), i, f);
+				ivec2 pos(x, y);
 				
+				// Add foreground object
+				fgObjectUpdates.emplace_back(pos, m_pLayers->GetForegroundLayerIndex(), i, f);
+				
+				// Add game layer tile
+				int gameTile = 1; // Default solid tile
 				if (i >= 14*16+1 && i <= 14*16+3)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_PLATFORM);
-				else
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), 1);
+					gameTile = TILE_PLATFORM;
+				
+				fgObjectUpdates.emplace_back(pos, m_pLayers->GetGameLayerIndex(), gameTile, 0);
 			}
 		}
-		
+	}
+	
+	// Batch process FGOBJECT updates
+	BatchModifTiles(fgObjectUpdates);
+	
 	/*
 	// background
 	for(int x = 0; x < w; x++)
@@ -1690,6 +1683,82 @@ inline void CMapGen::ModifTile(ivec2 Pos, int Layer, int Tile, int Flags)
 	m_pCollision->ModifTile(Pos, m_pLayers->GetGameGroupIndex(), Layer, Tile, Flags, 0);
 }
 
+// Performance optimization: batch tile modifications
+void CMapGen::BatchModifTiles(const std::vector<std::tuple<ivec2, int, int, int>>& tileUpdates)
+{
+	for(const auto& update : tileUpdates)
+	{
+		const ivec2& pos = std::get<0>(update);
+		int layer = std::get<1>(update);
+		int tile = std::get<2>(update);
+		int flags = std::get<3>(update);
+		m_pCollision->ModifTile(pos, m_pLayers->GetGameGroupIndex(), layer, tile, flags, 0);
+	}
+}
+
+// Performance optimization: optimized foreground tile writing
+void CMapGen::OptimizedWriteForegroundTiles(CGenLayer *pTiles, int w, int h)
+{
+	std::vector<std::tuple<ivec2, int, int, int>> tileUpdates;
+	tileUpdates.reserve(w * h * 2); // Reserve space for worst case
+	
+	for(int x = 0; x < w; x++)
+	{
+		for(int y = 0; y < h; y++)
+		{
+			int i = pTiles->Get(x, y);
+			
+			if (i > 0)
+			{
+				int f = pTiles->GetFlags(x, y);
+				ivec2 pos(x, y);
+				
+				// Add foreground tile
+				tileUpdates.emplace_back(pos, m_pLayers->GetForegroundLayerIndex(), i, f);
+				
+				// Add game layer tile based on slope type
+				int gameTile = 1; // Default solid tile
+				if (i == 20 && f == TILEFLAG_VFLIP)
+					gameTile = TILE_RAMP_RIGHT;
+				else if (i == 20 && f == 0)
+					gameTile = TILE_RAMP_LEFT;
+				else if (i == 20 && f == TILEFLAG_HFLIP+TILEFLAG_VFLIP)
+					gameTile = TILE_ROOFSLOPE_RIGHT;
+				else if (i == 20 && f == TILEFLAG_HFLIP)
+					gameTile = TILE_ROOFSLOPE_LEFT;
+				
+				tileUpdates.emplace_back(pos, m_pLayers->GetGameLayerIndex(), gameTile, 0);
+			}
+		}
+	}
+	
+	// Batch process all tile updates
+	BatchModifTiles(tileUpdates);
+}
+
+// Performance optimization: optimized background tile writing
+void CMapGen::OptimizedWriteBackgroundTiles(CGenLayer *pTiles, int w, int h)
+{
+	std::vector<std::tuple<ivec2, int, int, int>> tileUpdates;
+	tileUpdates.reserve(w * h);
+	
+	for(int x = 0; x < w; x++)
+	{
+		for(int y = 0; y < h; y++)
+		{
+			int i = pTiles->Get(x, y);
+			
+			if (i > 0)
+			{
+				int f = pTiles->GetFlags(x, y);
+				tileUpdates.emplace_back(ivec2(x, y), m_pLayers->GetBackgroundLayerIndex(), i, f);
+			}
+		}
+	}
+	
+	// Batch process all tile updates
+	BatchModifTiles(tileUpdates);
+}
 
 
 
