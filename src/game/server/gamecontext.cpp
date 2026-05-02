@@ -3631,14 +3631,29 @@ const char *CGameContext::Localize(const char *pText, int ClientID)
 	return Localization()->Localize(m_apPlayers[ClientID]->m_aLanguage, pText);
 }
 
+
 /*
-Localize("Terminate the enemies"),Localize("Wave of aliens incoming"),Localize("Wave of robots incoming")
+Localize("Terminate the enemies"),Localize("Reach the door"),Localize("Survive the wave of enemies")
+Localize("Construction: shield generator"),Localize("Defend the reactor"),Localize("Protect the shield generator")
+Localize("Trip the purge switch"),Localize("Wave of aliens incoming"),Localize("Wave of robots incoming")
 Localize("Wave of skeletons incoming"),Localize("Wave of furries incoming"),Localize("Wave of cyborgs incoming")
 Localize("Wave incoming"),Localize("Terminate the aliens"),Localize("Terminate the robots")
 Localize("Terminate the skeletons"),Localize("Terminate the furries"),Localize("Terminate the cyborgs")
-Localize("Seek the door"),Localize("Alien wave cleared"),
-Localize("Robot wave cleared"),Localize("Furry wave cleared"),Localize("Skeleton wave cleared")
-Localize("Cyborg wave cleared"),Localize("Aliens terminated"),Localize("Robots terminated")
-Localize("Skeletons terminated"),Localize("Furries terminated"),Localize("Cyborgs terminated")
-Localize("Enemies terminated")
+Localize("Incoming aliens — defend the objective"),Localize("Incoming robots — defend the objective")
+Localize("Incoming skeletons — defend the objective"),Localize("Incoming hostiles — defend the objective")
+Localize("Incoming cyborgs — defend the objective")
+Localize("Fight through aliens — flip the purge switch"),Localize("Fight through robots — flip the purge switch")
+Localize("Fight through skeletons — flip the purge switch"),Localize("Fight through enemies — flip the purge switch")
+Localize("Fight through cyborgs — flip the purge switch"),Localize("Reach the purge switch")
+Localize("Seek the door"),Localize("Deploy a shield generator before the siege"),Localize("Keep the reactor online")
+Localize("Shield generator must survive"),Localize("Hit the purge switch — acid will rise")
+Localize("Alien wave cleared"),Localize("Robot wave cleared"),Localize("Furry wave cleared")
+Localize("Skeleton wave cleared"),Localize("Cyborg wave cleared"),Localize("Wave cleared")
+Localize("Alien siege broken — objective safe"),Localize("Robot siege broken — objective safe")
+Localize("Raid broken — shields safe"),Localize("Skeleton siege broken — objective safe")
+Localize("Cyborg siege broken — objective safe"),Localize("Raid broken — objective safe")
+Localize("Aliens terminated"),Localize("Robots terminated"),Localize("Skeletons terminated")
+Localize("Furries terminated"),Localize("Cyborgs terminated"),Localize("Enemies terminated")
+Localize("Shield generator online"),Localize("Reactor secure"),Localize("Generators holding")
+Localize("Purge valves open")
 */
