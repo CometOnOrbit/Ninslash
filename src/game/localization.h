@@ -15,7 +15,8 @@ Localize("Mask of regeneration"),Localize("Mask of speed"),Localize("Mask of pro
 Localize("Mask of melee"),Localize("Invisibility device"),Localize("Electrowall")
 Localize("Area Shield"),Localize("The Cure"),Localize("Zombie claw")
 Localize("Bomb (for destroying reactors)"),Localize("Terminate the enemies"),Localize("Reach the door"),
-Localize("Survive the wave of enemies"),
+Localize("Seek the door"), Localize("Survive the wave of enemies"),
+
 */
 
 class CLocalizationDatabase

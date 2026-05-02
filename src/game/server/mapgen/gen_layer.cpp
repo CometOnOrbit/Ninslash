@@ -1,5 +1,6 @@
 #include <base/system.h>
 #include <engine/shared/config.h>
+#include <game/inv_map_story.h>
 
 #include "gen_layer.h"
 
@@ -870,7 +871,7 @@ void CGenLayer::Scan()
 	// find player spawn spots
 	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
 	{
-		if (g_Config.m_SvMapGenLevel%10 == 9)
+		if (InvMapStoryUsesPurgingAscent(g_Config.m_SvInvMapStory, g_Config.m_SvMapGenLevel) || g_Config.m_SvMapGenLevel%10 == 9)
 		{
 			for (int y = m_Height-2; y > 2; y--)
 				for (int x = 2; x < m_Width-2; x++)

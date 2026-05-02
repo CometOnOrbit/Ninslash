@@ -9,6 +9,7 @@
 #include "gamecontext.h"
 #include <game/version.h>
 #include <game/collision.h>
+#include <game/inv_map_story.h>
 #include <game/gamecore.h> 
 #include "gamemodes/dm.h"
 #include "gamemodes/cs.h"
@@ -2552,6 +2553,81 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 	}
 }
 
+static void InvDbgDumpHelp(class IConsole *pConsole)
+{
+	pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg", "===== inv_dbg (INV / coop debug) =====");
+	pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg",
+		"  inv_dbg status");
+	pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg",
+		"  inv_dbg strand <kw> — sv_inv_map_story + next ConsumeFeatured strand. kw: none, prep|siege, deploy|prep_shields, reactor|core, gens|generators, purge|escape or 0-5");
+	pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg",
+		"  inv_dbg acid <on|off> — purge acid flood on/off");
+	pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg",
+		"  inv_dbg quest <kw> — force quest now. kw: kill|killleft, door|reach|exit, wave|survive, wavetime|timed");
+	pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg",
+		"       prep (+dice follow-up), prep_r | prep_g, reactor|def_reactor, gens|shields, purge|switch — or numeric 1–9 (Quests enum)");
+}
+
+void CGameContext::ConInvDbg(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(str_comp(pSelf->GameType(), "INV") != 0)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg", "only available in coop INV");
+		return;
+	}
+
+	CGameControllerInvasion *pInv = (CGameControllerInvasion *)pSelf->m_pController;
+
+	const int NA = pResult->NumArguments();
+	if(NA < 1 || str_comp_nocase(pResult->GetString(0), "help") == 0)
+	{
+		InvDbgDumpHelp(pSelf->Console());
+		return;
+	}
+
+	const char *Sub = pResult->GetString(0);
+
+	if(str_comp_nocase(Sub, "status") == 0)
+	{
+		pInv->DebugPrintState(pSelf->Console());
+		return;
+	}
+
+	if(str_comp_nocase(Sub, "quest") == 0)
+	{
+		if(NA < 2)
+			InvDbgDumpHelp(pSelf->Console());
+		else if(!pInv->DebugJumpToQuestKeyword(pResult->GetString(1)))
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg", "unknown quest keyword (inv_dbg help)");
+		return;
+	}
+
+	if(str_comp_nocase(Sub, "strand") == 0)
+	{
+		if(NA < 2)
+			InvDbgDumpHelp(pSelf->Console());
+		else if(!pInv->DebugConfigureStoryStrandKeyword(pResult->GetString(1)))
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg", "unknown strand (inv_dbg help)");
+		return;
+	}
+
+	if(str_comp_nocase(Sub, "acid") == 0)
+	{
+		if(NA < 2)
+			InvDbgDumpHelp(pSelf->Console());
+		else if(str_comp_nocase(pResult->GetString(1), "on") == 0)
+			pInv->DebugForcePurgingAcid();
+		else if(str_comp_nocase(pResult->GetString(1), "off") == 0)
+			pInv->DebugStopPurgingAcid();
+		else
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg", "acid: use on or off");
+		return;
+	}
+
+	InvDbgDumpHelp(pSelf->Console());
+}
+
 void CGameContext::ConTuneParam(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
@@ -3010,6 +3086,8 @@ void CGameContext::OnConsoleInit()
 	Console()->Register("force_vote", "ss?r", CFGFLAG_SERVER, ConForceVote, this, "Force a voting option");
 	Console()->Register("clear_votes", "", CFGFLAG_SERVER, ConClearVotes, this, "Clears the voting options");
 	Console()->Register("vote", "r", CFGFLAG_SERVER, ConVote, this, "Force a vote to yes/no");
+
+	Console()->Register("inv_dbg", "?s?s", CFGFLAG_SERVER, ConInvDbg, this, "INV coop dev: strand/quest/acid shortcuts (inv_dbg help)");
 	
 	Console()->Register("end_round", "", CFGFLAG_SERVER, ConEndRound, this, "Ends the current round");
 
@@ -3105,6 +3183,10 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	//world = new GAMEWORLD;
 	//players = new CPlayer[MAX_CLIENTS];
 
+	// coop INV: story strand locked to SvMapGenLevel (levels 1–4 = four scripted variants; later = InvPickMapStory).
+	if(str_comp(g_Config.m_SvGametype, "coop") == 0)
+		g_Config.m_SvInvMapStory = InvCoopStoryForLevel(g_Config.m_SvMapGenLevel, g_Config.m_SvMapGenSeed);
+
 	// select gametype
 	if(str_comp(g_Config.m_SvGametype, "ctf") == 0)
 		m_pController = new CGameControllerCTF(this);
@@ -3133,6 +3215,9 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	//if (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGen && !m_pServer->m_MapGenerated)
 	if (g_Config.m_SvMapGen && !m_pServer->m_MapGenerated)
 	{
+		if(str_comp(g_Config.m_SvGametype, "coop") != 0)
+			g_Config.m_SvInvMapStory = INV_MAP_STORY_NONE;
+
 		m_MapGen.FillMap();
 		SaveMap("");
 		
@@ -3546,14 +3631,29 @@ const char *CGameContext::Localize(const char *pText, int ClientID)
 	return Localization()->Localize(m_apPlayers[ClientID]->m_aLanguage, pText);
 }
 
+
 /*
-Localize("Terminate the enemies"),Localize("Wave of aliens incoming"),Localize("Wave of robots incoming")
+Localize("Terminate the enemies"),Localize("Reach the door"),Localize("Survive the wave of enemies")
+Localize("Construction: shield generator"),Localize("Defend the reactor"),Localize("Protect the shield generator")
+Localize("Trip the purge switch"),Localize("Wave of aliens incoming"),Localize("Wave of robots incoming")
 Localize("Wave of skeletons incoming"),Localize("Wave of furries incoming"),Localize("Wave of cyborgs incoming")
 Localize("Wave incoming"),Localize("Terminate the aliens"),Localize("Terminate the robots")
 Localize("Terminate the skeletons"),Localize("Terminate the furries"),Localize("Terminate the cyborgs")
-Localize("Seek the door"),Localize("Alien wave cleared"),
-Localize("Robot wave cleared"),Localize("Furry wave cleared"),Localize("Skeleton wave cleared")
-Localize("Cyborg wave cleared"),Localize("Aliens terminated"),Localize("Robots terminated")
-Localize("Skeletons terminated"),Localize("Furries terminated"),Localize("Cyborgs terminated")
-Localize("Enemies terminated")
+Localize("Incoming aliens — defend the objective"),Localize("Incoming robots — defend the objective")
+Localize("Incoming skeletons — defend the objective"),Localize("Incoming hostiles — defend the objective")
+Localize("Incoming cyborgs — defend the objective")
+Localize("Fight through aliens — flip the purge switch"),Localize("Fight through robots — flip the purge switch")
+Localize("Fight through skeletons — flip the purge switch"),Localize("Fight through enemies — flip the purge switch")
+Localize("Fight through cyborgs — flip the purge switch"),Localize("Reach the purge switch")
+Localize("Seek the door"),Localize("Deploy a shield generator before the siege"),Localize("Keep the reactor online")
+Localize("Shield generator must survive"),Localize("Hit the purge switch — acid will rise")
+Localize("Alien wave cleared"),Localize("Robot wave cleared"),Localize("Furry wave cleared")
+Localize("Skeleton wave cleared"),Localize("Cyborg wave cleared"),Localize("Wave cleared")
+Localize("Alien siege broken — objective safe"),Localize("Robot siege broken — objective safe")
+Localize("Raid broken — shields safe"),Localize("Skeleton siege broken — objective safe")
+Localize("Cyborg siege broken — objective safe"),Localize("Raid broken — objective safe")
+Localize("Aliens terminated"),Localize("Robots terminated"),Localize("Skeletons terminated")
+Localize("Furries terminated"),Localize("Cyborgs terminated"),Localize("Enemies terminated")
+Localize("Shield generator online"),Localize("Reactor secure"),Localize("Generators holding")
+Localize("Purge valves open")
 */

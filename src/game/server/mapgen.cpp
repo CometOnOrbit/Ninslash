@@ -1,4 +1,6 @@
 #include <random>
+#include <vector>
+#include <tuple>
 
 #include <stdio.h>	// sscanf
 #include <base/system.h>
@@ -14,6 +16,7 @@
 #include <game/server/gamecontext.h>
 #include <game/layers.h>
 #include <game/mapitems.h>
+#include <game/inv_map_story.h>
 
 CMapGen::CMapGen()
 {
@@ -207,7 +210,7 @@ void CMapGen::GenerateEnd(CGenLayer *pTiles)
 	int h = pTiles->Height();
 	
 	// find a platform
-	if (g_Config.m_SvMapGenLevel%10 == 9)
+	if (InvMapStoryUsesPurgingAscent(g_Config.m_SvInvMapStory, g_Config.m_SvMapGenLevel) || g_Config.m_SvMapGenLevel%10 == 9)
 	{
 		for(int y = 3; y < h-3; y++)
 			for(int x = w-3; x > 3; x--)
@@ -535,10 +538,27 @@ void CMapGen::GenerateSwitch(CGenLayer *pTiles)
 {
 	ivec2 p = ivec2(0, 0);
 	
-	if (g_Config.m_SvMapGenLevel%10 == 9)
+	if (InvMapStoryUsesPurgingAscent(g_Config.m_SvInvMapStory, g_Config.m_SvMapGenLevel) || g_Config.m_SvMapGenLevel%10 == 9)
+	{
 		p = pTiles->GetBotPlatform();
+		if (p.x == 0)
+			p = pTiles->GetLeftPlatform();
+		if (p.x == 0)
+			p = pTiles->GetRightPlatform();
+		if (p.x == 0)
+			p = pTiles->GetMedPlatform();
+		if (p.x == 0)
+			p = pTiles->GetPlatform();
+	}
 	else
 		p = pTiles->GetPlatform();
+	
+	if (p.x == 0)
+		p = pTiles->GetMedPlatform();
+	if (p.x == 0)
+		p = pTiles->GetPlatform();
+	if (p.x == 0)
+		p = pTiles->GetCeiling();
 	
 	if (p.x == 0)
 		return;
@@ -1048,10 +1068,25 @@ void CMapGen::GenerateLevel()
 				ModifTile(ivec2(x, y), m_pLayers->GetDoodadsLayerIndex(), i, pTiles->GetFlags(x, y, CGenLayer::DOODADS));
 		}
 	
-	
 	// find platforms, corners etc.
 	dbg_msg("mapgen", "Scanning level");
 	pTiles->Scan();
+
+	if (g_Config.m_SvInvMapStory == INV_MAP_STORY_DEF_REACTOR)
+	{
+		ivec2 rpos = pTiles->GetMedPlatform();
+		if (rpos.x == 0)
+			rpos = pTiles->GetPlatform();
+		if (rpos.x == 0)
+			rpos = pTiles->GetOpenArea();
+		if (rpos.x == 0)
+			rpos = pTiles->GetCeiling();
+		if (rpos.x != 0)
+		{
+			ModifTile(rpos, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_REACTOR);
+			pTiles->Use(rpos.x, rpos.y);
+		}
+	}
 	
 	// start pos
 	for (int i = 0; i < 4; i++)
@@ -1083,6 +1118,12 @@ void CMapGen::GenerateLevel()
 	
 	for (int i = 0; i < min(4, 2 + int(Level * 0.5f)); i++)
 		GeneratePowerupper(pTiles);
+
+	if (Level % 10 == 9)
+	{
+		for (int k = 0; k < 4; k++)
+			GeneratePowerupper(pTiles);
+	}
 	
 	if (Level > 2)
 		GenerateShop(pTiles);
@@ -1196,10 +1237,28 @@ void CMapGen::GenerateLevel()
 	
 	for (int i = 0; i < (pTiles->Size())/1100; i++)
 		GenerateArmor(pTiles);
-		
-	//if (Level%5 == 4)
-	//	GenerateSwitch(pTiles);
-	
+
+	const int Strand = g_Config.m_SvInvMapStory;
+	if (Strand == INV_MAP_STORY_PREP_SIEGE || Strand == INV_MAP_STORY_DEF_GENERATORS)
+	{
+		const int targetGens = max(3, min(10, (Level / 15) + 3));
+		for (int ig = 0; ig < targetGens; ig++)
+		{
+			ivec2 gpos = pTiles->GetMedPlatform();
+			if (gpos.x == 0)
+				gpos = pTiles->GetPlatform();
+
+			if (gpos.x != 0)
+			{
+				ModifTile(gpos, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_GENERATOR);
+				pTiles->Use(gpos.x, gpos.y);
+			}
+		}
+	}
+
+	if (InvMapStoryUsesPurgingAscent(g_Config.m_SvInvMapStory, Level) || Level % 5 == 4)
+		GenerateSwitch(pTiles);
+
 	// walkers
 	/*
 	if (Level%3 == 0 || Level%7 == 0 || Level%13 == 0 || Level%17 == 0)
@@ -1601,33 +1660,15 @@ void CMapGen::WriteLayers(CGenLayer *pTiles)
 	int w = m_pLayers->GameLayer()->m_Width;
 	int h = m_pLayers->GameLayer()->m_Height;
 	
-	// write to layers; foreground
-	for(int x = 0; x < w; x++)
-		for(int y = 0; y < h; y++)
-		{
-			int i = pTiles->Get(x, y);
-			
-			if (i > 0)
-			{
-				int f = pTiles->GetFlags(x, y);
-				ModifTile(ivec2(x, y), m_pLayers->GetForegroundLayerIndex(), i, f);
-				
-				// slopes
-				if (i == 20 && f == TILEFLAG_VFLIP)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_RAMP_RIGHT);
-				else if (i == 20 && f == 0)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_RAMP_LEFT);
-				else if (i == 20 && f == TILEFLAG_HFLIP+TILEFLAG_VFLIP)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_ROOFSLOPE_RIGHT);
-				else if (i == 20 && f == TILEFLAG_HFLIP)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_ROOFSLOPE_LEFT);
-				else
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), 1);
-			}
-		}
-		
+	// Performance optimization: use optimized tile writing
+	OptimizedWriteForegroundTiles(pTiles, w, h);
+	
 	// write to layers; FGOBJECTS to foreground
+	std::vector<std::tuple<ivec2, int, int, int>> fgObjectUpdates;
+	fgObjectUpdates.reserve(w * h * 2);
+	
 	for(int x = 0; x < w; x++)
+	{
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y, CGenLayer::FGOBJECTS);
@@ -1635,15 +1676,24 @@ void CMapGen::WriteLayers(CGenLayer *pTiles)
 			if (i > 0)
 			{
 				int f = pTiles->GetFlags(x, y, CGenLayer::FGOBJECTS);
-				ModifTile(ivec2(x, y), m_pLayers->GetForegroundLayerIndex(), i, f);
+				ivec2 pos(x, y);
 				
+				// Add foreground object
+				fgObjectUpdates.emplace_back(pos, m_pLayers->GetForegroundLayerIndex(), i, f);
+				
+				// Add game layer tile
+				int gameTile = 1; // Default solid tile
 				if (i >= 14*16+1 && i <= 14*16+3)
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_PLATFORM);
-				else
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), 1);
+					gameTile = TILE_PLATFORM;
+				
+				fgObjectUpdates.emplace_back(pos, m_pLayers->GetGameLayerIndex(), gameTile, 0);
 			}
 		}
-		
+	}
+	
+	// Batch process FGOBJECT updates
+	BatchModifTiles(fgObjectUpdates);
+	
 	/*
 	// background
 	for(int x = 0; x < w; x++)
@@ -1690,6 +1740,82 @@ inline void CMapGen::ModifTile(ivec2 Pos, int Layer, int Tile, int Flags)
 	m_pCollision->ModifTile(Pos, m_pLayers->GetGameGroupIndex(), Layer, Tile, Flags, 0);
 }
 
+// Performance optimization: batch tile modifications
+void CMapGen::BatchModifTiles(const std::vector<std::tuple<ivec2, int, int, int>>& tileUpdates)
+{
+	for(const auto& update : tileUpdates)
+	{
+		const ivec2& pos = std::get<0>(update);
+		int layer = std::get<1>(update);
+		int tile = std::get<2>(update);
+		int flags = std::get<3>(update);
+		m_pCollision->ModifTile(pos, m_pLayers->GetGameGroupIndex(), layer, tile, flags, 0);
+	}
+}
+
+// Performance optimization: optimized foreground tile writing
+void CMapGen::OptimizedWriteForegroundTiles(CGenLayer *pTiles, int w, int h)
+{
+	std::vector<std::tuple<ivec2, int, int, int>> tileUpdates;
+	tileUpdates.reserve(w * h * 2); // Reserve space for worst case
+	
+	for(int x = 0; x < w; x++)
+	{
+		for(int y = 0; y < h; y++)
+		{
+			int i = pTiles->Get(x, y);
+			
+			if (i > 0)
+			{
+				int f = pTiles->GetFlags(x, y);
+				ivec2 pos(x, y);
+				
+				// Add foreground tile
+				tileUpdates.emplace_back(pos, m_pLayers->GetForegroundLayerIndex(), i, f);
+				
+				// Add game layer tile based on slope type
+				int gameTile = 1; // Default solid tile
+				if (i == 20 && f == TILEFLAG_VFLIP)
+					gameTile = TILE_RAMP_RIGHT;
+				else if (i == 20 && f == 0)
+					gameTile = TILE_RAMP_LEFT;
+				else if (i == 20 && f == TILEFLAG_HFLIP+TILEFLAG_VFLIP)
+					gameTile = TILE_ROOFSLOPE_RIGHT;
+				else if (i == 20 && f == TILEFLAG_HFLIP)
+					gameTile = TILE_ROOFSLOPE_LEFT;
+				
+				tileUpdates.emplace_back(pos, m_pLayers->GetGameLayerIndex(), gameTile, 0);
+			}
+		}
+	}
+	
+	// Batch process all tile updates
+	BatchModifTiles(tileUpdates);
+}
+
+// Performance optimization: optimized background tile writing
+void CMapGen::OptimizedWriteBackgroundTiles(CGenLayer *pTiles, int w, int h)
+{
+	std::vector<std::tuple<ivec2, int, int, int>> tileUpdates;
+	tileUpdates.reserve(w * h);
+	
+	for(int x = 0; x < w; x++)
+	{
+		for(int y = 0; y < h; y++)
+		{
+			int i = pTiles->Get(x, y);
+			
+			if (i > 0)
+			{
+				int f = pTiles->GetFlags(x, y);
+				tileUpdates.emplace_back(ivec2(x, y), m_pLayers->GetBackgroundLayerIndex(), i, f);
+			}
+		}
+	}
+	
+	// Batch process all tile updates
+	BatchModifTiles(tileUpdates);
+}
 
 
 

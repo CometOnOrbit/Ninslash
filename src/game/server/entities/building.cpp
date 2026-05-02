@@ -132,7 +132,8 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	case BUILDING_REACTOR:
 		m_ProximityRadius = ReactorPhysSize;
 		
-		if(str_comp(g_Config.m_SvGametype, "base") == 0)
+		if(str_comp(g_Config.m_SvGametype, "base") == 0 ||
+			str_comp(g_Config.m_SvGametype, "coop") == 0)
 			m_Life = 400;
 		else
 		{
@@ -610,6 +611,11 @@ void CBuilding::Destroy()
 		
 		//GameServer()->SendBroadcast("Reactor lost", -1);
 		//GameServer()->CreateSoundGlobal(SOUND_CTF_DROP);
+	}
+	else if (m_Type == BUILDING_GENERATOR && m_Team >= 0)
+	{
+		GameServer()->m_pController->ShieldGeneratorDefenseLost();
+		GameServer()->m_World.DestroyEntity(this);
 	}
 	else if (m_Type == BUILDING_FLAMETRAP)
 	{

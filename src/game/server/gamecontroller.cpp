@@ -1610,6 +1610,15 @@ void IGameController::ReactorDestroyed()
 	
 }
 
+void IGameController::ShieldGeneratorDefenseLost()
+{
+}
+
+bool IGameController::SnapshotExtraAcid(int *pTimeLimitMinutes, int *pRoundStartSnapTick)
+{
+	return false;
+}
+
 
 void IGameController::OnSurvivalTimeOut()
 {
@@ -1731,13 +1740,18 @@ void IGameController::Tick()
 			//ResetSurvivalRound();
 		}
 		
-		// global acid level
-		if (g_Config.m_SvSurvivalAcid && g_Config.m_SvSurvivalMode && g_Config.m_SvSurvivalTime && !m_Warmup)
+		const bool ClassicCoopAcidNine = str_comp(g_Config.m_SvGametype, "coop") == 0 &&
+			(g_Config.m_SvMapGenLevel % 10) == 9 &&
+			g_Config.m_SvSurvivalTime > 0 &&
+			g_Config.m_SvSurvivalAcid &&
+			!m_Warmup;
+
+		if ((g_Config.m_SvSurvivalAcid && g_Config.m_SvSurvivalMode && g_Config.m_SvSurvivalTime && !m_Warmup) || ClassicCoopAcidNine)
 		{
 			GameServer()->Collision()->m_GlobalAcid = true;
 			GameServer()->Collision()->m_Time = g_Config.m_SvSurvivalTime*Server()->TickSpeed() - ((Server()->Tick()-m_SurvivalStartTick));
 		}
-		else 
+		else
 			GameServer()->Collision()->m_GlobalAcid = false;
 					
 		// check for winning conditions
@@ -1931,7 +1945,14 @@ void IGameController::Snap(int SnappingClient)
 		else
 			pGameInfoObj->m_TimeLimit = 0;
 	}
-	
+
+	int InvAcidTL, InvAcidRST;
+	if (SnapshotExtraAcid(&InvAcidTL, &InvAcidRST))
+	{
+		pGameInfoObj->m_TimeLimit = InvAcidTL;
+		pGameInfoObj->m_RoundStartTick = InvAcidRST;
+	}
+
 	m_TimeLimit = pGameInfoObj->m_TimeLimit;
 			
 	pGameInfoObj->m_RoundNum = g_Config.m_SvRoundsPerMap;

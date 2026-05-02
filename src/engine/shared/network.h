@@ -93,6 +93,28 @@ struct CNetChunk
 	const void *m_pData;
 };
 
+// Network message pool for performance optimization
+struct CNetMsgPool
+{
+	static const int MAX_POOL_SIZE = 256;
+	static const int MSG_BUFFER_SIZE = 1024; // 1KB per message
+	
+	struct PooledMsg
+	{
+		unsigned char m_aBuffer[MSG_BUFFER_SIZE];
+		int m_Size;
+		bool m_InUse;
+	};
+	
+	PooledMsg m_aMessages[MAX_POOL_SIZE];
+	int m_NextFree;
+	
+	CNetMsgPool();
+	void* Alloc(int Size);
+	void Free(void* pData);
+	void Reset();
+};
+
 class CNetChunkHeader
 {
 public:

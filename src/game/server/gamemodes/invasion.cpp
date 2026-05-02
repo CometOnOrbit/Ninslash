@@ -1,12 +1,18 @@
 #include <engine/shared/config.h>
 
+#include <base/system.h>
+
 #include <game/mapitems.h>
 #include <game/questinfo.h>
+#include <game/inv_map_story.h>
 
 #include <game/server/entities/character.h>
 #include <game/server/entities/radar.h>
+#include <game/server/entities/building.h>
 #include <game/server/player.h>
 #include <game/server/gamecontext.h>
+
+#include <game/server/gameworld.h>
 
 #include "invasion.h"
 
@@ -25,6 +31,38 @@ static CAI* CreateAIalien1(CGameContext *pGameServer, CPlayer *pPlayer, int Leve
 static CAI* CreateAIbunny1(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { return new CAIbunny1(pGameServer, pPlayer, Level); }
 static CAI* CreateAIrobot1(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { return new CAIrobot1(pGameServer, pPlayer, Level); }
 static CAI* CreateAIpyro1(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { return new CAIpyro1(pGameServer, pPlayer, Level); }
+
+static int CountInvFriendlyGenerators(CGameContext *pGameServer)
+{
+	CBuilding *apBuildings[900];
+	const int KMaxBuildings = (int)(sizeof(apBuildings) / sizeof(apBuildings[0]));
+	vec2 Pivot(4000.0f, 4000.0f);
+	int NumFound = pGameServer->m_World.FindEntities(Pivot, 1000000.0f, (CEntity **)apBuildings, KMaxBuildings, CGameWorld::ENTTYPE_BUILDING);
+
+	int Friendly = 0;
+	for(int i = 0; i < NumFound; ++i)
+	{
+		if(apBuildings[i]->m_Type == BUILDING_GENERATOR && apBuildings[i]->m_Team >= 0 && apBuildings[i]->m_Life > 0)
+			Friendly++;
+	}
+	return Friendly;
+}
+
+static int CountInvAllGeneratorsAlive(CGameContext *pGameServer)
+{
+	CBuilding *apBuildings[900];
+	const int KMaxBuildings = (int)(sizeof(apBuildings) / sizeof(apBuildings[0]));
+	vec2 Pivot(4000.0f, 4000.0f);
+	const int NumFound = pGameServer->m_World.FindEntities(Pivot, 1000000.0f, (CEntity **)apBuildings, KMaxBuildings, CGameWorld::ENTTYPE_BUILDING);
+
+	int Total = 0;
+	for(int i = 0; i < NumFound; ++i)
+	{
+		if(apBuildings[i]->m_Type == BUILDING_GENERATOR && apBuildings[i]->m_Life > 0)
+			Total++;
+	}
+	return Total;
+}
 
 CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer)
 : IGameController(pGameServer)
@@ -99,6 +137,16 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	
 	m_pDoor = new CRadar(&GameServer()->m_World, RADAR_DOOR);
 	m_pEnemySpawn = new CRadar(&GameServer()->m_World, RADAR_ENEMY);
+
+	m_DefendQueuedAfterPrep = QUEST_NONE;
+	m_DefendGeneratorBaseline = 0;
+	m_InvasionAcidActive = false;
+	m_AcidRiseStartTick = 0;
+	m_AcidRiseDurationSec = 240;
+	m_TriggerEscapeQuestWrapped = false;
+
+	m_PlannedFeaturedStrand = g_Config.m_SvInvMapStory;
+	m_FeatureStrandCommitted = false;
 }
 
 
@@ -304,7 +352,10 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 		m_QuestWaveSize = min(6 + Level + GameServer()->m_pController->CountPlayers(0), 32);
 		m_EnemiesLeft = m_QuestWaveEnemiesLeft;
 	}
-	else if (m_Quest == QUEST_SURVIVEWAVE)
+	else if (m_Quest == QUEST_SURVIVEWAVE ||
+		m_Quest == QUEST_DEFEND_REACTOR ||
+		m_Quest == QUEST_DEFEND_SHIELDGENERATOR ||
+		m_Quest == QUEST_TRIGGERSWITCH_RISE)
 	{
 		m_QuestWaveEndTick = 0;
 		m_QuestWaveEnemiesLeft = min(int(8+Level*2), 60)*(1.0f + (GameServer()->m_pController->CountPlayers(0)-1)*0.2f);
@@ -335,6 +386,82 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	m_Deaths = m_QuestWaveSize;
 }
 
+void CGameControllerInvasion::FailDefenseObjective()
+{
+	GameServer()->SendBroadcast("Defense objective lost", -1);
+	m_RoundOverTick = Server()->Tick();
+}
+
+void CGameControllerInvasion::BeginInvasionAcidRise()
+{
+	if (m_InvasionAcidActive)
+		return;
+
+	m_InvasionAcidActive = true;
+	const int Level = g_Config.m_SvMapGenLevel;
+	const int DesiredDuration = clamp(160 + Level * 35, 180, 520);
+	m_AcidRiseDurationSec = DesiredDuration;
+
+	m_AcidRiseStartTick = Server()->Tick();
+	GameServer()->SendBroadcast("Facility purge started — climb before the flood", -1);
+}
+
+void CGameControllerInvasion::TickInvasionAcidPhysics()
+{
+	if (!m_InvasionAcidActive)
+		return;
+
+	const int Speed = Server()->TickSpeed();
+
+	GameServer()->Collision()->m_GlobalAcid = true;
+	GameServer()->Collision()->m_Time = max(1, m_AcidRiseDurationSec * Speed - (Server()->Tick() - m_AcidRiseStartTick));
+}
+
+bool CGameControllerInvasion::SnapshotExtraAcid(int *pMinutesOut, int *pRoundSnapOut)
+{
+	if (!m_InvasionAcidActive || !pMinutesOut || !pRoundSnapOut)
+		return false;
+
+	const int Seconds = clamp(m_AcidRiseDurationSec, 120, 600);
+	*pMinutesOut = Seconds / 60 + 1;
+	*pRoundSnapOut = m_AcidRiseStartTick - Server()->TickSpeed() * (60 - Seconds % 60);
+
+	return true;
+}
+
+void CGameControllerInvasion::TriggerSwitch(vec2 Pos)
+{
+	if (m_GameState == STATE_GAME &&
+		m_Quest == QUEST_TRIGGERSWITCH_RISE &&
+		!m_TriggerEscapeQuestWrapped)
+	{
+		m_TriggerEscapeQuestWrapped = true;
+		BeginInvasionAcidRise();
+		CompleteCurrentQuest();
+		ChangeQuest(QUEST_REACHDOOR, 6.0f);
+	}
+
+	IGameController::TriggerSwitch(Pos);
+}
+
+void CGameControllerInvasion::ReactorDestroyed()
+{
+	if (m_GameState != STATE_GAME)
+		return;
+
+	if (m_Quest != QUEST_DEFEND_REACTOR)
+		return;
+
+	FailDefenseObjective();
+}
+
+void CGameControllerInvasion::ShieldGeneratorDefenseLost()
+{
+	if (m_GameState != STATE_GAME || m_Quest != QUEST_DEFEND_SHIELDGENERATOR)
+		return;
+
+	FailDefenseObjective();
+}
 
 void CGameControllerInvasion::DisplayExit(vec2 Pos)
 {
@@ -426,6 +553,177 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 }
 
 
+void CGameControllerInvasion::CommitActiveQuest(int ActiveQuest)
+{
+	m_Quest = ActiveQuest;
+	m_NextQuest = QUEST_NONE;
+	m_QuestChangeTick = 0;
+	m_QuestProgressCounter = 0;
+
+	if(m_Quest == QUEST_REACHDOOR)
+		TriggerEscape();
+
+	if(m_Quest == QUEST_SURVIVEWAVE ||
+		m_Quest == QUEST_SURVIVEWAVETIME ||
+		m_Quest == QUEST_DEFEND_REACTOR ||
+		m_Quest == QUEST_DEFEND_SHIELDGENERATOR ||
+		m_Quest == QUEST_TRIGGERSWITCH_RISE)
+		SpawnNewWave();
+
+	if(m_Quest == QUEST_DEFEND_SHIELDGENERATOR)
+		m_DefendGeneratorBaseline = max(1, CountInvAllGeneratorsAlive(GameServer()));
+
+	m_TriggerEscapeQuestWrapped = false;
+
+	SendQuestStartMessage(m_Quest);
+}
+
+
+bool CGameControllerInvasion::DebugJumpToQuestKeyword(const char *pKeyword)
+{
+	if(m_GameState != STATE_GAME)
+		return false;
+
+	int Q = QUEST_NONE;
+	m_DefendQueuedAfterPrep = QUEST_NONE;
+
+	if(!str_comp_nocase(pKeyword, "kill") || !str_comp_nocase(pKeyword, "killleft"))
+		Q = QUEST_KILLREMAININGENEMIES;
+	else if(!str_comp_nocase(pKeyword, "reach") || !str_comp_nocase(pKeyword, "door") || !str_comp_nocase(pKeyword, "exit"))
+		Q = QUEST_REACHDOOR;
+	else if(!str_comp_nocase(pKeyword, "wave") || !str_comp_nocase(pKeyword, "survive"))
+		Q = QUEST_SURVIVEWAVE;
+	else if(!str_comp_nocase(pKeyword, "wavetime") || !str_comp_nocase(pKeyword, "timed"))
+		Q = QUEST_SURVIVEWAVETIME;
+	else if(!str_comp_nocase(pKeyword, "prep"))
+	{
+		Q = QUEST_PREP_SHIELDGENERATOR;
+		unsigned d = InvPrepFollowDice(g_Config.m_SvMapGenLevel, g_Config.m_SvMapGenSeed);
+		m_DefendQueuedAfterPrep = (d % 2u == 0u) ? QUEST_DEFEND_REACTOR : QUEST_DEFEND_SHIELDGENERATOR;
+	}
+	else if(!str_comp_nocase(pKeyword, "prep_r"))
+	{
+		Q = QUEST_PREP_SHIELDGENERATOR;
+		m_DefendQueuedAfterPrep = QUEST_DEFEND_REACTOR;
+	}
+	else if(!str_comp_nocase(pKeyword, "prep_g"))
+	{
+		Q = QUEST_PREP_SHIELDGENERATOR;
+		m_DefendQueuedAfterPrep = QUEST_DEFEND_SHIELDGENERATOR;
+	}
+	else if(!str_comp_nocase(pKeyword, "reactor") || !str_comp_nocase(pKeyword, "def_reactor"))
+		Q = QUEST_DEFEND_REACTOR;
+	else if(!str_comp_nocase(pKeyword, "gens") || !str_comp_nocase(pKeyword, "shields"))
+		Q = QUEST_DEFEND_SHIELDGENERATOR;
+	else if(!str_comp_nocase(pKeyword, "purge") || !str_comp_nocase(pKeyword, "switch"))
+		Q = QUEST_TRIGGERSWITCH_RISE;
+	else
+	{
+		int N = str_toint(pKeyword);
+		if(N > QUEST_NONE && N <= QUEST_TRIGGERSWITCH_RISE)
+			Q = N;
+	}
+
+	if(Q == QUEST_NONE)
+		return false;
+
+	CommitActiveQuest(Q);
+	return true;
+}
+
+
+bool CGameControllerInvasion::DebugConfigureStoryStrandKeyword(const char *pKeywordOrNum)
+{
+	int Story = INV_MAP_STORY_NONE;
+	bool AllDigits = pKeywordOrNum[0];
+	for(const char *p = pKeywordOrNum; AllDigits && *p; ++p)
+		if(*p < '0' || *p > '9')
+			AllDigits = false;
+
+	if(AllDigits && pKeywordOrNum[0])
+		Story = str_toint(pKeywordOrNum);
+	else if(!str_comp_nocase(pKeywordOrNum, "none") || !str_comp_nocase(pKeywordOrNum, "off"))
+		Story = INV_MAP_STORY_NONE;
+	else if(!str_comp_nocase(pKeywordOrNum, "prep") || !str_comp_nocase(pKeywordOrNum, "siege"))
+		Story = INV_MAP_STORY_PREP_SIEGE;
+	else if(!str_comp_nocase(pKeywordOrNum, "reactor") || !str_comp_nocase(pKeywordOrNum, "core"))
+		Story = INV_MAP_STORY_DEF_REACTOR;
+	else if(!str_comp_nocase(pKeywordOrNum, "gens") || !str_comp_nocase(pKeywordOrNum, "generators"))
+		Story = INV_MAP_STORY_DEF_GENERATORS;
+	else if(!str_comp_nocase(pKeywordOrNum, "deploy") || !str_comp_nocase(pKeywordOrNum, "prep_shields"))
+		Story = INV_MAP_STORY_PREP_THEN_DEFEND_SHIELDS;
+	else if(!str_comp_nocase(pKeywordOrNum, "purge") || !str_comp_nocase(pKeywordOrNum, "escape"))
+		Story = INV_MAP_STORY_PURGE_ESCAPE;
+	else
+		return false;
+
+	g_Config.m_SvInvMapStory = Story;
+	m_PlannedFeaturedStrand = Story;
+	m_FeatureStrandCommitted = false;
+	return true;
+}
+
+
+void CGameControllerInvasion::DebugForcePurgingAcid()
+{
+	BeginInvasionAcidRise();
+}
+
+
+void CGameControllerInvasion::DebugStopPurgingAcid()
+{
+	m_InvasionAcidActive = false;
+	m_AcidRiseStartTick = 0;
+	GameServer()->Collision()->m_GlobalAcid = false;
+}
+
+
+void CGameControllerInvasion::DebugPrintState(IConsole *pConsole)
+{
+	char aBuf[384];
+	str_format(aBuf, sizeof(aBuf), "game_state=%d quest=%d next=%d story=%d story_done=%d acid=%d",
+		m_GameState, m_Quest, m_NextQuest, m_PlannedFeaturedStrand, m_FeatureStrandCommitted ? 1 : 0, m_InvasionAcidActive ? 1 : 0);
+	pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "inv_dbg", aBuf);
+}
+
+
+bool CGameControllerInvasion::ConsumeFeaturedStrandMission()
+{
+	if(m_FeatureStrandCommitted)
+		return false;
+
+	const int Strand = m_PlannedFeaturedStrand;
+	switch(Strand)
+	{
+	case INV_MAP_STORY_PREP_SIEGE:
+	{
+		unsigned d = InvPrepFollowDice(g_Config.m_SvMapGenLevel, g_Config.m_SvMapGenSeed);
+		m_DefendQueuedAfterPrep = (d % 2u == 0u) ? QUEST_DEFEND_REACTOR : QUEST_DEFEND_SHIELDGENERATOR;
+		ChangeQuest(QUEST_PREP_SHIELDGENERATOR, 6.0f);
+		break;
+	}
+	case INV_MAP_STORY_PREP_THEN_DEFEND_SHIELDS:
+		m_DefendQueuedAfterPrep = QUEST_DEFEND_SHIELDGENERATOR;
+		ChangeQuest(QUEST_PREP_SHIELDGENERATOR, 6.0f);
+		break;
+	case INV_MAP_STORY_DEF_REACTOR:
+		ChangeQuest(QUEST_DEFEND_REACTOR, 6.0f);
+		break;
+	case INV_MAP_STORY_DEF_GENERATORS:
+		ChangeQuest(QUEST_DEFEND_SHIELDGENERATOR, 6.0f);
+		break;
+	case INV_MAP_STORY_PURGE_ESCAPE:
+		ChangeQuest(QUEST_TRIGGERSWITCH_RISE, 6.0f);
+		break;
+	default:
+		return false;
+	}
+
+	m_FeatureStrandCommitted = true;
+	return true;
+}
+
+
 void CGameControllerInvasion::Tick()
 {
 	IGameController::Tick();
@@ -437,19 +735,26 @@ void CGameControllerInvasion::Tick()
 	{
 		// change quest on time
 		if (m_QuestChangeTick && m_QuestChangeTick <= Server()->Tick())
+			CommitActiveQuest(m_NextQuest);
+
+		if (m_Quest == QUEST_PREP_SHIELDGENERATOR)
 		{
-			m_Quest = m_NextQuest;
-			m_NextQuest = QUEST_NONE;
-			m_QuestChangeTick = 0;
-			m_QuestProgressCounter = 0;
-			
-			if (m_Quest == QUEST_REACHDOOR)
-				TriggerEscape();
-			
-			if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
-				SpawnNewWave();
-			
-			SendQuestStartMessage(m_Quest);
+			const int FriendlyGenerators = CountInvFriendlyGenerators(GameServer());
+			m_QuestProgressCounter = FriendlyGenerators;
+
+			if (FriendlyGenerators >= 1)
+			{
+				SendQuestCompletedMessage(QUEST_PREP_SHIELDGENERATOR);
+				const int NextDefense = m_DefendQueuedAfterPrep;
+				m_DefendQueuedAfterPrep = QUEST_NONE;
+				m_Quest = QUEST_NONE;
+				m_NextQuest = QUEST_NONE;
+				m_QuestsCompleted++;
+				if (NextDefense != QUEST_NONE)
+					ChangeQuest(NextDefense, 4.0f);
+				else
+					ChangeQuest(QUEST_SURVIVEWAVE, 4.0f);
+			}
 		}
 		
 		
@@ -459,32 +764,70 @@ void CGameControllerInvasion::Tick()
 				ChangeQuest(QUEST_REACHDOOR, 6.0f);
 			else if (m_QuestsCompleted == 0)
 				ChangeQuest(QUEST_KILLREMAININGENEMIES, 6.0f);
-			else if (g_Config.m_SvMapGenLevel > 5 && frandom() < 0.2f)
-				ChangeQuest(QUEST_SURVIVEWAVETIME, 6.0f);
 			else
-				ChangeQuest(QUEST_SURVIVEWAVE, 6.0f);
+			{
+				if(!ConsumeFeaturedStrandMission())
+				{
+					const int InvLevel = g_Config.m_SvMapGenLevel;
+					const int Chance = rand() % 100;
+					const int GeneratorsNearby = CountInvFriendlyGenerators(GameServer());
+
+					bool StoryPrepSiege = InvLevel >= 5 && Chance < 14;
+					bool StoryDefendCore = InvLevel >= 6 && Chance >= 14 && Chance < 32;
+					bool StoryDefendShields = InvLevel >= 6 && Chance >= 32 && Chance < 42 && GeneratorsNearby > 0;
+					bool StoryPurgeRamp = InvLevel >= 7 && Chance >= 42 && Chance < 54;
+
+					if (StoryPrepSiege)
+					{
+						m_DefendQueuedAfterPrep = rand() % 2 == 0 ? QUEST_DEFEND_REACTOR : QUEST_DEFEND_SHIELDGENERATOR;
+						ChangeQuest(QUEST_PREP_SHIELDGENERATOR, 6.0f);
+					}
+					else if (StoryDefendCore)
+						ChangeQuest(QUEST_DEFEND_REACTOR, 6.0f);
+					else if (StoryDefendShields)
+						ChangeQuest(QUEST_DEFEND_SHIELDGENERATOR, 6.0f);
+					else if (StoryPurgeRamp)
+						ChangeQuest(QUEST_TRIGGERSWITCH_RISE, 6.0f);
+					else if (g_Config.m_SvMapGenLevel > 5 && frandom() < 0.2f)
+						ChangeQuest(QUEST_SURVIVEWAVETIME, 6.0f);
+					else
+						ChangeQuest(QUEST_SURVIVEWAVE, 6.0f);
+				}
+			}
 			
 			m_LevelQuestsLeft--;
 		}
 		
-		if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
+		const bool QuestAnchoredOnWaveCombat = (
+			m_Quest == QUEST_SURVIVEWAVE ||
+			m_Quest == QUEST_SURVIVEWAVETIME ||
+			m_Quest == QUEST_DEFEND_REACTOR ||
+			m_Quest == QUEST_DEFEND_SHIELDGENERATOR ||
+			m_Quest == QUEST_TRIGGERSWITCH_RISE);
+
+		if (QuestAnchoredOnWaveCombat)
 		{
 			if (m_Quest == QUEST_SURVIVEWAVETIME)
 				m_QuestProgressCounter = int((m_QuestWaveEndTick - Server()->Tick()) / Server()->TickSpeed());
 			else
 				m_QuestProgressCounter = m_EnemiesLeft + GameServer()->m_pController->CountBotsAlive();
-			
-			// wave quest completed
-			if ((m_QuestWaveEndTick && m_QuestWaveEndTick <= Server()->Tick()) || (m_EnemiesLeft <= 0 && GameServer()->m_pController->CountBotsAlive() <= 0))
+
+			if (m_Quest != QUEST_TRIGGERSWITCH_RISE)
 			{
-				m_EnemiesLeft = 0;
-				m_QuestWaveEndTick = 0;
-				int CompletedQuest = m_Quest;
-				CompleteCurrentQuest();
-				
-				if (CompletedQuest == QUEST_SURVIVEWAVETIME && GameServer()->m_pController->CountBotsAlive() > 8)
-					ChangeQuest(QUEST_KILLREMAININGENEMIES, 5.0f);
+				if ((m_QuestWaveEndTick && m_QuestWaveEndTick <= Server()->Tick()) || (m_EnemiesLeft <= 0 && GameServer()->m_pController->CountBotsAlive() <= 0))
+				{
+					m_EnemiesLeft = 0;
+					m_QuestWaveEndTick = 0;
+					const int WrappedQuestType = m_Quest;
+					CompleteCurrentQuest();
+					
+					if (WrappedQuestType == QUEST_SURVIVEWAVETIME && GameServer()->m_pController->CountBotsAlive() > 8)
+						ChangeQuest(QUEST_KILLREMAININGENEMIES, 5.0f);
+				}
 			}
+
+			if (m_Quest == QUEST_DEFEND_SHIELDGENERATOR && CountInvAllGeneratorsAlive(GameServer()) < m_DefendGeneratorBaseline)
+				FailDefenseObjective();
 		}
 		
 		if (m_Quest == QUEST_KILLREMAININGENEMIES)
@@ -496,6 +839,8 @@ void CGameControllerInvasion::Tick()
 				CompleteCurrentQuest();
 		}
 	}
+
+	TickInvasionAcidPhysics();
 			
 	// 
 	if (m_GameState == STATE_STARTING)

@@ -583,6 +583,9 @@ REC %3d:%02d
 Reach the door
 == 进入下一层
 
+Seek the door
+== 前往出口门
+
 Reason:
 == 理由:
 
@@ -683,7 +686,7 @@ Settings
 == 设置
 
 Shield generator
-== 能量护盾发生器
+== 护盾发生器
 
 Shotgun
 == 霰弹枪

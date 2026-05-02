@@ -6,6 +6,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <math.h>
 
 #include "system.h"
 
@@ -1627,6 +1628,174 @@ void str_format_args(char *buffer, int buffer_size, const char *format, va_list 
 #endif
 
 	buffer[buffer_size-1] = 0; /* assure null termination */
+}
+
+/* Performance optimized string formatting functions */
+
+void str_format_fast(char *buffer, int buffer_size, const char *format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	
+	// Check for common format patterns to use optimized versions
+	if(str_comp(format, "%d") == 0)
+	{
+		int value = va_arg(ap, int);
+		str_format_int(buffer, buffer_size, value);
+	}
+	else if(str_comp(format, "%f") == 0 || str_comp(format, "%.2f") == 0)
+	{
+		double value = va_arg(ap, double); // floats are promoted to double in varargs
+		str_format_float_default(buffer, buffer_size, (float)value);
+	}
+	else if(str_comp(format, "%s") == 0)
+	{
+		const char *str = va_arg(ap, const char*);
+		str_copy(buffer, str, buffer_size);
+	}
+	else if(str_comp(format, "(%f, %f)") == 0)
+	{
+		double x = va_arg(ap, double);
+		double y = va_arg(ap, double);
+		str_format_vec(buffer, buffer_size, (float)x, (float)y);
+	}
+	else
+	{
+		// Fall back to standard str_format
+		va_list ap2;
+		va_copy(ap2, ap);
+		str_format_args(buffer, buffer_size, format, ap2);
+		va_end(ap2);
+	}
+	
+	va_end(ap);
+}
+
+void str_format_int(char *buffer, int buffer_size, int value)
+{
+	// Fast integer to string conversion
+	char temp[32];
+	char *p = temp + 31;
+	*p = '\0';
+	
+	int negative = 0;
+	if(value < 0)
+	{
+		negative = 1;
+		value = -value;
+	}
+	else if(value == 0)
+	{
+		*--p = '0';
+	}
+	
+	while(value > 0)
+	{
+		*--p = '0' + (value % 10);
+		value /= 10;
+	}
+	
+	if(negative)
+		*--p = '-';
+	
+	str_copy(buffer, p, buffer_size);
+}
+
+void str_format_float_default(char *buffer, int buffer_size, float value)
+{
+	str_format_float(buffer, buffer_size, value, 2);
+}
+
+void str_format_float(char *buffer, int buffer_size, float value, int precision)
+{
+	// Fast float formatting with fixed precision
+	if(precision < 0) precision = 0;
+	if(precision > 6) precision = 6; // Reasonable limit
+	
+	// Handle special cases
+	if(value != value) // NaN
+	{
+		str_copy(buffer, "nan", buffer_size);
+		return;
+	}
+	
+	if(value < -1e38f) // -inf
+	{
+		str_copy(buffer, "-inf", buffer_size);
+		return;
+	}
+	
+	if(value > 1e38f) // +inf
+	{
+		str_copy(buffer, "inf", buffer_size);
+		return;
+	}
+	
+	// Simple fixed-point formatting
+	int int_part = (int)value;
+	float frac_part = value - int_part;
+	if(frac_part < 0) frac_part = -frac_part;
+	
+	// Format integer part
+	char int_buf[32];
+	str_format_int(int_buf, sizeof(int_buf), int_part);
+	
+	if(precision == 0)
+	{
+		str_copy(buffer, int_buf, buffer_size);
+		return;
+	}
+	
+	// Format fractional part
+	int frac_int = (int)(frac_part * powf(10.0f, precision) + 0.5f);
+	char frac_buf[32];
+	str_format_int(frac_buf, sizeof(frac_buf), frac_int);
+	
+	// Pad with leading zeros if needed
+	char padded_frac[32];
+	int len = str_length(frac_buf);
+	if(len < precision)
+	{
+		for(int i = 0; i < precision - len; i++)
+			padded_frac[i] = '0';
+		str_copy(padded_frac + (precision - len), frac_buf, sizeof(padded_frac) - (precision - len));
+		padded_frac[precision] = '\0';
+	}
+	else
+	{
+		str_copy(padded_frac, frac_buf, sizeof(padded_frac));
+	}
+	
+	// Combine
+	str_format(buffer, buffer_size, "%s.%s", int_buf, padded_frac);
+}
+
+void str_format_vec(char *buffer, int buffer_size, float x, float y)
+{
+	// Fast vector formatting: "(x, y)"
+	char x_buf[32], y_buf[32];
+	str_format_float(x_buf, sizeof(x_buf), x, 2);
+	str_format_float(y_buf, sizeof(y_buf), y, 2);
+	
+	int needed = str_length(x_buf) + str_length(y_buf) + 5; // "(, )" + null
+	if(needed <= buffer_size)
+	{
+		char *p = buffer;
+		*p++ = '(';
+		const char *src = x_buf;
+		while(*src) *p++ = *src++;
+		*p++ = ',';
+		*p++ = ' ';
+		src = y_buf;
+		while(*src) *p++ = *src++;
+		*p++ = ')';
+		*p = '\0';
+	}
+	else
+	{
+		// Fallback
+		str_format(buffer, buffer_size, "(%.2f, %.2f)", x, y);
+	}
 }
 
 /* makes sure that the string only contains the characters between 32 and 127 */

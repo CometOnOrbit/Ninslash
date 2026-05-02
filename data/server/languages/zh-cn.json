@@ -42,11 +42,11 @@
         },
         {
             "key": "Alien wave cleared",
-            "value": "外星人被歼灭了！"
+            "value": "异形被歼灭了！"
         },
         {
             "key": "Aliens terminated",
-            "value": "外星人被全部击退！"
+            "value": "异形被全部击退！"
         },
         {
             "key": "All hope is lost",
@@ -326,7 +326,7 @@
         },
         {
             "key": "Terminate the aliens",
-            "value": "击杀所有外星人"
+            "value": "击杀所有异形"
         },
         {
             "key": "Terminate the cyborgs",
@@ -390,7 +390,7 @@
         },
         {
             "key": "Wave of aliens incoming",
-            "value": "外星人来袭！"
+            "value": "异形来袭！"
         },
         {
             "key": "Wave of cyborgs incoming",
@@ -467,6 +467,138 @@
         {
             "key": "red",
             "value": "红"
+        },
+        {
+            "key": "Alien siege broken — objective safe",
+            "value": "异形围攻瓦解——目标安全"
+        },
+        {
+            "key": "Construction: shield generator",
+            "value": "工程任务：护盾发生器"
+        },
+        {
+            "key": "Cyborg siege broken — objective safe",
+            "value": "赛博格围攻瓦解——目标安全"
+        },
+        {
+            "key": "Defend the reactor",
+            "value": "死守反应堆"
+        },
+        {
+            "key": "Defense objective lost",
+            "value": "防守失败：任务目标被摧毁"
+        },
+        {
+            "key": "Deploy a shield generator before the siege",
+            "value": "部署护盾发生器"
+        },
+        {
+            "key": "Facility purge started — climb before the flood",
+            "value": "设施净化已启动——在酸液上涨前撤离"
+        },
+        {
+            "key": "Fight through aliens — flip the purge switch",
+            "value": "击退异形——拉动净化闸门"
+        },
+        {
+            "key": "Fight through cyborgs — flip the purge switch",
+            "value": "击退赛博格——拉动净化闸门"
+        },
+        {
+            "key": "Fight through enemies — flip the purge switch",
+            "value": "击退敌军——拉动净化闸门"
+        },
+        {
+            "key": "Fight through robots — flip the purge switch",
+            "value": "击退机器人——拉动净化闸门"
+        },
+        {
+            "key": "Fight through skeletons — flip the purge switch",
+            "value": "击退骷髅——拉动净化闸门"
+        },
+        {
+            "key": "Generators holding",
+            "value": "发电机仍在运转"
+        },
+        {
+            "key": "Hit the purge switch — acid will rise",
+            "value": "按下净化闸门——酸液即将上涨"
+        },
+        {
+            "key": "Incoming aliens — defend the objective",
+            "value": "异形来袭——守住任务目标"
+        },
+        {
+            "key": "Incoming cyborgs — defend the objective",
+            "value": "赛博格来袭——守住任务目标"
+        },
+        {
+            "key": "Incoming hostiles — defend the objective",
+            "value": "敌军来袭——守住任务目标"
+        },
+        {
+            "key": "Incoming robots — defend the objective",
+            "value": "机器人来袭——守住任务目标"
+        },
+        {
+            "key": "Incoming skeletons — defend the objective",
+            "value": "骷髅来袭——守住任务目标"
+        },
+        {
+            "key": "Keep the reactor online",
+            "value": "维持反应堆运转"
+        },
+        {
+            "key": "Protect the shield generator",
+            "value": "保护护盾发生器"
+        },
+        {
+            "key": "Purge valves open",
+            "value": "净化阀门已开启"
+        },
+        {
+            "key": "Raid broken — objective safe",
+            "value": "强攻瓦解——目标安全"
+        },
+        {
+            "key": "Raid broken — shields safe",
+            "value": "强攻瓦解——护盾安全"
+        },
+        {
+            "key": "Reach the door",
+            "value": "抵达出口门"
+        },
+        {
+            "key": "Reach the purge switch",
+            "value": "抵达净化闸门"
+        },
+        {
+            "key": "Reactor secure",
+            "value": "反应堆已稳固"
+        },
+        {
+            "key": "Robot siege broken — objective safe",
+            "value": "机器人围攻瓦解——目标安全"
+        },
+        {
+            "key": "Shield generator must survive",
+            "value": "护盾发生器必须保住"
+        },
+        {
+            "key": "Shield generator online",
+            "value": "护盾发生器已上线"
+        },
+        {
+            "key": "Skeleton siege broken — objective safe",
+            "value": "骷髅围攻瓦解——目标安全"
+        },
+        {
+            "key": "Survive the wave of enemies",
+            "value": "撑过这波敌军攻势"
+        },
+        {
+            "key": "Trip the purge switch",
+            "value": "触发净化闸门"
         }
     ]
 }

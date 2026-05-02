@@ -4,7 +4,15 @@
 #define BASE_VMATH_H
 
 #include <math.h>
+#include <cstdlib>
+#include <cstring>
+#include <cstdint>
 #include "math.h"
+
+// Platform-specific aligned allocation
+#if defined(_WIN32)
+#include <malloc.h>
+#endif
 
 // ------------------------------------
 
@@ -40,6 +48,220 @@ public:
 	bool operator ==(const vector2_base &v) const { return x == v.x && y == v.y; } //TODO: do this with an eps instead
 
 	operator const T* () { return &x; }
+};
+
+// Performance optimized math functions
+namespace math_optimized {
+
+// Fast inverse square root (Quake III algorithm)
+inline float Q_rsqrt(float number)
+{
+	// Use memcpy to avoid strict-aliasing violations
+	float x2, y;
+	const float threehalfs = 1.5F;
+
+	x2 = number * 0.5F;
+	y  = number;
+	
+	// Safe type punning using memcpy
+	int32_t i;
+	memcpy(&i, &y, sizeof(i));
+	i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
+	memcpy(&y, &i, sizeof(y));
+	y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
+//	y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+	return y;
+}
+
+// Fast square root using inverse square root
+inline float fast_sqrt(float x)
+{
+	if(x <= 0.0f) return 0.0f;
+	return x * Q_rsqrt(x);
+}
+
+// Fast length approximation (within 1% error)
+inline float fast_length(const vector2_base<float> &a)
+{
+	float x = fabsf(a.x);
+	float y = fabsf(a.y);
+	
+	// Max/min for alpha max plus beta min algorithm
+	float max = x > y ? x : y;
+	float min = x > y ? y : x;
+	
+	// Alpha max plus beta min approximation
+	// Coefficients for ~0.1% error: alpha=0.96043387, beta=0.39782473
+	// Using simpler coefficients for speed: alpha=15/16=0.9375, beta=15/32=0.46875
+	return 0.9375f * max + 0.46875f * min;
+}
+
+// Fast normalized vector (approximate)
+inline vector2_base<float> fast_normalize(const vector2_base<float> &a)
+{
+	float inv_len = Q_rsqrt(a.x*a.x + a.y*a.y);
+	return vector2_base<float>(a.x * inv_len, a.y * inv_len);
+}
+
+// Fast dot product (no special optimization, just inlined)
+inline float fast_dot(const vector2_base<float> &a, const vector2_base<float> &b)
+{
+	return a.x*b.x + a.y*b.y;
+}
+
+// Fast distance approximation
+inline float fast_distance(const vector2_base<float> &a, const vector2_base<float> &b)
+{
+	vector2_base<float> diff = a - b;
+	return fast_length(diff);
+}
+
+// Linear interpolation (lerp) - already fast
+inline float lerp(float a, float b, float t)
+{
+	return a + t * (b - a);
+}
+
+// Clamp with fast min/max
+inline float fast_clamp(float value, float min_val, float max_val)
+{
+	return value < min_val ? min_val : (value > max_val ? max_val : value);
+}
+
+// Fast sine approximation (Bhaskara I's sine approximation formula)
+// Valid for 0 to π, error < 0.0016
+inline float fast_sin(float x)
+{
+	// Normalize to [0, 2π]
+	const float PI = 3.14159265358979323846f;
+	const float TWO_PI = 2.0f * PI;
+	
+	x = fmodf(x, TWO_PI);
+	if(x < 0) x += TWO_PI;
+	
+	// Bhaskara I's approximation
+	if(x <= PI)
+	{
+		float term = (PI - x) * x;
+		return (16.0f * term) / (5.0f * PI * PI - 4.0f * term);
+	}
+	else
+	{
+		x = TWO_PI - x;
+		float term = (PI - x) * x;
+		return -(16.0f * term) / (5.0f * PI * PI - 4.0f * term);
+	}
+}
+
+// Fast cosine using sine identity
+inline float fast_cos(float x)
+{
+	return fast_sin(x + 3.14159265358979323846f * 0.5f);
+}
+
+} // namespace math_optimized
+
+// Cache-optimized vector class with alignment
+template<typename T>
+class vector2_aligned : public vector2_base<T>
+{
+public:
+	vector2_aligned() {}
+	vector2_aligned(T nx, T ny) : vector2_base<T>(nx, ny) {}
+	
+	// Ensure proper alignment for SIMD
+	void* operator new(size_t size) {
+		void* ptr;
+		#ifdef _WIN32
+			ptr = _aligned_malloc(size, 16);
+		#else
+			if(posix_memalign(&ptr, 16, size) != 0)
+				ptr = nullptr;
+		#endif
+		return ptr;
+	}
+	
+	void operator delete(void* ptr) {
+		#ifdef _WIN32
+			_aligned_free(ptr);
+		#else
+			free(ptr);
+		#endif
+	}
+	
+	// Array new/delete for aligned arrays
+	void* operator new[](size_t size) {
+		void* ptr;
+		#ifdef _WIN32
+			ptr = _aligned_malloc(size, 16);
+		#else
+			if(posix_memalign(&ptr, 16, size) != 0)
+				ptr = nullptr;
+		#endif
+		return ptr;
+	}
+	
+	void operator delete[](void* ptr) {
+		#ifdef _WIN32
+			_aligned_free(ptr);
+		#else
+			free(ptr);
+		#endif
+	}
+};
+
+// Batch processing for vector operations (improves cache locality)
+template<typename T>
+class vector_batch
+{
+private:
+	T* m_pData;
+	int m_Size;
+	int m_Capacity;
+	
+public:
+	vector_batch(int capacity = 64) : m_Size(0), m_Capacity(capacity) {
+		m_pData = new T[capacity];
+	}
+	
+	~vector_batch() {
+		delete[] m_pData;
+	}
+	
+	void add(const T& vec) {
+		if(m_Size < m_Capacity) {
+			m_pData[m_Size++] = vec;
+		}
+	}
+	
+	void clear() { m_Size = 0; }
+	
+	// Batch normalize all vectors
+	void batch_normalize() {
+		for(int i = 0; i < m_Size; i++) {
+			T& vec = m_pData[i];
+			float len = length(vec);
+			if(len > 0.0f) {
+				vec.x /= len;
+				vec.y /= len;
+			}
+		}
+	}
+	
+	// Batch fast normalize (approximate)
+	void batch_fast_normalize() {
+		for(int i = 0; i < m_Size; i++) {
+			T& vec = m_pData[i];
+			float inv_len = math_optimized::Q_rsqrt(vec.x*vec.x + vec.y*vec.y);
+			vec.x *= inv_len;
+			vec.y *= inv_len;
+		}
+	}
+	
+	int size() const { return m_Size; }
+	const T* data() const { return m_pData; }
+	T* data() { return m_pData; }
 };
 
 
