@@ -1074,7 +1074,6 @@ void CMapGen::GenerateLevel()
 
 	if (g_Config.m_SvInvMapStory == INV_MAP_STORY_DEF_REACTOR)
 	{
-		dbg_msg("OHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH","GET ME1");
 		ivec2 rpos = pTiles->GetMedPlatform();
 		if (rpos.x == 0)
 			rpos = pTiles->GetPlatform();
@@ -1086,7 +1085,6 @@ void CMapGen::GenerateLevel()
 		{
 			ModifTile(rpos, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_REACTOR);
 			pTiles->Use(rpos.x, rpos.y);
-			dbg_msg("OHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH","GET ME2");
 		}
 	}
 	
