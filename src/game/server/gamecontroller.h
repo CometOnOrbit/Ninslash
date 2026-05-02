@@ -145,6 +145,8 @@ public:
 	virtual void TriggerBomb();
 	virtual void DisarmBomb();
 	virtual void ReactorDestroyed();
+	virtual void ShieldGeneratorDefenseLost();
+	virtual bool SnapshotExtraAcid(int *pTimeLimitMinutes, int *pRoundStartSnapTick);
 	
 	virtual void AddMapArea(int Team, vec2 Pos);
 	virtual bool InMapArea(int Team, vec2 Pos);
@@ -177,7 +179,7 @@ public:
 	int CountBots();
 	int CountBotsAlive();
 	
-	void TriggerSwitch(vec2 Pos);
+	virtual void TriggerSwitch(vec2 Pos);
 	void TriggerEscape();
 	
 	virtual void NextLevel(int CID = -1);

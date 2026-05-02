@@ -35,6 +35,22 @@ private:
 	void SendQuestCompletedMessage(int Quest);
 	void CompleteCurrentQuest();
 	
+	int m_DefendQueuedAfterPrep;
+	int m_DefendGeneratorBaseline;
+	bool m_InvasionAcidActive;
+	int m_AcidRiseStartTick;
+	int m_AcidRiseDurationSec;
+	bool m_TriggerEscapeQuestWrapped;
+	int m_PlannedFeaturedStrand;
+	bool m_FeatureStrandCommitted;
+	void FailDefenseObjective();
+	void BeginInvasionAcidRise();
+	void TickInvasionAcidPhysics();
+
+	bool ConsumeFeaturedStrandMission();
+
+	void CommitActiveQuest(int ActiveQuest);
+	
 	enum Enemies
 	{
 		ENEMY_ALIEN1,
@@ -95,9 +111,20 @@ public:
 	bool GetSpawnPos(int Team, vec2 *pOutPos);
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
+	virtual void TriggerSwitch(vec2 Pos);
+	virtual void ReactorDestroyed();
+	virtual void ShieldGeneratorDefenseLost();
+	virtual bool SnapshotExtraAcid(int *pTimeLimitMinutes, int *pRoundStartSnapTick);
 	
 	void DisplayExit(vec2 Pos);
-	
+
+	// for debug
+	bool DebugJumpToQuestKeyword(const char *pKeyword);
+	bool DebugConfigureStoryStrandKeyword(const char *pKeywordOrNum);
+	void DebugForcePurgingAcid();
+	void DebugStopPurgingAcid();
+	void DebugPrintState(IConsole *pConsole);
+
 	enum GameState
 	{
 		STATE_STARTING,

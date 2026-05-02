@@ -155,7 +155,12 @@ if(NOT MSVC)
 endif()
 
 if(NOT MSVC)
-  check_c_compiler_flag("-O2;-Wp,-Werror;-D_FORTIFY_SOURCE=2" DEFINE_FORTIFY_SOURCE) # Some distributions define _FORTIFY_SOURCE by themselves.
+  if(MINGW)
+    # _FORTIFY_SOURCE brings in __chk_fail; MinGW needs libssp linked for every TU, easy to miss → link errors.
+    set(DEFINE_FORTIFY_SOURCE FALSE)
+  else()
+    check_c_compiler_flag("-O2;-Wp,-Werror;-D_FORTIFY_SOURCE=2" DEFINE_FORTIFY_SOURCE) # Some distributions define _FORTIFY_SOURCE by themselves.
+  endif()
 endif()
 
 ########################################################################
@@ -270,7 +275,7 @@ message(STATUS "Dependencies:")
 function(show_dependency_status OUTPUT_NAME NAME)
   if(${NAME}_FOUND)
     if(${NAME}_BUNDLED)
-      message(STATUS " * ${OUTPUT_NAME} not found (using bundled version)")
+      message(STATUS " * ${OUTPUT_NAME} bundled (ships with source tree)")
     else()
       message(STATUS " * ${OUTPUT_NAME} found")
     endif()

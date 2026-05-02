@@ -14,6 +14,7 @@
 #include <game/client/customstuff.h>
 
 #include <game/weapons.h>
+#include <game/questinfo.h>
 #include <game/client/components/flow.h>
 #include <game/client/components/effects.h>
 #include <game/client/components/sounds.h>
@@ -370,6 +371,12 @@ void CBuildings::RenderBase(const struct CNetObj_Building *pCurrent)
 
 void CBuildings::RenderReactor(const struct CNetObj_Building *pCurrent)
 {
+	const bool DefendReactorObjective =
+		m_pClient->m_Snap.m_pGameInfoObj &&
+		m_pClient->m_Snap.m_pGameDataObj &&
+		(m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_COOP) &&
+		(m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreRed == QUEST_DEFEND_REACTOR);
+
 	int Anim = ANIM_IDLE;
 	int s = pCurrent->m_Status;
 	bool Repair = s & (1<<BSTATUS_REPAIR);
@@ -379,7 +386,48 @@ void CBuildings::RenderReactor(const struct CNetObj_Building *pCurrent)
 	if (Repair)
 		Time += CustomStuff()->m_SawbladeAngle * 0.15f;
 	
-	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y-30), vec4(0.25f, 0.75f, 1.0f, 1.0f), 320);
+	const float Lt = DefendReactorObjective ? m_pClient->Client()->LocalTime() : 0.f;
+	if (DefendReactorObjective)
+	{
+		const float Pulse = 0.74f + 0.26f * sinf(Lt * (2.f * pi * 2.25f));
+		const float Wobble = sinf(Lt * (2.f * pi * 1.2f));
+
+		vec2 PosCore(pCurrent->m_X, pCurrent->m_Y - 36.f);
+
+		m_pClient->m_pEffects->SimpleLight(
+			PosCore,
+			vec4(0.2f + 0.22f * fabs(Wobble), 0.92f + 0.06f * fabs(Wobble), 1.0f, 1.0f),
+			560.f + 380.f * Pulse);
+
+		m_pClient->m_pEffects->SimpleLight(
+			vec2(pCurrent->m_X, pCurrent->m_Y - 66.f),
+			vec4(1.0f, 0.88f + 0.06f * Pulse, 0.28f + 0.35f * clamp(Pulse - 0.74f, 0.f, 1.f), 1.0f),
+			vec2(220.f + 280.f * Pulse, 540.f + 320.f * Pulse));
+
+		m_pClient->m_pEffects->BoxLight(
+			vec2(pCurrent->m_X, pCurrent->m_Y - 62.f),
+			vec4(0.15f, 0.75f + 0.25f * fabs(Wobble), 1.0f, 0.45f),
+			vec2(88.f + 54.f * Pulse, 760.f),
+			Lt * 0.72f);
+
+		const int Tk = CustomStuff()->LocalTick() + (((int)pCurrent->m_X / 31) ^ ((int)pCurrent->m_Y / 71));
+		if ((Tk % 8) == 0)
+			m_pClient->m_pEffects->Electrospark(vec2(pCurrent->m_X + (frandom() - frandom()) * 50.f, pCurrent->m_Y - 96.f + frandom() * 120.f),
+				32.f + Pulse * 24.f,
+				vec2(0.f, -40.f));
+
+		float angStep = Lt * 2.1f + pCurrent->m_X * 0.0007f + pCurrent->m_Y * 0.0011f;
+		for (int k = 0; k < 5; k++)
+		{
+			float a = angStep + k * (2.f * pi / 5.f);
+			float rad = 100.f + 22.f * (float)k;
+			vec2 Orb(pCurrent->m_X + cosf(a) * rad, pCurrent->m_Y + sinf(a) * rad * 0.38f - 48.f);
+			if (((Tk / 5 + k * 13) % 13) <= 4)
+				m_pClient->m_pEffects->Electrospark(Orb, 22.f + (float)(k % 3) * 8.f, vec2(sinf(a), cosf(a)) * 180.f * (0.003f));
+		}
+	}
+	else
+		m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y - 30), vec4(0.25f, 0.75f, 1.0f, 1.0f), 320);
 	//m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y-0), 320);
 	
 	RenderTools()->RenderSkeleton(vec2(pCurrent->m_X, pCurrent->m_Y+16+50), ATLAS_REACTOR, RenderTools()->Skelebank()->GetAnimList(Anim), Time, vec2(1.0f, 1.0f)*0.8f, 1, 0);

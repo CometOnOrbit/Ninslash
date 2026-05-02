@@ -16,6 +16,7 @@
 #include <game/server/gamecontext.h>
 #include <game/layers.h>
 #include <game/mapitems.h>
+#include <game/inv_map_story.h>
 
 CMapGen::CMapGen()
 {
@@ -209,7 +210,7 @@ void CMapGen::GenerateEnd(CGenLayer *pTiles)
 	int h = pTiles->Height();
 	
 	// find a platform
-	if (g_Config.m_SvMapGenLevel%10 == 9)
+	if (InvMapStoryUsesPurgingAscent(g_Config.m_SvInvMapStory, g_Config.m_SvMapGenLevel) || g_Config.m_SvMapGenLevel%10 == 9)
 	{
 		for(int y = 3; y < h-3; y++)
 			for(int x = w-3; x > 3; x--)
@@ -537,10 +538,27 @@ void CMapGen::GenerateSwitch(CGenLayer *pTiles)
 {
 	ivec2 p = ivec2(0, 0);
 	
-	if (g_Config.m_SvMapGenLevel%10 == 9)
+	if (InvMapStoryUsesPurgingAscent(g_Config.m_SvInvMapStory, g_Config.m_SvMapGenLevel) || g_Config.m_SvMapGenLevel%10 == 9)
+	{
 		p = pTiles->GetBotPlatform();
+		if (p.x == 0)
+			p = pTiles->GetLeftPlatform();
+		if (p.x == 0)
+			p = pTiles->GetRightPlatform();
+		if (p.x == 0)
+			p = pTiles->GetMedPlatform();
+		if (p.x == 0)
+			p = pTiles->GetPlatform();
+	}
 	else
 		p = pTiles->GetPlatform();
+	
+	if (p.x == 0)
+		p = pTiles->GetMedPlatform();
+	if (p.x == 0)
+		p = pTiles->GetPlatform();
+	if (p.x == 0)
+		p = pTiles->GetCeiling();
 	
 	if (p.x == 0)
 		return;
@@ -1050,10 +1068,27 @@ void CMapGen::GenerateLevel()
 				ModifTile(ivec2(x, y), m_pLayers->GetDoodadsLayerIndex(), i, pTiles->GetFlags(x, y, CGenLayer::DOODADS));
 		}
 	
-	
 	// find platforms, corners etc.
 	dbg_msg("mapgen", "Scanning level");
 	pTiles->Scan();
+
+	if (g_Config.m_SvInvMapStory == INV_MAP_STORY_DEF_REACTOR)
+	{
+		dbg_msg("OHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH","GET ME1");
+		ivec2 rpos = pTiles->GetMedPlatform();
+		if (rpos.x == 0)
+			rpos = pTiles->GetPlatform();
+		if (rpos.x == 0)
+			rpos = pTiles->GetOpenArea();
+		if (rpos.x == 0)
+			rpos = pTiles->GetCeiling();
+		if (rpos.x != 0)
+		{
+			ModifTile(rpos, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_REACTOR);
+			pTiles->Use(rpos.x, rpos.y);
+			dbg_msg("OHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH","GET ME2");
+		}
+	}
 	
 	// start pos
 	for (int i = 0; i < 4; i++)
@@ -1085,6 +1120,12 @@ void CMapGen::GenerateLevel()
 	
 	for (int i = 0; i < min(4, 2 + int(Level * 0.5f)); i++)
 		GeneratePowerupper(pTiles);
+
+	if (Level % 10 == 9)
+	{
+		for (int k = 0; k < 4; k++)
+			GeneratePowerupper(pTiles);
+	}
 	
 	if (Level > 2)
 		GenerateShop(pTiles);
@@ -1198,10 +1239,28 @@ void CMapGen::GenerateLevel()
 	
 	for (int i = 0; i < (pTiles->Size())/1100; i++)
 		GenerateArmor(pTiles);
-		
-	//if (Level%5 == 4)
-	//	GenerateSwitch(pTiles);
-	
+
+	const int Strand = g_Config.m_SvInvMapStory;
+	if (Strand == INV_MAP_STORY_PREP_SIEGE || Strand == INV_MAP_STORY_DEF_GENERATORS)
+	{
+		const int targetGens = max(3, min(10, (Level / 15) + 3));
+		for (int ig = 0; ig < targetGens; ig++)
+		{
+			ivec2 gpos = pTiles->GetMedPlatform();
+			if (gpos.x == 0)
+				gpos = pTiles->GetPlatform();
+
+			if (gpos.x != 0)
+			{
+				ModifTile(gpos, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_GENERATOR);
+				pTiles->Use(gpos.x, gpos.y);
+			}
+		}
+	}
+
+	if (InvMapStoryUsesPurgingAscent(g_Config.m_SvInvMapStory, Level) || Level % 5 == 4)
+		GenerateSwitch(pTiles);
+
 	// walkers
 	/*
 	if (Level%3 == 0 || Level%7 == 0 || Level%13 == 0 || Level%17 == 0)

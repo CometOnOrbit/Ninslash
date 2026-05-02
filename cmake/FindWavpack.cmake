@@ -1,4 +1,16 @@
-if(NOT PREFER_BUNDLED_LIBS)
+#
+# Bundled WavPack in src/engine/external/wavpack is the Teeworlds-era fork: sound.cpp passes a
+# read_stream callback to WavpackOpenFileInput(read_stream infile, char *error).
+# Upstream distro libwavpack uses the same symbol name but a path-based ABI
+# (open by filename plus flags); linking it silently breaks every WV load ("can't open file").
+# Bam always compiles these sources; CMake must do the same unless explicitly overridden.
+#
+option(NINSLASH_USE_SYSTEM_WAVPACK
+  "Link system libwavpack (upstream API incompatible with current sound loader; not recommended)"
+  OFF)
+mark_as_advanced(NINSLASH_USE_SYSTEM_WAVPACK)
+
+if(NINSLASH_USE_SYSTEM_WAVPACK AND NOT PREFER_BUNDLED_LIBS)
   if(NOT CMAKE_CROSSCOMPILING)
     find_package(PkgConfig QUIET)
     pkg_check_modules(PC_WAVPACK wavpack)

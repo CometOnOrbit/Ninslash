@@ -1,5 +1,6 @@
 #include <engine/shared/config.h>
 #include <game/weapons.h>
+#include <game/inv_map_story.h>
 
 #include "ai.h"
 #include "entities/pickup.h"
@@ -1549,7 +1550,7 @@ bool CAI::ShootAtClosestBuilding()
 		CBuilding *pBuilding = apEnts[i];
 
 		if (pBuilding->m_Type == BUILDING_TURRET || pBuilding->m_Type == BUILDING_TESLACOIL || pBuilding->m_Type == BUILDING_MINE1 || pBuilding->m_Type == BUILDING_MINE2 ||
-			(str_comp(g_Config.m_SvGametype, "base") == 0 && (pBuilding->m_Type == BUILDING_REACTOR || pBuilding->m_Type == BUILDING_TESLACOIL || pBuilding->m_Type == BUILDING_FLAMETRAP || pBuilding->m_Type == BUILDING_LIGHTNINGWALL || pBuilding->m_Type == BUILDING_LIGHTNINGWALL2)))
+			((str_comp(g_Config.m_SvGametype, "base") == 0 || (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvInvMapStory == INV_MAP_STORY_DEF_REACTOR)) && (pBuilding->m_Type == BUILDING_REACTOR || pBuilding->m_Type == BUILDING_TESLACOIL || pBuilding->m_Type == BUILDING_FLAMETRAP || pBuilding->m_Type == BUILDING_LIGHTNINGWALL || pBuilding->m_Type == BUILDING_LIGHTNINGWALL2)))
 		{
 		
 			if (GameServer()->m_pController->IsTeamplay() && pBuilding->m_Team == Player()->GetTeam())
