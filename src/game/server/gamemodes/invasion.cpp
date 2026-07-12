@@ -2,11 +2,16 @@
 
 #include <game/mapitems.h>
 #include <game/questinfo.h>
+#include <game/weapons.h>
 
 #include <game/server/entities/character.h>
+#include <game/server/entities/building.h>
+#include <game/server/entities/droid.h>
+#include <game/server/entities/droid_bosscrawler.h>
 #include <game/server/entities/radar.h>
 #include <game/server/player.h>
 #include <game/server/gamecontext.h>
+#include <game/server/gameworld.h>
 
 #include "invasion.h"
 
@@ -22,9 +27,13 @@
 #include <game/server/ai/inv/pyro2_ai.h>
 
 static CAI* CreateAIalien1(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { return new CAIalien1(pGameServer, pPlayer, Level); }
-static CAI* CreateAIbunny1(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { return new CAIbunny1(pGameServer, pPlayer, Level); }
 static CAI* CreateAIrobot1(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { return new CAIrobot1(pGameServer, pPlayer, Level); }
 static CAI* CreateAIpyro1(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { return new CAIpyro1(pGameServer, pPlayer, Level); }
+static CAI* CreateAIbunny1(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { return new CAIbunny1(pGameServer, pPlayer, Level); }
+static CAI* CreateAIrobot2(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { (void)Level; return new CAIrobot2(pGameServer, pPlayer); }
+static CAI* CreateAIalien2(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { (void)Level; return new CAIalien2(pGameServer, pPlayer); }
+static CAI* CreateAIbunny2(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { (void)Level; return new CAIbunny2(pGameServer, pPlayer); }
+static CAI* CreateAIpyro2(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { (void)Level; return new CAIpyro2(pGameServer, pPlayer); }
 
 CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer)
 : IGameController(pGameServer)
@@ -48,7 +57,6 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	
 	m_RoundOverTick = 0;
 	m_RoundWinTick = 0;
-	
 	m_RoundWin = false;
 	m_QuestsCompleted = 0;
 	
@@ -59,30 +67,20 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_NextQuest = QUEST_NONE;
 	m_QuestChangeTick = 0;
 	m_QuestProgressCounter = 0;
-	
-	int Level = g_Config.m_SvMapGenLevel;
-	m_LevelQuestsLeft = min(int(Level*0.6f+1), 4);
-	
-	
 	m_QuestWaveType = WAVE_NONE;
+	m_EliteWave = false;
+	m_DefendEndTick = 0;
+	m_SwitchesRequired = 0;
+	m_SwitchesActivated = 0;
+	m_BossesLeft = 0;
+	m_DefendLevel = false;
+	m_SwitchCoopLevel = false;
 	
 	m_TriggerLevel = 0;
 	m_GroupSpawnPos = vec2(0, 0);
-	m_EscapeLevel = (g_Config.m_SvMapGenLevel % 10 == 9);
 	m_EscapeSpawnActive = false;
 
-	if (m_EscapeLevel)
-	{
-		m_LevelQuestsLeft = 0;
-		m_EnemiesLeft = min(8, 3 + Level/3);
-		m_QuestWaveSize = 12;
-		m_QuestWaveEnemiesLeft = 0;
-		m_QuestWaveEndTick = 0;
-		m_Deaths = m_QuestWaveSize;
-		m_EnemyCount = 0;
-	}
-	else
-		SpawnNewWave(false);
+	SetupLevelTheme();
 		
 	m_AutoRestart = false;
 	
@@ -90,7 +88,6 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_SpawnPosRotation = 0;
 	m_TriggerTick = 0;
 	
-	// force some settings
 	g_Config.m_SvRandomWeapons = 0;
 	g_Config.m_SvOneHitKill = 0;
 	g_Config.m_SvWarmup = 0;
@@ -113,6 +110,68 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	
 	m_pDoor = new CRadar(&GameServer()->m_World, RADAR_DOOR);
 	m_pEnemySpawn = new CRadar(&GameServer()->m_World, RADAR_ENEMY);
+}
+
+
+void CGameControllerInvasion::SetupLevelTheme()
+{
+	int Level = g_Config.m_SvMapGenLevel;
+	m_LevelTheme = Level % 10;
+	m_EscapeLevel = (m_LevelTheme == 9);
+	m_DefendLevel = (m_LevelTheme == 4);
+	m_SwitchCoopLevel = (m_LevelTheme == 3);
+	m_EliteWave = (m_LevelTheme == 7);
+	m_SwitchesRequired = m_SwitchCoopLevel ? 2 : (m_EscapeLevel ? 1 : 0);
+	m_SwitchesActivated = 0;
+
+	// Base chain length scales with depth; theme adds signature steps.
+	// Escape stays a single find-switch → climb flow.
+	// Early floors: 3 objectives; mid: 4; deep: 5.
+	const int DepthQuests = min(3 + Level/6, 5);
+
+	switch (m_LevelTheme)
+	{
+	case 0: // clear → wave(s) → boss
+		m_LevelQuestsLeft = max(3, DepthQuests);
+		m_BossesLeft = 1 + Level/25;
+		break;
+	case 3: // clear → wave(s) → switches
+		m_LevelQuestsLeft = max(3, DepthQuests);
+		break;
+	case 4: // clear → defend → clear leftovers
+		m_LevelQuestsLeft = max(3, DepthQuests);
+		break;
+	case 5: // clear → timed → wave(s)
+		m_LevelQuestsLeft = max(3, DepthQuests);
+		break;
+	case 7: // clear → elite wave(s)
+		m_LevelQuestsLeft = max(3, DepthQuests);
+		break;
+	case 9:
+		m_LevelQuestsLeft = 0;
+		break;
+	default: // 1,2,6,8: clear + waves
+		m_LevelQuestsLeft = max(3, DepthQuests);
+		break;
+	}
+
+	if (m_EscapeLevel)
+	{
+		m_EnemiesLeft = min(14, 5 + Level/3);
+		m_QuestWaveSize = 14;
+		m_QuestWaveEnemiesLeft = 0;
+		m_QuestWaveEndTick = 0;
+		m_Deaths = m_QuestWaveSize;
+		m_EnemyCount = 0;
+	}
+	else
+	{
+		// Heavier opening pack so the first clear is not trivial.
+		SpawnNewWave(false);
+		m_EnemiesLeft = min(28, 10 + Level + Level/2);
+		m_QuestWaveSize = min(24, 12 + Level/2);
+		m_Deaths = m_QuestWaveSize;
+	}
 }
 
 
@@ -160,34 +219,15 @@ vec2 CGameControllerInvasion::GetBotSpawnPos()
 		if (!GameServer()->Collision()->TestBox(Pos, vec2(32.0f, 74.0f)))
 			return Pos;
 	}
-	
-	/*
-	if (GameServer()->Collision()->IsTileSolid(Pos.x, Pos.y - 48) && !GameServer()->Collision()->IsTileSolid(Pos.x, Pos.y + 32))
-		Pos.y += 32;
-	else if (!GameServer()->Collision()->IsTileSolid(Pos.x, Pos.y - 48) && GameServer()->Collision()->IsTileSolid(Pos.x, Pos.y + 32))
-		Pos.y -= 32;
-	
-	for (int i = 0; i < 9; i++)
-	{
-		vec2 p = Pos + vec2(0, -32);
-		vec2 p2 = Pos;
-		
-		vec2 r = vec2(frandom()-frandom(), frandom()-frandom())*300;
-		
-		vec2 To = p + r + vec2(0, -32);
-		vec2 To2 = p + r + vec2(0, 0);
-		
-		if (!GameServer()->Collision()->IntersectLine(p, To, 0x0, &To) && !GameServer()->Collision()->IntersectLine(p2, To2, 0x0, &To2))
-			return mix(p2, To2, frandom());
-	}
-	*/
 
 	return m_GroupSpawnPos;
 }
 
 void CGameControllerInvasion::RandomGroupSpawnPos()
 {
-	m_GroupSpawnPos =  m_aEnemySpawnPos[rand()%m_NumEnemySpawnPos];
+	if (!m_NumEnemySpawnPos)
+		return;
+	m_GroupSpawnPos = m_aEnemySpawnPos[rand()%m_NumEnemySpawnPos];
 	m_pEnemySpawn->Activate(m_GroupSpawnPos, Server()->Tick() + Server()->TickSpeed()*5);
 }
 
@@ -197,16 +237,13 @@ bool CGameControllerInvasion::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 {
 	CSpawnEval Eval;
 
-	// spectators can't spawn
 	if(Team == TEAM_SPECTATORS)
 		return false;
 
 	if (IsBot)
 	{
 		if (m_EnemiesLeft <= 0)
-		{
 			return false;
-		}
 		
 		if (m_BotSpawnTick > Server()->Tick())
 			return false;
@@ -229,12 +266,73 @@ bool CGameControllerInvasion::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 }
 
 
+void CGameControllerInvasion::ApplyMetaUnlocks(CCharacter *pChr)
+{
+	if (!pChr || pChr->m_IsBot)
+		return;
+
+	CPlayer *pPlayer = pChr->GetPlayer();
+	if (!pPlayer)
+		return;
+
+	CPlayerData *pData = GameServer()->Server()->GetPlayerData(pPlayer->GetCID(), pPlayer->GetColorID());
+	if (!pData)
+		return;
+
+	if (pData->m_UnlockFlags & UNLOCK_EXTRA_KITS)
+		pChr->m_Kits = max(pChr->m_Kits, 8);
+	if ((pData->m_UnlockFlags & UNLOCK_DEFEND_BONUS) && m_DefendLevel)
+		pChr->m_Kits = max(pChr->m_Kits, 15);
+	if (pData->m_UnlockFlags & UNLOCK_WEAPON_TIER1)
+		pChr->SetArmor(max(pChr->GetArmor(), 5));
+	if (pData->m_UnlockFlags & UNLOCK_WEAPON_TIER2)
+		pChr->SetArmor(max(pChr->GetArmor(), 10));
+}
+
+
+void CGameControllerInvasion::GrantMetaUnlocks()
+{
+	int Level = g_Config.m_SvMapGenLevel;
+	for (int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if (!pPlayer || pPlayer->m_IsBot)
+			continue;
+
+		CPlayerData *pData = GameServer()->Server()->GetPlayerData(i, pPlayer->GetColorID());
+		if (!pData)
+			continue;
+
+		if (Level > pData->m_HighestLevel)
+		{
+			pData->m_HighestLevel = Level;
+			pData->m_HighestLevelSeed = g_Config.m_SvMapGenSeed;
+		}
+
+		if (pData->m_HighestLevel >= 10)
+			pData->m_UnlockFlags |= UNLOCK_EXTRA_KITS;
+		if (pData->m_HighestLevel >= 20)
+			pData->m_UnlockFlags |= UNLOCK_WEAPON_TIER1;
+		if (pData->m_HighestLevel >= 30)
+			pData->m_UnlockFlags |= UNLOCK_DEFEND_BONUS;
+		if (pData->m_HighestLevel >= 40)
+			pData->m_UnlockFlags |= UNLOCK_WEAPON_TIER2;
+	}
+}
+
+
 void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 {
 	IGameController::OnCharacterSpawn(pChr);
+
+	if (!RequestAI)
+	{
+		ApplyMetaUnlocks(pChr);
+		if (m_DefendLevel)
+			pChr->m_Kits = max(pChr->m_Kits, 10);
+		return;
+	}
 	
-	// init AI
-	if (RequestAI)
 	{
 		bool Found = false;
 		
@@ -255,22 +353,35 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 						
 			GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, false, 1+rand()%(max(1, 1+g_Config.m_SvMapGenLevel/4-m_QuestWaveType*3)), m_QuestWaveType);
 			pChr->GetPlayer()->SetAISkin();
-			//pChr->GetPlayer()->m_pAI = new CAIbase(GameServer(), pChr->GetPlayer());
 			pChr->m_IsBot = true;
 		
 			typedef CAI* (*AIFactory)(CGameContext*, CPlayer*, int);
+			// Aligned with WaveTypes in questinfo.h
 			static const AIFactory s_aAIFactories[] = {
 			    nullptr,             // WAVE_NONE (0)
 			    CreateAIalien1,      // WAVE_ALIENS (1)
-			    CreateAIbunny1,      // WAVE_FURRIES (2)
-			    CreateAIrobot1,      // WAVE_CYBORGS (3)
-			    CreateAIrobot1,      // WAVE_ROBOTS (4)
-			    CreateAIpyro1,       // WAVE_SKELETONS (5)
+			    CreateAIrobot1,      // WAVE_ROBOTS (2)
+			    CreateAIpyro1,       // WAVE_SKELETONS (3)
+			    CreateAIbunny1,      // WAVE_FURRIES (4)
+			    CreateAIrobot2,      // WAVE_CYBORGS (5)
+			};
+			static const AIFactory s_aEliteFactories[] = {
+			    nullptr,
+			    CreateAIalien2,
+			    CreateAIrobot2,
+			    CreateAIpyro2,
+			    CreateAIbunny2,
+			    CreateAIrobot2,
 			};
 			static const int s_NumFactories = sizeof(s_aAIFactories) / sizeof(s_aAIFactories[0]);
 
-			if (m_QuestWaveType >= 0 && m_QuestWaveType < s_NumFactories && s_aAIFactories[m_QuestWaveType])
-			    pChr->GetPlayer()->m_pAI = s_aAIFactories[m_QuestWaveType](GameServer(), pChr->GetPlayer(), Level);
+			bool UseElite = m_EliteWave && frandom() < 0.45f;
+			AIFactory Factory = 0;
+			if (m_QuestWaveType >= 0 && m_QuestWaveType < s_NumFactories)
+				Factory = UseElite ? s_aEliteFactories[m_QuestWaveType] : s_aAIFactories[m_QuestWaveType];
+
+			if (Factory)
+			    pChr->GetPlayer()->m_pAI = Factory(GameServer(), pChr->GetPlayer(), Level);
 			else 
 			    pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), Level);
 			
@@ -307,31 +418,33 @@ void CGameControllerInvasion::Trigger(bool IncreaseLevel)
 void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 {
 	int Level = g_Config.m_SvMapGenLevel;
+	const int Players = max(1, CountPlayers(0));
 	
-	//m_QuestWaveType = WAVE_ALIENS;
 	m_QuestWaveType = rand()%(min(NUM_WAVES-1, Level/5+1))+1;
+	if (m_LevelTheme == 7 && m_QuestWaveType < WAVE_CYBORGS && frandom() < 0.45f)
+		m_QuestWaveType = WAVE_CYBORGS;
 	
-	if (m_Quest == QUEST_SURVIVEWAVETIME)
+	if (m_Quest == QUEST_SURVIVEWAVETIME || (m_Quest == QUEST_NONE && m_LevelTheme == 5))
 	{
-		m_QuestWaveEndTick = Server()->Tick() + Server()->TickSpeed() * 45;
+		// Longer timed pressure.
+		m_QuestWaveEndTick = Server()->Tick() + Server()->TickSpeed() * (70 + min(35, Level));
 		m_QuestWaveEnemiesLeft = 9999;
-		m_QuestWaveSize = min(6 + Level + GameServer()->m_pController->CountPlayers(0), 32);
+		m_QuestWaveSize = min(12 + Level + Players*2, 40);
 		m_EnemiesLeft = m_QuestWaveEnemiesLeft;
 	}
-	else if (m_Quest == QUEST_SURVIVEWAVE)
+	else if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_DEFEND)
 	{
 		m_QuestWaveEndTick = 0;
-		m_QuestWaveEnemiesLeft = min(int(8+Level*2), 60)*(1.0f + (GameServer()->m_pController->CountPlayers(0)-1)*0.2f);
-		m_QuestWaveSize = min(6 + Level + GameServer()->m_pController->CountPlayers(0), 32);
+		m_QuestWaveEnemiesLeft = min(int(16+Level*3), 100)*(1.0f + (Players-1)*0.25f);
+		m_QuestWaveSize = min(12 + Level + Players*2, 40);
 		m_EnemiesLeft = m_QuestWaveEnemiesLeft;
 	}
-	// initial enemies on map load
 	else
 	{
 		m_QuestWaveEndTick = 0;
 		m_QuestWaveEnemiesLeft = 0;
-		m_QuestWaveSize = 32;
-		m_EnemiesLeft = min(20, 7 + Level);
+		m_QuestWaveSize = min(24, 12 + Level/2);
+		m_EnemiesLeft = min(28, 10 + Level + Level/2);
 	}
 	
 	m_EnemyCount = 0;
@@ -340,7 +453,7 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	{
 		RandomGroupSpawnPos();
 		
-		for (int i = 0; i < m_EnemiesLeft && GameServer()->m_pController->CountBots() < m_QuestWaveSize; i++)
+		for (int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
 			GameServer()->AddBot();
 	}
 	
@@ -354,13 +467,66 @@ void CGameControllerInvasion::DisplayExit(vec2 Pos)
 }
 
 
+void CGameControllerInvasion::SpawnBosses(int Count)
+{
+	for (int i = 0; i < Count; i++)
+	{
+		vec2 p;
+		if (!GetSpawnPos(0, &p))
+			p = vec2(4000, 4000);
+		new CBossCrawler(&GameServer()->m_World, p+vec2(0, -100));
+	}
+	m_BossesLeft = Count;
+}
+
+
+int CGameControllerInvasion::CountBossesAlive() const
+{
+	CDroid *apEnts[64];
+	int Num = GameServer()->m_World.FindEntities(vec2(0, 0), 0.0f, (CEntity**)apEnts, 64, CGameWorld::ENTTYPE_DROID);
+	int Bosses = 0;
+	for (int i = 0; i < Num; i++)
+	{
+		if (apEnts[i] && apEnts[i]->m_Type == DROIDTYPE_BOSSCRAWLER && apEnts[i]->m_Health > 0)
+			Bosses++;
+	}
+	return Bosses;
+}
+
+
+int CGameControllerInvasion::CountBuildingsOfType(int Type) const
+{
+	CBuilding *apEnts[256];
+	int Num = GameServer()->m_World.FindEntities(vec2(0, 0), 0.0f, (CEntity**)apEnts, 256, CGameWorld::ENTTYPE_BUILDING);
+	int Count = 0;
+	for (int i = 0; i < Num; i++)
+	{
+		if (apEnts[i] && apEnts[i]->m_Type == Type)
+			Count++;
+	}
+	return Count;
+}
+
+
+int CGameControllerInvasion::ReactorsLeft() const
+{
+	return CountBuildingsOfType(BUILDING_REACTOR);
+}
+
+
+int CGameControllerInvasion::SwitchesAvailable() const
+{
+	return CountBuildingsOfType(BUILDING_SWITCH);
+}
+
+
 int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
 
 	if (pVictim->m_IsBot && !pVictim->GetPlayer()->m_ToBeKicked)
 	{
-		if (m_EnemiesLeft <= 0 || m_EscapeSpawnActive)
+		if (m_EnemiesLeft <= 0 || m_EscapeSpawnActive || m_DefendLevel)
 			pVictim->GetPlayer()->m_ToBeKicked = true;
 		
 		if (pKiller)
@@ -387,7 +553,6 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 
 void CGameControllerInvasion::NextLevel(int CID)
 {
-	//
 	if (!m_RoundWin)
 	{
 		m_RoundWin = true;
@@ -419,6 +584,8 @@ void CGameControllerInvasion::SendQuestStartMessage(int Quest)
 {
 	if (m_EscapeLevel && Quest == QUEST_REACHDOOR)
 		GameServer()->SendBroadcast("Rising acid! Reach the exit", -1);
+	else if (m_DefendLevel && Quest == QUEST_DEFEND)
+		GameServer()->SendBroadcast("Defend the reactor", -1);
 	else
 		GameServer()->SendBroadcast(GetQuestStartMessage(Quest, m_QuestWaveType), -1);
 }
@@ -439,30 +606,138 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 }
 
 
+void CGameControllerInvasion::StartThemeQuest()
+{
+	// Always open with a clear so the floor pack matters.
+	ChangeQuest(QUEST_KILLREMAININGENEMIES, 5.0f);
+}
+
+
+void CGameControllerInvasion::QueueNextObjectiveQuest()
+{
+	// Signature / filler after the opening clear. Door is handled separately.
+	// Only queue feature quests when the map actually has the required props.
+	const int Done = m_QuestsCompleted;
+	const int LastSlot = max(1, m_LevelQuestsLeft - 1);
+	int Next = QUEST_SURVIVEWAVE;
+
+	switch (m_LevelTheme)
+	{
+	case 0:
+		if (Done >= LastSlot)
+			Next = QUEST_KILL_BOSS;
+		else
+			Next = QUEST_SURVIVEWAVE;
+		break;
+	case 3:
+		if (Done >= LastSlot)
+		{
+			const int Switches = SwitchesAvailable();
+			if (Switches > 0)
+			{
+				m_SwitchesRequired = min(2, Switches);
+				m_SwitchCoopLevel = true;
+				Next = QUEST_ACTIVATE_SWITCHES;
+			}
+			else
+			{
+				dbg_msg("inv", "theme3: no switches on map, skip switch quest");
+				m_SwitchCoopLevel = false;
+				m_SwitchesRequired = 0;
+				Next = QUEST_SURVIVEWAVE;
+			}
+		}
+		else
+			Next = QUEST_SURVIVEWAVE;
+		break;
+	case 4:
+		if (Done == 1)
+		{
+			if (ReactorsLeft() > 0)
+				Next = QUEST_DEFEND;
+			else
+			{
+				dbg_msg("inv", "theme4: no reactor on map, skip defend quest");
+				Next = QUEST_SURVIVEWAVE;
+			}
+		}
+		else
+			Next = QUEST_KILLREMAININGENEMIES;
+		break;
+	case 5:
+		if (Done == 1)
+			Next = QUEST_SURVIVEWAVETIME;
+		else
+			Next = QUEST_SURVIVEWAVE;
+		break;
+	case 7:
+		Next = QUEST_SURVIVEWAVE; // elite mix applied in spawn
+		break;
+	default:
+		if (Done == 1 && frandom() < 0.35f)
+			Next = QUEST_SURVIVEWAVETIME;
+		else
+			Next = QUEST_SURVIVEWAVE;
+		break;
+	}
+
+	ChangeQuest(Next, 5.0f);
+}
+
+
 void CGameControllerInvasion::OnSwitchTriggered()
 {
-	IGameController::OnSwitchTriggered();
+	m_SwitchesActivated++;
 
-	if (!m_EscapeLevel)
-		return;
-
-	m_EscapeSpawnActive = true;
-	m_EnemiesLeft = 9999;
-	m_QuestWaveSize = min(8 + g_Config.m_SvMapGenLevel/2 + CountPlayers(0), 28);
-	m_BotSpawnTick = Server()->Tick();
-
-	if (m_Quest == QUEST_FIND_SWITCH || m_NextQuest == QUEST_FIND_SWITCH)
+	if (m_SwitchCoopLevel)
 	{
-		m_QuestChangeTick = 0;
-		m_NextQuest = QUEST_NONE;
-		if (m_Quest == QUEST_FIND_SWITCH)
-			CompleteCurrentQuest();
-		else
-			m_Quest = QUEST_NONE;
-		ChangeQuest(QUEST_REACHDOOR, 0.5f);
+		m_QuestProgressCounter = max(0, m_SwitchesRequired - m_SwitchesActivated);
+		if (m_SwitchesActivated < m_SwitchesRequired)
+		{
+			GameServer()->SendBroadcastFormat(-1, false, "Switch %d/%d activated", m_SwitchesActivated, m_SwitchesRequired);
+			return;
+		}
+
+		if (m_Quest == QUEST_ACTIVATE_SWITCHES || m_NextQuest == QUEST_ACTIVATE_SWITCHES)
+		{
+			m_QuestChangeTick = 0;
+			m_NextQuest = QUEST_NONE;
+			if (m_Quest == QUEST_ACTIVATE_SWITCHES)
+				CompleteCurrentQuest();
+			else
+				m_Quest = QUEST_NONE;
+		}
+		// Door opens only when REACHDOOR starts after remaining objectives.
+		return;
 	}
-	else if (m_Quest != QUEST_REACHDOOR && m_NextQuest != QUEST_REACHDOOR)
-		ChangeQuest(QUEST_REACHDOOR, 0.5f);
+
+	if (m_EscapeLevel)
+	{
+		BeginRisingAcid(50);
+		m_EscapeSpawnActive = true;
+		m_EnemiesLeft = 9999;
+		m_QuestWaveSize = min(8 + g_Config.m_SvMapGenLevel/2 + CountPlayers(0), 28);
+		m_BotSpawnTick = Server()->Tick();
+
+		if (m_Quest == QUEST_FIND_SWITCH || m_NextQuest == QUEST_FIND_SWITCH)
+		{
+			m_QuestChangeTick = 0;
+			m_NextQuest = QUEST_NONE;
+			if (m_Quest == QUEST_FIND_SWITCH)
+				CompleteCurrentQuest();
+			else
+				m_Quest = QUEST_NONE;
+			ChangeQuest(QUEST_REACHDOOR, 0.5f);
+		}
+		else if (m_Quest != QUEST_REACHDOOR && m_NextQuest != QUEST_REACHDOOR)
+			ChangeQuest(QUEST_REACHDOOR, 0.5f);
+
+		TriggerEscape();
+		return;
+	}
+
+	// Default: open door
+	TriggerEscape();
 }
 
 
@@ -475,7 +750,6 @@ void CGameControllerInvasion::Tick()
 	
 	if (m_GameState == STATE_GAME)
 	{
-		// change quest on time
 		if (m_QuestChangeTick && m_QuestChangeTick <= Server()->Tick())
 		{
 			m_Quest = m_NextQuest;
@@ -483,14 +757,70 @@ void CGameControllerInvasion::Tick()
 			m_QuestChangeTick = 0;
 			m_QuestProgressCounter = 0;
 			
-			// Escape levels open the door via the switch, not the quest start.
-			if (m_Quest == QUEST_REACHDOOR && !m_EscapeLevel)
+			if (m_Quest == QUEST_REACHDOOR && !m_EscapeLevel && !m_SwitchCoopLevel)
 				TriggerEscape();
+			else if (m_Quest == QUEST_REACHDOOR && m_SwitchCoopLevel)
+			{
+				// Open if switches done, or map had no usable switches (avoid softlock).
+				if (m_SwitchesActivated >= m_SwitchesRequired || SwitchesAvailable() <= 0 || m_SwitchesRequired <= 0)
+					TriggerEscape();
+			}
 			
 			if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
 				SpawnNewWave();
+			else if (m_Quest == QUEST_DEFEND && ReactorsLeft() > 0)
+				SpawnNewWave();
+
+			if (m_Quest == QUEST_KILL_BOSS)
+			{
+				SpawnBosses(max(1, m_BossesLeft));
+				m_EnemiesLeft = min(24, 10 + g_Config.m_SvMapGenLevel/2);
+				m_QuestWaveSize = min(28, 16 + g_Config.m_SvMapGenLevel/3);
+				RandomGroupSpawnPos();
+				for (int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
+					GameServer()->AddBot();
+			}
+
+			if (m_Quest == QUEST_DEFEND)
+			{
+				if (!ReactorsLeft())
+				{
+					dbg_msg("inv", "defend started with no reactor, auto-complete");
+					CompleteCurrentQuest();
+				}
+				else
+					m_DefendEndTick = Server()->Tick() + Server()->TickSpeed() * (75 + g_Config.m_SvMapGenLevel*2);
+			}
+
+			if (m_Quest == QUEST_ACTIVATE_SWITCHES)
+			{
+				const int Switches = SwitchesAvailable();
+				if (Switches <= 0)
+				{
+					dbg_msg("inv", "switch quest started with no switches, auto-complete");
+					m_SwitchCoopLevel = false;
+					m_SwitchesRequired = 0;
+					CompleteCurrentQuest();
+				}
+				else
+				{
+					m_SwitchesRequired = min(max(1, m_SwitchesRequired), Switches);
+					m_QuestProgressCounter = max(0, m_SwitchesRequired - m_SwitchesActivated);
+				}
+			}
+
+			if (m_Quest == QUEST_FIND_SWITCH && SwitchesAvailable() <= 0)
+			{
+				dbg_msg("inv", "escape switch missing, force acid climb");
+				BeginRisingAcid(50);
+				m_EscapeSpawnActive = true;
+				CompleteCurrentQuest();
+				ChangeQuest(QUEST_REACHDOOR, 0.5f);
+				TriggerEscape();
+			}
 			
-			SendQuestStartMessage(m_Quest);
+			if (m_Quest != QUEST_NONE)
+				SendQuestStartMessage(m_Quest);
 		}
 		
 		
@@ -503,17 +833,12 @@ void CGameControllerInvasion::Tick()
 				else
 					ChangeQuest(QUEST_REACHDOOR, 1.0f);
 			}
-			else if (m_LevelQuestsLeft <= 0)
-				ChangeQuest(QUEST_REACHDOOR, 6.0f);
+			else if (m_QuestsCompleted >= m_LevelQuestsLeft)
+				ChangeQuest(QUEST_REACHDOOR, 5.0f);
 			else if (m_QuestsCompleted == 0)
-				ChangeQuest(QUEST_KILLREMAININGENEMIES, 6.0f);
-			else if (g_Config.m_SvMapGenLevel > 5 && frandom() < 0.2f)
-				ChangeQuest(QUEST_SURVIVEWAVETIME, 6.0f);
+				StartThemeQuest();
 			else
-				ChangeQuest(QUEST_SURVIVEWAVE, 6.0f);
-			
-			if (!m_EscapeLevel)
-				m_LevelQuestsLeft--;
+				QueueNextObjectiveQuest();
 		}
 		
 		if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
@@ -521,29 +846,70 @@ void CGameControllerInvasion::Tick()
 			if (m_Quest == QUEST_SURVIVEWAVETIME)
 				m_QuestProgressCounter = int((m_QuestWaveEndTick - Server()->Tick()) / Server()->TickSpeed());
 			else
-				m_QuestProgressCounter = m_EnemiesLeft + GameServer()->m_pController->CountBotsAlive();
+				m_QuestProgressCounter = m_EnemiesLeft + CountBotsAlive();
 			
-			// wave quest completed
-			if ((m_QuestWaveEndTick && m_QuestWaveEndTick <= Server()->Tick()) || (m_EnemiesLeft <= 0 && GameServer()->m_pController->CountBotsAlive() <= 0))
+			if ((m_QuestWaveEndTick && m_QuestWaveEndTick <= Server()->Tick()) || (m_EnemiesLeft <= 0 && CountBotsAlive() <= 0))
 			{
 				m_EnemiesLeft = 0;
 				m_QuestWaveEndTick = 0;
 				int CompletedQuest = m_Quest;
 				CompleteCurrentQuest();
 				
-				if (CompletedQuest == QUEST_SURVIVEWAVETIME && GameServer()->m_pController->CountBotsAlive() > 8)
+				if (CompletedQuest == QUEST_SURVIVEWAVETIME && CountBotsAlive() > 8)
 					ChangeQuest(QUEST_KILLREMAININGENEMIES, 5.0f);
 			}
 		}
 		
 		if (m_Quest == QUEST_KILLREMAININGENEMIES)
 		{
-			m_QuestProgressCounter = GameServer()->m_pController->CountBotsAlive();
-			
-			// quest completed
+			m_QuestProgressCounter = CountBotsAlive();
 			if (m_QuestProgressCounter <= 0)
 				CompleteCurrentQuest();
 		}
+
+		if (m_Quest == QUEST_KILL_BOSS)
+		{
+			m_BossesLeft = CountBossesAlive();
+			m_QuestProgressCounter = m_BossesLeft;
+			if (m_BossesLeft <= 0)
+			{
+				m_EnemiesLeft = 0;
+				CompleteCurrentQuest();
+			}
+		}
+
+		if (m_Quest == QUEST_DEFEND)
+		{
+			m_QuestProgressCounter = max(0, (m_DefendEndTick - Server()->Tick()) / Server()->TickSpeed());
+
+			if (!ReactorsLeft())
+			{
+				GameServer()->SendBroadcast("Reactor destroyed", -1);
+				DeathMessage();
+				m_RoundOverTick = Server()->Tick();
+				m_Quest = QUEST_NONE;
+			}
+			else if (m_DefendEndTick && m_DefendEndTick <= Server()->Tick())
+			{
+				m_EnemiesLeft = 0;
+				CompleteCurrentQuest();
+			}
+			else if (m_BotSpawnTick < Server()->Tick())
+			{
+				m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.28f, 0.85f - g_Config.m_SvMapGenLevel*0.012f);
+				if (CountBots() < m_QuestWaveSize)
+				{
+					RandomGroupSpawnPos();
+					GameServer()->AddBot();
+				}
+			}
+		}
+
+		if (m_Quest == QUEST_ACTIVATE_SWITCHES)
+			m_QuestProgressCounter = max(0, m_SwitchesRequired - m_SwitchesActivated);
+
+		if (m_Quest == QUEST_FIND_SWITCH)
+			m_QuestProgressCounter = max(0, 1 - m_SwitchesActivated);
 
 		// After the switch: keep refreshing enemies until players reach the door.
 		if (m_EscapeSpawnActive && m_Quest == QUEST_REACHDOOR && !m_RoundWin)
@@ -562,23 +928,21 @@ void CGameControllerInvasion::Tick()
 		}
 	}
 			
-	// 
 	if (m_GameState == STATE_STARTING)
 	{
-		if (GameServer()->m_pController->CountPlayers(0) > 0)
+		if (CountPlayers(0) > 0)
 		{
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "start round, enemies: '%u'", m_Deaths);
+			str_format(aBuf, sizeof(aBuf), "start round theme=%d enemies='%u'", m_LevelTheme, m_Deaths);
 			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "inv", aBuf);
 			
 			m_TriggerTick = 0;
 			m_AutoRestart = true;
 			
 			m_GameState = STATE_GAME;
-			for (int i = 0; i < m_EnemiesLeft && GameServer()->m_pController->CountBots() < 32; i++)
+			for (int i = 0; i < m_EnemiesLeft && CountBots() < 32; i++)
 				GameServer()->AddBot();
 		}
-		// reset to first map if there's no players for 60 seconds
 		else if ((m_AutoRestart || g_Config.m_SvMapGenLevel > 1) && Server()->Tick() > Server()->TickSpeed()*60.0f)
 		{
 			m_AutoRestart = false;
@@ -594,7 +958,6 @@ void CGameControllerInvasion::Tick()
 		if (g_Config.m_SvMapGenLevel > 1)
 			m_AutoRestart = true;
 			
-		// lose => restart
 		if (m_RoundOverTick && m_RoundOverTick < Server()->Tick() - Server()->TickSpeed()*2.0f)
 		{
 			if (++g_Config.m_SvInvFails >= 3)
@@ -605,18 +968,6 @@ void CGameControllerInvasion::Tick()
 					g_Config.m_SvMapGenLevel = 1;
 				
 				g_Config.m_SvMapGenSeed = rand()%32767;
-			
-			
-				/*
-				g_Config.m_SvInvFails = 0;
-				
-				//if (--g_Config.m_SvMapGenLevel < 1)
-				//	g_Config.m_SvMapGenLevel = 1;
-				
-				int l = g_Config.m_SvMapGenLevel;
-				FirstMap();
-				g_Config.m_SvMapGenLevel = l;
-				*/
 				g_Config.m_SvInvFails = 0;
 				m_GameState = STATE_FAIL;
 				EndRound();
@@ -634,7 +985,6 @@ void CGameControllerInvasion::Tick()
 		m_TriggerTick = Server()->Tick() + Server()->TickSpeed()*4;
 	}
 	
-	// kick unwanted bots
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
@@ -653,6 +1003,8 @@ void CGameControllerInvasion::Tick()
 			m_RoundWinTick = 0;
 			g_Config.m_SvMapGenLevel++;
 			g_Config.m_SvInvFails = 0;
+
+			GrantMetaUnlocks();
 			
 			for (int i = 0; i < MAX_CLIENTS; i++)
 			{
@@ -675,7 +1027,6 @@ void CGameControllerInvasion::Snap(int SnappingClient)
 	if(!pGameDataObj)
 		return;
 
-	// send quest data as team score
 	pGameDataObj->m_TeamscoreRed = m_Quest;
 	pGameDataObj->m_TeamscoreBlue = m_QuestProgressCounter;
 }

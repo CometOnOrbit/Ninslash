@@ -514,17 +514,8 @@ void CMapGen::GenerateHangables(CGenLayer *pTiles)
 
 void CMapGen::GenerateMine(CGenLayer *pTiles)
 {
-	/*
-	ivec2 p = pTiles->GetPlatform();
-	
-	if (p.x == 0)
-		return;
-	
-	if (frandom() < 0.5f)
-		ModifTile(p+ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_MINE1);
-	else
-		ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_MINE2);
-	*/
+	// Mines were removed from the entity set; place firetraps instead.
+	GenerateFiretrap(pTiles);
 }
 
 void CMapGen::GenerateWalker(CGenLayer *pTiles)
@@ -576,50 +567,86 @@ void CMapGen::GenerateCrawlerDroid(CGenLayer *pTiles)
 	pTiles->Use(p.x, p.y);
 }
 
-void CMapGen::GenerateSwitch(CGenLayer *pTiles)
+static ivec2 FindStandableFallback(CGenLayer *pTiles, bool PreferBottom)
 {
 	ivec2 p = ivec2(0, 0);
+	const int w = pTiles->Width();
+	const int h = pTiles->Height();
+	const int yStart = PreferBottom ? h-4 : 4;
+	const int yEnd = PreferBottom ? 3 : h-4;
+	const int yStep = PreferBottom ? -1 : 1;
+
+	for (int y = yStart; (PreferBottom ? y > yEnd : y < yEnd) && p.x == 0; y += yStep)
+		for (int x = 3; x < w-3; x++)
+		{
+			if (!pTiles->Get(x, y) && !pTiles->Used(x, y) &&
+				pTiles->Get(x, y+1) && pTiles->Get(x-1, y+1) && pTiles->Get(x+1, y+1) &&
+				!pTiles->Get(x, y-1) && !pTiles->Get(x, y-2))
+			{
+				p = ivec2(x, y);
+				break;
+			}
+		}
+	return p;
+}
+
+bool CMapGen::GenerateSwitch(CGenLayer *pTiles)
+{
+	ivec2 p = ivec2(0, 0);
+	const int Theme = g_Config.m_SvMapGenLevel % 10;
 	
-	if (g_Config.m_SvMapGenLevel%10 == 9)
+	if (Theme == 9)
 		p = pTiles->GetBotPlatform();
 	else
 		p = pTiles->GetPlatform();
 
-	// fallback so escape levels always get a usable switch
 	if (p.x == 0)
 		p = pTiles->GetPlatform();
 	if (p.x == 0)
 		p = pTiles->GetLeftPlatform();
 	if (p.x == 0)
 		p = pTiles->GetMedPlatform();
+	if (p.x == 0)
+		p = pTiles->GetBotPlatform();
 
-	// last resort for escape towers: scan bottom-up for any standable tile
-	if (p.x == 0 && g_Config.m_SvMapGenLevel%10 == 9)
-	{
-		const int w = pTiles->Width();
-		const int h = pTiles->Height();
-		for (int y = h-4; y > 3 && p.x == 0; y--)
-			for (int x = 3; x < w-3; x++)
-			{
-				if (!pTiles->Get(x, y) && !pTiles->Used(x, y) &&
-					pTiles->Get(x, y+1) && pTiles->Get(x-1, y+1) && pTiles->Get(x+1, y+1) &&
-					!pTiles->Get(x, y-1) && !pTiles->Get(x, y-2))
-				{
-					p = ivec2(x, y);
-					break;
-				}
-			}
-	}
+	// last resort: scan for any standable tile (escape prefers bottom)
+	if (p.x == 0)
+		p = FindStandableFallback(pTiles, Theme == 9);
 	
 	if (p.x == 0)
 	{
 		dbg_msg("mapgen", "GenerateSwitch failed: no platform found");
-		return;
+		return false;
 	}
 	
 	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SWITCH);
 	pTiles->Use(p.x, p.y);
 	dbg_msg("mapgen", "switch placed at %d,%d", p.x, p.y);
+	return true;
+}
+
+bool CMapGen::GenerateReactor(CGenLayer *pTiles)
+{
+	ivec2 p = pTiles->GetMedPlatform();
+	if (p.x == 0)
+		p = pTiles->GetPlatform();
+	if (p.x == 0)
+		p = pTiles->GetLeftPlatform();
+	if (p.x == 0)
+		p = pTiles->GetBotPlatform();
+	if (p.x == 0)
+		p = FindStandableFallback(pTiles, false);
+
+	if (p.x == 0)
+	{
+		dbg_msg("mapgen", "GenerateReactor failed: no platform found");
+		return false;
+	}
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_REACTOR);
+	pTiles->Use(p.x, p.y);
+	dbg_msg("mapgen", "reactor placed at %d,%d", p.x, p.y);
+	return true;
 }
 
 void CMapGen::GenerateTurretStand(CGenLayer *pTiles)
@@ -1140,12 +1167,32 @@ void CMapGen::GenerateLevel()
 		ModifTile(p+ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
 	}
 
-	// Escape switch must be placed before other generators consume platforms.
-	if (Level%10 == 9)
-		GenerateSwitch(pTiles);
+	// Theme switches / reactors must be placed before other generators consume platforms.
+	const int Theme = Level % 10;
+	if (Theme == 9)
+	{
+		if (!GenerateSwitch(pTiles))
+			GenerateSwitch(pTiles);
+	}
+	else if (Theme == 3)
+	{
+		int Placed = 0;
+		for (int i = 0; i < 8 && Placed < 2; i++)
+		{
+			if (GenerateSwitch(pTiles))
+				Placed++;
+		}
+		if (Placed < 2)
+			dbg_msg("mapgen", "theme3: only placed %d/2 switches", Placed);
+	}
+	else if (Theme == 4)
+	{
+		if (!GenerateReactor(pTiles))
+			GenerateReactor(pTiles);
+	}
 	
 	// acid pools (fewer on escape towers so the climb stays readable)
-	int AcidPools = (Level%10 == 9) ? 1 + Level/20 : 2 + Level/2;
+	int AcidPools = (Theme == 9) ? 1 + Level/20 : 2 + Level/2;
 	for (int i = 0; i < AcidPools; i++)
 		GenerateAcid(pTiles);
 
@@ -1203,11 +1250,19 @@ void CMapGen::GenerateLevel()
 		for (int i = 0; i < min(15, 1+Level/4); i++)
 			GenerateCrawlerDroid(pTiles);
 	
-	if (Level%20 == 0)
+	if (Level%10 == 0 || Level%20 == 0)
 		GenerateBossCrawlerDroid(pTiles);
 	else if (Level > 20)
 		for (int i = 0; i < min(3, Level/5-3); i++)
 			GenerateBossCrawlerDroid(pTiles);
+
+	// trap theme: sprinkle mines
+	if (Level%10 == 6)
+	{
+		int Mines = 4 + Level/5;
+		for (int i = 0; i < Mines; i++)
+			GenerateMine(pTiles);
+	}
 	
 	
 	// lightning walls
@@ -1218,24 +1273,11 @@ void CMapGen::GenerateLevel()
 			GenerateLightningWall(pTiles);
 	}
 	
-	/*
-	bool Defend = (Level > 1 && Level%5 == 0);
-	int e = 2 + log(float(1 + Level/4)) * 5;
-
-	if (Defend)
-		e *= 2;
-	
-	if (Defend)
 	{
-		int t = rand()%(e/3+3)+3;
-		
-		for (int i = 0; i < t; i++)
-			GenerateTurretStand(pTiles);
-	}
-	*/
-	
-	{
-		for (int i = 0; i < 3+Level/5; i++)
+		int TurretStands = 3+Level/5;
+		if (Level%10 == 4)
+			TurretStands = 6 + Level/3;
+		for (int i = 0; i < TurretStands; i++)
 			GenerateTurretStand(pTiles);
 	}
 	
@@ -1255,7 +1297,7 @@ void CMapGen::GenerateLevel()
 	if (Level > 3) GenerateWeapon(pTiles, ENTITY_KIT);
 	if (Level > 8) GenerateWeapon(pTiles, ENTITY_KIT);
 	
-	if (Level%5 == 4 || Level%7 == 6 || Level%11 == 9)
+	if (Level%10 == 4 || Level%5 == 4 || Level%7 == 6 || Level%11 == 9)
 	{
 		for (int i = 0; i < 2 + (0.3f + frandom())*min(10.0f, Level * 0.8f); i++)
 			GenerateTurret(pTiles);

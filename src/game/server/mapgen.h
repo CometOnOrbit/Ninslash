@@ -30,7 +30,8 @@ class CMapGen
 	void GenerateShop(class CGenLayer *pTiles);
 	void GenerateScreen(class CGenLayer *pTiles);
 	void GeneratePowerupper(class CGenLayer *pTiles);
-	void GenerateSwitch(class CGenLayer *pTiles);
+	bool GenerateSwitch(class CGenLayer *pTiles);
+	bool GenerateReactor(class CGenLayer *pTiles);
 	void GenerateTurretStand(class CGenLayer *pTiles);
 	void GenerateTurret(class CGenLayer *pTiles);
 	void GenerateTeslacoil(class CGenLayer *pTiles);

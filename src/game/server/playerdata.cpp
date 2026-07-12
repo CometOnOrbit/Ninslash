@@ -148,6 +148,7 @@ void CPlayerData::Reset()
 	m_Gold = 0;
 	m_HighestLevel = 0;
 	m_HighestLevelSeed = 0;
+	m_UnlockFlags = 0;
 }
 
 void CPlayerData::LoadDataFromFile()
@@ -182,6 +183,7 @@ void CPlayerData::LoadDataFromFile()
 			else if(ParseIntField(pLine, "Gold: ", &m_Gold)) {}
 			else if(ParseIntField(pLine, "HighestLevelSeed: ", &m_HighestLevelSeed)) {}
 			else if(ParseIntField(pLine, "HighestLevel: ", &m_HighestLevel)) {}
+			else if(ParseIntField(pLine, "UnlockFlags: ", &m_UnlockFlags)) {}
 		}
 	}
 
@@ -239,4 +241,6 @@ void CPlayerData::SaveToFile()
 	Writer.Write("\nHighestLevel: "); WRITE_LINE_INT(Writer, m_HighestLevel);
 
 	Writer.Write("\nHighestLevelSeed: "); WRITE_LINE_INT(Writer, m_HighestLevelSeed);
+
+	Writer.Write("\nUnlockFlags: "); WRITE_LINE_INT(Writer, m_UnlockFlags);
 }

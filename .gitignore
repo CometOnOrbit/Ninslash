@@ -12,7 +12,6 @@ other/icons/*.res
 /SDL.dll
 /freetype.dll
 
-/data
 /crapnet*
 /dilate*
 /fake_server*

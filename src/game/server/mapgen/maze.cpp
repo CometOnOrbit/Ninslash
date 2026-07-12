@@ -43,9 +43,10 @@ void CMaze::Generate()
 	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
 	{
 		int Level = g_Config.m_SvMapGenLevel;
+		const int Theme = Level % 10;
 
 		// Level 9/19/29...: vertical rising-acid escape tower
-		if (Level%10 == 9)
+		if (Theme == 9)
 		{
 			const int Floors = 7 + min(5, Level/15);
 			const float yTop = 0.12f; // door / exit (up)
@@ -90,7 +91,90 @@ void CMaze::Generate()
 			return;
 		}
 
-		// default coop layout (non-escape levels)
+		// Boss ring layout
+		if (Theme == 0)
+		{
+			int r = min(20, Level/3);
+			float s = 0.12f+frandom()*0.15f;
+			float sy = 0.4f+frandom()*0.15f;
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f+s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f+s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f-s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f-s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f));
+			for (int i = 0; i < m_Rooms - 1; i++)
+				Connect(m_aRoom[i], m_aRoom[i+1]);
+			for (int i = 0; i < r; i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
+		// Dual-switch branch layout
+		if (Theme == 3)
+		{
+			int r = min(20, Level/3);
+			float s = 0.11f+frandom()*0.15f;
+			float sy = 0.4f+frandom()*0.15f;
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f-s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f-s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f+s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s*2), m_H*(0.5f+s*sy));
+			for (int i = 0; i < m_Rooms - 1; i++)
+				Connect(m_aRoom[i], m_aRoom[i+1]);
+			for (int i = 0; i < r; i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
+		// Trap / W layout
+		if (Theme == 6)
+		{
+			int r = min(14, Level/3);
+			float s = 0.12f+frandom()*0.15f;
+			float sy = 0.4f+frandom()*0.15f;
+			Connect(vec2(m_W*(0.3f-s), m_H*(0.5f+s*sy)), vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy)));
+			Connect(vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy)), vec2(m_W*(0.5f+s), m_H*(0.5f)));
+			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f)), vec2(m_W*(0.5f+s), m_H*(0.5f)));
+			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f)), vec2(m_W*(0.5f-s), m_H*(0.5f-s*sy)));
+			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f-s*sy)), vec2(m_W*(0.5f+s), m_H*(0.5f-s*sy)));
+			Connect(vec2(m_W*(0.5f), m_H*(0.5f-s*sy)), vec2(m_W*(0.5f), m_H*(0.5f-s*sy*2)));
+			Connect(vec2(m_W*(0.5f), m_H*(0.5f-s*sy*2)), vec2(m_W*(0.8f+s), m_H*(0.5f-s*sy*2)));
+			for (int i = 0; i < r; i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
+		// Z terrain
+		if (Theme == 8)
+		{
+			int r = min(20, Level/3);
+			float s = 0.12f+frandom()*0.15f;
+			float sy = 0.4f+frandom()*0.15f;
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f+s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f-s*sy));
+			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f-s*sy));
+			for (int i = 0; i < m_Rooms - 1; i++)
+				Connect(m_aRoom[i], m_aRoom[i+1]);
+			for (int i = 0; i < r; i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
+		// default coop layout
 		m_aRoom[m_Rooms++] = vec2(m_W*0.4f, m_H*(0.05f+frandom()*0.8f));
 		m_aRoom[m_Rooms++] = vec2(m_W*0.6f, m_aRoom[0].y);
 		
@@ -102,137 +186,6 @@ void CMaze::Generate()
 			GenerateRoom(true);
 		
 		return;
-
-		// historical specialized layouts (unreachable; kept for reference)
-		// first rounds
-		if (Level <= 10)
-		{
-			GenerateLinear(min(80+Level*5, 90+Level*2), Level);
-		}
-		// Z
-		else if (Level%10 == 8)
-		{
-			int r = min(20, Level/3);
-
-			float s = 0.12f+frandom()*0.15f;
-			float sy = 0.4f+frandom()*0.15f;
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f+s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f-s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f-s*sy));
-	
-			for (int i = 0; i < m_Rooms - 1; i++)
-				Connect(m_aRoom[i], m_aRoom[i+1]);
-	
-			// create random rooms
-			for (int i = 0; i < r; i++)
-				GenerateRoom();
-			
-			ConnectRooms();
-			ConnectEverything();
-		}
-		else if (Level%10 == 6)
-		{
-			int r = min(14, Level/3);
-
-			float s = 0.12f+frandom()*0.15f;
-			float sy = 0.4f+frandom()*0.15f;
-			
-			Connect(vec2(m_W*(0.3f-s), m_H*(0.5f+s*sy)), vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy)));
-			Connect(vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy)), vec2(m_W*(0.5f+s), m_H*(0.5f))); // W
-			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f)), vec2(m_W*(0.5f+s), m_H*(0.5f)));
-			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f)), vec2(m_W*(0.5f-s), m_H*(0.5f-s*sy))); // w
-			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f-s*sy)), vec2(m_W*(0.5f+s), m_H*(0.5f-s*sy)));
-			Connect(vec2(m_W*(0.5f), m_H*(0.5f-s*sy)), vec2(m_W*(0.5f), m_H*(0.5f-s*sy*2)));
-			Connect(vec2(m_W*(0.5f), m_H*(0.5f-s*sy*2)), vec2(m_W*(0.8f+s), m_H*(0.5f-s*sy*2)));
-	
-			// create random rooms
-			for (int i = 0; i < r; i++)
-				GenerateRoom();
-
-			ConnectRooms();
-			ConnectEverything();
-		}
-		else if (Level%10 == 0)
-		{
-			int r = min(20, Level/3);
-
-			float s = 0.12f+frandom()*0.15f;
-			float sy = 0.4f+frandom()*0.15f;
-			//m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f));
-			//m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f+s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f+s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f-s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f-s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f));
-	
-			for (int i = 0; i < m_Rooms - 1; i++)
-				Connect(m_aRoom[i], m_aRoom[i+1]);
-	
-			// create random rooms
-			for (int i = 0; i < r; i++)
-				GenerateRoom();
-			
-			ConnectRooms();
-			ConnectEverything();
-		}
-		else if (Level%10 == 3)
-		{
-			int r = min(20, Level/3);
-
-			float s = 0.11f+frandom()*0.15f;
-			float sy = 0.4f+frandom()*0.15f;
-			
-			
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s), m_H*(0.5f-s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f-s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s), m_H*(0.5f));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f), m_H*(0.5f+s*sy));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f+s*2), m_H*(0.5f+s*sy));
-	
-			for (int i = 0; i < m_Rooms - 1; i++)
-				Connect(m_aRoom[i], m_aRoom[i+1]);
-	
-			// create random rooms
-			for (int i = 0; i < r; i++)
-				GenerateRoom();
-			
-			ConnectRooms();
-			ConnectEverything();
-		}
-		// random room structure
-		else
-		{
-			int r = min(4+Level/2, 120);
-
-			GenerateRoom();
-			
-			for (int i = 0; i < r; i++)
-				GenerateRoom(true);
-			
-			/*
-			int r = min(50, 10+Level/3);
-			
-			m_aRoom[m_Rooms++] = vec2(m_W*0.5f, m_H*(0.1f+frandom()*0.8f));
-	
-			// create random rooms
-			for (int i = 0; i < r; i++)
-				GenerateRoom();
-			
-			int c = min(1+r/4, 5);
-			
-			for (int i = 0; i < c; i++)
-				ConnectRandomRooms();
-			
-			ConnectRooms();
-			ConnectEverything();
-			*/
-		}
 	}
 	else
 	// ctf, tdm, dm, br

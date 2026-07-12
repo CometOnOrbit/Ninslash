@@ -4,12 +4,21 @@
 
 #define MAX_ENEMIES 512
 
+enum
+{
+	UNLOCK_EXTRA_KITS = 1<<0,
+	UNLOCK_WEAPON_TIER1 = 1<<1,
+	UNLOCK_WEAPON_TIER2 = 1<<2,
+	UNLOCK_DEFEND_BONUS = 1<<3,
+};
+
 
 class CGameControllerInvasion : public IGameController
 {
 private:
 	int m_LevelQuestsLeft;
 	int m_QuestsCompleted;
+	int m_LevelTheme;
 
 	int m_Quest;
 	int m_NextQuest;
@@ -20,24 +29,26 @@ private:
 	int m_QuestWaveEndTick;
 	int m_QuestWaveEnemiesLeft;
 	int m_QuestWaveSize;
+
+	bool m_EliteWave;
+	int m_DefendEndTick;
+	int m_SwitchesRequired;
+	int m_SwitchesActivated;
 	
 	void ChangeQuest(int NextQuest, float QueueTimeInSeconds);
 	void SendQuestStartMessage(int Quest);
 	void SendQuestCompletedMessage(int Quest);
 	void CompleteCurrentQuest();
-	
-	enum Enemies
-	{
-		ENEMY_ALIEN1,
-		ENEMY_ROBOT1,
-		ENEMY_ROBOT2,
-		ENEMY_ALIEN2,
-		ENEMY_BUNNY1,
-		ENEMY_BUNNY2,
-		ENEMY_PYRO1,
-		ENEMY_PYRO2,
-		NUM_ENEMIES
-	};
+	void SetupLevelTheme();
+	void StartThemeQuest();
+	void QueueNextObjectiveQuest();
+	void SpawnBosses(int Count);
+	int CountBossesAlive() const;
+	int CountBuildingsOfType(int Type) const;
+	int ReactorsLeft() const;
+	int SwitchesAvailable() const;
+	void ApplyMetaUnlocks(class CCharacter *pChr);
+	void GrantMetaUnlocks();
 
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 	
@@ -69,6 +80,8 @@ private:
 
 	bool m_EscapeLevel;
 	bool m_EscapeSpawnActive;
+	bool m_DefendLevel;
+	bool m_SwitchCoopLevel;
 	
 	bool m_AutoRestart;
 	

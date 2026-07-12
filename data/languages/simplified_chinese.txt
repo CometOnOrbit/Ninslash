@@ -1171,6 +1171,36 @@ Rising acid! Reach the exit
 Rising acid
 == 酸液上涨
 
+Destroy the boss
+== 摧毁首领
+
+Defend the reactor
+== 防守反应堆
+
+Activate the switches
+== 激活开关
+
+Activate all switches
+== 激活所有开关
+
+Boss destroyed
+== 首领已摧毁
+
+Reactor secured
+== 反应堆已守住
+
+All switches activated
+== 所有开关已激活
+
+bosses remaining
+== 剩余首领
+
+switches remaining
+== 剩余开关
+
+Reactor destroyed
+== 反应堆已摧毁
+
 ##### needs translation #####
 
 ##### old translations #####

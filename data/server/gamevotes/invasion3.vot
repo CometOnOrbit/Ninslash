@@ -4,7 +4,7 @@ config: cfg/invasion3
 image: invasion3
 min-players: 0
 max-players: 16
-min-level: 11
-max-level: 15
+min-level: 21
+max-level: 30
 always-on
 display-level

@@ -569,14 +569,14 @@ void IGameController::ClearRisingAcid()
 
 void IGameController::TriggerSwitch(vec2 Pos)
 {
-	TriggerEscape();
 	OnSwitchTriggered();
 }
 
 void IGameController::OnSwitchTriggered()
 {
 	if (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGenLevel%10 == 9)
-		BeginRisingAcid(50); // bookkeeping; actual rise speed scales with map height (~50s to top)
+		BeginRisingAcid(50);
+	TriggerEscape();
 }
 
 
@@ -692,18 +692,6 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 		new CBuilding(&GameServer()->m_World, Pos, BUILDING_SAWBLADE, TEAM_NEUTRAL);
 		return true;
 	}
-	/*
-	else if (Index == ENTITY_MINE1)
-	{
-		new CBuilding(&GameServer()->m_World, Pos+vec2(0,6), BUILDING_MINE1, TEAM_NEUTRAL);
-		return true;
-	}
-	else if (Index == ENTITY_MINE2)
-	{
-		new CBuilding(&GameServer()->m_World, Pos+vec2(0,6), BUILDING_MINE2, TEAM_NEUTRAL);
-		return true;
-	}
-	*/
 	else if (Index == ENTITY_BARREL)
 	{
 		new CBuilding(&GameServer()->m_World, Pos+vec2(0,-12), BUILDING_BARREL+rand()%3, TEAM_NEUTRAL);

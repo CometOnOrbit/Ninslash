@@ -45,6 +45,26 @@
             "value": "'%s' 加入了游戏"
         },
         {
+            "key": "Activate all switches",
+            "value": "激活所有开关"
+        },
+        {
+            "key": "Activate the switches",
+            "value": "激活开关"
+        },
+        {
+            "key": "admin forced server option '%s' (%s)",
+            "value": "管理员强制投票 '%s' (%s)"
+        },
+        {
+            "key": "admin forced vote %s",
+            "value": "管理员强制投票 %s"
+        },
+        {
+            "key": "admin moved '%s' to spectator (%s)",
+            "value": "管理员把 '%s' 移到了旁观者 (%s)"
+        },
+        {
             "key": "Alien wave cleared",
             "value": "外星人被歼灭了！"
         },
@@ -89,6 +109,10 @@
             "value": "所有反应堆都炸了！"
         },
         {
+            "key": "All switches activated",
+            "value": "所有开关已激活"
+        },
+        {
             "key": "Arming bomb... %d",
             "value": "C4安装中... %d"
         },
@@ -97,8 +121,20 @@
             "value": "球类模式"
         },
         {
+            "key": "ball_small1.map - no bots",
+            "value": "地图：ball_small1 - 无AI"
+        },
+        {
+            "key": "ball_small2.map - no bots",
+            "value": "地图：ball_small2 - 无AI"
+        },
+        {
             "key": "Battle Royale",
             "value": "大逃杀"
+        },
+        {
+            "key": "blue",
+            "value": "蓝"
         },
         {
             "key": "Blue team scores!",
@@ -121,6 +157,10 @@
             "value": "炸弹被解除 - 蓝队胜利"
         },
         {
+            "key": "Boss destroyed",
+            "value": "首领已摧毁"
+        },
+        {
             "key": "Capture the flag",
             "value": "夺旗模式"
         },
@@ -139,6 +179,14 @@
         {
             "key": "Deathmatch",
             "value": "死亡竞赛"
+        },
+        {
+            "key": "Defend the reactor",
+            "value": "防守反应堆"
+        },
+        {
+            "key": "Destroy the boss",
+            "value": "摧毁首领"
         },
         {
             "key": "Disarming bomb... %d",
@@ -165,6 +213,14 @@
             "value": "爆炸就是艺术!"
         },
         {
+            "key": "Find and activate the switch",
+            "value": "找到并激活开关"
+        },
+        {
+            "key": "Find the switch",
+            "value": "找到开关"
+        },
+        {
             "key": "Furries terminated",
             "value": "兽人被全部击退！"
         },
@@ -175,6 +231,18 @@
         {
             "key": "Game over on wave %d",
             "value": "游戏在第 %d 波结束"
+        },
+        {
+            "key": "generated map",
+            "value": "自动生成地图"
+        },
+        {
+            "key": "generated map - last man standing",
+            "value": "自动生成地图 - 活到最后"
+        },
+        {
+            "key": "generated match",
+            "value": "自动生成地图"
         },
         {
             "key": "Go!",
@@ -217,12 +285,12 @@
             "value": "跳转到楼层 %d"
         },
         {
-            "key": "KILL!",
-            "value": "杀!!"
-        },
-        {
             "key": "Kick voting requires %d players on the server",
             "value": "至少需要%d名玩家才能在服务器中发起投票"
+        },
+        {
+            "key": "KILL!",
+            "value": "杀!!"
         },
         {
             "key": "Level %d",
@@ -285,6 +353,10 @@
             "value": "保护反应堆"
         },
         {
+            "key": "Reactor destroyed",
+            "value": "反应堆已摧毁"
+        },
+        {
             "key": "Reactor destroyed - Red team wins",
             "value": "反应堆被摧毁 - 红队胜利"
         },
@@ -293,12 +365,32 @@
             "value": "反应堆被摧毁"
         },
         {
+            "key": "Reactor secured",
+            "value": "反应堆已守住"
+        },
+        {
+            "key": "reactor1.map - survival mode PvP",
+            "value": "地图：reactor1 - 生存模式PvP"
+        },
+        {
+            "key": "reactor_def1.map - PvE",
+            "value": "地图：reactor_def1 - 合作模式"
+        },
+        {
+            "key": "red",
+            "value": "红"
+        },
+        {
             "key": "Red team scores!",
             "value": "红队得分!"
         },
         {
             "key": "Red team wins",
             "value": "红队赢了"
+        },
+        {
+            "key": "Rising acid! Reach the exit",
+            "value": "酸液上涨！逃到出口"
         },
         {
             "key": "Robot wave cleared",
@@ -351,6 +443,14 @@
         {
             "key": "Survive the wave of enemies",
             "value": "在敌人浪潮中存活"
+        },
+        {
+            "key": "Switch %d/%d activated",
+            "value": "开关 %d/%d 已激活"
+        },
+        {
+            "key": "Switch activated",
+            "value": "开关已激活"
         },
         {
             "key": "Team deathmatch",
@@ -495,54 +595,6 @@
         {
             "key": "You must wait %d seconds before making another vote",
             "value": "你必须等待 %d 秒后才能发起另一投票"
-        },
-        {
-            "key": "admin forced server option '%s' (%s)",
-            "value": "管理员强制投票 '%s' (%s)"
-        },
-        {
-            "key": "admin forced vote %s",
-            "value": "管理员强制投票 %s"
-        },
-        {
-            "key": "admin moved '%s' to spectator (%s)",
-            "value": "管理员把 '%s' 移到了旁观者 (%s)"
-        },
-        {
-            "key": "ball_small1.map - no bots",
-            "value": "地图：ball_small1 - 无AI"
-        },
-        {
-            "key": "ball_small2.map - no bots",
-            "value": "地图：ball_small2 - 无AI"
-        },
-        {
-            "key": "blue",
-            "value": "蓝"
-        },
-        {
-            "key": "generated map",
-            "value": "自动生成地图"
-        },
-        {
-            "key": "generated map - last man standing",
-            "value": "自动生成地图 - 活到最后"
-        },
-        {
-            "key": "generated match",
-            "value": "自动生成地图"
-        },
-        {
-            "key": "reactor1.map - survival mode PvP",
-            "value": "地图：reactor1 - 生存模式PvP"
-        },
-        {
-            "key": "reactor_def1.map - PvE",
-            "value": "地图：reactor_def1 - 合作模式"
-        },
-        {
-            "key": "red",
-            "value": "红"
         }
     ]
 }

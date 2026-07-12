@@ -10,6 +10,9 @@ const char *GetQuestDisplayName(int Quest)
 		case QUEST_SURVIVEWAVE: return "Survive the wave of enemies";
 		case QUEST_SURVIVEWAVETIME: return "Survive the wave of enemies";
 		case QUEST_FIND_SWITCH: return "Find the switch";
+		case QUEST_KILL_BOSS: return "Destroy the boss";
+		case QUEST_DEFEND: return "Defend the reactor";
+		case QUEST_ACTIVATE_SWITCHES: return "Activate the switches";
 		default: return "";
 	}
 }
@@ -49,6 +52,9 @@ const char *GetQuestStartMessage(int Quest, int WaveType)
 		case QUEST_SURVIVEWAVE: return "Wave incoming";
 		case QUEST_SURVIVEWAVETIME: return "Wave incoming";
 		case QUEST_FIND_SWITCH: return "Find and activate the switch";
+		case QUEST_KILL_BOSS: return "Destroy the boss";
+		case QUEST_DEFEND: return "Defend the reactor";
+		case QUEST_ACTIVATE_SWITCHES: return "Activate all switches";
 		default: return "";
 	}
 }
@@ -84,6 +90,9 @@ const char *GetQuestCompletedMessage(int Quest, int WaveType)
 	switch (Quest)
 	{
 		case QUEST_FIND_SWITCH: return "Switch activated";
+		case QUEST_ACTIVATE_SWITCHES: return "All switches activated";
+		case QUEST_KILL_BOSS: return "Boss destroyed";
+		case QUEST_DEFEND: return "Reactor secured";
 		case QUEST_REACHDOOR: return "";
 		default: return "";
 	}

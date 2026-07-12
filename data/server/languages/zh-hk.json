@@ -2,599 +2,599 @@
     "translation": [
         {
             "key": "%s reached the door",
-            "value": "%s reached the door"
+            "value": "%s 進入了下一層"
         },
         {
             "key": "%s scores for blue team!",
-            "value": "%s scores for blue team!"
+            "value": "%s 為藍隊得分!"
         },
         {
             "key": "%s scores for red team!",
-            "value": "%s scores for red team!"
+            "value": "%s 為紅隊得分!"
         },
         {
             "key": "%s survives",
-            "value": "%s survives"
+            "value": "%s 活到了最後"
         },
         {
             "key": "%s was here %d min ago",
-            "value": "%s was here %d min ago"
+            "value": "%s 在 %d 分鐘前在這裡"
         },
         {
             "key": "'%s' called for vote to kick you",
-            "value": "'%s' called for vote to kick you"
+            "value": "'%s' 發起投票要把你踢出服務器"
         },
         {
             "key": "'%s' changed name to '%s'",
-            "value": "'%s' changed name to '%s'"
+            "value": "'%s' 將名字改為 '%s'"
         },
         {
             "key": "'%s' has left the game",
-            "value": "'%s' has left the game"
+            "value": "'%s' 退出了遊戲"
         },
         {
             "key": "'%s' has left the game (%s)",
-            "value": "'%s' has left the game (%s)"
+            "value": "'%s' 離開了遊戲 (%s)"
         },
         {
             "key": "'%s' isn't an option on this server",
-            "value": "'%s' isn't an option on this server"
+            "value": "'%s' 不是這個服務器的一個設置"
         },
         {
             "key": "'%s' joined the fun",
-            "value": "'%s' joined the fun"
+            "value": "'%s' 加入了遊戲"
         },
         {
             "key": "Activate all switches",
-            "value": "Activate all switches"
+            "value": "啟動所有開關"
         },
         {
             "key": "Activate the switches",
-            "value": "Activate the switches"
+            "value": "啟動開關"
         },
         {
             "key": "admin forced server option '%s' (%s)",
-            "value": "admin forced server option '%s' (%s)"
+            "value": "管理員強製投票 '%s' (%s)"
         },
         {
             "key": "admin forced vote %s",
-            "value": "admin forced vote %s"
+            "value": "管理員強製投票 %s"
         },
         {
             "key": "admin moved '%s' to spectator (%s)",
-            "value": "admin moved '%s' to spectator (%s)"
+            "value": "管理員把 '%s' 移到了旁觀者 (%s)"
         },
         {
             "key": "Alien wave cleared",
-            "value": "Alien wave cleared"
+            "value": "外星人被殲滅了！"
         },
         {
             "key": "Aliens terminated",
-            "value": "Aliens terminated"
+            "value": "外星人被全部擊退！"
         },
         {
             "key": "All hope is lost",
-            "value": "All hope is lost"
+            "value": "這是人類的落日"
         },
         {
             "key": "All players were moved to the %s",
-            "value": "All players were moved to the %s"
+            "value": "所有玩家都加入了 %s"
         },
         {
             "key": "All players were moved to the blue team",
-            "value": "All players were moved to the blue team"
+            "value": "所有玩家都加入了藍隊"
         },
         {
             "key": "All players were moved to the dead",
-            "value": "All players were moved to the dead"
+            "value": "所有玩家都加入了感染者"
         },
         {
             "key": "All players were moved to the game",
-            "value": "All players were moved to the game"
+            "value": "所有玩家都加入了遊戲"
         },
         {
             "key": "All players were moved to the living",
-            "value": "All players were moved to the living"
+            "value": "所有玩家都加入了生者"
         },
         {
             "key": "All players were moved to the red team",
-            "value": "All players were moved to the red team"
+            "value": "所有玩家都加入了紅隊"
         },
         {
             "key": "All players were moved to the spectators",
-            "value": "All players were moved to the spectators"
+            "value": "所有玩家都移到了旁觀者"
         },
         {
             "key": "All reactors lost",
-            "value": "All reactors lost"
+            "value": "所有反應堆都炸了！"
         },
         {
             "key": "All switches activated",
-            "value": "All switches activated"
+            "value": "所有開關已啟動"
         },
         {
             "key": "Arming bomb... %d",
-            "value": "Arming bomb... %d"
+            "value": "C4安裝中... %d"
         },
         {
             "key": "Ball",
-            "value": "Ball"
+            "value": "球類模式"
         },
         {
             "key": "ball_small1.map - no bots",
-            "value": "ball_small1.map - no bots"
+            "value": "地圖：ball_small1 - 無AI"
         },
         {
             "key": "ball_small2.map - no bots",
-            "value": "ball_small2.map - no bots"
+            "value": "地圖：ball_small2 - 無AI"
         },
         {
             "key": "Battle Royale",
-            "value": "Battle Royale"
+            "value": "大逃殺"
         },
         {
             "key": "blue",
-            "value": "blue"
+            "value": "藍"
         },
         {
             "key": "Blue team scores!",
-            "value": "Blue team scores!"
+            "value": "藍隊得分!"
         },
         {
             "key": "Blue team wins",
-            "value": "Blue team wins"
+            "value": "藍隊贏了"
         },
         {
             "key": "Body: %d, feet: %d, skin: %d, topper: %d",
-            "value": "Body: %d, feet: %d, skin: %d, topper: %d"
+            "value": "身體: %d, 腿: %d, 皮膚: %d, 帽子: %d"
         },
         {
             "key": "Bomb armed",
-            "value": "Bomb armed"
+            "value": "C4已安裝"
         },
         {
             "key": "Bomb disarmed - Blue team wins",
-            "value": "Bomb disarmed - Blue team wins"
+            "value": "炸彈被解除 - 藍隊勝利"
         },
         {
             "key": "Boss destroyed",
-            "value": "Boss destroyed"
+            "value": "首領已摧毀"
         },
         {
             "key": "Capture the flag",
-            "value": "Capture the flag"
+            "value": "奪旗模式"
         },
         {
             "key": "Cyborg wave cleared",
-            "value": "Cyborg wave cleared"
+            "value": "賽博格被殲滅了！"
         },
         {
             "key": "Cyborgs terminated",
-            "value": "Cyborgs terminated"
+            "value": "賽博格被全部擊退！"
         },
         {
             "key": "Death takes all",
-            "value": "Death takes all"
+            "value": "死神永生"
         },
         {
             "key": "Deathmatch",
-            "value": "Deathmatch"
+            "value": "死亡競賽"
         },
         {
             "key": "Defend the reactor",
-            "value": "Defend the reactor"
+            "value": "防守反應堆"
         },
         {
             "key": "Destroy the boss",
-            "value": "Destroy the boss"
+            "value": "摧毀首領"
         },
         {
             "key": "Disarming bomb... %d",
-            "value": "Disarming bomb... %d"
+            "value": "C4拆除中... %d"
         },
         {
             "key": "Draw",
-            "value": "Draw"
+            "value": "平局"
         },
         {
             "key": "Enemies terminated",
-            "value": "Enemies terminated"
+            "value": "敵人被全部擊退！"
         },
         {
             "key": "Escape",
-            "value": "Escape"
+            "value": "逃出去"
         },
         {
             "key": "Everybody dies",
-            "value": "Everybody dies"
+            "value": "無人生還"
         },
         {
             "key": "Extra explosive death match!",
-            "value": "Extra explosive death match!"
+            "value": "爆炸就是藝術!"
         },
         {
             "key": "Find and activate the switch",
-            "value": "Find and activate the switch"
+            "value": "找到並啟動開關"
         },
         {
             "key": "Find the switch",
-            "value": "Find the switch"
+            "value": "找到開關"
         },
         {
             "key": "Furries terminated",
-            "value": "Furries terminated"
+            "value": "獸人被全部擊退！"
         },
         {
             "key": "Furry wave cleared",
-            "value": "Furry wave cleared"
+            "value": "獸人被殲滅了！"
         },
         {
             "key": "Game over on wave %d",
-            "value": "Game over on wave %d"
+            "value": "遊戲在第 %d 波結束"
         },
         {
             "key": "generated map",
-            "value": "generated map"
+            "value": "自動生成地圖"
         },
         {
             "key": "generated map - last man standing",
-            "value": "generated map - last man standing"
+            "value": "自動生成地圖 - 活到最後"
         },
         {
             "key": "generated match",
-            "value": "generated match"
+            "value": "自動生成地圖"
         },
         {
             "key": "Go!",
-            "value": "Go!"
+            "value": "走你!"
         },
         {
             "key": "Grenade Deathmatch",
-            "value": "Grenade Deathmatch"
+            "value": "手雷死斗"
         },
         {
             "key": "Hide",
-            "value": "Hide"
+            "value": "噓————"
         },
         {
             "key": "Highest level reached on server: %d",
-            "value": "Highest level reached on server: %d"
+            "value": "該服務器闖到的最高關卡: %d"
         },
         {
             "key": "Instakill CTF",
-            "value": "Instakill CTF"
+            "value": "瞬殺奪旗"
         },
         {
             "key": "Invalid client id to kick",
-            "value": "Invalid client id to kick"
+            "value": "無效的客戶端ID"
         },
         {
             "key": "Invalid client id to move",
-            "value": "Invalid client id to move"
+            "value": "無效的客戶端ID"
         },
         {
             "key": "Invalid spectator id used",
-            "value": "Invalid spectator id used"
+            "value": "無效的旁觀者ID"
         },
         {
             "key": "Invasion",
-            "value": "Invasion"
+            "value": "入侵"
         },
         {
             "key": "Jump to level %d",
-            "value": "Jump to level %d"
+            "value": "跳轉到樓層 %d"
         },
         {
             "key": "Kick voting requires %d players on the server",
-            "value": "Kick voting requires %d players on the server"
+            "value": "至少需要%d名玩家才能在服務器中發起投票"
         },
         {
             "key": "KILL!",
-            "value": "KILL!"
+            "value": "殺!!"
         },
         {
             "key": "Level %d",
-            "value": "Level %d"
+            "value": "樓層 %d"
         },
         {
             "key": "Level %d - Last chance",
-            "value": "Level %d - Last chance"
+            "value": "樓層 %d - 孤注一擲"
         },
         {
             "key": "Level %d - Second try",
-            "value": "Level %d - Second try"
+            "value": "樓層 %d - 梅開二度"
         },
         {
             "key": "Level cleared!",
-            "value": "Level cleared!"
+            "value": "樓層清空！"
         },
         {
             "key": "Mapgen seed: %d",
-            "value": "Mapgen seed: %d"
+            "value": "地圖种子: %d"
         },
         {
             "key": "Number of entities: %d",
-            "value": "Number of entities: %d"
+            "value": "實體數量: %d"
         },
         {
             "key": "Number of pickups: %d",
-            "value": "Number of pickups: %d"
+            "value": "拾取物數量: %d"
         },
         {
             "key": "Number of player profiles in Invasion: %d",
-            "value": "Number of player profiles in Invasion: %d"
+            "value": "這一輪的Inv模式中保存數據的數量: %d"
         },
         {
             "key": "Number of weapon objects: %d",
-            "value": "Number of weapon objects: %d"
+            "value": "武器實體數量: %d"
         },
         {
             "key": "Ocean of blood",
-            "value": "Ocean of blood"
+            "value": "血流成河"
         },
         {
             "key": "PvE",
-            "value": "PvE"
+            "value": "合作"
         },
         {
             "key": "Reach the door",
-            "value": "Reach the door"
+            "value": "找到通往下一層的門"
         },
         {
             "key": "Reactor Bomber",
-            "value": "Reactor Bomber"
+            "value": "爆破反應堆"
         },
         {
             "key": "Reactor Defence",
-            "value": "Reactor Defence"
+            "value": "反應堆防御"
         },
         {
             "key": "Reactor defense",
-            "value": "Reactor defense"
+            "value": "保護反應堆"
         },
         {
             "key": "Reactor destroyed",
-            "value": "Reactor destroyed"
+            "value": "反應堆已摧毀"
         },
         {
             "key": "Reactor destroyed - Red team wins",
-            "value": "Reactor destroyed - Red team wins"
+            "value": "反應堆被摧毀 - 紅隊勝利"
         },
         {
             "key": "Reactor lost",
-            "value": "Reactor lost"
+            "value": "反應堆被摧毀"
         },
         {
             "key": "Reactor secured",
-            "value": "Reactor secured"
+            "value": "反應堆已守住"
         },
         {
             "key": "reactor1.map - survival mode PvP",
-            "value": "reactor1.map - survival mode PvP"
+            "value": "地圖：reactor1 - 生存模式PvP"
         },
         {
             "key": "reactor_def1.map - PvE",
-            "value": "reactor_def1.map - PvE"
+            "value": "地圖：reactor_def1 - 合作模式"
         },
         {
             "key": "red",
-            "value": "red"
+            "value": "紅"
         },
         {
             "key": "Red team scores!",
-            "value": "Red team scores!"
+            "value": "紅隊得分!"
         },
         {
             "key": "Red team wins",
-            "value": "Red team wins"
+            "value": "紅隊贏了"
         },
         {
             "key": "Rising acid! Reach the exit",
-            "value": "Rising acid! Reach the exit"
+            "value": "酸液上漲！逃到出口"
         },
         {
             "key": "Robot wave cleared",
-            "value": "Robot wave cleared"
+            "value": "機器人被殲滅了！"
         },
         {
             "key": "Robots terminated",
-            "value": "Robots terminated"
+            "value": "機器人被全部擊退！"
         },
         {
             "key": "Run",
-            "value": "Run"
+            "value": "跑"
         },
         {
             "key": "Seek the door",
-            "value": "Seek the door"
+            "value": "找到通往下一層的門"
         },
         {
             "key": "Server does not allow voting to kick players",
-            "value": "Server does not allow voting to kick players"
+            "value": "服務器禁止投票踢出玩家"
         },
         {
             "key": "Server does not allow voting to move players to spectators",
-            "value": "Server does not allow voting to move players to spectators"
+            "value": "服務器不允許投票將玩家移動至旁觀者"
         },
         {
             "key": "Skeleton wave cleared",
-            "value": "Skeleton wave cleared"
+            "value": "骷髏被殲滅了！"
         },
         {
             "key": "Skeletons terminated",
-            "value": "Skeletons terminated"
+            "value": "骷髏被全部擊退！"
         },
         {
             "key": "Slaughter",
-            "value": "Slaughter"
+            "value": "种族滅絕..."
         },
         {
             "key": "Spectator mode disabled",
-            "value": "Spectator mode disabled"
+            "value": "已禁止旁觀者模式"
         },
         {
             "key": "Spectators aren't allowed to start a vote.",
-            "value": "Spectators aren't allowed to start a vote."
+            "value": "旁觀者不能發起投票。"
         },
         {
             "key": "Stage completed",
-            "value": "Stage completed"
+            "value": "階段性勝利"
         },
         {
             "key": "Survive the wave of enemies",
-            "value": "Survive the wave of enemies"
+            "value": "在敵人浪潮中存活"
         },
         {
             "key": "Switch %d/%d activated",
-            "value": "Switch %d/%d activated"
+            "value": "開關 %d/%d 已啟動"
         },
         {
             "key": "Switch activated",
-            "value": "Switch activated"
+            "value": "開關已啟動"
         },
         {
             "key": "Team deathmatch",
-            "value": "Team deathmatch"
+            "value": "團隊死斗"
         },
         {
             "key": "Teams are locked",
-            "value": "Teams are locked"
+            "value": "隊伍被鎖定了"
         },
         {
             "key": "Teams have been balanced",
-            "value": "Teams have been balanced"
+            "value": "隊伍人數已平衡"
         },
         {
             "key": "Teams must be balanced, please join other team",
-            "value": "Teams must be balanced, please join other team"
+            "value": "隊伍人數必須平衡，請加入其他隊伍"
         },
         {
             "key": "Teams were locked",
-            "value": "Teams were locked"
+            "value": "隊伍鎖定了"
         },
         {
             "key": "Teams were shuffled",
-            "value": "Teams were shuffled"
+            "value": "隊伍被打亂了"
         },
         {
             "key": "Teams were swapped",
-            "value": "Teams were swapped"
+            "value": "隊伍交換"
         },
         {
             "key": "Teams were unlocked",
-            "value": "Teams were unlocked"
+            "value": "隊伍解鎖了"
         },
         {
             "key": "Terminate the aliens",
-            "value": "Terminate the aliens"
+            "value": "擊殺所有外星人"
         },
         {
             "key": "Terminate the cyborgs",
-            "value": "Terminate the cyborgs"
+            "value": "擊殺所有賽博格"
         },
         {
             "key": "Terminate the enemies",
-            "value": "Terminate the enemies"
+            "value": "擊殺所有敵人"
         },
         {
             "key": "Terminate the furries",
-            "value": "Terminate the furries"
+            "value": "擊殺所有獸人"
         },
         {
             "key": "Terminate the robots",
-            "value": "Terminate the robots"
+            "value": "擊殺所有機器人"
         },
         {
             "key": "Terminate the skeletons",
-            "value": "Terminate the skeletons"
+            "value": "擊殺所有骷髏"
         },
         {
             "key": "The %s flag was captured by '%s'",
-            "value": "The %s flag was captured by '%s'"
+            "value": "%s隊的旗幟被 '%s' 奪走！"
         },
         {
             "key": "The %s flag was captured by '%s' (%d.%s%d seconds)",
-            "value": "The %s flag was captured by '%s' (%d.%s%d seconds)"
+            "value": "%s隊的旗幟被 '%s' 奪走！ (%d.%s%d 秒)"
         },
         {
             "key": "This is the highest level you have been to.",
-            "value": "This is the highest level you have been to."
+            "value": "這是你到達過的最高樓層。"
         },
         {
             "key": "Time out - Blue team wins",
-            "value": "Time out - Blue team wins"
+            "value": "時間到 - 藍隊勝利"
         },
         {
             "key": "Vote aborted",
-            "value": "Vote aborted"
+            "value": "投票中止"
         },
         {
             "key": "Vote failed",
-            "value": "Vote failed"
+            "value": "投票失敗"
         },
         {
             "key": "Vote passed",
-            "value": "Vote passed"
+            "value": "投票通過"
         },
         {
             "key": "Wait for current vote to end before calling a new one.",
-            "value": "Wait for current vote to end before calling a new one."
+            "value": "等待當前投票結束發起另一個投票"
         },
         {
             "key": "Wave %d",
-            "value": "Wave %d"
+            "value": "第 %d 波攻勢"
         },
         {
             "key": "Wave cleared",
-            "value": "Wave cleared"
+            "value": "攻勢清空"
         },
         {
             "key": "Wave cleared!",
-            "value": "Wave cleared!"
+            "value": "攻勢清空！"
         },
         {
             "key": "Wave incoming",
-            "value": "Wave incoming"
+            "value": "敵人正在逼近！"
         },
         {
             "key": "Wave incoming!",
-            "value": "Wave incoming!"
+            "value": "敵人正在逼近！"
         },
         {
             "key": "Wave of aliens incoming",
-            "value": "Wave of aliens incoming"
+            "value": "外星人來襲！"
         },
         {
             "key": "Wave of cyborgs incoming",
-            "value": "Wave of cyborgs incoming"
+            "value": "賽博格來襲！"
         },
         {
             "key": "Wave of furries incoming",
-            "value": "Wave of furries incoming"
+            "value": "獸人來襲！"
         },
         {
             "key": "Wave of robots incoming",
-            "value": "Wave of robots incoming"
+            "value": "機器人來襲！"
         },
         {
             "key": "Wave of skeletons incoming",
-            "value": "Wave of skeletons incoming"
+            "value": "骷髏來襲！"
         },
         {
             "key": "You can't kick admins",
-            "value": "You can't kick admins"
+            "value": "你不能踢出管理員"
         },
         {
             "key": "You can't kick yourself",
-            "value": "You can't kick yourself"
+            "value": "你不能踢出自己"
         },
         {
             "key": "You can't move yourself",
-            "value": "You can't move yourself"
+            "value": "你不能移動你自己"
         },
         {
             "key": "You must wait %d seconds before making another vote",
-            "value": "You must wait %d seconds before making another vote"
+            "value": "你必須等待 %d 秒後才能發起另一投票"
         }
     ]
 }

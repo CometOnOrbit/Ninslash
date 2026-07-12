@@ -27,6 +27,7 @@ public:
 	
 	int m_HighestLevel;
 	int m_HighestLevelSeed;
+	int m_UnlockFlags;
 	
 	int m_ColorID;
 	

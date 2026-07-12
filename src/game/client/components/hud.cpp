@@ -152,20 +152,30 @@ void CHud::RenderObjective()
 				float w = TextRender()->TextWidth(0, FontSize, pText, -1);
 				TextRender()->Text(0, xPos-w/2.0f, 120.0f, FontSize, pText, -1);
 			}
-			else if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE)
+			else if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS)
 			{
 				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
-				const char *pText = Localize("enemies remaining");
+				const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining") : Localize("enemies remaining");
 				char aBuf[32];
 				str_format(aBuf, sizeof(aBuf), "%u %s", QuestProgressCounter, pText);
 				float FontSize = 6.0f;
 				float w = TextRender()->TextWidth(0, FontSize, aBuf, -1);
 				TextRender()->Text(0, xPos-w/2.0f, 120.0f, FontSize, aBuf, -1);
 			}
-			else if (Quest == QUEST_SURVIVEWAVETIME)
+			else if (Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND)
 			{
 				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
 				const char *pText = Localize("seconds remaining");
+				char aBuf[32];
+				str_format(aBuf, sizeof(aBuf), "%u %s", QuestProgressCounter, pText);
+				float FontSize = 6.0f;
+				float w = TextRender()->TextWidth(0, FontSize, aBuf, -1);
+				TextRender()->Text(0, xPos-w/2.0f, 120.0f, FontSize, aBuf, -1);
+			}
+			else if (Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH)
+			{
+				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
+				const char *pText = Localize("switches remaining");
 				char aBuf[32];
 				str_format(aBuf, sizeof(aBuf), "%u %s", QuestProgressCounter, pText);
 				float FontSize = 6.0f;
