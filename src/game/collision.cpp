@@ -132,6 +132,30 @@ void CCollision::Init(class CLayers *pLayers)
 	InitLightRays();
 }
 
+void CCollision::RefreshMapgenDimensions()
+{
+	if(!m_pLayers || !m_pLayers->GameLayer())
+		return;
+
+	m_Width = m_pLayers->GameLayer()->m_Width;
+	m_Height = m_pLayers->GameLayer()->m_Height;
+	m_pTiles = static_cast<CTile *>(m_pLayers->Map()->GetData(m_pLayers->GameLayer()->m_Data));
+	m_LowestPoint = 0;
+
+	if(m_pBlocks)
+		delete[] m_pBlocks;
+	if(m_pLightRays)
+		delete[] m_pLightRays;
+
+	m_pBlocks = new bool[m_Width*m_Height];
+	m_pLightRays = new int[m_Width*m_Height];
+	for(int i = 0; i < m_Width*m_Height; i++)
+	{
+		m_pBlocks[i] = false;
+		m_pLightRays[i] = 0;
+	}
+}
+
 
 
 

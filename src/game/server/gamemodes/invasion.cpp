@@ -68,7 +68,21 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	
 	m_TriggerLevel = 0;
 	m_GroupSpawnPos = vec2(0, 0);
-	SpawnNewWave(false);
+	m_EscapeLevel = (g_Config.m_SvMapGenLevel % 10 == 9);
+	m_EscapeSpawnActive = false;
+
+	if (m_EscapeLevel)
+	{
+		m_LevelQuestsLeft = 0;
+		m_EnemiesLeft = min(8, 3 + Level/3);
+		m_QuestWaveSize = 12;
+		m_QuestWaveEnemiesLeft = 0;
+		m_QuestWaveEndTick = 0;
+		m_Deaths = m_QuestWaveSize;
+		m_EnemyCount = 0;
+	}
+	else
+		SpawnNewWave(false);
 		
 	m_AutoRestart = false;
 	
@@ -322,8 +336,6 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	
 	m_EnemyCount = 0;
 	
-	m_GroupType = GROUP_ALIENS;
-	
 	if (AddBots)
 	{
 		RandomGroupSpawnPos();
@@ -348,7 +360,7 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 
 	if (pVictim->m_IsBot && !pVictim->GetPlayer()->m_ToBeKicked)
 	{
-		if (m_EnemiesLeft <= 0)
+		if (m_EnemiesLeft <= 0 || m_EscapeSpawnActive)
 			pVictim->GetPlayer()->m_ToBeKicked = true;
 		
 		if (pKiller)
@@ -405,9 +417,10 @@ void CGameControllerInvasion::ChangeQuest(int NextQuest, float QueueTimeInSecond
 
 void CGameControllerInvasion::SendQuestStartMessage(int Quest)
 {
-	
-	GameServer()->SendBroadcast(GetQuestStartMessage(Quest, m_QuestWaveType), -1);
-	
+	if (m_EscapeLevel && Quest == QUEST_REACHDOOR)
+		GameServer()->SendBroadcast("Rising acid! Reach the exit", -1);
+	else
+		GameServer()->SendBroadcast(GetQuestStartMessage(Quest, m_QuestWaveType), -1);
 }
 
 
@@ -423,6 +436,33 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 	m_Quest = QUEST_NONE;
 	m_NextQuest = QUEST_NONE;
 	m_QuestsCompleted++;
+}
+
+
+void CGameControllerInvasion::OnSwitchTriggered()
+{
+	IGameController::OnSwitchTriggered();
+
+	if (!m_EscapeLevel)
+		return;
+
+	m_EscapeSpawnActive = true;
+	m_EnemiesLeft = 9999;
+	m_QuestWaveSize = min(8 + g_Config.m_SvMapGenLevel/2 + CountPlayers(0), 28);
+	m_BotSpawnTick = Server()->Tick();
+
+	if (m_Quest == QUEST_FIND_SWITCH || m_NextQuest == QUEST_FIND_SWITCH)
+	{
+		m_QuestChangeTick = 0;
+		m_NextQuest = QUEST_NONE;
+		if (m_Quest == QUEST_FIND_SWITCH)
+			CompleteCurrentQuest();
+		else
+			m_Quest = QUEST_NONE;
+		ChangeQuest(QUEST_REACHDOOR, 0.5f);
+	}
+	else if (m_Quest != QUEST_REACHDOOR && m_NextQuest != QUEST_REACHDOOR)
+		ChangeQuest(QUEST_REACHDOOR, 0.5f);
 }
 
 
@@ -443,7 +483,8 @@ void CGameControllerInvasion::Tick()
 			m_QuestChangeTick = 0;
 			m_QuestProgressCounter = 0;
 			
-			if (m_Quest == QUEST_REACHDOOR)
+			// Escape levels open the door via the switch, not the quest start.
+			if (m_Quest == QUEST_REACHDOOR && !m_EscapeLevel)
 				TriggerEscape();
 			
 			if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
@@ -455,7 +496,14 @@ void CGameControllerInvasion::Tick()
 		
 		if (m_Quest == QUEST_NONE && m_NextQuest == QUEST_NONE)
 		{
-			if (m_LevelQuestsLeft <= 0)
+			if (m_EscapeLevel)
+			{
+				if (!m_EscapeSpawnActive)
+					ChangeQuest(QUEST_FIND_SWITCH, 2.0f);
+				else
+					ChangeQuest(QUEST_REACHDOOR, 1.0f);
+			}
+			else if (m_LevelQuestsLeft <= 0)
 				ChangeQuest(QUEST_REACHDOOR, 6.0f);
 			else if (m_QuestsCompleted == 0)
 				ChangeQuest(QUEST_KILLREMAININGENEMIES, 6.0f);
@@ -464,7 +512,8 @@ void CGameControllerInvasion::Tick()
 			else
 				ChangeQuest(QUEST_SURVIVEWAVE, 6.0f);
 			
-			m_LevelQuestsLeft--;
+			if (!m_EscapeLevel)
+				m_LevelQuestsLeft--;
 		}
 		
 		if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
@@ -494,6 +543,22 @@ void CGameControllerInvasion::Tick()
 			// quest completed
 			if (m_QuestProgressCounter <= 0)
 				CompleteCurrentQuest();
+		}
+
+		// After the switch: keep refreshing enemies until players reach the door.
+		if (m_EscapeSpawnActive && m_Quest == QUEST_REACHDOOR && !m_RoundWin)
+		{
+			if (m_BotSpawnTick < Server()->Tick())
+			{
+				m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.35f, 1.1f - g_Config.m_SvMapGenLevel*0.015f);
+				if (CountBots() < m_QuestWaveSize)
+				{
+					RandomGroupSpawnPos();
+					GameServer()->AddBot();
+					if (m_EnemiesLeft > 0 && m_EnemiesLeft < 9000)
+						m_EnemiesLeft--;
+				}
+			}
 		}
 	}
 			

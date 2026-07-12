@@ -116,6 +116,13 @@ protected:
 	int m_SurvivalDeathTick;
 	int m_SurvivalStartTick;
 	int m_SurvivalResetTick;
+
+	// Invasion Level%10==9: switch-triggered rising acid (independent of sv_survivalmode)
+	bool m_RisingAcid;
+	int m_RisingAcidStartTick;
+	int m_RisingAcidDuration;
+
+	int GetRisingAcidTime() const;
 	
 	bool m_SurvivalDeathReset;
 	
@@ -179,6 +186,10 @@ public:
 	
 	void TriggerSwitch(vec2 Pos);
 	void TriggerEscape();
+	void BeginRisingAcid(int Seconds);
+	void ClearRisingAcid();
+	bool IsRisingAcid() const { return m_RisingAcid; }
+	virtual void OnSwitchTriggered();
 	
 	virtual void NextLevel(int CID = -1);
 	

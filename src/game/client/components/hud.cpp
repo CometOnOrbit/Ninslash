@@ -144,7 +144,15 @@ void CHud::RenderObjective()
 			}
 			
 			// quest progress
-			if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE)
+			if (Quest == QUEST_REACHDOOR && m_pClient->SurvivalAcid())
+			{
+				TextRender()->TextColor(0.9f, 0.55f, 0.35f, 1.0f);
+				const char *pText = Localize("Rising acid");
+				float FontSize = 6.0f;
+				float w = TextRender()->TextWidth(0, FontSize, pText, -1);
+				TextRender()->Text(0, xPos-w/2.0f, 120.0f, FontSize, pText, -1);
+			}
+			else if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE)
 			{
 				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
 				const char *pText = Localize("enemies remaining");

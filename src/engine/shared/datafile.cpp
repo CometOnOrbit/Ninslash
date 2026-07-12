@@ -342,6 +342,19 @@ void CDataFileReader::UnloadData(int Index)
 	m_pDataFile->m_ppDataPtrs[Index] = 0x0;
 }
 
+void *CDataFileReader::ReplaceData(int Index, int NewSize)
+{
+	if(!m_pDataFile || Index < 0 || Index >= m_pDataFile->m_Header.m_NumRawData)
+		return 0;
+
+	GetDataImpl(Index, 0);
+	if(m_pDataFile->m_ppDataPtrs[Index])
+		mem_free(m_pDataFile->m_ppDataPtrs[Index]);
+	m_pDataFile->m_ppDataPtrs[Index] = (char *)mem_alloc(NewSize, 1);
+	mem_zero(m_pDataFile->m_ppDataPtrs[Index], NewSize);
+	return m_pDataFile->m_ppDataPtrs[Index];
+}
+
 int CDataFileReader::GetItemSize(int Index)
 {
 	if(!m_pDataFile) { return 0; }

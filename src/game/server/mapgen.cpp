@@ -161,12 +161,57 @@ const char* CMapGen::GetConfigName(int Index)
 
 
 
+void CMapGen::ExpandEscapeTowerCanvas()
+{
+	// Invasion escape levels need a tall canvas; templates like generate_city1 are ~400x80.
+	if(str_comp(g_Config.m_SvGametype, "coop") != 0)
+		return;
+	if(g_Config.m_SvMapGenLevel % 10 != 9)
+		return;
+	if(!m_pLayers || !m_pLayers->GameLayer() || !m_pLayers->Map())
+		return;
+
+	CMapItemLayerTilemap *pGame = m_pLayers->GameLayer();
+	const int TargetW = 120;
+	const int TargetH = 320;
+
+	if(pGame->m_Height >= TargetH && pGame->m_Width >= 100 && pGame->m_Width <= 160)
+		return;
+
+	const int NewW = TargetW;
+	const int NewH = max(TargetH, pGame->m_Height);
+	dbg_msg("mapgen", "expanding escape tower canvas %dx%d -> %dx%d",
+		pGame->m_Width, pGame->m_Height, NewW, NewH);
+
+	IMap *pMap = m_pLayers->Map();
+	int LayerStart = 0;
+	int LayerNum = 0;
+	pMap->GetType(MAPITEMTYPE_LAYER, &LayerStart, &LayerNum);
+
+	for(int i = 0; i < LayerNum; i++)
+	{
+		CMapItemLayer *pLayer = static_cast<CMapItemLayer *>(pMap->GetItem(LayerStart+i, 0, 0));
+		if(!pLayer || pLayer->m_Type != LAYERTYPE_TILES)
+			continue;
+
+		CMapItemLayerTilemap *pTilemap = reinterpret_cast<CMapItemLayerTilemap *>(pLayer);
+		pTilemap->m_Width = NewW;
+		pTilemap->m_Height = NewH;
+		if(!pMap->ReplaceData(pTilemap->m_Data, NewW*NewH*(int)sizeof(CTile)))
+			dbg_msg("mapgen", "failed to resize tile layer data index=%d", pTilemap->m_Data);
+	}
+
+	m_pCollision->RefreshMapgenDimensions();
+}
+
 void CMapGen::FillMap()
 {
 	dbg_msg("mapgen", "started map generation");
 
 	for (int i = 0; i < g_Config.m_SvMapGenLevel; i++)
 		rand();
+
+	ExpandEscapeTowerCanvas();
 	
 	int64 ProcessTime = 0;
 	int64 TotalTime = time_get();
@@ -539,12 +584,42 @@ void CMapGen::GenerateSwitch(CGenLayer *pTiles)
 		p = pTiles->GetBotPlatform();
 	else
 		p = pTiles->GetPlatform();
+
+	// fallback so escape levels always get a usable switch
+	if (p.x == 0)
+		p = pTiles->GetPlatform();
+	if (p.x == 0)
+		p = pTiles->GetLeftPlatform();
+	if (p.x == 0)
+		p = pTiles->GetMedPlatform();
+
+	// last resort for escape towers: scan bottom-up for any standable tile
+	if (p.x == 0 && g_Config.m_SvMapGenLevel%10 == 9)
+	{
+		const int w = pTiles->Width();
+		const int h = pTiles->Height();
+		for (int y = h-4; y > 3 && p.x == 0; y--)
+			for (int x = 3; x < w-3; x++)
+			{
+				if (!pTiles->Get(x, y) && !pTiles->Used(x, y) &&
+					pTiles->Get(x, y+1) && pTiles->Get(x-1, y+1) && pTiles->Get(x+1, y+1) &&
+					!pTiles->Get(x, y-1) && !pTiles->Get(x, y-2))
+				{
+					p = ivec2(x, y);
+					break;
+				}
+			}
+	}
 	
 	if (p.x == 0)
+	{
+		dbg_msg("mapgen", "GenerateSwitch failed: no platform found");
 		return;
+	}
 	
 	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SWITCH);
 	pTiles->Use(p.x, p.y);
+	dbg_msg("mapgen", "switch placed at %d,%d", p.x, p.y);
 }
 
 void CMapGen::GenerateTurretStand(CGenLayer *pTiles)
@@ -972,10 +1047,14 @@ void CMapGen::GenerateLevel()
 	pTiles->GenerateBackground();
 	pTiles->GenerateMoreBackground();
 	
-	if (n > 1)
-		pTiles->GenerateAirPlatforms(n/2 + rand()%(n/2));
-	else
-		pTiles->GenerateAirPlatforms(n);
+	// Keep escape towers vertical — skip wide air platforms on Level%10==9.
+	if (Level%10 != 9)
+	{
+		if (n > 1)
+			pTiles->GenerateAirPlatforms(n/2 + rand()%(n/2));
+		else
+			pTiles->GenerateAirPlatforms(n);
+	}
 
 	dbg_msg("mapgen", "Proceed tiles");
 	Proceed(pTiles, 0);
@@ -1060,9 +1139,14 @@ void CMapGen::GenerateLevel()
 		ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
 		ModifTile(p+ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
 	}
+
+	// Escape switch must be placed before other generators consume platforms.
+	if (Level%10 == 9)
+		GenerateSwitch(pTiles);
 	
-	// acid pools
-	for (int i = 0; i < 2 + Level/2; i++)
+	// acid pools (fewer on escape towers so the climb stays readable)
+	int AcidPools = (Level%10 == 9) ? 1 + Level/20 : 2 + Level/2;
+	for (int i = 0; i < AcidPools; i++)
 		GenerateAcid(pTiles);
 
 	// conveyor belts
@@ -1196,9 +1280,6 @@ void CMapGen::GenerateLevel()
 	
 	for (int i = 0; i < (pTiles->Size())/1100; i++)
 		GenerateArmor(pTiles);
-		
-	//if (Level%5 == 4)
-	//	GenerateSwitch(pTiles);
 	
 	// walkers
 	/*

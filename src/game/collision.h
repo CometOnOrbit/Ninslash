@@ -119,6 +119,7 @@ public:
 	CCollision();
 	~CCollision();
 	void Init(class CLayers *pLayers);
+	void RefreshMapgenDimensions(); // after mapgen resizes tile layers
 	//bool CheckPoint(float x, float y, bool IncludeDeath = false) { return IsTileSolid(round_to_int(x), round_to_int(y), IncludeDeath); }
 	
 	// -1=left, 0=nope, 1=right

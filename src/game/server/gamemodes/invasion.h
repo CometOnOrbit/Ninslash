@@ -4,15 +4,6 @@
 
 #define MAX_ENEMIES 512
 
-enum GroupTypes
-{
-	GROUP_ALIENS,
-	GROUP_ROBOTS,
-	GROUP_BUNNIES,
-	GROUP_PYROS,
-	GROUP_SKELETONS,
-};
-
 
 class CGameControllerInvasion : public IGameController
 {
@@ -57,7 +48,6 @@ private:
 	
 	// enemy grouping
 	vec2 m_GroupSpawnPos;
-	int m_GroupType;
 	
 	void SpawnNewWave(bool AddBots = true);
 	
@@ -76,6 +66,9 @@ private:
 	
 	int m_TriggerLevel;
 	int m_TriggerTick;
+
+	bool m_EscapeLevel;
+	bool m_EscapeSpawnActive;
 	
 	bool m_AutoRestart;
 	
@@ -95,6 +88,7 @@ public:
 	bool GetSpawnPos(int Team, vec2 *pOutPos);
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
+	virtual void OnSwitchTriggered();
 	
 	void DisplayExit(vec2 Pos);
 	

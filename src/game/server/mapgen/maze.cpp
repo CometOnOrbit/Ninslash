@@ -43,65 +43,69 @@ void CMaze::Generate()
 	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
 	{
 		int Level = g_Config.m_SvMapGenLevel;
-		
+
+		// Level 9/19/29...: vertical rising-acid escape tower
+		if (Level%10 == 9)
+		{
+			const int Floors = 7 + min(5, Level/15);
+			const float yTop = 0.12f; // door / exit (up)
+			const float yBot = 0.88f; // spawn (down)
+
+			m_aRoom[m_Rooms++] = vec2(m_W*0.5f, m_H*yBot);
+			m_aRoom[m_Rooms++] = vec2(m_W*0.5f, m_H*yTop);
+
+			for (int i = 0; i < Floors; i++)
+			{
+				float t = (Floors <= 1) ? 0.0f : i / float(Floors-1);
+				float y = yBot + (yTop - yBot) * t;
+				float half = 0.10f + frandom()*0.06f;
+				float cx = 0.50f + (frandom()-frandom())*0.12f;
+				Connect(vec2(m_W*(cx-half), m_H*y), vec2(m_W*(cx+half), m_H*y));
+
+				if (i > 0)
+				{
+					float yPrev = yBot + (yTop - yBot) * ((i-1) / float(Floors-1));
+					float xv = cx + (frandom()-frandom())*0.08f;
+					Connect(vec2(m_W*xv, m_H*yPrev), vec2(m_W*xv, m_H*y));
+				}
+			}
+
+			// bottom alcove for the switch
+			Connect(vec2(m_W*0.22f, m_H*(yBot-0.04f)), vec2(m_W*0.42f, m_H*(yBot-0.04f)));
+			Connect(vec2(m_W*0.32f, m_H*(yBot-0.04f)), vec2(m_W*0.32f, m_H*yBot));
+
+			// light side branches (keep tower readable)
+			for (int i = 1; i < Floors-1; i += 2)
+			{
+				float t = i / float(Floors-1);
+				float y = yBot + (yTop - yBot) * t;
+				float side = (i%4==1) ? -1.0f : 1.0f;
+				Connect(vec2(m_W*(0.5f), m_H*y), vec2(m_W*(0.5f+side*0.22f), m_H*y));
+			}
+
+			for (int i = 0; i < 2; i++)
+				GenerateRoom();
+
+			ConnectEverything();
+			return;
+		}
+
+		// default coop layout (non-escape levels)
 		m_aRoom[m_Rooms++] = vec2(m_W*0.4f, m_H*(0.05f+frandom()*0.8f));
 		m_aRoom[m_Rooms++] = vec2(m_W*0.6f, m_aRoom[0].y);
 		
 		Connect(m_aRoom[0], m_aRoom[1]);
 		
 		int r = min(Level + 4, m_W*m_H / 600);
-			
+		
 		for (int i = 0; i < r; i++)
 			GenerateRoom(true);
-			
-		return;
-			
 		
-		// rising acid
-		if (Level%10 == 9)
-		{
-			int r = 4+min(14, Level/3);
+		return;
 
-
-			float s = 0.15f+frandom()*0.15f;
-			float sy = 0.4f;
-			
-			Connect(vec2(m_W*(0.3f-s), m_H*(0.5f+s*sy)), vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy)));
-			Connect(vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy)), vec2(m_W*(0.5f+s), m_H*(0.5f))); // W
-			
-			Connect(vec2(m_W*(0.35f-s), m_H*(0.5f)), vec2(m_W*(0.4f), m_H*(0.5f)));
-			Connect(vec2(m_W*(0.6f), m_H*(0.5f)), vec2(m_W*(0.65f+s), m_H*(0.5f)));
-			
-			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f-s*sy)), vec2(m_W*(0.5f+s), m_H*(0.5f-s*sy)));
-			Connect(vec2(m_W*(0.5f), m_H*(0.5f-s*sy)), vec2(m_W*(0.5f), m_H*(0.5f-s*sy*2)));
-			Connect(vec2(m_W*(0.5f), m_H*(0.5f-s*sy*2)), vec2(m_W*(0.6f+s), m_H*(0.5f-s*sy*2)));
-			
-			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f+s*sy*2)), vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy*2)));
-			
-			if (Level > 10)
-				Connect(vec2(m_W*(0.5f-s), m_H*(0.5f+s*sy*3)), vec2(m_W*(0.5f+s), m_H*(0.5f+s*sy*3)));
-			
-			float x = 0.5f + (frandom()-frandom())*0.2f;
-			
-			if (Level > 20)
-			{
-				Connect(vec2(m_W*(x-0.15f-s), m_H*(0.5f-s*sy*3)), vec2(m_W*(x-0.1f), m_H*(0.5f-s*sy*3)));
-				Connect(vec2(m_W*(x+0.1f), m_H*(0.5f-s*sy*3)), vec2(m_W*(x+0.15f+s), m_H*(0.5f-s*sy*3)));
-			}
-			
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s*(frandom()-frandom())), m_H*(0.5f+s*sy*2));
-			m_aRoom[m_Rooms++] = vec2(m_W*(0.5f-s*(frandom()-frandom())), m_H*(0.5f-s*sy*2));
-
-
-			// create random rooms
-			for (int i = 0; i < r; i++)
-				GenerateRoom();
-			
-			//ConnectRooms();
-			ConnectEverything();
-		}
+		// historical specialized layouts (unreachable; kept for reference)
 		// first rounds
-		else if (Level <= 10)
+		if (Level <= 10)
 		{
 			GenerateLinear(min(80+Level*5, 90+Level*2), Level);
 		}

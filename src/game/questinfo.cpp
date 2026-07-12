@@ -9,6 +9,7 @@ const char *GetQuestDisplayName(int Quest)
 		case QUEST_REACHDOOR: return "Reach the door";
 		case QUEST_SURVIVEWAVE: return "Survive the wave of enemies";
 		case QUEST_SURVIVEWAVETIME: return "Survive the wave of enemies";
+		case QUEST_FIND_SWITCH: return "Find the switch";
 		default: return "";
 	}
 }
@@ -47,6 +48,7 @@ const char *GetQuestStartMessage(int Quest, int WaveType)
 		case QUEST_REACHDOOR: return "Seek the door";
 		case QUEST_SURVIVEWAVE: return "Wave incoming";
 		case QUEST_SURVIVEWAVETIME: return "Wave incoming";
+		case QUEST_FIND_SWITCH: return "Find and activate the switch";
 		default: return "";
 	}
 }
@@ -81,6 +83,7 @@ const char *GetQuestCompletedMessage(int Quest, int WaveType)
 	
 	switch (Quest)
 	{
+		case QUEST_FIND_SWITCH: return "Switch activated";
 		case QUEST_REACHDOOR: return "";
 		default: return "";
 	}

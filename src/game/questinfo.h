@@ -4,8 +4,6 @@
 #include <cstring>
 #include <generated/protocol.h>
 
-
-
 enum Quests
 {
 	QUEST_NONE,
@@ -13,6 +11,7 @@ enum Quests
 	QUEST_REACHDOOR,
 	QUEST_SURVIVEWAVE,
 	QUEST_SURVIVEWAVETIME,
+	QUEST_FIND_SWITCH,
 };
 
 enum WaveTypes

@@ -53,6 +53,7 @@ public:
 	void *GetDataSwapped(int Index); // makes sure that the data is 32bit LE ints when saved
 	int GetDataSize(int Index);
 	void UnloadData(int Index);
+	void *ReplaceData(int Index, int NewSize);
 	void *GetItem(int Index, int *pType, int *pID);
 	int GetItemSize(int Index);
 	void GetType(int Type, int *pStart, int *pNum);

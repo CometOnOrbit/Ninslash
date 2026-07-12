@@ -1,3 +1,4 @@
+#include <base/math.h>
 #include <engine/shared/config.h>
 #include <game/mapitems.h>
 
@@ -56,6 +57,9 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_SurvivalDeathTick = 0;
 	m_SurvivalResetTick = 0;
 	m_ClearBroadcastTick = 0;
+	m_RisingAcid = false;
+	m_RisingAcidStartTick = 0;
+	m_RisingAcidDuration = 0;
 	
 	m_BombStatus = 0;
 	m_pBall = 0;
@@ -538,29 +542,41 @@ vec2 IGameController::GetAttackPos()
 }
 
 	
+void IGameController::BeginRisingAcid(int Seconds)
+{
+	m_RisingAcid = true;
+	m_RisingAcidStartTick = Server()->Tick();
+	m_RisingAcidDuration = max(1, Seconds) * Server()->TickSpeed();
+}
+
+int IGameController::GetRisingAcidTime() const
+{
+	// Rise from just below the floor toward the top in ~50s (was 1px/tick ≈ 3+ min on tall towers).
+	const int Elapsed = max(0, Server()->Tick() - m_RisingAcidStartTick);
+	const int MapH = GameServer()->Collision()->GetHeight();
+	const int ClimbPx = max(80*32, MapH*32 - 96);
+	const int RiseTicks = max(1, 50 * Server()->TickSpeed());
+	return 64 - (ClimbPx * Elapsed) / RiseTicks;
+}
+
+void IGameController::ClearRisingAcid()
+{
+	m_RisingAcid = false;
+	m_RisingAcidStartTick = 0;
+	m_RisingAcidDuration = 0;
+	GameServer()->Collision()->m_GlobalAcid = false;
+}
+
 void IGameController::TriggerSwitch(vec2 Pos)
 {
 	TriggerEscape();
-	
+	OnSwitchTriggered();
+}
+
+void IGameController::OnSwitchTriggered()
+{
 	if (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGenLevel%10 == 9)
-	{
-		m_SurvivalStartTick = Server()->Tick();
-		g_Config.m_SvSurvivalTime = 10;
-	}
-		
-	
-	/*
-	float Radius = 1000;
-	
-	CBuilding *apEnts[99];
-	int Num = GameServer()->m_World.FindEntities(Pos, Radius, (CEntity**)apEnts,
-													99, CGameWorld::ENTTYPE_BUILDING);
-	for (int i = 0; i < Num; ++i)
-	{
-		CBuilding *pTarget = apEnts[i];
-		pTarget->Trigger();
-	}
-	*/
+		BeginRisingAcid(50); // bookkeeping; actual rise speed scales with map height (~50s to top)
 }
 
 
@@ -1100,6 +1116,7 @@ void IGameController::StartRound()
 {
 	ResetGame();
 
+	ClearRisingAcid();
 	m_SurvivalStartTick = Server()->Tick();
 	m_RoundStartTick = Server()->Tick();
 	m_SuddenDeath = 0;
@@ -1793,7 +1810,12 @@ void IGameController::Tick()
 		}
 		
 		// global acid level
-		if (g_Config.m_SvSurvivalAcid && g_Config.m_SvSurvivalMode && g_Config.m_SvSurvivalTime && !m_Warmup)
+		if (m_RisingAcid)
+		{
+			GameServer()->Collision()->m_GlobalAcid = true;
+			GameServer()->Collision()->m_Time = GetRisingAcidTime();
+		}
+		else if (g_Config.m_SvSurvivalAcid && g_Config.m_SvSurvivalMode && g_Config.m_SvSurvivalTime && !m_Warmup)
 		{
 			GameServer()->Collision()->m_GlobalAcid = true;
 			GameServer()->Collision()->m_Time = g_Config.m_SvSurvivalTime*Server()->TickSpeed() - ((Server()->Tick()-m_SurvivalStartTick));
@@ -1980,7 +2002,14 @@ void IGameController::Snap(int SnappingClient)
 	pGameInfoObj->m_ScoreLimit = g_Config.m_SvScorelimit;
 	
 	
-	if (g_Config.m_SvSurvivalMode && g_Config.m_SvSurvivalTime)
+	if (m_RisingAcid)
+	{
+		// Encode current acid level into TimeLimit/RoundStart so client m_Time matches.
+		const int AcidTime = GetRisingAcidTime();
+		pGameInfoObj->m_TimeLimit = 1;
+		pGameInfoObj->m_RoundStartTick = Server()->Tick() + AcidTime - pGameInfoObj->m_TimeLimit*60*Server()->TickSpeed();
+	}
+	else if (g_Config.m_SvSurvivalMode && g_Config.m_SvSurvivalTime)
 	{
 		pGameInfoObj->m_TimeLimit = g_Config.m_SvSurvivalTime/60+1;
 		pGameInfoObj->m_RoundStartTick = m_SurvivalStartTick - Server()->TickSpeed()*(60-g_Config.m_SvSurvivalTime%60);

@@ -199,7 +199,7 @@ void CFluid::RenderGlobalAcid()
 {
 	float AcidLevel = Collision()->GetGlobalAcidLevel();
 	
-	if (AcidLevel == 0.0f)
+	if (!Collision()->m_GlobalAcid)
 		return;
 
 	

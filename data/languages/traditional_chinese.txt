@@ -1156,6 +1156,21 @@ seconds remaining
 xbox 360 controller support
 == xbox360手柄支持
 
+Find the switch
+== 找到開關
+
+Find and activate the switch
+== 找到並啟動開關
+
+Switch activated
+== 開關已啟動
+
+Rising acid! Reach the exit
+== 酸液上漲！逃到出口
+
+Rising acid
+== 酸液上漲
+
 ##### needs translation #####
 
 ##### old translations #####
