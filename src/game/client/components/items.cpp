@@ -677,7 +677,7 @@ void CItems::RenderLaserFail(const CNetObj_LaserFail *pCurrent)
 
 void CItems::UpdateTraces()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 	
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
@@ -694,7 +694,7 @@ void CItems::UpdateTraces()
 
 void CItems::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 	
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
@@ -710,8 +710,9 @@ void CItems::OnRender()
 		else if(Item.m_Type == NETOBJTYPE_PICKUP)
 		{
 			const void *pPrev = Client()->SnapFindItem(IClient::SNAP_PREV, Item.m_Type, Item.m_ID);
-			if(pPrev)
-				RenderPickup((const CNetObj_Pickup *)pPrev, (const CNetObj_Pickup *)pData);
+			const CNetObj_Pickup *pCurrent = (const CNetObj_Pickup *)pData;
+			const CNetObj_Pickup *pPrevObj = pPrev ? (const CNetObj_Pickup *)pPrev : pCurrent;
+			RenderPickup(pPrevObj, pCurrent);
 		}
 		else if(Item.m_Type == NETOBJTYPE_LASER)
 		{
@@ -732,12 +733,11 @@ void CItems::OnRender()
 		if(Item.m_Type == NETOBJTYPE_FLAG)
 		{
 			const void *pPrev = Client()->SnapFindItem(IClient::SNAP_PREV, Item.m_Type, Item.m_ID);
-			if (pPrev)
-			{
-				const void *pPrevGameData = Client()->SnapFindItem(IClient::SNAP_PREV, NETOBJTYPE_GAMEDATA, m_pClient->m_Snap.m_GameDataSnapID);
-				RenderFlag(static_cast<const CNetObj_Flag *>(pPrev), static_cast<const CNetObj_Flag *>(pData),
-							static_cast<const CNetObj_GameData *>(pPrevGameData), m_pClient->m_Snap.m_pGameDataObj);
-			}
+			const CNetObj_Flag *pCurrent = static_cast<const CNetObj_Flag *>(pData);
+			const CNetObj_Flag *pPrevObj = pPrev ? static_cast<const CNetObj_Flag *>(pPrev) : pCurrent;
+			const void *pPrevGameData = Client()->SnapFindItem(IClient::SNAP_PREV, NETOBJTYPE_GAMEDATA, m_pClient->m_Snap.m_GameDataSnapID);
+			const CNetObj_GameData *pPrevGD = pPrevGameData ? static_cast<const CNetObj_GameData *>(pPrevGameData) : m_pClient->m_Snap.m_pGameDataObj;
+			RenderFlag(pPrevObj, pCurrent, pPrevGD, m_pClient->m_Snap.m_pGameDataObj);
 		}
 	}
 

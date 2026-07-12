@@ -43,6 +43,7 @@
 
 #include "friends.h"
 #include "serverbrowser.h"
+#include "video.h"
 #include "client.h"
 
 #if defined(CONF_FAMILY_WINDOWS)
@@ -158,6 +159,8 @@ void CSmoothTime::Init(int64 Target)
 	m_aAdjustSpeed[0] = 0.3f;
 	m_aAdjustSpeed[1] = 0.3f;
 	m_Graph.Init(0.0f, 0.5f);
+	m_SpikeCounter = 0;
+	m_BadnessScore = -100;
 }
 
 void CSmoothTime::SetAdjustSpeed(int Direction, float Value)
@@ -217,10 +220,12 @@ void CSmoothTime::Update(CGraph *pGraph, int64 Target, int TimeLeft, int AdjustD
 			// ignore this ping spike
 			UpdateTimer = 0;
 			pGraph->Add(TimeLeft, 1,1,0);
+			m_BadnessScore += 10;
 		}
 		else
 		{
 			pGraph->Add(TimeLeft, 1,0,0);
+			m_BadnessScore += 50;
 			if(m_aAdjustSpeed[AdjustDirection] < 30.0f)
 				m_aAdjustSpeed[AdjustDirection] *= 2.0f;
 		}
@@ -239,6 +244,8 @@ void CSmoothTime::Update(CGraph *pGraph, int64 Target, int TimeLeft, int AdjustD
 
 	if(UpdateTimer)
 		UpdateInt(Target);
+
+	m_BadnessScore -= 1+m_BadnessScore/100;
 }
 
 
@@ -266,6 +273,8 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 	m_SnapCrcErrors = 0;
 	m_AutoScreenshotRecycle = false;
 	m_EditorActive = false;
+	m_VideoFps = 30;
+	m_VideoFinished = false;
 
 	m_AckGameTick = -1;
 	m_CurrentRecvTick = 0;
@@ -394,6 +403,11 @@ void CClient::Rcon(const char *pCmd)
 bool CClient::ConnectionProblems()
 {
 	return m_NetClient.GotProblems() != 0;
+}
+
+int CClient::GetInputtimeMarginStabilityScore()
+{
+	return m_PredictedTime.GetStabilityScore();
 }
 
 void CClient::DirectInput(int *pInput, int Size)
@@ -568,6 +582,7 @@ void CClient::DisconnectWithReason(const char *pReason)
 	// stop demo playback and recorder
 	m_DemoPlayer.Stop();
 	DemoRecorder_Stop();
+	VideoStop();
 
 	//
 	m_RconAuthed = 0;
@@ -1482,6 +1497,8 @@ void CClient::OnDemoPlayerSnapshot(void *pData, int Size)
 
 	mem_copy(m_aSnapshots[SNAP_CURRENT]->m_pSnap, pData, Size);
 	mem_copy(m_aSnapshots[SNAP_CURRENT]->m_pAltSnap, pData, Size);
+	m_aSnapshots[SNAP_CURRENT]->m_SnapSize = Size;
+	m_aSnapshots[SNAP_CURRENT]->m_Tick = m_CurGameTick;
 
 	GameClient()->OnNewSnapshot();
 }
@@ -1538,20 +1555,42 @@ void CClient::Update()
 {
 	if(State() == IClient::STATE_DEMOPLAYBACK)
 	{
-		m_DemoPlayer.Update();
-		if(m_DemoPlayer.IsPlaying())
+		if(m_Video.IsRecording())
 		{
-			// update timers
-			const CDemoPlayer::CPlaybackInfo *pInfo = m_DemoPlayer.Info();
-			m_CurGameTick = pInfo->m_Info.m_CurrentTick;
-			m_PrevGameTick = pInfo->m_PreviousTick;
-			m_GameIntraTick = pInfo->m_IntraTick;
-			m_GameTickTime = pInfo->m_TickTime;
+			// video recording drives demo time after each captured frame;
+			// demo player pauses (keeps file open) when it hits EOF
+			if(m_DemoPlayer.IsPlaying() && !m_DemoPlayer.BaseInfo()->m_Paused)
+			{
+				const CDemoPlayer::CPlaybackInfo *pInfo = m_DemoPlayer.Info();
+				m_CurGameTick = pInfo->m_Info.m_CurrentTick;
+				m_PrevGameTick = pInfo->m_PreviousTick;
+				m_GameIntraTick = pInfo->m_IntraTick;
+				m_GameTickTime = pInfo->m_TickTime;
+			}
+			else
+			{
+				m_VideoFinished = true;
+				VideoStop();
+				Disconnect();
+			}
 		}
 		else
 		{
-			// disconnect on error
-			Disconnect();
+			m_DemoPlayer.Update();
+			if(m_DemoPlayer.IsPlaying())
+			{
+				// update timers
+				const CDemoPlayer::CPlaybackInfo *pInfo = m_DemoPlayer.Info();
+				m_CurGameTick = pInfo->m_Info.m_CurrentTick;
+				m_PrevGameTick = pInfo->m_PreviousTick;
+				m_GameIntraTick = pInfo->m_IntraTick;
+				m_GameTickTime = pInfo->m_TickTime;
+			}
+			else
+			{
+				// disconnect on error
+				Disconnect();
+			}
 		}
 	}
 	else if(State() == IClient::STATE_ONLINE && m_RecivedSnapshots >= 3)
@@ -1912,7 +1951,7 @@ void CClient::Run()
 
 			Update();
 			
-			if(!g_Config.m_GfxAsyncRender || m_pGraphics->IsIdle())
+			if(!g_Config.m_GfxAsyncRender || m_pGraphics->IsIdle() || m_Video.IsRecording())
 			{
 				m_RenderFrames++;
 
@@ -1928,7 +1967,7 @@ void CClient::Run()
 				m_LastRenderTime = Now;
 
 				// when we are stress testing only render every 10th frame
-				if(!g_Config.m_DbgStress || (m_RenderFrames%10) == 0 )
+				if(m_Video.IsRecording() || !g_Config.m_DbgStress || (m_RenderFrames%10) == 0 )
 				{
 					if(!m_EditorActive)
 						Render();
@@ -1937,6 +1976,8 @@ void CClient::Run()
 						m_pEditor->UpdateAndRender();
 						DebugRender();
 					}
+					if(m_Video.IsRecording())
+						VideoRecordFrame();
 					m_pGraphics->Swap();
 				}
 			}
@@ -2146,19 +2187,52 @@ void CClient::Con_Play(IConsole::IResult *pResult, void *pUserData)
 void CClient::DemoRecorder_Start(const char *pFilename, bool WithTimestamp)
 {
 	if(State() != IClient::STATE_ONLINE)
+	{
 		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "demorec/record", "client is not online");
+		return;
+	}
+
+	char aFilename[128];
+	if(WithTimestamp)
+	{
+		char aDate[20];
+		str_timestamp(aDate, sizeof(aDate));
+		str_format(aFilename, sizeof(aFilename), "demos/%s_%s.demo", pFilename, aDate);
+	}
+	else
+		str_format(aFilename, sizeof(aFilename), "demos/%s.demo", pFilename);
+
+	char aFolder[128];
+	str_copy(aFolder, aFilename, sizeof(aFolder));
+	for(int i = str_length(aFolder) - 1; i >= 0; i--)
+	{
+		if(aFolder[i] == '/')
+		{
+			aFolder[i] = 0;
+			for(int k = 1; aFolder[k]; k++)
+			{
+				if(aFolder[k] == '/')
+				{
+					aFolder[k] = 0;
+					Storage()->CreateFolder(aFolder, IStorage::TYPE_SAVE);
+					aFolder[k] = '/';
+				}
+			}
+			Storage()->CreateFolder(aFolder, IStorage::TYPE_SAVE);
+			break;
+		}
+	}
+
+	if(m_DemoRecorder.Start(Storage(), m_pConsole, aFilename, GameClient()->NetVersion(), m_aCurrentMap, m_CurrentMapCrc, "client") < 0)
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "demorec/record", "recording failed");
 	else
 	{
-		char aFilename[128];
-		if(WithTimestamp)
-		{
-			char aDate[20];
-			str_timestamp(aDate, sizeof(aDate));
-			str_format(aFilename, sizeof(aFilename), "demos/%s_%s.demo", pFilename, aDate);
-		}
+		char aBuf[256];
+		if(g_Config.m_ClStreamerMode)
+			str_format(aBuf, sizeof(aBuf), "recording to 'demos/***.demo'");
 		else
-			str_format(aFilename, sizeof(aFilename), "demos/%s.demo", pFilename);
-		m_DemoRecorder.Start(Storage(), m_pConsole, aFilename, GameClient()->NetVersion(), m_aCurrentMap, m_CurrentMapCrc, "client");
+			str_format(aBuf, sizeof(aBuf), "recording to '%s'", aFilename);
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "demorec/record", aBuf);
 	}
 }
 
@@ -2206,6 +2280,203 @@ void CClient::Con_AddDemoMarker(IConsole::IResult *pResult, void *pUserData)
 {
 	CClient *pSelf = (CClient *)pUserData;
 	pSelf->DemoRecorder_AddDemoMarker();
+}
+
+void CClient::DemoSlice(const char *pDstPath)
+{
+	// Get the current demo path
+	char aCurrentDemo[256];
+	m_DemoPlayer.GetDemoName(aCurrentDemo, sizeof(aCurrentDemo));
+	if(!aCurrentDemo[0])
+	{
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "demo_slice", "no demo is currently playing");
+		return;
+	}
+
+	// Simplified implementation: copy the entire demo file
+	char aFullSrcPath[512];
+	char aFullDstPath[512];
+	str_format(aFullSrcPath, sizeof(aFullSrcPath), "demos/%s", aCurrentDemo);
+	str_format(aFullDstPath, sizeof(aFullDstPath), "demos/%s", pDstPath);
+
+	// Ensure destination has .demo extension
+	int DstLen = str_length(aFullDstPath);
+	if(DstLen <= 5 || str_comp_nocase(aFullDstPath + DstLen - 5, ".demo"))
+		str_format(aFullDstPath, sizeof(aFullDstPath), "demos/%s.demo", pDstPath);
+
+	IOHANDLE SrcFile = m_pStorage->OpenFile(aFullSrcPath, IOFLAG_READ, IStorage::TYPE_ALL);
+	if(!SrcFile)
+	{
+		char aBuf[512];
+		str_format(aBuf, sizeof(aBuf), "failed to open source demo '%s'", aFullSrcPath);
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "demo_slice", aBuf);
+		return;
+	}
+
+	IOHANDLE DstFile = m_pStorage->OpenFile(aFullDstPath, IOFLAG_WRITE, IStorage::TYPE_SAVE);
+	if(!DstFile)
+	{
+		char aBuf[512];
+		str_format(aBuf, sizeof(aBuf), "failed to create destination demo '%s'", aFullDstPath);
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "demo_slice", aBuf);
+		io_close(SrcFile);
+		return;
+	}
+
+	// Copy the entire demo file
+	char aBuffer[64*1024];
+	while(1)
+	{
+		int Bytes = io_read(SrcFile, aBuffer, sizeof(aBuffer));
+		if(Bytes <= 0)
+			break;
+		io_write(DstFile, aBuffer, Bytes);
+	}
+
+	io_close(SrcFile);
+	io_close(DstFile);
+
+	char aBuf[512];
+	str_format(aBuf, sizeof(aBuf), "sliced demo saved to '%s'", aFullDstPath);
+	m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "demo_slice", aBuf);
+}
+
+bool CClient::VideoStart(const char *pName, int Fps)
+{
+	if(State() != IClient::STATE_DEMOPLAYBACK)
+	{
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "video", "demo playback required");
+		return false;
+	}
+
+	if(m_Video.IsRecording())
+		VideoStop();
+
+	m_VideoFinished = false;
+	m_VideoFps = Fps > 0 ? Fps : 30;
+	if(m_VideoFps > 120)
+		m_VideoFps = 120;
+	if(m_VideoFps < 1)
+		m_VideoFps = 1;
+
+	Storage()->CreateFolder("videos", IStorage::TYPE_SAVE);
+
+	char aSafe[128];
+	str_copy(aSafe, pName && pName[0] ? pName : "demo", sizeof(aSafe));
+	// strip extension and path separators
+	for(int i = 0; aSafe[i]; i++)
+	{
+		if(aSafe[i] == '/' || aSafe[i] == '\\' || aSafe[i] == ':')
+			aSafe[i] = '_';
+	}
+	int Len = str_length(aSafe);
+	if(Len > 4 && str_comp_nocase(aSafe + Len - 4, ".mp4") == 0)
+		aSafe[Len - 4] = 0;
+	else if(Len > 5 && str_comp_nocase(aSafe + Len - 5, ".demo") == 0)
+		aSafe[Len - 5] = 0;
+
+	char aFilename[256];
+	str_format(aFilename, sizeof(aFilename), "videos/%s.mp4", aSafe);
+
+	int Width = Graphics()->ScreenWidth();
+	int Height = Graphics()->ScreenHeight();
+	if(!m_Video.Start(Storage(), m_pConsole, aFilename, Width, Height, m_VideoFps))
+		return false;
+
+	m_DemoPlayer.SetSpeed(1.0f);
+	m_DemoPlayer.Unpause();
+	return true;
+}
+
+void CClient::VideoStop()
+{
+	if(m_Video.IsRecording())
+		m_Video.Stop();
+}
+
+bool CClient::IsRecordingVideo() const
+{
+	return m_Video.IsRecording();
+}
+
+float CClient::VideoProgress() const
+{
+	if(!m_Video.IsRecording() || !m_DemoPlayer.IsPlaying())
+		return 0.0f;
+
+	const IDemoPlayer::CInfo *pInfo = m_DemoPlayer.BaseInfo();
+	int Total = pInfo->m_LastTick - pInfo->m_FirstTick;
+	if(Total <= 0)
+		return 0.0f;
+	float Progress = (pInfo->m_CurrentTick - pInfo->m_FirstTick) / (float)Total;
+	if(Progress < 0.0f)
+		return 0.0f;
+	if(Progress > 1.0f)
+		return 1.0f;
+	return Progress;
+}
+
+bool CClient::ConsumeVideoFinished()
+{
+	if(!m_VideoFinished)
+		return false;
+	m_VideoFinished = false;
+	return true;
+}
+
+void CClient::VideoRecordFrame()
+{
+	if(!m_Video.IsRecording())
+		return;
+
+	CImageInfo Image;
+	if(!Graphics()->CaptureFrame(&Image) || !Image.m_pData)
+	{
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "video", "frame capture failed");
+		m_VideoFinished = false;
+		VideoStop();
+		Disconnect();
+		return;
+	}
+
+	if(Image.m_Width != m_Video.Width() || Image.m_Height != m_Video.Height())
+	{
+		mem_free(Image.m_pData);
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "video", "frame size mismatch");
+		VideoStop();
+		Disconnect();
+		return;
+	}
+
+	unsigned Size = (unsigned)Image.m_Width * (unsigned)Image.m_Height * 3;
+	bool Ok = m_Video.WriteFrame(Image.m_pData, Size);
+	mem_free(Image.m_pData);
+	if(!Ok)
+	{
+		Disconnect();
+		return;
+	}
+
+	int64 Step = time_freq() / m_VideoFps;
+	if(Step < 1)
+		Step = 1;
+	m_DemoPlayer.UpdateTime(Step);
+
+	// EOF pauses the demo instead of closing it — treat that as render complete
+	if(m_DemoPlayer.IsPlaying() && !m_DemoPlayer.BaseInfo()->m_Paused)
+	{
+		const CDemoPlayer::CPlaybackInfo *pInfo = m_DemoPlayer.Info();
+		m_CurGameTick = pInfo->m_Info.m_CurrentTick;
+		m_PrevGameTick = pInfo->m_PreviousTick;
+		m_GameIntraTick = pInfo->m_IntraTick;
+		m_GameTickTime = pInfo->m_TickTime;
+	}
+	else
+	{
+		m_VideoFinished = true;
+		VideoStop();
+		Disconnect();
+	}
 }
 
 void CClient::ServerBrowserUpdate()

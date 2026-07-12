@@ -152,7 +152,7 @@ void CLight::RenderGroup(int Group)
 	if (!g_Config.m_ClLighting)
 		return;
 	
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 	
 	CUIRect Screen;
@@ -180,7 +180,7 @@ void CLight::RenderGroup(int Group)
 	*/
 	
 	// camera center light
-	RenderLight(m_pClient->m_pCamera->m_Center, vec2(900, 700), vec4(1, 1, 1, 0.4f));
+	RenderLight(m_pClient->m_pCamera->m_TargetCenter, vec2(900, 700), vec4(1, 1, 1, 0.4f));
 	
 	// render light sources to texture buffer
 	for (int i = 0; i < m_Count; i++)
@@ -285,7 +285,7 @@ void CLight::RenderGroup(int Group)
 	Graphics()->QuadsBegin();
 	Graphics()->SetColor(0.0f, 0.0f, 1.0f, 1.0f);
 	
-	vec2 Center = m_pClient->m_pCamera->m_Center / 32;
+	vec2 Center = m_pClient->m_pCamera->m_TargetCenter / 32;
 	float ScreenX0, ScreenY0, ScreenX1, ScreenY1;
 	Graphics()->GetScreen(&ScreenX0, &ScreenY0, &ScreenX1, &ScreenY1);
 	
@@ -314,19 +314,19 @@ void CLight::RenderGroup(int Group)
 				{
 					for (int i = 0; i < 3; i++)
 						if (LightCount < 199)
-							aLights[LightCount++] = vec2(atan2(m_pClient->m_pCamera->m_Center.x-p.x, m_pClient->m_pCamera->m_Center.y-p.y)-(i-1)*0.025f, 0);
+							aLights[LightCount++] = vec2(atan2(m_pClient->m_pCamera->m_TargetCenter.x-p.x, m_pClient->m_pCamera->m_TargetCenter.y-p.y)-(i-1)*0.025f, 0);
 				}
 				else
 				{
 					if (LightCount < 199)
-						aLights[LightCount++] = vec2(atan2(m_pClient->m_pCamera->m_Center.x-p.x, m_pClient->m_pCamera->m_Center.y-p.y), 0);
+						aLights[LightCount++] = vec2(atan2(m_pClient->m_pCamera->m_TargetCenter.x-p.x, m_pClient->m_pCamera->m_TargetCenter.y-p.y), 0);
 				}
 						
 
 				 // render light endpoints
 				 /*
 				IGraphics::CFreeformItem FreeFormItem(
-				m_pClient->m_pCamera->m_Center.x, m_pClient->m_pCamera->m_Center.y, m_pClient->m_pCamera->m_Center.x, m_pClient->m_pCamera->m_Center.y,
+				m_pClient->m_pCamera->m_TargetCenter.x, m_pClient->m_pCamera->m_TargetCenter.y, m_pClient->m_pCamera->m_TargetCenter.x, m_pClient->m_pCamera->m_TargetCenter.y,
 				p.x+Offset.x-2, p.y+Offset.y-2, p.x+Offset.x+2, p.y+Offset.y+2);
 				Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
 				*/
@@ -358,16 +358,16 @@ void CLight::RenderGroup(int Group)
 	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 0.5f);
 	for (int i = 0; i < LightCount; i++)
 	{
-		vec2 p = m_pClient->m_pCamera->m_Center-vec2(sin(aLights[i].x), cos(aLights[i].x))*2000; // aLights[i].y
+		vec2 p = m_pClient->m_pCamera->m_TargetCenter-vec2(sin(aLights[i].x), cos(aLights[i].x))*2000; // aLights[i].y
 		
 		int next = i+1;
 		if (next >= LightCount)
 			next = 0;
 		
-		vec2 p2 = m_pClient->m_pCamera->m_Center-vec2(sin(aLights[next].x), cos(aLights[next].x))*2000; // *aLights[next].y
+		vec2 p2 = m_pClient->m_pCamera->m_TargetCenter-vec2(sin(aLights[next].x), cos(aLights[next].x))*2000; // *aLights[next].y
 		
-		Collision()->IntersectLine(m_pClient->m_pCamera->m_Center, p, 0x0, &p, false, false, false);
-		Collision()->IntersectLine(m_pClient->m_pCamera->m_Center, p2, 0x0, &p2, false, false, false);
+		Collision()->IntersectLine(m_pClient->m_pCamera->m_TargetCenter, p, 0x0, &p, false, false, false);
+		Collision()->IntersectLine(m_pClient->m_pCamera->m_TargetCenter, p2, 0x0, &p2, false, false, false);
 		
 		p -= vec2(sin(aLights[i].x), cos(aLights[i].x))*32;
 		p2 -= vec2(sin(aLights[next].x), cos(aLights[next].x))*32;
@@ -381,8 +381,8 @@ void CLight::RenderGroup(int Group)
 		Graphics()->SetColorVertex(aColors, 4);
 		
 		IGraphics::CFreeformItem FreeFormItem(
-			m_pClient->m_pCamera->m_Center.x, m_pClient->m_pCamera->m_Center.y,
-			m_pClient->m_pCamera->m_Center.x, m_pClient->m_pCamera->m_Center.y,
+			m_pClient->m_pCamera->m_TargetCenter.x, m_pClient->m_pCamera->m_TargetCenter.y,
+			m_pClient->m_pCamera->m_TargetCenter.x, m_pClient->m_pCamera->m_TargetCenter.y,
 			p2.x, p2.y,
 			p.x, p.y);
 		

@@ -19,6 +19,7 @@ MACRO_TUNING_PARAM(HookLength, hook_length, 480.0f)
 MACRO_TUNING_PARAM(HookFireSpeed, hook_fire_speed, 60.0f) //80.0f
 MACRO_TUNING_PARAM(HookDragAccel, hook_drag_accel, 2.0f) // 3.0f
 MACRO_TUNING_PARAM(HookDragSpeed, hook_drag_speed, 14.0f) // 15.0f
+MACRO_TUNING_PARAM(HookDragMinDistFactor, hook_drag_min_dist_factor, 1.50f)
 MACRO_TUNING_PARAM(WallrunImpulse, wall_run_impulse, 9.0f)
 MACRO_TUNING_PARAM(AirControlSpeed, air_control_speed, 450.0f / TicksPerSecond) //  250.0f
 MACRO_TUNING_PARAM(AirControlAccel, air_control_accel, 50.0f / TicksPerSecond) // 1.5f

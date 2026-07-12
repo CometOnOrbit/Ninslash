@@ -21,7 +21,6 @@ void CNetRecvUnpacker::Start(const NETADDR *pAddr, CNetConnection *pConnection, 
 	m_Valid = true;
 }
 
-// TODO: rename this function
 int CNetRecvUnpacker::FetchChunk(CNetChunk *pChunk)
 {
 	CNetChunkHeader Header;
@@ -38,11 +37,16 @@ int CNetRecvUnpacker::FetchChunk(CNetChunk *pChunk)
 			return 0;
 		}
 
-		// TODO: add checking here so we don't read too far
 		for(int i = 0; i < m_CurrentChunk; i++)
 		{
-			pData = Header.Unpack(pData);
-			pData += Header.m_Size;
+			CNetChunkHeader SkipHeader;
+			pData = SkipHeader.Unpack(pData);
+			if(pData + SkipHeader.m_Size > pEnd)
+			{
+				Clear();
+				return 0;
+			}
+			pData += SkipHeader.m_Size;
 		}
 
 		// unpack the header
@@ -155,7 +159,6 @@ void CNetBase::SendPacket(NETSOCKET Socket, NETADDR *pAddr, CNetPacketConstruct 
 	}
 }
 
-// TODO: rename this function
 int CNetBase::UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct *pPacket)
 {
 	// check the size

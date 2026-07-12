@@ -68,8 +68,7 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 	{
 		CEditorImage *pImg = m_lImages[i];
 
-		// analyse the image for when saving (should be done when we load the image)
-		// TODO!
+		// analyse the image for when saving (also done on load/add)
 		pImg->AnalyseTileFlags();
 
 		CMapItemImage Item;
@@ -341,6 +340,7 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 
 				// load auto mapper file
 				pImg->m_AutoMapper.Load(pImg->m_aName);
+				pImg->AnalyseTileFlags();
 
 				m_lImages.add(pImg);
 

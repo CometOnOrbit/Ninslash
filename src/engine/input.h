@@ -1,11 +1,13 @@
 
-
 #ifndef ENGINE_INPUT_H
 #define ENGINE_INPUT_H
 
 #include "kernel.h"
 
+#include <base/system.h>
+
 extern const char g_aaKeyStrings[512][20];
+
 
 class IInput : public IInterface
 {
@@ -15,8 +17,8 @@ public:
 	{
 	public:
 		int m_Flags;
-		int m_Unicode;
 		int m_Key;
+		char m_aText[32*UTF8_BYTE_LENGTH+1];
 	};
 
 protected:
@@ -47,13 +49,21 @@ public:
 	{
 		FLAG_PRESS=1,
 		FLAG_RELEASE=2,
-		FLAG_REPEAT=4
+		FLAG_REPEAT=4,
+		FLAG_TEXT=8,
+
+		MAX_CANDIDATES = 16,
+		MAX_CANDIDATE_LENGTH = 16,
+		MAX_CANDIDATE_ARRAY_SIZE=MAX_CANDIDATE_LENGTH*UTF8_BYTE_LENGTH+1,
+		MAX_COMPOSITION_ARRAY_SIZE = 32,
+
+		COMP_LENGTH_INACTIVE = -1
 	};
 
 	// events
 	int NumEvents() const { return m_NumEvents; }
-	void ClearEvents() 
-	{ 
+	void ClearEvents()
+	{
 		m_NumEvents = 0;
 		m_InputDispatched = true;
 	}
@@ -62,6 +72,7 @@ public:
 		if(Index < 0 || Index >= m_NumEvents)
 		{
 			IInput::CEvent e = {0,0};
+			e.m_aText[0] = 0;
 			return e;
 		}
 		return m_aInputEvents[Index];
@@ -95,6 +106,19 @@ public:
 	virtual bool MouseEntered() = 0;
 
 	virtual int ShowCursor(bool show) = 0;
+
+	// text editing
+	virtual void StartTextInput() = 0;
+	virtual void StopTextInput() = 0;
+	virtual const char *GetComposition() const = 0;
+	virtual bool HasComposition() const = 0;
+	virtual int GetCompositionCursor() const = 0;
+	virtual int GetCompositionSelectedLength() const = 0;
+	virtual int GetCompositionLength() const = 0;
+	virtual const char *GetCandidate(int Index) const = 0;
+	virtual int GetCandidateCount() const = 0;
+	virtual int GetCandidateSelectedIndex() const = 0;
+	virtual void SetCompositionWindowPosition(float X, float Y, float H) = 0;
 };
 
 

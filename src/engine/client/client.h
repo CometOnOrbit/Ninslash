@@ -38,6 +38,7 @@ class CSmoothTime
 	CGraph m_Graph;
 
 	int m_SpikeCounter;
+	int m_BadnessScore;
 
 	float m_aAdjustSpeed[2]; // 0 = down, 1 = up
 public:
@@ -45,6 +46,7 @@ public:
 	void SetAdjustSpeed(int Direction, float Value);
 
 	int64 Get(int64 Now);
+	int GetStabilityScore() const { return m_BadnessScore; }
 
 	void UpdateInt(int64 Target);
 	void Update(CGraph *pGraph, int64 Target, int TimeLeft, int AdjustDirection);
@@ -78,6 +80,9 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	class CServerBrowser m_ServerBrowser;
 	class CFriends m_Friends;
 	class CMapChecker m_MapChecker;
+	class CVideo m_Video;
+	int m_VideoFps;
+	bool m_VideoFinished;
 
 	char m_aServerAddressStr[256];
 
@@ -213,6 +218,7 @@ public:
 	virtual void Rcon(const char *pCmd);
 
 	virtual bool ConnectionProblems();
+	virtual int GetInputtimeMarginStabilityScore();
 
 	virtual bool SoundInitFailed() { return m_SoundInitFailed; }
 	
@@ -311,6 +317,14 @@ public:
 	void DemoRecorder_HandleAutoStart();
 	void DemoRecorder_Stop();
 	void DemoRecorder_AddDemoMarker();
+	void DemoSlice(const char *pDstPath);
+
+	virtual bool VideoStart(const char *pName, int Fps);
+	virtual void VideoStop();
+	virtual bool IsRecordingVideo() const;
+	virtual float VideoProgress() const;
+	virtual bool ConsumeVideoFinished();
+	void VideoRecordFrame();
 
 	void AutoScreenshot_Start();
 	void AutoScreenshot_Cleanup();

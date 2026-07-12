@@ -36,6 +36,7 @@ public:
 	void UnbindAll();
 	const char *Get(int KeyID);
 	const char *GetKey(const char *pBindStr);
+	void GetKeys(const char *pBindStr, char *pBuf, int BufSize);
 
 	virtual void OnConsoleInit();
 	virtual bool OnInput(IInput::CEvent Event);

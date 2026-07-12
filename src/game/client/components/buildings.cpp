@@ -525,8 +525,10 @@ void CBuildings::RenderStand(const CNetObj_Building *pCurrent, const CNetObj_Bui
 	// render drop weapon tip for local player
 	if (distance(CustomStuff()->m_LocalPos, vec2(Pos.x, Pos.y+15)) < 60 && ValidForTurret(CustomStuff()->m_LocalWeapon))
 	{
+		char aDropKeys[64];
+		m_pClient->m_pBinds->GetKeys("+dropweapon", aDropKeys, sizeof(aDropKeys));
 		TextRender()->TextColor(0.2f, 0.8f, 0.2f, 1);
-		TextRender()->Text(0, Pos.x + 22, Pos.y - 30 - 60*FlipY, 32, m_pClient->m_pBinds->GetKey("+dropweapon"), -1);
+		TextRender()->Text(0, Pos.x + 22, Pos.y - 30 - 60*FlipY, 32, aDropKeys[0] ? aDropKeys : "", -1);
 		TextRender()->TextColor(1, 1, 1, 1);
 		
 		// render weapon cloning cost
@@ -756,7 +758,7 @@ void CBuildings::RenderTurret(const CNetObj_Turret *pCurrent, const CNetObj_Turr
 
 void CBuildings::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 	
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);

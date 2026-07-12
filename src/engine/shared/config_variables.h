@@ -132,4 +132,59 @@ MACRO_CONFIG_INT(SvMapGenRandSeed, sv_mapgen_random_seed, 1, 0, 1, CFGFLAG_SERVE
 
 // Invasion
 MACRO_CONFIG_INT(SvInvFails, sv_inv_fails,  0, 0, 9, CFGFLAG_SERVER, "Invasion level fails")
+
+// ===== AntiPing / Prediction System =====
+MACRO_CONFIG_INT(ClAntiPing, cl_antiping, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Enable antiping, more aggressive prediction")
+MACRO_CONFIG_INT(ClAntiPingPlayers, cl_antiping_players, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Predict other player's movement more aggressively (only if cl_antiping is 1)")
+MACRO_CONFIG_INT(ClAntiPingGrenade, cl_antiping_grenade, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Predict grenades (only if cl_antiping is 1)")
+MACRO_CONFIG_INT(ClAntiPingWeapons, cl_antiping_weapons, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Predict weapon projectiles (only if cl_antiping is 1)")
+MACRO_CONFIG_INT(ClAntiPingSmooth, cl_antiping_smooth, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Make the prediction of other player's movement smoother")
+MACRO_CONFIG_INT(ClAntiPingGunfire, cl_antiping_gunfire, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Predict gunfire and show predicted weapon physics")
+MACRO_CONFIG_INT(ClPredictionMargin, cl_prediction_margin, 10, 1, 300, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Prediction margin in ms (adds latency, can reduce lag from ping jumps)")
+MACRO_CONFIG_INT(ClShowpred, cl_showpred, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame prediction time in milliseconds")
+
+// ===== HUD Modularity =====
+MACRO_CONFIG_INT(ClShowhudHealthAmmo, cl_showhud_healthammo, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Health + Ammo)")
+MACRO_CONFIG_INT(ClShowhudScore, cl_showhud_score, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Score)")
+MACRO_CONFIG_INT(ClShowhudTimer, cl_showhud_timer, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Timer)")
+MACRO_CONFIG_INT(ClShowhudSpectatorCount, cl_showhud_spectator_count, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Spectator Count)")
+MACRO_CONFIG_INT(ClShowhudPlayerPosition, cl_showhud_player_position, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Player Position)")
+MACRO_CONFIG_INT(ClShowhudPlayerSpeed, cl_showhud_player_speed, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Player Speed)")
+MACRO_CONFIG_INT(ClShowhudPlayerAngle, cl_showhud_player_angle, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Player Aim Angle)")
+
+// ===== Chat Filtering =====
+MACRO_CONFIG_INT(ClShowChat, cl_showchat, 1, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show chat (2 to always show large chat area)")
+MACRO_CONFIG_INT(ClShowChatTeamMembersOnly, cl_show_chat_team_members_only, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show only chat messages from team members")
+MACRO_CONFIG_INT(ClShowChatSystem, cl_show_chat_system, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show chat messages from the server")
+MACRO_CONFIG_INT(ClShowKillMessages, cl_showkillmessages, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show kill messages")
+MACRO_CONFIG_INT(ClShowsocial, cl_showsocial, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Show social data like names, clans, chat")
+MACRO_CONFIG_INT(ClFilterchat, cl_filterchat, 0, 0, 2, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Show chat messages from: 0=all, 1=friends only, 2=no one")
+MACRO_CONFIG_INT(ClHideSelfScore, cl_hide_self_score, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Hide player's score in scoreboard")
+MACRO_CONFIG_INT(ClScoreboardUserId, cl_scoreboard_userid, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Show client IDs in scoreboard")
+MACRO_CONFIG_INT(ClDisableWhisper, cl_disable_whisper, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Disable whisper feature")
+
+// ===== Nameplate Customization =====
+MACRO_CONFIG_INT(ClNamePlatesClan, cl_nameplates_clan, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show clan names in name plates")
+MACRO_CONFIG_INT(ClNamePlatesClanSize, cl_nameplates_clan_size, 30, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Size of the clan name in name plates")
+MACRO_CONFIG_INT(ClNamePlatesIds, cl_nameplates_ids, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show client IDs in name plates")
+MACRO_CONFIG_INT(ClNamePlatesIdsSize, cl_nameplates_ids_size, 50, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Size of the client IDs in name plates")
+MACRO_CONFIG_INT(ClNamePlatesFriendMark, cl_nameplates_friendmark, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show friend mark (heart) in name plates")
+MACRO_CONFIG_INT(ClNamePlatesOwn, cl_nameplates_own, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show own name plate (useful for demo recording)")
+
+// ===== Smooth Spectating =====
+MACRO_CONFIG_INT(ClSmoothSpectatingTime, cl_smooth_spectating_time, 300, 0, 5000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Time of smooth camera switch animation when spectating in ms (0 for off)")
+
+// ===== Dynamic Camera (additional settings) =====
+MACRO_CONFIG_INT(ClDyncamSmoothness, cl_dyncam_smoothness, 0, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Transition amount of the camera movement, 0=instant, 100=slow and smooth")
+MACRO_CONFIG_INT(ClDyncamStabilizing, cl_dyncam_stabilizing, 0, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Amount of camera slowdown during fast cursor movement")
+
+// ===== Smooth Spectating =====
+MACRO_CONFIG_INT(EdAutosaveInterval, ed_autosave_interval, 10, 0, 240, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Interval in minutes at which the editor map is auto-saved (0 for off)")
+MACRO_CONFIG_INT(EdAutosaveMax, ed_autosave_max, 10, 0, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Maximum number of autosaves per map (0 = no limit)")
+
+// ===== Desktop Notifications =====
+MACRO_CONFIG_INT(ClShowNotifications, cl_shownotifications, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Make the client notify when someone highlights you")
+
+// ===== Streamer Mode =====
+MACRO_CONFIG_INT(ClStreamerMode, cl_streamer_mode, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Censor sensitive information such as passwords")
 #endif

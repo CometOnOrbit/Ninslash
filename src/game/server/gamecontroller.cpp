@@ -1071,6 +1071,31 @@ const char *IGameController::GetTeamName(int Team)
 	return "spectators";
 }
 
+const char *IGameController::GetTeamMoveAllMessage(int Team)
+{
+	if(IsTeamplay())
+	{
+		if(IsInfection())
+		{
+			if(Team == TEAM_RED)
+				return "All players were moved to the living";
+			if(Team == TEAM_BLUE)
+				return "All players were moved to the dead";
+		}
+		else
+		{
+			if(Team == TEAM_RED)
+				return "All players were moved to the red team";
+			if(Team == TEAM_BLUE)
+				return "All players were moved to the blue team";
+		}
+	}
+	else if(Team == 0)
+		return "All players were moved to the game";
+
+	return "All players were moved to the spectators";
+}
+
 void IGameController::StartRound()
 {
 	ResetGame();
@@ -1440,6 +1465,34 @@ void IGameController::DoWarmup(int Seconds)
 		m_Warmup = 0;
 	else
 		m_Warmup = Seconds*Server()->TickSpeed();
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(GameServer()->m_apPlayers[i])
+			GameServer()->m_apPlayers[i]->m_PlayerFlags &= ~PLAYERFLAG_READY;
+	}
+}
+
+bool IGameController::AllPlayersReady()
+{
+	bool HasPlayingHumans = false;
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if(!pPlayer || !Server()->ClientIngame(i))
+			continue;
+		if(pPlayer->m_IsBot)
+			continue;
+		if(pPlayer->GetTeam() == TEAM_SPECTATORS)
+			continue;
+
+		HasPlayingHumans = true;
+		if(!(pPlayer->m_PlayerFlags&PLAYERFLAG_READY))
+			return false;
+	}
+
+	return HasPlayingHumans;
 }
 
 bool IGameController::IsFriendlyFire(int ClientID1, int ClientID2)
@@ -1651,9 +1704,17 @@ void IGameController::Tick()
 	// do warmup
 	if(m_Warmup)
 	{
-		m_Warmup--;
-		if(!m_Warmup)
+		if(AllPlayersReady())
+		{
+			m_Warmup = 0;
 			StartRound();
+		}
+		else
+		{
+			m_Warmup--;
+			if(!m_Warmup)
+				StartRound();
+		}
 	}
 	
 	GameServer()->UpdateSpectators();

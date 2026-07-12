@@ -16,6 +16,8 @@ class CHud : public CComponent
 	void RenderObjective();
 	void RenderFps();
 	void RenderConnectionWarning();
+	void RenderStartCountdown();
+	void RenderReadyUpNotification();
 	void RenderTeambalanceWarning();
 	void RenderVoting();
 	void RenderHealthAndAmmo(const CNetObj_Character *pCharacter);
@@ -24,7 +26,11 @@ class CHud : public CComponent
 	void RenderSuddenDeath();
 	void RenderScoreHud();
 	void RenderSpectatorHud();
-	void RenderWarmupTimer();
+	void RenderMovementInformation();
+
+	// Shared HUD layout anchors (screen space: height=300).
+	float ScoreHudTop() const;
+	float BottomReservedHeight() const;
 
 	void MapscreenToGroup(float CenterX, float CenterY, struct CMapItemGroup *PGroup);
 public:

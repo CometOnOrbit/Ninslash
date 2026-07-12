@@ -57,7 +57,6 @@ CGameConsole::CInstance::CInstance(int Type)
 void CGameConsole::CInstance::Init(CGameConsole *pGameConsole)
 {
 	m_pGameConsole = pGameConsole;
-	m_Input.Init(m_pGameConsole->Input());
 };
 
 void CGameConsole::CInstance::ClearBacklog()
@@ -446,6 +445,15 @@ void CGameConsole::OnRender()
 			for(int i = 0; i < pConsole->m_Input.GetLength(); ++i)
 				aInputString[i] = '*';
 		}
+		else if(g_Config.m_ClStreamerMode)
+		{
+			// In streamer mode, also hide the RCON password entry
+			if(m_ConsoleType == CONSOLETYPE_REMOTE && Client()->State() == IClient::STATE_ONLINE && !Client()->RconAuthed())
+			{
+				for(int i = 0; i < pConsole->m_Input.GetLength(); ++i)
+					aInputString[i] = '*';
+			}
+		}
 
 		// render console input (wrap line)
 		TextRender()->SetCursor(&Cursor, x, y, FontSize, 0);
@@ -459,12 +467,19 @@ void CGameConsole::OnRender()
 		Cursor.m_LineWidth = Screen.w - 10.0f - x;
 		
 		TextRender()->TextEx(&Cursor, aInputString, pConsole->m_Input.GetCursorOffset());
+		if(Input()->HasComposition())
+		{
+			TextRender()->TextColor(0.7f, 0.7f, 0.7f, 1.0f);
+			TextRender()->TextEx(&Cursor, Input()->GetComposition(), -1);
+			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		}
 		static float MarkerOffset = TextRender()->TextWidth(0, FontSize, "|", -1)/3;
 		CTextCursor Marker = Cursor;
 		Marker.m_X -= MarkerOffset;
 		Marker.m_LineWidth = -1;
 		TextRender()->TextEx(&Marker, "|", -1);
 		TextRender()->TextEx(&Cursor, aInputString+pConsole->m_Input.GetCursorOffset(), -1);
+		pConsole->m_Input.MarkRendered();
 
 		// render possible commands
 		if(m_ConsoleType == CONSOLETYPE_LOCAL || Client()->RconAuthed())
@@ -576,6 +591,7 @@ void CGameConsole::Toggle(int Type)
 	if(m_ConsoleType != Type && (m_ConsoleState == CONSOLE_OPEN || m_ConsoleState == CONSOLE_OPENING))
 	{
 		// don't toggle console, just switch what console to use
+		(m_ConsoleType == CONSOLETYPE_REMOTE ? &m_RemoteConsole : &m_LocalConsole)->m_Input.Deactivate();
 	}
 	else
 	{
@@ -606,10 +622,14 @@ void CGameConsole::Toggle(int Type)
 			m_pClient->m_pMenus->UseMouseButtons(true);
 			m_pClient->OnRelease();
 			m_ConsoleState = CONSOLE_CLOSING;
+			(m_ConsoleType == CONSOLETYPE_REMOTE ? &m_RemoteConsole : &m_LocalConsole)->m_Input.Deactivate();
 		}
 	}
 
 	m_ConsoleType = Type;
+
+	if(m_ConsoleState == CONSOLE_OPENING)
+		(Type == CONSOLETYPE_REMOTE ? &m_RemoteConsole : &m_LocalConsole)->m_Input.Activate(CONSOLE);
 }
 
 void CGameConsole::Dump(int Type)

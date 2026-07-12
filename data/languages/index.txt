@@ -98,7 +98,7 @@ ukrainian
 
 traditional_chinese
 == 繁體中文
-== 156
+== 344
 
 simplified_chinese
 == 简体中文

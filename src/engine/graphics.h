@@ -108,6 +108,8 @@ public:
 	};
 	int ScreenWidth() const { return m_ScreenWidth; }
 	int ScreenHeight() const { return m_ScreenHeight; }
+	int DesktopWidth() const { return m_DesktopScreenWidth; }
+	int DesktopHeight() const { return m_DesktopScreenHeight; }
 	float ScreenAspect() const { return (float)ScreenWidth()/(float)ScreenHeight(); }
 
 	virtual void Clear(float r, float g, float b) = 0;
@@ -207,6 +209,8 @@ public:
 	virtual void SetColor(float r, float g, float b, float a) = 0;
 
 	virtual void TakeScreenshot(const char *pFilename) = 0;
+	// Fills pImage with RGB data (caller must mem_free pImage->m_pData). Returns false on failure.
+	virtual bool CaptureFrame(CImageInfo *pImage) = 0;
 	virtual int GetVideoModes(CVideoMode *pModes, int MaxModes, int screen) = 0;
 	virtual int GetNumScreens() = 0;
 

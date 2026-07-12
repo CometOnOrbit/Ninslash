@@ -772,11 +772,19 @@ void CCommandProcessorFragment_SDL::Cmd_Swap(const CCommandBuffer::SCommand_Swap
 
 void CCommandProcessorFragment_SDL::Cmd_VideoModes(const CCommandBuffer::SCommand_VideoModes *pCommand)
 {
-	SDL_DisplayMode **ppModes;
-	int MaxModes, NumModes;
-	MaxModes = 0;
-	NumModes = 0;
-	ppModes = SDL_GetFullscreenDisplayModes(pCommand->m_Screen, &MaxModes);
+	int DisplayNum = 0;
+	SDL_DisplayID *pDisplayIds = SDL_GetDisplays(&DisplayNum);
+	SDL_DisplayID DisplayID = 0;
+	if(pDisplayIds && DisplayNum > 0)
+	{
+		const int Index = clamp(pCommand->m_Screen, 0, DisplayNum - 1);
+		DisplayID = pDisplayIds[Index];
+	}
+	SDL_free(pDisplayIds);
+
+	int MaxModes = 0;
+	int NumModes = 0;
+	SDL_DisplayMode **ppModes = SDL_GetFullscreenDisplayModes(DisplayID, &MaxModes);
 	for(int i = 0; i < MaxModes; i++)
 	{
 		if(!ppModes[i])
@@ -794,6 +802,9 @@ void CCommandProcessorFragment_SDL::Cmd_VideoModes(const CCommandBuffer::SComman
 		}
 		if(Skip)
 			continue;
+
+		if(NumModes >= pCommand->m_MaxModes)
+			break;
 
 		pCommand->m_pModes[NumModes].m_Width = ppModes[i]->w;
 		pCommand->m_pModes[NumModes].m_Height = ppModes[i]->h;
@@ -850,15 +861,44 @@ void CCommandProcessor_SDL_OpenGL::RunBuffer(CCommandBuffer *pBuffer)
 
 // ------------ CGraphicsBackend_SDL_OpenGL
 
-// DDNet
-SDL_DisplayID CGraphicsBackend_SDL_OpenGL::DisplayIDFromIndex(int &Index) const
+// Keep gfx_screen as a 0-based index. Older builds wrongly saved SDL_DisplayID here.
+int CGraphicsBackend_SDL_OpenGL::ResolveScreenIndex(int Screen) const
 {
 	int DisplayNum = 0;
 	SDL_DisplayID *pDisplayIds = SDL_GetDisplays(&DisplayNum);
 	if(!pDisplayIds || DisplayNum <= 0)
-		return 0; // 0 is invalid
+		return 0;
+
+	int Result = 0;
+	if(Screen >= 0 && Screen < DisplayNum)
+		Result = Screen;
+	else
+	{
+		for(int i = 0; i < DisplayNum; i++)
+		{
+			if((int)pDisplayIds[i] == Screen)
+			{
+				Result = i;
+				break;
+			}
+		}
+	}
+
+	SDL_free(pDisplayIds);
+	return Result;
+}
+
+SDL_DisplayID CGraphicsBackend_SDL_OpenGL::DisplayIDFromIndex(int Index) const
+{
+	int DisplayNum = 0;
+	SDL_DisplayID *pDisplayIds = SDL_GetDisplays(&DisplayNum);
+	if(!pDisplayIds || DisplayNum <= 0)
+		return 0;
+
 	Index = clamp(Index, 0, DisplayNum - 1);
-	return pDisplayIds[Index];
+	const SDL_DisplayID DisplayID = pDisplayIds[Index];
+	SDL_free(pDisplayIds);
+	return DisplayID;
 }
 
 int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height, int *pScreen, int FsaaSamples, int Flags, int *pDesktopWidth, int *pDesktopHeight)
@@ -870,49 +910,39 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height
 			dbg_msg("gfx", "unable to init SDL video: %s", SDL_GetError());
 			return -1;
 		}
-
-		/*
-		#ifdef CONF_FAMILY_WINDOWS
-			if(!getenv("SDL_VIDEO_WINDOW_POS") && !getenv("SDL_VIDEO_CENTERED")) // ignore_convention
-				putenv("SDL_VIDEO_WINDOW_POS=8,27"); // ignore_convention
-		#endif
-		*/
 	}
 
-	// set screen
 	SDL_Rect ScreenPos;
 	int NumScreens = GetNumScreens();
-	SDL_GetDisplays(&NumScreens);
 	if(NumScreens > 0)
 	{
-		*pScreen = DisplayIDFromIndex(*pScreen);
-		if(!SDL_GetDisplayBounds(*pScreen, &ScreenPos))
+		*pScreen = ResolveScreenIndex(*pScreen);
+		const SDL_DisplayID DisplayID = DisplayIDFromIndex(*pScreen);
+		if(!SDL_GetDisplayBounds(DisplayID, &ScreenPos))
 		{
 			dbg_msg("gfx", "unable to retrieve screen information: %s", SDL_GetError());
 			return -1;
+		}
+
+		const SDL_DisplayMode *pDisplayMode = SDL_GetDesktopDisplayMode(DisplayID);
+		if(!pDisplayMode)
+		{
+			dbg_msg("gfx", "unable to get desktop resolution: %s", SDL_GetError());
+			return -1;
+		}
+
+		*pDesktopWidth = pDisplayMode->w;
+		*pDesktopHeight = pDisplayMode->h;
+		if(*Width <= 0 || *Height <= 0)
+		{
+			*Width = *pDesktopWidth;
+			*Height = *pDesktopHeight;
 		}
 	}
 	else
 	{
 		dbg_msg("gfx", "unable to retrieve number of screens: %s", SDL_GetError());
 		return -1;
-	}
-
-	const SDL_DisplayMode *pDisplayMode = SDL_GetDesktopDisplayMode(*pScreen);
-	// store desktop resolution for settings reset button
-	if(!pDisplayMode)
-	{
-		dbg_msg("gfx", "unable to get desktop resolution: %s", SDL_GetError());
-		return -1;
-	}
-
-	*Width = pDisplayMode->w;
-	*Height = pDisplayMode->h;
-	// use desktop resolution as default resolution
-	if (*pDesktopWidth == 0 || *pDesktopWidth == 0)
-	{
-		*pDesktopWidth = *Width;
-		*pDesktopHeight = *Height;
 	}
 
 	if(FsaaSamples)

@@ -270,8 +270,20 @@ bool CGameContext::BuildableSpot(vec2 Pos)
 {
 	if (Collision()->GetCollisionAt(Pos.x, Pos.y)&CCollision::COLFLAG_SOLID || !Collision()->CanBuildBlock(Pos))
 		return false;
-	
-	// todo: other entities
+
+	CEntity *apEnts[8];
+	static const int s_aBlockingTypes[] = {
+		CGameWorld::ENTTYPE_BUILDING,
+		CGameWorld::ENTTYPE_WEAPON,
+		CGameWorld::ENTTYPE_PICKUP,
+		CGameWorld::ENTTYPE_BLOCK,
+	};
+	for(unsigned t = 0; t < sizeof(s_aBlockingTypes)/sizeof(s_aBlockingTypes[0]); t++)
+	{
+		if(m_World.FindEntities(Pos, 32.0f, apEnts, 8, s_aBlockingTypes[t]) > 0)
+			return false;
+	}
+
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CCharacter *pCharacter = GetPlayerChar(i);
@@ -1071,8 +1083,9 @@ void CGameContext::SendChatTarget(int To, const char *pText, ...)
 	int End = (To < 0 ? MAX_CLIENTS : To+1);
 	
 	CNetMsg_Sv_Chat Msg;
-	Msg.m_Team = 0;
+	Msg.m_Mode = CHATMODE_ALL;
 	Msg.m_ClientID = -1;
+	Msg.m_TargetID = -1;
 	
 	va_list VarArgs;
 	va_start(VarArgs, pText);
@@ -1092,39 +1105,45 @@ void CGameContext::SendChatTarget(int To, const char *pText, ...)
 }
 
 
-void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText)
+void CGameContext::SendChat(int ChatterClientID, int Mode, const char *pText, int TargetID)
 {
 	char aBuf[256];
 	if(ChatterClientID >= 0 && ChatterClientID < MAX_CLIENTS)
-		str_format(aBuf, sizeof(aBuf), "%d:%d:%s: %s", ChatterClientID, Team, Server()->ClientName(ChatterClientID), pText);
+		str_format(aBuf, sizeof(aBuf), "%d:%d:%s: %s", ChatterClientID, Mode, Server()->ClientName(ChatterClientID), pText);
 	else
 		str_format(aBuf, sizeof(aBuf), "*** %s", pText);
-	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, Team!=CHAT_ALL?"teamchat":"chat", aBuf);
+	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, Mode != CHATMODE_ALL ? "teamchat" : "chat", aBuf);
 
-	if(Team == CHAT_ALL)
+	CNetMsg_Sv_Chat Msg;
+	Msg.m_Mode = Mode;
+	Msg.m_ClientID = ChatterClientID;
+	Msg.m_TargetID = -1;
+	Msg.m_pMessage = pText;
+
+	if(Mode == CHATMODE_ALL)
 	{
-		CNetMsg_Sv_Chat Msg;
-		Msg.m_Team = 0;
-		Msg.m_ClientID = ChatterClientID;
-		Msg.m_pMessage = pText;
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
 	}
-	else
+	else if(Mode == CHATMODE_TEAM)
 	{
-		CNetMsg_Sv_Chat Msg;
-		Msg.m_Team = 1;
-		Msg.m_ClientID = ChatterClientID;
-		Msg.m_pMessage = pText;
-
 		// pack one for the recording only
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NOSEND, -1);
 
+		int Team = ChatterClientID >= 0 && ChatterClientID < MAX_CLIENTS ? m_apPlayers[ChatterClientID]->GetTeam() : -1;
 		// send to the clients
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			if(m_apPlayers[i] && !IsBot(i) && m_apPlayers[i]->GetTeam() == Team)
 				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
 		}
+	}
+	else if(Mode == CHATMODE_WHISPER)
+	{
+		Msg.m_TargetID = TargetID;
+		if(ChatterClientID >= 0)
+			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ChatterClientID);
+		if(TargetID >= 0 && TargetID != ChatterClientID && m_apPlayers[TargetID])
+			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, TargetID);
 	}
 }
 
@@ -2023,7 +2042,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				return;
 
 			CNetMsg_Cl_Say *pMsg = (CNetMsg_Cl_Say *)pRawMsg;
-			int Team = pMsg->m_Team ? pPlayer->GetTeam() : CGameContext::CHAT_ALL;
+			int Mode = pMsg->m_Mode;
+			int TargetID = pMsg->m_Target;
 			
 			// trim right and set maximum length to 128 utf8-characters
 			int Length = 0;
@@ -2057,7 +2077,6 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			if(Length == 0 || (g_Config.m_SvSpamprotection && pPlayer->m_LastChat && pPlayer->m_LastChat+Server()->TickSpeed()*((15+Length)/16) > Server()->Tick()))
 				return;
 
-			bool SendToTeam = true;
 			bool SkipSending = false;
 			
 			pPlayer->m_LastChat = Server()->Tick();
@@ -2090,10 +2109,20 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		
 			if (!SkipSending)
 			{
-				if (SendToTeam)
-					SendChat(ClientID, Team, pMsg->m_pMessage);
+				if(Mode == CHATMODE_WHISPER)
+				{
+					if(TargetID < 0 || TargetID >= MAX_CLIENTS || !m_apPlayers[TargetID])
+						return;
+					SendChat(ClientID, CHATMODE_WHISPER, pMsg->m_pMessage, TargetID);
+				}
+				else if(Mode == CHATMODE_TEAM)
+				{
+					SendChat(ClientID, CHATMODE_TEAM, pMsg->m_pMessage);
+				}
 				else
-					SendChatTarget(ClientID, pMsg->m_pMessage);
+				{
+					SendChat(ClientID, CHATMODE_ALL, pMsg->m_pMessage);
+				}
 			}
 		}
 		else if(MsgID == NETMSGTYPE_CL_CALLVOTE)
@@ -2240,7 +2269,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 			if(aCmd[0])
 			{
-				SendChat(-1, CGameContext::CHAT_ALL, aChatmsg);
+				SendChat(-1, CHATMODE_ALL, aChatmsg);
 				StartVote(aDesc, aCmd, pReason);
 				pPlayer->m_Vote = 1;
 				pPlayer->m_VotePos = m_VotePos = 1;
@@ -2367,10 +2396,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			pPlayer->m_TeeInfos.m_ColorTopper = pMsg->m_ColorTopper;
 			pPlayer->m_TeeInfos.m_BloodColor = pMsg->m_BloodColor;
 			pPlayer->m_TeeInfos.m_ColorSkin = pMsg->m_ColorSkin;
-
-			str_copy(pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Country), sizeof(pPlayer->m_aLanguage));
-			if(pMsg->m_Language)
-				str_copy(pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Language), sizeof(pPlayer->m_aLanguage));
+			str_copy(pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Language), sizeof(pPlayer->m_aLanguage));
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 		}
@@ -2463,10 +2489,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			pPlayer->m_TeeInfos.m_ColorTopper = pMsg->m_ColorTopper;
 			pPlayer->m_TeeInfos.m_ColorSkin = pMsg->m_ColorSkin;
 			pPlayer->m_TeeInfos.m_BloodColor = pMsg->m_BloodColor;
-
-			str_copy(pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Country), sizeof(pPlayer->m_aLanguage));
-			if(pMsg->m_Language)
-				str_copy(pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Language), sizeof(pPlayer->m_aLanguage));
+			str_copy(pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Language), sizeof(pPlayer->m_aLanguage));
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 
@@ -2625,7 +2648,7 @@ void CGameContext::ConBroadcast(IConsole::IResult *pResult, void *pUserData)
 void CGameContext::ConSay(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	pSelf->SendChat(-1, CGameContext::CHAT_ALL, pResult->GetString(0));
+	pSelf->SendChat(-1, CHATMODE_ALL, pResult->GetString(0));
 }
 
 void CGameContext::ConSetTeam(IConsole::IResult *pResult, void *pUserData)
@@ -2651,7 +2674,7 @@ void CGameContext::ConSetTeamAll(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	int Team = clamp(pResult->GetInteger(0), -1, 1);
 
-	pSelf->SendChatTarget(-1, "All players were moved to the %s", pSelf->m_pController->GetTeamName(Team));
+	pSelf->SendChatTarget(-1, pSelf->m_pController->GetTeamMoveAllMessage(Team));
 	
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 		if(pSelf->m_apPlayers[i])
@@ -2814,43 +2837,19 @@ void CGameContext::ConRemoveVote(IConsole::IResult *pResult, void *pUserData)
 	OptionMsg.m_pDescription = pOption->m_aDescription;
 	pSelf->Server()->SendPackMsg(&OptionMsg, MSGFLAG_VITAL, -1);
 
-	// TODO: improve this
-	// remove the option
+	// remove the option from the linked list (heap entry kept until reset)
+	if(pOption->m_pPrev)
+		pOption->m_pPrev->m_pNext = pOption->m_pNext;
+	else
+		pSelf->m_pVoteOptionFirst = pOption->m_pNext;
+	if(pOption->m_pNext)
+		pOption->m_pNext->m_pPrev = pOption->m_pPrev;
+	else
+		pSelf->m_pVoteOptionLast = pOption->m_pPrev;
 	--pSelf->m_NumVoteOptions;
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "removed option '%s' '%s'", pOption->m_aDescription, pOption->m_aCommand);
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
-
-	CHeap *pVoteOptionHeap = new CHeap();
-	CVoteOptionServer *pVoteOptionFirst = 0;
-	CVoteOptionServer *pVoteOptionLast = 0;
-	int NumVoteOptions = pSelf->m_NumVoteOptions;
-	for(CVoteOptionServer *pSrc = pSelf->m_pVoteOptionFirst; pSrc; pSrc = pSrc->m_pNext)
-	{
-		if(pSrc == pOption)
-			continue;
-
-		// copy option
-		int Len = str_length(pSrc->m_aCommand);
-		CVoteOptionServer *pDst = (CVoteOptionServer *)pVoteOptionHeap->Allocate(sizeof(CVoteOptionServer) + Len);
-		pDst->m_pNext = 0;
-		pDst->m_pPrev = pVoteOptionLast;
-		if(pDst->m_pPrev)
-			pDst->m_pPrev->m_pNext = pDst;
-		pVoteOptionLast = pDst;
-		if(!pVoteOptionFirst)
-			pVoteOptionFirst = pDst;
-
-		str_copy(pDst->m_aDescription, pSrc->m_aDescription, sizeof(pDst->m_aDescription));
-		mem_copy(pDst->m_aCommand, pSrc->m_aCommand, Len+1);
-	}
-
-	// clean up
-	delete pSelf->m_pVoteOptionHeap;
-	pSelf->m_pVoteOptionHeap = pVoteOptionHeap;
-	pSelf->m_pVoteOptionFirst = pVoteOptionFirst;
-	pSelf->m_pVoteOptionLast = pVoteOptionLast;
-	pSelf->m_NumVoteOptions = NumVoteOptions;
 }
 
 void CGameContext::ConForceVote(IConsole::IResult *pResult, void *pUserData)
@@ -3547,13 +3546,7 @@ const char *CGameContext::Localize(const char *pText, int ClientID)
 }
 
 /*
-Localize("Terminate the enemies"),Localize("Wave of aliens incoming"),Localize("Wave of robots incoming")
-Localize("Wave of skeletons incoming"),Localize("Wave of furries incoming"),Localize("Wave of cyborgs incoming")
-Localize("Wave incoming"),Localize("Terminate the aliens"),Localize("Terminate the robots")
-Localize("Terminate the skeletons"),Localize("Terminate the furries"),Localize("Terminate the cyborgs")
-Localize("Seek the door"),Localize("Alien wave cleared"),
-Localize("Robot wave cleared"),Localize("Furry wave cleared"),Localize("Skeleton wave cleared")
-Localize("Cyborg wave cleared"),Localize("Aliens terminated"),Localize("Robots terminated")
-Localize("Skeletons terminated"),Localize("Furries terminated"),Localize("Cyborgs terminated")
-Localize("Enemies terminated")
+Server-side localization keys (see data/server/languages/en-template.json):
+Quest/wave strings from questinfo.cpp, team-move messages, and all SendBroadcast/SendChatTarget literals.
+Run scripts/check_localization.py to verify coverage.
 */

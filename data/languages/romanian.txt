@@ -43,14 +43,17 @@ Add Friend
 Address
 == Adresa
 
+Alien wave cleared
+== Alien wave cleared
+
+Aliens terminated
+== Aliens terminated
+
 All
 == Toți
 
 Alpha
 == Alfa
-
-Always show name plates
-== Afișează întotdeauna pseudonimele
 
 Are you sure that you want to delete the demo?
 == Sigur vrei să ștergi demo-ul?
@@ -63,12 +66,6 @@ Are you sure that you want to remove the player from your friends list?
 
 As this is the first time you launch the game, please enter your nick name below. It's recommended that you check the settings to adjust them to your liking before joining a server.
 == Aceasta fiind prima lansare a jocului, te rog introdu-ți pseudonimul mai jos. E recomandat să verifici setările și să le ajustezi cum vrei înainte să intri pe un server.
-
-Automatically record demos
-== Înregistrează automat demo-uri
-
-Automatically take game over screenshot
-== Fă automat o captură de ecran la final
 
 Blue team
 == Echipa albastră
@@ -91,9 +88,6 @@ Chat
 Clan
 == Clanul
 
-Client
-== Clientul
-
 Close
 == Închide
 
@@ -105,6 +99,9 @@ Connect
 
 Connecting to
 == Conectare la
+
+Connection Problems...
+== Probleme la conexiune...
 
 Console
 == Consolă
@@ -124,11 +121,11 @@ Crc:
 Created:
 == Creată la data:
 
-Current
-== Curent
+Cyborg wave cleared
+== Cyborg wave cleared
 
-Current version: %s
-== Versiunea actuală: %s
+Cyborgs terminated
+== Cyborgs terminated
 
 Delete
 == Șterge
@@ -151,9 +148,6 @@ Disconnect
 Disconnected
 == Deconectat
 
-Display Modes
-== Moduri de afișare
-
 Downloading map
 == Se descarcă harta
 
@@ -165,6 +159,9 @@ Dynamic Camera
 
 Emoticon
 == Figurine
+
+Enemies terminated
+== Enemies terminated
 
 Enter
 == Intră
@@ -207,6 +204,12 @@ Friends
 
 Fullscreen
 == Ecrat complet
+
+Furries terminated
+== Furries terminated
+
+Furry wave cleared
+== Furry wave cleared
 
 Game
 == Joc
@@ -298,12 +301,6 @@ Map
 Map:
 == Harta:
 
-Max Screenshots
-== Număr maxim de capturi de ecran
-
-Max demos
-== Număr maxim de demo-uri
-
 Maximum ping:
 == Ping maxim:
 
@@ -331,17 +328,11 @@ Mute when not active
 Name
 == Nume
 
-Name plates size
-== Dimensiune nume placă
-
 Netversion:
 == Cod rețea:
 
 New name:
 == Nume nou:
-
-News
-== Știri
 
 Next weapon
 == Arma următoare
@@ -363,6 +354,9 @@ No servers found
 
 No servers match your filter criteria
 == Nici un server nu corespunde criteriilor
+
+Objective
+== Objective
 
 Ok
 == Bine
@@ -424,11 +418,11 @@ Quit anyway?
 REC %3d:%02d
 == REC %3d:%02d
 
+Reach the door
+== Reach the door
+
 Reason:
 == Motiv:
-
-Record demo
-== Înreg. demo
 
 Red team
 == Echipa roșie
@@ -466,6 +460,12 @@ Reset to defaults
 Rifle
 == Carabină
 
+Robot wave cleared
+== Robot wave cleared
+
+Robots terminated
+== Robots terminated
+
 Round
 == Runda
 
@@ -489,6 +489,9 @@ Scoreboard
 
 Screenshot
 == Captură de ecran
+
+Seek the door
+== Seek the door
 
 Server address:
 == Adresă server:
@@ -523,11 +526,14 @@ Show ingame HUD
 Show name plates
 == Arată pseudonimele
 
-Show only supported
-== Arată doar modurile suportate
-
 Size:
 == Dimensiunea:
+
+Skeleton wave cleared
+== Skeleton wave cleared
+
+Skeletons terminated
+== Skeletons terminated
 
 Skins
 == Costume
@@ -562,14 +568,14 @@ Standard gametype
 Standard map
 == Hărți standard
 
-Stop record
-== Stop înreg.
-
 Strict gametype filter
 == Filtru strict tip joc
 
 Sudden Death
 == Moarte subită
+
+Survive the wave of enemies
+== Survive the wave of enemies
 
 Switch weapon on pickup
 == Schimbă arma la găsire
@@ -579,6 +585,24 @@ Team
 
 Team chat
 == Chat cu echipa
+
+Terminate the aliens
+== Terminate the aliens
+
+Terminate the cyborgs
+== Terminate the cyborgs
+
+Terminate the enemies
+== Terminate the enemies
+
+Terminate the furries
+== Terminate the furries
+
+Terminate the robots
+== Terminate the robots
+
+Terminate the skeletons
+== Terminate the skeletons
 
 Texture Compression
 == Compresie texturi
@@ -619,9 +643,6 @@ Unable to rename the demo
 Use sounds
 == Folosește sunetul
 
-Use team colors for name plates
-== Folosește culorile echipelor pe etichetele de nume
-
 V-Sync
 == Sincronizare verticală (V-Sync)
 
@@ -649,6 +670,24 @@ Voting
 Warmup
 == Încălzire
 
+Wave incoming
+== Wave incoming
+
+Wave of aliens incoming
+== Wave of aliens incoming
+
+Wave of cyborgs incoming
+== Wave of cyborgs incoming
+
+Wave of furries incoming
+== Wave of furries incoming
+
+Wave of robots incoming
+== Wave of robots incoming
+
+Wave of skeletons incoming
+== Wave of skeletons incoming
+
 Welcome to Ninslash
 == Bun venit în Ninslash
 
@@ -658,10 +697,28 @@ Yes
 You must restart the game for all settings to take effect.
 == Trebuie să repornești jocul pentru aplicarea setărilor.
 
-no limit
-== fără limită
+enemies remaining
+== enemies remaining
+
+seconds remaining
+== seconds remaining
 
 ##### needs translation #####
+
+'%s' called for vote to kick you
+== 
+
+Always
+== 
+
+Always show
+== 
+
+Angle:
+== 
+
+AntiPing
+== 
 
 Area Shield
 == 
@@ -696,28 +753,40 @@ Borderless window
 Build menu
 == 
 
+Camera
+== 
+
 Change color of
 == 
 
 Change skin of
 == 
 
-Chat & Misc.
+Chat messages
+== 
+
+Current version: %s  |  Servers: %d
+== 
+
+Current: %dx%d (%d:%d)
 == 
 
 Customize
 == 
 
-Default Zoom
+Deadzone
+== 
+
+Desktop notifications
+== 
+
+Disable whisper
 == 
 
 Drop weapon
 == 
 
 Dynamic lighting
-== 
-
-Editor
 == 
 
 Electric grenade
@@ -735,7 +804,22 @@ Energy shield
 Environmental sounds
 == 
 
+Everyone
+== 
+
 Eyes
+== 
+
+FPS counter
+== 
+
+FPS:
+== 
+
+Failed to start video render. Is FFmpeg installed?
+== 
+
+File name:
 == 
 
 Flamer
@@ -747,10 +831,25 @@ Flip attack & hook
 Flip move & aim axis
 == 
 
+Follow factor
+== 
+
+Friend marks
+== 
+
+Friends only
+== 
+
 Game paused
 == 
 
+Go
+== 
+
 Green
+== 
+
+HUD
 == 
 
 Hair / hat
@@ -771,13 +870,19 @@ Head
 Heads
 == 
 
+Health + Ammo
+== 
+
+Hide player's score
+== 
+
+ID
+== 
+
 Inventory
 == 
 
 Inventory roll
-== 
-
-Inventory roll(All)
 == 
 
 Invisibility device
@@ -793,6 +898,15 @@ Item slot 3
 == 
 
 Item slot 4
+== 
+
+Join
+== 
+
+Jump:
+== 
+
+Kill messages
 == 
 
 Main menu
@@ -813,19 +927,79 @@ Mask of regeneration
 Mask of speed
 == 
 
-Movement & Weapons
+Max distance
+== 
+
+Menu opacity
+== 
+
+Misc
 == 
 
 Multi framebuffering (requires restart)
 == 
 
+Nameplates
+== 
+
+No one
+== 
+
+Off
+== 
+
+On
+== 
+
+Only team chat
+== 
+
+Other
+== 
+
+Own name plate
+== 
+
+Player angle
+== 
+
+Player position
+== 
+
+Player speed
+== 
+
+Please enter a filename for the sliced demo:
+== 
+
+Position:
+== 
+
 Power barrel
+== 
+
+Ready
+== 
+
+Recommended
 == 
 
 Red
 == 
 
+Render
+== 
+
+Render video
+== 
+
 Repair tool
+== 
+
+Requires FFmpeg in PATH. Output is saved under videos/.
+== 
+
+Resolution
 == 
 
 Respawn
@@ -837,22 +1011,73 @@ Respawn device
 Server is changing map
 == 
 
+Set End
+== 
+
 Shield generator
 == 
 
-Show only chat messages from friends
+Show IDs
+== 
+
+Show clan
+== 
+
+Show social data
+== 
+
+Show user IDs
+== 
+
+Size
 == 
 
 Skin
 == 
 
+Slice
+== 
+
+Slice demo
+== 
+
+Slice...
+== 
+
 Slide / down
+== 
+
+Smoothness
+== 
+
+Spectate smooth
+== 
+
+Spectator count
+== 
+
+Speed:
+== 
+
+Stabilizing
+== 
+
+Start
+== 
+
+Streamer mode
 == 
 
 Supply grenade
 == 
 
 Survival mode
+== 
+
+System messages
+== 
+
+Team colors
 == 
 
 Teslacoil
@@ -873,13 +1098,22 @@ Threaded rendering
 Threaded sound loading
 == 
 
+Timer
+== 
+
 Turret stand
 == 
 
-Vote ends in %d...
+Use +/- keys to zoom (rebindable in Controls)
 == 
 
-Waiting for server...
+Video render cancelled.
+== 
+
+Video render complete. Saved under videos/.
+== 
+
+Vote ends in %d...
 == 
 
 Weapon upgrade
@@ -888,24 +1122,31 @@ Weapon upgrade
 Weapons & Items
 == 
 
-Zombie claw
+When ready, press <%s>
 == 
 
-Zoom In
+Whisper
 == 
 
-Zoom Out
-== 
-
-xbox 360 controller support
-== 
-
-##### old translations #####
-
-'%s' called for vote to kick you
+Wide menu
 == 
 
 You must wait %d seconds before making another vote
+== 
+
+Zombie claw
+== 
+
+Zoom
+== 
+
+Zoom in
+== 
+
+Zoom out
+== 
+
+Zoom with + / - keys
 == 
 
 blue
@@ -914,8 +1155,85 @@ blue
 red
 == 
 
-Connection Problems...
-== Probleme la conexiune...
+xbox 360 controller support
+== 
+
+##### old translations #####
+
+Always show name plates
+== Afișează întotdeauna pseudonimele
+
+Automatically record demos
+== Înregistrează automat demo-uri
+
+Automatically take game over screenshot
+== Fă automat o captură de ecran la final
+
+Client
+== Clientul
+
+Current
+== Curent
+
+Current version: %s
+== Versiunea actuală: %s
+
+Display Modes
+== Moduri de afișare
+
+Max Screenshots
+== Număr maxim de capturi de ecran
+
+Max demos
+== Număr maxim de demo-uri
+
+Name plates size
+== Dimensiune nume placă
+
+News
+== Știri
+
+Record demo
+== Înreg. demo
+
+Show only supported
+== Arată doar modurile suportate
+
+Stop record
+== Stop înreg.
+
+Use team colors for name plates
+== Folosește culorile echipelor pe etichetele de nume
+
+no limit
+== fără limită
+
+Chat & Misc.
+== 
+
+Default Zoom
+== 
+
+Editor
+== 
+
+Inventory roll(All)
+== 
+
+Movement & Weapons
+== 
+
+Show only chat messages from friends
+== 
+
+Waiting for server...
+== 
+
+Zoom In
+== 
+
+Zoom Out
+== 
 
 Custom colors
 == Culori personalizate
@@ -925,4 +1243,7 @@ Weapon
 
 Your skin
 == Costumul tău
+
+Wave cleared
+== Wave cleared
 

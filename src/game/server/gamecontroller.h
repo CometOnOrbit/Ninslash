@@ -202,6 +202,7 @@ public:
 	*/
 
 	void DoWarmup(int Seconds);
+	bool AllPlayersReady();
 
 	void StartRound();
 	void EndRound();
@@ -291,6 +292,7 @@ public:
 	virtual int GetLockedWeapon(class CCharacter *pCharacter);
 	
 	virtual const char *GetTeamName(int Team);
+	const char *GetTeamMoveAllMessage(int Team);
 	virtual int GetAutoTeam(int NotThisID);
 	virtual bool CanJoinTeam(int Team, int NotThisID);
 	bool CheckTeamBalance();

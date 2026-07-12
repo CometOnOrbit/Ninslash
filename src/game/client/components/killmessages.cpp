@@ -2,6 +2,7 @@
 
 #include <engine/graphics.h>
 #include <engine/textrender.h>
+#include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <generated/game_data.h>
 
@@ -34,6 +35,13 @@ void CKillMessages::OnMessage(int MsgType, void *pRawMsg)
 		Kill.m_Weapon = pMsg->m_Weapon;
 		Kill.m_ModeSpecial = pMsg->m_ModeSpecial;
 		Kill.m_Tick = Client()->GameTick();
+
+		if(!g_Config.m_ClShowsocial)
+		{
+			char aBuf[32];
+			str_copy(Kill.m_aKillerName, m_pClient->GetPlayerLabel(Kill.m_KillerID, aBuf, sizeof(aBuf)), sizeof(Kill.m_aKillerName));
+			str_copy(Kill.m_aVictimName, m_pClient->GetPlayerLabel(Kill.m_VictimID, aBuf, sizeof(aBuf)), sizeof(Kill.m_aVictimName));
+		}
 		
 		// hide bot names in invasion
 		if(m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags&GAMEFLAG_COOP)
@@ -53,12 +61,16 @@ void CKillMessages::OnMessage(int MsgType, void *pRawMsg)
 
 void CKillMessages::OnRender()
 {
+	if(!g_Config.m_ClShowKillMessages)
+		return;
+
 	float Width = 400*3.0f*Graphics()->ScreenAspect();
 	float Height = 400*3.0f;
 
 	Graphics()->MapScreen(0, 0, Width*1.5f, Height*1.5f);
 	float StartX = Width*1.5f-10.0f;
-	float y = 20.0f;
+	// Leave room for FPS counter in the top-right (HUD y≈5–17 → kill-msg space ≈7.5–25.5).
+	float y = 36.0f;
 
 	for(int i = 1; i <= MAX_KILLMSGS; i++)
 	{

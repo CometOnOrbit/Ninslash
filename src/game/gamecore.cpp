@@ -1198,7 +1198,7 @@ void CCharacterCore::Tick(bool UseInput)
 			// handle hook ball influence
 			if(m_HookState == HOOK_GRABBEDBALL)
 			{
-				if(Distance > PhysSize*1.50f) // TODO: fix tweakable variable
+				if(Distance > PhysSize*m_pWorld->m_Tuning.m_HookDragMinDistFactor)
 				{
 					float Accel = m_pWorld->m_Tuning.m_HookDragAccel * (Distance/m_pWorld->m_Tuning.m_HookLength);
 					float DragSpeed = m_pWorld->m_Tuning.m_HookDragSpeed*1.25f;
@@ -1262,7 +1262,7 @@ void CCharacterCore::Tick(bool UseInput)
 			// handle hook influence
 			if(m_HookedPlayer == i && m_pWorld->m_Tuning.m_PlayerHooking)
 			{
-				if(Distance > PhysSize*1.50f) // TODO: fix tweakable variable
+				if(Distance > PhysSize*m_pWorld->m_Tuning.m_HookDragMinDistFactor)
 				{
 					float Accel = m_pWorld->m_Tuning.m_HookDragAccel * (Distance/m_pWorld->m_Tuning.m_HookLength);
 					float DragSpeed = m_pWorld->m_Tuning.m_HookDragSpeed;

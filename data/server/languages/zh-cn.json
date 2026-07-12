@@ -17,6 +17,10 @@
             "value": "%s 活到了最后"
         },
         {
+            "key": "%s was here %d min ago",
+            "value": "%s 在 %d 分钟前在这里"
+        },
+        {
             "key": "'%s' called for vote to kick you",
             "value": "'%s' 发起投票要把你踢出服务器"
         },
@@ -55,6 +59,30 @@
         {
             "key": "All players were moved to the %s",
             "value": "所有玩家都加入了 %s"
+        },
+        {
+            "key": "All players were moved to the blue team",
+            "value": "所有玩家都加入了蓝队"
+        },
+        {
+            "key": "All players were moved to the dead",
+            "value": "所有玩家都加入了感染者"
+        },
+        {
+            "key": "All players were moved to the game",
+            "value": "所有玩家都加入了游戏"
+        },
+        {
+            "key": "All players were moved to the living",
+            "value": "所有玩家都加入了生者"
+        },
+        {
+            "key": "All players were moved to the red team",
+            "value": "所有玩家都加入了红队"
+        },
+        {
+            "key": "All players were moved to the spectators",
+            "value": "所有玩家都移到了旁观者"
         },
         {
             "key": "All reactors lost",
@@ -185,6 +213,10 @@
             "value": "入侵"
         },
         {
+            "key": "Jump to level %d",
+            "value": "跳转到楼层 %d"
+        },
+        {
             "key": "KILL!",
             "value": "杀!!"
         },
@@ -205,12 +237,28 @@
             "value": "楼层 %d - 梅开二度"
         },
         {
+            "key": "Level cleared!",
+            "value": "楼层清空！"
+        },
+        {
             "key": "Mapgen seed: %d",
             "value": "地图种子: %d"
         },
         {
+            "key": "Number of entities: %d",
+            "value": "实体数量: %d"
+        },
+        {
+            "key": "Number of pickups: %d",
+            "value": "拾取物数量: %d"
+        },
+        {
             "key": "Number of player profiles in Invasion: %d",
             "value": "这一轮的Inv模式中保存数据的数量: %d"
+        },
+        {
+            "key": "Number of weapon objects: %d",
+            "value": "武器实体数量: %d"
         },
         {
             "key": "Ocean of blood",
@@ -221,8 +269,16 @@
             "value": "合作"
         },
         {
+            "key": "Reach the door",
+            "value": "找到通往下一层的门"
+        },
+        {
             "key": "Reactor Bomber",
             "value": "爆破反应堆"
+        },
+        {
+            "key": "Reactor Defence",
+            "value": "反应堆防御"
         },
         {
             "key": "Reactor defense",
@@ -293,6 +349,10 @@
             "value": "阶段性胜利"
         },
         {
+            "key": "Survive the wave of enemies",
+            "value": "在敌人浪潮中存活"
+        },
+        {
             "key": "Team deathmatch",
             "value": "团队死斗"
         },
@@ -357,6 +417,10 @@
             "value": "%s队的旗帜被 '%s' 夺走！ (%d.%s%d 秒)"
         },
         {
+            "key": "This is the highest level you have been to.",
+            "value": "这是你到达过的最高楼层。"
+        },
+        {
             "key": "Time out - Blue team wins",
             "value": "时间到 - 蓝队胜利"
         },
@@ -385,7 +449,15 @@
             "value": "攻势清空"
         },
         {
+            "key": "Wave cleared!",
+            "value": "攻势清空！"
+        },
+        {
             "key": "Wave incoming",
+            "value": "敌人正在逼近！"
+        },
+        {
+            "key": "Wave incoming!",
             "value": "敌人正在逼近！"
         },
         {
@@ -463,6 +535,10 @@
         {
             "key": "reactor1.map - survival mode PvP",
             "value": "地图：reactor1 - 生存模式PvP"
+        },
+        {
+            "key": "reactor_def1.map - PvE",
+            "value": "地图：reactor_def1 - 合作模式"
         },
         {
             "key": "red",

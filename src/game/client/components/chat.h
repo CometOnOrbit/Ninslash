@@ -1,5 +1,4 @@
 
-
 #ifndef GAME_CLIENT_COMPONENTS_CHAT_H
 #define GAME_CLIENT_COMPONENTS_CHAT_H
 #include <engine/shared/ringbuffer.h>
@@ -8,7 +7,7 @@
 
 class CChat : public CComponent
 {
-	CLineInput m_Input;
+	CLineInputBuffered<512> m_Input;
 
 	enum
 	{
@@ -20,7 +19,7 @@ class CChat : public CComponent
 		int64 m_Time;
 		float m_YOffset[2];
 		int m_ClientID;
-		int m_Team;
+		int m_Mode;
 		int m_NameColor;
 		char m_aName[64];
 		char m_aText[512];
@@ -36,6 +35,7 @@ class CChat : public CComponent
 		MODE_NONE=0,
 		MODE_ALL,
 		MODE_TEAM,
+		MODE_WHISPER,
 
 		CHAT_SERVER=0,
 		CHAT_HIGHLIGHT,
@@ -44,7 +44,10 @@ class CChat : public CComponent
 	};
 
 	int m_Mode;
+	int m_WhisperTarget;
+	int m_LastWhisperFrom;
 	bool m_Show;
+	bool m_Filtered;
 	bool m_InputUpdate;
 	int m_ChatStringOffset;
 	int m_OldChatStringLength;
@@ -55,7 +58,8 @@ class CChat : public CComponent
 
 	struct CHistoryEntry
 	{
-		int m_Team;
+		int m_Mode;
+		int m_Target;
 		char m_aText[1];
 	};
 	CHistoryEntry *m_pHistoryEntry;
@@ -66,6 +70,7 @@ class CChat : public CComponent
 
 	static void ConSay(IConsole::IResult *pResult, void *pUserData);
 	static void ConSayTeam(IConsole::IResult *pResult, void *pUserData);
+	static void ConWhisper(IConsole::IResult *pResult, void *pUserData);
 	static void ConChat(IConsole::IResult *pResult, void *pUserData);
 	static void ConShowChat(IConsole::IResult *pResult, void *pUserData);
 
@@ -74,11 +79,11 @@ public:
 
 	bool IsActive() const { return m_Mode != MODE_NONE; }
 
-	void AddLine(int ClientID, int Team, const char *pLine);
+	void AddLine(int ClientID, int Mode, const char *pLine);
 
-	void EnableMode(int Team);
+	void EnableMode(int Mode);
 
-	void Say(int Team, const char *pLine);
+	void Say(int Mode, const char *pLine, int Target = -1);
 
 	virtual void OnInit();
 	virtual void OnReset();

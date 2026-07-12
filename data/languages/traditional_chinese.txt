@@ -5,7 +5,7 @@
 == %d 字節
 
 %d of %d servers, %d players
-== %d / %d 個伺服器, %d 個玩傢
+== %d / %d 個服務器, %d 個玩家
 
 %d%% loaded
 == 已加載 %d%%
@@ -28,6 +28,9 @@
 %s wins!
 == %s 勝利!
 
+'%s' called for vote to kick you
+== '%s' 發起投票要把你踢出服務器
+
 -Page %d-
 == -第 %d 頁-
 
@@ -43,38 +46,47 @@ Add Friend
 Address
 == 地址
 
+Alien wave cleared
+== 外星人被殲滅了！
+
+Aliens terminated
+== 外星人被全部擊退！
+
 All
 == 全部
 
 Alpha
 == 透明度
 
-Always show name plates
-== 顯示玩傢名稱
+Always
+== 始終顯示
+
+Always show
+== 始終顯示
+
+Angle:
+== 角度:
+
+AntiPing
+== 延遲補償
 
 Are you sure that you want to delete the demo?
-== 你確定要刪除這個迴放嗎?
+== 你確定要刪除這個回放嗎?
 
 Are you sure that you want to quit?
-== 你確定要退齣嗎?
+== 你確定要退出嗎?
 
 Are you sure that you want to remove the player from your friends list?
-== 你確定要把這個玩傢從好友列錶中刪除嗎?
+== 你確定要把這個玩家從好友列表中刪除嗎?
 
 Area Shield
-== 小型防禦盾
+== 小型防御盾
 
 As this is the first time you launch the game, please enter your nick name below. It's recommended that you check the settings to adjust them to your liking before joining a server.
-== 這是你第一次執行游戲, 所以請在下面輸入你的暱稱. 建議你在進入一個伺服器之前, 先確認一下設置是否符合你的習慣.
-
-Automatically record demos
-== 自動記録録像
-
-Automatically take game over screenshot
-== 自動截取游戲結束畫面
+== 這是你第一次運行遊戲，請在下方輸入你的昵稱。建議你在進入服務器前，先檢查遊戲設置是否符合個人習慣
 
 Back to main menu
-== 迴到主菜單
+== 回到主菜單
 
 Barrel
 == 油桶
@@ -86,7 +98,7 @@ Block
 == 方塊
 
 Blood amount
-== 游戲中血液數量
+== 遊戲中血液數量
 
 Blood color
 == 血液顏色
@@ -104,7 +116,7 @@ Body
 == 身體
 
 Bomb (for destroying reactors)
-== 炸彈(用於摧毁反應堆)
+== 炸彈(用於摧毀反應堆)
 
 Borderless window
 == 無邊框窗口
@@ -114,6 +126,9 @@ Build menu
 
 Call vote
 == 發起投票
+
+Camera
+== 鏡頭
 
 Change color of
 == 改變顏色
@@ -127,14 +142,11 @@ Change skin of
 Chat
 == 聊天
 
-Chat & Misc.
-== 聊天 & 其他
+Chat messages
+== 聊天消息來源
 
 Clan
-== 糰隊
-
-Client
-== 客户端
+== 團隊
 
 Close
 == 關閉
@@ -148,17 +160,20 @@ Connect
 Connecting to
 == 正在連接到
 
+Connection Problems...
+== 連接異常...
+
 Console
-== 控製枱
+== 控製台
 
 Controls
 == 控製
 
 Count players only
-== 隻統計玩傢數
+== 只統計玩家數
 
 Country
-== 國傢/地區
+== 國家/地區
 
 Crc:
 == Crc校驗碼:
@@ -166,38 +181,50 @@ Crc:
 Created:
 == 已創建:
 
-Current
-== 當前
+Current version: %s  |  Servers: %d
+== 當前版本: %s  |  服務器: %d
 
-Current version: %s
-== 當前版本: %s
+Current: %dx%d (%d:%d)
+== 當前: %dx%d (%d:%d)
 
 Customize
 == 自定義皮膚
+
+Cyborg wave cleared
+== 賽博格被殲滅了！
+
+Cyborgs terminated
+== 賽博格被全部擊退！
+
+Deadzone
+== 死區
 
 Delete
 == 刪除
 
 Delete demo
-== 刪除録像
+== 刪除回放
 
 Demo details
-== 録像詳細信息
+== 回放詳細信息
 
 Demofile: %s
-== 録像: %s
+== 回放: %s
 
 Demos
-== 録像
+== 回放
+
+Desktop notifications
+== 桌面通知
+
+Disable whisper
+== 禁用私聊
 
 Disconnect
 == 斷開連接
 
 Disconnected
 == 連接已斷開
-
-Display Modes
-== 顯示模式
 
 Downloading map
 == 正在下載地圖
@@ -214,20 +241,20 @@ Dynamic Camera
 Dynamic lighting
 == 環境光源
 
-Editor
-== 地圖編輯器
-
 Electric grenade
 == 電極榴彈炮
 
 Electric wall
-== 電子墻
+== 電子牆
 
 Electrowall
-== 離子墻
+== 離子牆
 
 Emoticon
-== 錶情
+== 表情
+
+Enemies terminated
+== 敵人被全部擊退！
 
 Energy shield
 == 能量護盾
@@ -242,13 +269,25 @@ Error
 == 錯誤
 
 Error loading demo
-== 讀取録像錯誤
+== 讀取回放錯誤
+
+Everyone
+== 所有人
 
 Eyes
 == 眼睛部分
 
+FPS counter
+== 幀率計數器
+
+FPS:
+== 幀率:
+
 FSAA samples
 == 全屏抗鋸齒(FSAA)采樣倍數
+
+Failed to start video render. Is FFmpeg installed?
+== 無法開始影片渲染。是否已安裝 FFmpeg？
 
 Favorite
 == 收藏
@@ -258,6 +297,9 @@ Favorites
 
 Feet
 == 腳
+
+File name:
+== 檔案名稱:
 
 Filter
 == 過濾器
@@ -269,13 +311,16 @@ Flamer
 == 火焰發射器
 
 Flip attack & hook
-== 攻擊 & 鈎子
+== 攻擊 & 鉤子
 
 Flip move & aim axis
 == 移動 & 瞄準
 
 Folder
-== 文件夾
+== 檔案夾
+
+Follow factor
+== 跟隨系數
 
 Force vote
 == 強製投票
@@ -283,44 +328,62 @@ Force vote
 Free-View
 == 自由視角
 
+Friend marks
+== 好友標記
+
 Friends
 == 好友
 
+Friends only
+== 僅好友
+
 Fullscreen
-== 全屏幕
+== 全螢幕
+
+Furries terminated
+== 獸人被全部擊退！
+
+Furry wave cleared
+== 獸人被殲滅了！
 
 Game
-== 游戲
+== 遊戲
 
 Game info
-== 游戲信息
+== 遊戲信息
 
 Game over
-== 游戲結束
+== 遊戲結束
 
 Game paused
-== 游戲已暫停
+== 遊戲已暫停
 
 Game type
-== 游戲類型
+== 遊戲類型
 
 Game types:
-== 游戲類型:
+== 遊戲類型:
 
 General
 == 常規
+
+Go
+== 開始
 
 Graphics
 == 圖像
 
 Green
-== 緑色
+== 綠色
 
 Grenade
 == 手榴彈
 
+HUD
+== HUD
+
 Hair / hat
-== 頭髮 / 帽子
+== 頭發 / 帽子
 
 Hammer
 == 錘子
@@ -343,17 +406,26 @@ Head
 Heads
 == 頭部
 
+Health + Ammo
+== 生命 + 彈藥
+
+Hide player's score
+== 隱藏自己的分數
+
 High Detail
 == 高細節
 
 Hook
-== 鈎子
+== 鉤子
 
 Host address
 == 連接地址
 
 Hue
 == 色調
+
+ID
+== ID
 
 Info
 == 信息
@@ -362,7 +434,7 @@ Internet
 == 互聯網
 
 Invalid Demo
-== 無效的迴放
+== 無效的回放
 
 Inventory
 == 打開物品欄
@@ -385,11 +457,14 @@ Item slot 3
 Item slot 4
 == 切換到第4個物品
 
+Join
+== 加入
+
 Join blue
 == 加入藍隊
 
 Join game
-== 加入游戲
+== 加入遊戲
 
 Join red
 == 加入紅隊
@@ -397,11 +472,17 @@ Join red
 Jump
 == 跳躍
 
+Jump:
+== 跳躍:
+
 Kick player
-== 踢除玩傢
+== 踢除玩家
+
+Kill messages
+== 擊殺消息
 
 LAN
-== 局域網
+== 區域網路
 
 Language
 == 語言
@@ -434,7 +515,7 @@ Mask of plenty
 == 豐盛面具
 
 Mask of protection
-== 護身面具
+== 護體面具
 
 Mask of regeneration
 == 恢複面具
@@ -442,14 +523,17 @@ Mask of regeneration
 Mask of speed
 == 速度面具
 
-Max Screenshots
-== 最大截圖數
-
-Max demos
-== 最大迴放數
+Max distance
+== 最大距離
 
 Maximum ping:
 == 最高延遲:
+
+Menu opacity
+== 菜單不透明度
+
+Misc
+== 雜項
 
 Miscellaneous
 == 雜項
@@ -458,31 +542,28 @@ Mouse sens.
 == 鼠標靈敏度
 
 Move left
-== 嚮左移動
+== 向左移動
 
 Move player to spectators
-== 移動玩傢爲旁觀
+== 移動玩家為旁觀
 
 Move right
-== 嚮右移動
+== 向右移動
 
 Movement
 == 移動
 
-Movement & Weapons
-== 移動 & 武器
-
 Multi framebuffering (requires restart)
-== 多幀緩衝（需要重新啓動游戲）
+== 多幀緩衝（需要重新啟動遊戲）
 
 Mute when not active
-== 不活動的時候靜音
+== 失去焦點時禁音
 
 Name
 == 名字
 
-Name plates size
-== 名字闆尺寸
+Nameplates
+== 名字板
 
 Netversion:
 == 網絡協議版本
@@ -490,41 +571,56 @@ Netversion:
 New name:
 == 新名字:
 
-News
-== 新聞
-
 Next weapon
 == 下一個武器
 
 Nickname
-== 暱稱
+== 昵稱
 
 Ninslash %s is out! Download it at www.ninslash.com!
-== Ninslash %s 更新了！請訪問 www.ninslash.com 下載!
+== Ninslash %s 已經發布！請訪問 www.ninslash.com 下載最新版本！
 
 No
 == 否
+
+No one
+== 無人
 
 No password
 == 無密碼
 
 No servers found
-== 找不到任何伺服器
+== 找不到任何服務器
 
 No servers match your filter criteria
-== 沒有任何伺服器匹配你的過濾器
+== 沒有任何服務器匹配你的過濾器
 
 Objective
-== 任務
+== 任務目標
+
+Off
+== 關
 
 Ok
 == 確定
 
+On
+== 開
+
+Only team chat
+== 僅隊伍聊天
+
 Open
 == 打開
 
+Other
+== 其他
+
+Own name plate
+== 顯示自己的名字
+
 Parent Folder
-== 上級目録
+== 上級目錄
 
 Password
 == 密碼
@@ -539,28 +635,43 @@ Pistol
 == 手槍
 
 Play
-== 開始游戲
+== 開始遊戲
 
 Play background music
 == 播放背景音樂
 
 Player
-== 玩傢
+== 玩家
+
+Player angle
+== 玩家角度
 
 Player country:
-== 包含此國旗的玩傢:
+== 包含此旗幟的玩家:
 
 Player options
-== 玩傢選項
+== 玩家選項
+
+Player position
+== 玩家位置
+
+Player speed
+== 玩家速度
 
 Players
-== 玩傢數
+== 玩家數
 
 Please balance teams!
-== 請平衡糰隊人數!
+== 請平衡團隊人數!
+
+Please enter a filename for the sliced demo:
+== 請輸入切片回放的檔案名稱:
+
+Position:
+== 位置:
 
 Power barrel
-== 儲電罐
+== 儲電桶
 
 Prev. weapon
 == 上一個武器
@@ -572,10 +683,10 @@ Quick search:
 == 快速搜索:
 
 Quit
-== 退齣
+== 退出
 
 Quit anyway?
-== 無論如何都要退齣嗎?
+== 無論如何都要退出嗎?
 
 REC %3d:%02d
 == REC %3d:%02d
@@ -583,11 +694,14 @@ REC %3d:%02d
 Reach the door
 == 進入下一層
 
+Ready
+== 準備
+
 Reason:
 == 理由:
 
-Record demo
-== 録製録像
+Recommended
+== 推薦
 
 Red
 == 紅色
@@ -602,10 +716,10 @@ Refresh
 == 刷新
 
 Refreshing master servers
-== 刷新列錶伺服器中
+== 刷新列表服務器中
 
 Remote console
-== 遠程控製枱
+== 遠程控製台
 
 Remove
 == 移除
@@ -617,28 +731,46 @@ Rename
 == 重命名
 
 Rename demo
-== 重命名録像
+== 重命名回放
+
+Render
+== 渲染
+
+Render video
+== 渲染影片
 
 Repair tool
 == 修複工具
+
+Requires FFmpeg in PATH. Output is saved under videos/.
+== 需要系統 PATH 中有 FFmpeg。輸出儲存到 videos/ 目錄。
 
 Reset filter
 == 重置過濾器
 
 Reset to defaults
-== 恢複默認設置
+== 恢複預設設置
+
+Resolution
+== 分辨率
 
 Respawn
 == 重生
 
 Respawn device
-== 複活科技
+== 複活器
 
 Rifle
 == 激光槍
 
+Robot wave cleared
+== 機器人被殲滅了！
+
+Robots terminated
+== 機器人被全部擊退！
+
 Round
-== 迴合
+== 回合
 
 Sample rate
 == 采樣率
@@ -661,53 +793,74 @@ Scoreboard
 Screenshot
 == 截圖
 
+Seek the door
+== 找到通往下一層的門
+
 Server address:
-== 伺服器地址:
+== 服務器地址:
 
 Server details
-== 伺服器詳細信息
+== 服務器詳細信息
 
 Server filter
-== 伺服器過濾器
+== 服務器篩選
 
 Server info
-== 伺服器信息
+== 服務器信息
 
 Server is changing map
-== 伺服器正在切換地圖
+== 服務器正在切換地圖
 
 Server not full
-== 伺服器未滿
+== 服務器未滿
+
+Set End
+== 設為結束
 
 Settings
 == 設置
 
 Shield generator
-== 防護盾生成器
+== 能量護盾發生器
 
 Shotgun
 == 霰彈槍
 
+Show IDs
+== 顯示 ID
+
 Show chat
 == 顯示聊天
 
+Show clan
+== 顯示團隊
+
 Show friends only
-== 隻顯示好友
+== 只顯示好友
 
 Show ingame HUD
-== 顯示游戲內 HUD
+== 顯示遊戲內 HUD
 
 Show name plates
-== 顯示名字闆
+== 顯示名字板
 
-Show only chat messages from friends
-== 隻顯示好友消息
+Show social data
+== 顯示社交信息
 
-Show only supported
-== 隻顯示支持的
+Show user IDs
+== 顯示玩家 ID
+
+Size
+== 大小
 
 Size:
 == 尺寸:
+
+Skeleton wave cleared
+== 骷髏被殲滅了！
+
+Skeletons terminated
+== 骷髏被全部擊退！
 
 Skin
 == 皮膚
@@ -715,14 +868,26 @@ Skin
 Skins
 == 皮膚
 
+Slice
+== 切片
+
+Slice demo
+== 切片回放
+
+Slice...
+== 切片...
+
 Slide / down
 == 滑鏟 / 下蹲
+
+Smoothness
+== 平滑度
 
 Sound
 == 聲音
 
 Sound error
-== 聲音齣現錯誤
+== 聲音出現錯誤
 
 Sound volume
 == 音量
@@ -736,23 +901,38 @@ Spectate next
 Spectate previous
 == 觀看前一個
 
+Spectate smooth
+== 旁觀平滑
+
+Spectator count
+== 旁觀者數量
+
 Spectator mode
 == 旁觀者模式
 
 Spectators
 == 旁觀者
 
+Speed:
+== 速度:
+
+Stabilizing
+== 穩定中
+
 Standard gametype
-== 標準游戲類型
+== 標準遊戲類型
 
 Standard map
 == 標準地圖
 
-Stop record
-== 停止録製
+Start
+== 開始
+
+Streamer mode
+== 直播模式
 
 Strict gametype filter
-== 嚴格過濾游戲類型
+== 嚴格過濾遊戲類型
 
 Sudden Death
 == 加時賽
@@ -769,23 +949,44 @@ Survive the wave of enemies
 Switch weapon on pickup
 == 拾取武器時自動裝備
 
+System messages
+== 系統消息
+
 Team
-== 糰隊
+== 團隊
 
 Team chat
-== 糰隊聊天
+== 團隊聊天
+
+Team colors
+== 隊伍顏色
+
+Terminate the aliens
+== 擊殺所有外星人
+
+Terminate the cyborgs
+== 擊殺所有賽博格
 
 Terminate the enemies
 == 殲滅所有敵人
 
+Terminate the furries
+== 擊殺所有獸人
+
+Terminate the robots
+== 擊殺所有機器人
+
+Terminate the skeletons
+== 擊殺所有骷髏
+
 Teslacoil
-== 特斯拉綫圈
+== 特斯拉線圈
 
 Texture Compression
 == 紋理壓縮
 
 The Cure
-== 回覆藥劑
+== 回複藥劑
 
 The Dead
 == 感染者
@@ -794,25 +995,28 @@ The Living
 == 幸存者
 
 The audio device couldn't be initialised.
-== 無法初始化音頻設備。
+== 無法初始化音頻設備
 
 The server is running a non-standard tuning on a pure game type.
-== 此伺服器運行着經過調整的非標準游戲類型.
+== 此服務器運行着經過調整的非標準遊戲類型
 
 There's an unsaved map in the editor, you might want to save it before you quit the game.
-== 編輯器中的地圖尚未保存, 或許你應該在退齣游戲之前保存一下.
+== 編輯器中的地圖尚未保存，或許你應該在退出遊戲之前保存一下
 
 Threaded rendering
-== 渲染綫程
+== 線程化渲染
 
 Threaded sound loading
-== 音效綫程加載中
+== 線程化音效加載
 
 Time limit
 == 時間限製
 
 Time limit: %d min
 == 時間限製: %d 分鐘
+
+Timer
+== 計時器
 
 Try again
 == 重試
@@ -830,16 +1034,16 @@ UI Color
 == 界面顏色
 
 Unable to delete the demo
-== 無法刪除這個録像
+== 無法刪除這個回放
 
 Unable to rename the demo
-== 無法重命名這個録像
+== 無法重命名這個回放
+
+Use +/- keys to zoom (rebindable in Controls)
+== 使用 +/- 鍵縮放（可在控製設置中重綁）
 
 Use sounds
-== 開啓聲音
-
-Use team colors for name plates
-== 爲玩傢名使用糰隊顏色
+== 開啟聲音
 
 V-Sync
 == 垂直同步
@@ -849,6 +1053,12 @@ Version
 
 Version:
 == 版本:
+
+Video render cancelled.
+== 已取消影片渲染。
+
+Video render complete. Saved under videos/.
+== 影片渲染完成，已儲存到 videos/ 目錄。
 
 Vote command:
 == 投票命令:
@@ -868,35 +1078,77 @@ Vote yes
 Voting
 == 投票
 
-Waiting for server...
-== 等待伺服器...
-
 Warmup
 == 熱身
 
+Wave incoming
+== 敵人正在逼近！
+
+Wave of aliens incoming
+== 外星人來襲！
+
+Wave of cyborgs incoming
+== 賽博格來襲！
+
+Wave of furries incoming
+== 獸人來襲！
+
+Wave of robots incoming
+== 機器人來襲！
+
+Wave of skeletons incoming
+== 骷髏來襲！
+
 Weapon upgrade
-== 武器升級
+== 升級套件
 
 Weapons & Items
-== 武器 & 物品
+== 武器與物品
 
 Welcome to Ninslash
 == 歡迎來到Ninslash！
+
+When ready, press <%s>
+== 準備好後按 <%s>
+
+Whisper
+== 私聊
+
+Wide menu
+== 寬屏菜單
 
 Yes
 == 是
 
 You must restart the game for all settings to take effect.
-== 你必鬚重啓游戲纔能讓所有設置起效.
+== 你必須重啟遊戲才能讓所有設置起效
+
+You must wait %d seconds before making another vote
+== 你必須等待 %d 秒後才能發起另一投票
 
 Zombie claw
 == 僵屍爪
 
+Zoom
+== 縮放
+
+Zoom in
+== 放大
+
+Zoom out
+== 縮小
+
+Zoom with + / - keys
+== 使用 + / - 鍵縮放
+
+blue
+== 藍
+
 enemies remaining
 == 剩餘敵人
 
-no limit
-== 無限製
+red
+== 紅
 
 seconds remaining
 == 剩餘時間

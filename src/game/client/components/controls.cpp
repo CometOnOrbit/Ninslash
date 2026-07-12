@@ -4,6 +4,8 @@
 
 #include <engine/shared/config.h>
 
+#include <engine/keys.h>
+
 #include <game/collision.h>
 #include <game/client/gameclient.h>
 #include <game/client/component.h>
@@ -19,6 +21,7 @@
 CControls::CControls()
 {
 	mem_zero(&m_LastData, sizeof(m_LastData));
+	m_Ready = false;
 }
 
 void CControls::OnReset()
@@ -45,6 +48,7 @@ void CControls::OnReset()
 	m_BuildMode = false;
 	m_LastWeapon = 1;
 	m_SelectedBuilding = -1;
+	m_Ready = false;
 }
 
 void CControls::OnRelease()
@@ -95,6 +99,36 @@ static void ConKeyInputNextPrevWeapon(IConsole::IResult *pResult, void *pUserDat
 	pSet->m_pControls->m_InputData.m_WantedWeapon = 0;
 }
 
+void CControls::ConZoomPlus(IConsole::IResult *pResult, void *pUserData)
+{
+	CControls *pControls = (CControls *)pUserData;
+	if(pControls->m_pClient->m_pChat->IsActive())
+		return;
+	if(pControls->m_pClient->m_pMenus->IsActive())
+		return;
+	if(pControls->Client()->State() != IClient::STATE_ONLINE && pControls->Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		return;
+	if(g_Config.m_ClZoom < 30)
+		g_Config.m_ClZoom++;
+	if(g_Config.m_ClZoom < 1)
+		g_Config.m_ClZoom = 1;
+}
+
+void CControls::ConZoomMinus(IConsole::IResult *pResult, void *pUserData)
+{
+	CControls *pControls = (CControls *)pUserData;
+	if(pControls->m_pClient->m_pChat->IsActive())
+		return;
+	if(pControls->m_pClient->m_pMenus->IsActive())
+		return;
+	if(pControls->Client()->State() != IClient::STATE_ONLINE && pControls->Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		return;
+	if(g_Config.m_ClZoom > 1)
+		g_Config.m_ClZoom--;
+	if(g_Config.m_ClZoom > 30)
+		g_Config.m_ClZoom = 30;
+}
+
 void CControls::OnConsoleInit()
 {
 	// game commands
@@ -137,6 +171,9 @@ void CControls::OnConsoleInit()
 	
 	{ static CInputSet s_Set = {this, &m_InputData.m_NextWeapon, 0}; Console()->Register("+nextweapon", "", CFGFLAG_CLIENT, ConKeyInputNextPrevWeapon, (void *)&s_Set, "Switch to next weapon"); }
 	{ static CInputSet s_Set = {this, &m_InputData.m_PrevWeapon, 0}; Console()->Register("+prevweapon", "", CFGFLAG_CLIENT, ConKeyInputNextPrevWeapon, (void *)&s_Set, "Switch to previous weapon"); }
+
+	Console()->Register("zoom+", "", CFGFLAG_CLIENT, ConZoomPlus, this, "Zoom in");
+	Console()->Register("zoom-", "", CFGFLAG_CLIENT, ConZoomMinus, this, "Zoom out");
 }
 
 void CControls::OnMessage(int Msg, void *pRawMsg)
@@ -212,6 +249,9 @@ int CControls::SnapInput(int *pData)
 
 	if(m_pClient->m_pScoreboard->Active())
 		m_InputData.m_PlayerFlags |= PLAYERFLAG_SCOREBOARD;
+
+	if(m_Ready)
+		m_InputData.m_PlayerFlags |= PLAYERFLAG_READY;
 
 	if(m_LastData.m_PlayerFlags != m_InputData.m_PlayerFlags)
 		Send = true;

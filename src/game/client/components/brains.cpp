@@ -213,7 +213,7 @@ void CBrains::Update(float TimePassed)
 
 void CBrains::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 
 	static int64 LastTime = 0;

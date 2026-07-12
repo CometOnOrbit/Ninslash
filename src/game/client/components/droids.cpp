@@ -215,7 +215,7 @@ void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCu
 
 void CDroids::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 	
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
@@ -227,26 +227,24 @@ void CDroids::OnRender()
 		if(Item.m_Type == NETOBJTYPE_DROID)
 		{
 			const void *pPrev = Client()->SnapFindItem(IClient::SNAP_PREV, Item.m_Type, Item.m_ID);
-			if(pPrev)
+			const struct CNetObj_Droid *pDroid = (const CNetObj_Droid *)pData;
+			const CNetObj_Droid *pDroidPrev = pPrev ? (const CNetObj_Droid *)pPrev : pDroid;
+
+			switch (pDroid->m_Type)
 			{
-				const struct CNetObj_Droid *pDroid = (const CNetObj_Droid *)pData;
-			
-				switch (pDroid->m_Type)
-				{
-				case DROIDTYPE_WALKER:
-					RenderWalker((const CNetObj_Droid *)pPrev, (const CNetObj_Droid *)pData, Item.m_ID);
-					break;
-				case DROIDTYPE_STAR:
-					RenderStar((const CNetObj_Droid *)pPrev, (const CNetObj_Droid *)pData, Item.m_ID);
-					break;
-				case DROIDTYPE_CRAWLER:
-					RenderCrawler((const CNetObj_Droid *)pPrev, (const CNetObj_Droid *)pData, Item.m_ID);
-					break;
-				case DROIDTYPE_BOSSCRAWLER:
-					RenderCrawler((const CNetObj_Droid *)pPrev, (const CNetObj_Droid *)pData, Item.m_ID);
-					break;
-				default:;
-				}
+			case DROIDTYPE_WALKER:
+				RenderWalker(pDroidPrev, pDroid, Item.m_ID);
+				break;
+			case DROIDTYPE_STAR:
+				RenderStar(pDroidPrev, pDroid, Item.m_ID);
+				break;
+			case DROIDTYPE_CRAWLER:
+				RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
+				break;
+			case DROIDTYPE_BOSSCRAWLER:
+				RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
+				break;
+			default:;
 			}
 		}
 	}

@@ -569,6 +569,8 @@ if(CLIENT)
     sound.cpp
     sound.h
     text.cpp
+    video.cpp
+    video.h
   )
   set_src(GAME_CLIENT GLOB_RECURSE src/game/client 
     components/ball.cpp
@@ -688,6 +690,8 @@ if(CLIENT)
     spine.h
     ui.cpp
     ui.h
+    ui_scrollregion.cpp
+    ui_scrollregion.h
   )
   set_src(GAME_EDITOR GLOB src/game/editor
     auto_map.cpp

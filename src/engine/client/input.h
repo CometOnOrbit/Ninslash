@@ -1,5 +1,4 @@
 
-
 #ifndef ENGINE_CLIENT_INPUT_H
 #define ENGINE_CLIENT_INPUT_H
 
@@ -38,10 +37,20 @@ class CInput : public IEngineInput
 	int64 m_LastRelease;
 	int64 m_ReleaseDelta;
 
-	void AddEvent(int Unicode, int Key, int Flags);
+	// ime support
+	char m_aComposition[MAX_COMPOSITION_ARRAY_SIZE];
+	int m_CompositionCursor;
+	int m_CompositionSelectedLength;
+	int m_CompositionLength;
+	char m_aaCandidates[MAX_CANDIDATES][MAX_CANDIDATE_ARRAY_SIZE];
+	int m_CandidateCount;
+	int m_CandidateSelectedIndex;
+
+	void AddEvent(const char *pText, int Key, int Flags);
 
 	IEngineGraphics *Graphics() { return m_pGraphics; }
 	IEngineGamepad *Gamepad() { return m_pGamepad; }
+	SDL_Window *Window() { return (SDL_Window *)m_pGraphics->GetWindowHandle(); }
 
 public:
 	CInput();
@@ -71,6 +80,18 @@ public:
 	int ButtonPressed(int Button) { return m_aInputState[m_InputCurrent][Button]; }
 
 	virtual int Update();
+
+	virtual void StartTextInput();
+	virtual void StopTextInput();
+	virtual const char *GetComposition() const { return m_aComposition; }
+	virtual bool HasComposition() const { return m_CompositionLength != COMP_LENGTH_INACTIVE; }
+	virtual int GetCompositionCursor() const { return m_CompositionCursor; }
+	virtual int GetCompositionSelectedLength() const { return m_CompositionSelectedLength; }
+	virtual int GetCompositionLength() const { return m_CompositionLength; }
+	virtual const char *GetCandidate(int Index) const { return m_aaCandidates[Index]; }
+	virtual int GetCandidateCount() const { return m_CandidateCount; }
+	virtual int GetCandidateSelectedIndex() const { return m_CandidateSelectedIndex; }
+	virtual void SetCompositionWindowPosition(float X, float Y, float H);
 };
 
 #endif

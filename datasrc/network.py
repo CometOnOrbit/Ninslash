@@ -1,7 +1,7 @@
 from datatypes import *
 
 Emotes = ["NORMAL", "PAIN", "HAPPY", "SURPRISE", "ANGRY", "BLINK"]
-PlayerFlags = ["PLAYING", "IN_MENU", "CHATTING", "SCOREBOARD"]
+PlayerFlags = ["PLAYING", "IN_MENU", "CHATTING", "SCOREBOARD", "READY"]
 GameFlags = ["TEAMS", "INFECTION", "COOP", "SURVIVAL", "BUILD", "FLAGS", "ACID"]
 GameStateFlags = ["GAMEOVER", "SUDDENDEATH", "PAUSED"]
 
@@ -127,6 +127,10 @@ enum
 	DEATHTYPE_LANDMINE,
 	DEATHTYPE_ELECTROMINE,
 	DEATHTYPE_BARREL,
+
+	CHATMODE_ALL=0,
+	CHATMODE_TEAM,
+	CHATMODE_WHISPER,
 	DEATHTYPE_DEATHRAY,
 	DEATHTYPE_DROID_WALKER,
 	DEATHTYPE_FLAMETRAP,
@@ -542,8 +546,9 @@ Messages = [
 	]),
 
 	NetMessage("Sv_Chat", [
-		NetIntRange("m_Team", 'TEAM_SPECTATORS', 'TEAM_BLUE'),
+		NetIntRange("m_Mode", 0, 3),
 		NetIntRange("m_ClientID", -1, 'MAX_CLIENTS-1'),
+		NetIntRange("m_TargetID", -1, 'MAX_CLIENTS-1'),
 		NetStringStrict("m_pMessage"),
 	]),
 
@@ -625,7 +630,8 @@ Messages = [
 
 	### Client messages / 13
 	NetMessage("Cl_Say", [
-		NetBool("m_Team"),
+		NetIntRange("m_Mode", 0, 2),
+		NetIntRange("m_Target", -1, 'MAX_CLIENTS-1'),
 		NetStringStrict("m_pMessage"),
 	]),
 

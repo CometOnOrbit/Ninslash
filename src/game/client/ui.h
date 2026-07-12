@@ -1,13 +1,18 @@
 
-
 #ifndef GAME_CLIENT_UI_H
 #define GAME_CLIENT_UI_H
 
+#include <base/vmath.h>
+#include <engine/input.h>
+
 class CUIRect
 {
-	// TODO: Refactor: Redo UI scaling
 	float Scale() const;
+	static class IGraphics *s_pGraphics;
+	static class CRenderTools *s_pRenderTools;
 public:
+	static void Init(class IGraphics *pGraphics, class CRenderTools *pRenderTools);
+
 	float x, y, w, h;
 
 	void HSplitMid(CUIRect *pTop, CUIRect *pBottom) const;
@@ -21,6 +26,31 @@ public:
 	void VMargin(float Cut, CUIRect *pOtherRect) const;
 	void HMargin(float Cut, CUIRect *pOtherRect) const;
 
+	void Draw(const vec4 &Color, float Rounding = 5.0f, int Corners = 0xF) const;
+};
+
+class CUI;
+
+class CUIElementBase
+{
+	static CUI *s_pUI;
+public:
+	static void Init(CUI *pUI) { s_pUI = pUI; }
+	CUI *UI() const { return s_pUI; }
+	class IClient *Client() const;
+	class IGraphics *Graphics() const;
+	class IInput *Input() const;
+	class ITextRender *TextRender() const;
+};
+
+class CButtonContainer : public CUIElementBase
+{
+	float m_FadeStartTime;
+	bool m_CleanBackground;
+public:
+	CButtonContainer(bool CleanBackground = false) : m_FadeStartTime(0.0f), m_CleanBackground(CleanBackground) {}
+	float GetFade(bool Checked = false, float Seconds = 0.6f);
+	bool IsCleanBackground() const { return m_CleanBackground; }
 };
 
 class CUI
@@ -29,20 +59,30 @@ class CUI
 	const void *m_pActiveItem;
 	const void *m_pLastActiveItem;
 	const void *m_pBecommingHotItem;
-	float m_MouseX, m_MouseY; // in gui space
-	float m_MouseWorldX, m_MouseWorldY; // in world space
+	bool m_ActiveItemValid;
+	float m_MouseX, m_MouseY;
+	float m_MouseWorldX, m_MouseWorldY;
 	unsigned m_MouseButtons;
 	unsigned m_LastMouseButtons;
 
 	CUIRect m_Screen;
 	class IGraphics *m_pGraphics;
 	class ITextRender *m_pTextRender;
+	class IClient *m_pClient;
+	class IInput *m_pInput;
+	class CRenderTools *m_pRenderTools;
 
 public:
-	// TODO: Refactor: Fill this in
-	void SetGraphics(class IGraphics *pGraphics, class ITextRender *pTextRender) { m_pGraphics = pGraphics; m_pTextRender = pTextRender;}
+	void SetGraphics(class IGraphics *pGraphics, class ITextRender *pTextRender);
+	void SetClient(class IClient *pClient) { m_pClient = pClient; }
+	void SetInput(class IInput *pInput) { m_pInput = pInput; }
+	void SetRenderTools(class CRenderTools *pRenderTools) { m_pRenderTools = pRenderTools; }
+
 	class IGraphics *Graphics() { return m_pGraphics; }
 	class ITextRender *TextRender() { return m_pTextRender; }
+	class IClient *Client() const { return m_pClient; }
+	class IInput *Input() const { return m_pInput; }
+	class CRenderTools *RenderTools() const { return m_pRenderTools; }
 
 	CUI();
 
@@ -77,8 +117,11 @@ public:
 	const void *NextHotItem() const { return m_pBecommingHotItem; }
 	const void *ActiveItem() const { return m_pActiveItem; }
 	const void *LastActiveItem() const { return m_pLastActiveItem; }
+	bool CheckActiveItem(const void *pID) { if(m_pActiveItem == pID) { m_ActiveItemValid = true; return true; } return false; }
 
 	int MouseInside(const CUIRect *pRect);
+	bool MouseHovered(const CUIRect *pRect) const;
+	bool KeyPress(int Key) const;
 	void ConvertMouseMove(float *x, float *y);
 
 	CUIRect *Screen();
@@ -86,15 +129,17 @@ public:
 	void ClipEnable(const CUIRect *pRect);
 	void ClipDisable();
 
-	// TODO: Refactor: Redo UI scaling
 	void SetScale(float s);
 	float Scale();
 
-	int DoButtonLogic(const void *pID, const char *pText /* TODO: Refactor: Remove */, int Checked, const CUIRect *pRect);
+	int DoButtonLogic(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
+	int DoButtonLogic(const void *pID, const CUIRect *pRect) { return DoButtonLogic(pID, "", 0, pRect); }
 
-	// TODO: Refactor: Remove this?
 	void DoLabel(const CUIRect *pRect, const char *pText, float Size, int Align, int MaxWidth = -1);
 	void DoLabelScaled(const CUIRect *pRect, const char *pText, float Size, int Align, int MaxWidth = -1);
+
+	bool OnInput(const IInput::CEvent &e);
+	bool DoEditBox(class CLineInput *pLineInput, const CUIRect *pRect, float FontSize, int Corners = CORNER_ALL, bool *pChanged = 0);
 };
 
 

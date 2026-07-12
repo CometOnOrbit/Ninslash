@@ -57,6 +57,7 @@ public:
 
 	//
 	inline int State() const { return m_State; }
+	inline bool IsGameWorldActive() const { return m_State == STATE_ONLINE || m_State == STATE_DEMOPLAYBACK; }
 
 	// tick time access
 	inline int PrevGameTick() const { return m_PrevGameTick; }
@@ -79,6 +80,12 @@ public:
 	virtual void DemoRecorder_Start(const char *pFilename, bool WithTimestamp) = 0;
 	virtual void DemoRecorder_HandleAutoStart() = 0;
 	virtual void DemoRecorder_Stop() = 0;
+	virtual void DemoSlice(const char *pDstPath) = 0;
+	virtual bool VideoStart(const char *pName, int Fps) = 0;
+	virtual void VideoStop() = 0;
+	virtual bool IsRecordingVideo() const = 0;
+	virtual float VideoProgress() const = 0;
+	virtual bool ConsumeVideoFinished() = 0;
 	virtual void AutoScreenshot_Start() = 0;
 	virtual void ServerBrowserUpdate() = 0;
 
@@ -135,6 +142,7 @@ public:
 	virtual const char *ErrorString() = 0;
 	virtual const char *LatestVersion() = 0;
 	virtual bool ConnectionProblems() = 0;
+	virtual int GetInputtimeMarginStabilityScore() = 0;
 
 	virtual bool SoundInitFailed() = 0;
 

@@ -28,6 +28,9 @@
 %s wins!
 == %s 胜利!
 
+'%s' called for vote to kick you
+== '%s' 发起投票要把你踢出服务器
+
 -Page %d-
 == -第 %d 页-
 
@@ -43,14 +46,29 @@ Add Friend
 Address
 == 地址
 
+Alien wave cleared
+== 外星人被歼灭了！
+
+Aliens terminated
+== 外星人被全部击退！
+
 All
 == 全部
 
 Alpha
 == 透明度
 
-Always show name plates
-== 显示玩家名称
+Always
+== 始终显示
+
+Always show
+== 始终显示
+
+Angle:
+== 角度:
+
+AntiPing
+== 延迟补偿
 
 Are you sure that you want to delete the demo?
 == 你确定要删除这个回放吗?
@@ -66,12 +84,6 @@ Area Shield
 
 As this is the first time you launch the game, please enter your nick name below. It's recommended that you check the settings to adjust them to your liking before joining a server.
 == 这是你第一次运行游戏，请在下方输入你的昵称。建议你在进入服务器前，先检查游戏设置是否符合个人习惯
-
-Automatically record demos
-== 自动记录回放
-
-Automatically take game over screenshot
-== 自动截取游戏结束画面
 
 Back to main menu
 == 回到主菜单
@@ -115,6 +127,9 @@ Build menu
 Call vote
 == 发起投票
 
+Camera
+== 镜头
+
 Change color of
 == 改变颜色
 
@@ -127,14 +142,11 @@ Change skin of
 Chat
 == 聊天
 
-Chat & Misc.
-== 聊天 & 其他
+Chat messages
+== 聊天消息来源
 
 Clan
 == 团队
-
-Client
-== 客户端
 
 Close
 == 关闭
@@ -147,6 +159,9 @@ Connect
 
 Connecting to
 == 正在连接到
+
+Connection Problems...
+== 连接异常...
 
 Console
 == 控制台
@@ -166,14 +181,23 @@ Crc:
 Created:
 == 已创建:
 
-Current
-== 当前
+Current version: %s  |  Servers: %d
+== 当前版本: %s  |  服务器: %d
 
-Current version: %s
-== 当前版本: %s
+Current: %dx%d (%d:%d)
+== 当前: %dx%d (%d:%d)
 
 Customize
 == 自定义皮肤
+
+Cyborg wave cleared
+== 赛博格被歼灭了！
+
+Cyborgs terminated
+== 赛博格被全部击退！
+
+Deadzone
+== 死区
 
 Delete
 == 删除
@@ -190,14 +214,17 @@ Demofile: %s
 Demos
 == 回放
 
+Desktop notifications
+== 桌面通知
+
+Disable whisper
+== 禁用私聊
+
 Disconnect
 == 断开连接
 
 Disconnected
 == 连接已断开
-
-Display Modes
-== 显示模式
 
 Downloading map
 == 正在下载地图
@@ -214,9 +241,6 @@ Dynamic Camera
 Dynamic lighting
 == 环境光源
 
-Editor
-== 地图编辑器
-
 Electric grenade
 == 电极榴弹炮
 
@@ -228,6 +252,9 @@ Electrowall
 
 Emoticon
 == 表情
+
+Enemies terminated
+== 敌人被全部击退！
 
 Energy shield
 == 能量护盾
@@ -244,11 +271,23 @@ Error
 Error loading demo
 == 读取回放错误
 
+Everyone
+== 所有人
+
 Eyes
 == 眼睛部分
 
+FPS counter
+== 帧率计数器
+
+FPS:
+== 帧率:
+
 FSAA samples
 == 全屏抗锯齿(FSAA)采样倍数
+
+Failed to start video render. Is FFmpeg installed?
+== 无法开始视频渲染。是否已安装 FFmpeg？
 
 Favorite
 == 收藏
@@ -258,6 +297,9 @@ Favorites
 
 Feet
 == 脚
+
+File name:
+== 文件名:
 
 Filter
 == 过滤器
@@ -277,17 +319,32 @@ Flip move & aim axis
 Folder
 == 文件夹
 
+Follow factor
+== 跟随系数
+
 Force vote
 == 强制投票
 
 Free-View
 == 自由视角
 
+Friend marks
+== 好友标记
+
 Friends
 == 好友
 
+Friends only
+== 仅好友
+
 Fullscreen
 == 全屏幕
+
+Furries terminated
+== 兽人被全部击退！
+
+Furry wave cleared
+== 兽人被歼灭了！
 
 Game
 == 游戏
@@ -310,6 +367,9 @@ Game types:
 General
 == 常规
 
+Go
+== 开始
+
 Graphics
 == 图像
 
@@ -318,6 +378,9 @@ Green
 
 Grenade
 == 手榴弹
+
+HUD
+== HUD
 
 Hair / hat
 == 头发 / 帽子
@@ -343,6 +406,12 @@ Head
 Heads
 == 头部
 
+Health + Ammo
+== 生命 + 弹药
+
+Hide player's score
+== 隐藏自己的分数
+
 High Detail
 == 高细节
 
@@ -354,6 +423,9 @@ Host address
 
 Hue
 == 色调
+
+ID
+== ID
 
 Info
 == 信息
@@ -385,6 +457,9 @@ Item slot 3
 Item slot 4
 == 切换到第4个物品
 
+Join
+== 加入
+
 Join blue
 == 加入蓝队
 
@@ -397,8 +472,14 @@ Join red
 Jump
 == 跳跃
 
+Jump:
+== 跳跃:
+
 Kick player
 == 踢除玩家
+
+Kill messages
+== 击杀消息
 
 LAN
 == 局域网
@@ -442,14 +523,17 @@ Mask of regeneration
 Mask of speed
 == 速度面具
 
-Max Screenshots
-== 最大截图数
-
-Max demos
-== 最大回放数
+Max distance
+== 最大距离
 
 Maximum ping:
 == 最高延迟:
+
+Menu opacity
+== 菜单不透明度
+
+Misc
+== 杂项
 
 Miscellaneous
 == 杂项
@@ -469,9 +553,6 @@ Move right
 Movement
 == 移动
 
-Movement & Weapons
-== 移动 & 武器
-
 Multi framebuffering (requires restart)
 == 多帧缓冲（需要重新启动游戏）
 
@@ -481,17 +562,14 @@ Mute when not active
 Name
 == 名字
 
-Name plates size
-== 名字板尺寸
+Nameplates
+== 名字板
 
 Netversion:
 == 网络协议版本
 
 New name:
 == 新名字:
-
-News
-== 新闻
 
 Next weapon
 == 下一个武器
@@ -505,6 +583,9 @@ Ninslash %s is out! Download it at www.ninslash.com!
 No
 == 否
 
+No one
+== 无人
+
 No password
 == 无密码
 
@@ -517,11 +598,26 @@ No servers match your filter criteria
 Objective
 == 任务目标
 
+Off
+== 关
+
 Ok
 == 确定
 
+On
+== 开
+
+Only team chat
+== 仅队伍聊天
+
 Open
 == 打开
+
+Other
+== 其他
+
+Own name plate
+== 显示自己的名字
 
 Parent Folder
 == 上级目录
@@ -547,17 +643,32 @@ Play background music
 Player
 == 玩家
 
+Player angle
+== 玩家角度
+
 Player country:
 == 包含此旗帜的玩家:
 
 Player options
 == 玩家选项
 
+Player position
+== 玩家位置
+
+Player speed
+== 玩家速度
+
 Players
 == 玩家数
 
 Please balance teams!
 == 请平衡团队人数!
+
+Please enter a filename for the sliced demo:
+== 请输入切片回放的文件名:
+
+Position:
+== 位置:
 
 Power barrel
 == 储电桶
@@ -583,11 +694,14 @@ REC %3d:%02d
 Reach the door
 == 进入下一层
 
+Ready
+== 准备
+
 Reason:
 == 理由:
 
-Record demo
-== 录制回放
+Recommended
+== 推荐
 
 Red
 == 红色
@@ -619,14 +733,26 @@ Rename
 Rename demo
 == 重命名回放
 
+Render
+== 渲染
+
+Render video
+== 渲染视频
+
 Repair tool
 == 修复工具
+
+Requires FFmpeg in PATH. Output is saved under videos/.
+== 需要系统 PATH 中有 FFmpeg。输出保存到 videos/ 目录。
 
 Reset filter
 == 重置过滤器
 
 Reset to defaults
 == 恢复默认设置
+
+Resolution
+== 分辨率
 
 Respawn
 == 重生
@@ -636,6 +762,12 @@ Respawn device
 
 Rifle
 == 激光枪
+
+Robot wave cleared
+== 机器人被歼灭了！
+
+Robots terminated
+== 机器人被全部击退！
 
 Round
 == 回合
@@ -661,6 +793,9 @@ Scoreboard
 Screenshot
 == 截图
 
+Seek the door
+== 找到通往下一层的门
+
 Server address:
 == 服务器地址:
 
@@ -679,6 +814,9 @@ Server is changing map
 Server not full
 == 服务器未满
 
+Set End
+== 设为结束
+
 Settings
 == 设置
 
@@ -688,8 +826,14 @@ Shield generator
 Shotgun
 == 霰弹枪
 
+Show IDs
+== 显示 ID
+
 Show chat
 == 显示聊天
+
+Show clan
+== 显示团队
 
 Show friends only
 == 只显示好友
@@ -700,14 +844,23 @@ Show ingame HUD
 Show name plates
 == 显示名字板
 
-Show only chat messages from friends
-== 只显示好友消息
+Show social data
+== 显示社交信息
 
-Show only supported
-== 只显示支持的
+Show user IDs
+== 显示玩家 ID
+
+Size
+== 大小
 
 Size:
 == 尺寸:
+
+Skeleton wave cleared
+== 骷髅被歼灭了！
+
+Skeletons terminated
+== 骷髅被全部击退！
 
 Skin
 == 皮肤
@@ -715,8 +868,20 @@ Skin
 Skins
 == 皮肤
 
+Slice
+== 切片
+
+Slice demo
+== 切片回放
+
+Slice...
+== 切片...
+
 Slide / down
 == 滑铲 / 下蹲
+
+Smoothness
+== 平滑度
 
 Sound
 == 声音
@@ -736,11 +901,23 @@ Spectate next
 Spectate previous
 == 观看前一个
 
+Spectate smooth
+== 旁观平滑
+
+Spectator count
+== 旁观者数量
+
 Spectator mode
 == 旁观者模式
 
 Spectators
 == 旁观者
+
+Speed:
+== 速度:
+
+Stabilizing
+== 稳定中
 
 Standard gametype
 == 标准游戏类型
@@ -748,8 +925,11 @@ Standard gametype
 Standard map
 == 标准地图
 
-Stop record
-== 停止录制
+Start
+== 开始
+
+Streamer mode
+== 直播模式
 
 Strict gametype filter
 == 严格过滤游戏类型
@@ -769,14 +949,35 @@ Survive the wave of enemies
 Switch weapon on pickup
 == 拾取武器时自动装备
 
+System messages
+== 系统消息
+
 Team
 == 团队
 
 Team chat
 == 团队聊天
 
+Team colors
+== 队伍颜色
+
+Terminate the aliens
+== 击杀所有外星人
+
+Terminate the cyborgs
+== 击杀所有赛博格
+
 Terminate the enemies
 == 歼灭所有敌人
+
+Terminate the furries
+== 击杀所有兽人
+
+Terminate the robots
+== 击杀所有机器人
+
+Terminate the skeletons
+== 击杀所有骷髅
 
 Teslacoil
 == 特斯拉线圈
@@ -814,6 +1015,9 @@ Time limit
 Time limit: %d min
 == 时间限制: %d 分钟
 
+Timer
+== 计时器
+
 Try again
 == 重试
 
@@ -835,11 +1039,11 @@ Unable to delete the demo
 Unable to rename the demo
 == 无法重命名这个回放
 
+Use +/- keys to zoom (rebindable in Controls)
+== 使用 +/- 键缩放（可在控制设置中重绑）
+
 Use sounds
 == 开启声音
-
-Use team colors for name plates
-== 为玩家名使用团队颜色
 
 V-Sync
 == 垂直同步
@@ -849,6 +1053,12 @@ Version
 
 Version:
 == 版本:
+
+Video render cancelled.
+== 已取消视频渲染。
+
+Video render complete. Saved under videos/.
+== 视频渲染完成，已保存到 videos/ 目录。
 
 Vote command:
 == 投票命令:
@@ -868,20 +1078,44 @@ Vote yes
 Voting
 == 投票
 
-Waiting for server...
-== 等待服务器...
-
 Warmup
 == 热身
+
+Wave incoming
+== 敌人正在逼近！
+
+Wave of aliens incoming
+== 外星人来袭！
+
+Wave of cyborgs incoming
+== 赛博格来袭！
+
+Wave of furries incoming
+== 兽人来袭！
+
+Wave of robots incoming
+== 机器人来袭！
+
+Wave of skeletons incoming
+== 骷髅来袭！
 
 Weapon upgrade
 == 升级套件
 
 Weapons & Items
-== 武器 & 物品
+== 武器与物品
 
 Welcome to Ninslash
 == 欢迎来到Ninslash！
+
+When ready, press <%s>
+== 准备好后按 <%s>
+
+Whisper
+== 私聊
+
+Wide menu
+== 宽屏菜单
 
 Yes
 == 是
@@ -889,14 +1123,32 @@ Yes
 You must restart the game for all settings to take effect.
 == 你必须重启游戏才能让所有设置起效
 
+You must wait %d seconds before making another vote
+== 你必须等待 %d 秒后才能发起另一投票
+
 Zombie claw
 == 僵尸爪
+
+Zoom
+== 缩放
+
+Zoom in
+== 放大
+
+Zoom out
+== 缩小
+
+Zoom with + / - keys
+== 使用 + / - 键缩放
+
+blue
+== 蓝
 
 enemies remaining
 == 剩余敌人
 
-no limit
-== 无限制
+red
+== 红
 
 seconds remaining
 == 剩余时间
@@ -907,4 +1159,73 @@ xbox 360 controller support
 ##### needs translation #####
 
 ##### old translations #####
+
+Always show name plates
+== 显示玩家名称
+
+Automatically record demos
+== 自动记录回放
+
+Automatically take game over screenshot
+== 自动截取游戏结束画面
+
+Chat & Misc.
+== 聊天 & 其他
+
+Client
+== 客户端
+
+Current
+== 当前
+
+Current version: %s
+== 当前版本: %s
+
+Display Modes
+== 显示模式
+
+Editor
+== 地图编辑器
+
+Max Screenshots
+== 最大截图数
+
+Max demos
+== 最大回放数
+
+Movement & Weapons
+== 移动 & 武器
+
+Name plates size
+== 名字板尺寸
+
+News
+== 新闻
+
+Record demo
+== 录制回放
+
+Show client IDs in scoreboard
+== 在记分牌显示玩家 ID
+
+Show only chat messages from friends
+== 只显示好友消息
+
+Show only supported
+== 只显示支持的
+
+Stop record
+== 停止录制
+
+Use team colors for name plates
+== 为玩家名使用团队颜色
+
+Waiting for server...
+== 等待服务器...
+
+Wave cleared
+== 攻势清空
+
+no limit
+== 无限制
 

@@ -15,7 +15,16 @@ Localize("Mask of regeneration"),Localize("Mask of speed"),Localize("Mask of pro
 Localize("Mask of melee"),Localize("Invisibility device"),Localize("Electrowall")
 Localize("Area Shield"),Localize("The Cure"),Localize("Zombie claw")
 Localize("Bomb (for destroying reactors)"),Localize("Terminate the enemies"),Localize("Reach the door"),
-Localize("Survive the wave of enemies"),
+Localize("Survive the wave of enemies"),Localize("Seek the door"),Localize("Wave incoming"),
+Localize("Wave of aliens incoming"),Localize("Wave of robots incoming"),Localize("Wave of skeletons incoming"),
+Localize("Wave of furries incoming"),Localize("Wave of cyborgs incoming"),
+Localize("Terminate the aliens"),Localize("Terminate the robots"),Localize("Terminate the skeletons"),
+Localize("Terminate the furries"),Localize("Terminate the cyborgs"),
+Localize("Alien wave cleared"),Localize("Robot wave cleared"),Localize("Skeleton wave cleared"),
+Localize("Furry wave cleared"),Localize("Cyborg wave cleared"),
+Localize("Aliens terminated"),Localize("Robots terminated"),Localize("Skeletons terminated"),
+Localize("Furries terminated"),Localize("Cyborgs terminated"),Localize("Enemies terminated"),
+Localize("Objective"),Localize("enemies remaining"),Localize("seconds remaining"),
 */
 
 class CLocalizationDatabase

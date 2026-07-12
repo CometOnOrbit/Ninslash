@@ -28,6 +28,8 @@ public:
 	
 	bool m_BuildMode;
 	int m_SelectedBuilding;
+
+	bool m_Ready;
 	
 	// switch back to shooting
 	int m_LastWeapon;
@@ -41,6 +43,9 @@ public:
 	virtual bool OnMouseMove(float x, float y);
 	virtual void OnConsoleInit();
 	virtual void OnPlayerDeath();
+
+	static void ConZoomPlus(IConsole::IResult *pResult, void *pUserData);
+	static void ConZoomMinus(IConsole::IResult *pResult, void *pUserData);
 
 	int SnapInput(int *pData);
 	void ClampMousePos();

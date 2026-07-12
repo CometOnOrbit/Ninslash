@@ -63,6 +63,10 @@ MACRO_CONFIG_INT(UiColorHue, ui_color_hue, 160, 0, 255, CFGFLAG_CLIENT|CFGFLAG_S
 MACRO_CONFIG_INT(UiColorSat, ui_color_sat, 70, 0, 255, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface color saturation")
 MACRO_CONFIG_INT(UiColorLht, ui_color_lht, 175, 0, 255, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface color lightness")
 MACRO_CONFIG_INT(UiColorAlpha, ui_color_alpha, 228, 0, 255, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface alpha")
+MACRO_CONFIG_INT(ClMenuAlpha, cl_menu_alpha, 75, 0, 100, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Menu opacity")
+MACRO_CONFIG_INT(UiWideview, ui_wideview, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Extended menus GUI")
+MACRO_CONFIG_INT(UiSidebar, ui_sidebar, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Show server browser sidebar")
+MACRO_CONFIG_INT(ClVideoFps, cl_video_fps, 30, 1, 120, CFGFLAG_CLIENT|CFGFLAG_SAVE, "FPS used when rendering demos to video")
 
 MACRO_CONFIG_INT(GfxNoclip, gfx_noclip, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Disable clipping")
 
@@ -161,4 +165,6 @@ MACRO_CONFIG_INT(SvSavePlayerdata, sv_save_playerdata, 0, 0, 1, CFGFLAG_SERVER, 
 
 MACRO_CONFIG_INT(DbgFocus, dbg_focus, 0, 0, 1, CFGFLAG_CLIENT, "")
 MACRO_CONFIG_INT(DbgTuning, dbg_tuning, 0, 0, 1, CFGFLAG_CLIENT, "")
+
+MACRO_CONFIG_INT(ClZoom, cl_zoom, 10, 0, 30, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Camera zoom level (10 = default, lower = more zoomed in)")
 #endif

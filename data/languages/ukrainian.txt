@@ -16,14 +16,17 @@ Abort
 Address
 == Адреса
 
+Alien wave cleared
+== Alien wave cleared
+
+Aliens terminated
+== Aliens terminated
+
 All
 == Всі
 
 Alpha
 == Прозор..
-
-Always show name plates
-== Завжди показувати ніки гравців
 
 Are you sure that you want to delete the demo?
 == Ви впевнені, що хочете видалити демо?
@@ -61,17 +64,20 @@ Connect
 Connecting to
 == Підключення до
 
+Connection Problems...
+== Проблеми зі з'єднанням...
+
 Console
 == Консоль
 
 Controls
 == Управління
 
-Current
-== Поточний
+Cyborg wave cleared
+== Cyborg wave cleared
 
-Current version: %s
-== Поточна версія: %s
+Cyborgs terminated
+== Cyborgs terminated
 
 Delete
 == Видалити
@@ -85,9 +91,6 @@ Disconnect
 Disconnected
 == Від'єднанно
 
-Display Modes
-== Режими дисплея
-
 Downloading map
 == Завантаження карти
 
@@ -99,6 +102,9 @@ Dynamic Camera
 
 Emoticon
 == Емоція
+
+Enemies terminated
+== Enemies terminated
 
 Enter
 == Вхід
@@ -135,6 +141,12 @@ Force vote
 
 Fullscreen
 == Повноекранний режим
+
+Furries terminated
+== Furries terminated
+
+Furry wave cleared
+== Furry wave cleared
 
 Game
 == Гра
@@ -241,9 +253,6 @@ Mute when not active
 Name
 == Ім'я
 
-News
-== Новини
-
 Next weapon
 == Наступ. зброя
 
@@ -264,6 +273,9 @@ No servers found
 
 No servers match your filter criteria
 == Не знайдено ні одного сервара, який би відповідав вашим критеріям
+
+Objective
+== Objective
 
 Ok
 == Ок
@@ -307,11 +319,11 @@ Quick search:
 Quit
 == Вихід
 
+Reach the door
+== Reach the door
+
 Reason:
 == Причина:
-
-Record demo
-== Запис демо
 
 Red team
 == Червоні
@@ -337,6 +349,12 @@ Reset to defaults
 Rifle
 == Лазер
 
+Robot wave cleared
+== Robot wave cleared
+
+Robots terminated
+== Robots terminated
+
 Round
 == Раунд
 
@@ -361,6 +379,9 @@ Scoreboard
 Screenshot
 == Скріншот
 
+Seek the door
+== Seek the door
+
 Server details
 == Деталі сервера
 
@@ -382,8 +403,11 @@ Show chat
 Show name plates
 == Показувати ніки гравців
 
-Show only supported
-== Тільки підтримувані режими
+Skeleton wave cleared
+== Skeleton wave cleared
+
+Skeletons terminated
+== Skeletons terminated
 
 Skins
 == Скіни
@@ -406,11 +430,11 @@ Standard gametype
 Standard map
 == Стандартна карта
 
-Stop record
-== Зупинити запис
-
 Sudden Death
 == Швидка смерть
+
+Survive the wave of enemies
+== Survive the wave of enemies
 
 Switch weapon on pickup
 == Перемикати зброю при підборі
@@ -420,6 +444,24 @@ Team
 
 Team chat
 == Командний чат
+
+Terminate the aliens
+== Terminate the aliens
+
+Terminate the cyborgs
+== Terminate the cyborgs
+
+Terminate the enemies
+== Terminate the enemies
+
+Terminate the furries
+== Terminate the furries
+
+Terminate the robots
+== Terminate the robots
+
+Terminate the skeletons
+== Terminate the skeletons
 
 Texture Compression
 == Стиснення текстур
@@ -463,6 +505,24 @@ Voting
 Warmup
 == Розминка
 
+Wave incoming
+== Wave incoming
+
+Wave of aliens incoming
+== Wave of aliens incoming
+
+Wave of cyborgs incoming
+== Wave of cyborgs incoming
+
+Wave of furries incoming
+== Wave of furries incoming
+
+Wave of robots incoming
+== Wave of robots incoming
+
+Wave of skeletons incoming
+== Wave of skeletons incoming
+
 Welcome to Ninslash
 == Ласкаво просимо в Ninslash!
 
@@ -471,6 +531,12 @@ Yes
 
 You must restart the game for all settings to take effect.
 == Перезапустіть гру для застосування змін.
+
+enemies remaining
+== enemies remaining
+
+seconds remaining
+== seconds remaining
 
 ##### needs translation #####
 
@@ -492,6 +558,9 @@ You must restart the game for all settings to take effect.
 %s wins!
 == 
 
+'%s' called for vote to kick you
+== 
+
 -Page %d-
 == 
 
@@ -501,16 +570,22 @@ Add
 Add Friend
 == 
 
+Always
+== 
+
+Always show
+== 
+
+Angle:
+== 
+
+AntiPing
+== 
+
 Are you sure that you want to remove the player from your friends list?
 == 
 
 Area Shield
-== 
-
-Automatically record demos
-== 
-
-Automatically take game over screenshot
 == 
 
 Back to main menu
@@ -543,6 +618,9 @@ Borderless window
 Build menu
 == 
 
+Camera
+== 
+
 Change color of
 == 
 
@@ -552,13 +630,10 @@ Change settings
 Change skin of
 == 
 
-Chat & Misc.
+Chat messages
 == 
 
 Clan
-== 
-
-Client
 == 
 
 Count players only
@@ -573,10 +648,16 @@ Crc:
 Created:
 == 
 
+Current version: %s  |  Servers: %d
+== 
+
+Current: %dx%d (%d:%d)
+== 
+
 Customize
 == 
 
-Default Zoom
+Deadzone
 == 
 
 Delete demo
@@ -588,13 +669,16 @@ Demo details
 Demofile: %s
 == 
 
+Desktop notifications
+== 
+
+Disable whisper
+== 
+
 Drop weapon
 == 
 
 Dynamic lighting
-== 
-
-Editor
 == 
 
 Electric grenade
@@ -612,7 +696,22 @@ Energy shield
 Environmental sounds
 == 
 
+Everyone
+== 
+
 Eyes
+== 
+
+FPS counter
+== 
+
+FPS:
+== 
+
+Failed to start video render. Is FFmpeg installed?
+== 
+
+File name:
 == 
 
 Flamer
@@ -624,16 +723,31 @@ Flip attack & hook
 Flip move & aim axis
 == 
 
+Follow factor
+== 
+
 Free-View
+== 
+
+Friend marks
 == 
 
 Friends
 == 
 
+Friends only
+== 
+
 Game paused
 == 
 
+Go
+== 
+
 Green
+== 
+
+HUD
 == 
 
 Hair / hat
@@ -654,13 +768,19 @@ Head
 Heads
 == 
 
+Health + Ammo
+== 
+
+Hide player's score
+== 
+
+ID
+== 
+
 Inventory
 == 
 
 Inventory roll
-== 
-
-Inventory roll(All)
 == 
 
 Invisibility device
@@ -678,7 +798,16 @@ Item slot 3
 Item slot 4
 == 
 
+Join
+== 
+
+Jump:
+== 
+
 Kick player
+== 
+
+Kill messages
 == 
 
 Length:
@@ -705,22 +834,22 @@ Mask of regeneration
 Mask of speed
 == 
 
-Max Screenshots
+Max distance
 == 
 
-Max demos
+Menu opacity
+== 
+
+Misc
 == 
 
 Move player to spectators
 == 
 
-Movement & Weapons
-== 
-
 Multi framebuffering (requires restart)
 == 
 
-Name plates size
+Nameplates
 == 
 
 Netversion:
@@ -729,16 +858,49 @@ Netversion:
 New name:
 == 
 
+No one
+== 
+
+Off
+== 
+
+On
+== 
+
+Only team chat
+== 
+
+Other
+== 
+
+Own name plate
+== 
+
 Parent Folder
 == 
 
 Play background music
 == 
 
+Player angle
+== 
+
 Player country:
 == 
 
 Player options
+== 
+
+Player position
+== 
+
+Player speed
+== 
+
+Please enter a filename for the sliced demo:
+== 
+
+Position:
 == 
 
 Power barrel
@@ -748,6 +910,12 @@ Quit anyway?
 == 
 
 REC %3d:%02d
+== 
+
+Ready
+== 
+
+Recommended
 == 
 
 Red
@@ -765,7 +933,19 @@ Rename
 Rename demo
 == 
 
+Render
+== 
+
+Render video
+== 
+
 Repair tool
+== 
+
+Requires FFmpeg in PATH. Output is saved under videos/.
+== 
+
+Resolution
 == 
 
 Respawn
@@ -783,7 +963,16 @@ Server filter
 Server is changing map
 == 
 
+Set End
+== 
+
 Shield generator
+== 
+
+Show IDs
+== 
+
+Show clan
 == 
 
 Show friends only
@@ -792,7 +981,13 @@ Show friends only
 Show ingame HUD
 == 
 
-Show only chat messages from friends
+Show social data
+== 
+
+Show user IDs
+== 
+
+Size
 == 
 
 Size:
@@ -801,7 +996,19 @@ Size:
 Skin
 == 
 
+Slice
+== 
+
+Slice demo
+== 
+
+Slice...
+== 
+
 Slide / down
+== 
+
+Smoothness
 == 
 
 Sound error
@@ -813,7 +1020,25 @@ Spectate next
 Spectate previous
 == 
 
+Spectate smooth
+== 
+
+Spectator count
+== 
+
 Spectator mode
+== 
+
+Speed:
+== 
+
+Stabilizing
+== 
+
+Start
+== 
+
+Streamer mode
 == 
 
 Strict gametype filter
@@ -823,6 +1048,12 @@ Supply grenade
 == 
 
 Survival mode
+== 
+
+System messages
+== 
+
+Team colors
 == 
 
 Teslacoil
@@ -849,6 +1080,9 @@ Threaded rendering
 Threaded sound loading
 == 
 
+Timer
+== 
+
 Turret stand
 == 
 
@@ -861,10 +1095,16 @@ Unable to delete the demo
 Unable to rename the demo
 == 
 
-Use team colors for name plates
+Use +/- keys to zoom (rebindable in Controls)
 == 
 
 Version:
+== 
+
+Video render cancelled.
+== 
+
+Video render complete. Saved under videos/.
 == 
 
 Vote command:
@@ -876,16 +1116,114 @@ Vote description:
 Vote ends in %d...
 == 
 
-Waiting for server...
-== 
-
 Weapon upgrade
 == 
 
 Weapons & Items
 == 
 
+When ready, press <%s>
+== 
+
+Whisper
+== 
+
+Wide menu
+== 
+
+You must wait %d seconds before making another vote
+== 
+
 Zombie claw
+== 
+
+Zoom
+== 
+
+Zoom in
+== 
+
+Zoom out
+== 
+
+Zoom with + / - keys
+== 
+
+blue
+== 
+
+red
+== 
+
+xbox 360 controller support
+== 
+
+##### old translations #####
+
+Always show name plates
+== Завжди показувати ніки гравців
+
+Current
+== Поточний
+
+Current version: %s
+== Поточна версія: %s
+
+Display Modes
+== Режими дисплея
+
+News
+== Новини
+
+Record demo
+== Запис демо
+
+Show only supported
+== Тільки підтримувані режими
+
+Stop record
+== Зупинити запис
+
+Automatically record demos
+== 
+
+Automatically take game over screenshot
+== 
+
+Chat & Misc.
+== 
+
+Client
+== 
+
+Default Zoom
+== 
+
+Editor
+== 
+
+Inventory roll(All)
+== 
+
+Max Screenshots
+== 
+
+Max demos
+== 
+
+Movement & Weapons
+== 
+
+Name plates size
+== 
+
+Show only chat messages from friends
+== 
+
+Use team colors for name plates
+== 
+
+Waiting for server...
 == 
 
 Zoom In
@@ -897,26 +1235,6 @@ Zoom Out
 no limit
 == 
 
-xbox 360 controller support
-== 
-
-##### old translations #####
-
-'%s' called for vote to kick you
-== 
-
-You must wait %d seconds before making another vote
-== 
-
-blue
-== 
-
-red
-== 
-
-Connection Problems...
-== Проблеми зі з'єднанням...
-
 Custom colors
 == Особистий колір
 
@@ -925,4 +1243,7 @@ Weapon
 
 Your skin
 == Ваш скін
+
+Wave cleared
+== Wave cleared
 

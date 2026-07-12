@@ -1,15 +1,53 @@
 
-
 #include <base/system.h>
+#include <base/math.h>
 
 #include <engine/shared/config.h>
 #include <engine/graphics.h>
 #include <engine/textrender.h>
+#include <engine/client.h>
+#include <engine/input.h>
+#include "render.h"
 #include "ui.h"
+#include "lineinput.h"
+
 
 /********************************************************
  UI
 *********************************************************/
+
+CUI *CUIElementBase::s_pUI = 0;
+IGraphics *CUIRect::s_pGraphics = 0;
+CRenderTools *CUIRect::s_pRenderTools = 0;
+
+IClient *CUIElementBase::Client() const { return s_pUI->Client(); }
+IGraphics *CUIElementBase::Graphics() const { return s_pUI->Graphics(); }
+IInput *CUIElementBase::Input() const { return s_pUI->Input(); }
+ITextRender *CUIElementBase::TextRender() const { return s_pUI->TextRender(); }
+
+float CButtonContainer::GetFade(bool Checked, float Seconds)
+{
+	if(Checked || (UI()->HotItem() == this))
+	{
+		m_FadeStartTime = Client()->LocalTime();
+		return 1.0f;
+	}
+	return clamp(1.0f - (float)(Client()->LocalTime() - m_FadeStartTime) / Seconds, 0.0f, 1.0f);
+}
+
+void CUIRect::Init(IGraphics *pGraphics, CRenderTools *pRenderTools)
+{
+	s_pGraphics = pGraphics;
+	s_pRenderTools = pRenderTools;
+}
+
+void CUIRect::Draw(const vec4 &Color, float Rounding, int Corners) const
+{
+	if(!s_pRenderTools)
+		return;
+	CUIRect Rect = *this;
+	s_pRenderTools->DrawUIRect(&Rect, Color, Corners, Rounding);
+}
 
 CUI::CUI()
 {
@@ -17,6 +55,12 @@ CUI::CUI()
 	m_pActiveItem = 0;
 	m_pLastActiveItem = 0;
 	m_pBecommingHotItem = 0;
+	m_ActiveItemValid = false;
+	m_pClient = 0;
+	m_pInput = 0;
+	m_pRenderTools = 0;
+	m_pGraphics = 0;
+	m_pTextRender = 0;
 
 	m_MouseX = 0;
 	m_MouseY = 0;
@@ -29,6 +73,15 @@ CUI::CUI()
 	m_Screen.y = 0;
 	m_Screen.w = 848.0f;
 	m_Screen.h = 480.0f;
+
+	CUIElementBase::Init(this);
+}
+
+void CUI::SetGraphics(IGraphics *pGraphics, ITextRender *pTextRender)
+{
+	m_pGraphics = pGraphics;
+	m_pTextRender = pTextRender;
+	CUIRect::Init(pGraphics, m_pRenderTools);
 }
 
 int CUI::Update(float Mx, float My, float Mwx, float Mwy, int Buttons)
@@ -53,6 +106,19 @@ int CUI::MouseInside(const CUIRect *r)
 	return 0;
 }
 
+bool CUI::MouseHovered(const CUIRect *pRect) const
+{
+	return m_MouseX >= pRect->x && m_MouseX < pRect->x+pRect->w
+		&& m_MouseY >= pRect->y && m_MouseY < pRect->y+pRect->h;
+}
+
+bool CUI::KeyPress(int Key) const
+{
+	if(!m_pInput)
+		return false;
+	return m_pInput->KeyPresses(Key) != 0;
+}
+
 void CUI::ConvertMouseMove(float *x, float *y)
 {
 	float Fac = (float)(g_Config.m_UiMousesens)/g_Config.m_InpMousesens;
@@ -63,13 +129,9 @@ void CUI::ConvertMouseMove(float *x, float *y)
 CUIRect *CUI::Screen()
 {
 	float Aspect = Graphics()->ScreenAspect();
-	float w, h;
 
-	h = 600;
-	w = Aspect*h;
-
-	m_Screen.w = w;
-	m_Screen.h = h;
+	m_Screen.h = 600.0f;
+	m_Screen.w = Aspect * m_Screen.h;
 
 	return &m_Screen;
 }
@@ -351,8 +413,9 @@ int CUI::DoButton(const void *id, const char *text, int checked, const CUIRect *
 
 void CUI::DoLabel(const CUIRect *r, const char *pText, float Size, int Align, int MaxWidth)
 {
-	// TODO: FIX ME!!!!
-	//Graphics()->BlendNormal();
+	// Size is absolute UI units. Height-relative callers (e.g. button labels)
+	// already track layout; use DoLabelScaled for fixed-size labels that should
+	// follow ui_scale.
 	if(Align == 0)
 	{
 		float tw = TextRender()->TextWidth(0, Size, pText, MaxWidth);
@@ -371,3 +434,152 @@ void CUI::DoLabelScaled(const CUIRect *r, const char *pText, float Size, int Ali
 {
 	DoLabel(r, pText, Size*Scale(), Align, MaxWidth);
 }
+
+bool CUI::OnInput(const IInput::CEvent &e)
+{
+	CLineInput *pActiveInput = CLineInput::GetActiveInput();
+	if(pActiveInput && pActiveInput->ProcessInput(e))
+		return true;
+	return false;
+}
+
+bool CUI::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize, int Corners, bool *pChanged)
+{
+	const bool Inside = MouseHovered(pRect);
+	const bool Active = LastActiveItem() == pLineInput;
+	const bool Changed = pLineInput->WasChanged();
+	const char *pDisplayStr = pLineInput->GetDisplayedString();
+
+	bool UpdateOffset = false;
+	float ScrollOffset = pLineInput->GetScrollOffset();
+
+	static bool s_DoScroll = false;
+	static int s_SelectionStartOffset = -1;
+
+	FontSize *= Scale();
+
+	CUIRect Textbox = *pRect;
+	Textbox.VMargin(2.0f, &Textbox);
+	Textbox.HMargin(2.0f, &Textbox);
+
+	if(Active)
+	{
+		int CursorOffset = pLineInput->GetCursorOffset();
+
+		if(Inside && MouseButton(0) && !Changed)
+		{
+			s_DoScroll = true;
+			const float MxRel = MouseX() - Textbox.x + ScrollOffset;
+			float TotalTextWidth = 0.0f;
+			for(int i = 1, Offset = 0; i <= pLineInput->GetNumChars(); i++)
+			{
+				const int PrevOffset = Offset;
+				Offset = str_utf8_forward(pDisplayStr, Offset);
+				const float AddedTextWidth = TextRender()->TextWidth(0, FontSize, pDisplayStr + PrevOffset, Offset - PrevOffset);
+				if(TotalTextWidth + AddedTextWidth/2.0f > MxRel)
+				{
+					CursorOffset = PrevOffset;
+					if(s_SelectionStartOffset < 0)
+						s_SelectionStartOffset = CursorOffset;
+					UpdateOffset = true;
+					break;
+				}
+				TotalTextWidth += AddedTextWidth;
+
+				if(i == pLineInput->GetNumChars())
+				{
+					CursorOffset = pLineInput->GetLength();
+					if(s_SelectionStartOffset < 0)
+						s_SelectionStartOffset = CursorOffset;
+					UpdateOffset = true;
+				}
+			}
+		}
+		else if(!MouseButton(0) || Changed)
+		{
+			s_DoScroll = false;
+			s_SelectionStartOffset = -1;
+		}
+		else if(s_DoScroll)
+		{
+			if(MouseX() < Textbox.x)
+			{
+				CursorOffset = str_utf8_rewind(pDisplayStr, CursorOffset);
+				UpdateOffset = true;
+			}
+			else if(MouseX() > Textbox.x + Textbox.w)
+			{
+				CursorOffset = str_utf8_forward(pDisplayStr, CursorOffset);
+				UpdateOffset = true;
+			}
+		}
+
+		if(s_SelectionStartOffset >= 0)
+		{
+			const int ActualCursorOffset = pLineInput->OffsetFromDisplayToActual(CursorOffset);
+			pLineInput->SetCursorOffset(ActualCursorOffset);
+			pLineInput->SetSelection(pLineInput->OffsetFromDisplayToActual(s_SelectionStartOffset), ActualCursorOffset);
+		}
+	}
+
+	bool JustGotActive = false;
+
+	if(CheckActiveItem(pLineInput))
+	{
+		if(MouseButton(0))
+		{
+			if(pLineInput->IsActive() && (Input()->HasComposition() || Input()->GetCandidateCount()))
+			{
+				Input()->StopTextInput();
+				Input()->StartTextInput();
+			}
+		}
+		else
+		{
+			s_DoScroll = false;
+			s_SelectionStartOffset = -1;
+			SetActiveItem(0);
+		}
+	}
+	else if(HotItem() == pLineInput)
+	{
+		if(MouseButton(0))
+		{
+			if(!Active)
+				JustGotActive = true;
+			SetActiveItem(pLineInput);
+		}
+	}
+
+	if(Inside)
+		SetHotItem(pLineInput);
+
+	if(Active)
+		pLineInput->Activate(UI);
+	else
+		pLineInput->Deactivate();
+
+	ClipEnable(pRect);
+	pLineInput->SetRenderOrigin(Textbox.x - ScrollOffset, Textbox.y, FontSize);
+	pLineInput->Render(UpdateOffset || Changed);
+	ClipDisable();
+
+	if(Active && !JustGotActive && (UpdateOffset || Changed))
+	{
+		const float CaretX = pLineInput->GetCaretPosition().x - Textbox.x;
+		if(CaretX > Textbox.w)
+			ScrollOffset += CaretX - Textbox.w;
+		else if(CaretX < 0.0f)
+			ScrollOffset += CaretX;
+		if(ScrollOffset < 0.0f)
+			ScrollOffset = 0.0f;
+	}
+
+	pLineInput->SetScrollOffset(ScrollOffset);
+
+	if(pChanged)
+		*pChanged = Changed;
+	return Changed;
+}
+
+

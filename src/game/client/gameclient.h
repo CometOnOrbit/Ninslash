@@ -63,6 +63,7 @@ class CGameClient : public IGameClient
 	
 	static void ConTeam(IConsole::IResult *pResult, void *pUserData);
 	static void ConKill(IConsole::IResult *pResult, void *pUserData);
+	static void ConReadyChange(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 
@@ -126,6 +127,10 @@ public:
 	
 	vec4 GetPlayerColor(int ClientID);
 	vec4 GetBloodColor(int ClientID);
+
+	const char *GetPlayerLabel(int ClientID, char *pBuf, int BufSize) const;
+	void SanitizeSocialString(const char *pSrc, char *pDst, int DstSize) const;
+	int EffectiveFilterChat() const;
 
 	// predicted players
 	CCharacterCore m_PredictedPrevChar;

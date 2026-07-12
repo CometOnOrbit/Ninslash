@@ -218,7 +218,7 @@ void CGuts::Update(float TimePassed)
 
 void CGuts::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 
 	static int64 LastTime = 0;

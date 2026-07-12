@@ -217,156 +217,61 @@ void CEditor::EnvelopeEval(float TimeOffset, int Env, float *pChannels, void *pU
  OTHER
 *********************************************************/
 
-// copied from gc_menu.cpp, should be more generalized
-//extern int ui_do_edit_box(void *id, const CUIRect *rect, char *str, int str_size, float font_size, bool hidden=false);
+// adapted to Teeworlds-style CLineInput
 int CEditor::DoEditBox(void *pID, const CUIRect *pRect, char *pStr, unsigned StrSize, float FontSize, float *Offset, bool Hidden, int Corners)
 {
-	int Inside = UI()->MouseInside(pRect);
-	bool ReturnValue = false;
-	bool UpdateOffset = false;
-	static int s_AtIndex = 0;
-	static bool s_DoScroll = false;
-	static float s_ScrollStart = 0.0f;
-
-	FontSize *= UI()->Scale();
-
-	if(UI()->LastActiveItem() == pID)
+	enum { MAX_EDIT_BINDINGS = 32 };
+	struct CEditBinding
 	{
+		const void *m_pID;
+		char *m_pBoundStr;
+		CLineInput m_Input;
+	};
+	static CEditBinding s_aEditBindings[MAX_EDIT_BINDINGS];
+	static int s_NumEditBindings = 0;
+
+	CLineInput *pLineInput = 0;
+	for(int i = 0; i < s_NumEditBindings; i++)
+	{
+		if(s_aEditBindings[i].m_pID == pID)
+		{
+			pLineInput = &s_aEditBindings[i].m_Input;
+			if(s_aEditBindings[i].m_pBoundStr != pStr)
+			{
+				pLineInput->SetBuffer(pStr, StrSize, StrSize);
+				s_aEditBindings[i].m_pBoundStr = pStr;
+			}
+			break;
+		}
+	}
+	if(!pLineInput && s_NumEditBindings < MAX_EDIT_BINDINGS)
+	{
+		CEditBinding *pBinding = &s_aEditBindings[s_NumEditBindings++];
+		pBinding->m_pID = pID;
+		pBinding->m_pBoundStr = pStr;
+		pBinding->m_Input.SetBuffer(pStr, StrSize, StrSize);
+		pLineInput = &pBinding->m_Input;
+	}
+	if(!pLineInput)
+		return 0;
+
+	pLineInput->SetHidden(Hidden);
+	if(Offset)
+		pLineInput->SetScrollOffset(*Offset);
+
+	for(int i = 0; i < Input()->NumEvents(); i++)
+		UI()->OnInput(Input()->GetEvent(i));
+
+	if(UI()->LastActiveItem() == pLineInput)
 		m_EditBoxActive = 2;
-		int Len = str_length(pStr);
-		if(Len == 0)
-			s_AtIndex = 0;
 
-		if(Inside && UI()->MouseButton(0))
-		{
-			s_DoScroll = true;
-			s_ScrollStart = UI()->MouseX();
-			int MxRel = (int)(UI()->MouseX() - pRect->x);
+	RenderTools()->DrawUIRect(pRect, vec4(1, 1, 1, 0.5f), Corners, 3.0f);
 
-			for(int i = 1; i <= Len; i++)
-			{
-				if(TextRender()->TextWidth(0, FontSize, pStr, i) - *Offset > MxRel)
-				{
-					s_AtIndex = i - 1;
-					break;
-				}
-
-				if(i == Len)
-					s_AtIndex = Len;
-			}
-		}
-		else if(!UI()->MouseButton(0))
-			s_DoScroll = false;
-		else if(s_DoScroll)
-		{
-			// do scrolling
-			if(UI()->MouseX() < pRect->x && s_ScrollStart-UI()->MouseX() > 10.0f)
-			{
-				s_AtIndex = max(0, s_AtIndex-1);
-				s_ScrollStart = UI()->MouseX();
-				UpdateOffset = true;
-			}
-			else if(UI()->MouseX() > pRect->x+pRect->w && UI()->MouseX()-s_ScrollStart > 10.0f)
-			{
-				s_AtIndex = min(Len, s_AtIndex+1);
-				s_ScrollStart = UI()->MouseX();
-				UpdateOffset = true;
-			}
-		}
-
-		for(int i = 0; i < Input()->NumEvents(); i++)
-		{
-			Len = str_length(pStr);
-			int NumChars = Len;
-			ReturnValue |= CLineInput::Manipulate(Input()->GetEvent(i), pStr, StrSize, StrSize, &Len, &s_AtIndex, &NumChars, Input());
-		}
-	}
-
-	bool JustGotActive = false;
-
-	if(UI()->ActiveItem() == pID)
-	{
-		if(!UI()->MouseButton(0))
-		{
-			s_AtIndex = min(s_AtIndex, str_length(pStr));
-			s_DoScroll = false;
-			UI()->SetActiveItem(0);
-		}
-	}
-	else if(UI()->HotItem() == pID)
-	{
-		if(UI()->MouseButton(0))
-		{
-			if (UI()->LastActiveItem() != pID)
-				JustGotActive = true;
-			UI()->SetActiveItem(pID);
-		}
-	}
-
-	if(Inside)
-		UI()->SetHotItem(pID);
-
-	CUIRect Textbox = *pRect;
-	RenderTools()->DrawUIRect(&Textbox, vec4(1, 1, 1, 0.5f), Corners, 3.0f);
-	Textbox.VMargin(2.0f, &Textbox);
-
-	const char *pDisplayStr = pStr;
-	char aStars[128];
-
-	if(Hidden)
-	{
-		unsigned s = str_length(pStr);
-		if(s >= sizeof(aStars))
-			s = sizeof(aStars)-1;
-		for(unsigned int i = 0; i < s; ++i)
-			aStars[i] = '*';
-		aStars[s] = 0;
-		pDisplayStr = aStars;
-	}
-
-	// check if the text has to be moved
-	if(UI()->LastActiveItem() == pID && !JustGotActive && (UpdateOffset || Input()->NumEvents()))
-	{
-		float w = TextRender()->TextWidth(0, FontSize, pDisplayStr, s_AtIndex);
-		if(w-*Offset > Textbox.w)
-		{
-			// move to the left
-			float wt = TextRender()->TextWidth(0, FontSize, pDisplayStr, -1);
-			do
-			{
-				*Offset += min(wt-*Offset-Textbox.w, Textbox.w/3);
-			}
-			while(w-*Offset > Textbox.w);
-		}
-		else if(w-*Offset < 0.0f)
-		{
-			// move to the right
-			do
-			{
-				*Offset = max(0.0f, *Offset-Textbox.w/3);
-			}
-			while(w-*Offset < 0.0f);
-		}
-	}
-	UI()->ClipEnable(pRect);
-	Textbox.x -= *Offset;
-
-	UI()->DoLabel(&Textbox, pDisplayStr, FontSize, -1);
-
-	// render the cursor
-	if(UI()->LastActiveItem() == pID && !JustGotActive)
-	{
-		float w = TextRender()->TextWidth(0, FontSize, pDisplayStr, s_AtIndex);
-		Textbox = *pRect;
-		Textbox.VSplitLeft(2.0f, 0, &Textbox);
-		Textbox.x += (w-*Offset-TextRender()->TextWidth(0, FontSize, "|", -1)/2);
-
-		if((2*time_get()/time_freq()) % 2)	// make it blink
-			UI()->DoLabel(&Textbox, "|", FontSize, -1);
-	}
-	UI()->ClipDisable();
-
-	return ReturnValue;
+	bool Changed = false;
+	UI()->DoEditBox(pLineInput, pRect, FontSize, Corners, &Changed);
+	if(Offset)
+		*Offset = pLineInput->GetScrollOffset();
+	return Changed ? 1 : 0;
 }
 
 vec4 CEditor::ButtonColorMul(const void *pID)
@@ -2714,6 +2619,7 @@ void CEditor::AddImage(const char *pFileName, int StorageType, void *pUser)
 	pImg->m_External = 1;	// external by default
 	str_copy(pImg->m_aName, aBuf, sizeof(pImg->m_aName));
 	pImg->m_AutoMapper.Load(pImg->m_aName);
+	pImg->AnalyseTileFlags();
 	pEditor->m_Map.m_lImages.add(pImg);
 	pEditor->SortImages();
 	if(pEditor->m_SelectedImage > -1 && pEditor->m_SelectedImage < pEditor->m_Map.m_lImages.size())
@@ -3892,6 +3798,20 @@ void CEditor::Render()
 
 	if(m_EditBoxActive)
 		--m_EditBoxActive;
+
+	// auto-save
+	if(g_Config.m_EdAutosaveInterval > 0 && m_ValidSaveFilename)
+	{
+		if(m_LastAutosaveTime == 0)
+			m_LastAutosaveTime = time_get();
+		else if(time_get() - m_LastAutosaveTime > (int64)g_Config.m_EdAutosaveInterval * 60 * time_freq())
+		{
+			m_LastAutosaveTime = time_get();
+			char aBuf[512];
+			str_format(aBuf, sizeof(aBuf), "auto/%s", m_aFileSaveName);
+			CallbackSaveMap(aBuf, IStorage::TYPE_SAVE, this);
+		}
+	}
 
 	// render checker
 	RenderBackground(View, ms_CheckerTexture, 32.0f, 1.0f);

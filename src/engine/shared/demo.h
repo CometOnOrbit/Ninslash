@@ -99,6 +99,7 @@ private:
 	void DoTick();
 	void ScanFile();
 	int NextFrame();
+	int Advance(int64 TimeStep);
 
 public:
 
@@ -119,6 +120,7 @@ public:
 	int GetDemoType() const;
 
 	int Update();
+	int UpdateTime(int64 TimeStep);
 
 	const CPlaybackInfo *Info() const { return &m_Info; }
 	int IsPlaying() const { return m_File != 0; }

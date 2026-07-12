@@ -18,6 +18,7 @@
 #include <generated/game_data.h>
 
 #include <game/localization.h>
+#include <game/client/lineinput.h>
 #include <game/version.h>
 #include "render.h"
 
@@ -293,6 +294,7 @@ void CGameClient::OnConsoleInit()
 	// add the some console commands
 	Console()->Register("team", "i", CFGFLAG_CLIENT, ConTeam, this, "Switch team");
 	Console()->Register("kill", "", CFGFLAG_CLIENT, ConKill, this, "Kill yourself");
+	Console()->Register("ready_change", "", CFGFLAG_CLIENT, ConReadyChange, this, "Change ready state");
 
 	// register server dummy commands for tab completion
 	Console()->Register("tune", "si", CFGFLAG_SERVER, 0, 0, "Tune variable to value");
@@ -350,8 +352,14 @@ void CGameClient::OnInit()
 
 	// propagate pointers
 	m_UI.SetGraphics(Graphics(), TextRender());
+	m_UI.SetClient(Client());
+	m_UI.SetInput(Input());
 	m_RenderTools.m_pGraphics = Graphics();
 	m_RenderTools.m_pUI = UI();
+	m_UI.SetRenderTools(&m_RenderTools);
+	CUIRect::Init(Graphics(), &m_RenderTools);
+	CUIElementBase::Init(UI());
+	CLineInput::Init(Input(), TextRender(), Graphics(), Client());
 	
 	int64 Start = time_get();
 
@@ -377,7 +385,9 @@ void CGameClient::OnInit()
 		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "gameclient", "failed to load font. filename='fonts/DejaVuSans.ttf'");
 
 	const char* pLanguageFont = "Source Han Sans";
-	if(str_find(g_Config.m_ClLanguagefile, "chinese"))
+	if(str_find(g_Config.m_ClLanguagefile, "traditional_chinese"))
+		pLanguageFont = "Source Han Sans HC";
+	else if(str_find(g_Config.m_ClLanguagefile, "chinese"))
 		pLanguageFont = "Source Han Sans SC";
 
 	File = Storage()->OpenFile("fonts/SourceHanSans.ttc", IOFLAG_READ, IStorage::TYPE_ALL, aFilename, sizeof(aFilename));
@@ -686,6 +696,8 @@ void CGameClient::OnRender()
 		}
 		m_LastSendInfo = 0;
 	}
+
+	CLineInput::RenderCandidates();
 }
 
 void CGameClient::OnRelease()
@@ -1017,7 +1029,8 @@ void CGameClient::OnNewSnapshot()
 			aMessage[MsgLen] = 0;
 
 			CNetMsg_Cl_Say Msg;
-			Msg.m_Team = rand()&1;
+			Msg.m_Mode = rand()%3;
+			Msg.m_Target = -1;
 			Msg.m_pMessage = aMessage;
 			Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
 		}
@@ -1479,9 +1492,19 @@ void CGameClient::OnPredict()
 	
 
 	// predict
-	for(int Tick = Client()->GameTick()+1; Tick <= Client()->PredGameTick(); Tick++)
+	int PredGameTick = Client()->PredGameTick();
+
+	// AntiPing prediction margin: add extra prediction ticks for smoother visuals
+	if(g_Config.m_ClAntiPing && g_Config.m_ClPredictionMargin > 0)
 	{
-		// fetch the local
+		int ExtraTicks = (g_Config.m_ClPredictionMargin * Client()->GameTickSpeed()) / 1000;
+		if(ExtraTicks > 0)
+			PredGameTick += ExtraTicks;
+	}
+
+	for(int Tick = Client()->GameTick()+1; Tick <= PredGameTick; Tick++)
+	{
+		// fetch the local at the original predicted tick (before anti-ping extension)
 		if(Tick == Client()->PredGameTick() && World.m_apCharacters[m_Snap.m_LocalClientID])
 			m_PredictedPrevChar = *World.m_apCharacters[m_Snap.m_LocalClientID];
 
@@ -1506,7 +1529,7 @@ void CGameClient::OnPredict()
 		
 		if (World.m_pBall)
 		{
-			if(Tick == Client()->PredGameTick())
+			if(Tick == PredGameTick)
 				m_PredictedPrevBall = *World.m_pBall;
 		
 			World.m_pBall->Tick();
@@ -1563,7 +1586,7 @@ void CGameClient::OnPredict()
 			}
 		}
 
-		if(Tick == Client()->PredGameTick() && World.m_apCharacters[m_Snap.m_LocalClientID])
+		if(Tick == PredGameTick && World.m_apCharacters[m_Snap.m_LocalClientID])
 			m_PredictedChar = *World.m_apCharacters[m_Snap.m_LocalClientID];
 	}
 
@@ -1735,6 +1758,13 @@ void CGameClient::ConKill(IConsole::IResult *pResult, void *pUserData)
 	((CGameClient*)pUserData)->SendKill(-1);
 }
 
+void CGameClient::ConReadyChange(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameClient *pClient = (CGameClient *)pUserData;
+	if(pClient->Client()->State() == IClient::STATE_ONLINE)
+		pClient->m_pControls->m_Ready ^= 1;
+}
+
 void CGameClient::ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
 {
 	pfnCallback(pResult, pCallbackUserData);
@@ -1835,9 +1865,67 @@ vec4 CGameClient::GetPlayerColor(int ClientID)
 	return CustomStuff()->m_aPlayerInfo[ClientID].m_Color;
 }
 
+const char *CGameClient::GetPlayerLabel(int ClientID, char *pBuf, int BufSize) const
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_aClients[ClientID].m_aName[0])
+	{
+		if(BufSize > 0)
+			pBuf[0] = 0;
+		return pBuf;
+	}
+
+	if(g_Config.m_ClShowsocial)
+		return m_aClients[ClientID].m_aName;
+
+	str_format(pBuf, BufSize, "%d", ClientID);
+	return pBuf;
+}
+
+void CGameClient::SanitizeSocialString(const char *pSrc, char *pDst, int DstSize) const
+{
+	if(!pSrc || DstSize <= 0)
+		return;
+
+	if(g_Config.m_ClShowsocial || !pSrc[0])
+	{
+		str_copy(pDst, pSrc ? pSrc : "", DstSize);
+		return;
+	}
+
+	str_copy(pDst, pSrc, DstSize);
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(!m_aClients[i].m_aName[0])
+			continue;
+
+		char aLabel[32];
+		GetPlayerLabel(i, aLabel, sizeof(aLabel));
+		if(!aLabel[0])
+			continue;
+
+		const char *pFound = str_find(pDst, m_aClients[i].m_aName);
+		while(pFound)
+		{
+			int Offset = (int)(pFound - pDst);
+			int NameLen = str_length(m_aClients[i].m_aName);
+			char aBuf[512];
+			str_format(aBuf, sizeof(aBuf), "%.*s%s%s", Offset, pDst, aLabel, pDst+Offset+NameLen);
+			str_copy(pDst, aBuf, DstSize);
+			pFound = str_find(pDst, m_aClients[i].m_aName);
+		}
+	}
+}
+
+int CGameClient::EffectiveFilterChat() const
+{
+	if(g_Config.m_ClFilterchat == 0 && g_Config.m_ClShowChatFriends)
+		return 1;
+	return g_Config.m_ClFilterchat;
+}
+
 bool CGameClient::BuildingNear(vec2 Pos, float Range)
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return true;
 
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);

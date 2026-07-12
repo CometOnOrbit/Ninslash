@@ -193,8 +193,8 @@ void CVoting::OnMessage(int MsgType, void *pRawMsg)
 		if(pMsg->m_Timeout)
 		{
 			OnReset();
-			str_copy(m_aDescription, pMsg->m_pDescription, sizeof(m_aDescription));
-			str_copy(m_aReason, pMsg->m_pReason, sizeof(m_aReason));
+			m_pClient->SanitizeSocialString(pMsg->m_pDescription, m_aDescription, sizeof(m_aDescription));
+			m_pClient->SanitizeSocialString(pMsg->m_pReason, m_aReason, sizeof(m_aReason));
 			m_Closetime = time_get() + time_freq() * pMsg->m_Timeout;
 		}
 		else

@@ -996,10 +996,10 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_Rot = frandom()*pi*2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_HITEFFECTS, &p);
 
-			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_SHIELD_HIT, 1.0f, Pos);
-		}
-		break;
-		
+		m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_SHIELD_HIT, 1.0f, Pos);
+	}
+	break;
+	
 	// sword hit
 	case FX_BLOOD1:
 		{
@@ -1013,10 +1013,10 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_EndSize = 110;
 			p.m_Rot = frandom()*pi*2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_BLOODFX, &p);
-			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, 1.0f, Pos);
-		}
-		break;
-		
+		m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, 1.0f, Pos);
+	}
+	break;
+	
 	// chainsaw
 	case FX_BLOOD2:
 		{
@@ -1047,10 +1047,10 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_EndSize = 110;
 			p.m_Rot = frandom()*pi*2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_BLOODFX, &p);
-			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_KICKHIT, 1.0f, Pos);
-		}
-		break;
-		
+		m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_KICKHIT, 1.0f, Pos);
+	}
+	break;
+	
 	case FX_MONSTERDEATH:
 		{
 			CParticle p;

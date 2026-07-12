@@ -161,7 +161,7 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 
 void CWeapons::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 	
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);

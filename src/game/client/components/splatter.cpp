@@ -111,7 +111,7 @@ void CSplatter::Update(float TimePassed)
 
 void CSplatter::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 
 	static int64 LastTime = 0;

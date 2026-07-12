@@ -82,6 +82,24 @@ const char *CBinds::GetKey(const char *pBindStr)
 	return "";
 }
 
+void CBinds::GetKeys(const char *pBindStr, char *pBuf, int BufSize)
+{
+	pBuf[0] = 0;
+	for(int KeyId = 0; KeyId < KEY_LAST; KeyId++)
+	{
+		const char *pBind = Get(KeyId);
+		if(!pBind[0])
+			continue;
+
+		if(str_comp(pBind, pBindStr) == 0)
+		{
+			if(pBuf[0])
+				str_append(pBuf, ", ", BufSize);
+			str_append(pBuf, Input()->KeyName(KeyId), BufSize);
+		}
+	}
+}
+
 void CBinds::SetDefaults()
 {
 	// set default key bindings
@@ -145,6 +163,11 @@ void CBinds::SetDefaults()
 
 	Bind(KEY_MOUSE_WHEEL_UP, "+prevweapon");
 	Bind(KEY_MOUSE_WHEEL_DOWN, "+nextweapon");
+
+	Bind(KEY_EQUALS, "zoom+");
+	Bind(KEY_MINUS, "zoom-");
+	Bind(KEY_KP_PLUS, "zoom+");
+	Bind(KEY_KP_MINUS, "zoom-");
 
 	Bind(KEY_T, "chat all");
 	Bind(KEY_Y, "chat team");

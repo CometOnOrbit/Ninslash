@@ -598,7 +598,7 @@ void CBuildings2::RenderBuildMode()
 
 void CBuildings2::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);

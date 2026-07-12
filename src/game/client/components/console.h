@@ -20,7 +20,7 @@ class CGameConsole : public CComponent
 		TStaticRingBuffer<char, 64*1024, CRingBufferBase::FLAG_RECYCLE> m_History;
 		char *m_pHistoryEntry;
 
-		CLineInput m_Input;
+		CLineInputBuffered<256> m_Input;
 		int m_Type;
 		int m_CompletionEnumerationCount;
 		int m_BacklogActPage;

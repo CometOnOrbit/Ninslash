@@ -33,6 +33,7 @@ void CHud::OnReset()
 
 void CHud::RenderGameTimer()
 {
+	if(!g_Config.m_ClShowhudTimer) return;
 	float Half = 300.0f*Graphics()->ScreenAspect()/2.0f;
 
 	if(!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_SUDDENDEATH))
@@ -83,9 +84,19 @@ void CHud::RenderPauseNotification()
 		!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
 	{
 		const char *pText = Localize("Game paused");
-		float FontSize = 20.0f;
+		float FontSize = 14.0f;
 		float w = TextRender()->TextWidth(0, FontSize,pText, -1);
-		TextRender()->Text(0, 150.0f*Graphics()->ScreenAspect()+-w/2.0f, 50.0f, FontSize, pText, -1);
+		float x = 150.0f*Graphics()->ScreenAspect()-w/2.0f;
+		float y = 50.0f;
+		float Pad = 12.0f;
+
+		Graphics()->TextureSet(-1);
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.55f);
+		RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
+		Graphics()->QuadsEnd();
+
+		TextRender()->Text(0, x, y, FontSize, pText, -1);
 	}
 }
 
@@ -164,6 +175,7 @@ void CHud::RenderObjective()
 
 void CHud::RenderScoreHud()
 {
+	if(!g_Config.m_ClShowhudScore) return;
 	// render small score hud
 	if(!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
 	{
@@ -337,31 +349,79 @@ void CHud::RenderScoreHud()
 	}
 }
 
-void CHud::RenderWarmupTimer()
+void CHud::RenderStartCountdown()
 {
-	// render warmup timer
-	if(m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer)
-	{
-		char Buf[256];
-		float FontSize = 20.0f;
-		float w = TextRender()->TextWidth(0, FontSize, Localize("Warmup"), -1);
-		TextRender()->Text(0, 150*Graphics()->ScreenAspect()+-w/2, 50, FontSize, Localize("Warmup"), -1);
+	if(!g_Config.m_ClShowhudTimer)
+		return;
 
-		int Seconds = m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer/SERVER_TICK_SPEED;
-		if(Seconds < 5)
-			str_format(Buf, sizeof(Buf), "%d.%d", Seconds, (m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer*10/SERVER_TICK_SPEED)%10);
-		else
-			str_format(Buf, sizeof(Buf), "%d", Seconds);
-		w = TextRender()->TextWidth(0, FontSize, Buf, -1);
-		TextRender()->Text(0, 150*Graphics()->ScreenAspect()+-w/2, 75, FontSize, Buf, -1);
-	}
+	if(!m_pClient->m_Snap.m_pGameInfoObj || !m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer)
+		return;
+
+	const char *pLabel = Localize("Warmup");
+	float FontSize = 16.0f;
+	float LabelW = TextRender()->TextWidth(0, FontSize, pLabel, -1);
+
+	char aBuf[32];
+	int Seconds = m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer/SERVER_TICK_SPEED;
+	if(Seconds < 5)
+		str_format(aBuf, sizeof(aBuf), "%d.%d", Seconds, (m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer*10/SERVER_TICK_SPEED)%10);
+	else
+		str_format(aBuf, sizeof(aBuf), "%d", Seconds);
+	float CountW = TextRender()->TextWidth(0, FontSize, aBuf, -1);
+
+	float BoxW = max(LabelW, CountW) + 24.0f;
+	float BoxH = FontSize * 2.0f + 20.0f;
+	float x = 150.0f*Graphics()->ScreenAspect() - BoxW/2.0f;
+	float y = 42.0f;
+
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.55f);
+	RenderTools()->DrawRoundRect(x, y, BoxW, BoxH, 8.0f);
+	Graphics()->QuadsEnd();
+
+	TextRender()->Text(0, x + (BoxW-LabelW)/2.0f, y + 8.0f, FontSize, pLabel, -1);
+	TextRender()->Text(0, x + (BoxW-CountW)/2.0f, y + FontSize + 12.0f, FontSize, aBuf, -1);
+}
+
+void CHud::RenderReadyUpNotification()
+{
+	if(!m_pClient->m_Snap.m_pGameInfoObj || !m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer)
+		return;
+
+	if(m_pClient->m_pControls->m_Ready)
+		return;
+
+	if(m_pClient->m_Snap.m_pLocalCharacter && (m_pClient->m_Snap.m_pLocalCharacter->m_PlayerFlags&PLAYERFLAG_READY))
+		return;
+
+	const char *pKey = m_pClient->m_pBinds->GetKey("ready_change");
+	if(!pKey[0])
+		pKey = "ready_change";
+
+	char aText[128];
+	str_format(aText, sizeof(aText), Localize("When ready, press <%s>"), pKey);
+
+	float FontSize = 14.0f;
+	float w = TextRender()->TextWidth(0, FontSize, aText, -1);
+	float x = 150.0f*Graphics()->ScreenAspect() - w/2.0f;
+	float y = 110.0f;
+	float Pad = 10.0f;
+
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.55f);
+	RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
+	Graphics()->QuadsEnd();
+
+	TextRender()->Text(0, x, y, FontSize, aText, -1);
 }
 
 void CHud::MapscreenToGroup(float CenterX, float CenterY, CMapItemGroup *pGroup)
 {
 	float Points[4];
 	RenderTools()->MapscreenToWorld(CenterX, CenterY, pGroup->m_ParallaxX/100.0f, pGroup->m_ParallaxY/100.0f,
-		pGroup->m_OffsetX, pGroup->m_OffsetY, Graphics()->ScreenAspect(), 1.0f, Points);
+		pGroup->m_OffsetX, pGroup->m_OffsetY, Graphics()->ScreenAspect(), m_pClient->m_pCamera->m_Zoom, Points);
 	Graphics()->MapScreen(Points[0], Points[1], Points[2], Points[3]);
 }
 
@@ -382,9 +442,20 @@ void CHud::RenderConnectionWarning()
 {
 	if(Client()->ConnectionProblems())
 	{
-		const char *pText = Localize("Waiting for server...");
-		float w = TextRender()->TextWidth(0, 24, pText, -1);
-		TextRender()->Text(0, 150*Graphics()->ScreenAspect()-w/2, 40, 24, pText, -1);
+		const char *pText = Localize("Connection Problems...");
+		float FontSize = 14.0f;
+		float w = TextRender()->TextWidth(0, FontSize, pText, -1);
+		float x = 150.0f*Graphics()->ScreenAspect() - w/2.0f;
+		float y = 40.0f; // below timer; avoid stacking with pause/warmup boxes
+		float Pad = 12.0f;
+
+		Graphics()->TextureSet(-1);
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.55f);
+		RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
+		Graphics()->QuadsEnd();
+
+		TextRender()->Text(0, x, y, FontSize, pText, -1);
 	}
 }
 
@@ -405,7 +476,7 @@ void CHud::RenderTeambalanceWarning()
 				TextRender()->TextColor(1,1,0.5f,1);
 			else
 				TextRender()->TextColor(0.7f,0.7f,0.2f,1.0f);
-			TextRender()->Text(0x0, 5, 50, 6, pText, -1);
+			TextRender()->Text(0x0, 5, 108, 6, pText, -1);
 			TextRender()->TextColor(1,1,1,1);
 		}
 	}
@@ -419,8 +490,8 @@ void CHud::RenderVoting()
 
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0,0,0,0.40f);
-	RenderTools()->DrawRoundRect(-10, 60-2, 100+10+4+5, 46, 5.0f);
+	Graphics()->SetColor(0,0,0,0.55f);
+	RenderTools()->DrawRoundRect(-12, 58-2, 100+10+4+9, 48, 8.0f);
 	Graphics()->QuadsEnd();
 
 	TextRender()->TextColor(1,1,1,1);
@@ -439,10 +510,14 @@ void CHud::RenderVoting()
 	TextRender()->SetCursor(&Cursor, 5.0f, 60.0f, 6.0f, TEXTFLAG_RENDER);
 	Cursor.m_LineWidth = 100.0f-tw;
 	Cursor.m_MaxLines = 3;
-	TextRender()->TextEx(&Cursor, m_pClient->m_pVoting->VoteDescription(), -1);
+	char aVoteDesc[512];
+	m_pClient->SanitizeSocialString(m_pClient->m_pVoting->VoteDescription(), aVoteDesc, sizeof(aVoteDesc));
+	TextRender()->TextEx(&Cursor, aVoteDesc, -1);
 
 	// reason
-	str_format(aBuf, sizeof(aBuf), "%s %s", Localize("Reason:"), m_pClient->m_pVoting->VoteReason());
+	char aReasonBuf[512];
+	m_pClient->SanitizeSocialString(m_pClient->m_pVoting->VoteReason(), aReasonBuf, sizeof(aReasonBuf));
+	str_format(aBuf, sizeof(aBuf), "%s %s", Localize("Reason:"), aReasonBuf);
 	TextRender()->SetCursor(&Cursor, 5.0f, 79.0f, 6.0f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
 	Cursor.m_LineWidth = 100.0f;
 	TextRender()->TextEx(&Cursor, aBuf, -1);
@@ -450,8 +525,11 @@ void CHud::RenderVoting()
 	CUIRect Base = {5, 88, 100, 4};
 	m_pClient->m_pVoting->RenderBars(Base, false);
 
-	const char *pYesKey = m_pClient->m_pBinds->GetKey("vote yes");
-	const char *pNoKey = m_pClient->m_pBinds->GetKey("vote no");
+	char aYesKeys[64], aNoKeys[64];
+	m_pClient->m_pBinds->GetKeys("vote yes", aYesKeys, sizeof(aYesKeys));
+	m_pClient->m_pBinds->GetKeys("vote no", aNoKeys, sizeof(aNoKeys));
+	const char *pYesKey = aYesKeys[0] ? aYesKeys : "";
+	const char *pNoKey = aNoKeys[0] ? aNoKeys : "";
 	str_format(aBuf, sizeof(aBuf), "%s - %s", pYesKey, Localize("Vote yes"));
 	Base.y += Base.h+1;
 	UI()->DoLabel(&Base, aBuf, 6.0f, -1);
@@ -537,6 +615,7 @@ void CHud::DrawCircular(float x, float y, float r, int Segments, int FillAmount,
 
 void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 {
+	if(!g_Config.m_ClShowhudHealthAmmo) return;
 	if(!pCharacter)
 		return;
 
@@ -991,6 +1070,7 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 
 void CHud::RenderSpectatorHud()
 {
+	if(!g_Config.m_ClShowhudSpectatorCount) return;
 	// draw the box
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
@@ -1003,6 +1083,129 @@ void CHud::RenderSpectatorHud()
 	str_format(aBuf, sizeof(aBuf), "%s: %s", Localize("Spectate"), m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW ?
 		m_pClient->m_aClients[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID].m_aName : Localize("Free-View"));
 	TextRender()->Text(0, m_Width-174.0f, m_Height-13.0f, 8.0f, aBuf, -1);
+}
+
+float CHud::BottomReservedHeight() const
+{
+	// Spectator strip at the very bottom.
+	if(m_pClient->m_Snap.m_SpecInfo.m_Active)
+		return 15.0f;
+	return 0.0f;
+}
+
+float CHud::ScoreHudTop() const
+{
+	// Score HUD occupies [229, 285] when enabled (same as RenderScoreHud).
+	if(g_Config.m_ClShowhudScore && m_pClient->m_Snap.m_pGameInfoObj &&
+		!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
+		return 229.0f;
+	return m_Height - BottomReservedHeight();
+}
+
+void CHud::RenderMovementInformation()
+{
+	const bool ShowPos = g_Config.m_ClShowhudPlayerPosition != 0;
+	const bool ShowSpeed = g_Config.m_ClShowhudPlayerSpeed != 0;
+	const bool ShowAngle = g_Config.m_ClShowhudPlayerAngle != 0;
+	if(!ShowPos && !ShowSpeed && !ShowAngle)
+		return;
+
+	// Prefer spectated character when spectating, else local.
+	int ClientID = m_pClient->m_Snap.m_LocalClientID;
+	if(m_pClient->m_Snap.m_SpecInfo.m_Active && m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW)
+		ClientID = m_pClient->m_Snap.m_SpecInfo.m_SpectatorID;
+
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_pClient->m_Snap.m_aCharacters[ClientID].m_Active)
+		return;
+
+	const CNetObj_Character *pPrev = &m_pClient->m_Snap.m_aCharacters[ClientID].m_Prev;
+	const CNetObj_Character *pCur = &m_pClient->m_Snap.m_aCharacters[ClientID].m_Cur;
+	const float Intra = Client()->IntraGameTick();
+	const vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCur->m_X, pCur->m_Y), Intra) / 32.0f;
+	const vec2 VelRaw = mix(vec2(pPrev->m_VelX, pPrev->m_VelY), vec2(pCur->m_VelX, pCur->m_VelY), Intra);
+	float VelX = VelRaw.x / 256.0f * Client()->GameTickSpeed();
+	float VelY = VelRaw.y / 256.0f * Client()->GameTickSpeed();
+	if(VelRaw.x >= -1.0f && VelRaw.x <= 1.0f)
+		VelX = 0.0f;
+	if(VelRaw.y >= -128.0f && VelRaw.y <= 128.0f)
+		VelY = 0.0f;
+	const float SpeedX = VelX / 32.0f;
+	const float SpeedY = VelY / 32.0f;
+
+	float Angle = mix((float)pPrev->m_Angle, (float)pCur->m_Angle, Intra) / 256.0f;
+	if(Angle < 0.0f)
+		Angle += 2.0f * pi;
+	const float AngleDeg = Angle * 180.0f / pi;
+
+	const float LineH = 8.0f;
+	const float FontSize = 6.0f;
+	const float BoxWidth = 62.0f;
+	float BoxHeight = 2.0f;
+	if(ShowPos)
+		BoxHeight += 3.0f * LineH;
+	if(ShowSpeed)
+		BoxHeight += 3.0f * LineH;
+	if(ShowAngle)
+		BoxHeight += 2.0f * LineH;
+
+	// BR stack (bottom → top): spectator bar → score HUD → movement info.
+	// Place movement immediately above the score HUD (or free bottom if score off).
+	float StartX = m_Width - BoxWidth;
+	float StartY = ScoreHudTop() - BoxHeight - 4.0f;
+	if(StartY < 20.0f)
+		StartY = 20.0f;
+
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.45f);
+	RenderTools()->DrawRoundRectExt(StartX, StartY, BoxWidth, BoxHeight, 5.0f, CUI::CORNER_L);
+	Graphics()->QuadsEnd();
+
+	char aBuf[64];
+	float y = StartY + 2.0f;
+	const float LeftX = StartX + 2.0f;
+	const float RightEdge = m_Width - 2.0f;
+
+	if(ShowPos)
+	{
+		TextRender()->Text(0, LeftX, y, FontSize, Localize("Position:"), -1);
+		y += LineH;
+
+		str_format(aBuf, sizeof(aBuf), "%.2f", Pos.x);
+		TextRender()->Text(0, LeftX, y, FontSize, "X:", -1);
+		TextRender()->Text(0, RightEdge - TextRender()->TextWidth(0, FontSize, aBuf, -1), y, FontSize, aBuf, -1);
+		y += LineH;
+
+		str_format(aBuf, sizeof(aBuf), "%.2f", Pos.y);
+		TextRender()->Text(0, LeftX, y, FontSize, "Y:", -1);
+		TextRender()->Text(0, RightEdge - TextRender()->TextWidth(0, FontSize, aBuf, -1), y, FontSize, aBuf, -1);
+		y += LineH;
+	}
+
+	if(ShowSpeed)
+	{
+		TextRender()->Text(0, LeftX, y, FontSize, Localize("Speed:"), -1);
+		y += LineH;
+
+		str_format(aBuf, sizeof(aBuf), "%.2f", SpeedX);
+		TextRender()->Text(0, LeftX, y, FontSize, "X:", -1);
+		TextRender()->Text(0, RightEdge - TextRender()->TextWidth(0, FontSize, aBuf, -1), y, FontSize, aBuf, -1);
+		y += LineH;
+
+		str_format(aBuf, sizeof(aBuf), "%.2f", SpeedY);
+		TextRender()->Text(0, LeftX, y, FontSize, "Y:", -1);
+		TextRender()->Text(0, RightEdge - TextRender()->TextWidth(0, FontSize, aBuf, -1), y, FontSize, aBuf, -1);
+		y += LineH;
+	}
+
+	if(ShowAngle)
+	{
+		TextRender()->Text(0, LeftX, y, FontSize, Localize("Angle:"), -1);
+		y += LineH;
+
+		str_format(aBuf, sizeof(aBuf), "%.2f", AngleDeg);
+		TextRender()->Text(0, RightEdge - TextRender()->TextWidth(0, FontSize, aBuf, -1), y, FontSize, aBuf, -1);
+	}
 }
 
 void CHud::OnRender()
@@ -1030,8 +1233,11 @@ void CHud::OnRender()
 		RenderSuddenDeath();
 		RenderScoreHud();
 		RenderObjective();
-		RenderWarmupTimer();
+		RenderStartCountdown();
+		RenderReadyUpNotification();
 		RenderFps();
+		RenderMovementInformation();
+
 		if(Client()->State() != IClient::STATE_DEMOPLAYBACK)
 			RenderConnectionWarning();
 		RenderTeambalanceWarning();

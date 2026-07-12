@@ -64,7 +64,7 @@ void CRadar::RenderRadar(const CNetObj_Radar *pCurrent, const CNetObj_Radar *pPr
 
 void CRadar::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 	
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);

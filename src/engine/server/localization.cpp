@@ -249,9 +249,11 @@ const char *CLocalization::GetLanguageCode(int Country)
 			return "uk";
 		/* zh-cn - Chinese (Simplified) **********************************/
 		case 156: //People’s Republic of China
+			return "zh-cn";
+		/* zh-hk - Chinese (Traditional) **********************************/
 		case 344: //Hong Kong
 		case 446: //Macau
-			return "zh-cn";
+			return "zh-hk";
 		case 826: // United Kingdom of Great Britain and Northern Ireland
 		case 840: // United States of America
 			return "en";

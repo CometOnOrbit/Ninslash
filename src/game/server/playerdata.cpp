@@ -6,9 +6,40 @@
 #include <engine/shared/linereader.h>
 #include <engine/shared/linewriter.h>
 
-#include <stdio.h>
-
 #include "playerdata.h"
+
+static bool ParseIntList(const char *pLine, const char *pPrefix, int *pOut, int Count)
+{
+	const int PrefixLen = str_length(pPrefix);
+	if(str_comp_num(pLine, pPrefix, PrefixLen) != 0)
+		return false;
+
+	const char *p = pLine + PrefixLen;
+	for(int i = 0; i < Count; i++)
+	{
+		while(*p == ' ')
+			p++;
+		if(!*p)
+			return false;
+		pOut[i] = str_toint(p);
+		while(*p && *p != ' ')
+			p++;
+	}
+	return true;
+}
+
+static bool ParseIntField(const char *pLine, const char *pPrefix, int *pOut)
+{
+	const int PrefixLen = str_length(pPrefix);
+	if(str_comp_num(pLine, pPrefix, PrefixLen) != 0)
+		return false;
+
+	const char *p = pLine + PrefixLen;
+	while(*p == ' ')
+		p++;
+	*pOut = str_toint(p);
+	return true;
+}
 
 CPlayerData::CPlayerData(const char *pName, int ColorID, IStorage *pStorage)
 {
@@ -143,15 +174,14 @@ void CPlayerData::LoadDataFromFile()
 		if(str_length(pLine) > 0 && pLine[0] != '#' && pLine[0] != '\n' && pLine[0] != '\r'
 			&& pLine[0] != '\t' && pLine[0] != '\v' && pLine[0] != ' ')
 		{
-			// TODO: Ugly, rewrite this
-			if(!str_comp_num(pLine, "Weapon: ", 8)) sscanf(pLine, "Weapon: %d %d %d %d %d %d %d %d %d %d %d %d", &(m_aWeaponType[0]), &(m_aWeaponType[1]), &(m_aWeaponType[2]), &(m_aWeaponType[3]), &(m_aWeaponType[4]), &(m_aWeaponType[5]), &(m_aWeaponType[6]), &(m_aWeaponType[7]), &(m_aWeaponType[8]), &(m_aWeaponType[9]), &(m_aWeaponType[10]), &(m_aWeaponType[11]));
-			if(!str_comp_num(pLine, "Ammo: ", 6)) sscanf(pLine, "Ammo: %d %d %d %d %d %d %d %d %d %d %d %d", &(m_aWeaponAmmo[0]), &(m_aWeaponAmmo[1]), &(m_aWeaponAmmo[2]), &(m_aWeaponAmmo[3]), &(m_aWeaponAmmo[4]), &(m_aWeaponAmmo[5]), &(m_aWeaponAmmo[6]), &(m_aWeaponAmmo[7]), &(m_aWeaponAmmo[8]), &(m_aWeaponAmmo[9]), &(m_aWeaponAmmo[10]), &(m_aWeaponAmmo[11]));
-			if(!str_comp_num(pLine, "Armor: ", 7)) sscanf(pLine, "Armor: %d", &m_Armor);
-			if(!str_comp_num(pLine, "Kits: ", 6)) sscanf(pLine, "Kits: %d", &m_Kits);
-			if(!str_comp_num(pLine, "Score: ", 7)) sscanf(pLine, "Score: %d", &m_Score);
-			if(!str_comp_num(pLine, "Gold: ", 6)) sscanf(pLine, "Gold: %d", &m_Gold);
-			if(!str_comp_num(pLine, "HighestLevelSeed: ", 18)) sscanf(pLine, "HighestLevelSeed: %d", &m_HighestLevelSeed);
-			else if(!str_comp_num(pLine, "HighestLevel: ", 14)) sscanf(pLine, "HighestLevel: %d", &m_HighestLevel);
+			if(ParseIntList(pLine, "Weapon: ", m_aWeaponType, 12)) {}
+			else if(ParseIntList(pLine, "Ammo: ", m_aWeaponAmmo, 12)) {}
+			else if(ParseIntField(pLine, "Armor: ", &m_Armor)) {}
+			else if(ParseIntField(pLine, "Kits: ", &m_Kits)) {}
+			else if(ParseIntField(pLine, "Score: ", &m_Score)) {}
+			else if(ParseIntField(pLine, "Gold: ", &m_Gold)) {}
+			else if(ParseIntField(pLine, "HighestLevelSeed: ", &m_HighestLevelSeed)) {}
+			else if(ParseIntField(pLine, "HighestLevel: ", &m_HighestLevel)) {}
 		}
 	}
 

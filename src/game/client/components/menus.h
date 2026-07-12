@@ -12,6 +12,7 @@
 #include <game/voting.h>
 #include <game/client/component.h>
 #include <game/client/ui.h>
+#include <game/client/ui_scrollregion.h>
 
 
 // compnent to fetch keypresses, override all other input
@@ -35,14 +36,43 @@ class CMenus : public CComponent
 	static vec4 ms_ColorTabbarInactive;
 	static vec4 ms_ColorTabbarActive;
 
+	// dark-punk palette
+	static vec4 ms_ColorBgDeep;
+	static vec4 ms_ColorBgPanel;
+	static vec4 ms_ColorBgInset;
+	static vec4 ms_ColorAccent;
+	static vec4 ms_ColorAccentDim;
+	static vec4 ms_ColorDanger;
+	static vec4 ms_ColorText;
+	static float ms_PanelRounding;
+	static float ms_ControlRounding;
+
+	enum
+	{
+		BUTTONSTYLE_NORMAL = 0,
+		BUTTONSTYLE_ACCENT = 1,
+		BUTTONSTYLE_DANGER = 2,
+	};
+
 	vec4 ButtonColorMul(const void *pID);
+	float MenuAlpha() const;
+	void DrawMenuPanel(const CUIRect *pRect, int Corners = CUI::CORNER_ALL);
+	void DrawMenuInset(const CUIRect *pRect, int Corners = CUI::CORNER_ALL);
+	void DrawSectionHeader(const CUIRect *pRect, int Corners = CUI::CORNER_T);
+	void DrawAccentUnderline(const CUIRect *pRect);
+	void DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding);
+	void LayoutCenterPanel(CUIRect *pScreen, CUIRect *pOut);
+
+	float AnimHover(const void *pID, float Speed = 14.0f);
+	float AnimSelected(const void *pID, bool Selected, float Speed = 12.0f);
+	static vec4 MixColor(const vec4 &A, const vec4 &B, float t);
 
 	int64 m_LastUpdate;
 
 	int DoButton_DemoPlayer(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
 	int DoButton_Sprite(const void *pID, int ImageID, int SpriteID, int Checked, const CUIRect *pRect, int Corners);
 	int DoButton_Toggle(const void *pID, int Checked, const CUIRect *pRect, bool Active);
-	int DoButton_Menu(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
+	int DoButton_Menu(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Style = BUTTONSTYLE_NORMAL);
 	int DoButton_MenuTab(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Corners);
 
 	int DoButton_CheckBox_Common(const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect);
@@ -70,8 +100,19 @@ class CMenus : public CComponent
 
 	float DoScrollbarV(const void *pID, const CUIRect *pRect, float Current);
 	float DoScrollbarH(const void *pID, const CUIRect *pRect, float Current);
+
+	typedef float (CMenus::*FDropdownCallback)(CUIRect View);
+	float DoIndependentDropdownMenu(void *pID, CUIRect *pRect, const char *pStr, float HeaderHeight, FDropdownCallback pfnCallback, bool *pActive);
+	float RenderSettingsControlsMovement(CUIRect View);
+	float RenderSettingsControlsWeapons(CUIRect View);
+	float RenderSettingsControlsVoting(CUIRect View);
+	float RenderSettingsControlsChat(CUIRect View);
+	float RenderSettingsControlsMisc(CUIRect View);
 	void DoButton_KeySelect(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
 	int DoKeyReader(void *pID, const CUIRect *pRect, int Key);
+
+	// When set, interactive widgets skip hit-testing if scrolled out of the clip rect
+	CScrollRegion *m_pUiClipScrollRegion;
 
 	//static int ui_do_key_reader(void *id, const CUIRect *rect, int key);
 	void UiDoGetButtons(int Start, int Stop, CUIRect View);
@@ -109,6 +150,8 @@ class CMenus : public CComponent
 		POPUP_SOUNDERROR,
 		POPUP_PASSWORD,
 		POPUP_QUIT,
+		POPUP_SLICE_DEMO,
+		POPUP_RENDER_DEMO,
 	};
 
 	enum
@@ -165,6 +208,19 @@ class CMenus : public CComponent
 	bool m_NeedSendinfo;
 	int m_SettingPlayerPage;
 
+	// video modes (aligned with Teeworlds Recommended / Other)
+	enum
+	{
+		MAX_RESOLUTIONS = 256,
+	};
+	CVideoMode m_aModes[MAX_RESOLUTIONS];
+	int m_NumModes;
+	sorted_array<CVideoMode> m_lRecommendedVideoModes;
+	sorted_array<CVideoMode> m_lOtherVideoModes;
+	void UpdatedFilteredVideoModes();
+	void UpdateVideoModeSettings();
+	bool DoResolutionList(CUIRect *pRect, const void *pID, float *pScrollValue, const sorted_array<CVideoMode> &lModes);
+
 	//
 	bool m_EscapePressed;
 	bool m_EnterPressed;
@@ -200,9 +256,17 @@ class CMenus : public CComponent
 	sorted_array<CDemoItem> m_lDemos;
 	char m_aCurrentDemoFolder[256];
 	char m_aCurrentDemoFile[64];
+	char m_aDemoRenderSource[512];
+	char m_aVideoOutputName[128];
+	int m_DemoRenderStorageType;
 	int m_DemolistSelectedIndex;
 	bool m_DemolistSelectedIsDir;
 	int m_DemolistStorageType;
+
+	// demo slicing
+	int m_DemoSliceState;
+	int m_DemoSliceStartTick;
+	int m_DemoSliceEndTick;
 
 	void DemolistOnUpdate(bool Reset);
 	void DemolistPopulate();
@@ -258,6 +322,50 @@ class CMenus : public CComponent
 	// found in menus_browser.cpp
 	int m_SelectedIndex;
 	int m_ScrollOffset;
+
+	struct CUiFilterPreset
+	{
+		char m_aName[32];
+		bool m_Used;
+
+		char m_aFilterString[25];
+		int m_FilterFull;
+		int m_FilterEmpty;
+		int m_FilterSpectators;
+		int m_FilterFriends;
+		int m_FilterCountry;
+		int m_FilterCountryIndex;
+		int m_FilterPw;
+		int m_FilterPing;
+		char m_aFilterGametype[128];
+		int m_FilterGametypeStrict;
+		char m_aFilterServerAddress[128];
+		int m_FilterPure;
+		int m_FilterPureMap;
+		int m_FilterCompatversion;
+	};
+
+	enum
+	{
+		UI_FILTER_PRESET_ALL = 0,
+		UI_FILTER_PRESET_FAVORITES,
+		UI_FILTER_PRESET_CUSTOM_START,
+		MAX_UI_FILTER_CUSTOM_PRESETS = 8,
+		NUM_UI_FILTER_PRESETS = 2 + MAX_UI_FILTER_CUSTOM_PRESETS,
+	};
+
+	CUiFilterPreset m_aFilterPresets[NUM_UI_FILTER_PRESETS];
+	int m_ActiveFilterPreset;
+	int m_FilterPresetRenameSlot;
+	char m_aFilterPresetRenameBuf[32];
+
+	void LoadFilterPresets();
+	void SaveFilterPresets();
+	void SnapshotConfigToFilterPreset(int Slot);
+	void ApplyFilterPresetToConfig(int Slot);
+	void SwitchFilterPreset(int NewSlot);
+	void RenderFilterPresetBar(CUIRect View);
+
 	void RenderServerbrowserServerList(CUIRect View);
 	void RenderServerbrowserServerDetail(CUIRect View);
 	void RenderServerbrowserFilters(CUIRect View);
@@ -300,6 +408,7 @@ public:
 	bool IsActive() const { return m_MenuActive; }
 
 	virtual void OnInit();
+	virtual void OnRelease();
 
 	virtual void OnStateChange(int NewState, int OldState);
 	virtual void OnReset();

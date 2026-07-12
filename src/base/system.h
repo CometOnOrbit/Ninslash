@@ -1229,6 +1229,18 @@ void gui_messagebox(const char *title, const char *message);
 const char *str_utf8_skip_whitespaces(const char *str);
 
 /*
+	Function: str_utf8_is_whitespace
+		Check if the unicode is an utf8 whitespace.
+
+	Parameters:
+		code - unicode.
+
+	Returns:
+		Returns 1 on success, 0 on failure.
+*/
+int str_utf8_is_whitespace(int code);
+
+/*
 	Function: str_utf8_rewind
 		Moves a cursor backwards in an utf8 string
 
@@ -1305,6 +1317,28 @@ int str_utf8_encode(char *ptr, int chr);
 		- The string is treated as zero-terminated utf8 string.
 */
 int str_utf8_check(const char *str);
+
+/*
+	Function: str_utf8_stats
+		Determines the byte size and utf8 character count of a utf8 string.
+
+	Parameters:
+		str - Pointer to the string.
+		max_size - Maximum number of bytes to count.
+		max_count - Maximum number of utf8 characters to count.
+		size - Pointer to store size (number of non-zero bytes) of the string.
+		count - Pointer to store count of utf8 characters of the string.
+
+	Remarks:
+		- The string is treated as zero-terminated utf8 string.
+		- It's the user's responsibility to make sure the bounds are aligned.
+*/
+void str_utf8_stats(const char *str, int max_size, int max_count, int *size, int *count);
+
+enum
+{
+	UTF8_BYTE_LENGTH = 4
+};
 
 #ifdef __cplusplus
 }

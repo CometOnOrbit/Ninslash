@@ -43,14 +43,17 @@ Add Friend
 Address
 == Cím
 
+Alien wave cleared
+== Alien wave cleared
+
+Aliens terminated
+== Aliens terminated
+
 All
 == Mindenki
 
 Alpha
 == Alpha
-
-Always show name plates
-== Mindig mutassa a névtáblát
 
 Are you sure that you want to delete the demo?
 == Biztos hogy le akarod törölni a demót?
@@ -63,12 +66,6 @@ Are you sure that you want to remove the player from your friends list?
 
 As this is the first time you launch the game, please enter your nick name below. It's recommended that you check the settings to adjust them to your liking before joining a server.
 == Mivel ez az első alkalom hogy elindítottad ezt a játékot, kérlekk add meg a neved!
-
-Automatically record demos
-== Magától rögzítse a demókat
-
-Automatically take game over screenshot
-== Magától készítsen a játék végén képet
 
 Blue team
 == Kék csapat
@@ -91,9 +88,6 @@ Chat
 Clan
 == Klán
 
-Client
-== Kliens
-
 Close
 == Bezárás
 
@@ -105,6 +99,9 @@ Connect
 
 Connecting to
 == Csatlakozás a
+
+Connection Problems...
+== Csatlakozási problémák...
 
 Console
 == Konzol
@@ -124,11 +121,11 @@ Crc:
 Created:
 == Készítette:
 
-Current
-== Aktuális
+Cyborg wave cleared
+== Cyborg wave cleared
 
-Current version: %s
-== Aktuális verzió: %s
+Cyborgs terminated
+== Cyborgs terminated
 
 Delete
 == Törlés
@@ -148,9 +145,6 @@ Disconnect
 Disconnected
 == Kilépett
 
-Display Modes
-== Kijelző módok
-
 Downloading map
 == Pálya letöltése
 
@@ -162,6 +156,9 @@ Dynamic Camera
 
 Emoticon
 == Hangulatjel
+
+Enemies terminated
+== Enemies terminated
 
 Enter
 == Belépés
@@ -204,6 +201,12 @@ Friends
 
 Fullscreen
 == Teljesképernyő
+
+Furries terminated
+== Furries terminated
+
+Furry wave cleared
+== Furry wave cleared
 
 Game
 == Játék
@@ -295,12 +298,6 @@ Map
 Map:
 == Pálya:
 
-Max Screenshots
-== Maximum Fotó
-
-Max demos
-== Maximum Demó
-
 Maximum ping:
 == Maximum Ping:
 
@@ -328,17 +325,11 @@ Mute when not active
 Name
 == Név
 
-Name plates size
-== Névtáblák mérete
-
 Netversion:
 == Netes verzió:
 
 New name:
 == Új Név:
-
-News
-== Hírek
 
 Next weapon
 == Következő fegyver
@@ -360,6 +351,9 @@ No servers found
 
 No servers match your filter criteria
 == Nincs szerver a szűrőfeltételeidhez
+
+Objective
+== Objective
 
 Ok
 == Oké
@@ -415,11 +409,11 @@ Quit anyway?
 REC %3d:%02d
 == REC %3d:%02d
 
+Reach the door
+== Reach the door
+
 Reason:
 == Indok:
-
-Record demo
-== Demó felvétele
 
 Red team
 == Piros csapat
@@ -457,6 +451,12 @@ Reset to defaults
 Rifle
 == Lézer
 
+Robot wave cleared
+== Robot wave cleared
+
+Robots terminated
+== Robots terminated
+
 Round
 == Menet
 
@@ -480,6 +480,9 @@ Scoreboard
 
 Screenshot
 == Pillanatkép
+
+Seek the door
+== Seek the door
 
 Server address:
 == Szerver címe:
@@ -514,11 +517,14 @@ Show ingame HUD
 Show name plates
 == Név táblák mutatása
 
-Show only supported
-== Csak támogatott mutatása
-
 Size:
 == Méret:
+
+Skeleton wave cleared
+== Skeleton wave cleared
+
+Skeletons terminated
+== Skeletons terminated
 
 Skins
 == Skinek
@@ -547,11 +553,11 @@ Standard gametype
 Standard map
 == Általános pálya
 
-Stop record
-== Felvétel megállítása
-
 Sudden Death
 == Gyors halál
+
+Survive the wave of enemies
+== Survive the wave of enemies
 
 Switch weapon on pickup
 == Fegyverváltás felvételnél
@@ -561,6 +567,24 @@ Team
 
 Team chat
 == Csapat chat
+
+Terminate the aliens
+== Terminate the aliens
+
+Terminate the cyborgs
+== Terminate the cyborgs
+
+Terminate the enemies
+== Terminate the enemies
+
+Terminate the furries
+== Terminate the furries
+
+Terminate the robots
+== Terminate the robots
+
+Terminate the skeletons
+== Terminate the skeletons
 
 Texture Compression
 == Textúra tömörítés
@@ -601,9 +625,6 @@ Unable to rename the demo
 Use sounds
 == Hangok használata
 
-Use team colors for name plates
-== Csapat szín használata név tábláknál
-
 V-Sync
 == V-Sync
 
@@ -631,6 +652,24 @@ Voting
 Warmup
 == Kezdés
 
+Wave incoming
+== Wave incoming
+
+Wave of aliens incoming
+== Wave of aliens incoming
+
+Wave of cyborgs incoming
+== Wave of cyborgs incoming
+
+Wave of furries incoming
+== Wave of furries incoming
+
+Wave of robots incoming
+== Wave of robots incoming
+
+Wave of skeletons incoming
+== Wave of skeletons incoming
+
 Welcome to Ninslash
 == Üdvözöljük a Ninslash-ben
 
@@ -640,10 +679,28 @@ Yes
 You must restart the game for all settings to take effect.
 == Újra kell indítani a játékot, a beállítások érvénybe lépéséhez.
 
-no limit
-== Nincs korlát
+enemies remaining
+== enemies remaining
+
+seconds remaining
+== seconds remaining
 
 ##### needs translation #####
+
+'%s' called for vote to kick you
+== 
+
+Always
+== 
+
+Always show
+== 
+
+Angle:
+== 
+
+AntiPing
+== 
 
 Area Shield
 == 
@@ -678,31 +735,43 @@ Borderless window
 Build menu
 == 
 
+Camera
+== 
+
 Change color of
 == 
 
 Change skin of
 == 
 
-Chat & Misc.
+Chat messages
+== 
+
+Current version: %s  |  Servers: %d
+== 
+
+Current: %dx%d (%d:%d)
 == 
 
 Customize
 == 
 
-Default Zoom
+Deadzone
 == 
 
 Demofile: %s
+== 
+
+Desktop notifications
+== 
+
+Disable whisper
 == 
 
 Drop weapon
 == 
 
 Dynamic lighting
-== 
-
-Editor
 == 
 
 Electric grenade
@@ -720,7 +789,22 @@ Energy shield
 Environmental sounds
 == 
 
+Everyone
+== 
+
 Eyes
+== 
+
+FPS counter
+== 
+
+FPS:
+== 
+
+Failed to start video render. Is FFmpeg installed?
+== 
+
+File name:
 == 
 
 Flamer
@@ -732,10 +816,25 @@ Flip attack & hook
 Flip move & aim axis
 == 
 
+Follow factor
+== 
+
+Friend marks
+== 
+
+Friends only
+== 
+
 Game paused
 == 
 
+Go
+== 
+
 Green
+== 
+
+HUD
 == 
 
 Hair / hat
@@ -756,13 +855,19 @@ Head
 Heads
 == 
 
+Health + Ammo
+== 
+
+Hide player's score
+== 
+
+ID
+== 
+
 Inventory
 == 
 
 Inventory roll
-== 
-
-Inventory roll(All)
 == 
 
 Invisibility device
@@ -778,6 +883,15 @@ Item slot 3
 == 
 
 Item slot 4
+== 
+
+Join
+== 
+
+Jump:
+== 
+
+Kill messages
 == 
 
 Main menu
@@ -798,25 +912,85 @@ Mask of regeneration
 Mask of speed
 == 
 
-Movement & Weapons
+Max distance
+== 
+
+Menu opacity
+== 
+
+Misc
 == 
 
 Multi framebuffering (requires restart)
 == 
 
+Nameplates
+== 
+
+No one
+== 
+
+Off
+== 
+
+On
+== 
+
+Only team chat
+== 
+
+Other
+== 
+
+Own name plate
+== 
+
 Play background music
+== 
+
+Player angle
 == 
 
 Player country:
 == 
 
+Player position
+== 
+
+Player speed
+== 
+
+Please enter a filename for the sliced demo:
+== 
+
+Position:
+== 
+
 Power barrel
+== 
+
+Ready
+== 
+
+Recommended
 == 
 
 Red
 == 
 
+Render
+== 
+
+Render video
+== 
+
 Repair tool
+== 
+
+Requires FFmpeg in PATH. Output is saved under videos/.
+== 
+
+Resolution
 == 
 
 Respawn
@@ -828,22 +1002,67 @@ Respawn device
 Server is changing map
 == 
 
+Set End
+== 
+
 Shield generator
 == 
 
-Show only chat messages from friends
+Show IDs
+== 
+
+Show clan
+== 
+
+Show social data
+== 
+
+Show user IDs
+== 
+
+Size
 == 
 
 Skin
 == 
 
+Slice
+== 
+
+Slice demo
+== 
+
+Slice...
+== 
+
 Slide / down
+== 
+
+Smoothness
 == 
 
 Spectate next
 == 
 
 Spectate previous
+== 
+
+Spectate smooth
+== 
+
+Spectator count
+== 
+
+Speed:
+== 
+
+Stabilizing
+== 
+
+Start
+== 
+
+Streamer mode
 == 
 
 Strict gametype filter
@@ -853,6 +1072,12 @@ Supply grenade
 == 
 
 Survival mode
+== 
+
+System messages
+== 
+
+Team colors
 == 
 
 Teslacoil
@@ -873,13 +1098,22 @@ Threaded rendering
 Threaded sound loading
 == 
 
+Timer
+== 
+
 Turret stand
 == 
 
-Vote ends in %d...
+Use +/- keys to zoom (rebindable in Controls)
 == 
 
-Waiting for server...
+Video render cancelled.
+== 
+
+Video render complete. Saved under videos/.
+== 
+
+Vote ends in %d...
 == 
 
 Weapon upgrade
@@ -888,24 +1122,31 @@ Weapon upgrade
 Weapons & Items
 == 
 
-Zombie claw
+When ready, press <%s>
 == 
 
-Zoom In
+Whisper
 == 
 
-Zoom Out
-== 
-
-xbox 360 controller support
-== 
-
-##### old translations #####
-
-'%s' called for vote to kick you
+Wide menu
 == 
 
 You must wait %d seconds before making another vote
+== 
+
+Zombie claw
+== 
+
+Zoom
+== 
+
+Zoom in
+== 
+
+Zoom out
+== 
+
+Zoom with + / - keys
 == 
 
 blue
@@ -914,8 +1155,85 @@ blue
 red
 == 
 
-Connection Problems...
-== Csatlakozási problémák...
+xbox 360 controller support
+== 
+
+##### old translations #####
+
+Always show name plates
+== Mindig mutassa a névtáblát
+
+Automatically record demos
+== Magától rögzítse a demókat
+
+Automatically take game over screenshot
+== Magától készítsen a játék végén képet
+
+Client
+== Kliens
+
+Current
+== Aktuális
+
+Current version: %s
+== Aktuális verzió: %s
+
+Display Modes
+== Kijelző módok
+
+Max Screenshots
+== Maximum Fotó
+
+Max demos
+== Maximum Demó
+
+Name plates size
+== Névtáblák mérete
+
+News
+== Hírek
+
+Record demo
+== Demó felvétele
+
+Show only supported
+== Csak támogatott mutatása
+
+Stop record
+== Felvétel megállítása
+
+Use team colors for name plates
+== Csapat szín használata név tábláknál
+
+no limit
+== Nincs korlát
+
+Chat & Misc.
+== 
+
+Default Zoom
+== 
+
+Editor
+== 
+
+Inventory roll(All)
+== 
+
+Movement & Weapons
+== 
+
+Show only chat messages from friends
+== 
+
+Waiting for server...
+== 
+
+Zoom In
+== 
+
+Zoom Out
+== 
 
 Custom colors
 == Egyéni színek
@@ -925,4 +1243,7 @@ Weapon
 
 Your skin
 == Te skined
+
+Wave cleared
+== Wave cleared
 

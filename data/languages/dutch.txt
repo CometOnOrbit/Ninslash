@@ -43,14 +43,17 @@ Add Friend
 Address
 == Adres
 
+Alien wave cleared
+== Alien wave cleared
+
+Aliens terminated
+== Aliens terminated
+
 All
 == Alle
 
 Alpha
 == Alpha
-
-Always show name plates
-== Altijd naamplaten laten zien
 
 Are you sure that you want to delete the demo?
 == Weet je zeker dat je de demo wil verwijderen?
@@ -63,12 +66,6 @@ Are you sure that you want to remove the player from your friends list?
 
 As this is the first time you launch the game, please enter your nick name below. It's recommended that you check the settings to adjust them to your liking before joining a server.
 == Omdat dit de eerste keer is dat je het spel opstart, moet je een bijnaam kiezen. Doe dat hieronder. Het is aanbevolen om de instellingen te controleren voordat je een spel start.
-
-Automatically record demos
-== Automatisch demo's opnemen
-
-Automatically take game over screenshot
-== Automatisch schermafbeeldingen nemen
 
 Blue team
 == Blauwe team
@@ -91,9 +88,6 @@ Chat
 Clan
 == Clan
 
-Client
-== Client
-
 Close
 == Sluiten
 
@@ -105,6 +99,9 @@ Connect
 
 Connecting to
 == Verbinden met
+
+Connection Problems...
+== Verbindingsproblemen...
 
 Console
 == Console
@@ -124,11 +121,11 @@ Crc:
 Created:
 == Gemaakt:
 
-Current
-== Huidig
+Cyborg wave cleared
+== Cyborg wave cleared
 
-Current version: %s
-== Huidige versie: %s
+Cyborgs terminated
+== Cyborgs terminated
 
 Delete
 == Verwijder
@@ -151,9 +148,6 @@ Disconnect
 Disconnected
 == Verbinding verbroken
 
-Display Modes
-== Laat modes zien
-
 Downloading map
 == Kaart downloaden
 
@@ -165,6 +159,9 @@ Dynamic Camera
 
 Emoticon
 == Emoticon
+
+Enemies terminated
+== Enemies terminated
 
 Enter
 == Starten
@@ -207,6 +204,12 @@ Friends
 
 Fullscreen
 == Volledig scherm
+
+Furries terminated
+== Furries terminated
+
+Furry wave cleared
+== Furry wave cleared
 
 Game
 == Spel
@@ -301,12 +304,6 @@ Map
 Map:
 == Kaart:
 
-Max Screenshots
-== Maximaal aantal schermafbeeldingen
-
-Max demos
-== Maximaal aantal demo's
-
 Maximum ping:
 == Hoogste ping:
 
@@ -334,17 +331,11 @@ Mute when not active
 Name
 == Naam
 
-Name plates size
-== Grootte naamplaat
-
 Netversion:
 == Netversie:
 
 New name:
 == Nieuwe naam:
-
-News
-== Nieuws
 
 Next weapon
 == Volgend wapen
@@ -366,6 +357,9 @@ No servers found
 
 No servers match your filter criteria
 == Geen servers gevonden op zoekopdracht
+
+Objective
+== Objective
 
 Ok
 == Oké
@@ -427,11 +421,11 @@ Quit anyway?
 REC %3d:%02d
 == REC %3d:%02d
 
+Reach the door
+== Reach the door
+
 Reason:
 == Reden:
-
-Record demo
-== Neem demo op
 
 Red team
 == Rode team
@@ -472,6 +466,12 @@ Respawn
 Rifle
 == Laser
 
+Robot wave cleared
+== Robot wave cleared
+
+Robots terminated
+== Robots terminated
+
 Round
 == Ronde
 
@@ -495,6 +495,9 @@ Scoreboard
 
 Screenshot
 == Schermafbeelding
+
+Seek the door
+== Seek the door
 
 Server address:
 == Serveradres:
@@ -529,14 +532,14 @@ Show ingame HUD
 Show name plates
 == Laat naamplaat zien
 
-Show only chat messages from friends
-== Laat alleen chatberichten van vrienden zien
-
-Show only supported
-== Laat alleen compatibele servers zien
-
 Size:
 == Grootte:
+
+Skeleton wave cleared
+== Skeleton wave cleared
+
+Skeletons terminated
+== Skeletons terminated
 
 Skins
 == Skins
@@ -571,14 +574,14 @@ Standard gametype
 Standard map
 == Standaard kaart
 
-Stop record
-== Stop met opnemen
-
 Strict gametype filter
 == Strikt speltype filter
 
 Sudden Death
 == Sudden Death
+
+Survive the wave of enemies
+== Survive the wave of enemies
 
 Switch weapon on pickup
 == Verander wapen bij het oppakken
@@ -588,6 +591,24 @@ Team
 
 Team chat
 == Team chat
+
+Terminate the aliens
+== Terminate the aliens
+
+Terminate the cyborgs
+== Terminate the cyborgs
+
+Terminate the enemies
+== Terminate the enemies
+
+Terminate the furries
+== Terminate the furries
+
+Terminate the robots
+== Terminate the robots
+
+Terminate the skeletons
+== Terminate the skeletons
 
 Texture Compression
 == Structuurscompressie
@@ -628,9 +649,6 @@ Unable to rename the demo
 Use sounds
 == Gebruik geluid
 
-Use team colors for name plates
-== Gebruik teamkleuren voor naamplaten
-
 V-Sync
 == V-Sync
 
@@ -658,6 +676,24 @@ Voting
 Warmup
 == Opwarmen
 
+Wave incoming
+== Wave incoming
+
+Wave of aliens incoming
+== Wave of aliens incoming
+
+Wave of cyborgs incoming
+== Wave of cyborgs incoming
+
+Wave of furries incoming
+== Wave of furries incoming
+
+Wave of robots incoming
+== Wave of robots incoming
+
+Wave of skeletons incoming
+== Wave of skeletons incoming
+
 Welcome to Ninslash
 == Welkom bij Ninslash
 
@@ -667,10 +703,28 @@ Yes
 You must restart the game for all settings to take effect.
 == U moet het spel herstarten voordat de veranderingen effect hebben.
 
-no limit
-== ongelimiteerd
+enemies remaining
+== enemies remaining
+
+seconds remaining
+== seconds remaining
 
 ##### needs translation #####
+
+'%s' called for vote to kick you
+== 
+
+Always
+== 
+
+Always show
+== 
+
+Angle:
+== 
+
+AntiPing
+== 
 
 Area Shield
 == 
@@ -705,28 +759,40 @@ Borderless window
 Build menu
 == 
 
+Camera
+== 
+
 Change color of
 == 
 
 Change skin of
 == 
 
-Chat & Misc.
+Chat messages
+== 
+
+Current version: %s  |  Servers: %d
+== 
+
+Current: %dx%d (%d:%d)
 == 
 
 Customize
 == 
 
-Default Zoom
+Deadzone
+== 
+
+Desktop notifications
+== 
+
+Disable whisper
 == 
 
 Drop weapon
 == 
 
 Dynamic lighting
-== 
-
-Editor
 == 
 
 Electric grenade
@@ -744,7 +810,22 @@ Energy shield
 Environmental sounds
 == 
 
+Everyone
+== 
+
 Eyes
+== 
+
+FPS counter
+== 
+
+FPS:
+== 
+
+Failed to start video render. Is FFmpeg installed?
+== 
+
+File name:
 == 
 
 Flamer
@@ -756,7 +837,22 @@ Flip attack & hook
 Flip move & aim axis
 == 
 
+Follow factor
+== 
+
+Friend marks
+== 
+
+Friends only
+== 
+
+Go
+== 
+
 Green
+== 
+
+HUD
 == 
 
 Hair / hat
@@ -777,13 +873,19 @@ Head
 Heads
 == 
 
+Health + Ammo
+== 
+
+Hide player's score
+== 
+
+ID
+== 
+
 Inventory
 == 
 
 Inventory roll
-== 
-
-Inventory roll(All)
 == 
 
 Invisibility device
@@ -799,6 +901,15 @@ Item slot 3
 == 
 
 Item slot 4
+== 
+
+Join
+== 
+
+Jump:
+== 
+
+Kill messages
 == 
 
 Main menu
@@ -819,19 +930,79 @@ Mask of regeneration
 Mask of speed
 == 
 
-Movement & Weapons
+Max distance
+== 
+
+Menu opacity
+== 
+
+Misc
 == 
 
 Multi framebuffering (requires restart)
 == 
 
+Nameplates
+== 
+
+No one
+== 
+
+Off
+== 
+
+On
+== 
+
+Only team chat
+== 
+
+Other
+== 
+
+Own name plate
+== 
+
+Player angle
+== 
+
+Player position
+== 
+
+Player speed
+== 
+
+Please enter a filename for the sliced demo:
+== 
+
+Position:
+== 
+
 Power barrel
+== 
+
+Ready
+== 
+
+Recommended
 == 
 
 Red
 == 
 
+Render
+== 
+
+Render video
+== 
+
 Repair tool
+== 
+
+Requires FFmpeg in PATH. Output is saved under videos/.
+== 
+
+Resolution
 == 
 
 Respawn device
@@ -840,19 +1011,73 @@ Respawn device
 Server is changing map
 == 
 
+Set End
+== 
+
 Shield generator
+== 
+
+Show IDs
+== 
+
+Show clan
+== 
+
+Show social data
+== 
+
+Show user IDs
+== 
+
+Size
 == 
 
 Skin
 == 
 
+Slice
+== 
+
+Slice demo
+== 
+
+Slice...
+== 
+
 Slide / down
+== 
+
+Smoothness
+== 
+
+Spectate smooth
+== 
+
+Spectator count
+== 
+
+Speed:
+== 
+
+Stabilizing
+== 
+
+Start
+== 
+
+Streamer mode
 == 
 
 Supply grenade
 == 
 
 Survival mode
+== 
+
+System messages
+== 
+
+Team colors
 == 
 
 Teslacoil
@@ -873,13 +1098,22 @@ Threaded rendering
 Threaded sound loading
 == 
 
+Timer
+== 
+
 Turret stand
 == 
 
-Vote ends in %d...
+Use +/- keys to zoom (rebindable in Controls)
 == 
 
-Waiting for server...
+Video render cancelled.
+== 
+
+Video render complete. Saved under videos/.
+== 
+
+Vote ends in %d...
 == 
 
 Weapon upgrade
@@ -888,24 +1122,31 @@ Weapon upgrade
 Weapons & Items
 == 
 
-Zombie claw
+When ready, press <%s>
 == 
 
-Zoom In
+Whisper
 == 
 
-Zoom Out
-== 
-
-xbox 360 controller support
-== 
-
-##### old translations #####
-
-'%s' called for vote to kick you
+Wide menu
 == 
 
 You must wait %d seconds before making another vote
+== 
+
+Zombie claw
+== 
+
+Zoom
+== 
+
+Zoom in
+== 
+
+Zoom out
+== 
+
+Zoom with + / - keys
 == 
 
 blue
@@ -914,8 +1155,85 @@ blue
 red
 == 
 
-Connection Problems...
-== Verbindingsproblemen...
+xbox 360 controller support
+== 
+
+##### old translations #####
+
+Always show name plates
+== Altijd naamplaten laten zien
+
+Automatically record demos
+== Automatisch demo's opnemen
+
+Automatically take game over screenshot
+== Automatisch schermafbeeldingen nemen
+
+Client
+== Client
+
+Current
+== Huidig
+
+Current version: %s
+== Huidige versie: %s
+
+Display Modes
+== Laat modes zien
+
+Max Screenshots
+== Maximaal aantal schermafbeeldingen
+
+Max demos
+== Maximaal aantal demo's
+
+Name plates size
+== Grootte naamplaat
+
+News
+== Nieuws
+
+Record demo
+== Neem demo op
+
+Show only chat messages from friends
+== Laat alleen chatberichten van vrienden zien
+
+Show only supported
+== Laat alleen compatibele servers zien
+
+Stop record
+== Stop met opnemen
+
+Use team colors for name plates
+== Gebruik teamkleuren voor naamplaten
+
+no limit
+== ongelimiteerd
+
+Chat & Misc.
+== 
+
+Default Zoom
+== 
+
+Editor
+== 
+
+Inventory roll(All)
+== 
+
+Movement & Weapons
+== 
+
+Waiting for server...
+== 
+
+Zoom In
+== 
+
+Zoom Out
+== 
 
 Custom colors
 == Aangepaste kleuren
@@ -925,4 +1243,7 @@ Weapon
 
 Your skin
 == Jouw skin
+
+Wave cleared
+== Wave cleared
 

@@ -3,6 +3,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_SCOREBOARD_H
 #define GAME_CLIENT_COMPONENTS_SCOREBOARD_H
 #include <game/client/component.h>
+#include <game/client/ui.h>
 
 class CScoreboard : public CComponent
 {
@@ -16,6 +17,7 @@ class CScoreboard : public CComponent
 	const char *GetClanName(int Team);
 
 	bool m_Active;
+	CUIRect m_TotalRect;
 
 public:
 	CScoreboard();
@@ -25,6 +27,7 @@ public:
 	virtual void OnRelease();
 
 	bool Active();
+	const CUIRect &GetScoreboardRect() const { return m_TotalRect; }
 };
 
 #endif

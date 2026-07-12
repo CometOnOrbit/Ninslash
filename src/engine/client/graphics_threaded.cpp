@@ -19,27 +19,18 @@
 //#include "glshader.hpp"
 
 static CVideoMode g_aFakeModes[] = {
-	{320,240,8,8,8}, {400,300,8,8,8}, {640,480,8,8,8},
+	{320,200,8,8,8}, {320,240,8,8,8}, {400,300,8,8,8},
+	{512,384,8,8,8}, {640,400,8,8,8}, {640,480,8,8,8},
 	{720,400,8,8,8}, {768,576,8,8,8}, {800,600,8,8,8},
 	{1024,600,8,8,8}, {1024,768,8,8,8}, {1152,864,8,8,8},
-	{1280,768,8,8,8}, {1280,800,8,8,8}, {1280,960,8,8,8},
-	{1280,1024,8,8,8}, {1368,768,8,8,8}, {1400,1050,8,8,8},
-	{1440,900,8,8,8}, {1440,1050,8,8,8}, {1600,1000,8,8,8},
-	{1600,1200,8,8,8}, {1680,1050,8,8,8}, {1792,1344,8,8,8},
-	{1800,1440,8,8,8}, {1856,1392,8,8,8}, {1920,1080,8,8,8},
-	{1920,1200,8,8,8}, {1920,1440,8,8,8}, {1920,2400,8,8,8},
-	{2048,1536,8,8,8},
-
-	{320,240,5,6,5}, {400,300,5,6,5}, {640,480,5,6,5},
-	{720,400,5,6,5}, {768,576,5,6,5}, {800,600,5,6,5},
-	{1024,600,5,6,5}, {1024,768,5,6,5}, {1152,864,5,6,5},
-	{1280,768,5,6,5}, {1280,800,5,6,5}, {1280,960,5,6,5},
-	{1280,1024,5,6,5}, {1368,768,5,6,5}, {1400,1050,5,6,5},
-	{1440,900,5,6,5}, {1440,1050,5,6,5}, {1600,1000,5,6,5},
-	{1600,1200,5,6,5}, {1680,1050,5,6,5}, {1792,1344,5,6,5},
-	{1800,1440,5,6,5}, {1856,1392,5,6,5}, {1920,1080,5,6,5},
-	{1920,1200,5,6,5}, {1920,1440,5,6,5}, {1920,2400,5,6,5},
-	{2048,1536,5,6,5}
+	{1280,600,8,8,8}, {1280,720,8,8,8}, {1280,768,8,8,8},
+	{1280,800,8,8,8}, {1280,960,8,8,8}, {1280,1024,8,8,8},
+	{1360,768,8,8,8}, {1366,768,8,8,8}, {1368,768,8,8,8},
+	{1400,1050,8,8,8}, {1440,900,8,8,8}, {1440,1050,8,8,8},
+	{1600,900,8,8,8}, {1600,1000,8,8,8}, {1600,1200,8,8,8},
+	{1680,1050,8,8,8}, {1792,1344,8,8,8}, {1800,1440,8,8,8},
+	{1856,1392,8,8,8}, {1920,1080,8,8,8}, {1920,1200,8,8,8},
+	{1920,1440,8,8,8}, {1920,2400,8,8,8}, {2048,1536,8,8,8}
 };
 
 void CGraphics_Threaded::FlushVertices()
@@ -151,6 +142,8 @@ CGraphics_Threaded::CGraphics_Threaded()
 
 	m_ScreenWidth = -1;
 	m_ScreenHeight = -1;
+	m_DesktopScreenWidth = 0;
+	m_DesktopScreenHeight = 0;
 
 	m_Rotation = 0;
 	m_Drawing = 0;
@@ -566,40 +559,46 @@ void CGraphics_Threaded::KickCommandBuffer()
 	m_pCommandBuffer->Reset();
 }
 
-void CGraphics_Threaded::ScreenshotDirect(const char *pFilename)
+bool CGraphics_Threaded::CaptureFrame(CImageInfo *pImage)
 {
-	// add swap command
-	CImageInfo Image;
-	mem_zero(&Image, sizeof(Image));
+	if(!pImage)
+		return false;
+
+	mem_zero(pImage, sizeof(*pImage));
 
 	CCommandBuffer::SCommand_Screenshot Cmd;
-	Cmd.m_pImage = &Image;
+	Cmd.m_pImage = pImage;
 	m_pCommandBuffer->AddCommand(Cmd);
 
-	// kick the buffer and wait for the result
 	KickCommandBuffer();
 	WaitForIdle();
 
-	if(Image.m_pData)
-	{
-		// find filename
-		char aWholePath[1024];
-		png_t Png; // ignore_convention
+	return pImage->m_pData != 0;
+}
 
-		IOHANDLE File = m_pStorage->OpenFile(pFilename, IOFLAG_WRITE, IStorage::TYPE_SAVE, aWholePath, sizeof(aWholePath));
-		if(File)
-			io_close(File);
+void CGraphics_Threaded::ScreenshotDirect(const char *pFilename)
+{
+	CImageInfo Image;
+	if(!CaptureFrame(&Image))
+		return;
 
-		// save png
-		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "saved screenshot to '%s'", aWholePath);
-		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", aBuf);
-		png_open_file_write(&Png, aWholePath); // ignore_convention
-		png_set_data(&Png, Image.m_Width, Image.m_Height, 8, PNG_TRUECOLOR, (unsigned char *)Image.m_pData); // ignore_convention
-		png_close_file(&Png); // ignore_convention
+	// find filename
+	char aWholePath[1024];
+	png_t Png; // ignore_convention
 
-		mem_free(Image.m_pData);
-	}
+	IOHANDLE File = m_pStorage->OpenFile(pFilename, IOFLAG_WRITE, IStorage::TYPE_SAVE, aWholePath, sizeof(aWholePath));
+	if(File)
+		io_close(File);
+
+	// save png
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "saved screenshot to '%s'", aWholePath);
+	m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", aBuf);
+	png_open_file_write(&Png, aWholePath); // ignore_convention
+	png_set_data(&Png, Image.m_Width, Image.m_Height, 8, PNG_TRUECOLOR, (unsigned char *)Image.m_pData); // ignore_convention
+	png_close_file(&Png); // ignore_convention
+
+	mem_free(Image.m_pData);
 }
 
 void CGraphics_Threaded::TextureSet(int TextureID, int BufferTexture)
@@ -1064,10 +1063,6 @@ int CGraphics_Threaded::GetVideoModes(CVideoMode *pModes, int MaxModes, int Scre
 		return Count;
 	}
 
-	// add videomodes command
-	CImageInfo Image;
-	mem_zero(&Image, sizeof(Image));
-
 	int NumModes = 0;
 	CCommandBuffer::SCommand_VideoModes Cmd;
 	Cmd.m_pModes = pModes;
@@ -1079,6 +1074,35 @@ int CGraphics_Threaded::GetVideoModes(CVideoMode *pModes, int MaxModes, int Scre
 	// kick the buffer and wait for the result and return it
 	KickCommandBuffer();
 	WaitForIdle();
+
+	// Some drivers (and secondary displays) only report the native mode.
+	// Merge common windowed sizes that fit the desktop so the list stays usable.
+	const int DeskW = DesktopWidth();
+	const int DeskH = DesktopHeight();
+	const int FakeCount = (int)(sizeof(g_aFakeModes) / sizeof(g_aFakeModes[0]));
+	for(int i = 0; i < FakeCount && NumModes < MaxModes; i++)
+	{
+		if(DeskW > 0 && DeskH > 0 &&
+			(g_aFakeModes[i].m_Width > DeskW || g_aFakeModes[i].m_Height > DeskH))
+			continue;
+
+		bool Found = false;
+		for(int j = 0; j < NumModes; j++)
+		{
+			if(pModes[j].m_Width == g_aFakeModes[i].m_Width &&
+				pModes[j].m_Height == g_aFakeModes[i].m_Height)
+			{
+				Found = true;
+				break;
+			}
+		}
+		if(Found)
+			continue;
+
+		pModes[NumModes] = g_aFakeModes[i];
+		NumModes++;
+	}
+
 	return NumModes;
 }
 

@@ -1884,16 +1884,25 @@ const char *str_utf8_skip_whitespaces(const char *str)
 		str_old = str;
 		code = str_utf8_decode(&str);
 
-		// check if unicode is not empty
-		if(code > 0x20 && code != 0xA0 && code != 0x034F && (code < 0x2000 || code > 0x200F) && (code < 0x2028 || code > 0x202F) &&
-			(code < 0x205F || code > 0x2064) && (code < 0x206A || code > 0x206F) && (code < 0xFE00 || code > 0xFE0F) &&
-			code != 0xFEFF && (code < 0xFFF9 || code > 0xFFFC))
+		if(!str_utf8_is_whitespace(code))
 		{
 			return str_old;
 		}
 	}
 
 	return str;
+}
+
+int str_utf8_is_whitespace(int code)
+{
+	/* check if unicode is not empty */
+	if(code > 0x20 && code != 0xA0 && code != 0x034F && (code < 0x2000 || code > 0x200F) && (code < 0x2028 || code > 0x202F) &&
+		(code < 0x205F || code > 0x2064) && (code < 0x206A || code > 0x206F) && code != 0x3000 && (code < 0xFE00 || code > 0xFE0F) &&
+		code != 0xFEFF && (code < 0xFFF9 || code > 0xFFFC))
+	{
+		return 0;
+	}
+	return 1;
 }
 
 static int str_utf8_isstart(char c)
@@ -2044,6 +2053,20 @@ int str_utf8_check(const char *str)
 			return 0;
 	}
 	return 1;
+}
+
+void str_utf8_stats(const char *str, int max_size, int max_count, int *size, int *count)
+{
+	*size = 0;
+	*count = 0;
+	while(*size < max_size && *count < max_count)
+	{
+		int new_size = str_utf8_forward(str, *size);
+		if(new_size == *size || new_size >= max_size)
+			break;
+		*size = new_size;
+		++(*count);
+	}
 }
 
 

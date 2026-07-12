@@ -565,7 +565,6 @@ void CPlayer::TryRespawn()
 {
 	vec2 SpawnPos = vec2(m_LatestX/32, 0);
 
-	// todo remove
 	if(!GameServer()->m_pController->CanCharacterSpawn(GetCID()))
 		return;
 

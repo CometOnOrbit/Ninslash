@@ -51,7 +51,7 @@ int CGameWorld::FindEntities(vec2 Pos, float Radius, CEntity **ppEnts, int Max, 
 	if(Type < 0 || Type >= NUM_ENTTYPES)
 		return 0;
 
-	// todo: scalable
+	// linear scan per entity type; entity counts are small enough for this to be fine
 	vec2 OPos = Pos;
 	
 	int Num = 0;
@@ -411,7 +411,7 @@ bool CGameWorld::GetDroidPosChange(int ID)
 
 
 
-// TODO: should be more general
+// line-segment vs. character hit test (body + head)
 CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2& NewPos, CEntity *pNotThis, bool IgnoreDeathrayed)
 {
 	// Find other players

@@ -752,6 +752,46 @@ void CDemoPlayer::SetSpeed(float Speed)
 	m_Info.m_Info.m_Speed = Speed;
 }
 
+int CDemoPlayer::Advance(int64 TimeStep)
+{
+	int64 Freq = time_freq();
+	m_Info.m_CurrentTime += (int64)(TimeStep*(double)m_Info.m_Info.m_Speed);
+
+	while(1)
+	{
+		int64 CurtickStart = (m_Info.m_Info.m_CurrentTick)*Freq/SERVER_TICK_SPEED;
+
+		// break if we are ready
+		if(CurtickStart > m_Info.m_CurrentTime)
+			break;
+
+		// do one more tick
+		DoTick();
+
+		if(m_Info.m_Info.m_Paused)
+			return 0;
+	}
+
+	// update intratick
+	{
+		int64 CurtickStart = (m_Info.m_Info.m_CurrentTick)*Freq/SERVER_TICK_SPEED;
+		int64 PrevtickStart = (m_Info.m_PreviousTick)*Freq/SERVER_TICK_SPEED;
+		m_Info.m_IntraTick = (m_Info.m_CurrentTime - PrevtickStart) / (float)(CurtickStart-PrevtickStart);
+		m_Info.m_TickTime = (m_Info.m_CurrentTime - PrevtickStart) / (float)Freq;
+	}
+
+	if(m_Info.m_Info.m_CurrentTick == m_Info.m_PreviousTick ||
+		m_Info.m_Info.m_CurrentTick == m_Info.m_NextTick)
+	{
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "tick error prev=%d cur=%d next=%d",
+			m_Info.m_PreviousTick, m_Info.m_Info.m_CurrentTick, m_Info.m_NextTick);
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "demo_player", aBuf);
+	}
+
+	return 0;
+}
+
 int CDemoPlayer::Update()
 {
 	int64 Now = time_get();
@@ -762,48 +802,22 @@ int CDemoPlayer::Update()
 		return 0;
 
 	if(m_Info.m_Info.m_Paused)
-	{
+		return 0;
 
-	}
-	else
-	{
-		int64 Freq = time_freq();
-		m_Info.m_CurrentTime += (int64)(Deltatime*(double)m_Info.m_Info.m_Speed);
+	return Advance(Deltatime);
+}
 
-		while(1)
-		{
-			int64 CurtickStart = (m_Info.m_Info.m_CurrentTick)*Freq/SERVER_TICK_SPEED;
+int CDemoPlayer::UpdateTime(int64 TimeStep)
+{
+	m_Info.m_LastUpdate = time_get();
 
-			// break if we are ready
-			if(CurtickStart > m_Info.m_CurrentTime)
-				break;
+	if(!IsPlaying())
+		return 0;
 
-			// do one more tick
-			DoTick();
+	if(m_Info.m_Info.m_Paused)
+		return 0;
 
-			if(m_Info.m_Info.m_Paused)
-				return 0;
-		}
-
-		// update intratick
-		{
-			int64 CurtickStart = (m_Info.m_Info.m_CurrentTick)*Freq/SERVER_TICK_SPEED;
-			int64 PrevtickStart = (m_Info.m_PreviousTick)*Freq/SERVER_TICK_SPEED;
-			m_Info.m_IntraTick = (m_Info.m_CurrentTime - PrevtickStart) / (float)(CurtickStart-PrevtickStart);
-			m_Info.m_TickTime = (m_Info.m_CurrentTime - PrevtickStart) / (float)Freq;
-		}
-
-		if(m_Info.m_Info.m_CurrentTick == m_Info.m_PreviousTick ||
-			m_Info.m_Info.m_CurrentTick == m_Info.m_NextTick)
-		{
-			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "tick error prev=%d cur=%d next=%d",
-				m_Info.m_PreviousTick, m_Info.m_Info.m_CurrentTick, m_Info.m_NextTick);
-			m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "demo_player", aBuf);
-		}
-	}
-
-	return 0;
+	return Advance(TimeStep);
 }
 
 int CDemoPlayer::Stop()

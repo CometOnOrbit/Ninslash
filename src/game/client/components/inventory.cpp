@@ -1925,7 +1925,7 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 
 void CInventory::OnRender()
 {
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 
 	CustomStuff()->m_Inventory = false;

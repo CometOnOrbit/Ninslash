@@ -1,6 +1,6 @@
 
 
-#include <algorithm> // sort  TODO: remove this
+#include <algorithm>
 
 #include <base/math.h>
 #include <base/system.h>

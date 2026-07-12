@@ -529,6 +529,7 @@ public:
 		m_aFileName[0] = 0;
 		m_aFileSaveName[0] = 0;
 		m_ValidSaveFilename = false;
+		m_LastAutosaveTime = 0;
 
 		m_PopupEventActivated = false;
 		m_PopupEventWasActivated = false;
@@ -637,6 +638,7 @@ public:
 	char m_aFileName[512];
 	char m_aFileSaveName[512];
 	bool m_ValidSaveFilename;
+	int64 m_LastAutosaveTime;
 
 	enum
 	{

@@ -1688,8 +1688,9 @@ void CPlayers::OnRender()
 			const void *pPrevInfo = Client()->SnapFindItem(IClient::SNAP_PREV, NETOBJTYPE_PLAYERINFO, i);
 			const void *pInfo = Client()->SnapFindItem(IClient::SNAP_CURRENT, NETOBJTYPE_PLAYERINFO, i);
 
-			if(pPrevInfo && pInfo)
+			if(pInfo)
 			{
+				const CNetObj_PlayerInfo *pPrevPlayerInfo = pPrevInfo ? (const CNetObj_PlayerInfo *)pPrevInfo : (const CNetObj_PlayerInfo *)pInfo;
 				//
 				bool Local = ((const CNetObj_PlayerInfo *)pInfo)->m_Local !=0;
 				if((p % 2) == 0 && Local) continue;
@@ -1704,14 +1705,14 @@ void CPlayers::OnRender()
 					RenderHook(
 							&PrevChar,
 							&CurChar,
-							(const CNetObj_PlayerInfo *)pPrevInfo,
+							pPrevPlayerInfo,
 							(const CNetObj_PlayerInfo *)pInfo
 						);
 				else
 					RenderPlayer(
 							&PrevChar,
 							&CurChar,
-							(const CNetObj_PlayerInfo *)pPrevInfo,
+							pPrevPlayerInfo,
 							(const CNetObj_PlayerInfo *)pInfo
 						);
 			}

@@ -84,7 +84,7 @@ void CCBelt::OnRender()
 	for (int i = 0; i < m_Count; i++)
 		RenderCBelt(i);
 	
-	if(Client()->State() < IClient::STATE_ONLINE)
+	if(!Client()->IsGameWorldActive())
 		return;
 
 	static int64 LastTime = 0;

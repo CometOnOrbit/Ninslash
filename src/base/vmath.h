@@ -37,7 +37,7 @@ public:
 	const vector2_base &operator /=(const T v) { x /= v; y /= v; return *this;	}
 	const vector2_base &operator /=(const vector2_base &v) { x /= v.x; y /= v.y; return *this; }
 
-	bool operator ==(const vector2_base &v) const { return x == v.x && y == v.y; } //TODO: do this with an eps instead
+	bool operator ==(const vector2_base &v) const { return fabs(x - v.x) <= 1e-6f && fabs(y - v.y) <= 1e-6f; }
 
 	operator const T* () { return &x; }
 };
@@ -129,7 +129,7 @@ public:
 	const vector3_base &operator /=(const T v) { x /= v; y /= v; z /= v; return *this;	}
 	const vector3_base &operator /=(const vector3_base &v) { x /= v.x; y /= v.y; z /= v.z; return *this; }
 
-	bool operator ==(const vector3_base &v) const { return x == v.x && y == v.y && z == v.z; } //TODO: do this with an eps instead
+	bool operator ==(const vector3_base &v) const { return fabs(x - v.x) <= 1e-6f && fabs(y - v.y) <= 1e-6f && fabs(z - v.z) <= 1e-6f; }
 
 	operator const T* () { return &x; }
 };
@@ -207,7 +207,7 @@ public:
 	const vector4_base &operator /=(const T v) { x /= v; y /= v; z /= v; w /= v; return *this;	}
 	const vector4_base &operator /=(const vector4_base &v) { x /= v.x; y /= v.y; z /= v.z; w /= v.w; return *this; }
 
-	bool operator ==(const vector4_base &v) const { return x == v.x && y == v.y && z == v.z && w == v.w; } //TODO: do this with an eps instead
+	bool operator ==(const vector4_base &v) const { return fabs(x - v.x) <= 1e-6f && fabs(y - v.y) <= 1e-6f && fabs(z - v.z) <= 1e-6f && fabs(w - v.w) <= 1e-6f; }
 
 	operator const T* () { return &x; }
 };

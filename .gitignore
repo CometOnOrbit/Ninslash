@@ -32,7 +32,7 @@ build.bat
 notepad.workspace
 
 /.vscode
-/build
+/build*
 ./temp
 bam.exe
 

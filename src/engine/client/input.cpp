@@ -17,13 +17,16 @@
 #include "keynames.h"
 #undef KEYS_INCLUDE
 
-void CInput::AddEvent(int Unicode, int Key, int Flags)
+void CInput::AddEvent(const char *pText, int Key, int Flags)
 {
 	if(m_NumEvents != INPUT_BUFFER_SIZE)
 	{
-		m_aInputEvents[m_NumEvents].m_Unicode = Unicode;
 		m_aInputEvents[m_NumEvents].m_Key = Key;
 		m_aInputEvents[m_NumEvents].m_Flags = Flags;
+		if(!pText)
+			m_aInputEvents[m_NumEvents].m_aText[0] = 0;
+		else
+			str_copy(m_aInputEvents[m_NumEvents].m_aText, pText, sizeof(m_aInputEvents[m_NumEvents].m_aText));
 		m_NumEvents++;
 	}
 }
@@ -67,15 +70,47 @@ CInput::CInput()
 	m_NumEvents = 0;
 
 	m_pClipboardText = 0;
+
+	m_CompositionLength = COMP_LENGTH_INACTIVE;
+	m_CompositionCursor = 0;
+	m_CompositionSelectedLength = 0;
+	m_CandidateCount = 0;
+	m_CandidateSelectedIndex = -1;
+	m_aComposition[0] = 0;
 }
 
 void CInput::Init()
 {
 	m_pGraphics = Kernel()->RequestInterface<IEngineGraphics>();
 	m_pGamepad = Kernel()->RequestInterface<IEngineGamepad>();
-	SDL_StartTextInput((SDL_Window *) m_pGraphics->GetWindowHandle());
+	StopTextInput();
 	ShowCursor(true);
-	//m_pGraphics->GrabWindow(true);
+}
+
+void CInput::StartTextInput()
+{
+	SDL_StartTextInput(Window());
+}
+
+void CInput::StopTextInput()
+{
+	SDL_StopTextInput(Window());
+	m_CompositionLength = COMP_LENGTH_INACTIVE;
+	m_CompositionCursor = 0;
+	m_aComposition[0] = 0;
+	m_CompositionSelectedLength = 0;
+	m_CandidateCount = 0;
+	m_CandidateSelectedIndex = -1;
+}
+
+void CInput::SetCompositionWindowPosition(float X, float Y, float H)
+{
+	SDL_Rect Rect;
+	Rect.x = (int)X;
+	Rect.y = (int)(Y - H);
+	Rect.w = 0;
+	Rect.h = (int)H;
+	SDL_SetTextInputArea(Window(), &Rect, 0);
 }
 
 void CInput::LoadHardwareCursor()
@@ -317,16 +352,51 @@ int CInput::Update()
 			
 			switch (Event.type)
 			{
-				case SDL_EVENT_TEXT_INPUT:
+				case SDL_EVENT_TEXT_EDITING:
 				{
-					int TextLength, i;
-					TextLength = strlen(Event.text.text);
-					for(i = 0; i < TextLength; i++)
+					m_CompositionLength = str_length(Event.edit.text);
+					if(m_CompositionLength)
 					{
-						AddEvent(Event.text.text[i], 0, 0);
+						str_copy(m_aComposition, Event.edit.text, sizeof(m_aComposition));
+						m_CompositionCursor = 0;
+						for(int i = 0; i < Event.edit.start; i++)
+							m_CompositionCursor = str_utf8_forward(m_aComposition, m_CompositionCursor);
+						int CompositionEnd = m_CompositionCursor;
+						for(int i = 0; i < Event.edit.length; i++)
+							CompositionEnd = str_utf8_forward(m_aComposition, CompositionEnd);
+						m_CompositionSelectedLength = CompositionEnd - m_CompositionCursor;
+						AddEvent(0, 0, IInput::FLAG_TEXT);
+					}
+					else
+					{
+						m_aComposition[0] = '\0';
+						m_CompositionLength = 0;
+						m_CompositionCursor = 0;
+						m_CompositionSelectedLength = 0;
 					}
 					break;
 				}
+				case SDL_EVENT_TEXT_EDITING_CANDIDATES:
+				{
+					m_CandidateCount = 0;
+					m_CandidateSelectedIndex = Event.edit_candidates.selected_candidate;
+					const int Count = min(Event.edit_candidates.num_candidates, (Sint32)MAX_CANDIDATES);
+					for(int i = 0; i < Count; i++)
+					{
+						if(!Event.edit_candidates.candidates || !Event.edit_candidates.candidates[i])
+							continue;
+						str_copy(m_aaCandidates[m_CandidateCount], Event.edit_candidates.candidates[i], sizeof(m_aaCandidates[m_CandidateCount]));
+						m_CandidateCount++;
+					}
+					break;
+				}
+				case SDL_EVENT_TEXT_INPUT:
+					m_aComposition[0] = 0;
+					m_CompositionLength = COMP_LENGTH_INACTIVE;
+					m_CompositionCursor = 0;
+					m_CompositionSelectedLength = 0;
+					AddEvent(Event.text.text, 0, IInput::FLAG_TEXT);
+					break;
 				// handle keys
 				case SDL_EVENT_KEY_DOWN:
 					Key = SDL_GetScancodeFromName(SDL_GetKeyName(Event.key.key));
@@ -448,9 +518,15 @@ int CInput::Update()
 
 				case SDL_EVENT_MOUSE_WHEEL:
 					if(Event.wheel.y > 0) Key = KEY_MOUSE_WHEEL_UP; // ignore_convention
-					if(Event.wheel.y < 0) Key = KEY_MOUSE_WHEEL_DOWN; // ignore_convention
-					AddEvent(0, Key, Action);
-					Action = IInput::FLAG_RELEASE;
+					else if(Event.wheel.y < 0) Key = KEY_MOUSE_WHEEL_DOWN; // ignore_convention
+					if(Key != -1 && !HasComposition())
+					{
+						// Emit PRESS now; common path below increments Presses and emits RELEASE.
+						AddEvent(0, Key, Action);
+						Action = IInput::FLAG_RELEASE;
+					}
+					else
+						Key = -1;
 					break;
 
 				case SDL_EVENT_WINDOW_MOUSE_ENTER:
@@ -465,7 +541,7 @@ int CInput::Update()
 			}
 
 			//
-			if(Key != -1)
+			if(Key != -1 && !HasComposition())
 			{
 				m_aInputCount[m_InputCurrent][Key].m_Presses++;
 				if(Action == IInput::FLAG_PRESS)
@@ -568,6 +644,9 @@ int CInput::Update()
 			}
 		}
 	}
+
+	if(m_CompositionLength == 0)
+		m_CompositionLength = COMP_LENGTH_INACTIVE;
 
 	return 0;
 }

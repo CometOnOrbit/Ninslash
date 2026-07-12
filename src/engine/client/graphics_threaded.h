@@ -489,6 +489,7 @@ public:
 	virtual int LoadPNG(CImageInfo *pImg, const char *pFilename, int StorageType);
 
 	void ScreenshotDirect(const char *pFilename);
+	virtual bool CaptureFrame(CImageInfo *pImage);
 
 	virtual void TextureSet(int TextureID, int BufferTexture = -1);
 	

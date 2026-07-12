@@ -41,8 +41,18 @@ vec4 CMenus::ms_ColorTabbarActive = vec4(0,0,0,0.5f);
 vec4 CMenus::ms_ColorTabbarInactiveIngame;
 vec4 CMenus::ms_ColorTabbarActiveIngame;
 
+vec4 CMenus::ms_ColorBgDeep = vec4(0.07f, 0.08f, 0.1f, 0.96f);
+vec4 CMenus::ms_ColorBgPanel = vec4(0.12f, 0.13f, 0.16f, 0.96f);
+vec4 CMenus::ms_ColorBgInset = vec4(0.06f, 0.07f, 0.09f, 0.92f);
+vec4 CMenus::ms_ColorAccent = vec4(0.2f, 0.95f, 0.78f, 1.0f);
+vec4 CMenus::ms_ColorAccentDim = vec4(0.12f, 0.55f, 0.45f, 1.0f);
+vec4 CMenus::ms_ColorDanger = vec4(0.92f, 0.28f, 0.32f, 1.0f);
+vec4 CMenus::ms_ColorText = vec4(0.95f, 0.96f, 0.97f, 1.0f);
+float CMenus::ms_PanelRounding = 4.0f;
+float CMenus::ms_ControlRounding = 3.0f;
+
 float CMenus::ms_ButtonHeight = 25.0f;
-float CMenus::ms_ListheaderHeight = 17.0f;
+float CMenus::ms_ListheaderHeight = 14.0f;
 float CMenus::ms_FontmodHeight = 0.8f;
 
 IInput::CEvent CMenus::m_aInputEvents[MAX_INPUTEVENTS];
@@ -72,19 +82,197 @@ CMenus::CMenus()
 	m_LastInput = time_get();
 
 	str_copy(m_aCurrentDemoFolder, "demos", sizeof(m_aCurrentDemoFolder));
+	m_aDemoRenderSource[0] = 0;
+	m_aVideoOutputName[0] = 0;
+	m_DemoRenderStorageType = IStorage::TYPE_ALL;
 	m_aCallvoteReason[0] = 0;
 
 	m_FriendlistSelectedIndex = -1;
 	m_LastUpdate = 0;
+
+	m_DemoSliceState = 0;
+	m_DemoSliceStartTick = 0;
+	m_DemoSliceEndTick = 0;
+
+	m_pUiClipScrollRegion = 0;
+
+	m_ActiveFilterPreset = UI_FILTER_PRESET_ALL;
+	m_FilterPresetRenameSlot = -1;
+	m_aFilterPresetRenameBuf[0] = 0;
+	mem_zero(m_aFilterPresets, sizeof(m_aFilterPresets));
+	str_copy(m_aFilterPresets[UI_FILTER_PRESET_ALL].m_aName, "All", sizeof(m_aFilterPresets[UI_FILTER_PRESET_ALL].m_aName));
+	str_copy(m_aFilterPresets[UI_FILTER_PRESET_FAVORITES].m_aName, "Favorites", sizeof(m_aFilterPresets[UI_FILTER_PRESET_FAVORITES].m_aName));
+}
+
+float CMenus::MenuAlpha() const
+{
+	return g_Config.m_ClMenuAlpha / 100.0f;
+}
+
+void CMenus::DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding)
+{
+	RenderTools()->DrawUIRect(pRect, Border, Corners, Rounding);
+	CUIRect Inner = *pRect;
+	Inner.Margin(1.0f, &Inner);
+	RenderTools()->DrawUIRect(&Inner, Fill, Corners, max(0.0f, Rounding - 1.0f));
+}
+
+void CMenus::DrawMenuPanel(const CUIRect *pRect, int Corners)
+{
+	vec4 Fill = ms_ColorBgPanel;
+	Fill.a = max(Fill.a * MenuAlpha(), 0.82f);
+	vec4 Border = vec4(0.34f, 0.38f, 0.42f, max(0.75f, 0.9f * MenuAlpha()));
+	DrawMenuBorder(pRect, Fill, Border, Corners, ms_PanelRounding);
+}
+
+void CMenus::DrawMenuInset(const CUIRect *pRect, int Corners)
+{
+	vec4 Fill = ms_ColorBgInset;
+	Fill.a = max(Fill.a * MenuAlpha(), 0.78f);
+	vec4 Border = vec4(0.28f, 0.32f, 0.36f, max(0.65f, 0.8f * MenuAlpha()));
+	DrawMenuBorder(pRect, Fill, Border, Corners, ms_ControlRounding);
+}
+
+void CMenus::DrawSectionHeader(const CUIRect *pRect, int Corners)
+{
+	vec4 Fill = ms_ColorBgDeep;
+	Fill.a = max(0.9f * MenuAlpha(), 0.82f);
+	vec4 Border = vec4(0.32f, 0.36f, 0.4f, max(0.7f, 0.85f * MenuAlpha()));
+	DrawMenuBorder(pRect, Fill, Border, Corners, ms_ControlRounding);
+	DrawAccentUnderline(pRect);
+}
+
+void CMenus::DrawAccentUnderline(const CUIRect *pRect)
+{
+	CUIRect Line = *pRect;
+	Line.HSplitBottom(2.0f, 0, &Line);
+	RenderTools()->DrawUIRect(&Line, ms_ColorAccent, 0, 0.0f);
+}
+
+void CMenus::LayoutCenterPanel(CUIRect *pScreen, CUIRect *pOut)
+{
+	const float MaxW = g_Config.m_UiWideview ? 900.0f : 780.0f;
+	*pOut = *pScreen;
+	if(pOut->w > MaxW)
+	{
+		const float Side = (pOut->w - MaxW) * 0.5f;
+		pOut->VMargin(Side, pOut);
+	}
+}
+
+vec4 CMenus::MixColor(const vec4 &A, const vec4 &B, float t)
+{
+	t = clamp(t, 0.0f, 1.0f);
+	return vec4(
+		A.r + (B.r - A.r) * t,
+		A.g + (B.g - A.g) * t,
+		A.b + (B.b - A.b) * t,
+		A.a + (B.a - A.a) * t);
+}
+
+namespace {
+
+enum { MENU_ANIM_SLOTS = 128 };
+
+struct CMenuAnimSlot
+{
+	const void *m_pID;
+	float m_Hover;
+	float m_Selected;
+	float m_LastTime;
+	float m_FrameDt;
+	float m_FrameStamp;
+};
+
+CMenuAnimSlot s_aMenuAnims[MENU_ANIM_SLOTS];
+bool s_MenuAnimsInit = false;
+
+CMenuAnimSlot *MenuAnimSlot(const void *pID)
+{
+	if(!s_MenuAnimsInit)
+	{
+		mem_zero(s_aMenuAnims, sizeof(s_aMenuAnims));
+		s_MenuAnimsInit = true;
+	}
+
+	int Free = -1;
+	float Oldest = 1e9f;
+	int OldestIdx = 0;
+	for(int i = 0; i < MENU_ANIM_SLOTS; i++)
+	{
+		if(s_aMenuAnims[i].m_pID == pID)
+			return &s_aMenuAnims[i];
+		if(!s_aMenuAnims[i].m_pID && Free < 0)
+			Free = i;
+		if(s_aMenuAnims[i].m_LastTime < Oldest)
+		{
+			Oldest = s_aMenuAnims[i].m_LastTime;
+			OldestIdx = i;
+		}
+	}
+
+	CMenuAnimSlot *pSlot = &s_aMenuAnims[Free >= 0 ? Free : OldestIdx];
+	pSlot->m_pID = pID;
+	pSlot->m_Hover = 0.0f;
+	pSlot->m_Selected = 0.0f;
+	pSlot->m_LastTime = 0.0f;
+	pSlot->m_FrameDt = 0.0f;
+	pSlot->m_FrameStamp = -1.0f;
+	return pSlot;
+}
+
+float SmoothToward(float Current, float Target, float dt, float Speed)
+{
+	const float t = 1.0f - expf(-Speed * dt);
+	return Current + (Target - Current) * t;
+}
+
+float MenuAnimDt(CMenuAnimSlot *pSlot, float Now)
+{
+	if(pSlot->m_FrameStamp == Now)
+		return pSlot->m_FrameDt;
+
+	float dt = pSlot->m_LastTime > 0.0f ? Now - pSlot->m_LastTime : 0.0f;
+	dt = clamp(dt, 0.0f, 0.05f);
+	pSlot->m_LastTime = Now;
+	pSlot->m_FrameStamp = Now;
+	pSlot->m_FrameDt = dt;
+	return dt;
+}
+
+} // namespace
+
+float CMenus::AnimHover(const void *pID, float Speed)
+{
+	CMenuAnimSlot *pSlot = MenuAnimSlot(pID);
+	const float Now = Client()->LocalTime();
+	const float dt = MenuAnimDt(pSlot, Now);
+
+	const float Target = (UI()->HotItem() == pID || UI()->ActiveItem() == pID) ? 1.0f : 0.0f;
+	pSlot->m_Hover = SmoothToward(pSlot->m_Hover, Target, dt, Speed);
+	if(fabs(pSlot->m_Hover - Target) < 0.001f)
+		pSlot->m_Hover = Target;
+	return pSlot->m_Hover;
+}
+
+float CMenus::AnimSelected(const void *pID, bool Selected, float Speed)
+{
+	CMenuAnimSlot *pSlot = MenuAnimSlot(pID);
+	const float Now = Client()->LocalTime();
+	const float dt = MenuAnimDt(pSlot, Now);
+
+	pSlot->m_Selected = SmoothToward(pSlot->m_Selected, Selected ? 1.0f : 0.0f, dt, Speed);
+	if(fabs(pSlot->m_Selected - (Selected ? 1.0f : 0.0f)) < 0.001f)
+		pSlot->m_Selected = Selected ? 1.0f : 0.0f;
+	return pSlot->m_Selected;
 }
 
 vec4 CMenus::ButtonColorMul(const void *pID)
 {
-	if(UI()->ActiveItem() == pID)
-		return vec4(1,1,1,0.5f);
-	else if(UI()->HotItem() == pID)
-		return vec4(1,1,1,1.5f);
-	return vec4(1,1,1,1);
+	const float H = AnimHover(pID);
+	const float Press = UI()->ActiveItem() == pID ? 1.0f : 0.0f;
+	const float Bright = 1.0f + 0.12f * H - 0.18f * Press;
+	return vec4(Bright, Bright, Bright, 1.0f);
 }
 
 int CMenus::DoButton_Icon(int ImageId, int SpriteId, const CUIRect *pRect)
@@ -102,67 +290,166 @@ int CMenus::DoButton_Icon(int ImageId, int SpriteId, const CUIRect *pRect)
 
 int CMenus::DoButton_Toggle(const void *pID, int Checked, const CUIRect *pRect, bool Active)
 {
+	const float Hover = Active ? AnimHover(pID) : 0.0f;
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUIBUTTONS].m_Id);
 	Graphics()->QuadsBegin();
 	if(!Active)
 		Graphics()->SetColor(1.0f, 1.0f, 1.0f, 0.5f);
+	else
+		Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
 	RenderTools()->SelectSprite(Checked?SPRITE_GUIBUTTON_ON:SPRITE_GUIBUTTON_OFF);
 	IGraphics::CQuadItem QuadItem(pRect->x, pRect->y, pRect->w, pRect->h);
 	Graphics()->QuadsDrawTL(&QuadItem, 1);
-	if(UI()->HotItem() == pID && Active)
+	if(Active && Hover > 0.01f)
 	{
+		Graphics()->SetColor(1.0f, 1.0f, 1.0f, Hover);
 		RenderTools()->SelectSprite(SPRITE_GUIBUTTON_HOVER);
-		IGraphics::CQuadItem QuadItem(pRect->x, pRect->y, pRect->w, pRect->h);
-		Graphics()->QuadsDrawTL(&QuadItem, 1);
+		IGraphics::CQuadItem HoverQuad(pRect->x, pRect->y, pRect->w, pRect->h);
+		Graphics()->QuadsDrawTL(&HoverQuad, 1);
 	}
 	Graphics()->QuadsEnd();
 
 	return Active ? UI()->DoButtonLogic(pID, "", Checked, pRect) : 0;
 }
 
-int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
+int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Style)
 {
-	RenderTools()->DrawUIRect(pRect, vec4(1,1,1,0.5f)*ButtonColorMul(pID), CUI::CORNER_ALL, 5.0f);
+	const float Hover = AnimHover(pID);
+	const float Press = UI()->ActiveItem() == pID ? 1.0f : 0.0f;
+
+	vec4 FillBase = vec4(0.22f, 0.24f, 0.28f, 0.96f);
+	vec4 FillHot = vec4(0.30f, 0.33f, 0.38f, 0.98f);
+	vec4 BorderBase = vec4(0.42f, 0.46f, 0.5f, 0.95f);
+	vec4 BorderHot = ms_ColorAccent;
+
+	if(Style == BUTTONSTYLE_DANGER)
+	{
+		FillBase = vec4(0.42f, 0.14f, 0.16f, 0.96f);
+		FillHot = vec4(0.55f, 0.2f, 0.22f, 0.98f);
+		BorderBase = ms_ColorDanger;
+		BorderHot = ms_ColorDanger;
+	}
+	else if(Style == BUTTONSTYLE_ACCENT)
+	{
+		FillBase = vec4(0.1f, 0.28f, 0.24f, 0.96f);
+		FillHot = vec4(0.14f, 0.38f, 0.32f, 0.98f);
+		BorderBase = ms_ColorAccent;
+		BorderHot = ms_ColorAccent;
+	}
+
+	vec4 Fill = MixColor(FillBase, FillHot, Hover);
+	vec4 Border = MixColor(BorderBase, BorderHot, Hover);
+	if(Press > 0.0f)
+		Fill = MixColor(Fill, vec4(Fill.r * 0.82f, Fill.g * 0.82f, Fill.b * 0.82f, Fill.a), Press);
+
+	DrawMenuBorder(pRect, Fill, Border, CUI::CORNER_ALL, ms_ControlRounding);
+
+	const float EdgeAlpha = (Style == BUTTONSTYLE_ACCENT || Style == BUTTONSTYLE_DANGER) ? 1.0f : Hover;
+	if(EdgeAlpha > 0.02f)
+	{
+		CUIRect Edge = *pRect;
+		Edge.HSplitBottom(2.0f, 0, &Edge);
+		vec4 EdgeCol = Style == BUTTONSTYLE_DANGER ? ms_ColorDanger : ms_ColorAccent;
+		EdgeCol.a *= EdgeAlpha;
+		RenderTools()->DrawUIRect(&Edge, EdgeCol, CUI::CORNER_B, 0.0f);
+	}
+
 	CUIRect Temp;
 	pRect->HMargin(pRect->h>=20.0f?2.0f:1.0f, &Temp);
-	UI()->DoLabel(&Temp, pText, Temp.h*ms_FontmodHeight, 0);
+	float FontSize = min(Temp.h*ms_FontmodHeight, 14.0f);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	UI()->DoLabel(&Temp, pText, FontSize, 0);
 	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
 }
 
 void CMenus::DoButton_KeySelect(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
 {
-	RenderTools()->DrawUIRect(pRect, vec4(1,1,1,0.5f)*ButtonColorMul(pID), CUI::CORNER_ALL, 5.0f);
+	const float Hover = AnimHover(pID);
+	vec4 Fill = MixColor(vec4(0.2f, 0.22f, 0.26f, 0.96f), vec4(0.28f, 0.32f, 0.36f, 0.98f), Hover);
+	vec4 Border = MixColor(vec4(0.4f, 0.44f, 0.48f, 0.95f), ms_ColorAccent, Hover);
+	DrawMenuBorder(pRect, Fill, Border, CUI::CORNER_ALL, ms_ControlRounding);
 	CUIRect Temp;
 	pRect->HMargin(1.0f, &Temp);
-	UI()->DoLabel(&Temp, pText, Temp.h*ms_FontmodHeight, 0);
+	float FontSize = min(Temp.h*ms_FontmodHeight, 13.0f);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	UI()->DoLabel(&Temp, pText, FontSize, 0);
 }
 
 int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Corners)
 {
-	if(Checked)
-		RenderTools()->DrawUIRect(pRect, ms_ColorTabbarActive, Corners, 10.0f);
-	else
-		RenderTools()->DrawUIRect(pRect, ms_ColorTabbarInactive, Corners, 10.0f);
+	const bool IsQuit = str_comp(pText, Localize("Quit")) == 0;
+	const float Hover = AnimHover(pID);
+	const float Sel = AnimSelected(pID, Checked);
+
+	vec4 FillIdle = IsQuit ? vec4(0.32f, 0.12f, 0.14f, 0.92f) : vec4(0.2f, 0.22f, 0.26f, 0.92f);
+	vec4 FillOn = IsQuit ? vec4(0.5f, 0.16f, 0.18f, 0.96f) : vec4(0.16f, 0.22f, 0.24f, 0.98f);
+	vec4 FillHot = IsQuit ? vec4(0.4f, 0.16f, 0.18f, 0.95f) : vec4(0.28f, 0.32f, 0.36f, 0.96f);
+
+	vec4 BorderIdle = IsQuit ? ms_ColorDanger : vec4(0.38f, 0.42f, 0.46f, 0.9f);
+	vec4 BorderOn = IsQuit ? ms_ColorDanger : ms_ColorAccent;
+
+	vec4 Fill = MixColor(FillIdle, FillOn, Sel);
+	Fill = MixColor(Fill, FillHot, Hover * (1.0f - Sel * 0.5f));
+	vec4 Border = MixColor(BorderIdle, BorderOn, max(Sel, Hover * 0.85f));
+
+	DrawMenuBorder(pRect, Fill, Border, Corners, ms_PanelRounding);
+
+	if(!IsQuit && Sel > 0.02f)
+	{
+		CUIRect Line = *pRect;
+		Line.HSplitBottom(2.0f, 0, &Line);
+		vec4 Accent = ms_ColorAccent;
+		Accent.a *= Sel;
+		RenderTools()->DrawUIRect(&Line, Accent, 0, 0.0f);
+	}
+	else if(IsQuit)
+	{
+		CUIRect Edge = *pRect;
+		Edge.HSplitBottom(2.0f, 0, &Edge);
+		RenderTools()->DrawUIRect(&Edge, ms_ColorDanger, 0, 0.0f);
+	}
+
 	CUIRect Temp;
 	pRect->HMargin(2.0f, &Temp);
-	UI()->DoLabel(&Temp, pText, Temp.h*ms_FontmodHeight, 0);
+	float FontSize = min(Temp.h*ms_FontmodHeight, 13.0f);
+	TextRender()->TextColor(
+		0.95f + 0.0f * Sel,
+		0.96f + 0.04f * Sel,
+		0.97f - 0.02f * Sel,
+		1.0f);
+	UI()->DoLabel(&Temp, pText, FontSize, 0);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 
 	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
 }
 
 int CMenus::DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
-//void CMenus::ui_draw_grid_header(const void *id, const char *text, int checked, const CUIRect *r, const void *extra)
 {
-	if(Checked)
-		RenderTools()->DrawUIRect(pRect, vec4(1,1,1,0.5f), CUI::CORNER_T, 5.0f);
+	const float Sel = AnimSelected(pID, Checked);
+	const float Hover = AnimHover(pID);
+	if(Sel > 0.02f || Hover > 0.02f)
+	{
+		vec4 Fill = MixColor(vec4(0.14f, 0.18f, 0.2f, 0.0f), vec4(0.14f, 0.28f, 0.26f, 0.9f), max(Sel, Hover * 0.5f));
+		vec4 Border = MixColor(vec4(0.3f, 0.34f, 0.38f, 0.0f), ms_ColorAccent, max(Sel, Hover));
+		if(Fill.a > 0.02f)
+			DrawMenuBorder(pRect, Fill, Border, CUI::CORNER_T, ms_ControlRounding);
+		if(Sel > 0.02f)
+		{
+			CUIRect Line = *pRect;
+			Line.HSplitBottom(2.0f, 0, &Line);
+			vec4 Accent = ms_ColorAccent;
+			Accent.a *= Sel;
+			RenderTools()->DrawUIRect(&Line, Accent, 0, 0.0f);
+		}
+	}
 	CUIRect t;
 	pRect->VSplitLeft(5.0f, 0, &t);
-	UI()->DoLabel(&t, pText, pRect->h*ms_FontmodHeight, -1);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	UI()->DoLabel(&t, pText, min(pRect->h*ms_FontmodHeight, 12.0f), -1);
 	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
 }
 
 int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect)
-//void CMenus::ui_draw_checkbox_common(const void *id, const char *text, const char *boxtext, const CUIRect *r, const void *extra)
 {
 	CUIRect c = *pRect;
 	CUIRect t = *pRect;
@@ -171,11 +458,30 @@ int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const c
 	t.w -= c.w;
 	t.VSplitLeft(5.0f, 0, &t);
 
+	const float Hover = AnimHover(pID);
+	const bool Checked = pBoxText[0] == 'X';
+	const float Sel = AnimSelected(pID, Checked);
+
 	c.Margin(2.0f, &c);
-	RenderTools()->DrawUIRect(&c, vec4(1,1,1,0.25f)*ButtonColorMul(pID), CUI::CORNER_ALL, 3.0f);
-	c.y += 2;
-	UI()->DoLabel(&c, pBoxText, pRect->h*ms_FontmodHeight*0.6f, 0);
-	UI()->DoLabel(&t, pText, pRect->h*ms_FontmodHeight*0.8f, -1);
+	vec4 BoxFill = vec4(0.12f, 0.14f, 0.16f, 0.95f);
+	vec4 BoxBorder = MixColor(vec4(0.45f, 0.5f, 0.54f, 1.0f), ms_ColorAccent, max(Hover, Sel));
+	DrawMenuBorder(&c, BoxFill, BoxBorder, CUI::CORNER_ALL, ms_ControlRounding);
+	if(Sel > 0.02f)
+	{
+		CUIRect Inner = c;
+		Inner.Margin(c.h*0.22f, &Inner);
+		vec4 Mark = ms_ColorAccent;
+		Mark.a *= Sel;
+		RenderTools()->DrawUIRect(&Inner, Mark, CUI::CORNER_ALL, 2.0f);
+	}
+	else if(pBoxText[0] && pBoxText[0] != 'X')
+	{
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		UI()->DoLabel(&c, pBoxText, min(pRect->h*ms_FontmodHeight*0.6f, 12.0f), 0);
+	}
+	TextRender()->TextColor(0.95f, 0.96f, 0.97f, 1.0f);
+	UI()->DoLabel(&t, pText, min(pRect->h*ms_FontmodHeight*0.8f, 13.0f), -1);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	return UI()->DoButtonLogic(pID, pText, 0, pRect);
 }
 
@@ -194,152 +500,55 @@ int CMenus::DoButton_CheckBox_Number(const void *pID, const char *pText, int Che
 
 int CMenus::DoEditBox(void *pID, const CUIRect *pRect, char *pStr, unsigned StrSize, float FontSize, float *Offset, bool Hidden, int Corners)
 {
-	int Inside = UI()->MouseInside(pRect);
-	bool ReturnValue = false;
-	bool UpdateOffset = false;
-	static int s_AtIndex = 0;
-	static bool s_DoScroll = false;
-	static float s_ScrollStart = 0.0f;
-
-	FontSize *= UI()->Scale();
-
-	if(UI()->LastActiveItem() == pID)
+	enum { MAX_EDIT_BINDINGS = 64 };
+	struct CEditBinding
 	{
-		int Len = str_length(pStr);
-		if(Len == 0)
-			s_AtIndex = 0;
+		const void *m_pID;
+		char *m_pBoundStr;
+		CLineInput m_Input;
+	};
+	static CEditBinding s_aEditBindings[MAX_EDIT_BINDINGS];
+	static int s_NumEditBindings = 0;
 
-		if(Inside && UI()->MouseButton(0))
+	CLineInput *pLineInput = 0;
+	for(int i = 0; i < s_NumEditBindings; i++)
+	{
+		if(s_aEditBindings[i].m_pID == pID)
 		{
-			s_DoScroll = true;
-			s_ScrollStart = UI()->MouseX();
-			int MxRel = (int)(UI()->MouseX() - pRect->x);
-
-			for(int i = 1; i <= Len; i++)
+			pLineInput = &s_aEditBindings[i].m_Input;
+			if(s_aEditBindings[i].m_pBoundStr != pStr)
 			{
-				if(TextRender()->TextWidth(0, FontSize, pStr, i) - *Offset > MxRel)
-				{
-					s_AtIndex = i - 1;
-					break;
-				}
-
-				if(i == Len)
-					s_AtIndex = Len;
+				pLineInput->SetBuffer(pStr, StrSize, StrSize);
+				s_aEditBindings[i].m_pBoundStr = pStr;
 			}
-		}
-		else if(!UI()->MouseButton(0))
-			s_DoScroll = false;
-		else if(s_DoScroll)
-		{
-			// do scrolling
-			if(UI()->MouseX() < pRect->x && s_ScrollStart-UI()->MouseX() > 10.0f)
-			{
-				s_AtIndex = max(0, s_AtIndex-1);
-				s_ScrollStart = UI()->MouseX();
-				UpdateOffset = true;
-			}
-			else if(UI()->MouseX() > pRect->x+pRect->w && UI()->MouseX()-s_ScrollStart > 10.0f)
-			{
-				s_AtIndex = min(Len, s_AtIndex+1);
-				s_ScrollStart = UI()->MouseX();
-				UpdateOffset = true;
-			}
-		}
-
-		for(int i = 0; i < m_NumInputEvents; i++)
-		{
-			Len = str_length(pStr);
-			int NumChars = Len;
-			ReturnValue |= CLineInput::Manipulate(m_aInputEvents[i], pStr, StrSize, StrSize, &Len, &s_AtIndex, &NumChars, Input());
+			break;
 		}
 	}
-
-	bool JustGotActive = false;
-
-	if(UI()->ActiveItem() == pID)
+	if(!pLineInput && s_NumEditBindings < MAX_EDIT_BINDINGS)
 	{
-		if(!UI()->MouseButton(0))
-		{
-			s_AtIndex = min(s_AtIndex, str_length(pStr));
-			s_DoScroll = false;
-			UI()->SetActiveItem(0);
-		}
+		CEditBinding *pBinding = &s_aEditBindings[s_NumEditBindings++];
+		pBinding->m_pID = pID;
+		pBinding->m_pBoundStr = pStr;
+		pBinding->m_Input.SetBuffer(pStr, StrSize, StrSize);
+		pLineInput = &pBinding->m_Input;
 	}
-	else if(UI()->HotItem() == pID)
-	{
-		if(UI()->MouseButton(0))
-		{
-			if (UI()->LastActiveItem() != pID)
-				JustGotActive = true;
-			UI()->SetActiveItem(pID);
-		}
-	}
+	if(!pLineInput)
+		return 0;
 
-	if(Inside)
-		UI()->SetHotItem(pID);
+	pLineInput->SetHidden(Hidden);
+	if(Offset)
+		pLineInput->SetScrollOffset(*Offset);
 
-	CUIRect Textbox = *pRect;
-	RenderTools()->DrawUIRect(&Textbox, vec4(1, 1, 1, 0.5f), Corners, 3.0f);
-	Textbox.VMargin(2.0f, &Textbox);
-	Textbox.HMargin(2.0f, &Textbox);
+	const float Focus = max(AnimHover(pID), UI()->LastActiveItem() == pLineInput ? 1.0f : 0.0f);
+	vec4 EditFill = vec4(0.08f, 0.09f, 0.11f, 0.95f);
+	vec4 EditBorder = MixColor(vec4(0.4f, 0.44f, 0.48f, 0.95f), ms_ColorAccent, Focus);
+	DrawMenuBorder(pRect, EditFill, EditBorder, Corners, ms_ControlRounding);
 
-	const char *pDisplayStr = pStr;
-	char aStars[128];
-
-	if(Hidden)
-	{
-		unsigned s = str_length(pStr);
-		if(s >= sizeof(aStars))
-			s = sizeof(aStars)-1;
-		for(unsigned int i = 0; i < s; ++i)
-			aStars[i] = '*';
-		aStars[s] = 0;
-		pDisplayStr = aStars;
-	}
-
-	// check if the text has to be moved
-	if(UI()->LastActiveItem() == pID && !JustGotActive && (UpdateOffset || m_NumInputEvents))
-	{
-		float w = TextRender()->TextWidth(0, FontSize, pDisplayStr, s_AtIndex);
-		if(w-*Offset > Textbox.w)
-		{
-			// move to the left
-			float wt = TextRender()->TextWidth(0, FontSize, pDisplayStr, -1);
-			do
-			{
-				*Offset += min(wt-*Offset-Textbox.w, Textbox.w/3);
-			}
-			while(w-*Offset > Textbox.w);
-		}
-		else if(w-*Offset < 0.0f)
-		{
-			// move to the right
-			do
-			{
-				*Offset = max(0.0f, *Offset-Textbox.w/3);
-			}
-			while(w-*Offset < 0.0f);
-		}
-	}
-	UI()->ClipEnable(pRect);
-	Textbox.x -= *Offset;
-
-	UI()->DoLabel(&Textbox, pDisplayStr, FontSize, -1);
-
-	// render the cursor
-	if(UI()->LastActiveItem() == pID && !JustGotActive)
-	{
-		float w = TextRender()->TextWidth(0, FontSize, pDisplayStr, s_AtIndex);
-		Textbox = *pRect;
-		Textbox.VSplitLeft(2.0f, 0, &Textbox);
-		Textbox.x += (w-*Offset-TextRender()->TextWidth(0, FontSize, "|", -1)/2);
-
-		if((2*time_get()/time_freq()) % 2)	// make it blink
-			UI()->DoLabel(&Textbox, "|", FontSize, -1);
-	}
-	UI()->ClipDisable();
-
-	return ReturnValue;
+	bool Changed = false;
+	UI()->DoEditBox(pLineInput, pRect, FontSize, Corners, &Changed);
+	if(Offset)
+		*Offset = pLineInput->GetScrollOffset();
+	return Changed ? 1 : 0;
 }
 
 float CMenus::DoScrollbarV(const void *pID, const CUIRect *pRect, float Current)
@@ -381,17 +590,12 @@ float CMenus::DoScrollbarV(const void *pID, const CUIRect *pRect, float Current)
 	// render
 	CUIRect Rail;
 	pRect->VMargin(5.0f, &Rail);
-	RenderTools()->DrawUIRect(&Rail, vec4(1,1,1,0.25f), 0, 0.0f);
+	RenderTools()->DrawUIRect(&Rail, vec4(0.08f,0.09f,0.11f,0.85f), CUI::CORNER_ALL, ms_ControlRounding);
 
 	CUIRect Slider = Handle;
-	Slider.w = Rail.x-Slider.x;
-	RenderTools()->DrawUIRect(&Slider, vec4(1,1,1,0.25f), CUI::CORNER_L, 2.5f);
-	Slider.x = Rail.x+Rail.w;
-	RenderTools()->DrawUIRect(&Slider, vec4(1,1,1,0.25f), CUI::CORNER_R, 2.5f);
-
-	Slider = Handle;
-	Slider.Margin(5.0f, &Slider);
-	RenderTools()->DrawUIRect(&Slider, vec4(1,1,1,0.25f)*ButtonColorMul(pID), CUI::CORNER_ALL, 2.5f);
+	Slider.Margin(3.0f, &Slider);
+	vec4 SliderCol = UI()->HotItem() == pID || UI()->ActiveItem() == pID ? ms_ColorAccent : vec4(0.72f,0.76f,0.8f,0.95f);
+	RenderTools()->DrawUIRect(&Slider, SliderCol*ButtonColorMul(pID), CUI::CORNER_ALL, ms_ControlRounding);
 
 	return ReturnValue;
 }
@@ -437,19 +641,47 @@ float CMenus::DoScrollbarH(const void *pID, const CUIRect *pRect, float Current)
 	// render
 	CUIRect Rail;
 	pRect->HMargin(5.0f, &Rail);
-	RenderTools()->DrawUIRect(&Rail, vec4(1,1,1,0.25f), 0, 0.0f);
+	RenderTools()->DrawUIRect(&Rail, vec4(0.08f,0.09f,0.11f,0.85f), CUI::CORNER_ALL, ms_ControlRounding);
 
 	CUIRect Slider = Handle;
-	Slider.h = Rail.y-Slider.y;
-	RenderTools()->DrawUIRect(&Slider, vec4(1,1,1,0.25f), CUI::CORNER_T, 2.5f);
-	Slider.y = Rail.y+Rail.h;
-	RenderTools()->DrawUIRect(&Slider, vec4(1,1,1,0.25f), CUI::CORNER_B, 2.5f);
-
-	Slider = Handle;
-	Slider.Margin(5.0f, &Slider);
-	RenderTools()->DrawUIRect(&Slider, vec4(1,1,1,0.25f)*ButtonColorMul(pID), CUI::CORNER_ALL, 2.5f);
+	Slider.Margin(3.0f, &Slider);
+	vec4 SliderCol = UI()->HotItem() == pID || UI()->ActiveItem() == pID ? ms_ColorAccent : vec4(0.72f,0.76f,0.8f,0.95f);
+	RenderTools()->DrawUIRect(&Slider, SliderCol*ButtonColorMul(pID), CUI::CORNER_ALL, ms_ControlRounding);
 
 	return ReturnValue;
+}
+
+float CMenus::DoIndependentDropdownMenu(void *pID, CUIRect *pRect, const char *pStr, float HeaderHeight, FDropdownCallback pfnCallback, bool *pActive)
+{
+	CUIRect View = *pRect;
+	CUIRect Header;
+	View.HSplitTop(HeaderHeight, &Header, &View);
+
+	RenderTools()->DrawUIRect(&Header, vec4(0.16f, 0.18f, 0.22f, 0.95f), *pActive ? CUI::CORNER_T : CUI::CORNER_ALL, ms_ControlRounding);
+	{
+		CUIRect Border = Header;
+		// light top edge for separation
+		Border.HSplitTop(1.0f, &Border, 0);
+		RenderTools()->DrawUIRect(&Border, vec4(0.4f, 0.44f, 0.48f, 0.8f), 0, 0.0f);
+	}
+	if(*pActive)
+		DrawAccentUnderline(&Header);
+
+	CUIRect Icon;
+	Header.VSplitLeft(HeaderHeight, &Icon, &Header);
+	Icon.Margin(2.0f, &Icon);
+	char aIcon[2] = {*pActive ? '-' : '+', 0};
+	UI()->DoLabel(&Icon, aIcon, min(HeaderHeight*0.65f, 12.0f), 0);
+
+	UI()->DoLabel(&Header, pStr, min(HeaderHeight*0.65f, 12.0f), -1);
+
+	const bool HeaderClipped = m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(Header);
+	if(!HeaderClipped && UI()->DoButtonLogic(pID, &Header))
+		*pActive ^= 1;
+
+	if(*pActive)
+		return HeaderHeight + (this->*pfnCallback)(View);
+	return HeaderHeight;
 }
 
 int CMenus::DoKeyReader(void *pID, const CUIRect *pRect, int Key)
@@ -458,7 +690,9 @@ int CMenus::DoKeyReader(void *pID, const CUIRect *pRect, int Key)
 	static void *pGrabbedID = 0;
 	static bool MouseReleased = true;
 	static int ButtonUsed = 0;
-	int Inside = UI()->MouseInside(pRect);
+
+	const bool Clipped = m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(*pRect);
+	int Inside = Clipped ? 0 : UI()->MouseInside(pRect);
 	int NewKey = Key;
 
 	if(!UI()->MouseButton(0) && !UI()->MouseButton(1) && pGrabbedID == pID)
@@ -507,7 +741,7 @@ int CMenus::DoKeyReader(void *pID, const CUIRect *pRect, int Key)
 	if(Inside)
 		UI()->SetHotItem(pID);
 
-	// draw
+	// draw (still show when clipped — graphics clip handles visibility)
 	if (UI()->ActiveItem() == pID && ButtonUsed == 0)
 		DoButton_KeySelect(pID, "???", 0, pRect);
 	else
@@ -541,110 +775,91 @@ int CMenus::RenderMenubar(CUIRect r)
 
 	if(Client()->State() == IClient::STATE_OFFLINE)
 	{
-		// offline menus
-		if(0) // this is not done yet
+		Box.VSplitLeft(90.0f, &Button, &Box);
+		static int s_InternetButton=0;
+		if(DoButton_MenuTab(&s_InternetButton, Localize("Internet"), m_ActivePage==PAGE_INTERNET, &Button, CUI::CORNER_TL))
 		{
-			Box.VSplitLeft(90.0f, &Button, &Box);
-			static int s_NewsButton=0;
-			if (DoButton_MenuTab(&s_NewsButton, Localize("News"), m_ActivePage==PAGE_NEWS, &Button, 0))
-				NewPage = PAGE_NEWS;
-			Box.VSplitLeft(30.0f, 0, &Box);
+			ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
+			m_ActiveFilterPreset = UI_FILTER_PRESET_ALL;
+			NewPage = PAGE_INTERNET;
 		}
 
-		if (m_ActivePage != PAGE_SETTINGS)
+		Box.VSplitLeft(4.0f, 0, &Box);
+		Box.VSplitLeft(70.0f, &Button, &Box);
+		static int s_LanButton=0;
+		if(DoButton_MenuTab(&s_LanButton, Localize("LAN"), m_ActivePage==PAGE_LAN, &Button, 0))
 		{
-			Box.VSplitLeft(100.0f, &Button, &Box);
-			static int s_InternetButton=0;
-			if(DoButton_MenuTab(&s_InternetButton, Localize("Internet"), m_ActivePage==PAGE_INTERNET, &Button, CUI::CORNER_TL))
-			{
-				ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
-				NewPage = PAGE_INTERNET;
-			}
-
-			//Box.VSplitLeft(4.0f, 0, &Box);
-			Box.VSplitLeft(80.0f, &Button, &Box);
-			static int s_LanButton=0;
-			if(DoButton_MenuTab(&s_LanButton, Localize("LAN"), m_ActivePage==PAGE_LAN, &Button, 0))
-			{
-				ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
-				NewPage = PAGE_LAN;
-			}
-
-			//box.VSplitLeft(4.0f, 0, &box);
-			Box.VSplitLeft(110.0f, &Button, &Box);
-			static int s_FavoritesButton=0;
-			if(DoButton_MenuTab(&s_FavoritesButton, Localize("Favorites"), m_ActivePage==PAGE_FAVORITES, &Button, CUI::CORNER_TR))
-			{
-				ServerBrowser()->Refresh(IServerBrowser::TYPE_FAVORITES);
-				NewPage = PAGE_FAVORITES;
-			}
+			ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
+			m_ActiveFilterPreset = UI_FILTER_PRESET_ALL;
+			NewPage = PAGE_LAN;
 		}
 
-		Box.VSplitLeft(4.0f*5, 0, &Box);
+		Box.VSplitLeft(4.0f, 0, &Box);
 		Box.VSplitLeft(100.0f, &Button, &Box);
+		static int s_FavoritesButton=0;
+		if(DoButton_MenuTab(&s_FavoritesButton, Localize("Favorites"), m_ActivePage==PAGE_FAVORITES, &Button, CUI::CORNER_TR))
+		{
+			ServerBrowser()->Refresh(IServerBrowser::TYPE_FAVORITES);
+			m_ActiveFilterPreset = UI_FILTER_PRESET_FAVORITES;
+			NewPage = PAGE_FAVORITES;
+		}
+
+		Box.VSplitLeft(12.0f, 0, &Box);
+		Box.VSplitLeft(80.0f, &Button, &Box);
 		static int s_DemosButton=0;
 		if(DoButton_MenuTab(&s_DemosButton, Localize("Demos"), m_ActivePage==PAGE_DEMOS, &Button, CUI::CORNER_T))
 		{
 			DemolistPopulate();
 			NewPage = PAGE_DEMOS;
 		}
-		
-		Box.VSplitRight(180.0f, &Box, &Button);
+
+		Box.VSplitRight(110.0f, &Box, &Button);
 		static int s_MenuButton=0;
 		if(DoButton_MenuTab(&s_MenuButton, Localize("Main menu"), m_ActivePage==PAGE_FRONT, &Button, CUI::CORNER_T) || m_EscapePressed)
 			NewPage = PAGE_FRONT;
-	}
-	else
-	{
-		// online menus
-		Box.VSplitLeft(90.0f, &Button, &Box);
-		static int s_GameButton=0;
-		if(DoButton_MenuTab(&s_GameButton, Localize("Game"), m_ActivePage==PAGE_GAME, &Button, CUI::CORNER_TL))
-			NewPage = PAGE_GAME;
 
-		Box.VSplitLeft(90.0f, &Button, &Box);
-		static int s_PlayersButton=0;
-		if(DoButton_MenuTab(&s_PlayersButton, Localize("Players"), m_ActivePage==PAGE_PLAYERS, &Button, 0))
-			NewPage = PAGE_PLAYERS;
-
-		Box.VSplitLeft(130.0f, &Button, &Box);
-		static int s_ServerInfoButton=0;
-		if(DoButton_MenuTab(&s_ServerInfoButton, Localize("Server info"), m_ActivePage==PAGE_SERVER_INFO, &Button, 0))
-			NewPage = PAGE_SERVER_INFO;
-
-		Box.VSplitLeft(130.0f, &Button, &Box);
-		static int s_CallVoteButton=0;
-		if(DoButton_MenuTab(&s_CallVoteButton, Localize("Call vote"), m_ActivePage==PAGE_CALLVOTE, &Button, CUI::CORNER_TR))
-			NewPage = PAGE_CALLVOTE;
-		
-		Box.VSplitRight(180.0f, &Box, &Button);
-		static int s_MenuButton=0;
-		if(DoButton_MenuTab(&s_MenuButton, Localize("Quit"), m_ActivePage==PAGE_FRONT, &Button, CUI::CORNER_T))
-			m_Popup = POPUP_QUIT;
-		
-		Box.VSplitRight(10.0f, &Box, &Button);
-		Box.VSplitRight(130.0f, &Box, &Button);
+		Box.VSplitRight(6.0f, &Box, 0);
+		Box.VSplitRight(90.0f, &Box, &Button);
 		static int s_SettingsButton=0;
 		if(DoButton_MenuTab(&s_SettingsButton, Localize("Settings"), m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
 			NewPage = PAGE_SETTINGS;
 	}
+	else
+	{
+		Box.VSplitLeft(80.0f, &Button, &Box);
+		static int s_GameButton=0;
+		if(DoButton_MenuTab(&s_GameButton, Localize("Game"), m_ActivePage==PAGE_GAME, &Button, CUI::CORNER_TL))
+			NewPage = PAGE_GAME;
 
+		Box.VSplitLeft(4.0f, 0, &Box);
+		Box.VSplitLeft(80.0f, &Button, &Box);
+		static int s_PlayersButton=0;
+		if(DoButton_MenuTab(&s_PlayersButton, Localize("Players"), m_ActivePage==PAGE_PLAYERS, &Button, 0))
+			NewPage = PAGE_PLAYERS;
 
+		Box.VSplitLeft(4.0f, 0, &Box);
+		Box.VSplitLeft(110.0f, &Button, &Box);
+		static int s_ServerInfoButton=0;
+		if(DoButton_MenuTab(&s_ServerInfoButton, Localize("Server info"), m_ActivePage==PAGE_SERVER_INFO, &Button, 0))
+			NewPage = PAGE_SERVER_INFO;
 
-	/*
-	Box.VSplitRight(90.0f, &Box, &Button);
-	static int s_QuitButton=0;
-	if(DoButton_MenuTab(&s_QuitButton, Localize("Quit"), 0, &Button, CUI::CORNER_T))
-		m_Popup = POPUP_QUIT;
-
-	Box.VSplitRight(10.0f, &Box, &Button);
-	Box.VSplitRight(130.0f, &Box, &Button);
-	static int s_SettingsButton=0;
-	if(DoButton_MenuTab(&s_SettingsButton, Localize("Settings"), m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
-		NewPage = PAGE_SETTINGS;
-	*/
-	
-
+		Box.VSplitLeft(4.0f, 0, &Box);
+		Box.VSplitLeft(110.0f, &Button, &Box);
+		static int s_CallVoteButton=0;
+		if(DoButton_MenuTab(&s_CallVoteButton, Localize("Call vote"), m_ActivePage==PAGE_CALLVOTE, &Button, CUI::CORNER_TR))
+			NewPage = PAGE_CALLVOTE;
+		
+		Box.VSplitRight(90.0f, &Box, &Button);
+		static int s_QuitButton=0;
+		if(DoButton_MenuTab(&s_QuitButton, Localize("Quit"), 0, &Button, CUI::CORNER_T))
+			m_Popup = POPUP_QUIT;
+		
+		Box.VSplitRight(6.0f, &Box, 0);
+		Box.VSplitRight(90.0f, &Box, &Button);
+		static int s_SettingsButton=0;
+		if(DoButton_MenuTab(&s_SettingsButton, Localize("Settings"), m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
+			NewPage = PAGE_SETTINGS;
+	}
 
 	if(NewPage != -1)
 	{
@@ -718,8 +933,42 @@ void CMenus::RenderNews(CUIRect MainView)
 	RenderTools()->DrawUIRect(&MainView, ms_ColorTabbarActive, CUI::CORNER_ALL, 10.0f);
 }
 
+void CMenus::UpdatedFilteredVideoModes()
+{
+	// same aspect as desktop -> recommended list (Teeworlds behaviour)
+	m_lRecommendedVideoModes.clear();
+	m_lOtherVideoModes.clear();
+
+	const int DesktopG = gcd(Graphics()->DesktopWidth(), Graphics()->DesktopHeight());
+	const int DesktopWidthG = Graphics()->DesktopWidth() / DesktopG;
+	const int DesktopHeightG = Graphics()->DesktopHeight() / DesktopG;
+
+	for(int i = 0; i < m_NumModes; i++)
+	{
+		const int G = gcd(m_aModes[i].m_Width, m_aModes[i].m_Height);
+		if(m_aModes[i].m_Width / G == DesktopWidthG &&
+			m_aModes[i].m_Height / G == DesktopHeightG &&
+			m_aModes[i].m_Width <= Graphics()->DesktopWidth() &&
+			m_aModes[i].m_Height <= Graphics()->DesktopHeight())
+		{
+			m_lRecommendedVideoModes.add(m_aModes[i]);
+		}
+		else
+		{
+			m_lOtherVideoModes.add(m_aModes[i]);
+		}
+	}
+}
+
+void CMenus::UpdateVideoModeSettings()
+{
+	m_NumModes = Graphics()->GetVideoModes(m_aModes, MAX_RESOLUTIONS, g_Config.m_GfxScreen);
+	UpdatedFilteredVideoModes();
+}
+
 void CMenus::OnInit()
 {
+	UpdateVideoModeSettings();
 
 	/*
 	array<string> my_strings;
@@ -773,6 +1022,8 @@ void CMenus::OnInit()
 	Console()->Chain("add_friend", ConchainFriendlistUpdate, this);
 	Console()->Chain("remove_friend", ConchainFriendlistUpdate, this);
 
+	LoadFilterPresets();
+
 	// setup load amount
 	m_LoadCurrent = 0;
 	m_LoadTotal = g_pData->m_NumImages;
@@ -802,7 +1053,7 @@ void CMenus::RenderFront(CUIRect MainView)
 	if(gs_TextureLogo == -1)
 		gs_TextureLogo = Graphics()->LoadTexture("logo.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, 0);
 	
-	vec2 s = vec2(800, 120) * 0.8f;
+	vec2 s = vec2(800, 120) * 0.72f;
 	
 	CUIRect Screen = *UI()->Screen();
 	
@@ -810,65 +1061,41 @@ void CMenus::RenderFront(CUIRect MainView)
 	Graphics()->QuadsBegin();
 	Graphics()->SetColor(1, 1, 1, 1);
 	
-	IGraphics::CQuadItem QuadItem((Screen.w-s.x)/2, 130, s.x, s.y);
+	IGraphics::CQuadItem QuadItem((Screen.w-s.x)/2, 90, s.x, s.y);
 	Graphics()->QuadsDrawTL(&QuadItem, 1);
 	Graphics()->QuadsEnd();
-	
-	/*
-	s_ReactorTime += 0.01f;
-	
-	RenderTools()->RenderSkeleton(vec2(250, Screen.h/1.35f), ATLAS_REACTOR, "idle", s_ReactorTime, vec2(1.0f, 1.0f)*0.8f, 1, 0);
-	RenderTools()->RenderSkeleton(vec2(Screen.w-250, Screen.h/1.35f), ATLAS_REACTOR, "idle", s_ReactorTime, vec2(1.0f, 1.0f)*0.8f, 1, 0);
-	*/
-	
-	
-	
-	// render background
-	CUIRect TabBar;
-	MainView.VSplitLeft(350, &MainView, &TabBar);
-	TabBar.VSplitRight(350, &TabBar, NULL);
-	TabBar.HSplitTop(220, NULL, &TabBar);
-	
-	
-	MainView.HSplitTop(10.0f, 0, &MainView);
+
+	CUIRect ButtonCol;
+	ButtonCol.w = 220.0f;
+	ButtonCol.h = 200.0f;
+	ButtonCol.x = (Screen.w - ButtonCol.w) * 0.5f;
+	ButtonCol.y = 240.0f;
 
 	CUIRect Button;
-	
-	
-	TabBar.HSplitTop(10, &Button, &TabBar);
-	TabBar.HSplitTop(30, &Button, &TabBar);
+	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
 	static int s_PlayButton=0;
-	if(DoButton_Menu(&s_PlayButton, Localize("Play"), 0, &Button) || m_EnterPressed)
+	if(DoButton_Menu(&s_PlayButton, Localize("Play"), 0, &Button, BUTTONSTYLE_ACCENT) || m_EnterPressed)
 	{
 		ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
 		g_Config.m_UiPage = PAGE_INTERNET;
 	}
 	
-	TabBar.HSplitTop(10, &Button, &TabBar);
-	TabBar.HSplitTop(30, &Button, &TabBar);
+	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
+	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
 	static int s_CustomizeButton=0;
 	if(DoButton_Menu(&s_CustomizeButton, Localize("Customize"), 0, &Button))
 		g_Config.m_UiPage = PAGE_CUSTOMIZE;
 	
-	/*
-	TabBar.HSplitTop(10, &Button, &TabBar);
-	TabBar.HSplitTop(30, &Button, &TabBar);
-	
-	static int s_EditorButton=0;
-	if(DoButton_Menu(&s_EditorButton, Localize("Editor"), 0, &Button))
-		g_Config.m_ClEditor = g_Config.m_ClEditor^1;
-	*/
-	
-	TabBar.HSplitTop(10, &Button, &TabBar);
-	TabBar.HSplitTop(30, &Button, &TabBar);
+	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
+	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
 	static int s_SettingsButton=0;
 	if(DoButton_Menu(&s_SettingsButton, Localize("Settings"), 0, &Button))
 		g_Config.m_UiPage = PAGE_SETTINGS;
 	
-	TabBar.HSplitTop(10, &Button, &TabBar);
-	TabBar.HSplitTop(30, &Button, &TabBar);
+	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
+	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
 	static int s_QuitButton=0;
-	if(DoButton_Menu(&s_QuitButton, Localize("Quit"), 0, &Button))
+	if(DoButton_Menu(&s_QuitButton, Localize("Quit"), 0, &Button, BUTTONSTYLE_DANGER))
 		m_Popup = POPUP_QUIT;
 }
 
@@ -908,8 +1135,8 @@ int CMenus::Render()
 	CUIRect TabBar;
 	CUIRect MainView;
 
-	// some margin around the screen
-	Screen.Margin(10.0f, &Screen);
+	Screen.Margin(g_Config.m_UiWideview ? 6.0f : 10.0f, &Screen);
+	LayoutCenterPanel(&Screen, &Screen);
 
 	static bool s_SoundCheck = false;
 	if(!s_SoundCheck && m_Popup == POPUP_NONE)
@@ -921,9 +1148,7 @@ int CMenus::Render()
 
 	if(m_Popup == POPUP_NONE)
 	{
-		// do tab bar
-		Screen.HSplitTop(24.0f, &TabBar, &MainView);
-		TabBar.VMargin(20.0f, &TabBar);
+		Screen.HSplitTop(28.0f, &TabBar, &MainView);
 
 		if(g_Config.m_UiPage == PAGE_FRONT)
 		{
@@ -937,15 +1162,6 @@ int CMenus::Render()
 		}
 		
 		RenderMenubar(TabBar);
-
-		/*
-		// news is not implemented yet
-		if(g_Config.m_UiPage <= PAGE_NEWS || g_Config.m_UiPage > PAGE_SETTINGS || (Client()->State() == IClient::STATE_OFFLINE && g_Config.m_UiPage >= PAGE_GAME && g_Config.m_UiPage <= PAGE_CALLVOTE))
-		{
-			ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
-			g_Config.m_UiPage = PAGE_INTERNET;
-		}
-		*/
 
 		// render current page
 		if(Client()->State() != IClient::STATE_OFFLINE)
@@ -1038,6 +1254,18 @@ int CMenus::Render()
 			pExtraText = Localize("Are you sure that you want to remove the player from your friends list?");
 			ExtraAlign = -1;
 		}
+		else if(m_Popup == POPUP_SLICE_DEMO)
+		{
+			pTitle = Localize("Slice demo");
+			pExtraText = Localize("Please enter a filename for the sliced demo:");
+			ExtraAlign = -1;
+		}
+		else if(m_Popup == POPUP_RENDER_DEMO)
+		{
+			pTitle = Localize("Render video");
+			pExtraText = Localize("Requires FFmpeg in PATH. Output is saved under videos/.");
+			ExtraAlign = -1;
+		}
 		else if(m_Popup == POPUP_SOUNDERROR)
 		{
 			pTitle = Localize("Sound error");
@@ -1075,15 +1303,15 @@ int CMenus::Render()
 
 		Box.HSplitTop(20.f/UI()->Scale(), &Part, &Box);
 		Box.HSplitTop(24.f/UI()->Scale(), &Part, &Box);
-		UI()->DoLabelScaled(&Part, pTitle, 24.f, 0);
+		UI()->DoLabelScaled(&Part, pTitle, 18.f, 0);
 		Box.HSplitTop(20.f/UI()->Scale(), &Part, &Box);
 		Box.HSplitTop(24.f/UI()->Scale(), &Part, &Box);
 		Part.VMargin(20.f/UI()->Scale(), &Part);
 
 		if(ExtraAlign == -1)
-			UI()->DoLabelScaled(&Part, pExtraText, 20.f, -1, (int)Part.w);
+			UI()->DoLabelScaled(&Part, pExtraText, 14.f, -1, (int)Part.w);
 		else
-			UI()->DoLabelScaled(&Part, pExtraText, 20.f, 0, -1);
+			UI()->DoLabelScaled(&Part, pExtraText, 14.f, 0, -1);
 
 		if(m_Popup == POPUP_QUIT)
 		{
@@ -1410,6 +1638,110 @@ int CMenus::Render()
 				}
 			}
 		}
+		else if(m_Popup == POPUP_SLICE_DEMO)
+		{
+			CUIRect Label, TextBox, Ok, Abort;
+
+			Box.HSplitBottom(20.f, &Box, &Part);
+			Box.HSplitBottom(24.f, &Box, &Part);
+			Part.VMargin(80.0f, &Part);
+
+			Part.VSplitMid(&Abort, &Ok);
+
+			Ok.VMargin(20.0f, &Ok);
+			Abort.VMargin(20.0f, &Abort);
+
+			static int s_ButtonAbort = 0;
+			if(DoButton_Menu(&s_ButtonAbort, Localize("Abort"), 0, &Abort) || m_EscapePressed)
+			{
+				m_Popup = POPUP_NONE;
+				m_DemoSliceState = 0;
+			}
+
+			static int s_ButtonOk = 0;
+			if(DoButton_Menu(&s_ButtonOk, Localize("Ok"), 0, &Ok) || m_EnterPressed)
+			{
+				m_Popup = POPUP_NONE;
+				Client()->DemoSlice(m_aCurrentDemoFile);
+				m_DemoSliceState = 0;
+			}
+
+			Box.HSplitBottom(60.f, &Box, &Part);
+			Box.HSplitBottom(24.f, &Box, &Part);
+
+			Part.VSplitLeft(60.0f, 0, &Label);
+			Label.VSplitLeft(120.0f, 0, &TextBox);
+			TextBox.VSplitLeft(20.0f, 0, &TextBox);
+			TextBox.VSplitRight(60.0f, &TextBox, 0);
+			UI()->DoLabel(&Label, Localize("New name:"), 18.0f, -1);
+			static float s_Offset = 0.0f;
+			DoEditBox(&s_Offset, &TextBox, m_aCurrentDemoFile, sizeof(m_aCurrentDemoFile), 12.0f, &s_Offset);
+		}
+		else if(m_Popup == POPUP_RENDER_DEMO)
+		{
+			CUIRect Label, TextBox, Ok, Abort, FpsRow, Fps30, Fps60;
+
+			Box.HSplitBottom(20.f, &Box, &Part);
+			Box.HSplitBottom(24.f, &Box, &Part);
+			Part.VMargin(80.0f, &Part);
+
+			Part.VSplitMid(&Abort, &Ok);
+			Ok.VMargin(20.0f, &Ok);
+			Abort.VMargin(20.0f, &Abort);
+
+			static int s_ButtonAbort = 0;
+			if(DoButton_Menu(&s_ButtonAbort, Localize("Abort"), 0, &Abort) || m_EscapePressed)
+				m_Popup = POPUP_NONE;
+
+			static int s_ButtonOk = 0;
+			if(DoButton_Menu(&s_ButtonOk, Localize("Start"), 0, &Ok) || m_EnterPressed)
+			{
+				const char *pError = Client()->DemoPlayer_Play(m_aDemoRenderSource, m_DemoRenderStorageType);
+				if(pError)
+				{
+					m_Popup = POPUP_NONE;
+					PopupMessage(Localize("Error"), str_comp(pError, "error loading demo") ? pError : Localize("Error loading demo"), Localize("Ok"));
+				}
+				else if(!Client()->VideoStart(m_aVideoOutputName, g_Config.m_ClVideoFps))
+				{
+					Client()->Disconnect();
+					m_Popup = POPUP_NONE;
+					PopupMessage(Localize("Error"), Localize("Failed to start video render. Is FFmpeg installed?"), Localize("Ok"));
+				}
+				else
+				{
+					m_Popup = POPUP_NONE;
+					SetActive(false);
+					UI()->SetActiveItem(0);
+				}
+			}
+
+			Box.HSplitBottom(20.f, &Box, &Part);
+			Box.HSplitBottom(24.f, &Box, &FpsRow);
+			FpsRow.VSplitLeft(60.0f, 0, &Label);
+			Label.VSplitLeft(120.0f, 0, &FpsRow);
+			FpsRow.VSplitLeft(20.0f, 0, &FpsRow);
+			UI()->DoLabel(&Label, Localize("FPS:"), 18.0f, -1);
+			FpsRow.VSplitLeft(80.0f, &Fps30, &FpsRow);
+			FpsRow.VSplitLeft(10.0f, 0, &FpsRow);
+			FpsRow.VSplitLeft(80.0f, &Fps60, 0);
+			static int s_Fps30 = 0;
+			static int s_Fps60 = 0;
+			if(DoButton_Menu(&s_Fps30, "30", g_Config.m_ClVideoFps == 30, &Fps30))
+				g_Config.m_ClVideoFps = 30;
+			if(DoButton_Menu(&s_Fps60, "60", g_Config.m_ClVideoFps == 60, &Fps60))
+				g_Config.m_ClVideoFps = 60;
+
+			Box.HSplitBottom(20.f, &Box, &Part);
+			Box.HSplitBottom(24.f, &Box, &Part);
+			Part.VSplitLeft(60.0f, 0, &Label);
+			Label.VSplitLeft(120.0f, 0, &TextBox);
+			TextBox.VSplitLeft(20.0f, 0, &TextBox);
+			TextBox.VSplitRight(60.0f, &TextBox, 0);
+			UI()->DoLabel(&Label, Localize("File name:"), 18.0f, -1);
+			static float s_Offset = 0.0f;
+			DoEditBox(&s_Offset, &TextBox, m_aVideoOutputName, sizeof(m_aVideoOutputName), 12.0f, &s_Offset);
+		}
 		else if(m_Popup == POPUP_FIRST_LAUNCH)
 		{
 			rand();
@@ -1545,6 +1877,14 @@ bool CMenus::OnInput(IInput::CEvent e)
 	{
 		if(e.m_Key == KEY_ESCAPE && !CustomStuff()->m_Inventory)
 		{
+			if(Client()->IsRecordingVideo())
+			{
+				Client()->VideoStop();
+				Client()->Disconnect();
+				SetActive(true);
+				PopupMessage(Localize("Render video"), Localize("Video render cancelled."), Localize("Ok"));
+				return true;
+			}
 			m_EscapePressed = true;
 			SetActive(!IsActive());
 			return true;
@@ -1553,6 +1893,9 @@ bool CMenus::OnInput(IInput::CEvent e)
 
 	if(IsActive())
 	{
+		if(UI()->OnInput(e))
+			return true;
+
 		if(e.m_Flags&IInput::FLAG_PRESS)
 		{
 			// special for popups
@@ -1632,7 +1975,13 @@ void CMenus::OnRender()
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		SetActive(true);
 
-	if(Client()->State() == IClient::STATE_DEMOPLAYBACK)
+	if(Client()->ConsumeVideoFinished())
+	{
+		SetActive(true);
+		PopupMessage(Localize("Render video"), Localize("Video render complete. Saved under videos/."), Localize("Ok"));
+	}
+
+	if(Client()->State() == IClient::STATE_DEMOPLAYBACK && !Client()->IsRecordingVideo())
 	{
 		CUIRect Screen = *UI()->Screen();
 		Graphics()->MapScreen(Screen.x, Screen.y, Screen.w, Screen.h);
@@ -1657,27 +2006,17 @@ void CMenus::OnRender()
 		return;
 	}
 
-	// update colors
-	//vec3 Rgb = HslToRgb(vec3(g_Config.m_UiColorHue/255.0f, g_Config.m_UiColorSat/255.0f, g_Config.m_UiColorLht/255.0f));
-	//ms_GuiColor = vec4(Rgb.r, Rgb.g, Rgb.b, g_Config.m_UiColorAlpha/255.0f);
-	ms_GuiColor = vec4(0.2f, 0.25f, 0.3f, 0.75f);
+	// update colors — higher-contrast dark punk
+	ms_GuiColor = vec4(0.12f, 0.13f, 0.16f, 0.95f);
+	const float A = MenuAlpha();
+	ms_ColorBgDeep = vec4(0.07f, 0.08f, 0.1f, 0.96f * A);
+	ms_ColorBgPanel = vec4(0.12f, 0.13f, 0.16f, 0.96f * A);
+	ms_ColorBgInset = vec4(0.06f, 0.07f, 0.09f, 0.92f * A);
 
-	ms_ColorTabbarInactiveOutgame = vec4(0,0,0,0.25f);
-	ms_ColorTabbarActiveOutgame = vec4(0,0,0,0.5f);
-
-	float ColorIngameScaleI = 0.5f;
-	float ColorIngameAcaleA = 0.2f;
-	ms_ColorTabbarInactiveIngame = vec4(
-		ms_GuiColor.r*ColorIngameScaleI,
-		ms_GuiColor.g*ColorIngameScaleI,
-		ms_GuiColor.b*ColorIngameScaleI,
-		ms_GuiColor.a*0.8f);
-
-	ms_ColorTabbarActiveIngame = vec4(
-		ms_GuiColor.r*ColorIngameAcaleA,
-		ms_GuiColor.g*ColorIngameAcaleA,
-		ms_GuiColor.b*ColorIngameAcaleA,
-		ms_GuiColor.a);
+	ms_ColorTabbarInactiveOutgame = vec4(0.2f, 0.22f, 0.26f, 0.92f * A);
+	ms_ColorTabbarActiveOutgame = vec4(0.16f, 0.22f, 0.24f, 0.98f * A);
+	ms_ColorTabbarInactiveIngame = vec4(0.2f, 0.22f, 0.26f, 0.94f * A);
+	ms_ColorTabbarActiveIngame = vec4(0.16f, 0.22f, 0.24f, 0.98f * A);
 
 	// update the ui
 	CUIRect *pScreen = UI()->Screen();
