@@ -293,8 +293,18 @@ void CMenus::RenderFilterPresetBar(CUIRect View)
 	DrawMenuInset(&View, CUI::CORNER_ALL);
 	View.Margin(1.0f, &View);
 
+	const char *pAddText = Localize("Add");
+	const char *pRemoveText = Localize("Remove");
+	const char *pRenameText = Localize("Rename");
+	const float ButtonFontSize = min((View.h - 2.0f) * ms_FontmodHeight, 14.0f);
+	const float AddButtonWidth = max(34.0f, TextRender()->TextWidth(0, ButtonFontSize, pAddText, -1) + 14.0f);
+	const float RemoveButtonWidth = max(34.0f, TextRender()->TextWidth(0, ButtonFontSize, pRemoveText, -1) + 14.0f);
+	const float RenameButtonWidth = max(34.0f, TextRender()->TextWidth(0, ButtonFontSize, pRenameText, -1) + 14.0f);
+	const float DesiredButtonsWidth = AddButtonWidth + RemoveButtonWidth + RenameButtonWidth + 5.0f;
+	const float ButtonsWidth = clamp(DesiredButtonsWidth, 105.0f, View.w * 0.45f);
+
 	CUIRect Buttons, Tabs;
-	View.VSplitRight(105.0f, &Tabs, &Buttons);
+	View.VSplitRight(ButtonsWidth, &Tabs, &Buttons);
 	Buttons.VSplitLeft(3.0f, 0, &Buttons);
 
 	int VisibleCount = 0;
@@ -341,13 +351,14 @@ void CMenus::RenderFilterPresetBar(CUIRect View)
 	}
 
 	CUIRect AddButton, RemoveButton, RenameButton;
-	Buttons.VSplitLeft(Buttons.w/3.0f, &AddButton, &Buttons);
-	Buttons.VSplitLeft(Buttons.w/2.0f, &RemoveButton, &RenameButton);
-	AddButton.VSplitRight(1.0f, &AddButton, 0);
-	RemoveButton.VSplitRight(1.0f, &RemoveButton, 0);
+	const float ButtonWidthScale = (Buttons.w - 2.0f) / (AddButtonWidth + RemoveButtonWidth + RenameButtonWidth);
+	Buttons.VSplitLeft(AddButtonWidth * ButtonWidthScale, &AddButton, &Buttons);
+	Buttons.VSplitLeft(1.0f, 0, &Buttons);
+	Buttons.VSplitLeft(RemoveButtonWidth * ButtonWidthScale, &RemoveButton, &Buttons);
+	Buttons.VSplitLeft(1.0f, 0, &RenameButton);
 
 	static int s_AddPresetButton = 0;
-	if(DoButton_Menu(&s_AddPresetButton, Localize("Add"), 0, &AddButton))
+	if(DoButton_Menu(&s_AddPresetButton, pAddText, 0, &AddButton))
 	{
 		int Slot = -1;
 		for(int i = UI_FILTER_PRESET_CUSTOM_START; i < NUM_UI_FILTER_PRESETS; i++)
@@ -370,7 +381,7 @@ void CMenus::RenderFilterPresetBar(CUIRect View)
 	}
 
 	static int s_RemovePresetButton = 0;
-	if(DoButton_Menu(&s_RemovePresetButton, Localize("Remove"), 0, &RemoveButton))
+	if(DoButton_Menu(&s_RemovePresetButton, pRemoveText, 0, &RemoveButton))
 	{
 		if(m_ActiveFilterPreset >= UI_FILTER_PRESET_CUSTOM_START && m_aFilterPresets[m_ActiveFilterPreset].m_Used)
 		{
@@ -380,7 +391,7 @@ void CMenus::RenderFilterPresetBar(CUIRect View)
 	}
 
 	static int s_RenamePresetButton = 0;
-	if(DoButton_Menu(&s_RenamePresetButton, Localize("Rename"), m_FilterPresetRenameSlot >= 0, &RenameButton))
+	if(DoButton_Menu(&s_RenamePresetButton, pRenameText, m_FilterPresetRenameSlot >= 0, &RenameButton))
 	{
 		if(m_ActiveFilterPreset >= UI_FILTER_PRESET_CUSTOM_START && m_aFilterPresets[m_ActiveFilterPreset].m_Used)
 		{
@@ -670,7 +681,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 			{
 				CUIRect r = Row;
 				r.Margin(0.5f, &r);
-				RenderTools()->DrawUIRect(&r, vec4(0.1f, 0.35f, 0.3f, 0.55f), CUI::CORNER_ALL, ms_ControlRounding);
+				RenderTools()->DrawUIRect(&r, vec4(0.12f, 0.13f, 0.16f, 0.58f), CUI::CORNER_ALL, ms_ControlRounding);
 				DrawAccentUnderline(&r);
 			}
 
@@ -769,7 +780,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 					if(pStr)
 					{
 						TextRender()->TextEx(&Cursor, pItem->m_aName, (int)(pStr-pItem->m_aName));
-						TextRender()->TextColor(0.15f,0.95f,0.75f,1);
+						TextRender()->TextColor(0.95f,0.58f,0.18f,1);
 						TextRender()->TextEx(&Cursor, pStr, str_length(g_Config.m_BrFilterString));
 						TextRender()->TextColor(1,1,1,1);
 						TextRender()->TextEx(&Cursor, pStr+str_length(g_Config.m_BrFilterString), -1);
@@ -793,7 +804,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 					if(pStr)
 					{
 						TextRender()->TextEx(&Cursor, pItem->m_aMap, (int)(pStr-pItem->m_aMap));
-						TextRender()->TextColor(0.15f,0.95f,0.75f,1);
+						TextRender()->TextColor(0.95f,0.58f,0.18f,1);
 						TextRender()->TextEx(&Cursor, pStr, str_length(g_Config.m_BrFilterString));
 						TextRender()->TextColor(1,1,1,1);
 						TextRender()->TextEx(&Cursor, pStr+str_length(g_Config.m_BrFilterString), -1);
@@ -820,7 +831,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 				else
 					str_format(aTemp, sizeof(aTemp), "%i/%i", pItem->m_NumClients, pItem->m_MaxClients);
 				if(g_Config.m_BrFilterString[0] && (pItem->m_QuickSearchHit&IServerBrowser::QUICK_PLAYER))
-					TextRender()->TextColor(0.15f,0.95f,0.75f,1);
+					TextRender()->TextColor(0.95f,0.58f,0.18f,1);
 				UI()->DoLabelScaled(&Button, aTemp, 10.0f, 1);
 				TextRender()->TextColor(1,1,1,1);
 			}
@@ -874,7 +885,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 	// clear button
 	{
 		static int s_ClearButton = 0;
-		RenderTools()->DrawUIRect(&Button, vec4(0.12f,0.13f,0.16f,0.9f)*ButtonColorMul(&s_ClearButton), CUI::CORNER_R, ms_ControlRounding);
+		RenderTools()->DrawUIRect(&Button, vec4(0.06f,0.07f,0.09f,0.9f)*ButtonColorMul(&s_ClearButton), CUI::CORNER_R, ms_ControlRounding);
 		UI()->DoLabel(&Button, "x", min(Button.h*ms_FontmodHeight, 11.0f), 0);
 		if(UI()->DoButtonLogic(&s_ClearButton, "x", 0, &Button))
 		{
@@ -913,6 +924,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 
 	static CScrollRegion s_FilterScrollRegion;
 	CScrollRegionParams ScrollParams;
+	ConfigureScrollRegion(&ScrollParams);
 	ScrollParams.m_ClipBgColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
 	vec2 ScrollOffset;
 	s_FilterScrollRegion.Begin(&ScrollArea, &ScrollOffset, &ScrollParams);
@@ -1138,6 +1150,7 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 	{
 		static CScrollRegion s_ScoreboardScrollRegion;
 		CScrollRegionParams ScrollParams;
+		ConfigureScrollRegion(&ScrollParams);
 		ScrollParams.m_ClipBgColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
 		vec2 ScrollOffset;
 		s_ScoreboardScrollRegion.Begin(&ServerScoreBoard, &ScrollOffset, &ScrollParams);
@@ -1164,8 +1177,8 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 				Client()->ServerBrowserUpdate();
 			}
 
-			vec4 Colour = pSelectedServer->m_aClients[i].m_FriendState == IFriends::FRIEND_NO ? vec4(1.0f, 1.0f, 1.0f, (i%2+1)*0.05f) :
-																								vec4(0.5f, 1.0f, 0.5f, 0.15f+(i%2+1)*0.05f);
+			vec4 Colour = pSelectedServer->m_aClients[i].m_FriendState == IFriends::FRIEND_NO ? vec4(0.11f, 0.12f, 0.14f, (i%2+1)*0.08f) :
+																								vec4(0.18f, 0.66f, 0.46f, 0.16f+(i%2+1)*0.05f);
 			RenderTools()->DrawUIRect(&Name, Colour, CUI::CORNER_ALL, 4.0f);
 			Name.VSplitLeft(5.0f, 0, &Name);
 			Name.VSplitLeft(30.0f, &Score, &Name);
@@ -1194,7 +1207,7 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 				if(s)
 				{
 					TextRender()->TextEx(&Cursor, pName, (int)(s-pName));
-					TextRender()->TextColor(0.4f, 0.4f, 1.0f, 1.0f);
+					TextRender()->TextColor(0.95f, 0.58f, 0.18f, 1.0f);
 					TextRender()->TextEx(&Cursor, s, str_length(g_Config.m_BrFilterString));
 					TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 					TextRender()->TextEx(&Cursor, s+str_length(g_Config.m_BrFilterString), -1);
@@ -1216,7 +1229,7 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 				if(s)
 				{
 					TextRender()->TextEx(&Cursor, pClan, (int)(s-pClan));
-					TextRender()->TextColor(0.4f, 0.4f, 1.0f, 1.0f);
+					TextRender()->TextColor(0.95f, 0.58f, 0.18f, 1.0f);
 					TextRender()->TextEx(&Cursor, s, str_length(g_Config.m_BrFilterString));
 					TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 					TextRender()->TextEx(&Cursor, s+str_length(g_Config.m_BrFilterString), -1);
@@ -1290,7 +1303,7 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 			CUIRect OnState, JoinRect;
 			Item.m_Rect.VSplitRight(30.0f, &Item.m_Rect, &OnState);
 			Item.m_Rect.VSplitRight(45.0f, &Item.m_Rect, &JoinRect);
-			RenderTools()->DrawUIRect(&Item.m_Rect, vec4(1.0f, 1.0f, 1.0f, 0.1f), CUI::CORNER_L, 4.0f);
+			RenderTools()->DrawUIRect(&Item.m_Rect, vec4(0.12f, 0.13f, 0.16f, 0.14f), CUI::CORNER_L, 4.0f);
 
 			Item.m_Rect.VMargin(2.5f, &Item.m_Rect);
 			Item.m_Rect.HSplitTop(12.0f, &Item.m_Rect, &Button);
@@ -1298,7 +1311,7 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 			UI()->DoLabelScaled(&Button, m_lFriends[i].m_pFriendInfo->m_aClan, FontSize, -1);
 
 			// status indicator
-			RenderTools()->DrawUIRect(&OnState, m_lFriends[i].m_NumFound ? vec4(0.0f, 1.0f, 0.0f, 0.25f) : vec4(1.0f, 0.0f, 0.0f, 0.25f), CUI::CORNER_R, 4.0f);
+			RenderTools()->DrawUIRect(&OnState, m_lFriends[i].m_NumFound ? vec4(0.18f, 0.66f, 0.46f, 0.28f) : vec4(0.92f, 0.24f, 0.30f, 0.28f), CUI::CORNER_R, 4.0f);
 			OnState.HMargin((OnState.h-FontSize)/3, &OnState);
 			OnState.VMargin(5.0f, &OnState);
 			char aBuf[64];
@@ -1308,7 +1321,7 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 			// join button
 			if(m_lFriends[i].m_NumFound > 0)
 			{
-				RenderTools()->DrawUIRect(&JoinRect, vec4(0.3f, 0.7f, 0.3f, 0.5f), CUI::CORNER_ALL, 3.0f);
+				RenderTools()->DrawUIRect(&JoinRect, vec4(0.95f, 0.58f, 0.18f, 0.5f), CUI::CORNER_ALL, 3.0f);
 				UI()->DoLabelScaled(&JoinRect, Localize("Join"), FontSize, 1);
 				if(UI()->DoButtonLogic(&m_lFriends[i], "Join", 0, &JoinRect))
 					JoinFriendIndex = i;

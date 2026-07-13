@@ -16,6 +16,7 @@
 #include "controls.h"
 #include "camera.h"
 #include "hud.h"
+#include "menus.h"
 #include "voting.h"
 #include "binds.h"
 
@@ -60,7 +61,13 @@ void CHud::RenderGameTimer()
 		if(m_pClient->m_Snap.m_pGameInfoObj->m_TimeLimit && Time <= 60 && !m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer)
 		{
 			float Alpha = Time <= 10 && (2*time_get()/time_freq()) % 2 ? 0.5f : 1.0f;
-			TextRender()->TextColor(1.0f, 0.25f, 0.25f, Alpha);
+			vec4 Danger = CMenus::ThemeDanger();
+			TextRender()->TextColor(Danger.r, Danger.g, Danger.b, Alpha);
+		}
+		else
+		{
+			vec4 Accent = CMenus::ThemeAccent();
+			TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 1.0f);
 		}
 		TextRender()->Text(0, Half-w/2, 2, FontSize, Buf, -1);
 		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -92,7 +99,10 @@ void CHud::RenderPauseNotification()
 
 		Graphics()->TextureSet(-1);
 		Graphics()->QuadsBegin();
-		Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.55f);
+		{
+			vec4 Panel = CMenus::ThemeBgPanel();
+			Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
+		}
 		RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
 		Graphics()->QuadsEnd();
 
@@ -144,7 +154,8 @@ void CHud::RenderObjective()
 			
 			// level + theme (compact, above the original header)
 			{
-				TextRender()->TextColor(0.65f, 0.75f, 0.85f, 1.0f);
+				vec4 AccentDim = CMenus::ThemeAccentDim();
+				TextRender()->TextColor(AccentDim.r, AccentDim.g, AccentDim.b, 1.0f);
 				if (Quest == QUEST_HORDE)
 				{
 					char aWaveBuf[48];
@@ -171,13 +182,15 @@ void CHud::RenderObjective()
 
 			// header (original y=100)
 			{
-				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
+				vec4 TextCol = CMenus::ThemeText();
+				TextRender()->TextColor(TextCol.r, TextCol.g, TextCol.b, 1.0f);
 				DrawRight(100.0f, 8.0f, Localize("Objective"));
 			}
 
 			// quest title (original y=112)
 			{
-				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
+				vec4 TextCol = CMenus::ThemeText();
+				TextRender()->TextColor(TextCol.r, TextCol.g, TextCol.b, 1.0f);
 				char aQuestBuf[96];
 				const char *pWave = GetWaveDisplayName(WaveType);
 				if (pWave[0] && (Quest == QUEST_SURVIVEWAVE || Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_KILLREMAININGENEMIES))
@@ -194,12 +207,14 @@ void CHud::RenderObjective()
 				char aProgressBuf[96];
 				if (Quest == QUEST_REACHDOOR && m_pClient->SurvivalAcid())
 				{
-					TextRender()->TextColor(0.9f, 0.55f, 0.35f, 1.0f);
+					vec4 Accent = CMenus::ThemeAccent();
+					TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 1.0f);
 					DrawRight(120.0f, 5.5f, Localize("Rising acid"));
 				}
 				else
 				{
-					TextRender()->TextColor(0.75f, 0.75f, 0.75f, 1.0f);
+					vec4 TextCol = CMenus::ThemeText();
+					TextRender()->TextColor(TextCol.r, TextCol.g, TextCol.b, 1.0f);
 					const char *pDetail = "";
 					if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS || Quest == QUEST_HORDE)
 					{
@@ -279,16 +294,22 @@ void CHud::RenderScoreHud()
 				if (GameFlags&GAMEFLAG_INFECTION)
 				{
 					if(t == 0)
-						Graphics()->SetColor(1.0f, 0.7f, 0.7f, 0.3f);
+					{
+						vec4 Accent = CMenus::ThemeAccent();
+						Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.28f);
+					}
 					else
-						Graphics()->SetColor(0.1f, 0.1f, 0.1f, 0.3f);
+					{
+						vec4 Panel = CMenus::ThemeBgInset();
+						Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.85f);
+					}
 				}
 				else
 				{
 					if(t == 0)
-						Graphics()->SetColor(1.0f, 0.0f, 0.0f, 0.25f);
+						Graphics()->SetColor(0.92f, 0.24f, 0.30f, 0.28f);
 					else
-						Graphics()->SetColor(0.0f, 0.0f, 1.0f, 0.25f);
+						Graphics()->SetColor(0.26f, 0.42f, 0.92f, 0.28f);
 				}
 				
 				RenderTools()->DrawRoundRectExt(Whole-ScoreWidthMax-ImageSize-2*Split, StartY+t*20, ScoreWidthMax+ImageSize+2*Split, 18.0f, 5.0f, CUI::CORNER_L);
@@ -385,9 +406,15 @@ void CHud::RenderScoreHud()
 				Graphics()->TextureSet(-1);
 				Graphics()->QuadsBegin();
 				if(t == Local)
-					Graphics()->SetColor(1.0f, 1.0f, 1.0f, 0.25f);
+				{
+					vec4 Accent = CMenus::ThemeAccentDim();
+					Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.32f);
+				}
 				else
-					Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.25f);
+				{
+					vec4 Panel = CMenus::ThemeBgInset();
+					Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.85f);
+				}
 				RenderTools()->DrawRoundRectExt(Whole-ScoreWidthMax-ImageSize-2*Split-PosSize, StartY+t*20, ScoreWidthMax+ImageSize+2*Split+PosSize, 18.0f, 5.0f, CUI::CORNER_L);
 				Graphics()->QuadsEnd();
 
@@ -451,7 +478,8 @@ void CHud::RenderStartCountdown()
 
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.55f);
+	vec4 Panel = CMenus::ThemeBgPanel();
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
 	RenderTools()->DrawRoundRect(x, y, BoxW, BoxH, 8.0f);
 	Graphics()->QuadsEnd();
 
@@ -485,7 +513,8 @@ void CHud::RenderReadyUpNotification()
 
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.55f);
+	vec4 Panel = CMenus::ThemeBgPanel();
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
 	RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
 	Graphics()->QuadsEnd();
 
@@ -522,13 +551,14 @@ void CHud::RenderConnectionWarning()
 		float w = TextRender()->TextWidth(0, FontSize, pText, -1);
 		float x = 150.0f*Graphics()->ScreenAspect() - w/2.0f;
 		float y = 40.0f; // below timer; avoid stacking with pause/warmup boxes
-		float Pad = 12.0f;
+	float Pad = 12.0f;
 
-		Graphics()->TextureSet(-1);
-		Graphics()->QuadsBegin();
-		Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.55f);
-		RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
-		Graphics()->QuadsEnd();
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	vec4 Panel = CMenus::ThemeBgPanel();
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
+	RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
+	Graphics()->QuadsEnd();
 
 		TextRender()->Text(0, x, y, FontSize, pText, -1);
 	}
@@ -547,10 +577,8 @@ void CHud::RenderTeambalanceWarning()
 		if (g_Config.m_ClWarningTeambalance && (TeamDiff >= 2 || TeamDiff <= -2))
 		{
 			const char *pText = Localize("Please balance teams!");
-			if(Flash)
-				TextRender()->TextColor(1,1,0.5f,1);
-			else
-				TextRender()->TextColor(0.7f,0.7f,0.2f,1.0f);
+			vec4 Accent = Flash ? CMenus::ThemeAccent() : CMenus::ThemeAccentDim();
+			TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 1.0f);
 			TextRender()->Text(0x0, 5, 108, 6, pText, -1);
 			TextRender()->TextColor(1,1,1,1);
 		}
@@ -565,7 +593,8 @@ void CHud::RenderVoting()
 
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0,0,0,0.55f);
+	vec4 Panel = CMenus::ThemeBgPanel();
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
 	RenderTools()->DrawRoundRect(-12, 58-2, 100+10+4+9, 48, 8.0f);
 	Graphics()->QuadsEnd();
 
@@ -1069,7 +1098,10 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 				if (g_Config.m_GfxShaders)
 					Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
 				else
-					Graphics()->SetColor(0.0f, 0.0f, 0.0f, 1.0f);
+				{
+					vec4 Accent = CMenus::ThemeAccentDim();
+					Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.85f);
+				}
 				
 				//RenderTools()->RenderWeapon(w, vec2(x, y), vec2(1, 0), 24.0f);
 				RenderTools()->RenderWeapon(w, vec2(x-0.5f, y-0.5f), vec2(1, 0), WEAPON_GAME_SIZE/3);
@@ -1149,7 +1181,10 @@ void CHud::RenderSpectatorHud()
 	// draw the box
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.4f);
+	{
+		vec4 Panel = CMenus::ThemeBgPanel();
+		Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
+	}
 	RenderTools()->DrawRoundRectExt(m_Width-180.0f, m_Height-15.0f, 180.0f, 15.0f, 5.0f, CUI::CORNER_TL);
 	Graphics()->QuadsEnd();
 
@@ -1232,7 +1267,10 @@ void CHud::RenderMovementInformation()
 
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.45f);
+	{
+		vec4 Panel = CMenus::ThemeBgPanel();
+		Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
+	}
 	RenderTools()->DrawRoundRectExt(StartX, StartY, BoxWidth, BoxHeight, 5.0f, CUI::CORNER_L);
 	Graphics()->QuadsEnd();
 

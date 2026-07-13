@@ -90,12 +90,12 @@ class CServer : public IServer
 	static int AISkinPVEScan(const char *pName, int IsDir, int DirType, void *pUser);
 	int LoadAISkin(const char *pFilename, const char *pFoldername, int StorageType, bool PVP);
 	
-	CGameVote m_aGameVote[99];
+	CGameVote m_aGameVote[MAX_GAME_VOTES];
 	int m_GameVoteCount;
 	static int GameVoteScan(const char *pName, int IsDir, int DirType, void *pUser);
 	int LoadGameVote(const char *pFilename, const char *pFoldername, int StorageType);
 	
-	bool m_aGameVoteUsed[99];
+	bool m_aGameVoteUsed[MAX_GAME_VOTES];
 	int m_GameModesLeft;
 	
 public:

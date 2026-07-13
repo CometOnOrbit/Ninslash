@@ -71,6 +71,8 @@ void CGameContext::Construct(int Resetting)
 	m_pVoteOptionLast = 0;
 	m_NumVoteOptions = 0;
 	m_LockTeams = 0;
+	m_NumGameVotes = 0;
+	m_WinnerVote = -1;
 	
 	ClearFlameHits();
 	
@@ -1172,6 +1174,11 @@ void CGameContext::ResetGameVotes()
 	
 	for (int i = 0; i < MAX_CLIENTS; i++)
 		m_aPlayerGameVote[i] = -1;
+
+	m_NumGameVotes = 0;
+	m_WinnerVote = -1;
+	for(int i = 0; i < MAX_GAME_VOTES; i++)
+		m_aGameVote[i].m_Valid = false;
 	
 	// define the level for invasion
 	int PlayerCount = 0;
@@ -1198,26 +1205,27 @@ void CGameContext::ResetGameVotes()
 	g_Config.m_SvMapGenLevel = InvLevel;
 	*/
 	
-	for (int i = 0; i < 6; i++)
+	while(m_NumGameVotes < MAX_GAME_VOTES)
 	{
-		if (!Server()->GetGameVote(&m_aGameVote[i], m_pController->CountHumans()))
-			return;
-		else
+		CGameVote Vote;
+		if(!Server()->GetGameVote(&Vote, m_pController->CountHumans()))
+			break;
+
+		m_aGameVote[m_NumGameVotes] = Vote;
+		if(m_aGameVote[m_NumGameVotes].m_DisplayLevel)
 		{
-			if (m_aGameVote[i].m_DisplayLevel)
-			{
-				char aBuf[64];
-				str_format(aBuf, sizeof(aBuf), "%s - Level %d", m_aGameVote[i].m_aDescription, g_Config.m_SvMapGenLevel);
-				str_copy(m_aGameVote[i].m_aDescription, aBuf, sizeof(m_aGameVote[i].m_aDescription));
-			}
+			char aBuf[64];
+			str_format(aBuf, sizeof(aBuf), "%s - Level %d", m_aGameVote[m_NumGameVotes].m_aDescription, g_Config.m_SvMapGenLevel);
+			str_copy(m_aGameVote[m_NumGameVotes].m_aDescription, aBuf, sizeof(m_aGameVote[m_NumGameVotes].m_aDescription));
 		}
+		m_NumGameVotes++;
 	}
 }
 
 
 void CGameContext::RegisterGameVote(int ClientID, int Vote)
 {
-	if (ClientID < 0 || ClientID >= MAX_CLIENTS || Vote < 0 || Vote >= 6)
+	if (ClientID < 0 || ClientID >= MAX_CLIENTS || Vote < 0 || Vote >= m_NumGameVotes || !m_aGameVote[Vote].m_Valid)
 		return;
 	
 	m_aPlayerGameVote[ClientID] = Vote;
@@ -1225,52 +1233,61 @@ void CGameContext::RegisterGameVote(int ClientID, int Vote)
 	SendGameVoteStats();
 }
 	
-void CGameContext::SendGameVoteStats()
+void CGameContext::SendGameVoteStats(int ClientID)
 {
-	int aVotes[6] = {0, 0, 0, 0, 0, 0};
+	int aVotes[MAX_GAME_VOTES] = {0};
 
 	// count
 	for (int i = 0; i < MAX_CLIENTS; i++)
-		if (m_aPlayerGameVote[i] >= 0 && m_aPlayerGameVote[i] < 6)
+		if (m_aPlayerGameVote[i] >= 0 && m_aPlayerGameVote[i] < m_NumGameVotes)
 			aVotes[m_aPlayerGameVote[i]]++;
 	
-	// send
-	CNetMsg_Sv_VoteStatus Msg = {0};
-	Msg.m_Type = 1;
-	Msg.m_Yes = aVotes[0];
-	Msg.m_No = aVotes[1];
-	Msg.m_Pass = aVotes[2];
-	Msg.m_Total = aVotes[3];
-	Msg.m_Option5 = aVotes[4];
-	Msg.m_Option6 = aVotes[5];
-
-	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+	for(int i = 0; i < m_NumGameVotes; i++)
+	{
+		CNetMsg_Sv_GameVoteStatus Msg;
+		Msg.m_Index = i;
+		Msg.m_Votes = aVotes[i];
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+	}
 }
 
 void CGameContext::CalculateVoteWinnerConfig()
 {
-	int aVotes[6] = {0, 0, 0, 0, 0, 0};
+	if(m_NumGameVotes <= 0)
+	{
+		m_WinnerVote = -1;
+		return;
+	}
+
+	int aVotes[MAX_GAME_VOTES] = {0};
 
 	// count
 	for (int i = 0; i < MAX_CLIENTS; i++)
-		if (m_aPlayerGameVote[i] >= 0 && m_aPlayerGameVote[i] < 6)
+		if (m_aPlayerGameVote[i] >= 0 && m_aPlayerGameVote[i] < m_NumGameVotes)
 			aVotes[m_aPlayerGameVote[i]]++;
 	
 	int Biggest = 0;
 	
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < m_NumGameVotes; i++)
 		if (aVotes[i] > Biggest)
 			Biggest = aVotes[i];
 	
-	int j = 0;
-	int i = rand()%6;
-	
-	while (aVotes[i] < Biggest && j++ < 1000)
+	int Tied = 0;
+	for(int i = 0; i < m_NumGameVotes; i++)
+		if(aVotes[i] == Biggest)
+			Tied++;
+
+	int Pick = rand()%Tied;
+	for(int i = 0; i < m_NumGameVotes; i++)
 	{
-		i = rand()%6;
+		if(aVotes[i] != Biggest)
+			continue;
+		if(Pick-- == 0)
+		{
+			m_WinnerVote = i;
+			return;
+		}
 	}
-	
-	m_WinnerVote = i;
 }
 
 /*const char *CGameContext::GetVoteWinnerConfig()
@@ -1314,7 +1331,7 @@ void CGameContext::CalculateVoteWinnerConfig()
 void CGameContext::SendGameVotes(int ClientID)
 {
 	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GameContext", "Sending gamevotes");
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < m_NumGameVotes; i++)
 	{
 		if (m_aGameVote[i].m_Valid)
 		{
@@ -1349,7 +1366,7 @@ void CGameContext::SendGameVotes(int ClientID)
 				Msg.m_TimeLeft = m_pController->GetVoteTime();
 				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 			}
-			Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GameContext", "Sending gamevote");
+			// Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GameContext", "Sending gamevote");
 		}
 	}
 	
@@ -1889,7 +1906,7 @@ void CGameContext::OnClientEnter(int ClientID)
 	if (m_pController->GameVoting())
 	{
 		SendGameVotes(ClientID);
-		SendGameVoteStats();
+		SendGameVoteStats(ClientID);
 	}
 }
 

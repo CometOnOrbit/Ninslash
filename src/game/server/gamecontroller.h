@@ -95,6 +95,7 @@ protected:
 
 	int m_Warmup;
 	int m_GameVote;
+	int m_GameVoteEndTick;
 	int m_RoundCount;
 	
 	void SendGameVotes();
@@ -183,6 +184,7 @@ public:
 	int CountHumans();
 	int CountBots();
 	int CountBotsAlive();
+	bool AllVotingHumansVoted() const;
 	
 	void TriggerSwitch(vec2 Pos);
 	void TriggerEscape();

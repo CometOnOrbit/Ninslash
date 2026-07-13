@@ -164,7 +164,7 @@ void CMenus::RenderPlayers(CUIRect MainView)
 
 		Options.HSplitTop(22.0f, &ButtonBar, &Options);
 		if(Count++%2 == 0)
-			RenderTools()->DrawUIRect(&ButtonBar, vec4(0.1f, 0.12f, 0.14f, 0.45f), CUI::CORNER_ALL, ms_ControlRounding);
+			RenderTools()->DrawUIRect(&ButtonBar, vec4(0.06f, 0.07f, 0.09f, 0.55f), CUI::CORNER_ALL, ms_ControlRounding);
 		ButtonBar.VSplitRight(200.0f, &Player, &ButtonBar);
 
 		// player info
@@ -541,4 +541,3 @@ void CMenus::RenderServerControl(CUIRect MainView)
 		}
 	}
 }
-

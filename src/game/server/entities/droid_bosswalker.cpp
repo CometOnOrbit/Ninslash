@@ -19,7 +19,7 @@ CBossWalker::CBossWalker(CGameWorld *pGameWorld, vec2 Pos)
 
 void CBossWalker::Reset()
 {
-	m_Center = vec2(0, -50);
+	m_Center = vec2(0, 0);
 	m_Health = 1400;
 	m_Pos = m_StartPos;
 	m_Status = DROIDSTATUS_IDLE;
@@ -147,6 +147,8 @@ void CBossWalker::Tick()
 		*/
 		return;
 	}
+
+	m_Vel += GameServer()->m_World.m_Core.FindDroidHookImpactVel(m_ID) * 0.25f;
 	
 	if (GameServer()->Collision()->IsInFluid(m_Pos.x, m_Pos.y))
 		TakeDamage(vec2(0, 0), 2, -1, vec2(0, 0), DAMAGETYPE_FLUID);
@@ -277,10 +279,14 @@ void CBossWalker::Tick()
 			m_State = CBossWalker::IDLE;
 			m_StateChangeTick = Server()->Tick() + Server()->TickSpeed() * (2 + frandom());
 		}
-		else if (m_Dir == -1)
+
+		m_Vel.x += m_Dir * Speed * 0.25f;
+		m_Vel.y += 0.8f;
+		m_Vel *= 0.98f;
+		GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, vec2(78.0f, 64.0f), 0, false);
+
+		if (m_Dir == -1)
 		{
-			m_Pos.x -= Speed;
-			
 			// wall
 			if (GameServer()->Collision()->IsTileSolid(m_Pos.x-46, m_Pos.y-8))
 			{
@@ -296,8 +302,6 @@ void CBossWalker::Tick()
 		}
 		else if (m_Dir == 1)
 		{
-			m_Pos.x += Speed;
-			
 			// wall
 			if (GameServer()->Collision()->IsTileSolid(m_Pos.x+46, m_Pos.y-8))
 			{
@@ -324,6 +328,8 @@ void CBossWalker::Tick()
 	
 	if(Server()->Tick() > m_DamageTakenTick+15)
 		m_Status = DROIDSTATUS_IDLE;
+
+	GameServer()->m_World.m_Core.AddDroid(m_ID, m_Pos, m_Vel, BossWalkerPhysSize);
 	
 	//GameServer()->m_World.m_Core.AddMonster(m_Pos);
 }

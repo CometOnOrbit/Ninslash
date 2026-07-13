@@ -18,8 +18,6 @@ int SelectBossType(int Depth)
 	Types[Count++] = DROIDTYPE_BOSSCRAWLER;
 	if(Depth >= 5)
 		Types[Count++] = DROIDTYPE_BOSSSTAR;
-	if(Depth >= 10)
-		Types[Count++] = DROIDTYPE_BOSSWALKER;
 	if(Depth >= 15)
 		Types[Count++] = DROIDTYPE_BOSSSPLITTER;
 	return Types[rand() % Count];
@@ -35,8 +33,6 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 	{
 	case DROIDTYPE_BOSSSTAR:
 		return new CBossStar(pWorld, Pos);
-	case DROIDTYPE_BOSSWALKER:
-		return new CBossWalker(pWorld, Pos);
 	case DROIDTYPE_BOSSSPLITTER:
 		return new CBossSplitter(pWorld, Pos);
 	default:

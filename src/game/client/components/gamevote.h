@@ -1,6 +1,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_GAMEVOTE_H
 #define GAME_CLIENT_COMPONENTS_GAMEVOTE_H
 #include <game/client/component.h>
+#include <game/gamevote.h>
 
 struct CGameVoteDetails
 {
@@ -25,20 +26,19 @@ struct CGameVoteDetails
 class CGameVoteDisplay : public CComponent
 {
 	int m_GameVoteCount;
-	CGameVoteDetails m_aGameVoteDetails[6];
+	CGameVoteDetails m_aGameVoteDetails[MAX_GAME_VOTES];
 
 	int m_Selected;
+	int m_Focused;
+	float m_CarouselPosition;
+	float m_AppearAmount;
+	float m_SelectionPulse;
 	int m_TimeLeft;
 	int m_TimeLeftTick;
+	int m_VoteDuration;
+	int64 m_LastVoteMessageTime;
 
-	bool m_ResetMouse;
-	bool m_Mouse1;
 	bool m_MouseTrigger;
-	bool m_Mouse1Loaded;
-	
-	vec2 m_MoveStartPos;
-	bool m_Moved;
-	bool m_MoveTrigger;
 	vec2 m_SelectorMouse;
 	
 	void RenderMouse();

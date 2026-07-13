@@ -27,11 +27,13 @@ private:
 	int m_TriggerLevel;
 	bool m_Win;
 	bool m_EscapePressure;
+	bool m_HadHumanAlive;
 
 	void SpawnInitialEnemies();
 	void SpawnMidBoss();
 	void SpawnEscapePressure();
 	int CountSwitches() const;
+	int CountHumanPlayersLocal() const;
 	int CountHumansAliveLocal() const;
 	int EnemyLevel() const;
 

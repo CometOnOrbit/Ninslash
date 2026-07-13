@@ -609,7 +609,7 @@ int CServer::LoadGameVote(const char *pFilename, const char *pFoldername, int St
 
 	io_close(VoteFile);
 
-	if (m_GameVoteCount < 99)
+	if (m_GameVoteCount < MAX_GAME_VOTES)
 	{
 		m_aGameVote[m_GameVoteCount] = GameVote;
 		m_GameVoteCount++;
@@ -804,7 +804,7 @@ void CServer::GetAISkin(CAISkin *pAISkin, bool PVP, int Level, int WaveGroup)
 
 void CServer::ResetGameVoting()
 {
-	for (int i = 0; i < 99; i++)
+	for (int i = 0; i < MAX_GAME_VOTES; i++)
 		m_aGameVoteUsed[i] = false;
 	
 	m_GameModesLeft = m_GameVoteCount;
@@ -814,12 +814,19 @@ bool CServer::GetGameVote(CGameVote *pGameVote, int Players)
 {
 	if (m_GameVoteCount < 1 || m_GameModesLeft < 1)
 		return false;
+
+	auto Eligible = [&](int Index) {
+		return !m_aGameVoteUsed[Index]
+			&& m_aGameVote[Index].m_MinPlayers <= Players
+			&& m_aGameVote[Index].m_MaxPlayers >= Players
+			&& m_aGameVote[Index].m_MinLevel <= g_Config.m_SvMapGenLevel
+			&& m_aGameVote[Index].m_MaxLevel >= g_Config.m_SvMapGenLevel;
+	};
 	
 	// get gamevotes that should be always displayed first
 	for (int l = 0; l < m_GameVoteCount; l++)
 	{
-		if (m_aGameVote[l].m_MinPlayers <= Players && m_aGameVote[l].m_MaxPlayers >= Players && m_aGameVote[l].m_AlwaysOn && !m_aGameVoteUsed[l] &&
-			m_aGameVote[l].m_MinLevel <= g_Config.m_SvMapGenLevel && m_aGameVote[l].m_MaxLevel >= g_Config.m_SvMapGenLevel)
+		if (m_aGameVote[l].m_AlwaysOn && Eligible(l))
 		{
 			m_aGameVoteUsed[l] = true;
 			m_GameModesLeft--;
@@ -828,17 +835,28 @@ bool CServer::GetGameVote(CGameVote *pGameVote, int Players)
 		}
 	}
 	
-	// get random gamevote
-	int i = rand()%(m_GameVoteCount);
-	
-	int j = 0;
-	while (m_aGameVoteUsed[i] || m_aGameVote[i].m_MinPlayers > Players || m_aGameVote[i].m_MaxPlayers < Players || m_aGameVote[i].m_AlwaysOn)
+	// Pick one of the remaining eligible modes. Repeated calls enumerate all
+	// eligible modes without relying on a bounded random retry loop.
+	int EligibleCount = 0;
+	for(int i = 0; i < m_GameVoteCount; i++)
+		if(!m_aGameVote[i].m_AlwaysOn && Eligible(i))
+			EligibleCount++;
+
+	if(EligibleCount <= 0)
+		return false;
+
+	int Pick = rand()%EligibleCount;
+	int i = 0;
+	for(; i < m_GameVoteCount; i++)
 	{
-		i = rand()%(m_GameVoteCount);
-		
-		if (j++ > 999)
-			return false;
+		if(m_aGameVote[i].m_AlwaysOn || !Eligible(i))
+			continue;
+		if(Pick-- == 0)
+			break;
 	}
+
+	if(i >= m_GameVoteCount)
+		return false;
 	
 	m_aGameVoteUsed[i] = true;
 	m_GameModesLeft--;

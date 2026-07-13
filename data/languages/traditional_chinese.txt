@@ -751,6 +751,9 @@ Reset filter
 Reset to defaults
 == 恢複預設設置
 
+Reset theme to defaults
+== 恢複主題預設
+
 Resolution
 == 分辨率
 
@@ -1033,6 +1036,27 @@ Type:
 UI Color
 == 界面顏色
 
+Theme
+== 主題
+
+Primary color
+== 主色
+
+Secondary color
+== 副色
+
+Hue
+== 色相
+
+Sat.
+== 飽和度
+
+Lht.
+== 明度
+
+Alpha
+== 透明度
+
 Unable to delete the demo
 == 無法刪除這個回放
 
@@ -1255,7 +1279,18 @@ Milestone: gold bonus unlocked
 Milestone: shop tier unlocked
 == 里程碑：商店折扣已解鎖
 
+Select
+== 選擇
+
+Selected
+== 已選擇
+
+Choose the next mode
+== 選擇下一局模式
+
+Mouse wheel to browse modes | %d / %d
+== 滾動滑鼠滾輪瀏覽模式 | %d / %d
+
 ##### needs translation #####
 
 ##### old translations #####
-

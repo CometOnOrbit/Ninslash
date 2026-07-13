@@ -41,6 +41,7 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	m_TriggerLevel = 10;
 	m_Win = false;
 	m_EscapePressure = false;
+	m_HadHumanAlive = false;
 
 	g_Config.m_SvOneHitKill = 0;
 	g_Config.m_SvWarmup = 0;
@@ -127,6 +128,18 @@ int CGameControllerExtract::CountHumansAliveLocal() const
 	return Alive;
 }
 
+int CGameControllerExtract::CountHumanPlayersLocal() const
+{
+	int Humans = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *p = GameServer()->m_apPlayers[i];
+		if(p && !p->m_IsBot && p->GetTeam() != TEAM_SPECTATORS)
+			Humans++;
+	}
+	return Humans;
+}
+
 void CGameControllerExtract::SpawnInitialEnemies()
 {
 	const int Players = max(1, CountPlayers(0));
@@ -211,12 +224,6 @@ int CGameControllerExtract::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKill
 
 	if(pVictim->m_IsBot)
 		pVictim->GetPlayer()->m_ToBeKicked = true;
-	else if(g_Config.m_SvSurvivalMode >= 2 && CountHumansAliveLocal() <= 0 && !m_RoundOverTick)
-	{
-		GameServer()->SendBroadcast("Extraction failed — team wiped", -1);
-		m_RoundOverTick = Server()->Tick();
-		m_Win = false;
-	}
 	else if(!pVictim->m_IsBot)
 		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
 
@@ -291,6 +298,17 @@ void CGameControllerExtract::Tick()
 			GameServer()->SendBroadcast("Extraction — activate switches, then escape", -1);
 		}
 		return;
+	}
+
+	if(CountHumansAliveLocal() > 0)
+		m_HadHumanAlive = true;
+
+	if(g_Config.m_SvSurvivalMode && !m_RoundOverTick && m_HadHumanAlive
+		&& CountHumanPlayersLocal() > 0 && CountHumansAliveLocal() <= 0)
+	{
+		GameServer()->SendBroadcast("Extraction failed — team wiped", -1);
+		m_RoundOverTick = Server()->Tick();
+		m_Win = false;
 	}
 
 	// reinforce while fighting / evacuating

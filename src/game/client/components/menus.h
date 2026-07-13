@@ -61,6 +61,7 @@ class CMenus : public CComponent
 	void DrawSectionHeader(const CUIRect *pRect, int Corners = CUI::CORNER_T);
 	void DrawAccentUnderline(const CUIRect *pRect);
 	void DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding);
+	void ConfigureScrollRegion(CScrollRegionParams *pParams) const;
 	void LayoutCenterPanel(CUIRect *pScreen, CUIRect *pOut);
 
 	float AnimHover(const void *pID, float Speed = 14.0f);
@@ -402,6 +403,14 @@ public:
 	static CMenusKeyBinder m_Binder;
 
 	CMenus();
+
+	static vec4 ThemeBgDeep();
+	static vec4 ThemeBgPanel();
+	static vec4 ThemeBgInset();
+	static vec4 ThemeAccent();
+	static vec4 ThemeAccentDim();
+	static vec4 ThemeDanger();
+	static vec4 ThemeText();
 
 	void RenderLoading();
 

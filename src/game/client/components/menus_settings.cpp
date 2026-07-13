@@ -28,6 +28,18 @@
 
 CMenusKeyBinder CMenus::m_Binder;
 
+static void ResetThemeDefaults()
+{
+	g_Config.m_UiColorHue = 150;
+	g_Config.m_UiColorSat = 16;
+	g_Config.m_UiColorLht = 188;
+	g_Config.m_UiColorAlpha = 222;
+	g_Config.m_UiColorHue2 = 150;
+	g_Config.m_UiColorSat2 = 10;
+	g_Config.m_UiColorLht2 = 128;
+	g_Config.m_UiColorAlpha2 = 190;
+}
+
 CMenusKeyBinder::CMenusKeyBinder()
 {
 	m_TakeKey = false;
@@ -61,6 +73,7 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 		Localize("Camera"),
 		Localize("HUD"),
 		Localize("Chat"),
+		Localize("Theme"),
 		Localize("Nameplates"),
 		Localize("Misc")
 	};
@@ -276,7 +289,60 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 		if(DoButton_CheckBox(&g_Config.m_ClDisableWhisper, Localize("Disable whisper"), g_Config.m_ClDisableWhisper, &Button))
 			g_Config.m_ClDisableWhisper ^= 1;
 	}
-	else if(s_GeneralSubPage == 3) // Nameplates
+	else if(s_GeneralSubPage == 3) // Theme
+	{
+		CUIRect ThemeView = Content, ThemeFooter, ThemeLeft, ThemeRight, ThemeButton;
+		ThemeView.HSplitBottom(34.0f, &ThemeView, &ThemeFooter);
+		ThemeView.VSplitMid(&ThemeLeft, &ThemeRight);
+		ThemeLeft.VSplitRight(6.0f, &ThemeLeft, 0);
+		ThemeRight.VMargin(6.0f, &ThemeRight);
+
+		auto DrawThemeGroup = [&](CUIRect View, const char *pTitle, int *pHue, int *pSat, int *pLht, int *pAlpha)
+		{
+			CUIRect Label, Row, ItemLabel, Swatch;
+			View.HSplitTop(18.0f, &Label, &View);
+			UI()->DoLabelScaled(&Label, pTitle, 12.0f, -1);
+			View.HSplitTop(4.0f, 0, &View);
+
+			const char *apLabels[] = {
+				Localize("Hue"),
+				Localize("Sat."),
+				Localize("Lht."),
+				Localize("Alpha")
+			};
+			int *apValues[] = {pHue, pSat, pLht, pAlpha};
+			for(int i = 0; i < 4; ++i)
+			{
+				View.HSplitTop(18.0f, &Row, &View);
+				Row.VSplitLeft(72.0f, &ItemLabel, &Row);
+				UI()->DoLabelScaled(&ItemLabel, apLabels[i], 11.0f, -1);
+				Row.HMargin(1.0f, &Row);
+				float k = (*apValues[i]) / 255.0f;
+				k = DoScrollbarH(apValues[i], &Row, k);
+				*apValues[i] = (int)(k*255.0f + 0.5f);
+				View.HSplitTop(4.0f, 0, &View);
+			}
+
+			View.HSplitTop(18.0f, &Row, &View);
+			Row.VSplitRight(58.0f, &Row, &Swatch);
+			vec3 Rgb = HslToRgb(vec3(*pHue/255.0f, *pSat/255.0f, *pLht/255.0f));
+			RenderTools()->DrawUIRect(&Swatch, vec4(Rgb.r, Rgb.g, Rgb.b, *pAlpha/255.0f), CUI::CORNER_ALL, 4.0f);
+			UI()->DoLabelScaled(&Row, pTitle, 11.0f, -1);
+		};
+
+		DrawThemeGroup(ThemeLeft, Localize("Primary color"), &g_Config.m_UiColorHue, &g_Config.m_UiColorSat, &g_Config.m_UiColorLht, &g_Config.m_UiColorAlpha);
+		DrawThemeGroup(ThemeRight, Localize("Secondary color"), &g_Config.m_UiColorHue2, &g_Config.m_UiColorSat2, &g_Config.m_UiColorLht2, &g_Config.m_UiColorAlpha2);
+
+		ThemeFooter.HSplitTop(6.0f, 0, &ThemeFooter);
+		ThemeButton = ThemeFooter;
+		ThemeButton.VSplitLeft(220.0f, 0, &ThemeButton);
+		ThemeButton.VSplitRight(220.0f, &ThemeButton, 0);
+		ThemeButton.HSplitTop(18.0f, &ThemeButton, 0);
+		static int s_ResetThemeButton = 0;
+		if(DoButton_Menu(&s_ResetThemeButton, Localize("Reset theme to defaults"), 0, &ThemeButton))
+			ResetThemeDefaults();
+	}
+	else if(s_GeneralSubPage == 4) // Nameplates
 	{
 		Left.HSplitTop(18.0f, &Button, &Left);
 		if(DoButton_CheckBox(&g_Config.m_ClNameplates, Localize("Show name plates"), g_Config.m_ClNameplates, &Button))
@@ -1781,6 +1847,7 @@ void CMenus::RenderSettingsControls(CUIRect MainView)
 	static CScrollRegion s_ScrollRegion;
 	vec2 ScrollOffset(0.0f, 0.0f);
 	CScrollRegionParams ScrollParams;
+	ConfigureScrollRegion(&ScrollParams);
 	ScrollParams.m_ClipBgColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
 	ScrollParams.m_ScrollUnit = 60.0f;
 	s_ScrollRegion.Begin(&MainView, &ScrollOffset, &ScrollParams);
@@ -1823,7 +1890,7 @@ void CMenus::RenderSettingsControls(CUIRect MainView)
 		ResetButton.VSplitRight(250.0f, &ResetButton, 0);
 
 		ResetButton.HSplitTop(10.0f, 0, &ResetButton);
-		RenderTools()->DrawUIRect(&ResetButton, vec4(1,1,1,0.25f), CUI::CORNER_ALL, 10.0f);
+		RenderTools()->DrawUIRect(&ResetButton, vec4(0.08f, 0.09f, 0.11f, 0.9f), CUI::CORNER_ALL, 10.0f);
 		ResetButton.HMargin(10.0f, &ResetButton);
 		ResetButton.VMargin(30.0f, &ResetButton);
 		ResetButton.HSplitTop(20.0f, &ResetButton, 0);
@@ -1885,9 +1952,9 @@ bool CMenus::DoResolutionList(CUIRect *pRect, const void *pID, float *pScrollVal
 
 		const bool Selected = OldSelected == i;
 		if(Selected)
-			RenderTools()->DrawUIRect(&Item, ms_ColorAccent * vec4(1,1,1,0.35f), CUI::CORNER_ALL, ms_ControlRounding);
+			RenderTools()->DrawUIRect(&Item, ms_ColorAccent * vec4(1,1,1,0.32f), CUI::CORNER_ALL, ms_ControlRounding);
 		else if(UI()->MouseInside(&Item))
-			RenderTools()->DrawUIRect(&Item, vec4(1,1,1,0.06f)*ButtonColorMul(&lModes[i]), CUI::CORNER_ALL, ms_ControlRounding);
+			RenderTools()->DrawUIRect(&Item, vec4(0.10f, 0.11f, 0.13f, 0.22f) * ButtonColorMul(&lModes[i]), CUI::CORNER_ALL, ms_ControlRounding);
 
 		if(UI()->DoButtonLogic(&lModes[i], "", Selected, &Item))
 		{

@@ -37,17 +37,17 @@ vec4 CMenus::ms_GuiColor;
 vec4 CMenus::ms_ColorTabbarInactiveOutgame;
 vec4 CMenus::ms_ColorTabbarActiveOutgame;
 vec4 CMenus::ms_ColorTabbarInactive;
-vec4 CMenus::ms_ColorTabbarActive = vec4(0,0,0,0.5f);
+vec4 CMenus::ms_ColorTabbarActive = vec4(0.04f, 0.05f, 0.06f, 0.88f);
 vec4 CMenus::ms_ColorTabbarInactiveIngame;
 vec4 CMenus::ms_ColorTabbarActiveIngame;
 
-vec4 CMenus::ms_ColorBgDeep = vec4(0.07f, 0.08f, 0.1f, 0.96f);
-vec4 CMenus::ms_ColorBgPanel = vec4(0.12f, 0.13f, 0.16f, 0.96f);
-vec4 CMenus::ms_ColorBgInset = vec4(0.06f, 0.07f, 0.09f, 0.92f);
-vec4 CMenus::ms_ColorAccent = vec4(0.2f, 0.95f, 0.78f, 1.0f);
-vec4 CMenus::ms_ColorAccentDim = vec4(0.12f, 0.55f, 0.45f, 1.0f);
-vec4 CMenus::ms_ColorDanger = vec4(0.92f, 0.28f, 0.32f, 1.0f);
-vec4 CMenus::ms_ColorText = vec4(0.95f, 0.96f, 0.97f, 1.0f);
+vec4 CMenus::ms_ColorBgDeep = vec4(0.012f, 0.014f, 0.017f, 0.96f);
+vec4 CMenus::ms_ColorBgPanel = vec4(0.044f, 0.048f, 0.058f, 0.96f);
+vec4 CMenus::ms_ColorBgInset = vec4(0.026f, 0.028f, 0.034f, 0.92f);
+vec4 CMenus::ms_ColorAccent = vec4(0.95f, 0.58f, 0.18f, 1.0f);
+vec4 CMenus::ms_ColorAccentDim = vec4(0.18f, 0.66f, 0.46f, 1.0f);
+vec4 CMenus::ms_ColorDanger = vec4(0.92f, 0.24f, 0.30f, 1.0f);
+vec4 CMenus::ms_ColorText = vec4(0.97f, 0.97f, 0.95f, 1.0f);
 float CMenus::ms_PanelRounding = 4.0f;
 float CMenus::ms_ControlRounding = 3.0f;
 
@@ -59,6 +59,17 @@ IInput::CEvent CMenus::m_aInputEvents[MAX_INPUTEVENTS];
 int CMenus::m_NumInputEvents;
 
 static bool s_ResetMenu = true;
+
+static float FitLabelFontSize(ITextRender *pTextRender, const char *pText, float FontSize, float MaxWidth)
+{
+	if(!pText || !pText[0] || FontSize <= 0.0f || MaxWidth <= 0.0f)
+		return FontSize;
+
+	const float TextWidth = pTextRender->TextWidth(0, FontSize, pText, -1);
+	if(TextWidth > MaxWidth && TextWidth > 0.0f)
+		FontSize *= MaxWidth / TextWidth;
+	return FontSize;
+}
 
 CMenus::CMenus()
 {
@@ -109,6 +120,20 @@ float CMenus::MenuAlpha() const
 	return g_Config.m_ClMenuAlpha / 100.0f;
 }
 
+static vec4 ColorFromUiConfig(int Hue, int Sat, int Lht, int Alpha)
+{
+	vec3 Rgb = HslToRgb(vec3(Hue / 255.0f, Sat / 255.0f, Lht / 255.0f));
+	return vec4(Rgb.r, Rgb.g, Rgb.b, Alpha / 255.0f);
+}
+
+vec4 CMenus::ThemeBgDeep() { return ms_ColorBgDeep; }
+vec4 CMenus::ThemeBgPanel() { return ms_ColorBgPanel; }
+vec4 CMenus::ThemeBgInset() { return ms_ColorBgInset; }
+vec4 CMenus::ThemeAccent() { return ms_ColorAccent; }
+vec4 CMenus::ThemeAccentDim() { return ms_ColorAccentDim; }
+vec4 CMenus::ThemeDanger() { return ms_ColorDanger; }
+vec4 CMenus::ThemeText() { return ms_ColorText; }
+
 void CMenus::DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding)
 {
 	RenderTools()->DrawUIRect(pRect, Border, Corners, Rounding);
@@ -121,7 +146,7 @@ void CMenus::DrawMenuPanel(const CUIRect *pRect, int Corners)
 {
 	vec4 Fill = ms_ColorBgPanel;
 	Fill.a = max(Fill.a * MenuAlpha(), 0.82f);
-	vec4 Border = vec4(0.34f, 0.38f, 0.42f, max(0.75f, 0.9f * MenuAlpha()));
+	vec4 Border = vec4(0.18f, 0.20f, 0.24f, max(0.80f, 0.92f * MenuAlpha()));
 	DrawMenuBorder(pRect, Fill, Border, Corners, ms_PanelRounding);
 }
 
@@ -129,7 +154,7 @@ void CMenus::DrawMenuInset(const CUIRect *pRect, int Corners)
 {
 	vec4 Fill = ms_ColorBgInset;
 	Fill.a = max(Fill.a * MenuAlpha(), 0.78f);
-	vec4 Border = vec4(0.28f, 0.32f, 0.36f, max(0.65f, 0.8f * MenuAlpha()));
+	vec4 Border = vec4(0.16f, 0.18f, 0.22f, max(0.70f, 0.85f * MenuAlpha()));
 	DrawMenuBorder(pRect, Fill, Border, Corners, ms_ControlRounding);
 }
 
@@ -137,9 +162,19 @@ void CMenus::DrawSectionHeader(const CUIRect *pRect, int Corners)
 {
 	vec4 Fill = ms_ColorBgDeep;
 	Fill.a = max(0.9f * MenuAlpha(), 0.82f);
-	vec4 Border = vec4(0.32f, 0.36f, 0.4f, max(0.7f, 0.85f * MenuAlpha()));
+	vec4 Border = vec4(0.18f, 0.20f, 0.24f, max(0.75f, 0.88f * MenuAlpha()));
 	DrawMenuBorder(pRect, Fill, Border, Corners, ms_ControlRounding);
 	DrawAccentUnderline(pRect);
+}
+
+void CMenus::ConfigureScrollRegion(CScrollRegionParams *pParams) const
+{
+	pParams->m_ScrollbarBgColor = vec4(0.11f, 0.12f, 0.15f, 0.98f);
+	pParams->m_RailBgColor = vec4(0.015f, 0.018f, 0.024f, 1.0f);
+	const vec4 Silver = vec4(0.66f, 0.70f, 0.76f, 1.0f);
+	pParams->m_SliderColor = MixColor(Silver, ms_ColorAccent, 0.18f);
+	pParams->m_SliderColorHover = MixColor(Silver, ms_ColorAccent, 0.55f);
+	pParams->m_SliderColorGrabbed = ms_ColorAccent;
 }
 
 void CMenus::DrawAccentUnderline(const CUIRect *pRect)
@@ -271,7 +306,7 @@ vec4 CMenus::ButtonColorMul(const void *pID)
 {
 	const float H = AnimHover(pID);
 	const float Press = UI()->ActiveItem() == pID ? 1.0f : 0.0f;
-	const float Bright = 1.0f + 0.12f * H - 0.18f * Press;
+	const float Bright = 1.0f + 0.08f * H - 0.20f * Press;
 	return vec4(Bright, Bright, Bright, 1.0f);
 }
 
@@ -317,22 +352,22 @@ int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const
 	const float Hover = AnimHover(pID);
 	const float Press = UI()->ActiveItem() == pID ? 1.0f : 0.0f;
 
-	vec4 FillBase = vec4(0.22f, 0.24f, 0.28f, 0.96f);
-	vec4 FillHot = vec4(0.30f, 0.33f, 0.38f, 0.98f);
-	vec4 BorderBase = vec4(0.42f, 0.46f, 0.5f, 0.95f);
+	vec4 FillBase = vec4(0.09f, 0.10f, 0.12f, 0.96f);
+	vec4 FillHot = vec4(0.15f, 0.16f, 0.19f, 0.98f);
+	vec4 BorderBase = vec4(0.22f, 0.24f, 0.28f, 0.95f);
 	vec4 BorderHot = ms_ColorAccent;
 
 	if(Style == BUTTONSTYLE_DANGER)
 	{
-		FillBase = vec4(0.42f, 0.14f, 0.16f, 0.96f);
-		FillHot = vec4(0.55f, 0.2f, 0.22f, 0.98f);
+		FillBase = vec4(0.20f, 0.06f, 0.08f, 0.96f);
+		FillHot = vec4(0.32f, 0.10f, 0.12f, 0.98f);
 		BorderBase = ms_ColorDanger;
 		BorderHot = ms_ColorDanger;
 	}
 	else if(Style == BUTTONSTYLE_ACCENT)
 	{
-		FillBase = vec4(0.1f, 0.28f, 0.24f, 0.96f);
-		FillHot = vec4(0.14f, 0.38f, 0.32f, 0.98f);
+		FillBase = vec4(0.16f, 0.12f, 0.04f, 0.96f);
+		FillHot = vec4(0.28f, 0.20f, 0.06f, 0.98f);
 		BorderBase = ms_ColorAccent;
 		BorderHot = ms_ColorAccent;
 	}
@@ -357,6 +392,7 @@ int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const
 	CUIRect Temp;
 	pRect->HMargin(pRect->h>=20.0f?2.0f:1.0f, &Temp);
 	float FontSize = min(Temp.h*ms_FontmodHeight, 14.0f);
+	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w - 8.0f);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	UI()->DoLabel(&Temp, pText, FontSize, 0);
 	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
@@ -365,12 +401,13 @@ int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const
 void CMenus::DoButton_KeySelect(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
 {
 	const float Hover = AnimHover(pID);
-	vec4 Fill = MixColor(vec4(0.2f, 0.22f, 0.26f, 0.96f), vec4(0.28f, 0.32f, 0.36f, 0.98f), Hover);
-	vec4 Border = MixColor(vec4(0.4f, 0.44f, 0.48f, 0.95f), ms_ColorAccent, Hover);
+	vec4 Fill = MixColor(vec4(0.08f, 0.09f, 0.11f, 0.96f), vec4(0.14f, 0.16f, 0.19f, 0.98f), Hover);
+	vec4 Border = MixColor(vec4(0.20f, 0.22f, 0.26f, 0.95f), ms_ColorAccent, Hover);
 	DrawMenuBorder(pRect, Fill, Border, CUI::CORNER_ALL, ms_ControlRounding);
 	CUIRect Temp;
 	pRect->HMargin(1.0f, &Temp);
 	float FontSize = min(Temp.h*ms_FontmodHeight, 13.0f);
+	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w - 8.0f);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	UI()->DoLabel(&Temp, pText, FontSize, 0);
 }
@@ -381,11 +418,11 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 	const float Hover = AnimHover(pID);
 	const float Sel = AnimSelected(pID, Checked);
 
-	vec4 FillIdle = IsQuit ? vec4(0.32f, 0.12f, 0.14f, 0.92f) : vec4(0.2f, 0.22f, 0.26f, 0.92f);
-	vec4 FillOn = IsQuit ? vec4(0.5f, 0.16f, 0.18f, 0.96f) : vec4(0.16f, 0.22f, 0.24f, 0.98f);
-	vec4 FillHot = IsQuit ? vec4(0.4f, 0.16f, 0.18f, 0.95f) : vec4(0.28f, 0.32f, 0.36f, 0.96f);
+	vec4 FillIdle = IsQuit ? vec4(0.22f, 0.07f, 0.09f, 0.92f) : vec4(0.08f, 0.09f, 0.11f, 0.92f);
+	vec4 FillOn = IsQuit ? vec4(0.34f, 0.11f, 0.13f, 0.96f) : vec4(0.12f, 0.13f, 0.16f, 0.98f);
+	vec4 FillHot = IsQuit ? vec4(0.28f, 0.09f, 0.11f, 0.95f) : vec4(0.16f, 0.18f, 0.22f, 0.96f);
 
-	vec4 BorderIdle = IsQuit ? ms_ColorDanger : vec4(0.38f, 0.42f, 0.46f, 0.9f);
+	vec4 BorderIdle = IsQuit ? ms_ColorDanger : vec4(0.20f, 0.22f, 0.26f, 0.9f);
 	vec4 BorderOn = IsQuit ? ms_ColorDanger : ms_ColorAccent;
 
 	vec4 Fill = MixColor(FillIdle, FillOn, Sel);
@@ -412,10 +449,11 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 	CUIRect Temp;
 	pRect->HMargin(2.0f, &Temp);
 	float FontSize = min(Temp.h*ms_FontmodHeight, 13.0f);
+	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w - 8.0f);
 	TextRender()->TextColor(
-		0.95f + 0.0f * Sel,
-		0.96f + 0.04f * Sel,
-		0.97f - 0.02f * Sel,
+		0.96f + 0.02f * Sel,
+		0.96f + 0.01f * Sel,
+		0.94f - 0.01f * Sel,
 		1.0f);
 	UI()->DoLabel(&Temp, pText, FontSize, 0);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -429,8 +467,8 @@ int CMenus::DoButton_GridHeader(const void *pID, const char *pText, int Checked,
 	const float Hover = AnimHover(pID);
 	if(Sel > 0.02f || Hover > 0.02f)
 	{
-		vec4 Fill = MixColor(vec4(0.14f, 0.18f, 0.2f, 0.0f), vec4(0.14f, 0.28f, 0.26f, 0.9f), max(Sel, Hover * 0.5f));
-		vec4 Border = MixColor(vec4(0.3f, 0.34f, 0.38f, 0.0f), ms_ColorAccent, max(Sel, Hover));
+		vec4 Fill = MixColor(vec4(0.06f, 0.07f, 0.08f, 0.0f), vec4(0.12f, 0.13f, 0.16f, 0.9f), max(Sel, Hover * 0.5f));
+		vec4 Border = MixColor(vec4(0.18f, 0.20f, 0.24f, 0.0f), ms_ColorAccent, max(Sel, Hover));
 		if(Fill.a > 0.02f)
 			DrawMenuBorder(pRect, Fill, Border, CUI::CORNER_T, ms_ControlRounding);
 		if(Sel > 0.02f)
@@ -463,8 +501,8 @@ int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const c
 	const float Sel = AnimSelected(pID, Checked);
 
 	c.Margin(2.0f, &c);
-	vec4 BoxFill = vec4(0.12f, 0.14f, 0.16f, 0.95f);
-	vec4 BoxBorder = MixColor(vec4(0.45f, 0.5f, 0.54f, 1.0f), ms_ColorAccent, max(Hover, Sel));
+	vec4 BoxFill = vec4(0.05f, 0.06f, 0.08f, 0.95f);
+	vec4 BoxBorder = MixColor(vec4(0.22f, 0.24f, 0.28f, 1.0f), ms_ColorAccent, max(Hover, Sel));
 	DrawMenuBorder(&c, BoxFill, BoxBorder, CUI::CORNER_ALL, ms_ControlRounding);
 	if(Sel > 0.02f)
 	{
@@ -476,10 +514,10 @@ int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const c
 	}
 	else if(pBoxText[0] && pBoxText[0] != 'X')
 	{
-		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		TextRender()->TextColor(0.98f, 0.98f, 0.96f, 1.0f);
 		UI()->DoLabel(&c, pBoxText, min(pRect->h*ms_FontmodHeight*0.6f, 12.0f), 0);
 	}
-	TextRender()->TextColor(0.95f, 0.96f, 0.97f, 1.0f);
+	TextRender()->TextColor(0.96f, 0.96f, 0.94f, 1.0f);
 	UI()->DoLabel(&t, pText, min(pRect->h*ms_FontmodHeight*0.8f, 13.0f), -1);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	return UI()->DoButtonLogic(pID, pText, 0, pRect);
@@ -540,8 +578,8 @@ int CMenus::DoEditBox(void *pID, const CUIRect *pRect, char *pStr, unsigned StrS
 		pLineInput->SetScrollOffset(*Offset);
 
 	const float Focus = max(AnimHover(pID), UI()->LastActiveItem() == pLineInput ? 1.0f : 0.0f);
-	vec4 EditFill = vec4(0.08f, 0.09f, 0.11f, 0.95f);
-	vec4 EditBorder = MixColor(vec4(0.4f, 0.44f, 0.48f, 0.95f), ms_ColorAccent, Focus);
+	vec4 EditFill = vec4(0.04f, 0.05f, 0.06f, 0.95f);
+	vec4 EditBorder = MixColor(vec4(0.18f, 0.20f, 0.24f, 0.95f), ms_ColorAccent, Focus);
 	DrawMenuBorder(pRect, EditFill, EditBorder, Corners, ms_ControlRounding);
 
 	bool Changed = false;
@@ -588,14 +626,19 @@ float CMenus::DoScrollbarV(const void *pID, const CUIRect *pRect, float Current)
 		UI()->SetHotItem(pID);
 
 	// render
+	DrawMenuBorder(pRect, vec4(0.11f, 0.12f, 0.15f, 0.98f), vec4(0.31f, 0.34f, 0.40f, 0.96f), CUI::CORNER_ALL, ms_ControlRounding);
+
 	CUIRect Rail;
 	pRect->VMargin(5.0f, &Rail);
-	RenderTools()->DrawUIRect(&Rail, vec4(0.08f,0.09f,0.11f,0.85f), CUI::CORNER_ALL, ms_ControlRounding);
+	DrawMenuBorder(&Rail, vec4(0.012f, 0.015f, 0.020f, 1.0f), vec4(0.24f, 0.27f, 0.32f, 0.96f), CUI::CORNER_ALL, ms_ControlRounding);
 
 	CUIRect Slider = Handle;
 	Slider.Margin(3.0f, &Slider);
-	vec4 SliderCol = UI()->HotItem() == pID || UI()->ActiveItem() == pID ? ms_ColorAccent : vec4(0.72f,0.76f,0.8f,0.95f);
-	RenderTools()->DrawUIRect(&Slider, SliderCol*ButtonColorMul(pID), CUI::CORNER_ALL, ms_ControlRounding);
+	const float Interaction = max(AnimHover(pID), UI()->ActiveItem() == pID ? 1.0f : 0.0f);
+	const vec4 SliderIdle = vec4(0.66f, 0.70f, 0.76f, 1.0f);
+	const vec4 SliderCol = MixColor(SliderIdle, ms_ColorAccent, Interaction * 0.72f);
+	const vec4 SliderBorder = MixColor(vec4(0.88f, 0.90f, 0.94f, 1.0f), ms_ColorAccent, Interaction);
+	DrawMenuBorder(&Slider, SliderCol, SliderBorder, CUI::CORNER_ALL, ms_ControlRounding);
 
 	return ReturnValue;
 }
@@ -639,14 +682,19 @@ float CMenus::DoScrollbarH(const void *pID, const CUIRect *pRect, float Current)
 		UI()->SetHotItem(pID);
 
 	// render
+	DrawMenuBorder(pRect, vec4(0.11f, 0.12f, 0.15f, 0.98f), vec4(0.31f, 0.34f, 0.40f, 0.96f), CUI::CORNER_ALL, ms_ControlRounding);
+
 	CUIRect Rail;
 	pRect->HMargin(5.0f, &Rail);
-	RenderTools()->DrawUIRect(&Rail, vec4(0.08f,0.09f,0.11f,0.85f), CUI::CORNER_ALL, ms_ControlRounding);
+	DrawMenuBorder(&Rail, vec4(0.012f, 0.015f, 0.020f, 1.0f), vec4(0.24f, 0.27f, 0.32f, 0.96f), CUI::CORNER_ALL, ms_ControlRounding);
 
 	CUIRect Slider = Handle;
 	Slider.Margin(3.0f, &Slider);
-	vec4 SliderCol = UI()->HotItem() == pID || UI()->ActiveItem() == pID ? ms_ColorAccent : vec4(0.72f,0.76f,0.8f,0.95f);
-	RenderTools()->DrawUIRect(&Slider, SliderCol*ButtonColorMul(pID), CUI::CORNER_ALL, ms_ControlRounding);
+	const float Interaction = max(AnimHover(pID), UI()->ActiveItem() == pID ? 1.0f : 0.0f);
+	const vec4 SliderIdle = vec4(0.66f, 0.70f, 0.76f, 1.0f);
+	const vec4 SliderCol = MixColor(SliderIdle, ms_ColorAccent, Interaction * 0.72f);
+	const vec4 SliderBorder = MixColor(vec4(0.88f, 0.90f, 0.94f, 1.0f), ms_ColorAccent, Interaction);
+	DrawMenuBorder(&Slider, SliderCol, SliderBorder, CUI::CORNER_ALL, ms_ControlRounding);
 
 	return ReturnValue;
 }
@@ -657,12 +705,12 @@ float CMenus::DoIndependentDropdownMenu(void *pID, CUIRect *pRect, const char *p
 	CUIRect Header;
 	View.HSplitTop(HeaderHeight, &Header, &View);
 
-	RenderTools()->DrawUIRect(&Header, vec4(0.16f, 0.18f, 0.22f, 0.95f), *pActive ? CUI::CORNER_T : CUI::CORNER_ALL, ms_ControlRounding);
+	RenderTools()->DrawUIRect(&Header, vec4(0.06f, 0.07f, 0.09f, 0.95f), *pActive ? CUI::CORNER_T : CUI::CORNER_ALL, ms_ControlRounding);
 	{
 		CUIRect Border = Header;
 		// light top edge for separation
 		Border.HSplitTop(1.0f, &Border, 0);
-		RenderTools()->DrawUIRect(&Border, vec4(0.4f, 0.44f, 0.48f, 0.8f), 0, 0.0f);
+		RenderTools()->DrawUIRect(&Border, vec4(0.18f, 0.20f, 0.24f, 0.8f), 0, 0.0f);
 	}
 	if(*pActive)
 		DrawAccentUnderline(&Header);
@@ -905,7 +953,10 @@ void CMenus::RenderLoading()
 
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0,0,0,0.50f);
+	{
+		vec4 Panel = ms_ColorBgPanel;
+		Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
+	}
 	RenderTools()->DrawRoundRect(x, y, w, h, 40.0f);
 	Graphics()->QuadsEnd();
 
@@ -1299,11 +1350,19 @@ int CMenus::Render()
 		Box.HMargin(150.0f/UI()->Scale(), &Box);
 
 		// render the box
-		RenderTools()->DrawUIRect(&Box, vec4(0,0,0,0.5f), CUI::CORNER_ALL, 15.0f);
+		DrawMenuBorder(&Box, ms_ColorBgPanel, ms_ColorAccentDim, CUI::CORNER_ALL, 15.0f);
 
 		Box.HSplitTop(20.f/UI()->Scale(), &Part, &Box);
 		Box.HSplitTop(24.f/UI()->Scale(), &Part, &Box);
+		{
+			vec4 Accent = ms_ColorAccent;
+			TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 1.0f);
+		}
 		UI()->DoLabelScaled(&Part, pTitle, 18.f, 0);
+		{
+			vec4 TextCol = ms_ColorText;
+			TextRender()->TextColor(TextCol.r, TextCol.g, TextCol.b, 1.0f);
+		}
 		Box.HSplitTop(20.f/UI()->Scale(), &Part, &Box);
 		Box.HSplitTop(24.f/UI()->Scale(), &Part, &Box);
 		Part.VMargin(20.f/UI()->Scale(), &Part);
@@ -1439,9 +1498,9 @@ int CMenus::Render()
 				Box.HSplitTop(20.f, 0, &Box);
 				Box.HSplitTop(24.f, &Part, &Box);
 				Part.VMargin(40.0f, &Part);
-				RenderTools()->DrawUIRect(&Part, vec4(1.0f, 1.0f, 1.0f, 0.25f), CUI::CORNER_ALL, 5.0f);
+				RenderTools()->DrawUIRect(&Part, ms_ColorBgInset, CUI::CORNER_ALL, 5.0f);
 				Part.w = max(10.0f, (Part.w*Client()->MapDownloadAmount())/Client()->MapDownloadTotalsize());
-				RenderTools()->DrawUIRect(&Part, vec4(1.0f, 1.0f, 1.0f, 0.5f), CUI::CORNER_ALL, 5.0f);
+				RenderTools()->DrawUIRect(&Part, ms_ColorAccent, CUI::CORNER_ALL, 5.0f);
 			}
 		}
 		else if(m_Popup == POPUP_LANGUAGE)
@@ -2007,16 +2066,20 @@ void CMenus::OnRender()
 	}
 
 	// update colors — higher-contrast dark punk
-	ms_GuiColor = vec4(0.12f, 0.13f, 0.16f, 0.95f);
+	ms_GuiColor = vec4(0.04f, 0.05f, 0.06f, 0.95f);
 	const float A = MenuAlpha();
-	ms_ColorBgDeep = vec4(0.07f, 0.08f, 0.1f, 0.96f * A);
-	ms_ColorBgPanel = vec4(0.12f, 0.13f, 0.16f, 0.96f * A);
-	ms_ColorBgInset = vec4(0.06f, 0.07f, 0.09f, 0.92f * A);
+	ms_ColorBgDeep = vec4(0.012f, 0.014f, 0.017f, 0.96f * A);
+	ms_ColorBgPanel = vec4(0.044f, 0.048f, 0.058f, 0.96f * A);
+	ms_ColorBgInset = vec4(0.026f, 0.028f, 0.034f, 0.92f * A);
+	ms_ColorAccent = ColorFromUiConfig(g_Config.m_UiColorHue, g_Config.m_UiColorSat, g_Config.m_UiColorLht, g_Config.m_UiColorAlpha);
+	ms_ColorAccentDim = ColorFromUiConfig(g_Config.m_UiColorHue2, g_Config.m_UiColorSat2, g_Config.m_UiColorLht2, g_Config.m_UiColorAlpha2);
+	ms_ColorDanger = vec4(0.92f, 0.24f, 0.30f, 1.0f);
+	ms_ColorText = vec4(0.97f, 0.97f, 0.95f, 1.0f);
 
-	ms_ColorTabbarInactiveOutgame = vec4(0.2f, 0.22f, 0.26f, 0.92f * A);
-	ms_ColorTabbarActiveOutgame = vec4(0.16f, 0.22f, 0.24f, 0.98f * A);
-	ms_ColorTabbarInactiveIngame = vec4(0.2f, 0.22f, 0.26f, 0.94f * A);
-	ms_ColorTabbarActiveIngame = vec4(0.16f, 0.22f, 0.24f, 0.98f * A);
+	ms_ColorTabbarInactiveOutgame = vec4(0.08f, 0.09f, 0.11f, 0.92f * A);
+	ms_ColorTabbarActiveOutgame = vec4(0.12f, 0.13f, 0.16f, 0.98f * A);
+	ms_ColorTabbarInactiveIngame = vec4(0.08f, 0.09f, 0.11f, 0.94f * A);
+	ms_ColorTabbarActiveIngame = vec4(0.12f, 0.13f, 0.16f, 0.98f * A);
 
 	// update the ui
 	CUIRect *pScreen = UI()->Screen();

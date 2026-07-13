@@ -129,7 +129,8 @@ int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller
 
 	if(pVictim->m_IsBot)
 	{
-		m_Deaths = max(0, m_Deaths - 1);
+		if(!pVictim->GetPlayer()->m_ToBeKicked)
+			m_Deaths = max(0, m_Deaths - 1);
 		if(pKiller && !pKiller->m_IsBot)
 			m_Kills++;
 		pVictim->GetPlayer()->m_ToBeKicked = true;

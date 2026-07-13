@@ -40,6 +40,7 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_SuddenDeath = 0;
 	m_RoundStartTick = Server()->Tick();
 	m_RoundCount = 0;
+	m_GameVoteEndTick = 0;
 	m_GameFlags = 0;
 	m_aTeamscore[TEAM_RED] = 0;
 	m_aTeamscore[TEAM_BLUE] = 0;
@@ -678,8 +679,6 @@ void IGameController::RestoreEntity(int ObjType, int Type, int Subtype, int x, i
 			new CBossCrawler(&GameServer()->m_World, vec2(x, y));
 		else if (Type == DROIDTYPE_BOSSSTAR)
 			new CBossStar(&GameServer()->m_World, vec2(x, y));
-		else if (Type == DROIDTYPE_BOSSWALKER)
-			new CBossWalker(&GameServer()->m_World, vec2(x, y));
 		else if (Type == DROIDTYPE_BOSSSPLITTER)
 			new CBossSplitter(&GameServer()->m_World, vec2(x, y));
 	}
@@ -826,11 +825,6 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 	else if (Index == ENTITY_DROID_BOSSSTAR)
 	{
 		new CBossStar(&GameServer()->m_World, Pos+vec2(0, -80));
-		return true;
-	}
-	else if (Index == ENTITY_DROID_BOSSWALKER)
-	{
-		new CBossWalker(&GameServer()->m_World, Pos+vec2(0, -40));
 		return true;
 	}
 	else if (Index == ENTITY_DROID_BOSSSPLITTER)
@@ -1062,6 +1056,7 @@ void IGameController::EndRound()
 void IGameController::ResetGame()
 {
 	m_GameVote = 0;
+	m_GameVoteEndTick = 0;
 	GameServer()->m_World.m_ResetRequested = true;
 }
 
@@ -1711,21 +1706,35 @@ void IGameController::ResetGameVotes()
 {
 	GameServer()->ResetGameVotes();
 	m_GameVote = 0;
+	m_GameVoteEndTick = 0;
 }
 
 
 int IGameController::GetVoteTime()
 {
-	int t = (m_GameOverTick - Server()->Tick());
-	
-	//if (t < 0)
-	t = t/Server()->TickSpeed() + 13;
-	
-	if (t < 0)
+	if(m_GameVoteEndTick <= 0)
+		return 0;
+
+	int t = (m_GameVoteEndTick - Server()->Tick() + Server()->TickSpeed() - 1) / Server()->TickSpeed();
+	if(t < 0)
 		t = 0;
 	
 	return t;
 	
+}
+
+bool IGameController::AllVotingHumansVoted() const
+{
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if(!pPlayer || pPlayer->m_IsBot || pPlayer->GetTeam() == TEAM_SPECTATORS)
+			continue;
+		if(GameServer()->m_aPlayerGameVote[i] < 0 || GameServer()->m_aPlayerGameVote[i] >= GameServer()->m_NumGameVotes)
+			return false;
+	}
+
+	return true;
 }
 
 	
@@ -1755,27 +1764,43 @@ void IGameController::Tick()
 		if(!m_GameVote && Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*3)
 		{
 			m_GameVote = 1;
+			m_GameVoteEndTick = Server()->Tick() + Server()->TickSpeed()*60;
 			SendGameVotes();
 		}
 		
 		// check votes
-		if(m_GameVote && Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*14)
+		if(m_GameVote)
 		{
-			// run config!
-			m_GameVote = 0;
-			Server()->m_aMapLists.clear();
-			
-			GameServer()->CalculateVoteWinnerConfig();
-			char aBuf[128];
-			str_format(aBuf, sizeof(aBuf), "exec %s.cfg", GameServer()->m_aGameVote[GameServer()->m_WinnerVote].m_aConfig);
-			//GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GetVoteWinnerConfig", aBuf);
-		
-			GameServer()->Console()->ExecuteLine(aBuf);
-			//GameServer()->Console()->ExecuteLine(GameServer()->GetVoteWinnerConfig());
-			
-			CycleMap();
-			ResetGameVotes();
-			StartRound();
+			if(AllVotingHumansVoted())
+			{
+				int NewEndTick = Server()->Tick() + Server()->TickSpeed()*3;
+				if(m_GameVoteEndTick > NewEndTick)
+				{
+					m_GameVoteEndTick = NewEndTick;
+					GameServer()->SendGameVotes();
+				}
+			}
+
+			if(m_GameVoteEndTick > 0 && Server()->Tick() > m_GameVoteEndTick)
+			{
+				// run config!
+				m_GameVote = 0;
+				m_GameVoteEndTick = 0;
+					Server()->m_aMapLists.clear();
+
+				GameServer()->CalculateVoteWinnerConfig();
+				if(GameServer()->m_WinnerVote >= 0)
+				{
+					char aBuf[128];
+					str_format(aBuf, sizeof(aBuf), "exec %s.cfg", GameServer()->m_aGameVote[GameServer()->m_WinnerVote].m_aConfig);
+					GameServer()->Console()->ExecuteLine(aBuf);
+				}
+					//GameServer()->Console()->ExecuteLine(GameServer()->GetVoteWinnerConfig());
+
+				CycleMap();
+				ResetGameVotes();
+				StartRound();
+			}
 		}
 		
 		// game over.. wait for restart
@@ -1789,7 +1814,10 @@ void IGameController::Tick()
 		}
 	}
 	else
+	{
 		m_GameVote = 0;
+		m_GameVoteEndTick = 0;
+	}
 	
 	// clear / interrupt broadcast
 	if (m_ClearBroadcastTick && m_ClearBroadcastTick < Server()->Tick())

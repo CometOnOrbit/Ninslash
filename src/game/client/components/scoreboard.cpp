@@ -16,6 +16,7 @@
 #include <game/client/render.h>
 #include <game/client/components/countryflags.h>
 #include <game/client/components/motd.h>
+#include <game/client/components/menus.h>
 
 #include <game/client/customstuff.h>
 
@@ -57,7 +58,8 @@ void CScoreboard::RenderGoals(float x, float y, float w)
 	Graphics()->BlendNormal();
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0,0,0,0.5f);
+	vec4 Panel = CMenus::ThemeBgPanel();
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
 	RenderTools()->DrawRoundRect(x, y, w, h, 10.0f);
 	Graphics()->QuadsEnd();
 
@@ -95,7 +97,8 @@ void CScoreboard::RenderSpectators(float x, float y, float w)
 	Graphics()->BlendNormal();
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0,0,0,0.5f);
+	vec4 Panel = CMenus::ThemeBgPanel();
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
 	RenderTools()->DrawRoundRect(x, y, w, h, 10.0f);
 	Graphics()->QuadsEnd();
 
@@ -138,7 +141,8 @@ void CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const ch
 	Graphics()->BlendNormal();
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.5f);
+	vec4 Panel = CMenus::ThemeBgPanel();
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
 	RenderTools()->DrawRoundRect(x, y, w, h, 17.0f);
 	Graphics()->QuadsEnd();
 
@@ -147,9 +151,9 @@ void CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const ch
 	{
 		Graphics()->QuadsBegin();
 		if(Team == TEAM_RED)
-			Graphics()->SetColor(0.85f, 0.2f, 0.2f, 0.45f);
+			Graphics()->SetColor(0.92f, 0.24f, 0.30f, 0.35f);
 		else
-			Graphics()->SetColor(0.2f, 0.35f, 0.85f, 0.45f);
+			Graphics()->SetColor(0.26f, 0.42f, 0.92f, 0.35f);
 		RenderTools()->DrawRoundRect(x, y, w, 55.0f, 17.0f);
 		Graphics()->QuadsEnd();
 	}
@@ -266,14 +270,18 @@ void CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const ch
 		{
 			Graphics()->TextureSet(-1);
 			Graphics()->QuadsBegin();
-			Graphics()->SetColor(1.0f, 1.0f, 1.0f, 0.25f);
+			vec4 Accent = CMenus::ThemeAccentDim();
+			Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.28f);
 			RenderTools()->DrawRoundRect(x, y, w-20.0f, LineHeight, 15.0f);
 			Graphics()->QuadsEnd();
 		}
 
 
 		if (pInfo->m_Spectating)
-			TextRender()->TextColor(0.4f, 0.4f, 0.4f, 1);
+		{
+			vec4 TextCol = CMenus::ThemeText();
+			TextRender()->TextColor(TextCol.r*0.55f, TextCol.g*0.55f, TextCol.b*0.55f, 1);
+		}
 		else
 			TextRender()->TextColor(1, 1, 1, 1);
 		
@@ -364,7 +372,8 @@ void CScoreboard::RenderRecordingNotification(float x)
 	Graphics()->BlendNormal();
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.4f);
+	vec4 Panel = CMenus::ThemeBgPanel();
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
 	RenderTools()->DrawRoundRectExt(x, 0.0f, 180.0f, 50.0f, 15.0f, CUI::CORNER_B);
 	Graphics()->QuadsEnd();
 

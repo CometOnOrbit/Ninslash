@@ -545,6 +545,11 @@ Messages = [
 		NetIntAny("m_TimeLeft"),
 	]),
 
+	NetMessage("Sv_GameVoteStatus", [
+		NetIntRange("m_Index", 0, 98),
+		NetIntRange("m_Votes", 0, 'MAX_CLIENTS'),
+	]),
+
 	NetMessage("Sv_Chat", [
 		NetIntRange("m_Mode", 0, 3),
 		NetIntRange("m_ClientID", -1, 'MAX_CLIENTS-1'),
@@ -707,7 +712,7 @@ Messages = [
 	]),
 	
 	NetMessage("Cl_VoteGameMode", [
-		NetIntRange("m_Vote", 0, 6),
+		NetIntRange("m_Vote", 0, 98),
 	]),
 
 	NetMessage("Cl_CallVote", [

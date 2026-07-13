@@ -460,7 +460,7 @@ void CBuilding::Trigger()
 
 void CBuilding::TakeDamage(int Damage, int Owner, int Weapon, vec2 Force)
 {
-	if (m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON])
+	if (m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON] && Owner >= 0 && GameServer()->m_apPlayers[Owner] && !GameServer()->m_apPlayers[Owner]->m_IsBot)
 	{
 		m_aStatus[BSTATUS_ON] = 1;
 		GameServer()->m_pController->TriggerSwitch(m_Pos);

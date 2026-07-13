@@ -1,6 +1,8 @@
 #ifndef GAME_SERVER_GAMEVOTE_H
 #define GAME_SERVER_GAMEVOTE_H
 
+#include <game/gamevote.h>
+
 struct CGameVote
 {
 	char m_aName[32];
@@ -26,7 +28,7 @@ struct CGameVote
 		m_MinPlayers = 0;
 		m_MaxPlayers = 0;
 		m_MinLevel = 0;
-		m_MaxLevel = 0;
+		m_MaxLevel = 9999;
 	}
 };
 

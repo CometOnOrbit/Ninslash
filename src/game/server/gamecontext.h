@@ -228,11 +228,12 @@ public:
 	void ResetGameVotes();
 	
 	int m_WinnerVote;
-	CGameVote m_aGameVote[6];
+	int m_NumGameVotes;
+	CGameVote m_aGameVote[MAX_GAME_VOTES];
 	int m_aPlayerGameVote[MAX_CLIENTS];
 	
 	void RegisterGameVote(int ClientID, int Vote);
-	void SendGameVoteStats();
+	void SendGameVoteStats(int ClientID = -1);
 	// const char *GetVoteWinnerConfig();
 	void CalculateVoteWinnerConfig();
 
