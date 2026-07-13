@@ -130,7 +130,8 @@ if(NOT MSVC)
 
   if(TARGET_OS STREQUAL "mac")
     add_c_compiler_flag_if_supported(OUR_FLAGS -stdlib=libc++)
-    add_c_compiler_flag_if_supported(OUR_FLAGS -mmacosx-version-min=10.7)
+    # Apple marks the whole OpenGL framework deprecated; don't fail the build on that.
+    add_c_compiler_flag_if_supported(OUR_FLAGS_OWN -Wno-deprecated-declarations)
   endif()
 
   add_c_compiler_flag_if_supported(OUR_FLAGS_OWN -Wall)
@@ -316,15 +317,13 @@ if(TARGET_OS STREQUAL "windows")
   set(PLATFORM_CLIENT_LIBS opengl32 glu32 winmm)
   set(PLATFORM_LIBS ws2_32) # Windows sockets
 elseif(TARGET_OS STREQUAL "mac")
-  find_library(CARBON Carbon)
   find_library(COCOA Cocoa)
   find_library(OPENGL OpenGL)
-  set(PLATFORM_CLIENT
-    src/osxlaunch/client.h
-    src/osxlaunch/client.m
-  )
+  find_library(COREFOUNDATION CoreFoundation)
+  # SDL3 on macOS uses a normal main(); no Cocoa SDLmain shim required.
+  set(PLATFORM_CLIENT)
   set(PLATFORM_CLIENT_LIBS ${COCOA} ${OPENGL})
-  set(PLATFORM_LIBS ${CARBON})
+  set(PLATFORM_LIBS ${COREFOUNDATION})
 else()
   set(PLATFORM_CLIENT)
   set(PLATFORM_CLIENT_LIBS GL GLU X11)
@@ -727,19 +726,34 @@ if(CLIENT)
   if(TARGET_OS STREQUAL "windows")
     set(CLIENT_ICON "other/icons/${CLIENT_EXECUTABLE}.rc")
   else()
-    set(CLIENT_ICON)
+    unset(CLIENT_ICON)
   endif()
 
   # Target
   set(TARGET_CLIENT ${CLIENT_EXECUTABLE})
-  add_executable(${TARGET_CLIENT}
-    ${CLIENT_SRC}
-    ${CLIENT_ICON}
-    ${CLIENT_MANIFEST}
-    ${DEPS_CLIENT}
+
+  set(TARGET_CLIENT_SOURCES ${CLIENT_SRC})
+
+  if(DEFINED CLIENT_ICON AND CLIENT_ICON)
+    list(APPEND TARGET_CLIENT_SOURCES ${CLIENT_ICON})
+  endif()
+
+  if(DEFINED CLIENT_MANIFEST AND CLIENT_MANIFEST)
+    list(APPEND TARGET_CLIENT_SOURCES ${CLIENT_MANIFEST})
+  endif()
+
+  if(DEFINED DEPS_CLIENT AND DEPS_CLIENT)
+    list(APPEND TARGET_CLIENT_SOURCES ${DEPS_CLIENT})
+  endif()
+
+  list(APPEND TARGET_CLIENT_SOURCES
     $<TARGET_OBJECTS:engine-shared>
     $<TARGET_OBJECTS:game-shared>
   )
+
+  list(REMOVE_ITEM TARGET_CLIENT_SOURCES "")
+
+  add_executable(${TARGET_CLIENT} ${TARGET_CLIENT_SOURCES})
   target_link_libraries(${TARGET_CLIENT} ${LIBS_CLIENT})
 
   target_include_directories(${TARGET_CLIENT} PRIVATE
@@ -942,7 +956,7 @@ set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER})
 if(TARGET_OS STREQUAL "windows")
   set(SERVER_ICON "other/icons/${SERVER_EXECUTABLE}.rc")
 else()
-  set(SERVER_ICON)
+  unset(SERVER_ICON)
 endif()
 
 # Libraries
@@ -950,24 +964,40 @@ set(LIBS_SERVER ${LIBS})
 
 # Target
 set(TARGET_SERVER ${SERVER_EXECUTABLE})
-add_executable(${TARGET_SERVER}
-  ${DEPS}
-  ${SERVER_SRC}
-  ${SERVER_ICON}
+
+set(TARGET_SERVER_SOURCES ${SERVER_SRC})
+
+if(DEFINED DEPS AND DEPS)
+  list(APPEND TARGET_SERVER_SOURCES ${DEPS})
+endif()
+
+if(DEFINED SERVER_ICON AND SERVER_ICON)
+  list(APPEND TARGET_SERVER_SOURCES ${SERVER_ICON})
+endif()
+
+list(APPEND TARGET_SERVER_SOURCES
   $<TARGET_OBJECTS:engine-shared>
   $<TARGET_OBJECTS:game-shared>
 )
+
+list(REMOVE_ITEM TARGET_SERVER_SOURCES "")
+
+add_executable(${TARGET_SERVER} ${TARGET_SERVER_SOURCES})
 target_link_libraries(${TARGET_SERVER} ${LIBS_SERVER})
 list(APPEND TARGETS_OWN ${TARGET_SERVER})
 list(APPEND TARGETS_LINK ${TARGET_SERVER})
 
 if(TARGET_OS AND TARGET_OS STREQUAL "mac")
+  enable_language(OBJC)
   set(SERVER_LAUNCHER_SRC src/osxlaunch/server.m)
-  set(TARGET_SERVER_LAUNCHER ${TARGET_SERVER}-Launcher)
-  add_executable(${TARGET_SERVER_LAUNCHER} ${SERVER_LAUNCHER_SRC})
-  target_link_libraries(${TARGET_SERVER_LAUNCHER} ${COCOA})
-  list(APPEND TARGETS_OWN ${TARGET_SERVER_LAUNCHER})
-  list(APPEND TARGETS_LINK ${TARGET_SERVER_LAUNCHER})
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SERVER_LAUNCHER_SRC}")
+    set(TARGET_SERVER_LAUNCHER ${TARGET_SERVER}-Launcher)
+    add_executable(${TARGET_SERVER_LAUNCHER} ${SERVER_LAUNCHER_SRC})
+    set_source_files_properties(${SERVER_LAUNCHER_SRC} PROPERTIES LANGUAGE OBJC)
+    target_link_libraries(${TARGET_SERVER_LAUNCHER} ${COCOA})
+    list(APPEND TARGETS_OWN ${TARGET_SERVER_LAUNCHER})
+    list(APPEND TARGETS_LINK ${TARGET_SERVER_LAUNCHER})
+  endif()
 endif()
 
 ########################################################################
@@ -1247,7 +1277,7 @@ foreach(target ${TARGETS})
   if(OUR_FLAGS)
     target_compile_options(${target} PRIVATE ${OUR_FLAGS})
   endif()
-  if(DEFINE_FORTIFY_SOURCE)
+  if(DEFINE_FORTIFY_SOURCE AND NOT MINGW)
     target_compile_definitions(${target} PRIVATE $<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>) # Detect some buffer overflows.
   endif()
 endforeach()
@@ -1258,7 +1288,6 @@ foreach(target ${TARGETS_LINK})
   endif()
   if(TARGET_OS STREQUAL "mac")
     target_link_libraries(${target} -stdlib=libc++)
-    target_link_libraries(${target} -mmacosx-version-min=10.7)
   endif()
   if((MINGW OR TARGET_OS STREQUAL "linux") AND PREFER_BUNDLED_LIBS)
     # Statically link the standard libraries with on MinGW/Linux so we don't

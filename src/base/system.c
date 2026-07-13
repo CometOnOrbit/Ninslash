@@ -28,7 +28,7 @@
 	#include <dirent.h>
 
 	#if defined(CONF_PLATFORM_MACOSX)
-		#include <Carbon/Carbon.h>
+		#include <CoreFoundation/CFUserNotification.h>
 	#endif
 
 #elif defined(CONF_FAMILY_WINDOWS)
@@ -1822,24 +1822,30 @@ void net_stats(NETSTATS *stats_inout)
 void gui_messagebox(const char *title, const char *message)
 {
 #if defined(CONF_PLATFORM_MACOSX)
-	DialogRef theItem;
-	DialogItemIndex itemIndex;
+	CFStringRef title_str = CFStringCreateWithCString(kCFAllocatorDefault, title, kCFStringEncodingUTF8);
+	CFStringRef message_str = CFStringCreateWithCString(kCFAllocatorDefault, message, kCFStringEncodingUTF8);
+	CFOptionFlags response = 0;
 
-	/* FIXME: really needed? can we rely on glfw? */
-	/* HACK - get events without a bundle */
-	ProcessSerialNumber psn;
-	GetCurrentProcess(&psn);
-	TransformProcessType(&psn,kProcessTransformToForegroundApplication);
-	SetFrontProcess(&psn);
-	/* END HACK */
-
-	CreateStandardAlert(kAlertStopAlert,
-			CFStringCreateWithCString(NULL, title, kCFStringEncodingASCII),
-			CFStringCreateWithCString(NULL, message, kCFStringEncodingASCII),
+	if(title_str && message_str)
+	{
+		CFUserNotificationDisplayAlert(
+			0,
+			kCFUserNotificationStopAlertLevel,
 			NULL,
-			&theItem);
+			NULL,
+			NULL,
+			title_str,
+			message_str,
+			CFSTR("OK"),
+			NULL,
+			NULL,
+			&response);
+	}
 
-	RunStandardAlert(theItem, NULL, &itemIndex);
+	if(title_str)
+		CFRelease(title_str);
+	if(message_str)
+		CFRelease(message_str);
 #elif defined(CONF_FAMILY_UNIX)
 	static char cmd[1024];
 	int err;

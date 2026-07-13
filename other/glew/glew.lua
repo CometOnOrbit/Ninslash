@@ -6,6 +6,7 @@ GLEW = {
 			option.value = false
 			option.use_glewconfig = false
 			option.use_pkgconfig = false
+			option.use_source = false
 			option.use_winlib = 0
 			option.lib_path = nil
 			
@@ -15,14 +16,7 @@ GLEW = {
 			elseif platform == "win64" then
 				option.value = true
 				option.use_winlib = 64
---[[	TODO: bundle the libs for these configurations aswell when needed:
-			elseif platform == "macosx" and string.find(settings.config_name, "32") then
-				option.value = true
-			elseif platform == "macosx" and string.find(settings.config_name, "64") then
-				option.value = true
-			elseif platform == "linux" and arch == "ia32" then
-				option.value = true
-]]			elseif platform == "linux" and arch == "amd64" then
+			elseif platform == "linux" and arch == "amd64" then
 				option.value = true
 			elseif ExecuteSilent("glew-config") > 0 and ExecuteSilent("glew-config --cflags") == 0 then
 				option.value = true
@@ -30,6 +24,9 @@ GLEW = {
 			elseif family ~= "windows" and ExecuteSilent("pkg-config glew") == 0 then
 				option.value = true
 				option.use_pkgconfig = true
+			elseif platform == "macosx" then
+				option.value = true
+				option.use_source = true
 			end
 		end
 		
@@ -40,6 +37,8 @@ GLEW = {
 			if option.use_pkgconfig == true then
 				settings.cc.flags:Add("`pkg-config glew --cflags`")
 				settings.link.flags:Add("`pkg-config glew --libs`")
+			elseif option.use_source == true then
+				settings.cc.defines:Add("GLEW_STATIC")
 			elseif family == "windows" then
 				settings.link.libpath:Add(GLEW.basepath .. "/windows/lib" .. option.use_winlib)
 				settings.link.libs:Add("glew32")
@@ -57,12 +56,14 @@ GLEW = {
 			output:option(option, "value")
 			output:option(option, "use_winlib")
 			output:option(option, "use_pkgconfig")
+			output:option(option, "use_source")
 		end
 		
 		local display = function(option)
 			if option.value == true then
 				if option.use_glewconfig == true then return "using glew-config" end
 				if option.use_pkgconfig == true then return "using pkg-config" end
+				if option.use_source == true then return "using bundled source" end
 				if option.use_winlib == 32 then return "using supplied win32 libraries" end
 				if option.use_winlib == 64 then return "using supplied win64 libraries" end
 				return "using bundled libs"

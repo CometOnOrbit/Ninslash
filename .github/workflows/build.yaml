@@ -1,96 +1,153 @@
-
 name: Build
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
 
 jobs:
-  build-bam:
+  build:
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
         include:
-        - name: "Ubuntu-Latest x86_64"
-          os: ubuntu-latest
-          package-full-file: ninslash-linux_x86_64-release.tar.xz
-        - name: "Windows"
-          os: windows-latest
-          package-full-file: ninslash-windows_x64-release
+          - name: Linux x86_64
+            os: ubuntu-latest
+            artifact: ninslash-linux_x86_64-release.tar.xz
+            builder: bam
+          - name: Windows x64
+            os: windows-latest
+            artifact: ninslash-windows_x64-release.zip
+            builder: bam
+          - name: macOS arm64
+            os: macos-latest
+            artifact: ninslash-macos_arm64-release.tar.xz
+            builder: cmake
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
 
-    - name: Checkout bam
-      if: contains(matrix.os, 'windows')
-      uses: actions/checkout@v4
-      with:
-        repository: matricks/bam
-        ref: 8cd08744c37666830d439ab54016c9d228c63b68
-        path: ./bam
+      - name: Checkout Bam
+        if: matrix.builder == 'bam'
+        uses: actions/checkout@v4
+        with:
+          repository: matricks/bam
+          ref: 8cd08744c37666830d439ab54016c9d228c63b68
+          path: ./bam
 
-    - name: Prepare Windows
-      if: contains(matrix.os, 'windows')
-      run: |
-        cd bam
-        ./make_win64_msvc.bat
+      - name: Checkout SDL3
+        if: contains(matrix.os, 'ubuntu')
+        uses: actions/checkout@v4
+        with:
+          repository: libsdl-org/SDL
+          ref: 68bfcb6c5419f51104e74e72ea0f8d405a4615b0
+          path: ./SDL
 
-    - name: Checkout SDL3
-      if: contains(matrix.os, 'ubuntu')
-      uses: actions/checkout@v4
-      with:
-        repository: libsdl-org/SDL
-        ref: 68bfcb6c5419f51104e74e72ea0f8d405a4615b0
-        path: ./SDL
+      - name: Prepare Linux
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y build-essential git cmake clang python3 bam \
+            libasound2-dev libpulse-dev libaudio-dev libjack-dev libsndio-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
+            libwayland-dev libxkbcommon-dev libdrm-dev libgbm-dev \
+            libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libibus-1.0-dev libdbus-1-dev \
+            libudev-dev libinput-dev libts-dev libjpeg-dev libwebp-dev \
+            libglew-dev libfreetype6-dev
+          cd SDL
+          cmake . -DCMAKE_BUILD_TYPE=Release
+          sudo cmake --build . -j"$(nproc)"
+          sudo cmake --install .
 
-    - name: Prepare Linux
-      if: contains(matrix.os, 'ubuntu')
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install build-essential git cmake clang libasound2-dev libpulse-dev libaudio-dev libjack-dev libsndio-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libwayland-dev libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libibus-1.0-dev libdbus-1-dev libudev-dev libinput-dev libts-dev libjpeg-dev libwebp-dev -y
-        sudo apt-get install bam python3 libglew-dev libfreetype6-dev -y
-        cd SDL
-        cmake . -DCMAKE_BUILD_TYPE=Release
-        sudo make install
+      - name: Prepare Windows
+        if: contains(matrix.os, 'windows')
+        run: |
+          cd bam
+          ./make_win64_msvc.bat
 
-    - name: Build in debug mode(Ubuntu)
-      if: contains(matrix.os, 'ubuntu')
-      run: bam debug
+      - name: Prepare macOS
+        if: matrix.builder == 'cmake'
+        run: brew install cmake freetype sdl3 glew python3
 
-    - name: Build in release mode(Ubuntu)
-      if: contains(matrix.os, 'ubuntu')
-      run: bam release
+      - name: Build Release (Linux)
+        if: matrix.builder == 'bam' && contains(matrix.os, 'ubuntu')
+        run: bam release
 
-    - name: Build in release mode(Windows)
-      if: contains(matrix.os, 'Windows')
-      run: ./bam/bam release
+      - name: Build Release (Windows)
+        if: matrix.builder == 'bam' && contains(matrix.os, 'windows')
+        run: ./bam/bam release
 
-    - name: Package Release
-      if: contains(matrix.os, 'ubuntu')
-      run: |
-        tar -cf ${{ matrix.package-full-file }} cfg/ data/ ninslash ninslash_srv autoexec.cfg license.txt readme.md storage.cfg
+      - name: Build Release (macOS)
+        if: matrix.builder == 'cmake'
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(sysctl -n hw.ncpu)"
 
-    # UGLY
-    - name: Package Release
-      if: contains(matrix.os, 'Windows')
-      run: |
-        mkdir ${{ matrix.package-full-file }}
-        xcopy cfg ${{ matrix.package-full-file }} /E /C
-        xcopy data ${{ matrix.package-full-file }} /E /C
-        copy ninslash.exe ${{ matrix.package-full-file }}
-        copy ninslash_srv.exe ${{ matrix.package-full-file }}
-        copy autoexec.cfg ${{ matrix.package-full-file }}
-        copy freetype.dll ${{ matrix.package-full-file }}
-        copy SDL3.dll ${{ matrix.package-full-file }}
-        copy glew32.dll ${{ matrix.package-full-file }}
-        copy license.txt ${{ matrix.package-full-file }}
-        copy readme.md ${{ matrix.package-full-file }}
-        copy storage.cfg ${{ matrix.package-full-file }}
+      - name: Package Release (Linux)
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          tar -cJf "${{ matrix.artifact }}" \
+            cfg data ninslash ninslash_srv \
+            autoexec.cfg license.txt readme.md storage.cfg
 
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.name }}
-        path: ${{ matrix.package-full-file }}
+      - name: Package Release (Windows)
+        if: contains(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          $dir = "ninslash-windows_x64-release"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          Copy-Item -Recurse cfg, data $dir
+          Copy-Item ninslash.exe, ninslash_srv.exe, autoexec.cfg, license.txt, readme.md, storage.cfg $dir
+          Copy-Item freetype.dll, SDL3.dll, glew32.dll $dir
+          Compress-Archive -Path $dir -DestinationPath "${{ matrix.artifact }}" -Force
+
+      - name: Package Release (macOS)
+        if: matrix.builder == 'cmake'
+        run: |
+          pkg="ninslash-macos_arm64-release"
+          mkdir -p "$pkg"
+          cp -R cfg data autoexec.cfg license.txt readme.md storage.cfg "$pkg/"
+          cp build/ninslash build/ninslash_srv "$pkg/"
+          if [ -f build/ninslash_srv-Launcher ]; then
+            cp build/ninslash_srv-Launcher "$pkg/"
+          fi
+          tar -cJf "${{ matrix.artifact }}" "$pkg"
+
+      - name: Upload Release Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: ninslash-*-release.*
+          merge-multiple: true
+
+      - name: Show release files
+        run: ls -lah dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Ninslash ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

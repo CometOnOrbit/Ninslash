@@ -2,6 +2,7 @@
 
 #include <map>
 
+#include <base/detect.h>
 #include "graphics_threaded.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
@@ -11,12 +12,12 @@
 #if defined(CONF_PLATFORM_MACOSX)
 	class semaphore
 	{
-		SDL_sem *sem;
+		SDL_Semaphore *sem;
 	public:
 		semaphore() { sem = SDL_CreateSemaphore(0); }
 		~semaphore() { SDL_DestroySemaphore(sem); }
-		void wait() { SDL_SemWait(sem); }
-		void signal() { SDL_SemPost(sem); }
+		void wait() { SDL_WaitSemaphore(sem); }
+		void signal() { SDL_SignalSemaphore(sem); }
 	};
 
 	#include <objc/objc-runtime.h>
@@ -32,13 +33,14 @@
 			Class NSAutoreleasePoolClass = (Class) objc_getClass("NSAutoreleasePool");
 			m_Pool = class_createInstance(NSAutoreleasePoolClass, 0);
 			SEL selector = sel_registerName("init");
-			objc_msgSend(m_Pool, selector);
+			// arm64 requires an explicit cast for objc_msgSend
+			((id (*)(id, SEL))objc_msgSend)(m_Pool, selector);
 		}
 
 		~CAutoreleasePool()
 		{
 			SEL selector = sel_registerName("drain");
-			objc_msgSend(m_Pool, selector);
+			((id (*)(id, SEL))objc_msgSend)(m_Pool, selector);
 		}
 	};	
 #endif

@@ -175,7 +175,7 @@ function build(settings)
 
 	if family == "unix" then
 		if platform == "macosx" then
-			settings.link.frameworks:Add("Carbon")
+			settings.link.frameworks:Add("CoreFoundation")
 			settings.link.frameworks:Add("AppKit")
 		else
 			settings.link.libs:Add("pthread")
@@ -225,9 +225,8 @@ function build(settings)
 	if family == "unix" then
 		if platform == "macosx" then
 			client_settings.link.frameworks:Add("OpenGL")
-			client_settings.link.frameworks:Add("AGL")
-			client_settings.link.frameworks:Add("Carbon")
 			client_settings.link.frameworks:Add("Cocoa")
+			client_settings.link.frameworks:Add("CoreFoundation")
 			launcher_settings.link.frameworks:Add("Cocoa")
 		else
 			client_settings.link.libs:Add("X11")
@@ -248,6 +247,11 @@ function build(settings)
 	-- apply glew settings
 	config.glew:Apply(client_settings)
 
+	glew = {}
+	if config.glew.value == true and config.glew.use_source == true then
+		glew = Compile(client_settings, "other/glew/src/glew.c")
+	end
+
 	engine = Compile(engine_settings, Collect("src/engine/shared/*.cpp", "src/base/*.c"))
 	client = Compile(client_settings, Collect("src/engine/client/*.cpp"))
 	server = Compile(server_settings, Collect("src/engine/server/*.cpp"))
@@ -262,10 +266,8 @@ function build(settings)
 	-- build tools (TODO: fix this so we don't get double _d_d stuff)
 	tools_src = Collect("src/tools/*.cpp", "src/tools/*.c")
 
-	client_osxlaunch = {}
 	server_osxlaunch = {}
 	if platform == "macosx" then
-		client_osxlaunch = Compile(client_settings, "src/osxlaunch/client.m")
 		server_osxlaunch = Compile(launcher_settings, "src/osxlaunch/server.m")
 	end
 
@@ -277,8 +279,8 @@ function build(settings)
 
 	-- build client, server, version server and master server
 	client_exe = Link(client_settings, "ninslash", game_shared, game_client,
-		engine, client, game_editor, zlib, pnglite, wavpack, json_parser,
-		client_link_other, client_osxlaunch)
+		engine, client, game_editor, zlib, pnglite, wavpack, json_parser, glew,
+		client_link_other)
 
 	server_exe = Link(server_settings, "ninslash_srv", engine, server,
 		game_shared, game_server, zlib, server_link_other, json_parser)
