@@ -13,6 +13,8 @@ const char *GetQuestDisplayName(int Quest)
 		case QUEST_KILL_BOSS: return "Destroy the boss";
 		case QUEST_DEFEND: return "Defend the reactor";
 		case QUEST_ACTIVATE_SWITCHES: return "Activate the switches";
+		case QUEST_HORDE: return "Survive the horde";
+		case QUEST_EXTRACT: return "Activate switches to extract";
 		default: return "";
 	}
 }
@@ -55,6 +57,8 @@ const char *GetQuestStartMessage(int Quest, int WaveType)
 		case QUEST_KILL_BOSS: return "Destroy the boss";
 		case QUEST_DEFEND: return "Defend the reactor";
 		case QUEST_ACTIVATE_SWITCHES: return "Activate all switches";
+		case QUEST_HORDE: return "Horde incoming";
+		case QUEST_EXTRACT: return "Find and activate the switches";
 		default: return "";
 	}
 }
@@ -94,6 +98,8 @@ const char *GetQuestCompletedMessage(int Quest, int WaveType)
 		case QUEST_KILL_BOSS: return "Boss destroyed";
 		case QUEST_DEFEND: return "Reactor secured";
 		case QUEST_REACHDOOR: return "";
+		case QUEST_HORDE: return "Wave cleared";
+		case QUEST_EXTRACT: return "Extraction ready";
 		default: return "";
 	}
 }

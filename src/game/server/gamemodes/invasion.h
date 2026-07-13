@@ -90,7 +90,6 @@ private:
 	bool m_SwitchCoopLevel;
 	
 	int m_ForcedWaveType;
-	int m_CoopLivesLeft;
 	int m_WaveSizeNerf;
 	bool m_RunBuffActive;
 	bool m_ProgressSynced;

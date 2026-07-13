@@ -69,7 +69,9 @@ const float GetProjectileSprite(int Weapon)
     if (IsDroid(Weapon)) {
         switch (GetDroidType(Weapon)) {
             case DROIDTYPE_WALKER: return 7;
+            case DROIDTYPE_BOSSWALKER:
             case DROIDTYPE_STAR: return 4;
+            case DROIDTYPE_BOSSSTAR:
             default: return 0;
         };
     }
@@ -120,7 +122,9 @@ const int GetProjectileTraceType(int Weapon)
     if (IsDroid(Weapon)) {
         switch (GetDroidType(Weapon)) {
             case DROIDTYPE_WALKER: return -3;
+            case DROIDTYPE_BOSSWALKER:
             case DROIDTYPE_STAR: return -3;
+            case DROIDTYPE_BOSSSTAR:
             default: return 0;
         };
     }
@@ -217,7 +221,9 @@ const float GetProjectileSize(int Weapon)
     if (IsDroid(Weapon)) {
         switch (GetDroidType(Weapon)) {
             case DROIDTYPE_WALKER: return DROID_WALKER_SIZE;
+            case DROIDTYPE_BOSSWALKER:
             case DROIDTYPE_STAR: return DROID_STAR_SIZE;
+            case DROIDTYPE_BOSSSTAR:
             default: return 0.0f;
         };
     }
@@ -310,9 +316,12 @@ const int GetExplosionSprite(int Weapon)
 			switch (GetDroidType(Weapon))
 			{
 				case DROIDTYPE_WALKER: return SPRITE_EXPLOSION1_1;
+				case DROIDTYPE_BOSSWALKER:
 				case DROIDTYPE_STAR: return SPRITE_EXPLOSION1_1;
+				case DROIDTYPE_BOSSSTAR:
 				case DROIDTYPE_CRAWLER: return SPRITE_EXPLOSION1_1;
 				case DROIDTYPE_BOSSCRAWLER: return SPRITE_EXPLOSION1_1;
+				case DROIDTYPE_BOSSSPLITTER:
 				default: return 0;
 			};
 		}
@@ -366,9 +375,12 @@ const int GetExplosionSound(int Weapon)
 			switch (GetDroidType(Weapon))
 			{
 				case DROIDTYPE_WALKER: return SOUND_GRENADE_EXPLODE;
+				case DROIDTYPE_BOSSWALKER:
 				case DROIDTYPE_STAR: return SOUND_GRENADE_EXPLODE;
+				case DROIDTYPE_BOSSSTAR:
 				case DROIDTYPE_CRAWLER: return SOUND_GRENADE_EXPLODE;
 				case DROIDTYPE_BOSSCRAWLER: return SOUND_GRENADE_EXPLODE;
+				case DROIDTYPE_BOSSSPLITTER:
 				default: return 0;
 			};
 		}
@@ -494,9 +506,12 @@ const float GetExplosionSize(int Weapon)
 			switch (GetDroidType(Weapon))
 			{
 				case DROIDTYPE_WALKER: return 160.0f;
+				case DROIDTYPE_BOSSWALKER:
 				case DROIDTYPE_STAR: return 220.0f;
+				case DROIDTYPE_BOSSSTAR:
 				case DROIDTYPE_CRAWLER: return 160.0f;
 				case DROIDTYPE_BOSSCRAWLER: return 320.0f;
+				case DROIDTYPE_BOSSSPLITTER:
 				default: return 0.0f;
 			};
 		}
@@ -535,9 +550,12 @@ const float GetExplosionDamage(int Weapon)
 			switch (GetDroidType(Weapon))
 			{
 				case DROIDTYPE_WALKER: return 30.0f;
+				case DROIDTYPE_BOSSWALKER:
 				case DROIDTYPE_STAR: return 40.0f;
+				case DROIDTYPE_BOSSSTAR:
 				case DROIDTYPE_CRAWLER: return 30.0f;
 				case DROIDTYPE_BOSSCRAWLER: return 60.0f;
+				case DROIDTYPE_BOSSSPLITTER:
 				default: return 0.0f;
 			};
 		}
@@ -811,7 +829,9 @@ const int WeaponProjectilePosType(int Weapon)
 		switch (GetDroidType(Weapon))
 		{
 			case DROIDTYPE_WALKER: return 0;
+			case DROIDTYPE_BOSSWALKER:
 			case DROIDTYPE_STAR: return 1;
+			case DROIDTYPE_BOSSSTAR:
 			default: return 0;
 		};
 	}
@@ -912,6 +932,7 @@ const float GetMeleeHitRadius(int Weapon)
 		{
 			case DROIDTYPE_CRAWLER: return 40.0f;
 			case DROIDTYPE_BOSSCRAWLER: return 60.0f;
+			case DROIDTYPE_BOSSSPLITTER:
 			default: return 0.0f;
 		};
 	}
@@ -1050,7 +1071,9 @@ const float GetProjectileSpeed(int Weapon)
 		switch (GetDroidType(Weapon))
 		{
 			case DROIDTYPE_WALKER: return 1400;
+			case DROIDTYPE_BOSSWALKER:
 			case DROIDTYPE_STAR: return 24;
+			case DROIDTYPE_BOSSSTAR:
 			default: return 0.0f;
 		};
 	}
@@ -1357,7 +1380,9 @@ const float WeaponElectroAmount(int Weapon)
 		switch (GetDroidType(Weapon))
 		{
 			case DROIDTYPE_WALKER: return 0.5f;
+			case DROIDTYPE_BOSSWALKER:
 			case DROIDTYPE_STAR: return 1.0f;
+			case DROIDTYPE_BOSSSTAR:
 			default: return 0.0f;
 		};
 	}
@@ -1483,9 +1508,12 @@ const float GetProjectileDamage(int Weapon)
 		switch (GetDroidType(Weapon))
 		{
 			case DROIDTYPE_WALKER: return 6.0f;
+			case DROIDTYPE_BOSSWALKER:
 			case DROIDTYPE_STAR: return 10.0f;
+			case DROIDTYPE_BOSSSTAR:
 			case DROIDTYPE_CRAWLER: return 6.0f;
 			case DROIDTYPE_BOSSCRAWLER: return 10.0f;
+			case DROIDTYPE_BOSSSPLITTER:
 			default: return 0.0f;
 		};
 	}
@@ -1614,9 +1642,12 @@ const float GetProjectileKnockback(int Weapon)
 		switch (GetDroidType(Weapon))
 		{
 			case DROIDTYPE_WALKER: return 1.0f;
+			case DROIDTYPE_BOSSWALKER:
 			case DROIDTYPE_STAR: return 2.0f;
+			case DROIDTYPE_BOSSSTAR:
 			case DROIDTYPE_CRAWLER: return 24.0f;
 			case DROIDTYPE_BOSSCRAWLER: return 34.0f;
+			case DROIDTYPE_BOSSSPLITTER:
 			default: return 0.0f;
 		};
 	}
@@ -1684,7 +1715,9 @@ const float GetProjectileLife(int Weapon)
 		switch (GetDroidType(Weapon))
 		{
 			case DROIDTYPE_WALKER: return 0.6f;
+			case DROIDTYPE_BOSSWALKER:
 			case DROIDTYPE_STAR: return 1.2f;
+			case DROIDTYPE_BOSSSTAR:
 			default: return 0.0f;
 		};
 	}

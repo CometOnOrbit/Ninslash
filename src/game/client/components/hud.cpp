@@ -145,10 +145,28 @@ void CHud::RenderObjective()
 			// level + theme (compact, above the original header)
 			{
 				TextRender()->TextColor(0.65f, 0.75f, 0.85f, 1.0f);
-				char aLevelBuf[32];
-				str_format(aLevelBuf, sizeof(aLevelBuf), "%s %d", Localize("Level"), Level);
-				DrawRight(88.0f, 5.0f, aLevelBuf);
-				DrawRight(94.0f, 5.0f, Localize(GetThemeDisplayName(Theme)));
+				if (Quest == QUEST_HORDE)
+				{
+					char aWaveBuf[48];
+					str_format(aWaveBuf, sizeof(aWaveBuf), "%s %d", Localize("Wave"), Level);
+					DrawRight(88.0f, 5.0f, aWaveBuf);
+					char aKillBuf[48];
+					str_format(aKillBuf, sizeof(aKillBuf), "%d %s", Pack, Localize("kills"));
+					DrawRight(94.0f, 5.0f, aKillBuf);
+				}
+				else if (Quest == QUEST_EXTRACT)
+				{
+					char aTimeBuf[48];
+					str_format(aTimeBuf, sizeof(aTimeBuf), "%d %s", Level, Localize("seconds remaining"));
+					DrawRight(88.0f, 5.0f, aTimeBuf);
+				}
+				else
+				{
+					char aLevelBuf[32];
+					str_format(aLevelBuf, sizeof(aLevelBuf), "%s %d", Localize("Level"), Level);
+					DrawRight(88.0f, 5.0f, aLevelBuf);
+					DrawRight(94.0f, 5.0f, Localize(GetThemeDisplayName(Theme)));
+				}
 			}
 
 			// header (original y=100)
@@ -166,6 +184,8 @@ void CHud::RenderObjective()
 					str_format(aQuestBuf, sizeof(aQuestBuf), "%s (%s)", Localize(GetQuestDisplayName(Quest)), Localize(pWave));
 				else
 					str_copy(aQuestBuf, Localize(GetQuestDisplayName(Quest)), sizeof(aQuestBuf));
+				if (Quest == QUEST_EXTRACT && ((Pack >> 8) & 0xFF) >= 1)
+					str_copy(aQuestBuf, Localize("Reach the door"), sizeof(aQuestBuf));
 				DrawRight(112.0f, 6.0f, aQuestBuf);
 			}
 
@@ -181,7 +201,7 @@ void CHud::RenderObjective()
 				{
 					TextRender()->TextColor(0.75f, 0.75f, 0.75f, 1.0f);
 					const char *pDetail = "";
-					if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS)
+					if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS || Quest == QUEST_HORDE)
 					{
 						const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining") : Localize("enemies remaining");
 						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, pText);
@@ -192,9 +212,14 @@ void CHud::RenderObjective()
 						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, Localize("seconds remaining"));
 						pDetail = aProgressBuf;
 					}
-					else if (Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH)
+					else if (Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH || (Quest == QUEST_EXTRACT && ((Pack >> 8) & 0xFF) == 0))
 					{
 						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, Localize("switches remaining"));
+						pDetail = aProgressBuf;
+					}
+					else if (Quest == QUEST_EXTRACT)
+					{
+						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, Localize("to evacuate"));
 						pDetail = aProgressBuf;
 					}
 					else

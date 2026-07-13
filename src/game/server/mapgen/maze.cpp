@@ -40,14 +40,14 @@ void CMaze::Generate()
 {
 	m_Rooms = 0;
 
-	// invasion
-	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
+	// invasion / horde / extract coop-style layouts
+	if (IsCoopMapGenGametype(g_Config.m_SvGametype))
 	{
 		int Level = g_Config.m_SvMapGenLevel;
 		const int Theme = InvasionThemeFromLevel(Level);
 
-		// Acid-escape floors: vertical rising-acid escape tower
-		if (Theme == INVASION_THEME_ACID_ESCAPE)
+		// Acid-escape floors: vertical rising-acid escape tower (Invasion only)
+		if (str_comp(g_Config.m_SvGametype, "coop") == 0 && Theme == INVASION_THEME_ACID_ESCAPE)
 		{
 			const int Floors = 7 + min(5, Level/15);
 			const float yTop = 0.12f; // door / exit (up)

@@ -1257,6 +1257,23 @@ void CCharacter::GiveStartWeapon()
 		
 		return;
 	}
+
+	// Horde / Extraction: fresh loadout each round (no invasion meta save)
+	if (str_comp(g_Config.m_SvGametype, "horde") == 0 || str_comp(g_Config.m_SvGametype, "extract") == 0)
+	{
+		if (m_IsBot)
+			return;
+
+		m_apWeapon[0] = GameServer()->NewWeapon(GetStaticWeapon(SW_GUN1));
+		m_apWeapon[1] = GameServer()->NewWeapon(GetModularWeapon(1, 1));
+		if (frandom() < 0.5f)
+			m_apWeapon[2] = GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE1));
+		else
+			m_apWeapon[2] = GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE2));
+		m_Kits = max(m_Kits, 4);
+		SetArmor(max(GetArmor(), 5));
+		return;
+	}
 	
 	// CS / reactor defense
 	if (str_comp(g_Config.m_SvGametype, "def") == 0)

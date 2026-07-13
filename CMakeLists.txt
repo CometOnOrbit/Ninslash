@@ -863,6 +863,12 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/deathray.h
   entities/droid_bosscrawler.cpp
   entities/droid_bosscrawler.h
+  entities/droid_bossstar.cpp
+  entities/droid_bossstar.h
+  entities/droid_bosswalker.cpp
+  entities/droid_bosswalker.h
+  entities/droid_bosssplitter.cpp
+  entities/droid_bosssplitter.h
   entities/droid_crawler.cpp
   entities/droid_crawler.h
   entities/droid_star.cpp
@@ -871,6 +877,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/droid_walker.h
   entities/droid.cpp
   entities/droid.h
+  bosspool.cpp
+  bosspool.h
   entities/electro.cpp
   entities/electro.h
   entities/electrowall.cpp
@@ -913,6 +921,10 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   gamemodes/ctf.h
   gamemodes/dm.cpp
   gamemodes/dm.h
+  gamemodes/horde.cpp
+  gamemodes/horde.h
+  gamemodes/extract.cpp
+  gamemodes/extract.h
   gamemodes/invasion.cpp
   gamemodes/invasion.h
   gamemodes/roam.cpp

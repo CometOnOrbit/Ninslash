@@ -1271,6 +1271,27 @@ Waiting for server...
 Wave cleared
 == 攻势清空
 
+Wave
+== 波次
+
+kills
+== 击杀
+
+Survive the horde
+== 在无尽波次中存活
+
+Horde incoming
+== 尸潮来袭
+
+Activate switches to extract
+== 激活开关以撤离
+
+Extraction ready
+== 可以撤离
+
+to evacuate
+== 人待撤离
+
 no limit
 == 无限制
 

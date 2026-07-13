@@ -2,6 +2,7 @@
 #define GAME_QUESTINFO_H
 
 #include <cstring>
+#include <base/system.h>
 #include <generated/protocol.h>
 
 enum Quests
@@ -15,6 +16,8 @@ enum Quests
 	QUEST_KILL_BOSS,
 	QUEST_DEFEND,
 	QUEST_ACTIVATE_SWITCHES,
+	QUEST_HORDE,
+	QUEST_EXTRACT,
 };
 
 enum WaveTypes
@@ -49,6 +52,14 @@ static const int INVASION_THEME_CYCLE = NUM_INVASION_THEMES;
 inline int InvasionThemeFromLevel(int Level)
 {
 	return Level % INVASION_THEME_CYCLE;
+}
+
+// Mapgen layouts that need player spawn + enemy spawn (Invasion-style).
+inline bool IsCoopMapGenGametype(const char *pType)
+{
+	return str_comp(pType, "coop") == 0
+		|| str_comp(pType, "horde") == 0
+		|| str_comp(pType, "extract") == 0;
 }
 
 

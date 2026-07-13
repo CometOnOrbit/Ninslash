@@ -7,7 +7,7 @@
 #include <game/server/entities/character.h>
 #include <game/server/entities/building.h>
 #include <game/server/entities/droid.h>
-#include <game/server/entities/droid_bosscrawler.h>
+#include <game/server/bosspool.h>
 #include <game/server/entities/radar.h>
 #include <game/server/player.h>
 #include <game/server/gamecontext.h>
@@ -96,7 +96,6 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_DefendLevel = false;
 	m_SwitchCoopLevel = false;
 	m_ForcedWaveType = WAVE_NONE;
-	m_CoopLivesLeft = 0;
 	m_WaveSizeNerf = 0;
 	m_RunBuffActive = false;
 	m_ProgressSynced = false;
@@ -618,7 +617,7 @@ void CGameControllerInvasion::SpawnBosses(int Count)
 		vec2 p;
 		if (!GetSpawnPos(0, &p))
 			p = vec2(4000, 4000);
-		new CBossCrawler(&GameServer()->m_World, p+vec2(0, -100));
+		SpawnBoss(&GameServer()->m_World, p+vec2(0, -100), g_Config.m_SvMapGenLevel);
 	}
 	m_BossesLeft = Count;
 }
@@ -626,15 +625,7 @@ void CGameControllerInvasion::SpawnBosses(int Count)
 
 int CGameControllerInvasion::CountBossesAlive() const
 {
-	CDroid *apEnts[64];
-	int Num = GameServer()->m_World.FindEntities(vec2(0, 0), 0.0f, (CEntity**)apEnts, 64, CGameWorld::ENTTYPE_DROID);
-	int Bosses = 0;
-	for (int i = 0; i < Num; i++)
-	{
-		if (apEnts[i] && apEnts[i]->m_Type == DROIDTYPE_BOSSCRAWLER && apEnts[i]->m_Health > 0)
-			Bosses++;
-	}
-	return Bosses;
+	return CountAliveBosses(&GameServer()->m_World);
 }
 
 
@@ -687,20 +678,8 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 	if (g_Config.m_SvSurvivalMode && IsHumanCoopPlayer(pVictim->GetPlayer()))
 	{
 		const int CID = pVictim->GetPlayer()->GetCID();
-		if (g_Config.m_SvSurvivalMode == 1)
-			m_CoopLivesLeft--;
-
-		const int HumansAlive = CountHumansAlive(CID);
-
-		if (g_Config.m_SvSurvivalMode >= 2)
-		{
-			if (HumansAlive <= 0)
-			{
-				DeathMessage();
-				m_RoundOverTick = Server()->Tick();
-			}
-		}
-		else if (g_Config.m_SvSurvivalMode == 1 && m_CoopLivesLeft < 0)
+		// Dead until ally uses Respawn device or next floor; wipe when nobody left to revive.
+		if (CountHumansAlive(CID) <= 0)
 		{
 			DeathMessage();
 			m_RoundOverTick = Server()->Tick();
@@ -927,7 +906,11 @@ void CGameControllerInvasion::Tick()
 	
 	if (m_GameState == STATE_GAME)
 	{
-		if (g_Config.m_SvSurvivalMode >= 2 && !m_RoundOverTick && CountHumans() > 0 && CountHumansAlive() <= 0)
+		// Wipe only after someone has already died this round (SURVIVAL_NOCANDO).
+		// At join/spawn, humans exist but aren't alive yet — don't end the round.
+		if (g_Config.m_SvSurvivalMode && !m_RoundOverTick
+			&& m_SurvivalStatus == SURVIVAL_NOCANDO
+			&& CountHumans() > 0 && CountHumansAlive() <= 0)
 		{
 			DeathMessage();
 			m_RoundOverTick = Server()->Tick();
@@ -1122,21 +1105,19 @@ void CGameControllerInvasion::Tick()
 				m_ProgressSynced = true;
 			}
 
-			m_CoopLivesLeft = max(3, CountHumans()*2 + 1);
-
 			char aBuf[256];
 			str_format(aBuf, sizeof(aBuf), "start round theme=%d enemies='%u'", m_LevelTheme, m_Deaths);
 			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "inv", aBuf);
-			
+
 			if (!m_StartBriefingSent)
 			{
 				m_StartBriefingSent = true;
 				GameServer()->SendBroadcastFormat(-1, false, "Level %d - %s", g_Config.m_SvMapGenLevel, GetThemeDisplayName(m_LevelTheme));
 			}
-			
+
 			m_TriggerTick = 0;
 			m_AutoRestart = true;
-			
+
 			m_GameState = STATE_GAME;
 			for (int i = 0; i < m_EnemiesLeft && CountBots() < 32; i++)
 				GameServer()->AddBot();

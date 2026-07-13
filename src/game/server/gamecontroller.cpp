@@ -20,6 +20,9 @@
 #include "entities/droid_star.h"
 #include "entities/droid_crawler.h"
 #include "entities/droid_bosscrawler.h"
+#include "entities/droid_bossstar.h"
+#include "entities/droid_bosswalker.h"
+#include "entities/droid_bosssplitter.h"
 #include "gamecontroller.h"
 #include "gamecontext.h"
 #include <game/questinfo.h>
@@ -673,6 +676,12 @@ void IGameController::RestoreEntity(int ObjType, int Type, int Subtype, int x, i
 			new CCrawler(&GameServer()->m_World, vec2(x, y));
 		else if (Type == DROIDTYPE_BOSSCRAWLER)
 			new CBossCrawler(&GameServer()->m_World, vec2(x, y));
+		else if (Type == DROIDTYPE_BOSSSTAR)
+			new CBossStar(&GameServer()->m_World, vec2(x, y));
+		else if (Type == DROIDTYPE_BOSSWALKER)
+			new CBossWalker(&GameServer()->m_World, vec2(x, y));
+		else if (Type == DROIDTYPE_BOSSSPLITTER)
+			new CBossSplitter(&GameServer()->m_World, vec2(x, y));
 	}
 }
 
@@ -812,6 +821,21 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 	else if (Index == ENTITY_DROID_BOSSCRAWLER)
 	{
 		new CBossCrawler(&GameServer()->m_World, Pos+vec2(0, -40));
+		return true;
+	}
+	else if (Index == ENTITY_DROID_BOSSSTAR)
+	{
+		new CBossStar(&GameServer()->m_World, Pos+vec2(0, -80));
+		return true;
+	}
+	else if (Index == ENTITY_DROID_BOSSWALKER)
+	{
+		new CBossWalker(&GameServer()->m_World, Pos+vec2(0, -40));
+		return true;
+	}
+	else if (Index == ENTITY_DROID_BOSSSPLITTER)
+	{
+		new CBossSplitter(&GameServer()->m_World, Pos+vec2(0, -40));
 		return true;
 	}
 	

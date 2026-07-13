@@ -1,0 +1,6 @@
+name: Horde Survival
+description: Endless waves — survive as long as you can
+config: cfg/horde_blueplanet
+image: invasion7
+min-players: 0
+max-players: 8

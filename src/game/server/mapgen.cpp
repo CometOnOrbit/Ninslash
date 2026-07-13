@@ -237,7 +237,7 @@ void CMapGen::FillMap()
 
 	ProcessTime = time_get();
 	
-	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
+	if (IsCoopMapGenGametype(g_Config.m_SvGametype))
 		GenerateLevel();
 	else
 		GeneratePVPLevel();
@@ -436,7 +436,7 @@ void CMapGen::GenerateBarrel(CGenLayer *pTiles)
 			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_BARREL);
 	}
 	
-	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
+	if (IsCoopMapGenGametype(g_Config.m_SvGametype))
 	{
 		if (frandom() < 0.3f && g_Config.m_SvMapGenLevel > 5)
 			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_POWERBARREL);
@@ -1171,12 +1171,13 @@ void CMapGen::GenerateLevel()
 	// Theme switches / reactors must be placed before other generators consume platforms.
 	const int Theme = InvasionThemeFromLevel(Level);
 	const int HazardDiv = (Level >= 5 && Level <= 15) ? 2 : 1;
-	if (Theme == INVASION_THEME_ACID_ESCAPE)
+	const bool ExtractMode = str_comp(g_Config.m_SvGametype, "extract") == 0;
+	if (Theme == INVASION_THEME_ACID_ESCAPE && !ExtractMode)
 	{
 		if (!GenerateSwitch(pTiles))
 			GenerateSwitch(pTiles);
 	}
-	else if (Theme == INVASION_THEME_DUAL_SWITCHES)
+	else if (ExtractMode || Theme == INVASION_THEME_DUAL_SWITCHES)
 	{
 		int Placed = 0;
 		for (int i = 0; i < 8 && Placed < 2; i++)
@@ -1185,7 +1186,7 @@ void CMapGen::GenerateLevel()
 				Placed++;
 		}
 		if (Placed < 2)
-			dbg_msg("mapgen", "theme dual-switch: only placed %d/2 switches", Placed);
+			dbg_msg("mapgen", "dual-switch layout: only placed %d/2 switches", Placed);
 	}
 	else if (Theme == INVASION_THEME_REACTOR_DEFEND)
 	{
@@ -1193,9 +1194,11 @@ void CMapGen::GenerateLevel()
 			GenerateReactor(pTiles);
 	}
 	
-	// acid pools (fewer on escape towers so the climb stays readable)
+	// acid pools (fewer on escape towers so the climb stays readable; skip rising-acid feel for extract/horde)
 	int AcidPools = (Theme == INVASION_THEME_ACID_ESCAPE) ? 1 + Level/20 : 2 + Level/2;
 	AcidPools = (AcidPools + HazardDiv - 1) / HazardDiv;
+	if (ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+		AcidPools = min(AcidPools, 2);
 	for (int i = 0; i < AcidPools; i++)
 		GenerateAcid(pTiles);
 
@@ -1294,15 +1297,23 @@ void CMapGen::GenerateLevel()
 	//w = 2 + rand()%3 + (Level > 15 ? 1 : 0);
 	
 	w = 4 + min(4, Level / 3);
-	
+	if (ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+		w = 12 + min(8, Level);
+
 	for (int i = 0; i < w; i++)
 		GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
 
 	GenerateWeapon(pTiles, ENTITY_KIT);
 	GenerateWeapon(pTiles, ENTITY_KIT);
 	
-	if (Level > 3) GenerateWeapon(pTiles, ENTITY_KIT);
-	if (Level > 8) GenerateWeapon(pTiles, ENTITY_KIT);
+	if (Level > 3 || ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0) GenerateWeapon(pTiles, ENTITY_KIT);
+	if (Level > 8 || ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0) GenerateWeapon(pTiles, ENTITY_KIT);
+	if (ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+	{
+		GenerateWeapon(pTiles, ENTITY_KIT);
+		GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
+		GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
+	}
 	
 	if (Theme == INVASION_THEME_REACTOR_DEFEND || Level%5 == 4 || Level%7 == 6 || Level%11 == 9)
 	{
@@ -1329,6 +1340,16 @@ void CMapGen::GenerateLevel()
 	
 	for (int i = 0; i < (pTiles->Size())/1100; i++)
 		GenerateArmor(pTiles);
+
+	if (ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+	{
+		for (int i = 0; i < 6; i++)
+			GenerateAmmo(pTiles);
+		for (int i = 0; i < 4; i++)
+			GenerateHearts(pTiles);
+		for (int i = 0; i < 3; i++)
+			GenerateArmor(pTiles);
+	}
 	
 	// walkers
 	/*

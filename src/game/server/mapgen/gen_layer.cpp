@@ -869,9 +869,10 @@ void CGenLayer::Scan()
 		}
 	
 	// find player spawn spots
-	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
+	if (IsCoopMapGenGametype(g_Config.m_SvGametype))
 	{
-		if (InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)
+		if (str_comp(g_Config.m_SvGametype, "coop") == 0
+			&& InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)
 		{
 			for (int y = m_Height-2; y > 2; y--)
 				for (int x = 2; x < m_Width-2; x++)

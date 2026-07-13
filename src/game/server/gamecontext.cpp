@@ -16,6 +16,8 @@
 #include "gamemodes/tdm.h"
 #include "gamemodes/ctf.h"
 #include "gamemodes/invasion.h"
+#include "gamemodes/horde.h"
+#include "gamemodes/extract.h"
 #include "gamemodes/base.h"
 #include "gamemodes/roam.h"
 #include "gamemodes/texasrun.h"
@@ -706,7 +708,7 @@ void CGameContext::CreateProjectile(int DamageOwner, int Weapon, int Charge, vec
 		}
 	}
 	
-	if (IsDroid(Weapon) && (GetDroidType(Weapon) == DROIDTYPE_CRAWLER || GetDroidType(Weapon) == DROIDTYPE_BOSSCRAWLER))
+	if (IsDroid(Weapon) && (GetDroidType(Weapon) == DROIDTYPE_CRAWLER || GetDroidType(Weapon) == DROIDTYPE_BOSSCRAWLER || GetDroidType(Weapon) == DROIDTYPE_BOSSSPLITTER))
 	{
 		CreateMeleeHit(DamageOwner, Weapon, Dmg, Pos, Direction, WeaponPos);
 	}
@@ -3125,6 +3127,10 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 		m_pController = new CGameControllerBase(this);
 	else if(str_comp(g_Config.m_SvGametype, "coop") == 0)
 		m_pController = new CGameControllerInvasion(this);
+	else if(str_comp(g_Config.m_SvGametype, "horde") == 0)
+		m_pController = new CGameControllerHorde(this);
+	else if(str_comp(g_Config.m_SvGametype, "extract") == 0)
+		m_pController = new CGameControllerExtract(this);
 	else if(str_comp(g_Config.m_SvGametype, "ball") == 0)
 		m_pController = new CGameControllerBall(this);
 	else if(str_comp(g_Config.m_SvGametype, "roam") == 0)

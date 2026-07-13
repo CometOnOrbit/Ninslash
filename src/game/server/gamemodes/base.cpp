@@ -8,7 +8,7 @@
 #include "base.h"
 
 #include <game/server/entities/droid_crawler.h>
-#include <game/server/entities/droid_bosscrawler.h>
+#include <game/server/bosspool.h>
 
 #include <game/server/playerdata.h>
 #include <game/server/ai.h>
@@ -302,7 +302,7 @@ void CGameControllerBase::NextWave()
 	{
 			vec2 p;
 			GetSpawnPos(0, &p);
-			new CBossCrawler(&GameServer()->m_World, p+vec2(0, -100));
+			SpawnBoss(&GameServer()->m_World, p+vec2(0, -100), m_Wave);
 	}
 	
 	// add bots

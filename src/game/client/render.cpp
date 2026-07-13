@@ -1159,7 +1159,7 @@ void CRenderTools::RenderSkeleton(vec2 Pos, int Atlas, const char *Anim, float T
 
 
 
-void CRenderTools::RenderWalker(vec2 Pos, int Anim, float Time, int Dir, float Angle, int Status)
+void CRenderTools::RenderWalker(vec2 Pos, int Anim, float Time, int Dir, float Angle, int Status, int Type)
 {
 	vec2 Position = Pos;
 	int Atlas = ATLAS_DROID_WALKER;
@@ -1176,6 +1176,8 @@ void CRenderTools::RenderWalker(vec2 Pos, int Anim, float Time, int Dir, float A
 	dbg_assert(pSkeleton != 0x0, "missing skeleton information");
 	
 	vec2 Scale = vec2(1.0f, 1.0f) * 0.15f;
+	if(Type == DROIDTYPE_BOSSWALKER)
+		Scale *= 1.8f;
 	
 	if (Dir == 1)
 		Scale.x *= -1;
@@ -1310,6 +1312,8 @@ void CRenderTools::RenderStarDroid(vec2 Pos, int Anim, float Time, int Dir, floa
 	dbg_assert(pSkeleton != 0x0, "missing skeleton information");
 	
 	vec2 Scale = vec2(1.0f, 1.0f) * 0.6f;
+	if(pDroidAnim && pDroidAnim->m_Type == DROIDTYPE_BOSSSTAR)
+		Scale *= 1.7f;
 	
 	if (Dir == 1)
 		Scale.x *= -1;
@@ -1467,6 +1471,8 @@ void CRenderTools::RenderCrawlerDroid(vec2 Pos, int Anim, float Time, int Dir, f
 	
 	if (Type == DROIDTYPE_BOSSCRAWLER)
 		Scale *= 2.0f;
+	else if (Type == DROIDTYPE_BOSSSPLITTER)
+		Scale *= 1.6f;
 	
 	if (Dir == 1)
 		Scale.x *= -1;
@@ -1563,6 +1569,8 @@ void CRenderTools::RenderCrawlerDroid(vec2 Pos, int Anim, float Time, int Dir, f
 						
 						if (Type == DROIDTYPE_BOSSCRAWLER)
 							Graphics()->SetColor(0.3f, 0.3f, 0.3f, 1);
+						else if (Type == DROIDTYPE_BOSSSPLITTER)
+							Graphics()->SetColor(0.85f, 0.4f, 0.3f, 1);
 						else
 							Graphics()->SetColor(1, 1, 1, 1);
 						
@@ -1617,7 +1625,7 @@ void CRenderTools::RenderCrawlerLegs(CDroidAnim *pDroidAnim)
 	int Dir = pDroidAnim->m_Dir;
 	
 	const int Type = pDroidAnim->m_Type;
-	const float Scale = Type == DROIDTYPE_BOSSCRAWLER ? 2.0f : 1.0f;
+	const float Scale = (Type == DROIDTYPE_BOSSCRAWLER) ? 2.0f : (Type == DROIDTYPE_BOSSSPLITTER ? 1.6f : 1.0f);
 	const vec2 Offset = vec2(0, -32)*Scale*(0.8f+Scale*0.2f);
 	
 	if (abs(pDroidAnim->m_aVectorValue[CDroidAnim::ATTACH1_POS].x - pDroidAnim->m_aLegPos[0].x) > 300 || abs(pDroidAnim->m_aVectorValue[CDroidAnim::ATTACH1_POS].y - pDroidAnim->m_aLegPos[0].y) > 300)
@@ -1628,6 +1636,8 @@ void CRenderTools::RenderCrawlerLegs(CDroidAnim *pDroidAnim)
 	
 	if (Type == DROIDTYPE_BOSSCRAWLER)
 		Graphics()->SetColor(0.6f, 0.6f, 0.6f, 1);
+	else if (Type == DROIDTYPE_BOSSSPLITTER)
+		Graphics()->SetColor(0.85f, 0.45f, 0.35f, 1);
 	else
 		Graphics()->SetColor(1, 1, 1, 1);
 	
@@ -1676,6 +1686,8 @@ void CRenderTools::RenderCrawlerLegs(CDroidAnim *pDroidAnim)
 		
 	if (Type == DROIDTYPE_BOSSCRAWLER)
 		Graphics()->SetColor(0.6f, 0.6f, 0.6f, 1);
+	else if (Type == DROIDTYPE_BOSSSPLITTER)
+		Graphics()->SetColor(0.85f, 0.45f, 0.35f, 1);
 	else
 		Graphics()->SetColor(1, 1, 1, 1);
 	

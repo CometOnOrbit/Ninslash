@@ -40,7 +40,7 @@ void CDroids::RenderWalker(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCur
 			RenderTools()->Graphics()->ShaderBegin(SHADER_DAMAGE, CustomStuff()->m_DroidDamageIntensity[ItemID%MAX_DROIDS]);
 	}
 	
-	RenderTools()->RenderWalker(Pos, pCurrent->m_Anim, CustomStuff()->m_MonsterAnim+ItemID*0.3f, pCurrent->m_Dir*-1, pCurrent->m_Angle/2, pCurrent->m_Status);
+	RenderTools()->RenderWalker(Pos, pCurrent->m_Anim, CustomStuff()->m_MonsterAnim+ItemID*0.3f, pCurrent->m_Dir*-1, pCurrent->m_Angle/2, pCurrent->m_Status, pCurrent->m_Type);
 	RenderTools()->Graphics()->ShaderEnd();
 	
 	int Dir = pCurrent->m_Dir;
@@ -131,6 +131,7 @@ void CDroids::RenderStar(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurre
 	DroidAnim.m_aValue[CDroidAnim::VEL_X] = pCurrent->m_Dir * (pCurrent->m_X - pPrev->m_X)/24.0f;
 	DroidAnim.m_aValue[CDroidAnim::BODY_ANGLE] = pCurrent->m_Dir * (pCurrent->m_X - pPrev->m_X)/64.0f;
 	DroidAnim.m_aValue[CDroidAnim::TURRET_ANGLE] = pCurrent->m_Angle;
+	DroidAnim.m_Type = pCurrent->m_Type;
 	
 	int Anim = 0;
 	float Time = CustomStuff()->m_MonsterAnim*0.3f+ItemID*0.3f;
@@ -207,6 +208,9 @@ void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCu
 
 	if (pCurrent->m_Type == DROIDTYPE_BOSSCRAWLER && pCurrent->m_Status == DROIDSTATUS_TERMINATED)
 		m_pClient->m_pEffects->Electrospark(Pos + vec2(frandom()-frandom(), frandom()-frandom())*frandom()*140, 64 + frandom()*64, vec2(frandom()-frandom(), frandom()-frandom()) * 20.0f);
+
+	if (pCurrent->m_Type == DROIDTYPE_BOSSSPLITTER && pCurrent->m_Status == DROIDSTATUS_TERMINATED)
+		m_pClient->m_pEffects->Electrospark(Pos + vec2(frandom()-frandom(), frandom()-frandom())*frandom()*120, 48 + frandom()*48, vec2(frandom()-frandom(), frandom()-frandom()) * 16.0f);
 	
 	m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -26), vec4(0.5f, 1.0f, 1.0f, 0.5f), 100);
 }
@@ -242,7 +246,14 @@ void CDroids::OnRender()
 				RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
 				break;
 			case DROIDTYPE_BOSSCRAWLER:
+			case DROIDTYPE_BOSSSPLITTER:
 				RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
+				break;
+			case DROIDTYPE_BOSSSTAR:
+				RenderStar(pDroidPrev, pDroid, Item.m_ID);
+				break;
+			case DROIDTYPE_BOSSWALKER:
+				RenderWalker(pDroidPrev, pDroid, Item.m_ID);
 				break;
 			default:;
 			}

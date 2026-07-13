@@ -1,0 +1,6 @@
+name: Extraction
+description: Activate switches and evacuate before time runs out
+config: cfg/extract1
+image: invasion6
+min-players: 0
+max-players: 8
