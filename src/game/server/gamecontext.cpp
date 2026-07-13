@@ -1212,12 +1212,6 @@ void CGameContext::ResetGameVotes()
 			break;
 
 		m_aGameVote[m_NumGameVotes] = Vote;
-		if(m_aGameVote[m_NumGameVotes].m_DisplayLevel)
-		{
-			char aBuf[64];
-			str_format(aBuf, sizeof(aBuf), "%s - Level %d", m_aGameVote[m_NumGameVotes].m_aDescription, g_Config.m_SvMapGenLevel);
-			str_copy(m_aGameVote[m_NumGameVotes].m_aDescription, aBuf, sizeof(m_aGameVote[m_NumGameVotes].m_aDescription));
-		}
 		m_NumGameVotes++;
 	}
 }
@@ -1331,6 +1325,17 @@ void CGameContext::CalculateVoteWinnerConfig()
 void CGameContext::SendGameVotes(int ClientID)
 {
 	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GameContext", "Sending gamevotes");
+	auto LocalizeDescription = [&](int Vote, int Target, char *pBuf, int BufSize) -> const char * {
+		const char *pDescription = Localize(m_aGameVote[Vote].m_aDescription, Target);
+		if(!m_aGameVote[Vote].m_DisplayLevel)
+			return pDescription;
+
+		char aLevel[32];
+		str_format(aLevel, sizeof(aLevel), Localize("Level %d", Target), g_Config.m_SvMapGenLevel);
+		str_format(pBuf, BufSize, "%s - %s", pDescription, aLevel);
+		return pBuf;
+	};
+
 	for (int i = 0; i < m_NumGameVotes; i++)
 	{
 		if (m_aGameVote[i].m_Valid)
@@ -1345,9 +1350,10 @@ void CGameContext::SendGameVotes(int ClientID)
 					if(m_apPlayers[j]->m_IsBot)
 						continue;
 
+					char aDescription[64];
 					CNetMsg_Sv_GameVote Msg;
 					Msg.m_pName = Localize(m_aGameVote[i].m_aName, j);
-					Msg.m_pDescription = Localize(m_aGameVote[i].m_aDescription, j);
+					Msg.m_pDescription = LocalizeDescription(i, j, aDescription, sizeof(aDescription));
 					Msg.m_pImage = m_aGameVote[i].m_aImage;
 					Msg.m_pPlayers = "";
 					Msg.m_Index = i;
@@ -1357,9 +1363,10 @@ void CGameContext::SendGameVotes(int ClientID)
 			}
 			else
 			{
+				char aDescription[64];
 				CNetMsg_Sv_GameVote Msg;
 				Msg.m_pName = Localize(m_aGameVote[i].m_aName, ClientID);
-				Msg.m_pDescription = Localize(m_aGameVote[i].m_aDescription, ClientID);
+				Msg.m_pDescription = LocalizeDescription(i, ClientID, aDescription, sizeof(aDescription));
 				Msg.m_pImage = m_aGameVote[i].m_aImage;
 				Msg.m_pPlayers = "";
 				Msg.m_Index = i;
@@ -3578,6 +3585,6 @@ const char *CGameContext::Localize(const char *pText, int ClientID)
 
 /*
 Server-side localization keys (see data/server/languages/en-template.json):
-Quest/wave strings from questinfo.cpp, team-move messages, and all SendBroadcast/SendChatTarget literals.
+Quest start/completion strings, game-vote names/descriptions, team-move messages, and all SendBroadcast/SendChatTarget literals.
 Run scripts/check_localization.py to verify coverage.
 */

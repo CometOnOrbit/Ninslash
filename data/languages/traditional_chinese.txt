@@ -1225,6 +1225,36 @@ switches remaining
 Reactor destroyed
 == 反應堆已摧毀
 
+Wave
+== 波次
+
+kills
+== 擊殺
+
+to evacuate
+== 人待撤離
+
+Survive the horde
+== 在無盡波次中存活
+
+Activate switches to extract
+== 啟動開關以撤離
+
+Aliens
+== 外星人
+
+Robots
+== 機器人
+
+Skeletons
+== 骷髏
+
+Furries
+== 獸人
+
+Cyborgs
+== 賽博格
+
 Level
 == 關卡
 
@@ -1261,23 +1291,8 @@ Z-sector wave
 Acid escape
 == 酸液逃生
 
-Milestone: extra kits unlocked
-== 里程碑：額外工具包已解鎖
-
-Milestone: armor tier 1 unlocked
-== 里程碑：護甲一檔已解鎖
-
-Milestone: defend bonus unlocked
-== 里程碑：防守加成已解鎖
-
-Milestone: armor tier 2 unlocked
-== 里程碑：護甲二檔已解鎖
-
-Milestone: gold bonus unlocked
-== 里程碑：金幣加成已解鎖
-
-Milestone: shop tier unlocked
-== 里程碑：商店折扣已解鎖
+Invasion
+== 入侵模式
 
 Select
 == 選擇

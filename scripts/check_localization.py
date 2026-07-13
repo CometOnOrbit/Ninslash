@@ -11,13 +11,25 @@ import sys
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 
 
-def extract_server_strings() -> set[str]:
-    strings: set[str] = set()
+def extract_quest_strings(function_names: tuple[str, ...]) -> set[str]:
     quest_path = os.path.join(ROOT, "src/game/questinfo.cpp")
     with open(quest_path, encoding="utf-8") as f:
-        for m in re.finditer(r'return "([^"]+)"', f.read()):
-            if m.group(1):
-                strings.add(m.group(1))
+        text = f.read()
+
+    strings: set[str] = set()
+    for name in function_names:
+        marker = f"const char *{name}("
+        start = text.find(marker)
+        if start < 0:
+            continue
+        end = text.find("\nconst char *", start + len(marker))
+        body = text[start : len(text) if end < 0 else end]
+        strings.update(m.group(1) for m in re.finditer(r'return "([^"]+)"', body) if m.group(1))
+    return strings
+
+
+def extract_server_strings() -> set[str]:
+    strings = extract_quest_strings(("GetQuestStartMessage", "GetQuestCompletedMessage"))
 
     server_root = os.path.join(ROOT, "src/game/server")
     patterns = [
@@ -35,13 +47,27 @@ def extract_server_strings() -> set[str]:
                     if m.group(1):
                         strings.add(m.group(1))
 
+    gamevotes_root = os.path.join(ROOT, "data/server/gamevotes")
+    for fn in os.listdir(gamevotes_root):
+        if not fn.endswith(".vot"):
+            continue
+        with open(os.path.join(gamevotes_root, fn), encoding="utf-8") as f:
+            text = f.read()
+        strings.update(
+            m.group(1)
+            for m in re.finditer(r"^(?:name|description): (.+)$", text, re.MULTILINE)
+            if m.group(1)
+        )
+
     strings.discard("")
     strings.discard("All players were moved to the %s")
     return strings
 
 
 def extract_client_strings() -> set[str]:
-    strings: set[str] = set()
+    strings = extract_quest_strings(
+        ("GetQuestDisplayName", "GetThemeDisplayName", "GetWaveDisplayName")
+    )
     game_root = os.path.join(ROOT, "src/game")
     for dirpath, _, filenames in os.walk(game_root):
         for fn in filenames:

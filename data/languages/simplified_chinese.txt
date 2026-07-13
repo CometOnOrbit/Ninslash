@@ -1313,6 +1313,21 @@ Activate switches to extract
 Extraction ready
 == 可以撤离
 
+Aliens
+== 外星人
+
+Robots
+== 机器人
+
+Skeletons
+== 骷髅
+
+Furries
+== 兽人
+
+Cyborgs
+== 赛博格
+
 to evacuate
 == 人待撤离
 
@@ -1355,23 +1370,8 @@ Z-sector wave
 Acid escape
 == 酸液逃生
 
-Milestone: extra kits unlocked
-== 里程碑：额外工具包已解锁
-
-Milestone: armor tier 1 unlocked
-== 里程碑：护甲一档已解锁
-
-Milestone: defend bonus unlocked
-== 里程碑：防守加成已解锁
-
-Milestone: armor tier 2 unlocked
-== 里程碑：护甲二档已解锁
-
-Milestone: gold bonus unlocked
-== 里程碑：金币加成已解锁
-
-Milestone: shop tier unlocked
-== 里程碑：商店折扣已解锁
+Invasion
+== 入侵模式
 
 Select
 == 选择

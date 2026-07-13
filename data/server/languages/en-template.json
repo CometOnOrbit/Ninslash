@@ -49,6 +49,10 @@
             "value": "Activate all switches"
         },
         {
+            "key": "Activate switches and evacuate before time runs out",
+            "value": "Activate switches and evacuate before time runs out"
+        },
+        {
             "key": "Activate the switches",
             "value": "Activate the switches"
         },
@@ -161,8 +165,16 @@
             "value": "Boss destroyed"
         },
         {
+            "key": "Boss incoming!",
+            "value": "Boss incoming!"
+        },
+        {
             "key": "Capture the flag",
             "value": "Capture the flag"
+        },
+        {
+            "key": "Cleared %d waves!",
+            "value": "Cleared %d waves!"
         },
         {
             "key": "Cyborg wave cleared",
@@ -193,8 +205,20 @@
             "value": "Disarming bomb... %d"
         },
         {
+            "key": "Door open — evacuate!",
+            "value": "Door open — evacuate!"
+        },
+        {
             "key": "Draw",
             "value": "Draw"
+        },
+        {
+            "key": "Endless waves — survive as long as you can",
+            "value": "Endless waves — survive as long as you can"
+        },
+        {
+            "key": "Enemies flooding the exit!",
+            "value": "Enemies flooding the exit!"
         },
         {
             "key": "Enemies terminated",
@@ -205,6 +229,10 @@
             "value": "Escape"
         },
         {
+            "key": "Evacuated %d/%d",
+            "value": "Evacuated %d/%d"
+        },
+        {
             "key": "Everybody dies",
             "value": "Everybody dies"
         },
@@ -213,8 +241,36 @@
             "value": "Extra explosive death match!"
         },
         {
+            "key": "Extraction",
+            "value": "Extraction"
+        },
+        {
+            "key": "Extraction complete!",
+            "value": "Extraction complete!"
+        },
+        {
+            "key": "Extraction failed — team wiped",
+            "value": "Extraction failed — team wiped"
+        },
+        {
+            "key": "Extraction failed — time's up",
+            "value": "Extraction failed — time's up"
+        },
+        {
+            "key": "Extraction ready",
+            "value": "Extraction ready"
+        },
+        {
+            "key": "Extraction — activate switches, then escape",
+            "value": "Extraction — activate switches, then escape"
+        },
+        {
             "key": "Find and activate the switch",
             "value": "Find and activate the switch"
+        },
+        {
+            "key": "Find and activate the switches",
+            "value": "Find and activate the switches"
         },
         {
             "key": "Find the switch",
@@ -261,6 +317,18 @@
             "value": "Highest level reached on server: %d"
         },
         {
+            "key": "Horde incoming",
+            "value": "Horde incoming"
+        },
+        {
+            "key": "Horde Survival",
+            "value": "Horde Survival"
+        },
+        {
+            "key": "Horde — survive the waves",
+            "value": "Horde — survive the waves"
+        },
+        {
             "key": "Instakill CTF",
             "value": "Instakill CTF"
         },
@@ -297,6 +365,10 @@
             "value": "Level %d"
         },
         {
+            "key": "Level %d - %s",
+            "value": "Level %d - %s"
+        },
+        {
             "key": "Level %d - Last chance",
             "value": "Level %d - Last chance"
         },
@@ -311,6 +383,34 @@
         {
             "key": "Mapgen seed: %d",
             "value": "Mapgen seed: %d"
+        },
+        {
+            "key": "Mid-run boss! Hold the line",
+            "value": "Mid-run boss! Hold the line"
+        },
+        {
+            "key": "Milestone: armor tier 1 unlocked",
+            "value": "Milestone: armor tier 1 unlocked"
+        },
+        {
+            "key": "Milestone: armor tier 2 unlocked",
+            "value": "Milestone: armor tier 2 unlocked"
+        },
+        {
+            "key": "Milestone: defend bonus unlocked",
+            "value": "Milestone: defend bonus unlocked"
+        },
+        {
+            "key": "Milestone: extra kits unlocked",
+            "value": "Milestone: extra kits unlocked"
+        },
+        {
+            "key": "Milestone: gold bonus unlocked",
+            "value": "Milestone: gold bonus unlocked"
+        },
+        {
+            "key": "Milestone: shop tier unlocked",
+            "value": "Milestone: shop tier unlocked"
         },
         {
             "key": "Number of entities: %d",
@@ -443,6 +543,10 @@
         {
             "key": "Survive the wave of enemies",
             "value": "Survive the wave of enemies"
+        },
+        {
+            "key": "Survived %d waves — %d kills",
+            "value": "Survived %d waves — %d kills"
         },
         {
             "key": "Switch %d/%d activated",

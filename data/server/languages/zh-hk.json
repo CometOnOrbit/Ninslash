@@ -49,6 +49,10 @@
             "value": "啟動所有開關"
         },
         {
+            "key": "Activate switches and evacuate before time runs out",
+            "value": "在時間耗盡前啟動開關並撤離"
+        },
+        {
             "key": "Activate the switches",
             "value": "啟動開關"
         },
@@ -161,8 +165,16 @@
             "value": "首領已摧毀"
         },
         {
+            "key": "Boss incoming!",
+            "value": "首領來襲！"
+        },
+        {
             "key": "Capture the flag",
             "value": "奪旗模式"
+        },
+        {
+            "key": "Cleared %d waves!",
+            "value": "已清除 %d 波攻勢！"
         },
         {
             "key": "Cyborg wave cleared",
@@ -193,8 +205,20 @@
             "value": "C4拆除中... %d"
         },
         {
+            "key": "Door open — evacuate!",
+            "value": "門已開啟 — 立即撤離！"
+        },
+        {
             "key": "Draw",
             "value": "平局"
+        },
+        {
+            "key": "Endless waves — survive as long as you can",
+            "value": "無盡攻勢 — 儘可能長時間存活"
+        },
+        {
+            "key": "Enemies flooding the exit!",
+            "value": "敵人正湧向出口！"
         },
         {
             "key": "Enemies terminated",
@@ -205,6 +229,10 @@
             "value": "逃出去"
         },
         {
+            "key": "Evacuated %d/%d",
+            "value": "已撤離 %d/%d 人"
+        },
+        {
             "key": "Everybody dies",
             "value": "無人生還"
         },
@@ -213,8 +241,36 @@
             "value": "爆炸就是藝術!"
         },
         {
+            "key": "Extraction",
+            "value": "撤離模式"
+        },
+        {
+            "key": "Extraction complete!",
+            "value": "撤離完成！"
+        },
+        {
+            "key": "Extraction failed — team wiped",
+            "value": "撤離失敗 — 隊伍全滅"
+        },
+        {
+            "key": "Extraction failed — time's up",
+            "value": "撤離失敗 — 時間已到"
+        },
+        {
+            "key": "Extraction ready",
+            "value": "可以撤離"
+        },
+        {
+            "key": "Extraction — activate switches, then escape",
+            "value": "撤離 — 啟動開關後逃生"
+        },
+        {
             "key": "Find and activate the switch",
             "value": "找到並啟動開關"
+        },
+        {
+            "key": "Find and activate the switches",
+            "value": "找到並啟動所有開關"
         },
         {
             "key": "Find the switch",
@@ -261,6 +317,18 @@
             "value": "該服務器闖到的最高關卡: %d"
         },
         {
+            "key": "Horde incoming",
+            "value": "屍潮來襲"
+        },
+        {
+            "key": "Horde Survival",
+            "value": "屍潮生存"
+        },
+        {
+            "key": "Horde — survive the waves",
+            "value": "屍潮 — 在一波波攻勢中存活"
+        },
+        {
             "key": "Instakill CTF",
             "value": "瞬殺奪旗"
         },
@@ -297,6 +365,10 @@
             "value": "樓層 %d"
         },
         {
+            "key": "Level %d - %s",
+            "value": "關卡 %d - %s"
+        },
+        {
             "key": "Level %d - Last chance",
             "value": "樓層 %d - 孤注一擲"
         },
@@ -311,6 +383,34 @@
         {
             "key": "Mapgen seed: %d",
             "value": "地圖种子: %d"
+        },
+        {
+            "key": "Mid-run boss! Hold the line",
+            "value": "首領來襲！守住陣線"
+        },
+        {
+            "key": "Milestone: armor tier 1 unlocked",
+            "value": "里程碑：護甲一檔已解鎖"
+        },
+        {
+            "key": "Milestone: armor tier 2 unlocked",
+            "value": "里程碑：護甲二檔已解鎖"
+        },
+        {
+            "key": "Milestone: defend bonus unlocked",
+            "value": "里程碑：防守加成已解鎖"
+        },
+        {
+            "key": "Milestone: extra kits unlocked",
+            "value": "里程碑：額外工具包已解鎖"
+        },
+        {
+            "key": "Milestone: gold bonus unlocked",
+            "value": "里程碑：金幣加成已解鎖"
+        },
+        {
+            "key": "Milestone: shop tier unlocked",
+            "value": "里程碑：商店折扣已解鎖"
         },
         {
             "key": "Number of entities: %d",
@@ -443,6 +543,10 @@
         {
             "key": "Survive the wave of enemies",
             "value": "在敵人浪潮中存活"
+        },
+        {
+            "key": "Survived %d waves — %d kills",
+            "value": "存活了 %d 波 — 擊殺 %d"
         },
         {
             "key": "Switch %d/%d activated",

@@ -25,6 +25,11 @@ Localize("Furry wave cleared"),Localize("Cyborg wave cleared"),
 Localize("Aliens terminated"),Localize("Robots terminated"),Localize("Skeletons terminated"),
 Localize("Furries terminated"),Localize("Cyborgs terminated"),Localize("Enemies terminated"),
 Localize("Objective"),Localize("enemies remaining"),Localize("seconds remaining"),
+Localize("Survive the horde"),Localize("Activate switches to extract"),
+Localize("Boss assault"),Localize("Purge"),Localize("Standard wave"),Localize("Dual switches"),
+Localize("Reactor defense"),Localize("Timed survive"),Localize("Trap run"),Localize("Elite wave"),
+Localize("Z-sector wave"),Localize("Acid escape"),Localize("Aliens"),Localize("Robots"),
+Localize("Skeletons"),Localize("Furries"),Localize("Cyborgs"),Localize("Invasion"),
 */
 
 class CLocalizationDatabase
