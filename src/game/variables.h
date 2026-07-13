@@ -108,7 +108,7 @@ MACRO_CONFIG_INT(SvEnableBuilding, sv_enablebuilding, 0, 0, 1, CFGFLAG_SERVER, "
 MACRO_CONFIG_INT(SvRandomWeapons, sv_randomweapons, 0, 0, 1, CFGFLAG_SERVER, "Enable random weapons")
 MACRO_CONFIG_INT(SvWeaponSpawns, sv_weaponspawns, 1, 0, 1, CFGFLAG_SERVER, "Enable weapon spawning")
 MACRO_CONFIG_INT(SvLaserWeapon, sv_laserweapon, 0, 0, 1, CFGFLAG_SERVER, "Give laser weapon on spawn")
-MACRO_CONFIG_INT(SvSurvivalMode, sv_survivalmode, 0, 0, 1, CFGFLAG_SERVER, "Survival mode")
+MACRO_CONFIG_INT(SvSurvivalMode, sv_survivalmode, 0, 0, 2, CFGFLAG_SERVER, "Survival mode (0=off, 1=shared lives, 2=last alive)")
 MACRO_CONFIG_INT(SvSurvivalAcid, sv_survivalacid, 1, 0, 1, CFGFLAG_SERVER, "Survival ends with rising acid")
 MACRO_CONFIG_INT(SvSurvivalTime, sv_survivaltime, 0, 0, 600, CFGFLAG_SERVER, "Survival round time limit")
 MACRO_CONFIG_INT(SvSurvivalReward, sv_survivalreward, 5, 0, 1000, CFGFLAG_SERVER, "Survival round winner's reward points")

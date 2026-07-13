@@ -35,6 +35,26 @@ static CAI* CreateAIalien2(CGameContext *pGameServer, CPlayer *pPlayer, int Leve
 static CAI* CreateAIbunny2(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { (void)Level; return new CAIbunny2(pGameServer, pPlayer); }
 static CAI* CreateAIpyro2(CGameContext *pGameServer, CPlayer *pPlayer, int Level) { (void)Level; return new CAIpyro2(pGameServer, pPlayer); }
 
+static const float INV_QUEST_QUEUE_TIME = 1.5f;
+static const float INV_QUEST_DOOR_TIME = 3.0f;
+
+static int InvasionDepthQuests(int Level)
+{
+	if (Level >= 21)
+		return min(2 + Level/12, 3);
+	return 2;
+}
+
+static int InvasionOpeningEnemies(int Level)
+{
+	return min(18, 6 + Level);
+}
+
+static int InvasionWaveCap(int Level, int Players)
+{
+	return min(28, 10 + Level/2 + Players);
+}
+
 CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer)
 : IGameController(pGameServer)
 {
@@ -75,6 +95,12 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_BossesLeft = 0;
 	m_DefendLevel = false;
 	m_SwitchCoopLevel = false;
+	m_ForcedWaveType = WAVE_NONE;
+	m_CoopLivesLeft = 0;
+	m_WaveSizeNerf = 0;
+	m_RunBuffActive = false;
+	m_ProgressSynced = false;
+	m_StartBriefingSent = false;
 	
 	m_TriggerLevel = 0;
 	m_GroupSpawnPos = vec2(0, 0);
@@ -116,49 +142,47 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 void CGameControllerInvasion::SetupLevelTheme()
 {
 	int Level = g_Config.m_SvMapGenLevel;
-	m_LevelTheme = Level % 10;
-	m_EscapeLevel = (m_LevelTheme == 9);
-	m_DefendLevel = (m_LevelTheme == 4);
-	m_SwitchCoopLevel = (m_LevelTheme == 3);
-	m_EliteWave = (m_LevelTheme == 7);
+	m_LevelTheme = InvasionThemeFromLevel(Level);
+	m_EscapeLevel = (m_LevelTheme == INVASION_THEME_ACID_ESCAPE);
+	m_DefendLevel = (m_LevelTheme == INVASION_THEME_REACTOR_DEFEND);
+	m_SwitchCoopLevel = (m_LevelTheme == INVASION_THEME_DUAL_SWITCHES);
+	m_EliteWave = (m_LevelTheme == INVASION_THEME_ELITE_WAVE);
 	m_SwitchesRequired = m_SwitchCoopLevel ? 2 : (m_EscapeLevel ? 1 : 0);
 	m_SwitchesActivated = 0;
 
-	// Base chain length scales with depth; theme adds signature steps.
-	// Escape stays a single find-switch → climb flow.
-	// Early floors: 3 objectives; mid: 4; deep: 5.
-	const int DepthQuests = min(3 + Level/6, 5);
+	// Fast floors: clear + one signature objective (deeper runs add a third).
+	const int DepthQuests = InvasionDepthQuests(Level);
 
 	switch (m_LevelTheme)
 	{
-	case 0: // clear → wave(s) → boss
-		m_LevelQuestsLeft = max(3, DepthQuests);
+	case INVASION_THEME_BOSS_ASSAULT:
+		m_LevelQuestsLeft = max(2, DepthQuests);
 		m_BossesLeft = 1 + Level/25;
 		break;
-	case 3: // clear → wave(s) → switches
-		m_LevelQuestsLeft = max(3, DepthQuests);
+	case INVASION_THEME_DUAL_SWITCHES:
+		m_LevelQuestsLeft = max(2, DepthQuests);
 		break;
-	case 4: // clear → defend → clear leftovers
-		m_LevelQuestsLeft = max(3, DepthQuests);
+	case INVASION_THEME_REACTOR_DEFEND:
+		m_LevelQuestsLeft = max(2, DepthQuests);
 		break;
-	case 5: // clear → timed → wave(s)
-		m_LevelQuestsLeft = max(3, DepthQuests);
+	case INVASION_THEME_TIMED_SURVIVE:
+		m_LevelQuestsLeft = max(2, DepthQuests);
 		break;
-	case 7: // clear → elite wave(s)
-		m_LevelQuestsLeft = max(3, DepthQuests);
+	case INVASION_THEME_ELITE_WAVE:
+		m_LevelQuestsLeft = max(2, DepthQuests);
 		break;
-	case 9:
+	case INVASION_THEME_ACID_ESCAPE:
 		m_LevelQuestsLeft = 0;
 		break;
-	default: // 1,2,6,8: clear + waves
-		m_LevelQuestsLeft = max(3, DepthQuests);
+	default:
+		m_LevelQuestsLeft = max(2, DepthQuests);
 		break;
 	}
 
 	if (m_EscapeLevel)
 	{
-		m_EnemiesLeft = min(14, 5 + Level/3);
-		m_QuestWaveSize = 14;
+		m_EnemiesLeft = min(10, 4 + Level/4);
+		m_QuestWaveSize = 10;
 		m_QuestWaveEnemiesLeft = 0;
 		m_QuestWaveEndTick = 0;
 		m_Deaths = m_QuestWaveSize;
@@ -166,12 +190,19 @@ void CGameControllerInvasion::SetupLevelTheme()
 	}
 	else
 	{
-		// Heavier opening pack so the first clear is not trivial.
 		SpawnNewWave(false);
-		m_EnemiesLeft = min(28, 10 + Level + Level/2);
-		m_QuestWaveSize = min(24, 12 + Level/2);
+		m_EnemiesLeft = InvasionOpeningEnemies(Level);
+		m_QuestWaveSize = InvasionWaveCap(Level, max(1, CountPlayers(0)));
 		m_Deaths = m_QuestWaveSize;
 	}
+
+	if (g_Config.m_SvInvFails >= 2)
+	{
+		m_RunBuffActive = true;
+		m_WaveSizeNerf = 1;
+	}
+	else if (g_Config.m_SvInvFails >= 1)
+		m_WaveSizeNerf = 1;
 }
 
 
@@ -266,6 +297,29 @@ bool CGameControllerInvasion::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 }
 
 
+static bool IsHumanCoopPlayer(const CPlayer *pPlayer)
+{
+	return pPlayer && !pPlayer->m_IsBot && !pPlayer->m_pAI;
+}
+
+
+int CGameControllerInvasion::CountHumansAlive(int ExcludeCID) const
+{
+	int Num = 0;
+	for (int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if (i == ExcludeCID)
+			continue;
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if (!IsHumanCoopPlayer(pPlayer) || pPlayer->GetTeam() == TEAM_SPECTATORS)
+			continue;
+		if (pPlayer->GetCharacter() && pPlayer->GetCharacter()->IsAlive())
+			Num++;
+	}
+	return Num;
+}
+
+
 void CGameControllerInvasion::ApplyMetaUnlocks(CCharacter *pChr)
 {
 	if (!pChr || pChr->m_IsBot)
@@ -287,6 +341,70 @@ void CGameControllerInvasion::ApplyMetaUnlocks(CCharacter *pChr)
 		pChr->SetArmor(max(pChr->GetArmor(), 5));
 	if (pData->m_UnlockFlags & UNLOCK_WEAPON_TIER2)
 		pChr->SetArmor(max(pChr->GetArmor(), 10));
+	if (m_RunBuffActive)
+		pChr->m_Kits = max(pChr->m_Kits, 6);
+}
+
+
+void CGameControllerInvasion::SendUnlockBroadcast(CPlayerData *pData, int NewFlags)
+{
+	if (!pData)
+		return;
+	if (NewFlags & UNLOCK_EXTRA_KITS)
+		GameServer()->SendBroadcast("Milestone: extra kits unlocked", -1);
+	if (NewFlags & UNLOCK_WEAPON_TIER1)
+		GameServer()->SendBroadcast("Milestone: armor tier 1 unlocked", -1);
+	if (NewFlags & UNLOCK_DEFEND_BONUS)
+		GameServer()->SendBroadcast("Milestone: defend bonus unlocked", -1);
+	if (NewFlags & UNLOCK_WEAPON_TIER2)
+		GameServer()->SendBroadcast("Milestone: armor tier 2 unlocked", -1);
+	if (NewFlags & UNLOCK_GOLD_BONUS)
+		GameServer()->SendBroadcast("Milestone: gold bonus unlocked", -1);
+	if (NewFlags & UNLOCK_SHOP_TIER)
+		GameServer()->SendBroadcast("Milestone: shop tier unlocked", -1);
+}
+
+
+void CGameControllerInvasion::SyncProgressLevel()
+{
+	int TotalLevel = 0;
+	int PlayerCount = 0;
+	for (int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if (!pPlayer || pPlayer->m_IsBot)
+			continue;
+		CPlayerData *pData = GameServer()->Server()->GetPlayerData(i, pPlayer->GetColorID());
+		if (!pData)
+			continue;
+		TotalLevel += max(1, pData->m_HighestLevel);
+		PlayerCount++;
+	}
+	if (PlayerCount > 0)
+	{
+		int Suggested = max(1, TotalLevel / PlayerCount);
+		if (g_Config.m_SvMapGenLevel < Suggested)
+			g_Config.m_SvMapGenLevel = Suggested;
+	}
+}
+
+
+void CGameControllerInvasion::RewardQuestGold()
+{
+	int Gold = 5 + g_Config.m_SvMapGenLevel/5;
+	if (m_RunBuffActive)
+		Gold += 3;
+	for (int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if (!pPlayer || pPlayer->m_IsBot)
+			continue;
+		CPlayerData *pData = GameServer()->Server()->GetPlayerData(i, pPlayer->GetColorID());
+		int Bonus = 0;
+		if (pData && (pData->m_UnlockFlags & UNLOCK_GOLD_BONUS))
+			Bonus = Gold/2;
+		pPlayer->IncreaseGold(Gold + Bonus);
+	}
 }
 
 
@@ -309,6 +427,7 @@ void CGameControllerInvasion::GrantMetaUnlocks()
 			pData->m_HighestLevelSeed = g_Config.m_SvMapGenSeed;
 		}
 
+		int OldFlags = pData->m_UnlockFlags;
 		if (pData->m_HighestLevel >= 10)
 			pData->m_UnlockFlags |= UNLOCK_EXTRA_KITS;
 		if (pData->m_HighestLevel >= 20)
@@ -317,6 +436,14 @@ void CGameControllerInvasion::GrantMetaUnlocks()
 			pData->m_UnlockFlags |= UNLOCK_DEFEND_BONUS;
 		if (pData->m_HighestLevel >= 40)
 			pData->m_UnlockFlags |= UNLOCK_WEAPON_TIER2;
+		if (pData->m_HighestLevel >= 50)
+			pData->m_UnlockFlags |= UNLOCK_GOLD_BONUS;
+		if (pData->m_HighestLevel >= 60)
+			pData->m_UnlockFlags |= UNLOCK_SHOP_TIER;
+
+		int NewFlags = pData->m_UnlockFlags & ~OldFlags;
+		if (NewFlags)
+			SendUnlockBroadcast(pData, NewFlags);
 	}
 }
 
@@ -327,7 +454,6 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 
 	if (!RequestAI)
 	{
-		ApplyMetaUnlocks(pChr);
 		if (m_DefendLevel)
 			pChr->m_Kits = max(pChr->m_Kits, 10);
 		return;
@@ -376,6 +502,8 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 			static const int s_NumFactories = sizeof(s_aAIFactories) / sizeof(s_aAIFactories[0]);
 
 			bool UseElite = m_EliteWave && frandom() < 0.45f;
+			if (!UseElite && g_Config.m_SvMapGenLevel > 15 && frandom() < 0.15f)
+				UseElite = frandom() < 0.45f;
 			AIFactory Factory = 0;
 			if (m_QuestWaveType >= 0 && m_QuestWaveType < s_NumFactories)
 				Factory = UseElite ? s_aEliteFactories[m_QuestWaveType] : s_aAIFactories[m_QuestWaveType];
@@ -384,6 +512,9 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 			    pChr->GetPlayer()->m_pAI = Factory(GameServer(), pChr->GetPlayer(), Level);
 			else 
 			    pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), Level);
+
+			pChr->GetPlayer()->m_IsBot = true;
+			pChr->GetPlayer()->m_TeeInfos.m_IsBot = true;
 			
 			m_EnemyCount++;
 			pChr->m_SkipPickups = 999;
@@ -393,6 +524,8 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 		if (!Found)
 		{
 			pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), g_Config.m_SvMapGenLevel);
+			pChr->GetPlayer()->m_IsBot = true;
+			pChr->GetPlayer()->m_TeeInfos.m_IsBot = true;
 			pChr->GetPlayer()->m_ToBeKicked = true;
 			Trigger(false);
 		}
@@ -419,32 +552,43 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 {
 	int Level = g_Config.m_SvMapGenLevel;
 	const int Players = max(1, CountPlayers(0));
-	
-	m_QuestWaveType = rand()%(min(NUM_WAVES-1, Level/5+1))+1;
-	if (m_LevelTheme == 7 && m_QuestWaveType < WAVE_CYBORGS && frandom() < 0.45f)
+	const int WaveCap = max(8, InvasionWaveCap(Level, Players) - m_WaveSizeNerf*3);
+
+	if (m_ForcedWaveType > WAVE_NONE && m_ForcedWaveType < NUM_WAVES)
+		m_QuestWaveType = m_ForcedWaveType;
+	else
+	{
+		int WaveUnlocked = min(NUM_WAVES-1, max(2, Level/5+1));
+		if (Level > 8 && frandom() < 0.2f)
+			WaveUnlocked = min(NUM_WAVES-1, WaveUnlocked+1);
+		m_QuestWaveType = rand()%WaveUnlocked+1;
+	}
+	if (m_LevelTheme == INVASION_THEME_ELITE_WAVE && m_QuestWaveType < WAVE_CYBORGS && frandom() < 0.45f)
 		m_QuestWaveType = WAVE_CYBORGS;
 	
-	if (m_Quest == QUEST_SURVIVEWAVETIME || (m_Quest == QUEST_NONE && m_LevelTheme == 5))
+	if (m_Quest == QUEST_SURVIVEWAVETIME || (m_Quest == QUEST_NONE && m_LevelTheme == INVASION_THEME_TIMED_SURVIVE) || (m_LevelTheme == INVASION_THEME_TRAP_RUN && m_QuestsCompleted >= 1))
 	{
-		// Longer timed pressure.
-		m_QuestWaveEndTick = Server()->Tick() + Server()->TickSpeed() * (70 + min(35, Level));
+		int TimedSecs = 35 + min(20, Level/2);
+		if (m_LevelTheme == INVASION_THEME_TRAP_RUN)
+			TimedSecs = 30 + Level/3;
+		m_QuestWaveEndTick = Server()->Tick() + Server()->TickSpeed() * TimedSecs;
 		m_QuestWaveEnemiesLeft = 9999;
-		m_QuestWaveSize = min(12 + Level + Players*2, 40);
+		m_QuestWaveSize = WaveCap;
 		m_EnemiesLeft = m_QuestWaveEnemiesLeft;
 	}
 	else if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_DEFEND)
 	{
 		m_QuestWaveEndTick = 0;
-		m_QuestWaveEnemiesLeft = min(int(16+Level*3), 100)*(1.0f + (Players-1)*0.25f);
-		m_QuestWaveSize = min(12 + Level + Players*2, 40);
+		m_QuestWaveEnemiesLeft = min(int(8+Level*2), 50)*(1.0f + (Players-1)*0.2f);
+		m_QuestWaveSize = WaveCap;
 		m_EnemiesLeft = m_QuestWaveEnemiesLeft;
 	}
 	else
 	{
 		m_QuestWaveEndTick = 0;
 		m_QuestWaveEnemiesLeft = 0;
-		m_QuestWaveSize = min(24, 12 + Level/2);
-		m_EnemiesLeft = min(28, 10 + Level + Level/2);
+		m_QuestWaveSize = WaveCap;
+		m_EnemiesLeft = InvasionOpeningEnemies(Level);
 	}
 	
 	m_EnemyCount = 0;
@@ -540,10 +684,27 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 		}
 	}
 	
-	if (g_Config.m_SvSurvivalMode && !pVictim->m_IsBot && CountPlayersAlive(-1, true) <= 1)
+	if (g_Config.m_SvSurvivalMode && IsHumanCoopPlayer(pVictim->GetPlayer()))
 	{
-		DeathMessage();
-		m_RoundOverTick = Server()->Tick();
+		const int CID = pVictim->GetPlayer()->GetCID();
+		if (g_Config.m_SvSurvivalMode == 1)
+			m_CoopLivesLeft--;
+
+		const int HumansAlive = CountHumansAlive(CID);
+
+		if (g_Config.m_SvSurvivalMode >= 2)
+		{
+			if (HumansAlive <= 0)
+			{
+				DeathMessage();
+				m_RoundOverTick = Server()->Tick();
+			}
+		}
+		else if (g_Config.m_SvSurvivalMode == 1 && m_CoopLivesLeft < 0)
+		{
+			DeathMessage();
+			m_RoundOverTick = Server()->Tick();
+		}
 	}
 
 	return 0;
@@ -600,36 +761,52 @@ void CGameControllerInvasion::SendQuestCompletedMessage(int Quest)
 void CGameControllerInvasion::CompleteCurrentQuest()
 {
 	SendQuestCompletedMessage(m_Quest);
+	RewardQuestGold();
 	m_Quest = QUEST_NONE;
 	m_NextQuest = QUEST_NONE;
 	m_QuestsCompleted++;
+	m_ForcedWaveType = WAVE_NONE;
 }
 
 
 void CGameControllerInvasion::StartThemeQuest()
 {
-	// Always open with a clear so the floor pack matters.
-	ChangeQuest(QUEST_KILLREMAININGENEMIES, 5.0f);
+	ChangeQuest(QUEST_KILLREMAININGENEMIES, INV_QUEST_QUEUE_TIME);
 }
 
 
 void CGameControllerInvasion::QueueNextObjectiveQuest()
 {
-	// Signature / filler after the opening clear. Door is handled separately.
-	// Only queue feature quests when the map actually has the required props.
 	const int Done = m_QuestsCompleted;
 	const int LastSlot = max(1, m_LevelQuestsLeft - 1);
 	int Next = QUEST_SURVIVEWAVE;
 
 	switch (m_LevelTheme)
 	{
-	case 0:
+	case INVASION_THEME_BOSS_ASSAULT:
 		if (Done >= LastSlot)
 			Next = QUEST_KILL_BOSS;
 		else
 			Next = QUEST_SURVIVEWAVE;
 		break;
-	case 3:
+	case INVASION_THEME_PURGE:
+		if (Done >= LastSlot)
+		{
+			Next = QUEST_KILLREMAININGENEMIES;
+			m_EnemiesLeft = min(16, 8 + g_Config.m_SvMapGenLevel);
+			m_QuestWaveSize = InvasionWaveCap(g_Config.m_SvMapGenLevel, max(1, CountPlayers(0)));
+			RandomGroupSpawnPos();
+			for (int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
+				GameServer()->AddBot();
+		}
+		else
+			Next = QUEST_SURVIVEWAVE;
+		break;
+	case INVASION_THEME_STANDARD_WAVE:
+		m_ForcedWaveType = 1 + (g_Config.m_SvMapGenLevel/7) % (NUM_WAVES-1);
+		Next = QUEST_SURVIVEWAVE;
+		break;
+	case INVASION_THEME_DUAL_SWITCHES:
 		if (Done >= LastSlot)
 		{
 			const int Switches = SwitchesAvailable();
@@ -641,7 +818,7 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 			}
 			else
 			{
-				dbg_msg("inv", "theme3: no switches on map, skip switch quest");
+				dbg_msg("inv", "theme dual-switch: no switches on map, skip switch quest");
 				m_SwitchCoopLevel = false;
 				m_SwitchesRequired = 0;
 				Next = QUEST_SURVIVEWAVE;
@@ -650,38 +827,38 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 		else
 			Next = QUEST_SURVIVEWAVE;
 		break;
-	case 4:
-		if (Done == 1)
+	case INVASION_THEME_REACTOR_DEFEND:
+		if (Done >= LastSlot)
 		{
 			if (ReactorsLeft() > 0)
 				Next = QUEST_DEFEND;
 			else
 			{
-				dbg_msg("inv", "theme4: no reactor on map, skip defend quest");
+				dbg_msg("inv", "theme reactor-defend: no reactor on map, skip defend quest");
 				Next = QUEST_SURVIVEWAVE;
 			}
 		}
 		else
-			Next = QUEST_KILLREMAININGENEMIES;
-		break;
-	case 5:
-		if (Done == 1)
-			Next = QUEST_SURVIVEWAVETIME;
-		else
 			Next = QUEST_SURVIVEWAVE;
 		break;
-	case 7:
-		Next = QUEST_SURVIVEWAVE; // elite mix applied in spawn
+	case INVASION_THEME_TIMED_SURVIVE:
+		Next = QUEST_SURVIVEWAVETIME;
+		break;
+	case INVASION_THEME_TRAP_RUN:
+		Next = QUEST_SURVIVEWAVETIME;
+		break;
+	case INVASION_THEME_ELITE_WAVE:
+		Next = QUEST_SURVIVEWAVE;
+		break;
+	case INVASION_THEME_Z_SECTOR:
+		Next = QUEST_SURVIVEWAVE;
 		break;
 	default:
-		if (Done == 1 && frandom() < 0.35f)
-			Next = QUEST_SURVIVEWAVETIME;
-		else
-			Next = QUEST_SURVIVEWAVE;
+		Next = QUEST_SURVIVEWAVE;
 		break;
 	}
 
-	ChangeQuest(Next, 5.0f);
+	ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
 }
 
 
@@ -750,6 +927,12 @@ void CGameControllerInvasion::Tick()
 	
 	if (m_GameState == STATE_GAME)
 	{
+		if (g_Config.m_SvSurvivalMode >= 2 && !m_RoundOverTick && CountHumans() > 0 && CountHumansAlive() <= 0)
+		{
+			DeathMessage();
+			m_RoundOverTick = Server()->Tick();
+		}
+
 		if (m_QuestChangeTick && m_QuestChangeTick <= Server()->Tick())
 		{
 			m_Quest = m_NextQuest;
@@ -774,8 +957,8 @@ void CGameControllerInvasion::Tick()
 			if (m_Quest == QUEST_KILL_BOSS)
 			{
 				SpawnBosses(max(1, m_BossesLeft));
-				m_EnemiesLeft = min(24, 10 + g_Config.m_SvMapGenLevel/2);
-				m_QuestWaveSize = min(28, 16 + g_Config.m_SvMapGenLevel/3);
+				m_EnemiesLeft = min(16, 6 + g_Config.m_SvMapGenLevel/3);
+				m_QuestWaveSize = min(20, 10 + g_Config.m_SvMapGenLevel/4);
 				RandomGroupSpawnPos();
 				for (int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
 					GameServer()->AddBot();
@@ -789,7 +972,7 @@ void CGameControllerInvasion::Tick()
 					CompleteCurrentQuest();
 				}
 				else
-					m_DefendEndTick = Server()->Tick() + Server()->TickSpeed() * (75 + g_Config.m_SvMapGenLevel*2);
+					m_DefendEndTick = Server()->Tick() + Server()->TickSpeed() * (40 + g_Config.m_SvMapGenLevel);
 			}
 
 			if (m_Quest == QUEST_ACTIVATE_SWITCHES)
@@ -834,7 +1017,7 @@ void CGameControllerInvasion::Tick()
 					ChangeQuest(QUEST_REACHDOOR, 1.0f);
 			}
 			else if (m_QuestsCompleted >= m_LevelQuestsLeft)
-				ChangeQuest(QUEST_REACHDOOR, 5.0f);
+				ChangeQuest(QUEST_REACHDOOR, INV_QUEST_DOOR_TIME);
 			else if (m_QuestsCompleted == 0)
 				StartThemeQuest();
 			else
@@ -855,8 +1038,8 @@ void CGameControllerInvasion::Tick()
 				int CompletedQuest = m_Quest;
 				CompleteCurrentQuest();
 				
-				if (CompletedQuest == QUEST_SURVIVEWAVETIME && CountBotsAlive() > 8)
-					ChangeQuest(QUEST_KILLREMAININGENEMIES, 5.0f);
+				if (CompletedQuest == QUEST_SURVIVEWAVETIME && CountBotsAlive() > 4)
+					ChangeQuest(QUEST_KILLREMAININGENEMIES, INV_QUEST_QUEUE_TIME);
 			}
 		}
 		
@@ -896,7 +1079,7 @@ void CGameControllerInvasion::Tick()
 			}
 			else if (m_BotSpawnTick < Server()->Tick())
 			{
-				m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.28f, 0.85f - g_Config.m_SvMapGenLevel*0.012f);
+				m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.22f, 0.7f - g_Config.m_SvMapGenLevel*0.012f);
 				if (CountBots() < m_QuestWaveSize)
 				{
 					RandomGroupSpawnPos();
@@ -932,9 +1115,24 @@ void CGameControllerInvasion::Tick()
 	{
 		if (CountPlayers(0) > 0)
 		{
+			if (!m_ProgressSynced)
+			{
+				SyncProgressLevel();
+				SetupLevelTheme();
+				m_ProgressSynced = true;
+			}
+
+			m_CoopLivesLeft = max(3, CountHumans()*2 + 1);
+
 			char aBuf[256];
 			str_format(aBuf, sizeof(aBuf), "start round theme=%d enemies='%u'", m_LevelTheme, m_Deaths);
 			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "inv", aBuf);
+			
+			if (!m_StartBriefingSent)
+			{
+				m_StartBriefingSent = true;
+				GameServer()->SendBroadcastFormat(-1, false, "Level %d - %s", g_Config.m_SvMapGenLevel, GetThemeDisplayName(m_LevelTheme));
+			}
 			
 			m_TriggerTick = 0;
 			m_AutoRestart = true;
@@ -963,6 +1161,8 @@ void CGameControllerInvasion::Tick()
 			if (++g_Config.m_SvInvFails >= 3)
 			{
 				g_Config.m_SvInvFails = 0;
+				m_RunBuffActive = true;
+				m_WaveSizeNerf = 1;
 				
 				if (--g_Config.m_SvMapGenLevel < 1)
 					g_Config.m_SvMapGenLevel = 1;
@@ -1001,8 +1201,18 @@ void CGameControllerInvasion::Tick()
 		{
 			m_RoundWin = false;
 			m_RoundWinTick = 0;
+			m_RunBuffActive = false;
+			const int CompletedLevel = g_Config.m_SvMapGenLevel;
 			g_Config.m_SvMapGenLevel++;
 			g_Config.m_SvInvFails = 0;
+
+			for (int i = 0; i < MAX_CLIENTS; i++)
+			{
+				CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+				if (!pPlayer || pPlayer->m_IsBot)
+					continue;
+				pPlayer->IncreaseGold(10 + CompletedLevel/3);
+			}
 
 			GrantMetaUnlocks();
 			
@@ -1029,4 +1239,7 @@ void CGameControllerInvasion::Snap(int SnappingClient)
 
 	pGameDataObj->m_TeamscoreRed = m_Quest;
 	pGameDataObj->m_TeamscoreBlue = m_QuestProgressCounter;
+	// Coop HUD packs level/theme/wave/quest progress (flag carriers unused in coop).
+	pGameDataObj->m_FlagCarrierRed = g_Config.m_SvMapGenLevel;
+	pGameDataObj->m_FlagCarrierBlue = m_LevelTheme | (m_QuestWaveType << 4) | (m_QuestsCompleted << 8) | (m_LevelQuestsLeft << 12);
 }

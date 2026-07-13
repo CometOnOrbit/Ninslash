@@ -116,73 +116,105 @@ void CHud::RenderObjective()
 {
 	if(m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags&GAMEFLAG_COOP)
 	{
+		if (!m_pClient->m_Snap.m_pGameDataObj)
+			return;
+
 		int Quest = m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreRed;
 		int QuestProgressCounter = m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreBlue;
+		int Level = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierRed;
+		int Pack = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierBlue;
+		int Theme = Pack & 0xF;
+		int WaveType = (Pack >> 4) & 0xF;
+		int QuestsDone = (Pack >> 8) & 0xF;
+		int QuestsTotal = (Pack >> 12) & 0xF;
 		
 		if (Quest)
 		{
-			float xPos = 296.0f*Graphics()->ScreenAspect();
+			// Original HUD anchor: upper-right block near x=296 (300-wide virtual screen).
+			const float xRight = 296.0f*Graphics()->ScreenAspect();
+			const float xMin = 10.0f*Graphics()->ScreenAspect();
+			const float MaxTextW = xRight - xMin;
+
+			auto DrawRight = [&](float y, float FontSize, const char *pText) {
+				while (FontSize > 4.0f && TextRender()->TextWidth(0, FontSize, pText, -1) > MaxTextW)
+					FontSize -= 0.5f;
+				const float w = TextRender()->TextWidth(0, FontSize, pText, -1);
+				TextRender()->Text(0, max(xMin, xRight - w), y, FontSize, pText, -1);
+			};
 			
-			// quest title
+			// level + theme (compact, above the original header)
+			{
+				TextRender()->TextColor(0.65f, 0.75f, 0.85f, 1.0f);
+				char aLevelBuf[32];
+				str_format(aLevelBuf, sizeof(aLevelBuf), "%s %d", Localize("Level"), Level);
+				DrawRight(88.0f, 5.0f, aLevelBuf);
+				DrawRight(94.0f, 5.0f, Localize(GetThemeDisplayName(Theme)));
+			}
+
+			// header (original y=100)
 			{
 				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
-				const char *pTitle = Localize(GetQuestDisplayName(Quest));
-				float FontSize = 6.0f;
-				float w = TextRender()->TextWidth(0, FontSize, pTitle, -1);
-				
-				xPos -= w/2.0f;
-				TextRender()->Text(0, xPos-w/2.0f, 112.0f, FontSize, pTitle, -1);
+				DrawRight(100.0f, 8.0f, Localize("Objective"));
 			}
-			
-			// title
+
+			// quest title (original y=112)
 			{
 				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
-				const char *pTitle = Localize("Objective");
-				float FontSize = 8.0f;
-				float w = TextRender()->TextWidth(0, FontSize, pTitle, -1);
-				TextRender()->Text(0, xPos-w/2.0f, 100.0f, FontSize, pTitle, -1);
+				char aQuestBuf[96];
+				const char *pWave = GetWaveDisplayName(WaveType);
+				if (pWave[0] && (Quest == QUEST_SURVIVEWAVE || Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_KILLREMAININGENEMIES))
+					str_format(aQuestBuf, sizeof(aQuestBuf), "%s (%s)", Localize(GetQuestDisplayName(Quest)), Localize(pWave));
+				else
+					str_copy(aQuestBuf, Localize(GetQuestDisplayName(Quest)), sizeof(aQuestBuf));
+				DrawRight(112.0f, 6.0f, aQuestBuf);
 			}
-			
-			// quest progress
-			if (Quest == QUEST_REACHDOOR && m_pClient->SurvivalAcid())
+
+			// step + progress (original y=120)
 			{
-				TextRender()->TextColor(0.9f, 0.55f, 0.35f, 1.0f);
-				const char *pText = Localize("Rising acid");
-				float FontSize = 6.0f;
-				float w = TextRender()->TextWidth(0, FontSize, pText, -1);
-				TextRender()->Text(0, xPos-w/2.0f, 120.0f, FontSize, pText, -1);
+				char aProgressBuf[96];
+				if (Quest == QUEST_REACHDOOR && m_pClient->SurvivalAcid())
+				{
+					TextRender()->TextColor(0.9f, 0.55f, 0.35f, 1.0f);
+					DrawRight(120.0f, 5.5f, Localize("Rising acid"));
+				}
+				else
+				{
+					TextRender()->TextColor(0.75f, 0.75f, 0.75f, 1.0f);
+					const char *pDetail = "";
+					if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS)
+					{
+						const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining") : Localize("enemies remaining");
+						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, pText);
+						pDetail = aProgressBuf;
+					}
+					else if (Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND)
+					{
+						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, Localize("seconds remaining"));
+						pDetail = aProgressBuf;
+					}
+					else if (Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH)
+					{
+						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, Localize("switches remaining"));
+						pDetail = aProgressBuf;
+					}
+					else
+						aProgressBuf[0] = 0;
+
+					if (QuestsTotal > 0 && Quest != QUEST_REACHDOOR)
+					{
+						char aLineBuf[128];
+						char aStepBuf[32];
+						str_format(aStepBuf, sizeof(aStepBuf), Localize("Objective %d/%d"), min(QuestsDone+1, QuestsTotal), QuestsTotal);
+						if (pDetail[0])
+							str_format(aLineBuf, sizeof(aLineBuf), "%s · %s", aStepBuf, pDetail);
+						else
+							str_copy(aLineBuf, aStepBuf, sizeof(aLineBuf));
+						DrawRight(120.0f, 6.0f, aLineBuf);
+					}
+					else if (pDetail[0])
+						DrawRight(120.0f, 6.0f, pDetail);
+				}
 			}
-			else if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS)
-			{
-				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
-				const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining") : Localize("enemies remaining");
-				char aBuf[32];
-				str_format(aBuf, sizeof(aBuf), "%u %s", QuestProgressCounter, pText);
-				float FontSize = 6.0f;
-				float w = TextRender()->TextWidth(0, FontSize, aBuf, -1);
-				TextRender()->Text(0, xPos-w/2.0f, 120.0f, FontSize, aBuf, -1);
-			}
-			else if (Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND)
-			{
-				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
-				const char *pText = Localize("seconds remaining");
-				char aBuf[32];
-				str_format(aBuf, sizeof(aBuf), "%u %s", QuestProgressCounter, pText);
-				float FontSize = 6.0f;
-				float w = TextRender()->TextWidth(0, FontSize, aBuf, -1);
-				TextRender()->Text(0, xPos-w/2.0f, 120.0f, FontSize, aBuf, -1);
-			}
-			else if (Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH)
-			{
-				TextRender()->TextColor(0.8f, 0.8f, 0.8f, 1.0f);
-				const char *pText = Localize("switches remaining");
-				char aBuf[32];
-				str_format(aBuf, sizeof(aBuf), "%u %s", QuestProgressCounter, pText);
-				float FontSize = 6.0f;
-				float w = TextRender()->TextWidth(0, FontSize, aBuf, -1);
-				TextRender()->Text(0, xPos-w/2.0f, 120.0f, FontSize, aBuf, -1);
-			}
-			
 			
 			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 		}

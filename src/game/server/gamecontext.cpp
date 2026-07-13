@@ -1975,24 +1975,32 @@ bool CGameContext::Shop(CPlayer *pPlayer, int Slot, bool AI)
 		{
 			int Item = pTarget->GetItem(Slot);
 			
-			if (Item && (!AI || GetStaticType(Item) != SW_UPGRADE) && pPlayer->GetGold() >= GetWeaponCost(Item))
+			if (Item)
 			{
-				if (pPlayer->GetCharacter()->GiveWeapon(NewWeapon(Item)))
+				int Cost = GetWeaponCost(Item);
+				if (str_comp(g_Config.m_SvGametype, "coop") == 0)
 				{
-					pPlayer->ReduceGold(GetWeaponCost(Item));
-					pPlayer->GetCharacter()->SendInventory();
-					pTarget->ClearItem(Slot);
-					
-					// shop sound
-					//CreateSoundGlobal(SOUND_PICKUP_SHOTGUN, pPlayer->GetCID());
-					CreateSound(Pos, SOUND_PICKUP_SHOTGUN);
-					return true;
+					CPlayerData *pData = Server()->GetPlayerData(pPlayer->GetCID(), pPlayer->GetColorID());
+					if (pData && (pData->m_UnlockFlags & UNLOCK_SHOP_TIER))
+						Cost = max(1, Cost*3/4);
+				}
+				if ((!AI || GetStaticType(Item) != SW_UPGRADE) && pPlayer->GetGold() >= Cost)
+				{
+					if (pPlayer->GetCharacter()->GiveWeapon(NewWeapon(Item)))
+					{
+						pPlayer->ReduceGold(Cost);
+						pPlayer->GetCharacter()->SendInventory();
+						pTarget->ClearItem(Slot);
+						
+						CreateSound(Pos, SOUND_PICKUP_SHOTGUN);
+						return true;
+					}
+					else
+						CreateSoundGlobal(SOUND_GUI_DENIED1, pPlayer->GetCID());
 				}
 				else
 					CreateSoundGlobal(SOUND_GUI_DENIED1, pPlayer->GetCID());
 			}
-			else
-				CreateSoundGlobal(SOUND_GUI_DENIED1, pPlayer->GetCID());
 		}
 	}
 	

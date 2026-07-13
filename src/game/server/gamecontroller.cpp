@@ -22,6 +22,7 @@
 #include "entities/droid_bosscrawler.h"
 #include "gamecontroller.h"
 #include "gamecontext.h"
+#include <game/questinfo.h>
 
 
 IGameController::IGameController(class CGameContext *pGameServer)
@@ -574,7 +575,7 @@ void IGameController::TriggerSwitch(vec2 Pos)
 
 void IGameController::OnSwitchTriggered()
 {
-	if (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGenLevel%10 == 9)
+	if (str_comp(g_Config.m_SvGametype, "coop") == 0 && InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)
 		BeginRisingAcid(50);
 	TriggerEscape();
 }

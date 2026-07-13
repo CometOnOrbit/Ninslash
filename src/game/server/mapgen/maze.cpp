@@ -3,6 +3,7 @@
 #include <base/vmath.h>
 
 #include <engine/shared/config.h>
+#include <game/questinfo.h>
 
 #include "room.h"
 #include "maze.h"
@@ -43,10 +44,10 @@ void CMaze::Generate()
 	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
 	{
 		int Level = g_Config.m_SvMapGenLevel;
-		const int Theme = Level % 10;
+		const int Theme = InvasionThemeFromLevel(Level);
 
-		// Level 9/19/29...: vertical rising-acid escape tower
-		if (Theme == 9)
+		// Acid-escape floors: vertical rising-acid escape tower
+		if (Theme == INVASION_THEME_ACID_ESCAPE)
 		{
 			const int Floors = 7 + min(5, Level/15);
 			const float yTop = 0.12f; // door / exit (up)
@@ -91,8 +92,40 @@ void CMaze::Generate()
 			return;
 		}
 
+		// Purge arena (compact)
+		if (Theme == INVASION_THEME_PURGE)
+		{
+			float s = 0.14f+frandom()*0.08f;
+			Connect(vec2(m_W*(0.5f-s), m_H*0.5f), vec2(m_W*(0.5f+s), m_H*0.5f));
+			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f-s)), vec2(m_W*(0.5f+s), m_H*(0.5f-s)));
+			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f+s)), vec2(m_W*(0.5f+s), m_H*(0.5f+s)));
+			Connect(vec2(m_W*(0.5f-s), m_H*(0.5f-s)), vec2(m_W*(0.5f-s), m_H*(0.5f+s)));
+			Connect(vec2(m_W*(0.5f+s), m_H*(0.5f-s)), vec2(m_W*(0.5f+s), m_H*(0.5f+s)));
+			for (int i = 0; i < min(8, Level/2); i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
+		// Standard wave lanes
+		if (Theme == INVASION_THEME_STANDARD_WAVE)
+		{
+			m_aRoom[m_Rooms++] = vec2(m_W*0.35f, m_H*0.5f);
+			m_aRoom[m_Rooms++] = vec2(m_W*0.65f, m_H*0.5f);
+			m_aRoom[m_Rooms++] = vec2(m_W*0.5f, m_H*0.35f);
+			Connect(m_aRoom[0], m_aRoom[1]);
+			Connect(m_aRoom[0], m_aRoom[2]);
+			Connect(m_aRoom[1], m_aRoom[2]);
+			for (int i = 0; i < min(12, Level/2); i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
 		// Boss ring layout
-		if (Theme == 0)
+		if (Theme == INVASION_THEME_BOSS_ASSAULT)
 		{
 			int r = min(20, Level/3);
 			float s = 0.12f+frandom()*0.15f;
@@ -113,7 +146,7 @@ void CMaze::Generate()
 		}
 
 		// Dual-switch branch layout
-		if (Theme == 3)
+		if (Theme == INVASION_THEME_DUAL_SWITCHES)
 		{
 			int r = min(20, Level/3);
 			float s = 0.11f+frandom()*0.15f;
@@ -133,8 +166,30 @@ void CMaze::Generate()
 			return;
 		}
 
+		// Timed survive — narrow platforms
+		if (Theme == INVASION_THEME_TIMED_SURVIVE)
+		{
+			float s = 0.08f+frandom()*0.05f;
+			for (int i = 0; i < 4; i++)
+			{
+				float y = 0.25f + i*0.15f;
+				Connect(vec2(m_W*(0.5f-s), m_H*y), vec2(m_W*(0.5f+s), m_H*y));
+			}
+			for (int i = 0; i < 3; i++)
+			{
+				float y1 = 0.25f + i*0.15f;
+				float y2 = 0.25f + (i+1)*0.15f;
+				Connect(vec2(m_W*0.5f, m_H*y1), vec2(m_W*0.5f, m_H*y2));
+			}
+			for (int i = 0; i < min(8, Level/3); i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
 		// Trap / W layout
-		if (Theme == 6)
+		if (Theme == INVASION_THEME_TRAP_RUN)
 		{
 			int r = min(14, Level/3);
 			float s = 0.12f+frandom()*0.15f;
@@ -154,7 +209,7 @@ void CMaze::Generate()
 		}
 
 		// Z terrain
-		if (Theme == 8)
+		if (Theme == INVASION_THEME_Z_SECTOR)
 		{
 			int r = min(20, Level/3);
 			float s = 0.12f+frandom()*0.15f;
@@ -180,7 +235,7 @@ void CMaze::Generate()
 		
 		Connect(m_aRoom[0], m_aRoom[1]);
 		
-		int r = min(Level + 4, m_W*m_H / 600);
+		int r = (Level < 15) ? min(Level/2 + 3, m_W*m_H / 600) : min(Level + 4, m_W*m_H / 600);
 		
 		for (int i = 0; i < r; i++)
 			GenerateRoom(true);

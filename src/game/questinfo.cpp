@@ -97,3 +97,34 @@ const char *GetQuestCompletedMessage(int Quest, int WaveType)
 		default: return "";
 	}
 }
+
+const char *GetThemeDisplayName(int Theme)
+{
+	switch (Theme)
+	{
+		case INVASION_THEME_BOSS_ASSAULT: return "Boss assault";
+		case INVASION_THEME_PURGE: return "Purge";
+		case INVASION_THEME_STANDARD_WAVE: return "Standard wave";
+		case INVASION_THEME_DUAL_SWITCHES: return "Dual switches";
+		case INVASION_THEME_REACTOR_DEFEND: return "Reactor defense";
+		case INVASION_THEME_TIMED_SURVIVE: return "Timed survive";
+		case INVASION_THEME_TRAP_RUN: return "Trap run";
+		case INVASION_THEME_ELITE_WAVE: return "Elite wave";
+		case INVASION_THEME_Z_SECTOR: return "Z-sector wave";
+		case INVASION_THEME_ACID_ESCAPE: return "Acid escape";
+		default: return "Invasion";
+	}
+}
+
+const char *GetWaveDisplayName(int WaveType)
+{
+	switch (WaveType)
+	{
+		case WAVE_ALIENS: return "Aliens";
+		case WAVE_ROBOTS: return "Robots";
+		case WAVE_SKELETONS: return "Skeletons";
+		case WAVE_FURRIES: return "Furries";
+		case WAVE_CYBORGS: return "Cyborgs";
+		default: return "";
+	}
+}

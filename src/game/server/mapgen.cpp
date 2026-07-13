@@ -14,6 +14,7 @@
 #include <game/server/gamecontext.h>
 #include <game/layers.h>
 #include <game/mapitems.h>
+#include <game/questinfo.h>
 
 CMapGen::CMapGen()
 {
@@ -166,7 +167,7 @@ void CMapGen::ExpandEscapeTowerCanvas()
 	// Invasion escape levels need a tall canvas; templates like generate_city1 are ~400x80.
 	if(str_comp(g_Config.m_SvGametype, "coop") != 0)
 		return;
-	if(g_Config.m_SvMapGenLevel % 10 != 9)
+	if(InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) != INVASION_THEME_ACID_ESCAPE)
 		return;
 	if(!m_pLayers || !m_pLayers->GameLayer() || !m_pLayers->Map())
 		return;
@@ -252,7 +253,7 @@ void CMapGen::GenerateEnd(CGenLayer *pTiles)
 	int h = pTiles->Height();
 	
 	// find a platform
-	if (g_Config.m_SvMapGenLevel%10 == 9)
+	if (InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)
 	{
 		for(int y = 3; y < h-3; y++)
 			for(int x = w-3; x > 3; x--)
@@ -593,9 +594,9 @@ static ivec2 FindStandableFallback(CGenLayer *pTiles, bool PreferBottom)
 bool CMapGen::GenerateSwitch(CGenLayer *pTiles)
 {
 	ivec2 p = ivec2(0, 0);
-	const int Theme = g_Config.m_SvMapGenLevel % 10;
+	const int Theme = InvasionThemeFromLevel(g_Config.m_SvMapGenLevel);
 	
-	if (Theme == 9)
+	if (Theme == INVASION_THEME_ACID_ESCAPE)
 		p = pTiles->GetBotPlatform();
 	else
 		p = pTiles->GetPlatform();
@@ -611,7 +612,7 @@ bool CMapGen::GenerateSwitch(CGenLayer *pTiles)
 
 	// last resort: scan for any standable tile (escape prefers bottom)
 	if (p.x == 0)
-		p = FindStandableFallback(pTiles, Theme == 9);
+		p = FindStandableFallback(pTiles, Theme == INVASION_THEME_ACID_ESCAPE);
 	
 	if (p.x == 0)
 	{
@@ -1074,8 +1075,8 @@ void CMapGen::GenerateLevel()
 	pTiles->GenerateBackground();
 	pTiles->GenerateMoreBackground();
 	
-	// Keep escape towers vertical — skip wide air platforms on Level%10==9.
-	if (Level%10 != 9)
+	// Keep escape towers vertical — skip wide air platforms on acid-escape themes.
+	if (InvasionThemeFromLevel(Level) != INVASION_THEME_ACID_ESCAPE)
 	{
 		if (n > 1)
 			pTiles->GenerateAirPlatforms(n/2 + rand()%(n/2));
@@ -1168,13 +1169,14 @@ void CMapGen::GenerateLevel()
 	}
 
 	// Theme switches / reactors must be placed before other generators consume platforms.
-	const int Theme = Level % 10;
-	if (Theme == 9)
+	const int Theme = InvasionThemeFromLevel(Level);
+	const int HazardDiv = (Level >= 5 && Level <= 15) ? 2 : 1;
+	if (Theme == INVASION_THEME_ACID_ESCAPE)
 	{
 		if (!GenerateSwitch(pTiles))
 			GenerateSwitch(pTiles);
 	}
-	else if (Theme == 3)
+	else if (Theme == INVASION_THEME_DUAL_SWITCHES)
 	{
 		int Placed = 0;
 		for (int i = 0; i < 8 && Placed < 2; i++)
@@ -1183,31 +1185,32 @@ void CMapGen::GenerateLevel()
 				Placed++;
 		}
 		if (Placed < 2)
-			dbg_msg("mapgen", "theme3: only placed %d/2 switches", Placed);
+			dbg_msg("mapgen", "theme dual-switch: only placed %d/2 switches", Placed);
 	}
-	else if (Theme == 4)
+	else if (Theme == INVASION_THEME_REACTOR_DEFEND)
 	{
 		if (!GenerateReactor(pTiles))
 			GenerateReactor(pTiles);
 	}
 	
 	// acid pools (fewer on escape towers so the climb stays readable)
-	int AcidPools = (Theme == 9) ? 1 + Level/20 : 2 + Level/2;
+	int AcidPools = (Theme == INVASION_THEME_ACID_ESCAPE) ? 1 + Level/20 : 2 + Level/2;
+	AcidPools = (AcidPools + HazardDiv - 1) / HazardDiv;
 	for (int i = 0; i < AcidPools; i++)
 		GenerateAcid(pTiles);
 
 	// conveyor belts
-	//if (Level > 10)
 	{
 		int c = rand()%(min(6, 1+Level/2));
+		c = (c + HazardDiv - 1) / HazardDiv;
 		for (int i = 0; i < c; i++)
 			GenerateConveyorBelt(pTiles);
 	}
 	
 	// hangables
-	//if (Level > 5)
 	{
 		int c = 1+rand()%(min(11, 1+Level/4));
+		c = (c + HazardDiv - 1) / HazardDiv;
 		for (int i = 0; i < c; i++)
 			GenerateHangables(pTiles);
 	}
@@ -1221,7 +1224,11 @@ void CMapGen::GenerateLevel()
 	
 	
 	if (Level > 3)
-		GenerateWalker(pTiles);
+	{
+		if (Level <= 15 && frandom() >= 0.5f) { /* skip half walkers early */ }
+		else
+			GenerateWalker(pTiles);
+	}
 
 	if (Level > 7)
 		GenerateWalker(pTiles);
@@ -1243,21 +1250,21 @@ void CMapGen::GenerateLevel()
 	for (int i = 0; i < 4; i++)
 		GenerateScreen(pTiles);
 	
-	if (Level%10 == 0)
-		for (int i = 0; i < min(20, Level/2); i++)
+	if (Theme == INVASION_THEME_BOSS_ASSAULT)
+		for (int i = 0; i < min(12, Level/3); i++)
 			GenerateCrawlerDroid(pTiles);
 	else if (Level > 3)
 		for (int i = 0; i < min(15, 1+Level/4); i++)
 			GenerateCrawlerDroid(pTiles);
 	
-	if (Level%10 == 0 || Level%20 == 0)
+	if (Theme != INVASION_THEME_BOSS_ASSAULT && (Level%20 == 0))
 		GenerateBossCrawlerDroid(pTiles);
 	else if (Level > 20)
 		for (int i = 0; i < min(3, Level/5-3); i++)
 			GenerateBossCrawlerDroid(pTiles);
 
 	// trap theme: sprinkle mines
-	if (Level%10 == 6)
+	if (Theme == INVASION_THEME_TRAP_RUN)
 	{
 		int Mines = 4 + Level/5;
 		for (int i = 0; i < Mines; i++)
@@ -1275,7 +1282,7 @@ void CMapGen::GenerateLevel()
 	
 	{
 		int TurretStands = 3+Level/5;
-		if (Level%10 == 4)
+		if (Theme == INVASION_THEME_REACTOR_DEFEND)
 			TurretStands = 6 + Level/3;
 		for (int i = 0; i < TurretStands; i++)
 			GenerateTurretStand(pTiles);
@@ -1297,7 +1304,7 @@ void CMapGen::GenerateLevel()
 	if (Level > 3) GenerateWeapon(pTiles, ENTITY_KIT);
 	if (Level > 8) GenerateWeapon(pTiles, ENTITY_KIT);
 	
-	if (Level%10 == 4 || Level%5 == 4 || Level%7 == 6 || Level%11 == 9)
+	if (Theme == INVASION_THEME_REACTOR_DEFEND || Level%5 == 4 || Level%7 == 6 || Level%11 == 9)
 	{
 		for (int i = 0; i < 2 + (0.3f + frandom())*min(10.0f, Level * 0.8f); i++)
 			GenerateTurret(pTiles);

@@ -1274,3 +1274,56 @@ Wave cleared
 no limit
 == 无限制
 
+Level
+== 关卡
+
+Objective %d/%d
+== 目标 %d/%d
+
+Boss assault
+== Boss 突袭
+
+Purge
+== 清剿
+
+Standard wave
+== 标准波次
+
+Dual switches
+== 双开关
+
+Reactor defense
+== 反应堆防守
+
+Timed survive
+== 限时生存
+
+Trap run
+== 陷阱穿越
+
+Elite wave
+== 精英波次
+
+Z-sector wave
+== Z 形战区
+
+Acid escape
+== 酸液逃生
+
+Milestone: extra kits unlocked
+== 里程碑：额外工具包已解锁
+
+Milestone: armor tier 1 unlocked
+== 里程碑：护甲一档已解锁
+
+Milestone: defend bonus unlocked
+== 里程碑：防守加成已解锁
+
+Milestone: armor tier 2 unlocked
+== 里程碑：护甲二档已解锁
+
+Milestone: gold bonus unlocked
+== 里程碑：金币加成已解锁
+
+Milestone: shop tier unlocked
+== 里程碑：商店折扣已解锁

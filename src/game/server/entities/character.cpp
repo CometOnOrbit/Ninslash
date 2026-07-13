@@ -17,7 +17,9 @@
 #include <game/weapons.h>
 #include <game/buildables.h>
 
+#include <game/server/gamemodes/invasion.h>
 #include <game/server/playerdata.h>
+#include <game/questinfo.h>
 
 inline vec2 RandomDir() { return normalize(vec2(frandom()-0.5f, frandom()-0.5f)); }
 
@@ -1234,6 +1236,20 @@ void CCharacter::GiveStartWeapon()
 		m_Armor = pData->m_Armor;
 		GetPlayer()->m_Score = pData->m_Score;
 		GetPlayer()->m_Gold = pData->m_Gold;
+
+		if (pData->m_UnlockFlags & UNLOCK_EXTRA_KITS)
+			m_Kits = max(m_Kits, 8);
+		if ((pData->m_UnlockFlags & UNLOCK_DEFEND_BONUS) && InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_REACTOR_DEFEND)
+			m_Kits = max(m_Kits, 15);
+		if (pData->m_UnlockFlags & UNLOCK_WEAPON_TIER1)
+			SetArmor(max(GetArmor(), 5));
+		if (pData->m_UnlockFlags & UNLOCK_WEAPON_TIER2)
+			SetArmor(max(GetArmor(), 10));
+		if (CGameControllerInvasion *pInv = dynamic_cast<CGameControllerInvasion*>(GameServer()->m_pController))
+		{
+			if (pInv->RunBuffActive())
+				m_Kits = max(m_Kits, 6);
+		}
 		
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "Data load - color=%d", GetPlayer()->GetColorID());

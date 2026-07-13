@@ -10,6 +10,8 @@ enum
 	UNLOCK_WEAPON_TIER1 = 1<<1,
 	UNLOCK_WEAPON_TIER2 = 1<<2,
 	UNLOCK_DEFEND_BONUS = 1<<3,
+	UNLOCK_GOLD_BONUS = 1<<4,
+	UNLOCK_SHOP_TIER = 1<<5,
 };
 
 
@@ -47,8 +49,12 @@ private:
 	int CountBuildingsOfType(int Type) const;
 	int ReactorsLeft() const;
 	int SwitchesAvailable() const;
+	int CountHumansAlive(int ExcludeCID = -1) const;
 	void ApplyMetaUnlocks(class CCharacter *pChr);
 	void GrantMetaUnlocks();
+	void SyncProgressLevel();
+	void RewardQuestGold();
+	void SendUnlockBroadcast(class CPlayerData *pData, int NewFlags);
 
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 	
@@ -83,6 +89,13 @@ private:
 	bool m_DefendLevel;
 	bool m_SwitchCoopLevel;
 	
+	int m_ForcedWaveType;
+	int m_CoopLivesLeft;
+	int m_WaveSizeNerf;
+	bool m_RunBuffActive;
+	bool m_ProgressSynced;
+	bool m_StartBriefingSent;
+	
 	bool m_AutoRestart;
 	
 	void Trigger(bool IncreaseLevel);
@@ -104,6 +117,8 @@ public:
 	virtual void OnSwitchTriggered();
 	
 	void DisplayExit(vec2 Pos);
+	
+	bool RunBuffActive() const { return m_RunBuffActive; }
 	
 	enum GameState
 	{

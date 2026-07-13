@@ -28,9 +28,34 @@ enum WaveTypes
 	NUM_WAVES,
 };
 
+// Invasion coop floor themes (Level % INVASION_THEME_CYCLE).
+enum InvasionThemes
+{
+	INVASION_THEME_BOSS_ASSAULT = 0,
+	INVASION_THEME_PURGE,
+	INVASION_THEME_STANDARD_WAVE,
+	INVASION_THEME_DUAL_SWITCHES,
+	INVASION_THEME_REACTOR_DEFEND,
+	INVASION_THEME_TIMED_SURVIVE,
+	INVASION_THEME_TRAP_RUN,
+	INVASION_THEME_ELITE_WAVE,
+	INVASION_THEME_Z_SECTOR,
+	INVASION_THEME_ACID_ESCAPE,
+	NUM_INVASION_THEMES,
+};
+
+static const int INVASION_THEME_CYCLE = NUM_INVASION_THEMES;
+
+inline int InvasionThemeFromLevel(int Level)
+{
+	return Level % INVASION_THEME_CYCLE;
+}
+
 
 const char *GetQuestDisplayName(int Quest);
 const char *GetQuestStartMessage(int Quest, int WaveType = WAVE_NONE);
 const char *GetQuestCompletedMessage(int Quest, int WaveType = WAVE_NONE);
+const char *GetThemeDisplayName(int Theme);
+const char *GetWaveDisplayName(int WaveType);
 
 #endif

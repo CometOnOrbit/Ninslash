@@ -117,7 +117,7 @@ protected:
 	int m_SurvivalStartTick;
 	int m_SurvivalResetTick;
 
-	// Invasion Level%10==9: switch-triggered rising acid (independent of sv_survivalmode)
+	// Invasion acid-escape theme: switch-triggered rising acid (independent of sv_survivalmode)
 	bool m_RisingAcid;
 	int m_RisingAcidStartTick;
 	int m_RisingAcidDuration;
