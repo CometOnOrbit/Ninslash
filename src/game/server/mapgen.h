@@ -18,6 +18,7 @@ class CMapGen
 	void GenerateLevel();
 	void GeneratePVPLevel();
 	void ExpandEscapeTowerCanvas();
+	void ExpandExtractMazeCanvas();
 	
 	void WriteLayers(class CGenLayer *pTiles);
 	void WriteBackground(class CGenLayer *pTiles);

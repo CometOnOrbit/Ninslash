@@ -49,8 +49,7 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	g_Config.m_SvDisablePVP = 1;
 	g_Config.m_SvSurvivalTime = 0;
 	g_Config.m_SvSurvivalAcid = 0;
-	if(!g_Config.m_SvTimelimit)
-		g_Config.m_SvTimelimit = 6; // tighter default
+	g_Config.m_SvTimelimit = 4; // bigger maze needs a bit more time than 3
 
 	if(g_Config.m_SvEnableBuilding)
 		m_GameFlags |= GAMEFLAG_BUILD;
@@ -285,9 +284,7 @@ void CGameControllerExtract::Tick()
 			m_GameState = STATE_GAME;
 			m_StartTick = Server()->Tick();
 			m_DeadlineTick = Server()->Tick() + Server()->TickSpeed() * 60 * max(1, g_Config.m_SvTimelimit);
-			m_SwitchesRequired = max(1, min(2, CountSwitches()));
-			if(CountSwitches() >= 2)
-				m_SwitchesRequired = 2;
+			m_SwitchesRequired = max(2, CountSwitches());
 			SpawnInitialEnemies();
 			m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * 5;
 			m_TriggerTick = Server()->Tick() + Server()->TickSpeed() * 2;

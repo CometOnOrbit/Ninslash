@@ -13,13 +13,8 @@ public:
 	CRoom(int x, int y, int w, int h);
 	~CRoom();
 	
-	bool TooSmall()
-	{
-		if (m_W < 8 || m_H < 8)
-			return true;
-		
-		return false;
-	}
+	int MinSize() const;
+	bool TooSmall() const;
 	
 	bool Open(int x, int y);
 	

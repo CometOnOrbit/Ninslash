@@ -1,9 +1,22 @@
 #include <base/system.h>
 #include <base/math.h>
 #include <base/vmath.h>
+#include <engine/shared/config.h>
 
 #include "room.h"
 #include "gen_layer.h"
+
+int CRoom::MinSize() const
+{
+	if(str_comp(g_Config.m_SvGametype, "extract") == 0)
+		return 6;
+	return 8;
+}
+
+bool CRoom::TooSmall() const
+{
+	return m_W < MinSize() || m_H < MinSize();
+}
 
 // bsp map, acts as template for rooms
 CRoom::CRoom(int x, int y, int w, int h)
@@ -18,8 +31,9 @@ CRoom::CRoom(int x, int y, int w, int h)
 	m_pChild1 = NULL;
 	m_pChild2 = NULL;
 	
-	//int RoomSize = 6+rand()%10;
 	int RoomSize = 7+rand()%6;
+	if(str_comp(g_Config.m_SvGametype, "extract") == 0)
+		RoomSize = 5+rand()%3;
 	
 	if (m_H < m_W)
 	{
@@ -55,7 +69,12 @@ void CRoom::Split(bool Vertical)
 		int h2 = m_H;
 		
 		if (m_W < 32)
-			m_H = 3 + rand()%(m_H-6);
+		{
+			const int SplitRange = m_H-6;
+			if (SplitRange <= 0)
+				return;
+			m_H = 3 + rand()%SplitRange;
+		}
 		else
 			m_H = m_H/(2 + rand()%2);
 		
@@ -70,7 +89,12 @@ void CRoom::Split(bool Vertical)
 		int w2 = m_W;
 		
 		if (m_H < 32)
-			m_W = 3 + rand()%(m_W-6);
+		{
+			const int SplitRange = m_W-6;
+			if (SplitRange <= 0)
+				return;
+			m_W = 3 + rand()%SplitRange;
+		}
 		else
 			m_W = m_W/(2 + rand()%2);
 

@@ -46,6 +46,61 @@ void CMaze::Generate()
 		int Level = g_Config.m_SvMapGenLevel;
 		const int Theme = InvasionThemeFromLevel(Level);
 
+		// Extraction: tighter snake-like maze with fewer wide shortcuts
+		if (str_comp(g_Config.m_SvGametype, "extract") == 0)
+		{
+			const int Cols = 3;
+			const int Rows = 3;
+			for(int row = 0; row < Rows; row++)
+			{
+				for(int col = 0; col < Cols; col++)
+				{
+					float fx = 0.13f + (col + 0.5f) / Cols * 0.72f + (frandom()-frandom())*0.025f;
+					float fy = 0.15f + (row + 0.5f) / Rows * 0.66f + (frandom()-frandom())*0.03f;
+					m_aRoom[m_Rooms++] = vec2(m_W*fx, m_H*fy);
+				}
+			}
+
+			// carve a single snake spine first so runs feel tighter and more directed
+			for(int row = 0; row < Rows; row++)
+			{
+				const int RowStart = row * Cols;
+				if((row & 1) == 0)
+				{
+					for(int col = 0; col + 1 < Cols; col++)
+						Connect(m_aRoom[RowStart+col], m_aRoom[RowStart+col+1]);
+				}
+				else
+				{
+					for(int col = Cols - 1; col > 0; col--)
+						Connect(m_aRoom[RowStart+col], m_aRoom[RowStart+col-1]);
+				}
+
+				if(row + 1 < Rows)
+				{
+					const int ExitCol = (row & 1) == 0 ? Cols - 1 : 0;
+					Connect(m_aRoom[RowStart+ExitCol], m_aRoom[RowStart+Cols+ExitCol]);
+
+					// keep one occasional vertical bypass, but much rarer than before
+					if(frandom() < 0.18f)
+					{
+						const int MidCol = 1;
+						Connect(m_aRoom[RowStart+MidCol], m_aRoom[RowStart+Cols+MidCol]);
+					}
+				}
+			}
+
+			// a few side pockets keep the maze readable without opening huge arenas
+			const int Extra = 2 + rand() % 3;
+			for(int i = 0; i < Extra; i++)
+				GenerateRoom(true);
+
+			for(int i = 0; i < 1; i++)
+				ConnectRandomRooms();
+			ConnectEverything();
+			return;
+		}
+
 		// Acid-escape floors: vertical rising-acid escape tower (Invasion only)
 		if (str_comp(g_Config.m_SvGametype, "coop") == 0 && Theme == INVASION_THEME_ACID_ESCAPE)
 		{
@@ -575,6 +630,7 @@ void CMaze::Connect(vec2 Pos0, vec2 Pos1)
 {
 	float Distance = distance(Pos0, Pos1)*2;
 	int End(Distance+1);
+	const bool NarrowExtract = str_comp(g_Config.m_SvGametype, "extract") == 0;
 
 	for(int i = 0; i < End; i++)
 	{
@@ -582,10 +638,13 @@ void CMaze::Connect(vec2 Pos0, vec2 Pos1)
 		vec2 Pos = mix(Pos0, Pos1, a);
 		
 		Open(Pos);
-		Open(Pos+vec2(-1, -1));
-		Open(Pos+vec2(1, -1));
-		Open(Pos+vec2(1, 1));
-		Open(Pos+vec2(-1, 1));
+		if(!NarrowExtract)
+		{
+			Open(Pos+vec2(-1, -1));
+			Open(Pos+vec2(1, -1));
+			Open(Pos+vec2(1, 1));
+			Open(Pos+vec2(-1, 1));
+		}
 	}
 }
 

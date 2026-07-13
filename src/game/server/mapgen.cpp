@@ -205,6 +205,45 @@ void CMapGen::ExpandEscapeTowerCanvas()
 	m_pCollision->RefreshMapgenDimensions();
 }
 
+void CMapGen::ExpandExtractMazeCanvas()
+{
+	if(str_comp(g_Config.m_SvGametype, "extract") != 0)
+		return;
+	if(!m_pLayers || !m_pLayers->GameLayer() || !m_pLayers->Map())
+		return;
+
+	CMapItemLayerTilemap *pGame = m_pLayers->GameLayer();
+	const int TargetW = 200;
+	const int TargetH = 140;
+	if(pGame->m_Width >= TargetW && pGame->m_Height >= TargetH)
+		return;
+
+	const int NewW = max(TargetW, pGame->m_Width);
+	const int NewH = max(TargetH, pGame->m_Height);
+	dbg_msg("mapgen", "expanding extract maze canvas %dx%d -> %dx%d",
+		pGame->m_Width, pGame->m_Height, NewW, NewH);
+
+	IMap *pMap = m_pLayers->Map();
+	int LayerStart = 0;
+	int LayerNum = 0;
+	pMap->GetType(MAPITEMTYPE_LAYER, &LayerStart, &LayerNum);
+
+	for(int i = 0; i < LayerNum; i++)
+	{
+		CMapItemLayer *pLayer = static_cast<CMapItemLayer *>(pMap->GetItem(LayerStart+i, 0, 0));
+		if(!pLayer || pLayer->m_Type != LAYERTYPE_TILES)
+			continue;
+
+		CMapItemLayerTilemap *pTilemap = reinterpret_cast<CMapItemLayerTilemap *>(pLayer);
+		pTilemap->m_Width = NewW;
+		pTilemap->m_Height = NewH;
+		if(!pMap->ReplaceData(pTilemap->m_Data, NewW*NewH*(int)sizeof(CTile)))
+			dbg_msg("mapgen", "failed to resize tile layer data index=%d", pTilemap->m_Data);
+	}
+
+	m_pCollision->RefreshMapgenDimensions();
+}
+
 void CMapGen::FillMap()
 {
 	dbg_msg("mapgen", "started map generation");
@@ -213,6 +252,7 @@ void CMapGen::FillMap()
 		rand();
 
 	ExpandEscapeTowerCanvas();
+	ExpandExtractMazeCanvas();
 	
 	int64 ProcessTime = 0;
 	int64 TotalTime = time_get();
@@ -1076,7 +1116,13 @@ void CMapGen::GenerateLevel()
 	pTiles->GenerateMoreBackground();
 	
 	// Keep escape towers vertical — skip wide air platforms on acid-escape themes.
-	if (InvasionThemeFromLevel(Level) != INVASION_THEME_ACID_ESCAPE)
+	// Extraction mazes get extra platforms for vertical complexity.
+	if (str_comp(g_Config.m_SvGametype, "extract") == 0)
+	{
+		const int Platforms = max(3, n/3) + rand() % 2;
+		pTiles->GenerateAirPlatforms(Platforms);
+	}
+	else if (InvasionThemeFromLevel(Level) != INVASION_THEME_ACID_ESCAPE)
 	{
 		if (n > 1)
 			pTiles->GenerateAirPlatforms(n/2 + rand()%(n/2));
@@ -1177,7 +1223,69 @@ void CMapGen::GenerateLevel()
 		if (!GenerateSwitch(pTiles))
 			GenerateSwitch(pTiles);
 	}
-	else if (ExtractMode || Theme == INVASION_THEME_DUAL_SWITCHES)
+	else if (ExtractMode)
+	{
+		// 3–5 switches, spread across the maze
+		auto PlaceSwitchAt = [&](ivec2 p) -> bool {
+			if(p.x == 0)
+				return false;
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SWITCH);
+			pTiles->Use(p.x, p.y);
+			dbg_msg("mapgen", "extract switch at %d,%d", p.x, p.y);
+			return true;
+		};
+
+		auto FarEnough = [&](ivec2 Cand, const ivec2 *aPlaced, int Count, int MinDist) -> bool {
+			for(int i = 0; i < Count; i++)
+			{
+				if(abs(Cand.x - aPlaced[i].x) + abs(Cand.y - aPlaced[i].y) < MinDist)
+					return false;
+			}
+			return true;
+		};
+
+		const int Wanted = 3 + rand() % 3; // 3–5
+		const int MinDist = max(28, min(pTiles->Width(), pTiles->Height()) / 5);
+		ivec2 aPlaced[8];
+		int Placed = 0;
+
+		// seed corners / extremes first
+		ivec2 Seeds[4] = {
+			pTiles->GetLeftPlatform(),
+			pTiles->GetRightPlatform(),
+			pTiles->GetBotPlatform(),
+			pTiles->GetMedPlatform()
+		};
+		for(int s = 0; s < 4 && Placed < Wanted; s++)
+		{
+			ivec2 p = Seeds[s];
+			if(p.x == 0)
+				continue;
+			if(FarEnough(p, aPlaced, Placed, MinDist) && PlaceSwitchAt(p))
+				aPlaced[Placed++] = p;
+		}
+
+		for(int tries = 0; tries < 40 && Placed < Wanted; tries++)
+		{
+			ivec2 Cand = pTiles->GetPlatform();
+			if(Cand.x == 0)
+				Cand = pTiles->GetMedPlatform();
+			if(Cand.x == 0)
+				Cand = FindStandableFallback(pTiles, false);
+			if(Cand.x == 0)
+				continue;
+			if(!FarEnough(Cand, aPlaced, Placed, MinDist))
+				continue;
+			if(PlaceSwitchAt(Cand))
+				aPlaced[Placed++] = Cand;
+		}
+
+		while(Placed < 2 && GenerateSwitch(pTiles))
+			Placed++;
+
+		dbg_msg("mapgen", "extract placed %d/%d switches (minDist=%d)", Placed, Wanted, MinDist);
+	}
+	else if (Theme == INVASION_THEME_DUAL_SWITCHES)
 	{
 		int Placed = 0;
 		for (int i = 0; i < 8 && Placed < 2; i++)
