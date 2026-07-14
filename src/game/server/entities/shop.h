@@ -19,7 +19,7 @@ public:
 	virtual void ClearItem(int Slot);
 	
 private:
-	int m_aItem[4];
+	int m_aItem[5];
 	bool m_Autofill;
 	
 	void FillSlots();

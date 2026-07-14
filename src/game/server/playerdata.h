@@ -1,6 +1,8 @@
 #ifndef GAME_SERVER_PLAYERDATA_H
 #define GAME_SERVER_PLAYERDATA_H
 
+#include <game/pve_roguelite.h>
+
 // stored player data for switching between levels
 class CPlayerData
 {
@@ -8,12 +10,11 @@ private:
 	CPlayerData *m_pChild1;
 	CPlayerData *m_pChild2;
 
-	IStorage *m_pStorage;
-
 public:
-	CPlayerData(const char *pName, int ColorID, IStorage *pStorage);
+	CPlayerData(const char *pName, int ColorID);
 	void Die();
 	void Reset();
+	void ClearPveRun();
 	
 	int m_aWeaponType[99];
 	int m_aWeaponAmmo[99];
@@ -24,10 +25,25 @@ public:
 	int m_Kits;
 	int m_Score;
 	int m_Gold;
-	
-	int m_HighestLevel;
-	int m_HighestLevelSeed;
-	int m_UnlockFlags;
+	int m_aPvePerks[NUM_PVE_CARDS];
+	int m_PveChoices;
+	int m_PveRunMode;
+	int m_PveUsedContracts;
+	int m_PveInvasionFloors;
+	bool m_PveStageSuppliesApplied;
+	bool m_PveLastStandUsed;
+	bool m_PveEmergencyPlatingUsed;
+	bool m_PveContractParticipant;
+	int m_PveContractNonce;
+	int m_PvePendingArmor;
+	int m_PvePendingKits;
+	bool m_PvePendingAmmo;
+	int m_PveLegendaryCard;
+	int m_aPveWeaponResources[4];
+	int m_PveBarrier;
+	int m_PveDroneModule;
+	int m_PveDroneSwitchReadyTick;
+	int m_PveDeathlessFloors;
 	
 	int m_ColorID;
 	
@@ -39,8 +55,6 @@ public:
 	int GetHighScore(int Score);
 	int GetPlayerCount(int Score);
 
-	void LoadDataFromFile();
-	void SaveToFile();
 };
 
 #endif

@@ -17,6 +17,7 @@ public:
 
 	virtual void TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon);
 	int m_Health;
+	int m_MaxHealth;
 	
 	vec2 m_Center;
 	int m_Type;

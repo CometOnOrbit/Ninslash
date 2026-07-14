@@ -511,6 +511,8 @@ set_src(GAME_SHARED GLOB src/game
   mapitems.h
   pathfinding.cpp
   pathfinding.h
+  pve_roguelite.cpp
+  pve_roguelite.h
   questinfo.cpp
   questinfo.h
   tuning.h
@@ -647,6 +649,8 @@ if(CLIENT)
     components/picker.h
     components/players.cpp
     components/players.h
+    components/pve_roguelite.cpp
+    components/pve_roguelite.h
     components/radar.cpp
     components/radar.h
     components/scoreboard.cpp
@@ -898,6 +902,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/powerupper.h
   entities/projectile.cpp
   entities/projectile.h
+  entities/pve_drone.cpp
+  entities/pve_drone.h
   entities/radar.cpp
   entities/radar.h
   entities/shop.cpp
@@ -963,6 +969,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   player.h
   playerdata.cpp
   playerdata.h
+  pve_director.cpp
+  pve_director.h
 )
 
 set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER})

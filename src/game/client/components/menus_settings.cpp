@@ -3011,7 +3011,9 @@ void CMenus::RenderSettings(CUIRect MainView)
 
 	int NumTabs = (int)(sizeof(aTabs)/sizeof(*aTabs));
 	CUIRect Tab;
-	float TabW = TabBar.w / NumTabs;
+	// VSplitLeft applies UI scale internally. Divide it out so seven equal tabs
+	// stay inside the centered settings panel at UI scales above 100%.
+	float TabW = TabBar.w / NumTabs / max(0.01f, UI()->Scale());
 	for(int i = 0; i < NumTabs; i++)
 	{
 		TabBar.VSplitLeft(TabW, &Tab, &TabBar);

@@ -1,6 +1,7 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
+#include <game/server/pve_director.h>
 #include "staticlaser.h"
 #include "droid_bosscrawler.h"
 
@@ -21,6 +22,8 @@ void CBossCrawler::Reset()
 {
 	m_Center = vec2(0, 0);
 	m_Health = 1500;
+	if(GameServer()->m_pPveDirector) m_Health = (int)(m_Health * GameServer()->m_pPveDirector->EnemyHealthMultiplier() + 0.5f);
+	m_MaxHealth = m_Health;
 	m_Pos = m_StartPos;
 	m_Status = DROIDSTATUS_IDLE;
 	m_Dir = -1;
@@ -52,12 +55,16 @@ void CBossCrawler::Reset()
 
 void CBossCrawler::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 {
+	if(m_Health <= 0)
+		return;
 	
 	if (!Dmg)
 		return;
 	
 	if (g_Config.m_SvOneHitKill)
 		Dmg = 1000;
+	if(GameServer()->m_pPveDirector)
+		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(From, Weapon, Dmg, true, this);
 
 	vec2 DmgPos = m_Pos + m_Center;
 	
@@ -88,6 +95,8 @@ void CBossCrawler::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapo
 	// check for death
 	if(m_Health <= 0)
 	{
+		if(GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->OnDroidKilled(this, From, Weapon);
 		// set attacker's face to happy (taunt!)
 		if (From >= 0 && GameServer()->m_apPlayers[From])
 		{
@@ -320,7 +329,7 @@ void CBossCrawler::Tick()
 		m_MoveTarget += (To-m_MoveTarget) / 15.0f;
 		
 		if (abs(length(m_MoveTarget - m_Pos)) > 8.0f)
-			m_Vel += normalize(m_MoveTarget - m_Pos) * 0.5f;
+			m_Vel += normalize(m_MoveTarget - m_Pos) * 0.5f * (GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->EnemySpeedMultiplier() : 1.0f);
 		
 		m_Vel.y += 0.25f;
 		

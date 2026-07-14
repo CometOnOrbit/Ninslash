@@ -1,6 +1,7 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
+#include <game/server/pve_director.h>
 #include "droid.h"
 
 
@@ -21,6 +22,7 @@ void CDroid::Reset()
 {
 	m_Center = vec2(0, -50);
 	m_Health = 100;
+	m_MaxHealth = m_Health;
 	m_Pos = m_StartPos;
 	m_Status = 0;
 	m_Dir = -1;
@@ -45,12 +47,19 @@ void CDroid::Reset()
 
 void CDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 {
+	if(m_Health <= 0)
+		return;
 	// skip everything while spawning
 	//if (m_aStatus[STATUS_SPAWNING] > 0.0f)
 	//	return false;
 	
 	if (g_Config.m_SvOneHitKill)
 		Dmg = 1000;
+	if(GameServer()->m_pPveDirector)
+	{
+		const bool Boss = m_Type == DROIDTYPE_BOSSCRAWLER || m_Type == DROIDTYPE_BOSSSTAR || m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER;
+		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(From, Weapon, Dmg, Boss, this);
+	}
 
 	vec2 DmgPos = m_Pos + m_Center;
 	
@@ -78,6 +87,8 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 	// check for death
 	if(m_Health <= 0)
 	{
+		if(GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->OnDroidKilled(this, From, Weapon);
 		// set attacker's face to happy (taunt!)
 		if (From >= 0 && GameServer()->m_apPlayers[From])
 		{

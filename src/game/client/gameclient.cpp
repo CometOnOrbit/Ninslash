@@ -31,6 +31,7 @@
 #include "components/binds.h"
 #include "components/broadcast.h"
 #include "components/gamevote.h"
+#include "components/pve_roguelite.h"
 #include "components/camera.h"
 #include "components/chat.h"
 #include "components/console.h"
@@ -84,6 +85,7 @@ static CChat gs_Chat;
 static CMotd gs_Motd;
 static CBroadcast gs_Broadcast;
 static CGameVoteDisplay gs_GameVoteDisplay;
+static CPveRoguelite gs_PveRoguelite;
 static CGameConsole gs_GameConsole;
 static CBinds gs_Binds;
 static CBlocks gs_Blocks;
@@ -175,6 +177,7 @@ void CGameClient::OnConsoleInit()
 	m_pSounds = &::gs_Sounds;
 	m_pMotd = &::gs_Motd;
 	m_pGameVoteDisplay = &::gs_GameVoteDisplay;
+	m_pPveRoguelite = &::gs_PveRoguelite;
 	m_pDamageind = &::gsDamageInd;
 	m_pMapimages = &::gs_MapImages;
 	m_pVoting = &::gs_Voting;
@@ -274,6 +277,7 @@ void CGameClient::OnConsoleInit()
 	m_All.Add(&gs_Scoreboard);
 	m_All.Add(m_pMotd);
 	m_All.Add(&gs_GameVoteDisplay);
+	m_All.Add(m_pPveRoguelite);
 	m_All.Add(m_pMenus);
 	m_All.Add(m_pGameConsole);
 
@@ -283,6 +287,7 @@ void CGameClient::OnConsoleInit()
 	m_Input.Add(m_pGameConsole);
 	m_Input.Add(m_pChat); // chat has higher prio due to tha you can quit it by pressing esc
 	m_Input.Add(m_pMotd); // for pressing esc to remove it
+	m_Input.Add(m_pPveRoguelite);
 	m_Input.Add(m_pMenus);
 	m_Input.Add(m_pGameVoteDisplay);
 	m_Input.Add(&gs_Spectator);

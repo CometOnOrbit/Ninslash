@@ -9,7 +9,9 @@
 #include <game/server/gamecontext.h>
 #include <game/server/bosspool.h>
 #include <game/server/entities/droid_crawler.h>
+#include <game/server/entities/radar.h>
 #include <game/server/pve_bots.h>
+#include <game/server/pve_director.h>
 
 #include "extract.h"
 
@@ -42,6 +44,14 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	m_Win = false;
 	m_EscapePressure = false;
 	m_HadHumanAlive = false;
+	m_RogueliteStarted = false;
+	m_RogueliteWaitTick = Server()->Tick() + Server()->TickSpeed() * 2;
+	m_RogueliteStageStarted = false;
+	m_MidBossPerkOffered = false;
+	m_DoorChoicePending = false;
+	m_DoorChoiceStarted = false;
+	m_EliteContractSpawned = false;
+	m_pMidBoss = 0;
 
 	g_Config.m_SvOneHitKill = 0;
 	g_Config.m_SvWarmup = 0;
@@ -150,6 +160,14 @@ void CGameControllerExtract::SpawnInitialEnemies()
 	vec2 p;
 	if(GetSpawnPos(0, &p))
 		new CCrawler(&GameServer()->m_World, p + vec2(0, -80));
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT)
+	{
+		if(!GetSpawnPos(0, &p))
+			p = vec2(4000, 4000);
+		CDroid *pBoss = SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), EnemyLevel() + 2);
+		GameServer()->m_pPveDirector->RegisterEliteContractBoss(pBoss);
+		m_EliteContractSpawned = true;
+	}
 	if(GetSpawnPos(0, &p))
 		new CCrawler(&GameServer()->m_World, p + vec2(0, -80));
 }
@@ -162,7 +180,7 @@ void CGameControllerExtract::SpawnMidBoss()
 	vec2 p;
 	if(!GetSpawnPos(0, &p))
 		p = vec2(4000, 4000);
-	SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), max(10, EnemyLevel() + 2));
+	m_pMidBoss = SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), max(10, EnemyLevel() + 2));
 	for(int i = 0; i < 6 && CountBots() < 18; i++)
 	{
 		m_EnemiesLeft++;
@@ -180,8 +198,9 @@ void CGameControllerExtract::SpawnEscapePressure()
 	if(m_EscapePressure)
 		return;
 	m_EscapePressure = true;
-	m_EnemiesLeft += 8 + CountPlayers(0) * 2;
-	for(int i = 0; i < 8 && CountBots() < 18; i++)
+	const float Pressure = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ReinforcementMultiplier() : 1.0f;
+	m_EnemiesLeft += (int)((8 + CountPlayers(0) * 2) * Pressure);
+	for(int i = 0; i < (int)(8 * Pressure) && CountBots() < (int)(18 * Pressure); i++)
 		GameServer()->AddBot();
 	vec2 p;
 	if(GetSpawnPos(0, &p))
@@ -202,6 +221,8 @@ int CGameControllerExtract::EnemyLevel() const
 void CGameControllerExtract::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 {
 	IGameController::OnCharacterSpawn(pChr);
+	if(!RequestAI && GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnPlayerSpawn(pChr->GetPlayer()->GetCID());
 
 	if(RequestAI)
 	{
@@ -221,9 +242,15 @@ void CGameControllerExtract::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 int CGameControllerExtract::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, int Weapon)
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	if(!pVictim->m_IsBot && GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnPlayerDeath(pVictim->GetPlayer()->GetCID());
 
 	if(pVictim->m_IsBot)
+	{
+		if(pKiller && !pKiller->m_IsBot && GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->OnEnemyKilled(pKiller->GetCID(), Weapon, pVictim->m_Pos, pVictim);
 		pVictim->GetPlayer()->m_ToBeKicked = true;
+	}
 	else if(!pVictim->m_IsBot)
 		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
 
@@ -236,6 +263,8 @@ void CGameControllerExtract::OnSwitchTriggered()
 		return;
 
 	m_SwitchesActivated++;
+	if(GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnSwitchTriggered();
 	GameServer()->SendBroadcastFormat(-1, false, "Switch %d/%d activated", m_SwitchesActivated, m_SwitchesRequired);
 	m_TriggerLevel = max(m_TriggerLevel, 10 + m_SwitchesActivated * 3);
 	TriggerAllBotAI(GameServer(), m_TriggerLevel);
@@ -246,14 +275,37 @@ void CGameControllerExtract::OnSwitchTriggered()
 
 	if(m_SwitchesActivated >= m_SwitchesRequired)
 	{
-		m_DoorOpen = true;
-		m_Phase = 1;
-		TriggerEscape();
-		m_EvacNeeded = max(1, CountHumans());
-		m_Evacuated = 0;
-		SpawnEscapePressure();
-		GameServer()->SendBroadcast("Door open — evacuate!", -1);
+		if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled())
+			m_DoorChoicePending = true;
+		else
+			BeginEvacuation();
 	}
+}
+
+void CGameControllerExtract::OnDroidKilled(CDroid *pDroid)
+{
+	if(pDroid == m_pMidBoss)
+		m_pMidBoss = 0;
+}
+
+void CGameControllerExtract::BeginEvacuation()
+{
+	if(m_DoorOpen)
+		return;
+	m_DoorChoicePending = false;
+	m_DoorChoiceStarted = false;
+	m_DoorOpen = true;
+	m_Phase = 1;
+	TriggerEscape();
+	m_EvacNeeded = max(1, CountHumans());
+	m_Evacuated = 0;
+	if(GameServer()->m_pPveDirector)
+	{
+		GameServer()->m_pPveDirector->OnStageStart();
+		GameServer()->m_pPveDirector->OnEvacuationStarted();
+	}
+	SpawnEscapePressure();
+	GameServer()->SendBroadcast("Door open — evacuate!", -1);
 }
 
 void CGameControllerExtract::NextLevel(int CID)
@@ -266,6 +318,8 @@ void CGameControllerExtract::NextLevel(int CID)
 		return;
 	if(pPlayer->GetCharacter()->IgnoreCollision())
 		return;
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO && pPlayer->GetCharacter()->IsBombCarrier())
+		GameServer()->m_pPveDirector->OnCargoDelivered();
 
 	pPlayer->GetCharacter()->Warp();
 	m_Evacuated++;
@@ -275,6 +329,11 @@ void CGameControllerExtract::NextLevel(int CID)
 	{
 		m_Win = true;
 		m_RoundOverTick = Server()->Tick();
+		if(GameServer()->m_pPveDirector)
+		{
+			GameServer()->m_pPveDirector->OnStageComplete(true);
+			GameServer()->m_pPveDirector->RewardResearch(2, PVE_REWARD_EXTRACTION);
+		}
 		GameServer()->SendBroadcast("Extraction complete!", -1);
 		// no sv_mapgen_level++
 	}
@@ -283,16 +342,75 @@ void CGameControllerExtract::NextLevel(int CID)
 void CGameControllerExtract::Tick()
 {
 	IGameController::Tick();
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
+	{
+		if(m_DeadlineTick > 0)
+			m_DeadlineTick++;
+		if(m_StartTick > 0)
+			m_StartTick++;
+		if(m_BotSpawnTick > 0)
+			m_BotSpawnTick++;
+		if(m_TriggerTick > 0)
+			m_TriggerTick++;
+		return;
+	}
+	if(m_DoorChoiceStarted)
+		BeginEvacuation();
+	if(m_EliteContractSpawned && GameServer()->m_pPveDirector && CountAliveBosses(&GameServer()->m_World) <= 0)
+	{
+		m_EliteContractSpawned = false;
+		GameServer()->m_pPveDirector->OnBossKilled();
+	}
 
 	if(m_GameState == STATE_STARTING)
 	{
 		if(CountPlayers(0) > 0)
 		{
+			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled() &&
+				!GameServer()->m_pPveDirector->ProgressReady() && Server()->Tick() < m_RogueliteWaitTick)
+				return;
+			if(!m_RogueliteStarted)
+			{
+				m_RogueliteStarted = true;
+				if(GameServer()->m_pPveDirector)
+				{
+					GameServer()->m_pPveDirector->StartIntermission(true, true);
+					if(GameServer()->m_pPveDirector->InIntermission())
+						return;
+				}
+			}
+			if(!m_RogueliteStageStarted)
+			{
+				m_RogueliteStageStarted = true;
+				if(GameServer()->m_pPveDirector)
+					GameServer()->m_pPveDirector->OnStageStart();
+			}
 			m_GameState = STATE_GAME;
 			m_StartTick = Server()->Tick();
-			m_DeadlineTick = Server()->Tick() + Server()->TickSpeed() * 60 * max(1, g_Config.m_SvTimelimit);
+			const float DeadlineScale = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->DeadlineMultiplier() : 1.0f;
+			m_DeadlineTick = Server()->Tick() + (int)(Server()->TickSpeed() * 60 * max(1, g_Config.m_SvTimelimit) * DeadlineScale);
+			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_LOCKED_ROUTE)
+				for(int Extra = 0; Extra < 2; Extra++)
+				{
+					vec2 Pos;
+					if(!GetSpawnPos(0, &Pos))
+						Pos = vec2(4000.0f + Extra * 96.0f, 4000.0f);
+					new CBuilding(&GameServer()->m_World, Pos, BUILDING_SWITCH, TEAM_NEUTRAL);
+					CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+					pRadar->Activate(Pos);
+				}
 			m_SwitchesRequired = max(2, CountSwitches());
 			SpawnInitialEnemies();
+			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
+				for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+				{
+					CCharacter *pCharacter = GameServer()->GetPlayerChar(ClientID);
+					if(pCharacter && !pCharacter->m_IsBot && pCharacter->IsAlive())
+					{
+						pCharacter->GiveBomb();
+						break;
+					}
+				}
 			m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * 5;
 			m_TriggerTick = Server()->Tick() + Server()->TickSpeed() * 2;
 			GameServer()->SendBroadcast("Extraction — activate switches, then escape", -1);
@@ -307,6 +425,8 @@ void CGameControllerExtract::Tick()
 		&& CountHumanPlayersLocal() > 0 && CountHumansAliveLocal() <= 0)
 	{
 		GameServer()->SendBroadcast("Extraction failed — team wiped", -1);
+		if(GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->CompleteContract(false);
 		m_RoundOverTick = Server()->Tick();
 		m_Win = false;
 	}
@@ -315,14 +435,37 @@ void CGameControllerExtract::Tick()
 	if(m_BotSpawnTick && m_BotSpawnTick <= Server()->Tick() && !m_RoundOverTick)
 	{
 		m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * (m_Phase == 0 ? 5 : 4);
-		const int Cap = m_Phase == 0 ? 16 : 18;
+		const float Pressure = m_Phase == 1 && GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ReinforcementMultiplier() : 1.0f;
+		const int Cap = (int)((m_Phase == 0 ? 16 : 18) * Pressure);
 		if(CountBots() < Cap)
 		{
-			m_EnemiesLeft += 3;
-			GameServer()->AddBot();
-			GameServer()->AddBot();
-			GameServer()->AddBot();
+			const int Count = max(1, (int)(3 * Pressure));
+			m_EnemiesLeft += Count;
+			for(int i = 0; i < Count; i++)
+				GameServer()->AddBot();
 		}
+	}
+
+	if(m_Phase == 0 && m_MidBossSpawned && !m_MidBossPerkOffered && !m_pMidBoss)
+	{
+		m_MidBossPerkOffered = true;
+		if(GameServer()->m_pPveDirector)
+		{
+			GameServer()->m_pPveDirector->StartIntermission(false, true);
+			if(GameServer()->m_pPveDirector->InIntermission())
+				return;
+		}
+	}
+	if(m_Phase == 0 && m_DoorChoicePending && m_MidBossPerkOffered && !m_DoorChoiceStarted)
+	{
+		m_DoorChoiceStarted = true;
+		if(GameServer()->m_pPveDirector)
+		{
+			GameServer()->m_pPveDirector->StartIntermission(false, true);
+			if(GameServer()->m_pPveDirector->InIntermission())
+				return;
+		}
+		BeginEvacuation();
 	}
 
 	// no switches on map: after 25s mid boss then door
@@ -331,15 +474,8 @@ void CGameControllerExtract::Tick()
 	{
 		if(!m_MidBossSpawned)
 			SpawnMidBoss();
-		if(CountAliveBosses(&GameServer()->m_World) <= 0 && m_MidBossSpawned)
-		{
-			m_DoorOpen = true;
-			m_Phase = 1;
-			TriggerEscape();
-			m_EvacNeeded = max(1, CountHumans());
-			SpawnEscapePressure();
-			GameServer()->SendBroadcast("Door open — evacuate!", -1);
-		}
+		if(m_MidBossSpawned)
+			m_DoorChoicePending = true;
 	}
 
 	if(m_TriggerTick < Server()->Tick())
@@ -351,6 +487,8 @@ void CGameControllerExtract::Tick()
 	if(!m_RoundOverTick && m_DeadlineTick && Server()->Tick() > m_DeadlineTick)
 	{
 		GameServer()->SendBroadcast("Extraction failed — time's up", -1);
+		if(GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->CompleteContract(false);
 		m_RoundOverTick = Server()->Tick();
 		m_Win = false;
 	}
@@ -358,6 +496,8 @@ void CGameControllerExtract::Tick()
 	if(m_RoundOverTick && m_RoundOverTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		m_RoundOverTick = 0;
+		if(GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->ClearRun();
 		EndRound(); // does not bump mapgen level
 	}
 

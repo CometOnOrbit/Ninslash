@@ -699,6 +699,50 @@
         {
             "key": "You must wait %d seconds before making another vote",
             "value": "You must wait %d seconds before making another vote"
+        },
+        {
+            "key": "Contract completed: +1 research point",
+            "value": "Contract completed: +1 research point"
+        },
+        {
+            "key": "Contract failed",
+            "value": "Contract failed"
+        },
+        {
+            "key": "Contract vote timed out; a valid option was selected",
+            "value": "Contract vote timed out; a valid option was selected"
+        },
+        {
+            "key": "Perk choice timed out; displayed options were selected at random",
+            "value": "Perk choice timed out; displayed options were selected at random"
+        },
+        {
+            "key": "PvE selection rejected: choice was not offered",
+            "value": "PvE selection rejected: choice was not offered"
+        },
+        {
+            "key": "PvE selection rejected: duplicate choice",
+            "value": "PvE selection rejected: duplicate choice"
+        },
+        {
+            "key": "PvE selection rejected: expired choice",
+            "value": "PvE selection rejected: expired choice"
+        },
+        {
+            "key": "PvE selection rejected: invalid progression",
+            "value": "PvE selection rejected: invalid progression"
+        },
+        {
+            "key": "PvE selection rejected: out-of-range value",
+            "value": "PvE selection rejected: out-of-range value"
+        },
+        {
+            "key": "Research reward: +%d point(s)",
+            "value": "Research reward: +%d point(s)"
+        },
+        {
+            "key": "Team contract started",
+            "value": "Team contract started"
         }
     ]
 }

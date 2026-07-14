@@ -170,6 +170,7 @@ class CMenus : public CComponent
 		PAGE_SETTINGS,
 		PAGE_CUSTOMIZE,
 		PAGE_SYSTEM,
+		PAGE_RESEARCH,
 	};
 
 	int m_GamePage;
@@ -411,6 +412,7 @@ public:
 	static vec4 ThemeAccentDim();
 	static vec4 ThemeDanger();
 	static vec4 ThemeText();
+	void OpenResearchPage();
 
 	void RenderLoading();
 

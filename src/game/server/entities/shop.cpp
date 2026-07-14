@@ -1,6 +1,7 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
+#include <game/server/pve_director.h>
 #include <game/weapons.h>
 #include "character.h"
 #include "building.h"
@@ -15,7 +16,7 @@ CShop::CShop(CGameWorld *pGameWorld, vec2 Pos)
 	m_Collision = false;
 	m_Autofill = !GameServer()->m_pController->IsSurvival();
 	
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 5; i++)
 		m_aItem[i] = 0;
 	
 	FillSlots();
@@ -29,7 +30,7 @@ void CShop::Reset()
 
 void CShop::FillSlots()
 {
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 5; i++)
 	{
 		if (m_aItem[i])
 			continue;
@@ -39,6 +40,16 @@ void CShop::FillSlots()
 		while (IsStaticWeapon(t) && (GetStaticType(t) == SW_GUN1 || GetStaticType(t) == SW_GUN2))
 			t = GetRandomWeaponType(GameServer()->m_pController->IsSurvival());
 		
+		if(i == 4)
+		{
+			for(int Try = 0; Try < 64 && (WeaponMaxLevel(t) <= 0 || (IsStaticWeapon(t) && GetStaticType(t) == SW_UPGRADE)); Try++)
+				t = GetRandomWeaponType(GameServer()->m_pController->IsSurvival());
+			if(WeaponMaxLevel(t) > 0)
+				m_aItem[i] = GetChargedWeapon(t, min(15, WeaponMaxLevel(t) + 2));
+			else
+				m_aItem[i] = t;
+			continue;
+		}
 		if (frandom() < 0.1f)
 			t = GetStaticWeapon(SW_UPGRADE);
 		
@@ -65,7 +76,7 @@ void CShop::FillSlots()
 
 int CShop::GetItem(int Slot)
 {
-	if (Slot < 0 || Slot >= 4)
+	if (Slot < 0 || Slot >= 5)
 		return 0;
 	
 	return m_aItem[Slot];
@@ -73,7 +84,7 @@ int CShop::GetItem(int Slot)
 
 void CShop::ClearItem(int Slot)
 {
-	if (Slot < 0 || Slot >= 4)
+	if (Slot < 0 || Slot >= 5)
 		return;
 	
 	m_aItem[Slot] = 0;
@@ -85,7 +96,7 @@ void CShop::ClearItem(int Slot)
 
 void CShop::SurvivalReset()
 {
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 5; i++)
 		ClearItem(i);
 	
 	FillSlots();
@@ -148,4 +159,6 @@ void CShop::Snap(int SnappingClient)
 	pP->m_Item2 = m_aItem[1];
 	pP->m_Item3 = m_aItem[2];
 	pP->m_Item4 = m_aItem[3];
+	pP->m_Item5 = GameServer()->m_pPveDirector && SnappingClient >= 0 &&
+		GameServer()->m_pPveDirector->PerkStacks(SnappingClient, PVE_CARD_PREMIUM_STOCK) ? m_aItem[4] : 0;
 }

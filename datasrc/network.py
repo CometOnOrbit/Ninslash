@@ -284,7 +284,8 @@ Objects = [
 		NetIntAny("m_Item1"),
 		NetIntAny("m_Item2"),
 		NetIntAny("m_Item3"),
-		NetIntAny("m_Item4")
+		NetIntAny("m_Item4"),
+		NetIntAny("m_Item5")
 	]),
 
 	NetObject("Flag", [
@@ -633,7 +634,7 @@ Messages = [
 		NetIntRange("m_Gold", 0, 999),
 	]),
 
-	### Client messages / 13
+	### Client messages / 14
 	NetMessage("Cl_Say", [
 		NetIntRange("m_Mode", 0, 2),
 		NetIntRange("m_Target", -1, 'MAX_CLIENTS-1'),
@@ -726,5 +727,111 @@ Messages = [
 		NetIntAny("m_Item1"),
 		NetIntAny("m_Item2"),
 		NetIntAny("m_Slot"),
+	]),
+
+	# Protocol extensions must stay below the original message set. Inserting a
+	# message above this point changes legacy client message IDs and silently
+	# breaks voting, mode selection and inventory actions on mixed builds.
+	# Persistent values are split into 32-bit fields for portable generation.
+	NetMessage("Sv_PveProgress", [
+		NetIntAny("m_Version"),
+		NetIntRange("m_ResearchPoints", 0, 999),
+		NetIntAny("m_ResearchMask0"),
+		NetIntAny("m_ResearchMask1"),
+		NetIntAny("m_ResearchMask2"),
+		NetIntAny("m_ResearchMask3"),
+		NetIntRange("m_HighestInvasion", 0, 9999),
+		NetIntRange("m_PreferredCheckpoint", 1, 9999),
+	]),
+
+	NetMessage("Sv_PveChoice", [
+		NetIntAny("m_Nonce"),
+		NetIntAny("m_EndTick"),
+		NetIntRange("m_ChoiceSequence", 1, 99),
+		NetIntRange("m_Card0", 0, 102),
+		NetIntRange("m_Card1", 0, 102),
+		NetIntRange("m_Card2", 0, 102),
+		NetIntRange("m_Stack0", 0, 3),
+		NetIntRange("m_Stack1", 0, 3),
+		NetIntRange("m_Stack2", 0, 3),
+	]),
+
+	NetMessage("Sv_PvePerk", [
+		NetIntRange("m_ClientID", 0, 'MAX_CLIENTS-1'),
+		NetIntRange("m_Card", 0, 102),
+		NetIntRange("m_Stacks", 0, 3),
+		NetIntRange("m_Choices", 0, 99),
+	]),
+
+	NetMessage("Sv_PveContractVote", [
+		NetIntAny("m_Nonce"),
+		NetIntAny("m_EndTick"),
+		NetIntRange("m_Contract0", 0, 19),
+		NetIntRange("m_Contract1", 0, 19),
+		NetIntRange("m_Votes0", 0, 'MAX_CLIENTS'),
+		NetIntRange("m_Votes1", 0, 'MAX_CLIENTS'),
+	]),
+
+	NetMessage("Sv_PveContractStatus", [
+		NetIntRange("m_Contract", -1, 19),
+		NetIntRange("m_State", 0, 3),
+		NetIntAny("m_Progress"),
+		NetIntAny("m_Target"),
+		NetIntAny("m_EndTick"),
+	]),
+
+	NetMessage("Sv_PveResearchReward", [
+		NetIntRange("m_Amount", 0, 99),
+		NetIntRange("m_Reason", 0, 3),
+		NetIntRange("m_HighestInvasion", 0, 9999),
+		NetIntRange("m_UnlockedCheckpoint", 1, 9999),
+	]),
+
+	NetMessage("Sv_PveValidation", [
+		NetIntRange("m_Code", 1, 7),
+	]),
+
+	NetMessage("Sv_PveBuildState", [
+		NetIntRange("m_Focus", 0, 10),
+		NetIntRange("m_BlastCharge", 0, 10),
+		NetIntRange("m_Voltage", 0, 10),
+		NetIntRange("m_Fury", 0, 10),
+		NetIntRange("m_Barrier", 0, 30),
+		NetIntRange("m_VulnerableTargets", 0, 99),
+		NetIntRange("m_BleedingTargets", 0, 99),
+		NetIntRange("m_LegendaryCard", -1, 99),
+		NetIntRange("m_DroneModule", 0, 3),
+		NetIntAny("m_DroneSwitchReadyTick"),
+	]),
+
+	NetMessage("Cl_PveProgress", [
+		NetIntAny("m_Version"),
+		NetIntRange("m_ResearchPoints", 0, 999),
+		NetIntAny("m_ResearchMask0"),
+		NetIntAny("m_ResearchMask1"),
+		NetIntAny("m_ResearchMask2"),
+		NetIntAny("m_ResearchMask3"),
+		NetIntRange("m_HighestInvasion", 0, 9999),
+		NetIntRange("m_PreferredCheckpoint", 1, 9999),
+	]),
+
+	NetMessage("Cl_PveChoice", [
+		NetIntAny("m_Nonce"),
+		NetIntRange("m_Card", 0, 102),
+	]),
+
+	NetMessage("Cl_PveContractVote", [
+		NetIntAny("m_Nonce"),
+		NetIntRange("m_Contract", 0, 19),
+	]),
+
+	NetMessage("Cl_PveResearchBuy", [
+		NetIntAny("m_Nonce"),
+		NetIntRange("m_Card", 7, 99),
+	]),
+
+	NetMessage("Cl_PveDroneModule", [
+		NetIntAny("m_Nonce"),
+		NetIntRange("m_Module", 1, 3),
 	]),
 ]

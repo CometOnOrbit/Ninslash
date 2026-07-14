@@ -59,6 +59,7 @@ void CCharacterCore::Init(CWorldCore *pWorld, CCollision *pCollision)
 {
 	m_pWorld = pWorld;
 	m_pCollision = pCollision;
+	m_MoveSpeedMultiplier = 1.0f;
 }
 
 void CCharacterCore::Reset()
@@ -78,6 +79,7 @@ void CCharacterCore::Reset()
 	m_Status |= 1 << STATUS_SPAWNING;
 	m_TriggeredEvents = 0;
 	m_Health = 100;
+	m_MoveSpeedMultiplier = 1.0f;
 	
 	m_HookPos = vec2(0,0);
 	m_HookDir = vec2(0,0);
@@ -262,7 +264,7 @@ void CCharacterCore::Tick(bool UseInput)
 
 	float ControlSpeed = m_pWorld->m_Tuning.m_ControlSpeed;
 	
-	float MaxSpeed = (Grounded ? m_pWorld->m_Tuning.m_GroundControlSpeed : m_pWorld->m_Tuning.m_AirControlSpeed) * ControlSpeed;
+	float MaxSpeed = (Grounded ? m_pWorld->m_Tuning.m_GroundControlSpeed : m_pWorld->m_Tuning.m_AirControlSpeed) * ControlSpeed * max(0.1f, m_MoveSpeedMultiplier);
 	float Accel = (Grounded ? m_pWorld->m_Tuning.m_GroundControlAccel : m_pWorld->m_Tuning.m_AirControlAccel);
 	float Friction = Grounded ? m_pWorld->m_Tuning.m_GroundFriction : m_pWorld->m_Tuning.m_AirFriction;
 	float SlideFriction = m_pWorld->m_Tuning.m_SlideFriction;
@@ -2041,4 +2043,3 @@ void CBallCore::Quantize()
 	Write(&Core);
 	Read(&Core);
 }
-

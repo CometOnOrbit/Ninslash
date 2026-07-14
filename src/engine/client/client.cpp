@@ -332,17 +332,18 @@ int CClient::SendMsgEx(CMsgPacker *pMsg, int Flags, bool System)
 
 	mem_zero(&Packet, sizeof(CNetChunk));
 
+	// The system flag is part of the encoded message ID. Repack the complete
+	// variable-length header instead of shifting its first byte in place: IDs
+	// 32 and above need another varint byte and otherwise decode as negative.
+	CMsgPacker WireMsg((pMsg->MsgID() << 1) | (System ? 1 : 0));
+	const int HeaderSize = pMsg->HeaderSize();
+	WireMsg.AddRaw(pMsg->Data() + HeaderSize, pMsg->Size() - HeaderSize);
+	if(WireMsg.Error())
+		return -1;
+
 	Packet.m_ClientID = 0;
-	Packet.m_pData = pMsg->Data();
-	Packet.m_DataSize = pMsg->Size();
-
-	// HACK: modify the message id in the packet and store the system flag
-	if(*((unsigned char*)Packet.m_pData) == 1 && System && Packet.m_DataSize == 1)
-		dbg_break();
-
-	*((unsigned char*)Packet.m_pData) <<= 1;
-	if(System)
-		*((unsigned char*)Packet.m_pData) |= 1;
+	Packet.m_pData = WireMsg.Data();
+	Packet.m_DataSize = WireMsg.Size();
 
 	if(Flags&MSGFLAG_VITAL)
 		Packet.m_Flags |= NETSENDFLAG_VITAL;

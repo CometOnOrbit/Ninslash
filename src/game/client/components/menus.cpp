@@ -31,6 +31,7 @@
 
 #include "countryflags.h"
 #include "menus.h"
+#include "pve_roguelite.h"
 #include "skins.h"
 
 vec4 CMenus::ms_GuiColor;
@@ -76,7 +77,7 @@ CMenus::CMenus()
 	m_Popup = POPUP_NONE;
 	m_ActivePage = PAGE_FRONT;
 	m_GamePage = PAGE_GAME;
-	
+
 	g_Config.m_UiPage = PAGE_FRONT;
 
 	m_NeedRestartGraphics = false;
@@ -133,6 +134,16 @@ vec4 CMenus::ThemeAccent() { return ms_ColorAccent; }
 vec4 CMenus::ThemeAccentDim() { return ms_ColorAccentDim; }
 vec4 CMenus::ThemeDanger() { return ms_ColorDanger; }
 vec4 CMenus::ThemeText() { return ms_ColorText; }
+
+void CMenus::OpenResearchPage()
+{
+	s_ResetMenu = false;
+	m_Popup = POPUP_NONE;
+	if(Client()->State() == IClient::STATE_OFFLINE)
+		g_Config.m_UiPage = PAGE_RESEARCH;
+	else
+		m_GamePage = PAGE_RESEARCH;
+}
 
 void CMenus::DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding)
 {
@@ -807,6 +818,10 @@ int CMenus::RenderMenubar(CUIRect r)
 {
 	CUIRect Box = r;
 	CUIRect Button;
+	// CUIRect split helpers apply UI()->Scale() internally. Divide it out here
+	// so the complete menubar scales to the actual available width instead of
+	// growing back into the buttons anchored on the right at UI scales > 100%.
+	const float MenuScale = clamp(r.w / 700.0f, 0.68f, 1.0f) / max(0.01f, UI()->Scale());
 
 	
 	if (s_ResetMenu)
@@ -823,7 +838,7 @@ int CMenus::RenderMenubar(CUIRect r)
 
 	if(Client()->State() == IClient::STATE_OFFLINE)
 	{
-		Box.VSplitLeft(90.0f, &Button, &Box);
+		Box.VSplitLeft(90.0f * MenuScale, &Button, &Box);
 		static int s_InternetButton=0;
 		if(DoButton_MenuTab(&s_InternetButton, Localize("Internet"), m_ActivePage==PAGE_INTERNET, &Button, CUI::CORNER_TL))
 		{
@@ -832,8 +847,8 @@ int CMenus::RenderMenubar(CUIRect r)
 			NewPage = PAGE_INTERNET;
 		}
 
-		Box.VSplitLeft(4.0f, 0, &Box);
-		Box.VSplitLeft(70.0f, &Button, &Box);
+		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
+		Box.VSplitLeft(70.0f * MenuScale, &Button, &Box);
 		static int s_LanButton=0;
 		if(DoButton_MenuTab(&s_LanButton, Localize("LAN"), m_ActivePage==PAGE_LAN, &Button, 0))
 		{
@@ -842,8 +857,8 @@ int CMenus::RenderMenubar(CUIRect r)
 			NewPage = PAGE_LAN;
 		}
 
-		Box.VSplitLeft(4.0f, 0, &Box);
-		Box.VSplitLeft(100.0f, &Button, &Box);
+		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
+		Box.VSplitLeft(100.0f * MenuScale, &Button, &Box);
 		static int s_FavoritesButton=0;
 		if(DoButton_MenuTab(&s_FavoritesButton, Localize("Favorites"), m_ActivePage==PAGE_FAVORITES, &Button, CUI::CORNER_TR))
 		{
@@ -852,8 +867,8 @@ int CMenus::RenderMenubar(CUIRect r)
 			NewPage = PAGE_FAVORITES;
 		}
 
-		Box.VSplitLeft(12.0f, 0, &Box);
-		Box.VSplitLeft(80.0f, &Button, &Box);
+		Box.VSplitLeft(12.0f * MenuScale, 0, &Box);
+		Box.VSplitLeft(80.0f * MenuScale, &Button, &Box);
 		static int s_DemosButton=0;
 		if(DoButton_MenuTab(&s_DemosButton, Localize("Demos"), m_ActivePage==PAGE_DEMOS, &Button, CUI::CORNER_T))
 		{
@@ -861,49 +876,61 @@ int CMenus::RenderMenubar(CUIRect r)
 			NewPage = PAGE_DEMOS;
 		}
 
-		Box.VSplitRight(110.0f, &Box, &Button);
+		Box.VSplitLeft(6.0f * MenuScale, 0, &Box);
+		Box.VSplitLeft(96.0f * MenuScale, &Button, &Box);
+		static int s_ResearchButton=0;
+		if(DoButton_MenuTab(&s_ResearchButton, Localize("Research"), m_ActivePage==PAGE_RESEARCH, &Button, CUI::CORNER_T))
+			NewPage = PAGE_RESEARCH;
+
+		Box.VSplitRight(110.0f * MenuScale, &Box, &Button);
 		static int s_MenuButton=0;
 		if(DoButton_MenuTab(&s_MenuButton, Localize("Main menu"), m_ActivePage==PAGE_FRONT, &Button, CUI::CORNER_T) || m_EscapePressed)
 			NewPage = PAGE_FRONT;
 
-		Box.VSplitRight(6.0f, &Box, 0);
-		Box.VSplitRight(90.0f, &Box, &Button);
+		Box.VSplitRight(6.0f * MenuScale, &Box, 0);
+		Box.VSplitRight(90.0f * MenuScale, &Box, &Button);
 		static int s_SettingsButton=0;
 		if(DoButton_MenuTab(&s_SettingsButton, Localize("Settings"), m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
 			NewPage = PAGE_SETTINGS;
 	}
 	else
 	{
-		Box.VSplitLeft(80.0f, &Button, &Box);
+		Box.VSplitLeft(80.0f * MenuScale, &Button, &Box);
 		static int s_GameButton=0;
 		if(DoButton_MenuTab(&s_GameButton, Localize("Game"), m_ActivePage==PAGE_GAME, &Button, CUI::CORNER_TL))
 			NewPage = PAGE_GAME;
 
-		Box.VSplitLeft(4.0f, 0, &Box);
-		Box.VSplitLeft(80.0f, &Button, &Box);
+		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
+		Box.VSplitLeft(80.0f * MenuScale, &Button, &Box);
 		static int s_PlayersButton=0;
 		if(DoButton_MenuTab(&s_PlayersButton, Localize("Players"), m_ActivePage==PAGE_PLAYERS, &Button, 0))
 			NewPage = PAGE_PLAYERS;
 
-		Box.VSplitLeft(4.0f, 0, &Box);
-		Box.VSplitLeft(110.0f, &Button, &Box);
+		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
+		Box.VSplitLeft(110.0f * MenuScale, &Button, &Box);
 		static int s_ServerInfoButton=0;
 		if(DoButton_MenuTab(&s_ServerInfoButton, Localize("Server info"), m_ActivePage==PAGE_SERVER_INFO, &Button, 0))
 			NewPage = PAGE_SERVER_INFO;
 
-		Box.VSplitLeft(4.0f, 0, &Box);
-		Box.VSplitLeft(110.0f, &Button, &Box);
+		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
+		Box.VSplitLeft(110.0f * MenuScale, &Button, &Box);
 		static int s_CallVoteButton=0;
 		if(DoButton_MenuTab(&s_CallVoteButton, Localize("Call vote"), m_ActivePage==PAGE_CALLVOTE, &Button, CUI::CORNER_TR))
 			NewPage = PAGE_CALLVOTE;
+
+		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
+		Box.VSplitLeft(96.0f * MenuScale, &Button, &Box);
+		static int s_ResearchButton=0;
+		if(DoButton_MenuTab(&s_ResearchButton, Localize("Research"), m_ActivePage==PAGE_RESEARCH, &Button, CUI::CORNER_T))
+			NewPage = PAGE_RESEARCH;
 		
-		Box.VSplitRight(90.0f, &Box, &Button);
+		Box.VSplitRight(90.0f * MenuScale, &Box, &Button);
 		static int s_QuitButton=0;
 		if(DoButton_MenuTab(&s_QuitButton, Localize("Quit"), 0, &Button, CUI::CORNER_T))
 			m_Popup = POPUP_QUIT;
 		
-		Box.VSplitRight(6.0f, &Box, 0);
-		Box.VSplitRight(90.0f, &Box, &Button);
+		Box.VSplitRight(6.0f * MenuScale, &Box, 0);
+		Box.VSplitRight(90.0f * MenuScale, &Box, &Button);
 		static int s_SettingsButton=0;
 		if(DoButton_MenuTab(&s_SettingsButton, Localize("Settings"), m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
 			NewPage = PAGE_SETTINGS;
@@ -1140,9 +1167,15 @@ void CMenus::RenderFront(CUIRect MainView)
 	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
 	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
 	static int s_SettingsButton=0;
+	static int s_ResearchButton=0;
+	if(DoButton_Menu(&s_ResearchButton, Localize("Research"), 0, &Button))
+		g_Config.m_UiPage = PAGE_RESEARCH;
+
+	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
+	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
 	if(DoButton_Menu(&s_SettingsButton, Localize("Settings"), 0, &Button))
 		g_Config.m_UiPage = PAGE_SETTINGS;
-	
+
 	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
 	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
 	static int s_QuitButton=0;
@@ -1227,6 +1260,8 @@ int CMenus::Render()
 				RenderServerControl(MainView);
 			else if(m_GamePage == PAGE_SETTINGS)
 				RenderSettings(MainView);
+			else if(m_GamePage == PAGE_RESEARCH)
+				m_pClient->m_pPveRoguelite->RenderResearch(MainView);
 			else if(m_GamePage == PAGE_CUSTOMIZE)
 				RenderCustomize(MainView);
 		}
@@ -1242,6 +1277,8 @@ int CMenus::Render()
 			RenderServerbrowser(MainView);
 		else if(g_Config.m_UiPage == PAGE_SETTINGS)
 			RenderSettings(MainView);
+		else if(g_Config.m_UiPage == PAGE_RESEARCH)
+			m_pClient->m_pPveRoguelite->RenderResearch(MainView);
 		else if(g_Config.m_UiPage == PAGE_CUSTOMIZE)
 			RenderCustomize(MainView);
 	}
@@ -2099,6 +2136,8 @@ void CMenus::OnRender()
 	// render
 	if(Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		Render();
+	m_pClient->m_pPveRoguelite->RenderMenuDebugOverlay();
+	m_pClient->m_pPveRoguelite->RenderBuildDebug();
 
 	// render cursor
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_CURSOR].m_Id);

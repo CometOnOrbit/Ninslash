@@ -17,6 +17,7 @@
 #include "camera.h"
 #include "hud.h"
 #include "menus.h"
+#include "pve_roguelite.h"
 #include "voting.h"
 #include "binds.h"
 
@@ -88,6 +89,7 @@ void CHud::RenderGameTimer()
 void CHud::RenderPauseNotification()
 {
 	if(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED &&
+		!m_pClient->m_pPveRoguelite->ChoiceActive() &&
 		!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
 	{
 		const char *pText = Localize("Game paused");

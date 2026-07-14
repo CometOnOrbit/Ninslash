@@ -1,4 +1,5 @@
 #include <game/server/gamecontext.h>
+#include <game/server/pve_director.h>
 #include <game/weapons.h>
 #include "laser.h"
 #include "electrowall.h"
@@ -39,6 +40,7 @@ void CWeapon::Reset()
 	m_TriggerTick = 0;
 	m_ReloadTimer = 0;
 	m_BurstReloadTimer = 0;
+	m_RogueliteCooldownCarry = 0.0f;
 	m_Pos = vec2(0, 0);
 	m_Direction = vec2(0, 0);
 	m_Owner = TEAM_NEUTRAL;
@@ -531,6 +533,8 @@ bool CWeapon::AddClip()
 	if (m_Ammo < m_MaxAmmo)
 	{
 		m_Ammo = min(m_Ammo+m_MaxAmmo/3, m_MaxAmmo);
+		if(m_Ammo == m_MaxAmmo && GameServer()->m_pPveDirector && m_Owner >= 0)
+			GameServer()->m_pPveDirector->OnFullReload(m_Owner);
 		return true;
 	}
 	
@@ -649,6 +653,20 @@ void CWeapon::Tick()
 	
 	if(m_ReloadTimer > 0)
 		m_ReloadTimer--;
+	if(m_ReloadTimer > 0 && GameServer()->m_pPveDirector)
+	{
+		const float Reduction = GameServer()->m_pPveDirector->CooldownReduction(m_Owner, m_WeaponType);
+		if(Reduction > 0.0f)
+		{
+			m_RogueliteCooldownCarry += Reduction / (1.0f - Reduction);
+			const int ExtraTicks = (int)m_RogueliteCooldownCarry;
+			if(ExtraTicks > 0)
+			{
+				m_ReloadTimer = max(0, m_ReloadTimer - ExtraTicks);
+				m_RogueliteCooldownCarry -= ExtraTicks;
+			}
+		}
+	}
 	
 	if(m_BurstReloadTimer > 0)
 	{

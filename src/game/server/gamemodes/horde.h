@@ -23,6 +23,11 @@ private:
 	int m_SpawnPosRotation;
 	int m_TriggerTick;
 	int m_TriggerLevel;
+	bool m_RogueliteStarted;
+	int m_RogueliteWaitTick;
+	int m_LastIntermissionWave;
+	int m_LastContractProgressWave;
+	bool m_EliteContractSpawned;
 
 	void NextWave();
 	int EnemyLevel() const;

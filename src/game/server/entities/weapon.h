@@ -93,6 +93,7 @@ protected:
 	int m_WeaponType;
 	int m_ReloadTimer;
 	int m_BurstReloadTimer;
+	float m_RogueliteCooldownCarry;
 	bool m_FullAuto;
 	int m_Owner;
 	

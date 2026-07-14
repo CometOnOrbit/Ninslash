@@ -312,6 +312,7 @@ public:
 	class CSounds *m_pSounds;
 	class CMotd *m_pMotd;
 	class CGameVoteDisplay *m_pGameVoteDisplay;
+	class CPveRoguelite *m_pPveRoguelite;
 	class CMapImages *m_pMapimages;
 	class CVoting *m_pVoting;
 	class CScoreboard *m_pScoreboard;

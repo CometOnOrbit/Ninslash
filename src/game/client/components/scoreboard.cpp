@@ -22,6 +22,7 @@
 
 #include "scoreboard.h"
 #include "gamevote.h"
+#include "pve_roguelite.h"
 
 
 CScoreboard::CScoreboard()
@@ -396,6 +397,8 @@ void CScoreboard::OnRender()
 		return;
 	
 	if (m_pClient->m_pGameVoteDisplay->IsActive())
+		return;
+	if (m_pClient->m_pPveRoguelite->ChoiceActive())
 		return;
 	
 	// if the score board is active, then we should clear the motd message aswell

@@ -4,6 +4,7 @@
 #include <new>
 #include <engine/shared/config.h>
 #include "player.h"
+#include "pve_director.h"
 
 #include <game/weapons.h>
 #include <game/buildables.h>
@@ -70,6 +71,8 @@ CPlayer::~CPlayer()
 
 bool CPlayer::IncreaseGold(int Amount)
 {
+	if(m_pGameServer->m_pPveDirector)
+		Amount = m_pGameServer->m_pPveDirector->ModifyGold(m_ClientID, Amount);
 	if (m_Gold < 999)
 	{
 		m_Gold = min(999, m_Gold+Amount);
@@ -645,4 +648,3 @@ bool CPlayer::AIInputChanged()
 
 	return false;
 }
-

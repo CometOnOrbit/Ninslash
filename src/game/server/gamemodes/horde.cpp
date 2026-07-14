@@ -9,6 +9,7 @@
 #include <game/server/entities/droid_crawler.h>
 #include <game/server/ai/base_ai.h>
 #include <game/server/pve_bots.h>
+#include <game/server/pve_director.h>
 #include <game/weapons.h>
 
 #include "horde.h"
@@ -36,6 +37,11 @@ CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer)
 	m_SpawnPosRotation = 0;
 	m_TriggerTick = 0;
 	m_TriggerLevel = 8;
+	m_RogueliteStarted = false;
+	m_RogueliteWaitTick = Server()->Tick() + Server()->TickSpeed() * 2;
+	m_LastIntermissionWave = -1;
+	m_LastContractProgressWave = -1;
+	m_EliteContractSpawned = false;
 
 	g_Config.m_SvOneHitKill = 0;
 	g_Config.m_SvWarmup = 0;
@@ -100,6 +106,8 @@ bool CGameControllerHorde::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 void CGameControllerHorde::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 {
 	IGameController::OnCharacterSpawn(pChr);
+	if(!RequestAI && GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnPlayerSpawn(pChr->GetPlayer()->GetCID());
 
 	if(RequestAI)
 	{
@@ -126,22 +134,34 @@ int CGameControllerHorde::EnemyLevel() const
 int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, int Weapon)
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	if(!pVictim->m_IsBot && GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnPlayerDeath(pVictim->GetPlayer()->GetCID());
 
 	if(pVictim->m_IsBot)
 	{
 		if(!pVictim->GetPlayer()->m_ToBeKicked)
 			m_Deaths = max(0, m_Deaths - 1);
 		if(pKiller && !pKiller->m_IsBot)
+		{
 			m_Kills++;
+			if(GameServer()->m_pPveDirector)
+				GameServer()->m_pPveDirector->OnEnemyKilled(pKiller->GetCID(), Weapon, pVictim->m_Pos, pVictim);
+		}
 		pVictim->GetPlayer()->m_ToBeKicked = true;
 	}
-	else if(g_Config.m_SvSurvivalMode >= 2 && CountPlayersAlive(-1, true) <= 0)
+	else if(((GameServer()->m_pPveDirector && !GameServer()->m_pPveDirector->RespawnAllowed()) || g_Config.m_SvSurvivalMode >= 2) &&
+		CountPlayersAlive(-1, true) <= 0)
 	{
 		DeathMessage();
+		if(GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->CompleteContract(false);
 		m_RoundOverTick = Server()->Tick();
 	}
 	else if(!pVictim->m_IsBot)
-		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
+	{
+		const bool RespawnAllowed = !GameServer()->m_pPveDirector || GameServer()->m_pPveDirector->RespawnAllowed();
+		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * (RespawnAllowed ? g_Config.m_SvRespawnDelay : 3600);
+	}
 
 	return 0;
 }
@@ -155,6 +175,11 @@ void CGameControllerHorde::NextWave()
 	GameServer()->SendBroadcastFormat(-1, false, "Wave %d", m_Wave);
 
 	m_EnemiesLeft = min(10 + m_Wave * 3, 48);
+	if(GameServer()->m_pPveDirector)
+	{
+		GameServer()->m_pPveDirector->OnStageStart();
+		m_EnemiesLeft = (int)(m_EnemiesLeft * GameServer()->m_pPveDirector->EnemyCountMultiplier() + 0.5f);
+	}
 	m_Deaths = m_EnemiesLeft;
 
 	if(m_Wave % 2 == 0)
@@ -175,6 +200,27 @@ void CGameControllerHorde::NextWave()
 		GameServer()->SendBroadcast("Boss incoming!", -1);
 	}
 
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_BOSS_RUSH)
+	{
+		const int SectionWave = (m_Wave - 1) % 4 + 1;
+		if(SectionWave == 2 || SectionWave == 4)
+		{
+			vec2 p;
+			if(!GetSpawnPos(0, &p))
+				p = vec2(4000, 4000);
+			SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), max(5, m_Wave + 2));
+		}
+	}
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT && !m_EliteContractSpawned)
+	{
+		vec2 p;
+		if(!GetSpawnPos(0, &p))
+			p = vec2(4000, 4000);
+		CDroid *pBoss = SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), EnemyLevel() + 2);
+		GameServer()->m_pPveDirector->RegisterEliteContractBoss(pBoss);
+		m_EliteContractSpawned = true;
+	}
+
 	const int Cap = min(18, 12 + m_Wave / 2);
 	for(int i = 0; i < m_EnemiesLeft && CountBots() < Cap; i++)
 		GameServer()->AddBot();
@@ -185,6 +231,13 @@ void CGameControllerHorde::NextWave()
 void CGameControllerHorde::Tick()
 {
 	IGameController::Tick();
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
+		return;
+	if(m_EliteContractSpawned && GameServer()->m_pPveDirector && CountAliveBosses(&GameServer()->m_World) <= 0)
+	{
+		m_EliteContractSpawned = false;
+		GameServer()->m_pPveDirector->OnBossKilled();
+	}
 
 	if(m_Wave > 0 && !m_NoPlayersTick && CountHumans() <= 0)
 		m_NoPlayersTick = Server()->Tick() + Server()->TickSpeed() * 10.0f;
@@ -193,6 +246,8 @@ void CGameControllerHorde::Tick()
 	{
 		m_NoPlayersTick = 0;
 		m_Wave = 0;
+		if(GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->ClearRun();
 		EndRound();
 	}
 
@@ -200,6 +255,19 @@ void CGameControllerHorde::Tick()
 	{
 		if(CountPlayers(0) > 0 && !m_WaveStartTick)
 		{
+			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled() &&
+				!GameServer()->m_pPveDirector->ProgressReady() && Server()->Tick() < m_RogueliteWaitTick)
+				return;
+			if(!m_RogueliteStarted)
+			{
+				m_RogueliteStarted = true;
+				if(GameServer()->m_pPveDirector)
+				{
+					GameServer()->m_pPveDirector->StartIntermission(true, true);
+					if(GameServer()->m_pPveDirector->InIntermission())
+						return;
+				}
+			}
 			m_GameState = STATE_GAME;
 			m_WaveStartTick = Server()->Tick() + Server()->TickSpeed() * 5.0f;
 			m_Wave = 0;
@@ -214,7 +282,27 @@ void CGameControllerHorde::Tick()
 		if(!m_RoundOverTick && m_Deaths <= 0 && !CountBotsAlive() && CountAliveBosses(&GameServer()->m_World) <= 0
 			&& CountPlayersAlive(-1, true) > 0 && !m_WaveStartTick)
 		{
-			if(g_Config.m_SvScorelimit > 0 && m_Wave >= g_Config.m_SvScorelimit)
+			if(m_LastContractProgressWave != m_Wave && GameServer()->m_pPveDirector)
+			{
+				m_LastContractProgressWave = m_Wave;
+				GameServer()->m_pPveDirector->OnStageComplete(true);
+			}
+			const bool ContractBoundary = m_Wave > 0 && m_Wave % 4 == 0;
+			const bool PerkBoundary = m_Wave > 0 && m_Wave % 3 == 0;
+			const bool RunComplete = g_Config.m_SvScorelimit > 0 && m_Wave >= g_Config.m_SvScorelimit;
+			if((ContractBoundary || PerkBoundary) && m_LastIntermissionWave != m_Wave && GameServer()->m_pPveDirector)
+			{
+				m_LastIntermissionWave = m_Wave;
+				if(ContractBoundary)
+					GameServer()->m_pPveDirector->RewardResearch(1, PVE_REWARD_HORDE_SECTION);
+				if(!RunComplete)
+				{
+					GameServer()->m_pPveDirector->StartIntermission(ContractBoundary, PerkBoundary);
+					if(GameServer()->m_pPveDirector->InIntermission())
+						return;
+				}
+			}
+			if(RunComplete)
 			{
 				GameServer()->SendBroadcastFormat(-1, false, "Cleared %d waves!", m_Wave);
 				m_RoundOverTick = Server()->Tick();
@@ -235,6 +323,8 @@ void CGameControllerHorde::Tick()
 		if(m_RoundOverTick && m_RoundOverTick < Server()->Tick() - Server()->TickSpeed() * 6.0f)
 		{
 			m_RoundOverTick = 0;
+			if(GameServer()->m_pPveDirector)
+				GameServer()->m_pPveDirector->ClearRun();
 			EndRound();
 		}
 	}

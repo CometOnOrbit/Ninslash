@@ -28,10 +28,19 @@ private:
 	bool m_Win;
 	bool m_EscapePressure;
 	bool m_HadHumanAlive;
+	bool m_RogueliteStarted;
+	int m_RogueliteWaitTick;
+	bool m_RogueliteStageStarted;
+	bool m_MidBossPerkOffered;
+	bool m_DoorChoicePending;
+	bool m_DoorChoiceStarted;
+	bool m_EliteContractSpawned;
+	class CDroid *m_pMidBoss;
 
 	void SpawnInitialEnemies();
 	void SpawnMidBoss();
 	void SpawnEscapePressure();
+	void BeginEvacuation();
 	int CountSwitches() const;
 	int CountHumanPlayersLocal() const;
 	int CountHumansAliveLocal() const;
@@ -46,9 +55,11 @@ public:
 	bool GetSpawnPos(int Team, vec2 *pOutPos);
 	virtual bool CanSpawn(int Team, vec2 *pPos, bool IsBot = false);
 	virtual void OnSwitchTriggered();
+	void OnDroidKilled(class CDroid *pDroid);
 	virtual void NextLevel(int CID = -1);
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
+	bool Evacuating() const { return m_Phase == 1 && !m_RoundOverTick; }
 
 	enum GameState
 	{

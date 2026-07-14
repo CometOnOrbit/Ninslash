@@ -130,6 +130,7 @@ public:
 	CPlayer *m_apPlayers[MAX_CLIENTS];
 
 	IGameController *m_pController;
+	class CPveDirector *m_pPveDirector;
 	CGameWorld m_World;
 	
 	CPlayerSpecData GetPlayerSpecData(int ClientID);
@@ -185,16 +186,16 @@ public:
 	void CreateSoundGlobal(int Sound, int Target=-1);
 	
 	bool BuildableSpot(vec2 Pos);
-	bool AddBlock(int Type, vec2 Pos);
+	bool AddBlock(int Type, vec2 Pos, int Owner = -1, int KitCost = 0);
 	void DamageBlocks(vec2 Pos, int Damage, int Range);
 	void OnBlockChange(vec2 Pos);
 	
 	class CWeapon *NewWeapon(int Part1, int Part2);
 	class CWeapon *NewWeapon(int Weapon);
 	
-	bool RespawnAlly(vec2 Pos, int Team);
+	bool RespawnAlly(vec2 Pos, int Team, int Reviver);
 	
-	bool AddBuilding(int Kit, vec2 Pos, int Owner);
+	bool AddBuilding(int Kit, vec2 Pos, int Owner, int PaidCost = -1);
 	
 	bool Shop(class CPlayer *pPlayer, int Slot, bool AI = false);
 	

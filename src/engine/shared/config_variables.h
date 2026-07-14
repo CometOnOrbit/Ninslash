@@ -133,6 +133,22 @@ MACRO_CONFIG_INT(SvMapGenRandSeed, sv_mapgen_random_seed, 1, 0, 1, CFGFLAG_SERVE
 // Invasion
 MACRO_CONFIG_INT(SvInvFails, sv_inv_fails,  0, 0, 9, CFGFLAG_SERVER, "Invasion level fails")
 
+// Co-op PvE Roguelite Director
+MACRO_CONFIG_INT(SvPveRoguelite, sv_pve_roguelite, 1, 0, 1, CFGFLAG_SERVER, "Enable the shared PvE Roguelite Director")
+MACRO_CONFIG_INT(SvPveContracts, sv_pve_contracts, 1, 0, 1, CFGFLAG_SERVER, "Enable PvE team contracts")
+MACRO_CONFIG_INT(SvPveChoiceTime, sv_pve_choice_time, 10, 3, 60, CFGFLAG_SERVER, "Seconds allowed for an individual perk choice")
+MACRO_CONFIG_INT(SvPveContractVoteTime, sv_pve_contract_vote_time, 8, 3, 60, CFGFLAG_SERVER, "Seconds allowed for a team contract vote")
+
+// Client-owned permanent PvE progress. Current-run combat state is never stored here.
+MACRO_CONFIG_INT(ClPveProgressVersion, cl_pve_progress_version, 2, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "PvE progression format version")
+MACRO_CONFIG_INT(ClPveResearchPoints, cl_pve_research_points, 0, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Unspent PvE research points")
+MACRO_CONFIG_STR(ClPveResearchMask, cl_pve_research_mask, 33, "00000000000000000000000000000000", CFGFLAG_SAVE|CFGFLAG_CLIENT, "128-bit hexadecimal PvE research unlock mask")
+MACRO_CONFIG_INT(ClPveHighestInvasion, cl_pve_highest_invasion, 0, 0, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Highest completed Invasion floor")
+MACRO_CONFIG_INT(ClPvePreferredCheckpoint, cl_pve_preferred_checkpoint, 1, 1, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Preferred unlocked Invasion checkpoint")
+MACRO_CONFIG_INT(ClPveDroneAssault, cl_pve_drone_assault, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the assault drone module")
+MACRO_CONFIG_INT(ClPveDroneGuardian, cl_pve_drone_guardian, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the guardian drone module")
+MACRO_CONFIG_INT(ClPveDroneRepair, cl_pve_drone_repair, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the repair drone module")
+
 // ===== AntiPing / Prediction System =====
 MACRO_CONFIG_INT(ClAntiPing, cl_antiping, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Enable antiping, more aggressive prediction")
 MACRO_CONFIG_INT(ClAntiPingPlayers, cl_antiping_players, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Predict other player's movement more aggressively (only if cl_antiping is 1)")

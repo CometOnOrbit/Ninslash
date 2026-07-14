@@ -1384,3 +1384,1041 @@ Choose the next mode
 
 Mouse wheel to browse modes | %d / %d
 == 滚动鼠标滚轮浏览模式 | %d / %d
+
+##### PvE Roguelite #####
+
+Research
+== 研究
+
+Research unlocks perk cards; select them during a run to activate their effects.
+== 研究只负责解锁强化卡；还需在当前局的三选一中选中，效果才会生效。
+
+Base cards are always available • Rare and Epic perks are unique
+== 基础卡始终可用 • 稀有与史诗强化不可叠加
+
+Core research improves universal attack, survival, and logistics perks.
+== 核心研究强化通用的攻击、生存与后勤卡牌。
+
+Weapon research unlocks specialization perks matched to your current weapon.
+== 武器研究解锁与当前武器类型匹配的专精卡牌。
+
+Mode research unlocks perks that appear only in the matching PvE mode.
+== 模式研究解锁仅在对应 PvE 模式中出现的卡牌。
+
+Research Details
+== 研究详情
+
+How Research Works
+== 研究规则
+
+Earn points from PvE stages and contracts.
+== 完成 PvE 阶段与团队契约可获得研究点。
+
+Unlock connected nodes in order.
+== 研究节点需沿连接路线依次解锁。
+
+Unlocked cards join future perk choices.
+== 已解锁卡牌会加入之后的强化选项。
+
+Team Contract
+== 团队契约
+
+Choose a Perk
+== 选择强化
+
+%d seconds remaining
+== 剩余 %d 秒
+
+%d seconds • %d/%d
+== %d 秒 • %d/%d
+
+%s • LEVEL %d/%d
+== %s • 等级 %d/%d
+
+%s • TIER %d • COST %d
+== %s • 第 %d 阶 • 费用 %d
+
+RISK • %d VOTES
+== 风险 • %d 票
+
+Reward: 1 Research Point
+== 奖励：1 研究点
+
+Mouse • Arrow Keys • 1–3 • Gamepad
+== 鼠标 • 方向键 • 1–3 • 手柄
+
+The server rejected that selection.
+== 服务器拒绝了该选择。
+
+After selection: level %d/%d
+== 选择后：等级 %d/%d
+
+Immediate effect
+== 即时生效
+
+Unique perk
+== 唯一强化
+
+Stack limit: %d
+== 叠层上限：%d
+
+Attack
+== 攻击
+
+Survival
+== 生存
+
+Logistics
+== 后勤
+
+Firearms
+== 枪械
+
+Explosives
+== 爆炸
+
+Electric
+== 电能
+
+Melee
+== 近战
+
+Horde
+== 尸潮模式
+
+Extraction
+== 撤离模式
+
+Purchase rejected
+== 购买被拒绝
+
+Contract completed
+== 契约完成
+
+Contract failed
+== 契约失败
+
+Active • %d/%d
+== 进行中 • %d/%d
+
+%d Research Points
+== %d 研究点
+
+Core
+== 核心
+
+Weapons
+== 武器
+
+Modes
+== 模式
+
+PURCHASED
+== 已购买
+
+AVAILABLE
+== 可购买
+
+LOCKED
+== 未解锁
+
+Purchased
+== 已购买
+
+Unlocked for future choices
+== 已解锁并加入后续选项
+
+Purchase
+== 购买
+
+Locked
+== 未解锁
+
+Current Run
+== 当前构筑
+
+Effect
+== 效果
+
+Research Progress
+== 研究进度
+
+No perks selected
+== 尚未选择强化
+
++%d more perks
+== 另有 %d 项强化
+
+Requires: %s
+== 前置：%s
+
+No prerequisite
+== 无前置节点
+
+Common
+== 普通
+
+Rare
+== 稀有
+
+Epic
+== 史诗
+
+Voted
+== 已投票
+
+Unknown contract
+== 未知契约
+
+Unknown perk
+== 未知强化
+
+Immediate Supply
+== 即时补给
+
+Emergency Armor
+== 应急护甲
+
+Full Ammunition
+== 弹药全满
+
+Emergency Kits
+== 应急工具包
+
+Gain 25 armor immediately.
+== 立即获得 25 护甲。
+
+Refill all weapon ammunition immediately.
+== 立即补满所有武器弹药。
+
+Gain 5 kits immediately.
+== 立即获得 5 个工具包。
+
+Combat Training
+== 战斗训练
+
+All damage +8% per stack (maximum 3).
+== 每层全伤害 +8%（最多 3 层）。
+
+Reinforced Plates
+== 强化装甲板
+
+Gain 8 armor at the start of each stage per stack.
+== 每层在阶段开始时获得 8 护甲。
+
+Field Supplies
+== 战地补给
+
+Gain 2 kits at the start of each stage per stack.
+== 每层在阶段开始时获得 2 个工具包。
+
+Scavenger
+== 拾荒者
+
+Gold income +12% per stack.
+== 每层金币收入 +12%。
+
+Ammo Reserve
+== 弹药储备
+
+Restore 15% ammunition at the start of each stage per stack.
+== 每层在阶段开始时恢复 15% 弹药。
+
+First Aid
+== 急救
+
+Health and armor recovery +20% per stack.
+== 每层生命与护甲恢复效果 +20%。
+
+Quick Hands
+== 快手
+
+Weapon attack cooldown -8% per stack (maximum -30%).
+== 每层武器攻击冷却 -8%（最多 -30%）。
+
+Finisher
+== 终结者
+
+Deal +20% damage per stack to enemies below 30% health.
+== 每层对生命低于 30% 的敌人伤害 +20%。
+
+Boss Hunter
+== 首领猎手
+
+Deal +25% damage to bosses.
+== 对首领伤害 +25%。
+
+Kill Chain
+== 连杀链
+
+Kills briefly grant +4% damage, stacking up to five times.
+== 击杀会短暂提供 +4% 伤害，最多叠加 5 次。
+
+Glass Edge
+== 玻璃锋刃
+
+Deal +35% damage, but take +20% damage.
+== 造成伤害 +35%，但承受伤害 +20%。
+
+Damage Dampener
+== 伤害阻尼
+
+Damage taken -8% per stack (total reduction capped at 50%).
+== 每层承受伤害 -8%（总减伤最多 50%）。
+
+Emergency Plating
+== 应急装甲
+
+Dropping below 35% health grants 15 armor once per stage.
+== 每阶段首次低于 35% 生命时获得 15 护甲。
+
+Guardian
+== 守护者
+
+Allies near you take 12% less damage.
+== 附近队友承受伤害降低 12%。
+
+Last Stand
+== 背水一战
+
+Once per stage, survive lethal damage with 1 health.
+== 每阶段一次，以 1 点生命抵挡致命伤害。
+
+Quartermaster
+== 军需官
+
+Shop prices -10% per stack (maximum -40%).
+== 每层商店价格 -10%（最多 -40%）。
+
+Premium Stock
+== 精品库存
+
+Shops offer one additional high-tier item.
+== 商店额外提供一件高阶物品。
+
+Engineer
+== 工程师
+
+Building costs -20% and repairs +25%.
+== 建造费用 -20%，维修效果 +25%。
+
+Recycler
+== 回收专家
+
+Destroyed friendly buildings refund 40% of their kit cost.
+== 友方建筑摧毁时返还其 40% 工具包费用。
+
+Hollow Point
+== 空尖弹
+
+Firearm damage +12% per stack.
+== 每层枪械伤害 +12%。
+
+Sustained Fire
+== 持续火力
+
+Continuous firearm hits build up to +25% damage.
+== 枪械连续命中可逐步提升至 +25% 伤害。
+
+Gunslinger
+== 神枪手
+
+Firearms reload 20% faster and gain improved handling.
+== 枪械装填速度 +20%，操控性提高。
+
+Demolition
+== 爆破专家
+
+Explosive damage +12% per stack.
+== 每层爆炸伤害 +12%。
+
+Wide Blast
+== 广域爆破
+
+Explosion radius +25% (maximum +50%).
+== 爆炸范围 +25%（最多 +50%）。
+
+Chain Reaction
+== 连锁反应
+
+Explosive kills have a chance to trigger a secondary blast.
+== 爆炸击杀有概率触发二次爆炸。
+
+Overcharge
+== 过载
+
+Electric damage +12% per stack.
+== 每层电能伤害 +12%。
+
+Arc Conductor
+== 电弧导体
+
+Electric hits arc to one nearby enemy for 35% damage.
+== 电能命中会向附近一名敌人传导 35% 伤害。
+
+Capacitor
+== 电容器
+
+Every fifth electric hit deals double damage.
+== 每第 5 次电能命中造成双倍伤害。
+
+Berserker
+== 狂战士
+
+Melee damage +12% per stack.
+== 每层近战伤害 +12%。
+
+Blood Drive
+== 血性驱动
+
+Melee kills restore 4 health.
+== 近战击杀恢复 4 点生命。
+
+Shockwave
+== 冲击波
+
+Heavy melee hits release a damaging shockwave.
+== 重型近战命中会释放伤害冲击波。
+
+Delver
+== 深潜者
+
+Invasion stage-start supplies +25% per stack.
+== 每层使入侵模式阶段开始补给 +25%。
+
+Objective Specialist
+== 目标专家
+
+Deal +20% damage to Invasion objective targets.
+== 对入侵模式目标单位伤害 +20%。
+
+Adaptation
+== 适应进化
+
+After each Invasion floor, gain 4% damage for the run.
+== 每完成一层入侵模式，本局伤害 +4%。
+
+Breathing Room
+== 喘息之机
+
+Horde intermissions restore 20% health and ammunition per stack.
+== 每层使尸潮模式间歇恢复 20% 生命与弹药。
+
+Reaper
+== 收割者
+
+Horde multikills grant +15% damage for 5 seconds.
+== 尸潮模式多杀会提供 5 秒 +15% 伤害。
+
+Siege Master
+== 攻城大师
+
+Buildings deal +30% damage during Horde.
+== 尸潮模式中建筑伤害 +30%。
+
+Saboteur
+== 破坏专家
+
+Extraction switch and objective interactions are 25% faster per stack.
+== 每层使撤离模式开关与目标交互速度 +25%。
+
+Escape Artist
+== 逃脱大师
+
+Gain +15% movement speed while evacuating.
+== 撤离期间移动速度 +15%。
+
+No One Left
+== 不落一人
+
+Reviving an ally grants both players 20 armor.
+== 复活队友时双方获得 20 护甲。
+
+Glass Cannon
+== 玻璃大炮
+
+Team damage +25%; damage taken +35%.
+== 全队输出 +25%；承受伤害 +35%。
+
+Extreme incoming damage
+== 极高承伤风险
+
+Elite Hunt
+== 精英狩猎
+
+An additional boss spawns two levels above the stage.
+== 额外生成一个高于当前阶段两级的首领。
+
+Extra high-level boss
+== 额外高等级首领
+
+Resource Drought
+== 资源枯竭
+
+Gold income is halved and shop prices are increased by 50%.
+== 金币收入减半，商店价格提高 50%。
+
+Severely limited economy
+== 经济资源严重受限
+
+Speed Clear
+== 极速清层
+
+Complete the Invasion floor within 150 seconds.
+== 在 150 秒内完成入侵模式楼层。
+
+Strict time limit
+== 严格时间限制
+
+Flawless
+== 完美无伤
+
+Complete the floor without any player dying.
+== 本层无人死亡即可完成。
+
+One death fails the contract
+== 任意一次死亡都会导致失败
+
+Purge Protocol
+== 清剿协议
+
+Enemy count is increased by 35% for this floor.
+== 本层敌人数量增加 35%。
+
+Much larger enemy force
+== 敌军规模大幅增加
+
+Double Wave
+== 双倍浪潮
+
+Enemy count is increased by 50% for the next four waves.
+== 后续四波敌人数量增加 50%。
+
+Four reinforced waves
+== 四波强化敌军
+
+Boss Rush
+== 首领连战
+
+An additional boss appears in waves two and four of the section.
+== 区段第 2、4 波各出现一个额外首领。
+
+Two additional bosses
+== 两个额外首领
+
+No Respawn
+== 禁止复活
+
+Players cannot respawn during the next four waves.
+== 后续四波内玩家无法复活。
+
+Deaths last for the section
+== 死亡持续至区段结束
+
+Tight Deadline
+== 紧迫时限
+
+The Extraction time limit is reduced by 30%.
+== 撤离模式时限缩短 30%。
+
+Less evacuation time
+== 撤离时间更少
+
+Black Box
+== 黑匣子
+
+Recover the marked objective by remaining at it for 3 seconds.
+== 在雷达标记处停留 3 秒以回收目标。
+
+Additional recovery objective
+== 额外回收目标
+
+Overrun
+== 敌潮压境
+
+Evacuation reinforcement size and active cap are doubled.
+== 撤离阶段增援数量和同时存在上限翻倍。
+
+Overwhelming evacuation pressure
+== 撤离压力极高
+
+Checkpoint %d
+== 检查点 %d
++
+#### PvE Roguelite v2
+Requires:
+== 前置：
+
+Legendary
+== 传奇
+
+Barrier
+== 壁垒
+
+Focus
+== 专注
+
+Blast Charge
+== 爆炸充能
+
+Voltage
+== 电能电荷
+
+Fury
+== 近战怒气
+
+Vulnerable
+== 破绽
+
+Bleed
+== 流血
+
+Drone
+== 无人机
+
+None
+== 无
+
+Assault
+== 攻击
+
+Repair
+== 维修
+
+Marking Rounds
+== 标记弹
+
+Six direct hits on one enemy apply Vulnerable for 4 seconds; each stack adds 3% damage taken, capped at 25%.
+== 对同一敌人直接命中 6 次后施加 4 秒破绽；每层使其承伤增加 3%，总上限 25%。
+
+Barrier Cell
+== 壁垒电池
+
+Gain 6 Barrier per stack at stage start. Barrier absorbs damage before armor and is capped at 30.
+== 每阶段开始时每层获得 6 点壁垒。壁垒先于护甲承伤，上限 30。
+
+Second Wind
+== 再起之风
+
+Every 5 kills restores 2 health per stack, up to three triggers per stage.
+== 每累计击杀 5 个敌人恢复每层 2 点生命，每阶段最多触发 3 次。
+
+Salvage Instinct
+== 回收本能
+
+Every 8 kills grants 1 kit per stack, capped at 6 kits per stage.
+== 每累计击杀 8 个敌人获得每层 1 个工具包，每阶段最多获得 6 个。
+
+Reserve Fund
+== 储备金
+
+Stage completion pays 5% interest on current gold per stack, capped at 30 gold per stage.
+== 阶段完成时按当前金币支付每层 5% 的利息，每阶段最多 30 金币。
+
+Field Relay
+== 战地中继
+
+Allies within 350 range receive 6% more health, armor and Barrier recovery per stack.
+== 350 距离内队友受到的生命、护甲和壁垒恢复每层提高 6%。
+
+Drone Chassis
+== 无人机底盘
+
+Deploy a support drone; each stack increases current module efficiency by 10%, capped at 30%.
+== 部署一架支援无人机；每层使当前模块效率提高 10%，上限 30%。
+
+Focus Drill
+== 专注训练
+
+Firearm hits build Focus. At 10, the next shot consumes it for +15% damage per stack.
+== 枪械命中积累专注。达到 10 层后，下一发消耗全部专注并每卡层增加 15% 伤害。
+
+Blast Battery
+== 爆炸电池
+
+Explosions gain one charge per enemy hit. At 5, the next blast consumes five for +8% damage per stack.
+== 爆炸每命中一个敌人获得 1 充能。达到 5 层后，下一次爆炸消耗 5 层并每卡层增加 8% 伤害。
+
+Voltage Bank
+== 电荷库
+
+Electric hits gain Voltage. At 10, the next hit consumes it and arcs to one extra target per stack.
+== 电能命中获得电荷。达到 10 层后，下一次命中消耗全部电荷并每卡层额外电弧一个目标。
+
+Fury Meter
+== 怒气计
+
+Melee hits gain Fury. At 10, the next melee hit consumes it for +20% damage per stack.
+== 近战命中获得怒气。达到 10 层后，下一次近战消耗全部怒气并每卡层增加 20% 伤害。
+
+Objective Cache
+== 目标补给
+
+The first objective completed each stage restores 10% ammo and grants 3 armor per stack.
+== 每阶段首次完成目标时，每层恢复 10% 弹药并获得 3 点护甲。
+
+Predator
+== 掠食者
+
+Deal +15% damage to Vulnerable targets.
+== 对破绽目标造成的伤害增加 15%。
+
+Apex Execution
+== 巅峰处决
+
+Every 10th direct hit deals +75% damage and refreshes Vulnerable.
+== 每第 10 次直接命中造成额外 75% 伤害并刷新破绽。
+
+Barrier Refit
+== 壁垒整备
+
+After 5 seconds without taking damage, restore 2 Barrier each second.
+== 连续 5 秒未受伤后，每秒恢复 2 点壁垒。
+
+Aegis Loop
+== 神盾回路
+
+When Barrier breaks, gain 15 armor once per stage.
+== 壁垒破碎时获得 15 点护甲，每阶段一次。
+
+Liquid Assets
+== 流动资产
+
+Gain +2% damage per 50 gold held, capped at +20%.
+== 每持有 50 金币，伤害增加 2%，上限 20%。
+
+War Economy
+== 战争经济
+
+Every 25 gold spent grants 5 Barrier, up to 15 Barrier per purchase.
+== 每消费 25 金币获得 5 点壁垒，单次购买最多获得 15 点。
+
+Servo Link
+== 伺服链路
+
+Drone attack and repair intervals are 8% shorter per stack, subject to the 30% cooldown cap.
+== 无人机攻击与维修间隔每层缩短 8%，仍受 30% 冷却缩减上限限制。
+
+Assault Module
+== 攻击模块
+
+Drone attacks the nearest enemy every 1.2 seconds for 20% of current weapon base damage.
+== 无人机每 1.2 秒攻击最近敌人，造成当前武器基础伤害的 20%。
+
+Guardian Module
+== 护盾模块
+
+Drone gives allies within 280 range 10% damage reduction.
+== 无人机使 280 范围内队友受到的伤害减少 10%。
+
+Repair Module
+== 维修模块
+
+Each second, restore 2 armor or durability to the lowest-armored ally or friendly building.
+== 每秒为护甲最低的队友或友方建筑恢复 2 点护甲或耐久。
+
+Coordinated Firmware
+== 协同固件
+
+Increase current drone module efficiency by 25%.
+== 使当前无人机模块效率提高 25%。
+
+Autonomous Core
+== 自主核心
+
+Increase current module efficiency by another 50%; a disabled drone recovers after 5 seconds.
+== 使当前模块效率再提高 50%；无人机被禁用后 5 秒自动恢复。
+
+Calibration
+== 校准
+
+Reduce the Focus trigger threshold by 1 per stack, to a minimum of 7.
+== 专注触发阈值每层降低 1，最低为 7。
+
+Pinpoint Burst
+== 精准爆发
+
+Consuming Focus applies Vulnerable for 5 seconds.
+== 消耗专注时施加 5 秒破绽。
+
+Perfect Sequence
+== 完美序列
+
+After consuming Focus, the first 6 shots of the next magazine deal +35% damage.
+== 每次消耗专注后，下一弹匣前 6 发伤害增加 35%。
+
+Armor Piercer
+== 穿甲弹
+
+Deal +8% firearm damage to Vulnerable targets per stack.
+== 对破绽目标的枪械伤害每层增加 8%。
+
+Tactical Reload
+== 战术换弹
+
+After a full reload, the first 5 shots deal +15% damage.
+== 完整换弹后，前 5 发伤害增加 15%。
+
+Crossfire
+== 交叉火力
+
+Against the assault drone's target, player damage is +15% and drone damage is +50%.
+== 攻击无人机锁定的目标时，玩家伤害增加 15%，无人机伤害增加 50%。
+
+Packed Charge
+== 密装炸药
+
+Reduce the empowered blast threshold by 1 per stack, to a minimum of 3.
+== 强化爆炸触发阈值每层降低 1，最低为 3。
+
+Breach Charge
+== 破障炸药
+
+Empowered explosions apply Vulnerable for 5 seconds.
+== 强化爆炸施加 5 秒破绽。
+
+Cataclysm
+== 大灾变
+
+Every 3rd empowered explosion creates a delayed secondary explosion for 60% damage.
+== 每第 3 次强化爆炸产生一次延迟二次爆炸，造成 60% 伤害。
+
+Shrapnel
+== 破片
+
+Empowered explosions apply 1 Bleed stack per card stack.
+== 强化爆炸施加每卡层 1 层流血。
+
+Controlled Fuse
+== 可控引信
+
+Take 50% less self-explosion damage; empowered blast radius is 20% larger.
+== 自身爆炸伤害减少 50%；强化爆炸半径增加 20%。
+
+Siege Payload
+== 攻城载荷
+
+Deal +30% explosive damage to bosses, objectives and buildings.
+== 对首领、任务目标和建筑目标的爆炸伤害增加 30%。
+
+Charge Coil
+== 充能线圈
+
+Gain 1 extra Voltage per stack when charging, up to 3 Voltage per hit.
+== 获得电荷时每层额外获得 1 点，单次命中最多获得 3 点。
+
+Conductive
+== 导电
+
+Consuming Voltage makes the target Conductive for 5 seconds; later arc damage is +25%.
+== 消耗电荷后使目标导电 5 秒；后续电弧伤害增加 25%。
+
+Thunderhead
+== 雷暴核心
+
+Every 3rd full Voltage release calls a lightning strike for 100% damage.
+== 每第 3 次满电释放在目标处降下造成 100% 伤害的雷击。
+
+Feedback
+== 反馈
+
+Electric kills refund 2 Voltage per stack.
+== 电能击杀返还每层 2 点电荷。
+
+Static Shield
+== 静电护盾
+
+Consuming Voltage grants 10 Barrier.
+== 消耗电荷时获得 10 点壁垒。
+
+Grid Link
+== 电网链路
+
+While Voltage exceeds 5, current drone module efficiency is +35%.
+== 电荷超过 5 时，无人机当前模块效率提高 35%。
+
+Fury Engine
+== 怒气引擎
+
+Gain 1 extra Fury per stack on hit, up to 4 Fury per hit.
+== 命中获得怒气时每层额外获得 1 点，单次最多获得 4 点。
+
+Open Wound
+== 开放伤口
+
+Consuming Fury applies 3 Bleed stacks.
+== 消耗怒气时施加 3 层流血。
+
+Avatar of War
+== 战争化身
+
+After consuming full Fury, gain +40% melee damage and -20% damage taken for 6 seconds.
+== 消耗满怒气后 6 秒内近战伤害增加 40%，承伤减少 20%。
+
+Guard Breaker
+== 破防者
+
+Heavy hits add 2 seconds of Vulnerable per stack, up to 6 seconds.
+== 重击每层增加 2 秒破绽，最长 6 秒。
+
+Blood Temper
+== 血性淬炼
+
+When a bleeding enemy dies, restore 5 health, capped at 15 per event.
+== 流血敌人死亡时恢复 5 点生命，单次最多 15 点。
+
+Kinetic Return
+== 动能回流
+
+Each enemy hit by a shockwave grants 1 Fury and 2 Barrier.
+== 冲击波每命中一个敌人获得 1 点怒气和 2 点壁垒。
+
+Cartographer
+== 制图师
+
+Objectives always show direction and distance; interaction speed is +15%.
+== 任务目标始终显示方向与距离，互动速度提高 15%。
+
+Deep Sovereign
+== 深层主宰
+
+The final objective on each floor takes +50% damage; completion grants the team 20 Barrier.
+== 每层最后一个任务目标承伤增加 50%；完成后全队获得 20 点壁垒。
+
+Relic Scanner
+== 遗物扫描仪
+
+Each completed objective grants 4 gold per stack.
+== 每完成一个任务，每层获得 4 金币。
+
+Floor Memory
+== 楼层记忆
+
+A deathless floor grants +4% damage on later floors, capped at +20%.
+== 无死亡完成楼层后，后续楼层伤害增加 4%，上限 20%。
+
+Wave Dividend
+== 波次红利
+
+A wave completed without player deaths grants 8 gold to each player.
+== 无玩家死亡完成波次时，每人获得 8 金币。
+
+Endless Engine
+== 无尽引擎
+
+Consecutive deathless waves grant +5% player and building damage, capped at +25%; a death resets it.
+== 连续无死亡波次使玩家和建筑伤害每波增加 5%，上限 25%；有人死亡时清空。
+
+Fortified Cycle
+== 加固循环
+
+At wave start, repair every friendly building by 5% maximum durability per stack.
+== 每波开始时修复所有友方建筑每层 5% 的最大耐久。
+
+Hold the Line
+== 坚守阵线
+
+Inside the defense area, take 15% less damage and gain +25% drone efficiency.
+== 处于任务防守区时承伤减少 15%，无人机效率提高 25%。
+
+Courier
+== 信使
+
+While carrying an objective item, move 10% faster and take 10% less damage.
+== 携带任务物品时移动速度提高 10%，承伤减少 10%。
+
+Final Departure
+== 最终启程
+
+After the exit opens, the team gains +30% damage and +15% speed, but health recovery stops.
+== 撤离门开启后全队伤害增加 30%、移动速度提高 15%，但生命恢复停止。
+
+Signal Hacker
+== 信号黑客
+
+Switch and objective interactions are 10% faster per stack; total interaction bonus is capped at 60%.
+== 开关和任务互动速度每层提高 10%，合计加成上限 60%。
+
+Clean Exit
+== 干净撤离
+
+Entering the evacuation zone restores 30% ammo and grants 20 Barrier once per evacuation.
+== 进入撤离区时恢复 30% 弹药并获得 20 点壁垒，每次撤离阶段一次。
+
+Attrition
+== 消耗战
+
+Health, armor and Barrier recovery are reduced by 50%.
+== 生命、护甲和壁垒恢复减少 50%。
+
+Halved recovery
+== 恢复减半
+
+Overclocked Hostiles
+== 超频敌军
+
+Enemies move 15% faster and deal 25% more damage.
+== 敌人移动速度提高 15%，伤害增加 25%。
+
+Faster, harder-hitting enemies
+== 敌人更快且攻击更强
+
+Sealed Supplies
+== 封锁补给
+
+Shops and stage supplies are disabled for the current floor.
+== 当前楼层禁用商店和阶段补给。
+
+No resupply
+== 无法补给
+
+Elite Guard
+== 精英守卫
+
+Each objective gains one elite guard a level above it; all guards must be killed.
+== 每个任务额外生成一个高一级的精英守卫；必须击杀全部守卫。
+
+Additional objective guards
+== 额外任务守卫
+
+Fortification Tax
+== 工事税
+
+Building and repair costs are increased by 75% for the next four waves.
+== 接下来四波的建筑和维修成本增加 75%。
+
+Expensive fortifications
+== 工事成本高昂
+
+Rising Tide
+== 涨潮
+
+Enemy count rises by 15%, 30%, 45% and 60%; final-wave enemies gain 25% health.
+== 四波敌人数分别增加 15%、30%、45% 和 60%；最后一波敌人生命增加 25%。
+
+Escalating four-wave assault
+== 逐波增强的四波攻势
+
+Heavy Cargo
+== 沉重货物
+
+Carry spawned cargo into extraction; the carrier moves 20% slower and may drop it.
+== 将生成的货物带入撤离区；携带者移动速度降低 20%，可主动放下。
+
+Slower cargo carrier
+== 货物携带者减速
+
+Locked Route
+== 封锁路线
+
+Activate two additional radar-marked switches before the exit opens.
+== 撤离门开启前额外激活两个雷达标记的开关。
+
+Two extra route switches
+== 两个额外路线开关
+
+Drone module not owned
+== 尚未拥有该无人机模块
+
+Drone switch cooling down
+== 无人机切换仍在冷却

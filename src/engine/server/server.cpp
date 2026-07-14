@@ -354,14 +354,14 @@ CPlayerData *CServer::GetPlayerData(int ClientID, int ColorID)
 			return pData;
 		else
 		{
-			CPlayerData *pNewData = new CPlayerData(m_aClients[ClientID].m_aName, ColorID, Storage());
+			CPlayerData *pNewData = new CPlayerData(m_aClients[ClientID].m_aName, ColorID);
 			m_pPlayerData->Add(pNewData);
 			return pNewData;
 		}
 	}
 	else
 	{
-		m_pPlayerData = new CPlayerData(m_aClients[ClientID].m_aName, ColorID, Storage());
+		m_pPlayerData = new CPlayerData(m_aClients[ClientID].m_aName, ColorID);
 		return m_pPlayerData;
 	}
 	
@@ -950,14 +950,18 @@ int CServer::SendMsgEx(CMsgPacker *pMsg, int Flags, int ClientID, bool System)
 
 	mem_zero(&Packet, sizeof(CNetChunk));
 
-	Packet.m_ClientID = ClientID;
-	Packet.m_pData = pMsg->Data();
-	Packet.m_DataSize = pMsg->Size();
+	// The system flag is part of the encoded message ID. Repack the complete
+	// variable-length header instead of shifting its first byte in place: IDs
+	// 32 and above need another varint byte and otherwise decode as negative.
+	CMsgPacker WireMsg((pMsg->MsgID() << 1) | (System ? 1 : 0));
+	const int HeaderSize = pMsg->HeaderSize();
+	WireMsg.AddRaw(pMsg->Data() + HeaderSize, pMsg->Size() - HeaderSize);
+	if(WireMsg.Error())
+		return -1;
 
-	// HACK: modify the message id in the packet and store the system flag
-	*((unsigned char*)Packet.m_pData) <<= 1;
-	if(System)
-		*((unsigned char*)Packet.m_pData) |= 1;
+	Packet.m_ClientID = ClientID;
+	Packet.m_pData = WireMsg.Data();
+	Packet.m_DataSize = WireMsg.Size();
 
 	if(Flags&MSGFLAG_VITAL)
 		Packet.m_Flags |= NETSENDFLAG_VITAL;
@@ -966,7 +970,7 @@ int CServer::SendMsgEx(CMsgPacker *pMsg, int Flags, int ClientID, bool System)
 
 	// write message to demo recorder
 	if(!(Flags&MSGFLAG_NORECORD))
-		m_DemoRecorder.RecordMessage(pMsg->Data(), pMsg->Size());
+		m_DemoRecorder.RecordMessage(WireMsg.Data(), WireMsg.Size());
 
 	if(!(Flags&MSGFLAG_NOSEND))
 	{

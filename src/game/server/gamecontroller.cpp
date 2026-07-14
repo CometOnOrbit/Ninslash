@@ -25,6 +25,7 @@
 #include "entities/droid_bosssplitter.h"
 #include "gamecontroller.h"
 #include "gamecontext.h"
+#include "pve_director.h"
 #include <game/questinfo.h>
 
 
@@ -1192,6 +1193,8 @@ void IGameController::CycleMap()
 
 void IGameController::FirstMap()
 {
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled())
+		GameServer()->m_pPveDirector->ClearRun();
 	g_Config.m_SvMapGenLevel = 1;
 	g_Config.m_SvInvFails = 0;
 	

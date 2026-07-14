@@ -19,6 +19,7 @@
 
 #include <game/server/gamemodes/invasion.h>
 #include <game/server/playerdata.h>
+#include <game/server/pve_director.h>
 #include <game/questinfo.h>
 
 inline vec2 RandomDir() { return normalize(vec2(frandom()-0.5f, frandom()-0.5f)); }
@@ -290,12 +291,6 @@ void CCharacter::SaveData()
 	pData->m_Score = GetPlayer()->m_Score;
 	pData->m_Gold = GetPlayer()->m_Gold;
 	
-	if (g_Config.m_SvMapGenLevel > pData->m_HighestLevel)
-	{
-		pData->m_HighestLevel = g_Config.m_SvMapGenLevel;
-		pData->m_HighestLevelSeed = g_Config.m_SvMapGenSeed;
-	}
-	
 	for (int i = 0; i < NUM_SLOTS; i++)
 	{
 		if (m_apWeapon[i])
@@ -307,8 +302,6 @@ void CCharacter::SaveData()
 			pData->m_aWeaponType[i] = 0;
 	}
 
-	pData->SaveToFile();
-	
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "Data save - color=%d", GetPlayer()->GetColorID());
 	GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "Character", aBuf);
@@ -731,7 +724,7 @@ bool CCharacter::TriggerWeapon(CWeapon *pWeapon)
 			return GiveBuff(PLAYERITEM_SHIELD);
 		
 		if (GetStaticType(w) == SW_RESPAWNER && (!GameServer()->m_pController->IsCoop() || !m_IsBot))
-			return GameServer()->RespawnAlly(m_Pos, GetPlayer()->GetTeam());
+				return GameServer()->RespawnAlly(m_Pos, GetPlayer()->GetTeam(), GetPlayer()->GetCID());
 		
 		return false;
 	}
@@ -895,12 +888,15 @@ bool CCharacter::UpgradeTurret(vec2 Pos, vec2 Dir, int Slot)
 	if (pNear)
 	{
 		int Cost = GetWeapon(Slot)->GetPowerLevel()+1;
+		if(GameServer()->m_pPveDirector)
+			Cost = GameServer()->m_pPveDirector->ModifyBuildingCost(GetPlayer()->GetCID(), Cost);
 		if (m_Kits < Cost)
 			return false;
 		
 		m_Kits -= Cost;
 		
 		vec2 p = pNear->m_Pos;
+		const int OriginalKitCost = pNear->m_PveKitCost;
 		GameServer()->m_World.DestroyEntity(pNear);
 		
 		int Team = GetPlayer()->GetTeam();
@@ -912,6 +908,8 @@ bool CCharacter::UpgradeTurret(vec2 Pos, vec2 Dir, int Slot)
 		
 		pWeapon->SetOwner(GetPlayer()->GetCID());
 		CTurret *pTurret = new CTurret(&GameServer()->m_World, p, Team, pWeapon);
+		pTurret->m_PveBuilder = GetPlayer()->GetCID();
+		pTurret->m_PveKitCost = OriginalKitCost + Cost;
 		pTurret->SetAngle(Dir);
 				
 		// sound
@@ -1213,8 +1211,6 @@ void CCharacter::GiveStartWeapon()
 		
 		// load saved weapons
 		CPlayerData *pData = GameServer()->Server()->GetPlayerData(GetPlayer()->GetCID(), GetPlayer()->GetColorID());
-		pData->LoadDataFromFile();
-		
 		bool GotItems = false;
 		
 		for (int i = 0; i < NUM_SLOTS; i++)
@@ -1237,14 +1233,6 @@ void CCharacter::GiveStartWeapon()
 		GetPlayer()->m_Score = pData->m_Score;
 		GetPlayer()->m_Gold = pData->m_Gold;
 
-		if (pData->m_UnlockFlags & UNLOCK_EXTRA_KITS)
-			m_Kits = max(m_Kits, 8);
-		if ((pData->m_UnlockFlags & UNLOCK_DEFEND_BONUS) && InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_REACTOR_DEFEND)
-			m_Kits = max(m_Kits, 15);
-		if (pData->m_UnlockFlags & UNLOCK_WEAPON_TIER1)
-			SetArmor(max(GetArmor(), 5));
-		if (pData->m_UnlockFlags & UNLOCK_WEAPON_TIER2)
-			SetArmor(max(GetArmor(), 10));
 		if (CGameControllerInvasion *pInv = dynamic_cast<CGameControllerInvasion*>(GameServer()->m_pController))
 		{
 			if (pInv->RunBuffActive())
@@ -1416,11 +1404,14 @@ void CCharacter::UseKit(int Kit, vec2 Pos)
 	if (Kit < 0 || Kit >= NUM_BUILDABLES)
 		return;
 		
-	if (m_Kits >= BuildableCost[Kit])
+	int Cost = BuildableCost[Kit];
+	if(GameServer()->m_pPveDirector)
+		Cost = GameServer()->m_pPveDirector->ModifyBuildingCost(GetPlayer()->GetCID(), Cost);
+	if (m_Kits >= Cost)
 	{
-		if (GameServer()->AddBuilding(Kit, Pos, GetPlayer()->GetCID()))
+		if (GameServer()->AddBuilding(Kit, Pos, GetPlayer()->GetCID(), Cost))
 		{
-			m_Kits -= BuildableCost[Kit];
+			m_Kits -= Cost;
 			GameServer()->CreateSound(Pos, SOUND_BUILD);
 		}
 	}
@@ -1718,6 +1709,7 @@ void CCharacter::Tick()
 		return;
 	
 	m_Core.m_Input = m_Input;
+	m_Core.m_MoveSpeedMultiplier = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->MovementMultiplier(GetPlayer()->GetCID()) : 1.0f;
 
 	float RecoilCap = 17.5f;
 	
@@ -1933,6 +1925,8 @@ void CCharacter::SetArmor(int Armor)
 
 void CCharacter::SetHealth(int Health)
 {
+	if(m_IsBot && GameServer()->m_pPveDirector)
+		Health = max(1, (int)(Health * GameServer()->m_pPveDirector->EnemyHealthMultiplier() + 0.5f));
 	m_MaxHealth = Health;
 	m_HiddenHealth = Health;
 }
@@ -1949,6 +1943,8 @@ bool CCharacter::IncreaseHealth(int Amount)
 	
 	if (GetMask() == 4)
 		Amount *= 2;
+	if(GameServer()->m_pPveDirector && !m_IsBot)
+		Amount = GameServer()->m_pPveDirector->ModifyRecovery(GetPlayer()->GetCID(), Amount, true);
 	
 	m_HiddenHealth = clamp(m_HiddenHealth+Amount, 0, m_MaxHealth);
 	
@@ -2022,6 +2018,8 @@ bool CCharacter::IncreaseArmor(int Amount)
 	
 	if (GetMask() == 4)
 		Amount *= 2;
+	if(GameServer()->m_pPveDirector && !m_IsBot)
+		Amount = GameServer()->m_pPveDirector->ModifyRecovery(GetPlayer()->GetCID(), Amount, false);
 		
 	m_Armor = clamp(m_Armor+Amount, 0, 100);
 	return true;
@@ -2260,6 +2258,9 @@ bool CCharacter::TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos)
 	// damage reduction for invasion
 	if (Dmg > 0 && GameServer()->m_pController->IsCoop() && !m_IsBot)
 		Dmg = max(1, Dmg/2);
+
+	if(Dmg > 0 && GameServer()->m_pPveDirector)
+		Dmg = GameServer()->m_pPveDirector->ModifyDamage(From, m_pPlayer->GetCID(), Weapon, Dmg);
 	
 	if (From == m_pPlayer->GetCID())
 	{
@@ -2349,6 +2350,8 @@ bool CCharacter::TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos)
 				m_Armor -= ArmorDmg;
 				Dmg -= ArmorDmg;
 			}
+			if(Dmg >= m_HiddenHealth && GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->UseLastStand(m_pPlayer->GetCID()))
+				Dmg = max(0, m_HiddenHealth - 1);
 			
 			m_HiddenHealth -= Dmg + (g_Config.m_SvOneHitKill ? 1000 : 0);
 			
@@ -2617,4 +2620,3 @@ void CCharacter::Snap(int SnappingClient)
 	//else
 		pCharacter->m_PlayerFlags = GetPlayer()->m_PlayerFlags;
 }
-

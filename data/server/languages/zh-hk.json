@@ -699,6 +699,50 @@
         {
             "key": "You must wait %d seconds before making another vote",
             "value": "你必須等待 %d 秒後才能發起另一投票"
+        },
+        {
+            "key": "Contract completed: +1 research point",
+            "value": "契約完成：+1 研究點"
+        },
+        {
+            "key": "Contract failed",
+            "value": "契約失敗"
+        },
+        {
+            "key": "Contract vote timed out; a valid option was selected",
+            "value": "契約投票逾時；已從有效選項中選定一項"
+        },
+        {
+            "key": "Perk choice timed out; displayed options were selected at random",
+            "value": "強化選擇逾時；已從顯示選項中隨機選擇"
+        },
+        {
+            "key": "PvE selection rejected: choice was not offered",
+            "value": "PvE 選擇被拒絕：該選項未向你顯示"
+        },
+        {
+            "key": "PvE selection rejected: duplicate choice",
+            "value": "PvE 選擇被拒絕：重複提交"
+        },
+        {
+            "key": "PvE selection rejected: expired choice",
+            "value": "PvE 選擇被拒絕：選擇已過期"
+        },
+        {
+            "key": "PvE selection rejected: invalid progression",
+            "value": "PvE 選擇被拒絕：研究進度無效"
+        },
+        {
+            "key": "PvE selection rejected: out-of-range value",
+            "value": "PvE 選擇被拒絕：數值越界"
+        },
+        {
+            "key": "Research reward: +%d point(s)",
+            "value": "研究獎勵：+%d 點"
+        },
+        {
+            "key": "Team contract started",
+            "value": "團隊契約已開始"
         }
     ]
 }

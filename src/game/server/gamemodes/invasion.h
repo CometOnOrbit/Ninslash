@@ -4,17 +4,6 @@
 
 #define MAX_ENEMIES 512
 
-enum
-{
-	UNLOCK_EXTRA_KITS = 1<<0,
-	UNLOCK_WEAPON_TIER1 = 1<<1,
-	UNLOCK_WEAPON_TIER2 = 1<<2,
-	UNLOCK_DEFEND_BONUS = 1<<3,
-	UNLOCK_GOLD_BONUS = 1<<4,
-	UNLOCK_SHOP_TIER = 1<<5,
-};
-
-
 class CGameControllerInvasion : public IGameController
 {
 private:
@@ -44,17 +33,15 @@ private:
 	void SetupLevelTheme();
 	void StartThemeQuest();
 	void QueueNextObjectiveQuest();
+	void SpawnEliteContractGuard();
 	void SpawnBosses(int Count);
 	int CountBossesAlive() const;
 	int CountBuildingsOfType(int Type) const;
 	int ReactorsLeft() const;
 	int SwitchesAvailable() const;
+	void SetSwitchesActive(bool Active);
 	int CountHumansAlive(int ExcludeCID = -1) const;
-	void ApplyMetaUnlocks(class CCharacter *pChr);
-	void GrantMetaUnlocks();
-	void SyncProgressLevel();
 	void RewardQuestGold();
-	void SendUnlockBroadcast(class CPlayerData *pData, int NewFlags);
 
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 	
@@ -93,7 +80,13 @@ private:
 	int m_WaveSizeNerf;
 	bool m_RunBuffActive;
 	bool m_ProgressSynced;
+	int m_RogueliteWaitTick;
 	bool m_StartBriefingSent;
+	bool m_RogueliteOpeningStarted;
+	bool m_RogueliteStageStarted;
+	bool m_RogueliteCompletionStarted;
+	bool m_EliteContractSpawned;
+	bool m_CheckpointApplied;
 	
 	bool m_AutoRestart;
 	
@@ -118,6 +111,8 @@ public:
 	void DisplayExit(vec2 Pos);
 	
 	bool RunBuffActive() const { return m_RunBuffActive; }
+	bool IsObjectiveTarget(bool Boss) const;
+	bool IsFinalObjective() const { return m_LevelQuestsLeft > 0 && m_QuestsCompleted >= m_LevelQuestsLeft - 1; }
 	
 	enum GameState
 	{

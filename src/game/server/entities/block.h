@@ -20,6 +20,9 @@ public:
 	int m_Life;
 	int m_MaxLife;
 	int m_DestroyTick;
+	int m_PveBuilder;
+	int m_PveKitCost;
+	bool m_PveRefunded;
 	
 	bool m_aSnapped[MAX_CLIENTS];
 	int m_aSnapTimer[MAX_CLIENTS];

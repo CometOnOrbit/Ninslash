@@ -16,6 +16,7 @@
 #include <game/client/components/controls.h>
 #include <game/client/components/camera.h>
 #include <game/client/components/effects.h>
+#include <game/client/components/pve_roguelite.h>
 #include <game/client/components/sounds.h>
 #include "inventory.h"
 
@@ -703,7 +704,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 					RenderTools()->SelectSprite(SPRITE_PICKUP_KIT);
 					RenderTools()->DrawSprite(p.x, p.y, s*3.0f);
 					
-					int Cost = BuildableCost[x+y*4];
+					int Cost = m_pClient->m_pPveRoguelite->BuildingCost(BuildableCost[x+y*4]);
 					
 					if (x+y*4 == Selected)
 					{
@@ -1072,7 +1073,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 		{
 			int LocalKits = clamp(CustomStuff()->m_LocalKits ,0, 99);
 			
-			if (LocalKits >= BuildableCost[Selected])
+			if (LocalKits >= m_pClient->m_pPveRoguelite->BuildingCost(BuildableCost[Selected]))
 			{
 				m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV4, 0);
 				m_pClient->m_pControls->m_SelectedBuilding = Selected+1;
@@ -1871,6 +1872,36 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 			Graphics()->QuadsEnd();
 		}
 	}
+	{
+		vec2 fp = p+vec2(0, 62);
+		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUI_WINDOW1].m_Id);
+		Graphics()->QuadsBegin();
+		if (pCurrent->m_Item5 && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
+		{
+			m_SelectedShopItem = 5;
+			Graphics()->SetColor(0.3f, 1.0f, 0.3f, 0.5f);
+		}
+		else
+			Graphics()->SetColor(0.0f, 1.0f, 1.0f, 0.5f);
+		RenderTools()->SelectSprite(SPRITE_GUI_SELECT3);
+		RenderTools()->DrawSprite(fp.x, fp.y, Size*8);
+		Graphics()->QuadsEnd();
+		if (pCurrent->m_Item5)
+		{
+			RenderTools()->SetShadersForWeapon(pCurrent->m_Item5);
+			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
+			Graphics()->QuadsBegin();
+			Graphics()->QuadsSetRotation(0);
+			RenderTools()->RenderWeapon(pCurrent->m_Item5, fp, vec2(1, 0), Size);
+			Graphics()->QuadsEnd();
+			Graphics()->ShaderEnd();
+			Graphics()->QuadsBegin();
+			Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+			RenderTools()->SelectSprite(SPRITE_PICKUP_COIN);
+			RenderTools()->DrawSprite(fp.x-18, fp.y-20, 48);
+			Graphics()->QuadsEnd();
+		}
+	}
 	
 	TextRender()->TextColor(0.7f, 0.7f, 0.7f, 1);
 		
@@ -1878,7 +1909,7 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 	if (pCurrent->m_Item1)
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d", GetWeaponCost(pCurrent->m_Item1));
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item1)));
 	
 		vec2 fp = p+vec2(-85, 25);
 		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
@@ -1886,7 +1917,7 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 	if (pCurrent->m_Item2)
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d", GetWeaponCost(pCurrent->m_Item2));
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item2)));
 	
 		vec2 fp = p+vec2(-35, -20);
 		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
@@ -1894,7 +1925,7 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 	if (pCurrent->m_Item3)
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d", GetWeaponCost(pCurrent->m_Item3));
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item3)));
 	
 		vec2 fp = p+vec2(35, -20);
 		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
@@ -1902,9 +1933,16 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 	if (pCurrent->m_Item4)
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d", GetWeaponCost(pCurrent->m_Item4));
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item4)));
 	
 		vec2 fp = p+vec2(+85, 25);
+		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
+	}
+	if (pCurrent->m_Item5)
+	{
+		char aBuf[64];
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item5)));
+		vec2 fp = p+vec2(0, 62);
 		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
 	}
 	

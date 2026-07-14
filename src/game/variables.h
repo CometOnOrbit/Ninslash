@@ -159,9 +159,6 @@ MACRO_CONFIG_INT(SvBroadcastLock, sv_broadcastlock, 3, 0, 5, CFGFLAG_SERVER, "Br
 
 MACRO_CONFIG_INT(SvRandomMaps, sv_random_maps, 1, 0, 1, CFGFLAG_SERVER, "Random select map in maps list (1 = on, 0 = off)")
 
-MACRO_CONFIG_INT(SvSavePlayerdata, sv_save_playerdata, 0, 0, 1, CFGFLAG_SERVER, "Save player data to a file")
-
-
 // debug
 #ifdef CONF_DEBUG // this one can crash the server if not used correctly
 	MACRO_CONFIG_INT(DbgDummies, dbg_dummies, 0, 0, 15, CFGFLAG_SERVER, "")

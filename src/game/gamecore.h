@@ -446,6 +446,7 @@ public:
 	int m_Jumped;
 	
 	int m_Health;
+	float m_MoveSpeedMultiplier;
 
 	// for animation, not syncronized
 	int m_JumpTimer;

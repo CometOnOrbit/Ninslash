@@ -2,6 +2,7 @@
 
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
+#include <game/server/pve_director.h>
 
 #include "block.h"
 
@@ -20,6 +21,9 @@ CBlock::CBlock(CGameWorld *pGameWorld, int Type, vec2 Pos)
 	m_MaxLife = m_Life;
 	
 	m_DestroyTick = 0;
+	m_PveBuilder = -1;
+	m_PveKitCost = 0;
+	m_PveRefunded = false;
 	Sync();
 	GameServer()->Collision()->SetBlock(ivec2(m_Pos.x, m_Pos.y), true);
 	GameServer()->OnBlockChange(m_Pos);
@@ -97,6 +101,11 @@ void CBlock::TakeDamage(int Damage)
 	// snap to clients when dead
 	if (m_Life <= 0)
 	{
+		if(!m_PveRefunded && GameServer()->m_pPveDirector && m_PveBuilder >= 0 && m_PveKitCost > 0)
+		{
+			m_PveRefunded = true;
+			GameServer()->m_pPveDirector->RefundBuilding(m_PveBuilder, m_PveKitCost);
+		}
 		m_Type = 0;
 		m_DestroyTick = Server()->Tick() + Server()->TickSpeed()*3.0f;
 		GameServer()->Collision()->SetBlock(ivec2(m_Pos.x, m_Pos.y), false);

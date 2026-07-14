@@ -17,6 +17,7 @@
 #include <game/client/components/controls.h>
 #include <game/client/components/flow.h>
 #include <game/client/components/effects.h>
+#include <game/client/components/pve_roguelite.h>
 #include <game/client/components/sounds.h>
 #include <game/client/skelebank.h>
 
@@ -414,7 +415,7 @@ void CBuildings2::RenderBuildMode()
 	
 	if (Selected >= 0 && Selected < NUM_BUILDABLES)
 	{
-		int Cost = BuildableCost[Selected];
+		int Cost = m_pClient->m_pPveRoguelite->BuildingCost(BuildableCost[Selected]);
 
 		//if (Cost <= CustomStuff()->m_LocalKits)
 		{
@@ -650,7 +651,6 @@ void CBuildings2::OnRender()
 	
 	RenderBuildMode();
 }
-
 
 
 

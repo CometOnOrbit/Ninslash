@@ -64,11 +64,16 @@ public:
 
 	int m_DamageOwner;
 	int m_DeathTimer;
+	int m_PveBuilder;
+	int m_PveKitCost;
+	bool m_PveRefunded;
+	bool m_PveSwitchActive;
 	
 	bool m_DestructionTriggered;
 	
 	bool Jumppad();
 	void Trigger();
+	void SetPveSwitchActive(bool Active);
 	void TakeDamage(int Damage, int Owner, int Weapon, vec2 Force = vec2(0, 0));
 	void Destroy();
 	

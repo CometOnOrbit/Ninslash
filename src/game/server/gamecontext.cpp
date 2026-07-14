@@ -36,6 +36,7 @@
 #include <game/server/entities/weapon.h>
 
 #include <game/server/playerdata.h>
+#include <game/server/pve_director.h>
 #include <game/server/blockentities.h>
 
 #include <game/server/ai_protocol.h>
@@ -66,6 +67,7 @@ void CGameContext::Construct(int Resetting)
 	m_BroadcastLockTick = 0;
 	
 	m_pController = 0;
+	m_pPveDirector = 0;
 	m_VoteCloseTime = 0;
 	m_pVoteOptionFirst = 0;
 	m_pVoteOptionLast = 0;
@@ -95,6 +97,8 @@ CGameContext::CGameContext()
 
 CGameContext::~CGameContext()
 {
+	delete m_pPveDirector;
+	m_pPveDirector = 0;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		delete m_apPlayers[i];
 	if(!m_Resetting)
@@ -139,12 +143,14 @@ CPlayerSpecData CGameContext::GetPlayerSpecData(int ClientID)
 	return data;
 }
 
-bool CGameContext::RespawnAlly(vec2 Pos, int Team)
+bool CGameContext::RespawnAlly(vec2 Pos, int Team, int Reviver)
 {
 	int Current = -1;
 	int DeathTick = 0;
 	
 	if (m_pController->IsCoop() && Team < 0)
+		return false;
+	if(m_pPveDirector && !m_pPveDirector->RespawnAllowed())
 		return false;
 	
 	if (!Collision()->IsTileSolid(Pos.x-32, Pos.y-24) && !Collision()->IsTileSolid(Pos.x-32, Pos.y+24))
@@ -167,6 +173,13 @@ bool CGameContext::RespawnAlly(vec2 Pos, int Team)
 	if (Current >= 0)
 	{
 		m_apPlayers[Current]->ForceRespawn(Pos);
+		if(m_pPveDirector && Reviver >= 0 && Reviver < MAX_CLIENTS && m_pPveDirector->PerkStacks(Reviver, PVE_CARD_NO_ONE_LEFT))
+		{
+			if(GetPlayerChar(Reviver))
+				GetPlayerChar(Reviver)->IncreaseArmor(20);
+			if(GetPlayerChar(Current))
+				GetPlayerChar(Current)->IncreaseArmor(20);
+		}
 		return true;
 	}
 	
@@ -322,7 +335,7 @@ void CGameContext::OnBlockChange(vec2 Pos)
 }
 	
 	
-bool CGameContext::AddBlock(int Type, vec2 Pos)
+bool CGameContext::AddBlock(int Type, vec2 Pos, int Owner, int KitCost)
 {
 	if (!BuildableSpot(Pos))
 		return false;
@@ -339,7 +352,9 @@ bool CGameContext::AddBlock(int Type, vec2 Pos)
 	}
 	
 	// add new one
-	new CBlock(&m_World, Type, Pos);
+	CBlock *pBlock = new CBlock(&m_World, Type, Pos);
+	pBlock->m_PveBuilder = Owner;
+	pBlock->m_PveKitCost = KitCost;
 	return true;
 }
 
@@ -398,13 +413,15 @@ CWeapon *CGameContext::NewWeapon(int Weapon)
 }
 
 
-bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner)
+bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner, int PaidCost)
 {
 	//float OffsetY = -(int(Pos.y)%32) + 12;
 	float CheckRange = 40.0f;
 	
 	if (!g_Config.m_SvEnableBuilding)
 		return false;
+	if(PaidCost < 0 && Kit >= 0 && Kit < NUM_BUILDABLES)
+		PaidCost = BuildableCost[Kit];
 	
 	
 	if (Kit == BUILDABLE_BLOCK1 || Kit == BUILDABLE_BLOCK2)
@@ -432,26 +449,32 @@ bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner)
 	
 
 	if (Kit == BUILDABLE_BLOCK1)
-		return AddBlock(1, Pos);
+		return AddBlock(1, Pos, Owner, PaidCost);
 	
 	if (Kit == BUILDABLE_BLOCK2)
-		return AddBlock(4, Pos);
+		return AddBlock(4, Pos, Owner, PaidCost);
 	
 	if (Kit == BUILDABLE_BARREL)
 	{
-		new CBuilding(&m_World, Pos, BUILDING_BARREL+rand()%3, TEAM_NEUTRAL);
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_BARREL+rand()%3, TEAM_NEUTRAL);
+		pBuilding->m_PveBuilder = Owner;
+		pBuilding->m_PveKitCost = PaidCost;
 		return true;
 	}
 
 	if (Kit == BUILDABLE_POWERBARREL)
 	{
-		new CBuilding(&m_World, Pos, BUILDING_POWERBARREL+rand()%2, TEAM_NEUTRAL);
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_POWERBARREL+rand()%2, TEAM_NEUTRAL);
+		pBuilding->m_PveBuilder = Owner;
+		pBuilding->m_PveKitCost = PaidCost;
 		return true;
 	}
 
 	if (Kit == BUILDABLE_TURRET)
 	{
-			new CBuilding(&m_World, Pos+vec2(0, 8), BUILDING_STAND, TEAM_NEUTRAL);
+			CBuilding *pBuilding = new CBuilding(&m_World, Pos+vec2(0, 8), BUILDING_STAND, TEAM_NEUTRAL);
+			pBuilding->m_PveBuilder = Owner;
+			pBuilding->m_PveKitCost = PaidCost;
 			return true;
 	}
 	
@@ -461,7 +484,9 @@ bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner)
 		if (!m_pController->IsTeamplay())
 			Team = m_apPlayers[Owner]->GetCID();
 		
-		new CBuilding(&m_World, Pos+vec2(0, -14), BUILDING_LIGHTNINGWALL, Team);
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos+vec2(0, -14), BUILDING_LIGHTNINGWALL, Team);
+		pBuilding->m_PveBuilder = Owner;
+		pBuilding->m_PveKitCost = PaidCost;
 		return true;
 	}
 	
@@ -473,6 +498,8 @@ bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner)
 		
 		CTeslacoil *Tesla = new CTeslacoil(&m_World, Pos+vec2(0, +35), Team, Owner);
 		Tesla->m_DamageOwner = Owner;
+		Tesla->m_PveBuilder = Owner;
+		Tesla->m_PveKitCost = PaidCost;
 		return true;
 	}
 	
@@ -482,13 +509,17 @@ bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner)
 		if (!m_pController->IsTeamplay())
 			Team = m_apPlayers[Owner]->GetCID();
 		
-		new CBuilding(&m_World, Pos+vec2(0, -34), BUILDING_GENERATOR, Team);
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos+vec2(0, -34), BUILDING_GENERATOR, Team);
+		pBuilding->m_PveBuilder = Owner;
+		pBuilding->m_PveKitCost = PaidCost;
 		return true;
 	}
 	
 	if (Kit == BUILDABLE_FLAMETRAP)
 	{
 			CBuilding *pFlametrap = new CBuilding(&m_World, Pos+vec2(0, -18), BUILDING_FLAMETRAP, TEAM_NEUTRAL);
+			pFlametrap->m_PveBuilder = Owner;
+			pFlametrap->m_PveKitCost = PaidCost;
 			
 			if (Collision()->IsTileSolid(Pos.x+32, Pos.y))
 			{
@@ -684,6 +715,8 @@ void CGameContext::CreateMeleeHit(int DamageOwner, int Weapon, float Dmg, vec2 P
 				CreateEffect(FX_BLOOD1, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
 		}
 	}
+	if(m_pPveDirector)
+		m_pPveDirector->OnMeleeAttack(DamageOwner, Weapon, Pos, max(1, (int)(Damage * Dmg + 0.5f)));
 }
 
 
@@ -884,7 +917,9 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		return;
 	
 	CCharacter *apEnts[MAX_CLIENTS];
-	const float Radius = GetExplosionSize(Weapon)*0.7f;
+	float Radius = GetExplosionSize(Weapon)*0.7f;
+	if(m_pPveDirector)
+		Radius = m_pPveDirector->ModifyExplosionRadius(Owner, Radius);
 	//const float InnerRadius = Radius < 200.0f ? Radius*(0.5f + (200.0f-Radius)/400.0f) : Radius*0.5f;
 	const float InnerRadius = Radius*0.5f;
 	
@@ -1179,31 +1214,6 @@ void CGameContext::ResetGameVotes()
 	m_WinnerVote = -1;
 	for(int i = 0; i < MAX_GAME_VOTES; i++)
 		m_aGameVote[i].m_Valid = false;
-	
-	// define the level for invasion
-	int PlayerCount = 0;
-	int TotalLevel = 0;
-	
-	for (int i = 0; i < MAX_CLIENTS; i++)
-	{
-		CPlayer *pPlayer = m_apPlayers[i];
-		if (pPlayer && !pPlayer->m_IsBot)
-		{
-			CPlayerData *pData = Server()->GetPlayerData(pPlayer->GetCID(), pPlayer->GetColorID());
-			
-			TotalLevel += max(1, pData->m_HighestLevel);
-			PlayerCount++;
-		}
-	}
-	
-	/*
-	int InvLevel = 1;
-	
-	if (PlayerCount > 0)
-		InvLevel = TotalLevel / PlayerCount;
-
-	g_Config.m_SvMapGenLevel = InvLevel;
-	*/
 	
 	while(m_NumGameVotes < MAX_GAME_VOTES)
 	{
@@ -1714,6 +1724,8 @@ void CGameContext::OnTick()
 	m_World.m_Core.m_Tuning = m_Tuning;
 	m_World.m_Core.ClearImpacts();
 	m_World.m_Core.ClearDroids();
+	if(m_pPveDirector)
+		m_pPveDirector->Tick();
 	m_World.Tick();
 
 	//if(world.paused) // make sure that the game object always updates
@@ -1892,6 +1904,8 @@ void CGameContext::OnClientEnter(int ClientID)
 {
 	//world.insert_entity(&players[client_id]);
 	m_apPlayers[ClientID]->Respawn();
+	if(m_pPveDirector)
+		m_pPveDirector->OnClientEnter(ClientID);
 	SendChatTarget(-1, "'%s' joined the fun", Server()->ClientName(ClientID));
 
 	char aBuf[512];
@@ -1987,6 +2001,11 @@ bool CGameContext::Shop(CPlayer *pPlayer, int Slot, bool AI)
 {
 	if (!pPlayer->GetCharacter())
 		return false;
+	if(m_pPveDirector && !m_pPveDirector->ShopsAllowed())
+	{
+		CreateSoundGlobal(SOUND_GUI_DENIED1, pPlayer->GetCID());
+		return false;
+	}
 	
 	vec2 Pos = pPlayer->GetCharacter()->m_Pos;
 	
@@ -1997,24 +2016,24 @@ bool CGameContext::Shop(CPlayer *pPlayer, int Slot, bool AI)
 	{
 		CBuilding *pTarget = apEnts[i];
 		
-		if (pTarget->m_Type == BUILDING_SHOP && abs(Pos.x - pTarget->m_Pos.x) < 100 && abs(Pos.y - pTarget->m_Pos.y) < 100)
-		{
-			int Item = pTarget->GetItem(Slot);
+			if (pTarget->m_Type == BUILDING_SHOP && abs(Pos.x - pTarget->m_Pos.x) < 100 && abs(Pos.y - pTarget->m_Pos.y) < 100)
+			{
+				if(Slot == 4 && (!m_pPveDirector || !m_pPveDirector->PerkStacks(pPlayer->GetCID(), PVE_CARD_PREMIUM_STOCK)))
+					continue;
+				int Item = pTarget->GetItem(Slot);
 			
 			if (Item)
 			{
 				int Cost = GetWeaponCost(Item);
-				if (str_comp(g_Config.m_SvGametype, "coop") == 0)
-				{
-					CPlayerData *pData = Server()->GetPlayerData(pPlayer->GetCID(), pPlayer->GetColorID());
-					if (pData && (pData->m_UnlockFlags & UNLOCK_SHOP_TIER))
-						Cost = max(1, Cost*3/4);
-				}
+				if(m_pPveDirector)
+					Cost = m_pPveDirector->ModifyShopCost(pPlayer->GetCID(), Cost);
 				if ((!AI || GetStaticType(Item) != SW_UPGRADE) && pPlayer->GetGold() >= Cost)
 				{
 					if (pPlayer->GetCharacter()->GiveWeapon(NewWeapon(Item)))
 					{
 						pPlayer->ReduceGold(Cost);
+						if(m_pPveDirector)
+							m_pPveDirector->OnGoldSpent(pPlayer->GetCID(), Cost);
 						pPlayer->GetCharacter()->SendInventory();
 						pTarget->ClearItem(Slot);
 						
@@ -2036,6 +2055,8 @@ bool CGameContext::Shop(CPlayer *pPlayer, int Slot, bool AI)
 
 void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 {
+	if(m_pPveDirector)
+		m_pPveDirector->OnClientDrop(ClientID);
 	AbortVoteKickOnDisconnect(ClientID);
 	m_apPlayers[ClientID]->OnDisconnect(pReason);
 	delete m_apPlayers[ClientID];
@@ -2070,7 +2091,39 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 	if(Server()->ClientIngame(ClientID))
 	{
-		if(MsgID == NETMSGTYPE_CL_SAY)
+		if(MsgID == NETMSGTYPE_CL_PVEPROGRESS)
+		{
+			CNetMsg_Cl_PveProgress *pMsg = (CNetMsg_Cl_PveProgress *)pRawMsg;
+			if(m_pPveDirector)
+				m_pPveDirector->OnProgress(ClientID, pMsg->m_Version, pMsg->m_ResearchPoints,
+					pMsg->m_ResearchMask0, pMsg->m_ResearchMask1, pMsg->m_ResearchMask2, pMsg->m_ResearchMask3,
+					pMsg->m_HighestInvasion, pMsg->m_PreferredCheckpoint);
+		}
+		else if(MsgID == NETMSGTYPE_CL_PVECHOICE)
+		{
+			CNetMsg_Cl_PveChoice *pMsg = (CNetMsg_Cl_PveChoice *)pRawMsg;
+			if(m_pPveDirector)
+				m_pPveDirector->OnChoice(ClientID, pMsg->m_Nonce, pMsg->m_Card);
+		}
+		else if(MsgID == NETMSGTYPE_CL_PVECONTRACTVOTE)
+		{
+			CNetMsg_Cl_PveContractVote *pMsg = (CNetMsg_Cl_PveContractVote *)pRawMsg;
+			if(m_pPveDirector)
+				m_pPveDirector->OnContractVote(ClientID, pMsg->m_Nonce, pMsg->m_Contract);
+		}
+		else if(MsgID == NETMSGTYPE_CL_PVERESEARCHBUY)
+		{
+			CNetMsg_Cl_PveResearchBuy *pMsg = (CNetMsg_Cl_PveResearchBuy *)pRawMsg;
+			if(m_pPveDirector)
+				m_pPveDirector->OnResearchBuy(ClientID, pMsg->m_Nonce, pMsg->m_Card);
+		}
+		else if(MsgID == NETMSGTYPE_CL_PVEDRONEMODULE)
+		{
+			CNetMsg_Cl_PveDroneModule *pMsg = (CNetMsg_Cl_PveDroneModule *)pRawMsg;
+			if(m_pPveDirector)
+				m_pPveDirector->OnDroneModule(ClientID, pMsg->m_Nonce, pMsg->m_Module);
+		}
+		else if(MsgID == NETMSGTYPE_CL_SAY)
 		{
 			if(g_Config.m_SvSpamprotection && pPlayer->m_LastChat && pPlayer->m_LastChat+Server()->TickSpeed() > Server()->Tick())
 				return;
@@ -3161,6 +3214,8 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 		m_pController = new CGameControllerRoam(this);
 	else
 		m_pController = new CGameControllerDM(this);
+
+	m_pPveDirector = new CPveDirector(this);
 	
 	//if (str_comp(g_Config.m_SvGametype, "coop") != 0)
 	//	Server()->ResetPlayerData();
@@ -3244,19 +3299,14 @@ void CGameContext::OnShutdown()
 {
 	KickBots();
 	
-	if (str_comp(m_pController->m_pGameType, "INV") == 0)
-	{
-		for (int i = 0; i < MAX_CLIENTS; i++)
-			if (m_apPlayers[i])
-				m_apPlayers[i]->SaveData();
-	}
-	
 	if (m_pBlockEntities)
 	{
 		delete m_pBlockEntities;
 		m_pBlockEntities = NULL;
 	}
 	
+	delete m_pPveDirector;
+	m_pPveDirector = 0;
 	delete m_pController;
 	m_pController = 0;
 	Clear();

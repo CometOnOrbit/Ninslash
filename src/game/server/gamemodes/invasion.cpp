@@ -12,6 +12,7 @@
 #include <game/server/player.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gameworld.h>
+#include <game/server/pve_director.h>
 
 #include "invasion.h"
 
@@ -99,7 +100,13 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_WaveSizeNerf = 0;
 	m_RunBuffActive = false;
 	m_ProgressSynced = false;
+	m_RogueliteWaitTick = 0;
 	m_StartBriefingSent = false;
+	m_RogueliteOpeningStarted = false;
+	m_RogueliteStageStarted = false;
+	m_RogueliteCompletionStarted = false;
+	m_EliteContractSpawned = false;
+	m_CheckpointApplied = false;
 	
 	m_TriggerLevel = 0;
 	m_GroupSpawnPos = vec2(0, 0);
@@ -207,6 +214,14 @@ void CGameControllerInvasion::SetupLevelTheme()
 
 bool CGameControllerInvasion::OnEntity(int Index, vec2 Pos)
 {
+	// Invasion switches are objective entities. Keep them absent from snapshots
+	// and collision until the matching quest actually becomes active.
+	if(Index == ENTITY_SWITCH)
+	{
+		CBuilding *pSwitch = new CBuilding(&GameServer()->m_World, Pos + vec2(0, -10), BUILDING_SWITCH, TEAM_NEUTRAL);
+		pSwitch->SetPveSwitchActive(false);
+		return true;
+	}
 	if (IGameController::OnEntity(Index, Pos))
 		return true;
 
@@ -319,75 +334,6 @@ int CGameControllerInvasion::CountHumansAlive(int ExcludeCID) const
 }
 
 
-void CGameControllerInvasion::ApplyMetaUnlocks(CCharacter *pChr)
-{
-	if (!pChr || pChr->m_IsBot)
-		return;
-
-	CPlayer *pPlayer = pChr->GetPlayer();
-	if (!pPlayer)
-		return;
-
-	CPlayerData *pData = GameServer()->Server()->GetPlayerData(pPlayer->GetCID(), pPlayer->GetColorID());
-	if (!pData)
-		return;
-
-	if (pData->m_UnlockFlags & UNLOCK_EXTRA_KITS)
-		pChr->m_Kits = max(pChr->m_Kits, 8);
-	if ((pData->m_UnlockFlags & UNLOCK_DEFEND_BONUS) && m_DefendLevel)
-		pChr->m_Kits = max(pChr->m_Kits, 15);
-	if (pData->m_UnlockFlags & UNLOCK_WEAPON_TIER1)
-		pChr->SetArmor(max(pChr->GetArmor(), 5));
-	if (pData->m_UnlockFlags & UNLOCK_WEAPON_TIER2)
-		pChr->SetArmor(max(pChr->GetArmor(), 10));
-	if (m_RunBuffActive)
-		pChr->m_Kits = max(pChr->m_Kits, 6);
-}
-
-
-void CGameControllerInvasion::SendUnlockBroadcast(CPlayerData *pData, int NewFlags)
-{
-	if (!pData)
-		return;
-	if (NewFlags & UNLOCK_EXTRA_KITS)
-		GameServer()->SendBroadcast("Milestone: extra kits unlocked", -1);
-	if (NewFlags & UNLOCK_WEAPON_TIER1)
-		GameServer()->SendBroadcast("Milestone: armor tier 1 unlocked", -1);
-	if (NewFlags & UNLOCK_DEFEND_BONUS)
-		GameServer()->SendBroadcast("Milestone: defend bonus unlocked", -1);
-	if (NewFlags & UNLOCK_WEAPON_TIER2)
-		GameServer()->SendBroadcast("Milestone: armor tier 2 unlocked", -1);
-	if (NewFlags & UNLOCK_GOLD_BONUS)
-		GameServer()->SendBroadcast("Milestone: gold bonus unlocked", -1);
-	if (NewFlags & UNLOCK_SHOP_TIER)
-		GameServer()->SendBroadcast("Milestone: shop tier unlocked", -1);
-}
-
-
-void CGameControllerInvasion::SyncProgressLevel()
-{
-	int TotalLevel = 0;
-	int PlayerCount = 0;
-	for (int i = 0; i < MAX_CLIENTS; i++)
-	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if (!pPlayer || pPlayer->m_IsBot)
-			continue;
-		CPlayerData *pData = GameServer()->Server()->GetPlayerData(i, pPlayer->GetColorID());
-		if (!pData)
-			continue;
-		TotalLevel += max(1, pData->m_HighestLevel);
-		PlayerCount++;
-	}
-	if (PlayerCount > 0)
-	{
-		int Suggested = max(1, TotalLevel / PlayerCount);
-		if (g_Config.m_SvMapGenLevel < Suggested)
-			g_Config.m_SvMapGenLevel = Suggested;
-	}
-}
-
-
 void CGameControllerInvasion::RewardQuestGold()
 {
 	int Gold = 5 + g_Config.m_SvMapGenLevel/5;
@@ -398,51 +344,7 @@ void CGameControllerInvasion::RewardQuestGold()
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
 		if (!pPlayer || pPlayer->m_IsBot)
 			continue;
-		CPlayerData *pData = GameServer()->Server()->GetPlayerData(i, pPlayer->GetColorID());
-		int Bonus = 0;
-		if (pData && (pData->m_UnlockFlags & UNLOCK_GOLD_BONUS))
-			Bonus = Gold/2;
-		pPlayer->IncreaseGold(Gold + Bonus);
-	}
-}
-
-
-void CGameControllerInvasion::GrantMetaUnlocks()
-{
-	int Level = g_Config.m_SvMapGenLevel;
-	for (int i = 0; i < MAX_CLIENTS; i++)
-	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if (!pPlayer || pPlayer->m_IsBot)
-			continue;
-
-		CPlayerData *pData = GameServer()->Server()->GetPlayerData(i, pPlayer->GetColorID());
-		if (!pData)
-			continue;
-
-		if (Level > pData->m_HighestLevel)
-		{
-			pData->m_HighestLevel = Level;
-			pData->m_HighestLevelSeed = g_Config.m_SvMapGenSeed;
-		}
-
-		int OldFlags = pData->m_UnlockFlags;
-		if (pData->m_HighestLevel >= 10)
-			pData->m_UnlockFlags |= UNLOCK_EXTRA_KITS;
-		if (pData->m_HighestLevel >= 20)
-			pData->m_UnlockFlags |= UNLOCK_WEAPON_TIER1;
-		if (pData->m_HighestLevel >= 30)
-			pData->m_UnlockFlags |= UNLOCK_DEFEND_BONUS;
-		if (pData->m_HighestLevel >= 40)
-			pData->m_UnlockFlags |= UNLOCK_WEAPON_TIER2;
-		if (pData->m_HighestLevel >= 50)
-			pData->m_UnlockFlags |= UNLOCK_GOLD_BONUS;
-		if (pData->m_HighestLevel >= 60)
-			pData->m_UnlockFlags |= UNLOCK_SHOP_TIER;
-
-		int NewFlags = pData->m_UnlockFlags & ~OldFlags;
-		if (NewFlags)
-			SendUnlockBroadcast(pData, NewFlags);
+		pPlayer->IncreaseGold(Gold);
 	}
 }
 
@@ -453,6 +355,8 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 
 	if (!RequestAI)
 	{
+		if(GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->OnPlayerSpawn(pChr->GetPlayer()->GetCID());
 		if (m_DefendLevel)
 			pChr->m_Kits = max(pChr->m_Kits, 10);
 		return;
@@ -579,6 +483,8 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	{
 		m_QuestWaveEndTick = 0;
 		m_QuestWaveEnemiesLeft = min(int(8+Level*2), 50)*(1.0f + (Players-1)*0.2f);
+		if(GameServer()->m_pPveDirector)
+			m_QuestWaveEnemiesLeft = (int)(m_QuestWaveEnemiesLeft * GameServer()->m_pPveDirector->EnemyCountMultiplier() + 0.5f);
 		m_QuestWaveSize = WaveCap;
 		m_EnemiesLeft = m_QuestWaveEnemiesLeft;
 	}
@@ -628,6 +534,14 @@ int CGameControllerInvasion::CountBossesAlive() const
 	return CountAliveBosses(&GameServer()->m_World);
 }
 
+bool CGameControllerInvasion::IsObjectiveTarget(bool Boss) const
+{
+	if(m_Quest == QUEST_KILL_BOSS)
+		return Boss;
+	return m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME ||
+		m_Quest == QUEST_KILLREMAININGENEMIES || m_Quest == QUEST_DEFEND;
+}
+
 
 int CGameControllerInvasion::CountBuildingsOfType(int Type) const
 {
@@ -654,13 +568,24 @@ int CGameControllerInvasion::SwitchesAvailable() const
 	return CountBuildingsOfType(BUILDING_SWITCH);
 }
 
+void CGameControllerInvasion::SetSwitchesActive(bool Active)
+{
+	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+		if(pBuilding->m_Type == BUILDING_SWITCH)
+			pBuilding->SetPveSwitchActive(Active);
+}
+
 
 int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	if(!pVictim->m_IsBot && GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnPlayerDeath(pVictim->GetPlayer()->GetCID());
 
 	if (pVictim->m_IsBot && !pVictim->GetPlayer()->m_ToBeKicked)
 	{
+		if(pKiller && !pKiller->m_IsBot && GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->OnEnemyKilled(pKiller->GetCID(), Weapon, pVictim->m_Pos, pVictim);
 		if (m_EnemiesLeft <= 0 || m_EscapeSpawnActive || m_DefendLevel)
 			pVictim->GetPlayer()->m_ToBeKicked = true;
 		
@@ -682,6 +607,11 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 		if (CountHumansAlive(CID) <= 0)
 		{
 			DeathMessage();
+			if(GameServer()->m_pPveDirector)
+			{
+				GameServer()->m_pPveDirector->CompleteContract(false);
+				GameServer()->m_pPveDirector->ClearRun();
+			}
 			m_RoundOverTick = Server()->Tick();
 		}
 	}
@@ -744,6 +674,8 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 	m_Quest = QUEST_NONE;
 	m_NextQuest = QUEST_NONE;
 	m_QuestsCompleted++;
+	if(GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnObjectiveComplete();
 	m_ForcedWaveType = WAVE_NONE;
 }
 
@@ -840,10 +772,25 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 	ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
 }
 
+void CGameControllerInvasion::SpawnEliteContractGuard()
+{
+	if(!GameServer()->m_pPveDirector || GameServer()->m_pPveDirector->ActiveContract() != PVE_CONTRACT_ELITE_GUARD || m_Quest == QUEST_NONE || m_Quest == QUEST_REACHDOOR)
+		return;
+	vec2 Pos;
+	if(!GetSpawnPos(0, &Pos))
+		Pos = vec2(4000, 4000);
+	CDroid *pGuard = SpawnBoss(&GameServer()->m_World, Pos + vec2(0, -100), g_Config.m_SvMapGenLevel + 1);
+	GameServer()->m_pPveDirector->RegisterEliteContractBoss(pGuard);
+}
+
 
 void CGameControllerInvasion::OnSwitchTriggered()
 {
+	if(m_Quest != QUEST_ACTIVATE_SWITCHES && m_Quest != QUEST_FIND_SWITCH)
+		return;
 	m_SwitchesActivated++;
+	if(GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnSwitchTriggered();
 
 	if (m_SwitchCoopLevel)
 	{
@@ -900,12 +847,19 @@ void CGameControllerInvasion::OnSwitchTriggered()
 void CGameControllerInvasion::Tick()
 {
 	IGameController::Tick();
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
+		return;
 	
 	if (m_GameState == STATE_FAIL)
 		return;
 	
 	if (m_GameState == STATE_GAME)
 	{
+		if(m_EliteContractSpawned && GameServer()->m_pPveDirector && CountBossesAlive() <= 0)
+		{
+			m_EliteContractSpawned = false;
+			GameServer()->m_pPveDirector->OnBossKilled();
+		}
 		// Wipe only after someone has already died this round (SURVIVAL_NOCANDO).
 		// At join/spawn, humans exist but aren't alive yet — don't end the round.
 		if (g_Config.m_SvSurvivalMode && !m_RoundOverTick
@@ -913,6 +867,11 @@ void CGameControllerInvasion::Tick()
 			&& CountHumans() > 0 && CountHumansAlive() <= 0)
 		{
 			DeathMessage();
+			if(GameServer()->m_pPveDirector)
+			{
+				GameServer()->m_pPveDirector->CompleteContract(false);
+				GameServer()->m_pPveDirector->ClearRun();
+			}
 			m_RoundOverTick = Server()->Tick();
 		}
 
@@ -922,6 +881,12 @@ void CGameControllerInvasion::Tick()
 			m_NextQuest = QUEST_NONE;
 			m_QuestChangeTick = 0;
 			m_QuestProgressCounter = 0;
+			SpawnEliteContractGuard();
+			if(m_Quest == QUEST_ACTIVATE_SWITCHES || m_Quest == QUEST_FIND_SWITCH)
+			{
+				m_SwitchesActivated = 0;
+				SetSwitchesActive(true);
+			}
 			
 			if (m_Quest == QUEST_REACHDOOR && !m_EscapeLevel && !m_SwitchCoopLevel)
 				TriggerEscape();
@@ -1039,6 +1004,8 @@ void CGameControllerInvasion::Tick()
 			m_QuestProgressCounter = m_BossesLeft;
 			if (m_BossesLeft <= 0)
 			{
+				if(GameServer()->m_pPveDirector)
+					GameServer()->m_pPveDirector->OnBossKilled();
 				m_EnemiesLeft = 0;
 				CompleteCurrentQuest();
 			}
@@ -1098,9 +1065,44 @@ void CGameControllerInvasion::Tick()
 	{
 		if (CountPlayers(0) > 0)
 		{
+			if(!m_RogueliteWaitTick)
+				m_RogueliteWaitTick = Server()->Tick() + Server()->TickSpeed() * 2;
+			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled() &&
+				!GameServer()->m_pPveDirector->ProgressReady() && Server()->Tick() < m_RogueliteWaitTick)
+				return;
+			if(!m_CheckpointApplied)
+			{
+				m_CheckpointApplied = true;
+				if(GameServer()->m_pPveDirector && g_Config.m_SvMapGenLevel == 1)
+				{
+					const int Checkpoint = GameServer()->m_pPveDirector->TeamCheckpoint();
+					if(Checkpoint > 1)
+					{
+						g_Config.m_SvMapGenLevel = Checkpoint;
+						Server()->m_MapGenerated = false;
+						GameServer()->ReloadMap();
+						return;
+					}
+				}
+			}
+			if(!m_RogueliteOpeningStarted)
+			{
+				m_RogueliteOpeningStarted = true;
+				if(GameServer()->m_pPveDirector)
+				{
+					GameServer()->m_pPveDirector->StartIntermission(g_Config.m_SvMapGenLevel % 3 == 0, true);
+					if(GameServer()->m_pPveDirector->InIntermission())
+						return;
+				}
+			}
+			if(!m_RogueliteStageStarted)
+			{
+				m_RogueliteStageStarted = true;
+				if(GameServer()->m_pPveDirector)
+					GameServer()->m_pPveDirector->OnStageStart();
+			}
 			if (!m_ProgressSynced)
 			{
-				SyncProgressLevel();
 				SetupLevelTheme();
 				m_ProgressSynced = true;
 			}
@@ -1119,6 +1121,18 @@ void CGameControllerInvasion::Tick()
 			m_AutoRestart = true;
 
 			m_GameState = STATE_GAME;
+			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT)
+			{
+				vec2 Pos;
+				if(!GetSpawnPos(0, &Pos))
+					Pos = vec2(4000, 4000);
+				const int BonusLevel = GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT ? 2 : 1;
+				CDroid *pBoss = SpawnBoss(&GameServer()->m_World, Pos + vec2(0, -100), g_Config.m_SvMapGenLevel + BonusLevel);
+				GameServer()->m_pPveDirector->RegisterEliteContractBoss(pBoss);
+				m_EliteContractSpawned = true;
+			}
+			if(GameServer()->m_pPveDirector)
+				m_EnemiesLeft = (int)(m_EnemiesLeft * GameServer()->m_pPveDirector->EnemyCountMultiplier() + 0.5f);
 			for (int i = 0; i < m_EnemiesLeft && CountBots() < 32; i++)
 				GameServer()->AddBot();
 		}
@@ -1139,6 +1153,8 @@ void CGameControllerInvasion::Tick()
 			
 		if (m_RoundOverTick && m_RoundOverTick < Server()->Tick() - Server()->TickSpeed()*2.0f)
 		{
+			if(GameServer()->m_pPveDirector)
+				GameServer()->m_pPveDirector->ClearRun();
 			if (++g_Config.m_SvInvFails >= 3)
 			{
 				g_Config.m_SvInvFails = 0;
@@ -1151,6 +1167,8 @@ void CGameControllerInvasion::Tick()
 				g_Config.m_SvMapGenSeed = rand()%32767;
 				g_Config.m_SvInvFails = 0;
 				m_GameState = STATE_FAIL;
+				if(GameServer()->m_pPveDirector)
+					GameServer()->m_pPveDirector->ClearRun();
 				EndRound();
 			}
 			else
@@ -1180,23 +1198,34 @@ void CGameControllerInvasion::Tick()
 	{
 		if (m_RoundWinTick < Server()->Tick())
 		{
+			const int CompletedLevel = g_Config.m_SvMapGenLevel;
+			if(!m_RogueliteCompletionStarted)
+			{
+				m_RogueliteCompletionStarted = true;
+				if(GameServer()->m_pPveDirector)
+				{
+					GameServer()->m_pPveDirector->OnStageComplete(true);
+					GameServer()->m_pPveDirector->RewardResearch(CompletedLevel % 2 == 0 ? 1 : 0, PVE_REWARD_INVASION_DEPTH, CompletedLevel);
+				}
+
+				for (int i = 0; i < MAX_CLIENTS; i++)
+				{
+					CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+					if (!pPlayer || pPlayer->m_IsBot)
+						continue;
+					pPlayer->IncreaseGold(10 + CompletedLevel/3);
+				}
+
+				// The next floor offers its perk after the new map and client state
+				// are ready, avoiding a selection crossing the map-load boundary.
+			}
+
 			m_RoundWin = false;
 			m_RoundWinTick = 0;
 			m_RunBuffActive = false;
-			const int CompletedLevel = g_Config.m_SvMapGenLevel;
 			g_Config.m_SvMapGenLevel++;
 			g_Config.m_SvInvFails = 0;
 
-			for (int i = 0; i < MAX_CLIENTS; i++)
-			{
-				CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-				if (!pPlayer || pPlayer->m_IsBot)
-					continue;
-				pPlayer->IncreaseGold(10 + CompletedLevel/3);
-			}
-
-			GrantMetaUnlocks();
-			
 			for (int i = 0; i < MAX_CLIENTS; i++)
 			{
 				CPlayer *pPlayer = GameServer()->m_apPlayers[i];

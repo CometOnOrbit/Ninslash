@@ -2,6 +2,7 @@
 
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
+#include <game/server/pve_director.h>
 
 #include <game/weapons.h>
 #include <game/server/player.h>
@@ -28,6 +29,10 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	
 	m_DamagePos = vec2(0.0f, 0.0f);
 	m_DestructionTriggered = false;
+	m_PveBuilder = -1;
+	m_PveKitCost = 0;
+	m_PveRefunded = false;
+	m_PveSwitchActive = true;
 	
 	m_Status = 0;
 	for (int i = 0; i < NUM_BSTATUS; i++)
@@ -458,8 +463,28 @@ void CBuilding::Trigger()
 	}
 }
 
+void CBuilding::SetPveSwitchActive(bool Active)
+{
+	if(m_Type != BUILDING_SWITCH)
+		return;
+	m_PveSwitchActive = Active;
+	m_Collision = Active;
+	if(!Active)
+		m_aStatus[BSTATUS_ON] = 0;
+}
+
 void CBuilding::TakeDamage(int Damage, int Owner, int Weapon, vec2 Force)
 {
+	if(m_Type == BUILDING_SWITCH && !m_PveSwitchActive)
+		return;
+	if(Damage < 0 && GameServer()->m_pPveDirector)
+		Damage = -GameServer()->m_pPveDirector->ModifyBuildingRepair(Owner, -Damage);
+	else if(Damage > 0 && GameServer()->m_pPveDirector)
+	{
+		Damage = GameServer()->m_pPveDirector->ModifyDamage(Owner, -2, Weapon, Damage);
+		if(GameServer()->m_pPveDirector->PerkStacks(Owner, PVE_CARD_SIEGE_PAYLOAD) && (IsExplosiveProjectile(Weapon) || GetExplosionDamage(Weapon) > 0))
+			Damage = max(1, Damage * 130 / 100);
+	}
 	if (m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON] && Owner >= 0 && GameServer()->m_apPlayers[Owner] && !GameServer()->m_apPlayers[Owner]->m_IsBot)
 	{
 		m_aStatus[BSTATUS_ON] = 1;
@@ -573,6 +598,11 @@ void CBuilding::Destroy()
 {
 	if (m_Stored)
 		return;
+	if(!m_PveRefunded && GameServer()->m_pPveDirector && m_PveBuilder >= 0 && m_PveKitCost > 0)
+	{
+		m_PveRefunded = true;
+		GameServer()->m_pPveDirector->RefundBuilding(m_PveBuilder, m_PveKitCost);
+	}
 	
 	GameServer()->CreateExplosion(m_Pos, m_DamageOwner, GetBuildingWeapon(m_Type));
 	
@@ -849,6 +879,8 @@ void CBuilding::TickPaused()
 
 void CBuilding::Snap(int SnappingClient)
 {
+	if(m_Type == BUILDING_SWITCH && !m_PveSwitchActive)
+		return;
 	if(NetworkClipped(SnappingClient))
 		return;
 
