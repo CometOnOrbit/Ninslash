@@ -1370,6 +1370,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	apArguments[NumArguments++] = aPort;
 	apArguments[NumArguments++] = aMaxClients;
 	apArguments[NumArguments++] = aMap;
+	apArguments[NumArguments++] = "sv_mapgen 1";
 	apArguments[NumArguments++] = aDifficulty;
 	apArguments[NumArguments++] = aBots;
 	apArguments[NumArguments++] = aBotLevel;
