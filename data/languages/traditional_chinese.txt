@@ -2762,8 +2762,8 @@ Mouse / Arrow Keys / 1-2 / Gamepad
 ACTIVE OPERATION
 == 目前行動
 
-Disable hostile control loops. Enemy pressure is lighter and objective damage is stronger.
-== 切斷敵方控制迴路。敵軍壓力降低，目標受到的傷害提高。
+Break robot control loops, then disable their switches. Enemy pressure is lighter.
+== 切斷機器人控制迴路，再關閉它們的開關。敵軍壓力較低。
 
 Foundry Shutdown
 == 鑄造廠停機
@@ -2774,8 +2774,8 @@ Cut production lines. Fewer enemies arrive and team repairs are more efficient.
 Fire-Control Purge
 == 火控清除
 
-Scrub targeting systems. Enemies are faster, but reinforcements are reduced.
-== 清除瞄準系統。敵軍速度提高，但增援數量減少。
+Survive timed cyborg waves and purge their commander. Enemies are faster but fewer.
+== 挺過限時機械人攻勢並清除其指揮官。敵軍更快，但數量更少。
 
 Siege Line
 == 圍城防線
@@ -2786,14 +2786,14 @@ Anchor the front. Defensive repairs improve and hostile numbers stay lower.
 Assembly Surge
 == 裝配激增
 
-Reroute salvage to the crew. Repairs are better and enemy armor is a little thinner.
-== 將回收資源轉給隊員。維修效果提高，敵軍裝甲略微削弱。
+Repairs improve and armor thins, but odd waves deploy an extra crawler.
+== 維修效果提高且敵軍裝甲削弱，但奇數波會額外部署一隻爬行機。
 
 Grid Storm
 == 電網風暴
 
-Overload the field. Enemies move faster, but the horde is slightly smaller.
-== 使戰場電網過載。敵軍移動更快，但屍潮規模略小。
+Fight a faster, smaller horde. Each section brings an extra storm boss.
+== 對抗速度更快但規模較小的屍潮。每個區段都會出現額外的風暴首領。
 
 Core Recovery
 == 核心回收
@@ -2816,3 +2816,123 @@ Take the hard corridor. More enemies come through, but rewards scale up.
 ##### needs translation #####
 
 ##### old translations #####
+Disable the shield network and destroy its controller.
+== 關閉護盾網路並摧毀其控制核心。
+
+Stop production and escape with the coolant core.
+== 停止生產線並攜帶冷卻核心撤離。
+
+Break the targeting network and its siege engine.
+== 摧毀火控網路及其攻城引擎。
+
+Hold the line through a coordinated siege section.
+== 在協同攻城區段中守住陣線。
+
+Break a self-repairing foundry assault.
+== 擊潰能夠自我維修的鑄造廠攻勢。
+
+Disable field relays before the EMP storm peaks.
+== 在 EMP 風暴達到峰值前關閉戰場繼電器。
+
+Recover the route data and upload it before extraction.
+== 回收路線資料並在撤離前完成上傳。
+
+Break the shield lockdown and escape its reinforcements.
+== 突破護盾封鎖並擺脫增援撤離。
+
+Destroy the siege force and carry its power core out.
+== 摧毀攻城部隊並帶走其能源核心。
+
+Step
+== 步驟
+
+Preparing operation
+== 正在準備行動
+
+Drone integrity
+== 無人機完整度
+
+EMP disabled
+== EMP 停用
+
+Rebuilding
+== 重建中
+
+Hold %s: drone command wheel
+== 按住 %s：無人機指令輪盤
+
+Release to switch
+== 鬆開以切換
+Disable 2 shield relays
+== 關閉 2 個護盾繼電器
+
+Defend the overload terminal for 40 seconds
+== 防守過載終端 40 秒
+
+Defeat the Overseer Core
+== 擊敗監管核心
+
+Destroy 3 assembly nodes
+== 摧毀 3 個裝配節點
+
+Carry the coolant core
+== 搬運冷卻核心
+
+Escape the rising acid within 60 seconds
+== 在 60 秒內逃離上升酸液
+
+Destroy 3 targeting beacons under bombardment
+== 在炮擊下摧毀 3 個定位信標
+
+Clear the mechanical elite wave
+== 清理機械精英波
+
+Defeat the Siege Engine
+== 擊敗攻城引擎
+
+Repel the Bulwark assault
+== 擊退壁壘機突擊
+
+Survive ranged suppression and sabotage
+== 挺過遠程壓制與破壞行動
+
+Repel the Assembler wave
+== 擊退裝配機波次
+
+Destroy 2 foundry nodes
+== 摧毀 2 個鑄造節點
+
+Survive the mixed wave and defeat the Overseer Core
+== 挺過混合波並擊敗監管核心
+
+Capture the first relay
+== 奪取第一個繼電器
+
+Capture the remaining 2 relays
+== 奪取剩餘 2 個繼電器
+
+Defend inside the rotating EMP field
+== 在旋轉 EMP 區域內防守
+
+Carry 2 data cores
+== 搬運 2 個資料核心
+
+Defend the upload point for 35 seconds
+== 防守上傳點 35 秒
+
+Reach extraction under high pressure
+== 在高壓攻勢下抵達撤離點
+
+Destroy 3 shield nodes
+== 摧毀 3 個護盾節點
+
+Reach extraction through shielded reinforcements
+== 穿過護盾增援抵達撤離點
+
+Clear the targeting beacons
+== 清除定位信標
+
+Carry its energy core and hold extraction
+== 搬運其能源核心並守住撤離區
+Foundry
+== 鑄造廠

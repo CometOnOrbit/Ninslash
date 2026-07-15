@@ -57,8 +57,23 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 		Dmg = 1000;
 	if(GameServer()->m_pPveDirector)
 	{
-		const bool Boss = m_Type == DROIDTYPE_BOSSCRAWLER || m_Type == DROIDTYPE_BOSSSTAR || m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER;
+		const bool Boss = m_Type == DROIDTYPE_BOSSCRAWLER || m_Type == DROIDTYPE_BOSSSTAR || m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER || m_Type == DROIDTYPE_SIEGE_ENGINE || m_Type == DROIDTYPE_OVERSEER_CORE;
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(From, Weapon, Dmg, Boss, this);
+	}
+	// A living Bulwark projects 35% cover to mechanical allies within 300 units. Keep this in
+	// the common damage path so legacy droids and both new bosses benefit too.
+	if(m_Type != DROIDTYPE_BULWARK && Dmg > 1)
+	{
+		CDroid *apDroids[16];
+		const int Num = GameServer()->m_World.FindEntities(m_Pos, 300.0f, (CEntity **)apDroids, 16, CGameWorld::ENTTYPE_DROID);
+		for(int i = 0; i < Num; i++)
+		{
+			if(apDroids[i] && apDroids[i]->m_Type == DROIDTYPE_BULWARK && apDroids[i]->m_Health > 0)
+			{
+				Dmg = max(1, Dmg * 65 / 100);
+				break;
+			}
+		}
 	}
 
 	vec2 DmgPos = m_Pos + m_Center;

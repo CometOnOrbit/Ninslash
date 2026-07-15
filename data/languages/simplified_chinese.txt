@@ -1243,8 +1243,8 @@ Mouse / Arrow Keys / 1-2 / Gamepad
 ACTIVE OPERATION
 == 当前行动
 
-Disable hostile control loops. Enemy pressure is lighter and objective damage is stronger.
-== 切断敌方控制回路。敌军压力降低，目标受到的伤害提高。
+Break robot control loops, then disable their switches. Enemy pressure is lighter.
+== 切断机器人控制回路，再关闭它们的开关。敌军压力较低。
 
 Foundry Shutdown
 == 铸造厂停机
@@ -1255,8 +1255,8 @@ Cut production lines. Fewer enemies arrive and team repairs are more efficient.
 Fire-Control Purge
 == 火控清除
 
-Scrub targeting systems. Enemies are faster, but reinforcements are reduced.
-== 清除瞄准系统。敌军速度提高，但增援数量减少。
+Survive timed cyborg waves and purge their commander. Enemies are faster but fewer.
+== 挺过限时机械人攻势并清除其指挥官。敌军更快，但数量更少。
 
 Siege Line
 == 围城防线
@@ -1267,14 +1267,14 @@ Anchor the front. Defensive repairs improve and hostile numbers stay lower.
 Assembly Surge
 == 装配激增
 
-Reroute salvage to the crew. Repairs are better and enemy armor is a little thinner.
-== 将回收资源转给队员。维修效果提高，敌军装甲略微削弱。
+Repairs improve and armor thins, but odd waves deploy an extra crawler.
+== 维修效果提高且敌军装甲削弱，但奇数波会额外部署一只爬行机。
 
 Grid Storm
 == 电网风暴
 
-Overload the field. Enemies move faster, but the horde is slightly smaller.
-== 使战场电网过载。敌军移动更快，但尸潮规模略小。
+Fight a faster, smaller horde. Each section brings an extra storm boss.
+== 对抗速度更快但规模较小的尸潮。每个区段都会出现额外的风暴首领。
 
 Core Recovery
 == 核心回收
@@ -2890,3 +2890,123 @@ The expedition continues.
 
 Returning all players to Floor 1.
 == 全体玩家即将回到第 1 层。
+Disable the shield network and destroy its controller.
+== 关闭护盾网络并摧毁其控制核心。
+
+Stop production and escape with the coolant core.
+== 停止生产线并携带冷却核心撤离。
+
+Break the targeting network and its siege engine.
+== 摧毁火控网络及其攻城引擎。
+
+Hold the line through a coordinated siege section.
+== 在协同攻城区段中守住阵线。
+
+Break a self-repairing foundry assault.
+== 击溃能够自我维修的铸造厂攻势。
+
+Disable field relays before the EMP storm peaks.
+== 在 EMP 风暴达到峰值前关闭战场继电器。
+
+Recover the route data and upload it before extraction.
+== 回收路线数据并在撤离前完成上传。
+
+Break the shield lockdown and escape its reinforcements.
+== 突破护盾封锁并摆脱增援撤离。
+
+Destroy the siege force and carry its power core out.
+== 摧毁攻城部队并带走其能源核心。
+
+Step
+== 步骤
+
+Preparing operation
+== 正在准备行动
+
+Drone integrity
+== 无人机完整度
+
+EMP disabled
+== EMP 禁用
+
+Rebuilding
+== 重建中
+
+Hold %s: drone command wheel
+== 按住 %s：无人机指令轮盘
+
+Release to switch
+== 松开以切换
+Disable 2 shield relays
+== 关闭 2 个护盾继电器
+
+Defend the overload terminal for 40 seconds
+== 防守过载终端 40 秒
+
+Defeat the Overseer Core
+== 击败监管核心
+
+Destroy 3 assembly nodes
+== 摧毁 3 个装配节点
+
+Carry the coolant core
+== 搬运冷却核心
+
+Escape the rising acid within 60 seconds
+== 在 60 秒内逃离上升酸液
+
+Destroy 3 targeting beacons under bombardment
+== 在炮击下摧毁 3 个定位信标
+
+Clear the mechanical elite wave
+== 清理机械精英波
+
+Defeat the Siege Engine
+== 击败攻城引擎
+
+Repel the Bulwark assault
+== 击退壁垒机突击
+
+Survive ranged suppression and sabotage
+== 挺过远程压制与破坏行动
+
+Repel the Assembler wave
+== 击退装配机波次
+
+Destroy 2 foundry nodes
+== 摧毁 2 个铸造节点
+
+Survive the mixed wave and defeat the Overseer Core
+== 挺过混合波并击败监管核心
+
+Capture the first relay
+== 夺取第一个继电器
+
+Capture the remaining 2 relays
+== 夺取剩余 2 个继电器
+
+Defend inside the rotating EMP field
+== 在旋转 EMP 区域内防守
+
+Carry 2 data cores
+== 搬运 2 个数据核心
+
+Defend the upload point for 35 seconds
+== 防守上传点 35 秒
+
+Reach extraction under high pressure
+== 在高压攻势下抵达撤离点
+
+Destroy 3 shield nodes
+== 摧毁 3 个护盾节点
+
+Reach extraction through shielded reinforcements
+== 穿过护盾增援抵达撤离点
+
+Clear the targeting beacons
+== 清除定位信标
+
+Carry its energy core and hold extraction
+== 搬运其能源核心并守住撤离区
+Foundry
+== 铸造厂

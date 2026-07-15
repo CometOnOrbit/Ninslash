@@ -13,6 +13,7 @@
 #include <game/server/gamecontext.h>
 #include <game/server/gameworld.h>
 #include <game/server/pve_director.h>
+#include <game/server/pve_operation_director.h>
 
 #include "invasion.h"
 
@@ -61,6 +62,7 @@ static int InvasionWaveCap(int Level, int Players)
 CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer)
 : IGameController(pGameServer)
 {
+	m_pOperationDirector = new CPveOperationDirector(pGameServer);
 	m_pGameType = "INV";
 	m_GameFlags = GAMEFLAG_COOP;
 	m_GameState = STATE_STARTING;
@@ -167,6 +169,11 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_pReactor = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
 }
 
+CGameControllerInvasion::~CGameControllerInvasion()
+{
+	delete m_pOperationDirector;
+}
+
 
 void CGameControllerInvasion::SetupLevelTheme()
 {
@@ -251,6 +258,7 @@ bool CGameControllerInvasion::OnEntity(int Index, vec2 Pos)
 	if (Index == ENTITY_ENEMYSPAWN && m_NumEnemySpawnPos < MAX_ENEMIES)
 	{
 		m_aEnemySpawnPos[m_NumEnemySpawnPos++] = Pos;
+		m_pOperationDirector->AddCandidate(Pos);
 		return true;
 	}
 	
@@ -768,8 +776,12 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	if (AddBots)
 	{
 		RandomGroupSpawnPos();
+		const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
+			m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, Level, m_EnemiesLeft, m_QuestWaveSize);
+		m_EnemiesLeft -= ThreatReplacement.m_ThreatSpent;
+		const int BotCap = max(0, m_QuestWaveSize - ThreatReplacement.m_EntitiesSpawned);
 		
-		for (int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
+		for (int i = 0; i < m_EnemiesLeft && CountBots() < BotCap; i++)
 			GameServer()->AddBot();
 	}
 	
@@ -966,6 +978,7 @@ void CGameControllerInvasion::SendQuestCompletedMessage(int Quest)
 
 void CGameControllerInvasion::CompleteCurrentQuest()
 {
+	m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_WAVE);
 	if(m_Quest == QUEST_DEFEND)
 		SetReactorDefenseActive(false);
 	SendQuestCompletedMessage(m_Quest);
@@ -1122,6 +1135,7 @@ void CGameControllerInvasion::SpawnEliteContractGuard()
 
 void CGameControllerInvasion::OnSwitchTriggered()
 {
+	m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_SWITCH);
 	if(m_Quest != QUEST_ACTIVATE_SWITCHES && m_Quest != QUEST_FIND_SWITCH)
 		return;
 	m_SwitchesActivated++;
@@ -1183,6 +1197,12 @@ void CGameControllerInvasion::OnSwitchTriggered()
 void CGameControllerInvasion::Tick()
 {
 	IGameController::Tick();
+	const int ActiveOperation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
+	if(ActiveOperation >= 0 && m_pOperationDirector->Operation() != ActiveOperation)
+		m_pOperationDirector->Start(ActiveOperation);
+	else if(ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
+		m_pOperationDirector->Clear();
+	m_pOperationDirector->Tick();
 	if(m_GameState == STATE_RETRY_VOTE)
 	{
 		TickRetryVote();
@@ -1321,7 +1341,7 @@ void CGameControllerInvasion::Tick()
 		
 		if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
 		{
-			const int AliveBots = CountBotsAlive();
+			const int AliveBots = CountBotsAlive() + CountAliveSpecialists(&GameServer()->m_World);
 			if (m_Quest == QUEST_SURVIVEWAVETIME)
 				m_QuestProgressCounter = int((m_QuestWaveEndTick - Server()->Tick()) / Server()->TickSpeed());
 			else

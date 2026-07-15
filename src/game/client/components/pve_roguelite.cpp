@@ -158,6 +158,7 @@ CPveRoguelite::CPveRoguelite()
 	m_DebugGameScreenshotEarliestTime = 0;
 	m_DebugScreenshotPage = -1;
 	m_DebugBuildPreview = false;
+	m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
 	OnReset();
 }
 
@@ -331,6 +332,12 @@ void CPveRoguelite::OnReset()
 	m_aOperationVotes[1] = 0;
 	m_SelectedOperation = -1;
 	m_ActiveOperation = -1;
+	m_OperationStep = -1;
+	m_OperationProgress = 0;
+	m_OperationTarget = 0;
+	m_OperationStatusEndTick = 0;
+	m_OperationTargetType = PVE_OPERATION_TARGET_NONE;
+	m_OperationTargetPos = vec2(0, 0);
 	if(m_DebugChoiceScreenshotFrames <= 0)
 	{
 		m_ChoiceActive = false;
@@ -387,6 +394,11 @@ void CPveRoguelite::OnReset()
 		m_DroneSwitchReadyTick = 0;
 	}
 	m_DroneNonce = 0;
+	m_DroneHealth = 0;
+	m_DroneState = PVE_DRONE_STATE_DEPLOYING;
+	m_DroneActionTick = 0;
+	m_DroneWheelActive = false;
+	m_DroneWheelMouse = vec2(0.0f, -1.0f);
 	m_ValidationCode = 0;
 	m_ValidationUntil = 0;
 	if(m_DebugResearchScreenshotFrames <= 0)
@@ -798,7 +810,17 @@ void CPveRoguelite::DrawOperationVote()
 		while(NameSize > 6.7f && TextRender()->TextWidth(0, NameSize, pName, -1) > Card.w - 18.0f)
 			NameSize -= 0.3f;
 		DrawText(Card.x + Card.w * 0.5f, Card.y + 32.0f, NameSize, pName, vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
-		DrawWrappedText(Card.x + 12.0f, Card.y + 56.0f, 6.5f, Localize(PveOperationDescription(Operation)), vec4(Text.r, Text.g, Text.b, 0.78f * Alpha), Card.w - 24.0f, 5);
+		const CPveOperationDef *pDef = PveOperationDef(Operation);
+		if(pDef)
+		{
+			for(int Step = 0; Step < 3; Step++)
+			{
+				char aStep[256];
+				str_format(aStep, sizeof(aStep), "%d  %s", Step + 1, Localize(pDef->m_apSteps[Step]));
+				DrawText(Card.x + 12.0f, Card.y + 55.0f + Step * 18.0f, 5.3f, aStep,
+					vec4(Step == 0 ? Accent.r : Text.r, Step == 0 ? Accent.g : Text.g, Step == 0 ? Accent.b : Text.b, 0.86f * Alpha), Card.w - 24.0f, -1);
+			}
+		}
 		CUIRect Button = {Card.x + 10.0f, Card.y + Card.h - 27.0f, Card.w - 20.0f, 18.0f};
 		const vec4 ButtonColor = Focused || Selected ? Accent : AccentDim;
 		DrawPanel(Button, vec4(ButtonColor.r, ButtonColor.g, ButtonColor.b, 0.94f * Alpha), 7.0f);
@@ -824,15 +846,33 @@ void CPveRoguelite::DrawOperationHud()
 	const vec4 Inset = CMenus::ThemeBgInset();
 	const vec4 Accent = CMenus::ThemeAccent();
 	const vec4 Text = CMenus::ThemeText();
-	CUIRect Hud = {10.0f, 151.0f, 118.0f, 42.0f};
+	CUIRect Hud = {10.0f, 145.0f, 132.0f, 69.0f};
 	DrawPanel(Hud, vec4(Panel.r, Panel.g, Panel.b, 0.90f), 8.0f);
 	CUIRect Edge = {Hud.x, Hud.y, 2.0f, Hud.h};
 	DrawPanel(Edge, Accent, 1.0f);
 	DrawText(Hud.x + 8.0f, Hud.y + 4.0f, 5.4f, Localize("ACTIVE OPERATION"), Accent);
 	DrawText(Hud.x + 8.0f, Hud.y + 14.0f, 7.0f, Localize(pDef->m_pName), Text, Hud.w - 16.0f, -1);
-	CUIRect Rule = {Hud.x + 7.0f, Hud.y + 27.0f, Hud.w - 14.0f, 10.0f};
+	char aProgress[96];
+	if(m_OperationStep >= 0 && m_OperationStep < 3)
+		str_format(aProgress, sizeof(aProgress), "%s %d/3  %d/%d", Localize("Step"), m_OperationStep + 1, m_OperationProgress, m_OperationTarget);
+	else
+		str_copy(aProgress, Localize("Preparing operation"), sizeof(aProgress));
+	DrawText(Hud.x + 8.0f, Hud.y + 25.0f, 5.2f, aProgress, Accent, Hud.w - 16.0f, -1);
+	const char *pStep = m_OperationStep >= 0 && m_OperationStep < 3 ? pDef->m_apSteps[m_OperationStep] : pDef->m_pDescription;
+	CUIRect Rule = {Hud.x + 7.0f, Hud.y + 35.0f, Hud.w - 14.0f, 17.0f};
 	DrawPanel(Rule, vec4(Inset.r, Inset.g, Inset.b, 0.72f), 4.0f);
-	DrawText(Rule.x + 4.0f, Rule.y + 2.0f, 4.8f, Localize(pDef->m_pDescription), vec4(Text.r, Text.g, Text.b, 0.72f), Rule.w - 8.0f, -1);
+	DrawWrappedText(Rule.x + 4.0f, Rule.y + 2.0f, 4.5f, Localize(pStep), vec4(Text.r, Text.g, Text.b, 0.82f), Rule.w - 8.0f, 2);
+	if(m_OperationTargetType != PVE_OPERATION_TARGET_NONE && m_pClient->m_Snap.m_pLocalCharacter)
+	{
+		const vec2 LocalPos(m_pClient->m_Snap.m_pLocalCharacter->m_X, m_pClient->m_Snap.m_pLocalCharacter->m_Y);
+		const vec2 Delta = m_OperationTargetPos - LocalPos;
+		const float Angle = atan2f(Delta.y, Delta.x);
+		const int Sector = ((int)floorf((Angle + pi + pi / 8.0f) / (pi / 4.0f))) & 7;
+		const char *apDirections[8] = {"←", "↖", "↑", "↗", "→", "↘", "↓", "↙"};
+		char aDirection[64];
+		str_format(aDirection, sizeof(aDirection), "%s  %dm", apDirections[Sector], (int)(length(Delta) / 32.0f));
+		DrawText(Hud.x + 8.0f, Hud.y + 55.0f, 5.2f, aDirection, Accent, Hud.w - 16.0f, -1);
+	}
 	TextRender()->TextColor(1, 1, 1, 1);
 }
 
@@ -1042,7 +1082,7 @@ void CPveRoguelite::DrawBuildHud()
 	const vec4 Panel = CMenus::ThemeBgPanel();
 	const vec4 Accent = CMenus::ThemeAccent();
 	const vec4 Text = CMenus::ThemeText();
-	char aaLines[10][96];
+	char aaLines[14][96];
 	int Lines = 0;
 	if(m_Barrier > 0)
 		str_format(aaLines[Lines++], sizeof(aaLines[0]), "%s %d/30", Localize("Barrier"), m_Barrier);
@@ -1062,6 +1102,16 @@ void CPveRoguelite::DrawBuildHud()
 			str_format(aaLines[Lines++], sizeof(aaLines[0]), "%s: %s  %.1fs", Localize("Drone"), Localize(apModules[m_DroneModule]), Cooldown / (float)Client()->GameTickSpeed());
 		else
 			str_format(aaLines[Lines++], sizeof(aaLines[0]), "%s: %s", Localize("Drone"), Localize(apModules[m_DroneModule]));
+		if(m_DroneHealth > 0)
+			str_format(aaLines[Lines++], sizeof(aaLines[0]), "%s %d/40", Localize("Drone integrity"), m_DroneHealth);
+		if((m_DroneState == PVE_DRONE_STATE_DISABLED || m_DroneState == PVE_DRONE_STATE_REBUILDING) && m_DroneActionTick > Client()->GameTick())
+			str_format(aaLines[Lines++], sizeof(aaLines[0]), "%s %.1fs", Localize(m_DroneState == PVE_DRONE_STATE_DISABLED ? "EMP disabled" : "Rebuilding"), (m_DroneActionTick - Client()->GameTick()) / (float)Client()->GameTickSpeed());
+		else if(!m_DroneTutorialSeen)
+		{
+			char aKeyHelp[96];
+			str_format(aKeyHelp, sizeof(aKeyHelp), Localize("Hold %s: drone command wheel"), Input()->KeyName(g_Config.m_ClPveDroneWheel));
+			str_copy(aaLines[Lines++], aKeyHelp, sizeof(aaLines[0]));
+		}
 	}
 	if(m_ValidationCode == PVE_VALIDATION_MODULE_LOCKED && time_get() < m_ValidationUntil)
 		str_copy(aaLines[Lines++], Localize("Drone module not owned"), sizeof(aaLines[0]));
@@ -1074,6 +1124,75 @@ void CPveRoguelite::DrawBuildHud()
 	DrawPanel(Edge, Accent, 1.0f);
 	for(int i = 0; i < Lines; i++)
 		DrawText(Hud.x + 8.0f, Hud.y + 6.0f + i * 12.0f, 5.8f, aaLines[i], Text, Hud.w - 16.0f, -1);
+}
+
+void CPveRoguelite::DrawDrones()
+{
+	if(Client()->State() != IClient::STATE_ONLINE)
+		return;
+	const int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
+	for(int i = 0; i < Num; i++)
+	{
+		IClient::CSnapItem Item;
+		const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
+		if(Item.m_Type != NETOBJTYPE_PVEDRONE)
+			continue;
+		const CNetObj_PveDrone *pDrone = (const CNetObj_PveDrone *)pData;
+		if(pDrone->m_Owner == m_pClient->m_Snap.m_LocalClientID)
+		{
+			m_DroneHealth = pDrone->m_Health;
+			m_DroneState = pDrone->m_State;
+			m_DroneActionTick = pDrone->m_ActionTick;
+			m_DroneSwitchReadyTick = pDrone->m_SwitchReadyTick;
+		}
+		const bool Disabled = pDrone->m_State == PVE_DRONE_STATE_DISABLED || pDrone->m_State == PVE_DRONE_STATE_REBUILDING;
+		const vec4 Color = Disabled ? vec4(0.35f, 0.45f, 0.55f, 0.65f) : (pDrone->m_Module == PVE_DRONE_ASSAULT ? vec4(1.0f, 0.35f, 0.25f, 1.0f) : (pDrone->m_Module == PVE_DRONE_GUARDIAN ? vec4(0.25f, 0.65f, 1.0f, 1.0f) : vec4(0.3f, 1.0f, 0.55f, 1.0f)));
+		if(!Disabled && pDrone->m_Module == PVE_DRONE_GUARDIAN)
+			for(int Marker = 0; Marker < 16; Marker++)
+			{
+				const float Angle = Marker * 2.0f * pi / 16.0f;
+				DrawIcon(IMAGE_WEAPONS, SPRITE_PICKUP_ARMOR, pDrone->m_X + cosf(Angle) * 280.0f, pDrone->m_Y + sinf(Angle) * 280.0f, 9.0f, vec4(0.25f, 0.65f, 1.0f, 0.22f));
+			}
+		DrawIcon(IMAGE_WEAPONS, SPRITE_PICKUP_ARMOR, pDrone->m_X, pDrone->m_Y, 28.0f, Color);
+	}
+}
+
+void CPveRoguelite::DrawDroneWheel()
+{
+	if(!m_DroneWheelActive)
+		return;
+	const float Aspect = Graphics()->ScreenAspect();
+	const float W = 300.0f * Aspect;
+	Graphics()->MapScreen(0, 0, W, 300.0f);
+	const vec2 Center(W * 0.5f, 150.0f);
+	const char *apAllNames[3] = {"Assault", "Guardian", "Repair"};
+	const int aCards[3] = {PVE_CARD_ASSAULT_MODULE, PVE_CARD_GUARDIAN_MODULE, PVE_CARD_REPAIR_MODULE};
+	int aUnlocked[3];
+	int Count = 0;
+	for(int i = 0; i < 3; i++)
+		if(m_aRunPerks[aCards[i]] > 0)
+			aUnlocked[Count++] = i;
+	if(Count <= 0)
+		return;
+	int Selected = 0;
+	float Best = -2.0f;
+	const vec2 Aim = normalize(m_DroneWheelMouse);
+	for(int i = 0; i < Count; i++)
+	{
+		const float Angle = -pi / 2.0f + (i - (Count - 1) * 0.5f) * pi / 3.0f;
+		const vec2 Dir(cosf(Angle), sinf(Angle));
+		const float Score = dot(Aim, Dir);
+		if(Score > Best) { Best = Score; Selected = i; }
+	}
+	for(int i = 0; i < Count; i++)
+	{
+		const float Angle = -pi / 2.0f + (i - (Count - 1) * 0.5f) * pi / 3.0f;
+		const vec2 Dir(cosf(Angle), sinf(Angle));
+		CUIRect Segment = {Center.x + Dir.x * 54.0f - 35.0f, Center.y + Dir.y * 54.0f - 14.0f, 70.0f, 28.0f};
+		DrawPanel(Segment, i == Selected ? CMenus::ThemeAccent() : CMenus::ThemeBgPanel(), 10.0f);
+		DrawText(Segment.x + Segment.w * 0.5f, Segment.y + 8.0f, 6.5f, Localize(apAllNames[aUnlocked[i]]), CMenus::ThemeText(), -1.0f, 0);
+	}
+	DrawText(Center.x, Center.y - 4.0f, 6.0f, Localize(Client()->GameTick() < m_DroneSwitchReadyTick ? "Drone switch cooling down" : "Release to switch"), CMenus::ThemeText(), -1.0f, 0);
 }
 
 void CPveRoguelite::RenderBuildDebug()
@@ -1677,6 +1796,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 
 void CPveRoguelite::OnRender()
 {
+	DrawDrones();
 	const bool WasResearchVisible = m_ResearchVisible;
 	m_ResearchVisible = false;
 	if(!WasResearchVisible)
@@ -1731,6 +1851,7 @@ void CPveRoguelite::OnRender()
 			DrawBuildHud();
 		}
 	}
+	DrawDroneWheel();
 }
 
 void CPveRoguelite::RenderMenuDebugOverlay()
@@ -1749,6 +1870,37 @@ void CPveRoguelite::RenderMenuDebugOverlay()
 
 bool CPveRoguelite::OnInput(IInput::CEvent Event)
 {
+	if(!ChoiceActive() && !m_ResearchVisible && !m_pClient->GameplayInputCaptured() && m_aRunPerks[PVE_CARD_DRONE_CHASSIS] > 0 && Event.m_Key == g_Config.m_ClPveDroneWheel)
+	{
+		if(Event.m_Flags & IInput::FLAG_PRESS)
+		{
+			m_DroneWheelActive = true;
+			m_DroneWheelMouse = vec2(0.0f, -1.0f);
+			m_DroneTutorialSeen = true;
+			g_Config.m_ClPveDroneTutorialSeen = 1;
+		}
+		else if((Event.m_Flags & IInput::FLAG_RELEASE) && m_DroneWheelActive)
+		{
+			const int aModules[3] = {PVE_DRONE_ASSAULT, PVE_DRONE_GUARDIAN, PVE_DRONE_REPAIR};
+			const int aCards[3] = {PVE_CARD_ASSAULT_MODULE, PVE_CARD_GUARDIAN_MODULE, PVE_CARD_REPAIR_MODULE};
+			int aUnlocked[3];
+			int Count = 0;
+			for(int i = 0; i < 3; i++) if(m_aRunPerks[aCards[i]] > 0) aUnlocked[Count++] = i;
+			int Selected = 0;
+			float Best = -2.0f;
+			const vec2 Aim = normalize(m_DroneWheelMouse);
+			for(int i = 0; i < Count; i++)
+			{
+				const float Angle = -pi / 2.0f + (i - (Count - 1) * 0.5f) * pi / 3.0f;
+				const float Score = dot(Aim, vec2(cosf(Angle), sinf(Angle)));
+				if(Score > Best) { Best = Score; Selected = i; }
+			}
+			if(Count > 0 && Client()->GameTick() >= m_DroneSwitchReadyTick)
+				SendDroneModule(aModules[aUnlocked[Selected]]);
+			m_DroneWheelActive = false;
+		}
+		return true;
+	}
 	if(!ChoiceActive() && !m_ResearchVisible && !m_pClient->GameplayInputCaptured() &&
 		(Event.m_Flags & IInput::FLAG_PRESS) && m_aRunPerks[PVE_CARD_DRONE_CHASSIS] > 0)
 	{
@@ -1957,6 +2109,15 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 
 bool CPveRoguelite::OnMouseMove(float x, float y)
 {
+	if(m_DroneWheelActive)
+	{
+		Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
+		Input()->GetRelativePosition(&x, &y);
+		m_DroneWheelMouse += vec2(x, y);
+		if(length(m_DroneWheelMouse) > 120.0f)
+			m_DroneWheelMouse = normalize(m_DroneWheelMouse) * 120.0f;
+		return true;
+	}
 	if(!ChoiceActive())
 		return false;
 	Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
@@ -2012,6 +2173,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		}
 		if(NewChoice)
 		{
+			m_MouseTrigger = false;
 			m_FocusedChoice = 1;
 			for(int i = 0; i < 3; i++)
 				m_aCardFocus[i] = 0.0f;
@@ -2052,6 +2214,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_aContractVotes[1] = pMsg->m_Votes1;
 		if(NewVote)
 		{
+			m_MouseTrigger = false;
 			m_SelectedContract = -1;
 			m_FocusedChoice = 0;
 			for(int i = 0; i < 3; i++)
@@ -2108,6 +2271,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_aInvasionRetryVotes[PVE_INVASION_RESET] = pMsg->m_ResetVotes;
 		if(NewVote)
 		{
+			m_MouseTrigger = false;
 			m_SelectedInvasionRetry = -1;
 			m_FocusedChoice = PVE_INVASION_RETRY;
 			for(int i = 0; i < 3; i++)
@@ -2129,7 +2293,10 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_InvasionRetryResultEndTick = pMsg->m_EndTick;
 		str_copy(m_aInvasionRetryPlayerName, pMsg->m_pPlayerName, sizeof(m_aInvasionRetryPlayerName));
 		if(NewResult)
+		{
+			m_MouseTrigger = false;
 			m_AppearAmount = 0.0f;
+		}
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEOPERATIONVOTE)
 	{
@@ -2148,6 +2315,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_aOperationVotes[1] = pMsg->m_Votes1;
 		if(NewVote)
 		{
+			m_MouseTrigger = false;
 			m_SelectedOperation = -1;
 			m_FocusedChoice = 0;
 			for(int i = 0; i < 3; i++)
@@ -2163,6 +2331,12 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_OperationNonce = 0;
 		m_SelectedOperation = -1;
 		m_ActiveOperation = pMsg->m_State == PVE_OPERATION_STATE_ACTIVE ? pMsg->m_Operation : -1;
+		m_OperationStep = pMsg->m_Step;
+		m_OperationProgress = pMsg->m_Progress;
+		m_OperationTarget = pMsg->m_Target;
+		m_OperationStatusEndTick = pMsg->m_EndTick;
+		m_OperationTargetType = pMsg->m_TargetType;
+		m_OperationTargetPos = vec2(pMsg->m_TargetX, pMsg->m_TargetY);
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEVALIDATION)
 	{

@@ -892,6 +892,20 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/droid_walker.h
   entities/droid.cpp
   entities/droid.h
+  entities/droid_specialist.cpp
+  entities/droid_specialist.h
+  entities/droid_bulwark.cpp
+  entities/droid_bulwark.h
+  entities/droid_assembler.cpp
+  entities/droid_assembler.h
+  entities/droid_saboteur.cpp
+  entities/droid_saboteur.h
+  entities/droid_railgunner.cpp
+  entities/droid_railgunner.h
+  entities/droid_siege_engine.cpp
+  entities/droid_siege_engine.h
+  entities/droid_overseer_core.cpp
+  entities/droid_overseer_core.h
   bosspool.cpp
   bosspool.h
   entities/electro.cpp
@@ -914,6 +928,12 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/projectile.h
   entities/pve_drone.cpp
   entities/pve_drone.h
+  entities/pve_drone_pulse.cpp
+  entities/pve_drone_pulse.h
+  entities/pve_operation_target.cpp
+  entities/pve_operation_target.h
+  entities/pve_operation_hazard.cpp
+  entities/pve_operation_hazard.h
   entities/radar.cpp
   entities/radar.h
   entities/shop.cpp
@@ -963,6 +983,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   blockentities.cpp
   blockentities.h  
   entity.cpp
+  pve_operation_director.cpp
+  pve_operation_director.h
   entity.h
   eventhandler.cpp
   eventhandler.h

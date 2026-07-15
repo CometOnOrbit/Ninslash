@@ -1,0 +1,31 @@
+#ifndef GAME_SERVER_ENTITIES_DROID_SPECIALIST_H
+#define GAME_SERVER_ENTITIES_DROID_SPECIALIST_H
+
+#include "droid.h"
+
+class CSpecialistDroid : public CDroid
+{
+public:
+	CSpecialistDroid(CGameWorld *pWorld, vec2 Pos, int Type, int Health, bool Boss);
+	void Reset() override;
+	void Tick() override;
+	void TickPaused() override;
+	void TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon) override;
+
+protected:
+	virtual void AbilityTick();
+	virtual void OnHealthThreshold(int Threshold) {}
+	virtual void OnSpecialistDeath() {}
+	bool AcquireTarget(float Range, bool RequireSight = true);
+	class CCharacter *TargetCharacter();
+	void FireProjectile(int Damage, float Spread = 0.0f);
+	int CountDroids(int Type, float Radius = 0.0f);
+	bool ConsumeThreshold(int Threshold, int Bit);
+
+	int m_BaseHealth;
+	bool m_IsBoss;
+	int m_AbilityTick;
+	int m_ThresholdMask;
+};
+
+#endif

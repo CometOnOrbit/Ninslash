@@ -12,12 +12,14 @@
 #include <game/server/entities/radar.h>
 #include <game/server/pve_bots.h>
 #include <game/server/pve_director.h>
+#include <game/server/pve_operation_director.h>
 
 #include "extract.h"
 
 CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 : IGameController(pGameServer)
 {
+	m_pOperationDirector = new CPveOperationDirector(pGameServer);
 	m_pGameType = "EXTRACT";
 	m_GameFlags = GAMEFLAG_COOP;
 	m_GameState = STATE_STARTING;
@@ -71,12 +73,20 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 		m_GameFlags |= GAMEFLAG_SURVIVAL;
 }
 
+CGameControllerExtract::~CGameControllerExtract()
+{
+	delete m_pOperationDirector;
+}
+
 bool CGameControllerExtract::OnEntity(int Index, vec2 Pos)
 {
 	if(Index == ENTITY_ENEMYSPAWN)
 	{
 		if(m_NumEnemySpawnPos < MAX_ENEMIES)
+		{
 			m_aEnemySpawnPos[m_NumEnemySpawnPos++] = Pos;
+			m_pOperationDirector->AddCandidate(Pos);
+		}
 		return true;
 	}
 	if(Index == ENTITY_SWITCH)
@@ -155,8 +165,13 @@ int CGameControllerExtract::CountHumanPlayersLocal() const
 void CGameControllerExtract::SpawnInitialEnemies()
 {
 	const int Players = max(1, CountPlayers(0));
-	m_EnemiesLeft = 16 + Players * 4;
-	for(int i = 0; i < m_EnemiesLeft && CountBots() < 16; i++)
+	const float CountScale = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->EnemyCountMultiplier() : 1.0f;
+	m_EnemiesLeft = max(1, (int)((16 + Players * 4) * CountScale + 0.5f));
+	const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
+		m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, EnemyLevel(), m_EnemiesLeft, 16);
+	m_EnemiesLeft -= ThreatReplacement.m_ThreatSpent;
+	const int BotCap = max(0, 16 - ThreatReplacement.m_EntitiesSpawned);
+	for(int i = 0; i < m_EnemiesLeft && CountBots() < BotCap; i++)
 		GameServer()->AddBot();
 
 	vec2 p;
@@ -201,8 +216,14 @@ void CGameControllerExtract::SpawnEscapePressure()
 		return;
 	m_EscapePressure = true;
 	const float Pressure = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ReinforcementMultiplier() : 1.0f;
-	m_EnemiesLeft += (int)((8 + CountPlayers(0) * 2) * Pressure);
-	for(int i = 0; i < (int)(8 * Pressure) && CountBots() < (int)(18 * Pressure); i++)
+	const int AddedThreat = (int)((8 + CountPlayers(0) * 2) * Pressure);
+	const int ConcurrentCap = (int)(18 * Pressure);
+	const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
+		m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, EnemyLevel(), AddedThreat,
+		max(0, ConcurrentCap - CountBots() - CountAliveSpecialists(&GameServer()->m_World)));
+	m_EnemiesLeft += AddedThreat - ThreatReplacement.m_ThreatSpent;
+	for(int i = 0; i < (int)(8 * Pressure) - ThreatReplacement.m_ThreatSpent &&
+		CountBots() + CountAliveSpecialists(&GameServer()->m_World) < ConcurrentCap; i++)
 		GameServer()->AddBot();
 	vec2 p;
 	if(GetSpawnPos(0, &p))
@@ -266,6 +287,7 @@ void CGameControllerExtract::OnSwitchTriggered()
 		return;
 
 	m_SwitchesActivated++;
+	m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_SWITCH);
 	if(GameServer()->m_pPveDirector)
 		GameServer()->m_pPveDirector->OnSwitchTriggered();
 	GameServer()->SendBroadcastFormat(-1, false, "Switch %d/%d activated", m_SwitchesActivated, m_SwitchesRequired);
@@ -287,6 +309,8 @@ void CGameControllerExtract::OnSwitchTriggered()
 
 void CGameControllerExtract::OnDroidKilled(CDroid *pDroid)
 {
+	if(pDroid && IsBossDroidType(pDroid->m_Type))
+		m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_BOSS);
 	if(pDroid == m_pMidBoss)
 		m_pMidBoss = 0;
 }
@@ -326,6 +350,7 @@ void CGameControllerExtract::NextLevel(int CID)
 
 	pPlayer->GetCharacter()->Warp();
 	m_Evacuated++;
+	m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_EVACUATE);
 	GameServer()->SendBroadcastFormat(-1, false, "Evacuated %d/%d", m_Evacuated, m_EvacNeeded);
 
 	if(m_Evacuated >= m_EvacNeeded)
@@ -345,6 +370,12 @@ void CGameControllerExtract::NextLevel(int CID)
 void CGameControllerExtract::Tick()
 {
 	IGameController::Tick();
+	const int ActiveOperation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
+	if(ActiveOperation >= 0 && m_pOperationDirector->Operation() != ActiveOperation)
+		m_pOperationDirector->Start(ActiveOperation);
+	else if(ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
+		m_pOperationDirector->Clear();
+	m_pOperationDirector->Tick();
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
 	{
 		if(m_DeadlineTick > 0)
@@ -464,7 +495,7 @@ void CGameControllerExtract::Tick()
 		m_MidBossPerkOffered = true;
 		if(GameServer()->m_pPveDirector)
 		{
-			GameServer()->m_pPveDirector->StartIntermission(false, true);
+			GameServer()->m_pPveDirector->StartIntermission(false, true, false);
 			if(GameServer()->m_pPveDirector->InIntermission())
 				return;
 		}
@@ -474,7 +505,7 @@ void CGameControllerExtract::Tick()
 		m_DoorChoiceStarted = true;
 		if(GameServer()->m_pPveDirector)
 		{
-			GameServer()->m_pPveDirector->StartIntermission(false, true);
+			GameServer()->m_pPveDirector->StartIntermission(false, true, false);
 			if(GameServer()->m_pPveDirector->InIntermission())
 				return;
 		}

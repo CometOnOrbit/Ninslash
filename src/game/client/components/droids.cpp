@@ -255,6 +255,18 @@ void CDroids::OnRender()
 			case DROIDTYPE_BOSSWALKER:
 				RenderWalker(pDroidPrev, pDroid, Item.m_ID);
 				break;
+			case DROIDTYPE_BULWARK:
+			case DROIDTYPE_ASSEMBLER:
+			case DROIDTYPE_RAILGUNNER:
+			case DROIDTYPE_SIEGE_ENGINE:
+				RenderWalker(pDroidPrev, pDroid, Item.m_ID);
+				break;
+			case DROIDTYPE_SABOTEUR:
+				RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
+				break;
+			case DROIDTYPE_OVERSEER_CORE:
+				RenderStar(pDroidPrev, pDroid, Item.m_ID);
+				break;
 			default:;
 			}
 		}

@@ -122,10 +122,8 @@ def extract_pve_definition_strings() -> set[str]:
         r'\{PVE_CONTRACT_[^,]+,\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"', text
     ):
         strings.update(match.groups())
-    for match in re.finditer(
-        r'\{PVE_OPERATION_[^,]+,\s*"([^"]+)",\s*"([^"]+)"', text
-    ):
-        strings.update(match.groups())
+    for match in re.finditer(r'^\s*\{PVE_OPERATION_[^\n]+$', text, re.MULTILINE):
+        strings.update(re.findall(r'"([^"]+)"', match.group(0)))
     return strings
 
 

@@ -1167,9 +1167,9 @@ static const CLocalGameMode s_aLocalGameModes[] = {
 };
 
 static const char *s_apLocalMaps[] = {
-	"City I", "City II", "Space", "Large I", "Large II", "Large III", "Blue planet"};
+	"City I", "City II", "Space", "Large I", "Large II", "Large III", "Blue planet", "Foundry"};
 static const char *s_apLocalMapCommands[] = {
-	"generate_city1", "generate_city2", "generate_space1", "generate_large1", "generate_large2", "generate_large3", "generate_blueplanet1"};
+	"generate_city1", "generate_city2", "generate_space1", "generate_large1", "generate_large2", "generate_large3", "generate_blueplanet1", "generate_foundry1"};
 static const char *s_apLocalCtfMaps[] = {"Compact", "Standard"};
 static const char *s_apLocalCtfMapCommands[] = {"generate_ctf_small1", "generate_ctf_medium1"};
 

@@ -7,6 +7,7 @@
 class CGameControllerInvasion : public IGameController
 {
 private:
+	class CPveOperationDirector *m_pOperationDirector;
 	int m_LevelQuestsLeft;
 	int m_QuestsCompleted;
 	int m_LevelTheme;
@@ -123,6 +124,7 @@ private:
 	
 public:
 	CGameControllerInvasion(class CGameContext *pGameServer);
+	virtual ~CGameControllerInvasion();
 	
 	virtual bool OnEntity(int Index, vec2 Pos);
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);

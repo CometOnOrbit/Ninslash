@@ -7,6 +7,7 @@
 #include <game/server/entities/droid.h>
 #include <game/server/entities/lightning.h>
 #include <game/server/entities/pve_drone.h>
+#include <game/server/entities/pve_drone_pulse.h>
 #include <game/server/entities/weapon.h>
 #include <game/server/entities/building.h>
 #include <game/server/entities/radar.h>
@@ -165,6 +166,17 @@ bool CPveDirector::Enabled() const
 bool CPveDirector::OperationsEnabled() const
 {
 	return g_Config.m_SvPveOperations && m_Mode != PVE_MODE_ANY;
+}
+
+bool CPveDirector::TogglePauseAfterIntermission()
+{
+	if(!InIntermission())
+		return false;
+	m_WasWorldPaused = !m_WasWorldPaused;
+	// The intermission owns the live pause. The command changes only the state
+	// that will be restored when voting finishes.
+	m_pGameServer->m_World.m_Paused = true;
+	return true;
 }
 
 bool CPveDirector::IsEligiblePlayer(int ClientID) const
@@ -327,6 +339,13 @@ void CPveDirector::SendOperationState(int ClientID)
 	CNetMsg_Sv_PveOperationState Msg;
 	Msg.m_Operation = m_ActiveOperation;
 	Msg.m_State = m_OperationState;
+	Msg.m_Step = -1;
+	Msg.m_Progress = 0;
+	Msg.m_Target = 0;
+	Msg.m_EndTick = 0;
+	Msg.m_TargetType = PVE_OPERATION_TARGET_NONE;
+	Msg.m_TargetX = 0;
+	Msg.m_TargetY = 0;
 	m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
 
@@ -470,6 +489,18 @@ void CPveDirector::BeginOperationVote(bool ContractVote, bool PerkChoice)
 	for(int ID = 0; ID < NUM_PVE_OPERATIONS; ID++)
 		if(!(m_UsedOperations & (1u << ID)) && PveOperationAvailableInMode(ID, m_Mode))
 			aPool[Count++] = ID;
+	// Every vote promises two routes. Once fewer than two unused routes remain,
+	// start a new cycle while avoiding an immediate repeat of the active route.
+	if(Count < 2)
+	{
+		m_UsedOperations = 0;
+		if(PveOperationAvailableInMode(m_ActiveOperation, m_Mode))
+			m_UsedOperations |= 1u << m_ActiveOperation;
+		Count = 0;
+		for(int ID = 0; ID < NUM_PVE_OPERATIONS; ID++)
+			if(!(m_UsedOperations & (1u << ID)) && PveOperationAvailableInMode(ID, m_Mode))
+				aPool[Count++] = ID;
+	}
 	m_PendingContractVote = ContractVote;
 	m_PendingPerkChoice = PerkChoice;
 	if(Count <= 0)
@@ -743,15 +774,18 @@ void CPveDirector::GrantCatchup(int ClientID)
 	}
 }
 
-void CPveDirector::StartIntermission(bool ContractVote, bool PerkChoice)
+void CPveDirector::StartIntermission(bool ContractVote, bool PerkChoice, bool OperationVote)
 {
-	if((!Enabled() && !OperationsEnabled()) || InIntermission() || EligiblePlayerCount() <= 0 || (!ContractVote && !PerkChoice))
+	if((!Enabled() && !OperationsEnabled()) || InIntermission() || EligiblePlayerCount() <= 0 || (!ContractVote && !PerkChoice && !OperationVote))
 		return;
 	ContractVote = ContractVote && Enabled();
 	PerkChoice = PerkChoice && Enabled();
+	OperationVote = OperationVote && OperationsEnabled();
+	if(!OperationVote && !ContractVote && !PerkChoice)
+		return;
 	m_WasWorldPaused = m_pGameServer->m_World.m_Paused;
 	m_pGameServer->m_World.m_Paused = true;
-	if(OperationsEnabled())
+	if(OperationVote)
 		BeginOperationVote(ContractVote, PerkChoice);
 	else if(ContractVote && g_Config.m_SvPveContracts)
 		BeginContractVote(PerkChoice);
@@ -1124,6 +1158,15 @@ void CPveDirector::OnOperationVote(int ClientID, int Nonce, int OperationID)
 	SendOperationVote();
 	if(AllOperationVotesComplete())
 		FinishOperationVote();
+}
+
+void CPveDirector::OnOperationChainFinished(int OperationID)
+{
+	if(m_ActiveOperation != OperationID)
+		return;
+	m_ActiveOperation = -1;
+	m_OperationState = PVE_OPERATION_STATE_NONE;
+	SendOperationState();
 }
 
 void CPveDirector::ApplyStageSupplies(int ClientID)
@@ -1903,6 +1946,25 @@ void CPveDirector::DestroyDrone(int ClientID)
 	Run.m_pDroneTarget = 0;
 }
 
+int CPveDirector::DroneSwitchReadyTick(int ClientID) const
+{
+	return Enabled() && ClientID >= 0 && ClientID < MAX_CLIENTS ? m_aPlayers[ClientID].m_DroneSwitchReadyTick : 0;
+}
+
+bool CPveDirector::DamageDrone(int ClientID, int Damage)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_aPlayers[ClientID].m_pDrone)
+		return false;
+	CPlayerRun &Run = m_aPlayers[ClientID];
+	return Run.m_pDrone->TakeDamage(Damage);
+}
+
+void CPveDirector::ApplyDroneEmp(int ClientID, int Seconds)
+{
+	if(ClientID >= 0 && ClientID < MAX_CLIENTS && m_aPlayers[ClientID].m_pDrone)
+		m_aPlayers[ClientID].m_pDrone->ApplyEmp(m_pGameServer->Server()->TickSpeed() * max(0, Seconds));
+}
+
 float CPveDirector::DroneEfficiency(int ClientID) const
 {
 	if(!IsEligiblePlayer(ClientID))
@@ -1940,7 +2002,7 @@ void CPveDirector::TickDrone(int ClientID)
 	}
 	if(!Run.m_pDrone)
 		Run.m_pDrone = new CPveDrone(&m_pGameServer->m_World, ClientID);
-	if(Run.m_DroneModule == PVE_DRONE_NONE || Run.m_DroneActionTick > m_pGameServer->Server()->Tick())
+	if(!Run.m_pDrone || !Run.m_pDrone->Active() || Run.m_DroneModule == PVE_DRONE_NONE || Run.m_DroneActionTick > m_pGameServer->Server()->Tick())
 		return;
 	const float Efficiency = DroneEfficiency(ClientID);
 	const float CooldownReduction = min(0.30f, Run.m_aStacks[PVE_CARD_SERVO_LINK] * 0.08f);
@@ -1975,7 +2037,8 @@ void CPveDirector::TickDrone(int ClientID)
 			const int Damage = max(1, (int)(BaseDamage * DamageScale + 0.5f));
 			const vec2 TargetPos = pBestCharacter ? pBestCharacter->m_Pos : pBestDroid->m_Pos + pBestDroid->m_Center;
 			Run.m_pDroneTarget = pBestCharacter ? (CEntity *)pBestCharacter : (CEntity *)pBestDroid;
-			new CLightning(&m_pGameServer->m_World, TargetPos, Run.m_pDrone->m_Pos);
+			Run.m_pDrone->SetAction(TargetPos, m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 5);
+			new CPveDronePulse(&m_pGameServer->m_World, Run.m_pDrone->m_Pos, TargetPos, ClientID, Weapon);
 			m_ApplyingSecondaryEffect = true;
 			if(pBestCharacter)
 				pBestCharacter->TakeDamage(ClientID, Weapon, Damage, vec2(0, 0), TargetPos);
@@ -2101,7 +2164,7 @@ void CPveDirector::OnDroneModule(int ClientID, int Nonce, int Module)
 	}
 	Run.m_LastDroneNonce = Nonce;
 	Run.m_DroneModule = Module;
-	Run.m_DroneSwitchReadyTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 2;
+	Run.m_DroneSwitchReadyTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 8;
 	Run.m_DroneActionTick = m_pGameServer->Server()->Tick();
 	SendBuildState(ClientID, true);
 }
@@ -2434,12 +2497,11 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 			Reduction += 0.15f;
 		if(m_Mode == PVE_MODE_EXTRACTION && pTarget && pTarget->IsBombCarrier() && Run.m_aStacks[PVE_CARD_COURIER])
 			Reduction += 0.10f;
+		float GuardianReduction = 0.0f;
 		for(int Ally = 0; Ally < MAX_CLIENTS; Ally++)
-			if(pTarget && IsEligiblePlayer(Ally) && m_aPlayers[Ally].m_DroneModule == PVE_DRONE_GUARDIAN && m_aPlayers[Ally].m_pDrone && distance(m_aPlayers[Ally].m_pDrone->m_Pos, pTarget->m_Pos) <= 280.0f)
-			{
-				Reduction += 0.10f * DroneEfficiency(Ally);
-				break;
-			}
+			if(pTarget && IsEligiblePlayer(Ally) && m_aPlayers[Ally].m_DroneModule == PVE_DRONE_GUARDIAN && m_aPlayers[Ally].m_pDrone && m_aPlayers[Ally].m_pDrone->Active() && distance(m_aPlayers[Ally].m_pDrone->m_Pos, pTarget->m_Pos) <= 280.0f)
+				GuardianReduction = max(GuardianReduction, min(0.25f, 0.10f * DroneEfficiency(Ally)));
+		Reduction += GuardianReduction;
 		if(Run.m_aStacks[PVE_CARD_GLASS_EDGE])
 			Multiplier *= 1.20f;
 		if(ActiveContract() == PVE_CONTRACT_GLASS_CANNON)

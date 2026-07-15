@@ -12,7 +12,9 @@ inline bool IsBossDroidType(int Type)
 	return Type == DROIDTYPE_BOSSCRAWLER
 		|| Type == DROIDTYPE_BOSSSTAR
 		|| Type == DROIDTYPE_BOSSWALKER
-		|| Type == DROIDTYPE_BOSSSPLITTER;
+		|| Type == DROIDTYPE_BOSSSPLITTER
+		|| Type == DROIDTYPE_SIEGE_ENGINE
+		|| Type == DROIDTYPE_OVERSEER_CORE;
 }
 
 // Depth unlocks more boss kinds (Invasion level / Horde wave).
@@ -24,6 +26,25 @@ bool FindBossSpawnPosition(CGameWorld *pWorld, const vec2 *pSpawnPoints, int Num
 
 // Spawn one boss at Pos. TypeHint < 0 => random from pool.
 CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth = 1, int TypeHint = -1);
+CDroid *SpawnSpecialist(CGameWorld *pWorld, vec2 Pos, int Type);
+
+// Shared threat accounting. Boss values are exposed for operation budgets,
+// but bosses are never selected by ordinary-batch replacement.
+int DroidThreatCost(int Type);
+
+struct SThreatBudgetResult
+{
+	int m_ThreatSpent;
+	int m_EntitiesSpawned;
+};
+
+// Replaces part of an ordinary-enemy batch with specialists. One ordinary
+// enemy is one threat point; specialists cost 2 or 3 points but occupy only
+// one of the batch's original concurrent slots.
+SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld, const vec2 *pSpawnPoints,
+	int NumSpawnPoints, int *pRotation, int Depth, int OrdinaryThreat, int MaxEntities);
+
+int CountAliveSpecialists(CGameWorld *pWorld);
 
 int CountAliveBosses(CGameWorld *pWorld);
 

@@ -2727,7 +2727,8 @@ void CGameContext::ConPause(IConsole::IResult *pResult, void *pUserData)
 	if(pSelf->m_pController->IsGameOver())
 		return;
 
-	pSelf->m_World.m_Paused ^= 1;
+	if(!pSelf->m_pPveDirector || !pSelf->m_pPveDirector->TogglePauseAfterIntermission())
+		pSelf->m_World.m_Paused ^= 1;
 }
 
 void CGameContext::ConChangeMap(IConsole::IResult *pResult, void *pUserData)

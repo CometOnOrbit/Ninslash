@@ -1,5 +1,6 @@
 #include <base/system.h>
 #include <base/math.h>
+#include <engine/shared/config.h>
 
 #include <game/collision.h>
 #include <game/server/gamecontext.h>
@@ -9,6 +10,12 @@
 #include <game/server/entities/droid_bossstar.h>
 #include <game/server/entities/droid_bosswalker.h>
 #include <game/server/entities/droid_bosssplitter.h>
+#include <game/server/entities/droid_bulwark.h>
+#include <game/server/entities/droid_assembler.h>
+#include <game/server/entities/droid_saboteur.h>
+#include <game/server/entities/droid_railgunner.h>
+#include <game/server/entities/droid_siege_engine.h>
+#include <game/server/entities/droid_overseer_core.h>
 
 #include "bosspool.h"
 
@@ -60,13 +67,17 @@ bool TryBossLanding(CGameWorld *pWorld, vec2 Probe, vec2 *pOutPos)
 int SelectBossType(int Depth)
 {
 	// Always available
-	int Types[4];
+	int Types[6];
 	int Count = 0;
 	Types[Count++] = DROIDTYPE_BOSSCRAWLER;
 	if(Depth >= 5)
 		Types[Count++] = DROIDTYPE_BOSSSTAR;
 	if(Depth >= 15)
 		Types[Count++] = DROIDTYPE_BOSSSPLITTER;
+	if(Depth >= 20)
+		Types[Count++] = DROIDTYPE_SIEGE_ENGINE;
+	if(Depth >= 30)
+		Types[Count++] = DROIDTYPE_OVERSEER_CORE;
 	return Types[rand() % Count];
 }
 
@@ -111,6 +122,10 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 
 	switch(Type)
 	{
+	case DROIDTYPE_SIEGE_ENGINE:
+		return new CSiegeEngine(pWorld, Pos);
+	case DROIDTYPE_OVERSEER_CORE:
+		return new COverseerCore(pWorld, Pos);
 	case DROIDTYPE_BOSSSTAR:
 		return new CBossStar(pWorld, Pos);
 	case DROIDTYPE_BOSSSPLITTER:
@@ -118,6 +133,90 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 	default:
 		return new CBossCrawler(pWorld, Pos);
 	}
+}
+
+CDroid *SpawnSpecialist(CGameWorld *pWorld, vec2 Pos, int Type)
+{
+	switch(Type)
+	{
+	case DROIDTYPE_BULWARK: return new CBulwark(pWorld, Pos);
+	case DROIDTYPE_ASSEMBLER: return new CAssembler(pWorld, Pos);
+	case DROIDTYPE_SABOTEUR: return new CSaboteur(pWorld, Pos);
+	case DROIDTYPE_RAILGUNNER: return new CRailgunner(pWorld, Pos);
+	default: return 0;
+	}
+}
+
+int DroidThreatCost(int Type)
+{
+	switch(Type)
+	{
+	case DROIDTYPE_RAILGUNNER:
+	case DROIDTYPE_SABOTEUR: return 2;
+	case DROIDTYPE_BULWARK:
+	case DROIDTYPE_ASSEMBLER: return 3;
+	case DROIDTYPE_SIEGE_ENGINE:
+	case DROIDTYPE_OVERSEER_CORE: return 10;
+	default: return 1;
+	}
+}
+
+SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld, const vec2 *pSpawnPoints,
+	int NumSpawnPoints, int *pRotation, int Depth, int OrdinaryThreat, int MaxEntities)
+{
+	SThreatBudgetResult Result = {0, 0};
+	if(!g_Config.m_SvPveOperations || !pWorld || !pSpawnPoints || NumSpawnPoints <= 0 || OrdinaryThreat < 2 || MaxEntities <= 0)
+		return Result;
+
+	// Spend roughly a quarter of each ordinary batch on specialists. Unlock
+	// support units gradually so early runs cannot roll a three-point wall.
+	const int SpendLimit = min(OrdinaryThreat, max(2, OrdinaryThreat / 4));
+	while(Result.m_EntitiesSpawned < MaxEntities && Result.m_ThreatSpent + 2 <= SpendLimit)
+	{
+		int aTypes[4];
+		int NumTypes = 0;
+		aTypes[NumTypes++] = DROIDTYPE_RAILGUNNER;
+		if(Depth >= 3)
+			aTypes[NumTypes++] = DROIDTYPE_SABOTEUR;
+		if(Depth >= 5)
+			aTypes[NumTypes++] = DROIDTYPE_BULWARK;
+		if(Depth >= 7)
+			aTypes[NumTypes++] = DROIDTYPE_ASSEMBLER;
+
+		int Type = aTypes[rand() % NumTypes];
+		int Cost = DroidThreatCost(Type);
+		if(Result.m_ThreatSpent + Cost > SpendLimit)
+		{
+			Type = DROIDTYPE_RAILGUNNER;
+			Cost = 2;
+		}
+		if(Result.m_ThreatSpent + Cost > SpendLimit)
+			break;
+
+		const int Index = pRotation ? (*pRotation + 1 + NumSpawnPoints) % NumSpawnPoints : Result.m_EntitiesSpawned % NumSpawnPoints;
+		if(pRotation)
+			*pRotation = Index;
+		if(!SpawnSpecialist(pWorld, pSpawnPoints[Index] + vec2(0.0f, -100.0f), Type))
+			break;
+		Result.m_ThreatSpent += Cost;
+		Result.m_EntitiesSpawned++;
+	}
+	return Result;
+}
+
+int CountAliveSpecialists(CGameWorld *pWorld)
+{
+	if(!pWorld)
+		return 0;
+	CDroid *apEnts[256];
+	const int Num = pWorld->FindEntities(vec2(0, 0), 0.0f, (CEntity **)apEnts, 256, CGameWorld::ENTTYPE_DROID);
+	int Specialists = 0;
+	for(int i = 0; i < Num; i++)
+		if(apEnts[i] && apEnts[i]->m_Health > 0 &&
+			(apEnts[i]->m_Type == DROIDTYPE_BULWARK || apEnts[i]->m_Type == DROIDTYPE_ASSEMBLER ||
+			 apEnts[i]->m_Type == DROIDTYPE_SABOTEUR || apEnts[i]->m_Type == DROIDTYPE_RAILGUNNER))
+			Specialists++;
+	return Specialists;
 }
 
 int CountAliveBosses(CGameWorld *pWorld)

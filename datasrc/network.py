@@ -17,7 +17,8 @@ BallStatuses = ["STATIONARY", "SUPER"]
 Damagetypes = ["NORMAL", "FLAME", "ELECTRIC", "FLUID"]
 
 Droidstatus = ["IDLE", "HURT", "ELECTRIC", "TERMINATED"]
-Droidtype = ["WALKER", "STAR", "CRAWLER", "BOSSCRAWLER", "FLY", "BOSSSTAR", "BOSSWALKER", "BOSSSPLITTER"]
+Droidtype = ["WALKER", "STAR", "CRAWLER", "BOSSCRAWLER", "FLY", "BOSSSTAR", "BOSSWALKER", "BOSSSPLITTER",
+	"BULWARK", "ASSEMBLER", "SABOTEUR", "RAILGUNNER", "SIEGE_ENGINE", "OVERSEER_CORE"]
 Droidanim = ["IDLE", "MOVE", "ATTACK", "JUMPATTACK"]
 
 CoreAction = ["IDLE", "JUMP", "WALLJUMP", "ROLL", "SLIDE", "SLIDEKICK", "FALL", "JUMPPAD", "HANG"]
@@ -71,6 +72,14 @@ enum
 	BUILDING_TESLACOIL,
 	BUILDING_SCREEN,
 	BUILDING_SHOP,
+	BUILDING_PVE_SHIELD_RELAY,
+	BUILDING_PVE_OVERLOAD_TERMINAL,
+	BUILDING_PVE_ASSEMBLY_NODE,
+	BUILDING_PVE_TARGETING_BEACON,
+	BUILDING_PVE_DATA_CORE,
+	BUILDING_PVE_UPLOAD_POINT,
+	BUILDING_PVE_SHIELD_NODE,
+	BUILDING_PVE_ENERGY_CORE,
 	
 	BSTATUS_REPAIR=1,
 	BSTATUS_NOPE,
@@ -523,6 +532,22 @@ Objects = [
 		NetIntRange("m_EffectID", 0, 'NUM_EFFECTS-1'),
 		NetIntRange("m_ClientID", 0, 'MAX_CLIENTS-1'),
 	]),
+
+	# Appended for protocol v10. Keep all legacy object/event IDs stable.
+	NetObject("PveDrone", [
+		NetIntRange("m_Owner", 0, 'MAX_CLIENTS-1'),
+		NetIntAny("m_X"),
+		NetIntAny("m_Y"),
+		NetIntAny("m_VelX"),
+		NetIntAny("m_VelY"),
+		NetIntRange("m_Module", 0, 3),
+		NetIntRange("m_State", 0, 6),
+		NetIntRange("m_Health", 0, 40),
+		NetIntAny("m_TargetX"),
+		NetIntAny("m_TargetY"),
+		NetIntAny("m_ActionTick"),
+		NetIntAny("m_SwitchReadyTick"),
+	]),
 ]
 
 # todo: remove unnecessary ones
@@ -870,6 +895,13 @@ Messages = [
 
 	NetMessage("Sv_PveOperationState", [
 		NetIntRange("m_Operation", -1, 8),
-		NetIntRange("m_State", 0, 1),
+		NetIntRange("m_State", 0, 3),
+		NetIntRange("m_Step", -1, 2),
+		NetIntRange("m_Progress", 0, 9999),
+		NetIntRange("m_Target", 0, 9999),
+		NetIntAny("m_EndTick"),
+		NetIntRange("m_TargetType", 0, 12),
+		NetIntAny("m_TargetX"),
+		NetIntAny("m_TargetY"),
 	]),
 ]

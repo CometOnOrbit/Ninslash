@@ -74,18 +74,77 @@ class CTextRender : public IEngineTextRender
 	IGraphics *m_pGraphics;
 	IGraphics *Graphics() { return m_pGraphics; }
 
-	int WordLength(const char *pText)
+	static bool IsCjk(int Chr)
 	{
-		int s = 1;
-		while(1)
+		return (Chr >= 0x2e80 && Chr <= 0x9fff) ||
+			(Chr >= 0xf900 && Chr <= 0xfaff) ||
+			(Chr >= 0x3040 && Chr <= 0x30ff) ||
+			(Chr >= 0xac00 && Chr <= 0xd7af) ||
+			(Chr >= 0x20000 && Chr <= 0x3134f);
+	}
+
+	static bool IsOpeningPunctuation(int Chr)
+	{
+		return Chr == '(' || Chr == '[' || Chr == '{' || Chr == '<' ||
+			Chr == 0x2018 || Chr == 0x201c || Chr == 0x3008 || Chr == 0x300a ||
+			Chr == 0x300c || Chr == 0x300e || Chr == 0x3010 || Chr == 0x3014 ||
+			Chr == 0x3016 || Chr == 0x3018 || Chr == 0x301a || Chr == 0xff08 ||
+			Chr == 0xff3b || Chr == 0xff5b;
+	}
+
+	static bool IsClosingPunctuation(int Chr)
+	{
+		return Chr == ')' || Chr == ']' || Chr == '}' || Chr == '>' || Chr == ',' ||
+			Chr == '.' || Chr == '!' || Chr == '?' || Chr == ':' || Chr == ';' ||
+			Chr == 0x2019 || Chr == 0x201d || Chr == 0x3001 || Chr == 0x3002 ||
+			Chr == 0x3009 || Chr == 0x300b || Chr == 0x300d || Chr == 0x300f ||
+			Chr == 0x3011 || Chr == 0x3015 || Chr == 0x3017 || Chr == 0x3019 ||
+			Chr == 0x301b || Chr == 0xff01 || Chr == 0xff09 || Chr == 0xff0c ||
+			Chr == 0xff0e || Chr == 0xff1a || Chr == 0xff1b || Chr == 0xff1f ||
+			Chr == 0xff3d || Chr == 0xff5d;
+	}
+
+	static bool IsBreakSpace(int Chr)
+	{
+		return Chr == ' ' || Chr == '\t' || Chr == 0x3000;
+	}
+
+	static bool CanBreakBetween(int Left, int Right)
+	{
+		if(Left == '\n' || IsBreakSpace(Left))
+			return true;
+		if(IsOpeningPunctuation(Left) || IsClosingPunctuation(Right))
+			return false;
+		return IsCjk(Left) || IsCjk(Right) || IsClosingPunctuation(Left) || IsOpeningPunctuation(Right);
+	}
+
+	// Return a UTF-8-safe run ending at the next legal line-break opportunity.
+	static int TextRunLength(const char *pText, const char *pEnd)
+	{
+		if(pText >= pEnd)
+			return 0;
+		const char *p = pText;
+		int Left = str_utf8_decode(&p);
+		if(Left == '\n')
+			return p-pText;
+		while(p < pEnd)
 		{
-			if(*pText == 0)
-				return s-1;
-			if(*pText == '\n' || *pText == '\t' || *pText == ' ')
-				return s;
-			pText++;
-			s++;
+			const char *pNext = p;
+			int Right = str_utf8_decode(&pNext);
+			if(CanBreakBetween(Left, Right))
+				return p-pText;
+			Left = Right;
+			p = pNext;
 		}
+		return pEnd-pText;
+	}
+
+	static int Utf8BytesForCharacters(const char *pText, const char *pEnd, int Characters)
+	{
+		const char *p = pText;
+		while(p < pEnd && Characters-- > 0)
+			str_utf8_decode(&p);
+		return p-pText;
 	}
 
 	float m_TextR;
@@ -676,6 +735,7 @@ public:
 		if(pCursor->m_Flags&TEXTFLAG_RENDER)
 			i = 0;
 
+		const int InitialCharCount = pCursor->m_CharCount;
 		for(;i < 2; i++)
 		{
 			const char *pCurrent = (char *)pText;
@@ -683,6 +743,7 @@ public:
 			DrawX = CursorX;
 			DrawY = CursorY;
 			LineCount = pCursor->m_LineCount;
+			pCursor->m_CharCount = InitialCharCount;
 
 			if(pCursor->m_Flags&TEXTFLAG_RENDER)
 			{
@@ -705,7 +766,7 @@ public:
 				const char *pBatchEnd = pEnd;
 				if(pCursor->m_LineWidth > 0 && !(pCursor->m_Flags&TEXTFLAG_STOP_AT_END))
 				{
-					int Wlen = min(WordLength((char *)pCurrent), (int)(pEnd-pCurrent));
+					int Wlen = TextRunLength(pCurrent, pEnd);
 					CTextCursor Compare = *pCursor;
 					Compare.m_X = DrawX;
 					Compare.m_Y = DrawY;
@@ -724,11 +785,14 @@ public:
 						Cutter.m_Flags |= TEXTFLAG_STOP_AT_END;
 
 						TextEx(&Cutter, (const char *)pCurrent, Wlen);
-						Wlen = Cutter.m_CharCount;
+						const int RunLength = Wlen;
+						Wlen = Utf8BytesForCharacters(pCurrent, pCurrent+RunLength, Cutter.m_CharCount);
 						NewLine = 1;
 
-						if(Wlen <= 3) // if we can't place 3 chars of the word on this line, take the next
+						if(Cutter.m_CharCount <= 3 && DrawX != pCursor->m_StartX) // preserve the legacy short-fragment rule
 							Wlen = 0;
+						else if(Wlen == 0) // an over-wide glyph on an empty line must still make progress
+							Wlen = Utf8BytesForCharacters(pCurrent, pCurrent+RunLength, 1);
 					}
 					else if(Compare.m_X-pCursor->m_StartX > pCursor->m_LineWidth)
 					{
@@ -754,6 +818,7 @@ public:
 						DrawX = (int)(DrawX * FakeToScreenX) / FakeToScreenX; // realign
 						DrawY = (int)(DrawY * FakeToScreenY) / FakeToScreenY;
 						++LineCount;
+						GotNewLine = 1;
 						if(pCursor->m_MaxLines > 0 && LineCount > pCursor->m_MaxLines)
 							break;
 						continue;

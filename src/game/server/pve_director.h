@@ -199,6 +199,7 @@ public:
 
 	bool Enabled() const;
 	bool InIntermission() const { return m_IntermissionState != PVE_INTERMISSION_NONE; }
+	bool TogglePauseAfterIntermission();
 	int Mode() const { return m_Mode; }
 	int ActiveOperation() const { return m_OperationState == PVE_OPERATION_STATE_ACTIVE ? m_ActiveOperation : -1; }
 	int ActiveContract() const { return Enabled() && m_ContractState == PVE_CONTRACT_STATE_ACTIVE ? m_ActiveContract : -1; }
@@ -211,10 +212,11 @@ public:
 	void OnResearchBuy(int ClientID, int Nonce, int CardID);
 	void OnChoice(int ClientID, int Nonce, int CardID);
 	void OnOperationVote(int ClientID, int Nonce, int OperationID);
+	void OnOperationChainFinished(int OperationID);
 	void OnContractVote(int ClientID, int Nonce, int ContractID);
 	void OnDroneModule(int ClientID, int Nonce, int Module);
 
-	void StartIntermission(bool ContractVote, bool PerkChoice);
+	void StartIntermission(bool ContractVote, bool PerkChoice, bool OperationVote = true);
 	void OnStageStart();
 	void OnPlayerSpawn(int ClientID);
 	void OnStageComplete(bool Success = true);
@@ -257,6 +259,9 @@ public:
 	bool UseLastStand(int ClientID);
 	int PerkStacks(int ClientID, int CardID) const;
 	int DroneModule(int ClientID) const;
+	int DroneSwitchReadyTick(int ClientID) const;
+	bool DamageDrone(int ClientID, int Damage);
+	void ApplyDroneEmp(int ClientID, int Seconds = 5);
 	int TeamCheckpoint() const;
 	bool ProgressReady() const;
 	float OperationEnemyCountMultiplier() const;

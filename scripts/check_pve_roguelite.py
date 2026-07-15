@@ -113,7 +113,7 @@ def main() -> int:
 
     operations = re.findall(
         r'^\s*\{(PVE_OPERATION_[A-Z0-9_]+),\s*"([^"]+)",\s*"([^"]+)",\s*'
-        r'(PVE_MODE_[A-Z]+),\s*([^}]+)\},',
+        r'(PVE_MODE_[A-Z]+),\s*(.*)\},$',
         shared, re.MULTILINE,
     )
     if len(operations) != 9:
@@ -133,8 +133,11 @@ def main() -> int:
     expected_modes = ["PVE_MODE_INVASION"] * 3 + ["PVE_MODE_HORDE"] * 3 + ["PVE_MODE_EXTRACTION"] * 3
     if [row[3] for row in operations] != expected_modes:
         fail("operations must remain grouped as three routes per PvE mode")
-    if any(len([value for value in row[4].split(",") if value.strip()]) != 7 for row in operations):
-        fail("every operation must define all seven sidegrade multipliers")
+    for row in operations:
+        if len(re.findall(r'"[^"]+"', row[4])) != 3:
+            fail(f"operation must define three step previews: {row[0]}")
+        if len(re.findall(r"PVE_OPERATION_TARGET_[A-Z0-9_]+", row[4])) != 3:
+            fail(f"operation must define three target types: {row[0]}")
 
     network = open(os.path.join(ROOT, "datasrc/network.py"), encoding="utf-8").read()
     for message in (
@@ -152,7 +155,7 @@ def main() -> int:
     )
     message_names = re.findall(r'^\s*NetMessage\("([^"]+)"', network, re.MULTILINE)
     if tuple(message_names[-3:]) != operation_messages:
-        fail("operation protocol messages must be appended at the end in v9 order")
+        fail("operation protocol messages must remain appended at the end")
     expected_operation_fields = {
         "Sv_PveOperationVote": (
             'NetIntAny("m_Nonce"),', 'NetIntAny("m_EndTick"),',
@@ -164,7 +167,11 @@ def main() -> int:
             'NetIntAny("m_Nonce"),', 'NetIntRange("m_Choice",0,1),',
         ),
         "Sv_PveOperationState": (
-            'NetIntRange("m_Operation",-1,8),', 'NetIntRange("m_State",0,1),',
+            'NetIntRange("m_Operation",-1,8),', 'NetIntRange("m_State",0,3),',
+            'NetIntRange("m_Step",-1,2),', 'NetIntRange("m_Progress",0,9999),',
+            'NetIntRange("m_Target",0,9999),', 'NetIntAny("m_EndTick"),',
+            'NetIntRange("m_TargetType",0,12),', 'NetIntAny("m_TargetX"),',
+            'NetIntAny("m_TargetY"),',
         ),
     }
     for name, fields in expected_operation_fields.items():
@@ -372,11 +379,32 @@ def main() -> int:
     for token in operation_client_tokens:
         if token not in client and token not in client_header:
             fail(f"operation client integration missing: {token}")
-    version = open(os.path.join(ROOT, "src/game/version.h"), encoding="utf-8").read()
-    if '"pve-director-v9"' not in version:
-        fail("network protocol version was not advanced to v9")
 
-    print(f"OK: 100 cards (12 new base, 48 new research, 8 legendary), 20 contracts, {new_research_cost} new research points, v9 protocol")
+    game_context = open(os.path.join(ROOT, "src/game/server/gamecontext.cpp"), encoding="utf-8").read()
+    extract = open(os.path.join(ROOT, "src/game/server/gamemodes/extract.cpp"), encoding="utf-8").read()
+    input_source = open(os.path.join(ROOT, "src/engine/client/input.cpp"), encoding="utf-8").read()
+    for token in (
+        "if(Count < 2)", "m_UsedOperations = 0",
+        "TogglePauseAfterIntermission()", "OperationVote = OperationVote && OperationsEnabled()",
+    ):
+        if token not in director and token not in game_context:
+            fail(f"operation lifecycle invariant missing: {token}")
+    for token in (
+        "EnemyCountMultiplier()", "StartIntermission(false, true, false)",
+    ):
+        if token not in extract:
+            fail(f"Extraction operation lifecycle invariant missing: {token}")
+    for token in (
+        "SDL_GAMEPAD_BUTTON_DPAD_UP", "SDL_GAMEPAD_BUTTON_DPAD_DOWN",
+        "SDL_GAMEPAD_BUTTON_DPAD_LEFT", "SDL_GAMEPAD_BUTTON_DPAD_RIGHT",
+    ):
+        if token not in input_source:
+            fail(f"gamepad operation input mapping missing: {token}")
+    version = open(os.path.join(ROOT, "src/game/version.h"), encoding="utf-8").read()
+    if '"lost-protocol-v10"' not in version:
+        fail("network protocol version was not advanced to v10")
+
+    print(f"OK: 100 cards (12 new base, 48 new research, 8 legendary), 20 contracts, 9 three-step operations, {new_research_cost} new research points, v10 protocol")
     return 0
 
 

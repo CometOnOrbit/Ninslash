@@ -22,6 +22,12 @@ class CPveRoguelite : public CComponent
 	int m_aOperationVotes[2];
 	int m_SelectedOperation;
 	int m_ActiveOperation;
+	int m_OperationStep;
+	int m_OperationProgress;
+	int m_OperationTarget;
+	int m_OperationStatusEndTick;
+	int m_OperationTargetType;
+	vec2 m_OperationTargetPos;
 	int m_ContractNonce;
 	int m_ChoiceEndTick;
 	int m_ContractEndTick;
@@ -52,6 +58,12 @@ class CPveRoguelite : public CComponent
 	int m_DroneModule;
 	int m_DroneSwitchReadyTick;
 	int m_DroneNonce;
+	int m_DroneHealth;
+	int m_DroneState;
+	int m_DroneActionTick;
+	bool m_DroneWheelActive;
+	bool m_DroneTutorialSeen;
+	vec2 m_DroneWheelMouse;
 	int m_ValidationCode;
 	int64 m_ValidationUntil;
 	int m_SelectedResearch;
@@ -93,6 +105,8 @@ class CPveRoguelite : public CComponent
 	void DrawInvasionRetryResult();
 	void DrawContractHud();
 	void DrawBuildHud();
+	void DrawDrones();
+	void DrawDroneWheel();
 	void DrawText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth = -1.0f, int Align = -1);
 	void DrawWrappedText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth, int MaxLines);
 	void DrawPanel(const CUIRect &Rect, vec4 Color, float Rounding = 8.0f);

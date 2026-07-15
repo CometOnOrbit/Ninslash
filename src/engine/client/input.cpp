@@ -436,6 +436,10 @@ int CInput::Update()
 					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_EAST) Key = KEY_GAMEPAD_BUTTON_B;
 					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_WEST) Key = KEY_GAMEPAD_BUTTON_X;
 					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_NORTH) Key = KEY_GAMEPAD_BUTTON_Y;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_UP) Key = KEY_GAMEPAD_BUTTON_DPAD_UP;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN) Key = KEY_GAMEPAD_BUTTON_DPAD_DOWN;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT) Key = KEY_GAMEPAD_BUTTON_DPAD_LEFT;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT) Key = KEY_GAMEPAD_BUTTON_DPAD_RIGHT;
 					break;
 					
 				case SDL_EVENT_GAMEPAD_AXIS_MOTION:

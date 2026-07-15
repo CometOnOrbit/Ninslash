@@ -11,6 +11,7 @@
 #include <game/server/ai/base_ai.h>
 #include <game/server/pve_bots.h>
 #include <game/server/pve_director.h>
+#include <game/server/pve_operation_director.h>
 #include <game/weapons.h>
 
 #include "horde.h"
@@ -31,6 +32,7 @@ static int HordeConcurrentEnemyCap(int Wave)
 CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer)
 : IGameController(pGameServer)
 {
+	m_pOperationDirector = new CPveOperationDirector(pGameServer);
 	m_pGameType = "HORDE";
 	m_GameFlags = GAMEFLAG_COOP;
 	m_GameState = STATE_STARTING;
@@ -78,12 +80,20 @@ CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer)
 		m_GameFlags |= GAMEFLAG_SURVIVAL;
 }
 
+CGameControllerHorde::~CGameControllerHorde()
+{
+	delete m_pOperationDirector;
+}
+
 bool CGameControllerHorde::OnEntity(int Index, vec2 Pos)
 {
 	if(Index == ENTITY_ENEMYSPAWN)
 	{
 		if(m_NumEnemySpawnPos < MAX_ENEMIES)
+		{
 			m_aEnemySpawnPos[m_NumEnemySpawnPos++] = Pos;
+			m_pOperationDirector->AddCandidate(Pos);
+		}
 		return true;
 	}
 	return IGameController::OnEntity(Index, Pos);
@@ -265,6 +275,11 @@ void CGameControllerHorde::NextWave()
 		m_EnemiesLeft = (int)(m_EnemiesLeft * GameServer()->m_pPveDirector->EnemyCountMultiplier() + 0.5f);
 	}
 	m_Deaths = m_EnemiesLeft;
+	const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
+		m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, EnemyLevel(), m_EnemiesLeft,
+		HordeConcurrentEnemyCap(m_Wave));
+	m_EnemiesLeft -= ThreatReplacement.m_ThreatSpent;
+	m_Deaths -= ThreatReplacement.m_ThreatSpent;
 
 	if(m_Wave % 2 == 0)
 	{
@@ -319,7 +334,7 @@ void CGameControllerHorde::NextWave()
 		m_EliteContractSpawned = true;
 	}
 
-	const int Cap = HordeConcurrentEnemyCap(m_Wave);
+	const int Cap = max(0, HordeConcurrentEnemyCap(m_Wave) - ThreatReplacement.m_EntitiesSpawned);
 	for(int i = 0; i < m_EnemiesLeft && CountBots() < Cap; i++)
 		GameServer()->AddBot();
 
@@ -329,6 +344,12 @@ void CGameControllerHorde::NextWave()
 void CGameControllerHorde::Tick()
 {
 	IGameController::Tick();
+	const int ActiveOperation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
+	if(ActiveOperation >= 0 && m_pOperationDirector->Operation() != ActiveOperation)
+		m_pOperationDirector->Start(ActiveOperation);
+	else if(ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
+		m_pOperationDirector->Clear();
+	m_pOperationDirector->Tick();
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
 		return;
 	if(m_EliteContractSpawned && GameServer()->m_pPveDirector && AliveBossCount() <= 0)
@@ -382,15 +403,16 @@ void CGameControllerHorde::Tick()
 		// permanently after their first batch was killed.
 		if(!m_RoundOverTick && !m_WaveStartTick && m_EnemiesLeft > 0)
 		{
-			const int Missing = max(0, HordeConcurrentEnemyCap(m_Wave) - CountBots());
+			const int Missing = max(0, HordeConcurrentEnemyCap(m_Wave) - CountAliveSpecialists(&GameServer()->m_World) - CountBots());
 			const int SpawnCount = min(m_EnemiesLeft, Missing);
 			for(int i = 0; i < SpawnCount; i++)
 				GameServer()->AddBot();
 		}
 
-		if(!m_RoundOverTick && m_Deaths <= 0 && !CountBotsAlive() && AliveBossCount() <= 0
+		if(!m_RoundOverTick && m_Deaths <= 0 && !CountBotsAlive() && CountAliveSpecialists(&GameServer()->m_World) <= 0 && AliveBossCount() <= 0
 			&& CountPlayersAlive(-1, true) > 0 && !m_WaveStartTick)
 		{
+			m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_WAVE);
 			if(m_LastContractProgressWave != m_Wave && GameServer()->m_pPveDirector)
 			{
 				m_LastContractProgressWave = m_Wave;

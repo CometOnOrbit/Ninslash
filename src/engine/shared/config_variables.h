@@ -150,6 +150,8 @@ MACRO_CONFIG_INT(ClPvePreferredCheckpoint, cl_pve_preferred_checkpoint, 1, 1, 99
 MACRO_CONFIG_INT(ClPveDroneAssault, cl_pve_drone_assault, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the assault drone module")
 MACRO_CONFIG_INT(ClPveDroneGuardian, cl_pve_drone_guardian, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the guardian drone module")
 MACRO_CONFIG_INT(ClPveDroneRepair, cl_pve_drone_repair, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the repair drone module")
+MACRO_CONFIG_INT(ClPveDroneWheel, cl_pve_drone_wheel, 20, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding for the drone command wheel (default Q)")
+MACRO_CONFIG_INT(ClPveDroneTutorialSeen, cl_pve_drone_tutorial_seen, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Whether the drone command wheel tutorial has been shown")
 
 // One-click local game hosting. The password is intentionally session-only.
 MACRO_CONFIG_INT(ClLocalServerMode, cl_local_server_mode, 0, 0, 5, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game mode")

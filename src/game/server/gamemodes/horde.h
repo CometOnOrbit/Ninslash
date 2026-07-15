@@ -7,6 +7,7 @@
 class CGameControllerHorde : public IGameController
 {
 private:
+	class CPveOperationDirector *m_pOperationDirector;
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 
 	int m_Wave;
@@ -42,6 +43,7 @@ private:
 
 public:
 	CGameControllerHorde(class CGameContext *pGameServer);
+	virtual ~CGameControllerHorde();
 
 	virtual bool OnEntity(int Index, vec2 Pos);
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);
