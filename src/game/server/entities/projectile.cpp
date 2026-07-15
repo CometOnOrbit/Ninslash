@@ -109,10 +109,10 @@ void CProjectile::Tick()
 	
 	float r = 6.0f * GetProjectileSize(m_Weapon);
 	
-	ReflectChr = GameServer()->m_World.IntersectReflect(PrevPos, CurPos, r*0.8f, CurPos, OwnerChar);
-	
-	if (!ReflectChr)
-		TargetChr = GameServer()->m_World.IntersectCharacter(PrevPos, CurPos, r, CurPos, OwnerChar);
+	// Reflection and ordinary character hits share the same candidate list.
+	// Resolve both in one pass; reflection keeps its original priority.
+	TargetChr = GameServer()->m_World.IntersectCharacter(PrevPos, CurPos, r, CurPos,
+		OwnerChar, false, &ReflectChr, r * 0.8f);
 	
 	int Team = m_Owner;
 	

@@ -382,6 +382,7 @@ public:
 	virtual void WarpMouse(int x, int y) = 0;
 	virtual int WindowActive() = 0;
 	virtual int WindowOpen() = 0;
+	virtual void GetViewportSize(int *pWidth, int *pHeight) const = 0;
 	virtual int GetNumScreens() = 0;
 	virtual void RunBuffer(CCommandBuffer *pBuffer) = 0;
 	virtual bool IsIdle() const = 0;

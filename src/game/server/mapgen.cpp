@@ -69,7 +69,10 @@ void CMapGen::Load(const char* pTileName)
 				int ID = m_lConfigs.add(NewConf);
 				pCurrentConf = &m_lConfigs[ID];
 
-				str_copy(pCurrentConf->m_aName, pLine, str_length(pLine));
+				str_copy(pCurrentConf->m_aName, pLine, sizeof(pCurrentConf->m_aName));
+				const int NameLength = str_length(pCurrentConf->m_aName);
+				if(NameLength > 0 && pCurrentConf->m_aName[NameLength - 1] == ']')
+					pCurrentConf->m_aName[NameLength - 1] = 0;
 			}
 			else
 			{
@@ -802,6 +805,22 @@ void CMapGen::GenerateEnemySpawn(CGenLayer *pTiles)
 	pTiles->Use(p.x, p.y);
 }
 
+void CMapGen::GenerateBossEnemySpawn(CGenLayer *pTiles)
+{
+	// Reserve one generic enemy marker in a genuinely open 7x7-tile area.
+	// Runtime boss spawning recognizes it through collision checks, while
+	// normal enemies may continue using it like any other marker.
+	ivec2 p = pTiles->GetOpenArea();
+	if(p.x == 0)
+	{
+		GenerateEnemySpawn(pTiles);
+		return;
+	}
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ENEMYSPAWN);
+	pTiles->Use(p.x, p.y);
+}
+
 void CMapGen::GenerateFiretrap(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetWall();
@@ -1351,8 +1370,9 @@ void CMapGen::GenerateLevel()
 		GenerateWalker(pTiles);
 	
 	
-	// enemy spawn positions
-	for (int i = 0; i < 5 ; i++)
+	// Enemy spawn positions. Keep one wide candidate for large runtime bosses.
+	GenerateBossEnemySpawn(pTiles);
+	for (int i = 0; i < 4 ; i++)
 		GenerateEnemySpawn(pTiles);
 	
 	//if (Level > 3 && frandom() < 0.75f)		

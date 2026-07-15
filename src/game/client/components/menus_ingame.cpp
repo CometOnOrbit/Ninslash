@@ -37,6 +37,21 @@ void CMenus::RenderGame(CUIRect MainView)
 	if(DoButton_Menu(&s_DisconnectButton, Localize("Disconnect"), 0, &Button, BUTTONSTYLE_DANGER))
 		Client()->Disconnect();
 
+	if(m_LocalServerProcess && m_LocalServerState != LOCAL_SERVER_FAILED && m_LocalServerState != LOCAL_SERVER_STOPPED)
+	{
+		ButtonBar.VSplitRight(8.0f, &ButtonBar, 0);
+		ButtonBar.VSplitRight(108.0f, &ButtonBar, &Button);
+		static int s_StopLocalButton = 0;
+		if(DoButton_Menu(&s_StopLocalButton, Localize("Stop local"), 0, &Button, BUTTONSTYLE_DANGER))
+			StopLocalServer(false);
+
+		ButtonBar.VSplitRight(8.0f, &ButtonBar, 0);
+		ButtonBar.VSplitRight(108.0f, &ButtonBar, &Button);
+		static int s_RestartLocalButton = 0;
+		if(DoButton_Menu(&s_RestartLocalButton, Localize("Restart local"), 0, &Button))
+			StopLocalServer(true);
+	}
+
 	if(m_pClient->m_Snap.m_pLocalInfo && m_pClient->m_Snap.m_pGameInfoObj)
 	{
 		if(m_pClient->m_Snap.m_pLocalInfo->m_Team != TEAM_SPECTATORS)

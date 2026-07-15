@@ -46,7 +46,8 @@ void CBalls::RenderBall(const CNetObj_Ball *pPrevBall, const CNetObj_Ball *pBall
 
 	float IntraTick = Client()->IntraGameTick();
 	
-	if(g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK)
+	if(g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK &&
+		m_pClient->m_PredictedBall.IsReady() && m_pClient->m_PredictedPrevBall.IsReady())
 	{
 		m_pClient->m_PredictedBall.Write(&Ball);
 		m_pClient->m_PredictedPrevBall.Write(&Prev);

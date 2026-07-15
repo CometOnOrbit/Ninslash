@@ -1084,6 +1084,17 @@ int CGraphicsBackend_SDL_OpenGL::WindowOpen()
 	return !(SDL_GetWindowFlags(m_pWindow)&SDL_WINDOW_HIDDEN);
 }
 
+void CGraphicsBackend_SDL_OpenGL::GetViewportSize(int *pWidth, int *pHeight) const
+{
+	if(!pWidth || !pHeight || !SDL_GetWindowSizeInPixels(m_pWindow, pWidth, pHeight))
+	{
+		if(pWidth)
+			*pWidth = 0;
+		if(pHeight)
+			*pHeight = 0;
+	}
+}
+
 int CGraphicsBackend_SDL_OpenGL::GetNumScreens()
 {
 	int Num;

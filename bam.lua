@@ -137,8 +137,46 @@ if family == "windows" then
 	end
 end
 
+function CompilerCacheTag()
+	local compiler = config.compiler.cxx_compiler
+	if not compiler or compiler == false then
+		if config.compiler.driver == "cl" then
+			compiler = "cl"
+		elseif config.compiler.driver == "clang" then
+			compiler = "clang++"
+		else
+			compiler = "g++"
+		end
+	end
+
+	local version_flag = "--version"
+	if config.compiler.driver == "gcc" then
+		version_flag = "-dumpfullversion -dumpversion"
+	elseif config.compiler.driver == "cl" then
+		version_flag = ""
+	end
+	MakeDirectory(".bam")
+	local version_file = ".bam/compiler-version-" .. config.compiler.driver .. ".txt"
+	Execute('"' .. compiler .. '" ' .. version_flag .. ' > "' .. version_file .. '" 2>&1')
+	local version = "unknown"
+	local file = io.open(version_file, "r")
+	if file then
+		local line = file:read("*l")
+		file:close()
+		if line and line ~= "" then
+			version = line
+		end
+	end
+
+	local identity = config.compiler.driver .. "_" .. version .. "_" .. compiler
+	identity = string.gsub(identity, "[^%w%._%-]", "_")
+	return string.sub(identity, 1, 96)
+end
+
+compiler_cache_tag = CompilerCacheTag()
+
 function Intermediate_Output(settings, input)
-	return "objs/" .. string.sub(PathBase(input), string.len("src/")+1) .. settings.config_ext
+	return "objs/" .. compiler_cache_tag .. "/" .. string.sub(PathBase(input), string.len("src/")+1) .. settings.config_ext
 end
 
 function build(settings)

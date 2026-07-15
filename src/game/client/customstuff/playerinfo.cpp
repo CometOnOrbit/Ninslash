@@ -98,7 +98,7 @@ void CPlayerInfo::Reset()
 	for (int i = 0; i < 8; i++)
 	{
 		m_aSplatter[i] = 0.0f;
-		m_aSplatterColor[i] = vec4();
+		m_aSplatterColor[i] = vec4(0, 0, 0, 0);
 	}
 	
 	for (int i = 0; i < 4; i++)
@@ -758,4 +758,3 @@ void CPlayerInfo::Tick()
 	if (m_EffectIntensity[EFFECT_DEATHRAY] <= 0.0f)
 		m_pAnimation->Tick();
 }
-

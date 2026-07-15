@@ -3,6 +3,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_MENUS_H
 #define GAME_CLIENT_COMPONENTS_MENUS_H
 
+#include <base/system.h>
 #include <base/vmath.h>
 #include <base/tl/sorted_array.h>
 
@@ -171,6 +172,16 @@ class CMenus : public CComponent
 		PAGE_CUSTOMIZE,
 		PAGE_SYSTEM,
 		PAGE_RESEARCH,
+		PAGE_LOCAL_SERVER,
+	};
+
+	enum
+	{
+		LOCAL_SERVER_STOPPED = 0,
+		LOCAL_SERVER_STARTING,
+		LOCAL_SERVER_RUNNING,
+		LOCAL_SERVER_STOPPING,
+		LOCAL_SERVER_FAILED,
 	};
 
 	int m_GamePage;
@@ -180,6 +191,16 @@ class CMenus : public CComponent
 	bool m_UseMouseButtons;
 	vec2 m_MousePos;
 	vec2 m_PrevMousePos;
+
+	PROCESS m_LocalServerProcess;
+	int m_LocalServerState;
+	int m_LocalServerExitCode;
+	int64 m_LocalServerStateTime;
+	int64 m_LocalServerJoinRetryTime;
+	int m_LocalServerJoinAttempts;
+	bool m_LocalServerAutoJoin;
+	bool m_LocalServerRestartPending;
+	int m_LocalServerFocus;
 
 	int64 m_LastInput;
 
@@ -389,6 +410,14 @@ class CMenus : public CComponent
 	void RenderSettings(CUIRect MainView);
 	void RenderCustomize(CUIRect MainView);
 	void RenderFront(CUIRect MainView);
+	void RenderLocalServer(CUIRect MainView);
+	void UpdateLocalServer();
+	void StartLocalServer(bool AutoJoin);
+	void StopLocalServer(bool Restart);
+	void JoinLocalServer();
+	static void ConLocalGameStart(IConsole::IResult *pResult, void *pUserData);
+	static void ConLocalGameStop(IConsole::IResult *pResult, void *pUserData);
+	static void ConLocalGameRestart(IConsole::IResult *pResult, void *pUserData);
 
 	void SetActive(bool Active);
 	
@@ -413,12 +442,14 @@ public:
 	static vec4 ThemeDanger();
 	static vec4 ThemeText();
 	void OpenResearchPage();
+	void ShutdownLocalServer();
 
 	void RenderLoading();
 
 	bool IsActive() const { return m_MenuActive; }
 
 	virtual void OnInit();
+	virtual void OnConsoleInit();
 	virtual void OnRelease();
 
 	virtual void OnStateChange(int NewState, int OldState);

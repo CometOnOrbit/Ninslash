@@ -127,7 +127,7 @@ bool CChat::OnInput(IInput::CEvent Event)
 	if(m_Mode == MODE_NONE)
 		return false;
 
-	if(Event.m_Flags&IInput::FLAG_PRESS && Event.m_Key == KEY_ESCAPE)
+	if(Event.m_Flags&IInput::FLAG_PRESS && (Event.m_Key == KEY_ESCAPE || Event.m_Key == KEY_GAMEPAD_BUTTON_B))
 	{
 		m_Mode = MODE_NONE;
 		m_Input.Deactivate();

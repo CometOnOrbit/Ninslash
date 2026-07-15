@@ -245,6 +245,7 @@ public:
 	virtual void WarpMouse(int x, int y);
 	virtual int WindowActive();
 	virtual int WindowOpen();
+	virtual void GetViewportSize(int *pWidth, int *pHeight) const;
 	virtual int GetNumScreens();
 	virtual void *GetWindowHandle();
 };

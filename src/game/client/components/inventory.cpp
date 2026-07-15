@@ -16,6 +16,7 @@
 #include <game/client/components/controls.h>
 #include <game/client/components/camera.h>
 #include <game/client/components/effects.h>
+#include <game/client/components/binds.h>
 #include <game/client/components/pve_roguelite.h>
 #include <game/client/components/sounds.h>
 #include "inventory.h"
@@ -249,22 +250,33 @@ bool CInventory::OnInput(IInput::CEvent Event)
 			m_MouseTrigger = true;
 		return true;
 	}
-	else if(Event.m_Key == KEY_ESCAPE)
+	else if(Event.m_Key == KEY_ESCAPE || Event.m_Key == KEY_GAMEPAD_BUTTON_B)
 	{
-		if(!m_pClient->m_Snap.m_SpecInfo.m_Active && Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		if((Event.m_Flags & IInput::FLAG_PRESS) && !m_pClient->m_Snap.m_SpecInfo.m_Active && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		{
-			if (m_Render)
-			{
-				CustomStuff()->m_Inventory = false;
-				m_Active = false;
-				m_WasActive = false;
-				m_Render = false;
-				return true;
-			}
+			CustomStuff()->m_Inventory = false;
+			m_Active = false;
+			m_WasActive = false;
+			m_Render = false;
 		}
+		return true;
 	}
 
-	return false;
+	// Let the inventory/build-menu toggle binding receive its own press and
+	// release so the same key can close the overlay. Every other event belongs
+	// to this focused overlay and must not reach gameplay bindings underneath.
+	const char *pBinding = m_pClient->m_pBinds->Get(Event.m_Key);
+	if(str_comp(pBinding, "+inventory") == 0 || str_comp(pBinding, "+buildmenu") == 0)
+		return false;
+	static const char *s_apMovementBindings[] = {
+		"+left", "+right", "+down", "+jump",
+		"+gamepadleft", "+gamepadright", "+gamepaddown", "+gamepadjump",
+	};
+	for(const char *pMovementBinding : s_apMovementBindings)
+		if(str_comp(pBinding, pMovementBinding) == 0)
+			return false;
+
+	return true;
 }
 
 void CInventory::DrawCircle(float x, float y, float r, int Segments)

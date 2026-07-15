@@ -153,6 +153,7 @@ public:
 	virtual void TriggerBomb();
 	virtual void DisarmBomb();
 	virtual void ReactorDestroyed();
+	virtual bool IsReactorDefenseActive() const { return false; }
 	
 	virtual void AddMapArea(int Team, vec2 Pos);
 	virtual bool InMapArea(int Team, vec2 Pos);

@@ -202,6 +202,15 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 
 		Left.HSplitTop(4.0f, 0, &Left);
 		Left.HSplitTop(18.0f, &Button, &Left);
+		static int s_PveObjectiveDisplay = 0;
+		static const char *s_apPveObjectiveDisplay[] = {
+			"With scoreboard", "Always visible", "On objective updates"};
+		str_format(aBuf, sizeof(aBuf), "%s: %s", Localize("PvE objective display"), Localize(s_apPveObjectiveDisplay[g_Config.m_ClPveObjectiveDisplay]));
+		if(DoButton_Menu(&s_PveObjectiveDisplay, aBuf, 0, &Button))
+			g_Config.m_ClPveObjectiveDisplay = (g_Config.m_ClPveObjectiveDisplay + 1) % 3;
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
 		static int s_ShowhudTimer = 0;
 		if(DoButton_CheckBox(&s_ShowhudTimer, Localize("Timer"), g_Config.m_ClShowhudTimer, &Button))
 			g_Config.m_ClShowhudTimer ^= 1;

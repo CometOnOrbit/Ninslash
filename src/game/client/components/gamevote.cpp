@@ -20,8 +20,33 @@
 
 #include <math.h>
 
+enum
+{
+	GAMEVOTE_CATEGORY_PVE = 0,
+	GAMEVOTE_CATEGORY_TEAM,
+	GAMEVOTE_CATEGORY_SOLO,
+	GAMEVOTE_CATEGORY_ARCADE,
+	NUM_GAMEVOTE_CATEGORIES
+};
+
+static const char *GameVoteCategoryName(int Category)
+{
+	static const char *s_apNames[NUM_GAMEVOTE_CATEGORIES] = {
+		"Co-op PvE", "Team PvP", "Free-for-all", "Arcade"};
+	return s_apNames[clamp(Category, 0, NUM_GAMEVOTE_CATEGORIES - 1)];
+}
+
+CGameVoteDisplay::CGameVoteDisplay() :
+	m_DebugScreenshotFrames(0)
+{
+	OnReset();
+}
+
 void CGameVoteDisplay::OnReset()
 {
+	if(m_DebugScreenshotFrames > 0)
+		return;
+
 	m_GameVoteCount = 0;
 	
 	for (int i = 0; i < MAX_GAME_VOTES; i++)
@@ -34,12 +59,123 @@ void CGameVoteDisplay::OnReset()
 	m_SelectorMouse = vec2(150, 150);
 	m_Selected = -1;
 	m_Focused = 0;
-	m_CarouselPosition = 0.0f;
+	m_ActiveCategory = GAMEVOTE_CATEGORY_PVE;
 	m_AppearAmount = 0.0f;
 	m_SelectionPulse = 0.0f;
 	m_TimeLeft = 0;
 	m_VoteDuration = 0;
 	m_LastVoteMessageTime = time_get();
+}
+
+void CGameVoteDisplay::OnConsoleInit()
+{
+	Console()->Register("gamevote_debug_preview", "?i", CFGFLAG_CLIENT, ConDebugPreview, this,
+		"Preview the mode vote input overlay and optionally capture a screenshot");
+}
+
+void CGameVoteDisplay::ConDebugPreview(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameVoteDisplay *pSelf = (CGameVoteDisplay *)pUserData;
+	pSelf->m_DebugScreenshotFrames = 0;
+	pSelf->OnReset();
+	static const char *s_apNames[] = {
+		"Invasion", "Horde Survival", "Extraction", "Team deathmatch", "Capture the flag", "Instakill CTF",
+		"Deathmatch", "Grenade Deathmatch", "Battle Royale", "Ball", "Reactor Bomber"};
+	static const char *s_apDescriptions[] = {
+		"Roguelite expedition", "Endless defense", "Activate and evacuate", "Two-team battle", "Objective combat", "One-shot team combat",
+		"Generated arena", "Explosive free-for-all", "Last survivor wins", "Team ball sport", "Protect the reactor"};
+	static const char *s_apImages[] = {
+		"invasion1", "invasion7", "invasion6", "tdm1", "ctf1", "ictf1",
+		"dm1", "grenade1", "br1", "ball1", "reactor1"};
+	pSelf->m_GameVoteCount = 11;
+	for(int i = 0; i < pSelf->m_GameVoteCount; i++)
+	{
+		pSelf->m_aGameVoteDetails[i].m_Valid = true;
+		pSelf->m_aGameVoteDetails[i].m_Votes = i == 1 ? 2 : (i == 3 ? 1 : 0);
+		str_copy(pSelf->m_aGameVoteDetails[i].m_aName, s_apNames[i], sizeof(pSelf->m_aGameVoteDetails[i].m_aName));
+		str_copy(pSelf->m_aGameVoteDetails[i].m_aDescription, s_apDescriptions[i], sizeof(pSelf->m_aGameVoteDetails[i].m_aDescription));
+		str_copy(pSelf->m_aGameVoteDetails[i].m_aImage, s_apImages[i], sizeof(pSelf->m_aGameVoteDetails[i].m_aImage));
+		// Startup console arguments run before vote thumbnails are loaded. Keep
+		// this deterministic preview texture-free instead of touching skin data.
+		pSelf->m_aGameVoteDetails[i].m_Texture = -1;
+	}
+	pSelf->m_ActiveCategory = GAMEVOTE_CATEGORY_PVE;
+	pSelf->m_Focused = 0;
+	pSelf->m_Selected = -1;
+	pSelf->m_AppearAmount = 1.0f;
+	pSelf->m_TimeLeft = 24;
+	pSelf->m_TimeLeftTick = 0;
+	pSelf->m_VoteDuration = 30;
+	pSelf->m_LastVoteMessageTime = time_get();
+	pSelf->m_SelectorMouse = vec2(150.0f, 150.0f);
+	pSelf->m_DebugScreenshotFrames = pResult->NumArguments() && pResult->GetInteger(0) != 0 ? 20 : 0;
+}
+
+int CGameVoteDisplay::VoteCategory(int Vote) const
+{
+	if(Vote < 0 || Vote >= m_GameVoteCount || !m_aGameVoteDetails[Vote].m_Valid)
+		return GAMEVOTE_CATEGORY_ARCADE;
+
+	const char *pImage = m_aGameVoteDetails[Vote].m_aImage;
+	if(str_find_nocase(pImage, "invasion") || str_find_nocase(pImage, "horde") || str_find_nocase(pImage, "extract"))
+		return GAMEVOTE_CATEGORY_PVE;
+	if(str_find_nocase(pImage, "tdm") || str_find_nocase(pImage, "ctf"))
+		return GAMEVOTE_CATEGORY_TEAM;
+	if(str_find_nocase(pImage, "dm") || str_find_nocase(pImage, "grenade") || str_find_nocase(pImage, "br"))
+		return GAMEVOTE_CATEGORY_SOLO;
+	return GAMEVOTE_CATEGORY_ARCADE;
+}
+
+int CGameVoteDisplay::CategoryVoteCount(int Category) const
+{
+	int Count = 0;
+	for(int i = 0; i < m_GameVoteCount; i++)
+		if(m_aGameVoteDetails[i].m_Valid && VoteCategory(i) == Category)
+			Count++;
+	return Count;
+}
+
+int CGameVoteDisplay::FirstVoteInCategory(int Category) const
+{
+	for(int i = 0; i < m_GameVoteCount; i++)
+		if(m_aGameVoteDetails[i].m_Valid && VoteCategory(i) == Category)
+			return i;
+	return -1;
+}
+
+void CGameVoteDisplay::ChangeCategory(int Direction)
+{
+	for(int Step = 1; Step <= NUM_GAMEVOTE_CATEGORIES; Step++)
+	{
+		const int Category = (m_ActiveCategory + Direction * Step + NUM_GAMEVOTE_CATEGORIES) % NUM_GAMEVOTE_CATEGORIES;
+		if(CategoryVoteCount(Category) <= 0)
+			continue;
+		m_ActiveCategory = Category;
+		if(m_Selected >= 0 && VoteCategory(m_Selected) == Category)
+			m_Focused = m_Selected;
+		else
+			m_Focused = FirstVoteInCategory(Category);
+		return;
+	}
+}
+
+void CGameVoteDisplay::MoveFocus(int Direction)
+{
+	int aVotes[MAX_GAME_VOTES];
+	int Count = 0;
+	int Position = 0;
+	for(int i = 0; i < m_GameVoteCount; i++)
+	{
+		if(!m_aGameVoteDetails[i].m_Valid || VoteCategory(i) != m_ActiveCategory)
+			continue;
+		if(i == m_Focused)
+			Position = Count;
+		aVotes[Count++] = i;
+	}
+	if(Count <= 0)
+		return;
+	Position = (Position + Direction + Count) % Count;
+	m_Focused = aVotes[Position];
 }
 
 bool CGameVoteDisplay::OnInput(IInput::CEvent Event)
@@ -50,18 +186,44 @@ bool CGameVoteDisplay::OnInput(IInput::CEvent Event)
 	if(Event.m_Flags&IInput::FLAG_PRESS)
 	{
 		int Direction = 0;
-		if(Event.m_Key == KEY_MOUSE_WHEEL_UP)
+		if(Event.m_Key == KEY_MOUSE_WHEEL_UP || Event.m_Key == KEY_LEFT || Event.m_Key == KEY_UP ||
+			Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP)
 			Direction = -1;
-		else if(Event.m_Key == KEY_MOUSE_WHEEL_DOWN)
+		else if(Event.m_Key == KEY_MOUSE_WHEEL_DOWN || Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_DOWN ||
+			Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN)
 			Direction = 1;
 
 		if(Direction)
 		{
-			int Next = m_Focused + Direction;
-			while(Next >= 0 && Next < m_GameVoteCount && !m_aGameVoteDetails[Next].m_Valid)
-				Next += Direction;
-			if(Next >= 0 && Next < m_GameVoteCount)
-				m_Focused = Next;
+			MoveFocus(Direction);
+			return true;
+		}
+
+		if(Event.m_Key == KEY_TAB || Event.m_Key == KEY_GAMEPAD_SHOULDER_RIGHT || Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT)
+		{
+			ChangeCategory(Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT ? -1 : 1);
+			return true;
+		}
+
+		int DirectChoice = -1;
+		if(Event.m_Key >= KEY_1 && Event.m_Key <= KEY_9)
+			DirectChoice = Event.m_Key - KEY_1;
+		else if(Event.m_Key >= KEY_KP_1 && Event.m_Key <= KEY_KP_9)
+			DirectChoice = Event.m_Key - KEY_KP_1;
+		if(DirectChoice >= 0 && DirectChoice < m_GameVoteCount && m_aGameVoteDetails[DirectChoice].m_Valid)
+		{
+			m_ActiveCategory = VoteCategory(DirectChoice);
+			m_Focused = DirectChoice;
+			m_Selected = DirectChoice;
+			SendVote();
+			return true;
+		}
+
+		if((Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A) &&
+			m_Focused >= 0 && m_Focused < m_GameVoteCount && m_aGameVoteDetails[m_Focused].m_Valid)
+		{
+			m_Selected = m_Focused;
+			SendVote();
 			return true;
 		}
 	}
@@ -73,7 +235,9 @@ bool CGameVoteDisplay::OnInput(IInput::CEvent Event)
 		return true;
 	}
 
-	return false;
+	// A mode vote is a full-screen focused overlay. Consume unhandled presses
+	// and releases so movement, firing and weapon binds cannot leak through.
+	return true;
 }
 
 bool CGameVoteDisplay::OnMouseMove(float x, float y)
@@ -112,55 +276,71 @@ void CGameVoteDisplay::OnRender()
 {
 	if(m_GameVoteCount <= 0)
 		return;
+	if(m_DebugScreenshotFrames > 0 && m_TimeLeftTick == 0)
+		m_TimeLeftTick = Client()->GameTick();
 
-	if(m_TimeLeft + (m_TimeLeftTick-Client()->GameTick())/Client()->GameTickSpeed() < 0 &&
-		time_get() > m_LastVoteMessageTime + time_freq()*8)
+	if(m_TimeLeft + (m_TimeLeftTick - Client()->GameTick()) / Client()->GameTickSpeed() < 0 &&
+		time_get() > m_LastVoteMessageTime + time_freq() * 8)
 	{
 		OnReset();
 		return;
 	}
 
 	const float Aspect = Graphics()->ScreenAspect();
-	const float ScreenWidth = 300.0f*Aspect;
+	const float ScreenWidth = 300.0f * Aspect;
 	Graphics()->MapScreen(0, 0, ScreenWidth, 300.0f);
 
-	m_Focused = clamp(m_Focused, 0, m_GameVoteCount - 1);
-	const float ScrollDt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
-	m_CarouselPosition += (m_Focused - m_CarouselPosition) * (1.0f - expf(-12.0f * ScrollDt));
-	if(fabsf(m_CarouselPosition - m_Focused) < 0.0005f)
-		m_CarouselPosition = m_Focused;
-	m_AppearAmount += (1.0f - m_AppearAmount) * (1.0f - expf(-8.0f * ScrollDt));
+	const float Dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	m_AppearAmount += (1.0f - m_AppearAmount) * (1.0f - expf(-8.0f * Dt));
 	if(m_AppearAmount > 0.999f)
 		m_AppearAmount = 1.0f;
-	m_SelectionPulse = max(0.0f, m_SelectionPulse - ScrollDt*1.8f);
+	m_SelectionPulse = max(0.0f, m_SelectionPulse - Dt * 1.8f);
+	const float Appear = clamp(m_AppearAmount, 0.0f, 1.0f);
 
-	m_SelectorMouse.x = clamp(m_SelectorMouse.x, 3.0f, ScreenWidth-5.0f);
+	if(CategoryVoteCount(m_ActiveCategory) <= 0)
+	{
+		for(int Category = 0; Category < NUM_GAMEVOTE_CATEGORIES; Category++)
+		{
+			if(CategoryVoteCount(Category) > 0)
+			{
+				m_ActiveCategory = Category;
+				break;
+			}
+		}
+	}
+	if(m_Focused < 0 || m_Focused >= m_GameVoteCount || !m_aGameVoteDetails[m_Focused].m_Valid ||
+		VoteCategory(m_Focused) != m_ActiveCategory)
+		m_Focused = FirstVoteInCategory(m_ActiveCategory);
+
+	m_SelectorMouse.x = clamp(m_SelectorMouse.x, 3.0f, ScreenWidth - 5.0f);
 	m_SelectorMouse.y = clamp(m_SelectorMouse.y, 3.0f, 295.0f);
-
 	Graphics()->BlendNormal();
 
-	const float Appear = clamp(m_AppearAmount, 0.0f, 1.0f);
 	const vec4 ColorAccent = CMenus::ThemeAccent();
-	const vec4 ColorAccentDim = CMenus::ThemeAccentDim();
 	const vec4 ColorText = CMenus::ThemeText();
 	const vec4 ColorMuted = vec4(
-		CMenus::ThemeText().r * 0.45f + CMenus::ThemeBgPanel().r * 0.55f,
-		CMenus::ThemeText().g * 0.45f + CMenus::ThemeBgPanel().g * 0.55f,
-		CMenus::ThemeText().b * 0.45f + CMenus::ThemeBgPanel().b * 0.55f,
+		CMenus::ThemeText().r * 0.48f + CMenus::ThemeBgPanel().r * 0.52f,
+		CMenus::ThemeText().g * 0.48f + CMenus::ThemeBgPanel().g * 0.52f,
+		CMenus::ThemeText().b * 0.48f + CMenus::ThemeBgPanel().b * 0.52f,
 		1.0f);
 	const vec4 ColorBgDeep = CMenus::ThemeBgDeep();
 	const vec4 ColorBgPanel = CMenus::ThemeBgPanel();
 	const vec4 ColorBgInset = CMenus::ThemeBgInset();
 
-	auto DrawRoundedRect = [&](vec2 Center, vec2 HalfSize, vec4 Color, float Rounding) {
-		if(HalfSize.x <= 0.0f || HalfSize.y <= 0.0f || Color.a <= 0.0f)
+	auto CategoryColor = [&](int Category) {
+		switch(Category)
+		{
+		case GAMEVOTE_CATEGORY_PVE: return vec4(0.28f, 0.78f, 0.58f, 1.0f);
+		case GAMEVOTE_CATEGORY_TEAM: return vec4(0.34f, 0.64f, 0.96f, 1.0f);
+		case GAMEVOTE_CATEGORY_SOLO: return vec4(0.96f, 0.61f, 0.28f, 1.0f);
+		default: return vec4(0.72f, 0.48f, 0.94f, 1.0f);
+		}
+	};
+
+	auto DrawRect = [&](const CUIRect &Rect, vec4 Color, float Rounding) {
+		if(Rect.w <= 0.0f || Rect.h <= 0.0f || Color.a <= 0.0f)
 			return;
-		CUIRect Rect;
-		Rect.x = Center.x-HalfSize.x;
-		Rect.y = Center.y-HalfSize.y;
-		Rect.w = HalfSize.x*2.0f;
-		Rect.h = HalfSize.y*2.0f;
-		RenderTools()->DrawUIRect(&Rect, Color, CUI::CORNER_ALL, min(Rounding, min(HalfSize.x, HalfSize.y)));
+		RenderTools()->DrawUIRect(&Rect, Color, CUI::CORNER_ALL, min(Rounding, min(Rect.w, Rect.h) * 0.5f));
 	};
 
 	auto DrawGradientRect = [&](float X, float Y, float Width, float Height, vec4 Top, vec4 Bottom) {
@@ -174,31 +354,39 @@ void CGameVoteDisplay::OnRender()
 			IGraphics::CColorVertex(2, Bottom.r, Bottom.g, Bottom.b, Bottom.a),
 			IGraphics::CColorVertex(3, Bottom.r, Bottom.g, Bottom.b, Bottom.a)};
 		Graphics()->SetColorVertex(aColors, 4);
-		IGraphics::CFreeformItem Item(X, Y, X+Width, Y, X, Y+Height, X+Width, Y+Height);
+		IGraphics::CFreeformItem Item(X, Y, X + Width, Y, X, Y + Height, X + Width, Y + Height);
 		Graphics()->QuadsDrawFreeform(&Item, 1);
 		Graphics()->QuadsEnd();
 	};
 
 	auto DrawCenteredText = [&](float CenterX, float Y, float FontSize, const char *pText, vec4 Color) {
 		const float Width = TextRender()->TextWidth(0, FontSize, pText, -1);
-		TextRender()->TextOutlineColor(0.0f, 0.0f, 0.0f, 0.45f*Color.a);
+		TextRender()->TextOutlineColor(0.0f, 0.0f, 0.0f, 0.42f * Color.a);
 		TextRender()->TextColor(Color.r, Color.g, Color.b, Color.a);
-		TextRender()->Text(0, CenterX-Width*0.5f, Y, FontSize, pText, -1);
+		TextRender()->Text(0, CenterX - Width * 0.5f, Y, FontSize, pText, -1);
 	};
 
-	// Dim the world and frame the carousel as one continuous selection stage.
+	auto DrawFitText = [&](float X, float Y, float MaxWidth, float FontSize, float MinFontSize, const char *pText, vec4 Color) {
+		while(FontSize > MinFontSize && TextRender()->TextWidth(0, FontSize, pText, -1) > MaxWidth)
+			FontSize -= 0.25f;
+		TextRender()->TextOutlineColor(0.0f, 0.0f, 0.0f, 0.42f * Color.a);
+		TextRender()->TextColor(Color.r, Color.g, Color.b, Color.a);
+		TextRender()->Text(0, X, Y, FontSize, pText, -1);
+	};
+
+	auto MouseInside = [&](const CUIRect &Rect) {
+		return m_SelectorMouse.x >= Rect.x && m_SelectorMouse.x <= Rect.x + Rect.w &&
+			m_SelectorMouse.y >= Rect.y && m_SelectorMouse.y <= Rect.y + Rect.h;
+	};
+
 	DrawGradientRect(0.0f, 0.0f, ScreenWidth, 300.0f,
-		vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, 0.92f*Appear),
-		vec4(ColorBgPanel.r, ColorBgPanel.g, ColorBgPanel.b, 0.95f*Appear));
-	const vec2 StageHalf(min(ScreenWidth*0.5f-10.0f, 255.0f), 99.0f);
-	DrawRoundedRect(vec2(ScreenWidth*0.5f, 157.0f), StageHalf+vec2(2.0f, 3.0f), vec4(0.0f, 0.0f, 0.0f, 0.42f*Appear), 14.0f);
-	DrawRoundedRect(vec2(ScreenWidth*0.5f, 154.0f), StageHalf, vec4(ColorBgInset.r, ColorBgInset.g, ColorBgInset.b, 0.88f*Appear), 13.0f);
-	DrawRoundedRect(vec2(ScreenWidth*0.5f, 56.0f), vec2(StageHalf.x-13.0f, 0.7f), vec4(ColorAccent.r, ColorAccent.g, ColorAccent.b, 0.35f*Appear), 0.7f);
-	DrawRoundedRect(vec2(ScreenWidth*0.5f, 154.0f), vec2(StageHalf.x-18.0f, 0.55f), vec4(ColorAccentDim.r, ColorAccentDim.g, ColorAccentDim.b, 0.12f*Appear), 0.55f);
+		vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, 0.94f * Appear),
+		vec4(ColorBgPanel.r, ColorBgPanel.g, ColorBgPanel.b, 0.96f * Appear));
 
-	DrawCenteredText(ScreenWidth*0.5f, 10.0f, 11.0f, Localize("Choose the next mode"), vec4(ColorText.r, ColorText.g, ColorText.b, Appear));
+	DrawCenteredText(ScreenWidth * 0.5f, 9.0f, 10.5f, Localize("Choose the next mode"),
+		vec4(ColorText.r, ColorText.g, ColorText.b, Appear));
 
-	int Time = m_TimeLeft + (m_TimeLeftTick-Client()->GameTick())/Client()->GameTickSpeed();
+	int Time = m_TimeLeft + (m_TimeLeftTick - Client()->GameTick()) / Client()->GameTickSpeed();
 	const bool ChangingMap = Time < 0;
 	Time = max(0, Time);
 	char aTimer[64];
@@ -206,221 +394,240 @@ void CGameVoteDisplay::OnRender()
 		str_copy(aTimer, Localize("Server is changing map"), sizeof(aTimer));
 	else
 		str_format(aTimer, sizeof(aTimer), Localize("Vote ends in %d..."), Time);
-	const float TimerFontSize = 6.5f;
-	const float TimerTextWidth = TextRender()->TextWidth(0, TimerFontSize, aTimer, -1);
 	const vec4 TimerColor = Time <= 5 && !ChangingMap ? CMenus::ThemeDanger() : ColorAccent;
-	DrawRoundedRect(vec2(ScreenWidth*0.5f, 37.0f), vec2(TimerTextWidth*0.5f+10.0f, 8.0f), vec4(ColorBgInset.r, ColorBgInset.g, ColorBgInset.b, 0.94f*Appear), 8.0f);
-	DrawCenteredText(ScreenWidth*0.5f, 33.4f, TimerFontSize, aTimer, vec4(TimerColor.r, TimerColor.g, TimerColor.b, Appear));
+	const float TimerFontSize = 6.2f;
+	const float TimerTextWidth = TextRender()->TextWidth(0, TimerFontSize, aTimer, -1);
+	CUIRect TimerRect = {ScreenWidth * 0.5f - TimerTextWidth * 0.5f - 9.0f, 29.0f, TimerTextWidth + 18.0f, 15.0f};
+	DrawRect(TimerRect, vec4(ColorBgInset.r, ColorBgInset.g, ColorBgInset.b, 0.94f * Appear), 7.5f);
+	DrawCenteredText(ScreenWidth * 0.5f, 32.0f, TimerFontSize, aTimer,
+		vec4(TimerColor.r, TimerColor.g, TimerColor.b, Appear));
 
-	const float TimerBarWidth = min(116.0f, ScreenWidth*0.30f);
-	const float TimerRatio = m_VoteDuration > 0 ? clamp(Time/(float)m_VoteDuration, 0.0f, 1.0f) : 0.0f;
-	DrawRoundedRect(vec2(ScreenWidth*0.5f, 51.0f), vec2(TimerBarWidth*0.5f, 1.1f), vec4(ColorBgPanel.r, ColorBgPanel.g, ColorBgPanel.b, 0.55f*Appear), 1.1f);
+	const float TimerBarWidth = min(120.0f, ScreenWidth * 0.30f);
+	const float TimerRatio = m_VoteDuration > 0 ? clamp(Time / (float)m_VoteDuration, 0.0f, 1.0f) : 0.0f;
+	CUIRect TimerBar = {ScreenWidth * 0.5f - TimerBarWidth * 0.5f, 48.0f, TimerBarWidth, 2.0f};
+	DrawRect(TimerBar, vec4(ColorBgPanel.r, ColorBgPanel.g, ColorBgPanel.b, 0.72f * Appear), 1.0f);
 	if(TimerRatio > 0.0f)
 	{
-		const float FillWidth = TimerBarWidth*TimerRatio;
-		DrawRoundedRect(vec2(ScreenWidth*0.5f-TimerBarWidth*0.5f+FillWidth*0.5f, 51.0f), vec2(FillWidth*0.5f, 1.1f), vec4(TimerColor.r, TimerColor.g, TimerColor.b, 0.95f*Appear), 1.1f);
+		TimerBar.w *= TimerRatio;
+		DrawRect(TimerBar, vec4(TimerColor.r, TimerColor.g, TimerColor.b, 0.95f * Appear), 1.0f);
 	}
 
-	const float CarouselCenterX = 150.0f*Aspect;
-	const float CarouselCenterY = 153.0f;
-	const float CardSpacing = clamp(ScreenWidth*0.285f, 118.0f, 146.0f);
+	const float StageMargin = ScreenWidth < 440.0f ? 9.0f : 14.0f;
+	CUIRect Stage = {StageMargin, 56.0f, ScreenWidth - StageMargin * 2.0f, 220.0f};
+	CUIRect StageShadow = {Stage.x, Stage.y + 3.0f, Stage.w, Stage.h};
+	DrawRect(StageShadow, vec4(0.0f, 0.0f, 0.0f, 0.40f * Appear), 12.0f);
+	DrawRect(Stage, vec4(ColorBgInset.r, ColorBgInset.g, ColorBgInset.b, 0.94f * Appear), 12.0f);
 
-	auto GetCardLayout = [&](int Index, vec2 &Center, float &Scale, float &Alpha, float &Distance) -> bool {
-		const float Offset = Index - m_CarouselPosition;
-		Distance = fabsf(Offset);
-		if(Distance > 3.25f)
-			return false;
+	int aCategories[NUM_GAMEVOTE_CATEGORIES];
+	int CategoryCount = 0;
+	for(int Category = 0; Category < NUM_GAMEVOTE_CATEGORIES; Category++)
+		if(CategoryVoteCount(Category) > 0)
+			aCategories[CategoryCount++] = Category;
 
-		Scale = clamp(1.0f-Distance*0.205f, 0.50f, 1.0f);
-		Alpha = clamp(1.0f-Distance*0.31f, 0.10f, 1.0f)*Appear;
-		Center = vec2(CarouselCenterX+Offset*CardSpacing, CarouselCenterY+min(Distance, 2.5f)*5.0f+(1.0f-Appear)*18.0f);
-		const float HalfWidth = 92.0f*Scale;
-		return Center.x + HalfWidth > 0.0f && Center.x - HalfWidth < ScreenWidth;
-	};
+	const float TabGap = 3.0f;
+	const float TabsX = Stage.x + 7.0f;
+	const float TabsY = Stage.y + 7.0f;
+	const float TabsWidth = Stage.w - 14.0f;
+	const float TabWidth = (TabsWidth - TabGap * max(0, CategoryCount - 1)) / max(1, CategoryCount);
+	int HoveredCategory = -1;
+	for(int Slot = 0; Slot < CategoryCount; Slot++)
+	{
+		const int Category = aCategories[Slot];
+		CUIRect Tab = {TabsX + Slot * (TabWidth + TabGap), TabsY, TabWidth, 24.0f};
+		if(MouseInside(Tab))
+			HoveredCategory = Category;
+	}
 
-	int HoveredCard = -1;
-	int HoveredButton = -1;
-	float HoveredCardDistance = 1000.0f;
-	float HoveredButtonDistance = 1000.0f;
+	CUIRect Content = {Stage.x + 7.0f, Stage.y + 36.0f, Stage.w - 14.0f, 153.0f};
+	const bool WideLayout = Content.w >= 440.0f;
+	const int Columns = WideLayout ? 3 : 2;
+	const int PageCapacity = Columns * 2;
+	int aVotes[MAX_GAME_VOTES];
+	int VoteCount = 0;
+	int FocusPosition = 0;
 	for(int i = 0; i < m_GameVoteCount; i++)
 	{
-		if(!m_aGameVoteDetails[i].m_Valid)
+		if(!m_aGameVoteDetails[i].m_Valid || VoteCategory(i) != m_ActiveCategory)
 			continue;
+		if(i == m_Focused)
+			FocusPosition = VoteCount;
+		aVotes[VoteCount++] = i;
+	}
+	const int Page = VoteCount > 0 ? FocusPosition / PageCapacity : 0;
+	const int PageStart = Page * PageCapacity;
+	const int PageCount = min(PageCapacity, max(0, VoteCount - PageStart));
+	const int Rows = max(1, (PageCount + Columns - 1) / Columns);
+	const float CardGap = 5.0f;
+	const float CardWidth = (Content.w - CardGap * (Columns - 1)) / Columns;
+	const float CardHeight = min(70.0f, (Content.h - CardGap * (Rows - 1)) / Rows);
+	const float CardsHeight = Rows * CardHeight + (Rows - 1) * CardGap;
+	const float CardsY = Content.y + max(0.0f, (Content.h - CardsHeight) * 0.5f);
 
-		vec2 Center;
-		float Scale, Alpha, Distance;
-		if(!GetCardLayout(i, Center, Scale, Alpha, Distance))
-			continue;
-
-		const vec2 FrameHalf = vec2(88.0f, 88.0f)*Scale;
-		const vec2 ButtonCenter = Center + vec2(0.0f, 69.0f*Scale);
-		const vec2 ButtonHalf = vec2(61.0f, 10.5f)*Scale;
-		if(abs(m_SelectorMouse.x-Center.x) < FrameHalf.x && abs(m_SelectorMouse.y-Center.y) < FrameHalf.y && Distance < HoveredCardDistance)
-		{
-			HoveredCard = i;
-			HoveredCardDistance = Distance;
-		}
-		if(abs(m_SelectorMouse.x-ButtonCenter.x) < ButtonHalf.x && abs(m_SelectorMouse.y-ButtonCenter.y) < ButtonHalf.y && Distance < HoveredButtonDistance)
-		{
-			HoveredButton = i;
-			HoveredButtonDistance = Distance;
-		}
+	CUIRect aCardRects[6];
+	int HoveredVote = -1;
+	for(int Slot = 0; Slot < PageCount; Slot++)
+	{
+		const int Column = Slot % Columns;
+		const int Row = Slot / Columns;
+		aCardRects[Slot] = {Content.x + Column * (CardWidth + CardGap), CardsY + Row * (CardHeight + CardGap), CardWidth, CardHeight};
+		if(MouseInside(aCardRects[Slot]))
+			HoveredVote = aVotes[PageStart + Slot];
 	}
 
 	if(m_MouseTrigger)
 	{
-		if(HoveredButton >= 0)
+		if(HoveredCategory >= 0)
 		{
-			m_Focused = HoveredButton;
-			m_Selected = HoveredButton;
+			m_ActiveCategory = HoveredCategory;
+			if(m_Selected >= 0 && VoteCategory(m_Selected) == HoveredCategory)
+				m_Focused = m_Selected;
+			else
+				m_Focused = FirstVoteInCategory(HoveredCategory);
+		}
+		else if(HoveredVote >= 0)
+		{
+			m_Focused = HoveredVote;
+			m_Selected = HoveredVote;
 			SendVote();
 		}
-		else if(HoveredCard >= 0)
-			m_Focused = HoveredCard;
 		m_MouseTrigger = false;
 	}
 
-	auto DrawCard = [&](int i) {
-		vec2 Center;
-		float Scale, Alpha, Distance;
-		if(!m_aGameVoteDetails[i].m_Valid || !GetCardLayout(i, Center, Scale, Alpha, Distance))
-			return;
+	for(int Slot = 0; Slot < CategoryCount; Slot++)
+	{
+		const int Category = aCategories[Slot];
+		const bool Active = Category == m_ActiveCategory;
+		const bool Hovered = Category == HoveredCategory;
+		const vec4 CategoryAccent = CategoryColor(Category);
+		CUIRect Tab = {TabsX + Slot * (TabWidth + TabGap), TabsY, TabWidth, 24.0f};
+		DrawRect(Tab, Active ?
+			vec4(CategoryAccent.r, CategoryAccent.g, CategoryAccent.b, 0.24f * Appear) :
+			vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, (Hovered ? 0.88f : 0.66f) * Appear), 6.0f);
+		if(Active)
+		{
+			CUIRect Indicator = {Tab.x + 8.0f, Tab.y + Tab.h - 2.0f, Tab.w - 16.0f, 2.0f};
+			DrawRect(Indicator, vec4(CategoryAccent.r, CategoryAccent.g, CategoryAccent.b, 0.98f * Appear), 1.0f);
+		}
 
-		const bool Focused = i == m_Focused;
-		const bool Selected = i == m_Selected;
-		const bool Hovered = i == HoveredCard;
-		const bool ButtonHovered = i == HoveredButton;
+		char aCategory[64];
+		str_format(aCategory, sizeof(aCategory), "%s  %d", Localize(GameVoteCategoryName(Category)), CategoryVoteCount(Category));
+		float CategoryFontSize = 6.7f;
+		while(CategoryFontSize > 5.0f && TextRender()->TextWidth(0, CategoryFontSize, aCategory, -1) > Tab.w - 8.0f)
+			CategoryFontSize -= 0.25f;
+		DrawCenteredText(Tab.x + Tab.w * 0.5f, Tab.y + 7.0f, CategoryFontSize, aCategory,
+			vec4((Active ? ColorText : ColorMuted).r, (Active ? ColorText : ColorMuted).g, (Active ? ColorText : ColorMuted).b, Appear));
+	}
+
+	DrawRect(Content, vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, 0.54f * Appear), 8.0f);
+	const vec4 ActiveAccent = CategoryColor(m_ActiveCategory);
+	CUIRect ContentAccent = {Content.x, Content.y, 2.0f, Content.h};
+	DrawRect(ContentAccent, vec4(ActiveAccent.r, ActiveAccent.g, ActiveAccent.b, 0.78f * Appear), 1.0f);
+
+	static const char *s_apCategoryMarks[NUM_GAMEVOTE_CATEGORIES] = {"PVE", "VS", "FFA", "FUN"};
+	for(int Slot = 0; Slot < PageCount; Slot++)
+	{
+		const int Vote = aVotes[PageStart + Slot];
+		const CGameVoteDetails &Details = m_aGameVoteDetails[Vote];
+		CUIRect Card = aCardRects[Slot];
+		const bool Focused = Vote == m_Focused;
+		const bool Selected = Vote == m_Selected;
+		const bool Hovered = Vote == HoveredVote;
+		const float Pulse = m_SelectionPulse * (0.5f + 0.5f * sinf((1.0f - m_SelectionPulse) * 18.0f));
+		const vec4 Accent = CategoryColor(VoteCategory(Vote));
+
 		if(Hovered)
+			Card.y -= 1.0f;
+		CUIRect CardBorder = {Card.x - 1.0f, Card.y - 1.0f, Card.w + 2.0f, Card.h + 2.0f};
+		DrawRect(CardBorder, vec4(Accent.r, Accent.g, Accent.b,
+			(Selected ? 0.92f : (Focused ? 0.70f : (Hovered ? 0.48f : 0.16f))) * Appear + Pulse * 0.12f), 7.0f);
+		DrawRect(Card, vec4(ColorBgPanel.r, ColorBgPanel.g, ColorBgPanel.b, (Focused || Hovered ? 0.98f : 0.88f) * Appear), 6.0f);
+		CUIRect Stripe = {Card.x, Card.y, 3.0f, Card.h};
+		DrawRect(Stripe, vec4(Accent.r, Accent.g, Accent.b, (Focused || Selected ? 0.95f : 0.52f) * Appear), 1.5f);
+
+		// Game vote previews are authored at 2:1. Keep that aspect ratio and
+		// vertically center the image together with its vote badge.
+		const float PreviewWidth = clamp(Card.w * 0.34f, 48.0f, 58.0f);
+		const float PreviewHeight = PreviewWidth * 0.5f;
+		const float VoteBadgeHeight = 9.0f;
+		const float PreviewGroupHeight = PreviewHeight + 4.0f + VoteBadgeHeight;
+		CUIRect Preview = {Card.x + 8.0f, Card.y + (Card.h - PreviewGroupHeight) * 0.5f, PreviewWidth, PreviewHeight};
+		DrawRect(Preview, vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, 0.88f * Appear), 4.0f);
+		if(Details.m_Texture >= 0)
 		{
-			Center.y -= 1.8f*Scale;
-			Scale *= 1.018f;
+			Graphics()->TextureSet(Details.m_Texture);
+			Graphics()->QuadsBegin();
+			const float Brightness = Focused || Selected ? 0.92f : 0.68f;
+			Graphics()->SetColor(Brightness, Brightness, Brightness, Appear);
+			Graphics()->QuadsSetSubsetFree(0, 0, 1, 0, 0, 1, 1, 1);
+			IGraphics::CFreeformItem Image(
+				Preview.x, Preview.y, Preview.x + Preview.w, Preview.y,
+				Preview.x, Preview.y + Preview.h, Preview.x + Preview.w, Preview.y + Preview.h);
+			Graphics()->QuadsDrawFreeform(&Image, 1);
+			Graphics()->QuadsEnd();
 		}
-
-		const vec4 Accent = Selected ? ColorAccent : ColorAccentDim;
-		const vec2 FrameHalf = vec2(88.0f, 88.0f)*Scale;
-		const vec2 ImageCenter = Center + vec2(0.0f, -40.5f*Scale);
-		const vec2 ImageHalf = vec2(80.0f, 39.5f)*Scale;
-		const vec2 ButtonCenter = Center + vec2(0.0f, 69.0f*Scale);
-		const vec2 ButtonHalf = vec2(61.0f, 10.5f)*Scale;
-		const float Pulse = m_SelectionPulse*(0.5f+0.5f*sinf((1.0f-m_SelectionPulse)*18.0f));
-
-		DrawRoundedRect(Center+vec2(0.0f, 4.0f*Scale), FrameHalf+vec2(3.5f, 3.5f)*Scale, vec4(0.0f, 0.0f, 0.0f, 0.42f*Alpha), 13.0f*Scale);
-		if(Focused || Selected)
-			DrawRoundedRect(Center, FrameHalf+vec2(4.0f, 4.0f)*Scale, vec4(Accent.r, Accent.g, Accent.b, (0.13f+0.18f*Pulse)*Alpha), 14.0f*Scale);
-
-		const float BorderAlpha = Selected ? 0.90f : (Focused ? 0.78f : (Hovered ? 0.40f : 0.13f));
-		DrawRoundedRect(Center, FrameHalf+vec2(1.3f, 1.3f)*Scale, vec4(Accent.r, Accent.g, Accent.b, BorderAlpha*Alpha), 11.5f*Scale);
-		DrawRoundedRect(Center, FrameHalf, vec4(0.030f, 0.048f, 0.055f, 0.98f*Alpha), 10.5f*Scale);
-		if(Focused || Selected)
-			DrawRoundedRect(vec2(Center.x, Center.y-FrameHalf.y+3.3f*Scale), vec2(FrameHalf.x-11.0f*Scale, 1.0f*Scale), vec4(Accent.r, Accent.g, Accent.b, 0.85f*Alpha), 1.0f*Scale);
-
-		DrawRoundedRect(ImageCenter, ImageHalf+vec2(1.4f, 1.4f)*Scale, vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, 0.75f*Alpha), 6.5f*Scale);
-		Graphics()->TextureSet(m_aGameVoteDetails[i].m_Texture);
-		Graphics()->QuadsBegin();
-		const float ImageBrightness = Focused || Selected ? 1.0f : 0.72f;
-		Graphics()->SetColor(ImageBrightness, ImageBrightness, ImageBrightness, Alpha);
-		Graphics()->QuadsSetSubsetFree(0, 0, 1, 0, 0, 1, 1, 1);
-		IGraphics::CFreeformItem Image(
-			ImageCenter.x-ImageHalf.x, ImageCenter.y-ImageHalf.y,
-			ImageCenter.x+ImageHalf.x, ImageCenter.y-ImageHalf.y,
-			ImageCenter.x-ImageHalf.x, ImageCenter.y+ImageHalf.y,
-			ImageCenter.x+ImageHalf.x, ImageCenter.y+ImageHalf.y);
-		Graphics()->QuadsDrawFreeform(&Image, 1);
-		Graphics()->QuadsEnd();
-		DrawGradientRect(ImageCenter.x-ImageHalf.x, ImageCenter.y-5.0f*Scale, ImageHalf.x*2.0f, ImageHalf.y+5.0f*Scale,
-			vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, 0.0f), vec4(ColorBgPanel.r, ColorBgPanel.g, ColorBgPanel.b, 0.88f*Alpha));
-
-		char aVotes[24];
-		str_format(aVotes, sizeof(aVotes), "%d", m_aGameVoteDetails[i].m_Votes);
-		const float VoteFontSize = 6.5f*Scale;
-		const float VoteTextWidth = TextRender()->TextWidth(0, VoteFontSize, aVotes, -1);
-		const vec2 VoteBadgeHalf(max(13.0f*Scale, VoteTextWidth*0.5f+8.0f*Scale), 7.0f*Scale);
-		const vec2 VoteBadgeCenter(ImageCenter.x-ImageHalf.x+VoteBadgeHalf.x+5.0f*Scale, ImageCenter.y-ImageHalf.y+VoteBadgeHalf.y+5.0f*Scale);
-		DrawRoundedRect(VoteBadgeCenter, VoteBadgeHalf, vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, 0.88f*Alpha), 7.0f*Scale);
-		DrawRoundedRect(vec2(VoteBadgeCenter.x-VoteBadgeHalf.x+6.2f*Scale, VoteBadgeCenter.y), vec2(2.0f, 2.0f)*Scale, vec4(Accent.r, Accent.g, Accent.b, Alpha), 2.0f*Scale);
-		DrawCenteredText(VoteBadgeCenter.x+2.2f*Scale, VoteBadgeCenter.y-VoteFontSize*0.56f, VoteFontSize, aVotes, vec4(ColorText.r, ColorText.g, ColorText.b, Alpha));
-
-		float NameSize = 10.0f*Scale;
-		const float MinNameSize = 6.0f*Scale;
-		while(NameSize > MinNameSize && TextRender()->TextWidth(0, NameSize, m_aGameVoteDetails[i].m_aName, -1) > 148.0f*Scale)
-			NameSize -= 0.35f*Scale;
-		DrawCenteredText(Center.x, Center.y+5.0f*Scale, NameSize, m_aGameVoteDetails[i].m_aName,
-			vec4(ColorText.r, ColorText.g, ColorText.b, Alpha));
-
-		float DescriptionSize = 5.6f*Scale;
-		const float MinDescriptionSize = 4.0f*Scale;
-		while(DescriptionSize > MinDescriptionSize && TextRender()->TextWidth(0, DescriptionSize, m_aGameVoteDetails[i].m_aDescription, -1) > 150.0f*Scale)
-			DescriptionSize -= 0.25f*Scale;
-		DrawCenteredText(Center.x, Center.y+23.0f*Scale, DescriptionSize, m_aGameVoteDetails[i].m_aDescription,
-			vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, Alpha));
-
-		const vec4 ButtonBorder = Selected ? ColorAccent : ColorAccentDim;
-		DrawRoundedRect(ButtonCenter, ButtonHalf+vec2(1.1f, 1.1f)*Scale, vec4(ButtonBorder.r, ButtonBorder.g, ButtonBorder.b, (Focused || ButtonHovered || Selected ? 0.80f : 0.22f)*Alpha), 7.0f*Scale);
-		vec4 ButtonColor;
-		if(Selected)
-			ButtonColor = vec4(ColorAccent.r, ColorAccent.g, ColorAccent.b, 0.96f*Alpha);
-		else if(ButtonHovered)
-			ButtonColor = vec4(ColorAccentDim.r, ColorAccentDim.g, ColorAccentDim.b, 0.98f*Alpha);
-		else if(Focused)
-			ButtonColor = vec4(ColorBgInset.r, ColorBgInset.g, ColorBgInset.b, 0.96f*Alpha);
 		else
-			ButtonColor = vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, 0.92f*Alpha);
-		DrawRoundedRect(ButtonCenter, ButtonHalf, ButtonColor, 6.0f*Scale);
-
-		const char *pButtonText = Selected ? Localize("Selected") : Localize("Select");
-		const float ButtonFontSize = 7.0f*Scale;
-		DrawCenteredText(ButtonCenter.x, ButtonCenter.y-ButtonFontSize*0.56f, ButtonFontSize, pButtonText,
-			vec4(1.0f, 1.0f, 1.0f, Alpha));
-	};
-
-	// Distant cards are painted first; the focused card always owns the foreground.
-	for(int Band = 3; Band >= 0; Band--)
-	{
-		for(int i = 0; i < m_GameVoteCount; i++)
 		{
-			if(i == m_Focused || !m_aGameVoteDetails[i].m_Valid)
-				continue;
-			vec2 Center;
-			float Scale, Alpha, Distance;
-			if(GetCardLayout(i, Center, Scale, Alpha, Distance) && min(3, (int)Distance) == Band)
-				DrawCard(i);
-		}
-	}
-	if(m_Focused >= 0 && m_Focused < m_GameVoteCount)
-		DrawCard(m_Focused);
-
-	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
-	TextRender()->TextOutlineColor(0.0f, 0.0f, 0.0f, 0.3f);
-
-	if(m_GameVoteCount > 1)
-	{
-		const int DotCount = min(m_GameVoteCount, 9);
-		const int DotStart = clamp(m_Focused-DotCount/2, 0, m_GameVoteCount-DotCount);
-		const float DotSpacing = 7.0f;
-		const float DotStartX = ScreenWidth*0.5f-(DotCount-1)*DotSpacing*0.5f;
-		for(int Dot = 0; Dot < DotCount; Dot++)
-		{
-			const int Index = DotStart+Dot;
-			const bool Focused = Index == m_Focused;
-			const bool Selected = Index == m_Selected;
-			const vec4 DotColor = Selected ? ColorAccent : (Focused ? ColorAccentDim : vec4(0.46f, 0.50f, 0.49f, 1.0f));
-			DrawRoundedRect(vec2(DotStartX+Dot*DotSpacing, 263.0f), Focused ? vec2(4.0f, 1.4f) : vec2(1.4f, 1.4f),
-				vec4(DotColor.r, DotColor.g, DotColor.b, (Focused || Selected ? 0.95f : 0.38f)*Appear), 1.4f);
+			float MarkSize = 6.0f;
+			while(MarkSize > 4.0f && TextRender()->TextWidth(0, MarkSize, s_apCategoryMarks[VoteCategory(Vote)], -1) > Preview.w - 6.0f)
+				MarkSize -= 0.25f;
+			DrawCenteredText(Preview.x + Preview.w * 0.5f, Preview.y + Preview.h * 0.5f - MarkSize * 0.55f,
+				MarkSize, s_apCategoryMarks[VoteCategory(Vote)], vec4(Accent.r, Accent.g, Accent.b, 0.92f * Appear));
 		}
 
-		char aBuf[96];
-		str_format(aBuf, sizeof(aBuf), Localize("Mouse wheel to browse modes | %d / %d"), m_Focused+1, m_GameVoteCount);
-		const float HintFontSize = 6.5f;
-		const float HintWidth = TextRender()->TextWidth(0, HintFontSize, aBuf, -1);
-		DrawRoundedRect(vec2(ScreenWidth*0.5f, 283.0f), vec2(HintWidth*0.5f+11.0f, 8.0f), vec4(ColorBgInset.r, ColorBgInset.g, ColorBgInset.b, 0.88f*Appear), 8.0f);
-		DrawCenteredText(ScreenWidth*0.5f, 279.4f, HintFontSize, aBuf, vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, Appear));
+		char aVotesText[24];
+		str_format(aVotesText, sizeof(aVotesText), "%d", Details.m_Votes);
+		const float VoteBadgeWidth = min(28.0f, Preview.w - 6.0f);
+		CUIRect VoteBadge = {Preview.x + (Preview.w - VoteBadgeWidth) * 0.5f, Preview.y + Preview.h + 4.0f, VoteBadgeWidth, VoteBadgeHeight};
+		DrawRect(VoteBadge, vec4(ColorBgDeep.r, ColorBgDeep.g, ColorBgDeep.b, 0.88f * Appear), 5.0f);
+		DrawCenteredText(VoteBadge.x + VoteBadge.w * 0.5f, VoteBadge.y + 1.5f, 5.0f, aVotesText,
+			vec4(ColorText.r, ColorText.g, ColorText.b, Appear));
+
+		const float TextX = Preview.x + Preview.w + 7.0f;
+		const float TextRight = Card.x + Card.w - 7.0f;
+		DrawFitText(TextX, Card.y + 8.0f, max(10.0f, TextRight - TextX - 12.0f), 7.8f, 5.4f, Details.m_aName,
+			vec4(ColorText.r, ColorText.g, ColorText.b, Appear));
+		DrawFitText(TextX, Card.y + 23.0f, max(10.0f, TextRight - TextX), 5.3f, 4.0f, Details.m_aDescription,
+			vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, Appear));
+
+		char aShortcut[8];
+		if(Vote < 9)
+		{
+			str_format(aShortcut, sizeof(aShortcut), "%d", Vote + 1);
+			DrawCenteredText(Card.x + Card.w - 8.0f, Card.y + 7.0f, 4.8f, aShortcut,
+				vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, 0.82f * Appear));
+		}
+
+		const char *pState = Selected ? Localize("Voted") : (Focused ? Localize("Press Enter to vote") : Localize("Click to vote"));
+		DrawFitText(TextX, Card.y + Card.h - 16.0f, max(10.0f, TextRight - TextX), 5.2f, 4.0f, pState,
+			Selected ? vec4(Accent.r, Accent.g, Accent.b, Appear) : vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, Appear));
 	}
+
+	char aSection[96];
+	str_format(aSection, sizeof(aSection), Localize("%s modes · %d choices"), Localize(GameVoteCategoryName(m_ActiveCategory)), VoteCount);
+	DrawFitText(Stage.x + 10.0f, Stage.y + Stage.h - 23.0f, Stage.w * 0.46f, 6.0f, 4.6f, aSection,
+		vec4(ActiveAccent.r, ActiveAccent.g, ActiveAccent.b, Appear));
+
+	if(VoteCount > PageCapacity)
+	{
+		char aPage[32];
+		str_format(aPage, sizeof(aPage), "%d / %d", Page + 1, (VoteCount + PageCapacity - 1) / PageCapacity);
+		DrawCenteredText(Stage.x + Stage.w - 25.0f, Stage.y + Stage.h - 23.0f, 5.5f, aPage,
+			vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, Appear));
+	}
+
+	const char *pHint = Localize("Tab / LB / RB: category · Arrows / Wheel: mode · A / Enter: vote");
+	float HintSize = 5.7f;
+	while(HintSize > 4.2f && TextRender()->TextWidth(0, HintSize, pHint, -1) > Stage.w - 20.0f)
+		HintSize -= 0.25f;
+	DrawCenteredText(ScreenWidth * 0.5f, Stage.y + Stage.h - 10.0f, HintSize, pHint,
+		vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, Appear));
 
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	TextRender()->TextOutlineColor(0.0f, 0.0f, 0.0f, 0.3f);
 	RenderMouse();
+	if(m_DebugScreenshotFrames > 0 && Client()->State() == IClient::STATE_ONLINE && --m_DebugScreenshotFrames == 0)
+		Graphics()->TakeScreenshot(0);
 }
-
 void CGameVoteDisplay::OnMessage(int MsgType, void *pRawMsg)
 {
 	if(MsgType == NETMSGTYPE_SV_GAMEVOTESTATUS)
@@ -447,7 +654,8 @@ void CGameVoteDisplay::OnMessage(int MsgType, void *pRawMsg)
 		if(m_aGameVoteDetails[i].m_Valid)
 			return;
 
-		if(m_GameVoteCount == 0)
+		const bool FirstVote = m_GameVoteCount == 0;
+		if(FirstVote)
 			m_SelectorMouse = vec2(150.0f*Graphics()->ScreenAspect(), 150.0f);
 		
 		m_aGameVoteDetails[i].m_Valid = true;
@@ -455,8 +663,14 @@ void CGameVoteDisplay::OnMessage(int MsgType, void *pRawMsg)
 		
 		str_copy(m_aGameVoteDetails[i].m_aName, pMsg->m_pName, sizeof(m_aGameVoteDetails[i].m_aName));
 		str_copy(m_aGameVoteDetails[i].m_aDescription, pMsg->m_pDescription, sizeof(m_aGameVoteDetails[i].m_aDescription));
+		str_copy(m_aGameVoteDetails[i].m_aImage, pMsg->m_pImage, sizeof(m_aGameVoteDetails[i].m_aImage));
 		
 		m_GameVoteCount = max(m_GameVoteCount, i+1);
+		if(FirstVote)
+		{
+			m_ActiveCategory = VoteCategory(i);
+			m_Focused = i;
+		}
 		
 		{
 			CTextCursor Cursor;

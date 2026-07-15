@@ -93,7 +93,8 @@ def main() -> int:
         "Sv_PveProgress", "Sv_PveChoice", "Sv_PvePerk", "Sv_PveContractVote",
         "Sv_PveContractStatus", "Sv_PveResearchReward", "Sv_PveValidation",
         "Sv_PveBuildState", "Cl_PveProgress", "Cl_PveChoice", "Cl_PveContractVote",
-        "Cl_PveResearchBuy", "Cl_PveDroneModule",
+        "Cl_PveResearchBuy", "Cl_PveDroneModule", "Sv_PveInvasionRetryVote",
+        "Sv_PveInvasionRetryResult", "Cl_PveInvasionRetryVote",
     ):
         if f'NetMessage("{message}"' not in network:
             fail(f"missing protocol message {message}")
@@ -103,6 +104,7 @@ def main() -> int:
     for boundary in (
         'NetIntRange("m_Card0", 0, 102)', 'NetIntRange("m_Contract0", 0, 19)',
         'NetIntRange("m_Card", 7, 99)', 'NetIntRange("m_Module", 1, 3)',
+        'NetIntRange("m_Choice", 0, 1)', 'NetIntRange("m_Result", 0, 2)',
     ):
         if boundary not in network:
             fail(f"protocol boundary missing: {boundary}")
@@ -110,7 +112,15 @@ def main() -> int:
     director = open(os.path.join(ROOT, "src/game/server/pve_director.cpp"), encoding="utf-8").read()
     client = open(os.path.join(ROOT, "src/game/client/components/pve_roguelite.cpp"), encoding="utf-8").read()
     invasion = open(os.path.join(ROOT, "src/game/server/gamemodes/invasion.cpp"), encoding="utf-8").read()
+    engine_server = open(os.path.join(ROOT, "src/engine/server/server.cpp"), encoding="utf-8").read()
+    horde = open(os.path.join(ROOT, "src/game/server/gamemodes/horde.cpp"), encoding="utf-8").read()
     building = open(os.path.join(ROOT, "src/game/server/entities/building.cpp"), encoding="utf-8").read()
+    ai = open(os.path.join(ROOT, "src/game/server/ai.cpp"), encoding="utf-8").read()
+    client_building = open(os.path.join(ROOT, "src/game/client/components/buildings.cpp"), encoding="utf-8").read()
+    radar = open(os.path.join(ROOT, "src/game/client/components/radar.cpp"), encoding="utf-8").read()
+    game_client = open(os.path.join(ROOT, "src/game/client/gameclient.cpp"), encoding="utf-8").read()
+    controls = open(os.path.join(ROOT, "src/game/client/components/controls.cpp"), encoding="utf-8").read()
+    inventory = open(os.path.join(ROOT, "src/game/client/components/inventory.cpp"), encoding="utf-8").read()
     # Every extension card and contract must have a server-side integration
     # point outside the data table. This prevents definition-only content from
     # silently entering the draw pool.
@@ -145,11 +155,93 @@ def main() -> int:
         if token not in invasion:
             fail(f"Invasion switch objective gate missing: {token}")
     for token in (
+        "STATE_RETRY_VOTE", "Nonce != m_RetryVoteNonce",
+        "m_aRetryVotes[ClientID] != -1", "Retry > Reset",
+        "INV_FINAL_ATTEMPT", "INV_FORCE_FLOOR_ONE",
+        "PVE_INVASION_RETRY_RESULT_FINAL_FAILURE", "RegenerateMapFromTemplate()",
+        "str_copy(g_Config.m_SvMap, g_Config.m_SvInvMap",
+        "g_Config.m_SvInvFails == INV_FORCE_FLOOR_ONE && Server()->m_MapGenerated",
+    ):
+        if token not in invasion:
+            fail(f"Invasion retry vote invariant missing: {token}")
+    if invasion.count("ClearRun()") != 1:
+        fail("Invasion run data must only be cleared when returning to Floor 1")
+    if 'str_comp(m_aCurrentMap, "generated") != 0' not in engine_server:
+        fail("generated maps can overwrite the original map generation template")
+    for token in ("DrawInvasionRetryVote()", "DrawInvasionRetryResult()", "SendInvasionRetryVote"):
+        if token not in client:
+            fail(f"Invasion retry client overlay missing: {token}")
+    for token in (
         "m_Type == BUILDING_SWITCH && !m_PveSwitchActive",
         "m_Collision = Active",
     ):
         if token not in building:
             fail(f"hidden switch authority invariant missing: {token}")
+    for token in (
+        "SetReactorDefenseActive(true)", "m_pReactor->Activate",
+        "m_pReactor->Deactivate()",
+    ):
+        if token not in invasion:
+            fail(f"Invasion reactor objective lifecycle missing: {token}")
+    for token in (
+        "m_PveReactorObjective && Damage > 0",
+        "m_Collision = true", "m_Life = m_MaxLife",
+    ):
+        if token not in building:
+            fail(f"Invasion reactor damage authority missing: {token}")
+    for token in (
+        "PrioritizeReactorObjective()", "ShootAtClosestBuilding(true)",
+        "SeekClosestReactor()",
+    ):
+        if token not in ai:
+            fail(f"Invasion reactor AI priority missing: {token}")
+    for token in (
+        "const bool Objective = s & (1<<BSTATUS_ON)",
+        "Objective ? 480 + ObjectivePulse * 80 : 320",
+        "Graphics()->LinesDraw(aLines, Segments + 5)",
+    ):
+        if token not in client_building:
+            fail(f"Invasion reactor objective visualization missing: {token}")
+    if 'str_comp(ServerInfo.m_aGameType, "INV") == 0' not in radar:
+        fail("Invasion reactor radar emphasis missing")
+    for token in (
+        "GameplayInputFullyCaptured()", "GameplayInputFullyCaptured() || m_pInventory->IsVisible()",
+    ):
+        if token not in game_client:
+            fail(f"partial inventory input capture missing: {token}")
+    for token in (
+        "m_pClient->GameplayInputFullyCaptured()", "ReleaseInputCounter(&m_InputData.m_Fire)",
+        "ReleaseInputCounter(&m_InputData.m_NextWeapon)", "m_pClient->m_pInventory->IsVisible()",
+    ):
+        if token not in controls:
+            fail(f"inventory combat suppression missing: {token}")
+    for token in (
+        '"+left", "+right", "+down", "+jump"',
+        '"+gamepadleft", "+gamepadright", "+gamepaddown", "+gamepadjump"',
+    ):
+        if token not in inventory:
+            fail(f"inventory movement pass-through missing: {token}")
+    if "if(!m_pClient->GameplayInputCaptured())" not in client:
+        fail("focused overlays do not suppress contract/build HUD panels")
+    for token in (
+        "EnsureDefenseArea(pChr->m_Pos)",
+        "distance(Pos, m_DefenseAreaCenter) <= PVE_HORDE_DEFENSE_RADIUS",
+    ):
+        if token not in horde:
+            fail(f"Horde defense area invariant missing: {token}")
+    for token in (
+        "InHordeDefenseArea(ClientID)",
+        "InHordeDefenseArea(To)",
+    ):
+        if token not in director:
+            fail(f"Hold the Line area gate missing: {token}")
+    for token in (
+        'str_comp(ServerInfo.m_aGameType, "HORDE") == 0',
+        "PVE_HORDE_DEFENSE_RADIUS",
+        "Graphics()->LinesDraw(aLines, NumLines)",
+    ):
+        if token not in radar:
+            fail(f"Horde defense area visualization missing: {token}")
 
     message_names = re.findall(r'^\s*NetMessage\("([^"]+)"', network, re.MULTILINE)
     legacy_messages = (
@@ -168,10 +260,10 @@ def main() -> int:
     if 'cl_pve_research_mask, 33, "00000000000000000000000000000000"' not in config:
         fail("research mask config is not 128-bit hexadecimal")
     version = open(os.path.join(ROOT, "src/game/version.h"), encoding="utf-8").read()
-    if '"pve-director-v7"' not in version:
-        fail("network protocol version was not advanced to v7")
+    if '"pve-director-v8"' not in version:
+        fail("network protocol version was not advanced to v8")
 
-    print(f"OK: 100 cards (12 new base, 48 new research, 8 legendary), 20 contracts, {new_research_cost} new research points, v7 protocol")
+    print(f"OK: 100 cards (12 new base, 48 new research, 8 legendary), 20 contracts, {new_research_cost} new research points, v8 protocol")
     return 0
 
 

@@ -896,6 +896,8 @@ void CGameContext::Repair(vec2 Pos)
 void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 {
 	float Dmg2 = 1.0f;
+	const int ExplosionDamage = GetExplosionDamage(Weapon);
+	const int ExplosionSound = GetExplosionSound(Weapon);
 
 	if (m_pController->IsCoop() && IsBot(Owner))
 		Dmg2 = 0.6f;
@@ -909,11 +911,11 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		pEvent->m_Weapon = Weapon;
 	}
 	
-	if (GetExplosionSound(Weapon))
-		CreateSound(Pos, GetExplosionSound(Weapon));
+	if(ExplosionSound)
+		CreateSound(Pos, ExplosionSound);
 	
 	// deal damage
-	if (!GetExplosionDamage(Weapon))
+	if(!ExplosionDamage)
 		return;
 	
 	CCharacter *apEnts[MAX_CLIENTS];
@@ -923,7 +925,7 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 	//const float InnerRadius = Radius < 200.0f ? Radius*(0.5f + (200.0f-Radius)/400.0f) : Radius*0.5f;
 	const float InnerRadius = Radius*0.5f;
 	
-	DamageBlocks(Pos, GetExplosionDamage(Weapon)*0.5f, Radius*0.8f);
+	DamageBlocks(Pos, ExplosionDamage * 0.5f, Radius * 0.8f);
 	
 	int Num = m_World.FindEntities(Pos, Radius, (CEntity**)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
 	for(int i = 0; i < Num; i++)
@@ -932,9 +934,9 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		vec2 ForceDir(0,1);
 		float l = length(Diff);
 		if(l)
-			ForceDir = normalize(Diff);
+			ForceDir = Diff / l;
 		l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
-		float Dmg = GetExplosionDamage(Weapon) * l;
+		float Dmg = ExplosionDamage * l;
 						
 		if((int)Dmg && Dmg > 0.0f)
 			apEnts[i]->TakeDamage(Owner, Weapon, (int)Dmg*Dmg2, ForceDir*Dmg*0.3f, vec2(0, 0));
@@ -948,9 +950,9 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		vec2 ForceDir(0,1);
 		float l = length(Diff);
 		if(l)
-			ForceDir = normalize(Diff);
+			ForceDir = Diff / l;
 		l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
-		float Dmg = GetExplosionDamage(Weapon) * l;
+		float Dmg = ExplosionDamage * l;
 						
 		if((int)Dmg && Dmg > 0.0f)
 			apBuildings[i]->TakeDamage((int)Dmg*Dmg2, Owner, Weapon, ForceDir*Dmg*0.3f);
@@ -964,9 +966,9 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		vec2 ForceDir(0,1);
 		float l = length(Diff);
 		if(l)
-			ForceDir = normalize(Diff);
+			ForceDir = Diff / l;
 		l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
-		float Dmg = GetExplosionDamage(Weapon) * l;
+		float Dmg = ExplosionDamage * l;
 							
 		if((int)Dmg && Dmg > 0.0f)
 		{
@@ -984,9 +986,9 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 			vec2 ForceDir(0,1);
 			float l = length(Diff);
 			if(l)
-				ForceDir = normalize(Diff);
+				ForceDir = Diff / l;
 			l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
-			float Dmg = GetExplosionDamage(Weapon) * l;
+			float Dmg = ExplosionDamage * l;
 							
 			if((int)Dmg && Dmg > 0.0f)
 				apPickups[i]->AddForce(ForceDir*Dmg*0.3f); //
@@ -1008,9 +1010,9 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		vec2 ForceDir(0, 1);
 		float l = length(Diff);
 		if(l)
-			ForceDir = normalize(Diff);
+			ForceDir = Diff / l;
 		l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
-		float Dmg = GetExplosionDamage(Weapon) * l;
+		float Dmg = ExplosionDamage * l;
 						
 		if((int)Dmg && Dmg > 0.0f)
 			pTarget->TakeDamage(ForceDir*Dmg*0.3f, (int)Dmg*Dmg2, Owner, vec2(0, 0), Weapon);
@@ -1918,8 +1920,10 @@ void CGameContext::OnClientEnter(int ClientID)
 			SendBroadcastFormat(ClientID, false, "Level %d", g_Config.m_SvMapGenLevel);
 		else if (g_Config.m_SvInvFails == 1)
 			SendBroadcastFormat(ClientID, false, "Level %d - Second try", g_Config.m_SvMapGenLevel);
+		else if (g_Config.m_SvInvFails == 6)
+			SendBroadcastFormat(ClientID, false, "Level %d - Final attempt", g_Config.m_SvMapGenLevel);
 		else
-			SendBroadcastFormat(ClientID, false, "Level %d - Last chance", g_Config.m_SvMapGenLevel);
+			SendBroadcastFormat(ClientID, false, "Level %d - Attempt %d", g_Config.m_SvMapGenLevel, g_Config.m_SvInvFails + 1);
 	}
 	
 	m_VoteUpdate = true;
@@ -2122,6 +2126,13 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			CNetMsg_Cl_PveDroneModule *pMsg = (CNetMsg_Cl_PveDroneModule *)pRawMsg;
 			if(m_pPveDirector)
 				m_pPveDirector->OnDroneModule(ClientID, pMsg->m_Nonce, pMsg->m_Module);
+		}
+		else if(MsgID == NETMSGTYPE_CL_PVEINVASIONRETRYVOTE)
+		{
+			CNetMsg_Cl_PveInvasionRetryVote *pMsg = (CNetMsg_Cl_PveInvasionRetryVote *)pRawMsg;
+			CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pController);
+			if(pInvasion)
+				pInvasion->OnRetryVote(ClientID, pMsg->m_Nonce, pMsg->m_Choice);
 		}
 		else if(MsgID == NETMSGTYPE_CL_SAY)
 		{
@@ -3376,7 +3387,7 @@ void CGameContext::KickBots()
 
 void CGameContext::KickBot(int ClientID)
 {
-	if (ClientID < 0 || ClientID >= MAX_CLIENTS)
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_apPlayers[ClientID])
 		return;
 	
 	if (m_apPlayers[ClientID]->GetCharacter())

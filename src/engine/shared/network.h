@@ -287,7 +287,7 @@ public:
 	//
 	void SetMaxClientsPerIP(int Max);
 	
-	bool m_SlotTakenByBot[64];
+	bool m_SlotTakenByBot[NET_MAX_CLIENTS];
 };
 
 class CNetConsole

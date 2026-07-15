@@ -15,12 +15,14 @@ class CVoting : public CComponent
 
 	static void ConCallvote(IConsole::IResult *pResult, void *pUserData);
 	static void ConVote(IConsole::IResult *pResult, void *pUserData);
+	static void ConDebugVote(IConsole::IResult *pResult, void *pUserData);
 
 	int64 m_Closetime;
 	char m_aDescription[VOTE_DESC_LENGTH];
 	char m_aReason[VOTE_REASON_LENGTH];
 	int m_Voted;
 	int m_Yes, m_No, m_Pass, m_Total;
+	bool m_DebugVoteActive;
 
 	void AddOption(const char *pDescription);
 	void ClearOptions();

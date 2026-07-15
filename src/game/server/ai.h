@@ -2,6 +2,7 @@
 #define GAME_SERVER_AI_H
 
 #include <base/vmath.h>
+#include <engine/shared/protocol.h>
 #include <game/pathfinding.h>
 
 
@@ -162,6 +163,8 @@ protected:
 	int m_PlayerSpotTimer;
 	int m_PlayerSpotCount;
 	int m_EnemiesInSight;
+	int m_LineOfSightCacheTick;
+	unsigned char m_aLineOfSightCache[MAX_CLIENTS];
 	
 	vec2 m_OldTargetPos;
 	vec2 m_TargetPos;
@@ -195,6 +198,7 @@ protected:
 	void RandomlyStopShooting();
 	
 	bool SeekRandomHuman();
+	bool HasLineOfSight(class CCharacter *pCharacter);
 	void ShootAtClosestHuman();
 	void ShootAtBlocks();
 	bool SeekClosestHumanInSight();
@@ -202,6 +206,7 @@ protected:
 	bool SeekRandomEnemy();
 	bool SeekClosestFriend(bool OnlyUnharmed = false);
 	bool SeekClosestReactor();
+	bool PrioritizeReactorObjective();
 	bool SeekClosestHuman();
 	bool SeekClosestEnemy();
 	bool SeekClosestEnemyInSight();
@@ -209,7 +214,7 @@ protected:
 	bool SeekRandomWaypoint();
 	
 	bool ShootAtClosestMonster();
-	bool ShootAtClosestBuilding();
+	bool ShootAtClosestBuilding(bool ReactorOnly = false);
 	bool ShootAtClosestEnemy();
 	int WeaponShootRange();
 	

@@ -149,6 +149,27 @@ MACRO_CONFIG_INT(ClPveDroneAssault, cl_pve_drone_assault, 0, 0, 512, CFGFLAG_SAV
 MACRO_CONFIG_INT(ClPveDroneGuardian, cl_pve_drone_guardian, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the guardian drone module")
 MACRO_CONFIG_INT(ClPveDroneRepair, cl_pve_drone_repair, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the repair drone module")
 
+// One-click local game hosting. The password is intentionally session-only.
+MACRO_CONFIG_INT(ClLocalServerMode, cl_local_server_mode, 0, 0, 5, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game mode")
+MACRO_CONFIG_INT(ClLocalServerMap, cl_local_server_map, 0, 0, 6, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game map preset")
+MACRO_CONFIG_INT(ClLocalServerDifficulty, cl_local_server_difficulty, 1, 1, 50, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Local game map or AI difficulty")
+MACRO_CONFIG_INT(ClLocalServerBots, cl_local_server_bots, 5, 0, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Number of AI players in local competitive games")
+MACRO_CONFIG_INT(ClLocalServerMaxClients, cl_local_server_max_clients, 8, 1, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Maximum total player slots in a local game")
+MACRO_CONFIG_INT(ClLocalServerPort, cl_local_server_port, 8303, 1024, 65535, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Port used by the local game server")
+MACRO_CONFIG_INT(ClLocalServerLan, cl_local_server_lan, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Allow other players on the LAN to join the local game")
+MACRO_CONFIG_STR(ClLocalServerName, cl_local_server_name, 64, "Local Game", CFGFLAG_SAVE|CFGFLAG_CLIENT, "Local game server name")
+MACRO_CONFIG_STR(ClLocalServerPassword, cl_local_server_password, 32, "", CFGFLAG_CLIENT, "Session-only local game password")
+MACRO_CONFIG_INT(ClLocalServerRandomSeed, cl_local_server_random_seed, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Generate a new local game map seed on every launch")
+MACRO_CONFIG_INT(ClLocalServerSeed, cl_local_server_seed, 0, 0, 32767, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Fixed local game map seed")
+MACRO_CONFIG_INT(ClLocalServerRoguelite, cl_local_server_roguelite, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Enable the PvE Roguelite Director in local games")
+MACRO_CONFIG_INT(ClLocalServerContracts, cl_local_server_contracts, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Enable PvE contracts in local games")
+MACRO_CONFIG_INT(ClLocalServerHordeWaves, cl_local_server_horde_waves, 0, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Horde target wave count, or zero for endless")
+MACRO_CONFIG_INT(ClLocalServerExtractionTime, cl_local_server_extraction_time, 4, 2, 15, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Extraction mission time limit in minutes")
+MACRO_CONFIG_INT(ClLocalServerDmScore, cl_local_server_dm_score, 20, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Deathmatch score limit")
+MACRO_CONFIG_INT(ClLocalServerTdmScore, cl_local_server_tdm_score, 50, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Team deathmatch score limit")
+MACRO_CONFIG_INT(ClLocalServerCtfScore, cl_local_server_ctf_score, 500, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Capture the flag score limit")
+MACRO_CONFIG_INT(ClLocalServerAdvanced, cl_local_server_advanced, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show advanced local game rules")
+
 // ===== AntiPing / Prediction System =====
 MACRO_CONFIG_INT(ClAntiPing, cl_antiping, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Enable antiping, more aggressive prediction")
 MACRO_CONFIG_INT(ClAntiPingPlayers, cl_antiping_players, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Predict other player's movement more aggressively (only if cl_antiping is 1)")
@@ -167,6 +188,7 @@ MACRO_CONFIG_INT(ClShowhudSpectatorCount, cl_showhud_spectator_count, 1, 0, 1, C
 MACRO_CONFIG_INT(ClShowhudPlayerPosition, cl_showhud_player_position, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Player Position)")
 MACRO_CONFIG_INT(ClShowhudPlayerSpeed, cl_showhud_player_speed, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Player Speed)")
 MACRO_CONFIG_INT(ClShowhudPlayerAngle, cl_showhud_player_angle, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Player Aim Angle)")
+MACRO_CONFIG_INT(ClPveObjectiveDisplay, cl_pve_objective_display, 2, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "PvE objective display: 0 scoreboard, 1 always, 2 updates")
 
 // ===== Chat Filtering =====
 MACRO_CONFIG_INT(ClShowChat, cl_showchat, 1, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show chat (2 to always show large chat area)")

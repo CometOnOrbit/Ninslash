@@ -8,6 +8,8 @@ class CPveRoguelite : public CComponent
 {
 	bool m_ChoiceActive;
 	bool m_ContractVoteActive;
+	bool m_InvasionRetryVoteActive;
+	bool m_InvasionRetryResultActive;
 	bool m_ResearchVisible;
 	bool m_ProgressSent;
 	bool m_MouseTrigger;
@@ -16,6 +18,14 @@ class CPveRoguelite : public CComponent
 	int m_ContractNonce;
 	int m_ChoiceEndTick;
 	int m_ContractEndTick;
+	int m_InvasionRetryNonce;
+	int m_InvasionRetryEndTick;
+	int m_InvasionRetryFloor;
+	int m_aInvasionRetryVotes[2];
+	int m_SelectedInvasionRetry;
+	int m_InvasionRetryResult;
+	int m_InvasionRetryResultEndTick;
+	char m_aInvasionRetryPlayerName[64];
 	int m_aChoiceCards[3];
 	int m_aChoiceStacks[3];
 	int m_aContractOptions[2];
@@ -40,16 +50,20 @@ class CPveRoguelite : public CComponent
 	int m_SelectedResearch;
 	int m_ResearchTab;
 	int m_ResearchBranch;
+	int m_ResearchRoute;
 	int m_ResearchNonce;
 	int m_DebugChoiceScreenshotFrames;
 	int m_DebugResearchScreenshotFrames;
 	int m_DebugBuildScreenshotFrames;
+	int m_DebugGameScreenshotFrames;
+	int64 m_DebugGameScreenshotEarliestTime;
 	int m_DebugScreenshotPage;
 	bool m_DebugBuildPreview;
 	int m_aRunPerks[NUM_PVE_CARDS];
 	int m_aNodeButtonIDs[NUM_PVE_CARDS];
 	int m_aTabButtonIDs[3];
 	int m_aBranchButtonIDs[4];
+	int m_aRouteButtonIDs[3];
 	int m_BuyButtonID;
 	int m_CheckpointButtonID;
 	vec2 m_SelectorMouse;
@@ -62,8 +76,11 @@ class CPveRoguelite : public CComponent
 	void StoreResearchMask(CPveResearchMask Mask);
 	void SendChoice(int Slot);
 	void SendContractVote(int Slot);
+	void SendInvasionRetryVote(int Choice);
 	void SendDroneModule(int Module);
 	void DrawSelectionOverlay(bool ContractVote);
+	void DrawInvasionRetryVote();
+	void DrawInvasionRetryResult();
 	void DrawContractHud();
 	void DrawBuildHud();
 	void DrawText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth = -1.0f, int Align = -1);
@@ -75,9 +92,11 @@ class CPveRoguelite : public CComponent
 	void CycleCheckpoint();
 	static void ConDebugChoice(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugContract(IConsole::IResult *pResult, void *pUserData);
+	static void ConDebugInvasionRetry(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugResearch(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugBuild(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugScreenshot(IConsole::IResult *pResult, void *pUserData);
+	static void ConDebugGameScreenshot(IConsole::IResult *pResult, void *pUserData);
 	static void ConDroneModule(IConsole::IResult *pResult, void *pUserData);
 
 public:
@@ -95,7 +114,7 @@ public:
 	void RenderBuildDebug();
 	int ShopCost(int BaseCost) const;
 	int BuildingCost(int BaseCost) const;
-	bool ChoiceActive() const { return m_ChoiceActive || m_ContractVoteActive; }
+	bool ChoiceActive() const { return m_ChoiceActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
 };
 
 #endif

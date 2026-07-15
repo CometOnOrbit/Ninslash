@@ -12,6 +12,7 @@
 #include <game/server/entities/radar.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gamemodes/extract.h>
+#include <game/server/gamemodes/horde.h>
 #include <game/server/gamemodes/invasion.h>
 #include <game/server/player.h>
 #include <game/server/playerdata.h>
@@ -67,6 +68,8 @@ void CPveDirector::CPlayerRun::Reset()
 	m_DroneActionTick = 0;
 	m_LastDroneNonce = 0;
 	m_LastBuildStateTick = 0;
+	for(int i = 0; i < 11; i++)
+		m_aLastBuildState[i] = -1;
 	m_KillChainStacks = 0;
 	m_KillChainEndTick = 0;
 	m_SustainedHits = 0;
@@ -123,6 +126,9 @@ CPveDirector::CPveDirector(CGameContext *pGameServer) :
 	m_BlackBoxHoldTicks = 0;
 	m_ApplyingSecondaryEffect = false;
 	mem_zero(m_aTargetStatus, sizeof(m_aTargetStatus));
+	m_TargetSummaryTick = -1;
+	m_VulnerableTargetCount = 0;
+	m_BleedingTargetCount = 0;
 	m_DeathlessHordeWaves = 0;
 	m_AnyStageDeath = false;
 	mem_zero(m_aPendingBlasts, sizeof(m_aPendingBlasts));
@@ -654,6 +660,9 @@ void CPveDirector::Tick()
 		for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 			DestroyDrone(ClientID);
 		mem_zero(m_aTargetStatus, sizeof(m_aTargetStatus));
+		m_TargetSummaryTick = -1;
+		m_VulnerableTargetCount = 0;
+		m_BleedingTargetCount = 0;
 		if(HadState)
 			SendContractStatus();
 		return;
@@ -958,6 +967,9 @@ void CPveDirector::OnStageStart()
 	if(!Enabled())
 		return;
 	mem_zero(m_aTargetStatus, sizeof(m_aTargetStatus));
+	m_TargetSummaryTick = -1;
+	m_VulnerableTargetCount = 0;
+	m_BleedingTargetCount = 0;
 	m_AnyStageDeath = false;
 	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 	{
@@ -1460,6 +1472,7 @@ CPveDirector::CTargetStatus *CPveDirector::TargetStatus(CEntity *pTarget, bool C
 	mem_zero(pFree, sizeof(*pFree));
 	pFree->m_pTarget = pTarget;
 	pFree->m_BleedOwner = -1;
+	m_TargetSummaryTick = -1;
 	return pFree;
 }
 
@@ -1467,7 +1480,10 @@ void CPveDirector::ClearTargetStatus(CEntity *pTarget)
 {
 	CTargetStatus *pStatus = TargetStatus(pTarget, false);
 	if(pStatus)
+	{
 		mem_zero(pStatus, sizeof(*pStatus));
+		m_TargetSummaryTick = -1;
+	}
 }
 
 void CPveDirector::ApplyVulnerable(CEntity *pTarget, int Percent, int Seconds)
@@ -1477,6 +1493,7 @@ void CPveDirector::ApplyVulnerable(CEntity *pTarget, int Percent, int Seconds)
 		return;
 	pStatus->m_VulnerablePercent = min(25, pStatus->m_VulnerablePercent + Percent);
 	pStatus->m_VulnerableEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * Seconds;
+	m_TargetSummaryTick = -1;
 }
 
 void CPveDirector::ApplyBleed(CEntity *pTarget, int Stacks, int ClientID, int Weapon)
@@ -1491,6 +1508,7 @@ void CPveDirector::ApplyBleed(CEntity *pTarget, int Stacks, int ClientID, int We
 		pStatus->m_BleedNextTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed();
 	pStatus->m_BleedOwner = ClientID;
 	pStatus->m_BleedWeapon = Weapon;
+	m_TargetSummaryTick = -1;
 }
 
 int CPveDirector::VulnerablePercent(CEntity *pTarget)
@@ -1506,9 +1524,11 @@ void CPveDirector::ProcessHit(int ClientID, CEntity *pTarget, int Weapon, int Da
 	if(!Direct || m_ApplyingSecondaryEffect || !IsEligiblePlayer(ClientID) || !pTarget || Damage <= 0)
 		return;
 	CPlayerRun &Run = m_aPlayers[ClientID];
-	CTargetStatus *pStatus = TargetStatus(pTarget, true);
-	if(pStatus && Run.m_aStacks[PVE_CARD_MARKING_ROUNDS])
+	if(Run.m_aStacks[PVE_CARD_MARKING_ROUNDS])
 	{
+		CTargetStatus *pStatus = TargetStatus(pTarget, true);
+		if(!pStatus)
+			return;
 		pStatus->m_aMarkingHits[ClientID]++;
 		if(pStatus->m_aMarkingHits[ClientID] >= 6)
 		{
@@ -1521,6 +1541,7 @@ void CPveDirector::ProcessHit(int ClientID, CEntity *pTarget, int Weapon, int Da
 void CPveDirector::TickTargetStatuses()
 {
 	const int Now = m_pGameServer->Server()->Tick();
+	m_TargetSummaryTick = -1;
 	for(int i = 0; i < (int)(sizeof(m_aTargetStatus) / sizeof(m_aTargetStatus[0])); i++)
 	{
 		CTargetStatus &Status = m_aTargetStatus[i];
@@ -1548,6 +1569,24 @@ void CPveDirector::TickTargetStatuses()
 				pCharacter->TakeDamage(Status.m_BleedOwner, Status.m_BleedWeapon, Damage, vec2(0, 0), pCharacter->m_Pos);
 		}
 		m_ApplyingSecondaryEffect = false;
+	}
+}
+
+void CPveDirector::UpdateTargetSummary()
+{
+	const int Now = m_pGameServer->Server()->Tick();
+	if(m_TargetSummaryTick == Now)
+		return;
+	m_TargetSummaryTick = Now;
+	m_VulnerableTargetCount = 0;
+	m_BleedingTargetCount = 0;
+	for(int i = 0; i < (int)(sizeof(m_aTargetStatus) / sizeof(m_aTargetStatus[0])); i++)
+	{
+		const CTargetStatus &Status = m_aTargetStatus[i];
+		if(!Status.m_pTarget)
+			continue;
+		m_VulnerableTargetCount += Status.m_VulnerablePercent > 0 && Status.m_VulnerableEndTick >= Now;
+		m_BleedingTargetCount += Status.m_BleedStacks > 0 && Status.m_BleedEndTick >= Now;
 	}
 }
 
@@ -1675,9 +1714,18 @@ float CPveDirector::DroneEfficiency(int ClientID) const
 		Efficiency += 0.50f;
 	if(Run.m_aStacks[PVE_CARD_GRID_LINK] && Run.m_aWeaponResources[PVE_SPECIALIZATION_ELECTRIC - 1] > 5)
 		Efficiency += 0.35f;
-	if(m_Mode == PVE_MODE_HORDE && Run.m_aStacks[PVE_CARD_HOLD_THE_LINE])
+	if(Run.m_aStacks[PVE_CARD_HOLD_THE_LINE] && InHordeDefenseArea(ClientID))
 		Efficiency += 0.25f;
 	return Efficiency;
+}
+
+bool CPveDirector::InHordeDefenseArea(int ClientID) const
+{
+	if(m_Mode != PVE_MODE_HORDE || ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return false;
+	const CCharacter *pCharacter = m_pGameServer->GetPlayerChar(ClientID);
+	const CGameControllerHorde *pHorde = dynamic_cast<const CGameControllerHorde *>(m_pGameServer->m_pController);
+	return pCharacter && pCharacter->IsAlive() && pHorde && pHorde->InDefenseArea(pCharacter->m_Pos);
 }
 
 void CPveDirector::TickDrone(int ClientID)
@@ -1777,25 +1825,25 @@ void CPveDirector::SendBuildState(int ClientID, bool Force)
 	if(!Force && Run.m_LastBuildStateTick + m_pGameServer->Server()->TickSpeed() / 5 > m_pGameServer->Server()->Tick())
 		return;
 	Run.m_LastBuildStateTick = m_pGameServer->Server()->Tick();
-	int VulnerableTargets = 0;
-	int BleedingTargets = 0;
-	for(int i = 0; i < (int)(sizeof(m_aTargetStatus) / sizeof(m_aTargetStatus[0])); i++)
-		if(m_aTargetStatus[i].m_pTarget)
-		{
-			VulnerableTargets += m_aTargetStatus[i].m_VulnerablePercent > 0;
-			BleedingTargets += m_aTargetStatus[i].m_BleedStacks > 0;
-		}
+	UpdateTargetSummary();
 	CNetMsg_Sv_PveBuildState Msg;
 	Msg.m_Focus = Run.m_aWeaponResources[0];
 	Msg.m_BlastCharge = Run.m_aWeaponResources[1];
 	Msg.m_Voltage = Run.m_aWeaponResources[2];
 	Msg.m_Fury = Run.m_aWeaponResources[3];
 	Msg.m_Barrier = Run.m_Barrier;
-	Msg.m_VulnerableTargets = min(99, VulnerableTargets);
-	Msg.m_BleedingTargets = min(99, BleedingTargets);
+	Msg.m_VulnerableTargets = min(99, m_VulnerableTargetCount);
+	Msg.m_BleedingTargets = min(99, m_BleedingTargetCount);
 	Msg.m_LegendaryCard = Run.m_LegendaryCard;
 	Msg.m_DroneModule = Run.m_DroneModule;
 	Msg.m_DroneSwitchReadyTick = Run.m_DroneSwitchReadyTick;
+	const int aState[11] = {
+		Msg.m_Focus, Msg.m_BlastCharge, Msg.m_Voltage, Msg.m_Fury, Msg.m_Barrier,
+		Msg.m_VulnerableTargets, Msg.m_BleedingTargets, Msg.m_LegendaryCard,
+		Msg.m_DroneModule, Msg.m_DroneSwitchReadyTick, Run.m_DeathlessFloors};
+	if(!Force && mem_comp(aState, Run.m_aLastBuildState, sizeof(aState)) == 0)
+		return;
+	mem_copy(Run.m_aLastBuildState, aState, sizeof(aState));
 	m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 	if(m_pGameServer->m_apPlayers[ClientID])
 	{
@@ -2181,7 +2229,7 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 			}
 		if(Run.m_AvatarEndTick >= m_pGameServer->Server()->Tick())
 			Reduction += 0.20f;
-		if(m_Mode == PVE_MODE_HORDE && Run.m_aStacks[PVE_CARD_HOLD_THE_LINE])
+		if(Run.m_aStacks[PVE_CARD_HOLD_THE_LINE] && InHordeDefenseArea(To))
 			Reduction += 0.15f;
 		if(m_Mode == PVE_MODE_EXTRACTION && pTarget && pTarget->IsBombCarrier() && Run.m_aStacks[PVE_CARD_COURIER])
 			Reduction += 0.10f;
@@ -2715,6 +2763,9 @@ void CPveDirector::ClearRun()
 	mem_zero(m_apEliteContractGuards, sizeof(m_apEliteContractGuards));
 	m_NumEliteContractGuards = 0;
 	mem_zero(m_aTargetStatus, sizeof(m_aTargetStatus));
+	m_TargetSummaryTick = -1;
+	m_VulnerableTargetCount = 0;
+	m_BleedingTargetCount = 0;
 	m_DeathlessHordeWaves = 0;
 	m_AnyStageDeath = false;
 	SendContractStatus();

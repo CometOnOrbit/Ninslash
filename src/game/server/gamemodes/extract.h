@@ -12,6 +12,7 @@ private:
 	int m_Phase; // 0 fight/switches, 1 evacuate, 2 won/lost
 	int m_SwitchesRequired;
 	int m_SwitchesActivated;
+	int m_AvailableSwitches;
 	int m_Evacuated;
 	int m_EvacNeeded;
 	bool m_DoorOpen;
@@ -41,10 +42,10 @@ private:
 	void SpawnMidBoss();
 	void SpawnEscapePressure();
 	void BeginEvacuation();
-	int CountSwitches() const;
 	int CountHumanPlayersLocal() const;
 	int CountHumansAliveLocal() const;
 	int EnemyLevel() const;
+	bool GetBossSpawnPos(vec2 *pOutPos);
 
 public:
 	CGameControllerExtract(class CGameContext *pGameServer);

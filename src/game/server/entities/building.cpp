@@ -21,6 +21,7 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	m_Center = vec2(0, 0);
 	m_Collision = true;
 	m_Height = 0;
+	m_LightningBlockCheckTick = 0;
 	m_CanMove = false;
 	m_Moving = false;
 	m_AttachOnFall = false;
@@ -33,6 +34,7 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	m_PveKitCost = 0;
 	m_PveRefunded = false;
 	m_PveSwitchActive = true;
+	m_PveReactorObjective = false;
 	
 	m_Status = 0;
 	for (int i = 0; i < NUM_BSTATUS; i++)
@@ -213,6 +215,11 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	m_Team = Team;
 	m_Type = Type;
 	m_MaxLife = m_Life;
+	if(Type == BUILDING_LIGHTNINGWALL)
+	{
+		const int CheckInterval = max(1, GameServer()->Server()->TickSpeed() / 10);
+		m_LightningBlockCheckTick = GameServer()->Server()->Tick() + m_ID % CheckInterval;
+	}
 	
 	/*
 	if (!GameServer()->m_pController->IsTeamplay())
@@ -473,10 +480,38 @@ void CBuilding::SetPveSwitchActive(bool Active)
 		m_aStatus[BSTATUS_ON] = 0;
 }
 
+void CBuilding::SetPveReactorObjective(bool Active, int MaxLife)
+{
+	if(m_Type != BUILDING_REACTOR)
+		return;
+
+	m_PveReactorObjective = Active;
+	m_aStatus[BSTATUS_ON] = Active ? 1 : 0;
+	if(Active)
+	{
+		m_MaxLife = max(1, MaxLife);
+		m_Life = m_MaxLife;
+		m_Collision = true;
+	}
+	else if(m_Life > 0)
+	{
+		// Outside the objective the Invasion reactor is map decoration again.
+		m_Life = 9000;
+		m_MaxLife = 9000;
+		m_Collision = false;
+	}
+}
+
 void CBuilding::TakeDamage(int Damage, int Owner, int Weapon, vec2 Force)
 {
 	if(m_Type == BUILDING_SWITCH && !m_PveSwitchActive)
 		return;
+	if(m_PveReactorObjective && Damage > 0 && Owner >= 0 && Owner < MAX_CLIENTS)
+	{
+		CPlayer *pOwner = GameServer()->m_apPlayers[Owner];
+		if(pOwner && !pOwner->m_IsBot)
+			return;
+	}
 	if(Damage < 0 && GameServer()->m_pPveDirector)
 		Damage = -GameServer()->m_pPveDirector->ModifyBuildingRepair(Owner, -Damage);
 	else if(Damage > 0 && GameServer()->m_pPveDirector)
@@ -493,7 +528,7 @@ void CBuilding::TakeDamage(int Damage, int Owner, int Weapon, vec2 Force)
 	}
 	
 	// reactor defense
-	if (m_Type == BUILDING_REACTOR && (GetBuildingType(Weapon) == BUILDING_REACTOR || GetStaticType(Weapon) == SW_BOMB))
+	if (m_Type == BUILDING_REACTOR && !m_PveReactorObjective && (GetBuildingType(Weapon) == BUILDING_REACTOR || GetStaticType(Weapon) == SW_BOMB))
 	{
 		m_Life = 0;
 		m_DeathTimer = 5;
@@ -724,9 +759,15 @@ void CBuilding::Tick()
 	
 	if (m_Type == BUILDING_LIGHTNINGWALL)
 	{
-		// self destruct if blocks between parts
-		if (GameServer()->Collision()->IntersectBlocks(m_Pos, m_Pos+vec2(0, -m_Height)))
-			TakeDamage(200, -1, 0);
+		// Block geometry changes rarely, while IntersectBlocks samples the full
+		// wall pixel by pixel. Check it at 10 Hz and stagger walls by entity ID;
+		// character safety and damage below remain at the server tick rate.
+		if(Server()->Tick() >= m_LightningBlockCheckTick)
+		{
+			m_LightningBlockCheckTick = Server()->Tick() + max(1, Server()->TickSpeed() / 10);
+			if(GameServer()->Collision()->IntersectBlocks(m_Pos, m_Pos+vec2(0, -m_Height)))
+				TakeDamage(200, -1, 0);
+		}
 		
 		if (!GameServer()->m_World.GetFriendlyCharacterInBox(m_Pos+vec2(-64, -(m_Height-48)), m_Pos+vec2(64, 0), m_Team))
 		{

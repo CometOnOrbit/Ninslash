@@ -97,7 +97,9 @@ public:
 		Returns:
 			Returns a pointer to the closest hit or NULL of there is no intersection.
 	*/
-	class CCharacter *IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, class CEntity *pNotThis = 0, bool IgnoreDeathrayed = false);
+	class CCharacter *IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos,
+		class CEntity *pNotThis = 0, bool IgnoreDeathrayed = false,
+		class CCharacter **ppReflect = 0, float ReflectRadius = 0.0f);
 
 	class CCharacter *GetFriendlyCharacterInBox(vec2 TopLeft, vec2 BotRight, int Team);
 

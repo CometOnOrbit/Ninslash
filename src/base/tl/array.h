@@ -329,7 +329,10 @@ protected:
 
 	void alloc(int new_len)
 	{
-		list_size = new_len;
+		// Keep a real sentinel allocation for empty arrays. Besides avoiding
+		// implementation-defined zero-sized allocations, this lets optimizers
+		// prove that copying the existing range is always in bounds.
+		list_size = new_len > 0 ? new_len : 1;
 		T *new_list = ALLOCATOR::alloc_array(list_size);
 
 		int end = num_elements < list_size ? num_elements : list_size;

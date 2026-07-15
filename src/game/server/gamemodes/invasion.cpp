@@ -38,6 +38,8 @@ static CAI* CreateAIpyro2(CGameContext *pGameServer, CPlayer *pPlayer, int Level
 
 static const float INV_QUEST_QUEUE_TIME = 1.5f;
 static const float INV_QUEST_DOOR_TIME = 3.0f;
+static const int INV_FINAL_ATTEMPT = 6;
+static const int INV_FORCE_FLOOR_ONE = 7;
 
 static int InvasionDepthQuests(int Level)
 {
@@ -62,6 +64,15 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_pGameType = "INV";
 	m_GameFlags = GAMEFLAG_COOP;
 	m_GameState = STATE_STARTING;
+	// Regeneration loads the source template first and generated.map second.
+	// Keep the marker through the transient template controller and consume it
+	// only in the controller that owns the final generated map.
+	m_ForceFloorOne = g_Config.m_SvInvFails == INV_FORCE_FLOOR_ONE && Server()->m_MapGenerated;
+	if(m_ForceFloorOne)
+	{
+		g_Config.m_SvInvFails = 0;
+		dbg_msg("inv", "forced Floor 1 reset applied on generated map");
+	}
 	
 	m_BotSpawnTick = 0;
 	
@@ -96,6 +107,8 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_BossesLeft = 0;
 	m_DefendLevel = false;
 	m_SwitchCoopLevel = false;
+	m_ReactorCountCheckTick = 0;
+	m_CachedReactorsLeft = 0;
 	m_ForcedWaveType = WAVE_NONE;
 	m_WaveSizeNerf = 0;
 	m_RunBuffActive = false;
@@ -107,6 +120,15 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_RogueliteCompletionStarted = false;
 	m_EliteContractSpawned = false;
 	m_CheckpointApplied = false;
+	m_RetryVoteNonce = 0;
+	m_RetryVoteEndTick = 0;
+	m_RetryVoteLastSyncTick = 0;
+	m_RetryResult = PVE_INVASION_RETRY_RESULT_RESET;
+	m_RetryResultEndTick = 0;
+	m_RetryResultLastSyncTick = 0;
+	m_aRetryPlayerName[0] = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		m_aRetryVotes[i] = -1;
 	
 	m_TriggerLevel = 0;
 	m_GroupSpawnPos = vec2(0, 0);
@@ -142,6 +164,7 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	
 	m_pDoor = new CRadar(&GameServer()->m_World, RADAR_DOOR);
 	m_pEnemySpawn = new CRadar(&GameServer()->m_World, RADAR_ENEMY);
+	m_pReactor = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
 }
 
 
@@ -202,12 +225,12 @@ void CGameControllerInvasion::SetupLevelTheme()
 		m_Deaths = m_QuestWaveSize;
 	}
 
-	if (g_Config.m_SvInvFails >= 2)
+	if (g_Config.m_SvInvFails != INV_FORCE_FLOOR_ONE && g_Config.m_SvInvFails >= 2)
 	{
 		m_RunBuffActive = true;
 		m_WaveSizeNerf = 1;
 	}
-	else if (g_Config.m_SvInvFails >= 1)
+	else if (g_Config.m_SvInvFails != INV_FORCE_FLOOR_ONE && g_Config.m_SvInvFails >= 1)
 		m_WaveSizeNerf = 1;
 }
 
@@ -244,6 +267,16 @@ bool CGameControllerInvasion::GetSpawnPos(int Team, vec2 *pOutPos)
 	m_SpawnPosRotation = m_SpawnPosRotation%m_NumEnemySpawnPos;
 	
 	*pOutPos = m_aEnemySpawnPos[m_SpawnPosRotation];
+	return true;
+}
+
+bool CGameControllerInvasion::GetBossSpawnPos(vec2 *pOutPos)
+{
+	if(FindBossSpawnPosition(&GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
+		return true;
+	if(!GetSpawnPos(0, pOutPos))
+		return false;
+	*pOutPos += vec2(0.0f, -100.0f);
 	return true;
 }
 
@@ -331,6 +364,240 @@ int CGameControllerInvasion::CountHumansAlive(int ExcludeCID) const
 			Num++;
 	}
 	return Num;
+}
+
+
+bool CGameControllerInvasion::IsRetryVoter(int ClientID) const
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !Server()->ClientIngame(ClientID))
+		return false;
+	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
+	return IsHumanCoopPlayer(pPlayer) && pPlayer->GetTeam() != TEAM_SPECTATORS;
+}
+
+
+int CGameControllerInvasion::RetryVoterCount() const
+{
+	int Count = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		if(IsRetryVoter(i))
+			Count++;
+	return Count;
+}
+
+
+void CGameControllerInvasion::CountRetryVotes(int *pRetry, int *pReset, int *pVoted) const
+{
+	int Retry = 0;
+	int Reset = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(!IsRetryVoter(i))
+			continue;
+		if(m_aRetryVotes[i] == PVE_INVASION_RETRY)
+			Retry++;
+		else if(m_aRetryVotes[i] == PVE_INVASION_RESET)
+			Reset++;
+	}
+	if(pRetry)
+		*pRetry = Retry;
+	if(pReset)
+		*pReset = Reset;
+	if(pVoted)
+		*pVoted = Retry + Reset;
+}
+
+
+void CGameControllerInvasion::SendRetryVote(int ClientID)
+{
+	if(m_GameState != STATE_RETRY_VOTE || m_RetryVoteNonce <= 0)
+		return;
+	if(ClientID < 0)
+	{
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(IsRetryVoter(i))
+				SendRetryVote(i);
+		return;
+	}
+	if(!IsRetryVoter(ClientID))
+		return;
+	int Retry = 0;
+	int Reset = 0;
+	CountRetryVotes(&Retry, &Reset);
+	CNetMsg_Sv_PveInvasionRetryVote Msg;
+	Msg.m_Nonce = m_RetryVoteNonce;
+	Msg.m_EndTick = m_RetryVoteEndTick;
+	Msg.m_CurrentFloor = max(1, g_Config.m_SvMapGenLevel);
+	Msg.m_RetryVotes = Retry;
+	Msg.m_ResetVotes = Reset;
+	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+}
+
+
+void CGameControllerInvasion::StartRetryVote()
+{
+	m_GameState = STATE_RETRY_VOTE;
+	m_RoundOverTick = 0;
+	GameServer()->m_World.m_Paused = true;
+	m_RetryVoteNonce = max(1, Server()->Tick() + 1);
+	m_RetryVoteEndTick = Server()->Tick() + Server()->TickSpeed() * 15;
+	m_RetryVoteLastSyncTick = Server()->Tick() + Server()->TickSpeed();
+	m_aRetryPlayerName[0] = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		m_aRetryVotes[i] = -1;
+	SendRetryVote();
+}
+
+
+void CGameControllerInvasion::OnRetryVote(int ClientID, int Nonce, int Choice)
+{
+	if(m_GameState != STATE_RETRY_VOTE || Nonce != m_RetryVoteNonce || Server()->Tick() >= m_RetryVoteEndTick ||
+		!IsRetryVoter(ClientID) || Choice < PVE_INVASION_RETRY || Choice > PVE_INVASION_RESET || m_aRetryVotes[ClientID] != -1)
+		return;
+	m_aRetryVotes[ClientID] = Choice;
+	if(Choice == PVE_INVASION_RETRY && !m_aRetryPlayerName[0])
+		str_copy(m_aRetryPlayerName, Server()->ClientName(ClientID), sizeof(m_aRetryPlayerName));
+	SendRetryVote();
+	int Voted = 0;
+	CountRetryVotes(0, 0, &Voted);
+	if(RetryVoterCount() > 0 && Voted >= RetryVoterCount())
+		FinishRetryVote();
+}
+
+
+void CGameControllerInvasion::TickRetryVote()
+{
+	if(Server()->Tick() >= m_RetryVoteEndTick)
+	{
+		FinishRetryVote();
+		return;
+	}
+	int Voted = 0;
+	CountRetryVotes(0, 0, &Voted);
+	const int Voters = RetryVoterCount();
+	if(Voters > 0 && Voted >= Voters)
+	{
+		FinishRetryVote();
+		return;
+	}
+	if(Server()->Tick() >= m_RetryVoteLastSyncTick)
+	{
+		SendRetryVote();
+		m_RetryVoteLastSyncTick = Server()->Tick() + Server()->TickSpeed();
+	}
+}
+
+
+void CGameControllerInvasion::FinishRetryVote()
+{
+	if(m_GameState != STATE_RETRY_VOTE)
+		return;
+	int Retry = 0;
+	int Reset = 0;
+	CountRetryVotes(&Retry, &Reset);
+	if(Retry > Reset)
+	{
+		m_aRetryPlayerName[0] = 0;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(IsRetryVoter(i) && m_aRetryVotes[i] == PVE_INVASION_RETRY)
+		{
+				str_copy(m_aRetryPlayerName, Server()->ClientName(i), sizeof(m_aRetryPlayerName));
+				break;
+		}
+		StartRetryResult(PVE_INVASION_RETRY_RESULT_RETRY);
+	}
+	else
+		StartRetryResult(PVE_INVASION_RETRY_RESULT_RESET);
+}
+
+
+void CGameControllerInvasion::SendRetryResult(int ClientID)
+{
+	if(m_GameState != STATE_RETRY_RESULT)
+		return;
+	if(ClientID < 0)
+	{
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(IsRetryVoter(i))
+				SendRetryResult(i);
+		return;
+	}
+	if(!IsRetryVoter(ClientID))
+		return;
+	CNetMsg_Sv_PveInvasionRetryResult Msg;
+	Msg.m_Result = m_RetryResult;
+	Msg.m_EndTick = m_RetryResultEndTick;
+	Msg.m_pPlayerName = m_RetryResult == PVE_INVASION_RETRY_RESULT_RETRY ? m_aRetryPlayerName : "";
+	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+}
+
+
+void CGameControllerInvasion::StartRetryResult(int Result)
+{
+	m_GameState = STATE_RETRY_RESULT;
+	m_RoundOverTick = 0;
+	m_RetryVoteNonce = 0;
+	m_RetryResult = clamp(Result, (int)PVE_INVASION_RETRY_RESULT_RETRY, (int)PVE_INVASION_RETRY_RESULT_FINAL_FAILURE);
+	m_RetryResultEndTick = Server()->Tick() + Server()->TickSpeed() * 3;
+	m_RetryResultLastSyncTick = Server()->Tick() + Server()->TickSpeed();
+	GameServer()->m_World.m_Paused = true;
+	SendRetryResult();
+}
+
+
+void CGameControllerInvasion::TickRetryResult()
+{
+	if(Server()->Tick() >= m_RetryResultEndTick)
+	{
+		FinishRetryResult();
+		return;
+	}
+	if(Server()->Tick() >= m_RetryResultLastSyncTick)
+	{
+		SendRetryResult();
+		m_RetryResultLastSyncTick = Server()->Tick() + Server()->TickSpeed();
+	}
+}
+
+
+void CGameControllerInvasion::FinishRetryResult()
+{
+	if(m_GameState != STATE_RETRY_RESULT)
+		return;
+	const int Result = m_RetryResult;
+	m_GameState = STATE_FAIL;
+	m_RetryResultEndTick = 0;
+	if(Result == PVE_INVASION_RETRY_RESULT_RETRY)
+	{
+		// Six is a cross-map sentinel for the one final attempt. Reaching the
+		// next floor resets it through the normal completion path.
+		g_Config.m_SvInvFails = INV_FINAL_ATTEMPT;
+		GameServer()->ReloadMap();
+		return;
+	}
+
+	if(GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->ClearRun();
+	g_Config.m_SvMapGenLevel = 1;
+	// The next controller consumes this marker before checkpoint selection, so
+	// a preferred deep checkpoint cannot override the team's reset decision.
+	g_Config.m_SvInvFails = INV_FORCE_FLOOR_ONE;
+	g_Config.m_SvMapGenSeed = rand() % 32767;
+	RegenerateMapFromTemplate();
+}
+
+
+void CGameControllerInvasion::RegenerateMapFromTemplate()
+{
+	// A generated map must never be used as the next generation template.
+	// Load the original modular source first; OnInit then produces generated.map
+	// and the server performs the normal second map hand-off to clients.
+	if(g_Config.m_SvMapGen && g_Config.m_SvInvMap[0] && str_comp(g_Config.m_SvInvMap, "generated") != 0)
+	{
+		str_copy(g_Config.m_SvMap, g_Config.m_SvInvMap, sizeof(g_Config.m_SvMap));
+		Server()->m_MapGenerated = false;
+	}
+	GameServer()->ReloadMap();
 }
 
 
@@ -521,9 +788,9 @@ void CGameControllerInvasion::SpawnBosses(int Count)
 	for (int i = 0; i < Count; i++)
 	{
 		vec2 p;
-		if (!GetSpawnPos(0, &p))
+		if (!GetBossSpawnPos(&p))
 			p = vec2(4000, 4000);
-		SpawnBoss(&GameServer()->m_World, p+vec2(0, -100), g_Config.m_SvMapGenLevel);
+		SpawnBoss(&GameServer()->m_World, p, g_Config.m_SvMapGenLevel);
 	}
 	m_BossesLeft = Count;
 }
@@ -557,9 +824,14 @@ int CGameControllerInvasion::CountBuildingsOfType(int Type) const
 }
 
 
-int CGameControllerInvasion::ReactorsLeft() const
+int CGameControllerInvasion::ReactorsLeft()
 {
-	return CountBuildingsOfType(BUILDING_REACTOR);
+	if(Server()->Tick() >= m_ReactorCountCheckTick)
+	{
+		m_CachedReactorsLeft = CountBuildingsOfType(BUILDING_REACTOR);
+		m_ReactorCountCheckTick = Server()->Tick() + max(1, Server()->TickSpeed() / 10);
+	}
+	return m_CachedReactorsLeft;
 }
 
 
@@ -573,6 +845,32 @@ void CGameControllerInvasion::SetSwitchesActive(bool Active)
 	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
 		if(pBuilding->m_Type == BUILDING_SWITCH)
 			pBuilding->SetPveSwitchActive(Active);
+}
+
+
+bool CGameControllerInvasion::IsReactorDefenseActive() const
+{
+	return m_GameState == STATE_GAME && m_Quest == QUEST_DEFEND && !m_RoundOverTick;
+}
+
+
+void CGameControllerInvasion::SetReactorDefenseActive(bool Active)
+{
+	const int ReactorLife = min(1200, 600 + max(1, g_Config.m_SvMapGenLevel) * 20);
+	bool RadarActivated = false;
+	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+	{
+		if(pBuilding->m_Type != BUILDING_REACTOR)
+			continue;
+		pBuilding->SetPveReactorObjective(Active, ReactorLife);
+		if(Active && !RadarActivated)
+		{
+			m_pReactor->Activate(pBuilding->m_Pos);
+			RadarActivated = true;
+		}
+	}
+	if(!Active || !RadarActivated)
+		m_pReactor->Deactivate();
 }
 
 
@@ -608,11 +906,10 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 		{
 			DeathMessage();
 			if(GameServer()->m_pPveDirector)
-			{
 				GameServer()->m_pPveDirector->CompleteContract(false);
-				GameServer()->m_pPveDirector->ClearRun();
-			}
 			m_RoundOverTick = Server()->Tick();
+			if(m_Quest == QUEST_DEFEND)
+				SetReactorDefenseActive(false);
 		}
 	}
 
@@ -669,6 +966,8 @@ void CGameControllerInvasion::SendQuestCompletedMessage(int Quest)
 
 void CGameControllerInvasion::CompleteCurrentQuest()
 {
+	if(m_Quest == QUEST_DEFEND)
+		SetReactorDefenseActive(false);
 	SendQuestCompletedMessage(m_Quest);
 	RewardQuestGold();
 	m_Quest = QUEST_NONE;
@@ -777,9 +1076,9 @@ void CGameControllerInvasion::SpawnEliteContractGuard()
 	if(!GameServer()->m_pPveDirector || GameServer()->m_pPveDirector->ActiveContract() != PVE_CONTRACT_ELITE_GUARD || m_Quest == QUEST_NONE || m_Quest == QUEST_REACHDOOR)
 		return;
 	vec2 Pos;
-	if(!GetSpawnPos(0, &Pos))
+	if(!GetBossSpawnPos(&Pos))
 		Pos = vec2(4000, 4000);
-	CDroid *pGuard = SpawnBoss(&GameServer()->m_World, Pos + vec2(0, -100), g_Config.m_SvMapGenLevel + 1);
+	CDroid *pGuard = SpawnBoss(&GameServer()->m_World, Pos, g_Config.m_SvMapGenLevel + 1);
 	GameServer()->m_pPveDirector->RegisterEliteContractBoss(pGuard);
 }
 
@@ -847,6 +1146,16 @@ void CGameControllerInvasion::OnSwitchTriggered()
 void CGameControllerInvasion::Tick()
 {
 	IGameController::Tick();
+	if(m_GameState == STATE_RETRY_VOTE)
+	{
+		TickRetryVote();
+		return;
+	}
+	if(m_GameState == STATE_RETRY_RESULT)
+	{
+		TickRetryResult();
+		return;
+	}
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
 		return;
 	
@@ -868,11 +1177,10 @@ void CGameControllerInvasion::Tick()
 		{
 			DeathMessage();
 			if(GameServer()->m_pPveDirector)
-			{
 				GameServer()->m_pPveDirector->CompleteContract(false);
-				GameServer()->m_pPveDirector->ClearRun();
-			}
 			m_RoundOverTick = Server()->Tick();
+			if(m_Quest == QUEST_DEFEND)
+				SetReactorDefenseActive(false);
 		}
 
 		if (m_QuestChangeTick && m_QuestChangeTick <= Server()->Tick())
@@ -881,6 +1189,8 @@ void CGameControllerInvasion::Tick()
 			m_NextQuest = QUEST_NONE;
 			m_QuestChangeTick = 0;
 			m_QuestProgressCounter = 0;
+			if(m_Quest == QUEST_DEFEND)
+				SetReactorDefenseActive(true);
 			SpawnEliteContractGuard();
 			if(m_Quest == QUEST_ACTIVATE_SWITCHES || m_Quest == QUEST_FIND_SWITCH)
 			{
@@ -974,19 +1284,20 @@ void CGameControllerInvasion::Tick()
 		
 		if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
 		{
+			const int AliveBots = CountBotsAlive();
 			if (m_Quest == QUEST_SURVIVEWAVETIME)
 				m_QuestProgressCounter = int((m_QuestWaveEndTick - Server()->Tick()) / Server()->TickSpeed());
 			else
-				m_QuestProgressCounter = m_EnemiesLeft + CountBotsAlive();
+				m_QuestProgressCounter = m_EnemiesLeft + AliveBots;
 			
-			if ((m_QuestWaveEndTick && m_QuestWaveEndTick <= Server()->Tick()) || (m_EnemiesLeft <= 0 && CountBotsAlive() <= 0))
+			if ((m_QuestWaveEndTick && m_QuestWaveEndTick <= Server()->Tick()) || (m_EnemiesLeft <= 0 && AliveBots <= 0))
 			{
 				m_EnemiesLeft = 0;
 				m_QuestWaveEndTick = 0;
 				int CompletedQuest = m_Quest;
 				CompleteCurrentQuest();
 				
-				if (CompletedQuest == QUEST_SURVIVEWAVETIME && CountBotsAlive() > 4)
+				if (CompletedQuest == QUEST_SURVIVEWAVETIME && AliveBots > 4)
 					ChangeQuest(QUEST_KILLREMAININGENEMIES, INV_QUEST_QUEUE_TIME);
 			}
 		}
@@ -1020,6 +1331,7 @@ void CGameControllerInvasion::Tick()
 				GameServer()->SendBroadcast("Reactor destroyed", -1);
 				DeathMessage();
 				m_RoundOverTick = Server()->Tick();
+				SetReactorDefenseActive(false);
 				m_Quest = QUEST_NONE;
 			}
 			else if (m_DefendEndTick && m_DefendEndTick <= Server()->Tick())
@@ -1075,13 +1387,17 @@ void CGameControllerInvasion::Tick()
 				m_CheckpointApplied = true;
 				if(GameServer()->m_pPveDirector && g_Config.m_SvMapGenLevel == 1)
 				{
-					const int Checkpoint = GameServer()->m_pPveDirector->TeamCheckpoint();
-					if(Checkpoint > 1)
+					if(m_ForceFloorOne)
+						m_ForceFloorOne = false;
+					else
 					{
-						g_Config.m_SvMapGenLevel = Checkpoint;
-						Server()->m_MapGenerated = false;
-						GameServer()->ReloadMap();
-						return;
+						const int Checkpoint = GameServer()->m_pPveDirector->TeamCheckpoint();
+						if(Checkpoint > 1)
+						{
+							g_Config.m_SvMapGenLevel = Checkpoint;
+							RegenerateMapFromTemplate();
+							return;
+						}
 					}
 				}
 			}
@@ -1124,10 +1440,10 @@ void CGameControllerInvasion::Tick()
 			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT)
 			{
 				vec2 Pos;
-				if(!GetSpawnPos(0, &Pos))
+				if(!GetBossSpawnPos(&Pos))
 					Pos = vec2(4000, 4000);
 				const int BonusLevel = GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT ? 2 : 1;
-				CDroid *pBoss = SpawnBoss(&GameServer()->m_World, Pos + vec2(0, -100), g_Config.m_SvMapGenLevel + BonusLevel);
+				CDroid *pBoss = SpawnBoss(&GameServer()->m_World, Pos, g_Config.m_SvMapGenLevel + BonusLevel);
 				GameServer()->m_pPveDirector->RegisterEliteContractBoss(pBoss);
 				m_EliteContractSpawned = true;
 			}
@@ -1153,23 +1469,13 @@ void CGameControllerInvasion::Tick()
 			
 		if (m_RoundOverTick && m_RoundOverTick < Server()->Tick() - Server()->TickSpeed()*2.0f)
 		{
-			if(GameServer()->m_pPveDirector)
-				GameServer()->m_pPveDirector->ClearRun();
-			if (++g_Config.m_SvInvFails >= 3)
+			m_RoundOverTick = 0;
+			if(g_Config.m_SvInvFails == INV_FINAL_ATTEMPT)
+				StartRetryResult(PVE_INVASION_RETRY_RESULT_FINAL_FAILURE);
+			else if(++g_Config.m_SvInvFails >= 5)
 			{
-				g_Config.m_SvInvFails = 0;
-				m_RunBuffActive = true;
-				m_WaveSizeNerf = 1;
-				
-				if (--g_Config.m_SvMapGenLevel < 1)
-					g_Config.m_SvMapGenLevel = 1;
-				
-				g_Config.m_SvMapGenSeed = rand()%32767;
-				g_Config.m_SvInvFails = 0;
-				m_GameState = STATE_FAIL;
-				if(GameServer()->m_pPveDirector)
-					GameServer()->m_pPveDirector->ClearRun();
-				EndRound();
+				g_Config.m_SvInvFails = 5;
+				StartRetryVote();
 			}
 			else
 				GameServer()->ReloadMap();

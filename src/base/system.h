@@ -402,6 +402,27 @@ void thread_yield();
 */
 void thread_detach(void *thread);
 
+/* Group: Child processes */
+typedef struct PROCESSINTERNAL *PROCESS;
+
+/*
+	Starts a child process without blocking. The argument list must include
+	argv[0] and be terminated by a null pointer.
+*/
+PROCESS process_spawn(const char *path, const char **arguments);
+
+/* Returns 1 while running and 0 after exit. */
+int process_running(PROCESS process, int *exit_code);
+
+/* Requests a graceful shutdown where supported. */
+void process_terminate(PROCESS process);
+
+/* Immediately stops the process. */
+void process_kill(PROCESS process);
+
+/* Releases the handle, stopping a still-running child first. */
+void process_destroy(PROCESS process);
+
 /* Group: Locks */
 typedef void* LOCK;
 
@@ -1089,6 +1110,11 @@ int fs_chdir(const char *path);
 		Returns a pointer to the buffer on success, 0 on failure.
 */
 char *fs_getcwd(char *buffer, int buffer_size);
+
+/*
+	Returns the absolute path of the current executable. Returns 0 on success.
+*/
+int fs_executable_path(char *buffer, int buffer_size);
 
 /*
 	Function: fs_parent_dir

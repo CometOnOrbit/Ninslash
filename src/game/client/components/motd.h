@@ -12,7 +12,7 @@ public:
 	char m_aServerMotd[900];
 
 	void Clear();
-	bool IsActive();
+	bool IsActive() const;
 
 	virtual void OnRender();
 	virtual void OnStateChange(int NewState, int OldState);

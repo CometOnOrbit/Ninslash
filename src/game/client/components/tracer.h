@@ -10,6 +10,24 @@
 // particles
 struct CTrace
 {
+	CTrace()
+	{
+		m_StartTick = 0;
+		m_ItemID = -1;
+		m_Life = 0.0f;
+		m_DelayPos = vec2(0, 0);
+		m_Gravity = 0.0f;
+		m_Friction = 0.0f;
+		m_PrevPart = -1;
+		m_NextPart = -1;
+		for(int i = 0; i < 99; i++)
+		{
+			m_Pos[i] = vec2(0, 0);
+			m_Vel[i] = vec2(0, 0);
+		}
+		SetDefault(0, 0);
+	}
+
 	void Set(int ItemID, int Type, vec2 Pos, vec2 StartPos, int StartTick, int Weapon, vec2 Vel)
 	{
 		// existing tracer
@@ -48,9 +66,18 @@ struct CTrace
 	void SetDefault(int Type, int Weapon)
 	{
 		m_Type = Type;
+		m_Sprite = 0;
 		m_LifeSpan = 0.3f;
+		m_Speed = 1.0f;
 		m_Special = 0;
 		m_Parts = 12;
+		m_Size1 = 0.0f;
+		m_Size2 = 0.0f;
+		m_Scale = 1.0f;
+		m_RotSpeed = 0.0f;
+		m_Color = vec4(1, 1, 1, 1);
+		m_Gravity = 0.0f;
+		m_Friction = 0.0f;
 		
 		if (Type == 1)
 		{

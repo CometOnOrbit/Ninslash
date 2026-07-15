@@ -24,11 +24,15 @@
 	#include <fcntl.h>
 	#include <pthread.h>
 	#include <arpa/inet.h>
+	#include <signal.h>
+	#include <spawn.h>
+	#include <sys/wait.h>
 
 	#include <dirent.h>
 
 	#if defined(CONF_PLATFORM_MACOSX)
 		#include <CoreFoundation/CFUserNotification.h>
+		#include <mach-o/dyld.h>
 	#endif
 
 #elif defined(CONF_FAMILY_WINDOWS)
@@ -63,6 +67,21 @@ static NETSTATS network_stats = {0};
 static MEMSTATS memory_stats = {0};
 
 static NETSOCKET invalid_socket = {NETTYPE_INVALID, -1, -1};
+
+struct PROCESSINTERNAL
+{
+#if defined(CONF_FAMILY_WINDOWS)
+	HANDLE process;
+#else
+	pid_t pid;
+#endif
+	int exited;
+	int exit_code;
+};
+
+#if defined(CONF_FAMILY_UNIX)
+extern char **environ;
+#endif
 
 void dbg_logger(DBG_LOGGER logger)
 {
@@ -443,6 +462,181 @@ void thread_detach(void *thread)
 #else
 	#error not implemented
 #endif
+}
+
+/* -----  child processes ----- */
+#if defined(CONF_FAMILY_WINDOWS)
+static void process_cmdline_append_char(char *buffer, int buffer_size, int *length, char c)
+{
+	if(*length + 1 >= buffer_size)
+		return;
+	buffer[(*length)++] = c;
+	buffer[*length] = 0;
+}
+
+static void process_cmdline_append_arg(char *buffer, int buffer_size, int *length, const char *argument)
+{
+	int backslashes = 0;
+	const char *p;
+	if(*length > 0)
+		process_cmdline_append_char(buffer, buffer_size, length, ' ');
+	process_cmdline_append_char(buffer, buffer_size, length, '"');
+	for(p = argument;; p++)
+	{
+		if(*p == '\\')
+		{
+			backslashes++;
+			continue;
+		}
+		if(*p == '"' || *p == 0)
+		{
+			int count = backslashes * 2 + (*p == '"' ? 1 : 0);
+			int i;
+			for(i = 0; i < count; i++)
+				process_cmdline_append_char(buffer, buffer_size, length, '\\');
+			backslashes = 0;
+			if(*p == 0)
+				break;
+			process_cmdline_append_char(buffer, buffer_size, length, '"');
+		}
+		else
+		{
+			int i;
+			for(i = 0; i < backslashes; i++)
+				process_cmdline_append_char(buffer, buffer_size, length, '\\');
+			backslashes = 0;
+			process_cmdline_append_char(buffer, buffer_size, length, *p);
+		}
+	}
+	process_cmdline_append_char(buffer, buffer_size, length, '"');
+}
+#endif
+
+PROCESS process_spawn(const char *path, const char **arguments)
+{
+	struct PROCESSINTERNAL *process;
+	if(!path || !path[0] || !arguments || !arguments[0])
+		return 0;
+
+	process = (struct PROCESSINTERNAL *)malloc(sizeof(*process));
+	if(!process)
+		return 0;
+	mem_zero(process, sizeof(*process));
+	process->exit_code = -1;
+
+#if defined(CONF_FAMILY_WINDOWS)
+	{
+		STARTUPINFOA startup_info;
+		PROCESS_INFORMATION process_info;
+		char command_line[4096];
+		int command_line_length = 0;
+		int i;
+		mem_zero(&startup_info, sizeof(startup_info));
+		mem_zero(&process_info, sizeof(process_info));
+		startup_info.cb = sizeof(startup_info);
+		command_line[0] = 0;
+		for(i = 0; arguments[i]; i++)
+			process_cmdline_append_arg(command_line, sizeof(command_line), &command_line_length, arguments[i]);
+		if(!CreateProcessA(path, command_line, 0, 0, FALSE, CREATE_NO_WINDOW, 0, 0, &startup_info, &process_info))
+		{
+			free(process);
+			return 0;
+		}
+		CloseHandle(process_info.hThread);
+		process->process = process_info.hProcess;
+	}
+#elif defined(CONF_FAMILY_UNIX)
+	{
+		int result = posix_spawnp(&process->pid, path, 0, 0, (char *const *)arguments, environ);
+		if(result != 0)
+		{
+			free(process);
+			return 0;
+		}
+	}
+#else
+	free(process);
+	return 0;
+#endif
+	return process;
+}
+
+int process_running(PROCESS process, int *exit_code)
+{
+	if(!process)
+	{
+		if(exit_code)
+			*exit_code = -1;
+		return 0;
+	}
+	if(!process->exited)
+	{
+#if defined(CONF_FAMILY_WINDOWS)
+		DWORD code = 0;
+		if(!GetExitCodeProcess(process->process, &code) || code != STILL_ACTIVE)
+		{
+			process->exited = 1;
+			process->exit_code = (int)code;
+		}
+#elif defined(CONF_FAMILY_UNIX)
+		int status = 0;
+		pid_t result = waitpid(process->pid, &status, WNOHANG);
+		if(result == process->pid)
+		{
+			process->exited = 1;
+			if(WIFEXITED(status))
+				process->exit_code = WEXITSTATUS(status);
+			else if(WIFSIGNALED(status))
+				process->exit_code = 128 + WTERMSIG(status);
+		}
+		else if(result < 0 && errno == ECHILD)
+			process->exited = 1;
+#endif
+	}
+	if(exit_code)
+		*exit_code = process->exit_code;
+	return !process->exited;
+}
+
+void process_terminate(PROCESS process)
+{
+	if(!process || !process_running(process, 0))
+		return;
+#if defined(CONF_FAMILY_WINDOWS)
+	TerminateProcess(process->process, 0);
+#elif defined(CONF_FAMILY_UNIX)
+	kill(process->pid, SIGTERM);
+#endif
+}
+
+void process_kill(PROCESS process)
+{
+	if(!process || !process_running(process, 0))
+		return;
+#if defined(CONF_FAMILY_WINDOWS)
+	TerminateProcess(process->process, 1);
+#elif defined(CONF_FAMILY_UNIX)
+	kill(process->pid, SIGKILL);
+#endif
+}
+
+void process_destroy(PROCESS process)
+{
+	if(!process)
+		return;
+	if(process_running(process, 0))
+	{
+		process_kill(process);
+#if defined(CONF_FAMILY_WINDOWS)
+		WaitForSingleObject(process->process, INFINITE);
+#elif defined(CONF_FAMILY_UNIX)
+		waitpid(process->pid, 0, 0);
+#endif
+	}
+#if defined(CONF_FAMILY_WINDOWS)
+	CloseHandle(process->process);
+#endif
+	free(process);
 }
 
 
@@ -1447,6 +1641,46 @@ char *fs_getcwd(char *buffer, int buffer_size)
 #else
 	return getcwd(buffer, buffer_size);
 #endif
+}
+
+int fs_executable_path(char *buffer, int buffer_size)
+{
+	if(!buffer || buffer_size <= 1)
+		return 1;
+	buffer[0] = 0;
+#if defined(CONF_FAMILY_WINDOWS)
+	{
+		DWORD length = GetModuleFileNameA(0, buffer, buffer_size);
+		if(length > 0 && length < (DWORD)buffer_size)
+			return 0;
+	}
+#elif defined(CONF_PLATFORM_MACOSX)
+	{
+		uint32_t size = (uint32_t)buffer_size;
+		if(_NSGetExecutablePath(buffer, &size) == 0)
+			return 0;
+	}
+#elif defined(CONF_FAMILY_UNIX)
+	{
+#if defined(CONF_PLATFORM_LINUX)
+		const char *path = "/proc/self/exe";
+#elif defined(CONF_PLATFORM_FREEBSD)
+		const char *path = "/proc/curproc/file";
+#elif defined(CONF_PLATFORM_SOLARIS)
+		const char *path = "/proc/self/path/a.out";
+#else
+		const char *path = "/proc/curproc/file";
+#endif
+		ssize_t length = readlink(path, buffer, buffer_size - 1);
+		if(length > 0 && length < buffer_size)
+		{
+			buffer[length] = 0;
+			return 0;
+		}
+	}
+#endif
+	buffer[0] = 0;
+	return 1;
 }
 
 int fs_parent_dir(char *path)

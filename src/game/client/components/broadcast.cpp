@@ -32,7 +32,9 @@ void CBroadcast::OnRender()
 	if(time_get() < m_BroadcastTime)
 	{
 		CTextCursor Cursor;
-		TextRender()->SetCursor(&Cursor, m_BroadcastRenderOffset, 40.0f, 12.0f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+		// Keep broadcasts between the top timer strip and the centered status
+		// stack. The old y=40 anchor overlapped the warmup card exactly.
+		TextRender()->SetCursor(&Cursor, m_BroadcastRenderOffset, 24.0f, 12.0f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
 		Cursor.m_LineWidth = 300*Graphics()->ScreenAspect()-m_BroadcastRenderOffset;
 		TextRender()->TextEx(&Cursor, m_aBroadcastText, -1);
 	}
@@ -57,4 +59,3 @@ void CBroadcast::OnMessage(int MsgType, void *pRawMsg)
 			m_BroadcastTime = time_get()+time_freq()*1.5f;
 	}
 }
-

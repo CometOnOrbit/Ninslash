@@ -28,6 +28,7 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	m_Phase = 0;
 	m_SwitchesRequired = 1;
 	m_SwitchesActivated = 0;
+	m_AvailableSwitches = 0;
 	m_Evacuated = 0;
 	m_EvacNeeded = 1;
 	m_DoorOpen = false;
@@ -60,7 +61,9 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	g_Config.m_SvDisablePVP = 1;
 	g_Config.m_SvSurvivalTime = 0;
 	g_Config.m_SvSurvivalAcid = 0;
-	g_Config.m_SvTimelimit = 4; // bigger maze needs a bit more time than 3
+	dbg_msg("extract", "rules: time_limit=%d roguelite=%d contracts=%d seed=%d random_seed=%d",
+		g_Config.m_SvTimelimit, g_Config.m_SvPveRoguelite, g_Config.m_SvPveContracts,
+		g_Config.m_SvMapGenSeed, g_Config.m_SvMapGenRandSeed);
 
 	if(g_Config.m_SvEnableBuilding)
 		m_GameFlags |= GAMEFLAG_BUILD;
@@ -76,6 +79,8 @@ bool CGameControllerExtract::OnEntity(int Index, vec2 Pos)
 			m_aEnemySpawnPos[m_NumEnemySpawnPos++] = Pos;
 		return true;
 	}
+	if(Index == ENTITY_SWITCH)
+		m_AvailableSwitches++;
 	return IGameController::OnEntity(Index, Pos);
 }
 
@@ -85,6 +90,16 @@ bool CGameControllerExtract::GetSpawnPos(int Team, vec2 *pOutPos)
 		return false;
 	m_SpawnPosRotation = (m_SpawnPosRotation + 1) % m_NumEnemySpawnPos;
 	*pOutPos = m_aEnemySpawnPos[m_SpawnPosRotation];
+	return true;
+}
+
+bool CGameControllerExtract::GetBossSpawnPos(vec2 *pOutPos)
+{
+	if(FindBossSpawnPosition(&GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
+		return true;
+	if(!GetSpawnPos(0, pOutPos))
+		return false;
+	*pOutPos += vec2(0.0f, -100.0f);
 	return true;
 }
 
@@ -111,19 +126,6 @@ bool CGameControllerExtract::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 	EvaluateSpawnType(&Eval, 0);
 	*pOutPos = Eval.m_Pos;
 	return Eval.m_Got;
-}
-
-int CGameControllerExtract::CountSwitches() const
-{
-	CBuilding *apEnts[256];
-	int Num = GameServer()->m_World.FindEntities(vec2(0, 0), 0.0f, (CEntity**)apEnts, 256, CGameWorld::ENTTYPE_BUILDING);
-	int Count = 0;
-	for(int i = 0; i < Num; i++)
-	{
-		if(apEnts[i] && apEnts[i]->m_Type == BUILDING_SWITCH)
-			Count++;
-	}
-	return Count;
 }
 
 int CGameControllerExtract::CountHumansAliveLocal() const
@@ -162,9 +164,9 @@ void CGameControllerExtract::SpawnInitialEnemies()
 		new CCrawler(&GameServer()->m_World, p + vec2(0, -80));
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT)
 	{
-		if(!GetSpawnPos(0, &p))
+		if(!GetBossSpawnPos(&p))
 			p = vec2(4000, 4000);
-		CDroid *pBoss = SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), EnemyLevel() + 2);
+		CDroid *pBoss = SpawnBoss(&GameServer()->m_World, p, EnemyLevel() + 2);
 		GameServer()->m_pPveDirector->RegisterEliteContractBoss(pBoss);
 		m_EliteContractSpawned = true;
 	}
@@ -178,9 +180,9 @@ void CGameControllerExtract::SpawnMidBoss()
 		return;
 	m_MidBossSpawned = true;
 	vec2 p;
-	if(!GetSpawnPos(0, &p))
+	if(!GetBossSpawnPos(&p))
 		p = vec2(4000, 4000);
-	m_pMidBoss = SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), max(10, EnemyLevel() + 2));
+	m_pMidBoss = SpawnBoss(&GameServer()->m_World, p, max(10, EnemyLevel() + 2));
 	for(int i = 0; i < 6 && CountBots() < 18; i++)
 	{
 		m_EnemiesLeft++;
@@ -215,7 +217,8 @@ int CGameControllerExtract::EnemyLevel() const
 	int Mins = 0;
 	if(m_StartTick)
 		Mins = (Server()->Tick() - m_StartTick) / (Server()->TickSpeed() * 45);
-	return min(14, max(4, 4 + m_SwitchesActivated * 2 + Mins + m_Phase * 3));
+	const int DifficultyTier = max(0, (g_Config.m_SvMapGenLevel - 1) / 10);
+	return min(14, max(4, 4 + m_SwitchesActivated * 2 + Mins + m_Phase * 3 + DifficultyTier));
 }
 
 void CGameControllerExtract::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
@@ -396,10 +399,14 @@ void CGameControllerExtract::Tick()
 					if(!GetSpawnPos(0, &Pos))
 						Pos = vec2(4000.0f + Extra * 96.0f, 4000.0f);
 					new CBuilding(&GameServer()->m_World, Pos, BUILDING_SWITCH, TEAM_NEUTRAL);
+					m_AvailableSwitches++;
 					CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
 					pRadar->Activate(Pos);
 				}
-			m_SwitchesRequired = max(2, CountSwitches());
+			// Use the authoritative number actually placed on this generated map.
+			// Requiring an artificial minimum of two softlocked rare layouts where
+			// map generation could only place one; zero keeps the timed boss fallback.
+			m_SwitchesRequired = m_AvailableSwitches;
 			SpawnInitialEnemies();
 			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
 				for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
@@ -418,11 +425,12 @@ void CGameControllerExtract::Tick()
 		return;
 	}
 
-	if(CountHumansAliveLocal() > 0)
+	const int HumansAlive = CountHumansAliveLocal();
+	if(HumansAlive > 0)
 		m_HadHumanAlive = true;
 
 	if(g_Config.m_SvSurvivalMode && !m_RoundOverTick && m_HadHumanAlive
-		&& CountHumanPlayersLocal() > 0 && CountHumansAliveLocal() <= 0)
+		&& HumansAlive <= 0 && CountHumanPlayersLocal() > 0)
 	{
 		GameServer()->SendBroadcast("Extraction failed — team wiped", -1);
 		if(GameServer()->m_pPveDirector)
@@ -469,7 +477,7 @@ void CGameControllerExtract::Tick()
 	}
 
 	// no switches on map: after 25s mid boss then door
-	if(m_Phase == 0 && !m_DoorOpen && CountSwitches() <= 0 && m_StartTick
+	if(m_Phase == 0 && !m_DoorOpen && m_AvailableSwitches <= 0 && m_StartTick
 		&& Server()->Tick() > m_StartTick + Server()->TickSpeed() * 25)
 	{
 		if(!m_MidBossSpawned)

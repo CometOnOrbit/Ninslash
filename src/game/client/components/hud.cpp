@@ -18,6 +18,7 @@
 #include "hud.h"
 #include "menus.h"
 #include "pve_roguelite.h"
+#include "scoreboard.h"
 #include "voting.h"
 #include "binds.h"
 
@@ -27,10 +28,114 @@ CHud::CHud()
 {
 	// won't work if zero
 	m_AverageFPS = 1.0f;
+	m_DebugStatusMask = 0;
+	m_DebugStatusUntil = 0;
+	m_DebugStatusScreenshotFrames = 0;
+	m_LastObjectiveSignature = -1;
+	m_ObjectiveNoticeUntil = 0;
 }
 
 void CHud::OnReset()
 {
+	m_LastObjectiveSignature = -1;
+	m_ObjectiveNoticeUntil = 0;
+	if(m_DebugStatusUntil <= time_get())
+	{
+		m_DebugStatusMask = 0;
+		m_DebugStatusScreenshotFrames = 0;
+	}
+}
+
+void CHud::OnConsoleInit()
+{
+	Console()->Register("hud_debug_status", "?i?i?i", CFGFLAG_CLIENT, ConDebugStatus, this,
+		"Preview HUD status stack: mask 1 paused, 2 connection, 4 warmup, 8 ready; optional seconds and screenshot");
+}
+
+void CHud::ConDebugStatus(IConsole::IResult *pResult, void *pUserData)
+{
+	CHud *pSelf = (CHud *)pUserData;
+	const int Mask = pResult->NumArguments() ? clamp(pResult->GetInteger(0), 0, 15) : 15;
+	const int Seconds = pResult->NumArguments() > 1 ? clamp(pResult->GetInteger(1), 5, 60) : 25;
+	pSelf->m_DebugStatusMask = Mask;
+	pSelf->m_DebugStatusUntil = Mask ? time_get() + time_freq() * Seconds : 0;
+	pSelf->m_DebugStatusScreenshotFrames = Mask && pResult->NumArguments() > 2 && pResult->GetInteger(2) ? 30 : 0;
+}
+
+bool CHud::DebugStatusActive(int Flag) const
+{
+	return m_DebugStatusUntil > time_get() && (m_DebugStatusMask & Flag) != 0;
+}
+
+bool CHud::WarmupActive() const
+{
+	return DebugStatusActive(DEBUG_STATUS_WARMUP) ||
+		(m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer);
+}
+
+bool CHud::PausedNoticeActive() const
+{
+	if(!m_pClient->m_Snap.m_pGameInfoObj || m_pClient->m_pPveRoguelite->ChoiceActive() ||
+		(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
+		return false;
+	return DebugStatusActive(DEBUG_STATUS_PAUSED) ||
+		(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED);
+}
+
+bool CHud::ReadyNoticeActive() const
+{
+	if(DebugStatusActive(DEBUG_STATUS_READY))
+		return true;
+	if(!m_pClient->m_Snap.m_pGameInfoObj || !m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer ||
+		m_pClient->m_pControls->m_Ready)
+		return false;
+	return !m_pClient->m_Snap.m_pLocalCharacter ||
+		!(m_pClient->m_Snap.m_pLocalCharacter->m_PlayerFlags & PLAYERFLAG_READY);
+}
+
+bool CHud::ConnectionNoticeActive() const
+{
+	return DebugStatusActive(DEBUG_STATUS_CONNECTION) || Client()->ConnectionProblems();
+}
+
+float CHud::StatusStackY(int BeforeFlag) const
+{
+	float Y = WarmupActive() ? 96.0f : 50.0f;
+	if(BeforeFlag > STATUS_STACK_PAUSED && PausedNoticeActive())
+		Y += 30.0f;
+	if(BeforeFlag > STATUS_STACK_READY && ReadyNoticeActive())
+		Y += 30.0f;
+	if(BeforeFlag > STATUS_STACK_CONNECTION && ConnectionNoticeActive())
+		Y += 30.0f;
+	return Y;
+}
+
+void CHud::RenderStatusNotice(const char *pText, float Y, vec4 AccentColor)
+{
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Inset = CMenus::ThemeBgInset();
+	const vec4 Text = CMenus::ThemeText();
+	float FontSize = 8.0f;
+	const float TextW = TextRender()->TextWidth(0, FontSize, pText, -1);
+	const float W = clamp(TextW+28.0f, 76.0f, 184.0f);
+	const float H = 22.0f;
+	const float X = (m_Width-W)*0.5f;
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0, 0, 0, 0.40f);
+	RenderTools()->DrawRoundRect(X+1.0f, Y+1.5f, W, H, 7.0f);
+	Graphics()->SetColor(AccentColor.r, AccentColor.g, AccentColor.b, 0.72f);
+	RenderTools()->DrawRoundRect(X-0.7f, Y-0.7f, W+1.4f, H+1.4f, 7.5f);
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.97f);
+	RenderTools()->DrawRoundRect(X, Y, W, H, 7.0f);
+	Graphics()->SetColor(Inset.r, Inset.g, Inset.b, 0.44f);
+	RenderTools()->DrawRoundRect(X+5.0f, Y+4.0f, W-10.0f, H-8.0f, 5.0f);
+	Graphics()->SetColor(AccentColor.r, AccentColor.g, AccentColor.b, 0.96f);
+	RenderTools()->DrawRoundRect(X, Y+5.0f, 2.0f, H-10.0f, 1.0f);
+	Graphics()->QuadsEnd();
+	TextRender()->TextColor(Text.r, Text.g, Text.b, 1.0f);
+	TextRender()->Text(0, X+(W-TextW)*0.5f, Y+6.0f, FontSize, pText, -1);
+	TextRender()->TextColor(1, 1, 1, 1);
 }
 
 void CHud::RenderGameTimer()
@@ -88,27 +193,10 @@ void CHud::RenderGameTimer()
 
 void CHud::RenderPauseNotification()
 {
-	if(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED &&
-		!m_pClient->m_pPveRoguelite->ChoiceActive() &&
-		!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
+	if(PausedNoticeActive())
 	{
 		const char *pText = Localize("Game paused");
-		float FontSize = 14.0f;
-		float w = TextRender()->TextWidth(0, FontSize,pText, -1);
-		float x = 150.0f*Graphics()->ScreenAspect()-w/2.0f;
-		float y = 50.0f;
-		float Pad = 12.0f;
-
-		Graphics()->TextureSet(-1);
-		Graphics()->QuadsBegin();
-		{
-			vec4 Panel = CMenus::ThemeBgPanel();
-			Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
-		}
-		RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
-		Graphics()->QuadsEnd();
-
-		TextRender()->Text(0, x, y, FontSize, pText, -1);
+		RenderStatusNotice(pText, StatusStackY(STATUS_STACK_PAUSED), CMenus::ThemeAccent());
 	}
 }
 
@@ -126,200 +214,187 @@ void CHud::RenderSuddenDeath()
 
 void CHud::RenderObjective()
 {
-	if(m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags&GAMEFLAG_COOP)
+	if(!m_pClient->m_Snap.m_pGameInfoObj)
+		return;
+	m_Width = 300.0f * Graphics()->ScreenAspect();
+	m_Height = 300.0f;
+	Graphics()->MapScreen(0.0f, 0.0f, m_Width, m_Height);
+	if(!(m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_COOP) ||
+		!m_pClient->m_Snap.m_pGameDataObj)
+		return;
+
+	const int Quest = m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreRed;
+	const int QuestProgressCounter = max(0, m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreBlue);
+	const int Level = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierRed;
+	const int Pack = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierBlue;
+	if(!Quest)
 	{
-		if (!m_pClient->m_Snap.m_pGameDataObj)
-			return;
-
-		int Quest = m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreRed;
-		int QuestProgressCounter = m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreBlue;
-		int Level = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierRed;
-		int Pack = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierBlue;
-		int Theme = Pack & 0xF;
-		int WaveType = (Pack >> 4) & 0xF;
-		int QuestsDone = (Pack >> 8) & 0xF;
-		int QuestsTotal = (Pack >> 12) & 0xF;
-		
-		if (Quest)
-		{
-			// Original HUD anchor: upper-right block near x=296 (300-wide virtual screen).
-			const float xRight = 296.0f*Graphics()->ScreenAspect();
-			const float xMin = 10.0f*Graphics()->ScreenAspect();
-			const float MaxTextW = xRight - xMin;
-
-			auto DrawRight = [&](float y, float FontSize, const char *pText) {
-				while (FontSize > 4.0f && TextRender()->TextWidth(0, FontSize, pText, -1) > MaxTextW)
-					FontSize -= 0.5f;
-				const float w = TextRender()->TextWidth(0, FontSize, pText, -1);
-				TextRender()->Text(0, max(xMin, xRight - w), y, FontSize, pText, -1);
-			};
-			
-			// level + theme (compact, above the original header)
-			{
-				vec4 AccentDim = CMenus::ThemeAccentDim();
-				TextRender()->TextColor(AccentDim.r, AccentDim.g, AccentDim.b, 1.0f);
-				if (Quest == QUEST_HORDE)
-				{
-					char aWaveBuf[48];
-					str_format(aWaveBuf, sizeof(aWaveBuf), "%s %d", Localize("Wave"), Level);
-					DrawRight(88.0f, 5.0f, aWaveBuf);
-					char aKillBuf[48];
-					str_format(aKillBuf, sizeof(aKillBuf), "%d %s", Pack, Localize("kills"));
-					DrawRight(94.0f, 5.0f, aKillBuf);
-				}
-				else if (Quest == QUEST_EXTRACT)
-				{
-					char aTimeBuf[48];
-					str_format(aTimeBuf, sizeof(aTimeBuf), "%d %s", Level, Localize("seconds remaining"));
-					DrawRight(88.0f, 5.0f, aTimeBuf);
-				}
-				else
-				{
-					char aLevelBuf[32];
-					str_format(aLevelBuf, sizeof(aLevelBuf), "%s %d", Localize("Level"), Level);
-					DrawRight(88.0f, 5.0f, aLevelBuf);
-					DrawRight(94.0f, 5.0f, Localize(GetThemeDisplayName(Theme)));
-				}
-			}
-
-			// header (original y=100)
-			{
-				vec4 TextCol = CMenus::ThemeText();
-				TextRender()->TextColor(TextCol.r, TextCol.g, TextCol.b, 1.0f);
-				DrawRight(100.0f, 8.0f, Localize("Objective"));
-			}
-
-			// quest title (original y=112)
-			{
-				vec4 TextCol = CMenus::ThemeText();
-				TextRender()->TextColor(TextCol.r, TextCol.g, TextCol.b, 1.0f);
-				char aQuestBuf[96];
-				const char *pWave = GetWaveDisplayName(WaveType);
-				if (pWave[0] && (Quest == QUEST_SURVIVEWAVE || Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_KILLREMAININGENEMIES))
-					str_format(aQuestBuf, sizeof(aQuestBuf), "%s (%s)", Localize(GetQuestDisplayName(Quest)), Localize(pWave));
-				else
-					str_copy(aQuestBuf, Localize(GetQuestDisplayName(Quest)), sizeof(aQuestBuf));
-				if (Quest == QUEST_EXTRACT && ((Pack >> 8) & 0xFF) >= 1)
-					str_copy(aQuestBuf, Localize("Reach the door"), sizeof(aQuestBuf));
-				DrawRight(112.0f, 6.0f, aQuestBuf);
-			}
-
-			// step + progress (original y=120)
-			{
-				char aProgressBuf[96];
-				if (Quest == QUEST_REACHDOOR && m_pClient->SurvivalAcid())
-				{
-					vec4 Accent = CMenus::ThemeAccent();
-					TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 1.0f);
-					DrawRight(120.0f, 5.5f, Localize("Rising acid"));
-				}
-				else
-				{
-					vec4 TextCol = CMenus::ThemeText();
-					TextRender()->TextColor(TextCol.r, TextCol.g, TextCol.b, 1.0f);
-					const char *pDetail = "";
-					if (Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS || Quest == QUEST_HORDE)
-					{
-						const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining") : Localize("enemies remaining");
-						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, pText);
-						pDetail = aProgressBuf;
-					}
-					else if (Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND)
-					{
-						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, Localize("seconds remaining"));
-						pDetail = aProgressBuf;
-					}
-					else if (Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH || (Quest == QUEST_EXTRACT && ((Pack >> 8) & 0xFF) == 0))
-					{
-						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, Localize("switches remaining"));
-						pDetail = aProgressBuf;
-					}
-					else if (Quest == QUEST_EXTRACT)
-					{
-						str_format(aProgressBuf, sizeof(aProgressBuf), "%u %s", QuestProgressCounter, Localize("to evacuate"));
-						pDetail = aProgressBuf;
-					}
-					else
-						aProgressBuf[0] = 0;
-
-					if (QuestsTotal > 0 && Quest != QUEST_REACHDOOR)
-					{
-						char aLineBuf[128];
-						char aStepBuf[32];
-						str_format(aStepBuf, sizeof(aStepBuf), Localize("Objective %d/%d"), min(QuestsDone+1, QuestsTotal), QuestsTotal);
-						if (pDetail[0])
-							str_format(aLineBuf, sizeof(aLineBuf), "%s · %s", aStepBuf, pDetail);
-						else
-							str_copy(aLineBuf, aStepBuf, sizeof(aLineBuf));
-						DrawRight(120.0f, 6.0f, aLineBuf);
-					}
-					else if (pDetail[0])
-						DrawRight(120.0f, 6.0f, pDetail);
-				}
-			}
-			
-			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
-		}
+		m_LastObjectiveSignature = -1;
+		m_ObjectiveNoticeUntil = 0;
+		return;
 	}
+
+	const int Theme = Pack & 0xF;
+	const int WaveType = (Pack >> 4) & 0xF;
+	const int QuestsDone = (Pack >> 8) & 0xF;
+	const int QuestsTotal = (Pack >> 12) & 0xF;
+	const int ExtractStage = (Pack >> 8) & 0xFF;
+
+	// Only stable objective content belongs in the signature. In particular,
+	// timers, kills and remaining-enemy counters must not turn the transient
+	// mode into a permanently visible panel.
+	int ObjectiveSignature = Quest * 31 + Level * 131;
+	if(Quest == QUEST_EXTRACT)
+		ObjectiveSignature = ObjectiveSignature * 31 + ExtractStage;
+	else if(Quest != QUEST_HORDE)
+		ObjectiveSignature = (((ObjectiveSignature * 31 + Theme) * 31 + WaveType) * 31 + QuestsDone) * 31 + QuestsTotal;
+	if(ObjectiveSignature != m_LastObjectiveSignature)
+	{
+		m_LastObjectiveSignature = ObjectiveSignature;
+		m_ObjectiveNoticeUntil = time_get() + time_freq() * 4;
+	}
+
+	const bool ScoreboardVisible = m_pClient->m_pScoreboard->Active();
+	if((g_Config.m_ClPveObjectiveDisplay == 0 && !ScoreboardVisible) ||
+		(g_Config.m_ClPveObjectiveDisplay == 2 && time_get() >= m_ObjectiveNoticeUntil) ||
+		m_pClient->m_pPveRoguelite->ChoiceActive() || m_pClient->m_pVoting->IsVoting())
+		return;
+
+	char aMeta[128];
+	char aQuest[128];
+	char aProgress[160];
+	aProgress[0] = 0;
+
+	if(Quest == QUEST_HORDE)
+		str_format(aMeta, sizeof(aMeta), "%s %d · %d %s", Localize("Wave"), Level, Pack, Localize("kills"));
+	else if(Quest == QUEST_EXTRACT)
+		str_format(aMeta, sizeof(aMeta), "%d %s", Level, Localize("seconds remaining"));
+	else
+		str_format(aMeta, sizeof(aMeta), "%s %d · %s", Localize("Level"), Level, Localize(GetThemeDisplayName(Theme)));
+
+	const char *pWave = GetWaveDisplayName(WaveType);
+	if(pWave[0] && (Quest == QUEST_SURVIVEWAVE || Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_KILLREMAININGENEMIES))
+		str_format(aQuest, sizeof(aQuest), "%s (%s)", Localize(GetQuestDisplayName(Quest)), Localize(pWave));
+	else
+		str_copy(aQuest, Localize(GetQuestDisplayName(Quest)), sizeof(aQuest));
+	if(Quest == QUEST_EXTRACT && ExtractStage >= 1)
+		str_copy(aQuest, Localize("Reach the door"), sizeof(aQuest));
+
+	if(Quest == QUEST_REACHDOOR && m_pClient->SurvivalAcid())
+		str_copy(aProgress, Localize("Rising acid"), sizeof(aProgress));
+	else
+	{
+		char aDetail[96];
+		aDetail[0] = 0;
+		if(Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS || Quest == QUEST_HORDE)
+		{
+			const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining") : Localize("enemies remaining");
+			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, pText);
+		}
+		else if(Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND)
+			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("seconds remaining"));
+		else if(Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH || (Quest == QUEST_EXTRACT && ExtractStage == 0))
+			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("switches remaining"));
+		else if(Quest == QUEST_EXTRACT)
+			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("to evacuate"));
+
+		if(QuestsTotal > 0 && Quest != QUEST_REACHDOOR && Quest != QUEST_HORDE && Quest != QUEST_EXTRACT)
+		{
+			char aStep[48];
+			str_format(aStep, sizeof(aStep), Localize("Objective %d/%d"), min(QuestsDone + 1, QuestsTotal), QuestsTotal);
+			if(aDetail[0])
+				str_format(aProgress, sizeof(aProgress), "%s · %s", aStep, aDetail);
+			else
+				str_copy(aProgress, aStep, sizeof(aProgress));
+		}
+		else if(aDetail[0])
+			str_copy(aProgress, aDetail, sizeof(aProgress));
+	}
+
+	const float MetaSize = 5.0f;
+	const float QuestSize = 7.0f;
+	const float ProgressSize = 5.5f;
+	float NaturalTextWidth = TextRender()->TextWidth(0, MetaSize, aMeta, -1);
+	NaturalTextWidth = max(NaturalTextWidth, TextRender()->TextWidth(0, QuestSize, aQuest, -1));
+	if(aProgress[0])
+		NaturalTextWidth = max(NaturalTextWidth, TextRender()->TextWidth(0, ProgressSize, aProgress, -1));
+
+	const float MaxCardWidth = min(112.0f, m_Width * 0.24f);
+	const float CardWidth = clamp(NaturalTextWidth + 18.0f, 72.0f, MaxCardWidth);
+	const float CardHeight = aProgress[0] ? 35.0f : 27.0f;
+	const float CardRight = m_Width - 6.0f;
+	CUIRect Shadow = {CardRight - CardWidth + 1.2f, 83.2f, CardWidth, CardHeight};
+	CUIRect Card = {CardRight - CardWidth, 82.0f, CardWidth, CardHeight};
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Inset = CMenus::ThemeBgInset();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 AccentDim = CMenus::ThemeAccentDim();
+	const vec4 Text = CMenus::ThemeText();
+	RenderTools()->DrawUIRect(&Shadow, vec4(0, 0, 0, 0.32f), CUI::CORNER_ALL, 6.0f);
+	RenderTools()->DrawUIRect(&Card, vec4(Panel.r, Panel.g, Panel.b, 0.90f), CUI::CORNER_ALL, 6.0f);
+	CUIRect CardInset = {Card.x + 3.0f, Card.y + 3.0f, Card.w - 6.0f, Card.h - 6.0f};
+	RenderTools()->DrawUIRect(&CardInset, vec4(Inset.r, Inset.g, Inset.b, 0.32f), CUI::CORNER_ALL, 4.0f);
+	CUIRect Edge = {Card.x, Card.y + 6.0f, 2.0f, Card.h - 12.0f};
+	RenderTools()->DrawUIRect(&Edge, vec4(Accent.r, Accent.g, Accent.b, 0.92f), CUI::CORNER_ALL, 1.0f);
+
+	const float TextRight = Card.x + Card.w - 7.0f;
+	const float TextLeft = Card.x + 8.0f;
+	const float MaxTextWidth = TextRight - TextLeft;
+	auto DrawRight = [&](float Y, float FontSize, float MinFontSize, const char *pText, vec4 Color) {
+		while(FontSize > MinFontSize && TextRender()->TextWidth(0, FontSize, pText, -1) > MaxTextWidth)
+			FontSize -= 0.25f;
+		const float Width = TextRender()->TextWidth(0, FontSize, pText, -1);
+		TextRender()->TextColor(Color.r, Color.g, Color.b, 1.0f);
+		TextRender()->Text(0, max(TextLeft, TextRight - Width), Y, FontSize, pText, -1);
+	};
+
+	DrawRight(Card.y + 5.0f, MetaSize, 4.0f, aMeta, AccentDim);
+	DrawRight(Card.y + 13.0f, QuestSize, 5.0f, aQuest, Text);
+	if(aProgress[0])
+		DrawRight(Card.y + 24.0f, ProgressSize, 4.0f, aProgress,
+			Quest == QUEST_REACHDOOR && m_pClient->SurvivalAcid() ? Accent : Text);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 
 
 void CHud::RenderScoreHud()
 {
-	if(!g_Config.m_ClShowhudScore) return;
+	if(!g_Config.m_ClShowhudScore || m_pClient->m_pScoreboard->Active() || m_pClient->m_pVoting->IsVoting()) return;
 	// render small score hud
 	if(!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
 	{
 		int GameFlags = m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags;
 		float Whole = 300*Graphics()->ScreenAspect();
-		float StartY = 229.0f;
+		const float StartY = ScoreHudTop();
 
 		if (GameFlags&GAMEFLAG_TEAMS && !(GameFlags&GAMEFLAG_INFECTION) && m_pClient->m_Snap.m_pGameDataObj)
 		{
 			char aScoreTeam[2][32];
 			str_format(aScoreTeam[TEAM_RED], sizeof(aScoreTeam)/2, "%d", m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreRed);
 			str_format(aScoreTeam[TEAM_BLUE], sizeof(aScoreTeam)/2, "%d", m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreBlue);
-			float aScoreTeamWidth[2] = { TextRender()->TextWidth(0, 14.0f, aScoreTeam[TEAM_RED], -1), TextRender()->TextWidth(0, 14.0f, aScoreTeam[TEAM_BLUE], -1) };
 			int FlagCarrier[2] = { m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierRed, m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierBlue };
-			float ScoreWidthMax = max(max(aScoreTeamWidth[TEAM_RED], aScoreTeamWidth[TEAM_BLUE]), TextRender()->TextWidth(0, 14.0f, "100", -1));
-			float Split = 3.0f;
-			float ImageSize = GameFlags&GAMEFLAG_FLAGS ? 16.0f : Split;
-
+			const vec4 Panel = CMenus::ThemeBgPanel();
+			const float CardWidth = 76.0f;
+			const float CardHeight = 17.0f;
+			const float RowGap = 2.0f;
+			const float CardX = Whole-CardWidth-5.0f;
 			for(int t = 0; t < 2; t++)
 			{
-				// draw box
-				Graphics()->BlendNormal();
-				Graphics()->TextureSet(-1);
-				Graphics()->QuadsBegin();
-				
-				if (GameFlags&GAMEFLAG_INFECTION)
-				{
-					if(t == 0)
-					{
-						vec4 Accent = CMenus::ThemeAccent();
-						Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.28f);
-					}
-					else
-					{
-						vec4 Panel = CMenus::ThemeBgInset();
-						Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.85f);
-					}
-				}
-				else
-				{
-					if(t == 0)
-						Graphics()->SetColor(0.92f, 0.24f, 0.30f, 0.28f);
-					else
-						Graphics()->SetColor(0.26f, 0.42f, 0.92f, 0.28f);
-				}
-				
-				RenderTools()->DrawRoundRectExt(Whole-ScoreWidthMax-ImageSize-2*Split, StartY+t*20, ScoreWidthMax+ImageSize+2*Split, 18.0f, 5.0f, CUI::CORNER_L);
-				Graphics()->QuadsEnd();
-
-				// draw score
-				TextRender()->Text(0, Whole-ScoreWidthMax+(ScoreWidthMax-aScoreTeamWidth[t])/2-Split, StartY+t*20, 14.0f, aScoreTeam[t], -1);
-
+				const float Y = StartY+t*(CardHeight+RowGap);
+				const vec4 TeamColor = t == TEAM_RED ? vec4(0.92f, 0.24f, 0.30f, 1.0f) : vec4(0.26f, 0.42f, 0.92f, 1.0f);
+				CUIRect Shadow = {CardX+1.0f, Y+1.5f, CardWidth, CardHeight};
+				CUIRect Card = {CardX, Y, CardWidth, CardHeight};
+				RenderTools()->DrawUIRect(&Shadow, vec4(0, 0, 0, 0.34f), CUI::CORNER_L, 6.0f);
+				RenderTools()->DrawUIRect(&Card, vec4(Panel.r, Panel.g, Panel.b, 0.90f), CUI::CORNER_L, 6.0f);
+				CUIRect TeamBadge = {Card.x+3.0f, Card.y+2.0f, 14.0f, Card.h-4.0f};
+				RenderTools()->DrawUIRect(&TeamBadge, vec4(TeamColor.r, TeamColor.g, TeamColor.b, 0.54f), CUI::CORNER_ALL, 5.0f);
+				CUIRect TeamEdge = {Card.x, Card.y+5.0f, 2.0f, Card.h-10.0f};
+				RenderTools()->DrawUIRect(&TeamEdge, TeamColor, CUI::CORNER_ALL, 1.0f);
+				const float ScoreWidth = max(16.0f, TextRender()->TextWidth(0, 8.0f, aScoreTeam[t], -1));
+				const float ScoreX = Card.x+Card.w-ScoreWidth-4.0f;
+				TextRender()->Text(0, ScoreX, Card.y+4.0f, 8.0f, aScoreTeam[t], -1);
+				const char *pLabel = Localize(t == TEAM_RED ? "Red team" : "Blue team");
 				if(GameFlags&GAMEFLAG_FLAGS)
 				{
 					int BlinkTimer = (m_pClient->m_FlagDropTick[t] != 0 &&
@@ -331,123 +406,116 @@ void CHud::RenderScoreHud()
 						Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GAME].m_Id);
 						Graphics()->QuadsBegin();
 						RenderTools()->SelectSprite(t==0?SPRITE_FLAG_RED:SPRITE_FLAG_BLUE);
-						IGraphics::CQuadItem QuadItem(Whole-ScoreWidthMax-ImageSize, StartY+1.0f+t*20, ImageSize/2, ImageSize);
+						IGraphics::CQuadItem QuadItem(TeamBadge.x+2.0f, TeamBadge.y+1.0f, 5.0f, 11.0f);
 						Graphics()->QuadsDrawTL(&QuadItem, 1);
 						Graphics()->QuadsEnd();
 					}
 					else if(FlagCarrier[t] >= 0)
 					{
-						// draw name of the flag holder
-						int ID = FlagCarrier[t]%MAX_CLIENTS;
-						const char *pName = m_pClient->m_aClients[ID].m_aName;
-						float w = TextRender()->TextWidth(0, 8.0f, pName, -1);
-						TextRender()->Text(0, min(Whole-w-1.0f, Whole-ScoreWidthMax-ImageSize-2*Split), StartY+(t+1)*20.0f-3.0f, 8.0f, pName, -1);
-
-						// draw tee of the flag holder
-						//CTeeRenderInfo Info = m_pClient->m_aClients[ID].m_RenderInfo;
-						//Info.m_Size = 18.0f;
-						//RenderTools()->RenderTee(CAnimState::GetIdle(), &Info, EMOTE_NORMAL, vec2(1,0),
-						//	vec2(Whole-ScoreWidthMax-Info.m_Size/2-Split, StartY+1.0f+Info.m_Size/2+t*20));
+						const int ID = FlagCarrier[t]%MAX_CLIENTS;
+						if(ID >= 0 && ID < MAX_CLIENTS && m_pClient->m_aClients[ID].m_aName[0])
+							pLabel = m_pClient->m_aClients[ID].m_aName;
 					}
 				}
-				StartY += 8.0f;
+				else
+					UI()->DoLabel(&TeamBadge, t == TEAM_RED ? "R" : "B", 5.5f, 0);
+				const float LabelX = Card.x+20.0f;
+				const float LabelWidth = max(8.0f, ScoreX-LabelX-4.0f);
+				float LabelSize = 6.0f;
+				while(LabelSize > 4.5f && TextRender()->TextWidth(0, LabelSize, pLabel, -1) > LabelWidth)
+					LabelSize -= 0.25f;
+				CTextCursor Cursor;
+				TextRender()->SetCursor(&Cursor, LabelX, Card.y+(Card.h-LabelSize)*0.5f-0.5f, LabelSize, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+				Cursor.m_LineWidth = LabelWidth;
+				Cursor.m_MaxLines = 1;
+				TextRender()->TextEx(&Cursor, pLabel, -1);
 			}
 		}
 		// dm, infection, co-op
 		else
 		{
-			int Local = -1;
-			int aPos[2] = { 1, 2 };
-			const CNetObj_PlayerInfo *apPlayerInfo[2] = { 0, 0 };
-			int i = 0;
-			for(int t = 0; t < 2 && i < MAX_CLIENTS && m_pClient->m_Snap.m_paInfoByScore[i]; ++i)
+			const CNetObj_PlayerInfo *apPlayerInfo[2] = {0, 0};
+			int aPosition[2] = {0, 0};
+			const CNetObj_PlayerInfo *pLocalInfo = 0;
+			int LocalPosition = 0;
+			int NumRows = 0;
+			int Position = 0;
+			for(int i = 0; i < MAX_CLIENTS && m_pClient->m_Snap.m_paInfoByScore[i]; i++)
 			{
-				if(m_pClient->m_Snap.m_paInfoByScore[i]->m_Team != TEAM_SPECTATORS)
+				const CNetObj_PlayerInfo *pInfo = m_pClient->m_Snap.m_paInfoByScore[i];
+				if(pInfo->m_Team == TEAM_SPECTATORS)
+					continue;
+				const int ClientID = pInfo->m_ClientID;
+				if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+					continue;
+				if((GameFlags & GAMEFLAG_COOP) && m_pClient->m_aClients[ClientID].m_IsBot)
+					continue;
+				Position++;
+				if(NumRows < 2)
 				{
-					//if (!CustomStuff()->IsBot(m_pClient->m_Snap.m_paInfoByScore[i]->m_ClientID) || !(GameFlags&GAMEFLAG_COOP))
-					if (!m_pClient->m_aClients[m_pClient->m_Snap.m_paInfoByScore[i]->m_ClientID].m_IsBot || !(GameFlags&GAMEFLAG_COOP))
-					{
-						apPlayerInfo[t] = m_pClient->m_Snap.m_paInfoByScore[i];
-						if(apPlayerInfo[t]->m_ClientID == m_pClient->m_Snap.m_LocalClientID)
-							Local = t;
-						++t;
-					}
+					apPlayerInfo[NumRows] = pInfo;
+					aPosition[NumRows] = Position;
+					NumRows++;
+				}
+				if(ClientID == m_pClient->m_Snap.m_LocalClientID)
+				{
+					pLocalInfo = pInfo;
+					LocalPosition = Position;
 				}
 			}
-			// search local player info if not a spectator, nor within top2 scores
-			if(Local == -1 && m_pClient->m_Snap.m_pLocalInfo && m_pClient->m_Snap.m_pLocalInfo->m_Team != TEAM_SPECTATORS)
+			if(pLocalInfo && LocalPosition > 2)
 			{
-				for(; i < MAX_CLIENTS && m_pClient->m_Snap.m_paInfoByScore[i]; ++i)
-				{
-					if(m_pClient->m_Snap.m_paInfoByScore[i]->m_Team != TEAM_SPECTATORS)
-						++aPos[1];
-					if(m_pClient->m_Snap.m_paInfoByScore[i]->m_ClientID == m_pClient->m_Snap.m_LocalClientID)
-					{
-						apPlayerInfo[1] = m_pClient->m_Snap.m_paInfoByScore[i];
-						Local = 1;
-						break;
-					}
-				}
+				const int Row = NumRows < 2 ? NumRows++ : 1;
+				apPlayerInfo[Row] = pLocalInfo;
+				aPosition[Row] = LocalPosition;
 			}
-			char aScore[2][32];
-			for(int t = 0; t < 2; ++t)
+
+			const vec4 Accent = CMenus::ThemeAccent();
+			const vec4 Panel = CMenus::ThemeBgPanel();
+			const vec4 Inset = CMenus::ThemeBgInset();
+			const float CardWidth = clamp(Whole * 0.20f, 82.0f, 96.0f);
+			const float CardHeight = 17.0f;
+			const float RowGap = 2.0f;
+			const float CardX = Whole - CardWidth - 5.0f;
+			for(int Row = 0; Row < NumRows; Row++)
 			{
-				if(apPlayerInfo[t])
-					str_format(aScore[t], sizeof(aScore)/2, "%d", apPlayerInfo[t]->m_Score);
-				else
-					aScore[t][0] = 0;
-			}
-			float aScoreWidth[2] = {TextRender()->TextWidth(0, 14.0f, aScore[0], -1), TextRender()->TextWidth(0, 14.0f, aScore[1], -1)};
-			float ScoreWidthMax = max(max(aScoreWidth[0], aScoreWidth[1]), TextRender()->TextWidth(0, 14.0f, "10", -1));
-			float Split = 3.0f, ImageSize = 16.0f, PosSize = 16.0f;
-
-			for(int t = 0; t < 2; t++)
-			{
-				// draw box
-				Graphics()->BlendNormal();
-				Graphics()->TextureSet(-1);
-				Graphics()->QuadsBegin();
-				if(t == Local)
-				{
-					vec4 Accent = CMenus::ThemeAccentDim();
-					Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.32f);
-				}
-				else
-				{
-					vec4 Panel = CMenus::ThemeBgInset();
-					Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.85f);
-				}
-				RenderTools()->DrawRoundRectExt(Whole-ScoreWidthMax-ImageSize-2*Split-PosSize, StartY+t*20, ScoreWidthMax+ImageSize+2*Split+PosSize, 18.0f, 5.0f, CUI::CORNER_L);
-				Graphics()->QuadsEnd();
-
-				// draw score
-				TextRender()->Text(0, Whole-ScoreWidthMax+(ScoreWidthMax-aScoreWidth[t])/2-Split, StartY+t*20, 14.0f, aScore[t], -1);
-
-				if(apPlayerInfo[t])
- 				{
-					// draw name
-					int ID = apPlayerInfo[t]->m_ClientID;
-					const char *pName = m_pClient->m_aClients[ID].m_aName;
-					float w = TextRender()->TextWidth(0, 8.0f, pName, -1);
-					TextRender()->Text(0, min(Whole-w-1.0f, Whole-ScoreWidthMax-ImageSize-2*Split-PosSize), StartY+(t+1)*20.0f-3.0f, 8.0f, pName, -1);
-
-					// draw tee
-					CTeeRenderInfo Info = m_pClient->m_aClients[ID].m_RenderInfo;
- 					Info.m_Size = 18.0f;
- 					//RenderTools()->RenderTee(CAnimState::GetIdle(), &Info, EMOTE_NORMAL, vec2(1,0),
-					RenderTools()->RenderPortrait(&Info,
-						vec2(Whole-ScoreWidthMax-Info.m_Size/2-Split, StartY+1.0f+Info.m_Size/2+t*20 + 16), 0);
-						
- 					//	vec2(Whole-ScoreWidthMax-Info.m_Size/2-Split, StartY+1.0f+Info.m_Size/2+t*20));
-					
-				}
-
-				// draw position
+				const CNetObj_PlayerInfo *pInfo = apPlayerInfo[Row];
+				if(!pInfo)
+					continue;
+				const int ID = pInfo->m_ClientID;
+				const bool Local = ID == m_pClient->m_Snap.m_LocalClientID;
+				const float Y = StartY + Row * (CardHeight + RowGap);
+				CUIRect Shadow = {CardX + 1.0f, Y + 1.5f, CardWidth, CardHeight};
+				CUIRect Card = {CardX, Y, CardWidth, CardHeight};
+				RenderTools()->DrawUIRect(&Shadow, vec4(0, 0, 0, 0.34f), CUI::CORNER_L, 6.0f);
+				RenderTools()->DrawUIRect(&Card, Local ? vec4(Accent.r, Accent.g, Accent.b, 0.32f) : vec4(Panel.r, Panel.g, Panel.b, 0.88f), CUI::CORNER_L, 6.0f);
+				CUIRect Rank = {Card.x + 3.0f, Card.y + 2.0f, 14.0f, Card.h - 4.0f};
+				RenderTools()->DrawUIRect(&Rank, vec4(Inset.r, Inset.g, Inset.b, 0.88f), CUI::CORNER_ALL, 5.0f);
 				char aBuf[32];
-				str_format(aBuf, sizeof(aBuf), "%d.", aPos[t]);
-				TextRender()->Text(0, Whole-ScoreWidthMax-ImageSize-Split-PosSize, StartY+2.0f+t*20, 10.0f, aBuf, -1);
+				str_format(aBuf, sizeof(aBuf), "%d.", aPosition[Row]);
+				UI()->DoLabel(&Rank, aBuf, 6.0f, 0);
 
-				StartY += 8.0f;
+				CTeeRenderInfo Info = m_pClient->m_aClients[ID].m_RenderInfo;
+				Info.m_Size = 11.5f;
+				RenderTools()->RenderPortrait(&Info, vec2(Card.x + 24.0f, Card.y + Card.h * 0.5f + Info.m_Size * 0.55f + 1.5f), 0);
+
+				char aScore[32];
+				str_format(aScore, sizeof(aScore), "%d", pInfo->m_Score);
+				const float ScoreWidth = max(16.0f, TextRender()->TextWidth(0, 8.0f, aScore, -1));
+				const float ScoreX = Card.x + Card.w - ScoreWidth - 4.0f;
+				TextRender()->Text(0, ScoreX, Card.y + 4.0f, 8.0f, aScore, -1);
+
+				const char *pName = m_pClient->m_aClients[ID].m_aName;
+				const float NameX = Card.x + 32.0f;
+				const float NameWidth = max(8.0f, ScoreX - NameX - 4.0f);
+				float NameSize = 6.5f;
+				while(NameSize > 4.5f && TextRender()->TextWidth(0, NameSize, pName, -1) > NameWidth)
+					NameSize -= 0.25f;
+				CTextCursor Cursor;
+				TextRender()->SetCursor(&Cursor, NameX, Card.y + (Card.h - NameSize) * 0.5f - 0.5f, NameSize, TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
+				Cursor.m_LineWidth = NameWidth;
+				Cursor.m_MaxLines = 1;
+				TextRender()->TextEx(&Cursor, pName, -1);
 			}
 		}
 	}
@@ -458,69 +526,61 @@ void CHud::RenderStartCountdown()
 	if(!g_Config.m_ClShowhudTimer)
 		return;
 
-	if(!m_pClient->m_Snap.m_pGameInfoObj || !m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer)
+	if(!WarmupActive())
 		return;
 
 	const char *pLabel = Localize("Warmup");
-	float FontSize = 16.0f;
-	float LabelW = TextRender()->TextWidth(0, FontSize, pLabel, -1);
-
 	char aBuf[32];
-	int Seconds = m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer/SERVER_TICK_SPEED;
+	int Seconds = DebugStatusActive(DEBUG_STATUS_WARMUP) ? 12 : m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer/SERVER_TICK_SPEED;
 	if(Seconds < 5)
 		str_format(aBuf, sizeof(aBuf), "%d.%d", Seconds, (m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer*10/SERVER_TICK_SPEED)%10);
 	else
 		str_format(aBuf, sizeof(aBuf), "%d", Seconds);
-	float CountW = TextRender()->TextWidth(0, FontSize, aBuf, -1);
-
-	float BoxW = max(LabelW, CountW) + 24.0f;
-	float BoxH = FontSize * 2.0f + 20.0f;
-	float x = 150.0f*Graphics()->ScreenAspect() - BoxW/2.0f;
-	float y = 42.0f;
-
+	const float LabelSize = 7.0f;
+	const float CountSize = 15.0f;
+	const float LabelW = TextRender()->TextWidth(0, LabelSize, pLabel, -1);
+	const float CountW = TextRender()->TextWidth(0, CountSize, aBuf, -1);
+	const float BoxW = clamp(max(LabelW, CountW)+30.0f, 78.0f, 112.0f);
+	const float BoxH = 46.0f;
+	const float x = (m_Width-BoxW)*0.5f;
+	const float y = 40.0f;
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Inset = CMenus::ThemeBgInset();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 Text = CMenus::ThemeText();
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	vec4 Panel = CMenus::ThemeBgPanel();
-	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
+	Graphics()->SetColor(0, 0, 0, 0.42f);
+	RenderTools()->DrawRoundRect(x+1.0f, y+1.5f, BoxW, BoxH, 8.0f);
+	Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.74f);
+	RenderTools()->DrawRoundRect(x-0.7f, y-0.7f, BoxW+1.4f, BoxH+1.4f, 8.5f);
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.98f);
 	RenderTools()->DrawRoundRect(x, y, BoxW, BoxH, 8.0f);
+	Graphics()->SetColor(Inset.r, Inset.g, Inset.b, 0.52f);
+	RenderTools()->DrawRoundRect(x+6.0f, y+6.0f, BoxW-12.0f, BoxH-12.0f, 6.0f);
+	Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.98f);
+	RenderTools()->DrawRoundRect(x, y+7.0f, 2.0f, BoxH-14.0f, 1.0f);
 	Graphics()->QuadsEnd();
-
-	TextRender()->Text(0, x + (BoxW-LabelW)/2.0f, y + 8.0f, FontSize, pLabel, -1);
-	TextRender()->Text(0, x + (BoxW-CountW)/2.0f, y + FontSize + 12.0f, FontSize, aBuf, -1);
+	TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 1.0f);
+	TextRender()->Text(0, x+(BoxW-LabelW)*0.5f, y+7.0f, LabelSize, pLabel, -1);
+	TextRender()->TextColor(Text.r, Text.g, Text.b, 1.0f);
+	TextRender()->Text(0, x+(BoxW-CountW)*0.5f, y+19.0f, CountSize, aBuf, -1);
+	TextRender()->TextColor(1, 1, 1, 1);
 }
 
 void CHud::RenderReadyUpNotification()
 {
-	if(!m_pClient->m_Snap.m_pGameInfoObj || !m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer)
-		return;
-
-	if(m_pClient->m_pControls->m_Ready)
-		return;
-
-	if(m_pClient->m_Snap.m_pLocalCharacter && (m_pClient->m_Snap.m_pLocalCharacter->m_PlayerFlags&PLAYERFLAG_READY))
+	if(!ReadyNoticeActive())
 		return;
 
 	const char *pKey = m_pClient->m_pBinds->GetKey("ready_change");
-	if(!pKey[0])
-		pKey = "ready_change";
-
 	char aText[128];
-	str_format(aText, sizeof(aText), Localize("When ready, press <%s>"), pKey);
+	if(pKey[0])
+		str_format(aText, sizeof(aText), Localize("When ready, press <%s>"), pKey);
+	else
+		str_copy(aText, Localize("Bind Ready in Settings"), sizeof(aText));
 
-	float FontSize = 14.0f;
-	float w = TextRender()->TextWidth(0, FontSize, aText, -1);
-	float x = 150.0f*Graphics()->ScreenAspect() - w/2.0f;
-	float y = 110.0f;
-	float Pad = 10.0f;
-
-	Graphics()->TextureSet(-1);
-	Graphics()->QuadsBegin();
-	vec4 Panel = CMenus::ThemeBgPanel();
-	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
-	RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
-	Graphics()->QuadsEnd();
-
-	TextRender()->Text(0, x, y, FontSize, aText, -1);
+	RenderStatusNotice(aText, StatusStackY(STATUS_STACK_READY), CMenus::ThemeAccent());
 }
 
 void CHud::MapscreenToGroup(float CenterX, float CenterY, CMapItemGroup *pGroup)
@@ -546,23 +606,10 @@ void CHud::RenderFps()
 
 void CHud::RenderConnectionWarning()
 {
-	if(Client()->ConnectionProblems())
+	if(ConnectionNoticeActive())
 	{
 		const char *pText = Localize("Connection Problems...");
-		float FontSize = 14.0f;
-		float w = TextRender()->TextWidth(0, FontSize, pText, -1);
-		float x = 150.0f*Graphics()->ScreenAspect() - w/2.0f;
-		float y = 40.0f; // below timer; avoid stacking with pause/warmup boxes
-	float Pad = 12.0f;
-
-	Graphics()->TextureSet(-1);
-	Graphics()->QuadsBegin();
-	vec4 Panel = CMenus::ThemeBgPanel();
-	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
-	RenderTools()->DrawRoundRect(x-Pad, y-Pad*0.5f, w+Pad*2.0f, FontSize+Pad, 8.0f);
-	Graphics()->QuadsEnd();
-
-		TextRender()->Text(0, x, y, FontSize, pText, -1);
+		RenderStatusNotice(pText, StatusStackY(STATUS_STACK_CONNECTION), CMenus::ThemeDanger());
 	}
 }
 
@@ -593,55 +640,85 @@ void CHud::RenderVoting()
 	if(!m_pClient->m_pVoting->IsVoting() || Client()->State() == IClient::STATE_DEMOPLAYBACK)
 		return;
 
+	const int SecondsLeft = m_pClient->m_pVoting->SecondsLeft();
+	if(SecondsLeft < 0)
+	{
+		m_pClient->m_pVoting->Hide();
+		return;
+	}
+
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Inset = CMenus::ThemeBgInset();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 Text = CMenus::ThemeText();
+	const vec4 Danger = CMenus::ThemeDanger();
+	const float PanelW = clamp(m_Width * 0.42f, 154.0f, 192.0f);
+	const float PanelH = 70.0f;
+	const float PanelX = (m_Width - PanelW) * 0.5f;
+	float PanelY = StatusStackY(STATUS_STACK_VOTE);
+	if(!PausedNoticeActive() && !ReadyNoticeActive() && !ConnectionNoticeActive())
+		PanelY += 12.0f;
+	if(m_pClient->m_Snap.m_pGameInfoObj && (m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_COOP))
+		PanelY = max(PanelY, 138.0f);
+
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	vec4 Panel = CMenus::ThemeBgPanel();
-	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
-	RenderTools()->DrawRoundRect(-12, 58-2, 100+10+4+9, 48, 8.0f);
+	Graphics()->SetColor(0, 0, 0, 0.42f);
+	RenderTools()->DrawRoundRect(PanelX + 1.5f, PanelY + 2.0f, PanelW, PanelH, 8.0f);
+	Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.72f);
+	RenderTools()->DrawRoundRect(PanelX - 0.8f, PanelY - 0.8f, PanelW + 1.6f, PanelH + 1.6f, 8.5f);
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.97f);
+	RenderTools()->DrawRoundRect(PanelX, PanelY, PanelW, PanelH, 7.5f);
+	Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.92f);
+	RenderTools()->DrawRoundRect(PanelX, PanelY + 7.0f, 2.2f, PanelH - 14.0f, 1.1f);
 	Graphics()->QuadsEnd();
 
-	TextRender()->TextColor(1,1,1,1);
-
-	CTextCursor Cursor;
 	char aBuf[512];
-	str_format(aBuf, sizeof(aBuf), Localize("%ds left"), m_pClient->m_pVoting->SecondsLeft());
-	
-	if (m_pClient->m_pVoting->SecondsLeft() < 0)
-		m_pClient->m_pVoting->Hide();
-	
-	float tw = TextRender()->TextWidth(0x0, 6, aBuf, -1);
-	TextRender()->SetCursor(&Cursor, 5.0f+100.0f-tw, 60.0f, 6.0f, TEXTFLAG_RENDER);
-	TextRender()->TextEx(&Cursor, aBuf, -1);
+	str_format(aBuf, sizeof(aBuf), Localize("%ds left"), SecondsLeft);
+	const float TimerW = TextRender()->TextWidth(0, 6.0f, aBuf, -1) + 13.0f;
+	CUIRect Timer = {PanelX + PanelW - TimerW - 7.0f, PanelY + 6.0f, TimerW, 13.0f};
+	RenderTools()->DrawUIRect(&Timer, vec4(Inset.r, Inset.g, Inset.b, 0.94f), CUI::CORNER_ALL, 6.0f);
+	UI()->DoLabel(&Timer, aBuf, 6.0f, 0);
 
-	TextRender()->SetCursor(&Cursor, 5.0f, 60.0f, 6.0f, TEXTFLAG_RENDER);
-	Cursor.m_LineWidth = 100.0f-tw;
-	Cursor.m_MaxLines = 3;
+	TextRender()->TextColor(Text.r, Text.g, Text.b, 1.0f);
+	TextRender()->Text(0, PanelX + 8.0f, PanelY + 5.5f, 6.5f, Localize("Voting"), -1);
+	CTextCursor Cursor;
 	char aVoteDesc[512];
 	m_pClient->SanitizeSocialString(m_pClient->m_pVoting->VoteDescription(), aVoteDesc, sizeof(aVoteDesc));
+	float DescriptionSize = 7.0f;
+	while(DescriptionSize > 5.0f && TextRender()->TextWidth(0, DescriptionSize, aVoteDesc, -1) > PanelW - 16.0f)
+		DescriptionSize -= 0.25f;
+	TextRender()->SetCursor(&Cursor, PanelX + 8.0f, PanelY + 18.0f, DescriptionSize, TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
+	Cursor.m_LineWidth = PanelW - 16.0f;
+	Cursor.m_MaxLines = 1;
 	TextRender()->TextEx(&Cursor, aVoteDesc, -1);
 
-	// reason
 	char aReasonBuf[512];
 	m_pClient->SanitizeSocialString(m_pClient->m_pVoting->VoteReason(), aReasonBuf, sizeof(aReasonBuf));
 	str_format(aBuf, sizeof(aBuf), "%s %s", Localize("Reason:"), aReasonBuf);
-	TextRender()->SetCursor(&Cursor, 5.0f, 79.0f, 6.0f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
-	Cursor.m_LineWidth = 100.0f;
+	TextRender()->TextColor(Text.r, Text.g, Text.b, 0.72f);
+	TextRender()->SetCursor(&Cursor, PanelX + 8.0f, PanelY + 28.0f, 5.0f, TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
+	Cursor.m_LineWidth = PanelW - 16.0f;
+	Cursor.m_MaxLines = 2;
 	TextRender()->TextEx(&Cursor, aBuf, -1);
 
-	CUIRect Base = {5, 88, 100, 4};
-	m_pClient->m_pVoting->RenderBars(Base, false);
+	CUIRect Bar = {PanelX + 8.0f, PanelY + 43.0f, PanelW - 16.0f, 4.0f};
+	m_pClient->m_pVoting->RenderBars(Bar, false);
 
 	char aYesKeys[64], aNoKeys[64];
 	m_pClient->m_pBinds->GetKeys("vote yes", aYesKeys, sizeof(aYesKeys));
 	m_pClient->m_pBinds->GetKeys("vote no", aNoKeys, sizeof(aNoKeys));
-	const char *pYesKey = aYesKeys[0] ? aYesKeys : "";
-	const char *pNoKey = aNoKeys[0] ? aNoKeys : "";
-	str_format(aBuf, sizeof(aBuf), "%s - %s", pYesKey, Localize("Vote yes"));
-	Base.y += Base.h+1;
-	UI()->DoLabel(&Base, aBuf, 6.0f, -1);
-
-	str_format(aBuf, sizeof(aBuf), "%s - %s", Localize("Vote no"), pNoKey);
-	UI()->DoLabel(&Base, aBuf, 6.0f, 1);
+	const char *pYesKey = aYesKeys[0] ? aYesKeys : "—";
+	const char *pNoKey = aNoKeys[0] ? aNoKeys : "—";
+	CUIRect Yes = {PanelX + 8.0f, PanelY + 52.0f, (PanelW - 19.0f) * 0.5f, 12.0f};
+	CUIRect No = {Yes.x + Yes.w + 3.0f, Yes.y, Yes.w, Yes.h};
+	RenderTools()->DrawUIRect(&Yes, vec4(0.25f, 0.78f, 0.43f, 0.25f), CUI::CORNER_ALL, 5.0f);
+	RenderTools()->DrawUIRect(&No, vec4(Danger.r, Danger.g, Danger.b, 0.25f), CUI::CORNER_ALL, 5.0f);
+	str_format(aBuf, sizeof(aBuf), "%s  %s", pYesKey, Localize("Vote yes"));
+	UI()->DoLabel(&Yes, aBuf, 5.5f, 0);
+	str_format(aBuf, sizeof(aBuf), "%s  %s", pNoKey, Localize("Vote no"));
+	UI()->DoLabel(&No, aBuf, 5.5f, 0);
+	TextRender()->TextColor(1, 1, 1, 1);
 }
 
 void CHud::RenderCursor()
@@ -1207,10 +1284,10 @@ float CHud::BottomReservedHeight() const
 
 float CHud::ScoreHudTop() const
 {
-	// Score HUD occupies [229, 285] when enabled (same as RenderScoreHud).
+	// Compact two-row score HUD sits against the bottom safe area.
 	if(g_Config.m_ClShowhudScore && m_pClient->m_Snap.m_pGameInfoObj &&
 		!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
-		return 229.0f;
+		return m_Height - BottomReservedHeight() - 39.0f;
 	return m_Height - BottomReservedHeight();
 }
 
@@ -1344,11 +1421,12 @@ void CHud::OnRender()
 		}
 
 		RenderGameTimer();
-		RenderPauseNotification();
 		RenderSuddenDeath();
 		RenderScoreHud();
-		RenderObjective();
+		if(!m_pClient->m_pScoreboard->Active())
+			RenderObjective();
 		RenderStartCountdown();
+		RenderPauseNotification();
 		RenderReadyUpNotification();
 		RenderFps();
 		RenderMovementInformation();
@@ -1359,4 +1437,6 @@ void CHud::OnRender()
 		RenderVoting();
 	}
 	RenderCursor();
+	if(m_DebugStatusScreenshotFrames > 0 && --m_DebugStatusScreenshotFrames == 0)
+		Graphics()->TakeScreenshot(0);
 }

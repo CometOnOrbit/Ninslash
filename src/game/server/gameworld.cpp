@@ -412,11 +412,16 @@ bool CGameWorld::GetDroidPosChange(int ID)
 
 
 // line-segment vs. character hit test (body + head)
-CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2& NewPos, CEntity *pNotThis, bool IgnoreDeathrayed)
+CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2& NewPos,
+	CEntity *pNotThis, bool IgnoreDeathrayed, CCharacter **ppReflect, float ReflectRadius)
 {
 	// Find other players
 	float ClosestLen = distance(Pos0, Pos1) * 100.0f;
 	CCharacter *pClosest = 0;
+	vec2 ClosestPos = NewPos;
+	float ClosestReflectLen = ClosestLen;
+	CCharacter *pClosestReflect = 0;
+	vec2 ClosestReflectPos = NewPos;
 
 	CCharacter *p = (CCharacter *)FindFirst(ENTTYPE_CHARACTER);
 	for(; p; p = (CCharacter *)p->TypeNext())
@@ -445,13 +450,32 @@ CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, v
 		}
 
 		vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
+		if(ppReflect)
+		{
+			const int Reflect = p->Reflect();
+			if(Reflect > 0)
+			{
+				float ReflectLen = distance(p->m_Pos + vec2(0, -32), IntersectPos);
+				if(ReflectLen < Reflect + ReflectRadius)
+				{
+					ReflectLen = distance(Pos0, IntersectPos);
+					if(ReflectLen < ClosestReflectLen)
+					{
+						ClosestReflectPos = IntersectPos;
+						ClosestReflectLen = ReflectLen;
+						pClosestReflect = p;
+					}
+				}
+			}
+		}
+
 		float Len = distance(p->m_Pos, IntersectPos);
 		if(Len < p->m_ProximityRadius+Radius+p->m_ShieldRadius)
 		{
 			Len = distance(Pos0, IntersectPos);
 			if(Len < ClosestLen)
 			{
-				NewPos = IntersectPos;
+				ClosestPos = IntersectPos;
 				ClosestLen = Len;
 				pClosest = p;
 			}
@@ -463,13 +487,24 @@ CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, v
 			Len = distance(Pos0, IntersectPos);
 			if(Len < ClosestLen)
 			{
-				NewPos = IntersectPos;
+				ClosestPos = IntersectPos;
 				ClosestLen = Len;
 				pClosest = p;
 			}
 		}
 	}
 
+	if(ppReflect)
+	{
+		*ppReflect = pClosestReflect;
+		if(pClosestReflect)
+		{
+			NewPos = ClosestReflectPos;
+			return 0;
+		}
+	}
+	if(pClosest)
+		NewPos = ClosestPos;
 	return pClosest;
 }
 

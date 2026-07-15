@@ -7,6 +7,7 @@ struct CGameVoteDetails
 {
 	char m_aName[32];
 	char m_aDescription[128];
+	char m_aImage[32];
 	
 	bool m_Valid;
 	int m_Texture;
@@ -17,6 +18,9 @@ struct CGameVoteDetails
 	
 	CGameVoteDetails()
 	{
+		m_aName[0] = 0;
+		m_aDescription[0] = 0;
+		m_aImage[0] = 0;
 		m_Valid = false;
 		m_Texture = -1;
 		m_Votes = 0;
@@ -30,7 +34,7 @@ class CGameVoteDisplay : public CComponent
 
 	int m_Selected;
 	int m_Focused;
-	float m_CarouselPosition;
+	int m_ActiveCategory;
 	float m_AppearAmount;
 	float m_SelectionPulse;
 	int m_TimeLeft;
@@ -40,18 +44,27 @@ class CGameVoteDisplay : public CComponent
 
 	bool m_MouseTrigger;
 	vec2 m_SelectorMouse;
+	int m_DebugScreenshotFrames;
 	
 	void RenderMouse();
 	void SendVote();
+	int VoteCategory(int Vote) const;
+	int CategoryVoteCount(int Category) const;
+	int FirstVoteInCategory(int Category) const;
+	void ChangeCategory(int Direction);
+	void MoveFocus(int Direction);
+	static void ConDebugPreview(IConsole::IResult *pResult, void *pUserData);
 
 public:
+	CGameVoteDisplay();
 	virtual void OnReset();
+	virtual void OnConsoleInit();
 	virtual void OnRender();
 	virtual void OnMessage(int MsgType, void *pRawMsg);
 	virtual bool OnMouseMove(float x, float y);
 	virtual bool OnInput(IInput::CEvent Event);
 	
-	bool IsActive() { return m_GameVoteCount > 0; }
+	bool IsActive() const { return m_GameVoteCount > 0; }
 };
 
 #endif

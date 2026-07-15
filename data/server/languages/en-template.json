@@ -369,6 +369,14 @@
             "value": "Level %d - %s"
         },
         {
+            "key": "Level %d - Attempt %d",
+            "value": "Level %d - Attempt %d"
+        },
+        {
+            "key": "Level %d - Final attempt",
+            "value": "Level %d - Final attempt"
+        },
+        {
             "key": "Level %d - Last chance",
             "value": "Level %d - Last chance"
         },

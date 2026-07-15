@@ -581,5 +581,3 @@ bool CUI::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize
 		*pChanged = Changed;
 	return Changed;
 }
-
-

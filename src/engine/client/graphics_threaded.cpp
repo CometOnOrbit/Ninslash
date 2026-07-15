@@ -921,9 +921,14 @@ int CGraphics_Threaded::Init()
 	if(InitWindow() != 0)
 		return -1;
 
-	// fetch final resolusion
-	m_ScreenWidth = g_Config.m_GfxScreenWidth;
-	m_ScreenHeight = g_Config.m_GfxScreenHeight;
+	// Rendering, clipping and input must use the drawable pixel size. This can
+	// differ from the requested window size on high-DPI and offscreen backends.
+	m_pBackend->GetViewportSize(&m_ScreenWidth, &m_ScreenHeight);
+	if(m_ScreenWidth <= 0 || m_ScreenHeight <= 0)
+	{
+		m_ScreenWidth = g_Config.m_GfxScreenWidth;
+		m_ScreenHeight = g_Config.m_GfxScreenHeight;
+	}
 
 	// create command buffers
 	for(int i = 0; i < NUM_CMDBUFFERS; i++)

@@ -33,7 +33,7 @@ class CAutoMapper
 	struct CConfiguration
 	{
 		array<CIndexRule> m_aIndexRules;
-		char m_aName[128];
+		char m_aName[128] = {};
 	};
 
 public:

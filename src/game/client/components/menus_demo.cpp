@@ -261,7 +261,7 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 
 		// jump bar: quick jumps + time input
 		{
-			CUIRect JumpBtn, Label, EditBox, GoButton;
+			CUIRect JumpBtn, Label, GoButton;
 			JumpBar.VSplitLeft(ButtonbarHeight*2.0f, &JumpBtn, &JumpBar);
 			static int s_JumpBack1m = 0;
 			if(DoButton_DemoPlayer(&s_JumpBack1m, "<1m", 0, &JumpBtn) && TotalTicks > 0)

@@ -74,6 +74,13 @@ static void ConKeyInputCounter(IConsole::IResult *pResult, void *pUserData)
 	*v &= INPUT_STATE_MASK;
 }
 
+static void ReleaseInputCounter(int *pValue)
+{
+	if((*pValue & 1) != 0)
+		(*pValue)++;
+	*pValue &= INPUT_STATE_MASK;
+}
+
 struct CInputSet
 {
 	CControls *m_pControls;
@@ -242,7 +249,7 @@ int CControls::SnapInput(int *pData)
 	// update player state
 	if(m_pClient->m_pChat->IsActive())
 		m_InputData.m_PlayerFlags = PLAYERFLAG_CHATTING;
-	else if(m_pClient->m_pMenus->IsActive())
+	else if(m_pClient->GameplayInputFullyCaptured())
 		m_InputData.m_PlayerFlags = PLAYERFLAG_IN_MENU;
 	else
 		m_InputData.m_PlayerFlags = PLAYERFLAG_PLAYING;
@@ -258,7 +265,8 @@ int CControls::SnapInput(int *pData)
 
 	m_LastData.m_PlayerFlags = m_InputData.m_PlayerFlags;
 
-	// we freeze the input if chat or menu is activated
+	// Focused overlays own the controls. Reset held movement/fire as well as
+	// blocking new events so opening an overlay cannot leave an old action stuck.
 	if(!(m_InputData.m_PlayerFlags&PLAYERFLAG_PLAYING))
 	{
 		OnReset();
@@ -278,6 +286,20 @@ int CControls::SnapInput(int *pData)
 		{
 			m_InputData.m_TargetX = 1;
 			m_MousePos.x = 1;
+		}
+
+		// Inventory and build placement keep locomotion live, while combat
+		// controls stay released so UI clicks cannot fire, hook or switch weapons.
+		if(m_pClient->m_pInventory->IsVisible())
+		{
+			m_InputData.m_Hook = 0;
+			m_InputData.m_Charge = 0;
+			ReleaseInputCounter(&m_InputData.m_Fire);
+			ReleaseInputCounter(&m_InputData.m_NextWeapon);
+			ReleaseInputCounter(&m_InputData.m_PrevWeapon);
+			m_InputData.m_WantedWeapon = 0;
+			m_PickedWeapon = -1;
+			m_Build = 0;
 		}
 
 		// set direction

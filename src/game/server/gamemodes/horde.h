@@ -28,9 +28,17 @@ private:
 	int m_LastIntermissionWave;
 	int m_LastContractProgressWave;
 	bool m_EliteContractSpawned;
+	int m_BossCountCacheTick;
+	int m_BossCountCache;
+	vec2 m_DefenseAreaCenter;
+	bool m_DefenseAreaReady;
 
 	void NextWave();
 	int EnemyLevel() const;
+	int AliveBossCount();
+	int CountHumansAlive(int ExcludeCID = -1) const;
+	bool GetBossSpawnPos(vec2 *pOutPos);
+	void EnsureDefenseArea(vec2 FallbackPos);
 
 public:
 	CGameControllerHorde(class CGameContext *pGameServer);
@@ -42,6 +50,7 @@ public:
 	virtual bool CanSpawn(int Team, vec2 *pPos, bool IsBot = false);
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
+	bool InDefenseArea(vec2 Pos) const;
 
 	enum GameState
 	{

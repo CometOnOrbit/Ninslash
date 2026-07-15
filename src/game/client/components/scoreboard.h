@@ -7,16 +7,18 @@
 
 class CScoreboard : public CComponent
 {
-	void RenderGoals(float x, float y, float w);
-	void RenderSpectators(float x, float y, float w);
-	void RenderScoreboard(float x, float y, float w, int Team, const char *pTitle);
+	float RenderGoals(float x, float y, float w);
+	float RenderSpectators(float x, float y, float w);
+	float RenderScoreboard(float x, float y, float w, int Team, const char *pTitle);
 	void RenderRecordingNotification(float x);
 
 	static void ConKeyScoreboard(IConsole::IResult *pResult, void *pUserData);
+	static void ConDebugScoreboard(IConsole::IResult *pResult, void *pUserData);
 
 	const char *GetClanName(int Team);
 
 	bool m_Active;
+	bool m_DebugActive;
 	CUIRect m_TotalRect;
 
 public:

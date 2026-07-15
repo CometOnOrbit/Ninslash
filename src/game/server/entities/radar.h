@@ -16,6 +16,7 @@ public:
 
 	void Activate(vec2 Pos) { m_Active = true; m_TargetPos = Pos;}
 	void Activate(vec2 Pos, int ActiveTick) { m_Active = true; m_TargetPos = Pos; m_ActiveTick = ActiveTick; }
+	void Deactivate() { m_Active = false; m_ActiveTick = 0; }
 	
 	virtual void Reset();
 	virtual void Tick();

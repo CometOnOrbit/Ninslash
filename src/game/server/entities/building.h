@@ -68,12 +68,14 @@ public:
 	int m_PveKitCost;
 	bool m_PveRefunded;
 	bool m_PveSwitchActive;
+	bool m_PveReactorObjective;
 	
 	bool m_DestructionTriggered;
 	
 	bool Jumppad();
 	void Trigger();
 	void SetPveSwitchActive(bool Active);
+	void SetPveReactorObjective(bool Active, int MaxLife = 0);
 	void TakeDamage(int Damage, int Owner, int Weapon, vec2 Force = vec2(0, 0));
 	void Destroy();
 	
@@ -94,6 +96,7 @@ private:
 	// lightning wall
 	void CreateLightningWallTop();
 	int m_Height;
+	int m_LightningBlockCheckTick;
 };
 
 #endif

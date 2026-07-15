@@ -76,6 +76,7 @@ public:
 	virtual bool OnInput(IInput::CEvent Event);
 	
 	void Tick();
+	bool IsVisible() const { return m_Render || m_Active; }
 };
 
 #endif

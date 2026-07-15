@@ -47,6 +47,7 @@ public:
 	void Emote(int Emoticon);
 	void DropWeapon();
 	void SwitchGroup();
+	bool IsActive() const { return m_Active; }
 };
 
 #endif

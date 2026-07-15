@@ -47,7 +47,10 @@ void CAutoMapper::Load(const char* pTileName)
 				int ID = m_lConfigs.add(NewConf);
 				pCurrentConf = &m_lConfigs[ID];
 
-				str_copy(pCurrentConf->m_aName, pLine, str_length(pLine));
+				str_copy(pCurrentConf->m_aName, pLine, sizeof(pCurrentConf->m_aName));
+				const int NameLength = str_length(pCurrentConf->m_aName);
+				if(NameLength > 0 && pCurrentConf->m_aName[NameLength - 1] == ']')
+					pCurrentConf->m_aName[NameLength - 1] = 0;
 			}
 			else
 			{

@@ -697,6 +697,9 @@ Reach the door
 Ready
 == 准备
 
+Bind Ready in Settings
+== 请在设置中绑定“准备”按键
+
 Reason:
 == 理由:
 
@@ -1382,8 +1385,8 @@ Selected
 Choose the next mode
 == 选择下一局模式
 
-Mouse wheel to browse modes | %d / %d
-== 滚动鼠标滚轮浏览模式 | %d / %d
+Left / Right · Wheel · A / Enter · %d / %d
+== 左右选择 · 滚轮 · A / 回车确认 · %d / %d
 
 ##### PvE Roguelite #####
 
@@ -1944,7 +1947,7 @@ Overwhelming evacuation pressure
 
 Checkpoint %d
 == 检查点 %d
-+
+
 #### PvE Roguelite v2
 Requires:
 == 前置：
@@ -2422,3 +2425,402 @@ Drone module not owned
 
 Drone switch cooling down
 == 无人机切换仍在冷却
+
+Local
+== 本地
+
+Local game
+== 本地游戏
+
+Choose a mode, adjust the essentials, then start and join in one click.
+== 选择模式并调整常用设置，然后一键启动并加入。
+
+Choose a mode, expand a category, then start and join in one click.
+== 选择模式并展开设置分类，然后一键启动并加入。
+
+Arrows / D-pad: select and adjust · Enter / A: confirm
+== 方向键 / 十字键：选择和调整 · 回车 / A：确认
+
+ROGUELITE PVE
+== 肉鸽 PvE
+
+COMPETITIVE
+== 竞技模式
+
+Deathmatch
+== 死亡竞赛
+
+Team deathmatch
+== 团队死亡竞赛
+
+Capture the flag
+== 夺旗
+
+Explore generated floors, complete objectives and keep your build between maps.
+== 探索生成楼层、完成任务，并在跨图时保留本局构筑。
+
+Defend, build and survive increasingly dangerous enemy waves.
+== 建造防线，抵御威胁不断升级的敌人波次。
+
+Finish the mission and reach the extraction zone before time runs out.
+== 完成任务，并在时间耗尽前抵达撤离区。
+
+Free-for-all combat with configurable AI opponents.
+== 与可配置的 AI 对手进行自由混战。
+
+Team combat with building and configurable AI opponents.
+== 可建造设施、可配置 AI 对手的团队战斗。
+
+Capture the enemy flag on a generated team map.
+== 在生成的团队地图中夺取敌方旗帜。
+
+City I
+== 城市 I
+
+City II
+== 城市 II
+
+Space
+== 太空
+
+Large I
+== 大型 I
+
+Large II
+== 大型 II
+
+Large III
+== 大型 III
+
+Blue planet
+== 蓝色星球
+
+Compact
+== 紧凑
+
+Standard
+== 标准
+
+Essentials
+== 常用设置
+
+Advanced rules
+== 高级规则
+
+Server & network
+== 服务器与联机
+
+Map & difficulty
+== 地图与难度
+
+PvE rules
+== PvE 规则
+
+Match rules
+== 对战规则
+
+Roguelite Director
+== 肉鸽构筑系统
+
+Perks, resources and research
+== 启用卡牌、资源与研究
+
+Team contracts
+== 团队契约
+
+Offer optional team challenges
+== 提供可选的团队挑战
+
+Requires Roguelite Director
+== 需要启用肉鸽构筑系统
+
+Target waves
+== 目标波数
+
+Mission time
+== 任务时限
+
+Endless
+== 无尽
+
+%d min
+== %d 分钟
+
+Random map seed
+== 随机地图种子
+
+New layout every launch
+== 每次启动生成新地图
+
+Map seed
+== 地图种子
+
+Advanced rules apply the next time the server starts.
+== 高级规则将在下次启动服务器时生效。
+
+Rules apply the next time the server starts.
+== 规则将在下次启动服务器时生效。
+
+Server name
+== 服务器名称
+
+Password (optional)
+== 密码（可选）
+
+Map preset
+== 地图预设
+
+Starting floor
+== 起始层数
+
+Map difficulty
+== 地图难度
+
+Mission difficulty
+== 任务难度
+
+Automatic by floor and party size
+== 按楼层和队伍人数自动调整
+
+Health, elites and party size
+== 影响生命、精英阶级和队伍规模
+
+AI difficulty
+== AI 难度
+
+Enemy scaling
+== 敌人强度
+
+Automatic for this mode
+== 由当前模式自动调整
+
+AI players
+== AI 玩家
+
+Player slots
+== 玩家槽位
+
+Port
+== 端口
+
+Allow LAN players
+== 允许局域网玩家加入
+
+Never listed publicly
+== 永不公开列出
+
+Ready to start
+== 可以启动
+
+Starting local server...
+== 正在启动本地服务器……
+
+Local server is running
+== 本地服务器正在运行
+
+Stopping local server...
+== 正在停止本地服务器……
+
+Server executable was not found
+== 未找到服务器程序
+
+No free local server port was found
+== 未找到可用的本地服务器端口
+
+Local server stopped unexpectedly
+== 本地服务器意外停止
+
+Start and join
+== 启动并加入
+
+Restart
+== 重启
+
+Stop
+== 停止
+
+Cancel
+== 取消
+
+Stop local
+== 停止本地服
+
+Restart local
+== 重启本地服
+
+Combat Foundation
+== 战斗基础
+
+Vulnerable Mastery
+== 破绽精通
+
+Defense Foundation
+== 防御基础
+
+Barrier Mastery
+== 壁垒精通
+
+Logistics Foundation
+== 后勤基础
+
+Drone Modules
+== 无人机模块
+
+Drone Firmware
+== 无人机固件
+
+Firearm Foundation
+== 枪械基础
+
+Focus Mastery
+== 专注精通
+
+Vulnerable Tactics
+== 破绽战术
+
+Explosive Foundation
+== 爆炸基础
+
+Blast Mastery
+== 爆炸充能精通
+
+Siege Tactics
+== 攻坚战术
+
+Electric Foundation
+== 电能基础
+
+Voltage Mastery
+== 电荷精通
+
+Grid Tactics
+== 电网战术
+
+Melee Foundation
+== 近战基础
+
+Fury Mastery
+== 怒气精通
+
+Wound Tactics
+== 创伤战术
+
+Invasion Foundation
+== 入侵基础
+
+Deep Run
+== 深层远征
+
+Exploration
+== 探索
+
+Horde Foundation
+== 尸潮基础
+
+Endless Defense
+== 无尽防线
+
+Fortification
+== 工事强化
+
+Extraction Foundation
+== 撤离基础
+
+Final Evacuation
+== 最终撤离
+
+Signal Control
+== 信号控制
+
+Co-op PvE
+== 合作 PvE
+
+Team PvP
+== 团队竞技
+
+Free-for-all
+== 个人竞技
+
+Arcade
+== 趣味模式
+
+Press Enter to vote
+== 按回车投票
+
+Click to vote
+== 点击投票
+
+%s modes · %d choices
+== %s · %d 个模式
+
+Tab / LB / RB: category · Arrows / Wheel: mode · A / Enter: vote
+== Tab / LB / RB 切换分类 · 方向键 / 滚轮选择 · A / 回车投票
+
+PvE objective display
+== PvE 任务显示
+
+With scoreboard
+== 打开计分板时显示
+
+Always visible
+== 始终显示
+
+On objective updates
+== 任务更新时短暂显示
+
+The expedition has reached its limit
+== 远征已到极限
+
+Five failures. Decide the fate of this run.
+== 五次失败。决定这次远征的命运。
+
+Floor %d
+== 第 %d 层
+
+%d votes
+== %d 票
+
+Retry Current Floor
+== 再次尝试
+
+Return to Floor 1
+== 回到第 1 层
+
+Keep equipment and build. Retry this floor.
+== 保留装备和构筑，重试当前层。
+
+Clear this run and start again from Floor 1.
+== 清空本次远征，从第 1 层重新开始。
+
+One final attempt
+== 最后一次机会
+
+Equipment and build will be cleared
+== 将清除装备和构筑
+
+Vote
+== 投票
+
+Mouse • Arrow Keys • 1–2 • Gamepad
+== 鼠标 • 方向键 • 1–2 • 手柄
+
+A tie or no votes returns the team to Floor 1.
+== 平票或无人投票时，全队回到第 1 层。
+
+%s did not succumb.
+== %s 没有屈服！
+
+The team
+== 全队
+
+What a pity...
+== 真是可惜...
+
+See you next time.
+== 下次见。
+
+The expedition continues.
+== 远征继续。
+
+Returning all players to Floor 1.
+== 全体玩家即将回到第 1 层。

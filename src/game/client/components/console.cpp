@@ -578,7 +578,7 @@ bool CGameConsole::OnInput(IInput::CEvent Event)
 	if((Event.m_Key >= KEY_F1 && Event.m_Key <= KEY_F12) || (Event.m_Key >= KEY_F13 && Event.m_Key <= KEY_F24))
 		return false;
 
-	if(Event.m_Key == KEY_ESCAPE && (Event.m_Flags&IInput::FLAG_PRESS))
+	if((Event.m_Key == KEY_ESCAPE || Event.m_Key == KEY_GAMEPAD_BUTTON_B) && (Event.m_Flags&IInput::FLAG_PRESS))
 		Toggle(m_ConsoleType);
 	else
 		CurrentConsole()->OnInput(Event);

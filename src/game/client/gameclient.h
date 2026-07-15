@@ -78,6 +78,8 @@ public:
 	class IInput *Input() const { return m_pInput; }
 	class IStorage *Storage() const { return m_pStorage; }
 	class IConsole *Console() { return m_pConsole; }
+	bool GameplayInputCaptured() const;
+	bool GameplayInputFullyCaptured() const;
 	class ITextRender *TextRender() const { return m_pTextRender; }
 	class IDemoPlayer *DemoPlayer() const { return m_pDemoPlayer; }
 	class IDemoRecorder *DemoRecorder() const { return m_pDemoRecorder; }
@@ -316,6 +318,7 @@ public:
 	class CMapImages *m_pMapimages;
 	class CVoting *m_pVoting;
 	class CScoreboard *m_pScoreboard;
+	class CHud *m_pHud;
 	class CItems *m_pItems;
 	class CWeapons *m_pWeapons;
 	class CDroids *m_pDroids;

@@ -53,6 +53,7 @@ float VelocityRamp(float Value, float Start, float Range, float Curvature)
 CCharacterCore::CCharacterCore()
 {
 	Init(NULL, NULL);
+	Reset();
 }
 
 void CCharacterCore::Init(CWorldCore *pWorld, CCollision *pCollision)
@@ -1770,11 +1771,9 @@ void CCharacterCore::Move()
 
 void CCharacterCore::Write(CNetObj_CharacterCore *pObjCore)
 {
-	if (!m_pWorld || !m_pCollision || !m_pCollision->m_pTiles || !m_pCollision->m_pLayers)
-	{
-		dbg_msg("Error", "CCharacterCore::Write(): m_pWorld or m_pCollision are NULL!");
+	if(!pObjCore)
 		return;
-	}
+	const bool CollisionReady = m_pCollision && m_pCollision->m_pTiles && m_pCollision->m_pLayers;
 
 	pObjCore->m_X = round_to_int(m_Pos.x);
 	pObjCore->m_Y = round_to_int(m_Pos.y);
@@ -1799,7 +1798,7 @@ void CCharacterCore::Write(CNetObj_CharacterCore *pObjCore)
 	pObjCore->m_Charge = m_Charge;
 	pObjCore->m_ChargeLevel = m_ChargeLevel;
 	pObjCore->m_Sliding = m_Sliding;
-	pObjCore->m_Grounded = IsGrounded();
+	pObjCore->m_Grounded = CollisionReady ? IsGrounded() : 0;
 	pObjCore->m_Angle = m_Angle;
 	pObjCore->m_Anim = m_Anim;
 	pObjCore->m_Jetpack = m_Jetpack;
@@ -1810,7 +1809,7 @@ void CCharacterCore::Write(CNetObj_CharacterCore *pObjCore)
 	pObjCore->m_Slide = m_Slide;
 	pObjCore->m_Status = m_Status;
 	pObjCore->m_LockDirection = m_LockDirection;
-	pObjCore->m_Slope = SlopeState();
+	pObjCore->m_Slope = CollisionReady ? SlopeState() : 0;
 	pObjCore->m_Action = m_Action;
 	pObjCore->m_ActionState = m_ActionState;
 	
@@ -1877,6 +1876,7 @@ void CCharacterCore::Quantize()
 CBallCore::CBallCore()
 {
 	Init(NULL, NULL);
+	Reset();
 }
 
 void CBallCore::Init(CWorldCore *pWorld, CCollision *pCollision)
@@ -2007,11 +2007,8 @@ void CBallCore::Move()
 
 void CBallCore::Write(CNetObj_BallCore *pObjCore)
 {
-	if (!m_pWorld || !m_pCollision || !m_pCollision->m_pTiles || !m_pCollision->m_pLayers)
-	{
-		dbg_msg("Error", "CCharacterCore::Write(): m_pWorld or m_pCollision are NULL!");
+	if(!pObjCore)
 		return;
-	}
 
 	pObjCore->m_X = round_to_int(m_Pos.x);
 	pObjCore->m_Y = round_to_int(m_Pos.y);

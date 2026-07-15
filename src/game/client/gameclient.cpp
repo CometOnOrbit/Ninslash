@@ -136,6 +136,23 @@ const char *CGameClient::Version() { return GAME_VERSION; }
 const char *CGameClient::NetVersion() { return GAME_NETVERSION; }
 const char *CGameClient::GetItemName(int Type) { return m_NetObjHandler.GetObjName(Type); }
 
+bool CGameClient::GameplayInputCaptured() const
+{
+	return GameplayInputFullyCaptured() || m_pInventory->IsVisible();
+}
+
+bool CGameClient::GameplayInputFullyCaptured() const
+{
+	return m_pGameConsole->IsActive() ||
+		m_pChat->IsActive() ||
+		m_pMotd->IsActive() ||
+		m_pPveRoguelite->ChoiceActive() ||
+		m_pMenus->IsActive() ||
+		m_pGameVoteDisplay->IsActive() ||
+		gs_Spectator.IsActive() ||
+		gs_Picker.IsActive();
+}
+
 void CGameClient::OnConsoleInit()
 {
 	m_pEngine = Kernel()->RequestInterface<IEngine>();
@@ -182,6 +199,7 @@ void CGameClient::OnConsoleInit()
 	m_pMapimages = &::gs_MapImages;
 	m_pVoting = &::gs_Voting;
 	m_pScoreboard = &::gs_Scoreboard;
+	m_pHud = &::gs_Hud;
 	m_pItems = &::gs_Items;
 	m_pWeapons = &::gs_Weapons;
 	m_pBuildings = &::gs_Buildings;
@@ -510,7 +528,17 @@ void CGameClient::OnConnected()
 void CGameClient::OnReset()
 {
 	// clear out the invalid pointers
+	m_PredictedTick = -1;
 	m_LastNewPredictedTick = -1;
+	m_NewPredictedTick = false;
+	m_PredictedChar.Init(0, 0);
+	m_PredictedChar.Reset();
+	m_PredictedPrevChar.Init(0, 0);
+	m_PredictedPrevChar.Reset();
+	m_PredictedBall.Init(0, 0);
+	m_PredictedBall.Reset();
+	m_PredictedPrevBall.Init(0, 0);
+	m_PredictedPrevBall.Reset();
 	mem_zero(&g_GameClient.m_Snap, sizeof(g_GameClient.m_Snap));
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
@@ -531,7 +559,7 @@ void CGameClient::OnReset()
 void CGameClient::UpdatePositions()
 {
 	// local character position
-	if(g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK)
+	if(g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK && m_PredictedChar.IsReady() && m_PredictedPrevChar.IsReady())
 	{
 		if(!m_Snap.m_pLocalCharacter || (m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
 		{
@@ -602,7 +630,6 @@ static void Evolve(CNetObj_Character *pCharacter, int Tick)
 {
 	CWorldCore TempWorld;
 	CCharacterCore TempCore;
-	mem_zero(&TempCore, sizeof(TempCore));
 	TempCore.Init(&TempWorld, g_GameClient.Collision());
 	TempCore.Read(pCharacter);
 
@@ -621,7 +648,6 @@ static void EvolveBall(CNetObj_Ball *pBall, int Tick)
 {
 	CWorldCore TempWorld;
 	CBallCore TempCore;
-	mem_zero(&TempCore, sizeof(TempCore));
 	TempCore.Init(&TempWorld, g_GameClient.Collision());
 	TempCore.Read(pBall);
 
@@ -823,7 +849,11 @@ void CGameClient::OnStateChange(int NewState, int OldState)
 		m_All.m_paComponents[i]->OnStateChange(NewState, OldState);
 }
 
-void CGameClient::OnShutdown() {}
+void CGameClient::OnShutdown()
+{
+	if(m_pMenus)
+		m_pMenus->ShutdownLocalServer();
+}
 void CGameClient::OnEnterGame()
 {
 	CustomStuff()->Reset();
@@ -1392,6 +1422,7 @@ void CGameClient::OnNewSnapshot()
 void CGameClient::OnPredict()
 {
 	// store the previous values so we can detect prediction errors
+	const bool HadCharacterPrediction = m_PredictedChar.IsReady() && m_PredictedPrevChar.IsReady();
 	CCharacterCore BeforePrevChar = m_PredictedPrevChar;
 	CCharacterCore BeforeChar = m_PredictedChar;
 	
@@ -1457,9 +1488,15 @@ void CGameClient::OnPredict()
 			return;
 		
 		if(m_Snap.m_pLocalCharacter)
+		{
+			m_PredictedChar.Init(0, Collision());
 			m_PredictedChar.Read(m_Snap.m_pLocalCharacter);
+		}
 		if(m_Snap.m_pLocalPrevCharacter)
+		{
+			m_PredictedPrevChar.Init(0, Collision());
 			m_PredictedPrevChar.Read(m_Snap.m_pLocalPrevCharacter);  
+		}
 		return;
 	}
 
@@ -1498,6 +1535,8 @@ void CGameClient::OnPredict()
 
 	// predict
 	int PredGameTick = Client()->PredGameTick();
+	const int LocalClientID = m_Snap.m_LocalClientID;
+	const bool HasLocalClient = LocalClientID >= 0 && LocalClientID < MAX_CLIENTS;
 
 	// AntiPing prediction margin: add extra prediction ticks for smoother visuals
 	if(g_Config.m_ClAntiPing && g_Config.m_ClPredictionMargin > 0)
@@ -1510,8 +1549,8 @@ void CGameClient::OnPredict()
 	for(int Tick = Client()->GameTick()+1; Tick <= PredGameTick; Tick++)
 	{
 		// fetch the local at the original predicted tick (before anti-ping extension)
-		if(Tick == Client()->PredGameTick() && World.m_apCharacters[m_Snap.m_LocalClientID])
-			m_PredictedPrevChar = *World.m_apCharacters[m_Snap.m_LocalClientID];
+		if(Tick == Client()->PredGameTick() && HasLocalClient && World.m_apCharacters[LocalClientID])
+			m_PredictedPrevChar = *World.m_apCharacters[LocalClientID];
 
 		// first calculate where everyone should move
 		for(int c = 0; c < MAX_CLIENTS; c++)
@@ -1520,7 +1559,7 @@ void CGameClient::OnPredict()
 				continue;
 
 			mem_zero(&World.m_apCharacters[c]->m_Input, sizeof(World.m_apCharacters[c]->m_Input));
-			if(m_Snap.m_LocalClientID == c)
+			if(HasLocalClient && LocalClientID == c)
 			{
 				// apply player input
 				int *pInput = Client()->GetInput(Tick);
@@ -1574,10 +1613,10 @@ void CGameClient::OnPredict()
 			}
 			
 			// player events
-			if(m_Snap.m_LocalClientID != -1 && World.m_apCharacters[m_Snap.m_LocalClientID])
+			if(HasLocalClient && World.m_apCharacters[LocalClientID])
 			{
-				vec2 Pos = World.m_apCharacters[m_Snap.m_LocalClientID]->m_Pos;
-				int Events = World.m_apCharacters[m_Snap.m_LocalClientID]->m_TriggeredEvents;
+				vec2 Pos = World.m_apCharacters[LocalClientID]->m_Pos;
+				int Events = World.m_apCharacters[LocalClientID]->m_TriggeredEvents;
 				if(Events&COREEVENT_GROUND_JUMP) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_PLAYER_JUMP, 1.0f, Pos);
 
 				if(Events&COREEVENT_HOOK_ATTACH_GROUND) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_HOOK_ATTACH_GROUND, 1.0f, Pos);
@@ -1591,11 +1630,11 @@ void CGameClient::OnPredict()
 			}
 		}
 
-		if(Tick == PredGameTick && World.m_apCharacters[m_Snap.m_LocalClientID])
-			m_PredictedChar = *World.m_apCharacters[m_Snap.m_LocalClientID];
+		if(Tick == PredGameTick && HasLocalClient && World.m_apCharacters[LocalClientID])
+			m_PredictedChar = *World.m_apCharacters[LocalClientID];
 	}
 
-	if(g_Config.m_Debug && g_Config.m_ClPredict && m_PredictedTick == Client()->PredGameTick())
+	if(g_Config.m_Debug && g_Config.m_ClPredict && HadCharacterPrediction && m_PredictedTick == Client()->PredGameTick())
 	{
 		CNetObj_CharacterCore Before = {0}, Now = {0}, BeforePrev = {0}, NowPrev = {0};
 		BeforeChar.Write(&Before);

@@ -56,6 +56,11 @@ int CNetServer::Close()
 
 int CNetServer::Drop(int ClientID, const char *pReason)
 {
+	if(ClientID < 0 || ClientID >= NET_MAX_CLIENTS)
+	{
+		dbg_msg("net_server", "refusing to drop invalid client id %d", ClientID);
+		return -1;
+	}
 	// TODO: insert lots of checks here
 	/*NETADDR Addr = ClientAddr(ClientID);
 
@@ -252,12 +257,20 @@ int CNetServer::Send(CNetChunk *pChunk)
 	else
 	{
 		int Flags = 0;
-		dbg_assert(pChunk->m_ClientID >= 0, "errornous client id");
-		dbg_assert(pChunk->m_ClientID < MaxClients(), "errornous client id");
-
-		// might crash, fatal error
-		if (m_SlotTakenByBot[pChunk->m_ClientID])
+		if(pChunk->m_ClientID < 0 || pChunk->m_ClientID >= NET_MAX_CLIENTS)
+		{
+			dbg_msg("netserver", "invalid client id %d, dropping packet", pChunk->m_ClientID);
 			return -1;
+		}
+		// AI clients deliberately occupy logical slots above the network limit.
+		// They must be filtered before checking the number of real connections.
+		if(m_SlotTakenByBot[pChunk->m_ClientID])
+			return 0;
+		if(pChunk->m_ClientID >= MaxClients())
+		{
+			dbg_msg("netserver", "client id %d exceeds connection limit %d, dropping packet", pChunk->m_ClientID, MaxClients());
+			return -1;
+		}
 		
 		if(pChunk->m_Flags&NETSENDFLAG_VITAL)
 			Flags = NET_CHUNKFLAG_VITAL;

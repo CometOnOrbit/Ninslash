@@ -44,6 +44,7 @@ class CMapGen
 	void GenerateCrawlerDroid(class CGenLayer *pTiles);
 	void GenerateBossCrawlerDroid(class CGenLayer *pTiles);
 	void GenerateEnemySpawn(class CGenLayer *pTiles);
+	void GenerateBossEnemySpawn(class CGenLayer *pTiles);
 	void GenerateHearts(class CGenLayer *pTiles);
 	void GenerateAmmo(class CGenLayer *pTiles);
 	void GenerateArmor(class CGenLayer *pTiles);
@@ -89,7 +90,7 @@ class CMapGen
 	struct CConfiguration
 	{
 		array<CIndexRule> m_aIndexRules;
-		char m_aName[128];
+		char m_aName[128] = {};
 	};
 	
 	array<CConfiguration> m_lConfigs;

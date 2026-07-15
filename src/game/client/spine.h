@@ -52,6 +52,23 @@ enum
 class CSpineAttachment
 {
 public:
+	CSpineAttachment() :
+		m_Type(SPINE_ATTACHMENT_REGION)
+	{
+		m_Region.m_X = 0.0f;
+		m_Region.m_Y = 0.0f;
+		m_Region.m_ScaleX = 1.0f;
+		m_Region.m_ScaleY = 1.0f;
+		m_Region.m_Rotation = 0.0f;
+		m_Region.m_Width = 0.0f;
+		m_Region.m_Height = 0.0f;
+		m_RegionSeq.m_Fps = 0.0f;
+		m_RegionSeq.m_Mode = SPINE_SEQUENCE_MODE_FORWARD;
+		m_SkinnedMesh.m_Hull = 0;
+		m_SkinnedMesh.m_Width = 0.0f;
+		m_SkinnedMesh.m_Height = 0.0f;
+	}
+
 	string m_Name;
 	int m_Type;
 
@@ -302,10 +319,10 @@ class CSpineAtlasPage
 {
 public:
 	string m_Name;
-	int m_Format;
-	int m_Width, m_Height;
-	int m_FilterMin, m_FilterMag;
-	int Repeat; // TODO: ?
+	int m_Format = SPINE_ATLAS_FMT_R8G8B8A8;
+	int m_Width = 0, m_Height = 0;
+	int m_FilterMin = SPINE_ATLAS_FILTER_NEAREST, m_FilterMag = SPINE_ATLAS_FILTER_NEAREST;
+	int Repeat = 0; // TODO: ?
 
 	array<CSpineAtlasRegion> m_lRegions;
 };

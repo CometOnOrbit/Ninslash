@@ -34,6 +34,7 @@ public:
 	virtual void OnReset();
 
 	void Spectate(int SpectatorID);
+	bool IsActive() const { return m_Active; }
 };
 
 #endif

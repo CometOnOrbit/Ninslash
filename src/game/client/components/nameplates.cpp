@@ -27,7 +27,8 @@ void CNamePlates::RenderNameplate(
 	if(pPlayerInfo->m_Local && g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 	{
 		if(m_pClient->m_Snap.m_pLocalCharacter &&
-			!(m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
+			!(m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER) &&
+			m_pClient->m_PredictedChar.IsReady() && m_pClient->m_PredictedPrevChar.IsReady())
 		{
 			m_pClient->m_PredictedChar.Write(&Player);
 			m_pClient->m_PredictedPrevChar.Write(&Prev);

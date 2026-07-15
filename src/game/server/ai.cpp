@@ -110,6 +110,8 @@ void CAI::Reset()
 	m_TargetPos = vec2(0, 0);
 	m_PlayerSpotTimer = 0;
 	m_PlayerSpotCount = 0;
+	m_LineOfSightCacheTick = -1;
+	mem_zero(m_aLineOfSightCache, sizeof(m_aLineOfSightCache));
 	
 	m_TurnSpeed = 0.2f;
 	
@@ -1299,12 +1301,35 @@ void CAI::ShootAtBlocks()
 	*/
 }
 
+bool CAI::HasLineOfSight(CCharacter *pCharacter)
+{
+	if(!pCharacter || !pCharacter->GetPlayer())
+		return false;
+
+	const int Tick = GameServer()->Server()->Tick();
+	if(m_LineOfSightCacheTick != Tick)
+	{
+		m_LineOfSightCacheTick = Tick;
+		mem_zero(m_aLineOfSightCache, sizeof(m_aLineOfSightCache));
+	}
+
+	const int ClientID = pCharacter->GetPlayer()->GetCID();
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, m_LastPos);
+
+	if(m_aLineOfSightCache[ClientID] == 0)
+		m_aLineOfSightCache[ClientID] = GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, m_LastPos) ? 1 : 2;
+	return m_aLineOfSightCache[ClientID] == 2;
+}
+
 
 void CAI::ShootAtClosestHuman()
 {
 	CCharacter *pClosestCharacter = NULL;
-	int ClosestDistance = 0;	
+	float ClosestDistanceSq = 0.0f;
 	int Weapon = Player()->GetCharacter()->GetWeaponType();
+	const float AttackRange = AIAttackRange(Weapon);
+	const float AttackRangeSq = AttackRange * AttackRange;
 	
 	// FIRST_BOT_ID, fix
 	for (int i = 0; i < MAX_CLIENTS; i++)
@@ -1326,22 +1351,26 @@ void CAI::ShootAtClosestHuman()
 		if (!pCharacter->IsAlive())
 			continue;
 			
-		int Distance = distance(pCharacter->m_Pos, m_LastPos);
-		if (Distance < AIAttackRange(Weapon) && 
-			!GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, m_LastPos))
+		const vec2 Delta = pCharacter->m_Pos - m_LastPos;
+		const float DistanceSq = dot(Delta, Delta);
+		if(DistanceSq < AttackRangeSq && HasLineOfSight(pCharacter))
 		{
-			if (!pClosestCharacter || Distance < ClosestDistance)
+			if(!pClosestCharacter || DistanceSq < ClosestDistanceSq)
 			{
 				pClosestCharacter = pCharacter;
-				ClosestDistance = Distance;
-				m_PlayerDirection = pCharacter->m_Pos - m_LastPos;
-				m_PlayerPos = pCharacter->m_Pos;
+				ClosestDistanceSq = DistanceSq;
 			}
 		}
 	}
 	
-	if (pClosestCharacter && ClosestDistance < WeaponShootRange()*1.2f)
+	if(pClosestCharacter)
 	{
+		const int ClosestDistance = (int)sqrtf(ClosestDistanceSq);
+		m_PlayerDirection = pClosestCharacter->m_Pos - m_LastPos;
+		m_PlayerPos = pClosestCharacter->m_Pos;
+		if(ClosestDistance >= WeaponShootRange() * 1.2f)
+			return;
+
 		vec2 AttackDirection = vec2(m_PlayerDirection.x+ClosestDistance*(frandom()*0.3f-frandom()*0.3f), m_PlayerDirection.y+ClosestDistance*(frandom()*0.3f-frandom()*0.3f));
 		
 		if (m_HookTick < GameServer()->Server()->Tick() - 20)
@@ -1368,8 +1397,10 @@ void CAI::ShootAtClosestHuman()
 bool CAI::ShootAtClosestEnemy()
 {
 	CCharacter *pClosestCharacter = NULL;
-	int ClosestDistance = 0;
+	float ClosestDistanceSq = 0.0f;
 	int Weapon = Player()->GetCharacter()->GetWeaponType();
+	const float AttackRange = AIAttackRange(Weapon);
+	const float AttackRangeSq = AttackRange * AttackRange;
 	
 	m_EnemyInLine = false;
 	
@@ -1397,32 +1428,33 @@ bool CAI::ShootAtClosestEnemy()
 			continue;
 		
 		
-		int Distance = distance(pCharacter->m_Pos, m_LastPos);
-		if (Distance < AIAttackRange(Weapon) && 
-			!GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, m_LastPos))
+		const vec2 Delta = pCharacter->m_Pos - m_LastPos;
+		const float DistanceSq = dot(Delta, Delta);
+		if(DistanceSq < AttackRangeSq && HasLineOfSight(pCharacter))
 		{
 			if (abs(pCharacter->m_Pos.x - m_LastPos.x) < 96 && abs(pCharacter->m_Pos.y - m_LastPos.y) < 22)
 				m_EnemyInLine = true;
 			
-			if (!pClosestCharacter || Distance < ClosestDistance)
+			if(!pClosestCharacter || DistanceSq < ClosestDistanceSq)
 			{
 				pClosestCharacter = pCharacter;
-				ClosestDistance = Distance;
-				
-				float t = m_DispersionTick*0.1f;
-				vec2 Dispersion = vec2( 11*cos(t)-6*cos(11.0f/6 * t),
-										11*sin(t)-6*sin(11.0f/6 * t));
-				
-				// range 64 - 0, power level range 20
-				Dispersion *= 3.765f - m_PowerLevel*0.188f;
-				Dispersion *= 2.0f;
-				
-				Dispersion *= Distance*0.005f;
-				
-				m_PlayerDirection = pCharacter->m_Pos - m_LastPos + Dispersion;
-				m_PlayerPos = pCharacter->m_Pos + Dispersion;
+				ClosestDistanceSq = DistanceSq;
 			}
 		}
+	}
+
+	int ClosestDistance = 0;
+	if(pClosestCharacter)
+	{
+		ClosestDistance = (int)sqrtf(ClosestDistanceSq);
+		const float t = m_DispersionTick * 0.1f;
+		vec2 Dispersion = vec2(11 * cos(t) - 6 * cos(11.0f / 6 * t),
+			11 * sin(t) - 6 * sin(11.0f / 6 * t));
+		Dispersion *= 3.765f - m_PowerLevel * 0.188f;
+		Dispersion *= 2.0f;
+		Dispersion *= ClosestDistance * 0.005f;
+		m_PlayerDirection = pClosestCharacter->m_Pos - m_LastPos + Dispersion;
+		m_PlayerPos = pClosestCharacter->m_Pos + Dispersion;
 	}
 	
 	//if (GetWeaponFiringType(Weapon) != WFT_NONE)
@@ -1534,7 +1566,7 @@ bool CAI::ShootAtClosestMonster()
 }
 
 
-bool CAI::ShootAtClosestBuilding()
+bool CAI::ShootAtClosestBuilding(bool ReactorOnly)
 {
 	CBuilding *pClosestBuilding = NULL;
 	int ClosestDistance = 0;
@@ -1547,9 +1579,11 @@ bool CAI::ShootAtClosestBuilding()
 	for (int i = 0; i < Num; ++i)
 	{
 		CBuilding *pBuilding = apEnts[i];
+		const bool ReactorObjective = pBuilding->m_Type == BUILDING_REACTOR && pBuilding->m_PveReactorObjective &&
+			GameServer()->m_pController->IsReactorDefenseActive();
 
-		if (pBuilding->m_Type == BUILDING_TURRET || pBuilding->m_Type == BUILDING_TESLACOIL || pBuilding->m_Type == BUILDING_MINE1 || pBuilding->m_Type == BUILDING_MINE2 ||
-			(str_comp(g_Config.m_SvGametype, "base") == 0 && (pBuilding->m_Type == BUILDING_REACTOR || pBuilding->m_Type == BUILDING_TESLACOIL || pBuilding->m_Type == BUILDING_FLAMETRAP || pBuilding->m_Type == BUILDING_LIGHTNINGWALL || pBuilding->m_Type == BUILDING_LIGHTNINGWALL2)))
+		if (ReactorObjective || (!ReactorOnly && (pBuilding->m_Type == BUILDING_TURRET || pBuilding->m_Type == BUILDING_TESLACOIL || pBuilding->m_Type == BUILDING_MINE1 || pBuilding->m_Type == BUILDING_MINE2 ||
+			(str_comp(g_Config.m_SvGametype, "base") == 0 && (pBuilding->m_Type == BUILDING_REACTOR || pBuilding->m_Type == BUILDING_TESLACOIL || pBuilding->m_Type == BUILDING_FLAMETRAP || pBuilding->m_Type == BUILDING_LIGHTNINGWALL || pBuilding->m_Type == BUILDING_LIGHTNINGWALL2)))))
 		{
 		
 			if (GameServer()->m_pController->IsTeamplay() && pBuilding->m_Team == Player()->GetTeam())
@@ -1785,6 +1819,8 @@ bool CAI::SeekClosestReactor()
 
 		if (pBuilding->m_Type != BUILDING_REACTOR)
 			continue;
+		if(GameServer()->m_pController->IsReactorDefenseActive() && !pBuilding->m_PveReactorObjective)
+			continue;
 	
 		int Distance = distance(pBuilding->m_Pos, m_LastPos);
 		if (!pClosestBuilding || Distance < ClosestDistance)
@@ -1801,6 +1837,43 @@ bool CAI::SeekClosestReactor()
 	}
 	
 	return false;
+}
+
+
+bool CAI::PrioritizeReactorObjective()
+{
+	if(!GameServer()->m_pController->IsReactorDefenseActive() || !SeekClosestReactor())
+		return false;
+
+	m_Triggered = true;
+	m_Attack = 0;
+	const bool Shooting = ShootAtClosestBuilding(true);
+	const float TargetDistance = distance(m_Pos, m_TargetPos);
+	const float StopDistance = max(56.0f, WeaponShootRange() * 0.9f);
+
+	if(Shooting && TargetDistance <= StopDistance)
+	{
+		m_Move = 0;
+		m_Jump = 0;
+		m_Hook = 0;
+	}
+	else
+	{
+		m_DontMoveTick = 0;
+		if(m_OldTargetPos != m_TargetPos)
+			m_WaypointUpdateNeeded = true;
+		if(UpdateWaypoint())
+			MoveTowardsWaypoint();
+		else
+		{
+			m_WaypointPos = m_TargetPos;
+			m_WaypointDir = m_TargetPos - m_Pos;
+			MoveTowardsWaypoint(true);
+		}
+		if(!Shooting)
+			m_Direction = m_TargetPos - m_Pos;
+	}
+	return true;
 }
 
 
@@ -1900,7 +1973,8 @@ bool CAI::SeekClosestEnemy()
 bool CAI::SeekClosestHumanInSight()
 {
 	CCharacter *pClosestCharacter = NULL;
-	int ClosestDistance = 0;
+	float ClosestDistanceSq = 0.0f;
+	const float SightRangeSq = 900.0f * 900.0f;
 	
 	m_EnemiesInSight = 0;
 	
@@ -1924,19 +1998,16 @@ bool CAI::SeekClosestHumanInSight()
 		if (!pCharacter->IsAlive())
 			continue;
 			
-		int Distance = distance(pCharacter->m_Pos, m_LastPos);
-		if (Distance < 900 && 
-			!GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, m_LastPos))
-			//!GameServer()->Collision()->IntersectLine(pCharacter->m_Pos, m_LastPos, NULL, NULL))
+		const vec2 Delta = pCharacter->m_Pos - m_LastPos;
+		const float DistanceSq = dot(Delta, Delta);
+		if(DistanceSq < SightRangeSq && HasLineOfSight(pCharacter))
 		{
 			m_EnemiesInSight++;
 			
-			if (!pClosestCharacter || Distance < ClosestDistance)
+			if(!pClosestCharacter || DistanceSq < ClosestDistanceSq)
 			{
 				pClosestCharacter = pCharacter;
-				ClosestDistance = Distance;
-				m_PlayerDirection = pCharacter->m_Pos - m_LastPos;
-				m_PlayerPos = pCharacter->m_Pos;
+				ClosestDistanceSq = DistanceSq;
 			}
 		}
 	}
@@ -1947,7 +2018,9 @@ bool CAI::SeekClosestHumanInSight()
 	if (pClosestCharacter)
 	{
 		m_PlayerSpotCount++;
-		m_PlayerDistance = ClosestDistance;
+		m_PlayerDistance = (int)sqrtf(ClosestDistanceSq);
+		m_PlayerDirection = pClosestCharacter->m_Pos - m_LastPos;
+		m_PlayerPos = pClosestCharacter->m_Pos;
 		return true;
 	}
 
@@ -1959,7 +2032,8 @@ bool CAI::SeekClosestHumanInSight()
 bool CAI::SeekClosestEnemyInSight()
 {
 	CCharacter *pClosestCharacter = NULL;
-	int ClosestDistance = 0;
+	float ClosestDistanceSq = 0.0f;
+	const float SightRangeSq = 900.0f * 900.0f;
 	
 	m_EnemiesInSight = 0;
 	
@@ -1986,19 +2060,16 @@ bool CAI::SeekClosestEnemyInSight()
 		if (GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
 			continue;
 			
-		int Distance = distance(pCharacter->m_Pos, m_LastPos);
-		if (Distance < 900 && 
-			!GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, m_LastPos))
-			//!GameServer()->Collision()->IntersectLine(pCharacter->m_Pos, m_LastPos, NULL, NULL))
+		const vec2 Delta = pCharacter->m_Pos - m_LastPos;
+		const float DistanceSq = dot(Delta, Delta);
+		if(DistanceSq < SightRangeSq && HasLineOfSight(pCharacter))
 		{
 			m_EnemiesInSight++;
 			
-			if (!pClosestCharacter || Distance < ClosestDistance)
+			if(!pClosestCharacter || DistanceSq < ClosestDistanceSq)
 			{
 				pClosestCharacter = pCharacter;
-				ClosestDistance = Distance;
-				m_PlayerDirection = pCharacter->m_Pos - m_LastPos;
-				m_PlayerPos = pCharacter->m_Pos;
+				ClosestDistanceSq = DistanceSq;
 			}
 		}
 	}
@@ -2009,7 +2080,9 @@ bool CAI::SeekClosestEnemyInSight()
 	if (pClosestCharacter)
 	{
 		m_PlayerSpotCount++;
-		m_PlayerDistance = ClosestDistance;
+		m_PlayerDistance = (int)sqrtf(ClosestDistanceSq);
+		m_PlayerDirection = pClosestCharacter->m_Pos - m_LastPos;
+		m_PlayerPos = pClosestCharacter->m_Pos;
 		return true;
 	}
 
@@ -2088,6 +2161,7 @@ void CAI::Tick()
 	
 		m_EnemyInLine = false;
 		DoBehavior();
+		PrioritizeReactorObjective();
 		UseItems();
 		
 		if (m_AutoWeaponChange)
@@ -2163,6 +2237,3 @@ void CAI::Tick()
 	m_DisplayDirection.x += (m_Direction.x - m_DisplayDirection.x) / max(1.0f, 14.0f - m_PowerLevel*0.75f);
 	m_DisplayDirection.y += (m_Direction.y - m_DisplayDirection.y) / max(1.0f, 14.0f - m_PowerLevel*0.75f);
 }
-
-
-

@@ -834,4 +834,23 @@ Messages = [
 		NetIntAny("m_Nonce"),
 		NetIntRange("m_Module", 1, 3),
 	]),
+
+	NetMessage("Sv_PveInvasionRetryVote", [
+		NetIntAny("m_Nonce"),
+		NetIntAny("m_EndTick"),
+		NetIntRange("m_CurrentFloor", 1, 9999),
+		NetIntRange("m_RetryVotes", 0, 'MAX_CLIENTS'),
+		NetIntRange("m_ResetVotes", 0, 'MAX_CLIENTS'),
+	]),
+
+	NetMessage("Sv_PveInvasionRetryResult", [
+		NetIntRange("m_Result", 0, 2),
+		NetIntAny("m_EndTick"),
+		NetStringStrict("m_pPlayerName"),
+	]),
+
+	NetMessage("Cl_PveInvasionRetryVote", [
+		NetIntAny("m_Nonce"),
+		NetIntRange("m_Choice", 0, 1),
+	]),
 ]

@@ -369,6 +369,14 @@
             "value": "關卡 %d - %s"
         },
         {
+            "key": "Level %d - Attempt %d",
+            "value": "樓層 %d - 第 %d 次嘗試"
+        },
+        {
+            "key": "Level %d - Final attempt",
+            "value": "樓層 %d - 最後一次機會"
+        },
+        {
             "key": "Level %d - Last chance",
             "value": "樓層 %d - 孤注一擲"
         },

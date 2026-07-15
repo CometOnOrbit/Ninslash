@@ -477,9 +477,6 @@ void CServer::SetClientScore(int ClientID, int Score)
 
 void CServer::Kick(int ClientID, const char *pReason)
 {
-	m_NetServer.m_SlotTakenByBot[ClientID] = false;
-	m_aClients[ClientID].m_Bot = false;
-	
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_aClients[ClientID].m_State == CClient::STATE_EMPTY)
 	{
 		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "invalid client id to kick");
@@ -506,8 +503,6 @@ void CServer::KickBots()
 	{
 		if (m_aClients[i].m_State != CClient::STATE_EMPTY && m_NetServer.m_SlotTakenByBot[i])
 		{
-			m_aClients[i].m_Bot = false;
-			m_NetServer.m_SlotTakenByBot[i] = false;
 			m_NetServer.Drop(i, "");
 		}
 	}
@@ -987,8 +982,9 @@ int CServer::SendMsgEx(CMsgPacker *pMsg, int Flags, int ClientID, bool System)
 		}
 		else
 		{
-			// potential fatal error crash bug
-			if (!m_aClients[ClientID].m_Bot)
+			if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+				return -1;
+			if(!m_aClients[ClientID].m_Bot)
 				m_NetServer.Send(&Packet);
 		}
 	}
@@ -1157,6 +1153,7 @@ int CServer::DelClientCallback(int ClientID, const char *pReason, void *pUser)
 	if(pThis->m_aClients[ClientID].m_State >= CClient::STATE_READY)
 		pThis->GameServer()->OnClientDrop(ClientID, pReason);
 
+	pThis->m_aClients[ClientID].m_Bot = false;
 	pThis->m_aClients[ClientID].m_State = CClient::STATE_EMPTY;
 	pThis->m_aClients[ClientID].m_aName[0] = 0;
 	pThis->m_aClients[ClientID].m_aClan[0] = 0;
@@ -1689,7 +1686,7 @@ int CServer::LoadMap(const char *pMapName)
 {
 	if (str_comp(pMapName, "generated") != 0)
 		m_MapGenerated = false;
-	else if (g_Config.m_SvMapGen)
+	else if(g_Config.m_SvMapGen && str_comp(m_aCurrentMap, "generated") != 0)
 		str_copy(g_Config.m_SvInvMap, m_aCurrentMap, sizeof(g_Config.m_SvInvMap));
 		
 	
@@ -2292,7 +2289,7 @@ int main(int argc, const char **argv) // ignore_convention
 void CServer::AddZombie()
 {
 	int ClientID = -1;
-	for (int i = MAX_CLIENTS; i > 0; i--)
+	for(int i = MAX_CLIENTS - 1; i > 0; i--)
 	{
 		if (m_aClients[i].m_State == CClient::STATE_EMPTY)
 		{

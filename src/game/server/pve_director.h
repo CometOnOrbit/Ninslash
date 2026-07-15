@@ -58,6 +58,7 @@ class CPveDirector
 		int m_DroneActionTick;
 		int m_LastDroneNonce;
 		int m_LastBuildStateTick;
+		int m_aLastBuildState[11];
 		int m_KillChainStacks;
 		int m_KillChainEndTick;
 		int m_SustainedHits;
@@ -128,6 +129,9 @@ class CPveDirector
 	int m_BlackBoxHoldTicks;
 	bool m_ApplyingSecondaryEffect;
 	CTargetStatus m_aTargetStatus[256];
+	int m_TargetSummaryTick;
+	int m_VulnerableTargetCount;
+	int m_BleedingTargetCount;
 	int m_DeathlessHordeWaves;
 	bool m_AnyStageDeath;
 	CPendingBlast m_aPendingBlasts[32];
@@ -162,12 +166,14 @@ class CPveDirector
 	int VulnerablePercent(CEntity *pTarget);
 	void ProcessHit(int ClientID, CEntity *pTarget, int Weapon, int Damage, bool Direct);
 	void TickTargetStatuses();
+	void UpdateTargetSummary();
 	void ScheduleSecondaryBlast(int ClientID, int Weapon, vec2 Pos, int Damage);
 	void TickPendingBlasts();
 	void ApplyThunderhead(int ClientID, CEntity *pTarget, int Weapon, int Damage);
 	void TickPlayerState(int ClientID);
 	void TickDrone(int ClientID);
 	float DroneEfficiency(int ClientID) const;
+	bool InHordeDefenseArea(int ClientID) const;
 	void SendBuildState(int ClientID, bool Force = false);
 	void DestroyDrone(int ClientID);
 

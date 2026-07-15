@@ -113,7 +113,7 @@ void CPlayers::RenderHook(
 		if(!m_pClient->m_Snap.m_pLocalCharacter || (m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
 		{
 		}
-		else
+		else if(m_pClient->m_PredictedChar.IsReady() && m_pClient->m_PredictedPrevChar.IsReady())
 		{
 			// apply predicted results
 			m_pClient->m_PredictedChar.Write(&Player);
@@ -268,9 +268,8 @@ void CPlayers::RenderPlayer(
 		if(!m_pClient->m_Snap.m_pLocalCharacter || (m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
 		{
 		}
-		else
+		else if(m_pClient->m_PredictedChar.IsReady() && m_pClient->m_PredictedPrevChar.IsReady())
 		{
-			// m_PredictedChar.Write causes crash on some conditions when joining the game! todo: fix somehow 
 			// apply predicted results
 			m_pClient->m_PredictedChar.Write(&Player);
 			m_pClient->m_PredictedPrevChar.Write(&Prev);

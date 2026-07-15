@@ -43,6 +43,7 @@ private:
 	int m_SpawnPosRotation;
 	
 	void NextWave();
+	bool GetBossSpawnPos(vec2 *pOutPos);
 	
 	int ReactorsLeft();
 	

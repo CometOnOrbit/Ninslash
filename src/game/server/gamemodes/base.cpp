@@ -104,6 +104,16 @@ bool CGameControllerBase::GetSpawnPos(int Team, vec2 *pOutPos)
 	return true;
 }
 
+bool CGameControllerBase::GetBossSpawnPos(vec2 *pOutPos)
+{
+	if(FindBossSpawnPosition(&GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
+		return true;
+	if(!GetSpawnPos(0, pOutPos))
+		return false;
+	*pOutPos += vec2(0.0f, -100.0f);
+	return true;
+}
+
 
 void CGameControllerBase::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 {
@@ -300,9 +310,10 @@ void CGameControllerBase::NextWave()
 		
 	if (m_Wave > 7)
 	{
-			vec2 p;
-			GetSpawnPos(0, &p);
-			SpawnBoss(&GameServer()->m_World, p+vec2(0, -100), m_Wave);
+		vec2 p;
+		if(!GetBossSpawnPos(&p))
+			p = vec2(4000, 4000);
+		SpawnBoss(&GameServer()->m_World, p, m_Wave);
 	}
 	
 	// add bots

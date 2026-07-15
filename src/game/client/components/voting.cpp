@@ -5,6 +5,7 @@
 #include <generated/protocol.h>
 #include <base/vmath.h>
 #include <game/client/render.h>
+#include <game/client/components/menus.h>
 #include "voting.h"
 
 void CVoting::ConCallvote(IConsole::IResult *pResult, void *pUserData)
@@ -20,6 +21,21 @@ void CVoting::ConVote(IConsole::IResult *pResult, void *pUserData)
 		pSelf->Vote(1);
 	else if(str_comp_nocase(pResult->GetString(0), "no") == 0)
 		pSelf->Vote(-1);
+}
+
+void CVoting::ConDebugVote(IConsole::IResult *pResult, void *pUserData)
+{
+	CVoting *pSelf = (CVoting *)pUserData;
+	pSelf->OnReset();
+	const int Seconds = pResult->NumArguments() ? clamp(pResult->GetInteger(0), 5, 60) : 25;
+	str_copy(pSelf->m_aDescription, "Restart the current round", sizeof(pSelf->m_aDescription));
+	str_copy(pSelf->m_aReason, "HUD layout preview", sizeof(pSelf->m_aReason));
+	pSelf->m_Yes = 3;
+	pSelf->m_No = 1;
+	pSelf->m_Pass = 2;
+	pSelf->m_Total = 6;
+	pSelf->m_Closetime = time_get() + time_freq() * Seconds;
+	pSelf->m_DebugVoteActive = true;
 }
 
 void CVoting::Callvote(const char *pType, const char *pValue, const char *pReason)
@@ -126,6 +142,7 @@ CVoting::CVoting()
 	m_aReason[0] = 0;
 	m_Yes = m_No = m_Pass = m_Total = 0;
 	m_Voted = 0;
+	m_DebugVoteActive = false;
 }
 
 void CVoting::AddOption(const char *pDescription)
@@ -169,6 +186,8 @@ void CVoting::ClearOptions()
 
 void CVoting::OnReset()
 {
+	if(m_DebugVoteActive && m_Closetime > time_get())
+		return;
 	if(Client()->State() == IClient::STATE_LOADING)	// do not reset active vote while connecting
 		return;
 
@@ -177,12 +196,14 @@ void CVoting::OnReset()
 	m_aReason[0] = 0;
 	m_Yes = m_No = m_Pass = m_Total = 0;
 	m_Voted = 0;
+	m_DebugVoteActive = false;
 }
 
 void CVoting::OnConsoleInit()
 {
 	Console()->Register("callvote", "ss?r", CFGFLAG_CLIENT, ConCallvote, this, "Call vote");
 	Console()->Register("vote", "r", CFGFLAG_CLIENT, ConVote, this, "Vote yes/no");
+	Console()->Register("hud_debug_vote", "?i", CFGFLAG_CLIENT, ConDebugVote, this, "Preview the in-game vote HUD for 5-60 seconds");
 }
 
 void CVoting::OnMessage(int MsgType, void *pRawMsg)
@@ -190,6 +211,7 @@ void CVoting::OnMessage(int MsgType, void *pRawMsg)
 	if(MsgType == NETMSGTYPE_SV_VOTESET)
 	{
 		CNetMsg_Sv_VoteSet *pMsg = (CNetMsg_Sv_VoteSet *)pRawMsg;
+		m_DebugVoteActive = false;
 		if(pMsg->m_Timeout)
 		{
 			OnReset();
@@ -287,13 +309,10 @@ void CVoting::OnRender()
 
 void CVoting::RenderBars(CUIRect Bars, bool Text)
 {
-	RenderTools()->DrawUIRect(&Bars, vec4(0.8f,0.8f,0.8f,0.5f), CUI::CORNER_ALL, Bars.h/3);
-
-	CUIRect Splitter = Bars;
-	Splitter.x = Splitter.x+Splitter.w/2;
-	Splitter.w = Splitter.h/2.0f;
-	Splitter.x -= Splitter.w/2;
-	RenderTools()->DrawUIRect(&Splitter, vec4(0.4f,0.4f,0.4f,0.5f), CUI::CORNER_ALL, Splitter.h/4);
+	const vec4 Deep = CMenus::ThemeBgDeep();
+	const vec4 AccentDim = CMenus::ThemeAccentDim();
+	const vec4 Danger = CMenus::ThemeDanger();
+	RenderTools()->DrawUIRect(&Bars, vec4(Deep.r, Deep.g, Deep.b, 0.92f), CUI::CORNER_ALL, Bars.h/2.0f);
 
 	if(m_Total)
 	{
@@ -302,7 +321,7 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 		{
 			CUIRect YesArea = Bars;
 			YesArea.w *= m_Yes/(float)m_Total;
-			RenderTools()->DrawUIRect(&YesArea, vec4(0.2f,0.9f,0.2f,0.85f), CUI::CORNER_ALL, Bars.h/3);
+			RenderTools()->DrawUIRect(&YesArea, vec4(0.25f, 0.78f, 0.43f, 0.92f), CUI::CORNER_ALL, Bars.h/2.0f);
 
 			if(Text)
 			{
@@ -320,7 +339,7 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 			CUIRect NoArea = Bars;
 			NoArea.w *= m_No/(float)m_Total;
 			NoArea.x = (Bars.x + Bars.w)-NoArea.w;
-			RenderTools()->DrawUIRect(&NoArea, vec4(0.9f,0.2f,0.2f,0.85f), CUI::CORNER_ALL, Bars.h/3);
+			RenderTools()->DrawUIRect(&NoArea, vec4(Danger.r, Danger.g, Danger.b, 0.92f), CUI::CORNER_ALL, Bars.h/2.0f);
 
 			if(Text)
 			{
@@ -332,13 +351,22 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 			PassArea.w -= NoArea.w;
 		}
 
-		if(Text && m_Pass)
+		if(m_Pass && PassArea.w > 0.0f)
 		{
-			char Buf[256];
-			str_format(Buf, sizeof(Buf), "%d", m_Pass);
-			UI()->DoLabel(&PassArea, Buf, Bars.h*0.75f, 0);
+			RenderTools()->DrawUIRect(&PassArea, vec4(AccentDim.r, AccentDim.g, AccentDim.b, 0.48f), CUI::CORNER_ALL, Bars.h/2.0f);
+			if(Text)
+			{
+				char Buf[256];
+				str_format(Buf, sizeof(Buf), "%d", m_Pass);
+				UI()->DoLabel(&PassArea, Buf, Bars.h*0.75f, 0);
+			}
 		}
 	}
+
+	CUIRect Majority = Bars;
+	Majority.x += Majority.w * 0.5f - 0.35f;
+	Majority.w = 0.7f;
+	Majority.y += 0.6f;
+	Majority.h -= 1.2f;
+	RenderTools()->DrawUIRect(&Majority, vec4(1, 1, 1, 0.36f), CUI::CORNER_ALL, 0.3f);
 }
-
-

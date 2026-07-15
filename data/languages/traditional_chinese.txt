@@ -697,6 +697,9 @@ Reach the door
 Ready
 == 準備
 
+Bind Ready in Settings
+== 請在設定中綁定「準備」按鍵
+
 Reason:
 == 理由:
 
@@ -1303,8 +1306,8 @@ Selected
 Choose the next mode
 == 選擇下一局模式
 
-Mouse wheel to browse modes | %d / %d
-== 滾動滑鼠滾輪瀏覽模式 | %d / %d
+Left / Right · Wheel · A / Enter · %d / %d
+== 左右選擇 · 滾輪 · A / Enter 確認 · %d / %d
 
 ##### PvE Roguelite #####
 
@@ -1865,7 +1868,7 @@ Overwhelming evacuation pressure
 
 Checkpoint %d
 == 檢查點 %d
-+
+
 #### PvE Roguelite v2
 Requires:
 == 前置：
@@ -2343,6 +2346,405 @@ Drone module not owned
 
 Drone switch cooling down
 == 無人機切換仍在冷卻
+
+Local
+== 本機
+
+Local game
+== 本機遊戲
+
+Choose a mode, adjust the essentials, then start and join in one click.
+== 選擇模式並調整常用設定，然後一鍵啟動並加入。
+
+Choose a mode, expand a category, then start and join in one click.
+== 選擇模式並展開設定分類，然後一鍵啟動並加入。
+
+Arrows / D-pad: select and adjust · Enter / A: confirm
+== 方向鍵 / 十字鍵：選擇和調整 · Enter / A：確認
+
+ROGUELITE PVE
+== Roguelite PvE
+
+COMPETITIVE
+== 競技模式
+
+Deathmatch
+== 死亡競賽
+
+Team deathmatch
+== 團隊死亡競賽
+
+Capture the flag
+== 奪旗
+
+Explore generated floors, complete objectives and keep your build between maps.
+== 探索生成樓層、完成任務，並在跨圖時保留本局構築。
+
+Defend, build and survive increasingly dangerous enemy waves.
+== 建造防線，抵禦威脅不斷升級的敵人波次。
+
+Finish the mission and reach the extraction zone before time runs out.
+== 完成任務，並在時間耗盡前抵達撤離區。
+
+Free-for-all combat with configurable AI opponents.
+== 與可設定的 AI 對手進行自由混戰。
+
+Team combat with building and configurable AI opponents.
+== 可建造設施、可設定 AI 對手的團隊戰鬥。
+
+Capture the enemy flag on a generated team map.
+== 在生成的團隊地圖中奪取敵方旗幟。
+
+City I
+== 城市 I
+
+City II
+== 城市 II
+
+Space
+== 太空
+
+Large I
+== 大型 I
+
+Large II
+== 大型 II
+
+Large III
+== 大型 III
+
+Blue planet
+== 藍色星球
+
+Compact
+== 緊湊
+
+Standard
+== 標準
+
+Essentials
+== 常用設定
+
+Advanced rules
+== 進階規則
+
+Server & network
+== 伺服器與連線
+
+Map & difficulty
+== 地圖與難度
+
+PvE rules
+== PvE 規則
+
+Match rules
+== 對戰規則
+
+Roguelite Director
+== Roguelite 構築系統
+
+Perks, resources and research
+== 啟用卡牌、資源與研究
+
+Team contracts
+== 團隊契約
+
+Offer optional team challenges
+== 提供可選的團隊挑戰
+
+Requires Roguelite Director
+== 需要啟用 Roguelite 構築系統
+
+Target waves
+== 目標波數
+
+Mission time
+== 任務時限
+
+Endless
+== 無盡
+
+%d min
+== %d 分鐘
+
+Random map seed
+== 隨機地圖種子
+
+New layout every launch
+== 每次啟動產生新地圖
+
+Map seed
+== 地圖種子
+
+Advanced rules apply the next time the server starts.
+== 進階規則將在下次啟動伺服器時生效。
+
+Rules apply the next time the server starts.
+== 規則將在下次啟動伺服器時生效。
+
+Server name
+== 伺服器名稱
+
+Password (optional)
+== 密碼（可選）
+
+Map preset
+== 地圖預設
+
+Starting floor
+== 起始樓層
+
+Map difficulty
+== 地圖難度
+
+Mission difficulty
+== 任務難度
+
+Automatic by floor and party size
+== 依樓層和隊伍人數自動調整
+
+Health, elites and party size
+== 影響生命、菁英階級和隊伍規模
+
+AI difficulty
+== AI 難度
+
+Enemy scaling
+== 敵人強度
+
+Automatic for this mode
+== 由目前模式自動調整
+
+AI players
+== AI 玩家
+
+Player slots
+== 玩家欄位
+
+Port
+== 連接埠
+
+Allow LAN players
+== 允許區域網路玩家加入
+
+Never listed publicly
+== 永不公開列出
+
+Ready to start
+== 可以啟動
+
+Starting local server...
+== 正在啟動本機伺服器……
+
+Local server is running
+== 本機伺服器正在運行
+
+Stopping local server...
+== 正在停止本機伺服器……
+
+Server executable was not found
+== 找不到伺服器程式
+
+No free local server port was found
+== 找不到可用的本機伺服器連接埠
+
+Local server stopped unexpectedly
+== 本機伺服器意外停止
+
+Start and join
+== 啟動並加入
+
+Restart
+== 重新啟動
+
+Stop
+== 停止
+
+Cancel
+== 取消
+
+Stop local
+== 停止本機服
+
+Restart local
+== 重啟本機服
+
+Combat Foundation
+== 戰鬥基礎
+
+Vulnerable Mastery
+== 破綻精通
+
+Defense Foundation
+== 防禦基礎
+
+Barrier Mastery
+== 壁壘精通
+
+Logistics Foundation
+== 後勤基礎
+
+Drone Modules
+== 無人機模組
+
+Drone Firmware
+== 無人機韌體
+
+Firearm Foundation
+== 槍械基礎
+
+Focus Mastery
+== 專注精通
+
+Vulnerable Tactics
+== 破綻戰術
+
+Explosive Foundation
+== 爆炸基礎
+
+Blast Mastery
+== 爆炸充能精通
+
+Siege Tactics
+== 攻堅戰術
+
+Electric Foundation
+== 電能基礎
+
+Voltage Mastery
+== 電荷精通
+
+Grid Tactics
+== 電網戰術
+
+Melee Foundation
+== 近戰基礎
+
+Fury Mastery
+== 怒氣精通
+
+Wound Tactics
+== 創傷戰術
+
+Invasion Foundation
+== 入侵基礎
+
+Deep Run
+== 深層遠征
+
+Exploration
+== 探索
+
+Horde Foundation
+== 屍潮基礎
+
+Endless Defense
+== 無盡防線
+
+Fortification
+== 工事強化
+
+Extraction Foundation
+== 撤離基礎
+
+Final Evacuation
+== 最終撤離
+
+Signal Control
+== 訊號控制
+
+Co-op PvE
+== 合作 PvE
+
+Team PvP
+== 團隊競技
+
+Free-for-all
+== 個人競技
+
+Arcade
+== 趣味模式
+
+Press Enter to vote
+== 按 Enter 投票
+
+Click to vote
+== 點擊投票
+
+%s modes · %d choices
+== %s · %d 個模式
+
+Tab / LB / RB: category · Arrows / Wheel: mode · A / Enter: vote
+== Tab / LB / RB 切換分類 · 方向鍵 / 滾輪選擇 · A / Enter 投票
+
+PvE objective display
+== PvE 任務顯示
+
+With scoreboard
+== 開啟計分板時顯示
+
+Always visible
+== 始終顯示
+
+On objective updates
+== 任務更新時短暫顯示
+
+The expedition has reached its limit
+== 遠征已到極限
+
+Five failures. Decide the fate of this run.
+== 五次失敗。決定這次遠征的命運。
+
+Floor %d
+== 第 %d 層
+
+%d votes
+== %d 票
+
+Retry Current Floor
+== 再次嘗試
+
+Return to Floor 1
+== 回到第 1 層
+
+Keep equipment and build. Retry this floor.
+== 保留裝備和構築，重試目前樓層。
+
+Clear this run and start again from Floor 1.
+== 清空本次遠征，從第 1 層重新開始。
+
+One final attempt
+== 最後一次機會
+
+Equipment and build will be cleared
+== 將清除裝備和構築
+
+Vote
+== 投票
+
+Mouse • Arrow Keys • 1–2 • Gamepad
+== 滑鼠 • 方向鍵 • 1–2 • 手把
+
+A tie or no votes returns the team to Floor 1.
+== 平票或無人投票時，全隊回到第 1 層。
+
+%s did not succumb.
+== %s 沒有屈服！
+
+The team
+== 全隊
+
+What a pity...
+== 真是可惜...
+
+See you next time.
+== 下次見。
+
+The expedition continues.
+== 遠征繼續。
+
+Returning all players to Floor 1.
+== 全體玩家即將回到第 1 層。
 
 
 ##### needs translation #####

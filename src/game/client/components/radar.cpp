@@ -1,6 +1,9 @@
 #include <base/math.h>
+#include <base/system.h>
 #include <engine/shared/config.h>
+#include <engine/serverbrowser.h>
 
+#include <game/pve_roguelite.h>
 #include <game/weapons.h>
 #include <generated/game_data.h>
 #include <game/client/render.h>
@@ -20,6 +23,43 @@ void CRadar::RenderRadar(const CNetObj_Radar *pCurrent, const CNetObj_Radar *pPr
 	
 	CUIRect Screen;
 	Graphics()->GetScreen(&Screen.x, &Screen.y, &Screen.w, &Screen.h);
+	CServerInfo ServerInfo;
+	Client()->GetServerInfo(&ServerInfo);
+	const bool HordeDefenseArea = pCurrent->m_Type == RADAR_REACTOR && str_comp(ServerInfo.m_aGameType, "HORDE") == 0;
+	const bool InvasionReactorObjective = pCurrent->m_Type == RADAR_REACTOR && str_comp(ServerInfo.m_aGameType, "INV") == 0;
+	if(HordeDefenseArea)
+	{
+		const bool Inside = m_pClient->m_Snap.m_pLocalCharacter && distance(m_pClient->m_LocalCharacterPos, Pos) <= PVE_HORDE_DEFENSE_RADIUS;
+		const float Pulse = 0.5f + 0.5f * sinf((float)Client()->LocalTime() * 2.5f);
+		IGraphics::CLineItem aLines[32];
+		int NumLines = 0;
+		const int Segments = 48;
+		for(int i = 0; i < Segments; i += 2)
+		{
+			const float A1 = i * 2.0f * pi / Segments;
+			const float A2 = (i + 1) * 2.0f * pi / Segments;
+			aLines[NumLines++] = IGraphics::CLineItem(
+				Pos.x + cosf(A1) * PVE_HORDE_DEFENSE_RADIUS,
+				Pos.y + sinf(A1) * PVE_HORDE_DEFENSE_RADIUS,
+				Pos.x + cosf(A2) * PVE_HORDE_DEFENSE_RADIUS,
+				Pos.y + sinf(A2) * PVE_HORDE_DEFENSE_RADIUS);
+		}
+		for(int i = 0; i < 4; i++)
+		{
+			const float A = i * pi * 0.5f;
+			aLines[NumLines++] = IGraphics::CLineItem(
+				Pos.x + cosf(A) * (PVE_HORDE_DEFENSE_RADIUS - 14.0f),
+				Pos.y + sinf(A) * (PVE_HORDE_DEFENSE_RADIUS - 14.0f),
+				Pos.x + cosf(A) * (PVE_HORDE_DEFENSE_RADIUS + 14.0f),
+				Pos.y + sinf(A) * (PVE_HORDE_DEFENSE_RADIUS + 14.0f));
+		}
+		Graphics()->BlendNormal();
+		Graphics()->TextureSet(-1);
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(Inside ? 0.25f : 0.18f, Inside ? 1.0f : 0.72f, Inside ? 0.48f : 0.58f, (Inside ? 0.60f : 0.28f) + Pulse * 0.10f);
+		Graphics()->LinesDraw(aLines, NumLines);
+		Graphics()->LinesEnd();
+	}
 	Graphics()->MapScreen(0,0,Graphics()->ScreenWidth(),Graphics()->ScreenHeight());
 		
 	vec2 SPos = vec2(cos(a), sin(a)) * (Graphics()->ScreenHeight()/2.1f);
@@ -41,8 +81,10 @@ void CRadar::RenderRadar(const CNetObj_Radar *pCurrent, const CNetObj_Radar *pPr
 		
 		float ca = min(1.0f, distance(Pos, CameraPos)*0.001f);
 		
-		if (pCurrent->m_Type == RADAR_REACTOR)
+		if (HordeDefenseArea)
 			ca *= 0.5f;
+		else if(InvasionReactorObjective)
+			ca = max(ca, 0.82f);
 		
 		if (pCurrent->m_Type == RADAR_CHARACTER || pCurrent->m_Type == RADAR_HUMAN)
 			Graphics()->QuadsSetRotation(a);
@@ -51,9 +93,9 @@ void CRadar::RenderRadar(const CNetObj_Radar *pCurrent, const CNetObj_Radar *pPr
 		
 		Graphics()->SetColor(0, 0, 0, ca);
 		RenderTools()->SelectSprite(SPRITE_RADAR1+pCurrent->m_Type);
-		RenderTools()->DrawSprite(RPos.x, RPos.y, 82);
-		Graphics()->SetColor(1, 1, 1, ca);
-		RenderTools()->DrawSprite(RPos.x, RPos.y, 70);
+		RenderTools()->DrawSprite(RPos.x, RPos.y, InvasionReactorObjective ? 94 : 82);
+		Graphics()->SetColor(InvasionReactorObjective ? 0.35f : 1.0f, InvasionReactorObjective ? 0.95f : 1.0f, 1.0f, ca);
+		RenderTools()->DrawSprite(RPos.x, RPos.y, InvasionReactorObjective ? 80 : 70);
 		
 		Graphics()->QuadsEnd();
 	}

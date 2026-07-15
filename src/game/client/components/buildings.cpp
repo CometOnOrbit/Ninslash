@@ -1,3 +1,4 @@
+#include <base/math.h>
 #include <engine/engine.h>
 #include <engine/graphics.h>
 #include <engine/textrender.h>
@@ -373,14 +374,44 @@ void CBuildings::RenderReactor(const struct CNetObj_Building *pCurrent)
 	int Anim = ANIM_IDLE;
 	int s = pCurrent->m_Status;
 	bool Repair = s & (1<<BSTATUS_REPAIR);
+	const bool Objective = s & (1<<BSTATUS_ON);
 	
 	float Time = pCurrent->m_X * 0.432f + pCurrent->m_Y * 0.2354f + CustomStuff()->m_SawbladeAngle * 0.1f;
 	
 	if (Repair)
 		Time += CustomStuff()->m_SawbladeAngle * 0.15f;
 	
-	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y-30), vec4(0.25f, 0.75f, 1.0f, 1.0f), 320);
+	const float ObjectivePulse = 0.5f + 0.5f * sinf((float)Client()->LocalTime() * 4.0f);
+	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y-30), vec4(0.25f, 0.75f, 1.0f, 1.0f), Objective ? 480 + ObjectivePulse * 80 : 320);
 	//m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y-0), 320);
+
+	if(Objective)
+	{
+		const vec2 Center(pCurrent->m_X, pCurrent->m_Y + 12.0f);
+		const float Radius = 86.0f + ObjectivePulse * 14.0f;
+		const int Segments = 40;
+		IGraphics::CLineItem aLines[Segments + 5];
+		for(int i = 0; i < Segments; i++)
+		{
+			const float A1 = i * 2.0f * pi / Segments;
+			const float A2 = (i + 1) * 2.0f * pi / Segments;
+			aLines[i] = IGraphics::CLineItem(
+				Center.x + cosf(A1) * Radius, Center.y + sinf(A1) * Radius,
+				Center.x + cosf(A2) * Radius, Center.y + sinf(A2) * Radius);
+		}
+		aLines[Segments] = IGraphics::CLineItem(Center.x, Center.y - Radius, Center.x, Center.y - 300.0f);
+		aLines[Segments + 1] = IGraphics::CLineItem(Center.x - 22.0f, Center.y - 250.0f, Center.x + 22.0f, Center.y - 250.0f);
+		aLines[Segments + 2] = IGraphics::CLineItem(Center.x - 14.0f, Center.y - 272.0f, Center.x + 14.0f, Center.y - 272.0f);
+		aLines[Segments + 3] = IGraphics::CLineItem(Center.x - Radius - 12.0f, Center.y, Center.x - Radius + 12.0f, Center.y);
+		aLines[Segments + 4] = IGraphics::CLineItem(Center.x + Radius - 12.0f, Center.y, Center.x + Radius + 12.0f, Center.y);
+
+		Graphics()->BlendNormal();
+		Graphics()->TextureSet(-1);
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(0.18f, 0.92f, 1.0f, 0.48f + ObjectivePulse * 0.34f);
+		Graphics()->LinesDraw(aLines, Segments + 5);
+		Graphics()->LinesEnd();
+	}
 	
 	RenderTools()->RenderSkeleton(vec2(pCurrent->m_X, pCurrent->m_Y+16+50), ATLAS_REACTOR, RenderTools()->Skelebank()->GetAnimList(Anim), Time, vec2(1.0f, 1.0f)*0.8f, 1, 0);
 	
@@ -873,7 +904,6 @@ void CBuildings::OnRender()
 		}
 	}
 }
-
 
 
 

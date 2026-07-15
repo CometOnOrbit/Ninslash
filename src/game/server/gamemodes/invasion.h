@@ -37,9 +37,10 @@ private:
 	void SpawnBosses(int Count);
 	int CountBossesAlive() const;
 	int CountBuildingsOfType(int Type) const;
-	int ReactorsLeft() const;
+	int ReactorsLeft();
 	int SwitchesAvailable() const;
 	void SetSwitchesActive(bool Active);
+	void SetReactorDefenseActive(bool Active);
 	int CountHumansAlive(int ExcludeCID = -1) const;
 	void RewardQuestGold();
 
@@ -56,6 +57,7 @@ private:
 	void SpawnNewWave(bool AddBots = true);
 	
 	vec2 GetBotSpawnPos();
+	bool GetBossSpawnPos(vec2 *pOutPos);
 	void RandomGroupSpawnPos();
 	int m_BotSpawnTick;
 	
@@ -75,6 +77,8 @@ private:
 	bool m_EscapeSpawnActive;
 	bool m_DefendLevel;
 	bool m_SwitchCoopLevel;
+	int m_ReactorCountCheckTick;
+	int m_CachedReactorsLeft;
 	
 	int m_ForcedWaveType;
 	int m_WaveSizeNerf;
@@ -87,13 +91,35 @@ private:
 	bool m_RogueliteCompletionStarted;
 	bool m_EliteContractSpawned;
 	bool m_CheckpointApplied;
+	bool m_ForceFloorOne;
+	int m_RetryVoteNonce;
+	int m_RetryVoteEndTick;
+	int m_RetryVoteLastSyncTick;
+	int m_aRetryVotes[MAX_CLIENTS];
+	int m_RetryResult;
+	int m_RetryResultEndTick;
+	int m_RetryResultLastSyncTick;
+	char m_aRetryPlayerName[MAX_NAME_LENGTH];
 	
 	bool m_AutoRestart;
+	bool IsRetryVoter(int ClientID) const;
+	int RetryVoterCount() const;
+	void CountRetryVotes(int *pRetry, int *pReset, int *pVoted = 0) const;
+	void StartRetryVote();
+	void SendRetryVote(int ClientID = -1);
+	void TickRetryVote();
+	void FinishRetryVote();
+	void StartRetryResult(int Result);
+	void SendRetryResult(int ClientID = -1);
+	void TickRetryResult();
+	void FinishRetryResult();
+	void RegenerateMapFromTemplate();
 	
 	void Trigger(bool IncreaseLevel);
 	
 	class CRadar *m_pDoor;
 	class CRadar *m_pEnemySpawn;
+	class CRadar *m_pReactor;
 	
 public:
 	CGameControllerInvasion(class CGameContext *pGameServer);
@@ -107,17 +133,21 @@ public:
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
 	virtual void OnSwitchTriggered();
+	void OnRetryVote(int ClientID, int Nonce, int Choice);
 	
 	void DisplayExit(vec2 Pos);
 	
 	bool RunBuffActive() const { return m_RunBuffActive; }
 	bool IsObjectiveTarget(bool Boss) const;
+	virtual bool IsReactorDefenseActive() const;
 	bool IsFinalObjective() const { return m_LevelQuestsLeft > 0 && m_QuestsCompleted >= m_LevelQuestsLeft - 1; }
 	
 	enum GameState
 	{
 		STATE_STARTING,
 		STATE_GAME,
+		STATE_RETRY_VOTE,
+		STATE_RETRY_RESULT,
 		STATE_FAIL,
 	};
 };

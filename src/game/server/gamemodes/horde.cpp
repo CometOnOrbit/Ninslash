@@ -7,12 +7,26 @@
 #include <game/server/gamecontext.h>
 #include <game/server/bosspool.h>
 #include <game/server/entities/droid_crawler.h>
+#include <game/server/entities/radar.h>
 #include <game/server/ai/base_ai.h>
 #include <game/server/pve_bots.h>
 #include <game/server/pve_director.h>
 #include <game/weapons.h>
 
 #include "horde.h"
+
+static int HordeDifficultyTier()
+{
+	// The local difficulty slider already scales bot health through map level.
+	// Add only a modest archetype offset so higher settings introduce stronger
+	// enemies instead of becoming pure health inflation.
+	return max(0, (g_Config.m_SvMapGenLevel - 1) / 10);
+}
+
+static int HordeConcurrentEnemyCap(int Wave)
+{
+	return min(18, 12 + Wave / 2);
+}
 
 CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer)
 : IGameController(pGameServer)
@@ -42,15 +56,21 @@ CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer)
 	m_LastIntermissionWave = -1;
 	m_LastContractProgressWave = -1;
 	m_EliteContractSpawned = false;
+	m_BossCountCacheTick = -1;
+	m_BossCountCache = 0;
+	m_DefenseAreaCenter = vec2(0, 0);
+	m_DefenseAreaReady = false;
 
 	g_Config.m_SvOneHitKill = 0;
 	g_Config.m_SvWarmup = 0;
-	g_Config.m_SvScorelimit = 0;
 	g_Config.m_SvEnableBuilding = 1;
 	g_Config.m_SvDisablePVP = 1;
 	g_Config.m_SvSurvivalTime = 0;
 	g_Config.m_SvSurvivalAcid = 0;
 	// keep map as-is; optional one-shot mapgen via cfg, never level++
+	dbg_msg("horde", "rules: target_waves=%d roguelite=%d contracts=%d seed=%d random_seed=%d",
+		g_Config.m_SvScorelimit, g_Config.m_SvPveRoguelite, g_Config.m_SvPveContracts,
+		g_Config.m_SvMapGenSeed, g_Config.m_SvMapGenRandSeed);
 
 	if(g_Config.m_SvEnableBuilding)
 		m_GameFlags |= GAMEFLAG_BUILD;
@@ -75,6 +95,16 @@ bool CGameControllerHorde::GetSpawnPos(int Team, vec2 *pOutPos)
 		return false;
 	m_SpawnPosRotation = (m_SpawnPosRotation + 1) % m_NumEnemySpawnPos;
 	*pOutPos = m_aEnemySpawnPos[m_SpawnPosRotation];
+	return true;
+}
+
+bool CGameControllerHorde::GetBossSpawnPos(vec2 *pOutPos)
+{
+	if(FindBossSpawnPosition(&GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
+		return true;
+	if(!GetSpawnPos(0, pOutPos))
+		return false;
+	*pOutPos += vec2(0.0f, -100.0f);
 	return true;
 }
 
@@ -103,9 +133,38 @@ bool CGameControllerHorde::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 	return Eval.m_Got;
 }
 
+int CGameControllerHorde::AliveBossCount()
+{
+	const int Tick = Server()->Tick();
+	if(m_BossCountCacheTick != Tick)
+	{
+		m_BossCountCacheTick = Tick;
+		m_BossCountCache = CountAliveBosses(&GameServer()->m_World);
+	}
+	return m_BossCountCache;
+}
+
+int CGameControllerHorde::CountHumansAlive(int ExcludeCID) const
+{
+	int Alive = 0;
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+	{
+		if(ClientID == ExcludeCID)
+			continue;
+		CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
+		if(!pPlayer || pPlayer->m_IsBot || pPlayer->m_pAI || pPlayer->GetTeam() == TEAM_SPECTATORS)
+			continue;
+		if(pPlayer->GetCharacter() && pPlayer->GetCharacter()->IsAlive())
+			Alive++;
+	}
+	return Alive;
+}
+
 void CGameControllerHorde::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 {
 	IGameController::OnCharacterSpawn(pChr);
+	if(!RequestAI)
+		EnsureDefenseArea(pChr->m_Pos);
 	if(!RequestAI && GameServer()->m_pPveDirector)
 		GameServer()->m_pPveDirector->OnPlayerSpawn(pChr->GetPlayer()->GetCID());
 
@@ -125,16 +184,35 @@ void CGameControllerHorde::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	}
 }
 
+void CGameControllerHorde::EnsureDefenseArea(vec2 FallbackPos)
+{
+	if(m_DefenseAreaReady)
+		return;
+	m_DefenseAreaCenter = FallbackPos;
+	m_DefenseAreaReady = true;
+	CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+	pRadar->Activate(m_DefenseAreaCenter);
+	dbg_msg("horde", "defense area: center=(%.0f,%.0f) radius=%d",
+		m_DefenseAreaCenter.x, m_DefenseAreaCenter.y, PVE_HORDE_DEFENSE_RADIUS);
+}
+
+bool CGameControllerHorde::InDefenseArea(vec2 Pos) const
+{
+	return m_DefenseAreaReady && distance(Pos, m_DefenseAreaCenter) <= PVE_HORDE_DEFENSE_RADIUS;
+}
+
 int CGameControllerHorde::EnemyLevel() const
 {
 	// Wave 1 ~3–4, then climbs; caps so late waves stay tough but readable
-	return min(14, max(3, 2 + m_Wave + (m_Wave / 3)));
+	return min(14, max(3, 2 + m_Wave + (m_Wave / 3) + HordeDifficultyTier()));
 }
 
 int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, int Weapon)
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
-	if(!pVictim->m_IsBot && GameServer()->m_pPveDirector)
+	CPlayer *pVictimPlayer = pVictim->GetPlayer();
+	const bool HumanVictim = !pVictim->m_IsBot && pVictimPlayer && !pVictimPlayer->m_IsBot && !pVictimPlayer->m_pAI;
+	if(HumanVictim && GameServer()->m_pPveDirector)
 		GameServer()->m_pPveDirector->OnPlayerDeath(pVictim->GetPlayer()->GetCID());
 
 	if(pVictim->m_IsBot)
@@ -149,18 +227,21 @@ int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller
 		}
 		pVictim->GetPlayer()->m_ToBeKicked = true;
 	}
-	else if(((GameServer()->m_pPveDirector && !GameServer()->m_pPveDirector->RespawnAllowed()) || g_Config.m_SvSurvivalMode >= 2) &&
-		CountPlayersAlive(-1, true) <= 0)
+	else if(HumanVictim && g_Config.m_SvSurvivalMode && !m_RoundOverTick &&
+		CountHumansAlive(pVictimPlayer->GetCID()) <= 0)
 	{
+		// OnCharacterDeath runs before the victim is marked dead. Excluding its
+		// CID makes a solo death and the final death of a party end the run, while
+		// leaving a dead player revivable whenever another human is still alive.
 		DeathMessage();
 		if(GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->CompleteContract(false);
 		m_RoundOverTick = Server()->Tick();
 	}
-	else if(!pVictim->m_IsBot)
+	else if(HumanVictim)
 	{
 		const bool RespawnAllowed = !GameServer()->m_pPveDirector || GameServer()->m_pPveDirector->RespawnAllowed();
-		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * (RespawnAllowed ? g_Config.m_SvRespawnDelay : 3600);
+		pVictimPlayer->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * (RespawnAllowed ? g_Config.m_SvRespawnDelay : 3600);
 	}
 
 	return 0;
@@ -174,7 +255,10 @@ void CGameControllerHorde::NextWave()
 
 	GameServer()->SendBroadcastFormat(-1, false, "Wave %d", m_Wave);
 
-	m_EnemiesLeft = min(10 + m_Wave * 3, 48);
+	const int BaseEnemies = min(10 + m_Wave * 3, 48);
+	const int HumanPlayers = clamp(CountHumans(), 1, 4);
+	const float PartyScale = 1.0f + (HumanPlayers - 1) * 0.20f;
+	m_EnemiesLeft = (int)(BaseEnemies * PartyScale + 0.5f);
 	if(GameServer()->m_pPveDirector)
 	{
 		GameServer()->m_pPveDirector->OnStageStart();
@@ -194,9 +278,9 @@ void CGameControllerHorde::NextWave()
 	if(m_Wave > 0 && m_Wave % 4 == 0)
 	{
 		vec2 p;
-		if(!GetSpawnPos(0, &p))
+		if(!GetBossSpawnPos(&p))
 			p = vec2(4000, 4000);
-		SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), max(5, m_Wave));
+		SpawnBoss(&GameServer()->m_World, p, max(5, m_Wave + HordeDifficultyTier()));
 		GameServer()->SendBroadcast("Boss incoming!", -1);
 	}
 
@@ -206,22 +290,22 @@ void CGameControllerHorde::NextWave()
 		if(SectionWave == 2 || SectionWave == 4)
 		{
 			vec2 p;
-			if(!GetSpawnPos(0, &p))
+			if(!GetBossSpawnPos(&p))
 				p = vec2(4000, 4000);
-			SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), max(5, m_Wave + 2));
+			SpawnBoss(&GameServer()->m_World, p, max(5, m_Wave + 2));
 		}
 	}
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT && !m_EliteContractSpawned)
 	{
 		vec2 p;
-		if(!GetSpawnPos(0, &p))
+		if(!GetBossSpawnPos(&p))
 			p = vec2(4000, 4000);
-		CDroid *pBoss = SpawnBoss(&GameServer()->m_World, p + vec2(0, -100), EnemyLevel() + 2);
+		CDroid *pBoss = SpawnBoss(&GameServer()->m_World, p, EnemyLevel() + 2);
 		GameServer()->m_pPveDirector->RegisterEliteContractBoss(pBoss);
 		m_EliteContractSpawned = true;
 	}
 
-	const int Cap = min(18, 12 + m_Wave / 2);
+	const int Cap = HordeConcurrentEnemyCap(m_Wave);
 	for(int i = 0; i < m_EnemiesLeft && CountBots() < Cap; i++)
 		GameServer()->AddBot();
 
@@ -233,7 +317,7 @@ void CGameControllerHorde::Tick()
 	IGameController::Tick();
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
 		return;
-	if(m_EliteContractSpawned && GameServer()->m_pPveDirector && CountAliveBosses(&GameServer()->m_World) <= 0)
+	if(m_EliteContractSpawned && GameServer()->m_pPveDirector && AliveBossCount() <= 0)
 	{
 		m_EliteContractSpawned = false;
 		GameServer()->m_pPveDirector->OnBossKilled();
@@ -279,7 +363,18 @@ void CGameControllerHorde::Tick()
 		if(!m_RoundOverTick && m_WaveStartTick && m_WaveStartTick < Server()->Tick())
 			NextWave();
 
-		if(!m_RoundOverTick && m_Deaths <= 0 && !CountBotsAlive() && CountAliveBosses(&GameServer()->m_World) <= 0
+		// Waves can contain more enemies than the safe concurrent bot cap. Feed
+		// the remaining queue as slots open; without this, later waves stopped
+		// permanently after their first batch was killed.
+		if(!m_RoundOverTick && !m_WaveStartTick && m_EnemiesLeft > 0)
+		{
+			const int Missing = max(0, HordeConcurrentEnemyCap(m_Wave) - CountBots());
+			const int SpawnCount = min(m_EnemiesLeft, Missing);
+			for(int i = 0; i < SpawnCount; i++)
+				GameServer()->AddBot();
+		}
+
+		if(!m_RoundOverTick && m_Deaths <= 0 && !CountBotsAlive() && AliveBossCount() <= 0
 			&& CountPlayersAlive(-1, true) > 0 && !m_WaveStartTick)
 		{
 			if(m_LastContractProgressWave != m_Wave && GameServer()->m_pPveDirector)
@@ -354,7 +449,7 @@ void CGameControllerHorde::Snap(int SnappingClient)
 		return;
 
 	pGameDataObj->m_TeamscoreRed = QUEST_HORDE;
-	pGameDataObj->m_TeamscoreBlue = m_Deaths + CountAliveBosses(&GameServer()->m_World);
+	pGameDataObj->m_TeamscoreBlue = m_Deaths + AliveBossCount();
 	pGameDataObj->m_FlagCarrierRed = m_Wave;
 	pGameDataObj->m_FlagCarrierBlue = m_Kills;
 }

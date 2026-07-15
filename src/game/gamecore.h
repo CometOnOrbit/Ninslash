@@ -388,6 +388,7 @@ public:
 	CBallCore();
 	void Init(CWorldCore *pWorld, CCollision *pCollision);
 	void Reset();
+	bool IsReady() const { return m_pCollision != 0; }
 	void Tick();
 	void Move();
 	void PlayerHit();
@@ -487,6 +488,7 @@ public:
 	CCharacterCore();
 	void Init(CWorldCore *pWorld, CCollision *pCollision);
 	void Reset();
+	bool IsReady() const { return m_pCollision != 0; }
 	void Tick(bool UseInput);
 	void Move();
 	
