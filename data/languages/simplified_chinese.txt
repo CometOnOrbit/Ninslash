@@ -1228,6 +1228,72 @@ switches remaining
 Reactor destroyed
 == 反应堆已摧毁
 
+Circuit Breaker
+== 断路行动
+
+Choose an Operation
+== 选择一项行动
+
+Vote for the team's next mission route.
+== 投票选择团队的下一条任务路线。
+
+Mouse / Arrow Keys / 1-2 / Gamepad
+== 鼠标 / 方向键 / 1-2 / 手柄
+
+ACTIVE OPERATION
+== 当前行动
+
+Disable hostile control loops. Enemy pressure is lighter and objective damage is stronger.
+== 切断敌方控制回路。敌军压力降低，目标受到的伤害提高。
+
+Foundry Shutdown
+== 铸造厂停机
+
+Cut production lines. Fewer enemies arrive and team repairs are more efficient.
+== 关闭生产线。敌军增援减少，团队维修效率提高。
+
+Fire-Control Purge
+== 火控清除
+
+Scrub targeting systems. Enemies are faster, but reinforcements are reduced.
+== 清除瞄准系统。敌军速度提高，但增援数量减少。
+
+Siege Line
+== 围城防线
+
+Anchor the front. Defensive repairs improve and hostile numbers stay lower.
+== 稳固前线。防御设施维修效率提高，敌军数量减少。
+
+Assembly Surge
+== 装配激增
+
+Reroute salvage to the crew. Repairs are better and enemy armor is a little thinner.
+== 将回收资源转给队员。维修效果提高，敌军装甲略微削弱。
+
+Grid Storm
+== 电网风暴
+
+Overload the field. Enemies move faster, but the horde is slightly smaller.
+== 使战场电网过载。敌军移动更快，但尸潮规模略小。
+
+Core Recovery
+== 核心回收
+
+Restore the route core. You get more time and lighter reinforcement pressure.
+== 恢复路线核心。行动时间增加，敌军增援压力降低。
+
+Lockdown Break
+== 封锁突破
+
+Crack the route seals. Switches are easier and the exit timer is kinder.
+== 破解路线封锁。开关更易激活，撤离时限更宽裕。
+
+Siege Route
+== 攻城路线
+
+Take the hard corridor. More enemies come through, but rewards scale up.
+== 选择高风险通道。敌军数量增加，但奖励也会提高。
+
 ##### needs translation #####
 
 ##### old translations #####

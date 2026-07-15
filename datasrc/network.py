@@ -869,7 +869,7 @@ Messages = [
 	]),
 
 	NetMessage("Sv_PveOperationState", [
-		NetIntRange("m_Operation", 0, 8),
+		NetIntRange("m_Operation", -1, 8),
 		NetIntRange("m_State", 0, 1),
 	]),
 ]

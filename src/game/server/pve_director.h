@@ -147,6 +147,7 @@ class CPveDirector
 	CPendingBlast m_aPendingBlasts[32];
 
 	bool IsEligiblePlayer(int ClientID) const;
+	bool OperationsEnabled() const;
 	int EligiblePlayerCount() const;
 	int CurrentWeaponSpecialization(int ClientID) const;
 	int WeaponSpecialization(int Weapon) const;
@@ -199,6 +200,7 @@ public:
 	bool Enabled() const;
 	bool InIntermission() const { return m_IntermissionState != PVE_INTERMISSION_NONE; }
 	int Mode() const { return m_Mode; }
+	int ActiveOperation() const { return m_OperationState == PVE_OPERATION_STATE_ACTIVE ? m_ActiveOperation : -1; }
 	int ActiveContract() const { return Enabled() && m_ContractState == PVE_CONTRACT_STATE_ACTIVE ? m_ActiveContract : -1; }
 	int ContractState() const { return m_ContractState; }
 

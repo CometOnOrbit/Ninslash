@@ -990,6 +990,43 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 	const int Done = m_QuestsCompleted;
 	const int LastSlot = max(1, m_LevelQuestsLeft - 1);
 	int Next = QUEST_SURVIVEWAVE;
+	const int Operation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
+
+	if(Operation == PVE_OPERATION_CIRCUIT_BREAKER)
+	{
+		if(Done >= LastSlot && SwitchesAvailable() > 0)
+		{
+			m_SwitchesRequired = min(2, SwitchesAvailable());
+			m_SwitchCoopLevel = m_SwitchesRequired > 1;
+			Next = m_SwitchCoopLevel ? QUEST_ACTIVATE_SWITCHES : QUEST_FIND_SWITCH;
+		}
+		else
+		{
+			m_ForcedWaveType = WAVE_ROBOTS;
+			Next = QUEST_SURVIVEWAVE;
+		}
+		ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
+		return;
+	}
+	if(Operation == PVE_OPERATION_FOUNDRY_SHUTDOWN)
+	{
+		m_ForcedWaveType = WAVE_CYBORGS;
+		if(Done >= LastSlot)
+			Next = QUEST_KILL_BOSS;
+		else if(Done > 0 && ReactorsLeft() > 0)
+			Next = QUEST_DEFEND;
+		else
+			Next = QUEST_SURVIVEWAVE;
+		ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
+		return;
+	}
+	if(Operation == PVE_OPERATION_FIRE_CONTROL_PURGE)
+	{
+		m_ForcedWaveType = WAVE_CYBORGS;
+		Next = Done >= LastSlot ? QUEST_KILL_BOSS : QUEST_SURVIVEWAVETIME;
+		ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
+		return;
+	}
 
 	switch (m_LevelTheme)
 	{

@@ -7,6 +7,7 @@
 class CPveRoguelite : public CComponent
 {
 	bool m_ChoiceActive;
+	bool m_OperationVoteActive;
 	bool m_ContractVoteActive;
 	bool m_InvasionRetryVoteActive;
 	bool m_InvasionRetryResultActive;
@@ -15,6 +16,12 @@ class CPveRoguelite : public CComponent
 	bool m_MouseTrigger;
 	int m_ChoiceNonce;
 	int m_ChoiceSequence;
+	int m_OperationNonce;
+	int m_OperationEndTick;
+	int m_aOperationOptions[2];
+	int m_aOperationVotes[2];
+	int m_SelectedOperation;
+	int m_ActiveOperation;
 	int m_ContractNonce;
 	int m_ChoiceEndTick;
 	int m_ContractEndTick;
@@ -75,10 +82,13 @@ class CPveRoguelite : public CComponent
 	CPveResearchMask ParseResearchMask() const;
 	void StoreResearchMask(CPveResearchMask Mask);
 	void SendChoice(int Slot);
+	void SendOperationVote(int Slot);
 	void SendContractVote(int Slot);
 	void SendInvasionRetryVote(int Choice);
 	void SendDroneModule(int Module);
 	void DrawSelectionOverlay(bool ContractVote);
+	void DrawOperationVote();
+	void DrawOperationHud();
 	void DrawInvasionRetryVote();
 	void DrawInvasionRetryResult();
 	void DrawContractHud();
@@ -114,7 +124,7 @@ public:
 	void RenderBuildDebug();
 	int ShopCost(int BaseCost) const;
 	int BuildingCost(int BaseCost) const;
-	bool ChoiceActive() const { return m_ChoiceActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
+	bool ChoiceActive() const { return m_ChoiceActive || m_OperationVoteActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
 };
 
 #endif

@@ -2117,6 +2117,12 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			if(m_pPveDirector)
 				m_pPveDirector->OnContractVote(ClientID, pMsg->m_Nonce, pMsg->m_Contract);
 		}
+		else if(MsgID == NETMSGTYPE_CL_PVEOPERATIONVOTE)
+		{
+			CNetMsg_Cl_PveOperationVote *pMsg = (CNetMsg_Cl_PveOperationVote *)pRawMsg;
+			if(m_pPveDirector)
+				m_pPveDirector->OnOperationVote(ClientID, pMsg->m_Nonce, pMsg->m_Choice);
+		}
 		else if(MsgID == NETMSGTYPE_CL_PVERESEARCHBUY)
 		{
 			CNetMsg_Cl_PveResearchBuy *pMsg = (CNetMsg_Cl_PveResearchBuy *)pRawMsg;

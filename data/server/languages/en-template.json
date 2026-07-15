@@ -721,6 +721,10 @@
             "value": "Contract vote timed out; a valid option was selected"
         },
         {
+            "key": "Operation vote timed out; a valid route was selected",
+            "value": "Operation vote timed out; a valid route was selected"
+        },
+        {
             "key": "Perk choice timed out; displayed options were selected at random",
             "value": "Perk choice timed out; displayed options were selected at random"
         },

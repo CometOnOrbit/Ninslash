@@ -166,7 +166,7 @@ const CPveOperationDef gs_aOperations[NUM_PVE_OPERATIONS] = {
 	{PVE_OPERATION_ASSEMBLY_SURGE, "Assembly Surge", "Reroute salvage to the crew. Repairs are better and enemy armor is a little thinner.", PVE_MODE_HORDE, 1.00f, 0.92f, 1.00f, 1.00f, 1.10f, 1.20f, 1.00f},
 	{PVE_OPERATION_GRID_STORM, "Grid Storm", "Overload the field. Enemies move faster, but the horde is slightly smaller.", PVE_MODE_HORDE, 0.92f, 0.96f, 1.08f, 1.00f, 0.95f, 1.00f, 1.05f},
 	{PVE_OPERATION_CORE_RECOVERY, "Core Recovery", "Restore the route core. You get more time and lighter reinforcement pressure.", PVE_MODE_EXTRACTION, 1.00f, 0.95f, 1.00f, 1.15f, 0.85f, 1.00f, 1.00f},
-	{PVE_OPERATION_LOCKDOWN_BREAK, "Lockdown Break", "Crack the route seals. Switches are easier and the exit timer is kinder.", PVE_MODE_EXTRACTION, 0.90f, 1.00f, 1.00f, 0.90f, 1.00f, 1.10f, 1.10f},
+	{PVE_OPERATION_LOCKDOWN_BREAK, "Lockdown Break", "Crack the route seals. Switches are easier and the exit timer is kinder.", PVE_MODE_EXTRACTION, 0.90f, 1.00f, 1.00f, 1.10f, 1.00f, 1.10f, 1.10f},
 	{PVE_OPERATION_SIEGE_ROUTE, "Siege Route", "Take the hard corridor. More enemies come through, but rewards scale up.", PVE_MODE_EXTRACTION, 1.05f, 1.05f, 1.00f, 1.10f, 1.05f, 1.00f, 1.15f},
 };
 

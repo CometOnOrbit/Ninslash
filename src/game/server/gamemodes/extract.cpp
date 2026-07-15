@@ -392,8 +392,11 @@ void CGameControllerExtract::Tick()
 			m_StartTick = Server()->Tick();
 			const float DeadlineScale = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->DeadlineMultiplier() : 1.0f;
 			m_DeadlineTick = Server()->Tick() + (int)(Server()->TickSpeed() * 60 * max(1, g_Config.m_SvTimelimit) * DeadlineScale);
-			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_LOCKED_ROUTE)
-				for(int Extra = 0; Extra < 2; Extra++)
+			const int Operation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
+			const int ExtraSwitches = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_LOCKED_ROUTE ? 2 :
+				(Operation == PVE_OPERATION_SIEGE_ROUTE ? 1 : 0);
+			if(ExtraSwitches > 0)
+				for(int Extra = 0; Extra < ExtraSwitches; Extra++)
 				{
 					vec2 Pos;
 					if(!GetSpawnPos(0, &Pos))
@@ -407,6 +410,8 @@ void CGameControllerExtract::Tick()
 			// Requiring an artificial minimum of two softlocked rare layouts where
 			// map generation could only place one; zero keeps the timed boss fallback.
 			m_SwitchesRequired = m_AvailableSwitches;
+			if((Operation == PVE_OPERATION_CORE_RECOVERY || Operation == PVE_OPERATION_LOCKDOWN_BREAK) && m_SwitchesRequired > 1)
+				m_SwitchesRequired--;
 			SpawnInitialEnemies();
 			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
 				for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)

@@ -182,6 +182,7 @@ void CPveRoguelite::ConDebugChoice(IConsole::IResult *pResult, void *pUserData)
 {
 	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
 	const int Start = pResult->NumArguments() ? clamp(pResult->GetInteger(0), 0, NUM_PVE_CARDS - 1) : 0;
+	pSelf->m_OperationVoteActive = false;
 	pSelf->m_ContractVoteActive = false;
 	pSelf->m_InvasionRetryVoteActive = false;
 	pSelf->m_InvasionRetryResultActive = false;
@@ -204,6 +205,7 @@ void CPveRoguelite::ConDebugContract(IConsole::IResult *pResult, void *pUserData
 {
 	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
 	const int Start = pResult->NumArguments() ? clamp(pResult->GetInteger(0), 0, NUM_PVE_CONTRACTS - 1) : 0;
+	pSelf->m_OperationVoteActive = false;
 	pSelf->m_ChoiceActive = false;
 	pSelf->m_ContractVoteActive = true;
 	pSelf->m_InvasionRetryVoteActive = false;
@@ -236,6 +238,7 @@ void CPveRoguelite::ConDebugInvasionRetry(IConsole::IResult *pResult, void *pUse
 {
 	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
 	const int State = pResult->NumArguments() ? clamp(pResult->GetInteger(0), 0, 3) : 0;
+	pSelf->m_OperationVoteActive = false;
 	pSelf->m_ChoiceActive = false;
 	pSelf->m_ContractVoteActive = false;
 	pSelf->m_InvasionRetryVoteActive = State == 0;
@@ -319,6 +322,15 @@ void CPveRoguelite::ConDebugGameScreenshot(IConsole::IResult *pResult, void *pUs
 
 void CPveRoguelite::OnReset()
 {
+	m_OperationVoteActive = false;
+	m_OperationNonce = 0;
+	m_OperationEndTick = 0;
+	m_aOperationOptions[0] = -1;
+	m_aOperationOptions[1] = -1;
+	m_aOperationVotes[0] = 0;
+	m_aOperationVotes[1] = 0;
+	m_SelectedOperation = -1;
+	m_ActiveOperation = -1;
 	if(m_DebugChoiceScreenshotFrames <= 0)
 	{
 		m_ChoiceActive = false;
@@ -465,6 +477,19 @@ void CPveRoguelite::SendChoice(int Slot)
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
 	m_FocusedChoice = Slot;
 	m_ChoiceNonce = 0;
+	m_SelectionPulse = 1.0f;
+}
+
+void CPveRoguelite::SendOperationVote(int Slot)
+{
+	if(!m_OperationVoteActive || m_OperationNonce <= 0 || Slot < 0 || Slot >= 2 || m_SelectedOperation >= 0)
+		return;
+	CNetMsg_Cl_PveOperationVote Msg;
+	Msg.m_Nonce = m_OperationNonce;
+	Msg.m_Choice = Slot;
+	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+	m_SelectedOperation = Slot;
+	m_FocusedChoice = Slot;
 	m_SelectionPulse = 1.0f;
 }
 
@@ -686,6 +711,128 @@ void CPveRoguelite::DrawSelectionOverlay(bool ContractVote)
 	Graphics()->TextureSet(-1);
 	CUIRect Cursor = {m_SelectorMouse.x, m_SelectorMouse.y, 5.0f, 5.0f};
 	DrawPanel(Cursor, vec4(Accent.r, Accent.g, Accent.b, Alpha), 2.5f);
+	TextRender()->TextColor(1, 1, 1, 1);
+}
+
+void CPveRoguelite::DrawOperationVote()
+{
+	const float ScreenWidth = 300.0f * Graphics()->ScreenAspect();
+	Graphics()->MapScreen(0, 0, ScreenWidth, 300.0f);
+	const float Dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	m_AppearAmount += (1.0f - m_AppearAmount) * (1.0f - expf(-10.0f * Dt));
+	m_SelectionPulse = max(0.0f, m_SelectionPulse - Dt * 4.0f);
+	const float Alpha = clamp(m_AppearAmount, 0.0f, 1.0f);
+	const vec4 Deep = CMenus::ThemeBgDeep();
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Inset = CMenus::ThemeBgInset();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 AccentDim = CMenus::ThemeAccentDim();
+	const vec4 Text = CMenus::ThemeText();
+	const vec4 Danger = CMenus::ThemeDanger();
+
+	CUIRect Screen = {0, 0, ScreenWidth, 300.0f};
+	DrawPanel(Screen, vec4(Deep.r, Deep.g, Deep.b, 0.95f * Alpha), 0.0f);
+	CUIRect Stage = {10.0f, 48.0f, ScreenWidth - 20.0f, 210.0f};
+	DrawPanel(Stage, vec4(Inset.r, Inset.g, Inset.b, 0.97f * Alpha), 13.0f);
+	CUIRect Line = {Stage.x + 14.0f, Stage.y + 9.0f, Stage.w - 28.0f, 1.2f};
+	DrawPanel(Line, vec4(Accent.r, Accent.g, Accent.b, 0.68f * Alpha), 0.6f);
+	DrawText(ScreenWidth * 0.5f, 8.0f, 12.5f, Localize("Choose an Operation"), vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
+	DrawText(ScreenWidth * 0.5f, 26.0f, 6.4f, Localize("Vote for the team's next mission route."), vec4(Text.r, Text.g, Text.b, 0.72f * Alpha), -1.0f, 0);
+
+	const int Seconds = max(0, (m_OperationEndTick - Client()->GameTick() + Client()->GameTickSpeed() - 1) / Client()->GameTickSpeed());
+	char aTimer[64];
+	str_format(aTimer, sizeof(aTimer), Localize("%d seconds remaining"), Seconds);
+	CUIRect Timer = {ScreenWidth * 0.5f - 47.0f, 61.0f, 94.0f, 15.0f};
+	DrawPanel(Timer, vec4(Panel.r, Panel.g, Panel.b, 0.96f * Alpha), 7.0f);
+	const vec4 TimerColor = Seconds <= 3 ? Danger : Accent;
+	DrawText(Timer.x + Timer.w * 0.5f, Timer.y + 4.0f, 6.0f, aTimer, vec4(TimerColor.r, TimerColor.g, TimerColor.b, Alpha), -1.0f, 0);
+
+	const float Gap = 16.0f;
+	const float CardWidth = min(195.0f, (Stage.w - 30.0f - Gap) * 0.5f);
+	const float StartX = ScreenWidth * 0.5f - CardWidth - Gap * 0.5f;
+	int Hovered = -1;
+	for(int i = 0; i < 2; i++)
+	{
+		CUIRect Hit = {StartX + i * (CardWidth + Gap), 84.0f, CardWidth, 149.0f};
+		if(m_SelectorMouse.x >= Hit.x && m_SelectorMouse.x <= Hit.x + Hit.w && m_SelectorMouse.y >= Hit.y && m_SelectorMouse.y <= Hit.y + Hit.h)
+			Hovered = i;
+	}
+	if(m_MouseTrigger)
+	{
+		if(Hovered >= 0)
+		{
+			m_FocusedChoice = Hovered;
+			SendOperationVote(Hovered);
+		}
+		m_MouseTrigger = false;
+	}
+	else if(Hovered >= 0)
+		m_FocusedChoice = Hovered;
+
+	for(int i = 0; i < 2; i++)
+	{
+		const bool Focused = i == m_FocusedChoice;
+		const bool Selected = i == m_SelectedOperation;
+		m_aCardFocus[i] += ((Focused ? 1.0f : 0.0f) - m_aCardFocus[i]) * (1.0f - expf(-14.0f * Dt));
+		const float FocusAmount = clamp(m_aCardFocus[i], 0.0f, 1.0f);
+		const float Scale = 1.0f + FocusAmount * 0.025f + (Selected ? m_SelectionPulse * 0.012f : 0.0f);
+		CUIRect Card = {StartX + i * (CardWidth + Gap) - CardWidth * (Scale - 1.0f) * 0.5f,
+			84.0f - FocusAmount * 2.0f, CardWidth * Scale, 149.0f * Scale};
+		CUIRect Border = Card;
+		Border.Margin(-1.5f, &Border);
+		DrawPanel(Border, vec4(Accent.r, Accent.g, Accent.b, (Focused || Selected ? 0.92f : 0.32f) * Alpha), 11.0f);
+		DrawPanel(Card, vec4(Panel.r, Panel.g, Panel.b, 0.98f * Alpha), 9.0f);
+		char aVotes[64];
+		str_format(aVotes, sizeof(aVotes), Localize("%d votes"), m_aOperationVotes[i]);
+		CUIRect VoteBadge = {Card.x + 9.0f, Card.y + 8.0f, 58.0f, 14.0f};
+		DrawPanel(VoteBadge, vec4(Inset.r, Inset.g, Inset.b, 0.96f * Alpha), 7.0f);
+		DrawText(VoteBadge.x + VoteBadge.w * 0.5f, VoteBadge.y + 3.8f, 5.8f, aVotes, vec4(Accent.r, Accent.g, Accent.b, Alpha), -1.0f, 0);
+		char aKey[8];
+		str_format(aKey, sizeof(aKey), "%d", i + 1);
+		CUIRect Key = {Card.x + Card.w - 25.0f, Card.y + 8.0f, 16.0f, 14.0f};
+		DrawPanel(Key, vec4(Inset.r, Inset.g, Inset.b, 0.96f * Alpha), 6.0f);
+		DrawText(Key.x + Key.w * 0.5f, Key.y + 3.8f, 5.8f, aKey, vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
+		const int Operation = m_aOperationOptions[i];
+		const char *pName = Localize(PveOperationName(Operation));
+		float NameSize = Focused ? 10.0f : 9.2f;
+		while(NameSize > 6.7f && TextRender()->TextWidth(0, NameSize, pName, -1) > Card.w - 18.0f)
+			NameSize -= 0.3f;
+		DrawText(Card.x + Card.w * 0.5f, Card.y + 32.0f, NameSize, pName, vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
+		DrawWrappedText(Card.x + 12.0f, Card.y + 56.0f, 6.5f, Localize(PveOperationDescription(Operation)), vec4(Text.r, Text.g, Text.b, 0.78f * Alpha), Card.w - 24.0f, 5);
+		CUIRect Button = {Card.x + 10.0f, Card.y + Card.h - 27.0f, Card.w - 20.0f, 18.0f};
+		const vec4 ButtonColor = Focused || Selected ? Accent : AccentDim;
+		DrawPanel(Button, vec4(ButtonColor.r, ButtonColor.g, ButtonColor.b, 0.94f * Alpha), 7.0f);
+		DrawText(Button.x + Button.w * 0.5f, Button.y + 5.0f, 6.5f, Localize(Selected ? "Voted" : "Vote"), vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
+	}
+
+	DrawText(ScreenWidth * 0.5f, 272.0f, 6.4f, Localize("Mouse / Arrow Keys / 1-2 / Gamepad"), vec4(Text.r, Text.g, Text.b, 0.65f * Alpha), -1.0f, 0);
+	Graphics()->TextureSet(-1);
+	CUIRect Cursor = {m_SelectorMouse.x, m_SelectorMouse.y, 5.0f, 5.0f};
+	DrawPanel(Cursor, vec4(Accent.r, Accent.g, Accent.b, Alpha), 2.5f);
+	TextRender()->TextColor(1, 1, 1, 1);
+}
+
+void CPveRoguelite::DrawOperationHud()
+{
+	if(m_ActiveOperation < 0 || Client()->State() != IClient::STATE_ONLINE)
+		return;
+	const CPveOperationDef *pDef = PveOperationDef(m_ActiveOperation);
+	if(!pDef)
+		return;
+	Graphics()->MapScreen(0, 0, 300.0f * Graphics()->ScreenAspect(), 300.0f);
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Inset = CMenus::ThemeBgInset();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 Text = CMenus::ThemeText();
+	CUIRect Hud = {10.0f, 151.0f, 118.0f, 42.0f};
+	DrawPanel(Hud, vec4(Panel.r, Panel.g, Panel.b, 0.90f), 8.0f);
+	CUIRect Edge = {Hud.x, Hud.y, 2.0f, Hud.h};
+	DrawPanel(Edge, Accent, 1.0f);
+	DrawText(Hud.x + 8.0f, Hud.y + 4.0f, 5.4f, Localize("ACTIVE OPERATION"), Accent);
+	DrawText(Hud.x + 8.0f, Hud.y + 14.0f, 7.0f, Localize(pDef->m_pName), Text, Hud.w - 16.0f, -1);
+	CUIRect Rule = {Hud.x + 7.0f, Hud.y + 27.0f, Hud.w - 14.0f, 10.0f};
+	DrawPanel(Rule, vec4(Inset.r, Inset.g, Inset.b, 0.72f), 4.0f);
+	DrawText(Rule.x + 4.0f, Rule.y + 2.0f, 4.8f, Localize(pDef->m_pDescription), vec4(Text.r, Text.g, Text.b, 0.72f), Rule.w - 8.0f, -1);
 	TextRender()->TextColor(1, 1, 1, 1);
 }
 
@@ -1563,6 +1710,8 @@ void CPveRoguelite::OnRender()
 	}
 	if(m_InvasionRetryResultActive)
 		DrawInvasionRetryResult();
+	else if(m_OperationVoteActive)
+		DrawOperationVote();
 	else if(m_InvasionRetryVoteActive)
 		DrawInvasionRetryVote();
 	else if(m_ContractVoteActive)
@@ -1578,6 +1727,7 @@ void CPveRoguelite::OnRender()
 		if(!m_pClient->GameplayInputCaptured())
 		{
 			DrawContractHud();
+			DrawOperationHud();
 			DrawBuildHud();
 		}
 	}
@@ -1587,6 +1737,8 @@ void CPveRoguelite::RenderMenuDebugOverlay()
 {
 	if(Client()->State() != IClient::STATE_ONLINE && m_InvasionRetryResultActive)
 		DrawInvasionRetryResult();
+	else if(Client()->State() != IClient::STATE_ONLINE && m_OperationVoteActive)
+		DrawOperationVote();
 	else if(Client()->State() != IClient::STATE_ONLINE && m_InvasionRetryVoteActive)
 		DrawInvasionRetryVote();
 	else if(Client()->State() != IClient::STATE_ONLINE && m_ContractVoteActive)
@@ -1620,6 +1772,31 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 		return ChoiceActive();
 	if(m_InvasionRetryResultActive)
 		return true;
+	if(m_OperationVoteActive)
+	{
+		int Direction = 0;
+		if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT || Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT)
+			Direction = -1;
+		else if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT || Event.m_Key == KEY_GAMEPAD_SHOULDER_RIGHT)
+			Direction = 1;
+		if(Direction)
+			m_FocusedChoice = (m_FocusedChoice + Direction + 2) % 2;
+		else if(Event.m_Key == KEY_1 || Event.m_Key == KEY_KP_1)
+		{
+			m_FocusedChoice = 0;
+			SendOperationVote(0);
+		}
+		else if(Event.m_Key == KEY_2 || Event.m_Key == KEY_KP_2)
+		{
+			m_FocusedChoice = 1;
+			SendOperationVote(1);
+		}
+		else if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A)
+			SendOperationVote(m_FocusedChoice);
+		else if(Event.m_Key == KEY_MOUSE_1)
+			m_MouseTrigger = true;
+		return true;
+	}
 	if(m_InvasionRetryVoteActive)
 	{
 		int Direction = 0;
@@ -1813,6 +1990,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		CNetMsg_Sv_PveChoice *pMsg = (CNetMsg_Sv_PveChoice *)pRawMsg;
 		const bool NewChoice = !m_ChoiceActive || m_ChoiceNonce != pMsg->m_Nonce || m_ChoiceSequence != pMsg->m_ChoiceSequence;
 		m_ChoiceActive = true;
+		m_OperationVoteActive = false;
 		m_ContractVoteActive = false;
 		m_InvasionRetryVoteActive = false;
 		m_InvasionRetryResultActive = false;
@@ -1863,6 +2041,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		const bool NewVote = !m_ContractVoteActive || m_ContractNonce != pMsg->m_Nonce;
 		m_ContractVoteActive = true;
 		m_ChoiceActive = false;
+		m_OperationVoteActive = false;
 		m_InvasionRetryVoteActive = false;
 		m_InvasionRetryResultActive = false;
 		m_ContractNonce = pMsg->m_Nonce;
@@ -1918,6 +2097,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		CNetMsg_Sv_PveInvasionRetryVote *pMsg = (CNetMsg_Sv_PveInvasionRetryVote *)pRawMsg;
 		const bool NewVote = !m_InvasionRetryVoteActive || m_InvasionRetryNonce != pMsg->m_Nonce;
 		m_ChoiceActive = false;
+		m_OperationVoteActive = false;
 		m_ContractVoteActive = false;
 		m_InvasionRetryResultActive = false;
 		m_InvasionRetryVoteActive = true;
@@ -1941,6 +2121,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		CNetMsg_Sv_PveInvasionRetryResult *pMsg = (CNetMsg_Sv_PveInvasionRetryResult *)pRawMsg;
 		const bool NewResult = !m_InvasionRetryResultActive || m_InvasionRetryResult != pMsg->m_Result || m_InvasionRetryResultEndTick != pMsg->m_EndTick;
 		m_ChoiceActive = false;
+		m_OperationVoteActive = false;
 		m_ContractVoteActive = false;
 		m_InvasionRetryVoteActive = false;
 		m_InvasionRetryResultActive = true;
@@ -1949,6 +2130,39 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		str_copy(m_aInvasionRetryPlayerName, pMsg->m_pPlayerName, sizeof(m_aInvasionRetryPlayerName));
 		if(NewResult)
 			m_AppearAmount = 0.0f;
+	}
+	else if(MsgType == NETMSGTYPE_SV_PVEOPERATIONVOTE)
+	{
+		CNetMsg_Sv_PveOperationVote *pMsg = (CNetMsg_Sv_PveOperationVote *)pRawMsg;
+		const bool NewVote = !m_OperationVoteActive || m_OperationNonce != pMsg->m_Nonce;
+		m_ChoiceActive = false;
+		m_ContractVoteActive = false;
+		m_InvasionRetryVoteActive = false;
+		m_InvasionRetryResultActive = false;
+		m_OperationVoteActive = true;
+		m_OperationNonce = pMsg->m_Nonce;
+		m_OperationEndTick = pMsg->m_EndTick;
+		m_aOperationOptions[0] = pMsg->m_Operation0;
+		m_aOperationOptions[1] = pMsg->m_Operation1;
+		m_aOperationVotes[0] = pMsg->m_Votes0;
+		m_aOperationVotes[1] = pMsg->m_Votes1;
+		if(NewVote)
+		{
+			m_SelectedOperation = -1;
+			m_FocusedChoice = 0;
+			for(int i = 0; i < 3; i++)
+				m_aCardFocus[i] = 0.0f;
+			m_SelectorMouse = vec2(150.0f * Graphics()->ScreenAspect(), 150.0f);
+			m_AppearAmount = 0.0f;
+		}
+	}
+	else if(MsgType == NETMSGTYPE_SV_PVEOPERATIONSTATE)
+	{
+		CNetMsg_Sv_PveOperationState *pMsg = (CNetMsg_Sv_PveOperationState *)pRawMsg;
+		m_OperationVoteActive = false;
+		m_OperationNonce = 0;
+		m_SelectedOperation = -1;
+		m_ActiveOperation = pMsg->m_State == PVE_OPERATION_STATE_ACTIVE ? pMsg->m_Operation : -1;
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEVALIDATION)
 	{

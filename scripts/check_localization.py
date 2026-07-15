@@ -105,6 +105,8 @@ PVE_UI_KEYS = {
 	"Legendary", "Barrier", "Focus", "Blast Charge", "Voltage", "Fury",
 	"Vulnerable", "Bleed", "Drone", "None", "Assault", "Guardian", "Repair",
 	"Drone module not owned", "Drone switch cooling down",
+	"Choose an Operation", "Vote for the team's next mission route.",
+	"Mouse / Arrow Keys / 1-2 / Gamepad", "ACTIVE OPERATION",
 }
 
 
@@ -118,6 +120,10 @@ def extract_pve_definition_strings() -> set[str]:
         strings.update(match.groups())
     for match in re.finditer(
         r'\{PVE_CONTRACT_[^,]+,\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"', text
+    ):
+        strings.update(match.groups())
+    for match in re.finditer(
+        r'\{PVE_OPERATION_[^,]+,\s*"([^"]+)",\s*"([^"]+)"', text
     ):
         strings.update(match.groups())
     return strings
@@ -176,7 +182,7 @@ def main() -> int:
     definition_overlap = sorted(extract_pve_definition_strings() & en_keys)
     if definition_overlap:
         errors += 1
-        print("PvE card/contract display text must not be duplicated in server JSON:")
+        print("PvE card/contract/operation display text must not be duplicated in server JSON:")
         for key in definition_overlap:
             print(f"  {key}")
     missing_en = sorted(all_server_strings - en_keys)

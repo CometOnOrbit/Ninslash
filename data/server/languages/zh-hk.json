@@ -721,6 +721,10 @@
             "value": "契約投票逾時；已從有效選項中選定一項"
         },
         {
+            "key": "Operation vote timed out; a valid route was selected",
+            "value": "行動投票逾時；已選定一條有效路線"
+        },
+        {
             "key": "Perk choice timed out; displayed options were selected at random",
             "value": "強化選擇逾時；已從顯示選項中隨機選擇"
         },

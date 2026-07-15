@@ -274,6 +274,20 @@ void CGameControllerHorde::NextWave()
 		if(m_Wave >= 6 && GetSpawnPos(0, &p))
 			new CCrawler(&GameServer()->m_World, p + vec2(0, -100));
 	}
+	const int Operation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
+	if(Operation == PVE_OPERATION_ASSEMBLY_SURGE && m_Wave % 2 == 1)
+	{
+		vec2 p;
+		if(GetSpawnPos(0, &p))
+			new CCrawler(&GameServer()->m_World, p + vec2(0, -100));
+	}
+	if(Operation == PVE_OPERATION_GRID_STORM && (m_Wave - 1) % 4 + 1 == 3)
+	{
+		vec2 p;
+		if(!GetBossSpawnPos(&p))
+			p = vec2(4000, 4000);
+		SpawnBoss(&GameServer()->m_World, p, EnemyLevel());
+	}
 
 	if(m_Wave > 0 && m_Wave % 4 == 0)
 	{

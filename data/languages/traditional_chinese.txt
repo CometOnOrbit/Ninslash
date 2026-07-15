@@ -2747,6 +2747,72 @@ Returning all players to Floor 1.
 == 全體玩家即將回到第 1 層。
 
 
+Circuit Breaker
+== 斷路行動
+
+Choose an Operation
+== 選擇一項行動
+
+Vote for the team's next mission route.
+== 投票選擇團隊的下一條任務路線。
+
+Mouse / Arrow Keys / 1-2 / Gamepad
+== 滑鼠 / 方向鍵 / 1-2 / 手把
+
+ACTIVE OPERATION
+== 目前行動
+
+Disable hostile control loops. Enemy pressure is lighter and objective damage is stronger.
+== 切斷敵方控制迴路。敵軍壓力降低，目標受到的傷害提高。
+
+Foundry Shutdown
+== 鑄造廠停機
+
+Cut production lines. Fewer enemies arrive and team repairs are more efficient.
+== 關閉生產線。敵軍增援減少，團隊維修效率提高。
+
+Fire-Control Purge
+== 火控清除
+
+Scrub targeting systems. Enemies are faster, but reinforcements are reduced.
+== 清除瞄準系統。敵軍速度提高，但增援數量減少。
+
+Siege Line
+== 圍城防線
+
+Anchor the front. Defensive repairs improve and hostile numbers stay lower.
+== 穩固前線。防禦設施維修效率提高，敵軍數量減少。
+
+Assembly Surge
+== 裝配激增
+
+Reroute salvage to the crew. Repairs are better and enemy armor is a little thinner.
+== 將回收資源轉給隊員。維修效果提高，敵軍裝甲略微削弱。
+
+Grid Storm
+== 電網風暴
+
+Overload the field. Enemies move faster, but the horde is slightly smaller.
+== 使戰場電網過載。敵軍移動更快，但屍潮規模略小。
+
+Core Recovery
+== 核心回收
+
+Restore the route core. You get more time and lighter reinforcement pressure.
+== 恢復路線核心。行動時間增加，敵軍增援壓力降低。
+
+Lockdown Break
+== 封鎖突破
+
+Crack the route seals. Switches are easier and the exit timer is kinder.
+== 破解路線封鎖。開關更易啟動，撤離時限更寬裕。
+
+Siege Route
+== 攻城路線
+
+Take the hard corridor. More enemies come through, but rewards scale up.
+== 選擇高風險通道。敵軍數量增加，但獎勵也會提高。
+
 ##### needs translation #####
 
 ##### old translations #####
