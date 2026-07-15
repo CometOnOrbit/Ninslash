@@ -326,7 +326,7 @@ void CGenLayer::GenerateMoreForeground()
 		bool *apTiles = new bool[m_Width*m_Height];
 		for (int x = 0; x < m_Width; x++)
 			for (int y = 0; y < m_Height; y++)
-				if (abs(sin(x*a1)*cos(y*a2)) > 0.5f)
+				if (absolute(sin(x*a1)*cos(y*a2)) > 0.5f)
 					apTiles[x + y*m_Width] = AddForegroundTile(x, y);
 			
 		for (int x = 0; x < m_Width; x++)

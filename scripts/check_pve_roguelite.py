@@ -95,6 +95,7 @@ def main() -> int:
         "Sv_PveBuildState", "Cl_PveProgress", "Cl_PveChoice", "Cl_PveContractVote",
         "Cl_PveResearchBuy", "Cl_PveDroneModule", "Sv_PveInvasionRetryVote",
         "Sv_PveInvasionRetryResult", "Cl_PveInvasionRetryVote",
+        "Sv_PveOperationVote", "Cl_PveOperationVote", "Sv_PveOperationState",
     ):
         if f'NetMessage("{message}"' not in network:
             fail(f"missing protocol message {message}")
@@ -260,10 +261,10 @@ def main() -> int:
     if 'cl_pve_research_mask, 33, "00000000000000000000000000000000"' not in config:
         fail("research mask config is not 128-bit hexadecimal")
     version = open(os.path.join(ROOT, "src/game/version.h"), encoding="utf-8").read()
-    if '"pve-director-v8"' not in version:
-        fail("network protocol version was not advanced to v8")
+    if '"pve-director-v9"' not in version:
+        fail("network protocol version was not advanced to v9")
 
-    print(f"OK: 100 cards (12 new base, 48 new research, 8 legendary), 20 contracts, {new_research_cost} new research points, v8 protocol")
+    print(f"OK: 100 cards (12 new base, 48 new research, 8 legendary), 20 contracts, {new_research_cost} new research points, v9 protocol")
     return 0
 
 

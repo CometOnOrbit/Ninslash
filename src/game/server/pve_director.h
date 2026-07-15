@@ -168,6 +168,7 @@ class CPveDirector
 	void SendProgress(int ClientID);
 	void SendValidation(int ClientID, int Code);
 	bool AllChoicesComplete() const;
+	bool AllOperationVotesComplete() const;
 	bool AllContractVotesComplete() const;
 	void GrantCatchup(int ClientID);
 	void TickBlackBox();

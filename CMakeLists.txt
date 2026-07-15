@@ -761,6 +761,16 @@ if(CLIENT)
   add_executable(${TARGET_CLIENT} ${TARGET_CLIENT_SOURCES})
   target_link_libraries(${TARGET_CLIENT} ${LIBS_CLIENT})
 
+  if(TARGET_OS STREQUAL "windows")
+    foreach(copy_file ${FREETYPE_COPY_FILES} ${SDL3_COPY_FILES})
+      add_custom_command(TARGET ${TARGET_CLIENT} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${PROJECT_SOURCE_DIR}/${copy_file}"
+          "$<TARGET_FILE_DIR:${TARGET_CLIENT}>"
+      )
+    endforeach()
+  endif()
+
   target_include_directories(${TARGET_CLIENT} PRIVATE
     ${FREETYPE_INCLUDE_DIRS}
     ${PNGLITE_INCLUDE_DIRS}
@@ -1293,6 +1303,7 @@ foreach(target ${TARGETS})
     target_compile_options(${target} PRIVATE /MP) # Use multiple cores
     target_compile_options(${target} PRIVATE /EHsc) # Only catch C++ exceptions with catch.
     target_compile_options(${target} PRIVATE /GS) # Protect the stack pointer.
+    target_compile_options(${target} PRIVATE /utf-8) # Treat source and execution character sets as UTF-8.
     target_compile_options(${target} PRIVATE /wd4996) # Use of non-_s functions.
   endif()
   if(OUR_FLAGS)

@@ -1,4 +1,6 @@
+#if defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wvarargs"
+#endif
 #include <cstring>
 #include <new>
 #include <base/math.h>
