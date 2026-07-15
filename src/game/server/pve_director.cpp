@@ -346,6 +346,7 @@ void CPveDirector::SendOperationState(int ClientID)
 	Msg.m_TargetType = PVE_OPERATION_TARGET_NONE;
 	Msg.m_TargetX = 0;
 	Msg.m_TargetY = 0;
+	Msg.m_CargoCarrier = -1;
 	m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
 
@@ -1166,6 +1167,14 @@ void CPveDirector::OnOperationChainFinished(int OperationID)
 		return;
 	m_ActiveOperation = -1;
 	m_OperationState = PVE_OPERATION_STATE_NONE;
+	SendOperationState();
+}
+
+void CPveDirector::OnOperationChainFailed(int OperationID)
+{
+	if(m_ActiveOperation != OperationID)
+		return;
+	m_OperationState = PVE_OPERATION_STATE_FAILED;
 	SendOperationState();
 }
 

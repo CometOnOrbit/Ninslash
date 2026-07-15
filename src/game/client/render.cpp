@@ -10,6 +10,7 @@
 #include <generated/game_data.h>
 #include <generated/protocol.h>
 #include <game/layers.h>
+#include <game/pve_roguelite.h>
 #include "render.h"
 #include "skelebank.h"
 #include "animdata.h"
@@ -2891,6 +2892,26 @@ void CRenderTools::RenderSkeleton(vec2 Position, const CTeeRenderInfo *pInfo, CS
 					
 					if (pAttachment->m_SpecialType == AST_BODY)
 					{
+						// PvE operation cargo is a dedicated canister/cartridge/core,
+						// never the Counter-Strike bomb backpack.
+						if(PlayerInfo && PlayerInfo->m_PveCargo > PVE_CARGO_NONE)
+						{
+							Graphics()->TextureSet(g_pData->m_aImages[IMAGE_PVE_CARGO].m_Id);
+							Graphics()->QuadsBegin();
+							Graphics()->SetColor(1, 1, 1, 1);
+							vec2 di = normalize(vec2(p0.x, p0.y) - vec2(p2.x, p2.y));
+							vec3 tp = (p0+p1+p2+p3) / 4.0f;
+							vec2 p = vec2(tp.x, tp.y);
+							Graphics()->QuadsSetRotation(GetAngle(di)+pi/2);
+							SelectSprite(SPRITE_PVE_CARGO_COOLANT + clamp(PlayerInfo->m_PveCargo, (int)PVE_CARGO_COOLANT, (int)PVE_CARGO_ENERGY) - PVE_CARGO_COOLANT);
+							const float s = 30.0f;
+							const float BackX = AnimData->m_Flip ? 29.0f : -29.0f;
+							IGraphics::CQuadItem QuadItem(p.x + BackX, p.y - 16.0f, s*2.0f*(AnimData->m_Flip ? -1.0f : 1.0f), s*2.0f);
+							Graphics()->QuadsDraw(&QuadItem, 1);
+							Graphics()->QuadsEnd();
+							Graphics()->TextureSet(pInfo->m_BodyTexture);
+						}
+
 						// bomb for cs / reactor defense
 						if (PlayerInfo && PlayerInfo->m_BombCarrier)
 						{

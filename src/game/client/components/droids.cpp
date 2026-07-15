@@ -8,6 +8,7 @@
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>
+#include <game/client/skelebank.h>
 
 #include <game/client/customstuff.h>
 
@@ -221,6 +222,53 @@ void CDroids::OnRender()
 {
 	if(!Client()->IsGameWorldActive())
 		return;
+
+	auto RenderLostProtocol = [&](const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID)
+	{
+		int Atlas = ATLAS_LOST_PROTOCOL_BULWARK;
+		switch(pCurrent->m_Type)
+		{
+		case DROIDTYPE_BULWARK: Atlas = ATLAS_LOST_PROTOCOL_BULWARK; break;
+		case DROIDTYPE_ASSEMBLER: Atlas = ATLAS_LOST_PROTOCOL_ASSEMBLER; break;
+		case DROIDTYPE_SABOTEUR: Atlas = ATLAS_LOST_PROTOCOL_SABOTEUR; break;
+		case DROIDTYPE_RAILGUNNER: Atlas = ATLAS_LOST_PROTOCOL_RAILGUNNER; break;
+		case DROIDTYPE_SIEGE_ENGINE: Atlas = ATLAS_LOST_PROTOCOL_SIEGE_ENGINE; break;
+		case DROIDTYPE_OVERSEER_CORE: Atlas = ATLAS_LOST_PROTOCOL_OVERSEER_CORE; break;
+		default: return;
+		}
+
+		const vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
+		const float AttackAge = (Client()->PrevGameTick() - pCurrent->m_AttackTick + Client()->IntraGameTick()) / (float)Client()->GameTickSpeed();
+		const char *pAnim = "idle";
+		float Time = CustomStuff()->m_MonsterAnim * 0.45f + ItemID * 0.17f;
+		if(pCurrent->m_Status == DROIDSTATUS_TERMINATED)
+			pAnim = "destroyed";
+		else if(pCurrent->m_Status == DROIDSTATUS_ELECTRIC)
+			pAnim = "emp";
+		else if(pCurrent->m_Status == DROIDSTATUS_HURT)
+			pAnim = "hit";
+		else if(AttackAge >= 0.0f && AttackAge < 0.5f)
+		{
+			pAnim = "attack";
+			Time = AttackAge;
+		}
+
+		if(pCurrent->m_Status != DROIDSTATUS_IDLE)
+		{
+			CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS] = 1.0f;
+			CustomStuff()->m_DroidDamageType[ItemID % MAX_DROIDS] = pCurrent->m_Status;
+		}
+		if(CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS] > 0.0f)
+		{
+			if(CustomStuff()->m_DroidDamageType[ItemID % MAX_DROIDS] == DROIDSTATUS_ELECTRIC)
+				Graphics()->ShaderBegin(SHADER_ELECTRIC, CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS]);
+			else
+				Graphics()->ShaderBegin(SHADER_DAMAGE, CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS]);
+		}
+
+		RenderTools()->RenderSkeleton(Pos, Atlas, pAnim, Time, vec2(1.0f, 1.0f), -pCurrent->m_Dir, 0);
+		Graphics()->ShaderEnd();
+	};
 	
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
 	for(int i = 0; i < Num; i++)
@@ -257,15 +305,11 @@ void CDroids::OnRender()
 				break;
 			case DROIDTYPE_BULWARK:
 			case DROIDTYPE_ASSEMBLER:
+			case DROIDTYPE_SABOTEUR:
 			case DROIDTYPE_RAILGUNNER:
 			case DROIDTYPE_SIEGE_ENGINE:
-				RenderWalker(pDroidPrev, pDroid, Item.m_ID);
-				break;
-			case DROIDTYPE_SABOTEUR:
-				RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
-				break;
 			case DROIDTYPE_OVERSEER_CORE:
-				RenderStar(pDroidPrev, pDroid, Item.m_ID);
+				RenderLostProtocol(pDroidPrev, pDroid, Item.m_ID);
 				break;
 			default:;
 			}

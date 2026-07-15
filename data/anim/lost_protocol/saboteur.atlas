@@ -1,0 +1,145 @@
+lost_protocol/saboteur.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+body
+  rotate: false
+  xy: 4, 4
+  size: 104, 40
+  orig: 104, 40
+  offset: 0, 0
+  index: -1
+emp_coil
+  rotate: false
+  xy: 112, 4
+  size: 56, 56
+  orig: 56, 56
+  offset: 0, 0
+  index: -1
+front_joint
+  rotate: false
+  xy: 172, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+front_upper
+  rotate: false
+  xy: 200, 4
+  size: 42, 23
+  orig: 42, 23
+  offset: 0, 0
+  index: -1
+front_lower
+  rotate: false
+  xy: 246, 4
+  size: 36, 21
+  orig: 36, 21
+  offset: 0, 0
+  index: -1
+front_foot
+  rotate: false
+  xy: 286, 4
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+front_mid_joint
+  rotate: false
+  xy: 324, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+front_mid_upper
+  rotate: false
+  xy: 352, 4
+  size: 39, 23
+  orig: 39, 23
+  offset: 0, 0
+  index: -1
+front_mid_lower
+  rotate: false
+  xy: 395, 4
+  size: 34, 21
+  orig: 34, 21
+  offset: 0, 0
+  index: -1
+front_mid_foot
+  rotate: false
+  xy: 433, 4
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_mid_joint
+  rotate: false
+  xy: 471, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_mid_upper
+  rotate: false
+  xy: 4, 64
+  size: 39, 23
+  orig: 39, 23
+  offset: 0, 0
+  index: -1
+back_mid_lower
+  rotate: false
+  xy: 47, 64
+  size: 34, 21
+  orig: 34, 21
+  offset: 0, 0
+  index: -1
+back_mid_foot
+  rotate: false
+  xy: 85, 64
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_joint
+  rotate: false
+  xy: 123, 64
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_upper
+  rotate: false
+  xy: 151, 64
+  size: 42, 23
+  orig: 42, 23
+  offset: 0, 0
+  index: -1
+back_lower
+  rotate: false
+  xy: 197, 64
+  size: 36, 21
+  orig: 36, 21
+  offset: 0, 0
+  index: -1
+back_foot
+  rotate: false
+  xy: 237, 64
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+antenna_left
+  rotate: false
+  xy: 275, 64
+  size: 46, 15
+  orig: 46, 15
+  offset: 0, 0
+  index: -1
+antenna_right
+  rotate: false
+  xy: 325, 64
+  size: 46, 15
+  orig: 46, 15
+  offset: 0, 0
+  index: -1

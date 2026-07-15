@@ -1,0 +1,110 @@
+lost_protocol/siege_engine.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+body
+  rotate: false
+  xy: 4, 4
+  size: 142, 64
+  orig: 142, 64
+  offset: 0, 0
+  index: -1
+front_joint
+  rotate: false
+  xy: 150, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+front_upper
+  rotate: false
+  xy: 178, 4
+  size: 50, 23
+  orig: 50, 23
+  offset: 0, 0
+  index: -1
+front_lower
+  rotate: false
+  xy: 232, 4
+  size: 46, 21
+  orig: 46, 21
+  offset: 0, 0
+  index: -1
+front_foot
+  rotate: false
+  xy: 282, 4
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_joint
+  rotate: false
+  xy: 320, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_upper
+  rotate: false
+  xy: 348, 4
+  size: 50, 23
+  orig: 50, 23
+  offset: 0, 0
+  index: -1
+back_lower
+  rotate: false
+  xy: 402, 4
+  size: 46, 21
+  orig: 46, 21
+  offset: 0, 0
+  index: -1
+back_foot
+  rotate: false
+  xy: 452, 4
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+cannon
+  rotate: false
+  xy: 4, 72
+  size: 198, 38
+  orig: 198, 38
+  offset: 0, 0
+  index: -1
+mine_rack
+  rotate: false
+  xy: 206, 72
+  size: 48, 28
+  orig: 48, 28
+  offset: 0, 0
+  index: -1
+middle_joint
+  rotate: false
+  xy: 258, 72
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+middle_upper
+  rotate: false
+  xy: 286, 72
+  size: 52, 23
+  orig: 52, 23
+  offset: 0, 0
+  index: -1
+middle_lower
+  rotate: false
+  xy: 342, 72
+  size: 47, 21
+  orig: 47, 21
+  offset: 0, 0
+  index: -1
+middle_foot
+  rotate: false
+  xy: 393, 72
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1

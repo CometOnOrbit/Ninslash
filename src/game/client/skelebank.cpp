@@ -66,6 +66,33 @@ void CSkelebank::Init(IStorage *pStorage)
 
 	AddSkeleton("data/anim/crawler.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/crawler.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/lost_protocol/bulwark.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/lost_protocol/bulwark.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/lost_protocol/assembler.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/lost_protocol/assembler.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/lost_protocol/saboteur.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/lost_protocol/saboteur.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/lost_protocol/railgunner.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/lost_protocol/railgunner.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/lost_protocol/siege_engine.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/lost_protocol/siege_engine.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/lost_protocol/overseer_core.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/lost_protocol/overseer_core.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/lost_protocol/pve_drone_assault.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/lost_protocol/pve_drone_assault.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/lost_protocol/pve_drone_guardian.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/lost_protocol/pve_drone_guardian.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/lost_protocol/pve_drone_repair.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/lost_protocol/pve_drone_repair.atlas", IStorage::STORAGETYPE_CLIENT);
 }
 
 CSkelebank::~CSkelebank()

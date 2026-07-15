@@ -17,6 +17,7 @@ class CPveOperationTarget : public CBuilding
 	int m_ProgressTicks;
 	bool m_Complete;
 	int m_TargetType;
+	int m_CargoType;
 	vec2 m_SourcePos;
 	vec2 m_DeliveryPos;
 	int m_CarrierCID;
@@ -26,7 +27,10 @@ public:
 	virtual ~CPveOperationTarget();
 	virtual void Reset();
 	virtual void Tick();
+	virtual void Snap(int SnappingClient);
 	void DetachDirector() { m_pDirector = 0; }
+	int CarrierCID() const { return m_CarrierCID; }
+	vec2 HudTargetPos() const { return m_CarrierCID >= 0 ? m_DeliveryPos : m_Pos; }
 };
 
 #endif

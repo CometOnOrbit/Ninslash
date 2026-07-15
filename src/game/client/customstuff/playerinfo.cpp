@@ -44,6 +44,7 @@ void CPlayerInfo::Reset()
 	m_Charged = true;
 	m_ChargeFailed = false;
 	m_BombCarrier = false;
+	m_PveCargo = 0;
 	m_Mask = 0;
 	
 	m_FGHandPos = vec2(0, 0);

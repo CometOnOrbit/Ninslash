@@ -557,11 +557,11 @@ void IGameController::BeginRisingAcid(int Seconds)
 
 int IGameController::GetRisingAcidTime() const
 {
-	// Rise from just below the floor toward the top in ~50s (was 1px/tick ≈ 3+ min on tall towers).
-	const int Elapsed = max(0, Server()->Tick() - m_RisingAcidStartTick);
+	// Honor the duration requested by the mode or operation.
+	const int RiseTicks = max(1, m_RisingAcidDuration);
+	const int Elapsed = clamp(Server()->Tick() - m_RisingAcidStartTick, 0, RiseTicks);
 	const int MapH = GameServer()->Collision()->GetHeight();
 	const int ClimbPx = max(80*32, MapH*32 - 96);
-	const int RiseTicks = max(1, 50 * Server()->TickSpeed());
 	return 64 - (ClimbPx * Elapsed) / RiseTicks;
 }
 
@@ -592,9 +592,11 @@ void IGameController::DisplayExit(vec2 Pos)
 }
 
 
-void IGameController::TriggerEscape()
+bool IGameController::TriggerEscape(vec2 *pExitPos)
 {
 	float Radius = 1000000;
+	bool FoundExit = false;
+	vec2 ExitPos(0, 0);
 	
 	CBuilding *apEnts[999];
 	int Num = GameServer()->m_World.FindEntities(vec2(4000, 4000), Radius, (CEntity**)apEnts,
@@ -605,9 +607,20 @@ void IGameController::TriggerEscape()
 		if (pTarget->m_Type == BUILDING_DOOR1)
 		{
 			pTarget->Trigger();
-			DisplayExit(pTarget->m_Pos);
+			if(!FoundExit)
+			{
+				FoundExit = true;
+				ExitPos = pTarget->m_Pos;
+			}
 		}
 	}
+	if(FoundExit)
+	{
+		DisplayExit(ExitPos);
+		if(pExitPos)
+			*pExitPos = ExitPos;
+	}
+	return FoundExit;
 }
 
 

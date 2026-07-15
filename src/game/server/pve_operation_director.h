@@ -65,6 +65,7 @@ private:
 	void CompleteStage();
 	void ClearTarget();
 	void Diagnose(const char *pReason, const char *pFallback) const;
+	void FallbackToMode(const char *pReason);
 	void SendState(int ClientID = -1);
 	void SpawnStageThreats(vec2 Pos);
 	void TrackEntity(CEntity *pEntity);
@@ -81,9 +82,11 @@ public:
 	void Tick();
 	void OnEvent(EEvent Event, int Amount = 1);
 	void OnTargetCompleted(CPveOperationTarget *pTarget);
+	void OnCargoStateChanged() { SendState(); }
 	void Clear();
 	bool Running() const { return m_Running; }
 	bool Complete() const { return m_Complete; }
+	bool OverridesModeFlow() const { return m_Running && !m_ModeFallback; }
 	int Operation() const { return m_Operation; }
 	int Stage() const { return m_Stage; }
 	void OnClientEnter(int ClientID) { SendState(ClientID); }

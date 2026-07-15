@@ -8,6 +8,7 @@
 #include <generated/game_data.h>
 
 #include <game/gamecore.h> // get_angle
+#include <game/pve_roguelite.h>
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>
@@ -20,6 +21,7 @@
 #include <game/client/components/flow.h>
 #include <game/client/components/skins.h>
 #include <game/client/components/effects.h>
+#include <game/client/components/pve_roguelite.h>
 #include <game/client/components/tracer.h>
 #include <game/client/components/sounds.h>
 #include <game/client/components/controls.h>
@@ -1439,6 +1441,9 @@ void CPlayers::RenderPlayer(
 		pCustomPlayerInfo->m_BombCarrier = true;
 	else
 		pCustomPlayerInfo->m_BombCarrier = false;
+	pCustomPlayerInfo->m_PveCargo = clamp(Player.m_PveCargo, (int)PVE_CARGO_NONE, (int)PVE_CARGO_ENERGY);
+	if(pInfo.m_Local && m_pClient->m_pPveRoguelite->DebugCargoCarried())
+		pCustomPlayerInfo->m_PveCargo = m_pClient->m_pPveRoguelite->DebugCargoType();
 	
 	// get mask / gear
 	pCustomPlayerInfo->m_Mask = s>>STATUS_MASK1;

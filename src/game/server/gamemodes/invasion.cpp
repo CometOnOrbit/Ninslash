@@ -122,6 +122,7 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_RogueliteCompletionStarted = false;
 	m_EliteContractSpawned = false;
 	m_CheckpointApplied = false;
+	m_OperationFlowOverride = false;
 	m_RetryVoteNonce = 0;
 	m_RetryVoteEndTick = 0;
 	m_RetryVoteLastSyncTick = 0;
@@ -886,6 +887,70 @@ void CGameControllerInvasion::SetReactorDefenseActive(bool Active)
 }
 
 
+void CGameControllerInvasion::SetOperationFlowOverride(bool Active)
+{
+	if(m_OperationFlowOverride == Active)
+		return;
+	m_OperationFlowOverride = Active;
+	if(!Active)
+		return;
+
+	// An operation replaces this floor's quest chain. Remove every queued or
+	// active legacy objective and its hazards before operation gameplay starts.
+	if(m_Quest == QUEST_DEFEND)
+		SetReactorDefenseActive(false);
+	SetSwitchesActive(false);
+	m_pDoor->Deactivate();
+	ClearRisingAcid();
+	m_Quest = QUEST_NONE;
+	m_NextQuest = QUEST_NONE;
+	m_QuestChangeTick = 0;
+	m_QuestProgressCounter = 0;
+	m_QuestWaveEndTick = 0;
+	m_QuestWaveEnemiesLeft = 0;
+	m_DefendEndTick = 0;
+	m_EnemiesLeft = 0;
+	m_BossesLeft = 0;
+	m_ForcedWaveType = WAVE_NONE;
+	m_EscapeSpawnActive = false;
+}
+
+
+void CGameControllerInvasion::FinishOperationFloor()
+{
+	if(!m_pOperationDirector->Complete())
+		return;
+
+	const int Operation = m_pOperationDirector->Operation();
+	const bool AlreadyLeaving = m_RoundWin;
+	if(m_Quest == QUEST_DEFEND)
+		SetReactorDefenseActive(false);
+	SetSwitchesActive(false);
+	m_OperationFlowOverride = false;
+	m_Quest = QUEST_NONE;
+	m_NextQuest = QUEST_NONE;
+	m_QuestChangeTick = 0;
+	m_QuestProgressCounter = 0;
+	m_EnemiesLeft = 0;
+	m_ForcedWaveType = WAVE_NONE;
+	m_QuestsCompleted = max(m_QuestsCompleted, m_LevelQuestsLeft);
+
+	if(!AlreadyLeaving)
+	{
+		m_Quest = QUEST_REACHDOOR;
+		if(TriggerEscape())
+			SendQuestStartMessage(m_Quest);
+		else
+		{
+			dbg_msg("pve-operation", "operation=%d completed without an Invasion exit; restoring mode flow", Operation);
+			m_Quest = QUEST_NONE;
+			m_QuestsCompleted = 0;
+		}
+	}
+	m_pOperationDirector->Clear();
+}
+
+
 int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
@@ -932,17 +997,18 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 
 void CGameControllerInvasion::NextLevel(int CID)
 {
+	m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_EVACUATE);
 	if (!m_RoundWin)
 	{
 		m_RoundWin = true;
 		m_RoundWinTick = Server()->Tick() + Server()->TickSpeed()*CountHumans()*1;
 		
-		if (CountHumans() > 1)
+		if (CountHumans() > 1 && CID >= 0 && CID < MAX_CLIENTS)
 			GameServer()->SendBroadcastFormat(-1, false, "%s reached the door", Server()->ClientName(CID));
 	}
 	
 	
-	CPlayer *pPlayer = GameServer()->m_apPlayers[CID];
+	CPlayer *pPlayer = CID >= 0 && CID < MAX_CLIENTS ? GameServer()->m_apPlayers[CID] : 0;
 	if(pPlayer && pPlayer->GetCharacter() && !pPlayer->GetCharacter()->IgnoreCollision())
 		pPlayer->GetCharacter()->Warp();
 }
@@ -1197,12 +1263,19 @@ void CGameControllerInvasion::OnSwitchTriggered()
 void CGameControllerInvasion::Tick()
 {
 	IGameController::Tick();
+	// Completion can be raised from an entity callback between controller ticks.
+	if(m_pOperationDirector->Complete())
+		FinishOperationFloor();
 	const int ActiveOperation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
 	if(ActiveOperation >= 0 && m_pOperationDirector->Operation() != ActiveOperation)
 		m_pOperationDirector->Start(ActiveOperation);
 	else if(ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
 		m_pOperationDirector->Clear();
 	m_pOperationDirector->Tick();
+	if(m_pOperationDirector->Complete())
+		FinishOperationFloor();
+	const bool OperationOverrides = m_pOperationDirector->OverridesModeFlow();
+	SetOperationFlowOverride(OperationOverrides);
 	if(m_GameState == STATE_RETRY_VOTE)
 	{
 		TickRetryVote();
@@ -1240,6 +1313,8 @@ void CGameControllerInvasion::Tick()
 				SetReactorDefenseActive(false);
 		}
 
+		if(!OperationOverrides)
+		{
 		if (m_QuestChangeTick && m_QuestChangeTick <= Server()->Tick())
 		{
 			m_Quest = m_NextQuest;
@@ -1428,6 +1503,7 @@ void CGameControllerInvasion::Tick()
 				}
 			}
 		}
+		}
 	}
 			
 	if (m_GameState == STATE_STARTING)
@@ -1504,10 +1580,15 @@ void CGameControllerInvasion::Tick()
 				GameServer()->m_pPveDirector->RegisterEliteContractBoss(pBoss);
 				m_EliteContractSpawned = true;
 			}
-			if(GameServer()->m_pPveDirector)
-				m_EnemiesLeft = (int)(m_EnemiesLeft * GameServer()->m_pPveDirector->EnemyCountMultiplier() + 0.5f);
-			for (int i = 0; i < m_EnemiesLeft && CountBots() < 32; i++)
-				GameServer()->AddBot();
+			if(OperationOverrides)
+				m_EnemiesLeft = 0;
+			else
+			{
+				if(GameServer()->m_pPveDirector)
+					m_EnemiesLeft = (int)(m_EnemiesLeft * GameServer()->m_pPveDirector->EnemyCountMultiplier() + 0.5f);
+				for (int i = 0; i < m_EnemiesLeft && CountBots() < 32; i++)
+					GameServer()->AddBot();
+			}
 		}
 		else if ((m_AutoRestart || g_Config.m_SvMapGenLevel > 1) && Server()->Tick() > Server()->TickSpeed()*60.0f)
 		{

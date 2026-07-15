@@ -109,11 +109,34 @@ class CTextRender : public IEngineTextRender
 		return Chr == ' ' || Chr == '\t' || Chr == 0x3000;
 	}
 
+	static bool IsLatinWordCharacter(int Chr)
+	{
+		return (Chr >= '0' && Chr <= '9') || (Chr >= 'A' && Chr <= 'Z') ||
+			(Chr >= 'a' && Chr <= 'z') || (Chr >= 0x00c0 && Chr <= 0x02af);
+	}
+
+	static bool IsInternalWordPunctuation(int Chr)
+	{
+		return Chr == '\'' || Chr == 0x2019 || Chr == '-' || Chr == '_' ||
+			Chr == '.' || Chr == ',' || Chr == ':' || Chr == ';' || Chr == '/' ||
+			Chr == '\\' || Chr == '@' || Chr == '#' || Chr == '%' || Chr == '&' ||
+			Chr == '=' || Chr == '+' || Chr == '?' || Chr == '~';
+	}
+
+	static bool IsLatinWordToken(int Chr)
+	{
+		return IsLatinWordCharacter(Chr) || IsInternalWordPunctuation(Chr);
+	}
+
 	static bool CanBreakBetween(int Left, int Right)
 	{
 		if(Left == '\n' || IsBreakSpace(Left))
 			return true;
 		if(IsOpeningPunctuation(Left) || IsClosingPunctuation(Right))
+			return false;
+		// Keep Latin words, numbers, decimals and URL-like punctuation in one
+		// run. Over-wide runs are split by decoded code point later.
+		if(IsLatinWordToken(Left) && IsLatinWordToken(Right))
 			return false;
 		return IsCjk(Left) || IsCjk(Right) || IsClosingPunctuation(Left) || IsOpeningPunctuation(Right);
 	}
@@ -698,6 +721,7 @@ public:
 		float CursorX, CursorY;
 
 		float Size = pCursor->m_FontSize;
+		const float WidthTolerance = 0.001f;
 
 		// to correct coords, convert to screen coords, round, and convert back
 		Graphics()->GetScreen(&ScreenX0, &ScreenY0, &ScreenX1, &ScreenY1);
@@ -774,7 +798,7 @@ public:
 					Compare.m_LineWidth = -1;
 					TextEx(&Compare, pCurrent, Wlen);
 
-					if(Compare.m_X-DrawX > pCursor->m_LineWidth)
+					if(Compare.m_X-DrawX > pCursor->m_LineWidth + WidthTolerance)
 					{
 						// word can't be fitted in one line, cut it
 						CTextCursor Cutter = *pCursor;
@@ -789,12 +813,10 @@ public:
 						Wlen = Utf8BytesForCharacters(pCurrent, pCurrent+RunLength, Cutter.m_CharCount);
 						NewLine = 1;
 
-						if(Cutter.m_CharCount <= 3 && DrawX != pCursor->m_StartX) // preserve the legacy short-fragment rule
-							Wlen = 0;
-						else if(Wlen == 0) // an over-wide glyph on an empty line must still make progress
+						if(Wlen == 0) // an over-wide glyph on an empty line must still make progress
 							Wlen = Utf8BytesForCharacters(pCurrent, pCurrent+RunLength, 1);
 					}
-					else if(Compare.m_X-pCursor->m_StartX > pCursor->m_LineWidth)
+					else if(Compare.m_X-pCursor->m_StartX > pCursor->m_LineWidth + WidthTolerance)
 					{
 						NewLine = 1;
 						Wlen = 0;
@@ -828,7 +850,8 @@ public:
 					if(pChr)
 					{
 						float Advance = pChr->m_AdvanceX + Kerning(pFont, Character, NextCharacter)*Scale;
-						if(pCursor->m_Flags&TEXTFLAG_STOP_AT_END && DrawX+Advance*Size-pCursor->m_StartX > pCursor->m_LineWidth)
+						if((pCursor->m_Flags&TEXTFLAG_STOP_AT_END) && pCursor->m_LineWidth > 0 &&
+							DrawX+Advance*Size-pCursor->m_StartX > pCursor->m_LineWidth + WidthTolerance)
 						{
 							// we hit the end of the line, no more to render or count
 							pCurrent = pEnd;

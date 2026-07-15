@@ -171,7 +171,7 @@ def main() -> int:
             'NetIntRange("m_Step",-1,2),', 'NetIntRange("m_Progress",0,9999),',
             'NetIntRange("m_Target",0,9999),', 'NetIntAny("m_EndTick"),',
             'NetIntRange("m_TargetType",0,12),', 'NetIntAny("m_TargetX"),',
-            'NetIntAny("m_TargetY"),',
+            'NetIntAny("m_TargetY"),', 'NetIntRange("m_CargoCarrier",-1,\'MAX_CLIENTS-1\'),',
         ),
     }
     for name, fields in expected_operation_fields.items():

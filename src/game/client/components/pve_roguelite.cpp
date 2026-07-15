@@ -7,8 +7,10 @@
 #include <generated/protocol.h>
 #include <generated/game_data.h>
 
+#include <game/client/components/camera.h>
 #include <game/client/components/menus.h>
 #include <game/client/gameclient.h>
+#include <game/client/skelebank.h>
 
 #include "pve_roguelite.h"
 
@@ -156,6 +158,8 @@ CPveRoguelite::CPveRoguelite()
 	m_DebugBuildScreenshotFrames = 0;
 	m_DebugGameScreenshotFrames = 0;
 	m_DebugGameScreenshotEarliestTime = 0;
+	m_DebugCargoType = PVE_CARGO_NONE;
+	m_DebugCargoCarried = false;
 	m_DebugScreenshotPage = -1;
 	m_DebugBuildPreview = false;
 	m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
@@ -171,6 +175,7 @@ void CPveRoguelite::OnConsoleInit()
 	Console()->Register("pve_debug_build", "?i", CFGFLAG_CLIENT, ConDebugBuild, this, "Preview and capture the PvE build HUD with an optional drone module (1-3)");
 	Console()->Register("pve_debug_screenshot", "?i", CFGFLAG_CLIENT, ConDebugScreenshot, this, "Capture the current client UI after initialization, optionally forcing a UI page");
 	Console()->Register("pve_debug_game_screenshot", "?i?i", CFGFLAG_CLIENT, ConDebugGameScreenshot, this, "Capture gameplay after a local character appears: optional frame and millisecond delays");
+	Console()->Register("pve_debug_cargo", "i?i", CFGFLAG_CLIENT, ConDebugCargo, this, "Preview PvE cargo type 1-3; optional carried state 0-1");
 	Console()->Register("pve_drone_module", "i", CFGFLAG_CLIENT, ConDroneModule, this, "Switch support drone module: 1 assault, 2 guardian, 3 repair");
 }
 
@@ -321,6 +326,13 @@ void CPveRoguelite::ConDebugGameScreenshot(IConsole::IResult *pResult, void *pUs
 	pSelf->m_DebugGameScreenshotEarliestTime = time_get() + time_freq() * DelayMs / 1000;
 }
 
+void CPveRoguelite::ConDebugCargo(IConsole::IResult *pResult, void *pUserData)
+{
+	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
+	pSelf->m_DebugCargoType = clamp(pResult->GetInteger(0), (int)PVE_CARGO_NONE, (int)PVE_CARGO_ENERGY);
+	pSelf->m_DebugCargoCarried = pSelf->m_DebugCargoType != PVE_CARGO_NONE && pResult->NumArguments() > 1 && pResult->GetInteger(1) != 0;
+}
+
 void CPveRoguelite::OnReset()
 {
 	m_OperationVoteActive = false;
@@ -338,6 +350,7 @@ void CPveRoguelite::OnReset()
 	m_OperationStatusEndTick = 0;
 	m_OperationTargetType = PVE_OPERATION_TARGET_NONE;
 	m_OperationTargetPos = vec2(0, 0);
+	m_OperationCargoCarrier = -1;
 	if(m_DebugChoiceScreenshotFrames <= 0)
 	{
 		m_ChoiceActive = false;
@@ -1126,6 +1139,31 @@ void CPveRoguelite::DrawBuildHud()
 		DrawText(Hud.x + 8.0f, Hud.y + 6.0f + i * 12.0f, 5.8f, aaLines[i], Text, Hud.w - 16.0f, -1);
 }
 
+void CPveRoguelite::DrawOperationCargo()
+{
+	if(Client()->State() != IClient::STATE_ONLINE)
+		return;
+	int Cargo = PveCargoFromOperationTarget(m_OperationTargetType);
+	vec2 CargoPos = m_OperationTargetPos;
+	int CargoCarrier = m_OperationCargoCarrier;
+	if(m_DebugCargoType != PVE_CARGO_NONE)
+	{
+		Cargo = m_DebugCargoType;
+		CargoCarrier = m_DebugCargoCarried ? m_pClient->m_Snap.m_LocalClientID : -1;
+		if(m_pClient->m_Snap.m_pLocalCharacter)
+			CargoPos = vec2(m_pClient->m_Snap.m_pLocalCharacter->m_X + 92.0f, m_pClient->m_Snap.m_pLocalCharacter->m_Y);
+	}
+	else if(m_ActiveOperation < 0)
+		return;
+	if(Cargo == PVE_CARGO_NONE)
+		return;
+	if(CargoCarrier >= 0)
+		return;
+	const float Bob = sinf((Client()->GameTick() + Client()->IntraGameTick()) * 0.08f) * 3.0f;
+	DrawIcon(IMAGE_PVE_CARGO, SPRITE_PVE_CARGO_COOLANT + Cargo - PVE_CARGO_COOLANT,
+		CargoPos.x, CargoPos.y - 24.0f + Bob, 58.0f, vec4(1, 1, 1, 1));
+}
+
 void CPveRoguelite::DrawDrones()
 {
 	if(Client()->State() != IClient::STATE_ONLINE)
@@ -1138,7 +1176,8 @@ void CPveRoguelite::DrawDrones()
 		if(Item.m_Type != NETOBJTYPE_PVEDRONE)
 			continue;
 		const CNetObj_PveDrone *pDrone = (const CNetObj_PveDrone *)pData;
-		if(pDrone->m_Owner == m_pClient->m_Snap.m_LocalClientID)
+		const bool Owned = pDrone->m_Owner == m_pClient->m_Snap.m_LocalClientID;
+		if(Owned)
 		{
 			m_DroneHealth = pDrone->m_Health;
 			m_DroneState = pDrone->m_State;
@@ -1147,13 +1186,45 @@ void CPveRoguelite::DrawDrones()
 		}
 		const bool Disabled = pDrone->m_State == PVE_DRONE_STATE_DISABLED || pDrone->m_State == PVE_DRONE_STATE_REBUILDING;
 		const vec4 Color = Disabled ? vec4(0.35f, 0.45f, 0.55f, 0.65f) : (pDrone->m_Module == PVE_DRONE_ASSAULT ? vec4(1.0f, 0.35f, 0.25f, 1.0f) : (pDrone->m_Module == PVE_DRONE_GUARDIAN ? vec4(0.25f, 0.65f, 1.0f, 1.0f) : vec4(0.3f, 1.0f, 0.55f, 1.0f)));
+		const vec2 DronePos(pDrone->m_X, pDrone->m_Y);
+		const vec2 TargetPos(pDrone->m_TargetX, pDrone->m_TargetY);
+		if(Owned && !Disabled && pDrone->m_State == PVE_DRONE_STATE_ACTING && distance(DronePos, TargetPos) > 4.0f)
+		{
+			Graphics()->TextureClear();
+			Graphics()->LinesBegin();
+			Graphics()->SetColor(Color.r, Color.g, Color.b, 0.55f);
+			IGraphics::CLineItem Line(DronePos.x, DronePos.y, TargetPos.x, TargetPos.y);
+			Graphics()->LinesDraw(&Line, 1);
+			Graphics()->LinesEnd();
+		}
 		if(!Disabled && pDrone->m_Module == PVE_DRONE_GUARDIAN)
 			for(int Marker = 0; Marker < 16; Marker++)
 			{
 				const float Angle = Marker * 2.0f * pi / 16.0f;
 				DrawIcon(IMAGE_WEAPONS, SPRITE_PICKUP_ARMOR, pDrone->m_X + cosf(Angle) * 280.0f, pDrone->m_Y + sinf(Angle) * 280.0f, 9.0f, vec4(0.25f, 0.65f, 1.0f, 0.22f));
 			}
-		DrawIcon(IMAGE_WEAPONS, SPRITE_PICKUP_ARMOR, pDrone->m_X, pDrone->m_Y, 28.0f, Color);
+
+		const char *pAnim = "follow";
+		if(pDrone->m_State == PVE_DRONE_STATE_DEPLOYING)
+			pAnim = "deploy";
+		else if(pDrone->m_State == PVE_DRONE_STATE_DISABLED)
+			pAnim = "emp";
+		else if(pDrone->m_State == PVE_DRONE_STATE_DESTROYED)
+			pAnim = "destroyed";
+		else if(pDrone->m_State == PVE_DRONE_STATE_REBUILDING)
+			pAnim = "rebuild";
+		else if(pDrone->m_State == PVE_DRONE_STATE_SWITCHING)
+			pAnim = "deploy";
+		else if(pDrone->m_State == PVE_DRONE_STATE_ACTING)
+			pAnim = pDrone->m_Module == PVE_DRONE_GUARDIAN ? "shield" : (pDrone->m_Module == PVE_DRONE_REPAIR ? "repair" : "attack");
+
+		const float Time = (Client()->PrevGameTick() + Client()->IntraGameTick()) / (float)Client()->GameTickSpeed() + Item.m_ID * 0.11f;
+		if(pDrone->m_State == PVE_DRONE_STATE_DISABLED)
+			Graphics()->ShaderBegin(SHADER_ELECTRIC, 0.85f);
+		const int DroneAtlas = pDrone->m_Module == PVE_DRONE_GUARDIAN ? ATLAS_LOST_PROTOCOL_PVE_DRONE_GUARDIAN :
+			(pDrone->m_Module == PVE_DRONE_REPAIR ? ATLAS_LOST_PROTOCOL_PVE_DRONE_REPAIR : ATLAS_LOST_PROTOCOL_PVE_DRONE_ASSAULT);
+		RenderTools()->RenderSkeleton(DronePos, DroneAtlas, pAnim, Time, vec2(1.0f, 1.0f), pDrone->m_VelX < -5 ? 1 : -1, 0);
+		Graphics()->ShaderEnd();
 	}
 }
 
@@ -1796,7 +1867,21 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 
 void CPveRoguelite::OnRender()
 {
-	DrawDrones();
+	// PvE world entities are rendered after the regular HUD component. Restore
+	// the game-group camera mapping explicitly, then put back the UI mapping for
+	// the operation HUD and modal overlays below.
+	CUIRect PreviousScreen;
+	Graphics()->GetScreen(&PreviousScreen.x, &PreviousScreen.y, &PreviousScreen.w, &PreviousScreen.h);
+	if(Client()->State() == IClient::STATE_ONLINE)
+	{
+		float aWorldScreen[4];
+		RenderTools()->MapscreenToWorld(m_pClient->m_pCamera->m_Center.x, m_pClient->m_pCamera->m_Center.y,
+			1.0f, 1.0f, 0.0f, 0.0f, Graphics()->ScreenAspect(), m_pClient->m_pCamera->m_Zoom, aWorldScreen);
+		Graphics()->MapScreen(aWorldScreen[0], aWorldScreen[1], aWorldScreen[2], aWorldScreen[3]);
+		DrawOperationCargo();
+		DrawDrones();
+		Graphics()->MapScreen(PreviousScreen.x, PreviousScreen.y, PreviousScreen.w, PreviousScreen.h);
+	}
 	const bool WasResearchVisible = m_ResearchVisible;
 	m_ResearchVisible = false;
 	if(!WasResearchVisible)
@@ -2337,6 +2422,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_OperationStatusEndTick = pMsg->m_EndTick;
 		m_OperationTargetType = pMsg->m_TargetType;
 		m_OperationTargetPos = vec2(pMsg->m_TargetX, pMsg->m_TargetY);
+		m_OperationCargoCarrier = pMsg->m_CargoCarrier;
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEVALIDATION)
 	{

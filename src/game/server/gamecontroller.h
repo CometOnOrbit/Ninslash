@@ -188,7 +188,7 @@ public:
 	bool AllVotingHumansVoted() const;
 	
 	void TriggerSwitch(vec2 Pos);
-	void TriggerEscape();
+	bool TriggerEscape(vec2 *pExitPos = 0);
 	void BeginRisingAcid(int Seconds);
 	void ClearRisingAcid();
 	bool IsRisingAcid() const { return m_RisingAcid; }

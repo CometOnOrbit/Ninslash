@@ -2,6 +2,7 @@
 """Behavioral integration gates for the Lost Protocol PvE expansion."""
 
 from pathlib import Path
+import json
 import re
 import sys
 
@@ -25,7 +26,8 @@ def main() -> None:
     )
     require(expected_droids in network, "mechanical droid IDs are not appended in v10 order")
     require('NetObject("PveDrone"' in network, "dedicated drone snapshot missing")
-    for field in ("m_Step", "m_Progress", "m_Target", "m_TargetType", "m_TargetX", "m_TargetY"):
+    require('NetIntRange("m_PveCargo", 0, 3)' in network, "dedicated PvE cargo character field missing")
+    for field in ("m_Step", "m_Progress", "m_Target", "m_TargetType", "m_TargetX", "m_TargetY", "m_CargoCarrier"):
         require(field in network, f"operation state field missing: {field}")
 
     shared = read("src/game/pve_roguelite.cpp")
@@ -57,9 +59,32 @@ def main() -> None:
     for token in (
         "PVE_OPERATION_FOUNDRY_SHUTDOWN && m_Stage == 2",
         "EVENT_BOSS", "ClearRisingAcid", "mode-objective-flow",
-        "OnOperationChainFinished",
+        "OnOperationChainFinished", "TriggerEscape(&ExitPos)",
+        "BeginRisingAcid(60)", "OnOperationChainFailed",
     ):
         require(token in operation, f"operation lifecycle gate missing: {token}")
+    require(
+        operation.index("TriggerEscape(&ExitPos)") < operation.index("BeginRisingAcid(60)"),
+        "Foundry acid starts before the exit is validated and opened",
+    )
+    operation_header = read("src/game/server/pve_operation_director.h")
+    require("OverridesModeFlow" in operation_header, "operation cannot replace the native mode flow")
+    invasion = read("src/game/server/gamemodes/invasion.cpp")
+    for token in ("EVENT_EVACUATE", "if(!OperationOverrides)", "FinishOperationFloor"):
+        require(token in invasion, f"Invasion operation takeover missing: {token}")
+    controller = read("src/game/server/gamecontroller.cpp")
+    require("max(1, m_RisingAcidDuration)" in controller, "rising acid ignores its requested duration")
+    cargo_target = read("src/game/server/entities/pve_operation_target.cpp")
+    require("GivePveCargo" in cargo_target and "HasPveCargo" in cargo_target, "operation cargo lifecycle is not independent")
+    require("GiveBomb" not in cargo_target and "IsBombCarrier" not in cargo_target, "operation cargo still reuses the CS bomb")
+    require((ROOT / "data/pve_cargo.png").is_file(), "PvE cargo atlas missing")
+    content = read("datasrc/content.py")
+    require('Image("pve_cargo", "pve_cargo.png")' in content and 'Sprite("pve_cargo_coolant"' in content, "PvE cargo atlas is not registered")
+    cargo_client = read("src/game/client/render.cpp") + read("src/game/client/components/pve_roguelite.cpp")
+    require("IMAGE_PVE_CARGO" in cargo_client and "SPRITE_PVE_CARGO_COOLANT" in cargo_client, "PvE cargo world/carrier rendering missing")
+    require("MapscreenToWorld" in cargo_client, "PvE cargo/drone rendering does not restore world coordinates")
+    offscreen = read("src/engine/client/backend_sdl.cpp")
+    require("NINSLASH_OFFSCREEN" in offscreen and "SDL_WINDOW_HIDDEN" in offscreen, "SDL OpenGL offscreen capture path missing")
 
     drone = read("src/game/server/entities/pve_drone.cpp")
     require("CNetObj_PveDrone" in drone and "CNetObj_Laser" not in drone, "drone still uses laser snapshot")
@@ -79,7 +104,32 @@ def main() -> None:
         require("sv_mapgen_random_seed 0" in cfg and "sv_mapgen_seed 1337" in cfg, f"{mode} fixed seed missing")
     require((ROOT / "data/maps/generate_foundry1.map").is_file(), "foundry map missing")
 
-    print("OK: Lost Protocol v10 behavior, drone, operations, UTF-8 layout and foundry integration")
+    spine_assets = {
+        "bulwark": 10,
+        "assembler": 10,
+        "saboteur": 9,
+        "railgunner": 8,
+        "siege_engine": 9,
+        "overseer_core": 5,
+        "pve_drone_assault": 4,
+        "pve_drone_guardian": 4,
+        "pve_drone_repair": 5,
+    }
+    for name, minimum_bones in spine_assets.items():
+        document = json.loads(read(f"data/anim/lost_protocol/{name}.json"))
+        bones = document.get("bones", [])
+        slots = document.get("slots", [])
+        require(len(bones) >= minimum_bones, f"{name} is not a component rig")
+        require(len(slots) >= 2, f"{name} still uses one full-image attachment")
+        require(all(slot.get("bone") != "root" for slot in slots), f"{name} contains an unbound root illustration")
+        require((ROOT / f"data/anim/lost_protocol/{name}.atlas").is_file(), f"{name} atlas missing")
+        require((ROOT / f"data/anim/lost_protocol/{name}.png").is_file(), f"{name} PNG missing")
+
+    client_assets = read("src/game/client/skelebank.cpp")
+    for module in ("assault", "guardian", "repair"):
+        require(f"pve_drone_{module}.json" in client_assets, f"{module} drone rig is not loaded")
+
+    print("OK: Lost Protocol v10 behavior, component Spine rigs, operations, UTF-8 layout and foundry integration")
 
 
 if __name__ == "__main__":

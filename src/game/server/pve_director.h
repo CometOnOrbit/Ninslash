@@ -213,6 +213,7 @@ public:
 	void OnChoice(int ClientID, int Nonce, int CardID);
 	void OnOperationVote(int ClientID, int Nonce, int OperationID);
 	void OnOperationChainFinished(int OperationID);
+	void OnOperationChainFailed(int OperationID);
 	void OnContractVote(int ClientID, int Nonce, int ContractID);
 	void OnDroneModule(int ClientID, int Nonce, int Module);
 

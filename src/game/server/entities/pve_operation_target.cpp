@@ -15,7 +15,7 @@ CPveOperationTarget::CPveOperationTarget(CGameWorld *pWorld, CPveOperationDirect
 	m_RequiredTicks(RequiredTicks),
 	m_ProgressTicks(0),
 	m_Complete(false),
-	m_TargetType(TargetType), m_SourcePos(Pos), m_DeliveryPos(DeliveryPos), m_CarrierCID(-1)
+	m_TargetType(TargetType), m_CargoType(PveCargoFromOperationTarget(TargetType)), m_SourcePos(Pos), m_DeliveryPos(DeliveryPos), m_CarrierCID(-1)
 {
 	m_Pos = Pos;
 	m_Life = m_MaxLife = 300;
@@ -25,12 +25,27 @@ CPveOperationTarget::CPveOperationTarget(CGameWorld *pWorld, CPveOperationDirect
 
 CPveOperationTarget::~CPveOperationTarget()
 {
+	if(m_CargoType != PVE_CARGO_NONE && m_CarrierCID >= 0)
+	{
+		CCharacter *pCarrier = GameServer()->GetPlayerChar(m_CarrierCID);
+		if(pCarrier)
+			pCarrier->RemovePveCargo(m_CargoType);
+	}
 	if(m_pRadar)
 	{
 		m_pRadar->Deactivate();
 		GameServer()->m_World.DestroyEntity(m_pRadar);
 		m_pRadar = 0;
 	}
+}
+
+void CPveOperationTarget::Snap(int SnappingClient)
+{
+	// Cargo has dedicated world and character rendering. The inherited
+	// generator snapshot was only a placeholder and obscured the core.
+	if(m_CargoType != PVE_CARGO_NONE)
+		return;
+	CBuilding::Snap(SnappingClient);
 }
 
 void CPveOperationTarget::Reset()
@@ -59,21 +74,24 @@ void CPveOperationTarget::Tick()
 		m_TargetType == PVE_OPERATION_TARGET_SHIELD_NODE;
 	if(Destructible)
 		return;
-	const bool Carry = m_TargetType == PVE_OPERATION_TARGET_COOLANT_CORE || m_TargetType == PVE_OPERATION_TARGET_DATA_CORE || m_TargetType == PVE_OPERATION_TARGET_ENERGY_CORE;
+	const bool Carry = m_CargoType != PVE_CARGO_NONE;
 	if(Carry && m_CarrierCID >= 0)
 	{
 		CCharacter *pCarrier = GameServer()->GetPlayerChar(m_CarrierCID);
-		if(!pCarrier || !pCarrier->IsAlive() || !pCarrier->IsBombCarrier())
+		if(!pCarrier || !pCarrier->IsAlive() || !pCarrier->HasPveCargo(m_CargoType))
 		{
 			m_CarrierCID = -1;
 			m_Pos = m_SourcePos;
 			m_pRadar->Activate(m_Pos);
+			m_pDirector->OnCargoStateChanged();
 			return;
 		}
 		m_Pos = pCarrier->m_Pos;
 		m_pRadar->Activate(m_DeliveryPos);
 		if(distance(pCarrier->m_Pos, m_DeliveryPos) <= m_Radius)
 		{
+			pCarrier->RemovePveCargo(m_CargoType);
+			m_CarrierCID = -1;
 			m_Complete = true;
 			m_pDirector->OnTargetCompleted(this);
 		}
@@ -86,10 +104,11 @@ void CPveOperationTarget::Tick()
 		CCharacter *pCharacter = pPlayer ? pPlayer->GetCharacter() : 0;
 		if(pCharacter && !pPlayer->m_IsBot && pPlayer->GetTeam() != TEAM_SPECTATORS && pCharacter->IsAlive() && distance(pCharacter->m_Pos, m_Pos) <= m_Radius)
 		{
-			if(Carry && pCharacter->GiveBomb())
+			if(Carry && pCharacter->GivePveCargo(m_CargoType))
 			{
 				m_CarrierCID = ClientID;
 				m_pRadar->Activate(m_DeliveryPos);
+				m_pDirector->OnCargoStateChanged();
 				return;
 			}
 			Occupied = true;

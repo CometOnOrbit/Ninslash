@@ -1,0 +1,26 @@
+lost_protocol/pve_drone_guardian.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+core
+  rotate: false
+  xy: 4, 4
+  size: 56, 56
+  orig: 56, 56
+  offset: 0, 0
+  index: -1
+shield_left
+  rotate: false
+  xy: 64, 4
+  size: 32, 58
+  orig: 32, 58
+  offset: 0, 0
+  index: -1
+shield_right
+  rotate: false
+  xy: 100, 4
+  size: 32, 58
+  orig: 32, 58
+  offset: 0, 0
+  index: -1

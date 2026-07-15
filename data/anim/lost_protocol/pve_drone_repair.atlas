@@ -1,0 +1,26 @@
+lost_protocol/pve_drone_repair.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+core
+  rotate: false
+  xy: 4, 4
+  size: 56, 56
+  orig: 56, 56
+  offset: 0, 0
+  index: -1
+repair_upper
+  rotate: false
+  xy: 64, 4
+  size: 42, 20
+  orig: 42, 20
+  offset: 0, 0
+  index: -1
+repair_claw
+  rotate: false
+  xy: 110, 4
+  size: 38, 32
+  orig: 38, 32
+  offset: 0, 0
+  index: -1

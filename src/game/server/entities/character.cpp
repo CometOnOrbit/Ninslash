@@ -20,6 +20,7 @@
 #include <game/server/gamemodes/invasion.h>
 #include <game/server/playerdata.h>
 #include <game/server/pve_director.h>
+#include <game/pve_roguelite.h>
 #include <game/questinfo.h>
 
 inline vec2 RandomDir() { return normalize(vec2(frandom()-0.5f, frandom()-0.5f)); }
@@ -67,6 +68,7 @@ CCharacter::CCharacter(CGameWorld *pWorld)
 	m_Health = 0;
 	m_Armor = 0;
 	m_Kits = 0;
+	m_PveCargo = PVE_CARGO_NONE;
 	m_PainSoundTimer = 0;
 	m_ElectroWallCooldown = 0;
 	m_Silent = false;
@@ -101,6 +103,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_DamagedByPlayer = false;
 	m_PickedWeaponSlot = 0;
 	m_MaskEffectTick = 0;
+	m_PveCargo = PVE_CARGO_NONE;
 	
 	for (int i = 0; i < NUM_PLAYERITEMS; i++)
 		m_aItem[i] = 0;
@@ -221,6 +224,28 @@ bool CCharacter::GiveBomb()
 	}
 	
 	return false;
+}
+
+bool CCharacter::GivePveCargo(int CargoType)
+{
+	if(CargoType <= PVE_CARGO_NONE || CargoType >= NUM_PVE_CARGO_TYPES || m_PveCargo != PVE_CARGO_NONE)
+		return false;
+	m_PveCargo = CargoType;
+	m_ForceCoreSend = true;
+	return true;
+}
+
+bool CCharacter::HasPveCargo(int CargoType) const
+{
+	return CargoType > PVE_CARGO_NONE && m_PveCargo == CargoType;
+}
+
+void CCharacter::RemovePveCargo(int CargoType)
+{
+	if(CargoType != PVE_CARGO_NONE && m_PveCargo != CargoType)
+		return;
+	m_PveCargo = PVE_CARGO_NONE;
+	m_ForceCoreSend = true;
 }
 
 
@@ -2029,6 +2054,9 @@ bool CCharacter::IncreaseArmor(int Amount)
 
 void CCharacter::ReleaseWeapons()
 {
+	m_PveCargo = PVE_CARGO_NONE;
+	m_ForceCoreSend = true;
+
 	// drop mask
 	/*
 	if (!m_IsBot || !GameServer()->m_pController->IsCoop())
@@ -2579,6 +2607,7 @@ void CCharacter::Snap(int SnappingClient)
 	pCharacter->m_Health = 0;
 	pCharacter->m_Armor = 0;
 	pCharacter->m_Weapon = GetWeaponType();
+	pCharacter->m_PveCargo = m_PveCargo;
 	
 	pCharacter->m_AttackTick = m_AttackTick;
 

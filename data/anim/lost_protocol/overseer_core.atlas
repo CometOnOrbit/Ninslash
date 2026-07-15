@@ -1,0 +1,61 @@
+lost_protocol/overseer_core.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+body
+  rotate: false
+  xy: 4, 4
+  size: 128, 128
+  orig: 128, 128
+  offset: 0, 0
+  index: -1
+iris
+  rotate: false
+  xy: 136, 4
+  size: 68, 68
+  orig: 68, 68
+  offset: 0, 0
+  index: -1
+arm0
+  rotate: false
+  xy: 208, 4
+  size: 51, 23
+  orig: 51, 23
+  offset: 0, 0
+  index: -1
+node0
+  rotate: false
+  xy: 263, 4
+  size: 30, 30
+  orig: 30, 30
+  offset: 0, 0
+  index: -1
+arm1
+  rotate: false
+  xy: 297, 4
+  size: 51, 23
+  orig: 51, 23
+  offset: 0, 0
+  index: -1
+node1
+  rotate: false
+  xy: 352, 4
+  size: 30, 30
+  orig: 30, 30
+  offset: 0, 0
+  index: -1
+arm2
+  rotate: false
+  xy: 386, 4
+  size: 51, 23
+  orig: 51, 23
+  offset: 0, 0
+  index: -1
+node2
+  rotate: false
+  xy: 441, 4
+  size: 30, 30
+  orig: 30, 30
+  offset: 0, 0
+  index: -1

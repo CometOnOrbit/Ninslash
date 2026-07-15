@@ -42,6 +42,8 @@ private:
 	int SwitchesAvailable() const;
 	void SetSwitchesActive(bool Active);
 	void SetReactorDefenseActive(bool Active);
+	void SetOperationFlowOverride(bool Active);
+	void FinishOperationFloor();
 	int CountHumansAlive(int ExcludeCID = -1) const;
 	void RewardQuestGold();
 
@@ -93,6 +95,7 @@ private:
 	bool m_EliteContractSpawned;
 	bool m_CheckpointApplied;
 	bool m_ForceFloorOne;
+	bool m_OperationFlowOverride;
 	int m_RetryVoteNonce;
 	int m_RetryVoteEndTick;
 	int m_RetryVoteLastSyncTick;

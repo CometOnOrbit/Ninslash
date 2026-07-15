@@ -275,6 +275,28 @@ enum EPveOperationTarget
 	PVE_OPERATION_TARGET_DEFENSE_AREA,
 };
 
+// Cargo is carried independently from the weapon inventory. Keep these values
+// compact because they are appended to CNetObj_Character in protocol v10.
+enum EPveCargoType
+{
+	PVE_CARGO_NONE = 0,
+	PVE_CARGO_COOLANT,
+	PVE_CARGO_DATA,
+	PVE_CARGO_ENERGY,
+	NUM_PVE_CARGO_TYPES,
+};
+
+inline int PveCargoFromOperationTarget(int TargetType)
+{
+	switch(TargetType)
+	{
+	case PVE_OPERATION_TARGET_COOLANT_CORE: return PVE_CARGO_COOLANT;
+	case PVE_OPERATION_TARGET_DATA_CORE: return PVE_CARGO_DATA;
+	case PVE_OPERATION_TARGET_ENERGY_CORE: return PVE_CARGO_ENERGY;
+	default: return PVE_CARGO_NONE;
+	}
+}
+
 enum EPveDroneState
 {
 	PVE_DRONE_STATE_DEPLOYING = 0,

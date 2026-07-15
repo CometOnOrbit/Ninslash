@@ -63,6 +63,9 @@ def check_operations() -> None:
 
 def check_operation_mechanics() -> None:
     source = read("src/game/server/pve_operation_director.cpp")
+    header = read("src/game/server/pve_operation_director.h")
+    invasion = read("src/game/server/gamemodes/invasion.cpp")
+    controller = read("src/game/server/gamecontroller.cpp")
     hazard = read("src/game/server/entities/pve_operation_hazard.h") + read("src/game/server/entities/pve_operation_hazard.cpp")
     # These named markers may be methods, enums, tags, or comments, but each mechanic
     # must have a distinct implementation path rather than a generic wave counter.
@@ -80,7 +83,6 @@ def check_operation_mechanics() -> None:
 
     # A generic EVENT_BOSS must not be sufficient: completion must compare the dead
     # entity (or stable entity ID) with the Boss spawned for this operation.
-    header = read("src/game/server/pve_operation_director.h")
     identity_field = re.search(r"m_pStageBoss|m_BossEntityID|m_OwnedBoss", header, re.IGNORECASE)
     identity_event = "OwnedEntityAlive(m_pStageBoss" in source
     expect(bool(identity_field), "Boss identity binding: director has no tracked Boss pointer/entity ID")
@@ -92,6 +94,21 @@ def check_operation_mechanics() -> None:
     expect(bool(owned_collection), "ownership cleanup: no operation-owned entity collection/tag")
     global_range_delete = "m_Type >= DROIDTYPE_BULWARK" in source and "m_Type <= DROIDTYPE_OVERSEER_CORE" in source
     expect(not global_range_delete, "ownership cleanup: Clear() globally deletes all specialist droids")
+
+    cargo = read("src/game/server/entities/pve_operation_target.cpp")
+    tokens(cargo, ("GivePveCargo", "HasPveCargo", "RemovePveCargo"), "operation cargo lifecycle")
+    expect("GiveBomb" not in cargo and "IsBombCarrier" not in cargo, "operation cargo: still aliases the CS bomb")
+    network = read("datasrc/network.py")
+    expect('NetIntRange("m_PveCargo", 0, 3)' in network, "operation cargo: dedicated character snapshot field missing")
+
+    tokens(source, ("TriggerEscape(&ExitPos)", "BeginRisingAcid(60)", "OnOperationChainFailed"), "Foundry acid escape safety")
+    expect(
+        source.find("TriggerEscape(&ExitPos)") < source.find("BeginRisingAcid(60)"),
+        "Foundry acid escape safety: acid begins before exit validation",
+    )
+    tokens(header, ("OverridesModeFlow",), "operation mode-flow ownership")
+    tokens(invasion, ("EVENT_EVACUATE", "if(!OperationOverrides)", "FinishOperationFloor"), "Invasion operation takeover")
+    expect("max(1, m_RisingAcidDuration)" in controller, "rising acid duration: controller still uses a hard-coded climb time")
 
 
 def check_threat_points() -> None:

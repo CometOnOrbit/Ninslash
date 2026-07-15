@@ -1,0 +1,75 @@
+lost_protocol/railgunner.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+body
+  rotate: false
+  xy: 4, 4
+  size: 76, 48
+  orig: 76, 48
+  offset: 0, 0
+  index: -1
+front_joint
+  rotate: false
+  xy: 84, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+front_upper
+  rotate: false
+  xy: 112, 4
+  size: 53, 23
+  orig: 53, 23
+  offset: 0, 0
+  index: -1
+front_lower
+  rotate: false
+  xy: 169, 4
+  size: 47, 21
+  orig: 47, 21
+  offset: 0, 0
+  index: -1
+front_foot
+  rotate: false
+  xy: 220, 4
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_joint
+  rotate: false
+  xy: 258, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_upper
+  rotate: false
+  xy: 286, 4
+  size: 53, 23
+  orig: 53, 23
+  offset: 0, 0
+  index: -1
+back_lower
+  rotate: false
+  xy: 343, 4
+  size: 47, 21
+  orig: 47, 21
+  offset: 0, 0
+  index: -1
+back_foot
+  rotate: false
+  xy: 394, 4
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+rail
+  rotate: false
+  xy: 4, 56
+  size: 156, 25
+  orig: 156, 25
+  offset: 0, 0
+  index: -1

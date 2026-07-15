@@ -220,14 +220,21 @@ void CPveOperationDirector::SpawnStageThreats(vec2 Pos)
 		TrackEntity(new CPveOperationHazard(&m_pGameServer->m_World, Pos, CPveOperationHazard::BOMBARDMENT, m_pGameServer->Server()->TickSpeed() * 180));
 	if(m_Operation == PVE_OPERATION_GRID_STORM && m_Stage == 2)
 		TrackEntity(new CPveOperationHazard(&m_pGameServer->m_World, Pos, CPveOperationHazard::ROTATING_EMP, m_pGameServer->Server()->TickSpeed() * 180));
-	if(m_Operation == PVE_OPERATION_FOUNDRY_SHUTDOWN && m_Stage == 2)
-		m_pGameServer->m_pController->BeginRisingAcid(60);
 }
 
 void CPveOperationDirector::Diagnose(const char *pReason, const char *pFallback) const
 {
 	dbg_msg("pve-operation", "operation=%d stage=%d target placement: %s; fallback=%s candidates=%d",
 		m_Operation, m_Stage + 1, pReason, pFallback, m_NumCandidates);
+}
+
+void CPveOperationDirector::FallbackToMode(const char *pReason)
+{
+	const int FailedOperation = m_Operation;
+	Diagnose(pReason, "mode-objective-flow");
+	Clear();
+	if(m_pGameServer->m_pPveDirector)
+		m_pGameServer->m_pPveDirector->OnOperationChainFailed(FailedOperation);
 }
 
 void CPveOperationDirector::BeginStage(bool ResetProgress)
@@ -247,7 +254,21 @@ void CPveOperationDirector::BeginStage(bool ResetProgress)
 	m_NextReinforcementTick = m_StageStartTick + m_pGameServer->Server()->TickSpeed() * 5;
 	ClearTarget();
 	DestroyOwnedEntities();
-	if(StageKind() == STAGE_AREA || m_TargetType == PVE_OPERATION_TARGET_DEFENSE_AREA)
+	// A lethal escape can only begin after a real exit was found and opened.
+	// Both the operation HUD and the Invasion door radar use this exact point.
+	if(m_Operation == PVE_OPERATION_FOUNDRY_SHUTDOWN && m_Stage == 2)
+	{
+		vec2 ExitPos;
+		if(!m_pGameServer->m_pController->TriggerEscape(&ExitPos))
+		{
+			FallbackToMode("escape door missing; acid not started");
+			return;
+		}
+		m_TargetPos = ExitPos;
+		m_EndTick = m_StageStartTick + m_pGameServer->Server()->TickSpeed() * 60;
+		m_pGameServer->m_pController->BeginRisingAcid(60);
+	}
+	else if(StageKind() == STAGE_AREA || m_TargetType == PVE_OPERATION_TARGET_DEFENSE_AREA)
 	{
 		vec2 Pos;
 		const char *pSource = "none";
@@ -261,9 +282,7 @@ void CPveOperationDirector::BeginStage(bool ResetProgress)
 			vec2 DeliveryPos = Pos;
 			if(Carry && !FindDeliveryPosition(Pos, &DeliveryPos))
 			{
-				Diagnose("cargo delivery platform missing", "mode-objective-flow");
-				m_ModeFallback = true;
-				SendState();
+				FallbackToMode("cargo delivery platform missing");
 				return;
 			}
 			const bool TimedHold = m_TargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL || m_TargetType == PVE_OPERATION_TARGET_UPLOAD_POINT;
@@ -277,8 +296,8 @@ void CPveOperationDirector::BeginStage(bool ResetProgress)
 		}
 		else
 		{
-			Diagnose("all placement strategies rejected", "mode-objective-flow");
-			m_ModeFallback = true;
+			FallbackToMode("all placement strategies rejected");
+			return;
 		}
 	}
 	else
@@ -292,12 +311,10 @@ void CPveOperationDirector::BeginStage(bool ResetProgress)
 		}
 		else
 		{
-			Diagnose("threat placement rejected", "mode-objective-flow");
-			m_ModeFallback = true;
+			FallbackToMode("threat placement rejected");
+			return;
 		}
 	}
-	if(m_Operation == PVE_OPERATION_FOUNDRY_SHUTDOWN && m_Stage == 2)
-		m_EndTick = m_StageStartTick + m_pGameServer->Server()->TickSpeed() * 60;
 	dbg_msg("pve-operation", "operation=%d stage=%d/3 kind=%d required=%d", m_Operation, m_Stage + 1, (int)StageKind(), m_Required);
 	SendState();
 }
@@ -349,8 +366,7 @@ void CPveOperationDirector::Tick()
 		return;
 	if(m_Operation == PVE_OPERATION_FOUNDRY_SHUTDOWN && m_Stage == 2 && m_EndTick > 0 && m_pGameServer->Server()->Tick() >= m_EndTick)
 	{
-		Diagnose("acid escape deadline expired", "mode failure flow");
-		Clear();
+		FallbackToMode("acid escape deadline expired");
 		return;
 	}
 	TickStageSemantics();
@@ -378,9 +394,9 @@ void CPveOperationDirector::TickStageSemantics()
 		return;
 	}
 
-	// The explicit Fire-Control elite group needs both the legacy wave signal
-	// and elimination of this director's own specialists.
-	if(m_Operation == PVE_OPERATION_FIRE_CONTROL_PURGE && m_Stage == 1 && m_ModeEventSatisfied && !AnyOwnedDroidAlive(false))
+	// Fire-Control replaces the ordinary Invasion quest. Its own elite group is
+	// authoritative and does not wait for a legacy wave-complete signal.
+	if(m_Operation == PVE_OPERATION_FIRE_CONTROL_PURGE && m_Stage == 1 && !AnyOwnedDroidAlive(false))
 	{
 		CompleteStage();
 		return;
@@ -457,9 +473,7 @@ void CPveOperationDirector::OnTargetCompleted(CPveOperationTarget *pTarget)
 			vec2 HoldPos;
 			if(!FindDeliveryPosition(m_TargetPos, &HoldPos))
 			{
-				Diagnose("energy-core hold platform missing", "mode-objective-flow");
-				m_ModeFallback = true;
-				SendState();
+				FallbackToMode("energy-core hold platform missing");
 				return;
 			}
 			m_TargetType = PVE_OPERATION_TARGET_DEFENSE_AREA;
@@ -489,8 +503,10 @@ void CPveOperationDirector::SendState(int ClientID)
 	Msg.m_Target = m_Required;
 	Msg.m_EndTick = m_EndTick;
 	Msg.m_TargetType = m_TargetType;
-	Msg.m_TargetX = (int)m_TargetPos.x;
-	Msg.m_TargetY = (int)m_TargetPos.y;
+	const vec2 HudTarget = m_pTarget ? m_pTarget->HudTargetPos() : m_TargetPos;
+	Msg.m_TargetX = (int)HudTarget.x;
+	Msg.m_TargetY = (int)HudTarget.y;
+	Msg.m_CargoCarrier = m_pTarget ? m_pTarget->CarrierCID() : -1;
 	m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
 
@@ -507,4 +523,8 @@ void CPveOperationDirector::Clear()
 	m_TargetType = PVE_OPERATION_TARGET_NONE;
 	m_TargetPos = vec2(0, 0);
 	m_EndTick = 0;
+	m_Progress = 0;
+	m_Required = 0;
+	m_ModeFallback = false;
+	m_ModeEventSatisfied = false;
 }

@@ -401,6 +401,8 @@ Objects = [
 		NetIntRange("m_Emote", 0, len(Emotes)),
 		NetIntRange("m_AttackTick", 0, 'max_int'),
 		NetIntAny("m_Movement"),
+		# v10 append-only field: PvE cargo is not a CS bomb/weapon.
+		NetIntRange("m_PveCargo", 0, 3),
 	]),
 
 	NetObject("PlayerInfo", [
@@ -903,5 +905,6 @@ Messages = [
 		NetIntRange("m_TargetType", 0, 12),
 		NetIntAny("m_TargetX"),
 		NetIntAny("m_TargetY"),
+		NetIntRange("m_CargoCarrier", -1, 'MAX_CLIENTS-1'),
 	]),
 ]

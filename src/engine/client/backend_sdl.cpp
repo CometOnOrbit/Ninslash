@@ -903,6 +903,9 @@ SDL_DisplayID CGraphicsBackend_SDL_OpenGL::DisplayIDFromIndex(int Index) const
 
 int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height, int *pScreen, int FsaaSamples, int Flags, int *pDesktopWidth, int *pDesktopHeight)
 {
+	const char *pOffscreenCapture = SDL_getenv("NINSLASH_OFFSCREEN");
+	m_OffscreenCapture = pOffscreenCapture && pOffscreenCapture[0] && SDL_strcmp(pOffscreenCapture, "0") != 0;
+
 	if(!SDL_WasInit(SDL_INIT_VIDEO))
 	{
 		if(!SDL_InitSubSystem(SDL_INIT_VIDEO))
@@ -960,12 +963,14 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height
 
 	// set flags
 	int SDLFlags = SDL_WINDOW_OPENGL;
-	if(Flags&IGraphicsBackend::INITFLAG_RESIZABLE)
+	if(!m_OffscreenCapture && Flags&IGraphicsBackend::INITFLAG_RESIZABLE)
 		SDLFlags |= SDL_WINDOW_RESIZABLE;
-	if(Flags&IGraphicsBackend::INITFLAG_BORDERLESS)
+	if(!m_OffscreenCapture && Flags&IGraphicsBackend::INITFLAG_BORDERLESS)
 		SDLFlags |= SDL_WINDOW_BORDERLESS;
-	if(Flags&IGraphicsBackend::INITFLAG_FULLSCREEN)
+	if(!m_OffscreenCapture && Flags&IGraphicsBackend::INITFLAG_FULLSCREEN)
 		SDLFlags |= SDL_WINDOW_FULLSCREEN;
+	if(m_OffscreenCapture)
+		SDLFlags |= SDL_WINDOW_HIDDEN;
 
 	dbg_assert(!(Flags&IGraphicsBackend::INITFLAG_BORDERLESS)
 		|| !(Flags&IGraphicsBackend::INITFLAG_FULLSCREEN),
@@ -992,6 +997,8 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height
 		dbg_msg("gfx", "unable to create window: %s", SDL_GetError());
 		return -1;
 	}
+	if(m_OffscreenCapture)
+		dbg_msg("gfx", "using hidden SDL OpenGL context for offscreen capture");
 
 #if 0
 	int RenderFlags = SDL_RENDERER_ACCELERATED;
@@ -1076,12 +1083,12 @@ void CGraphicsBackend_SDL_OpenGL::WarpMouse(int x, int y)
 
 int CGraphicsBackend_SDL_OpenGL::WindowActive()
 {
-	return SDL_GetWindowFlags(m_pWindow)&SDL_WINDOW_INPUT_FOCUS;
+	return m_OffscreenCapture || (SDL_GetWindowFlags(m_pWindow)&SDL_WINDOW_INPUT_FOCUS);
 }
 
 int CGraphicsBackend_SDL_OpenGL::WindowOpen()
 {
-	return !(SDL_GetWindowFlags(m_pWindow)&SDL_WINDOW_HIDDEN);
+	return m_OffscreenCapture || !(SDL_GetWindowFlags(m_pWindow)&SDL_WINDOW_HIDDEN);
 }
 
 void CGraphicsBackend_SDL_OpenGL::GetViewportSize(int *pWidth, int *pHeight) const

@@ -28,6 +28,7 @@ class CPveRoguelite : public CComponent
 	int m_OperationStatusEndTick;
 	int m_OperationTargetType;
 	vec2 m_OperationTargetPos;
+	int m_OperationCargoCarrier;
 	int m_ContractNonce;
 	int m_ChoiceEndTick;
 	int m_ContractEndTick;
@@ -76,6 +77,8 @@ class CPveRoguelite : public CComponent
 	int m_DebugBuildScreenshotFrames;
 	int m_DebugGameScreenshotFrames;
 	int64 m_DebugGameScreenshotEarliestTime;
+	int m_DebugCargoType;
+	bool m_DebugCargoCarried;
 	int m_DebugScreenshotPage;
 	bool m_DebugBuildPreview;
 	int m_aRunPerks[NUM_PVE_CARDS];
@@ -106,6 +109,7 @@ class CPveRoguelite : public CComponent
 	void DrawContractHud();
 	void DrawBuildHud();
 	void DrawDrones();
+	void DrawOperationCargo();
 	void DrawDroneWheel();
 	void DrawText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth = -1.0f, int Align = -1);
 	void DrawWrappedText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth, int MaxLines);
@@ -121,6 +125,7 @@ class CPveRoguelite : public CComponent
 	static void ConDebugBuild(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugScreenshot(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugGameScreenshot(IConsole::IResult *pResult, void *pUserData);
+	static void ConDebugCargo(IConsole::IResult *pResult, void *pUserData);
 	static void ConDroneModule(IConsole::IResult *pResult, void *pUserData);
 
 public:
@@ -138,6 +143,8 @@ public:
 	void RenderBuildDebug();
 	int ShopCost(int BaseCost) const;
 	int BuildingCost(int BaseCost) const;
+	int DebugCargoType() const { return m_DebugCargoType; }
+	bool DebugCargoCarried() const { return m_DebugCargoType != PVE_CARGO_NONE && m_DebugCargoCarried; }
 	bool ChoiceActive() const { return m_ChoiceActive || m_OperationVoteActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
 };
 

@@ -228,6 +228,7 @@ class CGraphicsBackend_SDL_OpenGL : public CGraphicsBackend_Threaded
 {
     SDL_Window *m_pWindow;
     SDL_GLContext m_GLContext;
+	bool m_OffscreenCapture;
 	
 	ICommandProcessor *m_pProcessor;
 	volatile int m_TextureMemoryUsage;

@@ -1,0 +1,19 @@
+lost_protocol/pve_drone_assault.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+core
+  rotate: false
+  xy: 4, 4
+  size: 56, 56
+  orig: 56, 56
+  offset: 0, 0
+  index: -1
+pulse_pod
+  rotate: false
+  xy: 64, 4
+  size: 53, 23
+  orig: 53, 23
+  offset: 0, 0
+  index: -1
