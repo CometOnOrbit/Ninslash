@@ -2229,7 +2229,7 @@ void CMenus::RenderSettingsSound(CUIRect MainView)
 		g_Config.m_SndEnvironmental ^= 1;*/
 	
 	MainView.HSplitTop(20.0f, &Button, &MainView);
-	/*if(DoButton_CheckBox(&g_Config.m_SndMusic, Localize("Play background music"), g_Config.m_SndMusic, &Button))
+	if(DoButton_CheckBox(&g_Config.m_SndMusic, Localize("Play background music"), g_Config.m_SndMusic, &Button))
 	{
 		g_Config.m_SndMusic ^= 1;
 		if(Client()->State() == IClient::STATE_OFFLINE)
@@ -2240,7 +2240,7 @@ void CMenus::RenderSettingsSound(CUIRect MainView)
 				m_pClient->m_pSounds->Stop(SOUND_MENU);
 		}
 	}
-	*/
+	
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
 	if(DoButton_CheckBox(&g_Config.m_SndNonactiveMute, Localize("Mute when not active"), g_Config.m_SndNonactiveMute, &Button))
