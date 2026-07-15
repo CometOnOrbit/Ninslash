@@ -853,4 +853,23 @@ Messages = [
 		NetIntAny("m_Nonce"),
 		NetIntRange("m_Choice", 0, 1),
 	]),
+
+	NetMessage("Sv_PveOperationVote", [
+		NetIntAny("m_Nonce"),
+		NetIntAny("m_EndTick"),
+		NetIntRange("m_Operation0", 0, 8),
+		NetIntRange("m_Operation1", 0, 8),
+		NetIntRange("m_Votes0", 0, 'MAX_CLIENTS'),
+		NetIntRange("m_Votes1", 0, 'MAX_CLIENTS'),
+	]),
+
+	NetMessage("Cl_PveOperationVote", [
+		NetIntAny("m_Nonce"),
+		NetIntRange("m_Choice", 0, 1),
+	]),
+
+	NetMessage("Sv_PveOperationState", [
+		NetIntRange("m_Operation", 0, 8),
+		NetIntRange("m_State", 0, 1),
+	]),
 ]

@@ -231,8 +231,29 @@ enum EPveContractState
 enum EPveIntermissionState
 {
 	PVE_INTERMISSION_NONE = 0,
+	PVE_INTERMISSION_OPERATION,
 	PVE_INTERMISSION_CONTRACT,
 	PVE_INTERMISSION_PERK,
+};
+
+enum EPveOperation
+{
+	PVE_OPERATION_CIRCUIT_BREAKER = 0,
+	PVE_OPERATION_FOUNDRY_SHUTDOWN,
+	PVE_OPERATION_FIRE_CONTROL_PURGE,
+	PVE_OPERATION_SIEGE_LINE,
+	PVE_OPERATION_ASSEMBLY_SURGE,
+	PVE_OPERATION_GRID_STORM,
+	PVE_OPERATION_CORE_RECOVERY,
+	PVE_OPERATION_LOCKDOWN_BREAK,
+	PVE_OPERATION_SIEGE_ROUTE,
+	NUM_PVE_OPERATIONS,
+};
+
+enum EPveOperationState
+{
+	PVE_OPERATION_STATE_NONE = 0,
+	PVE_OPERATION_STATE_ACTIVE,
 };
 
 enum EPveRewardReason
@@ -296,6 +317,21 @@ struct CPveContractDef
 	int m_Mode;
 };
 
+struct CPveOperationDef
+{
+	int m_ID;
+	const char *m_pName;
+	const char *m_pDescription;
+	int m_Mode;
+	float m_EnemyCountMultiplier;
+	float m_EnemyHealthMultiplier;
+	float m_EnemySpeedMultiplier;
+	float m_DeadlineMultiplier;
+	float m_ReinforcementMultiplier;
+	float m_RepairMultiplier;
+	float m_GoldMultiplier;
+};
+
 // Version 2 uses 100 stable card bits. Keeping the words explicit makes the
 // network representation portable and leaves 28 reserved high bits.
 struct CPveResearchMask
@@ -313,16 +349,20 @@ struct CPveResearchMask
 
 const CPveCardDef *PveCardDef(int ID);
 const CPveContractDef *PveContractDef(int ID);
+const CPveOperationDef *PveOperationDef(int ID);
 const char *PveChoiceName(int ID);
 const char *PveChoiceDescription(int ID);
 const char *PveRarityName(int Rarity);
 const char *PveRewardReasonName(int Reason);
+const char *PveOperationName(int ID);
+const char *PveOperationDescription(int ID);
 
 bool PveCardIsBase(int ID);
 bool PveCardIsUnlocked(int ID, const CPveResearchMask &ResearchMask);
 bool PveResearchMaskIsValid(const CPveResearchMask &ResearchMask);
 CPveResearchMask PveSanitizeResearchMask(CPveResearchMask ResearchMask);
 bool PveContractAvailableInMode(int ContractID, int Mode);
+bool PveOperationAvailableInMode(int OperationID, int Mode);
 bool PveValidateDefinitions(char *pError, int ErrorSize);
 
 #endif

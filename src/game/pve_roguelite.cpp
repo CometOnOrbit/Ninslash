@@ -158,6 +158,18 @@ const CPveContractDef gs_aContracts[NUM_PVE_CONTRACTS] = {
 	{PVE_CONTRACT_LOCKED_ROUTE, "Locked Route", "Activate two additional radar-marked switches before the exit opens.", "Two extra route switches", PVE_MODE_EXTRACTION},
 };
 
+const CPveOperationDef gs_aOperations[NUM_PVE_OPERATIONS] = {
+	{PVE_OPERATION_CIRCUIT_BREAKER, "Circuit Breaker", "Disable hostile control loops. Enemy pressure is lighter and objective damage is stronger.", PVE_MODE_INVASION, 0.90f, 0.95f, 1.00f, 1.00f, 1.00f, 1.00f, 1.05f},
+	{PVE_OPERATION_FOUNDRY_SHUTDOWN, "Foundry Shutdown", "Cut production lines. Fewer enemies arrive and team repairs are more efficient.", PVE_MODE_INVASION, 0.85f, 1.00f, 0.95f, 1.05f, 1.00f, 1.20f, 1.00f},
+	{PVE_OPERATION_FIRE_CONTROL_PURGE, "Fire-Control Purge", "Scrub targeting systems. Enemies are faster, but reinforcements are reduced.", PVE_MODE_INVASION, 0.90f, 1.00f, 1.10f, 0.95f, 0.90f, 1.00f, 1.00f},
+	{PVE_OPERATION_SIEGE_LINE, "Siege Line", "Anchor the front. Defensive repairs improve and hostile numbers stay lower.", PVE_MODE_HORDE, 0.95f, 1.00f, 0.95f, 1.00f, 1.00f, 1.35f, 0.95f},
+	{PVE_OPERATION_ASSEMBLY_SURGE, "Assembly Surge", "Reroute salvage to the crew. Repairs are better and enemy armor is a little thinner.", PVE_MODE_HORDE, 1.00f, 0.92f, 1.00f, 1.00f, 1.10f, 1.20f, 1.00f},
+	{PVE_OPERATION_GRID_STORM, "Grid Storm", "Overload the field. Enemies move faster, but the horde is slightly smaller.", PVE_MODE_HORDE, 0.92f, 0.96f, 1.08f, 1.00f, 0.95f, 1.00f, 1.05f},
+	{PVE_OPERATION_CORE_RECOVERY, "Core Recovery", "Restore the route core. You get more time and lighter reinforcement pressure.", PVE_MODE_EXTRACTION, 1.00f, 0.95f, 1.00f, 1.15f, 0.85f, 1.00f, 1.00f},
+	{PVE_OPERATION_LOCKDOWN_BREAK, "Lockdown Break", "Crack the route seals. Switches are easier and the exit timer is kinder.", PVE_MODE_EXTRACTION, 0.90f, 1.00f, 1.00f, 0.90f, 1.00f, 1.10f, 1.10f},
+	{PVE_OPERATION_SIEGE_ROUTE, "Siege Route", "Take the hard corridor. More enemies come through, but rewards scale up.", PVE_MODE_EXTRACTION, 1.05f, 1.05f, 1.00f, 1.10f, 1.05f, 1.00f, 1.15f},
+};
+
 bool ValidatePrerequisiteDfs(int ID, int *pState)
 {
 	if(pState[ID] == 1)
@@ -244,6 +256,11 @@ const CPveContractDef *PveContractDef(int ID)
 	return ID >= 0 && ID < NUM_PVE_CONTRACTS ? &gs_aContracts[ID] : 0;
 }
 
+const CPveOperationDef *PveOperationDef(int ID)
+{
+	return ID >= 0 && ID < NUM_PVE_OPERATIONS ? &gs_aOperations[ID] : 0;
+}
+
 const char *PveChoiceName(int ID)
 {
 	const CPveCardDef *pDef = PveCardDef(ID);
@@ -294,6 +311,18 @@ const char *PveRewardReasonName(int Reason)
 	return "Invasion depth cleared";
 }
 
+const char *PveOperationName(int ID)
+{
+	const CPveOperationDef *pDef = PveOperationDef(ID);
+	return pDef ? pDef->m_pName : "Unknown operation";
+}
+
+const char *PveOperationDescription(int ID)
+{
+	const CPveOperationDef *pDef = PveOperationDef(ID);
+	return pDef ? pDef->m_pDescription : "";
+}
+
 bool PveCardIsBase(int ID)
 {
 	const CPveCardDef *pDef = PveCardDef(ID);
@@ -319,6 +348,12 @@ bool PveResearchMaskIsValid(const CPveResearchMask &ResearchMask)
 bool PveContractAvailableInMode(int ContractID, int Mode)
 {
 	const CPveContractDef *pDef = PveContractDef(ContractID);
+	return pDef && (pDef->m_Mode == PVE_MODE_ANY || pDef->m_Mode == Mode);
+}
+
+bool PveOperationAvailableInMode(int OperationID, int Mode)
+{
+	const CPveOperationDef *pDef = PveOperationDef(OperationID);
 	return pDef && (pDef->m_Mode == PVE_MODE_ANY || pDef->m_Mode == Mode);
 }
 

@@ -136,8 +136,10 @@ MACRO_CONFIG_INT(SvInvFails, sv_inv_fails,  0, 0, 9, CFGFLAG_SERVER, "Invasion l
 // Co-op PvE Roguelite Director
 MACRO_CONFIG_INT(SvPveRoguelite, sv_pve_roguelite, 1, 0, 1, CFGFLAG_SERVER, "Enable the shared PvE Roguelite Director")
 MACRO_CONFIG_INT(SvPveContracts, sv_pve_contracts, 1, 0, 1, CFGFLAG_SERVER, "Enable PvE team contracts")
+MACRO_CONFIG_INT(SvPveOperations, sv_pve_operations, 1, 0, 1, CFGFLAG_SERVER, "Enable PvE operation votes")
 MACRO_CONFIG_INT(SvPveChoiceTime, sv_pve_choice_time, 10, 3, 60, CFGFLAG_SERVER, "Seconds allowed for an individual perk choice")
 MACRO_CONFIG_INT(SvPveContractVoteTime, sv_pve_contract_vote_time, 8, 3, 60, CFGFLAG_SERVER, "Seconds allowed for a team contract vote")
+MACRO_CONFIG_INT(SvPveOperationVoteTime, sv_pve_operation_vote_time, 10, 3, 60, CFGFLAG_SERVER, "Seconds allowed for a team operation vote")
 
 // Client-owned permanent PvE progress. Current-run combat state is never stored here.
 MACRO_CONFIG_INT(ClPveProgressVersion, cl_pve_progress_version, 2, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "PvE progression format version")

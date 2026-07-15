@@ -29,6 +29,8 @@ class CPveDirector
 		int m_aStacks[NUM_PVE_CARDS];
 		int m_ContractVote;
 		int m_LastContractNonce;
+		int m_OperationVote;
+		int m_LastOperationNonce;
 		int m_LastResearchNonce;
 		int m_LegendaryCard;
 		int m_aWeaponResources[4];
@@ -111,9 +113,16 @@ class CPveDirector
 	int m_NextNonce;
 	bool m_WasWorldPaused;
 	bool m_PerkAfterContract;
+	bool m_PendingPerkChoice;
+	bool m_PendingContractVote;
 	int m_aContractOptions[2];
 	int m_ContractNonce;
+	int m_aOperationOptions[2];
+	int m_OperationNonce;
 	int m_UsedContracts;
+	unsigned m_UsedOperations;
+	int m_ActiveOperation;
+	int m_OperationState;
 	int m_ActiveContract;
 	int m_ContractState;
 	int m_ContractStartTick;
@@ -121,6 +130,7 @@ class CPveDirector
 	int m_ContractProgress;
 	int m_ContractTarget;
 	unsigned long long m_ContractParticipants;
+	int m_OperationEndTick;
 	CDroid *m_pEliteContractBoss;
 	CDroid *m_apEliteContractGuards[8];
 	int m_NumEliteContractGuards;
@@ -143,12 +153,16 @@ class CPveDirector
 	bool CardEligible(int ClientID, int CardID) const;
 	int DrawCard(int ClientID, const bool *pExcluded, int RequiredSpecialization, bool CommonOnly) const;
 	void GenerateChoices(int ClientID);
+	void BeginOperationVote(bool ContractVote, bool PerkChoice);
 	void BeginContractVote(bool PerkAfterContract);
 	void BeginPerkChoice();
+	void FinishOperationVote();
 	void FinishContractVote();
 	void FinishIntermission();
 	void ApplyChoice(int ClientID, int CardID, bool Catchup = false);
 	void SendChoice(int ClientID);
+	void SendOperationVote(int ClientID = -1);
+	void SendOperationState(int ClientID = -1);
 	void SendContractVote(int ClientID = -1);
 	void SendContractStatus(int ClientID = -1);
 	void SendProgress(int ClientID);
@@ -193,6 +207,7 @@ public:
 	void OnProgress(int ClientID, int Version, int Points, int Mask0, int Mask1, int Mask2, int Mask3, int HighestInvasion, int PreferredCheckpoint);
 	void OnResearchBuy(int ClientID, int Nonce, int CardID);
 	void OnChoice(int ClientID, int Nonce, int CardID);
+	void OnOperationVote(int ClientID, int Nonce, int OperationID);
 	void OnContractVote(int ClientID, int Nonce, int ContractID);
 	void OnDroneModule(int ClientID, int Nonce, int Module);
 
@@ -232,6 +247,8 @@ public:
 	float ReinforcementMultiplier() const;
 	float EnemySpeedMultiplier() const;
 	float EnemyHealthMultiplier() const;
+	float OperationRepairMultiplier() const;
+	float OperationGoldMultiplier() const;
 	bool RespawnAllowed() const;
 	bool ShopsAllowed() const;
 	bool UseLastStand(int ClientID);
@@ -239,6 +256,11 @@ public:
 	int DroneModule(int ClientID) const;
 	int TeamCheckpoint() const;
 	bool ProgressReady() const;
+	float OperationEnemyCountMultiplier() const;
+	float OperationDeadlineMultiplier() const;
+	float OperationReinforcementMultiplier() const;
+	float OperationEnemySpeedMultiplier() const;
+	float OperationEnemyHealthMultiplier() const;
 	void ClearRun();
 };
 
