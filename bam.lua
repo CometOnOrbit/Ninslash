@@ -229,6 +229,12 @@ function build(settings)
 		settings.link.libs:Add("ws2_32")
 		settings.link.libs:Add("ole32")
 		settings.link.libs:Add("shell32")
+		if config.compiler.driver == "gcc" then
+			-- Match CMakeLists.txt: ship without MinGW runtime DLLs
+			-- (libstdc++-6.dll / libgcc_s_seh-1.dll / libwinpthread-1.dll).
+			settings.link.flags:Add("-static-libgcc", "-static-libstdc++")
+			settings.link.flags:Add("-Wl,-Bstatic", "-lstdc++", "-lpthread", "-Wl,-Bdynamic")
+		end
 	end
 
 	-- compile zlib if needed

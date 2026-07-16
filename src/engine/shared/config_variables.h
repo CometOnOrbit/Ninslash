@@ -143,10 +143,10 @@ MACRO_CONFIG_INT(SvPveOperationVoteTime, sv_pve_operation_vote_time, 10, 3, 60, 
 
 // Client-owned permanent PvE progress. Current-run combat state is never stored here.
 MACRO_CONFIG_INT(ClPveProgressVersion, cl_pve_progress_version, 2, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "PvE progression format version")
-MACRO_CONFIG_INT(ClPveResearchPoints, cl_pve_research_points, 0, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Unspent PvE research points")
-MACRO_CONFIG_STR(ClPveResearchMask, cl_pve_research_mask, 33, "00000000000000000000000000000000", CFGFLAG_SAVE|CFGFLAG_CLIENT, "128-bit hexadecimal PvE research unlock mask")
-MACRO_CONFIG_INT(ClPveHighestInvasion, cl_pve_highest_invasion, 0, 0, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Highest completed Invasion floor")
-MACRO_CONFIG_INT(ClPvePreferredCheckpoint, cl_pve_preferred_checkpoint, 1, 1, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Preferred unlocked Invasion checkpoint")
+MACRO_CONFIG_INT(ClPveResearchPoints, cl_pve_research_points, 0, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)Unspent PvE research points")
+MACRO_CONFIG_STR(ClPveResearchMask, cl_pve_research_mask, 33, "00000000000000000000000000000000", CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)128-bit hexadecimal PvE research unlock mask")
+MACRO_CONFIG_INT(ClPveHighestInvasion, cl_pve_highest_invasion, 0, 0, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)Highest completed Invasion floor")
+MACRO_CONFIG_INT(ClPvePreferredCheckpoint, cl_pve_preferred_checkpoint, 1, 1, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)Preferred unlocked Invasion checkpoint")
 MACRO_CONFIG_INT(ClPveDroneAssault, cl_pve_drone_assault, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the assault drone module")
 MACRO_CONFIG_INT(ClPveDroneGuardian, cl_pve_drone_guardian, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the guardian drone module")
 MACRO_CONFIG_INT(ClPveDroneRepair, cl_pve_drone_repair, 0, 0, 512, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Key binding managed by the client for the repair drone module")
