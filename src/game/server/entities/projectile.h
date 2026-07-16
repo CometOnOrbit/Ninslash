@@ -46,6 +46,7 @@ private:
 	int m_SoundImpact;
 	float m_Force;
 	int m_StartTick;
+	// Deprecated: stored from ctor but unused — impact blast uses IsExplosiveProjectile(m_Weapon).
 	int m_Explosive;
 	int m_Bounces;
 	

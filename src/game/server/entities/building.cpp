@@ -517,7 +517,7 @@ void CBuilding::TakeDamage(int Damage, int Owner, int Weapon, vec2 Force)
 	else if(Damage > 0 && GameServer()->m_pPveDirector)
 	{
 		Damage = GameServer()->m_pPveDirector->ModifyDamage(Owner, -2, Weapon, Damage);
-		if(GameServer()->m_pPveDirector->PerkStacks(Owner, PVE_CARD_SIEGE_PAYLOAD) && (IsExplosiveProjectile(Weapon) || GetExplosionDamage(Weapon) > 0))
+		if(GameServer()->m_pPveDirector->PerkStacks(Owner, PVE_CARD_SIEGE_PAYLOAD) && IsExplosiveProjectile(Weapon))
 			Damage = max(1, Damage * 130 / 100);
 	}
 	if (m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON] && Owner >= 0 && GameServer()->m_apPlayers[Owner] && !GameServer()->m_apPlayers[Owner]->m_IsBot)

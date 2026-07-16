@@ -24,6 +24,8 @@ enum BitFlags {
     FLAG_WEAPON     = 1 << 0,
     FLAG_TURRET     = 1 << 1,
     FLAG_BUILDING   = 1 << 2,
+    // WARNING: FLAG_STATIC and FLAG_DROID share 1<<3 by design (disambiguated via FLAG_WEAPON).
+    // Do not change the bit — weapon IDs are persisted / networked.
     FLAG_STATIC     = 1 << 3,
     FLAG_DROID      = 1 << 3,
     FLAG_ONDEATH    = 1 << 4
@@ -125,6 +127,8 @@ inline bool IsModularWeapon(int Weapon) { return IsWeapon(Weapon) && !(Weapon & 
 inline int GetPart(int Weapon, int group) { return (Weapon & (15 << (4 + group * 4))) >> (4 + group * 4); }
 inline int GetModularWeapon(int part1, int part2) { return (!part1 && !part2) ? 0 : (part2 << 8 | part1 << 4 | FLAG_WEAPON); }
 inline int GetStaticWeapon(StaticWeaponType type) { return (static_cast<int>(type) << 4 | FLAG_STATIC | FLAG_WEAPON); }
+// Non-static returns SW_TOOL (0) as sentinel — not a real tool. Guard with IsStaticWeapon()
+// before treating the result as SW_TOOL, or only compare against other SW_* types.
 inline StaticWeaponType GetStaticType(int Weapon) { return IsStaticWeapon(Weapon) ? static_cast<StaticWeaponType>(255 & (Weapon >> 4)) : SW_TOOL; }
 
 inline int GetChargedWeapon(int Weapon, int charge) { return (Weapon & (15 << 4 | 15 << 8 | 15)) | (charge << 12); }
@@ -183,7 +187,6 @@ const bool IsFlammableProjectile(int Weapon);
 const float WeaponFlameAmount(int Weapon);
 const float WeaponElectroAmount(int Weapon);
 
-const float ScreenshakeDistance(int Weapon);
 const float ScreenshakeAmount(int Weapon);
 
 const float WeaponThrowForce(int Weapon);

@@ -206,7 +206,7 @@ int CPveDirector::CurrentWeaponSpecialization(int ClientID) const
 
 int CPveDirector::WeaponSpecialization(int Weapon) const
 {
-	if(IsExplosiveProjectile(Weapon) || GetExplosionDamage(Weapon) > 0)
+	if(IsExplosiveProjectile(Weapon))
 		return PVE_SPECIALIZATION_EXPLOSIVE;
 	if(WeaponElectroAmount(Weapon) > 0.0f || IsLaserWeapon(Weapon))
 		return PVE_SPECIALIZATION_ELECTRIC;
@@ -1485,7 +1485,7 @@ void CPveDirector::OnEnemyKilled(int ClientID, int Weapon, vec2 Pos, CEntity *pT
 		if(pChr)
 			pChr->IncreaseHealth(4);
 	}
-	if((IsExplosiveProjectile(Weapon) || GetExplosionDamage(Weapon) > 0) && Run.m_aStacks[PVE_CARD_CHAIN_REACTION] && frandom() < 0.25f)
+	if(IsExplosiveProjectile(Weapon) && Run.m_aStacks[PVE_CARD_CHAIN_REACTION] && frandom() < 0.25f)
 		m_pGameServer->CreateExplosion(Pos, ClientID, Weapon);
 	ClearTargetStatus(pTarget);
 }
@@ -2698,7 +2698,7 @@ int CPveDirector::ModifyDamageV6(int From, int To, int Weapon, int Damage)
 			if(pInvasion && pInvasion->IsObjectiveTarget(false))
 				Multiplier += Run.m_aStacks[PVE_CARD_OBJECTIVE_SPECIALIST] * 0.20f;
 		}
-		if(IsExplosiveProjectile(Weapon) || GetExplosionDamage(Weapon) > 0)
+		if(IsExplosiveProjectile(Weapon))
 			Multiplier += Run.m_aStacks[PVE_CARD_DEMOLITION] * 0.12f;
 		else if(WeaponElectroAmount(Weapon) > 0.0f || IsLaserWeapon(Weapon))
 			Multiplier += Run.m_aStacks[PVE_CARD_OVERCHARGE] * 0.12f;
@@ -2881,7 +2881,7 @@ float CPveDirector::CooldownReduction(int ClientID, int Weapon) const
 	const CPlayerRun &Run = m_aPlayers[ClientID];
 	float Reduction = Run.m_aStacks[PVE_CARD_QUICK_HANDS] * 0.08f;
 	const int RenderType = GetWeaponRenderType(Weapon);
-	const bool Firearm = !IsExplosiveProjectile(Weapon) && GetExplosionDamage(Weapon) <= 0 &&
+	const bool Firearm = !IsExplosiveProjectile(Weapon) &&
 		WeaponElectroAmount(Weapon) <= 0.0f && !IsLaserWeapon(Weapon) &&
 		GetWeaponFiringType(Weapon) != WFT_MELEE && RenderType != WRT_MELEE && RenderType != WRT_MELEESMALL && RenderType != WRT_SPIN;
 	if(Firearm && Run.m_aStacks[PVE_CARD_GUNSLINGER])

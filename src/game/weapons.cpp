@@ -69,7 +69,12 @@ const float GetProjectileSprite(int Weapon)
     if (IsDroid(Weapon)) {
         switch (GetDroidType(Weapon)) {
             case DROIDTYPE_WALKER:
-            case DROIDTYPE_BOSSWALKER: return 7;
+            case DROIDTYPE_BOSSWALKER:
+            // FireProjectile specialists: reuse walker projectile look.
+            case DROIDTYPE_BULWARK:
+            case DROIDTYPE_ASSEMBLER:
+            case DROIDTYPE_SABOTEUR:
+            case DROIDTYPE_OVERSEER_CORE: return 7;
             case DROIDTYPE_STAR:
             case DROIDTYPE_BOSSSTAR: return 4;
             default: return 0;
@@ -123,6 +128,10 @@ const int GetProjectileTraceType(int Weapon)
         switch (GetDroidType(Weapon)) {
             case DROIDTYPE_WALKER:
             case DROIDTYPE_BOSSWALKER:
+            case DROIDTYPE_BULWARK:
+            case DROIDTYPE_ASSEMBLER:
+            case DROIDTYPE_SABOTEUR:
+            case DROIDTYPE_OVERSEER_CORE:
             case DROIDTYPE_STAR:
             case DROIDTYPE_BOSSSTAR: return -3;
             default: return 0;
@@ -220,8 +229,12 @@ const float GetProjectileSize(int Weapon)
 {
     if (IsDroid(Weapon)) {
         switch (GetDroidType(Weapon)) {
-            case DROIDTYPE_WALKER: return DROID_WALKER_SIZE;
+            case DROIDTYPE_WALKER:
             case DROIDTYPE_BOSSWALKER:
+            case DROIDTYPE_BULWARK:
+            case DROIDTYPE_ASSEMBLER:
+            case DROIDTYPE_SABOTEUR:
+            case DROIDTYPE_OVERSEER_CORE: return DROID_WALKER_SIZE;
             case DROIDTYPE_STAR:
             case DROIDTYPE_BOSSSTAR: return DROID_STAR_SIZE;
             default: return 0.0f;
@@ -315,6 +328,7 @@ const int GetExplosionSprite(int Weapon)
 		{
 			switch (GetDroidType(Weapon))
 			{
+				// Death FX: bosswalker shares boss-tier sprite path with star bosses.
 				case DROIDTYPE_WALKER:
 				case DROIDTYPE_BOSSWALKER:
 				case DROIDTYPE_STAR:
@@ -333,10 +347,10 @@ const int GetExplosionSprite(int Weapon)
 	{
 		switch (GetStaticType(Weapon))
 		{
-			case SW_GRENADE1: return SPRITE_EXPLOSION1_1;
-			case SW_GRENADE2: return SPRITE_EXPLOSION1_1;
-			case SW_BAZOOKA: return SPRITE_EXPLOSION1_1;
-			case SW_CLUSTER: return SPRITE_EXPLOSION1_1;
+			case SW_GRENADE1:
+			case SW_GRENADE2:
+			case SW_BAZOOKA:
+			case SW_CLUSTER:
 			case SW_BOMB: return SPRITE_EXPLOSION1_1;
 			default: return 0;
 		};
@@ -375,12 +389,13 @@ const int GetExplosionSound(int Weapon)
 			switch (GetDroidType(Weapon))
 			{
 				case DROIDTYPE_WALKER: return SOUND_GRENADE_EXPLODE;
+				// Boss-tier death sound grouping (bosswalker with star bosses).
 				case DROIDTYPE_BOSSWALKER:
 				case DROIDTYPE_STAR:
 				case DROIDTYPE_BOSSSTAR: return SOUND_GRENADE_EXPLODE;
 				case DROIDTYPE_CRAWLER: return SOUND_GRENADE_EXPLODE;
-				case DROIDTYPE_BOSSCRAWLER: return SOUND_GRENADE_EXPLODE;
-				case DROIDTYPE_BOSSSPLITTER:
+				case DROIDTYPE_BOSSCRAWLER:
+				case DROIDTYPE_BOSSSPLITTER: return SOUND_GRENADE_EXPLODE;
 				default: return 0;
 			};
 		}
@@ -444,7 +459,6 @@ const int GetWeaponFireSound(int Weapon)
 	if (Part1 == PART1_BASE4) return SOUND_BASE4_FIRE;
 	if (Part1 == PART1_MELEE) return SOUND_HAMMER_FIRE;
 	if (Part1 == PART1_SPIN) return -1;
-	if (Part1 == 7) return -1;
 	
 	return -1;
 }
@@ -505,13 +519,14 @@ const float GetExplosionSize(int Weapon)
 		{
 			switch (GetDroidType(Weapon))
 			{
+				// Death blast size: walker body vs boss-tier (bosswalker grouped with star bosses).
 				case DROIDTYPE_WALKER: return 160.0f;
 				case DROIDTYPE_BOSSWALKER:
 				case DROIDTYPE_STAR:
 				case DROIDTYPE_BOSSSTAR: return 220.0f;
 				case DROIDTYPE_CRAWLER: return 160.0f;
-				case DROIDTYPE_BOSSCRAWLER: return 320.0f;
-				case DROIDTYPE_BOSSSPLITTER:
+				case DROIDTYPE_BOSSCRAWLER:
+				case DROIDTYPE_BOSSSPLITTER: return 320.0f;
 				default: return 0.0f;
 			};
 		}
@@ -549,13 +564,14 @@ const float GetExplosionDamage(int Weapon)
 		{
 			switch (GetDroidType(Weapon))
 			{
+				// Death blast damage: same grouping as GetExplosionSize (bosswalker = boss tier).
 				case DROIDTYPE_WALKER: return 30.0f;
 				case DROIDTYPE_BOSSWALKER:
 				case DROIDTYPE_STAR:
 				case DROIDTYPE_BOSSSTAR: return 40.0f;
 				case DROIDTYPE_CRAWLER: return 30.0f;
-				case DROIDTYPE_BOSSCRAWLER: return 60.0f;
-				case DROIDTYPE_BOSSSPLITTER:
+				case DROIDTYPE_BOSSCRAWLER:
+				case DROIDTYPE_BOSSSPLITTER: return 60.0f;
 				default: return 0.0f;
 			};
 		}
@@ -568,6 +584,8 @@ const float GetExplosionDamage(int Weapon)
 			case SW_BOMB: return 240;
 			case SW_GRENADE1: return 120;
 			case SW_GRENADE2: return 30;
+			// Care-package grenade: CreateExplosion for FX only; Trigger drops pickups.
+			case SW_GRENADE3: return 0;
 			case SW_CLUSTER: return 34;
 			case SW_BAZOOKA: return 80;
 			case SW_BOUNCER: return 24 + GetWeaponLevelCharge(Weapon)*4.0f;
@@ -692,8 +710,8 @@ const int GetWeaponFiringType(int Weapon)
 		
 		switch (GetPart(Weapon, PART_GROUP1))
 		{
-		case 5: return WFT_MELEE;
-		case 6: return WFT_HOLD;
+		case PART1_MELEE: return WFT_MELEE;
+		case PART1_SPIN: return WFT_HOLD;
 		default: return WFT_PROJECTILE;
 		};
 	}
@@ -757,9 +775,6 @@ const vec2 GetWeaponRenderOffset(int Weapon)
 	{
 		if (GetWeaponRenderType(Weapon) == WRT_MELEE)
 			return vec2(-12, -2);
-		
-		//if (GetWeaponRenderType(Weapon) == WRT_SPIN)
-		//	return vec2(-12, -2);
 		
 		return vec2(24, 0);
 	}
@@ -836,9 +851,6 @@ const int WeaponProjectilePosType(int Weapon)
 		};
 	}
 	
-	//if (GetStaticType(Weapon) == SW_CLUSTER)
-	//	return 1;
-	
 	if (GetStaticType(Weapon) == SW_BAZOOKA)
 		return 2;
 	
@@ -849,7 +861,7 @@ const vec2 GetProjectileOffset(int Weapon)
 {
 	if (IsModularWeapon(Weapon))
 	{
-		if (GetPart(Weapon, PART_GROUP1) == 6)
+		if (GetPart(Weapon, PART_GROUP1) == PART1_SPIN)
 			return vec2(0, -14);
 		
 		switch (GetPart(Weapon, PART_GROUP2))
@@ -931,8 +943,8 @@ const float GetMeleeHitRadius(int Weapon)
 		switch (GetDroidType(Weapon))
 		{
 			case DROIDTYPE_CRAWLER: return 40.0f;
-			case DROIDTYPE_BOSSCRAWLER: return 60.0f;
-			case DROIDTYPE_BOSSSPLITTER:
+			case DROIDTYPE_BOSSCRAWLER:
+			case DROIDTYPE_BOSSSPLITTER: return 60.0f;
 			default: return 0.0f;
 		};
 	}
@@ -1070,8 +1082,13 @@ const float GetProjectileSpeed(int Weapon)
 	{
 		switch (GetDroidType(Weapon))
 		{
-			case DROIDTYPE_WALKER: return 1400;
+			// Ballistics follow base body (walker/star); boss damage/knockback stay separate.
+			case DROIDTYPE_WALKER:
 			case DROIDTYPE_BOSSWALKER:
+			case DROIDTYPE_BULWARK:
+			case DROIDTYPE_ASSEMBLER:
+			case DROIDTYPE_SABOTEUR:
+			case DROIDTYPE_OVERSEER_CORE: return 1400;
 			case DROIDTYPE_STAR:
 			case DROIDTYPE_BOSSSTAR: return 24;
 			default: return 0.0f;
@@ -1129,10 +1146,8 @@ const float GetProjectileCurvature(int Weapon)
 {
 	if (IsDroid(Weapon))
 	{
-		switch (GetDroidType(Weapon))
-		{
-			default: return 0.0f;
-		};
+		// STAR/BOSSSTAR use WeaponProjectilePosType==1 (log path); curvature stays 0 by design.
+		return 0.0f;
 	}
 	
 	if (IsStaticWeapon(Weapon))
@@ -1147,20 +1162,6 @@ const float GetProjectileCurvature(int Weapon)
 			default: return 0.0f;
 		};
 	}
-	
-	/*
-	if (GetStaticType(Weapon) == SW_GUN1)
-		return 2.2f;
-	
-	//if (GetStaticType(Weapon) == SW_CLUSTER)
-	//	return 2400.0f;
-	
-	if (GetStaticType(Weapon) == SW_BAZOOKA)
-		return 0.0f;
-	
-	if (GetStaticType(Weapon) == SW_BOUNCER)
-		return 0.0f;
-	*/
 	
 	if (!IsModularWeapon(Weapon))
 		return 0.0f;
@@ -1237,7 +1238,7 @@ const float GetProjectileSpread(int Weapon)
 const bool IsFlammableProjectile(int Weapon)
 {
 	if (Weapon == WEAPON_ACID)
-		return 0.0f;
+		return false;
 	
 	if (IsStaticWeapon(Weapon))
 	{
@@ -1269,7 +1270,7 @@ const float WeaponFlameAmount(int Weapon)
 		switch (GetStaticType(Weapon))
 		{
 			case SW_FLAMER: return 1.0f;
-			//case SW_CLUSTER: return 1.0f;
+			// CLUSTER is IsFlammableProjectile but flame amount stays 0 (burn FX vs damage path).
 			default: return 0.0f;
 		};
 	}
@@ -1379,8 +1380,8 @@ const float WeaponElectroAmount(int Weapon)
 	{
 		switch (GetDroidType(Weapon))
 		{
-			case DROIDTYPE_WALKER: return 0.5f;
-			case DROIDTYPE_BOSSWALKER:
+			case DROIDTYPE_WALKER:
+			case DROIDTYPE_BOSSWALKER: return 0.5f;
 			case DROIDTYPE_STAR:
 			case DROIDTYPE_BOSSSTAR: return 1.0f;
 			default: return 0.0f;
@@ -1426,6 +1427,7 @@ const float WeaponElectroAmount(int Weapon)
 	{
 		switch (GetStaticType(Weapon))
 		{
+			// Throwable is inert; BUILDING_LIGHTNINGWALL carries the electro amount.
 			case SW_ELECTROWALL: return 0.0f;
 			case SW_GRENADE2: return 0.5f;
 			case SW_GUN2: return 0.5f;
@@ -1508,12 +1510,13 @@ const float GetProjectileDamage(int Weapon)
 		switch (GetDroidType(Weapon))
 		{
 			case DROIDTYPE_WALKER: return 6.0f;
+			// Projectile hit damage: bosswalker shares boss (star) tier, not walker ballistics.
 			case DROIDTYPE_BOSSWALKER:
 			case DROIDTYPE_STAR:
 			case DROIDTYPE_BOSSSTAR: return 10.0f;
 			case DROIDTYPE_CRAWLER: return 6.0f;
-			case DROIDTYPE_BOSSCRAWLER: return 10.0f;
-			case DROIDTYPE_BOSSSPLITTER:
+			case DROIDTYPE_BOSSCRAWLER:
+			case DROIDTYPE_BOSSSPLITTER: return 10.0f;
 			default: return 0.0f;
 		};
 	}
@@ -1612,10 +1615,18 @@ const int GetRandomWeaponType(bool IsSurvival)
 	if (rand()%12 < 3)
 		return GetModularWeapon(PART1_MELEE, PART2_MELEE1+rand()%4);
 	
-	int w = 0;
-	
-	while (!w || (!IsSurvival && GetStaticType(w) == SW_RESPAWNER) || GetStaticType(w) == SW_SYRINGE)
-		w = GetStaticWeapon(StaticWeaponType(rand()%(NUM_STATIC_WEAPONS-4)));
+	// Explicit blacklist (was NUM_STATIC_WEAPONS-4: SHURIKEN/CLAW/BOMB/BALL off the end of the enum).
+	int w;
+	do
+	{
+		w = GetStaticWeapon(StaticWeaponType(rand() % NUM_STATIC_WEAPONS));
+		const StaticWeaponType Type = GetStaticType(w);
+		if (Type == SW_SHURIKEN || Type == SW_CLAW || Type == SW_BOMB || Type == SW_BALL || Type == SW_SYRINGE)
+			continue;
+		if (!IsSurvival && Type == SW_RESPAWNER)
+			continue;
+		break;
+	} while (true);
 	
 	return w;
 }
@@ -1641,13 +1652,18 @@ const float GetProjectileKnockback(int Weapon)
 	{
 		switch (GetDroidType(Weapon))
 		{
-			case DROIDTYPE_WALKER: return 1.0f;
+			case DROIDTYPE_WALKER:
+			case DROIDTYPE_BULWARK:
+			case DROIDTYPE_ASSEMBLER:
+			case DROIDTYPE_SABOTEUR:
+			case DROIDTYPE_OVERSEER_CORE: return 1.0f;
+			// Boss knockback tier (not walker ballistics).
 			case DROIDTYPE_BOSSWALKER:
 			case DROIDTYPE_STAR:
 			case DROIDTYPE_BOSSSTAR: return 2.0f;
 			case DROIDTYPE_CRAWLER: return 24.0f;
-			case DROIDTYPE_BOSSCRAWLER: return 34.0f;
-			case DROIDTYPE_BOSSSPLITTER:
+			case DROIDTYPE_BOSSCRAWLER:
+			case DROIDTYPE_BOSSSPLITTER: return 34.0f;
 			default: return 0.0f;
 		};
 	}
@@ -1714,8 +1730,12 @@ const float GetProjectileLife(int Weapon)
 	{
 		switch (GetDroidType(Weapon))
 		{
-			case DROIDTYPE_WALKER: return 0.6f;
+			case DROIDTYPE_WALKER:
 			case DROIDTYPE_BOSSWALKER:
+			case DROIDTYPE_BULWARK:
+			case DROIDTYPE_ASSEMBLER:
+			case DROIDTYPE_SABOTEUR:
+			case DROIDTYPE_OVERSEER_CORE: return 0.6f;
 			case DROIDTYPE_STAR:
 			case DROIDTYPE_BOSSSTAR: return 1.2f;
 			default: return 0.0f;
@@ -1893,12 +1913,13 @@ const bool GetWeaponFullAuto(int Weapon)
 		case SW_GUN1: return false;
 		default: return true;
 	};
-	
-	return true;
 }
 
 const int IsProjectileBouncy(int Weapon)
 {
+	if (!IsStaticWeapon(Weapon))
+		return 0;
+	
 	if (GetStaticType(Weapon) == SW_BOUNCER)
 		return 9;
 	
@@ -1911,7 +1932,8 @@ const int IsProjectileBouncy(int Weapon)
 
 const bool IsExplosiveProjectile(int Weapon)
 {
-	return true;
+	// Impact/timeout blast that actually deals explosion damage (was a perpetual-true stub).
+	return GetExplosionDamage(Weapon) > 0;
 }
 
 
