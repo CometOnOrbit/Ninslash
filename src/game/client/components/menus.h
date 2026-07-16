@@ -65,7 +65,6 @@ class CMenus : public CComponent
 	void ConfigureScrollRegion(CScrollRegionParams *pParams) const;
 	void LayoutCenterPanel(CUIRect *pScreen, CUIRect *pOut);
 
-	float AnimHover(const void *pID, float Speed = 14.0f);
 	float AnimSelected(const void *pID, bool Selected, float Speed = 12.0f);
 	static vec4 MixColor(const vec4 &A, const vec4 &B, float t);
 
@@ -441,6 +440,7 @@ public:
 	static vec4 ThemeAccentDim();
 	static vec4 ThemeDanger();
 	static vec4 ThemeText();
+	float AnimHover(const void *pID, float Speed = 14.0f);
 	void OpenResearchPage();
 	void ShutdownLocalServer();
 

@@ -91,8 +91,12 @@ class CPveRoguelite : public CComponent
 	vec2 m_SelectorMouse;
 	float m_AppearAmount;
 	float m_ResearchAppearAmount;
+	float m_aBranchExpand[4];
+	float m_aRouteExpand[3];
+	float m_ResearchProgressDisplay;
 	float m_SelectionPulse;
 	float m_aCardFocus[3];
+	int m_ResearchAnimTab;
 
 	CPveResearchMask ParseResearchMask() const;
 	void StoreResearchMask(CPveResearchMask Mask);
