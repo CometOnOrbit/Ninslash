@@ -254,6 +254,10 @@ enum EPveOperationState
 {
 	PVE_OPERATION_STATE_NONE = 0,
 	PVE_OPERATION_STATE_VOTING,
+	// A route has won the vote, but the following contract/perk intermission
+	// still owns the world pause.  It must not be exposed as an active mission
+	// before its target has been placed.
+	PVE_OPERATION_STATE_SELECTED,
 	PVE_OPERATION_STATE_ACTIVE,
 	PVE_OPERATION_STATE_FAILED,
 };
@@ -375,13 +379,6 @@ struct CPveOperationDef
 	const char *m_pName;
 	const char *m_pDescription;
 	int m_Mode;
-	float m_EnemyCountMultiplier;
-	float m_EnemyHealthMultiplier;
-	float m_EnemySpeedMultiplier;
-	float m_DeadlineMultiplier;
-	float m_ReinforcementMultiplier;
-	float m_RepairMultiplier;
-	float m_GoldMultiplier;
 	const char *m_apSteps[3];
 	int m_aTargetTypes[3];
 	int m_aStepTargets[3];

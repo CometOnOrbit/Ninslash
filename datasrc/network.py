@@ -897,7 +897,7 @@ Messages = [
 
 	NetMessage("Sv_PveOperationState", [
 		NetIntRange("m_Operation", -1, 8),
-		NetIntRange("m_State", 0, 3),
+		NetIntRange("m_State", 0, 4),
 		NetIntRange("m_Step", -1, 2),
 		NetIntRange("m_Progress", 0, 9999),
 		NetIntRange("m_Target", 0, 9999),

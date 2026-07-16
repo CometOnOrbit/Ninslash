@@ -1194,6 +1194,9 @@ Switch activated
 
 Rising acid! Reach the exit
 == 酸液上涨！逃到出口
+Door open
+== 门已开启
+
 
 Rising acid
 == 酸液上涨
@@ -1246,8 +1249,18 @@ ACTIVE OPERATION
 Break robot control loops, then disable their switches. Enemy pressure is lighter.
 == 切断机器人控制回路，再关闭它们的开关。敌军压力较低。
 
-Foundry Shutdown
-== 铸造厂停机
+Production Halt
+== 产线停机
+Operation
+== 行动
+
+Operation objective
+== 行动目标
+
+remaining
+== 剩余
+
+
 
 Cut production lines. Fewer enemies arrive and team repairs are more efficient.
 == 关闭生产线。敌军增援减少，团队维修效率提高。
@@ -2893,8 +2906,8 @@ Returning all players to Floor 1.
 Disable the shield network and destroy its controller.
 == 关闭护盾网络并摧毁其控制核心。
 
-Stop production and escape with the coolant core.
-== 停止生产线并携带冷却核心撤离。
+Sabotage the assembly line, recover the coolant core, then reach the exit.
+== 破坏装配线，夺回冷却核心，然后抵达出口。
 
 Break the targeting network and its siege engine.
 == 摧毁火控网络及其攻城引擎。
@@ -2902,8 +2915,8 @@ Break the targeting network and its siege engine.
 Hold the line through a coordinated siege section.
 == 在协同攻城区段中守住阵线。
 
-Break a self-repairing foundry assault.
-== 击溃能够自我维修的铸造厂攻势。
+Break a self-repairing machine assault.
+== 击溃能够自我维修的机械攻势。
 
 Disable field relays before the EMP storm peaks.
 == 在 EMP 风暴达到峰值前关闭战场继电器。
@@ -2952,8 +2965,8 @@ Destroy 3 assembly nodes
 Carry the coolant core
 == 搬运冷却核心
 
-Escape the rising acid within 60 seconds
-== 在 60 秒内逃离上升酸液
+Reach the exit
+== 抵达出口
 
 Destroy 3 targeting beacons under bombardment
 == 在炮击下摧毁 3 个定位信标
@@ -2973,8 +2986,8 @@ Survive ranged suppression and sabotage
 Repel the Assembler wave
 == 击退装配机波次
 
-Destroy 2 foundry nodes
-== 摧毁 2 个铸造节点
+Destroy 2 assembly nodes
+== 摧毁 2 个装配节点
 
 Survive the mixed wave and defeat the Overseer Core
 == 挺过混合波并击败监管核心

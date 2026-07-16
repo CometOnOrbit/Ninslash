@@ -6,111 +6,167 @@ repeat: none
 body
   rotate: false
   xy: 4, 4
-  size: 88, 58
-  orig: 88, 58
+  size: 90, 50
+  orig: 90, 50
   offset: 0, 0
   index: -1
-front_joint
+front_outer_joint
   rotate: false
-  xy: 96, 4
+  xy: 98, 4
   size: 24, 24
   orig: 24, 24
   offset: 0, 0
   index: -1
-front_upper
+front_outer_upper
   rotate: false
-  xy: 124, 4
+  xy: 126, 4
   size: 42, 23
   orig: 42, 23
   offset: 0, 0
   index: -1
-front_lower
+front_outer_lower
   rotate: false
-  xy: 170, 4
-  size: 39, 21
-  orig: 39, 21
+  xy: 172, 4
+  size: 36, 21
+  orig: 36, 21
   offset: 0, 0
   index: -1
-front_foot
+front_outer_foot
   rotate: false
-  xy: 213, 4
+  xy: 212, 4
   size: 34, 18
   orig: 34, 18
   offset: 0, 0
   index: -1
-back_joint
+front_inner_joint
   rotate: false
-  xy: 251, 4
+  xy: 250, 4
   size: 24, 24
   orig: 24, 24
   offset: 0, 0
   index: -1
-back_upper
+front_inner_upper
   rotate: false
-  xy: 279, 4
+  xy: 278, 4
+  size: 40, 23
+  orig: 40, 23
+  offset: 0, 0
+  index: -1
+front_inner_lower
+  rotate: false
+  xy: 322, 4
+  size: 34, 21
+  orig: 34, 21
+  offset: 0, 0
+  index: -1
+front_inner_foot
+  rotate: false
+  xy: 360, 4
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_inner_joint
+  rotate: false
+  xy: 398, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_inner_upper
+  rotate: false
+  xy: 426, 4
+  size: 40, 23
+  orig: 40, 23
+  offset: 0, 0
+  index: -1
+back_inner_lower
+  rotate: false
+  xy: 470, 4
+  size: 34, 21
+  orig: 34, 21
+  offset: 0, 0
+  index: -1
+back_inner_foot
+  rotate: false
+  xy: 4, 58
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_outer_joint
+  rotate: false
+  xy: 42, 58
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_outer_upper
+  rotate: false
+  xy: 70, 58
   size: 42, 23
   orig: 42, 23
   offset: 0, 0
   index: -1
-back_lower
+back_outer_lower
   rotate: false
-  xy: 325, 4
-  size: 39, 21
-  orig: 39, 21
+  xy: 116, 58
+  size: 36, 21
+  orig: 36, 21
   offset: 0, 0
   index: -1
-back_foot
+back_outer_foot
   rotate: false
-  xy: 368, 4
+  xy: 156, 58
   size: 34, 18
   orig: 34, 18
   offset: 0, 0
   index: -1
 repair_tank
   rotate: false
-  xy: 406, 4
+  xy: 194, 58
   size: 38, 72
   orig: 38, 72
   offset: 0, 0
   index: -1
 tool_upper
   rotate: false
-  xy: 448, 4
+  xy: 236, 58
   size: 47, 21
   orig: 47, 21
   offset: 0, 0
   index: -1
 tool_lower
   rotate: false
-  xy: 4, 80
+  xy: 287, 58
   size: 42, 19
   orig: 42, 19
   offset: 0, 0
   index: -1
 tool_claw
   rotate: false
-  xy: 50, 80
+  xy: 333, 58
   size: 38, 32
   orig: 38, 32
   offset: 0, 0
   index: -1
 tool2_upper
   rotate: false
-  xy: 92, 80
+  xy: 375, 58
   size: 44, 20
   orig: 44, 20
   offset: 0, 0
   index: -1
 tool2_lower
   rotate: false
-  xy: 140, 80
+  xy: 423, 58
   size: 38, 18
   orig: 38, 18
   offset: 0, 0
   index: -1
 tool2_claw
   rotate: false
-  xy: 182, 80
+  xy: 465, 58
   size: 34, 28
   orig: 34, 28
   offset: 0, 0

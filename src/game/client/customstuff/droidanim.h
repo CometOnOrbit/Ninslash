@@ -68,6 +68,9 @@ public:
 	float m_Angle;
 	float m_DisplayAngle;
 	float m_TargetDisplayAngle;
+	float m_LocomotionTime;
+	float m_SmoothedAimAngle;
+	bool m_RenderInitialized;
 	
 	CDroidAnim(class CGameClient *pClient = NULL);
 	~CDroidAnim();

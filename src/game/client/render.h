@@ -205,7 +205,7 @@ public:
 	CAnimSkeletonInfo() {}
 	virtual ~CAnimSkeletonInfo();
 
-	void UpdateBones(float Time = 0.0f, CSpineAnimation *pAnimation = 0x0, class CSkeletonAnimation *pAnimData = 0x0, int WeaponAngle = 0, struct CDroidAnim *pDroidAnim = 0x0);
+	void UpdateBones(float Time = 0.0f, CSpineAnimation *pAnimation = 0x0, class CSkeletonAnimation *pAnimData = 0x0, int WeaponAngle = 0, struct CDroidAnim *pDroidAnim = 0x0, CSpineAnimation *pBaseAnimation = 0x0, float BaseTime = 0.0f);
 };
 
 // texture atlas
@@ -312,7 +312,7 @@ public:
 	void RenderSkeleton(vec2 Position, const CTeeRenderInfo *pInfo, class CSkeletonAnimation *AnimData, float Rotation, CAnimSkeletonInfo *pSkeleton, CTextureAtlas *pAtlas, class CPlayerInfo *PlayerInfo = NULL);
 	void RenderBuilding(vec2 Position, CAnimSkeletonInfo *pSkeleton, CTextureAtlas *pAtlas, int Team, int WeaponAngle = 0);
 
-	void RenderSkeleton(vec2 Pos, int Atlas, const char *Anim, float Time, vec2 Scale, int Dir, float Angle, int Team = -1);
+	void RenderSkeleton(vec2 Pos, int Atlas, const char *Anim, float Time, vec2 Scale, int Dir, float Angle, int Team = -1, const char *pBaseAnim = 0x0, float BaseTime = 0.0f);
 	
 	template<typename TKeyframe>
 	static void RenderEvalSkeletonAnim(TKeyframe *pKeyFrame, int NumKeyframes, float Time, typename TKeyframe::KeyframeReturnType *pResult);

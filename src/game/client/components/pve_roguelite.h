@@ -146,6 +146,7 @@ public:
 	int DebugCargoType() const { return m_DebugCargoType; }
 	bool DebugCargoCarried() const { return m_DebugCargoType != PVE_CARGO_NONE && m_DebugCargoCarried; }
 	bool ChoiceActive() const { return m_ChoiceActive || m_OperationVoteActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
+	int OperationTargetType() const { return m_OperationTargetType; }
 };
 
 #endif

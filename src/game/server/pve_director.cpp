@@ -519,7 +519,7 @@ void CPveDirector::BeginOperationVote(bool ContractVote, bool PerkChoice)
 	if(Count == 1)
 	{
 		m_ActiveOperation = aPool[0];
-		m_OperationState = PVE_OPERATION_STATE_ACTIVE;
+		m_OperationState = PVE_OPERATION_STATE_SELECTED;
 		m_UsedOperations |= 1u << m_ActiveOperation;
 		SendOperationState();
 		if(ContractVote && g_Config.m_SvPveContracts)
@@ -560,7 +560,11 @@ void CPveDirector::FinishOperationVote()
 	}
 	const int Winner = aVotes[0] == aVotes[1] ? rand() % 2 : (aVotes[1] > aVotes[0]);
 	m_ActiveOperation = m_aOperationOptions[Winner];
-	m_OperationState = PVE_OPERATION_STATE_ACTIVE;
+	// Keep the selected route out of the active state until every subsequent
+	// intermission overlay has closed.  Controllers deliberately defer target
+	// placement while paused; advertising ACTIVE here made the HUD show an
+	// operation with an empty objective.
+	m_OperationState = PVE_OPERATION_STATE_SELECTED;
 	m_UsedOperations |= 1u << m_ActiveOperation;
 	SendOperationState();
 	if(m_PendingContractVote && g_Config.m_SvPveContracts)
@@ -623,6 +627,12 @@ void CPveDirector::FinishContractVote()
 
 void CPveDirector::FinishIntermission()
 {
+	// This transition is intentionally silent. The mode controller starts the
+	// operation on its next tick and the operation director then broadcasts one
+	// complete state containing the first real target, rather than a transient
+	// ACTIVE/no-target packet.
+	if(m_OperationState == PVE_OPERATION_STATE_SELECTED)
+		m_OperationState = PVE_OPERATION_STATE_ACTIVE;
 	m_IntermissionState = PVE_INTERMISSION_NONE;
 	m_EndTick = 0;
 	m_LastIntermissionSyncTick = 0;
@@ -1175,6 +1185,15 @@ void CPveDirector::OnOperationChainFailed(int OperationID)
 	if(m_ActiveOperation != OperationID)
 		return;
 	m_OperationState = PVE_OPERATION_STATE_FAILED;
+	SendOperationState();
+}
+
+void CPveDirector::OnOperationChainAbandoned(int OperationID)
+{
+	if(m_ActiveOperation != OperationID)
+		return;
+	m_ActiveOperation = -1;
+	m_OperationState = PVE_OPERATION_STATE_NONE;
 	SendOperationState();
 }
 
@@ -2072,7 +2091,11 @@ void CPveDirector::TickDrone(int ClientID)
 		}
 		const int Repair = max(1, (int)(2.0f * Efficiency + 0.5f));
 		if(pBest && LowestArmor < 100)
+		{
+			Run.m_pDroneTarget = pBest;
+			Run.m_pDrone->SetAction(pBest->m_Pos, m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 3);
 			pBest->IncreaseArmor(Repair);
+		}
 		else
 		{
 			CBuilding *pBestBuilding = 0;
@@ -2084,7 +2107,11 @@ void CPveDirector::TickDrone(int ClientID)
 					pBestBuilding = pBuilding;
 				}
 			if(pBestBuilding)
+			{
+				Run.m_pDroneTarget = pBestBuilding;
+				Run.m_pDrone->SetAction(pBestBuilding->m_Pos, m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 3);
 				pBestBuilding->Repair(Repair);
+			}
 		}
 		Run.m_DroneActionTick = m_pGameServer->Server()->Tick() + max(1, (int)(m_pGameServer->Server()->TickSpeed() * (1.0f - CooldownReduction)));
 	}
@@ -2772,7 +2799,7 @@ int CPveDirector::ModifyGold(int ClientID, int Amount) const
 {
 	if(Amount <= 0 || !IsEligiblePlayer(ClientID))
 		return Amount;
-	float Multiplier = OperationGoldMultiplier();
+	float Multiplier = 1.0f;
 	if(Enabled())
 		Multiplier *= 1.0f + m_aPlayers[ClientID].m_aStacks[PVE_CARD_SCAVENGER] * 0.12f;
 	if(Enabled() && ActiveContract() == PVE_CONTRACT_RESOURCE_DROUGHT)
@@ -2804,7 +2831,7 @@ int CPveDirector::ModifyBuildingRepair(int ClientID, int Amount) const
 {
 	if(!IsEligiblePlayer(ClientID) || Amount <= 0)
 		return Amount;
-	float Multiplier = OperationRepairMultiplier();
+	float Multiplier = 1.0f;
 	if(Enabled() && m_aPlayers[ClientID].m_aStacks[PVE_CARD_ENGINEER])
 		Multiplier *= 1.25f;
 	return max(1, (int)(Amount * Multiplier + 0.5f));
@@ -2891,73 +2918,31 @@ float CPveDirector::EnemyCountMultiplier() const
 		const float aMultipliers[4] = {1.15f, 1.30f, 1.45f, 1.60f};
 		Multiplier = aMultipliers[clamp(m_ContractProgress, 0, 3)];
 	}
-	return Multiplier * OperationEnemyCountMultiplier();
+	return Multiplier;
 }
 
 float CPveDirector::DeadlineMultiplier() const
 {
 	const float ContractMultiplier = ActiveContract() == PVE_CONTRACT_TIGHT_DEADLINE ? 0.70f : 1.0f;
-	return ContractMultiplier * OperationDeadlineMultiplier();
+	return ContractMultiplier;
 }
 
 float CPveDirector::ReinforcementMultiplier() const
 {
 	const float ContractMultiplier = ActiveContract() == PVE_CONTRACT_OVERRUN ? 2.0f : 1.0f;
-	return ContractMultiplier * OperationReinforcementMultiplier();
+	return ContractMultiplier;
 }
 
 float CPveDirector::EnemySpeedMultiplier() const
 {
 	const float ContractMultiplier = ActiveContract() == PVE_CONTRACT_OVERCLOCKED_HOSTILES ? 1.15f : 1.0f;
-	return ContractMultiplier * OperationEnemySpeedMultiplier();
+	return ContractMultiplier;
 }
 
 float CPveDirector::EnemyHealthMultiplier() const
 {
 	const float ContractMultiplier = ActiveContract() == PVE_CONTRACT_RISING_TIDE && m_ContractProgress >= 3 ? 1.25f : 1.0f;
-	return ContractMultiplier * OperationEnemyHealthMultiplier();
-}
-
-float CPveDirector::OperationEnemyCountMultiplier() const
-{
-	const CPveOperationDef *pDef = PveOperationDef(ActiveOperation());
-	return pDef ? pDef->m_EnemyCountMultiplier : 1.0f;
-}
-
-float CPveDirector::OperationDeadlineMultiplier() const
-{
-	const CPveOperationDef *pDef = PveOperationDef(ActiveOperation());
-	return pDef ? pDef->m_DeadlineMultiplier : 1.0f;
-}
-
-float CPveDirector::OperationReinforcementMultiplier() const
-{
-	const CPveOperationDef *pDef = PveOperationDef(ActiveOperation());
-	return pDef ? pDef->m_ReinforcementMultiplier : 1.0f;
-}
-
-float CPveDirector::OperationEnemySpeedMultiplier() const
-{
-	const CPveOperationDef *pDef = PveOperationDef(ActiveOperation());
-	return pDef ? pDef->m_EnemySpeedMultiplier : 1.0f;
-}
-
-float CPveDirector::OperationEnemyHealthMultiplier() const
-{
-	const CPveOperationDef *pDef = PveOperationDef(ActiveOperation());
-	return pDef ? pDef->m_EnemyHealthMultiplier : 1.0f;
-}
-
-float CPveDirector::OperationRepairMultiplier() const
-{
-	const CPveOperationDef *pDef = PveOperationDef(ActiveOperation());
-	return pDef ? pDef->m_RepairMultiplier : 1.0f;
-}
-
-float CPveDirector::OperationGoldMultiplier() const
-{
-	const CPveOperationDef *pDef = PveOperationDef(ActiveOperation());
-	return pDef ? pDef->m_GoldMultiplier : 1.0f;
+	return ContractMultiplier;
 }
 
 bool CPveDirector::ShopsAllowed() const

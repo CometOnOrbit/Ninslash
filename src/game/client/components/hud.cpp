@@ -238,6 +238,7 @@ void CHud::RenderObjective()
 	const int WaveType = (Pack >> 4) & 0xF;
 	const int QuestsDone = (Pack >> 8) & 0xF;
 	const int QuestsTotal = (Pack >> 12) & 0xF;
+	const int RouteTargetType = (Pack >> 16) & 0xFF;
 	const int ExtractStage = (Pack >> 8) & 0xFF;
 
 	// Only stable objective content belongs in the signature. In particular,
@@ -246,6 +247,9 @@ void CHud::RenderObjective()
 	int ObjectiveSignature = Quest * 31 + Level * 131;
 	if(Quest == QUEST_EXTRACT)
 		ObjectiveSignature = ObjectiveSignature * 31 + ExtractStage;
+	else if(Quest == QUEST_ROUTE && (RouteTargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL ||
+		RouteTargetType == PVE_OPERATION_TARGET_UPLOAD_POINT))
+		ObjectiveSignature = (((ObjectiveSignature * 31 + Theme) * 31 + WaveType) * 31 + QuestsDone) * 31 + QuestProgressCounter;
 	else if(Quest != QUEST_HORDE)
 		ObjectiveSignature = (((ObjectiveSignature * 31 + Theme) * 31 + WaveType) * 31 + QuestsDone) * 31 + QuestsTotal;
 	if(ObjectiveSignature != m_LastObjectiveSignature)
@@ -269,11 +273,25 @@ void CHud::RenderObjective()
 		str_format(aMeta, sizeof(aMeta), "%s %d · %d %s", Localize("Wave"), Level, Pack, Localize("kills"));
 	else if(Quest == QUEST_EXTRACT)
 		str_format(aMeta, sizeof(aMeta), "%d %s", Level, Localize("seconds remaining"));
+	else if(Quest == QUEST_ROUTE)
+	{
+		const CPveOperationDef *pDef = PveOperationDef(WaveType);
+		str_format(aMeta, sizeof(aMeta), "%s %d · %s", Localize("Level"), Level,
+			pDef ? Localize(pDef->m_pName) : Localize("Operation"));
+	}
 	else
 		str_format(aMeta, sizeof(aMeta), "%s %d · %s", Localize("Level"), Level, Localize(GetThemeDisplayName(Theme)));
 
 	const char *pWave = GetWaveDisplayName(WaveType);
-	if(pWave[0] && (Quest == QUEST_SURVIVEWAVE || Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_KILLREMAININGENEMIES))
+	if(Quest == QUEST_ROUTE)
+	{
+		const CPveOperationDef *pDef = PveOperationDef(WaveType);
+		if(pDef && QuestsDone < 3)
+			str_copy(aQuest, Localize(pDef->m_apSteps[QuestsDone]), sizeof(aQuest));
+		else
+			str_copy(aQuest, Localize(GetQuestDisplayName(Quest)), sizeof(aQuest));
+	}
+	else if(pWave[0] && (Quest == QUEST_SURVIVEWAVE || Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_KILLREMAININGENEMIES))
 		str_format(aQuest, sizeof(aQuest), "%s (%s)", Localize(GetQuestDisplayName(Quest)), Localize(pWave));
 	else
 		str_copy(aQuest, Localize(GetQuestDisplayName(Quest)), sizeof(aQuest));
@@ -291,8 +309,16 @@ void CHud::RenderObjective()
 			const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining") : Localize("enemies remaining");
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, pText);
 		}
-		else if(Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND)
+		else if(Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND ||
+			(Quest == QUEST_ROUTE && (RouteTargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL ||
+				RouteTargetType == PVE_OPERATION_TARGET_UPLOAD_POINT ||
+				m_pClient->m_pPveRoguelite->OperationTargetType() == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL ||
+				m_pClient->m_pPveRoguelite->OperationTargetType() == PVE_OPERATION_TARGET_UPLOAD_POINT)))
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("seconds remaining"));
+		else if(Quest == QUEST_ROUTE && RouteTargetType == PVE_OPERATION_TARGET_EVACUATION)
+			str_copy(aDetail, Localize("Door open"), sizeof(aDetail));
+		else if(Quest == QUEST_ROUTE)
+			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("remaining"));
 		else if(Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH || (Quest == QUEST_EXTRACT && ExtractStage == 0))
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("switches remaining"));
 		else if(Quest == QUEST_EXTRACT)

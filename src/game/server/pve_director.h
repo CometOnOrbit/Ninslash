@@ -214,6 +214,7 @@ public:
 	void OnOperationVote(int ClientID, int Nonce, int OperationID);
 	void OnOperationChainFinished(int OperationID);
 	void OnOperationChainFailed(int OperationID);
+	void OnOperationChainAbandoned(int OperationID);
 	void OnContractVote(int ClientID, int Nonce, int ContractID);
 	void OnDroneModule(int ClientID, int Nonce, int Module);
 
@@ -253,8 +254,6 @@ public:
 	float ReinforcementMultiplier() const;
 	float EnemySpeedMultiplier() const;
 	float EnemyHealthMultiplier() const;
-	float OperationRepairMultiplier() const;
-	float OperationGoldMultiplier() const;
 	bool RespawnAllowed() const;
 	bool ShopsAllowed() const;
 	bool UseLastStand(int ClientID);
@@ -265,11 +264,6 @@ public:
 	void ApplyDroneEmp(int ClientID, int Seconds = 5);
 	int TeamCheckpoint() const;
 	bool ProgressReady() const;
-	float OperationEnemyCountMultiplier() const;
-	float OperationDeadlineMultiplier() const;
-	float OperationReinforcementMultiplier() const;
-	float OperationEnemySpeedMultiplier() const;
-	float OperationEnemyHealthMultiplier() const;
 	void ClearRun();
 };
 

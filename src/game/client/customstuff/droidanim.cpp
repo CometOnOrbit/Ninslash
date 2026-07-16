@@ -44,6 +44,9 @@ void CDroidAnim::Reset()
 	m_Angle = 0;
 	m_DisplayAngle = 0;
 	m_TargetDisplayAngle = 0;
+	m_LocomotionTime = 0.0f;
+	m_SmoothedAimAngle = 0.0f;
+	m_RenderInitialized = false;
 }
 
 

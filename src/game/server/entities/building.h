@@ -76,7 +76,7 @@ public:
 	void Trigger();
 	void SetPveSwitchActive(bool Active);
 	void SetPveReactorObjective(bool Active, int MaxLife = 0);
-	void TakeDamage(int Damage, int Owner, int Weapon, vec2 Force = vec2(0, 0));
+	virtual void TakeDamage(int Damage, int Owner, int Weapon, vec2 Force = vec2(0, 0));
 	void Destroy();
 	
 	vec2 m_DamagePos;

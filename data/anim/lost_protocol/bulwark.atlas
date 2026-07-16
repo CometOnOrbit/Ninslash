@@ -6,76 +6,132 @@ repeat: none
 body
   rotate: false
   xy: 4, 4
-  size: 100, 62
-  orig: 100, 62
+  size: 102, 54
+  orig: 102, 54
   offset: 0, 0
   index: -1
-front_joint
+front_outer_joint
   rotate: false
-  xy: 108, 4
+  xy: 110, 4
   size: 24, 24
   orig: 24, 24
   offset: 0, 0
   index: -1
-front_upper
+front_outer_upper
   rotate: false
-  xy: 136, 4
-  size: 33, 23
-  orig: 33, 23
+  xy: 138, 4
+  size: 36, 23
+  orig: 36, 23
   offset: 0, 0
   index: -1
-front_lower
+front_outer_lower
   rotate: false
-  xy: 173, 4
-  size: 31, 21
-  orig: 31, 21
+  xy: 178, 4
+  size: 30, 21
+  orig: 30, 21
   offset: 0, 0
   index: -1
-front_foot
+front_outer_foot
   rotate: false
-  xy: 208, 4
+  xy: 212, 4
   size: 34, 18
   orig: 34, 18
   offset: 0, 0
   index: -1
-back_joint
+front_inner_joint
   rotate: false
-  xy: 246, 4
+  xy: 250, 4
   size: 24, 24
   orig: 24, 24
   offset: 0, 0
   index: -1
-back_upper
+front_inner_upper
   rotate: false
-  xy: 274, 4
-  size: 33, 23
-  orig: 33, 23
+  xy: 278, 4
+  size: 34, 23
+  orig: 34, 23
   offset: 0, 0
   index: -1
-back_lower
+front_inner_lower
   rotate: false
-  xy: 311, 4
-  size: 31, 21
-  orig: 31, 21
+  xy: 316, 4
+  size: 28, 21
+  orig: 28, 21
   offset: 0, 0
   index: -1
-back_foot
+front_inner_foot
   rotate: false
-  xy: 346, 4
+  xy: 348, 4
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_inner_joint
+  rotate: false
+  xy: 386, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_inner_upper
+  rotate: false
+  xy: 414, 4
+  size: 34, 23
+  orig: 34, 23
+  offset: 0, 0
+  index: -1
+back_inner_lower
+  rotate: false
+  xy: 452, 4
+  size: 28, 21
+  orig: 28, 21
+  offset: 0, 0
+  index: -1
+back_inner_foot
+  rotate: false
+  xy: 4, 62
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_outer_joint
+  rotate: false
+  xy: 42, 62
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_outer_upper
+  rotate: false
+  xy: 70, 62
+  size: 36, 23
+  orig: 36, 23
+  offset: 0, 0
+  index: -1
+back_outer_lower
+  rotate: false
+  xy: 110, 62
+  size: 30, 21
+  orig: 30, 21
+  offset: 0, 0
+  index: -1
+back_outer_foot
+  rotate: false
+  xy: 144, 62
   size: 34, 18
   orig: 34, 18
   offset: 0, 0
   index: -1
 shield_top
   rotate: false
-  xy: 384, 4
+  xy: 182, 62
   size: 50, 88
   orig: 50, 88
   offset: 0, 0
   index: -1
 shield_bottom
   rotate: false
-  xy: 438, 4
+  xy: 236, 62
   size: 50, 88
   orig: 50, 88
   offset: 0, 0

@@ -22,6 +22,7 @@ class CBuildings : public CComponent
 	void RenderSwitch(const struct CNetObj_Building *pCurrent);
 	void RenderDoor1(const struct CNetObj_Building *pCurrent);
 	void RenderGenerator(const struct CNetObj_Building *pCurrent, const struct CNetObj_Building *pPrev);
+	void RenderPveObjective(const struct CNetObj_Building *pCurrent);
 	void RenderScreen(const struct CNetObj_Building *pCurrent);
 	void RenderShop(const struct CNetObj_Shop *pCurrent);
 

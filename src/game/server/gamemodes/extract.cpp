@@ -370,12 +370,14 @@ void CGameControllerExtract::NextLevel(int CID)
 void CGameControllerExtract::Tick()
 {
 	IGameController::Tick();
-	const int ActiveOperation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
+	const bool OperationIntermission = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission();
+	const int ActiveOperation = !OperationIntermission && GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
 	if(ActiveOperation >= 0 && m_pOperationDirector->Operation() != ActiveOperation)
 		m_pOperationDirector->Start(ActiveOperation);
-	else if(ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
+	else if(!OperationIntermission && ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
 		m_pOperationDirector->Clear();
-	m_pOperationDirector->Tick();
+	if(!OperationIntermission)
+		m_pOperationDirector->Tick();
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
 	{
 		if(m_DeadlineTick > 0)

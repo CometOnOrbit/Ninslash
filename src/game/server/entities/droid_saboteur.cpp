@@ -4,7 +4,8 @@
 #include "building.h"
 #include "character.h"
 #include "pve_drone.h"
-CSaboteur::CSaboteur(CGameWorld *pWorld, vec2 Pos) : CSpecialistDroid(pWorld, Pos, DROIDTYPE_SABOTEUR, 420, false), m_pEmpTarget(0), m_ChargeStart(0) {}
+#include "pve_operation_hazard.h"
+CSaboteur::CSaboteur(CGameWorld *pWorld, vec2 Pos) : CSpecialistDroid(pWorld, Pos, DROIDTYPE_SABOTEUR, 560, false), m_pEmpTarget(0), m_ChargeStart(0), m_NextSlowFieldTick(0) {}
 void CSaboteur::AbilityTick()
 {
 	if(m_pEmpTarget)
@@ -39,19 +40,30 @@ void CSaboteur::AbilityTick()
 	}
 	if(m_pEmpTarget)
 	{
+		SetMovementGoal(m_pEmpTarget->m_Pos, 10);
 		if((Server()->Tick() & 7) == 0) GameServer()->CreateEffect(FX_ELECTRIC, m_pEmpTarget->m_Pos);
-		if(Server()->Tick() - m_ChargeStart >= Server()->TickSpeed() * 5)
+		if(Server()->Tick() - m_ChargeStart >= Server()->TickSpeed() * 3 / 4)
 		{
-			if(CPveDrone *pDrone = dynamic_cast<CPveDrone *>(m_pEmpTarget)) { pDrone->TakeDamage(10); pDrone->ApplyEmp(Server()->TickSpeed() * 5); }
-			else { CBuilding *pBuilding = static_cast<CBuilding *>(m_pEmpTarget); pBuilding->m_aStatus[BSTATUS_ON] = 0; pBuilding->TakeDamage(20, NEUTRAL_BASE, GetDroidWeapon(m_Type)); }
-			GameServer()->CreateEffect(FX_ELECTRIC, m_pEmpTarget->m_Pos); m_pEmpTarget = 0; m_ChargeStart = 0; m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 4; return;
+			if(CPveDrone *pDrone = dynamic_cast<CPveDrone *>(m_pEmpTarget)) { pDrone->TakeDamage(14); pDrone->ApplyEmp(Server()->TickSpeed() * 5); }
+			else { CBuilding *pBuilding = static_cast<CBuilding *>(m_pEmpTarget); pBuilding->m_aStatus[BSTATUS_ON] = 0; pBuilding->TakeDamage(36, NEUTRAL_BASE, GetDroidWeapon(m_Type)); }
+			GameServer()->CreateEffect(FX_ELECTRIC, m_pEmpTarget->m_Pos); m_pEmpTarget = 0; m_ChargeStart = 0; m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 3; return;
 		}
 	}
 	else
 	{
-		CCharacter *apChars[MAX_CLIENTS]; int Num = GameServer()->m_World.FindEntities(m_Pos, 240.0f, (CEntity **)apChars, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
-		for(int i = 0; i < Num; i++) if(apChars[i] && !apChars[i]->m_IsBot) apChars[i]->Electrocute(1.0f);
-		GameServer()->CreateEffect(FX_ELECTRIC, m_Pos);
+		// With no facility to sabotage, establish a visible, persistent denial
+		// field instead of repeatedly stunning everyone around the droid.
+		if(Server()->Tick() >= m_NextSlowFieldTick && CPveOperationHazard::CanSpawn(CPveOperationHazard::SLOW_FIELD, 3))
+		{
+			new CPveOperationHazard(GameWorld(), m_Pos, CPveOperationHazard::SLOW_FIELD, Server()->TickSpeed() * 6);
+			m_NextSlowFieldTick = Server()->Tick() + Server()->TickSpeed() * 4;
+		}
+		// A Saboteur without a facility target still pressures the squad while its
+		// denial field is active instead of becoming a harmless moving marker.
+		if(AcquireTarget(760.0f))
+			FireProjectile(24, 0.06f);
+		m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 2 / 5;
+		return;
 	}
-	m_AbilityTick = Server()->Tick() + 5;
+	m_AbilityTick = Server()->Tick() + 1;
 }

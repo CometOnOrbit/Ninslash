@@ -12,6 +12,7 @@ other/icons/*.res
 /SDL.dll
 /freetype.dll
 /concepts
+/smoke-logs
 
 /crapnet*
 /dilate*

@@ -27,8 +27,10 @@ private:
 	int m_Health;
 	int m_DisabledUntilTick;
 	vec2 m_Vel;
+	vec2 m_MoveTarget;
 	vec2 m_Target;
 	int m_ActionTick;
+	float m_AngleTimer;
 };
 
 #endif

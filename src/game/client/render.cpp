@@ -46,7 +46,7 @@ CAnimSkeletonInfo::~CAnimSkeletonInfo()
 	// TODO: free skin map
 }
 
-void CAnimSkeletonInfo::UpdateBones(float Time, CSpineAnimation *pAnimation, CSkeletonAnimation *pAnimData, int WeaponAngle, CDroidAnim *pDroidAnim)
+void CAnimSkeletonInfo::UpdateBones(float Time, CSpineAnimation *pAnimation, CSkeletonAnimation *pAnimData, int WeaponAngle, CDroidAnim *pDroidAnim, CSpineAnimation *pBaseAnimation, float BaseTime)
 {
 	// we assume, that the bones are ordered by their place in the skeleton hierarchy, important!
 	for(int i = 0; i < m_lBones.size(); i++)
@@ -57,22 +57,35 @@ void CAnimSkeletonInfo::UpdateBones(float Time, CSpineAnimation *pAnimation, CSk
 		vec2 Scale = vec2(1.0f, 1.0f);
 		float Rotation = 0.0f;
 
-		if(pAnimation)
+		auto ApplyAnimation = [&](CSpineAnimation *pSource, float SourceTime)
 		{
+			if(!pSource)
+				return;
 			CSpineBoneTimeline *pBoneTimeline = 0x0;
 			{
-				auto BoneTimelineIter = pAnimation->m_lBoneTimeline.find(pBone->m_Name);
-				if(BoneTimelineIter != pAnimation->m_lBoneTimeline.end())
+				auto BoneTimelineIter = pSource->m_lBoneTimeline.find(pBone->m_Name);
+				if(BoneTimelineIter != pSource->m_lBoneTimeline.end())
 					pBoneTimeline = &BoneTimelineIter->second;
 			}
 
 			if(pBoneTimeline)
 			{
-				CRenderTools::RenderEvalSkeletonAnim<CSpineBoneKeyframeTranslate>(pBoneTimeline->m_lTranslations.base_ptr(), pBoneTimeline->m_lTranslations.size(), Time, (float *)&Position);
-				CRenderTools::RenderEvalSkeletonAnim<CSpineBoneKeyframeScale>(pBoneTimeline->m_lScales.base_ptr(), pBoneTimeline->m_lScales.size(), Time, (float *)&Scale);
-				CRenderTools::RenderEvalSkeletonAnim<CSpineBoneKeyframeRotate>(pBoneTimeline->m_lRotations.base_ptr(), pBoneTimeline->m_lRotations.size(), Time, (float *)&Rotation);
+				if(pBoneTimeline->m_lTranslations.size())
+					CRenderTools::RenderEvalSkeletonAnim<CSpineBoneKeyframeTranslate>(pBoneTimeline->m_lTranslations.base_ptr(), pBoneTimeline->m_lTranslations.size(), SourceTime, (float *)&Position);
+				if(pBoneTimeline->m_lScales.size())
+					CRenderTools::RenderEvalSkeletonAnim<CSpineBoneKeyframeScale>(pBoneTimeline->m_lScales.base_ptr(), pBoneTimeline->m_lScales.size(), SourceTime, (float *)&Scale);
+				if(pBoneTimeline->m_lRotations.size())
+					CRenderTools::RenderEvalSkeletonAnim<CSpineBoneKeyframeRotate>(pBoneTimeline->m_lRotations.base_ptr(), pBoneTimeline->m_lRotations.size(), SourceTime, (float *)&Rotation);
 			}
+		};
 
+		// Sparse action timelines are layered over locomotion so firing or taking
+		// damage does not snap every leg back to its setup pose.
+		ApplyAnimation(pBaseAnimation, BaseTime);
+		ApplyAnimation(pAnimation, Time);
+
+		if(pAnimation || pBaseAnimation)
+		{
 			// convert values
 			Position.y *= -1.0f;
 			Rotation = (360.0f - Rotation)*pi/180.0f;
@@ -1008,7 +1021,7 @@ void CRenderTools::RenderPortrait(CTeeRenderInfo *pInfo, vec2 Pos, int EyeType)
 
 
 
-void CRenderTools::RenderSkeleton(vec2 Pos, int Atlas, const char *Anim, float Time, vec2 Scale, int Dir, float Angle, int Team)
+void CRenderTools::RenderSkeleton(vec2 Pos, int Atlas, const char *Anim, float Time, vec2 Scale, int Dir, float Angle, int Team, const char *pBaseAnim, float BaseTime)
 {
 	vec2 Position = Pos;
 
@@ -1025,14 +1038,21 @@ void CRenderTools::RenderSkeleton(vec2 Pos, int Atlas, const char *Anim, float T
 	mat33 TransformationWorld = CalcTransformationMatrix(Position, Scale, 0.0f);
 	
 	CSpineAnimation *pAnimation = 0x0;
+	CSpineAnimation *pBaseAnimation = 0x0;
 	
 	{
 		auto AnimIter = pSkeleton->m_lAnimations.find(Anim);
 		if(AnimIter != pSkeleton->m_lAnimations.end())
 			pAnimation = &AnimIter->second;
 	}
+	if(pBaseAnim)
+	{
+		auto AnimIter = pSkeleton->m_lAnimations.find(pBaseAnim);
+		if(AnimIter != pSkeleton->m_lAnimations.end())
+			pBaseAnimation = &AnimIter->second;
+	}
 	
-	pSkeleton->UpdateBones(Time, pAnimation, NULL, Angle);
+	pSkeleton->UpdateBones(Time, pAnimation, NULL, Angle, NULL, pBaseAnimation, BaseTime);
 	
 
 	if(pAtlas)

@@ -14,6 +14,8 @@ public:
 
 protected:
 	virtual void AbilityTick();
+	virtual void MovementTick(class CCharacter *pTarget);
+	virtual vec2 CollisionSize() const;
 	virtual void OnHealthThreshold(int Threshold) {}
 	virtual void OnSpecialistDeath() {}
 	bool AcquireTarget(float Range, bool RequireSight = true);
@@ -21,11 +23,16 @@ protected:
 	void FireProjectile(int Damage, float Spread = 0.0f);
 	int CountDroids(int Type, float Radius = 0.0f);
 	bool ConsumeThreshold(int Threshold, int Bit);
+	void SetMovementGoal(vec2 Pos, int DurationTicks);
 
 	int m_BaseHealth;
 	bool m_IsBoss;
 	int m_AbilityTick;
 	int m_ThresholdMask;
+	bool m_PlacementResolved;
+	vec2 m_MovementGoal;
+	int m_MovementGoalEndTick;
+	int m_NextHopTick;
 };
 
 #endif

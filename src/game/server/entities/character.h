@@ -60,6 +60,7 @@ public:
 	void Warp();
 	void Deathray(bool Kill = true);
 	void Electrocute(float Duration);
+	void Slow(float Duration);
 	void Jumppad();
 
 	void OnPredictedInput(CNetObj_PlayerInput *pNewInput);

@@ -28,9 +28,14 @@ public:
 	virtual void Reset();
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
+	void TakeDamage(int Damage, int Owner, int Weapon, vec2 Force = vec2(0, 0)) override;
 	void DetachDirector() { m_pDirector = 0; }
+	void DeactivateRadar();
 	int CarrierCID() const { return m_CarrierCID; }
+	int ProgressTicks() const { return m_ProgressTicks; }
+	int RequiredTicks() const { return m_RequiredTicks; }
 	vec2 HudTargetPos() const { return m_CarrierCID >= 0 ? m_DeliveryPos : m_Pos; }
+	bool IsDestructible() const;
 };
 
 #endif

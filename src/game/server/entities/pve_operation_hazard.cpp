@@ -6,6 +6,8 @@
 
 #include "pve_operation_hazard.h"
 
+int CPveOperationHazard::s_aAlive[3] = {0, 0, 0};
+
 CPveOperationHazard::CPveOperationHazard(CGameWorld *pWorld, vec2 Pos, EKind Kind, int DurationTicks) :
 	CEntity(pWorld, CGameWorld::ENTTYPE_LASER),
 	m_Kind(Kind),
@@ -15,7 +17,18 @@ CPveOperationHazard::CPveOperationHazard(CGameWorld *pWorld, vec2 Pos, EKind Kin
 	m_Phase(0)
 {
 	m_Pos = Pos;
+	s_aAlive[m_Kind]++;
 	GameWorld()->InsertEntity(this);
+}
+
+CPveOperationHazard::~CPveOperationHazard()
+{
+	s_aAlive[m_Kind]--;
+}
+
+bool CPveOperationHazard::CanSpawn(EKind Kind, int Limit)
+{
+	return Kind >= BOMBARDMENT && Kind <= SLOW_FIELD && s_aAlive[Kind] < Limit;
 }
 
 void CPveOperationHazard::Reset()
@@ -60,7 +73,7 @@ void CPveOperationHazard::Tick()
 		}
 		m_NextActionTick = Server()->Tick() + Server()->TickSpeed() * 3;
 	}
-	else
+	else if(m_Kind == ROTATING_EMP)
 	{
 		const float Angle = m_Phase * 0.42f;
 		m_Pos = m_Anchor + vec2(std::cos(Angle), std::sin(Angle) * 0.45f) * 260.0f;
@@ -70,6 +83,16 @@ void CPveOperationHazard::Tick()
 			if(apCharacters[i] && !apCharacters[i]->m_IsBot)
 				apCharacters[i]->Electrocute(1.0f);
 		GameServer()->CreateEffect(FX_ELECTRIC, m_Pos);
+		m_NextActionTick = Server()->Tick() + Server()->TickSpeed() / 2;
+	}
+	else
+	{
+		CCharacter *apCharacters[MAX_CLIENTS];
+		const int Num = GameWorld()->FindEntities(m_Pos, 165.0f, (CEntity **)apCharacters, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+		for(int i = 0; i < Num; i++)
+			if(apCharacters[i] && !apCharacters[i]->m_IsBot)
+				apCharacters[i]->Slow(1.0f);
+		GameServer()->CreateEffect(FX_SMALLELECTRIC, m_Pos);
 		m_NextActionTick = Server()->Tick() + Server()->TickSpeed() / 2;
 	}
 	m_Phase++;

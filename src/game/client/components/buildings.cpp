@@ -227,6 +227,68 @@ void CBuildings::RenderGenerator(const struct CNetObj_Building *pCurrent, const 
 	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y-96), vec4(0.2f, 1.0f, 1.0f, 0.75f), vec2(600, 600));
 }
 
+void CBuildings::RenderPveObjective(const CNetObj_Building *pCurrent)
+{
+	const vec2 Pos(pCurrent->m_X, pCurrent->m_Y);
+	vec4 Accent(0.20f, 0.78f, 1.0f, 1.0f);
+	int Image = IMAGE_PVE_OBJECTIVES;
+	int Sprite = SPRITE_PVE_OVERLOAD_TERMINAL;
+	const bool ShieldObjective = pCurrent->m_Type == BUILDING_PVE_SHIELD_RELAY || pCurrent->m_Type == BUILDING_PVE_SHIELD_NODE;
+	if(ShieldObjective)
+	{
+		Image = IMAGE_PVE_SHIELD_RELAY;
+		Sprite = SPRITE_PVE_SHIELD_RELAY;
+	}
+	else if(pCurrent->m_Type == BUILDING_PVE_ASSEMBLY_NODE)
+	{
+		Accent = vec4(1.0f, 0.42f, 0.12f, 1.0f);
+		Sprite = SPRITE_PVE_ASSEMBLY_NODE;
+	}
+	else if(pCurrent->m_Type == BUILDING_PVE_TARGETING_BEACON)
+	{
+		Accent = vec4(1.0f, 0.18f, 0.12f, 1.0f);
+		Sprite = SPRITE_PVE_TARGETING_BEACON;
+	}
+	else if(pCurrent->m_Type == BUILDING_PVE_DATA_CORE)
+	{
+		Accent = vec4(0.24f, 0.82f, 1.0f, 1.0f);
+		Image = IMAGE_PVE_CARGO;
+		Sprite = SPRITE_PVE_CARGO_DATA;
+	}
+	else if(pCurrent->m_Type == BUILDING_PVE_UPLOAD_POINT)
+	{
+		Accent = vec4(0.20f, 1.0f, 0.52f, 1.0f);
+		Sprite = SPRITE_PVE_UPLOAD_POINT;
+	}
+	else if(pCurrent->m_Type == BUILDING_PVE_ENERGY_CORE)
+	{
+		Accent = vec4(1.0f, 0.60f, 0.16f, 1.0f);
+		Image = IMAGE_PVE_CARGO;
+		Sprite = SPRITE_PVE_CARGO_ENERGY;
+	}
+
+	Graphics()->TextureSet(g_pData->m_aImages[Image].m_Id);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1, 1, 1, 1);
+	Graphics()->QuadsSetRotation(0.0f);
+	RenderTools()->SelectSprite(Sprite);
+	RenderTools()->DrawSprite(Pos.x, Pos.y - 12, 176.0f);
+	Graphics()->QuadsEnd();
+
+	if(ShieldObjective)
+	{
+		Graphics()->ShaderBegin(SHADER_ELECTRIC, 0.45f);
+		Graphics()->TextureSet(g_pData->m_aImages[Image].m_Id);
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(0.45f, 0.85f, 1.0f, 0.35f);
+		RenderTools()->SelectSprite(Sprite);
+		RenderTools()->DrawSprite(Pos.x, Pos.y - 12, 176.0f);
+		Graphics()->QuadsEnd();
+		Graphics()->ShaderEnd();
+	}
+	m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -16), vec4(Accent.r, Accent.g, Accent.b, ShieldObjective ? 0.8f : 0.55f), ShieldObjective ? 150.0f : 120.0f);
+}
+
 
 void CBuildings::RenderSwitch(const struct CNetObj_Building *pCurrent)
 {
@@ -886,6 +948,16 @@ void CBuildings::OnRender()
 			case BUILDING_GENERATOR:
 				RenderGenerator(pBuilding, pPrev ? (const CNetObj_Building *)pPrev : pBuilding);
 				break;
+			case BUILDING_PVE_SHIELD_RELAY:
+			case BUILDING_PVE_OVERLOAD_TERMINAL:
+			case BUILDING_PVE_ASSEMBLY_NODE:
+			case BUILDING_PVE_TARGETING_BEACON:
+			case BUILDING_PVE_DATA_CORE:
+			case BUILDING_PVE_UPLOAD_POINT:
+			case BUILDING_PVE_SHIELD_NODE:
+			case BUILDING_PVE_ENERGY_CORE:
+				RenderPveObjective(pBuilding);
+				break;
 				
 			case BUILDING_SCREEN:
 				RenderScreen(pBuilding);
@@ -904,7 +976,3 @@ void CBuildings::OnRender()
 		}
 	}
 }
-
-
-
-

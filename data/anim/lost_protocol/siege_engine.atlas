@@ -6,104 +6,160 @@ repeat: none
 body
   rotate: false
   xy: 4, 4
-  size: 142, 64
-  orig: 142, 64
+  size: 144, 58
+  orig: 144, 58
   offset: 0, 0
   index: -1
-front_joint
+front_outer_joint
   rotate: false
-  xy: 150, 4
+  xy: 152, 4
   size: 24, 24
   orig: 24, 24
   offset: 0, 0
   index: -1
-front_upper
+front_outer_upper
   rotate: false
-  xy: 178, 4
-  size: 50, 23
-  orig: 50, 23
+  xy: 180, 4
+  size: 48, 23
+  orig: 48, 23
   offset: 0, 0
   index: -1
-front_lower
+front_outer_lower
   rotate: false
   xy: 232, 4
-  size: 46, 21
-  orig: 46, 21
+  size: 42, 21
+  orig: 42, 21
   offset: 0, 0
   index: -1
-front_foot
+front_outer_foot
   rotate: false
-  xy: 282, 4
+  xy: 278, 4
   size: 34, 18
   orig: 34, 18
   offset: 0, 0
   index: -1
-back_joint
+front_inner_joint
   rotate: false
-  xy: 320, 4
+  xy: 316, 4
   size: 24, 24
   orig: 24, 24
   offset: 0, 0
   index: -1
-back_upper
+front_inner_upper
   rotate: false
-  xy: 348, 4
-  size: 50, 23
-  orig: 50, 23
+  xy: 344, 4
+  size: 46, 23
+  orig: 46, 23
   offset: 0, 0
   index: -1
-back_lower
+front_inner_lower
   rotate: false
-  xy: 402, 4
-  size: 46, 21
-  orig: 46, 21
+  xy: 394, 4
+  size: 40, 21
+  orig: 40, 21
   offset: 0, 0
   index: -1
-back_foot
+front_inner_foot
   rotate: false
-  xy: 452, 4
+  xy: 438, 4
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_inner_joint
+  rotate: false
+  xy: 476, 4
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_inner_upper
+  rotate: false
+  xy: 4, 66
+  size: 46, 23
+  orig: 46, 23
+  offset: 0, 0
+  index: -1
+back_inner_lower
+  rotate: false
+  xy: 54, 66
+  size: 40, 21
+  orig: 40, 21
+  offset: 0, 0
+  index: -1
+back_inner_foot
+  rotate: false
+  xy: 98, 66
+  size: 34, 18
+  orig: 34, 18
+  offset: 0, 0
+  index: -1
+back_outer_joint
+  rotate: false
+  xy: 136, 66
+  size: 24, 24
+  orig: 24, 24
+  offset: 0, 0
+  index: -1
+back_outer_upper
+  rotate: false
+  xy: 164, 66
+  size: 48, 23
+  orig: 48, 23
+  offset: 0, 0
+  index: -1
+back_outer_lower
+  rotate: false
+  xy: 216, 66
+  size: 42, 21
+  orig: 42, 21
+  offset: 0, 0
+  index: -1
+back_outer_foot
+  rotate: false
+  xy: 262, 66
   size: 34, 18
   orig: 34, 18
   offset: 0, 0
   index: -1
 cannon
   rotate: false
-  xy: 4, 72
+  xy: 300, 66
   size: 198, 38
   orig: 198, 38
   offset: 0, 0
   index: -1
 mine_rack
   rotate: false
-  xy: 206, 72
+  xy: 4, 108
   size: 48, 28
   orig: 48, 28
   offset: 0, 0
   index: -1
 middle_joint
   rotate: false
-  xy: 258, 72
+  xy: 56, 108
   size: 24, 24
   orig: 24, 24
   offset: 0, 0
   index: -1
 middle_upper
   rotate: false
-  xy: 286, 72
+  xy: 84, 108
   size: 52, 23
   orig: 52, 23
   offset: 0, 0
   index: -1
 middle_lower
   rotate: false
-  xy: 342, 72
+  xy: 140, 108
   size: 47, 21
   orig: 47, 21
   offset: 0, 0
   index: -1
 middle_foot
   rotate: false
-  xy: 393, 72
+  xy: 191, 108
   size: 34, 18
   orig: 34, 18
   offset: 0, 0

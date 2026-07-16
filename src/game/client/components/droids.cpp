@@ -226,31 +226,78 @@ void CDroids::OnRender()
 	auto RenderLostProtocol = [&](const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID)
 	{
 		int Atlas = ATLAS_LOST_PROTOCOL_BULWARK;
+		float RenderYOffset = -20.0f;
 		switch(pCurrent->m_Type)
 		{
-		case DROIDTYPE_BULWARK: Atlas = ATLAS_LOST_PROTOCOL_BULWARK; break;
-		case DROIDTYPE_ASSEMBLER: Atlas = ATLAS_LOST_PROTOCOL_ASSEMBLER; break;
-		case DROIDTYPE_SABOTEUR: Atlas = ATLAS_LOST_PROTOCOL_SABOTEUR; break;
-		case DROIDTYPE_RAILGUNNER: Atlas = ATLAS_LOST_PROTOCOL_RAILGUNNER; break;
-		case DROIDTYPE_SIEGE_ENGINE: Atlas = ATLAS_LOST_PROTOCOL_SIEGE_ENGINE; break;
-		case DROIDTYPE_OVERSEER_CORE: Atlas = ATLAS_LOST_PROTOCOL_OVERSEER_CORE; break;
+		case DROIDTYPE_BULWARK: Atlas = ATLAS_LOST_PROTOCOL_BULWARK; RenderYOffset = -26.0f; break;
+		case DROIDTYPE_ASSEMBLER: Atlas = ATLAS_LOST_PROTOCOL_ASSEMBLER; RenderYOffset = -24.0f; break;
+		case DROIDTYPE_SABOTEUR: Atlas = ATLAS_LOST_PROTOCOL_SABOTEUR; RenderYOffset = -18.0f; break;
+		case DROIDTYPE_RAILGUNNER: Atlas = ATLAS_LOST_PROTOCOL_RAILGUNNER; RenderYOffset = -24.0f; break;
+		case DROIDTYPE_SIEGE_ENGINE: Atlas = ATLAS_LOST_PROTOCOL_SIEGE_ENGINE; RenderYOffset = -28.0f; break;
+		case DROIDTYPE_OVERSEER_CORE: Atlas = ATLAS_LOST_PROTOCOL_OVERSEER_CORE; RenderYOffset = -22.0f; break;
 		default: return;
 		}
 
-		const vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
-		const float AttackAge = (Client()->PrevGameTick() - pCurrent->m_AttackTick + Client()->IntraGameTick()) / (float)Client()->GameTickSpeed();
-		const char *pAnim = "idle";
-		float Time = CustomStuff()->m_MonsterAnim * 0.45f + ItemID * 0.17f;
-		if(pCurrent->m_Status == DROIDSTATUS_TERMINATED)
-			pAnim = "destroyed";
-		else if(pCurrent->m_Status == DROIDSTATUS_ELECTRIC)
-			pAnim = "emp";
-		else if(pCurrent->m_Status == DROIDSTATUS_HURT)
-			pAnim = "hit";
-		else if(AttackAge >= 0.0f && AttackAge < 0.5f)
+		const vec2 WorldPos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
+		const vec2 Pos = WorldPos + vec2(0.0f, RenderYOffset);
+		float AimDelta = (float)pCurrent->m_Angle - (float)pPrev->m_Angle;
+		while(AimDelta > 180.0f) AimDelta -= 360.0f;
+		while(AimDelta < -180.0f) AimDelta += 360.0f;
+		const float TargetAim = (float)pPrev->m_Angle + AimDelta * Client()->IntraGameTick();
+		CDroidAnim *pAnimState = CustomStuff()->GetDroidAnim(ItemID);
+		const bool ResetAnim = !pAnimState->m_RenderInitialized || pAnimState->m_Type != pCurrent->m_Type || distance(pAnimState->m_Pos, WorldPos) > 256.0f;
+		if(ResetAnim)
 		{
-			pAnim = "attack";
-			Time = AttackAge;
+			pAnimState->m_LocomotionTime = ItemID * 0.13f;
+			pAnimState->m_SmoothedAimAngle = TargetAim;
+			pAnimState->m_RenderInitialized = true;
+		}
+		else
+		{
+			const float MoveDelta = distance(pAnimState->m_Pos, WorldPos);
+			if(pCurrent->m_Anim == 1 && pCurrent->m_Status != DROIDSTATUS_TERMINATED)
+				pAnimState->m_LocomotionTime += min(0.16f, MoveDelta * 0.0095f);
+			else if(MoveDelta > 0.35f && pCurrent->m_Status != DROIDSTATUS_TERMINATED)
+				pAnimState->m_LocomotionTime += min(0.12f, MoveDelta * 0.0075f);
+			float SmoothDelta = TargetAim - pAnimState->m_SmoothedAimAngle;
+			while(SmoothDelta > 180.0f) SmoothDelta -= 360.0f;
+			while(SmoothDelta < -180.0f) SmoothDelta += 360.0f;
+			pAnimState->m_SmoothedAimAngle += SmoothDelta * 0.28f;
+		}
+		pAnimState->m_Dir = pCurrent->m_Dir * -1;
+		pAnimState->m_Pos = WorldPos;
+		pAnimState->m_Vel = vec2(pCurrent->m_X - pPrev->m_X, pCurrent->m_Y - pPrev->m_Y);
+		pAnimState->m_Status = pCurrent->m_Status;
+		pAnimState->m_Anim = pCurrent->m_Anim == 1 ? DROIDANIM_ATTACK : DROIDANIM_IDLE;
+		pAnimState->m_Type = pCurrent->m_Type;
+		const float AimAngle = pAnimState->m_SmoothedAimAngle;
+		const float DeathAge = (Client()->PrevGameTick() - pCurrent->m_AttackTick + Client()->IntraGameTick()) / (float)Client()->GameTickSpeed();
+		const float AttackAge = (Client()->PrevGameTick() - pCurrent->m_AttackTick + Client()->IntraGameTick()) / (float)Client()->GameTickSpeed();
+		const char *pBaseAnim = pCurrent->m_Anim == 1 ? "move" : (pCurrent->m_Anim == 2 ? "fly" : "idle");
+		const float BaseTime = pCurrent->m_Anim == 1 ? pAnimState->m_LocomotionTime : CustomStuff()->m_MonsterAnim * 0.28f + ItemID * 0.13f;
+		const char *pOverlayAnim = 0;
+		float OverlayTime = 0.0f;
+		if(pCurrent->m_Status == DROIDSTATUS_TERMINATED)
+		{
+			pOverlayAnim = "destroyed";
+			// Spine timelines loop by default. Clamp before the final keyframe so a
+			// dead unit cannot snap upright while its server body is settling.
+			OverlayTime = clamp(DeathAge, 0.0f, 0.79f);
+		}
+		else if(pCurrent->m_Status == DROIDSTATUS_ELECTRIC)
+		{
+			pOverlayAnim = "emp";
+			OverlayTime = CustomStuff()->m_MonsterAnim * 0.55f;
+		}
+		else if(pCurrent->m_Status == DROIDSTATUS_HURT)
+		{
+			pOverlayAnim = "hit";
+			OverlayTime = max(0.0f, AttackAge);
+		}
+		else if(AttackAge >= 0.0f && AttackAge < 0.7f)
+		{
+			pOverlayAnim = "attack";
+			OverlayTime = AttackAge;
 		}
 
 		if(pCurrent->m_Status != DROIDSTATUS_IDLE)
@@ -266,8 +313,19 @@ void CDroids::OnRender()
 				Graphics()->ShaderBegin(SHADER_DAMAGE, CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS]);
 		}
 
-		RenderTools()->RenderSkeleton(Pos, Atlas, pAnim, Time, vec2(1.0f, 1.0f), -pCurrent->m_Dir, 0);
+		// The crawler-style gait is the base animation. Sparse combat timelines
+		// override only their authored bones, preserving continuous foot motion.
+		if(pOverlayAnim)
+			RenderTools()->RenderSkeleton(Pos, Atlas, pOverlayAnim, OverlayTime, vec2(1.0f, 1.0f), -pCurrent->m_Dir, AimAngle, -1, pBaseAnim, BaseTime);
+		else
+			RenderTools()->RenderSkeleton(Pos, Atlas, pBaseAnim, BaseTime, vec2(1.0f, 1.0f), -pCurrent->m_Dir, AimAngle);
 		Graphics()->ShaderEnd();
+		if(pCurrent->m_Status == DROIDSTATUS_TERMINATED)
+		{
+			const float Radius = pCurrent->m_Type == DROIDTYPE_SIEGE_ENGINE ? 130.0f : 80.0f;
+			m_pClient->m_pEffects->Electrospark(WorldPos + vec2(frandom() - frandom(), frandom() - frandom()) * frandom() * Radius,
+				30.0f + frandom() * Radius * 0.35f, vec2(frandom() - frandom(), frandom() - frandom()) * 12.0f);
+		}
 	};
 	
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
@@ -316,9 +374,3 @@ void CDroids::OnRender()
 		}
 	}
 }
-
-
-
-
-
-

@@ -37,13 +37,15 @@ def find_executable(explicit: str | None) -> Path:
     )
 
 
-def run_case(server: Path, mode: str, seed: int, depth: int, timeout: float, log_dir: Path) -> tuple[bool, str]:
+def run_case(server: Path, mode: str, seed: int, depth: int, timeout: float, log_dir: Path, port: int | None) -> tuple[bool, str]:
     config = ROOT / "cfg" / f"{mode}_foundry.cfg"
     if not config.is_file():
         return False, f"missing config: {config}"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"{mode}-depth-{depth}-seed-{seed}.log"
     command = [str(server), "-f", str(config), f"sv_mapgen_seed {seed}", f"sv_mapgen_level {depth}", "sv_mapgen_random_seed 0"]
+    if port is not None:
+        command.append(f"sv_port {port}")
     started = time.monotonic()
     creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
     process = subprocess.Popen(
@@ -93,10 +95,13 @@ def main() -> int:
     parser.add_argument("--seed", type=int, action="append", dest="seeds", help="fixed seed; repeat for a larger matrix")
     parser.add_argument("--depth", type=int, action="append", dest="depths", help="map depth; repeat for a larger matrix (default: 1,5,10,15)")
     parser.add_argument("--timeout", type=float, default=15.0, help="seconds per case (default: 15)")
+    parser.add_argument("--port", type=int, help="dedicated server port; use this when the default port is occupied")
     parser.add_argument("--log-dir", default=str(ROOT / "smoke-logs"), help="output directory for server logs")
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
+    if args.port is not None and not 1 <= args.port <= 65535:
+        parser.error("--port must be in range 1..65535")
     try:
         server = find_executable(args.server)
     except FileNotFoundError as error:
@@ -105,7 +110,7 @@ def main() -> int:
     seeds = args.seeds or [1337]
     depths = args.depths or [1, 5, 10, 15]
     print(f"Server: {server}")
-    results = [run_case(server, mode, seed, depth, args.timeout, Path(args.log_dir)) for seed in seeds for depth in depths for mode in MODES]
+    results = [run_case(server, mode, seed, depth, args.timeout, Path(args.log_dir), args.port) for seed in seeds for depth in depths for mode in MODES]
     for _, detail in results:
         print(detail)
     passed = sum(ok for ok, _ in results)

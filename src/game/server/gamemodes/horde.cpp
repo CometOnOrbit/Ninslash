@@ -289,21 +289,8 @@ void CGameControllerHorde::NextWave()
 		if(m_Wave >= 6 && GetSpawnPos(0, &p))
 			new CCrawler(&GameServer()->m_World, p + vec2(0, -100));
 	}
-	const int Operation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
-	if(Operation == PVE_OPERATION_ASSEMBLY_SURGE && m_Wave % 2 == 1)
-	{
-		vec2 p;
-		if(GetSpawnPos(0, &p))
-			new CCrawler(&GameServer()->m_World, p + vec2(0, -100));
-	}
-	if(Operation == PVE_OPERATION_GRID_STORM && (m_Wave - 1) % 4 + 1 == 3)
-	{
-		vec2 p;
-		if(!GetBossSpawnPos(&p))
-			p = vec2(4000, 4000);
-		SpawnBoss(&GameServer()->m_World, p, EnemyLevel());
-	}
-
+	// An Operation supplements a Horde section; it never suppresses the native
+	// fourth-wave Boss.
 	if(m_Wave > 0 && m_Wave % 4 == 0)
 	{
 		vec2 p;
@@ -344,12 +331,14 @@ void CGameControllerHorde::NextWave()
 void CGameControllerHorde::Tick()
 {
 	IGameController::Tick();
-	const int ActiveOperation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
+	const bool OperationIntermission = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission();
+	const int ActiveOperation = !OperationIntermission && GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
 	if(ActiveOperation >= 0 && m_pOperationDirector->Operation() != ActiveOperation)
 		m_pOperationDirector->Start(ActiveOperation);
-	else if(ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
+	else if(!OperationIntermission && ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
 		m_pOperationDirector->Clear();
-	m_pOperationDirector->Tick();
+	if(!OperationIntermission)
+		m_pOperationDirector->Tick();
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
 		return;
 	if(m_EliteContractSpawned && GameServer()->m_pPveDirector && AliveBossCount() <= 0)

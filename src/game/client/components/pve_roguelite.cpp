@@ -11,6 +11,7 @@
 #include <game/client/components/menus.h>
 #include <game/client/gameclient.h>
 #include <game/client/skelebank.h>
+#include <game/questinfo.h>
 
 #include "pve_roguelite.h"
 
@@ -849,6 +850,8 @@ void CPveRoguelite::DrawOperationVote()
 
 void CPveRoguelite::DrawOperationHud()
 {
+	if(m_pClient->m_Snap.m_pGameDataObj && m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreRed == QUEST_ROUTE)
+		return;
 	if(m_ActiveOperation < 0 || Client()->State() != IClient::STATE_ONLINE)
 		return;
 	const CPveOperationDef *pDef = PveOperationDef(m_ActiveOperation);
@@ -866,8 +869,19 @@ void CPveRoguelite::DrawOperationHud()
 	DrawText(Hud.x + 8.0f, Hud.y + 4.0f, 5.4f, Localize("ACTIVE OPERATION"), Accent);
 	DrawText(Hud.x + 8.0f, Hud.y + 14.0f, 7.0f, Localize(pDef->m_pName), Text, Hud.w - 16.0f, -1);
 	char aProgress[96];
+	const bool TimedHold = m_OperationTargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL || m_OperationTargetType == PVE_OPERATION_TARGET_UPLOAD_POINT;
 	if(m_OperationStep >= 0 && m_OperationStep < 3)
-		str_format(aProgress, sizeof(aProgress), "%s %d/3  %d/%d", Localize("Step"), m_OperationStep + 1, m_OperationProgress, m_OperationTarget);
+	{
+		if(TimedHold && Client()->GameTickSpeed() > 0)
+		{
+			const int ProgressSeconds = m_OperationProgress / Client()->GameTickSpeed();
+			const int TargetSeconds = max(1, (m_OperationTarget + Client()->GameTickSpeed() - 1) / Client()->GameTickSpeed());
+			const int RemainingSeconds = max(0, (m_OperationStatusEndTick - Client()->GameTick() + Client()->GameTickSpeed() - 1) / Client()->GameTickSpeed());
+			str_format(aProgress, sizeof(aProgress), "%s %d/3  %d/%ds  %ds left", Localize("Step"), m_OperationStep + 1, ProgressSeconds, TargetSeconds, RemainingSeconds);
+		}
+		else
+			str_format(aProgress, sizeof(aProgress), "%s %d/3  %d/%d", Localize("Step"), m_OperationStep + 1, m_OperationProgress, m_OperationTarget);
+	}
 	else
 		str_copy(aProgress, Localize("Preparing operation"), sizeof(aProgress));
 	DrawText(Hud.x + 8.0f, Hud.y + 25.0f, 5.2f, aProgress, Accent, Hud.w - 16.0f, -1);

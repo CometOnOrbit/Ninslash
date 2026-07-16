@@ -263,8 +263,8 @@ void CDroid::Snap(int SnappingClient)
 	pP->m_Y = (int)m_Pos.y;
 	pP->m_Type = m_Type;
 	pP->m_Status = m_Status;
-	pP->m_AttackTick = m_AttackTick;
+	pP->m_AttackTick = m_Health <= 0 ? m_DeathTick : m_AttackTick;
 	pP->m_Anim = m_Anim;
 	pP->m_Dir = m_Dir;
-	pP->m_Angle = GetAngle(vec2(abs(m_Target.x), m_Target.y*-1)) * (180/pi);
+	pP->m_Angle = GetAngle(vec2(abs(m_Target.x), m_Target.y)) * (180/pi);
 }

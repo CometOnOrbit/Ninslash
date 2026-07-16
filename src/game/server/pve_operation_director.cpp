@@ -37,6 +37,10 @@ CPveOperationDirector::EStageKind CPveOperationDirector::StageKind() const
 {
 	const CPveOperationDef *pDef = PveOperationDef(m_Operation);
 	const int Type = pDef ? pDef->m_aTargetTypes[clamp(m_Stage, 0, 2)] : PVE_OPERATION_TARGET_NONE;
+	// Siege Route's final compound step temporarily reuses the defense-area
+	// target type, but it is still a completion-on-occupy area stage.
+	if(m_Operation == PVE_OPERATION_SIEGE_ROUTE && m_Stage == 2 && m_StageSecondary && Type == PVE_OPERATION_TARGET_DEFENSE_AREA)
+		return STAGE_AREA;
 	if(Type == PVE_OPERATION_TARGET_BOSS)
 		return STAGE_KILLS;
 	if(Type == PVE_OPERATION_TARGET_EVACUATION)
@@ -114,63 +118,128 @@ void CPveOperationDirector::DestroyOwnedEntities()
 	m_pStageBoss = 0;
 }
 
+bool CPveOperationDirector::SnapToGround(vec2 *pPos) const
+{
+	if(!pPos)
+		return false;
+	// Drop from above the candidate onto the first floor/platform so cargo and
+	// relays sit on walkable tiles instead of floating at enemy-spawn height.
+	const vec2 Start = *pPos + vec2(0.0f, -96.0f);
+	const vec2 End = *pPos + vec2(0.0f, 520.0f);
+	vec2 Hit;
+	if(!m_pGameServer->Collision()->IntersectLine(Start, End, 0x0, &Hit, false, true))
+		return false;
+	*pPos = Hit + vec2(0.0f, -28.0f);
+	return true;
+}
+
 bool CPveOperationDirector::ValidTargetPosition(vec2 Pos) const
 {
-	return !m_pGameServer->Collision()->TestBox(Pos, vec2(48.0f, 72.0f)) &&
-		!(m_pGameServer->Collision()->GetCollisionAt(Pos.x, Pos.y + 48.0f) & CCollision::COLFLAG_DEATH);
+	if(m_pGameServer->Collision()->TestBox(Pos, vec2(40.0f, 52.0f)))
+		return false;
+	if(m_pGameServer->Collision()->GetCollisionAt(Pos.x, Pos.y + 40.0f) & CCollision::COLFLAG_DEATH)
+		return false;
+	// Require solid footing under the building so cores/nodes are not mid-air.
+	const bool Floor =
+		m_pGameServer->Collision()->CheckPoint(Pos.x, Pos.y + 34.0f) ||
+		m_pGameServer->Collision()->CheckPoint(Pos.x - 14.0f, Pos.y + 34.0f) ||
+		m_pGameServer->Collision()->CheckPoint(Pos.x + 14.0f, Pos.y + 34.0f);
+	return Floor;
+}
+
+float CPveOperationDirector::NearestHumanDistance(vec2 Pos) const
+{
+	float NearestHuman = 1000000.0f;
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+	{
+		CCharacter *pCharacter = m_pGameServer->GetPlayerChar(ClientID);
+		if(pCharacter && !pCharacter->m_IsBot)
+			NearestHuman = min(NearestHuman, distance(Pos, pCharacter->m_Pos));
+	}
+	return NearestHuman;
 }
 
 bool CPveOperationDirector::FindTargetPosition(vec2 *pOut, const char **ppSource)
 {
+	const bool ClusterFollowUps = m_Progress > 0 && length(m_TargetPos) > 1.0f;
+	const vec2 Anchor = m_TargetPos;
 	int Best = -1;
-	float BestDistance = -1.0f;
+	float BestScore = -1.0e9f;
 	for(int Attempt = 0; Attempt < m_NumCandidates; Attempt++)
 	{
-		const int Index = (m_Stage * 37 + Attempt) % m_NumCandidates;
-		vec2 Pos = m_aCandidates[Index] + vec2(0.0f, -32.0f);
-		if(!ValidTargetPosition(Pos))
+		const int Index = (m_Stage * 37 + Attempt * 17 + m_Progress * 13) % m_NumCandidates;
+		vec2 Pos = m_aCandidates[Index];
+		if(!SnapToGround(&Pos) || !ValidTargetPosition(Pos))
 			continue;
-		float NearestHuman = 1000000.0f;
-		for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+		if(ClusterFollowUps && distance(Pos, Anchor) < 140.0f)
+			continue;
+
+		const float NearestHuman = NearestHumanDistance(Pos);
+		float Score = 0.0f;
+		// Prefer a reachable mid-range fight, not the farthest spawn on the map.
+		if(NearestHuman < 220.0f)
+			Score -= 8000.0f;
+		else if(NearestHuman < 450.0f)
+			Score += NearestHuman;
+		else if(NearestHuman < 950.0f)
+			Score += 700.0f - (NearestHuman - 450.0f) * 0.35f;
+		else
+			Score += 400.0f - (NearestHuman - 950.0f) * 0.55f;
+
+		if(ClusterFollowUps)
 		{
-			CCharacter *pCharacter = m_pGameServer->GetPlayerChar(ClientID);
-			if(pCharacter && !pCharacter->m_IsBot)
-				NearestHuman = min(NearestHuman, distance(Pos, pCharacter->m_Pos));
+			const float ToAnchor = distance(Pos, Anchor);
+			if(ToAnchor < 720.0f)
+				Score += 900.0f - ToAnchor * 0.45f;
+			else
+				Score -= (ToAnchor - 720.0f) * 1.1f;
 		}
-		if(NearestHuman > BestDistance)
+
+		if(Score > BestScore)
 		{
-			BestDistance = NearestHuman;
+			BestScore = Score;
 			Best = Index;
+			*pOut = Pos;
 		}
 	}
 	if(Best >= 0)
 	{
-		*pOut = m_aCandidates[Best] + vec2(0.0f, -32.0f);
-		*ppSource = BestDistance >= 600.0f ? "distant-enemy-spawn" : "enemy-spawn";
+		*ppSource = ClusterFollowUps ? "cluster-follow-up" : "enemy-spawn";
 		return true;
 	}
 	*pOut = vec2(4000.0f + m_Stage * 96.0f, 4000.0f);
 	*ppSource = "safe-platform-anchor";
-	return ValidTargetPosition(*pOut);
+	return SnapToGround(pOut) && ValidTargetPosition(*pOut);
 }
 
 bool CPveOperationDirector::FindDeliveryPosition(vec2 Source, vec2 *pOut) const
 {
 	int Best = -1;
-	float BestDistance = 600.0f;
+	float BestScore = -1.0e9f;
+	vec2 BestPos(0, 0);
 	for(int i = 0; i < m_NumCandidates; i++)
 	{
-		const vec2 Pos = m_aCandidates[i] + vec2(0, -32);
+		vec2 Pos = m_aCandidates[i];
+		if(!SnapToGround(&Pos) || !ValidTargetPosition(Pos))
+			continue;
 		const float Dist = distance(Source, Pos);
-		if(Dist > BestDistance && ValidTargetPosition(Pos))
+		if(Dist < 280.0f)
+			continue;
+		// Delivery should feel like a short carry, not a second map traversal.
+		float Score = Dist < 850.0f ? Dist : 850.0f - (Dist - 850.0f) * 0.9f;
+		const float NearestHuman = NearestHumanDistance(Pos);
+		if(NearestHuman < 180.0f)
+			Score -= 1500.0f;
+		if(Score > BestScore)
 		{
+			BestScore = Score;
 			Best = i;
-			BestDistance = Dist;
+			BestPos = Pos;
 		}
 	}
 	if(Best < 0)
 		return false;
-	*pOut = m_aCandidates[Best] + vec2(0, -32);
+	*pOut = BestPos;
 	return true;
 }
 
@@ -210,6 +279,30 @@ void CPveOperationDirector::SpawnStageThreats(vec2 Pos)
 	}
 	if(m_Operation == PVE_OPERATION_SIEGE_ROUTE && m_Stage == 0)
 		TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(100, 0), DROIDTYPE_RAILGUNNER));
+	// Timed terminal/upload stages must create an actual attack to defend
+	// against. These entities are director-owned and disappear with the stage.
+	if(m_TargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL)
+	{
+		TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(-180, -20), DROIDTYPE_SABOTEUR));
+		TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(180, -20), DROIDTYPE_RAILGUNNER));
+	}
+	else if(m_TargetType == PVE_OPERATION_TARGET_UPLOAD_POINT)
+	{
+		TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(-170, -20), DROIDTYPE_ASSEMBLER));
+		TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(170, -20), DROIDTYPE_SABOTEUR));
+	}
+	else if(m_TargetType == PVE_OPERATION_TARGET_SHIELD_RELAY || m_TargetType == PVE_OPERATION_TARGET_ASSEMBLY_NODE ||
+		m_TargetType == PVE_OPERATION_TARGET_TARGETING_BEACON || m_TargetType == PVE_OPERATION_TARGET_SHIELD_NODE ||
+		m_TargetType == PVE_OPERATION_TARGET_COOLANT_CORE || m_TargetType == PVE_OPERATION_TARGET_DATA_CORE ||
+		m_TargetType == PVE_OPERATION_TARGET_ENERGY_CORE)
+	{
+		// Destroy/carry steps previously spawned no escorts, so the floor felt
+		// like empty sightseeing between objectives.
+		TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(-150, -16), DROIDTYPE_SABOTEUR));
+		TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(150, -16), DROIDTYPE_RAILGUNNER));
+		if(m_TargetType == PVE_OPERATION_TARGET_ASSEMBLY_NODE || m_TargetType == PVE_OPERATION_TARGET_COOLANT_CORE)
+			TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(0, -48), DROIDTYPE_BULWARK));
+	}
 	if(m_TargetType == PVE_OPERATION_TARGET_BOSS)
 	{
 		const int Boss = (m_Operation == PVE_OPERATION_FIRE_CONTROL_PURGE || m_Operation == PVE_OPERATION_SIEGE_LINE || m_Operation == PVE_OPERATION_SIEGE_ROUTE) ? DROIDTYPE_SIEGE_ENGINE : DROIDTYPE_OVERSEER_CORE;
@@ -254,19 +347,20 @@ void CPveOperationDirector::BeginStage(bool ResetProgress)
 	m_NextReinforcementTick = m_StageStartTick + m_pGameServer->Server()->TickSpeed() * 5;
 	ClearTarget();
 	DestroyOwnedEntities();
-	// A lethal escape can only begin after a real exit was found and opened.
-	// Both the operation HUD and the Invasion door radar use this exact point.
+	// Production Halt's final step is a native exit. Open the door here so the
+	// route quest "Reach the exit" is actually completable.
 	if(m_Operation == PVE_OPERATION_FOUNDRY_SHUTDOWN && m_Stage == 2)
 	{
 		vec2 ExitPos;
-		if(!m_pGameServer->m_pController->TriggerEscape(&ExitPos))
+		if(!m_pGameServer->m_pController->FindEscape(&ExitPos))
 		{
-			FallbackToMode("escape door missing; acid not started");
+			FallbackToMode("escape door missing");
 			return;
 		}
 		m_TargetPos = ExitPos;
-		m_EndTick = m_StageStartTick + m_pGameServer->Server()->TickSpeed() * 60;
-		m_pGameServer->m_pController->BeginRisingAcid(60);
+		m_Required = 1;
+		m_pGameServer->m_pController->TriggerEscape(&ExitPos);
+		m_pGameServer->m_pController->SpawnOperationOrdinaryEnemies(m_Stage, 8);
 	}
 	else if(StageKind() == STAGE_AREA || m_TargetType == PVE_OPERATION_TARGET_DEFENSE_AREA)
 	{
@@ -279,17 +373,17 @@ void CPveOperationDirector::BeginStage(bool ResetProgress)
 			m_TargetPos = Pos;
 			const bool DefenseMarker = m_TargetType == PVE_OPERATION_TARGET_DEFENSE_AREA;
 			const bool Carry = m_TargetType == PVE_OPERATION_TARGET_COOLANT_CORE || m_TargetType == PVE_OPERATION_TARGET_DATA_CORE || m_TargetType == PVE_OPERATION_TARGET_ENERGY_CORE;
+			const bool TimedHold = m_TargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL || m_TargetType == PVE_OPERATION_TARGET_UPLOAD_POINT;
 			vec2 DeliveryPos = Pos;
 			if(Carry && !FindDeliveryPosition(Pos, &DeliveryPos))
 			{
 				FallbackToMode("cargo delivery platform missing");
 				return;
 			}
-			const bool TimedHold = m_TargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL || m_TargetType == PVE_OPERATION_TARGET_UPLOAD_POINT;
 			const int HoldTicks = TimedHold ? m_pGameServer->Server()->TickSpeed() * max(1, pDef->m_aStepTargets[m_Stage]) : m_pGameServer->Server()->TickSpeed() * 2;
 			if(TimedHold)
 				m_EndTick = m_StageStartTick + HoldTicks;
-			m_Required = TimedHold ? 1 : max(1, pDef->m_aStepTargets[m_Stage]);
+			m_Required = TimedHold ? HoldTicks : max(1, pDef->m_aStepTargets[m_Stage]);
 			m_pTarget = new CPveOperationTarget(&m_pGameServer->m_World, this, Pos, DeliveryPos, 120.0f,
 				DefenseMarker ? m_pGameServer->Server()->TickSpeed() * 60 * 60 : HoldTicks, m_TargetType);
 			SpawnStageThreats(Pos);
@@ -315,6 +409,10 @@ void CPveOperationDirector::BeginStage(bool ResetProgress)
 			return;
 		}
 	}
+	// Keep ordinary Invasion bots flowing so destroy/carry steps are fights,
+	// not empty scavenger hunts between objective markers.
+	if(StageKind() == STAGE_AREA || StageKind() == STAGE_EVACUATE || StageKind() == STAGE_WAVES)
+		m_pGameServer->m_pController->SpawnOperationOrdinaryEnemies(m_Stage, 6 + m_Stage * 2);
 	dbg_msg("pve-operation", "operation=%d stage=%d/3 kind=%d required=%d", m_Operation, m_Stage + 1, (int)StageKind(), m_Required);
 	SendState();
 }
@@ -330,6 +428,7 @@ void CPveOperationDirector::CompleteStage()
 	{
 		m_Running = false;
 		m_Complete = true;
+		m_pGameServer->m_pController->ClearOperationOrdinaryEnemies();
 		dbg_msg("pve-operation", "operation=%d chain complete", m_Operation);
 		SendState();
 		if(m_pGameServer->m_pPveDirector)
@@ -364,11 +463,7 @@ void CPveOperationDirector::Tick()
 {
 	if(!m_Running)
 		return;
-	if(m_Operation == PVE_OPERATION_FOUNDRY_SHUTDOWN && m_Stage == 2 && m_EndTick > 0 && m_pGameServer->Server()->Tick() >= m_EndTick)
-	{
-		FallbackToMode("acid escape deadline expired");
-		return;
-	}
+	m_pGameServer->m_pController->TickOperationOrdinaryEnemies();
 	TickStageSemantics();
 	if(!m_Running)
 		return;
@@ -400,6 +495,41 @@ void CPveOperationDirector::TickStageSemantics()
 	{
 		CompleteStage();
 		return;
+	}
+
+	// A timed defense remains contested for its full duration. Replenish a
+	// bounded pair only after the previous attackers have been cleared.
+	const bool DefendTerminal = m_TargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL || m_TargetType == PVE_OPERATION_TARGET_UPLOAD_POINT;
+	if(DefendTerminal && m_pTarget)
+	{
+		m_Progress = m_pTarget->ProgressTicks();
+		m_Required = max(1, m_pTarget->RequiredTicks());
+		// This is an occupancy timer, not an unconditional wall-clock deadline.
+		// Keep the HUD countdown tied to actual defended progress so leaving the
+		// terminal cannot show zero while the stage is still incomplete.
+		m_EndTick = m_pGameServer->Server()->Tick() + max(0, m_Required - m_Progress);
+	}
+	if(DefendTerminal && m_pTarget && m_pGameServer->Server()->Tick() >= m_NextReinforcementTick)
+	{
+		if(!AnyOwnedDroidAlive(false))
+		{
+			const vec2 Pos = m_pTarget->HudTargetPos();
+			const int First = m_TargetType == PVE_OPERATION_TARGET_UPLOAD_POINT ? DROIDTYPE_ASSEMBLER : DROIDTYPE_SABOTEUR;
+			TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(-190, -32), First));
+			TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(190, -32), DROIDTYPE_RAILGUNNER));
+		}
+		m_NextReinforcementTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 6;
+	}
+	else if(!DefendTerminal && StageKind() == STAGE_AREA && m_pTarget &&
+		m_pGameServer->Server()->Tick() >= m_NextReinforcementTick)
+	{
+		if(!AnyOwnedDroidAlive(false))
+		{
+			const vec2 Pos = m_pTarget->HudTargetPos();
+			TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(-160, -24), DROIDTYPE_SABOTEUR));
+			TrackEntity(SpawnSpecialist(&m_pGameServer->m_World, Pos + vec2(160, -24), DROIDTYPE_RAILGUNNER));
+		}
+		m_NextReinforcementTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 7;
 	}
 
 	// Extraction pressure is stage-specific and bounded. These reinforcements
@@ -462,6 +592,8 @@ void CPveOperationDirector::OnTargetCompleted(CPveOperationTarget *pTarget)
 {
 	if(m_Running && pTarget == m_pTarget && StageKind() == STAGE_AREA)
 	{
+		const bool TimedHold = m_TargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL || m_TargetType == PVE_OPERATION_TARGET_UPLOAD_POINT;
+		pTarget->DeactivateRadar();
 		m_pTarget = 0;
 		pTarget->DetachDirector();
 		m_pGameServer->m_World.DestroyEntity(pTarget);
@@ -483,6 +615,12 @@ void CPveOperationDirector::OnTargetCompleted(CPveOperationTarget *pTarget)
 			m_pTarget = new CPveOperationTarget(&m_pGameServer->m_World, this, HoldPos, HoldPos, 140.0f,
 				m_pGameServer->Server()->TickSpeed() * 20, PVE_OPERATION_TARGET_DEFENSE_AREA);
 			SendState();
+			return;
+		}
+		if(TimedHold)
+		{
+			m_Progress = m_Required;
+			CompleteStage();
 			return;
 		}
 		m_Progress++;
@@ -514,8 +652,7 @@ void CPveOperationDirector::Clear()
 {
 	ClearTarget();
 	DestroyOwnedEntities();
-	if(m_Operation == PVE_OPERATION_FOUNDRY_SHUTDOWN)
-		m_pGameServer->m_pController->ClearRisingAcid();
+	m_pGameServer->m_pController->ClearOperationOrdinaryEnemies();
 	m_Running = false;
 	m_Complete = false;
 	m_Operation = -1;

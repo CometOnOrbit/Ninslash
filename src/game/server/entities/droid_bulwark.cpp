@@ -1,7 +1,7 @@
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
 #include "droid_bulwark.h"
-CBulwark::CBulwark(CGameWorld *pWorld, vec2 Pos) : CSpecialistDroid(pWorld, Pos, DROIDTYPE_BULWARK, 850, false) {}
+CBulwark::CBulwark(CGameWorld *pWorld, vec2 Pos) : CSpecialistDroid(pWorld, Pos, DROIDTYPE_BULWARK, 1050, false) {}
 void CBulwark::AbilityTick()
 {
 	// Stay close to vulnerable support specialists before engaging players.
@@ -15,7 +15,7 @@ void CBulwark::AbilityTick()
 		float Dist = distance(m_Pos, apDroids[i]->m_Pos);
 		if(Dist < Best) { Best = Dist; pSupport = apDroids[i]; }
 	}
-	if(pSupport && Best > 180.0f) m_Vel.x += (pSupport->m_Pos.x < m_Pos.x ? -1.0f : 1.0f) * 1.2f;
-	else if(AcquireTarget(500.0f)) FireProjectile(8, .08f);
-	m_AbilityTick = Server()->Tick() + Server()->TickSpeed();
+	if(pSupport && Best > 180.0f) SetMovementGoal(pSupport->m_Pos, Server()->TickSpeed() * 2);
+	else if(AcquireTarget(680.0f)) FireProjectile(28, .035f);
+	m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 3 / 10;
 }

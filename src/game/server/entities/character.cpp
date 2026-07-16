@@ -2231,6 +2231,12 @@ void CCharacter::Electrocute(float Duration)
 		m_aStatus[STATUS_ELECTRIC] = Duration*Server()->TickSpeed();
 }
 
+void CCharacter::Slow(float Duration)
+{
+	const int Ticks = max(1, (int)(Duration * Server()->TickSpeed()));
+	m_aStatus[STATUS_SLOWMOVING] = max(m_aStatus[STATUS_SLOWMOVING], Ticks);
+}
+
 
 void CCharacter::SetAflame(float Duration, int From, int Weapon)
 {

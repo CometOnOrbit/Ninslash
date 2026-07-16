@@ -188,6 +188,7 @@ public:
 	bool AllVotingHumansVoted() const;
 	
 	void TriggerSwitch(vec2 Pos);
+	bool FindEscape(vec2 *pExitPos = 0) const;
 	bool TriggerEscape(vec2 *pExitPos = 0);
 	void BeginRisingAcid(int Seconds);
 	void ClearRisingAcid();
@@ -232,7 +233,12 @@ public:
 	virtual bool CanBeMovedOnBalance(int ClientID);
 
 	virtual void DisplayExit(vec2 Pos);
-	
+	// Optional mode hook used by operation floors that need ordinary character
+	// enemies in addition to director-owned mechanical specialists.
+	virtual void SpawnOperationOrdinaryEnemies(int, int) {}
+	virtual void TickOperationOrdinaryEnemies() {}
+	virtual void ClearOperationOrdinaryEnemies() {}
+
 	virtual void Tick();
 
 	virtual void Snap(int SnappingClient);

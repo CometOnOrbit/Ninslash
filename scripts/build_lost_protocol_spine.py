@@ -28,6 +28,7 @@ RED = (245, 42, 32, 255)
 ORANGE = (255, 126, 28, 255)
 BLUE = (40, 174, 235, 255)
 GREEN = (53, 201, 105, 255)
+RESAMPLING = getattr(Image, "Resampling", Image)
 
 
 @dataclass
@@ -151,31 +152,99 @@ def add_leg(rig: Rig, prefix: str, x: float, y: float, upper_len=34, lower_len=3
 
 def base_anims(extra=None):
     anims = {
-        "idle": {"bones": {"body": {"translate": [{"time": 0, "y": 0}, {"time": .6, "y": 2}, {"time": 1.2, "y": 0}]}}},
-        "attack": {"bones": {"weapon": {"translate": [{"time": 0, "x": 0}, {"time": .08, "x": -7}, {"time": .3, "x": 0}], "rotate": [{"time": 0, "angle": 0}, {"time": .08, "angle": -4}, {"time": .3, "angle": 0}]}}},
-        "hit": {"bones": {"body": {"rotate": [{"time": 0, "angle": 0}, {"time": .06, "angle": -7}, {"time": .2, "angle": 0}]}}},
-        "emp": {"bones": {"body": {"translate": [{"time": 0, "x": -2}, {"time": .06, "x": 2}, {"time": .12, "x": -2}, {"time": .2, "x": 0}]}}},
-        "destroyed": {"bones": {"body": {"rotate": [{"time": 0, "angle": 0}, {"time": .8, "angle": 82}], "translate": [{"time": 0, "y": 0}, {"time": .8, "y": -18}]}}},
+        "idle": {"bones": {
+            "body": {"translate": [{"time": 0, "y": 0}, {"time": .24, "y": 1.2}, {"time": .48, "y": 0}, {"time": .72, "y": -0.9}, {"time": .96, "y": 0}, {"time": 1.2, "y": 0}]},
+            "front_outer_upper": {"rotate": [{"time": 0, "angle": -1}, {"time": .6, "angle": 0.5}, {"time": 1.2, "angle": -1}]},
+            "front_outer_lower": {"rotate": [{"time": 0, "angle": 0}, {"time": .6, "angle": -1}, {"time": 1.2, "angle": 0}]},
+            "front_inner_upper": {"rotate": [{"time": 0, "angle": -2}, {"time": .6, "angle": 2}, {"time": 1.2, "angle": -2}]},
+            "front_inner_lower": {"rotate": [{"time": 0, "angle": 0}, {"time": .6, "angle": 1}, {"time": 1.2, "angle": 0}]},
+            "back_inner_upper": {"rotate": [{"time": 0, "angle": 2}, {"time": .6, "angle": -2}, {"time": 1.2, "angle": 2}]},
+            "back_inner_lower": {"rotate": [{"time": 0, "angle": 0}, {"time": .6, "angle": -1}, {"time": 1.2, "angle": 0}]},
+            "back_outer_upper": {"rotate": [{"time": 0, "angle": 1}, {"time": .6, "angle": -1}, {"time": 1.2, "angle": 1}]},
+            "back_outer_lower": {"rotate": [{"time": 0, "angle": 0}, {"time": .6, "angle": 1}, {"time": 1.2, "angle": 0}]},
+        }},
+        "move": {"bones": {
+            "body": {"translate": [{"time": 0, "y": 0}, {"time": .14, "y": 1.6}, {"time": .28, "y": 3.1}, {"time": .42, "y": 1.2}, {"time": .56, "y": 0}, {"time": .7, "y": 2.4}, {"time": .84, "y": 0}],
+                     "rotate": [{"time": 0, "angle": -1.3}, {"time": .28, "angle": 1.2}, {"time": .56, "angle": -1.1}, {"time": .84, "angle": -1.3}]},
+            "front_outer_upper": {"rotate": [{"time": 0, "angle": -24}, {"time": .14, "angle": -12}, {"time": .28, "angle": 4}, {"time": .42, "angle": 22}, {"time": .56, "angle": 10}, {"time": .7, "angle": -10}, {"time": .84, "angle": -24}]},
+            "front_outer_lower": {"rotate": [{"time": 0, "angle": 22}, {"time": .14, "angle": 14}, {"time": .28, "angle": -4}, {"time": .42, "angle": -18}, {"time": .56, "angle": -10}, {"time": .7, "angle": 8}, {"time": .84, "angle": 22}]},
+            "front_inner_upper": {"rotate": [{"time": 0, "angle": -18}, {"time": .14, "angle": -4}, {"time": .28, "angle": 14}, {"time": .42, "angle": 20}, {"time": .56, "angle": 6}, {"time": .7, "angle": -12}, {"time": .84, "angle": -18}]},
+            "front_inner_lower": {"rotate": [{"time": 0, "angle": 14}, {"time": .14, "angle": 6}, {"time": .28, "angle": -8}, {"time": .42, "angle": -14}, {"time": .56, "angle": -6}, {"time": .7, "angle": 8}, {"time": .84, "angle": 14}]},
+            "back_inner_upper": {"rotate": [{"time": 0, "angle": 18}, {"time": .14, "angle": 8}, {"time": .28, "angle": -10}, {"time": .42, "angle": -18}, {"time": .56, "angle": -4}, {"time": .7, "angle": 14}, {"time": .84, "angle": 18}]},
+            "back_inner_lower": {"rotate": [{"time": 0, "angle": -14}, {"time": .14, "angle": -6}, {"time": .28, "angle": 10}, {"time": .42, "angle": 16}, {"time": .56, "angle": 6}, {"time": .7, "angle": -8}, {"time": .84, "angle": -14}]},
+            "back_outer_upper": {"rotate": [{"time": 0, "angle": 24}, {"time": .14, "angle": 14}, {"time": .28, "angle": -8}, {"time": .42, "angle": -22}, {"time": .56, "angle": -10}, {"time": .7, "angle": 10}, {"time": .84, "angle": 24}]},
+            "back_outer_lower": {"rotate": [{"time": 0, "angle": -22}, {"time": .14, "angle": -10}, {"time": .28, "angle": 8}, {"time": .42, "angle": 18}, {"time": .56, "angle": 10}, {"time": .7, "angle": -8}, {"time": .84, "angle": -22}]},
+        }},
+        "attack": {"bones": {
+            "body": {"rotate": [{"time": 0, "angle": 0}, {"time": .08, "angle": -5}, {"time": .2, "angle": -2}, {"time": .32, "angle": 0}]},
+            "weapon": {"translate": [{"time": 0, "x": 0}, {"time": .08, "x": -7}, {"time": .2, "x": -4}, {"time": .3, "x": 0}], "rotate": [{"time": 0, "angle": 0}, {"time": .08, "angle": -4}, {"time": .2, "angle": -2}, {"time": .3, "angle": 0}]}
+        }},
+        "hit": {"bones": {"body": {"rotate": [{"time": 0, "angle": 0}, {"time": .06, "angle": -7}, {"time": .14, "angle": -4}, {"time": .2, "angle": 0}]}}},
+        "emp": {"bones": {"body": {"translate": [{"time": 0, "x": -2}, {"time": .06, "x": 2}, {"time": .12, "x": -2}, {"time": .18, "x": 1}, {"time": .24, "x": 0}]}}},
+        # Spine rotation timelines are relative to the setup pose. The former
+        # values repeated setup angles and folded some legs through nearly 200
+        # degrees. This collapse keeps the crawler silhouette while the server
+        # body physically falls and settles against the map.
+        "destroyed": {"bones": {
+            "body": {"rotate": [{"time": 0, "angle": 0}, {"time": .16, "angle": 4}, {"time": .42, "angle": 10}, {"time": .8, "angle": 12}],
+                     "translate": [{"time": 0, "x": 0, "y": 0}, {"time": .16, "x": 1, "y": -4}, {"time": .42, "x": 4, "y": -13}, {"time": .8, "x": 6, "y": -18}]},
+            "weapon": {"rotate": [{"time": 0, "angle": 0}, {"time": .18, "angle": -8}, {"time": .46, "angle": -22}, {"time": .8, "angle": -28}],
+                        "translate": [{"time": 0, "x": 0}, {"time": .42, "x": 3}, {"time": .8, "x": 5}]},
+            "front_outer_upper": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": -12}, {"time": .8, "angle": -30}]},
+            "front_outer_lower": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": 10}, {"time": .8, "angle": 24}]},
+            "front_outer_ankle": {"rotate": [{"time": 0, "angle": 0}, {"time": .8, "angle": 12}]},
+            "front_inner_upper": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": -15}, {"time": .8, "angle": -36}]},
+            "front_inner_lower": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": 12}, {"time": .8, "angle": 28}]},
+            "front_inner_ankle": {"rotate": [{"time": 0, "angle": 0}, {"time": .8, "angle": 14}]},
+            "back_inner_upper": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": 14}, {"time": .8, "angle": 34}]},
+            "back_inner_lower": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": -10}, {"time": .8, "angle": -26}]},
+            "back_inner_ankle": {"rotate": [{"time": 0, "angle": 0}, {"time": .8, "angle": -12}]},
+            "back_outer_upper": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": 12}, {"time": .8, "angle": 30}]},
+            "back_outer_lower": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": -10}, {"time": .8, "angle": -24}]},
+            "back_outer_ankle": {"rotate": [{"time": 0, "angle": 0}, {"time": .8, "angle": -12}]},
+        }},
     }
     if extra:
         anims.update(extra)
     return anims
 
 
+def remap_animation_bones(animations: dict, mapping: dict[str, str]) -> None:
+    """Rename template timelines when a rig uses a different crawler leg layout."""
+    for animation in animations.values():
+        timelines = animation.get("bones", {})
+        for source, target in mapping.items():
+            if source in timelines:
+                timelines[target] = timelines.pop(source)
+
+
+def prune_missing_animation_bones(rig: Rig) -> None:
+    """Spine 3.6 timelines must only refer to bones present in the rig."""
+    valid = {"root", *(bone.name for bone in rig.bones)}
+    for animation in rig.animations.values():
+        timelines = animation.get("bones", {})
+        for name in tuple(timelines):
+            if name not in valid:
+                del timelines[name]
+
+
 def walker_rig(name: str, body_color, lamp, feature: str, boss=False) -> Rig:
     rig = Rig(name, .72 if not boss else 1.0)
-    body_w = 100 if feature == "shield" else 76 if feature == "rail" else 88
-    body_h = 62 if feature == "shield" else 48 if feature == "rail" else 58
+    body_w = 102 if feature == "shield" else 80 if feature == "rail" else 90
+    body_h = 54 if feature == "shield" else 44 if feature == "rail" else 50
     if boss:
-        body_w, body_h = 142, 64
+        body_w, body_h = 144, 58
     rig.bones = [Bone("body"), Bone("weapon", "body", body_w * .28, 13, 0, 70)]
     rig.parts = [Part("body", armored_body(body_w, body_h, body_color, lamp), "body")]
-    upper = 25 if feature == "shield" else 45 if feature == "rail" else 34
-    lower = 23 if feature == "shield" else 39 if feature == "rail" else 31
+    upper = 28 if feature == "shield" else 44 if feature == "rail" else 34
+    lower = 22 if feature == "shield" else 36 if feature == "rail" else 28
     if boss:
-        upper, lower = 42, 38
-    add_leg(rig, "front", body_w * .27, -body_h * .30, upper, lower, -68, body_color, lamp)
-    add_leg(rig, "back", -body_w * .25, -body_h * .30, upper, lower, -112, body_color, lamp)
+        upper, lower = 40, 34
+    leg_y = -body_h * .16
+    add_leg(rig, "front_outer", body_w * .34, leg_y, upper, lower, -40, body_color, lamp)
+    add_leg(rig, "front_inner", body_w * .16, leg_y + 4, upper - 2, lower - 2, -72, body_color, lamp)
+    add_leg(rig, "back_inner", -body_w * .16, leg_y + 4, upper - 2, lower - 2, -108, body_color, lamp)
+    add_leg(rig, "back_outer", -body_w * .34, leg_y, upper, lower, -140, body_color, lamp)
     if feature == "shield":
         rig.bones += [Bone("shield_top", "body", 46, 22, -8), Bone("shield_bottom", "body", 47, -24, 8)]
         rig.parts += [Part("shield_top", shield(50, 88, BLUE), "shield_top"), Part("shield_bottom", shield(50, 88, BLUE), "shield_bottom")]
@@ -190,6 +259,27 @@ def walker_rig(name: str, body_color, lamp, feature: str, boss=False) -> Rig:
         rig.parts += [Part("mine_rack", armored_body(48, 28, DARK, ORANGE), "mine_rack")]
         add_leg(rig, "middle", 0, -22, 44, 39, -90, body_color, lamp)
     rig.animations = base_anims({"phase": {"bones": {"weapon": {"rotate": [{"time": 0, "angle": 0}, {"time": .35, "angle": -18}, {"time": .7, "angle": 0}]}}}} if boss else None)
+    if feature == "repair":
+        rig.animations["idle"]["bones"].update({
+            "tool_upper": {"rotate": [{"time": 0, "angle": -5}, {"time": .7, "angle": 8}, {"time": 1.4, "angle": -5}]},
+            "tool2_upper": {"rotate": [{"time": 0, "angle": 6}, {"time": .7, "angle": -7}, {"time": 1.4, "angle": 6}]},
+        })
+    if boss:
+        rig.animations["move"]["bones"]["front_inner_upper"]["rotate"][1]["angle"] = 10
+        rig.animations["move"]["bones"]["back_inner_upper"]["rotate"][1]["angle"] = -10
+        rig.animations["idle"]["bones"].update({
+            "middle_upper": {"rotate": [{"time": 0, "angle": -1}, {"time": .6, "angle": 1}, {"time": 1.2, "angle": -1}]},
+            "middle_lower": {"rotate": [{"time": 0, "angle": 1}, {"time": .6, "angle": -1}, {"time": 1.2, "angle": 1}]},
+        })
+        rig.animations["move"]["bones"].update({
+            "middle_upper": {"rotate": [{"time": 0, "angle": 16}, {"time": .14, "angle": 5}, {"time": .28, "angle": -11}, {"time": .42, "angle": -18}, {"time": .56, "angle": -5}, {"time": .7, "angle": 11}, {"time": .84, "angle": 16}]},
+            "middle_lower": {"rotate": [{"time": 0, "angle": -14}, {"time": .14, "angle": -5}, {"time": .28, "angle": 10}, {"time": .42, "angle": 15}, {"time": .56, "angle": 5}, {"time": .7, "angle": -9}, {"time": .84, "angle": -14}]},
+        })
+        rig.animations["destroyed"]["bones"].update({
+            "middle_upper": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": 8}, {"time": .8, "angle": 22}]},
+            "middle_lower": {"rotate": [{"time": 0, "angle": 0}, {"time": .22, "angle": -6}, {"time": .8, "angle": -18}]},
+            "middle_ankle": {"rotate": [{"time": 0, "angle": 0}, {"time": .8, "angle": -8}]},
+        })
     return rig
 
 
@@ -203,17 +293,34 @@ def saboteur_rig() -> Rig:
     rig.bones += [Bone("antenna_left", "body", -18, 18, -72), Bone("antenna_right", "body", 18, 18, -108)]
     rig.parts += [Part("antenna_left", limb(38, 7, DARK, ORANGE), "antenna_left", 19), Part("antenna_right", limb(38, 7, DARK, ORANGE), "antenna_right", 19)]
     rig.animations = base_anims()
+    remap_animation_bones(rig.animations, {
+        "front_outer_upper": "front_upper", "front_outer_lower": "front_lower", "front_outer_ankle": "front_ankle",
+        "front_inner_upper": "front_mid_upper", "front_inner_lower": "front_mid_lower", "front_inner_ankle": "front_mid_ankle",
+        "back_inner_upper": "back_mid_upper", "back_inner_lower": "back_mid_lower", "back_inner_ankle": "back_mid_ankle",
+        "back_outer_upper": "back_upper", "back_outer_lower": "back_lower", "back_outer_ankle": "back_ankle",
+    })
+    rig.animations["move"]["bones"].update({
+        "antenna_left": {"rotate": [{"time": 0, "angle": -4}, {"time": .18, "angle": 5}, {"time": .36, "angle": -4}]},
+        "antenna_right": {"rotate": [{"time": 0, "angle": 5}, {"time": .18, "angle": -4}, {"time": .36, "angle": 5}]},
+    })
     return rig
 
 
 def overseer_rig() -> Rig:
-    rig = Rig("overseer_core", 1.0, [Bone("body"), Bone("weapon", "body", 22, 0)])
-    rig.parts = [Part("body", joint(60, RED), "body"), Part("iris", joint(30, RED), "body")]
+    rig = Rig("overseer_core", 1.0, [Bone("body"), Bone("iris", "body"), Bone("weapon", "body", 22, 0)])
+    rig.parts = [Part("body", joint(60, RED), "body"), Part("iris", joint(30, RED), "iris")]
     for i, (x, y, rot) in enumerate(((0, 43, 90), (-38, -10, 205), (38, -10, -25))):
         bone = f"arm{i}"
         rig.bones.append(Bone(bone, "body", x, y, rot, 38))
         rig.parts += [Part(bone, limb(43, 15, LIGHT, BLUE), bone, 20), Part(f"node{i}", joint(11, BLUE), bone, 42)]
-    rig.animations = base_anims({"phase": {"bones": {f"arm{i}": {"rotate": [{"time": 0, "angle": 0}, {"time": .4, "angle": 120}, {"time": .8, "angle": 0}]} for i in range(3)}}})
+    rig.animations = base_anims({
+        "fly": {"bones": {
+            "body": {"rotate": [{"time": 0, "angle": 0}, {"time": 1.5, "angle": 120}, {"time": 3, "angle": 240}, {"time": 4.5, "angle": 359}],
+                     "translate": [{"time": 0, "y": -2}, {"time": 1.125, "y": 3}, {"time": 2.25, "y": -2}, {"time": 3.375, "y": 3}, {"time": 4.5, "y": -2}]},
+            "iris": {"scale": [{"time": 0, "x": 1, "y": 1}, {"time": .55, "x": 1.08, "y": 1.08}, {"time": 1.1, "x": 1, "y": 1}]},
+        }},
+        "phase": {"bones": {f"arm{i}": {"rotate": [{"time": 0, "angle": 0}, {"time": .4, "angle": 120}, {"time": .8, "angle": 0}]} for i in range(3)}}
+    })
     return rig
 
 
@@ -284,6 +391,7 @@ def atlas_text(rig: Rig, regions):
 
 
 def build(rig: Rig):
+    prune_missing_animation_bones(rig)
     atlas, regions = pack(rig)
     atlas.save(OUT / f"{rig.name}.png")
     (OUT / f"{rig.name}.json").write_text(json.dumps(spine_json(rig, regions), separators=(",", ":")) + "\n", encoding="utf-8")
@@ -307,8 +415,8 @@ def preview(rig: Rig, path: Path) -> None:
         radians = math.radians(brot)
         cx = bx + math.cos(radians) * part.x - math.sin(radians) * part.y
         cy = by + math.sin(radians) * part.x + math.cos(radians) * part.y
-        sprite = part.image.resize((max(1, round(part.image.width * scale)), max(1, round(part.image.height * scale))), Image.Resampling.LANCZOS)
-        sprite = sprite.rotate(-brot - part.rotation, expand=True, resample=Image.Resampling.BICUBIC)
+        sprite = part.image.resize((max(1, round(part.image.width * scale)), max(1, round(part.image.height * scale))), RESAMPLING.LANCZOS)
+        sprite = sprite.rotate(-brot - part.rotation, expand=True, resample=RESAMPLING.BICUBIC)
         x = round(origin[0] + cx * scale - sprite.width / 2)
         y = round(origin[1] - cy * scale - sprite.height / 2)
         output.alpha_composite(sprite, (x, y))

@@ -35,10 +35,11 @@ def tokens(source: str, required: tuple[str, ...], scope: str) -> None:
 
 def check_operations() -> None:
     source = read("src/game/pve_roguelite.cpp")
+    header = read("src/game/pve_roguelite.h")
     rows = re.findall(r"^\s*\{(PVE_OPERATION_[A-Z0-9_]+),.*?\},\s*$", source, re.MULTILINE)
     expected = {
         "PVE_OPERATION_CIRCUIT_BREAKER": ("PVE_MODE_INVASION", ("SHIELD_RELAY", "OVERLOAD_TERMINAL", "BOSS"), (2, 40, 1)),
-        "PVE_OPERATION_FOUNDRY_SHUTDOWN": ("PVE_MODE_INVASION", ("ASSEMBLY_NODE", "COOLANT_CORE", "EVACUATION"), (3, 1, 60)),
+        "PVE_OPERATION_FOUNDRY_SHUTDOWN": ("PVE_MODE_INVASION", ("ASSEMBLY_NODE", "COOLANT_CORE", "EVACUATION"), (3, 1, 1)),
         "PVE_OPERATION_FIRE_CONTROL_PURGE": ("PVE_MODE_INVASION", ("TARGETING_BEACON", "NONE", "BOSS"), (3, 1, 1)),
         "PVE_OPERATION_SIEGE_LINE": ("PVE_MODE_HORDE", ("DEFENSE_AREA", "DEFENSE_AREA", "BOSS"), (1, 2, 1)),
         "PVE_OPERATION_ASSEMBLY_SURGE": ("PVE_MODE_HORDE", ("DEFENSE_AREA", "ASSEMBLY_NODE", "BOSS"), (1, 2, 1)),
@@ -59,6 +60,25 @@ def check_operations() -> None:
         count_match = re.search(r"\},\s*\{(\d+),\s*(\d+),\s*(\d+)\}\s*$", row)
         actual_counts = tuple(map(int, count_match.groups())) if count_match else ()
         expect(actual_counts == counts, f"{operation}: step requirements {actual_counts}, expected {counts}")
+
+    for obsolete in (
+        "m_EnemyCountMultiplier", "m_EnemyHealthMultiplier", "m_EnemySpeedMultiplier",
+        "m_DeadlineMultiplier", "m_ReinforcementMultiplier", "m_RepairMultiplier", "m_GoldMultiplier",
+    ):
+        expect(obsolete not in header, f"operations: obsolete numeric prototype field remains: {obsolete}")
+    director = read("src/game/server/pve_director.cpp") + read("src/game/server/pve_director.h")
+    expect("OperationEnemyCountMultiplier" not in director, "operations: numeric enemy-count prototype remains")
+    expect("OperationDeadlineMultiplier" not in director, "operations: numeric deadline prototype remains")
+    expect("OperationReinforcementMultiplier" not in director, "operations: numeric reinforcement prototype remains")
+    expect("OperationEnemySpeedMultiplier" not in director, "operations: numeric speed prototype remains")
+    expect("OperationEnemyHealthMultiplier" not in director, "operations: numeric health prototype remains")
+    expect("OperationRepairMultiplier" not in director, "operations: numeric repair prototype remains")
+    expect("OperationGoldMultiplier" not in director, "operations: numeric reward prototype remains")
+
+    horde = read("src/game/server/gamemodes/horde.cpp")
+    expect("PVE_OPERATION_ASSEMBLY_SURGE && m_Wave" not in horde, "Horde: legacy operation crawler injection remains")
+    expect("PVE_OPERATION_GRID_STORM && (m_Wave" not in horde, "Horde: legacy operation boss injection remains")
+    expect("if(m_Wave > 0 && m_Wave % 4 == 0)" in horde, "Horde: Operation suppresses the native section boss")
 
 
 def check_operation_mechanics() -> None:
@@ -101,13 +121,14 @@ def check_operation_mechanics() -> None:
     network = read("datasrc/network.py")
     expect('NetIntRange("m_PveCargo", 0, 3)' in network, "operation cargo: dedicated character snapshot field missing")
 
-    tokens(source, ("TriggerEscape(&ExitPos)", "BeginRisingAcid(60)", "OnOperationChainFailed"), "Foundry acid escape safety")
-    expect(
-        source.find("TriggerEscape(&ExitPos)") < source.find("BeginRisingAcid(60)"),
-        "Foundry acid escape safety: acid begins before exit validation",
-    )
-    tokens(header, ("OverridesModeFlow",), "operation mode-flow ownership")
-    tokens(invasion, ("EVENT_EVACUATE", "if(!OperationOverrides)", "FinishOperationFloor"), "Invasion operation takeover")
+    tokens(source, ("FindEscape(&ExitPos)", "OnOperationChainFailed"), "Foundry evacuation safety")
+    expect("BeginRisingAcid" not in source, "Foundry evacuation: operation still starts native rising acid")
+    expect("acid escape deadline" not in source, "Foundry evacuation: operation still owns an acid deadline")
+    expect("OverridesModeFlow" not in header, "operation can still own a mode's primary flow")
+    tokens(invasion, ("RouteQuestActive", "TryStartRouteQuest", "FinishOperationFloor", "SyncRouteQuestFromOperation"), "Invasion route quest flow")
+    if "OnOperationChainAbandoned" in invasion.split("void CGameControllerInvasion::NextLevel", 1)[1].split("void CGameControllerInvasion::ChangeQuest", 1)[0]:
+        issues.append("Invasion route quest flow: entering the door still abandons an active route")
+    expect("OperationOverrides" not in invasion, "Invasion: Operation can still replace the main quest")
     expect("max(1, m_RisingAcidDuration)" in controller, "rising acid duration: controller still uses a hard-coded climb time")
 
 

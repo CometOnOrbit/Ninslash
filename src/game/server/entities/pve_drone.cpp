@@ -13,12 +13,16 @@ CPveDrone::CPveDrone(CGameWorld *pGameWorld, int Owner) :
 	m_Health(40),
 	m_DisabledUntilTick(0),
 	m_Vel(0, 0),
+	m_MoveTarget(0, 0),
 	m_Target(m_Pos),
-	m_ActionTick(0)
+	m_ActionTick(0),
+	m_AngleTimer(Owner * 1.73f)
 {
 	m_ProximityRadius = 12.0f;
 	CCharacter *pOwner = GameServer()->GetPlayerChar(Owner);
 	m_Pos = pOwner ? pOwner->m_Pos + vec2(Owner & 1 ? -38.0f : 38.0f, -52.0f) : vec2(0, 0);
+	m_MoveTarget = m_Pos;
+	m_Target = m_Pos;
 	GameWorld()->InsertEntity(this);
 }
 
@@ -65,12 +69,44 @@ void CPveDrone::Tick()
 	CCharacter *pOwner = GameServer()->GetPlayerChar(m_Owner);
 	if(!pOwner || !pOwner->IsAlive())
 		return;
-	const vec2 Target = pOwner->m_Pos + vec2(m_Owner & 1 ? -42.0f : 42.0f, -54.0f);
-	// A bounded deterministic follow step avoids introducing another predicted
-	// physics object while keeping the server position authoritative.
-	const vec2 OldPos = m_Pos;
-	m_Pos += (Target - m_Pos) * 0.16f;
-	m_Vel = m_Pos - OldPos;
+
+	// Mirror CStar::Tick flight: random wander, AngleTimer orbit,
+	// IntersectLine clip, soft MoveTarget chase, 0.97 damping. Wander is
+	// centered on the owner so the companion stays leashed.
+	const bool Disabled = m_Health <= 0 || Server()->Tick() < m_DisabledUntilTick;
+	const bool Acting = !Disabled && Server()->Tick() <= m_ActionTick;
+	m_AngleTimer += Disabled ? 0.012f : 0.025f;
+
+	const vec2 OwnerAnchor = pOwner->m_Pos + vec2(m_Owner & 1 ? -48.0f : 48.0f, -56.0f);
+	const vec2 Center = Acting ? m_Target : OwnerAnchor;
+	vec2 To = Center + vec2(frandom() - frandom(), frandom() - frandom()) * (Acting ? 280.0f : 160.0f);
+	To += vec2(sin(m_AngleTimer), cos(m_AngleTimer)) * (Acting ? 80.0f : 90.0f);
+
+	if(GameServer()->Collision()->IntersectLine(m_Pos, To, 0x0, &To))
+	{
+		To = Center + vec2(frandom() - frandom(), frandom() - frandom()) * (Acting ? 180.0f : 110.0f);
+		To += vec2(sin(m_AngleTimer), cos(m_AngleTimer)) * 70.0f;
+		GameServer()->Collision()->IntersectLine(m_Pos, To, 0x0, &To);
+	}
+
+	if(distance(m_Pos, pOwner->m_Pos) > 280.0f)
+		To = OwnerAnchor + vec2(sin(m_AngleTimer), cos(m_AngleTimer)) * 40.0f;
+
+	m_MoveTarget += (To - m_MoveTarget) / 20.0f;
+
+	if(length(m_MoveTarget - m_Pos) > 8.0f)
+		m_Vel += normalize(m_MoveTarget - m_Pos) * 0.40f * (Disabled ? 0.5f : 1.0f);
+
+	// Soft per-axis approach toward the action point, same idea as Star's
+	// far-target correction but in world space for a companion drone.
+	if(Acting && distance(m_Pos, m_Target) > 140.0f)
+	{
+		m_MoveTarget += (vec2(m_Pos.x, m_Target.y) - m_MoveTarget) / 10.0f;
+		m_MoveTarget += (vec2(m_Target.x, m_Pos.y) - m_MoveTarget) / 10.0f;
+	}
+
+	m_Vel *= 0.97f;
+	GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, vec2(40.0f, 40.0f), 0, false, true);
 }
 
 void CPveDrone::TickPaused()

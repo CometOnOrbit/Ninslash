@@ -592,7 +592,7 @@ void IGameController::DisplayExit(vec2 Pos)
 }
 
 
-bool IGameController::TriggerEscape(vec2 *pExitPos)
+bool IGameController::FindEscape(vec2 *pExitPos) const
 {
 	float Radius = 1000000;
 	bool FoundExit = false;
@@ -606,7 +606,6 @@ bool IGameController::TriggerEscape(vec2 *pExitPos)
 		CBuilding *pTarget = apEnts[i];
 		if (pTarget->m_Type == BUILDING_DOOR1)
 		{
-			pTarget->Trigger();
 			if(!FoundExit)
 			{
 				FoundExit = true;
@@ -616,11 +615,28 @@ bool IGameController::TriggerEscape(vec2 *pExitPos)
 	}
 	if(FoundExit)
 	{
-		DisplayExit(ExitPos);
 		if(pExitPos)
 			*pExitPos = ExitPos;
 	}
 	return FoundExit;
+}
+
+bool IGameController::TriggerEscape(vec2 *pExitPos)
+{
+	float Radius = 1000000;
+	CBuilding *apEnts[999];
+	const int Num = GameServer()->m_World.FindEntities(vec2(4000, 4000), Radius, (CEntity**)apEnts,
+		999, CGameWorld::ENTTYPE_BUILDING);
+	for(int i = 0; i < Num; ++i)
+		if(apEnts[i]->m_Type == BUILDING_DOOR1)
+			apEnts[i]->Trigger();
+	vec2 ExitPos;
+	if(!FindEscape(&ExitPos))
+		return false;
+	DisplayExit(ExitPos);
+	if(pExitPos)
+		*pExitPos = ExitPos;
+	return true;
 }
 
 

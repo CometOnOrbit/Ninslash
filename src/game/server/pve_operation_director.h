@@ -60,7 +60,9 @@ private:
 	int StageRequirement() const;
 	bool FindTargetPosition(vec2 *pOut, const char **ppSource);
 	bool FindDeliveryPosition(vec2 Source, vec2 *pOut) const;
+	bool SnapToGround(vec2 *pPos) const;
 	bool ValidTargetPosition(vec2 Pos) const;
+	float NearestHumanDistance(vec2 Pos) const;
 	void BeginStage(bool ResetProgress = true);
 	void CompleteStage();
 	void ClearTarget();
@@ -86,9 +88,11 @@ public:
 	void Clear();
 	bool Running() const { return m_Running; }
 	bool Complete() const { return m_Complete; }
-	bool OverridesModeFlow() const { return m_Running && !m_ModeFallback; }
 	int Operation() const { return m_Operation; }
 	int Stage() const { return m_Stage; }
+	int Progress() const { return m_Progress; }
+	int Required() const { return m_Required; }
+	int TargetType() const { return m_TargetType; }
 	void OnClientEnter(int ClientID) { SendState(ClientID); }
 };
 

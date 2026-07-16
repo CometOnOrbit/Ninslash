@@ -386,6 +386,7 @@ def main() -> int:
     for token in (
         "if(Count < 2)", "m_UsedOperations = 0",
         "TogglePauseAfterIntermission()", "OperationVote = OperationVote && OperationsEnabled()",
+        "return g_Config.m_SvPveOperations && m_Mode != PVE_MODE_ANY",
     ):
         if token not in director and token not in game_context:
             fail(f"operation lifecycle invariant missing: {token}")

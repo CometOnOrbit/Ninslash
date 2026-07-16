@@ -21,6 +21,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 
 Color = tuple[int, int, int, int]
+LANCZOS = getattr(Image, "Resampling", Image).LANCZOS
 
 TRANSPARENT: Color = (0, 0, 0, 0)
 INK: Color = (21, 25, 30, 255)
@@ -1046,6 +1047,31 @@ def build_main_tileset_native(path: Path) -> None:
                 color = (31, 42, 52)
             source_pixels[x, y] = (*color, opacity)
 
+    # Recover the useful *shape* of metal_main's surface cladding on exposed
+    # automapper edges, but repaint it as foundry refractory armour. Limiting
+    # this to edge/corner slots keeps solid wall interiors quiet and makes the
+    # attachment identify an actual collision surface instead of becoming a
+    # repeating decoration.
+    original_pixels = original.load()
+    surface_tiles = {17, 18, 19, 20, 34, 36, 40, 51}
+    for tile in surface_tiles:
+        tx, ty = (tile % 16) * 64, (tile // 16) * 64
+        for y in range(ty, ty + 64):
+            for x in range(tx, tx + 64):
+                red, green, blue, opacity = original_pixels[x, y]
+                if opacity == 0:
+                    continue
+                luminance = (red * 54 + green * 183 + blue * 19) // 256
+                if luminance < 142:
+                    continue
+                if luminance >= 205:
+                    color = (226, 190, 151)
+                elif luminance >= 174:
+                    color = (181, 132, 96)
+                else:
+                    color = (126, 78, 61)
+                source_pixels[x, y] = (*color, opacity)
+
     scale = 2
     details = Image.new("RGBA", (2048, 2048), (0, 0, 0, 0))
     draw = ImageDraw.Draw(details)
@@ -1076,14 +1102,13 @@ def build_main_tileset_native(path: Path) -> None:
         ellipse((x - 4, y - 4, x + 4, y + 4), ink)
         ellipse((x - 2, y - 2, x + 2, y + 2), amber if hot else light)
 
-    # Automapper surfaces: cast refractory blocks and ceramic heat keys replace
-    # the original white bevel language while preserving all join edges.
+    # Automapper surfaces stay deliberately quiet. Repeating horizontal lamps
+    # and bevels in every connected tile read as fake platforms once the
+    # automapper builds a wall, so use only bolts and a short vertical press
+    # seam here. Larger authored machinery below carries the heat-key accents.
     for index in (17, 18, 19, 20, 34, 36, 40, 51, 84, 100, 101, 102, 103, 105, 106, 107, 109, 125):
         tx, ty = (index % 16) * 64, (index // 16) * 64
-        line(((tx + 12, ty + 12), (tx + 52, ty + 12)), light, 2)
-        line(((tx + 12, ty + 17), (tx + 12, ty + 48)), shadow, 3)
-        rect((tx + 19, ty + 48, tx + 45, ty + 56), refractory, ink, 2, 4)
-        line(((tx + 23, ty + 51), (tx + 41, ty + 51)), orange, 3)
+        line(((tx + 13, ty + 24), (tx + 13, ty + 43)), shadow, 3)
         bolt(tx + 13, ty + 18, index % 3 == 0)
         bolt(tx + 51, ty + 18)
 
@@ -1211,7 +1236,7 @@ def build_main_tileset_native(path: Path) -> None:
     for x in range(80, 250, 34):
         line(((x, 903), (x + 18, 919)), shadow, 6)
 
-    details = details.resize((1024, 1024), Image.Resampling.LANCZOS)
+    details = details.resize((1024, 1024), LANCZOS)
     detail_alpha = ImageChops.multiply(details.getchannel("A"), alpha)
     details.putalpha(detail_alpha)
     source = Image.alpha_composite(source, details)
@@ -1226,7 +1251,7 @@ def _hires(size: tuple[int, int]):
 
 
 def _save_hires(image: Image.Image, path: Path) -> None:
-    image.resize((image.width // 2, image.height // 2), Image.Resampling.LANCZOS).save(path)
+    image.resize((image.width // 2, image.height // 2), LANCZOS).save(path)
 
 
 def build_doodads_native(path: Path) -> None:
