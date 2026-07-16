@@ -120,6 +120,7 @@ void CBinds::SetDefaults()
 	Bind(KEY_E, "+inventory");
 	Bind(KEY_R, "+buildmenu");
 	Bind(KEY_W, "+charge");
+	Bind(KEY_Q, "+dronewheel");
 	//Bind(KEY_Q, "+build");
 	Bind(KEY_MOUSE_3, "+inventoryroll");
 	//Bind(KEY_MOUSE_3, "+switch");

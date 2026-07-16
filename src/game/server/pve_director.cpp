@@ -222,6 +222,11 @@ bool CPveDirector::CardEligible(int ClientID, int CardID) const
 	if(!pDef || !IsEligiblePlayer(ClientID))
 		return false;
 	const CPlayerRun &Run = m_aPlayers[ClientID];
+	// Drone modules/upgrades are useless without a chassis in this run. Chassis
+	// itself and Hold the Line (also a defense buff) stay available.
+	if((pDef->m_Keywords & PVE_KEYWORD_DRONE) && CardID != PVE_CARD_DRONE_CHASSIS &&
+		CardID != PVE_CARD_HOLD_THE_LINE && !Run.m_aStacks[PVE_CARD_DRONE_CHASSIS])
+		return false;
 	return PveCardIsUnlocked(CardID, Run.m_ResearchMask) &&
 		(pDef->m_Mode == PVE_MODE_ANY || pDef->m_Mode == m_Mode) &&
 		(!pDef->m_Legendary || Run.m_LegendaryCard < 0) &&
@@ -684,7 +689,8 @@ void CPveDirector::ApplyChoice(int ClientID, int CardID, bool Catchup)
 			Run.m_aStacks[CardID]++;
 			if(pDef->m_Legendary)
 				Run.m_LegendaryCard = CardID;
-			if(Run.m_DroneModule == PVE_DRONE_NONE)
+			// Modules only equip when a chassis is already in this run.
+			if(Run.m_DroneModule == PVE_DRONE_NONE && Run.m_aStacks[PVE_CARD_DRONE_CHASSIS])
 			{
 				if(CardID == PVE_CARD_ASSAULT_MODULE)
 					Run.m_DroneModule = PVE_DRONE_ASSAULT;
@@ -2059,14 +2065,17 @@ void CPveDirector::TickDrone(int ClientID)
 			float BaseDamage = max(GetProjectileDamage(Weapon), GetExplosionDamage(Weapon));
 			if(BaseDamage <= 0.0f)
 				BaseDamage = 10.0f;
-			float DamageScale = 0.20f * Efficiency;
+			float DamageScale = 0.45f * Efficiency;
 			if(Run.m_aStacks[PVE_CARD_CROSSFIRE])
 				DamageScale *= 1.50f;
 			const int Damage = max(1, (int)(BaseDamage * DamageScale + 0.5f));
 			const vec2 TargetPos = pBestCharacter ? pBestCharacter->m_Pos : pBestDroid->m_Pos + pBestDroid->m_Center;
 			Run.m_pDroneTarget = pBestCharacter ? (CEntity *)pBestCharacter : (CEntity *)pBestDroid;
 			Run.m_pDrone->SetAction(TargetPos, m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 5);
-			new CPveDronePulse(&m_pGameServer->m_World, Run.m_pDrone->m_Pos, TargetPos, ClientID, Weapon);
+			// Match droid_star projectile sprite/trace/fx; damage stays hitscan so Efficiency/Crossfire still apply.
+			const int StarWeapon = GetDroidWeapon(DROIDTYPE_STAR);
+			new CPveDronePulse(&m_pGameServer->m_World, Run.m_pDrone->m_Pos, TargetPos, ClientID, StarWeapon);
+			m_pGameServer->CreateSound(Run.m_pDrone->m_Pos, SOUND_STAR_FIRE);
 			m_ApplyingSecondaryEffect = true;
 			if(pBestCharacter)
 				pBestCharacter->TakeDamage(ClientID, Weapon, Damage, vec2(0, 0), TargetPos);
@@ -2074,7 +2083,7 @@ void CPveDirector::TickDrone(int ClientID)
 				pBestDroid->TakeDamage(vec2(0, 0), Damage, ClientID, TargetPos, Weapon);
 			m_ApplyingSecondaryEffect = false;
 		}
-		Run.m_DroneActionTick = m_pGameServer->Server()->Tick() + max(1, (int)(m_pGameServer->Server()->TickSpeed() * 1.2f * (1.0f - CooldownReduction)));
+		Run.m_DroneActionTick = m_pGameServer->Server()->Tick() + max(1, (int)(m_pGameServer->Server()->TickSpeed() * 0.55f * (1.0f - CooldownReduction)));
 	}
 	else if(Run.m_DroneModule == PVE_DRONE_REPAIR)
 	{
@@ -2089,7 +2098,7 @@ void CPveDirector::TickDrone(int ClientID)
 				LowestArmor = pCharacter->GetArmor();
 			}
 		}
-		const int Repair = max(1, (int)(2.0f * Efficiency + 0.5f));
+		const int Repair = max(1, (int)(5.0f * Efficiency + 0.5f));
 		if(pBest && LowestArmor < 100)
 		{
 			Run.m_pDroneTarget = pBest;
@@ -2113,7 +2122,7 @@ void CPveDirector::TickDrone(int ClientID)
 				pBestBuilding->Repair(Repair);
 			}
 		}
-		Run.m_DroneActionTick = m_pGameServer->Server()->Tick() + max(1, (int)(m_pGameServer->Server()->TickSpeed() * (1.0f - CooldownReduction)));
+		Run.m_DroneActionTick = m_pGameServer->Server()->Tick() + max(1, (int)(m_pGameServer->Server()->TickSpeed() * 0.45f * (1.0f - CooldownReduction)));
 	}
 }
 

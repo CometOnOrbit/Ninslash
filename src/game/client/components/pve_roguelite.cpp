@@ -8,6 +8,8 @@
 #include <generated/game_data.h>
 
 #include <game/client/components/camera.h>
+#include <game/client/components/binds.h>
+#include <game/client/components/effects.h>
 #include <game/client/components/menus.h>
 #include <game/client/gameclient.h>
 #include <game/client/skelebank.h>
@@ -140,6 +142,65 @@ const char *PveResearchRouteName(int Tab, int Branch, int Route)
 		return s_apWeapon[clamp(Branch, 0, 3)][clamp(Route, 0, 2)];
 	return s_apMode[clamp(Branch, 0, 2)][clamp(Route, 0, 2)];
 }
+
+// ponytail: local copies of picker DrawCircle + pie fan; no need to open picker.cpp
+void DrawDroneWheelCircle(IGraphics *pGraphics, float x, float y, float r, int Segments)
+{
+	IGraphics::CFreeformItem Array[32];
+	int NumItems = 0;
+	const float FSegments = (float)Segments;
+	for(int i = 0; i < Segments; i += 2)
+	{
+		const float a1 = i / FSegments * 2 * pi;
+		const float a2 = (i + 1) / FSegments * 2 * pi;
+		const float a3 = (i + 2) / FSegments * 2 * pi;
+		Array[NumItems++] = IGraphics::CFreeformItem(
+			x, y,
+			x + cosf(a1) * r, y + sinf(a1) * r,
+			x + cosf(a3) * r, y + sinf(a3) * r,
+			x + cosf(a2) * r, y + sinf(a2) * r);
+		if(NumItems == 32)
+		{
+			pGraphics->QuadsDrawFreeform(Array, 32);
+			NumItems = 0;
+		}
+	}
+	if(NumItems)
+		pGraphics->QuadsDrawFreeform(Array, NumItems);
+}
+
+void DrawDroneWheelSlice(IGraphics *pGraphics, float x, float y, float r, float a0, float a1, int Segments)
+{
+	float Span = a1 - a0;
+	if(Span <= 0.0f)
+		Span += 2.0f * pi;
+	IGraphics::CFreeformItem Array[32];
+	int NumItems = 0;
+	const float FSegments = (float)max(2, Segments);
+	for(int i = 0; i < Segments; i += 2)
+	{
+		const float t1 = i / FSegments;
+		const float t2 = min(1.0f, (i + 1) / FSegments);
+		const float t3 = min(1.0f, (i + 2) / FSegments);
+		const float A1 = a0 + Span * t1;
+		const float A2 = a0 + Span * t2;
+		const float A3 = a0 + Span * t3;
+		Array[NumItems++] = IGraphics::CFreeformItem(
+			x, y,
+			x + cosf(A1) * r, y + sinf(A1) * r,
+			x + cosf(A3) * r, y + sinf(A3) * r,
+			x + cosf(A2) * r, y + sinf(A2) * r);
+		if(NumItems == 32)
+		{
+			pGraphics->QuadsDrawFreeform(Array, 32);
+			NumItems = 0;
+		}
+		if(t3 >= 1.0f)
+			break;
+	}
+	if(NumItems)
+		pGraphics->QuadsDrawFreeform(Array, NumItems);
+}
 }
 
 CPveRoguelite::CPveRoguelite()
@@ -164,6 +225,7 @@ CPveRoguelite::CPveRoguelite()
 	m_DebugScreenshotPage = -1;
 	m_DebugBuildPreview = false;
 	m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
+	m_RenderWorld.m_pRoguelite = this;
 	OnReset();
 }
 
@@ -178,11 +240,47 @@ void CPveRoguelite::OnConsoleInit()
 	Console()->Register("pve_debug_game_screenshot", "?i?i", CFGFLAG_CLIENT, ConDebugGameScreenshot, this, "Capture gameplay after a local character appears: optional frame and millisecond delays");
 	Console()->Register("pve_debug_cargo", "i?i", CFGFLAG_CLIENT, ConDebugCargo, this, "Preview PvE cargo type 1-3; optional carried state 0-1");
 	Console()->Register("pve_drone_module", "i", CFGFLAG_CLIENT, ConDroneModule, this, "Switch support drone module: 1 assault, 2 guardian, 3 repair");
+	Console()->Register("+dronewheel", "", CFGFLAG_CLIENT, ConKeyDroneWheel, this, "Hold to open the drone command wheel");
 }
 
 void CPveRoguelite::ConDroneModule(IConsole::IResult *pResult, void *pUserData)
 {
 	((CPveRoguelite *)pUserData)->SendDroneModule(pResult->GetInteger(0));
+}
+
+void CPveRoguelite::ConKeyDroneWheel(IConsole::IResult *pResult, void *pUserData)
+{
+	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
+	if(pSelf->m_aRunPerks[PVE_CARD_DRONE_CHASSIS] <= 0)
+		return;
+
+	if(pResult->GetInteger(0))
+	{
+		if(pSelf->ChoiceActive() || pSelf->m_ResearchVisible || pSelf->m_pClient->GameplayInputCaptured())
+			return;
+		pSelf->m_DroneWheelActive = true;
+		pSelf->m_DroneWheelMouse = vec2(0.0f, 0.0f);
+		pSelf->m_DroneWheelSelected = -1;
+		pSelf->m_DroneTutorialSeen = true;
+		g_Config.m_ClPveDroneTutorialSeen = 1;
+		return;
+	}
+
+	if(!pSelf->m_DroneWheelActive)
+		return;
+
+	const int aModules[3] = {PVE_DRONE_ASSAULT, PVE_DRONE_GUARDIAN, PVE_DRONE_REPAIR};
+	const int aCards[3] = {PVE_CARD_ASSAULT_MODULE, PVE_CARD_GUARDIAN_MODULE, PVE_CARD_REPAIR_MODULE};
+	int aUnlocked[3];
+	int Count = 0;
+	for(int i = 0; i < 3; i++)
+		if(pSelf->m_aRunPerks[aCards[i]] > 0)
+			aUnlocked[Count++] = i;
+	if(pSelf->m_DroneWheelSelected >= 0 && pSelf->m_DroneWheelSelected < Count &&
+		pSelf->Client()->GameTick() >= pSelf->m_DroneSwitchReadyTick)
+		pSelf->SendDroneModule(aModules[aUnlocked[pSelf->m_DroneWheelSelected]]);
+	pSelf->m_DroneWheelActive = false;
+	pSelf->m_DroneWheelSelected = -1;
 }
 
 void CPveRoguelite::ConDebugChoice(IConsole::IResult *pResult, void *pUserData)
@@ -412,7 +510,8 @@ void CPveRoguelite::OnReset()
 	m_DroneState = PVE_DRONE_STATE_DEPLOYING;
 	m_DroneActionTick = 0;
 	m_DroneWheelActive = false;
-	m_DroneWheelMouse = vec2(0.0f, -1.0f);
+	m_DroneWheelSelected = -1;
+	m_DroneWheelMouse = vec2(0.0f, 0.0f);
 	m_ValidationCode = 0;
 	m_ValidationUntil = 0;
 	if(m_DebugResearchScreenshotFrames <= 0)
@@ -1142,7 +1241,8 @@ void CPveRoguelite::DrawBuildHud()
 		else if(!m_DroneTutorialSeen)
 		{
 			char aKeyHelp[96];
-			str_format(aKeyHelp, sizeof(aKeyHelp), Localize("Hold %s: drone command wheel"), Input()->KeyName(g_Config.m_ClPveDroneWheel));
+			const char *pWheelKey = m_pClient->m_pBinds->GetKey("+dronewheel");
+			str_format(aKeyHelp, sizeof(aKeyHelp), Localize("Hold %s: drone command wheel"), pWheelKey[0] ? pWheelKey : "?");
 			str_copy(aaLines[Lines++], aKeyHelp, sizeof(aaLines[0]));
 		}
 	}
@@ -1188,6 +1288,12 @@ void CPveRoguelite::DrawDrones()
 {
 	if(Client()->State() != IClient::STATE_ONLINE)
 		return;
+
+	// Client-only weapon-bone smoothing (same idea as lost-protocol droids).
+	static float s_aSmoothedAim[MAX_CLIENTS];
+	static vec2 s_aLastPos[MAX_CLIENTS];
+	static char s_aAimInit[MAX_CLIENTS] = {0};
+
 	const int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
 	for(int i = 0; i < Num; i++)
 	{
@@ -1196,6 +1302,10 @@ void CPveRoguelite::DrawDrones()
 		if(Item.m_Type != NETOBJTYPE_PVEDRONE)
 			continue;
 		const CNetObj_PveDrone *pDrone = (const CNetObj_PveDrone *)pData;
+		const CNetObj_PveDrone *pPrev = pDrone;
+		if(const void *pPrevData = Client()->SnapFindItem(IClient::SNAP_PREV, Item.m_Type, Item.m_ID))
+			pPrev = (const CNetObj_PveDrone *)pPrevData;
+
 		const bool Owned = pDrone->m_Owner == m_pClient->m_Snap.m_LocalClientID;
 		if(Owned)
 		{
@@ -1206,8 +1316,10 @@ void CPveRoguelite::DrawDrones()
 		}
 		const bool Disabled = pDrone->m_State == PVE_DRONE_STATE_DISABLED || pDrone->m_State == PVE_DRONE_STATE_REBUILDING;
 		const vec4 Color = Disabled ? vec4(0.35f, 0.45f, 0.55f, 0.65f) : (pDrone->m_Module == PVE_DRONE_ASSAULT ? vec4(1.0f, 0.35f, 0.25f, 1.0f) : (pDrone->m_Module == PVE_DRONE_GUARDIAN ? vec4(0.25f, 0.65f, 1.0f, 1.0f) : vec4(0.3f, 1.0f, 0.55f, 1.0f)));
-		const vec2 DronePos(pDrone->m_X, pDrone->m_Y);
-		const vec2 TargetPos(pDrone->m_TargetX, pDrone->m_TargetY);
+		const float Intra = Client()->IntraGameTick();
+		const vec2 DronePos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pDrone->m_X, pDrone->m_Y), Intra);
+		const vec2 TargetPos = mix(vec2(pPrev->m_TargetX, pPrev->m_TargetY), vec2(pDrone->m_TargetX, pDrone->m_TargetY), Intra);
+		const vec2 Vel = mix(vec2(pPrev->m_VelX, pPrev->m_VelY), vec2(pDrone->m_VelX, pDrone->m_VelY), Intra) * 0.01f;
 		if(Owned && !Disabled && pDrone->m_State == PVE_DRONE_STATE_ACTING && distance(DronePos, TargetPos) > 4.0f)
 		{
 			Graphics()->TextureClear();
@@ -1221,7 +1333,7 @@ void CPveRoguelite::DrawDrones()
 			for(int Marker = 0; Marker < 16; Marker++)
 			{
 				const float Angle = Marker * 2.0f * pi / 16.0f;
-				DrawIcon(IMAGE_WEAPONS, SPRITE_PICKUP_ARMOR, pDrone->m_X + cosf(Angle) * 280.0f, pDrone->m_Y + sinf(Angle) * 280.0f, 9.0f, vec4(0.25f, 0.65f, 1.0f, 0.22f));
+				DrawIcon(IMAGE_WEAPONS, SPRITE_PICKUP_ARMOR, DronePos.x + cosf(Angle) * 280.0f, DronePos.y + sinf(Angle) * 280.0f, 9.0f, vec4(0.25f, 0.65f, 1.0f, 0.22f));
 			}
 
 		const char *pAnim = "follow";
@@ -1243,8 +1355,56 @@ void CPveRoguelite::DrawDrones()
 			Graphics()->ShaderBegin(SHADER_ELECTRIC, 0.85f);
 		const int DroneAtlas = pDrone->m_Module == PVE_DRONE_GUARDIAN ? ATLAS_LOST_PROTOCOL_PVE_DRONE_GUARDIAN :
 			(pDrone->m_Module == PVE_DRONE_REPAIR ? ATLAS_LOST_PROTOCOL_PVE_DRONE_REPAIR : ATLAS_LOST_PROTOCOL_PVE_DRONE_ASSAULT);
-		RenderTools()->RenderSkeleton(DronePos, DroneAtlas, pAnim, Time, vec2(1.0f, 1.0f), pDrone->m_VelX < -5 ? 1 : -1, 0);
+
+		// Weapon bone: aim at action target while ACTING, otherwise face move dir.
+		// abs(x) flip matches CDroid::Snap; never snap AimAngle back to idle 0.
+		const int Owner = clamp(pDrone->m_Owner, 0, MAX_CLIENTS - 1);
+		vec2 AimDelta(0.0f, 0.0f);
+		if(!Disabled && pDrone->m_State == PVE_DRONE_STATE_ACTING && distance(DronePos, TargetPos) > 4.0f)
+			AimDelta = TargetPos - DronePos;
+		else if(length(Vel) > 0.12f)
+			AimDelta = Vel;
+		else
+		{
+			const vec2 TickDelta(pDrone->m_X - pPrev->m_X, pDrone->m_Y - pPrev->m_Y);
+			if(length(TickDelta) > 0.5f)
+				AimDelta = TickDelta;
+		}
+
+		float TargetAim = s_aAimInit[Owner] ? s_aSmoothedAim[Owner] : 0.0f;
+		int Dir = Vel.x < -0.05f ? 1 : -1;
+		if(length(AimDelta) > 0.5f)
+		{
+			Dir = AimDelta.x < 0.0f ? 1 : -1;
+			TargetAim = GetAngle(vec2(fabs(AimDelta.x), AimDelta.y)) * (180.0f / pi);
+		}
+
+		if(!s_aAimInit[Owner] || distance(s_aLastPos[Owner], DronePos) > 256.0f)
+		{
+			s_aSmoothedAim[Owner] = TargetAim;
+			s_aAimInit[Owner] = 1;
+		}
+		else
+		{
+			float SmoothDelta = TargetAim - s_aSmoothedAim[Owner];
+			while(SmoothDelta > 180.0f) SmoothDelta -= 360.0f;
+			while(SmoothDelta < -180.0f) SmoothDelta += 360.0f;
+			s_aSmoothedAim[Owner] += SmoothDelta * 0.28f;
+		}
+		s_aLastPos[Owner] = DronePos;
+
+		RenderTools()->RenderSkeleton(DronePos, DroneAtlas, pAnim, Time, vec2(1.0f, 1.0f), Dir, s_aSmoothedAim[Owner]);
 		Graphics()->ShaderEnd();
+
+		// Register lights during the world pass so ambient lighting can darken the
+		// chassis while the module still blooms through the light buffer.
+		if(Disabled)
+			m_pClient->m_pEffects->SimpleLight(DronePos, vec4(0.35f, 0.55f, 0.7f, 0.22f), 70.0f);
+		else
+		{
+			m_pClient->m_pEffects->SimpleLight(DronePos, vec4(Color.r, Color.g, Color.b, 0.55f), 150.0f);
+			m_pClient->m_pEffects->SimpleLight(DronePos, vec4(Color.r, Color.g, Color.b, 0.85f), 64.0f);
+		}
 	}
 }
 
@@ -1252,11 +1412,12 @@ void CPveRoguelite::DrawDroneWheel()
 {
 	if(!m_DroneWheelActive)
 		return;
-	const float Aspect = Graphics()->ScreenAspect();
-	const float W = 300.0f * Aspect;
-	Graphics()->MapScreen(0, 0, W, 300.0f);
-	const vec2 Center(W * 0.5f, 150.0f);
+
 	const char *apAllNames[3] = {"Assault", "Guardian", "Repair"};
+	const vec4 aColors[3] = {
+		vec4(1.0f, 0.35f, 0.25f, 1.0f),
+		vec4(0.25f, 0.65f, 1.0f, 1.0f),
+		vec4(0.3f, 1.0f, 0.55f, 1.0f)};
 	const int aCards[3] = {PVE_CARD_ASSAULT_MODULE, PVE_CARD_GUARDIAN_MODULE, PVE_CARD_REPAIR_MODULE};
 	int aUnlocked[3];
 	int Count = 0;
@@ -1265,25 +1426,77 @@ void CPveRoguelite::DrawDroneWheel()
 			aUnlocked[Count++] = i;
 	if(Count <= 0)
 		return;
-	int Selected = 0;
-	float Best = -2.0f;
-	const vec2 Aim = normalize(m_DroneWheelMouse);
+
+	if(length(m_DroneWheelMouse) > 170.0f)
+		m_DroneWheelMouse = normalize(m_DroneWheelMouse) * 170.0f;
+
+	m_DroneWheelSelected = -1;
+	if(length(m_DroneWheelMouse) > 100.0f)
+	{
+		float SelectedAngle = GetAngle(m_DroneWheelMouse) + pi / (float)Count + pi / 2.0f;
+		if(SelectedAngle < 0.0f)
+			SelectedAngle += 2.0f * pi;
+		if(SelectedAngle >= 2.0f * pi)
+			SelectedAngle -= 2.0f * pi;
+		m_DroneWheelSelected = (int)(SelectedAngle / (2.0f * pi) * Count);
+		if(m_DroneWheelSelected < 0 || m_DroneWheelSelected >= Count)
+			m_DroneWheelSelected = -1;
+	}
+
+	CUIRect Screen = *UI()->Screen();
+	Graphics()->MapScreen(Screen.x, Screen.y, Screen.w, Screen.h);
+	const float Cx = Screen.w / 2.0f;
+	const float Cy = Screen.h / 2.0f;
+	const float Radius = 190.0f;
+	const float LabelRadius = 120.0f;
+
+	Graphics()->BlendNormal();
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.3f);
+	DrawDroneWheelCircle(Graphics(), Cx, Cy, Radius, 64);
+
+	const float Offset = pi / (float)Count;
 	for(int i = 0; i < Count; i++)
 	{
-		const float Angle = -pi / 2.0f + (i - (Count - 1) * 0.5f) * pi / 3.0f;
-		const vec2 Dir(cosf(Angle), sinf(Angle));
-		const float Score = dot(Aim, Dir);
-		if(Score > Best) { Best = Score; Selected = i; }
+		const int ModuleIdx = aUnlocked[i];
+		const vec4 &Base = aColors[ModuleIdx];
+		const bool Selected = m_DroneWheelSelected == i;
+		const float Alpha = Selected ? 0.55f : 0.28f;
+		const float Bright = Selected ? 1.15f : 0.75f;
+		Graphics()->SetColor(
+			min(1.0f, Base.r * Bright),
+			min(1.0f, Base.g * Bright),
+			min(1.0f, Base.b * Bright),
+			Alpha);
+		const float a0 = 2.0f * pi * i / (float)Count - Offset - pi / 2.0f;
+		const float a1 = 2.0f * pi * (i + 1) / (float)Count - Offset - pi / 2.0f;
+		DrawDroneWheelSlice(Graphics(), Cx, Cy, Radius - 4.0f, a0, a1, max(8, 64 / Count));
 	}
+	Graphics()->QuadsEnd();
+
 	for(int i = 0; i < Count; i++)
 	{
-		const float Angle = -pi / 2.0f + (i - (Count - 1) * 0.5f) * pi / 3.0f;
-		const vec2 Dir(cosf(Angle), sinf(Angle));
-		CUIRect Segment = {Center.x + Dir.x * 54.0f - 35.0f, Center.y + Dir.y * 54.0f - 14.0f, 70.0f, 28.0f};
-		DrawPanel(Segment, i == Selected ? CMenus::ThemeAccent() : CMenus::ThemeBgPanel(), 10.0f);
-		DrawText(Segment.x + Segment.w * 0.5f, Segment.y + 8.0f, 6.5f, Localize(apAllNames[aUnlocked[i]]), CMenus::ThemeText(), -1.0f, 0);
+		const float MidSelected = 2.0f * pi * (i + 0.5f) / (float)Count;
+		const float Angle = MidSelected - Offset - pi / 2.0f;
+		const float X = Cx + cosf(Angle) * LabelRadius;
+		const float Y = Cy + sinf(Angle) * LabelRadius - 8.0f;
+		const bool Selected = m_DroneWheelSelected == i;
+		DrawText(X, Y, Selected ? 18.0f : 14.0f, Localize(apAllNames[aUnlocked[i]]),
+			Selected ? vec4(1.0f, 1.0f, 1.0f, 1.0f) : vec4(0.85f, 0.9f, 0.95f, 0.9f), -1.0f, 0);
 	}
-	DrawText(Center.x, Center.y - 4.0f, 6.0f, Localize(Client()->GameTick() < m_DroneSwitchReadyTick ? "Drone switch cooling down" : "Release to switch"), CMenus::ThemeText(), -1.0f, 0);
+
+	DrawText(Cx, Cy - 10.0f, 14.0f,
+		Localize(Client()->GameTick() < m_DroneSwitchReadyTick ? "Drone switch cooling down" :
+			(m_DroneWheelSelected >= 0 ? "Release to switch" : "Aim to select")),
+		vec4(1.0f, 1.0f, 1.0f, 0.85f), -1.0f, 0);
+
+	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_CURSOR].m_Id);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+	IGraphics::CQuadItem QuadItem(m_DroneWheelMouse.x + Cx, m_DroneWheelMouse.y + Cy, 24.0f, 24.0f);
+	Graphics()->QuadsDrawTL(&QuadItem, 1);
+	Graphics()->QuadsEnd();
 }
 
 void CPveRoguelite::RenderBuildDebug()
@@ -1971,7 +2184,6 @@ void CPveRoguelite::OnRender()
 			1.0f, 1.0f, 0.0f, 0.0f, Graphics()->ScreenAspect(), m_pClient->m_pCamera->m_Zoom, aWorldScreen);
 		Graphics()->MapScreen(aWorldScreen[0], aWorldScreen[1], aWorldScreen[2], aWorldScreen[3]);
 		DrawOperationCargo();
-		DrawDrones();
 		Graphics()->MapScreen(PreviousScreen.x, PreviousScreen.y, PreviousScreen.w, PreviousScreen.h);
 	}
 	const bool WasResearchVisible = m_ResearchVisible;
@@ -2054,46 +2266,15 @@ void CPveRoguelite::RenderMenuDebugOverlay()
 
 bool CPveRoguelite::OnInput(IInput::CEvent Event)
 {
-	if(!ChoiceActive() && !m_ResearchVisible && !m_pClient->GameplayInputCaptured() && m_aRunPerks[PVE_CARD_DRONE_CHASSIS] > 0 && Event.m_Key == g_Config.m_ClPveDroneWheel)
-	{
-		if(Event.m_Flags & IInput::FLAG_PRESS)
-		{
-			m_DroneWheelActive = true;
-			m_DroneWheelMouse = vec2(0.0f, -1.0f);
-			m_DroneTutorialSeen = true;
-			g_Config.m_ClPveDroneTutorialSeen = 1;
-		}
-		else if((Event.m_Flags & IInput::FLAG_RELEASE) && m_DroneWheelActive)
-		{
-			const int aModules[3] = {PVE_DRONE_ASSAULT, PVE_DRONE_GUARDIAN, PVE_DRONE_REPAIR};
-			const int aCards[3] = {PVE_CARD_ASSAULT_MODULE, PVE_CARD_GUARDIAN_MODULE, PVE_CARD_REPAIR_MODULE};
-			int aUnlocked[3];
-			int Count = 0;
-			for(int i = 0; i < 3; i++) if(m_aRunPerks[aCards[i]] > 0) aUnlocked[Count++] = i;
-			int Selected = 0;
-			float Best = -2.0f;
-			const vec2 Aim = normalize(m_DroneWheelMouse);
-			for(int i = 0; i < Count; i++)
-			{
-				const float Angle = -pi / 2.0f + (i - (Count - 1) * 0.5f) * pi / 3.0f;
-				const float Score = dot(Aim, vec2(cosf(Angle), sinf(Angle)));
-				if(Score > Best) { Best = Score; Selected = i; }
-			}
-			if(Count > 0 && Client()->GameTick() >= m_DroneSwitchReadyTick)
-				SendDroneModule(aModules[aUnlocked[Selected]]);
-			m_DroneWheelActive = false;
-		}
-		return true;
-	}
 	if(!ChoiceActive() && !m_ResearchVisible && !m_pClient->GameplayInputCaptured() &&
 		(Event.m_Flags & IInput::FLAG_PRESS) && m_aRunPerks[PVE_CARD_DRONE_CHASSIS] > 0)
 	{
 		int Module = PVE_DRONE_NONE;
-		if((g_Config.m_ClPveDroneAssault > 0 && Event.m_Key == g_Config.m_ClPveDroneAssault) || Event.m_Key == KEY_GAMEPAD_BUTTON_X)
+		if(Event.m_Key == KEY_GAMEPAD_BUTTON_X)
 			Module = PVE_DRONE_ASSAULT;
-		else if((g_Config.m_ClPveDroneGuardian > 0 && Event.m_Key == g_Config.m_ClPveDroneGuardian) || Event.m_Key == KEY_GAMEPAD_BUTTON_Y)
+		else if(Event.m_Key == KEY_GAMEPAD_BUTTON_Y)
 			Module = PVE_DRONE_GUARDIAN;
-		else if((g_Config.m_ClPveDroneRepair > 0 && Event.m_Key == g_Config.m_ClPveDroneRepair) || Event.m_Key == KEY_GAMEPAD_BUTTON_B)
+		else if(Event.m_Key == KEY_GAMEPAD_BUTTON_B)
 			Module = PVE_DRONE_REPAIR;
 		const int Card = Module == PVE_DRONE_ASSAULT ? PVE_CARD_ASSAULT_MODULE : (Module == PVE_DRONE_GUARDIAN ? PVE_CARD_GUARDIAN_MODULE : PVE_CARD_REPAIR_MODULE);
 		if(Module != PVE_DRONE_NONE && m_aRunPerks[Card] > 0)
@@ -2299,8 +2480,8 @@ bool CPveRoguelite::OnMouseMove(float x, float y)
 		Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
 		Input()->GetRelativePosition(&x, &y);
 		m_DroneWheelMouse += vec2(x, y);
-		if(length(m_DroneWheelMouse) > 120.0f)
-			m_DroneWheelMouse = normalize(m_DroneWheelMouse) * 120.0f;
+		if(length(m_DroneWheelMouse) > 170.0f)
+			m_DroneWheelMouse = normalize(m_DroneWheelMouse) * 170.0f;
 		return true;
 	}
 	if(!ChoiceActive())

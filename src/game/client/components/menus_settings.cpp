@@ -1694,7 +1694,7 @@ enum ControlSettings
 	START_VOTING = 16,
 	START_CHAT = 18,
 	START_MISC = 21,
-	END_CONTROL = 33,
+	END_CONTROL = 34,
 };
 
 static CKeyInfo gs_aKeys[] =
@@ -1739,6 +1739,7 @@ static CKeyInfo gs_aKeys[] =
 	// misc
 	//{ "Item picker", "+itempicker", 0 },
 	{ "Emoticon", "+emote", 0 },
+	{ "Drone wheel", "+dronewheel", 0 },
 	{ "Spectator mode", "+spectate", 0 },
 	{ "Spectate next", "spectate_next", 0 },
 	{ "Spectate previous", "spectate_previous", 0 },
@@ -1758,7 +1759,7 @@ static CKeyInfo gs_aKeys[] =
 	Localize("Spectator mode");Localize("Spectate next");Localize("Spectate previous");Localize("Console");Localize("Remote console");
 	Localize("Screenshot");Localize("Scoreboard");Localize("Ready");Localize("Zoom in");Localize("Zoom out");Localize("Respawn");Localize("Slide / down");Localize("Drop weapon");
 	Localize("Item slot 1");Localize("Item slot 2");Localize("Item slot 3");Localize("Item slot 4");Localize("Inventory");Localize("Inventory roll");
-	Localize("Build menu");
+	Localize("Build menu");Localize("Drone command wheel");
 */
 
 const int g_KeyCount = sizeof(gs_aKeys) / sizeof(CKeyInfo);

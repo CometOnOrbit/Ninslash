@@ -1197,7 +1197,7 @@ void CEffects::Explosion(vec2 Pos, int Weapon)
 			for(int i = 0; i < 6*GetProjectileSize(Weapon); i++)
 				BlueSpark(Pos);
 				
-			if (GetDroidType(Weapon) == DROIDTYPE_STAR)
+			if (GetDroidType(Weapon) == DROIDTYPE_STAR || GetDroidType(Weapon) == DROIDTYPE_BOSSSTAR)
 			{
 				if (g_Config.m_GfxShaders)
 				{

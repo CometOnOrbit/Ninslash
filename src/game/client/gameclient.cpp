@@ -150,7 +150,8 @@ bool CGameClient::GameplayInputFullyCaptured() const
 		m_pMenus->IsActive() ||
 		m_pGameVoteDisplay->IsActive() ||
 		gs_Spectator.IsActive() ||
-		gs_Picker.IsActive();
+		gs_Picker.IsActive() ||
+		m_pPveRoguelite->DroneWheelActive();
 }
 
 void CGameClient::OnConsoleInit()
@@ -249,6 +250,7 @@ void CGameClient::OnConsoleInit()
 	m_All.Add(&m_pParticles->m_RenderMonsterSpawn);
 	m_All.Add(&m_pParticles->m_RenderTakeoff);
 	m_All.Add(&gs_Players);
+	m_All.Add(&m_pPveRoguelite->m_RenderWorld);
 	m_All.Add(&gs_Balls);
 	m_All.Add(m_pBuildings2);
 	m_All.Add(m_pWeapons);
