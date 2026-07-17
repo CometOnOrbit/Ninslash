@@ -162,15 +162,16 @@ int DroidThreatCost(int Type)
 }
 
 SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld, const vec2 *pSpawnPoints,
-	int NumSpawnPoints, int *pRotation, int Depth, int OrdinaryThreat, int MaxEntities)
+	int NumSpawnPoints, int *pRotation, int Depth, int OrdinaryThreat, int MaxEntities, int ThreatDivisor)
 {
 	SThreatBudgetResult Result = {0, 0};
-	if(!g_Config.m_SvPveOperations || !pWorld || !pSpawnPoints || NumSpawnPoints <= 0 || OrdinaryThreat < 2 || MaxEntities <= 0)
+	if(!pWorld || !pSpawnPoints || NumSpawnPoints <= 0 || OrdinaryThreat < 2 || MaxEntities <= 0)
 		return Result;
 
-	// Spend roughly a quarter of each ordinary batch on specialists. Unlock
-	// support units gradually so early runs cannot roll a three-point wall.
-	const int SpendLimit = min(OrdinaryThreat, max(2, OrdinaryThreat / 4));
+	// Spend roughly OrdinaryThreat/ThreatDivisor of each ordinary batch on specialists.
+	// Unlock support units gradually so early runs cannot roll a three-point wall.
+	ThreatDivisor = max(1, ThreatDivisor);
+	const int SpendLimit = min(OrdinaryThreat, max(2, OrdinaryThreat / ThreatDivisor));
 	while(Result.m_EntitiesSpawned < MaxEntities && Result.m_ThreatSpent + 2 <= SpendLimit)
 	{
 		int aTypes[4];

@@ -1575,23 +1575,23 @@ void CPveDirector::OnFullReload(int ClientID)
 
 void CPveDirector::OnEvacuationStarted()
 {
-	if(!Enabled() || m_Mode != PVE_MODE_EXTRACTION)
+	// Clean Exit fires when a player enters the evacuation zone, not when the door opens.
+}
+
+void CPveDirector::OnEvacuationZoneEntered(int ClientID)
+{
+	if(!Enabled() || m_Mode != PVE_MODE_EXTRACTION || !IsEligiblePlayer(ClientID))
 		return;
-	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
-	{
-		if(!IsEligiblePlayer(ClientID))
-			continue;
-		CPlayerRun &Run = m_aPlayers[ClientID];
-		if(!Run.m_aStacks[PVE_CARD_CLEAN_EXIT] || Run.m_CleanExitUsed)
-			continue;
-		Run.m_CleanExitUsed = true;
-		AddBarrier(ClientID, 20);
-		CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
-		if(pChr)
-			for(int Slot = 0; Slot < NUM_SLOTS; Slot++)
-				if(pChr->GetWeapon(Slot))
-					pChr->GetWeapon(Slot)->IncreaseAmmo((int)(pChr->GetWeapon(Slot)->m_MaxAmmo * 0.30f));
-	}
+	CPlayerRun &Run = m_aPlayers[ClientID];
+	if(!Run.m_aStacks[PVE_CARD_CLEAN_EXIT] || Run.m_CleanExitUsed)
+		return;
+	Run.m_CleanExitUsed = true;
+	AddBarrier(ClientID, 20);
+	CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
+	if(pChr)
+		for(int Slot = 0; Slot < NUM_SLOTS; Slot++)
+			if(pChr->GetWeapon(Slot))
+				pChr->GetWeapon(Slot)->IncreaseAmmo((int)(pChr->GetWeapon(Slot)->m_MaxAmmo * 0.30f));
 }
 
 void CPveDirector::OnCargoDelivered()
@@ -1605,6 +1605,7 @@ void CPveDirector::OnCargoDelivered()
 void CPveDirector::TickBlackBox()
 {
 	bool Occupied = false;
+	float InteractionScale = 1.0f;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(!IsEligiblePlayer(i))
@@ -1613,27 +1614,11 @@ void CPveDirector::TickBlackBox()
 		if(pChr && pChr->IsAlive() && distance(pChr->m_Pos, m_BlackBoxPos) < 80.0f)
 		{
 			Occupied = true;
-			break;
+			InteractionScale = max(InteractionScale, InteractionSpeedBonus(i));
 		}
 	}
 	if(Occupied)
-	{
-		float InteractionScale = 1.0f;
-		for(int i = 0; i < MAX_CLIENTS; i++)
-		{
-			if(!IsEligiblePlayer(i))
-				continue;
-			CCharacter *pChr = m_pGameServer->GetPlayerChar(i);
-			if(pChr && pChr->IsAlive() && distance(pChr->m_Pos, m_BlackBoxPos) < 80.0f)
-			{
-				float Bonus = m_aPlayers[i].m_aStacks[PVE_CARD_SABOTEUR] * 0.25f + m_aPlayers[i].m_aStacks[PVE_CARD_SIGNAL_HACKER] * 0.10f;
-				if(m_aPlayers[i].m_aStacks[PVE_CARD_CARTOGRAPHER])
-					Bonus += 0.15f;
-				InteractionScale = max(InteractionScale, 1.0f + min(0.60f, Bonus));
-			}
-		}
 		m_BlackBoxHoldTicks += max(1, (int)(InteractionScale + frandom()));
-	}
 	else
 		m_BlackBoxHoldTicks = 0;
 	const int NewProgress = m_BlackBoxHoldTicks / m_pGameServer->Server()->TickSpeed();
@@ -2913,6 +2898,17 @@ float CPveDirector::MovementMultiplier(int ClientID) const
 			Result += 0.15f;
 	}
 	return Result;
+}
+
+float CPveDirector::InteractionSpeedBonus(int ClientID) const
+{
+	if(!Enabled() || !IsEligiblePlayer(ClientID))
+		return 1.0f;
+	const CPlayerRun &Run = m_aPlayers[ClientID];
+	float Bonus = Run.m_aStacks[PVE_CARD_SABOTEUR] * 0.25f + Run.m_aStacks[PVE_CARD_SIGNAL_HACKER] * 0.10f;
+	if(Run.m_aStacks[PVE_CARD_CARTOGRAPHER])
+		Bonus += 0.15f;
+	return 1.0f + min(0.60f, Bonus);
 }
 
 float CPveDirector::EnemyCountMultiplier() const

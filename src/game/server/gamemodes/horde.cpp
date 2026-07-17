@@ -103,6 +103,22 @@ bool CGameControllerHorde::GetSpawnPos(int Team, vec2 *pOutPos)
 {
 	if(m_NumEnemySpawnPos <= 0)
 		return false;
+
+	// Prefer spawn points outside the defense area so waves pressure the hold zone.
+	if(m_DefenseAreaReady)
+	{
+		for(int Attempt = 0; Attempt < m_NumEnemySpawnPos; Attempt++)
+		{
+			m_SpawnPosRotation = (m_SpawnPosRotation + 1) % m_NumEnemySpawnPos;
+			const vec2 Candidate = m_aEnemySpawnPos[m_SpawnPosRotation];
+			if(distance(Candidate, m_DefenseAreaCenter) > PVE_HORDE_DEFENSE_RADIUS)
+			{
+				*pOutPos = Candidate;
+				return true;
+			}
+		}
+	}
+
 	m_SpawnPosRotation = (m_SpawnPosRotation + 1) % m_NumEnemySpawnPos;
 	*pOutPos = m_aEnemySpawnPos[m_SpawnPosRotation];
 	return true;

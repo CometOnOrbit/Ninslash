@@ -221,6 +221,24 @@ void CMaze::Generate()
 			return;
 		}
 
+		// Reactor defend — compact cross arena with reactor at center
+		if (Theme == INVASION_THEME_REACTOR_DEFEND)
+		{
+			float s = 0.14f + frandom() * 0.08f;
+			m_aRoom[m_Rooms++] = vec2(m_W * 0.5f, m_H * 0.5f);
+			Connect(vec2(m_W * (0.5f - s), m_H * 0.5f), vec2(m_W * (0.5f + s), m_H * 0.5f));
+			Connect(vec2(m_W * 0.5f, m_H * (0.5f - s)), vec2(m_W * 0.5f, m_H * (0.5f + s)));
+			Connect(vec2(m_W * (0.5f - s), m_H * (0.5f - s)), vec2(m_W * (0.5f + s), m_H * (0.5f - s)));
+			Connect(vec2(m_W * (0.5f - s), m_H * (0.5f + s)), vec2(m_W * (0.5f + s), m_H * (0.5f + s)));
+			Connect(vec2(m_W * (0.5f - s), m_H * (0.5f - s)), vec2(m_W * (0.5f - s), m_H * (0.5f + s)));
+			Connect(vec2(m_W * (0.5f + s), m_H * (0.5f - s)), vec2(m_W * (0.5f + s), m_H * (0.5f + s)));
+			for (int i = 0; i < min(6, Level / 3); i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
 		// Timed survive — narrow platforms
 		if (Theme == INVASION_THEME_TIMED_SURVIVE)
 		{

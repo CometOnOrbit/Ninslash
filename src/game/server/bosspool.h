@@ -41,8 +41,9 @@ struct SThreatBudgetResult
 // Replaces part of an ordinary-enemy batch with specialists. One ordinary
 // enemy is one threat point; specialists cost 2 or 3 points but occupy only
 // one of the batch's original concurrent slots.
+// ThreatDivisor: spend OrdinaryThreat/ThreatDivisor on specialists (default 4 => ~25%).
 SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld, const vec2 *pSpawnPoints,
-	int NumSpawnPoints, int *pRotation, int Depth, int OrdinaryThreat, int MaxEntities);
+	int NumSpawnPoints, int *pRotation, int Depth, int OrdinaryThreat, int MaxEntities, int ThreatDivisor = 4);
 
 int CountAliveSpecialists(CGameWorld *pWorld);
 

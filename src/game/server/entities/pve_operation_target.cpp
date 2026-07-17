@@ -3,6 +3,7 @@
 #include <game/pve_roguelite.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+#include <game/server/pve_director.h>
 #include <game/server/pve_operation_director.h>
 
 #include "pve_operation_target.h"
@@ -143,6 +144,7 @@ void CPveOperationTarget::Tick()
 		return;
 	}
 	bool Occupied = false;
+	float BestScale = 1.0f;
 	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
@@ -157,10 +159,11 @@ void CPveOperationTarget::Tick()
 				return;
 			}
 			Occupied = true;
-			break;
+			if(GameServer()->m_pPveDirector)
+				BestScale = max(BestScale, GameServer()->m_pPveDirector->InteractionSpeedBonus(ClientID));
 		}
 	}
-	m_ProgressTicks = Occupied ? m_ProgressTicks + 1 : max(0, m_ProgressTicks - 2);
+	m_ProgressTicks = Occupied ? m_ProgressTicks + max(1, (int)(BestScale + frandom())) : max(0, m_ProgressTicks - 2);
 	if(m_ProgressTicks >= m_RequiredTicks)
 	{
 		m_Complete = true;

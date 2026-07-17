@@ -167,7 +167,7 @@ def main() -> int:
             'NetIntAny("m_Nonce"),', 'NetIntRange("m_Choice",0,1),',
         ),
         "Sv_PveOperationState": (
-            'NetIntRange("m_Operation",-1,8),', 'NetIntRange("m_State",0,3),',
+            'NetIntRange("m_Operation",-1,8),', 'NetIntRange("m_State",0,4),',
             'NetIntRange("m_Step",-1,2),', 'NetIntRange("m_Progress",0,9999),',
             'NetIntRange("m_Target",0,9999),', 'NetIntAny("m_EndTick"),',
             'NetIntRange("m_TargetType",0,12),', 'NetIntAny("m_TargetX"),',
@@ -318,6 +318,7 @@ def main() -> int:
     for token in (
         "EnsureDefenseArea(pChr->m_Pos)",
         "distance(Pos, m_DefenseAreaCenter) <= PVE_HORDE_DEFENSE_RADIUS",
+        "distance(Candidate, m_DefenseAreaCenter) > PVE_HORDE_DEFENSE_RADIUS",
     ):
         if token not in horde:
             fail(f"Horde defense area invariant missing: {token}")
@@ -334,6 +335,49 @@ def main() -> int:
     ):
         if token not in radar:
             fail(f"Horde defense area visualization missing: {token}")
+
+    bosspool = open(os.path.join(ROOT, "src/game/server/bosspool.cpp"), encoding="utf-8").read()
+    extract = open(os.path.join(ROOT, "src/game/server/gamemodes/extract.cpp"), encoding="utf-8").read()
+    maze = open(os.path.join(ROOT, "src/game/server/mapgen/maze.cpp"), encoding="utf-8").read()
+    director_header = open(os.path.join(ROOT, "src/game/server/pve_director.h"), encoding="utf-8").read()
+    for token in (
+        "InteractionSpeedBonus(int ClientID)",
+        "OnEvacuationZoneEntered(int ClientID)",
+    ):
+        if token not in director and token not in director_header:
+            fail(f"interaction/evac helper missing: {token}")
+    for token in (
+        "InteractionSpeedBonus(",
+        "OnEvacuationZoneEntered(CID)",
+        "OnObjectiveComplete()",
+        "RADAR_DOOR",
+        "m_pDoor->Activate(Pos)",
+    ):
+        if token not in director and token not in extract:
+            fail(f"Extract interaction/evac invariant missing: {token}")
+    if "PVE_CARD_CLEAN_EXIT" in director.split("void CPveDirector::OnEvacuationStarted()")[1].split("void CPveDirector::OnEvacuationZoneEntered")[0]:
+        fail("Clean Exit must not fire on door open")
+    if "PVE_CARD_CLEAN_EXIT" not in director.split("void CPveDirector::OnEvacuationZoneEntered")[1].split("void CPveDirector::OnCargoDelivered")[0]:
+        fail("Clean Exit must fire on evacuation zone enter")
+    for token in (
+        "IsCoopMapGenGametype(g_Config.m_SvGametype)",
+        "m_SwitchHoldTicks",
+        "InteractionSpeedBonus(",
+    ):
+        if token not in building:
+            fail(f"PvE switch hold activation missing: {token}")
+    if "g_Config.m_SvPveOperations" in bosspool.split("SpawnThreatBudgetSpecialists")[1].split("int CountAliveSpecialists")[0]:
+        fail("specialist spawning must not require sv_pve_operations")
+    if "Theme == INVASION_THEME_REACTOR_DEFEND" not in maze:
+        fail("Reactor defend maze theme branch missing")
+    for token in (
+        "m_QuestWaveType = WAVE_CYBORGS",
+        "m_QuestWaveType = WAVE_ALIENS",
+        "ThreatDivisor = m_LevelTheme == INVASION_THEME_ELITE_WAVE ? 2 : 4",
+        "RefreshSwitchRadars()",
+    ):
+        if token not in invasion:
+            fail(f"Invasion theme/cartographer invariant missing: {token}")
 
     legacy_messages = (
         "Sv_Broadcast", "Sv_GameVote", "Sv_GameVoteStatus", "Sv_Chat", "Sv_KillMsg",
@@ -356,7 +400,7 @@ def main() -> int:
     if 'cl_pve_research_mask, 33, "00000000000000000000000000000000"' not in config:
         fail("research mask config is not 128-bit hexadecimal")
     for token in (
-        "MACRO_CONFIG_INT(SvPveOperations, sv_pve_operations, 1, 0, 1, CFGFLAG_SERVER",
+        "MACRO_CONFIG_INT(SvPveOperations, sv_pve_operations, 0, 0, 1, CFGFLAG_SERVER",
         "MACRO_CONFIG_INT(SvPveOperationVoteTime, sv_pve_operation_vote_time, 10, 3, 60, CFGFLAG_SERVER",
     ):
         if token not in config:
@@ -381,7 +425,6 @@ def main() -> int:
             fail(f"operation client integration missing: {token}")
 
     game_context = open(os.path.join(ROOT, "src/game/server/gamecontext.cpp"), encoding="utf-8").read()
-    extract = open(os.path.join(ROOT, "src/game/server/gamemodes/extract.cpp"), encoding="utf-8").read()
     input_source = open(os.path.join(ROOT, "src/engine/client/input.cpp"), encoding="utf-8").read()
     for token in (
         "if(Count < 2)", "m_UsedOperations = 0",

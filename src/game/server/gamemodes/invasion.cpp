@@ -171,6 +171,9 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_pDoor = new CRadar(&GameServer()->m_World, RADAR_DOOR);
 	m_pEnemySpawn = new CRadar(&GameServer()->m_World, RADAR_ENEMY);
 	m_pReactor = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+	m_NumSwitchRadars = 0;
+	for(int i = 0; i < 8; i++)
+		m_apSwitchRadar[i] = 0;
 }
 
 CGameControllerInvasion::~CGameControllerInvasion()
@@ -746,8 +749,10 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 			WaveUnlocked = min(NUM_WAVES-1, WaveUnlocked+1);
 		m_QuestWaveType = rand()%WaveUnlocked+1;
 	}
-	if (m_LevelTheme == INVASION_THEME_ELITE_WAVE && m_QuestWaveType < WAVE_CYBORGS && frandom() < 0.45f)
+	if (m_LevelTheme == INVASION_THEME_ELITE_WAVE)
 		m_QuestWaveType = WAVE_CYBORGS;
+	else if (m_LevelTheme == INVASION_THEME_Z_SECTOR)
+		m_QuestWaveType = WAVE_ALIENS;
 	
 	if (m_Quest == QUEST_SURVIVEWAVETIME || (m_Quest == QUEST_NONE && m_LevelTheme == INVASION_THEME_TIMED_SURVIVE) || (m_LevelTheme == INVASION_THEME_TRAP_RUN && m_QuestsCompleted >= 1))
 	{
@@ -763,6 +768,8 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	{
 		m_QuestWaveEndTick = 0;
 		m_QuestWaveEnemiesLeft = min(int(8+Level*2), 50)*(1.0f + (Players-1)*0.2f);
+		if(m_LevelTheme == INVASION_THEME_Z_SECTOR)
+			m_QuestWaveEnemiesLeft = (int)(m_QuestWaveEnemiesLeft * 1.25f + 0.5f);
 		if(GameServer()->m_pPveDirector)
 			m_QuestWaveEnemiesLeft = (int)(m_QuestWaveEnemiesLeft * GameServer()->m_pPveDirector->EnemyCountMultiplier() + 0.5f);
 		m_QuestWaveSize = WaveCap;
@@ -781,8 +788,9 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	if (AddBots)
 	{
 		RandomGroupSpawnPos();
+		const int ThreatDivisor = m_LevelTheme == INVASION_THEME_ELITE_WAVE ? 2 : 4;
 		const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
-			m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, Level, m_EnemiesLeft, m_QuestWaveSize);
+			m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, Level, m_EnemiesLeft, m_QuestWaveSize, ThreatDivisor);
 		m_EnemiesLeft -= ThreatReplacement.m_ThreatSpent;
 		const int BotCap = max(0, m_QuestWaveSize - ThreatReplacement.m_EntitiesSpawned);
 		
@@ -859,11 +867,57 @@ int CGameControllerInvasion::SwitchesAvailable() const
 	return CountBuildingsOfType(BUILDING_SWITCH);
 }
 
+void CGameControllerInvasion::ClearSwitchRadars()
+{
+	for(int i = 0; i < m_NumSwitchRadars; i++)
+	{
+		if(m_apSwitchRadar[i])
+		{
+			m_apSwitchRadar[i]->Deactivate();
+			GameServer()->m_World.DestroyEntity(m_apSwitchRadar[i]);
+			m_apSwitchRadar[i] = 0;
+		}
+	}
+	m_NumSwitchRadars = 0;
+}
+
+bool CGameControllerInvasion::AnyCartographer() const
+{
+	if(!GameServer()->m_pPveDirector || !GameServer()->m_pPveDirector->Enabled())
+		return false;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		if(GameServer()->m_pPveDirector->PerkStacks(i, PVE_CARD_CARTOGRAPHER) > 0)
+			return true;
+	return false;
+}
+
+void CGameControllerInvasion::RefreshSwitchRadars()
+{
+	ClearSwitchRadars();
+	const bool Show = m_Quest == QUEST_ACTIVATE_SWITCHES || m_Quest == QUEST_FIND_SWITCH || AnyCartographer();
+	if(!Show)
+		return;
+	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+	{
+		if(pBuilding->m_Type != BUILDING_SWITCH || !pBuilding->m_PveSwitchActive || pBuilding->m_aStatus[BSTATUS_ON])
+			continue;
+		if(m_NumSwitchRadars >= 8)
+			break;
+		CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+		pRadar->Activate(pBuilding->m_Pos);
+		m_apSwitchRadar[m_NumSwitchRadars++] = pRadar;
+	}
+}
+
 void CGameControllerInvasion::SetSwitchesActive(bool Active)
 {
 	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
 		if(pBuilding->m_Type == BUILDING_SWITCH)
 			pBuilding->SetPveSwitchActive(Active);
+	if(Active)
+		RefreshSwitchRadars();
+	else
+		ClearSwitchRadars();
 }
 
 
@@ -1144,6 +1198,8 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 		m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_WAVE);
 	if(m_Quest == QUEST_DEFEND)
 		SetReactorDefenseActive(false);
+	if(m_Quest == QUEST_ACTIVATE_SWITCHES || m_Quest == QUEST_FIND_SWITCH)
+		SetSwitchesActive(false);
 	SendQuestCompletedMessage(m_Quest);
 	RewardQuestGold();
 	m_Quest = QUEST_NONE;
@@ -1272,6 +1328,7 @@ void CGameControllerInvasion::OnSwitchTriggered()
 	if (m_SwitchCoopLevel)
 	{
 		m_QuestProgressCounter = max(0, m_SwitchesRequired - m_SwitchesActivated);
+		RefreshSwitchRadars();
 		if (m_SwitchesActivated < m_SwitchesRequired)
 		{
 			GameServer()->SendBroadcastFormat(-1, false, "Switch %d/%d activated", m_SwitchesActivated, m_SwitchesRequired);

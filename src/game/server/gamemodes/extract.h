@@ -38,6 +38,7 @@ private:
 	bool m_DoorChoiceStarted;
 	bool m_EliteContractSpawned;
 	class CDroid *m_pMidBoss;
+	class CRadar *m_pDoor;
 
 	void SpawnInitialEnemies();
 	void SpawnMidBoss();
@@ -62,6 +63,7 @@ public:
 	virtual void NextLevel(int CID = -1);
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
+	virtual void DisplayExit(vec2 Pos);
 	bool Evacuating() const { return m_Phase == 1 && !m_RoundOverTick; }
 
 	enum GameState

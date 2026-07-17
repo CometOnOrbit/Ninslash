@@ -232,6 +232,7 @@ public:
 	void OnGoldSpent(int ClientID, int Amount);
 	void OnFullReload(int ClientID);
 	void OnEvacuationStarted();
+	void OnEvacuationZoneEntered(int ClientID);
 	void OnCargoDelivered();
 	void RegisterEliteContractBoss(CDroid *pBoss);
 	void CompleteContract(bool Success);
@@ -249,6 +250,7 @@ public:
 	float ModifyExplosionRadius(int Owner, float Radius) const;
 	float CooldownReduction(int ClientID, int Weapon) const;
 	float MovementMultiplier(int ClientID) const;
+	float InteractionSpeedBonus(int ClientID) const;
 	float EnemyCountMultiplier() const;
 	float DeadlineMultiplier() const;
 	float ReinforcementMultiplier() const;

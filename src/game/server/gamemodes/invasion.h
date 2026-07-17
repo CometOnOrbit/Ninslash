@@ -128,6 +128,12 @@ private:
 	class CRadar *m_pDoor;
 	class CRadar *m_pEnemySpawn;
 	class CRadar *m_pReactor;
+	class CRadar *m_apSwitchRadar[8];
+	int m_NumSwitchRadars;
+	
+	void ClearSwitchRadars();
+	void RefreshSwitchRadars();
+	bool AnyCartographer() const;
 	
 public:
 	CGameControllerInvasion(class CGameContext *pGameServer);

@@ -69,6 +69,7 @@ public:
 	bool m_PveRefunded;
 	bool m_PveSwitchActive;
 	bool m_PveReactorObjective;
+	int m_SwitchHoldTicks;
 	
 	bool m_DestructionTriggered;
 	

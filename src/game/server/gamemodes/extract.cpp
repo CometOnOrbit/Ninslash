@@ -55,6 +55,7 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	m_DoorChoiceStarted = false;
 	m_EliteContractSpawned = false;
 	m_pMidBoss = 0;
+	m_pDoor = new CRadar(&GameServer()->m_World, RADAR_DOOR);
 
 	g_Config.m_SvOneHitKill = 0;
 	g_Config.m_SvWarmup = 0;
@@ -300,6 +301,8 @@ void CGameControllerExtract::OnSwitchTriggered()
 
 	if(m_SwitchesActivated >= m_SwitchesRequired)
 	{
+		if(GameServer()->m_pPveDirector)
+			GameServer()->m_pPveDirector->OnObjectiveComplete();
 		if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled())
 			m_DoorChoicePending = true;
 		else
@@ -313,6 +316,12 @@ void CGameControllerExtract::OnDroidKilled(CDroid *pDroid)
 		m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_BOSS);
 	if(pDroid == m_pMidBoss)
 		m_pMidBoss = 0;
+}
+
+void CGameControllerExtract::DisplayExit(vec2 Pos)
+{
+	if(m_pDoor)
+		m_pDoor->Activate(Pos);
 }
 
 void CGameControllerExtract::BeginEvacuation()
@@ -345,8 +354,12 @@ void CGameControllerExtract::NextLevel(int CID)
 		return;
 	if(pPlayer->GetCharacter()->IgnoreCollision())
 		return;
-	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO && pPlayer->GetCharacter()->IsBombCarrier())
-		GameServer()->m_pPveDirector->OnCargoDelivered();
+	if(GameServer()->m_pPveDirector)
+	{
+		GameServer()->m_pPveDirector->OnEvacuationZoneEntered(CID);
+		if(GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO && pPlayer->GetCharacter()->IsBombCarrier())
+			GameServer()->m_pPveDirector->OnCargoDelivered();
+	}
 
 	pPlayer->GetCharacter()->Warp();
 	m_Evacuated++;
