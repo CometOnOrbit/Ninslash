@@ -20,6 +20,7 @@
 #include <game/localization.h>
 #include <game/client/lineinput.h>
 #include <game/version.h>
+#include <game/weapon_catalog.h>
 #include "render.h"
 
 #include "gameclient.h"
@@ -373,6 +374,7 @@ void CGameClient::AddFluidForce(vec2 Pos, vec2 Vel)
 
 void CGameClient::OnInit()
 {
+	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
 	m_pGraphics = Kernel()->RequestInterface<IGraphics>();
 
 	// propagate pointers

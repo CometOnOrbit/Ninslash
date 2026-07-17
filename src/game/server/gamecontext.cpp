@@ -12,6 +12,7 @@
 #include <game/version.h>
 #include <game/collision.h>
 #include <game/gamecore.h> 
+#include <game/weapon_catalog.h>
 #include "gamemodes/dm.h"
 #include "gamemodes/cs.h"
 #include "gamemodes/ball.h"
@@ -3195,6 +3196,7 @@ void CGameContext::RestoreEntity(int ObjType, int Type, int Subtype, int x, int 
 
 void CGameContext::OnInit(/*class IKernel *pKernel*/)
 {
+	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
 	m_pServer = Kernel()->RequestInterface<IServer>();
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>(); // MapGen

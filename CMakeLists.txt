@@ -519,6 +519,8 @@ set_src(GAME_SHARED GLOB src/game
   variables.h
   version.h
   voting.h
+  weapon_catalog.cpp
+  weapon_catalog.h
   weapons.cpp
   weapons.h
 )
