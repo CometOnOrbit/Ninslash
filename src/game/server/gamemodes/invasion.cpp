@@ -52,7 +52,7 @@ static int InvasionDepthQuests(int Level)
 
 static int InvasionOpeningEnemies(int Level)
 {
-	return min(18, 6 + Level);
+	return min(18, max(7, 6 + Level));
 }
 
 static int InvasionWaveCap(int Level, int Players)
@@ -105,6 +105,7 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_QuestWaveType = WAVE_NONE;
 	m_EliteWave = false;
 	m_DefendEndTick = 0;
+	m_DefendPrepEndTick = 0;
 	m_SwitchesRequired = 0;
 	m_SwitchesActivated = 0;
 	m_BossesLeft = 0;
@@ -511,15 +512,15 @@ void CGameControllerInvasion::FinishRetryVote()
 	int Retry = 0;
 	int Reset = 0;
 	CountRetryVotes(&Retry, &Reset);
-	if(Retry > Reset)
+	if(Retry >= Reset)
 	{
 		m_aRetryPlayerName[0] = 0;
 		for(int i = 0; i < MAX_CLIENTS; i++)
 			if(IsRetryVoter(i) && m_aRetryVotes[i] == PVE_INVASION_RETRY)
-		{
+			{
 				str_copy(m_aRetryPlayerName, Server()->ClientName(i), sizeof(m_aRetryPlayerName));
 				break;
-		}
+			}
 		StartRetryResult(PVE_INVASION_RETRY_RESULT_RETRY);
 	}
 	else
@@ -1121,7 +1122,10 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 				GameServer()->m_pPveDirector->CompleteContract(false);
 			m_RoundOverTick = Server()->Tick();
 			if(m_Quest == QUEST_DEFEND)
+			{
 				SetReactorDefenseActive(false);
+				m_DefendPrepEndTick = 0;
+			}
 		}
 	}
 
@@ -1151,7 +1155,7 @@ void CGameControllerInvasion::NextLevel(int CID)
 	if (!m_RoundWin)
 	{
 		m_RoundWin = true;
-		m_RoundWinTick = Server()->Tick() + Server()->TickSpeed()*CountHumans()*1;
+		m_RoundWinTick = Server()->Tick() + Server()->TickSpeed() * 2;
 		
 		if (CountHumans() > 1 && CID >= 0 && CID < MAX_CLIENTS)
 			GameServer()->SendBroadcastFormat(-1, false, "%s reached the door", Server()->ClientName(CID));
@@ -1180,7 +1184,7 @@ void CGameControllerInvasion::SendQuestStartMessage(int Quest)
 	if (m_EscapeLevel && Quest == QUEST_REACHDOOR)
 		GameServer()->SendBroadcast("Rising acid! Reach the exit", -1);
 	else if (m_DefendLevel && Quest == QUEST_DEFEND)
-		GameServer()->SendBroadcast("Defend the reactor", -1);
+		GameServer()->SendBroadcast("Reach the reactor — defense starts in 10s", -1);
 	else
 		GameServer()->SendBroadcast(GetQuestStartMessage(Quest, m_QuestWaveType), -1);
 }
@@ -1198,6 +1202,7 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 		m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_WAVE);
 	if(m_Quest == QUEST_DEFEND)
 		SetReactorDefenseActive(false);
+	m_DefendPrepEndTick = 0;
 	if(m_Quest == QUEST_ACTIVATE_SWITCHES || m_Quest == QUEST_FIND_SWITCH)
 		SetSwitchesActive(false);
 	SendQuestCompletedMessage(m_Quest);
@@ -1261,6 +1266,7 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 			else
 			{
 				dbg_msg("inv", "theme dual-switch: no switches on map, skip switch quest");
+				GameServer()->SendBroadcast("Switches missing — survive the wave instead", -1);
 				m_SwitchCoopLevel = false;
 				m_SwitchesRequired = 0;
 				Next = QUEST_SURVIVEWAVE;
@@ -1277,6 +1283,7 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 			else
 			{
 				dbg_msg("inv", "theme reactor-defend: no reactor on map, skip defend quest");
+				GameServer()->SendBroadcast("Reactor missing — survive the wave instead", -1);
 				Next = QUEST_SURVIVEWAVE;
 			}
 		}
@@ -1445,7 +1452,10 @@ void CGameControllerInvasion::Tick()
 				GameServer()->m_pPveDirector->CompleteContract(false);
 			m_RoundOverTick = Server()->Tick();
 			if(m_Quest == QUEST_DEFEND)
+			{
 				SetReactorDefenseActive(false);
+				m_DefendPrepEndTick = 0;
+			}
 		}
 
 		if (m_QuestChangeTick && m_QuestChangeTick <= Server()->Tick())
@@ -1475,7 +1485,11 @@ void CGameControllerInvasion::Tick()
 			if (m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
 				SpawnNewWave();
 			else if (m_Quest == QUEST_DEFEND && ReactorsLeft() > 0)
-				SpawnNewWave();
+			{
+				// Prep window: radar on, no waves until players reach the reactor.
+				m_DefendPrepEndTick = Server()->Tick() + Server()->TickSpeed() * 10;
+				m_DefendEndTick = 0;
+			}
 
 			if (m_Quest == QUEST_KILL_BOSS)
 			{
@@ -1492,10 +1506,9 @@ void CGameControllerInvasion::Tick()
 				if (!ReactorsLeft())
 				{
 					dbg_msg("inv", "defend started with no reactor, auto-complete");
+					m_DefendPrepEndTick = 0;
 					CompleteCurrentQuest();
 				}
-				else
-					m_DefendEndTick = Server()->Tick() + Server()->TickSpeed() * (40 + g_Config.m_SvMapGenLevel);
 			}
 
 			if (m_Quest == QUEST_ACTIVATE_SWITCHES)
@@ -1597,7 +1610,19 @@ void CGameControllerInvasion::Tick()
 
 		if (m_Quest == QUEST_DEFEND)
 		{
-			m_QuestProgressCounter = max(0, (m_DefendEndTick - Server()->Tick()) / Server()->TickSpeed());
+			if (m_DefendPrepEndTick)
+			{
+				m_QuestProgressCounter = max(0, (m_DefendPrepEndTick - Server()->Tick()) / Server()->TickSpeed());
+				if (m_DefendPrepEndTick <= Server()->Tick())
+				{
+					m_DefendPrepEndTick = 0;
+					m_DefendEndTick = Server()->Tick() + Server()->TickSpeed() * (40 + g_Config.m_SvMapGenLevel);
+					SpawnNewWave();
+					GameServer()->SendBroadcast("Defend the reactor", -1);
+				}
+			}
+			else
+				m_QuestProgressCounter = max(0, (m_DefendEndTick - Server()->Tick()) / Server()->TickSpeed());
 
 			if (!ReactorsLeft())
 			{
@@ -1605,14 +1630,15 @@ void CGameControllerInvasion::Tick()
 				DeathMessage();
 				m_RoundOverTick = Server()->Tick();
 				SetReactorDefenseActive(false);
+				m_DefendPrepEndTick = 0;
 				m_Quest = QUEST_NONE;
 			}
-			else if (m_DefendEndTick && m_DefendEndTick <= Server()->Tick())
+			else if (!m_DefendPrepEndTick && m_DefendEndTick && m_DefendEndTick <= Server()->Tick())
 			{
 				m_EnemiesLeft = 0;
 				CompleteCurrentQuest();
 			}
-			else if (m_BotSpawnTick < Server()->Tick())
+			else if (!m_DefendPrepEndTick && m_BotSpawnTick < Server()->Tick())
 			{
 				m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.22f, 0.7f - g_Config.m_SvMapGenLevel*0.012f);
 				if (CountBots() < m_QuestWaveSize)
@@ -1683,9 +1709,11 @@ void CGameControllerInvasion::Tick()
 					// Floor 1 remains a normal Invasion onboarding floor. Operations
 					// start on Floor 2+. Acid-escape floors never vote: rising acid
 					// and a parallel route would softlock the run.
-					const bool OperationVote = g_Config.m_SvMapGenLevel > 1 &&
-						InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) != INVASION_THEME_ACID_ESCAPE;
-					GameServer()->m_pPveDirector->StartIntermission(g_Config.m_SvMapGenLevel % 3 == 0, true, OperationVote);
+					// At most one vote per floor: Contract on Level%3==0, else Operation.
+					const bool AcidEscape = InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE;
+					const bool ContractVote = g_Config.m_SvMapGenLevel % 3 == 0;
+					const bool OperationVote = !ContractVote && g_Config.m_SvMapGenLevel > 1 && !AcidEscape;
+					GameServer()->m_pPveDirector->StartIntermission(ContractVote, true, OperationVote);
 					if(GameServer()->m_pPveDirector->InIntermission())
 						return;
 				}
@@ -1709,7 +1737,11 @@ void CGameControllerInvasion::Tick()
 			if (!m_StartBriefingSent)
 			{
 				m_StartBriefingSent = true;
-				GameServer()->SendBroadcastFormat(-1, false, "Level %d - %s", g_Config.m_SvMapGenLevel, GetThemeDisplayName(m_LevelTheme));
+				if(g_Config.m_SvInvFails > 0 && g_Config.m_SvInvFails < 5 && g_Config.m_SvInvFails != INV_FORCE_FLOOR_ONE)
+					GameServer()->SendBroadcastFormat(-1, false, "Level %d - %s · Attempt %d/5",
+						g_Config.m_SvMapGenLevel, GetThemeDisplayName(m_LevelTheme), g_Config.m_SvInvFails + 1);
+				else
+					GameServer()->SendBroadcastFormat(-1, false, "Level %d - %s", g_Config.m_SvMapGenLevel, GetThemeDisplayName(m_LevelTheme));
 			}
 
 			m_TriggerTick = 0;
@@ -1757,7 +1789,10 @@ void CGameControllerInvasion::Tick()
 				StartRetryVote();
 			}
 			else
+			{
+				GameServer()->SendBroadcastFormat(-1, false, "Failure %d/5 — retrying this floor", g_Config.m_SvInvFails);
 				GameServer()->ReloadMap();
+			}
 		}
 	}
 	

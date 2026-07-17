@@ -129,6 +129,7 @@ void CPveOperationTarget::Tick()
 			m_Pos = m_SourcePos;
 			m_pRadar->Activate(m_Pos);
 			m_pDirector->OnCargoStateChanged();
+			GameServer()->SendBroadcast("Cargo dropped — return to pickup", -1);
 			return;
 		}
 		m_Pos = pCarrier->m_Pos;
@@ -139,6 +140,7 @@ void CPveOperationTarget::Tick()
 			m_CarrierCID = -1;
 			m_Complete = true;
 			DeactivateRadar();
+			GameServer()->SendBroadcast("Cargo delivered!", -1);
 			m_pDirector->OnTargetCompleted(this);
 		}
 		return;
@@ -156,6 +158,7 @@ void CPveOperationTarget::Tick()
 				m_CarrierCID = ClientID;
 				m_pRadar->Activate(m_DeliveryPos);
 				m_pDirector->OnCargoStateChanged();
+				GameServer()->SendBroadcast("Cargo acquired — deliver to the marked platform", -1);
 				return;
 			}
 			Occupied = true;

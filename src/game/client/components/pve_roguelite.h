@@ -154,6 +154,7 @@ public:
 	bool ChoiceActive() const { return m_ChoiceActive || m_OperationVoteActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
 	bool DroneWheelActive() const { return m_DroneWheelActive; }
 	int OperationTargetType() const { return m_OperationTargetType; }
+	int OperationCargoCarrier() const { return m_OperationCargoCarrier; }
 
 	// World drones must paint with players/droids (before the light pass), not with HUD overlays.
 	class CRenderWorld : public CComponent

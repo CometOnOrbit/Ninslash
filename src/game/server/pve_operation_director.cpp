@@ -1,4 +1,5 @@
 #include <engine/shared/config.h>
+#include <game/collision.h>
 #include <game/pve_roguelite.h>
 #include <game/server/entities/character.h>
 #include <game/server/entities/droid.h>
@@ -124,26 +125,39 @@ bool CPveOperationDirector::SnapToGround(vec2 *pPos) const
 		return false;
 	// Drop from above the candidate onto the first floor/platform so cargo and
 	// relays sit on walkable tiles instead of floating at enemy-spawn height.
-	const vec2 Start = *pPos + vec2(0.0f, -96.0f);
-	const vec2 End = *pPos + vec2(0.0f, 520.0f);
-	vec2 Hit;
-	if(!m_pGameServer->Collision()->IntersectLine(Start, End, 0x0, &Hit, false, true))
+	CCollision *pCollision = m_pGameServer->Collision();
+	vec2 Start = *pPos + vec2(0.0f, -96.0f);
+	// If the probe starts inside solid (ceiling spawn markers), climb into air first.
+	for(int Step = 0; Step < 8 && pCollision->CheckPoint(Start); Step++)
+		Start.y -= 16.0f;
+	if(pCollision->CheckPoint(Start))
 		return false;
-	*pPos = Hit + vec2(0.0f, -28.0f);
+	const vec2 End = Start + vec2(0.0f, 616.0f);
+	vec2 FloorPos;
+	vec2 BeforeFloor;
+	if(!pCollision->IntersectLine(Start, End, &FloorPos, &BeforeFloor, false, true))
+		return false;
+	*pPos = vec2(Start.x, FloorPos.y - 28.0f);
 	return true;
 }
 
 bool CPveOperationDirector::ValidTargetPosition(vec2 Pos) const
 {
-	if(m_pGameServer->Collision()->TestBox(Pos, vec2(40.0f, 52.0f)))
+	CCollision *pCollision = m_pGameServer->Collision();
+	if(pCollision->TestBox(Pos, vec2(40.0f, 52.0f)))
 		return false;
-	if(m_pGameServer->Collision()->GetCollisionAt(Pos.x, Pos.y + 40.0f) & CCollision::COLFLAG_DEATH)
+	if(pCollision->GetCollisionAt(Pos.x, Pos.y + 40.0f) & CCollision::COLFLAG_DEATH)
+		return false;
+	// Reject ceiling cling: solid immediately above the body means we snapped to a roof.
+	if(pCollision->CheckPoint(Pos.x, Pos.y - 48.0f) ||
+		pCollision->CheckPoint(Pos.x - 14.0f, Pos.y - 48.0f) ||
+		pCollision->CheckPoint(Pos.x + 14.0f, Pos.y - 48.0f))
 		return false;
 	// Require solid footing under the building so cores/nodes are not mid-air.
 	const bool Floor =
-		m_pGameServer->Collision()->CheckPoint(Pos.x, Pos.y + 34.0f) ||
-		m_pGameServer->Collision()->CheckPoint(Pos.x - 14.0f, Pos.y + 34.0f) ||
-		m_pGameServer->Collision()->CheckPoint(Pos.x + 14.0f, Pos.y + 34.0f);
+		pCollision->CheckPoint(Pos.x, Pos.y + 34.0f) ||
+		pCollision->CheckPoint(Pos.x - 14.0f, Pos.y + 34.0f) ||
+		pCollision->CheckPoint(Pos.x + 14.0f, Pos.y + 34.0f);
 	return Floor;
 }
 
@@ -368,8 +382,6 @@ void CPveOperationDirector::BeginStage(bool ResetProgress)
 		const char *pSource = "none";
 		if(FindTargetPosition(&Pos, &pSource))
 		{
-			if(str_comp(pSource, "distant-enemy-spawn") != 0)
-				Diagnose("no valid map candidate", pSource);
 			m_TargetPos = Pos;
 			const bool DefenseMarker = m_TargetType == PVE_OPERATION_TARGET_DEFENSE_AREA;
 			const bool Carry = m_TargetType == PVE_OPERATION_TARGET_COOLANT_CORE || m_TargetType == PVE_OPERATION_TARGET_DATA_CORE || m_TargetType == PVE_OPERATION_TARGET_ENERGY_CORE;
@@ -390,6 +402,7 @@ void CPveOperationDirector::BeginStage(bool ResetProgress)
 		}
 		else
 		{
+			Diagnose("no valid map candidate", pSource);
 			FallbackToMode("all placement strategies rejected");
 			return;
 		}

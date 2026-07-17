@@ -101,6 +101,35 @@ void CMaze::Generate()
 			return;
 		}
 
+		// Early Invasion floors with sparse enemies: one directed linear spine
+		// instead of a wide branching maze (keeps pace tight on large templates).
+		if (str_comp(g_Config.m_SvGametype, "coop") == 0 && Level <= 5
+			&& Theme != INVASION_THEME_ACID_ESCAPE)
+		{
+			// Compact horizontal run in the map center — not a map-wide marathon.
+			const int Nodes = 4 + Level / 3;
+			const float BaseY = 0.45f + (frandom() - frandom()) * 0.06f;
+			const float Zig = 0.05f + frandom() * 0.04f;
+			const float Span = 0.28f + Level * 0.02f; // ~0.30..0.38 of map width
+			const float X0 = 0.5f - Span * 0.5f;
+			for (int i = 0; i < Nodes; i++)
+			{
+				const float t = (Nodes <= 1) ? 0.5f : i / float(Nodes - 1);
+				const float x = X0 + t * Span;
+				const float y = BaseY + ((i & 1) ? Zig : -Zig);
+				m_aRoom[m_Rooms++] = vec2(m_W * x, m_H * y);
+			}
+			for (int i = 0; i < m_Rooms - 1; i++)
+				Connect(m_aRoom[i], m_aRoom[i + 1]);
+
+			// tiny side pockets only — keep the line readable
+			for (int i = 0; i < 1 + Level / 4; i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
 		// Acid-escape floors: vertical rising-acid escape tower (Invasion only)
 		if (str_comp(g_Config.m_SvGametype, "coop") == 0 && Theme == INVASION_THEME_ACID_ESCAPE)
 		{
@@ -275,6 +304,23 @@ void CMaze::Generate()
 			Connect(vec2(m_W*(0.5f), m_H*(0.5f-s*sy)), vec2(m_W*(0.5f), m_H*(0.5f-s*sy*2)));
 			Connect(vec2(m_W*(0.5f), m_H*(0.5f-s*sy*2)), vec2(m_W*(0.8f+s), m_H*(0.5f-s*sy*2)));
 			for (int i = 0; i < r; i++)
+				GenerateRoom();
+			ConnectRooms();
+			ConnectEverything();
+			return;
+		}
+
+		// Elite wave — compact combat arena
+		if (Theme == INVASION_THEME_ELITE_WAVE)
+		{
+			float s = 0.13f + frandom() * 0.07f;
+			m_aRoom[m_Rooms++] = vec2(m_W * 0.5f, m_H * 0.5f);
+			Connect(vec2(m_W * (0.5f - s), m_H * (0.5f - s * 0.6f)), vec2(m_W * (0.5f + s), m_H * (0.5f - s * 0.6f)));
+			Connect(vec2(m_W * (0.5f - s), m_H * (0.5f + s * 0.6f)), vec2(m_W * (0.5f + s), m_H * (0.5f + s * 0.6f)));
+			Connect(vec2(m_W * (0.5f - s), m_H * (0.5f - s * 0.6f)), vec2(m_W * (0.5f - s), m_H * (0.5f + s * 0.6f)));
+			Connect(vec2(m_W * (0.5f + s), m_H * (0.5f - s * 0.6f)), vec2(m_W * (0.5f + s), m_H * (0.5f + s * 0.6f)));
+			Connect(vec2(m_W * 0.5f, m_H * (0.5f - s)), vec2(m_W * 0.5f, m_H * (0.5f + s)));
+			for (int i = 0; i < min(4, 1 + Level / 5); i++)
 				GenerateRoom();
 			ConnectRooms();
 			ConnectEverything();

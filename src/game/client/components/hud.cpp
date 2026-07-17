@@ -229,8 +229,60 @@ void CHud::RenderObjective()
 	const int Pack = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierBlue;
 	if(!Quest)
 	{
-		m_LastObjectiveSignature = -1;
-		m_ObjectiveNoticeUntil = 0;
+		// Between objectives: keep the panel alive with level/theme + stand-by.
+		const int ThemeGap = Pack & 0xF;
+		const int GapSignature = Level * 131 + ThemeGap;
+		if(GapSignature != m_LastObjectiveSignature)
+		{
+			m_LastObjectiveSignature = GapSignature;
+			m_ObjectiveNoticeUntil = time_get() + time_freq() * 4;
+		}
+
+		const bool ScoreboardVisible = m_pClient->m_pScoreboard->Active();
+		if((g_Config.m_ClPveObjectiveDisplay == 0 && !ScoreboardVisible) ||
+			(g_Config.m_ClPveObjectiveDisplay == 2 && time_get() >= m_ObjectiveNoticeUntil) ||
+			m_pClient->m_pPveRoguelite->ChoiceActive() || m_pClient->m_pVoting->IsVoting())
+			return;
+
+		char aMeta[128];
+		char aQuest[128];
+		str_format(aMeta, sizeof(aMeta), "%s %d · %s", Localize("Level"), Level, Localize(GetThemeDisplayName(ThemeGap)));
+		str_copy(aQuest, Localize("Stand by"), sizeof(aQuest));
+
+		const float MetaSize = 5.0f;
+		const float QuestSize = 7.0f;
+		float NaturalTextWidth = TextRender()->TextWidth(0, MetaSize, aMeta, -1);
+		NaturalTextWidth = max(NaturalTextWidth, TextRender()->TextWidth(0, QuestSize, aQuest, -1));
+		const float MaxCardWidth = min(112.0f, m_Width * 0.24f);
+		const float CardWidth = clamp(NaturalTextWidth + 18.0f, 72.0f, MaxCardWidth);
+		const float CardHeight = 27.0f;
+		const float CardRight = m_Width - 6.0f;
+		CUIRect Shadow = {CardRight - CardWidth + 1.2f, 83.2f, CardWidth, CardHeight};
+		CUIRect Card = {CardRight - CardWidth, 82.0f, CardWidth, CardHeight};
+		const vec4 Panel = CMenus::ThemeBgPanel();
+		const vec4 Inset = CMenus::ThemeBgInset();
+		const vec4 Accent = CMenus::ThemeAccent();
+		const vec4 AccentDim = CMenus::ThemeAccentDim();
+		const vec4 Text = CMenus::ThemeText();
+		RenderTools()->DrawUIRect(&Shadow, vec4(0, 0, 0, 0.32f), CUI::CORNER_ALL, 6.0f);
+		RenderTools()->DrawUIRect(&Card, vec4(Panel.r, Panel.g, Panel.b, 0.90f), CUI::CORNER_ALL, 6.0f);
+		CUIRect CardInset = {Card.x + 3.0f, Card.y + 3.0f, Card.w - 6.0f, Card.h - 6.0f};
+		RenderTools()->DrawUIRect(&CardInset, vec4(Inset.r, Inset.g, Inset.b, 0.32f), CUI::CORNER_ALL, 4.0f);
+		CUIRect Edge = {Card.x, Card.y + 6.0f, 2.0f, Card.h - 12.0f};
+		RenderTools()->DrawUIRect(&Edge, vec4(Accent.r, Accent.g, Accent.b, 0.92f), CUI::CORNER_ALL, 1.0f);
+		const float TextRight = Card.x + Card.w - 7.0f;
+		const float TextLeft = Card.x + 8.0f;
+		const float MaxTextWidth = TextRight - TextLeft;
+		auto DrawRight = [&](float Y, float FontSize, float MinFontSize, const char *pText, vec4 Color) {
+			while(FontSize > MinFontSize && TextRender()->TextWidth(0, FontSize, pText, -1) > MaxTextWidth)
+				FontSize -= 0.25f;
+			const float Width = TextRender()->TextWidth(0, FontSize, pText, -1);
+			TextRender()->TextColor(Color.r, Color.g, Color.b, 1.0f);
+			TextRender()->Text(0, max(TextLeft, TextRight - Width), Y, FontSize, pText, -1);
+		};
+		DrawRight(Card.y + 5.0f, MetaSize, 4.0f, aMeta, AccentDim);
+		DrawRight(Card.y + 13.0f, QuestSize, 5.0f, aQuest, Text);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 		return;
 	}
 
@@ -243,12 +295,15 @@ void CHud::RenderObjective()
 
 	// Only stable objective content belongs in the signature. In particular,
 	// timers, kills and remaining-enemy counters must not turn the transient
-	// mode into a permanently visible panel.
+	// mode into a permanently visible panel — except Defend/timed survive where
+	// the countdown is the objective itself.
 	int ObjectiveSignature = Quest * 31 + Level * 131;
 	if(Quest == QUEST_EXTRACT)
 		ObjectiveSignature = ObjectiveSignature * 31 + ExtractStage;
 	else if(Quest == QUEST_ROUTE && (RouteTargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL ||
 		RouteTargetType == PVE_OPERATION_TARGET_UPLOAD_POINT))
+		ObjectiveSignature = (((ObjectiveSignature * 31 + Theme) * 31 + WaveType) * 31 + QuestsDone) * 31 + QuestProgressCounter;
+	else if(Quest == QUEST_DEFEND || Quest == QUEST_SURVIVEWAVETIME)
 		ObjectiveSignature = (((ObjectiveSignature * 31 + Theme) * 31 + WaveType) * 31 + QuestsDone) * 31 + QuestProgressCounter;
 	else if(Quest != QUEST_HORDE)
 		ObjectiveSignature = (((ObjectiveSignature * 31 + Theme) * 31 + WaveType) * 31 + QuestsDone) * 31 + QuestsTotal;
@@ -317,6 +372,19 @@ void CHud::RenderObjective()
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("seconds remaining"));
 		else if(Quest == QUEST_ROUTE && RouteTargetType == PVE_OPERATION_TARGET_EVACUATION)
 			str_copy(aDetail, Localize("Door open"), sizeof(aDetail));
+		else if(Quest == QUEST_ROUTE &&
+			(RouteTargetType == PVE_OPERATION_TARGET_COOLANT_CORE ||
+				RouteTargetType == PVE_OPERATION_TARGET_DATA_CORE ||
+				RouteTargetType == PVE_OPERATION_TARGET_ENERGY_CORE ||
+				m_pClient->m_pPveRoguelite->OperationTargetType() == PVE_OPERATION_TARGET_COOLANT_CORE ||
+				m_pClient->m_pPveRoguelite->OperationTargetType() == PVE_OPERATION_TARGET_DATA_CORE ||
+				m_pClient->m_pPveRoguelite->OperationTargetType() == PVE_OPERATION_TARGET_ENERGY_CORE))
+		{
+			if(m_pClient->m_pPveRoguelite->OperationCargoCarrier() >= 0)
+				str_copy(aDetail, Localize("Deliver cargo"), sizeof(aDetail));
+			else
+				str_copy(aDetail, Localize("Pick up cargo"), sizeof(aDetail));
+		}
 		else if(Quest == QUEST_ROUTE)
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("remaining"));
 		else if(Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH || (Quest == QUEST_EXTRACT && ExtractStage == 0))

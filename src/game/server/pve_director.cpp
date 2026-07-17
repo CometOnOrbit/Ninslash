@@ -2525,7 +2525,8 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 			Reduction += 0.20f;
 		if(Run.m_aStacks[PVE_CARD_HOLD_THE_LINE] && InHordeDefenseArea(To))
 			Reduction += 0.15f;
-		if(m_Mode == PVE_MODE_EXTRACTION && pTarget && pTarget->IsBombCarrier() && Run.m_aStacks[PVE_CARD_COURIER])
+		if(m_Mode == PVE_MODE_EXTRACTION && pTarget && Run.m_aStacks[PVE_CARD_COURIER] &&
+			(pTarget->IsBombCarrier() || pTarget->m_PveCargo != PVE_CARGO_NONE))
 			Reduction += 0.10f;
 		float GuardianReduction = 0.0f;
 		for(int Ally = 0; Ally < MAX_CLIENTS; Ally++)
@@ -2883,11 +2884,11 @@ float CPveDirector::MovementMultiplier(int ClientID) const
 	const CGameControllerExtract *pExtract = dynamic_cast<const CGameControllerExtract *>(m_pGameServer->m_pController);
 	CCharacter *pCharacter = m_pGameServer->GetPlayerChar(ClientID);
 	float Result = 1.0f;
-	if(pCharacter && pCharacter->IsBombCarrier())
+	if(pCharacter && (pCharacter->IsBombCarrier() || pCharacter->m_PveCargo != PVE_CARGO_NONE))
 	{
 		if(m_aPlayers[ClientID].m_aStacks[PVE_CARD_COURIER])
 			Result += 0.10f;
-		if(ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
+		if(ActiveContract() == PVE_CONTRACT_HEAVY_CARGO && pCharacter->IsBombCarrier())
 			Result -= 0.20f;
 	}
 	if(pExtract && pExtract->Evacuating())

@@ -1225,10 +1225,12 @@ void CMapGen::GenerateLevel()
 	dbg_msg("mapgen", "Scanning level");
 	pTiles->Scan();
 	
-	// start pos
+	// start pos — skip invalid (0,0) so we never stamp ENTITY_SPAWN into solids
 	for (int i = 0; i < 4; i++)
 	{
 		ivec2 p = pTiles->GetPlayerSpawn();
+		if(p.x <= 1 || p.y <= 1)
+			continue;
 		ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
 		ModifTile(p+ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
 	}
@@ -1307,7 +1309,7 @@ void CMapGen::GenerateLevel()
 	else if (Theme == INVASION_THEME_DUAL_SWITCHES)
 	{
 		int Placed = 0;
-		for (int i = 0; i < 8 && Placed < 2; i++)
+		for (int i = 0; i < 16 && Placed < 2; i++)
 		{
 			if (GenerateSwitch(pTiles))
 				Placed++;
@@ -1317,8 +1319,11 @@ void CMapGen::GenerateLevel()
 	}
 	else if (Theme == INVASION_THEME_REACTOR_DEFEND)
 	{
-		if (!GenerateReactor(pTiles))
-			GenerateReactor(pTiles);
+		bool Placed = false;
+		for (int i = 0; i < 8 && !Placed; i++)
+			Placed = GenerateReactor(pTiles);
+		if (!Placed)
+			dbg_msg("mapgen", "reactor-defend layout: failed to place reactor");
 	}
 	
 	// acid pools (fewer on escape towers so the climb stays readable; skip rising-acid feel for extract/horde)

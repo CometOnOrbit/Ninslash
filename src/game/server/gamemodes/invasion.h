@@ -24,6 +24,7 @@ private:
 
 	bool m_EliteWave;
 	int m_DefendEndTick;
+	int m_DefendPrepEndTick;
 	int m_SwitchesRequired;
 	int m_SwitchesActivated;
 	

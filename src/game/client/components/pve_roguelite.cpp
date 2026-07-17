@@ -955,8 +955,6 @@ void CPveRoguelite::DrawOperationVote()
 
 void CPveRoguelite::DrawOperationHud()
 {
-	if(m_pClient->m_Snap.m_pGameDataObj && m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreRed == QUEST_ROUTE)
-		return;
 	if(m_ActiveOperation < 0 || Client()->State() != IClient::STATE_ONLINE)
 		return;
 	const CPveOperationDef *pDef = PveOperationDef(m_ActiveOperation);
@@ -1277,8 +1275,38 @@ void CPveRoguelite::DrawOperationCargo()
 		return;
 	if(Cargo == PVE_CARGO_NONE)
 		return;
+
+	// Delivery zone while carrying: mark the drop-off radius at the HUD target.
+	const float DeliveryRadius = 120.0f;
 	if(CargoCarrier >= 0)
+	{
+		const float Pulse = 0.5f + 0.5f * sinf((float)Client()->LocalTime() * 2.5f);
+		Graphics()->TextureClear();
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(0.35f, 0.95f, 1.0f, 0.35f + 0.25f * Pulse);
+		IGraphics::CLineItem aLines[32];
+		int NumLines = 0;
+		const int Segments = 48;
+		for(int i = 0; i < Segments; i += 2)
+		{
+			const float A1 = i * 2.0f * pi / Segments;
+			const float A2 = (i + 1) * 2.0f * pi / Segments;
+			aLines[NumLines++] = IGraphics::CLineItem(
+				m_OperationTargetPos.x + cosf(A1) * DeliveryRadius,
+				m_OperationTargetPos.y + sinf(A1) * DeliveryRadius,
+				m_OperationTargetPos.x + cosf(A2) * DeliveryRadius,
+				m_OperationTargetPos.y + sinf(A2) * DeliveryRadius);
+			if(NumLines >= 32)
+			{
+				Graphics()->LinesDraw(aLines, NumLines);
+				NumLines = 0;
+			}
+		}
+		if(NumLines)
+			Graphics()->LinesDraw(aLines, NumLines);
+		Graphics()->LinesEnd();
 		return;
+	}
 	const float Bob = sinf((Client()->GameTick() + Client()->IntraGameTick()) * 0.08f) * 3.0f;
 	DrawIcon(IMAGE_PVE_CARGO, SPRITE_PVE_CARGO_COOLANT + Cargo - PVE_CARGO_COOLANT,
 		CargoPos.x, CargoPos.y - 24.0f + Bob, 58.0f, vec4(1, 1, 1, 1));

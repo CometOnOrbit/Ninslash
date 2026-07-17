@@ -8,7 +8,7 @@ const char *GetQuestDisplayName(int Quest)
 		case QUEST_KILLREMAININGENEMIES: return "Terminate the enemies";
 		case QUEST_REACHDOOR: return "Reach the door";
 		case QUEST_SURVIVEWAVE: return "Survive the wave of enemies";
-		case QUEST_SURVIVEWAVETIME: return "Survive the wave of enemies";
+		case QUEST_SURVIVEWAVETIME: return "Hold out against the wave";
 		case QUEST_FIND_SWITCH: return "Find the switch";
 		case QUEST_KILL_BOSS: return "Destroy the boss";
 		case QUEST_DEFEND: return "Defend the reactor";
@@ -53,7 +53,7 @@ const char *GetQuestStartMessage(int Quest, int WaveType)
 		case QUEST_KILLREMAININGENEMIES: return "Terminate the enemies";
 		case QUEST_REACHDOOR: return "Seek the door";
 		case QUEST_SURVIVEWAVE: return "Wave incoming";
-		case QUEST_SURVIVEWAVETIME: return "Wave incoming";
+		case QUEST_SURVIVEWAVETIME: return "Hold the line";
 		case QUEST_FIND_SWITCH: return "Find and activate the switch";
 		case QUEST_KILL_BOSS: return "Destroy the boss";
 		case QUEST_DEFEND: return "Defend the reactor";
