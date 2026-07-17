@@ -129,12 +129,14 @@ class CPveDirector
 	int m_BlackBoxHoldTicks;
 	bool m_ApplyingSecondaryEffect;
 	CTargetStatus m_aTargetStatus[256];
+	int m_TargetStatusCount;
 	int m_TargetSummaryTick;
 	int m_VulnerableTargetCount;
 	int m_BleedingTargetCount;
 	int m_DeathlessHordeWaves;
 	bool m_AnyStageDeath;
 	CPendingBlast m_aPendingBlasts[32];
+	int m_PendingBlastCount;
 
 	bool IsEligiblePlayer(int ClientID) const;
 	int EligiblePlayerCount() const;

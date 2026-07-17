@@ -89,7 +89,8 @@ void CPveDrone::Tick()
 		GameServer()->Collision()->IntersectLine(m_Pos, To, 0x0, &To);
 	}
 
-	if(distance(m_Pos, pOwner->m_Pos) > 280.0f)
+	const vec2 OwnerDelta = m_Pos - pOwner->m_Pos;
+	if(dot(OwnerDelta, OwnerDelta) > 280.0f * 280.0f)
 		To = OwnerAnchor + vec2(sin(m_AngleTimer), cos(m_AngleTimer)) * 40.0f;
 
 	m_MoveTarget += (To - m_MoveTarget) / 20.0f;
@@ -99,7 +100,8 @@ void CPveDrone::Tick()
 
 	// Soft per-axis approach toward the action point, same idea as Star's
 	// far-target correction but in world space for a companion drone.
-	if(Acting && distance(m_Pos, m_Target) > 140.0f)
+	const vec2 ActionDelta = m_Pos - m_Target;
+	if(Acting && dot(ActionDelta, ActionDelta) > 140.0f * 140.0f)
 	{
 		m_MoveTarget += (vec2(m_Pos.x, m_Target.y) - m_MoveTarget) / 10.0f;
 		m_MoveTarget += (vec2(m_Target.x, m_Pos.y) - m_MoveTarget) / 10.0f;

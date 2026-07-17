@@ -1118,6 +1118,8 @@ bool CGameContext::IsHuman(int ClientID)
 
 void CGameContext::SendChatTarget(int To, const char *pText, ...)
 {
+	if(To >= MAX_CLIENTS)
+		return;
 	// skip sending to bots
 	if (IsBot(To))
 		return;
@@ -1138,7 +1140,10 @@ void CGameContext::SendChatTarget(int To, const char *pText, ...)
 	{
 		if(m_apPlayers[i])
 		{
-			str_format_args(aText, sizeof(aText), Localize(pText, i), VarArgs);
+			va_list Copy;
+			va_copy(Copy, VarArgs);
+			str_format_args(aText, sizeof(aText), Localize(pText, i), Copy);
+			va_end(Copy);
 			Msg.m_pMessage = aText;
 			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, i);
 		}
@@ -1410,6 +1415,8 @@ void CGameContext::SendGameVotes(int ClientID)
 
 void CGameContext::SendBroadcast(const char *pText, int ClientID, bool Lock)
 {
+	if(ClientID >= MAX_CLIENTS || (ClientID >= 0 && !m_apPlayers[ClientID]))
+		return;
 	CNetMsg_Sv_Broadcast Msg;
 	int Start = (ClientID < 0 ? 0 : ClientID);
 	int End = (ClientID < 0 ? MAX_CLIENTS : ClientID+1);
@@ -1444,6 +1451,8 @@ void CGameContext::SendBroadcast(const char *pText, int ClientID, bool Lock)
 
 void CGameContext::SendBroadcastFormat(int ClientID, bool Lock, const char *pText, ...)
 {
+	if(ClientID >= MAX_CLIENTS || (ClientID >= 0 && !m_apPlayers[ClientID]))
+		return;
 	CNetMsg_Sv_Broadcast Msg;
 	int Start = (ClientID < 0 ? 0 : ClientID);
 	int End = (ClientID < 0 ? MAX_CLIENTS : ClientID+1);
@@ -1463,7 +1472,10 @@ void CGameContext::SendBroadcastFormat(int ClientID, bool Lock, const char *pTex
 	{
 		if(m_apPlayers[i])
 		{	
-			str_format_args(aText, sizeof(aText), Localize(pText, i), VarArgs);
+			va_list Copy;
+			va_copy(Copy, VarArgs);
+			str_format_args(aText, sizeof(aText), Localize(pText, i), Copy);
+			va_end(Copy);
 			Msg.m_pMessage = aText;
 			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, i);
 		}
@@ -1479,6 +1491,7 @@ void CGameContext::SendBroadcastFormat(int ClientID, bool Lock, const char *pTex
 		str_copy(m_apPlayers[ClientID]->m_aBroadcast, Lock ? Localize(pText, ClientID) : "", sizeof(m_apPlayers[ClientID]->m_aBroadcast));
 		m_apPlayers[ClientID]->m_BroadcastLockTick = Lock ? Server()->Tick() : 0;
 	}
+	va_end(VarArgs);
 }
 
 //

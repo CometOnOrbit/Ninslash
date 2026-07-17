@@ -93,7 +93,7 @@ bool CGameControllerExtract::OnEntity(int Index, vec2 Pos)
 
 bool CGameControllerExtract::GetSpawnPos(int Team, vec2 *pOutPos)
 {
-	if(m_NumEnemySpawnPos <= 0)
+	if(!pOutPos || m_NumEnemySpawnPos <= 0)
 		return false;
 	m_SpawnPosRotation = (m_SpawnPosRotation + 1) % m_NumEnemySpawnPos;
 	*pOutPos = m_aEnemySpawnPos[m_SpawnPosRotation];
@@ -168,7 +168,8 @@ void CGameControllerExtract::SpawnInitialEnemies()
 		m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, EnemyLevel(), m_EnemiesLeft, 16);
 	m_EnemiesLeft -= ThreatReplacement.m_ThreatSpent;
 	const int BotCap = max(0, 16 - ThreatReplacement.m_EntitiesSpawned);
-	for(int i = 0; i < m_EnemiesLeft && CountBots() < BotCap; i++)
+	const int SpawnCount = min(m_EnemiesLeft, max(0, BotCap - CountBots()));
+	for(int i = 0; i < SpawnCount; i++)
 		GameServer()->AddBot();
 
 	vec2 p;
@@ -195,7 +196,8 @@ void CGameControllerExtract::SpawnMidBoss()
 	if(!GetBossSpawnPos(&p))
 		p = vec2(4000, 4000);
 	m_pMidBoss = SpawnBoss(&GameServer()->m_World, p, max(10, EnemyLevel() + 2));
-	for(int i = 0; i < 6 && CountBots() < 18; i++)
+	const int SpawnCount = min(6, max(0, 18 - CountBots()));
+	for(int i = 0; i < SpawnCount; i++)
 	{
 		m_EnemiesLeft++;
 		GameServer()->AddBot();
@@ -219,8 +221,10 @@ void CGameControllerExtract::SpawnEscapePressure()
 		m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, EnemyLevel(), AddedThreat,
 		max(0, ConcurrentCap - CountBots() - CountAliveSpecialists(&GameServer()->m_World)));
 	m_EnemiesLeft += AddedThreat - ThreatReplacement.m_ThreatSpent;
-	for(int i = 0; i < (int)(8 * Pressure) - ThreatReplacement.m_ThreatSpent &&
-		CountBots() + CountAliveSpecialists(&GameServer()->m_World) < ConcurrentCap; i++)
+	const int RequestedBots = max(0, (int)(8 * Pressure) - ThreatReplacement.m_ThreatSpent);
+	const int AvailableSlots = max(0, ConcurrentCap - CountBots() - CountAliveSpecialists(&GameServer()->m_World));
+	const int SpawnCount = min(RequestedBots, AvailableSlots);
+	for(int i = 0; i < SpawnCount; i++)
 		GameServer()->AddBot();
 	vec2 p;
 	if(GetSpawnPos(0, &p))

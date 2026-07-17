@@ -127,12 +127,14 @@ CPveDirector::CPveDirector(CGameContext *pGameServer) :
 	m_BlackBoxHoldTicks = 0;
 	m_ApplyingSecondaryEffect = false;
 	mem_zero(m_aTargetStatus, sizeof(m_aTargetStatus));
+	m_TargetStatusCount = 0;
 	m_TargetSummaryTick = -1;
 	m_VulnerableTargetCount = 0;
 	m_BleedingTargetCount = 0;
 	m_DeathlessHordeWaves = 0;
 	m_AnyStageDeath = false;
 	mem_zero(m_aPendingBlasts, sizeof(m_aPendingBlasts));
+	m_PendingBlastCount = 0;
 
 	char aError[128];
 	if(!PveValidateDefinitions(aError, sizeof(aError)))
@@ -684,6 +686,7 @@ void CPveDirector::Tick()
 		for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 			DestroyDrone(ClientID);
 		mem_zero(m_aTargetStatus, sizeof(m_aTargetStatus));
+		m_TargetStatusCount = 0;
 		m_TargetSummaryTick = -1;
 		m_VulnerableTargetCount = 0;
 		m_BleedingTargetCount = 0;
@@ -995,6 +998,7 @@ void CPveDirector::OnStageStart()
 	if(!Enabled())
 		return;
 	mem_zero(m_aTargetStatus, sizeof(m_aTargetStatus));
+	m_TargetStatusCount = 0;
 	m_TargetSummaryTick = -1;
 	m_VulnerableTargetCount = 0;
 	m_BleedingTargetCount = 0;
@@ -1485,6 +1489,7 @@ CPveDirector::CTargetStatus *CPveDirector::TargetStatus(CEntity *pTarget, bool C
 	mem_zero(pFree, sizeof(*pFree));
 	pFree->m_pTarget = pTarget;
 	pFree->m_BleedOwner = -1;
+	m_TargetStatusCount++;
 	m_TargetSummaryTick = -1;
 	return pFree;
 }
@@ -1495,6 +1500,7 @@ void CPveDirector::ClearTargetStatus(CEntity *pTarget)
 	if(pStatus)
 	{
 		mem_zero(pStatus, sizeof(*pStatus));
+		m_TargetStatusCount = max(0, m_TargetStatusCount - 1);
 		m_TargetSummaryTick = -1;
 	}
 }
@@ -1553,6 +1559,8 @@ void CPveDirector::ProcessHit(int ClientID, CEntity *pTarget, int Weapon, int Da
 
 void CPveDirector::TickTargetStatuses()
 {
+	if(m_TargetStatusCount <= 0)
+		return;
 	const int Now = m_pGameServer->Server()->Tick();
 	m_TargetSummaryTick = -1;
 	for(int i = 0; i < (int)(sizeof(m_aTargetStatus) / sizeof(m_aTargetStatus[0])); i++)
@@ -1593,6 +1601,8 @@ void CPveDirector::UpdateTargetSummary()
 	m_TargetSummaryTick = Now;
 	m_VulnerableTargetCount = 0;
 	m_BleedingTargetCount = 0;
+	if(m_TargetStatusCount <= 0)
+		return;
 	for(int i = 0; i < (int)(sizeof(m_aTargetStatus) / sizeof(m_aTargetStatus[0])); i++)
 	{
 		const CTargetStatus &Status = m_aTargetStatus[i];
@@ -1613,16 +1623,20 @@ void CPveDirector::ScheduleSecondaryBlast(int ClientID, int Weapon, vec2 Pos, in
 			m_aPendingBlasts[i].m_Weapon = Weapon;
 			m_aPendingBlasts[i].m_Damage = max(1, Damage * 60 / 100);
 			m_aPendingBlasts[i].m_Tick = m_pGameServer->Server()->Tick() + max(1, m_pGameServer->Server()->TickSpeed() * 35 / 100);
+			m_PendingBlastCount++;
 			return;
 		}
 }
 
 void CPveDirector::TickPendingBlasts()
 {
+	if(m_PendingBlastCount <= 0)
+		return;
+	const int Now = m_pGameServer->Server()->Tick();
 	for(int i = 0; i < (int)(sizeof(m_aPendingBlasts) / sizeof(m_aPendingBlasts[0])); i++)
 	{
 		CPendingBlast &Blast = m_aPendingBlasts[i];
-		if(Blast.m_Tick == 0 || Blast.m_Tick > m_pGameServer->Server()->Tick())
+		if(Blast.m_Tick == 0 || Blast.m_Tick > Now)
 			continue;
 		m_pGameServer->CreateEffect(FX_EXPLOSION1, Blast.m_Pos);
 		m_ApplyingSecondaryEffect = true;
@@ -1634,6 +1648,7 @@ void CPveDirector::TickPendingBlasts()
 				pDroid->TakeDamage(vec2(0, 0), Blast.m_Damage, Blast.m_Owner, pDroid->m_Pos, Blast.m_Weapon);
 		m_ApplyingSecondaryEffect = false;
 		Blast.m_Tick = 0;
+		m_PendingBlastCount = max(0, m_PendingBlastCount - 1);
 	}
 }
 
@@ -1779,18 +1794,26 @@ void CPveDirector::TickDrone(int ClientID)
 	{
 		CCharacter *pBestCharacter = 0;
 		CDroid *pBestDroid = 0;
-		float BestDistance = 700.0f;
+		float BestDistanceSquared = 700.0f * 700.0f;
 		for(CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER); pCharacter; pCharacter = (CCharacter *)pCharacter->TypeNext())
-			if(pCharacter->m_IsBot && pCharacter->IsAlive() && distance(Run.m_pDrone->m_Pos, pCharacter->m_Pos) < BestDistance)
+			if(pCharacter->m_IsBot && pCharacter->IsAlive())
 			{
-				BestDistance = distance(Run.m_pDrone->m_Pos, pCharacter->m_Pos);
+				const vec2 Delta = Run.m_pDrone->m_Pos - pCharacter->m_Pos;
+				const float DistanceSquared = dot(Delta, Delta);
+				if(DistanceSquared >= BestDistanceSquared)
+					continue;
+				BestDistanceSquared = DistanceSquared;
 				pBestCharacter = pCharacter;
 				pBestDroid = 0;
 			}
 		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
-			if(pDroid->m_Health > 0 && distance(Run.m_pDrone->m_Pos, pDroid->m_Pos + pDroid->m_Center) < BestDistance)
+			if(pDroid->m_Health > 0)
 			{
-				BestDistance = distance(Run.m_pDrone->m_Pos, pDroid->m_Pos + pDroid->m_Center);
+				const vec2 Delta = Run.m_pDrone->m_Pos - (pDroid->m_Pos + pDroid->m_Center);
+				const float DistanceSquared = dot(Delta, Delta);
+				if(DistanceSquared >= BestDistanceSquared)
+					continue;
+				BestDistanceSquared = DistanceSquared;
 				pBestCharacter = 0;
 				pBestDroid = pDroid;
 			}
@@ -1962,17 +1985,18 @@ void CPveDirector::ApplyArcConductor(int ClientID, CEntity *pOriginalTarget, vec
 	{
 		CCharacter *pBestCharacter = 0;
 		CDroid *pBestDroid = 0;
-		float BestDistance = 320.0f;
+		float BestDistanceSquared = 320.0f * 320.0f;
 		for(CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER); pCharacter; pCharacter = (CCharacter *)pCharacter->TypeNext())
 		{
 			bool Excluded = pCharacter == pOriginalTarget;
 			for(int i = 0; i < Arc; i++) Excluded |= apHit[i] == pCharacter;
 			if(Excluded || !pCharacter->m_IsBot || !pCharacter->IsAlive())
 				continue;
-			const float Dist = distance(Origin, pCharacter->m_Pos);
-			if(Dist < BestDistance)
+			const vec2 Delta = Origin - pCharacter->m_Pos;
+			const float DistanceSquared = dot(Delta, Delta);
+			if(DistanceSquared < BestDistanceSquared)
 			{
-				BestDistance = Dist;
+				BestDistanceSquared = DistanceSquared;
 				pBestCharacter = pCharacter;
 				pBestDroid = 0;
 			}
@@ -1983,10 +2007,11 @@ void CPveDirector::ApplyArcConductor(int ClientID, CEntity *pOriginalTarget, vec
 			for(int i = 0; i < Arc; i++) Excluded |= apHit[i] == pDroid;
 			if(Excluded || pDroid->m_Health <= 0)
 				continue;
-			const float Dist = distance(Origin, pDroid->m_Pos + pDroid->m_Center);
-			if(Dist < BestDistance)
+			const vec2 Delta = Origin - (pDroid->m_Pos + pDroid->m_Center);
+			const float DistanceSquared = dot(Delta, Delta);
+			if(DistanceSquared < BestDistanceSquared)
 			{
-				BestDistance = Dist;
+				BestDistanceSquared = DistanceSquared;
 				pBestCharacter = 0;
 				pBestDroid = pDroid;
 			}
@@ -2826,6 +2851,7 @@ void CPveDirector::ClearRun()
 	mem_zero(m_apEliteContractGuards, sizeof(m_apEliteContractGuards));
 	m_NumEliteContractGuards = 0;
 	mem_zero(m_aTargetStatus, sizeof(m_aTargetStatus));
+	m_TargetStatusCount = 0;
 	m_TargetSummaryTick = -1;
 	m_VulnerableTargetCount = 0;
 	m_BleedingTargetCount = 0;

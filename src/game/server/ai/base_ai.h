@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_AI_DM_AI_H
-#define GAME_SERVER_AI_DM_AI_H
+#ifndef GAME_SERVER_AI_BASE_AI_H
+#define GAME_SERVER_AI_BASE_AI_H
 #include <game/server/ai.h>
 #include <game/server/gamecontext.h>
 

@@ -304,8 +304,8 @@ void CGameControllerBase::NextWave()
 		for (int i = 0; i < min(int(1+m_Wave/3), 3); i++)
 		{
 			vec2 p;
-			GetSpawnPos(0, &p);
-			new CCrawler(&GameServer()->m_World, p+vec2(0, -100));
+			if(GetSpawnPos(0, &p))
+				new CCrawler(&GameServer()->m_World, p+vec2(0, -100));
 		}
 		
 	if (m_Wave > 7)
@@ -317,7 +317,8 @@ void CGameControllerBase::NextWave()
 	}
 	
 	// add bots
-	for (int i = 0; i < m_EnemiesLeft && GameServer()->m_pController->CountBots() < 12; i++)
+	const int SpawnCount = min(m_EnemiesLeft, max(0, 12 - CountBots()));
+	for(int i = 0; i < SpawnCount; i++)
 		GameServer()->AddBot();
 }
 

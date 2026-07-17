@@ -104,7 +104,7 @@ bool CGameControllerHorde::OnEntity(int Index, vec2 Pos)
 
 bool CGameControllerHorde::GetSpawnPos(int Team, vec2 *pOutPos)
 {
-	if(m_NumEnemySpawnPos <= 0)
+	if(!pOutPos || m_NumEnemySpawnPos <= 0)
 		return false;
 
 	// Prefer spawn points outside the defense area so waves pressure the hold zone.
@@ -579,7 +579,8 @@ void CGameControllerHorde::NextWave()
 	}
 
 	const int Cap = max(0, HordeConcurrentEnemyCap(m_Wave) - ThreatReplacement.m_EntitiesSpawned);
-	for(int i = 0; i < m_EnemiesLeft && CountBots() < Cap; i++)
+	const int SpawnCount = min(m_EnemiesLeft, max(0, Cap - CountBots()));
+	for(int i = 0; i < SpawnCount; i++)
 		GameServer()->AddBot();
 
 	TriggerAllBotAI(GameServer(), m_TriggerLevel);

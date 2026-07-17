@@ -342,7 +342,8 @@ bool CAI::UpdateWaypoint()
 	if (m_WayPointUpdateTick + GameServer()->Server()->TickSpeed()*(4+frandom()*4) < GameServer()->Server()->Tick())
 		m_WaypointUpdateNeeded = true;
 		
-	if (distance(m_Pos, m_TargetPos) < 1200 && !GameServer()->Collision()->FastIntersectLine(m_Pos, m_TargetPos))
+	const vec2 TargetDelta = m_Pos - m_TargetPos;
+	if (dot(TargetDelta, TargetDelta) < 1200.0f * 1200.0f && !GameServer()->Collision()->FastIntersectLine(m_Pos, m_TargetPos))
 	{
 		m_WaypointPos = m_TargetPos;
 		m_WaypointDir = m_WaypointPos - m_Pos;
@@ -449,7 +450,9 @@ bool CAI::UpdateWaypoint()
 		
 		if (m_WayFound)
 		{
-			if (distance(GameServer()->Collision()->m_aPath[GameServer()->Collision()->m_PathLen], m_TargetPos) > distance(m_Pos, m_TargetPos))
+			const vec2 PathDelta = GameServer()->Collision()->m_aPath[GameServer()->Collision()->m_PathLen] - m_TargetPos;
+			const vec2 DirectDelta = m_Pos - m_TargetPos;
+			if(dot(PathDelta, PathDelta) > dot(DirectDelta, DirectDelta))
 			{
 				m_WayFound = false;
 				m_WaypointPos = m_TargetPos;
@@ -474,7 +477,8 @@ bool CAI::UpdateWaypoint()
 	
 	// check target
 	
-	if (distance(m_Pos, m_TargetPos) < 600 && !GameServer()->Collision()->FastIntersectLine(m_Pos, m_TargetPos))
+	const vec2 FinalTargetDelta = m_Pos - m_TargetPos;
+	if(dot(FinalTargetDelta, FinalTargetDelta) < 600.0f * 600.0f && !GameServer()->Collision()->FastIntersectLine(m_Pos, m_TargetPos))
 	{
 		m_WaypointPos = m_TargetPos;
 		m_WaypointDir = m_WaypointPos - m_Pos;
@@ -1079,7 +1083,8 @@ bool CAI::MoveTowardsWaypoint(bool Freestyle)
 	}
 	
 	// movement logic
-	if (distance(m_LastPos, m_WaypointPos) < 40)
+	const vec2 WaypointDelta = m_LastPos - m_WaypointPos;
+	if(dot(WaypointDelta, WaypointDelta) < 40.0f * 40.0f)
 	{
 		m_MoveType = MOVE_IDLE;
 		return true;

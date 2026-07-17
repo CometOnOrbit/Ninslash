@@ -25,14 +25,16 @@ void CSaboteur::AbilityTick()
 	}
 	if(!m_pEmpTarget)
 	{
-		CEntity *apTargets[64]; float Best = 800.0f;
+		CEntity *apTargets[64]; float BestDistanceSquared = 800.0f * 800.0f;
 		for(int Type : {CGameWorld::ENTTYPE_BUILDING, CGameWorld::ENTTYPE_LASER})
 		{
 			int Num = GameServer()->m_World.FindEntities(m_Pos, 800.0f, apTargets, 64, Type);
 			for(int i = 0; i < Num; i++)
 			{
 				if(Type == CGameWorld::ENTTYPE_LASER && dynamic_cast<CPveDrone *>(apTargets[i]) == 0) continue;
-				if(distance(m_Pos, apTargets[i]->m_Pos) < Best && !GameServer()->Collision()->FastIntersectLine(m_Pos + m_Center, apTargets[i]->m_Pos)) { Best = distance(m_Pos, apTargets[i]->m_Pos); m_pEmpTarget = apTargets[i]; }
+				const vec2 Delta = m_Pos - apTargets[i]->m_Pos;
+				const float DistanceSquared = dot(Delta, Delta);
+				if(DistanceSquared < BestDistanceSquared && !GameServer()->Collision()->FastIntersectLine(m_Pos + m_Center, apTargets[i]->m_Pos)) { BestDistanceSquared = DistanceSquared; m_pEmpTarget = apTargets[i]; }
 			}
 		}
 		m_ChargeStart = m_pEmpTarget ? Server()->Tick() : 0;

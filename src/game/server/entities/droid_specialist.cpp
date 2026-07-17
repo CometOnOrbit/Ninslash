@@ -39,16 +39,17 @@ CCharacter *CSpecialistDroid::TargetCharacter()
 bool CSpecialistDroid::AcquireTarget(float Range, bool RequireSight)
 {
 	CCharacter *pBest = 0;
-	float Best = Range;
+	float BestDistanceSquared = Range * Range;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CCharacter *pChr = GameServer()->GetPlayerChar(i);
 		if(!pChr || !pChr->IsAlive() || pChr->Invisible() || (GameServer()->m_pController->IsCoop() && pChr->m_IsBot))
 			continue;
-		const float Dist = distance(m_Pos, pChr->m_Pos);
-		if(Dist >= Best || (RequireSight && GameServer()->Collision()->FastIntersectLine(m_Pos + m_Center, pChr->m_Pos - vec2(0, 24))))
+		const vec2 Delta = m_Pos - pChr->m_Pos;
+		const float DistanceSquared = dot(Delta, Delta);
+		if(DistanceSquared >= BestDistanceSquared || (RequireSight && GameServer()->Collision()->FastIntersectLine(m_Pos + m_Center, pChr->m_Pos - vec2(0, 24))))
 			continue;
-		Best = Dist;
+		BestDistanceSquared = DistanceSquared;
 		pBest = pChr;
 		m_TargetIndex = i;
 	}

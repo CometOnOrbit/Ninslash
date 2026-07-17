@@ -311,9 +311,9 @@ vec2 CGameControllerInvasion::GetBotSpawnPos()
 {
 	if (m_GroupSpawnPos.x < 1.0f)
 	{
-		vec2 p;
-		GetSpawnPos(0, &p);
-		return p;
+		vec2 Pos(0, 0);
+		GetSpawnPos(0, &Pos);
+		return Pos;
 	}
 	
 	vec2 Pos = m_GroupSpawnPos;
@@ -353,8 +353,16 @@ bool CGameControllerInvasion::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 		if (m_BotSpawnTick > Server()->Tick())
 			return false;
 		
-		if (m_GroupSpawnPos.x < 1.0f && GetSpawnPos(1, pOutPos))
+		if (m_GroupSpawnPos.x < 1.0f)
+		{
+			if(GetSpawnPos(1, pOutPos))
+				return true;
+			EvaluateSpawnType(&Eval, 0);
+			if(!Eval.m_Got)
+				return false;
+			*pOutPos = Eval.m_Pos;
 			return true;
+		}
 	
 		vec2 Pos = GetBotSpawnPos();
 		*pOutPos = Pos;
@@ -804,8 +812,8 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 			m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, Level, m_EnemiesLeft, m_QuestWaveSize, ThreatDivisor);
 		m_EnemiesLeft -= ThreatReplacement.m_ThreatSpent;
 		const int BotCap = max(0, m_QuestWaveSize - ThreatReplacement.m_EntitiesSpawned);
-		
-		for (int i = 0; i < m_EnemiesLeft && CountBots() < BotCap; i++)
+		const int SpawnCount = min(m_EnemiesLeft, max(0, BotCap - CountBots()));
+		for(int i = 0; i < SpawnCount; i++)
 			GameServer()->AddBot();
 	}
 	
@@ -1430,7 +1438,8 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 			m_EnemiesLeft = min(16, 8 + g_Config.m_SvMapGenLevel);
 			m_QuestWaveSize = InvasionWaveCap(g_Config.m_SvMapGenLevel, max(1, CountPlayers(0)));
 			RandomGroupSpawnPos();
-			for (int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
+			const int SpawnCount = min(m_EnemiesLeft, max(0, m_QuestWaveSize - CountBots()));
+			for(int i = 0; i < SpawnCount; i++)
 				GameServer()->AddBot();
 		}
 		else
@@ -1664,7 +1673,8 @@ void CGameControllerInvasion::Tick()
 				m_EnemiesLeft = min(16, 6 + g_Config.m_SvMapGenLevel/3);
 				m_QuestWaveSize = min(20, 10 + g_Config.m_SvMapGenLevel/4);
 				RandomGroupSpawnPos();
-				for (int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
+				const int SpawnCount = min(m_EnemiesLeft, max(0, m_QuestWaveSize - CountBots()));
+				for(int i = 0; i < SpawnCount; i++)
 					GameServer()->AddBot();
 			}
 
@@ -1722,7 +1732,8 @@ void CGameControllerInvasion::Tick()
 					m_EnemiesLeft = max(4, m_QuestWaveSize / 2);
 					m_BotSpawnTick = Server()->Tick();
 					RandomGroupSpawnPos();
-					for(int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
+					const int SpawnCount = min(m_EnemiesLeft, max(0, m_QuestWaveSize - CountBots()));
+					for(int i = 0; i < SpawnCount; i++)
 						GameServer()->AddBot();
 				}
 			}
@@ -1744,7 +1755,8 @@ void CGameControllerInvasion::Tick()
 					m_EnemiesLeft = max(4, m_QuestWaveSize / 2);
 					m_BotSpawnTick = Server()->Tick();
 					RandomGroupSpawnPos();
-					for(int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
+					const int SpawnCount = min(m_EnemiesLeft, max(0, m_QuestWaveSize - CountBots()));
+					for(int i = 0; i < SpawnCount; i++)
 						GameServer()->AddBot();
 				}
 			}
@@ -1979,7 +1991,8 @@ void CGameControllerInvasion::Tick()
 			}
 			if(GameServer()->m_pPveDirector)
 				m_EnemiesLeft = (int)(m_EnemiesLeft * GameServer()->m_pPveDirector->EnemyCountMultiplier() + 0.5f);
-			for (int i = 0; i < m_EnemiesLeft && CountBots() < 32; i++)
+			const int SpawnCount = min(m_EnemiesLeft, max(0, 32 - CountBots()));
+			for(int i = 0; i < SpawnCount; i++)
 				GameServer()->AddBot();
 		}
 		else if ((m_AutoRestart || g_Config.m_SvMapGenLevel > 1) && Server()->Tick() > Server()->TickSpeed()*60.0f)

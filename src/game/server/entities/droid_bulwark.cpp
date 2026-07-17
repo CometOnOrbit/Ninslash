@@ -8,14 +8,15 @@ void CBulwark::AbilityTick()
 	CDroid *apDroids[32];
 	const int Num = GameServer()->m_World.FindEntities(m_Pos, 700.0f, (CEntity **)apDroids, 32, CGameWorld::ENTTYPE_DROID);
 	CDroid *pSupport = 0;
-	float Best = 700.0f;
+	float BestDistanceSquared = 700.0f * 700.0f;
 	for(int i = 0; i < Num; i++)
 	{
 		if(!apDroids[i] || apDroids[i]->m_Health <= 0 || (apDroids[i]->m_Type != DROIDTYPE_ASSEMBLER && apDroids[i]->m_Type != DROIDTYPE_RAILGUNNER)) continue;
-		float Dist = distance(m_Pos, apDroids[i]->m_Pos);
-		if(Dist < Best) { Best = Dist; pSupport = apDroids[i]; }
+		const vec2 Delta = m_Pos - apDroids[i]->m_Pos;
+		const float DistanceSquared = dot(Delta, Delta);
+		if(DistanceSquared < BestDistanceSquared) { BestDistanceSquared = DistanceSquared; pSupport = apDroids[i]; }
 	}
-	if(pSupport && Best > 180.0f) SetMovementGoal(pSupport->m_Pos, Server()->TickSpeed() * 2);
+	if(pSupport && BestDistanceSquared > 180.0f * 180.0f) SetMovementGoal(pSupport->m_Pos, Server()->TickSpeed() * 2);
 	else if(AcquireTarget(680.0f)) FireProjectile(28, .035f);
 	m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 3 / 10;
 }

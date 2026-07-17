@@ -591,11 +591,11 @@ void CMaze::ConnectRandomRooms()
 	if (m_Rooms < 2)
 		return;
 	
-	int r0 = rand()%(m_Rooms-1);
+	const int r0 = rand()%m_Rooms;
 	int r1 = rand()%(m_Rooms-1);
-	
-	if (r0 != r1)
-		Connect(m_aRoom[r0], m_aRoom[r1]);
+	if(r1 >= r0)
+		r1++;
+	Connect(m_aRoom[r0], m_aRoom[r1]);
 }
 
 	
