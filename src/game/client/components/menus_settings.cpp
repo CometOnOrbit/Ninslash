@@ -1759,7 +1759,7 @@ static CKeyInfo gs_aKeys[] =
 	Localize("Spectator mode");Localize("Spectate next");Localize("Spectate previous");Localize("Console");Localize("Remote console");
 	Localize("Screenshot");Localize("Scoreboard");Localize("Ready");Localize("Zoom in");Localize("Zoom out");Localize("Respawn");Localize("Slide / down");Localize("Drop weapon");
 	Localize("Item slot 1");Localize("Item slot 2");Localize("Item slot 3");Localize("Item slot 4");Localize("Inventory");Localize("Inventory roll");
-	Localize("Build menu");Localize("Drone command wheel");
+	Localize("Build menu");Localize("Drone wheel");
 */
 
 const int g_KeyCount = sizeof(gs_aKeys) / sizeof(CKeyInfo);

@@ -66,18 +66,15 @@ bool TryBossLanding(CGameWorld *pWorld, vec2 Probe, vec2 *pOutPos)
 
 int SelectBossType(int Depth)
 {
-	// Always available
-	int Types[6];
+	// Classic bosses only — Lost Protocol Siege/Overseer stay disabled while
+	// that kit is still rough.
+	int Types[4];
 	int Count = 0;
 	Types[Count++] = DROIDTYPE_BOSSCRAWLER;
 	if(Depth >= 5)
 		Types[Count++] = DROIDTYPE_BOSSSTAR;
 	if(Depth >= 15)
 		Types[Count++] = DROIDTYPE_BOSSSPLITTER;
-	if(Depth >= 20)
-		Types[Count++] = DROIDTYPE_SIEGE_ENGINE;
-	if(Depth >= 30)
-		Types[Count++] = DROIDTYPE_OVERSEER_CORE;
 	return Types[rand() % Count];
 }
 
@@ -117,15 +114,14 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 		Pos = SafePos;
 
 	int Type = TypeHint;
-	if(Type < 0 || !IsBossDroidType(Type))
+	// Remap unfinished Lost Protocol bosses onto the classic pool.
+	if(Type == DROIDTYPE_SIEGE_ENGINE || Type == DROIDTYPE_OVERSEER_CORE)
+		Type = -1;
+	if(Type < 0 || !IsBossDroidType(Type) || Type == DROIDTYPE_SIEGE_ENGINE || Type == DROIDTYPE_OVERSEER_CORE)
 		Type = SelectBossType(Depth);
 
 	switch(Type)
 	{
-	case DROIDTYPE_SIEGE_ENGINE:
-		return new CSiegeEngine(pWorld, Pos);
-	case DROIDTYPE_OVERSEER_CORE:
-		return new COverseerCore(pWorld, Pos);
 	case DROIDTYPE_BOSSSTAR:
 		return new CBossStar(pWorld, Pos);
 	case DROIDTYPE_BOSSSPLITTER:
@@ -137,6 +133,9 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 
 CDroid *SpawnSpecialist(CGameWorld *pWorld, vec2 Pos, int Type)
 {
+	// ponytail: Lost Protocol specialists (Bulwark/Assembler/Saboteur/Railgunner)
+	// are too rough to ship in ordinary spawns. Re-enable when the kit is ready.
+	/*
 	switch(Type)
 	{
 	case DROIDTYPE_BULWARK: return new CBulwark(pWorld, Pos);
@@ -145,6 +144,11 @@ CDroid *SpawnSpecialist(CGameWorld *pWorld, vec2 Pos, int Type)
 	case DROIDTYPE_RAILGUNNER: return new CRailgunner(pWorld, Pos);
 	default: return 0;
 	}
+	*/
+	(void)pWorld;
+	(void)Pos;
+	(void)Type;
+	return 0;
 }
 
 int DroidThreatCost(int Type)
@@ -152,9 +156,9 @@ int DroidThreatCost(int Type)
 	switch(Type)
 	{
 	case DROIDTYPE_RAILGUNNER:
-	case DROIDTYPE_SABOTEUR: return 2;
+	case DROIDTYPE_SABOTEUR: return 3;
 	case DROIDTYPE_BULWARK:
-	case DROIDTYPE_ASSEMBLER: return 3;
+	case DROIDTYPE_ASSEMBLER: return 4;
 	case DROIDTYPE_SIEGE_ENGINE:
 	case DROIDTYPE_OVERSEER_CORE: return 10;
 	default: return 1;
@@ -164,7 +168,17 @@ int DroidThreatCost(int Type)
 SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld, const vec2 *pSpawnPoints,
 	int NumSpawnPoints, int *pRotation, int Depth, int OrdinaryThreat, int MaxEntities, int ThreatDivisor)
 {
+	// Lost Protocol specialist replacement is disabled (see SpawnSpecialist).
+	(void)pWorld;
+	(void)pSpawnPoints;
+	(void)NumSpawnPoints;
+	(void)pRotation;
+	(void)Depth;
+	(void)OrdinaryThreat;
+	(void)MaxEntities;
+	(void)ThreatDivisor;
 	SThreatBudgetResult Result = {0, 0};
+	/*
 	if(!pWorld || !pSpawnPoints || NumSpawnPoints <= 0 || OrdinaryThreat < 2 || MaxEntities <= 0)
 		return Result;
 
@@ -202,6 +216,7 @@ SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld, const vec2 
 		Result.m_ThreatSpent += Cost;
 		Result.m_EntitiesSpawned++;
 	}
+	*/
 	return Result;
 }
 

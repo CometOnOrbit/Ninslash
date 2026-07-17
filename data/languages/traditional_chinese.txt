@@ -2949,3 +2949,21 @@ Carry its energy core and hold extraction
 == 搬運其能源核心並守住撤離區
 Foundry
 == 鑄造廠
+
+Deliver cargo
+== 運送貨物
+
+Drone wheel
+== 無人機指令輪盤
+
+Hold out against the wave
+== 堅守敵潮
+
+Hold the line
+== 守住陣線
+
+Pick up cargo
+== 拾取貨物
+
+Stand by
+== 待命

@@ -789,7 +789,7 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	if (AddBots)
 	{
 		RandomGroupSpawnPos();
-		const int ThreatDivisor = m_LevelTheme == INVASION_THEME_ELITE_WAVE ? 2 : 4;
+		const int ThreatDivisor = m_LevelTheme == INVASION_THEME_ELITE_WAVE ? 3 : 6;
 		const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
 			m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, Level, m_EnemiesLeft, m_QuestWaveSize, ThreatDivisor);
 		m_EnemiesLeft -= ThreatReplacement.m_ThreatSpent;
@@ -1618,6 +1618,12 @@ void CGameControllerInvasion::Tick()
 					m_DefendPrepEndTick = 0;
 					m_DefendEndTick = Server()->Tick() + Server()->TickSpeed() * (40 + g_Config.m_SvMapGenLevel);
 					SpawnNewWave();
+					// SpawnNewWave drains the enemy pool filling the concurrent cap.
+					// Keep a reinforce budget so CanSpawn can admit replacements
+					// for the rest of the defend timer.
+					if(m_EnemiesLeft <= 0)
+						m_EnemiesLeft = max(4, m_QuestWaveSize / 2);
+					m_BotSpawnTick = Server()->Tick();
 					GameServer()->SendBroadcast("Defend the reactor", -1);
 				}
 			}
@@ -1643,6 +1649,10 @@ void CGameControllerInvasion::Tick()
 				m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.22f, 0.7f - g_Config.m_SvMapGenLevel*0.012f);
 				if (CountBots() < m_QuestWaveSize)
 				{
+					// Infinite reinforce while the defend timer runs: CanSpawn
+					// rejects bots when m_EnemiesLeft hits 0.
+					if(m_EnemiesLeft <= 0)
+						m_EnemiesLeft = 1;
 					RandomGroupSpawnPos();
 					GameServer()->AddBot();
 				}

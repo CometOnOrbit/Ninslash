@@ -57,18 +57,6 @@
             "value": "Activate the switches"
         },
         {
-            "key": "admin forced server option '%s' (%s)",
-            "value": "admin forced server option '%s' (%s)"
-        },
-        {
-            "key": "admin forced vote %s",
-            "value": "admin forced vote %s"
-        },
-        {
-            "key": "admin moved '%s' to spectator (%s)",
-            "value": "admin moved '%s' to spectator (%s)"
-        },
-        {
             "key": "Alien wave cleared",
             "value": "Alien wave cleared"
         },
@@ -125,20 +113,8 @@
             "value": "Ball"
         },
         {
-            "key": "ball_small1.map - no bots",
-            "value": "ball_small1.map - no bots"
-        },
-        {
-            "key": "ball_small2.map - no bots",
-            "value": "ball_small2.map - no bots"
-        },
-        {
             "key": "Battle Royale",
             "value": "Battle Royale"
-        },
-        {
-            "key": "blue",
-            "value": "blue"
         },
         {
             "key": "Blue team scores!",
@@ -173,8 +149,32 @@
             "value": "Capture the flag"
         },
         {
+            "key": "Cargo acquired — deliver to the marked platform",
+            "value": "Cargo acquired — deliver to the marked platform"
+        },
+        {
+            "key": "Cargo delivered!",
+            "value": "Cargo delivered!"
+        },
+        {
+            "key": "Cargo dropped — return to pickup",
+            "value": "Cargo dropped — return to pickup"
+        },
+        {
             "key": "Cleared %d waves!",
             "value": "Cleared %d waves!"
+        },
+        {
+            "key": "Contract completed: +1 research point",
+            "value": "Contract completed: +1 research point"
+        },
+        {
+            "key": "Contract failed",
+            "value": "Contract failed"
+        },
+        {
+            "key": "Contract vote timed out; a valid option was selected",
+            "value": "Contract vote timed out; a valid option was selected"
         },
         {
             "key": "Cyborg wave cleared",
@@ -265,6 +265,10 @@
             "value": "Extraction — activate switches, then escape"
         },
         {
+            "key": "Failure %d/5 — retrying this floor",
+            "value": "Failure %d/5 — retrying this floor"
+        },
+        {
             "key": "Find and activate the switch",
             "value": "Find and activate the switch"
         },
@@ -289,18 +293,6 @@
             "value": "Game over on wave %d"
         },
         {
-            "key": "generated map",
-            "value": "generated map"
-        },
-        {
-            "key": "generated map - last man standing",
-            "value": "generated map - last man standing"
-        },
-        {
-            "key": "generated match",
-            "value": "generated match"
-        },
-        {
             "key": "Go!",
             "value": "Go!"
         },
@@ -317,12 +309,16 @@
             "value": "Highest level reached on server: %d"
         },
         {
-            "key": "Horde incoming",
-            "value": "Horde incoming"
+            "key": "Hold the line",
+            "value": "Hold the line"
         },
         {
             "key": "Horde Survival",
             "value": "Horde Survival"
+        },
+        {
+            "key": "Horde incoming",
+            "value": "Horde incoming"
         },
         {
             "key": "Horde — survive the waves",
@@ -353,12 +349,12 @@
             "value": "Jump to level %d"
         },
         {
-            "key": "Kick voting requires %d players on the server",
-            "value": "Kick voting requires %d players on the server"
-        },
-        {
             "key": "KILL!",
             "value": "KILL!"
+        },
+        {
+            "key": "Kick voting requires %d players on the server",
+            "value": "Kick voting requires %d players on the server"
         },
         {
             "key": "Level %d",
@@ -367,6 +363,10 @@
         {
             "key": "Level %d - %s",
             "value": "Level %d - %s"
+        },
+        {
+            "key": "Level %d - %s · Attempt %d/5",
+            "value": "Level %d - %s · Attempt %d/5"
         },
         {
             "key": "Level %d - Attempt %d",
@@ -441,12 +441,44 @@
             "value": "Ocean of blood"
         },
         {
+            "key": "Operation vote timed out; a valid route was selected",
+            "value": "Operation vote timed out; a valid route was selected"
+        },
+        {
+            "key": "Perk choice timed out; displayed options were selected at random",
+            "value": "Perk choice timed out; displayed options were selected at random"
+        },
+        {
             "key": "PvE",
             "value": "PvE"
         },
         {
+            "key": "PvE selection rejected: choice was not offered",
+            "value": "PvE selection rejected: choice was not offered"
+        },
+        {
+            "key": "PvE selection rejected: duplicate choice",
+            "value": "PvE selection rejected: duplicate choice"
+        },
+        {
+            "key": "PvE selection rejected: expired choice",
+            "value": "PvE selection rejected: expired choice"
+        },
+        {
+            "key": "PvE selection rejected: invalid progression",
+            "value": "PvE selection rejected: invalid progression"
+        },
+        {
+            "key": "PvE selection rejected: out-of-range value",
+            "value": "PvE selection rejected: out-of-range value"
+        },
+        {
             "key": "Reach the door",
             "value": "Reach the door"
+        },
+        {
+            "key": "Reach the reactor — defense starts in 10s",
+            "value": "Reach the reactor — defense starts in 10s"
         },
         {
             "key": "Reactor Bomber",
@@ -473,20 +505,12 @@
             "value": "Reactor lost"
         },
         {
+            "key": "Reactor missing — survive the wave instead",
+            "value": "Reactor missing — survive the wave instead"
+        },
+        {
             "key": "Reactor secured",
             "value": "Reactor secured"
-        },
-        {
-            "key": "reactor1.map - survival mode PvP",
-            "value": "reactor1.map - survival mode PvP"
-        },
-        {
-            "key": "reactor_def1.map - PvE",
-            "value": "reactor_def1.map - PvE"
-        },
-        {
-            "key": "red",
-            "value": "red"
         },
         {
             "key": "Red team scores!",
@@ -495,6 +519,10 @@
         {
             "key": "Red team wins",
             "value": "Red team wins"
+        },
+        {
+            "key": "Research reward: +%d point(s)",
+            "value": "Research reward: +%d point(s)"
         },
         {
             "key": "Rising acid! Reach the exit",
@@ -563,6 +591,14 @@
         {
             "key": "Switch activated",
             "value": "Switch activated"
+        },
+        {
+            "key": "Switches missing — survive the wave instead",
+            "value": "Switches missing — survive the wave instead"
+        },
+        {
+            "key": "Team contract started",
+            "value": "Team contract started"
         },
         {
             "key": "Team deathmatch",
@@ -709,52 +745,52 @@
             "value": "You must wait %d seconds before making another vote"
         },
         {
-            "key": "Contract completed: +1 research point",
-            "value": "Contract completed: +1 research point"
+            "key": "admin forced server option '%s' (%s)",
+            "value": "admin forced server option '%s' (%s)"
         },
         {
-            "key": "Contract failed",
-            "value": "Contract failed"
+            "key": "admin forced vote %s",
+            "value": "admin forced vote %s"
         },
         {
-            "key": "Contract vote timed out; a valid option was selected",
-            "value": "Contract vote timed out; a valid option was selected"
+            "key": "admin moved '%s' to spectator (%s)",
+            "value": "admin moved '%s' to spectator (%s)"
         },
         {
-            "key": "Operation vote timed out; a valid route was selected",
-            "value": "Operation vote timed out; a valid route was selected"
+            "key": "ball_small1.map - no bots",
+            "value": "ball_small1.map - no bots"
         },
         {
-            "key": "Perk choice timed out; displayed options were selected at random",
-            "value": "Perk choice timed out; displayed options were selected at random"
+            "key": "ball_small2.map - no bots",
+            "value": "ball_small2.map - no bots"
         },
         {
-            "key": "PvE selection rejected: choice was not offered",
-            "value": "PvE selection rejected: choice was not offered"
+            "key": "blue",
+            "value": "blue"
         },
         {
-            "key": "PvE selection rejected: duplicate choice",
-            "value": "PvE selection rejected: duplicate choice"
+            "key": "generated map",
+            "value": "generated map"
         },
         {
-            "key": "PvE selection rejected: expired choice",
-            "value": "PvE selection rejected: expired choice"
+            "key": "generated map - last man standing",
+            "value": "generated map - last man standing"
         },
         {
-            "key": "PvE selection rejected: invalid progression",
-            "value": "PvE selection rejected: invalid progression"
+            "key": "generated match",
+            "value": "generated match"
         },
         {
-            "key": "PvE selection rejected: out-of-range value",
-            "value": "PvE selection rejected: out-of-range value"
+            "key": "reactor1.map - survival mode PvP",
+            "value": "reactor1.map - survival mode PvP"
         },
         {
-            "key": "Research reward: +%d point(s)",
-            "value": "Research reward: +%d point(s)"
+            "key": "reactor_def1.map - PvE",
+            "value": "reactor_def1.map - PvE"
         },
         {
-            "key": "Team contract started",
-            "value": "Team contract started"
+            "key": "red",
+            "value": "red"
         }
     ]
 }

@@ -57,18 +57,6 @@
             "value": "啟動開關"
         },
         {
-            "key": "admin forced server option '%s' (%s)",
-            "value": "管理員強製投票 '%s' (%s)"
-        },
-        {
-            "key": "admin forced vote %s",
-            "value": "管理員強製投票 %s"
-        },
-        {
-            "key": "admin moved '%s' to spectator (%s)",
-            "value": "管理員把 '%s' 移到了旁觀者 (%s)"
-        },
-        {
             "key": "Alien wave cleared",
             "value": "外星人被殲滅了！"
         },
@@ -125,20 +113,8 @@
             "value": "球類模式"
         },
         {
-            "key": "ball_small1.map - no bots",
-            "value": "地圖：ball_small1 - 無AI"
-        },
-        {
-            "key": "ball_small2.map - no bots",
-            "value": "地圖：ball_small2 - 無AI"
-        },
-        {
             "key": "Battle Royale",
             "value": "大逃殺"
-        },
-        {
-            "key": "blue",
-            "value": "藍"
         },
         {
             "key": "Blue team scores!",
@@ -173,8 +149,32 @@
             "value": "奪旗模式"
         },
         {
+            "key": "Cargo acquired — deliver to the marked platform",
+            "value": "已取得貨物 — 送到標記平台"
+        },
+        {
+            "key": "Cargo delivered!",
+            "value": "貨物已送達！"
+        },
+        {
+            "key": "Cargo dropped — return to pickup",
+            "value": "貨物已掉落 — 請返回拾取"
+        },
+        {
             "key": "Cleared %d waves!",
             "value": "已清除 %d 波攻勢！"
+        },
+        {
+            "key": "Contract completed: +1 research point",
+            "value": "契約完成：+1 研究點"
+        },
+        {
+            "key": "Contract failed",
+            "value": "契約失敗"
+        },
+        {
+            "key": "Contract vote timed out; a valid option was selected",
+            "value": "契約投票逾時；已從有效選項中選定一項"
         },
         {
             "key": "Cyborg wave cleared",
@@ -265,6 +265,10 @@
             "value": "撤離 — 啟動開關後逃生"
         },
         {
+            "key": "Failure %d/5 — retrying this floor",
+            "value": "失敗 %d/5 — 正在重試本層"
+        },
+        {
             "key": "Find and activate the switch",
             "value": "找到並啟動開關"
         },
@@ -289,18 +293,6 @@
             "value": "遊戲在第 %d 波結束"
         },
         {
-            "key": "generated map",
-            "value": "自動生成地圖"
-        },
-        {
-            "key": "generated map - last man standing",
-            "value": "自動生成地圖 - 活到最後"
-        },
-        {
-            "key": "generated match",
-            "value": "自動生成地圖"
-        },
-        {
             "key": "Go!",
             "value": "走你!"
         },
@@ -317,12 +309,16 @@
             "value": "該服務器闖到的最高關卡: %d"
         },
         {
-            "key": "Horde incoming",
-            "value": "屍潮來襲"
+            "key": "Hold the line",
+            "value": "守住陣線"
         },
         {
             "key": "Horde Survival",
             "value": "屍潮生存"
+        },
+        {
+            "key": "Horde incoming",
+            "value": "屍潮來襲"
         },
         {
             "key": "Horde — survive the waves",
@@ -353,12 +349,12 @@
             "value": "跳轉到樓層 %d"
         },
         {
-            "key": "Kick voting requires %d players on the server",
-            "value": "至少需要%d名玩家才能在服務器中發起投票"
-        },
-        {
             "key": "KILL!",
             "value": "殺!!"
+        },
+        {
+            "key": "Kick voting requires %d players on the server",
+            "value": "至少需要%d名玩家才能在服務器中發起投票"
         },
         {
             "key": "Level %d",
@@ -367,6 +363,10 @@
         {
             "key": "Level %d - %s",
             "value": "關卡 %d - %s"
+        },
+        {
+            "key": "Level %d - %s · Attempt %d/5",
+            "value": "關卡 %d - %s · 第 %d/5 次嘗試"
         },
         {
             "key": "Level %d - Attempt %d",
@@ -441,12 +441,44 @@
             "value": "血流成河"
         },
         {
+            "key": "Operation vote timed out; a valid route was selected",
+            "value": "行動投票逾時；已選定一條有效路線"
+        },
+        {
+            "key": "Perk choice timed out; displayed options were selected at random",
+            "value": "強化選擇逾時；已從顯示選項中隨機選擇"
+        },
+        {
             "key": "PvE",
             "value": "合作"
         },
         {
+            "key": "PvE selection rejected: choice was not offered",
+            "value": "PvE 選擇被拒絕：該選項未向你顯示"
+        },
+        {
+            "key": "PvE selection rejected: duplicate choice",
+            "value": "PvE 選擇被拒絕：重複提交"
+        },
+        {
+            "key": "PvE selection rejected: expired choice",
+            "value": "PvE 選擇被拒絕：選擇已過期"
+        },
+        {
+            "key": "PvE selection rejected: invalid progression",
+            "value": "PvE 選擇被拒絕：研究進度無效"
+        },
+        {
+            "key": "PvE selection rejected: out-of-range value",
+            "value": "PvE 選擇被拒絕：數值越界"
+        },
+        {
             "key": "Reach the door",
             "value": "找到通往下一層的門"
+        },
+        {
+            "key": "Reach the reactor — defense starts in 10s",
+            "value": "前往反應堆 — 10 秒後開始防守"
         },
         {
             "key": "Reactor Bomber",
@@ -473,20 +505,12 @@
             "value": "反應堆被摧毀"
         },
         {
+            "key": "Reactor missing — survive the wave instead",
+            "value": "反應堆缺失 — 改為存活敵潮"
+        },
+        {
             "key": "Reactor secured",
             "value": "反應堆已守住"
-        },
-        {
-            "key": "reactor1.map - survival mode PvP",
-            "value": "地圖：reactor1 - 生存模式PvP"
-        },
-        {
-            "key": "reactor_def1.map - PvE",
-            "value": "地圖：reactor_def1 - 合作模式"
-        },
-        {
-            "key": "red",
-            "value": "紅"
         },
         {
             "key": "Red team scores!",
@@ -495,6 +519,10 @@
         {
             "key": "Red team wins",
             "value": "紅隊贏了"
+        },
+        {
+            "key": "Research reward: +%d point(s)",
+            "value": "研究獎勵：+%d 點"
         },
         {
             "key": "Rising acid! Reach the exit",
@@ -563,6 +591,14 @@
         {
             "key": "Switch activated",
             "value": "開關已啟動"
+        },
+        {
+            "key": "Switches missing — survive the wave instead",
+            "value": "開關缺失 — 改為存活敵潮"
+        },
+        {
+            "key": "Team contract started",
+            "value": "團隊契約已開始"
         },
         {
             "key": "Team deathmatch",
@@ -709,52 +745,52 @@
             "value": "你必須等待 %d 秒後才能發起另一投票"
         },
         {
-            "key": "Contract completed: +1 research point",
-            "value": "契約完成：+1 研究點"
+            "key": "admin forced server option '%s' (%s)",
+            "value": "管理員強製投票 '%s' (%s)"
         },
         {
-            "key": "Contract failed",
-            "value": "契約失敗"
+            "key": "admin forced vote %s",
+            "value": "管理員強製投票 %s"
         },
         {
-            "key": "Contract vote timed out; a valid option was selected",
-            "value": "契約投票逾時；已從有效選項中選定一項"
+            "key": "admin moved '%s' to spectator (%s)",
+            "value": "管理員把 '%s' 移到了旁觀者 (%s)"
         },
         {
-            "key": "Operation vote timed out; a valid route was selected",
-            "value": "行動投票逾時；已選定一條有效路線"
+            "key": "ball_small1.map - no bots",
+            "value": "地圖：ball_small1 - 無AI"
         },
         {
-            "key": "Perk choice timed out; displayed options were selected at random",
-            "value": "強化選擇逾時；已從顯示選項中隨機選擇"
+            "key": "ball_small2.map - no bots",
+            "value": "地圖：ball_small2 - 無AI"
         },
         {
-            "key": "PvE selection rejected: choice was not offered",
-            "value": "PvE 選擇被拒絕：該選項未向你顯示"
+            "key": "blue",
+            "value": "藍"
         },
         {
-            "key": "PvE selection rejected: duplicate choice",
-            "value": "PvE 選擇被拒絕：重複提交"
+            "key": "generated map",
+            "value": "自動生成地圖"
         },
         {
-            "key": "PvE selection rejected: expired choice",
-            "value": "PvE 選擇被拒絕：選擇已過期"
+            "key": "generated map - last man standing",
+            "value": "自動生成地圖 - 活到最後"
         },
         {
-            "key": "PvE selection rejected: invalid progression",
-            "value": "PvE 選擇被拒絕：研究進度無效"
+            "key": "generated match",
+            "value": "自動生成地圖"
         },
         {
-            "key": "PvE selection rejected: out-of-range value",
-            "value": "PvE 選擇被拒絕：數值越界"
+            "key": "reactor1.map - survival mode PvP",
+            "value": "地圖：reactor1 - 生存模式PvP"
         },
         {
-            "key": "Research reward: +%d point(s)",
-            "value": "研究獎勵：+%d 點"
+            "key": "reactor_def1.map - PvE",
+            "value": "地圖：reactor_def1 - 合作模式"
         },
         {
-            "key": "Team contract started",
-            "value": "團隊契約已開始"
+            "key": "red",
+            "value": "紅"
         }
     ]
 }
