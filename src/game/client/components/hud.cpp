@@ -299,7 +299,7 @@ void CHud::RenderObjective()
 	int ObjectiveSignature = Quest * 31 + Level * 131;
 	if(Quest == QUEST_EXTRACT)
 		ObjectiveSignature = ObjectiveSignature * 31 + ExtractStage;
-	else if(Quest == QUEST_DEFEND || Quest == QUEST_SURVIVEWAVETIME)
+	else if(Quest == QUEST_DEFEND || Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_HOLD_ZONE)
 		ObjectiveSignature = (((ObjectiveSignature * 31 + Theme) * 31 + WaveType) * 31 + QuestsDone) * 31 + QuestProgressCounter;
 	else if(Quest != QUEST_HORDE)
 		ObjectiveSignature = (((ObjectiveSignature * 31 + Theme) * 31 + WaveType) * 31 + QuestsDone) * 31 + QuestsTotal;
@@ -341,12 +341,13 @@ void CHud::RenderObjective()
 	{
 		char aDetail[96];
 		aDetail[0] = 0;
-		if(Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS || Quest == QUEST_HORDE)
+		if(Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS || Quest == QUEST_HORDE || Quest == QUEST_DESTROY_TURRETS)
 		{
-			const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining") : Localize("enemies remaining");
+			const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining")
+				: (Quest == QUEST_DESTROY_TURRETS ? Localize("turrets remaining") : Localize("enemies remaining"));
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, pText);
 		}
-		else if(Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND)
+		else if(Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND || Quest == QUEST_HOLD_ZONE)
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("seconds remaining"));
 		else if(Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH || (Quest == QUEST_EXTRACT && ExtractStage == 0))
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("switches remaining"));

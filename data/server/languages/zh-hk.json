@@ -177,6 +177,10 @@
             "value": "契約投票逾時；已從有效選項中選定一項"
         },
         {
+            "key": "Crawlers emerging!",
+            "value": "爬行者湧出！"
+        },
+        {
             "key": "Cyborg wave cleared",
             "value": "賽博格被殲滅了！"
         },
@@ -199,6 +203,14 @@
         {
             "key": "Destroy the boss",
             "value": "摧毀首領"
+        },
+        {
+            "key": "Destroy the enemy turrets",
+            "value": "摧毀敵方砲塔"
+        },
+        {
+            "key": "Destroy the turrets",
+            "value": "摧毀砲塔"
         },
         {
             "key": "Disarming bomb... %d",
@@ -231,6 +243,46 @@
         {
             "key": "Evacuated %d/%d",
             "value": "已撤離 %d/%d 人"
+        },
+        {
+            "key": "Event: Breather wave",
+            "value": "事件：喘息波"
+        },
+        {
+            "key": "Event: Crawler nest!",
+            "value": "事件：爬行者巢穴！"
+        },
+        {
+            "key": "Event: Crawler pack!",
+            "value": "事件：爬行者群！"
+        },
+        {
+            "key": "Event: Field rations!",
+            "value": "事件：野戰口糧！"
+        },
+        {
+            "key": "Event: Fortify drop!",
+            "value": "事件：設防物資！"
+        },
+        {
+            "key": "Event: Hardened squad!",
+            "value": "事件：精銳小隊！"
+        },
+        {
+            "key": "Event: Rabble swarm!",
+            "value": "事件：烏合之眾！"
+        },
+        {
+            "key": "Event: Reinforcements inbound!",
+            "value": "事件：增援來襲！"
+        },
+        {
+            "key": "Event: Rogue boss!",
+            "value": "事件：遊蕩首領！"
+        },
+        {
+            "key": "Event: Supply drop!",
+            "value": "事件：補給空投！"
         },
         {
             "key": "Everybody dies",
@@ -311,6 +363,18 @@
         {
             "key": "Hold the line",
             "value": "守住陣線"
+        },
+        {
+            "key": "Hold the marked signal point",
+            "value": "堅守標記的信號點"
+        },
+        {
+            "key": "Hold the signal point",
+            "value": "堅守信號點"
+        },
+        {
+            "key": "Holding signal...",
+            "value": "正在佔領信號點..."
         },
         {
             "key": "Horde Survival",
@@ -517,6 +581,10 @@
             "value": "紅隊贏了"
         },
         {
+            "key": "Reinforcements inbound!",
+            "value": "增援來襲！"
+        },
+        {
             "key": "Research reward: +%d point(s)",
             "value": "研究獎勵：+%d 點"
         },
@@ -547,6 +615,22 @@
         {
             "key": "Server does not allow voting to move players to spectators",
             "value": "服務器不允許投票將玩家移動至旁觀者"
+        },
+        {
+            "key": "Signal hold",
+            "value": "信號堅守"
+        },
+        {
+            "key": "Signal hold interrupted",
+            "value": "信號佔領中斷"
+        },
+        {
+            "key": "Signal missing — survive the wave instead",
+            "value": "信號點缺失 — 改為存活敵潮"
+        },
+        {
+            "key": "Signal secured",
+            "value": "信號點已確保"
         },
         {
             "key": "Skeleton wave cleared",
@@ -667,6 +751,18 @@
         {
             "key": "Time out - Blue team wins",
             "value": "時間到 - 藍隊勝利"
+        },
+        {
+            "key": "Turret sweep",
+            "value": "砲塔清掃"
+        },
+        {
+            "key": "Turrets destroyed",
+            "value": "砲塔已摧毀"
+        },
+        {
+            "key": "Turrets missing — survive the wave instead",
+            "value": "砲塔缺失 — 改為存活敵潮"
         },
         {
             "key": "Vote aborted",

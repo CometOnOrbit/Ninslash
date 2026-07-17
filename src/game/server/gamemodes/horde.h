@@ -33,12 +33,40 @@ private:
 	vec2 m_DefenseAreaCenter;
 	bool m_DefenseAreaReady;
 
+	enum EHordeEvent
+	{
+		HORDE_EVENT_NONE = 0,
+		HORDE_EVENT_CRAWLER_PACK,
+		HORDE_EVENT_SUPPLY_DROP,
+		HORDE_EVENT_BREATHER,
+		HORDE_EVENT_RABBLE,
+		HORDE_EVENT_REINFORCEMENTS,
+		HORDE_EVENT_ROGUE_BOSS,
+		HORDE_EVENT_FIELD_RATIONS,
+		HORDE_EVENT_FORTIFY_DROP,
+		HORDE_EVENT_HARDENED_SQUAD,
+		HORDE_EVENT_CRAWLER_NEST,
+	};
+
+	int m_ActiveEvent;
+	int m_LastEventWave;
+	int m_EventActionTick;
+	int m_EventWaveBudget;
+	float m_EventCountMod;
+	int m_EventLevelMod;
+
 	void NextWave();
 	int EnemyLevel() const;
 	int AliveBossCount();
 	int CountHumansAlive(int ExcludeCID = -1) const;
 	bool GetBossSpawnPos(vec2 *pOutPos);
 	void EnsureDefenseArea(vec2 FallbackPos);
+	void ClearWaveEvent();
+	void RollWaveEvent();
+	void ApplyWaveEventSpawns();
+	void TickWaveEvent();
+	bool HeavyContractActive() const;
+	bool BossContractActive() const;
 
 public:
 	CGameControllerHorde(class CGameContext *pGameServer);

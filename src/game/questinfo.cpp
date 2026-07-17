@@ -15,6 +15,8 @@ const char *GetQuestDisplayName(int Quest)
 		case QUEST_ACTIVATE_SWITCHES: return "Activate the switches";
 		case QUEST_HORDE: return "Survive the horde";
 		case QUEST_EXTRACT: return "Activate switches to extract";
+		case QUEST_DESTROY_TURRETS: return "Destroy the turrets";
+		case QUEST_HOLD_ZONE: return "Hold the signal point";
 		default: return "";
 	}
 }
@@ -59,6 +61,8 @@ const char *GetQuestStartMessage(int Quest, int WaveType)
 		case QUEST_ACTIVATE_SWITCHES: return "Activate all switches";
 		case QUEST_HORDE: return "Horde incoming";
 		case QUEST_EXTRACT: return "Find and activate the switches";
+		case QUEST_DESTROY_TURRETS: return "Destroy the enemy turrets";
+		case QUEST_HOLD_ZONE: return "Hold the marked signal point";
 		default: return "";
 	}
 }
@@ -100,6 +104,8 @@ const char *GetQuestCompletedMessage(int Quest, int WaveType)
 		case QUEST_REACHDOOR: return "";
 		case QUEST_HORDE: return "Wave cleared";
 		case QUEST_EXTRACT: return "Extraction ready";
+		case QUEST_DESTROY_TURRETS: return "Turrets destroyed";
+		case QUEST_HOLD_ZONE: return "Signal secured";
 		default: return "";
 	}
 }
@@ -118,6 +124,8 @@ const char *GetThemeDisplayName(int Theme)
 		case INVASION_THEME_ELITE_WAVE: return "Elite wave";
 		case INVASION_THEME_Z_SECTOR: return "Z-sector wave";
 		case INVASION_THEME_ACID_ESCAPE: return "Acid escape";
+		case INVASION_THEME_TURRET_SWEEP: return "Turret sweep";
+		case INVASION_THEME_SIGNAL_HOLD: return "Signal hold";
 		default: return "Invasion";
 	}
 }

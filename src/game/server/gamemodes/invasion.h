@@ -36,6 +36,15 @@ private:
 	void QueueNextObjectiveQuest();
 	void SpawnEliteContractGuard();
 	void SpawnBosses(int Count);
+	int SpawnObjectiveTurrets(int Count);
+	void ClearObjectiveTurrets();
+	void RefreshObjectiveTurretRadars();
+	int CountAliveObjectiveTurrets() const;
+	void StartHoldZone();
+	void ClearHoldZone();
+	void TickHoldZone();
+	void TickDestroyTurrets();
+	void TickObjectivePressure();
 	int CountBossesAlive() const;
 	int CountBuildingsOfType(int Type) const;
 	int ReactorsLeft();
@@ -123,7 +132,19 @@ private:
 	class CRadar *m_pReactor;
 	class CRadar *m_apSwitchRadar[8];
 	int m_NumSwitchRadars;
-	
+
+	static const int MAX_OBJECTIVE_TURRETS = 4;
+	class CRadar *m_apTurretRadar[MAX_OBJECTIVE_TURRETS];
+	int m_ObjectiveTurretCount;
+	bool m_DestroyTurretsActive;
+	int m_DestroyFxTick;
+	vec2 m_HoldZonePos;
+	int m_HoldTicks;
+	int m_HoldRequiredTicks;
+	bool m_HoldZoneActive;
+	bool m_HoldWasOccupied;
+	int m_HoldFxTick;
+
 	void ClearSwitchRadars();
 	void RefreshSwitchRadars();
 	bool AnyCartographer() const;

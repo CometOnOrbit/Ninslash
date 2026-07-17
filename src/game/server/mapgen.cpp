@@ -671,11 +671,13 @@ bool CMapGen::GenerateSwitch(CGenLayer *pTiles)
 
 bool CMapGen::GenerateReactor(CGenLayer *pTiles)
 {
-	ivec2 p = pTiles->GetMedPlatform();
+	// Reactor-defend wants the objective on the far right so players can
+	// approach from one side instead of holding a centered crossfire.
+	ivec2 p = pTiles->GetRightPlatform();
+	if (p.x == 0)
+		p = pTiles->GetMedPlatform();
 	if (p.x == 0)
 		p = pTiles->GetPlatform();
-	if (p.x == 0)
-		p = pTiles->GetLeftPlatform();
 	if (p.x == 0)
 		p = pTiles->GetBotPlatform();
 	if (p.x == 0)

@@ -10,6 +10,7 @@
 #include <game/server/entities/droid.h>
 #include <game/server/bosspool.h>
 #include <game/server/entities/radar.h>
+#include <game/server/entities/turret.h>
 #include <game/server/player.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gameworld.h>
@@ -170,6 +171,17 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_NumSwitchRadars = 0;
 	for(int i = 0; i < 8; i++)
 		m_apSwitchRadar[i] = 0;
+	m_ObjectiveTurretCount = 0;
+	m_DestroyTurretsActive = false;
+	m_DestroyFxTick = 0;
+	for(int i = 0; i < MAX_OBJECTIVE_TURRETS; i++)
+		m_apTurretRadar[i] = 0;
+	m_HoldZonePos = vec2(0, 0);
+	m_HoldTicks = 0;
+	m_HoldRequiredTicks = 0;
+	m_HoldZoneActive = false;
+	m_HoldWasOccupied = false;
+	m_HoldFxTick = 0;
 }
 
 CGameControllerInvasion::~CGameControllerInvasion()
@@ -201,6 +213,12 @@ void CGameControllerInvasion::SetupLevelTheme()
 		m_LevelQuestsLeft = max(2, DepthQuests);
 		break;
 	case INVASION_THEME_REACTOR_DEFEND:
+		m_LevelQuestsLeft = max(2, DepthQuests);
+		break;
+	case INVASION_THEME_TURRET_SWEEP:
+		m_LevelQuestsLeft = max(2, DepthQuests);
+		break;
+	case INVASION_THEME_SIGNAL_HOLD:
 		m_LevelQuestsLeft = max(2, DepthQuests);
 		break;
 	case INVASION_THEME_TIMED_SURVIVE:
@@ -824,7 +842,8 @@ bool CGameControllerInvasion::IsObjectiveTarget(bool Boss) const
 	if(m_Quest == QUEST_KILL_BOSS)
 		return Boss;
 	return m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME ||
-		m_Quest == QUEST_KILLREMAININGENEMIES || m_Quest == QUEST_DEFEND;
+		m_Quest == QUEST_KILLREMAININGENEMIES || m_Quest == QUEST_DEFEND ||
+		m_Quest == QUEST_DESTROY_TURRETS || m_Quest == QUEST_HOLD_ZONE;
 }
 
 
@@ -909,6 +928,337 @@ void CGameControllerInvasion::SetSwitchesActive(bool Active)
 		RefreshSwitchRadars();
 	else
 		ClearSwitchRadars();
+}
+
+void CGameControllerInvasion::ClearObjectiveTurrets()
+{
+	for(int i = 0; i < MAX_OBJECTIVE_TURRETS; i++)
+	{
+		if(m_apTurretRadar[i])
+		{
+			m_apTurretRadar[i]->Deactivate();
+			GameServer()->m_World.DestroyEntity(m_apTurretRadar[i]);
+			m_apTurretRadar[i] = 0;
+		}
+	}
+	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; )
+	{
+		CBuilding *pNext = (CBuilding *)pBuilding->TypeNext();
+		if(pBuilding->m_PveDestroyObjective)
+			GameServer()->m_World.DestroyEntity(pBuilding);
+		pBuilding = pNext;
+	}
+	m_ObjectiveTurretCount = 0;
+	m_DestroyTurretsActive = false;
+	m_DestroyFxTick = 0;
+}
+
+void CGameControllerInvasion::RefreshObjectiveTurretRadars()
+{
+	for(int i = 0; i < MAX_OBJECTIVE_TURRETS; i++)
+	{
+		if(m_apTurretRadar[i])
+		{
+			m_apTurretRadar[i]->Deactivate();
+			GameServer()->m_World.DestroyEntity(m_apTurretRadar[i]);
+			m_apTurretRadar[i] = 0;
+		}
+	}
+	int RadarCount = 0;
+	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+	{
+		if(!pBuilding->m_PveDestroyObjective || pBuilding->m_Life <= 0 || pBuilding->m_Type != BUILDING_TURRET)
+			continue;
+		if(RadarCount >= MAX_OBJECTIVE_TURRETS)
+			break;
+		CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+		pRadar->Activate(pBuilding->m_Pos);
+		m_apTurretRadar[RadarCount++] = pRadar;
+	}
+}
+
+int CGameControllerInvasion::CountAliveObjectiveTurrets() const
+{
+	int Alive = 0;
+	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+	{
+		if(pBuilding->m_PveDestroyObjective && pBuilding->m_Type == BUILDING_TURRET && pBuilding->m_Life > 0)
+			Alive++;
+	}
+	return Alive;
+}
+
+int CGameControllerInvasion::SpawnObjectiveTurrets(int Count)
+{
+	ClearObjectiveTurrets();
+	Count = clamp(Count, 1, MAX_OBJECTIVE_TURRETS);
+	vec2 aPlaced[MAX_OBJECTIVE_TURRETS];
+	int Placed = 0;
+	for(int Attempt = 0; Attempt < Count * 8 && Placed < Count; Attempt++)
+	{
+		vec2 Pos;
+		if(!GetBossSpawnPos(&Pos) && !GetSpawnPos(0, &Pos))
+			break;
+		bool TooClose = false;
+		for(int i = 0; i < Placed; i++)
+		{
+			if(distance(aPlaced[i], Pos) < 280.0f)
+			{
+				TooClose = true;
+				break;
+			}
+		}
+		if(TooClose)
+			continue;
+		CWeapon *pWeapon = GameServer()->NewWeapon(GetModularWeapon(1, 1));
+		if(!pWeapon)
+			continue;
+		CTurret *pTurret = new CTurret(&GameServer()->m_World, Pos, -1, pWeapon);
+		pTurret->m_Team = -1;
+		pTurret->m_PveDestroyObjective = true;
+		pTurret->m_Life = min(120, 60 + g_Config.m_SvMapGenLevel * 2);
+		pTurret->m_MaxLife = pTurret->m_Life;
+		aPlaced[Placed++] = Pos;
+	}
+	m_ObjectiveTurretCount = Placed;
+	m_DestroyTurretsActive = Placed > 0;
+	m_DestroyFxTick = Server()->Tick();
+	RefreshObjectiveTurretRadars();
+	if(Placed > 0)
+		GameServer()->CreateSoundGlobal(SOUND_WEAPON_SPAWN);
+	return Placed;
+}
+
+void CGameControllerInvasion::TickDestroyTurrets()
+{
+	if(!m_DestroyTurretsActive)
+		return;
+	const int Alive = CountAliveObjectiveTurrets();
+	if(Alive != m_QuestProgressCounter)
+		RefreshObjectiveTurretRadars();
+	m_QuestProgressCounter = Alive;
+
+	if(m_DestroyFxTick <= Server()->Tick())
+	{
+		m_DestroyFxTick = Server()->Tick() + Server()->TickSpeed() * 0.7f;
+		for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+		{
+			if(!pBuilding->m_PveDestroyObjective || pBuilding->m_Type != BUILDING_TURRET || pBuilding->m_Life <= 0)
+				continue;
+			GameServer()->CreateEffect(FX_SMALLELECTRIC, pBuilding->m_Pos + vec2(0, -36));
+			GameServer()->CreateBuildingHit(pBuilding->m_Pos + vec2(0, -20));
+		}
+	}
+
+	if(Alive <= 0)
+	{
+		GameServer()->CreateSoundGlobal(SOUND_PICKUP_ARMOR);
+		ClearObjectiveTurrets();
+		m_EnemiesLeft = 0;
+		CompleteCurrentQuest();
+	}
+}
+
+void CGameControllerInvasion::ClearHoldZone()
+{
+	m_HoldZoneActive = false;
+	m_HoldTicks = 0;
+	m_HoldRequiredTicks = 0;
+	m_HoldWasOccupied = false;
+	m_HoldFxTick = 0;
+	if(m_pReactor)
+		m_pReactor->Deactivate();
+}
+
+static const float INV_HOLD_ZONE_RX = 220.0f;
+static const float INV_HOLD_ZONE_RY = 240.0f;
+
+static bool InvasionHoldPosStandable(CGameContext *pGameServer, vec2 Pos)
+{
+	return !pGameServer->Collision()->TestBox(Pos, vec2(28.0f, 50.0f))
+		&& pGameServer->Collision()->CheckPoint(Pos + vec2(0, 46));
+}
+
+static vec2 InvasionSnapHoldPos(CGameContext *pGameServer, vec2 Pos)
+{
+	CCollision *pCol = pGameServer->Collision();
+	// Always drop to the floor — air waypoints are "empty" but not standable ground.
+	vec2 From = Pos - vec2(0, 120);
+	vec2 To = Pos + vec2(0, 1000);
+	vec2 Hit, Before;
+	if(!pCol->IntersectLine(From, To, &Hit, &Before))
+		return Pos;
+
+	vec2 Grounded = Before - vec2(0, 42);
+	if(InvasionHoldPosStandable(pGameServer, Grounded))
+		return Grounded;
+
+	for(int dx = -4; dx <= 4; dx++)
+	{
+		if(dx == 0)
+			continue;
+		vec2 Try = Grounded + vec2(dx * 20.0f, 0);
+		vec2 TryFrom = Try - vec2(0, 80);
+		vec2 TryTo = Try + vec2(0, 400);
+		vec2 TryHit, TryBefore;
+		if(!pCol->IntersectLine(TryFrom, TryTo, &TryHit, &TryBefore))
+			continue;
+		Try = TryBefore - vec2(0, 42);
+		if(InvasionHoldPosStandable(pGameServer, Try))
+			return Try;
+	}
+	return Grounded;
+}
+
+void CGameControllerInvasion::StartHoldZone()
+{
+	ClearHoldZone();
+
+	vec2 HumanAnchor = vec2(0, 0);
+	int Humans = 0;
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
+		if(!pPlayer || pPlayer->m_IsBot || pPlayer->m_pAI || pPlayer->GetTeam() == TEAM_SPECTATORS)
+			continue;
+		CCharacter *pChr = pPlayer->GetCharacter();
+		if(!pChr || !pChr->IsAlive())
+			continue;
+		HumanAnchor += pChr->m_Pos;
+		Humans++;
+	}
+	if(Humans > 0)
+		HumanAnchor /= Humans;
+
+	vec2 aCand[MAX_ENEMIES + 4];
+	int NumCand = 0;
+	for(int i = 0; i < m_NumEnemySpawnPos && NumCand < MAX_ENEMIES; i++)
+		aCand[NumCand++] = m_aEnemySpawnPos[i];
+
+	CSpawnEval Eval;
+	EvaluateSpawnType(&Eval, 0);
+	if(Eval.m_Got && NumCand < MAX_ENEMIES + 4)
+		aCand[NumCand++] = Eval.m_Pos;
+
+	vec2 Far = GameServer()->GetFarHumanSpawnPos(true);
+	if((Far.x != 0.0f || Far.y != 0.0f) && NumCand < MAX_ENEMIES + 4)
+		aCand[NumCand++] = Far;
+
+	vec2 BestPos = vec2(0, 0);
+	float BestScore = -1.0f;
+	for(int i = 0; i < NumCand; i++)
+	{
+		vec2 Cand = InvasionSnapHoldPos(GameServer(), aCand[i]);
+		if(!InvasionHoldPosStandable(GameServer(), Cand))
+			continue;
+		// Prefer grounded points that are away from the party but still on a platform.
+		float Score = Humans > 0 ? distance(Cand, HumanAnchor) : Cand.x;
+		if(Score > BestScore)
+		{
+			BestScore = Score;
+			BestPos = Cand;
+		}
+	}
+
+	if(BestScore < 0.0f)
+	{
+		vec2 Fallback;
+		if(GetBossSpawnPos(&Fallback) || GetSpawnPos(0, &Fallback))
+			BestPos = InvasionSnapHoldPos(GameServer(), Fallback);
+		else
+			BestPos = InvasionSnapHoldPos(GameServer(), Far);
+	}
+
+	m_HoldZonePos = BestPos;
+	m_HoldRequiredTicks = Server()->TickSpeed() * 8;
+	m_HoldTicks = 0;
+	m_HoldWasOccupied = false;
+	m_HoldFxTick = Server()->Tick();
+	m_HoldZoneActive = InvasionHoldPosStandable(GameServer(), m_HoldZonePos)
+		|| m_HoldZonePos.x != 0.0f || m_HoldZonePos.y != 0.0f;
+	if(m_HoldZoneActive && m_pReactor)
+		m_pReactor->Activate(m_HoldZonePos);
+	if(m_HoldZoneActive)
+	{
+		GameServer()->CreateEffect(FX_ELECTRIC, m_HoldZonePos);
+		GameServer()->CreateSound(m_HoldZonePos, SOUND_WEAPON_SPAWN);
+		dbg_msg("inv", "hold zone at (%.0f,%.0f) grounded=%d",
+			m_HoldZonePos.x, m_HoldZonePos.y, InvasionHoldPosStandable(GameServer(), m_HoldZonePos) ? 1 : 0);
+	}
+}
+
+void CGameControllerInvasion::TickHoldZone()
+{
+	if(!m_HoldZoneActive)
+		return;
+	bool Occupied = false;
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
+		if(!pPlayer || pPlayer->m_IsBot || pPlayer->m_pAI || pPlayer->GetTeam() == TEAM_SPECTATORS)
+			continue;
+		CCharacter *pChr = pPlayer->GetCharacter();
+		if(pChr && pChr->IsAlive()
+			&& fabs(pChr->m_Pos.x - m_HoldZonePos.x) < INV_HOLD_ZONE_RX
+			&& fabs(pChr->m_Pos.y - m_HoldZonePos.y) < INV_HOLD_ZONE_RY)
+		{
+			Occupied = true;
+			break;
+		}
+	}
+
+	if(Occupied && !m_HoldWasOccupied)
+	{
+		GameServer()->SendBroadcast("Holding signal...", -1);
+		GameServer()->CreateSound(m_HoldZonePos, SOUND_PICKUP_HEALTH);
+		GameServer()->CreateEffect(FX_SMALLELECTRIC, m_HoldZonePos);
+	}
+	else if(!Occupied && m_HoldWasOccupied)
+	{
+		GameServer()->SendBroadcast("Signal hold interrupted", -1);
+		GameServer()->CreateSound(m_HoldZonePos, SOUND_WEAPON_NOAMMO);
+	}
+	m_HoldWasOccupied = Occupied;
+
+	if(Occupied)
+		m_HoldTicks++;
+	else
+		m_HoldTicks = 0;
+
+	// Idle beacon + stronger pulse while occupied.
+	if(m_HoldFxTick <= Server()->Tick())
+	{
+		m_HoldFxTick = Server()->Tick() + Server()->TickSpeed() * (Occupied ? 0.35f : 0.85f);
+		GameServer()->CreateEffect(Occupied ? FX_ELECTRIC : FX_SMALLELECTRIC, m_HoldZonePos + vec2(0, -20));
+		if(Occupied)
+			GameServer()->CreateRepairInd(m_HoldZonePos + vec2(0, -40));
+	}
+
+	m_QuestProgressCounter = max(0, (m_HoldRequiredTicks - m_HoldTicks + Server()->TickSpeed() - 1) / Server()->TickSpeed());
+	if(m_HoldTicks >= m_HoldRequiredTicks)
+	{
+		GameServer()->CreateEffect(FX_GREEN_EXPLOSION, m_HoldZonePos);
+		GameServer()->CreateSound(m_HoldZonePos, SOUND_PICKUP_ARMOR);
+		ClearHoldZone();
+		m_EnemiesLeft = 0;
+		CompleteCurrentQuest();
+	}
+}
+
+void CGameControllerInvasion::TickObjectivePressure()
+{
+	if(m_Quest != QUEST_DESTROY_TURRETS && m_Quest != QUEST_HOLD_ZONE)
+		return;
+	if(m_BotSpawnTick >= Server()->Tick())
+		return;
+	m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.45f, 0.9f - g_Config.m_SvMapGenLevel * 0.012f);
+	const int Cap = max(4, min(10, 6 + g_Config.m_SvMapGenLevel / 8));
+	if(CountBots() >= Cap)
+		return;
+	if(m_EnemiesLeft <= 0)
+		m_EnemiesLeft = 1;
+	RandomGroupSpawnPos();
+	GameServer()->AddBot();
 }
 
 
@@ -1038,6 +1388,10 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 	m_DefendPrepEndTick = 0;
 	if(m_Quest == QUEST_ACTIVATE_SWITCHES || m_Quest == QUEST_FIND_SWITCH)
 		SetSwitchesActive(false);
+	if(m_Quest == QUEST_DESTROY_TURRETS)
+		ClearObjectiveTurrets();
+	if(m_Quest == QUEST_HOLD_ZONE)
+		ClearHoldZone();
 	SendQuestCompletedMessage(m_Quest);
 	RewardQuestGold();
 	m_Quest = QUEST_NONE;
@@ -1120,6 +1474,18 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 				Next = QUEST_SURVIVEWAVE;
 			}
 		}
+		else
+			Next = QUEST_SURVIVEWAVE;
+		break;
+	case INVASION_THEME_TURRET_SWEEP:
+		if (Done >= LastSlot)
+			Next = QUEST_DESTROY_TURRETS;
+		else
+			Next = QUEST_SURVIVEWAVE;
+		break;
+	case INVASION_THEME_SIGNAL_HOLD:
+		if (Done >= LastSlot)
+			Next = QUEST_HOLD_ZONE;
 		else
 			Next = QUEST_SURVIVEWAVE;
 		break;
@@ -1338,6 +1704,50 @@ void CGameControllerInvasion::Tick()
 				ChangeQuest(QUEST_REACHDOOR, 0.5f);
 				TriggerEscape();
 			}
+
+			if (m_Quest == QUEST_DESTROY_TURRETS)
+			{
+				const int Spawned = SpawnObjectiveTurrets(2);
+				if(Spawned <= 0)
+				{
+					dbg_msg("inv", "turret sweep: failed to spawn turrets, fallback wave");
+					GameServer()->SendBroadcast("Turrets missing — survive the wave instead", -1);
+					m_Quest = QUEST_NONE;
+					ChangeQuest(QUEST_SURVIVEWAVE, 0.5f);
+				}
+				else
+				{
+					m_QuestProgressCounter = Spawned;
+					m_QuestWaveSize = min(10, 6 + g_Config.m_SvMapGenLevel / 6);
+					m_EnemiesLeft = max(4, m_QuestWaveSize / 2);
+					m_BotSpawnTick = Server()->Tick();
+					RandomGroupSpawnPos();
+					for(int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
+						GameServer()->AddBot();
+				}
+			}
+
+			if (m_Quest == QUEST_HOLD_ZONE)
+			{
+				StartHoldZone();
+				if(!m_HoldZoneActive)
+				{
+					dbg_msg("inv", "signal hold: no hold point, fallback wave");
+					GameServer()->SendBroadcast("Signal missing — survive the wave instead", -1);
+					m_Quest = QUEST_NONE;
+					ChangeQuest(QUEST_SURVIVEWAVE, 0.5f);
+				}
+				else
+				{
+					m_QuestProgressCounter = 8;
+					m_QuestWaveSize = min(10, 6 + g_Config.m_SvMapGenLevel / 6);
+					m_EnemiesLeft = max(4, m_QuestWaveSize / 2);
+					m_BotSpawnTick = Server()->Tick();
+					RandomGroupSpawnPos();
+					for(int i = 0; i < m_EnemiesLeft && CountBots() < m_QuestWaveSize; i++)
+						GameServer()->AddBot();
+				}
+			}
 			
 			if (m_Quest != QUEST_NONE)
 				SendQuestStartMessage(m_Quest);
@@ -1375,11 +1785,11 @@ void CGameControllerInvasion::Tick()
 				m_QuestWaveEndTick = 0;
 				int CompletedQuest = m_Quest;
 				CompleteCurrentQuest();
-				
-			if (CompletedQuest == QUEST_SURVIVEWAVETIME && AliveBots > 4)
-				ChangeQuest(QUEST_KILLREMAININGENEMIES, INV_QUEST_QUEUE_TIME);
+
+				if (CompletedQuest == QUEST_SURVIVEWAVETIME && AliveBots > 4)
+					ChangeQuest(QUEST_KILLREMAININGENEMIES, INV_QUEST_QUEUE_TIME);
+			}
 		}
-	}
 		
 	if (m_Quest == QUEST_KILLREMAININGENEMIES)
 	{
@@ -1462,6 +1872,14 @@ void CGameControllerInvasion::Tick()
 
 		if (m_Quest == QUEST_FIND_SWITCH)
 			m_QuestProgressCounter = max(0, 1 - m_SwitchesActivated);
+
+		if (m_Quest == QUEST_DESTROY_TURRETS)
+			TickDestroyTurrets();
+
+		if (m_Quest == QUEST_HOLD_ZONE)
+			TickHoldZone();
+
+		TickObjectivePressure();
 
 		// After the switch: keep refreshing enemies until players reach the door.
 		if (m_EscapeSpawnActive && m_Quest == QUEST_REACHDOOR && !m_RoundWin)

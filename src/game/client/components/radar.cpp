@@ -27,11 +27,16 @@ void CRadar::RenderRadar(const CNetObj_Radar *pCurrent, const CNetObj_Radar *pPr
 	Client()->GetServerInfo(&ServerInfo);
 	const bool HordeDefenseArea = pCurrent->m_Type == RADAR_REACTOR && str_comp(ServerInfo.m_aGameType, "HORDE") == 0;
 	const bool InvasionReactorObjective = pCurrent->m_Type == RADAR_REACTOR && str_comp(ServerInfo.m_aGameType, "INV") == 0;
-	if(HordeDefenseArea)
+	if(HordeDefenseArea || InvasionReactorObjective)
 	{
-		const bool Inside = m_pClient->m_Snap.m_pLocalCharacter && distance(m_pClient->m_LocalCharacterPos, Pos) <= PVE_HORDE_DEFENSE_RADIUS;
-		const float Pulse = 0.5f + 0.5f * sinf((float)Client()->LocalTime() * 2.5f);
-		IGraphics::CLineItem aLines[32];
+		const float ZoneRadius = HordeDefenseArea ? (float)PVE_HORDE_DEFENSE_RADIUS : 220.0f;
+		const bool Inside = m_pClient->m_Snap.m_pLocalCharacter &&
+			(HordeDefenseArea
+				? distance(m_pClient->m_LocalCharacterPos, Pos) <= ZoneRadius
+				: (fabs(m_pClient->m_LocalCharacterPos.x - Pos.x) < 220.0f
+					&& fabs(m_pClient->m_LocalCharacterPos.y - Pos.y) < 240.0f));
+		const float Pulse = 0.5f + 0.5f * sinf((float)Client()->LocalTime() * (Inside ? 4.0f : 2.5f));
+		IGraphics::CLineItem aLines[40];
 		int NumLines = 0;
 		const int Segments = 48;
 		for(int i = 0; i < Segments; i += 2)
@@ -39,26 +44,45 @@ void CRadar::RenderRadar(const CNetObj_Radar *pCurrent, const CNetObj_Radar *pPr
 			const float A1 = i * 2.0f * pi / Segments;
 			const float A2 = (i + 1) * 2.0f * pi / Segments;
 			aLines[NumLines++] = IGraphics::CLineItem(
-				Pos.x + cosf(A1) * PVE_HORDE_DEFENSE_RADIUS,
-				Pos.y + sinf(A1) * PVE_HORDE_DEFENSE_RADIUS,
-				Pos.x + cosf(A2) * PVE_HORDE_DEFENSE_RADIUS,
-				Pos.y + sinf(A2) * PVE_HORDE_DEFENSE_RADIUS);
+				Pos.x + cosf(A1) * ZoneRadius,
+				Pos.y + sinf(A1) * ZoneRadius,
+				Pos.x + cosf(A2) * ZoneRadius,
+				Pos.y + sinf(A2) * ZoneRadius);
 		}
 		for(int i = 0; i < 4; i++)
 		{
 			const float A = i * pi * 0.5f;
 			aLines[NumLines++] = IGraphics::CLineItem(
-				Pos.x + cosf(A) * (PVE_HORDE_DEFENSE_RADIUS - 14.0f),
-				Pos.y + sinf(A) * (PVE_HORDE_DEFENSE_RADIUS - 14.0f),
-				Pos.x + cosf(A) * (PVE_HORDE_DEFENSE_RADIUS + 14.0f),
-				Pos.y + sinf(A) * (PVE_HORDE_DEFENSE_RADIUS + 14.0f));
+				Pos.x + cosf(A) * (ZoneRadius - 14.0f),
+				Pos.y + sinf(A) * (ZoneRadius - 14.0f),
+				Pos.x + cosf(A) * (ZoneRadius + 14.0f),
+				Pos.y + sinf(A) * (ZoneRadius + 14.0f));
 		}
 		Graphics()->BlendNormal();
 		Graphics()->TextureSet(-1);
 		Graphics()->LinesBegin();
-		Graphics()->SetColor(Inside ? 0.25f : 0.18f, Inside ? 1.0f : 0.72f, Inside ? 0.48f : 0.58f, (Inside ? 0.60f : 0.28f) + Pulse * 0.10f);
+		if(InvasionReactorObjective && Inside)
+			Graphics()->SetColor(0.20f, 0.95f, 1.0f, 0.55f + Pulse * 0.25f);
+		else if(InvasionReactorObjective)
+			Graphics()->SetColor(0.15f, 0.75f, 1.0f, 0.28f + Pulse * 0.12f);
+		else
+			Graphics()->SetColor(Inside ? 0.25f : 0.18f, Inside ? 1.0f : 0.72f, Inside ? 0.48f : 0.58f, (Inside ? 0.60f : 0.28f) + Pulse * 0.10f);
 		Graphics()->LinesDraw(aLines, NumLines);
 		Graphics()->LinesEnd();
+
+		// Ground marker cross at objective center for Invasion hold/reactors/turrets.
+		if(InvasionReactorObjective)
+		{
+			const float Cross = 28.0f + Pulse * 6.0f;
+			IGraphics::CLineItem aCross[2] = {
+				IGraphics::CLineItem(Pos.x - Cross, Pos.y, Pos.x + Cross, Pos.y),
+				IGraphics::CLineItem(Pos.x, Pos.y - Cross, Pos.x, Pos.y + Cross),
+			};
+			Graphics()->LinesBegin();
+			Graphics()->SetColor(0.35f, 1.0f, 1.0f, 0.45f + Pulse * 0.35f);
+			Graphics()->LinesDraw(aCross, 2);
+			Graphics()->LinesEnd();
+		}
 	}
 	Graphics()->MapScreen(0,0,Graphics()->ScreenWidth(),Graphics()->ScreenHeight());
 		

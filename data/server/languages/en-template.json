@@ -177,6 +177,10 @@
             "value": "Contract vote timed out; a valid option was selected"
         },
         {
+            "key": "Crawlers emerging!",
+            "value": "Crawlers emerging!"
+        },
+        {
             "key": "Cyborg wave cleared",
             "value": "Cyborg wave cleared"
         },
@@ -199,6 +203,14 @@
         {
             "key": "Destroy the boss",
             "value": "Destroy the boss"
+        },
+        {
+            "key": "Destroy the enemy turrets",
+            "value": "Destroy the enemy turrets"
+        },
+        {
+            "key": "Destroy the turrets",
+            "value": "Destroy the turrets"
         },
         {
             "key": "Disarming bomb... %d",
@@ -231,6 +243,46 @@
         {
             "key": "Evacuated %d/%d",
             "value": "Evacuated %d/%d"
+        },
+        {
+            "key": "Event: Breather wave",
+            "value": "Event: Breather wave"
+        },
+        {
+            "key": "Event: Crawler nest!",
+            "value": "Event: Crawler nest!"
+        },
+        {
+            "key": "Event: Crawler pack!",
+            "value": "Event: Crawler pack!"
+        },
+        {
+            "key": "Event: Field rations!",
+            "value": "Event: Field rations!"
+        },
+        {
+            "key": "Event: Fortify drop!",
+            "value": "Event: Fortify drop!"
+        },
+        {
+            "key": "Event: Hardened squad!",
+            "value": "Event: Hardened squad!"
+        },
+        {
+            "key": "Event: Rabble swarm!",
+            "value": "Event: Rabble swarm!"
+        },
+        {
+            "key": "Event: Reinforcements inbound!",
+            "value": "Event: Reinforcements inbound!"
+        },
+        {
+            "key": "Event: Rogue boss!",
+            "value": "Event: Rogue boss!"
+        },
+        {
+            "key": "Event: Supply drop!",
+            "value": "Event: Supply drop!"
         },
         {
             "key": "Everybody dies",
@@ -311,6 +363,18 @@
         {
             "key": "Hold the line",
             "value": "Hold the line"
+        },
+        {
+            "key": "Hold the marked signal point",
+            "value": "Hold the marked signal point"
+        },
+        {
+            "key": "Hold the signal point",
+            "value": "Hold the signal point"
+        },
+        {
+            "key": "Holding signal...",
+            "value": "Holding signal..."
         },
         {
             "key": "Horde Survival",
@@ -517,6 +581,10 @@
             "value": "Red team wins"
         },
         {
+            "key": "Reinforcements inbound!",
+            "value": "Reinforcements inbound!"
+        },
+        {
             "key": "Research reward: +%d point(s)",
             "value": "Research reward: +%d point(s)"
         },
@@ -547,6 +615,22 @@
         {
             "key": "Server does not allow voting to move players to spectators",
             "value": "Server does not allow voting to move players to spectators"
+        },
+        {
+            "key": "Signal hold",
+            "value": "Signal hold"
+        },
+        {
+            "key": "Signal hold interrupted",
+            "value": "Signal hold interrupted"
+        },
+        {
+            "key": "Signal missing — survive the wave instead",
+            "value": "Signal missing — survive the wave instead"
+        },
+        {
+            "key": "Signal secured",
+            "value": "Signal secured"
         },
         {
             "key": "Skeleton wave cleared",
@@ -667,6 +751,18 @@
         {
             "key": "Time out - Blue team wins",
             "value": "Time out - Blue team wins"
+        },
+        {
+            "key": "Turret sweep",
+            "value": "Turret sweep"
+        },
+        {
+            "key": "Turrets destroyed",
+            "value": "Turrets destroyed"
+        },
+        {
+            "key": "Turrets missing — survive the wave instead",
+            "value": "Turrets missing — survive the wave instead"
         },
         {
             "key": "Vote aborted",
