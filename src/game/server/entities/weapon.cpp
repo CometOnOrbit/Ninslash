@@ -1,6 +1,7 @@
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
 #include <game/weapons.h>
+#include <base/system.h>
 #include "laser.h"
 #include "electrowall.h"
 #include "weapon.h"
@@ -12,6 +13,7 @@ CWeapon::CWeapon(CGameWorld *pGameWorld, int Type)
 {
 	m_ProximityRadius = ms_PhysSize;
 	m_WeaponType = Type;
+	dbg_assert(CWeaponCatalog::TryFromLegacy(Type, &m_WeaponSpec), "invalid player weapon type");
 
 	if (WeaponMaxLevel(m_WeaponType) > 0)
 		m_PowerLevel = GetWeaponCharge(m_WeaponType);
@@ -99,7 +101,7 @@ void CWeapon::OnOwnerDeath(bool IsActive)
 
 void CWeapon::Deactivate()
 {
-	if (GetWeaponFiringType(m_WeaponType) == WFT_CHARGE)
+	if (m_WeaponProfile.m_Combat.m_FiringType == WFT_CHARGE)
 		m_Charge = 0;
 }
 
@@ -137,19 +139,23 @@ void CWeapon::SetTurret(bool TurretBit)
 void CWeapon::UpdateStats()
 {
 	m_CanFire = true;
+	dbg_assert(CWeaponCatalog::TryFromLegacy(m_WeaponType, &m_WeaponSpec), "invalid player weapon type");
 	m_MaxLevel = WeaponMaxLevel(m_WeaponType);
 
 	if (m_MaxLevel > 0)
 		m_WeaponType = GetChargedWeapon(m_WeaponType, m_PowerLevel);
-	
-	m_FireRate = GetWeaponFireRate(m_WeaponType);
-	m_KnockBack =GetWeaponKnockback(m_WeaponType);
-	m_FireSound = GetWeaponFireSound(m_WeaponType);
-	m_FireSound2 = GetWeaponFireSound2(m_WeaponType);
-	m_FullAuto = GetWeaponFullAuto(m_WeaponType);
-	m_MaxAmmo = GetWeaponMaxAmmo(m_WeaponType);
-	m_UseAmmo = WeaponUseAmmo(m_WeaponType);
-	m_BurstMax = WeaponBurstCount(m_WeaponType);
+
+	m_WeaponSpec.m_Level = m_PowerLevel;
+	dbg_assert(CWeaponCatalog::TryResolve(m_WeaponSpec, &m_WeaponProfile), "failed to resolve player weapon");
+	const CWeaponCombatProfile &Combat = m_WeaponProfile.m_Combat;
+	m_FireRate = Combat.m_FireRate;
+	m_KnockBack = Combat.m_WeaponKnockback;
+	m_FireSound = m_WeaponProfile.m_Visual.m_FireSound;
+	m_FireSound2 = m_WeaponProfile.m_Visual.m_FireSound2;
+	m_FullAuto = Combat.m_FullAuto;
+	m_MaxAmmo = Combat.m_MaxAmmo;
+	m_UseAmmo = Combat.m_UsesAmmo;
+	m_BurstMax = Combat.m_BurstCount;
 }
 
 
@@ -235,7 +241,7 @@ bool CWeapon::Fire(float *pKnockback)
 	if(m_ReloadTimer > 0)
 		return false;
 	
-	int WFT = GetWeaponFiringType(m_WeaponType);
+	int WFT = m_WeaponProfile.m_Combat.m_FiringType;
 	
 	if (WFT == WFT_NONE)
 		return false;
@@ -266,7 +272,7 @@ bool CWeapon::Fire(float *pKnockback)
 	
 	if (m_BurstCount > 0)
 	{
-		m_ReloadTimer = m_FireRate * WeaponBurstReload(m_WeaponType) * Server()->TickSpeed()/1000;
+		m_ReloadTimer = m_FireRate * m_WeaponProfile.m_Combat.m_BurstReload * Server()->TickSpeed()/1000;
 		m_BurstReloadTimer = m_FireRate * Server()->TickSpeed()/1000;
 	}
 	else
@@ -396,7 +402,7 @@ bool CWeapon::Charge()
 		}
 	}
 	
-	if (GetWeaponFiringType(m_WeaponType) == WFT_THROW)
+	if (m_WeaponProfile.m_Combat.m_FiringType == WFT_THROW)
 		m_Charge = min(m_Charge+3, 100);
 	else
 		m_Charge = min(m_Charge+1, 100);
@@ -416,7 +422,7 @@ bool CWeapon::ReleaseCharge(float *pKnockback)
 	
 	if (m_Charge > 0)
 	{
-		if (GetWeaponFiringType(m_WeaponType) == WFT_CHARGE)
+		if (m_WeaponProfile.m_Combat.m_FiringType == WFT_CHARGE)
 		{
 			if (IsModularWeapon(m_WeaponType) && GetPart(m_WeaponType, 0) == 1)
 			{
@@ -473,16 +479,16 @@ bool CWeapon::Throw()
 
 void CWeapon::CreateProjectile()
 {
-	vec2 offs = GetProjectileOffset(m_WeaponType);
+	vec2 offs = m_WeaponProfile.m_Visual.m_ProjectileOffset;
 	vec2 ProjStartPos = m_Pos+m_Direction*offs.x + vec2(0, offs.y);
 	
-	int wft = GetWeaponFiringType(m_WeaponType);
+	int wft = m_WeaponProfile.m_Combat.m_FiringType;
 	if (wft == WFT_PROJECTILE || wft == WFT_HOLD)
 		GameServer()->Collision()->IntersectLine(m_Pos, ProjStartPos, 0x0, &ProjStartPos);
 	
 	GameServer()->CreateProjectile(m_Owner, m_WeaponType, m_Charge, ProjStartPos, m_Direction, m_Pos+vec2(0, 20));
 	
-	if (m_FireSound >= 0 && GetWeaponFiringType(m_WeaponType) != WFT_HOLD)
+	if (m_FireSound >= 0 && m_WeaponProfile.m_Combat.m_FiringType != WFT_HOLD)
 	{
 		GameServer()->CreateSound(m_Pos, m_FireSound);
 		
@@ -514,7 +520,7 @@ bool CWeapon::CanSwitch()
 
 bool CWeapon::Drop()
 {
-	if (m_Charge > 0 && GetWeaponFiringType(m_WeaponType) == WFT_THROW)
+	if (m_Charge > 0 && m_WeaponProfile.m_Combat.m_FiringType == WFT_THROW)
 		return false;
 	
 	m_Owner = TEAM_NEUTRAL;
@@ -685,7 +691,7 @@ void CWeapon::Tick()
 	}
 	
 	
-	if (GetWeaponFiringType(m_WeaponType) == WFT_HOLD)
+	if (m_WeaponProfile.m_Combat.m_FiringType == WFT_HOLD)
 	{
 		if (m_TriggerTick && m_TriggerTick > Server()->Tick())
 			Trigger();
@@ -784,9 +790,9 @@ void CWeapon::Tick()
 
 void CWeapon::Trigger()
 {
-	if (GetWeaponFiringType(m_WeaponType) == WFT_HOLD)
+	if (m_WeaponProfile.m_Combat.m_FiringType == WFT_HOLD)
 	{
-		if (GetWeaponRenderType(m_WeaponType) == WRT_SPIN)
+		if (m_WeaponProfile.m_Visual.m_RenderType == WRT_SPIN)
 		{
 			if (Server()->Tick()%2 == 0)
 				CreateProjectile();
@@ -900,7 +906,7 @@ void CWeapon::SelfDestruct()
 	{
 		switch (GetStaticType(m_WeaponType))
 		{
-		case SW_GRENADE1: case SW_GRENADE2: case SW_GRENADE3: case SW_BOMB: GameServer()->CreateExplosion(m_Pos, m_Owner, m_WeaponType); break;
+		case SW_GRENADE1: case SW_GRENADE2: case SW_GRENADE3: case SW_BOMB: GameServer()->CreateExplosion(m_Pos, CAttackSource::PlayerWeapon(m_Owner, m_WeaponSpec)); break;
 		case SW_ELECTROWALL:
 			GameServer()->CreateEffect(FX_SMALLELECTRIC, m_Pos);
 			break;
@@ -964,7 +970,7 @@ void CWeapon::Move()
 			(((OldVel.y < 0 && m_Vel.y > 0) || (OldVel.y > 0 && m_Vel.y < 0)) && abs(m_Vel.y) > 5.0f))
 		{
 			m_Pos += OldVel*0.3f;
-			GameServer()->CreateExplosion(m_Pos, m_Owner, m_WeaponType);
+			GameServer()->CreateExplosion(m_Pos, CAttackSource::PlayerWeapon(m_Owner, m_WeaponSpec));
 			GameServer()->CreateSound(m_Pos, SOUND_SFX_BOUNCE1);
 			m_Stuck = true;
 			m_Owner = -1;
@@ -1007,6 +1013,7 @@ void CWeapon::Snap(int SnappingClient)
 	pW->m_X = (int)m_Pos.x;
 	pW->m_Y = (int)m_Pos.y;
 	pW->m_Angle = (int)(m_Angle*256.0f);
-	pW->m_WeaponType = m_WeaponType;
+	pW->m_WeaponDefinitionId = static_cast<int>(m_WeaponSpec.m_DefinitionId);
+	pW->m_WeaponLevel = m_WeaponSpec.m_Level;
 	pW->m_AttackTick = m_AttackTick;
 }

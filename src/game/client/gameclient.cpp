@@ -954,15 +954,20 @@ void CGameClient::ProcessEvents()
 		else if(Item.m_Type == NETEVENTTYPE_EXPLOSION)
 		{
 			CNetEvent_Explosion *ev = (CNetEvent_Explosion *)pData;
-			g_GameClient.m_pEffects->Explosion(vec2(ev->m_X, ev->m_Y), ev->m_Weapon);
+			CAttackSource Source;
+			Source.m_Kind = static_cast<EAttackSourceKind>(ev->m_SourceKind);
+			Source.m_Type = ev->m_SourceType;
+			CWeaponCatalog::TryFromProtocol(ev->m_WeaponDefinitionId, ev->m_WeaponLevel, &Source.m_Weapon);
+			const int Weapon = Source.ToLegacy();
+			g_GameClient.m_pEffects->Explosion(vec2(ev->m_X, ev->m_Y), Weapon);
 			
 			// todo: readd camera shake
 			float d = distance(CustomStuff()->m_LocalPos, vec2(ev->m_X, ev->m_Y));
-			float s = GetExplosionSize(ev->m_Weapon);
+			float s = GetExplosionSize(Weapon);
 			
 			if (d < s)
 			{
-				float a = ScreenshakeAmount(ev->m_Weapon);
+				float a = ScreenshakeAmount(Weapon);
 				
 				if (a > 0)
 					CustomStuff()->SetScreenshake(a * (0.5f + (s-d)*0.5f));

@@ -15,6 +15,7 @@
 #include <game/client/customstuff.h>
 
 #include <game/weapons.h>
+#include <game/weapon_catalog.h>
 #include <game/client/components/flow.h>
 #include <game/client/components/effects.h>
 #include <game/client/components/sounds.h>
@@ -708,7 +709,10 @@ void CBuildings::RenderTurret(const CNetObj_Turret *pCurrent, const CNetObj_Turr
 	Graphics()->QuadsEnd();
 	
 	
-	int Weapon = pCurrent->m_Weapon;
+	CWeaponSpec WeaponSpec{static_cast<WeaponDefinitionId>(pCurrent->m_WeaponDefinitionId), static_cast<uint8_t>(pCurrent->m_WeaponLevel)};
+	if(!CWeaponCatalog::IsValidSpec(WeaponSpec))
+		return;
+	int Weapon = CWeaponCatalog::ToLegacy(WeaponSpec);
 	float Angle = (pCurrent->m_Angle+90) / (180/pi);
 	vec2 p = Pos + vec2(cosf(Angle)*12, sinf(Angle)*12+(-40-9)*FlipY); //+ vec2(cosf(Angle)*90, sinf(Angle)*90-71);
 	vec2 Dir = GetDirection((int)(Angle*256));
@@ -729,7 +733,7 @@ void CBuildings::RenderTurret(const CNetObj_Turret *pCurrent, const CNetObj_Turr
 	// render muzzle
 	if (GetWeaponFiringType(Weapon) != WFT_HOLD)
 	{
-		CustomStuff()->SetTurretMuzzle(ivec2(Pos.x, Pos.y), pCurrent->m_AttackTick, pCurrent->m_Weapon);
+		CustomStuff()->SetTurretMuzzle(ivec2(Pos.x, Pos.y), pCurrent->m_AttackTick, Weapon);
 		
 		CTurretMuzzle Muzzle = CustomStuff()->GetTurretMuzzle(ivec2(Pos.x, Pos.y));
 		

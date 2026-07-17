@@ -11,6 +11,7 @@
 
 #include <game/questinfo.h>
 #include <game/weapons.h>
+#include <game/weapon_catalog.h>
 #include <game/buildables.h>
 
 #include "controls.h"
@@ -790,7 +791,7 @@ void CHud::RenderCursor()
 	Graphics()->QuadsBegin();
 
 	// render cursor
-	int Weapon = max(m_pClient->m_Snap.m_pLocalCharacter->m_Weapon, 0);
+	int Weapon = CWeaponCatalog::ProtocolToLegacy(m_pClient->m_Snap.m_pLocalCharacter->m_WeaponDefinitionId, m_pClient->m_Snap.m_pLocalCharacter->m_WeaponLevel);
 	
 	RenderTools()->SelectSprite(g_pData->m_Weapons.m_aId[Weapon%NUM_WEAPONS].m_pSpriteCursor);
 	float CursorSize = 64;
@@ -864,7 +865,7 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 	float x = Area2Pos.x; // 16
 	float y = 5;
 	
-	int Weapon = pCharacter->m_Weapon;
+	int Weapon = CWeaponCatalog::ProtocolToLegacy(pCharacter->m_WeaponDefinitionId, pCharacter->m_WeaponLevel);
 	
 	// render gui stuff
 	

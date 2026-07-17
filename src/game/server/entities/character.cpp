@@ -296,11 +296,16 @@ void CCharacter::SaveData()
 	{
 		if (m_apWeapon[i])
 		{
-			pData->m_aWeaponType[i] = GetWeaponType(i);
+			const CWeaponSpec &Spec = m_apWeapon[i]->GetWeaponSpec();
+			pData->m_aWeaponDefinitionId[i] = static_cast<int>(Spec.m_DefinitionId);
+			pData->m_aWeaponLevel[i] = Spec.m_Level;
 			pData->m_aWeaponAmmo[i] = m_apWeapon[i]->m_Ammo;
 		}
 		else
-			pData->m_aWeaponType[i] = 0;
+		{
+			pData->m_aWeaponDefinitionId[i] = 0;
+			pData->m_aWeaponLevel[i] = 0;
+		}
 	}
 
 	char aBuf[256];
@@ -1212,14 +1217,38 @@ void CCharacter::GiveStartWeapon()
 		
 		// load saved weapons
 		CPlayerData *pData = GameServer()->Server()->GetPlayerData(GetPlayer()->GetCID(), GetPlayer()->GetColorID());
+		if(pData->m_WeaponDataVersion != WEAPON_DATA_VERSION)
+		{
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Reset weapon inventory: unsupported version %d (expected %d)", pData->m_WeaponDataVersion, WEAPON_DATA_VERSION);
+			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-data", aBuf);
+			pData->ResetWeapons();
+		}
+		for(int i = 0; i < NUM_SLOTS; ++i)
+		{
+			if(!pData->m_aWeaponDefinitionId[i])
+				continue;
+			if(!CWeaponCatalog::TryFromProtocol(pData->m_aWeaponDefinitionId[i], pData->m_aWeaponLevel[i], nullptr))
+			{
+				char aBuf[160];
+				str_format(aBuf, sizeof(aBuf), "Reset weapon inventory: invalid slot %d definition=%d level=%d", i, pData->m_aWeaponDefinitionId[i], pData->m_aWeaponLevel[i]);
+				GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-data", aBuf);
+				pData->ResetWeapons();
+				break;
+			}
+		}
 		bool GotItems = false;
 		
 		for (int i = 0; i < NUM_SLOTS; i++)
 		{
-			if (pData->m_aWeaponType[i])
+			if (pData->m_aWeaponDefinitionId[i])
 			{
-				m_apWeapon[i] = GameServer()->NewWeapon(pData->m_aWeaponType[i]);
-				m_apWeapon[i]->m_Ammo = pData->m_aWeaponAmmo[i];
+				CWeaponSpec Spec;
+				if(CWeaponCatalog::TryFromProtocol(pData->m_aWeaponDefinitionId[i], pData->m_aWeaponLevel[i], &Spec))
+				{
+					m_apWeapon[i] = GameServer()->NewWeapon(CWeaponCatalog::ToLegacy(Spec));
+					m_apWeapon[i]->m_Ammo = pData->m_aWeaponAmmo[i];
+				}
 			}
 			
 			if (m_apWeapon[i])
@@ -2116,7 +2145,11 @@ void CCharacter::Die(int Killer, int Weapon, bool SkipKillMessage, bool IsTurret
 			CNetMsg_Sv_KillMsg Msg;
 			Msg.m_Killer = Killer;
 			Msg.m_Victim = m_pPlayer->GetCID();
-			Msg.m_Weapon = Weapon;
+			const CAttackSource Source = CAttackSource::FromLegacy(Killer, Weapon);
+			Msg.m_SourceKind = static_cast<int>(Source.m_Kind);
+			Msg.m_SourceType = Source.m_Type;
+			Msg.m_WeaponDefinitionId = static_cast<int>(Source.m_Weapon.m_DefinitionId);
+			Msg.m_WeaponLevel = Source.m_Weapon.m_Level;
 			Msg.m_ModeSpecial = ModeSpecial;
 			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
 		}
@@ -2587,7 +2620,16 @@ void CCharacter::Snap(int SnappingClient)
 	pCharacter->m_AmmoCount = 0;
 	pCharacter->m_Health = 0;
 	pCharacter->m_Armor = 0;
-	pCharacter->m_Weapon = GetWeaponType();
+	if(GetWeapon())
+	{
+		pCharacter->m_WeaponDefinitionId = static_cast<int>(GetWeapon()->GetWeaponSpec().m_DefinitionId);
+		pCharacter->m_WeaponLevel = GetWeapon()->GetWeaponSpec().m_Level;
+	}
+	else
+	{
+		pCharacter->m_WeaponDefinitionId = 0;
+		pCharacter->m_WeaponLevel = 0;
+	}
 	
 	pCharacter->m_AttackTick = m_AttackTick;
 

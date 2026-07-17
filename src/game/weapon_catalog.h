@@ -106,6 +106,8 @@ public:
 	static bool IsValidSpec(const CWeaponSpec &Spec);
 	static bool TryResolve(const CWeaponSpec &Spec, CResolvedWeaponProfile *pProfile);
 	static bool Validate();
+	static bool TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec);
+	static int ProtocolToLegacy(int DefinitionId, int Level);
 
 	// Temporary migration boundary. Bit-packed values must not escape through new APIs.
 	static bool TryFromLegacy(int LegacyWeapon, CWeaponSpec *pSpec);
@@ -132,6 +134,8 @@ struct CAttackSource
 	static CAttackSource Droid(int Owner, int DroidType, bool OnDeath = false);
 	static CAttackSource Building(int Owner, int BuildingType);
 	static CAttackSource World();
+	static CAttackSource FromLegacy(int Owner, int LegacyWeapon);
+	int ToLegacy() const;
 };
 
 #endif

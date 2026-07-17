@@ -898,9 +898,18 @@ void CGameContext::Repair(vec2 Pos)
 
 void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 {
+	CreateExplosion(Pos, CAttackSource::FromLegacy(Owner, Weapon));
+}
+
+void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source)
+{
+	const int Owner = Source.m_Owner;
+	const int Weapon = Source.ToLegacy();
+	CResolvedWeaponProfile WeaponProfile;
+	const bool HasWeaponProfile = Source.m_Kind == EAttackSourceKind::PlayerWeapon && CWeaponCatalog::TryResolve(Source.m_Weapon, &WeaponProfile);
 	float Dmg2 = 1.0f;
-	const int ExplosionDamage = GetExplosionDamage(Weapon);
-	const int ExplosionSound = GetExplosionSound(Weapon);
+	const int ExplosionDamage = HasWeaponProfile ? WeaponProfile.m_Combat.m_ExplosionDamage : GetExplosionDamage(Weapon);
+	const int ExplosionSound = HasWeaponProfile ? WeaponProfile.m_Visual.m_ExplosionSound : GetExplosionSound(Weapon);
 
 	if (m_pController->IsCoop() && IsBot(Owner))
 		Dmg2 = 0.6f;
@@ -911,7 +920,10 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 	{
 		pEvent->m_X = (int)Pos.x;
 		pEvent->m_Y = (int)Pos.y;
-		pEvent->m_Weapon = Weapon;
+		pEvent->m_SourceKind = static_cast<int>(Source.m_Kind);
+		pEvent->m_SourceType = Source.m_Type;
+		pEvent->m_WeaponDefinitionId = static_cast<int>(Source.m_Weapon.m_DefinitionId);
+		pEvent->m_WeaponLevel = Source.m_Weapon.m_Level;
 	}
 	
 	if(ExplosionSound)
@@ -922,7 +934,7 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		return;
 	
 	CCharacter *apEnts[MAX_CLIENTS];
-	float Radius = GetExplosionSize(Weapon)*0.7f;
+	float Radius = (HasWeaponProfile ? WeaponProfile.m_Combat.m_ExplosionSize : GetExplosionSize(Weapon))*0.7f;
 	if(m_pPveDirector)
 		Radius = m_pPveDirector->ModifyExplosionRadius(Owner, Radius);
 	//const float InnerRadius = Radius < 200.0f ? Radius*(0.5f + (200.0f-Radius)/400.0f) : Radius*0.5f;
@@ -1206,8 +1218,12 @@ void CGameContext::SendEmoticon(int ClientID, int Emoticon)
 
 void CGameContext::SendWeaponPickup(int ClientID, int Weapon)
 {
+	CWeaponSpec Spec;
+	if(!CWeaponCatalog::TryFromLegacy(Weapon, &Spec))
+		return;
 	CNetMsg_Sv_WeaponPickup Msg;
-	Msg.m_Weapon = Weapon;
+	Msg.m_WeaponDefinitionId = static_cast<int>(Spec.m_DefinitionId);
+	Msg.m_WeaponLevel = Spec.m_Level;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
 

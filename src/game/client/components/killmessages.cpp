@@ -7,6 +7,7 @@
 #include <generated/game_data.h>
 
 #include <game/client/gameclient.h>
+#include <game/weapon_catalog.h>
 #include "killmessages.h"
 
 void CKillMessages::OnReset()
@@ -32,7 +33,11 @@ void CKillMessages::OnMessage(int MsgType, void *pRawMsg)
 		Kill.m_KillerTeam = m_pClient->m_aClients[Kill.m_KillerID].m_Team;
 		str_copy(Kill.m_aKillerName, m_pClient->m_aClients[Kill.m_KillerID].m_aName, sizeof(Kill.m_aKillerName));
 		Kill.m_KillerRenderInfo = m_pClient->m_aClients[Kill.m_KillerID].m_RenderInfo;
-		Kill.m_Weapon = pMsg->m_Weapon;
+		CAttackSource Source;
+		Source.m_Kind = static_cast<EAttackSourceKind>(pMsg->m_SourceKind);
+		Source.m_Type = pMsg->m_SourceType;
+		CWeaponCatalog::TryFromProtocol(pMsg->m_WeaponDefinitionId, pMsg->m_WeaponLevel, &Source.m_Weapon);
+		Kill.m_Weapon = Source.ToLegacy();
 		Kill.m_ModeSpecial = pMsg->m_ModeSpecial;
 		Kill.m_Tick = Client()->GameTick();
 

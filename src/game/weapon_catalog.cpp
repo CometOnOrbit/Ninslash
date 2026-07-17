@@ -52,6 +52,24 @@ bool CWeaponCatalog::IsValidSpec(const CWeaponSpec &Spec)
 	return TryGetDefinition(Spec.m_DefinitionId, &Definition) && Spec.m_Level <= Definition.m_MaxLevel;
 }
 
+bool CWeaponCatalog::TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec)
+{
+	if(DefinitionId < 0 || Level < 0 || Level > 255)
+		return false;
+	const CWeaponSpec Spec{static_cast<WeaponDefinitionId>(DefinitionId), static_cast<uint8_t>(Level)};
+	if(!IsValidSpec(Spec))
+		return false;
+	if(pSpec)
+		*pSpec = Spec;
+	return true;
+}
+
+int CWeaponCatalog::ProtocolToLegacy(int DefinitionId, int Level)
+{
+	CWeaponSpec Spec;
+	return TryFromProtocol(DefinitionId, Level, &Spec) ? ToLegacy(Spec) : 0;
+}
+
 int CWeaponCatalog::ToLegacy(const CWeaponSpec &Spec)
 {
 	const int Value = ToInt(Spec.m_DefinitionId);
@@ -148,4 +166,29 @@ CAttackSource CAttackSource::Building(int Owner, int BuildingType)
 CAttackSource CAttackSource::World()
 {
 	return {};
+}
+
+CAttackSource CAttackSource::FromLegacy(int Owner, int LegacyWeapon)
+{
+	CWeaponSpec Spec;
+	if(CWeaponCatalog::TryFromLegacy(LegacyWeapon, &Spec))
+		return PlayerWeapon(Owner, Spec);
+	if(IsDroid(LegacyWeapon))
+		return Droid(Owner, GetDroidType(LegacyWeapon), IsOnDeath(LegacyWeapon));
+	if(IsBuilding(LegacyWeapon))
+		return Building(Owner, GetBuildingType(LegacyWeapon));
+	return World();
+}
+
+int CAttackSource::ToLegacy() const
+{
+	switch(m_Kind)
+	{
+	case EAttackSourceKind::PlayerWeapon: return CWeaponCatalog::ToLegacy(m_Weapon);
+	case EAttackSourceKind::Droid: return GetDroidWeapon(m_Type);
+	case EAttackSourceKind::DeathEffect: return GetDroidWeapon(m_Type, true);
+	case EAttackSourceKind::Building: return GetBuildingWeapon(m_Type);
+	case EAttackSourceKind::World: return 0;
+	}
+	return 0;
 }

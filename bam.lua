@@ -254,10 +254,12 @@ function build(settings)
 	pnglite = Compile(settings, Collect("src/engine/external/pnglite/*.c"))
 	json_parser = Compile(settings, Collect("src/engine/external/json-parser/*.c"))
 	
-	-- add the c++11 flag after compiling the c libraries
-	-- TODO: this is just a workaround, better avoid the auto keyword instead :/
+	-- Keep the C++ standard aligned with CMake. Add it after compiling the C
+	-- libraries so the flag is only applied to engine and game C++ sources.
 	if config.compiler.driver == "gcc" or config.compiler.driver == "clang" then
-		settings.cc.flags_cxx:Add("--std=c++11")
+		settings.cc.flags_cxx:Add("--std=c++17")
+	elseif config.compiler.driver == "cl" then
+		settings.cc.flags_cxx:Add("/std:c++17")
 	end
 
 	-- build game components

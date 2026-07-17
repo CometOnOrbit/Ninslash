@@ -3,6 +3,11 @@
 
 #include <game/pve_roguelite.h>
 
+enum
+{
+	WEAPON_DATA_VERSION = 1,
+};
+
 // stored player data for switching between levels
 class CPlayerData
 {
@@ -15,8 +20,11 @@ public:
 	void Die();
 	void Reset();
 	void ClearPveRun();
+	void ResetWeapons();
 	
-	int m_aWeaponType[99];
+	int m_WeaponDataVersion;
+	int m_aWeaponDefinitionId[99];
+	int m_aWeaponLevel[99];
 	int m_aWeaponAmmo[99];
 	
 	int m_aAmmo[99];

@@ -22,6 +22,8 @@
 
 #include <engine/localization.h>
 
+struct CAttackSource;
+
 /*
 	Tick
 		Game Context (CGameContext::tick)
@@ -176,6 +178,7 @@ public:
 	void CreateDamageInd(vec2 Pos, float AngleMod, int Damage, int ClientID);
 	void CreateRepairInd(vec2 Pos);
 	void CreateExplosion(vec2 Pos, int Owner, int Weapon);
+	void CreateExplosion(vec2 Pos, const CAttackSource &Source);
 	void SendEffect(int ClientID, int EffectID);
 	void CreateHammerHit(vec2 Pos);
 	void CreateEffect(int FX, vec2 Pos);

@@ -2,6 +2,7 @@
 #define GAME_SERVER_ENTITIES_WEAPON_H
 
 #include <game/server/entity.h>
+#include <game/weapon_catalog.h>
 
 
 class CWeapon : public CEntity
@@ -19,6 +20,8 @@ public:
 	virtual void SurvivalReset();
 	
 	const int GetWeaponType() { return m_WeaponType; }
+	const CWeaponSpec &GetWeaponSpec() const { return m_WeaponSpec; }
+	const CResolvedWeaponProfile &GetWeaponProfile() const { return m_WeaponProfile; }
 	const int GetPowerLevel() { return m_PowerLevel; }
 	const int GetOwner() { return m_Owner; }
 	
@@ -91,6 +94,8 @@ protected:
 	int m_BurstMax;
 	
 	int m_WeaponType;
+	CWeaponSpec m_WeaponSpec;
+	CResolvedWeaponProfile m_WeaponProfile;
 	int m_ReloadTimer;
 	int m_BurstReloadTimer;
 	float m_RogueliteCooldownCarry;

@@ -241,7 +241,8 @@ Objects = [
 	NetObject("Weapon", [
 		NetIntAny("m_X"),
 		NetIntAny("m_Y"),
-		NetIntAny("m_WeaponType"),
+		NetIntRange("m_WeaponDefinitionId", 0, 153),
+		NetIntRange("m_WeaponLevel", 0, 15),
 		NetIntAny("m_AttackTick"),
 		NetIntAny("m_Angle")
 	]),
@@ -274,7 +275,8 @@ Objects = [
 	
 	NetObject("Turret:Building", [
 		NetIntAny("m_Angle"),
-		NetIntAny("m_Weapon"),
+		NetIntRange("m_WeaponDefinitionId", 0, 153),
+		NetIntRange("m_WeaponLevel", 0, 15),
 		NetIntRange("m_AttackTick", 0, 'max_int')
 	]),
 	
@@ -390,7 +392,8 @@ Objects = [
 		NetIntRange("m_PlayerFlags", 0, 256),
 		NetIntRange("m_Armor", 0, 100),
 		NetIntRange("m_AmmoCount", 0, 30),
-		NetIntAny("m_Weapon"),
+		NetIntRange("m_WeaponDefinitionId", 0, 153),
+		NetIntRange("m_WeaponLevel", 0, 15),
 		NetIntRange("m_Emote", 0, len(Emotes)),
 		NetIntRange("m_AttackTick", 0, 'max_int'),
 		NetIntAny("m_Movement"),
@@ -406,10 +409,10 @@ Objects = [
 		NetIntAny("m_Latency"),
 		
 		NetIntRange("m_WeaponSlot", 0, 3),
-		NetIntAny("m_Weapon1"),
-		NetIntAny("m_Weapon2"),
-		NetIntAny("m_Weapon3"),
-		NetIntAny("m_Weapon4"),
+		NetIntRange("m_Weapon1DefinitionId", 0, 153), NetIntRange("m_Weapon1Level", 0, 15),
+		NetIntRange("m_Weapon2DefinitionId", 0, 153), NetIntRange("m_Weapon2Level", 0, 15),
+		NetIntRange("m_Weapon3DefinitionId", 0, 153), NetIntRange("m_Weapon3Level", 0, 15),
+		NetIntRange("m_Weapon4DefinitionId", 0, 153), NetIntRange("m_Weapon4Level", 0, 15),
 		
 		NetIntRange("m_Kits", 0, 99),
 	]),
@@ -480,7 +483,10 @@ Objects = [
 	NetEvent("FlameHit:Common", []),
 	
 	NetEvent("Explosion:Common", [
-		NetIntAny("m_Weapon"),
+		NetIntRange("m_SourceKind", 0, 4),
+		NetIntAny("m_SourceType"),
+		NetIntRange("m_WeaponDefinitionId", 0, 153),
+		NetIntRange("m_WeaponLevel", 0, 15),
 	]),
 
 	NetEvent("FlameExplosion:Common", []),
@@ -579,7 +585,10 @@ Messages = [
 	NetMessage("Sv_KillMsg", [
 		NetIntRange("m_Killer", 0, 'MAX_CLIENTS-1'),
 		NetIntRange("m_Victim", 0, 'MAX_CLIENTS-1'),
-		NetIntAny("m_Weapon"),
+		NetIntRange("m_SourceKind", 0, 4),
+		NetIntAny("m_SourceType"),
+		NetIntRange("m_WeaponDefinitionId", 0, 153),
+		NetIntRange("m_WeaponLevel", 0, 15),
 		NetIntAny("m_ModeSpecial"),
 	]),
 
@@ -592,7 +601,8 @@ Messages = [
 	NetMessage("Sv_ReadyToEnter", []),
 
 	NetMessage("Sv_WeaponPickup", [
-		NetIntAny("m_Weapon"),
+		NetIntRange("m_WeaponDefinitionId", 0, 153),
+		NetIntRange("m_WeaponLevel", 0, 15),
 	]),
 
 	NetMessage("Sv_Emoticon", [

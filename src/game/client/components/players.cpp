@@ -9,6 +9,7 @@
 
 #include <game/gamecore.h> // get_angle
 #include <game/pve_roguelite.h>
+#include <game/weapon_catalog.h>
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>
@@ -27,6 +28,21 @@
 #include <game/client/components/controls.h>
 
 #include "players.h"
+
+namespace
+{
+struct CRenderCharacter : public CNetObj_Character
+{
+	int m_Weapon;
+
+	CRenderCharacter &operator=(const CNetObj_Character &Other)
+	{
+		static_cast<CNetObj_Character &>(*this) = Other;
+		m_Weapon = CWeaponCatalog::ProtocolToLegacy(Other.m_WeaponDefinitionId, Other.m_WeaponLevel);
+		return *this;
+	}
+};
+}
 
 void CPlayers::RenderHand(CTeeRenderInfo *pInfo, vec2 CenterPos, vec2 Dir, float AngleOffset, vec2 PostRotOffset)
 {
@@ -98,8 +114,8 @@ void CPlayers::RenderHook(
 	const CNetObj_PlayerInfo *pPlayerInfo
 	)
 {
-	CNetObj_Character Prev;
-	CNetObj_Character Player;
+	CRenderCharacter Prev;
+	CRenderCharacter Player;
 	Prev = *pPrevChar;
 	Player = *pPlayerChar;
 
@@ -214,8 +230,8 @@ void CPlayers::RenderPlayer(
 	const CNetObj_PlayerInfo *pPlayerInfo
 	)
 {
-	CNetObj_Character Prev;
-	CNetObj_Character Player;
+	CRenderCharacter Prev;
+	CRenderCharacter Player;
 	Prev = *pPrevChar;
 	Player = *pPlayerChar;
 	
@@ -1734,10 +1750,11 @@ void CPlayers::OnRender()
 					
 				CustomStuff()->m_WeaponSlot = ((const CNetObj_PlayerInfo *)pInfo)->m_WeaponSlot;
 					
-				CustomStuff()->m_aSnapWeapon[0] = ((const CNetObj_PlayerInfo *)pInfo)->m_Weapon1;
-				CustomStuff()->m_aSnapWeapon[1] = ((const CNetObj_PlayerInfo *)pInfo)->m_Weapon2;
-				CustomStuff()->m_aSnapWeapon[2] = ((const CNetObj_PlayerInfo *)pInfo)->m_Weapon3;
-				CustomStuff()->m_aSnapWeapon[3] = ((const CNetObj_PlayerInfo *)pInfo)->m_Weapon4;
+				const CNetObj_PlayerInfo *pPlayerInfo = (const CNetObj_PlayerInfo *)pInfo;
+				const int aDefinitionIds[] = {pPlayerInfo->m_Weapon1DefinitionId, pPlayerInfo->m_Weapon2DefinitionId, pPlayerInfo->m_Weapon3DefinitionId, pPlayerInfo->m_Weapon4DefinitionId};
+				const int aLevels[] = {pPlayerInfo->m_Weapon1Level, pPlayerInfo->m_Weapon2Level, pPlayerInfo->m_Weapon3Level, pPlayerInfo->m_Weapon4Level};
+				for(int Slot = 0; Slot < 4; ++Slot)
+					CustomStuff()->m_aSnapWeapon[Slot] = CWeaponCatalog::ProtocolToLegacy(aDefinitionIds[Slot], aLevels[Slot]);
 			}
 		}
 	}

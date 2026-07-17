@@ -280,6 +280,7 @@ void CTurret::Snap(int SnappingClient)
 	}
 	
 	pP->m_Status = m_Status;
-	pP->m_Weapon = m_pWeapon->GetWeaponType();
+	pP->m_WeaponDefinitionId = static_cast<int>(m_pWeapon->GetWeaponSpec().m_DefinitionId);
+	pP->m_WeaponLevel = m_pWeapon->GetWeaponSpec().m_Level;
 	pP->m_AttackTick = m_AttackTick;
 }
