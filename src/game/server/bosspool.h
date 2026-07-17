@@ -28,7 +28,7 @@ bool FindBossSpawnPosition(CGameWorld *pWorld, const vec2 *pSpawnPoints, int Num
 CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth = 1, int TypeHint = -1);
 CDroid *SpawnSpecialist(CGameWorld *pWorld, vec2 Pos, int Type);
 
-// Shared threat accounting. Boss values are exposed for operation budgets,
+// Shared threat accounting. Boss values are exposed for threat budgets,
 // but bosses are never selected by ordinary-batch replacement.
 int DroidThreatCost(int Type);
 

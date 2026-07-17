@@ -245,7 +245,7 @@ void CSpecialistDroid::Tick()
 		{
 			bool Found = false;
 			// Prefer lifting out of a platform, then try symmetric side offsets.
-			// This reconciles operation spawn anchors with each unit's real body.
+			// This reconciles spawn anchors with each unit's real body.
 			for(int Up = 16; Up <= 192 && !Found; Up += 16)
 				for(int Side : {0, -32, 32, -64, 64})
 				{

@@ -7,7 +7,6 @@
 class CPveRoguelite : public CComponent
 {
 	bool m_ChoiceActive;
-	bool m_OperationVoteActive;
 	bool m_ContractVoteActive;
 	bool m_InvasionRetryVoteActive;
 	bool m_InvasionRetryResultActive;
@@ -16,19 +15,6 @@ class CPveRoguelite : public CComponent
 	bool m_MouseTrigger;
 	int m_ChoiceNonce;
 	int m_ChoiceSequence;
-	int m_OperationNonce;
-	int m_OperationEndTick;
-	int m_aOperationOptions[2];
-	int m_aOperationVotes[2];
-	int m_SelectedOperation;
-	int m_ActiveOperation;
-	int m_OperationStep;
-	int m_OperationProgress;
-	int m_OperationTarget;
-	int m_OperationStatusEndTick;
-	int m_OperationTargetType;
-	vec2 m_OperationTargetPos;
-	int m_OperationCargoCarrier;
 	int m_ContractNonce;
 	int m_ChoiceEndTick;
 	int m_ContractEndTick;
@@ -78,8 +64,6 @@ class CPveRoguelite : public CComponent
 	int m_DebugBuildScreenshotFrames;
 	int m_DebugGameScreenshotFrames;
 	int64 m_DebugGameScreenshotEarliestTime;
-	int m_DebugCargoType;
-	bool m_DebugCargoCarried;
 	int m_DebugScreenshotPage;
 	bool m_DebugBuildPreview;
 	int m_aRunPerks[NUM_PVE_CARDS];
@@ -102,19 +86,15 @@ class CPveRoguelite : public CComponent
 	CPveResearchMask ParseResearchMask() const;
 	void StoreResearchMask(CPveResearchMask Mask);
 	void SendChoice(int Slot);
-	void SendOperationVote(int Slot);
 	void SendContractVote(int Slot);
 	void SendInvasionRetryVote(int Choice);
 	void SendDroneModule(int Module);
 	void DrawSelectionOverlay(bool ContractVote);
-	void DrawOperationVote();
-	void DrawOperationHud();
 	void DrawInvasionRetryVote();
 	void DrawInvasionRetryResult();
 	void DrawContractHud();
 	void DrawBuildHud();
 	void DrawDrones();
-	void DrawOperationCargo();
 	void DrawDroneWheel();
 	void DrawText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth = -1.0f, int Align = -1);
 	void DrawWrappedText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth, int MaxLines);
@@ -130,7 +110,6 @@ class CPveRoguelite : public CComponent
 	static void ConDebugBuild(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugScreenshot(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugGameScreenshot(IConsole::IResult *pResult, void *pUserData);
-	static void ConDebugCargo(IConsole::IResult *pResult, void *pUserData);
 	static void ConDroneModule(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyDroneWheel(IConsole::IResult *pResult, void *pUserData);
 
@@ -149,12 +128,8 @@ public:
 	void RenderBuildDebug();
 	int ShopCost(int BaseCost) const;
 	int BuildingCost(int BaseCost) const;
-	int DebugCargoType() const { return m_DebugCargoType; }
-	bool DebugCargoCarried() const { return m_DebugCargoType != PVE_CARGO_NONE && m_DebugCargoCarried; }
-	bool ChoiceActive() const { return m_ChoiceActive || m_OperationVoteActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
+	bool ChoiceActive() const { return m_ChoiceActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
 	bool DroneWheelActive() const { return m_DroneWheelActive; }
-	int OperationTargetType() const { return m_OperationTargetType; }
-	int OperationCargoCarrier() const { return m_OperationCargoCarrier; }
 
 	// World drones must paint with players/droids (before the light pass), not with HUD overlays.
 	class CRenderWorld : public CComponent

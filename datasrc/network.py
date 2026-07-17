@@ -72,14 +72,7 @@ enum
 	BUILDING_TESLACOIL,
 	BUILDING_SCREEN,
 	BUILDING_SHOP,
-	BUILDING_PVE_SHIELD_RELAY,
-	BUILDING_PVE_OVERLOAD_TERMINAL,
-	BUILDING_PVE_ASSEMBLY_NODE,
-	BUILDING_PVE_TARGETING_BEACON,
-	BUILDING_PVE_DATA_CORE,
-	BUILDING_PVE_UPLOAD_POINT,
 	BUILDING_PVE_SHIELD_NODE,
-	BUILDING_PVE_ENERGY_CORE,
 	
 	BSTATUS_REPAIR=1,
 	BSTATUS_NOPE,
@@ -401,8 +394,6 @@ Objects = [
 		NetIntRange("m_Emote", 0, len(Emotes)),
 		NetIntRange("m_AttackTick", 0, 'max_int'),
 		NetIntAny("m_Movement"),
-		# v10 append-only field: PvE cargo is not a CS bomb/weapon.
-		NetIntRange("m_PveCargo", 0, 3),
 	]),
 
 	NetObject("PlayerInfo", [
@@ -879,32 +870,5 @@ Messages = [
 	NetMessage("Cl_PveInvasionRetryVote", [
 		NetIntAny("m_Nonce"),
 		NetIntRange("m_Choice", 0, 1),
-	]),
-
-	NetMessage("Sv_PveOperationVote", [
-		NetIntAny("m_Nonce"),
-		NetIntAny("m_EndTick"),
-		NetIntRange("m_Operation0", 0, 8),
-		NetIntRange("m_Operation1", 0, 8),
-		NetIntRange("m_Votes0", 0, 'MAX_CLIENTS'),
-		NetIntRange("m_Votes1", 0, 'MAX_CLIENTS'),
-	]),
-
-	NetMessage("Cl_PveOperationVote", [
-		NetIntAny("m_Nonce"),
-		NetIntRange("m_Choice", 0, 1),
-	]),
-
-	NetMessage("Sv_PveOperationState", [
-		NetIntRange("m_Operation", -1, 8),
-		NetIntRange("m_State", 0, 4),
-		NetIntRange("m_Step", -1, 2),
-		NetIntRange("m_Progress", 0, 9999),
-		NetIntRange("m_Target", 0, 9999),
-		NetIntAny("m_EndTick"),
-		NetIntRange("m_TargetType", 0, 12),
-		NetIntAny("m_TargetX"),
-		NetIntAny("m_TargetY"),
-		NetIntRange("m_CargoCarrier", -1, 'MAX_CLIENTS-1'),
 	]),
 ]

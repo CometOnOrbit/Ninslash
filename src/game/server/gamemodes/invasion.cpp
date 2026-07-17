@@ -14,7 +14,6 @@
 #include <game/server/gamecontext.h>
 #include <game/server/gameworld.h>
 #include <game/server/pve_director.h>
-#include <game/server/pve_operation_director.h>
 
 #include "invasion.h"
 
@@ -63,7 +62,6 @@ static int InvasionWaveCap(int Level, int Players)
 CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer)
 : IGameController(pGameServer)
 {
-	m_pOperationDirector = new CPveOperationDirector(pGameServer);
 	m_pGameType = "INV";
 	m_GameFlags = GAMEFLAG_COOP;
 	m_GameState = STATE_STARTING;
@@ -124,9 +122,6 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_RogueliteCompletionStarted = false;
 	m_EliteContractSpawned = false;
 	m_CheckpointApplied = false;
-	m_OperationOrdinaryWaveActive = false;
-	m_RouteQuestActive = false;
-	m_RouteTargetType = 0;
 	m_RetryVoteNonce = 0;
 	m_RetryVoteEndTick = 0;
 	m_RetryVoteLastSyncTick = 0;
@@ -179,7 +174,6 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 
 CGameControllerInvasion::~CGameControllerInvasion()
 {
-	delete m_pOperationDirector;
 }
 
 
@@ -231,7 +225,6 @@ void CGameControllerInvasion::SetupLevelTheme()
 		m_QuestWaveEndTick = 0;
 		m_Deaths = m_QuestWaveSize;
 		m_EnemyCount = 0;
-		m_RouteQuestActive = false;
 	}
 	else
 	{
@@ -267,7 +260,6 @@ bool CGameControllerInvasion::OnEntity(int Index, vec2 Pos)
 	if (Index == ENTITY_ENEMYSPAWN && m_NumEnemySpawnPos < MAX_ENEMIES)
 	{
 		m_aEnemySpawnPos[m_NumEnemySpawnPos++] = Pos;
-		m_pOperationDirector->AddCandidate(Pos);
 		return true;
 	}
 	
@@ -829,8 +821,6 @@ int CGameControllerInvasion::CountBossesAlive() const
 
 bool CGameControllerInvasion::IsObjectiveTarget(bool Boss) const
 {
-	if(RouteQuestActive())
-		return true;
 	if(m_Quest == QUEST_KILL_BOSS)
 		return Boss;
 	return m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME ||
@@ -948,145 +938,6 @@ void CGameControllerInvasion::SetReactorDefenseActive(bool Active)
 }
 
 
-void CGameControllerInvasion::SpawnOperationOrdinaryEnemies(int Stage, int Count)
-{
-	const int Level = g_Config.m_SvMapGenLevel;
-	const int Players = max(1, CountPlayers(0));
-	const int WaveCap = max(8, InvasionWaveCap(Level, Players) - m_WaveSizeNerf * 3);
-	const int NativeWaveTotal = (int)(min(8 + Level * 2, 50) * (1.0f + (Players - 1) * 0.2f));
-	const int Existing = CountBots();
-
-	// Keep a finite ordinary Invasion pack in play for the whole stage. Tick
-	// tops the pack back up when the floor goes quiet, so destroy/carry steps
-	// stay contested instead of empty travel between markers.
-	m_QuestWaveType = (Stage & 1) ? WAVE_SKELETONS : WAVE_ROBOTS;
-	m_ForcedWaveType = m_QuestWaveType;
-	m_QuestWaveSize = WaveCap;
-	m_QuestWaveEnemiesLeft = max(Count, NativeWaveTotal);
-	m_EnemiesLeft = m_QuestWaveEnemiesLeft;
-	m_OperationOrdinaryWaveActive = true;
-	m_BotSpawnTick = Server()->Tick();
-	const int InitialBots = min(m_EnemiesLeft, max(0, m_QuestWaveSize - Existing));
-	if(InitialBots > 0)
-		RandomGroupSpawnPos();
-	dbg_msg("pve-operation", "foundry ordinary stage=%d wave=%d total=%d cap=%d existing=%d queued=%d", Stage + 1,
-		m_QuestWaveType, m_QuestWaveEnemiesLeft, m_QuestWaveSize, Existing, InitialBots);
-	for(int i = 0; i < InitialBots; i++)
-		GameServer()->AddBot();
-}
-
-
-void CGameControllerInvasion::TickOperationOrdinaryEnemies()
-{
-	if(!m_OperationOrdinaryWaveActive)
-		return;
-	if(CountBots() >= m_QuestWaveSize)
-		return;
-	if(m_BotSpawnTick > Server()->Tick())
-		return;
-	// Route objectives can last longer than one finite wave. When the queue is
-	// empty but the fight is still quiet, top up a small pack so players are
-	// contested while moving between targets.
-	if(m_EnemiesLeft <= 0 && CountBotsAlive() < max(3, m_QuestWaveSize / 3))
-		m_EnemiesLeft = max(4, m_QuestWaveSize / 2);
-	if(m_EnemiesLeft <= 0)
-		return;
-	RandomGroupSpawnPos();
-	GameServer()->AddBot();
-	m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.45f, 0.85f - g_Config.m_SvMapGenLevel * 0.01f);
-	if(m_EnemiesLeft > 0 && m_EnemiesLeft < 9000)
-		m_EnemiesLeft--;
-}
-
-
-void CGameControllerInvasion::ClearOperationOrdinaryEnemies()
-{
-	m_OperationOrdinaryWaveActive = false;
-	m_EnemiesLeft = 0;
-	m_QuestWaveEnemiesLeft = 0;
-	m_QuestWaveSize = 0;
-	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
-	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
-		if(!pPlayer || !pPlayer->m_IsBot)
-			continue;
-		pPlayer->m_ToBeKicked = true;
-	}
-}
-
-
-void CGameControllerInvasion::FinishOperationFloor()
-{
-	if(!m_pOperationDirector->Complete())
-		return;
-
-	m_RouteQuestActive = false;
-	m_pOperationDirector->Clear();
-	m_LevelQuestsLeft = 1;
-	m_QuestsCompleted = 0;
-	ChangeQuest(QUEST_REACHDOOR, 0.5f);
-	TriggerEscape();
-}
-
-
-bool CGameControllerInvasion::RouteQuestActive() const
-{
-	return m_RouteQuestActive && m_pOperationDirector->Running();
-}
-
-
-void CGameControllerInvasion::TryStartRouteQuest()
-{
-	if(m_RouteQuestActive || m_EscapeLevel)
-		return;
-	const int Operation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
-	if(Operation < 0 || !PveOperationAvailableInMode(Operation, PVE_MODE_INVASION))
-		return;
-	m_RouteQuestActive = true;
-	m_LevelQuestsLeft = 3;
-	m_QuestsCompleted = 0;
-	m_Quest = QUEST_ROUTE;
-	m_NextQuest = QUEST_NONE;
-	m_QuestChangeTick = 0;
-	m_pOperationDirector->Start(Operation);
-	SyncRouteQuestFromOperation();
-	const CPveOperationDef *pDef = PveOperationDef(Operation);
-	if(pDef)
-	{
-		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "%s - %s", pDef->m_pName, pDef->m_apSteps[0]);
-		GameServer()->SendBroadcast(aBuf, -1);
-	}
-}
-
-
-void CGameControllerInvasion::SyncRouteQuestFromOperation()
-{
-	if(!m_RouteQuestActive)
-		return;
-	m_Quest = QUEST_ROUTE;
-	m_QuestWaveType = m_pOperationDirector->Operation();
-	m_QuestsCompleted = m_pOperationDirector->Stage();
-	m_LevelQuestsLeft = 3;
-	const int TargetType = m_pOperationDirector->TargetType();
-	m_RouteTargetType = TargetType;
-	if(TargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL || TargetType == PVE_OPERATION_TARGET_UPLOAD_POINT)
-	{
-		// Remaining hold time in whole seconds for the Quest HUD countdown.
-		const int TickSpeed = max(1, Server()->TickSpeed());
-		m_QuestProgressCounter = max(0, (m_pOperationDirector->Required() - m_pOperationDirector->Progress() + TickSpeed - 1) / TickSpeed);
-	}
-	else if(TargetType == PVE_OPERATION_TARGET_EVACUATION)
-		m_QuestProgressCounter = 0;
-	else if(TargetType == PVE_OPERATION_TARGET_BOSS)
-		m_QuestProgressCounter = CountBossesAlive();
-	else if(m_pOperationDirector->Stage() == 1 && m_pOperationDirector->Operation() == PVE_OPERATION_FIRE_CONTROL_PURGE)
-		m_QuestProgressCounter = CountBotsAlive() + CountAliveSpecialists(&GameServer()->m_World);
-	else
-		m_QuestProgressCounter = max(0, m_pOperationDirector->Required() - m_pOperationDirector->Progress());
-}
-
-
 int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
@@ -1136,22 +987,6 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 
 void CGameControllerInvasion::NextLevel(int CID)
 {
-	// Route evacuate steps open the door themselves. Entering finishes the chain
-	// instead of abandoning a side objective.
-	if(m_RouteQuestActive && m_pOperationDirector->Running())
-	{
-		m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_EVACUATE);
-		if(m_pOperationDirector->Complete())
-		{
-			m_RouteQuestActive = false;
-			m_pOperationDirector->Clear();
-		}
-		else
-		{
-			// Door should stay closed until the evacuate step; refuse early leave.
-			return;
-		}
-	}
 	if (!m_RoundWin)
 	{
 		m_RoundWin = true;
@@ -1198,8 +1033,6 @@ void CGameControllerInvasion::SendQuestCompletedMessage(int Quest)
 
 void CGameControllerInvasion::CompleteCurrentQuest()
 {
-	if(!RouteQuestActive())
-		m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_WAVE);
 	if(m_Quest == QUEST_DEFEND)
 		SetReactorDefenseActive(false);
 	m_DefendPrepEndTick = 0;
@@ -1324,8 +1157,6 @@ void CGameControllerInvasion::SpawnEliteContractGuard()
 
 void CGameControllerInvasion::OnSwitchTriggered()
 {
-	if(!RouteQuestActive())
-		m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_SWITCH);
 	if(m_Quest != QUEST_ACTIVATE_SWITCHES && m_Quest != QUEST_FIND_SWITCH)
 		return;
 	m_SwitchesActivated++;
@@ -1388,36 +1219,6 @@ void CGameControllerInvasion::OnSwitchTriggered()
 void CGameControllerInvasion::Tick()
 {
 	IGameController::Tick();
-	const bool OperationIntermission = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission();
-	const int ActiveOperation = !OperationIntermission && GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
-	if(!OperationIntermission && ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
-		m_pOperationDirector->Clear();
-	if(m_RouteQuestActive || (ActiveOperation >= 0 && PveOperationAvailableInMode(ActiveOperation, PVE_MODE_INVASION) && !m_EscapeLevel))
-	{
-		if(!m_RouteQuestActive)
-			TryStartRouteQuest();
-		if(m_RouteQuestActive && !m_pOperationDirector->Running() && !m_pOperationDirector->Complete())
-		{
-			m_RouteQuestActive = false;
-			m_Quest = QUEST_NONE;
-		}
-		if(!OperationIntermission)
-			m_pOperationDirector->Tick();
-		if(m_pOperationDirector->Complete())
-			FinishOperationFloor();
-		if(RouteQuestActive())
-			SyncRouteQuestFromOperation();
-	}
-	else if(!OperationIntermission)
-	{
-		if(ActiveOperation >= 0 && m_pOperationDirector->Operation() != ActiveOperation)
-			m_pOperationDirector->Start(ActiveOperation);
-		else if(ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
-			m_pOperationDirector->Clear();
-		m_pOperationDirector->Tick();
-		if(m_pOperationDirector->Complete())
-			FinishOperationFloor();
-	}
 	if(m_GameState == STATE_RETRY_VOTE)
 	{
 		TickRetryVote();
@@ -1543,8 +1344,6 @@ void CGameControllerInvasion::Tick()
 		}
 		
 		
-		if(!RouteQuestActive())
-		{
 		if (m_Quest == QUEST_NONE && m_NextQuest == QUEST_NONE)
 		{
 			if (m_EscapeLevel)
@@ -1587,8 +1386,7 @@ void CGameControllerInvasion::Tick()
 		// The old HUD counted only currently alive Bots, while the server could
 		// still have enemies queued in m_EnemiesLeft. This let the counter show
 		// zero before the purge encounter had reached a stable completion state.
-		// Use one value for both rendering and completion; Operation-owned droids
-		// intentionally do not participate in this native Invasion objective.
+		// Use one value for both rendering and completion.
 		const int Remaining = max(0, m_EnemiesLeft) + CountBotsAlive();
 		m_QuestProgressCounter = Remaining;
 		if(Remaining == 0)
@@ -1661,7 +1459,6 @@ void CGameControllerInvasion::Tick()
 
 		if (m_Quest == QUEST_ACTIVATE_SWITCHES)
 			m_QuestProgressCounter = max(0, m_SwitchesRequired - m_SwitchesActivated);
-		}
 
 		if (m_Quest == QUEST_FIND_SWITCH)
 			m_QuestProgressCounter = max(0, 1 - m_SwitchesActivated);
@@ -1716,14 +1513,8 @@ void CGameControllerInvasion::Tick()
 				m_RogueliteOpeningStarted = true;
 				if(GameServer()->m_pPveDirector)
 				{
-					// Floor 1 remains a normal Invasion onboarding floor. Operations
-					// start on Floor 2+. Acid-escape floors never vote: rising acid
-					// and a parallel route would softlock the run.
-					// At most one vote per floor: Contract on Level%3==0, else Operation.
-					const bool AcidEscape = InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE;
 					const bool ContractVote = g_Config.m_SvMapGenLevel % 3 == 0;
-					const bool OperationVote = !ContractVote && g_Config.m_SvMapGenLevel > 1 && !AcidEscape;
-					GameServer()->m_pPveDirector->StartIntermission(ContractVote, true, OperationVote);
+					GameServer()->m_pPveDirector->StartIntermission(ContractVote, true);
 					if(GameServer()->m_pPveDirector->InIntermission())
 						return;
 				}
@@ -1880,9 +1671,6 @@ void CGameControllerInvasion::Snap(int SnappingClient)
 	pGameDataObj->m_TeamscoreRed = m_Quest;
 	pGameDataObj->m_TeamscoreBlue = m_QuestProgressCounter;
 	// Coop HUD packs level/theme/wave/quest progress (flag carriers unused in coop).
-	// Bits 16..23 carry the active route target type so the Quest HUD can show
-	// timed-hold countdowns without the Operation overlay.
 	pGameDataObj->m_FlagCarrierRed = g_Config.m_SvMapGenLevel;
-	pGameDataObj->m_FlagCarrierBlue = m_LevelTheme | (m_QuestWaveType << 4) | (m_QuestsCompleted << 8) | (m_LevelQuestsLeft << 12) |
-		((m_Quest == QUEST_ROUTE ? m_RouteTargetType : 0) << 16);
+	pGameDataObj->m_FlagCarrierBlue = m_LevelTheme | (m_QuestWaveType << 4) | (m_QuestsCompleted << 8) | (m_LevelQuestsLeft << 12);
 }

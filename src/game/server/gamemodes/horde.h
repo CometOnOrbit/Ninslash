@@ -7,7 +7,6 @@
 class CGameControllerHorde : public IGameController
 {
 private:
-	class CPveOperationDirector *m_pOperationDirector;
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 
 	int m_Wave;

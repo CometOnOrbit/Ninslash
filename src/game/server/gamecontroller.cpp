@@ -557,7 +557,7 @@ void IGameController::BeginRisingAcid(int Seconds)
 
 int IGameController::GetRisingAcidTime() const
 {
-	// Honor the duration requested by the mode or operation.
+	// Honor the duration requested by the mode.
 	const int RiseTicks = max(1, m_RisingAcidDuration);
 	const int Elapsed = clamp(Server()->Tick() - m_RisingAcidStartTick, 0, RiseTicks);
 	const int MapH = GameServer()->Collision()->GetHeight();

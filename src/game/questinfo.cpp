@@ -15,7 +15,6 @@ const char *GetQuestDisplayName(int Quest)
 		case QUEST_ACTIVATE_SWITCHES: return "Activate the switches";
 		case QUEST_HORDE: return "Survive the horde";
 		case QUEST_EXTRACT: return "Activate switches to extract";
-		case QUEST_ROUTE: return "Operation objective";
 		default: return "";
 	}
 }

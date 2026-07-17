@@ -29,8 +29,6 @@ class CPveDirector
 		int m_aStacks[NUM_PVE_CARDS];
 		int m_ContractVote;
 		int m_LastContractNonce;
-		int m_OperationVote;
-		int m_LastOperationNonce;
 		int m_LastResearchNonce;
 		int m_LegendaryCard;
 		int m_aWeaponResources[4];
@@ -113,16 +111,9 @@ class CPveDirector
 	int m_NextNonce;
 	bool m_WasWorldPaused;
 	bool m_PerkAfterContract;
-	bool m_PendingPerkChoice;
-	bool m_PendingContractVote;
 	int m_aContractOptions[2];
 	int m_ContractNonce;
-	int m_aOperationOptions[2];
-	int m_OperationNonce;
 	int m_UsedContracts;
-	unsigned m_UsedOperations;
-	int m_ActiveOperation;
-	int m_OperationState;
 	int m_ActiveContract;
 	int m_ContractState;
 	int m_ContractStartTick;
@@ -130,7 +121,6 @@ class CPveDirector
 	int m_ContractProgress;
 	int m_ContractTarget;
 	unsigned long long m_ContractParticipants;
-	int m_OperationEndTick;
 	CDroid *m_pEliteContractBoss;
 	CDroid *m_apEliteContractGuards[8];
 	int m_NumEliteContractGuards;
@@ -147,29 +137,23 @@ class CPveDirector
 	CPendingBlast m_aPendingBlasts[32];
 
 	bool IsEligiblePlayer(int ClientID) const;
-	bool OperationsEnabled() const;
 	int EligiblePlayerCount() const;
 	int CurrentWeaponSpecialization(int ClientID) const;
 	int WeaponSpecialization(int Weapon) const;
 	bool CardEligible(int ClientID, int CardID) const;
 	int DrawCard(int ClientID, const bool *pExcluded, int RequiredSpecialization, bool CommonOnly) const;
 	void GenerateChoices(int ClientID);
-	void BeginOperationVote(bool ContractVote, bool PerkChoice);
 	void BeginContractVote(bool PerkAfterContract);
 	void BeginPerkChoice();
-	void FinishOperationVote();
 	void FinishContractVote();
 	void FinishIntermission();
 	void ApplyChoice(int ClientID, int CardID, bool Catchup = false);
 	void SendChoice(int ClientID);
-	void SendOperationVote(int ClientID = -1);
-	void SendOperationState(int ClientID = -1);
 	void SendContractVote(int ClientID = -1);
 	void SendContractStatus(int ClientID = -1);
 	void SendProgress(int ClientID);
 	void SendValidation(int ClientID, int Code);
 	bool AllChoicesComplete() const;
-	bool AllOperationVotesComplete() const;
 	bool AllContractVotesComplete() const;
 	void GrantCatchup(int ClientID);
 	void TickBlackBox();
@@ -201,7 +185,6 @@ public:
 	bool InIntermission() const { return m_IntermissionState != PVE_INTERMISSION_NONE; }
 	bool TogglePauseAfterIntermission();
 	int Mode() const { return m_Mode; }
-	int ActiveOperation() const { return m_OperationState == PVE_OPERATION_STATE_ACTIVE ? m_ActiveOperation : -1; }
 	int ActiveContract() const { return Enabled() && m_ContractState == PVE_CONTRACT_STATE_ACTIVE ? m_ActiveContract : -1; }
 	int ContractState() const { return m_ContractState; }
 
@@ -211,14 +194,10 @@ public:
 	void OnProgress(int ClientID, int Version, int Points, int Mask0, int Mask1, int Mask2, int Mask3, int HighestInvasion, int PreferredCheckpoint);
 	void OnResearchBuy(int ClientID, int Nonce, int CardID);
 	void OnChoice(int ClientID, int Nonce, int CardID);
-	void OnOperationVote(int ClientID, int Nonce, int OperationID);
-	void OnOperationChainFinished(int OperationID);
-	void OnOperationChainFailed(int OperationID);
-	void OnOperationChainAbandoned(int OperationID);
 	void OnContractVote(int ClientID, int Nonce, int ContractID);
 	void OnDroneModule(int ClientID, int Nonce, int Module);
 
-	void StartIntermission(bool ContractVote, bool PerkChoice, bool OperationVote = true);
+	void StartIntermission(bool ContractVote, bool PerkChoice);
 	void OnStageStart();
 	void OnPlayerSpawn(int ClientID);
 	void OnStageComplete(bool Success = true);

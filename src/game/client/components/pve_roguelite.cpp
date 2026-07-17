@@ -220,8 +220,6 @@ CPveRoguelite::CPveRoguelite()
 	m_DebugBuildScreenshotFrames = 0;
 	m_DebugGameScreenshotFrames = 0;
 	m_DebugGameScreenshotEarliestTime = 0;
-	m_DebugCargoType = PVE_CARGO_NONE;
-	m_DebugCargoCarried = false;
 	m_DebugScreenshotPage = -1;
 	m_DebugBuildPreview = false;
 	m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
@@ -238,7 +236,6 @@ void CPveRoguelite::OnConsoleInit()
 	Console()->Register("pve_debug_build", "?i", CFGFLAG_CLIENT, ConDebugBuild, this, "Preview and capture the PvE build HUD with an optional drone module (1-3)");
 	Console()->Register("pve_debug_screenshot", "?i", CFGFLAG_CLIENT, ConDebugScreenshot, this, "Capture the current client UI after initialization, optionally forcing a UI page");
 	Console()->Register("pve_debug_game_screenshot", "?i?i", CFGFLAG_CLIENT, ConDebugGameScreenshot, this, "Capture gameplay after a local character appears: optional frame and millisecond delays");
-	Console()->Register("pve_debug_cargo", "i?i", CFGFLAG_CLIENT, ConDebugCargo, this, "Preview PvE cargo type 1-3; optional carried state 0-1");
 	Console()->Register("pve_drone_module", "i", CFGFLAG_CLIENT, ConDroneModule, this, "Switch support drone module: 1 assault, 2 guardian, 3 repair");
 	Console()->Register("+dronewheel", "", CFGFLAG_CLIENT, ConKeyDroneWheel, this, "Hold to open the drone command wheel");
 }
@@ -287,7 +284,6 @@ void CPveRoguelite::ConDebugChoice(IConsole::IResult *pResult, void *pUserData)
 {
 	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
 	const int Start = pResult->NumArguments() ? clamp(pResult->GetInteger(0), 0, NUM_PVE_CARDS - 1) : 0;
-	pSelf->m_OperationVoteActive = false;
 	pSelf->m_ContractVoteActive = false;
 	pSelf->m_InvasionRetryVoteActive = false;
 	pSelf->m_InvasionRetryResultActive = false;
@@ -310,7 +306,6 @@ void CPveRoguelite::ConDebugContract(IConsole::IResult *pResult, void *pUserData
 {
 	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
 	const int Start = pResult->NumArguments() ? clamp(pResult->GetInteger(0), 0, NUM_PVE_CONTRACTS - 1) : 0;
-	pSelf->m_OperationVoteActive = false;
 	pSelf->m_ChoiceActive = false;
 	pSelf->m_ContractVoteActive = true;
 	pSelf->m_InvasionRetryVoteActive = false;
@@ -343,7 +338,6 @@ void CPveRoguelite::ConDebugInvasionRetry(IConsole::IResult *pResult, void *pUse
 {
 	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
 	const int State = pResult->NumArguments() ? clamp(pResult->GetInteger(0), 0, 3) : 0;
-	pSelf->m_OperationVoteActive = false;
 	pSelf->m_ChoiceActive = false;
 	pSelf->m_ContractVoteActive = false;
 	pSelf->m_InvasionRetryVoteActive = State == 0;
@@ -425,31 +419,8 @@ void CPveRoguelite::ConDebugGameScreenshot(IConsole::IResult *pResult, void *pUs
 	pSelf->m_DebugGameScreenshotEarliestTime = time_get() + time_freq() * DelayMs / 1000;
 }
 
-void CPveRoguelite::ConDebugCargo(IConsole::IResult *pResult, void *pUserData)
-{
-	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
-	pSelf->m_DebugCargoType = clamp(pResult->GetInteger(0), (int)PVE_CARGO_NONE, (int)PVE_CARGO_ENERGY);
-	pSelf->m_DebugCargoCarried = pSelf->m_DebugCargoType != PVE_CARGO_NONE && pResult->NumArguments() > 1 && pResult->GetInteger(1) != 0;
-}
-
 void CPveRoguelite::OnReset()
 {
-	m_OperationVoteActive = false;
-	m_OperationNonce = 0;
-	m_OperationEndTick = 0;
-	m_aOperationOptions[0] = -1;
-	m_aOperationOptions[1] = -1;
-	m_aOperationVotes[0] = 0;
-	m_aOperationVotes[1] = 0;
-	m_SelectedOperation = -1;
-	m_ActiveOperation = -1;
-	m_OperationStep = -1;
-	m_OperationProgress = 0;
-	m_OperationTarget = 0;
-	m_OperationStatusEndTick = 0;
-	m_OperationTargetType = PVE_OPERATION_TARGET_NONE;
-	m_OperationTargetPos = vec2(0, 0);
-	m_OperationCargoCarrier = -1;
 	if(m_DebugChoiceScreenshotFrames <= 0)
 	{
 		m_ChoiceActive = false;
@@ -608,19 +579,6 @@ void CPveRoguelite::SendChoice(int Slot)
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
 	m_FocusedChoice = Slot;
 	m_ChoiceNonce = 0;
-	m_SelectionPulse = 1.0f;
-}
-
-void CPveRoguelite::SendOperationVote(int Slot)
-{
-	if(!m_OperationVoteActive || m_OperationNonce <= 0 || Slot < 0 || Slot >= 2 || m_SelectedOperation >= 0)
-		return;
-	CNetMsg_Cl_PveOperationVote Msg;
-	Msg.m_Nonce = m_OperationNonce;
-	Msg.m_Choice = Slot;
-	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
-	m_SelectedOperation = Slot;
-	m_FocusedChoice = Slot;
 	m_SelectionPulse = 1.0f;
 }
 
@@ -845,166 +803,6 @@ void CPveRoguelite::DrawSelectionOverlay(bool ContractVote)
 	TextRender()->TextColor(1, 1, 1, 1);
 }
 
-void CPveRoguelite::DrawOperationVote()
-{
-	const float ScreenWidth = 300.0f * Graphics()->ScreenAspect();
-	Graphics()->MapScreen(0, 0, ScreenWidth, 300.0f);
-	const float Dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
-	m_AppearAmount += (1.0f - m_AppearAmount) * (1.0f - expf(-10.0f * Dt));
-	m_SelectionPulse = max(0.0f, m_SelectionPulse - Dt * 4.0f);
-	const float Alpha = clamp(m_AppearAmount, 0.0f, 1.0f);
-	const vec4 Deep = CMenus::ThemeBgDeep();
-	const vec4 Panel = CMenus::ThemeBgPanel();
-	const vec4 Inset = CMenus::ThemeBgInset();
-	const vec4 Accent = CMenus::ThemeAccent();
-	const vec4 AccentDim = CMenus::ThemeAccentDim();
-	const vec4 Text = CMenus::ThemeText();
-	const vec4 Danger = CMenus::ThemeDanger();
-
-	CUIRect Screen = {0, 0, ScreenWidth, 300.0f};
-	DrawPanel(Screen, vec4(Deep.r, Deep.g, Deep.b, 0.95f * Alpha), 0.0f);
-	CUIRect Stage = {10.0f, 48.0f, ScreenWidth - 20.0f, 210.0f};
-	DrawPanel(Stage, vec4(Inset.r, Inset.g, Inset.b, 0.97f * Alpha), 13.0f);
-	CUIRect Line = {Stage.x + 14.0f, Stage.y + 9.0f, Stage.w - 28.0f, 1.2f};
-	DrawPanel(Line, vec4(Accent.r, Accent.g, Accent.b, 0.68f * Alpha), 0.6f);
-	DrawText(ScreenWidth * 0.5f, 8.0f, 12.5f, Localize("Choose an Operation"), vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
-	DrawText(ScreenWidth * 0.5f, 26.0f, 6.4f, Localize("Vote for the team's next mission route."), vec4(Text.r, Text.g, Text.b, 0.72f * Alpha), -1.0f, 0);
-
-	const int Seconds = max(0, (m_OperationEndTick - Client()->GameTick() + Client()->GameTickSpeed() - 1) / Client()->GameTickSpeed());
-	char aTimer[64];
-	str_format(aTimer, sizeof(aTimer), Localize("%d seconds remaining"), Seconds);
-	CUIRect Timer = {ScreenWidth * 0.5f - 47.0f, 61.0f, 94.0f, 15.0f};
-	DrawPanel(Timer, vec4(Panel.r, Panel.g, Panel.b, 0.96f * Alpha), 7.0f);
-	const vec4 TimerColor = Seconds <= 3 ? Danger : Accent;
-	DrawText(Timer.x + Timer.w * 0.5f, Timer.y + 4.0f, 6.0f, aTimer, vec4(TimerColor.r, TimerColor.g, TimerColor.b, Alpha), -1.0f, 0);
-
-	const float Gap = 16.0f;
-	const float CardWidth = min(195.0f, (Stage.w - 30.0f - Gap) * 0.5f);
-	const float StartX = ScreenWidth * 0.5f - CardWidth - Gap * 0.5f;
-	int Hovered = -1;
-	for(int i = 0; i < 2; i++)
-	{
-		CUIRect Hit = {StartX + i * (CardWidth + Gap), 84.0f, CardWidth, 149.0f};
-		if(m_SelectorMouse.x >= Hit.x && m_SelectorMouse.x <= Hit.x + Hit.w && m_SelectorMouse.y >= Hit.y && m_SelectorMouse.y <= Hit.y + Hit.h)
-			Hovered = i;
-	}
-	if(m_MouseTrigger)
-	{
-		if(Hovered >= 0)
-		{
-			m_FocusedChoice = Hovered;
-			SendOperationVote(Hovered);
-		}
-		m_MouseTrigger = false;
-	}
-	else if(Hovered >= 0)
-		m_FocusedChoice = Hovered;
-
-	for(int i = 0; i < 2; i++)
-	{
-		const bool Focused = i == m_FocusedChoice;
-		const bool Selected = i == m_SelectedOperation;
-		m_aCardFocus[i] += ((Focused ? 1.0f : 0.0f) - m_aCardFocus[i]) * (1.0f - expf(-14.0f * Dt));
-		const float FocusAmount = clamp(m_aCardFocus[i], 0.0f, 1.0f);
-		const float Scale = 1.0f + FocusAmount * 0.025f + (Selected ? m_SelectionPulse * 0.012f : 0.0f);
-		CUIRect Card = {StartX + i * (CardWidth + Gap) - CardWidth * (Scale - 1.0f) * 0.5f,
-			84.0f - FocusAmount * 2.0f, CardWidth * Scale, 149.0f * Scale};
-		CUIRect Border = Card;
-		Border.Margin(-1.5f, &Border);
-		DrawPanel(Border, vec4(Accent.r, Accent.g, Accent.b, (Focused || Selected ? 0.92f : 0.32f) * Alpha), 11.0f);
-		DrawPanel(Card, vec4(Panel.r, Panel.g, Panel.b, 0.98f * Alpha), 9.0f);
-		char aVotes[64];
-		str_format(aVotes, sizeof(aVotes), Localize("%d votes"), m_aOperationVotes[i]);
-		CUIRect VoteBadge = {Card.x + 9.0f, Card.y + 8.0f, 58.0f, 14.0f};
-		DrawPanel(VoteBadge, vec4(Inset.r, Inset.g, Inset.b, 0.96f * Alpha), 7.0f);
-		DrawText(VoteBadge.x + VoteBadge.w * 0.5f, VoteBadge.y + 3.8f, 5.8f, aVotes, vec4(Accent.r, Accent.g, Accent.b, Alpha), -1.0f, 0);
-		char aKey[8];
-		str_format(aKey, sizeof(aKey), "%d", i + 1);
-		CUIRect Key = {Card.x + Card.w - 25.0f, Card.y + 8.0f, 16.0f, 14.0f};
-		DrawPanel(Key, vec4(Inset.r, Inset.g, Inset.b, 0.96f * Alpha), 6.0f);
-		DrawText(Key.x + Key.w * 0.5f, Key.y + 3.8f, 5.8f, aKey, vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
-		const int Operation = m_aOperationOptions[i];
-		const char *pName = Localize(PveOperationName(Operation));
-		float NameSize = Focused ? 10.0f : 9.2f;
-		while(NameSize > 6.7f && TextRender()->TextWidth(0, NameSize, pName, -1) > Card.w - 18.0f)
-			NameSize -= 0.3f;
-		DrawText(Card.x + Card.w * 0.5f, Card.y + 32.0f, NameSize, pName, vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
-		const CPveOperationDef *pDef = PveOperationDef(Operation);
-		if(pDef)
-		{
-			for(int Step = 0; Step < 3; Step++)
-			{
-				char aStep[256];
-				str_format(aStep, sizeof(aStep), "%d  %s", Step + 1, Localize(pDef->m_apSteps[Step]));
-				DrawText(Card.x + 12.0f, Card.y + 55.0f + Step * 18.0f, 5.3f, aStep,
-					vec4(Step == 0 ? Accent.r : Text.r, Step == 0 ? Accent.g : Text.g, Step == 0 ? Accent.b : Text.b, 0.86f * Alpha), Card.w - 24.0f, -1);
-			}
-		}
-		CUIRect Button = {Card.x + 10.0f, Card.y + Card.h - 27.0f, Card.w - 20.0f, 18.0f};
-		const vec4 ButtonColor = Focused || Selected ? Accent : AccentDim;
-		DrawPanel(Button, vec4(ButtonColor.r, ButtonColor.g, ButtonColor.b, 0.94f * Alpha), 7.0f);
-		DrawText(Button.x + Button.w * 0.5f, Button.y + 5.0f, 6.5f, Localize(Selected ? "Voted" : "Vote"), vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
-	}
-
-	DrawText(ScreenWidth * 0.5f, 272.0f, 6.4f, Localize("Mouse / Arrow Keys / 1-2 / Gamepad"), vec4(Text.r, Text.g, Text.b, 0.65f * Alpha), -1.0f, 0);
-	Graphics()->TextureSet(-1);
-	CUIRect Cursor = {m_SelectorMouse.x, m_SelectorMouse.y, 5.0f, 5.0f};
-	DrawPanel(Cursor, vec4(Accent.r, Accent.g, Accent.b, Alpha), 2.5f);
-	TextRender()->TextColor(1, 1, 1, 1);
-}
-
-void CPveRoguelite::DrawOperationHud()
-{
-	if(m_ActiveOperation < 0 || Client()->State() != IClient::STATE_ONLINE)
-		return;
-	const CPveOperationDef *pDef = PveOperationDef(m_ActiveOperation);
-	if(!pDef)
-		return;
-	Graphics()->MapScreen(0, 0, 300.0f * Graphics()->ScreenAspect(), 300.0f);
-	const vec4 Panel = CMenus::ThemeBgPanel();
-	const vec4 Inset = CMenus::ThemeBgInset();
-	const vec4 Accent = CMenus::ThemeAccent();
-	const vec4 Text = CMenus::ThemeText();
-	CUIRect Hud = {10.0f, 145.0f, 132.0f, 69.0f};
-	DrawPanel(Hud, vec4(Panel.r, Panel.g, Panel.b, 0.90f), 8.0f);
-	CUIRect Edge = {Hud.x, Hud.y, 2.0f, Hud.h};
-	DrawPanel(Edge, Accent, 1.0f);
-	DrawText(Hud.x + 8.0f, Hud.y + 4.0f, 5.4f, Localize("ACTIVE OPERATION"), Accent);
-	DrawText(Hud.x + 8.0f, Hud.y + 14.0f, 7.0f, Localize(pDef->m_pName), Text, Hud.w - 16.0f, -1);
-	char aProgress[96];
-	const bool TimedHold = m_OperationTargetType == PVE_OPERATION_TARGET_OVERLOAD_TERMINAL || m_OperationTargetType == PVE_OPERATION_TARGET_UPLOAD_POINT;
-	if(m_OperationStep >= 0 && m_OperationStep < 3)
-	{
-		if(TimedHold && Client()->GameTickSpeed() > 0)
-		{
-			const int ProgressSeconds = m_OperationProgress / Client()->GameTickSpeed();
-			const int TargetSeconds = max(1, (m_OperationTarget + Client()->GameTickSpeed() - 1) / Client()->GameTickSpeed());
-			const int RemainingSeconds = max(0, (m_OperationStatusEndTick - Client()->GameTick() + Client()->GameTickSpeed() - 1) / Client()->GameTickSpeed());
-			str_format(aProgress, sizeof(aProgress), "%s %d/3  %d/%ds  %ds left", Localize("Step"), m_OperationStep + 1, ProgressSeconds, TargetSeconds, RemainingSeconds);
-		}
-		else
-			str_format(aProgress, sizeof(aProgress), "%s %d/3  %d/%d", Localize("Step"), m_OperationStep + 1, m_OperationProgress, m_OperationTarget);
-	}
-	else
-		str_copy(aProgress, Localize("Preparing operation"), sizeof(aProgress));
-	DrawText(Hud.x + 8.0f, Hud.y + 25.0f, 5.2f, aProgress, Accent, Hud.w - 16.0f, -1);
-	const char *pStep = m_OperationStep >= 0 && m_OperationStep < 3 ? pDef->m_apSteps[m_OperationStep] : pDef->m_pDescription;
-	CUIRect Rule = {Hud.x + 7.0f, Hud.y + 35.0f, Hud.w - 14.0f, 17.0f};
-	DrawPanel(Rule, vec4(Inset.r, Inset.g, Inset.b, 0.72f), 4.0f);
-	DrawWrappedText(Rule.x + 4.0f, Rule.y + 2.0f, 4.5f, Localize(pStep), vec4(Text.r, Text.g, Text.b, 0.82f), Rule.w - 8.0f, 2);
-	if(m_OperationTargetType != PVE_OPERATION_TARGET_NONE && m_pClient->m_Snap.m_pLocalCharacter)
-	{
-		const vec2 LocalPos(m_pClient->m_Snap.m_pLocalCharacter->m_X, m_pClient->m_Snap.m_pLocalCharacter->m_Y);
-		const vec2 Delta = m_OperationTargetPos - LocalPos;
-		const float Angle = atan2f(Delta.y, Delta.x);
-		const int Sector = ((int)floorf((Angle + pi + pi / 8.0f) / (pi / 4.0f))) & 7;
-		const char *apDirections[8] = {"←", "↖", "↑", "↗", "→", "↘", "↓", "↙"};
-		char aDirection[64];
-		str_format(aDirection, sizeof(aDirection), "%s  %dm", apDirections[Sector], (int)(length(Delta) / 32.0f));
-		DrawText(Hud.x + 8.0f, Hud.y + 55.0f, 5.2f, aDirection, Accent, Hud.w - 16.0f, -1);
-	}
-	TextRender()->TextColor(1, 1, 1, 1);
-}
 
 void CPveRoguelite::DrawInvasionRetryVote()
 {
@@ -1255,61 +1053,6 @@ void CPveRoguelite::DrawBuildHud()
 	DrawPanel(Edge, Accent, 1.0f);
 	for(int i = 0; i < Lines; i++)
 		DrawText(Hud.x + 8.0f, Hud.y + 6.0f + i * 12.0f, 5.8f, aaLines[i], Text, Hud.w - 16.0f, -1);
-}
-
-void CPveRoguelite::DrawOperationCargo()
-{
-	if(Client()->State() != IClient::STATE_ONLINE)
-		return;
-	int Cargo = PveCargoFromOperationTarget(m_OperationTargetType);
-	vec2 CargoPos = m_OperationTargetPos;
-	int CargoCarrier = m_OperationCargoCarrier;
-	if(m_DebugCargoType != PVE_CARGO_NONE)
-	{
-		Cargo = m_DebugCargoType;
-		CargoCarrier = m_DebugCargoCarried ? m_pClient->m_Snap.m_LocalClientID : -1;
-		if(m_pClient->m_Snap.m_pLocalCharacter)
-			CargoPos = vec2(m_pClient->m_Snap.m_pLocalCharacter->m_X + 92.0f, m_pClient->m_Snap.m_pLocalCharacter->m_Y);
-	}
-	else if(m_ActiveOperation < 0)
-		return;
-	if(Cargo == PVE_CARGO_NONE)
-		return;
-
-	// Delivery zone while carrying: mark the drop-off radius at the HUD target.
-	const float DeliveryRadius = 120.0f;
-	if(CargoCarrier >= 0)
-	{
-		const float Pulse = 0.5f + 0.5f * sinf((float)Client()->LocalTime() * 2.5f);
-		Graphics()->TextureClear();
-		Graphics()->LinesBegin();
-		Graphics()->SetColor(0.35f, 0.95f, 1.0f, 0.35f + 0.25f * Pulse);
-		IGraphics::CLineItem aLines[32];
-		int NumLines = 0;
-		const int Segments = 48;
-		for(int i = 0; i < Segments; i += 2)
-		{
-			const float A1 = i * 2.0f * pi / Segments;
-			const float A2 = (i + 1) * 2.0f * pi / Segments;
-			aLines[NumLines++] = IGraphics::CLineItem(
-				m_OperationTargetPos.x + cosf(A1) * DeliveryRadius,
-				m_OperationTargetPos.y + sinf(A1) * DeliveryRadius,
-				m_OperationTargetPos.x + cosf(A2) * DeliveryRadius,
-				m_OperationTargetPos.y + sinf(A2) * DeliveryRadius);
-			if(NumLines >= 32)
-			{
-				Graphics()->LinesDraw(aLines, NumLines);
-				NumLines = 0;
-			}
-		}
-		if(NumLines)
-			Graphics()->LinesDraw(aLines, NumLines);
-		Graphics()->LinesEnd();
-		return;
-	}
-	const float Bob = sinf((Client()->GameTick() + Client()->IntraGameTick()) * 0.08f) * 3.0f;
-	DrawIcon(IMAGE_PVE_CARGO, SPRITE_PVE_CARGO_COOLANT + Cargo - PVE_CARGO_COOLANT,
-		CargoPos.x, CargoPos.y - 24.0f + Bob, 58.0f, vec4(1, 1, 1, 1));
 }
 
 void CPveRoguelite::DrawDrones()
@@ -2200,20 +1943,6 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 
 void CPveRoguelite::OnRender()
 {
-	// PvE world entities are rendered after the regular HUD component. Restore
-	// the game-group camera mapping explicitly, then put back the UI mapping for
-	// the operation HUD and modal overlays below.
-	CUIRect PreviousScreen;
-	Graphics()->GetScreen(&PreviousScreen.x, &PreviousScreen.y, &PreviousScreen.w, &PreviousScreen.h);
-	if(Client()->State() == IClient::STATE_ONLINE)
-	{
-		float aWorldScreen[4];
-		RenderTools()->MapscreenToWorld(m_pClient->m_pCamera->m_Center.x, m_pClient->m_pCamera->m_Center.y,
-			1.0f, 1.0f, 0.0f, 0.0f, Graphics()->ScreenAspect(), m_pClient->m_pCamera->m_Zoom, aWorldScreen);
-		Graphics()->MapScreen(aWorldScreen[0], aWorldScreen[1], aWorldScreen[2], aWorldScreen[3]);
-		DrawOperationCargo();
-		Graphics()->MapScreen(PreviousScreen.x, PreviousScreen.y, PreviousScreen.w, PreviousScreen.h);
-	}
 	const bool WasResearchVisible = m_ResearchVisible;
 	m_ResearchVisible = false;
 	if(!WasResearchVisible)
@@ -2254,8 +1983,6 @@ void CPveRoguelite::OnRender()
 	}
 	if(m_InvasionRetryResultActive)
 		DrawInvasionRetryResult();
-	else if(m_OperationVoteActive)
-		DrawOperationVote();
 	else if(m_InvasionRetryVoteActive)
 		DrawInvasionRetryVote();
 	else if(m_ContractVoteActive)
@@ -2271,7 +1998,6 @@ void CPveRoguelite::OnRender()
 		if(!m_pClient->GameplayInputCaptured())
 		{
 			DrawContractHud();
-			DrawOperationHud();
 			DrawBuildHud();
 		}
 	}
@@ -2282,8 +2008,6 @@ void CPveRoguelite::RenderMenuDebugOverlay()
 {
 	if(Client()->State() != IClient::STATE_ONLINE && m_InvasionRetryResultActive)
 		DrawInvasionRetryResult();
-	else if(Client()->State() != IClient::STATE_ONLINE && m_OperationVoteActive)
-		DrawOperationVote();
 	else if(Client()->State() != IClient::STATE_ONLINE && m_InvasionRetryVoteActive)
 		DrawInvasionRetryVote();
 	else if(Client()->State() != IClient::STATE_ONLINE && m_ContractVoteActive)
@@ -2317,31 +2041,6 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 		return ChoiceActive();
 	if(m_InvasionRetryResultActive)
 		return true;
-	if(m_OperationVoteActive)
-	{
-		int Direction = 0;
-		if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT || Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT)
-			Direction = -1;
-		else if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT || Event.m_Key == KEY_GAMEPAD_SHOULDER_RIGHT)
-			Direction = 1;
-		if(Direction)
-			m_FocusedChoice = (m_FocusedChoice + Direction + 2) % 2;
-		else if(Event.m_Key == KEY_1 || Event.m_Key == KEY_KP_1)
-		{
-			m_FocusedChoice = 0;
-			SendOperationVote(0);
-		}
-		else if(Event.m_Key == KEY_2 || Event.m_Key == KEY_KP_2)
-		{
-			m_FocusedChoice = 1;
-			SendOperationVote(1);
-		}
-		else if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A)
-			SendOperationVote(m_FocusedChoice);
-		else if(Event.m_Key == KEY_MOUSE_1)
-			m_MouseTrigger = true;
-		return true;
-	}
 	if(m_InvasionRetryVoteActive)
 	{
 		int Direction = 0;
@@ -2545,7 +2244,6 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		CNetMsg_Sv_PveChoice *pMsg = (CNetMsg_Sv_PveChoice *)pRawMsg;
 		const bool NewChoice = !m_ChoiceActive || m_ChoiceNonce != pMsg->m_Nonce || m_ChoiceSequence != pMsg->m_ChoiceSequence;
 		m_ChoiceActive = true;
-		m_OperationVoteActive = false;
 		m_ContractVoteActive = false;
 		m_InvasionRetryVoteActive = false;
 		m_InvasionRetryResultActive = false;
@@ -2597,7 +2295,6 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		const bool NewVote = !m_ContractVoteActive || m_ContractNonce != pMsg->m_Nonce;
 		m_ContractVoteActive = true;
 		m_ChoiceActive = false;
-		m_OperationVoteActive = false;
 		m_InvasionRetryVoteActive = false;
 		m_InvasionRetryResultActive = false;
 		m_ContractNonce = pMsg->m_Nonce;
@@ -2654,7 +2351,6 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		CNetMsg_Sv_PveInvasionRetryVote *pMsg = (CNetMsg_Sv_PveInvasionRetryVote *)pRawMsg;
 		const bool NewVote = !m_InvasionRetryVoteActive || m_InvasionRetryNonce != pMsg->m_Nonce;
 		m_ChoiceActive = false;
-		m_OperationVoteActive = false;
 		m_ContractVoteActive = false;
 		m_InvasionRetryResultActive = false;
 		m_InvasionRetryVoteActive = true;
@@ -2679,7 +2375,6 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		CNetMsg_Sv_PveInvasionRetryResult *pMsg = (CNetMsg_Sv_PveInvasionRetryResult *)pRawMsg;
 		const bool NewResult = !m_InvasionRetryResultActive || m_InvasionRetryResult != pMsg->m_Result || m_InvasionRetryResultEndTick != pMsg->m_EndTick;
 		m_ChoiceActive = false;
-		m_OperationVoteActive = false;
 		m_ContractVoteActive = false;
 		m_InvasionRetryVoteActive = false;
 		m_InvasionRetryResultActive = true;
@@ -2691,47 +2386,6 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 			m_MouseTrigger = false;
 			m_AppearAmount = 0.0f;
 		}
-	}
-	else if(MsgType == NETMSGTYPE_SV_PVEOPERATIONVOTE)
-	{
-		CNetMsg_Sv_PveOperationVote *pMsg = (CNetMsg_Sv_PveOperationVote *)pRawMsg;
-		const bool NewVote = !m_OperationVoteActive || m_OperationNonce != pMsg->m_Nonce;
-		m_ChoiceActive = false;
-		m_ContractVoteActive = false;
-		m_InvasionRetryVoteActive = false;
-		m_InvasionRetryResultActive = false;
-		m_OperationVoteActive = true;
-		m_OperationNonce = pMsg->m_Nonce;
-		m_OperationEndTick = pMsg->m_EndTick;
-		m_aOperationOptions[0] = pMsg->m_Operation0;
-		m_aOperationOptions[1] = pMsg->m_Operation1;
-		m_aOperationVotes[0] = pMsg->m_Votes0;
-		m_aOperationVotes[1] = pMsg->m_Votes1;
-		if(NewVote)
-		{
-			m_MouseTrigger = false;
-			m_SelectedOperation = -1;
-			m_FocusedChoice = 0;
-			for(int i = 0; i < 3; i++)
-				m_aCardFocus[i] = 0.0f;
-			m_SelectorMouse = vec2(150.0f * Graphics()->ScreenAspect(), 150.0f);
-			m_AppearAmount = 0.0f;
-		}
-	}
-	else if(MsgType == NETMSGTYPE_SV_PVEOPERATIONSTATE)
-	{
-		CNetMsg_Sv_PveOperationState *pMsg = (CNetMsg_Sv_PveOperationState *)pRawMsg;
-		m_OperationVoteActive = false;
-		m_OperationNonce = 0;
-		m_SelectedOperation = -1;
-		m_ActiveOperation = pMsg->m_State == PVE_OPERATION_STATE_ACTIVE ? pMsg->m_Operation : -1;
-		m_OperationStep = pMsg->m_Step;
-		m_OperationProgress = pMsg->m_Progress;
-		m_OperationTarget = pMsg->m_Target;
-		m_OperationStatusEndTick = pMsg->m_EndTick;
-		m_OperationTargetType = pMsg->m_TargetType;
-		m_OperationTargetPos = vec2(pMsg->m_TargetX, pMsg->m_TargetY);
-		m_OperationCargoCarrier = pMsg->m_CargoCarrier;
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEVALIDATION)
 	{

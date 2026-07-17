@@ -930,10 +930,6 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/pve_drone.h
   entities/pve_drone_pulse.cpp
   entities/pve_drone_pulse.h
-  entities/pve_operation_target.cpp
-  entities/pve_operation_target.h
-  entities/pve_operation_hazard.cpp
-  entities/pve_operation_hazard.h
   entities/radar.cpp
   entities/radar.h
   entities/shop.cpp
@@ -983,8 +979,6 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   blockentities.cpp
   blockentities.h  
   entity.cpp
-  pve_operation_director.cpp
-  pve_operation_director.h
   entity.h
   eventhandler.cpp
   eventhandler.h

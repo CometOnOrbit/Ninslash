@@ -18,7 +18,6 @@ enum Quests
 	QUEST_ACTIVATE_SWITCHES,
 	QUEST_HORDE,
 	QUEST_EXTRACT,
-	QUEST_ROUTE,
 };
 
 enum WaveTypes

@@ -233,11 +233,6 @@ public:
 	virtual bool CanBeMovedOnBalance(int ClientID);
 
 	virtual void DisplayExit(vec2 Pos);
-	// Optional mode hook used by operation floors that need ordinary character
-	// enemies in addition to director-owned mechanical specialists.
-	virtual void SpawnOperationOrdinaryEnemies(int, int) {}
-	virtual void TickOperationOrdinaryEnemies() {}
-	virtual void ClearOperationOrdinaryEnemies() {}
 
 	virtual void Tick();
 

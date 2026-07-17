@@ -444,8 +444,6 @@ image_mask2 = Image("mask2", "skins/masks/mask2.png")
 image_mask3 = Image("mask3", "skins/masks/mask3.png")
 image_mask4 = Image("mask4", "skins/masks/mask4.png")
 image_mask5 = Image("mask5", "skins/masks/mask5.png")
-image_pve_cargo = Image("pve_cargo", "pve_cargo.png")
-image_pve_objectives = Image("pve_objectives", "pve_objectives.png")
 image_pve_shield_relay = Image("pve_shield_relay", "pve_shield_relay.png")
 
 container.images.Add(image_null)
@@ -533,8 +531,6 @@ container.images.Add(image_mask2)
 container.images.Add(image_mask3)
 container.images.Add(image_mask4)
 container.images.Add(image_mask5)
-container.images.Add(image_pve_cargo)
-container.images.Add(image_pve_objectives)
 container.images.Add(image_pve_shield_relay)
 
 container.pickups.Add(Pickup("health"))
@@ -605,8 +601,6 @@ set_jet = SpriteSet("jet", image_jet, 4, 1)
 #set_green_charge = SpriteSet("green_charge", image_green_charge, 8, 1)
 set_green_explosion = SpriteSet("green_explosion", image_green_explosion, 4, 2)
 set_crawler_leg = SpriteSet("crawler_leg", image_crawler_leg1, 1, 1)
-set_pve_cargo = SpriteSet("pve_cargo", image_pve_cargo, 3, 1)
-set_pve_objectives = SpriteSet("pve_objectives", image_pve_objectives, 4, 1)
 set_pve_shield_relay = SpriteSet("pve_shield_relay", image_pve_shield_relay, 1, 1)
 
 set_gui_window1 = SpriteSet("gui_window1", image_gui_window1, 8, 8)
@@ -674,10 +668,8 @@ container.spritesets.Add(set_jet)
 #container.spritesets.Add(set_green_charge)
 container.spritesets.Add(set_green_explosion)
 container.spritesets.Add(set_crawler_leg)
-container.spritesets.Add(set_pve_cargo)
 
 container.spritesets.Add(set_gui_window1)
-container.spritesets.Add(set_pve_objectives)
 container.spritesets.Add(set_pve_shield_relay)
 
 
@@ -1372,13 +1364,5 @@ weapon.offsety.Set(-20)
 container.weapons.scythe.base.Set(weapon)
 container.weapons.id.Add(weapon)
 
-# Appended v10 PvE cargo sprites. Keep these at the end so existing sprite IDs
-# remain stable.
-container.sprites.Add(Sprite("pve_cargo_coolant", set_pve_cargo, 0, 0, 1, 1))
-container.sprites.Add(Sprite("pve_cargo_data", set_pve_cargo, 1, 0, 1, 1))
-container.sprites.Add(Sprite("pve_cargo_energy", set_pve_cargo, 2, 0, 1, 1))
-container.sprites.Add(Sprite("pve_overload_terminal", set_pve_objectives, 0, 0, 1, 1))
-container.sprites.Add(Sprite("pve_assembly_node", set_pve_objectives, 1, 0, 1, 1))
-container.sprites.Add(Sprite("pve_targeting_beacon", set_pve_objectives, 2, 0, 1, 1))
-container.sprites.Add(Sprite("pve_upload_point", set_pve_objectives, 3, 0, 1, 1))
+# Overseer Core shield-node visual (boss FX, not a mission objective).
 container.sprites.Add(Sprite("pve_shield_relay", set_pve_shield_relay, 0, 0, 1, 1))

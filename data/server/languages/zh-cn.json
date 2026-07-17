@@ -441,10 +441,6 @@
             "value": "血流成河"
         },
         {
-            "key": "Operation vote timed out; a valid route was selected",
-            "value": "行动投票超时；已选定一条有效路线"
-        },
-        {
             "key": "Perk choice timed out; displayed options were selected at random",
             "value": "强化选择超时；已从展示选项中随机选择"
         },

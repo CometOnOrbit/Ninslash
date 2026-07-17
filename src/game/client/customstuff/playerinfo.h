@@ -90,7 +90,6 @@ public:
 	int m_MuzzleTick;
 	
 	bool m_BombCarrier;
-	int m_PveCargo;
 	int m_Mask;
 	
 	bool m_Hooking;

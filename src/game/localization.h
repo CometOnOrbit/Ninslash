@@ -16,7 +16,7 @@ Localize("Mask of melee"),Localize("Invisibility device"),Localize("Electrowall"
 Localize("Area Shield"),Localize("The Cure"),Localize("Zombie claw")
 Localize("Bomb (for destroying reactors)"),Localize("Terminate the enemies"),Localize("Reach the door"),
 Localize("Survive the wave of enemies"),Localize("Hold out against the wave"),Localize("Seek the door"),Localize("Wave incoming"),
-Localize("Hold the line"),Localize("Stand by"),Localize("Pick up cargo"),Localize("Deliver cargo"),
+Localize("Hold the line"),Localize("Stand by"),
 Localize("Drone wheel"),
 Localize("Wave of aliens incoming"),Localize("Wave of robots incoming"),Localize("Wave of skeletons incoming"),
 Localize("Wave of furries incoming"),Localize("Wave of cyborgs incoming"),

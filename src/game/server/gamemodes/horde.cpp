@@ -11,7 +11,6 @@
 #include <game/server/ai/base_ai.h>
 #include <game/server/pve_bots.h>
 #include <game/server/pve_director.h>
-#include <game/server/pve_operation_director.h>
 #include <game/weapons.h>
 
 #include "horde.h"
@@ -32,7 +31,6 @@ static int HordeConcurrentEnemyCap(int Wave)
 CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer)
 : IGameController(pGameServer)
 {
-	m_pOperationDirector = new CPveOperationDirector(pGameServer);
 	m_pGameType = "HORDE";
 	m_GameFlags = GAMEFLAG_COOP;
 	m_GameState = STATE_STARTING;
@@ -82,7 +80,6 @@ CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer)
 
 CGameControllerHorde::~CGameControllerHorde()
 {
-	delete m_pOperationDirector;
 }
 
 bool CGameControllerHorde::OnEntity(int Index, vec2 Pos)
@@ -92,7 +89,6 @@ bool CGameControllerHorde::OnEntity(int Index, vec2 Pos)
 		if(m_NumEnemySpawnPos < MAX_ENEMIES)
 		{
 			m_aEnemySpawnPos[m_NumEnemySpawnPos++] = Pos;
-			m_pOperationDirector->AddCandidate(Pos);
 		}
 		return true;
 	}
@@ -305,8 +301,6 @@ void CGameControllerHorde::NextWave()
 		if(m_Wave >= 6 && GetSpawnPos(0, &p))
 			new CCrawler(&GameServer()->m_World, p + vec2(0, -100));
 	}
-	// An Operation supplements a Horde section; it never suppresses the native
-	// fourth-wave Boss.
 	if(m_Wave > 0 && m_Wave % 4 == 0)
 	{
 		vec2 p;
@@ -347,14 +341,6 @@ void CGameControllerHorde::NextWave()
 void CGameControllerHorde::Tick()
 {
 	IGameController::Tick();
-	const bool OperationIntermission = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission();
-	const int ActiveOperation = !OperationIntermission && GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
-	if(ActiveOperation >= 0 && m_pOperationDirector->Operation() != ActiveOperation)
-		m_pOperationDirector->Start(ActiveOperation);
-	else if(!OperationIntermission && ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
-		m_pOperationDirector->Clear();
-	if(!OperationIntermission)
-		m_pOperationDirector->Tick();
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
 		return;
 	if(m_EliteContractSpawned && GameServer()->m_pPveDirector && AliveBossCount() <= 0)
@@ -417,7 +403,6 @@ void CGameControllerHorde::Tick()
 		if(!m_RoundOverTick && m_Deaths <= 0 && !CountBotsAlive() && CountAliveSpecialists(&GameServer()->m_World) <= 0 && AliveBossCount() <= 0
 			&& CountPlayersAlive(-1, true) > 0 && !m_WaveStartTick)
 		{
-			m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_WAVE);
 			if(m_LastContractProgressWave != m_Wave && GameServer()->m_pPveDirector)
 			{
 				m_LastContractProgressWave = m_Wave;

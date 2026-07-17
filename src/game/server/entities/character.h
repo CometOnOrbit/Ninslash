@@ -86,9 +86,6 @@ public:
 	
 	bool GiveBomb();
 	bool IsBombCarrier();
-	bool GivePveCargo(int CargoType);
-	bool HasPveCargo(int CargoType) const;
-	void RemovePveCargo(int CargoType);
 
 	bool IncreaseHealth(int Amount);
 	bool IncreaseAmmo(int Amount);
@@ -137,7 +134,6 @@ public:
 	int m_DeathTileTimer;
 	
 	int m_BombStatus;
-	int m_PveCargo;
 	
 	bool UpgradeWeapon();
 	

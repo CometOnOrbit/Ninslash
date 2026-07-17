@@ -7,7 +7,6 @@
 class CGameControllerInvasion : public IGameController
 {
 private:
-	class CPveOperationDirector *m_pOperationDirector;
 	int m_LevelQuestsLeft;
 	int m_QuestsCompleted;
 	int m_LevelTheme;
@@ -43,10 +42,6 @@ private:
 	int SwitchesAvailable() const;
 	void SetSwitchesActive(bool Active);
 	void SetReactorDefenseActive(bool Active);
-	void FinishOperationFloor();
-	void TryStartRouteQuest();
-	void SyncRouteQuestFromOperation();
-	bool RouteQuestActive() const;
 	int CountHumansAlive(int ExcludeCID = -1) const;
 	void RewardQuestGold();
 
@@ -98,9 +93,6 @@ private:
 	bool m_EliteContractSpawned;
 	bool m_CheckpointApplied;
 	bool m_ForceFloorOne;
-	bool m_RouteQuestActive;
-	int m_RouteTargetType;
-	bool m_OperationOrdinaryWaveActive;
 	int m_RetryVoteNonce;
 	int m_RetryVoteEndTick;
 	int m_RetryVoteLastSyncTick;
@@ -152,9 +144,6 @@ public:
 	void OnRetryVote(int ClientID, int Nonce, int Choice);
 	
 	void DisplayExit(vec2 Pos);
-	void SpawnOperationOrdinaryEnemies(int Stage, int Count) override;
-	void TickOperationOrdinaryEnemies() override;
-	void ClearOperationOrdinaryEnemies() override;
 	
 	bool RunBuffActive() const { return m_RunBuffActive; }
 	bool IsObjectiveTarget(bool Boss) const;

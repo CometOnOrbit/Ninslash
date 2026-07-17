@@ -1441,10 +1441,6 @@ void CPlayers::RenderPlayer(
 		pCustomPlayerInfo->m_BombCarrier = true;
 	else
 		pCustomPlayerInfo->m_BombCarrier = false;
-	pCustomPlayerInfo->m_PveCargo = clamp(Player.m_PveCargo, (int)PVE_CARGO_NONE, (int)PVE_CARGO_ENERGY);
-	if(pInfo.m_Local && m_pClient->m_pPveRoguelite->DebugCargoCarried())
-		pCustomPlayerInfo->m_PveCargo = m_pClient->m_pPveRoguelite->DebugCargoType();
-	
 	// get mask / gear
 	pCustomPlayerInfo->m_Mask = s>>STATUS_MASK1;
 	

@@ -231,75 +231,9 @@ enum EPveContractState
 enum EPveIntermissionState
 {
 	PVE_INTERMISSION_NONE = 0,
-	PVE_INTERMISSION_OPERATION,
 	PVE_INTERMISSION_CONTRACT,
 	PVE_INTERMISSION_PERK,
 };
-
-enum EPveOperation
-{
-	PVE_OPERATION_CIRCUIT_BREAKER = 0,
-	PVE_OPERATION_FOUNDRY_SHUTDOWN,
-	PVE_OPERATION_FIRE_CONTROL_PURGE,
-	PVE_OPERATION_SIEGE_LINE,
-	PVE_OPERATION_ASSEMBLY_SURGE,
-	PVE_OPERATION_GRID_STORM,
-	PVE_OPERATION_CORE_RECOVERY,
-	PVE_OPERATION_LOCKDOWN_BREAK,
-	PVE_OPERATION_SIEGE_ROUTE,
-	NUM_PVE_OPERATIONS,
-};
-
-enum EPveOperationState
-{
-	PVE_OPERATION_STATE_NONE = 0,
-	PVE_OPERATION_STATE_VOTING,
-	// A route has won the vote, but the following contract/perk intermission
-	// still owns the world pause.  It must not be exposed as an active mission
-	// before its target has been placed.
-	PVE_OPERATION_STATE_SELECTED,
-	PVE_OPERATION_STATE_ACTIVE,
-	PVE_OPERATION_STATE_FAILED,
-};
-
-enum EPveOperationTarget
-{
-	PVE_OPERATION_TARGET_NONE = 0,
-	PVE_OPERATION_TARGET_SHIELD_RELAY,
-	PVE_OPERATION_TARGET_OVERLOAD_TERMINAL,
-	PVE_OPERATION_TARGET_ASSEMBLY_NODE,
-	PVE_OPERATION_TARGET_COOLANT_CORE,
-	PVE_OPERATION_TARGET_TARGETING_BEACON,
-	PVE_OPERATION_TARGET_DATA_CORE,
-	PVE_OPERATION_TARGET_UPLOAD_POINT,
-	PVE_OPERATION_TARGET_SHIELD_NODE,
-	PVE_OPERATION_TARGET_ENERGY_CORE,
-	PVE_OPERATION_TARGET_BOSS,
-	PVE_OPERATION_TARGET_EVACUATION,
-	PVE_OPERATION_TARGET_DEFENSE_AREA,
-};
-
-// Cargo is carried independently from the weapon inventory. Keep these values
-// compact because they are appended to CNetObj_Character in protocol v10.
-enum EPveCargoType
-{
-	PVE_CARGO_NONE = 0,
-	PVE_CARGO_COOLANT,
-	PVE_CARGO_DATA,
-	PVE_CARGO_ENERGY,
-	NUM_PVE_CARGO_TYPES,
-};
-
-inline int PveCargoFromOperationTarget(int TargetType)
-{
-	switch(TargetType)
-	{
-	case PVE_OPERATION_TARGET_COOLANT_CORE: return PVE_CARGO_COOLANT;
-	case PVE_OPERATION_TARGET_DATA_CORE: return PVE_CARGO_DATA;
-	case PVE_OPERATION_TARGET_ENERGY_CORE: return PVE_CARGO_ENERGY;
-	default: return PVE_CARGO_NONE;
-	}
-}
 
 enum EPveDroneState
 {
@@ -373,17 +307,6 @@ struct CPveContractDef
 	int m_Mode;
 };
 
-struct CPveOperationDef
-{
-	int m_ID;
-	const char *m_pName;
-	const char *m_pDescription;
-	int m_Mode;
-	const char *m_apSteps[3];
-	int m_aTargetTypes[3];
-	int m_aStepTargets[3];
-};
-
 // Version 2 uses 100 stable card bits. Keeping the words explicit makes the
 // network representation portable and leaves 28 reserved high bits.
 struct CPveResearchMask
@@ -401,20 +324,16 @@ struct CPveResearchMask
 
 const CPveCardDef *PveCardDef(int ID);
 const CPveContractDef *PveContractDef(int ID);
-const CPveOperationDef *PveOperationDef(int ID);
 const char *PveChoiceName(int ID);
 const char *PveChoiceDescription(int ID);
 const char *PveRarityName(int Rarity);
 const char *PveRewardReasonName(int Reason);
-const char *PveOperationName(int ID);
-const char *PveOperationDescription(int ID);
 
 bool PveCardIsBase(int ID);
 bool PveCardIsUnlocked(int ID, const CPveResearchMask &ResearchMask);
 bool PveResearchMaskIsValid(const CPveResearchMask &ResearchMask);
 CPveResearchMask PveSanitizeResearchMask(CPveResearchMask ResearchMask);
 bool PveContractAvailableInMode(int ContractID, int Mode);
-bool PveOperationAvailableInMode(int OperationID, int Mode);
 bool PveValidateDefinitions(char *pError, int ErrorSize);
 
 #endif

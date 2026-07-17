@@ -7,7 +7,6 @@
 class CGameControllerExtract : public IGameController
 {
 private:
-	class CPveOperationDirector *m_pOperationDirector;
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 
 	int m_Phase; // 0 fight/switches, 1 evacuate, 2 won/lost

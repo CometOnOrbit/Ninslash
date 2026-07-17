@@ -39,8 +39,6 @@ void CPveDirector::CPlayerRun::Reset()
 		m_aStacks[i] = 0;
 	m_ContractVote = -1;
 	m_LastContractNonce = 0;
-	m_OperationVote = -1;
-	m_LastOperationNonce = 0;
 	m_LastResearchNonce = 0;
 	m_LegendaryCard = -1;
 	for(int i = 0; i < 4; i++)
@@ -110,18 +108,10 @@ CPveDirector::CPveDirector(CGameContext *pGameServer) :
 	m_NextNonce = 1 + rand();
 	m_WasWorldPaused = false;
 	m_PerkAfterContract = false;
-	m_PendingPerkChoice = false;
-	m_PendingContractVote = false;
 	m_aContractOptions[0] = -1;
 	m_aContractOptions[1] = -1;
-	m_aOperationOptions[0] = -1;
-	m_aOperationOptions[1] = -1;
 	m_ContractNonce = 0;
-	m_OperationNonce = 0;
 	m_UsedContracts = 0;
-	m_UsedOperations = 0;
-	m_ActiveOperation = -1;
-	m_OperationState = PVE_OPERATION_STATE_NONE;
 	m_ActiveContract = -1;
 	m_ContractState = PVE_CONTRACT_STATE_NONE;
 	m_ContractStartTick = 0;
@@ -129,7 +119,6 @@ CPveDirector::CPveDirector(CGameContext *pGameServer) :
 	m_ContractProgress = 0;
 	m_ContractTarget = 0;
 	m_ContractParticipants = 0;
-	m_OperationEndTick = 0;
 	m_pEliteContractBoss = 0;
 	mem_zero(m_apEliteContractGuards, sizeof(m_apEliteContractGuards));
 	m_NumEliteContractGuards = 0;
@@ -161,11 +150,6 @@ CPveDirector::~CPveDirector()
 bool CPveDirector::Enabled() const
 {
 	return g_Config.m_SvPveRoguelite && m_Mode != PVE_MODE_ANY;
-}
-
-bool CPveDirector::OperationsEnabled() const
-{
-	return g_Config.m_SvPveOperations && m_Mode != PVE_MODE_ANY;
 }
 
 bool CPveDirector::TogglePauseAfterIntermission()
@@ -315,46 +299,6 @@ void CPveDirector::SendChoice(int ClientID)
 	}
 }
 
-void CPveDirector::SendOperationVote(int ClientID)
-{
-	CNetMsg_Sv_PveOperationVote Msg;
-	Msg.m_Nonce = m_OperationNonce;
-	Msg.m_EndTick = m_EndTick;
-	Msg.m_Operation0 = m_aOperationOptions[0];
-	Msg.m_Operation1 = m_aOperationOptions[1];
-	Msg.m_Votes0 = 0;
-	Msg.m_Votes1 = 0;
-	for(int i = 0; i < MAX_CLIENTS; i++)
-	{
-		if(!IsEligiblePlayer(i))
-			continue;
-		if(m_aPlayers[i].m_OperationVote == m_aOperationOptions[0])
-			Msg.m_Votes0++;
-		else if(m_aPlayers[i].m_OperationVote == m_aOperationOptions[1])
-			Msg.m_Votes1++;
-	}
-	if(ClientID < 0)
-		m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
-	else if(IsEligiblePlayer(ClientID))
-		m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
-}
-
-void CPveDirector::SendOperationState(int ClientID)
-{
-	CNetMsg_Sv_PveOperationState Msg;
-	Msg.m_Operation = m_ActiveOperation;
-	Msg.m_State = m_OperationState;
-	Msg.m_Step = -1;
-	Msg.m_Progress = 0;
-	Msg.m_Target = 0;
-	Msg.m_EndTick = 0;
-	Msg.m_TargetType = PVE_OPERATION_TARGET_NONE;
-	Msg.m_TargetX = 0;
-	Msg.m_TargetY = 0;
-	Msg.m_CargoCarrier = -1;
-	m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
-}
-
 void CPveDirector::SendContractVote(int ClientID)
 {
 	CNetMsg_Sv_PveContractVote Msg;
@@ -488,98 +432,6 @@ void CPveDirector::BeginPerkChoice()
 	m_LastIntermissionSyncTick = m_pGameServer->Server()->Tick();
 }
 
-void CPveDirector::BeginOperationVote(bool ContractVote, bool PerkChoice)
-{
-	int aPool[NUM_PVE_OPERATIONS];
-	int Count = 0;
-	for(int ID = 0; ID < NUM_PVE_OPERATIONS; ID++)
-		if(!(m_UsedOperations & (1u << ID)) && PveOperationAvailableInMode(ID, m_Mode))
-			aPool[Count++] = ID;
-	// Every vote promises two routes. Once fewer than two unused routes remain,
-	// start a new cycle while avoiding an immediate repeat of the active route.
-	if(Count < 2)
-	{
-		m_UsedOperations = 0;
-		if(PveOperationAvailableInMode(m_ActiveOperation, m_Mode))
-			m_UsedOperations |= 1u << m_ActiveOperation;
-		Count = 0;
-		for(int ID = 0; ID < NUM_PVE_OPERATIONS; ID++)
-			if(!(m_UsedOperations & (1u << ID)) && PveOperationAvailableInMode(ID, m_Mode))
-				aPool[Count++] = ID;
-	}
-	m_PendingContractVote = ContractVote;
-	m_PendingPerkChoice = PerkChoice;
-	if(Count <= 0)
-	{
-		m_ActiveOperation = -1;
-		m_OperationState = PVE_OPERATION_STATE_NONE;
-		if(ContractVote && g_Config.m_SvPveContracts)
-			BeginContractVote(PerkChoice);
-		else if(PerkChoice)
-			BeginPerkChoice();
-		else
-			FinishIntermission();
-		return;
-	}
-	if(Count == 1)
-	{
-		m_ActiveOperation = aPool[0];
-		m_OperationState = PVE_OPERATION_STATE_SELECTED;
-		m_UsedOperations |= 1u << m_ActiveOperation;
-		SendOperationState();
-		if(ContractVote && g_Config.m_SvPveContracts)
-			BeginContractVote(PerkChoice);
-		else if(PerkChoice)
-			BeginPerkChoice();
-		else
-			FinishIntermission();
-		return;
-	}
-	const int Pick0 = rand() % Count;
-	m_aOperationOptions[0] = aPool[Pick0];
-	aPool[Pick0] = aPool[--Count];
-	m_aOperationOptions[1] = aPool[rand() % Count];
-	m_OperationNonce = ++m_NextNonce;
-	m_IntermissionState = PVE_INTERMISSION_OPERATION;
-	m_EndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * g_Config.m_SvPveOperationVoteTime;
-	for(int i = 0; i < MAX_CLIENTS; i++)
-	{
-		m_aPlayers[i].m_OperationVote = -1;
-		m_aPlayers[i].m_LastOperationNonce = 0;
-	}
-	SendOperationVote();
-	m_LastIntermissionSyncTick = m_pGameServer->Server()->Tick();
-}
-
-void CPveDirector::FinishOperationVote()
-{
-	int aVotes[2] = {0, 0};
-	for(int i = 0; i < MAX_CLIENTS; i++)
-	{
-		if(!IsEligiblePlayer(i))
-			continue;
-		if(m_aPlayers[i].m_OperationVote == m_aOperationOptions[0])
-			aVotes[0]++;
-		else if(m_aPlayers[i].m_OperationVote == m_aOperationOptions[1])
-			aVotes[1]++;
-	}
-	const int Winner = aVotes[0] == aVotes[1] ? rand() % 2 : (aVotes[1] > aVotes[0]);
-	m_ActiveOperation = m_aOperationOptions[Winner];
-	// Keep the selected route out of the active state until every subsequent
-	// intermission overlay has closed.  Controllers deliberately defer target
-	// placement while paused; advertising ACTIVE here made the HUD show an
-	// operation with an empty objective.
-	m_OperationState = PVE_OPERATION_STATE_SELECTED;
-	m_UsedOperations |= 1u << m_ActiveOperation;
-	SendOperationState();
-	if(m_PendingContractVote && g_Config.m_SvPveContracts)
-		BeginContractVote(m_PendingPerkChoice);
-	else if(m_PendingPerkChoice)
-		BeginPerkChoice();
-	else
-		FinishIntermission();
-}
-
 void CPveDirector::FinishContractVote()
 {
 	int aVotes[2] = {0, 0};
@@ -632,12 +484,6 @@ void CPveDirector::FinishContractVote()
 
 void CPveDirector::FinishIntermission()
 {
-	// This transition is intentionally silent. The mode controller starts the
-	// operation on its next tick and the operation director then broadcasts one
-	// complete state containing the first real target, rather than a transient
-	// ACTIVE/no-target packet.
-	if(m_OperationState == PVE_OPERATION_STATE_SELECTED)
-		m_OperationState = PVE_OPERATION_STATE_ACTIVE;
 	m_IntermissionState = PVE_INTERMISSION_NONE;
 	m_EndTick = 0;
 	m_LastIntermissionSyncTick = 0;
@@ -665,14 +511,6 @@ bool CPveDirector::AllContractVotesComplete() const
 {
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		if(IsEligiblePlayer(i) && m_aPlayers[i].m_ContractVote < 0)
-			return false;
-	return true;
-}
-
-bool CPveDirector::AllOperationVotesComplete() const
-{
-	for(int i = 0; i < MAX_CLIENTS; i++)
-		if(IsEligiblePlayer(i) && m_aPlayers[i].m_OperationVote < 0)
 			return false;
 	return true;
 }
@@ -791,20 +629,17 @@ void CPveDirector::GrantCatchup(int ClientID)
 	}
 }
 
-void CPveDirector::StartIntermission(bool ContractVote, bool PerkChoice, bool OperationVote)
+void CPveDirector::StartIntermission(bool ContractVote, bool PerkChoice)
 {
-	if((!Enabled() && !OperationsEnabled()) || InIntermission() || EligiblePlayerCount() <= 0 || (!ContractVote && !PerkChoice && !OperationVote))
+	if(!Enabled() || InIntermission() || EligiblePlayerCount() <= 0 || (!ContractVote && !PerkChoice))
 		return;
 	ContractVote = ContractVote && Enabled();
 	PerkChoice = PerkChoice && Enabled();
-	OperationVote = OperationVote && OperationsEnabled();
-	if(!OperationVote && !ContractVote && !PerkChoice)
+	if(!ContractVote && !PerkChoice)
 		return;
 	m_WasWorldPaused = m_pGameServer->m_World.m_Paused;
 	m_pGameServer->m_World.m_Paused = true;
-	if(OperationVote)
-		BeginOperationVote(ContractVote, PerkChoice);
-	else if(ContractVote && g_Config.m_SvPveContracts)
+	if(ContractVote && g_Config.m_SvPveContracts)
 		BeginContractVote(PerkChoice);
 	else if(PerkChoice)
 		BeginPerkChoice();
@@ -814,25 +649,6 @@ void CPveDirector::StartIntermission(bool ContractVote, bool PerkChoice, bool Op
 
 void CPveDirector::Tick()
 {
-	if(!OperationsEnabled() && (m_OperationState != PVE_OPERATION_STATE_NONE || m_IntermissionState == PVE_INTERMISSION_OPERATION))
-	{
-		const bool WasOperationVote = m_IntermissionState == PVE_INTERMISSION_OPERATION;
-		m_ActiveOperation = -1;
-		m_OperationState = PVE_OPERATION_STATE_NONE;
-		m_UsedOperations = 0;
-		m_aOperationOptions[0] = -1;
-		m_aOperationOptions[1] = -1;
-		SendOperationState();
-		if(WasOperationVote)
-		{
-			if(m_PendingContractVote && Enabled() && g_Config.m_SvPveContracts)
-				BeginContractVote(m_PendingPerkChoice);
-			else if(m_PendingPerkChoice && Enabled())
-				BeginPerkChoice();
-			else
-				FinishIntermission();
-		}
-	}
 	if(!Enabled())
 	{
 		const bool RogueliteIntermission = m_IntermissionState == PVE_INTERMISSION_CONTRACT || m_IntermissionState == PVE_INTERMISSION_PERK;
@@ -873,8 +689,7 @@ void CPveDirector::Tick()
 		m_BleedingTargetCount = 0;
 		if(HadState)
 			SendContractStatus();
-		if(!OperationsEnabled())
-			return;
+		return;
 	}
 	if(Enabled() && !InIntermission() && m_ContractState == PVE_CONTRACT_STATE_ACTIVE && m_ActiveContract == PVE_CONTRACT_BLACK_BOX)
 		TickBlackBox();
@@ -894,22 +709,13 @@ void CPveDirector::Tick()
 	// second so a ready client always reconstructs the overlay.
 	if(!Expired && m_pGameServer->Server()->Tick() >= m_LastIntermissionSyncTick + m_pGameServer->Server()->TickSpeed())
 	{
-		if(m_IntermissionState == PVE_INTERMISSION_OPERATION)
-			SendOperationVote();
-		else if(m_IntermissionState == PVE_INTERMISSION_CONTRACT)
+		if(m_IntermissionState == PVE_INTERMISSION_CONTRACT)
 			SendContractVote();
 		else if(m_IntermissionState == PVE_INTERMISSION_PERK)
 			for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 				if(IsEligiblePlayer(ClientID) && m_aPlayers[ClientID].m_ChoicePending)
 					SendChoice(ClientID);
 		m_LastIntermissionSyncTick = m_pGameServer->Server()->Tick();
-	}
-	if(m_IntermissionState == PVE_INTERMISSION_OPERATION && (Expired || AllOperationVotesComplete()))
-	{
-		if(Expired)
-			m_pGameServer->SendChatTarget(-1, "Operation vote timed out; a valid route was selected");
-		FinishOperationVote();
-		return;
 	}
 	if(m_IntermissionState == PVE_INTERMISSION_CONTRACT && (Expired || AllContractVotesComplete()))
 	{
@@ -948,7 +754,7 @@ void CPveDirector::OnClientEnter(int ClientID)
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_pGameServer->IsBot(ClientID))
 		return;
 	CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
-	if(m_Mode == PVE_MODE_ANY || (!Enabled() && !OperationsEnabled()))
+	if(m_Mode == PVE_MODE_ANY || !Enabled())
 		return;
 	DestroyDrone(ClientID);
 	m_aPlayers[ClientID].Reset();
@@ -991,11 +797,7 @@ void CPveDirector::OnClientEnter(int ClientID)
 		SendProgress(ClientID);
 	if(Enabled() && m_ContractState != PVE_CONTRACT_STATE_NONE)
 		SendContractStatus(ClientID);
-	if(OperationsEnabled())
-		SendOperationState(ClientID);
-	if(m_IntermissionState == PVE_INTERMISSION_OPERATION)
-		SendOperationVote(ClientID);
-	else if(m_IntermissionState == PVE_INTERMISSION_CONTRACT)
+	if(m_IntermissionState == PVE_INTERMISSION_CONTRACT)
 		SendContractVote(ClientID);
 }
 
@@ -1149,58 +951,6 @@ void CPveDirector::OnContractVote(int ClientID, int Nonce, int ContractID)
 	SendContractVote();
 	if(AllContractVotesComplete())
 		FinishContractVote();
-}
-
-void CPveDirector::OnOperationVote(int ClientID, int Nonce, int OperationID)
-{
-	// The wire value is the selected slot; resolve it against the authoritative offer.
-	if(!OperationsEnabled() || !IsEligiblePlayer(ClientID) || OperationID < 0 || OperationID >= 2)
-	{
-		SendValidation(ClientID, PVE_VALIDATION_RANGE);
-		return;
-	}
-	CPlayerRun &Run = m_aPlayers[ClientID];
-	if(Nonce != m_OperationNonce || m_IntermissionState != PVE_INTERMISSION_OPERATION || m_pGameServer->Server()->Tick() > m_EndTick)
-	{
-		SendValidation(ClientID, Nonce == Run.m_LastOperationNonce ? PVE_VALIDATION_DUPLICATE : PVE_VALIDATION_EXPIRED);
-		return;
-	}
-	if(Run.m_OperationVote >= 0)
-	{
-		SendValidation(ClientID, PVE_VALIDATION_DUPLICATE);
-		return;
-	}
-	Run.m_OperationVote = m_aOperationOptions[OperationID];
-	Run.m_LastOperationNonce = Nonce;
-	SendOperationVote();
-	if(AllOperationVotesComplete())
-		FinishOperationVote();
-}
-
-void CPveDirector::OnOperationChainFinished(int OperationID)
-{
-	if(m_ActiveOperation != OperationID)
-		return;
-	m_ActiveOperation = -1;
-	m_OperationState = PVE_OPERATION_STATE_NONE;
-	SendOperationState();
-}
-
-void CPveDirector::OnOperationChainFailed(int OperationID)
-{
-	if(m_ActiveOperation != OperationID)
-		return;
-	m_OperationState = PVE_OPERATION_STATE_FAILED;
-	SendOperationState();
-}
-
-void CPveDirector::OnOperationChainAbandoned(int OperationID)
-{
-	if(m_ActiveOperation != OperationID)
-		return;
-	m_ActiveOperation = -1;
-	m_OperationState = PVE_OPERATION_STATE_NONE;
-	SendOperationState();
 }
 
 void CPveDirector::ApplyStageSupplies(int ClientID)
@@ -2526,7 +2276,7 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 		if(Run.m_aStacks[PVE_CARD_HOLD_THE_LINE] && InHordeDefenseArea(To))
 			Reduction += 0.15f;
 		if(m_Mode == PVE_MODE_EXTRACTION && pTarget && Run.m_aStacks[PVE_CARD_COURIER] &&
-			(pTarget->IsBombCarrier() || pTarget->m_PveCargo != PVE_CARGO_NONE))
+			pTarget->IsBombCarrier())
 			Reduction += 0.10f;
 		float GuardianReduction = 0.0f;
 		for(int Ally = 0; Ally < MAX_CLIENTS; Ally++)
@@ -2884,7 +2634,7 @@ float CPveDirector::MovementMultiplier(int ClientID) const
 	const CGameControllerExtract *pExtract = dynamic_cast<const CGameControllerExtract *>(m_pGameServer->m_pController);
 	CCharacter *pCharacter = m_pGameServer->GetPlayerChar(ClientID);
 	float Result = 1.0f;
-	if(pCharacter && (pCharacter->IsBombCarrier() || pCharacter->m_PveCargo != PVE_CARGO_NONE))
+	if(pCharacter && pCharacter->IsBombCarrier())
 	{
 		if(m_aPlayers[ClientID].m_aStacks[PVE_CARD_COURIER])
 			Result += 0.10f;
@@ -3060,20 +2810,11 @@ void CPveDirector::ClearRun()
 		}
 	}
 	m_UsedContracts = 0;
-	m_UsedOperations = 0;
 	m_IntermissionState = PVE_INTERMISSION_NONE;
 	m_EndTick = 0;
 	m_LastIntermissionSyncTick = 0;
 	m_PerkTargetChoices = 0;
 	m_PerkAfterContract = false;
-	m_PendingPerkChoice = false;
-	m_PendingContractVote = false;
-	m_aOperationOptions[0] = -1;
-	m_aOperationOptions[1] = -1;
-	m_OperationNonce = 0;
-	m_ActiveOperation = -1;
-	m_OperationState = PVE_OPERATION_STATE_NONE;
-	m_OperationEndTick = 0;
 	m_ActiveContract = -1;
 	m_ContractState = PVE_CONTRACT_STATE_NONE;
 	m_ContractStartTick = 0;
@@ -3091,5 +2832,4 @@ void CPveDirector::ClearRun()
 	m_DeathlessHordeWaves = 0;
 	m_AnyStageDeath = false;
 	SendContractStatus();
-	SendOperationState();
 }

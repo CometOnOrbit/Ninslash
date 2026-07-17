@@ -158,18 +158,6 @@ const CPveContractDef gs_aContracts[NUM_PVE_CONTRACTS] = {
 	{PVE_CONTRACT_LOCKED_ROUTE, "Locked Route", "Activate two additional radar-marked switches before the exit opens.", "Two extra route switches", PVE_MODE_EXTRACTION},
 };
 
-const CPveOperationDef gs_aOperations[NUM_PVE_OPERATIONS] = {
-	{PVE_OPERATION_CIRCUIT_BREAKER, "Circuit Breaker", "Disable the shield network and destroy its controller.", PVE_MODE_INVASION, {"Disable 2 shield relays", "Defend the overload terminal for 40 seconds", "Defeat the Overseer Core"}, {PVE_OPERATION_TARGET_SHIELD_RELAY, PVE_OPERATION_TARGET_OVERLOAD_TERMINAL, PVE_OPERATION_TARGET_BOSS}, {2, 40, 1}},
-	{PVE_OPERATION_FOUNDRY_SHUTDOWN, "Production Halt", "Sabotage the assembly line, recover the coolant core, then reach the exit.", PVE_MODE_INVASION, {"Destroy 3 assembly nodes", "Carry the coolant core", "Reach the exit"}, {PVE_OPERATION_TARGET_ASSEMBLY_NODE, PVE_OPERATION_TARGET_COOLANT_CORE, PVE_OPERATION_TARGET_EVACUATION}, {3, 1, 1}},
-	{PVE_OPERATION_FIRE_CONTROL_PURGE, "Fire-Control Purge", "Break the targeting network and its siege engine.", PVE_MODE_INVASION, {"Destroy 3 targeting beacons under bombardment", "Clear the mechanical elite wave", "Defeat the Siege Engine"}, {PVE_OPERATION_TARGET_TARGETING_BEACON, PVE_OPERATION_TARGET_NONE, PVE_OPERATION_TARGET_BOSS}, {3, 1, 1}},
-	{PVE_OPERATION_SIEGE_LINE, "Siege Line", "Hold the line through a coordinated siege section.", PVE_MODE_HORDE, {"Repel the Bulwark assault", "Survive ranged suppression and sabotage", "Defeat the Siege Engine"}, {PVE_OPERATION_TARGET_DEFENSE_AREA, PVE_OPERATION_TARGET_DEFENSE_AREA, PVE_OPERATION_TARGET_BOSS}, {1, 2, 1}},
-	{PVE_OPERATION_ASSEMBLY_SURGE, "Assembly Surge", "Break a self-repairing machine assault.", PVE_MODE_HORDE, {"Repel the Assembler wave", "Destroy 2 assembly nodes", "Survive the mixed wave and defeat the Overseer Core"}, {PVE_OPERATION_TARGET_DEFENSE_AREA, PVE_OPERATION_TARGET_ASSEMBLY_NODE, PVE_OPERATION_TARGET_BOSS}, {1, 2, 1}},
-	{PVE_OPERATION_GRID_STORM, "Grid Storm", "Disable field relays before the EMP storm peaks.", PVE_MODE_HORDE, {"Capture the first relay", "Capture the remaining 2 relays", "Defend inside the rotating EMP field"}, {PVE_OPERATION_TARGET_SHIELD_RELAY, PVE_OPERATION_TARGET_SHIELD_RELAY, PVE_OPERATION_TARGET_DEFENSE_AREA}, {1, 2, 1}},
-	{PVE_OPERATION_CORE_RECOVERY, "Core Recovery", "Recover the route data and upload it before extraction.", PVE_MODE_EXTRACTION, {"Carry 2 data cores", "Defend the upload point for 35 seconds", "Reach extraction under high pressure"}, {PVE_OPERATION_TARGET_DATA_CORE, PVE_OPERATION_TARGET_UPLOAD_POINT, PVE_OPERATION_TARGET_EVACUATION}, {2, 35, 1}},
-	{PVE_OPERATION_LOCKDOWN_BREAK, "Lockdown Break", "Break the shield lockdown and escape its reinforcements.", PVE_MODE_EXTRACTION, {"Destroy 3 shield nodes", "Defeat the Overseer Core", "Reach extraction through shielded reinforcements"}, {PVE_OPERATION_TARGET_SHIELD_NODE, PVE_OPERATION_TARGET_BOSS, PVE_OPERATION_TARGET_EVACUATION}, {3, 1, 1}},
-	{PVE_OPERATION_SIEGE_ROUTE, "Siege Route", "Destroy the siege force and carry its power core out.", PVE_MODE_EXTRACTION, {"Clear the targeting beacons", "Defeat the Siege Engine", "Carry its energy core and hold extraction"}, {PVE_OPERATION_TARGET_TARGETING_BEACON, PVE_OPERATION_TARGET_BOSS, PVE_OPERATION_TARGET_ENERGY_CORE}, {3, 1, 1}},
-};
-
 bool ValidatePrerequisiteDfs(int ID, int *pState)
 {
 	if(pState[ID] == 1)
@@ -256,11 +244,6 @@ const CPveContractDef *PveContractDef(int ID)
 	return ID >= 0 && ID < NUM_PVE_CONTRACTS ? &gs_aContracts[ID] : 0;
 }
 
-const CPveOperationDef *PveOperationDef(int ID)
-{
-	return ID >= 0 && ID < NUM_PVE_OPERATIONS ? &gs_aOperations[ID] : 0;
-}
-
 const char *PveChoiceName(int ID)
 {
 	const CPveCardDef *pDef = PveCardDef(ID);
@@ -311,18 +294,6 @@ const char *PveRewardReasonName(int Reason)
 	return "Invasion depth cleared";
 }
 
-const char *PveOperationName(int ID)
-{
-	const CPveOperationDef *pDef = PveOperationDef(ID);
-	return pDef ? pDef->m_pName : "Unknown operation";
-}
-
-const char *PveOperationDescription(int ID)
-{
-	const CPveOperationDef *pDef = PveOperationDef(ID);
-	return pDef ? pDef->m_pDescription : "";
-}
-
 bool PveCardIsBase(int ID)
 {
 	const CPveCardDef *pDef = PveCardDef(ID);
@@ -348,12 +319,6 @@ bool PveResearchMaskIsValid(const CPveResearchMask &ResearchMask)
 bool PveContractAvailableInMode(int ContractID, int Mode)
 {
 	const CPveContractDef *pDef = PveContractDef(ContractID);
-	return pDef && (pDef->m_Mode == PVE_MODE_ANY || pDef->m_Mode == Mode);
-}
-
-bool PveOperationAvailableInMode(int OperationID, int Mode)
-{
-	const CPveOperationDef *pDef = PveOperationDef(OperationID);
 	return pDef && (pDef->m_Mode == PVE_MODE_ANY || pDef->m_Mode == Mode);
 }
 

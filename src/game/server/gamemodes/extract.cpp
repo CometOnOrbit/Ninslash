@@ -12,14 +12,12 @@
 #include <game/server/entities/radar.h>
 #include <game/server/pve_bots.h>
 #include <game/server/pve_director.h>
-#include <game/server/pve_operation_director.h>
 
 #include "extract.h"
 
 CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 : IGameController(pGameServer)
 {
-	m_pOperationDirector = new CPveOperationDirector(pGameServer);
 	m_pGameType = "EXTRACT";
 	m_GameFlags = GAMEFLAG_COOP;
 	m_GameState = STATE_STARTING;
@@ -43,7 +41,7 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	m_SpawnPosRotation = 0;
 	m_BotSpawnTick = 0;
 	m_TriggerTick = 0;
-	m_TriggerLevel = 10;
+	m_TriggerLevel = 6;
 	m_Win = false;
 	m_EscapePressure = false;
 	m_HadHumanAlive = false;
@@ -76,7 +74,6 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 
 CGameControllerExtract::~CGameControllerExtract()
 {
-	delete m_pOperationDirector;
 }
 
 bool CGameControllerExtract::OnEntity(int Index, vec2 Pos)
@@ -86,7 +83,6 @@ bool CGameControllerExtract::OnEntity(int Index, vec2 Pos)
 		if(m_NumEnemySpawnPos < MAX_ENEMIES)
 		{
 			m_aEnemySpawnPos[m_NumEnemySpawnPos++] = Pos;
-			m_pOperationDirector->AddCandidate(Pos);
 		}
 		return true;
 	}
@@ -206,7 +202,7 @@ void CGameControllerExtract::SpawnMidBoss()
 	}
 	if(GetSpawnPos(0, &p))
 		new CCrawler(&GameServer()->m_World, p + vec2(0, -80));
-	m_TriggerLevel = max(m_TriggerLevel, 14);
+	m_TriggerLevel = max(m_TriggerLevel, 10);
 	TriggerAllBotAI(GameServer(), m_TriggerLevel);
 	GameServer()->SendBroadcast("Mid-run boss! Hold the line", -1);
 }
@@ -229,7 +225,7 @@ void CGameControllerExtract::SpawnEscapePressure()
 	vec2 p;
 	if(GetSpawnPos(0, &p))
 		new CCrawler(&GameServer()->m_World, p + vec2(0, -80));
-	m_TriggerLevel = max(m_TriggerLevel, 16);
+	m_TriggerLevel = max(m_TriggerLevel, 12);
 	TriggerAllBotAI(GameServer(), m_TriggerLevel);
 	GameServer()->SendBroadcast("Enemies flooding the exit!", -1);
 }
@@ -238,9 +234,9 @@ int CGameControllerExtract::EnemyLevel() const
 {
 	int Mins = 0;
 	if(m_StartTick)
-		Mins = (Server()->Tick() - m_StartTick) / (Server()->TickSpeed() * 45);
+		Mins = (Server()->Tick() - m_StartTick) / (Server()->TickSpeed() * 60);
 	const int DifficultyTier = max(0, (g_Config.m_SvMapGenLevel - 1) / 10);
-	return min(14, max(4, 4 + m_SwitchesActivated * 2 + Mins + m_Phase * 3 + DifficultyTier));
+	return min(10, max(3, 3 + m_SwitchesActivated + Mins + m_Phase * 2 + DifficultyTier));
 }
 
 void CGameControllerExtract::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
@@ -288,11 +284,10 @@ void CGameControllerExtract::OnSwitchTriggered()
 		return;
 
 	m_SwitchesActivated++;
-	m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_SWITCH);
 	if(GameServer()->m_pPveDirector)
 		GameServer()->m_pPveDirector->OnSwitchTriggered();
 	GameServer()->SendBroadcastFormat(-1, false, "Switch %d/%d activated", m_SwitchesActivated, m_SwitchesRequired);
-	m_TriggerLevel = max(m_TriggerLevel, 10 + m_SwitchesActivated * 3);
+	m_TriggerLevel = max(m_TriggerLevel, 6 + m_SwitchesActivated * 2);
 	TriggerAllBotAI(GameServer(), m_TriggerLevel);
 
 	// First switch already brings mid-boss pressure
@@ -312,8 +307,6 @@ void CGameControllerExtract::OnSwitchTriggered()
 
 void CGameControllerExtract::OnDroidKilled(CDroid *pDroid)
 {
-	if(pDroid && IsBossDroidType(pDroid->m_Type))
-		m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_BOSS);
 	if(pDroid == m_pMidBoss)
 		m_pMidBoss = 0;
 }
@@ -363,7 +356,6 @@ void CGameControllerExtract::NextLevel(int CID)
 
 	pPlayer->GetCharacter()->Warp();
 	m_Evacuated++;
-	m_pOperationDirector->OnEvent(CPveOperationDirector::EVENT_EVACUATE);
 	GameServer()->SendBroadcastFormat(-1, false, "Evacuated %d/%d", m_Evacuated, m_EvacNeeded);
 
 	if(m_Evacuated >= m_EvacNeeded)
@@ -383,14 +375,6 @@ void CGameControllerExtract::NextLevel(int CID)
 void CGameControllerExtract::Tick()
 {
 	IGameController::Tick();
-	const bool OperationIntermission = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission();
-	const int ActiveOperation = !OperationIntermission && GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
-	if(ActiveOperation >= 0 && m_pOperationDirector->Operation() != ActiveOperation)
-		m_pOperationDirector->Start(ActiveOperation);
-	else if(!OperationIntermission && ActiveOperation < 0 && m_pOperationDirector->Operation() >= 0)
-		m_pOperationDirector->Clear();
-	if(!OperationIntermission)
-		m_pOperationDirector->Tick();
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
 	{
 		if(m_DeadlineTick > 0)
@@ -438,9 +422,7 @@ void CGameControllerExtract::Tick()
 			m_StartTick = Server()->Tick();
 			const float DeadlineScale = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->DeadlineMultiplier() : 1.0f;
 			m_DeadlineTick = Server()->Tick() + (int)(Server()->TickSpeed() * 60 * max(1, g_Config.m_SvTimelimit) * DeadlineScale);
-			const int Operation = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ActiveOperation() : -1;
-			const int ExtraSwitches = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_LOCKED_ROUTE ? 2 :
-				(Operation == PVE_OPERATION_SIEGE_ROUTE ? 1 : 0);
+			const int ExtraSwitches = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_LOCKED_ROUTE ? 2 : 0;
 			if(ExtraSwitches > 0)
 				for(int Extra = 0; Extra < ExtraSwitches; Extra++)
 				{
@@ -456,8 +438,6 @@ void CGameControllerExtract::Tick()
 			// Requiring an artificial minimum of two softlocked rare layouts where
 			// map generation could only place one; zero keeps the timed boss fallback.
 			m_SwitchesRequired = m_AvailableSwitches;
-			if((Operation == PVE_OPERATION_CORE_RECOVERY || Operation == PVE_OPERATION_LOCKDOWN_BREAK) && m_SwitchesRequired > 1)
-				m_SwitchesRequired--;
 			SpawnInitialEnemies();
 			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
 				for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
@@ -510,7 +490,7 @@ void CGameControllerExtract::Tick()
 		m_MidBossPerkOffered = true;
 		if(GameServer()->m_pPveDirector)
 		{
-			GameServer()->m_pPveDirector->StartIntermission(false, true, false);
+			GameServer()->m_pPveDirector->StartIntermission(false, true);
 			if(GameServer()->m_pPveDirector->InIntermission())
 				return;
 		}
@@ -520,7 +500,7 @@ void CGameControllerExtract::Tick()
 		m_DoorChoiceStarted = true;
 		if(GameServer()->m_pPveDirector)
 		{
-			GameServer()->m_pPveDirector->StartIntermission(false, true, false);
+			GameServer()->m_pPveDirector->StartIntermission(false, true);
 			if(GameServer()->m_pPveDirector->InIntermission())
 				return;
 		}

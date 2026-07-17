@@ -4,8 +4,7 @@
 #include "building.h"
 #include "character.h"
 #include "pve_drone.h"
-#include "pve_operation_hazard.h"
-CSaboteur::CSaboteur(CGameWorld *pWorld, vec2 Pos) : CSpecialistDroid(pWorld, Pos, DROIDTYPE_SABOTEUR, 560, false), m_pEmpTarget(0), m_ChargeStart(0), m_NextSlowFieldTick(0) {}
+CSaboteur::CSaboteur(CGameWorld *pWorld, vec2 Pos) : CSpecialistDroid(pWorld, Pos, DROIDTYPE_SABOTEUR, 560, false), m_pEmpTarget(0), m_ChargeStart(0) {}
 void CSaboteur::AbilityTick()
 {
 	if(m_pEmpTarget)
@@ -51,15 +50,8 @@ void CSaboteur::AbilityTick()
 	}
 	else
 	{
-		// With no facility to sabotage, establish a visible, persistent denial
-		// field instead of repeatedly stunning everyone around the droid.
-		if(Server()->Tick() >= m_NextSlowFieldTick && CPveOperationHazard::CanSpawn(CPveOperationHazard::SLOW_FIELD, 3))
-		{
-			new CPveOperationHazard(GameWorld(), m_Pos, CPveOperationHazard::SLOW_FIELD, Server()->TickSpeed() * 6);
-			m_NextSlowFieldTick = Server()->Tick() + Server()->TickSpeed() * 4;
-		}
-		// A Saboteur without a facility target still pressures the squad while its
-		// denial field is active instead of becoming a harmless moving marker.
+		// A Saboteur without a facility target still pressures the squad instead of
+		// becoming a harmless moving marker.
 		if(AcquireTarget(760.0f))
 			FireProjectile(24, 0.06f);
 		m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 2 / 5;
