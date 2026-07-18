@@ -35,7 +35,10 @@ void CCustomStuff::Reset()
 	m_Inventory = false;
 	
 	for (int i = 0; i < 12; i++)
+	{
 		m_aItem[i] = {};
+		m_aItemAmmo[i] = 0;
+	}
 	
 	m_Gold = 0;
 	

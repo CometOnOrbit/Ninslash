@@ -44,6 +44,9 @@ CoreAction = ["IDLE", "JUMP", "WALLJUMP", "ROLL", "SLIDE", "SLIDEKICK", "FALL", 
 
 InventoryAction = ["SWAP", "COMBINE", "TAKEPART", "DROP", "SHOP", "ROLL"]
 
+ForgeOperation = ["REPLACE_PART2", "SPIN", "UPGRADE", "AUTO"]
+ForgeResult = ["SUCCESS", "DISABLED", "TOO_FAR", "NOT_ENOUGH_GOLD", "BUSY", "INVALID_SLOT", "INVALID_RECIPE", "NO_CHANGE"]
+
 Radar = ["CHARACTER", "HUMAN", "ENEMY", "DOOR", "REACTOR", "BOMB"]
 
 RawHeader = '''
@@ -167,6 +170,8 @@ Enums = [
 	Enum("DROIDANIM", Droidanim),
 	Enum("COREACTION", CoreAction),
 	Enum("INVENTORYACTION", InventoryAction),
+	Enum("FORGEOP", ForgeOperation),
+	Enum("FORGERESULT", ForgeResult),
 	Enum("RADAR", Radar)
 ]
 
@@ -314,6 +319,10 @@ Objects = [
 
 		NetIntRange("m_RoundNum", 0, 'max_int'),
 		NetIntRange("m_RoundCurrent", 0, 'max_int'),
+
+		NetIntRange("m_ForgeMode", 0, 2),
+		NetIntAny("m_ForgeBaseCost"),
+		NetIntAny("m_ForgeLevelCost"),
 	]),
 
 	NetObject("GameData", [
@@ -657,6 +666,18 @@ Messages = [
 		*WeaponSpecFields("m_Item11"),
 		*WeaponSpecFields("m_Item12"),
 		NetIntRange("m_Gold", 0, 999),
+		NetIntRange("m_Item1Ammo", 0, 'max_int'),
+		NetIntRange("m_Item2Ammo", 0, 'max_int'),
+		NetIntRange("m_Item3Ammo", 0, 'max_int'),
+		NetIntRange("m_Item4Ammo", 0, 'max_int'),
+		NetIntRange("m_Item5Ammo", 0, 'max_int'),
+		NetIntRange("m_Item6Ammo", 0, 'max_int'),
+		NetIntRange("m_Item7Ammo", 0, 'max_int'),
+		NetIntRange("m_Item8Ammo", 0, 'max_int'),
+		NetIntRange("m_Item9Ammo", 0, 'max_int'),
+		NetIntRange("m_Item10Ammo", 0, 'max_int'),
+		NetIntRange("m_Item11Ammo", 0, 'max_int'),
+		NetIntRange("m_Item12Ammo", 0, 'max_int'),
 	]),
 
 	### Client messages / 14
@@ -877,5 +898,18 @@ Messages = [
 	NetMessage("Cl_PveInvasionRetryVote", [
 		NetIntAny("m_Nonce"),
 		NetIntRange("m_Choice", 0, 1),
+	]),
+
+	# Appended for protocol v14. Keep this below every existing extension so
+	# all pre-v14 message IDs remain stable.
+	NetMessage("Sv_ForgeResult", [
+		NetIntRange("m_Result", 0, 'NUM_FORGERESULTS-1'),
+		NetIntAny("m_Operation"),
+		NetIntAny("m_TargetSlot"),
+		NetIntAny("m_MaterialSlot"),
+		NetIntRange("m_Cost", 0, 999),
+		*WeaponSpecFields("m_Product"),
+		NetIntRange("m_ProductAmmo", 0, 'max_int'),
+		NetIntRange("m_ProductMaxAmmo", 0, 'max_int'),
 	]),
 ]

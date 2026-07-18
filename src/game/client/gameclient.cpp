@@ -22,6 +22,7 @@
 #include <game/client/lineinput.h>
 #include <game/version.h>
 #include <game/weapon_catalog.h>
+#include <game/forge.h>
 #include "render.h"
 
 #include "gameclient.h"
@@ -376,6 +377,7 @@ void CGameClient::AddFluidForce(vec2 Pos, vec2 Vel)
 void CGameClient::OnInit()
 {
 	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
+	dbg_assert(CForge::Validate(), "forge recipe validation failed");
 	m_pGraphics = Kernel()->RequestInterface<IGraphics>();
 
 	// propagate pointers
@@ -830,6 +832,18 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 		CustomStuff()->m_aItem[9] = ReadWeapon(pMsg->m_Item10DefinitionId, pMsg->m_Item10Level);
 		CustomStuff()->m_aItem[10] = ReadWeapon(pMsg->m_Item11DefinitionId, pMsg->m_Item11Level);
 		CustomStuff()->m_aItem[11] = ReadWeapon(pMsg->m_Item12DefinitionId, pMsg->m_Item12Level);
+		CustomStuff()->m_aItemAmmo[0] = pMsg->m_Item1Ammo;
+		CustomStuff()->m_aItemAmmo[1] = pMsg->m_Item2Ammo;
+		CustomStuff()->m_aItemAmmo[2] = pMsg->m_Item3Ammo;
+		CustomStuff()->m_aItemAmmo[3] = pMsg->m_Item4Ammo;
+		CustomStuff()->m_aItemAmmo[4] = pMsg->m_Item5Ammo;
+		CustomStuff()->m_aItemAmmo[5] = pMsg->m_Item6Ammo;
+		CustomStuff()->m_aItemAmmo[6] = pMsg->m_Item7Ammo;
+		CustomStuff()->m_aItemAmmo[7] = pMsg->m_Item8Ammo;
+		CustomStuff()->m_aItemAmmo[8] = pMsg->m_Item9Ammo;
+		CustomStuff()->m_aItemAmmo[9] = pMsg->m_Item10Ammo;
+		CustomStuff()->m_aItemAmmo[10] = pMsg->m_Item11Ammo;
+		CustomStuff()->m_aItemAmmo[11] = pMsg->m_Item12Ammo;
 		CustomStuff()->m_Gold = pMsg->m_Gold;
 	}
 	else if(MsgId == NETMSGTYPE_SV_SOUNDGLOBAL)

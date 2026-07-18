@@ -2855,3 +2855,71 @@ Holding signal...
 Signal hold interrupted
 == 信號佔領中斷
 
+Weapon forge
+== 武器鍛造
+
+Target
+== 目標
+
+Material
+== 素材
+
+Result
+== 產物
+
+Weapon level
+== 武器等級
+
+Ammo
+== 彈藥
+
+Part 2 transplant
+== 零件 2 移植
+
+Spin
+== 迴旋融合
+
+Upgrade
+== 強化
+
+Forge
+== 鍛造
+
+Forging...
+== 鍛造中...
+
+Waiting for server
+== 等待伺服器確認
+
+Forge complete
+== 鍛造完成
+
+Forge disabled
+== 鍛造已停用
+
+Move closer to a screen
+== 請靠近鍛造螢幕
+
+Not enough gold
+== 金幣不足
+
+Weapon is busy
+== 武器正忙
+
+Invalid slots
+== 欄位無效
+
+Invalid recipe
+== 配方無效
+
+Result would not change
+== 產物不會發生變化
+
+Select a target weapon
+== 請選擇目標武器
+
+Select a material weapon
+== 請選擇素材武器
+
+Ready to forge
+== 可以鍛造

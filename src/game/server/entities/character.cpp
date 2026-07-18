@@ -15,6 +15,7 @@
 
 #include <game/weapons.h>
 #include <game/buildables.h>
+#include <game/forge.h>
 
 #include <game/server/gamemodes/invasion.h>
 #include <game/server/playerdata.h>
@@ -430,23 +431,24 @@ void CCharacter::SendInventory()
 		return;
 	
 	CNetMsg_Sv_Inventory Msg;
-	auto FillWeapon = [this](int Slot, int &DefinitionId, int &Level) {
+	auto FillWeapon = [this](int Slot, int &DefinitionId, int &Level, int &Ammo) {
 		const CWeapon *pWeapon = GetWeapon(Slot);
 		DefinitionId = pWeapon ? static_cast<int>(pWeapon->GetWeaponSpec().m_DefinitionId) : 0;
 		Level = pWeapon ? pWeapon->GetWeaponSpec().m_Level : 0;
+		Ammo = pWeapon ? max(0, pWeapon->GetAmmo()) : 0;
 	};
-	FillWeapon(0, Msg.m_Item1DefinitionId, Msg.m_Item1Level);
-	FillWeapon(1, Msg.m_Item2DefinitionId, Msg.m_Item2Level);
-	FillWeapon(2, Msg.m_Item3DefinitionId, Msg.m_Item3Level);
-	FillWeapon(3, Msg.m_Item4DefinitionId, Msg.m_Item4Level);
-	FillWeapon(4, Msg.m_Item5DefinitionId, Msg.m_Item5Level);
-	FillWeapon(5, Msg.m_Item6DefinitionId, Msg.m_Item6Level);
-	FillWeapon(6, Msg.m_Item7DefinitionId, Msg.m_Item7Level);
-	FillWeapon(7, Msg.m_Item8DefinitionId, Msg.m_Item8Level);
-	FillWeapon(8, Msg.m_Item9DefinitionId, Msg.m_Item9Level);
-	FillWeapon(9, Msg.m_Item10DefinitionId, Msg.m_Item10Level);
-	FillWeapon(10, Msg.m_Item11DefinitionId, Msg.m_Item11Level);
-	FillWeapon(11, Msg.m_Item12DefinitionId, Msg.m_Item12Level);
+	FillWeapon(0, Msg.m_Item1DefinitionId, Msg.m_Item1Level, Msg.m_Item1Ammo);
+	FillWeapon(1, Msg.m_Item2DefinitionId, Msg.m_Item2Level, Msg.m_Item2Ammo);
+	FillWeapon(2, Msg.m_Item3DefinitionId, Msg.m_Item3Level, Msg.m_Item3Ammo);
+	FillWeapon(3, Msg.m_Item4DefinitionId, Msg.m_Item4Level, Msg.m_Item4Ammo);
+	FillWeapon(4, Msg.m_Item5DefinitionId, Msg.m_Item5Level, Msg.m_Item5Ammo);
+	FillWeapon(5, Msg.m_Item6DefinitionId, Msg.m_Item6Level, Msg.m_Item6Ammo);
+	FillWeapon(6, Msg.m_Item7DefinitionId, Msg.m_Item7Level, Msg.m_Item7Ammo);
+	FillWeapon(7, Msg.m_Item8DefinitionId, Msg.m_Item8Level, Msg.m_Item8Ammo);
+	FillWeapon(8, Msg.m_Item9DefinitionId, Msg.m_Item9Level, Msg.m_Item9Ammo);
+	FillWeapon(9, Msg.m_Item10DefinitionId, Msg.m_Item10Level, Msg.m_Item10Ammo);
+	FillWeapon(10, Msg.m_Item11DefinitionId, Msg.m_Item11Level, Msg.m_Item11Ammo);
+	FillWeapon(11, Msg.m_Item12DefinitionId, Msg.m_Item12Level, Msg.m_Item12Ammo);
 	Msg.m_Gold = GetPlayer()->GetGold();
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, GetPlayer()->GetCID());
 }
@@ -521,7 +523,7 @@ void CCharacter::SwapItem(int Item1, int Item2)
 	if (IsZombie())
 		return;
 	
-	if (Item1 < 0 || Item1 >= NUM_SLOTS || Item2 >= NUM_SLOTS)
+	if (Item1 < 0 || Item1 >= NUM_SLOTS || Item2 < 0 || Item2 >= NUM_SLOTS)
 		return;
 	
 	if (Item1 == Item2)
@@ -532,7 +534,7 @@ void CCharacter::SwapItem(int Item1, int Item2)
 	CWeapon *pWeapon1 = GetWeapon(Item1);
 	CWeapon *pWeapon2 = GetWeapon(Item2);
 	
-	if (StaticType(pWeapon1) == SW_UPGRADE && Item1 != Item2)
+	if (g_Config.m_SvForgeMode == 0 && StaticType(pWeapon1) == SW_UPGRADE && Item1 != Item2)
 	{
 		if (pWeapon2)
 		{
@@ -565,7 +567,7 @@ void CCharacter::SwapItem(int Item1, int Item2)
 	}
 	
 	// combine melee
-	if (pWeapon1 && pWeapon2 &&
+	if (g_Config.m_SvForgeMode == 0 && pWeapon1 && pWeapon2 &&
 		pWeapon1->GetWeaponProfile().m_Definition.m_Kind == EWeaponDefinitionKind::Modular &&
 		pWeapon2->GetWeaponProfile().m_Definition.m_Kind == EWeaponDefinitionKind::Modular &&
 		pWeapon1->GetWeaponProfile().m_Definition.m_Part1 == PART1_MELEE &&
@@ -598,101 +600,119 @@ void CCharacter::SwapItem(int Item1, int Item2)
 }
 
 
-void CCharacter::CombineItem(int Item1, int Item2)
+void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 {
-	if (Item1 < 0 || Item1 >= NUM_SLOTS || Item2 >= NUM_SLOTS)
-		return;
-	
-	const CWeaponDefinition *pDefinition1 = m_apWeapon[Item1] ? &m_apWeapon[Item1]->GetWeaponProfile().m_Definition : nullptr;
-	const CWeaponDefinition *pDefinition2 = m_apWeapon[Item2] ? &m_apWeapon[Item2]->GetWeaponProfile().m_Definition : nullptr;
-	int p1_1 = pDefinition1 && pDefinition1->m_Kind == EWeaponDefinitionKind::Modular ? pDefinition1->m_Part1 : 0;
-	int p1_2 = pDefinition1 && pDefinition1->m_Kind == EWeaponDefinitionKind::Modular ? pDefinition1->m_Part2 : 0;
-	int p2_1 = pDefinition2 && pDefinition2->m_Kind == EWeaponDefinitionKind::Modular ? pDefinition2->m_Part1 : 0;
-	int p2_2 = pDefinition2 && pDefinition2->m_Kind == EWeaponDefinitionKind::Modular ? pDefinition2->m_Part2 : 0;
-	
-	if (!p1_1 || !p1_2)
+	int ResultOperation = Operation;
+	auto Reject = [this, &ResultOperation, Item1, Item2](int Result, const CWeaponSpec &Product = CWeaponSpec(),
+		int Cost = 0, int ProductAmmo = 0, int ProductMaxAmmo = 0) {
+		GetPlayer()->SendForgeResult(Result, ResultOperation, Item1, Item2, Cost, Product, ProductAmmo, ProductMaxAmmo);
+		GameServer()->CreateSoundGlobal(SOUND_GUI_DENIED1, GetPlayer()->GetCID());
+	};
+
+	if(!IsAlive() || IsZombie() || GameServer()->m_World.m_Paused)
 	{
-		if (p1_1)
+		Reject(FORGERESULT_BUSY);
+		return;
+	}
+	if(GetPlayer()->m_LastForgeRequestTick == Server()->Tick())
+	{
+		Reject(FORGERESULT_BUSY);
+		return;
+	}
+	GetPlayer()->m_LastForgeRequestTick = Server()->Tick();
+	if(Item1 < 0 || Item1 >= NUM_SLOTS || Item2 < 0 || Item2 >= NUM_SLOTS || Item1 == Item2)
+	{
+		Reject(FORGERESULT_INVALID_SLOT);
+		return;
+	}
+
+	CWeapon *pTarget = m_apWeapon[Item1];
+	CWeapon *pMaterial = m_apWeapon[Item2];
+	CWeapon *pCurrent = GetWeapon();
+	if((pTarget && !pTarget->CanSwitch()) || (pMaterial && !pMaterial->CanSwitch()) ||
+		(pCurrent && pCurrent != pTarget && pCurrent != pMaterial && !pCurrent->CanSwitch()))
+	{
+		Reject(FORGERESULT_BUSY);
+		return;
+	}
+	if(g_Config.m_SvForgeMode == 0)
+	{
+		Reject(FORGERESULT_DISABLED);
+		return;
+	}
+	if(g_Config.m_SvForgeMode == 2)
+	{
+		bool ScreenNear = false;
+		for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING);
+			pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
 		{
-			int t = p2_1;
-			p2_1 = p1_1;
-			p1_1 = t;
+			if(pBuilding->m_Type == BUILDING_SCREEN && distance(m_Pos, pBuilding->m_Pos) <= FORGE_SCREEN_RANGE)
+			{
+				ScreenNear = true;
+				break;
+			}
 		}
-		else if (p1_2)
+		if(!ScreenNear)
 		{
-			int t = p2_2;
-			p2_2 = p1_2;
-			p1_2 = t;
+			Reject(FORGERESULT_TOO_FAR);
+			return;
 		}
 	}
+	if(Operation != FORGEOP_AUTO)
+	{
+		Reject(FORGERESULT_INVALID_RECIPE);
+		return;
+	}
+	if(!pTarget || !pMaterial)
+	{
+		Reject(FORGERESULT_INVALID_RECIPE);
+		return;
+	}
+
+	const CForgeRecipe Recipe = CForge::Resolve(pTarget->GetWeaponSpec(), pMaterial->GetWeaponSpec(),
+		pTarget->GetAmmo(), g_Config.m_SvForgeBaseCost, g_Config.m_SvForgeLevelCost);
+	ResultOperation = Recipe.m_Operation;
+	if(Recipe.m_Result != FORGERESULT_SUCCESS)
+	{
+		Reject(Recipe.m_Result, Recipe.m_Product);
+		return;
+	}
+	if(GetPlayer()->GetGold() < Recipe.m_Cost)
+	{
+		Reject(FORGERESULT_NOT_ENOUGH_GOLD, Recipe.m_Product, Recipe.m_Cost, Recipe.m_ProductAmmo, Recipe.m_ProductMaxAmmo);
+		return;
+	}
+
+	CWeapon *pProduct = GameServer()->NewWeapon(Recipe.m_Product);
+	pProduct->m_Ammo = Recipe.m_ProductAmmo;
+	pTarget->m_Disabled = true;
+	pMaterial->m_Disabled = true;
+	GameServer()->m_World.DestroyEntity(pTarget);
+	GameServer()->m_World.DestroyEntity(pMaterial);
+	m_apWeapon[Item1] = pProduct;
+	m_apWeapon[Item2] = NULL;
+	GetPlayer()->ReduceGold(Recipe.m_Cost);
+	if(GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnGoldSpent(GetPlayer()->GetCID(), Recipe.m_Cost);
+
+	int SelectedSlot = -1;
+	if(Item1 < 4 && m_apWeapon[Item1])
+		SelectedSlot = Item1;
 	else
-	{
-		if (!p2_1 && p1_1)
-		{
-			p2_1 = p1_1;
-			p1_1 = 0;
-		}
-		
-		if (!p2_2 && p1_2)
-		{
-			p2_2 = p1_2;
-			p1_2 = 0;
-		}
-	}
-	
-	ReplaceWeapon(Item1, p1_1, p1_2);
-	ReplaceWeapon(Item2, p2_1, p2_2);
-	
-	// confirm inventory to the client
+		for(int Slot = 0; Slot < 4; ++Slot)
+			if(m_apWeapon[Slot])
+			{
+				SelectedSlot = Slot;
+				break;
+			}
+	if(SelectedSlot >= 0)
+		m_WeaponSlot = m_WantedSlot = SelectedSlot;
+
+	GameServer()->CreateSound(m_Pos, SOUND_UPGRADE);
 	SendInventory();
-}
-
-
-void CCharacter::TakePart(int Item1, int Slot, int Item2)
-{
-	if (Item1 < 0 || Item1 >= NUM_SLOTS || Item2 < 0 || Item2 >= NUM_SLOTS)
-		return;
-	
-	CWeapon *pWeapon1 = m_apWeapon[Item1];
-	CWeapon *pWeapon2 = m_apWeapon[Item2];
-	if (!pWeapon1 || !pWeapon2 ||
-		pWeapon1->GetWeaponProfile().m_Definition.m_Kind != EWeaponDefinitionKind::Modular ||
-		pWeapon2->GetWeaponProfile().m_Definition.m_Kind != EWeaponDefinitionKind::Modular)
-		return;
-	
-	int p1_1 = pWeapon1->GetWeaponProfile().m_Definition.m_Part1;
-	int p1_2 = pWeapon1->GetWeaponProfile().m_Definition.m_Part2;
-	int p2_1 = pWeapon2->GetWeaponProfile().m_Definition.m_Part1;
-	int p2_2 = pWeapon2->GetWeaponProfile().m_Definition.m_Part2;
-
-	if (Slot == 0)
-	{
-		ReplaceWeapon(Item1, p2_1, p1_2);
-		ReplaceWeapon(Item2, p1_1, p2_2);
-	}
-	else if (Slot == 1)
-	{
-		ReplaceWeapon(Item1, p1_1, p2_2);
-		ReplaceWeapon(Item2, p2_1, p1_2);
-	}
-	
-	// confirm inventory to the client
-	SendInventory();
-}
-
-
-void CCharacter::ReplaceWeapon(int Slot, int Part1, int Part2)
-{
-	if (Slot < 0 || Slot >= NUM_SLOTS)
-		return;
-	
-	if (!m_apWeapon[Slot])
-		m_apWeapon[Slot] = GameServer()->NewWeapon(CWeaponCatalog::Modular(Part1, Part2));
-	else
-	{
-		GameServer()->m_World.DestroyEntity(m_apWeapon[Slot]);
-		m_apWeapon[Slot] = GameServer()->NewWeapon(CWeaponCatalog::Modular(Part1, Part2));
-	}
+	SaveData();
+	GetPlayer()->SendForgeResult(FORGERESULT_SUCCESS, Recipe.m_Operation, Item1, Item2, Recipe.m_Cost,
+		Recipe.m_Product, Recipe.m_ProductAmmo, Recipe.m_ProductMaxAmmo);
 }
 
 

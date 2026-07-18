@@ -151,6 +151,9 @@ MACRO_CONFIG_INT(SvRobots, sv_robots, 0, 0, 1, CFGFLAG_SERVER, "Robot bot skins"
 
 
 MACRO_CONFIG_INT(SvStartGold, sv_startgold, 0, 0, 999, CFGFLAG_SERVER, "Starting gold")
+MACRO_CONFIG_INT(SvForgeMode, sv_forge_mode, 0, 0, 2, CFGFLAG_SERVER, "Forge mode (0=legacy inventory, 1=available anywhere, 2=screen proximity only)")
+MACRO_CONFIG_INT(SvForgeBaseCost, sv_forge_base_cost, 5, -999, 999, CFGFLAG_SERVER, "Base gold cost for forging")
+MACRO_CONFIG_INT(SvForgeLevelCost, sv_forge_level_cost, 2, -999, 999, CFGFLAG_SERVER, "Gold cost per combined weapon level for forging")
 
 // 
 MACRO_CONFIG_INT(SvInfiniteGrenades, sv_infinitegrenades, 0, 0, 1, CFGFLAG_SERVER, "Infinite grenades")

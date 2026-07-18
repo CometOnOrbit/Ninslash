@@ -508,6 +508,8 @@ set_src(GAME_SHARED GLOB src/game
   buildables.h
   collision.cpp
   collision.h
+  forge.cpp
+  forge.h
   gamevote.h
   gamecore.cpp
   gamecore.h

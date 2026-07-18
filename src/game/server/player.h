@@ -109,6 +109,7 @@ public:
 	bool m_ActionSpectator;
 	
 	int m_Gold;
+	int m_LastForgeRequestTick;
 	
 	int GetGold() { return m_Gold; }
 	void ReduceGold(int Amount) { m_Gold = max(0, m_Gold-Amount); }
@@ -191,8 +192,9 @@ public:
 	void InventoryRoll(int Slot);
 	void DropItem(int Slot, vec2 Pos);
 	void SwapItem(int Item1, int Item2);
-	void CombineItem(int Item1, int Item2);
-	void TakePart(int Item1, int Slot, int Item2);
+	void CombineItem(int Item1, int Item2, int Operation);
+	void SendForgeResult(int Result, int Operation, int TargetSlot, int MaterialSlot, int Cost,
+		const CWeaponSpec &Product = {}, int ProductAmmo = 0, int ProductMaxAmmo = 0);
 	void SendInventory();
 	
 	void JoinTeam();

@@ -238,11 +238,9 @@ public:
 	void InventoryRoll(int Slot);
 	void DropItem(int Slot, vec2 Pos);
 	void SwapItem(int Item1, int Item2);
-	void CombineItem(int Item1, int Item2);
-	void TakePart(int Item1, int Slot, int Item2);
+	void CombineItem(int Item1, int Item2, int Operation);
 	void SendInventory();
-	
-	void ReplaceWeapon(int Slot, int Part1, int Part2);
+
 	void ReleaseWeapon(class CWeapon *pWeapon = NULL);
 	bool TriggerWeapon(class CWeapon *pWeapon = NULL);
 	

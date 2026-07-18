@@ -176,6 +176,7 @@ public:
 	
 	bool m_Inventory;
 	CWeaponSpec m_aItem[12];
+	int m_aItemAmmo[12];
 	int m_Gold;
 	
 	bool m_BuildMode;

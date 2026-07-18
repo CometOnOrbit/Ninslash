@@ -32,6 +32,11 @@ Localize("Boss assault"),Localize("Purge"),Localize("Standard wave"),Localize("D
 Localize("Reactor defense"),Localize("Timed survive"),Localize("Trap run"),Localize("Elite wave"),
 Localize("Z-sector wave"),Localize("Acid escape"),Localize("Aliens"),Localize("Robots"),
 Localize("Skeletons"),Localize("Furries"),Localize("Cyborgs"),Localize("Invasion"),
+Localize("Weapon forge"),Localize("Target"),Localize("Material"),Localize("Result"),Localize("Weapon level"),Localize("Ammo"),
+Localize("Part 2 transplant"),Localize("Spin"),Localize("Upgrade"),Localize("Forge"),Localize("Forging..."),
+Localize("Waiting for server"),Localize("Forge complete"),Localize("Forge disabled"),Localize("Move closer to a screen"),
+Localize("Not enough gold"),Localize("Weapon is busy"),Localize("Invalid slots"),Localize("Invalid recipe"),
+Localize("Result would not change"),Localize("Select a target weapon"),Localize("Select a material weapon"),Localize("Ready to forge"),
 */
 
 class CLocalizationDatabase

@@ -13,6 +13,7 @@
 #include <game/collision.h>
 #include <game/gamecore.h> 
 #include <game/weapon_catalog.h>
+#include <game/forge.h>
 #include "gamemodes/dm.h"
 #include "gamemodes/cs.h"
 #include "gamemodes/ball.h"
@@ -2600,8 +2601,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				case INVENTORYACTION_ROLL: pPlayer->InventoryRoll(pMsg->m_Slot); break;
 				case INVENTORYACTION_DROP: pPlayer->DropItem(pMsg->m_Slot, vec2(pMsg->m_Item1, pMsg->m_Item2)); break;
 				case INVENTORYACTION_SWAP: pPlayer->SwapItem(pMsg->m_Item1, pMsg->m_Item2); break;
-				case INVENTORYACTION_COMBINE: pPlayer->CombineItem(pMsg->m_Item1, pMsg->m_Item2); break;
-				case INVENTORYACTION_TAKEPART: pPlayer->TakePart(pMsg->m_Item1, pMsg->m_Slot, pMsg->m_Item2); break;
+				case INVENTORYACTION_COMBINE: pPlayer->CombineItem(pMsg->m_Item1, pMsg->m_Item2, pMsg->m_Slot); break;
+				case INVENTORYACTION_TAKEPART: break;
 				case INVENTORYACTION_SHOP: Shop(pPlayer, pMsg->m_Slot); break;
 				default: return;
 			};
@@ -3249,6 +3250,7 @@ void CGameContext::RestoreEntity(int ObjType, int Type, int Subtype, int x, int 
 void CGameContext::OnInit(/*class IKernel *pKernel*/)
 {
 	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
+	dbg_assert(CForge::Validate(), "forge recipe validation failed");
 	m_pServer = Kernel()->RequestInterface<IServer>();
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>(); // MapGen
