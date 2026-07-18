@@ -224,6 +224,11 @@ enum
 	COREEVENT_HOOK_ATTACH_GROUND=0x40,
 	COREEVENT_HOOK_HIT_NOHOOK=0x80,
 	COREEVENT_HOOK_RETRACT=0x100,
+	COREEVENT_LAND=0x200,
+	COREEVENT_WALL_JUMP=0x400,
+	COREEVENT_SLIDE_START=0x800,
+	COREEVENT_ROLL_START=0x1000,
+	COREEVENT_HOOK_HIT=0x2000,
 };
 
 
@@ -445,6 +450,10 @@ public:
 	int m_KickDamage;
 	
 	int m_Jumped;
+	int m_CoyoteTime;
+	int m_JumpBufferTime;
+	int m_PrevJumpInput;
+	float m_LandingVelocity;
 	
 	int m_Health;
 	float m_MoveSpeedMultiplier;

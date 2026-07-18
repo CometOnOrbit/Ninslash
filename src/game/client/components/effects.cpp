@@ -517,6 +517,30 @@ void CEffects::SkidTrail(vec2 Pos, vec2 Vel)
 	m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
 }
 
+void CEffects::MovementDust(vec2 Pos, vec2 Vel, float Strength)
+{
+	Strength = clamp(Strength, 0.0f, 1.0f);
+	if(Strength <= 0.0f)
+		return;
+
+	const int Count = Strength >= 0.8f ? 2 : 1;
+	for(int i = 0; i < Count; i++)
+	{
+		CParticle p;
+		p.SetDefault();
+		p.m_Spr = SPRITE_PART_SMOKE;
+		p.m_Pos = Pos + vec2((frandom() - frandom()) * 5.0f, 0.0f);
+		p.m_Vel = Vel + vec2((frandom() - frandom()) * 35.0f, -20.0f - frandom() * 35.0f);
+		p.m_LifeSpan = 0.18f + frandom() * 0.18f;
+		p.m_StartSize = 8.0f + Strength * 10.0f + frandom() * 4.0f;
+		p.m_EndSize = 0.0f;
+		p.m_Friction = 0.75f;
+		p.m_Gravity = -80.0f;
+		p.m_Color = vec4(0.72f, 0.72f, 0.70f, 0.28f + Strength * 0.32f);
+		m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
+	}
+}
+
 void CEffects::Triangle(vec2 Pos, vec2 Vel)
 {
 	//if(!m_Add100hz)

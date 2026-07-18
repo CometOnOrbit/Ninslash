@@ -6,34 +6,50 @@
 
 // physics tuning
 MACRO_TUNING_PARAM(ControlSpeed, control_speed, 0.9f)
-MACRO_TUNING_PARAM(JumpPower, jump_power, 11.2f)
+MACRO_TUNING_PARAM(JumpPower, jump_power, 11.55f)
 
 
 MACRO_TUNING_PARAM(BallSize, ball_size, 64.0f)
 
-MACRO_TUNING_PARAM(GroundControlSpeed, ground_control_speed, 450.0f / TicksPerSecond) // 11 = fast
-MACRO_TUNING_PARAM(GroundControlAccel, ground_control_accel, 75.0f / TicksPerSecond)
-MACRO_TUNING_PARAM(GroundFriction, ground_friction, 0.5f)
-MACRO_TUNING_PARAM(GroundJumpImpulse, ground_jump_impulse, 11.2f)
-MACRO_TUNING_PARAM(HookLength, hook_length, 480.0f)
-MACRO_TUNING_PARAM(HookFireSpeed, hook_fire_speed, 60.0f) //80.0f
-MACRO_TUNING_PARAM(HookDragAccel, hook_drag_accel, 2.0f) // 3.0f
-MACRO_TUNING_PARAM(HookDragSpeed, hook_drag_speed, 14.0f) // 15.0f
-MACRO_TUNING_PARAM(HookDragMinDistFactor, hook_drag_min_dist_factor, 1.50f)
-MACRO_TUNING_PARAM(WallrunImpulse, wall_run_impulse, 9.0f)
-MACRO_TUNING_PARAM(AirControlSpeed, air_control_speed, 450.0f / TicksPerSecond) //  250.0f
-MACRO_TUNING_PARAM(AirControlAccel, air_control_accel, 50.0f / TicksPerSecond) // 1.5f
-MACRO_TUNING_PARAM(AirFriction, air_friction, 0.95f)
-MACRO_TUNING_PARAM(Gravity, gravity, 0.6f) // 0.5f
+MACRO_TUNING_PARAM(GroundControlSpeed, ground_control_speed, 480.0f / TicksPerSecond)
+MACRO_TUNING_PARAM(GroundControlAccel, ground_control_accel, 90.0f / TicksPerSecond)
+MACRO_TUNING_PARAM(GroundReverseAccel, ground_reverse_accel, 1.35f)
+MACRO_TUNING_PARAM(GroundFriction, ground_friction, 0.42f)
+MACRO_TUNING_PARAM(GroundJumpImpulse, ground_jump_impulse, 11.55f)
+MACRO_TUNING_PARAM(JumpCoyoteTicks, jump_coyote_ticks, 4.0f)
+MACRO_TUNING_PARAM(JumpBufferTicks, jump_buffer_ticks, 4.0f)
+MACRO_TUNING_PARAM(HookLength, hook_length, 520.0f)
+MACRO_TUNING_PARAM(HookFireSpeed, hook_fire_speed, 75.0f)
+MACRO_TUNING_PARAM(HookDragAccel, hook_drag_accel, 2.3f)
+MACRO_TUNING_PARAM(HookDragSpeed, hook_drag_speed, 15.5f)
+MACRO_TUNING_PARAM(HookDragMinDistFactor, hook_drag_min_dist_factor, 1.35f)
+MACRO_TUNING_PARAM(HookMoveAlongFactor, hook_move_along_factor, 1.08f)
+MACRO_TUNING_PARAM(HookMoveAgainstFactor, hook_move_against_factor, 0.72f)
+MACRO_TUNING_PARAM(HookDownFactor, hook_down_factor, 0.40f)
+MACRO_TUNING_PARAM(HookTargetHoldSeconds, hook_target_hold_seconds, 1.35f)
+MACRO_TUNING_PARAM(WallrunImpulse, wall_run_impulse, 9.6f)
+MACRO_TUNING_PARAM(WallJumpDelayTicks, wall_jump_delay_ticks, 2.0f)
+MACRO_TUNING_PARAM(WallJumpHorizontalImpulse, wall_jump_horizontal_impulse, 8.0f)
+MACRO_TUNING_PARAM(WallJumpDirectionLockTicks, wall_jump_direction_lock_ticks, 4.0f)
+MACRO_TUNING_PARAM(AirControlSpeed, air_control_speed, 475.0f / TicksPerSecond)
+MACRO_TUNING_PARAM(AirControlAccel, air_control_accel, 58.0f / TicksPerSecond)
+MACRO_TUNING_PARAM(AirReverseAccel, air_reverse_accel, 1.12f)
+MACRO_TUNING_PARAM(AirFriction, air_friction, 0.94f)
+MACRO_TUNING_PARAM(Gravity, gravity, 0.636f)
+MACRO_TUNING_PARAM(JetpackControlSpeed, jetpack_control_speed, 12.2f)
+MACRO_TUNING_PARAM(JetpackControlAccel, jetpack_control_accel, 2.1f)
 
 MACRO_TUNING_PARAM(SlideFriction, slide_friction, 0.8f)
 MACRO_TUNING_PARAM(SlideSlopeAcceleration, slide_slope_acceleration, 0.3f)
 MACRO_TUNING_PARAM(SlopeDeceleration, slope_deceleration, 0.0f)
 MACRO_TUNING_PARAM(SlopeAscendingControlSpeed, slope_ascending_control_speed, 10.0f)
 MACRO_TUNING_PARAM(SlopeDescendingControlSpeed, slope_descending_control_speed, 10.0f)
-MACRO_TUNING_PARAM(SlideControlSpeed, slide_control_speed, 510.0f / TicksPerSecond) // 14
-MACRO_TUNING_PARAM(SlideActivationSpeed, slide_activation_speed, 7.0f)
-MACRO_TUNING_PARAM(DashPower, dash_power, 21.0f)
+MACRO_TUNING_PARAM(SlideControlSpeed, slide_control_speed, 540.0f / TicksPerSecond)
+MACRO_TUNING_PARAM(SlideActivationSpeed, slide_activation_speed, 6.2f)
+MACRO_TUNING_PARAM(SlideMinimumSpeed, slide_minimum_speed, 6.8f)
+MACRO_TUNING_PARAM(RollLandingSpeed, roll_landing_speed, 11.5f)
+MACRO_TUNING_PARAM(RollDurationTicks, roll_duration_ticks, 12.0f)
+MACRO_TUNING_PARAM(DashPower, dash_power, 22.5f)
 
 MACRO_TUNING_PARAM(VelrampStart, velramp_start, 550)
 MACRO_TUNING_PARAM(VelrampRange, velramp_range, 2000)

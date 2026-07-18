@@ -106,6 +106,9 @@ Blood color
 Hit feedback strength
 == 命中反馈强度
 
+Movement feedback strength
+== 移动反馈强度
+
 Blue team
 == 蓝队
 

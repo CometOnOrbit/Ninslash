@@ -983,7 +983,7 @@ void CGameClient::ProcessEvents()
 			{
 				const float Falloff = 1.0f - d / s;
 				if(Visual.m_ScreenshakeAmount > 0.0f)
-					CustomStuff()->SetScreenshake(Visual.m_ScreenshakeAmount * Falloff);
+					CustomStuff()->SetScreenshake(Visual.m_ScreenshakeAmount * Falloff, g_Config.m_ClHitFeedback / 100.0f);
 			}
 		}
 		else if(Item.m_Type == NETEVENTTYPE_REPAIR)
@@ -1637,12 +1637,54 @@ void CGameClient::OnPredict()
 			// player events
 			if(HasLocalClient && World.m_apCharacters[LocalClientID])
 			{
-				vec2 Pos = World.m_apCharacters[LocalClientID]->m_Pos;
-				int Events = World.m_apCharacters[LocalClientID]->m_TriggeredEvents;
+				CCharacterCore *pCore = World.m_apCharacters[LocalClientID];
+				vec2 Pos = pCore->m_Pos;
+				int Events = pCore->m_TriggeredEvents;
 				if(Events&COREEVENT_GROUND_JUMP) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_PLAYER_JUMP, 1.0f, Pos);
 
 				if(Events&COREEVENT_HOOK_ATTACH_GROUND) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_HOOK_ATTACH_GROUND, 1.0f, Pos);
+				if(Events&COREEVENT_HOOK_ATTACH_PLAYER) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_HOOK_ATTACH_PLAYER, 1.0f, Pos);
 				if(Events&COREEVENT_HOOK_HIT_NOHOOK) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_HOOK_NOATTACH, 1.0f, Pos);
+
+				const float Feedback = g_Config.m_ClMovementFeedback / 100.0f;
+				if(Feedback > 0.0f)
+				{
+					if(Events & COREEVENT_GROUND_JUMP)
+					{
+						g_GameClient.m_pEffects->MovementDust(Pos + vec2(0, 18), vec2(-pCore->m_Vel.x * 8.0f, 0), Feedback);
+						CustomStuff()->AddCameraImpulse(vec2(0, 0.65f), 0.0f, Feedback);
+					}
+					if(Events & COREEVENT_WALL_JUMP)
+					{
+						g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_PLAYER_JUMP, 0.7f * Feedback, Pos);
+						g_GameClient.m_pEffects->MovementDust(Pos + vec2(0, 8), -pCore->m_Vel * 5.0f, Feedback);
+						CustomStuff()->AddCameraImpulse(-normalize(pCore->m_Vel) * 0.8f, 0.0f, Feedback);
+					}
+					if(Events & COREEVENT_LAND)
+					{
+						g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_BODY_LAND, (0.35f + 0.45f * Feedback) * Feedback, Pos);
+						g_GameClient.m_pEffects->MovementDust(Pos + vec2(0, 18), vec2(-pCore->m_Vel.x * 5.0f, 0), Feedback);
+						if(pCore->m_LandingVelocity > 8.0f)
+						{
+							const float LandingKick = min(2.5f, (pCore->m_LandingVelocity - 8.0f) * 0.45f);
+							CustomStuff()->AddCameraImpulse(vec2(0, -LandingKick), LandingKick * 0.08f, Feedback);
+						}
+					}
+					if(Events & (COREEVENT_SLIDE_START | COREEVENT_ROLL_START))
+					{
+						const float RollScale = Events & COREEVENT_ROLL_START ? 0.9f : 1.2f;
+						const float Direction = pCore->m_Vel.x < 0.0f ? -1.0f : 1.0f;
+						g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_PLAYER_SKID, 0.45f * Feedback, Pos);
+						g_GameClient.m_pEffects->MovementDust(Pos + vec2(-Direction * 8.0f, 18), vec2(-pCore->m_Vel.x * 9.0f, 0), Feedback);
+						CustomStuff()->AddCameraImpulse(vec2(-Direction * RollScale, 0), 0.0f, Feedback);
+					}
+					if(Events & COREEVENT_HOOK_HIT)
+					{
+						const int SparkCount = Feedback >= 0.8f ? 2 : 1;
+						for(int i = 0; i < SparkCount; i++)
+							g_GameClient.m_pEffects->HitSpark(pCore->m_HookPos, vec4(0.72f, 0.82f, 0.88f, 0.8f));
+					}
+				}
 
 				/*if(events&COREEVENT_AIR_JUMP)
 				{

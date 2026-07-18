@@ -21,6 +21,7 @@ public:
 	void BulletTrail(vec2 Pos);
 	void SmokeTrail(vec2 Pos, vec2 Vel);
 	void SkidTrail(vec2 Pos, vec2 Vel);
+	void MovementDust(vec2 Pos, vec2 Vel, float Strength);
 	void SpriteSheet(int FX, vec2 Pos);
 	void Lazer(vec2 Pos, int Height);
 	void Explosion(vec2 Pos, const CAttackSource &Source);

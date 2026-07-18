@@ -164,9 +164,9 @@ public:
 	float m_CameraShake;
 	vec2 m_CameraKick;
 	
-	void AddCameraImpulse(vec2 Kick, float Shake);
+	void AddCameraImpulse(vec2 Kick, float Shake, float FeedbackStrength);
 	vec2 CameraOffset(float FrameTime);
-	void SetScreenshake(float Amount) { AddCameraImpulse(vec2(0, 0), Amount); }
+	void SetScreenshake(float Amount, float FeedbackStrength) { AddCameraImpulse(vec2(0, 0), Amount, FeedbackStrength); }
 	
 	
 	bool m_LocalAlive;

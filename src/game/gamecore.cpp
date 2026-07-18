@@ -70,6 +70,10 @@ void CCharacterCore::Reset()
 	m_Vel = vec2(0,0);
 	m_JumpTimer = 0;
 	m_Jumped = 0;
+	m_CoyoteTime = 0;
+	m_JumpBufferTime = 0;
+	m_PrevJumpInput = 0;
+	m_LandingVelocity = 0.0f;
 	m_Sliding = 0;
 	m_Jetpack = 0;
 	m_JetpackPower = 200;
@@ -283,10 +287,20 @@ void CCharacterCore::Tick(bool UseInput)
 	
 	float HandJetpackControlSpeed = 11.5f * ControlSpeed;
 	float HandJetpackImpulse = 1.10f;
-	float JetpackControlSpeed = 11.5f * ControlSpeed;
-	float JetpackControlAccel = 2.0f;
+	float JetpackControlSpeed = m_pWorld->m_Tuning.m_JetpackControlSpeed * ControlSpeed;
+	float JetpackControlAccel = m_pWorld->m_Tuning.m_JetpackControlAccel;
 	
 	float DashPower = float(m_pWorld->m_Tuning.m_DashPower);
+	const int CoyoteTicks = max(0, round_to_int(m_pWorld->m_Tuning.m_JumpCoyoteTicks));
+	const int JumpBufferTicks = max(0, round_to_int(m_pWorld->m_Tuning.m_JumpBufferTicks));
+	const int WallJumpDelay = max(1, round_to_int(m_pWorld->m_Tuning.m_WallJumpDelayTicks));
+	const int WallJumpLockTicks = max(0, round_to_int(m_pWorld->m_Tuning.m_WallJumpDirectionLockTicks));
+	const float WallJumpHorizontalImpulse = m_pWorld->m_Tuning.m_WallJumpHorizontalImpulse;
+	m_LandingVelocity = 0.0f;
+	if(Grounded && m_Vel.y >= 0.0f)
+		m_CoyoteTime = CoyoteTicks;
+	const bool JumpPressed = UseInput && m_Input.m_Jump && !m_PrevJumpInput;
+	bool BufferedJumpThisTick = false;
 	
 	m_OnWall = false;
 	
@@ -361,17 +375,20 @@ void CCharacterCore::Tick(bool UseInput)
 		int Dir = m_ActionState > 0 ? 1 : -1;
 		int State = abs(m_ActionState);
 		
-		if (State < 4)
+		if (State < WallJumpDelay)
 		{
 			m_Vel.y = 0.0f;
 		}
-		else if (State == 4)
+		else if (State == WallJumpDelay)
 		{
 			m_Vel.y = -JumpPower;
-			m_Vel.x = 7.0f * Dir + m_Input.m_Direction*3.0f;
-			//m_LockDirection = 2 * Dir + m_Input.m_Direction*2;
+			m_Vel.x = WallJumpHorizontalImpulse * Dir + m_Input.m_Direction * 3.0f;
+			m_LockDirection = WallJumpLockTicks * Dir;
+			m_CoyoteTime = 0;
+			m_JumpBufferTime = 0;
+			m_TriggeredEvents |= COREEVENT_WALL_JUMP;
 		}
-		else if (State < 8)
+		else if (State < WallJumpDelay + 4)
 		{
 			// no gravity
 		}
@@ -411,6 +428,11 @@ void CCharacterCore::Tick(bool UseInput)
 	{
 		m_Direction = m_Input.m_Direction;
 		m_Down = m_Input.m_Down;
+		if(JumpPressed && !Grounded && !InFluid && m_Vel.y > 0.0f)
+		{
+			m_JumpBufferTime = JumpBufferTicks;
+			BufferedJumpThisTick = true;
+		}
 		
 		m_Charge = m_Input.m_Charge;
 		
@@ -504,6 +526,8 @@ void CCharacterCore::Tick(bool UseInput)
 					{
 						m_Jumped |= 1;
 						m_Wallrun = 11;
+						m_CoyoteTime = 0;
+						m_JumpBufferTime = 0;
 						SetAction(COREACTION_WALLJUMP, 1);
 					}
 						
@@ -512,6 +536,8 @@ void CCharacterCore::Tick(bool UseInput)
 					{
 						m_Jumped |= 1;
 						m_Wallrun = -11;
+						m_CoyoteTime = 0;
+						m_JumpBufferTime = 0;
 						SetAction(COREACTION_WALLJUMP, -1);
 					}
 				}
@@ -542,10 +568,13 @@ void CCharacterCore::Tick(bool UseInput)
 					{
 						//m_TriggeredEvents |= COREEVENT_AIR_JUMP;
 						m_Vel.y = -(JumpPower+3.0f);
-						m_Vel.x = 7.0f + m_Input.m_Direction*3.0f;
+						m_Vel.x = WallJumpHorizontalImpulse + m_Input.m_Direction * 3.0f;
 						m_Jumped |= 1;
-						m_LockDirection = 1;
+						m_LockDirection = WallJumpLockTicks;
 						m_Wallrun = 11;
+						m_CoyoteTime = 0;
+						m_JumpBufferTime = 0;
+						m_TriggeredEvents |= COREEVENT_WALL_JUMP;
 					}
 				}
 				else
@@ -569,10 +598,13 @@ void CCharacterCore::Tick(bool UseInput)
 					{
 						//m_TriggeredEvents |= COREEVENT_AIR_JUMP;
 						m_Vel.y = -(JumpPower+3.0f);
-						m_Vel.x = -7.0f + m_Input.m_Direction*3.0f;
+						m_Vel.x = -WallJumpHorizontalImpulse + m_Input.m_Direction * 3.0f;
 						m_Jumped |= 1;
-						m_LockDirection = -1;
+						m_LockDirection = -WallJumpLockTicks;
 						m_Wallrun = -11;
+						m_CoyoteTime = 0;
+						m_JumpBufferTime = 0;
+						m_TriggeredEvents |= COREEVENT_WALL_JUMP;
 					}
 				}
 				else
@@ -600,107 +632,70 @@ void CCharacterCore::Tick(bool UseInput)
 
 		m_Angle = (int)(a*256.0f);
 
-		// handle jump
+		// Ground and coyote jumps take priority over jetpack activation.
+		const bool WantsGroundJump = JumpPressed || m_JumpBufferTime > 0;
+		const bool CanGroundJump = Grounded || InFluid || m_CoyoteTime > 0;
+		bool GroundJumped = false;
+		if(m_Roll)
+			m_Jetpack = 0;
+		if(WantsGroundJump && CanGroundJump && !(m_Jumped & 1) && !m_Roll &&
+			!m_pCollision->CheckPoint(m_Pos.x, m_Pos.y - 64, false, true))
+		{
+			m_JumpTimer = m_Slide > 0 ? -6 : 6;
+			m_TriggeredEvents |= COREEVENT_GROUND_JUMP;
+			m_Action = COREACTION_JUMP;
+			m_ActionState = 0;
+			m_Vel.y = slope == 0 ? -JumpPower : -JumpPower * invsqrt2;
+			m_Jumped |= 1;
+			m_CoyoteTime = 0;
+			m_JumpBufferTime = 0;
+			GroundJumped = true;
+
+			if(m_Slide > 0 && m_Slide < 12)
+			{
+				m_Action = COREACTION_SLIDEKICK;
+				m_ActionState = 0;
+				m_TriggeredEvents |= COREEVENT_SLIDEKICK;
+			}
+		}
+
 		if(m_Input.m_Jump)
 		{
-			// jetpack physics
-			if (m_Jetpack == 1 && m_JetpackPower > 0 && (m_Wallrun == 0 || abs(m_Wallrun) > 15) && !(m_Action == COREACTION_SLIDEKICK && m_ActionState < 6))
+			if(!GroundJumped && !m_Roll && m_JumpBufferTime == 0 && m_Jetpack == 1 && m_JetpackPower > 0 &&
+				(m_Wallrun == 0 || abs(m_Wallrun) > 15) && !(m_Action == COREACTION_SLIDEKICK && m_ActionState < 6))
 			{
-				/*
-				if (m_Input.m_Down)
+				m_Wallrun = 0;
+				if(m_Direction == 1)
 				{
-					if (m_Vel.y > 2.0f)
-						m_Vel.y -= m_pWorld->m_Tuning.m_Gravity*1.5f;
-					
-					m_JetpackPower -= 1;
+					if(m_Vel.x < JetpackControlSpeed)
+						m_Vel.x += 1.0f;
+					if(m_Vel.y > -JetpackControlSpeed * 0.85f)
+						m_Vel.y -= m_pWorld->m_Tuning.m_Gravity * JetpackControlAccel * (m_Vel.y > 0.0f ? 1.8f : 0.8f);
 				}
-				else
-					*/
+				else if(m_Direction == -1)
 				{
-					m_Wallrun = 0;
-					
-					
-					if (m_Direction == 1)
-					{
-						if (m_Vel.x < JetpackControlSpeed)
-							m_Vel.x += 1.0f;
-						
-						if (m_Vel.y > -JetpackControlSpeed*0.85f)
-							m_Vel.y -= m_pWorld->m_Tuning.m_Gravity*JetpackControlAccel*(m_Vel.y > 0.0f?1.8f:0.8f);
-					}
-					else if (m_Direction == -1)
-					{
-						if (m_Vel.x > -JetpackControlSpeed)
-							m_Vel.x -= 1.0f;
-						
-						if (m_Vel.y > -JetpackControlSpeed*0.85f)
-							m_Vel.y -= m_pWorld->m_Tuning.m_Gravity*JetpackControlAccel*(m_Vel.y > 0.0f?1.8f:0.8f);
-					}
-					else if (m_Vel.y > -JetpackControlSpeed*1.0f)
-						m_Vel.y -= m_pWorld->m_Tuning.m_Gravity*JetpackControlAccel*1.4f;
-					
-					/*if (m_Vel.y < 0.0f)
-						m_JetpackPower -= 1;
-					else*/
-						m_JetpackPower -= 1;
+					if(m_Vel.x > -JetpackControlSpeed)
+						m_Vel.x -= 1.0f;
+					if(m_Vel.y > -JetpackControlSpeed * 0.85f)
+						m_Vel.y -= m_pWorld->m_Tuning.m_Gravity * JetpackControlAccel * (m_Vel.y > 0.0f ? 1.8f : 0.8f);
 				}
+				else if(m_Vel.y > -JetpackControlSpeed)
+					m_Vel.y -= m_pWorld->m_Tuning.m_Gravity * JetpackControlAccel * 1.4f;
+				m_JetpackPower -= 1;
 			}
-			
-			if ((Grounded || InFluid) && m_Vel.y >= 0.0f)
+
+			if(!GroundJumped && !CanGroundJump && m_JumpBufferTime == 0)
 			{
-				if (!(m_Jumped&1) && !m_Roll)
-				{
-					if (!m_pCollision->CheckPoint(m_Pos.x, m_Pos.y-64, false, true))
-					{
-						// lazy timer for jump animations
-						if (m_Slide > 0)
-							m_JumpTimer = -6;
-						else
-							m_JumpTimer = 6;
-						
-						m_TriggeredEvents |= COREEVENT_GROUND_JUMP;
-						if(slope == 0)
-						{
-							m_Action = COREACTION_JUMP;
-							m_ActionState = 0;
-							
-							m_Vel.y = -JumpPower;
-						}
-						else
-						{
-							m_Action = COREACTION_JUMP;
-							m_ActionState = 0;
-							m_Vel.y = -JumpPower*invsqrt2;
-						}
-						m_Jumped |= 1;
-						
-						if (m_Slide > 0 && m_Slide < 12)
-						{
-							m_Action = COREACTION_SLIDEKICK;
-							m_ActionState = 0;
-							m_TriggeredEvents |= COREEVENT_SLIDEKICK;
-						}
-					}
-				}
-			}
-			else
-			{
-				if(!(m_Jumped&1) && m_JetpackPower > 0)
-				{
+				if(!m_Roll && !(m_Jumped & 1) && m_JetpackPower > 0)
 					m_Jetpack = 1;
-				}
-					
-				// slidekick on air
-				if (!(m_Jumped&2) && !m_Roll)
+
+				if(!(m_Jumped & 2) && !m_Roll && m_Slide > 0 && m_Slide < 12)
 				{
-					if (m_Slide > 0 && m_Slide < 12)
-					{
-						m_Jumped |= 3;
-						m_Action = COREACTION_SLIDEKICK;
-						m_ActionState = 0;
-						m_TriggeredEvents |= COREEVENT_SLIDEKICK;
-						m_Vel.y = -JumpPower * 0.7f;
-					}
+					m_Jumped |= 3;
+					m_Action = COREACTION_SLIDEKICK;
+					m_ActionState = 0;
+					m_TriggeredEvents |= COREEVENT_SLIDEKICK;
+					m_Vel.y = -JumpPower * 0.7f;
 				}
 			}
 		}
@@ -760,7 +755,12 @@ void CCharacterCore::Tick(bool UseInput)
 			m_HookState = HOOK_IDLE;
 			m_HookPos = m_Pos;
 		}
+		m_PrevJumpInput = m_Input.m_Jump != 0;
 	}
+	if(!Grounded && m_CoyoteTime > 0)
+		m_CoyoteTime--;
+	if(m_JumpBufferTime > 0 && !BufferedJumpThisTick)
+		m_JumpBufferTime--;
 	
 	m_Sliding = false;
 	
@@ -792,19 +792,21 @@ void CCharacterCore::Tick(bool UseInput)
 	// add the speed modification according to players wanted direction
 	if (m_Slide == 0)
 	{
+		const bool Reversing = m_Direction != 0 && m_Vel.x * m_Direction < 0.0f;
+		const float DirectionAccel = Accel * (Reversing ? (Grounded ? m_pWorld->m_Tuning.m_GroundReverseAccel : m_pWorld->m_Tuning.m_AirReverseAccel) : 1.0f);
 		if(m_Direction < 0) // && (!m_Sliding || !Grounded))
 		{
 			if (slope > 0)
-				m_Vel.x = SaturatedAdd(-MaxSpeed, MaxSpeed, m_Vel.x, -Accel*0.7f);
+				m_Vel.x = SaturatedAdd(-MaxSpeed, MaxSpeed, m_Vel.x, -DirectionAccel * 0.7f);
 			else
-				m_Vel.x = SaturatedAdd(-MaxSpeed+ForceTileStatus, MaxSpeed+ForceTileStatus, m_Vel.x, -Accel);
+				m_Vel.x = SaturatedAdd(-MaxSpeed+ForceTileStatus, MaxSpeed+ForceTileStatus, m_Vel.x, -DirectionAccel);
 		}
 		if(m_Direction > 0) // && (!m_Sliding || !Grounded))
 		{
 			if (slope < 0)
-				m_Vel.x = SaturatedAdd(-MaxSpeed, MaxSpeed, m_Vel.x, Accel*0.7f);
+				m_Vel.x = SaturatedAdd(-MaxSpeed, MaxSpeed, m_Vel.x, DirectionAccel * 0.7f);
 			else
-				m_Vel.x = SaturatedAdd(-MaxSpeed+ForceTileStatus, MaxSpeed+ForceTileStatus, m_Vel.x, Accel);
+				m_Vel.x = SaturatedAdd(-MaxSpeed+ForceTileStatus, MaxSpeed+ForceTileStatus, m_Vel.x, DirectionAccel);
 		}
 	}
 	
@@ -851,9 +853,10 @@ void CCharacterCore::Tick(bool UseInput)
 	
 	if (m_Roll > 0)
 	{
+		const int RollDuration = max(1, round_to_int(m_pWorld->m_Tuning.m_RollDurationTicks));
 		if (m_Vel.x < -2.0f)
 		{
-			if (m_Roll < 15)
+			if (m_Roll < RollDuration)
 				m_Anim = -2;
 			else
 			{
@@ -864,7 +867,7 @@ void CCharacterCore::Tick(bool UseInput)
 		}
 		else if (m_Vel.x > 2.0f)
 		{
-			if (m_Roll < 15)
+			if (m_Roll < RollDuration)
 				m_Anim = 2;
 			else
 			{
@@ -879,13 +882,14 @@ void CCharacterCore::Tick(bool UseInput)
 		}
 	}
 	
-	vec2 Dir = GetDirection(m_Angle);
-	
 	// roll dash
-	if (m_Roll > 4 && !m_DashTimer && m_Input.m_Jump && ((m_Vel.x < 0) == (Dir.x < 0)) && Dir.y < 0.25f)
+	if (m_Roll > 4 && !m_DashTimer && JumpPressed)
 	{
+		const int DashDirection = m_Input.m_Direction != 0 ? m_Input.m_Direction : (m_Vel.x < 0.0f ? -1 : 1);
 		m_DashTimer = 4;
-		m_DashAngle = m_Angle;
+		m_DashAngle = DashDirection < 0 ? round_to_int(pi * 256.0f) : 0;
+		m_Jetpack = 0;
+		m_JumpBufferTime = 0;
 		
 		m_JetpackPower = min(m_JetpackPower + 25, 200);
 	}
@@ -894,7 +898,8 @@ void CCharacterCore::Tick(bool UseInput)
 	{
 		m_DashTimer--;
 		
-		vec2 d = GetDirection(m_DashAngle)*max(length(m_Vel)*1.05f, DashPower);
+		const float DashDirection = cosf(m_DashAngle / 256.0f) < 0.0f ? -1.0f : 1.0f;
+		vec2 d = vec2(DashDirection, 0.0f) * max(length(m_Vel)*1.05f, DashPower);
 		m_Vel += (d - m_Vel) / 3.0f;
 	}
 	
@@ -968,7 +973,7 @@ void CCharacterCore::Tick(bool UseInput)
 					{
 						if (m_HookedPlayer == -1 || distance(m_HookPos, pCharCore->m_Pos) < Distance)
 						{
-							m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_PLAYER;
+							m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_PLAYER | COREEVENT_HOOK_HIT;
 							m_HookState = HOOK_GRABBED;
 							m_HookedPlayer = i;
 							Distance = distance(m_HookPos, pCharCore->m_Pos);
@@ -985,7 +990,7 @@ void CCharacterCore::Tick(bool UseInput)
 				vec2 ClosestPoint = closest_point_on_line(m_HookPos, NewPos, pBallCore->m_Pos);
 				if(distance(pBallCore->m_Pos, ClosestPoint) < m_pWorld->m_Tuning.m_BallSize-20.0f)
 				{
-					m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_PLAYER;
+					m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_PLAYER | COREEVENT_HOOK_HIT;
 					m_HookState = HOOK_GRABBEDBALL;
 					pBallCore->PlayerHit();
 				}
@@ -1005,7 +1010,7 @@ void CCharacterCore::Tick(bool UseInput)
 					vec2 ClosestPoint = closest_point_on_line(m_HookPos, NewPos, DroidPos);
 					if(distance(DroidPos, ClosestPoint) < DroidRadius)
 					{
-						m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_PLAYER;
+						m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_PLAYER | COREEVENT_HOOK_HIT;
 						m_HookState = HOOK_GRABBEDDROID;
 						m_HookedPlayer = m_pWorld->m_aDroidID[i];
 						m_HookPos = ClosestPoint;
@@ -1021,7 +1026,7 @@ void CCharacterCore::Tick(bool UseInput)
 			// check against ground
 			if(GoingToHitGround)
 			{
-				m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_GROUND;
+				m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_GROUND | COREEVENT_HOOK_HIT;
 				m_HookState = HOOK_GRABBED;
 			}
 			else if(GoingToRetract)
@@ -1037,7 +1042,7 @@ void CCharacterCore::Tick(bool UseInput)
 
 	if(m_HookState == HOOK_GRABBEDDROID)
 	{
-		if(distance(m_HookPos, m_Pos) > 52.0f)
+		if(distance(m_HookPos, m_Pos) > PhysSize * m_pWorld->m_Tuning.m_HookDragMinDistFactor)
 		{
 			float HookForce = (distance(m_HookPos, m_Pos)-64.0f)*0.001f;
 			vec2 HookVel = normalize(m_HookPos-m_Pos)*m_pWorld->m_Tuning.m_HookDragAccel*(1.0f+HookForce);
@@ -1045,7 +1050,7 @@ void CCharacterCore::Tick(bool UseInput)
 			// the hook as more power to drag you up then down.
 			// this makes it easier to get on top of an platform
 			if(HookVel.y > 0)
-				HookVel.y *= 0.3f;
+				HookVel.y *= m_pWorld->m_Tuning.m_HookDownFactor;
 			
 			if(HookImpactVel.y > 0)
 				HookImpactVel.y *= 0.5f;
@@ -1055,9 +1060,9 @@ void CCharacterCore::Tick(bool UseInput)
 			// the hook will boost it's power if the player wants to move
 			// in that direction. otherwise it will dampen everything abit
 			if((HookVel.x < 0 && m_Direction < 0) || (HookVel.x > 0 && m_Direction > 0))
-				HookVel.x *= 0.95f;
+				HookVel.x *= m_pWorld->m_Tuning.m_HookMoveAlongFactor;
 			else
-				HookVel.x *= 0.75f;
+				HookVel.x *= m_pWorld->m_Tuning.m_HookMoveAgainstFactor;
 			
 
 			vec2 NewVel = m_Vel+HookVel;
@@ -1073,7 +1078,8 @@ void CCharacterCore::Tick(bool UseInput)
 		
 		// release hook
 		m_HookTick++;
-		if(m_HookTick > SERVER_TICK_SPEED+SERVER_TICK_SPEED/5)
+		const int HookTargetHoldTicks = max(1, round_to_int(SERVER_TICK_SPEED * (float)m_pWorld->m_Tuning.m_HookTargetHoldSeconds));
+		if(m_HookTick >= HookTargetHoldTicks)
 		{
 			m_HookState = HOOK_RETRACTED;
 			m_HookPos = m_Pos;
@@ -1114,7 +1120,7 @@ void CCharacterCore::Tick(bool UseInput)
 		}
 
 		// don't do this hook rutine when we are hook to a player or ball
-		if(m_HookState == HOOK_GRABBED && m_HookedPlayer == -1 && distance(m_HookPos, m_Pos) > 52.0f) // tw: 46
+		if(m_HookState == HOOK_GRABBED && m_HookedPlayer == -1 && distance(m_HookPos, m_Pos) > PhysSize * m_pWorld->m_Tuning.m_HookDragMinDistFactor)
 		{
 			float HookForce = (distance(m_HookPos, m_Pos)-64.0f)*0.001f;
 			vec2 HookVel = normalize(m_HookPos-m_Pos)*m_pWorld->m_Tuning.m_HookDragAccel*(1.0f+HookForce);
@@ -1122,14 +1128,14 @@ void CCharacterCore::Tick(bool UseInput)
 			// the hook as more power to drag you up then down.
 			// this makes it easier to get on top of an platform
 			if(HookVel.y > 0)
-				HookVel.y *= 0.3f;
+				HookVel.y *= m_pWorld->m_Tuning.m_HookDownFactor;
 
 			// the hook will boost it's power if the player wants to move
 			// in that direction. otherwise it will dampen everything abit
 			if((HookVel.x < 0 && m_Direction < 0) || (HookVel.x > 0 && m_Direction > 0))
-				HookVel.x *= 0.95f;
+				HookVel.x *= m_pWorld->m_Tuning.m_HookMoveAlongFactor;
 			else
-				HookVel.x *= 0.75f;
+				HookVel.x *= m_pWorld->m_Tuning.m_HookMoveAgainstFactor;
 
 			vec2 NewVel = m_Vel+HookVel;
 
@@ -1139,15 +1145,16 @@ void CCharacterCore::Tick(bool UseInput)
 
 		}
 
-		// release hook (max hook time is 1.25
+		// Terrain hooks persist until release; dynamic targets share one hold limit.
 		m_HookTick++;
-		if(m_HookedPlayer != -1 && (m_HookTick > SERVER_TICK_SPEED+SERVER_TICK_SPEED/5 || !m_pWorld->m_apCharacters[m_HookedPlayer]))
+		const int HookTargetHoldTicks = max(1, round_to_int(SERVER_TICK_SPEED * (float)m_pWorld->m_Tuning.m_HookTargetHoldSeconds));
+		if(m_HookedPlayer != -1 && (m_HookTick >= HookTargetHoldTicks || !m_pWorld->m_apCharacters[m_HookedPlayer]))
 		{
 			m_HookedPlayer = -1;
 			m_HookState = HOOK_RETRACTED;
 			m_HookPos = m_Pos;
 		}
-		if(m_HookState == HOOK_GRABBEDBALL && m_HookTick > SERVER_TICK_SPEED+SERVER_TICK_SPEED/5)
+		if(m_HookState == HOOK_GRABBEDBALL && m_HookTick >= HookTargetHoldTicks)
 		{
 			m_HookState = HOOK_RETRACTED;
 			m_HookPos = m_Pos;
@@ -1211,8 +1218,14 @@ void CCharacterCore::Tick(bool UseInput)
 					pBallCore->m_Vel.y = SaturatedAdd(-DragSpeed, DragSpeed, pBallCore->m_Vel.y, Accel*Dir.y*1.5f);
 
 					// add a little bit force to the guy who has the grip
-					m_Vel.x = SaturatedAdd(-DragSpeed, DragSpeed, m_Vel.x, -Accel*Dir.x*0.3f);
-					m_Vel.y = SaturatedAdd(-DragSpeed, DragSpeed, m_Vel.y, -Accel*Dir.y*0.3f);
+					float PullX = -Accel * Dir.x * 0.3f;
+					float PullY = -Accel * Dir.y * 0.3f;
+					PullX *= (PullX < 0.0f && m_Direction < 0) || (PullX > 0.0f && m_Direction > 0) ?
+						m_pWorld->m_Tuning.m_HookMoveAlongFactor : m_pWorld->m_Tuning.m_HookMoveAgainstFactor;
+					if(PullY > 0.0f)
+						PullY *= m_pWorld->m_Tuning.m_HookDownFactor;
+					m_Vel.x = SaturatedAdd(-DragSpeed, DragSpeed, m_Vel.x, PullX);
+					m_Vel.y = SaturatedAdd(-DragSpeed, DragSpeed, m_Vel.y, PullY);
 				}
 			}
 		}
@@ -1275,8 +1288,14 @@ void CCharacterCore::Tick(bool UseInput)
 					pCharCore->m_Vel.y = SaturatedAdd(-DragSpeed, DragSpeed, pCharCore->m_Vel.y, Accel*Dir.y*1.5f);
 
 					// add a little bit force to the guy who has the grip
-					m_Vel.x = SaturatedAdd(-DragSpeed, DragSpeed, m_Vel.x, -Accel*Dir.x*0.25f);
-					m_Vel.y = SaturatedAdd(-DragSpeed, DragSpeed, m_Vel.y, -Accel*Dir.y*0.25f);
+					float PullX = -Accel * Dir.x * 0.25f;
+					float PullY = -Accel * Dir.y * 0.25f;
+					PullX *= (PullX < 0.0f && m_Direction < 0) || (PullX > 0.0f && m_Direction > 0) ?
+						m_pWorld->m_Tuning.m_HookMoveAlongFactor : m_pWorld->m_Tuning.m_HookMoveAgainstFactor;
+					if(PullY > 0.0f)
+						PullY *= m_pWorld->m_Tuning.m_HookDownFactor;
+					m_Vel.x = SaturatedAdd(-DragSpeed, DragSpeed, m_Vel.x, PullX);
+					m_Vel.y = SaturatedAdd(-DragSpeed, DragSpeed, m_Vel.y, PullY);
 				}
 			}
 		}
@@ -1406,19 +1425,16 @@ void CCharacterCore::Roll()
 	
 	if (m_Roll > 0)
 		return;
-	
-	vec2 TargetDirection = normalize(vec2(m_Input.m_TargetX, m_Input.m_TargetY));
-	
-	if (m_Vel.x < -2.5f && !m_pCollision->CheckPoint(m_Pos.x-(PhysSize+32), m_Pos.y+PhysSize/2) && TargetDirection.x < 0.0f)
-	{
-		m_Roll++;
-		m_LockDirection = -8;
-	}
-	else if (m_Vel.x > 2.5f && !m_pCollision->CheckPoint(m_Pos.x+(PhysSize+32), m_Pos.y+PhysSize/2) && TargetDirection.x > 0.0f)
-	{
-		m_Roll++;
-		m_LockDirection = 8;
-	}
+
+	const int Direction = m_Input.m_Direction != 0 ? m_Input.m_Direction : (m_Vel.x < 0.0f ? -1 : (m_Vel.x > 0.0f ? 1 : 0));
+	if(Direction == 0 || absolute(m_Vel.x) <= 2.5f ||
+		m_pCollision->CheckPoint(m_Pos.x + Direction * (PhysSize + 32), m_Pos.y + PhysSize / 2))
+		return;
+
+	m_Vel.x = Direction * absolute(m_Vel.x);
+	m_Roll = 1;
+	m_LockDirection = Direction * 8;
+	m_TriggeredEvents |= COREEVENT_ROLL_START;
 }
 
 
@@ -1429,19 +1445,16 @@ void CCharacterCore::Slide()
 	// start sliding
 	if (m_Input.m_Down && m_Slide == 0 && m_Roll == 0)
 	{
-		vec2 TargetDirection = normalize(vec2(m_Input.m_TargetX, m_Input.m_TargetY));
-		if ((m_Vel.x < -7.0f && TargetDirection.x < 0) ||
-			(m_Vel.x > 7.0f && TargetDirection.x > 0))
-			m_Slide++;
-		else
-		if ((TargetDirection.x > 0 && !m_pCollision->CheckPoint(m_Pos.x+(PhysSize+32), m_Pos.y+PhysSize/2) && m_pCollision->CheckPoint(m_Pos.x+(PhysSize+32), m_Pos.y-64)) ||
-			(TargetDirection.x < 0 && !m_pCollision->CheckPoint(m_Pos.x-(PhysSize+32), m_Pos.y+PhysSize/2) && m_pCollision->CheckPoint(m_Pos.x-(PhysSize+32), m_Pos.y-64)))
+		const int Direction = m_Input.m_Direction != 0 ? m_Input.m_Direction : (m_Vel.x < 0.0f ? -1 : (m_Vel.x > 0.0f ? 1 : 0));
+		const bool HasSlideSpeed = Direction != 0 && absolute(m_Vel.x) >= m_pWorld->m_Tuning.m_SlideActivationSpeed;
+		const bool EnteringTunnel = Direction != 0 &&
+			!m_pCollision->CheckPoint(m_Pos.x + Direction * (PhysSize + 32), m_Pos.y + PhysSize / 2) &&
+			m_pCollision->CheckPoint(m_Pos.x + Direction * (PhysSize + 32), m_Pos.y - 64);
+		if(HasSlideSpeed || EnteringTunnel)
 		{
-			m_Slide++;
-			if (TargetDirection.x > 0 && absolute(m_Vel.x) < 4.0f)
-				m_Vel.x = 4;
-			else if (TargetDirection.x < 0 && absolute(m_Vel.x) < 4.0f)
-				m_Vel.x = -4;
+			m_Slide = 1;
+			m_Vel.x = Direction * max(absolute(m_Vel.x), (float)m_pWorld->m_Tuning.m_SlideMinimumSpeed);
+			m_TriggeredEvents |= COREEVENT_SLIDE_START;
 		}
 	}
 
@@ -1564,7 +1577,14 @@ void CCharacterCore::Move()
 		NewPos.y += 10;
 	}
 	
-	if (VelY > 13.0f && absolute(m_Vel.y) < 2.0f && m_Input.m_Down)
+	const float LandingEventSpeed = max(1.0f, (float)m_pWorld->m_Tuning.m_Gravity * 1.5f);
+	if(VelY > LandingEventSpeed && absolute(m_Vel.y) < 2.0f)
+	{
+		m_LandingVelocity = VelY;
+		m_TriggeredEvents |= COREEVENT_LAND;
+	}
+
+	if (VelY > m_pWorld->m_Tuning.m_RollLandingSpeed && absolute(m_Vel.y) < 2.0f && m_Input.m_Down)
 		Roll();
 	
 	m_Vel.x = m_Vel.x*(1.0f/RampValue);
@@ -1792,6 +1812,9 @@ void CCharacterCore::Write(CNetObj_CharacterCore *pObjCore)
 	pObjCore->m_VelY = round_to_int(m_Vel.y*256.0f);
 	pObjCore->m_DamageTick = m_DamageTick;
 	pObjCore->m_Jumped = m_Jumped;
+	pObjCore->m_CoyoteTime = m_CoyoteTime;
+	pObjCore->m_JumpBufferTime = m_JumpBufferTime;
+	pObjCore->m_PrevJumpInput = m_PrevJumpInput;
 	pObjCore->m_JumpTimer = m_JumpTimer;
 	pObjCore->m_Direction = m_Direction;
 	pObjCore->m_Down = m_Down;
@@ -1835,6 +1858,9 @@ void CCharacterCore::Read(const CNetObj_CharacterCore *pObjCore)
 	m_Vel.y = pObjCore->m_VelY/256.0f;
 	m_DamageTick = pObjCore->m_DamageTick;
 	m_Jumped = pObjCore->m_Jumped;
+	m_CoyoteTime = pObjCore->m_CoyoteTime;
+	m_JumpBufferTime = pObjCore->m_JumpBufferTime;
+	m_PrevJumpInput = pObjCore->m_PrevJumpInput;
 	m_JumpTimer = pObjCore->m_JumpTimer;
 	m_Direction = pObjCore->m_Direction;
 	m_Down = pObjCore->m_Down;

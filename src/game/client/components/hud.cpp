@@ -112,7 +112,7 @@ void CHud::OnHitConfirm(vec2 Pos, int Damage, int TargetType, bool Killed)
 	float Shake = 0.6f + min(Damage, 50) * 0.03f;
 	if(Killed)
 		Shake *= 1.5f;
-	CustomStuff()->AddCameraImpulse(vec2(0, 0), Shake);
+	CustomStuff()->AddCameraImpulse(vec2(0, 0), Shake, Strength);
 }
 
 void CHud::OnConsoleInit()

@@ -469,7 +469,7 @@ void CPlayers::RenderPlayer(
 			if(pInfo.m_ClientID == m_pClient->m_Snap.m_LocalClientID)
 			{
 				const float Impulse = FireCameraImpulse(WeaponCombat, WeaponVisual);
-				CustomStuff()->AddCameraImpulse(-Direction * Impulse, Impulse * 0.18f);
+				CustomStuff()->AddCameraImpulse(-Direction * Impulse, Impulse * 0.18f, g_Config.m_ClHitFeedback / 100.0f);
 			}
 			
 			if (WeaponStaticType == SW_GUN1 || WeaponStaticType == SW_GUN2)
@@ -787,7 +787,7 @@ void CPlayers::RenderPlayer(
 				if(pInfo.m_ClientID == m_pClient->m_Snap.m_LocalClientID)
 				{
 					const float Impulse = FireCameraImpulse(WeaponCombat, WeaponVisual);
-					CustomStuff()->AddCameraImpulse(-Direction * Impulse, Impulse * 0.18f);
+					CustomStuff()->AddCameraImpulse(-Direction * Impulse, Impulse * 0.18f, g_Config.m_ClHitFeedback / 100.0f);
 				}
 			}
 			

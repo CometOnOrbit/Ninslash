@@ -325,9 +325,9 @@ void CCustomStuff::Tick(bool Paused)
 	}
 }
 
-void CCustomStuff::AddCameraImpulse(vec2 Kick, float Shake)
+void CCustomStuff::AddCameraImpulse(vec2 Kick, float Shake, float FeedbackStrength)
 {
-	const float Scale = g_Config.m_ClHitFeedback / 100.0f;
+	const float Scale = clamp(FeedbackStrength, 0.0f, 1.0f);
 	if(Scale <= 0.0f)
 		return;
 

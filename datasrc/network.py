@@ -365,7 +365,7 @@ Objects = [
 		NetIntRange("m_Jetpack", 0, 1),
 		NetIntRange("m_JetpackPower", 0, 200),
 		NetIntRange("m_Wallrun", -100, 100),
-		NetIntRange("m_Roll", 0, 32),
+		NetIntAny("m_Roll"),
 		NetIntRange("m_Slide", -10, 32),
 		
 		NetIntRange("m_JumpTimer", -10, 10),
@@ -380,6 +380,9 @@ Objects = [
 		NetIntAny("m_ActionState"),
 		
 		NetIntRange("m_Jumped", 0, 3),
+		NetIntAny("m_CoyoteTime"),
+		NetIntAny("m_JumpBufferTime"),
+		NetBool("m_PrevJumpInput"),
 		
 		NetBool("m_Sliding"),
 		NetBool("m_Grounded"),
