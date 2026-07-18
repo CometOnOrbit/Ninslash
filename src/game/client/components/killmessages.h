@@ -3,6 +3,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_KILLMESSAGES_H
 #define GAME_CLIENT_COMPONENTS_KILLMESSAGES_H
 #include <game/client/component.h>
+#include <game/weapon_catalog.h>
 
 class CKillMessages : public CComponent
 {
@@ -10,7 +11,7 @@ public:
 	// kill messages
 	struct CKillMsg
 	{
-		int m_Weapon;
+		CAttackSource m_Source;
 		int m_VictimID;
 		int m_VictimTeam;
 		char m_aVictimName[64];

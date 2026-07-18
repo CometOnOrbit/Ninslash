@@ -9,6 +9,7 @@
 #include <game/client/gameclient.h>
 #include <game/gamecore.h> // get_angle
 #include <game/weapons.h>
+#include <game/weapon_catalog.h>
 #include <game/buildables.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>
@@ -20,6 +21,32 @@
 #include <game/client/components/pve_roguelite.h>
 #include <game/client/components/sounds.h>
 #include "inventory.h"
+
+static CWeaponSpec ShopWeapon(const CNetObj_Shop *pShop, int Slot)
+{
+	CWeaponSpec Spec;
+	switch(Slot)
+	{
+	case 0: CWeaponCatalog::TryFromProtocol(pShop->m_Item1DefinitionId, pShop->m_Item1Level, &Spec); break;
+	case 1: CWeaponCatalog::TryFromProtocol(pShop->m_Item2DefinitionId, pShop->m_Item2Level, &Spec); break;
+	case 2: CWeaponCatalog::TryFromProtocol(pShop->m_Item3DefinitionId, pShop->m_Item3Level, &Spec); break;
+	case 3: CWeaponCatalog::TryFromProtocol(pShop->m_Item4DefinitionId, pShop->m_Item4Level, &Spec); break;
+	case 4: CWeaponCatalog::TryFromProtocol(pShop->m_Item5DefinitionId, pShop->m_Item5Level, &Spec); break;
+	default: break;
+	}
+	return Spec;
+}
+
+static bool WeaponDefinition(const CWeaponSpec &Spec, CWeaponDefinition *pDefinition)
+{
+	return Spec.IsValid() && CWeaponCatalog::TryGetDefinition(Spec.m_DefinitionId, pDefinition);
+}
+
+static int ShopWeaponCost(const CNetObj_Shop *pShop, int Slot)
+{
+	CResolvedWeaponProfile Profile;
+	return CWeaponCatalog::TryResolve(ShopWeapon(pShop, Slot), &Profile) ? Profile.m_Combat.m_Cost : 0;
+}
 
 static const char *s_BuildTipText[NUM_BUILDABLES] = {
 	"Block",
@@ -174,7 +201,7 @@ void CInventory::OnReset()
 	m_Mouse1 = false;
 	m_MouseTrigger = false;
 	m_DragItem = -1;
-	m_DragPart = -1;
+	m_DragPart = {};
 	m_DragSlot = -1;
 	m_MoveStartPos = vec2(0, 0);
 	m_Moved = false;
@@ -194,7 +221,7 @@ void CInventory::OnRelease()
 	m_Mouse1 = false;
 	m_MouseTrigger = false;
 	m_DragItem = -1;
-	m_DragPart = -1;
+	m_DragPart = {};
 	m_DragSlot = -1;
 	m_MoveStartPos = vec2(0, 0);
 	m_Moved = false;
@@ -352,32 +379,9 @@ void CInventory::DrawLayer(vec2 Pos, vec2 Size)
 
 void CInventory::DrawCrafting(int Type, vec2 Pos, float Size)
 {
-	return;
-	/*
-	if (!IsModularWeapon(Type))
-		return;	int Part1 = GetPart(Type, 0)-1;
-	
-	int Part2 = GetPart(Type, 1)-1;
-	
-	Pos.x -= Size / 4;
-	
-	if (Part1 >= 0)
-	{
-		RenderTools()->SelectSprite(SPRITE_WEAPON_PART1_BG_0+Part1);
-		RenderTools()->DrawSprite(Pos.x, Pos.y, Size);
-	}
-	
-	if (Part2 >= 0)
-	{
-		RenderTools()->SelectSprite(SPRITE_WEAPON_PART2_0+Part2);
-		RenderTools()->DrawSprite(Pos.x+Size*(5.0f/8.4f), Pos.y, Size);
-	}
-	
-	if (Part1 >= 0)
-	{
-		RenderTools()->SelectSprite(SPRITE_WEAPON_PART1_0+Part1);
-		RenderTools()->DrawSprite(Pos.x, Pos.y, Size);
-	}*/
+	(void)Type;
+	(void)Pos;
+	(void)Size;
 }
 
 static float s_Fade = 0.0f;
@@ -412,7 +416,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 	if (m_Tab == 1)
 	{
 		float s = 16 * s_Fade * (m_Scale*0.75f + 0.25f);
-		int w = GetModularWeapon(1, 4);
+		const CWeaponSpec w = CWeaponCatalog::Modular(1, 4);
 		RenderTools()->SetShadersForWeapon(w);
 		RenderTools()->RenderWeapon(w, Tab1Pos, vec2(1, 0), s, true);
 		Graphics()->ShaderEnd();
@@ -421,7 +425,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 	if (m_Tab == 0)
 	{
 		float s = 16 * s_Fade * (m_Scale*0.75f + 0.25f);
-		int w = GetStaticWeapon(SW_TOOL);
+		const CWeaponSpec w = CWeaponCatalog::Static(SW_TOOL);
 		RenderTools()->SetShadersForWeapon(w);
 		RenderTools()->RenderWeapon(w, Tab2Pos, vec2(1, 0), s, true);
 		Graphics()->ShaderEnd();
@@ -460,7 +464,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 	if (m_Tab == 0)
 	{
 		float s = 16 * s_Fade * (m_Scale*0.75f + 0.25f);
-		int w = GetModularWeapon(1, 4);
+		const CWeaponSpec w = CWeaponCatalog::Modular(1, 4);
 		RenderTools()->SetShadersForWeapon(w);
 		RenderTools()->RenderWeapon(w, Tab1Pos, vec2(1, 0), s, true);
 		Graphics()->ShaderEnd();
@@ -469,7 +473,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 	if (m_Tab == 1)
 	{
 		float s = 16 * s_Fade * (m_Scale*0.75f + 0.25f);
-		int w = GetStaticWeapon(SW_TOOL);
+		const CWeaponSpec w = CWeaponCatalog::Static(SW_TOOL);
 		RenderTools()->SetShadersForWeapon(w);
 		RenderTools()->RenderWeapon(w, Tab2Pos, vec2(1, 0), s, true);
 		Graphics()->ShaderEnd();
@@ -602,7 +606,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 				
 				p -= s_ItemOffset[x+y*4];
 				
-				int w = CustomStuff()->m_aItem[x+y*4];
+				const CWeaponSpec w = CustomStuff()->m_aItem[x+y*4];
 				
 				// item slot numbers
 				if (y == 0)
@@ -616,12 +620,14 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 					//Graphics()->SetColor(c.r, c.g, c.b, s_Fade*0.5f);
 				}
 				
-				if (w >= 0 && (m_DragItem != x+y*4))
+				if (w.IsValid() && (m_DragItem != x+y*4))
 				{
 					// weapon rank icon
-					int Level = GetWeaponLevelCharge(w)*4;
+					int Level = w.m_Level * 4;
+					CWeaponDefinition Definition{};
+					WeaponDefinition(w, &Definition);
 					
-					if (Level > 0 && !(IsStaticWeapon(w) && GetStaticType(w) == SW_UPGRADE))
+					if (Level > 0 && !(Definition.m_Kind == EWeaponDefinitionKind::Static && Definition.m_StaticType == SW_UPGRADE))
 					{
 						if (Level > 7)
 							Level -= 1;
@@ -804,10 +810,11 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 				vec2 GSize = Size - vec2(8, 8);
 				vec2 p = Pos-GSize + vec2(x+0.5f, y+0.5f)*GSize/vec2(4, 3)*2;
 				
-				if (x+y*4 == Selected && CustomStuff()->m_aItem[Selected] > 0 && abs(m_SelectorMouse.x - p.x) < s2 && abs(m_SelectorMouse.y - p.y) < s2)
+				if (x+y*4 == Selected && CustomStuff()->m_aItem[Selected].IsValid() && abs(m_SelectorMouse.x - p.x) < s2 && abs(m_SelectorMouse.y - p.y) < s2)
 				{
-					if (IsStaticWeapon(CustomStuff()->m_aItem[Selected]))
-						TextRender()->Text(0, p.x-s2*0.8f, p.y-s2, s2*0.25f, Localize(s_TipText[GetStaticType(CustomStuff()->m_aItem[Selected])]), -1);
+					CWeaponDefinition Definition{};
+					if (WeaponDefinition(CustomStuff()->m_aItem[Selected], &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Static)
+						TextRender()->Text(0, p.x-s2*0.8f, p.y-s2, s2*0.25f, Localize(s_TipText[Definition.m_StaticType]), -1);
 				}
 			}
 		}
@@ -835,223 +842,8 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 		TextRender()->TextColor(1, 1, 1, 1);
 	}
 	
-	// selected weapon / crafting
-	/*
-	int Part1 = 0;
-	int Part2 = 0;
-	*/
-	//int Part = 0;
 	vec2 pp1;
 	vec2 pp2;
-	
-	// this works, but crafting is kinda useless feature so it's disabled
-	/*
-	if (CustomStuff()->m_WeaponSlot >= 0 && CustomStuff()->m_WeaponSlot < 4 && IsModularWeapon(CustomStuff()->m_aItem[CustomStuff()->m_WeaponSlot]))
-	{
-		vec2 p = Pos-vec2(0, Size.y*1.35f);
-		float s = Size.x/7.0f;
-		int Type = CustomStuff()->m_aItem[CustomStuff()->m_WeaponSlot];
-		
-		RenderTools()->SetShadersForWeapon(Type);
-		Graphics()->QuadsBegin();
-		
-		int Drag1 = -1;
-		int Drag2 = -1;
-	
-		// 
-		Part1 = GetPart(Type, 0)-1;
-		Part2 = GetPart(Type, 1)-1;
-		
-		
-		ivec2 WSize = GetWeaponVisualSize(Type);
-		ivec2 WSize2 = GetWeaponVisualSize2(Type);
-		
-		if (Part2 < 5)
-			p.x -= s * (2)/2;
-		else
-			p.x -= s*(8.0f/2.0f)/2;
-		
-		pp1 = p;
-		pp2 = p;
-		
-		if (Part2 < 5)
-			pp2.x += s*(WSize.x-1);
-		else
-			pp2.x += s*(7.0f/2.0f);
-		
-		//IGraphics::CQuadItem QuadItem2(Pos.x+Dir.x*Size*(WSize.x-1), Pos.y+Dir.y*Size*(WSize.x-1), Size*WSize2.x, Size*WSize2.y);
-		
-		// get mouse pos
-		
-		float ss = 0.35f;
-				
-		if (m_DragItem >= 0)
-		{
-			Drag1 = GetPart(CustomStuff()->m_aItem[m_DragItem], 0)-1;
-			Drag2 = GetPart(CustomStuff()->m_aItem[m_DragItem], 1)-1;
-				
-			if (Drag1 >= 0 && Drag2 >= 0)
-			{
-				//if (distance(m_SelectorMouse, p+vec2(s/4, 0)) < s/2.5f)
-				if (m_SelectorMouse.x > pp1.x - (s*WSize.x)*ss && m_SelectorMouse.x < pp1.x + (s*WSize.x)*ss &&
-					m_SelectorMouse.y > pp1.y - (s*WSize.y)*ss && m_SelectorMouse.y < pp1.y + (s*WSize.y)*ss)
-					Part = -1;
-			}
-			//else if (Drag1 >= 0 && distance(m_SelectorMouse, pp1) < s/4)
-			else if (Drag1 >= 0 && m_SelectorMouse.x > pp1.x - (s*WSize.x)*ss && m_SelectorMouse.x < pp1.x + (s*WSize.x)*ss &&
-					m_SelectorMouse.y > pp1.y - (s*WSize.y)*ss && m_SelectorMouse.y < pp1.y + (s*WSize.y)*ss)
-				Part = 1;
-			//else if (Drag2 >= 0 && distance(m_SelectorMouse, pp2) < s/4)
-			else if (Drag2 >= 0 && m_SelectorMouse.x > pp2.x - (s*WSize2.x)*ss && m_SelectorMouse.x < pp2.x + (s*WSize2.x)*ss &&
-					m_SelectorMouse.y > pp2.y - (s*WSize2.y)*ss && m_SelectorMouse.y < pp2.y + (s*WSize2.y)*ss)
-				Part = 2;
-		}
-		
-		// render
-		
-		// render weapon parts - drawcrafting(
-		
-		// part 1 bg
-		if (Part1 >= 0)
-		{
-			if (m_DragSlot != 0)
-			{
-				RenderTools()->SelectSprite(SPRITE_WEAPON_PART1_BG_0+Part1);
-				
-				IGraphics::CQuadItem QuadItem(pp1.x, pp1.y, s*WSize.x, s*WSize.y);
-				Graphics()->QuadsDraw(&QuadItem, 1);
-				
-				//RenderTools()->DrawSprite(pp1.x, pp1.y, s);
-			}
-		}
-		
-		if (Part2 >= 0)
-		{
-			if (m_DragSlot != 1)
-			{
-				RenderTools()->SelectSprite(SPRITE_WEAPON_PART2_0+Part2);
-				//RenderTools()->DrawSprite(pp2.x, pp2.y, s);
-				
-				IGraphics::CQuadItem QuadItem(pp2.x, pp2.y, s*WSize2.x, s*WSize2.y);
-				Graphics()->QuadsDraw(&QuadItem, 1);
-				
-				if (m_SelectorMouse.x > pp2.x - (s*WSize2.x)*ss && m_SelectorMouse.x < pp2.x + (s*WSize2.x)*ss &&
-					m_SelectorMouse.y > pp2.y - (s*WSize2.y)*ss && m_SelectorMouse.y < pp2.y + (s*WSize2.y)*ss)
-					SelectedPart = 1;
-			}
-			// dragging the part away
-			//else
-			if (SelectedPart == 1)
-			{
-				Graphics()->QuadsEnd();
-				Graphics()->ShaderBegin(SHADER_ELECTRIC, 0.7f);
-				Graphics()->QuadsBegin();
-				
-				RenderTools()->SelectSprite(SPRITE_WEAPON_PART2_0+Part2);
-				//RenderTools()->DrawSprite(pp2.x, pp2.y, s);
-
-				IGraphics::CQuadItem QuadItem(pp2.x, pp2.y, s*WSize2.x, s*WSize2.y);
-				Graphics()->QuadsDraw(&QuadItem, 1);
-				
-				Graphics()->QuadsEnd();
-				RenderTools()->SetShadersForWeapon(Type);
-				Graphics()->QuadsBegin();
-			}
-		}
-		
-	
-		// new part2 ghost
-		if (Drag2 >= 0 || GetPart(m_DragPart, 1)-1 >= 0)
-		{
-			Graphics()->QuadsEnd();
-			Graphics()->ShaderBegin(SHADER_SPAWN, 0.4f);
-			Graphics()->QuadsBegin();
-			
-			int DPart = Drag2;
-	
-			if (m_DragPart > 0)
-				DPart = GetPart(m_DragPart, 1)-1;
-		
-			if (DPart >= 0)
-			{
-				RenderTools()->SelectSprite(SPRITE_WEAPON_PART2_0+DPart);
-
-				IGraphics::CQuadItem QuadItem(pp2.x, pp2.y, s*WSize2.x, s*WSize2.y);
-				Graphics()->QuadsDraw(&QuadItem, 1);
-			}
-			
-			Graphics()->QuadsEnd();
-			RenderTools()->SetShadersForWeapon(Type);
-			Graphics()->QuadsBegin();
-		}
-		
-		
-		if (Part1 >= 0)
-		{
-			if (m_DragSlot != 0)
-			{
-				RenderTools()->SelectSprite(SPRITE_WEAPON_PART1_0+Part1);
-				//RenderTools()->DrawSprite(pp1.x, pp1.y, s);
-				
-				IGraphics::CQuadItem QuadItem(pp1.x, pp1.y, s*WSize.x, s*WSize.y);
-				Graphics()->QuadsDraw(&QuadItem, 1);
-				
-				if (SelectedPart < 0 && m_SelectorMouse.x > pp1.x - (s*WSize.x)*ss && m_SelectorMouse.x < pp1.x + (s*WSize.x)*ss &&
-					m_SelectorMouse.y > pp1.y - (s*WSize.y)*ss && m_SelectorMouse.y < pp1.y + (s*WSize.y)*ss)
-					SelectedPart = 0;
-			}
-			// dragging the part away
-			
-			if (SelectedPart == 0)
-			{
-				Graphics()->QuadsEnd();
-				Graphics()->ShaderBegin(SHADER_ELECTRIC, 0.75f);
-				Graphics()->QuadsBegin();
-				
-				RenderTools()->SelectSprite(SPRITE_WEAPON_PART1_0+Part1);
-				//RenderTools()->DrawSprite(pp1.x, pp1.y, s);
-				
-				IGraphics::CQuadItem QuadItem(pp1.x, pp1.y, s*WSize.x, s*WSize.y);
-				Graphics()->QuadsDraw(&QuadItem, 1);
-				
-				Graphics()->QuadsEnd();
-				Graphics()->ShaderEnd();
-				Graphics()->QuadsBegin();
-			}
-		}
-		
-		
-		// new part1 ghost
-		if (Drag1 >= 0 || GetPart(m_DragPart, 0)-1 >= 0)
-		{
-			Graphics()->QuadsEnd();
-			Graphics()->ShaderBegin(SHADER_SPAWN, 0.4f);
-			Graphics()->QuadsBegin();
-			int i = GetPart(CustomStuff()->m_aItem[m_DragItem], 0)-1;
-			
-			int DPart = Drag1;
-	
-			if (m_DragPart > 0)
-				DPart = GetPart(m_DragPart, 0)-1;
-		
-			if (DPart >= 0)
-			{
-				RenderTools()->SelectSprite(SPRITE_WEAPON_PART1_0+DPart);
-				//RenderTools()->DrawSprite(pp1.x, pp1.y, s);
-
-				IGraphics::CQuadItem QuadItem(pp1.x, pp1.y, s*WSize.x*1.1f, s*WSize.y*1.1f);
-				Graphics()->QuadsDraw(&QuadItem, 1);
-			}
-			
-			Graphics()->QuadsEnd();
-			Graphics()->ShaderEnd();
-			Graphics()->QuadsBegin();
-		}
-		
-		Graphics()->QuadsEnd();
-		Graphics()->ShaderEnd();
-	}
-	*/
 	
 	
 	// mouse press
@@ -1131,8 +923,12 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 		{
 			s_DragOffset = (SelectedPart == 0 ? pp1 : vec2(0, 0)) + (SelectedPart == 1 ? pp2 : vec2(0, 0)) - m_SelectorMouse;
 			
-			int i = GetPart(CustomStuff()->m_aItem[CustomStuff()->m_WeaponSlot], SelectedPart);
-			m_DragPart = GetModularWeapon(SelectedPart == 0 ? i : 0, SelectedPart == 1 ? i : 0);
+			CWeaponDefinition Definition{};
+			if(WeaponDefinition(CustomStuff()->m_aItem[CustomStuff()->m_WeaponSlot], &Definition))
+			{
+				const int Part = SelectedPart == 0 ? Definition.m_Part1 : Definition.m_Part2;
+				m_DragPart = CWeaponCatalog::Modular(SelectedPart == 0 ? Part : 0, SelectedPart == 1 ? Part : 0);
+			}
 			m_DragSlot = SelectedPart;
 			m_MoveTrigger = false;
 		}
@@ -1177,7 +973,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 		}
 		
 		// weapon part to inventory
-		if (m_MouseTrigger && !m_Mouse1 && m_DragPart >= 0)
+		if (m_MouseTrigger && !m_Mouse1 && m_DragPart.IsValid())
 		{
 			/*
 			if (Selected >= 0)
@@ -1186,12 +982,12 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 			}
 			*/
 				
-			m_DragPart = -1;
+			m_DragPart = {};
 			m_DragSlot = -1;
 		}
 		
 		// mouse click
-		if (m_MouseTrigger && !m_Moved && !m_Mouse1 && m_DragItem < 0 && Selected >= 0 && CustomStuff()->m_aItem[Selected] >= 0)
+		if (m_MouseTrigger && !m_Moved && !m_Mouse1 && m_DragItem < 0 && Selected >= 0 && CustomStuff()->m_aItem[Selected].IsValid())
 		{
 			if (Selected < 4)
 			{
@@ -1524,7 +1320,7 @@ void CInventory::Swap(int Item1, int Item2)
 	if (Item1 < 0 || Item2 < 0 || Item1 >= 12 || Item2 >= 12)
 		return;
 	
-	int i1 = CustomStuff()->m_aItem[Item1];
+	CWeaponSpec i1 = CustomStuff()->m_aItem[Item1];
 	CustomStuff()->m_aItem[Item1] = CustomStuff()->m_aItem[Item2];
 	CustomStuff()->m_aItem[Item2] = i1;
 	
@@ -1544,26 +1340,28 @@ void CInventory::TakePart(int Item1, int Slot, int Item2)
 	if (Item1 < 0 || Item2 < 0 || Item1 >= 12 || Item2 >= 12 || Slot < 0 || Slot > 1)
 		return;
 	
-	int w1 = CustomStuff()->m_aItem[Item1];
-	int w2 = CustomStuff()->m_aItem[Item2];
+	const CWeaponSpec w1 = CustomStuff()->m_aItem[Item1];
+	const CWeaponSpec w2 = CustomStuff()->m_aItem[Item2];
+	CWeaponDefinition Definition1{}, Definition2{};
 	
-	if (IsStaticWeapon(w1) || IsStaticWeapon(w2))
+	if (!WeaponDefinition(w1, &Definition1) || !WeaponDefinition(w2, &Definition2) ||
+		Definition1.m_Kind != EWeaponDefinitionKind::Modular || Definition2.m_Kind != EWeaponDefinitionKind::Modular)
 		return;
 	
-	int p1_1 = GetPart(w1, 0);
-	int p1_2 = GetPart(w1, 1);
-	int p2_1 = GetPart(w2, 0);
-	int p2_2 = GetPart(w2, 1);
+	int p1_1 = Definition1.m_Part1;
+	int p1_2 = Definition1.m_Part2;
+	int p2_1 = Definition2.m_Part1;
+	int p2_2 = Definition2.m_Part2;
 	
 	if (Slot == 0)
 	{
-		CustomStuff()->m_aItem[Item1] = GetModularWeapon(p2_1, p1_2);
-		CustomStuff()->m_aItem[Item2] = GetModularWeapon(p1_1, p2_2);
+		CustomStuff()->m_aItem[Item1] = CWeaponCatalog::Modular(p2_1, p1_2);
+		CustomStuff()->m_aItem[Item2] = CWeaponCatalog::Modular(p1_1, p2_2);
 	}
 	else if (Slot == 1)
 	{
-		CustomStuff()->m_aItem[Item1] = GetModularWeapon(p1_1, p2_2);
-		CustomStuff()->m_aItem[Item2] = GetModularWeapon(p2_1, p1_2);
+		CustomStuff()->m_aItem[Item1] = CWeaponCatalog::Modular(p1_1, p2_2);
+		CustomStuff()->m_aItem[Item2] = CWeaponCatalog::Modular(p2_1, p1_2);
 	}
 	
 	/*
@@ -1595,16 +1393,18 @@ void CInventory::Combine(int Item1, int Item2)
 	if (Item1 < 0 || Item2 < 0 || Item1 >= 12 || Item2 >= 12)
 		return;
 	
-	int w1 = CustomStuff()->m_aItem[Item1];
-	int w2 = CustomStuff()->m_aItem[Item2];
+	const CWeaponSpec w1 = CustomStuff()->m_aItem[Item1];
+	const CWeaponSpec w2 = CustomStuff()->m_aItem[Item2];
+	CWeaponDefinition Definition1{}, Definition2{};
 	
-	if (IsStaticWeapon(w1) || IsStaticWeapon(w2))
+	if (!WeaponDefinition(w1, &Definition1) || !WeaponDefinition(w2, &Definition2) ||
+		Definition1.m_Kind != EWeaponDefinitionKind::Modular || Definition2.m_Kind != EWeaponDefinitionKind::Modular)
 		return;
 	
-	int p1_1 = GetPart(w1, 0);
-	int p1_2 = GetPart(w1, 1);
-	int p2_1 = GetPart(w2, 0);
-	int p2_2 = GetPart(w2, 1);
+	int p1_1 = Definition1.m_Part1;
+	int p1_2 = Definition1.m_Part2;
+	int p2_1 = Definition2.m_Part1;
+	int p2_2 = Definition2.m_Part2;
 	
 	if (!p1_1 || !p1_2)
 	{
@@ -1636,8 +1436,8 @@ void CInventory::Combine(int Item1, int Item2)
 		}
 	}
 	
-	CustomStuff()->m_aItem[Item1] = GetModularWeapon(p1_1, p1_2);
-	CustomStuff()->m_aItem[Item2] = GetModularWeapon(p2_1, p2_2);
+	CustomStuff()->m_aItem[Item1] = CWeaponCatalog::Modular(p1_1, p1_2);
+	CustomStuff()->m_aItem[Item2] = CWeaponCatalog::Modular(p2_1, p2_2);
 	
 	
 	CNetMsg_Cl_InventoryAction Msg;
@@ -1659,9 +1459,9 @@ void CInventory::RenderMouse()
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 		//Graphics()->QuadsBegin();
 
-		int w = CustomStuff()->m_aItem[m_DragItem];
+		const CWeaponSpec w = CustomStuff()->m_aItem[m_DragItem];
 	
-		if (w >= 0)
+		if (w.IsValid())
 		{
 			RenderTools()->SetShadersForWeapon(w);
 			RenderTools()->RenderWeapon(w, m_SelectorMouse+s_DragOffset, vec2(1, 0), 10*1.5f, true);
@@ -1670,14 +1470,14 @@ void CInventory::RenderMouse()
 			
 		//Graphics()->QuadsEnd();
 	}
-	else if (m_DragPart > 0)
+	else if (m_DragPart.IsValid())
 	{
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 		//Graphics()->QuadsBegin();
 
-		int w = m_DragPart;
+		const CWeaponSpec w = m_DragPart;
 	
-		if (w >= 0)
+		if (w.IsValid())
 		{
 			RenderTools()->SetShadersForWeapon(w);
 			RenderTools()->RenderWeapon(w, m_SelectorMouse+s_DragOffset, vec2(1, 0), 10*1.5f, true);
@@ -1741,7 +1541,7 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUI_WINDOW1].m_Id);
 		Graphics()->QuadsBegin();
 		
-		if (pCurrent->m_Item1 && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
+		if (ShopWeapon(pCurrent, 0).IsValid() && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
 		{
 			m_SelectedShopItem = 1;
 			Graphics()->SetColor(0.3f, 1.0f, 0.3f, 0.5f);
@@ -1753,15 +1553,15 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		RenderTools()->DrawSprite(fp.x, fp.y, Size*8);
 		Graphics()->QuadsEnd();
 		
-		if (pCurrent->m_Item1)
+		if (ShopWeapon(pCurrent, 0).IsValid())
 		{
-			RenderTools()->SetShadersForWeapon(pCurrent->m_Item1);
+			RenderTools()->SetShadersForWeapon(ShopWeapon(pCurrent, 0));
 			
 			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 			Graphics()->QuadsBegin();
 			Graphics()->QuadsSetRotation(0);
 			
-			RenderTools()->RenderWeapon(pCurrent->m_Item1, fp, vec2(1, 0), Size);
+			RenderTools()->RenderWeapon(ShopWeapon(pCurrent, 0), fp, vec2(1, 0), Size);
 			
 			Graphics()->QuadsEnd();
 			Graphics()->ShaderEnd();
@@ -1778,7 +1578,7 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUI_WINDOW1].m_Id);
 		Graphics()->QuadsBegin();
 		
-		if (pCurrent->m_Item2 && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
+		if (ShopWeapon(pCurrent, 1).IsValid() && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
 		{
 			m_SelectedShopItem = 2;
 			Graphics()->SetColor(0.3f, 1.0f, 0.3f, 0.5f);
@@ -1790,15 +1590,15 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		RenderTools()->DrawSprite(fp.x, fp.y, Size*8);
 		Graphics()->QuadsEnd();
 		
-		if (pCurrent->m_Item2)
+		if (ShopWeapon(pCurrent, 1).IsValid())
 		{
-			RenderTools()->SetShadersForWeapon(pCurrent->m_Item2);
+			RenderTools()->SetShadersForWeapon(ShopWeapon(pCurrent, 1));
 			
 			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 			Graphics()->QuadsBegin();
 			Graphics()->QuadsSetRotation(0);
 			
-			RenderTools()->RenderWeapon(pCurrent->m_Item2, fp, vec2(1, 0), Size);
+			RenderTools()->RenderWeapon(ShopWeapon(pCurrent, 1), fp, vec2(1, 0), Size);
 			
 			Graphics()->QuadsEnd();
 			Graphics()->ShaderEnd();
@@ -1815,7 +1615,7 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUI_WINDOW1].m_Id);
 		Graphics()->QuadsBegin();
 		
-		if (pCurrent->m_Item3 && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
+		if (ShopWeapon(pCurrent, 2).IsValid() && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
 		{
 			m_SelectedShopItem = 3;
 			Graphics()->SetColor(0.3f, 1.0f, 0.3f, 0.5f);
@@ -1827,15 +1627,15 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		RenderTools()->DrawSprite(fp.x, fp.y, Size*8);
 		Graphics()->QuadsEnd();
 		
-		if (pCurrent->m_Item3)
+		if (ShopWeapon(pCurrent, 2).IsValid())
 		{
-			RenderTools()->SetShadersForWeapon(pCurrent->m_Item3);
+			RenderTools()->SetShadersForWeapon(ShopWeapon(pCurrent, 2));
 			
 			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 			Graphics()->QuadsBegin();
 			Graphics()->QuadsSetRotation(0);
 			
-			RenderTools()->RenderWeapon(pCurrent->m_Item3, fp, vec2(1, 0), Size);
+			RenderTools()->RenderWeapon(ShopWeapon(pCurrent, 2), fp, vec2(1, 0), Size);
 			
 			Graphics()->QuadsEnd();
 			Graphics()->ShaderEnd();
@@ -1852,7 +1652,7 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUI_WINDOW1].m_Id);
 		Graphics()->QuadsBegin();
 		
-		if (pCurrent->m_Item4 && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
+		if (ShopWeapon(pCurrent, 3).IsValid() && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
 		{
 			m_SelectedShopItem = 4;
 			Graphics()->SetColor(0.3f, 1.0f, 0.3f, 0.5f);
@@ -1864,15 +1664,15 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		RenderTools()->DrawSprite(fp.x, fp.y, Size*8);
 		Graphics()->QuadsEnd();
 		
-		if (pCurrent->m_Item4)
+		if (ShopWeapon(pCurrent, 3).IsValid())
 		{
-			RenderTools()->SetShadersForWeapon(pCurrent->m_Item4);
+			RenderTools()->SetShadersForWeapon(ShopWeapon(pCurrent, 3));
 			
 			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 			Graphics()->QuadsBegin();
 			Graphics()->QuadsSetRotation(0);
 			
-			RenderTools()->RenderWeapon(pCurrent->m_Item4, fp, vec2(1, 0), Size);
+			RenderTools()->RenderWeapon(ShopWeapon(pCurrent, 3), fp, vec2(1, 0), Size);
 			
 			Graphics()->QuadsEnd();
 			Graphics()->ShaderEnd();
@@ -1888,7 +1688,7 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		vec2 fp = p+vec2(0, 62);
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUI_WINDOW1].m_Id);
 		Graphics()->QuadsBegin();
-		if (pCurrent->m_Item5 && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
+		if (ShopWeapon(pCurrent, 4).IsValid() && abs(mp.x - fp.x) < ss && abs(mp.y - fp.y) < ss)
 		{
 			m_SelectedShopItem = 5;
 			Graphics()->SetColor(0.3f, 1.0f, 0.3f, 0.5f);
@@ -1898,13 +1698,13 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 		RenderTools()->SelectSprite(SPRITE_GUI_SELECT3);
 		RenderTools()->DrawSprite(fp.x, fp.y, Size*8);
 		Graphics()->QuadsEnd();
-		if (pCurrent->m_Item5)
+		if (ShopWeapon(pCurrent, 4).IsValid())
 		{
-			RenderTools()->SetShadersForWeapon(pCurrent->m_Item5);
+			RenderTools()->SetShadersForWeapon(ShopWeapon(pCurrent, 4));
 			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 			Graphics()->QuadsBegin();
 			Graphics()->QuadsSetRotation(0);
-			RenderTools()->RenderWeapon(pCurrent->m_Item5, fp, vec2(1, 0), Size);
+			RenderTools()->RenderWeapon(ShopWeapon(pCurrent, 4), fp, vec2(1, 0), Size);
 			Graphics()->QuadsEnd();
 			Graphics()->ShaderEnd();
 			Graphics()->QuadsBegin();
@@ -1918,42 +1718,42 @@ void CInventory::RenderShop(const CNetObj_Shop *pCurrent)
 	TextRender()->TextColor(0.7f, 0.7f, 0.7f, 1);
 		
 	// item costs
-	if (pCurrent->m_Item1)
+	if (ShopWeapon(pCurrent, 0).IsValid())
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item1)));
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(ShopWeaponCost(pCurrent, 0)));
 	
 		vec2 fp = p+vec2(-85, 25);
 		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
 	}
-	if (pCurrent->m_Item2)
+	if (ShopWeapon(pCurrent, 1).IsValid())
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item2)));
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(ShopWeaponCost(pCurrent, 1)));
 	
 		vec2 fp = p+vec2(-35, -20);
 		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
 	}
-	if (pCurrent->m_Item3)
+	if (ShopWeapon(pCurrent, 2).IsValid())
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item3)));
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(ShopWeaponCost(pCurrent, 2)));
 	
 		vec2 fp = p+vec2(35, -20);
 		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
 	}
-	if (pCurrent->m_Item4)
+	if (ShopWeapon(pCurrent, 3).IsValid())
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item4)));
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(ShopWeaponCost(pCurrent, 3)));
 	
 		vec2 fp = p+vec2(+85, 25);
 		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
 	}
-	if (pCurrent->m_Item5)
+	if (ShopWeapon(pCurrent, 4).IsValid())
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(GetWeaponCost(pCurrent->m_Item5)));
+		str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_pPveRoguelite->ShopCost(ShopWeaponCost(pCurrent, 4)));
 		vec2 fp = p+vec2(0, 62);
 		TextRender()->Text(0, fp.x-10, fp.y-35, 20, aBuf, -1);
 	}

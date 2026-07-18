@@ -38,9 +38,9 @@ void CGameControllerBall::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 		pChr->GetPlayer()->m_pAI = new CAIball(GameServer(), pChr->GetPlayer());
 }
 
-int CGameControllerBall::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
+int CGameControllerBall::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
-	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 
 	return 0;
 }

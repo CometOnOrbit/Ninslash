@@ -8,6 +8,7 @@
 #include <generated/game_data.h>
 
 #include <game/gamecore.h> // get_angle
+#include <game/weapon_catalog.h>
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>
@@ -18,6 +19,51 @@
 #include <game/client/components/tracer.h>
 
 #include "items.h"
+
+namespace
+{
+constexpr int PROJECTILE_SPRITE_WIDE_PRIMARY = 3;
+constexpr int PROJECTILE_SPRITE_WIDE_SECONDARY = 7;
+}
+
+namespace
+{
+struct CRenderProjectile : public CNetObj_Projectile
+{
+	CAttackSource m_Source;
+	CWeaponCombatProfile m_Combat;
+	CWeaponVisualProfile m_Visual;
+	int m_StaticType;
+	int m_Level;
+	int m_MaxLevel;
+};
+
+bool DecodeProjectile(const CNetObj_Projectile &Net, CRenderProjectile *pRender)
+{
+	CAttackSource Source;
+	if(!pRender || !CWeaponCatalog::TryAttackSourceFromProtocol(Net.m_SourceKind, Net.m_SourceType, Net.m_WeaponDefinitionId, Net.m_WeaponLevel, &Source))
+		return false;
+	static_cast<CNetObj_Projectile &>(*pRender) = Net;
+	pRender->m_Source = Source;
+	if(!CWeaponCatalog::TryResolveAttack(Source, &pRender->m_Combat, &pRender->m_Visual))
+		return false;
+	pRender->m_StaticType = -1;
+	pRender->m_Level = 0;
+	pRender->m_MaxLevel = 0;
+	if(Source.m_Kind == EAttackSourceKind::PlayerWeapon)
+	{
+		CWeaponDefinition Definition;
+		if(CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition))
+		{
+			pRender->m_Level = Source.m_Weapon.m_Level;
+			pRender->m_MaxLevel = Definition.m_MaxLevel;
+			if(Definition.m_Kind == EWeaponDefinitionKind::Static)
+				pRender->m_StaticType = Definition.m_StaticType;
+		}
+	}
+	return true;
+}
+}
 
 void CItems::OnReset()
 {
@@ -44,9 +90,13 @@ void CItems::OnReset()
 
 
 
-void CItems::UpdateProjectileTrace(const CNetObj_Projectile *pCurrent, int ItemID)
+void CItems::UpdateProjectileTrace(const CNetObj_Projectile *pNet, int ItemID)
 {
-	if (!GetProjectileTraceType(pCurrent->m_Type))
+	CRenderProjectile RenderProjectile;
+	if(!DecodeProjectile(*pNet, &RenderProjectile))
+		return;
+	const CRenderProjectile *pCurrent = &RenderProjectile;
+	if (!pCurrent->m_Visual.m_ProjectileTraceType)
 		return;
 	
 	static float s_LastGameTickTime = Client()->GameTickTime();
@@ -59,8 +109,8 @@ void CItems::UpdateProjectileTrace(const CNetObj_Projectile *pCurrent, int ItemI
 	}
 		
 	// get positions
-	float Speed = GetProjectileSpeed(pCurrent->m_Type);
-	float Curvature = GetProjectileCurvature(pCurrent->m_Type);
+	float Speed = pCurrent->m_Combat.m_ProjectileSpeed;
+	float Curvature = pCurrent->m_Combat.m_ProjectileCurvature;
 	
 	vec2 StartPos(pCurrent->m_X, pCurrent->m_Y);
 	vec2 StartVel(pCurrent->m_VelX/100.0f, pCurrent->m_VelY/100.0f);
@@ -68,20 +118,24 @@ void CItems::UpdateProjectileTrace(const CNetObj_Projectile *pCurrent, int ItemI
 	
 	vec2 Pos = vec2(0, 0);
 	
-	if (WeaponProjectilePosType(pCurrent->m_Type) == 1)
+	if (pCurrent->m_Combat.m_ProjectilePosType == WEAPON_PROJECTILE_PATH_LOG)
 		Pos = CalcLogPos(StartPos, StartVel, Vel2, Curvature, Speed, Ct);
-	else if (WeaponProjectilePosType(pCurrent->m_Type) == 2)
+	else if (pCurrent->m_Combat.m_ProjectilePosType == WEAPON_PROJECTILE_PATH_ROCKET)
 		Pos = CalcRocketPos(StartPos, StartVel, Vel2, Curvature, Speed, Ct);
 	else
 		Pos = CalcPos(StartPos, StartVel, Vel2, Curvature, Speed, Ct);
 	
-	m_pClient->m_pTracers->Add(GetProjectileTraceType(pCurrent->m_Type), ItemID+100, Pos, Pos, pCurrent->m_StartTick, pCurrent->m_Type);
+	m_pClient->m_pTracers->Add(pCurrent->m_Visual.m_ProjectileTraceType, ItemID+100, Pos, Pos, pCurrent->m_StartTick, pCurrent->m_Visual.m_ProjectileSize);
 }
 	
 
 // render projectiles
-void CItems::RenderProjectile(const CNetObj_Projectile *pCurrent, int ItemID)
+void CItems::RenderProjectile(const CNetObj_Projectile *pNet, int ItemID)
 {
+	CRenderProjectile RenderProjectile;
+	if(!DecodeProjectile(*pNet, &RenderProjectile))
+		return;
+	const CRenderProjectile *pCurrent = &RenderProjectile;
 
 	static float s_LastGameTickTime = Client()->GameTickTime();
 	if(m_pClient->m_Snap.m_pGameInfoObj && !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED))
@@ -93,8 +147,8 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pCurrent, int ItemID)
 	}
 		
 	// get positions
-	float Speed = GetProjectileSpeed(pCurrent->m_Type);
-	float Curvature = GetProjectileCurvature(pCurrent->m_Type);
+	float Speed = pCurrent->m_Combat.m_ProjectileSpeed;
+	float Curvature = pCurrent->m_Combat.m_ProjectileCurvature;
 	
 	vec2 StartPos(pCurrent->m_X, pCurrent->m_Y);
 	vec2 StartVel(pCurrent->m_VelX/100.0f, pCurrent->m_VelY/100.0f);
@@ -105,12 +159,12 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pCurrent, int ItemID)
 	vec2 PrevPos;
 	
 
-	if (WeaponProjectilePosType(pCurrent->m_Type) == 1)
+	if (pCurrent->m_Combat.m_ProjectilePosType == WEAPON_PROJECTILE_PATH_LOG)
 	{
 		Pos = CalcLogPos(StartPos, StartVel, Vel2, Curvature, Speed, Ct);
 		PrevPos = CalcLogPos(StartPos, StartVel, Vel2, Curvature, Speed, Ct-0.001f);
 	}
-	else if (WeaponProjectilePosType(pCurrent->m_Type) == 2)
+	else if (pCurrent->m_Combat.m_ProjectilePosType == WEAPON_PROJECTILE_PATH_ROCKET)
 	{
 		Pos = CalcRocketPos(StartPos, StartVel, Vel2, Curvature, Speed, Ct);
 		PrevPos = CalcRocketPos(StartPos, StartVel, Vel2, Curvature, Speed, Ct-0.001f);
@@ -124,7 +178,7 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pCurrent, int ItemID)
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_PROJECTILES].m_Id);
 	Graphics()->QuadsBegin();
 
-	RenderTools()->SelectSprite(SPRITE_PROJECTILE1_1 + GetProjectileSprite(pCurrent->m_Type));
+	RenderTools()->SelectSprite(SPRITE_PROJECTILE1_1 + pCurrent->m_Visual.m_ProjectileSprite);
 	
 	//	RenderTools()->SelectSprite(SPRITE_GREEN_CHARGE1 + CustomStuff()->GetSpriteFrame(6, 7));
 	// else if (pCurrent->m_Type == WEAPON_RIFLE && pCurrent->m_PowerLevel > 1)
@@ -149,25 +203,25 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pCurrent, int ItemID)
 
 	}
 
-	vec2 Size = vec2(45, 30) * GetProjectileSize(pCurrent->m_Type);
+	vec2 Size = vec2(45, 30) * pCurrent->m_Visual.m_ProjectileSize;
 	
-	if (GetProjectileSprite(pCurrent->m_Type) == 3 || GetProjectileSprite(pCurrent->m_Type) == 7)
+	if (pCurrent->m_Visual.m_ProjectileSprite == PROJECTILE_SPRITE_WIDE_PRIMARY || pCurrent->m_Visual.m_ProjectileSprite == PROJECTILE_SPRITE_WIDE_SECONDARY)
 		Size *= 2.0f;
 	
 	
-	if (GetStaticType(pCurrent->m_Type) == SW_CLUSTER)
+	if (pCurrent->m_StaticType == SW_CLUSTER)
 	{
 		
-		Size = vec2(32, 32) * GetProjectileSize(pCurrent->m_Type);
+		Size = vec2(32, 32) * pCurrent->m_Visual.m_ProjectileSize;
 		
-		if (GetWeaponCharge(pCurrent->m_Type) == 15)
+		if (pCurrent->m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
 		{
 			RenderTools()->SelectSprite(SPRITE_PROJECTILE_CLUSTER);
 		}
 		else
 		{
 			m_pClient->m_pEffects->SmokeTrail(Pos, Vel*-1);
-			Size = vec2(32, 32) * GetProjectileSize(pCurrent->m_Type) + vec2(8.0f, 8.0f) * GetWeaponLevelCharge(pCurrent->m_Type);
+			Size = vec2(32, 32) * pCurrent->m_Visual.m_ProjectileSize + vec2(8.0f, 8.0f) * (pCurrent->m_Level / float(max(1, pCurrent->m_MaxLevel)));
 		}
 		
 		
@@ -190,15 +244,7 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pCurrent, int ItemID)
 		s_LastLocalTime = Client()->LocalTime();
 	}
 	
-	/*
-	if (GetStaticType(pCurrent->m_Type) == SW_CLUSTER)
-	{
-		m_pClient->m_pEffects->Flame(Pos, vec2(frandom()-frandom(), frandom()-frandom())*10.0f);
-		m_pClient->m_pEffects->Flame(Pos, vec2(frandom()-frandom(), frandom()-frandom())*10.0f);
-	}
-	*/
-	
-	if (GetStaticType(pCurrent->m_Type) == SW_BAZOOKA)
+	if (pCurrent->m_StaticType == SW_BAZOOKA)
 	{
 		m_pClient->m_pEffects->Flame(Pos, -Vel);
 		m_pClient->m_pEffects->SmokeTrail(Pos, -Vel);
@@ -218,8 +264,11 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pCurrent, int ItemID)
 
 void CItems::RenderPickup(const CNetObj_Pickup *pPrev, const CNetObj_Pickup *pCurrent)
 {
+	CWeaponSpec PickupWeapon;
+	if(pCurrent->m_Type == POWERUP_WEAPON && !CWeaponCatalog::TryFromProtocol(pCurrent->m_WeaponDefinitionId, pCurrent->m_WeaponLevel, &PickupWeapon))
+		return;
 	if (pCurrent->m_Type == POWERUP_WEAPON)
-		RenderTools()->SetShadersForWeapon(pCurrent->m_Subtype);
+		RenderTools()->SetShadersForWeapon(PickupWeapon);
 	
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 	Graphics()->QuadsBegin();
@@ -294,7 +343,7 @@ void CItems::RenderPickup(const CNetObj_Pickup *pPrev, const CNetObj_Pickup *pCu
 	s_LastLocalTime = Client()->LocalTime();
 	
 	if (pCurrent->m_Type == POWERUP_WEAPON)
-		RenderTools()->RenderWeapon(pCurrent->m_Subtype, Pos, vec2(cos(Angle), sin(Angle)), WEAPON_GAME_SIZE, false, Flags, 1.0f, false, true);
+		RenderTools()->RenderWeapon(PickupWeapon, Pos, vec2(cos(Angle), sin(Angle)), WEAPON_GAME_SIZE, false, Flags, 1.0f, false, true);
 	else
 		RenderTools()->DrawSprite(Pos.x, Pos.y, Size);
 

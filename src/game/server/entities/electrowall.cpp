@@ -42,17 +42,7 @@ bool CElectroWall::HitCharacter()
 	if(!pHit)
 		return false;
 	
-	pHit->TakeDamage(-1, GetStaticWeapon(SW_ELECTROWALL), 0, vec2(0, 0), To);
-	
-	/*
-	if (m_PowerLevel == 1)
-		pHit->TakeDamage(normalize(To-From)*0.1f, m_Damage, m_Owner, WEAPON_LASER, At, DAMAGETYPE_ELECTRIC, m_OwnerBuilding ? true : false);
-	else
-		pHit->TakeDamage(normalize(To-From)*0.1f, m_Damage, m_Owner, WEAPON_LASER, At, DAMAGETYPE_NORMAL, m_OwnerBuilding ? true : false);
-	*/
-	
-	//if (m_PowerLevel > 1)
-	//	pHit->Deathray(false);
+	pHit->TakeDamage(CAttackSource::PlayerWeapon(-1, CWeaponCatalog::Static(SW_ELECTROWALL)), 0, vec2(0, 0), To);
 	
 	return true;
 }

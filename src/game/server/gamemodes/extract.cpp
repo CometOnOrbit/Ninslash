@@ -264,16 +264,16 @@ void CGameControllerExtract::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	}
 }
 
-int CGameControllerExtract::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, int Weapon)
+int CGameControllerExtract::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, const CAttackSource &Source)
 {
-	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 	if(!pVictim->m_IsBot && GameServer()->m_pPveDirector)
 		GameServer()->m_pPveDirector->OnPlayerDeath(pVictim->GetPlayer()->GetCID());
 
 	if(pVictim->m_IsBot)
 	{
 		if(pKiller && !pKiller->m_IsBot && GameServer()->m_pPveDirector)
-			GameServer()->m_pPveDirector->OnEnemyKilled(pKiller->GetCID(), Weapon, pVictim->m_Pos, pVictim);
+			GameServer()->m_pPveDirector->OnEnemyKilled(Source, pVictim->m_Pos, pVictim);
 		pVictim->GetPlayer()->m_ToBeKicked = true;
 	}
 	else if(!pVictim->m_IsBot)

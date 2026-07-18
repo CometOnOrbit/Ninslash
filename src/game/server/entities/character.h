@@ -2,6 +2,7 @@
 #define GAME_SERVER_ENTITIES_CHARACTER_H
 
 #include <game/server/entity.h>
+#include <game/weapon_catalog.h>
 #include <generated/game_data.h>
 #include <generated/protocol.h>
 
@@ -70,9 +71,9 @@ public:
 
 	void ReleaseWeapons();
 	 
-	void Die(int Killer, int Weapon, bool SkipKillMessage = false, bool IsTurret1 = false);
-	bool TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos);
-	void SetAflame(float Duration, int From, int Weapon);
+	void Die(const CAttackSource &Source, bool SkipKillMessage = false, bool IsTurret1 = false);
+	bool TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, vec2 Pos) override;
+	void SetAflame(float Duration, const CAttackSource &Source);
 	void TakeDeathtileDamage();
 	void TakeSawbladeDamage(vec2 SawbladePos);
 	void TakeDeathrayDamage();
@@ -116,6 +117,7 @@ public:
 		
 		return m_apWeapon[Slot];
 	}
+	int CurrentWeaponFiringType() const;
 	
 	bool m_ForceCoreSend;
 	
@@ -142,13 +144,12 @@ public:
 	
 	int GetMask();
 	
-	bool AddClip(int Weapon = -1);
+	bool AddClip();
 	
 	// for pickup drops, easy access
 	bool HasAmmo();
 	
 	bool GiveWeapon(CWeapon *pWeapon);
-	int GetWeaponType(int Slot = -1);
 	int GetWeaponSlot(){ return clamp(m_WeaponSlot, 0, 3);}
 	int GetWeaponPowerLevel(int WeaponSlot = -1);
 	int FreeSlot();
@@ -267,8 +268,7 @@ private:
 	int m_MaskEffectTick;
 	
 	int m_aStatus[NUM_STATUSS];
-	int m_aStatusFrom[NUM_STATUSS];
-	int m_aStatusWeapon[NUM_STATUSS];
+	CAttackSource m_aStatusSource[NUM_STATUSS];
 	void UpdateCoreStatus();
 	
 	bool m_Zombie;

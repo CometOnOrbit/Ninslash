@@ -110,7 +110,7 @@ void CAIctf::DoBehavior()
 		}
 	}
 	
-	if (Player()->GetCharacter()->GetWeaponType() == WEAPON_NONE)
+	if (Player()->GetCharacter()->GetWeapon() == nullptr)
 		FindWeapon();
 	else
 		ShootAtBlocks();

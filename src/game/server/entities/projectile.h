@@ -1,6 +1,8 @@
 #ifndef GAME_SERVER_ENTITIES_PROJECTILE_H
 #define GAME_SERVER_ENTITIES_PROJECTILE_H
 
+#include <game/weapon_catalog.h>
+
 enum ProjectileExtraInfo
 {
 	PROJ_BIGEXPLOSION,
@@ -20,8 +22,8 @@ enum ExplosionType
 class CProjectile : public CEntity
 {
 public:
-	CProjectile(CGameWorld *pGameWorld, int Weapon, int Owner, vec2 Pos, vec2 Dir,  vec2 Vel, int Span,
-		int Damage, int Explosive, float Force, int SoundImpact);
+	CProjectile(CGameWorld *pGameWorld, const CAttackSource &Source, vec2 Pos, vec2 Dir, vec2 Vel, int Span,
+		int Damage, float Force, int SoundImpact);
 
 	vec2 GetPos(float Time);
 	void FillInfo(CNetObj_Projectile *pProj);
@@ -41,13 +43,12 @@ private:
 	vec2 m_Vel2;
 	int m_LifeSpan;
 	int m_Owner;
-	int m_Weapon;
+	CAttackSource m_Source;
 	int m_Damage;
 	int m_SoundImpact;
 	float m_Force;
 	int m_StartTick;
-	// Deprecated: stored from ctor but unused — impact blast uses IsExplosiveProjectile(m_Weapon).
-	int m_Explosive;
+	bool m_Explosive;
 	int m_Bounces;
 	
 	//
@@ -55,6 +56,11 @@ private:
 	int m_Part2;
 	float m_Speed;
 	float m_Curvature;
+	int m_ProjectilePosType;
+	float m_ProjectileSize;
+	int m_StaticType;
+	int m_WeaponLevel;
+	int m_WeaponMaxLevel;
 	
 	bool m_SkipCollision;
 	

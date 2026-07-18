@@ -9,7 +9,6 @@
 #include "turret.h"
 #include "laser.h"
 #include "projectile.h"
-#include "superexplosion.h"
 #include "droid.h"
 #include "laserfail.h"
 #include "staticlaser.h"
@@ -24,6 +23,24 @@
 #include <game/questinfo.h>
 
 inline vec2 RandomDir() { return normalize(vec2(frandom()-0.5f, frandom()-0.5f)); }
+
+namespace
+{
+int StaticType(const CWeapon *pWeapon)
+{
+	if(!pWeapon || pWeapon->GetWeaponProfile().m_Definition.m_Kind != EWeaponDefinitionKind::Static)
+		return -1;
+	return pWeapon->GetWeaponProfile().m_Definition.m_StaticType;
+}
+
+}
+
+int CCharacter::CurrentWeaponFiringType() const
+{
+	if(m_WeaponSlot < 0 || m_WeaponSlot >= NUM_SLOTS || !m_apWeapon[m_WeaponSlot])
+		return WFT_NONE;
+	return m_apWeapon[m_WeaponSlot]->GetWeaponProfile().m_Combat.m_FiringType;
+}
 
 
 #define RAD 0.017453292519943295769236907684886f
@@ -78,8 +95,7 @@ CCharacter::CCharacter(CGameWorld *pWorld)
 	for (int i = 0; i < NUM_STATUSS; i++)
 	{
 		m_aStatus[i] = 0;
-		m_aStatusFrom[i] = 0;
-		m_aStatusWeapon[i] = 0;
+		m_aStatusSource[i] = CAttackSource::World(WEAPON_WORLD);
 	}
 	
 	m_LastStatusEffect = 0;
@@ -193,15 +209,6 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 		if (GameServer()->m_pController->IsCoop())
 			m_Silent = true;
 	}
-	else
-	{
-		//m_apWeapon[0] = GameServer()->NewWeapon(GetChargedWeapon(GetStaticWeapon(SW_CHAINSAW), 5));
-	}
-	
-	/*
-	m_apWeapon[2] = GameServer()->NewWeapon(GetStaticWeapon(SW_BOUNCER));
-	m_apWeapon[3] = GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(6, 9), 4));
-	*/
 	
 	
 	GiveStartWeapon();
@@ -216,7 +223,7 @@ bool CCharacter::GiveBomb()
 	int Slot = FreeSlot();
 	if (Slot >= 0 && GetPlayer()->GetTeam() == TEAM_RED)
 	{
-		m_apWeapon[Slot] = GameServer()->NewWeapon(GetStaticWeapon(SW_BOMB));
+		m_apWeapon[Slot] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_BOMB));
 		SendInventory();
 		return true;
 	}
@@ -252,8 +259,8 @@ void CCharacter::RandomizeInventory()
 	
 		bool CanSwitch = true;
 		
-		int wt1 = GetStaticType(GetWeaponType(i));
-		int wt2 = GetStaticType(GetWeaponType(j));
+		int wt1 = StaticType(m_apWeapon[i]);
+		int wt2 = StaticType(m_apWeapon[j]);
 
 		if ((i > 0 && i <= 3) || (j > 0 && j <= 3))
 		{
@@ -296,11 +303,16 @@ void CCharacter::SaveData()
 	{
 		if (m_apWeapon[i])
 		{
-			pData->m_aWeaponType[i] = GetWeaponType(i);
+			const CWeaponSpec &Spec = m_apWeapon[i]->GetWeaponSpec();
+			pData->m_aWeaponDefinitionId[i] = static_cast<int>(Spec.m_DefinitionId);
+			pData->m_aWeaponLevel[i] = Spec.m_Level;
 			pData->m_aWeaponAmmo[i] = m_apWeapon[i]->m_Ammo;
 		}
 		else
-			pData->m_aWeaponType[i] = 0;
+		{
+			pData->m_aWeaponDefinitionId[i] = 0;
+			pData->m_aWeaponLevel[i] = 0;
+		}
 	}
 
 	char aBuf[256];
@@ -344,31 +356,6 @@ bool CCharacter::GiveWeapon(CWeapon *pWeapon)
 	
 	//SendInventory();
 	return true;
-}
-
-int CCharacter::GetWeaponType(int Slot)
-{
-	if (Slot < 0)
-	{
-		if (m_WeaponSlot < 0 || m_WeaponSlot >= NUM_SLOTS)
-			return WEAPON_NONE;
-		
-		if (!m_apWeapon[m_WeaponSlot])
-			return WEAPON_NONE;
-
-		return m_apWeapon[m_WeaponSlot]->GetWeaponType();
-	}
-	else
-	{
-
-		if (Slot >= NUM_SLOTS)
-			return WEAPON_NONE;
-		
-		if (!m_apWeapon[Slot])
-			return WEAPON_NONE;
-
-		return m_apWeapon[Slot]->GetWeaponType();
-	}
 }
 
 int CCharacter::GetWeaponPowerLevel(int WeaponSlot)
@@ -443,18 +430,23 @@ void CCharacter::SendInventory()
 		return;
 	
 	CNetMsg_Sv_Inventory Msg;
-	Msg.m_Item1 = GetWeaponType(0);
-	Msg.m_Item2 = GetWeaponType(1);
-	Msg.m_Item3 = GetWeaponType(2);
-	Msg.m_Item4 = GetWeaponType(3);
-	Msg.m_Item5 = GetWeaponType(4);
-	Msg.m_Item6 = GetWeaponType(5);
-	Msg.m_Item7 = GetWeaponType(6);
-	Msg.m_Item8 = GetWeaponType(7);
-	Msg.m_Item9 = GetWeaponType(8);
-	Msg.m_Item10 = GetWeaponType(9);
-	Msg.m_Item11 = GetWeaponType(10);
-	Msg.m_Item12 = GetWeaponType(11);
+	auto FillWeapon = [this](int Slot, int &DefinitionId, int &Level) {
+		const CWeapon *pWeapon = GetWeapon(Slot);
+		DefinitionId = pWeapon ? static_cast<int>(pWeapon->GetWeaponSpec().m_DefinitionId) : 0;
+		Level = pWeapon ? pWeapon->GetWeaponSpec().m_Level : 0;
+	};
+	FillWeapon(0, Msg.m_Item1DefinitionId, Msg.m_Item1Level);
+	FillWeapon(1, Msg.m_Item2DefinitionId, Msg.m_Item2Level);
+	FillWeapon(2, Msg.m_Item3DefinitionId, Msg.m_Item3Level);
+	FillWeapon(3, Msg.m_Item4DefinitionId, Msg.m_Item4Level);
+	FillWeapon(4, Msg.m_Item5DefinitionId, Msg.m_Item5Level);
+	FillWeapon(5, Msg.m_Item6DefinitionId, Msg.m_Item6Level);
+	FillWeapon(6, Msg.m_Item7DefinitionId, Msg.m_Item7Level);
+	FillWeapon(7, Msg.m_Item8DefinitionId, Msg.m_Item8Level);
+	FillWeapon(8, Msg.m_Item9DefinitionId, Msg.m_Item9Level);
+	FillWeapon(9, Msg.m_Item10DefinitionId, Msg.m_Item10Level);
+	FillWeapon(10, Msg.m_Item11DefinitionId, Msg.m_Item11Level);
+	FillWeapon(11, Msg.m_Item12DefinitionId, Msg.m_Item12Level);
 	Msg.m_Gold = GetPlayer()->GetGold();
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, GetPlayer()->GetCID());
 }
@@ -537,14 +529,14 @@ void CCharacter::SwapItem(int Item1, int Item2)
 	
 	CWeapon *t = m_apWeapon[Item1];
 	
-	int w1 = GetWeaponType(Item1);
-	int w2 = GetWeaponType(Item2);
+	CWeapon *pWeapon1 = GetWeapon(Item1);
+	CWeapon *pWeapon2 = GetWeapon(Item2);
 	
-	if (IsStaticWeapon(w1) && GetStaticType(w1) == SW_UPGRADE && Item1 != Item2)
+	if (StaticType(pWeapon1) == SW_UPGRADE && Item1 != Item2)
 	{
-		if (GetWeapon(Item2))
+		if (pWeapon2)
 		{
-			if (GetWeaponCharge(w1) >= 4 && GetWeapon(Item2)->Supercharge())
+			if (pWeapon1->GetWeaponSpec().m_Level >= WEAPON_UPGRADE_SUPERCHARGE_LEVEL && pWeapon2->Supercharge())
 			{
 				m_apWeapon[Item1]->m_DestructionTick = 1;
 				m_apWeapon[Item1] = NULL;
@@ -552,11 +544,11 @@ void CCharacter::SwapItem(int Item1, int Item2)
 				// supercharge sound
 				GameServer()->CreateSound(m_Pos, SOUND_UPGRADE);
 			}
-			else if (GetWeaponCharge(w1) >= 4 && GetStaticType(w2) == SW_UPGRADE)
+			else if (pWeapon1->GetWeaponSpec().m_Level >= WEAPON_UPGRADE_SUPERCHARGE_LEVEL && StaticType(pWeapon2) == SW_UPGRADE)
 			{
 				GameServer()->CreateSound(m_Pos, SOUND_NEGATIVE);
 			}
-			else if (GetWeapon(Item2)->Overcharge())
+			else if (pWeapon2->Overcharge())
 			{
 				m_apWeapon[Item1]->m_DestructionTick = 1;
 				m_apWeapon[Item1] = NULL;
@@ -573,7 +565,12 @@ void CCharacter::SwapItem(int Item1, int Item2)
 	}
 	
 	// combine melee
-	if (IsModularWeapon(w1) && IsModularWeapon(w2) && GetPart(w1, 0) == 5 && GetPart(w2, 0) == 5 && GetPart(w1, 1) == GetPart(w2, 1))
+	if (pWeapon1 && pWeapon2 &&
+		pWeapon1->GetWeaponProfile().m_Definition.m_Kind == EWeaponDefinitionKind::Modular &&
+		pWeapon2->GetWeaponProfile().m_Definition.m_Kind == EWeaponDefinitionKind::Modular &&
+		pWeapon1->GetWeaponProfile().m_Definition.m_Part1 == PART1_MELEE &&
+		pWeapon2->GetWeaponProfile().m_Definition.m_Part1 == PART1_MELEE &&
+		pWeapon1->GetWeaponProfile().m_Definition.m_Part2 == pWeapon2->GetWeaponProfile().m_Definition.m_Part2)
 	{
 		if (!m_apWeapon[Item1]->CanSwitch() || !m_apWeapon[Item2]->CanSwitch())
 			return;
@@ -582,7 +579,7 @@ void CCharacter::SwapItem(int Item1, int Item2)
 		m_apWeapon[Item1] = NULL;
 		m_apWeapon[Item2]->m_DestructionTick = 1;
 		m_apWeapon[Item2] = NULL;
-		m_apWeapon[Item2] = new CWeapon(&GameServer()->m_World, GetChargedWeapon(GetModularWeapon(6, GetPart(w1, 1)), max(GetWeaponCharge(w1), GetWeaponCharge(w2))));
+		m_apWeapon[Item2] = new CWeapon(&GameServer()->m_World, CWeaponCatalog::Modular(PART1_SPIN, pWeapon1->GetWeaponProfile().m_Definition.m_Part2, max(pWeapon1->GetWeaponSpec().m_Level, pWeapon2->GetWeaponSpec().m_Level)));
 		
 		GameServer()->CreateSound(m_Pos, SOUND_UPGRADE);
 		SendInventory();
@@ -606,13 +603,12 @@ void CCharacter::CombineItem(int Item1, int Item2)
 	if (Item1 < 0 || Item1 >= NUM_SLOTS || Item2 >= NUM_SLOTS)
 		return;
 	
-	int w1 = GetWeaponType(Item1);
-	int w2 = GetWeaponType(Item2);
-	
-	int p1_1 = GetPart(w1, 0);
-	int p1_2 = GetPart(w1, 1);
-	int p2_1 = GetPart(w2, 0);
-	int p2_2 = GetPart(w2, 1);
+	const CWeaponDefinition *pDefinition1 = m_apWeapon[Item1] ? &m_apWeapon[Item1]->GetWeaponProfile().m_Definition : nullptr;
+	const CWeaponDefinition *pDefinition2 = m_apWeapon[Item2] ? &m_apWeapon[Item2]->GetWeaponProfile().m_Definition : nullptr;
+	int p1_1 = pDefinition1 && pDefinition1->m_Kind == EWeaponDefinitionKind::Modular ? pDefinition1->m_Part1 : 0;
+	int p1_2 = pDefinition1 && pDefinition1->m_Kind == EWeaponDefinitionKind::Modular ? pDefinition1->m_Part2 : 0;
+	int p2_1 = pDefinition2 && pDefinition2->m_Kind == EWeaponDefinitionKind::Modular ? pDefinition2->m_Part1 : 0;
+	int p2_2 = pDefinition2 && pDefinition2->m_Kind == EWeaponDefinitionKind::Modular ? pDefinition2->m_Part2 : 0;
 	
 	if (!p1_1 || !p1_2)
 	{
@@ -657,30 +653,27 @@ void CCharacter::TakePart(int Item1, int Slot, int Item2)
 	if (Item1 < 0 || Item1 >= NUM_SLOTS || Item2 < 0 || Item2 >= NUM_SLOTS)
 		return;
 	
-	int w1 = GetWeaponType(Item1);
-	int w2 = GetWeaponType(Item2);
-	
-	if (IsStaticWeapon(w1) || IsStaticWeapon(w2))
+	CWeapon *pWeapon1 = m_apWeapon[Item1];
+	CWeapon *pWeapon2 = m_apWeapon[Item2];
+	if (!pWeapon1 || !pWeapon2 ||
+		pWeapon1->GetWeaponProfile().m_Definition.m_Kind != EWeaponDefinitionKind::Modular ||
+		pWeapon2->GetWeaponProfile().m_Definition.m_Kind != EWeaponDefinitionKind::Modular)
 		return;
 	
-	int p1_1 = GetPart(w1, 0);
-	int p1_2 = GetPart(w1, 1);
-	int p2_1 = GetPart(w2, 0);
-	int p2_2 = GetPart(w2, 1);
+	int p1_1 = pWeapon1->GetWeaponProfile().m_Definition.m_Part1;
+	int p1_2 = pWeapon1->GetWeaponProfile().m_Definition.m_Part2;
+	int p2_1 = pWeapon2->GetWeaponProfile().m_Definition.m_Part1;
+	int p2_2 = pWeapon2->GetWeaponProfile().m_Definition.m_Part2;
 
 	if (Slot == 0)
 	{
 		ReplaceWeapon(Item1, p2_1, p1_2);
 		ReplaceWeapon(Item2, p1_1, p2_2);
-		//m_aItem[Item1] = GetWeapon(p2_1, p1_2);
-		//m_aItem[Item2] = GetWeapon(p1_1, p2_2);
 	}
 	else if (Slot == 1)
 	{
 		ReplaceWeapon(Item1, p1_1, p2_2);
 		ReplaceWeapon(Item2, p2_1, p1_2);
-		//m_aItem[Item1] = GetWeapon(p1_1, p2_2);
-		//m_aItem[Item2] = GetWeapon(p2_1, p1_2);
 	}
 	
 	// confirm inventory to the client
@@ -694,11 +687,11 @@ void CCharacter::ReplaceWeapon(int Slot, int Part1, int Part2)
 		return;
 	
 	if (!m_apWeapon[Slot])
-		m_apWeapon[Slot] = GameServer()->NewWeapon(Part1, Part2);
+		m_apWeapon[Slot] = GameServer()->NewWeapon(CWeaponCatalog::Modular(Part1, Part2));
 	else
 	{
 		GameServer()->m_World.DestroyEntity(m_apWeapon[Slot]);
-		m_apWeapon[Slot] = GameServer()->NewWeapon(Part1, Part2);
+		m_apWeapon[Slot] = GameServer()->NewWeapon(CWeaponCatalog::Modular(Part1, Part2));
 	}
 }
 
@@ -708,23 +701,22 @@ bool CCharacter::TriggerWeapon(CWeapon *pWeapon)
 	if (!pWeapon || GetWeapon() != pWeapon)
 		return false;
 	
-	int w = GetWeaponType();
-	
-	if (IsStaticWeapon(w))
+	const int Type = StaticType(pWeapon);
+	if (Type >= 0)
 	{
-		if (GetStaticType(w) == SW_BOMB)
+		if (Type == SW_BOMB)
 		{
 			ReleaseWeapon();
 			return true;
 		}
 		
-		if (GetStaticType(w) == SW_INVIS)
+		if (Type == SW_INVIS)
 			return GiveBuff(PLAYERITEM_INVISIBILITY);
 		
-		if (GetStaticType(w) == SW_SHIELD)
+		if (Type == SW_SHIELD)
 			return GiveBuff(PLAYERITEM_SHIELD);
 		
-		if (GetStaticType(w) == SW_RESPAWNER && (!GameServer()->m_pController->IsCoop() || !m_IsBot))
+		if (Type == SW_RESPAWNER && (!GameServer()->m_pController->IsCoop() || !m_IsBot))
 				return GameServer()->RespawnAlly(m_Pos, GetPlayer()->GetTeam(), GetPlayer()->GetCID());
 		
 		return false;
@@ -750,9 +742,6 @@ void CCharacter::ReleaseWeapon(CWeapon *pWeapon)
 			if (m_apWeapon[i] == pWeapon)
 			{
 				m_apWeapon[i] = NULL;
-				//if (GetWeaponSlot() == i)
-				//	m_ActiveWeapon = WEAPON_NONE;
-				
 				break;
 			}
 		}
@@ -765,7 +754,7 @@ void CCharacter::ReleaseWeapon(CWeapon *pWeapon)
 bool CCharacter::IsBombCarrier()
 {
 	for (int i = 0; i < NUM_SLOTS; i++)
-		if (GetStaticType(GetWeaponType(i)) == SW_BOMB)
+		if (StaticType(m_apWeapon[i]) == SW_BOMB)
 			return true;
 	
 	return false;
@@ -776,7 +765,7 @@ bool CCharacter::IsBombCarrier()
 bool CCharacter::PickWeapon(CWeapon *pWeapon)
 {
 	// cs | reactor defense
-	if (GetStaticType(pWeapon->GetWeaponType()) == SW_BOMB && GetPlayer()->GetTeam() != TEAM_RED)
+	if (StaticType(pWeapon) == SW_BOMB && GetPlayer()->GetTeam() != TEAM_RED)
 		return false;
 	
 	if (IsZombie())
@@ -793,47 +782,45 @@ bool CCharacter::PickWeapon(CWeapon *pWeapon)
 	
 	bool Valid = true;
 	
-	int w = pWeapon->GetWeaponType();
-	
-	if (WeaponAutoPick(pWeapon->GetWeaponType()))
+	if (pWeapon->GetWeaponProfile().m_Combat.m_AutoPick)
 	{
 		// check if weapon is lower level than currently held weapons overall
-		if (WeaponMaxLevel(w) > 1)
+		if (pWeapon->GetWeaponProfile().m_Definition.m_MaxLevel > 1)
 		{
 			float Weapons = 0.0f;
 			float WeaponLevel = 0.0f;
 			
 			for (int i = 0; i < 4; i++)
 			{
-				if (WeaponMaxLevel(GetWeaponType(i)) > 1)
+				if (m_apWeapon[i] && m_apWeapon[i]->GetWeaponProfile().m_Definition.m_MaxLevel > 1)
 				{
 					Weapons += 1.0f;
-					WeaponLevel += GetWeaponCharge(GetWeaponType(i));
+					WeaponLevel += m_apWeapon[i]->GetWeaponSpec().m_Level;
 				}
 				
 				if (Weapons > 1.0f)
 					WeaponLevel /= Weapons;
 				
-				if (GetWeaponCharge(w) < WeaponLevel && Weapons > 0.0f && GetWeaponCharge(w) <= WeaponMaxLevel(w))
+				if (pWeapon->GetWeaponSpec().m_Level < WeaponLevel && Weapons > 0.0f && pWeapon->GetWeaponSpec().m_Level <= pWeapon->GetWeaponProfile().m_Definition.m_MaxLevel)
 					Valid = false;
 			}
 		}
 		
 		for (int i = 0; i < NUM_SLOTS; i++)
 		{
-			if (GetChargedWeapon(GetWeaponType(i), 0) == GetChargedWeapon(pWeapon->GetWeaponType(), 0) && 
-				GetWeaponCharge(GetWeaponType(i)) >= GetWeaponCharge(pWeapon->GetWeaponType()) && 
-				GetStaticType(GetWeaponType(i)) != SW_UPGRADE && (GetStaticType(GetWeaponType(i)) != SW_RESPAWNER))
+			if (m_apWeapon[i] && m_apWeapon[i]->GetWeaponSpec().m_DefinitionId == pWeapon->GetWeaponSpec().m_DefinitionId &&
+				m_apWeapon[i]->GetWeaponSpec().m_Level >= pWeapon->GetWeaponSpec().m_Level &&
+				StaticType(m_apWeapon[i]) != SW_UPGRADE && StaticType(m_apWeapon[i]) != SW_RESPAWNER)
 				Valid = false;
 		}
 	}
 	else
 		Valid = false;
 	
-	if (GetStaticType(w) == SW_UPGRADE)
+	if (StaticType(pWeapon) == SW_UPGRADE)
 		Valid = true;
 	
-	if (GetStaticType(w) == SW_RESPAWNER && GameServer()->m_pController->CountPlayers(0) < 2)
+	if (StaticType(pWeapon) == SW_RESPAWNER && GameServer()->m_pController->CountPlayers(0) < 2)
 		Valid = false;
 	
 	if (Valid)
@@ -864,7 +851,7 @@ bool CCharacter::UpgradeTurret(vec2 Pos, vec2 Dir, int Slot)
 	if (!GetWeapon(Slot))
 		return false;
 	
-	if (!ValidForTurret(GetWeaponType(Slot)))
+	if (!GetWeapon(Slot)->GetWeaponProfile().m_Combat.m_ValidForTurret)
 		return false;
 	
 	// check if near upgradeable buildings
@@ -905,7 +892,7 @@ bool CCharacter::UpgradeTurret(vec2 Pos, vec2 Dir, int Slot)
 			Team = GetPlayer()->GetCID();
 		
 		// clone the weapon in use and link it to turret
-		CWeapon *pWeapon = GameServer()->NewWeapon(GetWeapon(Slot)->GetWeaponType());
+		CWeapon *pWeapon = GameServer()->NewWeapon(GetWeapon(Slot)->GetWeaponSpec());
 		
 		pWeapon->SetOwner(GetPlayer()->GetCID());
 		CTurret *pTurret = new CTurret(&GameServer()->m_World, p, Team, pWeapon);
@@ -926,9 +913,7 @@ void CCharacter::DropWeapon()
 	if (IsZombie())
 		return;
 	
-	int Weapon = GetWeaponType();
-	
-	if (Weapon == WEAPON_NONE)
+	if (!GetWeapon())
 		return;
 	
 	if (GetWeaponSlot() < 0 || GetWeaponSlot() >= NUM_SLOTS)
@@ -939,11 +924,7 @@ void CCharacter::DropWeapon()
 	if (m_HiddenHealth > 0)
 	{
 		if (UpgradeTurret(m_Pos, -Direction))
-		{
-			//m_apWeapon[m_WeaponSlot] = 0;
-			//SendInventory();
 			return;
-		}
 	}
 	
 	
@@ -951,7 +932,7 @@ void CCharacter::DropWeapon()
 	{
 		GameServer()->CreateSound(m_Pos, SOUND_WEAPON_SWITCH);
 		
-		if (GetStaticType(GetWeaponType()) == SW_BOMB)
+		if (StaticType(GetWeapon()) == SW_BOMB)
 			GameServer()->m_pController->DropWeapon(m_Pos+vec2(0, -16), (m_Core.m_Vel/1.7f + Direction*10 + vec2(0, -3))*0.75f, GetWeapon());
 		else
 			GameServer()->m_pController->DropWeapon(m_Pos+vec2(0, -16), m_Core.m_Vel/1.7f + Direction*10 + vec2(0, -3), GetWeapon());
@@ -965,7 +946,7 @@ void CCharacter::DropWeapon()
 	
 	if (GetWeapon()->ReleaseCharge())
 	{
-		if (GetWeaponFiringType(GetWeaponType()) == WFT_THROW)
+		if (GetWeapon()->GetWeaponProfile().m_Combat.m_FiringType == WFT_THROW)
 			ReleaseWeapon();
 		
 		m_apWeapon[GetWeaponSlot()] = NULL;
@@ -1086,14 +1067,15 @@ void CCharacter::FireWeapon()
 	if (m_aStatus[STATUS_SPAWNING] > 0.0f || m_aStatus[STATUS_DEATHRAY] > 0.0f)
 		return;
 
-	if (GetWeaponType() == WEAPON_NONE)
+	if (!GetWeapon())
 		return;
 	
 	vec2 Direction = normalize(vec2(m_LatestInput.m_TargetX, m_LatestInput.m_TargetY));
 	GetWeapon()->SetPos(m_Pos, m_Core.m_Vel, Direction, m_ProximityRadius);
 	GetWeapon()->SetOwner(GetPlayer()->GetCID());
 	
-	if (GetWeaponFiringType(GetWeaponType()) == WFT_CHARGE || GetWeaponFiringType(GetWeaponType()) == WFT_THROW)
+	const int FiringType = GetWeapon()->GetWeaponProfile().m_Combat.m_FiringType;
+	if (FiringType == WFT_CHARGE || FiringType == WFT_THROW)
 	{
 		float Knockback = 0.0f;
 		
@@ -1104,7 +1086,7 @@ void CCharacter::FireWeapon()
 			{
 				m_ChargeTick = Server()->Tick();
 				
-				if (GetWeaponFiringType(GetWeaponType()) == WFT_THROW)
+				if (FiringType == WFT_THROW)
 					m_AttackTick = Server()->Tick();
 			}
 		}
@@ -1113,7 +1095,7 @@ void CCharacter::FireWeapon()
 		{
 			m_ChargeTick = 0;
 			m_AttackTick = Server()->Tick();
-			if (GetWeaponFiringType(GetWeaponType()) == WFT_THROW)
+			if (FiringType == WFT_THROW)
 			{
 				ReleaseWeapon();
 				m_Core.m_ChargeLevel = -20;
@@ -1196,13 +1178,13 @@ void CCharacter::GiveStartWeapon()
 {
 	if (IsZombie())
 	{
-		m_apWeapon[0] = GameServer()->NewWeapon(GetStaticWeapon(SW_CLAW));
+		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_CLAW));
 		return;
 	}
 	
 	if (!m_IsBot && str_comp(g_Config.m_SvGametype, "base") == 0)
 	{
-		m_apWeapon[0] = GameServer()->NewWeapon(GetStaticWeapon(SW_TOOL));
+		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_TOOL));
 	}
 	
 	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
@@ -1212,14 +1194,42 @@ void CCharacter::GiveStartWeapon()
 		
 		// load saved weapons
 		CPlayerData *pData = GameServer()->Server()->GetPlayerData(GetPlayer()->GetCID(), GetPlayer()->GetColorID());
+		if(pData->m_WeaponDataVersion != WEAPON_DATA_VERSION)
+		{
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Reset weapon inventory: unsupported version %d (expected %d)", pData->m_WeaponDataVersion, WEAPON_DATA_VERSION);
+			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-data", aBuf);
+			pData->ResetWeapons();
+		}
+		for(int i = 0; i < NUM_SLOTS; ++i)
+		{
+			if(!pData->m_aWeaponDefinitionId[i])
+				continue;
+			CWeaponSpec Spec;
+			CResolvedWeaponProfile Profile;
+			if(!CWeaponCatalog::TryFromProtocol(pData->m_aWeaponDefinitionId[i], pData->m_aWeaponLevel[i], &Spec) ||
+				!CWeaponCatalog::TryResolve(Spec, &Profile) || pData->m_aWeaponAmmo[i] < 0 || pData->m_aWeaponAmmo[i] > Profile.m_Combat.m_MaxAmmo)
+			{
+				char aBuf[192];
+				str_format(aBuf, sizeof(aBuf), "Reset weapon inventory: invalid slot %d definition=%d level=%d ammo=%d", i,
+					pData->m_aWeaponDefinitionId[i], pData->m_aWeaponLevel[i], pData->m_aWeaponAmmo[i]);
+				GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-data", aBuf);
+				pData->ResetWeapons();
+				break;
+			}
+		}
 		bool GotItems = false;
 		
 		for (int i = 0; i < NUM_SLOTS; i++)
 		{
-			if (pData->m_aWeaponType[i])
+			if (pData->m_aWeaponDefinitionId[i])
 			{
-				m_apWeapon[i] = GameServer()->NewWeapon(pData->m_aWeaponType[i]);
-				m_apWeapon[i]->m_Ammo = pData->m_aWeaponAmmo[i];
+				CWeaponSpec Spec;
+				if(CWeaponCatalog::TryFromProtocol(pData->m_aWeaponDefinitionId[i], pData->m_aWeaponLevel[i], &Spec))
+				{
+					m_apWeapon[i] = GameServer()->NewWeapon(Spec);
+					m_apWeapon[i]->m_Ammo = pData->m_aWeaponAmmo[i];
+				}
 			}
 			
 			if (m_apWeapon[i])
@@ -1227,7 +1237,7 @@ void CCharacter::GiveStartWeapon()
 		}
 		
 		if (!GotItems)
-			m_apWeapon[0] = GameServer()->NewWeapon(GetStaticWeapon(SW_GUN1));
+			m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GUN1));
 		
 		m_Kits = pData->m_Kits;
 		m_Armor = pData->m_Armor;
@@ -1253,12 +1263,12 @@ void CCharacter::GiveStartWeapon()
 		if (m_IsBot)
 			return;
 
-		m_apWeapon[0] = GameServer()->NewWeapon(GetStaticWeapon(SW_GUN1));
-		m_apWeapon[1] = GameServer()->NewWeapon(GetModularWeapon(1, 1));
+		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GUN1));
+		m_apWeapon[1] = GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1));
 		if (frandom() < 0.5f)
-			m_apWeapon[2] = GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE1));
+			m_apWeapon[2] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE1));
 		else
-			m_apWeapon[2] = GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE2));
+			m_apWeapon[2] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE2));
 		m_Kits = max(m_Kits, 4);
 		SetArmor(max(GetArmor(), 5));
 		return;
@@ -1276,9 +1286,9 @@ void CCharacter::GiveStartWeapon()
 		if (!GotItems)
 		{
 			if (frandom() < 0.5f)
-				m_apWeapon[0] = GameServer()->NewWeapon(GetStaticWeapon(SW_GUN1));
+				m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GUN1));
 			else
-				m_apWeapon[0] = GameServer()->NewWeapon(GetStaticWeapon(SW_GUN2));
+				m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GUN2));
 		}
 		
 		return;
@@ -1289,17 +1299,19 @@ void CCharacter::GiveStartWeapon()
 	
 	if (g_Config.m_SvRandomWeapons)
 	{
-		m_apWeapon[w++] = GameServer()->NewWeapon(GameServer()->m_pController->GetRandomModularWeapon());
+		const CWeaponSpec RandomSpec = GameServer()->m_pController->GetRandomModularWeapon();
+		if (RandomSpec.IsValid())
+			m_apWeapon[w++] = GameServer()->NewWeapon(RandomSpec);
 
 		// todo random item
 		if (frandom() < 0.5f)
-			m_apWeapon[w++] = GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE1));
+			m_apWeapon[w++] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE1));
 		else
-			m_apWeapon[w++] = GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE2));
+			m_apWeapon[w++] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE2));
 	}
 	if (g_Config.m_SvLaserWeapon)
 	{
-		m_apWeapon[w++] = GameServer()->NewWeapon(GetModularWeapon(3, 3));
+		m_apWeapon[w++] = GameServer()->NewWeapon(CWeaponCatalog::Modular(3, 3));
 	}
 }
 
@@ -1518,7 +1530,7 @@ int CCharacter::GetMask()
 {
 	for (int i = 0; i < 12; i++)
 	{
-		int w = GetStaticType(GetWeaponType(i));
+		int w = StaticType(m_apWeapon[i]);
 		if (w >= SW_MASK1 && w <= SW_MASK5 && GetWeaponSlot() != i)
 			return w-(SW_MASK1-1);
 	}
@@ -1549,7 +1561,7 @@ void CCharacter::UpdateCoreStatus()
 	
 	for (int w = 0; w < NUM_SLOTS; w++)
 	{
-		if (GetStaticType(GetWeaponType(w)) == SW_BOMB && GetWeaponSlot() != w)
+		if (StaticType(m_apWeapon[w]) == SW_BOMB && GetWeaponSlot() != w)
 		{
 			m_BombCarrier = true;
 			break;
@@ -1589,8 +1601,7 @@ void CCharacter::UpdateCoreStatus()
 		
 		 // flame damage
 		if (m_aStatus[STATUS_AFLAME] > 0)
-			TakeDamage(m_aStatusFrom[STATUS_AFLAME], m_aStatusWeapon[STATUS_AFLAME], 2, vec2(0, 0), vec2(0, 0));
-		//	TakeDamage(vec2(0, 0), 4, m_aStatusFrom[STATUS_AFLAME], m_aStatusWeapon[STATUS_AFLAME], vec2(0, 0), DAMAGETYPE_FLAME);
+			TakeDamage(m_aStatusSource[STATUS_AFLAME], 2, vec2(0, 0), vec2(0, 0));
 	}
 	
 	// rolling stops flames a bit faster
@@ -1602,11 +1613,6 @@ void CCharacter::UpdateCoreStatus()
 void CCharacter::Tick()
 {
 	//GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "debug", "Tick");
-
-	// stress testing pickups
-	
-	//for (int i = 0; i < 50; i++)
-	//	GameServer()->m_pController->DropWeapon(m_Pos, vec2(frandom()*6.0-frandom()*6.0, 0-frandom()*14.0), GameServer()->NewWeapon(GetStaticWeapon(SW_UPGRADE)));
 	
 	/*
 	GameServer()->m_pController->DropPickup(m_Pos, POWERUP_HEALTH, vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0);
@@ -1665,9 +1671,9 @@ void CCharacter::Tick()
 		
 		int Slot = GetWeaponSlot();
 		
-		if (GetWeaponType(Slot) == 0)
+		if (!GetWeapon(Slot))
 		{
-			m_apWeapon[Slot] = GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE1));
+			m_apWeapon[Slot] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE1));
 			SendInventory();
 			m_GrenadeGiveCooldown = 100;
 		}
@@ -1675,16 +1681,16 @@ void CCharacter::Tick()
 		{
 			for (int w = 0; w < 4; w++)
 			{
-				if (GetStaticType(GetWeaponType(w)) == SW_GRENADE1)
+				if (StaticType(m_apWeapon[w]) == SW_GRENADE1)
 					GotGrenade = true;
 			}
 			
 			if (!GotGrenade)
 			{
 				int Slot = rand()%4;
-				if (GetWeaponType(Slot) == 0 && Slot != GetWeaponSlot())
+				if (!GetWeapon(Slot) && Slot != GetWeaponSlot())
 				{
-					m_apWeapon[Slot] = GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE1));
+					m_apWeapon[Slot] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE1));
 					SendInventory();
 					m_GrenadeGiveCooldown = 100;
 				}
@@ -1724,7 +1730,6 @@ void CCharacter::Tick()
 	
 	if (m_Core.m_KickDamage >= 0 && m_Core.m_KickDamage < MAX_CLIENTS)
 	{
-		//TakeDamage(vec2(0, 0), 20, m_Core.m_KickDamage, WEAPON_WORLD, vec2(0, 0), DAMAGETYPE_NORMAL);
 		GameServer()->CreateSound(m_Pos, SOUND_KICKHIT);
 	}
 	
@@ -1742,24 +1747,17 @@ void CCharacter::Tick()
 		m_Core.m_Vel.y = 0.0f;
 	}
 	
-	// monster damage
-	//if (m_Core.m_MonsterDamage)
-	//	TakeDamage(normalize(m_Core.m_Vel), 10, -1, DEATHTYPE_DROID_WALKER, vec2(0, 0));
-	
 	if (m_Core.m_FluidDamage && m_AcidTimer <= 0)
 	{
-		TakeDamage(-1, WEAPON_ACID, 2, normalize(m_Core.m_Vel), vec2(0, 0));
+		TakeDamage(CAttackSource::World(WEAPON_ACID), 2, normalize(m_Core.m_Vel), vec2(0, 0));
 		m_AcidTimer = 4;
 	}
 	
 	if (m_AcidTimer > 0)
 		m_AcidTimer--;
 	
-	//	TakeDamage(normalize(m_Core.m_Vel), 2, -1, WEAPON_WORLD, vec2(0, 0), DAMAGETYPE_FLUID);
-
 	if (m_Core.m_KickDamage >= 0 && m_Core.m_KickDamage < MAX_CLIENTS)
 	{
-		//TakeDamage(vec2(0, 0), 20, m_Core.m_KickDamage, WEAPON_WORLD, vec2(0, 0), DAMAGETYPE_NORMAL);
 		GameServer()->CreateSound(m_Pos, SOUND_KICKHIT);
 	}
 
@@ -1783,12 +1781,12 @@ void CCharacter::Tick()
 		GameServer()->Collision()->GetCollisionAt(m_Pos.x-m_ProximityRadius/3.f, m_Pos.y-m_ProximityRadius/3.f-24)&CCollision::COLFLAG_INSTADEATH ||
 		GameServer()->Collision()->GetCollisionAt(m_Pos.x-m_ProximityRadius/3.f, m_Pos.y+m_ProximityRadius/3.f)&CCollision::COLFLAG_INSTADEATH)
 	{
-		Die(m_pPlayer->GetCID(), DEATHTYPE_SPIKE);
+		Die(CAttackSource::World(DEATHTYPE_SPIKE, m_pPlayer->GetCID()));
 	}
 	
 	// leaving gamelayer (ignore going right)
 	if (GameLayerClipped(vec2(min(0.0f, m_Pos.x), m_Pos.y)))
-		Die(m_pPlayer->GetCID(), DEATHTYPE_SPIKE);
+		Die(CAttackSource::World(DEATHTYPE_SPIKE, m_pPlayer->GetCID()));
 	
 	// delayed death ray
 	if (m_DeathrayTick > 0 && m_DeathrayTick <= Server()->Tick())
@@ -1797,7 +1795,7 @@ void CCharacter::Tick()
 	
 	if (m_DelayedKill)
 	{
-		Die(m_pPlayer->GetCID(), WEAPON_WORLD);
+		Die(CAttackSource::World(WEAPON_WORLD, m_pPlayer->GetCID()));
 		m_LatestHitVel = vec2(0, 0);
 	}
 
@@ -1983,7 +1981,7 @@ bool CCharacter::AddKit()
 }
 
 
-bool CCharacter::AddClip(int Weapon)
+bool CCharacter::AddClip()
 {
 	if (GetWeapon() && GetWeapon()->AddClip())
 		return true;
@@ -2032,28 +2030,10 @@ void CCharacter::ReleaseWeapons()
 {
 	m_ForceCoreSend = true;
 
-	// drop mask
-	/*
-	if (!m_IsBot || !GameServer()->m_pController->IsCoop())
-	{
-		for (int i = 0; i < 4; i++)
-		{
-			int w = GetStaticType(GetWeaponType(i));
-			
-			if (w >= SW_MASK1 && w <= SW_MASK5 && GetWeaponSlot() != i)
-			{
-				GameServer()->m_pController->DropWeapon(m_Pos+vec2(0, -16), (m_Core.m_Vel/1.7f + vec2(0, -3))*0.75f, m_apWeapon[i]);
-				m_apWeapon[i] = NULL;
-				break;
-			}
-		}
-	}
-	*/
-	
 	for (int i = 0; i < NUM_SLOTS; i++)
 		if (m_apWeapon[i])
 		{
-			if (GetStaticType(m_apWeapon[i]->GetWeaponType()) == SW_BOMB)
+			if (StaticType(m_apWeapon[i]) == SW_BOMB)
 			{
 				GameServer()->m_pController->DropWeapon(m_Pos+vec2(0, -16), (m_Core.m_Vel/1.7f + vec2(0, -3))*0.75f, m_apWeapon[i]);
 			}
@@ -2067,10 +2047,10 @@ void CCharacter::ReleaseWeapons()
 }
 
 
-void CCharacter::Die(int Killer, int Weapon, bool SkipKillMessage, bool IsTurret1)
+void CCharacter::Die(const CAttackSource &Source, bool SkipKillMessage, bool IsTurret1)
 {
-	//if (Weapon < 0)
-	//	Weapon = 0;
+	int Killer = Source.m_Owner;
+	const bool GameSource = Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME;
 	// we got to wait 0.5 secs before respawning
 	//m_pPlayer->m_RespawnTick = Server()->Tick()+Server()->TickSpeed()/2;
 	
@@ -2083,46 +2063,38 @@ void CCharacter::Die(int Killer, int Weapon, bool SkipKillMessage, bool IsTurret
 	else
 		m_pPlayer->m_RespawnTick = Server()->Tick()+Server()->TickSpeed()*g_Config.m_SvRespawnDelay;
 	
-	//if (Killer == m_pPlayer->GetCID() && (Weapon == WEAPON_HAMMER || Weapon == WEAPON_GAME))
-	//	SkipKillMessage = true;
-	
 	if (Killer == NEUTRAL_BASE)
 		Killer = GetPlayer()->GetCID();
 	
-	/*
-	if (Weapon == W_DROID_STAR && Killer >= 0 && Killer != GetPlayer()->GetCID())
-		Weapon = DEATHTYPE_DROID_STAR;
-	
-	if (Weapon == W_DROID_WALKER && Killer >= 0 && Killer != GetPlayer()->GetCID())
-		Weapon = DEATHTYPE_DROID_WALKER;
-	*/
-	
 	if (!SkipKillMessage && Killer >= 0)
 	{
-		int ModeSpecial = GameServer()->m_pController->OnCharacterDeath(this, GameServer()->m_apPlayers[Killer], Weapon);
+		int ModeSpecial = GameServer()->m_pController->OnCharacterDeath(this, GameServer()->m_apPlayers[Killer], Source);
 		
 		if(!m_IsBot)
 		{
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "kill killer='%d:%s' victim='%d:%s' weapon=%d special=%d",
+			str_format(aBuf, sizeof(aBuf), "kill killer='%d:%s' victim='%d:%s' source=%d:%d special=%d",
 				Killer, Server()->ClientName(Killer),
-				m_pPlayer->GetCID(), Server()->ClientName(m_pPlayer->GetCID()), Weapon, ModeSpecial);
+				m_pPlayer->GetCID(), Server()->ClientName(m_pPlayer->GetCID()), static_cast<int>(Source.m_Kind), Source.m_Type, ModeSpecial);
 			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
 		}
 
 		// send the kill message
-		if (Weapon != WEAPON_GAME)
+		if (!GameSource)
 		{
 			CNetMsg_Sv_KillMsg Msg;
 			Msg.m_Killer = Killer;
 			Msg.m_Victim = m_pPlayer->GetCID();
-			Msg.m_Weapon = Weapon;
+			Msg.m_SourceKind = static_cast<int>(Source.m_Kind);
+			Msg.m_SourceType = Source.m_Type;
+			Msg.m_WeaponDefinitionId = static_cast<int>(Source.m_Weapon.m_DefinitionId);
+			Msg.m_WeaponLevel = Source.m_Weapon.m_Level;
 			Msg.m_ModeSpecial = ModeSpecial;
 			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
 		}
 	}
 	else
-		GameServer()->m_pController->OnCharacterDeath(this, NULL, Weapon);
+		GameServer()->m_pController->OnCharacterDeath(this, NULL, Source);
 	
 	// a nice sound
 	GameServer()->CreateSound(m_Pos, SOUND_PLAYER_DIE);
@@ -2136,16 +2108,14 @@ void CCharacter::Die(int Killer, int Weapon, bool SkipKillMessage, bool IsTurret
 	GameServer()->m_World.RemoveEntity(this);
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = 0;
 	
-	if ((Killer >= 0 && Weapon != WEAPON_GAME) || !m_IsBot)
+	if ((Killer >= 0 && !GameSource) || !m_IsBot)
 		GameServer()->CreateDeath(m_Pos, m_pPlayer->GetCID());
 	
-	if (Killer >= 0 && Weapon != WEAPON_GAME && !IsBuilding(Weapon) && !IsTurret(Weapon))
+	if (Killer >= 0 && !GameSource && Source.m_Kind != EAttackSourceKind::Building)
 		GameServer()->CreateSoundGlobal(SOUND_KILL, Killer);
 	
 	GameServer()->CreateSoundGlobal(SOUND_DEATH, GetPlayer()->GetCID());
 
-	//if (m_ExplodeOnDeath && Killer >= 0)
-	//	GameServer()->CreateExplosion(m_Pos, Killer, Weapon, 0, false, false);
 }
 
 
@@ -2213,31 +2183,39 @@ void CCharacter::Slow(float Duration)
 }
 
 
-void CCharacter::SetAflame(float Duration, int From, int Weapon)
+void CCharacter::SetAflame(float Duration, const CAttackSource &Source)
 {
 	if (IgnoreCollision())
 		return;
 	
-	if(GameServer()->m_pController->IsFriendlyFire(m_pPlayer->GetCID(), From) && !g_Config.m_SvTeamdamage)
+	if(GameServer()->m_pController->IsFriendlyFire(m_pPlayer->GetCID(), Source.m_Owner) && !g_Config.m_SvTeamdamage)
 		return;
 	
 	if (m_aStatus[STATUS_AFLAME] < Duration*Server()->TickSpeed())
 	{
-		m_aStatusFrom[STATUS_AFLAME] = From;
-		m_aStatusWeapon[STATUS_AFLAME] = Weapon;
+		m_aStatusSource[STATUS_AFLAME] = Source;
 		m_aStatus[STATUS_AFLAME] = Duration*Server()->TickSpeed();
 	}
 }
 
 
-//bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon, vec2 Pos, int Type, bool IsTurret)
-bool CCharacter::TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos)
+bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, vec2 Pos)
 {
+	const int From = Source.m_Owner;
+	CWeaponCombatProfile Combat{};
+	const bool HasCombatProfile = CWeaponCatalog::TryResolveAttack(Source, &Combat);
+	int SourceStaticType = -1;
+	if(Source.m_Kind == EAttackSourceKind::PlayerWeapon)
+	{
+		CWeaponDefinition Definition;
+		if(CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Static)
+			SourceStaticType = Definition.m_StaticType;
+	}
 	// skip everything while spawning
 	if (m_aStatus[STATUS_SPAWNING] > 0.0f)
 		return false;
 	
-	if (GetStaticType(Weapon) == SW_ELECTROWALL && m_ElectroWallCooldown <= 0)
+	if (SourceStaticType == SW_ELECTROWALL && m_ElectroWallCooldown <= 0)
 	{
 		Force = RandomDir()*0.1f;
 		m_aStatus[STATUS_DEATHRAY] = 0.15f*Server()->TickSpeed();
@@ -2255,21 +2233,21 @@ bool CCharacter::TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos)
 		m_Recoil += Force / 2;
 	
 	// signal AI
-	if (Dmg > 0 && GetPlayer()->m_pAI && Weapon >= 0)
+	if (Dmg > 0 && GetPlayer()->m_pAI && HasCombatProfile)
 		GetPlayer()->m_pAI->ReceiveDamage(From, Dmg);
 	
 	if(GameServer()->m_pController->IsFriendlyFire(m_pPlayer->GetCID(), From) && !g_Config.m_SvTeamdamage)
 		return false;
 	
-	float Flame = WeaponFlameAmount(Weapon);
-	float Electro = WeaponElectroAmount(Weapon);
+	float Flame = Combat.m_FlameAmount;
+	float Electro = Combat.m_ElectroAmount;
 
 	// damage reduction for invasion
 	if (Dmg > 0 && GameServer()->m_pController->IsCoop() && !m_IsBot)
 		Dmg = max(1, Dmg/2);
 
 	if(Dmg > 0 && GameServer()->m_pPveDirector)
-		Dmg = GameServer()->m_pPveDirector->ModifyDamage(From, m_pPlayer->GetCID(), Weapon, Dmg);
+		Dmg = GameServer()->m_pPveDirector->ModifyDamage(Source, m_pPlayer->GetCID(), Dmg);
 	
 	if (From == m_pPlayer->GetCID())
 	{
@@ -2294,13 +2272,13 @@ bool CCharacter::TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos)
 		DmgPos = Pos;
 
 	if (Flame > 0.0f && Dmg > 2)
-		SetAflame(Flame, From, Weapon);
+		SetAflame(Flame, Source);
 		
 	// create healthmod indicator
 	if (m_ShieldHealth <= 0)
 	{
 		//if (Type == DAMAGETYPE_NORMAL)
-		if (Flame == 0.0f && Electro == 0.0f && Weapon != WEAPON_ACID && GetStaticType(Weapon) != SW_ELECTROWALL)
+		if (Flame == 0.0f && Electro == 0.0f && !(Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_ACID) && SourceStaticType != SW_ELECTROWALL)
 		{
 			if(Server()->Tick() < m_DamageTakenTick+25)
 				GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), Dmg * (m_Type == CCharacter::ROBOT ? -1 : 1), m_pPlayer->GetCID());
@@ -2318,7 +2296,7 @@ bool CCharacter::TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos)
 			GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, m_pPlayer->GetCID());
 		}
 		
-		if (GetStaticType(Weapon) == SW_CHAINSAW)
+		if (SourceStaticType == SW_CHAINSAW)
 			m_Core.m_Vel *= 0.9f;
 		
 		if (Electro > 0.0f)
@@ -2382,8 +2360,7 @@ bool CCharacter::TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos)
 
 
 	// do damage Hit sound
-	//if (Type != DAMAGETYPE_FLAME && Weapon != DEATHTYPE_TESLACOIL && !IsTurret && m_DamageSoundTimer <= 0)
-	if (Weapon != DEATHTYPE_TESLACOIL && m_DamageSoundTimer <= 0)
+	if (!(Source.m_Kind == EAttackSourceKind::Building && Source.m_Type == BUILDING_TESLACOIL) && m_DamageSoundTimer <= 0)
 	{
 		if(From >= 0 && From != m_pPlayer->GetCID() && GameServer()->m_apPlayers[From])
 		{
@@ -2403,8 +2380,7 @@ bool CCharacter::TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos)
 	// check for death
 	if(m_HiddenHealth <= 0)
 	{
-		//Die(From, Weapon, false, IsTurret);
-		Die(From, Weapon, false, false);
+		Die(Source, false, false);
 
 		// set attacker's face to happy (taunt!)
 		if (From >= 0 && From != m_pPlayer->GetCID() && GameServer()->m_apPlayers[From])
@@ -2469,7 +2445,7 @@ void CCharacter::TakeSawbladeDamage(vec2 SawbladePos)
 	// check for death
 	if(m_HiddenHealth <= 0)
 	{
-		Die(m_pPlayer->GetCID(), DEATHTYPE_SAWBLADE);
+		Die(CAttackSource::World(DEATHTYPE_SAWBLADE, m_pPlayer->GetCID()));
 		return;
 	}
 
@@ -2485,7 +2461,7 @@ void CCharacter::TakeSawbladeDamage(vec2 SawbladePos)
 void CCharacter::TakeDeathrayDamage()
 {
 	m_DamageTaken++;
-	Die(m_pPlayer->GetCID(), DEATHTYPE_DEATHRAY);
+	Die(CAttackSource::World(DEATHTYPE_DEATHRAY, m_pPlayer->GetCID()));
 }
 
 
@@ -2531,7 +2507,7 @@ void CCharacter::TakeDeathtileDamage()
 	// check for death
 	if(m_HiddenHealth <= 0)
 	{
-		Die(m_pPlayer->GetCID(), DEATHTYPE_SPIKE);
+		Die(CAttackSource::World(DEATHTYPE_SPIKE, m_pPlayer->GetCID()));
 		return;
 	}
 
@@ -2587,7 +2563,16 @@ void CCharacter::Snap(int SnappingClient)
 	pCharacter->m_AmmoCount = 0;
 	pCharacter->m_Health = 0;
 	pCharacter->m_Armor = 0;
-	pCharacter->m_Weapon = GetWeaponType();
+	if(GetWeapon())
+	{
+		pCharacter->m_WeaponDefinitionId = static_cast<int>(GetWeapon()->GetWeaponSpec().m_DefinitionId);
+		pCharacter->m_WeaponLevel = GetWeapon()->GetWeaponSpec().m_Level;
+	}
+	else
+	{
+		pCharacter->m_WeaponDefinitionId = 0;
+		pCharacter->m_WeaponLevel = 0;
+	}
 	
 	pCharacter->m_AttackTick = m_AttackTick;
 

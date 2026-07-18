@@ -43,46 +43,46 @@ void CAIpyro1::OnCharacterSpawn(CCharacter *pChr)
 	if (m_Skin == SKIN_PYRO1)
 	{	
 		if (frandom() < 0.5f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_CHAINSAW)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_CHAINSAW)));
 		else
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetModularWeapon(2, 1)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(2, 1)));
 	}
 	else if (m_Skin == SKIN_PYRO2)
 	{
 		if (frandom() < 0.35f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_BAZOOKA)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_BAZOOKA)));
 		else
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_BOUNCER)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_BOUNCER)));
 	}
 	else if (m_Skin == SKIN_SKELETON1)
 	{
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(1, 4), 3)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 4, 3)));
 	}
 	else if (m_Skin == SKIN_SKELETON2)
 	{
 		if (frandom() < 0.5f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(2, 4), 3)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(2, 4, 3)));
 		else
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_CHAINSAW)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_CHAINSAW)));
 	}
 	else if (m_Skin == SKIN_SKELETON3)
 	{
 		if (frandom() < 0.5f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(1, 2), 2)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 2, 2)));
 		else
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(5, 9), 3)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(5, 9, 3)));
 	}
 	else if (m_Skin == SKIN_PYRO3)
 	{
 		if (frandom() < 0.35f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_FLAMER)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_FLAMER)));
 		else
 		{
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(6, 7), 4)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(6, 7, 4)));
 			m_AttackOnDamage = true;
 		}
 		
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_MASK3)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_MASK3)));
 	}
 	
 	
@@ -152,8 +152,7 @@ void CAIpyro1::DoBehavior()
 				//MoveTowardsWaypoint(true);
 				//
 				
-				int Weapon = Player()->GetCharacter()->GetWeaponType();
-				if (GetWeaponFiringType(Weapon) == WFT_NONE)
+				if (Player()->GetCharacter()->CurrentWeaponFiringType() == WFT_NONE)
 				{
 					Shooting = false;
 					m_TargetPos = m_Pos - m_PlayerDirection*3;

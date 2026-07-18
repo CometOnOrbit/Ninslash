@@ -5,7 +5,6 @@
 #include "pickup.h"
 #include "weapon.h"
 #include "electro.h"
-#include "superexplosion.h"
 
 
 CPickup::CPickup(CGameWorld *pGameWorld, int Type, int SubType, int Ammo)
@@ -58,34 +57,46 @@ void CPickup::Reset()
 	
 		ClearWeapon();
 		
-		if (m_Type == POWERUP_WEAPON && GetStaticType(m_Subtype) != SW_BALL)
+		CWeaponDefinition Definition;
+		const bool IsBall = m_Type == POWERUP_WEAPON && CWeaponCatalog::TryGetDefinition(m_WeaponSpec.m_DefinitionId, &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Static && Definition.m_StaticType == SW_BALL;
+		if (m_Type == POWERUP_WEAPON && !IsBall)
 			SetRandomWeapon();
 	}
 }
 
 void CPickup::SetRandomWeapon()
 {
-	if (GetStaticType(m_Subtype) == SW_BALL)
+	CWeaponDefinition Definition;
+	if(CWeaponCatalog::TryGetDefinition(m_WeaponSpec.m_DefinitionId, &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Static && Definition.m_StaticType == SW_BALL)
 		return;
 	
-	m_Subtype = GetRandomWeaponType(g_Config.m_SvSurvivalMode ? true : false);
-	
-	if (GetStaticType(m_Subtype) == SW_UPGRADE)
+	m_WeaponSpec = GameServer()->m_pController->GetRandomWeapon();
+	if(!CWeaponCatalog::TryGetDefinition(m_WeaponSpec.m_DefinitionId, &Definition))
+	{
+		m_Subtype = 0;
 		return;
+	}
+	
+	if (Definition.m_Kind == EWeaponDefinitionKind::Static && Definition.m_StaticType == SW_UPGRADE)
+	{
+		m_Subtype = 0;
+		return;
+	}
 	
 	
 	if (str_comp(g_Config.m_SvGametype, "ball") == 0)
 	{
 		if (frandom() < 0.7f)
-			m_Subtype = GetChargedWeapon(m_Subtype, frandom()*WeaponMaxLevel(m_Subtype));
+			m_WeaponSpec.m_Level = frandom() * Definition.m_MaxLevel;
 		else
-			m_Subtype = GetChargedWeapon(m_Subtype, WeaponMaxLevel(m_Subtype));
+			m_WeaponSpec.m_Level = Definition.m_MaxLevel;
 	}
 	
-	if (WeaponMaxLevel(m_Subtype) > 0 && frandom() < 0.5f)
-		m_Subtype = GetChargedWeapon(m_Subtype, frandom()*WeaponMaxLevel(m_Subtype));
-	else if (WeaponMaxLevel(m_Subtype) > 0 && frandom() < 0.1f)
-		m_Subtype = GetChargedWeapon(m_Subtype, WeaponMaxLevel(m_Subtype));
+	if (Definition.m_MaxLevel > 0 && frandom() < 0.5f)
+		m_WeaponSpec.m_Level = frandom() * Definition.m_MaxLevel;
+	else if (Definition.m_MaxLevel > 0 && frandom() < 0.1f)
+		m_WeaponSpec.m_Level = Definition.m_MaxLevel;
+	m_Subtype = 0;
 }
 
 void CPickup::ClearWeapon()
@@ -145,14 +156,16 @@ void CPickup::Tick()
 	
 	if (m_Life > 0 && m_Type == POWERUP_WEAPON)
 	{
-		if (GetStaticType(m_Subtype) == SW_BOMB)
+		CWeaponDefinition Definition;
+		const int StaticType = CWeaponCatalog::TryGetDefinition(m_WeaponSpec.m_DefinitionId, &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Static ? Definition.m_StaticType : -1;
+		if (StaticType == SW_BOMB)
 		{
 			m_Life = 9999;
 			
 			GameServer()->m_pController->m_BombPos = m_Pos;
 			GameServer()->m_pController->m_BombStatus = BOMB_IDLE;
 		}
-		else if (GetStaticType(m_Subtype) == SW_BALL)
+		else if (StaticType == SW_BALL)
 			m_Life = 9999;
 	}
 	
@@ -345,7 +358,11 @@ void CPickup::Tick()
 
 			case POWERUP_WEAPON:
 				if (!m_pWeapon)
-					m_pWeapon = GameServer()->NewWeapon(m_Subtype);
+				{
+					if (!m_WeaponSpec.IsValid())
+						break;
+					m_pWeapon = GameServer()->NewWeapon(m_WeaponSpec);
+				}
 					
 				if (pChr->PickWeapon(m_pWeapon))
 				{
@@ -359,8 +376,6 @@ void CPickup::Tick()
 					m_Life = 0;
 					m_Flashing = false;
 						
-					if(pChr->GetPlayer())
-						GameServer()->SendWeaponPickup(pChr->GetPlayer()->GetCID(), pChr->m_PickedWeaponSlot);
 				}
 				break;
 				
@@ -449,5 +464,7 @@ void CPickup::Snap(int SnappingClient)
 	pP->m_Angle = (int)(m_Angle*256.0f);
 	pP->m_Mirror = m_Mirror;
 	pP->m_Type = m_Type;
-	pP->m_Subtype = m_Subtype;
+	pP->m_Subtype = m_Type == POWERUP_WEAPON ? 0 : m_Subtype;
+	pP->m_WeaponDefinitionId = m_Type == POWERUP_WEAPON ? static_cast<int>(m_WeaponSpec.m_DefinitionId) : 0;
+	pP->m_WeaponLevel = m_Type == POWERUP_WEAPON ? m_WeaponSpec.m_Level : 0;
 }

@@ -82,7 +82,8 @@ public:
 	void OnPredictedInput(CNetObj_PlayerInput *NewInput);
 	void OnDisconnect(const char *pReason);
 
-	void KillCharacter(int Weapon = WEAPON_GAME);
+	void KillCharacter();
+	void KillCharacter(const CAttackSource &Source);
 	CCharacter *GetCharacter();
 	
 	// bomb planting & defusing

@@ -41,7 +41,7 @@ void CAIball::DoBehavior()
 
 	HeadToMovingDirection();
 	
-	if (Player()->GetCharacter()->GetWeaponType() != WEAPON_NONE)
+	if (Player()->GetCharacter()->GetWeapon() != nullptr)
 	{
 		SeekClosestEnemyInSight();
 		
@@ -72,7 +72,7 @@ void CAIball::DoBehavior()
 		m_TargetPos = BallPos;
 	
 	
-	if (Player()->GetCharacter()->GetWeaponType() == WEAPON_NONE)
+	if (Player()->GetCharacter()->GetWeapon() == nullptr)
 		FindWeapon();
 	
 	m_WaypointPos = m_TargetPos;

@@ -1,5 +1,29 @@
 #include "playerinfo.h"
 
+int CPlayerInfo::WeaponRenderType() const
+{
+	CResolvedWeaponProfile Profile;
+	return CWeaponCatalog::TryResolve(m_Weapon, &Profile) ? Profile.m_Visual.m_RenderType : WRT_WEAPON1;
+}
+
+int CPlayerInfo::WeaponFiringType() const
+{
+	CResolvedWeaponProfile Profile;
+	return CWeaponCatalog::TryResolve(m_Weapon, &Profile) ? Profile.m_Combat.m_FiringType : WFT_NONE;
+}
+
+int CPlayerInfo::WeaponStaticType() const
+{
+	CWeaponDefinition Definition;
+	return CWeaponCatalog::TryGetDefinition(m_Weapon.m_DefinitionId, &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Static ? Definition.m_StaticType : -1;
+}
+
+vec2 CPlayerInfo::WeaponRenderOffset() const
+{
+	CResolvedWeaponProfile Profile;
+	return CWeaponCatalog::TryResolve(m_Weapon, &Profile) ? Profile.m_Visual.m_RenderOffset : vec2(0, 0);
+}
+
 #include <generated/game_data.h>
 #include <base/math.h>
 
@@ -13,7 +37,7 @@ CPlayerInfo::CPlayerInfo()
 {
 	m_pAnimation = new CSkeletonAnimation();
 	m_Pos = vec2(0, 0);
-	m_Weapon = 0;
+	m_Weapon = {};
 	m_AirJumpAnimLoaded = true;
 	m_FlipFeet = false;
 	m_WeaponRecoilLoaded = false;
@@ -151,7 +175,7 @@ void CPlayerInfo::Reset()
 	m_Hand[HAND_FREE].Reset();
 }
 
-void CPlayerInfo::AddMuzzle(int AttackTick, int Weapon)
+void CPlayerInfo::AddMuzzle(int AttackTick)
 {
 	if (m_MuzzleTick == AttackTick || !AttackTick)
 		return;
@@ -163,7 +187,7 @@ void CPlayerInfo::AddMuzzle(int AttackTick, int Weapon)
 		if (!m_aMuzzleWeapon[i])
 		{
 			m_aMuzzleTime[i] = 0.0f;
-			m_aMuzzleWeapon[i] = Weapon;
+			m_aMuzzleWeapon[i] = true;
 			//m_aMuzzleType[i] = rand()%4+GetMuzzleType(Weapon)*4;
 			m_aMuzzleType[i] = rand()%4;
 			return;
@@ -172,7 +196,7 @@ void CPlayerInfo::AddMuzzle(int AttackTick, int Weapon)
 }
 
 	
-float CPlayerInfo::GetWeaponCharge()
+float CPlayerInfo::WeaponChargeProgress()
 {
 	float ChargeLevel = min(m_WeaponCharge*0.013f, 1.0f);
 	
@@ -397,7 +421,7 @@ void CPlayerInfo::SetHandTarget(int Hand, vec3 Pos)
 		if (m_Hang)
 			m_Hand[Hand].m_TargetPos = vec2(0, -46);
 	}
-	else if (GetWeaponRenderType(m_Weapon) != WRT_WEAPON2 && GetWeaponRenderType(m_Weapon) != WRT_ITEM1)
+	else if (WeaponRenderType() != WRT_WEAPON2 && WeaponRenderType() != WRT_ITEM1)
 		m_Hand[Hand].m_TargetPos = (m_Hand[Hand].m_TargetPos + vec2(Pos.x, Pos.y)) / 2.0f;
 		//m_Hand[Hand].m_TargetPos = vec2(Pos.x, Pos.y);
 }
@@ -426,10 +450,10 @@ void CPlayerInfo::UnlockFeet(vec2 Vel)
 bool CPlayerInfo::BackHook()
 {
 	
-	if (GetWeaponRenderType(m_Weapon) == WRT_WEAPON1 || m_Weapon == WEAPON_NONE)
+	if (WeaponRenderType() == WRT_WEAPON1 || !m_Weapon.IsValid())
 		return false;
 	
-	if (GetWeaponRenderType(m_Weapon) == WRT_SPIN)
+	if (WeaponRenderType() == WRT_SPIN)
 		return false;
 	
 	return true;
@@ -478,16 +502,16 @@ void CPlayerInfo::PhysicsTick(vec2 PlayerVel, vec2 PrevVel)
 		// gun aim
 		if (i == HAND_WEAPON)
 		{
-			if (GetWeaponRenderType(m_Weapon) == WRT_WEAPON2)
+			if (WeaponRenderType() == WRT_WEAPON2)
 			{
 				m_Hand[i].m_TargetPos = vec2(cos(m_Angle), sin(m_Angle)) * 20.0f;
 				m_Hand[i].m_TargetPos += m_ArmPos + vec2(0, -16);
 				m_Hand[i].m_TargetPos += m_WeaponRecoil;
 				m_Hand[i].m_Pos += (m_Hand[i].m_TargetPos - m_Hand[i].m_Pos) / 2.0f;
 			}
-			else if (GetWeaponRenderType(m_Weapon) == WRT_ITEM1)
+			else if (WeaponRenderType() == WRT_ITEM1)
 			{
-				if (GetWeaponFiringType(m_Weapon) == WFT_THROW)
+				if (WeaponFiringType() == WFT_THROW)
 					m_WeaponRecoil -= vec2(cos(m_Angle), sin(m_Angle)) * m_Charge * 0.12f;
 		
 				m_Hand[i].m_TargetPos = vec2(cos(m_Angle), sin(m_Angle)) * 13.0f;

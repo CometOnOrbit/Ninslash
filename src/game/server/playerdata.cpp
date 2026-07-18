@@ -64,18 +64,23 @@ int CPlayerData::GetPlayerCount(int Score)
 
 void CPlayerData::Reset()
 {
-	for(int i = 0; i < 99; i++)
-	{
-		m_aWeaponType[i] = 0;
-		m_aWeaponAmmo[i] = 0;
-		m_aAmmo[i] = -1;
-	}
+	ResetWeapons();
 	m_Armor = 0;
-	m_Weapon = 0;
 	m_Kits = 0;
 	m_Score = 0;
 	m_Gold = 0;
 	ClearPveRun();
+}
+
+void CPlayerData::ResetWeapons()
+{
+	m_WeaponDataVersion = WEAPON_DATA_VERSION;
+	for(int i = 0; i < 99; i++)
+	{
+		m_aWeaponDefinitionId[i] = 0;
+		m_aWeaponLevel[i] = 0;
+		m_aWeaponAmmo[i] = 0;
+	}
 }
 
 void CPlayerData::ClearPveRun()

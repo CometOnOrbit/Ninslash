@@ -5,8 +5,10 @@
 #include <engine/shared/config.h>
 #include "player.h"
 #include "pve_director.h"
+#include "entities/weapon.h"
 
 #include <game/weapons.h>
+#include <game/weapon_catalog.h>
 #include <game/buildables.h>
 #include "gamemodes/texasrun.h"
 
@@ -344,16 +346,33 @@ void CPlayer::Snap(int SnappingClient)
 	pPlayerInfo->m_Spectating = 0;
 
 	pPlayerInfo->m_Kits = 0;
+	int *apDefinitionIds[] = {&pPlayerInfo->m_Weapon1DefinitionId, &pPlayerInfo->m_Weapon2DefinitionId, &pPlayerInfo->m_Weapon3DefinitionId, &pPlayerInfo->m_Weapon4DefinitionId};
+	int *apLevels[] = {&pPlayerInfo->m_Weapon1Level, &pPlayerInfo->m_Weapon2Level, &pPlayerInfo->m_Weapon3Level, &pPlayerInfo->m_Weapon4Level};
+	auto SetWeaponSlot = [&](int Slot, const CWeaponSpec &Spec) {
+		if(Spec.IsValid())
+		{
+			*apDefinitionIds[Slot] = static_cast<int>(Spec.m_DefinitionId);
+			*apLevels[Slot] = Spec.m_Level;
+		}
+		else
+		{
+			*apDefinitionIds[Slot] = 0;
+			*apLevels[Slot] = 0;
+		}
+	};
+	for(int Slot = 0; Slot < 4; ++Slot)
+		SetWeaponSlot(Slot, {});
 	
 	if (GetCharacter())
 	{
 		pPlayerInfo->m_Kits = GetCharacter()->m_Kits;
 		pPlayerInfo->m_WeaponSlot = GetCharacter()->GetWeaponSlot();
 		
-		pPlayerInfo->m_Weapon1 = GetCharacter()->GetWeaponType(0);
-		pPlayerInfo->m_Weapon2 = GetCharacter()->GetWeaponType(1);
-		pPlayerInfo->m_Weapon3 = GetCharacter()->GetWeaponType(2);
-		pPlayerInfo->m_Weapon4 = GetCharacter()->GetWeaponType(3);
+		for(int Slot = 0; Slot < 4; ++Slot)
+		{
+			CWeapon *pWeapon = GetCharacter()->GetWeapon(Slot);
+			SetWeaponSlot(Slot, pWeapon ? pWeapon->GetWeaponSpec() : CWeaponSpec{});
+		}
 	}
 
 	if(m_ClientID == SnappingClient)
@@ -382,10 +401,8 @@ void CPlayer::Snap(int SnappingClient)
 			pPlayerInfo->m_Kits = d.m_Kits;
 			pPlayerInfo->m_WeaponSlot = d.m_WeaponSlot;
 			
-			pPlayerInfo->m_Weapon1 = d.m_aWeapon[0];
-			pPlayerInfo->m_Weapon2 = d.m_aWeapon[1];
-			pPlayerInfo->m_Weapon3 = d.m_aWeapon[2];
-			pPlayerInfo->m_Weapon4 = d.m_aWeapon[3];
+			for(int Slot = 0; Slot < 4; ++Slot)
+				SetWeaponSlot(Slot, d.m_aWeapon[Slot]);
 		}
 	}
 }
@@ -483,11 +500,16 @@ CCharacter *CPlayer::GetCharacter()
 	return 0;
 }
 
-void CPlayer::KillCharacter(int Weapon)
+void CPlayer::KillCharacter()
+{
+	KillCharacter(CAttackSource::World(WEAPON_GAME, m_ClientID));
+}
+
+void CPlayer::KillCharacter(const CAttackSource &Source)
 {
 	if(m_pCharacter)
 	{
-		m_pCharacter->Die(m_ClientID, Weapon);
+		m_pCharacter->Die(Source);
 		delete m_pCharacter;
 		m_pCharacter = 0;
 	}

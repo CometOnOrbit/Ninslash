@@ -17,7 +17,7 @@ CShop::CShop(CGameWorld *pGameWorld, vec2 Pos)
 	m_Autofill = !GameServer()->m_pController->IsSurvival();
 	
 	for (int i = 0; i < 5; i++)
-		m_aItem[i] = 0;
+		m_aItem[i] = {};
 	
 	FillSlots();
 }
@@ -32,52 +32,62 @@ void CShop::FillSlots()
 {
 	for (int i = 0; i < 5; i++)
 	{
-		if (m_aItem[i])
+		if (m_aItem[i].IsValid())
 			continue;
 		
-		int t = GetRandomWeaponType(GameServer()->m_pController->IsSurvival());
-		
-		while (IsStaticWeapon(t) && (GetStaticType(t) == SW_GUN1 || GetStaticType(t) == SW_GUN2))
-			t = GetRandomWeaponType(GameServer()->m_pController->IsSurvival());
+		CWeaponSpec Spec = GameServer()->m_pController->GetRandomWeapon();
+		while (!Spec.IsValid() ||
+			(Spec.m_DefinitionId == CWeaponCatalog::Static(SW_GUN1).m_DefinitionId || Spec.m_DefinitionId == CWeaponCatalog::Static(SW_GUN2).m_DefinitionId))
+			Spec = GameServer()->m_pController->GetRandomWeapon();
+		CWeaponDefinition Definition;
+		CWeaponCatalog::TryGetDefinition(Spec.m_DefinitionId, &Definition);
 		
 		if(i == 4)
 		{
-			for(int Try = 0; Try < 64 && (WeaponMaxLevel(t) <= 0 || (IsStaticWeapon(t) && GetStaticType(t) == SW_UPGRADE)); Try++)
-				t = GetRandomWeaponType(GameServer()->m_pController->IsSurvival());
-			if(WeaponMaxLevel(t) > 0)
-				m_aItem[i] = GetChargedWeapon(t, min(15, WeaponMaxLevel(t) + 2));
+			for(int Try = 0; Try < 64 && (Definition.m_MaxLevel <= 0 || Spec.m_DefinitionId == CWeaponCatalog::Static(SW_UPGRADE).m_DefinitionId); Try++)
+			{
+				Spec = GameServer()->m_pController->GetRandomWeapon();
+				CWeaponCatalog::TryGetDefinition(Spec.m_DefinitionId, &Definition);
+			}
+			if(Definition.m_MaxLevel > 0)
+			{
+				Spec.m_Level = min(WEAPON_SPEC_MAX_LEVEL, Definition.m_MaxLevel + WEAPON_HIGH_TIER_SUPERCHARGE_STEP);
+				m_aItem[i] = Spec;
+			}
 			else
-				m_aItem[i] = t;
+				m_aItem[i] = Spec;
 			continue;
 		}
 		if (frandom() < 0.1f)
-			t = GetStaticWeapon(SW_UPGRADE);
-		
-		if (WeaponMaxLevel(t) > 0 && GetStaticType(t) != SW_UPGRADE)
 		{
-			if (frandom() < 0.1f && WeaponMaxLevel(t) >= 4)
-				m_aItem[i] = GetChargedWeapon(t, WeaponMaxLevel(t)+4);
-			else if (frandom() < 0.1f && WeaponMaxLevel(t) >= 4)
-				m_aItem[i] = GetChargedWeapon(t, WeaponMaxLevel(t)+2);
-			else if (frandom() < 0.1f && WeaponMaxLevel(t) < 4)
-				m_aItem[i] = GetChargedWeapon(t, WeaponMaxLevel(t)+2);
-			else if (frandom() < 0.1f && WeaponMaxLevel(t) < 4)
-				m_aItem[i] = GetChargedWeapon(t, WeaponMaxLevel(t)+1);
+			Spec = CWeaponCatalog::Static(SW_UPGRADE);
+			CWeaponCatalog::TryGetDefinition(Spec.m_DefinitionId, &Definition);
+		}
+		
+		if (Definition.m_MaxLevel > 0 && Spec.m_DefinitionId != CWeaponCatalog::Static(SW_UPGRADE).m_DefinitionId)
+		{
+			if (frandom() < 0.1f && Definition.m_MaxLevel >= WEAPON_HIGH_TIER_MIN_MAX_LEVEL)
+				Spec.m_Level = Definition.m_MaxLevel + WEAPON_HIGH_TIER_SUPERCHARGE_BONUS;
+			else if (frandom() < 0.1f && Definition.m_MaxLevel >= WEAPON_HIGH_TIER_MIN_MAX_LEVEL)
+				Spec.m_Level = Definition.m_MaxLevel + WEAPON_HIGH_TIER_SUPERCHARGE_STEP;
+			else if (frandom() < 0.1f && Definition.m_MaxLevel < WEAPON_HIGH_TIER_MIN_MAX_LEVEL)
+				Spec.m_Level = Definition.m_MaxLevel + WEAPON_LOW_TIER_SUPERCHARGE_BONUS;
+			else if (frandom() < 0.1f && Definition.m_MaxLevel < WEAPON_HIGH_TIER_MIN_MAX_LEVEL)
+				Spec.m_Level = Definition.m_MaxLevel + WEAPON_LOW_TIER_SUPERCHARGE_STEP;
 			else if (frandom() < 0.4f)
-				m_aItem[i] = GetChargedWeapon(t, frandom()*(WeaponMaxLevel(t)+1));
-			else
-				m_aItem[i] = t;
+				Spec.m_Level = frandom() * (Definition.m_MaxLevel + 1);
+			m_aItem[i] = Spec;
 		}
 		else
-			m_aItem[i] = t;
+			m_aItem[i] = Spec;
 	}
 }
 
 
-int CShop::GetItem(int Slot)
+CWeaponSpec CShop::GetItem(int Slot)
 {
 	if (Slot < 0 || Slot >= 5)
-		return 0;
+		return {};
 	
 	return m_aItem[Slot];
 }
@@ -87,7 +97,7 @@ void CShop::ClearItem(int Slot)
 	if (Slot < 0 || Slot >= 5)
 		return;
 	
-	m_aItem[Slot] = 0;
+	m_aItem[Slot] = {};
 	
 	if (m_Autofill)
 		FillSlots();
@@ -155,10 +165,15 @@ void CShop::Snap(int SnappingClient)
 	pP->m_X = (int)m_Pos.x;
 	pP->m_Y = (int)m_Pos.y;
 	pP->m_Team = m_Team;
-	pP->m_Item1 = m_aItem[0];
-	pP->m_Item2 = m_aItem[1];
-	pP->m_Item3 = m_aItem[2];
-	pP->m_Item4 = m_aItem[3];
-	pP->m_Item5 = GameServer()->m_pPveDirector && SnappingClient >= 0 &&
-		GameServer()->m_pPveDirector->PerkStacks(SnappingClient, PVE_CARD_PREMIUM_STOCK) ? m_aItem[4] : 0;
+	pP->m_Item1DefinitionId = static_cast<int>(m_aItem[0].m_DefinitionId);
+	pP->m_Item1Level = m_aItem[0].m_Level;
+	pP->m_Item2DefinitionId = static_cast<int>(m_aItem[1].m_DefinitionId);
+	pP->m_Item2Level = m_aItem[1].m_Level;
+	pP->m_Item3DefinitionId = static_cast<int>(m_aItem[2].m_DefinitionId);
+	pP->m_Item3Level = m_aItem[2].m_Level;
+	pP->m_Item4DefinitionId = static_cast<int>(m_aItem[3].m_DefinitionId);
+	pP->m_Item4Level = m_aItem[3].m_Level;
+	const bool ShowPremium = GameServer()->m_pPveDirector && SnappingClient >= 0 && GameServer()->m_pPveDirector->PerkStacks(SnappingClient, PVE_CARD_PREMIUM_STOCK);
+	pP->m_Item5DefinitionId = ShowPremium ? static_cast<int>(m_aItem[4].m_DefinitionId) : 0;
+	pP->m_Item5Level = ShowPremium ? m_aItem[4].m_Level : 0;
 }

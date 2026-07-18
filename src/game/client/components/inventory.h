@@ -37,7 +37,7 @@ class CInventory : public CComponent
 	int m_WantedTab;
 	
 	int m_DragItem;
-	int m_DragPart;
+	CWeaponSpec m_DragPart;
 	int m_DragSlot;
 	
 	void Drop(int Slot);

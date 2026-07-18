@@ -45,8 +45,8 @@ public:
 				GameServer()->CreateEffect(FX_ELECTRIC, m_Target);
 			return;
 		}
-		new CLaser(GameWorld(), m_Target - vec2(0, 760), vec2(0, 1), 760.0f, NEUTRAL_BASE, GetDroidWeapon(DROIDTYPE_SIEGE_ENGINE), 38, 0);
-		GameServer()->CreateExplosion(m_Target, NEUTRAL_BASE, GetDroidWeapon(DROIDTYPE_SIEGE_ENGINE));
+		new CLaser(GameWorld(), m_Target - vec2(0, 760), vec2(0, 1), 760.0f, CAttackSource::Droid(NEUTRAL_BASE, DROIDTYPE_SIEGE_ENGINE), 38, 0);
+		GameServer()->CreateExplosion(m_Target, CAttackSource::Droid(NEUTRAL_BASE, DROIDTYPE_SIEGE_ENGINE));
 		GameWorld()->DestroyEntity(this);
 	}
 	void Snap(int) override {}
@@ -111,7 +111,7 @@ void CSiegeEngine::MovementTick(CCharacter *pTarget)
 	m_Anim = 1;
 	if(pTarget && !m_ChargeHit && distance(m_Pos, pTarget->m_Pos) < 115.0f)
 	{
-		pTarget->TakeDamage(NEUTRAL_BASE, GetDroidWeapon(m_Type), 34, vec2(m_Dir * 18.0f, -5.0f), pTarget->m_Pos);
+		pTarget->TakeDamage(CAttackSource::Droid(NEUTRAL_BASE, m_Type), 34, vec2(m_Dir * 18.0f, -5.0f), pTarget->m_Pos);
 		m_ChargeHit = true;
 	}
 }

@@ -99,6 +99,10 @@ function ContentCompile(action, output)
 	AddDependency(output, Path("datasrc/network.py"))
 	AddDependency(output, Path("datasrc/compile.py"))
 	AddDependency(output, Path("datasrc/datatypes.py"))
+	AddDependency(output, Path("datasrc/weapon_types.py"))
+	if action == "weapon_profiles" then
+		AddDependency(output, Path("datasrc/weapon_profiles.py"))
+	end
 	return output
 end
 
@@ -107,6 +111,7 @@ network_source = ContentCompile("network_source", "src/generated/protocol.cpp")
 network_header = ContentCompile("network_header", "src/generated/protocol.h")
 game_content_source = ContentCompile("game_content_source", "src/generated/game_data.cpp")
 game_content_header = ContentCompile("game_content_header", "src/generated/game_data.h")
+weapon_profiles = ContentCompile("weapon_profiles", "src/generated/weapon_profiles.inc")
 
 AddDependency(network_source, network_header)
 AddDependency(game_content_source, game_content_header)
@@ -254,10 +259,12 @@ function build(settings)
 	pnglite = Compile(settings, Collect("src/engine/external/pnglite/*.c"))
 	json_parser = Compile(settings, Collect("src/engine/external/json-parser/*.c"))
 	
-	-- add the c++11 flag after compiling the c libraries
-	-- TODO: this is just a workaround, better avoid the auto keyword instead :/
+	-- Keep the C++ standard aligned with CMake. Add it after compiling the C
+	-- libraries so the flag is only applied to engine and game C++ sources.
 	if config.compiler.driver == "gcc" or config.compiler.driver == "clang" then
-		settings.cc.flags_cxx:Add("--std=c++11")
+		settings.cc.flags_cxx:Add("--std=c++17")
+	elseif config.compiler.driver == "cl" then
+		settings.cc.flags_cxx:Add("/std:c++17")
 	end
 
 	-- build game components
@@ -303,6 +310,9 @@ function build(settings)
 	versionserver = Compile(settings, Collect("src/versionsrv/*.cpp"))
 	masterserver = Compile(settings, Collect("src/mastersrv/*.cpp"))
 	game_shared = Compile(settings, Collect("src/game/*.cpp"), nethash, network_source, game_content_source)
+	for _, object in ipairs(game_shared) do
+		AddDependency(object, weapon_profiles)
+	end
 	game_client = Compile(settings, CollectRecursive("src/game/client/*.cpp"))
 	game_server = Compile(settings, CollectRecursive("src/game/server/*.cpp"))
 	game_editor = Compile(settings, Collect("src/game/editor/*.cpp"))

@@ -173,8 +173,8 @@ public:
 	
 	int GetTimeLeft();
 	
-	int GetRandomWeapon();
-	int GetRandomModularWeapon();
+	CWeaponSpec GetRandomWeapon();
+	CWeaponSpec GetRandomModularWeapon();
 	
 	//
 	const char *m_pGameType;
@@ -276,7 +276,7 @@ public:
 			weapon - What weapon that killed it. Can be -1 for undefined
 				weapon when switching team or player suicides.
 	*/
-	virtual int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
+	virtual int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
 	
 	// for ctf ai
 	virtual vec2 GetFlagPos(int Team);

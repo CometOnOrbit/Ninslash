@@ -20,6 +20,7 @@
 #include <game/localization.h>
 #include <game/client/lineinput.h>
 #include <game/version.h>
+#include <game/weapon_catalog.h>
 #include "render.h"
 
 #include "gameclient.h"
@@ -373,6 +374,7 @@ void CGameClient::AddFluidForce(vec2 Pos, vec2 Vel)
 
 void CGameClient::OnInit()
 {
+	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
 	m_pGraphics = Kernel()->RequestInterface<IGraphics>();
 
 	// propagate pointers
@@ -810,18 +812,23 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 		CNetMsg_Sv_Inventory *pMsg = (CNetMsg_Sv_Inventory *)pRawMsg;
 
 		// apply
-		CustomStuff()->m_aItem[0] = pMsg->m_Item1;
-		CustomStuff()->m_aItem[1] = pMsg->m_Item2;
-		CustomStuff()->m_aItem[2] = pMsg->m_Item3;
-		CustomStuff()->m_aItem[3] = pMsg->m_Item4;
-		CustomStuff()->m_aItem[4] = pMsg->m_Item5;
-		CustomStuff()->m_aItem[5] = pMsg->m_Item6;
-		CustomStuff()->m_aItem[6] = pMsg->m_Item7;
-		CustomStuff()->m_aItem[7] = pMsg->m_Item8;
-		CustomStuff()->m_aItem[8] = pMsg->m_Item9;
-		CustomStuff()->m_aItem[9] = pMsg->m_Item10;
-		CustomStuff()->m_aItem[10] = pMsg->m_Item11;
-		CustomStuff()->m_aItem[11] = pMsg->m_Item12;
+		auto ReadWeapon = [](int DefinitionId, int Level) {
+			CWeaponSpec Spec;
+			CWeaponCatalog::TryFromProtocol(DefinitionId, Level, &Spec);
+			return Spec;
+		};
+		CustomStuff()->m_aItem[0] = ReadWeapon(pMsg->m_Item1DefinitionId, pMsg->m_Item1Level);
+		CustomStuff()->m_aItem[1] = ReadWeapon(pMsg->m_Item2DefinitionId, pMsg->m_Item2Level);
+		CustomStuff()->m_aItem[2] = ReadWeapon(pMsg->m_Item3DefinitionId, pMsg->m_Item3Level);
+		CustomStuff()->m_aItem[3] = ReadWeapon(pMsg->m_Item4DefinitionId, pMsg->m_Item4Level);
+		CustomStuff()->m_aItem[4] = ReadWeapon(pMsg->m_Item5DefinitionId, pMsg->m_Item5Level);
+		CustomStuff()->m_aItem[5] = ReadWeapon(pMsg->m_Item6DefinitionId, pMsg->m_Item6Level);
+		CustomStuff()->m_aItem[6] = ReadWeapon(pMsg->m_Item7DefinitionId, pMsg->m_Item7Level);
+		CustomStuff()->m_aItem[7] = ReadWeapon(pMsg->m_Item8DefinitionId, pMsg->m_Item8Level);
+		CustomStuff()->m_aItem[8] = ReadWeapon(pMsg->m_Item9DefinitionId, pMsg->m_Item9Level);
+		CustomStuff()->m_aItem[9] = ReadWeapon(pMsg->m_Item10DefinitionId, pMsg->m_Item10Level);
+		CustomStuff()->m_aItem[10] = ReadWeapon(pMsg->m_Item11DefinitionId, pMsg->m_Item11Level);
+		CustomStuff()->m_aItem[11] = ReadWeapon(pMsg->m_Item12DefinitionId, pMsg->m_Item12Level);
 		CustomStuff()->m_Gold = pMsg->m_Gold;
 	}
 	else if(MsgId == NETMSGTYPE_SV_SOUNDGLOBAL)
@@ -952,15 +959,22 @@ void CGameClient::ProcessEvents()
 		else if(Item.m_Type == NETEVENTTYPE_EXPLOSION)
 		{
 			CNetEvent_Explosion *ev = (CNetEvent_Explosion *)pData;
-			g_GameClient.m_pEffects->Explosion(vec2(ev->m_X, ev->m_Y), ev->m_Weapon);
+			CAttackSource Source;
+			if(!CWeaponCatalog::TryAttackSourceFromProtocol(ev->m_SourceKind, ev->m_SourceType, ev->m_WeaponDefinitionId, ev->m_WeaponLevel, &Source))
+				break;
+			CWeaponCombatProfile Combat;
+			CWeaponVisualProfile Visual;
+			if(!CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual))
+				break;
+			g_GameClient.m_pEffects->Explosion(vec2(ev->m_X, ev->m_Y), Source);
 			
 			// todo: readd camera shake
 			float d = distance(CustomStuff()->m_LocalPos, vec2(ev->m_X, ev->m_Y));
-			float s = GetExplosionSize(ev->m_Weapon);
+			float s = Combat.m_ExplosionSize;
 			
 			if (d < s)
 			{
-				float a = ScreenshakeAmount(ev->m_Weapon);
+				float a = Visual.m_ScreenshakeAmount;
 				
 				if (a > 0)
 					CustomStuff()->SetScreenshake(a * (0.5f + (s-d)*0.5f));

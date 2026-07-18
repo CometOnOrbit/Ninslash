@@ -12,6 +12,7 @@
 #include <game/version.h>
 #include <game/collision.h>
 #include <game/gamecore.h> 
+#include <game/weapon_catalog.h>
 #include "gamemodes/dm.h"
 #include "gamemodes/cs.h"
 #include "gamemodes/ball.h"
@@ -33,7 +34,6 @@
 #include <game/server/entities/turret.h>
 #include <game/server/entities/teslacoil.h>
 #include <game/server/entities/droid.h>
-#include <game/server/entities/superexplosion.h>
 
 #include <game/server/entities/weapon.h>
 
@@ -140,7 +140,10 @@ CPlayerSpecData CGameContext::GetPlayerSpecData(int ClientID)
 	data.m_WeaponSlot = pCharacter->GetWeaponSlot();
 		
 	for (int i = 0; i < 4; i++)
-		data.m_aWeapon[i] = pCharacter->GetWeaponType(i);
+	{
+		CWeapon *pWeapon = pCharacter->GetWeapon(i);
+		data.m_aWeapon[i] = pWeapon ? pWeapon->GetWeaponSpec() : CWeaponSpec{};
+	}
 	
 	return data;
 }
@@ -404,14 +407,9 @@ void CGameContext::CreateEffect(int FX, vec2 Pos)
 }
 
 
-CWeapon *CGameContext::NewWeapon(int Part1, int Part2)
+CWeapon *CGameContext::NewWeapon(const CWeaponSpec &Spec)
 {
-	return new CWeapon(&m_World, Part1<<4 | Part2<<8 | 1<<0);
-}
-
-CWeapon *CGameContext::NewWeapon(int Weapon)
-{
-	return new CWeapon(&m_World, Weapon);
+	return new CWeapon(&m_World, Spec);
 }
 
 
@@ -545,14 +543,24 @@ void CGameContext::ClearFlameHits()
 }
 
 
-void CGameContext::CreateMeleeHit(int DamageOwner, int Weapon, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos)
+void CGameContext::CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos)
 {
-	float ProximityRadius = GetMeleeHitRadius(Weapon);
-	float Damage = GetProjectileDamage(Weapon);
-	float Knockback = GetProjectileKnockback(Weapon);
+	const int DamageOwner = Source.m_Owner;
+	CWeaponCombatProfile Combat{};
+	CWeaponVisualProfile Visual{};
+	CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual);
+	CWeaponDefinition Definition{};
+	const bool HasDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon && CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition);
+	const bool IsStatic = HasDefinition && Definition.m_Kind == EWeaponDefinitionKind::Static;
+	const bool IsModular = HasDefinition && Definition.m_Kind == EWeaponDefinitionKind::Modular;
+	const int StaticType = IsStatic ? Definition.m_StaticType : -1;
+	const int Part2 = IsModular ? Definition.m_Part2 : 0;
+	float ProximityRadius = Combat.m_MeleeHitRadius;
+	float Damage = Combat.m_ProjectileDamage;
+	float Knockback = Combat.m_ProjectileKnockback;
 	
 	// melee damage mask
-	if (GetStaticType(Weapon) != SW_FLAMER)
+	if (StaticType != SW_FLAMER)
 	{
 		CCharacter *pChr = GetPlayerChar(DamageOwner);
 		
@@ -578,28 +586,28 @@ void CGameContext::CreateMeleeHit(int DamageOwner, int Weapon, float Dmg, vec2 P
 			if (pTarget->GetPlayer()->GetCID() == DamageOwner || pTarget->IgnoreCollision())
 				continue;
 			
-			if (GetStaticType(Weapon) == SW_FLAMER && Collision()->IntersectLine(Pos, pTarget->m_Pos, NULL, NULL))
+			if (StaticType == SW_FLAMER && Collision()->IntersectLine(Pos, pTarget->m_Pos, NULL, NULL))
 				continue;
 			
 			if (m_pController->IsCoop() && !pTarget->m_IsBot && (DamageOwner >= 0 && !IsBot(DamageOwner)))
 				continue;
 			
 			
-			if (GetStaticType(Weapon) == SW_FLAMER)
+			if (StaticType == SW_FLAMER)
 			{
 				if (m_aFlameHit[pTarget->GetPlayer()->GetCID()])
 					continue;
 				
 				m_aFlameHit[pTarget->GetPlayer()->GetCID()] = true;
 			}
-			else //if (!IsDroid(Weapon))
+			else
 			{
-				if (GetStaticType(Weapon) == SW_CHAINSAW || (IsStaticWeapon(Weapon) && GetStaticType(Weapon) == SW_TOOL))
+				if (StaticType == SW_CHAINSAW || (IsStatic && StaticType == SW_TOOL))
 					CreateEffect(FX_BLOOD2, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
-				else if (GetWeaponRenderType(Weapon) != WRT_SPIN)
+				else if (Visual.m_RenderType != WRT_SPIN)
 				{
 					// hammer
-					if (GetPart(Weapon, 1) == 9)
+					if (Part2 == PART2_MELEE4)
 						CreateEffect(FX_BLOOD3, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
 					// swords
 					else
@@ -607,25 +615,23 @@ void CGameContext::CreateMeleeHit(int DamageOwner, int Weapon, float Dmg, vec2 P
 				}
 			}
 			
-			float f = WeaponFlameAmount(Weapon);
+			float f = Combat.m_FlameAmount;
 			if (f > 0.0f)
-				pTarget->SetAflame(f, DamageOwner, Weapon);
+				pTarget->SetAflame(f, Source);
 			
-			//pTarget->TakeDamage(DamageOwner, Weapon, Damage * Dmg, normalize(vec2(frandom()-0.5f, frandom()-0.5f))*2.0f, Pos);
-			
-			if (GetWeaponRenderType(Weapon) == WRT_SPIN)
-				pTarget->TakeDamage(DamageOwner, Weapon, Damage * Dmg, normalize(pTarget->m_Pos-WeaponPos)*Knockback, mix(Pos, pTarget->m_Pos + vec2(0, -24), 0.75f));
+			if (Visual.m_RenderType == WRT_SPIN)
+				pTarget->TakeDamage(Source, Damage * Dmg, normalize(pTarget->m_Pos-WeaponPos)*Knockback, mix(Pos, pTarget->m_Pos + vec2(0, -24), 0.75f));
 			else
-				pTarget->TakeDamage(DamageOwner, Weapon, Damage * Dmg, (normalize(pTarget->m_Pos-WeaponPos)+normalize(Direction))*Knockback*0.5f, Pos);
+				pTarget->TakeDamage(Source, Damage * Dmg, (normalize(pTarget->m_Pos-WeaponPos)+normalize(Direction))*Knockback*0.5f, Pos);
 		}
 	}
 	
-	if (IsStaticWeapon(Weapon) && GetStaticType(Weapon) == SW_TOOL)
+	if (IsStatic && StaticType == SW_TOOL)
 		Damage *= -2;
 	
-	if (GetStaticType(Weapon) == SW_FLAMER)
+	if (StaticType == SW_FLAMER)
 		DamageBlocks(Pos, 1+Damage*0.5f, ProximityRadius*1.7f);
-	else if (GetStaticType(Weapon) == SW_CHAINSAW)
+	else if (StaticType == SW_CHAINSAW)
 		DamageBlocks(Pos, Damage*0.5f, 24 + ProximityRadius);
 	else
 		DamageBlocks(Pos, Damage*0.5f, ProximityRadius*0.9f);
@@ -674,16 +680,16 @@ void CGameContext::CreateMeleeHit(int DamageOwner, int Weapon, float Dmg, vec2 P
 			
 			if (pTarget->m_Collision)
 			{
-				if (GetStaticType(Weapon) == SW_FLAMER || GetWeaponRenderType(Weapon) == WRT_SPIN)
+				if (StaticType == SW_FLAMER || Visual.m_RenderType == WRT_SPIN)
 					;
-				else if (GetStaticType(Weapon) == SW_CHAINSAW || (IsStaticWeapon(Weapon) && GetStaticType(Weapon) == SW_TOOL))
+				else if (StaticType == SW_CHAINSAW || (IsStatic && StaticType == SW_TOOL))
 					CreateEffect(FX_BLOOD2, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
 				else
 					CreateEffect(FX_BLOOD1, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
 				
-				pTarget->TakeDamage(Damage * Dmg, DamageOwner, Weapon, normalize(pTarget->m_Pos-WeaponPos)*Knockback*0.5f);
+				pTarget->TakeDamage(Damage * Dmg, Source, normalize(pTarget->m_Pos-WeaponPos)*Knockback*0.5f);
 				
-				if (GetStaticType(Weapon) == SW_FLAMER)
+				if (StaticType == SW_FLAMER)
 					CreateFlameHit((Pos+pTarget->m_Pos)/2.0f+vec2(frandom()-frandom(), frandom()-frandom())*8.0f);
 				else
 					CreateBuildingHit((Pos+pTarget->m_Pos)/2.0f);
@@ -691,7 +697,7 @@ void CGameContext::CreateMeleeHit(int DamageOwner, int Weapon, float Dmg, vec2 P
 		}
 	}
 	
-	if (IsDroid(Weapon))
+	if (Source.m_Kind == EAttackSourceKind::Droid)
 		return;
 	
 	// droids & walkers
@@ -707,26 +713,36 @@ void CGameContext::CreateMeleeHit(int DamageOwner, int Weapon, float Dmg, vec2 P
 			if (pTarget->m_Health <= 0)
 				continue;
 
-			pTarget->TakeDamage(normalize(pTarget->m_Pos-WeaponPos)*Knockback*0.5f, Damage * Dmg, DamageOwner, vec2(0, 0), Weapon);
+			pTarget->TakeDamage(normalize(pTarget->m_Pos-WeaponPos)*Knockback*0.5f, Damage * Dmg, Source, vec2(0, 0));
 			
-			if (GetStaticType(Weapon) == SW_FLAMER || GetWeaponRenderType(Weapon) == WRT_SPIN)
+			if (StaticType == SW_FLAMER || Visual.m_RenderType == WRT_SPIN)
 				;
-			else if (GetStaticType(Weapon) == SW_CHAINSAW || (IsStaticWeapon(Weapon) && GetStaticType(Weapon) == SW_TOOL))
+			else if (StaticType == SW_CHAINSAW || (IsStatic && StaticType == SW_TOOL))
 				CreateEffect(FX_BLOOD2, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
 			else
 				CreateEffect(FX_BLOOD1, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
 		}
 	}
 	if(m_pPveDirector)
-		m_pPveDirector->OnMeleeAttack(DamageOwner, Weapon, Pos, max(1, (int)(Damage * Dmg + 0.5f)));
+		m_pPveDirector->OnMeleeAttack(Source, Pos, max(1, (int)(Damage * Dmg + 0.5f)));
 }
 
 
-void CGameContext::CreateProjectile(int DamageOwner, int Weapon, int Charge, vec2 Pos, vec2 Direction, vec2 WeaponPos, CBuilding *OwnerBuilding)
+void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec2 Pos, vec2 Direction, vec2 WeaponPos, CBuilding *OwnerBuilding)
 {
+	const int DamageOwner = Source.m_Owner;
+	CWeaponCombatProfile Combat{};
+	CWeaponVisualProfile Visual{};
+	CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual);
+	CWeaponDefinition Definition{};
+	const bool HasDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon && CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition);
+	const bool IsStatic = HasDefinition && Definition.m_Kind == EWeaponDefinitionKind::Static;
+	const bool IsModular = HasDefinition && Definition.m_Kind == EWeaponDefinitionKind::Modular;
+	const int StaticType = IsStatic ? Definition.m_StaticType : -1;
+	const int Part1 = IsModular ? Definition.m_Part1 : 0;
 	// less damage for bots in co-op
 	float Dmg = 1.0f;
-	if (m_pController->IsCoop() && !IsDroid(Weapon) && (DamageOwner < 0 || IsBot(DamageOwner)))
+	if (m_pController->IsCoop() && Source.m_Kind != EAttackSourceKind::Droid && (DamageOwner < 0 || IsBot(DamageOwner)))
 		Dmg = 0.5f;
 
 	vec2 Vel = vec2(0, 0);
@@ -735,32 +751,31 @@ void CGameContext::CreateProjectile(int DamageOwner, int Weapon, int Charge, vec
 		Vel = GetPlayerChar(DamageOwner)->GetVel();
 	
 	// sword hit
-	if (IsModularWeapon(Weapon))
+	if (IsModular)
 	{
-		if (GetPart(Weapon, 0) > 4)
+		if (Part1 >= PART1_MELEE)
 		{
-			CreateMeleeHit(DamageOwner, Weapon, Dmg, Pos, Direction, WeaponPos);
-			//CreateMeleeHit(DamageOwner, Weapon, Dmg, Pos+GetProjectileOffset(Weapon)*Direction, Direction);
+			CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos);
 			return;
 		}
 	}
 	
-	if (IsDroid(Weapon) && (GetDroidType(Weapon) == DROIDTYPE_CRAWLER || GetDroidType(Weapon) == DROIDTYPE_BOSSCRAWLER || GetDroidType(Weapon) == DROIDTYPE_BOSSSPLITTER))
+	if (Source.m_Kind == EAttackSourceKind::Droid && (Source.m_Type == DROIDTYPE_CRAWLER || Source.m_Type == DROIDTYPE_BOSSCRAWLER || Source.m_Type == DROIDTYPE_BOSSSPLITTER))
 	{
-		CreateMeleeHit(DamageOwner, Weapon, Dmg, Pos, Direction, WeaponPos);
+		CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos);
 	}
 	
-	if (IsStaticWeapon(Weapon))
+	if (IsStatic)
 	{
-		if (GetStaticType(Weapon) == SW_SHURIKEN || GetStaticType(Weapon) == SW_CHAINSAW || (IsStaticWeapon(Weapon) && (GetStaticType(Weapon) == SW_TOOL || GetStaticType(Weapon) == SW_CLAW)))
+		if (StaticType == SW_SHURIKEN || StaticType == SW_CHAINSAW || (IsStatic && (StaticType == SW_TOOL || StaticType == SW_CLAW)))
 		{
-			if (GetStaticType(Weapon) == SW_CHAINSAW)
+			if (StaticType == SW_CHAINSAW)
 				Pos += normalize(Direction) * Charge*5.0f;
 				
-			CreateMeleeHit(DamageOwner, Weapon, Dmg, Pos, Direction, WeaponPos);
+			CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos);
 			return;
 		}
-		else if (GetStaticType(Weapon) == SW_FLAMER)
+		else if (StaticType == SW_FLAMER)
 		{
 			ClearFlameHits();
 			for (int i = 0; i < 4; i++)
@@ -768,7 +783,7 @@ void CGameContext::CreateProjectile(int DamageOwner, int Weapon, int Charge, vec
 				vec2 To = Pos+Direction*i*58;
 				
 				Collision()->IntersectLine(Pos, To, 0x0, &To);
-				CreateMeleeHit(DamageOwner, Weapon, Dmg, To, Direction, WeaponPos);
+				CreateMeleeHit(Source, Dmg, To, Direction, WeaponPos);
 			
 				// to visualize hit points
 				//CreateFlameHit(To);
@@ -779,24 +794,25 @@ void CGameContext::CreateProjectile(int DamageOwner, int Weapon, int Charge, vec
 	}
 	
 	// define the projectile type
-	int Explosion = 0;
 	int HitSound = -1;
-	float BulletSpread = GetProjectileSpread(Weapon);
-	float Damage = GetProjectileDamage(Weapon);
-	float Knockback = GetProjectileKnockback(Weapon);
-	float BulletLife = GetProjectileLife(Weapon);
+	float BulletSpread = Combat.m_ProjectileSpread;
+	float Damage = Combat.m_ProjectileDamage;
+	float Knockback = Combat.m_ProjectileKnockback;
+	float BulletLife = Combat.m_ProjectileLife;
+	if(IsStatic && StaticType == SW_CLUSTER && Source.m_Weapon.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
+		BulletLife += frandom() * 0.7f;
 	
-	int ShotSpread = GetShotSpread(Weapon);
+	int ShotSpread = Combat.m_ShotSpread;
 	
 	// laser pistol
-	if (IsStaticWeapon(Weapon) && GetStaticType(Weapon) == SW_GUN2)
+	if (IsStatic && StaticType == SW_GUN2)
 	{
-		new CLaser(&m_World, Pos, Direction, 200.0f+Charge*3.5f, DamageOwner, Weapon, Damage * Dmg * (0.1f + Charge*0.009f), Charge);
+		new CLaser(&m_World, Pos, Direction, 200.0f+Charge*3.5f, Source, Damage * Dmg * (0.1f + Charge*0.009f), Charge);
 		return;
 	}
 	
 	
-	if (IsLaserWeapon(Weapon))
+	if (Combat.m_LaserWeapon)
 	{
 		for (int i = 0; i < ShotSpread; i++)
 		{
@@ -804,7 +820,7 @@ void CGameContext::CreateProjectile(int DamageOwner, int Weapon, int Charge, vec
 			Angle -= (ShotSpread-1)/2.0f * pi/180 * 4;
 			Angle += i * pi/180 * 4;
 			Angle += (frandom()-frandom())*BulletSpread;
-			new CLaser(&m_World, Pos, vec2(cosf(Angle), sinf(Angle)), GetLaserRange(Weapon), DamageOwner, Weapon, Damage * Dmg, GetLaserCharge(Weapon));
+			new CLaser(&m_World, Pos, vec2(cosf(Angle), sinf(Angle)), Combat.m_LaserRange, Source, Damage * Dmg, Combat.m_LaserCharge);
 		}
 		return;
 	}
@@ -821,14 +837,12 @@ void CGameContext::CreateProjectile(int DamageOwner, int Weapon, int Charge, vec
 		Angle += (frandom()-frandom())*BulletSpread;
 
 		CProjectile *pProj = new CProjectile(&m_World,
-			Weapon,
-			DamageOwner,
+			Source,
 			Pos,
 			vec2(cosf(Angle), sinf(Angle)),
 			Vel,
 			(int)(Server()->TickSpeed()*BulletLife),
 			Damage * Dmg,
-			Explosion,
 			Knockback,
 			HitSound);
 			
@@ -895,11 +909,16 @@ void CGameContext::Repair(vec2 Pos)
 }
 
 
-void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
+void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source)
 {
+	const int Owner = Source.m_Owner;
+	CWeaponCombatProfile Combat{};
+	CWeaponVisualProfile Visual{};
+	if(!CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual))
+		return;
 	float Dmg2 = 1.0f;
-	const int ExplosionDamage = GetExplosionDamage(Weapon);
-	const int ExplosionSound = GetExplosionSound(Weapon);
+	const int ExplosionDamage = Combat.m_ExplosionDamage;
+	const int ExplosionSound = Visual.m_ExplosionSound;
 
 	if (m_pController->IsCoop() && IsBot(Owner))
 		Dmg2 = 0.6f;
@@ -910,7 +929,10 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 	{
 		pEvent->m_X = (int)Pos.x;
 		pEvent->m_Y = (int)Pos.y;
-		pEvent->m_Weapon = Weapon;
+		pEvent->m_SourceKind = static_cast<int>(Source.m_Kind);
+		pEvent->m_SourceType = Source.m_Type;
+		pEvent->m_WeaponDefinitionId = static_cast<int>(Source.m_Weapon.m_DefinitionId);
+		pEvent->m_WeaponLevel = Source.m_Weapon.m_Level;
 	}
 	
 	if(ExplosionSound)
@@ -921,7 +943,7 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		return;
 	
 	CCharacter *apEnts[MAX_CLIENTS];
-	float Radius = GetExplosionSize(Weapon)*0.7f;
+	float Radius = Combat.m_ExplosionSize*0.7f;
 	if(m_pPveDirector)
 		Radius = m_pPveDirector->ModifyExplosionRadius(Owner, Radius);
 	//const float InnerRadius = Radius < 200.0f ? Radius*(0.5f + (200.0f-Radius)/400.0f) : Radius*0.5f;
@@ -941,7 +963,7 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		float Dmg = ExplosionDamage * l;
 						
 		if((int)Dmg && Dmg > 0.0f)
-			apEnts[i]->TakeDamage(Owner, Weapon, (int)Dmg*Dmg2, ForceDir*Dmg*0.3f, vec2(0, 0));
+			apEnts[i]->TakeDamage(Source, (int)Dmg*Dmg2, ForceDir*Dmg*0.3f, vec2(0, 0));
 	}
 	
 	CBuilding *apBuildings[32];
@@ -957,7 +979,7 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		float Dmg = ExplosionDamage * l;
 						
 		if((int)Dmg && Dmg > 0.0f)
-			apBuildings[i]->TakeDamage((int)Dmg*Dmg2, Owner, Weapon, ForceDir*Dmg*0.3f);
+			apBuildings[i]->TakeDamage((int)Dmg*Dmg2, Source, ForceDir*Dmg*0.3f);
 	}
 	
 	// ball
@@ -1017,7 +1039,7 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon)
 		float Dmg = ExplosionDamage * l;
 						
 		if((int)Dmg && Dmg > 0.0f)
-			pTarget->TakeDamage(ForceDir*Dmg*0.3f, (int)Dmg*Dmg2, Owner, vec2(0, 0), Weapon);
+			pTarget->TakeDamage(ForceDir*Dmg*0.3f, (int)Dmg*Dmg2, Source, vec2(0, 0));
 	}
 }
 
@@ -1202,14 +1224,6 @@ void CGameContext::SendEmoticon(int ClientID, int Emoticon)
 	Msg.m_Emoticon = Emoticon;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
 }
-
-void CGameContext::SendWeaponPickup(int ClientID, int Weapon)
-{
-	CNetMsg_Sv_WeaponPickup Msg;
-	Msg.m_Weapon = Weapon;
-	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
-}
-
 
 void CGameContext::ResetGameVotes()
 {
@@ -2039,14 +2053,17 @@ bool CGameContext::Shop(CPlayer *pPlayer, int Slot, bool AI)
 			{
 				if(Slot == 4 && (!m_pPveDirector || !m_pPveDirector->PerkStacks(pPlayer->GetCID(), PVE_CARD_PREMIUM_STOCK)))
 					continue;
-				int Item = pTarget->GetItem(Slot);
+				CWeaponSpec Item = pTarget->GetItem(Slot);
 			
-			if (Item)
+			if (Item.IsValid())
 			{
-				int Cost = GetWeaponCost(Item);
+				CResolvedWeaponProfile Profile;
+				if(!CWeaponCatalog::TryResolve(Item, &Profile))
+					continue;
+				int Cost = Profile.m_Combat.m_Cost;
 				if(m_pPveDirector)
 					Cost = m_pPveDirector->ModifyShopCost(pPlayer->GetCID(), Cost);
-				if ((!AI || GetStaticType(Item) != SW_UPGRADE) && pPlayer->GetGold() >= Cost)
+				if ((!AI || Item.m_DefinitionId != CWeaponCatalog::Static(SW_UPGRADE).m_DefinitionId) && pPlayer->GetGold() >= Cost)
 				{
 					if (pPlayer->GetCharacter()->GiveWeapon(NewWeapon(Item)))
 					{
@@ -2569,7 +2586,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				return;
 
 			pPlayer->m_LastKill = Server()->Tick();
-			pPlayer->KillCharacter(WEAPON_SELF);
+			pPlayer->KillCharacter(CAttackSource::World(WEAPON_SELF, ClientID));
 		}
 	}
 	else
@@ -3195,6 +3212,7 @@ void CGameContext::RestoreEntity(int ObjType, int Type, int Subtype, int x, int 
 
 void CGameContext::OnInit(/*class IKernel *pKernel*/)
 {
+	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
 	m_pServer = Kernel()->RequestInterface<IServer>();
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>(); // MapGen
@@ -3407,7 +3425,7 @@ void CGameContext::KickBot(int ClientID)
 		return;
 	
 	if (m_apPlayers[ClientID]->GetCharacter())
-		m_apPlayers[ClientID]->GetCharacter()->Die(ClientID, WEAPON_WORLD, true);
+		m_apPlayers[ClientID]->GetCharacter()->Die(CAttackSource::World(WEAPON_WORLD, ClientID), true);
 	
 	if(IsBot(ClientID))
 		Server()->Kick(ClientID, "");

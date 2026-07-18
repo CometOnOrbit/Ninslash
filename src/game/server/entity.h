@@ -5,6 +5,8 @@
 
 #include <new>
 #include <base/vmath.h>
+
+struct CAttackSource;
 #include <game/server/gameworld.h>
 
 #define MACRO_ALLOC_HEAP() \
@@ -113,7 +115,7 @@ public:
 	virtual void Tick() {}
 	
 	
-	virtual bool TakeDamage(int From, int Weapon, int Dmg, vec2 Force, vec2 Pos) { return false; }
+	virtual bool TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, vec2 Pos) { return false; }
 
 	/*
 		Function: tick_defered

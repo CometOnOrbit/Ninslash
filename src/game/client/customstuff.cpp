@@ -32,7 +32,7 @@ void CCustomStuff::Reset()
 	m_Inventory = false;
 	
 	for (int i = 0; i < 12; i++)
-		m_aItem[i] = 0;
+		m_aItem[i] = {};
 	
 	m_Gold = 0;
 	
@@ -52,18 +52,18 @@ void CCustomStuff::Reset()
 	
 	m_BuildMode = false;
 	m_LocalPos = vec2(0, 0);
-	m_LocalWeapon = 1;
+	m_LocalWeapon = {};
 	m_LocalColor = vec4(0, 0, 0, 0);
 	m_LocalAlive = false;
 	m_LatestWeapon = 1;
 	
 	m_WeaponDropTick = 0;
 	m_SwitchTick = 0;
-	m_SelectedWeapon = 0;
+	m_SelectedWeapon = {};
 	
 	m_WeaponSlot = 0;
 	for (int i = 0; i < 4; i++)
-		m_aSnapWeapon[i] = -1;
+		m_aSnapWeapon[i] = {};
 	
 	m_LocalKits = 0;
 	m_Picker = 0;
@@ -123,7 +123,7 @@ void CCustomStuff::Reset()
 	m_FlipBuilding = false;
 }
 
-void CCustomStuff::SetTurretMuzzle(ivec2 Pos, int AttackTick, int Weapon)
+void CCustomStuff::SetTurretMuzzle(ivec2 Pos, int AttackTick, const CWeaponSpec &Weapon)
 {
 	if (!AttackTick)
 		return;
@@ -148,7 +148,7 @@ void CCustomStuff::SetTurretMuzzle(ivec2 Pos, int AttackTick, int Weapon)
 	// .. or a new one
 	for (int i = 0; i < MAX_TURRETMUZZLES; i++)
 	{
-		if (m_aTurretMuzzle[i].m_Weapon == 0)
+		if (!m_aTurretMuzzle[i].m_Weapon.IsValid())
 		{
 			m_aTurretMuzzle[i].m_Pos = Pos;
 			m_aTurretMuzzle[i].m_Time = 0.0f;
@@ -296,12 +296,12 @@ void CCustomStuff::Tick(bool Paused)
 		// turret muzzle
 		for (int i = 0; i < MAX_TURRETMUZZLES; i++)
 		{
-			if (m_aTurretMuzzle[i].m_Weapon)
+			if (m_aTurretMuzzle[i].m_Weapon.IsValid())
 			{
 				m_aTurretMuzzle[i].m_Time += 0.15f;
 				
 				if (m_aTurretMuzzle[i].m_Time > 1.0f)
-					m_aTurretMuzzle[i].m_Weapon = 0;
+					m_aTurretMuzzle[i].m_Weapon = CWeaponSpec();
 			}
 		}
 	}

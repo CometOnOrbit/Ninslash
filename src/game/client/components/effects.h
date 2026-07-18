@@ -3,6 +3,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_EFFECTS_H
 #define GAME_CLIENT_COMPONENTS_EFFECTS_H
 #include <game/client/component.h>
+#include <game/weapon_catalog.h>
 
 class CEffects : public CComponent
 {
@@ -22,7 +23,7 @@ public:
 	void SkidTrail(vec2 Pos, vec2 Vel);
 	void SpriteSheet(int FX, vec2 Pos);
 	void Lazer(vec2 Pos, int Height);
-	void Explosion(vec2 Pos, int Weapon);
+	void Explosion(vec2 Pos, const CAttackSource &Source);
 	void ChainsawSmoke(vec2 Pos);
 	void FlameExplosion(vec2 Pos);
 	void HammerHit(vec2 Pos);
@@ -38,7 +39,7 @@ public:
 	void Splatter(vec2 Pos, float Angle, float Size = -1, vec4 Color = vec4(1, 0, 0, 1));
 	void Spark(vec2 Pos);
 	void Area1(vec2 Pos);
-	void Muzzle(vec2 Pos, vec2 Dir, int Weapon);
+	void Muzzle(vec2 Pos, vec2 Dir, const CWeaponSpec &Weapon);
 	void GreenSpark(vec2 Pos);
 	void BlueSpark(vec2 Pos);
 	void DamageIndicator(vec2 Pos, vec2 Dir);

@@ -6,6 +6,7 @@
 #include <generated/game_data.h>
 
 #include <game/gamecore.h> // get_angle
+#include <game/weapon_catalog.h>
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>
@@ -27,6 +28,15 @@ void CWeapons::OnReset()
 
 void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *pCurrent)
 {
+	CWeaponSpec WeaponSpec;
+	CResolvedWeaponProfile WeaponProfile;
+	if(!CWeaponCatalog::TryFromProtocol(pCurrent->m_WeaponDefinitionId, pCurrent->m_WeaponLevel, &WeaponSpec) ||
+		!CWeaponCatalog::TryResolve(WeaponSpec, &WeaponProfile))
+		return;
+	const bool IsStatic = WeaponProfile.m_Definition.m_Kind == EWeaponDefinitionKind::Static;
+	const int StaticType = IsStatic ? WeaponProfile.m_Definition.m_StaticType : -1;
+	const CWeaponVisualProfile &Visual = WeaponProfile.m_Visual;
+
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 	vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
 
@@ -53,22 +63,21 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 	if (ChargeLevel == 1.0f)
 		ChargeLevel = 0.7f+cos(Phase1Tick*0.4f)*0.3f;
 	
-	//if (GetStaticType(pCurrent->m_WeaponType) == SW_SHURIKEN)
-	if (GetProjectileTraceType(pCurrent->m_WeaponType) != 0)
+	if (Visual.m_ProjectileTraceType != 0)
 	{
-		if (length(Vel) >= GetWeaponTraceThreshold(pCurrent->m_WeaponType))
-			m_pClient->m_pTracers->Add(GetProjectileTraceType(pCurrent->m_WeaponType), pCurrent->m_AttackTick, Pos, Pos, pCurrent->m_AttackTick, pCurrent->m_WeaponType);
-		else if (length(Vel) > GetWeaponTraceThreshold(pCurrent->m_WeaponType) / 5.0f)
+		if (length(Vel) >= Visual.m_TraceThreshold)
+			m_pClient->m_pTracers->Add(Visual.m_ProjectileTraceType, pCurrent->m_AttackTick, Pos, Pos, pCurrent->m_AttackTick, Visual.m_ProjectileSize);
+		else if (length(Vel) > Visual.m_TraceThreshold / 5.0f)
 			m_pClient->m_pTracers->UpdatePos(pCurrent->m_AttackTick, Pos);
 		
-		if (GetStaticType(pCurrent->m_WeaponType) == SW_SHURIKEN)
+		if (StaticType == SW_SHURIKEN)
 			ChargeLevel = 0.0f;
 	}
 	
-	if (GetStaticType(pCurrent->m_WeaponType) == SW_CLUSTER && GetWeaponCharge(pCurrent->m_WeaponType) == 15)
+	if (StaticType == SW_CLUSTER && WeaponSpec.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
 		ChargeLevel = 0.0f;
 	
-	if (GetStaticType(pCurrent->m_WeaponType) == SW_BOMB)
+	if (StaticType == SW_BOMB)
 	{
 		ChargeLevel = min(Phase1Tick*0.0011f, 1.0f);
 	
@@ -76,11 +85,11 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 			ChargeLevel = 0.7f+cos(Phase1Tick*0.5f)*0.3f;
 	}
 	
-	if (GetStaticType(pCurrent->m_WeaponType) == SW_BALL)
+	if (StaticType == SW_BALL)
 		ChargeLevel = 0;
 		
 	//Graphics()->ShaderBegin(SHADER_COLORSWAP, 1.0f, 0.0f, ChargeLevel);
-	RenderTools()->SetShadersForWeapon(pCurrent->m_WeaponType, ChargeLevel);
+	RenderTools()->SetShadersForWeapon(WeaponSpec, ChargeLevel);
 	Graphics()->QuadsBegin();
 	Graphics()->QuadsSetRotation(Angle);
 
@@ -102,13 +111,13 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 	
 	s_LastLocalTime = Client()->LocalTime();
 	
-	RenderTools()->RenderWeapon(pCurrent->m_WeaponType, Pos, vec2(1, 0), WEAPON_GAME_SIZE);
+	RenderTools()->RenderWeapon(WeaponSpec, Pos, vec2(1, 0), WEAPON_GAME_SIZE);
 	
 	Graphics()->QuadsEnd();
 	Graphics()->ShaderEnd();
 	
 	
-	if (GetStaticType(pCurrent->m_WeaponType) == SW_AREASHIELD)
+	if (StaticType == SW_AREASHIELD)
 	{
 		float c = cos(CustomStuff()->m_SawbladeAngle*0.25f)*0.3f + 0.7f;
 		

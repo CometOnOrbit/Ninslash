@@ -75,7 +75,7 @@ void CTurret::Tick()
 		m_DeathTimer--;
 		if (m_Life <= 0 && m_DeathTimer <= 0)
 		{
-			GameServer()->CreateExplosion(m_Pos+vec2(0, -50*m_FlipY), m_DamageOwner, GetBuildingWeapon(m_Type));
+			GameServer()->CreateExplosion(m_Pos+vec2(0, -50*m_FlipY), CAttackSource::Building(m_DamageOwner, m_Type));
 			GameServer()->CreateSound(m_Pos+vec2(0, -50*m_FlipY), SOUND_GRENADE_EXPLODE);
 			GameServer()->m_World.DestroyEntity(this);
 		}
@@ -225,7 +225,7 @@ bool CTurret::FindTarget()
 			continue;
 			
 		int Distance = distance(pCharacter->m_Pos, TurretPos);
-		if (Distance < AIAttackRange(m_pWeapon->GetWeaponType()) && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, TurretPos))
+		if (Distance < m_pWeapon->GetWeaponProfile().m_Combat.m_AiAttackRange && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, TurretPos))
 		{
 			if (!pClosestCharacter || Distance < ClosestDistance)
 			{
@@ -280,6 +280,7 @@ void CTurret::Snap(int SnappingClient)
 	}
 	
 	pP->m_Status = m_Status;
-	pP->m_Weapon = m_pWeapon->GetWeaponType();
+	pP->m_WeaponDefinitionId = static_cast<int>(m_pWeapon->GetWeaponSpec().m_DefinitionId);
+	pP->m_WeaponLevel = m_pWeapon->GetWeaponSpec().m_Level;
 	pP->m_AttackTick = m_AttackTick;
 }

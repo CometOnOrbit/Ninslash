@@ -39,7 +39,7 @@ void CAIroam::OnCharacterSpawn(CCharacter *pChr)
 	/*
 	if (m_Skin == SKIN_ALIEN3)
 	{
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(4, 4), 2)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(4, 4, 2)));
 		pChr->SetHealth(60+min((m_Level-1)*4, 300));
 		pChr->SetArmor(60+min((m_Level-1)*4, 300));
 		m_PowerLevel = 8;
@@ -47,7 +47,7 @@ void CAIroam::OnCharacterSpawn(CCharacter *pChr)
 	}
 	else if (m_Skin == SKIN_ALIEN4)
 	{
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(1, 1), 4)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1, 4)));
 		pChr->SetHealth(60+min((m_Level-1)*4, 200));
 		pChr->SetArmor(60+min((m_Level-1)*4, 350));
 		m_PowerLevel = 12;
@@ -55,7 +55,7 @@ void CAIroam::OnCharacterSpawn(CCharacter *pChr)
 	}
 	else if (m_Skin == SKIN_ALIEN5)
 	{
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetStaticWeapon(SW_FLAMER), 1)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_FLAMER, 1)));
 		pChr->SetHealth(50+min((m_Level-1)*4, 150));
 		pChr->SetArmor(60+min((m_Level-1)*4, 300));
 		m_PowerLevel = 10;
@@ -63,7 +63,7 @@ void CAIroam::OnCharacterSpawn(CCharacter *pChr)
 	}
 	else if (m_Skin == SKIN_ALIEN2)
 	{
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_CHAINSAW)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_CHAINSAW)));
 		pChr->SetHealth(60+min((m_Level-1)*4, 300));
 		pChr->SetArmor(60+min((m_Level-1)*4, 300));
 		m_PowerLevel = 8;
@@ -72,20 +72,20 @@ void CAIroam::OnCharacterSpawn(CCharacter *pChr)
 	else
 	{
 		if (frandom() < min(m_Level*0.1f, 1.0f))
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetModularWeapon(1, 1)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1)));
 		else if (frandom() < min(m_Level*0.1f, 1.0f))
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetModularWeapon(1, 4)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 4)));
 		
 		if (frandom() < 0.6f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_GUN1)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GUN1)));
 		else
-			pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_GUN2)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GUN2)));
 		
 		pChr->SetHealth(60+min((m_Level-1)*3, 300));
 	}
 	*/
 	
-	pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_GUN1)));
+	pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GUN1)));
 	
 	m_ShockTimer = 10;
 		
@@ -150,8 +150,7 @@ void CAIroam::DoBehavior()
 				//MoveTowardsWaypoint(true);
 				//
 				
-				int Weapon = Player()->GetCharacter()->GetWeaponType();
-				if (GetWeaponFiringType(Weapon) == WFT_NONE)
+				if (Player()->GetCharacter()->CurrentWeaponFiringType() == WFT_NONE)
 				{
 					Shooting = false;
 					m_TargetPos = m_Pos - m_PlayerDirection*3;

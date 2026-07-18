@@ -38,14 +38,14 @@ void CGameControllerTexasRun::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 		pChr->GiveRandomBuff();
 }
 
-int CGameControllerTexasRun::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
+int CGameControllerTexasRun::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
-	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 	
 	if (CountPlayers() > 1 && m_GameState == TEXAS_STARTED)
 		m_GameState = TEXAS_FIRSTDEATH;
 	
-	if(pKiller && Weapon != WEAPON_GAME)
+	if(pKiller && !(Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME))
 	{
 		/*
 		// do team scoring

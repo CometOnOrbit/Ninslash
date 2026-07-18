@@ -2,6 +2,7 @@
 #define GAME_SERVER_ENTITIES_DROID_H
 
 #include <game/server/entity.h>
+#include <game/weapon_catalog.h>
 
 const int DroidPhysSize = 60;
 
@@ -15,7 +16,7 @@ public:
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 
-	virtual void TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon);
+	virtual void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos);
 	int m_Health;
 	int m_MaxHealth;
 	

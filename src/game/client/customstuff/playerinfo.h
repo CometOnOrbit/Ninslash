@@ -7,6 +7,7 @@
 #include <engine/graphics.h>
 #include <game/client/gameclient.h>
 #include <game/client/animdata.h>
+#include <game/weapon_catalog.h>
 
 enum MeleeState
 {
@@ -86,7 +87,7 @@ public:
 	CPlayerInfo();
 	
 	// muzzle
-	void AddMuzzle(int AttackTick, int Weapon);
+	void AddMuzzle(int AttackTick);
 	int m_MuzzleTick;
 	
 	bool m_BombCarrier;
@@ -98,7 +99,7 @@ public:
 	bool BackHook();
 	
 	float m_aMuzzleTime[4];
-	int m_aMuzzleWeapon[4];
+	bool m_aMuzzleWeapon[4];
 	int m_aMuzzleType[4];
 	
 	int m_RecoilTick;
@@ -120,7 +121,7 @@ public:
 	
 	float ChargeIntensity(int Charge);
 	float ChargeIntensity();
-	float GetWeaponCharge();
+	float WeaponChargeProgress();
 	
 	float m_WeaponColorSwap;
 	
@@ -181,7 +182,11 @@ public:
 	
 	void Reset();
 	
-	int m_Weapon;
+	CWeaponSpec m_Weapon;
+	int WeaponRenderType() const;
+	int WeaponFiringType() const;
+	int WeaponStaticType() const;
+	vec2 WeaponRenderOffset() const;
 	
 	vec2 m_MuzzlePos;
 	vec2 m_MuzzleDir;

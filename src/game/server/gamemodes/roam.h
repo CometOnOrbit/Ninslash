@@ -11,7 +11,7 @@ public:
 	bool CanSpawn(int Team, vec2 *pPos, bool IsBot = false);
 	virtual void Tick();
 	void AddEnemy(vec2 Pos);
-	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
+	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
 	
 private:
 	vec2 m_aBotSpawn[99];

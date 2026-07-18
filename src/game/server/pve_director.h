@@ -3,6 +3,7 @@
 
 #include <base/vmath.h>
 #include <game/pve_roguelite.h>
+#include <game/weapon_catalog.h>
 
 class CGameContext;
 class CCharacter;
@@ -87,16 +88,14 @@ class CPveDirector
 		int m_BleedStacks;
 		int m_BleedEndTick;
 		int m_BleedNextTick;
-		int m_BleedOwner;
-		int m_BleedWeapon;
+		CAttackSource m_BleedSource;
 		int m_ConductiveEndTick;
 	};
 
 	struct CPendingBlast
 	{
 		vec2 m_Pos;
-		int m_Owner;
-		int m_Weapon;
+		CAttackSource m_Source;
 		int m_Damage;
 		int m_Tick;
 	};
@@ -141,7 +140,7 @@ class CPveDirector
 	bool IsEligiblePlayer(int ClientID) const;
 	int EligiblePlayerCount() const;
 	int CurrentWeaponSpecialization(int ClientID) const;
-	int WeaponSpecialization(int Weapon) const;
+	int WeaponSpecialization(const CWeaponSpec &Weapon) const;
 	bool CardEligible(int ClientID, int CardID) const;
 	int DrawCard(int ClientID, const bool *pExcluded, int RequiredSpecialization, bool CommonOnly) const;
 	void GenerateChoices(int ClientID);
@@ -160,18 +159,18 @@ class CPveDirector
 	void GrantCatchup(int ClientID);
 	void TickBlackBox();
 	void ApplyStageSupplies(int ClientID);
-	void ApplyArcConductor(int ClientID, class CEntity *pOriginalTarget, vec2 Origin, int Weapon, int Damage);
+	void ApplyArcConductor(const CAttackSource &Source, class CEntity *pOriginalTarget, vec2 Origin, int Damage);
 	CTargetStatus *TargetStatus(CEntity *pTarget, bool Create);
 	void ClearTargetStatus(CEntity *pTarget);
 	void ApplyVulnerable(CEntity *pTarget, int Percent, int Seconds);
-	void ApplyBleed(CEntity *pTarget, int Stacks, int ClientID, int Weapon);
+	void ApplyBleed(CEntity *pTarget, int Stacks, const CAttackSource &Source);
 	int VulnerablePercent(CEntity *pTarget);
-	void ProcessHit(int ClientID, CEntity *pTarget, int Weapon, int Damage, bool Direct);
+	void ProcessHit(int ClientID, CEntity *pTarget, int Damage, bool Direct);
 	void TickTargetStatuses();
 	void UpdateTargetSummary();
-	void ScheduleSecondaryBlast(int ClientID, int Weapon, vec2 Pos, int Damage);
+	void ScheduleSecondaryBlast(const CAttackSource &Source, vec2 Pos, int Damage);
 	void TickPendingBlasts();
-	void ApplyThunderhead(int ClientID, CEntity *pTarget, int Weapon, int Damage);
+	void ApplyThunderhead(const CAttackSource &Source, CEntity *pTarget, int Damage);
 	void TickPlayerState(int ClientID);
 	void TickDrone(int ClientID);
 	float DroneEfficiency(int ClientID) const;
@@ -205,9 +204,9 @@ public:
 	void OnStageComplete(bool Success = true);
 	void OnPlayerDeath(int ClientID);
 	void OnBossKilled(bool ContractBoss = false);
-	void OnEnemyKilled(int ClientID, int Weapon, vec2 Pos, CEntity *pTarget = 0);
-	void OnDroidKilled(CDroid *pDroid, int ClientID, int Weapon);
-	void OnMeleeAttack(int ClientID, int Weapon, vec2 Pos, int Damage);
+	void OnEnemyKilled(const CAttackSource &Source, vec2 Pos, CEntity *pTarget = 0);
+	void OnDroidKilled(CDroid *pDroid, const CAttackSource &Source);
+	void OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Damage);
 	void OnSwitchTriggered();
 	void OnObjectiveComplete();
 	void OnGoldSpent(int ClientID, int Amount);
@@ -219,8 +218,8 @@ public:
 	void CompleteContract(bool Success);
 	void RewardResearch(int Amount, int Reason, int HighestInvasion = 0);
 
-	int ModifyDamage(int From, int To, int Weapon, int Damage);
-	int ModifyDroidDamage(int From, int Weapon, int Damage, bool Boss, CDroid *pTarget);
+	int ModifyDamage(const CAttackSource &Source, int To, int Damage);
+	int ModifyDroidDamage(const CAttackSource &Source, int Damage, bool Boss, CDroid *pTarget);
 	int ModifyGold(int ClientID, int Amount) const;
 	int ModifyShopCost(int ClientID, int Cost) const;
 	int ModifyBuildingCost(int ClientID, int Cost) const;
@@ -229,7 +228,7 @@ public:
 	int AddBarrier(int ClientID, int Amount);
 	void RefundBuilding(int ClientID, int KitCost) const;
 	float ModifyExplosionRadius(int Owner, float Radius) const;
-	float CooldownReduction(int ClientID, int Weapon) const;
+	float CooldownReduction(int ClientID, const CWeaponSpec &Weapon) const;
 	float MovementMultiplier(int ClientID) const;
 	float InteractionSpeedBonus(int ClientID) const;
 	float EnemyCountMultiplier() const;

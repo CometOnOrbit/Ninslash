@@ -20,6 +20,14 @@
 
 #include "pve_director.h"
 
+static bool IsHeavyWeaponAttack(const CAttackSource &Source)
+{
+	CWeaponDefinition Definition;
+	return Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
+		CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition) &&
+		Source.m_Weapon.m_Level >= max(2, (Definition.m_MaxLevel + 1) / 2);
+}
+
 void CPveDirector::CPlayerRun::Reset()
 {
 	m_Connected = false;
@@ -187,17 +195,20 @@ int CPveDirector::CurrentWeaponSpecialization(int ClientID) const
 	CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
 	if(!pChr || !pChr->GetWeapon())
 		return PVE_SPECIALIZATION_NONE;
-	return WeaponSpecialization(pChr->GetWeapon()->GetWeaponType());
+	return WeaponSpecialization(pChr->GetWeapon()->GetWeaponSpec());
 }
 
-int CPveDirector::WeaponSpecialization(int Weapon) const
+int CPveDirector::WeaponSpecialization(const CWeaponSpec &Weapon) const
 {
-	if(IsExplosiveProjectile(Weapon))
+	CResolvedWeaponProfile Profile;
+	if(!CWeaponCatalog::TryResolve(Weapon, &Profile))
+		return PVE_SPECIALIZATION_NONE;
+	if(Profile.m_Combat.m_ExplosiveProjectile)
 		return PVE_SPECIALIZATION_EXPLOSIVE;
-	if(WeaponElectroAmount(Weapon) > 0.0f || IsLaserWeapon(Weapon))
+	if(Profile.m_Combat.m_ElectroAmount > 0.0f || Profile.m_Combat.m_LaserWeapon)
 		return PVE_SPECIALIZATION_ELECTRIC;
-	const int RenderType = GetWeaponRenderType(Weapon);
-	if(GetWeaponFiringType(Weapon) == WFT_MELEE || RenderType == WRT_MELEE || RenderType == WRT_MELEESMALL || RenderType == WRT_SPIN)
+	const int RenderType = Profile.m_Visual.m_RenderType;
+	if(Profile.m_Combat.m_FiringType == WFT_MELEE || RenderType == WRT_MELEE || RenderType == WRT_MELEESMALL || RenderType == WRT_SPIN)
 		return PVE_SPECIALIZATION_MELEE;
 	return PVE_SPECIALIZATION_FIREARM;
 }
@@ -1179,8 +1190,13 @@ void CPveDirector::OnBossKilled(bool ContractBoss)
 	}
 }
 
-void CPveDirector::OnEnemyKilled(int ClientID, int Weapon, vec2 Pos, CEntity *pTarget)
+void CPveDirector::OnEnemyKilled(const CAttackSource &Source, vec2 Pos, CEntity *pTarget)
 {
+	const int ClientID = Source.m_Owner;
+	CWeaponCombatProfile Combat{};
+	CWeaponVisualProfile Visual{};
+	CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual);
+	const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon ? WeaponSpecialization(Source.m_Weapon) : PVE_SPECIALIZATION_NONE;
 	if(m_ApplyingSecondaryEffect)
 	{
 		ClearTargetStatus(pTarget);
@@ -1212,7 +1228,7 @@ void CPveDirector::OnEnemyKilled(int ClientID, int Weapon, vec2 Pos, CEntity *pT
 			pChr->AddKits(Kits);
 		Run.m_SalvageKits += Kits;
 	}
-	if(WeaponSpecialization(Weapon) == PVE_SPECIALIZATION_ELECTRIC && Run.m_aStacks[PVE_CARD_FEEDBACK])
+	if(Specialization == PVE_SPECIALIZATION_ELECTRIC && Run.m_aStacks[PVE_CARD_FEEDBACK])
 		Run.m_aWeaponResources[PVE_SPECIALIZATION_ELECTRIC - 1] = min(10, Run.m_aWeaponResources[PVE_SPECIALIZATION_ELECTRIC - 1] + Run.m_aStacks[PVE_CARD_FEEDBACK] * 2);
 	const int Now = m_pGameServer->Server()->Tick();
 	if(Run.m_aStacks[PVE_CARD_KILL_CHAIN])
@@ -1231,21 +1247,22 @@ void CPveDirector::OnEnemyKilled(int ClientID, int Weapon, vec2 Pos, CEntity *pT
 		if(Run.m_ReaperKills >= 3)
 			Run.m_ReaperEndTick = Now + m_pGameServer->Server()->TickSpeed() * 5;
 	}
-	const int RenderType = GetWeaponRenderType(Weapon);
-	const bool Melee = GetWeaponFiringType(Weapon) == WFT_MELEE || RenderType == WRT_MELEE || RenderType == WRT_MELEESMALL || RenderType == WRT_SPIN;
+	const int RenderType = Visual.m_RenderType;
+	const bool Melee = Combat.m_FiringType == WFT_MELEE || RenderType == WRT_MELEE || RenderType == WRT_MELEESMALL || RenderType == WRT_SPIN;
 	if(Melee && Run.m_aStacks[PVE_CARD_BLOOD_DRIVE])
 	{
 		CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
 		if(pChr)
 			pChr->IncreaseHealth(4);
 	}
-	if(IsExplosiveProjectile(Weapon) && Run.m_aStacks[PVE_CARD_CHAIN_REACTION] && frandom() < 0.25f)
-		m_pGameServer->CreateExplosion(Pos, ClientID, Weapon);
+	if(Combat.m_ExplosiveProjectile && Run.m_aStacks[PVE_CARD_CHAIN_REACTION] && frandom() < 0.25f)
+		m_pGameServer->CreateExplosion(Pos, Source);
 	ClearTargetStatus(pTarget);
 }
 
-void CPveDirector::OnDroidKilled(CDroid *pDroid, int ClientID, int Weapon)
+void CPveDirector::OnDroidKilled(CDroid *pDroid, const CAttackSource &Source)
 {
+	const int ClientID = Source.m_Owner;
 	if(!pDroid)
 		return;
 	CTargetStatus *pStatus = TargetStatus(pDroid, false);
@@ -1261,7 +1278,7 @@ void CPveDirector::OnDroidKilled(CDroid *pDroid, int ClientID, int Weapon)
 		if(pExtract)
 			pExtract->OnDroidKilled(pDroid);
 	}
-	OnEnemyKilled(ClientID, Weapon, pDroid->m_Pos + pDroid->m_Center);
+	OnEnemyKilled(Source, pDroid->m_Pos + pDroid->m_Center);
 	ClearTargetStatus(pDroid);
 	if(pDroid == m_pEliteContractBoss)
 		OnBossKilled(true);
@@ -1488,7 +1505,7 @@ CPveDirector::CTargetStatus *CPveDirector::TargetStatus(CEntity *pTarget, bool C
 		return 0;
 	mem_zero(pFree, sizeof(*pFree));
 	pFree->m_pTarget = pTarget;
-	pFree->m_BleedOwner = -1;
+	pFree->m_BleedSource = CAttackSource::World(WEAPON_WORLD);
 	m_TargetStatusCount++;
 	m_TargetSummaryTick = -1;
 	return pFree;
@@ -1515,7 +1532,7 @@ void CPveDirector::ApplyVulnerable(CEntity *pTarget, int Percent, int Seconds)
 	m_TargetSummaryTick = -1;
 }
 
-void CPveDirector::ApplyBleed(CEntity *pTarget, int Stacks, int ClientID, int Weapon)
+void CPveDirector::ApplyBleed(CEntity *pTarget, int Stacks, const CAttackSource &Source)
 {
 	CTargetStatus *pStatus = TargetStatus(pTarget, true);
 	if(!pStatus || Stacks <= 0)
@@ -1525,8 +1542,7 @@ void CPveDirector::ApplyBleed(CEntity *pTarget, int Stacks, int ClientID, int We
 	pStatus->m_BleedEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 5;
 	if(WasInactive)
 		pStatus->m_BleedNextTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed();
-	pStatus->m_BleedOwner = ClientID;
-	pStatus->m_BleedWeapon = Weapon;
+	pStatus->m_BleedSource = Source;
 	m_TargetSummaryTick = -1;
 }
 
@@ -1538,7 +1554,7 @@ int CPveDirector::VulnerablePercent(CEntity *pTarget)
 	return pStatus->m_VulnerablePercent;
 }
 
-void CPveDirector::ProcessHit(int ClientID, CEntity *pTarget, int Weapon, int Damage, bool Direct)
+void CPveDirector::ProcessHit(int ClientID, CEntity *pTarget, int Damage, bool Direct)
 {
 	if(!Direct || m_ApplyingSecondaryEffect || !IsEligiblePlayer(ClientID) || !pTarget || Damage <= 0)
 		return;
@@ -1581,13 +1597,13 @@ void CPveDirector::TickTargetStatuses()
 		{
 			CDroid *pDroid = static_cast<CDroid *>(Status.m_pTarget);
 			if(pDroid->m_Health > 0)
-				pDroid->TakeDamage(vec2(0, 0), Damage, Status.m_BleedOwner, pDroid->m_Pos, Status.m_BleedWeapon);
+				pDroid->TakeDamage(vec2(0, 0), Damage, Status.m_BleedSource, pDroid->m_Pos);
 		}
 		else if(Status.m_pTarget->GetType() == CGameWorld::ENTTYPE_CHARACTER)
 		{
 			CCharacter *pCharacter = static_cast<CCharacter *>(Status.m_pTarget);
 			if(pCharacter->m_IsBot && pCharacter->IsAlive())
-				pCharacter->TakeDamage(Status.m_BleedOwner, Status.m_BleedWeapon, Damage, vec2(0, 0), pCharacter->m_Pos);
+				pCharacter->TakeDamage(Status.m_BleedSource, Damage, vec2(0, 0), pCharacter->m_Pos);
 		}
 		m_ApplyingSecondaryEffect = false;
 	}
@@ -1613,14 +1629,13 @@ void CPveDirector::UpdateTargetSummary()
 	}
 }
 
-void CPveDirector::ScheduleSecondaryBlast(int ClientID, int Weapon, vec2 Pos, int Damage)
+void CPveDirector::ScheduleSecondaryBlast(const CAttackSource &Source, vec2 Pos, int Damage)
 {
 	for(int i = 0; i < (int)(sizeof(m_aPendingBlasts) / sizeof(m_aPendingBlasts[0])); i++)
 		if(m_aPendingBlasts[i].m_Tick == 0)
 		{
 			m_aPendingBlasts[i].m_Pos = Pos;
-			m_aPendingBlasts[i].m_Owner = ClientID;
-			m_aPendingBlasts[i].m_Weapon = Weapon;
+			m_aPendingBlasts[i].m_Source = Source;
 			m_aPendingBlasts[i].m_Damage = max(1, Damage * 60 / 100);
 			m_aPendingBlasts[i].m_Tick = m_pGameServer->Server()->Tick() + max(1, m_pGameServer->Server()->TickSpeed() * 35 / 100);
 			m_PendingBlastCount++;
@@ -1642,17 +1657,17 @@ void CPveDirector::TickPendingBlasts()
 		m_ApplyingSecondaryEffect = true;
 		for(CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER); pCharacter; pCharacter = (CCharacter *)pCharacter->TypeNext())
 			if(pCharacter->m_IsBot && pCharacter->IsAlive() && distance(Blast.m_Pos, pCharacter->m_Pos) <= 170.0f)
-				pCharacter->TakeDamage(Blast.m_Owner, Blast.m_Weapon, Blast.m_Damage, vec2(0, 0), pCharacter->m_Pos);
+				pCharacter->TakeDamage(Blast.m_Source, Blast.m_Damage, vec2(0, 0), pCharacter->m_Pos);
 		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
 			if(pDroid->m_Health > 0 && distance(Blast.m_Pos, pDroid->m_Pos + pDroid->m_Center) <= 170.0f)
-				pDroid->TakeDamage(vec2(0, 0), Blast.m_Damage, Blast.m_Owner, pDroid->m_Pos, Blast.m_Weapon);
+				pDroid->TakeDamage(vec2(0, 0), Blast.m_Damage, Blast.m_Source, pDroid->m_Pos);
 		m_ApplyingSecondaryEffect = false;
 		Blast.m_Tick = 0;
 		m_PendingBlastCount = max(0, m_PendingBlastCount - 1);
 	}
 }
 
-void CPveDirector::ApplyThunderhead(int ClientID, CEntity *pTarget, int Weapon, int Damage)
+void CPveDirector::ApplyThunderhead(const CAttackSource &Source, CEntity *pTarget, int Damage)
 {
 	if(!pTarget || Damage <= 0)
 		return;
@@ -1660,9 +1675,9 @@ void CPveDirector::ApplyThunderhead(int ClientID, CEntity *pTarget, int Weapon, 
 	new CLightning(&m_pGameServer->m_World, Pos, Pos + vec2(0, -320.0f));
 	m_ApplyingSecondaryEffect = true;
 	if(pTarget->GetType() == CGameWorld::ENTTYPE_DROID)
-		static_cast<CDroid *>(pTarget)->TakeDamage(vec2(0, 0), Damage, ClientID, Pos, Weapon);
+		static_cast<CDroid *>(pTarget)->TakeDamage(vec2(0, 0), Damage, Source, Pos);
 	else if(pTarget->GetType() == CGameWorld::ENTTYPE_CHARACTER)
-		static_cast<CCharacter *>(pTarget)->TakeDamage(ClientID, Weapon, Damage, vec2(0, 0), Pos);
+		static_cast<CCharacter *>(pTarget)->TakeDamage(Source, Damage, vec2(0, 0), Pos);
 	m_ApplyingSecondaryEffect = false;
 }
 
@@ -1819,8 +1834,9 @@ void CPveDirector::TickDrone(int ClientID)
 			}
 		if(pBestCharacter || pBestDroid)
 		{
-			const int Weapon = pOwner->GetWeapon() ? pOwner->GetWeapon()->GetWeaponType() : 0;
-			float BaseDamage = max(GetProjectileDamage(Weapon), GetExplosionDamage(Weapon));
+			CWeapon *pWeapon = pOwner->GetWeapon();
+			const CAttackSource Source = pWeapon ? CAttackSource::PlayerWeapon(ClientID, pWeapon->GetWeaponSpec()) : CAttackSource::World(WEAPON_GAME, ClientID);
+			float BaseDamage = pWeapon ? max(pWeapon->GetWeaponProfile().m_Combat.m_ProjectileDamage, pWeapon->GetWeaponProfile().m_Combat.m_ExplosionDamage) : 0.0f;
 			if(BaseDamage <= 0.0f)
 				BaseDamage = 10.0f;
 			float DamageScale = 0.45f * Efficiency;
@@ -1831,14 +1847,13 @@ void CPveDirector::TickDrone(int ClientID)
 			Run.m_pDroneTarget = pBestCharacter ? (CEntity *)pBestCharacter : (CEntity *)pBestDroid;
 			Run.m_pDrone->SetAction(TargetPos, m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 5);
 			// Match droid_star projectile sprite/trace/fx; damage stays hitscan so Efficiency/Crossfire still apply.
-			const int StarWeapon = GetDroidWeapon(DROIDTYPE_STAR);
-			new CPveDronePulse(&m_pGameServer->m_World, Run.m_pDrone->m_Pos, TargetPos, ClientID, StarWeapon);
+			new CPveDronePulse(&m_pGameServer->m_World, Run.m_pDrone->m_Pos, TargetPos, CAttackSource::Droid(ClientID, DROIDTYPE_STAR));
 			m_pGameServer->CreateSound(Run.m_pDrone->m_Pos, SOUND_STAR_FIRE);
 			m_ApplyingSecondaryEffect = true;
 			if(pBestCharacter)
-				pBestCharacter->TakeDamage(ClientID, Weapon, Damage, vec2(0, 0), TargetPos);
+				pBestCharacter->TakeDamage(Source, Damage, vec2(0, 0), TargetPos);
 			else
-				pBestDroid->TakeDamage(vec2(0, 0), Damage, ClientID, TargetPos, Weapon);
+				pBestDroid->TakeDamage(vec2(0, 0), Damage, Source, TargetPos);
 			m_ApplyingSecondaryEffect = false;
 		}
 		Run.m_DroneActionTick = m_pGameServer->Server()->Tick() + max(1, (int)(m_pGameServer->Server()->TickSpeed() * 0.55f * (1.0f - CooldownReduction)));
@@ -1972,8 +1987,9 @@ void CPveDirector::OnDroneModule(int ClientID, int Nonce, int Module)
 	SendBuildState(ClientID, true);
 }
 
-void CPveDirector::ApplyArcConductor(int ClientID, CEntity *pOriginalTarget, vec2 Origin, int Weapon, int Damage)
+void CPveDirector::ApplyArcConductor(const CAttackSource &Source, CEntity *pOriginalTarget, vec2 Origin, int Damage)
 {
+	const int ClientID = Source.m_Owner;
 	if(m_ApplyingSecondaryEffect || !IsEligiblePlayer(ClientID) || Damage <= 0)
 		return;
 	CPlayerRun &Run = m_aPlayers[ClientID];
@@ -2028,73 +2044,24 @@ void CPveDirector::ApplyArcConductor(int ClientID, CEntity *pOriginalTarget, vec
 		new CLightning(&m_pGameServer->m_World, TargetPos, Origin);
 		m_ApplyingSecondaryEffect = true;
 		if(pBestCharacter)
-			pBestCharacter->TakeDamage(ClientID, Weapon, ArcDamage, vec2(0, 0), TargetPos);
+			pBestCharacter->TakeDamage(Source, ArcDamage, vec2(0, 0), TargetPos);
 		else
-			pBestDroid->TakeDamage(vec2(0, 0), ArcDamage, ClientID, TargetPos, Weapon);
+			pBestDroid->TakeDamage(vec2(0, 0), ArcDamage, Source, TargetPos);
 		m_ApplyingSecondaryEffect = false;
 	}
 }
 
-#if 0
-void CPveDirector::ApplyArcConductorV6(int ClientID, CEntity *pOriginalTarget, vec2 Origin, int Weapon, int Damage)
-{
-	if(m_ApplyingSecondaryEffect || !IsEligiblePlayer(ClientID) ||
-		(!m_aPlayers[ClientID].m_aStacks[PVE_CARD_ARC_CONDUCTOR] && m_aPlayers[ClientID].m_LastEmpoweredSpecialization != PVE_SPECIALIZATION_ELECTRIC) || Damage <= 0)
-		return;
-	CCharacter *pBestCharacter = 0;
-	CDroid *pBestDroid = 0;
-	float BestDistance = 320.0f;
-	CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER);
-	for(; pCharacter; pCharacter = (CCharacter *)pCharacter->TypeNext())
-	{
-		if(pCharacter == pOriginalTarget || !pCharacter->m_IsBot || !pCharacter->IsAlive())
-			continue;
-		const float Dist = distance(Origin, pCharacter->m_Pos);
-		if(Dist < BestDistance)
-		{
-			BestDistance = Dist;
-			pBestCharacter = pCharacter;
-			pBestDroid = 0;
-		}
-	}
-	CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID);
-	for(; pDroid; pDroid = (CDroid *)pDroid->TypeNext())
-	{
-		if(pDroid == pOriginalTarget || pDroid->m_Health <= 0)
-			continue;
-		const float Dist = distance(Origin, pDroid->m_Pos + pDroid->m_Center);
-		if(Dist < BestDistance)
-		{
-			BestDistance = Dist;
-			pBestCharacter = 0;
-			pBestDroid = pDroid;
-		}
-	}
-	if(!pBestCharacter && !pBestDroid)
-		return;
-	int ArcDamage = max(1, (int)(Damage * 0.35f + 0.5f));
-	const vec2 TargetPos = pBestCharacter ? pBestCharacter->m_Pos : pBestDroid->m_Pos + pBestDroid->m_Center;
-	CTargetStatus *pArcStatus = TargetStatus(pBestCharacter ? (CEntity *)pBestCharacter : (CEntity *)pBestDroid, false);
-	if(pArcStatus && pArcStatus->m_ConductiveEndTick >= m_pGameServer->Server()->Tick())
-		ArcDamage = max(1, ArcDamage * 125 / 100);
-	new CLightning(&m_pGameServer->m_World, TargetPos, Origin);
-	m_ApplyingSecondaryEffect = true;
-	if(pBestCharacter)
-		pBestCharacter->TakeDamage(ClientID, Weapon, ArcDamage, vec2(0, 0), TargetPos);
-	else
-	{
-		pBestDroid->TakeDamage(vec2(0, 0), ArcDamage, ClientID, TargetPos, Weapon);
-	}
-	m_ApplyingSecondaryEffect = false;
-}
-#endif
 
-void CPveDirector::OnMeleeAttack(int ClientID, int Weapon, vec2 Pos, int Damage)
+void CPveDirector::OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Damage)
 {
+	const int ClientID = Source.m_Owner;
 	if(!Enabled() || !IsEligiblePlayer(ClientID) || !m_aPlayers[ClientID].m_aStacks[PVE_CARD_SHOCKWAVE] || Damage <= 0)
 		return;
-	const int Charge = GetWeaponCharge(Weapon);
-	const int HeavyThreshold = max(2, (WeaponMaxLevel(Weapon) + 1) / 2);
+	CWeaponDefinition Definition;
+	if(Source.m_Kind != EAttackSourceKind::PlayerWeapon || !CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition))
+		return;
+	const int Charge = Source.m_Weapon.m_Level;
+	const int HeavyThreshold = max(2, (Definition.m_MaxLevel + 1) / 2);
 	if(Charge < HeavyThreshold || m_aPlayers[ClientID].m_ShockwaveEndTick > m_pGameServer->Server()->Tick())
 		return;
 	m_aPlayers[ClientID].m_ShockwaveEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 2 / 5;
@@ -2105,14 +2072,14 @@ void CPveDirector::OnMeleeAttack(int ClientID, int Weapon, vec2 Pos, int Damage)
 	for(; pCharacter; pCharacter = (CCharacter *)pCharacter->TypeNext())
 		if(pCharacter->m_IsBot && pCharacter->IsAlive() && distance(Pos, pCharacter->m_Pos) <= 190.0f)
 		{
-			pCharacter->TakeDamage(ClientID, Weapon, max(1, Damage / 2), normalize(pCharacter->m_Pos - Pos) * 4.0f, pCharacter->m_Pos);
+			pCharacter->TakeDamage(Source, max(1, Damage / 2), normalize(pCharacter->m_Pos - Pos) * 4.0f, pCharacter->m_Pos);
 			HitCount++;
 		}
 	CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID);
 	for(; pDroid; pDroid = (CDroid *)pDroid->TypeNext())
 		if(pDroid->m_Health > 0 && distance(Pos, pDroid->m_Pos + pDroid->m_Center) <= 190.0f)
 		{
-			pDroid->TakeDamage(normalize(pDroid->m_Pos + pDroid->m_Center - Pos) * 4.0f, max(1, Damage / 2), ClientID, pDroid->m_Pos, Weapon);
+			pDroid->TakeDamage(normalize(pDroid->m_Pos + pDroid->m_Center - Pos) * 4.0f, max(1, Damage / 2), Source, pDroid->m_Pos);
 			HitCount++;
 		}
 	m_ApplyingSecondaryEffect = false;
@@ -2123,8 +2090,9 @@ void CPveDirector::OnMeleeAttack(int ClientID, int Weapon, vec2 Pos, int Damage)
 	}
 }
 
-int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
+int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 {
+	const int From = Source.m_Owner;
 	if(!Enabled() || Damage <= 0 || m_ApplyingSecondaryEffect)
 		return Damage;
 	float Multiplier = 1.0f;
@@ -2132,7 +2100,7 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 	if(IsEligiblePlayer(From) && (To == -2 || m_pGameServer->IsBot(To)))
 	{
 		CPlayerRun &Run = m_aPlayers[From];
-		const int Specialization = WeaponSpecialization(Weapon);
+		const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon ? WeaponSpecialization(Source.m_Weapon) : PVE_SPECIALIZATION_NONE;
 		Run.m_LastEmpoweredSpecialization = PVE_SPECIALIZATION_NONE;
 		pOutgoingTarget = To >= 0 ? m_pGameServer->GetPlayerChar(To) : 0;
 		Multiplier += Run.m_aStacks[PVE_CARD_COMBAT_TRAINING] * 0.08f;
@@ -2262,7 +2230,7 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 			Multiplier += min(0.40f, Run.m_InvasionFloorsCompleted * Run.m_aStacks[PVE_CARD_ADAPTATION] * 0.04f);
 			Multiplier += min(0.20f, Run.m_DeathlessFloors * Run.m_aStacks[PVE_CARD_FLOOR_MEMORY] * 0.04f);
 		}
-		if(m_Mode == PVE_MODE_HORDE && Run.m_aStacks[PVE_CARD_SIEGE_MASTER] && (IsTurret(Weapon) || IsBuilding(Weapon)))
+		if(m_Mode == PVE_MODE_HORDE && Run.m_aStacks[PVE_CARD_SIEGE_MASTER] && Source.m_Kind == EAttackSourceKind::Building)
 			Multiplier += 0.30f;
 		if(m_Mode == PVE_MODE_HORDE && Run.m_aStacks[PVE_CARD_ENDLESS_ENGINE])
 			Multiplier += m_DeathlessHordeWaves * 0.05f;
@@ -2316,7 +2284,7 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 			Multiplier *= 1.25f;
 		Multiplier *= 1.0f - min(0.50f, Reduction);
 	}
-	if(IsEligiblePlayer(To) && From == To && WeaponSpecialization(Weapon) == PVE_SPECIALIZATION_EXPLOSIVE && m_aPlayers[To].m_aStacks[PVE_CARD_CONTROLLED_FUSE])
+	if(IsEligiblePlayer(To) && From == To && Source.m_Kind == EAttackSourceKind::PlayerWeapon && WeaponSpecialization(Source.m_Weapon) == PVE_SPECIALIZATION_EXPLOSIVE && m_aPlayers[To].m_aStacks[PVE_CARD_CONTROLLED_FUSE])
 		Multiplier *= 0.5f;
 
 	int Result = max(1, (int)(Damage * clamp(Multiplier, 0.0f, 2.5f) + 0.5f));
@@ -2342,7 +2310,7 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 	if(pOutgoingTarget)
 	{
 		CPlayerRun &Run = m_aPlayers[From];
-		ProcessHit(From, pOutgoingTarget, Weapon, Result, true);
+		ProcessHit(From, pOutgoingTarget, Result, true);
 		if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_FIREARM && Run.m_aStacks[PVE_CARD_PINPOINT_BURST])
 			ApplyVulnerable(pOutgoingTarget, 3, 5);
 		if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_EXPLOSIVE)
@@ -2350,9 +2318,9 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 			if(Run.m_aStacks[PVE_CARD_BREACH_CHARGE])
 				ApplyVulnerable(pOutgoingTarget, 3, 5);
 			if(Run.m_aStacks[PVE_CARD_SHRAPNEL])
-				ApplyBleed(pOutgoingTarget, Run.m_aStacks[PVE_CARD_SHRAPNEL], From, Weapon);
+				ApplyBleed(pOutgoingTarget, Run.m_aStacks[PVE_CARD_SHRAPNEL], Source);
 			if(Run.m_aStacks[PVE_CARD_CATACLYSM] && Run.m_EmpoweredBlasts % 3 == 0)
-				ScheduleSecondaryBlast(From, Weapon, pOutgoingTarget->m_Pos, Result);
+				ScheduleSecondaryBlast(Source, pOutgoingTarget->m_Pos, Result);
 		}
 		if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_ELECTRIC)
 		{
@@ -2363,25 +2331,26 @@ int CPveDirector::ModifyDamage(int From, int To, int Weapon, int Damage)
 					pStatus->m_ConductiveEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 5;
 			}
 			if(Run.m_aStacks[PVE_CARD_THUNDERHEAD] && Run.m_FullVoltageReleases % 3 == 0)
-				ApplyThunderhead(From, pOutgoingTarget, Weapon, Result);
+				ApplyThunderhead(Source, pOutgoingTarget, Result);
 		}
 		if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_OPEN_WOUND])
-			ApplyBleed(pOutgoingTarget, 3, From, Weapon);
-		if(WeaponSpecialization(Weapon) == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_GUARD_BREAKER] && GetWeaponCharge(Weapon) >= max(2, (WeaponMaxLevel(Weapon) + 1) / 2))
+			ApplyBleed(pOutgoingTarget, 3, Source);
+		if(Source.m_Kind == EAttackSourceKind::PlayerWeapon && WeaponSpecialization(Source.m_Weapon) == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_GUARD_BREAKER] && IsHeavyWeaponAttack(Source))
 			ApplyVulnerable(pOutgoingTarget, 3, min(6, Run.m_aStacks[PVE_CARD_GUARD_BREAKER] * 2));
 	}
-	if(pOutgoingTarget && WeaponSpecialization(Weapon) == PVE_SPECIALIZATION_ELECTRIC)
-		ApplyArcConductor(From, pOutgoingTarget, pOutgoingTarget->m_Pos, Weapon, Result);
+	if(pOutgoingTarget && Source.m_Kind == EAttackSourceKind::PlayerWeapon && WeaponSpecialization(Source.m_Weapon) == PVE_SPECIALIZATION_ELECTRIC)
+		ApplyArcConductor(Source, pOutgoingTarget, pOutgoingTarget->m_Pos, Result);
 	return Result;
 }
 
-int CPveDirector::ModifyDroidDamage(int From, int Weapon, int Damage, bool Boss, CDroid *pTarget)
+int CPveDirector::ModifyDroidDamage(const CAttackSource &Source, int Damage, bool Boss, CDroid *pTarget)
 {
+	const int From = Source.m_Owner;
 	if(!Enabled() || !IsEligiblePlayer(From) || Damage <= 0 || m_ApplyingSecondaryEffect)
 		return Damage;
-	int Result = ModifyDamage(From, -2, Weapon, Damage);
+	int Result = ModifyDamage(Source, -2, Damage);
 	CPlayerRun &Run = m_aPlayers[From];
-	const int Specialization = WeaponSpecialization(Weapon);
+	const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon ? WeaponSpecialization(Source.m_Weapon) : PVE_SPECIALIZATION_NONE;
 	if(pTarget && pTarget->m_MaxHealth > 0 && pTarget->m_Health * 100 <= pTarget->m_MaxHealth * 30)
 		Result += (int)(Damage * Run.m_aStacks[PVE_CARD_FINISHER] * 0.20f + 0.5f);
 	if(Boss)
@@ -2407,7 +2376,7 @@ int CPveDirector::ModifyDroidDamage(int From, int Weapon, int Damage, bool Boss,
 		}
 	}
 	Result = clamp(Result, max(1, (int)(Damage * 0.5f)), max(1, (int)(Damage * 2.5f)));
-	ProcessHit(From, pTarget, Weapon, Result, true);
+	ProcessHit(From, pTarget, Result, true);
 	if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_FIREARM && Run.m_aStacks[PVE_CARD_PINPOINT_BURST])
 		ApplyVulnerable(pTarget, 3, 5);
 	if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_EXPLOSIVE)
@@ -2415,9 +2384,9 @@ int CPveDirector::ModifyDroidDamage(int From, int Weapon, int Damage, bool Boss,
 		if(Run.m_aStacks[PVE_CARD_BREACH_CHARGE])
 			ApplyVulnerable(pTarget, 3, 5);
 		if(Run.m_aStacks[PVE_CARD_SHRAPNEL])
-			ApplyBleed(pTarget, Run.m_aStacks[PVE_CARD_SHRAPNEL], From, Weapon);
+			ApplyBleed(pTarget, Run.m_aStacks[PVE_CARD_SHRAPNEL], Source);
 		if(Run.m_aStacks[PVE_CARD_CATACLYSM] && Run.m_EmpoweredBlasts % 3 == 0)
-			ScheduleSecondaryBlast(From, Weapon, pTarget->m_Pos + pTarget->m_Center, Result);
+			ScheduleSecondaryBlast(Source, pTarget->m_Pos + pTarget->m_Center, Result);
 	}
 	if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_ELECTRIC)
 	{
@@ -2428,142 +2397,17 @@ int CPveDirector::ModifyDroidDamage(int From, int Weapon, int Damage, bool Boss,
 				pStatus->m_ConductiveEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 5;
 		}
 		if(Run.m_aStacks[PVE_CARD_THUNDERHEAD] && Run.m_FullVoltageReleases % 3 == 0)
-			ApplyThunderhead(From, pTarget, Weapon, Result);
+			ApplyThunderhead(Source, pTarget, Result);
 	}
 	if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_OPEN_WOUND])
-		ApplyBleed(pTarget, 3, From, Weapon);
-	if(Specialization == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_GUARD_BREAKER] && GetWeaponCharge(Weapon) >= max(2, (WeaponMaxLevel(Weapon) + 1) / 2))
+		ApplyBleed(pTarget, 3, Source);
+	if(Specialization == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_GUARD_BREAKER] && IsHeavyWeaponAttack(Source))
 		ApplyVulnerable(pTarget, 3, min(6, Run.m_aStacks[PVE_CARD_GUARD_BREAKER] * 2));
 	if(pTarget && Specialization == PVE_SPECIALIZATION_ELECTRIC)
-		ApplyArcConductor(From, pTarget, pTarget->m_Pos + pTarget->m_Center, Weapon, Result);
+		ApplyArcConductor(Source, pTarget, pTarget->m_Pos + pTarget->m_Center, Result);
 	return Result;
 }
 
-#if 0 // Kept for one revision as a readable reference for the v6 formulas.
-int CPveDirector::ModifyDamageV6(int From, int To, int Weapon, int Damage)
-{
-	if(!Enabled() || Damage <= 0 || m_ApplyingSecondaryEffect)
-		return Damage;
-	float Multiplier = 1.0f;
-	CCharacter *pOutgoingTarget = 0;
-	if(IsEligiblePlayer(From) && (To == -2 || m_pGameServer->IsBot(To)))
-	{
-		CPlayerRun &Run = m_aPlayers[From];
-		Multiplier += Run.m_aStacks[PVE_CARD_COMBAT_TRAINING] * 0.08f;
-		pOutgoingTarget = To >= 0 ? m_pGameServer->GetPlayerChar(To) : 0;
-		if(pOutgoingTarget && pOutgoingTarget->m_MaxHealth > 0 && pOutgoingTarget->m_HiddenHealth * 100 <= pOutgoingTarget->m_MaxHealth * 30)
-			Multiplier += Run.m_aStacks[PVE_CARD_FINISHER] * 0.20f;
-		if(m_Mode == PVE_MODE_INVASION && pOutgoingTarget)
-		{
-			CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pGameServer->m_pController);
-			if(pInvasion && pInvasion->IsObjectiveTarget(false))
-				Multiplier += Run.m_aStacks[PVE_CARD_OBJECTIVE_SPECIALIST] * 0.20f;
-		}
-		if(IsExplosiveProjectile(Weapon))
-			Multiplier += Run.m_aStacks[PVE_CARD_DEMOLITION] * 0.12f;
-		else if(WeaponElectroAmount(Weapon) > 0.0f || IsLaserWeapon(Weapon))
-			Multiplier += Run.m_aStacks[PVE_CARD_OVERCHARGE] * 0.12f;
-		else
-		{
-			const int RenderType = GetWeaponRenderType(Weapon);
-			if(GetWeaponFiringType(Weapon) == WFT_MELEE || RenderType == WRT_MELEE || RenderType == WRT_MELEESMALL || RenderType == WRT_SPIN)
-				Multiplier += Run.m_aStacks[PVE_CARD_BERSERKER] * 0.12f;
-			else
-			{
-				Multiplier += Run.m_aStacks[PVE_CARD_HOLLOW_POINT] * 0.12f;
-				if(Run.m_aStacks[PVE_CARD_SUSTAINED_FIRE])
-				{
-					const int Now = m_pGameServer->Server()->Tick();
-					if(Now > Run.m_SustainedEndTick)
-						Run.m_SustainedHits = 0;
-					Run.m_SustainedHits = min(5, Run.m_SustainedHits + 1);
-					Run.m_SustainedEndTick = Now + m_pGameServer->Server()->TickSpeed();
-					Multiplier += Run.m_SustainedHits * 0.05f;
-				}
-			}
-		}
-		if((WeaponElectroAmount(Weapon) > 0.0f || IsLaserWeapon(Weapon)) && Run.m_aStacks[PVE_CARD_CAPACITOR])
-		{
-			Run.m_CapacitorHits++;
-			if(Run.m_CapacitorHits % 5 == 0)
-				Multiplier *= 2.0f;
-		}
-		if(Run.m_KillChainEndTick >= m_pGameServer->Server()->Tick())
-			Multiplier += Run.m_KillChainStacks * 0.04f;
-		if(Run.m_ReaperEndTick >= m_pGameServer->Server()->Tick())
-			Multiplier += 0.15f;
-		if(Run.m_aStacks[PVE_CARD_GLASS_EDGE])
-			Multiplier += 0.35f;
-		if(m_Mode == PVE_MODE_INVASION && Run.m_aStacks[PVE_CARD_ADAPTATION])
-			Multiplier += min(0.40f, Run.m_InvasionFloorsCompleted * 0.04f);
-		if(m_Mode == PVE_MODE_HORDE && Run.m_aStacks[PVE_CARD_SIEGE_MASTER] && (IsTurret(Weapon) || IsBuilding(Weapon)))
-			Multiplier += 0.30f;
-		if(ActiveContract() == PVE_CONTRACT_GLASS_CANNON)
-			Multiplier *= 1.25f;
-	}
-	if(IsEligiblePlayer(To) && (From < 0 || m_pGameServer->IsBot(From)))
-	{
-		CPlayerRun &Run = m_aPlayers[To];
-		float Reduction = Run.m_aStacks[PVE_CARD_DAMAGE_DAMPENER] * 0.08f;
-		CCharacter *pTarget = m_pGameServer->GetPlayerChar(To);
-		if(pTarget)
-			for(int Ally = 0; Ally < MAX_CLIENTS; Ally++)
-			{
-				if(Ally == To || !IsEligiblePlayer(Ally) || !m_aPlayers[Ally].m_aStacks[PVE_CARD_GUARDIAN])
-					continue;
-				CCharacter *pAlly = m_pGameServer->GetPlayerChar(Ally);
-				if(pAlly && distance(pAlly->m_Pos, pTarget->m_Pos) <= 320.0f)
-				{
-					Reduction += 0.12f;
-					break;
-				}
-			}
-		if(Run.m_aStacks[PVE_CARD_GLASS_EDGE])
-			Multiplier *= 1.20f;
-		if(ActiveContract() == PVE_CONTRACT_GLASS_CANNON)
-			Multiplier *= 1.35f;
-		Multiplier *= 1.0f - min(0.50f, Reduction);
-		CCharacter *pIncomingTarget = m_pGameServer->GetPlayerChar(To);
-		const int ProjectedDamage = max(1, (int)(Damage * clamp(Multiplier, 0.5f, 2.5f) + 0.5f));
-		const int ProjectedArmorAbsorption = pIncomingTarget ? min(ProjectedDamage / 2, pIncomingTarget->GetArmor()) : 0;
-		const bool ShieldBlocksHealthDamage = pIncomingTarget && pIncomingTarget->m_ShieldHealth > 0 && WeaponFlameAmount(Weapon) <= 0.0f;
-		if(pIncomingTarget && !ShieldBlocksHealthDamage && Run.m_aStacks[PVE_CARD_EMERGENCY_PLATING] && !Run.m_EmergencyPlatingUsed &&
-			(pIncomingTarget->m_HiddenHealth - (ProjectedDamage - ProjectedArmorAbsorption)) * 100 <= pIncomingTarget->m_MaxHealth * 35)
-		{
-			Run.m_EmergencyPlatingUsed = true;
-			CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(To, m_pGameServer->m_apPlayers[To]->GetColorID());
-			if(pData)
-				pData->m_PveEmergencyPlatingUsed = true;
-			pIncomingTarget->IncreaseArmor(15);
-		}
-	}
-	const int Result = max(1, (int)(Damage * clamp(Multiplier, 0.5f, 2.5f) + 0.5f));
-	if(pOutgoingTarget && (WeaponElectroAmount(Weapon) > 0.0f || IsLaserWeapon(Weapon)))
-		ApplyArcConductor(From, pOutgoingTarget, pOutgoingTarget->m_Pos, Weapon, Result);
-	return Result;
-}
-
-int CPveDirector::ModifyDroidDamageV6(int From, int Weapon, int Damage, bool Boss, CDroid *pTarget)
-{
-	if(!Enabled() || !IsEligiblePlayer(From) || Damage <= 0 || m_ApplyingSecondaryEffect)
-		return Damage;
-	int Result = ModifyDamage(From, -2, Weapon, Damage);
-	if(pTarget && pTarget->m_MaxHealth > 0 && pTarget->m_Health * 100 <= pTarget->m_MaxHealth * 30)
-		Result += (int)(Damage * m_aPlayers[From].m_aStacks[PVE_CARD_FINISHER] * 0.20f + 0.5f);
-	if(Boss)
-		Result += (int)(Damage * m_aPlayers[From].m_aStacks[PVE_CARD_BOSS_HUNTER] * 0.25f + 0.5f);
-	if(m_Mode == PVE_MODE_INVASION)
-	{
-		CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pGameServer->m_pController);
-		if(pInvasion && pInvasion->IsObjectiveTarget(Boss))
-			Result += (int)(Damage * m_aPlayers[From].m_aStacks[PVE_CARD_OBJECTIVE_SPECIALIST] * 0.20f + 0.5f);
-	}
-	Result = clamp(Result, max(1, (int)(Damage * 0.5f)), max(1, (int)(Damage * 2.5f)));
-	if(pTarget && (WeaponElectroAmount(Weapon) > 0.0f || IsLaserWeapon(Weapon)))
-		ApplyArcConductor(From, pTarget, pTarget->m_Pos + pTarget->m_Center, Weapon, Result);
-	return Result;
-}
-#endif
 
 int CPveDirector::ModifyGold(int ClientID, int Amount) const
 {
@@ -2635,16 +2479,19 @@ float CPveDirector::ModifyExplosionRadius(int Owner, float Radius) const
 	return Radius * Multiplier;
 }
 
-float CPveDirector::CooldownReduction(int ClientID, int Weapon) const
+float CPveDirector::CooldownReduction(int ClientID, const CWeaponSpec &Weapon) const
 {
 	if(!Enabled() || !IsEligiblePlayer(ClientID))
 		return 0.0f;
 	const CPlayerRun &Run = m_aPlayers[ClientID];
 	float Reduction = Run.m_aStacks[PVE_CARD_QUICK_HANDS] * 0.08f;
-	const int RenderType = GetWeaponRenderType(Weapon);
-	const bool Firearm = !IsExplosiveProjectile(Weapon) &&
-		WeaponElectroAmount(Weapon) <= 0.0f && !IsLaserWeapon(Weapon) &&
-		GetWeaponFiringType(Weapon) != WFT_MELEE && RenderType != WRT_MELEE && RenderType != WRT_MELEESMALL && RenderType != WRT_SPIN;
+	CResolvedWeaponProfile Profile;
+	if(!CWeaponCatalog::TryResolve(Weapon, &Profile))
+		return 0.0f;
+	const int RenderType = Profile.m_Visual.m_RenderType;
+	const bool Firearm = !Profile.m_Combat.m_ExplosiveProjectile &&
+		Profile.m_Combat.m_ElectroAmount <= 0.0f && !Profile.m_Combat.m_LaserWeapon &&
+		Profile.m_Combat.m_FiringType != WFT_MELEE && RenderType != WRT_MELEE && RenderType != WRT_MELEESMALL && RenderType != WRT_SPIN;
 	if(Firearm && Run.m_aStacks[PVE_CARD_GUNSLINGER])
 		Reduction += 0.20f;
 	return min(0.30f, Reduction);
