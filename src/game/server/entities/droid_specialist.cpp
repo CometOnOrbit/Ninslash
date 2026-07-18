@@ -65,11 +65,14 @@ void CSpecialistDroid::FireProjectile(int Damage, float Spread)
 		return;
 	vec2 Dir = normalize(pChr->m_Pos - vec2(0, 24) - (m_Pos + m_Center));
 	Dir = normalize(Dir + vec2((frandom() - frandom()) * Spread, (frandom() - frandom()) * Spread));
-	const int Weapon = GetDroidWeapon(m_Type);
-	new CProjectile(&GameServer()->m_World, Weapon, NEUTRAL_BASE,
+	const CAttackSource Source = CAttackSource::Droid(NEUTRAL_BASE, m_Type);
+	CWeaponCombatProfile Combat;
+	if(!CWeaponCatalog::TryResolveAttack(Source, &Combat))
+		return;
+	new CProjectile(&GameServer()->m_World, Source,
 		m_Pos + m_Center + Dir * 24.0f, Dir, vec2(0, 0),
-		(int)(Server()->TickSpeed() * GetProjectileLife(Weapon)), Damage,
-		0, GetProjectileKnockback(Weapon), -1);
+		(int)(Server()->TickSpeed() * Combat.m_ProjectileLife), Damage,
+		Combat.m_ProjectileKnockback, -1);
 	m_AttackTick = Server()->Tick();
 }
 
@@ -92,7 +95,7 @@ bool CSpecialistDroid::ConsumeThreshold(int Threshold, int Bit)
 	return true;
 }
 
-void CSpecialistDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
+void CSpecialistDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos)
 {
 	if(m_Type == DROIDTYPE_BULWARK && TargetCharacter())
 	{
@@ -100,7 +103,7 @@ void CSpecialistDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int W
 		if(Incoming.x * m_Dir < 0.0f)
 			Dmg = max(1, Dmg / 3);
 	}
-	CDroid::TakeDamage(Force, Dmg, From, Pos, Weapon);
+	CDroid::TakeDamage(Force, Dmg, Source, Pos);
 	if(m_Health <= 0)
 	{
 		m_Status = DROIDSTATUS_TERMINATED;

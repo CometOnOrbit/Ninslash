@@ -3,6 +3,7 @@
 #include <game/server/ai.h>
 #include <game/server/entities/character.h>
 #include <game/server/entities/building.h>
+#include <game/server/entities/weapon.h>
 #include <game/server/player.h>
 #include <game/server/gamecontext.h>
 
@@ -143,7 +144,8 @@ void CAIdef::DoBehavior()
 				m_TargetPos = m_Pos;
 				m_WaypointPos = m_TargetPos;
 				
-				if (GetStaticType(Player()->GetCharacter()->GetWeaponType()) == SW_BOMB)
+				CWeapon *pWeapon = Player()->GetCharacter()->GetWeapon();
+				if (pWeapon && pWeapon->GetWeaponProfile().m_Definition.m_Kind == EWeaponDefinitionKind::Static && pWeapon->GetWeaponProfile().m_Definition.m_StaticType == SW_BOMB)
 				{
 					m_Attack = 1;
 					m_Move = 0;
@@ -279,7 +281,7 @@ void CAIdef::DoBehavior()
 			}
 		}
 		
-		if (Player()->GetCharacter()->GetWeaponType() == WEAPON_NONE)
+		if (Player()->GetCharacter()->GetWeapon() == nullptr)
 			FindWeapon();
 		else
 			ShootAtBlocks();

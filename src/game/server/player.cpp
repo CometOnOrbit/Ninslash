@@ -5,6 +5,7 @@
 #include <engine/shared/config.h>
 #include "player.h"
 #include "pve_director.h"
+#include "entities/weapon.h"
 
 #include <game/weapons.h>
 #include <game/weapon_catalog.h>
@@ -347,9 +348,8 @@ void CPlayer::Snap(int SnappingClient)
 	pPlayerInfo->m_Kits = 0;
 	int *apDefinitionIds[] = {&pPlayerInfo->m_Weapon1DefinitionId, &pPlayerInfo->m_Weapon2DefinitionId, &pPlayerInfo->m_Weapon3DefinitionId, &pPlayerInfo->m_Weapon4DefinitionId};
 	int *apLevels[] = {&pPlayerInfo->m_Weapon1Level, &pPlayerInfo->m_Weapon2Level, &pPlayerInfo->m_Weapon3Level, &pPlayerInfo->m_Weapon4Level};
-	auto SetWeaponSlot = [&](int Slot, int LegacyWeapon) {
-		CWeaponSpec Spec;
-		if(LegacyWeapon && CWeaponCatalog::TryFromLegacy(LegacyWeapon, &Spec))
+	auto SetWeaponSlot = [&](int Slot, const CWeaponSpec &Spec) {
+		if(Spec.IsValid())
 		{
 			*apDefinitionIds[Slot] = static_cast<int>(Spec.m_DefinitionId);
 			*apLevels[Slot] = Spec.m_Level;
@@ -361,7 +361,7 @@ void CPlayer::Snap(int SnappingClient)
 		}
 	};
 	for(int Slot = 0; Slot < 4; ++Slot)
-		SetWeaponSlot(Slot, 0);
+		SetWeaponSlot(Slot, {});
 	
 	if (GetCharacter())
 	{
@@ -369,7 +369,10 @@ void CPlayer::Snap(int SnappingClient)
 		pPlayerInfo->m_WeaponSlot = GetCharacter()->GetWeaponSlot();
 		
 		for(int Slot = 0; Slot < 4; ++Slot)
-			SetWeaponSlot(Slot, GetCharacter()->GetWeaponType(Slot));
+		{
+			CWeapon *pWeapon = GetCharacter()->GetWeapon(Slot);
+			SetWeaponSlot(Slot, pWeapon ? pWeapon->GetWeaponSpec() : CWeaponSpec{});
+		}
 	}
 
 	if(m_ClientID == SnappingClient)
@@ -497,11 +500,16 @@ CCharacter *CPlayer::GetCharacter()
 	return 0;
 }
 
-void CPlayer::KillCharacter(int Weapon)
+void CPlayer::KillCharacter()
+{
+	KillCharacter(CAttackSource::World(WEAPON_GAME, m_ClientID));
+}
+
+void CPlayer::KillCharacter(const CAttackSource &Source)
 {
 	if(m_pCharacter)
 	{
-		m_pCharacter->Die(m_ClientID, Weapon);
+		m_pCharacter->Die(Source);
 		delete m_pCharacter;
 		m_pCharacter = 0;
 	}

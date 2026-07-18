@@ -5,25 +5,22 @@
 #include "laser.h"
 #include "electrowall.h"
 #include "weapon.h"
+#include "weapon_behavior.h"
 
-inline vec2 RandomDir() { return normalize(vec2(frandom()-0.5f, frandom()-0.5f)); }
-
-CWeapon::CWeapon(CGameWorld *pGameWorld, int Type)
+CWeapon::CWeapon(CGameWorld *pGameWorld, const CWeaponSpec &Spec)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_WEAPON)
 {
 	m_ProximityRadius = ms_PhysSize;
-	m_WeaponType = Type;
-	dbg_assert(CWeaponCatalog::TryFromLegacy(Type, &m_WeaponSpec), "invalid player weapon type");
-
-	if (WeaponMaxLevel(m_WeaponType) > 0)
-		m_PowerLevel = GetWeaponCharge(m_WeaponType);
-	else
-		m_PowerLevel = 0;
+	dbg_assert(CWeaponCatalog::IsValidSpec(Spec), "invalid player weapon spec");
+	m_WeaponSpec = Spec;
+	m_PowerLevel = Spec.m_Level;
 	
-	if (IsStaticWeapon(Type) && GetStaticType(Type) == SW_UPGRADE && m_PowerLevel < 4)
+	CWeaponDefinition Definition;
+	CWeaponCatalog::TryGetDefinition(Spec.m_DefinitionId, &Definition);
+	if (Definition.m_Kind == EWeaponDefinitionKind::Static && Definition.m_StaticType == SW_UPGRADE && m_PowerLevel < WEAPON_UPGRADE_SUPERCHARGE_LEVEL)
 	{
 		m_PowerLevel = 0;
-		m_WeaponType = GetChargedWeapon(m_WeaponType, m_PowerLevel);
+		m_WeaponSpec.m_Level = 0;
 	}
 	
 	Reset();
@@ -35,7 +32,9 @@ void CWeapon::Reset()
 {
 	m_SkipPickTick = 0;
 	m_InfiniteAmmo = false;
-	m_MaxLevel = WeaponMaxLevel(m_WeaponType);
+	CWeaponDefinition Definition;
+	CWeaponCatalog::TryGetDefinition(m_WeaponSpec.m_DefinitionId, &Definition);
+	m_MaxLevel = Definition.m_MaxLevel;
 	m_Disabled = false;
 	m_IsTurret = false;
 	m_ChargeSoundTimer = 0;
@@ -127,26 +126,15 @@ void CWeapon::OnPlayerPick()
 
 void CWeapon::SetTurret(bool TurretBit)
 {
-	if (!TurretBit && IsBuilding(m_WeaponType))
-		m_WeaponType ^= FLAG_TURRET;
-	
-	if (TurretBit && !IsBuilding(m_WeaponType))
-		m_WeaponType ^= FLAG_TURRET;
-	
 	m_IsTurret = TurretBit;
 }
 
 void CWeapon::UpdateStats()
 {
 	m_CanFire = true;
-	dbg_assert(CWeaponCatalog::TryFromLegacy(m_WeaponType, &m_WeaponSpec), "invalid player weapon type");
-	m_MaxLevel = WeaponMaxLevel(m_WeaponType);
-
-	if (m_MaxLevel > 0)
-		m_WeaponType = GetChargedWeapon(m_WeaponType, m_PowerLevel);
-
 	m_WeaponSpec.m_Level = m_PowerLevel;
 	dbg_assert(CWeaponCatalog::TryResolve(m_WeaponSpec, &m_WeaponProfile), "failed to resolve player weapon");
+	m_MaxLevel = m_WeaponProfile.m_Definition.m_MaxLevel;
 	const CWeaponCombatProfile &Combat = m_WeaponProfile.m_Combat;
 	m_FireRate = Combat.m_FireRate;
 	m_KnockBack = Combat.m_WeaponKnockback;
@@ -170,181 +158,20 @@ void CWeapon::SurvivalReset()
 
 bool CWeapon::Activate()
 {
-	if (m_DestructionTick)
-		return false;
-	
-	if (IsStaticWeapon(m_WeaponType))
-	{
-		switch (GetStaticType(m_WeaponType))
-		{
-			case SW_INVIS: case SW_SHIELD: case SW_RESPAWNER:
-			{
-				if (GameServer()->m_pController->TriggerWeapon(this))
-				{
-					m_DestructionTick = 1;
-					return true;
-				}
-			} break;
-			
-			
-			case SW_BOMB:
-				// area check
-				if (GameServer()->m_pController->InBombArea(m_Pos))
-				{
-					m_ReloadTimer = (m_FireRate * Server()->TickSpeed()/1000)/2 + (m_FireRate * Server()->TickSpeed()/1000)*frandom()/2;
-					GameServer()->CreateSound(m_Pos, SOUND_BOMB_BEEP);
-					m_BombResetTick = Server()->Tick() + Server()->TickSpeed()*1.0f;
-					
-					if (m_Owner >= 0 && (m_BombCounter == 0 || m_BombCounter%3 == 0))
-						GameServer()->SendBroadcastFormat(m_Owner, false, "Arming bomb... %d", m_Owner, 4-m_BombCounter/3);
-					
-					if (m_BombCounter++ > 12 && GameServer()->m_pController->TriggerWeapon(this))
-					{
-						m_DestructionTick = Server()->Tick() + 20.0f * Server()->TickSpeed();
-						m_AttackTick = Server()->Tick();
-						m_BombCounter = 0;
-						m_BombDisarmCounter = 0;
-						GameServer()->m_pController->TriggerBomb();
-						
-						return true;
-					}
-				}
-				else
-				{
-					m_ReloadTimer = m_FireRate * Server()->TickSpeed()/1000 * 3.0f;
-					GameServer()->CreateSound(m_Pos, SOUND_BOMB_DENIED);
-					m_BombCounter = 0;
-					m_BombResetTick = 0;
-				}
-		
-				return false;
-				break;
-			
-			
-			default: break;
-		}
-	}
-	
-	return false;
+	return CWeaponBehaviorExecutor::Activate(*this);
 }
 
 
 
 bool CWeapon::Fire(float *pKnockback)
 {
-	m_Disabled = false;
-	
-	if (!m_CanFire)
-		return false;
-	
-	// check if reloading
-	if(m_ReloadTimer > 0)
-		return false;
-	
-	int WFT = m_WeaponProfile.m_Combat.m_FiringType;
-	
-	if (WFT == WFT_NONE)
-		return false;
-	
-	if (WFT == WFT_ACTIVATE)
-	{
-		return Activate();
-	}
-	
-	// check for ammo
-	if (m_IsTurret)
-		m_Ammo = m_MaxAmmo;
-	
-	if (m_UseAmmo && m_MaxAmmo > 0 && m_Ammo <= 0)
-	{
-		if(m_LastNoAmmoSound+Server()->TickSpeed() <= Server()->Tick())
-		{
-			GameServer()->CreateSound(m_Pos, SOUND_WEAPON_NOAMMO);
-			m_LastNoAmmoSound = Server()->Tick();
-		}
-		return false;
-	}
-	
-	UpdateStats();
-	
-	if (m_BurstMax > 1 && ++m_BurstCount >= m_BurstMax)
-		m_BurstCount = 0;
-	
-	if (m_BurstCount > 0)
-	{
-		m_ReloadTimer = m_FireRate * m_WeaponProfile.m_Combat.m_BurstReload * Server()->TickSpeed()/1000;
-		m_BurstReloadTimer = m_FireRate * Server()->TickSpeed()/1000;
-	}
-	else
-	{
-		m_ReloadTimer = m_FireRate * Server()->TickSpeed()/1000;
-		m_BurstReloadTimer = 0;
-	}
-	
-	// longer reload for turrets
-	if (m_IsTurret)
-		m_ReloadTimer *= 1.5f;
-		
-	if (WFT == WFT_PROJECTILE)
-	{
-		// create the projectile & effects
-		CreateProjectile();
-		
-		// set knockback
-		if (pKnockback)
-			*pKnockback = m_KnockBack;
-		
-		// reduce ammo
-		if (m_Ammo > 0 && !m_InfiniteAmmo)
-			m_Ammo--;
-		
-		return true;
-	}
-	
-	if (WFT == WFT_MELEE)
-	{
-		// create the projectile & effects
-		CreateProjectile();
-		
-		// set knockback
-		if (pKnockback)
-			*pKnockback = m_KnockBack;
-		
-		// reduce ammo
-		if (m_Ammo > 0 && !m_InfiniteAmmo)
-			m_Ammo--;
-		
-		return true;
-	}
-	
-	if (WFT == WFT_HOLD)
-	{
-		if (GetStaticType(m_WeaponType) == SW_FLAMER)
-			m_TriggerTick = Server()->Tick() + m_FireRate * 2 * Server()->TickSpeed()/1000;
-		else
-			m_TriggerTick = Server()->Tick() + m_FireRate * Server()->TickSpeed()/1000;
-		
-		// set knockback
-		if (pKnockback)
-			*pKnockback = m_KnockBack;
-		
-		// reduce ammo
-		if (m_Ammo > 0 && !m_InfiniteAmmo)
-			m_Ammo--;
-		
-		if (m_FireSound >= 0)
-			GameServer()->CreateSound(m_Pos, m_FireSound);
-	
-		return true;
-	}
-	
-	return false;
+	return CWeaponBehaviorExecutor::Fire(*this, pKnockback);
 }
 
 
 int CWeapon::Reflect()
 {
-	if (m_TriggerTick && m_TriggerTick > Server()->Tick() && IsModularWeapon(m_WeaponType) && GetPart(m_WeaponType, 0) == 6)
+	if (m_TriggerTick && m_TriggerTick > Server()->Tick() && IsModular() && Part1() == PART1_SPIN)
 		return 80;
 	
 	return 0;
@@ -358,143 +185,25 @@ int CWeapon::GetCharge()
 
 bool CWeapon::Charge()
 {
-	if (!m_CanFire)
-		return false;
-	
-	// check if reloading
-	if(m_ReloadTimer > 0)
-		return false;
-	
-	// trigger grenade destruction timer on charge start
-	if (!m_DestructionTick && IsStaticWeapon(m_WeaponType))
-	{
-		switch (GetStaticType(m_WeaponType))
-		{
-			case SW_BALL:
-				m_AttackTick = Server()->Tick();
-				break;
-				
-			case SW_GRENADE1:
-				m_AttackTick = Server()->Tick();
-				m_DestructionTick = Server()->Tick() + 2.0f * Server()->TickSpeed();
-				break;
-			case SW_GRENADE2:
-				m_AttackTick = Server()->Tick();
-				m_TriggerTick = Server()->Tick() + 2.0f * Server()->TickSpeed();
-				m_DestructionTick = Server()->Tick() + 4.0f * Server()->TickSpeed();
-				break;
-			case SW_GRENADE3:
-				m_AttackTick = Server()->Tick();
-				m_TriggerTick = Server()->Tick() + 2.0f * Server()->TickSpeed();
-				m_DestructionTick = Server()->Tick() + 4.0f * Server()->TickSpeed();
-				break;
-			case SW_ELECTROWALL:
-				m_AttackTick = Server()->Tick();
-				m_TriggerTick = Server()->Tick() + 2.0f * Server()->TickSpeed();
-				m_DestructionTick = Server()->Tick() + 4.0f * Server()->TickSpeed();
-				break;
-			case SW_AREASHIELD:
-				m_AttackTick = Server()->Tick();
-				m_TriggerTick = Server()->Tick() + 2.0f * Server()->TickSpeed();
-				m_DestructionTick = Server()->Tick() + 10.0f * Server()->TickSpeed();
-				break;
-			default: break;
-		}
-	}
-	
-	if (m_WeaponProfile.m_Combat.m_FiringType == WFT_THROW)
-		m_Charge = min(m_Charge+3, 100);
-	else
-		m_Charge = min(m_Charge+1, 100);
-
-	
-	return true;
+	return CWeaponBehaviorExecutor::Charge(*this);
 }
 
 
 bool CWeapon::ReleaseCharge(float *pKnockback)
 {
-	if (!m_CanFire)
-	{
-		m_Charge = 0;
-		return false;
-	}
-	
-	if (m_Charge > 0)
-	{
-		if (m_WeaponProfile.m_Combat.m_FiringType == WFT_CHARGE)
-		{
-			if (IsModularWeapon(m_WeaponType) && GetPart(m_WeaponType, 0) == 1)
-			{
-				m_TriggerCount = GetWeaponCharge(m_WeaponType);
-				
-				if (m_TriggerCount)
-					m_TriggerTick = Server()->Tick() + m_FireRate * 0.5f * Server()->TickSpeed() / 1000;
-			}
-			
-			CreateProjectile();
-			m_Charge = 0;
-		}
-		//else if (GetWeaponFiringType(m_WeaponType) == WFT_THROW)
-		//	Throw();
-		
-		m_ReloadTimer = m_FireRate * Server()->TickSpeed() / 1000;
-		
-		m_SkipPickTick = Server()->Tick() + Server()->TickSpeed()*0.1f;
-		
-		return true;
-	}
-	
-	m_Charge = 0;
-	return false;
+	return CWeaponBehaviorExecutor::ReleaseCharge(*this, pKnockback);
 }
 
 bool CWeapon::Throw()
 {
-	if (m_Released)
-		return false;
-	
-	vec2 v = vec2(0, 0);
-	
-	v.x = sin(m_Direction.x)*(m_Direction.x > 0.0f ? 1 : -1)*m_Vel.x;
-	v.y = sin(m_Direction.y)*(m_Direction.y > 0.0f ? 1 : -1)*m_Vel.y;
-	
-	m_Vel = v*1.0f + m_Direction * m_Charge * 0.24f * WeaponThrowForce(m_WeaponType);
-
-	m_Angle = 0.0f;
-	m_AngleForce = m_Vel.x * 0.3f;
-	
-	if (GetStaticType(m_WeaponType) == SW_SHURIKEN)
-	{
-		m_AngleForce = m_Charge*0.1f * (m_Direction.x < 0 ? -1.0f : 1.0f);
-		m_AttackTick = Server()->Tick();
-	}
-	
-	m_Charge = 0;
-	m_Released = true;
-	return true;
+	return CWeaponBehaviorExecutor::Throw(*this);
 }
 
 
 
 void CWeapon::CreateProjectile()
 {
-	vec2 offs = m_WeaponProfile.m_Visual.m_ProjectileOffset;
-	vec2 ProjStartPos = m_Pos+m_Direction*offs.x + vec2(0, offs.y);
-	
-	int wft = m_WeaponProfile.m_Combat.m_FiringType;
-	if (wft == WFT_PROJECTILE || wft == WFT_HOLD)
-		GameServer()->Collision()->IntersectLine(m_Pos, ProjStartPos, 0x0, &ProjStartPos);
-	
-	GameServer()->CreateProjectile(m_Owner, m_WeaponType, m_Charge, ProjStartPos, m_Direction, m_Pos+vec2(0, 20));
-	
-	if (m_FireSound >= 0 && m_WeaponProfile.m_Combat.m_FiringType != WFT_HOLD)
-	{
-		GameServer()->CreateSound(m_Pos, m_FireSound);
-		
-		if (m_FireSound2 >= 0)
-			GameServer()->CreateSound(m_Pos, m_FireSound2);
-	}
+	CWeaponBehaviorExecutor::CreateProjectile(*this);
 }
 
 
@@ -549,18 +258,18 @@ bool CWeapon::AddClip()
 
 bool CWeapon::Overcharge()
 {
-	if (IsStaticWeapon(m_WeaponType) && GetStaticType(m_WeaponType) == SW_UPGRADE)
+	if (StaticType() == SW_UPGRADE)
 	{
-		if (m_PowerLevel < 4)
+		if (m_PowerLevel < WEAPON_UPGRADE_SUPERCHARGE_LEVEL)
 		{
-			m_PowerLevel = 4;
+			m_PowerLevel = WEAPON_UPGRADE_SUPERCHARGE_LEVEL;
 			UpdateStats();
 			return true;
 		}
 	}
 	else if (m_MaxLevel > 0 && m_PowerLevel <= m_MaxLevel)
 	{
-		if (m_MaxLevel > 3 && m_PowerLevel == m_MaxLevel)
+		if (m_MaxLevel >= WEAPON_HIGH_TIER_MIN_MAX_LEVEL && m_PowerLevel == m_MaxLevel)
 			m_PowerLevel++;
 		
 		m_PowerLevel++;
@@ -573,25 +282,25 @@ bool CWeapon::Overcharge()
 
 bool CWeapon::Supercharge()
 {
-	if (IsStaticWeapon(m_WeaponType) && GetStaticType(m_WeaponType) == SW_UPGRADE)
+	if (StaticType() == SW_UPGRADE)
 		return false;
 	
 	if (m_MaxLevel > 0 && m_PowerLevel > m_MaxLevel)
 	{
-		if (m_MaxLevel > 3)
+		if (m_MaxLevel >= WEAPON_HIGH_TIER_MIN_MAX_LEVEL)
 		{
-			if (m_PowerLevel <= m_MaxLevel+4)
+			if (m_PowerLevel <= m_MaxLevel + WEAPON_HIGH_TIER_SUPERCHARGE_BONUS)
 			{
-				m_PowerLevel += 2;
+				m_PowerLevel += WEAPON_HIGH_TIER_SUPERCHARGE_STEP;
 				UpdateStats();
 				return true;
 			}
 		}
 		else
 		{
-			if (m_PowerLevel <= m_MaxLevel+2)
+			if (m_PowerLevel <= m_MaxLevel + WEAPON_LOW_TIER_SUPERCHARGE_BONUS)
 			{
-				m_PowerLevel += 1;
+				m_PowerLevel += WEAPON_LOW_TIER_SUPERCHARGE_STEP;
 				UpdateStats();
 				return true;
 			}
@@ -605,7 +314,7 @@ bool CWeapon::Supercharge()
 
 bool CWeapon::Upgrade()
 {
-	if (IsStaticWeapon(m_WeaponType) && GetStaticType(m_WeaponType) == SW_UPGRADE)
+	if (StaticType() == SW_UPGRADE)
 		return false;
 	
 	
@@ -624,11 +333,8 @@ void CWeapon::Tick()
 	if (m_Disabled)
 		return;
 	
-	if (m_MaxLevel > 0)
-		m_WeaponType = GetChargedWeapon(m_WeaponType, m_PowerLevel);
-	
 	// pick me up!
-	if ((m_Stuck && m_Owner < 0) || (GetStaticType(m_WeaponType) == SW_BALL && m_Released))
+	if ((m_Stuck && m_Owner < 0) || (StaticType() == SW_BALL && m_Released))
 	{
 		CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, 18.0f, 0);
 		if(pChr && pChr->IsAlive() && (pChr->GetPlayer()->GetCID() != m_Owner || m_SkipPickTick < Server()->Tick()))
@@ -638,14 +344,12 @@ void CWeapon::Tick()
 				Reset();
 				// pickup sound
 				
-				if (pChr->GetPlayer())
-					GameServer()->SendWeaponPickup(pChr->GetPlayer()->GetCID(), pChr->m_PickedWeaponSlot);
 			}
 		}
 	}
 	
 	 // shuriken flying hit
-	if (!m_Stuck && IsStaticWeapon(m_WeaponType) && GetStaticType(m_WeaponType) == SW_SHURIKEN)
+	if (!m_Stuck && StaticType() == SW_SHURIKEN)
 	{
 		if (length(m_Vel) > 20.0f)
 			CreateProjectile();
@@ -654,14 +358,11 @@ void CWeapon::Tick()
 	if (m_BurstCount > 0)
 		m_FullAuto = true;
 	
-	//if (IsModularWeapon(m_WeaponType) && !m_TriggerCount)
-	//	m_WeaponType = GetChargedWeapon(m_WeaponType, m_Charge / 20);
-	
 	if(m_ReloadTimer > 0)
 		m_ReloadTimer--;
 	if(m_ReloadTimer > 0 && GameServer()->m_pPveDirector)
 	{
-		const float Reduction = GameServer()->m_pPveDirector->CooldownReduction(m_Owner, m_WeaponType);
+		const float Reduction = GameServer()->m_pPveDirector->CooldownReduction(m_Owner, m_WeaponSpec);
 		if(Reduction > 0.0f)
 		{
 			m_RogueliteCooldownCarry += Reduction / (1.0f - Reduction);
@@ -700,15 +401,8 @@ void CWeapon::Tick()
 		Trigger();
 	
 	
-	/*
-	if (m_Released && GetStaticType(m_WeaponType) == SW_BALL)
-	{
-		m_Charge = max(m_Charge-2, 0);
-	}
-	*/
-	
 	// bomb
-	if (GetStaticType(m_WeaponType) == SW_BOMB)
+	if (StaticType() == SW_BOMB)
 	{
 		// bomb sound
 		if (m_DestructionTick && m_ChargeSoundTimer-- <= 0)
@@ -790,131 +484,13 @@ void CWeapon::Tick()
 
 void CWeapon::Trigger()
 {
-	if (m_WeaponProfile.m_Combat.m_FiringType == WFT_HOLD)
-	{
-		if (m_WeaponProfile.m_Visual.m_RenderType == WRT_SPIN)
-		{
-			if (Server()->Tick()%2 == 0)
-				CreateProjectile();
-		}
-		else
-			CreateProjectile();
-		
-		return;
-	}
-	
-	if (IsStaticWeapon(m_WeaponType))
-	{
-		switch (GetStaticType(m_WeaponType))
-		{
-			case SW_GRENADE2:
-				m_TriggerTick = Server()->Tick() + 0.05f * Server()->TickSpeed();
-			
-				new CLaser(&GameServer()->m_World, m_Pos, RandomDir(), 160.0f, m_Owner, m_WeaponType, 4, -2);
-				new CLaser(&GameServer()->m_World, m_Pos, RandomDir(), 160.0f, m_Owner, m_WeaponType, 4, -2);
-				//new CLaser(&GameServer()->m_World, m_Pos, RandomDir(), 160.0f, m_Owner, m_WeaponType, 4, -2);
-				break;
-				
-			case SW_GRENADE3:
-				m_TriggerTick = Server()->Tick() + 0.25f * Server()->TickSpeed();
-			
-				GameServer()->CreateEffect(FX_SMALLELECTRIC, m_Pos);
-			
-				// spawn pickups
-				if (frandom() < 0.35f)
-					GameServer()->m_pController->DropPickup(m_Pos+vec2(0, -6), POWERUP_HEALTH, vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0);
-				else if (frandom() < 0.4f)
-					GameServer()->m_pController->DropPickup(m_Pos+vec2(0, -6), POWERUP_AMMO, vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0);
-				else if (frandom() < 0.6f)
-					GameServer()->m_pController->DropPickup(m_Pos+vec2(0, -6), POWERUP_ARMOR, vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0);
-				else
-					GameServer()->m_pController->DropPickup(m_Pos+vec2(0, -6), POWERUP_KIT, vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0);
-				break;
-				
-			case SW_ELECTROWALL:
-				m_TriggerTick = Server()->Tick() + 0.1f * Server()->TickSpeed();
-			
-				if (ElectroWallScan())
-				{
-					GameServer()->CreateEffect(FX_SMALLELECTRIC, m_Pos);
-					m_DestructionTick = Server()->Tick();
-				}
-				break;
-				
-			default: return;
-		}
-	}
-	
-	/*
-	if (IsModularWeapon(m_WeaponType))
-	{
-		m_WeaponType = GetChargedWeapon(m_WeaponType, max(0, GetWeaponCharge(m_WeaponType)-1));
-		m_TriggerCount = GetWeaponCharge(m_WeaponType);
-		
-		if (m_TriggerCount)
-		{
-			GameServer()->m_pController->TriggerWeapon(this);
-			m_TriggerTick = Server()->Tick() + m_FireRate * 0.5f * Server()->TickSpeed() / 1000;
-			CreateProjectile();
-		}
-		else
-			m_TriggerTick = 0;
-	}
-	*/
-}
-
-
-bool CWeapon::ElectroWallScan()
-{
-	float Dist = 9000.0f;
-	vec2 p1, p2;
-	
-	bool Found = false;
-	
-	for (int i = 0; i < 10; i++)
-	{
-		float d = float(i)/10.0f * pi + m_Angle;
-		
-		vec2 To1 = m_Pos + vec2(cos(d), sin(d))*900.0f;
-		vec2 To2 = m_Pos - vec2(cos(d), sin(d))*900.0f;
-		
-		if (GameServer()->Collision()->IntersectLine(m_Pos, To1, 0x0, &To1) && GameServer()->Collision()->IntersectLine(m_Pos, To2, 0x0, &To2))
-		{
-			if (distance(To1, To2) < Dist)
-			{
-				Dist = distance(To1, To2);
-				p1 = To1;
-				p2 = To2;
-				Found = true;
-			}
-		}
-	}
-	
-	if (Found)
-		new CElectroWall(GameWorld(), p1, p2);
-	
-	return Found;
+	CWeaponBehaviorExecutor::Trigger(*this);
 }
 
 
 void CWeapon::SelfDestruct()
 {
-	if (!m_Released)
-		GameServer()->m_pController->ReleaseWeapon(this);
-	
-	if (IsStaticWeapon(m_WeaponType))
-	{
-		switch (GetStaticType(m_WeaponType))
-		{
-		case SW_GRENADE1: case SW_GRENADE2: case SW_GRENADE3: case SW_BOMB: GameServer()->CreateExplosion(m_Pos, CAttackSource::PlayerWeapon(m_Owner, m_WeaponSpec)); break;
-		case SW_ELECTROWALL:
-			GameServer()->CreateEffect(FX_SMALLELECTRIC, m_Pos);
-			break;
-		default: break;
-		}
-	}
-	
-	GameServer()->m_World.DestroyEntity(this);
+	CWeaponBehaviorExecutor::SelfDestruct(*this);
 }
 
 
@@ -954,7 +530,7 @@ void CWeapon::Move()
 	vec2 OldVel = m_Vel;
 	
 	
-	if (GetStaticType(m_WeaponType) == SW_BALL)
+	if (StaticType() == SW_BALL)
 		GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, vec2(18.0f, 18.0f), 0.9f);
 	else
 		GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, vec2(18.0f, 18.0f), 0.5f);
@@ -964,7 +540,7 @@ void CWeapon::Move()
 		(((OldVel.y < 0 && m_Vel.y > 0) || (OldVel.y > 0 && m_Vel.y < 0)) && abs(m_Vel.y) > 3.0f))
 		GameServer()->CreateSound(m_Pos, SOUND_SFX_BOUNCE1);
 		
-	if (GetStaticType(m_WeaponType) == SW_SHURIKEN)
+	if (StaticType() == SW_SHURIKEN)
 	{
 		if ((((OldVel.x < 0 && m_Vel.x > 0) || (OldVel.x > 0 && m_Vel.x < 0)) && abs(m_Vel.x) > 5.0f) ||
 			(((OldVel.y < 0 && m_Vel.y > 0) || (OldVel.y > 0 && m_Vel.y < 0)) && abs(m_Vel.y) > 5.0f))
@@ -985,7 +561,7 @@ void CWeapon::Move()
 		}
 	}
 	
-	if (GetStaticType(m_WeaponType) != SW_SHURIKEN)
+	if (StaticType() != SW_SHURIKEN)
 	{
 		m_AngleForce *= 0.98f;
 	}

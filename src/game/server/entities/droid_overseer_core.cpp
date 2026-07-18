@@ -78,11 +78,11 @@ COverseerCore::COverseerCore(CGameWorld *pWorld, vec2 Pos) :
 	m_apAssemblers[0] = m_apAssemblers[1] = 0;
 }
 
-void COverseerCore::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
+void COverseerCore::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos)
 {
 	if(Dmg > 0 && COverseerShieldNode::Protects(GameWorld(), this))
 		Dmg = max(1, Dmg * 40 / 100);
-	CSpecialistDroid::TakeDamage(Force, Dmg, From, Pos, Weapon);
+	CSpecialistDroid::TakeDamage(Force, Dmg, Source, Pos);
 }
 
 void COverseerCore::MovementTick(CCharacter *pTarget)
@@ -147,9 +147,12 @@ void COverseerCore::AbilityTick()
 			{
 				const float Angle = i * 2.0f * pi / 8.0f + m_OrbitAngle;
 				const vec2 Dir(cosf(Angle), sinf(Angle));
-				new CProjectile(&GameServer()->m_World, GetDroidWeapon(m_Type), NEUTRAL_BASE,
+				const CAttackSource Source = CAttackSource::Droid(NEUTRAL_BASE, m_Type);
+				CWeaponCombatProfile Combat;
+				CWeaponCatalog::TryResolveAttack(Source, &Combat);
+				new CProjectile(&GameServer()->m_World, Source,
 					m_Pos + m_Center + Dir * 38.0f, Dir, vec2(0, 0), Server()->TickSpeed() * 2,
-					18, 0, GetProjectileKnockback(GetDroidWeapon(m_Type)), -1);
+					18, Combat.m_ProjectileKnockback, -1);
 			}
 			m_AttackTick = Server()->Tick();
 		}

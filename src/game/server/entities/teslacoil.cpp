@@ -66,8 +66,7 @@ void CTeslacoil::Tick()
 	// destroy
 	if (m_Life <= 0)
 	{
-		//GameServer()->CreateExplosion(m_Pos + vec2(0, -50*m_FlipY), m_DamageOwner, GetBuildingWeapon(BUILDING_TESLACOIL), 0, false, false);
-		GameServer()->CreateExplosion(m_Pos, m_DamageOwner, GetBuildingWeapon(m_Type));
+		GameServer()->CreateExplosion(m_Pos, CAttackSource::Building(m_DamageOwner, m_Type));
 		//GameServer()->CreateSound(m_Pos + vec2(0, -50*m_FlipY), SOUND_GRENADE_EXPLODE);
 		GameServer()->m_World.DestroyEntity(this);
 	}
@@ -114,8 +113,7 @@ void CTeslacoil::Fire()
 		if (Distance < 700 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, TurretPos))
 		{
 			new CLightning(GameWorld(), TurretPos, pCharacter->m_Pos);
-			pCharacter->TakeDamage(m_OwnerPlayer, GetBuildingWeapon(BUILDING_TESLACOIL), 5, vec2(0, 0), vec2(0, 0));
-			//pCharacter->TakeDamage(vec2(0, 0), 5, m_DamageOwner, DEATHTYPE_TESLACOIL, vec2(0, 0), DAMAGETYPE_ELECTRIC, false);
+			pCharacter->TakeDamage(CAttackSource::Building(m_OwnerPlayer, BUILDING_TESLACOIL), 5, vec2(0, 0), vec2(0, 0));
 			Sound = true;
 		}
 	}

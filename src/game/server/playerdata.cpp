@@ -65,12 +65,7 @@ int CPlayerData::GetPlayerCount(int Score)
 void CPlayerData::Reset()
 {
 	ResetWeapons();
-	for(int i = 0; i < 99; i++)
-	{
-		m_aAmmo[i] = -1;
-	}
 	m_Armor = 0;
-	m_Weapon = 0;
 	m_Kits = 0;
 	m_Score = 0;
 	m_Gold = 0;

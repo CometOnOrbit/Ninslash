@@ -98,9 +98,9 @@ void CGameControllerCTF::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	}
 }
 
-int CGameControllerCTF::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int WeaponID)
+int CGameControllerCTF::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
-	IGameController::OnCharacterDeath(pVictim, pKiller, WeaponID);
+	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 	int HadFlag = 0;
 
 	// drop flags

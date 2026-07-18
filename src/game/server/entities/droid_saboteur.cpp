@@ -46,7 +46,7 @@ void CSaboteur::AbilityTick()
 		if(Server()->Tick() - m_ChargeStart >= Server()->TickSpeed() * 3 / 4)
 		{
 			if(CPveDrone *pDrone = dynamic_cast<CPveDrone *>(m_pEmpTarget)) { pDrone->TakeDamage(14); pDrone->ApplyEmp(Server()->TickSpeed() * 5); }
-			else { CBuilding *pBuilding = static_cast<CBuilding *>(m_pEmpTarget); pBuilding->m_aStatus[BSTATUS_ON] = 0; pBuilding->TakeDamage(36, NEUTRAL_BASE, GetDroidWeapon(m_Type)); }
+			else { CBuilding *pBuilding = static_cast<CBuilding *>(m_pEmpTarget); pBuilding->m_aStatus[BSTATUS_ON] = 0; pBuilding->TakeDamage(36, CAttackSource::Droid(NEUTRAL_BASE, m_Type)); }
 			GameServer()->CreateEffect(FX_ELECTRIC, m_pEmpTarget->m_Pos); m_pEmpTarget = 0; m_ChargeStart = 0; m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 3; return;
 		}
 	}

@@ -468,9 +468,9 @@ void CGameControllerHorde::TickWaveEvent()
 	TriggerAllBotAI(GameServer(), m_TriggerLevel);
 }
 
-int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, int Weapon)
+int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, const CAttackSource &Source)
 {
-	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 	CPlayer *pVictimPlayer = pVictim->GetPlayer();
 	const bool HumanVictim = !pVictim->m_IsBot && pVictimPlayer && !pVictimPlayer->m_IsBot && !pVictimPlayer->m_pAI;
 	if(HumanVictim && GameServer()->m_pPveDirector)
@@ -484,7 +484,7 @@ int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller
 		{
 			m_Kills++;
 			if(GameServer()->m_pPveDirector)
-				GameServer()->m_pPveDirector->OnEnemyKilled(pKiller->GetCID(), Weapon, pVictim->m_Pos, pVictim);
+				GameServer()->m_pPveDirector->OnEnemyKilled(Source, pVictim->m_Pos, pVictim);
 		}
 		pVictim->GetPlayer()->m_ToBeKicked = true;
 	}

@@ -7,6 +7,7 @@
 #include <base/tl/array.h>
 #include <engine/graphics.h>
 #include <game/mapitems.h>
+#include <game/weapon_catalog.h>
 #include "ui.h"
 #include "spine.h"
 
@@ -294,9 +295,9 @@ public:
 	void RenderFreeHand(class CPlayerInfo *PlayerInfo, CTeeRenderInfo *pInfo, int Hand, vec2 Dir, vec2 Pos, bool Behind = false);
 
 	// render player with custom info (teesplatter, bounciness etc...)
-	void RenderPlayer(class CPlayerInfo *PlayerInfo, CTeeRenderInfo *pInfo, int WeaponNum, int Emote, vec2 Dir, vec2 Pos);
+	void RenderPlayer(class CPlayerInfo *PlayerInfo, CTeeRenderInfo *pInfo, int Emote, vec2 Dir, vec2 Pos);
 	
-	void RenderWeapon(int Weapon, vec2 Pos, vec2 Dir, float Size, bool BeginQuads = false, int Flags = 0, float Alpha2 = 1.0f, bool KillMessage = false, bool NoFlags = false);
+	void RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, float Size, bool BeginQuads = false, int Flags = 0, float Alpha2 = 1.0f, bool KillMessage = false, bool NoFlags = false, bool Turret = false);
 
 	void RenderStaticPlayer(CTeeRenderInfo *pInfo, vec2 Pos);
 	void RenderPortrait(CTeeRenderInfo *pInfo, vec2 Position, int EyeType);
@@ -319,7 +320,7 @@ public:
 
 	void SetShadersForPlayer(const class CPlayerInfo *pCustomPlayerInfo);
 	void SetShadersForWeapon(class CPlayerInfo *pCustomPlayerInfo);
-	void SetShadersForWeapon(int Weapon, float Charge = 0.0f, float Visibility = 1.0f, float Electro = 0.0f, float Damage = 0.0f, float Deathray = 0.0f);
+	void SetShadersForWeapon(const CWeaponSpec &Weapon, float Charge = 0.0f, float Visibility = 1.0f, float Electro = 0.0f, float Damage = 0.0f, float Deathray = 0.0f);
 
 	// map render methods (gc_render_map.cpp)
 	static void RenderEvalEnvelope(CEnvPoint *pPoints, int NumPoints, int Channels, float Time, float *pResult);

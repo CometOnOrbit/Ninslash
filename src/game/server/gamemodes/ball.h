@@ -8,7 +8,7 @@ public:
 	CGameControllerBall(class CGameContext *pGameServer);
 
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);
-	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
+	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
 	virtual void Snap(int SnappingClient);
 	virtual void Tick();
 	

@@ -56,7 +56,7 @@ void CTracer::UpdatePos(int ItemID, vec2 Pos)
 }
 	
 	
-void CTracer::Add(int Type, int ItemID, vec2 Pos, vec2 StartPos, int StartTick, int Weapon, vec2 Vel)
+void CTracer::Add(int Type, int ItemID, vec2 Pos, vec2 StartPos, int StartTick, float ProjectileSize, vec2 Vel)
 {
 	if(Client()->State() == IClient::STATE_DEMOPLAYBACK)
 	{
@@ -80,7 +80,7 @@ void CTracer::Add(int Type, int ItemID, vec2 Pos, vec2 StartPos, int StartTick, 
 	{
 		if (abs(m_aTracer[i].m_StartTick - StartTick) < 2 && m_aTracer[i].m_ItemID == ItemID && m_aTracer[i].m_Type == Type)
 		{
-			m_aTracer[i].Set(ItemID, Type, Pos, StartPos, StartTick, Weapon, Vel);
+			m_aTracer[i].Set(ItemID, Type, Pos, StartPos, StartTick, ProjectileSize, Vel);
 			return;
 		}
 		
@@ -93,7 +93,7 @@ void CTracer::Add(int Type, int ItemID, vec2 Pos, vec2 StartPos, int StartTick, 
 		return;
 
 	CTrace Trace;
-	Trace.Set(ItemID, Type, Pos, StartPos, StartTick, Weapon, Vel);
+	Trace.Set(ItemID, Type, Pos, StartPos, StartTick, ProjectileSize, Vel);
 	
 	// remove from the free list
 	int Id = m_FirstFree;
@@ -378,7 +378,6 @@ void CTracer::RenderGroup(int Group)
 		Graphics()->ShaderEnd();
 	}
 }
-
 
 
 

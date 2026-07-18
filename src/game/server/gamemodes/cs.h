@@ -1,6 +1,7 @@
 #ifndef GAME_SERVER_GAMEMODES_CS_H
 #define GAME_SERVER_GAMEMODES_CS_H
 #include <game/server/gamecontroller.h>
+#include <game/weapon_catalog.h>
 
 class CGameControllerCS : public IGameController
 {
@@ -17,7 +18,7 @@ private:
 	
 	void AddToArea(vec2 Pos);
 	
-	int m_aPlayerWeapon[MAX_CLIENTS*NUM_SLOTS];
+	CWeaponSpec m_aPlayerWeapon[MAX_CLIENTS * NUM_SLOTS];
 	int m_aPlayerArmor[MAX_CLIENTS];
 	int m_aPlayerKits[MAX_CLIENTS];
 	
@@ -28,7 +29,7 @@ public:
 	CGameControllerCS(class CGameContext *pGameServer);
 
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);
-	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
+	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
 	virtual void Snap(int SnappingClient);
 	virtual void Tick();
 	

@@ -56,9 +56,9 @@ void CGameControllerRoam::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 }
 
 
-int CGameControllerRoam::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
+int CGameControllerRoam::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
-	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 
 	if (pVictim->m_IsBot)
 		pVictim->GetPlayer()->m_ToBeKicked = true;

@@ -62,7 +62,7 @@ void CBuildings::RenderPowerupper(const struct CNetObj_Powerupper *pCurrent)
 				Graphics()->SetColor(1, 1, 1, 0.3f);
 			
 			Graphics()->QuadsSetRotation(0);
-				
+
 			RenderTools()->DrawSprite(pCurrent->m_X, pCurrent->m_Y-64, 96);
 			Graphics()->QuadsEnd();
 			Graphics()->ShaderEnd();
@@ -77,7 +77,7 @@ void CBuildings::RenderPowerupper(const struct CNetObj_Powerupper *pCurrent)
 			
 			Graphics()->SetColor(1, 1, 1, 1);
 			Graphics()->QuadsSetRotation(0);
-				
+
 			RenderTools()->DrawSprite(pCurrent->m_X+sin(CustomStuff()->m_SawbladeAngle/8)*2.0f, pCurrent->m_Y+cos(CustomStuff()->m_SawbladeAngle/4)*4.0f-64, 64);
 			Graphics()->QuadsEnd();
 		}
@@ -580,8 +580,10 @@ void CBuildings::RenderStand(const CNetObj_Building *pCurrent, const CNetObj_Bui
 			return;
 	}
 	
+	CResolvedWeaponProfile LocalWeaponProfile;
+	const bool HasTurretWeapon = CWeaponCatalog::TryResolve(CustomStuff()->m_LocalWeapon, &LocalWeaponProfile) && LocalWeaponProfile.m_Combat.m_ValidForTurret;
 	// render drop weapon tip for local player
-	if (distance(CustomStuff()->m_LocalPos, vec2(Pos.x, Pos.y+15)) < 60 && ValidForTurret(CustomStuff()->m_LocalWeapon))
+	if (distance(CustomStuff()->m_LocalPos, vec2(Pos.x, Pos.y+15)) < 60 && HasTurretWeapon)
 	{
 		char aDropKeys[64];
 		m_pClient->m_pBinds->GetKeys("+dropweapon", aDropKeys, sizeof(aDropKeys));
@@ -590,7 +592,7 @@ void CBuildings::RenderStand(const CNetObj_Building *pCurrent, const CNetObj_Bui
 		TextRender()->TextColor(1, 1, 1, 1);
 		
 		// render weapon cloning cost
-		int Cost = GetWeaponCharge(CustomStuff()->m_LocalWeapon)+1;
+		int Cost = CustomStuff()->m_LocalWeapon.m_Level + 1;
 	
 		char aBuf[8];
 		str_format(aBuf, sizeof(aBuf), "%u", Cost);
@@ -709,50 +711,51 @@ void CBuildings::RenderTurret(const CNetObj_Turret *pCurrent, const CNetObj_Turr
 	Graphics()->QuadsEnd();
 	
 	
-	CWeaponSpec WeaponSpec{static_cast<WeaponDefinitionId>(pCurrent->m_WeaponDefinitionId), static_cast<uint8_t>(pCurrent->m_WeaponLevel)};
-	if(!CWeaponCatalog::IsValidSpec(WeaponSpec))
+	CWeaponSpec WeaponSpec;
+	CResolvedWeaponProfile WeaponProfile;
+	if(!CWeaponCatalog::TryFromProtocol(pCurrent->m_WeaponDefinitionId, pCurrent->m_WeaponLevel, &WeaponSpec) ||
+		!CWeaponCatalog::TryResolve(WeaponSpec, &WeaponProfile))
 		return;
-	int Weapon = CWeaponCatalog::ToLegacy(WeaponSpec);
 	float Angle = (pCurrent->m_Angle+90) / (180/pi);
 	vec2 p = Pos + vec2(cosf(Angle)*12, sinf(Angle)*12+(-40-9)*FlipY); //+ vec2(cosf(Angle)*90, sinf(Angle)*90-71);
 	vec2 Dir = GetDirection((int)(Angle*256));
 	
 	
 	// render weapon
-	RenderTools()->SetShadersForWeapon(Weapon);
+	RenderTools()->SetShadersForWeapon(WeaponSpec);
 		
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 	Graphics()->QuadsBegin();
 	Graphics()->QuadsSetRotation(Angle);
 	
-	RenderTools()->RenderWeapon(Weapon, p, Dir, WEAPON_GAME_SIZE);
+	RenderTools()->RenderWeapon(WeaponSpec, p, Dir, WEAPON_GAME_SIZE);
 	
 	Graphics()->QuadsEnd();
 	
 	
 	// render muzzle
-	if (GetWeaponFiringType(Weapon) != WFT_HOLD)
+	if (WeaponProfile.m_Combat.m_FiringType != WFT_HOLD)
 	{
-		CustomStuff()->SetTurretMuzzle(ivec2(Pos.x, Pos.y), pCurrent->m_AttackTick, Weapon);
+		CustomStuff()->SetTurretMuzzle(ivec2(Pos.x, Pos.y), pCurrent->m_AttackTick, WeaponSpec);
 		
-		CTurretMuzzle Muzzle = CustomStuff()->GetTurretMuzzle(ivec2(Pos.x, Pos.y));
-		
-		if (Muzzle.m_Weapon)
-		{
-			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_MUZZLE].m_Id);
-			Graphics()->QuadsBegin();
-			Graphics()->QuadsSetRotation(Angle);
+			CTurretMuzzle Muzzle = CustomStuff()->GetTurretMuzzle(ivec2(Pos.x, Pos.y));
 			
-			vec2 Moff = GetMuzzleRenderOffset(Muzzle.m_Weapon)+vec2(-3, -6);
-			RenderTools()->SelectSprite(SPRITE_MUZZLE1_1 + Muzzle.m_Muzzle*4 + Muzzle.m_Time*4, SPRITE_FLAG_FLIP_X);
-
-			vec2 DirY(-Dir.y,Dir.x);
-			vec2 MuzzlePos = p + Dir * Moff.x + DirY * Moff.y;
-
-			RenderTools()->DrawSprite(MuzzlePos.x, MuzzlePos.y, 60);
-			
-			Graphics()->QuadsEnd();
-		}
+			if (Muzzle.m_Weapon.IsValid())
+			{
+				CResolvedWeaponProfile MuzzleProfile;
+				if(CWeaponCatalog::TryResolve(Muzzle.m_Weapon, &MuzzleProfile))
+				{
+					Graphics()->TextureSet(g_pData->m_aImages[IMAGE_MUZZLE].m_Id);
+					Graphics()->QuadsBegin();
+					Graphics()->QuadsSetRotation(Angle);
+					vec2 Moff = MuzzleProfile.m_Visual.m_MuzzleOffset + vec2(-3, -6);
+					RenderTools()->SelectSprite(SPRITE_MUZZLE1_1 + Muzzle.m_Muzzle*4 + Muzzle.m_Time*4, SPRITE_FLAG_FLIP_X);
+					vec2 DirY(-Dir.y,Dir.x);
+					vec2 MuzzlePos = p + Dir * Moff.x + DirY * Moff.y;
+					RenderTools()->DrawSprite(MuzzlePos.x, MuzzlePos.y, 60);
+					Graphics()->QuadsEnd();
+				}
+			}
 	}
 	
 	Graphics()->ShaderEnd();

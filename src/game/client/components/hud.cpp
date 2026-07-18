@@ -786,14 +786,17 @@ void CHud::RenderCursor()
 	if (CustomStuff()->m_Inventory)
 		return;
 	
+	int CursorWeapon = WEAPON_HAMMER;
+	CWeaponSpec WeaponSpec;
+	CResolvedWeaponProfile WeaponProfile;
+	if(CWeaponCatalog::TryFromProtocol(m_pClient->m_Snap.m_pLocalCharacter->m_WeaponDefinitionId, m_pClient->m_Snap.m_pLocalCharacter->m_WeaponLevel, &WeaponSpec) && CWeaponCatalog::TryResolve(WeaponSpec, &WeaponProfile))
+		CursorWeapon = WeaponProfile.m_Combat.m_CursorWeapon;
+
 	MapscreenToGroup(m_pClient->m_pCamera->m_Center.x, m_pClient->m_pCamera->m_Center.y, Layers()->GameGroup());
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GAME].m_Id);
 	Graphics()->QuadsBegin();
-
-	// render cursor
-	int Weapon = CWeaponCatalog::ProtocolToLegacy(m_pClient->m_Snap.m_pLocalCharacter->m_WeaponDefinitionId, m_pClient->m_Snap.m_pLocalCharacter->m_WeaponLevel);
 	
-	RenderTools()->SelectSprite(g_pData->m_Weapons.m_aId[Weapon%NUM_WEAPONS].m_pSpriteCursor);
+	RenderTools()->SelectSprite(g_pData->m_Weapons.m_aId[CursorWeapon].m_pSpriteCursor);
 	float CursorSize = 64;
 	RenderTools()->DrawSprite(m_pClient->m_pControls->m_TargetPos.x, m_pClient->m_pControls->m_TargetPos.y, CursorSize);
 	Graphics()->QuadsEnd();
@@ -858,14 +861,16 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 	if(!g_Config.m_ClShowhudHealthAmmo) return;
 	if(!pCharacter)
 		return;
+	CWeaponSpec WeaponSpec;
+	CResolvedWeaponProfile WeaponProfile{};
+	if(CWeaponCatalog::TryFromProtocol(pCharacter->m_WeaponDefinitionId, pCharacter->m_WeaponLevel, &WeaponSpec))
+		CWeaponCatalog::TryResolve(WeaponSpec, &WeaponProfile);
 
 	//vec2 Area1Pos = vec2(0, 0);
 	vec2 Area2Pos = vec2(8, 5);
 	
 	float x = Area2Pos.x; // 16
 	float y = 5;
-	
-	int Weapon = CWeaponCatalog::ProtocolToLegacy(pCharacter->m_WeaponDefinitionId, pCharacter->m_WeaponLevel);
 	
 	// render gui stuff
 	
@@ -1089,7 +1094,7 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 	x += 80;
 	y += 4;
 	
-	if (WeaponUseAmmo(Weapon))
+	if (WeaponProfile.m_Combat.m_UsesAmmo)
 	{
 		int n1 = pCharacter->m_AmmoCount;
 		int n2 = 0;
@@ -1189,7 +1194,7 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 	
 	for (int i = 0; i < 4; i++)
 	{
-		int w = CustomStuff()->m_aSnapWeapon[i];
+		const CWeaponSpec &Weapon = CustomStuff()->m_aSnapWeapon[i];
 		
 		// order num.
 		
@@ -1203,7 +1208,7 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 		Graphics()->SetColor(1, 1, 1, 1);
 		Graphics()->QuadsEnd();
 		
-		if (w != WEAPON_NONE)
+		if (Weapon.IsValid())
 		{
 			// pickup icon
 			/*
@@ -1240,22 +1245,22 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 				}
 				
 				//RenderTools()->RenderWeapon(w, vec2(x, y), vec2(1, 0), 24.0f);
-				RenderTools()->RenderWeapon(w, vec2(x-0.5f, y-0.5f), vec2(1, 0), WEAPON_GAME_SIZE/3);
-				RenderTools()->RenderWeapon(w, vec2(x+0.5f, y-0.5f), vec2(1, 0), WEAPON_GAME_SIZE/3);
-				RenderTools()->RenderWeapon(w, vec2(x-0.5f, y+0.5f), vec2(1, 0), WEAPON_GAME_SIZE/3);
-				RenderTools()->RenderWeapon(w, vec2(x+0.5f, y+0.5f), vec2(1, 0), WEAPON_GAME_SIZE/3);
+				RenderTools()->RenderWeapon(Weapon, vec2(x-0.5f, y-0.5f), vec2(1, 0), WEAPON_GAME_SIZE/3);
+				RenderTools()->RenderWeapon(Weapon, vec2(x+0.5f, y-0.5f), vec2(1, 0), WEAPON_GAME_SIZE/3);
+				RenderTools()->RenderWeapon(Weapon, vec2(x-0.5f, y+0.5f), vec2(1, 0), WEAPON_GAME_SIZE/3);
+				RenderTools()->RenderWeapon(Weapon, vec2(x+0.5f, y+0.5f), vec2(1, 0), WEAPON_GAME_SIZE/3);
 
 				Graphics()->QuadsEnd();
 			}
 			
-			RenderTools()->SetShadersForWeapon(w);
+			RenderTools()->SetShadersForWeapon(Weapon);
 			
 			// weapon
 			Graphics()->QuadsBegin();
 			
 			Graphics()->SetColor(1, 1, 1, 1);
 			
-			RenderTools()->RenderWeapon(w, vec2(x, y), vec2(1, 0), WEAPON_GAME_SIZE/3);
+			RenderTools()->RenderWeapon(Weapon, vec2(x, y), vec2(1, 0), WEAPON_GAME_SIZE/3);
 			
 			/*
 			if (i == CustomStuff()->m_WeaponSlot)

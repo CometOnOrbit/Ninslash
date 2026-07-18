@@ -44,11 +44,17 @@ gen_network_header = False
 gen_network_source = False
 gen_game_content_header = False
 gen_game_content_source = False
+gen_weapon_profiles = False
 
 if "network_header" in sys.argv: gen_network_header = True
 if "network_source" in sys.argv: gen_network_source = True
 if "game_content_header" in sys.argv: gen_game_content_header = True
 if "game_content_source" in sys.argv: gen_game_content_source = True
+if "weapon_profiles" in sys.argv: gen_weapon_profiles = True
+
+if gen_weapon_profiles:
+	import weapon_profiles
+	weapon_profiles.emit()
 
 if gen_game_content_header:
 	print("#ifndef GAME_CONTENT_HEADER")

@@ -74,7 +74,7 @@ public:
 
 	virtual bool OnEntity(int Index, vec2 Pos);
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);
-	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon);
+	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
 	bool GetSpawnPos(int Team, vec2 *pOutPos);
 	virtual bool CanSpawn(int Team, vec2 *pPos, bool IsBot = false);
 	virtual void Tick();

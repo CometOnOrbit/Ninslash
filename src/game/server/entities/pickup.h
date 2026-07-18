@@ -4,6 +4,7 @@
 #define GAME_SERVER_ENTITIES_PICKUP_H
 
 #include <game/server/entity.h>
+#include <game/weapon_catalog.h>
 
 const int PickupPhysSize = 14;
 
@@ -43,6 +44,7 @@ public:
 		m_Flashing = false;
 		m_FlashTimer = 0;
 		m_Subtype = 0;
+		m_WeaponSpec = {};
 		m_Treasure = false;
 		ClearWeapon();
 	}
@@ -55,6 +57,7 @@ public:
 		m_Flashing = false;
 		m_FlashTimer = 0;
 		m_Subtype = 0;
+		m_WeaponSpec = {};
 		m_Treasure = true;
 		m_SkipAutoRespawn = true;
 		ClearWeapon();
@@ -71,6 +74,7 @@ public:
 		m_Flashing = false;
 		m_FlashTimer = 0;
 		m_Subtype = 0;
+		m_WeaponSpec = {};
 		ClearWeapon();
 	}
 	
@@ -94,7 +98,16 @@ public:
 	int GetType(){ return m_Type; }
 	int GetSubtype(){ return m_Type; }
 	
-	void SetSubtype(int Type){ m_Subtype = Type; }
+	void SetSubtype(int Type)
+	{
+		m_Subtype = Type;
+	}
+
+	void SetWeaponSpec(const CWeaponSpec &Spec)
+	{
+		m_WeaponSpec = Spec;
+		m_Subtype = 0;
+	}
 	
 	float m_Angle;
 	float m_AngleForce;
@@ -103,6 +116,7 @@ private:
 	int m_BoxSize;
 	int m_Type;
 	int m_Subtype;
+	CWeaponSpec m_WeaponSpec;
 	
 	bool m_Mirror;
 	

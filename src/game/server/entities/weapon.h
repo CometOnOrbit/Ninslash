@@ -7,9 +7,10 @@
 
 class CWeapon : public CEntity
 {
+	friend class CWeaponBehaviorExecutor;
 public:
 	static const int ms_PhysSize = 14;
-	CWeapon(CGameWorld *pGameWorld, int Type);
+	CWeapon(CGameWorld *pGameWorld, const CWeaponSpec &Spec);
 
 	virtual void Reset();
 	virtual void Tick();
@@ -19,7 +20,6 @@ public:
 	
 	virtual void SurvivalReset();
 	
-	const int GetWeaponType() { return m_WeaponType; }
 	const CWeaponSpec &GetWeaponSpec() const { return m_WeaponSpec; }
 	const CResolvedWeaponProfile &GetWeaponProfile() const { return m_WeaponProfile; }
 	const int GetPowerLevel() { return m_PowerLevel; }
@@ -93,7 +93,6 @@ protected:
 	int m_BurstCount;
 	int m_BurstMax;
 	
-	int m_WeaponType;
 	CWeaponSpec m_WeaponSpec;
 	CResolvedWeaponProfile m_WeaponProfile;
 	int m_ReloadTimer;
@@ -126,9 +125,12 @@ protected:
 	float m_AngleForce;
 	
 private:
+	bool IsStatic() const { return m_WeaponProfile.m_Definition.m_Kind == EWeaponDefinitionKind::Static; }
+	bool IsModular() const { return m_WeaponProfile.m_Definition.m_Kind == EWeaponDefinitionKind::Modular; }
+	int StaticType() const { return IsStatic() ? m_WeaponProfile.m_Definition.m_StaticType : -1; }
+	int Part1() const { return IsModular() ? m_WeaponProfile.m_Definition.m_Part1 : 0; }
+
 	int m_LastNoAmmoSound;
-	
-	bool ElectroWallScan();
 	
 	void SelfDestruct();
 	

@@ -4,12 +4,11 @@
 
 #include "pve_drone_pulse.h"
 
-CPveDronePulse::CPveDronePulse(CGameWorld *pGameWorld, vec2 From, vec2 To, int Owner, int Weapon) :
+CPveDronePulse::CPveDronePulse(CGameWorld *pGameWorld, vec2 From, vec2 To, const CAttackSource &Source) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_PROJECTILE),
 	m_From(From),
 	m_To(To),
-	m_Owner(Owner),
-	m_Weapon(Weapon),
+	m_Source(Source),
 	m_StartTick(Server()->Tick()),
 	m_EndTick(Server()->Tick() + max(2, Server()->TickSpeed() / 5))
 {
@@ -51,6 +50,9 @@ void CPveDronePulse::Snap(int SnappingClient)
 	pObj->m_VelY = (int)(Dir.y * 100.0f);
 	pObj->m_Vel2X = 0;
 	pObj->m_Vel2Y = 0;
-	pObj->m_Type = m_Weapon;
+	pObj->m_SourceKind = static_cast<int>(m_Source.m_Kind);
+	pObj->m_SourceType = m_Source.m_Type;
+	pObj->m_WeaponDefinitionId = static_cast<int>(m_Source.m_Weapon.m_DefinitionId);
+	pObj->m_WeaponLevel = m_Source.m_Weapon.m_Level;
 	pObj->m_StartTick = Server()->Tick();
 }

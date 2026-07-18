@@ -3,6 +3,7 @@
 
 #include "ai.h"
 #include "entities/pickup.h"
+#include "entities/weapon.h"
 #include "entities/character.h"
 #include "entities/droid.h"
 #include "entities/building.h"
@@ -1245,8 +1246,8 @@ void CAI::ClearEmotions()
 
 int CAI::WeaponShootRange()
 {
-	int Weapon = Player()->GetCharacter()->GetWeaponType();
-	return AIAttackRange(Weapon);
+	CWeapon *pWeapon = Player()->GetCharacter()->GetWeapon();
+	return pWeapon ? pWeapon->GetWeaponProfile().m_Combat.m_AiAttackRange : 0;
 }
 
 
@@ -1332,8 +1333,8 @@ void CAI::ShootAtClosestHuman()
 {
 	CCharacter *pClosestCharacter = NULL;
 	float ClosestDistanceSq = 0.0f;
-	int Weapon = Player()->GetCharacter()->GetWeaponType();
-	const float AttackRange = AIAttackRange(Weapon);
+	CWeapon *pWeapon = Player()->GetCharacter()->GetWeapon();
+	const float AttackRange = pWeapon ? pWeapon->GetWeaponProfile().m_Combat.m_AiAttackRange : 0.0f;
 	const float AttackRangeSq = AttackRange * AttackRange;
 	
 	// FIRST_BOT_ID, fix
@@ -1403,8 +1404,8 @@ bool CAI::ShootAtClosestEnemy()
 {
 	CCharacter *pClosestCharacter = NULL;
 	float ClosestDistanceSq = 0.0f;
-	int Weapon = Player()->GetCharacter()->GetWeaponType();
-	const float AttackRange = AIAttackRange(Weapon);
+	CWeapon *pWeapon = Player()->GetCharacter()->GetWeapon();
+	const float AttackRange = pWeapon ? pWeapon->GetWeaponProfile().m_Combat.m_AiAttackRange : 0.0f;
 	const float AttackRangeSq = AttackRange * AttackRange;
 	
 	m_EnemyInLine = false;
@@ -1462,7 +1463,6 @@ bool CAI::ShootAtClosestEnemy()
 		m_PlayerPos = pClosestCharacter->m_Pos + Dispersion;
 	}
 	
-	//if (GetWeaponFiringType(Weapon) != WFT_NONE)
 	{
 		if (pClosestCharacter && ClosestDistance < WeaponShootRange()*1.2f)
 		{
@@ -1508,7 +1508,8 @@ bool CAI::ShootAtClosestMonster()
 {
 	CDroid *pClosestMonster = NULL;
 	int ClosestDistance = 0;
-	int Weapon = Player()->GetCharacter()->GetWeaponType();
+	CWeapon *pWeapon = Player()->GetCharacter()->GetWeapon();
+	const float AttackRange = pWeapon ? pWeapon->GetWeaponProfile().m_Combat.m_AiAttackRange : 0.0f;
 	
 	vec2 MonsterDir;
 	
@@ -1531,7 +1532,7 @@ bool CAI::ShootAtClosestMonster()
 			Dir = normalize(pMonster->m_Pos - m_LastPos);
 
 		int Distance = distance(pMonster->m_Pos, m_LastPos);
-		if (Distance < AIAttackRange(Weapon) && 
+		if (Distance < AttackRange &&
 			!GameServer()->Collision()->FastIntersectLine(pMonster->m_Pos + vec2(0, -20), m_LastPos))
 		{
 			//if (abs(pMonster->m_Pos.x - m_LastPos.x) < 96 && abs(pMonster->m_Pos.y - m_LastPos.y) < 24)
@@ -2110,7 +2111,7 @@ void CAI::UseItems()
 			m_pPlayer->GetCharacter()->RandomizeInventory();
 	}
 	
-	if (m_pPlayer->GetCharacter() && !m_pPlayer->GetCharacter()->GetWeaponType())
+	if (m_pPlayer->GetCharacter() && !m_pPlayer->GetCharacter()->GetWeapon())
 		m_ItemUseTick = min(0.0f + m_ItemUseTick, GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * 0.5f);
 }
 
@@ -2149,7 +2150,9 @@ void CAI::Tick()
 	m_DispersionTick++;
 	
 	bool HoldAttack = false;
-	bool Charge = AIWeaponCharge(Player()->GetCharacter()->GetWeaponType());
+	CWeapon *pWeapon = Player()->GetCharacter()->GetWeapon();
+	const int FiringType = pWeapon ? pWeapon->GetWeaponProfile().m_Combat.m_FiringType : WFT_NONE;
+	bool Charge = FiringType == WFT_THROW || FiringType == WFT_CHARGE;
 	
 	if (m_Attack && Charge)
 	{

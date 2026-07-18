@@ -110,7 +110,7 @@ void IGameController::DropWeapon(vec2 Pos, vec2 Force, CWeapon *pWeapon)
 	pPickup->RespawnDropable();
 	
 	pPickup->m_pWeapon = pWeapon;
-	pPickup->SetSubtype(pWeapon->GetWeaponType());
+	pPickup->SetWeaponSpec(pWeapon->GetWeaponSpec());
 	pWeapon->m_Disabled = true;
 	
 	pPickup->m_Vel = Force;
@@ -129,17 +129,51 @@ vec2 IGameController::GetGoalArea(int Team)
 	return vec2(0, 0);
 }
 
-int IGameController::GetRandomWeapon()
+CWeaponSpec IGameController::GetRandomWeapon()
 {
-	return GetRandomWeaponType(g_Config.m_SvSurvivalMode ? true : false);
+	constexpr int BALL_WEAPON_ROLL_SIDES = 13;
+	constexpr int BALL_PRIMARY_WEIGHT = 8;
+	constexpr int BALL_SECONDARY_WEIGHT = 5;
+	constexpr int RANGED_WEAPON_ROLL_SIDES = 13;
+	constexpr int RANGED_WEAPON_WEIGHT = 5;
+	constexpr int MELEE_WEAPON_ROLL_SIDES = 12;
+	constexpr int MELEE_WEAPON_WEIGHT = 3;
+	constexpr int PART_VARIANTS_PER_FAMILY = 4;
+
+	if(str_comp(g_Config.m_SvGametype, "ball") == 0)
+	{
+		if(rand() % BALL_WEAPON_ROLL_SIDES < BALL_PRIMARY_WEIGHT)
+			return CWeaponCatalog::Modular(PART1_BASE4, PART2_BARREL1 + rand() % PART_VARIANTS_PER_FAMILY);
+		if(rand() % BALL_WEAPON_ROLL_SIDES < BALL_SECONDARY_WEIGHT)
+			return CWeaponCatalog::Modular(PART1_BASE2, PART2_BARREL1 + rand() % PART_VARIANTS_PER_FAMILY);
+		return CWeaponCatalog::Static(SW_BAZOOKA);
+	}
+
+	if(rand() % RANGED_WEAPON_ROLL_SIDES < RANGED_WEAPON_WEIGHT)
+		return CWeaponCatalog::Modular(PART1_BASE1 + rand() % PART_VARIANTS_PER_FAMILY, PART2_BARREL1 + rand() % PART_VARIANTS_PER_FAMILY);
+	if(rand() % MELEE_WEAPON_ROLL_SIDES < MELEE_WEAPON_WEIGHT)
+		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + rand() % PART_VARIANTS_PER_FAMILY);
+
+	while(true)
+	{
+		const auto Type = static_cast<StaticWeaponType>(rand() % NUM_STATIC_WEAPONS);
+		if(Type == SW_SHURIKEN || Type == SW_CLAW || Type == SW_BOMB || Type == SW_BALL || Type == SW_SYRINGE)
+			continue;
+		if(!g_Config.m_SvSurvivalMode && Type == SW_RESPAWNER)
+			continue;
+		return CWeaponCatalog::Static(Type);
+	}
 }
 
-int IGameController::GetRandomModularWeapon()
+CWeaponSpec IGameController::GetRandomModularWeapon()
 {
-	if (frandom() < 0.2f)
-		return GetModularWeapon(5, 6+rand()%2);
+	constexpr float MELEE_WEAPON_CHANCE = 0.2f;
+	constexpr int RANGED_PART_VARIANTS = 4;
+	constexpr int MELEE_PART_VARIANTS = 2;
+	if (frandom() < MELEE_WEAPON_CHANCE)
+		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + rand() % MELEE_PART_VARIANTS);
 	
-	return GetModularWeapon(1+rand()%4, 1+rand()%4);
+	return CWeaponCatalog::Modular(PART1_BASE1 + rand() % RANGED_PART_VARIANTS, PART2_BARREL1 + rand() % RANGED_PART_VARIANTS);
 }
 
 bool IGameController::TriggerWeapon(class CWeapon *pWeapon)
@@ -794,7 +828,7 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 	}
 	else if (Index == ENTITY_TURRET)
 	{
-		new CTurret(&GameServer()->m_World, Pos+vec2(0, -10), TEAM_NEUTRAL, GameServer()->NewWeapon(GetModularWeapon(1, 1)));
+		new CTurret(&GameServer()->m_World, Pos+vec2(0, -10), TEAM_NEUTRAL, GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1)));
 		return true;
 	}
 	else if (Index == ENTITY_TESLACOIL)
@@ -897,9 +931,6 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 	}
 	else if(Index == ENTITY_BALL)
 	{
-		//Type = POWERUP_WEAPON;
-		//SubType = GetStaticWeapon(SW_BALL);
-			
 		if (!m_pBall)
 		{
 			m_pBall = new CBall(&GameServer()->m_World);
@@ -927,10 +958,9 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 				return true;
 		}
 		
-		if (Type == POWERUP_WEAPON && !SubType)
-			SubType = GetRandomWeapon();
-		
 		CPickup *pPickup = new CPickup(&GameServer()->m_World, Type, SubType);
+		if(Type == POWERUP_WEAPON)
+			pPickup->SetWeaponSpec(GetRandomWeapon());
 		pPickup->m_Pos = Pos;
 		
 		return true;
@@ -1320,7 +1350,7 @@ void IGameController::OnPlayerInfoChange(class CPlayer *pP)
 
 
 
-int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
+int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
 	if (pVictim->m_IsBot && pVictim->GetPlayer()->m_pAI)
 		pVictim->GetPlayer()->m_pAI->OnCharacterDeath();
@@ -1338,7 +1368,7 @@ int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *
 		}
 	}
 	
-	if (g_Config.m_SvSurvivalMode && Weapon != WEAPON_GAME)
+	if (g_Config.m_SvSurvivalMode && !(Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME))
 	{
 		//if (!pVictim->m_IsBot || pKiller)
 		//	m_SurvivalStatus = SURVIVAL_NOCANDO;
@@ -1360,7 +1390,7 @@ int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *
 	// pickup drops
 	if (!pVictim->m_IsBot || pVictim->m_DamagedByPlayer || !IsCoop())
 	{
-		if (g_Config.m_SvPickupDrops && Weapon != WEAPON_GAME)
+		if (g_Config.m_SvPickupDrops && !(Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME))
 		{
 			// drop stuff on death
 			DropPickup(pVictim->m_Pos, POWERUP_HEALTH, pVictim->m_LatestHitVel+vec2(frandom()*6.0-frandom()*6.0, frandom()*6.0-frandom()*6.0), 0);
@@ -1403,7 +1433,7 @@ int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *
 	}
 	
 	// give or take scores
-	if(!pKiller || Weapon == WEAPON_GAME)
+	if(!pKiller || (Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME))
 		return 0;
 	
 	// no kill scores for ball modes
@@ -1699,7 +1729,7 @@ void IGameController::KillEveryone()
 		if (pPlayer->GetTeam() != TEAM_SPECTATORS)
 		{
 			if (pPlayer->GetCharacter() && pPlayer->GetCharacter()->IsAlive())
-				pPlayer->GetCharacter()->Die(-1, WEAPON_GAME);
+				pPlayer->GetCharacter()->Die(CAttackSource::World(WEAPON_GAME));
 		}
 	}
 }

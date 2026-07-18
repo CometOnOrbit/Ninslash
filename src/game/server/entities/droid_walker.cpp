@@ -45,8 +45,11 @@ void CWalker::Reset()
 
 
 
-void CWalker::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
+void CWalker::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos)
 {
+	const int From = Source.m_Owner;
+	CWeaponCombatProfile Combat{};
+	CWeaponCatalog::TryResolveAttack(Source, &Combat);
 	if(m_Health <= 0)
 		return;
 	// skip everything while spawning
@@ -56,7 +59,7 @@ void CWalker::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 	if (g_Config.m_SvOneHitKill)
 		Dmg = 1000;
 	if(GameServer()->m_pPveDirector)
-		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(From, Weapon, Dmg, false, this);
+		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, false, this);
 
 	vec2 DmgPos = m_Pos + m_Center;
 	
@@ -71,9 +74,9 @@ void CWalker::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 	}
 	
 	// create damage indicator
-	if (WeaponElectroAmount(Weapon) > 0.0f)
+	if (Combat.m_ElectroAmount > 0.0f)
 		m_Status = DROIDSTATUS_ELECTRIC;
-	else if (WeaponFlameAmount(Weapon) > 0.0f)
+	else if (Combat.m_FlameAmount > 0.0f)
 		m_Status = DROIDSTATUS_HURT;
 	else
 	{
@@ -95,7 +98,7 @@ void CWalker::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 	if(m_Health <= 0)
 	{
 		if(GameServer()->m_pPveDirector)
-			GameServer()->m_pPveDirector->OnDroidKilled(this, From, Weapon);
+			GameServer()->m_pPveDirector->OnDroidKilled(this, Source);
 		// set attacker's face to happy (taunt!)
 		if (From >= 0 && GameServer()->m_apPlayers[From])
 		{
@@ -104,7 +107,7 @@ void CWalker::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 				pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
 		}
 
-		GameServer()->CreateExplosion(m_Pos+m_Center, TEAM_NEUTRAL, GetDroidWeapon(m_Type, true));
+		GameServer()->CreateExplosion(m_Pos+m_Center, CAttackSource::Droid(TEAM_NEUTRAL, m_Type, true));
 		
 		// random pickup drop
 		for (int i = 0; i < 3; i++)
@@ -118,9 +121,9 @@ void CWalker::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 		}
 		
 		if (frandom() < 0.10f)
-			GameServer()->m_pController->DropWeapon(m_Pos + vec2(0, -42), vec2(frandom()*6.0-frandom()*6.0, 0-frandom()*14.0), GameServer()->NewWeapon(GetStaticWeapon(SW_UPGRADE)));
+			GameServer()->m_pController->DropWeapon(m_Pos + vec2(0, -42), vec2(frandom()*6.0-frandom()*6.0, 0-frandom()*14.0), GameServer()->NewWeapon(CWeaponCatalog::Static(SW_UPGRADE)));
 		else if (frandom() < 0.05f)
-			GameServer()->m_pController->DropWeapon(m_Pos, vec2(frandom()*6.0-frandom()*6.0, 0-frandom()*14.0), GameServer()->NewWeapon(GetStaticWeapon(SW_RESPAWNER)));
+			GameServer()->m_pController->DropWeapon(m_Pos, vec2(frandom()*6.0-frandom()*6.0, 0-frandom()*14.0), GameServer()->NewWeapon(CWeaponCatalog::Static(SW_RESPAWNER)));
 
 		m_DeathTick = Server()->Tick();
 		GameServer()->m_World.DestroyEntity(this);
@@ -159,7 +162,7 @@ void CWalker::Tick()
 	}
 	
 	if (GameServer()->Collision()->IsInFluid(m_Pos.x, m_Pos.y))
-		TakeDamage(vec2(0, 0), 2, -1, vec2(0, 0), DAMAGETYPE_FLUID);
+		TakeDamage(vec2(0, 0), 2, CAttackSource::World(DAMAGETYPE_FLUID), vec2(0, 0));
 	
 	bool WillFire = false;
 	
@@ -354,8 +357,8 @@ void CWalker::Fire()
 		
 		GameServer()->CreateSound(m_Pos, SOUND_WALKER_FIRE);
 		
-		GameServer()->CreateProjectile(NEUTRAL_BASE, GetDroidWeapon(m_Type), 0, TurretPos+normalize(m_Target*-1)*32.0f, m_Target*-1, TurretPos);
-		GameServer()->CreateProjectile(NEUTRAL_BASE, GetDroidWeapon(m_Type), 0, TurretPos+normalize(m_Target*-1)*32.0f+vec2(m_Dir * 4, -8), m_Target*-1, TurretPos);
+		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type), 0, TurretPos+normalize(m_Target*-1)*32.0f, m_Target*-1, TurretPos);
+		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type), 0, TurretPos+normalize(m_Target*-1)*32.0f+vec2(m_Dir * 4, -8), m_Target*-1, TurretPos);
 		
 		m_AttackTick = Server()->Tick();
 		

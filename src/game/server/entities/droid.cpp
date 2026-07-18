@@ -45,8 +45,11 @@ void CDroid::Reset()
 
 
 
-void CDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
+void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos)
 {
+	const int From = Source.m_Owner;
+	CWeaponCombatProfile Combat{};
+	CWeaponCatalog::TryResolveAttack(Source, &Combat);
 	if(m_Health <= 0)
 		return;
 	// skip everything while spawning
@@ -58,7 +61,7 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 	if(GameServer()->m_pPveDirector)
 	{
 		const bool Boss = m_Type == DROIDTYPE_BOSSCRAWLER || m_Type == DROIDTYPE_BOSSSTAR || m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER || m_Type == DROIDTYPE_SIEGE_ENGINE || m_Type == DROIDTYPE_OVERSEER_CORE;
-		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(From, Weapon, Dmg, Boss, this);
+		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, Boss, this);
 	}
 	// A living Bulwark projects 35% cover to mechanical allies within 300 units. Keep this in
 	// the common damage path so legacy droids and both new bosses benefit too.
@@ -79,9 +82,9 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 	vec2 DmgPos = m_Pos + m_Center;
 	
 	// create damage indicator
-	if (WeaponElectroAmount(Weapon) > 0.0f)
+	if (Combat.m_ElectroAmount > 0.0f)
 		m_Status = DROIDSTATUS_ELECTRIC;
-	else if (WeaponFlameAmount(Weapon) > 0.0f)
+	else if (Combat.m_FlameAmount > 0.0f)
 		m_Status = DROIDSTATUS_HURT;
 	else
 	{
@@ -103,7 +106,7 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 	if(m_Health <= 0)
 	{
 		if(GameServer()->m_pPveDirector)
-			GameServer()->m_pPveDirector->OnDroidKilled(this, From, Weapon);
+			GameServer()->m_pPveDirector->OnDroidKilled(this, Source);
 		// set attacker's face to happy (taunt!)
 		if (From >= 0 && GameServer()->m_apPlayers[From])
 		{
@@ -112,7 +115,7 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon)
 				pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
 		}
 
-		GameServer()->CreateExplosion(m_Pos+m_Center, TEAM_NEUTRAL, GetDroidWeapon(m_Type, true));
+		GameServer()->CreateExplosion(m_Pos+m_Center, CAttackSource::Droid(TEAM_NEUTRAL, m_Type, true));
 		m_DeathTick = Server()->Tick();
 		
 		// random pickup drop

@@ -12,7 +12,6 @@
 
 #include "building.h"
 #include "projectile.h"
-#include "superexplosion.h"
 #include "laserfail.h"
 
 CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
@@ -277,7 +276,7 @@ void CBuilding::Move()
 	if (m_DestroyOnFall)
 	{
 		//m_Life = 1;
-		TakeDamage(200, -1, 0);
+		TakeDamage(200, CAttackSource::World(WEAPON_WORLD));
 		return;
 	}
 	
@@ -312,7 +311,7 @@ void CBuilding::Move()
 	if ((((OldVel.y < 0 && m_Vel.y > 0) || (OldVel.y > 0 && m_Vel.y < 0)) && abs(m_Vel.y) > 2.0f))
 	{
 		GameServer()->CreateSound(m_Pos, SOUND_SFX_BOUNCE1);
-		TakeDamage(abs(m_Vel.y)*10, -1, 0);
+		TakeDamage(abs(m_Vel.y)*10, CAttackSource::World(WEAPON_WORLD));
 	}
 	
 	if (m_AttachOnFall && m_Vel.y == 0.0f && OldVel.y > 0.0f)
@@ -322,7 +321,7 @@ void CBuilding::Move()
 		if (m_Mirror && (m_Type == BUILDING_TESLACOIL || m_Type == BUILDING_STAND || m_Type == BUILDING_TURRET))
 		{
 			m_Life = 1;
-			TakeDamage(20, -1, 0);
+			TakeDamage(20, CAttackSource::World(WEAPON_WORLD));
 		}
 	}
 }
@@ -508,8 +507,15 @@ void CBuilding::SetPveReactorObjective(bool Active, int MaxLife)
 	}
 }
 
-void CBuilding::TakeDamage(int Damage, int Owner, int Weapon, vec2 Force)
+void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 {
+	const int Owner = Source.m_Owner;
+	CWeaponCombatProfile Combat{};
+	CWeaponCatalog::TryResolveAttack(Source, &Combat);
+	CWeaponDefinition WeaponDefinition{};
+	const bool HasWeaponDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon && CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &WeaponDefinition);
+	const bool IsBomb = HasWeaponDefinition && WeaponDefinition.m_Kind == EWeaponDefinitionKind::Static && WeaponDefinition.m_StaticType == SW_BOMB;
+	const bool IsReactorSource = Source.m_Kind == EAttackSourceKind::Building && Source.m_Type == BUILDING_REACTOR;
 	if(m_Type == BUILDING_SWITCH && !m_PveSwitchActive)
 		return;
 	if(m_PveReactorObjective && Damage > 0 && Owner >= 0 && Owner < MAX_CLIENTS)
@@ -522,8 +528,8 @@ void CBuilding::TakeDamage(int Damage, int Owner, int Weapon, vec2 Force)
 		Damage = -GameServer()->m_pPveDirector->ModifyBuildingRepair(Owner, -Damage);
 	else if(Damage > 0 && GameServer()->m_pPveDirector)
 	{
-		Damage = GameServer()->m_pPveDirector->ModifyDamage(Owner, -2, Weapon, Damage);
-		if(GameServer()->m_pPveDirector->PerkStacks(Owner, PVE_CARD_SIEGE_PAYLOAD) && IsExplosiveProjectile(Weapon))
+		Damage = GameServer()->m_pPveDirector->ModifyDamage(Source, -2, Damage);
+		if(GameServer()->m_pPveDirector->PerkStacks(Owner, PVE_CARD_SIEGE_PAYLOAD) && Combat.m_ExplosiveProjectile)
 			Damage = max(1, Damage * 130 / 100);
 	}
 	if (m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON] && Owner >= 0 && GameServer()->m_apPlayers[Owner] && !GameServer()->m_apPlayers[Owner]->m_IsBot)
@@ -537,7 +543,7 @@ void CBuilding::TakeDamage(int Damage, int Owner, int Weapon, vec2 Force)
 	}
 	
 	// reactor defense
-	if (m_Type == BUILDING_REACTOR && !m_PveReactorObjective && (GetBuildingType(Weapon) == BUILDING_REACTOR || GetStaticType(Weapon) == SW_BOMB))
+	if (m_Type == BUILDING_REACTOR && !m_PveReactorObjective && (IsReactorSource || IsBomb))
 	{
 		m_Life = 0;
 		m_DeathTimer = 5;
@@ -648,12 +654,11 @@ void CBuilding::Destroy()
 		GameServer()->m_pPveDirector->RefundBuilding(m_PveBuilder, m_PveKitCost);
 	}
 	
-	GameServer()->CreateExplosion(m_Pos, m_DamageOwner, GetBuildingWeapon(m_Type));
+	GameServer()->CreateExplosion(m_Pos, CAttackSource::Building(m_DamageOwner, m_Type));
 	
 	if (m_Type == BUILDING_MINE1)
 	{
 		m_Life = 9000;
-		//GameServer()->CreateMineExplosion(m_Pos, m_DamageOwner, GetBuildingWeapon(m_Type), false);
 		GameServer()->m_World.DestroyEntity(this);
 	}
 	else if (m_Type == BUILDING_MINE2)
@@ -688,7 +693,6 @@ void CBuilding::Destroy()
 	else if (m_Type == BUILDING_FLAMETRAP)
 	{
 		//GameServer()->CreateSound(m_Pos, SOUND_GRENADE_EXPLODE);
-		//GameServer()->CreateExplosion(m_Pos, m_DamageOwner, GetBuildingWeapon(m_Type));
 		GameServer()->m_World.DestroyEntity(this);
 	}
 	else if (m_Type == BUILDING_LIGHTNINGWALL)
@@ -805,7 +809,7 @@ void CBuilding::Tick()
 		{
 			m_LightningBlockCheckTick = Server()->Tick() + max(1, Server()->TickSpeed() / 10);
 			if(GameServer()->Collision()->IntersectBlocks(m_Pos, m_Pos+vec2(0, -m_Height)))
-				TakeDamage(200, -1, 0);
+				TakeDamage(200, CAttackSource::World(WEAPON_WORLD));
 		}
 		
 		if (!GameServer()->m_World.GetFriendlyCharacterInBox(m_Pos+vec2(-64, -(m_Height-48)), m_Pos+vec2(64, 0), m_Team))
@@ -815,7 +819,7 @@ void CBuilding::Tick()
 			CCharacter *pHit = GameServer()->m_World.IntersectCharacter(m_Pos, m_Pos+vec2(0, -m_Height), 4.0f, At);
 			
 			if(pHit)
-				pHit->TakeDamage(NEUTRAL_BASE, GetBuildingWeapon(m_Type), 3, vec2(0, 0), vec2(0, 0));
+				pHit->TakeDamage(CAttackSource::Building(NEUTRAL_BASE, m_Type), 3, vec2(0, 0), vec2(0, 0));
 		}
 		else
 		{
@@ -862,7 +866,7 @@ void CBuilding::Tick()
 			else
 				Dir = vec2(0.f, 0.f);
 
-			pTarget->TakeDamage(Dir * 10.0f, 5, -1, vec2(0, 0), GetBuildingWeapon(BUILDING_SAWBLADE));
+			pTarget->TakeDamage(Dir * 10.0f, 5, CAttackSource::Building(-1, BUILDING_SAWBLADE), vec2(0, 0));
 		}
 	}
 	
@@ -893,8 +897,9 @@ void CBuilding::Tick()
 				
 					if(pChr && pChr->IsAlive())
 					{
-						pChr->TakeDamage(NEUTRAL_BASE, GetBuildingWeapon(m_Type), 2, vec2(0, 0), vec2(0, 0));
-						pChr->SetAflame(1.0f, NEUTRAL_BASE, GetBuildingWeapon(m_Type));
+						const CAttackSource Source = CAttackSource::Building(NEUTRAL_BASE, m_Type);
+						pChr->TakeDamage(Source, 2, vec2(0, 0), vec2(0, 0));
+						pChr->SetAflame(1.0f, Source);
 					}
 				}
 				{
@@ -902,8 +907,9 @@ void CBuilding::Tick()
 				
 					if(pChr && pChr->IsAlive())
 					{
-						pChr->TakeDamage(NEUTRAL_BASE, GetBuildingWeapon(m_Type), 2, vec2(0, 0), vec2(0, 0));
-						pChr->SetAflame(1.0f, NEUTRAL_BASE, GetBuildingWeapon(m_Type));
+						const CAttackSource Source = CAttackSource::Building(NEUTRAL_BASE, m_Type);
+						pChr->TakeDamage(Source, 2, vec2(0, 0), vec2(0, 0));
+						pChr->SetAflame(1.0f, Source);
 					}
 				}
 			}

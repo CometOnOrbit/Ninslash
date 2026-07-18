@@ -1018,7 +1018,7 @@ int CGameControllerInvasion::SpawnObjectiveTurrets(int Count)
 		}
 		if(TooClose)
 			continue;
-		CWeapon *pWeapon = GameServer()->NewWeapon(GetModularWeapon(1, 1));
+		CWeapon *pWeapon = GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1));
 		if(!pWeapon)
 			continue;
 		CTurret *pTurret = new CTurret(&GameServer()->m_World, Pos, -1, pWeapon);
@@ -1296,16 +1296,16 @@ void CGameControllerInvasion::SetReactorDefenseActive(bool Active)
 }
 
 
-int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
+int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
-	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 	if(!pVictim->m_IsBot && GameServer()->m_pPveDirector)
 		GameServer()->m_pPveDirector->OnPlayerDeath(pVictim->GetPlayer()->GetCID());
 
 	if (pVictim->m_IsBot && !pVictim->GetPlayer()->m_ToBeKicked)
 	{
 		if(pKiller && !pKiller->m_IsBot && GameServer()->m_pPveDirector)
-			GameServer()->m_pPveDirector->OnEnemyKilled(pKiller->GetCID(), Weapon, pVictim->m_Pos, pVictim);
+			GameServer()->m_pPveDirector->OnEnemyKilled(Source, pVictim->m_Pos, pVictim);
 		if (m_EnemiesLeft <= 0 || m_EscapeSpawnActive || m_DefendLevel)
 			pVictim->GetPlayer()->m_ToBeKicked = true;
 		
@@ -1314,9 +1314,9 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim, class C
 			Trigger(true);
 			
 			if (frandom() < 0.013f)
-				GameServer()->m_pController->DropWeapon(pVictim->m_Pos, vec2(frandom()*6.0-frandom()*6.0, 0-frandom()*14.0), GameServer()->NewWeapon(GetStaticWeapon(SW_UPGRADE)));
+				GameServer()->m_pController->DropWeapon(pVictim->m_Pos, vec2(frandom()*6.0-frandom()*6.0, 0-frandom()*14.0), GameServer()->NewWeapon(CWeaponCatalog::Static(SW_UPGRADE)));
 			else if (frandom() < 0.013f)
-				GameServer()->m_pController->DropWeapon(pVictim->m_Pos, vec2(frandom()*6.0-frandom()*6.0, 0-frandom()*14.0), GameServer()->NewWeapon(GetStaticWeapon(SW_RESPAWNER)));
+				GameServer()->m_pController->DropWeapon(pVictim->m_Pos, vec2(frandom()*6.0-frandom()*6.0, 0-frandom()*14.0), GameServer()->NewWeapon(CWeaponCatalog::Static(SW_RESPAWNER)));
 		}
 	}
 	

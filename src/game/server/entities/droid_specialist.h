@@ -10,7 +10,7 @@ public:
 	void Reset() override;
 	void Tick() override;
 	void TickPaused() override;
-	void TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon) override;
+	void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos) override;
 
 protected:
 	virtual void AbilityTick();

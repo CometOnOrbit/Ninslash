@@ -7,24 +7,28 @@
 #include "building.h"
 #include "droid.h"
 #include "electro.h"
-#include "superexplosion.h"
 
 inline vec2 RandomDir() { return normalize(vec2(frandom()-0.5f, frandom()-0.5f)); }
 
-CProjectile::CProjectile(CGameWorld *pGameWorld, int Weapon, int Owner, vec2 Pos, vec2 Dir, vec2 Vel, int Span,
-		int Damage, int Explosive, float Force, int SoundImpact)
+namespace
+{
+constexpr float PROJECTILE_DIRECTION_NETWORK_SCALE = 100.0f;
+constexpr float PROJECTILE_VELOCITY_NETWORK_SCALE = 10.0f;
+}
+
+CProjectile::CProjectile(CGameWorld *pGameWorld, const CAttackSource &Source, vec2 Pos, vec2 Dir, vec2 Vel, int Span,
+		int Damage, float Force, int SoundImpact)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_PROJECTILE)
 {
-	m_Weapon = Weapon;
+	m_Source = Source;
 	m_Pos = Pos;
 	m_Direction = Dir;
 	m_LifeSpan = Span;
-	m_Owner = Owner;
+	m_Owner = Source.m_Owner;
 	m_Force = Force;
 	m_Damage = Damage;
 	m_SoundImpact = SoundImpact;
 	m_StartTick = Server()->Tick();
-	m_Explosive = Explosive;
 	m_Bounces = 0;
 	m_Vel2 = Vel*30.0f;
 
@@ -47,20 +51,45 @@ void CProjectile::Reset()
 
 void CProjectile::UpdateStats()
 {
-	m_Part1 = GetPart(m_Weapon, 0);
-	m_Part2 = GetPart(m_Weapon, 1);
-	m_Speed = GetProjectileSpeed(m_Weapon);
-	m_Curvature = GetProjectileCurvature(m_Weapon);
-	m_Bounces = IsProjectileBouncy(m_Weapon);
+	CWeaponCombatProfile Combat{};
+	CWeaponVisualProfile Visual{};
+	CWeaponCatalog::TryResolveAttack(m_Source, &Combat, &Visual);
+	m_Speed = Combat.m_ProjectileSpeed;
+	m_Curvature = Combat.m_ProjectileCurvature;
+	m_ProjectilePosType = Combat.m_ProjectilePosType;
+	m_Explosive = Combat.m_ExplosiveProjectile;
+	m_ProjectileSize = Visual.m_ProjectileSize;
+	m_Part1 = 0;
+	m_Part2 = 0;
+	m_StaticType = -1;
+	m_WeaponLevel = 0;
+	m_WeaponMaxLevel = 0;
+	if(m_Source.m_Kind == EAttackSourceKind::PlayerWeapon)
+	{
+		CWeaponDefinition Definition;
+		if(CWeaponCatalog::TryGetDefinition(m_Source.m_Weapon.m_DefinitionId, &Definition))
+		{
+			m_WeaponLevel = m_Source.m_Weapon.m_Level;
+			m_WeaponMaxLevel = Definition.m_MaxLevel;
+			if(Definition.m_Kind == EWeaponDefinitionKind::Static)
+				m_StaticType = Definition.m_StaticType;
+			else
+			{
+				m_Part1 = Definition.m_Part1;
+				m_Part2 = Definition.m_Part2;
+			}
+		}
+	}
+	m_Bounces = Combat.m_ProjectileBounces;
 }
 
 
 vec2 CProjectile::GetPos(float Time)
 {
-	if (WeaponProjectilePosType(m_Weapon) == 1)
+	if (m_ProjectilePosType == WEAPON_PROJECTILE_PATH_LOG)
 		return CalcLogPos(m_Pos, m_Direction, m_Vel2, m_Curvature, m_Speed, Time);
 	
-	if (WeaponProjectilePosType(m_Weapon) == 2)
+	if (m_ProjectilePosType == WEAPON_PROJECTILE_PATH_ROCKET)
 		return CalcRocketPos(m_Pos, m_Direction, m_Vel2, m_Curvature, m_Speed, Time);
 	
 	return CalcPos(m_Pos, m_Direction, m_Vel2, m_Curvature, m_Speed, Time);
@@ -79,7 +108,7 @@ bool CProjectile::Bounce(vec2 Pos, int Collision)
 		m_Direction = GameServer()->Collision()->WallReflect(Pos, m_Direction, Collision);
 		m_Vel2 = GameServer()->Collision()->WallReflect(Pos, m_Vel2, Collision);
 		
-		if (GetStaticType(m_Weapon) == SW_CLUSTER)
+		if (m_StaticType == SW_CLUSTER)
 			GameServer()->CreateSound(Pos, SOUND_SFX_BOUNCE1);
 		else
 			GameServer()->CreateSound(Pos, SOUND_BOUNCER_BOUNCE);
@@ -107,7 +136,7 @@ void CProjectile::Tick()
 	else
 		Collide = GameServer()->Collision()->IntersectLine(PrevPos, CurPos, &CurPos, 0);
 	
-	float r = 6.0f * GetProjectileSize(m_Weapon);
+	float r = 6.0f * m_ProjectileSize;
 	
 	// Reflection and ordinary character hits share the same candidate list.
 	// Resolve both in one pass; reflection keeps its original priority.
@@ -185,7 +214,7 @@ void CProjectile::Tick()
 		if(TargetChr)
 		{
 			vec2 Force = m_Direction * max(0.001f, m_Force);
-			TargetChr->TakeDamage(m_Owner, m_Weapon, m_Damage, Force, CurPos);
+			TargetChr->TakeDamage(m_Source, m_Damage, Force, CurPos);
 			
 			GameServer()->CreateEffect(FX_BLOOD2, (CurPos+TargetChr->m_Pos)/2.0f + vec2(0, -4));
 		}
@@ -204,24 +233,24 @@ void CProjectile::Tick()
 				if (distance(TargetBuilding->m_Pos, CurPos) > TargetBuilding->m_ProximityRadius)
 				{
 					GameServer()->CreateEffect(FX_SHIELDHIT, CurPos);
-					TargetBuilding->TakeDamage(m_Damage/3, m_Owner, m_Weapon, Force);
+					TargetBuilding->TakeDamage(m_Damage/3, m_Source, Force);
 				}
 				else
 				{
 					GameServer()->CreateBuildingHit(CurPos);
-					TargetBuilding->TakeDamage(m_Damage, m_Owner, m_Weapon, Force);
+					TargetBuilding->TakeDamage(m_Damage, m_Source, Force);
 				}
 			}
 			else
 			{
 				GameServer()->CreateBuildingHit(CurPos);
-				TargetBuilding->TakeDamage(m_Damage, m_Owner, m_Weapon, Force);
+				TargetBuilding->TakeDamage(m_Damage, m_Source, Force);
 			}
 		}
 		
 		if (TargetMonster)
 		{
-			TargetMonster->TakeDamage(m_Direction * max(0.001f, m_Force), m_Damage, m_Owner, CurPos, m_Weapon);
+			TargetMonster->TakeDamage(m_Direction * max(0.001f, m_Force), m_Damage, m_Source, CurPos);
 		}
 		
 		if (Ball)
@@ -232,18 +261,19 @@ void CProjectile::Tick()
 		}
 		
 		// cluster grenades
-		if (IsStaticWeapon(m_Weapon) && GetStaticType(m_Weapon) == SW_CLUSTER && GetWeaponCharge(m_Weapon) < 15)
+		if (m_StaticType == SW_CLUSTER && m_WeaponLevel < WEAPON_CLUSTER_FRAGMENT_LEVEL)
 		{
-			for (int i = 0; i < 1+GetWeaponLevelCharge(m_Weapon)*2.0f; i++)
+			const float LevelCharge = m_WeaponLevel / float(max(1, m_WeaponMaxLevel));
+			for (int i = 0; i < 1 + LevelCharge * 2.0f; i++)
 			{
-				GameServer()->CreateProjectile(m_Owner, GetChargedWeapon(GetStaticWeapon(SW_CLUSTER), 15), 0, PrevPos, normalize(RandomDir()), PrevPos);
+				GameServer()->CreateProjectile(CAttackSource::PlayerWeapon(m_Owner, CWeaponCatalog::Static(SW_CLUSTER, WEAPON_CLUSTER_FRAGMENT_LEVEL)), 0, PrevPos, normalize(RandomDir()), PrevPos);
 			}
 		}
 		
 		if (m_LifeSpan < 0)
-			GameServer()->CreateExplosion(PrevPos, m_Owner, m_Weapon);
-		else if (IsExplosiveProjectile(m_Weapon))
-			GameServer()->CreateExplosion(CurPos, m_Owner, m_Weapon);
+			GameServer()->CreateExplosion(PrevPos, m_Source);
+		else if (m_Explosive)
+			GameServer()->CreateExplosion(CurPos, m_Source);
 		
 		GameServer()->m_World.DestroyEntity(this);
 	}
@@ -262,12 +292,15 @@ void CProjectile::FillInfo(CNetObj_Projectile *pProj)
 {
 	pProj->m_X = (int)m_Pos.x;
 	pProj->m_Y = (int)m_Pos.y;
-	pProj->m_VelX = (int)(m_Direction.x*100.0f);
-	pProj->m_VelY = (int)(m_Direction.y*100.0f);
-	pProj->m_Vel2X = (int)(m_Vel2.x*10.0f);
-	pProj->m_Vel2Y = (int)(m_Vel2.y*10.0f);
+	pProj->m_VelX = (int)(m_Direction.x * PROJECTILE_DIRECTION_NETWORK_SCALE);
+	pProj->m_VelY = (int)(m_Direction.y * PROJECTILE_DIRECTION_NETWORK_SCALE);
+	pProj->m_Vel2X = (int)(m_Vel2.x * PROJECTILE_VELOCITY_NETWORK_SCALE);
+	pProj->m_Vel2Y = (int)(m_Vel2.y * PROJECTILE_VELOCITY_NETWORK_SCALE);
 	pProj->m_StartTick = m_StartTick;
-	pProj->m_Type = m_Weapon;
+	pProj->m_SourceKind = static_cast<int>(m_Source.m_Kind);
+	pProj->m_SourceType = m_Source.m_Type;
+	pProj->m_WeaponDefinitionId = static_cast<int>(m_Source.m_Weapon.m_DefinitionId);
+	pProj->m_WeaponLevel = m_Source.m_Weapon.m_Level;
 }
 
 void CProjectile::Snap(int SnappingClient)

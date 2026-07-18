@@ -42,23 +42,23 @@ void CAIrobot1::OnCharacterSpawn(CCharacter *pChr)
 		m_PowerLevel = 6;
 		pChr->SetHealth(50+min(Level*2.0f, 100.0f));
 		pChr->SetArmor(50+min(Level*2.0f, 100.0f));
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetModularWeapon(3, 4)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(3, 4)));
 	}
 	else if (m_Skin == SKIN_ROBO2)
 	{
 		m_PowerLevel = 2;
 		pChr->SetHealth(60+min(Level*2.0f, 200.0f));
 		pChr->SetArmor(60+min(Level*2.0f, 200.0f));
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_CHAINSAW)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_CHAINSAW)));
 	}
 	else if (m_Skin == SKIN_ROBO3)
 	{
 		m_PowerLevel = 6;
 		pChr->SetHealth(70+min(Level*3.0f, 200.0f));
 		pChr->SetArmor(70+min(Level*3.0f, 300.0f));
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetModularWeapon(1, 2)));
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE1)));
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetStaticWeapon(SW_GRENADE1)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 2)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE1)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE1)));
 		pChr->m_Kits = 1;
 	}
 	else if (m_Skin == SKIN_ROBO4)
@@ -66,7 +66,7 @@ void CAIrobot1::OnCharacterSpawn(CCharacter *pChr)
 		m_PowerLevel = 10;
 		pChr->SetHealth(80+min(Level*3.0f, 200.0f));
 		pChr->SetArmor(80+min(Level*3.0f, 300.0f));
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(3, 1+rand()%4), 2)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(3, 1 + rand() % 4, 2)));
 		pChr->m_Kits = 1;
 	}
 	else if (m_Skin == SKIN_ROBO5)
@@ -74,7 +74,7 @@ void CAIrobot1::OnCharacterSpawn(CCharacter *pChr)
 		m_PowerLevel = 14;
 		pChr->SetHealth(90+min(Level*3.0f, 200.0f));
 		pChr->SetArmor(90+min(Level*3.0f, 300.0f));
-		pChr->GiveWeapon(GameServer()->NewWeapon(GetChargedWeapon(GetModularWeapon(6, 9), 2)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(6, 9, 2)));
 		m_AttackOnDamage = true;
 	}
 	

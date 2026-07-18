@@ -34,10 +34,9 @@ void CKillMessages::OnMessage(int MsgType, void *pRawMsg)
 		str_copy(Kill.m_aKillerName, m_pClient->m_aClients[Kill.m_KillerID].m_aName, sizeof(Kill.m_aKillerName));
 		Kill.m_KillerRenderInfo = m_pClient->m_aClients[Kill.m_KillerID].m_RenderInfo;
 		CAttackSource Source;
-		Source.m_Kind = static_cast<EAttackSourceKind>(pMsg->m_SourceKind);
-		Source.m_Type = pMsg->m_SourceType;
-		CWeaponCatalog::TryFromProtocol(pMsg->m_WeaponDefinitionId, pMsg->m_WeaponLevel, &Source.m_Weapon);
-		Kill.m_Weapon = Source.ToLegacy();
+		if(!CWeaponCatalog::TryAttackSourceFromProtocol(pMsg->m_SourceKind, pMsg->m_SourceType, pMsg->m_WeaponDefinitionId, pMsg->m_WeaponLevel, &Source))
+			return;
+		Kill.m_Source = Source;
 		Kill.m_ModeSpecial = pMsg->m_ModeSpecial;
 		Kill.m_Tick = Client()->GameTick();
 
@@ -139,27 +138,12 @@ void CKillMessages::OnRender()
 		x -= 48.0f;
 		
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-		RenderTools()->SetShadersForWeapon(m_aKillmsgs[r].m_Weapon);
-		
-		RenderTools()->RenderWeapon(m_aKillmsgs[r].m_Weapon, vec2(x+5, y+30), vec2(1, 0), 16, true, 0, 1.0f, true);
-		Graphics()->ShaderEnd();
-		
-		/*
-		Graphics()->QuadsBegin();
-		RenderTools()->RenderWeapon(m_aKillmsgs[r].m_Weapon, vec2(x+5, y+30), vec2(1, 0), 16);
-		Graphics()->QuadsEnd();
-		Graphics()->ShaderEnd();
-		*/
-		
-		/*
-		if (IsTurret(m_aKillmsgs[r].m_Weapon))
+		if(m_aKillmsgs[r].m_Source.m_Kind == EAttackSourceKind::PlayerWeapon)
 		{
-			Graphics()->QuadsBegin();
-			RenderTools()->SelectSprite(SPRITE_WEAPON_TURRET);
-			
-			Graphics()->QuadsEnd();
+			RenderTools()->SetShadersForWeapon(m_aKillmsgs[r].m_Source.m_Weapon);
+			RenderTools()->RenderWeapon(m_aKillmsgs[r].m_Source.m_Weapon, vec2(x+5, y+30), vec2(1, 0), 16, true, 0, 1.0f, true);
+			Graphics()->ShaderEnd();
 		}
-		*/
 		
 		/*
 		if (m_aKillmsgs[r].m_Weapon >= 0)

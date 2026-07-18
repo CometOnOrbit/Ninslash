@@ -2,6 +2,7 @@
 #define GAME_SERVER_ENTITIES_BUILDING_H
 
 #include <game/server/entity.h>
+#include <game/weapon_catalog.h>
 
 const int BuildingPhysSize = 32;
 const int TurretPhysSize = 32;
@@ -32,9 +33,9 @@ public:
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 
-	virtual int GetItem(int Slot)
+	virtual CWeaponSpec GetItem(int Slot)
 	{
-		return 0;
+		return {};
 	}
 	
 	virtual void ClearItem(int Slot) { }
@@ -78,7 +79,7 @@ public:
 	void Trigger();
 	void SetPveSwitchActive(bool Active);
 	void SetPveReactorObjective(bool Active, int MaxLife = 0);
-	virtual void TakeDamage(int Damage, int Owner, int Weapon, vec2 Force = vec2(0, 0));
+	virtual void TakeDamage(int Damage, const CAttackSource &Source, vec2 Force = vec2(0, 0));
 	void Destroy();
 	
 	vec2 m_DamagePos;

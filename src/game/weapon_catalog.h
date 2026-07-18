@@ -2,18 +2,41 @@
 #define GAME_WEAPON_CATALOG_H
 
 #include <cstdint>
+#include <limits>
 
 #include <base/vmath.h>
 
 #include <game/weapons.h>
+
+constexpr int WEAPON_MODULAR_PART1_COUNT = PART1_SPIN;
+constexpr int WEAPON_MODULAR_PART2_COUNT = PART2_MELEE4;
+constexpr int WEAPON_RANGED_PART1_COUNT = PART1_BASE4 - PART1_BASE1 + 1;
+constexpr int WEAPON_RANGED_PART2_COUNT = PART2_CHARGE - PART2_BARREL1 + 1;
+constexpr int WEAPON_MELEE_PART1_COUNT = PART1_SPIN - PART1_MELEE + 1;
+constexpr int WEAPON_MELEE_PART2_COUNT = PART2_MELEE4 - PART2_MELEE1 + 1;
+constexpr int WEAPON_DEFINITION_MODULAR_BASE = 100;
+constexpr int WEAPON_SPEC_MAX_LEVEL = 15;
+constexpr int WEAPON_SPEC_LEVEL_COUNT = WEAPON_SPEC_MAX_LEVEL + 1;
+constexpr int WEAPON_DEFINITION_COUNT = NUM_STATIC_WEAPONS + WEAPON_RANGED_PART1_COUNT * WEAPON_RANGED_PART2_COUNT + WEAPON_MELEE_PART1_COUNT * WEAPON_MELEE_PART2_COUNT;
+constexpr int WEAPON_PROFILE_COUNT = WEAPON_DEFINITION_COUNT * WEAPON_SPEC_LEVEL_COUNT;
+constexpr int WEAPON_DROID_PROFILE_COUNT = NUM_DROIDTYPES;
+constexpr int WEAPON_BUILDING_PROFILE_COUNT = BUILDING_PVE_SHIELD_NODE + 1;
+constexpr int WEAPON_CLUSTER_FRAGMENT_LEVEL = WEAPON_SPEC_MAX_LEVEL;
+constexpr int WEAPON_UPGRADE_SUPERCHARGE_LEVEL = 4;
+constexpr int WEAPON_HIGH_TIER_MIN_MAX_LEVEL = 4;
+constexpr int WEAPON_HIGH_TIER_SUPERCHARGE_BONUS = 4;
+constexpr int WEAPON_HIGH_TIER_SUPERCHARGE_STEP = 2;
+constexpr int WEAPON_LOW_TIER_SUPERCHARGE_BONUS = 2;
+constexpr int WEAPON_LOW_TIER_SUPERCHARGE_STEP = 1;
+constexpr float WEAPON_INFINITE_PROJECTILE_LIFETIME = std::numeric_limits<float>::infinity();
 
 enum class WeaponDefinitionId : uint16_t
 {
 	Invalid = 0,
 	StaticFirst = 1,
 	StaticLast = StaticFirst + NUM_STATIC_WEAPONS - 1,
-	ModularFirst = 100,
-	ModularLast = ModularFirst + 6 * 9 - 1,
+	ModularFirst = WEAPON_DEFINITION_MODULAR_BASE,
+	ModularLast = ModularFirst + WEAPON_MODULAR_PART1_COUNT * WEAPON_MODULAR_PART2_COUNT - 1,
 };
 
 struct CWeaponSpec
@@ -66,6 +89,19 @@ struct CWeaponCombatProfile
 	float m_BurstReload;
 	int m_AiAttackRange;
 	bool m_ValidForTurret;
+	float m_ThrowForce;
+	float m_FlameAmount;
+	float m_ElectroAmount;
+	bool m_ExplosiveProjectile;
+	bool m_LaserWeapon;
+	int m_CursorWeapon;
+	int m_Cost;
+	bool m_Aimline;
+	int m_ProjectilePosType;
+	int m_LaserRange;
+	int m_LaserCharge;
+	int m_ProjectileBounces;
+	bool m_AutoPick;
 };
 
 struct CWeaponVisualProfile
@@ -89,6 +125,7 @@ struct CWeaponVisualProfile
 	int m_FireSound2;
 	int m_MuzzleType;
 	int m_MuzzleAmount;
+	float m_ScreenshakeAmount;
 };
 
 struct CResolvedWeaponProfile
@@ -99,19 +136,20 @@ struct CResolvedWeaponProfile
 	CWeaponVisualProfile m_Visual;
 };
 
+struct CAttackSource;
+
 class CWeaponCatalog
 {
 public:
 	static bool TryGetDefinition(WeaponDefinitionId Id, CWeaponDefinition *pDefinition);
+	static CWeaponSpec Static(StaticWeaponType Type, int Level = 0);
+	static CWeaponSpec Modular(int Part1, int Part2, int Level = 0);
 	static bool IsValidSpec(const CWeaponSpec &Spec);
 	static bool TryResolve(const CWeaponSpec &Spec, CResolvedWeaponProfile *pProfile);
 	static bool Validate();
 	static bool TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec);
-	static int ProtocolToLegacy(int DefinitionId, int Level);
-
-	// Temporary migration boundary. Bit-packed values must not escape through new APIs.
-	static bool TryFromLegacy(int LegacyWeapon, CWeaponSpec *pSpec);
-	static int ToLegacy(const CWeaponSpec &Spec);
+	static bool TryResolveAttack(const CAttackSource &Source, CWeaponCombatProfile *pCombat, CWeaponVisualProfile *pVisual = nullptr);
+	static bool TryAttackSourceFromProtocol(int Kind, int Type, int DefinitionId, int Level, CAttackSource *pSource);
 };
 
 enum class EAttackSourceKind : uint8_t
@@ -133,9 +171,7 @@ struct CAttackSource
 	static CAttackSource PlayerWeapon(int Owner, CWeaponSpec Weapon);
 	static CAttackSource Droid(int Owner, int DroidType, bool OnDeath = false);
 	static CAttackSource Building(int Owner, int BuildingType);
-	static CAttackSource World();
-	static CAttackSource FromLegacy(int Owner, int LegacyWeapon);
-	int ToLegacy() const;
+	static CAttackSource World(int Type, int Owner = -1);
 };
 
 #endif

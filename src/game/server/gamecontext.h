@@ -10,6 +10,7 @@
 
 #include <game/layers.h>
 #include <game/voting.h>
+#include <game/weapon_catalog.h>
 
 #include "eventhandler.h"
 #include "gamecontroller.h"
@@ -54,11 +55,11 @@ struct CPlayerSpecData
 		m_WeaponSlot = 0;
 		
 		for (int i = 0; i < 4; i++)
-			m_aWeapon[i] = 0;
+			m_aWeapon[i] = {};
 	}
 	
 	int m_WeaponSlot;
-	int m_aWeapon[4];
+	CWeaponSpec m_aWeapon[4];
 	int m_Kits;
 };
 
@@ -177,7 +178,6 @@ public:
 	void CreateBuildingHit(vec2 Pos);
 	void CreateDamageInd(vec2 Pos, float AngleMod, int Damage, int ClientID);
 	void CreateRepairInd(vec2 Pos);
-	void CreateExplosion(vec2 Pos, int Owner, int Weapon);
 	void CreateExplosion(vec2 Pos, const CAttackSource &Source);
 	void SendEffect(int ClientID, int EffectID);
 	void CreateHammerHit(vec2 Pos);
@@ -193,8 +193,7 @@ public:
 	void DamageBlocks(vec2 Pos, int Damage, int Range);
 	void OnBlockChange(vec2 Pos);
 	
-	class CWeapon *NewWeapon(int Part1, int Part2);
-	class CWeapon *NewWeapon(int Weapon);
+	class CWeapon *NewWeapon(const CWeaponSpec &Spec);
 	
 	bool RespawnAlly(vec2 Pos, int Team, int Reviver);
 	
@@ -202,8 +201,8 @@ public:
 	
 	bool Shop(class CPlayer *pPlayer, int Slot, bool AI = false);
 	
-	void CreateProjectile(int DamageOwner, int Weapon, int Charge, vec2 Pos, vec2 Direction, vec2 WeaponPos, class CBuilding *OwnerBuilding = NULL);
-	void CreateMeleeHit(int DamageOwner, int Weapon, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos);
+	void CreateProjectile(const CAttackSource &Source, int Charge, vec2 Pos, vec2 Direction, vec2 WeaponPos, class CBuilding *OwnerBuilding = NULL);
+	void CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos);
 
 	void ClearFlameHits();
 	
@@ -224,7 +223,6 @@ public:
 	void SendChatTarget(int To, const char *pText, ...);
 	void SendChat(int ClientID, int Mode, const char *pText, int TargetID = -1);
 	void SendEmoticon(int ClientID, int Emoticon);
-	void SendWeaponPickup(int ClientID, int Weapon);
 	void SendBroadcast(const char *pText, int ClientID, bool Lock = false);
 	void SendBroadcastFormat(int ClientID, bool Lock, const char *pText, ...);
 	void SendGameVotes(int ClientID = -1);

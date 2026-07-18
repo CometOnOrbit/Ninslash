@@ -28,7 +28,7 @@ struct CTrace
 		SetDefault(0, 0);
 	}
 
-	void Set(int ItemID, int Type, vec2 Pos, vec2 StartPos, int StartTick, int Weapon, vec2 Vel)
+	void Set(int ItemID, int Type, vec2 Pos, vec2 StartPos, int StartTick, float ProjectileSize, vec2 Vel)
 	{
 		// existing tracer
 		if (abs(StartTick - m_StartTick) < 2 && ItemID == m_ItemID && Type == m_Type)
@@ -52,7 +52,7 @@ struct CTrace
 			m_DelayPos = Pos;
 			m_StartTick = StartTick;
 			
-			SetDefault(Type, Weapon);
+			SetDefault(Type, ProjectileSize);
 		}
 	}
 	
@@ -63,7 +63,7 @@ struct CTrace
 		m_Life = 0.0f;
 	}
 	
-	void SetDefault(int Type, int Weapon)
+	void SetDefault(int Type, float ProjectileSize)
 	{
 		m_Type = Type;
 		m_Sprite = 0;
@@ -82,8 +82,8 @@ struct CTrace
 		if (Type == 1)
 		{
 			m_Speed = 4.0f;
-			m_Size1 = 6.0f * GetProjectileSize(Weapon);
-			m_Size2 = 2.0f * GetProjectileSize(Weapon);
+			m_Size1 = 6.0f * ProjectileSize;
+			m_Size2 = 2.0f * ProjectileSize;
 			m_LifeSpan = 0.4f;
 			m_Color = vec4(0.6f, 0.4f, 0.2f, 0.8f);
 			return;
@@ -93,7 +93,7 @@ struct CTrace
 		if (Type == 2)
 		{
 			m_Speed = 6.0f;
-			m_Size1 = 6.0f * GetProjectileSize(Weapon);
+			m_Size1 = 6.0f * ProjectileSize;
 			m_Size2 = 0.0f; // * GetProjectileSize(Weapon);
 			m_LifeSpan = 0.4f;
 			m_Color = vec4(0.1f, 0.5f, 0.1f, 0.5f);
@@ -104,7 +104,7 @@ struct CTrace
 		{
 			m_Parts = 24;
 			m_Speed = 8.0f;
-			m_Size1 = 6.0f * GetProjectileSize(Weapon);
+			m_Size1 = 6.0f * ProjectileSize;
 			m_Size2 = 0.0f; // * GetProjectileSize(Weapon);
 			m_LifeSpan = 0.5f;
 			m_Color = vec4(0.2f, 1.0f, 0.2f, 0.5f);
@@ -140,7 +140,7 @@ struct CTrace
 		{
 			m_Parts = 20;
 			m_Speed = 3.0f;
-			m_Size1 = 10.0f * GetProjectileSize(Weapon);;
+			m_Size1 = 10.0f * ProjectileSize;
 			m_Size2 = 5.0f;
 			m_LifeSpan = 1.5f;
 			m_Color = vec4(0.0f, 1.0f, 0.0f, 0.5f);
@@ -179,8 +179,8 @@ struct CTrace
 			m_Color = vec4(1, 1, 1, 0.5f);
 			m_Parts = 30;
 			m_Speed = 3.0f;
-			m_Size1 = 20.0f * GetProjectileSize(Weapon);
-			m_Size2 = 10.0f * GetProjectileSize(Weapon);
+			m_Size1 = 20.0f * ProjectileSize;
+			m_Size2 = 10.0f * ProjectileSize;
 			return;
 		}
 		
@@ -192,8 +192,8 @@ struct CTrace
 			m_Color = vec4(1, 1, 1, 1.0f);
 			m_Parts = 30;
 			m_Speed = 3.0f;
-			m_Size1 = 20.0f * GetProjectileSize(Weapon);
-			m_Size2 = 10.0f * GetProjectileSize(Weapon);
+			m_Size1 = 20.0f * ProjectileSize;
+			m_Size2 = 10.0f * ProjectileSize;
 			return;
 		}
 		
@@ -205,8 +205,8 @@ struct CTrace
 			m_Color = vec4(1, 1, 1, 1.0f);
 			m_Parts = 30;
 			m_Speed = 3.0f;
-			m_Size1 = 20.0f * GetProjectileSize(Weapon);
-			m_Size2 = 10.0f * GetProjectileSize(Weapon);
+			m_Size1 = 20.0f * ProjectileSize;
+			m_Size2 = 10.0f * ProjectileSize;
 			return;
 		}
 		
@@ -278,7 +278,7 @@ public:
 
 	CTracer();
 
-	void Add(int Type, int ItemID, vec2 Pos, vec2 StartPos, int StartTick, int Weapon, vec2 Vel = vec2(0, 0));
+	void Add(int Type, int ItemID, vec2 Pos, vec2 StartPos, int StartTick, float ProjectileSize, vec2 Vel = vec2(0, 0));
 	void UpdatePos(int ItemID, vec2 Pos);
 	void Tick();
 

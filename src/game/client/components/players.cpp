@@ -33,12 +33,13 @@ namespace
 {
 struct CRenderCharacter : public CNetObj_Character
 {
-	int m_Weapon;
+	CWeaponSpec m_WeaponSpec;
 
 	CRenderCharacter &operator=(const CNetObj_Character &Other)
 	{
 		static_cast<CNetObj_Character &>(*this) = Other;
-		m_Weapon = CWeaponCatalog::ProtocolToLegacy(Other.m_WeaponDefinitionId, Other.m_WeaponLevel);
+		if(!CWeaponCatalog::TryFromProtocol(Other.m_WeaponDefinitionId, Other.m_WeaponLevel, &m_WeaponSpec))
+			m_WeaponSpec = {};
 		return *this;
 	}
 };
@@ -118,7 +119,6 @@ void CPlayers::RenderHook(
 	CRenderCharacter Player;
 	Prev = *pPrevChar;
 	Player = *pPlayerChar;
-
 	CNetObj_PlayerInfo pInfo = *pPlayerInfo;
 	CPlayerInfo *pCustomPlayerInfo = &CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID];
 
@@ -234,6 +234,14 @@ void CPlayers::RenderPlayer(
 	CRenderCharacter Player;
 	Prev = *pPrevChar;
 	Player = *pPlayerChar;
+	CResolvedWeaponProfile WeaponProfile{};
+	const bool HasWeapon = CWeaponCatalog::TryResolve(Player.m_WeaponSpec, &WeaponProfile);
+	const CWeaponDefinition &WeaponDefinition = WeaponProfile.m_Definition;
+	const CWeaponCombatProfile &WeaponCombat = WeaponProfile.m_Combat;
+	const CWeaponVisualProfile &WeaponVisual = WeaponProfile.m_Visual;
+	const bool WeaponIsStatic = HasWeapon && WeaponDefinition.m_Kind == EWeaponDefinitionKind::Static;
+	const bool WeaponIsModular = HasWeapon && WeaponDefinition.m_Kind == EWeaponDefinitionKind::Modular;
+	const int WeaponStaticType = WeaponIsStatic ? WeaponDefinition.m_StaticType : -1;
 	
 	vec2 WeaponOffset = vec2(0, -11);
 	
@@ -245,7 +253,7 @@ void CPlayers::RenderPlayer(
 	bool NewTick = m_pClient->m_NewTick;
 
 	pCustomPlayerInfo->m_RenderInfo = RenderInfo;
-	pCustomPlayerInfo->m_Weapon = Player.m_Weapon;
+	pCustomPlayerInfo->m_Weapon = Player.m_WeaponSpec;
 	
 	
 	// set size
@@ -435,7 +443,7 @@ void CPlayers::RenderPlayer(
 	pCustomPlayerInfo->m_WeaponCharge = 0;
 	
 	// recoil & muzzle to static weapons
-	if (IsStaticWeapon(Player.m_Weapon) || !Player.m_Weapon)
+	if (WeaponIsStatic)
 	{
 		int Phase1Tick = (Client()->GameTick() - Player.m_AttackTick);
 	
@@ -443,28 +451,28 @@ void CPlayers::RenderPlayer(
 		if (Player.m_AttackTick && pCustomPlayerInfo->m_RecoilTick < Player.m_AttackTick && !Paused)
 		{
 			pCustomPlayerInfo->m_RecoilTick = Player.m_AttackTick;
-			pCustomPlayerInfo->m_WeaponRecoil -= Direction * GetWeaponRenderRecoil(Player.m_Weapon);
+			pCustomPlayerInfo->m_WeaponRecoil -= Direction * WeaponVisual.m_RenderRecoil;
 			
-			if (GetStaticType(Player.m_Weapon) == SW_GUN1 || GetStaticType(Player.m_Weapon) == SW_GUN2)
+			if (WeaponStaticType == SW_GUN1 || WeaponStaticType == SW_GUN2)
 			{
-				vec2 Moff = GetMuzzleRenderOffset(Player.m_Weapon);
+				vec2 Moff = WeaponVisual.m_MuzzleOffset;
 				vec2 DirY(-pCustomPlayerInfo->m_MuzzleDir.y, pCustomPlayerInfo->m_MuzzleDir.x);
 					
 				if (pCustomPlayerInfo->m_MuzzleDir.x < 0)
 					Moff.y *= -1;
 					
 				vec2 MuzzlePos = pCustomPlayerInfo->m_MuzzlePos + pCustomPlayerInfo->m_MuzzleDir * Moff.x + DirY * Moff.y;
-				m_pClient->m_pEffects->Muzzle(MuzzlePos, pCustomPlayerInfo->m_MuzzleDir, Player.m_Weapon);
+				m_pClient->m_pEffects->Muzzle(MuzzlePos, pCustomPlayerInfo->m_MuzzleDir, Player.m_WeaponSpec);
 			}
 			
-			if (GetWeaponFiringType(Player.m_Weapon) == WFT_THROW)
+			if (WeaponCombat.m_FiringType == WFT_THROW)
 			{
 				
 				
 			}
 		}
 		
-		if (Player.m_ChargeLevel > 0 && GetWeaponFiringType(Player.m_Weapon) == WFT_THROW)
+		if (Player.m_ChargeLevel > 0 && WeaponCombat.m_FiringType == WFT_THROW)
 			pCustomPlayerInfo->m_WeaponCharge = Phase1Tick;
 			
 	
@@ -472,21 +480,20 @@ void CPlayers::RenderPlayer(
 		if (Player.m_AttackTick != pCustomPlayerInfo->m_MuzzleTick)
 		{
 			vec2 MuzzlePos = p + Dir * 20;
-			m_pClient->m_pEffects->Muzzle(MuzzlePos, Dir, Player.m_Weapon);
+			m_pClient->m_pEffects->Muzzle(MuzzlePos, Dir, Player.m_WeaponSpec);
 			pCustomPlayerInfo->m_MuzzleTick = Player.m_AttackTick
 		}
 		*/
 	
 	
 		// throwing
-		//if (GetWeaponFiringType(Player.m_Weapon) == WFT_THROW)
+		//if (WeaponCombat.m_FiringType == WFT_THROW)
 		//	pCustomPlayerInfo->m_WeaponRecoil -= Direction * Player.m_ChargeLevel * 0.12f;
 		
 		//if (Phase1Tick < 10)
-		//	pCustomPlayerInfo->AddMuzzle(Player.m_AttackTick, Player.m_Weapon);
 	}
 	
-	if (GetWeaponFiringType(Player.m_Weapon) == WFT_MELEE)
+	if (WeaponCombat.m_FiringType == WFT_MELEE)
 	{
 		// melee attack effect
 		if (pCustomPlayerInfo->m_MeleeTick < Player.m_AttackTick && !Paused)
@@ -495,7 +502,7 @@ void CPlayers::RenderPlayer(
 			
 			bool Flip = false;
 			
-			float Charge = GetWeaponCharge(Player.m_Weapon) / float(max(1, WeaponMaxLevel(Player.m_Weapon)));
+			float Charge = Player.m_WeaponSpec.m_Level / float(max(1, int(WeaponDefinition.m_MaxLevel)));
 			
 			if (pCustomPlayerInfo->m_MeleeState == MELEE_UP)
 			{
@@ -505,10 +512,10 @@ void CPlayers::RenderPlayer(
 				pCustomPlayerInfo->m_MeleeAnimState = 1.0f;
 				pCustomPlayerInfo->m_MeleeState = MELEE_DOWN;
 				
-				if (!IsStaticWeapon(Player.m_Weapon) || (GetStaticType(Player.m_Weapon) != SW_TOOL && GetStaticType(Player.m_Weapon) != SW_CLAW))
+				if (!WeaponIsStatic || (WeaponStaticType != SW_TOOL && WeaponStaticType != SW_CLAW))
 					m_pClient->m_pEffects->SwordHit(Position+vec2(0, -24)+Direction*60, GetAngle(Direction), Flip, Charge);
 				
-				if (IsStaticWeapon(Player.m_Weapon) && GetStaticType(Player.m_Weapon) == SW_CLAW)
+				if (WeaponIsStatic && WeaponStaticType == SW_CLAW)
 					m_pClient->m_pEffects->ClawHit(Position+vec2(0, -24)+Direction*50, GetAngle(Direction), Flip, Charge);
 				
 				pCustomPlayerInfo->m_WeaponRecoil += Direction * 15;
@@ -523,10 +530,10 @@ void CPlayers::RenderPlayer(
 				pCustomPlayerInfo->m_MeleeAnimState = 1.0f;
 				pCustomPlayerInfo->m_MeleeState = MELEE_UP;
 				
-				if (!IsStaticWeapon(Player.m_Weapon) || (GetStaticType(Player.m_Weapon) != SW_TOOL && GetStaticType(Player.m_Weapon) != SW_CLAW))
+				if (!WeaponIsStatic || (WeaponStaticType != SW_TOOL && WeaponStaticType != SW_CLAW))
 					m_pClient->m_pEffects->SwordHit(Position+vec2(0, -24)+Direction*60, GetAngle(Direction), !Flip, Charge);
 				
-				if (IsStaticWeapon(Player.m_Weapon) && GetStaticType(Player.m_Weapon) == SW_CLAW)
+				if (WeaponIsStatic && WeaponStaticType == SW_CLAW)
 					m_pClient->m_pEffects->ClawHit(Position+vec2(0, -24)+Direction*50, GetAngle(Direction), !Flip, Charge);
 				
 				pCustomPlayerInfo->m_WeaponRecoil += Direction * 15;
@@ -542,7 +549,7 @@ void CPlayers::RenderPlayer(
 		}
 	}
 	// spinning weapons / scythe
-	else if (IsModularWeapon(Player.m_Weapon) && GetPart(Player.m_Weapon, 0) == 6)
+	else if (WeaponIsModular && WeaponDefinition.m_Part1 == PART1_SPIN)
 	{
 		// melee attack effect
 		if (pCustomPlayerInfo->m_MeleeTick < Player.m_AttackTick && !Paused)
@@ -618,7 +625,7 @@ void CPlayers::RenderPlayer(
 
 		CustomStuff()->m_LocalAlive = true;
 		CustomStuff()->m_LocalColor = RenderInfo.m_ColorBody;
-		CustomStuff()->m_LocalWeapon = Player.m_Weapon;
+		CustomStuff()->m_LocalWeapon = Player.m_WeaponSpec;
 		CustomStuff()->m_LocalPos = Position;
 		CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].SetLocal();
 		
@@ -627,13 +634,13 @@ void CPlayers::RenderPlayer(
 		if (Group > 0 && Group < 4)
 			CustomStuff()->m_WantedWeapon = m_pClient->m_pControls->m_InputData.m_WantedWeapon;
 		
-		CustomStuff()->m_SelectedWeapon = Player.m_Weapon;
+		CustomStuff()->m_SelectedWeapon = Player.m_WeaponSpec;
 	}
 	
 	CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].m_Color = RenderInfo.m_ColorBody;
 		
 	// draw aim line 
-	if (!CustomStuff()->m_Inventory && pPlayerInfo->m_Local && WeaponAimline(Player.m_Weapon) && pCustomPlayerInfo->m_EffectIntensity[EFFECT_SPAWNING] < 0.9f)
+	if (!CustomStuff()->m_Inventory && pPlayerInfo->m_Local && WeaponCombat.m_Aimline && pCustomPlayerInfo->m_EffectIntensity[EFFECT_SPAWNING] < 0.9f)
 	{
 		//vec2 Pos = Position + Direction * 400; //Position + Direction * 500.0f;
 		//vec2 Pos = Position + m_pClient->m_pControls->m_MousePos; //Position + Direction * 500.0f;
@@ -667,7 +674,7 @@ void CPlayers::RenderPlayer(
 	}
 
 	
-	CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].m_Weapon = Player.m_Weapon;
+	CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].m_Weapon = Player.m_WeaponSpec;
 	
 	if (Player.m_DamageTick > pCustomPlayerInfo->m_DamageTick)
 	{
@@ -700,7 +707,7 @@ void CPlayers::RenderPlayer(
 	}
 	
 	// render chainsaw effect
-	if (!Paused && GetStaticType(Player.m_Weapon) == SW_CHAINSAW && Player.m_AttackTick > Client()->GameTick() - 500 * Client()->GameTickSpeed()/1000)
+	if (!Paused && WeaponStaticType == SW_CHAINSAW && Player.m_AttackTick > Client()->GameTick() - 500 * Client()->GameTickSpeed()/1000)
 	{
 		RenderTools()->SetShadersForWeapon(pCustomPlayerInfo);
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_FX_CHAINSAW].m_Id);
@@ -716,7 +723,7 @@ void CPlayers::RenderPlayer(
 		
 		Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
 		
-		float Charge = GetWeaponCharge(Player.m_Weapon) / float(max(1, WeaponMaxLevel(Player.m_Weapon)));
+		float Charge = Player.m_WeaponSpec.m_Level / float(max(1, int(WeaponDefinition.m_MaxLevel)));
 		float Size = 132 + Charge*60.0f;
 
 		RenderTools()->DrawSprite(p.x, p.y, Size);
@@ -731,9 +738,8 @@ void CPlayers::RenderPlayer(
 	vec2 p = Position;
 	
 	// render weapon
-	if (GetWeaponRenderType(Player.m_Weapon) == WRT_WEAPON1)
+	if (HasWeapon && WeaponVisual.m_RenderType == WRT_WEAPON1)
 	{
-		//pCustomPlayerInfo->m_WeaponColorSwap = GetWeaponColorswap(Player.m_Weapon);
 		RenderTools()->SetShadersForWeapon(pCustomPlayerInfo);
 		
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
@@ -758,7 +764,7 @@ void CPlayers::RenderPlayer(
 			if (Player.m_AttackTick && pCustomPlayerInfo->m_RecoilTick < Player.m_AttackTick && !Paused)
 			{
 				pCustomPlayerInfo->m_RecoilTick = Player.m_AttackTick;
-				pCustomPlayerInfo->m_WeaponRecoil -= Direction * GetWeaponRenderRecoil(Player.m_Weapon);
+				pCustomPlayerInfo->m_WeaponRecoil -= Direction * WeaponVisual.m_RenderRecoil;
 			}
 			
 			
@@ -770,7 +776,7 @@ void CPlayers::RenderPlayer(
 				{
 					CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].m_WeaponRecoilLoaded = false;
 					
-					if (GetStaticType(Player.m_Weapon) == SW_CHAINSAW)
+					if (WeaponStaticType == SW_CHAINSAW)
 					{
 						CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].m_WeaponRecoilVel -= Direction * 1.0f;
 						pCustomPlayerInfo->m_LastChainsawSoundTick = Client()->GameTick() + 500 * Client()->GameTickSpeed()/1000;
@@ -787,13 +793,13 @@ void CPlayers::RenderPlayer(
 				CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].m_WeaponRecoilLoaded = true;
 			}
 			
-			vec2 Offset = GetWeaponRenderOffset(Player.m_Weapon);
+			vec2 Offset = WeaponVisual.m_RenderOffset;
 			
 			p = Position + Dir * Offset.x + CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].m_WeaponRecoil + CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].m_Weapon2Recoil + WeaponOffset;
 			
 			
 			// chainsaw shaking
-			if (!Paused && GetStaticType(Player.m_Weapon) == SW_CHAINSAW && Player.m_AttackTick > Client()->GameTick() - 500 * Client()->GameTickSpeed()/1000)
+			if (!Paused && WeaponStaticType == SW_CHAINSAW && Player.m_AttackTick > Client()->GameTick() - 500 * Client()->GameTickSpeed()/1000)
 			{
 				p = p + vec2(frandom()-frandom(), frandom()-frandom()) * 4.0f;
 				
@@ -817,31 +823,31 @@ void CPlayers::RenderPlayer(
 			
 			{
 				p.y += Offset.y;
-				RenderTools()->RenderWeapon(Player.m_Weapon, p, Dir, WEAPON_GAME_SIZE);
+				RenderTools()->RenderWeapon(Player.m_WeaponSpec, p, Dir, WEAPON_GAME_SIZE);
 				
 				//RenderTools()->DrawSprite(p.x, p.y, g_pData->m_Weapons.m_aId[iw].m_VisualSize*WeaponScale);
 				
 				Graphics()->QuadsEnd();
 				
-				RenderHand(&RenderInfo, p, Direction, -1.8f*pi/4, GetHandOffset(Player.m_Weapon));
+				RenderHand(&RenderInfo, p, Direction, -1.8f*pi/4, WeaponVisual.m_HandOffset);
 				
 				// muzzle
 				
 				if (Player.m_AttackTick && Player.m_AttackTick != pCustomPlayerInfo->m_MuzzleTick)
 				{
-					if (GetWeaponFiringType(Player.m_Weapon) != WFT_HOLD)
+					if (WeaponCombat.m_FiringType != WFT_HOLD)
 					{		
-						vec2 Moff = GetMuzzleRenderOffset(Player.m_Weapon);
+						vec2 Moff = WeaponVisual.m_MuzzleOffset;
 						vec2 DirY(-Dir.y,Dir.x);
 						vec2 MuzzlePos = p + Dir * Moff.x + DirY * Moff.y;
-						m_pClient->m_pEffects->Muzzle(MuzzlePos, Dir, Player.m_Weapon);
+						m_pClient->m_pEffects->Muzzle(MuzzlePos, Dir, Player.m_WeaponSpec);
 					}
 				}
 				
 				
-				if (GetWeaponFiringType(Player.m_Weapon) != WFT_HOLD)
+				if (WeaponCombat.m_FiringType != WFT_HOLD)
 				{
-					pCustomPlayerInfo->AddMuzzle(Player.m_AttackTick, Player.m_Weapon);
+					pCustomPlayerInfo->AddMuzzle(Player.m_AttackTick);
 				
 					// render muzzles
 					for (int i = 0; i < 4; i++)
@@ -852,7 +858,7 @@ void CPlayers::RenderPlayer(
 							Graphics()->QuadsBegin();
 							Graphics()->QuadsSetRotation(Angle);
 								
-							vec2 Moff = GetMuzzleRenderOffset(Player.m_Weapon);
+							vec2 Moff = WeaponVisual.m_MuzzleOffset;
 							
 							if (Dir.x < 0)
 								Moff.y *= -1;
@@ -878,7 +884,7 @@ void CPlayers::RenderPlayer(
 				
 				/*
 				
-				if (GetWeaponFiringType(Player.m_Weapon) != WFT_HOLD)
+				if (WeaponCombat.m_FiringType != WFT_HOLD)
 				{
 					//float Alpha = 0.0f;
 					//int Phase1Tick = (Client()->GameTick() - Player.m_AttackTick);
@@ -887,13 +893,13 @@ void CPlayers::RenderPlayer(
 					{
 						if (Player.m_AttackTick && Player.m_AttackTick != pCustomPlayerInfo->m_MuzzleTick)
 						{
-							vec2 Moff = GetMuzzleRenderOffset(Player.m_Weapon);
+							vec2 Moff = WeaponVisual.m_MuzzleOffset;
 							vec2 DirY(-Dir.y,Dir.x);
 							vec2 MuzzlePos = p + Dir * Moff.x + DirY * Moff.y;
-							m_pClient->m_pEffects->Muzzle(MuzzlePos, Dir, Player.m_Weapon);
+							m_pClient->m_pEffects->Muzzle(MuzzlePos, Dir, Player.m_WeaponSpec);
 						}
 						
-						pCustomPlayerInfo->AddMuzzle(Player.m_AttackTick, Player.m_Weapon);
+						pCustomPlayerInfo->AddMuzzle(Player.m_AttackTick);
 
 						pCustomPlayerInfo->m_MuzzleTick = Player.m_AttackTick;
 					}
@@ -908,7 +914,7 @@ void CPlayers::RenderPlayer(
 							Graphics()->QuadsBegin();
 							Graphics()->QuadsSetRotation(Angle);
 							
-							vec2 Moff = GetMuzzleRenderOffset(Player.m_Weapon);
+							vec2 Moff = WeaponVisual.m_MuzzleOffset;
 							
 							if (Dir.x < 0)
 								Moff.y *= -1;
@@ -929,7 +935,7 @@ void CPlayers::RenderPlayer(
 		}
 		
 		// flamer
-		if (GetStaticType(Player.m_Weapon) == SW_FLAMER)
+		if (WeaponStaticType == SW_FLAMER)
 		{
 			// roll the animation
 			if (Player.m_AttackTick > Client()->GameTick() - 220 * Client()->GameTickSpeed()/1000)
@@ -1188,7 +1194,7 @@ void CPlayers::RenderPlayer(
 	
 	
 	// chainsaw sound
-	if (GetStaticType(Player.m_Weapon) == SW_CHAINSAW && !Paused)
+	if (WeaponStaticType == SW_CHAINSAW && !Paused)
 	{
 		if (pCustomPlayerInfo->m_LastChainsawSoundTick < Client()->GameTick())
 		{
@@ -1198,7 +1204,7 @@ void CPlayers::RenderPlayer(
 	}
 	
 	// scythe sound & impact to particles
-	if (IsModularWeapon(Player.m_Weapon) && GetPart(Player.m_Weapon, 0) == 6 && !Paused)
+	if (WeaponIsModular && WeaponDefinition.m_Part1 == PART1_SPIN && !Paused)
 	{
 		if (pCustomPlayerInfo->MeleeSound())
 		{
@@ -1488,7 +1494,7 @@ void CPlayers::RenderPlayer(
 	
 	// set correct shader
 	RenderTools()->SetShadersForPlayer(pCustomPlayerInfo);
-	RenderTools()->RenderPlayer(&CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID], &RenderInfo, Player.m_Weapon, Player.m_Emote, Direction, Position);
+	RenderTools()->RenderPlayer(&CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID], &RenderInfo, Player.m_Emote, Direction, Position);
 	
 	
 	// iron man jetpack
@@ -1560,7 +1566,7 @@ void CPlayers::RenderPlayer(
 	
 	int Phase1Tick = (Client()->GameTick() - Player.m_AttackTick);
 	
-	if (Phase1Tick > 0 && pCustomPlayerInfo->GetWeaponCharge() > 0.0f && GetStaticType(Player.m_Weapon) == SW_AREASHIELD)
+	if (Phase1Tick > 0 && pCustomPlayerInfo->WeaponChargeProgress() > 0.0f && WeaponStaticType == SW_AREASHIELD)
 	{
 		float c = cos(CustomStuff()->m_SawbladeAngle*0.25f)*0.3f + 0.7f;
 		
@@ -1754,7 +1760,8 @@ void CPlayers::OnRender()
 				const int aDefinitionIds[] = {pPlayerInfo->m_Weapon1DefinitionId, pPlayerInfo->m_Weapon2DefinitionId, pPlayerInfo->m_Weapon3DefinitionId, pPlayerInfo->m_Weapon4DefinitionId};
 				const int aLevels[] = {pPlayerInfo->m_Weapon1Level, pPlayerInfo->m_Weapon2Level, pPlayerInfo->m_Weapon3Level, pPlayerInfo->m_Weapon4Level};
 				for(int Slot = 0; Slot < 4; ++Slot)
-					CustomStuff()->m_aSnapWeapon[Slot] = CWeaponCatalog::ProtocolToLegacy(aDefinitionIds[Slot], aLevels[Slot]);
+					if(!CWeaponCatalog::TryFromProtocol(aDefinitionIds[Slot], aLevels[Slot], &CustomStuff()->m_aSnapWeapon[Slot]))
+						CustomStuff()->m_aSnapWeapon[Slot] = {};
 			}
 		}
 	}

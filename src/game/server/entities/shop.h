@@ -15,11 +15,11 @@ public:
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
 	
-	virtual int GetItem(int Slot);
+	virtual CWeaponSpec GetItem(int Slot);
 	virtual void ClearItem(int Slot);
 	
 private:
-	int m_aItem[5];
+	CWeaponSpec m_aItem[5];
 	bool m_Autofill;
 	
 	void FillSlots();

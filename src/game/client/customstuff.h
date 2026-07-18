@@ -7,6 +7,7 @@
 #include <generated/game_data.h>
 #include <game/client/gameclient.h>
 #include <game/weapons.h>
+#include <game/weapon_catalog.h>
 #include "customstuff/playerinfo.h"
 #include "customstuff/droidanim.h"
 
@@ -24,7 +25,7 @@ struct CTurretMuzzle
 {
 	ivec2 m_Pos;
 	int m_AttackTick;
-	int m_Weapon;
+	CWeaponSpec m_Weapon;
 	int m_Muzzle;
 	float m_Time;
 	
@@ -37,7 +38,7 @@ struct CTurretMuzzle
 	{
 		m_Pos = ivec2(0, 0);
 		m_AttackTick = 0;
-		m_Weapon = 0;
+		m_Weapon = {};
 		m_Muzzle = 0;
 		m_Time = 0.0f;
 	}
@@ -77,7 +78,7 @@ public:
 	
 	CTurretMuzzle m_aTurretMuzzle[MAX_TURRETMUZZLES];
 	
-	void SetTurretMuzzle(ivec2 Pos, int AttackTick, int Weapon);
+	void SetTurretMuzzle(ivec2 Pos, int AttackTick, const CWeaponSpec &Weapon);
 	
 	CTurretMuzzle GetTurretMuzzle(ivec2 Pos);
 	
@@ -171,11 +172,11 @@ public:
 	
 	bool m_LocalAlive;
 	vec2 m_LocalPos;
-	int m_LocalWeapon;
+	CWeaponSpec m_LocalWeapon;
 	vec4 m_LocalColor;
 	
 	bool m_Inventory;
-	int m_aItem[12];
+	CWeaponSpec m_aItem[12];
 	int m_Gold;
 	
 	bool m_BuildMode;
@@ -196,7 +197,7 @@ public:
 	int m_SelectedGroup;
 	
 	int m_WeaponSlot;
-	int m_aSnapWeapon[4];
+	CWeaponSpec m_aSnapWeapon[4];
 	int m_LocalKits;
 	
 	// for weapon pick effect
@@ -207,7 +208,7 @@ public:
 	float m_WeaponSignalTimer;
 	int m_WeaponSignal;
 	
-	int m_SelectedWeapon;
+	CWeaponSpec m_SelectedWeapon;
 
 	int LocalTick() const { return m_Tick; }
 	int m_WeaponDropTick;

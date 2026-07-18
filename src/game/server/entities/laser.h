@@ -4,12 +4,13 @@
 #define GAME_SERVER_ENTITIES_LASER_H
 
 #include <game/server/entity.h>
+#include <game/weapon_catalog.h>
 
 class CLaser : public CEntity
 {
 public:
 	//CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, int Owner, int Damage, int PowerLevel, class CBuilding *OwnerBuilding = NULL);
-	CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, int Owner, int Weapon, int Damage, int Charge);
+	CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, const CAttackSource &Source, int Damage, int Charge);
 
 	virtual void Reset();
 	virtual void Tick();
@@ -34,7 +35,7 @@ private:
 	int m_Owner;
 	int m_Damage;
 	int m_Charge;
-	int m_Weapon;
+	CAttackSource m_Source;
 	
 	int m_IgnoreScythe;
 };

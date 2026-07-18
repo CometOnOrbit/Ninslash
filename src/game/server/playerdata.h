@@ -26,9 +26,7 @@ public:
 	int m_aWeaponDefinitionId[99];
 	int m_aWeaponLevel[99];
 	int m_aWeaponAmmo[99];
-	
-	int m_aAmmo[99];
-	int m_Weapon;
+
 	int m_Armor;
 	int m_Kits;
 	int m_Score;

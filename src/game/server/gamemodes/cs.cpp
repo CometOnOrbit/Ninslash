@@ -1,6 +1,7 @@
 #include <engine/shared/config.h>
 
 #include <game/server/entities/character.h>
+#include <game/server/entities/weapon.h>
 #include <game/server/player.h>
 #include <game/server/gamecontext.h>
 #include <game/server/entities/building.h>
@@ -42,7 +43,7 @@ CGameControllerCS::CGameControllerCS(class CGameContext *pGameServer) : IGameCon
 		m_aArea[i] = vec4(0, 0, 0, 0);
 	
 	for (int i = 0; i < MAX_CLIENTS*NUM_SLOTS; i++)
-		m_aPlayerWeapon[i] = 0;
+		m_aPlayerWeapon[i] = {};
 	
 	for (int i = 0; i < MAX_CLIENTS; i++)
 		m_aPlayerArmor[i] = 0;
@@ -68,10 +69,10 @@ void CGameControllerCS::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	
 	for (int i = 0; i < NUM_SLOTS; i++)
 	{
-		if (m_aPlayerWeapon[c*NUM_SLOTS + i])
+		if (m_aPlayerWeapon[c * NUM_SLOTS + i].IsValid())
 		{
-			pChr->GiveWeapon(GameServer()->NewWeapon(m_aPlayerWeapon[c*NUM_SLOTS + i]));
-			m_aPlayerWeapon[c*NUM_SLOTS + i] = 0;
+			pChr->GiveWeapon(GameServer()->NewWeapon(m_aPlayerWeapon[c * NUM_SLOTS + i]));
+			m_aPlayerWeapon[c * NUM_SLOTS + i] = {};
 		}
 	}
 	
@@ -81,11 +82,11 @@ void CGameControllerCS::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	m_aPlayerKits[c] = 0;
 }
 
-int CGameControllerCS::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, int Weapon)
+int CGameControllerCS::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
-	IGameController::OnCharacterDeath(pVictim, pKiller, Weapon);
+	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 
-	if(pKiller && Weapon != WEAPON_GAME)
+	if(pKiller && !(Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME))
 	{
 		// do team scoring
 		if(pKiller == pVictim->GetPlayer() || pKiller->GetTeam() == pVictim->GetPlayer()->GetTeam())
@@ -137,8 +138,8 @@ void CGameControllerCS::NewSurvivalRound()
 		if (pChar)
 		{
 			for (int i = 0; i < NUM_SLOTS; i++)
-				if (GetStaticType(pChar->GetWeaponType(i)) != SW_BOMB)
-					m_aPlayerWeapon[c*NUM_SLOTS + i] = pChar->GetWeaponType(i);
+				if (pChar->GetWeapon(i) && pChar->GetWeapon(i)->GetWeaponProfile().m_Definition.m_StaticType != SW_BOMB)
+					m_aPlayerWeapon[c * NUM_SLOTS + i] = pChar->GetWeapon(i)->GetWeaponSpec();
 				
 				
 			m_aPlayerArmor[c] = pChar->GetArmor();
@@ -148,7 +149,7 @@ void CGameControllerCS::NewSurvivalRound()
 		{
 			for (int i = 0; i < NUM_SLOTS; i++)
 			{
-				m_aPlayerWeapon[c*NUM_SLOTS + i] = 0;
+				m_aPlayerWeapon[c * NUM_SLOTS + i] = {};
 				m_aPlayerArmor[c] = 0;
 				m_aPlayerKits[c] = 0;
 			}
@@ -303,7 +304,5 @@ void CGameControllerCS::Tick()
 		StartRound();
 	}
 }
-
-
 
 

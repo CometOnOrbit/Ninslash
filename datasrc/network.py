@@ -1,4 +1,5 @@
 from datatypes import *
+import weapon_types
 
 Emotes = ["NORMAL", "PAIN", "HAPPY", "SURPRISE", "ANGRY", "BLINK"]
 PlayerFlags = ["PLAYING", "IN_MENU", "CHATTING", "SCOREBOARD", "READY"]
@@ -8,6 +9,20 @@ GameStateFlags = ["GAMEOVER", "SUDDENDEATH", "PAUSED"]
 Emoticons = ["OOP", "EXCLAMATION", "HEARTS", "DROP", "DOTDOT", "MUSIC", "SORRY", "GHOST", "SUSHI", "SPLATTEE", "DEVILTEE", "ZOMG", "ZZZ", "WTF", "EYES", "QUESTION"]
 
 Powerups = ["HEALTH", "AMMO", "WEAPON", "ARMOR", "COIN", "KIT"]
+
+WEAPON_DEFINITION_ID_MAX = weapon_types.DEFINITION_ID_MAX
+WEAPON_LEVEL_MAX = weapon_types.LEVEL_MAX
+ATTACK_SOURCE_KIND_MAX = 4
+
+def WeaponSpecFields(prefix):
+	return [NetIntRange(prefix + "DefinitionId", 0, WEAPON_DEFINITION_ID_MAX), NetIntRange(prefix + "Level", 0, WEAPON_LEVEL_MAX)]
+
+def AttackSourceFields():
+	return [
+		NetIntRange("m_SourceKind", 0, ATTACK_SOURCE_KIND_MAX),
+		NetIntAny("m_SourceType"),
+		*WeaponSpecFields("m_Weapon"),
+	]
 
 # keep masks at the end
 Statuses = ["SPAWNING", "AFLAME", "SLOWED", "ELECTRIC", "DEATHRAY", "SHIELD", "DASH", "INVISIBILITY", "SLOWMOVING", "BOMBCARRIER", "MASK1", "MASK2", "MASK3"]
@@ -19,6 +34,10 @@ Damagetypes = ["NORMAL", "FLAME", "ELECTRIC", "FLUID"]
 Droidstatus = ["IDLE", "HURT", "ELECTRIC", "TERMINATED"]
 Droidtype = ["WALKER", "STAR", "CRAWLER", "BOSSCRAWLER", "FLY", "BOSSSTAR", "BOSSWALKER", "BOSSSPLITTER",
 	"BULWARK", "ASSEMBLER", "SABOTEUR", "RAILGUNNER", "SIEGE_ENGINE", "OVERSEER_CORE"]
+Buildingtype = ["NONE", "SAWBLADE", "MINE1", "MINE2", "BARREL", "BARREL2", "BARREL3", "TURRET", "LAZER", "POWERUPPER",
+	"BASE", "STAND", "FLAMETRAP", "JUMPPAD", "SWITCH", "DOOR1", "GENERATOR", "POWERBARREL", "POWERBARREL2",
+	"LIGHTNINGWALL", "LIGHTNINGWALL2", "REACTOR", "REACTOR_DESTROYED", "TESLACOIL", "SCREEN", "SHOP", "PVE_SHIELD_NODE"]
+BuildingEnum = "\n".join("\tBUILDING_%s%s," % (name, "=1" if index == 1 else "") for index, name in enumerate(Buildingtype) if index)
 Droidanim = ["IDLE", "MOVE", "ATTACK", "JUMPATTACK"]
 
 CoreAction = ["IDLE", "JUMP", "WALLJUMP", "ROLL", "SLIDE", "SLIDEKICK", "FALL", "JUMPPAD", "HANG"]
@@ -47,32 +66,7 @@ enum
 	FLAG_ATSTAND,
 	FLAG_TAKEN,
 
-	BUILDING_SAWBLADE=1,
-	BUILDING_MINE1,
-	BUILDING_MINE2,
-	BUILDING_BARREL,
-	BUILDING_BARREL2,
-	BUILDING_BARREL3,
-	BUILDING_TURRET,
-	BUILDING_LAZER,
-	BUILDING_POWERUPPER,
-	BUILDING_BASE,
-	BUILDING_STAND,
-	BUILDING_FLAMETRAP,
-	BUILDING_JUMPPAD,
-	BUILDING_SWITCH,
-	BUILDING_DOOR1,
-	BUILDING_GENERATOR,
-	BUILDING_POWERBARREL,
-	BUILDING_POWERBARREL2,
-	BUILDING_LIGHTNINGWALL,
-	BUILDING_LIGHTNINGWALL2,
-	BUILDING_REACTOR,
-	BUILDING_REACTOR_DESTROYED,
-	BUILDING_TESLACOIL,
-	BUILDING_SCREEN,
-	BUILDING_SHOP,
-	BUILDING_PVE_SHIELD_NODE,
+''' + BuildingEnum + '''
 	
 	BSTATUS_REPAIR=1,
 	BSTATUS_NOPE,
@@ -205,7 +199,7 @@ Objects = [
 		NetIntAny("m_Vel2X"),
 		NetIntAny("m_Vel2Y"),
 
-		NetIntAny("m_Type"),
+		*AttackSourceFields(),
 		NetTick("m_StartTick"),
 	]),
 
@@ -236,13 +230,13 @@ Objects = [
 		NetIntAny("m_Angle"),
 		NetIntRange("m_Type", 0, 'max_int'),
 		NetIntAny("m_Subtype"),
+		*WeaponSpecFields("m_Weapon"),
 	]),
 	
 	NetObject("Weapon", [
 		NetIntAny("m_X"),
 		NetIntAny("m_Y"),
-		NetIntRange("m_WeaponDefinitionId", 0, 153),
-		NetIntRange("m_WeaponLevel", 0, 15),
+		*WeaponSpecFields("m_Weapon"),
 		NetIntAny("m_AttackTick"),
 		NetIntAny("m_Angle")
 	]),
@@ -275,8 +269,7 @@ Objects = [
 	
 	NetObject("Turret:Building", [
 		NetIntAny("m_Angle"),
-		NetIntRange("m_WeaponDefinitionId", 0, 153),
-		NetIntRange("m_WeaponLevel", 0, 15),
+		*WeaponSpecFields("m_Weapon"),
 		NetIntRange("m_AttackTick", 0, 'max_int')
 	]),
 	
@@ -285,11 +278,11 @@ Objects = [
 	]),
 	
 	NetObject("Shop:Building", [
-		NetIntAny("m_Item1"),
-		NetIntAny("m_Item2"),
-		NetIntAny("m_Item3"),
-		NetIntAny("m_Item4"),
-		NetIntAny("m_Item5")
+		*WeaponSpecFields("m_Item1"),
+		*WeaponSpecFields("m_Item2"),
+		*WeaponSpecFields("m_Item3"),
+		*WeaponSpecFields("m_Item4"),
+		*WeaponSpecFields("m_Item5")
 	]),
 
 	NetObject("Flag", [
@@ -392,8 +385,7 @@ Objects = [
 		NetIntRange("m_PlayerFlags", 0, 256),
 		NetIntRange("m_Armor", 0, 100),
 		NetIntRange("m_AmmoCount", 0, 30),
-		NetIntRange("m_WeaponDefinitionId", 0, 153),
-		NetIntRange("m_WeaponLevel", 0, 15),
+		*WeaponSpecFields("m_Weapon"),
 		NetIntRange("m_Emote", 0, len(Emotes)),
 		NetIntRange("m_AttackTick", 0, 'max_int'),
 		NetIntAny("m_Movement"),
@@ -409,10 +401,10 @@ Objects = [
 		NetIntAny("m_Latency"),
 		
 		NetIntRange("m_WeaponSlot", 0, 3),
-		NetIntRange("m_Weapon1DefinitionId", 0, 153), NetIntRange("m_Weapon1Level", 0, 15),
-		NetIntRange("m_Weapon2DefinitionId", 0, 153), NetIntRange("m_Weapon2Level", 0, 15),
-		NetIntRange("m_Weapon3DefinitionId", 0, 153), NetIntRange("m_Weapon3Level", 0, 15),
-		NetIntRange("m_Weapon4DefinitionId", 0, 153), NetIntRange("m_Weapon4Level", 0, 15),
+		*WeaponSpecFields("m_Weapon1"),
+		*WeaponSpecFields("m_Weapon2"),
+		*WeaponSpecFields("m_Weapon3"),
+		*WeaponSpecFields("m_Weapon4"),
 		
 		NetIntRange("m_Kits", 0, 99),
 	]),
@@ -483,10 +475,7 @@ Objects = [
 	NetEvent("FlameHit:Common", []),
 	
 	NetEvent("Explosion:Common", [
-		NetIntRange("m_SourceKind", 0, 4),
-		NetIntAny("m_SourceType"),
-		NetIntRange("m_WeaponDefinitionId", 0, 153),
-		NetIntRange("m_WeaponLevel", 0, 15),
+		*AttackSourceFields(),
 	]),
 
 	NetEvent("FlameExplosion:Common", []),
@@ -585,10 +574,7 @@ Messages = [
 	NetMessage("Sv_KillMsg", [
 		NetIntRange("m_Killer", 0, 'MAX_CLIENTS-1'),
 		NetIntRange("m_Victim", 0, 'MAX_CLIENTS-1'),
-		NetIntRange("m_SourceKind", 0, 4),
-		NetIntAny("m_SourceType"),
-		NetIntRange("m_WeaponDefinitionId", 0, 153),
-		NetIntRange("m_WeaponLevel", 0, 15),
+		*AttackSourceFields(),
 		NetIntAny("m_ModeSpecial"),
 	]),
 
@@ -599,11 +585,6 @@ Messages = [
 	NetMessage("Sv_TuneParams", []),
 	NetMessage("Sv_ExtraProjectile", []),
 	NetMessage("Sv_ReadyToEnter", []),
-
-	NetMessage("Sv_WeaponPickup", [
-		NetIntRange("m_WeaponDefinitionId", 0, 153),
-		NetIntRange("m_WeaponLevel", 0, 15),
-	]),
 
 	NetMessage("Sv_Emoticon", [
 		NetIntRange("m_ClientID", 0, 'MAX_CLIENTS-1'),
@@ -647,18 +628,18 @@ Messages = [
 	]),
 	
 	NetMessage("Sv_Inventory", [
-		NetIntAny("m_Item1"),
-		NetIntAny("m_Item2"),
-		NetIntAny("m_Item3"),
-		NetIntAny("m_Item4"),
-		NetIntAny("m_Item5"),
-		NetIntAny("m_Item6"),
-		NetIntAny("m_Item7"),
-		NetIntAny("m_Item8"),
-		NetIntAny("m_Item9"),
-		NetIntAny("m_Item10"),
-		NetIntAny("m_Item11"),
-		NetIntAny("m_Item12"),
+		*WeaponSpecFields("m_Item1"),
+		*WeaponSpecFields("m_Item2"),
+		*WeaponSpecFields("m_Item3"),
+		*WeaponSpecFields("m_Item4"),
+		*WeaponSpecFields("m_Item5"),
+		*WeaponSpecFields("m_Item6"),
+		*WeaponSpecFields("m_Item7"),
+		*WeaponSpecFields("m_Item8"),
+		*WeaponSpecFields("m_Item9"),
+		*WeaponSpecFields("m_Item10"),
+		*WeaponSpecFields("m_Item11"),
+		*WeaponSpecFields("m_Item12"),
 		NetIntRange("m_Gold", 0, 999),
 	]),
 

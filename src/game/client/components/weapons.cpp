@@ -30,11 +30,9 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 {
 	CWeaponSpec WeaponSpec;
 	CResolvedWeaponProfile WeaponProfile;
-	WeaponSpec.m_DefinitionId = static_cast<WeaponDefinitionId>(pCurrent->m_WeaponDefinitionId);
-	WeaponSpec.m_Level = pCurrent->m_WeaponLevel;
-	if(!CWeaponCatalog::TryResolve(WeaponSpec, &WeaponProfile))
+	if(!CWeaponCatalog::TryFromProtocol(pCurrent->m_WeaponDefinitionId, pCurrent->m_WeaponLevel, &WeaponSpec) ||
+		!CWeaponCatalog::TryResolve(WeaponSpec, &WeaponProfile))
 		return;
-	const int Weapon = CWeaponCatalog::ToLegacy(WeaponSpec);
 	const bool IsStatic = WeaponProfile.m_Definition.m_Kind == EWeaponDefinitionKind::Static;
 	const int StaticType = IsStatic ? WeaponProfile.m_Definition.m_StaticType : -1;
 	const CWeaponVisualProfile &Visual = WeaponProfile.m_Visual;
@@ -65,11 +63,10 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 	if (ChargeLevel == 1.0f)
 		ChargeLevel = 0.7f+cos(Phase1Tick*0.4f)*0.3f;
 	
-	//if (GetStaticType(pCurrent->m_WeaponType) == SW_SHURIKEN)
 	if (Visual.m_ProjectileTraceType != 0)
 	{
 		if (length(Vel) >= Visual.m_TraceThreshold)
-			m_pClient->m_pTracers->Add(Visual.m_ProjectileTraceType, pCurrent->m_AttackTick, Pos, Pos, pCurrent->m_AttackTick, Weapon);
+			m_pClient->m_pTracers->Add(Visual.m_ProjectileTraceType, pCurrent->m_AttackTick, Pos, Pos, pCurrent->m_AttackTick, Visual.m_ProjectileSize);
 		else if (length(Vel) > Visual.m_TraceThreshold / 5.0f)
 			m_pClient->m_pTracers->UpdatePos(pCurrent->m_AttackTick, Pos);
 		
@@ -77,7 +74,7 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 			ChargeLevel = 0.0f;
 	}
 	
-	if (StaticType == SW_CLUSTER && WeaponSpec.m_Level == 15)
+	if (StaticType == SW_CLUSTER && WeaponSpec.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
 		ChargeLevel = 0.0f;
 	
 	if (StaticType == SW_BOMB)
@@ -92,7 +89,7 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 		ChargeLevel = 0;
 		
 	//Graphics()->ShaderBegin(SHADER_COLORSWAP, 1.0f, 0.0f, ChargeLevel);
-	RenderTools()->SetShadersForWeapon(Weapon, ChargeLevel);
+	RenderTools()->SetShadersForWeapon(WeaponSpec, ChargeLevel);
 	Graphics()->QuadsBegin();
 	Graphics()->QuadsSetRotation(Angle);
 
@@ -114,7 +111,7 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 	
 	s_LastLocalTime = Client()->LocalTime();
 	
-	RenderTools()->RenderWeapon(Weapon, Pos, vec2(1, 0), WEAPON_GAME_SIZE);
+	RenderTools()->RenderWeapon(WeaponSpec, Pos, vec2(1, 0), WEAPON_GAME_SIZE);
 	
 	Graphics()->QuadsEnd();
 	Graphics()->ShaderEnd();

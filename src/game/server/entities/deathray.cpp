@@ -58,6 +58,6 @@ void CDeathray::Tick()
 		CBuilding *pBHit = GameServer()->m_World.IntersectBuilding(m_Pos+vec2(0, 48), m_Pos+vec2(0, m_Height), 4.0f, At, -666);
 		
 		if(pBHit && pBHit != this)
-			pBHit->TakeDamage(1000, -1, -1);
+			pBHit->TakeDamage(1000, CAttackSource::World(WEAPON_WORLD));
 	}
 }

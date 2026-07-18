@@ -15,7 +15,7 @@ public:
 	virtual void Tick();
 	virtual void TickPaused();
 
-	virtual void TakeDamage(vec2 Force, int Dmg, int From, vec2 Pos, int Weapon);
+	void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos) override;
 
 private:
 	bool FindTarget();

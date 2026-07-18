@@ -185,31 +185,6 @@ void CControls::OnConsoleInit()
 
 void CControls::OnMessage(int Msg, void *pRawMsg)
 {
-	/*
-	if(Msg == NETMSGTYPE_SV_WEAPONPICKUP)
-	{
-		CNetMsg_Sv_WeaponPickup *pMsg = (CNetMsg_Sv_WeaponPickup *)pRawMsg;
-		if(g_Config.m_ClAutoswitchWeapons)
-			m_InputData.m_WantedWeapon = pMsg->m_Weapon+1;
-	}
-	*/
-	
-	/*
-	if(Msg == NETMSGTYPE_SV_WEAPONPICKUP)
-	{
-		CNetMsg_Sv_WeaponPickup *pMsg = (CNetMsg_Sv_WeaponPickup *)pRawMsg;
-		
-		CustomStuff()->m_WeaponpickTimer = 1.0f;
-		CustomStuff()->m_WeaponpickWeapon = pMsg->m_Weapon;
-		CustomStuff()->m_LastWeaponPicked = false;
-			
-		if(g_Config.m_ClAutoswitchWeapons)
-		{
-			// not working yet
-			m_InputData.m_WantedWeapon = pMsg->m_Weapon+1;
-		}
-	}
-	*/
 }
 
 

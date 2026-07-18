@@ -371,6 +371,10 @@ function(chash output_file)
 endfunction()
 
 function(generate_source output_file script_parameter)
+  set(extra_dependencies)
+  if(script_parameter STREQUAL "weapon_profiles")
+    list(APPEND extra_dependencies datasrc/weapon_profiles.py)
+  endif()
   add_custom_command(OUTPUT ${output_file}
     COMMAND ${Python3_EXECUTABLE} datasrc/compile.py ${script_parameter}
       > "${PROJECT_BINARY_DIR}/${output_file}"
@@ -379,6 +383,8 @@ function(generate_source output_file script_parameter)
       datasrc/content.py
       datasrc/datatypes.py
       datasrc/network.py
+      datasrc/weapon_types.py
+      ${extra_dependencies}
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
   )
 endfunction()
@@ -394,6 +400,7 @@ generate_source("src/generated/game_data.cpp" "game_content_source")
 generate_source("src/generated/game_data.h" "game_content_header")
 generate_source("src/generated/protocol.cpp" "network_source")
 generate_source("src/generated/protocol.h" "network_header")
+generate_source("src/generated/weapon_profiles.inc" "weapon_profiles")
 
 
 ########################################################################
@@ -521,7 +528,6 @@ set_src(GAME_SHARED GLOB src/game
   voting.h
   weapon_catalog.cpp
   weapon_catalog.h
-  weapons.cpp
   weapons.h
 )
 
@@ -530,6 +536,7 @@ set(GAME_GENERATED_SHARED
   src/generated/protocol.h
   src/generated/game_data.cpp
   src/generated/game_data.h
+  ${PROJECT_BINARY_DIR}/src/generated/weapon_profiles.inc
 )
 
 set(DEPS ${DEP_JSON} ${ZLIB_DEP})
@@ -938,14 +945,14 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/shop.h
   entities/staticlaser.cpp
   entities/staticlaser.h
-  entities/superexplosion.cpp
-  entities/superexplosion.h
   entities/teslacoil.cpp
   entities/teslacoil.h
   entities/turret.cpp
   entities/turret.h
   entities/weapon.cpp
   entities/weapon.h
+  entities/weapon_behavior.cpp
+  entities/weapon_behavior.h
   gamemodes/ball.cpp
   gamemodes/ball.h
   gamemodes/base.cpp
