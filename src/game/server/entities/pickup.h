@@ -116,6 +116,8 @@ private:
 	int m_BoxSize;
 	int m_Type;
 	int m_Subtype;
+	int m_StaticForceTile;
+	bool m_StaticForceTileChecked;
 	CWeaponSpec m_WeaponSpec;
 	
 	bool m_Mirror;

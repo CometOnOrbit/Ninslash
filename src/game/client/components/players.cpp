@@ -336,9 +336,7 @@ void CPlayers::RenderPlayer(
 	
 	// Player.IsOnForceTile()
 	
-	int ForceState = Collision()->IsForceTile(Player.m_X-8, Player.m_Y+18);
-	if (ForceState == 0)
-		ForceState = Collision()->IsForceTile(Player.m_X+8, Player.m_Y+18);
+	int ForceState = Collision()->IsForceTile(Player.m_X-8, Player.m_X+8, Player.m_Y+18);
 	
 	ForceState *= 1024.0f;
 	

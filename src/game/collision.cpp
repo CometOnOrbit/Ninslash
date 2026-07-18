@@ -3,6 +3,7 @@
 #include <base/vmath.h>
 
 #include <math.h>
+#include <vector>
 #include <engine/map.h>
 #include <engine/kernel.h>
 #include <engine/shared/mapchunk.h>
@@ -15,6 +16,17 @@
 
 using namespace std;
 
+void CCollision::ClearModifTileCache()
+{
+	for(int i = 0; i < MODIF_TILE_CACHE_SIZE; i++)
+	{
+		m_aModifTileGroup[i] = -1;
+		m_aModifTileLayer[i] = -1;
+		m_apModifTilemap[i] = 0;
+		m_apModifTiles[i] = 0;
+	}
+}
+
 
 CCollision::CCollision()
 {
@@ -24,6 +36,7 @@ CCollision::CCollision()
 	m_pLayers = 0;
 	m_pBlocks = 0;
 	m_pLightRays = 0;
+	ClearModifTileCache();
 	m_pMapChunk = NULL;
 
 	m_PathLen = 0;
@@ -55,6 +68,7 @@ CCollision::~CCollision()
 void CCollision::Init(class CLayers *pLayers)
 {
 	m_pLayers = pLayers;
+	ClearModifTileCache();
 	m_Width = m_pLayers->GameLayer()->m_Width;
 	m_Height = m_pLayers->GameLayer()->m_Height;
 	m_pTiles = static_cast<CTile *>(m_pLayers->Map()->GetData(m_pLayers->GameLayer()->m_Data));
@@ -140,6 +154,7 @@ void CCollision::RefreshMapgenDimensions()
 	m_Width = m_pLayers->GameLayer()->m_Width;
 	m_Height = m_pLayers->GameLayer()->m_Height;
 	m_pTiles = static_cast<CTile *>(m_pLayers->Map()->GetData(m_pLayers->GameLayer()->m_Data));
+	ClearModifTileCache();
 	m_LowestPoint = 0;
 
 	if(m_pBlocks)
@@ -257,27 +272,46 @@ void CCollision::GenerateWaypoints()
 				AddWaypoint(vec2(x, y));
 				continue;
 			}
-				
+
 			if (m_pTiles[y*m_Width+x].m_Index && m_pTiles[y*m_Width+x].m_Index < 130)
 				continue;
 
-			if (IsSawblade(x*32, y*32) || 
-				IsSawblade((x-1)*32, (y-1)*32) ||
-				IsSawblade((x+0)*32, (y-1)*32) ||
-				IsSawblade((x+1)*32, (y-1)*32) ||
-				IsSawblade((x-1)*32, (y-0)*32) ||
-				IsSawblade((x+0)*32, (y-0)*32) ||
-				IsSawblade((x+1)*32, (y-0)*32) ||
-				IsSawblade((x-1)*32, (y+1)*32) ||
-				IsSawblade((x+0)*32, (y+1)*32) ||
-				IsSawblade((x+1)*32, (y+1)*32))
+			bool SawbladeNearby = false;
+			for(int yy = -1; yy <= 1 && !SawbladeNearby; yy++)
+				for(int xx = -1; xx <= 1; xx++)
+					if(m_pTiles[(y+yy)*m_Width+x+xx].m_Index == ENTITY_SAWBLADE + ENTITY_OFFSET)
+					{
+						SawbladeNearby = true;
+						break;
+					}
+			if(SawbladeNearby)
 				continue;
-			
+
+			auto IsSolidNeighbor = [this, x, y](int OffsetX, int OffsetY) {
+				const int TileX = x + OffsetX;
+				const int TileY = y + OffsetY;
+				const int Index = TileY*m_Width+TileX;
+				const int Tile = m_pTiles[Index].m_Index;
+				if(Tile == ENTITY_SAWBLADE + ENTITY_OFFSET ||
+					(m_pBlocks[Index] && TileX > 0 && TileY > 0 && TileX < m_Width-1 && TileY < m_Height-1) ||
+					Tile == COLFLAG_MOVELEFT || Tile == COLFLAG_MOVERIGHT || Tile == COLFLAG_PLATFORM)
+					return true;
+				if(Tile > 128)
+					return false;
+				if(Tile & COLFLAG_SOLID)
+					return true;
+				if(Tile & COLFLAG_RAMP_LEFT)
+					return true;
+				if(Tile & COLFLAG_RAMP_RIGHT)
+					return false;
+				return (Tile & COLFLAG_ROOFSLOPE_LEFT) != 0 || (Tile & COLFLAG_ROOFSLOPE_RIGHT) != 0;
+			};
+
 			// find all outer corners
-			if ((IsTileSolid((x-1)*32, (y-1)*32) && !IsTileSolid((x-1)*32, (y-0)*32) && !IsTileSolid((x-0)*32, (y-1)*32)) ||
-				(IsTileSolid((x-1)*32, (y+1)*32) && !IsTileSolid((x-1)*32, (y-0)*32) && !IsTileSolid((x-0)*32, (y+1)*32)) ||
-				(IsTileSolid((x+1)*32, (y+1)*32) && !IsTileSolid((x+1)*32, (y-0)*32) && !IsTileSolid((x-0)*32, (y+1)*32)) ||
-				(IsTileSolid((x+1)*32, (y-1)*32) && !IsTileSolid((x+1)*32, (y-0)*32) && !IsTileSolid((x-0)*32, (y-1)*32)))
+			if ((IsSolidNeighbor(-1, -1) && !IsSolidNeighbor(-1, 0) && !IsSolidNeighbor(0, -1)) ||
+				(IsSolidNeighbor(-1, 1) && !IsSolidNeighbor(-1, 0) && !IsSolidNeighbor(0, 1)) ||
+				(IsSolidNeighbor(1, 1) && !IsSolidNeighbor(1, 0) && !IsSolidNeighbor(0, 1)) ||
+				(IsSolidNeighbor(1, -1) && !IsSolidNeighbor(1, 0) && !IsSolidNeighbor(0, -1)))
 			{
 				// outer corner found -> create a waypoint
 				
@@ -303,7 +337,7 @@ void CCollision::GenerateWaypoints()
 			}
 			else
 			// find all inner corners
-			if ((IsTileSolid((x+1)*32, y*32) || IsTileSolid((x-1)*32, y*32)) && (IsTileSolid(x*32, (y-1)*32) || IsTileSolid(x*32, (y+1)*32)))
+			if ((IsSolidNeighbor(1, 0) || IsSolidNeighbor(-1, 0)) && (IsSolidNeighbor(0, -1) || IsSolidNeighbor(0, 1)))
 			{
 				// inner corner found -> create a waypoint
 				//AddWaypoint(vec2(x, y), true);
@@ -322,8 +356,8 @@ void CCollision::GenerateWaypoints()
 						if (GetTile((x+xx)*32, (y+yy)*32) >= COLFLAG_RAMP_LEFT) Slopes++;
 				
 				// too tight spots to go
-				if ((IsTileSolid((x)*32, (y-1)*32) && IsTileSolid((x)*32, (y+1)*32)) ||
-					(IsTileSolid((x-1)*32, (y)*32) && IsTileSolid((x+1)*32, (y)*32)))
+				if ((IsSolidNeighbor(0, -1) && IsSolidNeighbor(0, 1)) ||
+					(IsSolidNeighbor(-1, 0) && IsSolidNeighbor(1, 0)))
 					Found = false;
 				
 				if (Found && Slopes < 3)
@@ -331,16 +365,45 @@ void CCollision::GenerateWaypoints()
 			}
 		}
 	}
+
+	if(m_WaypointCount == 0)
+	{
+		m_ConnectionCount = 0;
+		RemoveClosedAreas();
+		return;
+	}
+
+	std::vector<signed char> aVisibilityCache(MAX_WAYPOINTS * MAX_WAYPOINTS, -1);
+	std::vector<unsigned char> aWaypointCollisionTiles(m_Width * m_Height, 0);
+	const int CollisionTileMask = COLFLAG_SOLID | COLFLAG_DEATH | COLFLAG_INSTADEATH |
+		COLFLAG_RAMP_LEFT | COLFLAG_RAMP_RIGHT | COLFLAG_ROOFSLOPE_LEFT | COLFLAG_ROOFSLOPE_RIGHT;
+	for(int y = 0; y < m_Height; y++)
+	{
+		for(int x = 0; x < m_Width; x++)
+		{
+			const int Index = y * m_Width + x;
+			const int Tile = m_pTiles[Index].m_Index;
+			aWaypointCollisionTiles[Index] = Tile == ENTITY_SAWBLADE + ENTITY_OFFSET ||
+				(m_pBlocks[Index] && x > 0 && y > 0 && x < m_Width - 1 && y < m_Height - 1) ||
+				Tile == COLFLAG_MOVELEFT || Tile == COLFLAG_MOVERIGHT ||
+				(Tile <= COLFLAG_DAMAGEFLUID && (Tile & CollisionTileMask));
+		}
+	}
 		
 	bool KeepGoing = true;
+	bool ConnectionsCurrent = false;
 	int i = 0;
 	
 	while (KeepGoing && i++ < 10)
 	{
-		ConnectWaypoints();
+		ConnectWaypoints(&aVisibilityCache[0], &aWaypointCollisionTiles[0]);
+		ConnectionsCurrent = true;
 		KeepGoing = GenerateSomeMoreWaypoints();
+		if(KeepGoing)
+			ConnectionsCurrent = false;
 	}
-	ConnectWaypoints();
+	if(!ConnectionsCurrent)
+		ConnectWaypoints(&aVisibilityCache[0], &aWaypointCollisionTiles[0]);
 	
 	RemoveClosedAreas();
 }
@@ -353,33 +416,40 @@ bool CCollision::GenerateSomeMoreWaypoints()
 	
 	for (int i = 0; i < m_WaypointCount; i++)
 	{
+		CWaypoint *pWaypoint = m_apWaypoint[i];
+		if(!pWaypoint)
+			continue;
+
 		for (int j = 0; j < m_WaypointCount; j++)
 		{
-			if (m_apWaypoint[i] && m_apWaypoint[j] && m_apWaypoint[i]->Connected(m_apWaypoint[j]))
+			CWaypoint *pOther = m_apWaypoint[j];
+			if(!pOther || !pWaypoint->Connected(pOther))
+				continue;
+
+			// Process a two-way connection only on its first traversal.
+			if(j < i && pOther->Connected(pWaypoint))
+				continue;
+
+			if (abs(pWaypoint->m_X - pOther->m_X) > 20 && pWaypoint->m_Y == pOther->m_Y)
 			{
-				if (abs(m_apWaypoint[i]->m_X - m_apWaypoint[j]->m_X) > 20 && m_apWaypoint[i]->m_Y == m_apWaypoint[j]->m_Y)
+				int x = (pWaypoint->m_X + pOther->m_X) / 2;
+
+				if (IsTileSolid(x*32, (pWaypoint->m_Y+1)*32) || IsTileSolid(x*32, (pWaypoint->m_Y-1)*32))
 				{
-					int x = (m_apWaypoint[i]->m_X + m_apWaypoint[j]->m_X) / 2;
-					
-					if (IsTileSolid(x*32, (m_apWaypoint[i]->m_Y+1)*32) || IsTileSolid(x*32, (m_apWaypoint[i]->m_Y-1)*32))
-					{
-						AddWaypoint(vec2(x, m_apWaypoint[i]->m_Y));
-						Result = true;
-					}
+					AddWaypoint(vec2(x, pWaypoint->m_Y));
+					Result = true;
 				}
+			}
+
+			if (abs(pWaypoint->m_Y - pOther->m_Y) > 30 && pWaypoint->m_X == pOther->m_X)
+			{
+				int y = (pWaypoint->m_Y + pOther->m_Y) / 2;
 				
-				if (abs(m_apWaypoint[i]->m_Y - m_apWaypoint[j]->m_Y) > 30 && m_apWaypoint[i]->m_X == m_apWaypoint[j]->m_X)
+				if (IsTileSolid((pWaypoint->m_X+1)*32, y*32) || IsTileSolid((pWaypoint->m_X-1)*32, y*32))
 				{
-					int y = (m_apWaypoint[i]->m_Y + m_apWaypoint[j]->m_Y) / 2;
-					
-					if (IsTileSolid((m_apWaypoint[i]->m_X+1)*32, y*32) || IsTileSolid((m_apWaypoint[i]->m_X-1)*32, y*32))
-					{
-						AddWaypoint(vec2(m_apWaypoint[i]->m_X, y));
-						Result = true;
-					}
+					AddWaypoint(vec2(pWaypoint->m_X, y));
+					Result = true;
 				}
-				
-				m_apWaypoint[i]->Unconnect(m_apWaypoint[j]);
 			}
 		}
 	}
@@ -403,7 +473,75 @@ CWaypoint *CCollision::GetWaypointAt(int x, int y)
 }
 
 
-void CCollision::ConnectWaypoints()
+bool CCollision::WaypointLineBlocked(vec2 Pos0, vec2 Pos1, const unsigned char *pTileCanCollide)
+{
+	const float Distance = distance(Pos0, Pos1);
+	if(Distance <= 0.0f)
+	{
+		const int X = round_to_int(Pos0.x);
+		const int Y = round_to_int(Pos0.y);
+		const int Nx = clamp(X / 32, 0, m_Width - 1);
+		const int Ny = clamp(Y / 32, 0, m_Height - 1);
+		return pTileCanCollide[Ny * m_Width + Nx] && SolidState(X, Y, true, true, true) != SS_NOCOL;
+	}
+
+	const float InvDistance = 1.0f / Distance;
+	const int End = int(Distance + 1.0f);
+	auto TileIndexAt = [this, Pos0, Pos1, InvDistance](int Sample) {
+		const float a = Sample * InvDistance;
+		const vec2 Pos = mix(Pos0, Pos1, a);
+		const int X = round_to_int(Pos.x);
+		const int Y = round_to_int(Pos.y);
+		const int Nx = clamp(X / 32, 0, m_Width - 1);
+		const int Ny = clamp(Y / 32, 0, m_Height - 1);
+		return Ny * m_Width + Nx;
+	};
+
+	for(int i = 0; i < End; i++)
+	{
+		const float a = i * InvDistance;
+		const vec2 Pos = mix(Pos0, Pos1, a);
+		const int X = round_to_int(Pos.x);
+		const int Y = round_to_int(Pos.y);
+		const int Nx = clamp(X / 32, 0, m_Width - 1);
+		const int Ny = clamp(Y / 32, 0, m_Height - 1);
+		const int TileIndex = Ny * m_Width + Nx;
+		if(pTileCanCollide[TileIndex])
+		{
+			if(SolidState(X, Y, true, true, true) != SS_NOCOL)
+				return true;
+			continue;
+		}
+
+		const int Probe = i + 32 < End ? i + 32 : End - 1;
+		if(Probe <= i)
+			continue;
+
+		if(TileIndexAt(Probe) == TileIndex)
+		{
+			i = Probe;
+			continue;
+		}
+
+		// Tile coordinates are monotonic along a line, so locate the last
+		// original sample that remains inside this known-safe tile.
+		int LastInside = i;
+		int FirstOutside = Probe;
+		while(LastInside + 1 < FirstOutside)
+		{
+			const int Middle = (LastInside + FirstOutside) / 2;
+			if(TileIndexAt(Middle) == TileIndex)
+				LastInside = Middle;
+			else
+				FirstOutside = Middle;
+		}
+		i = LastInside;
+	}
+	return false;
+}
+
+
+void CCollision::ConnectWaypoints(signed char *pVisibilityCache, const unsigned char *pTileCanCollide)
 {
 	m_ConnectionCount = 0;
 	
@@ -477,25 +615,32 @@ void CCollision::ConnectWaypoints()
 	// connect to near, visible waypoints
 	for (int i = 0; i < m_WaypointCount; i++)
 	{
-		if (m_apWaypoint[i] && m_apWaypoint[i]->m_InnerCorner)
+		CWaypoint *pWaypoint = m_apWaypoint[i];
+		if (!pWaypoint || pWaypoint->m_InnerCorner)
 			continue;
 		
 		for (int j = 0; j < m_WaypointCount; j++)
 		{
-			if (m_apWaypoint[j] && m_apWaypoint[j]->m_InnerCorner)
+			if (pWaypoint->m_ConnectionCount >= MAX_WAYPOINTCONNECTIONS)
+				break;
+
+			CWaypoint *pOther = m_apWaypoint[j];
+			if (pOther && pOther->m_InnerCorner)
 				continue;
 			
-			if (m_apWaypoint[i] && m_apWaypoint[j] && !m_apWaypoint[i]->Connected(m_apWaypoint[j]))
-			{
-				float Dist = distance(m_apWaypoint[i]->m_Pos, m_apWaypoint[j]->m_Pos);
-				
-				if (Dist < 1000 && !IntersectLine(m_apWaypoint[i]->m_Pos, m_apWaypoint[j]->m_Pos, NULL, NULL, true) &&
-					m_apWaypoint[i]->m_Pos.y != m_apWaypoint[j]->m_Pos.y)
-				{
-					if (m_apWaypoint[i]->Connect(m_apWaypoint[j]))
-						m_ConnectionCount++;
-				}
-			}
+			if (!pOther || pWaypoint->m_Pos.y == pOther->m_Pos.y)
+				continue;
+
+			const vec2 Delta = pWaypoint->m_Pos - pOther->m_Pos;
+			if (dot(Delta, Delta) >= 1000.0f * 1000.0f || pWaypoint->Connected(pOther))
+				continue;
+
+			signed char &Visibility = pVisibilityCache[i * MAX_WAYPOINTS + j];
+			if(Visibility < 0)
+				Visibility = WaypointLineBlocked(pWaypoint->m_Pos, pOther->m_Pos, pTileCanCollide) ? 0 : 1;
+
+			if(Visibility && pWaypoint->Connect(pOther))
+				m_ConnectionCount++;
 		}
 	}
 }
@@ -571,71 +716,77 @@ void CCollision::InitLightRays()
 	for (int y = m_Height-1; y > 0; y--)
 		for (int x = 0; x < m_Width; x++)
 		{
+			const int Tile = GetTileRay(x*32, y*32, true);
+			const int LeftTile = GetTileRay((x-1)*32, y*32, true);
+			const int UpTile = GetTileRay(x*32, (y-1)*32, true);
+			const int UpLeftTile = GetTileRay((x-1)*32, (y-1)*32, true);
+			int &LightRay = m_pLightRays[y*m_Width+x];
+
 			// outer corners
-			if (GetTileRay(x*32, y*32, true) == COLFLAG_SOLID && !GetTileRay((x-1)*32, y*32, true) && !GetTileRay(x*32, (y-1)*32, true))
-				m_pLightRays[y*m_Width+x] = 1;
+			if (Tile == COLFLAG_SOLID && !LeftTile && !UpTile)
+				LightRay = 1;
 			
-			if (!GetTileRay(x*32, y*32, true) && GetTileRay((x-1)*32, y*32, true) == COLFLAG_SOLID && !GetTileRay(x*32, (y-1)*32, true) && !GetTileRay((x-1)*32, (y-1)*32, true))
-				m_pLightRays[y*m_Width+x] = 1;
+			if (!Tile && LeftTile == COLFLAG_SOLID && !UpTile && !UpLeftTile)
+				LightRay = 1;
 			
-			if (!GetTileRay(x*32, y*32, true) && GetTileRay(x*32, (y-1)*32, true) == COLFLAG_SOLID && !GetTileRay((x-1)*32, (y-1)*32, true))
-				m_pLightRays[y*m_Width+x] = 1;
+			if (!Tile && UpTile == COLFLAG_SOLID && !UpLeftTile)
+				LightRay = 1;
 			
-			if (!GetTileRay(x*32, y*32, true) && GetTileRay((x-1)*32, (y-1)*32, true) == COLFLAG_SOLID && !GetTileRay(x*32, (y-1)*32, true) && !GetTileRay((x-1)*32, y*32, true))
-				m_pLightRays[y*m_Width+x] = 1;
+			if (!Tile && UpLeftTile == COLFLAG_SOLID && !UpTile && !LeftTile)
+				LightRay = 1;
 			
 
 			// inner corners
-			if (GetTileRay(x*32, y*32, true) == COLFLAG_SOLID && !GetTileRay(x*32, (y-1)*32, true) && GetTileRay((x-1)*32, (y-1)*32, true) == COLFLAG_SOLID)
-				m_pLightRays[y*m_Width+x] = 1;
+			if (Tile == COLFLAG_SOLID && !UpTile && UpLeftTile == COLFLAG_SOLID)
+				LightRay = 1;
 			
-			if (GetTileRay(x*32, y*32, true) == COLFLAG_SOLID && GetTileRay(x*32, (y-1)*32, true) == COLFLAG_SOLID && GetTileRay((x-1)*32, y*32, true) == COLFLAG_SOLID && !GetTileRay((x-1)*32, (y-1)*32, true))
-				m_pLightRays[y*m_Width+x] = 1;
+			if (Tile == COLFLAG_SOLID && UpTile == COLFLAG_SOLID && LeftTile == COLFLAG_SOLID && !UpLeftTile)
+				LightRay = 1;
 			
-			if (!GetTileRay(x*32, y*32, true) && GetTileRay(x*32, (y-1)*32, true) == COLFLAG_SOLID && GetTileRay((x-1)*32, y*32, true) == COLFLAG_SOLID)
-				m_pLightRays[y*m_Width+x] = 1;
+			if (!Tile && UpTile == COLFLAG_SOLID && LeftTile == COLFLAG_SOLID)
+				LightRay = 1;
 			
-			if (GetTileRay(x*32, y*32, true) == COLFLAG_SOLID && GetTileRay(x*32, (y-1)*32, true) == COLFLAG_SOLID && !GetTileRay((x-1)*32, y*32, true) && GetTileRay((x-1)*32, (y-1)*32, true) == COLFLAG_SOLID)
-				m_pLightRays[y*m_Width+x] = 1;
+			if (Tile == COLFLAG_SOLID && UpTile == COLFLAG_SOLID && !LeftTile && UpLeftTile == COLFLAG_SOLID)
+				LightRay = 1;
 			
 			
 			// slope & ramp corners
-			if (GetTileRay(x*32, y*32, true) == COLFLAG_ROOFSLOPE_RIGHT && (GetTileRay((x-1)*32, (y-1)*32, true) == COLFLAG_SOLID || !GetTileRay((x-1)*32, (y-1)*32, true)))
-				m_pLightRays[y*m_Width+x] = 1;
+			if (Tile == COLFLAG_ROOFSLOPE_RIGHT && (UpLeftTile == COLFLAG_SOLID || !UpLeftTile))
+				LightRay = 1;
 			
-			if ((!GetTileRay(x*32, y*32, true) || GetTileRay(x*32, y*32, true) == COLFLAG_SOLID) && GetTileRay((x-1)*32, (y-1)*32, true) == COLFLAG_ROOFSLOPE_RIGHT)
-				m_pLightRays[y*m_Width+x] = 1;
-			
-			
-			if (!GetTileRay(x*32, y*32, true) && GetTileRay(x*32, (y-1)*32, true) == COLFLAG_ROOFSLOPE_LEFT && (GetTileRay((x-1)*32, y*32, true) == COLFLAG_SOLID || !GetTileRay((x-1)*32, y*32, true)))
-				m_pLightRays[y*m_Width+x] = 1;
-			
-			if (!GetTileRay(x*32, y*32, true) && (GetTileRay(x*32, (y-1)*32, true) == COLFLAG_SOLID || !GetTileRay(x*32, (y-1)*32, true)) && GetTileRay((x-1)*32, y*32, true) == COLFLAG_ROOFSLOPE_LEFT)
-				m_pLightRays[y*m_Width+x] = 1;
+			if ((!Tile || Tile == COLFLAG_SOLID) && UpLeftTile == COLFLAG_ROOFSLOPE_RIGHT)
+				LightRay = 1;
 			
 			
-			if ((GetTileRay(x*32, y*32, true) == COLFLAG_SOLID || !GetTileRay(x*32, y*32, true)) && GetTileRay((x-1)*32, (y-1)*32, true) == COLFLAG_RAMP_LEFT)
-				m_pLightRays[y*m_Width+x] = 1;
+			if (!Tile && UpTile == COLFLAG_ROOFSLOPE_LEFT && (LeftTile == COLFLAG_SOLID || !LeftTile))
+				LightRay = 1;
 			
-			if (GetTileRay(x*32, y*32, true) == COLFLAG_RAMP_LEFT && (!GetTileRay((x-1)*32, (y-1)*32, true) || GetTileRay((x-1)*32, (y-1)*32, true) == COLFLAG_SOLID))
-				m_pLightRays[y*m_Width+x] = 1;
+			if (!Tile && (UpTile == COLFLAG_SOLID || !UpTile) && LeftTile == COLFLAG_ROOFSLOPE_LEFT)
+				LightRay = 1;
+			
+			
+			if ((Tile == COLFLAG_SOLID || !Tile) && UpLeftTile == COLFLAG_RAMP_LEFT)
+				LightRay = 1;
+			
+			if (Tile == COLFLAG_RAMP_LEFT && (!UpLeftTile || UpLeftTile == COLFLAG_SOLID))
+				LightRay = 1;
 			
 		
-			if ((GetTileRay(x*32, y*32, true) == COLFLAG_SOLID || !GetTileRay(x*32, y*32, true)) && GetTileRay(x*32, (y-1)*32, true) == COLFLAG_RAMP_RIGHT && (!GetTileRay((x-1)*32, y*32, true) || GetTileRay((x-1)*32, y*32, true) == COLFLAG_SOLID))
-				m_pLightRays[y*m_Width+x] = 1;
+			if ((Tile == COLFLAG_SOLID || !Tile) && UpTile == COLFLAG_RAMP_RIGHT && (!LeftTile || LeftTile == COLFLAG_SOLID))
+				LightRay = 1;
 			
-			if ((GetTileRay(x*32, y*32, true) == COLFLAG_SOLID || !GetTileRay(x*32, y*32, true)) && GetTileRay((x-1)*32, y*32, true) == COLFLAG_RAMP_RIGHT && (!GetTileRay(x*32, (y-1)*32, true) || GetTileRay(x*32, (y-1)*32, true) == COLFLAG_SOLID))
-				m_pLightRays[y*m_Width+x] = 1;
+			if ((Tile == COLFLAG_SOLID || !Tile) && LeftTile == COLFLAG_RAMP_RIGHT && (!UpTile || UpTile == COLFLAG_SOLID))
+				LightRay = 1;
 			
 			
 			// screen border helpers
-			if (!m_pLightRays[y*m_Width+x])
+			if (!LightRay)
 			{
-				if ((!GetTileRay(x*32, y*32, true) && GetTileRay((x-1)*32, y*32, true)) || (GetTileRay(x*32, y*32, true) && !GetTileRay((x-1)*32, y*32, true)))
-					m_pLightRays[y*m_Width+x] = -1;
+				if ((!Tile && LeftTile) || (Tile && !LeftTile))
+					LightRay = -1;
 				
-				if ((!GetTileRay(x*32, y*32, true) && GetTileRay(x*32, (y-1)*32, true)) || (GetTileRay(x*32, y*32, true) && !GetTileRay(x*32, (y-1)*32, true)))
-					m_pLightRays[y*m_Width+x] -= 2;
+				if ((!Tile && UpTile) || (Tile && !UpTile))
+					LightRay -= 2;
 			}
 		}
 }
@@ -899,14 +1050,16 @@ int CCollision::IsInFluid(float x, float y)
 
 int CCollision::FastIntersectLine(vec2 Pos0, vec2 Pos1)
 {
-	//float Distance = distance(Pos0, Pos1) / 4.0f;
-	float Distance = distance(Pos0, Pos1);
-	int End(Distance+1);
+	const float Distance = distance(Pos0, Pos1);
+	if(Distance <= 0.0f)
+		return CheckPoint(Pos0.x, Pos0.y) ? GetCollisionAt(Pos0.x, Pos0.y) : 0;
+	const float InvDistance = 1.0f / Distance;
+	const int End = int(Distance + 1.0f);
 
 	for(int i = 0; i < End; i++)
 	{
-		float a = i/Distance;
-		vec2 Pos = mix(Pos0, Pos1, a);
+		const float a = i * InvDistance;
+		const vec2 Pos = mix(Pos0, Pos1, a);
 		if(CheckPoint(Pos.x, Pos.y))
 			return GetCollisionAt(Pos.x, Pos.y);
 	}
@@ -917,14 +1070,24 @@ int CCollision::FastIntersectLine(vec2 Pos0, vec2 Pos1)
 // TODO: rewrite this smarter!
 int CCollision::IntersectLine(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *pOutBeforeCollision, bool IncludeDeath, bool IncludePlatforms, bool IncludeBlocks)
 {
-	float Distance = distance(Pos0, Pos1);
-	int End(Distance+1);
+	const float Distance = distance(Pos0, Pos1);
+	if(Distance <= 0.0f)
+	{
+		if(pOutCollision)
+			*pOutCollision = Pos0;
+		if(pOutBeforeCollision)
+			*pOutBeforeCollision = Pos0;
+		return CheckPoint(Pos0.x, Pos0.y, IncludeDeath, !IncludePlatforms, IncludeBlocks) ?
+			GetCollisionAt(Pos0.x, Pos0.y, !IncludePlatforms, IncludeBlocks) : 0;
+	}
+	const float InvDistance = 1.0f / Distance;
+	const int End = int(Distance + 1.0f);
 	vec2 Last = Pos0;
 
 	for(int i = 0; i < End; i++)
 	{
-		float a = i/Distance;
-		vec2 Pos = mix(Pos0, Pos1, a);
+		const float a = i * InvDistance;
+		const vec2 Pos = mix(Pos0, Pos1, a);
 		if(CheckPoint(Pos.x, Pos.y, IncludeDeath, !IncludePlatforms, IncludeBlocks))
 		{
 			if(pOutCollision)
@@ -944,13 +1107,16 @@ int CCollision::IntersectLine(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *p
 
 bool CCollision::IntersectBlocks(vec2 Pos0, vec2 Pos1)
 {
-	float Distance = distance(Pos0, Pos1);
-	int End(Distance+1);
+	const float Distance = distance(Pos0, Pos1);
+	if(Distance <= 0.0f)
+		return GetBlock(Pos0.x, Pos0.y);
+	const float InvDistance = 1.0f / Distance;
+	const int End = int(Distance + 1.0f);
 
 	for(int i = 0; i < End; i++)
 	{
-		float a = i/Distance;
-		vec2 Pos = mix(Pos0, Pos1, a);
+		const float a = i * InvDistance;
+		const vec2 Pos = mix(Pos0, Pos1, a);
 		if(GetBlock(Pos.x, Pos.y))
 		{
 			return true;
@@ -1242,14 +1408,48 @@ void CCollision::MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, float Elas
 	*pInoutVel = Vel;
 }
 
+bool CCollision::ClearTileLayer(int group, int layer)
+{
+	const unsigned CacheHash = static_cast<unsigned>(group) * 31u + static_cast<unsigned>(layer);
+	const int CacheIndex = CacheHash & (MODIF_TILE_CACHE_SIZE - 1);
+	if(m_aModifTileGroup[CacheIndex] != group || m_aModifTileLayer[CacheIndex] != layer)
+	{
+		CMapItemGroup *pGroup = m_pLayers->GetGroup(group);
+		CMapItemLayer *pLayer = m_pLayers->GetLayer(pGroup->m_StartLayer + layer);
+		m_aModifTileGroup[CacheIndex] = group;
+		m_aModifTileLayer[CacheIndex] = layer;
+		m_apModifTilemap[CacheIndex] = pLayer->m_Type == LAYERTYPE_TILES ? reinterpret_cast<CMapItemLayerTilemap *>(pLayer) : 0;
+		m_apModifTiles[CacheIndex] = !m_apModifTilemap[CacheIndex] ? 0 : m_apModifTilemap[CacheIndex] == m_pLayers->GameLayer() ?
+			m_pTiles : static_cast<CTile *>(m_pLayers->Map()->GetData(m_apModifTilemap[CacheIndex]->m_Data));
+	}
+
+	CMapItemLayerTilemap *pTilemap = m_apModifTilemap[CacheIndex];
+	if(!pTilemap || pTilemap->m_Width != m_Width || pTilemap->m_Height != m_Height)
+		return false;
+
+	mem_zero(m_apModifTiles[CacheIndex], m_Width * m_Height * sizeof(CTile));
+	return true;
+}
+
+
 bool CCollision::ModifTile(ivec2 pos, int group, int layer, int tile, int flags, int reserved)
 {
-    CMapItemGroup *pGroup = m_pLayers->GetGroup(group);
-    CMapItemLayer *pLayer = m_pLayers->GetLayer(pGroup->m_StartLayer+layer);
-    if (pLayer->m_Type != LAYERTYPE_TILES)
-        return false;
+	const unsigned CacheHash = static_cast<unsigned>(group) * 31u + static_cast<unsigned>(layer);
+	const int CacheIndex = CacheHash & (MODIF_TILE_CACHE_SIZE - 1);
+	if(m_aModifTileGroup[CacheIndex] != group || m_aModifTileLayer[CacheIndex] != layer)
+	{
+		CMapItemGroup *pGroup = m_pLayers->GetGroup(group);
+		CMapItemLayer *pLayer = m_pLayers->GetLayer(pGroup->m_StartLayer+layer);
+		m_aModifTileGroup[CacheIndex] = group;
+		m_aModifTileLayer[CacheIndex] = layer;
+		m_apModifTilemap[CacheIndex] = pLayer->m_Type == LAYERTYPE_TILES ? reinterpret_cast<CMapItemLayerTilemap *>(pLayer) : 0;
+		m_apModifTiles[CacheIndex] = !m_apModifTilemap[CacheIndex] ? 0 : m_apModifTilemap[CacheIndex] == m_pLayers->GameLayer() ?
+			m_pTiles : static_cast<CTile *>(m_pLayers->Map()->GetData(m_apModifTilemap[CacheIndex]->m_Data));
+	}
+	if(!m_apModifTilemap[CacheIndex])
+		return false;
 
-    CMapItemLayerTilemap *pTilemap = reinterpret_cast<CMapItemLayerTilemap *>(pLayer);
+	CMapItemLayerTilemap *pTilemap = m_apModifTilemap[CacheIndex];
     int TotalTiles = pTilemap->m_Width*pTilemap->m_Height;
     int tpos = (int)pos.y*pTilemap->m_Width+(int)pos.x;
     if (tpos < 0 || tpos >= TotalTiles)
@@ -1258,7 +1458,7 @@ bool CCollision::ModifTile(ivec2 pos, int group, int layer, int tile, int flags,
 
     if (pTilemap != m_pLayers->GameLayer())
     {
-        CTile *pTiles = static_cast<CTile *>(m_pLayers->Map()->GetData(pTilemap->m_Data));
+        CTile *pTiles = m_apModifTiles[CacheIndex];
         pTiles[tpos].m_Flags = flags;
         pTiles[tpos].m_Index = tile;
         pTiles[tpos].m_Reserved = reserved;

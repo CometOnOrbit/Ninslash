@@ -289,9 +289,7 @@ void CBuilding::Move()
 	if(GameServer()->Collision()->CheckPoint(m_Pos.x-m_BoxSize.x/2, m_Pos.y+m_BoxSize.y/2+1))
 		Grounded = true;
 		
-	int OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x-12, m_Pos.y+m_BoxSize.y/2+1);
-	if (OnForceTile == 0)
-		OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x+12, m_Pos.y+m_BoxSize.y/2+1);
+	const int OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x-12, m_Pos.x+12, m_Pos.y+m_BoxSize.y/2+1);
 
 	if (Grounded)
 	{

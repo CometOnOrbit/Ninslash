@@ -1622,14 +1622,19 @@ void CGameContext::CheckPureTuning()
 	if(!m_pController)
 		return;
 
-	if(	str_comp(m_pController->m_pGameType, "DM")==0 ||
-		str_comp(m_pController->m_pGameType, "TDM")==0 ||
-		str_comp(m_pController->m_pGameType, "BALL")==0 ||
-		str_comp(m_pController->m_pGameType, "DEF")==0 ||
-		str_comp(m_pController->m_pGameType, "INF")==0 ||
-		str_comp(m_pController->m_pGameType, "INV")==0 ||
-		str_comp(m_pController->m_pGameType, "GUN")==0 ||
-		str_comp(m_pController->m_pGameType, "CTF")==0)
+	bool Pure = false;
+	switch(m_pController->m_pGameType[0])
+	{
+	case 'B': Pure = str_comp(m_pController->m_pGameType, "BALL") == 0; break;
+	case 'C': Pure = str_comp(m_pController->m_pGameType, "CTF") == 0; break;
+	case 'D': Pure = str_comp(m_pController->m_pGameType, "DM") == 0 || str_comp(m_pController->m_pGameType, "DEF") == 0; break;
+	case 'G': Pure = str_comp(m_pController->m_pGameType, "GUN") == 0; break;
+	case 'I': Pure = str_comp(m_pController->m_pGameType, "INF") == 0 || str_comp(m_pController->m_pGameType, "INV") == 0; break;
+	case 'T': Pure = str_comp(m_pController->m_pGameType, "TDM") == 0; break;
+	default: break;
+	}
+
+	if(Pure)
 	{
 		CTuningParams p;
 		if(mem_comp(&p, &m_Tuning, sizeof(p)) != 0)

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <string.h>
 
 #include <engine/editor.h>
@@ -1389,19 +1390,19 @@ void CGameClient::OnNewSnapshot()
 	}
 
 	// sort player infos by score
-	mem_copy(m_Snap.m_paInfoByScore, m_Snap.m_paPlayerInfos, sizeof(m_Snap.m_paInfoByScore));
-	for(int k = 0; k < MAX_CLIENTS-1; k++) // ffs, bubblesort
+	int NumPlayerInfos = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		for(int i = 0; i < MAX_CLIENTS-k-1; i++)
-		{
-			if(m_Snap.m_paInfoByScore[i+1] && (!m_Snap.m_paInfoByScore[i] || m_Snap.m_paInfoByScore[i]->m_Score < m_Snap.m_paInfoByScore[i+1]->m_Score))
-			{
-				const CNetObj_PlayerInfo *pTmp = m_Snap.m_paInfoByScore[i];
-				m_Snap.m_paInfoByScore[i] = m_Snap.m_paInfoByScore[i+1];
-				m_Snap.m_paInfoByScore[i+1] = pTmp;
-			}
-		}
+		if(m_Snap.m_paPlayerInfos[i])
+			m_Snap.m_paInfoByScore[NumPlayerInfos++] = m_Snap.m_paPlayerInfos[i];
 	}
+	std::sort(m_Snap.m_paInfoByScore, m_Snap.m_paInfoByScore + NumPlayerInfos,
+		[](const CNetObj_PlayerInfo *pLeft, const CNetObj_PlayerInfo *pRight) {
+			if(pLeft->m_Score != pRight->m_Score)
+				return pLeft->m_Score > pRight->m_Score;
+			return pLeft->m_ClientID < pRight->m_ClientID;
+		});
+	mem_zero(m_Snap.m_paInfoByScore + NumPlayerInfos, (MAX_CLIENTS - NumPlayerInfos) * sizeof(m_Snap.m_paInfoByScore[0]));
 	// sort player infos by team
 	int Teams[3] = { TEAM_RED, TEAM_BLUE, TEAM_SPECTATORS };
 	int Index = 0;

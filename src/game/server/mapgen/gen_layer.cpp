@@ -571,16 +571,17 @@ void CGenLayer::GenerateSlopes()
 			{
 				int s = 0;
 				int MaxSize = 70 + rand()%8;
+				const int MaxCandidateSize = max(2, min(MaxSize, min(m_Width-x, y)));
 
-				for (int i = 0; i < MaxSize-1; i++)
+				for (int i = MaxSize-MaxCandidateSize; i < MaxSize-1; i++)
 				{
 					Valid = true;
 					s = MaxSize-i;
-					for (int xx = x; xx < x + s; xx++)
+					for (int xx = x; xx < x + s && Valid; xx++)
 						if (!Get(xx, y) || Get(xx, y+1))
 							Valid = false;
 						
-					for (int yy = y-s; yy < y; yy++)
+					for (int yy = y-s; yy < y && Valid; yy++)
 						if (!Get(x, yy) || Get(x-1, yy))
 							Valid = false;
 						
@@ -589,18 +590,18 @@ void CGenLayer::GenerateSlopes()
 				}
 				
 				if (Valid)
-					for (int xx = x; xx < x + s; xx++)
-						for (int yy = y-s; yy < y; yy++)
+					for (int xx = x; xx < x + s && Valid; xx++)
+						for (int yy = y-s; yy < y && Valid; yy++)
 							if (!Get(xx, yy))
 								Valid = false;
 							
 				if (Valid)
-					for (int yy = y-s; yy < y; yy++)
+					for (int yy = y-s; yy < y && Valid; yy++)
 						if (!Get(x + s + 1, yy))
 							Valid = false;
 						
 				if (Valid)
-					for (int xx = x; xx < x + s; xx++)
+					for (int xx = x; xx < x + s && Valid; xx++)
 						if (!Get(xx, y-s-1))
 							Valid = false;
 
@@ -617,16 +618,17 @@ void CGenLayer::GenerateSlopes()
 			{
 				int s = 0;
 				int MaxSize = 7 + rand()%8;
+				const int MaxCandidateSize = max(2, min(MaxSize, min(x, y)));
 
-				for (int i = 0; i < MaxSize-1; i++)
+				for (int i = MaxSize-MaxCandidateSize; i < MaxSize-1; i++)
 				{
 					Valid = true;
 					s = MaxSize-i;
-					for (int xx = x-s; xx < x; xx++)
+					for (int xx = x-s; xx < x && Valid; xx++)
 						if (!Get(xx, y) || Get(xx, y+1))
 							Valid = false;
 					
-					for (int yy = y-s; yy < y; yy++)
+					for (int yy = y-s; yy < y && Valid; yy++)
 						if (!Get(x, yy) || Get(x+1, yy))
 							Valid = false;
 						
@@ -635,18 +637,18 @@ void CGenLayer::GenerateSlopes()
 				}
 				
 				if (Valid)
-					for (int xx = x-s; xx < x; xx++)
-						for (int yy = y-s; yy < y; yy++)
+					for (int xx = x-s; xx < x && Valid; xx++)
+						for (int yy = y-s; yy < y && Valid; yy++)
 							if (!Get(xx, yy))
 								Valid = false;
 							
 				if (Valid)
-					for (int yy = y-s; yy < y; yy++)
+					for (int yy = y-s; yy < y && Valid; yy++)
 						if (!Get(x - s - 1, yy))
 							Valid = false;
 						
 				if (Valid)
-					for (int xx = x-s; xx < x; xx++)
+					for (int xx = x-s; xx < x && Valid; xx++)
 						if (!Get(xx, y-s-1))
 							Valid = false;
 
@@ -670,16 +672,17 @@ void CGenLayer::GenerateSlopes()
 			{
 				int s = 0;
 				int MaxSize = 7 + rand()%8;
+				const int MaxCandidateSize = max(2, min(MaxSize, min(m_Width-x, m_Height-y)));
 
-				for (int i = 0; i < MaxSize-1; i++)
+				for (int i = MaxSize-MaxCandidateSize; i < MaxSize-1; i++)
 				{
 					Valid = true;
 					s = MaxSize-i;
-					for (int xx = x; xx < x + s; xx++)
+					for (int xx = x; xx < x + s && Valid; xx++)
 						if (!Get(xx, y) || Get(xx, y-1))
 							Valid = false;
 					
-					for (int yy = y; yy < y + s; yy++)
+					for (int yy = y; yy < y + s && Valid; yy++)
 						if (!Get(x, yy) || Get(x-1, yy))
 							Valid = false;
 						
@@ -688,18 +691,18 @@ void CGenLayer::GenerateSlopes()
 				}
 				
 				if (Valid)
-					for (int xx = x; xx < x + s; xx++)
-						for (int yy = y; yy < y + s; yy++)
+					for (int xx = x; xx < x + s && Valid; xx++)
+						for (int yy = y; yy < y + s && Valid; yy++)
 							if (!Get(xx, yy))
 								Valid = false;
 							
 				if (Valid)
-					for (int yy = y; yy < y + s; yy++)
+					for (int yy = y; yy < y + s && Valid; yy++)
 						if (!Get(x + s + 1, yy))
 							Valid = false;
 						
 				if (Valid)
-					for (int xx = x; xx < x + s; xx++)
+					for (int xx = x; xx < x + s && Valid; xx++)
 						if (!Get(xx, y+s+1))
 							Valid = false;
 
@@ -716,16 +719,17 @@ void CGenLayer::GenerateSlopes()
 			{
 				int s = 0;
 				int MaxSize = 7 + rand()%8;
+				const int MaxCandidateSize = max(2, min(MaxSize, min(x, m_Height-y)));
 
-				for (int i = 0; i < MaxSize-1; i++)
+				for (int i = MaxSize-MaxCandidateSize; i < MaxSize-1; i++)
 				{
 					Valid = true;
 					s = MaxSize-i;
-					for (int xx = x-s; xx < x; xx++)
+					for (int xx = x-s; xx < x && Valid; xx++)
 						if (!Get(xx, y) || Get(xx, y-1))
 							Valid = false;
 					
-					for (int yy = y; yy < y + s; yy++)
+					for (int yy = y; yy < y + s && Valid; yy++)
 						if (!Get(x, yy) || Get(x+1, yy))
 							Valid = false;
 						
@@ -744,18 +748,18 @@ void CGenLayer::GenerateSlopes()
 					*/
 				
 				if (Valid)
-					for (int xx = x-s; xx < x; xx++)
-						for (int yy = y; yy < y + s; yy++)
+					for (int xx = x-s; xx < x && Valid; xx++)
+						for (int yy = y; yy < y + s && Valid; yy++)
 							if (!Get(xx, yy))
 								Valid = false;
 							
 				if (Valid)
-					for (int yy = y; yy < y + s; yy++)
+					for (int yy = y; yy < y + s && Valid; yy++)
 						if (!Get(x - s - 1, yy))
 							Valid = false;
 						
 				if (Valid)
-					for (int xx = x-s; xx < x; xx++)
+					for (int xx = x-s; xx < x && Valid; xx++)
 						if (!Get(xx, y+s+1))
 							Valid = false;
 
@@ -1496,94 +1500,6 @@ ivec2 CGenLayer::GetSharpCorner()
 }
 
 
-void CGenLayer::Set(int Tile, int x, int y, int Flags, int Layer)
-{
-	if (x < 0 || y < 0 || x >= m_Width || y >= m_Height)
-		return;
-	
-	if (Layer == FOREGROUND)
-	{
-		m_pTiles[x + y*m_Width] = Tile;
-		m_pFlags[x + y*m_Width] = Flags;
-	}
-	else if (Layer == BACKGROUND)
-	{
-		m_pBGTiles[x + y*m_Width] = Tile;
-		m_pBGFlags[x + y*m_Width] = Flags;
-	}
-	else if (Layer == FGOBJECTS)
-	{
-		m_pObjectTiles[x + y*m_Width] = Tile;
-		m_pObjectFlags[x + y*m_Width] = Flags;
-	}
-	else if (Layer == DOODADS)
-	{
-		m_pDoodadsTiles[x + y*m_Width] = Tile;
-		m_pDoodadsFlags[x + y*m_Width] = Flags;
-	}
-}
-
-int CGenLayer::Get(int x, int y, int Layer)
-{
-	if (x < 0 || y < 0 || x >= m_Width || y >= m_Height)
-		return 1;
-
-	int i = 0;
-	
-	if (Layer == FOREGROUND)
-		i = m_pTiles[x + y*m_Width];
-	else if (Layer == BACKGROUND)
-		i = m_pBGTiles[x + y*m_Width];
-	else if (Layer == FGOBJECTS)
-		i = m_pObjectTiles[x + y*m_Width];
-	else if (Layer == DOODADS)
-		i = m_pDoodadsTiles[x + y*m_Width];
-	
-	if (i < 0)
-		i = 0;
-	
-	return i;
-}
-
-int CGenLayer::GetFlags(int x, int y, int Layer)
-{
-	if (x < 0 || y < 0 || x >= m_Width || y >= m_Height)
-		return 0;
-	
-	if (Layer == FOREGROUND)
-		return m_pFlags[x + y*m_Width];
-	else if (Layer == BACKGROUND)
-		return m_pBGFlags[x + y*m_Width];
-	else if (Layer == FGOBJECTS)
-		return m_pObjectFlags[x + y*m_Width];
-	else if (Layer == DOODADS)
-		return m_pDoodadsFlags[x + y*m_Width];
-	
-	return 0;
-}
-
-int CGenLayer::GetByIndex(int Index, int Layer)
-{
-	if (Index < 0 || Index >= m_Width*m_Height)
-		return 1;
-	
-	int i = 0;
-	
-	if (Layer == FOREGROUND)
-		i = m_pTiles[Index];
-	else if (Layer == BACKGROUND)
-		i = m_pBGTiles[Index];
-	else if (Layer == FGOBJECTS)
-		i = m_pObjectTiles[Index];
-	else if (Layer == DOODADS)
-		i = m_pDoodadsTiles[Index];
-	
-	if (i < 0)
-		i = 0;
-	
-	return i;
-}
-
 bool CGenLayer::Used(int x, int y)
 {
 	if (x < 0 || y < 0 || x >= m_Width || y >= m_Height)
@@ -1657,10 +1573,6 @@ void CGenLayer::Use(int x, int y)
 	if (!Used(x, y))
 		Set(-1, x, y);
 }
-
-
-
-
 
 
 

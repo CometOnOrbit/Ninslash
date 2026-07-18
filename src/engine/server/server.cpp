@@ -1878,13 +1878,13 @@ int CServer::Run()
 					DoSnapshot();
 
 				UpdateClientRconCommands();
+				UpdateAIInput();
 			}
 
 			// master server stuff
 			m_Register.RegisterUpdate(m_NetServer.NetType());
 
 			
-			UpdateAIInput();
 			PumpNetwork();
 
 			if(ReportTime < time_get())

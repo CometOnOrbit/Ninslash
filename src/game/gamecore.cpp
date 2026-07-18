@@ -123,9 +123,10 @@ bool CCharacterCore::IsGrounded()
 	
 	if (m_Sliding)
 		return true;
-	
+
+	const bool Down = PlatformState();
 	for(int i = -PhysSize/2; i <= PhysSize/2; i++) {
-		if(m_pCollision->CheckPoint(m_Pos.x+i, m_Pos.y+PhysSize/2+5, false, PlatformState())) {
+		if(m_pCollision->CheckPoint(m_Pos.x+i, m_Pos.y+PhysSize/2+5, false, Down)) {
 			return true;
 		}
 	}
@@ -146,18 +147,14 @@ bool CCharacterCore::PlatformState()
 
 int CCharacterCore::IsOnForceTile()
 {
-	float PhysSize = 28.0f;
-	
 	if (m_Sliding)
 		return true;
-	
-	for(int i = -PhysSize/2; i <= PhysSize/2; i++) {
-		if(m_pCollision->IsForceTile(m_Pos.x+i, m_Pos.y+PhysSize/2+5) != 0) {
-			return m_pCollision->IsForceTile(m_Pos.x+i, m_Pos.y+PhysSize/2+5);
-		}
-	}
-	
-	return false;
+
+	const float HalfSize = 14.0f;
+	const float SampleY = m_Pos.y + HalfSize + 5.0f;
+	const float LeftX = m_Pos.x - HalfSize;
+	const float RightX = m_Pos.x + HalfSize;
+	return m_pCollision->IsForceTile(LeftX, RightX, SampleY);
 }
 
 bool CCharacterCore::IsInFluid()
@@ -265,7 +262,9 @@ void CCharacterCore::Tick(bool UseInput)
 		Grounded = true;
 	*/
 
-	vec2 TargetDirection = normalize(vec2(m_Input.m_TargetX, m_Input.m_TargetY));
+	vec2 TargetDirection(0, 0);
+	if(UseInput)
+		TargetDirection = normalize(vec2(m_Input.m_TargetX, m_Input.m_TargetY));
 
 	float ControlSpeed = m_pWorld->m_Tuning.m_ControlSpeed;
 	
@@ -455,7 +454,7 @@ void CCharacterCore::Tick(bool UseInput)
 		*/
 		
 		// sliding
-		Slide();
+		Slide(Grounded, ForceTileStatus / 4);
 		
 		// go down faster while holding down (default key: s)
 		//if (!Grounded && m_Down && m_Vel.y < MaxSpeed*1.0f)
@@ -1042,11 +1041,14 @@ void CCharacterCore::Tick(bool UseInput)
 
 	if(m_HookState == HOOK_GRABBEDDROID)
 	{
-		if(distance(m_HookPos, m_Pos) > PhysSize * m_pWorld->m_Tuning.m_HookDragMinDistFactor)
+		const vec2 HookDelta = m_HookPos - m_Pos;
+		const float HookDistance = length(HookDelta);
+		if(HookDistance > PhysSize * m_pWorld->m_Tuning.m_HookDragMinDistFactor)
 		{
-			float HookForce = (distance(m_HookPos, m_Pos)-64.0f)*0.001f;
-			vec2 HookVel = normalize(m_HookPos-m_Pos)*m_pWorld->m_Tuning.m_HookDragAccel*(1.0f+HookForce);
-			vec2 HookImpactVel = normalize(m_Pos-m_HookPos)*m_pWorld->m_Tuning.m_HookDragAccel*(1.0f+HookForce);
+			const float HookForce = (HookDistance - 64.0f) * 0.001f;
+			const vec2 HookDirection = HookDelta / HookDistance;
+			vec2 HookVel = HookDirection * m_pWorld->m_Tuning.m_HookDragAccel * (1.0f + HookForce);
+			vec2 HookImpactVel = -HookDirection * m_pWorld->m_Tuning.m_HookDragAccel * (1.0f + HookForce);
 			// the hook as more power to drag you up then down.
 			// this makes it easier to get on top of an platform
 			if(HookVel.y > 0)
@@ -1069,7 +1071,9 @@ void CCharacterCore::Tick(bool UseInput)
 			m_pWorld->AddDroidHookImpact(m_HookedPlayer, HookImpactVel);
 
 			// check if we are under the legal limit for the hook
-			if(length(NewVel) < m_pWorld->m_Tuning.m_HookDragSpeed || length(NewVel) < length(m_Vel))
+			const float NewSpeedSquared = dot(NewVel, NewVel);
+			const float DragSpeedSquared = m_pWorld->m_Tuning.m_HookDragSpeed * m_pWorld->m_Tuning.m_HookDragSpeed;
+			if(NewSpeedSquared < DragSpeedSquared || NewSpeedSquared < dot(m_Vel, m_Vel))
 				m_Vel = NewVel; // no problem. apply
 
 		}
@@ -1120,29 +1124,35 @@ void CCharacterCore::Tick(bool UseInput)
 		}
 
 		// don't do this hook rutine when we are hook to a player or ball
-		if(m_HookState == HOOK_GRABBED && m_HookedPlayer == -1 && distance(m_HookPos, m_Pos) > PhysSize * m_pWorld->m_Tuning.m_HookDragMinDistFactor)
+		if(m_HookState == HOOK_GRABBED && m_HookedPlayer == -1)
 		{
-			float HookForce = (distance(m_HookPos, m_Pos)-64.0f)*0.001f;
-			vec2 HookVel = normalize(m_HookPos-m_Pos)*m_pWorld->m_Tuning.m_HookDragAccel*(1.0f+HookForce);
+			const vec2 HookDelta = m_HookPos - m_Pos;
+			const float HookDistance = length(HookDelta);
+			if(HookDistance > PhysSize * m_pWorld->m_Tuning.m_HookDragMinDistFactor)
+			{
+				const float HookForce = (HookDistance - 64.0f) * 0.001f;
+				vec2 HookVel = HookDelta / HookDistance * m_pWorld->m_Tuning.m_HookDragAccel * (1.0f + HookForce);
 			
-			// the hook as more power to drag you up then down.
-			// this makes it easier to get on top of an platform
-			if(HookVel.y > 0)
-				HookVel.y *= m_pWorld->m_Tuning.m_HookDownFactor;
+				// the hook as more power to drag you up then down.
+				// this makes it easier to get on top of an platform
+				if(HookVel.y > 0)
+					HookVel.y *= m_pWorld->m_Tuning.m_HookDownFactor;
 
-			// the hook will boost it's power if the player wants to move
-			// in that direction. otherwise it will dampen everything abit
-			if((HookVel.x < 0 && m_Direction < 0) || (HookVel.x > 0 && m_Direction > 0))
-				HookVel.x *= m_pWorld->m_Tuning.m_HookMoveAlongFactor;
-			else
-				HookVel.x *= m_pWorld->m_Tuning.m_HookMoveAgainstFactor;
+				// the hook will boost it's power if the player wants to move
+				// in that direction. otherwise it will dampen everything abit
+				if((HookVel.x < 0 && m_Direction < 0) || (HookVel.x > 0 && m_Direction > 0))
+					HookVel.x *= m_pWorld->m_Tuning.m_HookMoveAlongFactor;
+				else
+					HookVel.x *= m_pWorld->m_Tuning.m_HookMoveAgainstFactor;
 
-			vec2 NewVel = m_Vel+HookVel;
+				vec2 NewVel = m_Vel+HookVel;
 
-			// check if we are under the legal limit for the hook
-			if(length(NewVel) < m_pWorld->m_Tuning.m_HookDragSpeed || length(NewVel) < length(m_Vel))
-				m_Vel = NewVel; // no problem. apply
-
+				// check if we are under the legal limit for the hook
+				const float NewSpeedSquared = dot(NewVel, NewVel);
+				const float DragSpeedSquared = m_pWorld->m_Tuning.m_HookDragSpeed * m_pWorld->m_Tuning.m_HookDragSpeed;
+				if(NewSpeedSquared < DragSpeedSquared || NewSpeedSquared < dot(m_Vel, m_Vel))
+					m_Vel = NewVel; // no problem. apply
+			}
 		}
 
 		// Terrain hooks persist until release; dynamic targets share one hold limit.
@@ -1186,8 +1196,9 @@ void CCharacterCore::Tick(bool UseInput)
 		
 			vec2 Pos = m_Pos + vec2(0, OffsetY);
 		
-			float Distance = distance(Pos, BPos);
-			vec2 Dir = normalize(Pos - BPos);
+			const vec2 BallDelta = Pos - BPos;
+			const float Distance = length(BallDelta);
+			const vec2 Dir = Distance > 0.0f ? BallDelta / Distance : vec2(0, 0);
 		
 			if (Distance <= BallSize*0.80f+16)
 			{
@@ -1198,8 +1209,9 @@ void CCharacterCore::Tick(bool UseInput)
 
 				// make sure that we don't add excess force by checking the
 				// direction against the current velocity. if not zero.
-				if (length(m_Vel) > 0.0001)
-					Velocity = 1-(dot(normalize(m_Vel), Dir)+1)/2;
+				const float SpeedSquared = dot(m_Vel, m_Vel);
+				if(SpeedSquared > 0.00000001f)
+					Velocity = 1 - (dot(m_Vel, Dir) / sqrtf(SpeedSquared) + 1) / 2;
 
 				m_Vel += Dir*a*(Velocity*0.75f);
 				m_Vel *= 0.85f;
@@ -1242,15 +1254,19 @@ void CCharacterCore::Tick(bool UseInput)
 				continue; // make sure that we don't nudge our self
 
 			// handle player <-> player collision
-			float Distance = distance(m_Pos, pCharCore->m_Pos);
-			vec2 Dir = normalize(m_Pos - pCharCore->m_Pos);
+			const vec2 PlayerDelta = m_Pos - pCharCore->m_Pos;
+			const float DistanceSquared = dot(PlayerDelta, PlayerDelta);
+			float Distance = -1.0f;
+			vec2 Dir(0, 0);
 			
 			if (m_pWorld->m_Tuning.m_PlayerCollision && m_Roll == 0)
 			{
 				if(m_Slide == 0 && 
 					pCharCore->m_Slide == 0 && pCharCore->m_Roll == 0 && 
-					Distance < PhysSize*1.35f && Distance > 12.0f)
+					DistanceSquared < (PhysSize * 1.35f) * (PhysSize * 1.35f) && DistanceSquared > 12.0f * 12.0f)
 				{
+					Distance = sqrtf(DistanceSquared);
+					Dir = PlayerDelta / Distance;
 					m_PlayerCollision = true;
 						
 					float a = (PhysSize*1.45f - Distance);
@@ -1258,14 +1274,15 @@ void CCharacterCore::Tick(bool UseInput)
 
 					// make sure that we don't add excess force by checking the
 					// direction against the current velocity. if not zero.
-					if (length(m_Vel) > 0.0001)
-						Velocity = 1-(dot(normalize(m_Vel), Dir)+1)/2;
+					const float SpeedSquared = dot(m_Vel, m_Vel);
+					if(SpeedSquared > 0.00000001f)
+						Velocity = 1 - (dot(m_Vel, Dir) / sqrtf(SpeedSquared) + 1) / 2;
 
 					m_Vel += Dir*a*(Velocity*0.75f);
 					m_Vel *= 0.85f;
 				}
 				
-				if (absolute(m_Vel.x) < 1.0f && absolute(m_Vel.y) < 1.0f && Distance < PhysSize && m_Pos.y <= pCharCore->m_Pos.y)
+				if (absolute(m_Vel.x) < 1.0f && absolute(m_Vel.y) < 1.0f && DistanceSquared < PhysSize * PhysSize && m_Pos.y <= pCharCore->m_Pos.y)
 				{
 					if (!m_pCollision->CheckPoint(m_Pos.x-28.0f*0.5f, m_Pos.y-64.0f*0.5f) && !m_pCollision->CheckPoint(m_Pos.x+28.0f*0.5f, m_Pos.y-64.0f*0.5f))
 					{
@@ -1278,8 +1295,14 @@ void CCharacterCore::Tick(bool UseInput)
 			// handle hook influence
 			if(m_HookedPlayer == i && m_pWorld->m_Tuning.m_PlayerHooking)
 			{
-				if(Distance > PhysSize*m_pWorld->m_Tuning.m_HookDragMinDistFactor)
+				const float MinimumHookDistance = PhysSize * m_pWorld->m_Tuning.m_HookDragMinDistFactor;
+				if(DistanceSquared > MinimumHookDistance * MinimumHookDistance)
 				{
+					if(Distance < 0.0f)
+					{
+						Distance = sqrtf(DistanceSquared);
+						Dir = PlayerDelta / Distance;
+					}
 					float Accel = m_pWorld->m_Tuning.m_HookDragAccel * (Distance/m_pWorld->m_Tuning.m_HookLength);
 					float DragSpeed = m_pWorld->m_Tuning.m_HookDragSpeed;
 
@@ -1438,7 +1461,7 @@ void CCharacterCore::Roll()
 }
 
 
-void CCharacterCore::Slide()
+void CCharacterCore::Slide(bool Grounded, int ForceTile)
 {
 	float PhysSize = 28.0f;
 	
@@ -1472,7 +1495,7 @@ void CCharacterCore::Slide()
 		{
 			//if (IsGrounded())
 			{
-				if (IsGrounded() && (!m_Input.m_Hook || ((IsOnForceTile() < 0 && m_Vel.x > 0) || (IsOnForceTile() > 0 && m_Vel.x < 0))))
+				if (Grounded && (!m_Input.m_Hook || ((ForceTile < 0 && m_Vel.x > 0) || (ForceTile > 0 && m_Vel.x < 0))))
 					m_Vel.x *= 0.98f;
 			
 				if (m_Vel.x < -3.5f)// && !m_pCollision->CheckPoint(m_Pos.x-(PhysSize+32), m_Pos.y+PhysSize/2))
@@ -1578,13 +1601,24 @@ void CCharacterCore::Move()
 	}
 	
 	const float LandingEventSpeed = max(1.0f, (float)m_pWorld->m_Tuning.m_Gravity * 1.5f);
-	if(VelY > LandingEventSpeed && absolute(m_Vel.y) < 2.0f)
+	const bool FallingStopped = VelY > LandingEventSpeed && absolute(m_Vel.y) < 2.0f;
+	bool GroundContact = false;
+	if(FallingStopped)
+	{
+		// MoveBox can stop vertical movement when a box corner brushes a wall.
+		// Probe inside the feet so only an actual floor contact counts as landing.
+		const float FeetY = NewPos.y + 15.0f;
+		for(int x = -12; x <= 12 && !GroundContact; x++)
+			GroundContact = m_pCollision->CheckPoint(NewPos.x + x, FeetY, false, Down);
+	}
+
+	if(GroundContact)
 	{
 		m_LandingVelocity = VelY;
 		m_TriggeredEvents |= COREEVENT_LAND;
 	}
 
-	if (VelY > m_pWorld->m_Tuning.m_RollLandingSpeed && absolute(m_Vel.y) < 2.0f && m_Input.m_Down)
+	if(GroundContact && VelY > m_pWorld->m_Tuning.m_RollLandingSpeed && m_Input.m_Down)
 		Roll();
 	
 	m_Vel.x = m_Vel.x*(1.0f/RampValue);
@@ -1647,26 +1681,29 @@ void CCharacterCore::Move()
 			if (m_DashTimer > 0)
 				OffsetY = -12;
 		
-			float Distance = distance(m_Pos, NewPos);
-			int End = Distance+1;
+			const float MovementDistance = distance(m_Pos, NewPos);
+			const int End = max(1, (int)MovementDistance + 1);
+			const float CollisionRadius = BallSize * 0.80f + 16.0f;
+			const float CollisionRadiusSquared = CollisionRadius * CollisionRadius;
 			vec2 LastPos = m_Pos;
 		
 			for(int i = 0; i < End; i++)
 			{
-				float a = i/Distance;
+				const float a = MovementDistance > 0.0f ? i / MovementDistance : 0.0f;
 				vec2 Pos = mix(m_Pos, NewPos, a)+vec2(0, OffsetY);
-				
-				float D = distance(Pos, BPos);
-				
-				if (D <= BallSize*0.80f+16)
+				const vec2 BallDelta = Pos - BPos;
+				const float BallDistanceSquared = dot(BallDelta, BallDelta);
+
+				if (BallDistanceSquared <= CollisionRadiusSquared)
 				{
+					const float D = sqrtf(BallDistanceSquared);
 					if(a > 0.0f)
 						m_Pos = LastPos;
-					else if(distance(NewPos, BPos) > D)
+					else if(dot(NewPos - BPos, NewPos - BPos) > BallDistanceSquared)
 						m_Pos = NewPos;
 					
 					float theta = atan2((Pos.y - BPos.y), (Pos.x - BPos.x));
-					float overlap = BallSize*0.80f+16 - D;
+					float overlap = CollisionRadius - D;
 					
 					vec2 BVel = -vec2(cos(theta), sin(theta)) * overlap;
 					m_pCollision->MoveBox(&pBallCore->m_Pos, &BVel, vec2(BallSize, BallSize), 0.0f);
@@ -1674,7 +1711,6 @@ void CCharacterCore::Move()
 					pBallCore->PlayerHit();
 					
 					BPos = pBallCore->m_Pos;
-					D = distance(Pos, BPos);
 					
 					float theta1 = GetAngle(m_BallHitVel);
 					float theta2 = GetAngle(pBallCore->m_Vel);
@@ -1695,7 +1731,7 @@ void CCharacterCore::Move()
 					{
 						pBallCore->m_Vel = vec2(dx2F, dy2F)*1.3f;
 						
-						if (length(pBallCore->m_Vel) > 15.0f)
+						if (dot(pBallCore->m_Vel, pBallCore->m_Vel) > 15.0f * 15.0f)
 							pBallCore->m_Status |= 1 << BALLSTATUS_SUPER;
 					}
 					else
@@ -1718,12 +1754,12 @@ void CCharacterCore::Move()
 	// check player collision
 	if ((m_Action == COREACTION_SLIDEKICK && m_ActionState > 2 &&  m_ActionState < 10) || (m_pWorld && m_pWorld->m_Tuning.m_PlayerCollision && m_Roll == 0 && m_Slide == 0))
 	{
-		float Distance = distance(m_Pos, NewPos);
-		int End = Distance+1;
+		const float MovementDistance = distance(m_Pos, NewPos);
+		const int End = max(1, (int)MovementDistance + 1);
 		vec2 LastPos = m_Pos;
 		for(int i = 0; i < End; i++)
 		{
-			float a = i/Distance;
+			const float a = MovementDistance > 0.0f ? i / MovementDistance : 0.0f;
 			vec2 Pos = mix(m_Pos, NewPos, a);
 			
 			for(int p = 0; p < MAX_CLIENTS; p++)
@@ -1731,22 +1767,26 @@ void CCharacterCore::Move()
 				CCharacterCore *pCharCore = m_pWorld->m_apCharacters[p];
 				if(!pCharCore || pCharCore == this || pCharCore->m_Roll != 0 || pCharCore->Status(STATUS_SPAWNING))
 					continue;
-				float D = distance(Pos, pCharCore->m_Pos);
-				float D2 = 9000.0f;
+				const vec2 PlayerDelta = Pos - pCharCore->m_Pos;
+				const float PlayerDistanceSquared = dot(PlayerDelta, PlayerDelta);
+				float KickDistanceSquared = 9000.0f * 9000.0f;
 				
 				vec2 Off = vec2(20.0, 0.0f);
 				if (m_Vel.x < 0)
 					Off.x *= -1;
 				
 				if (m_Action == COREACTION_SLIDEKICK)
-					D2 = distance(Pos+Off, pCharCore->m_Pos+vec2(0, -32));
+				{
+					const vec2 KickDelta = Pos + Off - (pCharCore->m_Pos + vec2(0, -32));
+					KickDistanceSquared = dot(KickDelta, KickDelta);
+				}
 				
-				if(D2 < 40.0f || (D < 32.0f && D > 12.0f))
+				if(KickDistanceSquared < 40.0f * 40.0f || (PlayerDistanceSquared < 32.0f * 32.0f && PlayerDistanceSquared > 12.0f * 12.0f))
 				{
 					m_PlayerCollision = true;
 					if(a > 0.0f)
 						m_Pos = LastPos;
-					else if(distance(NewPos, pCharCore->m_Pos) > D)
+					else if(dot(NewPos - pCharCore->m_Pos, NewPos - pCharCore->m_Pos) > PlayerDistanceSquared)
 						m_Pos = NewPos;
 
 					if (m_Action == COREACTION_SLIDEKICK)
@@ -1993,9 +2033,7 @@ void CBallCore::Move()
 	else if (m_pCollision->CheckPoint(m_Pos.x-BallSize/2, m_Pos.y+BallSize/2+5, false, Down))
 		Grounded = true;
 	
-	int OnForceTile = m_pCollision->IsForceTile(m_Pos.x-BallSize/2, m_Pos.y+BallSize/2+5);
-	if (OnForceTile == 0)
-		OnForceTile = m_pCollision->IsForceTile(m_Pos.x+BallSize/2, m_Pos.y+BallSize/2+5);
+	const int OnForceTile = m_pCollision->IsForceTile(m_Pos.x-BallSize/2, m_Pos.x+BallSize/2, m_Pos.y+BallSize/2+5);
 	
 	if (Grounded)
 	{

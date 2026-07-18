@@ -135,7 +135,7 @@ void CMapGen::Load(const char* pTileName)
 						IndexValue = true;
 					}
 
-					CPosRule NewPosRule = {x, y, Value, IndexValue};
+					CPosRule NewPosRule = {x, y, Value, IndexValue, 0};
 					pCurrentIndex->m_aRules.add(NewPosRule);
 				}
 				else if(!str_comp_num(pLine, "Random", 6) && pCurrentIndex)
@@ -260,20 +260,29 @@ void CMapGen::FillMap()
 	int64 ProcessTime = 0;
 	int64 TotalTime = time_get();
 
-	int MineTeeLayerSize = m_pLayers->GameLayer()->m_Width*m_pLayers->GameLayer()->m_Height;
-
 	// clear map, but keep background, envelopes etc
 	ProcessTime = time_get();
-	for(int i = 0; i < MineTeeLayerSize; i++)
+	const int Group = m_pLayers->GetGameGroupIndex();
+	const bool BatchCleared =
+		m_pCollision->ClearTileLayer(Group, m_pLayers->GetGameLayerIndex()) &&
+		m_pCollision->ClearTileLayer(Group, m_pLayers->GetBackgroundLayerIndex()) &&
+		m_pCollision->ClearTileLayer(Group, m_pLayers->GetDoodadsLayerIndex()) &&
+		m_pCollision->ClearTileLayer(Group, m_pLayers->GetForegroundLayerIndex());
+	if(!BatchCleared)
 	{
-		int x = i%m_pLayers->GameLayer()->m_Width;
-		ivec2 TilePos(x, (i-x)/m_pLayers->GameLayer()->m_Width);
-		
-		// clear the different layers
-		ModifTile(TilePos, m_pLayers->GetGameLayerIndex(), TILE_AIR);
-		ModifTile(TilePos, m_pLayers->GetBackgroundLayerIndex(), TILE_AIR);
-		ModifTile(TilePos, m_pLayers->GetDoodadsLayerIndex(), TILE_AIR);
-		ModifTile(TilePos, m_pLayers->GetForegroundLayerIndex(), TILE_AIR);
+		const int Width = m_pLayers->GameLayer()->m_Width;
+		const int LayerSize = Width * m_pLayers->GameLayer()->m_Height;
+		for(int i = 0; i < LayerSize; i++)
+		{
+			const int x = i % Width;
+			const ivec2 TilePos(x, (i - x) / Width);
+
+			// clear the different layers
+			ModifTile(TilePos, m_pLayers->GetGameLayerIndex(), TILE_AIR);
+			ModifTile(TilePos, m_pLayers->GetBackgroundLayerIndex(), TILE_AIR);
+			ModifTile(TilePos, m_pLayers->GetDoodadsLayerIndex(), TILE_AIR);
+			ModifTile(TilePos, m_pLayers->GetForegroundLayerIndex(), TILE_AIR);
+		}
 	}
 	dbg_msg("mapgen", "map normalized in %.5fs", (float)(time_get()-ProcessTime)/time_freq());
 
@@ -1990,71 +1999,96 @@ void CMapGen::Proceed(CGenLayer *pTiles, int ConfigID)
 		return;
 
 	int BaseTile = 1;
+	bool BaseTileFound = false;
+	array<CIndexRule *> aRules;
 
-	// find base tile if there is one
+	// Find the base tile and compact the rules used for every occupied tile.
 	for(int i = 0; i < pConf->m_aIndexRules.size(); ++i)
 	{
-		if(pConf->m_aIndexRules[i].m_BaseTile)
+		CIndexRule *pIndexRule = &pConf->m_aIndexRules[i];
+		if(pIndexRule->m_BaseTile)
 		{
-			BaseTile = pConf->m_aIndexRules[i].m_ID;
-			break;
+			if(!BaseTileFound)
+			{
+				BaseTile = pIndexRule->m_ID;
+				BaseTileFound = true;
+			}
+			continue;
 		}
+		aRules.add(pIndexRule);
 	}
-	
-	int Width = m_pLayers->GameLayer()->m_Width;
-	int Height = m_pLayers->GameLayer()->m_Height;
-	
+
+	const int Width = m_pLayers->GameLayer()->m_Width;
+	const int Height = m_pLayers->GameLayer()->m_Height;
+	const int MaxIndex = Width * Height;
+	for(int i = 0; i < aRules.size(); i++)
+		for(int j = 0; j < aRules[i]->m_aRules.size(); j++)
+			aRules[i]->m_aRules[j].m_Offset = aRules[i]->m_aRules[j].m_Y * Width + aRules[i]->m_aRules[j].m_X;
+
+	array<unsigned char> aRuleYMatches;
+	for(int i = 0; i < aRules.size(); i++)
+		aRuleYMatches.add(1);
+
+	int *apLayerTiles[3] = {pTiles->m_pTiles, pTiles->m_pBGTiles, pTiles->m_pDoodadsTiles};
+	int *apLayerFlags[3] = {pTiles->m_pFlags, pTiles->m_pBGFlags, pTiles->m_pDoodadsFlags};
+
 	// auto map !
-	int MaxIndex = Width*Height;
 	for (int l = 0; l < 3; l++)
+	{
+		int *pLayerTiles = apLayerTiles[l];
+		int *pLayerFlags = apLayerFlags[l];
 		for (int y = 0; y < Height; y++)
+		{
+			for(int i = 0; i < aRules.size(); i++)
+				aRuleYMatches[i] = aRules[i]->m_YDivisor < 2 || y % aRules[i]->m_YDivisor == aRules[i]->m_YRemainder;
+
+			const int RowStart = y * Width;
 			for (int x = 0; x < Width; x++)
 			{
-				if (pTiles->Get(x, y, l) == 0)
+				const int TileIndex = RowStart + x;
+				if(pLayerTiles[TileIndex] <= 0)
 					continue;
-				
-				pTiles->Set(BaseTile, x, y, 0, l);
+
+				pLayerTiles[TileIndex] = BaseTile;
+				pLayerFlags[TileIndex] = 0;
 
 				if (y == 0 || y == Height-1 || x == 0 || x == Width-1)
 					continue;
 
-				for (int i = 0; i < pConf->m_aIndexRules.size(); ++i)
+				for (int i = 0; i < aRules.size(); ++i)
 				{
-					if (pConf->m_aIndexRules[i].m_BaseTile)
-						continue;
-
+					CIndexRule *pIndexRule = aRules[i];
 					bool RespectRules = true;
-					for (int j = 0; j < pConf->m_aIndexRules[i].m_aRules.size() && RespectRules; ++j)
+					for (int j = 0; j < pIndexRule->m_aRules.size() && RespectRules; ++j)
 					{
-						CPosRule *pRule = &pConf->m_aIndexRules[i].m_aRules[j];
-						int CheckIndex = (y+pRule->m_Y)*Width+(x+pRule->m_X);
+						CPosRule *pRule = &pIndexRule->m_aRules[j];
+						const int CheckIndex = TileIndex + pRule->m_Offset;
 
 						if (CheckIndex < 0 || CheckIndex >= MaxIndex)
 							RespectRules = false;
 						else
 						{
+							const int RawTileValue = pLayerTiles[CheckIndex];
+							const int TileValue = RawTileValue < 0 ? 0 : RawTileValue;
 							if (pRule->m_IndexValue)
 							{
-								if (pTiles->GetByIndex(CheckIndex, l) != pRule->m_Value)
+								if (TileValue != pRule->m_Value)
 									RespectRules = false;
 							}
-							else
-							{
-								if(pTiles->GetByIndex(CheckIndex, l) > 0 && pRule->m_Value == CPosRule::EMPTY)
-									RespectRules = false;
-
-								if(pTiles->GetByIndex(CheckIndex, l) == 0 && pRule->m_Value == CPosRule::FULL)
-									RespectRules = false;
-							}
+							else if((TileValue > 0 && pRule->m_Value == CPosRule::EMPTY) ||
+								(TileValue == 0 && pRule->m_Value == CPosRule::FULL))
+								RespectRules = false;
 						}
 					}
 
-					if (RespectRules &&
-						(pConf->m_aIndexRules[i].m_YDivisor < 2 || y%pConf->m_aIndexRules[i].m_YDivisor == pConf->m_aIndexRules[i].m_YRemainder) &&
-						(pConf->m_aIndexRules[i].m_RandomValue <= 1 || (int)((float)rand() / ((float)RAND_MAX + 1) * pConf->m_aIndexRules[i].m_RandomValue) == 1))
+					if (RespectRules && aRuleYMatches[i] &&
+						(pIndexRule->m_RandomValue <= 1 || (int)((float)rand() / ((float)RAND_MAX + 1) * pIndexRule->m_RandomValue) == 1))
 					{
-						pTiles->Set(pConf->m_aIndexRules[i].m_ID, x, y, pConf->m_aIndexRules[i].m_Flag, l);
+						pLayerTiles[TileIndex] = pIndexRule->m_ID;
+						pLayerFlags[TileIndex] = pIndexRule->m_Flag;
 					}
 				}
 			}
+		}
+	}
 }

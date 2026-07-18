@@ -42,6 +42,7 @@ private:
 
 	CEntity *m_pNextTraverseEntity;
 	CEntity *m_apFirstEntityTypes[NUM_ENTTYPES];
+	bool m_HasPendingDestroy;
 
 	class CGameContext *m_pGameServer;
 	class IServer *m_pServer;
@@ -59,7 +60,10 @@ public:
 
 	void SetGameServer(CGameContext *pGameServer);
 
-	CEntity *FindFirst(int Type);
+	CEntity *FindFirst(int Type)
+	{
+		return Type < 0 || Type >= NUM_ENTTYPES ? 0 : m_apFirstEntityTypes[Type];
+	}
 
 	/*
 		Function: find_entities

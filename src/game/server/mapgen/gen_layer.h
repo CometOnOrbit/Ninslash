@@ -7,6 +7,8 @@
 
 class CGenLayer
 {
+	friend class CMapGen;
+
 private:
 	int *m_pTiles;
 	int *m_pBGTiles;
@@ -68,10 +70,84 @@ public:
 		FGOBJECTS,
 	};
 	
-	void Set(int Tile, int x, int y, int Flags = 0, int Layer = FOREGROUND);
-	int GetByIndex(int Index, int Layer = FOREGROUND);
-	int Get(int x, int y, int Layer = FOREGROUND);
-	int GetFlags(int x, int y, int Layer = FOREGROUND);
+	void Set(int Tile, int x, int y, int Flags = 0, int Layer = FOREGROUND)
+	{
+		if(x < 0 || y < 0 || x >= m_Width || y >= m_Height)
+			return;
+
+		const int Index = x + y * m_Width;
+		if(Layer == FOREGROUND)
+		{
+			m_pTiles[Index] = Tile;
+			m_pFlags[Index] = Flags;
+		}
+		else if(Layer == BACKGROUND)
+		{
+			m_pBGTiles[Index] = Tile;
+			m_pBGFlags[Index] = Flags;
+		}
+		else if(Layer == FGOBJECTS)
+		{
+			m_pObjectTiles[Index] = Tile;
+			m_pObjectFlags[Index] = Flags;
+		}
+		else if(Layer == DOODADS)
+		{
+			m_pDoodadsTiles[Index] = Tile;
+			m_pDoodadsFlags[Index] = Flags;
+		}
+	}
+	int GetByIndex(int Index, int Layer = FOREGROUND)
+	{
+		if(Index < 0 || Index >= m_Width * m_Height)
+			return 1;
+
+		int Value = 0;
+		if(Layer == FOREGROUND)
+			Value = m_pTiles[Index];
+		else if(Layer == BACKGROUND)
+			Value = m_pBGTiles[Index];
+		else if(Layer == FGOBJECTS)
+			Value = m_pObjectTiles[Index];
+		else if(Layer == DOODADS)
+			Value = m_pDoodadsTiles[Index];
+
+		return Value < 0 ? 0 : Value;
+	}
+	int Get(int x, int y, int Layer = FOREGROUND)
+	{
+		if(x < 0 || y < 0 || x >= m_Width || y >= m_Height)
+			return 1;
+
+		const int Index = x + y * m_Width;
+		int Value = 0;
+		if(Layer == FOREGROUND)
+			Value = m_pTiles[Index];
+		else if(Layer == BACKGROUND)
+			Value = m_pBGTiles[Index];
+		else if(Layer == FGOBJECTS)
+			Value = m_pObjectTiles[Index];
+		else if(Layer == DOODADS)
+			Value = m_pDoodadsTiles[Index];
+
+		return Value < 0 ? 0 : Value;
+	}
+	int GetFlags(int x, int y, int Layer = FOREGROUND)
+	{
+		if(x < 0 || y < 0 || x >= m_Width || y >= m_Height)
+			return 0;
+
+		const int Index = x + y * m_Width;
+		if(Layer == FOREGROUND)
+			return m_pFlags[Index];
+		if(Layer == BACKGROUND)
+			return m_pBGFlags[Index];
+		if(Layer == FGOBJECTS)
+			return m_pObjectFlags[Index];
+		if(Layer == DOODADS)
+			return m_pDoodadsFlags[Index];
+		return 0;
+	}
 	bool Used(int x, int y);
 	
 	bool IsFloor(int x, int y);

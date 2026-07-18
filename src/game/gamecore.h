@@ -420,7 +420,7 @@ class CCharacterCore
 	CWorldCore *m_pWorld;
 	CCollision *m_pCollision;
 	void Roll();
-	void Slide();
+	void Slide(bool Grounded, int ForceTile);
 	
 	void SetAction(int Action, int State = 0)
 	{
