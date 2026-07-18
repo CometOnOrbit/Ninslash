@@ -154,6 +154,15 @@ bool CWeaponBehaviorExecutor::Charge(CWeapon &Weapon)
 {
 	if(!Weapon.m_CanFire || Weapon.m_ReloadTimer > 0)
 		return false;
+	if(Weapon.m_UseAmmo && Weapon.m_MaxAmmo > 0 && Weapon.m_Ammo <= 0)
+	{
+		if(Weapon.m_LastNoAmmoSound + Weapon.Server()->TickSpeed() <= Weapon.Server()->Tick())
+		{
+			Weapon.GameServer()->CreateSound(Weapon.m_Pos, SOUND_WEAPON_NOAMMO);
+			Weapon.m_LastNoAmmoSound = Weapon.Server()->Tick();
+		}
+		return false;
+	}
 	const CWeaponDefinition &Definition = Weapon.m_WeaponProfile.m_Definition;
 	if(!Weapon.m_DestructionTick && Definition.m_Kind == EWeaponDefinitionKind::Static)
 	{
@@ -209,6 +218,8 @@ bool CWeaponBehaviorExecutor::ReleaseCharge(CWeapon &Weapon, float *pKnockback)
 				Weapon.m_TriggerTick = Weapon.Server()->Tick() + Weapon.m_FireRate * 0.5f * Weapon.Server()->TickSpeed() / 1000;
 		}
 		Weapon.CreateProjectile();
+		if(Weapon.m_UseAmmo && Weapon.m_Ammo > 0 && !Weapon.m_InfiniteAmmo)
+			--Weapon.m_Ammo;
 		Weapon.m_Charge = 0;
 	}
 	Weapon.m_ReloadTimer = Weapon.m_FireRate * Weapon.Server()->TickSpeed() / 1000;

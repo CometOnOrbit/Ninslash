@@ -23,7 +23,7 @@ class CProjectile : public CEntity
 {
 public:
 	CProjectile(CGameWorld *pGameWorld, const CAttackSource &Source, vec2 Pos, vec2 Dir, vec2 Vel, int Span,
-		int Damage, float Force, int SoundImpact);
+		int Damage, float Force, int SoundImpact, float ExplosionDamageScale = 1.0f);
 
 	vec2 GetPos(float Time);
 	void FillInfo(CNetObj_Projectile *pProj);
@@ -45,6 +45,7 @@ private:
 	int m_Owner;
 	CAttackSource m_Source;
 	int m_Damage;
+	float m_ExplosionDamageScale;
 	int m_SoundImpact;
 	float m_Force;
 	int m_StartTick;

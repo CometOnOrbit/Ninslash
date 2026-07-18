@@ -9,11 +9,11 @@
 #include <game/weapons.h>
 
 constexpr int WEAPON_MODULAR_PART1_COUNT = PART1_SPIN;
-constexpr int WEAPON_MODULAR_PART2_COUNT = PART2_MELEE4;
-constexpr int WEAPON_RANGED_PART1_COUNT = PART1_BASE4 - PART1_BASE1 + 1;
-constexpr int WEAPON_RANGED_PART2_COUNT = PART2_CHARGE - PART2_BARREL1 + 1;
+constexpr int WEAPON_MODULAR_PART2_COUNT = PART2_MELEE5;
+constexpr int WEAPON_RANGED_PART1_COUNT = PART1_BASE5 - PART1_BASE1 + 1;
+constexpr int WEAPON_RANGED_PART2_COUNT = PART2_CAPACITOR - PART2_BARREL1 + 1;
 constexpr int WEAPON_MELEE_PART1_COUNT = PART1_SPIN - PART1_MELEE + 1;
-constexpr int WEAPON_MELEE_PART2_COUNT = PART2_MELEE4 - PART2_MELEE1 + 1;
+constexpr int WEAPON_MELEE_PART2_COUNT = PART2_MELEE5 - PART2_MELEE1 + 1;
 constexpr int WEAPON_DEFINITION_MODULAR_BASE = 100;
 constexpr int WEAPON_SPEC_MAX_LEVEL = 15;
 constexpr int WEAPON_SPEC_LEVEL_COUNT = WEAPON_SPEC_MAX_LEVEL + 1;
@@ -146,6 +146,8 @@ public:
 	static CWeaponSpec Modular(int Part1, int Part2, int Level = 0);
 	static bool IsValidSpec(const CWeaponSpec &Spec);
 	static bool TryResolve(const CWeaponSpec &Spec, CResolvedWeaponProfile *pProfile);
+	static float CapacitorDamageScale(int Charge);
+	static float CapacitorRangeScale(int Charge);
 	static bool Validate();
 	static bool TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec);
 	static bool TryResolveAttack(const CAttackSource &Source, CWeaponCombatProfile *pCombat, CWeaponVisualProfile *pVisual = nullptr);

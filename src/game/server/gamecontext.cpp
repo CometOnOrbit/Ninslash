@@ -772,6 +772,7 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 	const bool IsModular = HasDefinition && Definition.m_Kind == EWeaponDefinitionKind::Modular;
 	const int StaticType = IsStatic ? Definition.m_StaticType : -1;
 	const int Part1 = IsModular ? Definition.m_Part1 : 0;
+	const int Part2 = IsModular ? Definition.m_Part2 : 0;
 	// less damage for bots in co-op
 	float Dmg = 1.0f;
 	if (m_pController->IsCoop() && Source.m_Kind != EAttackSourceKind::Droid && (DamageOwner < 0 || IsBot(DamageOwner)))
@@ -831,6 +832,11 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 	float Damage = Combat.m_ProjectileDamage;
 	float Knockback = Combat.m_ProjectileKnockback;
 	float BulletLife = Combat.m_ProjectileLife;
+	const bool Capacitor = IsModular && Part2 == PART2_CAPACITOR;
+	const float CapacitorDamage = Capacitor ? CWeaponCatalog::CapacitorDamageScale(Charge) : 1.0f;
+	const float CapacitorRange = Capacitor ? CWeaponCatalog::CapacitorRangeScale(Charge) : 1.0f;
+	if(Capacitor && !Combat.m_LaserWeapon)
+		BulletLife *= CapacitorRange;
 	if(IsStatic && StaticType == SW_CLUSTER && Source.m_Weapon.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
 		BulletLife += frandom() * 0.7f;
 	
@@ -846,13 +852,16 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 	
 	if (Combat.m_LaserWeapon)
 	{
+		const float LaserDamage = Damage * Dmg * CapacitorDamage;
+		const float LaserRange = Combat.m_LaserRange * CapacitorRange;
+		const int LaserCharge = Capacitor ? Charge : Combat.m_LaserCharge;
 		for (int i = 0; i < ShotSpread; i++)
 		{
 			float Angle = GetAngle(Direction);
 			Angle -= (ShotSpread-1)/2.0f * pi/180 * 4;
 			Angle += i * pi/180 * 4;
 			Angle += (frandom()-frandom())*BulletSpread;
-			new CLaser(&m_World, Pos, vec2(cosf(Angle), sinf(Angle)), Combat.m_LaserRange, Source, Damage * Dmg, Combat.m_LaserCharge);
+			new CLaser(&m_World, Pos, vec2(cosf(Angle), sinf(Angle)), LaserRange, Source, LaserDamage, LaserCharge);
 		}
 		return;
 	}
@@ -874,9 +883,10 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 			vec2(cosf(Angle), sinf(Angle)),
 			Vel,
 			(int)(Server()->TickSpeed()*BulletLife),
-			Damage * Dmg,
+			Damage * Dmg * CapacitorDamage,
 			Knockback,
-			HitSound);
+			HitSound,
+			CapacitorDamage);
 			
 		pProj->m_OwnerBuilding = OwnerBuilding;
 
@@ -941,7 +951,7 @@ void CGameContext::Repair(vec2 Pos)
 }
 
 
-void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source)
+void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source, float DamageScale)
 {
 	const int Owner = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
@@ -949,7 +959,8 @@ void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source)
 	if(!CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual))
 		return;
 	float Dmg2 = 1.0f;
-	const int ExplosionDamage = Combat.m_ExplosionDamage;
+	const int BaseExplosionDamage = Combat.m_ExplosionDamage;
+	const float ExplosionDamage = BaseExplosionDamage * max(0.0f, DamageScale);
 	const int ExplosionSound = Visual.m_ExplosionSound;
 
 	if (m_pController->IsCoop() && IsBot(Owner))

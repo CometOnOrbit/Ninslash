@@ -179,7 +179,7 @@ public:
 	void CreateDamageInd(vec2 Pos, float AngleMod, int Damage, int ClientID);
 	void CreateHitConfirm(vec2 Pos, const CAttackSource &Source, int Damage, int TargetType, bool Killed);
 	void CreateRepairInd(vec2 Pos);
-	void CreateExplosion(vec2 Pos, const CAttackSource &Source);
+	void CreateExplosion(vec2 Pos, const CAttackSource &Source, float DamageScale = 1.0f);
 	void SendEffect(int ClientID, int EffectID);
 	void CreateHammerHit(vec2 Pos);
 	void CreateEffect(int FX, vec2 Pos);

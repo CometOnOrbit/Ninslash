@@ -5,7 +5,7 @@
 
 enum
 {
-	WEAPON_DATA_VERSION = 1,
+	WEAPON_DATA_VERSION = 2,
 };
 
 // stored player data for switching between levels

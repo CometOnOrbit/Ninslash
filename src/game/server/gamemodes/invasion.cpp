@@ -1018,7 +1018,7 @@ int CGameControllerInvasion::SpawnObjectiveTurrets(int Count)
 		}
 		if(TooClose)
 			continue;
-		CWeapon *pWeapon = GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1));
+		CWeapon *pWeapon = GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL1));
 		if(!pWeapon)
 			continue;
 		CTurret *pTurret = new CTurret(&GameServer()->m_World, Pos, -1, pWeapon);

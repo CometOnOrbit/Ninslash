@@ -138,21 +138,31 @@ CWeaponSpec IGameController::GetRandomWeapon()
 	constexpr int RANGED_WEAPON_WEIGHT = 5;
 	constexpr int MELEE_WEAPON_ROLL_SIDES = 12;
 	constexpr int MELEE_WEAPON_WEIGHT = 3;
-	constexpr int PART_VARIANTS_PER_FAMILY = 4;
+	constexpr int STANDARD_BARREL_VARIANTS = 4;
+	constexpr int RANGED_BASE_VARIANTS = PART1_BASE5 - PART1_BASE1 + 1;
+	constexpr int MELEE_BLADE_VARIANTS = PART2_MELEE5 - PART2_MELEE1 + 1;
+	constexpr int aRandomRangedPart2[] = {
+		PART2_BARREL1,
+		PART2_BARREL2,
+		PART2_BARREL3,
+		PART2_BARREL4,
+		PART2_CAPACITOR,
+	};
+	constexpr int RANDOM_RANGED_PART2_VARIANTS = sizeof(aRandomRangedPart2) / sizeof(aRandomRangedPart2[0]);
 
 	if(str_comp(g_Config.m_SvGametype, "ball") == 0)
 	{
 		if(rand() % BALL_WEAPON_ROLL_SIDES < BALL_PRIMARY_WEIGHT)
-			return CWeaponCatalog::Modular(PART1_BASE4, PART2_BARREL1 + rand() % PART_VARIANTS_PER_FAMILY);
+			return CWeaponCatalog::Modular(PART1_BASE4, PART2_BARREL1 + rand() % STANDARD_BARREL_VARIANTS);
 		if(rand() % BALL_WEAPON_ROLL_SIDES < BALL_SECONDARY_WEIGHT)
-			return CWeaponCatalog::Modular(PART1_BASE2, PART2_BARREL1 + rand() % PART_VARIANTS_PER_FAMILY);
+			return CWeaponCatalog::Modular(PART1_BASE2, PART2_BARREL1 + rand() % STANDARD_BARREL_VARIANTS);
 		return CWeaponCatalog::Static(SW_BAZOOKA);
 	}
 
 	if(rand() % RANGED_WEAPON_ROLL_SIDES < RANGED_WEAPON_WEIGHT)
-		return CWeaponCatalog::Modular(PART1_BASE1 + rand() % PART_VARIANTS_PER_FAMILY, PART2_BARREL1 + rand() % PART_VARIANTS_PER_FAMILY);
+		return CWeaponCatalog::Modular(PART1_BASE1 + rand() % RANGED_BASE_VARIANTS, aRandomRangedPart2[rand() % RANDOM_RANGED_PART2_VARIANTS]);
 	if(rand() % MELEE_WEAPON_ROLL_SIDES < MELEE_WEAPON_WEIGHT)
-		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + rand() % PART_VARIANTS_PER_FAMILY);
+		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + rand() % MELEE_BLADE_VARIANTS);
 
 	while(true)
 	{
@@ -168,12 +178,20 @@ CWeaponSpec IGameController::GetRandomWeapon()
 CWeaponSpec IGameController::GetRandomModularWeapon()
 {
 	constexpr float MELEE_WEAPON_CHANCE = 0.2f;
-	constexpr int RANGED_PART_VARIANTS = 4;
-	constexpr int MELEE_PART_VARIANTS = 2;
+	constexpr int RANGED_BASE_VARIANTS = PART1_BASE5 - PART1_BASE1 + 1;
+	constexpr int MELEE_BLADE_VARIANTS = PART2_MELEE5 - PART2_MELEE1 + 1;
+	constexpr int aRandomRangedPart2[] = {
+		PART2_BARREL1,
+		PART2_BARREL2,
+		PART2_BARREL3,
+		PART2_BARREL4,
+		PART2_CAPACITOR,
+	};
+	constexpr int RANDOM_RANGED_PART2_VARIANTS = sizeof(aRandomRangedPart2) / sizeof(aRandomRangedPart2[0]);
 	if (frandom() < MELEE_WEAPON_CHANCE)
-		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + rand() % MELEE_PART_VARIANTS);
+		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + rand() % MELEE_BLADE_VARIANTS);
 	
-	return CWeaponCatalog::Modular(PART1_BASE1 + rand() % RANGED_PART_VARIANTS, PART2_BARREL1 + rand() % RANGED_PART_VARIANTS);
+	return CWeaponCatalog::Modular(PART1_BASE1 + rand() % RANGED_BASE_VARIANTS, aRandomRangedPart2[rand() % RANDOM_RANGED_PART2_VARIANTS]);
 }
 
 bool IGameController::TriggerWeapon(class CWeapon *pWeapon)
@@ -828,7 +846,7 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 	}
 	else if (Index == ENTITY_TURRET)
 	{
-		new CTurret(&GameServer()->m_World, Pos+vec2(0, -10), TEAM_NEUTRAL, GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1)));
+		new CTurret(&GameServer()->m_World, Pos+vec2(0, -10), TEAM_NEUTRAL, GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL1)));
 		return true;
 	}
 	else if (Index == ENTITY_TESLACOIL)

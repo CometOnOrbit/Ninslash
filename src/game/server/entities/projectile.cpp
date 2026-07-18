@@ -17,7 +17,7 @@ constexpr float PROJECTILE_VELOCITY_NETWORK_SCALE = 10.0f;
 }
 
 CProjectile::CProjectile(CGameWorld *pGameWorld, const CAttackSource &Source, vec2 Pos, vec2 Dir, vec2 Vel, int Span,
-		int Damage, float Force, int SoundImpact)
+		int Damage, float Force, int SoundImpact, float ExplosionDamageScale)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_PROJECTILE)
 {
 	m_Source = Source;
@@ -27,6 +27,7 @@ CProjectile::CProjectile(CGameWorld *pGameWorld, const CAttackSource &Source, ve
 	m_Owner = Source.m_Owner;
 	m_Force = Force;
 	m_Damage = Damage;
+	m_ExplosionDamageScale = ExplosionDamageScale;
 	m_SoundImpact = SoundImpact;
 	m_StartTick = Server()->Tick();
 	m_Bounces = 0;
@@ -271,9 +272,9 @@ void CProjectile::Tick()
 		}
 		
 		if (m_LifeSpan < 0)
-			GameServer()->CreateExplosion(PrevPos, m_Source);
+			GameServer()->CreateExplosion(PrevPos, m_Source, m_ExplosionDamageScale);
 		else if (m_Explosive)
-			GameServer()->CreateExplosion(CurPos, m_Source);
+			GameServer()->CreateExplosion(CurPos, m_Source, m_ExplosionDamageScale);
 		
 		GameServer()->m_World.DestroyEntity(this);
 	}

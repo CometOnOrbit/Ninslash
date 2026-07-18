@@ -10,12 +10,18 @@ constexpr int ToInt(WeaponDefinitionId Id)
 	return static_cast<int>(Id);
 }
 
+constexpr float CAPACITOR_MIN_DAMAGE_SCALE = 0.25f;
+constexpr float CAPACITOR_DAMAGE_CHARGE_SCALE = 0.75f;
+constexpr float CAPACITOR_MIN_RANGE_SCALE = 0.60f;
+constexpr float CAPACITOR_RANGE_CHARGE_SCALE = 0.40f;
+constexpr float CAPACITOR_MAX_CHARGE = 100.0f;
+
 bool IsValidPartCombination(int Part1, int Part2)
 {
-	if(Part1 < PART1_BASE1 || Part1 > PART1_SPIN || Part2 < PART2_BARREL1 || Part2 > PART2_MELEE4)
+	if(Part1 < PART1_BASE1 || Part1 > PART1_SPIN || Part2 < PART2_BARREL1 || Part2 > PART2_MELEE5)
 		return false;
-	if(Part1 <= PART1_BASE4)
-		return Part2 <= PART2_CHARGE;
+	if(Part1 <= PART1_BASE5)
+		return Part2 <= PART2_CAPACITOR;
 	return Part2 >= PART2_MELEE1;
 }
 
@@ -23,7 +29,7 @@ int DenseDefinitionIndex(const CWeaponDefinition &Definition)
 {
 	if(Definition.m_Kind == EWeaponDefinitionKind::Static)
 		return Definition.m_StaticType;
-	if(Definition.m_Part1 <= PART1_BASE4)
+	if(Definition.m_Part1 <= PART1_BASE5)
 		return NUM_STATIC_WEAPONS +
 			(Definition.m_Part1 - PART1_BASE1) * WEAPON_RANGED_PART2_COUNT +
 			Definition.m_Part2 - PART2_BARREL1;
@@ -118,6 +124,18 @@ bool CWeaponCatalog::IsValidSpec(const CWeaponSpec &Spec)
 	return TryGetDefinition(Spec.m_DefinitionId, &Definition) && Spec.m_Level <= WEAPON_SPEC_MAX_LEVEL;
 }
 
+float CWeaponCatalog::CapacitorDamageScale(int Charge)
+{
+	const float ChargeRatio = Charge <= 0 ? 0.0f : (Charge >= CAPACITOR_MAX_CHARGE ? 1.0f : Charge / CAPACITOR_MAX_CHARGE);
+	return CAPACITOR_MIN_DAMAGE_SCALE + CAPACITOR_DAMAGE_CHARGE_SCALE * ChargeRatio;
+}
+
+float CWeaponCatalog::CapacitorRangeScale(int Charge)
+{
+	const float ChargeRatio = Charge <= 0 ? 0.0f : (Charge >= CAPACITOR_MAX_CHARGE ? 1.0f : Charge / CAPACITOR_MAX_CHARGE);
+	return CAPACITOR_MIN_RANGE_SCALE + CAPACITOR_RANGE_CHARGE_SCALE * ChargeRatio;
+}
+
 bool CWeaponCatalog::TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec)
 {
 	if(DefinitionId < 0 || Level < 0 || Level > WEAPON_SPEC_MAX_LEVEL)
@@ -145,7 +163,9 @@ bool CWeaponCatalog::Validate()
 	CWeaponSpec InvalidSpec;
 	if(IsValidSpec(InvalidSpec) || TryFromProtocol(0, 0, &InvalidSpec) ||
 		TryFromProtocol(ToInt(WeaponDefinitionId::ModularLast) + 1, 0, &InvalidSpec) ||
-		TryFromProtocol(ToInt(WeaponDefinitionId::StaticFirst), WEAPON_SPEC_MAX_LEVEL + 1, &InvalidSpec))
+		TryFromProtocol(ToInt(WeaponDefinitionId::StaticFirst), WEAPON_SPEC_MAX_LEVEL + 1, &InvalidSpec) ||
+		CapacitorDamageScale(-1) != 0.25f || CapacitorDamageScale(0) != 0.25f || CapacitorDamageScale(50) != 0.625f || CapacitorDamageScale(100) != 1.0f || CapacitorDamageScale(101) != 1.0f ||
+		CapacitorRangeScale(-1) != 0.60f || CapacitorRangeScale(0) != 0.60f || CapacitorRangeScale(50) != 0.80f || CapacitorRangeScale(100) != 1.0f || CapacitorRangeScale(101) != 1.0f)
 		return false;
 
 	bool aSeenDefinitions[WEAPON_DEFINITION_COUNT] = {};
@@ -182,6 +202,29 @@ bool CWeaponCatalog::Validate()
 		}
 	}
 	if(DefinitionCount != WEAPON_DEFINITION_COUNT)
+		return false;
+	CResolvedWeaponProfile Base5;
+	CResolvedWeaponProfile ProjectileCapacitor;
+	CResolvedWeaponProfile ExplosiveCapacitor;
+	CResolvedWeaponProfile Capacitor;
+	CResolvedWeaponProfile LightBlade;
+	CResolvedWeaponProfile SpinLightBlade;
+	if(!TryResolve(Modular(PART1_BASE5, PART2_BARREL1), &Base5) ||
+		Base5.m_Combat.m_ProjectileDamage != 20.0f || Base5.m_Combat.m_MaxAmmo != 16 ||
+		!Base5.m_Combat.m_LaserWeapon || !Base5.m_Combat.m_Aimline || !Base5.m_Combat.m_ValidForTurret ||
+		!TryResolve(Modular(PART1_BASE1, PART2_CAPACITOR), &ProjectileCapacitor) ||
+		ProjectileCapacitor.m_Combat.m_LaserWeapon || ProjectileCapacitor.m_Combat.m_ExplosiveProjectile ||
+		!TryResolve(Modular(PART1_BASE2, PART2_CAPACITOR), &ExplosiveCapacitor) ||
+		ExplosiveCapacitor.m_Combat.m_LaserWeapon || !ExplosiveCapacitor.m_Combat.m_ExplosiveProjectile ||
+		!TryResolve(Modular(PART1_BASE5, PART2_CAPACITOR), &Capacitor) ||
+		Capacitor.m_Combat.m_FiringType != WFT_CHARGE || Capacitor.m_Combat.m_ProjectileDamage != 30.0f ||
+		Capacitor.m_Combat.m_MaxAmmo != 9 || !Capacitor.m_Combat.m_LaserWeapon || Capacitor.m_Combat.m_LaserRange != 900 || Capacitor.m_Combat.m_ValidForTurret ||
+		!TryResolve(Modular(PART1_MELEE, PART2_MELEE5, 4), &LightBlade) ||
+		LightBlade.m_Combat.m_FireRate != 220.0f || LightBlade.m_Combat.m_ProjectileDamage != 32.0f ||
+		LightBlade.m_Combat.m_ProjectileKnockback != 5.6f || LightBlade.m_Combat.m_MeleeHitRadius != 76.0f ||
+		!TryResolve(Modular(PART1_SPIN, PART2_MELEE5, 4), &SpinLightBlade) ||
+		SpinLightBlade.m_Combat.m_FireRate != 50.0f || SpinLightBlade.m_Combat.m_ProjectileDamage != 8.0f ||
+		SpinLightBlade.m_Combat.m_ProjectileKnockback != 1.4f || SpinLightBlade.m_Combat.m_MeleeHitRadius != 96.0f)
 		return false;
 	for(int Type = 0; Type < WEAPON_DROID_PROFILE_COUNT; ++Type)
 	{
