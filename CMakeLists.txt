@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.11)
 
-file(STRINGS src/game/version.h VERSION_LINE
+file(STRINGS src/game/shared/core/version.h VERSION_LINE
   LIMIT_COUNT 1
   REGEX GAME_RELEASE_VERSION
 )
@@ -14,7 +14,7 @@ elseif(VERSION_LINE MATCHES "\"([0-9]+)\\.([0-9]+)\"")
   set(VERSION_MINOR ${CMAKE_MATCH_2})
   set(VERSION_PATCH "0")
 else()
-  message(FATAL_ERROR "Couldn't parse version from src/game/version.h")
+  message(FATAL_ERROR "Couldn't parse version from src/game/shared/core/version.h")
 endif()
 
 if(POLICY CMP0048)
@@ -88,7 +88,7 @@ endif()
 set(DBG $<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>)
 
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-  src/game/version.h
+  src/game/shared/core/version.h
 )
 
 set(SERVER_EXECUTABLE ninslash_srv CACHE STRING "Name of the built server executable")
@@ -393,8 +393,8 @@ file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/src/generated/")
 chash("src/generated/nethash.cpp"
   "src/engine/shared/protocol.h"
   "${PROJECT_BINARY_DIR}/src/generated/protocol.h"
-  "src/game/tuning.h"
-  "src/game/gamecore.cpp"
+  "src/game/shared/core/tuning.h"
+  "src/game/shared/core/gamecore.cpp"
 )
 generate_source("src/generated/game_data.cpp" "game_content_source")
 generate_source("src/generated/game_data.h" "game_content_header")
@@ -503,33 +503,7 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
 
 set(ENGINE_GENERATED_SHARED src/generated/protocol.cpp src/generated/protocol.h)
 
-set_src(GAME_SHARED GLOB src/game
-  astar.cpp
-  buildables.h
-  collision.cpp
-  collision.h
-  gamevote.h
-  gamecore.cpp
-  gamecore.h
-  layers.cpp
-  layers.h
-  localization.cpp
-  localization.h
-  mapitems.h
-  pathfinding.cpp
-  pathfinding.h
-  pve_roguelite.cpp
-  pve_roguelite.h
-  questinfo.cpp
-  questinfo.h
-  tuning.h
-  variables.h
-  version.h
-  voting.h
-  weapon_catalog.cpp
-  weapon_catalog.h
-  weapons.h
-)
+set_src(GAME_SHARED GLOB_RECURSE src/game/shared)
 
 set(GAME_GENERATED_SHARED
   src/generated/nethash.cpp
@@ -583,129 +557,8 @@ if(CLIENT)
     video.cpp
     video.h
   )
-  set_src(GAME_CLIENT GLOB_RECURSE src/game/client 
-    components/ball.cpp
-    components/ball.h
-    components/binds.cpp
-    components/binds.h
-    components/block.cpp
-    components/block.h
-    components/blood.cpp
-    components/blood.h
-    components/brains.cpp
-    components/brains.h
-    components/broadcast.cpp
-    components/broadcast.h
-    components/buildings.cpp
-    components/buildings.h
-    components/buildings2.cpp
-    components/buildings2.h
-    components/camera.cpp
-    components/camera.h
-    components/cbelt.cpp
-    components/cbelt.h
-    components/chat.cpp
-    components/chat.h
-    components/console.cpp
-    components/console.h
-    components/controls.cpp
-    components/controls.h
-    components/countryflags.cpp
-    components/countryflags.h
-    components/damageind.cpp
-    components/damageind.h
-    components/debughud.cpp
-    components/debughud.h
-    components/droids.cpp
-    components/droids.h
-    components/effects.cpp
-    components/effects.h
-    components/flow.cpp
-    components/flow.h
-    components/fluid.cpp
-    components/fluid.h
-    components/gamevote.cpp
-    components/gamevote.h
-    components/guts.cpp
-    components/guts.h
-    components/hud.cpp
-    components/hud.h
-    components/inventory.cpp
-    components/inventory.h
-    components/items.cpp
-    components/items.h
-    components/killmessages.cpp
-    components/killmessages.h
-    components/light.cpp
-    components/light.h
-    components/mapimages.cpp
-    components/mapimages.h
-    components/maplayers.cpp
-    components/maplayers.h
-    components/menus_browser.cpp
-    components/menus_demo.cpp
-    components/menus_ingame.cpp
-    components/menus_settings.cpp
-    components/menus.cpp
-    components/menus.h
-    components/motd.cpp
-    components/motd.h
-    components/nameplates.cpp
-    components/nameplates.h
-    components/particles.cpp
-    components/particles.h
-    components/picker.cpp
-    components/picker.h
-    components/players.cpp
-    components/players.h
-    components/pve_roguelite.cpp
-    components/pve_roguelite.h
-    components/radar.cpp
-    components/radar.h
-    components/scoreboard.cpp
-    components/scoreboard.h
-    components/skins.cpp
-    components/skins.h
-    components/sounds.cpp
-    components/sounds.h
-    components/spark.cpp
-    components/spark.h
-    components/spectator.cpp
-    components/spectator.h
-    components/splatter.cpp
-    components/splatter.h
-    components/tracer.cpp
-    components/tracer.h
-    components/voting.cpp
-    components/voting.h
-    components/weapons.cpp
-    components/weapons.h
-    customstuff/droidanim.cpp
-    customstuff/droidanim.h
-    customstuff/playerinfo.cpp
-    customstuff/playerinfo.h
-    animdata.cpp
-    animdata.h
-    component.h
-    customstuff.cpp
-    customstuff.h
-    gameclient.cpp
-    gameclient.h
-    lineinput.cpp
-    lineinput.h
-    render_anim.inl
-    render_map.cpp
-    render.cpp
-    render.h
-    skelebank.cpp
-    skelebank.h
-    spine.cpp
-    spine.h
-    ui.cpp
-    ui.h
-    ui_scrollregion.cpp
-    ui_scrollregion.h
-  )
+  set_src(GAME_CLIENT GLOB_RECURSE src/game/client)
+
   set_src(GAME_EDITOR GLOB src/game/editor
     auto_map.cpp
     auto_map.h
@@ -822,191 +675,7 @@ set_src(ENGINE_SERVER GLOB src/engine/server
   server.h
 )
 
-set_src(GAME_SERVER GLOB_RECURSE src/game/server
-  ai/def/def_alien1_ai.cpp
-  ai/def/def_alien1_ai.h
-  ai/def/def_alien2_ai.cpp
-  ai/def/def_alien2_ai.h
-  ai/def/def_bunny1_ai.cpp
-  ai/def/def_bunny1_ai.h
-  ai/def/def_bunny2_ai.cpp
-  ai/def/def_bunny2_ai.h
-  ai/def/def_pyro1_ai.cpp
-  ai/def/def_pyro1_ai.h
-  ai/def/def_pyro2_ai.cpp
-  ai/def/def_pyro2_ai.h
-  ai/def/def_robot1_ai.cpp
-  ai/def/def_robot1_ai.h
-  ai/def/def_robot2_ai.cpp
-  ai/def/def_robot2_ai.h
-  ai/def/def_robot3_ai.cpp
-  ai/def/def_robot3_ai.h
-  ai/inv/alien1_ai.cpp
-  ai/inv/alien1_ai.h
-  ai/inv/alien2_ai.cpp
-  ai/inv/alien2_ai.h
-  ai/inv/bunny1_ai.cpp
-  ai/inv/bunny1_ai.h
-  ai/inv/bunny2_ai.cpp
-  ai/inv/bunny2_ai.h
-  ai/inv/pyro1_ai.cpp
-  ai/inv/pyro1_ai.h
-  ai/inv/pyro2_ai.cpp
-  ai/inv/pyro2_ai.h
-  ai/inv/robot1_ai.cpp
-  ai/inv/robot1_ai.h
-  ai/inv/robot2_ai.cpp
-  ai/inv/robot2_ai.h
-  ai/ball_ai.cpp
-  ai/ball_ai.h
-  ai/base_ai.cpp
-  ai/base_ai.h
-  ai/ctf_ai.cpp
-  ai/ctf_ai.h
-  ai/def_ai.cpp
-  ai/def_ai.h
-  ai/dm_ai.cpp
-  ai/dm_ai.h
-  ai/inv_ai.cpp
-  ai/inv_ai.h
-  ai/roam_ai.cpp
-  ai/roam_ai.h
-  ai/tdm_ai.cpp
-  ai/tdm_ai.h
-  ai/texas_ai.cpp
-  ai/texas_ai.h
-  entities/ball.cpp
-  entities/ball.h
-  entities/block.cpp
-  entities/block.h
-  entities/building.cpp
-  entities/building.h
-  entities/character.cpp
-  entities/character.h
-  entities/deathray.cpp
-  entities/deathray.h
-  entities/droid_bosscrawler.cpp
-  entities/droid_bosscrawler.h
-  entities/droid_bossstar.cpp
-  entities/droid_bossstar.h
-  entities/droid_bosswalker.cpp
-  entities/droid_bosswalker.h
-  entities/droid_bosssplitter.cpp
-  entities/droid_bosssplitter.h
-  entities/droid_crawler.cpp
-  entities/droid_crawler.h
-  entities/droid_star.cpp
-  entities/droid_star.h
-  entities/droid_walker.cpp
-  entities/droid_walker.h
-  entities/droid.cpp
-  entities/droid.h
-  entities/droid_specialist.cpp
-  entities/droid_specialist.h
-  entities/droid_bulwark.cpp
-  entities/droid_bulwark.h
-  entities/droid_assembler.cpp
-  entities/droid_assembler.h
-  entities/droid_saboteur.cpp
-  entities/droid_saboteur.h
-  entities/droid_railgunner.cpp
-  entities/droid_railgunner.h
-  entities/droid_siege_engine.cpp
-  entities/droid_siege_engine.h
-  entities/droid_overseer_core.cpp
-  entities/droid_overseer_core.h
-  bosspool.cpp
-  bosspool.h
-  entities/electro.cpp
-  entities/electro.h
-  entities/electrowall.cpp
-  entities/electrowall.h
-  entities/flag.cpp
-  entities/flag.h
-  entities/laser.cpp
-  entities/laser.h
-  entities/laserfail.cpp
-  entities/laserfail.h
-  entities/lightning.cpp
-  entities/lightning.h
-  entities/pickup.cpp
-  entities/pickup.h
-  entities/powerupper.cpp
-  entities/powerupper.h
-  entities/projectile.cpp
-  entities/projectile.h
-  entities/pve_drone.cpp
-  entities/pve_drone.h
-  entities/pve_drone_pulse.cpp
-  entities/pve_drone_pulse.h
-  entities/radar.cpp
-  entities/radar.h
-  entities/shop.cpp
-  entities/shop.h
-  entities/staticlaser.cpp
-  entities/staticlaser.h
-  entities/teslacoil.cpp
-  entities/teslacoil.h
-  entities/turret.cpp
-  entities/turret.h
-  entities/weapon.cpp
-  entities/weapon.h
-  entities/weapon_behavior.cpp
-  entities/weapon_behavior.h
-  gamemodes/ball.cpp
-  gamemodes/ball.h
-  gamemodes/base.cpp
-  gamemodes/base.h
-  gamemodes/cs.cpp
-  gamemodes/cs.h
-  gamemodes/ctf.cpp
-  gamemodes/ctf.h
-  gamemodes/dm.cpp
-  gamemodes/dm.h
-  gamemodes/horde.cpp
-  gamemodes/horde.h
-  gamemodes/extract.cpp
-  gamemodes/extract.h
-  gamemodes/invasion.cpp
-  gamemodes/invasion.h
-  gamemodes/roam.cpp
-  gamemodes/roam.h
-  gamemodes/tdm.cpp
-  gamemodes/tdm.h
-  gamemodes/texasrun.cpp
-  gamemodes/texasrun.h
-  mapgen/gen_layer.cpp
-  mapgen/gen_layer.h
-  mapgen/maze.cpp
-  mapgen/maze.h
-  mapgen/room.cpp
-  mapgen/room.h
-  ai_protocol.h
-  ai.cpp
-  ai.h
-  aiskin.h
-  blockentities.cpp
-  blockentities.h  
-  entity.cpp
-  entity.h
-  eventhandler.cpp
-  eventhandler.h
-  gamecontext.cpp
-  gamecontext.h
-  gamecontroller.cpp
-  gamecontroller.h
-  gamevote.h
-  gameworld.cpp
-  gameworld.h
-  mapgen.cpp
-  mapgen.h
-  player.cpp
-  player.h
-  playerdata.cpp
-  playerdata.h
-  pve_director.cpp
-  pve_director.h
-)
+set_src(GAME_SERVER GLOB_RECURSE src/game/server)
 
 set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER})
 if(TARGET_OS STREQUAL "windows")

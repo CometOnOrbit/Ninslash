@@ -26,9 +26,9 @@
 
 #include <mastersrv/mastersrv.h>
 
-#include <game/questinfo.h>
-#include <game/server/ai.h>
-#include <game/server/playerdata.h>
+#include <game/shared/pve/questinfo.h>
+#include <game/server/ai/ai.h>
+#include <game/server/core/playerdata.h>
 
 
 #include "register.h"

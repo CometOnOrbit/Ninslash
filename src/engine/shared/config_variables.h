@@ -5,7 +5,7 @@
 #undef ENGINE_SHARED_CONFIG_VARIABLES_H // this file will be included several times
 
 // TODO: remove this
-#include "././game/variables.h" 
+#include <game/shared/core/variables.h>
 
 
 MACRO_CONFIG_STR(PlayerName, player_name, 16, "bloodless", CFGFLAG_SAVE|CFGFLAG_CLIENT, "Name of the player")

@@ -1,6 +1,6 @@
 #ifndef GAME_SERVER_GAMEMODES_BALL_H
 #define GAME_SERVER_GAMEMODES_BALL_H
-#include <game/server/gamecontroller.h>
+#include <game/server/core/gamecontroller.h>
 
 class CGameControllerBall : public IGameController
 {

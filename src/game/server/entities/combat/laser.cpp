@@ -1,0 +1,264 @@
+#include <generated/protocol.h>
+#include <game/server/core/gamecontext.h>
+#include <game/server/entities/combat/laser.h>
+#include <game/server/entities/structures/building.h>
+#include <game/server/entities/actors/droid.h>
+
+CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, const CAttackSource &Source, int Damage, int Charge)
+: CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER)
+{
+	m_Damage = Damage;
+	m_Pos = Pos;
+	m_Source = Source;
+	m_Owner = Source.m_Owner;
+	m_Energy = StartEnergy;
+	m_Dir = Direction;
+	//m_OwnerBuilding = OwnerBuilding;
+	m_Charge = Charge;
+	
+	if (m_Charge == -1)
+		m_Bounces = 99;
+	else
+		m_Bounces = 0;
+	m_EvalTick = 0;
+	m_IgnoreScythe = -1;
+	GameWorld()->InsertEntity(this);
+	DoBounce();
+}
+
+
+bool CLaser::HitCharacter(vec2 From, vec2 To)
+{
+	vec2 At;
+	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
+	
+	CWeaponDefinition Definition;
+	if (m_Source.m_Kind == EAttackSourceKind::PlayerWeapon && CWeaponCatalog::TryGetDefinition(m_Source.m_Weapon.m_DefinitionId, &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Static && Definition.m_StaticType == SW_GRENADE2)
+		pOwnerChar = NULL;
+	
+	CCharacter *pHit = GameServer()->m_World.IntersectCharacter(m_Pos, To, 0.f, At, pOwnerChar);
+	if(!pHit)
+		return false;
+	
+	if (pHit->GetPlayer()->GetCID() == m_IgnoreScythe)
+		return false;
+	
+	m_From = From;
+	m_Pos = At;
+	m_Energy = -1;
+	
+	pHit->TakeDamage(m_Source, m_Damage, normalize(To-From)*0.1f, At);
+	
+	return true;
+}
+
+
+bool CLaser::HitScythe(vec2 From, vec2 To)
+{
+	vec2 At;
+	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
+	CCharacter *pHit = GameServer()->m_World.IntersectReflect(m_Pos, To, 0.0f, At, pOwnerChar);
+	if(!pHit)
+		return false;
+
+	if (pHit->GetPlayer()->GetCID() == m_IgnoreScythe)
+		return false;
+	
+	m_From = From;
+	m_Pos = At;
+	
+	//vec2 d = (pHit->m_Pos+vec2(0, -24))-From;
+	//d += vec2(frandom()-frandom(), frandom()-frandom()) * length(d) * 0.4f;
+	//m_Dir = -normalize(d);
+	//m_Dir = normalize(vec2(frandom()-0.5f, frandom()-0.5f));
+	
+	vec2 d = (pHit->m_Pos+vec2(0, -24)) - From;
+	m_Dir = GameServer()->Collision()->Reflect(m_Dir, normalize(d));
+	
+	GameServer()->CreateBuildingHit(m_Pos);
+	m_IgnoreScythe = pHit->GetPlayer()->GetCID();
+	
+	return true;
+}
+
+
+bool CLaser::HitMonster(vec2 From, vec2 To)
+{
+	vec2 At;
+	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
+	if (!pOwnerChar)
+		return false;
+	
+	CDroid *pHit = GameServer()->m_World.IntersectWalker(m_Pos, To, 8.0f, At);
+	if(!pHit)
+		return false;
+	
+	m_From = From;
+	m_Pos = At;
+	m_Energy = -1;
+
+	pHit->TakeDamage(normalize(To-From)*0.1f, m_Damage, m_Source, At);
+	return true;
+}
+
+bool CLaser::HitBuilding(vec2 From, vec2 To)
+{
+	vec2 At;
+	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
+	if (!pOwnerChar)
+		return false;
+	
+	CBuilding *pHit = GameServer()->m_World.IntersectBuilding(m_Pos, To, 8.0f, At, pOwnerChar->GetPlayer()->GetTeam(), m_OwnerBuilding);
+	if(!pHit)
+		return false;
+	
+	m_From = From;
+	m_Pos = At;
+	m_Energy = -1;
+
+	if (pHit->m_Type == BUILDING_GENERATOR)
+	{
+		pHit->m_DamagePos = m_Pos;
+		
+		if (distance(pHit->m_Pos, m_Pos) > pHit->m_ProximityRadius)
+		{
+			GameServer()->CreateEffect(FX_SHIELDHIT, m_Pos);
+			pHit->TakeDamage(m_Damage/3, m_Source);
+		}
+		else
+		{
+			GameServer()->CreateBuildingHit(m_Pos);
+			pHit->TakeDamage(m_Damage, m_Source);
+		}
+	}
+	else
+	{
+		GameServer()->CreateBuildingHit(m_Pos);
+		pHit->TakeDamage(m_Damage, m_Source);
+	}
+	
+	
+	return true;
+}
+
+void CLaser::DoBounce()
+{
+	m_EvalTick = Server()->Tick();
+
+	
+	if (GameServer()->Collision()->IsInFluid(m_Pos.x, m_Pos.y))
+		m_Energy = -1;
+	
+	if(m_Energy < 0)
+	{
+		GameServer()->m_World.DestroyEntity(this);
+		return;
+	}
+
+	vec2 To = m_Pos + m_Dir * m_Energy;
+	vec2 ColPos;
+
+	int Collision = GameServer()->Collision()->IntersectLine(m_Pos, To, &ColPos, &To);
+	
+	if(Collision)
+	{
+		if(!HitScythe(m_Pos, To))
+		{
+			if(!HitCharacter(m_Pos, To))
+			{
+				if(!HitBuilding(m_Pos, To))
+				{
+					if(!HitMonster(m_Pos, To))
+					{
+						// intersected
+						m_From = m_Pos;
+						m_Pos = To;
+
+						/*
+						vec2 TempPos = m_Pos;
+						vec2 TempDir = m_Dir * 4.0f;
+
+						GameServer()->Collision()->MovePoint(&TempPos, &TempDir, 1.0f, 0);
+						m_Pos = TempPos;
+						m_Dir = normalize(TempDir);
+						*/
+						
+						m_Dir = GameServer()->Collision()->WallReflect(ColPos, m_Dir, Collision);
+
+						m_Energy -= distance(m_From, m_Pos) + GameServer()->Tuning()->m_LaserBounceCost;
+						m_Bounces++;
+
+						if(m_Bounces > 4)
+							m_Energy = -1;
+						
+						m_IgnoreScythe = -1;
+
+						if (GameServer()->Collision()->CheckBlocks(m_Pos))
+							GameServer()->DamageBlocks(m_Pos, m_Damage, 1);
+						else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(-4, -4)))
+							GameServer()->DamageBlocks(m_Pos+vec2(-4, -4), m_Damage, 1);
+						else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(4, -4)))
+							GameServer()->DamageBlocks(m_Pos+vec2(4, -4), m_Damage, 1);
+						else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(-4, 4)))
+							GameServer()->DamageBlocks(m_Pos+vec2(-4, 4), m_Damage, 1);
+						else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(4, 4)))
+							GameServer()->DamageBlocks(m_Pos+vec2(4, 4), m_Damage, 1);
+						
+						GameServer()->CreateSound(m_Pos, SOUND_LASER_BOUNCE);
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		if(!HitScythe(m_Pos, To))
+		{
+			if(!HitCharacter(m_Pos, To))
+			{
+				if(!HitBuilding(m_Pos, To))
+				{
+					if(!HitMonster(m_Pos, To))
+					{
+						m_From = m_Pos;
+						m_Pos = To;
+						m_Energy = -1;
+					}
+				}
+			}
+		}
+	}
+}
+
+void CLaser::Reset()
+{
+	GameServer()->m_World.DestroyEntity(this);
+}
+
+void CLaser::Tick()
+{
+	if(Server()->Tick() > m_EvalTick+(Server()->TickSpeed()*GameServer()->Tuning()->m_LaserBounceDelay)/1000.0f)
+		DoBounce();
+}
+
+void CLaser::TickPaused()
+{
+	++m_EvalTick;
+}
+
+void CLaser::Snap(int SnappingClient)
+{
+	if(NetworkClipped(SnappingClient))
+		return;
+
+	CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
+	if(!pObj)
+		return;
+
+	pObj->m_X = (int)m_Pos.x;
+	pObj->m_Y = (int)m_Pos.y;
+	pObj->m_FromX = (int)m_From.x;
+	pObj->m_FromY = (int)m_From.y;
+	pObj->m_Charge = m_Charge;
+	pObj->m_StartTick = m_EvalTick;
+}

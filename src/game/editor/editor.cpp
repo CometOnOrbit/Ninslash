@@ -13,11 +13,11 @@
 #include <engine/storage.h>
 #include <engine/textrender.h>
 
-#include <game/gamecore.h>
-#include <game/localization.h>
-#include <game/client/lineinput.h>
-#include <game/client/render.h>
-#include <game/client/ui.h>
+#include <game/shared/core/gamecore.h>
+#include <game/shared/core/localization.h>
+#include <game/client/input/lineinput.h>
+#include <game/client/render/render.h>
+#include <game/client/ui/ui.h>
 #include <generated/game_data.h>
 
 #include "auto_map.h"

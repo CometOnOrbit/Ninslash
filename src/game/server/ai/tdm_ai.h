@@ -1,7 +1,7 @@
 #ifndef GAME_SERVER_AI_TDM_AI_H
 #define GAME_SERVER_AI_TDM_AI_H
-#include <game/server/ai.h>
-#include <game/server/gamecontext.h>
+#include <game/server/ai/ai.h>
+#include <game/server/core/gamecontext.h>
 
 class CAItdm : public CAI
 {

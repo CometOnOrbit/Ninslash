@@ -4,7 +4,7 @@
 
 #include <engine/console.h>
 
-#include <game/server/ai_protocol.h>
+#include <game/server/ai/ai_protocol.h>
 
 #include "netban.h"
 #include "network.h"

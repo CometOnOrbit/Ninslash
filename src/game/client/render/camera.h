@@ -1,0 +1,33 @@
+
+
+#ifndef GAME_CLIENT_RENDER_CAMERA_H
+#define GAME_CLIENT_RENDER_CAMERA_H
+#include <base/vmath.h>
+#include <game/client/core/component.h>
+
+class CCamera : public CComponent
+{
+	enum
+	{
+		CAMTYPE_UNDEFINED=-1,
+		CAMTYPE_SPEC,
+		CAMTYPE_PLAYER,
+	};
+
+	int m_CamType;
+	vec2 m_PrevCenter;
+	int64 m_LastUpdate;
+	int64 m_CameraSmoothStart;
+
+public:
+	vec2 m_Center;
+	vec2 m_Center2;
+	vec2 m_TargetCenter;
+	float m_Zoom;
+	float m_TargetZoom;
+
+	CCamera();
+	virtual void OnRender();
+};
+
+#endif

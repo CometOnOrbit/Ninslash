@@ -36,7 +36,7 @@
 #include <engine/shared/ringbuffer.h>
 #include <engine/shared/snapshot.h>
 
-#include <game/version.h>
+#include <game/shared/core/version.h>
 
 #include <mastersrv/mastersrv.h>
 #include <versionsrv/versionsrv.h>

@@ -2,8 +2,8 @@
 
 #ifndef GAME_SERVER_GAMEMODES_CTF_H
 #define GAME_SERVER_GAMEMODES_CTF_H
-#include <game/server/gamecontroller.h>
-#include <game/server/entity.h>
+#include <game/server/core/gamecontroller.h>
+#include <game/server/core/entity.h>
 
 class CGameControllerCTF : public IGameController
 {

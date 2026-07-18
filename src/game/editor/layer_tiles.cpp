@@ -7,10 +7,10 @@
 #include <engine/textrender.h>
 
 #include <generated/game_data.h>
-#include <game/client/render.h>
+#include <game/client/render/render.h>
 #include "editor.h"
 
-#include <game/localization.h>
+#include <game/shared/core/localization.h>
 
 CLayerTiles::CLayerTiles(int w, int h)
 {

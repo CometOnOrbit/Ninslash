@@ -1,6 +1,6 @@
 #include <base/system.h>
 #include <engine/shared/config.h>
-#include <game/questinfo.h>
+#include <game/shared/pve/questinfo.h>
 
 #include "gen_layer.h"
 

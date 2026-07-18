@@ -5,7 +5,7 @@
 #include <engine/graphics.h>
 #include <engine/serverbrowser.h>
 #include <engine/storage.h>
-#include <game/gamecore.h>
+#include <game/shared/core/gamecore.h>
 #include "editor.h"
 
 template<typename T>

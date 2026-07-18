@@ -2,15 +2,15 @@
 
 #include <engine/shared/config.h>
 
-#include <game/mapitems.h>
+#include <game/shared/world/mapitems.h>
 
-#include <game/server/entities/character.h>
-#include <game/server/entities/flag.h>
-#include <game/server/player.h>
-#include <game/server/gamecontext.h>
+#include <game/server/entities/actors/character.h>
+#include <game/server/entities/objectives/flag.h>
+#include <game/server/core/player.h>
+#include <game/server/core/gamecontext.h>
 #include "ctf.h"
 
-#include <game/server/ai.h>
+#include <game/server/ai/ai.h>
 #include <game/server/ai/ctf_ai.h>
 
 CGameControllerCTF::CGameControllerCTF(class CGameContext *pGameServer)

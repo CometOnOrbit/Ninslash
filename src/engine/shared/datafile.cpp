@@ -6,8 +6,8 @@
 #include "datafile.h"
 #include <zlib.h>
 // MapGen
-#include <game/mapitems.h>
-#include <game/gamecore.h>
+#include <game/shared/world/mapitems.h>
+#include <game/shared/core/gamecore.h>
 
 static const int DEBUG=0;
 

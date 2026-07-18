@@ -1,6 +1,6 @@
 #ifndef GAME_SERVER_GAMEMODES_EXTRACT_H
 #define GAME_SERVER_GAMEMODES_EXTRACT_H
-#include <game/server/gamecontroller.h>
+#include <game/server/core/gamecontroller.h>
 
 #define MAX_ENEMIES 512
 

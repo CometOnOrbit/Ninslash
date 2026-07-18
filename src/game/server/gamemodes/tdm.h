@@ -2,7 +2,7 @@
 
 #ifndef GAME_SERVER_GAMEMODES_TDM_H
 #define GAME_SERVER_GAMEMODES_TDM_H
-#include <game/server/gamecontroller.h>
+#include <game/server/core/gamecontroller.h>
 
 class CGameControllerTDM : public IGameController
 {

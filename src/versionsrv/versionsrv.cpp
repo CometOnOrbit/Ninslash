@@ -4,7 +4,7 @@
 
 #include <engine/shared/network.h>
 
-#include <game/version.h>
+#include <game/shared/core/version.h>
 
 #include "versionsrv.h"
 #include "mapversions.h"

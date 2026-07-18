@@ -1,7 +1,7 @@
-#ifndef GAME_SERVER_AI_ALIEN1_AI_H
-#define GAME_SERVER_AI_ALIEN1_AI_H
-#include <game/server/ai.h>
-#include <game/server/gamecontext.h>
+#ifndef GAME_SERVER_AI_INV_ALIEN1_AI_H
+#define GAME_SERVER_AI_INV_ALIEN1_AI_H
+#include <game/server/ai/ai.h>
+#include <game/server/core/gamecontext.h>
 
 class CAIalien1 : public CAI
 {

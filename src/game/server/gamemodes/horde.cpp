@@ -1,17 +1,17 @@
 #include <engine/shared/config.h>
 
-#include <game/mapitems.h>
-#include <game/questinfo.h>
-#include <game/server/entities/character.h>
-#include <game/server/player.h>
-#include <game/server/gamecontext.h>
-#include <game/server/bosspool.h>
-#include <game/server/entities/droid_crawler.h>
-#include <game/server/entities/radar.h>
+#include <game/shared/world/mapitems.h>
+#include <game/shared/pve/questinfo.h>
+#include <game/server/entities/actors/character.h>
+#include <game/server/core/player.h>
+#include <game/server/core/gamecontext.h>
+#include <game/server/pve/bosspool.h>
+#include <game/server/entities/actors/droid_crawler.h>
+#include <game/server/entities/structures/radar.h>
 #include <game/server/ai/base_ai.h>
-#include <game/server/pve_bots.h>
-#include <game/server/pve_director.h>
-#include <game/weapons.h>
+#include <game/server/pve/pve_bots.h>
+#include <game/server/pve/pve_director.h>
+#include <game/shared/weapons/weapons.h>
 #include <generated/protocol.h>
 
 #include "horde.h"

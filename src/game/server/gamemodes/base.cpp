@@ -1,17 +1,17 @@
 #include <engine/shared/config.h>
 
-#include <game/server/entities/building.h>
-#include <game/server/entities/character.h>
-#include <game/server/player.h>
-#include <game/server/gamecontext.h>
+#include <game/server/entities/structures/building.h>
+#include <game/server/entities/actors/character.h>
+#include <game/server/core/player.h>
+#include <game/server/core/gamecontext.h>
 
 #include "base.h"
 
-#include <game/server/entities/droid_crawler.h>
-#include <game/server/bosspool.h>
+#include <game/server/entities/actors/droid_crawler.h>
+#include <game/server/pve/bosspool.h>
 
-#include <game/server/playerdata.h>
-#include <game/server/ai.h>
+#include <game/server/core/playerdata.h>
+#include <game/server/ai/ai.h>
 #include <game/server/ai/base_ai.h>
 #include <game/server/ai/def/def_alien1_ai.h>
 #include <game/server/ai/def/def_alien2_ai.h>

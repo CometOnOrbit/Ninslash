@@ -15,8 +15,8 @@
 #include <engine/shared/protocol.h>
 #include <engine/shared/snapshot.h>
 
-#include <game/server/aiskin.h>
-#include <game/server/gamevote.h>
+#include <game/server/ai/aiskin.h>
+#include <game/server/core/gamevote.h>
 
 #include "register.h"
 

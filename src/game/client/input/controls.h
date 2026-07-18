@@ -1,0 +1,53 @@
+
+
+#ifndef GAME_CLIENT_INPUT_CONTROLS_H
+#define GAME_CLIENT_INPUT_CONTROLS_H
+#include <base/vmath.h>
+#include <game/client/core/component.h>
+
+class CControls : public CComponent
+{
+public:
+	vec2 m_MousePos;
+	vec2 m_TargetPos;
+
+	CNetObj_PlayerInput m_InputData;
+	CNetObj_PlayerInput m_LastData;
+	int m_InputDirectionLeft;
+	int m_InputDirectionRight;
+	
+	// weapon change from picker
+	int m_PickedWeapon;
+	
+	// signal wanted weapon you don't have to hud
+	int m_SignalWeapon;
+	
+	// input
+	int m_Build;
+	bool m_BuildReleased;
+	
+	bool m_BuildMode;
+	int m_SelectedBuilding;
+
+	bool m_Ready;
+	
+	// switch back to shooting
+	int m_LastWeapon;
+
+	CControls();
+
+	virtual void OnReset();
+	virtual void OnRelease();
+	virtual void OnRender();
+	virtual void OnMessage(int MsgType, void *pRawMsg);
+	virtual bool OnMouseMove(float x, float y);
+	virtual void OnConsoleInit();
+	virtual void OnPlayerDeath();
+
+	static void ConZoomPlus(IConsole::IResult *pResult, void *pUserData);
+	static void ConZoomMinus(IConsole::IResult *pResult, void *pUserData);
+
+	int SnapInput(int *pData);
+	void ClampMousePos();
+};
+#endif

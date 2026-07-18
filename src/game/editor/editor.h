@@ -11,9 +11,9 @@
 #include <base/tl/sorted_array.h>
 #include <base/tl/string.h>
 
-#include <game/client/ui.h>
-#include <game/mapitems.h>
-#include <game/client/render.h>
+#include <game/client/ui/ui.h>
+#include <game/shared/world/mapitems.h>
+#include <game/client/render/render.h>
 
 #include <engine/shared/config.h>
 #include <engine/shared/datafile.h>

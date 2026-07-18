@@ -116,7 +116,7 @@ weapon_profiles = ContentCompile("weapon_profiles", "src/generated/weapon_profil
 AddDependency(network_source, network_header)
 AddDependency(game_content_source, game_content_header)
 
-nethash = CHash("src/generated/nethash.cpp", "src/engine/shared/protocol.h", "src/generated/protocol.h", "src/game/tuning.h", "src/game/gamecore.cpp", network_header)
+nethash = CHash("src/generated/nethash.cpp", "src/engine/shared/protocol.h", "src/generated/protocol.h", "src/game/shared/core/tuning.h", "src/game/shared/core/gamecore.cpp", network_header)
 
 client_link_other = {}
 client_depends = {}
@@ -309,7 +309,7 @@ function build(settings)
 
 	versionserver = Compile(settings, Collect("src/versionsrv/*.cpp"))
 	masterserver = Compile(settings, Collect("src/mastersrv/*.cpp"))
-	game_shared = Compile(settings, Collect("src/game/*.cpp"), nethash, network_source, game_content_source)
+	game_shared = Compile(settings, CollectRecursive("src/game/shared/*.cpp"), nethash, network_source, game_content_source)
 	for _, object in ipairs(game_shared) do
 		AddDependency(object, weapon_profiles)
 	end

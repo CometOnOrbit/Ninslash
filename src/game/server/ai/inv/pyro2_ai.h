@@ -1,7 +1,7 @@
-#ifndef GAME_SERVER_AI_PYRO2_AI_H
-#define GAME_SERVER_AI_PYRO2_AI_H
-#include <game/server/ai.h>
-#include <game/server/gamecontext.h>
+#ifndef GAME_SERVER_AI_INV_PYRO2_AI_H
+#define GAME_SERVER_AI_INV_PYRO2_AI_H
+#include <game/server/ai/ai.h>
+#include <game/server/core/gamecontext.h>
 
 class CAIpyro2 : public CAI
 {

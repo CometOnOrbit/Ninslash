@@ -1,10 +1,10 @@
 #include <engine/shared/config.h>
 
-#include <game/server/ai.h>
-#include <game/server/entities/ball.h>
-#include <game/server/entities/character.h>
-#include <game/server/player.h>
-#include <game/server/gamecontext.h>
+#include <game/server/ai/ai.h>
+#include <game/server/entities/objectives/ball.h>
+#include <game/server/entities/actors/character.h>
+#include <game/server/core/player.h>
+#include <game/server/core/gamecontext.h>
 
 #include "ball_ai.h"
 

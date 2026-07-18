@@ -1,0 +1,9 @@
+#ifndef GAME_SHARED_GAMEPLAY_GAMEVOTE_H
+#define GAME_SHARED_GAMEPLAY_GAMEVOTE_H
+
+enum
+{
+	MAX_GAME_VOTES = 99,
+};
+
+#endif

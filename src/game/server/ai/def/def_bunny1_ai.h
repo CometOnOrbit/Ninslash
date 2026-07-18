@@ -1,7 +1,7 @@
 #ifndef GAME_SERVER_AI_DEF_DEF_BUNNY1_AI_H
 #define GAME_SERVER_AI_DEF_DEF_BUNNY1_AI_H
-#include <game/server/ai.h>
-#include <game/server/gamecontext.h>
+#include <game/server/ai/ai.h>
+#include <game/server/core/gamecontext.h>
 
 class CAIdefbunny1 : public CAI
 {

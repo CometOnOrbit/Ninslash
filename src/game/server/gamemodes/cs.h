@@ -1,7 +1,7 @@
 #ifndef GAME_SERVER_GAMEMODES_CS_H
 #define GAME_SERVER_GAMEMODES_CS_H
-#include <game/server/gamecontroller.h>
-#include <game/weapon_catalog.h>
+#include <game/server/core/gamecontroller.h>
+#include <game/shared/weapons/weapon_catalog.h>
 
 class CGameControllerCS : public IGameController
 {
