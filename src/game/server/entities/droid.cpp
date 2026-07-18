@@ -99,7 +99,9 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 	
 	m_Vel += Force*0.75f;
 	
+	const int HealthBefore = m_Health;
 	m_Health -= Dmg;
+	GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
 	
 	
 	// check for death

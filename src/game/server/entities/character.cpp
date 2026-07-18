@@ -1601,7 +1601,11 @@ void CCharacter::UpdateCoreStatus()
 		
 		 // flame damage
 		if (m_aStatus[STATUS_AFLAME] > 0)
-			TakeDamage(m_aStatusSource[STATUS_AFLAME], 2, vec2(0, 0), vec2(0, 0));
+		{
+			CAttackSource StatusSource = m_aStatusSource[STATUS_AFLAME];
+			StatusSource.m_HitFeedback = false;
+			TakeDamage(StatusSource, 2, vec2(0, 0), vec2(0, 0));
+		}
 	}
 	
 	// rolling stops flames a bit faster
@@ -2324,7 +2328,10 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 		if (m_ShieldHealth > 0 && Flame == 0.0f)
 		{
 			GameServer()->CreateEffect(FX_SHIELDHIT, DmgPos);
+			const int ShieldDamage = min(Dmg + (g_Config.m_SvOneHitKill ? 1000 : 0), m_ShieldHealth);
 			m_ShieldHealth -= Dmg + (g_Config.m_SvOneHitKill ? 1000 : 0);
+			if(From != m_pPlayer->GetCID())
+				GameServer()->CreateHitConfirm(DmgPos, Source, ShieldDamage, HIT_TARGET_SHIELD, false);
 			
 			return false;
 		}
@@ -2340,7 +2347,11 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 			if(Dmg >= m_HiddenHealth && GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->UseLastStand(m_pPlayer->GetCID()))
 				Dmg = max(0, m_HiddenHealth - 1);
 			
+			const int HealthBefore = m_HiddenHealth;
 			m_HiddenHealth -= Dmg + (g_Config.m_SvOneHitKill ? 1000 : 0);
+			const int TargetType = m_Type == CCharacter::ROBOT ? HIT_TARGET_METAL : HIT_TARGET_FLESH;
+			if(From != m_pPlayer->GetCID())
+				GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), TargetType, m_HiddenHealth <= 0);
 			
 			//if (Type == DAMAGETYPE_NORMAL)
 			

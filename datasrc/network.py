@@ -107,6 +107,11 @@ enum
 	EFFECT_DASH,
 	EFFECT_FUEL,
 	NUM_EFFECTS,
+
+	HIT_TARGET_FLESH=0,
+	HIT_TARGET_METAL,
+	HIT_TARGET_SHIELD,
+	NUM_HIT_TARGETS,
 	
 	DEATHTYPE_EMPTY=0,
 	DEATHTYPE_SWORD,
@@ -535,6 +540,14 @@ Objects = [
 		NetIntAny("m_TargetY"),
 		NetIntAny("m_ActionTick"),
 		NetIntAny("m_SwitchReadyTick"),
+	]),
+
+	# Appended for protocol v12. This is sent only to the attacking player and followers.
+	NetEvent("HitConfirm:Common", [
+		NetIntAny("m_Damage"),
+		NetIntRange("m_TargetType", 0, 'NUM_HIT_TARGETS-1'),
+		NetIntRange("m_Killed", 0, 1),
+		*AttackSourceFields(),
 	]),
 ]
 

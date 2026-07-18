@@ -605,6 +605,7 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 	//if (Dmg == 0)
 	//	return;
 	
+	const int LifeBefore = m_Life;
 	m_Life -= Dmg;
 	
 	if (m_Life > m_MaxLife)
@@ -619,6 +620,7 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 	
 	if (Damage > 0)
 	{
+		GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, LifeBefore), HIT_TARGET_METAL, m_Life <= 0);
 		if (Dmg < 200)
 			GameServer()->CreateDamageInd(DmgPos, frandom()*pi, -Dmg, -1);
 		else

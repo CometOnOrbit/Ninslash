@@ -2,6 +2,7 @@
 
 #ifndef GAME_CLIENT_COMPONENTS_SOUNDS_H
 #define GAME_CLIENT_COMPONENTS_SOUNDS_H
+#include <engine/shared/jobs.h>
 #include <game/client/component.h>
 
 class CSounds : public CComponent
@@ -30,6 +31,7 @@ public:
 		CHN_MUSIC,
 		CHN_WORLD,
 		CHN_GLOBAL,
+		CHN_HIT,
 	};
 
 	virtual void OnInit();
@@ -42,6 +44,7 @@ public:
 	void Play(int Channel, int SetId, float Vol);
 	void PlayAt(int Channel, int SetId, float Vol, vec2 Pos);
 	void PlayAndRecord(int Channel, int SetId, float Vol, vec2 Pos);
+	void SetHitFeedbackVolume(float Volume);
 	void Stop(int SetId);
 };
 

@@ -935,6 +935,14 @@ void CGameClient::ProcessEvents()
 			//m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_METAL_HIT, 1.0f, vec2(ev->m_X, ev->m_Y));
 		}
 			
+		if(Item.m_Type == NETEVENTTYPE_HITCONFIRM)
+		{
+			CNetEvent_HitConfirm *pEvent = (CNetEvent_HitConfirm *)pData;
+			CAttackSource Source;
+			if(CWeaponCatalog::TryAttackSourceFromProtocol(pEvent->m_SourceKind, pEvent->m_SourceType, pEvent->m_WeaponDefinitionId, pEvent->m_WeaponLevel, &Source))
+				m_pHud->OnHitConfirm(vec2(pEvent->m_X, pEvent->m_Y), pEvent->m_Damage, pEvent->m_TargetType, pEvent->m_Killed != 0);
+		}
+
 		if(Item.m_Type == NETEVENTTYPE_DAMAGEIND)
 		{
 			CNetEvent_DamageInd *ev = (CNetEvent_DamageInd *)pData;
@@ -968,16 +976,14 @@ void CGameClient::ProcessEvents()
 				break;
 			g_GameClient.m_pEffects->Explosion(vec2(ev->m_X, ev->m_Y), Source);
 			
-			// todo: readd camera shake
-			float d = distance(CustomStuff()->m_LocalPos, vec2(ev->m_X, ev->m_Y));
-			float s = Combat.m_ExplosionSize;
+			const float d = distance(CustomStuff()->m_LocalPos, vec2(ev->m_X, ev->m_Y));
+			const float s = Combat.m_ExplosionSize;
 			
-			if (d < s)
+			if(d < s && s > 0.0f)
 			{
-				float a = Visual.m_ScreenshakeAmount;
-				
-				if (a > 0)
-					CustomStuff()->SetScreenshake(a * (0.5f + (s-d)*0.5f));
+				const float Falloff = 1.0f - d / s;
+				if(Visual.m_ScreenshakeAmount > 0.0f)
+					CustomStuff()->SetScreenshake(Visual.m_ScreenshakeAmount * Falloff);
 			}
 		}
 		else if(Item.m_Type == NETEVENTTYPE_REPAIR)

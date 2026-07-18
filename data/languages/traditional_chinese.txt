@@ -103,6 +103,9 @@ Blood amount
 Blood color
 == 血液顏色
 
+Hit feedback strength
+== 命中反饋強度
+
 Blue team
 == 藍隊
 

@@ -65,6 +65,7 @@ void CSounds::OnInit()
 	Sound()->SetChannel(CSounds::CHN_MUSIC, 1.0f, 0.0f);
 	Sound()->SetChannel(CSounds::CHN_WORLD, 0.9f, 1.0f);
 	Sound()->SetChannel(CSounds::CHN_GLOBAL, 1.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_HIT, g_Config.m_ClHitFeedback / 100.0f, 0.0f);
 
 	Sound()->SetListenerPos(0.0f, 0.0f);
 
@@ -85,6 +86,11 @@ void CSounds::OnInit()
 		LoadSoundsThread(&g_UserData);
 		m_WaitForSoundJob = false;
 	}
+}
+
+void CSounds::SetHitFeedbackVolume(float Volume)
+{
+	Sound()->SetChannel(CSounds::CHN_HIT, clamp(Volume, 0.0f, 1.0f), 0.0f);
 }
 
 void CSounds::OnReset()

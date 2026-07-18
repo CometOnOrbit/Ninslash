@@ -287,6 +287,19 @@ void CEffects::Spark(vec2 Pos)
 	m_pClient->m_pSpark->Add(CSpark::GROUP_SPARKS, &b);
 }
 
+void CEffects::HitSpark(vec2 Pos, vec4 Color)
+{
+	CSinglespark Spark;
+	Spark.SetDefault();
+	Spark.m_Pos = Pos + RandomDir() * frandom() * 4.0f;
+	Spark.m_Size = 0.55f + frandom() * 0.45f;
+	Spark.m_LifeSpan = 0.08f + frandom() * 0.10f;
+	Spark.m_Vel = RandomDir() * (180.0f + frandom() * 220.0f);
+	Spark.m_Rot = GetAngle(Spark.m_Vel);
+	Spark.m_Color = Color;
+	m_pClient->m_pSpark->Add(CSpark::GROUP_SPARKS, &Spark);
+}
+
 void CEffects::Area1(vec2 Pos)
 {
 	CSinglespark b;

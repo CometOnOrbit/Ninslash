@@ -233,6 +233,37 @@ void CGameContext::CreateDamageInd(vec2 Pos, float Angle, int Damage, int Client
 	}
 }
 
+void CGameContext::CreateHitConfirm(vec2 Pos, const CAttackSource &Source, int Damage, int TargetType, bool Killed)
+{
+	if(Source.m_Kind != EAttackSourceKind::PlayerWeapon || !Source.m_HitFeedback || Damage <= 0)
+		return;
+
+	const int Owner = Source.m_Owner;
+	if(Owner < 0 || Owner >= MAX_CLIENTS || !m_apPlayers[Owner] || m_apPlayers[Owner]->m_IsBot)
+		return;
+
+	int64 Mask = CmaskOne(Owner);
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(m_apPlayers[i] && m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS && m_apPlayers[i]->m_SpectatorID == Owner)
+			Mask |= CmaskOne(i);
+	}
+
+	CNetEvent_HitConfirm *pEvent = (CNetEvent_HitConfirm *)m_Events.Create(NETEVENTTYPE_HITCONFIRM, sizeof(CNetEvent_HitConfirm), Mask);
+	if(!pEvent)
+		return;
+
+	pEvent->m_X = (int)Pos.x;
+	pEvent->m_Y = (int)Pos.y;
+	pEvent->m_Damage = Damage;
+	pEvent->m_TargetType = clamp(TargetType, 0, NUM_HIT_TARGETS - 1);
+	pEvent->m_Killed = Killed ? 1 : 0;
+	pEvent->m_SourceKind = static_cast<int>(Source.m_Kind);
+	pEvent->m_SourceType = Source.m_Type;
+	pEvent->m_WeaponDefinitionId = static_cast<int>(Source.m_Weapon.m_DefinitionId);
+	pEvent->m_WeaponLevel = Source.m_Weapon.m_Level;
+}
+
 void CGameContext::CreateRepairInd(vec2 Pos)
 {
 	CNetEvent_Repair *pEvent = (CNetEvent_Repair *)m_Events.Create(NETEVENTTYPE_REPAIR, sizeof(CNetEvent_Repair));

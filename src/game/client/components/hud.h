@@ -28,6 +28,12 @@ class CHud : public CComponent
 	int m_DebugStatusScreenshotFrames;
 	int m_LastObjectiveSignature;
 	int64 m_ObjectiveNoticeUntil;
+	int64 m_LastHitEvent;
+	int64 m_LastHitSound;
+	int64 m_HitMarkerUntil;
+	int m_HitDamage;
+	int m_HitTargetType;
+	bool m_HitKilled;
 
 	static void ConDebugStatus(IConsole::IResult *pResult, void *pUserData);
 	bool DebugStatusActive(int Flag) const;
@@ -64,6 +70,7 @@ class CHud : public CComponent
 public:
 	CHud();
 	void RenderObjective();
+	void OnHitConfirm(vec2 Pos, int Damage, int TargetType, bool Killed);
 
 	virtual void OnReset();
 	virtual void OnConsoleInit();

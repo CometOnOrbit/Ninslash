@@ -2167,6 +2167,19 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 		MainView.HSplitTop(20.0f, 0, &MainView);
 	}
 
+	// hit feedback slider
+	{
+		CUIRect Button, Label;
+		MainView.HSplitTop(5.0f, &Button, &MainView);
+		MainView.HSplitTop(20.0f, &Button, &MainView);
+		Button.VSplitLeft(190.0f, &Label, &Button);
+		Button.HMargin(2.0f, &Button);
+		UI()->DoLabelScaled(&Label, Localize("Hit feedback strength"), 14.0f, -1);
+		MainView.HSplitTop(20.0f, &Button, &MainView);
+		g_Config.m_ClHitFeedback = (int)(DoScrollbarH(&g_Config.m_ClHitFeedback, &Button, g_Config.m_ClHitFeedback / 100.0f) * 100.0f);
+		MainView.HSplitTop(20.0f, 0, &MainView);
+	}
+
 
 	//
 

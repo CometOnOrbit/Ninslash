@@ -162,12 +162,11 @@ public:
 	bool m_FlipBuilding;
 	
 	float m_CameraShake;
+	vec2 m_CameraKick;
 	
-	void SetScreenshake(float Amount)
-	{
-		if (m_CameraShake < Amount)
-			m_CameraShake = Amount;
-	}
+	void AddCameraImpulse(vec2 Kick, float Shake);
+	vec2 CameraOffset(float FrameTime);
+	void SetScreenshake(float Amount) { AddCameraImpulse(vec2(0, 0), Amount); }
 	
 	
 	bool m_LocalAlive;
