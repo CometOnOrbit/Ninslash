@@ -2923,3 +2923,6 @@ Select a material weapon
 
 Ready to forge
 == 可以鍛造
+
+Press %s to open forge
+== 按 %s 開啟武器鍛造

@@ -2997,3 +2997,6 @@ Select a material weapon
 
 Ready to forge
 == 可以锻造
+
+Press %s to open forge
+== 按 %s 打开武器锻造

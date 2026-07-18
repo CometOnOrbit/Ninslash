@@ -613,7 +613,8 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 	vec2 Tab1Pos = Pos + vec2(-Size.x*0.8f, -Size.y*1.125f);
 	vec2 Tab2Pos = Pos + vec2(-Size.x*0.47f, -Size.y*1.125f);
 	vec2 Tab3Pos = Pos + vec2(-Size.x*0.14f, -Size.y*1.125f);
-	const bool ShowForgeTab = ForgeMode() == 1 || m_Tab == 2;
+	const int CurrentForgeMode = ForgeMode();
+	const bool ShowForgeTab = CurrentForgeMode == 1 || (CurrentForgeMode == 2 && ForgeScreenNear());
 	auto DrawTabIcon = [this](const CWeaponSpec &Weapon, vec2 TabPos) {
 		const float s = 16 * s_Fade * (m_Scale * 0.75f + 0.25f);
 		RenderTools()->SetShadersForWeapon(Weapon);
@@ -1107,7 +1108,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 		if (abs(m_SelectorMouse.x - Tab2Pos.x) < Size.x/7.0f && abs(m_SelectorMouse.y - Tab2Pos.y) < Size.y/7.0f)
 			m_Tab = 1;
 
-		if (ForgeMode() == 1 && abs(m_SelectorMouse.x - Tab3Pos.x) < Size.x/7.0f && abs(m_SelectorMouse.y - Tab3Pos.y) < Size.y/7.0f)
+		if (ShowForgeTab && abs(m_SelectorMouse.x - Tab3Pos.x) < Size.x/7.0f && abs(m_SelectorMouse.y - Tab3Pos.y) < Size.y/7.0f)
 			m_Tab = 2;
 	}
 	

@@ -37,6 +37,7 @@ Localize("Part 2 transplant"),Localize("Spin"),Localize("Upgrade"),Localize("For
 Localize("Waiting for server"),Localize("Forge complete"),Localize("Forge disabled"),Localize("Move closer to a screen"),
 Localize("Not enough gold"),Localize("Weapon is busy"),Localize("Invalid slots"),Localize("Invalid recipe"),
 Localize("Result would not change"),Localize("Select a target weapon"),Localize("Select a material weapon"),Localize("Ready to forge"),
+Localize("Press %s to open forge"),
 */
 
 class CLocalizationDatabase
