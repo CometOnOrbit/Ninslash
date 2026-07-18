@@ -12,10 +12,6 @@
 #include <game/layers.h>
 #include <game/collision.h>
 
-
-
-using namespace std;
-
 void CCollision::ClearModifTileCache()
 {
 	for(int i = 0; i < MODIF_TILE_CACHE_SIZE; i++)
