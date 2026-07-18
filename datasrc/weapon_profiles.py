@@ -110,17 +110,28 @@ def _cpp(value, integer=False):
 		literal += ".0"
 	return literal + "f"
 
-def _combat(profile, level, cursor):
+MELEE_FEEL_STATIC = {'TOOL', 'CHAINSAW', 'CLAW'}
+RANGED_FEEL_STATIC = {'GUN1', 'GUN2', 'GRENADE1', 'GRENADE2', 'GRENADE3', 'BAZOOKA', 'BOUNCER', 'CLUSTER', 'SHURIKEN', 'BOMB'}
+
+def _is_melee_player_key(key):
+	return key is not None and ((key[0] == 'static' and key[1] in MELEE_FEEL_STATIC) or (key[0] == 'modular' and key[1] in MELEE_PART1_NAMES))
+
+def _combat(profile, level, cursor, key=None):
 	values = []
 	for name in COMBAT_FIELDS:
 		value = cursor if name == "cursor_weapon" else profile.get(name, level)
+		if name == 'projectile_knockback' and value:
+			if _is_melee_player_key(key):
+				value = _f32(value * 1.12)
+			elif key is not None and (key[0] == 'modular' or key[1] in RANGED_FEEL_STATIC):
+				value = _f32(value * 1.10)
 		values.append(_cpp(value, name not in {
 			"fire_rate", "projectile_spread", "projectile_speed", "projectile_curvature", "projectile_life",
 			"projectile_damage", "projectile_knockback", "explosion_size", "explosion_damage", "melee_hit_radius",
 			"weapon_knockback", "burst_reload", "throw_force", "flame_amount", "electro_amount"}))
 	return "\t{" + ", ".join(values) + "},"
 
-def _visual(profile, level):
+def _visual(profile, level, key=None):
 	get = lambda name: profile.get(name, level)
 	values = [
 		_cpp(get("render_type"), True),
@@ -133,7 +144,18 @@ def _visual(profile, level):
 		"vec2(%s, %s)" % (_cpp(get("color_swap_x")), _cpp(get("color_swap_y"))),
 	]
 	for name in ("render_recoil", "projectile_size", "projectile_sprite"):
-		values.append(_cpp(get(name)))
+		value = get(name)
+		if name == 'render_recoil' and key is not None and value:
+			if _is_melee_player_key(key):
+				factor = 1.10
+			elif profile.get('explosive_projectile', level) or (key[0] == 'static' and key[1] in {'GRENADE1', 'GRENADE2', 'GRENADE3', 'BAZOOKA', 'BOUNCER', 'CLUSTER', 'BOMB'}):
+				factor = 1.15
+			elif profile.get('full_auto', level):
+				factor = 1.05
+			else:
+				factor = 1.15
+			value = min(20.0, _f32(value * factor))
+		values.append(_cpp(value))
 	values.append(_cpp(get("projectile_trace_type"), True))
 	values.append(_cpp(get("trace_threshold")))
 	for name in ("explosion_sprite", "explosion_sound", "fire_sound", "fire_sound2", "muzzle_type", "muzzle_amount"):
@@ -162,12 +184,12 @@ def emit():
 	print("const CWeaponCombatProfile s_aWeaponCombatProfiles[WEAPON_PROFILE_COUNT] = {")
 	for key, profile_data in players:
 		for level in range(LEVEL_COUNT):
-			print(_combat(profile_data, level, cursor_weapon(key, level)))
+			print(_combat(profile_data, level, cursor_weapon(key, level), key))
 	print("};\n")
 	print("const CWeaponVisualProfile s_aWeaponVisualProfiles[WEAPON_PROFILE_COUNT] = {")
-	for _, profile_data in players:
+	for key, profile_data in players:
 		for level in range(LEVEL_COUNT):
-			print(_visual(profile_data, level))
+			print(_visual(profile_data, level, key))
 	print("};\n")
 	for name, profiles, death in (
 		("Droid", DROID_PROFILES, False),

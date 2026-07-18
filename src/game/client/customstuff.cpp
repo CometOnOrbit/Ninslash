@@ -1,5 +1,8 @@
 #include "customstuff.h"
 
+#include <cmath>
+
+#include <engine/shared/config.h>
 #include <game/client/components/tracer.h>
 #include <game/client/components/inventory.h>
 
@@ -32,7 +35,10 @@ void CCustomStuff::Reset()
 	m_Inventory = false;
 	
 	for (int i = 0; i < 12; i++)
+	{
 		m_aItem[i] = {};
+		m_aItemAmmo[i] = 0;
+	}
 	
 	m_Gold = 0;
 	
@@ -49,6 +55,7 @@ void CCustomStuff::Reset()
 	
 	m_DoorTimer = 0.0f;
 	m_CameraShake = 0.0f;
+	m_CameraKick = vec2(0, 0);
 	
 	m_BuildMode = false;
 	m_LocalPos = vec2(0, 0);
@@ -314,17 +321,36 @@ void CCustomStuff::Tick(bool Paused)
 	m_CameraCenter.x += (m_CameraTargetCenter.x-m_CameraCenter.x) / 24.0f;
 	m_CameraCenter.y += (m_CameraTargetCenter.y-m_CameraCenter.y) / 24.0f;
 	
-	if (m_CameraShake > 0.0f)
-	{
-		m_CameraShake *= 0.95f;
-		m_CameraShake -= 0.22f;
-	}
-	
 	// building
 	if (m_LocalTeam == TEAM_SPECTATORS)
 	{
 		m_BuildMode = false;
 	}
+}
+
+void CCustomStuff::AddCameraImpulse(vec2 Kick, float Shake, float FeedbackStrength)
+{
+	const float Scale = clamp(FeedbackStrength, 0.0f, 1.0f);
+	if(Scale <= 0.0f)
+		return;
+
+	m_CameraKick += Kick * Scale;
+	if(length(m_CameraKick) > 12.0f)
+		m_CameraKick = normalize(m_CameraKick) * 12.0f;
+	m_CameraShake = min(12.0f, max(m_CameraShake, Shake * Scale));
+}
+
+vec2 CCustomStuff::CameraOffset(float FrameTime)
+{
+	const vec2 Offset = m_CameraKick + vec2(frandom() - frandom(), frandom() - frandom()) * m_CameraShake;
+	const float Delta = clamp(FrameTime, 0.0f, 0.1f);
+	m_CameraKick *= powf(0.015f, Delta);
+	m_CameraShake *= powf(0.002f, Delta);
+	if(length(m_CameraKick) < 0.01f)
+		m_CameraKick = vec2(0, 0);
+	if(m_CameraShake < 0.01f)
+		m_CameraShake = 0.0f;
+	return Offset;
 }
 
 

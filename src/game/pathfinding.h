@@ -208,7 +208,7 @@ public:
 			return false;
 		
 		// check if we're connected already
-		for (int i = 0; i < MAX_WAYPOINTCONNECTIONS; i++)
+		for (int i = 0; i < m_ConnectionCount; i++)
 		{
 			if (Waypoint == m_apConnection[i])
 				return true;

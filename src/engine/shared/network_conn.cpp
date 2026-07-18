@@ -291,15 +291,16 @@ int CNetConnection::Feed(CNetPacketConstruct *pPacket, NETADDR *pAddr)
 
 int CNetConnection::Update()
 {
-	int64 Now = time_get();
-
 	if(State() == NET_CONNSTATE_OFFLINE || State() == NET_CONNSTATE_ERROR)
 		return 0;
+
+	const int64 Now = time_get();
+	const int64 Frequency = time_freq();
 
 	// check for timeout
 	if(State() != NET_CONNSTATE_OFFLINE &&
 		State() != NET_CONNSTATE_CONNECT &&
-		(Now-m_LastRecvTime) > time_freq()*10)
+		(Now-m_LastRecvTime) > Frequency*10)
 	{
 		m_State = NET_CONNSTATE_ERROR;
 		SetError("Timeout");
@@ -311,7 +312,7 @@ int CNetConnection::Update()
 		CNetChunkResend *pResend = m_Buffer.First();
 
 		// check if we have some really old stuff laying around and abort if not acked
-		if(Now-pResend->m_FirstSendTime > time_freq()*20)
+		if(Now-pResend->m_FirstSendTime > Frequency*20)
 		{
 			m_State = NET_CONNSTATE_ERROR;
 			SetError("Too weak connection (not acked for 20 seconds)");
@@ -319,7 +320,7 @@ int CNetConnection::Update()
 		else
 		{
 			// resend packet if we havn't got it acked in 1 second
-			if(Now-pResend->m_LastSendTime > time_freq())
+			if(Now-pResend->m_LastSendTime > Frequency)
 				ResendChunk(pResend);
 		}
 	}
@@ -327,24 +328,24 @@ int CNetConnection::Update()
 	// send keep alives if nothing has happend for 250ms
 	if(State() == NET_CONNSTATE_ONLINE)
 	{
-		if(time_get()-m_LastSendTime > time_freq()/2) // flush connection after 500ms if needed
+		if(Now-m_LastSendTime > Frequency/2) // flush connection after 500ms if needed
 		{
 			int NumFlushedChunks = Flush();
 			if(NumFlushedChunks && g_Config.m_Debug)
 				dbg_msg("connection", "flushed connection due to timeout. %d chunks.", NumFlushedChunks);
 		}
 
-		if(time_get()-m_LastSendTime > time_freq())
+		if(Now-m_LastSendTime > Frequency)
 			SendControl(NET_CTRLMSG_KEEPALIVE, 0, 0);
 	}
 	else if(State() == NET_CONNSTATE_CONNECT)
 	{
-		if(time_get()-m_LastSendTime > time_freq()/2) // send a new connect every 500ms
+		if(Now-m_LastSendTime > Frequency/2) // send a new connect every 500ms
 			SendControl(NET_CTRLMSG_CONNECT, 0, 0);
 	}
 	else if(State() == NET_CONNSTATE_PENDING)
 	{
-		if(time_get()-m_LastSendTime > time_freq()/2) // send a new connect/accept every 500ms
+		if(Now-m_LastSendTime > Frequency/2) // send a new connect/accept every 500ms
 			SendControl(NET_CTRLMSG_CONNECTACCEPT, 0, 0);
 	}
 

@@ -9,8 +9,13 @@ class CInventory : public CComponent
 	void DrawCircle(float x, float y, float r, int Segments);
 	void DrawLayer(vec2 Pos, vec2 Size);
 	void DrawInventory(vec2 Pos, vec2 Size);
+	void DrawForgePanel(vec2 Pos, vec2 Size, int SelectedSlot);
 	void RenderMouse();
 	void RenderShop(const struct CNetObj_Shop *pCurrent);
+	int ForgeMode();
+	bool ForgeScreenNear();
+	void ClearForgeSelection();
+	void SubmitForge();
 	
 	bool m_WasActive;
 	bool m_Active;
@@ -42,8 +47,12 @@ class CInventory : public CComponent
 	
 	void Drop(int Slot);
 	void Swap(int Item1, int Item2);
-	void Combine(int Item1, int Item2);
-	void TakePart(int Item1, int Slot, int Item2);
+
+	int m_ForgeTargetSlot;
+	int m_ForgeMaterialSlot;
+	bool m_ForgePending;
+	int m_ForgeLastResult;
+	int m_ForgeResultEndTick;
 
 	void DrawCrafting(int Type, vec2 Pos, float Size);
 	void DrawBuildMode();

@@ -16,6 +16,8 @@ MACRO_CONFIG_INT(ClAutoswitchWeapons, cl_autoswitch_weapons, 0, 0, 1, CFGFLAG_CL
 MACRO_CONFIG_INT(ClShowhud, cl_showhud, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Show ingame HUD")
 MACRO_CONFIG_INT(ClShowChatFriends, cl_show_chat_friends, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Show only chat messages from friends")
 MACRO_CONFIG_INT(ClShowfps, cl_showfps, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Show ingame FPS counter")
+MACRO_CONFIG_INT(ClHitFeedback, cl_hit_feedback, 70, 0, 100, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Hit feedback strength")
+MACRO_CONFIG_INT(ClMovementFeedback, cl_movement_feedback, 60, 0, 100, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Movement feedback strength")
 
 MACRO_CONFIG_INT(ClAirjumpindicator, cl_airjumpindicator, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "")
 MACRO_CONFIG_INT(ClThreadsoundloading, cl_threadsoundloading, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Load sound files threaded")
@@ -149,6 +151,9 @@ MACRO_CONFIG_INT(SvRobots, sv_robots, 0, 0, 1, CFGFLAG_SERVER, "Robot bot skins"
 
 
 MACRO_CONFIG_INT(SvStartGold, sv_startgold, 0, 0, 999, CFGFLAG_SERVER, "Starting gold")
+MACRO_CONFIG_INT(SvForgeMode, sv_forge_mode, 0, 0, 2, CFGFLAG_SERVER, "Forge mode (0=legacy inventory, 1=available anywhere, 2=screen proximity only)")
+MACRO_CONFIG_INT(SvForgeBaseCost, sv_forge_base_cost, 5, -999, 999, CFGFLAG_SERVER, "Base gold cost for forging")
+MACRO_CONFIG_INT(SvForgeLevelCost, sv_forge_level_cost, 2, -999, 999, CFGFLAG_SERVER, "Gold cost per combined weapon level for forging")
 
 // 
 MACRO_CONFIG_INT(SvInfiniteGrenades, sv_infinitegrenades, 0, 0, 1, CFGFLAG_SERVER, "Infinite grenades")

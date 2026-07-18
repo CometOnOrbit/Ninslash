@@ -10,6 +10,7 @@
 #include <game/gamecore.h> // get_angle
 #include <game/weapons.h>
 #include <game/weapon_catalog.h>
+#include <game/forge.h>
 #include <game/buildables.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>
@@ -101,21 +102,52 @@ CInventory::CInventory()
 	m_MinimizedReleased = true;
 }
 
+int CInventory::ForgeMode()
+{
+	return m_pClient->m_Snap.m_pGameInfoObj ? m_pClient->m_Snap.m_pGameInfoObj->m_ForgeMode : 0;
+}
+
+bool CInventory::ForgeScreenNear()
+{
+	if(!CustomStuff()->m_LocalAlive || !Client()->IsGameWorldActive())
+		return false;
+	const int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
+	for(int i = 0; i < Num; ++i)
+	{
+		IClient::CSnapItem Item;
+		const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
+		if(Item.m_Type != NETOBJTYPE_BUILDING)
+			continue;
+		const CNetObj_Building *pBuilding = (const CNetObj_Building *)pData;
+		if(pBuilding->m_Type == BUILDING_SCREEN &&
+			distance(CustomStuff()->m_LocalPos, vec2(pBuilding->m_X, pBuilding->m_Y)) <= FORGE_SCREEN_RANGE)
+			return true;
+	}
+	return false;
+}
+
+void CInventory::ClearForgeSelection()
+{
+	m_ForgeTargetSlot = -1;
+	m_ForgeMaterialSlot = -1;
+}
+
 void CInventory::ConKeyInventory(IConsole::IResult *pResult, void *pUserData)
 {
 	CInventory *pSelf = (CInventory *)pUserData;
 	
 	if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
 	{
-		if (!pSelf->m_Render || pSelf->m_Tab == 0)
+		const int OpenTab = pSelf->ForgeMode() == 2 && pSelf->ForgeScreenNear() ? 2 : 0;
+		if (!pSelf->m_Render || pSelf->m_Tab == OpenTab)
 		{
 			pSelf->m_Active = pResult->GetInteger(0) != 0;
-			pSelf->m_Tab = 0;
+			pSelf->m_Tab = OpenTab;
 			pSelf->m_Minimized = false;
 		}
 		else if (pSelf->m_Render)
 		{
-			pSelf->m_WantedTab = 0;
+			pSelf->m_WantedTab = OpenTab;
 		}
 	}
 }
@@ -207,6 +239,11 @@ void CInventory::OnReset()
 	m_Moved = false;
 	m_MoveTrigger = false;
 	m_Tab = 0;
+	m_WantedTab = -1;
+	ClearForgeSelection();
+	m_ForgePending = false;
+	m_ForgeLastResult = -1;
+	m_ForgeResultEndTick = 0;
 	m_SelectedBuilding = -1;
 	m_Minimized = false;
 	m_Scale = 1.0f;
@@ -228,10 +265,23 @@ void CInventory::OnRelease()
 	m_MoveTrigger = false;
 	m_Minimized = false;
 	m_Scale = 1.0f;
+	ClearForgeSelection();
+	m_ForgePending = false;
 }
 
 void CInventory::OnMessage(int MsgType, void *pRawMsg)
 {
+	if(MsgType != NETMSGTYPE_SV_FORGERESULT)
+		return;
+	const CNetMsg_Sv_ForgeResult *pMsg = (const CNetMsg_Sv_ForgeResult *)pRawMsg;
+	m_ForgePending = false;
+	m_ForgeLastResult = pMsg->m_Result;
+	m_ForgeResultEndTick = Client()->GameTick() + Client()->GameTickSpeed() * 3;
+	if(pMsg->m_Result == FORGERESULT_SUCCESS)
+	{
+		ClearForgeSelection();
+		m_pClient->m_pEffects->Repair(CustomStuff()->m_LocalPos);
+	}
 }
 
 bool CInventory::OnMouseMove(float x, float y)
@@ -390,6 +440,160 @@ static float s_ItemEffectPick[12];
 static vec2 s_ItemOffset[12];
 static vec2 s_DragOffset;
 
+void CInventory::DrawForgePanel(vec2 Pos, vec2 Size, int SelectedSlot)
+{
+	const CNetObj_GameInfo *pGameInfo = m_pClient->m_Snap.m_pGameInfoObj;
+	if(!pGameInfo)
+		return;
+
+	const bool Click = m_MouseTrigger && !m_Mouse1 && !m_Moved;
+	if(Click && SelectedSlot >= 0 && SelectedSlot < 12 && CustomStuff()->m_aItem[SelectedSlot].IsValid())
+	{
+		if(SelectedSlot == m_ForgeTargetSlot)
+			ClearForgeSelection();
+		else if(SelectedSlot == m_ForgeMaterialSlot)
+			m_ForgeMaterialSlot = -1;
+		else if(m_ForgeTargetSlot < 0)
+			m_ForgeTargetSlot = SelectedSlot;
+		else if(m_ForgeMaterialSlot < 0)
+			m_ForgeMaterialSlot = SelectedSlot;
+		else
+		{
+			m_ForgeTargetSlot = SelectedSlot;
+			m_ForgeMaterialSlot = -1;
+		}
+		m_ForgeLastResult = -1;
+		m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV1, 0);
+	}
+
+	const vec2 PanelPos = Pos + vec2(Size.x * 1.78f, 0.0f);
+	const vec2 PanelSize = vec2(Size.x * 0.70f, Size.y);
+	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUI_WINDOW1].m_Id);
+	Graphics()->ShaderBegin(SHADER_ELECTRIC, 0.2f);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0.0f, 1.0f, 1.0f, s_Fade * 0.62f);
+	DrawLayer(PanelPos, PanelSize);
+	Graphics()->QuadsEnd();
+	Graphics()->ShaderEnd();
+
+	const float FontSize = max(14.0f, Size.y * 0.09f) * s_Fade;
+	auto CenterText = [this, FontSize](vec2 TextPos, const char *pText, float Scale = 1.0f) {
+		const float Size = FontSize * Scale;
+		const float Width = TextRender()->TextWidth(0, Size, pText, -1);
+		TextRender()->Text(0, TextPos.x - Width * 0.5f, TextPos.y - Size * 0.5f, Size, pText, -1);
+	};
+	CenterText(PanelPos + vec2(0.0f, -PanelSize.y * 0.89f), Localize("Weapon forge"), 1.15f);
+
+	const vec2 TargetPos = PanelPos + vec2(-PanelSize.x * 0.42f, -PanelSize.y * 0.60f);
+	const vec2 MaterialPos = PanelPos + vec2(PanelSize.x * 0.42f, -PanelSize.y * 0.60f);
+	CenterText(TargetPos + vec2(0.0f, -PanelSize.y * 0.17f), Localize("Target"), 0.82f);
+	CenterText(MaterialPos + vec2(0.0f, -PanelSize.y * 0.17f), Localize("Material"), 0.82f);
+
+	auto DrawWeapon = [this, Size](const CWeaponSpec &Spec, vec2 WeaponPos, float Scale) {
+		if(!Spec.IsValid())
+			return;
+		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
+		RenderTools()->SetShadersForWeapon(Spec);
+		RenderTools()->RenderWeapon(Spec, WeaponPos, vec2(1, 0), 12.0f * s_Fade * Scale * (Size.y / 180.0f), true);
+		Graphics()->ShaderEnd();
+	};
+	if(m_ForgeTargetSlot >= 0 && m_ForgeTargetSlot < 12)
+	{
+		DrawWeapon(CustomStuff()->m_aItem[m_ForgeTargetSlot], TargetPos, 1.15f);
+		char aSlot[16];
+		str_format(aSlot, sizeof(aSlot), "#%d", m_ForgeTargetSlot + 1);
+		CenterText(TargetPos + vec2(0.0f, PanelSize.y * 0.14f), aSlot, 0.75f);
+	}
+	if(m_ForgeMaterialSlot >= 0 && m_ForgeMaterialSlot < 12)
+	{
+		DrawWeapon(CustomStuff()->m_aItem[m_ForgeMaterialSlot], MaterialPos, 1.15f);
+		char aSlot[16];
+		str_format(aSlot, sizeof(aSlot), "#%d", m_ForgeMaterialSlot + 1);
+		CenterText(MaterialPos + vec2(0.0f, PanelSize.y * 0.14f), aSlot, 0.75f);
+	}
+
+	CForgeRecipe Recipe;
+	CResolvedWeaponProfile TargetProfile;
+	const bool HasTarget = m_ForgeTargetSlot >= 0 && m_ForgeTargetSlot < 12 &&
+		CWeaponCatalog::TryResolve(CustomStuff()->m_aItem[m_ForgeTargetSlot], &TargetProfile);
+	const bool HasMaterial = m_ForgeMaterialSlot >= 0 && m_ForgeMaterialSlot < 12 &&
+		CustomStuff()->m_aItem[m_ForgeMaterialSlot].IsValid();
+	if(HasTarget && HasMaterial)
+		Recipe = CForge::Resolve(CustomStuff()->m_aItem[m_ForgeTargetSlot],
+			CustomStuff()->m_aItem[m_ForgeMaterialSlot], CustomStuff()->m_aItemAmmo[m_ForgeTargetSlot],
+			pGameInfo->m_ForgeBaseCost, pGameInfo->m_ForgeLevelCost);
+	const char *pRecipeName = nullptr;
+	if(Recipe.m_Operation == FORGEOP_REPLACE_PART2)
+		pRecipeName = Localize("Part 2 transplant");
+	else if(Recipe.m_Operation == FORGEOP_SPIN)
+		pRecipeName = Localize("Spin");
+	else if(Recipe.m_Operation == FORGEOP_UPGRADE)
+		pRecipeName = Localize("Upgrade");
+	if(pRecipeName)
+		CenterText(PanelPos + vec2(0.0f, -PanelSize.y * 0.24f), pRecipeName, 0.78f);
+
+	const vec2 ProductPos = PanelPos + vec2(0.0f, PanelSize.y * 0.10f);
+	CenterText(ProductPos + vec2(0.0f, -PanelSize.y * 0.14f), Localize("Result"), 0.78f);
+	DrawWeapon(Recipe.m_Product, ProductPos, 1.35f);
+	char aInfo[128];
+	if(Recipe.m_Product.IsValid())
+	{
+		str_format(aInfo, sizeof(aInfo), "%s %d", Localize("Weapon level"), Recipe.m_Product.m_Level);
+		CenterText(ProductPos + vec2(0.0f, PanelSize.y * 0.13f), aInfo, 0.76f);
+		str_format(aInfo, sizeof(aInfo), "%s %d/%d -> %d/%d", Localize("Ammo"),
+			HasTarget ? CustomStuff()->m_aItemAmmo[m_ForgeTargetSlot] : 0,
+			HasTarget ? TargetProfile.m_Combat.m_MaxAmmo : 0, Recipe.m_ProductAmmo, Recipe.m_ProductMaxAmmo);
+		CenterText(ProductPos + vec2(0.0f, PanelSize.y * 0.23f), aInfo, 0.66f);
+	}
+
+	const vec2 ConfirmPos = PanelPos + vec2(0.0f, PanelSize.y * 0.68f);
+	const bool CanSubmit = Recipe.m_Result == FORGERESULT_SUCCESS && CustomStuff()->m_Gold >= Recipe.m_Cost && !m_ForgePending;
+	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUI_WINDOW1].m_Id);
+	Graphics()->ShaderBegin(SHADER_ELECTRIC, 0.2f);
+	Graphics()->QuadsBegin();
+	if(CanSubmit)
+		Graphics()->SetColor(0.2f, 1.0f, 0.35f, s_Fade * 0.7f);
+	else
+		Graphics()->SetColor(0.35f, 0.4f, 0.45f, s_Fade * 0.45f);
+	DrawLayer(ConfirmPos, vec2(PanelSize.x * 0.66f, PanelSize.y * 0.11f));
+	Graphics()->QuadsEnd();
+	Graphics()->ShaderEnd();
+
+	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1.0f, 1.0f, 1.0f, s_Fade);
+	RenderTools()->SelectSprite(SPRITE_PICKUP_COIN);
+	RenderTools()->DrawSprite(ConfirmPos.x - PanelSize.x * 0.48f, ConfirmPos.y, FontSize * 2.6f);
+	Graphics()->QuadsEnd();
+	str_format(aInfo, sizeof(aInfo), "%s  %d", m_ForgePending ? Localize("Forging...") : Localize("Forge"), Recipe.m_Cost);
+	CenterText(ConfirmPos, aInfo, 0.88f);
+	if(Click && CanSubmit && abs(m_SelectorMouse.x - ConfirmPos.x) < PanelSize.x * 0.66f &&
+		abs(m_SelectorMouse.y - ConfirmPos.y) < PanelSize.y * 0.11f)
+		SubmitForge();
+
+	const char *pStatus = Localize("Select a target weapon");
+	if(m_ForgePending)
+		pStatus = Localize("Waiting for server");
+	else if(m_ForgeLastResult >= 0 && Client()->GameTick() <= m_ForgeResultEndTick)
+	{
+		static const char *s_apResultText[NUM_FORGERESULTS] = {
+			"Forge complete", "Forge disabled", "Move closer to a screen", "Not enough gold",
+			"Weapon is busy", "Invalid slots", "Invalid recipe", "Result would not change"};
+		pStatus = Localize(s_apResultText[clamp(m_ForgeLastResult, 0, NUM_FORGERESULTS - 1)]);
+	}
+	else if(HasTarget && !HasMaterial)
+		pStatus = Localize("Select a material weapon");
+	else if(HasTarget && HasMaterial && Recipe.m_Result == FORGERESULT_INVALID_RECIPE)
+		pStatus = Localize("Invalid recipe");
+	else if(HasTarget && HasMaterial && Recipe.m_Result == FORGERESULT_NO_CHANGE)
+		pStatus = Localize("Result would not change");
+	else if(Recipe.m_Result == FORGERESULT_SUCCESS && CustomStuff()->m_Gold < Recipe.m_Cost)
+		pStatus = Localize("Not enough gold");
+	else if(Recipe.m_Result == FORGERESULT_SUCCESS)
+		pStatus = Localize("Ready to forge");
+	CenterText(PanelPos + vec2(0.0f, PanelSize.y * 0.92f), pStatus, 0.67f);
+}
+
 void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 {
 	Size *= (m_Scale*0.75f + 0.25f);
@@ -408,28 +612,25 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 	
 	vec2 Tab1Pos = Pos + vec2(-Size.x*0.8f, -Size.y*1.125f);
 	vec2 Tab2Pos = Pos + vec2(-Size.x*0.47f, -Size.y*1.125f);
+	vec2 Tab3Pos = Pos + vec2(-Size.x*0.14f, -Size.y*1.125f);
+	const int CurrentForgeMode = ForgeMode();
+	const bool ShowForgeTab = CurrentForgeMode == 1 || (CurrentForgeMode == 2 && ForgeScreenNear());
+	auto DrawTabIcon = [this](const CWeaponSpec &Weapon, vec2 TabPos) {
+		const float s = 16 * s_Fade * (m_Scale * 0.75f + 0.25f);
+		RenderTools()->SetShadersForWeapon(Weapon);
+		RenderTools()->RenderWeapon(Weapon, TabPos, vec2(1, 0), s, true);
+		Graphics()->ShaderEnd();
+	};
 	
 	
 	// tab icons (first one behind the frame)
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-	
-	if (m_Tab == 1)
-	{
-		float s = 16 * s_Fade * (m_Scale*0.75f + 0.25f);
-		const CWeaponSpec w = CWeaponCatalog::Modular(1, 4);
-		RenderTools()->SetShadersForWeapon(w);
-		RenderTools()->RenderWeapon(w, Tab1Pos, vec2(1, 0), s, true);
-		Graphics()->ShaderEnd();
-	}
-	
-	if (m_Tab == 0)
-	{
-		float s = 16 * s_Fade * (m_Scale*0.75f + 0.25f);
-		const CWeaponSpec w = CWeaponCatalog::Static(SW_TOOL);
-		RenderTools()->SetShadersForWeapon(w);
-		RenderTools()->RenderWeapon(w, Tab2Pos, vec2(1, 0), s, true);
-		Graphics()->ShaderEnd();
-	}
+	if(m_Tab != 0)
+		DrawTabIcon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL4), Tab1Pos);
+	if(m_Tab != 1)
+		DrawTabIcon(CWeaponCatalog::Static(SW_TOOL), Tab2Pos);
+	if(ShowForgeTab && m_Tab != 2)
+		DrawTabIcon(CWeaponCatalog::Static(SW_UPGRADE), Tab3Pos);
 	
 	// main frame
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUI_WINDOW1].m_Id);
@@ -454,30 +655,27 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 		Graphics()->SetColor(c.r*0.5f, c.g*0.5f, c.b*0.5f, s_Fade*0.5f);
 	
 	DrawLayer(Tab2Pos, Size/6.0f);
+
+	if(ShowForgeTab)
+	{
+		if(m_Tab == 2)
+			Graphics()->SetColor(c.r, c.g, c.b, s_Fade * 0.5f);
+		else
+			Graphics()->SetColor(c.r * 0.5f, c.g * 0.5f, c.b * 0.5f, s_Fade * 0.5f);
+		DrawLayer(Tab3Pos, Size / 6.0f);
+	}
 	
 	Graphics()->QuadsEnd();
 	Graphics()->ShaderEnd();
 	
 	// tab icon over the frame
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-	
-	if (m_Tab == 0)
-	{
-		float s = 16 * s_Fade * (m_Scale*0.75f + 0.25f);
-		const CWeaponSpec w = CWeaponCatalog::Modular(1, 4);
-		RenderTools()->SetShadersForWeapon(w);
-		RenderTools()->RenderWeapon(w, Tab1Pos, vec2(1, 0), s, true);
-		Graphics()->ShaderEnd();
-	}
-	
-	if (m_Tab == 1)
-	{
-		float s = 16 * s_Fade * (m_Scale*0.75f + 0.25f);
-		const CWeaponSpec w = CWeaponCatalog::Static(SW_TOOL);
-		RenderTools()->SetShadersForWeapon(w);
-		RenderTools()->RenderWeapon(w, Tab2Pos, vec2(1, 0), s, true);
-		Graphics()->ShaderEnd();
-	}
+	if(m_Tab == 0)
+		DrawTabIcon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL4), Tab1Pos);
+	else if(m_Tab == 1)
+		DrawTabIcon(CWeaponCatalog::Static(SW_TOOL), Tab2Pos);
+	else if(m_Tab == 2)
+		DrawTabIcon(CWeaponCatalog::Static(SW_UPGRADE), Tab3Pos);
 	
 	
 	// frame continues...
@@ -503,7 +701,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 			m_MinimizedReleased = true;
 	}
 	
-	if (abs(m_SelectorMouse.x - Pos.x) < Size.x && abs(m_SelectorMouse.y - Pos.y) < Size.y)
+	if (m_Tab == 2 || (abs(m_SelectorMouse.x - Pos.x) < Size.x && abs(m_SelectorMouse.y - Pos.y) < Size.y))
 		m_CanShop = false;
 	else
 		m_CanShop = true;
@@ -516,7 +714,12 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 	for (int x = 0; x < 4; x++)
 		for (int y = 0; y < 3; y++)
 		{
-			if (y == 0 && x == CustomStuff()->m_WeaponSlot && m_Tab == 0)
+			const int Slot = x + y * 4;
+			if(m_Tab == 2 && Slot == m_ForgeTargetSlot)
+				Graphics()->SetColor(0.3f, 1.0f, 0.3f, s_Fade*0.7f);
+			else if(m_Tab == 2 && Slot == m_ForgeMaterialSlot)
+				Graphics()->SetColor(1.0f, 0.65f, 0.15f, s_Fade*0.75f);
+			else if (y == 0 && x == CustomStuff()->m_WeaponSlot && m_Tab == 0)
 				Graphics()->SetColor(0.3f, 1.0f, 0.3f, s_Fade*0.7f);
 			else
 				Graphics()->SetColor(c.r, c.g, c.b, s_Fade*0.5f);
@@ -584,7 +787,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 	vec2 aPos[12];
 	
 	// items & weapons
-	if (m_Tab == 0)
+	if (m_Tab == 0 || m_Tab == 2)
 	{
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 		
@@ -797,7 +1000,7 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 
 	
 	// hint texts
-	if (m_Tab == 0)
+	if (m_Tab == 0 || m_Tab == 2)
 	{
 		TextRender()->TextColor(0.9f, 0.9f, 0.9f, 1);
 		
@@ -904,6 +1107,9 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 		
 		if (abs(m_SelectorMouse.x - Tab2Pos.x) < Size.x/7.0f && abs(m_SelectorMouse.y - Tab2Pos.y) < Size.y/7.0f)
 			m_Tab = 1;
+
+		if (ShowForgeTab && abs(m_SelectorMouse.x - Tab3Pos.x) < Size.x/7.0f && abs(m_SelectorMouse.y - Tab3Pos.y) < Size.y/7.0f)
+			m_Tab = 2;
 	}
 	
 	
@@ -943,30 +1149,21 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 			}
 			else
 			{			
-				// item combining not in use
-				/*
-				if (Part)
+				// Normal inventory drag only moves whole weapons. Forging is
+				// handled by the dedicated, server-authoritative panel.
+				// swap and move items
+				if (Selected >= 0)
 				{
-					if (m_DragItem != CustomStuff()->m_WeaponSlot)
-						Combine(m_DragItem, CustomStuff()->m_WeaponSlot);
+					Swap(m_DragItem, Selected);
+						
+					s_ItemOffset[Selected] = aPos[Selected] - m_SelectorMouse;
+					s_ItemEffectSelect[Selected] = 0.5f;
+						
+					if (m_DragItem != Selected)
+						s_ItemOffset[m_DragItem] = aPos[m_DragItem] - aPos[Selected];
 				}
 				else
-				*/
-				{
-					// swap and move items
-					if (Selected >= 0)
-					{
-						Swap(m_DragItem, Selected);
-						
-						s_ItemOffset[Selected] = aPos[Selected] - m_SelectorMouse;
-						s_ItemEffectSelect[Selected] = 0.5f;
-						
-						if (m_DragItem != Selected)
-							s_ItemOffset[m_DragItem] = aPos[m_DragItem] - aPos[Selected];
-					}
-					else
-						s_ItemOffset[m_DragItem] = aPos[m_DragItem] - m_SelectorMouse;
-				}
+					s_ItemOffset[m_DragItem] = aPos[m_DragItem] - m_SelectorMouse;
 			}
 				
 			m_DragItem = -1;
@@ -975,13 +1172,6 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 		// weapon part to inventory
 		if (m_MouseTrigger && !m_Mouse1 && m_DragPart.IsValid())
 		{
-			/*
-			if (Selected >= 0)
-			{
-				TakePart(CustomStuff()->m_WeaponSlot, m_DragSlot, Selected);
-			}
-			*/
-				
 			m_DragPart = {};
 			m_DragSlot = -1;
 		}
@@ -1010,6 +1200,10 @@ void CInventory::DrawInventory(vec2 Pos, vec2 Size)
 			// effect trigger
 			s_ItemEffectSelect[Selected] = 1.0f;
 		}
+	}
+	else if(m_Tab == 2)
+	{
+		DrawForgePanel(Pos, Size, Selected);
 	}
 	
 	m_MouseTrigger = false;
@@ -1323,6 +1517,9 @@ void CInventory::Swap(int Item1, int Item2)
 	CWeaponSpec i1 = CustomStuff()->m_aItem[Item1];
 	CustomStuff()->m_aItem[Item1] = CustomStuff()->m_aItem[Item2];
 	CustomStuff()->m_aItem[Item2] = i1;
+	const int Ammo1 = CustomStuff()->m_aItemAmmo[Item1];
+	CustomStuff()->m_aItemAmmo[Item1] = CustomStuff()->m_aItemAmmo[Item2];
+	CustomStuff()->m_aItemAmmo[Item2] = Ammo1;
 	
 	CNetMsg_Cl_InventoryAction Msg;
 	Msg.m_Type = INVENTORYACTION_SWAP;
@@ -1335,118 +1532,29 @@ void CInventory::Swap(int Item1, int Item2)
 }
 
 
-void CInventory::TakePart(int Item1, int Slot, int Item2)
+void CInventory::SubmitForge()
 {
-	if (Item1 < 0 || Item2 < 0 || Item1 >= 12 || Item2 >= 12 || Slot < 0 || Slot > 1)
+	if(m_ForgePending || m_ForgeTargetSlot < 0 || m_ForgeTargetSlot >= 12 ||
+		m_ForgeMaterialSlot < 0 || m_ForgeMaterialSlot >= 12 || m_ForgeTargetSlot == m_ForgeMaterialSlot ||
+		ForgeMode() == 0 || (ForgeMode() == 2 && !ForgeScreenNear()))
 		return;
-	
-	const CWeaponSpec w1 = CustomStuff()->m_aItem[Item1];
-	const CWeaponSpec w2 = CustomStuff()->m_aItem[Item2];
-	CWeaponDefinition Definition1{}, Definition2{};
-	
-	if (!WeaponDefinition(w1, &Definition1) || !WeaponDefinition(w2, &Definition2) ||
-		Definition1.m_Kind != EWeaponDefinitionKind::Modular || Definition2.m_Kind != EWeaponDefinitionKind::Modular)
+	const CNetObj_GameInfo *pGameInfo = m_pClient->m_Snap.m_pGameInfoObj;
+	if(!pGameInfo)
 		return;
-	
-	int p1_1 = Definition1.m_Part1;
-	int p1_2 = Definition1.m_Part2;
-	int p2_1 = Definition2.m_Part1;
-	int p2_2 = Definition2.m_Part2;
-	
-	if (Slot == 0)
-	{
-		CustomStuff()->m_aItem[Item1] = CWeaponCatalog::Modular(p2_1, p1_2);
-		CustomStuff()->m_aItem[Item2] = CWeaponCatalog::Modular(p1_1, p2_2);
-	}
-	else if (Slot == 1)
-	{
-		CustomStuff()->m_aItem[Item1] = CWeaponCatalog::Modular(p1_1, p2_2);
-		CustomStuff()->m_aItem[Item2] = CWeaponCatalog::Modular(p2_1, p1_2);
-	}
-	
-	/*
-	{
-		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "Weapon1 %d, %d", p1_1, p1_2);
-		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "Inventory", aBuf);
-	}
-	{
-		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "Weapon2 %d, %d", p2_1, p2_2);
-		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "Inventory", aBuf);
-	}
-	*/
-	
-	CNetMsg_Cl_InventoryAction Msg;
-	Msg.m_Type = INVENTORYACTION_TAKEPART;
-	Msg.m_Slot = Slot;
-	Msg.m_Item1 = Item1;
-	Msg.m_Item2 = Item2;
-	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
-	
-	m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV3, 0);
-}
+	const CForgeRecipe Recipe = CForge::Resolve(CustomStuff()->m_aItem[m_ForgeTargetSlot],
+		CustomStuff()->m_aItem[m_ForgeMaterialSlot],
+		CustomStuff()->m_aItemAmmo[m_ForgeTargetSlot], pGameInfo->m_ForgeBaseCost, pGameInfo->m_ForgeLevelCost);
+	if(Recipe.m_Result != FORGERESULT_SUCCESS || CustomStuff()->m_Gold < Recipe.m_Cost)
+		return;
 
-
-void CInventory::Combine(int Item1, int Item2)
-{
-	if (Item1 < 0 || Item2 < 0 || Item1 >= 12 || Item2 >= 12)
-		return;
-	
-	const CWeaponSpec w1 = CustomStuff()->m_aItem[Item1];
-	const CWeaponSpec w2 = CustomStuff()->m_aItem[Item2];
-	CWeaponDefinition Definition1{}, Definition2{};
-	
-	if (!WeaponDefinition(w1, &Definition1) || !WeaponDefinition(w2, &Definition2) ||
-		Definition1.m_Kind != EWeaponDefinitionKind::Modular || Definition2.m_Kind != EWeaponDefinitionKind::Modular)
-		return;
-	
-	int p1_1 = Definition1.m_Part1;
-	int p1_2 = Definition1.m_Part2;
-	int p2_1 = Definition2.m_Part1;
-	int p2_2 = Definition2.m_Part2;
-	
-	if (!p1_1 || !p1_2)
-	{
-		if (p1_1)
-		{
-			int t = p2_1;
-			p2_1 = p1_1;
-			p1_1 = t;
-		}
-		else if (p1_2)
-		{
-			int t = p2_2;
-			p2_2 = p1_2;
-			p1_2 = t;
-		}
-	}
-	else
-	{
-		if (!p2_1 && p1_1)
-		{
-			p2_1 = p1_1;
-			p1_1 = 0;
-		}
-		
-		if (!p2_2 && p1_2)
-		{
-			p2_2 = p1_2;
-			p1_2 = 0;
-		}
-	}
-	
-	CustomStuff()->m_aItem[Item1] = CWeaponCatalog::Modular(p1_1, p1_2);
-	CustomStuff()->m_aItem[Item2] = CWeaponCatalog::Modular(p2_1, p2_2);
-	
-	
 	CNetMsg_Cl_InventoryAction Msg;
 	Msg.m_Type = INVENTORYACTION_COMBINE;
-	Msg.m_Slot = 0;
-	Msg.m_Item1 = Item1;
-	Msg.m_Item2 = Item2;
+	Msg.m_Slot = FORGEOP_AUTO;
+	Msg.m_Item1 = m_ForgeTargetSlot;
+	Msg.m_Item2 = m_ForgeMaterialSlot;
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
-	
+	m_ForgePending = true;
+	m_ForgeLastResult = -1;
 	m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV2, 0);
 }
 
@@ -1777,6 +1885,15 @@ void CInventory::OnRender()
 {
 	if(!Client()->IsGameWorldActive())
 		return;
+	const int ActiveSlot = CustomStuff()->m_WeaponSlot;
+	if(m_pClient->m_Snap.m_pLocalCharacter && ActiveSlot >= 0 && ActiveSlot < 4)
+	{
+		CWeaponSpec ActiveWeapon;
+		if(CWeaponCatalog::TryFromProtocol(m_pClient->m_Snap.m_pLocalCharacter->m_WeaponDefinitionId,
+			m_pClient->m_Snap.m_pLocalCharacter->m_WeaponLevel, &ActiveWeapon) &&
+			ActiveWeapon == CustomStuff()->m_aItem[ActiveSlot])
+			CustomStuff()->m_aItemAmmo[ActiveSlot] = max(0, m_pClient->m_Snap.m_pLocalCharacter->m_AmmoCount);
+	}
 
 	CustomStuff()->m_Inventory = false;
 	
@@ -1786,6 +1903,14 @@ void CInventory::OnRender()
 		m_WasActive = false;
 		m_Render = false;
 		return;
+	}
+	const int CurrentForgeMode = ForgeMode();
+	const bool ScreenForgeAvailable = CurrentForgeMode != 2 || ForgeScreenNear();
+	if((m_Tab == 2 || m_WantedTab == 2) && (CurrentForgeMode == 0 || !ScreenForgeAvailable))
+	{
+		ClearForgeSelection();
+		m_Tab = 0;
+		m_WantedTab = -1;
 	}
 	//m_Render = m_Active;
 	

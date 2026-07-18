@@ -44,6 +44,9 @@ CoreAction = ["IDLE", "JUMP", "WALLJUMP", "ROLL", "SLIDE", "SLIDEKICK", "FALL", 
 
 InventoryAction = ["SWAP", "COMBINE", "TAKEPART", "DROP", "SHOP", "ROLL"]
 
+ForgeOperation = ["REPLACE_PART2", "SPIN", "UPGRADE", "AUTO"]
+ForgeResult = ["SUCCESS", "DISABLED", "TOO_FAR", "NOT_ENOUGH_GOLD", "BUSY", "INVALID_SLOT", "INVALID_RECIPE", "NO_CHANGE"]
+
 Radar = ["CHARACTER", "HUMAN", "ENEMY", "DOOR", "REACTOR", "BOMB"]
 
 RawHeader = '''
@@ -107,6 +110,11 @@ enum
 	EFFECT_DASH,
 	EFFECT_FUEL,
 	NUM_EFFECTS,
+
+	HIT_TARGET_FLESH=0,
+	HIT_TARGET_METAL,
+	HIT_TARGET_SHIELD,
+	NUM_HIT_TARGETS,
 	
 	DEATHTYPE_EMPTY=0,
 	DEATHTYPE_SWORD,
@@ -162,6 +170,8 @@ Enums = [
 	Enum("DROIDANIM", Droidanim),
 	Enum("COREACTION", CoreAction),
 	Enum("INVENTORYACTION", InventoryAction),
+	Enum("FORGEOP", ForgeOperation),
+	Enum("FORGERESULT", ForgeResult),
 	Enum("RADAR", Radar)
 ]
 
@@ -309,6 +319,10 @@ Objects = [
 
 		NetIntRange("m_RoundNum", 0, 'max_int'),
 		NetIntRange("m_RoundCurrent", 0, 'max_int'),
+
+		NetIntRange("m_ForgeMode", 0, 2),
+		NetIntAny("m_ForgeBaseCost"),
+		NetIntAny("m_ForgeLevelCost"),
 	]),
 
 	NetObject("GameData", [
@@ -360,7 +374,7 @@ Objects = [
 		NetIntRange("m_Jetpack", 0, 1),
 		NetIntRange("m_JetpackPower", 0, 200),
 		NetIntRange("m_Wallrun", -100, 100),
-		NetIntRange("m_Roll", 0, 32),
+		NetIntAny("m_Roll"),
 		NetIntRange("m_Slide", -10, 32),
 		
 		NetIntRange("m_JumpTimer", -10, 10),
@@ -375,6 +389,9 @@ Objects = [
 		NetIntAny("m_ActionState"),
 		
 		NetIntRange("m_Jumped", 0, 3),
+		NetIntAny("m_CoyoteTime"),
+		NetIntAny("m_JumpBufferTime"),
+		NetBool("m_PrevJumpInput"),
 		
 		NetBool("m_Sliding"),
 		NetBool("m_Grounded"),
@@ -536,6 +553,14 @@ Objects = [
 		NetIntAny("m_ActionTick"),
 		NetIntAny("m_SwitchReadyTick"),
 	]),
+
+	# Appended for protocol v12. This is sent only to the attacking player and followers.
+	NetEvent("HitConfirm:Common", [
+		NetIntAny("m_Damage"),
+		NetIntRange("m_TargetType", 0, 'NUM_HIT_TARGETS-1'),
+		NetIntRange("m_Killed", 0, 1),
+		*AttackSourceFields(),
+	]),
 ]
 
 # todo: remove unnecessary ones
@@ -641,6 +666,18 @@ Messages = [
 		*WeaponSpecFields("m_Item11"),
 		*WeaponSpecFields("m_Item12"),
 		NetIntRange("m_Gold", 0, 999),
+		NetIntRange("m_Item1Ammo", 0, 'max_int'),
+		NetIntRange("m_Item2Ammo", 0, 'max_int'),
+		NetIntRange("m_Item3Ammo", 0, 'max_int'),
+		NetIntRange("m_Item4Ammo", 0, 'max_int'),
+		NetIntRange("m_Item5Ammo", 0, 'max_int'),
+		NetIntRange("m_Item6Ammo", 0, 'max_int'),
+		NetIntRange("m_Item7Ammo", 0, 'max_int'),
+		NetIntRange("m_Item8Ammo", 0, 'max_int'),
+		NetIntRange("m_Item9Ammo", 0, 'max_int'),
+		NetIntRange("m_Item10Ammo", 0, 'max_int'),
+		NetIntRange("m_Item11Ammo", 0, 'max_int'),
+		NetIntRange("m_Item12Ammo", 0, 'max_int'),
 	]),
 
 	### Client messages / 14
@@ -861,5 +898,18 @@ Messages = [
 	NetMessage("Cl_PveInvasionRetryVote", [
 		NetIntAny("m_Nonce"),
 		NetIntRange("m_Choice", 0, 1),
+	]),
+
+	# Appended for protocol v14. Keep this below every existing extension so
+	# all pre-v14 message IDs remain stable.
+	NetMessage("Sv_ForgeResult", [
+		NetIntRange("m_Result", 0, 'NUM_FORGERESULTS-1'),
+		NetIntAny("m_Operation"),
+		NetIntAny("m_TargetSlot"),
+		NetIntAny("m_MaterialSlot"),
+		NetIntRange("m_Cost", 0, 999),
+		*WeaponSpecFields("m_Product"),
+		NetIntRange("m_ProductAmmo", 0, 'max_int'),
+		NetIntRange("m_ProductMaxAmmo", 0, 'max_int'),
 	]),
 ]

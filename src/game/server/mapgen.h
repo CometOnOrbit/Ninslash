@@ -68,6 +68,7 @@ class CMapGen
 		int m_Y;
 		int m_Value;
 		bool m_IndexValue;
+		int m_Offset;
 
 		enum
 		{

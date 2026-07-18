@@ -43,6 +43,20 @@ struct CRenderCharacter : public CNetObj_Character
 		return *this;
 	}
 };
+
+float FireCameraImpulse(const CWeaponCombatProfile &Combat, const CWeaponVisualProfile &Visual)
+{
+	if(Combat.m_ProjectileDamage <= 0.0f && Combat.m_ExplosionDamage <= 0.0f)
+		return 0.0f;
+	float Impulse = clamp(Visual.m_RenderRecoil * 0.12f, 0.35f, 2.4f);
+	if(Combat.m_ExplosiveProjectile)
+		Impulse += 0.8f;
+	else if(Combat.m_FiringType == WFT_MELEE)
+		Impulse += 0.4f;
+	else if(Combat.m_FlameAmount > 0.0f || Combat.m_ElectroAmount > 0.0f)
+		Impulse *= 0.55f;
+	return min(3.2f, Impulse);
+}
 }
 
 void CPlayers::RenderHand(CTeeRenderInfo *pInfo, vec2 CenterPos, vec2 Dir, float AngleOffset, vec2 PostRotOffset)
@@ -322,9 +336,7 @@ void CPlayers::RenderPlayer(
 	
 	// Player.IsOnForceTile()
 	
-	int ForceState = Collision()->IsForceTile(Player.m_X-8, Player.m_Y+18);
-	if (ForceState == 0)
-		ForceState = Collision()->IsForceTile(Player.m_X+8, Player.m_Y+18);
+	int ForceState = Collision()->IsForceTile(Player.m_X-8, Player.m_X+8, Player.m_Y+18);
 	
 	ForceState *= 1024.0f;
 	
@@ -452,6 +464,11 @@ void CPlayers::RenderPlayer(
 		{
 			pCustomPlayerInfo->m_RecoilTick = Player.m_AttackTick;
 			pCustomPlayerInfo->m_WeaponRecoil -= Direction * WeaponVisual.m_RenderRecoil;
+			if(pInfo.m_ClientID == m_pClient->m_Snap.m_LocalClientID)
+			{
+				const float Impulse = FireCameraImpulse(WeaponCombat, WeaponVisual);
+				CustomStuff()->AddCameraImpulse(-Direction * Impulse, Impulse * 0.18f, g_Config.m_ClHitFeedback / 100.0f);
+			}
 			
 			if (WeaponStaticType == SW_GUN1 || WeaponStaticType == SW_GUN2)
 			{
@@ -765,6 +782,11 @@ void CPlayers::RenderPlayer(
 			{
 				pCustomPlayerInfo->m_RecoilTick = Player.m_AttackTick;
 				pCustomPlayerInfo->m_WeaponRecoil -= Direction * WeaponVisual.m_RenderRecoil;
+				if(pInfo.m_ClientID == m_pClient->m_Snap.m_LocalClientID)
+				{
+					const float Impulse = FireCameraImpulse(WeaponCombat, WeaponVisual);
+					CustomStuff()->AddCameraImpulse(-Direction * Impulse, Impulse * 0.18f, g_Config.m_ClHitFeedback / 100.0f);
+				}
 			}
 			
 			

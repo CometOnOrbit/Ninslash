@@ -1597,13 +1597,21 @@ void CPveDirector::TickTargetStatuses()
 		{
 			CDroid *pDroid = static_cast<CDroid *>(Status.m_pTarget);
 			if(pDroid->m_Health > 0)
-				pDroid->TakeDamage(vec2(0, 0), Damage, Status.m_BleedSource, pDroid->m_Pos);
+			{
+				CAttackSource StatusSource = Status.m_BleedSource;
+				StatusSource.m_HitFeedback = false;
+				pDroid->TakeDamage(vec2(0, 0), Damage, StatusSource, pDroid->m_Pos);
+			}
 		}
 		else if(Status.m_pTarget->GetType() == CGameWorld::ENTTYPE_CHARACTER)
 		{
 			CCharacter *pCharacter = static_cast<CCharacter *>(Status.m_pTarget);
 			if(pCharacter->m_IsBot && pCharacter->IsAlive())
-				pCharacter->TakeDamage(Status.m_BleedSource, Damage, vec2(0, 0), pCharacter->m_Pos);
+			{
+				CAttackSource StatusSource = Status.m_BleedSource;
+				StatusSource.m_HitFeedback = false;
+				pCharacter->TakeDamage(StatusSource, Damage, vec2(0, 0), pCharacter->m_Pos);
+			}
 		}
 		m_ApplyingSecondaryEffect = false;
 	}

@@ -21,6 +21,7 @@ public:
 	void BulletTrail(vec2 Pos);
 	void SmokeTrail(vec2 Pos, vec2 Vel);
 	void SkidTrail(vec2 Pos, vec2 Vel);
+	void MovementDust(vec2 Pos, vec2 Vel, float Strength);
 	void SpriteSheet(int FX, vec2 Pos);
 	void Lazer(vec2 Pos, int Height);
 	void Explosion(vec2 Pos, const CAttackSource &Source);
@@ -38,6 +39,7 @@ public:
 	void Flame(vec2 Pos, vec2 Vel, float Alpha = 1.0f, bool IgnoreCollision = false);
 	void Splatter(vec2 Pos, float Angle, float Size = -1, vec4 Color = vec4(1, 0, 0, 1));
 	void Spark(vec2 Pos);
+	void HitSpark(vec2 Pos, vec4 Color);
 	void Area1(vec2 Pos);
 	void Muzzle(vec2 Pos, vec2 Dir, const CWeaponSpec &Weapon);
 	void GreenSpark(vec2 Pos);

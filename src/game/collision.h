@@ -17,6 +17,11 @@ class CCollision
 	class CLayers *m_pLayers;
 	bool *m_pBlocks;
 	int *m_pLightRays;
+	enum { MODIF_TILE_CACHE_SIZE = 8 };
+	int m_aModifTileGroup[MODIF_TILE_CACHE_SIZE];
+	int m_aModifTileLayer[MODIF_TILE_CACHE_SIZE];
+	class CMapItemLayerTilemap *m_apModifTilemap[MODIF_TILE_CACHE_SIZE];
+	class CTile *m_apModifTiles[MODIF_TILE_CACHE_SIZE];
 	
 	class CMapChunk *m_pMapChunk;
 	
@@ -35,7 +40,8 @@ class CCollision
 	void RemoveClosedAreas();
 	void AddWaypoint(vec2 Position, bool InnerCorner = false);
 	CWaypoint *GetWaypointAt(int x, int y);
-	void ConnectWaypoints();
+	bool WaypointLineBlocked(vec2 Pos0, vec2 Pos1, const unsigned char *pTileCanCollide);
+	void ConnectWaypoints(signed char *pVisibilityCache, const unsigned char *pTileCanCollide);
 	CWaypoint *GetClosestWaypoint(vec2 Pos);
 
 	CWaypoint *m_apWaypoint[MAX_WAYPOINTS];
@@ -44,6 +50,7 @@ class CCollision
 	CWaypointPath *m_pPath;
 	
 	int m_LowestPoint;
+	void ClearModifTileCache();
 	
 	
 public:
@@ -124,6 +131,16 @@ public:
 	
 	// -1=left, 0=nope, 1=right
 	int IsForceTile(float x, float y){ return ForceState(round_to_int(x), round_to_int(y)); }
+	int IsForceTile(float LeftX, float RightX, float y)
+	{
+		const int RoundedLeftX = round_to_int(LeftX);
+		const int RoundedRightX = round_to_int(RightX);
+		const int RoundedY = round_to_int(y);
+		const int LeftForce = ForceState(RoundedLeftX, RoundedY);
+		if(LeftForce != 0 || RoundedLeftX / 32 == RoundedRightX / 32)
+			return LeftForce;
+		return ForceState(RoundedRightX, RoundedY);
+	}
 	int IsForceTile(vec2 Pos){ return IsForceTile(Pos.x, Pos.y); }
 	
 	bool IsSawblade(float x, float y);
@@ -162,6 +179,7 @@ public:
 	int TestBox(vec2 Pos, vec2 Size, bool Down = false);
 
 	// MapGen
+	bool ClearTileLayer(int group, int layer);
 	bool ModifTile(ivec2 pos, int group, int layer, int tile, int flags, int reserved);
 };
 

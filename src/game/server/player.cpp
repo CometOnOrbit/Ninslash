@@ -8,6 +8,7 @@
 #include "entities/weapon.h"
 
 #include <game/weapons.h>
+#include <game/forge.h>
 #include <game/weapon_catalog.h>
 #include <game/buildables.h>
 #include "gamemodes/texasrun.h"
@@ -37,6 +38,7 @@ CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, int Team)
 	
 	m_Score = 0;
 	m_Gold = 0;
+	m_LastForgeRequestTick = -1;
 	
 	m_ActionTimer = 0;
 	
@@ -128,16 +130,31 @@ void CPlayer::InventoryRoll(int Slot)
 		GetCharacter()->InventoryRoll(Slot);
 }
 
-void CPlayer::CombineItem(int Item1, int Item2)
+void CPlayer::CombineItem(int Item1, int Item2, int Operation)
 {
 	if (GetCharacter())
-		GetCharacter()->CombineItem(Item1, Item2);
+		GetCharacter()->CombineItem(Item1, Item2, Operation);
+	else
+	{
+		SendForgeResult(FORGERESULT_BUSY, Operation, Item1, Item2, 0);
+		GameServer()->CreateSoundGlobal(SOUND_GUI_DENIED1, GetCID());
+	}
 }
 
-void CPlayer::TakePart(int Item1, int Slot, int Item2)
+void CPlayer::SendForgeResult(int Result, int Operation, int TargetSlot, int MaterialSlot, int Cost,
+	const CWeaponSpec &Product, int ProductAmmo, int ProductMaxAmmo)
 {
-	if (GetCharacter())
-		GetCharacter()->TakePart(Item1, Slot, Item2);
+	CNetMsg_Sv_ForgeResult Msg;
+	Msg.m_Result = clamp(Result, 0, NUM_FORGERESULTS - 1);
+	Msg.m_Operation = Operation;
+	Msg.m_TargetSlot = TargetSlot;
+	Msg.m_MaterialSlot = MaterialSlot;
+	Msg.m_Cost = clamp(Cost, 0, FORGE_MAX_COST);
+	Msg.m_ProductDefinitionId = Product.IsValid() ? static_cast<int>(Product.m_DefinitionId) : 0;
+	Msg.m_ProductLevel = Product.IsValid() ? Product.m_Level : 0;
+	Msg.m_ProductAmmo = max(0, ProductAmmo);
+	Msg.m_ProductMaxAmmo = max(0, ProductMaxAmmo);
+	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, GetCID());
 }
 
 void CPlayer::UseKit(int Kit, vec2 Pos)

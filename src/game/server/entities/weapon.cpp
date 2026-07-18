@@ -511,9 +511,7 @@ void CWeapon::Move()
 	if(GameServer()->Collision()->CheckPoint(m_Pos.x-12, m_Pos.y+12+5, false, Down))
 		Grounded = true;
 		
-	int OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x-12, m_Pos.y+12+5);
-	if (OnForceTile == 0)
-		OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x+12, m_Pos.y+12+5);
+	const int OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x-12, m_Pos.x+12, m_Pos.y+12+5);
 		
 	if (Grounded)
 	{

@@ -16,10 +16,12 @@
 
 #include "controls.h"
 #include "camera.h"
+#include "effects.h"
 #include "hud.h"
 #include "menus.h"
 #include "pve_roguelite.h"
 #include "scoreboard.h"
+#include "sounds.h"
 #include "voting.h"
 #include "binds.h"
 
@@ -34,17 +36,83 @@ CHud::CHud()
 	m_DebugStatusScreenshotFrames = 0;
 	m_LastObjectiveSignature = -1;
 	m_ObjectiveNoticeUntil = 0;
+	m_LastHitEvent = 0;
+	m_LastHitSound = 0;
+	m_HitMarkerUntil = 0;
+	m_HitDamage = 0;
+	m_HitTargetType = HIT_TARGET_FLESH;
+	m_HitKilled = false;
 }
 
 void CHud::OnReset()
 {
 	m_LastObjectiveSignature = -1;
 	m_ObjectiveNoticeUntil = 0;
+	m_LastHitEvent = 0;
+	m_LastHitSound = 0;
+	m_HitMarkerUntil = 0;
+	m_HitDamage = 0;
+	m_HitTargetType = HIT_TARGET_FLESH;
+	m_HitKilled = false;
 	if(m_DebugStatusUntil <= time_get())
 	{
 		m_DebugStatusMask = 0;
 		m_DebugStatusScreenshotFrames = 0;
 	}
+}
+
+void CHud::OnHitConfirm(vec2 Pos, int Damage, int TargetType, bool Killed)
+{
+	if(g_Config.m_ClHitFeedback <= 0 || Damage <= 0)
+		return;
+
+	const int64 Now = time_get();
+	const int64 MergeWindow = time_freq() * 50 / 1000;
+	if(m_LastHitEvent && Now - m_LastHitEvent <= MergeWindow)
+	{
+		m_HitDamage += Damage;
+		m_HitTargetType = max(m_HitTargetType, TargetType);
+		m_HitKilled = m_HitKilled || Killed;
+	}
+	else
+	{
+		m_HitDamage = Damage;
+		m_HitTargetType = TargetType;
+		m_HitKilled = Killed;
+	}
+	m_LastHitEvent = Now;
+	m_HitMarkerUntil = Now + time_freq() * (m_HitKilled ? 220 : 120) / 1000;
+
+	const float Strength = g_Config.m_ClHitFeedback / 100.0f;
+	vec4 SparkColor(0.95f, 0.2f, 0.16f, 1.0f);
+	int HitSound = SOUND_HIT;
+	if(TargetType == HIT_TARGET_METAL)
+	{
+		SparkColor = vec4(1.0f, 0.62f, 0.12f, 1.0f);
+		HitSound = SOUND_METAL_HIT;
+	}
+	else if(TargetType == HIT_TARGET_SHIELD)
+	{
+		SparkColor = vec4(0.2f, 0.82f, 1.0f, 1.0f);
+		HitSound = SOUND_SHIELD_HIT;
+	}
+
+	const int SparkCount = 1 + (int)(Strength * 2.0f);
+	for(int i = 0; i < SparkCount; i++)
+		m_pClient->m_pEffects->HitSpark(Pos, SparkColor);
+
+	const int64 SoundInterval = time_freq() * 60 / 1000;
+	if(Killed || !m_LastHitSound || Now - m_LastHitSound >= SoundInterval)
+	{
+		m_pClient->m_pSounds->SetHitFeedbackVolume(Strength);
+		m_pClient->m_pSounds->Play(CSounds::CHN_HIT, HitSound, 1.0f);
+		m_LastHitSound = Now;
+	}
+
+	float Shake = 0.6f + min(Damage, 50) * 0.03f;
+	if(Killed)
+		Shake *= 1.5f;
+	CustomStuff()->AddCameraImpulse(vec2(0, 0), Shake, Strength);
 }
 
 void CHud::OnConsoleInit()
@@ -800,6 +868,38 @@ void CHud::RenderCursor()
 	float CursorSize = 64;
 	RenderTools()->DrawSprite(m_pClient->m_pControls->m_TargetPos.x, m_pClient->m_pControls->m_TargetPos.y, CursorSize);
 	Graphics()->QuadsEnd();
+
+	const int64 Now = time_get();
+	if(g_Config.m_ClHitFeedback <= 0 || Now >= m_HitMarkerUntil)
+		return;
+
+	const float Strength = g_Config.m_ClHitFeedback / 100.0f;
+	const float Duration = (m_HitKilled ? 220.0f : 120.0f) / 1000.0f;
+	const float Remaining = clamp((m_HitMarkerUntil - Now) / (float)time_freq() / Duration, 0.0f, 1.0f);
+	const float Expansion = m_HitKilled ? (1.0f - Remaining) * 7.0f : (1.0f - Remaining) * 2.0f;
+	const float Gap = 9.0f + Expansion;
+	const float Length = (m_HitKilled ? 11.0f : 8.0f) * (0.75f + Strength * 0.25f);
+	const vec2 Center = m_pClient->m_pControls->m_TargetPos;
+	IGraphics::CLineItem aLines[4] = {
+		IGraphics::CLineItem(Center.x - Gap - Length, Center.y - Gap - Length, Center.x - Gap, Center.y - Gap),
+		IGraphics::CLineItem(Center.x + Gap, Center.y + Gap, Center.x + Gap + Length, Center.y + Gap + Length),
+		IGraphics::CLineItem(Center.x + Gap, Center.y - Gap, Center.x + Gap + Length, Center.y - Gap - Length),
+		IGraphics::CLineItem(Center.x - Gap - Length, Center.y + Gap + Length, Center.x - Gap, Center.y + Gap),
+	};
+
+	vec4 Color(1.0f, 1.0f, 1.0f, Remaining * Strength);
+	if(m_HitKilled)
+		Color = vec4(1.0f, 0.18f, 0.12f, Remaining * Strength);
+	else if(m_HitTargetType == HIT_TARGET_METAL)
+		Color = vec4(1.0f, 0.64f, 0.12f, Remaining * Strength);
+	else if(m_HitTargetType == HIT_TARGET_SHIELD)
+		Color = vec4(0.2f, 0.82f, 1.0f, Remaining * Strength);
+
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+	Graphics()->LinesDraw(aLines, 4);
+	Graphics()->LinesEnd();
 }
 
 

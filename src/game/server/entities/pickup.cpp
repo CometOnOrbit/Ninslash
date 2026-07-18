@@ -21,6 +21,8 @@ CPickup::CPickup(CGameWorld *pGameWorld, int Type, int SubType, int Ammo)
 
 	m_ResetableDropable = false;
 	m_pWeapon = NULL;
+	m_StaticForceTile = 0;
+	m_StaticForceTileChecked = false;
 	
 	Reset();
 
@@ -140,18 +142,26 @@ void CPickup::Tick()
 	}
 	
 	//GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "debug", "pickup tick");
-	if (!m_Dropable && GameServer()->Collision()->IsForceTile(m_Pos.x, m_Pos.y+m_BoxSize) != 0)
+	if(!m_Dropable)
 	{
-		m_SkipAutoRespawn = false;
-		m_ResetableDropable = true;
-		m_SpawnPos = m_Pos;
-		m_Life = 280;
-		m_Flashing = false;
-		m_FlashTimer = 0;
-		m_Dropable = true;
-		m_Treasure = false;
-		m_SpawnTick = -1;
-		m_Ammo = 1.0f;
+		if(!m_StaticForceTileChecked)
+		{
+			m_StaticForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x, m_Pos.y+m_BoxSize);
+			m_StaticForceTileChecked = true;
+		}
+		if(m_StaticForceTile != 0)
+		{
+			m_SkipAutoRespawn = false;
+			m_ResetableDropable = true;
+			m_SpawnPos = m_Pos;
+			m_Life = 280;
+			m_Flashing = false;
+			m_FlashTimer = 0;
+			m_Dropable = true;
+			m_Treasure = false;
+			m_SpawnTick = -1;
+			m_Ammo = 1.0f;
+		}
 	}
 	
 	if (m_Life > 0 && m_Type == POWERUP_WEAPON)
@@ -252,9 +262,7 @@ void CPickup::Tick()
 		if(GameServer()->Collision()->CheckPoint(m_Pos.x-12, m_Pos.y+m_BoxSize/2+5, false, Down))
 			Grounded = true;
 		
-		int OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x-12, m_Pos.y+m_BoxSize/2+5);
-		if (OnForceTile == 0)
-			OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x+12, m_Pos.y+m_BoxSize/2+5);
+		const int OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x-12, m_Pos.x+12, m_Pos.y+m_BoxSize/2+5);
 		
 
 		if (Grounded)
@@ -298,7 +306,8 @@ void CPickup::Tick()
 	}
 	
 	// Check if a player intersected us
-	CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, 20.0f, 0);
+	CCharacter *pChr = GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER) ?
+		GameServer()->m_World.ClosestCharacter(m_Pos, 20.0f, 0) : 0;
 	if(pChr && pChr->IsAlive() && pChr->m_SkipPickups <= 0 && (!g_Config.m_SvBotsSkipPickups || !pChr->GetPlayer()->m_IsBot)) // && !pChr->GetPlayer()->m_pAI)
 	{
 		// player picked us up, is someone was hooking us, let them go

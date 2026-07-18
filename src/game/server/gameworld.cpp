@@ -13,6 +13,12 @@
 #include <game/weapons.h>
 #include <engine/shared/config.h>
 
+static float DistanceSquared(vec2 A, vec2 B)
+{
+	const vec2 Delta = A - B;
+	return dot(Delta, Delta);
+}
+
 //////////////////////////////////////////////////
 // game world
 //////////////////////////////////////////////////
@@ -23,6 +29,7 @@ CGameWorld::CGameWorld()
 
 	m_Paused = false;
 	m_ResetRequested = false;
+	m_HasPendingDestroy = false;
 	for(int i = 0; i < NUM_ENTTYPES; i++)
 		m_apFirstEntityTypes[i] = 0;
 }
@@ -41,11 +48,6 @@ void CGameWorld::SetGameServer(CGameContext *pGameServer)
 	m_pServer = m_pGameServer->Server();
 }
 
-CEntity *CGameWorld::FindFirst(int Type)
-{
-	return Type < 0 || Type >= NUM_ENTTYPES ? 0 : m_apFirstEntityTypes[Type];
-}
-
 int CGameWorld::FindEntities(vec2 Pos, float Radius, CEntity **ppEnts, int Max, int Type)
 {
 	if(Type < 0 || Type >= NUM_ENTTYPES)
@@ -60,10 +62,13 @@ int CGameWorld::FindEntities(vec2 Pos, float Radius, CEntity **ppEnts, int Max, 
 		if (Type == CGameWorld::ENTTYPE_DROID)
 			Pos = OPos + pEnt->m_Center;
 		
+		const float CollisionRange = Radius + pEnt->m_ProximityRadius;
+		const float CollisionRangeSquared = CollisionRange * CollisionRange;
+		const vec2 BodyDelta = pEnt->m_Pos - Pos;
 		// circle body collision
-		if(Radius <= 0.0f || distance(pEnt->m_Pos, Pos) < Radius+pEnt->m_ProximityRadius || 
+		if(Radius <= 0.0f || dot(BodyDelta, BodyDelta) < CollisionRangeSquared ||
 			// head collision if character
-			(Type == CGameWorld::ENTTYPE_CHARACTER && distance(pEnt->m_Pos + vec2(0, -27), Pos) < Radius+pEnt->m_ProximityRadius))
+			(Type == CGameWorld::ENTTYPE_CHARACTER && DistanceSquared(pEnt->m_Pos + vec2(0, -27), Pos) < CollisionRangeSquared))
 		{
 			if(ppEnts)
 				ppEnts[Num] = pEnt;
@@ -115,6 +120,7 @@ void CGameWorld::InsertEntity(CEntity *pEnt)
 void CGameWorld::DestroyEntity(CEntity *pEnt)
 {
 	pEnt->m_MarkedForDestroy = true;
+	m_HasPendingDestroy = true;
 }
 
 void CGameWorld::RemoveEntity(CEntity *pEnt)
@@ -171,6 +177,10 @@ void CGameWorld::Reset()
 
 void CGameWorld::RemoveEntities()
 {
+	if(!m_HasPendingDestroy)
+		return;
+	m_HasPendingDestroy = false;
+
 	// destroy objects marked for destruction
 	for(int i = 0; i < NUM_ENTTYPES; i++)
 		for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
@@ -257,10 +267,11 @@ bool CGameWorld::IsShielded(vec2 Pos0, vec2 Pos1, float Radius, int Team)
 		if (!w->m_Disabled && w->GetWeaponProfile().m_Definition.m_Kind == EWeaponDefinitionKind::Static && w->GetWeaponProfile().m_Definition.m_StaticType == SW_AREASHIELD)
 		{
 			
-			vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, w->m_Pos);
-			
-			float Len = distance(w->m_Pos + w->m_Center, IntersectPos);
-			if (Len < 180+Radius && distance(w->m_Pos + w->m_Center, Pos0) >= 180+Radius)
+			const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, w->m_Pos);
+			const float ShieldRange = 180.0f + Radius;
+			const float ShieldRangeSquared = ShieldRange * ShieldRange;
+			const vec2 ShieldPos = w->m_Pos + w->m_Center;
+			if(DistanceSquared(ShieldPos, IntersectPos) < ShieldRangeSquared && DistanceSquared(ShieldPos, Pos0) >= ShieldRangeSquared)
 			{
 				return true;
 			}	
@@ -274,7 +285,7 @@ bool CGameWorld::IsShielded(vec2 Pos0, vec2 Pos1, float Radius, int Team)
 
 CBuilding *CGameWorld::IntersectBuilding(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, int Team, CEntity *pNotThis)
 {
-	float ClosestLen = distance(Pos0, Pos1) * 100.0f;
+	float ClosestLenSquared = DistanceSquared(Pos0, Pos1) * 10000.0f;
 	CBuilding *pClosest = 0;
 
 	CBuilding *p = (CBuilding *)FindFirst(ENTTYPE_BUILDING);
@@ -331,15 +342,19 @@ CBuilding *CGameWorld::IntersectBuilding(vec2 Pos0, vec2 Pos1, float Radius, vec
 		}
 		*/
 		
-		vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
-		float Len = distance(p->m_Pos + p->m_Center, IntersectPos);
-		if(Len < p->m_ProximityRadius+Radius || (p->m_Type == BUILDING_GENERATOR && Len < 240+Radius && distance(p->m_Pos + p->m_Center, Pos0) >= 240+Radius))
+		const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
+		const vec2 Center = p->m_Pos + p->m_Center;
+		const float CenterDistanceSquared = DistanceSquared(Center, IntersectPos);
+		const float CollisionRange = p->m_ProximityRadius + Radius;
+		const float GeneratorRange = 240.0f + Radius;
+		if(CenterDistanceSquared < CollisionRange * CollisionRange ||
+			(p->m_Type == BUILDING_GENERATOR && CenterDistanceSquared < GeneratorRange * GeneratorRange && DistanceSquared(Center, Pos0) >= GeneratorRange * GeneratorRange))
 		{
-			Len = distance(Pos0, IntersectPos);
-			if(Len < ClosestLen)
+			const float AlongSegmentSquared = DistanceSquared(Pos0, IntersectPos);
+			if(AlongSegmentSquared < ClosestLenSquared)
 			{
 				NewPos = IntersectPos;
-				ClosestLen = Len;
+				ClosestLenSquared = AlongSegmentSquared;
 				pClosest = p;
 			}
 		}
@@ -356,10 +371,9 @@ CBall *CGameWorld::IntersectBall(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPo
 	
 	CBall *pBall = GameServer()->m_pController->m_pBall;
 	
-	vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, pBall->m_Pos);
-	float Len = distance(pBall->m_Pos, IntersectPos);
-	
-	if(Len < pBall->m_ProximityRadius+Radius)
+	const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, pBall->m_Pos);
+	const float CollisionRange = pBall->m_ProximityRadius + Radius;
+	if(DistanceSquared(pBall->m_Pos, IntersectPos) < CollisionRange * CollisionRange)
 		return pBall;
 
 	return NULL;
@@ -368,7 +382,7 @@ CBall *CGameWorld::IntersectBall(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPo
 
 CDroid *CGameWorld::IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos)
 {
-	float ClosestLen = distance(Pos0, Pos1) * 100.0f;
+	float ClosestLenSquared = DistanceSquared(Pos0, Pos1) * 10000.0f;
 	CDroid *pClosest = 0;
 
 	CDroid *p = (CDroid *)FindFirst(ENTTYPE_DROID);
@@ -377,15 +391,15 @@ CDroid *CGameWorld::IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &Ne
 		if (p->m_Health <= 0)
 			continue;
 		
-		vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
-		float Len = distance(p->m_Pos + p->m_Center, IntersectPos);
-		if(Len < p->m_ProximityRadius+Radius)
+		const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
+		const float CollisionRange = p->m_ProximityRadius + Radius;
+		if(DistanceSquared(p->m_Pos + p->m_Center, IntersectPos) < CollisionRange * CollisionRange)
 		{
-			Len = distance(Pos0, IntersectPos);
-			if(Len < ClosestLen)
+			const float AlongSegmentSquared = DistanceSquared(Pos0, IntersectPos);
+			if(AlongSegmentSquared < ClosestLenSquared)
 			{
 				NewPos = IntersectPos;
-				ClosestLen = Len;
+				ClosestLenSquared = AlongSegmentSquared;
 				pClosest = p;
 			}
 		}
@@ -416,10 +430,10 @@ CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, v
 	CEntity *pNotThis, bool IgnoreDeathrayed, CCharacter **ppReflect, float ReflectRadius)
 {
 	// Find other players
-	float ClosestLen = distance(Pos0, Pos1) * 100.0f;
+	float ClosestLenSquared = DistanceSquared(Pos0, Pos1) * 10000.0f;
 	CCharacter *pClosest = 0;
 	vec2 ClosestPos = NewPos;
-	float ClosestReflectLen = ClosestLen;
+	float ClosestReflectLenSquared = ClosestLenSquared;
 	CCharacter *pClosestReflect = 0;
 	vec2 ClosestReflectPos = NewPos;
 
@@ -449,46 +463,44 @@ CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, v
 			}
 		}
 
-		vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
+		const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
+		const float AlongSegmentSquared = DistanceSquared(Pos0, IntersectPos);
 		if(ppReflect)
 		{
 			const int Reflect = p->Reflect();
 			if(Reflect > 0)
 			{
-				float ReflectLen = distance(p->m_Pos + vec2(0, -32), IntersectPos);
-				if(ReflectLen < Reflect + ReflectRadius)
+				const float ReflectRange = Reflect + ReflectRadius;
+				if(DistanceSquared(p->m_Pos + vec2(0, -32), IntersectPos) < ReflectRange * ReflectRange)
 				{
-					ReflectLen = distance(Pos0, IntersectPos);
-					if(ReflectLen < ClosestReflectLen)
+					if(AlongSegmentSquared < ClosestReflectLenSquared)
 					{
 						ClosestReflectPos = IntersectPos;
-						ClosestReflectLen = ReflectLen;
+						ClosestReflectLenSquared = AlongSegmentSquared;
 						pClosestReflect = p;
 					}
 				}
 			}
 		}
 
-		float Len = distance(p->m_Pos, IntersectPos);
-		if(Len < p->m_ProximityRadius+Radius+p->m_ShieldRadius)
+		const float BodyRange = p->m_ProximityRadius + Radius + p->m_ShieldRadius;
+		if(DistanceSquared(p->m_Pos, IntersectPos) < BodyRange * BodyRange)
 		{
-			Len = distance(Pos0, IntersectPos);
-			if(Len < ClosestLen)
+			if(AlongSegmentSquared < ClosestLenSquared)
 			{
 				ClosestPos = IntersectPos;
-				ClosestLen = Len;
+				ClosestLenSquared = AlongSegmentSquared;
 				pClosest = p;
 			}
 		}
 		// head shot
-		Len = distance(p->m_Pos + vec2(0, -28), IntersectPos);
-		if(Len < p->m_ProximityRadius+Radius)
+		const float HeadRange = p->m_ProximityRadius + Radius;
+		if(DistanceSquared(p->m_Pos + vec2(0, -28), IntersectPos) < HeadRange * HeadRange)
 		{
-			Len = distance(Pos0, IntersectPos);
-			if(Len < ClosestLen)
+			if(AlongSegmentSquared < ClosestLenSquared)
 			{
 				ClosestPos = IntersectPos;
-				ClosestLen = Len;
+				ClosestLenSquared = AlongSegmentSquared;
 				pClosest = p;
 			}
 		}
@@ -606,7 +618,8 @@ CCharacter *CGameWorld::IntersectReflect(vec2 Pos0, vec2 Pos1, float Radius, vec
 CCharacter *CGameWorld::ClosestCharacter(vec2 Pos, float Radius, CEntity *pNotThis)
 {
 	// Find other players
-	float ClosestRange = Radius*2;
+	const float InitialRange = Radius * 2.0f;
+	float ClosestRangeSquared = InitialRange * InitialRange;
 	CCharacter *pClosest = 0;
 
 	CCharacter *p = (CCharacter *)GameServer()->m_World.FindFirst(ENTTYPE_CHARACTER);
@@ -615,24 +628,27 @@ CCharacter *CGameWorld::ClosestCharacter(vec2 Pos, float Radius, CEntity *pNotTh
 		if(p == pNotThis)
 			continue;
 
-		float Len = distance(Pos, p->m_Pos);
-		if(Len < p->m_ProximityRadius+Radius)
+		const float CollisionRange = p->m_ProximityRadius + Radius;
+		const float CollisionRangeSquared = CollisionRange * CollisionRange;
+		const float DeltaX = Pos.x - p->m_Pos.x;
+		const float DeltaXSquared = DeltaX * DeltaX;
+		if(DeltaXSquared >= CollisionRangeSquared || DeltaXSquared >= ClosestRangeSquared)
+			continue;
+
+		const float BodyDeltaY = Pos.y - p->m_Pos.y;
+		const float BodyDistanceSquared = DeltaXSquared + BodyDeltaY * BodyDeltaY;
+		if(BodyDistanceSquared < CollisionRangeSquared && BodyDistanceSquared < ClosestRangeSquared)
 		{
-			if(Len < ClosestRange)
-			{
-				ClosestRange = Len;
-				pClosest = p;
-			}
+			ClosestRangeSquared = BodyDistanceSquared;
+			pClosest = p;
 		}
 		// head collision
-		Len = distance(Pos, p->m_Pos + vec2(0, -28));
-		if(Len < p->m_ProximityRadius+Radius)
+		const float HeadDeltaY = BodyDeltaY + 28.0f;
+		const float HeadDistanceSquared = DeltaXSquared + HeadDeltaY * HeadDeltaY;
+		if(HeadDistanceSquared < CollisionRangeSquared && HeadDistanceSquared < ClosestRangeSquared)
 		{
-			if(Len < ClosestRange)
-			{
-				ClosestRange = Len;
-				pClosest = p;
-			}
+			ClosestRangeSquared = HeadDistanceSquared;
+			pClosest = p;
 		}
 	}
 

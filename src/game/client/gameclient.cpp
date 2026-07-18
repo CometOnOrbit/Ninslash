@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <string.h>
 
 #include <engine/editor.h>
@@ -21,6 +22,7 @@
 #include <game/client/lineinput.h>
 #include <game/version.h>
 #include <game/weapon_catalog.h>
+#include <game/forge.h>
 #include "render.h"
 
 #include "gameclient.h"
@@ -375,6 +377,7 @@ void CGameClient::AddFluidForce(vec2 Pos, vec2 Vel)
 void CGameClient::OnInit()
 {
 	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
+	dbg_assert(CForge::Validate(), "forge recipe validation failed");
 	m_pGraphics = Kernel()->RequestInterface<IGraphics>();
 
 	// propagate pointers
@@ -829,6 +832,18 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 		CustomStuff()->m_aItem[9] = ReadWeapon(pMsg->m_Item10DefinitionId, pMsg->m_Item10Level);
 		CustomStuff()->m_aItem[10] = ReadWeapon(pMsg->m_Item11DefinitionId, pMsg->m_Item11Level);
 		CustomStuff()->m_aItem[11] = ReadWeapon(pMsg->m_Item12DefinitionId, pMsg->m_Item12Level);
+		CustomStuff()->m_aItemAmmo[0] = pMsg->m_Item1Ammo;
+		CustomStuff()->m_aItemAmmo[1] = pMsg->m_Item2Ammo;
+		CustomStuff()->m_aItemAmmo[2] = pMsg->m_Item3Ammo;
+		CustomStuff()->m_aItemAmmo[3] = pMsg->m_Item4Ammo;
+		CustomStuff()->m_aItemAmmo[4] = pMsg->m_Item5Ammo;
+		CustomStuff()->m_aItemAmmo[5] = pMsg->m_Item6Ammo;
+		CustomStuff()->m_aItemAmmo[6] = pMsg->m_Item7Ammo;
+		CustomStuff()->m_aItemAmmo[7] = pMsg->m_Item8Ammo;
+		CustomStuff()->m_aItemAmmo[8] = pMsg->m_Item9Ammo;
+		CustomStuff()->m_aItemAmmo[9] = pMsg->m_Item10Ammo;
+		CustomStuff()->m_aItemAmmo[10] = pMsg->m_Item11Ammo;
+		CustomStuff()->m_aItemAmmo[11] = pMsg->m_Item12Ammo;
 		CustomStuff()->m_Gold = pMsg->m_Gold;
 	}
 	else if(MsgId == NETMSGTYPE_SV_SOUNDGLOBAL)
@@ -935,6 +950,14 @@ void CGameClient::ProcessEvents()
 			//m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_METAL_HIT, 1.0f, vec2(ev->m_X, ev->m_Y));
 		}
 			
+		if(Item.m_Type == NETEVENTTYPE_HITCONFIRM)
+		{
+			CNetEvent_HitConfirm *pEvent = (CNetEvent_HitConfirm *)pData;
+			CAttackSource Source;
+			if(CWeaponCatalog::TryAttackSourceFromProtocol(pEvent->m_SourceKind, pEvent->m_SourceType, pEvent->m_WeaponDefinitionId, pEvent->m_WeaponLevel, &Source))
+				m_pHud->OnHitConfirm(vec2(pEvent->m_X, pEvent->m_Y), pEvent->m_Damage, pEvent->m_TargetType, pEvent->m_Killed != 0);
+		}
+
 		if(Item.m_Type == NETEVENTTYPE_DAMAGEIND)
 		{
 			CNetEvent_DamageInd *ev = (CNetEvent_DamageInd *)pData;
@@ -968,16 +991,14 @@ void CGameClient::ProcessEvents()
 				break;
 			g_GameClient.m_pEffects->Explosion(vec2(ev->m_X, ev->m_Y), Source);
 			
-			// todo: readd camera shake
-			float d = distance(CustomStuff()->m_LocalPos, vec2(ev->m_X, ev->m_Y));
-			float s = Combat.m_ExplosionSize;
+			const float d = distance(CustomStuff()->m_LocalPos, vec2(ev->m_X, ev->m_Y));
+			const float s = Combat.m_ExplosionSize;
 			
-			if (d < s)
+			if(d < s && s > 0.0f)
 			{
-				float a = Visual.m_ScreenshakeAmount;
-				
-				if (a > 0)
-					CustomStuff()->SetScreenshake(a * (0.5f + (s-d)*0.5f));
+				const float Falloff = 1.0f - d / s;
+				if(Visual.m_ScreenshakeAmount > 0.0f)
+					CustomStuff()->SetScreenshake(Visual.m_ScreenshakeAmount * Falloff, g_Config.m_ClHitFeedback / 100.0f);
 			}
 		}
 		else if(Item.m_Type == NETEVENTTYPE_REPAIR)
@@ -1383,19 +1404,19 @@ void CGameClient::OnNewSnapshot()
 	}
 
 	// sort player infos by score
-	mem_copy(m_Snap.m_paInfoByScore, m_Snap.m_paPlayerInfos, sizeof(m_Snap.m_paInfoByScore));
-	for(int k = 0; k < MAX_CLIENTS-1; k++) // ffs, bubblesort
+	int NumPlayerInfos = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		for(int i = 0; i < MAX_CLIENTS-k-1; i++)
-		{
-			if(m_Snap.m_paInfoByScore[i+1] && (!m_Snap.m_paInfoByScore[i] || m_Snap.m_paInfoByScore[i]->m_Score < m_Snap.m_paInfoByScore[i+1]->m_Score))
-			{
-				const CNetObj_PlayerInfo *pTmp = m_Snap.m_paInfoByScore[i];
-				m_Snap.m_paInfoByScore[i] = m_Snap.m_paInfoByScore[i+1];
-				m_Snap.m_paInfoByScore[i+1] = pTmp;
-			}
-		}
+		if(m_Snap.m_paPlayerInfos[i])
+			m_Snap.m_paInfoByScore[NumPlayerInfos++] = m_Snap.m_paPlayerInfos[i];
 	}
+	std::sort(m_Snap.m_paInfoByScore, m_Snap.m_paInfoByScore + NumPlayerInfos,
+		[](const CNetObj_PlayerInfo *pLeft, const CNetObj_PlayerInfo *pRight) {
+			if(pLeft->m_Score != pRight->m_Score)
+				return pLeft->m_Score > pRight->m_Score;
+			return pLeft->m_ClientID < pRight->m_ClientID;
+		});
+	mem_zero(m_Snap.m_paInfoByScore + NumPlayerInfos, (MAX_CLIENTS - NumPlayerInfos) * sizeof(m_Snap.m_paInfoByScore[0]));
 	// sort player infos by team
 	int Teams[3] = { TEAM_RED, TEAM_BLUE, TEAM_SPECTATORS };
 	int Index = 0;
@@ -1631,12 +1652,54 @@ void CGameClient::OnPredict()
 			// player events
 			if(HasLocalClient && World.m_apCharacters[LocalClientID])
 			{
-				vec2 Pos = World.m_apCharacters[LocalClientID]->m_Pos;
-				int Events = World.m_apCharacters[LocalClientID]->m_TriggeredEvents;
+				CCharacterCore *pCore = World.m_apCharacters[LocalClientID];
+				vec2 Pos = pCore->m_Pos;
+				int Events = pCore->m_TriggeredEvents;
 				if(Events&COREEVENT_GROUND_JUMP) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_PLAYER_JUMP, 1.0f, Pos);
 
 				if(Events&COREEVENT_HOOK_ATTACH_GROUND) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_HOOK_ATTACH_GROUND, 1.0f, Pos);
+				if(Events&COREEVENT_HOOK_ATTACH_PLAYER) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_HOOK_ATTACH_PLAYER, 1.0f, Pos);
 				if(Events&COREEVENT_HOOK_HIT_NOHOOK) g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_HOOK_NOATTACH, 1.0f, Pos);
+
+				const float Feedback = g_Config.m_ClMovementFeedback / 100.0f;
+				if(Feedback > 0.0f)
+				{
+					if(Events & COREEVENT_GROUND_JUMP)
+					{
+						g_GameClient.m_pEffects->MovementDust(Pos + vec2(0, 18), vec2(-pCore->m_Vel.x * 8.0f, 0), Feedback);
+						CustomStuff()->AddCameraImpulse(vec2(0, 0.65f), 0.0f, Feedback);
+					}
+					if(Events & COREEVENT_WALL_JUMP)
+					{
+						g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_PLAYER_JUMP, 0.7f * Feedback, Pos);
+						g_GameClient.m_pEffects->MovementDust(Pos + vec2(0, 8), -pCore->m_Vel * 5.0f, Feedback);
+						CustomStuff()->AddCameraImpulse(-normalize(pCore->m_Vel) * 0.8f, 0.0f, Feedback);
+					}
+					if(Events & COREEVENT_LAND)
+					{
+						g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_BODY_LAND, (0.35f + 0.45f * Feedback) * Feedback, Pos);
+						g_GameClient.m_pEffects->MovementDust(Pos + vec2(0, 18), vec2(-pCore->m_Vel.x * 5.0f, 0), Feedback);
+						if(pCore->m_LandingVelocity > 8.0f)
+						{
+							const float LandingKick = min(2.5f, (pCore->m_LandingVelocity - 8.0f) * 0.45f);
+							CustomStuff()->AddCameraImpulse(vec2(0, -LandingKick), LandingKick * 0.08f, Feedback);
+						}
+					}
+					if(Events & (COREEVENT_SLIDE_START | COREEVENT_ROLL_START))
+					{
+						const float RollScale = Events & COREEVENT_ROLL_START ? 0.9f : 1.2f;
+						const float Direction = pCore->m_Vel.x < 0.0f ? -1.0f : 1.0f;
+						g_GameClient.m_pSounds->PlayAndRecord(CSounds::CHN_WORLD, SOUND_PLAYER_SKID, 0.45f * Feedback, Pos);
+						g_GameClient.m_pEffects->MovementDust(Pos + vec2(-Direction * 8.0f, 18), vec2(-pCore->m_Vel.x * 9.0f, 0), Feedback);
+						CustomStuff()->AddCameraImpulse(vec2(-Direction * RollScale, 0), 0.0f, Feedback);
+					}
+					if(Events & COREEVENT_HOOK_HIT)
+					{
+						const int SparkCount = Feedback >= 0.8f ? 2 : 1;
+						for(int i = 0; i < SparkCount; i++)
+							g_GameClient.m_pEffects->HitSpark(pCore->m_HookPos, vec4(0.72f, 0.82f, 0.88f, 0.8f));
+					}
+				}
 
 				/*if(events&COREEVENT_AIR_JUMP)
 				{

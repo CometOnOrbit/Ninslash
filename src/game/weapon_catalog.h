@@ -167,6 +167,7 @@ struct CAttackSource
 	int m_Owner = -1;
 	int m_Type = 0;
 	CWeaponSpec m_Weapon;
+	bool m_HitFeedback = true;
 
 	static CAttackSource PlayerWeapon(int Owner, CWeaponSpec Weapon);
 	static CAttackSource Droid(int Owner, int DroidType, bool OnDeath = false);

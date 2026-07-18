@@ -162,12 +162,11 @@ public:
 	bool m_FlipBuilding;
 	
 	float m_CameraShake;
+	vec2 m_CameraKick;
 	
-	void SetScreenshake(float Amount)
-	{
-		if (m_CameraShake < Amount)
-			m_CameraShake = Amount;
-	}
+	void AddCameraImpulse(vec2 Kick, float Shake, float FeedbackStrength);
+	vec2 CameraOffset(float FrameTime);
+	void SetScreenshake(float Amount, float FeedbackStrength) { AddCameraImpulse(vec2(0, 0), Amount, FeedbackStrength); }
 	
 	
 	bool m_LocalAlive;
@@ -177,6 +176,7 @@ public:
 	
 	bool m_Inventory;
 	CWeaponSpec m_aItem[12];
+	int m_aItemAmmo[12];
 	int m_Gold;
 	
 	bool m_BuildMode;

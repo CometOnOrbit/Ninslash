@@ -92,7 +92,9 @@ void CBossSplitter::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source,
 	if (length(m_Vel) > 20.0f)
 		m_Vel = normalize(m_Vel)*20.0f;
 	
+	const int HealthBefore = m_Health;
 	m_Health -= Dmg;
+	GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
 	
 	
 	// check for death

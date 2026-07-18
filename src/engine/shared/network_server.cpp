@@ -81,17 +81,20 @@ int CNetServer::Drop(int ClientID, const char *pReason)
 
 int CNetServer::Update()
 {
-	int64 Now = time_get();
 	for(int i = 0; i < MaxClients(); i++)
 	{
-		m_aSlots[i].m_Connection.Update();
+		CNetConnection &Connection = m_aSlots[i].m_Connection;
+		if(Connection.State() == NET_CONNSTATE_OFFLINE)
+			continue;
+		Connection.Update();
 			
-		if(m_aSlots[i].m_Connection.State() == NET_CONNSTATE_ERROR)
+		if(Connection.State() == NET_CONNSTATE_ERROR)
 		{
-			if(Now - m_aSlots[i].m_Connection.ConnectTime() < time_freq() && NetBan())
+			const int64 Now = time_get();
+			if(Now - Connection.ConnectTime() < time_freq() && NetBan())
 				NetBan()->BanAddr(ClientAddr(i), 2, "Stressing network");
 			else
-				Drop(i, m_aSlots[i].m_Connection.ErrorString());
+				Drop(i, Connection.ErrorString());
 		}
 	}
 

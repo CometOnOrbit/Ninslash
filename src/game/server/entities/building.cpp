@@ -289,9 +289,7 @@ void CBuilding::Move()
 	if(GameServer()->Collision()->CheckPoint(m_Pos.x-m_BoxSize.x/2, m_Pos.y+m_BoxSize.y/2+1))
 		Grounded = true;
 		
-	int OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x-12, m_Pos.y+m_BoxSize.y/2+1);
-	if (OnForceTile == 0)
-		OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x+12, m_Pos.y+m_BoxSize.y/2+1);
+	const int OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x-12, m_Pos.x+12, m_Pos.y+m_BoxSize.y/2+1);
 
 	if (Grounded)
 	{
@@ -605,6 +603,7 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 	//if (Dmg == 0)
 	//	return;
 	
+	const int LifeBefore = m_Life;
 	m_Life -= Dmg;
 	
 	if (m_Life > m_MaxLife)
@@ -619,6 +618,7 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 	
 	if (Damage > 0)
 	{
+		GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, LifeBefore), HIT_TARGET_METAL, m_Life <= 0);
 		if (Dmg < 200)
 			GameServer()->CreateDamageInd(DmgPos, frandom()*pi, -Dmg, -1);
 		else

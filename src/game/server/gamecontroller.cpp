@@ -2129,6 +2129,9 @@ void IGameController::Snap(int SnappingClient)
 			
 	pGameInfoObj->m_RoundNum = g_Config.m_SvRoundsPerMap;
 	pGameInfoObj->m_RoundCurrent = m_RoundCount+1;
+	pGameInfoObj->m_ForgeMode = g_Config.m_SvForgeMode;
+	pGameInfoObj->m_ForgeBaseCost = g_Config.m_SvForgeBaseCost;
+	pGameInfoObj->m_ForgeLevelCost = g_Config.m_SvForgeLevelCost;
 }
 
 int IGameController::GetAutoTeam(int NotThisID)

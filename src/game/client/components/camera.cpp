@@ -110,8 +110,7 @@ void CCamera::OnRender()
 		else
 		{
 			TargetCenter = m_pClient->m_LocalCharacterPos + CameraOffset;
-			if(CustomStuff()->m_CameraShake > 0.0f)
-				TargetCenter += vec2(frandom()-frandom(), frandom()-frandom()) * CustomStuff()->m_CameraShake;
+			TargetCenter += CustomStuff()->CameraOffset(Client()->RenderFrameTime());
 		}
 
 		m_TargetCenter = TargetCenter;

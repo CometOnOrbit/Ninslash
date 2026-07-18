@@ -16,6 +16,7 @@
 
 #include <game/weapons.h>
 #include <game/weapon_catalog.h>
+#include <game/forge.h>
 #include <game/client/components/flow.h>
 #include <game/client/components/effects.h>
 #include <game/client/components/sounds.h>
@@ -140,6 +141,22 @@ void CBuildings::RenderScreen(const struct CNetObj_Building *pCurrent)
 		default: c = vec4(0.5f, 0.7f, 1.0f, 0.75f); break;
 	}
 	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y-96), c, vec2(500, 320));
+
+	const CNetObj_GameInfo *pGameInfo = m_pClient->m_Snap.m_pGameInfoObj;
+	const vec2 ScreenPos(pCurrent->m_X, pCurrent->m_Y);
+	if(pGameInfo && pGameInfo->m_ForgeMode == 2 && CustomStuff()->m_LocalAlive &&
+		distance(CustomStuff()->m_LocalPos, ScreenPos) <= FORGE_SCREEN_RANGE)
+	{
+		char aInventoryKeys[64];
+		m_pClient->m_pBinds->GetKeys("+inventory", aInventoryKeys, sizeof(aInventoryKeys));
+		char aHint[128];
+		str_format(aHint, sizeof(aHint), Localize("Press %s to open forge"),  aInventoryKeys[0] ? aInventoryKeys : "?");
+		const float FontSize = 18.0f;
+		const float TextWidth = TextRender()->TextWidth(0, FontSize, aHint, -1);
+		TextRender()->TextColor(0.2f, 0.9f, 0.35f, 1.0f);
+		TextRender()->Text(0, ScreenPos.x - TextWidth * 0.5f, ScreenPos.y - 154.0f, FontSize, aHint, -1);
+		TextRender()->TextColor(1, 1, 1, 1);
+	}
 }
 
 void CBuildings::RenderShop(const CNetObj_Shop *pCurrent)

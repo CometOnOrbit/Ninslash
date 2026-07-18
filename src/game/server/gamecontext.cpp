@@ -13,6 +13,7 @@
 #include <game/collision.h>
 #include <game/gamecore.h> 
 #include <game/weapon_catalog.h>
+#include <game/forge.h>
 #include "gamemodes/dm.h"
 #include "gamemodes/cs.h"
 #include "gamemodes/ball.h"
@@ -231,6 +232,37 @@ void CGameContext::CreateDamageInd(vec2 Pos, float Angle, int Damage, int Client
 		pEvent->m_Damage = Damage;
 		pEvent->m_ClientID = ClientID;
 	}
+}
+
+void CGameContext::CreateHitConfirm(vec2 Pos, const CAttackSource &Source, int Damage, int TargetType, bool Killed)
+{
+	if(Source.m_Kind != EAttackSourceKind::PlayerWeapon || !Source.m_HitFeedback || Damage <= 0)
+		return;
+
+	const int Owner = Source.m_Owner;
+	if(Owner < 0 || Owner >= MAX_CLIENTS || !m_apPlayers[Owner] || m_apPlayers[Owner]->m_IsBot)
+		return;
+
+	int64 Mask = CmaskOne(Owner);
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(m_apPlayers[i] && m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS && m_apPlayers[i]->m_SpectatorID == Owner)
+			Mask |= CmaskOne(i);
+	}
+
+	CNetEvent_HitConfirm *pEvent = (CNetEvent_HitConfirm *)m_Events.Create(NETEVENTTYPE_HITCONFIRM, sizeof(CNetEvent_HitConfirm), Mask);
+	if(!pEvent)
+		return;
+
+	pEvent->m_X = (int)Pos.x;
+	pEvent->m_Y = (int)Pos.y;
+	pEvent->m_Damage = Damage;
+	pEvent->m_TargetType = clamp(TargetType, 0, NUM_HIT_TARGETS - 1);
+	pEvent->m_Killed = Killed ? 1 : 0;
+	pEvent->m_SourceKind = static_cast<int>(Source.m_Kind);
+	pEvent->m_SourceType = Source.m_Type;
+	pEvent->m_WeaponDefinitionId = static_cast<int>(Source.m_Weapon.m_DefinitionId);
+	pEvent->m_WeaponLevel = Source.m_Weapon.m_Level;
 }
 
 void CGameContext::CreateRepairInd(vec2 Pos)
@@ -1591,14 +1623,19 @@ void CGameContext::CheckPureTuning()
 	if(!m_pController)
 		return;
 
-	if(	str_comp(m_pController->m_pGameType, "DM")==0 ||
-		str_comp(m_pController->m_pGameType, "TDM")==0 ||
-		str_comp(m_pController->m_pGameType, "BALL")==0 ||
-		str_comp(m_pController->m_pGameType, "DEF")==0 ||
-		str_comp(m_pController->m_pGameType, "INF")==0 ||
-		str_comp(m_pController->m_pGameType, "INV")==0 ||
-		str_comp(m_pController->m_pGameType, "GUN")==0 ||
-		str_comp(m_pController->m_pGameType, "CTF")==0)
+	bool Pure = false;
+	switch(m_pController->m_pGameType[0])
+	{
+	case 'B': Pure = str_comp(m_pController->m_pGameType, "BALL") == 0; break;
+	case 'C': Pure = str_comp(m_pController->m_pGameType, "CTF") == 0; break;
+	case 'D': Pure = str_comp(m_pController->m_pGameType, "DM") == 0 || str_comp(m_pController->m_pGameType, "DEF") == 0; break;
+	case 'G': Pure = str_comp(m_pController->m_pGameType, "GUN") == 0; break;
+	case 'I': Pure = str_comp(m_pController->m_pGameType, "INF") == 0 || str_comp(m_pController->m_pGameType, "INV") == 0; break;
+	case 'T': Pure = str_comp(m_pController->m_pGameType, "TDM") == 0; break;
+	default: break;
+	}
+
+	if(Pure)
 	{
 		CTuningParams p;
 		if(mem_comp(&p, &m_Tuning, sizeof(p)) != 0)
@@ -2564,8 +2601,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				case INVENTORYACTION_ROLL: pPlayer->InventoryRoll(pMsg->m_Slot); break;
 				case INVENTORYACTION_DROP: pPlayer->DropItem(pMsg->m_Slot, vec2(pMsg->m_Item1, pMsg->m_Item2)); break;
 				case INVENTORYACTION_SWAP: pPlayer->SwapItem(pMsg->m_Item1, pMsg->m_Item2); break;
-				case INVENTORYACTION_COMBINE: pPlayer->CombineItem(pMsg->m_Item1, pMsg->m_Item2); break;
-				case INVENTORYACTION_TAKEPART: pPlayer->TakePart(pMsg->m_Item1, pMsg->m_Slot, pMsg->m_Item2); break;
+				case INVENTORYACTION_COMBINE: pPlayer->CombineItem(pMsg->m_Item1, pMsg->m_Item2, pMsg->m_Slot); break;
+				case INVENTORYACTION_TAKEPART: break;
 				case INVENTORYACTION_SHOP: Shop(pPlayer, pMsg->m_Slot); break;
 				default: return;
 			};
@@ -3213,6 +3250,7 @@ void CGameContext::RestoreEntity(int ObjType, int Type, int Subtype, int x, int 
 void CGameContext::OnInit(/*class IKernel *pKernel*/)
 {
 	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
+	dbg_assert(CForge::Validate(), "forge recipe validation failed");
 	m_pServer = Kernel()->RequestInterface<IServer>();
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>(); // MapGen
