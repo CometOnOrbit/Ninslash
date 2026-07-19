@@ -136,6 +136,15 @@ float CWeaponCatalog::CapacitorRangeScale(int Charge)
 	return CAPACITOR_MIN_RANGE_SCALE + CAPACITOR_RANGE_CHARGE_SCALE * ChargeRatio;
 }
 
+int CWeaponCatalog::CapacitorPenetration(int Charge)
+{
+	if(Charge >= CAPACITOR_MAX_CHARGE)
+		return 2;
+	if(Charge >= CAPACITOR_MAX_CHARGE / 2)
+		return 1;
+	return 0;
+}
+
 bool CWeaponCatalog::TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec)
 {
 	if(DefinitionId < 0 || Level < 0 || Level > WEAPON_SPEC_MAX_LEVEL)
@@ -165,7 +174,9 @@ bool CWeaponCatalog::Validate()
 		TryFromProtocol(ToInt(WeaponDefinitionId::ModularLast) + 1, 0, &InvalidSpec) ||
 		TryFromProtocol(ToInt(WeaponDefinitionId::StaticFirst), WEAPON_SPEC_MAX_LEVEL + 1, &InvalidSpec) ||
 		CapacitorDamageScale(-1) != 0.25f || CapacitorDamageScale(0) != 0.25f || CapacitorDamageScale(50) != 0.625f || CapacitorDamageScale(100) != 1.0f || CapacitorDamageScale(101) != 1.0f ||
-		CapacitorRangeScale(-1) != 0.60f || CapacitorRangeScale(0) != 0.60f || CapacitorRangeScale(50) != 0.80f || CapacitorRangeScale(100) != 1.0f || CapacitorRangeScale(101) != 1.0f)
+		CapacitorRangeScale(-1) != 0.60f || CapacitorRangeScale(0) != 0.60f || CapacitorRangeScale(50) != 0.80f || CapacitorRangeScale(100) != 1.0f || CapacitorRangeScale(101) != 1.0f ||
+		CapacitorPenetration(-1) != 0 || CapacitorPenetration(0) != 0 || CapacitorPenetration(49) != 0 ||
+		CapacitorPenetration(50) != 1 || CapacitorPenetration(99) != 1 || CapacitorPenetration(100) != 2 || CapacitorPenetration(101) != 2)
 		return false;
 
 	bool aSeenDefinitions[WEAPON_DEFINITION_COUNT] = {};
@@ -217,7 +228,7 @@ bool CWeaponCatalog::Validate()
 		!TryResolve(Modular(PART1_BASE2, PART2_CAPACITOR), &ExplosiveCapacitor) ||
 		ExplosiveCapacitor.m_Combat.m_LaserWeapon || !ExplosiveCapacitor.m_Combat.m_ExplosiveProjectile ||
 		!TryResolve(Modular(PART1_BASE5, PART2_CAPACITOR), &Capacitor) ||
-		Capacitor.m_Combat.m_FiringType != WFT_CHARGE || Capacitor.m_Combat.m_ProjectileDamage != 30.0f ||
+		Capacitor.m_Combat.m_FiringType != WFT_CHARGE || Capacitor.m_Combat.m_ProjectileDamage != 40.0f ||
 		Capacitor.m_Combat.m_MaxAmmo != 9 || !Capacitor.m_Combat.m_LaserWeapon || Capacitor.m_Combat.m_LaserRange != 900 || Capacitor.m_Combat.m_ValidForTurret ||
 		!TryResolve(Modular(PART1_MELEE, PART2_MELEE5, 4), &LightBlade) ||
 		LightBlade.m_Combat.m_FireRate != 220.0f || LightBlade.m_Combat.m_ProjectileDamage != 32.0f ||

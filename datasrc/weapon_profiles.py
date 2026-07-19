@@ -2120,7 +2120,8 @@ for _part2 in ('BARREL1', 'BARREL2', 'BARREL3', 'BARREL4', 'CHARGE'):
 	))
 
 # CAPACITOR turns every chassis into a finite-ammo charge weapon while keeping
-# its native projectile/laser behavior. Runtime charge scales damage and range.
+# its native projectile/laser behavior. Runtime charge scales damage, range and
+# enemy penetration.
 for _part1 in ('BASE1', 'BASE2', 'BASE3', 'BASE4', 'BASE5'):
 	_source = PLAYER_PROFILES[('modular', _part1, 'BARREL1')]
 	modular(_part1, 'CAPACITOR', _derive_profile(_source,
@@ -2131,7 +2132,7 @@ for _part1 in ('BASE1', 'BASE2', 'BASE3', 'BASE4', 'BASE5'):
 		uses_ammo=True,
 		shot_spread=1,
 		projectile_spread=0.0,
-		projectile_damage=_scale_curve(_source.values['projectile_damage'], 1.5),
+		projectile_damage=_scale_curve(_source.values['projectile_damage'], 2.0),
 		valid_for_turret=False,
 		aimline=True,
 		laser_charge=0,

@@ -17,7 +17,7 @@ constexpr float PROJECTILE_VELOCITY_NETWORK_SCALE = 10.0f;
 }
 
 CProjectile::CProjectile(CGameWorld *pGameWorld, const CAttackSource &Source, vec2 Pos, vec2 Dir, vec2 Vel, int Span,
-		int Damage, float Force, int SoundImpact, float ExplosionDamageScale)
+		int Damage, float Force, int SoundImpact, float ExplosionDamageScale, int Penetration)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_PROJECTILE)
 {
 	m_Source = Source;
@@ -31,6 +31,9 @@ CProjectile::CProjectile(CGameWorld *pGameWorld, const CAttackSource &Source, ve
 	m_SoundImpact = SoundImpact;
 	m_StartTick = Server()->Tick();
 	m_Bounces = 0;
+	m_RemainingPenetrations = max(0, Penetration);
+	m_pPenetratedCharacter = NULL;
+	m_pPenetratedDroid = NULL;
 	m_Vel2 = Vel*30.0f;
 
 	m_ElectroTimer = 0;
@@ -142,7 +145,7 @@ void CProjectile::Tick()
 	// Reflection and ordinary character hits share the same candidate list.
 	// Resolve both in one pass; reflection keeps its original priority.
 	TargetChr = GameServer()->m_World.IntersectCharacter(PrevPos, CurPos, r, CurPos,
-		OwnerChar, false, &ReflectChr, r * 0.8f);
+		OwnerChar, false, &ReflectChr, r * 0.8f, m_pPenetratedCharacter);
 	
 	int Team = m_Owner;
 	
@@ -163,7 +166,7 @@ void CProjectile::Tick()
 	
 	CDroid *TargetMonster = NULL;
 	
-	TargetMonster = GameServer()->m_World.IntersectWalker(PrevPos, CurPos, r, CurPos);
+	TargetMonster = GameServer()->m_World.IntersectWalker(PrevPos, CurPos, r, CurPos, m_pPenetratedDroid);
 	
 	if (m_Owner == NEUTRAL_BASE)
 		TargetMonster = NULL;
@@ -210,8 +213,12 @@ void CProjectile::Tick()
 			GameServer()->DamageBlocks(CurPos+vec2(4, 4), m_Damage, 1);
 	}
 	
-	if(Ball || TargetMonster || TargetBuilding || TargetChr || Collide || m_LifeSpan < 0 || Shielded || GameLayerClipped(CurPos))
+	const bool Clipped = GameLayerClipped(CurPos);
+	if(Ball || TargetMonster || TargetBuilding || TargetChr || Collide || m_LifeSpan < 0 || Shielded || Clipped)
 	{
+		const bool PenetratesTarget = m_RemainingPenetrations > 0 && (TargetChr || TargetMonster) &&
+			!Ball && !TargetBuilding && !Collide && m_LifeSpan >= 0 && !Shielded && !Clipped;
+
 		if(TargetChr)
 		{
 			vec2 Force = m_Direction * max(0.001f, m_Force);
@@ -260,9 +267,18 @@ void CProjectile::Tick()
 			Ball->AddForce(Force);
 			GameServer()->m_pController->m_LastBallToucher = m_Owner;
 		}
+
+		if(PenetratesTarget)
+		{
+			--m_RemainingPenetrations;
+			if(TargetChr)
+				m_pPenetratedCharacter = TargetChr;
+			if(TargetMonster)
+				m_pPenetratedDroid = TargetMonster;
+		}
 		
 		// cluster grenades
-		if (m_StaticType == SW_CLUSTER && m_WeaponLevel < WEAPON_CLUSTER_FRAGMENT_LEVEL)
+		if (!PenetratesTarget && m_StaticType == SW_CLUSTER && m_WeaponLevel < WEAPON_CLUSTER_FRAGMENT_LEVEL)
 		{
 			const float LevelCharge = m_WeaponLevel / float(max(1, m_WeaponMaxLevel));
 			for (int i = 0; i < 1 + LevelCharge * 2.0f; i++)
@@ -271,12 +287,15 @@ void CProjectile::Tick()
 			}
 		}
 		
-		if (m_LifeSpan < 0)
-			GameServer()->CreateExplosion(PrevPos, m_Source, m_ExplosionDamageScale);
-		else if (m_Explosive)
-			GameServer()->CreateExplosion(CurPos, m_Source, m_ExplosionDamageScale);
-		
-		GameServer()->m_World.DestroyEntity(this);
+		if(!PenetratesTarget)
+		{
+			if (m_LifeSpan < 0)
+				GameServer()->CreateExplosion(PrevPos, m_Source, m_ExplosionDamageScale);
+			else if (m_Explosive)
+				GameServer()->CreateExplosion(CurPos, m_Source, m_ExplosionDamageScale);
+
+			GameServer()->m_World.DestroyEntity(this);
+		}
 	}
 	
 	// fluid kills the projectile

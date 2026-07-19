@@ -835,6 +835,7 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 	const bool Capacitor = IsModular && Part2 == PART2_CAPACITOR;
 	const float CapacitorDamage = Capacitor ? CWeaponCatalog::CapacitorDamageScale(Charge) : 1.0f;
 	const float CapacitorRange = Capacitor ? CWeaponCatalog::CapacitorRangeScale(Charge) : 1.0f;
+	const int CapacitorPenetration = Capacitor ? CWeaponCatalog::CapacitorPenetration(Charge) : 0;
 	if(Capacitor && !Combat.m_LaserWeapon)
 		BulletLife *= CapacitorRange;
 	if(IsStatic && StaticType == SW_CLUSTER && Source.m_Weapon.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
@@ -861,7 +862,7 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 			Angle -= (ShotSpread-1)/2.0f * pi/180 * 4;
 			Angle += i * pi/180 * 4;
 			Angle += (frandom()-frandom())*BulletSpread;
-			new CLaser(&m_World, Pos, vec2(cosf(Angle), sinf(Angle)), LaserRange, Source, LaserDamage, LaserCharge);
+			new CLaser(&m_World, Pos, vec2(cosf(Angle), sinf(Angle)), LaserRange, Source, LaserDamage, LaserCharge, CapacitorPenetration);
 		}
 		return;
 	}
@@ -886,7 +887,8 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 			Damage * Dmg * CapacitorDamage,
 			Knockback,
 			HitSound,
-			CapacitorDamage);
+			CapacitorDamage,
+			CapacitorPenetration);
 			
 		pProj->m_OwnerBuilding = OwnerBuilding;
 

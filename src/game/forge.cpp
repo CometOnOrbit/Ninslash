@@ -138,6 +138,7 @@ CForgeRecipe CForge::Resolve(const CWeaponSpec &Target, const CWeaponSpec &Mater
 	return Recipe;
 }
 
+// TODO: rewrite it
 bool CForge::Validate()
 {
 	const CWeaponSpec Ranged = CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL1, 3);
