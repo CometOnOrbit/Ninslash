@@ -18,10 +18,10 @@ constexpr float CAPACITOR_MAX_CHARGE = 100.0f;
 
 bool IsValidPartCombination(int Part1, int Part2)
 {
-	if(Part1 < PART1_BASE1 || Part1 > PART1_SPIN || Part2 < PART2_BARREL1 || Part2 > PART2_MELEE5)
+	if(Part1 < PART1_BASE1 || Part1 > PART1_SPIN || Part2 < PART2_BARREL1 || Part2 > PART2_MELEE6)
 		return false;
-	if(Part1 <= PART1_BASE5)
-		return Part2 <= PART2_CAPACITOR;
+	if(Part1 <= PART1_BASE6)
+		return Part2 <= PART2_RAIL;
 	return Part2 >= PART2_MELEE1;
 }
 
@@ -29,7 +29,7 @@ int DenseDefinitionIndex(const CWeaponDefinition &Definition)
 {
 	if(Definition.m_Kind == EWeaponDefinitionKind::Static)
 		return Definition.m_StaticType;
-	if(Definition.m_Part1 <= PART1_BASE5)
+	if(Definition.m_Part1 <= PART1_BASE6)
 		return NUM_STATIC_WEAPONS +
 			(Definition.m_Part1 - PART1_BASE1) * WEAPON_RANGED_PART2_COUNT +
 			Definition.m_Part2 - PART2_BARREL1;
@@ -145,6 +145,21 @@ int CWeaponCatalog::CapacitorPenetration(int Charge)
 	return 0;
 }
 
+int CWeaponCatalog::ProjectilePenetration(int Part2, int Charge)
+{
+	if(Part2 == PART2_CAPACITOR)
+		return CapacitorPenetration(Charge);
+	if(Part2 == PART2_RAIL)
+		return WEAPON_INFINITE_PENETRATION;
+	return 0;
+}
+
+float CWeaponCatalog::ChargedBladePowerScale(int Charge)
+{
+	const float ChargeRatio = Charge <= 0 ? 0.0f : (Charge >= CAPACITOR_MAX_CHARGE ? 1.0f : Charge / CAPACITOR_MAX_CHARGE);
+	return 0.5f + 1.5f * ChargeRatio;
+}
+
 bool CWeaponCatalog::TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec)
 {
 	if(DefinitionId < 0 || Level < 0 || Level > WEAPON_SPEC_MAX_LEVEL)
@@ -176,7 +191,11 @@ bool CWeaponCatalog::Validate()
 		CapacitorDamageScale(-1) != 0.25f || CapacitorDamageScale(0) != 0.25f || CapacitorDamageScale(50) != 0.625f || CapacitorDamageScale(100) != 1.0f || CapacitorDamageScale(101) != 1.0f ||
 		CapacitorRangeScale(-1) != 0.60f || CapacitorRangeScale(0) != 0.60f || CapacitorRangeScale(50) != 0.80f || CapacitorRangeScale(100) != 1.0f || CapacitorRangeScale(101) != 1.0f ||
 		CapacitorPenetration(-1) != 0 || CapacitorPenetration(0) != 0 || CapacitorPenetration(49) != 0 ||
-		CapacitorPenetration(50) != 1 || CapacitorPenetration(99) != 1 || CapacitorPenetration(100) != 2 || CapacitorPenetration(101) != 2)
+		CapacitorPenetration(50) != 1 || CapacitorPenetration(99) != 1 || CapacitorPenetration(100) != 2 || CapacitorPenetration(101) != 2 ||
+		ProjectilePenetration(PART2_BARREL1, 100) != 0 || ProjectilePenetration(PART2_CAPACITOR, 100) != 2 ||
+		ProjectilePenetration(PART2_RAIL, 0) != WEAPON_INFINITE_PENETRATION || ProjectilePenetration(PART2_MELEE1, 100) != 0 ||
+		ChargedBladePowerScale(-1) != 0.5f || ChargedBladePowerScale(0) != 0.5f || ChargedBladePowerScale(50) != 1.25f ||
+		ChargedBladePowerScale(100) != 2.0f || ChargedBladePowerScale(101) != 2.0f)
 		return false;
 
 	bool aSeenDefinitions[WEAPON_DEFINITION_COUNT] = {};
@@ -218,8 +237,15 @@ bool CWeaponCatalog::Validate()
 	CResolvedWeaponProfile ProjectileCapacitor;
 	CResolvedWeaponProfile ExplosiveCapacitor;
 	CResolvedWeaponProfile Capacitor;
+	CResolvedWeaponProfile Ricochet;
+	CResolvedWeaponProfile RicochetLevel4;
+	CResolvedWeaponProfile RicochetLevel15;
+	CResolvedWeaponProfile Rail;
+	CResolvedWeaponProfile LaserRail;
 	CResolvedWeaponProfile LightBlade;
 	CResolvedWeaponProfile SpinLightBlade;
+	CResolvedWeaponProfile ChargedBlade;
+	CResolvedWeaponProfile SpinChargedBlade;
 	if(!TryResolve(Modular(PART1_BASE5, PART2_BARREL1), &Base5) ||
 		Base5.m_Combat.m_ProjectileDamage != 20.0f || Base5.m_Combat.m_MaxAmmo != 16 ||
 		!Base5.m_Combat.m_LaserWeapon || !Base5.m_Combat.m_Aimline || !Base5.m_Combat.m_ValidForTurret ||
@@ -230,12 +256,26 @@ bool CWeaponCatalog::Validate()
 		!TryResolve(Modular(PART1_BASE5, PART2_CAPACITOR), &Capacitor) ||
 		Capacitor.m_Combat.m_FiringType != WFT_CHARGE || Capacitor.m_Combat.m_ProjectileDamage != 40.0f ||
 		Capacitor.m_Combat.m_MaxAmmo != 9 || !Capacitor.m_Combat.m_LaserWeapon || Capacitor.m_Combat.m_LaserRange != 900 || Capacitor.m_Combat.m_ValidForTurret ||
+		!TryResolve(Modular(PART1_BASE6, PART2_BARREL1), &Ricochet) ||
+		Ricochet.m_Combat.m_MaxAmmo != 20 || Ricochet.m_Combat.m_ProjectileDamage != 15.5999994f ||
+		Ricochet.m_Combat.m_ProjectileSpeed != 1260.0f || Ricochet.m_Combat.m_ProjectileBounces != 3 ||
+		Ricochet.m_Visual.m_ProjectileSprite != 13.0f || !Ricochet.m_Combat.m_ValidForTurret ||
+		!TryResolve(Modular(PART1_BASE6, PART2_BARREL1, 4), &RicochetLevel4) || RicochetLevel4.m_Combat.m_ProjectileBounces != 7 ||
+		!TryResolve(Modular(PART1_BASE6, PART2_BARREL1, 15), &RicochetLevel15) || RicochetLevel15.m_Combat.m_ProjectileBounces != 18 ||
+		!TryResolve(Modular(PART1_BASE1, PART2_RAIL), &Rail) || Rail.m_Combat.m_MaxAmmo != 13 ||
+		Rail.m_Combat.m_ProjectileDamage != 23.0f || Rail.m_Combat.m_ProjectileSpeed != 1680.00012f || !Rail.m_Combat.m_Aimline || Rail.m_Combat.m_LaserWeapon ||
+		!TryResolve(Modular(PART1_BASE5, PART2_RAIL), &LaserRail) || LaserRail.m_Combat.m_MaxAmmo != 8 ||
+		LaserRail.m_Combat.m_ProjectileDamage != 23.0f || !LaserRail.m_Combat.m_LaserWeapon || !LaserRail.m_Combat.m_Aimline ||
 		!TryResolve(Modular(PART1_MELEE, PART2_MELEE5, 4), &LightBlade) ||
 		LightBlade.m_Combat.m_FireRate != 220.0f || LightBlade.m_Combat.m_ProjectileDamage != 32.0f ||
 		LightBlade.m_Combat.m_ProjectileKnockback != 5.6f || LightBlade.m_Combat.m_MeleeHitRadius != 76.0f ||
 		!TryResolve(Modular(PART1_SPIN, PART2_MELEE5, 4), &SpinLightBlade) ||
 		SpinLightBlade.m_Combat.m_FireRate != 50.0f || SpinLightBlade.m_Combat.m_ProjectileDamage != 8.0f ||
-		SpinLightBlade.m_Combat.m_ProjectileKnockback != 1.4f || SpinLightBlade.m_Combat.m_MeleeHitRadius != 96.0f)
+		SpinLightBlade.m_Combat.m_ProjectileKnockback != 1.4f || SpinLightBlade.m_Combat.m_MeleeHitRadius != 96.0f ||
+		!TryResolve(Modular(PART1_MELEE, PART2_MELEE6, 4), &ChargedBlade) || ChargedBlade.m_Combat.m_FiringType != WFT_CHARGE ||
+		ChargedBlade.m_Combat.m_FireRate != 320.0f || ChargedBlade.m_Combat.m_ProjectileDamage != 40.0f || ChargedBlade.m_Combat.m_MeleeHitRadius != 80.0f ||
+		!TryResolve(Modular(PART1_SPIN, PART2_MELEE6, 4), &SpinChargedBlade) || SpinChargedBlade.m_Combat.m_FiringType != WFT_HOLD ||
+		SpinChargedBlade.m_Combat.m_FireRate != 60.0f || SpinChargedBlade.m_Combat.m_ProjectileDamage != 11.0f || SpinChargedBlade.m_Combat.m_MeleeHitRadius != 104.0f)
 		return false;
 	for(int Type = 0; Type < WEAPON_DROID_PROFILE_COUNT; ++Type)
 	{

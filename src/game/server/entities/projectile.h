@@ -63,6 +63,7 @@ private:
 	int m_WeaponLevel;
 	int m_WeaponMaxLevel;
 	int m_RemainingPenetrations;
+	bool m_InfinitePenetration;
 	class CCharacter *m_pPenetratedCharacter;
 	class CDroid *m_pPenetratedDroid;
 	

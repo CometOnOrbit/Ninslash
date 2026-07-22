@@ -15,6 +15,7 @@ CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEner
 	m_Dir = Direction;
 	//m_OwnerBuilding = OwnerBuilding;
 	m_Charge = Charge;
+	m_InfinitePenetration = Penetration == WEAPON_INFINITE_PENETRATION;
 	m_RemainingPenetrations = max(0, Penetration);
 	
 	if (m_Charge == -1)
@@ -224,7 +225,7 @@ bool CLaser::HitPenetratingTargets(vec2 From, vec2 To)
 			pIgnoredDroid = pDroid;
 		}
 
-		if(m_RemainingPenetrations <= 0)
+		if(!m_InfinitePenetration && m_RemainingPenetrations <= 0)
 		{
 			m_From = From;
 			m_Pos = At;
@@ -232,7 +233,8 @@ bool CLaser::HitPenetratingTargets(vec2 From, vec2 To)
 			return true;
 		}
 
-		--m_RemainingPenetrations;
+		if(!m_InfinitePenetration)
+			--m_RemainingPenetrations;
 		SearchFrom = At + m_Dir;
 		if(dot(To - SearchFrom, m_Dir) <= 0.0f)
 			return false;
@@ -262,7 +264,7 @@ void CLaser::DoBounce()
 	if(HitScythe(From, To))
 		return;
 
-	const bool Penetrating = m_RemainingPenetrations > 0;
+	const bool Penetrating = m_InfinitePenetration || m_RemainingPenetrations > 0;
 	if(Penetrating)
 	{
 		if(HitPenetratingTargets(From, To))

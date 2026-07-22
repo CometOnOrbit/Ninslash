@@ -10,10 +10,10 @@
 
 constexpr int WEAPON_MODULAR_PART1_COUNT = NUM_PART1;
 constexpr int WEAPON_MODULAR_PART2_COUNT = NUM_PART2;
-constexpr int WEAPON_RANGED_PART1_COUNT = PART1_BASE5 - PART1_BASE1 + 1;
-constexpr int WEAPON_RANGED_PART2_COUNT = PART2_CAPACITOR - PART2_BARREL1 + 1;
+constexpr int WEAPON_RANGED_PART1_COUNT = PART1_BASE6 - PART1_BASE1 + 1;
+constexpr int WEAPON_RANGED_PART2_COUNT = PART2_RAIL - PART2_BARREL1 + 1;
 constexpr int WEAPON_MELEE_PART1_COUNT = PART1_SPIN - PART1_MELEE + 1;
-constexpr int WEAPON_MELEE_PART2_COUNT = PART2_MELEE5 - PART2_MELEE1 + 1;
+constexpr int WEAPON_MELEE_PART2_COUNT = PART2_MELEE6 - PART2_MELEE1 + 1;
 constexpr int WEAPON_DEFINITION_MODULAR_BASE = 100;
 constexpr int WEAPON_SPEC_MAX_LEVEL = 15;
 constexpr int WEAPON_SPEC_LEVEL_COUNT = WEAPON_SPEC_MAX_LEVEL + 1;
@@ -28,6 +28,7 @@ constexpr int WEAPON_HIGH_TIER_SUPERCHARGE_BONUS = 4;
 constexpr int WEAPON_HIGH_TIER_SUPERCHARGE_STEP = 2;
 constexpr int WEAPON_LOW_TIER_SUPERCHARGE_BONUS = 2;
 constexpr int WEAPON_LOW_TIER_SUPERCHARGE_STEP = 1;
+constexpr int WEAPON_INFINITE_PENETRATION = -1;
 constexpr float WEAPON_INFINITE_PROJECTILE_LIFETIME = std::numeric_limits<float>::infinity();
 
 enum class WeaponDefinitionId : uint16_t
@@ -149,6 +150,8 @@ public:
 	static float CapacitorDamageScale(int Charge);
 	static float CapacitorRangeScale(int Charge);
 	static int CapacitorPenetration(int Charge);
+	static int ProjectilePenetration(int Part2, int Charge);
+	static float ChargedBladePowerScale(int Charge);
 	static bool Validate();
 	static bool TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec);
 	static bool TryResolveAttack(const CAttackSource &Source, CWeaponCombatProfile *pCombat, CWeaponVisualProfile *pVisual = nullptr);

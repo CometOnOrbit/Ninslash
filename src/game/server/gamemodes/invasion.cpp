@@ -42,6 +42,20 @@ static const float INV_QUEST_QUEUE_TIME = 1.5f;
 static const float INV_QUEST_DOOR_TIME = 3.0f;
 static const int INV_FINAL_ATTEMPT = 6;
 static const int INV_FORCE_FLOOR_ONE = 7;
+static const int INV_REACTOR_DEFEND_MIN_SECONDS = 10;
+static const int INV_REACTOR_DEFEND_MAX_SECONDS = 60;
+
+static constexpr int InvasionReactorDefenseSeconds(int Level)
+{
+	return Level < INV_REACTOR_DEFEND_MIN_SECONDS ? INV_REACTOR_DEFEND_MIN_SECONDS :
+		(Level > INV_REACTOR_DEFEND_MAX_SECONDS ? INV_REACTOR_DEFEND_MAX_SECONDS : Level);
+}
+
+static_assert(InvasionReactorDefenseSeconds(0) == 10, "reactor defense minimum duration changed");
+static_assert(InvasionReactorDefenseSeconds(4) == 10, "reactor defense first-floor duration changed");
+static_assert(InvasionReactorDefenseSeconds(30) == 30, "reactor defense scaling changed");
+static_assert(InvasionReactorDefenseSeconds(60) == 60, "reactor defense maximum duration changed");
+static_assert(InvasionReactorDefenseSeconds(61) == 60, "reactor defense duration must stay capped");
 
 static int InvasionDepthQuests(int Level)
 {
@@ -1836,7 +1850,7 @@ void CGameControllerInvasion::Tick()
 				if (m_DefendPrepEndTick <= Server()->Tick())
 				{
 					m_DefendPrepEndTick = 0;
-					m_DefendEndTick = Server()->Tick() + Server()->TickSpeed() * (40 + g_Config.m_SvMapGenLevel);
+					m_DefendEndTick = Server()->Tick() + Server()->TickSpeed() * InvasionReactorDefenseSeconds(g_Config.m_SvMapGenLevel);
 					SpawnNewWave();
 					// SpawnNewWave drains the enemy pool filling the concurrent cap.
 					// Keep a reinforce budget so CanSpawn can admit replacements

@@ -38,6 +38,7 @@ private:
 	int m_Damage;
 	int m_Charge;
 	int m_RemainingPenetrations;
+	bool m_InfinitePenetration;
 	CAttackSource m_Source;
 	
 	int m_IgnoreScythe;

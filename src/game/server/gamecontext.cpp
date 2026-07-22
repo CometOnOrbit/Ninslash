@@ -575,7 +575,7 @@ void CGameContext::ClearFlameHits()
 }
 
 
-void CGameContext::CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos)
+void CGameContext::CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos, float PowerScale)
 {
 	const int DamageOwner = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
@@ -590,6 +590,11 @@ void CGameContext::CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 P
 	float ProximityRadius = Combat.m_MeleeHitRadius;
 	float Damage = Combat.m_ProjectileDamage;
 	float Knockback = Combat.m_ProjectileKnockback;
+	PowerScale = max(0.0f, PowerScale);
+	Damage *= PowerScale;
+	const float ImpactScale = 0.75f + 0.25f * PowerScale;
+	Knockback *= ImpactScale;
+	ProximityRadius *= ImpactScale;
 	
 	// melee damage mask
 	if (StaticType != SW_FLAMER)
@@ -788,7 +793,8 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 	{
 		if (Part1 >= PART1_MELEE)
 		{
-			CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos);
+			const float PowerScale = Part1 == PART1_MELEE && Part2 == PART2_MELEE6 ? CWeaponCatalog::ChargedBladePowerScale(Charge) : 1.0f;
+			CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos, PowerScale);
 			return;
 		}
 	}
@@ -835,7 +841,7 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 	const bool Capacitor = IsModular && Part2 == PART2_CAPACITOR;
 	const float CapacitorDamage = Capacitor ? CWeaponCatalog::CapacitorDamageScale(Charge) : 1.0f;
 	const float CapacitorRange = Capacitor ? CWeaponCatalog::CapacitorRangeScale(Charge) : 1.0f;
-	const int CapacitorPenetration = Capacitor ? CWeaponCatalog::CapacitorPenetration(Charge) : 0;
+	const int ProjectilePenetration = IsModular ? CWeaponCatalog::ProjectilePenetration(Part2, Charge) : 0;
 	if(Capacitor && !Combat.m_LaserWeapon)
 		BulletLife *= CapacitorRange;
 	if(IsStatic && StaticType == SW_CLUSTER && Source.m_Weapon.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
@@ -862,7 +868,7 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 			Angle -= (ShotSpread-1)/2.0f * pi/180 * 4;
 			Angle += i * pi/180 * 4;
 			Angle += (frandom()-frandom())*BulletSpread;
-			new CLaser(&m_World, Pos, vec2(cosf(Angle), sinf(Angle)), LaserRange, Source, LaserDamage, LaserCharge, CapacitorPenetration);
+			new CLaser(&m_World, Pos, vec2(cosf(Angle), sinf(Angle)), LaserRange, Source, LaserDamage, LaserCharge, ProjectilePenetration);
 		}
 		return;
 	}
@@ -888,7 +894,7 @@ void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec
 			Knockback,
 			HitSound,
 			CapacitorDamage,
-			CapacitorPenetration);
+			ProjectilePenetration);
 			
 		pProj->m_OwnerBuilding = OwnerBuilding;
 

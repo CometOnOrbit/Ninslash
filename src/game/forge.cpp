@@ -7,7 +7,7 @@ namespace
 bool IsRanged(const CWeaponDefinition &Definition)
 {
 	// TODO： This is a temporary hack to allow the forge to work with ranged weapons. It should be replaced with a proper check for ranged weapon types.
-	return Definition.m_Kind == EWeaponDefinitionKind::Modular && Definition.m_Part1 >= PART1_BASE1 && Definition.m_Part1 <= PART1_BASE5;
+	return Definition.m_Kind == EWeaponDefinitionKind::Modular && Definition.m_Part1 >= PART1_BASE1 && Definition.m_Part1 <= PART1_BASE6;
 }
 
 bool IsMelee(const CWeaponDefinition &Definition)
@@ -153,10 +153,10 @@ bool CForge::Validate()
 		MapAmmo(3, 7, 10) != 4 || MapAmmo(3, 0, 10) != 0 || MapAmmo(3, 7, 0) != 0)
 		return false;
 	//TODO
-	for(int TargetPart1 = PART1_BASE1; TargetPart1 <= PART1_BASE5; ++TargetPart1)
-		for(int TargetPart2 = PART2_BARREL1; TargetPart2 <= PART2_CAPACITOR; ++TargetPart2)
-			for(int MaterialPart1 = PART1_BASE1; MaterialPart1 <= PART1_BASE5; ++MaterialPart1)
-				for(int MaterialPart2 = PART2_BARREL1; MaterialPart2 <= PART2_CAPACITOR; ++MaterialPart2)
+	for(int TargetPart1 = PART1_BASE1; TargetPart1 <= PART1_BASE6; ++TargetPart1)
+		for(int TargetPart2 = PART2_BARREL1; TargetPart2 <= PART2_RAIL; ++TargetPart2)
+			for(int MaterialPart1 = PART1_BASE1; MaterialPart1 <= PART1_BASE6; ++MaterialPart1)
+				for(int MaterialPart2 = PART2_BARREL1; MaterialPart2 <= PART2_RAIL; ++MaterialPart2)
 				{
 					const CWeaponSpec Target = CWeaponCatalog::Modular(TargetPart1, TargetPart2, 3);
 					const CWeaponSpec Material = CWeaponCatalog::Modular(MaterialPart1, MaterialPart2, 4);
@@ -170,9 +170,9 @@ bool CForge::Validate()
 				}
 
 	for(int TargetPart1 = PART1_MELEE; TargetPart1 <= PART1_SPIN; ++TargetPart1)
-		for(int TargetPart2 = PART2_MELEE1; TargetPart2 <= PART2_MELEE5; ++TargetPart2)
+		for(int TargetPart2 = PART2_MELEE1; TargetPart2 <= PART2_MELEE6; ++TargetPart2)
 			for(int MaterialPart1 = PART1_MELEE; MaterialPart1 <= PART1_SPIN; ++MaterialPart1)
-				for(int MaterialPart2 = PART2_MELEE1; MaterialPart2 <= PART2_MELEE5; ++MaterialPart2)
+				for(int MaterialPart2 = PART2_MELEE1; MaterialPart2 <= PART2_MELEE6; ++MaterialPart2)
 				{
 					const CWeaponSpec Target = CWeaponCatalog::Modular(TargetPart1, TargetPart2, 1);
 					const CWeaponSpec Material = CWeaponCatalog::Modular(MaterialPart1, MaterialPart2, 4);

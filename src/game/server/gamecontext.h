@@ -203,7 +203,7 @@ public:
 	bool Shop(class CPlayer *pPlayer, int Slot, bool AI = false);
 	
 	void CreateProjectile(const CAttackSource &Source, int Charge, vec2 Pos, vec2 Direction, vec2 WeaponPos, class CBuilding *OwnerBuilding = NULL);
-	void CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos);
+	void CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos, float PowerScale = 1.0f);
 
 	void ClearFlameHits();
 	

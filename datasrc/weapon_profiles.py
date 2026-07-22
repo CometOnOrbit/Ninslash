@@ -2119,10 +2119,31 @@ for _part2 in ('BARREL1', 'BARREL2', 'BARREL3', 'BARREL4', 'CHARGE'):
 		fire_sound=sound('laser_fire'),
 	))
 
+# BASE6 is a ricochet chassis. Its rounds trade damage, speed and magazine size
+# for three wall bounces plus one additional bounce per weapon level while each
+# barrel keeps its original firing pattern.
+_base1_barrel1 = PLAYER_PROFILES[('modular', 'BASE1', 'BARREL1')]
+for _part2 in ('BARREL1', 'BARREL2', 'BARREL3', 'BARREL4', 'CHARGE'):
+	_source = PLAYER_PROFILES[('modular', 'BASE1', _part2)]
+	_damage = _source.values.get('projectile_damage', _base1_barrel1.values['projectile_damage'])
+	_ammo = _source.values.get('max_ammo', _base1_barrel1.values['max_ammo'])
+	_speed = _source.values.get('projectile_speed', _base1_barrel1.values['projectile_speed'])
+	modular('BASE6', _part2, _derive_profile(_source,
+		fire_rate=_scale_curve(_source.values['fire_rate'], 1.12),
+		max_ammo=_scale_integer_curve(_ammo, 0.8, 1),
+		uses_ammo=True,
+		projectile_speed=_scale_curve(_speed, 0.9),
+		projectile_damage=_scale_curve(_damage, 0.78),
+		projectile_bounces=integer_linear(3, 4.0, 4),
+		projectile_sprite=13.0,
+		valid_for_turret=_part2 != 'CHARGE',
+		fire_sound=sound('bouncer_fire'),
+	))
+
 # CAPACITOR turns every chassis into a finite-ammo charge weapon while keeping
 # its native projectile/laser behavior. Runtime charge scales damage, range and
 # enemy penetration.
-for _part1 in ('BASE1', 'BASE2', 'BASE3', 'BASE4', 'BASE5'):
+for _part1 in ('BASE1', 'BASE2', 'BASE3', 'BASE4', 'BASE5', 'BASE6'):
 	_source = PLAYER_PROFILES[('modular', _part1, 'BARREL1')]
 	modular(_part1, 'CAPACITOR', _derive_profile(_source,
 		firing_type=3,
@@ -2136,6 +2157,27 @@ for _part1 in ('BASE1', 'BASE2', 'BASE3', 'BASE4', 'BASE5'):
 		valid_for_turret=False,
 		aimline=True,
 		laser_charge=0,
+	))
+
+# RAIL is a precision barrel that penetrates every enemy in its path. Chassis
+# traits such as explosions, lasers, electricity and ricochets remain intact.
+for _part1 in ('BASE1', 'BASE2', 'BASE3', 'BASE4', 'BASE5', 'BASE6'):
+	_source = PLAYER_PROFILES[('modular', _part1, 'BARREL1')]
+	modular(_part1, 'RAIL', _derive_profile(_source,
+		fire_rate=_scale_curve(_source.values['fire_rate'], 1.35),
+		max_ammo=_scale_integer_curve(_source.values['max_ammo'], 0.55, 1),
+		uses_ammo=True,
+		shot_spread=1,
+		projectile_spread=0.0,
+		projectile_speed=_scale_curve(_source.values['projectile_speed'], 1.2),
+		projectile_curvature=_scale_curve(_source.values['projectile_curvature'], 0.5),
+		projectile_damage=_scale_curve(_source.values['projectile_damage'], 1.15),
+		projectile_knockback=_scale_curve(_source.values.get('projectile_knockback', 0.0), 1.2),
+		valid_for_turret=True,
+		aimline=True,
+		muzzle_offset_x=74.0,
+		projectile_offset_x=70.0,
+		fire_sound2=sound('barrel3_fire'),
 	))
 
 modular('MELEE', 'MELEE5', profile(max_level=4,
@@ -2194,6 +2236,85 @@ modular('SPIN', 'MELEE5', profile(max_level=4,
 		burst_reload=0.8999999761581421,
 		ai_attack_range=200,
 		electro_amount=linear(1.0, 0.5, 4),
+		cost=cost_curve(10, 20, 4),
+		auto_pick=True,
+		render_type=6,
+		visual_size_x=3,
+		visual_size_y=2,
+		visual_size2_x=8,
+		visual_size2_y=4,
+		render_offset_x=24.0,
+		muzzle_offset_x=50.0,
+		projectile_offset_y=-14.0,
+		hand_offset_x=-26.0,
+		hand_offset_y=8.0,
+		color_swap_x=linear(0.0, 0.3499999940395355, 4),
+		color_swap_y=linear(0.0, 0.800000011920929, 4),
+		projectile_size=1.0,
+		projectile_trace_type=1,
+		explosion_sprite=sprite('explosion1_1'),
+		fire_sound=-1,
+		fire_sound2=-1,
+	muzzle_amount=10,
+))
+
+# MELEE6 is a charge-release thermal cleaver. The runtime charge multiplier
+# scales its damage, knockback and reach; the spin forge result remains a wide
+# sustained blade.
+modular('MELEE', 'MELEE6', profile(max_level=4,
+		firing_type=3,
+		fire_rate=linear(360.0, -40.0, 4),
+		full_auto=True,
+		shot_spread=1,
+		projectile_spread=0.05000000074505806,
+		projectile_speed=1200.0,
+		projectile_curvature=3.0,
+		projectile_life=0.9166666865348816,
+		projectile_damage=linear(30.0, 10.0, 4),
+		projectile_knockback=linear(5.0, 3.0, 4),
+		explosion_size=120.0,
+		melee_hit_radius=linear(68.0, 12.0, 4),
+		burst_reload=0.8999999761581421,
+		ai_attack_range=280,
+		cost=cost_curve(10, 20, 4),
+		auto_pick=True,
+		render_type=4,
+		visual_size_x=3,
+		visual_size_y=2,
+		visual_size2_x=8,
+		visual_size2_y=4,
+		render_offset_x=-12.0,
+		render_offset_y=-2.0,
+		muzzle_offset_x=50.0,
+		projectile_offset_x=74.0,
+		projectile_offset_y=-12.0,
+		hand_offset_x=-26.0,
+		hand_offset_y=8.0,
+		color_swap_x=linear(0.0, 0.3499999940395355, 4),
+		color_swap_y=linear(0.0, 0.800000011920929, 4),
+		projectile_size=1.0,
+		projectile_trace_type=1,
+		explosion_sprite=sprite('explosion1_1'),
+		fire_sound=sound('hammer_fire'),
+		fire_sound2=-1,
+		muzzle_amount=10,
+))
+
+modular('SPIN', 'MELEE6', profile(max_level=4,
+		firing_type=4,
+		fire_rate=60.0,
+		full_auto=True,
+		shot_spread=1,
+		projectile_spread=0.05000000074505806,
+		projectile_speed=1200.0,
+		projectile_curvature=3.0,
+		projectile_life=0.9166666865348816,
+		projectile_damage=linear(8.0, 3.0, 4),
+		projectile_knockback=linear(1.25, 0.75, 4),
+		explosion_size=120.0,
+		melee_hit_radius=104.0,
+		burst_reload=0.8999999761581421,
+		ai_attack_range=220,
 		cost=cost_curve(10, 20, 4),
 		auto_pick=True,
 		render_type=6,

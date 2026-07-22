@@ -31,6 +31,7 @@ CProjectile::CProjectile(CGameWorld *pGameWorld, const CAttackSource &Source, ve
 	m_SoundImpact = SoundImpact;
 	m_StartTick = Server()->Tick();
 	m_Bounces = 0;
+	m_InfinitePenetration = (Penetration == WEAPON_INFINITE_PENETRATION);
 	m_RemainingPenetrations = max(0, Penetration);
 	m_pPenetratedCharacter = NULL;
 	m_pPenetratedDroid = NULL;
@@ -216,7 +217,7 @@ void CProjectile::Tick()
 	const bool Clipped = GameLayerClipped(CurPos);
 	if(Ball || TargetMonster || TargetBuilding || TargetChr || Collide || m_LifeSpan < 0 || Shielded || Clipped)
 	{
-		const bool PenetratesTarget = m_RemainingPenetrations > 0 && (TargetChr || TargetMonster) &&
+		const bool PenetratesTarget = (m_InfinitePenetration || m_RemainingPenetrations > 0) && (TargetChr || TargetMonster) &&
 			!Ball && !TargetBuilding && !Collide && m_LifeSpan >= 0 && !Shielded && !Clipped;
 
 		if(TargetChr)
@@ -270,11 +271,14 @@ void CProjectile::Tick()
 
 		if(PenetratesTarget)
 		{
-			--m_RemainingPenetrations;
+			if(!m_InfinitePenetration)
+				--m_RemainingPenetrations;
 			if(TargetChr)
 				m_pPenetratedCharacter = TargetChr;
 			if(TargetMonster)
 				m_pPenetratedDroid = TargetMonster;
+			if(m_Explosive)
+				GameServer()->CreateExplosion(CurPos, m_Source, m_ExplosionDamageScale);
 		}
 		
 		// cluster grenades

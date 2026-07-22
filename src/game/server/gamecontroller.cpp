@@ -139,14 +139,15 @@ CWeaponSpec IGameController::GetRandomWeapon()
 	constexpr int MELEE_WEAPON_ROLL_SIDES = 12;
 	constexpr int MELEE_WEAPON_WEIGHT = 3;
 	constexpr int STANDARD_BARREL_VARIANTS = 4;
-	constexpr int RANGED_BASE_VARIANTS = PART1_BASE5 - PART1_BASE1 + 1;
-	constexpr int MELEE_BLADE_VARIANTS = PART2_MELEE5 - PART2_MELEE1 + 1;
+	constexpr int RANGED_BASE_VARIANTS = PART1_BASE6 - PART1_BASE1 + 1;
+	constexpr int MELEE_BLADE_VARIANTS = PART2_MELEE6 - PART2_MELEE1 + 1;
 	constexpr int aRandomRangedPart2[] = {
 		PART2_BARREL1,
 		PART2_BARREL2,
 		PART2_BARREL3,
 		PART2_BARREL4,
 		PART2_CAPACITOR,
+		PART2_RAIL,
 	};
 	constexpr int RANDOM_RANGED_PART2_VARIANTS = sizeof(aRandomRangedPart2) / sizeof(aRandomRangedPart2[0]);
 
@@ -178,14 +179,15 @@ CWeaponSpec IGameController::GetRandomWeapon()
 CWeaponSpec IGameController::GetRandomModularWeapon()
 {
 	constexpr float MELEE_WEAPON_CHANCE = 0.2f;
-	constexpr int RANGED_BASE_VARIANTS = PART1_BASE5 - PART1_BASE1 + 1;
-	constexpr int MELEE_BLADE_VARIANTS = PART2_MELEE5 - PART2_MELEE1 + 1;
+	constexpr int RANGED_BASE_VARIANTS = PART1_BASE6 - PART1_BASE1 + 1;
+	constexpr int MELEE_BLADE_VARIANTS = PART2_MELEE6 - PART2_MELEE1 + 1;
 	constexpr int aRandomRangedPart2[] = {
 		PART2_BARREL1,
 		PART2_BARREL2,
 		PART2_BARREL3,
 		PART2_BARREL4,
 		PART2_CAPACITOR,
+		PART2_RAIL,
 	};
 	constexpr int RANDOM_RANGED_PART2_VARIANTS = sizeof(aRandomRangedPart2) / sizeof(aRandomRangedPart2[0]);
 	if (frandom() < MELEE_WEAPON_CHANCE)
