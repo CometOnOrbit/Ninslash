@@ -718,7 +718,7 @@ for i in range(0, 4):
 	container.sprites.Add(Sprite("weapon_part1_bg_"+str(i), set_weapons, 24, i*3, 4, 3))
 
 container.sprites.Add(Sprite("weapon_part1_bg_4", set_weapons, 24, 12, 4, 3))
-container.sprites.Add(Sprite("weapon_part1_bg_5", set_weapons, 24, 15, 4, 3))
+container.sprites.Add(Sprite("weapon_part1_bg_5", set_weapons, 12, 32, 4, 3))
 	
 # sword grip bgs
 for i in range(0, 3):
