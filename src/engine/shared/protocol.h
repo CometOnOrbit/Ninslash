@@ -70,6 +70,11 @@ enum
 	// sent by server (todo: move it up)
 	NETMSG_RCON_CMD_ADD,
 	NETMSG_RCON_CMD_REM,
+
+	// Appended to retain all legacy message numbers.
+	NETMSG_PLATFORM_AUTH,
+	NETMSG_PLATFORM_AUTH_RESULT,
+	NETMSG_LOBBY_JOIN_FAILURE,
 };
 
 // this should be revised

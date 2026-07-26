@@ -387,6 +387,20 @@ void CClient::SendInfo()
 	Msg.AddString(GameClient()->NetVersion(), 128);
 	Msg.AddString(g_Config.m_Password, 128);
 	SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+
+	unsigned char aTicket[2048];
+	int TicketSize = m_pPlatformServices ? m_pPlatformServices->GetAuthSessionTicket(aTicket, sizeof(aTicket)) : 0;
+	if(TicketSize < 0 || TicketSize > (int)sizeof(aTicket))
+		TicketSize = 0;
+	CMsgPacker Auth(NETMSG_PLATFORM_AUTH);
+	char aSteamID[32];
+	str_format(aSteamID, sizeof(aSteamID), "%llu", m_pPlatformServices ? m_pPlatformServices->LocalUserID() : 0);
+	Auth.AddString(aSteamID, sizeof(aSteamID));
+	Auth.AddString(g_Config.m_ClModHash, sizeof(g_Config.m_ClModHash));
+	Auth.AddInt(TicketSize);
+	if(TicketSize)
+		Auth.AddRaw(aTicket, TicketSize);
+	SendMsgEx(&Auth, MSGFLAG_VITAL|MSGFLAG_FLUSH);
 }
 
 

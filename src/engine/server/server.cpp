@@ -301,6 +301,7 @@ CServer::CServer() : m_DemoRecorder(&m_SnapshotDelta)
 	m_TickSpeed = SERVER_TICK_SPEED;
 
 	m_pGameServer = 0;
+	m_pPlatformGameServer = CreatePlatformGameServer();
 
 	m_CurrentGameTick = 0;
 	m_RunServer = 1;
@@ -533,6 +534,9 @@ int CServer::Init()
 		m_aClients[i].m_aClan[0] = 0;
 		m_aClients[i].m_Country = -1;
 		m_aClients[i].m_Snapshots.Init();
+		m_aClients[i].m_SteamID = 0;
+		m_aClients[i].m_PlatformAuthenticated = false;
+		m_aClients[i].m_InfoReceived = false;
 	}
 
 	m_CurrentGameTick = 0;
@@ -1134,6 +1138,9 @@ int CServer::NewClientCallback(int ClientID, void *pUser)
 	pThis->m_aClients[ClientID].m_Country = -1;
 	pThis->m_aClients[ClientID].m_Authed = AUTHED_NO;
 	pThis->m_aClients[ClientID].m_AuthTries = 0;
+	pThis->m_aClients[ClientID].m_SteamID = 0;
+	pThis->m_aClients[ClientID].m_PlatformAuthenticated = false;
+	pThis->m_aClients[ClientID].m_InfoReceived = false;
 	pThis->m_aClients[ClientID].m_pRconCmdToSend = 0;
 	pThis->m_aClients[ClientID].Reset();
 	return 0;
@@ -1160,6 +1167,11 @@ int CServer::DelClientCallback(int ClientID, const char *pReason, void *pUser)
 	pThis->m_aClients[ClientID].m_Country = -1;
 	pThis->m_aClients[ClientID].m_Authed = AUTHED_NO;
 	pThis->m_aClients[ClientID].m_AuthTries = 0;
+	if(pThis->m_aClients[ClientID].m_PlatformAuthenticated)
+		pThis->m_pPlatformGameServer->EndAuthentication(pThis->m_aClients[ClientID].m_SteamID);
+	pThis->m_aClients[ClientID].m_SteamID = 0;
+	pThis->m_aClients[ClientID].m_PlatformAuthenticated = false;
+	pThis->m_aClients[ClientID].m_InfoReceived = false;
 	pThis->m_aClients[ClientID].m_pRconCmdToSend = 0;
 	pThis->m_aClients[ClientID].m_Snapshots.PurgeAll();
 	return 0;
@@ -1277,11 +1289,58 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					return;
 				}
 
+				// Required Steam authentication deliberately blocks map transfer and
+				// game-state creation until the ticket is verified.
+				m_aClients[ClientID].m_InfoReceived = true;
+				if(g_Config.m_SvOfficial || g_Config.m_SvSteamAuth == 2 || g_Config.m_SvModHash[0] || (g_Config.m_SvSteamAuth != 0 && m_pPlatformGameServer->Available()))
+					return;
 				m_aClients[ClientID].m_State = CClient::STATE_CONNECTING;
-				//m_aClients[ClientID].m_Bot = false;
-				
 				SendMap(ClientID);
 			}
+		}
+		else if(Msg == NETMSG_PLATFORM_AUTH)
+		{
+			if(m_aClients[ClientID].m_State != CClient::STATE_AUTH || !m_aClients[ClientID].m_InfoReceived)
+				return;
+			const char *pSteamID = Unpacker.GetString(CUnpacker::SANITIZE_CC);
+			const char *pModHash = Unpacker.GetString(CUnpacker::SANITIZE_CC);
+			const int TicketSize = Unpacker.GetInt();
+			if(Unpacker.Error() || TicketSize < 0 || TicketSize > 2048)
+			{
+				m_NetServer.Drop(ClientID, "Invalid Steam authentication ticket");
+				return;
+			}
+			unsigned long long SteamID = 0;
+			if(sscanf(pSteamID, "%llu", &SteamID) != 1 || SteamID == 0)
+				SteamID = 0;
+			const void *pTicket = TicketSize ? Unpacker.GetRaw(TicketSize) : 0;
+			if(Unpacker.Error())
+			{
+				m_NetServer.Drop(ClientID, "Invalid Steam authentication ticket");
+				return;
+			}
+			const EPlatformAuthResult Result = m_pPlatformGameServer->Authenticate(SteamID, pTicket, TicketSize);
+			const bool Required = g_Config.m_SvOfficial || g_Config.m_SvSteamAuth == 2;
+			if(str_comp(pModHash, g_Config.m_SvModHash) != 0)
+			{
+				m_NetServer.Drop(ClientID, "Workshop mod collection mismatch");
+				return;
+			}
+			if(Result == PLATFORM_AUTH_OK)
+			{
+				m_aClients[ClientID].m_SteamID = SteamID;
+				m_aClients[ClientID].m_PlatformAuthenticated = true;
+			}
+			else if(Required)
+			{
+				m_NetServer.Drop(ClientID, Result == PLATFORM_AUTH_UNAVAILABLE ? "Steam authentication service unavailable" : "Steam authentication failed");
+				return;
+			}
+			CMsgPacker Reply(NETMSG_PLATFORM_AUTH_RESULT);
+			Reply.AddInt(Result == PLATFORM_AUTH_OK ? 1 : 0);
+			SendMsgEx(&Reply, MSGFLAG_VITAL|MSGFLAG_FLUSH, ClientID, true);
+			m_aClients[ClientID].m_State = CClient::STATE_CONNECTING;
+			SendMap(ClientID);
 		}
 		else if(Msg == NETMSG_REQUEST_MAP_DATA)
 		{
@@ -1772,6 +1831,20 @@ int CServer::Run()
 	}
 
 	m_NetServer.SetCallbacks(NewClientCallback, DelClientCallback, this);
+	if(g_Config.m_SvOfficial && g_Config.m_SvModHash[0])
+	{
+		dbg_msg("server", "official servers cannot enable Workshop mods");
+		return -1;
+	}
+	if(!m_pPlatformGameServer->Init((unsigned short)g_Config.m_SvPort))
+	{
+		if(g_Config.m_SvOfficial || g_Config.m_SvSteamAuth == 2)
+		{
+			dbg_msg("steam", "required Steam GameServer initialization failed");
+			return -1;
+		}
+		dbg_msg("steam", "Steam GameServer unavailable; community auth remains optional");
+	}
 
 	m_Econ.Init(Console(), &m_ServerBan);
 
@@ -1802,6 +1875,7 @@ int CServer::Run()
 
 		while(m_RunServer)
 		{
+			m_pPlatformGameServer->RunCallbacks();
 			int64 t = time_get();
 			int NewTicks = 0;
 			
@@ -1932,6 +2006,9 @@ int CServer::Run()
 	}
 
 	GameServer()->OnShutdown();
+	m_pPlatformGameServer->Shutdown();
+	delete m_pPlatformGameServer;
+	m_pPlatformGameServer = 0;
 	m_pMap->Unload();
 
 	if(m_pCurrentMapData)

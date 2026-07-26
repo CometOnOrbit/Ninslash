@@ -16,6 +16,7 @@ public:
 	virtual bool Available() const { return false; }
 	virtual const char *PlatformName() const { return "standalone"; }
 	virtual unsigned long long LocalUserID() const { return 0; }
+	virtual int GetAuthSessionTicket(void *pBuffer, int BufferSize) { (void)pBuffer; (void)BufferSize; return 0; }
 	virtual void SetRichPresence(const char *pStatus, const char *pConnect) { (void)pStatus; (void)pConnect; }
 	virtual bool ConsumeJoinRequest(char *pBuffer, int BufferSize)
 	{
@@ -78,6 +79,17 @@ public:
 	virtual unsigned long long LocalUserID() const
 	{
 		return m_Initialized && SteamUser() ? SteamUser()->GetSteamID().ConvertToUint64() : 0;
+	}
+
+	virtual int GetAuthSessionTicket(void *pBuffer, int BufferSize)
+	{
+		if(!m_Initialized || !SteamUser() || !pBuffer || BufferSize <= 0)
+			return 0;
+		uint32 TicketSize = 0;
+		// Steamworks SDK 1.60+ requires an explicit remote identity. Passing
+		// null keeps this as a ticket for a dedicated GameServer.
+		SteamUser()->GetAuthSessionTicket(pBuffer, BufferSize, &TicketSize, 0);
+		return TicketSize > (uint32)BufferSize ? 0 : (int)TicketSize;
 	}
 
 	virtual void SetRichPresence(const char *pStatus, const char *pConnect)

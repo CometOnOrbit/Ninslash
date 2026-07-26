@@ -19,6 +19,7 @@
 #include <game/server/gamevote.h>
 
 #include "register.h"
+#include "platform_gameserver.h"
 
 
 class CSnapIDPool
@@ -79,6 +80,7 @@ class CServer : public IServer
 	class IGameServer *m_pGameServer;
 	class IConsole *m_pConsole;
 	class IStorage *m_pStorage;
+	IPlatformGameServer *m_pPlatformGameServer;
 
 	class CPlayerData *m_pPlayerData;
 	
@@ -163,6 +165,9 @@ public:
 		int m_Score;
 		int m_Authed;
 		int m_AuthTries;
+		unsigned long long m_SteamID;
+		bool m_PlatformAuthenticated;
+		bool m_InfoReceived;
 
 		
 		const IConsole::CCommandInfo *m_pRconCmdToSend;

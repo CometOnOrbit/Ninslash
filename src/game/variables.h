@@ -58,6 +58,7 @@ MACRO_CONFIG_INT(PlayerBloodColor, blood_color, 0, 0, 3, CFGFLAG_CLIENT|CFGFLAG_
 MACRO_CONFIG_INT(UiPage, ui_page, 1, 0, 25, CFGFLAG_CLIENT, "Interface page")
 MACRO_CONFIG_INT(UiToolboxPage, ui_toolbox_page, 0, 0, 2, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Toolbox page")
 MACRO_CONFIG_STR(UiServerAddress, ui_server_address, 64, "localhost:8303", CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface server address")
+MACRO_CONFIG_STR(ClModHash, cl_mod_hash, 65, "", CFGFLAG_CLIENT|CFGFLAG_SAVE, "Installed Workshop mod collection hash sent during connection")
 MACRO_CONFIG_INT(UiScale, ui_scale, 100, 50, 150, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface scale")
 MACRO_CONFIG_INT(UiMousesens, ui_mousesens, 100, 5, 100000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Mouse sensitivity for menus/editor")
 
@@ -78,6 +79,9 @@ MACRO_CONFIG_INT(GfxNoclip, gfx_noclip, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "D
 
 // server
 MACRO_CONFIG_INT(SvWarmup, sv_warmup, 0, 0, 0, CFGFLAG_SERVER, "Number of seconds to do warmup before round starts")
+MACRO_CONFIG_INT(SvSteamAuth, sv_steam_auth, 1, 0, 2, CFGFLAG_SERVER, "Steam authentication: 0=off, 1=optional, 2=required")
+MACRO_CONFIG_INT(SvOfficial, sv_official, 0, 0, 1, CFGFLAG_SERVER, "Official servers require Steam auth and disable Workshop mods")
+MACRO_CONFIG_STR(SvModHash, sv_mod_hash, 65, "", CFGFLAG_SERVER, "Required Workshop mod collection hash; empty disables mods")
 MACRO_CONFIG_STR(SvMotd, sv_motd, 900, "", CFGFLAG_SERVER, "Message of the day to display for the clients")
 MACRO_CONFIG_INT(SvTeamdamage, sv_teamdamage, 0, 0, 1, CFGFLAG_SERVER, "Team damage")
 MACRO_CONFIG_INT(SvRoundsPerMap, sv_rounds_per_map, 1, 1, 100, CFGFLAG_SERVER, "Number of rounds on each map before rotating")

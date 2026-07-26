@@ -76,13 +76,16 @@ option(CLIENT "Compile client" ON)
 option(PREFER_BUNDLED_LIBS "Prefer bundled libraries over system libraries" ${AUTO_DEPENDENCIES_DEFAULT})
 option(DEV "Don't generate stuff necessary for packaging" OFF)
 option(ENABLE_STEAMWORKS "Build optional Steamworks client integration" OFF)
+option(ENABLE_STEAM_GAMESERVER "Build optional Steam GameServer registration and auth" OFF)
+option(ENABLE_STEAM_LISTEN_SERVER "Build the in-client Steam Relay listen-server support" OFF)
+option(ENABLE_LUA_MODS "Build the sandboxed Lua Workshop-mod runtime (requires a supplied Lua library)" OFF)
 option(NINSLASH_BUILD_TESTS "Build focused release-readiness tests" OFF)
 set(STEAMWORKS_SDK_ROOT "" CACHE PATH "Steamworks SDK root containing public/steam and redistributable_bin")
 set(STEAM_APP_ID "1812700" CACHE STRING "Steam AppID used by the release build")
 
-if(ENABLE_STEAMWORKS)
-  if(NOT CLIENT)
-    message(FATAL_ERROR "ENABLE_STEAMWORKS currently requires CLIENT=ON")
+if(ENABLE_STEAMWORKS OR ENABLE_STEAM_GAMESERVER OR ENABLE_STEAM_LISTEN_SERVER)
+  if(ENABLE_STEAMWORKS AND NOT CLIENT)
+    message(FATAL_ERROR "ENABLE_STEAMWORKS requires CLIENT=ON")
   endif()
   if(NOT STEAMWORKS_SDK_ROOT OR NOT EXISTS "${STEAMWORKS_SDK_ROOT}/public/steam/steam_api.h")
     message(FATAL_ERROR "Set STEAMWORKS_SDK_ROOT to a valid Steamworks SDK directory")
@@ -90,6 +93,9 @@ if(ENABLE_STEAMWORKS)
   if(STEAM_APP_ID STREQUAL "0")
     message(FATAL_ERROR "STEAM_APP_ID must be a valid assigned Steam application ID")
   endif()
+endif()
+if(ENABLE_STEAM_LISTEN_SERVER AND (NOT ENABLE_STEAMWORKS OR NOT CLIENT))
+  message(FATAL_ERROR "ENABLE_STEAM_LISTEN_SERVER requires ENABLE_STEAMWORKS=ON and CLIENT=ON")
 endif()
 
 # Set the default build type to Release
@@ -457,6 +463,7 @@ set_src(ENGINE_INTERFACE GLOB src/engine
   map.h
   masterserver.h
   platform_services.h
+  platform_transport.h
   message.h
   server.h
   serverbrowser.h
@@ -507,6 +514,8 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   network_server.cpp
   network.cpp
   network.h
+  mod_manifest.cpp
+  mod_manifest.h
   packer.cpp
   packer.h
   ringbuffer.cpp
@@ -590,6 +599,14 @@ if(NINSLASH_BUILD_TESTS)
   set_tests_properties(pve_progress_storage PROPERTIES
     ENVIRONMENT "HOME=${PROJECT_BINARY_DIR}/test-home"
   )
+  add_executable(ninslash_test_mod_manifest
+    tests/mod_manifest.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_mod_manifest PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  target_link_libraries(ninslash_test_mod_manifest ${LIBS})
+  add_test(NAME mod_manifest COMMAND ninslash_test_mod_manifest)
 endif()
 
 ########################################################################
@@ -832,6 +849,10 @@ if(CLIENT)
     endif()
   endif()
 
+  if(ENABLE_STEAM_LISTEN_SERVER)
+    target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_STEAM_LISTEN_SERVER)
+  endif()
+
   if(TARGET_OS STREQUAL "windows")
     foreach(copy_file ${FREETYPE_COPY_FILES} ${SDL3_COPY_FILES})
       add_custom_command(TARGET ${TARGET_CLIENT} POST_BUILD
@@ -882,6 +903,8 @@ set_src(ENGINE_SERVER GLOB src/engine/server
   register.h
   server.cpp
   server.h
+  platform_gameserver.cpp
+  platform_gameserver.h
 )
 
 set_src(GAME_SERVER GLOB_RECURSE src/game/server
@@ -1102,6 +1125,25 @@ list(REMOVE_ITEM TARGET_SERVER_SOURCES "")
 
 add_executable(${TARGET_SERVER} ${TARGET_SERVER_SOURCES})
 target_link_libraries(${TARGET_SERVER} ${LIBS_SERVER})
+if(ENABLE_STEAM_GAMESERVER)
+  target_compile_definitions(${TARGET_SERVER} PRIVATE CONF_STEAMWORKS_GAMESERVER STEAM_APP_ID=${STEAM_APP_ID})
+  target_include_directories(${TARGET_SERVER} PRIVATE "${STEAMWORKS_SDK_ROOT}/public/steam")
+  if(TARGET_OS STREQUAL "windows")
+    target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.lib")
+    add_custom_command(TARGET ${TARGET_SERVER} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.dll"
+        "$<TARGET_FILE_DIR:${TARGET_SERVER}>")
+  elseif(TARGET_OS STREQUAL "linux")
+    target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so")
+    add_custom_command(TARGET ${TARGET_SERVER} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so"
+        "$<TARGET_FILE_DIR:${TARGET_SERVER}>")
+  else()
+    message(FATAL_ERROR "Steam GameServer integration is supported only on Windows and Linux")
+  endif()
+endif()
 list(APPEND TARGETS_OWN ${TARGET_SERVER})
 list(APPEND TARGETS_LINK ${TARGET_SERVER})
 
