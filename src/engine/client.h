@@ -110,6 +110,7 @@ public:
 
 	// server info
 	virtual void GetServerInfo(class CServerInfo *pServerInfo) = 0;
+	virtual void GetServerAddress(NETADDR *pAddress) const = 0;
 
 	// snapshot interface
 

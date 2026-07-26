@@ -3000,3 +3000,72 @@ Ready to forge
 
 Press %s to open forge
 == 按 %s 打开武器锻造
+
+Starting point
+== 起始方式
+
+Team checkpoint
+== 继续团队检查点
+
+Floor 1
+== 从第 1 层开始
+
+Custom floor
+== 自定义楼层
+
+Complete more floors to unlock
+== 完成更多楼层后解锁
+
+Difficulty %d
+== 难度 %d
+
+%d waves
+== %d 波
+
+Score %d
+== 得分上限 %d
+
+Roguelite
+== 肉鸽构筑
+
+Classic PvE
+== 经典 PvE
+
+Random seed
+== 随机种子
+
+Seed %d
+== 种子 %d
+
+%d slots
+== %d 个槽位
+
+Starting local server and waiting for readiness...
+== 正在启动本地服务器并等待就绪……
+
+Local server is ready; joining...
+== 本地服务器已就绪，正在加入……
+
+Server executable was not found or could not be started
+== 未找到服务器程序或无法启动
+
+Local server did not become ready in time
+== 本地服务器未能及时就绪
+
+The preferred port and the next nine ports are already in use.
+== 首选端口及后续九个端口均已被占用。
+
+Local server log
+== 本地服务器日志
+
+Log
+== 日志
+
+OK
+== 确定
+
+Map selection
+== 地图选择
+
+Automatic by Invasion floor
+== 由入侵楼层自动选择

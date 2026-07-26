@@ -552,9 +552,27 @@ void CServerBrowser::RequestImpl(const NETADDR &Addr, CServerEntry *pEntry) cons
 		pEntry->m_RequestTime = time_get();
 }
 
-void CServerBrowser::Request(const NETADDR &Addr) const
+void CServerBrowser::Request(const NETADDR &Addr)
 {
-	RequestImpl(Addr, 0);
+	CServerEntry *pEntry = Find(Addr);
+	if(pEntry)
+		pEntry->m_GotInfo = 0;
+	RequestImpl(Addr, pEntry);
+}
+
+bool CServerBrowser::GetServerInfo(const NETADDR &Addr, CServerInfo *pInfo) const
+{
+	for(int i = 0; i < m_NumServers; i++)
+	{
+		const CServerEntry *pEntry = m_ppServerlist[i];
+		if(pEntry->m_GotInfo && net_addr_comp(&pEntry->m_Addr, &Addr) == 0)
+		{
+			if(pInfo)
+				mem_copy(pInfo, &pEntry->m_Info, sizeof(*pInfo));
+			return true;
+		}
+	}
+	return false;
 }
 
 

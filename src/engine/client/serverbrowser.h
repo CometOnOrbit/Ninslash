@@ -47,7 +47,8 @@ public:
 	//
 	void Update(bool ForceResort);
 	void Set(const NETADDR &Addr, int Type, int Token, const CServerInfo *pInfo);
-	void Request(const NETADDR &Addr) const;
+	void Request(const NETADDR &Addr);
+	bool GetServerInfo(const NETADDR &Addr, CServerInfo *pInfo) const;
 
 	void SetBaseInfo(class CNetClient *pClient, const char *pNetVersion);
 

@@ -1936,7 +1936,7 @@ void CGameControllerInvasion::Tick()
 			if(!m_CheckpointApplied)
 			{
 				m_CheckpointApplied = true;
-				if(GameServer()->m_pPveDirector && g_Config.m_SvMapGenLevel == 1)
+				if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled() && g_Config.m_SvInvasionUseCheckpoint && g_Config.m_SvMapGenLevel == 1)
 				{
 					if(m_ForceFloorOne)
 						m_ForceFloorOne = false;

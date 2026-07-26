@@ -90,10 +90,19 @@ CMenus::CMenus()
 	m_LocalServerExitCode = 0;
 	m_LocalServerStateTime = 0;
 	m_LocalServerJoinRetryTime = 0;
+	m_LocalServerInfoRequestTime = 0;
 	m_LocalServerJoinAttempts = 0;
+	m_LocalServerActualPort = 0;
 	m_LocalServerAutoJoin = false;
 	m_LocalServerRestartPending = false;
+	m_LocalServerSummaryLocalized = false;
 	m_LocalServerFocus = 0;
+	mem_zero(&m_LocalServerAddress, sizeof(m_LocalServerAddress));
+	m_aLocalServerJoinAddress[0] = 0;
+	m_aLocalServerPassword[0] = 0;
+	m_aLocalServerSummary[0] = 0;
+	m_aLocalServerLogPath[0] = 0;
+	m_aLocalServerErrorDetail[0] = 0;
 
 	m_EscapePressed = false;
 	m_EnterPressed = false;
@@ -1148,22 +1157,28 @@ static int gs_TextureLogo = -1;
 
 namespace
 {
-struct CLocalGameMode
+enum
 {
-	const char *m_pName;
-	const char *m_pDescription;
-	const char *m_pConfig;
-	bool m_Pve;
-	bool m_CtfMap;
+	LOCAL_MODE_INVASION = 0,
+	LOCAL_MODE_HORDE,
+	LOCAL_MODE_EXTRACTION,
+	LOCAL_MODE_DM,
+	LOCAL_MODE_TDM,
+	LOCAL_MODE_CTF,
 };
 
-static const CLocalGameMode s_aLocalGameModes[] = {
-	{"Invasion", "Explore generated floors, complete objectives and keep your build between maps.", "cfg/invasion_root.cfg", true, false},
-	{"Horde", "Defend, build and survive increasingly dangerous enemy waves.", "cfg/horde_root.cfg", true, false},
-	{"Extraction", "Finish the mission and reach the extraction zone before time runs out.", "cfg/extract_root.cfg", true, false},
-	{"Deathmatch", "Free-for-all combat with configurable AI opponents.", "cfg/dm_root.cfg", false, false},
-	{"Team deathmatch", "Team combat with building and configurable AI opponents.", "cfg/tdm_root.cfg", false, false},
-	{"Capture the flag", "Capture the enemy flag on a generated team map.", "cfg/ctf_root.cfg", false, true},
+enum
+{
+	LOCAL_INVASION_TEAM_CHECKPOINT = 0,
+	LOCAL_INVASION_FLOOR_ONE,
+	LOCAL_INVASION_CUSTOM_FLOOR,
+};
+
+enum
+{
+	LOCAL_SERVER_ERROR_EXECUTABLE = -1,
+	LOCAL_SERVER_ERROR_PORT = -2,
+	LOCAL_SERVER_ERROR_TIMEOUT = -3,
 };
 
 static const char *s_apLocalMaps[] = {
@@ -1172,6 +1187,191 @@ static const char *s_apLocalMapCommands[] = {
 	"generate_city1", "generate_city2", "generate_space1", "generate_large1", "generate_large2", "generate_large3", "generate_blueplanet1", "generate_foundry1"};
 static const char *s_apLocalCtfMaps[] = {"Compact", "Standard"};
 static const char *s_apLocalCtfMapCommands[] = {"generate_ctf_small1", "generate_ctf_medium1"};
+
+struct CLocalGameMode
+{
+	const char *m_pName;
+	const char *m_pDescription;
+	const char *m_pConfig;
+	bool m_Pve;
+	bool m_SelectableMap;
+	const char *const *m_ppMapNames;
+	const char *const *m_ppMapCommands;
+	int m_MapCount;
+};
+
+static const CLocalGameMode s_aLocalGameModes[] = {
+	{"Invasion", "Explore generated floors, complete objectives and keep your build between maps.", "cfg/invasion_root.cfg", true, false, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
+	{"Horde", "Defend, build and survive increasingly dangerous enemy waves.", "cfg/horde_root.cfg", true, true, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
+	{"Extraction", "Finish the mission and reach the extraction zone before time runs out.", "cfg/extract_root.cfg", true, true, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
+	{"Deathmatch", "Free-for-all combat with configurable AI opponents.", "cfg/dm_root.cfg", false, true, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
+	{"Team deathmatch", "Team combat with building and configurable AI opponents.", "cfg/tdm_root.cfg", false, true, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
+	{"Capture the flag", "Capture the enemy flag on a generated team map.", "cfg/ctf_root.cfg", false, true, s_apLocalCtfMaps, s_apLocalCtfMapCommands, (int)(sizeof(s_apLocalCtfMaps) / sizeof(s_apLocalCtfMaps[0]))},
+};
+
+struct CLocalServerLaunchSettings
+{
+	int m_Mode;
+	int m_Map;
+	int m_Port;
+	int m_MaxClients;
+	int m_Bots;
+	int m_Difficulty;
+	int m_MapLevel;
+	int m_BotLevel;
+	int m_InvasionStart;
+	int m_InvasionFloor;
+	int m_Seed;
+	int m_ModeRule;
+	bool m_Lan;
+	bool m_RandomSeed;
+	bool m_Roguelite;
+	bool m_Contracts;
+	bool m_UseCheckpoint;
+	const CLocalGameMode *m_pMode;
+	const char *m_pConfig;
+	const char *m_pMapName;
+	const char *m_pMapCommand;
+	char m_aName[64];
+	char m_aPassword[32];
+};
+
+static int LocalGameModeCount()
+{
+	return (int)(sizeof(s_aLocalGameModes) / sizeof(s_aLocalGameModes[0]));
+}
+
+static const CLocalGameMode &LocalGameMode(int Mode)
+{
+	return s_aLocalGameModes[clamp(Mode, 0, LocalGameModeCount() - 1)];
+}
+
+static const char *LocalInvasionConfigForFloor(int Floor)
+{
+	if(Floor <= 10)
+		return "cfg/invasion1.cfg";
+	if(Floor <= 20)
+		return "cfg/invasion2.cfg";
+	if(Floor <= 30)
+		return "cfg/invasion3.cfg";
+	if(Floor <= 40)
+		return "cfg/invasion4.cfg";
+	return "cfg/invasion-endless.cfg";
+}
+
+static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings)
+{
+	mem_zero(pSettings, sizeof(*pSettings));
+	pSettings->m_Mode = clamp(g_Config.m_ClLocalServerMode, 0, LocalGameModeCount() - 1);
+	pSettings->m_pMode = &LocalGameMode(pSettings->m_Mode);
+	pSettings->m_pConfig = pSettings->m_pMode->m_pConfig;
+	pSettings->m_Map = clamp(g_Config.m_ClLocalServerMap, 0, pSettings->m_pMode->m_MapCount - 1);
+	pSettings->m_pMapName = pSettings->m_pMode->m_SelectableMap ? pSettings->m_pMode->m_ppMapNames[pSettings->m_Map] : "Automatic by Invasion floor";
+	pSettings->m_pMapCommand = pSettings->m_pMode->m_SelectableMap ? pSettings->m_pMode->m_ppMapCommands[pSettings->m_Map] : 0;
+	pSettings->m_Port = clamp(g_Config.m_ClLocalServerPort, 1024, 65535);
+	pSettings->m_MaxClients = clamp(g_Config.m_ClLocalServerMaxClients, 1, 16);
+	pSettings->m_Bots = pSettings->m_pMode->m_Pve ? 0 : clamp(g_Config.m_ClLocalServerBots, 0, max(0, pSettings->m_MaxClients - 1));
+	pSettings->m_Difficulty = clamp(g_Config.m_ClLocalServerDifficulty, 1, 50);
+	pSettings->m_BotLevel = clamp(pSettings->m_Difficulty, 1, 30);
+	pSettings->m_InvasionStart = clamp(g_Config.m_ClLocalServerInvasionStart, (int)LOCAL_INVASION_TEAM_CHECKPOINT, (int)LOCAL_INVASION_CUSTOM_FLOOR);
+	pSettings->m_InvasionFloor = clamp(g_Config.m_ClLocalServerInvasionFloor, 1, max(1, g_Config.m_ClPveHighestInvasion));
+	pSettings->m_Lan = g_Config.m_ClLocalServerLan != 0;
+	pSettings->m_RandomSeed = g_Config.m_ClLocalServerRandomSeed != 0;
+	pSettings->m_Seed = clamp(g_Config.m_ClLocalServerSeed, 0, 32767);
+	pSettings->m_Roguelite = pSettings->m_pMode->m_Pve && g_Config.m_ClLocalServerRoguelite != 0;
+	pSettings->m_Contracts = pSettings->m_Roguelite && g_Config.m_ClLocalServerContracts != 0;
+	pSettings->m_MapLevel = pSettings->m_Difficulty;
+	pSettings->m_UseCheckpoint = false;
+	if(pSettings->m_Mode == LOCAL_MODE_INVASION)
+	{
+		pSettings->m_UseCheckpoint = pSettings->m_Roguelite && pSettings->m_InvasionStart == LOCAL_INVASION_TEAM_CHECKPOINT;
+		pSettings->m_MapLevel = pSettings->m_InvasionStart == LOCAL_INVASION_CUSTOM_FLOOR ? pSettings->m_InvasionFloor : 1;
+		int TemplateFloor = pSettings->m_MapLevel;
+		if(pSettings->m_UseCheckpoint)
+		{
+			const int MaxCheckpoint = g_Config.m_ClPveHighestInvasion >= 10 ? (g_Config.m_ClPveHighestInvasion / 10) * 10 + 1 : 1;
+			TemplateFloor = clamp(g_Config.m_ClPvePreferredCheckpoint, 1, MaxCheckpoint);
+		}
+		pSettings->m_pConfig = LocalInvasionConfigForFloor(TemplateFloor);
+	}
+	if(pSettings->m_Mode == LOCAL_MODE_HORDE)
+		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerHordeWaves, 0, 100);
+	else if(pSettings->m_Mode == LOCAL_MODE_EXTRACTION)
+		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerExtractionTime, 2, 15);
+	else if(pSettings->m_Mode == LOCAL_MODE_DM)
+		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerDmScore, 1, 1000);
+	else if(pSettings->m_Mode == LOCAL_MODE_TDM)
+		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerTdmScore, 1, 1000);
+	else if(pSettings->m_Mode == LOCAL_MODE_CTF)
+		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerCtfScore, 1, 1000);
+	str_copy(pSettings->m_aName, g_Config.m_ClLocalServerName, sizeof(pSettings->m_aName));
+	str_copy(pSettings->m_aPassword, g_Config.m_ClLocalServerPassword, sizeof(pSettings->m_aPassword));
+
+	// Keep saved UI state valid so mouse, keyboard and console launches all use
+	// exactly the same settings.
+	g_Config.m_ClLocalServerMode = pSettings->m_Mode;
+	g_Config.m_ClLocalServerMap = pSettings->m_Map;
+	g_Config.m_ClLocalServerPort = pSettings->m_Port;
+	g_Config.m_ClLocalServerMaxClients = pSettings->m_MaxClients;
+	g_Config.m_ClLocalServerBots = pSettings->m_Bots;
+	g_Config.m_ClLocalServerDifficulty = pSettings->m_Difficulty;
+	g_Config.m_ClLocalServerInvasionStart = pSettings->m_InvasionStart;
+	g_Config.m_ClLocalServerInvasionFloor = pSettings->m_InvasionFloor;
+}
+
+static const char *LocalInvasionStartName(int Start)
+{
+	if(Start == LOCAL_INVASION_FLOOR_ONE)
+		return "Floor 1";
+	if(Start == LOCAL_INVASION_CUSTOM_FLOOR)
+		return "Custom floor";
+	return "Team checkpoint";
+}
+
+static void FormatLocalServerSummary(const CLocalServerLaunchSettings &Settings, int Port, char *pBuffer, int BufferSize)
+{
+	char aStart[64];
+	char aRule[64];
+	char aSeed[48];
+	char aSlots[48];
+	if(Settings.m_Mode == LOCAL_MODE_INVASION)
+	{
+		if(Settings.m_InvasionStart == LOCAL_INVASION_TEAM_CHECKPOINT && !Settings.m_UseCheckpoint)
+			str_copy(aStart, Localize("Floor 1"), sizeof(aStart));
+		else if(Settings.m_InvasionStart == LOCAL_INVASION_CUSTOM_FLOOR)
+			str_format(aStart, sizeof(aStart), Localize("Floor %d"), Settings.m_InvasionFloor);
+		else
+			str_copy(aStart, Localize(LocalInvasionStartName(Settings.m_InvasionStart)), sizeof(aStart));
+	}
+	else
+		str_format(aStart, sizeof(aStart), Localize("Difficulty %d"), Settings.m_Difficulty);
+
+	if(Settings.m_Mode == LOCAL_MODE_HORDE)
+	{
+		if(Settings.m_ModeRule == 0)
+			str_copy(aRule, Localize("Endless"), sizeof(aRule));
+		else
+			str_format(aRule, sizeof(aRule), Localize("%d waves"), Settings.m_ModeRule);
+	}
+	else if(Settings.m_Mode == LOCAL_MODE_EXTRACTION)
+		str_format(aRule, sizeof(aRule), Localize("%d min"), Settings.m_ModeRule);
+	else if(Settings.m_Mode >= LOCAL_MODE_DM)
+		str_format(aRule, sizeof(aRule), Localize("Score %d"), Settings.m_ModeRule);
+	else
+		str_copy(aRule, Localize(Settings.m_Roguelite ? "Roguelite" : "Classic PvE"), sizeof(aRule));
+	if(Settings.m_RandomSeed)
+		str_copy(aSeed, Localize("Random seed"), sizeof(aSeed));
+	else
+		str_format(aSeed, sizeof(aSeed), Localize("Seed %d"), Settings.m_Seed);
+	str_format(aSlots, sizeof(aSlots), Localize("%d slots"), Settings.m_MaxClients);
+
+	if(Settings.m_Lan)
+		str_format(pBuffer, BufferSize, "%s · %s · %s · %s · %s · %s · 127.0.0.1:%d / LAN:%d",
+			Localize(Settings.m_pMode->m_pName), Localize(Settings.m_pMapName), aStart, aRule, aSeed, aSlots, Port, Port);
+	else
+		str_format(pBuffer, BufferSize, "%s · %s · %s · %s · %s · %s · 127.0.0.1:%d",
+			Localize(Settings.m_pMode->m_pName), Localize(Settings.m_pMapName), aStart, aRule, aSeed, aSlots, Port);
+}
 
 static bool LocalFileExists(const char *pPath)
 {
@@ -1252,17 +1452,61 @@ static void EscapeLocalServerValue(const char *pValue, char *pEscaped, int Escap
 		pEscaped[Out++] = '"';
 	pEscaped[Out] = 0;
 }
+
+static void ReadLocalServerLogTail(const char *pPath, char *pBuffer, int BufferSize)
+{
+	pBuffer[0] = 0;
+	IOHANDLE File = io_open(pPath, IOFLAG_READ);
+	if(!File)
+		return;
+	const long Length = io_length(File);
+	if(Length <= 0)
+	{
+		io_close(File);
+		return;
+	}
+	const int ReadSize = min((int)Length, 1023);
+	if(Length > ReadSize)
+		io_seek(File, Length - ReadSize, IOSEEK_START);
+	char aTail[1024];
+	const int Bytes = io_read(File, aTail, ReadSize);
+	io_close(File);
+	aTail[max(0, Bytes)] = 0;
+	for(int i = 0; aTail[i]; i++)
+		if(aTail[i] == '\r' || aTail[i] == '\n' || aTail[i] == '\t')
+			aTail[i] = ' ';
+	int Start = max(0, str_length(aTail) - (BufferSize - 1));
+	while(aTail[Start] == ' ')
+		Start++;
+	str_copy(pBuffer, aTail + Start, BufferSize);
+}
 }
 
 void CMenus::JoinLocalServer()
 {
-	if(!m_LocalServerProcess || (m_LocalServerState != LOCAL_SERVER_RUNNING && m_LocalServerState != LOCAL_SERVER_STARTING))
+	if(!m_LocalServerProcess || m_LocalServerState != LOCAL_SERVER_RUNNING || !m_aLocalServerJoinAddress[0])
 		return;
-	char aAddress[64];
-	str_format(aAddress, sizeof(aAddress), "127.0.0.1:%d", g_Config.m_ClLocalServerPort);
-	str_copy(g_Config.m_UiServerAddress, aAddress, sizeof(g_Config.m_UiServerAddress));
-	str_copy(g_Config.m_Password, g_Config.m_ClLocalServerPassword, sizeof(g_Config.m_Password));
-	Client()->Connect(aAddress);
+	if(IsConnectedToLocalServer())
+		return;
+	str_copy(g_Config.m_UiServerAddress, m_aLocalServerJoinAddress, sizeof(g_Config.m_UiServerAddress));
+	str_copy(g_Config.m_Password, m_aLocalServerPassword, sizeof(g_Config.m_Password));
+	Client()->Connect(m_aLocalServerJoinAddress);
+}
+
+bool CMenus::IsConnectedToLocalServer() const
+{
+	if(m_LocalServerActualPort <= 0 || Client()->State() == IClient::STATE_OFFLINE || Client()->State() == IClient::STATE_DEMOPLAYBACK)
+		return false;
+	NETADDR Address;
+	Client()->GetServerAddress(&Address);
+	return net_addr_comp(&Address, &m_LocalServerAddress) == 0;
+}
+
+void CMenus::RefreshLocalServerErrorDetail()
+{
+	ReadLocalServerLogTail(m_aLocalServerLogPath, m_aLocalServerErrorDetail, sizeof(m_aLocalServerErrorDetail));
+	if(!m_aLocalServerErrorDetail[0] && m_LocalServerExitCode > 0)
+		str_format(m_aLocalServerErrorDetail, sizeof(m_aLocalServerErrorDetail), "Server exited with code %d", m_LocalServerExitCode);
 }
 
 void CMenus::StartLocalServer(bool AutoJoin)
@@ -1274,11 +1518,11 @@ void CMenus::StartLocalServer(bool AutoJoin)
 		{
 			if(AutoJoin)
 			{
-				if(Client()->State() != IClient::STATE_OFFLINE)
-					Client()->Disconnect();
 				m_LocalServerAutoJoin = true;
 				m_LocalServerJoinAttempts = 0;
 				m_LocalServerJoinRetryTime = time_get();
+				if(m_LocalServerState == LOCAL_SERVER_RUNNING)
+					JoinLocalServer();
 			}
 			return;
 		}
@@ -1286,16 +1530,20 @@ void CMenus::StartLocalServer(bool AutoJoin)
 		m_LocalServerProcess = 0;
 	}
 
-	const int Mode = clamp(g_Config.m_ClLocalServerMode, 0, (int)(sizeof(s_aLocalGameModes) / sizeof(s_aLocalGameModes[0])) - 1);
-	const CLocalGameMode &ModeDef = s_aLocalGameModes[Mode];
-	const int MapCount = ModeDef.m_CtfMap ? (int)(sizeof(s_apLocalCtfMapCommands) / sizeof(s_apLocalCtfMapCommands[0])) : (int)(sizeof(s_apLocalMapCommands) / sizeof(s_apLocalMapCommands[0]));
-	const int Map = clamp(g_Config.m_ClLocalServerMap, 0, MapCount - 1);
-	const char *pMap = ModeDef.m_CtfMap ? s_apLocalCtfMapCommands[Map] : s_apLocalMapCommands[Map];
+	CLocalServerLaunchSettings Settings;
+	BuildLocalServerLaunchSettings(&Settings);
+	m_LocalServerActualPort = 0;
+	mem_zero(&m_LocalServerAddress, sizeof(m_LocalServerAddress));
+	m_aLocalServerJoinAddress[0] = 0;
+	m_aLocalServerLogPath[0] = 0;
+	m_aLocalServerErrorDetail[0] = 0;
+	FormatLocalServerSummary(Settings, Settings.m_Port, m_aLocalServerSummary, sizeof(m_aLocalServerSummary));
+	m_LocalServerSummaryLocalized = false;
 	int AvailablePort = -1;
 	for(int Offset = 0; Offset < 10; Offset++)
 	{
-		const int Candidate = g_Config.m_ClLocalServerPort + Offset <= 65535 ? g_Config.m_ClLocalServerPort + Offset : 1024 + Offset;
-		if(LocalServerPortAvailable(Candidate, g_Config.m_ClLocalServerLan != 0))
+		const int Candidate = Settings.m_Port + Offset <= 65535 ? Settings.m_Port + Offset : 1024 + Settings.m_Port + Offset - 65536;
+		if(LocalServerPortAvailable(Candidate, Settings.m_Lan))
 		{
 			AvailablePort = Candidate;
 			break;
@@ -1304,14 +1552,26 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	if(AvailablePort < 0)
 	{
 		m_LocalServerState = LOCAL_SERVER_FAILED;
-		m_LocalServerExitCode = -2;
+		m_LocalServerExitCode = LOCAL_SERVER_ERROR_PORT;
 		m_LocalServerStateTime = time_get();
 		m_LocalServerAutoJoin = false;
+		str_copy(m_aLocalServerErrorDetail, Localize("The preferred port and the next nine ports are already in use."), sizeof(m_aLocalServerErrorDetail));
 		return;
 	}
-	g_Config.m_ClLocalServerPort = AvailablePort;
-	if(AutoJoin && Client()->State() != IClient::STATE_OFFLINE)
-		Client()->Disconnect();
+	Settings.m_Port = AvailablePort;
+	m_LocalServerActualPort = AvailablePort;
+	str_format(m_aLocalServerJoinAddress, sizeof(m_aLocalServerJoinAddress), "127.0.0.1:%d", AvailablePort);
+	mem_zero(&m_LocalServerAddress, sizeof(m_LocalServerAddress));
+	net_addr_from_str(&m_LocalServerAddress, m_aLocalServerJoinAddress);
+	str_copy(m_aLocalServerPassword, Settings.m_aPassword, sizeof(m_aLocalServerPassword));
+	FormatLocalServerSummary(Settings, AvailablePort, m_aLocalServerSummary, sizeof(m_aLocalServerSummary));
+
+	Storage()->CreateFolder("logs", IStorage::TYPE_SAVE);
+	char aTimestamp[64];
+	char aRelativeLogPath[128];
+	str_timestamp(aTimestamp, sizeof(aTimestamp));
+	str_format(aRelativeLogPath, sizeof(aRelativeLogPath), "logs/local_server_%s_%06d.log", aTimestamp, (int)(time_get() % 1000000));
+	Storage()->GetCompletePath(IStorage::TYPE_SAVE, aRelativeLogPath, m_aLocalServerLogPath, sizeof(m_aLocalServerLogPath));
 
 	char aExecutable[512];
 	char aPort[64];
@@ -1324,52 +1584,55 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	char aSeed[64];
 	char aRoguelite[64];
 	char aContracts[64];
+	char aCheckpoint[64];
 	char aModeRule[64];
 	char aNameValue[160];
 	char aPasswordValue[96];
 	char aName[256];
 	char aPassword[160];
+	char aLogValue[sizeof(m_aLocalServerLogPath) * 2];
+	char aLog[sizeof(m_aLocalServerLogPath) * 2 + 16];
 	FindLocalServerExecutable(aExecutable, sizeof(aExecutable));
-	str_format(aPort, sizeof(aPort), "sv_port %d", g_Config.m_ClLocalServerPort);
-	str_format(aMaxClients, sizeof(aMaxClients), "sv_max_clients %d", g_Config.m_ClLocalServerMaxClients);
-	str_format(aMap, sizeof(aMap), "sv_map %s", pMap);
-	str_format(aDifficulty, sizeof(aDifficulty), "sv_mapgen_level %d", g_Config.m_ClLocalServerDifficulty);
-	str_format(aBots, sizeof(aBots), "sv_bots %d", ModeDef.m_Pve ? 0 : clamp(g_Config.m_ClLocalServerBots, 0, max(0, g_Config.m_ClLocalServerMaxClients - 1)));
-	str_format(aBotLevel, sizeof(aBotLevel), "sv_botlevel %d", clamp(g_Config.m_ClLocalServerDifficulty, 1, 30));
-	str_format(aRandomSeed, sizeof(aRandomSeed), "sv_mapgen_random_seed %d", g_Config.m_ClLocalServerRandomSeed != 0);
-	str_format(aSeed, sizeof(aSeed), "sv_mapgen_seed %d", clamp(g_Config.m_ClLocalServerSeed, 0, 32767));
-	const bool Roguelite = ModeDef.m_Pve && g_Config.m_ClLocalServerRoguelite;
-	str_format(aRoguelite, sizeof(aRoguelite), "sv_pve_roguelite %d", Roguelite);
-	str_format(aContracts, sizeof(aContracts), "sv_pve_contracts %d", Roguelite && g_Config.m_ClLocalServerContracts);
-	if(Mode == 1)
-		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit %d", clamp(g_Config.m_ClLocalServerHordeWaves, 0, 100));
-	else if(Mode == 2)
-		str_format(aModeRule, sizeof(aModeRule), "sv_timelimit %d", clamp(g_Config.m_ClLocalServerExtractionTime, 2, 15));
-	else if(Mode == 3)
-		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit %d", clamp(g_Config.m_ClLocalServerDmScore, 1, 1000));
-	else if(Mode == 4)
-		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit %d", clamp(g_Config.m_ClLocalServerTdmScore, 1, 1000));
-	else if(Mode == 5)
-		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit %d", clamp(g_Config.m_ClLocalServerCtfScore, 1, 1000));
+	str_format(aPort, sizeof(aPort), "sv_port %d", Settings.m_Port);
+	str_format(aMaxClients, sizeof(aMaxClients), "sv_max_clients %d", Settings.m_MaxClients);
+	if(Settings.m_pMapCommand)
+		str_format(aMap, sizeof(aMap), "sv_map %s", Settings.m_pMapCommand);
+	str_format(aDifficulty, sizeof(aDifficulty), "sv_mapgen_level %d", Settings.m_MapLevel);
+	str_format(aBots, sizeof(aBots), "sv_bots %d", Settings.m_Bots);
+	str_format(aBotLevel, sizeof(aBotLevel), "sv_botlevel %d", Settings.m_BotLevel);
+	str_format(aRandomSeed, sizeof(aRandomSeed), "sv_mapgen_random_seed %d", Settings.m_RandomSeed);
+	str_format(aSeed, sizeof(aSeed), "sv_mapgen_seed %d", Settings.m_Seed);
+	str_format(aRoguelite, sizeof(aRoguelite), "sv_pve_roguelite %d", Settings.m_Roguelite);
+	str_format(aContracts, sizeof(aContracts), "sv_pve_contracts %d", Settings.m_Contracts);
+	str_format(aCheckpoint, sizeof(aCheckpoint), "sv_invasion_use_checkpoint %d", Settings.m_UseCheckpoint);
+	if(Settings.m_Mode == LOCAL_MODE_HORDE)
+		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit %d", Settings.m_ModeRule);
+	else if(Settings.m_Mode == LOCAL_MODE_EXTRACTION)
+		str_format(aModeRule, sizeof(aModeRule), "sv_timelimit %d", Settings.m_ModeRule);
+	else if(Settings.m_Mode >= LOCAL_MODE_DM)
+		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit %d", Settings.m_ModeRule);
 	else
 		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit 0");
-	EscapeLocalServerValue(g_Config.m_ClLocalServerName, aNameValue, sizeof(aNameValue));
-	EscapeLocalServerValue(g_Config.m_ClLocalServerPassword, aPasswordValue, sizeof(aPasswordValue));
+	EscapeLocalServerValue(Settings.m_aName, aNameValue, sizeof(aNameValue));
+	EscapeLocalServerValue(Settings.m_aPassword, aPasswordValue, sizeof(aPasswordValue));
+	EscapeLocalServerValue(m_aLocalServerLogPath, aLogValue, sizeof(aLogValue));
 	str_format(aName, sizeof(aName), "sv_name %s", aNameValue);
 	str_format(aPassword, sizeof(aPassword), "password %s", aPasswordValue);
+	str_format(aLog, sizeof(aLog), "logfile %s", aLogValue);
 
-	const char *apArguments[24];
+	const char *apArguments[28];
 	int NumArguments = 0;
 	apArguments[NumArguments++] = aExecutable;
 	apArguments[NumArguments++] = "-s";
 	apArguments[NumArguments++] = "-f";
-	apArguments[NumArguments++] = ModeDef.m_pConfig;
+	apArguments[NumArguments++] = Settings.m_pConfig;
 	apArguments[NumArguments++] = "sv_register 0";
-	if(!g_Config.m_ClLocalServerLan)
+	if(!Settings.m_Lan)
 		apArguments[NumArguments++] = "bindaddr 127.0.0.1";
 	apArguments[NumArguments++] = aPort;
 	apArguments[NumArguments++] = aMaxClients;
-	apArguments[NumArguments++] = aMap;
+	if(Settings.m_pMapCommand)
+		apArguments[NumArguments++] = aMap;
 	apArguments[NumArguments++] = "sv_mapgen 1";
 	apArguments[NumArguments++] = aDifficulty;
 	apArguments[NumArguments++] = aBots;
@@ -1378,14 +1641,17 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	apArguments[NumArguments++] = aSeed;
 	apArguments[NumArguments++] = aRoguelite;
 	apArguments[NumArguments++] = aContracts;
+	apArguments[NumArguments++] = aCheckpoint;
 	apArguments[NumArguments++] = aModeRule;
 	apArguments[NumArguments++] = aName;
 	apArguments[NumArguments++] = aPassword;
+	apArguments[NumArguments++] = aLog;
 	apArguments[NumArguments] = 0;
 
 	m_LocalServerProcess = process_spawn(aExecutable, apArguments);
 	m_LocalServerStateTime = time_get();
-	m_LocalServerJoinRetryTime = m_LocalServerStateTime + time_freq() * 7 / 10;
+	m_LocalServerJoinRetryTime = 0;
+	m_LocalServerInfoRequestTime = m_LocalServerStateTime;
 	m_LocalServerJoinAttempts = 0;
 	m_LocalServerExitCode = 0;
 	m_LocalServerRestartPending = false;
@@ -1393,12 +1659,15 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	if(m_LocalServerProcess)
 	{
 		m_LocalServerState = LOCAL_SERVER_STARTING;
-		dbg_msg("local-server", "started %s on port %d", ModeDef.m_pName, g_Config.m_ClLocalServerPort);
+		ServerBrowser()->Request(m_LocalServerAddress);
+		m_LocalServerInfoRequestTime = m_LocalServerStateTime + time_freq() / 2;
+		dbg_msg("local-server", "started: %s; preferred port %d, actual port %d; log: %s", m_aLocalServerSummary, g_Config.m_ClLocalServerPort, Settings.m_Port, m_aLocalServerLogPath);
 	}
 	else
 	{
 		m_LocalServerState = LOCAL_SERVER_FAILED;
-		m_LocalServerExitCode = -1;
+		m_LocalServerExitCode = LOCAL_SERVER_ERROR_EXECUTABLE;
+		RefreshLocalServerErrorDetail();
 		dbg_msg("local-server", "could not start '%s'", aExecutable);
 	}
 }
@@ -1425,9 +1694,10 @@ void CMenus::StopLocalServer(bool Restart)
 {
 	m_LocalServerAutoJoin = false;
 	m_LocalServerJoinRetryTime = 0;
+	m_LocalServerInfoRequestTime = 0;
 	m_LocalServerJoinAttempts = 0;
 	m_LocalServerRestartPending = Restart;
-	if(Client()->State() != IClient::STATE_OFFLINE)
+	if(IsConnectedToLocalServer())
 		Client()->Disconnect();
 	if(m_LocalServerProcess && process_running(m_LocalServerProcess, 0))
 	{
@@ -1461,6 +1731,7 @@ void CMenus::UpdateLocalServer()
 		m_LocalServerExitCode = ExitCode;
 		m_LocalServerAutoJoin = false;
 		m_LocalServerJoinRetryTime = 0;
+		m_LocalServerInfoRequestTime = 0;
 		m_LocalServerJoinAttempts = 0;
 		m_LocalServerRestartPending = false;
 		if(Restart)
@@ -1472,28 +1743,54 @@ void CMenus::UpdateLocalServer()
 		{
 			m_LocalServerState = WasStopping ? LOCAL_SERVER_STOPPED : LOCAL_SERVER_FAILED;
 			if(!WasStopping)
+			{
+				RefreshLocalServerErrorDetail();
 				dbg_msg("local-server", "server exited with code %d", ExitCode);
+			}
 		}
 		return;
 	}
 
 	const int64 Now = time_get();
 	const int64 Elapsed = Now - m_LocalServerStateTime;
-	if(m_LocalServerState == LOCAL_SERVER_STARTING && Elapsed > time_freq() * 7 / 10)
-		m_LocalServerState = LOCAL_SERVER_RUNNING;
+	if(m_LocalServerState == LOCAL_SERVER_STARTING)
+	{
+		CServerInfo Info;
+		const bool HasInfo = ServerBrowser()->GetServerInfo(m_LocalServerAddress, &Info);
+		const bool ConnectedAndLoading = IsConnectedToLocalServer() && Client()->State() >= IClient::STATE_LOADING;
+		if(HasInfo || ConnectedAndLoading)
+		{
+			m_LocalServerState = LOCAL_SERVER_RUNNING;
+			m_LocalServerJoinRetryTime = Now;
+		}
+		else if(Elapsed > time_freq() * 20)
+		{
+			process_kill(m_LocalServerProcess);
+			process_destroy(m_LocalServerProcess);
+			m_LocalServerProcess = 0;
+			m_LocalServerState = LOCAL_SERVER_FAILED;
+			m_LocalServerExitCode = LOCAL_SERVER_ERROR_TIMEOUT;
+			m_LocalServerAutoJoin = false;
+			RefreshLocalServerErrorDetail();
+			return;
+		}
+		else if(Now >= m_LocalServerInfoRequestTime)
+		{
+			ServerBrowser()->Request(m_LocalServerAddress);
+			m_LocalServerInfoRequestTime = Now + time_freq() / 2;
+		}
+	}
 
 	if(m_LocalServerState == LOCAL_SERVER_RUNNING && m_LocalServerAutoJoin)
 	{
-		if(Client()->State() == IClient::STATE_ONLINE)
+		if(IsConnectedToLocalServer() && (Client()->State() == IClient::STATE_LOADING || Client()->State() == IClient::STATE_ONLINE))
 		{
 			m_LocalServerAutoJoin = false;
 			m_LocalServerJoinRetryTime = 0;
 		}
-		else if(Client()->State() == IClient::STATE_OFFLINE && Now >= m_LocalServerJoinRetryTime)
+		else if(!IsConnectedToLocalServer() && Now >= m_LocalServerJoinRetryTime)
 		{
-			// The child can bind before a generated map is ready. Retry a bounded
-			// number of times so a slow first launch remains a one-click flow.
-			if(m_LocalServerJoinAttempts >= 15)
+			if(m_LocalServerJoinAttempts >= 8)
 			{
 				m_LocalServerAutoJoin = false;
 				m_LocalServerJoinRetryTime = 0;
@@ -1516,11 +1813,12 @@ void CMenus::ShutdownLocalServer()
 {
 	m_LocalServerAutoJoin = false;
 	m_LocalServerJoinRetryTime = 0;
+	m_LocalServerInfoRequestTime = 0;
 	m_LocalServerJoinAttempts = 0;
 	m_LocalServerRestartPending = false;
 	if(m_LocalServerProcess)
 	{
-		if(Client()->State() != IClient::STATE_OFFLINE)
+		if(IsConnectedToLocalServer())
 			Client()->Disconnect();
 		if(process_running(m_LocalServerProcess, 0))
 		{
@@ -1536,7 +1834,7 @@ void CMenus::ShutdownLocalServer()
 
 void CMenus::RenderLocalServer(CUIRect MainView)
 {
-	static int s_aModeButtons[6] = {0};
+	static int s_aModeButtons[sizeof(s_aLocalGameModes) / sizeof(s_aLocalGameModes[0])] = {0};
 	static int s_aSectionButtons[3] = {0};
 	static int s_LocalSection = -1;
 	static int s_MapPrevious = 0;
@@ -1547,9 +1845,14 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	static int s_RogueliteButton = 0;
 	static int s_ContractsButton = 0;
 	static int s_RandomSeedButton = 0;
+	static int s_InvasionStartPrevious = 0;
+	static int s_InvasionStartNext = 0;
+	static int s_InvasionFloorPrevious = 0;
+	static int s_InvasionFloorNext = 0;
 	static int s_RulePrevious = 0;
 	static int s_RuleNext = 0;
 	static int s_StartButton = 0;
+	static int s_LogButton = 0;
 	static int s_JoinButton = 0;
 	static int s_RestartButton = 0;
 	static int s_StopButton = 0;
@@ -1570,6 +1873,8 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		FOCUS_LAN,
 		FOCUS_SECTION_MAP,
 		FOCUS_MAP,
+		FOCUS_INVASION_START,
+		FOCUS_INVASION_FLOOR,
 		FOCUS_DIFFICULTY,
 		FOCUS_BOTS,
 		FOCUS_RANDOM_SEED,
@@ -1585,11 +1890,11 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	if(s_LocalSection < 0)
 		s_LocalSection = g_Config.m_ClLocalServerAdvanced ? 2 : 0;
 	s_LocalSection = clamp(s_LocalSection, 0, 2);
-	g_Config.m_ClLocalServerMode = clamp(g_Config.m_ClLocalServerMode, 0, 5);
+	g_Config.m_ClLocalServerMode = clamp(g_Config.m_ClLocalServerMode, 0, LocalGameModeCount() - 1);
 	const int MaxFocus = m_LocalServerState == LOCAL_SERVER_RUNNING ? FOCUS_STOP : FOCUS_PRIMARY_ACTION;
 	auto FocusAvailable = [&](int Focus) {
-		const int Mode = clamp(g_Config.m_ClLocalServerMode, 0, 5);
-		const bool Pve = s_aLocalGameModes[Mode].m_Pve;
+		const int Mode = clamp(g_Config.m_ClLocalServerMode, 0, LocalGameModeCount() - 1);
+		const bool Pve = LocalGameMode(Mode).m_Pve;
 		if(Focus == FOCUS_SECTION_SERVER || Focus == FOCUS_SECTION_MAP || Focus == FOCUS_SECTION_RULES)
 			return true;
 		if(Focus >= FOCUS_SLOTS && Focus <= FOCUS_LAN)
@@ -1598,6 +1903,14 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		{
 			if(s_LocalSection != 1)
 				return false;
+			if(Focus == FOCUS_MAP)
+				return LocalGameMode(Mode).m_SelectableMap;
+			if(Focus == FOCUS_INVASION_START)
+				return Mode == LOCAL_MODE_INVASION;
+			if(Focus == FOCUS_INVASION_FLOOR)
+				return Mode == LOCAL_MODE_INVASION && g_Config.m_ClLocalServerInvasionStart == LOCAL_INVASION_CUSTOM_FLOOR;
+			if(Focus == FOCUS_DIFFICULTY)
+				return Mode != LOCAL_MODE_INVASION;
 			if(Focus == FOCUS_BOTS)
 				return !Pve;
 			if(Focus == FOCUS_SEED)
@@ -1610,7 +1923,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			if(Focus == FOCUS_ROGUELITE || Focus == FOCUS_CONTRACTS)
 				return Pve;
 			if(Focus == FOCUS_MODE_RULE)
-				return Mode != 0;
+				return Mode != LOCAL_MODE_INVASION;
 		}
 		if((Focus == FOCUS_RESTART || Focus == FOCUS_STOP) && m_LocalServerState != LOCAL_SERVER_RUNNING)
 			return false;
@@ -1620,21 +1933,21 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		return Section == 0 ? FOCUS_SECTION_SERVER : (Section == 1 ? FOCUS_SECTION_MAP : FOCUS_SECTION_RULES);
 	};
 	auto AdjustModeRule = [&](int Direction) {
-		const int Mode = clamp(g_Config.m_ClLocalServerMode, 0, 5);
-		if(Mode == 1)
+		const int Mode = clamp(g_Config.m_ClLocalServerMode, 0, LocalGameModeCount() - 1);
+		if(Mode == LOCAL_MODE_HORDE)
 		{
 			if(Direction > 0)
 				g_Config.m_ClLocalServerHordeWaves = g_Config.m_ClLocalServerHordeWaves <= 0 ? 4 : min(100, g_Config.m_ClLocalServerHordeWaves + 4);
 			else
 				g_Config.m_ClLocalServerHordeWaves = g_Config.m_ClLocalServerHordeWaves <= 4 ? 0 : g_Config.m_ClLocalServerHordeWaves - 4;
 		}
-		else if(Mode == 2)
+		else if(Mode == LOCAL_MODE_EXTRACTION)
 			g_Config.m_ClLocalServerExtractionTime = clamp(g_Config.m_ClLocalServerExtractionTime + Direction, 2, 15);
-		else if(Mode == 3)
+		else if(Mode == LOCAL_MODE_DM)
 			g_Config.m_ClLocalServerDmScore = clamp(g_Config.m_ClLocalServerDmScore + Direction * 5, 1, 1000);
-		else if(Mode == 4)
+		else if(Mode == LOCAL_MODE_TDM)
 			g_Config.m_ClLocalServerTdmScore = clamp(g_Config.m_ClLocalServerTdmScore + Direction * 5, 1, 1000);
-		else if(Mode == 5)
+		else if(Mode == LOCAL_MODE_CTF)
 			g_Config.m_ClLocalServerCtfScore = clamp(g_Config.m_ClLocalServerCtfScore + Direction * 25, 1, 1000);
 	};
 
@@ -1680,14 +1993,19 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 				const int Direction = Right ? 1 : -1;
 				if(m_LocalServerFocus == FOCUS_MODE)
 				{
-					g_Config.m_ClLocalServerMode = (g_Config.m_ClLocalServerMode + Direction + 6) % 6;
-					g_Config.m_ClLocalServerMap = clamp(g_Config.m_ClLocalServerMap, 0, s_aLocalGameModes[g_Config.m_ClLocalServerMode].m_CtfMap ? 1 : 6);
+					const int ModeCount = LocalGameModeCount();
+					g_Config.m_ClLocalServerMode = (g_Config.m_ClLocalServerMode + Direction + ModeCount) % ModeCount;
+					g_Config.m_ClLocalServerMap = clamp(g_Config.m_ClLocalServerMap, 0, LocalGameMode(g_Config.m_ClLocalServerMode).m_MapCount - 1);
 				}
 				else if(m_LocalServerFocus == FOCUS_MAP)
 				{
-					const int Count = s_aLocalGameModes[g_Config.m_ClLocalServerMode].m_CtfMap ? 2 : 7;
+					const int Count = LocalGameMode(g_Config.m_ClLocalServerMode).m_MapCount;
 					g_Config.m_ClLocalServerMap = (g_Config.m_ClLocalServerMap + Direction + Count) % Count;
 				}
+				else if(m_LocalServerFocus == FOCUS_INVASION_START)
+					g_Config.m_ClLocalServerInvasionStart = (g_Config.m_ClLocalServerInvasionStart + Direction + 3) % 3;
+				else if(m_LocalServerFocus == FOCUS_INVASION_FLOOR)
+					g_Config.m_ClLocalServerInvasionFloor = clamp(g_Config.m_ClLocalServerInvasionFloor + Direction, 1, max(1, g_Config.m_ClPveHighestInvasion));
 				else if(m_LocalServerFocus == FOCUS_DIFFICULTY)
 					g_Config.m_ClLocalServerDifficulty = clamp(g_Config.m_ClLocalServerDifficulty + Direction, 1, 50);
 				else if(m_LocalServerFocus == FOCUS_BOTS)
@@ -1756,6 +2074,15 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 				StopLocalServer(false);
 		}
 	}
+	CLocalServerLaunchSettings PreviewSettings;
+	BuildLocalServerLaunchSettings(&PreviewSettings);
+	char aPreviewSummary[512];
+	FormatLocalServerSummary(PreviewSettings, PreviewSettings.m_Port, aPreviewSummary, sizeof(aPreviewSummary));
+	if((m_LocalServerProcess || m_LocalServerState == LOCAL_SERVER_FAILED) && !m_LocalServerSummaryLocalized)
+	{
+		FormatLocalServerSummary(PreviewSettings, m_LocalServerActualPort > 0 ? m_LocalServerActualPort : PreviewSettings.m_Port, m_aLocalServerSummary, sizeof(m_aLocalServerSummary));
+		m_LocalServerSummaryLocalized = true;
+	}
 
 	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
 	MainView.Margin(L(10.0f), &MainView);
@@ -1765,7 +2092,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	const float HeaderHeight = 48.0f + LargeScale * 36.0f;
 	const float TitleLineHeight = 27.0f + LargeScale * 22.0f;
 	MainView.HSplitTop(L(HeaderHeight), &Header, &Body);
-	Body.HSplitBottom(L(50.0f), &Body, &StatusBar);
+	Body.HSplitBottom(L(72.0f), &Body, &StatusBar);
 	UI()->DoLabelScaled(&Header, Localize("Local game"), 22.0f, -1);
 	Header.HSplitTop(L(TitleLineHeight), 0, &Header);
 	UI()->DoLabelScaled(&Header, Localize("Choose a mode, expand a category, then start and join in one click."), 11.0f, -1);
@@ -1783,9 +2110,9 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	CUIRect Row;
 	Modes.HSplitTop(L(20.0f), &Row, &Modes);
 	UI()->DoLabelScaled(&Row, Localize("ROGUELITE PVE"), 12.0f, -1);
-	for(int i = 0; i < 6; i++)
+	for(int i = 0; i < LocalGameModeCount(); i++)
 	{
-		if(i == 3)
+		if(i == LOCAL_MODE_DM)
 		{
 			Modes.HSplitTop(L(8.0f), 0, &Modes);
 			Modes.HSplitTop(L(20.0f), &Row, &Modes);
@@ -1795,17 +2122,17 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		if(DoButton_Menu(&s_aModeButtons[i], Localize(s_aLocalGameModes[i].m_pName), g_Config.m_ClLocalServerMode == i, &Row, g_Config.m_ClLocalServerMode == i ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
 		{
 			g_Config.m_ClLocalServerMode = i;
-			g_Config.m_ClLocalServerMap = clamp(g_Config.m_ClLocalServerMap, 0, s_aLocalGameModes[i].m_CtfMap ? 1 : 6);
+			g_Config.m_ClLocalServerMap = clamp(g_Config.m_ClLocalServerMap, 0, LocalGameMode(i).m_MapCount - 1);
 		}
 		Modes.HSplitTop(L(4.0f), 0, &Modes);
 	}
 	Modes.HSplitTop(L(8.0f), 0, &Modes);
 	UI()->DoLabelScaled(&Modes, Localize(s_aLocalGameModes[g_Config.m_ClLocalServerMode].m_pDescription), 10.0f, -1, (int)Modes.w);
 
-	const CLocalGameMode &ModeDef = s_aLocalGameModes[g_Config.m_ClLocalServerMode];
-	const int MapCount = ModeDef.m_CtfMap ? 2 : 7;
+	const CLocalGameMode &ModeDef = LocalGameMode(g_Config.m_ClLocalServerMode);
+	const int MapCount = ModeDef.m_MapCount;
 	g_Config.m_ClLocalServerMap = clamp(g_Config.m_ClLocalServerMap, 0, MapCount - 1);
-	const char *pMapName = ModeDef.m_CtfMap ? s_apLocalCtfMaps[g_Config.m_ClLocalServerMap] : s_apLocalMaps[g_Config.m_ClLocalServerMap];
+	const char *pMapName = ModeDef.m_ppMapNames[g_Config.m_ClLocalServerMap];
 
 	auto SplitSettingRow = [&Settings, &L](CUIRect *pLabel, CUIRect *pControl) {
 		CUIRect Full;
@@ -1881,29 +2208,73 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	if(DrawSectionHeader(1, "Map & difficulty", FOCUS_SECTION_MAP))
 	{
 		SplitSettingRow(&Label, &Control);
-		DrawFocusMarker(Label, FOCUS_MAP);
-		UI()->DoLabelScaled(&Label, Localize("Map preset"), 12.0f, -1);
-		Control.VSplitLeft(L(30.0f), &Previous, &Value);
-		Value.VSplitRight(L(30.0f), &Value, &Next);
-		if(DoButton_Menu(&s_MapPrevious, "<", 0, &Previous))
-			g_Config.m_ClLocalServerMap = (g_Config.m_ClLocalServerMap + MapCount - 1) % MapCount;
-		if(DoButton_Menu(&s_MapNext, ">", 0, &Next))
-			g_Config.m_ClLocalServerMap = (g_Config.m_ClLocalServerMap + 1) % MapCount;
-		UI()->DoLabelScaled(&Value, Localize(pMapName), 12.0f, 0);
+		if(ModeDef.m_SelectableMap)
+		{
+			DrawFocusMarker(Label, FOCUS_MAP);
+			UI()->DoLabelScaled(&Label, Localize("Map preset"), 12.0f, -1);
+			Control.VSplitLeft(L(30.0f), &Previous, &Value);
+			Value.VSplitRight(L(30.0f), &Value, &Next);
+			if(DoButton_Menu(&s_MapPrevious, "<", 0, &Previous))
+				g_Config.m_ClLocalServerMap = (g_Config.m_ClLocalServerMap + MapCount - 1) % MapCount;
+			if(DoButton_Menu(&s_MapNext, ">", 0, &Next))
+				g_Config.m_ClLocalServerMap = (g_Config.m_ClLocalServerMap + 1) % MapCount;
+			UI()->DoLabelScaled(&Value, Localize(pMapName), 12.0f, 0);
+		}
+		else
+		{
+			UI()->DoLabelScaled(&Label, Localize("Map selection"), 12.0f, -1);
+			UI()->DoLabelScaled(&Control, Localize("Automatic by Invasion floor"), 11.0f, -1);
+		}
 
-		SplitSettingRow(&Label, &Control);
-		DrawFocusMarker(Label, FOCUS_DIFFICULTY);
-		const char *pDifficultyLabel = ModeDef.m_Pve ? (g_Config.m_ClLocalServerMode == 0 ? "Starting floor" : "Mission difficulty") : "AI difficulty";
-		str_format(aLabel, sizeof(aLabel), "%s: %d", Localize(pDifficultyLabel), g_Config.m_ClLocalServerDifficulty);
-		UI()->DoLabelScaled(&Label, aLabel, 12.0f, -1);
-		Control.HMargin(L(5.0f), &Control);
-		g_Config.m_ClLocalServerDifficulty = 1 + (int)(DoScrollbarH(&g_Config.m_ClLocalServerDifficulty, &Control, (g_Config.m_ClLocalServerDifficulty - 1) / 49.0f) * 49.0f + 0.5f);
+		if(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION)
+		{
+			SplitSettingRow(&Label, &Control);
+			DrawFocusMarker(Label, FOCUS_INVASION_START);
+			UI()->DoLabelScaled(&Label, Localize("Starting point"), 12.0f, -1);
+			Control.VSplitLeft(L(30.0f), &Previous, &Value);
+			Value.VSplitRight(L(30.0f), &Value, &Next);
+			if(DoButton_Menu(&s_InvasionStartPrevious, "<", 0, &Previous))
+				g_Config.m_ClLocalServerInvasionStart = (g_Config.m_ClLocalServerInvasionStart + 2) % 3;
+			if(DoButton_Menu(&s_InvasionStartNext, ">", 0, &Next))
+				g_Config.m_ClLocalServerInvasionStart = (g_Config.m_ClLocalServerInvasionStart + 1) % 3;
+			UI()->DoLabelScaled(&Value, Localize(LocalInvasionStartName(g_Config.m_ClLocalServerInvasionStart)), 11.0f, 0);
+
+			if(g_Config.m_ClLocalServerInvasionStart == LOCAL_INVASION_CUSTOM_FLOOR)
+			{
+				const int MaxFloor = max(1, g_Config.m_ClPveHighestInvasion);
+				g_Config.m_ClLocalServerInvasionFloor = clamp(g_Config.m_ClLocalServerInvasionFloor, 1, MaxFloor);
+				SplitSettingRow(&Label, &Control);
+				DrawFocusMarker(Label, FOCUS_INVASION_FLOOR);
+				str_format(aLabel, sizeof(aLabel), "%s: %d", Localize("Starting floor"), g_Config.m_ClLocalServerInvasionFloor);
+				UI()->DoLabelScaled(&Label, aLabel, 12.0f, -1);
+				Control.VSplitLeft(L(30.0f), &Previous, &Value);
+				Value.VSplitRight(L(30.0f), &Value, &Next);
+				if(DoButton_Menu(&s_InvasionFloorPrevious, "-", 0, &Previous))
+					g_Config.m_ClLocalServerInvasionFloor = max(1, g_Config.m_ClLocalServerInvasionFloor - 1);
+				if(DoButton_Menu(&s_InvasionFloorNext, "+", 0, &Next))
+					g_Config.m_ClLocalServerInvasionFloor = min(MaxFloor, g_Config.m_ClLocalServerInvasionFloor + 1);
+				if(MaxFloor > 1)
+					g_Config.m_ClLocalServerInvasionFloor = 1 + (int)(DoScrollbarH(&g_Config.m_ClLocalServerInvasionFloor, &Value, (g_Config.m_ClLocalServerInvasionFloor - 1) / (float)(MaxFloor - 1)) * (MaxFloor - 1) + 0.5f);
+				else
+					UI()->DoLabelScaled(&Value, Localize("Complete more floors to unlock"), 9.0f, 0);
+			}
+		}
+		else
+		{
+			SplitSettingRow(&Label, &Control);
+			DrawFocusMarker(Label, FOCUS_DIFFICULTY);
+			const char *pDifficultyLabel = ModeDef.m_Pve ? "Mission difficulty" : "AI difficulty";
+			str_format(aLabel, sizeof(aLabel), "%s: %d", Localize(pDifficultyLabel), g_Config.m_ClLocalServerDifficulty);
+			UI()->DoLabelScaled(&Label, aLabel, 12.0f, -1);
+			Control.HMargin(L(5.0f), &Control);
+			g_Config.m_ClLocalServerDifficulty = 1 + (int)(DoScrollbarH(&g_Config.m_ClLocalServerDifficulty, &Control, (g_Config.m_ClLocalServerDifficulty - 1) / 49.0f) * 49.0f + 0.5f);
+		}
 
 		SplitSettingRow(&Label, &Control);
 		if(ModeDef.m_Pve)
 		{
 			UI()->DoLabelScaled(&Label, Localize("Enemy scaling"), 12.0f, -1);
-			UI()->DoLabelScaled(&Control, Localize(g_Config.m_ClLocalServerMode == 0 ? "Automatic by floor and party size" : "Health, elites and party size"), 11.0f, -1);
+			UI()->DoLabelScaled(&Control, Localize(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION ? "Automatic by floor and party size" : "Health, elites and party size"), 11.0f, -1);
 		}
 		else
 		{
@@ -1912,7 +2283,11 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			str_format(aLabel, sizeof(aLabel), "%s: %d", Localize("AI players"), g_Config.m_ClLocalServerBots);
 			UI()->DoLabelScaled(&Label, aLabel, 12.0f, -1);
 			Control.HMargin(L(5.0f), &Control);
-			g_Config.m_ClLocalServerBots = (int)(DoScrollbarH(&g_Config.m_ClLocalServerBots, &Control, g_Config.m_ClLocalServerBots / 16.0f) * 16.0f + 0.5f);
+			const int MaxBots = max(0, g_Config.m_ClLocalServerMaxClients - 1);
+			if(MaxBots > 0)
+				g_Config.m_ClLocalServerBots = (int)(DoScrollbarH(&g_Config.m_ClLocalServerBots, &Control, g_Config.m_ClLocalServerBots / (float)MaxBots) * MaxBots + 0.5f);
+			else
+				g_Config.m_ClLocalServerBots = 0;
 		}
 
 		SplitSettingRow(&Label, &Control);
@@ -1958,11 +2333,11 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			UI()->DoLabelScaled(&Control, Localize(g_Config.m_ClLocalServerRoguelite ? "Offer optional team challenges" : "Requires Roguelite Director"), 10.0f, -1);
 		}
 
-		if(g_Config.m_ClLocalServerMode != 0)
+		if(g_Config.m_ClLocalServerMode != LOCAL_MODE_INVASION)
 		{
 			SplitSettingRow(&Label, &Control);
 			DrawFocusMarker(Label, FOCUS_MODE_RULE);
-			const char *pRuleLabel = g_Config.m_ClLocalServerMode == 1 ? "Target waves" : (g_Config.m_ClLocalServerMode == 2 ? "Mission time" : "Score limit");
+			const char *pRuleLabel = g_Config.m_ClLocalServerMode == LOCAL_MODE_HORDE ? "Target waves" : (g_Config.m_ClLocalServerMode == LOCAL_MODE_EXTRACTION ? "Mission time" : "Score limit");
 			UI()->DoLabelScaled(&Label, Localize(pRuleLabel), 12.0f, -1);
 			Control.VSplitLeft(L(30.0f), &Previous, &Value);
 			Value.VSplitRight(L(30.0f), &Value, &Next);
@@ -1970,15 +2345,15 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 				AdjustModeRule(-1);
 			if(DoButton_Menu(&s_RuleNext, "+", 0, &Next))
 				AdjustModeRule(1);
-			if(g_Config.m_ClLocalServerMode == 1 && g_Config.m_ClLocalServerHordeWaves == 0)
+			if(g_Config.m_ClLocalServerMode == LOCAL_MODE_HORDE && g_Config.m_ClLocalServerHordeWaves == 0)
 				str_copy(aLabel, Localize("Endless"), sizeof(aLabel));
-			else if(g_Config.m_ClLocalServerMode == 1)
+			else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_HORDE)
 				str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerHordeWaves);
-			else if(g_Config.m_ClLocalServerMode == 2)
+			else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_EXTRACTION)
 				str_format(aLabel, sizeof(aLabel), Localize("%d min"), g_Config.m_ClLocalServerExtractionTime);
-			else if(g_Config.m_ClLocalServerMode == 3)
+			else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_DM)
 				str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerDmScore);
-			else if(g_Config.m_ClLocalServerMode == 4)
+			else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_TDM)
 				str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerTdmScore);
 			else
 				str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerCtfScore);
@@ -1993,28 +2368,59 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	DrawMenuInset(&StatusBar, CUI::CORNER_ALL);
 	StatusBar.Margin(L(8.0f), &StatusBar);
 	CUIRect Status, Actions;
-	const float StatusWidth = clamp(StatusBar.w * 0.56f, 360.0f, 420.0f);
+	const float StatusWidth = clamp(StatusBar.w * 0.62f, 390.0f, 520.0f);
 	StatusBar.VSplitLeft(L(StatusWidth), &Status, &Actions);
 	const char *pStatus = Localize("Ready to start");
 	if(m_LocalServerState == LOCAL_SERVER_STARTING)
-		pStatus = Localize("Starting local server...");
+		pStatus = Localize("Starting local server and waiting for readiness...");
 	else if(m_LocalServerState == LOCAL_SERVER_RUNNING)
-		pStatus = Localize(m_LocalServerAutoJoin ? "Starting local server..." : "Local server is running");
+		pStatus = Localize(m_LocalServerAutoJoin ? "Local server is ready; joining..." : "Local server is running");
 	else if(m_LocalServerState == LOCAL_SERVER_STOPPING)
 		pStatus = Localize("Stopping local server...");
 	else if(m_LocalServerState == LOCAL_SERVER_FAILED)
-		pStatus = m_LocalServerExitCode == -1 ? Localize("Server executable was not found") : (m_LocalServerExitCode == -2 ? Localize("No free local server port was found") : Localize("Local server stopped unexpectedly"));
-	CUIRect StatusLine, InputHint;
-	Status.HSplitTop(L(20.0f), &StatusLine, &InputHint);
+	{
+		if(m_LocalServerExitCode == LOCAL_SERVER_ERROR_EXECUTABLE)
+			pStatus = Localize("Server executable was not found or could not be started");
+		else if(m_LocalServerExitCode == LOCAL_SERVER_ERROR_PORT)
+			pStatus = Localize("No free local server port was found");
+		else if(m_LocalServerExitCode == LOCAL_SERVER_ERROR_TIMEOUT)
+			pStatus = Localize("Local server did not become ready in time");
+		else
+			pStatus = Localize("Local server stopped unexpectedly");
+	}
+	CUIRect StatusLine, SummaryLine, DetailLine;
+	Status.HSplitTop(L(18.0f), &StatusLine, &Status);
+	Status.HSplitTop(L(17.0f), &SummaryLine, &DetailLine);
 	UI()->DoLabelScaled(&StatusLine, pStatus, 12.0f, -1);
-	UI()->DoLabelScaled(&InputHint, Localize("Arrows / D-pad: select and adjust · Enter / A: confirm"), 8.5f, -1, (int)InputHint.w);
+	const char *pSummary = (m_LocalServerState == LOCAL_SERVER_STOPPED || !m_aLocalServerSummary[0]) ? aPreviewSummary : m_aLocalServerSummary;
+	UI()->DoLabelScaled(&SummaryLine, pSummary, 8.5f, -1, (int)SummaryLine.w);
+	const char *pDetail = Localize("Arrows / D-pad: select and adjust · Enter / A: confirm");
+	if(m_LocalServerState == LOCAL_SERVER_FAILED)
+	{
+		if(m_LocalServerExitCode == LOCAL_SERVER_ERROR_PORT)
+			pDetail = Localize("The preferred port and the next nine ports are already in use.");
+		else if(m_aLocalServerErrorDetail[0])
+			pDetail = m_aLocalServerErrorDetail;
+	}
+	UI()->DoLabelScaled(&DetailLine, pDetail, 8.0f, -1, (int)DetailLine.w);
 
 	CUIRect Button;
 	if(m_LocalServerState == LOCAL_SERVER_STOPPED || m_LocalServerState == LOCAL_SERVER_FAILED)
 	{
-		Actions.VSplitRight(L(150.0f), 0, &Button);
+		Actions.VSplitRight(L(150.0f), &Actions, &Button);
 		if(DoButton_Menu(&s_StartButton, Localize("Start and join"), m_LocalServerFocus == FOCUS_PRIMARY_ACTION, &Button, BUTTONSTYLE_ACCENT))
 			StartLocalServer(true);
+		if(m_LocalServerState == LOCAL_SERVER_FAILED && m_aLocalServerLogPath[0])
+		{
+			Actions.VSplitRight(L(6.0f), &Actions, 0);
+			Actions.VSplitRight(L(78.0f), &Actions, &Button);
+			if(DoButton_Menu(&s_LogButton, Localize("Log"), 0, &Button))
+			{
+				char aBody[512];
+				str_format(aBody, sizeof(aBody), "%s\n\n%s", m_aLocalServerLogPath, m_aLocalServerErrorDetail);
+				PopupMessage(Localize("Local server log"), aBody, Localize("OK"));
+			}
+		}
 	}
 	else if(m_LocalServerState == LOCAL_SERVER_RUNNING)
 	{
@@ -2026,7 +2432,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		if(DoButton_Menu(&s_RestartButton, Localize("Restart"), m_LocalServerFocus == FOCUS_RESTART, &Button))
 			StopLocalServer(true);
 		Actions.VSplitRight(L(6.0f), &Actions, 0);
-		if(Client()->State() == IClient::STATE_OFFLINE)
+		if(!IsConnectedToLocalServer())
 		{
 			Actions.VSplitRight(L(92.0f), &Actions, &Button);
 			if(DoButton_Menu(&s_JoinButton, Localize("Join"), m_LocalServerFocus == FOCUS_PRIMARY_ACTION, &Button, BUTTONSTYLE_ACCENT))

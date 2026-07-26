@@ -251,6 +251,7 @@ public:
 
 
 	virtual void GetServerInfo(CServerInfo *pServerInfo);
+	virtual void GetServerAddress(NETADDR *pAddress) const;
 	void ServerInfoRequest();
 
 	int LoadData();
