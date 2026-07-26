@@ -141,12 +141,12 @@ MACRO_CONFIG_INT(SvPveChoiceTime, sv_pve_choice_time, 10, 3, 60, CFGFLAG_SERVER,
 MACRO_CONFIG_INT(SvPveContractVoteTime, sv_pve_contract_vote_time, 8, 3, 60, CFGFLAG_SERVER, "Seconds allowed for a team contract vote")
 
 // Client-owned permanent PvE progress. Current-run combat state is never stored here.
-MACRO_CONFIG_INT(ClPveProgressVersion, cl_pve_progress_version, 2, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "PvE progression format version")
-MACRO_CONFIG_INT(ClPveResearchPoints, cl_pve_research_points, 0, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)Unspent PvE research points")
-MACRO_CONFIG_STR(ClPveResearchMask, cl_pve_research_mask, 33, "00000000000000000000000000000000", CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)128-bit hexadecimal PvE research unlock mask")
-MACRO_CONFIG_INT(ClPveHighestInvasion, cl_pve_highest_invasion, 0, 0, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)Highest completed Invasion floor")
-MACRO_CONFIG_INT(ClPvePreferredCheckpoint, cl_pve_preferred_checkpoint, 1, 1, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)Preferred unlocked Invasion checkpoint")
-MACRO_CONFIG_INT(ClPveDroneTutorialSeen, cl_pve_drone_tutorial_seen, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Whether the drone command wheel tutorial has been shown")
+MACRO_CONFIG_INT(ClPveProgressVersion, cl_pve_progress_version, 2, 0, 999, CFGFLAG_CLIENT, "Legacy PvE progression format version; migrated to pve_progress.json")
+MACRO_CONFIG_INT(ClPveResearchPoints, cl_pve_research_points, 0, 0, 999, CFGFLAG_CLIENT, "Legacy PvE research points; migrated to pve_progress.json")
+MACRO_CONFIG_STR(ClPveResearchMask, cl_pve_research_mask, 33, "00000000000000000000000000000000", CFGFLAG_CLIENT, "Legacy PvE research mask; migrated to pve_progress.json")
+MACRO_CONFIG_INT(ClPveHighestInvasion, cl_pve_highest_invasion, 0, 0, 9999, CFGFLAG_CLIENT, "Legacy highest Invasion floor; migrated to pve_progress.json")
+MACRO_CONFIG_INT(ClPvePreferredCheckpoint, cl_pve_preferred_checkpoint, 1, 1, 9999, CFGFLAG_CLIENT, "Legacy preferred Invasion checkpoint; migrated to pve_progress.json")
+MACRO_CONFIG_INT(ClPveDroneTutorialSeen, cl_pve_drone_tutorial_seen, 0, 0, 1, CFGFLAG_CLIENT, "Legacy drone tutorial state; migrated to pve_progress.json")
 
 // One-click local game hosting. The password is intentionally session-only.
 MACRO_CONFIG_INT(ClLocalServerMode, cl_local_server_mode, 0, 0, 5, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game mode")

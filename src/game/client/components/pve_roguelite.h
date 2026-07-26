@@ -12,6 +12,7 @@ class CPveRoguelite : public CComponent
 	bool m_InvasionRetryResultActive;
 	bool m_ResearchVisible;
 	bool m_ProgressSent;
+	bool m_ProgressStorageWritable;
 	bool m_MouseTrigger;
 	int m_ChoiceNonce;
 	int m_ChoiceSequence;
@@ -85,6 +86,8 @@ class CPveRoguelite : public CComponent
 
 	CPveResearchMask ParseResearchMask() const;
 	void StoreResearchMask(CPveResearchMask Mask);
+	void LoadProgress();
+	void SaveProgress();
 	void SendChoice(int Slot);
 	void SendContractVote(int Slot);
 	void SendInvasionRetryVote(int Choice);
@@ -117,6 +120,8 @@ public:
 	CPveRoguelite();
 	virtual void OnReset();
 	virtual void OnConsoleInit();
+	virtual void OnInit();
+	virtual void OnRelease();
 	virtual void OnRender();
 	virtual void OnMessage(int MsgType, void *pRawMsg);
 	virtual bool OnInput(IInput::CEvent Event);

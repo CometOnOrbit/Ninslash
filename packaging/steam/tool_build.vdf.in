@@ -1,0 +1,14 @@
+"appbuild"
+{
+    "appid" "@SERVER_TOOL_APP_ID@"
+    "desc" "Ninslash dedicated server @VERSION@ @GIT_COMMIT@"
+    "buildoutput" "@BUILD_OUTPUT@"
+    "contentroot" "@CONTENT_ROOT@"
+    "setlive" ""
+    "preview" "0"
+    "depots"
+    {
+        "@WINDOWS_SERVER_DEPOT_ID@" "depot_windows_server.vdf"
+        "@LINUX_SERVER_DEPOT_ID@" "depot_linux_server.vdf"
+    }
+}

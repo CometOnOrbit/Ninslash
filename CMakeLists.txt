@@ -75,6 +75,22 @@ endif()
 option(CLIENT "Compile client" ON)
 option(PREFER_BUNDLED_LIBS "Prefer bundled libraries over system libraries" ${AUTO_DEPENDENCIES_DEFAULT})
 option(DEV "Don't generate stuff necessary for packaging" OFF)
+option(ENABLE_STEAMWORKS "Build optional Steamworks client integration" OFF)
+option(NINSLASH_BUILD_TESTS "Build focused release-readiness tests" OFF)
+set(STEAMWORKS_SDK_ROOT "" CACHE PATH "Steamworks SDK root containing public/steam and redistributable_bin")
+set(STEAM_APP_ID "1812700" CACHE STRING "Steam AppID used by the release build")
+
+if(ENABLE_STEAMWORKS)
+  if(NOT CLIENT)
+    message(FATAL_ERROR "ENABLE_STEAMWORKS currently requires CLIENT=ON")
+  endif()
+  if(NOT STEAMWORKS_SDK_ROOT OR NOT EXISTS "${STEAMWORKS_SDK_ROOT}/public/steam/steam_api.h")
+    message(FATAL_ERROR "Set STEAMWORKS_SDK_ROOT to a valid Steamworks SDK directory")
+  endif()
+  if(STEAM_APP_ID STREQUAL "0")
+    message(FATAL_ERROR "STEAM_APP_ID must be a valid assigned Steam application ID")
+  endif()
+endif()
 
 # Set the default build type to Release
 if(NOT(CMAKE_BUILD_TYPE))
@@ -440,6 +456,7 @@ set_src(ENGINE_INTERFACE GLOB src/engine
   localization.h
   map.h
   masterserver.h
+  platform_services.h
   message.h
   server.h
   serverbrowser.h
@@ -555,6 +572,26 @@ add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_INTERFACE} ${ENGINE_S
 add_library(game-shared EXCLUDE_FROM_ALL OBJECT ${GAME_SHARED} ${GAME_GENERATED_SHARED})
 list(APPEND TARGETS_OWN engine-shared game-shared)
 
+if(NINSLASH_BUILD_TESTS)
+  enable_testing()
+  add_executable(ninslash_test_pve_progress
+    tests/pve_progress_storage.cpp
+    src/game/client/pve_progress_storage.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_pve_progress PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_BINARY_DIR}/src
+  )
+  target_link_libraries(ninslash_test_pve_progress ${LIBS})
+  file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/test-home")
+  add_test(NAME pve_progress_storage COMMAND ninslash_test_pve_progress)
+  set_tests_properties(pve_progress_storage PROPERTIES
+    ENVIRONMENT "HOME=${PROJECT_BINARY_DIR}/test-home"
+  )
+endif()
+
 ########################################################################
 # CLIENT
 ########################################################################
@@ -577,6 +614,7 @@ if(CLIENT)
     input.cpp
     input.h
     keynames.h
+    platform_services.cpp
     serverbrowser.cpp
     serverbrowser.h
     sound.cpp
@@ -662,6 +700,8 @@ if(CLIENT)
     components/players.h
     components/pve_roguelite.cpp
     components/pve_roguelite.h
+    pve_progress_storage.cpp
+    pve_progress_storage.h
     components/radar.cpp
     components/radar.h
     components/scoreboard.cpp
@@ -771,6 +811,26 @@ if(CLIENT)
 
   add_executable(${TARGET_CLIENT} ${TARGET_CLIENT_SOURCES})
   target_link_libraries(${TARGET_CLIENT} ${LIBS_CLIENT})
+
+  if(ENABLE_STEAMWORKS)
+    target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_STEAMWORKS STEAM_APP_ID=${STEAM_APP_ID})
+    target_include_directories(${TARGET_CLIENT} PRIVATE "${STEAMWORKS_SDK_ROOT}/public/steam")
+    if(TARGET_OS STREQUAL "windows")
+      target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.lib")
+      add_custom_command(TARGET ${TARGET_CLIENT} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.dll"
+          "$<TARGET_FILE_DIR:${TARGET_CLIENT}>")
+    elseif(TARGET_OS STREQUAL "linux")
+      target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so")
+      add_custom_command(TARGET ${TARGET_CLIENT} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so"
+          "$<TARGET_FILE_DIR:${TARGET_CLIENT}>")
+    else()
+      message(FATAL_ERROR "Steamworks release integration is supported only on Windows and Linux")
+    endif()
+  endif()
 
   if(TARGET_OS STREQUAL "windows")
     foreach(copy_file ${FREETYPE_COPY_FILES} ${SDL3_COPY_FILES})
@@ -1188,7 +1248,8 @@ set(CPACK_SOURCE_FILES
   license.txt
   objs/
   other/
-  readme.txt
+  README.md
+  README_zh-CN.md
   scripts/
   src/
   storage.cfg
@@ -1217,6 +1278,9 @@ set(CPACK_TARGETS
 set(CPACK_DIRS data)
 set(CPACK_FILES
   license.txt
+  THIRD_PARTY_LICENSES.md
+  README.md
+  README_zh-CN.md
   storage.cfg
   ${COPY_FILES}
 )

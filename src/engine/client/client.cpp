@@ -18,6 +18,7 @@
 #include <engine/keys.h>
 #include <engine/map.h>
 #include <engine/masterserver.h>
+#include <engine/platform_services.h>
 #include <engine/serverbrowser.h>
 #include <engine/sound.h>
 #include <engine/gamepad.h>
@@ -56,6 +57,24 @@
 #ifdef main
 #undef main
 #endif
+
+namespace
+{
+bool IsSafePlatformJoinAddress(const char *pAddress)
+{
+	const int Length = str_length(pAddress);
+	if(Length <= 0 || Length >= 256)
+		return false;
+	for(int i = 0; i < Length; i++)
+	{
+		const char c = pAddress[i];
+		if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+			c == '.' || c == '-' || c == '_' || c == ':' || c == '[' || c == ']'))
+			return false;
+	}
+	return true;
+}
+}
 
 void CGraph::Init(float Min, float Max)
 {
@@ -260,6 +279,7 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 	m_pGameClient = 0;
 	m_pMap = 0;
 	m_pConsole = 0;
+	m_pPlatformServices = 0;
 
 	m_RenderFrameTime = 0.0001f;
 	m_RenderFrameTimeLow = 1.0f;
@@ -493,6 +513,21 @@ void CClient::SetState(int s)
 		m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
 	}
 	m_State = s;
+	if(m_pPlatformServices && m_pPlatformServices->Available())
+	{
+		const char *pStatus = "In menus";
+		const char *pConnect = "";
+		if(s == IClient::STATE_CONNECTING || s == IClient::STATE_LOADING)
+			pStatus = "Joining a game";
+		else if(s == IClient::STATE_ONLINE)
+		{
+			pStatus = "Playing Ninslash";
+			pConnect = m_aServerAddressStr;
+		}
+		else if(s == IClient::STATE_DEMOPLAYBACK)
+			pStatus = "Watching a replay";
+		m_pPlatformServices->SetRichPresence(pStatus, pConnect);
+	}
 	if(Old != s)
 		GameClient()->OnStateChange(m_State, Old);
 }
@@ -1770,6 +1805,7 @@ void CClient::InitInterfaces()
 	m_pMap = Kernel()->RequestInterface<IEngineMap>();
 	m_pMasterServer = Kernel()->RequestInterface<IEngineMasterServer>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
+	m_pPlatformServices = Kernel()->RequestInterface<IPlatformServices>();
 
 	//
 	m_ServerBrowser.SetBaseInfo(&m_NetClient, m_pGameClient->NetVersion());
@@ -1790,6 +1826,13 @@ void CClient::Run()
 		}
 
 		atexit(SDL_Quit); // ignore_convention
+	}
+
+	if(m_pPlatformServices)
+	{
+		if(!m_pPlatformServices->Init())
+			return;
+		m_pPlatformServices->SetRichPresence("In menus", "");
 	}
 
 	// init graphics
@@ -1878,6 +1921,18 @@ void CClient::Run()
 
 	while (1)
 	{
+		if(m_pPlatformServices)
+		{
+			m_pPlatformServices->RunCallbacks();
+			char aJoinAddress[256];
+			if(m_pPlatformServices->ConsumeJoinRequest(aJoinAddress, sizeof(aJoinAddress)))
+			{
+				if(IsSafePlatformJoinAddress(aJoinAddress))
+					Connect(aJoinAddress);
+				else
+					dbg_msg("platform", "ignored unsafe join request");
+			}
+		}
 		//
 		VersionUpdate();
 
@@ -2034,6 +2089,8 @@ void CClient::Run()
 	m_pGraphics->Shutdown();
 	m_pSound->Shutdown();
 	m_pGamepad->Shutdown();
+	if(m_pPlatformServices)
+		m_pPlatformServices->Shutdown();
 
 	// shutdown SDL
 	{
@@ -2581,6 +2638,7 @@ int main(int argc, const char **argv) // ignore_convention
 	IEngineTextRender *pEngineTextRender = CreateEngineTextRender();
 	IEngineMap *pEngineMap = CreateEngineMap();
 	IEngineMasterServer *pEngineMasterServer = CreateEngineMasterServer();
+	IPlatformServices *pPlatformServices = CreatePlatformServices();
 
 	{
 		bool RegisterFail = false;
@@ -2588,6 +2646,7 @@ int main(int argc, const char **argv) // ignore_convention
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pEngine);
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pConsole);
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pConfig);
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pPlatformServices);
 
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineSound*>(pEngineSound)); // register as both
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<ISound*>(pEngineSound));

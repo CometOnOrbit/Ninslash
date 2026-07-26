@@ -12,6 +12,7 @@
 #include <game/client/components/effects.h>
 #include <game/client/components/menus.h>
 #include <game/client/gameclient.h>
+#include <game/client/pve_progress_storage.h>
 #include <game/client/skelebank.h>
 #include <game/questinfo.h>
 
@@ -205,6 +206,7 @@ void DrawDroneWheelSlice(IGraphics *pGraphics, float x, float y, float r, float 
 
 CPveRoguelite::CPveRoguelite()
 {
+	m_ProgressStorageWritable = true;
 	for(int i = 0; i < NUM_PVE_CARDS; i++)
 		m_aNodeButtonIDs[i] = i;
 	for(int i = 0; i < 3; i++)
@@ -225,6 +227,72 @@ CPveRoguelite::CPveRoguelite()
 	m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
 	m_RenderWorld.m_pRoguelite = this;
 	OnReset();
+}
+
+void CPveRoguelite::OnInit()
+{
+	LoadProgress();
+	m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
+}
+
+void CPveRoguelite::OnRelease()
+{
+	SaveProgress();
+}
+
+void CPveRoguelite::LoadProgress()
+{
+	CPveProgressData Data;
+	EPveProgressLoadResult Result = CPveProgressStorage::Load(Storage(), &Data);
+	bool UsedBackup = false;
+	if(Result == PVE_PROGRESS_LOAD_CORRUPT || Result == PVE_PROGRESS_LOAD_MISSING)
+	{
+		if(Result == PVE_PROGRESS_LOAD_CORRUPT)
+			Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "pve", "pve_progress.json is corrupt; trying backup");
+		const EPveProgressLoadResult BackupResult = CPveProgressStorage::Load(Storage(), &Data, "pve_progress.json.bak");
+		if(BackupResult != PVE_PROGRESS_LOAD_MISSING)
+		{
+			Result = BackupResult;
+			UsedBackup = BackupResult == PVE_PROGRESS_LOAD_OK;
+		}
+	}
+	if(Result == PVE_PROGRESS_LOAD_FUTURE_VERSION)
+	{
+		m_ProgressStorageWritable = false;
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "pve", "pve_progress.json was created by a newer game version; it will not be overwritten");
+		return;
+	}
+	if(Result == PVE_PROGRESS_LOAD_OK)
+	{
+		g_Config.m_ClPveProgressVersion = Data.m_ProgressVersion;
+		g_Config.m_ClPveResearchPoints = Data.m_ResearchPoints;
+		str_copy(g_Config.m_ClPveResearchMask, Data.m_aResearchMask, sizeof(g_Config.m_ClPveResearchMask));
+		g_Config.m_ClPveHighestInvasion = Data.m_HighestInvasion;
+		g_Config.m_ClPvePreferredCheckpoint = Data.m_PreferredCheckpoint;
+		g_Config.m_ClPveDroneTutorialSeen = Data.m_DroneTutorialSeen ? 1 : 0;
+		if(UsedBackup)
+			SaveProgress();
+		return;
+	}
+
+	// Values loaded from an older settings.cfg are the migration source. If
+	// none exist, the same path creates a valid empty progress file.
+	SaveProgress();
+}
+
+void CPveRoguelite::SaveProgress()
+{
+	if(!m_ProgressStorageWritable || !Storage())
+		return;
+	CPveProgressData Data;
+	Data.m_ProgressVersion = g_Config.m_ClPveProgressVersion;
+	Data.m_ResearchPoints = g_Config.m_ClPveResearchPoints;
+	str_copy(Data.m_aResearchMask, g_Config.m_ClPveResearchMask, sizeof(Data.m_aResearchMask));
+	Data.m_HighestInvasion = g_Config.m_ClPveHighestInvasion;
+	Data.m_PreferredCheckpoint = g_Config.m_ClPvePreferredCheckpoint;
+	Data.m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
+	if(!CPveProgressStorage::Save(Storage(), Data))
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "pve", "failed to save pve_progress.json");
 }
 
 void CPveRoguelite::OnConsoleInit()
@@ -260,6 +328,7 @@ void CPveRoguelite::ConKeyDroneWheel(IConsole::IResult *pResult, void *pUserData
 		pSelf->m_DroneWheelSelected = -1;
 		pSelf->m_DroneTutorialSeen = true;
 		g_Config.m_ClPveDroneTutorialSeen = 1;
+		pSelf->SaveProgress();
 		return;
 	}
 
@@ -1301,6 +1370,7 @@ void CPveRoguelite::BuySelectedResearch()
 		g_Config.m_ClPveResearchPoints -= pSelected->m_ResearchCost;
 		Mask.Set(m_SelectedResearch);
 		StoreResearchMask(Mask);
+		SaveProgress();
 	}
 	m_SelectionPulse = 1.0f;
 }
@@ -1324,6 +1394,7 @@ void CPveRoguelite::CycleCheckpoint()
 	g_Config.m_ClPvePreferredCheckpoint += 10;
 	if(g_Config.m_ClPvePreferredCheckpoint > MaxCheckpoint)
 		g_Config.m_ClPvePreferredCheckpoint = 1;
+	SaveProgress();
 	if(Client()->State() == IClient::STATE_ONLINE && m_ProgressSent)
 		SyncProgress();
 }
@@ -2238,6 +2309,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		StoreResearchMask(CPveResearchMask(Low, High));
 		g_Config.m_ClPveHighestInvasion = pMsg->m_HighestInvasion;
 		g_Config.m_ClPvePreferredCheckpoint = pMsg->m_PreferredCheckpoint;
+		SaveProgress();
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVECHOICE)
 	{
@@ -2331,6 +2403,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		g_Config.m_ClPveHighestInvasion = max(g_Config.m_ClPveHighestInvasion, pMsg->m_HighestInvasion);
 		if(g_Config.m_ClPvePreferredCheckpoint > pMsg->m_UnlockedCheckpoint)
 			g_Config.m_ClPvePreferredCheckpoint = pMsg->m_UnlockedCheckpoint;
+		SaveProgress();
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEBUILDSTATE)
 	{

@@ -59,7 +59,8 @@ shutil.rmtree(package_dir, True)
 os.mkdir(package_dir)
 
 print("adding files")
-shutil.copy("readme.txt", package_dir)
+shutil.copy("README.md", package_dir)
+shutil.copy("README_zh-CN.md", package_dir)
 shutil.copy("license.txt", package_dir)
 shutil.copy("storage.cfg", package_dir)
 
