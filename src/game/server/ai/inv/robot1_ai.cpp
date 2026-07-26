@@ -42,7 +42,7 @@ void CAIrobot1::OnCharacterSpawn(CCharacter *pChr)
 		m_PowerLevel = 6;
 		pChr->SetHealth(50+min(Level*2.0f, 100.0f));
 		pChr->SetArmor(50+min(Level*2.0f, 100.0f));
-		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(3, 4)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL4)));
 	}
 	else if (m_Skin == SKIN_ROBO2)
 	{
@@ -56,7 +56,7 @@ void CAIrobot1::OnCharacterSpawn(CCharacter *pChr)
 		m_PowerLevel = 6;
 		pChr->SetHealth(70+min(Level*3.0f, 200.0f));
 		pChr->SetArmor(70+min(Level*3.0f, 300.0f));
-		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 2)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL2)));
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE1)));
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE1)));
 		pChr->m_Kits = 1;
@@ -66,7 +66,7 @@ void CAIrobot1::OnCharacterSpawn(CCharacter *pChr)
 		m_PowerLevel = 10;
 		pChr->SetHealth(80+min(Level*3.0f, 200.0f));
 		pChr->SetArmor(80+min(Level*3.0f, 300.0f));
-		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(3, 1 + rand() % 4, 2)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL1 + rand() % 4, 2)));
 		pChr->m_Kits = 1;
 	}
 	else if (m_Skin == SKIN_ROBO5)
@@ -74,7 +74,7 @@ void CAIrobot1::OnCharacterSpawn(CCharacter *pChr)
 		m_PowerLevel = 14;
 		pChr->SetHealth(90+min(Level*3.0f, 200.0f));
 		pChr->SetArmor(90+min(Level*3.0f, 300.0f));
-		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(6, 9, 2)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_SPIN, PART2_MELEE4, 2)));
 		m_AttackOnDamage = true;
 	}
 	

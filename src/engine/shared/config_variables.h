@@ -132,6 +132,7 @@ MACRO_CONFIG_INT(SvMapGenRandSeed, sv_mapgen_random_seed, 1, 0, 1, CFGFLAG_SERVE
 
 // Invasion
 MACRO_CONFIG_INT(SvInvFails, sv_inv_fails,  0, 0, 9, CFGFLAG_SERVER, "Invasion level fails")
+MACRO_CONFIG_INT(SvInvasionUseCheckpoint, sv_invasion_use_checkpoint, 1, 0, 1, CFGFLAG_SERVER, "Allow synchronized player progress to select the initial Invasion checkpoint")
 
 // Co-op PvE Roguelite Director
 MACRO_CONFIG_INT(SvPveRoguelite, sv_pve_roguelite, 1, 0, 1, CFGFLAG_SERVER, "Enable the shared PvE Roguelite Director")
@@ -149,8 +150,10 @@ MACRO_CONFIG_INT(ClPveDroneTutorialSeen, cl_pve_drone_tutorial_seen, 0, 0, 1, CF
 
 // One-click local game hosting. The password is intentionally session-only.
 MACRO_CONFIG_INT(ClLocalServerMode, cl_local_server_mode, 0, 0, 5, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game mode")
-MACRO_CONFIG_INT(ClLocalServerMap, cl_local_server_map, 0, 0, 6, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game map preset")
+MACRO_CONFIG_INT(ClLocalServerMap, cl_local_server_map, 0, 0, 7, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game map preset")
 MACRO_CONFIG_INT(ClLocalServerDifficulty, cl_local_server_difficulty, 1, 1, 50, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Local game map or AI difficulty")
+MACRO_CONFIG_INT(ClLocalServerInvasionStart, cl_local_server_invasion_start, 0, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Invasion start policy: team checkpoint, floor one, or custom floor")
+MACRO_CONFIG_INT(ClLocalServerInvasionFloor, cl_local_server_invasion_floor, 1, 1, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Custom local Invasion starting floor")
 MACRO_CONFIG_INT(ClLocalServerBots, cl_local_server_bots, 5, 0, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Number of AI players in local competitive games")
 MACRO_CONFIG_INT(ClLocalServerMaxClients, cl_local_server_max_clients, 8, 1, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Maximum total player slots in a local game")
 MACRO_CONFIG_INT(ClLocalServerPort, cl_local_server_port, 8303, 1024, 65535, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Port used by the local game server")

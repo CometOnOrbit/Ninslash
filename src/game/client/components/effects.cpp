@@ -1549,7 +1549,7 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 	}
 
 	// electro
-	if (Part1 == PART1_BASE3)
+	if (Part1 == PART1_BASE3 || Part1 == PART1_BASE5)
 	{
 		// add sparks
 		for(int i = 0; i < 6*ProjectileSize; i++)

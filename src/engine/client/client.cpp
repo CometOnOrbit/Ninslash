@@ -623,6 +623,11 @@ void CClient::GetServerInfo(CServerInfo *pServerInfo)
 	mem_copy(pServerInfo, &m_CurrentServerInfo, sizeof(m_CurrentServerInfo));
 }
 
+void CClient::GetServerAddress(NETADDR *pAddress) const
+{
+	mem_copy(pAddress, &m_ServerAddress, sizeof(m_ServerAddress));
+}
+
 void CClient::ServerInfoRequest()
 {
 	mem_zero(&m_CurrentServerInfo, sizeof(m_CurrentServerInfo));

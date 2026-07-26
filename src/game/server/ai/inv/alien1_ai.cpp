@@ -42,7 +42,7 @@ void CAIalien1::OnCharacterSpawn(CCharacter *pChr)
 	
 	if (m_Skin == SKIN_ALIEN3)
 	{
-		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(4, 4, 2)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE4, PART2_BARREL4, 2)));
 		pChr->SetHealth(60+min((m_Level-1)*3, 300));
 		pChr->SetArmor(60+min((m_Level-1)*3, 300));
 		m_PowerLevel = 8;
@@ -50,7 +50,7 @@ void CAIalien1::OnCharacterSpawn(CCharacter *pChr)
 	}
 	else if (m_Skin == SKIN_ALIEN4)
 	{
-		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1, 4)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL1, 4)));
 		pChr->SetHealth(60+min((m_Level-1)*3, 200));
 		pChr->SetArmor(60+min((m_Level-1)*3, 350));
 		m_PowerLevel = 12;
@@ -75,9 +75,9 @@ void CAIalien1::OnCharacterSpawn(CCharacter *pChr)
 	else
 	{
 		if (frandom() < min(m_Level*0.1f, 1.0f))
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL1)));
 		else if (frandom() < min(m_Level*0.1f, 1.0f))
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 4)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL4)));
 		
 		if (frandom() < 0.6f)
 			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GUN1)));

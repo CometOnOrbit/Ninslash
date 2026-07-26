@@ -549,7 +549,7 @@ set_radar = SpriteSet("radar", image_radar, 4, 2)
 set_generator_shield = SpriteSet("generator_shield", image_generator_shield, 1, 1)
 set_game = SpriteSet("game", image_game, 32, 16)
 set_flag = SpriteSet("flag", image_flag, 8, 2)
-set_weapons = SpriteSet("weapons", image_weapons, 32, 32)
+set_weapons = SpriteSet("weapons", image_weapons, 32, 36)
 set_projectiles = SpriteSet("projectiles", image_projectiles, 16, 8)
 set_trails = SpriteSet("trails", image_trails, 1, 4)
 set_sword = SpriteSet("sword", image_sword, 4, 4)
@@ -705,28 +705,39 @@ for i in range(0, 4):
 
 for i in range(0, 4):
 	container.sprites.Add(Sprite("weapon_part1_"+str(i), set_weapons, 20, i*3, 4, 3))
+
+container.sprites.Add(Sprite("weapon_part1_4", set_weapons, 20, 12, 4, 3))
+container.sprites.Add(Sprite("weapon_part1_5", set_weapons, 16, 32, 4, 3))
 	
 # sword grips
 for i in range(0, 3):
-	container.sprites.Add(Sprite("weapon_part1_"+str(4+i), set_weapons, 18, 26+i*2, 3, 2))
+	container.sprites.Add(Sprite("weapon_part1_"+str(6+i), set_weapons, 18, 26+i*2, 3, 2))
 	
 # bg
 for i in range(0, 4):
 	container.sprites.Add(Sprite("weapon_part1_bg_"+str(i), set_weapons, 24, i*3, 4, 3))
+
+container.sprites.Add(Sprite("weapon_part1_bg_4", set_weapons, 24, 12, 4, 3))
+container.sprites.Add(Sprite("weapon_part1_bg_5", set_weapons, 12, 32, 4, 3))
 	
 # sword grip bgs
 for i in range(0, 3):
-	container.sprites.Add(Sprite("weapon_part1_bg_"+str(4+i), set_weapons, 21, 26+i*2, 3, 2))
+	container.sprites.Add(Sprite("weapon_part1_bg_"+str(6+i), set_weapons, 21, 26+i*2, 3, 2))
 	
 
 for i in range(0, 5):
 	container.sprites.Add(Sprite("weapon_part2_"+str(i), set_weapons, 28, i*3, 4, 3))
+
+container.sprites.Add(Sprite("weapon_part2_5", set_weapons, 28, 15, 4, 3))
+container.sprites.Add(Sprite("weapon_part2_6", set_weapons, 28, 32, 4, 3))
 	
 # sword blades
 for i in range(0, 3):
-	container.sprites.Add(Sprite("weapon_part2_"+str(5+i), set_weapons, 24, 26+i*2, 8, 2))
+	container.sprites.Add(Sprite("weapon_part2_"+str(7+i), set_weapons, 24, 26+i*2, 8, 2))
 
-container.sprites.Add(Sprite("weapon_part2_8", set_weapons, 24, 22, 8, 4))
+container.sprites.Add(Sprite("weapon_part2_10", set_weapons, 24, 22, 8, 4))
+container.sprites.Add(Sprite("weapon_part2_11", set_weapons, 24, 18, 8, 4))
+container.sprites.Add(Sprite("weapon_part2_12", set_weapons, 20, 32, 8, 4))
 
 
 # items & weapons - mind the order | sw_ staticweapon

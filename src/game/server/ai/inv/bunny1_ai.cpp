@@ -39,7 +39,7 @@ void CAIbunny1::OnCharacterSpawn(CCharacter *pChr)
 		
 	if (m_Skin == SKIN_FOXY1)
 	{
-		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(4, 1, 2)));
+		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE4, PART2_BARREL1, 2)));
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_SHIELD)));
 		
 		pChr->SetHealth(80+min(Level*3.0f, 320.0f));
@@ -49,9 +49,9 @@ void CAIbunny1::OnCharacterSpawn(CCharacter *pChr)
 	else if (m_Skin == SKIN_BUNNY3)
 	{
 		if (frandom() < 0.5f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 3)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL3)));
 		else
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(3, 1)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL1)));
 		
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_SHIELD)));
 		
@@ -62,9 +62,9 @@ void CAIbunny1::OnCharacterSpawn(CCharacter *pChr)
 	else if (m_Skin == SKIN_BUNNY4)
 	{
 		if (frandom() < 0.5f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(6, 6)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_SPIN, PART2_MELEE1)));
 		else
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(6, 7)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_SPIN, PART2_MELEE2)));
 		
 		m_AttackOnDamage = true;
 		
@@ -79,9 +79,9 @@ void CAIbunny1::OnCharacterSpawn(CCharacter *pChr)
 	else if (m_Skin == SKIN_BUNNY2)
 	{
 		if (frandom() < 0.5f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 4)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL4)));
 		else
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(5, 6)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1)));
 		
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE2)));
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_SHIELD)));
@@ -93,9 +93,9 @@ void CAIbunny1::OnCharacterSpawn(CCharacter *pChr)
 	else
 	{
 		if (frandom() < 0.5f)
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 4)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL4)));
 		else
-			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(5, 6)));
+			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1)));
 		
 		pChr->SetHealth(40+min(Level*3.0f, 220.0f));
 	}

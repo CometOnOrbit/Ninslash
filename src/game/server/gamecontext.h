@@ -179,7 +179,7 @@ public:
 	void CreateDamageInd(vec2 Pos, float AngleMod, int Damage, int ClientID);
 	void CreateHitConfirm(vec2 Pos, const CAttackSource &Source, int Damage, int TargetType, bool Killed);
 	void CreateRepairInd(vec2 Pos);
-	void CreateExplosion(vec2 Pos, const CAttackSource &Source);
+	void CreateExplosion(vec2 Pos, const CAttackSource &Source, float DamageScale = 1.0f);
 	void SendEffect(int ClientID, int EffectID);
 	void CreateHammerHit(vec2 Pos);
 	void CreateEffect(int FX, vec2 Pos);
@@ -203,7 +203,7 @@ public:
 	bool Shop(class CPlayer *pPlayer, int Slot, bool AI = false);
 	
 	void CreateProjectile(const CAttackSource &Source, int Charge, vec2 Pos, vec2 Direction, vec2 WeaponPos, class CBuilding *OwnerBuilding = NULL);
-	void CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos);
+	void CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos, float PowerScale = 1.0f);
 
 	void ClearFlameHits();
 	

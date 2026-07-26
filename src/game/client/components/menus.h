@@ -196,10 +196,19 @@ class CMenus : public CComponent
 	int m_LocalServerExitCode;
 	int64 m_LocalServerStateTime;
 	int64 m_LocalServerJoinRetryTime;
+	int64 m_LocalServerInfoRequestTime;
 	int m_LocalServerJoinAttempts;
+	int m_LocalServerActualPort;
 	bool m_LocalServerAutoJoin;
 	bool m_LocalServerRestartPending;
+	bool m_LocalServerSummaryLocalized;
 	int m_LocalServerFocus;
+	NETADDR m_LocalServerAddress;
+	char m_aLocalServerJoinAddress[NETADDR_MAXSTRSIZE];
+	char m_aLocalServerPassword[32];
+	char m_aLocalServerSummary[512];
+	char m_aLocalServerLogPath[512];
+	char m_aLocalServerErrorDetail[256];
 
 	int64 m_LastInput;
 
@@ -414,6 +423,8 @@ class CMenus : public CComponent
 	void StartLocalServer(bool AutoJoin);
 	void StopLocalServer(bool Restart);
 	void JoinLocalServer();
+	bool IsConnectedToLocalServer() const;
+	void RefreshLocalServerErrorDetail();
 	static void ConLocalGameStart(IConsole::IResult *pResult, void *pUserData);
 	static void ConLocalGameStop(IConsole::IResult *pResult, void *pUserData);
 	static void ConLocalGameRestart(IConsole::IResult *pResult, void *pUserData);

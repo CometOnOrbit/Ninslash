@@ -1284,7 +1284,7 @@ void CCharacter::GiveStartWeapon()
 			return;
 
 		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GUN1));
-		m_apWeapon[1] = GameServer()->NewWeapon(CWeaponCatalog::Modular(1, 1));
+		m_apWeapon[1] = GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL1));
 		if (frandom() < 0.5f)
 			m_apWeapon[2] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE1));
 		else
@@ -1331,7 +1331,7 @@ void CCharacter::GiveStartWeapon()
 	}
 	if (g_Config.m_SvLaserWeapon)
 	{
-		m_apWeapon[w++] = GameServer()->NewWeapon(CWeaponCatalog::Modular(3, 3));
+		m_apWeapon[w++] = GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL3));
 	}
 }
 

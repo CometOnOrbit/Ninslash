@@ -4,7 +4,7 @@
 #include "building.h"
 #include "droid.h"
 
-CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, const CAttackSource &Source, int Damage, int Charge)
+CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, const CAttackSource &Source, int Damage, int Charge, int Penetration)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER)
 {
 	m_Damage = Damage;
@@ -15,6 +15,8 @@ CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEner
 	m_Dir = Direction;
 	//m_OwnerBuilding = OwnerBuilding;
 	m_Charge = Charge;
+	m_InfinitePenetration = Penetration == WEAPON_INFINITE_PENETRATION;
+	m_RemainingPenetrations = max(0, Penetration);
 	
 	if (m_Charge == -1)
 		m_Bounces = 99;
@@ -115,30 +117,128 @@ bool CLaser::HitBuilding(vec2 From, vec2 To)
 	m_From = From;
 	m_Pos = At;
 	m_Energy = -1;
+	DamageBuilding(pHit, At);
+	return true;
+}
 
+void CLaser::DamageBuilding(CBuilding *pHit, vec2 At)
+{
 	if (pHit->m_Type == BUILDING_GENERATOR)
 	{
-		pHit->m_DamagePos = m_Pos;
+		pHit->m_DamagePos = At;
 		
-		if (distance(pHit->m_Pos, m_Pos) > pHit->m_ProximityRadius)
+		if (distance(pHit->m_Pos, At) > pHit->m_ProximityRadius)
 		{
-			GameServer()->CreateEffect(FX_SHIELDHIT, m_Pos);
+			GameServer()->CreateEffect(FX_SHIELDHIT, At);
 			pHit->TakeDamage(m_Damage/3, m_Source);
 		}
 		else
 		{
-			GameServer()->CreateBuildingHit(m_Pos);
+			GameServer()->CreateBuildingHit(At);
 			pHit->TakeDamage(m_Damage, m_Source);
 		}
 	}
 	else
 	{
-		GameServer()->CreateBuildingHit(m_Pos);
+		GameServer()->CreateBuildingHit(At);
 		pHit->TakeDamage(m_Damage, m_Source);
 	}
-	
-	
-	return true;
+}
+
+bool CLaser::HitPenetratingTargets(vec2 From, vec2 To)
+{
+	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
+	CCharacter *pIgnoredCharacter = NULL;
+	CDroid *pIgnoredDroid = NULL;
+	vec2 SearchFrom = From;
+
+	while(true)
+	{
+		vec2 CharacterAt = To;
+		CCharacter *pCharacter = GameServer()->m_World.IntersectCharacter(
+			SearchFrom, To, 0.0f, CharacterAt, pOwnerChar, false, NULL, 0.0f, pIgnoredCharacter);
+
+		vec2 DroidAt = To;
+		CDroid *pDroid = pOwnerChar ? GameServer()->m_World.IntersectWalker(SearchFrom, To, 8.0f, DroidAt, pIgnoredDroid) : NULL;
+
+		vec2 BuildingAt = To;
+		CBuilding *pBuilding = pOwnerChar ? GameServer()->m_World.IntersectBuilding(
+			SearchFrom, To, 8.0f, BuildingAt, pOwnerChar->GetPlayer()->GetTeam(), m_OwnerBuilding) : NULL;
+
+		enum
+		{
+			HIT_NONE,
+			HIT_CHARACTER,
+			HIT_DROID,
+			HIT_BUILDING,
+		};
+		int HitType = HIT_NONE;
+		vec2 At = To;
+		float BestDistanceSquared = dot(To - SearchFrom, To - SearchFrom) * 10000.0f;
+
+		if(pCharacter)
+		{
+			BestDistanceSquared = dot(CharacterAt - SearchFrom, CharacterAt - SearchFrom);
+			At = CharacterAt;
+			HitType = HIT_CHARACTER;
+		}
+		if(pDroid)
+		{
+			const float DistanceSquared = dot(DroidAt - SearchFrom, DroidAt - SearchFrom);
+			if(DistanceSquared < BestDistanceSquared)
+			{
+				BestDistanceSquared = DistanceSquared;
+				At = DroidAt;
+				HitType = HIT_DROID;
+			}
+		}
+		if(pBuilding)
+		{
+			const float DistanceSquared = dot(BuildingAt - SearchFrom, BuildingAt - SearchFrom);
+			if(DistanceSquared <= BestDistanceSquared)
+			{
+				At = BuildingAt;
+				HitType = HIT_BUILDING;
+			}
+		}
+
+		if(HitType == HIT_NONE)
+			return false;
+
+		if(HitType == HIT_BUILDING)
+		{
+			m_From = From;
+			m_Pos = At;
+			m_Energy = -1;
+			DamageBuilding(pBuilding, At);
+			return true;
+		}
+
+		if(HitType == HIT_CHARACTER)
+		{
+			pCharacter->TakeDamage(m_Source, m_Damage, normalize(To - From) * 0.1f, At);
+			pIgnoredCharacter = pCharacter;
+		}
+		else
+		{
+			pDroid->TakeDamage(normalize(To - From) * 0.1f, m_Damage, m_Source, At);
+			pIgnoredDroid = pDroid;
+		}
+
+		if(!m_InfinitePenetration && m_RemainingPenetrations <= 0)
+		{
+			m_From = From;
+			m_Pos = At;
+			m_Energy = -1;
+			return true;
+		}
+
+		if(!m_InfinitePenetration)
+			--m_RemainingPenetrations;
+		SearchFrom = At + m_Dir;
+		if(dot(To - SearchFrom, m_Dir) <= 0.0f)
+			return false;
+	}
 }
 
 void CLaser::DoBounce()
@@ -160,74 +260,46 @@ void CLaser::DoBounce()
 
 	int Collision = GameServer()->Collision()->IntersectLine(m_Pos, To, &ColPos, &To);
 	
-	if(Collision)
+	const vec2 From = m_Pos;
+	if(HitScythe(From, To))
+		return;
+
+	const bool Penetrating = m_InfinitePenetration || m_RemainingPenetrations > 0;
+	if(Penetrating)
 	{
-		if(!HitScythe(m_Pos, To))
-		{
-			if(!HitCharacter(m_Pos, To))
-			{
-				if(!HitBuilding(m_Pos, To))
-				{
-					if(!HitMonster(m_Pos, To))
-					{
-						// intersected
-						m_From = m_Pos;
-						m_Pos = To;
-
-						/*
-						vec2 TempPos = m_Pos;
-						vec2 TempDir = m_Dir * 4.0f;
-
-						GameServer()->Collision()->MovePoint(&TempPos, &TempDir, 1.0f, 0);
-						m_Pos = TempPos;
-						m_Dir = normalize(TempDir);
-						*/
-						
-						m_Dir = GameServer()->Collision()->WallReflect(ColPos, m_Dir, Collision);
-
-						m_Energy -= distance(m_From, m_Pos) + GameServer()->Tuning()->m_LaserBounceCost;
-						m_Bounces++;
-
-						if(m_Bounces > 4)
-							m_Energy = -1;
-						
-						m_IgnoreScythe = -1;
-
-						if (GameServer()->Collision()->CheckBlocks(m_Pos))
-							GameServer()->DamageBlocks(m_Pos, m_Damage, 1);
-						else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(-4, -4)))
-							GameServer()->DamageBlocks(m_Pos+vec2(-4, -4), m_Damage, 1);
-						else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(4, -4)))
-							GameServer()->DamageBlocks(m_Pos+vec2(4, -4), m_Damage, 1);
-						else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(-4, 4)))
-							GameServer()->DamageBlocks(m_Pos+vec2(-4, 4), m_Damage, 1);
-						else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(4, 4)))
-							GameServer()->DamageBlocks(m_Pos+vec2(4, 4), m_Damage, 1);
-						
-						GameServer()->CreateSound(m_Pos, SOUND_LASER_BOUNCE);
-					}
-				}
-			}
-		}
+		if(HitPenetratingTargets(From, To))
+			return;
 	}
-	else
+	else if(HitCharacter(From, To) || HitBuilding(From, To) || HitMonster(From, To))
+		return;
+
+	m_From = From;
+	m_Pos = To;
+	if(!Collision)
 	{
-		if(!HitScythe(m_Pos, To))
-		{
-			if(!HitCharacter(m_Pos, To))
-			{
-				if(!HitBuilding(m_Pos, To))
-				{
-					if(!HitMonster(m_Pos, To))
-					{
-						m_From = m_Pos;
-						m_Pos = To;
-						m_Energy = -1;
-					}
-				}
-			}
-		}
+		m_Energy = -1;
+		return;
 	}
+
+	m_Dir = GameServer()->Collision()->WallReflect(ColPos, m_Dir, Collision);
+	m_Energy -= distance(m_From, m_Pos) + GameServer()->Tuning()->m_LaserBounceCost;
+	++m_Bounces;
+	if(m_Bounces > 4)
+		m_Energy = -1;
+	m_IgnoreScythe = -1;
+
+	if (GameServer()->Collision()->CheckBlocks(m_Pos))
+		GameServer()->DamageBlocks(m_Pos, m_Damage, 1);
+	else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(-4, -4)))
+		GameServer()->DamageBlocks(m_Pos+vec2(-4, -4), m_Damage, 1);
+	else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(4, -4)))
+		GameServer()->DamageBlocks(m_Pos+vec2(4, -4), m_Damage, 1);
+	else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(-4, 4)))
+		GameServer()->DamageBlocks(m_Pos+vec2(-4, 4), m_Damage, 1);
+	else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(4, 4)))
+		GameServer()->DamageBlocks(m_Pos+vec2(4, 4), m_Damage, 1);
+
+	GameServer()->CreateSound(m_Pos, SOUND_LASER_BOUNCE);
 }
 
 void CLaser::Reset()

@@ -2217,7 +2217,9 @@ void CRenderTools::SetShadersForWeapon(CPlayerInfo *pCustomPlayerInfo)
 	else if (Profile.m_Combat.m_FiringType == WFT_CHARGE)
 		ChargeLevel = pCustomPlayerInfo->ChargeIntensity();
 	
-	if (Profile.m_Definition.m_MaxLevel > 0)
+	// Positive charge drives the weapon flash. Fall back to the level glow only
+	// while the weapon is idle; otherwise modular charge weapons never flash.
+	if (Profile.m_Definition.m_MaxLevel > 0 && ChargeLevel <= 0.0f)
 		ChargeLevel = -pCustomPlayerInfo->m_Weapon.m_Level / float(Profile.m_Definition.m_MaxLevel);
 	
 	float Visibility = max(pCustomPlayerInfo->m_EffectIntensity[EFFECT_SPAWNING], pCustomPlayerInfo->m_EffectIntensity[EFFECT_INVISIBILITY]);
@@ -2240,7 +2242,7 @@ void CRenderTools::SetShadersForWeapon(const CWeaponSpec &Weapon, float Charge, 
 		return;
 	if(Profile.m_Definition.m_Kind == EWeaponDefinitionKind::Static && Profile.m_Definition.m_StaticType == SW_CLUSTER && Weapon.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
 		CWeaponCatalog::TryResolve(CWeaponCatalog::Static(SW_CLUSTER), &Profile);
-	if(Profile.m_Definition.m_MaxLevel > 0)
+	if(Profile.m_Definition.m_MaxLevel > 0 && Charge <= 0.0f)
 		Charge = -Weapon.m_Level / float(Profile.m_Definition.m_MaxLevel);
 	Graphics()->PlayerShaderBegin(Profile.m_Visual.m_ColorSwap.x, Profile.m_Visual.m_ColorSwap.y, Charge, Visibility, Electro, Damage, Deathray);
 }

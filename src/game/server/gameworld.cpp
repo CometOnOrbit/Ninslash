@@ -380,7 +380,7 @@ CBall *CGameWorld::IntersectBall(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPo
 }
 
 
-CDroid *CGameWorld::IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos)
+CDroid *CGameWorld::IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, CEntity *pNotThis)
 {
 	float ClosestLenSquared = DistanceSquared(Pos0, Pos1) * 10000.0f;
 	CDroid *pClosest = 0;
@@ -388,7 +388,7 @@ CDroid *CGameWorld::IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &Ne
 	CDroid *p = (CDroid *)FindFirst(ENTTYPE_DROID);
 	for(; p; p = (CDroid *)p->TypeNext())
  	{
-		if (p->m_Health <= 0)
+		if (p == pNotThis || p->m_Health <= 0)
 			continue;
 		
 		const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
@@ -427,7 +427,7 @@ bool CGameWorld::GetDroidPosChange(int ID)
 
 // line-segment vs. character hit test (body + head)
 CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2& NewPos,
-	CEntity *pNotThis, bool IgnoreDeathrayed, CCharacter **ppReflect, float ReflectRadius)
+	CEntity *pNotThis, bool IgnoreDeathrayed, CCharacter **ppReflect, float ReflectRadius, CEntity *pNotThis2)
 {
 	// Find other players
 	float ClosestLenSquared = DistanceSquared(Pos0, Pos1) * 10000.0f;
@@ -440,7 +440,7 @@ CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, v
 	CCharacter *p = (CCharacter *)FindFirst(ENTTYPE_CHARACTER);
 	for(; p; p = (CCharacter *)p->TypeNext())
  	{
-		if(p == pNotThis)
+		if(p == pNotThis || p == pNotThis2)
 			continue;
 		
 		if(p->IgnoreCollision())

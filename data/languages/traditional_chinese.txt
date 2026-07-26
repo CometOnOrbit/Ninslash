@@ -2926,3 +2926,72 @@ Ready to forge
 
 Press %s to open forge
 == 按 %s 開啟武器鍛造
+
+Starting point
+== 起始方式
+
+Team checkpoint
+== 繼續團隊檢查點
+
+Floor 1
+== 從第 1 層開始
+
+Custom floor
+== 自訂樓層
+
+Complete more floors to unlock
+== 完成更多樓層後解鎖
+
+Difficulty %d
+== 難度 %d
+
+%d waves
+== %d 波
+
+Score %d
+== 得分上限 %d
+
+Roguelite
+== 肉鴿構築
+
+Classic PvE
+== 經典 PvE
+
+Random seed
+== 隨機種子
+
+Seed %d
+== 種子 %d
+
+%d slots
+== %d 個槽位
+
+Starting local server and waiting for readiness...
+== 正在啟動本機伺服器並等待就緒……
+
+Local server is ready; joining...
+== 本機伺服器已就緒，正在加入……
+
+Server executable was not found or could not be started
+== 未找到伺服器程式或無法啟動
+
+Local server did not become ready in time
+== 本機伺服器未能及時就緒
+
+The preferred port and the next nine ports are already in use.
+== 首選連接埠及後續九個連接埠均已被佔用。
+
+Local server log
+== 本機伺服器日誌
+
+Log
+== 日誌
+
+OK
+== 確定
+
+Map selection
+== 地圖選擇
+
+Automatic by Invasion floor
+== 由入侵樓層自動選擇
