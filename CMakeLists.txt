@@ -78,7 +78,7 @@ option(DEV "Don't generate stuff necessary for packaging" OFF)
 option(ENABLE_STEAMWORKS "Build optional Steamworks client integration" OFF)
 option(ENABLE_STEAM_GAMESERVER "Build optional Steam GameServer registration and auth" OFF)
 option(ENABLE_STEAM_LISTEN_SERVER "Build the in-client Steam Relay listen-server support" OFF)
-option(ENABLE_LUA_MODS "Build the sandboxed Lua Workshop-mod runtime (requires a supplied Lua library)" OFF)
+option(ENABLE_LUA_MODS "Enable the future Lua Mod API compatibility boundary (no script runtime is shipped yet)" OFF)
 option(NINSLASH_BUILD_TESTS "Build focused release-readiness tests" OFF)
 set(STEAMWORKS_SDK_ROOT "" CACHE PATH "Steamworks SDK root containing public/steam and redistributable_bin")
 set(STEAM_APP_ID "1812700" CACHE STRING "Steam AppID used by the release build")
@@ -516,6 +516,8 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   network.h
   mod_manifest.cpp
   mod_manifest.h
+  mod_api.cpp
+  mod_api.h
   packer.cpp
   packer.h
   ringbuffer.cpp
@@ -578,6 +580,9 @@ set(LIBS
 
 # Targets
 add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_GENERATED_SHARED} ${BASE})
+if(ENABLE_LUA_MODS)
+  target_compile_definitions(engine-shared PRIVATE CONF_LUA_MOD_API)
+endif()
 add_library(game-shared EXCLUDE_FROM_ALL OBJECT ${GAME_SHARED} ${GAME_GENERATED_SHARED})
 list(APPEND TARGETS_OWN engine-shared game-shared)
 

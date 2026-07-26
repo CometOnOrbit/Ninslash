@@ -1,6 +1,6 @@
 "appbuild"
 {
-    "appid" "1812700"
+    "appid" "@APP_ID@"
     "desc" "Ninslash @VERSION@ @GIT_COMMIT@"
     "buildoutput" "@BUILD_OUTPUT@"
     "contentroot" "@CONTENT_ROOT@"

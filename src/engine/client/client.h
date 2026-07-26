@@ -312,6 +312,10 @@ public:
 	static void Con_Record(IConsole::IResult *pResult, void *pUserData);
 	static void Con_StopRecord(IConsole::IResult *pResult, void *pUserData);
 	static void Con_AddDemoMarker(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamLobbyCreate(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamLobbyInvite(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamLobbyLeave(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamLobbyStatus(IConsole::IResult *pResult, void *pUserData);
 	static void ConchainServerBrowserUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 
 	void RegisterCommands();

@@ -13,6 +13,10 @@ public:
 	void Shutdown() {}
 	void RunCallbacks() {}
 	bool Available() const { return false; }
+	void UpdateMetadata(const char *pName, const char *pMap, int Players, int MaxPlayers, bool Official, const char *pModHash)
+	{
+		(void)pName; (void)pMap; (void)Players; (void)MaxPlayers; (void)Official; (void)pModHash;
+	}
 	EPlatformAuthResult Authenticate(unsigned long long SteamID, const void *pTicket, int TicketSize)
 	{
 		(void)SteamID;
@@ -38,6 +42,7 @@ public:
 		{
 			SteamGameServer()->SetProduct("ninslash");
 			SteamGameServer()->SetModDir("ninslash");
+			SteamGameServer()->SetDedicatedServer(true);
 			SteamGameServer()->LogOnAnonymous();
 		}
 		return m_Initialized;
@@ -50,6 +55,20 @@ public:
 	}
 	void RunCallbacks() { if(m_Initialized) SteamGameServer_RunCallbacks(); }
 	bool Available() const { return m_Initialized; }
+	void UpdateMetadata(const char *pName, const char *pMap, int Players, int MaxPlayers, bool Official, const char *pModHash)
+	{
+		if(!m_Initialized || !SteamGameServer())
+			return;
+		SteamGameServer()->SetServerName(pName ? pName : "Ninslash server");
+		SteamGameServer()->SetMapName(pMap ? pMap : "");
+		SteamGameServer()->SetBotPlayerCount(0);
+		SteamGameServer()->SetMaxPlayerCount(MaxPlayers);
+		SteamGameServer()->SetPasswordProtected(false);
+		char aTags[256];
+		str_format(aTags, sizeof(aTags), "official=%d,modded=%d,modhash=%s", Official ? 1 : 0, pModHash && pModHash[0] ? 1 : 0, pModHash ? pModHash : "none");
+		SteamGameServer()->SetGameTags(aTags);
+		(void)Players; // Steam derives player count from authenticated sessions.
+	}
 	EPlatformAuthResult Authenticate(unsigned long long SteamID, const void *pTicket, int TicketSize)
 	{
 		if(!m_Initialized)

@@ -1853,6 +1853,7 @@ int CServer::Run()
 	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 
 	GameServer()->OnInit();
+	m_pPlatformGameServer->UpdateMetadata(g_Config.m_SvName, m_aCurrentMap, GetPlayerCount(), g_Config.m_SvMaxClients, g_Config.m_SvOfficial != 0, g_Config.m_SvModHash);
 	str_format(aBuf, sizeof(aBuf), "version %s", GameServer()->NetVersion());
 	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 
@@ -1963,6 +1964,7 @@ int CServer::Run()
 
 			if(ReportTime < time_get())
 			{
+				m_pPlatformGameServer->UpdateMetadata(g_Config.m_SvName, m_aCurrentMap, GetPlayerCount(), g_Config.m_SvMaxClients, g_Config.m_SvOfficial != 0, g_Config.m_SvModHash);
 				if(g_Config.m_Debug)
 				{
 					/*

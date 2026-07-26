@@ -1845,7 +1845,11 @@ void CClient::Run()
 	if(m_pPlatformServices)
 	{
 		if(!m_pPlatformServices->Init())
-			return;
+		{
+			if(m_pPlatformServices->ExitRequested())
+				return;
+			dbg_msg("steam", "continuing with standalone networking after Steam initialization failure");
+		}
 		m_pPlatformServices->SetRichPresence("In menus", "");
 	}
 
@@ -2359,6 +2363,46 @@ void CClient::Con_AddDemoMarker(IConsole::IResult *pResult, void *pUserData)
 	pSelf->DemoRecorder_AddDemoMarker();
 }
 
+void CClient::Con_SteamLobbyCreate(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	EPlatformLobbyVisibility Visibility = PLATFORM_LOBBY_FRIENDS;
+	if(pResult->NumArguments() > 0)
+	{
+		const char *pVisibility = pResult->GetString(0);
+		if(str_comp_nocase(pVisibility, "private") == 0)
+			Visibility = PLATFORM_LOBBY_INVITE_ONLY;
+		else if(str_comp_nocase(pVisibility, "public") == 0)
+			Visibility = PLATFORM_LOBBY_PUBLIC;
+	}
+	if(!pClient->m_pPlatformServices || !pClient->m_pPlatformServices->CreateLobby(Visibility, MAX_CLIENTS))
+		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Unable to create Steam Lobby");
+	else
+		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Creating Steam Lobby...");
+}
+
+void CClient::Con_SteamLobbyInvite(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	if(!pClient->m_pPlatformServices || !pClient->m_pPlatformServices->OpenLobbyInviteDialog())
+		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Create or join a Steam Lobby before inviting friends");
+}
+
+void CClient::Con_SteamLobbyLeave(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	if(pClient->m_pPlatformServices)
+		pClient->m_pPlatformServices->LeaveLobby();
+}
+
+void CClient::Con_SteamLobbyStatus(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	char aBuffer[128];
+	str_format(aBuffer, sizeof(aBuffer), "Steam Lobby: %llu", pClient->m_pPlatformServices ? pClient->m_pPlatformServices->CurrentLobbyID() : 0);
+	pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", aBuffer);
+}
+
 void CClient::DemoSlice(const char *pDstPath)
 {
 	// Get the current demo path
@@ -2597,6 +2641,10 @@ void CClient::RegisterCommands()
 	m_pConsole->Register("add_demomarker", "", CFGFLAG_CLIENT, Con_AddDemoMarker, this, "Add demo timeline marker");
 	m_pConsole->Register("add_favorite", "s", CFGFLAG_CLIENT, Con_AddFavorite, this, "Add a server as a favorite");
 	m_pConsole->Register("remove_favorite", "s", CFGFLAG_CLIENT, Con_RemoveFavorite, this, "Remove a server from favorites");
+	m_pConsole->Register("steam_lobby_create", "?s", CFGFLAG_CLIENT, Con_SteamLobbyCreate, this, "Create Steam Lobby: private, friends (default), or public");
+	m_pConsole->Register("steam_lobby_invite", "", CFGFLAG_CLIENT, Con_SteamLobbyInvite, this, "Open Steam Overlay friend invite dialog for current Lobby");
+	m_pConsole->Register("steam_lobby_leave", "", CFGFLAG_CLIENT, Con_SteamLobbyLeave, this, "Leave current Steam Lobby");
+	m_pConsole->Register("steam_lobby_status", "", CFGFLAG_CLIENT, Con_SteamLobbyStatus, this, "Show current Steam Lobby ID");
 
 	// used for server browser update
 	m_pConsole->Chain("br_filter_string", ConchainServerBrowserUpdate, this);

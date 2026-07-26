@@ -19,6 +19,7 @@ public:
 	virtual void Shutdown() = 0;
 	virtual void RunCallbacks() = 0;
 	virtual bool Available() const = 0;
+	virtual void UpdateMetadata(const char *pName, const char *pMap, int Players, int MaxPlayers, bool Official, const char *pModHash) = 0;
 	virtual EPlatformAuthResult Authenticate(unsigned long long SteamID, const void *pTicket, int TicketSize) = 0;
 	virtual void EndAuthentication(unsigned long long SteamID) = 0;
 };

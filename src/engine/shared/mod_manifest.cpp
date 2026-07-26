@@ -63,6 +63,39 @@ bool ValidateDependencyArray(const json_value &Value)
 			return false;
 	return true;
 }
+
+int CapabilityFromName(const char *pName)
+{
+	if(str_comp(pName, "resources") == 0) return MOD_CAPABILITY_RESOURCES;
+	if(str_comp(pName, "client_theme") == 0) return MOD_CAPABILITY_CLIENT_THEME;
+	if(str_comp(pName, "gameplay_rules") == 0) return MOD_CAPABILITY_GAMEPLAY_RULES;
+	if(str_comp(pName, "weapons") == 0) return MOD_CAPABILITY_WEAPONS;
+	if(str_comp(pName, "items") == 0) return MOD_CAPABILITY_ITEMS;
+	return 0;
+}
+
+bool ReadApiDescriptor(const json_value &Root, CModApiDescriptor *pDescriptor)
+{
+	const json_value &ApiVersion = Root["api_version"];
+	if(ApiVersion.type != json_integer || ApiVersion.u.integer <= 0 || ApiVersion.u.integer > 999)
+		return false;
+	const json_value &Capabilities = Root["capabilities"];
+	if(Capabilities.type != json_array)
+		return false;
+	int Mask = 0;
+	for(unsigned int i = 0; i < Capabilities.u.array.length; i++)
+	{
+		if(!IsString(Capabilities[i]))
+			return false;
+		const int Capability = CapabilityFromName((const char *)Capabilities[i]);
+		if(!Capability || (Mask & Capability))
+			return false;
+		Mask |= Capability;
+	}
+	pDescriptor->m_ApiVersion = (int)ApiVersion.u.integer;
+	pDescriptor->m_Capabilities = Mask;
+	return true;
+}
 }
 
 bool ModManifestIsSafeRelativePath(const char *pPath)
@@ -104,8 +137,25 @@ bool ModManifestValidateText(const char *pJson, int JsonLength, const char *pExp
 	bool Valid = IsString(Id) && IsString(Name) && IsString(Version) && IsString(Author) && IsString(Protocol) && IsString(Hash);
 	if(Valid && pExpectedProtocol && pExpectedProtocol[0])
 		Valid = str_comp((const char *)Protocol, pExpectedProtocol) == 0;
+	CModApiDescriptor Descriptor;
 	if(Valid)
-		Valid = IsHash((const char *)Hash) && ValidateDependencyArray((*pRoot)["dependencies"]) && ValidatePathArray((*pRoot)["maps"]) && ValidatePathArray((*pRoot)["resources"]) && ValidatePathArray((*pRoot)["scripts"]);
+		Valid = IsHash((const char *)Hash) && ReadApiDescriptor(*pRoot, &Descriptor) && ValidateDependencyArray((*pRoot)["dependencies"]) && ValidatePathArray((*pRoot)["maps"]) && ValidatePathArray((*pRoot)["resources"]) && ValidatePathArray((*pRoot)["scripts"]);
 	json_value_free(pRoot);
 	return Valid ? true : SetError(pError, ErrorSize, "missing, unsafe, or incompatible manifest field");
+}
+
+bool ModManifestReadApiDescriptor(const char *pJson, int JsonLength, CModApiDescriptor *pDescriptor, char *pError, int ErrorSize)
+{
+	if(pError && ErrorSize > 0)
+		pError[0] = 0;
+	if(!pJson || !pDescriptor || JsonLength <= 0 || JsonLength > 64 * 1024)
+		return SetError(pError, ErrorSize, "invalid manifest input");
+	json_settings Settings;
+	mem_zero(&Settings, sizeof(Settings));
+	char aJsonError[128];
+	json_value *pRoot = json_parse_ex(&Settings, pJson, JsonLength, aJsonError);
+	const bool Valid = pRoot && pRoot->type == json_object && ReadApiDescriptor(*pRoot, pDescriptor);
+	if(pRoot)
+		json_value_free(pRoot);
+	return Valid ? true : SetError(pError, ErrorSize, "invalid mod api descriptor");
 }
