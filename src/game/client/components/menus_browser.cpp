@@ -772,6 +772,16 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 				CTextCursor Cursor;
 				TextRender()->SetCursor(&Cursor, Button.x, Button.y, 10.0f * UI()->Scale(), TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
 				Cursor.m_LineWidth = Button.w;
+				if(pItem->m_HasPlatformMetadata)
+				{
+					const char *pCategory = pItem->m_Official ? "[OFFICIAL] " : (pItem->m_Modded ? "[COMMUNITY MODDED] " : "[COMMUNITY] ");
+					TextRender()->TextColor(pItem->m_Official ? 0.35f : 0.65f, pItem->m_Official ? 0.85f : 0.7f, 1.0f, 1.0f);
+					TextRender()->TextEx(&Cursor, pCategory, -1);
+					const char *pAuth = pItem->m_AuthPolicy == 2 ? "[STEAM REQUIRED] " : pItem->m_AuthPolicy == 1 ? "[STEAM OPTIONAL] " : "[OPEN] ";
+					TextRender()->TextColor(pItem->m_AuthPolicy == 2 ? 1.0f : 0.55f, pItem->m_AuthPolicy == 2 ? 0.65f : 0.9f, 0.45f, 1.0f);
+					TextRender()->TextEx(&Cursor, pAuth, -1);
+					TextRender()->TextColor(1,1,1,1);
+				}
 
 				if(g_Config.m_BrFilterString[0] && (pItem->m_QuickSearchHit&IServerBrowser::QUICK_SERVERNAME))
 				{
@@ -1516,7 +1526,7 @@ void CMenus::RenderServerbrowser(CUIRect MainView)
 		if(DoButton_Menu(&s_RefreshButton, Localize("Refresh"), 0, &RefreshBtn))
 		{
 			if(g_Config.m_UiPage == PAGE_INTERNET)
-				ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
+				ServerBrowser()->Refresh(m_PlayTab == 2 ? IServerBrowser::TYPE_LAN : IServerBrowser::TYPE_INTERNET);
 			else if(g_Config.m_UiPage == PAGE_LAN)
 				ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
 			else if(g_Config.m_UiPage == PAGE_FAVORITES)

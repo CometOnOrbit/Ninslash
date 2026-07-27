@@ -1,5 +1,6 @@
 #include <base/math.h>
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 #include <game/mapitems.h>
 
 #include <generated/protocol.h>
@@ -1127,6 +1128,34 @@ void IGameController::EndRound()
 {
 	if(m_Warmup) // game can't end when we are running warmup
 		return;
+	if(m_GameOverTick != -1)
+		return;
+	if(!IsCoop())
+	{
+		int HumanCount = 0;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(GameServer()->m_apPlayers[i] && !GameServer()->m_apPlayers[i]->m_IsBot && GameServer()->m_apPlayers[i]->GetTeam() != TEAM_SPECTATORS) HumanCount++;
+		if(HumanCount >= 2 && IsTeamplay() && m_aTeamscore[TEAM_RED] != m_aTeamscore[TEAM_BLUE])
+		{
+			const int WinningTeam = m_aTeamscore[TEAM_RED] > m_aTeamscore[TEAM_BLUE] ? TEAM_RED : TEAM_BLUE;
+			for(int i = 0; i < MAX_CLIENTS; i++)
+				if(GameServer()->m_apPlayers[i] && !GameServer()->m_apPlayers[i]->m_IsBot && GameServer()->m_apPlayers[i]->GetTeam() == WinningTeam)
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_PVP_WIN);
+		}
+		else if(HumanCount >= 2 && !IsTeamplay())
+		{
+			int Winner = -1, TopScore = 0, TopScoreCount = 0;
+			for(int i = 0; i < MAX_CLIENTS; i++)
+			{
+				CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+				if(!pPlayer || pPlayer->m_IsBot || pPlayer->GetTeam() == TEAM_SPECTATORS) continue;
+				if(TopScoreCount == 0 || pPlayer->m_Score > TopScore) { Winner = i; TopScore = pPlayer->m_Score; TopScoreCount = 1; }
+				else if(pPlayer->m_Score == TopScore) TopScoreCount++;
+			}
+			if(Winner >= 0 && TopScoreCount == 1) Server()->SendPlatformEvent(Winner, PLATFORM_EVENT_FIRST_PVP_WIN);
+		}
+	}
+	Server()->DispatchModEvent(MOD_EVENT_ROUND_END);
 
 	GameServer()->m_World.m_Paused = true;
 	m_GameOverTick = Server()->Tick();
@@ -1202,6 +1231,7 @@ const char *IGameController::GetTeamMoveAllMessage(int Team)
 
 void IGameController::StartRound()
 {
+	Server()->DispatchModEvent(MOD_EVENT_ROUND_START);
 	ResetGame();
 
 	ClearRisingAcid();

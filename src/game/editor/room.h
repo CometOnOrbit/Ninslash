@@ -1,17 +1,17 @@
 #ifndef GAME_EDITOR_ROOM_H
 #define GAME_EDITOR_ROOM_H
 
-class CRoom
+class CEditorRoom
 {
 private:
-	CRoom *m_pChild1, *m_pChild2;
+	CEditorRoom *m_pChild1, *m_pChild2;
 	int m_X, m_Y, m_W, m_H;
 	
 	bool m_Open;
 	
 public:
-	CRoom(int x, int y, int w, int h);
-	~CRoom();
+	CEditorRoom(int x, int y, int w, int h);
+	~CEditorRoom();
 	
 	bool TooSmall()
 	{

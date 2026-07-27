@@ -1,4 +1,5 @@
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 
 #include <game/mapitems.h>
 #include <game/questinfo.h>
@@ -2079,8 +2080,16 @@ void CGameControllerInvasion::Tick()
 					CPlayer *pPlayer = GameServer()->m_apPlayers[i];
 					if (!pPlayer || pPlayer->m_IsBot)
 						continue;
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_INVASION);
+					if(CompletedLevel >= 10) Server()->SendPlatformEvent(i, PLATFORM_EVENT_INVASION_10);
+					if(CompletedLevel >= 30) Server()->SendPlatformEvent(i, PLATFORM_EVENT_INVASION_30);
+					if(CompletedLevel >= 60) Server()->SendPlatformEvent(i, PLATFORM_EVENT_INVASION_60);
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_LB_INVASION_FLOOR, CompletedLevel);
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_COOP_COMPLETE);
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_STAT_COOP_COMPLETIONS, 1);
 					pPlayer->IncreaseGold(10 + CompletedLevel/3);
 				}
+				Server()->DispatchModEvent(MOD_EVENT_PVE_FLOOR_COMPLETE, -1, CompletedLevel);
 
 				// The next floor offers its perk after the new map and client state
 				// are ready, avoiding a selection crossing the map-load boundary.

@@ -8,6 +8,7 @@
 #include <engine/map.h>
 #include <engine/masterserver.h>
 #include <engine/server.h>
+#include <engine/platform_events.h>
 #include <engine/storage.h>
 
 #include <engine/shared/compression.h>
@@ -33,6 +34,7 @@
 
 #include "register.h"
 #include "server.h"
+#include "mod_server.h"
 
 #if defined(CONF_FAMILY_WINDOWS)
 	#define _WIN32_WINNT 0x0501
@@ -301,7 +303,10 @@ CServer::CServer() : m_DemoRecorder(&m_SnapshotDelta)
 	m_TickSpeed = SERVER_TICK_SPEED;
 
 	m_pGameServer = 0;
+	m_pListenTransport = 0;
+	m_pListenReady = 0;
 	m_pPlatformGameServer = CreatePlatformGameServer();
+	m_pModRuntime = new CModServerRuntime();
 
 	m_CurrentGameTick = 0;
 	m_RunServer = 1;
@@ -318,6 +323,12 @@ CServer::CServer() : m_DemoRecorder(&m_SnapshotDelta)
 	m_pPlayerData = NULL;
 	
 	Init();
+}
+
+CServer::~CServer()
+{
+	delete m_pModRuntime;
+	if(m_pPlatformGameServer) { m_pPlatformGameServer->Shutdown(); delete m_pPlatformGameServer; }
 }
 
 int CServer::GetHighScore()
@@ -476,6 +487,28 @@ void CServer::SetClientScore(int ClientID, int Score)
 	m_aClients[ClientID].m_Score = Score;
 }
 
+void CServer::SendPlatformEvent(int ClientID, int Event, int Value)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || Event < 0 || Event >= NUM_PLATFORM_SERVER_EVENTS)
+		return;
+	CClient &Client = m_aClients[ClientID];
+	if(Client.m_State < CClient::STATE_READY || !Client.m_PlatformAuthenticated || g_Config.m_SvModHash[0] || g_Config.m_Debug)
+		return;
+	const bool LeaderboardEligible = g_Config.m_SvOfficial && g_Config.m_SvSteamAuth == 2 && !m_pListenTransport;
+	if(PlatformEventIsLeaderboard(Event) && !LeaderboardEligible)
+		return;
+	CMsgPacker Msg(NETMSG_PLATFORM_EVENT);
+	Msg.AddInt(Event);
+	Msg.AddInt(Value);
+	Msg.AddInt(LeaderboardEligible ? 1 : 0);
+	SendMsgEx(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientID, true);
+}
+
+void CServer::DispatchModEvent(EModEvent Event,int ClientID,int Value)
+{
+	if(m_pModRuntime)m_pModRuntime->Dispatch(Event,ClientID,Value);
+}
+
 void CServer::Kick(int ClientID, const char *pReason)
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_aClients[ClientID].m_State == CClient::STATE_EMPTY)
@@ -536,6 +569,11 @@ int CServer::Init()
 		m_aClients[i].m_Snapshots.Init();
 		m_aClients[i].m_SteamID = 0;
 		m_aClients[i].m_PlatformAuthenticated = false;
+		m_aClients[i].m_PlatformAuthPending = false;
+		m_aClients[i].m_PlatformAuthSession = false;
+		m_aClients[i].m_PlatformAuthRequested = false;
+		m_aClients[i].m_PlatformIdentityKind = PLATFORM_IDENTITY_ANONYMOUS;
+		m_aClients[i].m_PlatformAuthStartTime = 0;
 		m_aClients[i].m_InfoReceived = false;
 	}
 
@@ -1140,6 +1178,11 @@ int CServer::NewClientCallback(int ClientID, void *pUser)
 	pThis->m_aClients[ClientID].m_AuthTries = 0;
 	pThis->m_aClients[ClientID].m_SteamID = 0;
 	pThis->m_aClients[ClientID].m_PlatformAuthenticated = false;
+	pThis->m_aClients[ClientID].m_PlatformAuthPending = false;
+	pThis->m_aClients[ClientID].m_PlatformAuthSession = false;
+	pThis->m_aClients[ClientID].m_PlatformAuthRequested = false;
+	pThis->m_aClients[ClientID].m_PlatformIdentityKind = PLATFORM_IDENTITY_ANONYMOUS;
+	pThis->m_aClients[ClientID].m_PlatformAuthStartTime = 0;
 	pThis->m_aClients[ClientID].m_InfoReceived = false;
 	pThis->m_aClients[ClientID].m_pRconCmdToSend = 0;
 	pThis->m_aClients[ClientID].Reset();
@@ -1167,10 +1210,15 @@ int CServer::DelClientCallback(int ClientID, const char *pReason, void *pUser)
 	pThis->m_aClients[ClientID].m_Country = -1;
 	pThis->m_aClients[ClientID].m_Authed = AUTHED_NO;
 	pThis->m_aClients[ClientID].m_AuthTries = 0;
-	if(pThis->m_aClients[ClientID].m_PlatformAuthenticated)
+	if(pThis->m_aClients[ClientID].m_PlatformAuthSession)
 		pThis->m_pPlatformGameServer->EndAuthentication(pThis->m_aClients[ClientID].m_SteamID);
 	pThis->m_aClients[ClientID].m_SteamID = 0;
 	pThis->m_aClients[ClientID].m_PlatformAuthenticated = false;
+	pThis->m_aClients[ClientID].m_PlatformAuthPending = false;
+	pThis->m_aClients[ClientID].m_PlatformAuthSession = false;
+	pThis->m_aClients[ClientID].m_PlatformAuthRequested = false;
+	pThis->m_aClients[ClientID].m_PlatformIdentityKind = PLATFORM_IDENTITY_ANONYMOUS;
+	pThis->m_aClients[ClientID].m_PlatformAuthStartTime = 0;
 	pThis->m_aClients[ClientID].m_InfoReceived = false;
 	pThis->m_aClients[ClientID].m_pRconCmdToSend = 0;
 	pThis->m_aClients[ClientID].m_Snapshots.PurgeAll();
@@ -1184,6 +1232,52 @@ void CServer::SendMap(int ClientID)
 	Msg.AddInt(m_CurrentMapCrc);
 	Msg.AddInt(m_CurrentMapSize);
 	SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH, ClientID, true);
+}
+
+void CServer::UpdatePlatformAuthentication()
+{
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+	{
+		CClient &Client = m_aClients[ClientID];
+		if(Client.m_State == CClient::STATE_AUTH && Client.m_PlatformAuthRequested && !Client.m_PlatformAuthPending && !Client.m_PlatformAuthSession)
+		{
+			if(time_get() - Client.m_PlatformAuthStartTime > time_freq() * 30)
+				m_NetServer.Drop(ClientID, "Platform identity response timed out");
+			continue;
+		}
+		if(!Client.m_PlatformAuthSession || (!Client.m_PlatformAuthPending && !Client.m_PlatformAuthenticated))
+			continue;
+
+		const EPlatformAuthResult Result = m_pPlatformGameServer->AuthenticationResult(Client.m_SteamID);
+		if(Result == PLATFORM_AUTH_PENDING)
+		{
+			if(time_get() - Client.m_PlatformAuthStartTime > time_freq() * 30)
+				m_NetServer.Drop(ClientID, "Steam authentication timed out");
+			continue;
+		}
+
+		if(PlatformAuthResultIsTerminalFailure(Result))
+		{
+			const char *pReason = Result == PLATFORM_AUTH_REPLAYED_TICKET ? "Steam authentication ticket was reused" :
+				Result == PLATFORM_AUTH_UNAVAILABLE ? "Steam authentication service unavailable" : "Steam authentication ticket was rejected";
+			char aLog[256]; str_format(aLog, sizeof(aLog), "action=reject steamid=%llu auth=%d room=%s modhash=%s reason='%s'", Client.m_SteamID, (int)Result, m_pListenTransport ? "steam_listen" : "dedicated", g_Config.m_SvModHash[0] ? g_Config.m_SvModHash : "none", pReason); Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-auth", aLog);
+			m_NetServer.Drop(ClientID, pReason);
+			continue;
+		}
+
+		if(Client.m_PlatformAuthPending)
+		{
+			Client.m_PlatformAuthPending = false;
+			Client.m_PlatformAuthenticated = true;
+			Client.m_PlatformIdentityKind = PLATFORM_IDENTITY_STEAM;
+			char aLog[256]; str_format(aLog, sizeof(aLog), "action=accept steamid=%llu auth=ok room=%s modhash=%s", Client.m_SteamID, m_pListenTransport ? "steam_listen" : "dedicated", g_Config.m_SvModHash[0] ? g_Config.m_SvModHash : "none"); Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-auth", aLog);
+			CMsgPacker Reply(NETMSG_PLATFORM_AUTH_RESULT);
+			Reply.AddInt(1);
+			SendMsgEx(&Reply, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientID, true);
+			Client.m_State = CClient::STATE_CONNECTING;
+			SendMap(ClientID);
+		}
+	}
 }
 
 void CServer::SendConnectionReady(int ClientID)
@@ -1289,55 +1383,139 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					return;
 				}
 
-				// Required Steam authentication deliberately blocks map transfer and
-				// game-state creation until the ticket is verified.
-				m_aClients[ClientID].m_InfoReceived = true;
-				if(g_Config.m_SvOfficial || g_Config.m_SvSteamAuth == 2 || g_Config.m_SvModHash[0] || (g_Config.m_SvSteamAuth != 0 && m_pPlatformGameServer->Available()))
-					return;
-				m_aClients[ClientID].m_State = CClient::STATE_CONNECTING;
-				SendMap(ClientID);
+					m_aClients[ClientID].m_InfoReceived = true;
+					// A listen server accepts the local host over loopback and remote
+					// players over Steam Relay. Authentication policy must follow this
+					// client's transport, not merely the presence of a Relay listener.
+					const NETADDR *pPeerAddress = m_NetServer.ClientAddr(ClientID);
+					const bool Relay = PlatformConnectionUsesRelay(m_pListenTransport != 0, pPeerAddress && pPeerAddress->type == NETTYPE_STEAM);
+					const int AuthPolicy = PlatformEffectiveAuthPolicy(g_Config.m_SvSteamAuth, g_Config.m_SvOfficial != 0, Relay);
+					if(AuthPolicy > 0 || g_Config.m_SvModHash[0])
+					{
+						m_aClients[ClientID].m_PlatformAuthRequested = true;
+						m_aClients[ClientID].m_PlatformAuthStartTime = time_get();
+						CMsgPacker Request(NETMSG_PLATFORM_AUTH_REQUEST);
+						Request.AddInt(AuthPolicy);
+						Request.AddInt(Relay ? 1 : 0);
+						SendMsgEx(&Request, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientID, true);
+						return;
+					}
+					m_aClients[ClientID].m_State = CClient::STATE_CONNECTING;
+					SendMap(ClientID);
 			}
 		}
 		else if(Msg == NETMSG_PLATFORM_AUTH)
 		{
-			if(m_aClients[ClientID].m_State != CClient::STATE_AUTH || !m_aClients[ClientID].m_InfoReceived)
+			if(m_aClients[ClientID].m_State != CClient::STATE_AUTH || !m_aClients[ClientID].m_InfoReceived || !m_aClients[ClientID].m_PlatformAuthRequested)
 				return;
+			if(m_aClients[ClientID].m_PlatformAuthPending || m_aClients[ClientID].m_PlatformAuthSession)
+			{
+				m_NetServer.Drop(ClientID, "Duplicate platform identity response");
+				return;
+			}
+			const int IdentityKind = Unpacker.GetInt();
 			const char *pSteamID = Unpacker.GetString(CUnpacker::SANITIZE_CC);
 			const char *pModHash = Unpacker.GetString(CUnpacker::SANITIZE_CC);
+			const char *pModIDs = Unpacker.GetString(CUnpacker::SANITIZE_CC);
 			const int TicketSize = Unpacker.GetInt();
-			if(Unpacker.Error() || TicketSize < 0 || TicketSize > 2048)
+			if(Unpacker.Error() || TicketSize < 0 || TicketSize > 2048 || (IdentityKind != PLATFORM_IDENTITY_ANONYMOUS && IdentityKind != PLATFORM_IDENTITY_STEAM))
 			{
-				m_NetServer.Drop(ClientID, "Invalid Steam authentication ticket");
+				m_NetServer.Drop(ClientID, "Invalid platform identity response");
 				return;
 			}
 			unsigned long long SteamID = 0;
-			if(sscanf(pSteamID, "%llu", &SteamID) != 1 || SteamID == 0)
+			char Trailing = 0;
+			const bool SteamIDTextValid = sscanf(pSteamID, "%llu%c", &SteamID, &Trailing) == 1;
+			if(!SteamIDTextValid)
 				SteamID = 0;
+			const NETADDR *pPeerAddress = m_NetServer.ClientAddr(ClientID);
+			const bool RelayAuthenticated = pPeerAddress && pPeerAddress->type == NETTYPE_STEAM;
+			if(RelayAuthenticated)
+			{
+				unsigned long long TransportSteamID = 0;
+				for(int i = 0; i < 8; i++)
+					TransportSteamID |= (unsigned long long)pPeerAddress->ip[i] << (i * 8);
+				if(!TransportSteamID || SteamID != TransportSteamID)
+				{
+					m_NetServer.Drop(ClientID, "Steam Relay identity mismatch");
+					return;
+				}
+			}
+			const bool AnonymousShapeValid = IdentityKind == PLATFORM_IDENTITY_ANONYMOUS && SteamIDTextValid && str_comp(pSteamID, "0") == 0 && SteamID == 0 && TicketSize == 0;
+			const bool SteamShapeValid = IdentityKind == PLATFORM_IDENTITY_STEAM && SteamIDTextValid && SteamID != 0 && (TicketSize > 0 || RelayAuthenticated);
+			if(!AnonymousShapeValid && !SteamShapeValid)
+			{
+				m_NetServer.Drop(ClientID, "Platform identity fields are inconsistent");
+				return;
+			}
+			char aBanReason[128];
+			if(SteamID && m_PlatformBans.IsBanned(SteamID, aBanReason, sizeof(aBanReason)))
+			{
+				char aLog[256]; str_format(aLog, sizeof(aLog), "action=reject steamid=%llu auth=banned room=%s modhash=%s reason='%s'", SteamID, m_pListenTransport ? "steam_listen" : "dedicated", pModHash, aBanReason); Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-auth", aLog);
+				m_NetServer.Drop(ClientID, aBanReason);
+				return;
+			}
 			const void *pTicket = TicketSize ? Unpacker.GetRaw(TicketSize) : 0;
 			if(Unpacker.Error())
 			{
 				m_NetServer.Drop(ClientID, "Invalid Steam authentication ticket");
 				return;
 			}
-			const EPlatformAuthResult Result = m_pPlatformGameServer->Authenticate(SteamID, pTicket, TicketSize);
-			const bool Required = g_Config.m_SvOfficial || g_Config.m_SvSteamAuth == 2;
 			if(str_comp(pModHash, g_Config.m_SvModHash) != 0)
 			{
 				m_NetServer.Drop(ClientID, "Workshop mod collection mismatch");
 				return;
 			}
-			if(Result == PLATFORM_AUTH_OK)
+			if(g_Config.m_SvModWhitelist[0] && pModIDs[0])
+			{
+				const char *pID = pModIDs;
+				while(*pID)
+				{
+					char aID[32]; int Length=0; while(pID[Length]&&pID[Length]!=','&&Length<31){aID[Length]=pID[Length];Length++;}aID[Length]=0;
+					bool Allowed=false; const char *pAllowed=g_Config.m_SvModWhitelist;
+					while(*pAllowed){char aAllowed[32];int N=0;while(pAllowed[N]&&pAllowed[N]!=','&&N<31){aAllowed[N]=pAllowed[N];N++;}aAllowed[N]=0;if(str_comp(aAllowed,aID)==0)Allowed=true;pAllowed+=N;if(*pAllowed==',')pAllowed++;else if(*pAllowed)break;}
+					if(!Allowed){m_NetServer.Drop(ClientID,"Workshop Mod is not on this server's whitelist");return;}
+					pID+=Length;if(*pID==',')pID++;else if(*pID){m_NetServer.Drop(ClientID,"Invalid Workshop Mod ID list");return;}
+				}
+			}
+			const int AuthPolicy = PlatformEffectiveAuthPolicy(g_Config.m_SvSteamAuth, g_Config.m_SvOfficial != 0, RelayAuthenticated);
+			const EPlatformAuthResult Result = IdentityKind == PLATFORM_IDENTITY_ANONYMOUS ? PLATFORM_AUTH_UNAVAILABLE :
+				RelayAuthenticated ? PLATFORM_AUTH_OK : m_pPlatformGameServer->Authenticate(SteamID, pTicket, TicketSize);
+			const EPlatformJoinDecision Decision = PlatformJoinDecision(IdentityKind, AuthPolicy, RelayAuthenticated, Result);
+			m_aClients[ClientID].m_PlatformAuthRequested = false;
+			m_aClients[ClientID].m_PlatformIdentityKind = IdentityKind;
+			if(Decision == PLATFORM_JOIN_ANONYMOUS)
+			{
+				m_aClients[ClientID].m_SteamID = 0;
+				m_aClients[ClientID].m_PlatformAuthenticated = false;
+				char aLog[256]; str_format(aLog, sizeof(aLog), "action=accept identity=anonymous auth=none room=dedicated modhash=%s", pModHash[0] ? pModHash : "none"); Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-auth", aLog);
+			}
+			else if(Decision == PLATFORM_JOIN_VERIFIED)
 			{
 				m_aClients[ClientID].m_SteamID = SteamID;
 				m_aClients[ClientID].m_PlatformAuthenticated = true;
+				m_aClients[ClientID].m_PlatformAuthSession = !RelayAuthenticated;
+				char aLog[256]; str_format(aLog, sizeof(aLog), "action=accept steamid=%llu auth=ok room=%s modhash=%s", SteamID, m_pListenTransport ? "steam_listen" : "dedicated", pModHash); Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-auth", aLog);
 			}
-			else if(Required)
+			else if(Decision == PLATFORM_JOIN_PENDING)
 			{
-				m_NetServer.Drop(ClientID, Result == PLATFORM_AUTH_UNAVAILABLE ? "Steam authentication service unavailable" : "Steam authentication failed");
+				m_aClients[ClientID].m_SteamID = SteamID;
+				m_aClients[ClientID].m_PlatformAuthPending = true;
+				m_aClients[ClientID].m_PlatformAuthSession = true;
+				m_aClients[ClientID].m_PlatformAuthStartTime = time_get();
+				return;
+			}
+			else
+			{
+				char aLog[256]; str_format(aLog, sizeof(aLog), "action=reject steamid=%llu auth=%d room=%s modhash=%s", SteamID, (int)Result, m_pListenTransport ? "steam_listen" : "dedicated", pModHash); Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-auth", aLog);
+				const char *pReason = IdentityKind == PLATFORM_IDENTITY_ANONYMOUS ? "This server requires a Steam identity" :
+					Result == PLATFORM_AUTH_UNAVAILABLE ? "Steam authentication service unavailable" :
+					Result == PLATFORM_AUTH_REPLAYED_TICKET ? "Steam authentication ticket was reused" : "Steam authentication failed";
+				m_NetServer.Drop(ClientID, pReason);
 				return;
 			}
 			CMsgPacker Reply(NETMSG_PLATFORM_AUTH_RESULT);
-			Reply.AddInt(Result == PLATFORM_AUTH_OK ? 1 : 0);
+			Reply.AddInt(Decision == PLATFORM_JOIN_VERIFIED ? 1 : 0);
 			SendMsgEx(&Reply, MSGFLAG_VITAL|MSGFLAG_FLUSH, ClientID, true);
 			m_aClients[ClientID].m_State = CClient::STATE_CONNECTING;
 			SendMap(ClientID);
@@ -1404,6 +1582,8 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 				m_aClients[ClientID].m_State = CClient::STATE_INGAME;
 				GameServer()->OnClientEnter(ClientID);
+				if(m_aClients[ClientID].m_PlatformAuthSession && m_aClients[ClientID].m_PlatformAuthenticated)
+					m_pPlatformGameServer->UpdateUserData(m_aClients[ClientID].m_SteamID, m_aClients[ClientID].m_aName, m_aClients[ClientID].m_Score);
 			}
 		}
 		else if(Msg == NETMSG_INPUT)
@@ -1631,6 +1811,10 @@ void CServer::SendServerInfo(const NETADDR *pAddr, int Token)
 			str_format(aBuf, sizeof(aBuf), "%d", GameServer()->IsClientPlayer(i)?1:0); p.AddString(aBuf, 2); // is player?
 		}
 	}
+	str_format(aBuf, sizeof(aBuf), "%d", PlatformEffectiveAuthPolicy(g_Config.m_SvSteamAuth, g_Config.m_SvOfficial != 0, m_pListenTransport != 0));
+	p.AddString(aBuf, 2);
+	p.AddString(g_Config.m_SvOfficial ? "1" : "0", 2);
+	p.AddString(g_Config.m_SvModHash[0] ? "1" : "0", 2);
 
 	Packet.m_ClientID = -1;
 	Packet.m_Address = *pAddr;
@@ -1801,6 +1985,12 @@ int CServer::Run()
 {
 	//
 	m_PrintCBIndex = Console()->RegisterPrintCallback(g_Config.m_ConsoleOutputLevel, SendRconLineAuthed, this);
+	if(g_Config.m_SvOfficial)
+	{
+		g_Config.m_SvSteamAuth = 2;
+		g_Config.m_SvRegister = 1;
+		g_Config.m_SvRegisterSteam = 1;
+	}
 
 	// load map
 	if(!LoadMap(g_Config.m_SvMap))
@@ -1813,8 +2003,8 @@ int CServer::Run()
 	NETADDR BindAddr;
 	if(g_Config.m_Bindaddr[0] && net_host_lookup(g_Config.m_Bindaddr, &BindAddr, NETTYPE_ALL) == 0)
 	{
-		// sweet!
-		BindAddr.type = NETTYPE_ALL;
+		// Keep the family returned by lookup. Forcing an IPv4 loopback address
+		// to NETTYPE_ALL also tries to bind it as IPv6 and produces EADDRNOTAVAIL.
 		BindAddr.port = g_Config.m_SvPort;
 	}
 	else
@@ -1829,21 +2019,41 @@ int CServer::Run()
 		dbg_msg("server", "couldn't open socket. port %d might already be in use", g_Config.m_SvPort);
 		return -1;
 	}
+	if(m_pListenTransport && !m_NetServer.OpenSteamRelay(m_pListenTransport, 1))
+	{
+		dbg_msg("steam", "couldn't open Steam Relay listen socket");
+		m_NetServer.Close();
+		return -1;
+	}
 
 	m_NetServer.SetCallbacks(NewClientCallback, DelClientCallback, this);
 	if(g_Config.m_SvOfficial && g_Config.m_SvModHash[0])
 	{
 		dbg_msg("server", "official servers cannot enable Workshop mods");
+		m_NetServer.Close();
 		return -1;
 	}
-	if(!m_pPlatformGameServer->Init((unsigned short)g_Config.m_SvPort))
+	const bool Dedicated = m_pListenTransport == 0;
+	const bool NeedsGameServer = Dedicated && (g_Config.m_SvRegisterSteam || g_Config.m_SvSteamAuth > 0 || g_Config.m_SvOfficial);
+	const bool GameServerInitialized = !NeedsGameServer || m_pPlatformGameServer->Init((unsigned short)g_Config.m_SvPort);
+	const bool GameServerAvailable = GameServerInitialized && m_pPlatformGameServer->Available();
+	if(Dedicated && (g_Config.m_SvOfficial || g_Config.m_SvSteamAuth == 2) && !GameServerAvailable)
 	{
-		if(g_Config.m_SvOfficial || g_Config.m_SvSteamAuth == 2)
-		{
-			dbg_msg("steam", "required Steam GameServer initialization failed");
-			return -1;
-		}
-		dbg_msg("steam", "Steam GameServer unavailable; community auth remains optional");
+		dbg_msg("steam", "required Steam GameServer capability is unavailable");
+		m_pPlatformGameServer->Shutdown();
+		m_NetServer.Close();
+		return -1;
+	}
+	if(NeedsGameServer && !GameServerAvailable)
+		dbg_msg("steam", "Steam GameServer unavailable; anonymous UDP clients remain available");
+	m_pPlatformGameServer->SetAdvertiseServerActive(Dedicated && GameServerAvailable && g_Config.m_SvRegisterSteam != 0);
+	char aModError[256], aWorkshopRoot[1024];
+	Storage()->CreateFolder("workshop", IStorage::TYPE_SAVE);
+	Storage()->GetCompletePath(IStorage::TYPE_SAVE, "workshop", aWorkshopRoot, sizeof(aWorkshopRoot));
+	if(!m_pModRuntime->Load(aWorkshopRoot,g_Config.m_SvModIds,GameServer()->NetVersion(),g_Config.m_SvModHash,aModError,sizeof(aModError)))
+	{
+		dbg_msg("mod","failed to load Mod collection: %s",aModError);
+		m_pPlatformGameServer->Shutdown();m_NetServer.Close();return -1;
 	}
 
 	m_Econ.Init(Console(), &m_ServerBan);
@@ -1853,7 +2063,12 @@ int CServer::Run()
 	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 
 	GameServer()->OnInit();
-	m_pPlatformGameServer->UpdateMetadata(g_Config.m_SvName, m_aCurrentMap, GetPlayerCount(), g_Config.m_SvMaxClients, g_Config.m_SvOfficial != 0, g_Config.m_SvModHash);
+	// Map generation changes sv_map to generated and requires one reload before
+	// clients may receive the final tile data. Do not advertise readiness while
+	// the generated map is still pending.
+	if(m_pListenReady && str_comp(g_Config.m_SvMap, m_aCurrentMap) == 0)
+		*m_pListenReady = true;
+	m_pPlatformGameServer->UpdateMetadata(g_Config.m_SvName, m_aCurrentMap, GetPlayerCount(), g_Config.m_SvMaxClients, g_Config.m_Password[0] != 0, g_Config.m_SvOfficial != 0, g_Config.m_SvSteamAuth, g_Config.m_SvModHash);
 	str_format(aBuf, sizeof(aBuf), "version %s", GameServer()->NetVersion());
 	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 
@@ -1877,6 +2092,7 @@ int CServer::Run()
 		while(m_RunServer)
 		{
 			m_pPlatformGameServer->RunCallbacks();
+			UpdatePlatformAuthentication();
 			int64 t = time_get();
 			int NewTicks = 0;
 			
@@ -1910,6 +2126,8 @@ int CServer::Run()
 					m_CurrentGameTick = 0;
 					Kernel()->ReregisterInterface(GameServer());
 					GameServer()->OnInit();
+					if(m_pListenReady && str_comp(g_Config.m_SvMap, m_aCurrentMap) == 0)
+						*m_pListenReady = true;
 					
 					UpdateServerInfo();
 				}
@@ -1964,7 +2182,7 @@ int CServer::Run()
 
 			if(ReportTime < time_get())
 			{
-				m_pPlatformGameServer->UpdateMetadata(g_Config.m_SvName, m_aCurrentMap, GetPlayerCount(), g_Config.m_SvMaxClients, g_Config.m_SvOfficial != 0, g_Config.m_SvModHash);
+				m_pPlatformGameServer->UpdateMetadata(g_Config.m_SvName, m_aCurrentMap, GetPlayerCount(), g_Config.m_SvMaxClients, g_Config.m_Password[0] != 0, g_Config.m_SvOfficial != 0, g_Config.m_SvSteamAuth, g_Config.m_SvModHash);
 				if(g_Config.m_Debug)
 				{
 					/*
@@ -2008,6 +2226,10 @@ int CServer::Run()
 	}
 
 	GameServer()->OnShutdown();
+	m_pModRuntime->Unload();
+	if(m_pListenReady)
+		*m_pListenReady = false;
+	m_NetServer.Close();
 	m_pPlatformGameServer->Shutdown();
 	delete m_pPlatformGameServer;
 	m_pPlatformGameServer = 0;
@@ -2045,7 +2267,7 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 			{
 				const char *pAuthStr = pThis->m_aClients[i].m_Authed == CServer::AUTHED_ADMIN ? "(Admin)" :
 										pThis->m_aClients[i].m_Authed == CServer::AUTHED_MOD ? "(Mod)" : "";
-				str_format(aBuf, sizeof(aBuf), "id=%d addr=%s name='%s' score=%d %s", i, aAddrStr,
+				str_format(aBuf, sizeof(aBuf), "id=%d identity=%s steamid=%llu steam_auth=%d addr=%s name='%s' score=%d %s", i, pThis->m_aClients[i].m_PlatformIdentityKind == PLATFORM_IDENTITY_STEAM ? "steam" : "anonymous", pThis->m_aClients[i].m_SteamID, pThis->m_aClients[i].m_PlatformAuthenticated ? 1 : 0, aAddrStr,
 					pThis->m_aClients[i].m_aName, pThis->m_aClients[i].m_Score, pAuthStr);
 			}
 			else
@@ -2053,6 +2275,35 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 			pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "Server", aBuf);
 		}
 	}
+}
+
+static bool ParseSteamID(const char *pText, unsigned long long *pSteamID)
+{
+	char Trailing = 0; return pText && pSteamID && sscanf(pText, "%llu%c", pSteamID, &Trailing) == 1 && *pSteamID != 0;
+}
+
+void CServer::ConSteamBan(IConsole::IResult *pResult, void *pUser)
+{
+	CServer *pThis = static_cast<CServer *>(pUser); unsigned long long SteamID = 0;
+	if(!ParseSteamID(pResult->GetString(0), &SteamID)) { pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-ban", "invalid SteamID64"); return; }
+	const int Minutes = pResult->NumArguments() > 1 ? clamp(pResult->GetInteger(1), 0, 525600) : 30;
+	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "Banned by server operator";
+	if(!pThis->m_PlatformBans.Ban(SteamID, Minutes * 60, pReason)) { pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-ban", "unable to persist SteamID ban"); return; }
+	char aLog[256]; str_format(aLog, sizeof(aLog), "action=ban steamid=%llu minutes=%d reason='%s'", SteamID, Minutes, pReason); pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-admin", aLog);
+	for(int i = 0; i < MAX_CLIENTS; i++) if(pThis->m_aClients[i].m_State != CClient::STATE_EMPTY && pThis->m_aClients[i].m_SteamID == SteamID) pThis->Kick(i, pReason);
+}
+
+void CServer::ConSteamUnban(IConsole::IResult *pResult, void *pUser)
+{
+	CServer *pThis = static_cast<CServer *>(pUser); unsigned long long SteamID = 0;
+	if(!ParseSteamID(pResult->GetString(0), &SteamID) || !pThis->m_PlatformBans.Unban(SteamID)) { pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-ban", "SteamID is not banned"); return; }
+	char aLog[128]; str_format(aLog, sizeof(aLog), "action=unban steamid=%llu", SteamID); pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-admin", aLog);
+}
+
+void CServer::ConSteamBanList(IConsole::IResult *pResult, void *pUser)
+{
+	CServer *pThis = static_cast<CServer *>(pUser); char aLine[256];
+	for(int i = 0; i < pThis->m_PlatformBans.Count(); i++) { const CPlatformBanList::CBan *pBan = pThis->m_PlatformBans.Get(i); str_format(aLine, sizeof(aLine), "steamid=%llu expires=%d reason='%s'", pBan->m_SteamID, pBan->m_Expires, pBan->m_aReason); pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-ban", aLine); }
 }
 
 void CServer::ConShutdown(IConsole::IResult *pResult, void *pUser)
@@ -2219,10 +2470,14 @@ void CServer::RegisterCommands()
 	m_pGameServer = Kernel()->RequestInterface<IGameServer>();
 	m_pMap = Kernel()->RequestInterface<IEngineMap>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
+	m_PlatformBans.Init(m_pStorage);
 
 	// register console commands
 	Console()->Register("kick", "i?r", CFGFLAG_SERVER, ConKick, this, "Kick player with specified id for any reason");
 	Console()->Register("status", "", CFGFLAG_SERVER, ConStatus, this, "List players");
+	Console()->Register("steam_ban", "s?i?r", CFGFLAG_SERVER, ConSteamBan, this, "Ban SteamID64 for optional minutes (0 permanent) and reason");
+	Console()->Register("steam_unban", "s", CFGFLAG_SERVER, ConSteamUnban, this, "Remove a SteamID64 ban");
+	Console()->Register("steam_bans", "", CFGFLAG_SERVER, ConSteamBanList, this, "List SteamID64 bans");
 	Console()->Register("shutdown", "", CFGFLAG_SERVER, ConShutdown, this, "Shut down");
 	Console()->Register("logout", "", CFGFLAG_SERVER, ConLogout, this, "Logout of rcon");
 
@@ -2270,6 +2525,7 @@ void CServer::SnapSetStaticsize(int ItemType, int Size)
 	m_SnapshotDelta.SetStaticsize(ItemType, Size);
 }
 
+#if !defined(CONF_EMBEDDED_SERVER_CORE)
 static CServer *CreateServer() { return new CServer(); }
 
 int main(int argc, const char **argv) // ignore_convention
@@ -2349,7 +2605,7 @@ int main(int argc, const char **argv) // ignore_convention
 	
 	// run the server
 	dbg_msg("server", "starting...");
-	pServer->Run();
+	const int RunResult = pServer->Run();
 
 	// free
 	delete pServer;
@@ -2361,8 +2617,9 @@ int main(int argc, const char **argv) // ignore_convention
 	delete pStorage;
 	delete pConfig;
 	delete pLocalization;
-	return 0;
+	return RunResult < 0 ? 1 : 0;
 }
+#endif
 
 
 void CServer::AddZombie()

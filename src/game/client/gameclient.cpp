@@ -8,6 +8,7 @@
 #include <engine/textrender.h>
 #include <engine/demo.h>
 #include <engine/map.h>
+#include <engine/platform_services.h>
 #include <engine/storage.h>
 #include <engine/sound.h>
 #include <engine/gamepad.h>
@@ -469,6 +470,13 @@ void CGameClient::OnInit()
 
 void CGameClient::DispatchInput()
 {
+	if(m_pMenus->IsActive())
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_MENU);
+	else if(m_Snap.m_LocalClientID >= 0 && m_Snap.m_paPlayerInfos[m_Snap.m_LocalClientID] && m_Snap.m_paPlayerInfos[m_Snap.m_LocalClientID]->m_Team == TEAM_SPECTATORS)
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_SPECTATOR);
+	else if(Client()->State() == IClient::STATE_ONLINE)
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_GAME);
+
 	// handle mouse movement
 	float x = 0.0f, y = 0.0f;
 	if(Input()->MouseMoved() || Input()->GamepadMoved())

@@ -784,7 +784,7 @@ void CMaze::Open(int x, int y)
 }
 
 
-void CMaze::OpenRooms(CRoom *pRoom)
+void CMaze::OpenRooms(CRoomGenerated *pRoom)
 {
 	for (int x = 0; x < m_W; x++)
 		for (int y = 0; y < m_H; y++)

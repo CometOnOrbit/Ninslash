@@ -8,6 +8,7 @@
 #include <engine/shared/datafile.h> // MapGen
 #include <engine/map.h>
 #include <engine/console.h>
+#include <engine/platform_events.h>
 #include "gamecontext.h"
 #include <game/version.h>
 #include <game/collision.h>
@@ -179,6 +180,8 @@ bool CGameContext::RespawnAlly(vec2 Pos, int Team, int Reviver)
 	if (Current >= 0)
 	{
 		m_apPlayers[Current]->ForceRespawn(Pos);
+		if(Reviver >= 0 && Reviver < MAX_CLIENTS && Reviver != Current && m_apPlayers[Reviver] && !m_apPlayers[Reviver]->m_IsBot)
+			Server()->SendPlatformEvent(Reviver, PLATFORM_EVENT_COOP_RESCUE);
 		if(m_pPveDirector && Reviver >= 0 && Reviver < MAX_CLIENTS && m_pPveDirector->PerkStacks(Reviver, PVE_CARD_NO_ONE_LEFT))
 		{
 			if(GetPlayerChar(Reviver))

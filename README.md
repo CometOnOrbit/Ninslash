@@ -152,8 +152,7 @@ The source code uses the permissive license described in
 Ninslash authors. Bundled libraries have their own licenses, summarized in
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
 
-The historical `data/` directory contains assets under mixed licenses, and the
-original project notice states that some are nonfree or insufficiently
-documented. Do not assume the source-code license applies to game assets. A
-public commercial release is blocked until every shipped asset passes the
+Unless a file carries a more specific third-party notice, content in `data/`
+uses the Ninslash asset license, CC-BY-SA 3.0; this is distinct from the source
+code license. Every public release must still pass the
 [release asset audit](docs/release/README.md).

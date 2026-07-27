@@ -1,5 +1,6 @@
 #include <new>
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 #include <game/server/gamecontext.h>
 #include <game/mapitems.h>
 
@@ -53,7 +54,7 @@ struct CInputCount
 	int m_Releases;
 };
 
-CInputCount CountInput(int Prev, int Cur)
+static CInputCount CountInput(int Prev, int Cur)
 {
 	CInputCount c = {0, 0};
 	Prev &= INPUT_STATE_MASK;
@@ -713,6 +714,8 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 	SaveData();
 	GetPlayer()->SendForgeResult(FORGERESULT_SUCCESS, Recipe.m_Operation, Item1, Item2, Recipe.m_Cost,
 		Recipe.m_Product, Recipe.m_ProductAmmo, Recipe.m_ProductMaxAmmo);
+	Server()->SendPlatformEvent(GetPlayer()->GetCID(), PLATFORM_EVENT_FIRST_FORGE);
+	Server()->DispatchModEvent(MOD_EVENT_FORGE, GetPlayer()->GetCID(), Recipe.m_Operation);
 }
 
 
@@ -1446,6 +1449,8 @@ void CCharacter::UseKit(int Kit, vec2 Pos)
 		{
 			m_Kits -= Cost;
 			GameServer()->CreateSound(Pos, SOUND_BUILD);
+			Server()->SendPlatformEvent(GetPlayer()->GetCID(), PLATFORM_EVENT_FIRST_BUILD);
+			Server()->DispatchModEvent(MOD_EVENT_BUILD, GetPlayer()->GetCID(), Kit);
 		}
 	}
 }

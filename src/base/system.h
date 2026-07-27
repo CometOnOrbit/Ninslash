@@ -11,6 +11,14 @@
 #include "detect.h"
 #include <stdarg.h>
 
+#if defined(__MINGW32__)
+#define PRINTF_FORMAT_ATTRIBUTE(FormatIndex, FirstArgument) __attribute__((format(gnu_printf, FormatIndex, FirstArgument)))
+#elif defined(__GNUC__) || defined(__clang__)
+#define PRINTF_FORMAT_ATTRIBUTE(FormatIndex, FirstArgument) __attribute__((format(printf, FormatIndex, FirstArgument)))
+#else
+#define PRINTF_FORMAT_ATTRIBUTE(FormatIndex, FirstArgument)
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -68,11 +76,7 @@ void dbg_break();
 	See Also:
 		<dbg_assert>
 */
-void dbg_msg(const char *sys, const char *fmt, ...)
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__ ((format (printf, 2, 3))) /* Warn if you specify wrong arguments in printf format string */
-#endif
-;
+void dbg_msg(const char *sys, const char *fmt, ...) PRINTF_FORMAT_ATTRIBUTE(2, 3);
 
 /* Group: Memory */
 
@@ -507,6 +511,7 @@ enum
 	NETTYPE_IPV4 = 1,
 	NETTYPE_IPV6 = 2,
 	NETTYPE_LINK_BROADCAST = 4,
+	NETTYPE_STEAM = 8,
 	NETTYPE_ALL = NETTYPE_IPV4|NETTYPE_IPV6
 };
 
@@ -802,11 +807,7 @@ int str_length(const char *str);
 		- The strings are treated as zero-termineted strings.
 		- Garantees that dst string will contain zero-termination.
 */
-void str_format(char *buffer, int buffer_size, const char *format, ...)
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__ ((format (printf, 3, 4))) /* Warn if you specify wrong arguments in printf format string */
-#endif
-;
+void str_format(char *buffer, int buffer_size, const char *format, ...) PRINTF_FORMAT_ATTRIBUTE(3, 4);
 
 void str_format_args(char *buffer, int buffer_size, const char *format, va_list args);
 
@@ -1093,6 +1094,9 @@ int fs_storage_path(const char *appname, char *path, int max);
 */
 int fs_is_dir(const char *path);
 
+/* Returns 1 when the path itself is a symbolic link or reparse point. */
+int fs_is_symlink(const char *path);
+
 /*
 	Function: fs_chdir
 		Changes current working directory
@@ -1145,6 +1149,9 @@ int fs_parent_dir(char *path);
 		- The strings are treated as zero-terminated strings.
 */
 int fs_remove(const char *filename);
+
+/* Removes an empty directory. Returns 0 on success, 1 on failure. */
+int fs_removedir(const char *path);
 
 /*
 	Function: fs_rename

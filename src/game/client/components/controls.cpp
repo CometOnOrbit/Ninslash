@@ -188,32 +188,6 @@ void CControls::OnMessage(int Msg, void *pRawMsg)
 }
 
 
-//input count
-struct CInputCount
-{
-	int m_Presses;
-	int m_Releases;
-};
-
-CInputCount CountInput(int Prev, int Cur)
-{
-	CInputCount c = {0, 0};
-	Prev &= INPUT_STATE_MASK;
-	Cur &= INPUT_STATE_MASK;
-	int i = Prev;
-
-	while(i != Cur)
-	{
-		i = (i+1)&INPUT_STATE_MASK;
-		if(i&1)
-			c.m_Presses++;
-		else
-			c.m_Releases++;
-	}
-
-	return c;
-}
-
 
 int CControls::SnapInput(int *pData)
 {

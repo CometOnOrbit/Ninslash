@@ -4,7 +4,7 @@
     "desc" "Ninslash @VERSION@ @GIT_COMMIT@"
     "buildoutput" "@BUILD_OUTPUT@"
     "contentroot" "@CONTENT_ROOT@"
-    "setlive" ""
+    "setlive" "@CLIENT_SET_LIVE@"
     "preview" "0"
     "depots"
     {

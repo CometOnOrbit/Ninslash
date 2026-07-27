@@ -1,11 +1,8 @@
 #ifndef ENGINE_SHARED_MOD_API_H
 #define ENGINE_SHARED_MOD_API_H
 
-/*
- * This is intentionally runtime-neutral. Lua is not loaded in the current
- * release; a future sandbox is required to implement IModRuntime and may not
- * bypass this capability and event boundary.
- */
+/* Runtime-neutral capability boundary shared by the Lua sandbox, package
+ * validator and future client resource/theme loaders. */
 enum EModCapability
 {
 	MOD_CAPABILITY_RESOURCES = 1 << 0,
@@ -33,6 +30,7 @@ enum EModActivationResult
 	MOD_ACTIVATION_OK,
 	MOD_ACTIVATION_API_VERSION_MISMATCH,
 	MOD_ACTIVATION_UNSUPPORTED_CAPABILITY,
+	MOD_ACTIVATION_RUNTIME_UNAVAILABLE,
 };
 
 struct CModApiDescriptor

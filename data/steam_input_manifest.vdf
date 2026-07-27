@@ -1,0 +1,52 @@
+"In Game Actions"
+{
+    "actions"
+    {
+        "game" { "title" "#Set_Game" "legacy_set" "0" }
+        "menu" { "title" "#Set_Menu" "legacy_set" "0" }
+        "spectator" { "title" "#Set_Spectator" "legacy_set" "0" }
+        "chat" { "title" "#Set_Chat" "legacy_set" "0" }
+    }
+    "action_sets"
+    {
+        "game" { "title" "#Set_Game" }
+        "menu" { "title" "#Set_Menu" }
+        "spectator" { "title" "#Set_Spectator" }
+        "chat" { "title" "#Set_Chat" }
+    }
+    "digital_actions"
+    {
+        "confirm" { "title" "#Action_Confirm" }
+        "cancel" { "title" "#Action_Cancel" }
+        "fire" { "title" "#Action_Fire" }
+        "alt_fire" { "title" "#Action_AltFire" }
+        "scoreboard" { "title" "#Action_Scoreboard" }
+        "build" { "title" "#Action_Build" }
+        "drop" { "title" "#Action_Drop" }
+        "emote" { "title" "#Action_Emote" }
+        "picker" { "title" "#Action_Picker" }
+        "last_weapon" { "title" "#Action_LastWeapon" }
+        "prev_weapon" { "title" "#Action_PrevWeapon" }
+        "next_weapon" { "title" "#Action_NextWeapon" }
+        "up" { "title" "#Action_Up" }
+        "down" { "title" "#Action_Down" }
+        "left" { "title" "#Action_Left" }
+        "right" { "title" "#Action_Right" }
+    }
+    "analog_actions"
+    {
+        "move" { "title" "#Action_Move" "input_mode" "joystick_move" }
+        "aim" { "title" "#Action_Aim" "input_mode" "joystick_move" }
+    }
+    "localization"
+    {
+        "english"
+        {
+            "Set_Game" "Game" "Set_Menu" "Menu" "Set_Spectator" "Spectator" "Set_Chat" "Chat"
+            "Action_Confirm" "Confirm" "Action_Cancel" "Cancel" "Action_Fire" "Fire" "Action_AltFire" "Turbo"
+            "Action_Scoreboard" "Scoreboard" "Action_Build" "Build" "Action_Drop" "Drop weapon" "Action_Emote" "Emote"
+            "Action_Picker" "Weapon picker" "Action_LastWeapon" "Last weapon" "Action_PrevWeapon" "Previous weapon" "Action_NextWeapon" "Next weapon"
+            "Action_Up" "Up" "Action_Down" "Down" "Action_Left" "Left" "Action_Right" "Right" "Action_Move" "Move" "Action_Aim" "Aim"
+        }
+    }
+}

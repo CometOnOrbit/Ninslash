@@ -2,7 +2,7 @@
 #include "room.h"
 
 
-CRoom::CRoom(int x, int y, int w, int h)
+CEditorRoom::CEditorRoom(int x, int y, int w, int h)
 {
 	m_Open = false;
 	
@@ -51,7 +51,7 @@ CRoom::CRoom(int x, int y, int w, int h)
 	*/
 }
 
-CRoom::~CRoom()
+CEditorRoom::~CEditorRoom()
 {
 	if (m_pChild1)
 		delete m_pChild1;
@@ -59,7 +59,7 @@ CRoom::~CRoom()
 		delete m_pChild2;
 }
 
-void CRoom::Split(bool Vertical)
+void CEditorRoom::Split(bool Vertical)
 {
 	if (TooSmall())
 		return;
@@ -75,8 +75,8 @@ void CRoom::Split(bool Vertical)
 		
 		if (!m_pChild1)
 		{
-			m_pChild1 = new CRoom(m_X, m_Y, m_W, m_H);
-			m_pChild2 = new CRoom(m_X, m_Y+m_H, m_W, h2-m_H);
+			m_pChild1 = new CEditorRoom(m_X, m_Y, m_W, m_H);
+			m_pChild2 = new CEditorRoom(m_X, m_Y+m_H, m_W, h2-m_H);
 		}
 	}
 	else
@@ -90,14 +90,14 @@ void CRoom::Split(bool Vertical)
 
 		if (!m_pChild1)
 		{
-			m_pChild1 = new CRoom(m_X, m_Y, m_W, m_H);
-			m_pChild2 = new CRoom(m_X+m_W, m_Y, w2-m_W, m_H);
+			m_pChild1 = new CEditorRoom(m_X, m_Y, m_W, m_H);
+			m_pChild2 = new CEditorRoom(m_X+m_W, m_Y, w2-m_W, m_H);
 		}
 	}
 }
 
 // todo: optimize
-bool CRoom::Open(int x, int y)
+bool CEditorRoom::Open(int x, int y)
 {
 	bool c1 = false;
 	bool c2 = false;
@@ -118,7 +118,7 @@ bool CRoom::Open(int x, int y)
 	return false;
 }
 
-void CRoom::Generate(CLayerTiles *pLayer)
+void CEditorRoom::Generate(CLayerTiles *pLayer)
 {
 	//if (TooSmall())
 	//	return;
@@ -136,7 +136,7 @@ void CRoom::Generate(CLayerTiles *pLayer)
 
 
 
-void CRoom::Fill(class CLayerTiles *pLayer, int Index, int x, int y, int w, int h)
+void CEditorRoom::Fill(class CLayerTiles *pLayer, int Index, int x, int y, int w, int h)
 {
 	if (x < 0 || y < 0 || x+w > pLayer->m_Width || y+h > pLayer->m_Height)
 		return;

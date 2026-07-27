@@ -49,6 +49,7 @@ public:
 	void Set(const NETADDR &Addr, int Type, int Token, const CServerInfo *pInfo);
 	void Request(const NETADDR &Addr);
 	bool GetServerInfo(const NETADDR &Addr, CServerInfo *pInfo) const;
+	void AddDiscoveredServer(const NETADDR &Addr, int DiscoverySource, bool Official, bool Modded, int AuthPolicy, unsigned long long SteamServerID);
 
 	void SetBaseInfo(class CNetClient *pClient, const char *pNetVersion);
 

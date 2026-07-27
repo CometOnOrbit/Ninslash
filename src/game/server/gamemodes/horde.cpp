@@ -1,4 +1,5 @@
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 
 #include <game/mapitems.h>
 #include <game/questinfo.h>
@@ -676,6 +677,18 @@ void CGameControllerHorde::Tick()
 			if(RunComplete)
 			{
 				GameServer()->SendBroadcastFormat(-1, false, "Cleared %d waves!", m_Wave);
+				for(int i = 0; i < MAX_CLIENTS; i++)
+					if(GameServer()->m_apPlayers[i] && !GameServer()->m_apPlayers[i]->m_IsBot)
+					{
+						Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_HORDE);
+						Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_COOP_COMPLETE);
+						Server()->SendPlatformEvent(i, PLATFORM_EVENT_STAT_COOP_COMPLETIONS, 1);
+						if(!g_Config.m_SvMapGenRandSeed)
+						{
+							const int ElapsedMs = (int)(((long long)(Server()->Tick() - m_RoundStartTick) * 1000) / Server()->TickSpeed());
+							Server()->SendPlatformEvent(i, PLATFORM_EVENT_LB_FIXED_SEED_TIME_MS, max(1, ElapsedMs));
+						}
+					}
 				m_RoundOverTick = Server()->Tick();
 			}
 			else

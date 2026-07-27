@@ -1,9 +1,63 @@
 # SteamPipe templates
 
+**English · [简体中文](README_zh-CN.md)**
+
 Ninslash uses AppID `1812700`; Ninslash Dedicated Server uses Tool AppID
 `5016790`. The assigned depots are Windows/Linux client `1812702`/`1812703`
 and Windows/Linux dedicated server `5016792`/`5016793`. Do not commit Steam
 credentials, cached login tokens, or partner-only SDK files.
+
+The wrapper below configures and rebuilds both platform configurations, stages
+all four depots, renders the VDF files and runs the offline verifier. A missing
+Windows build directory is created automatically with the tracked MinGW64
+toolchain. It stops before uploading unless `--upload` is explicitly supplied:
+
+```sh
+python3 scripts/publish_steam_depots.py \
+  --linux-build-dir build \
+  --windows-build-dir build-windows-steam \
+  --sdk-root "$HOME/sdk"
+```
+
+Upload the verified client and Dedicated Server builds with SteamCMD:
+
+```sh
+python3 scripts/publish_steam_depots.py \
+  --linux-build-dir build \
+  --windows-build-dir build-windows-steam \
+  --sdk-root "$HOME/sdk" \
+  --upload --steam-account YOUR_PARTNER_ACCOUNT
+```
+
+The wrapper never accepts a password. SteamCMD handles password and Steam Guard
+interaction itself. Set `STEAM_ACCOUNT` and `STEAMCMD` in the environment when
+desired; use `--no-build` to package existing binaries and `--strict-assets` for
+the final public-release asset gate.
+Use `--upload-target client` or `--upload-target server` to retry only one AppID
+without creating another build for an AppID that already succeeded.
+Add `--set-live internal` (or another configured branch name) to make the new
+BuildID live on that beta branch after upload. SteamPipe cannot automatically
+set the public `default` branch live; upload without `--set-live`, then promote
+the Build from the Steamworks App Admin Builds page.
+When diagnosing a commit failure, omit `--set-live` first. Upload permission can
+create a Build, while changing a live branch may require additional Steamworks
+publish permission. Promote the successfully created Build separately after it
+has been tested.
+
+Staging copies direct non-system Linux dependencies such as SDL3 and pnglite
+beside the executable. Do not rely on libraries installed only on the build
+machine: Steam Linux Runtime does not inherit `/usr/local/lib` and does not
+provide project-specific libraries such as `libpnglite.so.0`.
+The client depots also contain `ninslash_srv`/`ninslash_srv.exe`, because the
+Local Game menu starts that sibling process. This deliberate duplication is
+independent of the Dedicated Server Tool depot.
+
+If SteamCMD reports `No Connection`, test `steamcmd +login anonymous +quit`
+before retrying an account. Fake-IP/TUN proxy software must either route the
+SteamCMD process and Steam TCP/UDP traffic, or be disabled temporarily so Steam
+hostnames resolve to real addresses instead of `198.18.0.0/15`. A failed upload
+does not invalidate the rendered manifests; after fixing connectivity, rerun
+the two `+run_app_build` commands directly.
 
 Render upload-ready templates with the tracked IDs and private absolute paths:
 
@@ -27,9 +81,14 @@ python3 scripts/stage_steam_build.py --platform windows --kind client \
   --build-dir build --output dist/steam/windows-client \
   --steam-api /path/to/steam_api64.dll
 python3 scripts/stage_steam_build.py --platform linux --kind server \
-  --build-dir build --output dist/steam/linux-server
+  --build-dir build --output dist/steam/linux-server \
+  --steam-api /path/to/libsteam_api.so
 ```
 
 Use separate `internal`, `beta`, and `public` branches. Upload to `internal`,
 install through Steam on a clean machine, run the release test matrix, and only
 then promote the same BuildID; do not rebuild independently for promotion.
+
+Run `scripts/verify_steam_release.py` against rendered manifests, staged Steam
+depots and standalone binaries before upload. `sv_register_steam` controls only
+Steam advertising; `sv_register` preserves the open legacy master-list route.

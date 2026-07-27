@@ -2995,3 +2995,248 @@ Map selection
 
 Automatic by Invasion floor
 == 由入侵樓層自動選擇
+Active
+== 已啟用
+
+Authenticating with Steam
+== 正在透過 Steam 驗證
+
+Authentication
+== 驗證
+
+Browse Workshop
+== 瀏覽工作坊
+
+CHECK REQUIRED
+== 需要檢查
+
+COMMUNITY
+== 社群
+
+Community / Report
+== 社群頁面 / 檢舉
+
+Community page / Report
+== 社群頁面 / 檢舉
+
+Connecting to server
+== 正在連線至伺服器
+
+Content directory
+== 內容目錄
+
+Create Steam room
+== 建立 Steam 房間
+
+Create item
+== 建立物品
+
+Create local game
+== 建立本機遊戲
+
+Current collection
+== 目前集合
+
+Dedicated servers and Steam rooms
+== 專用伺服器與 Steam 房間
+
+Disable
+== 停用
+
+Downloading Mod
+== 正在下載模組
+
+Enable
+== 啟用
+
+FRIEND
+== 好友
+
+Friend room
+== 好友房間
+
+Host
+== 房主
+
+Inactive
+== 未啟用
+
+Invite
+== 邀請
+
+Invite only
+== 僅限邀請
+
+Leave
+== 離開
+
+Level %d
+== 等級 %d
+
+Loading map
+== 正在載入地圖
+
+Local / LAN game
+== 本機 / 區域網路遊戲
+
+Mods
+== 模組
+
+No Mods in this category.
+== 此分類中沒有模組。
+
+Not verified
+== 未驗證
+
+OFFICIAL
+== 官方
+
+Player Mods
+== 玩家模組
+
+Preview file
+== 預覽檔案
+
+Protocol / content hash
+== 協定 / 內容雜湊
+
+Public
+== 公開
+
+Publish update
+== 發佈更新
+
+Refresh LAN
+== 重新整理區域網路
+
+Region
+== 地區
+
+Relay Listen Server  |  %s  |  %s on %s  |  %d players  |  Steam authentication  |  Unofficial
+== 中繼監聽伺服器  |  %s  |  %s - %s  |  %d 名玩家  |  Steam 驗證  |  非官方
+
+Required
+== 必要
+
+Room name
+== 房間名稱
+
+Rooms
+== 房間
+
+STEAM
+== STEAM
+
+Select a room to see address, region, version, Mods and join requirements.
+== 選擇房間以查看位址、地區、版本、模組及加入需求。
+
+Source
+== 來源
+
+Steam Workshop is unavailable. Installed game data remains unchanged.
+== Steam 工作坊無法使用。已安裝的遊戲資料不會變更。
+
+Steam hosting is unavailable. Start Steam or create a LAN game.
+== Steam 託管無法使用。請啟動 Steam 或建立區域網路遊戲。
+
+Steam local room
+== Steam 本機房間
+
+Steam room
+== Steam 房間
+
+Steam rooms
+== Steam 房間
+
+Steam unavailable
+== Steam 無法使用
+
+Steam unavailable — dedicated servers, Favorites and direct connection remain available.
+== Steam 無法使用——專用伺服器、我的最愛與直接連線仍可使用。
+
+Synchronizing Mods
+== 正在同步模組
+
+Unsubscribe
+== 取消訂閱
+
+Use collection
+== 使用此集合
+
+VALID
+== 有效
+
+Verified for this build
+== 已通過目前版本驗證
+Character
+== 角色
+
+Progress
+== 進度
+
+Replays
+== 回放
+
+Browse rooms
+== 瀏覽房間
+
+Create room
+== 建立房間
+
+LAN & direct
+== 區域網路與直接連線
+
+Installed
+== 已安裝
+
+Needs update
+== 需要更新
+
+Disabled
+== 已停用
+
+Continue
+== 繼續
+
+Server
+== 伺服器
+
+Starting server
+== 正在啟動伺服器
+
+Creating room
+== 正在建立房間
+
+Steam hosting is unavailable. Start Steam and try again.
+== Steam 託管無法使用。請啟動 Steam 後再試。
+
+The Steam room server could not start. Check the log and retry.
+== Steam 房間伺服器無法啟動。請檢查記錄後再試。
+
+The Steam room server did not become ready. Retry or create a LAN game.
+== Steam 房間伺服器未能就緒。請重試或建立區域網路遊戲。
+
+Steam rejected room creation. Check your connection and retry.
+== Steam 拒絕建立房間。請檢查網路連線後再試。
+
+One or more Mods failed validation. Open Mods for details.
+== 一個或多個模組驗證失敗。請開啟模組頁面查看詳情。
+Steam rejected the room join request. Refresh rooms and try again.
+== Steam 拒絕加入房間。請重新整理房間清單後再試。
+
+This room uses an incompatible game version. Update Ninslash and retry.
+== 此房間使用不相容的遊戲版本。請更新 Ninslash 後再試。
+
+The room host identity could not be verified. Leave the room and choose another.
+== 無法驗證房主身分。請離開並選擇其他房間。
+
+The room connection data is invalid. Ask the host to recreate the room.
+== 房間連線資料無效。請讓房主重新建立房間。
+
+Required Mods are downloading. Open Mods, wait for validation, then retry joining.
+== 正在下載所需模組。請開啟模組頁面，等待驗證完成後重新加入。
+
+This room requires a different Mod collection. Open Mods and enable the required collection.
+== 此房間需要其他模組集合。請開啟模組頁面並啟用所需集合。
+Joining room
+== 正在加入房間

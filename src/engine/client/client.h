@@ -4,6 +4,7 @@
 #define ENGINE_CLIENT_CLIENT_H
 
 class IPlatformServices;
+class IListenServerRuntime;
 
 class CGraph
 {
@@ -70,6 +71,10 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	IStorage *m_pStorage;
 	IEngineMasterServer *m_pMasterServer;
 	IPlatformServices *m_pPlatformServices;
+	int64 m_NextPlatformPresenceUpdate;
+	IListenServerRuntime *m_pListenServer;
+	CClientAsyncStatus m_SteamHostStatus;
+	CClientAsyncStatus m_ConnectionAsyncStatus;
 
 	enum
 	{
@@ -152,6 +157,9 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	} m_aInputs[200];
 
 	int m_CurrentInput;
+	bool m_PlatformAuthResponsePending;
+	int m_PlatformAuthPolicy;
+	bool m_PlatformAuthRelayRequired;
 
 	// graphs
 	CGraph m_InputtimeMarginGraph;
@@ -212,6 +220,7 @@ public:
 
 	int SendMsgEx(CMsgPacker *pMsg, int Flags, bool System=true);
 	void SendInfo();
+	void SendPlatformAuth(int Policy, bool RelayRequired);
 	void SendEnterGame();
 	void SendReady();
 
@@ -249,6 +258,10 @@ public:
 	virtual void LoadReady();
 	
 	virtual void Connect(const char *pAddress);
+	virtual bool StartSteamHostedGame(const CHostGameSettings &Settings);
+	virtual void StopSteamHostedGame();
+	virtual void SteamHostedGameStatus(CClientAsyncStatus *pStatus) const;
+	virtual void ConnectionStatus(CClientAsyncStatus *pStatus) const;
 	void DisconnectWithReason(const char *pReason);
 	virtual void Disconnect();
 
@@ -316,6 +329,19 @@ public:
 	static void Con_SteamLobbyInvite(IConsole::IResult *pResult, void *pUserData);
 	static void Con_SteamLobbyLeave(IConsole::IResult *pResult, void *pUserData);
 	static void Con_SteamLobbyStatus(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamLobbyRefresh(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamLobbyList(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamLobbyJoin(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopRefresh(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopList(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopDisable(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopEnable(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopUnsubscribe(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopOpen(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopSelect(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopCreate(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopPublish(IConsole::IResult *pResult, void *pUserData);
+	static void Con_SteamWorkshopPublishStatus(IConsole::IResult *pResult, void *pUserData);
 	static void ConchainServerBrowserUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 
 	void RegisterCommands();

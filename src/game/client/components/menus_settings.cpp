@@ -510,7 +510,7 @@ void CMenus::RenderCustomization(CUIRect MainView)
 	
 	static int s_FrontPageButton=0;
 	if(DoButton_Menu(&s_FrontPageButton, Localize("Back to main menu"), 0, &BackButton))
-		g_Config.m_UiPage = PAGE_FRONT;
+		g_Config.m_UiPage = PAGE_INTERNET;
 	
 	*/
 	MainView.HSplitTop(20.0f, 0, &MainView);
@@ -2504,7 +2504,7 @@ void CMenus::RenderCustomize(CUIRect MainView)
 	
 	static int s_FrontPageButton=0;
 	if(DoButton_Menu(&s_FrontPageButton, Localize("Back to main menu"), 0, &BackButton))
-		g_Config.m_UiPage = PAGE_FRONT;
+		g_Config.m_UiPage = PAGE_INTERNET;
 	
 	
 	MainView.HSplitTop(20.0f, 0, &MainView);
@@ -3018,7 +3018,7 @@ void CMenus::RenderCustomize(CUIRect MainView)
 	
 	
 	if (m_EscapePressed)
-		g_Config.m_UiPage = PAGE_FRONT;
+		g_Config.m_UiPage = PAGE_INTERNET;
 }
 
 	

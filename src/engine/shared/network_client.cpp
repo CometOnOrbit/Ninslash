@@ -16,13 +16,19 @@ bool CNetClient::Open(NETADDR BindAddr, int Flags)
 
 	// init
 	m_Socket = Socket;
+	m_pTransport = 0;
 	m_Connection.Init(m_Socket, false);
 	return true;
 }
 
 int CNetClient::Close()
 {
-	// TODO: implement me
+	Disconnect("closed");
+	if(m_Socket.type)
+	{
+		net_udp_close(m_Socket);
+		mem_zero(&m_Socket, sizeof(m_Socket));
+	}
 	return 0;
 }
 
@@ -31,11 +37,15 @@ int CNetClient::Disconnect(const char *pReason)
 {
 	//dbg_msg("netclient", "disconnected. reason=\"%s\"", pReason);
 	m_Connection.Disconnect(pReason);
+	if(m_pTransport)
+		m_pTransport->ClosePeer();
 	return 0;
 }
 
 int CNetClient::Update()
 {
+	if(m_pTransport)
+		m_pTransport->Update();
 	m_Connection.Update();
 	if(m_Connection.State() == NET_CONNSTATE_ERROR)
 		Disconnect(m_Connection.ErrorString());
@@ -44,8 +54,24 @@ int CNetClient::Update()
 
 int CNetClient::Connect(NETADDR *pAddr)
 {
+	m_pTransport = 0;
+	m_Connection.Init(m_Socket, false);
 	m_Connection.Connect(pAddr);
 	return 0;
+}
+
+int CNetClient::ConnectSteam(unsigned long long SteamID, INetPacketTransport *pTransport)
+{
+	if(!SteamID || !pTransport || !pTransport->ConnectPeer(SteamID))
+		return -1;
+	m_pTransport = pTransport;
+	m_Connection.Init(m_Socket, false, pTransport);
+	NETADDR Addr;
+	mem_zero(&Addr, sizeof(Addr));
+	Addr.type = NETTYPE_STEAM;
+	for(int i = 0; i < 8; i++)
+		Addr.ip[i] = (unsigned char)(SteamID >> (i * 8));
+	return m_Connection.Connect(&Addr);
 }
 
 int CNetClient::ResetErrorString()
@@ -64,7 +90,7 @@ int CNetClient::Recv(CNetChunk *pChunk)
 
 		// TODO: empty the recvinfo
 		NETADDR Addr;
-		int Bytes = net_udp_recv(m_Socket, &Addr, m_RecvUnpacker.m_aBuffer, NET_MAX_PACKETSIZE);
+		int Bytes = m_pTransport ? m_pTransport->RecvPacket(&Addr, m_RecvUnpacker.m_aBuffer, NET_MAX_PACKETSIZE) : net_udp_recv(m_Socket, &Addr, m_RecvUnpacker.m_aBuffer, NET_MAX_PACKETSIZE);
 
 		// no more packets for now
 		if(Bytes <= 0)

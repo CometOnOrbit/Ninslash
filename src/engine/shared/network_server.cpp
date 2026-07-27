@@ -21,6 +21,7 @@ bool CNetServer::Open(NETADDR BindAddr, CNetBan *pNetBan, int MaxClients, int Ma
 		return false;
 
 	m_pNetBan = pNetBan;
+	m_pTransport = 0;
 
 	// clamp clients
 	m_MaxClients = MaxClients;
@@ -40,6 +41,22 @@ bool CNetServer::Open(NETADDR BindAddr, CNetBan *pNetBan, int MaxClients, int Ma
 	return true;
 }
 
+bool CNetServer::OpenSteamRelay(INetPacketTransport *pTransport, int VirtualPort)
+{
+	if(!pTransport || !pTransport->Listen(VirtualPort))
+		return false;
+	m_pTransport = pTransport;
+	return true;
+}
+
+void CNetServer::SendControl(const NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize)
+{
+	if(pAddr && pAddr->type == NETTYPE_STEAM && m_pTransport)
+		m_pTransport->SendControl(pAddr, Ack, ControlMsg, pExtra, ExtraSize);
+	else
+		CNetBase::SendControlMsg(m_Socket, (NETADDR *)pAddr, Ack, ControlMsg, pExtra, ExtraSize);
+}
+
 int CNetServer::SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser)
 {
 	m_pfnNewClient = pfnNewClient;
@@ -50,7 +67,17 @@ int CNetServer::SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT p
 
 int CNetServer::Close()
 {
-	// TODO: implement me
+	if(m_pTransport)
+	{
+		m_pTransport->ClosePeer();
+		m_pTransport->CloseListen();
+		m_pTransport = 0;
+	}
+	if(m_Socket.type)
+	{
+		net_udp_close(m_Socket);
+		mem_zero(&m_Socket, sizeof(m_Socket));
+	}
 	return 0;
 }
 
@@ -81,6 +108,8 @@ int CNetServer::Drop(int ClientID, const char *pReason)
 
 int CNetServer::Update()
 {
+	if(m_pTransport)
+		m_pTransport->Update();
 	for(int i = 0; i < MaxClients(); i++)
 	{
 		CNetConnection &Connection = m_aSlots[i].m_Connection;
@@ -116,6 +145,8 @@ int CNetServer::Recv(CNetChunk *pChunk)
 
 		// TODO: empty the recvinfo
 		int Bytes = net_udp_recv(m_Socket, &Addr, m_RecvUnpacker.m_aBuffer, NET_MAX_PACKETSIZE);
+		if(Bytes <= 0 && m_pTransport)
+			Bytes = m_pTransport->RecvPacket(&Addr, m_RecvUnpacker.m_aBuffer, NET_MAX_PACKETSIZE);
 
 		// no more packets for now
 		if(Bytes <= 0)
@@ -125,10 +156,10 @@ int CNetServer::Recv(CNetChunk *pChunk)
 		{
 			// check if we just should drop the packet
 			char aBuf[128];
-			if(NetBan() && NetBan()->IsBanned(&Addr, aBuf, sizeof(aBuf)))
+			if(Addr.type != NETTYPE_STEAM && NetBan() && NetBan()->IsBanned(&Addr, aBuf, sizeof(aBuf)))
 			{
 				// banned, reply with a message
-				CNetBase::SendControlMsg(m_Socket, &Addr, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf)+1);
+				SendControl(&Addr, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf)+1);
 				continue;
 			}
 
@@ -168,6 +199,8 @@ int CNetServer::Recv(CNetChunk *pChunk)
 						ThisAddr.port = 0;
 						for(int i = 0; i < MaxClients(); ++i)
 						{
+							if(Addr.type == NETTYPE_STEAM)
+								break;
 							if(m_aSlots[i].m_Connection.State() == NET_CONNSTATE_OFFLINE)
 								continue;
 
@@ -179,7 +212,7 @@ int CNetServer::Recv(CNetChunk *pChunk)
 								{
 									char aBuf[128];
 									str_format(aBuf, sizeof(aBuf), "Only %d players with the same IP are allowed", m_MaxClientsPerIP);
-									CNetBase::SendControlMsg(m_Socket, &Addr, 0, NET_CTRLMSG_CLOSE, aBuf, sizeof(aBuf));
+									SendControl(&Addr, 0, NET_CTRLMSG_CLOSE, aBuf, sizeof(aBuf));
 									return 0;
 								}
 							}
@@ -192,6 +225,7 @@ int CNetServer::Recv(CNetChunk *pChunk)
 							if(m_aSlots[i].m_Connection.State() == NET_CONNSTATE_OFFLINE && !m_SlotTakenByBot[i])
 							{
 								Found = true;
+								m_aSlots[i].m_Connection.Init(m_Socket, true, Addr.type == NETTYPE_STEAM ? m_pTransport : 0);
 								m_aSlots[i].m_Connection.Feed(&m_RecvUnpacker.m_Data, &Addr);
 								if(m_pfnNewClient)
 									m_pfnNewClient(i, m_UserPtr);
@@ -208,6 +242,7 @@ int CNetServer::Recv(CNetChunk *pChunk)
 								{
 									Drop(i, "Making room for a real player.");
 									Found = true;
+									m_aSlots[i].m_Connection.Init(m_Socket, true, Addr.type == NETTYPE_STEAM ? m_pTransport : 0);
 									m_aSlots[i].m_Connection.Feed(&m_RecvUnpacker.m_Data, &Addr);
 									if(m_pfnNewClient)
 										m_pfnNewClient(i, m_UserPtr);
@@ -219,7 +254,7 @@ int CNetServer::Recv(CNetChunk *pChunk)
 						if(!Found)
 						{
 							const char FullMsg[] = "This server is full";
-							CNetBase::SendControlMsg(m_Socket, &Addr, 0, NET_CTRLMSG_CLOSE, FullMsg, sizeof(FullMsg));
+							SendControl(&Addr, 0, NET_CTRLMSG_CLOSE, FullMsg, sizeof(FullMsg));
 						}
 					}
 				}

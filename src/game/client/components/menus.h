@@ -27,6 +27,16 @@ public:
 	virtual bool OnInput(IInput::CEvent Event);
 };
 
+// UI-only adapter. Dedicated servers remain keyed/deduplicated by endpoint;
+// Steam rooms remain keyed by LobbyID.
+struct CPlayRoomEntry
+{
+	enum ESource { SOURCE_DEDICATED, SOURCE_STEAM_LOBBY };
+	int m_Source;
+	int m_SourceIndex;
+	char m_aStableID[128];
+};
+
 class CMenus : public CComponent
 {
 	static vec4 ms_GuiColor;
@@ -172,6 +182,8 @@ class CMenus : public CComponent
 		PAGE_SYSTEM,
 		PAGE_RESEARCH,
 		PAGE_LOCAL_SERVER,
+		PAGE_STEAM,
+		PAGE_MODS,
 	};
 
 	enum
@@ -186,6 +198,10 @@ class CMenus : public CComponent
 	int m_GamePage;
 	int m_Popup;
 	int m_ActivePage;
+	int m_NavigationFocus;
+	int m_LastInputDevice;
+	int m_PlayTab;
+	bool m_NavigationHasFocus;
 	bool m_MenuActive;
 	bool m_UseMouseButtons;
 	vec2 m_MousePos;
@@ -402,6 +418,9 @@ class CMenus : public CComponent
 	void RenderServerbrowserFilters(CUIRect View);
 	void RenderServerbrowserFriends(CUIRect View);
 	void RenderServerbrowser(CUIRect MainView);
+	void RenderSteam(CUIRect MainView);
+	void RenderPlay(CUIRect MainView);
+	void RenderMods(CUIRect MainView);
 	static void ConchainFriendlistUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainServerbrowserUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 

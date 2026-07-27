@@ -37,12 +37,13 @@ void CNetConnection::SetError(const char *pString)
 	str_copy(m_ErrorString, pString, sizeof(m_ErrorString));
 }
 
-void CNetConnection::Init(NETSOCKET Socket, bool BlockCloseMsg)
+void CNetConnection::Init(NETSOCKET Socket, bool BlockCloseMsg, INetPacketTransport *pTransport)
 {
 	Reset();
 	ResetStats();
 
 	m_Socket = Socket;
+	m_pTransport = pTransport;
 	m_BlockCloseMsg = BlockCloseMsg;
 	mem_zero(m_ErrorString, sizeof(m_ErrorString));
 }
@@ -75,7 +76,10 @@ int CNetConnection::Flush()
 
 	// send of the packets
 	m_Construct.m_Ack = m_Ack;
-	CNetBase::SendPacket(m_Socket, &m_PeerAddr, &m_Construct);
+	if(m_pTransport)
+		m_pTransport->SendPacket(&m_PeerAddr, &m_Construct);
+	else
+		CNetBase::SendPacket(m_Socket, &m_PeerAddr, &m_Construct);
 
 	// update send times
 	m_LastSendTime = time_get();
@@ -145,7 +149,10 @@ void CNetConnection::SendControl(int ControlMsg, const void *pExtra, int ExtraSi
 {
 	// send the control message
 	m_LastSendTime = time_get();
-	CNetBase::SendControlMsg(m_Socket, &m_PeerAddr, m_Ack, ControlMsg, pExtra, ExtraSize);
+	if(m_pTransport)
+		m_pTransport->SendControl(&m_PeerAddr, m_Ack, ControlMsg, pExtra, ExtraSize);
+	else
+		CNetBase::SendControlMsg(m_Socket, &m_PeerAddr, m_Ack, ControlMsg, pExtra, ExtraSize);
 }
 
 void CNetConnection::ResendChunk(CNetChunkResend *pResend)

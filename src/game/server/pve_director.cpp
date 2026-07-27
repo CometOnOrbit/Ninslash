@@ -1,5 +1,6 @@
 #include <base/math.h>
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 #include <generated/protocol.h>
 
 #include <game/weapons.h>
@@ -1176,6 +1177,9 @@ void CPveDirector::RegisterEliteContractBoss(CDroid *pBoss)
 
 void CPveDirector::OnBossKilled(bool ContractBoss)
 {
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		if(m_pGameServer->m_apPlayers[i] && !m_pGameServer->m_apPlayers[i]->m_IsBot)
+			m_pGameServer->Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_BOSS);
 	if(ContractBoss && m_ContractState == PVE_CONTRACT_STATE_ACTIVE && m_ActiveContract == PVE_CONTRACT_ELITE_HUNT)
 	{
 		m_pEliteContractBoss = 0;

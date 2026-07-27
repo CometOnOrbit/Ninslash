@@ -7,9 +7,11 @@ int ModApiCurrentVersion()
 
 int ModApiSupportedCapabilities()
 {
-	// This release deliberately exposes resource/theme packs only. Gameplay
-	// capabilities remain declared in manifests for forward compatibility.
-	return MOD_CAPABILITY_RESOURCES | MOD_CAPABILITY_CLIENT_THEME;
+	int Capabilities = MOD_CAPABILITY_RESOURCES | MOD_CAPABILITY_CLIENT_THEME;
+#if defined(CONF_LUA_MOD_API)
+	Capabilities |= MOD_CAPABILITY_GAMEPLAY_RULES | MOD_CAPABILITY_WEAPONS | MOD_CAPABILITY_ITEMS;
+#endif
+	return Capabilities;
 }
 
 EModActivationResult ModApiCanActivate(const CModApiDescriptor &Descriptor)
@@ -27,5 +29,7 @@ const char *ModActivationResultName(EModActivationResult Result)
 		return "ok";
 	if(Result == MOD_ACTIVATION_API_VERSION_MISMATCH)
 		return "api_version_mismatch";
-	return "unsupported_capability";
+	if(Result == MOD_ACTIVATION_UNSUPPORTED_CAPABILITY)
+		return "unsupported_capability";
+	return "runtime_unavailable";
 }

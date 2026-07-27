@@ -1,5 +1,7 @@
 # Ninslash Privacy Policy — release template
 
+**English · [简体中文](privacy-policy-template_zh-CN.md)**
+
 This file is not a publishable privacy policy until every bracketed field has
 been completed and reviewed by the operator.
 

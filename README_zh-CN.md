@@ -109,8 +109,9 @@ cmake -S . -B build-steam -DCMAKE_BUILD_TYPE=Release \
 cmake --build build-steam --parallel
 ```
 
-SteamPipe 分包、Depot 模板、Steam Cloud 路径和发行检查记录在
-[`packaging/steam/`](packaging/steam/) 与 [`docs/release/`](docs/release/) 中。
+Steam 集成边界见 [`docs/steam-integration_zh-CN.md`](docs/steam-integration_zh-CN.md)。SteamPipe 分包与 Depot 模板见
+[`packaging/steam/README_zh-CN.md`](packaging/steam/README_zh-CN.md)，Steam Cloud 路径和发行检查见
+[`docs/release/README_zh-CN.md`](docs/release/README_zh-CN.md)。
 
 ## 参与贡献
 
@@ -127,7 +128,7 @@ SteamPipe 分包、Depot 模板、Steam Cloud 路径和发行检查记录在
 ## 许可证
 
 源代码使用 [`license.txt`](license.txt) 中说明的宽松许可证，并保留对 Teeworlds 和 Ninslash 原作者的署名。随附依赖拥有各自的许可证，概览见
-[`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)。
+[`THIRD_PARTY_LICENSES_zh-CN.md`](THIRD_PARTY_LICENSES_zh-CN.md)。
 
-历史遗留的 `data/` 目录包含多种不同许可证的素材，原项目声明其中部分素材为非自由素材或缺少完整授权记录。请勿假设源代码许可证同样适用于游戏素材。在所有发行素材通过
-[素材授权审计](docs/release/README.md) 前，不得进行公开商业发行。
+除非文件带有更具体的第三方声明，`data/` 中的内容采用 Ninslash 素材许可证 CC-BY-SA 3.0；该许可证不同于源代码许可证。每次公开发行仍必须通过
+[素材授权审计](docs/release/README_zh-CN.md)。

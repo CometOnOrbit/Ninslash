@@ -4,7 +4,7 @@
 class CGenerator
 {
 private:
-	class CRoom *m_pRoom;
+	class CEditorRoom *m_pRoom;
 	
 public:
 	CGenerator();

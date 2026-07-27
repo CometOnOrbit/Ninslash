@@ -33,7 +33,7 @@ public:
 	CMaze(int w, int h);
 	~CMaze();
 	
-	void OpenRooms(class CRoom *pRoom);
+	void OpenRooms(class CRoomGenerated *pRoom);
 };
 
 

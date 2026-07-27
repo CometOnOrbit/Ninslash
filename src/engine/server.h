@@ -4,6 +4,7 @@
 #define ENGINE_SERVER_H
 #include "kernel.h"
 #include "message.h"
+#include <engine/shared/mod_api.h>
 
 #include <base/tl/array.h>
 #include <string>
@@ -52,6 +53,8 @@ public:
 	virtual void SetClientClan(int ClientID, char const *pClan) = 0;
 	virtual void SetClientCountry(int ClientID, int Country) = 0;
 	virtual void SetClientScore(int ClientID, int Score) = 0;
+	virtual void SendPlatformEvent(int ClientID, int Event, int Value = 0) = 0;
+	virtual void DispatchModEvent(EModEvent Event, int ClientID = -1, int Value = 0) = 0;
 
 	virtual int SnapNewID() = 0;
 	virtual void SnapFreeID(int ID) = 0;

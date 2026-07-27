@@ -16,6 +16,7 @@
 #include <engine/storage.h>
 #include <engine/textrender.h>
 #include <engine/shared/config.h>
+#include <engine/platform_services.h>
 
 #include <game/version.h>
 #include <generated/protocol.h>
@@ -77,8 +78,12 @@ CMenus::CMenus()
 	m_Popup = POPUP_NONE;
 	m_ActivePage = PAGE_FRONT;
 	m_GamePage = PAGE_GAME;
+	m_NavigationFocus = 0;
+	m_LastInputDevice = 0;
+	m_PlayTab = 0;
+	m_NavigationHasFocus = false;
 
-	g_Config.m_UiPage = PAGE_FRONT;
+	g_Config.m_UiPage = PAGE_INTERNET;
 
 	m_NeedRestartGraphics = false;
 	m_NeedRestartSound = false;
@@ -137,12 +142,6 @@ CMenus::CMenus()
 float CMenus::MenuAlpha() const
 {
 	return g_Config.m_ClMenuAlpha / 100.0f;
-}
-
-static vec4 ColorFromUiConfig(int Hue, int Sat, int Lht, int Alpha)
-{
-	vec3 Rgb = HslToRgb(vec3(Hue / 255.0f, Sat / 255.0f, Lht / 255.0f));
-	return vec4(Rgb.r, Rgb.g, Rgb.b, Alpha / 255.0f);
 }
 
 vec4 CMenus::ThemeBgDeep() { return ms_ColorBgDeep; }
@@ -215,7 +214,7 @@ void CMenus::DrawAccentUnderline(const CUIRect *pRect)
 
 void CMenus::LayoutCenterPanel(CUIRect *pScreen, CUIRect *pOut)
 {
-	const float MaxW = g_Config.m_UiWideview ? 900.0f : 780.0f;
+	const float MaxW = 1180.0f;
 	*pOut = *pScreen;
 	if(pOut->w > MaxW)
 	{
@@ -836,130 +835,78 @@ int CMenus::DoKeyReader(void *pID, const CUIRect *pRect, int Key)
 
 int CMenus::RenderMenubar(CUIRect r)
 {
-	CUIRect Box = r;
-	CUIRect Button;
-	// CUIRect split helpers apply UI()->Scale() internally. Divide it out here
-	// so the complete menubar scales to the actual available width instead of
-	// growing back into the buttons anchored on the right at UI scales > 100%.
-	const float MenuScale = clamp(r.w / 700.0f, 0.68f, 1.0f) / max(0.01f, UI()->Scale());
-
-	
-	if (s_ResetMenu)
+	if(s_ResetMenu)
 	{
-		g_Config.m_UiPage = PAGE_FRONT;
+		g_Config.m_UiPage = PAGE_INTERNET;
 		s_ResetMenu = false;
 	}
-	
-	m_ActivePage = g_Config.m_UiPage;
-	int NewPage = -1;
+	const bool Offline = Client()->State() == IClient::STATE_OFFLINE;
+	m_ActivePage = Offline ? g_Config.m_UiPage : m_GamePage;
+	const bool Compact = UI()->Screen()->w < 900.0f;
+	const char *apOfflineLabels[] = {"Play", "Character", "Progress", "Mods", "Replays", "Settings"};
+	const int aOfflinePages[] = {PAGE_INTERNET, PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS};
+	const char *apGameLabels[] = {"Continue", "Game", "Players", "Server", "Vote", "Progress", "Settings", "Leave"};
+	const char *apOfflineIcons[] = {">", "@", "+", "#", "R", "*"};
+	const char *apGameIcons[] = {"<", ">", "P", "S", "V", "+", "*", "X"};
+	const int aGamePages[] = {-2, PAGE_GAME, PAGE_PLAYERS, PAGE_SERVER_INFO, PAGE_CALLVOTE, PAGE_RESEARCH, PAGE_SETTINGS, -3};
+	const char **apLabels = Offline ? apOfflineLabels : apGameLabels;
+	const int *pPages = Offline ? aOfflinePages : aGamePages;
+	const int Count = Offline ? 6 : 8;
+	static int s_aNavigationButtons[8];
 
-	if(Client()->State() != IClient::STATE_OFFLINE)
-		m_ActivePage = m_GamePage;
-
-	if(Client()->State() == IClient::STATE_OFFLINE)
+	for(int i = 0; i < m_NumInputEvents; i++)
 	{
-		Box.VSplitLeft(90.0f * MenuScale, &Button, &Box);
-		static int s_InternetButton=0;
-		if(DoButton_MenuTab(&s_InternetButton, Localize("Internet"), m_ActivePage==PAGE_INTERNET, &Button, CUI::CORNER_TL))
-		{
-			ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
-			m_ActiveFilterPreset = UI_FILTER_PRESET_ALL;
-			NewPage = PAGE_INTERNET;
-		}
-
-		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
-		Box.VSplitLeft(70.0f * MenuScale, &Button, &Box);
-		static int s_LanButton=0;
-		if(DoButton_MenuTab(&s_LanButton, Localize("LAN"), m_ActivePage==PAGE_LAN, &Button, 0))
-		{
-			ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
-			m_ActiveFilterPreset = UI_FILTER_PRESET_ALL;
-			NewPage = PAGE_LAN;
-		}
-
-		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
-		Box.VSplitLeft(74.0f * MenuScale, &Button, &Box);
-		static int s_LocalButton=0;
-		if(DoButton_MenuTab(&s_LocalButton, Localize("Local"), m_ActivePage==PAGE_LOCAL_SERVER, &Button, 0))
-			NewPage = PAGE_LOCAL_SERVER;
-
-		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
-		Box.VSplitLeft(100.0f * MenuScale, &Button, &Box);
-		static int s_FavoritesButton=0;
-		if(DoButton_MenuTab(&s_FavoritesButton, Localize("Favorites"), m_ActivePage==PAGE_FAVORITES, &Button, CUI::CORNER_TR))
-		{
-			ServerBrowser()->Refresh(IServerBrowser::TYPE_FAVORITES);
-			m_ActiveFilterPreset = UI_FILTER_PRESET_FAVORITES;
-			NewPage = PAGE_FAVORITES;
-		}
-
-		Box.VSplitLeft(12.0f * MenuScale, 0, &Box);
-		Box.VSplitLeft(80.0f * MenuScale, &Button, &Box);
-		static int s_DemosButton=0;
-		if(DoButton_MenuTab(&s_DemosButton, Localize("Demos"), m_ActivePage==PAGE_DEMOS, &Button, CUI::CORNER_T))
-		{
-			DemolistPopulate();
-			NewPage = PAGE_DEMOS;
-		}
-
-		Box.VSplitLeft(6.0f * MenuScale, 0, &Box);
-		Box.VSplitLeft(96.0f * MenuScale, &Button, &Box);
-		static int s_ResearchButton=0;
-		if(DoButton_MenuTab(&s_ResearchButton, Localize("Research"), m_ActivePage==PAGE_RESEARCH, &Button, CUI::CORNER_T))
-			NewPage = PAGE_RESEARCH;
-
-		Box.VSplitRight(110.0f * MenuScale, &Box, &Button);
-		static int s_MenuButton=0;
-		if(DoButton_MenuTab(&s_MenuButton, Localize("Main menu"), m_ActivePage==PAGE_FRONT, &Button, CUI::CORNER_T) || m_EscapePressed)
-			NewPage = PAGE_FRONT;
-
-		Box.VSplitRight(6.0f * MenuScale, &Box, 0);
-		Box.VSplitRight(90.0f * MenuScale, &Box, &Button);
-		static int s_SettingsButton=0;
-		if(DoButton_MenuTab(&s_SettingsButton, Localize("Settings"), m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
-			NewPage = PAGE_SETTINGS;
+		const IInput::CEvent &Event = m_aInputEvents[i];
+		if(!(Event.m_Flags & IInput::FLAG_PRESS)) continue;
+		if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT) m_NavigationHasFocus = true;
+		if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT) m_NavigationHasFocus = false;
+		if(m_NavigationHasFocus && (Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP)) m_NavigationFocus = (m_NavigationFocus + Count - 1) % Count;
+		if(m_NavigationHasFocus && (Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN)) m_NavigationFocus = (m_NavigationFocus + 1) % Count;
 	}
-	else
+	m_NavigationFocus = clamp(m_NavigationFocus, 0, Count - 1);
+
+	DrawMenuPanel(&r, CUI::CORNER_ALL);
+	CUIRect Box = r;
+	Box.Margin(8.0f, &Box);
+	CUIRect Brand;
+	Box.HSplitTop(46.0f, &Brand, &Box);
+	UI()->DoLabelScaled(&Brand, Compact ? "N" : "NINSLASH", Compact ? 22.0f : 16.0f, 0);
+	Box.HSplitTop(8.0f, 0, &Box);
+	int NewPage = -1;
+	for(int i = 0; i < Count; i++)
 	{
-		Box.VSplitLeft(80.0f * MenuScale, &Button, &Box);
-		static int s_GameButton=0;
-		if(DoButton_MenuTab(&s_GameButton, Localize("Game"), m_ActivePage==PAGE_GAME, &Button, CUI::CORNER_TL))
-			NewPage = PAGE_GAME;
+		CUIRect Button;
+		Box.HSplitTop(36.0f, &Button, &Box);
+		const char *pText = Compact ? (Offline ? apOfflineIcons[i] : apGameIcons[i]) : Localize(apLabels[i]);
+		const bool Focused = m_NavigationHasFocus && m_NavigationFocus == i;
+		const bool Activated = DoButton_Menu(&s_aNavigationButtons[i], pText, pPages[i] == m_ActivePage || Focused, &Button, pPages[i] == -3 ? BUTTONSTYLE_DANGER : BUTTONSTYLE_NORMAL) || (Focused && m_LastInputDevice != 0 && m_EnterPressed);
+		if(Activated)
+		{
+			m_EnterPressed = false;
+			m_NavigationFocus = i;
+			if(pPages[i] == -2) SetActive(false);
+			else if(pPages[i] == -3) m_Popup = POPUP_QUIT;
+			else NewPage = pPages[i];
+		}
+		Box.HSplitTop(5.0f, 0, &Box);
+	}
 
-		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
-		Box.VSplitLeft(80.0f * MenuScale, &Button, &Box);
-		static int s_PlayersButton=0;
-		if(DoButton_MenuTab(&s_PlayersButton, Localize("Players"), m_ActivePage==PAGE_PLAYERS, &Button, 0))
-			NewPage = PAGE_PLAYERS;
-
-		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
-		Box.VSplitLeft(110.0f * MenuScale, &Button, &Box);
-		static int s_ServerInfoButton=0;
-		if(DoButton_MenuTab(&s_ServerInfoButton, Localize("Server info"), m_ActivePage==PAGE_SERVER_INFO, &Button, 0))
-			NewPage = PAGE_SERVER_INFO;
-
-		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
-		Box.VSplitLeft(110.0f * MenuScale, &Button, &Box);
-		static int s_CallVoteButton=0;
-		if(DoButton_MenuTab(&s_CallVoteButton, Localize("Call vote"), m_ActivePage==PAGE_CALLVOTE, &Button, CUI::CORNER_TR))
-			NewPage = PAGE_CALLVOTE;
-
-		Box.VSplitLeft(4.0f * MenuScale, 0, &Box);
-		Box.VSplitLeft(96.0f * MenuScale, &Button, &Box);
-		static int s_ResearchButton=0;
-		if(DoButton_MenuTab(&s_ResearchButton, Localize("Research"), m_ActivePage==PAGE_RESEARCH, &Button, CUI::CORNER_T))
-			NewPage = PAGE_RESEARCH;
-		
-		Box.VSplitRight(90.0f * MenuScale, &Box, &Button);
-		static int s_QuitButton=0;
-		if(DoButton_MenuTab(&s_QuitButton, Localize("Quit"), 0, &Button, CUI::CORNER_T))
-			m_Popup = POPUP_QUIT;
-		
-		Box.VSplitRight(6.0f * MenuScale, &Box, 0);
-		Box.VSplitRight(90.0f * MenuScale, &Box, &Button);
-		static int s_SettingsButton=0;
-		if(DoButton_MenuTab(&s_SettingsButton, Localize("Settings"), m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
-			NewPage = PAGE_SETTINGS;
+	CUIRect Footer;
+	r.HSplitBottom(104.0f, 0, &Footer);
+	Footer.Margin(10.0f, &Footer);
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	char aIdentity[128];
+	if(pPlatform && pPlatform->Available()) str_format(aIdentity, sizeof(aIdentity), Compact ? "STEAM\nONLINE" : "Steam  %llu\nONLINE", pPlatform->LocalUserID());
+	else str_copy(aIdentity, Compact ? "NET\nUDP" : "Standalone network\nUDP available", sizeof(aIdentity));
+	TextRender()->TextColor(ms_ColorAccentDim.r, ms_ColorAccentDim.g, ms_ColorAccentDim.b, 1.0f);
+	UI()->DoLabelScaled(&Footer, aIdentity, Compact ? 8.0f : 9.0f, -1);
+	TextRender()->TextColor(1, 1, 1, 1);
+	if(Offline)
+	{
+		CUIRect Quit;
+		Footer.HSplitBottom(30.0f, 0, &Quit);
+		static int s_QuitButton;
+		if(DoButton_Menu(&s_QuitButton, Compact ? "X" : Localize("Quit"), 0, &Quit, BUTTONSTYLE_DANGER)) m_Popup = POPUP_QUIT;
 	}
 
 	if(NewPage != -1)
@@ -1620,13 +1567,15 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	str_format(aPassword, sizeof(aPassword), "password %s", aPasswordValue);
 	str_format(aLog, sizeof(aLog), "logfile %s", aLogValue);
 
-	const char *apArguments[28];
+	const char *apArguments[30];
 	int NumArguments = 0;
 	apArguments[NumArguments++] = aExecutable;
 	apArguments[NumArguments++] = "-s";
 	apArguments[NumArguments++] = "-f";
 	apArguments[NumArguments++] = Settings.m_pConfig;
 	apArguments[NumArguments++] = "sv_register 0";
+	apArguments[NumArguments++] = "sv_register_steam 0";
+	apArguments[NumArguments++] = "sv_steam_auth 1";
 	if(!Settings.m_Lan)
 		apArguments[NumArguments++] = "bindaddr 127.0.0.1";
 	apArguments[NumArguments++] = aPort;
@@ -1975,7 +1924,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 					m_LocalServerFocus = FOCUS_SECTION_SERVER;
 				}
 				else
-					g_Config.m_UiPage = PAGE_FRONT;
+					g_Config.m_UiPage = PAGE_INTERNET;
 				continue;
 			}
 			if(Up || Down)
@@ -2516,6 +2465,193 @@ void CMenus::RenderFront(CUIRect MainView)
 
 
 
+void CMenus::RenderSteam(CUIRect MainView)
+{
+	// Compatibility entry point for old saved PAGE_STEAM values. The player UI
+	// intentionally exposes only Mod consumption/management.
+	RenderMods(MainView);
+	return;
+	#if 0
+	IPlatformServices *pPlatform=Kernel()->RequestInterface<IPlatformServices>();
+	DrawMenuPanel(&MainView,CUI::CORNER_ALL);MainView.Margin(8.0f,&MainView);
+	if(!pPlatform||!pPlatform->Available()){UI()->DoLabelScaled(&MainView,Localize("Steam unavailable"),16.0f,0);return;}
+	static int s_View=0,s_RoomTab=0,s_WorkshopTab=0;CUIRect Tabs,Body,Left,Right;MainView.HSplitTop(28.0f,&Tabs,&Body);Tabs.VSplitLeft(120.0f,&Left,&Tabs);Tabs.VSplitLeft(120.0f,&Right,&Tabs);
+	if(DoButton_MenuTab(&s_RoomTab,Localize("Rooms"),s_View==0,&Left,CUI::CORNER_TL))s_View=0;
+	if(DoButton_MenuTab(&s_WorkshopTab,"Workshop",s_View==1,&Right,CUI::CORNER_TR))s_View=1;
+	Body.HSplitTop(6.0f,0,&Body);
+	if(s_View==0)
+	{
+		static int s_Refresh=0,s_Private=0,s_Friends=0,s_Public=0,s_Invite=0,s_Leave=0,s_Selected=-1;static float s_Scroll=0.0f;CUIRect Toolbar,List,Actions,Button;
+		Body.HSplitTop(32.0f,&Toolbar,&List);List.HSplitBottom(42.0f,&List,&Actions);
+		Toolbar.VSplitLeft(86.0f,&Button,&Toolbar);if(DoButton_Menu(&s_Refresh,Localize("Refresh"),0,&Button))pPlatform->RefreshLobbyList();
+		Toolbar.VSplitLeft(4.0f,0,&Toolbar);Toolbar.VSplitLeft(94.0f,&Button,&Toolbar);if(DoButton_Menu(&s_Private,Localize("Invite only"),0,&Button))Console()->ExecuteLine("steam_lobby_create invite");
+		Toolbar.VSplitLeft(4.0f,0,&Toolbar);Toolbar.VSplitLeft(94.0f,&Button,&Toolbar);if(DoButton_Menu(&s_Friends,Localize("Friends"),0,&Button,BUTTONSTYLE_ACCENT))Console()->ExecuteLine("steam_lobby_create friends");
+		Toolbar.VSplitLeft(4.0f,0,&Toolbar);Toolbar.VSplitLeft(94.0f,&Button,&Toolbar);if(DoButton_Menu(&s_Public,Localize("Public"),0,&Button))Console()->ExecuteLine("steam_lobby_create public");
+		Toolbar.VSplitLeft(4.0f,0,&Toolbar);Toolbar.VSplitLeft(86.0f,&Button,&Toolbar);if(DoButton_Menu(&s_Invite,Localize("Invite"),0,&Button))pPlatform->OpenLobbyInviteDialog();
+		Toolbar.VSplitLeft(4.0f,0,&Toolbar);Toolbar.VSplitLeft(86.0f,&Button,&Toolbar);if(DoButton_Menu(&s_Leave,Localize("Leave"),0,&Button))pPlatform->LeaveLobby();
+		static int s_aRoomIDs[128];for(int i=0;i<128;i++)s_aRoomIDs[i]=i;
+		UiDoListboxStart(&s_aRoomIDs,&List,34.0f,Localize("Steam rooms"),"",pPlatform->LobbyCount(),1,s_Selected,s_Scroll);
+		for(int i=0;i<pPlatform->LobbyCount();i++){CPlatformLobbyInfo Info;pPlatform->LobbyInfo(i,&Info);CListboxItem Item=UiDoListboxNextItem(&s_aRoomIDs[i],s_Selected==i);if(Item.m_Visible){char aLine[512];str_format(aLine,sizeof(aLine),"%s  |  %s  |  %s  |  %d/%d%s%s%s",Info.m_aHostName[0]?Info.m_aHostName:"Steam host",Info.m_aGameType,Info.m_aMap,Info.m_Members,Info.m_MaxMembers,Info.m_FriendHosted?"  FRIEND":"",Info.m_Password?"  PASSWORD":"",Info.m_Modded?"  MODDED":"");Item.m_Rect.Margin(6.0f,&Item.m_Rect);UI()->DoLabelScaled(&Item.m_Rect,aLine,11.0f,-1);}}
+		s_Selected=UiDoListboxEnd(&s_Scroll,0);s_Selected=clamp(s_Selected,-1,max(-1,pPlatform->LobbyCount()-1));
+		Actions.VSplitRight(110.0f,&Actions,&Button);static int s_Join=0;if(DoButton_Menu(&s_Join,Localize("Join"),0,&Button,BUTTONSTYLE_ACCENT)&&s_Selected>=0){CPlatformLobbyInfo Info;if(pPlatform->LobbyInfo(s_Selected,&Info))pPlatform->JoinLobby(Info.m_LobbyID);}
+		if(s_Selected>=0){CPlatformLobbyInfo Info;if(pPlatform->LobbyInfo(s_Selected,&Info)){char aDetail[512];str_format(aDetail,sizeof(aDetail),"SteamID %llu  |  %s  |  %s",Info.m_HostSteamID,Info.m_aRegion,Info.m_aModHash);UI()->DoLabelScaled(&Actions,aDetail,10.0f,-1);}}
+	}
+	else
+	{
+		static int s_Refresh=0,s_Create=0,s_Select=0,s_Enable=0,s_Disable=0,s_Remove=0,s_Community=0,s_Publish=0,s_Selected=-1;static float s_Scroll=0.0f,s_ContentOffset=0.0f,s_PreviewOffset=0.0f;static char s_aContent[512]="",s_aPreview[512]="";CUIRect Toolbar,List,Detail,Button,Row,Label,Edit;
+		Body.HSplitTop(32.0f,&Toolbar,&Body);Toolbar.VSplitLeft(100.0f,&Button,&Toolbar);if(DoButton_Menu(&s_Refresh,Localize("Refresh"),0,&Button))pPlatform->RefreshWorkshopItems();Toolbar.VSplitLeft(6.0f,0,&Toolbar);Toolbar.VSplitLeft(130.0f,&Button,&Toolbar);if(DoButton_Menu(&s_Create,Localize("Create item"),0,&Button))pPlatform->CreateWorkshopItem();
+		Body.VSplitLeft(Body.w*0.62f,&List,&Detail);List.VSplitRight(8.0f,&List,0);static int s_aItemIDs[256];for(int i=0;i<256;i++)s_aItemIDs[i]=i;
+		UiDoListboxStart(&s_aItemIDs,&List,40.0f,"Workshop","",pPlatform->WorkshopItemCount(),1,s_Selected,s_Scroll);
+		for(int i=0;i<pPlatform->WorkshopItemCount();i++){CPlatformWorkshopItem Info;pPlatform->WorkshopItem(i,&Info);CListboxItem Item=UiDoListboxNextItem(&s_aItemIDs[i],s_Selected==i);if(Item.m_Visible){char aLine[512];const int Percent=Info.m_Total?(int)(Info.m_Downloaded*100/Info.m_Total):0;str_format(aLine,sizeof(aLine),"%llu  %s  v%s  %s  %d%%",Info.m_PublishedFileID,Info.m_aName,Info.m_aVersion,Info.m_Valid?"VALID":Info.m_aError,Percent);Item.m_Rect.Margin(6.0f,&Item.m_Rect);UI()->DoLabelScaled(&Item.m_Rect,aLine,10.0f,-1);}}
+		s_Selected=UiDoListboxEnd(&s_Scroll,0);s_Selected=clamp(s_Selected,-1,max(-1,pPlatform->WorkshopItemCount()-1));
+		Detail.HSplitTop(34.0f,&Row,&Detail);Row.VSplitLeft(Row.w/2-2,&Button,&Row);if(DoButton_Menu(&s_Select,Localize("Use collection"),0,&Button,BUTTONSTYLE_ACCENT)&&s_Selected>=0){CPlatformWorkshopItem Info;if(pPlatform->WorkshopItem(s_Selected,&Info)){str_format(g_Config.m_ClModIds,sizeof(g_Config.m_ClModIds),"%llu",Info.m_PublishedFileID);pPlatform->RefreshWorkshopItems();}}Row.VSplitLeft(4.0f,0,&Row);if(DoButton_Menu(&s_Disable,Localize("Disable"),0,&Row)&&s_Selected>=0){CPlatformWorkshopItem Info;if(pPlatform->WorkshopItem(s_Selected,&Info))pPlatform->SetWorkshopItemDisabled(Info.m_PublishedFileID,true);}
+		Detail.HSplitTop(4.0f,0,&Detail);Detail.HSplitTop(34.0f,&Row,&Detail);Row.VSplitLeft(Row.w/2-2,&Button,&Row);if(DoButton_Menu(&s_Enable,Localize("Enable"),0,&Button)&&s_Selected>=0){CPlatformWorkshopItem Info;if(pPlatform->WorkshopItem(s_Selected,&Info))pPlatform->SetWorkshopItemDisabled(Info.m_PublishedFileID,false);}Row.VSplitLeft(4.0f,0,&Row);if(DoButton_Menu(&s_Remove,Localize("Unsubscribe"),0,&Row)&&s_Selected>=0){CPlatformWorkshopItem Info;if(pPlatform->WorkshopItem(s_Selected,&Info))pPlatform->UnsubscribeWorkshopItem(Info.m_PublishedFileID);}
+		Detail.HSplitTop(4.0f,0,&Detail);Detail.HSplitTop(34.0f,&Button,&Detail);if(DoButton_Menu(&s_Community,Localize("Community page / Report"),0,&Button)&&s_Selected>=0){CPlatformWorkshopItem Info;if(pPlatform->WorkshopItem(s_Selected,&Info))pPlatform->OpenWorkshopItemPage(Info.m_PublishedFileID);}
+		Detail.HSplitTop(16.0f,0,&Detail);Detail.HSplitTop(24.0f,&Label,&Detail);UI()->DoLabelScaled(&Label,Localize("Content directory"),10.0f,-1);Detail.HSplitTop(28.0f,&Edit,&Detail);DoEditBox(s_aContent,&Edit,s_aContent,sizeof(s_aContent),10.0f,&s_ContentOffset);
+		Detail.HSplitTop(8.0f,0,&Detail);Detail.HSplitTop(24.0f,&Label,&Detail);UI()->DoLabelScaled(&Label,Localize("Preview file"),10.0f,-1);Detail.HSplitTop(28.0f,&Edit,&Detail);DoEditBox(s_aPreview,&Edit,s_aPreview,sizeof(s_aPreview),10.0f,&s_PreviewOffset);
+		Detail.HSplitTop(10.0f,0,&Detail);Detail.HSplitTop(34.0f,&Button,&Detail);if(DoButton_Menu(&s_Publish,Localize("Publish update"),0,&Button,BUTTONSTYLE_ACCENT)&&s_Selected>=0){CPlatformWorkshopItem Info;if(pPlatform->WorkshopItem(s_Selected,&Info))pPlatform->UpdateWorkshopItem(Info.m_PublishedFileID,s_aContent,s_aPreview);}
+		CPlatformWorkshopPublishStatus Status;pPlatform->WorkshopPublishStatus(&Status);char aStatus[512];const int Percent=Status.m_Total?(int)(Status.m_Processed*100/Status.m_Total):0;if(Status.m_Active)str_format(aStatus,sizeof(aStatus),"%s  %d%%  ID %llu",Status.m_aStatus,Percent,Status.m_PublishedFileID);else str_format(aStatus,sizeof(aStatus),"%s  ID %llu",Status.m_aStatus,Status.m_PublishedFileID);Detail.HSplitTop(12.0f,0,&Detail);UI()->DoLabelScaled(&Detail,aStatus,10.0f,-1);
+	}
+	#endif
+}
+
+void CMenus::RenderPlay(CUIRect MainView)
+{
+	static int s_Filter = 0;
+	static int s_Selected = -1;
+	static float s_Scroll = 0.0f;
+	static int s_Visibility = PLATFORM_LOBBY_FRIENDS;
+	static int s_HostType = 0;
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+
+	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
+	MainView.Margin(10.0f, &MainView);
+	CUIRect Title, Tabs, Body;
+	MainView.HSplitTop(36.0f, &Title, &MainView);
+	UI()->DoLabelScaled(&Title, Localize("Play"), 22.0f, -1);
+	MainView.HSplitTop(32.0f, &Tabs, &Body);
+	const char *apTabs[] = {"Browse rooms", "Create room", "LAN & direct"};
+	static int s_aTabs[3];
+	for(int i = 0; i < 3; i++)
+	{
+		CUIRect Button;
+		Tabs.VSplitLeft(min(150.0f, Tabs.w / (3 - i)), &Button, &Tabs);
+		if(DoButton_MenuTab(&s_aTabs[i], Localize(apTabs[i]), m_PlayTab == i, &Button, i == 0 ? CUI::CORNER_TL : i == 2 ? CUI::CORNER_TR : 0))
+		{
+			m_PlayTab = i;
+			if(i == 0) { ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
+			if(i == 2) ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
+		}
+	}
+	Body.HSplitTop(8.0f, 0, &Body);
+
+	if(m_PlayTab == 1)
+	{
+		CUIRect Choice, Content, Button, Row, Label, Edit;
+		Body.HSplitTop(36.0f, &Choice, &Content);
+		static int s_SteamHost, s_LocalHost;
+		Choice.VSplitLeft(170.0f, &Button, &Choice);
+		if(DoButton_Menu(&s_SteamHost, Localize("Steam room"), s_HostType == 0, &Button, BUTTONSTYLE_ACCENT)) s_HostType = 0;
+		Choice.VSplitLeft(6.0f, 0, &Choice);
+		Choice.VSplitLeft(190.0f, &Button, &Choice);
+		if(DoButton_Menu(&s_LocalHost, Localize("Local / LAN game"), s_HostType == 1, &Button)) s_HostType = 1;
+		Content.HSplitTop(8.0f, 0, &Content);
+		if(s_HostType == 1)
+		{
+			RenderLocalServer(Content);
+			return;
+		}
+		DrawMenuInset(&Content, CUI::CORNER_ALL);
+		Content.Margin(12.0f, &Content);
+		if(!pPlatform || !pPlatform->Available())
+		{
+			CUIRect Banner;
+			Content.HSplitTop(42.0f, &Banner, &Content);
+			DrawMenuBorder(&Banner, ms_ColorBgInset, ms_ColorDanger, CUI::CORNER_ALL, ms_ControlRounding);
+			Banner.Margin(8.0f, &Banner);
+			UI()->DoLabelScaled(&Banner, Localize("Steam hosting is unavailable. Start Steam or create a LAN game."), 11.0f, -1);
+		}
+		Content.HSplitTop(30.0f, &Row, &Content); Row.VSplitLeft(110.0f, &Label, &Edit); UI()->DoLabelScaled(&Label, Localize("Room name"), 11.0f, -1); static float s_NameOffset; DoEditBox(&g_Config.m_ClLocalServerName, &Edit, g_Config.m_ClLocalServerName, sizeof(g_Config.m_ClLocalServerName), 11.0f, &s_NameOffset);
+		Content.HSplitTop(8.0f, 0, &Content);
+		Content.HSplitTop(30.0f, &Row, &Content); Row.VSplitLeft(110.0f, &Label, &Edit); UI()->DoLabelScaled(&Label, Localize("Password"), 11.0f, -1); static float s_PasswordOffset; DoEditBox(&g_Config.m_ClLocalServerPassword, &Edit, g_Config.m_ClLocalServerPassword, sizeof(g_Config.m_ClLocalServerPassword), 11.0f, &s_PasswordOffset, true);
+		Content.HSplitTop(12.0f, 0, &Content);
+		Content.HSplitTop(34.0f, &Row, &Content);
+		const char *apVisibility[] = {"Invite only", "Friends", "Public"}; static int s_aVisibility[3];
+		for(int i = 0; i < 3; i++) { Row.VSplitLeft(120.0f, &Button, &Row); if(DoButton_Menu(&s_aVisibility[i], Localize(apVisibility[i]), s_Visibility == i, &Button)) s_Visibility = i; Row.VSplitLeft(5.0f, 0, &Row); }
+		Content.HSplitTop(14.0f, 0, &Content);
+		char aSummary[512];
+		str_format(aSummary, sizeof(aSummary), Localize("Relay Listen Server  |  %s  |  %s on %s  |  %d players  |  Steam authentication  |  Unofficial"), Localize(apVisibility[s_Visibility]), g_Config.m_SvGametype, g_Config.m_SvMap, g_Config.m_ClLocalServerMaxClients);
+		CUIRect Summary; Content.HSplitTop(60.0f, &Summary, &Content); DrawMenuInset(&Summary, CUI::CORNER_ALL); Summary.Margin(8.0f, &Summary); UI()->DoLabelScaled(&Summary, aSummary, FitLabelFontSize(TextRender(), aSummary, 11.0f, Summary.w), -1);
+		Content.HSplitTop(12.0f, 0, &Content); Content.HSplitTop(36.0f, &Button, &Content); static int s_Create;
+		if(DoButton_Menu(&s_Create, Localize("Create Steam room"), 0, &Button, BUTTONSTYLE_ACCENT) && pPlatform && pPlatform->Available())
+		{
+			CHostGameSettings Settings; mem_zero(&Settings, sizeof(Settings)); Settings.m_Visibility = s_Visibility; Settings.m_MaxClients = g_Config.m_ClLocalServerMaxClients;
+			str_copy(Settings.m_aName, g_Config.m_ClLocalServerName, sizeof(Settings.m_aName)); str_copy(Settings.m_aPassword, g_Config.m_ClLocalServerPassword, sizeof(Settings.m_aPassword)); str_copy(Settings.m_aMap, g_Config.m_SvMap, sizeof(Settings.m_aMap)); str_copy(Settings.m_aGameType, g_Config.m_SvGametype, sizeof(Settings.m_aGameType)); str_copy(Settings.m_aModHash, g_Config.m_ClModHash, sizeof(Settings.m_aModHash)); str_copy(Settings.m_aModIDs, g_Config.m_ClModIds, sizeof(Settings.m_aModIDs));
+			Client()->StartSteamHostedGame(Settings);
+		}
+		CClientAsyncStatus Status; Client()->SteamHostedGameStatus(&Status);
+		if(Status.m_State == CLIENT_ASYNC_WORKING || Status.m_State == CLIENT_ASYNC_FAILED) { Content.HSplitTop(10.0f, 0, &Content); char aStatus[256]; if(Status.m_State == CLIENT_ASYNC_FAILED) str_copy(aStatus, Localize(Status.m_aErrorKey), sizeof(aStatus)); else str_format(aStatus, sizeof(aStatus), "%s  %d%%", Localize(Status.m_Stage == CLIENT_STAGE_STARTING_SERVER ? "Starting server" : "Creating room"), (int)(Status.m_Progress * 100)); UI()->DoLabelScaled(&Content, aStatus, 11.0f, -1); }
+		return;
+	}
+
+	if(m_PlayTab == 2)
+	{
+		CUIRect Toolbar, Button;
+		Body.HSplitTop(36.0f, &Toolbar, &Body);
+		static int s_RefreshLan, s_CreateLocal;
+		Toolbar.VSplitLeft(120.0f, &Button, &Toolbar); if(DoButton_Menu(&s_RefreshLan, Localize("Refresh LAN"), 0, &Button)) ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
+		Toolbar.VSplitLeft(6.0f, 0, &Toolbar); Toolbar.VSplitLeft(160.0f, &Button, &Toolbar); if(DoButton_Menu(&s_CreateLocal, Localize("Create local game"), 0, &Button, BUTTONSTYLE_ACCENT)) { m_PlayTab = 1; s_HostType = 1; }
+		Body.HSplitTop(6.0f, 0, &Body);
+		RenderServerbrowser(Body);
+		return;
+	}
+
+	CUIRect StatusBar, Filters, List, Detail, Actions, Button;
+	Body.HSplitTop(30.0f, &StatusBar, &Body);
+	CClientAsyncStatus Connection; Client()->ConnectionStatus(&Connection);
+	CPlatformOperationStatus LobbyStatus; mem_zero(&LobbyStatus, sizeof(LobbyStatus)); if(pPlatform) pPlatform->LobbyOperationStatus(&LobbyStatus);
+	if(LobbyStatus.m_State == CLIENT_ASYNC_WORKING && LobbyStatus.m_Stage == CLIENT_STAGE_JOINING_ROOM) { CUIRect Cancel; StatusBar.VSplitRight(90.0f, &StatusBar, &Cancel); UI()->DoLabelScaled(&StatusBar, Localize("Joining room"), 10.0f, -1); static int s_CancelJoin; if(DoButton_Menu(&s_CancelJoin, Localize("Cancel"), 0, &Cancel, BUTTONSTYLE_DANGER) || m_EscapePressed) { pPlatform->LeaveLobby(); m_EscapePressed = false; } }
+	else if(Connection.m_State == CLIENT_ASYNC_FAILED) { TextRender()->TextColor(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 1.0f); UI()->DoLabelScaled(&StatusBar, Localize(Connection.m_aErrorKey), 10.0f, -1); TextRender()->TextColor(1, 1, 1, 1); }
+	else if(!pPlatform || !pPlatform->Available()) UI()->DoLabelScaled(&StatusBar, Localize("Steam unavailable — dedicated servers, Favorites and direct connection remain available."), 10.0f, -1);
+	else UI()->DoLabelScaled(&StatusBar, Localize("Dedicated servers and Steam rooms"), 10.0f, -1);
+	Body.HSplitTop(28.0f, &Filters, &Body);
+	const char *apFilters[] = {"All", "Official", "Community", "Friends", "Modded", "Favorites"}; static int s_aFilters[6];
+	for(int i = 0; i < 6; i++) { Filters.VSplitLeft(86.0f, &Button, &Filters); if(DoButton_MenuTab(&s_aFilters[i], Localize(apFilters[i]), s_Filter == i, &Button, 0)) s_Filter = i; Filters.VSplitLeft(3.0f, 0, &Filters); }
+	Body.HSplitTop(6.0f, 0, &Body); Body.HSplitBottom(40.0f, &Body, &Actions); Body.VSplitRight(max(220.0f, Body.w * 0.30f), &List, &Detail); List.VSplitRight(6.0f, &List, 0);
+	CPlayRoomEntry aEntries[512]; int EntryCount = 0;
+	for(int i = 0; i < ServerBrowser()->NumSortedServers() && EntryCount < 512; i++) { const CServerInfo *pInfo = ServerBrowser()->SortedGet(i); if(!pInfo) continue; const bool Show = s_Filter == 0 || (s_Filter == 1 && pInfo->m_Official) || (s_Filter == 2 && !pInfo->m_Official) || (s_Filter == 4 && pInfo->m_Modded) || (s_Filter == 5 && pInfo->m_Favorite); if(Show) { CPlayRoomEntry &Entry = aEntries[EntryCount++]; Entry.m_Source = CPlayRoomEntry::SOURCE_DEDICATED; Entry.m_SourceIndex = i; str_copy(Entry.m_aStableID, pInfo->m_aAddress, sizeof(Entry.m_aStableID)); } }
+	if(pPlatform && pPlatform->Available()) for(int i = 0; i < pPlatform->LobbyCount() && EntryCount < 512; i++) { CPlatformLobbyInfo Info; pPlatform->LobbyInfo(i, &Info); const bool Show = s_Filter == 0 || (s_Filter == 2) || (s_Filter == 3 && Info.m_FriendHosted) || (s_Filter == 4 && Info.m_Modded); if(Show) { CPlayRoomEntry &Entry = aEntries[EntryCount++]; Entry.m_Source = CPlayRoomEntry::SOURCE_STEAM_LOBBY; Entry.m_SourceIndex = i; str_format(Entry.m_aStableID, sizeof(Entry.m_aStableID), "lobby:%llu", Info.m_LobbyID); } }
+	static int s_aEntryIDs[512]; for(int i = 0; i < 512; i++) s_aEntryIDs[i] = i;
+	UiDoListboxStart(&s_aEntryIDs, &List, 34.0f, Localize("Rooms"), "", EntryCount, 1, s_Selected, s_Scroll);
+	for(int i = 0; i < EntryCount; i++) { CListboxItem Item = UiDoListboxNextItem(&s_aEntryIDs[i], s_Selected == i); if(!Item.m_Visible) continue; char aLine[512]; if(aEntries[i].m_Source == CPlayRoomEntry::SOURCE_DEDICATED) { const CServerInfo *pInfo = ServerBrowser()->SortedGet(aEntries[i].m_SourceIndex); str_format(aLine, sizeof(aLine), "%s  %s  |  %s  %s  |  %d/%d  |  %dms%s%s", pInfo->m_Official ? Localize("OFFICIAL") : Localize("COMMUNITY"), pInfo->m_aName, pInfo->m_aGameType, pInfo->m_aMap, pInfo->m_NumClients, pInfo->m_MaxClients, pInfo->m_Latency, pInfo->m_Flags ? "  LOCK" : "", pInfo->m_Modded ? "  MOD" : ""); } else { CPlatformLobbyInfo Info; pPlatform->LobbyInfo(aEntries[i].m_SourceIndex, &Info); str_format(aLine, sizeof(aLine), "%s  %s  |  %s  %s  |  %d/%d  |  RELAY%s%s", Info.m_FriendHosted ? Localize("FRIEND") : Localize("STEAM"), Info.m_aHostName, Info.m_aGameType, Info.m_aMap, Info.m_Members, Info.m_MaxMembers, Info.m_Password ? "  LOCK" : "", Info.m_Modded ? "  MOD" : ""); } Item.m_Rect.Margin(6.0f, &Item.m_Rect); UI()->DoLabelScaled(&Item.m_Rect, aLine, FitLabelFontSize(TextRender(), aLine, 10.5f, Item.m_Rect.w), -1); }
+	s_Selected = UiDoListboxEnd(&s_Scroll, 0); s_Selected = clamp(s_Selected, -1, max(-1, EntryCount - 1));
+	DrawMenuInset(&Detail, CUI::CORNER_ALL); Detail.Margin(10.0f, &Detail);
+	if(s_Selected < 0) UI()->DoLabelScaled(&Detail, Localize("Select a room to see address, region, version, Mods and join requirements."), 11.0f, -1);
+	else { char aDetail[768]; const CPlayRoomEntry &Entry = aEntries[s_Selected]; if(Entry.m_Source == CPlayRoomEntry::SOURCE_DEDICATED) { const CServerInfo *pInfo = ServerBrowser()->SortedGet(Entry.m_SourceIndex); str_format(aDetail, sizeof(aDetail), "%s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s", pInfo->m_aName, Localize("Address"), pInfo->m_aAddress, Localize("Version"), pInfo->m_aVersion, Localize("Source"), pInfo->m_DiscoverySources & IServerBrowser::DISCOVERY_STEAM ? "Steam GameServer + UDP" : "UDP", Localize("Mods"), pInfo->m_Modded ? Localize("Required") : Localize("None"), Localize("Authentication"), pInfo->m_AuthPolicy ? Localize("Required") : Localize("Open")); } else { CPlatformLobbyInfo Info; pPlatform->LobbyInfo(Entry.m_SourceIndex, &Info); str_format(aDetail, sizeof(aDetail), "%s\nLobbyID: %llu\n%s: %llu\n%s: %s\n%s: %s\nMod hash: %s\nRelay / Steam authentication", Info.m_aHostName, Info.m_LobbyID, Localize("Host"), Info.m_HostSteamID, Localize("Region"), Info.m_aRegion, Localize("Source"), Info.m_FriendHosted ? Localize("Friend room") : Localize("Steam local room"), Info.m_aModHash); } UI()->DoLabelScaled(&Detail, aDetail, 10.5f, -1); }
+	Actions.HSplitTop(6.0f, 0, &Actions); Actions.VSplitRight(110.0f, &Actions, &Button); static int s_Join; if(DoButton_Menu(&s_Join, Localize("Join"), 0, &Button, BUTTONSTYLE_ACCENT) && s_Selected >= 0) { const CPlayRoomEntry &Entry = aEntries[s_Selected]; if(Entry.m_Source == CPlayRoomEntry::SOURCE_DEDICATED) Client()->Connect(ServerBrowser()->SortedGet(Entry.m_SourceIndex)->m_aAddress); else { CPlatformLobbyInfo Info; if(pPlatform->LobbyInfo(Entry.m_SourceIndex, &Info)) pPlatform->JoinLobby(Info.m_LobbyID); } }
+	Actions.VSplitRight(6.0f, &Actions, 0); Actions.VSplitRight(100.0f, &Actions, &Button); static int s_Refresh; if(DoButton_Menu(&s_Refresh, Localize("Refresh"), 0, &Button)) { ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
+}
+
+void CMenus::RenderMods(CUIRect MainView)
+{
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	DrawMenuPanel(&MainView, CUI::CORNER_ALL); MainView.Margin(10.0f, &MainView);
+	CUIRect Title, Toolbar, Body, List, Detail, Button, Row; MainView.HSplitTop(36.0f, &Title, &MainView); UI()->DoLabelScaled(&Title, Localize("Mods"), 22.0f, -1);
+	if(!pPlatform || !pPlatform->Available()) { UI()->DoLabelScaled(&MainView, Localize("Steam Workshop is unavailable. Installed game data remains unchanged."), 12.0f, -1); return; }
+	CPlatformOperationStatus ModStatus; pPlatform->WorkshopOperationStatus(&ModStatus);
+	if(ModStatus.m_State == CLIENT_ASYNC_WORKING) { CUIRect Progress; MainView.HSplitTop(18.0f, &Progress, &MainView); char aProgress[96]; str_format(aProgress, sizeof(aProgress), "%s  %d%%", Localize("Synchronizing Mods"), (int)(ModStatus.m_Progress * 100)); UI()->DoLabelScaled(&Progress, aProgress, 10.0f, -1); MainView.HSplitTop(4.0f, 0, &MainView); }
+	static int s_Tab = 0, s_Selected = -1; static float s_Scroll = 0.0f; static int s_aTabs[3]; const char *apTabs[] = {"Installed", "Needs update", "Disabled"};
+	MainView.HSplitTop(30.0f, &Toolbar, &Body); for(int i = 0; i < 3; i++) { Toolbar.VSplitLeft(130.0f, &Button, &Toolbar); if(DoButton_MenuTab(&s_aTabs[i], Localize(apTabs[i]), s_Tab == i, &Button, 0)) s_Tab = i; Toolbar.VSplitLeft(4.0f, 0, &Toolbar); }
+	Body.HSplitTop(8.0f, 0, &Body); Body.VSplitLeft(Body.w * 0.60f, &List, &Detail); List.VSplitRight(8.0f, &List, 0);
+	int aItems[256], Count = 0; for(int i = 0; i < pPlatform->WorkshopItemCount(); i++) { CPlatformWorkshopItem Info; pPlatform->WorkshopItem(i, &Info); const bool Disabled = (Info.m_State & 128) != 0; const bool NeedsUpdate = (Info.m_State & 8) != 0 || (Info.m_Total > 0 && Info.m_Downloaded < Info.m_Total); if((s_Tab == 0 && !Disabled && !NeedsUpdate) || (s_Tab == 1 && NeedsUpdate) || (s_Tab == 2 && Disabled)) aItems[Count++] = i; }
+	static int s_aIDs[256]; for(int i = 0; i < 256; i++) s_aIDs[i] = i; UiDoListboxStart(&s_aIDs, &List, 42.0f, Localize("Player Mods"), "", Count, 1, s_Selected, s_Scroll);
+	for(int i = 0; i < Count; i++) { CPlatformWorkshopItem Info; pPlatform->WorkshopItem(aItems[i], &Info); CListboxItem Item = UiDoListboxNextItem(&s_aIDs[i], s_Selected == i); if(Item.m_Visible) { char aLine[512]; const int Percent = Info.m_Total ? (int)(Info.m_Downloaded * 100 / Info.m_Total) : (Info.m_Valid ? 100 : 0); str_format(aLine, sizeof(aLine), "%s  v%s  |  %s  |  %d%%", Info.m_aName[0] ? Info.m_aName : Localize("Downloading Mod"), Info.m_aVersion[0] ? Info.m_aVersion : "-", Info.m_Valid ? Localize("VALID") : Localize("CHECK REQUIRED"), Percent); Item.m_Rect.Margin(6.0f, &Item.m_Rect); UI()->DoLabelScaled(&Item.m_Rect, aLine, FitLabelFontSize(TextRender(), aLine, 10.5f, Item.m_Rect.w), -1); } }
+	s_Selected = UiDoListboxEnd(&s_Scroll, 0); s_Selected = clamp(s_Selected, -1, max(-1, Count - 1)); DrawMenuInset(&Detail, CUI::CORNER_ALL); Detail.Margin(10.0f, &Detail);
+	if(s_Selected < 0) UI()->DoLabelScaled(&Detail, Localize("No Mods in this category."), 11.0f, -1);
+	else { CPlatformWorkshopItem Info; pPlatform->WorkshopItem(aItems[s_Selected], &Info); char aDetail[768], aID[32]; str_format(aID, sizeof(aID), "%llu", Info.m_PublishedFileID); str_format(aDetail, sizeof(aDetail), "%s\nWorkshop ID: %llu\n%s: %s\n%s: %s\n%s: %s\n%s", Info.m_aName, Info.m_PublishedFileID, Localize("Version"), Info.m_aVersion, Localize("Protocol / content hash"), Info.m_Valid ? Localize("Verified for this build") : Localize("Not verified"), Localize("Current collection"), str_find(g_Config.m_ClModIds, aID) ? Localize("Active") : Localize("Inactive"), Info.m_aError); UI()->DoLabelScaled(&Detail, aDetail, 10.5f, -1); Detail.HSplitBottom(126.0f, &Detail, &Row); static int s_Use, s_Toggle, s_Remove, s_Community; Row.HSplitTop(28.0f, &Button, &Row); if(DoButton_Menu(&s_Use, Localize("Use collection"), 0, &Button, BUTTONSTYLE_ACCENT)) { str_format(g_Config.m_ClModIds, sizeof(g_Config.m_ClModIds), "%llu", Info.m_PublishedFileID); pPlatform->RefreshWorkshopItems(); } Row.HSplitTop(4.0f, 0, &Row); Row.HSplitTop(28.0f, &Button, &Row); const bool Disabled = (Info.m_State & 128) != 0; if(DoButton_Menu(&s_Toggle, Localize(Disabled ? "Enable" : "Disable"), 0, &Button)) pPlatform->SetWorkshopItemDisabled(Info.m_PublishedFileID, !Disabled); Row.HSplitTop(4.0f, 0, &Row); Row.HSplitTop(28.0f, &Button, &Row); Button.VSplitLeft(Button.w / 2 - 2.0f, &Button, &Row); if(DoButton_Menu(&s_Remove, Localize("Unsubscribe"), 0, &Button, BUTTONSTYLE_DANGER)) pPlatform->UnsubscribeWorkshopItem(Info.m_PublishedFileID); Row.VSplitLeft(4.0f, 0, &Row); if(DoButton_Menu(&s_Community, Localize("Community / Report"), 0, &Row)) pPlatform->OpenWorkshopItemPage(Info.m_PublishedFileID); }
+	CUIRect Browse; MainView.HSplitBottom(34.0f, &MainView, &Browse); static int s_Refresh, s_Browse; Browse.VSplitLeft(110.0f, &Button, &Browse); if(DoButton_Menu(&s_Refresh, Localize("Refresh"), 0, &Button)) pPlatform->RefreshWorkshopItems(); Browse.VSplitLeft(6.0f, 0, &Browse); Browse.VSplitLeft(170.0f, &Button, &Browse); if(DoButton_Menu(&s_Browse, Localize("Browse Workshop"), 0, &Button, BUTTONSTYLE_ACCENT)) pPlatform->OpenWorkshopBrowsePage();
+}
+
 int CMenus::Render()
 {
 	CUIRect Screen = *UI()->Screen();
@@ -2524,8 +2660,13 @@ int CMenus::Render()
 	static bool s_First = true;
 	if(s_First)
 	{
-		if(g_Config.m_UiPage == PAGE_INTERNET)
+		if(g_Config.m_UiPage == PAGE_FRONT || g_Config.m_UiPage == PAGE_STEAM || g_Config.m_UiPage == PAGE_INTERNET)
+		{
+			g_Config.m_UiPage = PAGE_INTERNET;
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
+			IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+			if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList();
+		}
 		else if(g_Config.m_UiPage == PAGE_LAN)
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
 		else if(g_Config.m_UiPage == PAGE_FAVORITES)
@@ -2546,7 +2687,7 @@ int CMenus::Render()
 		ms_ColorTabbarActive = ms_ColorTabbarActiveOutgame;
 	}
 
-	CUIRect TabBar;
+	CUIRect Navigation;
 	CUIRect MainView;
 
 	Screen.Margin(g_Config.m_UiWideview ? 6.0f : 10.0f, &Screen);
@@ -2562,20 +2703,10 @@ int CMenus::Render()
 
 	if(m_Popup == POPUP_NONE)
 	{
-		Screen.HSplitTop(28.0f, &TabBar, &MainView);
-
-		if(g_Config.m_UiPage == PAGE_FRONT)
-		{
-			RenderFront(MainView);
-			return 0;
-		}
-		else if(g_Config.m_UiPage == PAGE_CUSTOMIZE)
-		{
-			RenderCustomize(MainView);
-			return 0;
-		}
-		
-		RenderMenubar(TabBar);
+		const float NavigationWidth = Screen.w < 900.0f ? 62.0f : 172.0f;
+		Screen.VSplitLeft(NavigationWidth, &Navigation, &MainView);
+		MainView.VSplitLeft(8.0f, 0, &MainView);
+		RenderMenubar(Navigation);
 
 		// render current page
 		if(Client()->State() != IClient::STATE_OFFLINE)
@@ -2597,20 +2728,18 @@ int CMenus::Render()
 		}
 		else if(g_Config.m_UiPage == PAGE_NEWS)
 			RenderNews(MainView);
-		else if(g_Config.m_UiPage == PAGE_INTERNET)
-			RenderServerbrowser(MainView);
+		else if(g_Config.m_UiPage == PAGE_INTERNET || g_Config.m_UiPage == PAGE_LAN || g_Config.m_UiPage == PAGE_FAVORITES || g_Config.m_UiPage == PAGE_LOCAL_SERVER)
+			RenderPlay(MainView);
 		else if(g_Config.m_UiPage == PAGE_LAN)
 			RenderServerbrowser(MainView);
 		else if(g_Config.m_UiPage == PAGE_DEMOS)
 			RenderDemoList(MainView);
-		else if(g_Config.m_UiPage == PAGE_FAVORITES)
-			RenderServerbrowser(MainView);
 		else if(g_Config.m_UiPage == PAGE_SETTINGS)
 			RenderSettings(MainView);
-		else if(g_Config.m_UiPage == PAGE_LOCAL_SERVER)
-			RenderLocalServer(MainView);
 		else if(g_Config.m_UiPage == PAGE_RESEARCH)
 			m_pClient->m_pPveRoguelite->RenderResearch(MainView);
+		else if(g_Config.m_UiPage == PAGE_MODS || g_Config.m_UiPage == PAGE_STEAM)
+			RenderMods(MainView);
 		else if(g_Config.m_UiPage == PAGE_CUSTOMIZE)
 			RenderCustomize(MainView);
 	}
@@ -2633,7 +2762,12 @@ int CMenus::Render()
 		}
 		else if(m_Popup == POPUP_CONNECTING)
 		{
-			pTitle = Localize("Connecting to");
+			CClientAsyncStatus Status;
+			Client()->ConnectionStatus(&Status);
+			if(Status.m_Stage == CLIENT_STAGE_LOADING_MAP) pTitle = Localize("Loading map");
+			else if(Status.m_Stage == CLIENT_STAGE_AUTHENTICATING) pTitle = Localize("Authenticating with Steam");
+			else if(Status.m_Stage == CLIENT_STAGE_SYNCING_MODS) pTitle = Localize("Synchronizing Mods");
+			else pTitle = Localize("Connecting to server");
 			pExtraText = g_Config.m_UiServerAddress; // TODO: query the client about the address
 			pButtonText = Localize("Abort");
 			if(Client()->MapDownloadTotalsize() > 0)
@@ -3290,6 +3424,8 @@ void CMenus::OnReset()
 bool CMenus::OnMouseMove(float x, float y)
 {
 	m_LastInput = time_get();
+	m_LastInputDevice = 0;
+	m_NavigationHasFocus = false;
 
 	if(!m_MenuActive)
 		return false;
@@ -3310,13 +3446,19 @@ bool CMenus::OnMouseMove(float x, float y)
 bool CMenus::OnInput(IInput::CEvent e)
 {
 	m_LastInput = time_get();
+	if(e.m_Key >= KEY_GAMEPAD_BUTTON_A && e.m_Key < KEY_LAST)
+		m_LastInputDevice = 2;
+	else if(e.m_Key < KEY_MOUSE_1 || e.m_Key > KEY_MOUSE_WHEEL_DOWN)
+		m_LastInputDevice = 1;
 
 	// special handle esc and enter for popup purposes
 	if(e.m_Flags&IInput::FLAG_PRESS)
 	{
 		if(e.m_Key == KEY_GAMEPAD_BUTTON_B && IsActive())
 		{
-			SetActive(false);
+			m_EscapePressed = true;
+			if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE)
+				SetActive(false);
 			return true;
 		}
 		if(e.m_Key == KEY_ESCAPE && !CustomStuff()->m_Inventory)
@@ -3329,8 +3471,14 @@ bool CMenus::OnInput(IInput::CEvent e)
 				PopupMessage(Localize("Render video"), Localize("Video render cancelled."), Localize("Ok"));
 				return true;
 			}
-			m_EscapePressed = true;
-			SetActive(!IsActive());
+			if(IsActive())
+			{
+				m_EscapePressed = true;
+				if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE)
+					SetActive(false);
+			}
+			else
+				SetActive(true);
 			return true;
 		}
 	}
@@ -3343,7 +3491,7 @@ bool CMenus::OnInput(IInput::CEvent e)
 		if(e.m_Flags&IInput::FLAG_PRESS)
 		{
 			// special for popups
-			if(e.m_Key == KEY_RETURN || e.m_Key == KEY_KP_ENTER)
+			if(e.m_Key == KEY_RETURN || e.m_Key == KEY_KP_ENTER || e.m_Key == KEY_GAMEPAD_BUTTON_A)
 				m_EnterPressed = true;
 			else if(e.m_Key == KEY_DELETE)
 				m_DeletePressed = true;
@@ -3458,8 +3606,8 @@ void CMenus::OnRender()
 	ms_ColorBgDeep = vec4(0.012f, 0.014f, 0.017f, 0.96f * A);
 	ms_ColorBgPanel = vec4(0.044f, 0.048f, 0.058f, 0.96f * A);
 	ms_ColorBgInset = vec4(0.026f, 0.028f, 0.034f, 0.92f * A);
-	ms_ColorAccent = ColorFromUiConfig(g_Config.m_UiColorHue, g_Config.m_UiColorSat, g_Config.m_UiColorLht, g_Config.m_UiColorAlpha);
-	ms_ColorAccentDim = ColorFromUiConfig(g_Config.m_UiColorHue2, g_Config.m_UiColorSat2, g_Config.m_UiColorLht2, g_Config.m_UiColorAlpha2);
+	ms_ColorAccent = vec4(0.96f, 0.67f, 0.20f, 1.0f); // warm industrial yellow
+	ms_ColorAccentDim = vec4(0.18f, 0.72f, 0.78f, 1.0f); // trusted/online cyan
 	ms_ColorDanger = vec4(0.92f, 0.24f, 0.30f, 1.0f);
 	ms_ColorText = vec4(0.97f, 0.97f, 0.95f, 1.0f);
 

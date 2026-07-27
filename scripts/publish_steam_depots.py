@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""Build, stage, verify and optionally upload all Ninslash Steam depots."""
+
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def run(command, cwd=ROOT):
+    print("+", " ".join(str(part) for part in command), flush=True)
+    subprocess.run([str(part) for part in command], cwd=cwd, check=True)
+
+
+def git_value(*arguments, default="unknown"):
+    try:
+        return subprocess.run(
+            ["git", *arguments],
+            cwd=ROOT,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return default
+
+
+def required_file(path, description):
+    path = path.expanduser().resolve()
+    if not path.is_file():
+        raise SystemExit(f"Missing {description}: {path}")
+    return path
+
+
+def verify_steam_build(cache, description):
+    contents = cache.read_text(encoding="utf-8", errors="replace")
+    required = (
+        "ENABLE_STEAMWORKS:BOOL=ON",
+        "ENABLE_STEAM_GAMESERVER:BOOL=ON",
+        "ENABLE_STEAM_LISTEN_SERVER:BOOL=ON",
+        "ENABLE_LUA_MODS:BOOL=ON",
+        "STEAM_APP_ID:STRING=1812700",
+        "STEAM_GAMESERVER_APP_ID:STRING=5016790",
+    )
+    missing = [setting for setting in required if setting not in contents]
+    if missing:
+        raise SystemExit(f"{description} is not a complete Steam release build; missing: {', '.join(missing)}")
+
+
+def configure_steam_build(build_dir, sdk_root, windows):
+    command = [
+        "cmake",
+        "-S", ROOT,
+        "-B", build_dir,
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_STEAMWORKS=ON",
+        "-DENABLE_STEAM_GAMESERVER=ON",
+        "-DENABLE_STEAM_LISTEN_SERVER=ON",
+        "-DENABLE_LUA_MODS=ON",
+        f"-DSTEAMWORKS_SDK_ROOT={sdk_root}",
+        "-DSTEAM_APP_ID=1812700",
+        "-DSTEAM_GAMESERVER_APP_ID=5016790",
+        "-DSTEAM_WINDOWS_CLIENT_DEPOT_ID=1812702",
+        "-DSTEAM_LINUX_CLIENT_DEPOT_ID=1812703",
+        "-DSTEAM_WINDOWS_SERVER_DEPOT_ID=5016792",
+        "-DSTEAM_LINUX_SERVER_DEPOT_ID=5016793",
+    ]
+    if windows:
+        toolchain = required_file(ROOT / "cmake/toolchains/mingw64.toolchain", "MinGW64 CMake toolchain")
+        if not shutil.which("x86_64-w64-mingw32-g++"):
+            raise SystemExit("Missing MinGW64 compiler: x86_64-w64-mingw32-g++")
+        command.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain}")
+    run(command)
+    cache = required_file(build_dir / "CMakeCache.txt", f"{'Windows' if windows else 'Linux'} CMake cache")
+    verify_steam_build(cache, f"{'Windows' if windows else 'Linux'} build")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--linux-build-dir", default="build", help="Steam-enabled Linux CMake build directory")
+    parser.add_argument("--windows-build-dir", default="build-windows-steam", help="Steam-enabled Windows CMake build directory")
+    parser.add_argument("--sdk-root", default=os.environ.get("STEAMWORKS_SDK_ROOT", "~/sdk"))
+    parser.add_argument("--output-root", default="dist/steam-release", help="Generated content, manifests and SteamPipe output")
+    parser.add_argument("--jobs", type=int, default=max(1, os.cpu_count() or 1))
+    parser.add_argument("--no-build", action="store_true", help="Use existing binaries without invoking CMake")
+    parser.add_argument("--strict-assets", action="store_true", help="Require every shipped asset to be release-approved")
+    parser.add_argument("--upload", action="store_true", help="Upload the selected app builds with SteamCMD after verification")
+    parser.add_argument("--upload-target", choices=("all", "client", "server"), default="all", help="Select which verified app build to upload")
+    parser.add_argument("--set-live", metavar="BRANCH", help="Set uploaded target builds live on this Steam branch (use default for public)")
+    parser.add_argument("--steam-account", default=os.environ.get("STEAM_ACCOUNT"), help="Steam partner account name; password is never accepted here")
+    parser.add_argument("--steamcmd", default=os.environ.get("STEAMCMD", "steamcmd"))
+    parser.add_argument("--standalone-linux-build-dir", help="Optional non-Steam build to verify")
+    parser.add_argument("--standalone-windows-build-dir", help="Optional non-Steam build to verify")
+    args = parser.parse_args()
+
+    if args.set_live and not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", args.set_live):
+        raise SystemExit("--set-live must be a Steam branch name containing only letters, digits, '.', '_' or '-'")
+    if args.set_live and args.set_live.lower() == "default":
+        raise SystemExit(
+            "SteamPipe cannot set the default branch live automatically. Upload without --set-live, "
+            "then promote the Build to default from the Steamworks App Admin Builds page."
+        )
+    if args.set_live and not args.upload:
+        raise SystemExit("--set-live requires --upload")
+
+    linux_build = Path(args.linux_build_dir).expanduser().resolve()
+    windows_build = Path(args.windows_build_dir).expanduser().resolve()
+    sdk_root = Path(args.sdk_root).expanduser().resolve()
+    output = Path(args.output_root).expanduser().resolve()
+    content = output / "content"
+    manifests = output / "manifests"
+    build_output = output / "steampipe-output"
+
+    linux_api = required_file(sdk_root / "redistributable_bin/linux64/libsteam_api.so", "Linux Steam API")
+    windows_api = required_file(sdk_root / "redistributable_bin/win64/steam_api64.dll", "Windows Steam API")
+
+    if args.no_build:
+        linux_cache = required_file(linux_build / "CMakeCache.txt", "Linux CMake cache")
+        windows_cache = required_file(windows_build / "CMakeCache.txt", "Windows CMake cache")
+        verify_steam_build(linux_cache, "Linux build")
+        verify_steam_build(windows_cache, "Windows build")
+    else:
+        configure_steam_build(linux_build, sdk_root, windows=False)
+        configure_steam_build(windows_build, sdk_root, windows=True)
+        run(["cmake", "--build", linux_build, "--parallel", args.jobs])
+        run(["cmake", "--build", windows_build, "--parallel", args.jobs])
+
+    stage_script = ROOT / "scripts/stage_steam_build.py"
+    depots = {
+        "linux-client": ("linux", "client", linux_build, linux_api),
+        "linux-server": ("linux", "server", linux_build, linux_api),
+        "windows-client": ("windows", "client", windows_build, windows_api),
+        "windows-server": ("windows", "server", windows_build, windows_api),
+    }
+    for name, (platform, kind, build_dir, steam_api) in depots.items():
+        run([
+            sys.executable,
+            stage_script,
+            "--platform", platform,
+            "--kind", kind,
+            "--build-dir", build_dir,
+            "--output", content / name,
+            "--steam-api", steam_api,
+        ])
+
+    version = git_value("describe", "--tags", "--always", "--dirty", default="local")
+    commit = git_value("rev-parse", "HEAD")
+    client_set_live = (args.set_live or "") if args.upload_target in ("all", "client") else ""
+    server_set_live = (args.set_live or "") if args.upload_target in ("all", "server") else ""
+    run([
+        sys.executable,
+        ROOT / "scripts/render_steam_build.py",
+        "--output", manifests,
+        "--build-output", build_output,
+        "--content-root", content,
+        "--windows-client-root", content / "windows-client",
+        "--linux-client-root", content / "linux-client",
+        "--windows-server-root", content / "windows-server",
+        "--linux-server-root", content / "linux-server",
+        "--version", version,
+        "--git-commit", commit,
+        "--client-set-live", client_set_live,
+        "--server-set-live", server_set_live,
+    ])
+
+    verify = [
+        sys.executable,
+        ROOT / "scripts/verify_steam_release.py",
+        "--manifests", manifests,
+        "--linux-client", content / "linux-client",
+        "--linux-server", content / "linux-server",
+        "--windows-client", content / "windows-client",
+        "--windows-server", content / "windows-server",
+    ]
+    for option, directory in (
+        ("--standalone-linux", args.standalone_linux_build_dir),
+        ("--standalone-windows", args.standalone_windows_build_dir),
+    ):
+        if not directory:
+            continue
+        build_dir = Path(directory).expanduser().resolve()
+        suffix = ".exe" if option.endswith("windows") else ""
+        verify.extend([f"{option}-client", build_dir / f"ninslash{suffix}"])
+        verify.extend([f"{option}-server", build_dir / f"ninslash_srv{suffix}"])
+    run(verify)
+
+    if args.strict_assets:
+        run([sys.executable, ROOT / "scripts/audit_release_assets.py", "--strict"])
+
+    if not args.upload:
+        print(f"Ready to upload. Manifests: {manifests}")
+        return 0
+
+    if not args.steam_account:
+        raise SystemExit("--upload requires --steam-account or STEAM_ACCOUNT")
+    steamcmd = shutil.which(args.steamcmd)
+    if not steamcmd:
+        raise SystemExit(f"SteamCMD executable not found: {args.steamcmd}")
+    upload = [steamcmd, "+login", args.steam_account]
+    if args.upload_target in ("all", "client"):
+        upload.extend(["+run_app_build", manifests / "app_build.vdf"])
+    if args.upload_target in ("all", "server"):
+        upload.extend(["+run_app_build", manifests / "tool_build.vdf"])
+    upload.append("+quit")
+    try:
+        run(upload)
+    except subprocess.CalledProcessError as exc:
+        if exc.returncode == 6:
+            detail = (
+                "SteamPipe rejected the build. Check that the build account can edit and publish the target AppID, "
+                "that its depots are saved and published, and that those depots belong to an account-owned package."
+            )
+            if args.set_live:
+                detail += (
+                    f" This upload also requested setlive={args.set_live!r}; changing a live branch requires "
+                    "additional publish permission. Retry without --set-live to create the Build first, then "
+                    "promote it in Steamworks after validation."
+                )
+        else:
+            detail = "Fix SteamCMD login/network access and retry."
+        raise SystemExit(
+            f"SteamCMD upload failed with exit code {exc.returncode}. "
+            f"{detail} The verified manifests remain in {manifests}."
+        ) from None
+    print(f"SteamPipe upload completed. Output: {build_output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

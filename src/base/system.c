@@ -85,6 +85,14 @@ extern char **environ;
 
 void dbg_logger(DBG_LOGGER logger)
 {
+	int i;
+	if(!logger)
+		return;
+	for(i = 0; i < num_loggers; i++)
+		if(loggers[i] == logger)
+			return;
+	if(num_loggers >= (int)(sizeof(loggers) / sizeof(loggers[0])))
+		return;
 	loggers[num_loggers++] = logger;
 }
 
@@ -122,7 +130,7 @@ void dbg_msg(const char *sys, const char *fmt, ...)
 	msg = (char *)str + len;
 
 	va_start(args, fmt);
-#if defined(CONF_FAMILY_WINDOWS)
+#if defined(CONF_FAMILY_WINDOWS) && !defined(__MINGW32__)
 	_vsnprintf(msg, sizeof(str)-len, fmt, args);
 #else
 	vsnprintf(msg, sizeof(str)-len, fmt, args);
@@ -818,7 +826,15 @@ int net_addr_comp(const NETADDR *a, const NETADDR *b)
 
 void net_addr_str(const NETADDR *addr, char *string, int max_length, int add_port)
 {
-	if(addr->type == NETTYPE_IPV4)
+	if(addr->type == NETTYPE_STEAM)
+	{
+		unsigned long long steam_id = 0;
+		int i;
+		for(i = 0; i < 8; i++)
+			steam_id |= (unsigned long long)addr->ip[i] << (i * 8);
+		str_format(string, max_length, "steam:%llu", (unsigned long long)steam_id);
+	}
+	else if(addr->type == NETTYPE_IPV4)
 	{
 		if(add_port != 0)
 			str_format(string, max_length, "%d.%d.%d.%d:%d", addr->ip[0], addr->ip[1], addr->ip[2], addr->ip[3], addr->port);
@@ -962,6 +978,23 @@ int net_addr_from_str(NETADDR *addr, const char *string)
 {
 	const char *str = string;
 	mem_zero(addr, sizeof(NETADDR));
+
+	if(strncmp(str, "steam:", 6) == 0)
+	{
+		char *end = 0;
+		unsigned long long steam_id;
+		int i;
+		if(!str[6] || str[6] == '+' || str[6] == '-')
+			return -1;
+		errno = 0;
+		steam_id = strtoull(str + 6, &end, 10);
+		if(errno == ERANGE || !steam_id || !end || *end)
+			return -1;
+		addr->type = NETTYPE_STEAM;
+		for(i = 0; i < 8; i++)
+			addr->ip[i] = (unsigned char)(steam_id >> (i * 8));
+		return 0;
+	}
 
 	if(str[0] == '[')
 	{
@@ -1619,6 +1652,17 @@ int fs_is_dir(const char *path)
 #endif
 }
 
+int fs_is_symlink(const char *path)
+{
+#if defined(CONF_FAMILY_WINDOWS)
+	DWORD attributes = GetFileAttributesA(path);
+	return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+#else
+	struct stat sb;
+	return lstat(path, &sb) == 0 && S_ISLNK(sb.st_mode);
+#endif
+}
+
 int fs_chdir(const char *path)
 {
 	if(fs_is_dir(path))
@@ -1705,6 +1749,15 @@ int fs_remove(const char *filename)
 	if(remove(filename) != 0)
 		return 1;
 	return 0;
+}
+
+int fs_removedir(const char *path)
+{
+#if defined(CONF_FAMILY_WINDOWS)
+	return _rmdir(path) == 0 ? 0 : 1;
+#else
+	return rmdir(path) == 0 ? 0 : 1;
+#endif
 }
 
 int fs_rename(const char *oldname, const char *newname)
@@ -1831,7 +1884,7 @@ int str_length(const char *str)
 
 void str_format(char *buffer, int buffer_size, const char *format, ...)
 {
-#if defined(CONF_FAMILY_WINDOWS)
+#if defined(CONF_FAMILY_WINDOWS) && !defined(__MINGW32__)
 	va_list ap;
 	va_start(ap, format);
 	_vsnprintf(buffer, buffer_size, format, ap);
@@ -1848,7 +1901,7 @@ void str_format(char *buffer, int buffer_size, const char *format, ...)
 
 void str_format_args(char *buffer, int buffer_size, const char *format, va_list args)
 {
-#if defined(CONF_FAMILY_WINDOWS)
+#if defined(CONF_FAMILY_WINDOWS) && !defined(__MINGW32__)
 	va_list ap;
 	ap = args;
 	_vsnprintf(buffer, buffer_size, format, ap);

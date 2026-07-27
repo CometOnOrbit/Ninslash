@@ -16,9 +16,12 @@
 #include <engine/graphics.h>
 #include <engine/input.h>
 #include <engine/keys.h>
+#include <engine/listen_server.h>
 #include <engine/map.h>
 #include <engine/masterserver.h>
 #include <engine/platform_services.h>
+#include <engine/platform_auth.h>
+#include <engine/platform_events.h>
 #include <engine/serverbrowser.h>
 #include <engine/sound.h>
 #include <engine/gamepad.h>
@@ -280,6 +283,16 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 	m_pMap = 0;
 	m_pConsole = 0;
 	m_pPlatformServices = 0;
+	m_PlatformAuthResponsePending = false;
+	m_PlatformAuthPolicy = 0;
+	m_PlatformAuthRelayRequired = false;
+	m_NextPlatformPresenceUpdate = 0;
+	m_pListenServer = 0;
+	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
+	mem_zero(&m_ConnectionAsyncStatus, sizeof(m_ConnectionAsyncStatus));
+#if defined(CONF_STEAM_LISTEN_SERVER)
+	m_pListenServer = CreateListenServerRuntime();
+#endif
 
 	m_RenderFrameTime = 0.0001f;
 	m_RenderFrameTimeLow = 1.0f;
@@ -387,20 +400,37 @@ void CClient::SendInfo()
 	Msg.AddString(GameClient()->NetVersion(), 128);
 	Msg.AddString(g_Config.m_Password, 128);
 	SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+}
 
+
+void CClient::SendPlatformAuth(int Policy, bool RelayRequired)
+{
+	const bool UseSteamIdentity = Policy > 0 && m_pPlatformServices && m_pPlatformServices->Available() && m_pPlatformServices->LocalUserID() != 0;
 	unsigned char aTicket[2048];
-	int TicketSize = m_pPlatformServices ? m_pPlatformServices->GetAuthSessionTicket(aTicket, sizeof(aTicket)) : 0;
-	if(TicketSize < 0 || TicketSize > (int)sizeof(aTicket))
+	int TicketSize = UseSteamIdentity ? m_pPlatformServices->GetAuthSessionTicket(aTicket, sizeof(aTicket)) : 0;
+	if(TicketSize < 0)
+	{
+		m_PlatformAuthResponsePending = true;
+		m_PlatformAuthPolicy = Policy;
+		m_PlatformAuthRelayRequired = RelayRequired;
+		return;
+	}
+	m_PlatformAuthResponsePending = false;
+	if(TicketSize > (int)sizeof(aTicket))
 		TicketSize = 0;
 	CMsgPacker Auth(NETMSG_PLATFORM_AUTH);
 	char aSteamID[32];
-	str_format(aSteamID, sizeof(aSteamID), "%llu", m_pPlatformServices ? m_pPlatformServices->LocalUserID() : 0);
+	Auth.AddInt(UseSteamIdentity ? PLATFORM_IDENTITY_STEAM : PLATFORM_IDENTITY_ANONYMOUS);
+	str_format(aSteamID, sizeof(aSteamID), "%llu", UseSteamIdentity ? m_pPlatformServices->LocalUserID() : 0);
 	Auth.AddString(aSteamID, sizeof(aSteamID));
 	Auth.AddString(g_Config.m_ClModHash, sizeof(g_Config.m_ClModHash));
+	Auth.AddString(g_Config.m_ClModIds, sizeof(g_Config.m_ClModIds));
 	Auth.AddInt(TicketSize);
 	if(TicketSize)
 		Auth.AddRaw(aTicket, TicketSize);
 	SendMsgEx(&Auth, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+	if(RelayRequired && !UseSteamIdentity)
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "This Relay room requires a Steam identity");
 }
 
 
@@ -527,6 +557,8 @@ void CClient::SetState(int s)
 		m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
 	}
 	m_State = s;
+	if(m_pInput)
+		m_pInput->SetGamepadActionSet(s == IClient::STATE_ONLINE ? PLATFORM_INPUT_GAME : (s == IClient::STATE_DEMOPLAYBACK ? PLATFORM_INPUT_SPECTATOR : PLATFORM_INPUT_MENU));
 	if(m_pPlatformServices && m_pPlatformServices->Available())
 	{
 		const char *pStatus = "In menus";
@@ -590,6 +622,9 @@ void CClient::EnterGame()
 
 void CClient::Connect(const char *pAddress)
 {
+	mem_zero(&m_ConnectionAsyncStatus, sizeof(m_ConnectionAsyncStatus));
+	m_ConnectionAsyncStatus.m_State = CLIENT_ASYNC_WORKING;
+	m_ConnectionAsyncStatus.m_Stage = CLIENT_STAGE_CONNECTING;
 	char aBuf[512];
 	int Port = 8303;
 
@@ -599,6 +634,25 @@ void CClient::Connect(const char *pAddress)
 
 	str_format(aBuf, sizeof(aBuf), "connecting to '%s'", m_aServerAddressStr);
 	m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", aBuf);
+	if(str_comp_num(m_aServerAddressStr, "steam:", 6) == 0)
+	{
+		NETADDR SteamAddr;
+		unsigned long long SteamID = 0;
+		if(net_addr_from_str(&SteamAddr, m_aServerAddressStr) == 0)
+			for(int i = 0; i < 8; i++)
+				SteamID |= (unsigned long long)SteamAddr.ip[i] << (i * 8);
+		if(!SteamID || !m_pPlatformServices || !m_pPlatformServices->RelayTransport() || m_NetClient.ConnectSteam(SteamID, m_pPlatformServices->RelayTransport()) != 0)
+		{
+			m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Unable to connect to Steam Relay host");
+			SetState(IClient::STATE_OFFLINE);
+			return;
+		}
+		mem_zero(&m_ServerAddress, sizeof(m_ServerAddress));
+		m_ServerAddress.type = NETTYPE_STEAM;
+		m_RconAuthed = 0;
+		SetState(IClient::STATE_CONNECTING);
+		return;
+	}
 
 	ServerInfoRequest();
 
@@ -636,6 +690,9 @@ void CClient::DisconnectWithReason(const char *pReason)
 
 	//
 	m_RconAuthed = 0;
+	m_PlatformAuthResponsePending = false;
+	if(m_pPlatformServices)
+		m_pPlatformServices->CancelAuthSessionTicket();
 	m_UseTempRconCommands = 0;
 	m_pConsole->DeregisterTempAll();
 	m_NetClient.Disconnect(pReason);
@@ -1068,14 +1125,23 @@ void CClient::ProcessConnlessPacket(CNetChunk *pPacket)
 
 		net_addr_str(&pPacket->m_Address, Info.m_aAddress, sizeof(Info.m_aAddress), true);
 
-		for(int i = 0; i < Info.m_NumClients; i++)
+			for(int i = 0; i < Info.m_NumClients; i++)
 		{
 			str_copy(Info.m_aClients[i].m_aName, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aClients[i].m_aName));
 			str_copy(Info.m_aClients[i].m_aClan, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aClients[i].m_aClan));
 			Info.m_aClients[i].m_Country = str_toint(Up.GetString());
 			Info.m_aClients[i].m_Score = str_toint(Up.GetString());
-			Info.m_aClients[i].m_Player = str_toint(Up.GetString()) != 0 ? true : false;
-		}
+				Info.m_aClients[i].m_Player = str_toint(Up.GetString()) != 0 ? true : false;
+			}
+			if(Up.RemainingSize() > 0)
+			{
+				Info.m_AuthPolicy = str_toint(Up.GetString());
+				Info.m_Official = str_toint(Up.GetString()) != 0;
+				Info.m_Modded = str_toint(Up.GetString()) != 0;
+				Info.m_HasPlatformMetadata = !Up.Error() && Info.m_AuthPolicy >= 0 && Info.m_AuthPolicy <= 2;
+				if(!Info.m_HasPlatformMetadata)
+					return;
+			}
 
 		if(!Up.Error())
 		{
@@ -1243,6 +1309,21 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 		{
 			CMsgPacker Msg(NETMSG_PING_REPLY);
 			SendMsgEx(&Msg, 0);
+		}
+		else if(Msg == NETMSG_PLATFORM_AUTH_REQUEST)
+		{
+			const int Policy = Unpacker.GetInt();
+			const bool RelayRequired = Unpacker.GetInt() != 0;
+			if(!Unpacker.Error() && Policy >= 0 && Policy <= 2)
+				SendPlatformAuth(Policy, RelayRequired);
+		}
+		else if(Msg == NETMSG_PLATFORM_EVENT)
+		{
+			const int Event = Unpacker.GetInt();
+			const int Value = Unpacker.GetInt();
+			const bool LeaderboardEligible = Unpacker.GetInt() != 0;
+			if(!Unpacker.Error() && Event >= 0 && Event < NUM_PLATFORM_SERVER_EVENTS && m_pPlatformServices)
+				m_pPlatformServices->ProcessServerEvent(Event, Value, LeaderboardEligible);
 		}
 		else if(Msg == NETMSG_RCON_CMD_ADD)
 		{
@@ -1880,8 +1961,8 @@ void CClient::Run()
 		NETADDR BindAddr;
 		if(g_Config.m_Bindaddr[0] && net_host_lookup(g_Config.m_Bindaddr, &BindAddr, NETTYPE_ALL) == 0)
 		{
-			// got bindaddr
-			BindAddr.type = NETTYPE_ALL;
+			// Preserve the address family returned by lookup. Forcing an IPv4
+			// bind address to NETTYPE_ALL causes a spurious IPv6 bind failure.
 		}
 		else
 		{
@@ -1942,6 +2023,38 @@ void CClient::Run()
 		if(m_pPlatformServices)
 		{
 			m_pPlatformServices->RunCallbacks();
+			if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING && m_SteamHostStatus.m_Stage == CLIENT_STAGE_CREATING_ROOM && m_pPlatformServices->CurrentLobbyID())
+			{
+				m_SteamHostStatus.m_State = CLIENT_ASYNC_SUCCEEDED;
+				m_SteamHostStatus.m_Progress = 1.0f;
+			}
+			if(m_PlatformAuthResponsePending)
+				SendPlatformAuth(m_PlatformAuthPolicy, m_PlatformAuthRelayRequired);
+			if(m_pPlatformServices->Available() && time_get() >= m_NextPlatformPresenceUpdate)
+			{
+				m_NextPlatformPresenceUpdate = time_get() + time_freq() * 5;
+				char aStatus[256]; const char *pConnect = "";
+				if(State() == IClient::STATE_ONLINE)
+				{
+					str_format(aStatus, sizeof(aStatus), "%s on %s (%d/%d)", m_CurrentServerInfo.m_aGameType[0] ? m_CurrentServerInfo.m_aGameType : "Playing", m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, m_CurrentServerInfo.m_NumClients, m_CurrentServerInfo.m_MaxClients);
+					pConnect = m_aServerAddressStr;
+				}
+				else if(State() == IClient::STATE_CONNECTING || State() == IClient::STATE_LOADING) str_copy(aStatus, "Joining a game", sizeof(aStatus));
+				else if(State() == IClient::STATE_DEMOPLAYBACK) str_copy(aStatus, "Watching a replay", sizeof(aStatus));
+				else str_copy(aStatus, "In menus", sizeof(aStatus));
+				m_pPlatformServices->SetRichPresence(aStatus, pConnect);
+			}
+			if(m_pPlatformServices->ConsumeListenServerStopRequest() && m_pListenServer)
+			{
+				m_pPlatformServices->LeaveLobby();
+				m_pListenServer->Stop();
+				if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING)
+				{
+					m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+					str_copy(m_SteamHostStatus.m_aErrorKey, "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+				}
+				dbg_msg("steam", "hosted Lobby closed; Listen Server stopped");
+			}
 			char aJoinAddress[256];
 			if(m_pPlatformServices->ConsumeJoinRequest(aJoinAddress, sizeof(aJoinAddress)))
 			{
@@ -1949,6 +2062,14 @@ void CClient::Run()
 					Connect(aJoinAddress);
 				else
 					dbg_msg("platform", "ignored unsafe join request");
+			}
+			char aJoinFailure[256];
+			if(m_pPlatformServices->ConsumeJoinFailure(aJoinFailure, sizeof(aJoinFailure)))
+			{
+				m_ConnectionAsyncStatus.m_State = CLIENT_ASYNC_FAILED;
+				m_ConnectionAsyncStatus.m_Stage = str_find(aJoinFailure, "Workshop") || str_find(aJoinFailure, "Mod") ? CLIENT_STAGE_SYNCING_MODS : CLIENT_STAGE_JOINING_ROOM;
+				str_copy(m_ConnectionAsyncStatus.m_aErrorKey, aJoinFailure, sizeof(m_ConnectionAsyncStatus.m_aErrorKey));
+				m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", aJoinFailure);
 			}
 		}
 		//
@@ -2103,6 +2224,15 @@ void CClient::Run()
 
 	GameClient()->OnShutdown();
 	Disconnect();
+	if(m_pPlatformServices)
+		m_pPlatformServices->LeaveLobby();
+	if(m_pListenServer)
+	{
+		m_pListenServer->Stop();
+		delete m_pListenServer;
+		m_pListenServer = 0;
+	}
+	m_NetClient.Close();
 
 	m_pGraphics->Shutdown();
 	m_pSound->Shutdown();
@@ -2375,10 +2505,115 @@ void CClient::Con_SteamLobbyCreate(IConsole::IResult *pResult, void *pUserData)
 		else if(str_comp_nocase(pVisibility, "public") == 0)
 			Visibility = PLATFORM_LOBBY_PUBLIC;
 	}
-	if(!pClient->m_pPlatformServices || !pClient->m_pPlatformServices->CreateLobby(Visibility, MAX_CLIENTS))
-		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Unable to create Steam Lobby");
-	else
+	CHostGameSettings Settings;
+	mem_zero(&Settings, sizeof(Settings));
+	Settings.m_Visibility = Visibility;
+	Settings.m_MaxClients = clamp(g_Config.m_ClLocalServerMaxClients, 1, (int)MAX_CLIENTS);
+	str_copy(Settings.m_aName, g_Config.m_ClLocalServerName[0] ? g_Config.m_ClLocalServerName : "Steam room", sizeof(Settings.m_aName));
+	str_copy(Settings.m_aPassword, g_Config.m_ClLocalServerPassword, sizeof(Settings.m_aPassword));
+	str_copy(Settings.m_aMap, g_Config.m_SvMap, sizeof(Settings.m_aMap));
+	str_copy(Settings.m_aGameType, g_Config.m_SvGametype, sizeof(Settings.m_aGameType));
+	str_copy(Settings.m_aModHash, g_Config.m_ClModHash, sizeof(Settings.m_aModHash));
+	str_copy(Settings.m_aModIDs, g_Config.m_ClModIds, sizeof(Settings.m_aModIDs));
+	if(pClient->StartSteamHostedGame(Settings))
 		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Creating Steam Lobby...");
+	else
+		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", pClient->m_SteamHostStatus.m_aErrorKey);
+}
+
+bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
+{
+	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
+	if(!m_pPlatformServices || !m_pPlatformServices->Available() || !m_pListenServer || !m_pPlatformServices->RelayListenTransport())
+	{
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, "Steam hosting is unavailable. Start Steam and try again.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	if(m_pListenServer->Running())
+		StopSteamHostedGame();
+	m_SteamHostStatus.m_State = CLIENT_ASYNC_WORKING;
+	m_SteamHostStatus.m_Stage = CLIENT_STAGE_STARTING_SERVER;
+
+	CListenServerSettings Settings;
+	mem_zero(&Settings, sizeof(Settings));
+	Settings.m_Port = clamp(g_Config.m_ClLocalServerPort, 1024, 65535);
+	Settings.m_MaxClients = clamp(Host.m_MaxClients, 1, (int)MAX_CLIENTS);
+	str_copy(Settings.m_aBindAddress, "127.0.0.1", sizeof(Settings.m_aBindAddress));
+	str_copy(Settings.m_aName, Host.m_aName, sizeof(Settings.m_aName));
+	str_copy(Settings.m_aPassword, Host.m_aPassword, sizeof(Settings.m_aPassword));
+	str_copy(Settings.m_aMap, Host.m_aMap, sizeof(Settings.m_aMap));
+	str_copy(Settings.m_aGameType, Host.m_aGameType, sizeof(Settings.m_aGameType));
+	str_copy(Settings.m_aModHash, Host.m_aModHash, sizeof(Settings.m_aModHash));
+	str_copy(Settings.m_aModIDs, Host.m_aModIDs, sizeof(Settings.m_aModIDs));
+	if(!m_pListenServer->Start(m_pPlatformServices->RelayListenTransport(), Settings))
+	{
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, "The Steam room server could not start. Check the log and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	for(int Attempt = 0; Attempt < 200 && m_pListenServer->Running() && !m_pListenServer->Ready(); Attempt++)
+		thread_sleep(5);
+	if(!m_pListenServer->Ready())
+	{
+		m_pListenServer->Stop();
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, "The Steam room server did not become ready. Retry or create a LAN game.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	m_SteamHostStatus.m_Progress = 0.65f;
+	m_SteamHostStatus.m_Stage = CLIENT_STAGE_CREATING_ROOM;
+	if(!m_pPlatformServices->CreateLobby((EPlatformLobbyVisibility)clamp(Host.m_Visibility, (int)PLATFORM_LOBBY_INVITE_ONLY, (int)PLATFORM_LOBBY_PUBLIC), Settings.m_MaxClients))
+	{
+		m_pListenServer->Stop();
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	return true;
+}
+
+void CClient::StopSteamHostedGame()
+{
+	if(m_pPlatformServices)
+		m_pPlatformServices->LeaveLobby();
+	if(m_pListenServer)
+		m_pListenServer->Stop();
+	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
+}
+
+void CClient::SteamHostedGameStatus(CClientAsyncStatus *pStatus) const
+{
+	if(pStatus)
+		*pStatus = m_SteamHostStatus;
+}
+
+void CClient::ConnectionStatus(CClientAsyncStatus *pStatus) const
+{
+	if(!pStatus)
+		return;
+	mem_zero(pStatus, sizeof(*pStatus));
+	if(m_ConnectionAsyncStatus.m_State == CLIENT_ASYNC_FAILED)
+	{
+		*pStatus = m_ConnectionAsyncStatus;
+		return;
+	}
+	if(State() == STATE_CONNECTING)
+	{
+		pStatus->m_State = CLIENT_ASYNC_WORKING;
+		pStatus->m_Stage = CLIENT_STAGE_CONNECTING;
+	}
+	else if(State() == STATE_LOADING)
+	{
+		pStatus->m_State = CLIENT_ASYNC_WORKING;
+		pStatus->m_Stage = CLIENT_STAGE_LOADING_MAP;
+		pStatus->m_Progress = m_MapdownloadTotalsize > 0 ? clamp(m_MapdownloadAmount / (float)m_MapdownloadTotalsize, 0.0f, 1.0f) : 0.0f;
+	}
+	else if(State() == STATE_ONLINE)
+	{
+		pStatus->m_State = CLIENT_ASYNC_SUCCEEDED;
+		pStatus->m_Progress = 1.0f;
+	}
 }
 
 void CClient::Con_SteamLobbyInvite(IConsole::IResult *pResult, void *pUserData)
@@ -2391,8 +2626,7 @@ void CClient::Con_SteamLobbyInvite(IConsole::IResult *pResult, void *pUserData)
 void CClient::Con_SteamLobbyLeave(IConsole::IResult *pResult, void *pUserData)
 {
 	CClient *pClient = static_cast<CClient *>(pUserData);
-	if(pClient->m_pPlatformServices)
-		pClient->m_pPlatformServices->LeaveLobby();
+	pClient->StopSteamHostedGame();
 }
 
 void CClient::Con_SteamLobbyStatus(IConsole::IResult *pResult, void *pUserData)
@@ -2402,6 +2636,43 @@ void CClient::Con_SteamLobbyStatus(IConsole::IResult *pResult, void *pUserData)
 	str_format(aBuffer, sizeof(aBuffer), "Steam Lobby: %llu", pClient->m_pPlatformServices ? pClient->m_pPlatformServices->CurrentLobbyID() : 0);
 	pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", aBuffer);
 }
+
+void CClient::Con_SteamLobbyRefresh(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p=static_cast<CClient *>(pUserData); if(!p->m_pPlatformServices || !p->m_pPlatformServices->RefreshLobbyList()) p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam","Unable to request Steam Lobby list");
+}
+
+void CClient::Con_SteamLobbyList(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p=static_cast<CClient *>(pUserData); if(!p->m_pPlatformServices)return;
+	for(int i=0;i<p->m_pPlatformServices->LobbyCount();i++){CPlatformLobbyInfo Info;if(!p->m_pPlatformServices->LobbyInfo(i,&Info))continue;char aBuf[512];str_format(aBuf,sizeof(aBuf),"%llu host='%s' steamid=%llu mode=%s map=%s region=%s players=%d/%d password=%d modded=%d friend=%d",Info.m_LobbyID,Info.m_aHostName,Info.m_HostSteamID,Info.m_aGameType,Info.m_aMap,Info.m_aRegion,Info.m_Members,Info.m_MaxMembers,Info.m_Password?1:0,Info.m_Modded?1:0,Info.m_FriendHosted?1:0);p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam-lobby",aBuf);}
+}
+
+void CClient::Con_SteamLobbyJoin(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;char Trailing=0;if(!p->m_pPlatformServices||sscanf(pResult->GetString(0),"%llu%c",&ID,&Trailing)!=1||!ID||!p->m_pPlatformServices->JoinLobby(ID))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam","Unable to join Steam Lobby");
+}
+
+void CClient::Con_SteamWorkshopRefresh(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient=static_cast<CClient *>(pUserData);const int Count=pClient->m_pPlatformServices?pClient->m_pPlatformServices->RefreshWorkshopItems():0;char aBuf[128];str_format(aBuf,sizeof(aBuf),"Workshop items refreshed: %d, collection hash: %s",Count,g_Config.m_ClModHash[0]?g_Config.m_ClModHash:"none");pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam",aBuf);
+}
+
+void CClient::Con_SteamWorkshopList(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient=static_cast<CClient *>(pUserData);if(!pClient->m_pPlatformServices)return;pClient->m_pPlatformServices->RefreshWorkshopItems();
+	for(int i=0;i<pClient->m_pPlatformServices->WorkshopItemCount();i++){CPlatformWorkshopItem Item;if(!pClient->m_pPlatformServices->WorkshopItem(i,&Item))continue;char aBuf[512];str_format(aBuf,sizeof(aBuf),"%llu state=0x%x valid=%d download=%llu/%llu name='%s' version='%s' error='%s'",Item.m_PublishedFileID,Item.m_State,Item.m_Valid?1:0,Item.m_Downloaded,Item.m_Total,Item.m_aName,Item.m_aVersion,Item.m_aError);pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop",aBuf);}
+}
+
+static bool ParseWorkshopID(const char *pText,unsigned long long *pID){char Trailing=0;return pText&&pID&&sscanf(pText,"%llu%c",pID,&Trailing)==1&&*pID!=0;}
+void CClient::Con_SteamWorkshopDisable(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->SetWorkshopItemDisabled(ID,true))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to disable Workshop item");}
+void CClient::Con_SteamWorkshopEnable(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->SetWorkshopItemDisabled(ID,false))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to enable Workshop item");}
+void CClient::Con_SteamWorkshopUnsubscribe(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->UnsubscribeWorkshopItem(ID))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to unsubscribe Workshop item");}
+void CClient::Con_SteamWorkshopOpen(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->OpenWorkshopItemPage(ID))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to open Workshop community page");}
+void CClient::Con_SteamWorkshopSelect(IConsole::IResult *pResult,void *pUserData){str_copy(g_Config.m_ClModIds,pResult->GetString(0),sizeof(g_Config.m_ClModIds));Con_SteamWorkshopRefresh(pResult,pUserData);}
+void CClient::Con_SteamWorkshopCreate(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);if(!p->m_pPlatformServices||!p->m_pPlatformServices->CreateWorkshopItem())p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to create Workshop item");}
+void CClient::Con_SteamWorkshopPublish(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->UpdateWorkshopItem(ID,pResult->GetString(1),pResult->NumArguments()>2?pResult->GetString(2):""))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to publish: package must validate and its manifest ID/protocol/hash must match");}
+void CClient::Con_SteamWorkshopPublishStatus(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);if(!p->m_pPlatformServices)return;CPlatformWorkshopPublishStatus Status;p->m_pPlatformServices->WorkshopPublishStatus(&Status);char aBuf[512];str_format(aBuf,sizeof(aBuf),"active=%d id=%llu progress=%llu/%llu legal_agreement=%d status='%s'",Status.m_Active?1:0,Status.m_PublishedFileID,Status.m_Processed,Status.m_Total,Status.m_NeedsLegalAgreement?1:0,Status.m_aStatus);p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop",aBuf);}
 
 void CClient::DemoSlice(const char *pDstPath)
 {
@@ -2645,6 +2916,19 @@ void CClient::RegisterCommands()
 	m_pConsole->Register("steam_lobby_invite", "", CFGFLAG_CLIENT, Con_SteamLobbyInvite, this, "Open Steam Overlay friend invite dialog for current Lobby");
 	m_pConsole->Register("steam_lobby_leave", "", CFGFLAG_CLIENT, Con_SteamLobbyLeave, this, "Leave current Steam Lobby");
 	m_pConsole->Register("steam_lobby_status", "", CFGFLAG_CLIENT, Con_SteamLobbyStatus, this, "Show current Steam Lobby ID");
+	m_pConsole->Register("steam_lobby_refresh", "", CFGFLAG_CLIENT, Con_SteamLobbyRefresh, this, "Refresh public Steam Listen Server Lobbies");
+	m_pConsole->Register("steam_lobby_list", "", CFGFLAG_CLIENT, Con_SteamLobbyList, this, "List validated Steam Listen Server Lobbies");
+	m_pConsole->Register("steam_lobby_join", "s", CFGFLAG_CLIENT, Con_SteamLobbyJoin, this, "Join a Steam Lobby by LobbyID");
+	m_pConsole->Register("steam_workshop_refresh", "", CFGFLAG_CLIENT, Con_SteamWorkshopRefresh, this, "Refresh subscribed Workshop content and validate the selected Mod collection");
+	m_pConsole->Register("steam_workshop_list", "", CFGFLAG_CLIENT, Con_SteamWorkshopList, this, "List Workshop install, download, and validation status");
+	m_pConsole->Register("steam_workshop_disable", "s", CFGFLAG_CLIENT, Con_SteamWorkshopDisable, this, "Disable a Workshop PublishedFileID locally");
+	m_pConsole->Register("steam_workshop_enable", "s", CFGFLAG_CLIENT, Con_SteamWorkshopEnable, this, "Enable a Workshop PublishedFileID locally");
+	m_pConsole->Register("steam_workshop_unsubscribe", "s", CFGFLAG_CLIENT, Con_SteamWorkshopUnsubscribe, this, "Unsubscribe a Workshop item; staged content is not loaded unless selected");
+	m_pConsole->Register("steam_workshop_open", "s", CFGFLAG_CLIENT, Con_SteamWorkshopOpen, this, "Open a Workshop item community page for reporting or legal information");
+	m_pConsole->Register("steam_workshop_select", "r", CFGFLAG_CLIENT, Con_SteamWorkshopSelect, this, "Select comma-separated root PublishedFileIDs for the active Mod collection");
+	m_pConsole->Register("steam_workshop_create", "", CFGFLAG_CLIENT, Con_SteamWorkshopCreate, this, "Create an empty Workshop item and return its PublishedFileID");
+	m_pConsole->Register("steam_workshop_publish", "ss?s", CFGFLAG_CLIENT, Con_SteamWorkshopPublish, this, "Publish validated content: ID content-directory [preview-file]");
+	m_pConsole->Register("steam_workshop_publish_status", "", CFGFLAG_CLIENT, Con_SteamWorkshopPublishStatus, this, "Show Workshop creation/upload progress and legal agreement state");
 
 	// used for server browser update
 	m_pConsole->Chain("br_filter_string", ConchainServerBrowserUpdate, this);

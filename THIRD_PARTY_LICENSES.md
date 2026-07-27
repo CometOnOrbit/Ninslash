@@ -1,8 +1,8 @@
 # Third-party notices
 
-This inventory is incomplete and therefore not yet suitable for a public
-release. The strict asset audit remains the source of truth for the release
-gate.
+**English · [简体中文](THIRD_PARTY_LICENSES_zh-CN.md)**
+
+The strict asset audit remains the source of truth for the release gate.
 
 ## Teeworlds-derived source
 
@@ -24,9 +24,8 @@ Copyright © 1998–2006 Conifer Software. BSD 3-Clause terms are reproduced in
 Bitstream Vera and Arev-derived font terms are reproduced in
 `data/fonts/LICENSE`.
 
-## Unresolved bundled content
+## Bundled Ninslash content
 
-The historic project notice explicitly states that some files below `data/`
-are nonfree and that documentation is incomplete. Those files may not be
-published commercially until narrow approved entries exist in
-`docs/release/asset_licenses.csv` or replacement assets are supplied.
+Unless a file carries a more specific third-party notice, content below
+`data/` uses the Ninslash asset license, CC-BY-SA 3.0. File-specific entries in
+`docs/release/asset_licenses.csv` override that default.

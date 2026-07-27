@@ -1110,7 +1110,7 @@ void CMapGen::GenerateLevel()
 	CGenLayer *pTiles = new CGenLayer(w, h);
 	
 	// generate room structure
-	CRoom *pRoom = new CRoom(3, 3, w-6, h-6);
+	CRoomGenerated *pRoom = new CRoomGenerated(3, 3, w-6, h-6);
 	CMaze *pMaze = new CMaze(w, h);
 	
 	int Level = g_Config.m_SvMapGenLevel;
@@ -1599,7 +1599,7 @@ void CMapGen::GeneratePVPLevel()
 	CGenLayer *pTiles = new CGenLayer(w, h);
 	
 	// generate room structure
-	CRoom *pRoom = new CRoom(3, 3, w-6, h-6);
+	CRoomGenerated *pRoom = new CRoomGenerated(3, 3, w-6, h-6);
 	CMaze *pMaze = new CMaze(w, h);
 	
 	pMaze->OpenRooms(pRoom);

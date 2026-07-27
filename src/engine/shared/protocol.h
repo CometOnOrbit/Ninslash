@@ -11,6 +11,12 @@
 	Client -> INFO -> Server
 		Contains version info, name, and some other info.
 
+	Client <- PLATFORM_AUTH_REQUEST <- Server
+		Requests anonymous or Steam identity according to server policy.
+
+	Client -> PLATFORM_AUTH -> Server
+		Returns an explicit identity kind, optional Steam ticket and Mod metadata.
+
 	Client <- MAP <- Server
 		Contains current map.
 
@@ -75,6 +81,8 @@ enum
 	NETMSG_PLATFORM_AUTH,
 	NETMSG_PLATFORM_AUTH_RESULT,
 	NETMSG_LOBBY_JOIN_FAILURE,
+	NETMSG_PLATFORM_EVENT,
+	NETMSG_PLATFORM_AUTH_REQUEST,
 };
 
 // this should be revised

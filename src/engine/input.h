@@ -99,6 +99,7 @@ public:
 	virtual bool MouseMoved() = 0;
 	virtual bool GamepadMoved() = 0;
 	virtual bool UsingGamepad() = 0;
+	virtual void SetGamepadActionSet(int ActionSet) = 0;
 	virtual int MouseDoubleClick() = 0;
 	virtual const char* GetClipboardText() = 0;
 	virtual void SetClipboardText(const char *Text) = 0;
