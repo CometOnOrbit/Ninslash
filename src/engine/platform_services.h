@@ -123,7 +123,7 @@ public:
 
 	// All methods below are asynchronous on Steam. They report whether the
 	// request was accepted locally; completion arrives through RunCallbacks.
-	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers) = 0;
+	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers, int HostLocalPort) = 0;
 	virtual bool JoinLobby(unsigned long long LobbyID) = 0;
 	virtual void LeaveLobby() = 0;
 	virtual unsigned long long CurrentLobbyID() const = 0;

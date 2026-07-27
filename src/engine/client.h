@@ -43,10 +43,18 @@ struct CHostGameSettings
 	int m_MaxClients;
 	int m_Difficulty;
 	int m_Seed;
+	int m_Bots;
+	int m_BotLevel;
+	int m_ModeRule;
+	bool m_RandomSeed;
+	bool m_Roguelite;
+	bool m_Contracts;
+	bool m_UseCheckpoint;
 	char m_aName[128];
 	char m_aPassword[128];
 	char m_aMap[128];
 	char m_aGameType[32];
+	char m_aConfig[128];
 	char m_aModHash[65];
 	char m_aModIDs[1024];
 };

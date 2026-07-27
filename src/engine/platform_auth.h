@@ -36,6 +36,17 @@ inline int PlatformEffectiveAuthPolicy(int ConfiguredPolicy, bool Official, bool
 	return ConfiguredPolicy < 0 ? 0 : ConfiguredPolicy > 2 ? 2 : ConfiguredPolicy;
 }
 
+inline int PlatformConnectionAuthPolicy(int ConfiguredPolicy, bool Official, bool ServerHasRelayListener, bool PeerUsesSteamTransport)
+{
+	const bool Relay = PlatformConnectionUsesRelay(ServerHasRelayListener, PeerUsesSteamTransport);
+	// The listen-server owner joins over loopback. Steam Relay already proves
+	// remote peer identity, while the local host must not depend on a separate
+	// Steam GameServer authentication service inside the same process.
+	if(ServerHasRelayListener && !Relay)
+		return 0;
+	return PlatformEffectiveAuthPolicy(ConfiguredPolicy, Official, Relay);
+}
+
 inline EPlatformJoinDecision PlatformJoinDecision(int IdentityKind, int AuthPolicy, bool Relay, EPlatformAuthResult AuthResult)
 {
 	if(IdentityKind == PLATFORM_IDENTITY_ANONYMOUS)

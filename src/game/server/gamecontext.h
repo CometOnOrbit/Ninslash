@@ -134,6 +134,7 @@ public:
 
 	IGameController *m_pController;
 	class CPveDirector *m_pPveDirector;
+	class CTutorialDirector *m_pTutorialDirector;
 	CGameWorld m_World;
 	
 	CPlayerSpecData GetPlayerSpecData(int ClientID);
@@ -306,7 +307,7 @@ public:
 };
 
 inline int64 CmaskAll() { return -1; }
-inline int64 CmaskOne(int ClientID) { return (int64)1<<ClientID; }
+inline int64 CmaskOne(int ClientID) { return (int64)(1ULL<<ClientID); }
 inline int64 CmaskAllExceptOne(int ClientID) { return CmaskAll()^CmaskOne(ClientID); }
 inline bool CmaskIsSet(int64 Mask, int ClientID) { return (Mask&CmaskOne(ClientID)) != 0; }
 #endif

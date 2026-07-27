@@ -64,6 +64,7 @@ protected:
 			m_Got = false;
 			m_FriendlyTeam = -1;
 			m_Pos = vec2(100,100);
+			m_Score = 0.0f;
 			m_Used = false;
 		}
 

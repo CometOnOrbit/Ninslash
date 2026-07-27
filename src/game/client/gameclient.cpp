@@ -893,6 +893,8 @@ void CGameClient::OnEnterGame()
 
 void CGameClient::OnGameOver()
 {
+	if(m_pPveRoguelite)
+		m_pPveRoguelite->OnGameOver();
 	if(Client()->State() != IClient::STATE_DEMOPLAYBACK && g_Config.m_ClEditor == 0)
 		Client()->AutoScreenshot_Start();
 }

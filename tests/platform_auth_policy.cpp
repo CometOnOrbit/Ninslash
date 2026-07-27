@@ -22,6 +22,10 @@ int main()
 	assert(PlatformEffectiveAuthPolicy(1, false, false) == 1);
 	assert(PlatformEffectiveAuthPolicy(1, true, false) == 2);
 	assert(PlatformEffectiveAuthPolicy(0, false, true) == 2);
+	assert(PlatformConnectionAuthPolicy(1, false, false, false) == 1); // Community dedicated server.
+	assert(PlatformConnectionAuthPolicy(2, true, false, false) == 2); // Official dedicated server.
+	assert(PlatformConnectionAuthPolicy(2, false, true, false) == 0); // Listen-server host over loopback.
+	assert(PlatformConnectionAuthPolicy(0, false, true, true) == 2); // Remote Relay peer.
 
 	assert(PlatformJoinDecision(PLATFORM_IDENTITY_ANONYMOUS, 0, false, PLATFORM_AUTH_UNAVAILABLE) == PLATFORM_JOIN_ANONYMOUS);
 	assert(PlatformJoinDecision(PLATFORM_IDENTITY_ANONYMOUS, 1, false, PLATFORM_AUTH_UNAVAILABLE) == PLATFORM_JOIN_ANONYMOUS);

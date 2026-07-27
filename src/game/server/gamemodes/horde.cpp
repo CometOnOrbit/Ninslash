@@ -220,7 +220,7 @@ void CGameControllerHorde::EnsureDefenseArea(vec2 FallbackPos)
 		return;
 	m_DefenseAreaCenter = FallbackPos;
 	m_DefenseAreaReady = true;
-	CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+	CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
 	pRadar->Activate(m_DefenseAreaCenter);
 	dbg_msg("horde", "defense area: center=(%.0f,%.0f) radius=%d",
 		m_DefenseAreaCenter.x, m_DefenseAreaCenter.y, PVE_HORDE_DEFENSE_RADIUS);

@@ -223,7 +223,7 @@ public:
 		return false;
 	}
 	virtual bool ConsumeJoinFailure(char *pBuffer, int BufferSize) { if(pBuffer && BufferSize > 0) pBuffer[0] = 0; return false; }
-	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers) { (void)Visibility; (void)MaxMembers; return false; }
+	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers, int HostLocalPort) { (void)Visibility; (void)MaxMembers; (void)HostLocalPort; return false; }
 	virtual bool JoinLobby(unsigned long long LobbyID) { (void)LobbyID; return false; }
 	virtual void LeaveLobby() {}
 	virtual unsigned long long CurrentLobbyID() const { return 0; }
@@ -269,6 +269,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	unsigned long long m_CurrentLobbyID;
 	unsigned long long m_PendingLobbyJoinID;
 	unsigned long long m_HostedLobbyID;
+	int m_HostLocalPort;
 	bool m_ListenServerStopRequested;
 	bool m_LobbyCreatePending;
 	bool m_LobbyRefreshPending;
@@ -423,7 +424,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 
 public:
 	CSteamPlatformServices() :
-		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_NextEventRetry(0), m_WorkshopItemCount(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
+		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_HostLocalPort(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_NextEventRetry(0), m_WorkshopItemCount(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
 		m_JoinRequestedCallback(this, &CSteamPlatformServices::OnJoinRequested),
 		m_AuthTicketCallback(this, &CSteamPlatformServices::OnAuthTicketResponse),
 		m_LobbyJoinRequestedCallback(this, &CSteamPlatformServices::OnLobbyJoinRequested),
@@ -443,15 +444,26 @@ public:
 		LoadEventQueue();
 		if(m_Initialized)
 			return true;
+		// On Windows the executable is also distributed as a standalone build.
+		// RestartAppIfNecessary exits that process immediately when it was opened
+		// outside Steam, which looks exactly like a startup crash if Steam cannot
+		// relaunch the private/test AppID. Steam-launched processes already carry
+		// the correct app context, so initialize directly and retain the existing
+		// standalone fallback.
+#if !defined(CONF_FAMILY_WINDOWS)
 		if(SteamAPI_RestartAppIfNecessary((AppId_t)STEAM_APP_ID))
 		{
 			m_ExitRequested = true;
 			return false;
 		}
-		m_Initialized = SteamAPI_Init();
+#endif
+		dbg_msg("steam", "initializing Steam API for AppID %d", STEAM_APP_ID);
+		SteamErrMsg aInitError;
+		const ESteamAPIInitResult InitResult = SteamAPI_InitEx(&aInitError);
+		m_Initialized = InitResult == k_ESteamAPIInitResult_OK;
 		if(!m_Initialized)
 		{
-			dbg_msg("steam", "SteamAPI_Init failed; Steam features are unavailable");
+			dbg_msg("steam", "SteamAPI_Init failed (%d): %s; Steam features are unavailable", (int)InitResult, aInitError[0] ? aInitError : "no detail");
 			return false;
 		}
 		dbg_msg("steam", "initialized for user %llu", LocalUserID());
@@ -590,10 +602,11 @@ public:
 		return true;
 	}
 
-	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers)
+	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers, int HostLocalPort)
 	{
 		if(!m_Initialized || !SteamMatchmaking() || m_CurrentLobbyID || m_LobbyCreatePending || MaxMembers < 1 || MaxMembers > 64)
 			return false;
+		m_HostLocalPort = clamp(HostLocalPort, 1024, 65535);
 		ELobbyType Type = k_ELobbyTypeFriendsOnly;
 		if(Visibility == PLATFORM_LOBBY_INVITE_ONLY)
 			Type = k_ELobbyTypePrivate;
@@ -623,6 +636,7 @@ public:
 		m_CurrentLobbyID = 0;
 		m_PendingLobbyJoinID = 0;
 		m_HostedLobbyID = 0;
+		m_HostLocalPort = 0;
 		m_aPendingJoin[0] = 0;
 		m_aJoinFailure[0] = 0;
 		if(SteamFriends())
@@ -1040,7 +1054,7 @@ void CSteamPlatformServices::OnLobbyCreated(LobbyCreated_t *pResult, bool IOErro
 	char aConnect[48];
 	str_format(aConnect, sizeof(aConnect), "steam:%s", aHostSteamID);
 	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "connect", aConnect);
-	str_format(m_aPendingJoin, sizeof(m_aPendingJoin), "127.0.0.1:%d", clamp(g_Config.m_ClLocalServerPort, 1024, 65535));
+	str_format(m_aPendingJoin, sizeof(m_aPendingJoin), "127.0.0.1:%d", m_HostLocalPort);
 	SteamFriends()->SetRichPresence("connect", aConnect);
 }
 
@@ -1056,7 +1070,7 @@ void CSteamPlatformServices::OnLobbyEntered(LobbyEnter_t *pResult, bool IOError)
 	m_PendingLobbyJoinID = m_CurrentLobbyID;
 	if(m_HostedLobbyID == m_CurrentLobbyID)
 	{
-		str_format(m_aPendingJoin, sizeof(m_aPendingJoin), "127.0.0.1:%d", clamp(g_Config.m_ClLocalServerPort, 1024, 65535));
+		str_format(m_aPendingJoin, sizeof(m_aPendingJoin), "127.0.0.1:%d", m_HostLocalPort);
 		return;
 	}
 

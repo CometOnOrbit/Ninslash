@@ -15,6 +15,7 @@
 #include <game/client/pve_progress_storage.h>
 #include <game/client/skelebank.h>
 #include <game/questinfo.h>
+#include <game/tutorial.h>
 
 #include "pve_roguelite.h"
 
@@ -282,7 +283,7 @@ void CPveRoguelite::LoadProgress()
 
 void CPveRoguelite::SaveProgress()
 {
-	if(!m_ProgressStorageWritable || !Storage())
+	if(g_Config.m_ClTutorialActive || !m_ProgressStorageWritable || !Storage())
 		return;
 	CPveProgressData Data;
 	Data.m_ProgressVersion = g_Config.m_ClPveProgressVersion;
@@ -490,6 +491,15 @@ void CPveRoguelite::ConDebugGameScreenshot(IConsole::IResult *pResult, void *pUs
 
 void CPveRoguelite::OnReset()
 {
+	m_TutorialMoveMask = 0;
+	m_TutorialFireCount = 0;
+	m_TutorialKillCount = 0;
+	m_TutorialObjectiveSignature = -1;
+	m_TutorialPerkChosen = false;
+	m_TutorialNonce = 0;
+	m_TutorialProgress = 0;
+	m_TutorialTarget = 1;
+	m_TutorialFlags = 0;
 	if(m_DebugChoiceScreenshotFrames <= 0)
 	{
 		m_ChoiceActive = false;
@@ -575,6 +585,124 @@ void CPveRoguelite::OnReset()
 	m_ResearchProgressDisplay = 0.0f;
 	m_SelectionPulse = 0.0f;
 	m_ResearchAnimTab = -1;
+}
+
+void CPveRoguelite::AdvanceTutorial()
+{
+	if(g_Config.m_ClTutorialState != 1)
+		return;
+	if(m_TutorialNonce > 0)
+	{
+		CNetMsg_Cl_TutorialAction Msg;
+		Msg.m_Action = TUTORIAL_ACTION_UI_CONTINUE;
+		Msg.m_Nonce = m_TutorialNonce;
+		Msg.m_Value = 0;
+		Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+		return;
+	}
+	g_Config.m_ClTutorialCheckpoint = min(6, g_Config.m_ClTutorialCheckpoint + 1);
+	dbg_msg("tutorial", "checkpoint %d reached", g_Config.m_ClTutorialCheckpoint);
+	if(g_Config.m_ClTutorialCheckpoint >= 6)
+	{
+		g_Config.m_ClTutorialState = 2;
+		dbg_msg("tutorial", "completed locally; no gameplay or account data was uploaded");
+	}
+	else if(g_Config.m_ClTutorialCheckpoint == 5 && m_TutorialPerkChosen)
+		AdvanceTutorial();
+}
+
+void CPveRoguelite::SendTutorialAction(int Action, int Value)
+{
+	if(!g_Config.m_ClTutorialActive || m_TutorialNonce <= 0)
+		return;
+	CNetMsg_Cl_TutorialAction Msg;
+	Msg.m_Action = Action;
+	Msg.m_Nonce = m_TutorialNonce;
+	Msg.m_Value = Value;
+	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+}
+
+void CPveRoguelite::TickTutorial()
+{
+	if(!g_Config.m_ClTutorialActive || g_Config.m_ClTutorialState != 1 || Client()->State() != IClient::STATE_ONLINE)
+		return;
+	if(g_Config.m_ClTutorialCheckpoint != 3 || !m_pClient->m_Snap.m_pGameDataObj)
+		return;
+	const int Quest = m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreRed;
+	const int Level = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierRed;
+	const int Pack = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierBlue;
+	const int Signature = Quest * 31 + Level * 131 + (Pack & 0xFF);
+	if(m_TutorialObjectiveSignature < 0)
+	{
+		m_TutorialObjectiveSignature = Signature;
+		return;
+	}
+	// The server changes quest/level/phase only after the objective has been
+	// completed. Progress counters are deliberately excluded from the signature.
+	if(Signature != m_TutorialObjectiveSignature)
+		AdvanceTutorial();
+}
+
+void CPveRoguelite::OnGameOver()
+{
+	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 2)
+	{
+		m_pClient->m_pMenus->FinishTutorial();
+		return;
+	}
+	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 1)
+		dbg_msg("tutorial", "mission ended at checkpoint %d", g_Config.m_ClTutorialCheckpoint);
+}
+
+void CPveRoguelite::DrawTutorialHud()
+{
+	if(!g_Config.m_ClTutorialActive || g_Config.m_ClTutorialState != 1 || Client()->State() != IClient::STATE_ONLINE)
+		return;
+	const float Aspect = Graphics()->ScreenAspect();
+	const float ScreenWidth = 300.0f * Aspect;
+	Graphics()->MapScreen(0, 0, ScreenWidth, 300.0f);
+	char aMove[96], aLeft[48], aRight[48], aJump[64], aFire[64], aForge[64], aDrone[64];
+	m_pClient->m_pBinds->GetKeys("+left", aLeft, sizeof(aLeft));
+	m_pClient->m_pBinds->GetKeys("+right", aRight, sizeof(aRight));
+	str_format(aMove, sizeof(aMove), "%s%s%s", aLeft, aLeft[0] && aRight[0] ? ", " : "", aRight);
+	m_pClient->m_pBinds->GetKeys("+jump", aJump, sizeof(aJump));
+	m_pClient->m_pBinds->GetKeys("+fire", aFire, sizeof(aFire));
+	m_pClient->m_pBinds->GetKeys("+inventory", aForge, sizeof(aForge));
+	m_pClient->m_pBinds->GetKeys("+dronewheel", aDrone, sizeof(aDrone));
+	const char *pMove = aMove[0] ? aMove : "?";
+	const char *pJump = aJump[0] ? aJump : "?";
+	const char *pFire = aFire[0] ? aFire : "?";
+	const char *pForge = aForge[0] ? aForge : "?";
+	const char *pDrone = aDrone[0] ? aDrone : "?";
+	static const char *s_apChapterNames[6] = {"First Deployment", "Combat and Recovery", "PvE Mission", "Forge and Build", "Build and Growth", "Multiplayer Ready"};
+	char aText[256];
+	const int Chapter = clamp(g_Config.m_ClTutorialChapter, 1, 6);
+	const int Step = clamp(g_Config.m_ClTutorialStep, 0, 9);
+	switch(Chapter)
+	{
+	case 1: str_format(aText, sizeof(aText), Step == 0 ? Localize("Move with %s, then jump with %s") : Step == 1 ? Localize("Aim and fire with %s") : Localize("Switch weapons and hit the training target."), Step == 0 ? pMove : pFire, pJump); break;
+	case 2: str_copy(aText, Localize(Step == 0 ? "Defeat the marked enemies and watch your ammunition." : Step == 1 ? "Take controlled damage, then collect health." : "Respawn near the current objective and finish the encounter."), sizeof(aText)); break;
+	case 3: str_copy(aText, Localize(Step == 0 ? "Follow the radar marker. Stay near the switch for 2 seconds to activate it." : Step == 1 ? "Stay near the next marked switch for 2 seconds to secure the defense area." : Step == 2 ? "Activate the next marked switch and watch the HUD progress." : "Activate the final marked switch to open the extraction route."), sizeof(aText)); break;
+	case 4: str_format(aText, sizeof(aText), Step == 0 ? Localize("Collect the marked sandbox materials.") : Step == 1 ? Localize("Open Forge with %s and craft the recommended weapon.") : Localize("Build a defense and survive the controlled wave."), pForge); break;
+	case 5:
+		if(Step == 1)
+			str_format(aText, sizeof(aText), Localize("Hold %s, choose a drone module, then release to switch."), pDrone);
+		else
+			str_copy(aText, Localize(Step == 0 ? "Choose one of the three run perks." : "Purchase the highlighted sandbox research node. Tutorial points do not affect your save."), sizeof(aText));
+		break;
+	default: str_copy(aText, Localize(Step == 0 ? "Complete the short bot PvP objective." : Step == 1 ? "Configure and create the simulated room." : "Filter the simulated room list and join a room."), sizeof(aText)); break;
+	}
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 Text = CMenus::ThemeText();
+	CUIRect Hud = {ScreenWidth * 0.5f - 100.0f, 12.0f, 200.0f, 34.0f};
+	DrawPanel(Hud, vec4(Panel.r, Panel.g, Panel.b, 0.94f), 6.0f);
+	CUIRect Edge = {Hud.x, Hud.y, 2.0f, Hud.h};
+	DrawPanel(Edge, Accent, 1.0f);
+	char aTitle[128];
+	str_format(aTitle, sizeof(aTitle), Localize("CHAPTER %d/6 · %s · %d/%d"), Chapter, Localize(s_apChapterNames[Chapter - 1]), m_TutorialProgress, max(1, m_TutorialTarget));
+	DrawText(Hud.x + 8.0f, Hud.y + 5.0f, 6.0f, aTitle, Accent);
+	DrawWrappedText(Hud.x + 8.0f, Hud.y + 15.0f, 5.3f, aText, Text, Hud.w - 16.0f, 2);
 }
 
 CPveResearchMask CPveRoguelite::ParseResearchMask() const
@@ -1348,13 +1476,20 @@ void CPveRoguelite::RenderBuildDebug()
 bool CPveRoguelite::CanBuyResearch(int CardID, const CPveResearchMask &Mask) const
 {
 	const CPveCardDef *pDef = PveCardDef(CardID);
-	return pDef && !pDef->m_Base && !PveCardIsUnlocked(CardID, Mask) && g_Config.m_ClPveResearchPoints >= pDef->m_ResearchCost &&
+	const int ResearchPoints = TutorialResearchActive() ? 99 : g_Config.m_ClPveResearchPoints;
+	return pDef && !pDef->m_Base && !PveCardIsUnlocked(CardID, Mask) && ResearchPoints >= pDef->m_ResearchCost &&
 		Mask.PrerequisitesMet(CardID);
+}
+
+bool CPveRoguelite::TutorialResearchActive() const
+{
+	return g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 1 &&
+		g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_BUILD && g_Config.m_ClTutorialStep == 2;
 }
 
 void CPveRoguelite::BuySelectedResearch()
 {
-	CPveResearchMask Mask = ParseResearchMask();
+	CPveResearchMask Mask = TutorialResearchActive() ? CPveResearchMask() : ParseResearchMask();
 	const CPveCardDef *pSelected = PveCardDef(m_SelectedResearch);
 	if(!pSelected || !CanBuyResearch(m_SelectedResearch, Mask))
 		return;
@@ -1478,7 +1613,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 	ResearchText(Header.x + 23.0f * Scale, Header.y + 6.0f * Scale, 13.0f * Scale, Localize("Research"), Fade(Text, 1.0f));
 
 	char aPoints[64];
-	str_format(aPoints, sizeof(aPoints), Localize("%d Research Points"), g_Config.m_ClPveResearchPoints);
+	str_format(aPoints, sizeof(aPoints), Localize("%d Research Points"), TutorialResearchActive() ? 99 : g_Config.m_ClPveResearchPoints);
 	const float PointsWidth = clamp(Header.w * 0.23f, 156.0f * Scale, 196.0f * Scale);
 	CUIRect Points = {Header.x + Header.w - PointsWidth - 10.0f * Scale, Header.y + 7.0f * Scale, PointsWidth, (Compact ? 28.0f : 32.0f) * Scale};
 	DrawPanel(Points, Fade(AccentDim, 0.34f + 0.16f * Wave), 15.0f * Scale);
@@ -1575,7 +1710,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 			BranchCount = max(BranchCount, PveCardDef(ID)->m_Branch + 1);
 	BranchCount = max(1, BranchCount);
 	m_ResearchBranch = clamp(m_ResearchBranch, 0, BranchCount - 1);
-	const CPveResearchMask Mask = ParseResearchMask();
+	const CPveResearchMask Mask = TutorialResearchActive() ? CPveResearchMask() : ParseResearchMask();
 	const float BranchGap = (Compact ? 3.5f : 5.0f) * Scale;
 	const float BranchHeaderHeight = (Compact ? 29.0f : 33.0f) * Scale;
 	const float ExpandedHeight = max(BranchHeaderHeight,
@@ -2014,6 +2149,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 
 void CPveRoguelite::OnRender()
 {
+	TickTutorial();
 	const bool WasResearchVisible = m_ResearchVisible;
 	m_ResearchVisible = false;
 	if(!WasResearchVisible)
@@ -2072,6 +2208,7 @@ void CPveRoguelite::OnRender()
 			DrawBuildHud();
 		}
 	}
+	DrawTutorialHud();
 	DrawDroneWheel();
 }
 
@@ -2089,6 +2226,25 @@ void CPveRoguelite::RenderMenuDebugOverlay()
 
 bool CPveRoguelite::OnInput(IInput::CEvent Event)
 {
+	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 1 && m_TutorialNonce <= 0 && (Event.m_Flags & IInput::FLAG_PRESS))
+	{
+		const char *pBind = m_pClient->m_pBinds->Get(Event.m_Key);
+		const int Checkpoint = g_Config.m_ClTutorialCheckpoint;
+		if(Checkpoint == 0)
+		{
+			if(str_comp(pBind, "+left") == 0 || str_comp(pBind, "+right") == 0 || str_comp(pBind, "+gamepadleft") == 0 || str_comp(pBind, "+gamepadright") == 0)
+				m_TutorialMoveMask |= 1;
+			if(str_comp(pBind, "+jump") == 0 || str_comp(pBind, "+gamepadjump") == 0)
+				m_TutorialMoveMask |= 2;
+			if(m_TutorialMoveMask == 3)
+				AdvanceTutorial();
+		}
+		else if(Checkpoint == 1 && (str_comp(pBind, "+fire") == 0 || str_comp(pBind, "+gamepadfire") == 0))
+		{
+			if(++m_TutorialFireCount >= 3)
+				AdvanceTutorial();
+		}
+	}
 	if(!ChoiceActive() && !m_ResearchVisible && !m_pClient->GameplayInputCaptured() &&
 		(Event.m_Flags & IInput::FLAG_PRESS) && m_aRunPerks[PVE_CARD_DRONE_CHASSIS] > 0)
 	{
@@ -2294,13 +2450,60 @@ bool CPveRoguelite::OnMouseMove(float x, float y)
 
 void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 {
-	if(MsgType == NETMSGTYPE_SV_PVEPROGRESS)
+	if(MsgType == NETMSGTYPE_SV_TUTORIALSTATE)
+	{
+		const CNetMsg_Sv_TutorialState *pMsg = (const CNetMsg_Sv_TutorialState *)pRawMsg;
+		g_Config.m_ClTutorialChapter = pMsg->m_Chapter;
+		g_Config.m_ClTutorialStep = pMsg->m_Step;
+		g_Config.m_ClTutorialCompletedMask = pMsg->m_CompletedMask;
+		m_TutorialProgress = pMsg->m_Progress;
+		m_TutorialTarget = pMsg->m_Target;
+		m_TutorialNonce = pMsg->m_Nonce;
+		m_TutorialFlags = pMsg->m_Flags;
+		if(pMsg->m_Flags & 2)
+		{
+			m_pClient->m_pMenus->HandleTutorialChapterCompleted(pMsg->m_Chapter, pMsg->m_CompletedMask);
+		}
+		else if(pMsg->m_Chapter == TUTORIAL_CHAPTER_MULTIPLAYER && pMsg->m_Step >= 1)
+		{
+			m_pClient->m_pMenus->OpenTutorialRoomPractice();
+		}
+		else if(pMsg->m_Chapter == TUTORIAL_CHAPTER_BUILD && pMsg->m_Step == 2)
+		{
+			m_SelectedResearch = PVE_CARD_SERVO_LINK;
+			const CPveCardDef *pDef = PveCardDef(m_SelectedResearch);
+			if(pDef)
+			{
+				m_ResearchTab = pDef->m_Tab;
+				m_ResearchBranch = pDef->m_Branch;
+				m_ResearchRoute = PveResearchRoute(pDef);
+			}
+			m_pClient->m_pMenus->OpenResearchPage();
+		}
+		return;
+	}
+	if(MsgType == NETMSGTYPE_SV_KILLMSG)
+	{
+		const CNetMsg_Sv_KillMsg *pMsg = (const CNetMsg_Sv_KillMsg *)pRawMsg;
+		if(g_Config.m_ClTutorialActive && m_TutorialNonce <= 0 && g_Config.m_ClTutorialState == 1 && g_Config.m_ClTutorialCheckpoint == 2 && pMsg->m_Killer == m_pClient->m_Snap.m_LocalClientID)
+			if(++m_TutorialKillCount >= 3)
+				AdvanceTutorial();
+	}
+	else if(MsgType == NETMSGTYPE_SV_FORGERESULT)
+	{
+		const CNetMsg_Sv_ForgeResult *pMsg = (const CNetMsg_Sv_ForgeResult *)pRawMsg;
+		if(g_Config.m_ClTutorialActive && m_TutorialNonce <= 0 && g_Config.m_ClTutorialState == 1 && g_Config.m_ClTutorialCheckpoint == 4 && pMsg->m_Result == FORGERESULT_SUCCESS)
+			AdvanceTutorial();
+	}
+	else if(MsgType == NETMSGTYPE_SV_PVEPROGRESS)
 	{
 		if(!m_ProgressSent)
 		{
 			SyncProgress();
 			return;
 		}
+		if(g_Config.m_ClTutorialActive)
+			return;
 		CNetMsg_Sv_PveProgress *pMsg = (CNetMsg_Sv_PveProgress *)pRawMsg;
 		const unsigned long long Low = (unsigned int)pMsg->m_ResearchMask0 | ((unsigned long long)(unsigned int)pMsg->m_ResearchMask1 << 32);
 		const unsigned long long High = (unsigned int)pMsg->m_ResearchMask2 | ((unsigned long long)(unsigned int)pMsg->m_ResearchMask3 << 32);
@@ -2350,6 +2553,8 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		CNetMsg_Sv_PvePerk *pMsg = (CNetMsg_Sv_PvePerk *)pRawMsg;
 		if(pMsg->m_ClientID == m_pClient->m_Snap.m_LocalClientID)
 		{
+			if(g_Config.m_ClTutorialActive)
+				m_TutorialPerkChosen = true;
 			// Perk messages also restore the existing run after an Invasion map
 			// change. Only this offer's result may dismiss the choice overlay.
 			if(m_ChoiceActive && m_ChoiceSequence > 0 && pMsg->m_Choices >= m_ChoiceSequence)
@@ -2359,6 +2564,8 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 			}
 			if(pMsg->m_Card < NUM_PVE_CARDS)
 				m_aRunPerks[pMsg->m_Card] = pMsg->m_Stacks;
+			if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 1 && g_Config.m_ClTutorialCheckpoint == 5)
+				AdvanceTutorial();
 		}
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVECONTRACTVOTE)
@@ -2398,6 +2605,8 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVERESEARCHREWARD)
 	{
+		if(g_Config.m_ClTutorialActive)
+			return;
 		CNetMsg_Sv_PveResearchReward *pMsg = (CNetMsg_Sv_PveResearchReward *)pRawMsg;
 		g_Config.m_ClPveResearchPoints = clamp(g_Config.m_ClPveResearchPoints + pMsg->m_Amount, 0, 999);
 		g_Config.m_ClPveHighestInvasion = max(g_Config.m_ClPveHighestInvasion, pMsg->m_HighestInvasion);

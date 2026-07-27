@@ -127,10 +127,6 @@ cmake -S . -B build-steam -DCMAKE_BUILD_TYPE=Release \
 cmake --build build-steam --parallel
 ```
 
-SteamPipe staging, depot templates, Steam Cloud paths and release gates are
-documented in [`packaging/steam/`](packaging/steam/) and
-[`docs/release/`](docs/release/).
-
 ## Contributing
 
 Bug reports and pull requests are welcome. Before submitting a change:
@@ -153,6 +149,4 @@ Ninslash authors. Bundled libraries have their own licenses, summarized in
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
 
 Unless a file carries a more specific third-party notice, content in `data/`
-uses the Ninslash asset license, CC-BY-SA 3.0; this is distinct from the source
-code license. Every public release must still pass the
-[release asset audit](docs/release/README.md).
+uses the Ninslash asset license, CC-BY-SA 3.0.

@@ -21,6 +21,7 @@
 #include "gamemodes/tdm.h"
 #include "gamemodes/ctf.h"
 #include "gamemodes/invasion.h"
+#include "gamemodes/tutorial.h"
 #include "gamemodes/horde.h"
 #include "gamemodes/extract.h"
 #include "gamemodes/base.h"
@@ -41,6 +42,7 @@
 
 #include <game/server/playerdata.h>
 #include <game/server/pve_director.h>
+#include <game/server/tutorial_director.h>
 #include <game/server/blockentities.h>
 
 #include <game/server/ai_protocol.h>
@@ -72,6 +74,7 @@ void CGameContext::Construct(int Resetting)
 	
 	m_pController = 0;
 	m_pPveDirector = 0;
+	m_pTutorialDirector = 0;
 	m_VoteCloseTime = 0;
 	m_pVoteOptionFirst = 0;
 	m_pVoteOptionLast = 0;
@@ -103,6 +106,8 @@ CGameContext::~CGameContext()
 {
 	delete m_pPveDirector;
 	m_pPveDirector = 0;
+	delete m_pTutorialDirector;
+	m_pTutorialDirector = 0;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		delete m_apPlayers[i];
 	if(!m_Resetting)
@@ -1653,7 +1658,7 @@ void CGameContext::CheckPureTuning()
 	case 'D': Pure = str_comp(m_pController->m_pGameType, "DM") == 0 || str_comp(m_pController->m_pGameType, "DEF") == 0; break;
 	case 'G': Pure = str_comp(m_pController->m_pGameType, "GUN") == 0; break;
 	case 'I': Pure = str_comp(m_pController->m_pGameType, "INF") == 0 || str_comp(m_pController->m_pGameType, "INV") == 0; break;
-	case 'T': Pure = str_comp(m_pController->m_pGameType, "TDM") == 0; break;
+	case 'T': Pure = str_comp(m_pController->m_pGameType, "TDM") == 0 || str_comp(m_pController->m_pGameType, "TUT") == 0; break;
 	default: break;
 	}
 
@@ -1980,6 +1985,8 @@ void CGameContext::GetAISkin(CAISkin *pAISkin, bool PVP, int Level, int WaveGrou
 
 void CGameContext::OnClientDirectInput(int ClientID, void *pInput)
 {
+	if(m_pTutorialDirector)
+		m_pTutorialDirector->OnInput(ClientID, (CNetObj_PlayerInput *)pInput);
 	if(!m_World.m_Paused)
 		m_apPlayers[ClientID]->OnDirectInput((CNetObj_PlayerInput *)pInput);
 }
@@ -1996,13 +2003,15 @@ void CGameContext::OnClientEnter(int ClientID)
 	m_apPlayers[ClientID]->Respawn();
 	if(m_pPveDirector)
 		m_pPveDirector->OnClientEnter(ClientID);
+	if(m_pTutorialDirector)
+		m_pTutorialDirector->OnClientEnter(ClientID);
 	SendChatTarget(-1, "'%s' joined the fun", Server()->ClientName(ClientID));
 
 	char aBuf[512];
 	str_format(aBuf, sizeof(aBuf), "team_join player='%d:%s' team=%d", ClientID, Server()->ClientName(ClientID), m_apPlayers[ClientID]->GetTeam());
 	Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
 
-	if (m_pController->IsCoop() && g_Config.m_SvMapGen)
+	if (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGen)
 	{
 		if (!g_Config.m_SvInvFails)
 			SendBroadcastFormat(ClientID, false, "Level %d", g_Config.m_SvMapGenLevel);
@@ -2025,6 +2034,11 @@ void CGameContext::OnClientEnter(int ClientID)
 
 void CGameContext::OnClientConnected(int ClientID, bool AI)
 {
+	if(!AI && str_comp(g_Config.m_SvGametype, "tutorial") == 0 && m_pController->CountHumans() >= 1)
+	{
+		Server()->Kick(ClientID, "Tutorial sessions are single-player");
+		return;
+	}
 	// Check which team the player should be on
 	int StartTeam = g_Config.m_SvTournamentMode ? TEAM_SPECTATORS : m_pController->GetAutoTeam(ClientID);
 
@@ -2150,6 +2164,8 @@ bool CGameContext::Shop(CPlayer *pPlayer, int Slot, bool AI)
 
 void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 {
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_apPlayers[ClientID])
+		return;
 	if(m_pPveDirector)
 		m_pPveDirector->OnClientDrop(ClientID);
 	AbortVoteKickOnDisconnect(ClientID);
@@ -2224,6 +2240,12 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pController);
 			if(pInvasion)
 				pInvasion->OnRetryVote(ClientID, pMsg->m_Nonce, pMsg->m_Choice);
+		}
+		else if(MsgID == NETMSGTYPE_CL_TUTORIALACTION)
+		{
+			CNetMsg_Cl_TutorialAction *pMsg = (CNetMsg_Cl_TutorialAction *)pRawMsg;
+			if(m_pTutorialDirector)
+				m_pTutorialDirector->OnAction(ClientID, pMsg->m_Action, pMsg->m_Nonce, pMsg->m_Value);
 		}
 		else if(MsgID == NETMSGTYPE_CL_SAY)
 		{
@@ -3307,6 +3329,8 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 		m_pController = new CGameControllerTexasRun(this);
 	else if(str_comp(g_Config.m_SvGametype, "base") == 0)
 		m_pController = new CGameControllerBase(this);
+	else if(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
+		m_pController = new CGameControllerTutorial(this);
 	else if(str_comp(g_Config.m_SvGametype, "coop") == 0)
 		m_pController = new CGameControllerInvasion(this);
 	else if(str_comp(g_Config.m_SvGametype, "horde") == 0)
@@ -3321,6 +3345,8 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 		m_pController = new CGameControllerDM(this);
 
 	m_pPveDirector = new CPveDirector(this);
+	if(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
+		m_pTutorialDirector = new CTutorialDirector(this);
 	
 	//if (str_comp(g_Config.m_SvGametype, "coop") != 0)
 	//	Server()->ResetPlayerData();
@@ -3412,6 +3438,8 @@ void CGameContext::OnShutdown()
 	
 	delete m_pPveDirector;
 	m_pPveDirector = 0;
+	delete m_pTutorialDirector;
+	m_pTutorialDirector = 0;
 	delete m_pController;
 	m_pController = 0;
 	Clear();

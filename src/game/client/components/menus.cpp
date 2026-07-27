@@ -25,8 +25,12 @@
 #include <game/client/components/sounds.h>
 #include <game/client/gameclient.h>
 #include <game/client/lineinput.h>
+#include <game/client/local_game_modes.h>
+#include <game/client/menu_home.h>
+#include <game/client/room_creation.h>
 #include <game/client/skelebank.h>
 #include <game/localization.h>
+#include <game/tutorial.h>
 #include <mastersrv/mastersrv.h>
 #include <game/client/customstuff.h>
 
@@ -81,9 +85,11 @@ CMenus::CMenus()
 	m_NavigationFocus = 0;
 	m_LastInputDevice = 0;
 	m_PlayTab = 0;
+	m_CreateRoomStep = 0;
+	m_CreateRoomPreviousSlots = 8;
 	m_NavigationHasFocus = false;
 
-	g_Config.m_UiPage = PAGE_INTERNET;
+	g_Config.m_UiPage = PAGE_FRONT;
 
 	m_NeedRestartGraphics = false;
 	m_NeedRestartSound = false;
@@ -100,6 +106,7 @@ CMenus::CMenus()
 	m_LocalServerActualPort = 0;
 	m_LocalServerAutoJoin = false;
 	m_LocalServerRestartPending = false;
+	m_TutorialChapterReplay = false;
 	m_LocalServerSummaryLocalized = false;
 	m_LocalServerFocus = 0;
 	mem_zero(&m_LocalServerAddress, sizeof(m_LocalServerAddress));
@@ -135,8 +142,61 @@ CMenus::CMenus()
 	m_FilterPresetRenameSlot = -1;
 	m_aFilterPresetRenameBuf[0] = 0;
 	mem_zero(m_aFilterPresets, sizeof(m_aFilterPresets));
+	mem_zero(m_aaPlayServerSnapshots, sizeof(m_aaPlayServerSnapshots));
+	mem_zero(m_aPlayServerSnapshotCount, sizeof(m_aPlayServerSnapshotCount));
+	mem_zero(m_aPlayLobbySnapshots, sizeof(m_aPlayLobbySnapshots));
+	m_PlayLobbySnapshotCount = 0;
+	m_PlayBrowserCollection = PLAY_COLLECTION_INTERNET;
+	m_aPlaySelectedID[0] = 0;
+	m_PlayFiltersOpen = false;
+	m_PlayDetailOpen = false;
+	m_PlayListHasFocus = false;
 	str_copy(m_aFilterPresets[UI_FILTER_PRESET_ALL].m_aName, "All", sizeof(m_aFilterPresets[UI_FILTER_PRESET_ALL].m_aName));
 	str_copy(m_aFilterPresets[UI_FILTER_PRESET_FAVORITES].m_aName, "Favorites", sizeof(m_aFilterPresets[UI_FILTER_PRESET_FAVORITES].m_aName));
+}
+
+void CMenus::UpdatePlaySnapshots()
+{
+	// Replacing a snapshot only after a refresh completes avoids transient empty
+	// lists while master or LAN discovery is still in flight.
+	if(!ServerBrowser()->IsRefreshing())
+	{
+		const int Collection = clamp(m_PlayBrowserCollection, (int)PLAY_COLLECTION_INTERNET, (int)PLAY_COLLECTION_FAVORITES);
+		int Count = 0;
+		for(int i = 0; i < ServerBrowser()->NumSortedServers() && Count < MAX_PLAY_SERVER_SNAPSHOTS; i++)
+		{
+			const CServerInfo *pInfo = ServerBrowser()->SortedGet(i);
+			if(!pInfo)
+				continue;
+			CPlayServerSnapshot &Snapshot = m_aaPlayServerSnapshots[Collection][Count++];
+			Snapshot.m_NetAddr = pInfo->m_NetAddr;
+			Snapshot.m_Collection = Collection;
+			Snapshot.m_MaxClients = pInfo->m_MaxClients;
+			Snapshot.m_NumClients = pInfo->m_NumClients;
+			Snapshot.m_Flags = pInfo->m_Flags;
+			Snapshot.m_Latency = pInfo->m_Latency;
+			Snapshot.m_DiscoverySources = pInfo->m_DiscoverySources;
+			Snapshot.m_AuthPolicy = pInfo->m_AuthPolicy;
+			Snapshot.m_Official = pInfo->m_Official;
+			Snapshot.m_Modded = pInfo->m_Modded;
+			Snapshot.m_Favorite = pInfo->m_Favorite;
+			str_copy(Snapshot.m_aAddress, pInfo->m_aAddress, sizeof(Snapshot.m_aAddress));
+			str_copy(Snapshot.m_aName, pInfo->m_aName, sizeof(Snapshot.m_aName));
+			str_copy(Snapshot.m_aGameType, pInfo->m_aGameType, sizeof(Snapshot.m_aGameType));
+			str_copy(Snapshot.m_aMap, pInfo->m_aMap, sizeof(Snapshot.m_aMap));
+			str_copy(Snapshot.m_aVersion, pInfo->m_aVersion, sizeof(Snapshot.m_aVersion));
+		}
+		m_aPlayServerSnapshotCount[Collection] = Count;
+	}
+
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	if(!pPlatform || !pPlatform->Available())
+		return;
+	int Count = 0;
+	for(int i = 0; i < pPlatform->LobbyCount() && Count < MAX_PLAY_LOBBY_SNAPSHOTS; i++)
+		if(pPlatform->LobbyInfo(i, &m_aPlayLobbySnapshots[Count].m_Info))
+			Count++;
+	m_PlayLobbySnapshotCount = Count;
 }
 
 float CMenus::MenuAlpha() const
@@ -160,6 +220,7 @@ void CMenus::OpenResearchPage()
 		g_Config.m_UiPage = PAGE_RESEARCH;
 	else
 		m_GamePage = PAGE_RESEARCH;
+	SetActive(true);
 }
 
 void CMenus::DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding)
@@ -833,26 +894,210 @@ int CMenus::DoKeyReader(void *pID, const CUIRect *pRect, int Key)
 }
 
 
+void CMenus::DrawNavigationIcon(const CUIRect &Rect, int Icon, bool Active)
+{
+	const vec4 Color = Active ? ms_ColorAccent : vec4(0.68f, 0.72f, 0.78f, 1.0f);
+	const float x = Rect.x + Rect.w * 0.5f;
+	const float y = Rect.y + Rect.h * 0.5f;
+	const float s = min(Rect.w, Rect.h) * 0.22f;
+	IGraphics::CLineItem aLines[8];
+	int Num = 0;
+	if(Icon == 0) // command/home
+	{
+		aLines[Num++] = IGraphics::CLineItem(x - s, y, x, y - s);
+		aLines[Num++] = IGraphics::CLineItem(x, y - s, x + s, y);
+		aLines[Num++] = IGraphics::CLineItem(x - s * .72f, y - s * .05f, x - s * .72f, y + s);
+		aLines[Num++] = IGraphics::CLineItem(x + s * .72f, y - s * .05f, x + s * .72f, y + s);
+		aLines[Num++] = IGraphics::CLineItem(x - s * .72f, y + s, x + s * .72f, y + s);
+	}
+	else if(Icon == 1) // operative
+	{
+		aLines[Num++] = IGraphics::CLineItem(x - s * .45f, y - s, x + s * .45f, y - s);
+		aLines[Num++] = IGraphics::CLineItem(x + s * .45f, y - s, x + s * .65f, y - s * .25f);
+		aLines[Num++] = IGraphics::CLineItem(x + s * .65f, y - s * .25f, x, y + s);
+		aLines[Num++] = IGraphics::CLineItem(x, y + s, x - s * .65f, y - s * .25f);
+		aLines[Num++] = IGraphics::CLineItem(x - s * .65f, y - s * .25f, x - s * .45f, y - s);
+	}
+	else if(Icon == 2) // progress/research
+	{
+		aLines[Num++] = IGraphics::CLineItem(x - s, y + s, x - s * .25f, y + s * .2f);
+		aLines[Num++] = IGraphics::CLineItem(x - s * .25f, y + s * .2f, x + s * .25f, y + s * .55f);
+		aLines[Num++] = IGraphics::CLineItem(x + s * .25f, y + s * .55f, x + s, y - s);
+	}
+	else if(Icon == 3) // mods/blocks
+	{
+		aLines[Num++] = IGraphics::CLineItem(x - s, y - s, x, y - s);
+		aLines[Num++] = IGraphics::CLineItem(x, y - s, x, y);
+		aLines[Num++] = IGraphics::CLineItem(x, y, x + s, y);
+		aLines[Num++] = IGraphics::CLineItem(x + s, y, x + s, y + s);
+		aLines[Num++] = IGraphics::CLineItem(x + s, y + s, x - s, y + s);
+		aLines[Num++] = IGraphics::CLineItem(x - s, y + s, x - s, y - s);
+	}
+	else if(Icon == 4) // replay
+	{
+		aLines[Num++] = IGraphics::CLineItem(x - s, y - s * .25f, x - s, y - s);
+		aLines[Num++] = IGraphics::CLineItem(x - s, y - s, x - s * .25f, y - s);
+		aLines[Num++] = IGraphics::CLineItem(x - s, y - s, x - s * .35f, y - s * .35f);
+		aLines[Num++] = IGraphics::CLineItem(x - s * .35f, y - s * .35f, x + s, y + s * .65f);
+	}
+	else if(Icon == 5) // settings
+	{
+		aLines[Num++] = IGraphics::CLineItem(x - s, y, x + s, y);
+		aLines[Num++] = IGraphics::CLineItem(x, y - s, x, y + s);
+		aLines[Num++] = IGraphics::CLineItem(x - s * .7f, y - s * .7f, x + s * .7f, y + s * .7f);
+		aLines[Num++] = IGraphics::CLineItem(x + s * .7f, y - s * .7f, x - s * .7f, y + s * .7f);
+	}
+	else if(Icon == 7) // mode sliders
+	{
+		aLines[Num++] = IGraphics::CLineItem(x - s, y - s * .65f, x + s, y - s * .65f);
+		aLines[Num++] = IGraphics::CLineItem(x - s, y, x + s, y);
+		aLines[Num++] = IGraphics::CLineItem(x - s, y + s * .65f, x + s, y + s * .65f);
+		aLines[Num++] = IGraphics::CLineItem(x - s * .35f, y - s, x - s * .35f, y - s * .3f);
+		aLines[Num++] = IGraphics::CLineItem(x + s * .4f, y - s * .35f, x + s * .4f, y + s * .35f);
+		aLines[Num++] = IGraphics::CLineItem(x - s * .15f, y + s * .3f, x - s * .15f, y + s);
+	}
+	else // exit
+	{
+		aLines[Num++] = IGraphics::CLineItem(x - s, y - s, x + s, y + s);
+		aLines[Num++] = IGraphics::CLineItem(x + s, y - s, x - s, y + s);
+		aLines[Num++] = IGraphics::CLineItem(x - s, y, x + s, y);
+	}
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+	Graphics()->LinesDraw(aLines, Num);
+	Graphics()->LinesEnd();
+}
+
+void CMenus::DrawPlayArtwork(const CUIRect &Rect, int Mode, const vec4 &Color)
+{
+	CUIRect Art = Rect;
+	RenderTools()->DrawUIRect(&Art, vec4(Color.r * .10f, Color.g * .10f, Color.b * .10f, .96f), CUI::CORNER_T, ms_ControlRounding);
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(Color.r, Color.g, Color.b, .16f);
+	IGraphics::CLineItem aGrid[18];
+	int Num = 0;
+	for(int i = 1; i < 9; i++)
+	{
+		const float gx = Art.x + Art.w * i / 9.0f;
+		aGrid[Num++] = IGraphics::CLineItem(gx, Art.y, gx, Art.y + Art.h);
+	}
+	for(int i = 1; i < 5; i++)
+	{
+		const float gy = Art.y + Art.h * i / 5.0f;
+		aGrid[Num++] = IGraphics::CLineItem(Art.x, gy, Art.x + Art.w, gy);
+	}
+	Graphics()->LinesDraw(aGrid, Num);
+	Graphics()->SetColor(Color.r, Color.g, Color.b, .82f);
+	const float cx = Art.x + Art.w * .72f, cy = Art.y + Art.h * .54f, s = min(Art.w, Art.h) * .25f;
+	IGraphics::CLineItem aMark[8];
+	if(Mode == 0)
+	{
+		aMark[0] = IGraphics::CLineItem(cx - s, cy + s, cx, cy - s);
+		aMark[1] = IGraphics::CLineItem(cx, cy - s, cx + s, cy + s);
+		aMark[2] = IGraphics::CLineItem(cx - s * .55f, cy + s * .2f, cx + s * .55f, cy + s * .2f);
+		Num = 3;
+	}
+	else if(Mode == 1)
+	{
+		aMark[0] = IGraphics::CLineItem(cx - s, cy, cx + s, cy);
+		aMark[1] = IGraphics::CLineItem(cx, cy - s, cx, cy + s);
+		aMark[2] = IGraphics::CLineItem(cx - s * .7f, cy - s * .7f, cx + s * .7f, cy + s * .7f);
+		aMark[3] = IGraphics::CLineItem(cx + s * .7f, cy - s * .7f, cx - s * .7f, cy + s * .7f);
+		Num = 4;
+	}
+	else
+	{
+		aMark[0] = IGraphics::CLineItem(cx - s, cy - s, cx - s, cy + s);
+		aMark[1] = IGraphics::CLineItem(cx + s, cy - s, cx + s, cy + s);
+		aMark[2] = IGraphics::CLineItem(cx - s, cy, cx + s, cy);
+		aMark[3] = IGraphics::CLineItem(cx - s * .2f, cy - s * .35f, cx + s * .2f, cy);
+		aMark[4] = IGraphics::CLineItem(cx + s * .2f, cy, cx - s * .2f, cy + s * .35f);
+		Num = 5;
+	}
+	Graphics()->LinesDraw(aMark, Num);
+	Graphics()->LinesEnd();
+	// Existing weapon atlas elements anchor the procedural panel in the game's
+	// visual language. They stay deliberately faint so replacement key art can
+	// be dropped behind the same card content later.
+	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(Color.r, Color.g, Color.b, .38f);
+	RenderTools()->SelectSprite(Mode == 0 ? SPRITE_PICKUP_AMMO : Mode == 1 ? SPRITE_PICKUP_ARMOR : SPRITE_PICKUP_KIT);
+	const float SpriteSize = min(Art.h * .62f, Art.w * .18f);
+	IGraphics::CQuadItem AtlasSprite(Art.x + Art.w * .12f, Art.y + (Art.h - SpriteSize) * .5f, SpriteSize, SpriteSize);
+	Graphics()->QuadsDrawTL(&AtlasSprite, 1);
+	Graphics()->QuadsEnd();
+	CUIRect Scan = Art;
+	Scan.y += fmodf(Client()->LocalTime() * 18.0f, max(1.0f, Art.h));
+	Scan.h = 1.0f;
+	RenderTools()->DrawUIRect(&Scan, vec4(Color.r, Color.g, Color.b, .30f), 0, 0.0f);
+}
+
+void CMenus::DrawModeVoteImage(const CUIRect &Rect, const char *pImage, bool Active)
+{
+	DrawMenuInset(&Rect, CUI::CORNER_ALL);
+	int Texture = -1;
+	if(m_pClient->m_pSkins && m_pClient->m_pSkins->NumGameVotes() > 0)
+	{
+		const int Index = m_pClient->m_pSkins->FindGameVote(pImage);
+		if(Index >= 0)
+			Texture = m_pClient->m_pSkins->GetGameVote(Index)->m_Texture;
+	}
+	if(Texture >= 0)
+	{
+		Graphics()->TextureSet(Texture);
+		Graphics()->QuadsBegin();
+		const float Brightness = Active ? 1.0f : 0.72f;
+		Graphics()->SetColor(Brightness, Brightness, Brightness, 1.0f);
+		Graphics()->QuadsSetSubsetFree(0, 0, 1, 0, 0, 1, 1, 1);
+		IGraphics::CFreeformItem Image(
+			Rect.x, Rect.y, Rect.x + Rect.w, Rect.y,
+			Rect.x, Rect.y + Rect.h, Rect.x + Rect.w, Rect.y + Rect.h);
+		Graphics()->QuadsDrawFreeform(&Image, 1);
+		Graphics()->QuadsEnd();
+	}
+	else
+	{
+		TextRender()->TextColor(ms_ColorAccentDim.r, ms_ColorAccentDim.g, ms_ColorAccentDim.b, 1.0f);
+		UI()->DoLabelScaled(&Rect, pImage, FitLabelFontSize(TextRender(), pImage, 8.0f, Rect.w - 8.0f), 0);
+		TextRender()->TextColor(1, 1, 1, 1);
+	}
+}
+
+void CMenus::DrawStatusBadge(CUIRect Rect, const char *pText, const vec4 &Color)
+{
+	RenderTools()->DrawUIRect(&Rect, vec4(Color.r * .18f, Color.g * .18f, Color.b * .18f, .96f), CUI::CORNER_ALL, 8.0f);
+	TextRender()->TextColor(Color.r, Color.g, Color.b, 1.0f);
+	UI()->DoLabelScaled(&Rect, pText, FitLabelFontSize(TextRender(), pText, 9.0f, Rect.w - 12.0f), 0);
+	TextRender()->TextColor(1, 1, 1, 1);
+}
+
 int CMenus::RenderMenubar(CUIRect r)
 {
 	if(s_ResetMenu)
 	{
-		g_Config.m_UiPage = PAGE_INTERNET;
+		g_Config.m_UiPage = PAGE_FRONT;
 		s_ResetMenu = false;
 	}
 	const bool Offline = Client()->State() == IClient::STATE_OFFLINE;
 	m_ActivePage = Offline ? g_Config.m_UiPage : m_GamePage;
 	const bool Compact = UI()->Screen()->w < 900.0f;
+	CClientAsyncStatus SteamHostStatus;
+	Client()->SteamHostedGameStatus(&SteamHostStatus);
+	const bool ManagedLocalGameActive = m_LocalServerState == LOCAL_SERVER_STARTING || m_LocalServerState == LOCAL_SERVER_RUNNING;
+	const bool SteamHostedGameActive = SteamHostStatus.m_State == CLIENT_ASYNC_WORKING || SteamHostStatus.m_State == CLIENT_ASYNC_SUCCEEDED;
 	const char *apOfflineLabels[] = {"Play", "Character", "Progress", "Mods", "Replays", "Settings"};
-	const int aOfflinePages[] = {PAGE_INTERNET, PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS};
-	const char *apGameLabels[] = {"Continue", "Game", "Players", "Server", "Vote", "Progress", "Settings", "Leave"};
-	const char *apOfflineIcons[] = {">", "@", "+", "#", "R", "*"};
-	const char *apGameIcons[] = {"<", ">", "P", "S", "V", "+", "*", "X"};
-	const int aGamePages[] = {-2, PAGE_GAME, PAGE_PLAYERS, PAGE_SERVER_INFO, PAGE_CALLVOTE, PAGE_RESEARCH, PAGE_SETTINGS, -3};
+	const int aOfflinePages[] = {PAGE_FRONT, PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS};
+	const char *apGameLabels[] = {"Continue", "Game", InGameRoomActionLabel(ManagedLocalGameActive, SteamHostedGameActive), "Players", "Server", "Vote", "Progress", "Settings", "Leave"};
+	const int aGamePages[] = {-2, PAGE_GAME, PAGE_LOCAL_SERVER, PAGE_PLAYERS, PAGE_SERVER_INFO, PAGE_CALLVOTE, PAGE_RESEARCH, PAGE_SETTINGS, -3};
+	const int aOfflineIcons[] = {0, 1, 2, 3, 4, 5};
+	const int aGameIcons[] = {4, 0, 7, 1, 3, 2, 2, 5, 6};
 	const char **apLabels = Offline ? apOfflineLabels : apGameLabels;
 	const int *pPages = Offline ? aOfflinePages : aGamePages;
-	const int Count = Offline ? 6 : 8;
-	static int s_aNavigationButtons[8];
+	const int Count = Offline ? 6 : 9;
+	static int s_aNavigationButtons[9];
 
 	for(int i = 0; i < m_NumInputEvents; i++)
 	{
@@ -873,22 +1118,79 @@ int CMenus::RenderMenubar(CUIRect r)
 	UI()->DoLabelScaled(&Brand, Compact ? "N" : "NINSLASH", Compact ? 22.0f : 16.0f, 0);
 	Box.HSplitTop(8.0f, 0, &Box);
 	int NewPage = -1;
+	const char *pTooltip = 0;
+	CUIRect TooltipAnchor;
 	for(int i = 0; i < Count; i++)
 	{
+		if((Offline && (i == 3 || i == 5)) || (!Offline && (i == 1 || i == 6)))
+		{
+			CUIRect Group;
+			Box.HSplitTop(Compact ? 8.0f : 20.0f, &Group, &Box);
+			if(!Compact)
+			{
+				const char *pGroup = Offline ? (i == 3 ? "CONTENT" : "SYSTEM") : (i == 1 ? "SESSION" : "PROFILE");
+				TextRender()->TextColor(.48f, .52f, .58f, 1.0f);
+				UI()->DoLabelScaled(&Group, Localize(pGroup), 8.0f, -1);
+				TextRender()->TextColor(1, 1, 1, 1);
+			}
+			else
+			{
+				Group.HMargin(3.0f, &Group);
+				RenderTools()->DrawUIRect(&Group, vec4(.20f, .22f, .26f, .65f), 0, 0.0f);
+			}
+		}
 		CUIRect Button;
 		Box.HSplitTop(36.0f, &Button, &Box);
-		const char *pText = Compact ? (Offline ? apOfflineIcons[i] : apGameIcons[i]) : Localize(apLabels[i]);
+		const char *pText = Compact ? "" : Localize(apLabels[i]);
 		const bool Focused = m_NavigationHasFocus && m_NavigationFocus == i;
-		const bool Activated = DoButton_Menu(&s_aNavigationButtons[i], pText, pPages[i] == m_ActivePage || Focused, &Button, pPages[i] == -3 ? BUTTONSTYLE_DANGER : BUTTONSTYLE_NORMAL) || (Focused && m_LastInputDevice != 0 && m_EnterPressed);
+		const bool PageSelected = pPages[i] == m_ActivePage || (pPages[i] == PAGE_FRONT && m_ActivePage == PAGE_TUTORIAL_SELECT);
+		const bool Activated = DoButton_Menu(&s_aNavigationButtons[i], pText, PageSelected || Focused, &Button, pPages[i] == -3 ? BUTTONSTYLE_DANGER : BUTTONSTYLE_NORMAL) || (Focused && m_LastInputDevice != 0 && m_EnterPressed);
+		if(PageSelected)
+		{
+			CUIRect Indicator = Button;
+			Indicator.w = 3.0f;
+			Indicator.HMargin(7.0f, &Indicator);
+			RenderTools()->DrawUIRect(&Indicator, ms_ColorAccent, CUI::CORNER_R, 2.0f);
+		}
+		if(Compact)
+		{
+			const int Icon = Offline ? aOfflineIcons[i] : aGameIcons[i];
+			DrawNavigationIcon(Button, Icon, PageSelected || Focused);
+			if(UI()->MouseInside(&Button))
+			{
+				pTooltip = Localize(apLabels[i]);
+				TooltipAnchor = Button;
+			}
+		}
 		if(Activated)
 		{
 			m_EnterPressed = false;
 			m_NavigationFocus = i;
 			if(pPages[i] == -2) SetActive(false);
-			else if(pPages[i] == -3) m_Popup = POPUP_QUIT;
+			else if(pPages[i] == -3)
+			{
+				if(InGameLeaveAction(g_Config.m_ClTutorialActive != 0) == INGAME_LEAVE_OPEN_TUTORIAL_EXIT)
+					m_Popup = POPUP_TUTORIAL_EXIT;
+				else
+				{
+					if(SteamHostedGameActive)
+						Client()->StopSteamHostedGame();
+					Client()->Disconnect();
+					g_Config.m_UiPage = PAGE_FRONT;
+					m_GamePage = PAGE_GAME;
+				}
+			}
 			else NewPage = pPages[i];
 		}
 		Box.HSplitTop(5.0f, 0, &Box);
+	}
+	if(pTooltip)
+	{
+		CUIRect Tip = TooltipAnchor;
+		Tip.x = r.x + r.w + 7.0f;
+		Tip.w = max(92.0f, TextRender()->TextWidth(0, 10.0f, pTooltip, -1) + 20.0f);
+		DrawMenuBorder(&Tip, ms_ColorBgDeep, vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .75f), CUI::CORNER_ALL, 3.0f);
+		UI()->DoLabelScaled(&Tip, pTooltip, 10.0f, 0);
 	}
 
 	CUIRect Footer;
@@ -896,8 +1198,17 @@ int CMenus::RenderMenubar(CUIRect r)
 	Footer.Margin(10.0f, &Footer);
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
 	char aIdentity[128];
-	if(pPlatform && pPlatform->Available()) str_format(aIdentity, sizeof(aIdentity), Compact ? "STEAM\nONLINE" : "Steam  %llu\nONLINE", pPlatform->LocalUserID());
-	else str_copy(aIdentity, Compact ? "NET\nUDP" : "Standalone network\nUDP available", sizeof(aIdentity));
+	if(pPlatform && pPlatform->Available())
+	{
+		if(Compact)
+			str_copy(aIdentity, "STEAM\nONLINE", sizeof(aIdentity));
+		else
+			str_format(aIdentity, sizeof(aIdentity), "%s  %llu\n%s", "Steam", pPlatform->LocalUserID(), Localize("Online"));
+	}
+	else if(Compact)
+		str_copy(aIdentity, "NET\nUDP", sizeof(aIdentity));
+	else
+		str_format(aIdentity, sizeof(aIdentity), "%s\n%s", Localize("Standalone network"), Localize("UDP available"));
 	TextRender()->TextColor(ms_ColorAccentDim.r, ms_ColorAccentDim.g, ms_ColorAccentDim.b, 1.0f);
 	UI()->DoLabelScaled(&Footer, aIdentity, Compact ? 8.0f : 9.0f, -1);
 	TextRender()->TextColor(1, 1, 1, 1);
@@ -906,7 +1217,9 @@ int CMenus::RenderMenubar(CUIRect r)
 		CUIRect Quit;
 		Footer.HSplitBottom(30.0f, 0, &Quit);
 		static int s_QuitButton;
-		if(DoButton_Menu(&s_QuitButton, Compact ? "X" : Localize("Quit"), 0, &Quit, BUTTONSTYLE_DANGER)) m_Popup = POPUP_QUIT;
+		if(DoButton_Menu(&s_QuitButton, Compact ? "" : Localize("Quit"), 0, &Quit, BUTTONSTYLE_DANGER)) m_Popup = POPUP_QUIT;
+		if(Compact)
+			DrawNavigationIcon(Quit, 6, false);
 	}
 
 	if(NewPage != -1)
@@ -914,7 +1227,15 @@ int CMenus::RenderMenubar(CUIRect r)
 		if(Client()->State() == IClient::STATE_OFFLINE)
 			g_Config.m_UiPage = NewPage;
 		else
+		{
 			m_GamePage = NewPage;
+			if(NewPage == PAGE_LOCAL_SERVER)
+			{
+				m_PlayTab = 1;
+				m_CreateRoomStep = 0; // CREATE_ROOM_CHOOSE_MODE (declared with the room model below)
+				m_LocalServerFocus = g_Config.m_ClLocalServerMode;
+			}
+		}
 	}
 
 	return 0;
@@ -1064,6 +1385,20 @@ void CMenus::OnInit()
 	exit(-1);
 	// */
 
+	// Migrate the former six client-observed checkpoints once. Completed or
+	// skipped legacy tutorials suppress the modal, but remain replayable.
+	if(g_Config.m_ClTutorialVersion == 0)
+	{
+		if(g_Config.m_ClTutorialState == 1)
+		{
+			g_Config.m_ClTutorialChapter = TutorialChapterFromLegacy(g_Config.m_ClTutorialState, g_Config.m_ClTutorialCheckpoint);
+			g_Config.m_ClTutorialStep = 0;
+		}
+		if(g_Config.m_ClTutorialState == 2 || g_Config.m_ClTutorialState == 3)
+			g_Config.m_ClTutorialPromptHandled = 1;
+		g_Config.m_ClTutorialCompletedMask = 0;
+		g_Config.m_ClTutorialVersion = TUTORIAL_CONTENT_VERSION;
+	}
 	if(g_Config.m_ClShowWelcome)
 		m_Popup = POPUP_LANGUAGE;
 	g_Config.m_ClShowWelcome = 0;
@@ -1106,16 +1441,6 @@ namespace
 {
 enum
 {
-	LOCAL_MODE_INVASION = 0,
-	LOCAL_MODE_HORDE,
-	LOCAL_MODE_EXTRACTION,
-	LOCAL_MODE_DM,
-	LOCAL_MODE_TDM,
-	LOCAL_MODE_CTF,
-};
-
-enum
-{
 	LOCAL_INVASION_TEAM_CHECKPOINT = 0,
 	LOCAL_INVASION_FLOOR_ONE,
 	LOCAL_INVASION_CUSTOM_FLOOR,
@@ -1128,33 +1453,39 @@ enum
 	LOCAL_SERVER_ERROR_TIMEOUT = -3,
 };
 
-static const char *s_apLocalMaps[] = {
-	"City I", "City II", "Space", "Large I", "Large II", "Large III", "Blue planet", "Foundry"};
-static const char *s_apLocalMapCommands[] = {
-	"generate_city1", "generate_city2", "generate_space1", "generate_large1", "generate_large2", "generate_large3", "generate_blueplanet1", "generate_foundry1"};
-static const char *s_apLocalCtfMaps[] = {"Compact", "Standard"};
-static const char *s_apLocalCtfMapCommands[] = {"generate_ctf_small1", "generate_ctf_medium1"};
 
-struct CLocalGameMode
+enum ECreateRoomStep
 {
-	const char *m_pName;
-	const char *m_pDescription;
-	const char *m_pConfig;
-	bool m_Pve;
-	bool m_SelectableMap;
-	const char *const *m_ppMapNames;
-	const char *const *m_ppMapCommands;
-	int m_MapCount;
+	CREATE_ROOM_CHOOSE_MODE = 0,
+	CREATE_ROOM_CONFIGURE,
 };
 
-static const CLocalGameMode s_aLocalGameModes[] = {
-	{"Invasion", "Explore generated floors, complete objectives and keep your build between maps.", "cfg/invasion_root.cfg", true, false, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
-	{"Horde", "Defend, build and survive increasingly dangerous enemy waves.", "cfg/horde_root.cfg", true, true, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
-	{"Extraction", "Finish the mission and reach the extraction zone before time runs out.", "cfg/extract_root.cfg", true, true, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
-	{"Deathmatch", "Free-for-all combat with configurable AI opponents.", "cfg/dm_root.cfg", false, true, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
-	{"Team deathmatch", "Team combat with building and configurable AI opponents.", "cfg/tdm_root.cfg", false, true, s_apLocalMaps, s_apLocalMapCommands, (int)(sizeof(s_apLocalMaps) / sizeof(s_apLocalMaps[0]))},
-	{"Capture the flag", "Capture the enemy flag on a generated team map.", "cfg/ctf_root.cfg", false, true, s_apLocalCtfMaps, s_apLocalCtfMapCommands, (int)(sizeof(s_apLocalCtfMaps) / sizeof(s_apLocalCtfMaps[0]))},
-};
+static void ApplyLocalGameModeDefaults(int Mode)
+{
+	Mode = clamp(Mode, (int)LOCAL_MODE_INVASION, (int)LOCAL_MODE_COUNT - 1);
+	const CRoomModeDefaults Defaults = RoomModeDefaults(Mode);
+	g_Config.m_ClLocalServerMode = Mode;
+	g_Config.m_ClLocalServerMap = 0;
+	g_Config.m_ClLocalServerMaxClients = Defaults.m_Players;
+	g_Config.m_ClLocalServerDifficulty = Defaults.m_Difficulty;
+	g_Config.m_ClLocalServerBots = min(Defaults.m_Bots, Defaults.m_Players - 1);
+	if(Mode == LOCAL_MODE_INVASION)
+		g_Config.m_ClLocalServerInvasionStart = LOCAL_INVASION_TEAM_CHECKPOINT;
+	else if(Mode == LOCAL_MODE_HORDE)
+		g_Config.m_ClLocalServerHordeWaves = Defaults.m_Rule;
+	else if(Mode == LOCAL_MODE_EXTRACTION)
+		g_Config.m_ClLocalServerExtractionTime = Defaults.m_Rule;
+	else if(LocalGameMode(Mode).m_Rule == LOCAL_RULE_DM_SCORE)
+		g_Config.m_ClLocalServerDmScore = Defaults.m_Rule;
+	else if(LocalGameMode(Mode).m_Rule == LOCAL_RULE_TDM_SCORE)
+		g_Config.m_ClLocalServerTdmScore = Defaults.m_Rule;
+	else if(LocalGameMode(Mode).m_Rule == LOCAL_RULE_CTF_SCORE)
+		g_Config.m_ClLocalServerCtfScore = Defaults.m_Rule;
+	else if(LocalGameMode(Mode).m_Rule == LOCAL_RULE_REACTOR_SCORE)
+		g_Config.m_ClLocalServerReactorScore = Defaults.m_Rule;
+	else if(LocalGameMode(Mode).m_Rule == LOCAL_RULE_BALL_SCORE)
+		g_Config.m_ClLocalServerBallScore = Defaults.m_Rule;
+}
 
 struct CLocalServerLaunchSettings
 {
@@ -1172,6 +1503,7 @@ struct CLocalServerLaunchSettings
 	int m_ModeRule;
 	bool m_Lan;
 	bool m_RandomSeed;
+	bool m_MapGen;
 	bool m_Roguelite;
 	bool m_Contracts;
 	bool m_UseCheckpoint;
@@ -1182,16 +1514,6 @@ struct CLocalServerLaunchSettings
 	char m_aName[64];
 	char m_aPassword[32];
 };
-
-static int LocalGameModeCount()
-{
-	return (int)(sizeof(s_aLocalGameModes) / sizeof(s_aLocalGameModes[0]));
-}
-
-static const CLocalGameMode &LocalGameMode(int Mode)
-{
-	return s_aLocalGameModes[clamp(Mode, 0, LocalGameModeCount() - 1)];
-}
 
 static const char *LocalInvasionConfigForFloor(int Floor)
 {
@@ -1206,6 +1528,31 @@ static const char *LocalInvasionConfigForFloor(int Floor)
 	return "cfg/invasion-endless.cfg";
 }
 
+static int *LocalModeRuleConfig(int Rule)
+{
+	if(Rule == LOCAL_RULE_HORDE)
+		return &g_Config.m_ClLocalServerHordeWaves;
+	if(Rule == LOCAL_RULE_EXTRACTION)
+		return &g_Config.m_ClLocalServerExtractionTime;
+	if(Rule == LOCAL_RULE_DM_SCORE)
+		return &g_Config.m_ClLocalServerDmScore;
+	if(Rule == LOCAL_RULE_TDM_SCORE)
+		return &g_Config.m_ClLocalServerTdmScore;
+	if(Rule == LOCAL_RULE_CTF_SCORE)
+		return &g_Config.m_ClLocalServerCtfScore;
+	if(Rule == LOCAL_RULE_REACTOR_SCORE)
+		return &g_Config.m_ClLocalServerReactorScore;
+	if(Rule == LOCAL_RULE_BALL_SCORE)
+		return &g_Config.m_ClLocalServerBallScore;
+	return 0;
+}
+
+static bool LocalRuleUsesScoreLimit(int Rule)
+{
+	return Rule == LOCAL_RULE_HORDE || Rule == LOCAL_RULE_DM_SCORE || Rule == LOCAL_RULE_TDM_SCORE ||
+		Rule == LOCAL_RULE_CTF_SCORE || Rule == LOCAL_RULE_REACTOR_SCORE || Rule == LOCAL_RULE_BALL_SCORE;
+}
+
 static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings)
 {
 	mem_zero(pSettings, sizeof(*pSettings));
@@ -1217,18 +1564,34 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 	pSettings->m_pMapCommand = pSettings->m_pMode->m_SelectableMap ? pSettings->m_pMode->m_ppMapCommands[pSettings->m_Map] : 0;
 	pSettings->m_Port = clamp(g_Config.m_ClLocalServerPort, 1024, 65535);
 	pSettings->m_MaxClients = clamp(g_Config.m_ClLocalServerMaxClients, 1, 16);
-	pSettings->m_Bots = pSettings->m_pMode->m_Pve ? 0 : clamp(g_Config.m_ClLocalServerBots, 0, max(0, pSettings->m_MaxClients - 1));
+	pSettings->m_Bots = pSettings->m_pMode->m_Pve ? 0 : clamp(g_Config.m_ClLocalServerBots, 0, 16);
 	pSettings->m_Difficulty = clamp(g_Config.m_ClLocalServerDifficulty, 1, 50);
 	pSettings->m_BotLevel = clamp(pSettings->m_Difficulty, 1, 30);
 	pSettings->m_InvasionStart = clamp(g_Config.m_ClLocalServerInvasionStart, (int)LOCAL_INVASION_TEAM_CHECKPOINT, (int)LOCAL_INVASION_CUSTOM_FLOOR);
 	pSettings->m_InvasionFloor = clamp(g_Config.m_ClLocalServerInvasionFloor, 1, max(1, g_Config.m_ClPveHighestInvasion));
 	pSettings->m_Lan = g_Config.m_ClLocalServerLan != 0;
 	pSettings->m_RandomSeed = g_Config.m_ClLocalServerRandomSeed != 0;
+	pSettings->m_MapGen = pSettings->m_pMode->m_MapGen;
 	pSettings->m_Seed = clamp(g_Config.m_ClLocalServerSeed, 0, 32767);
 	pSettings->m_Roguelite = pSettings->m_pMode->m_Pve && g_Config.m_ClLocalServerRoguelite != 0;
 	pSettings->m_Contracts = pSettings->m_Roguelite && g_Config.m_ClLocalServerContracts != 0;
 	pSettings->m_MapLevel = pSettings->m_Difficulty;
+	pSettings->m_ModeRule = RoomModeDefaults(pSettings->m_Mode).m_Rule;
 	pSettings->m_UseCheckpoint = false;
+	if(pSettings->m_Mode == LOCAL_MODE_TUTORIAL)
+	{
+		// The multiplayer chapter renders a simulated room form, but the tutorial
+		// server itself is strictly single-player.
+		pSettings->m_MaxClients = 1;
+		pSettings->m_Bots = 0;
+		pSettings->m_Difficulty = 1;
+		pSettings->m_BotLevel = 1;
+		pSettings->m_MapLevel = clamp(g_Config.m_ClTutorialChapter, 1, 6);
+		pSettings->m_RandomSeed = false;
+		pSettings->m_Seed = TutorialFixedSeed(pSettings->m_MapLevel);
+		pSettings->m_Roguelite = true;
+		pSettings->m_Contracts = false;
+	}
 	if(pSettings->m_Mode == LOCAL_MODE_INVASION)
 	{
 		pSettings->m_UseCheckpoint = pSettings->m_Roguelite && pSettings->m_InvasionStart == LOCAL_INVASION_TEAM_CHECKPOINT;
@@ -1241,16 +1604,9 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 		}
 		pSettings->m_pConfig = LocalInvasionConfigForFloor(TemplateFloor);
 	}
-	if(pSettings->m_Mode == LOCAL_MODE_HORDE)
-		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerHordeWaves, 0, 100);
-	else if(pSettings->m_Mode == LOCAL_MODE_EXTRACTION)
-		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerExtractionTime, 2, 15);
-	else if(pSettings->m_Mode == LOCAL_MODE_DM)
-		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerDmScore, 1, 1000);
-	else if(pSettings->m_Mode == LOCAL_MODE_TDM)
-		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerTdmScore, 1, 1000);
-	else if(pSettings->m_Mode == LOCAL_MODE_CTF)
-		pSettings->m_ModeRule = clamp(g_Config.m_ClLocalServerCtfScore, 1, 1000);
+	int *pRule = LocalModeRuleConfig(pSettings->m_pMode->m_Rule);
+	if(pRule)
+		pSettings->m_ModeRule = *pRule;
 	str_copy(pSettings->m_aName, g_Config.m_ClLocalServerName, sizeof(pSettings->m_aName));
 	str_copy(pSettings->m_aPassword, g_Config.m_ClLocalServerPassword, sizeof(pSettings->m_aPassword));
 
@@ -1281,7 +1637,10 @@ static void FormatLocalServerSummary(const CLocalServerLaunchSettings &Settings,
 	char aRule[64];
 	char aSeed[48];
 	char aSlots[48];
-	if(Settings.m_Mode == LOCAL_MODE_INVASION)
+	char aPopulation[64];
+	if(Settings.m_Mode == LOCAL_MODE_TUTORIAL)
+		str_copy(aStart, Localize("Guided solo mission"), sizeof(aStart));
+	else if(Settings.m_Mode == LOCAL_MODE_INVASION)
 	{
 		if(Settings.m_InvasionStart == LOCAL_INVASION_TEAM_CHECKPOINT && !Settings.m_UseCheckpoint)
 			str_copy(aStart, Localize("Floor 1"), sizeof(aStart));
@@ -1302,19 +1661,40 @@ static void FormatLocalServerSummary(const CLocalServerLaunchSettings &Settings,
 	}
 	else if(Settings.m_Mode == LOCAL_MODE_EXTRACTION)
 		str_format(aRule, sizeof(aRule), Localize("%d min"), Settings.m_ModeRule);
-	else if(Settings.m_Mode >= LOCAL_MODE_DM)
+	else if(LocalModeRuleConfig(Settings.m_pMode->m_Rule))
 		str_format(aRule, sizeof(aRule), Localize("Score %d"), Settings.m_ModeRule);
+	else if(Settings.m_Mode == LOCAL_MODE_BATTLE_ROYALE)
+		str_copy(aRule, Localize("Last survivor"), sizeof(aRule));
+	else if(Settings.m_Mode == LOCAL_MODE_REACTOR_DEFENSE)
+		str_copy(aRule, Localize("Defend the reactor"), sizeof(aRule));
 	else
 		str_copy(aRule, Localize(Settings.m_Roguelite ? "Roguelite" : "Classic PvE"), sizeof(aRule));
 	if(Settings.m_RandomSeed)
 		str_copy(aSeed, Localize("Random seed"), sizeof(aSeed));
 	else
 		str_format(aSeed, sizeof(aSeed), Localize("Seed %d"), Settings.m_Seed);
-	str_format(aSlots, sizeof(aSlots), Localize("%d slots"), Settings.m_MaxClients);
+	str_format(aSlots, sizeof(aSlots), Localize("%d human slots"), Settings.m_MaxClients);
+	if(!Settings.m_pMode->m_Pve)
+	{
+		if(Settings.m_Bots <= 0)
+			str_copy(aPopulation, Localize("No bots"), sizeof(aPopulation));
+		else if(LocalGameModeUsesTeamPopulation(Settings.m_Mode))
+			str_format(aPopulation, sizeof(aPopulation), Localize("%d players per team"), Settings.m_Bots);
+		else
+			str_format(aPopulation, sizeof(aPopulation), Localize("Target %d active players"), Settings.m_Bots);
+	}
+	else
+		aPopulation[0] = 0;
 
-	if(Settings.m_Lan)
+	if(Settings.m_Lan && aPopulation[0])
+		str_format(pBuffer, BufferSize, "%s · %s · %s · %s · %s · %s · %s · 127.0.0.1:%d / LAN:%d",
+			Localize(Settings.m_pMode->m_pName), Localize(Settings.m_pMapName), aStart, aRule, aPopulation, aSeed, aSlots, Port, Port);
+	else if(Settings.m_Lan)
 		str_format(pBuffer, BufferSize, "%s · %s · %s · %s · %s · %s · 127.0.0.1:%d / LAN:%d",
 			Localize(Settings.m_pMode->m_pName), Localize(Settings.m_pMapName), aStart, aRule, aSeed, aSlots, Port, Port);
+	else if(aPopulation[0])
+		str_format(pBuffer, BufferSize, "%s · %s · %s · %s · %s · %s · %s · 127.0.0.1:%d",
+			Localize(Settings.m_pMode->m_pName), Localize(Settings.m_pMapName), aStart, aRule, aPopulation, aSeed, aSlots, Port);
 	else
 		str_format(pBuffer, BufferSize, "%s · %s · %s · %s · %s · %s · 127.0.0.1:%d",
 			Localize(Settings.m_pMode->m_pName), Localize(Settings.m_pMapName), aStart, aRule, aSeed, aSlots, Port);
@@ -1456,6 +1836,88 @@ void CMenus::RefreshLocalServerErrorDetail()
 		str_format(m_aLocalServerErrorDetail, sizeof(m_aLocalServerErrorDetail), "Server exited with code %d", m_LocalServerExitCode);
 }
 
+void CMenus::StartTutorial(int Chapter, bool Resume)
+{
+	Chapter = clamp(Chapter, 1, (int)NUM_TUTORIAL_CHAPTERS);
+	m_TutorialChapterReplay = TutorialChapterIsReplay(Chapter, g_Config.m_ClTutorialCompletedMask);
+	if(!Resume || g_Config.m_ClTutorialChapter != Chapter)
+		g_Config.m_ClTutorialStep = 0;
+	g_Config.m_ClTutorialState = 1;
+	g_Config.m_ClTutorialChapter = Chapter;
+	g_Config.m_ClTutorialStep = clamp(g_Config.m_ClTutorialStep, 0, max(0, TutorialStepCount(Chapter) - 1));
+	g_Config.m_ClTutorialCheckpoint = Chapter - 1;
+	g_Config.m_ClTutorialPromptHandled = 1;
+	g_Config.m_ClTutorialActive = 1;
+	g_Config.m_ClLocalServerMode = LOCAL_MODE_TUTORIAL;
+	g_Config.m_ClLocalServerLan = 0;
+	g_Config.m_ClLocalServerRoguelite = Chapter != TUTORIAL_CHAPTER_MULTIPLAYER;
+	g_Config.m_ClLocalServerContracts = 0;
+	g_Config.m_ClLocalServerSeed = TutorialFixedSeed(Chapter);
+	g_Config.m_ClLocalServerMaxClients = 1;
+	g_Config.m_ClLocalServerBots = 0;
+	g_Config.m_ClLocalServerDifficulty = Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 2 : 1;
+	str_copy(g_Config.m_ClLocalServerName, "Ninslash Tutorial", sizeof(g_Config.m_ClLocalServerName));
+	StartLocalServer(true);
+}
+
+void CMenus::StartPvpPractice()
+{
+	g_Config.m_ClTutorialActive = 0;
+	g_Config.m_ClLocalServerMode = LOCAL_MODE_DM;
+	g_Config.m_ClLocalServerMap = 0;
+	g_Config.m_ClLocalServerMaxClients = 5;
+	g_Config.m_ClLocalServerBots = 4;
+	g_Config.m_ClLocalServerDifficulty = 3;
+	g_Config.m_ClLocalServerDmScore = 15;
+	str_copy(g_Config.m_ClLocalServerName, "Local PvP", sizeof(g_Config.m_ClLocalServerName));
+	StartLocalServer(true);
+}
+
+void CMenus::FinishTutorial()
+{
+	g_Config.m_ClTutorialState = 2;
+	g_Config.m_ClTutorialActive = 0;
+	ShutdownLocalServer();
+	OpenTutorialChapterSelect();
+}
+
+void CMenus::OpenTutorialChapterSelect()
+{
+	s_ResetMenu = false;
+	g_Config.m_UiPage = PAGE_TUTORIAL_SELECT;
+	SetActive(true);
+}
+
+void CMenus::HandleTutorialChapterCompleted(int Chapter, int CompletedMask)
+{
+	Chapter = clamp(Chapter, 1, (int)NUM_TUTORIAL_CHAPTERS);
+	CompletedMask &= TutorialCompletedMaskLimit();
+	g_Config.m_ClTutorialCompletedMask = CompletedMask;
+	g_Config.m_ClTutorialState = CompletedMask == TutorialCompletedMaskLimit() ? 2 : 1;
+	g_Config.m_ClTutorialActive = 0;
+	g_Config.m_ClTutorialStep = 0;
+	ShutdownLocalServer();
+
+	const int NextChapter = TutorialNextChapter(Chapter, CompletedMask, m_TutorialChapterReplay);
+	if(NextChapter != 0)
+		StartTutorial(NextChapter, false);
+	else
+		OpenTutorialChapterSelect();
+}
+
+void CMenus::OpenTutorialRoomPractice()
+{
+	g_Config.m_UiPage = PAGE_LOCAL_SERVER;
+	m_GamePage = PAGE_LOCAL_SERVER;
+	SetActive(true);
+}
+
+void CMenus::OpenPlayHub()
+{
+	g_Config.m_UiPage = PAGE_FRONT;
+	SetActive(true);
+}
+
 void CMenus::StartLocalServer(bool AutoJoin)
 {
 	int ExitCode = 0;
@@ -1524,6 +1986,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	char aPort[64];
 	char aMaxClients[64];
 	char aMap[192];
+	char aMapGen[64];
 	char aDifficulty[64];
 	char aBots[64];
 	char aBotLevel[64];
@@ -1532,6 +1995,10 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	char aRoguelite[64];
 	char aContracts[64];
 	char aCheckpoint[64];
+	char aTutorialChapter[64];
+	char aTutorialStep[64];
+	char aTutorialMode[64];
+	char aTutorialCompleted[64];
 	char aModeRule[64];
 	char aNameValue[160];
 	char aPasswordValue[96];
@@ -1544,6 +2011,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	str_format(aMaxClients, sizeof(aMaxClients), "sv_max_clients %d", Settings.m_MaxClients);
 	if(Settings.m_pMapCommand)
 		str_format(aMap, sizeof(aMap), "sv_map %s", Settings.m_pMapCommand);
+	str_format(aMapGen, sizeof(aMapGen), "sv_mapgen %d", Settings.m_MapGen ? 1 : 0);
 	str_format(aDifficulty, sizeof(aDifficulty), "sv_mapgen_level %d", Settings.m_MapLevel);
 	str_format(aBots, sizeof(aBots), "sv_bots %d", Settings.m_Bots);
 	str_format(aBotLevel, sizeof(aBotLevel), "sv_botlevel %d", Settings.m_BotLevel);
@@ -1552,14 +2020,14 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	str_format(aRoguelite, sizeof(aRoguelite), "sv_pve_roguelite %d", Settings.m_Roguelite);
 	str_format(aContracts, sizeof(aContracts), "sv_pve_contracts %d", Settings.m_Contracts);
 	str_format(aCheckpoint, sizeof(aCheckpoint), "sv_invasion_use_checkpoint %d", Settings.m_UseCheckpoint);
-	if(Settings.m_Mode == LOCAL_MODE_HORDE)
+	str_format(aTutorialChapter, sizeof(aTutorialChapter), "sv_tutorial_chapter %d", g_Config.m_ClTutorialChapter);
+	str_format(aTutorialStep, sizeof(aTutorialStep), "sv_tutorial_step %d", g_Config.m_ClTutorialStep);
+	str_format(aTutorialMode, sizeof(aTutorialMode), "sv_tutorial_mode %d", g_Config.m_ClTutorialActive ? 1 : 0);
+	str_format(aTutorialCompleted, sizeof(aTutorialCompleted), "sv_tutorial_completed_mask %d", g_Config.m_ClTutorialCompletedMask);
+	if(LocalRuleUsesScoreLimit(Settings.m_pMode->m_Rule))
 		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit %d", Settings.m_ModeRule);
-	else if(Settings.m_Mode == LOCAL_MODE_EXTRACTION)
+	else if(Settings.m_pMode->m_Rule == LOCAL_RULE_EXTRACTION)
 		str_format(aModeRule, sizeof(aModeRule), "sv_timelimit %d", Settings.m_ModeRule);
-	else if(Settings.m_Mode >= LOCAL_MODE_DM)
-		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit %d", Settings.m_ModeRule);
-	else
-		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit 0");
 	EscapeLocalServerValue(Settings.m_aName, aNameValue, sizeof(aNameValue));
 	EscapeLocalServerValue(Settings.m_aPassword, aPasswordValue, sizeof(aPasswordValue));
 	EscapeLocalServerValue(m_aLocalServerLogPath, aLogValue, sizeof(aLogValue));
@@ -1567,7 +2035,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	str_format(aPassword, sizeof(aPassword), "password %s", aPasswordValue);
 	str_format(aLog, sizeof(aLog), "logfile %s", aLogValue);
 
-	const char *apArguments[30];
+	const char *apArguments[34];
 	int NumArguments = 0;
 	apArguments[NumArguments++] = aExecutable;
 	apArguments[NumArguments++] = "-s";
@@ -1582,7 +2050,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	apArguments[NumArguments++] = aMaxClients;
 	if(Settings.m_pMapCommand)
 		apArguments[NumArguments++] = aMap;
-	apArguments[NumArguments++] = "sv_mapgen 1";
+	apArguments[NumArguments++] = aMapGen;
 	apArguments[NumArguments++] = aDifficulty;
 	apArguments[NumArguments++] = aBots;
 	apArguments[NumArguments++] = aBotLevel;
@@ -1591,7 +2059,15 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	apArguments[NumArguments++] = aRoguelite;
 	apArguments[NumArguments++] = aContracts;
 	apArguments[NumArguments++] = aCheckpoint;
-	apArguments[NumArguments++] = aModeRule;
+	if(g_Config.m_ClTutorialActive)
+	{
+		apArguments[NumArguments++] = aTutorialMode;
+		apArguments[NumArguments++] = aTutorialChapter;
+		apArguments[NumArguments++] = aTutorialStep;
+		apArguments[NumArguments++] = aTutorialCompleted;
+	}
+	if(LocalModeRuleConfig(Settings.m_pMode->m_Rule))
+		apArguments[NumArguments++] = aModeRule;
 	apArguments[NumArguments++] = aName;
 	apArguments[NumArguments++] = aPassword;
 	apArguments[NumArguments++] = aLog;
@@ -1781,6 +2257,489 @@ void CMenus::ShutdownLocalServer()
 	m_LocalServerState = LOCAL_SERVER_STOPPED;
 }
 
+void CMenus::CreateConfiguredRoom()
+{
+	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER)
+	{
+		// The real form is retained, but chapter six is a local simulation. Keep
+		// the tutorial server alive so it can validate nonce and advance state.
+		const int Action = g_Config.m_ClTutorialStep < 2 ? TUTORIAL_ACTION_UI_ROOM_CREATE : TUTORIAL_ACTION_UI_ROOM_JOIN;
+		m_pClient->m_pPveRoguelite->SendTutorialAction(Action, g_Config.m_ClRoomVisibility);
+		return;
+	}
+	const int Visibility = clamp(g_Config.m_ClRoomVisibility, (int)ROOM_VISIBILITY_SOLO, (int)ROOM_VISIBILITY_PUBLIC);
+	if(RoomHostKind(Visibility) == ROOM_HOST_LOCAL)
+	{
+		CClientAsyncStatus SteamHostStatus;
+		Client()->SteamHostedGameStatus(&SteamHostStatus);
+		if(SteamHostStatus.m_State == CLIENT_ASYNC_WORKING || SteamHostStatus.m_State == CLIENT_ASYNC_SUCCEEDED)
+			Client()->StopSteamHostedGame();
+		g_Config.m_ClLocalServerLan = Visibility == ROOM_VISIBILITY_LAN;
+		if(Visibility == ROOM_VISIBILITY_SOLO)
+			g_Config.m_ClLocalServerMaxClients = RoomSlotsForVisibility(Visibility, m_CreateRoomPreviousSlots);
+		if(m_LocalServerProcess && (m_LocalServerState == LOCAL_SERVER_RUNNING || m_LocalServerState == LOCAL_SERVER_STARTING))
+			StopLocalServer(true);
+		else
+			StartLocalServer(true);
+		return;
+	}
+
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	if(!pPlatform || !pPlatform->Available())
+		return;
+	// A managed local process and the in-process Steam listen server otherwise
+	// compete for cl_local_server_port when the player changes visibility.
+	// Stop the old host synchronously before handing the room to Steam Relay.
+	if(m_LocalServerProcess)
+		ShutdownLocalServer();
+
+	CLocalServerLaunchSettings Preview;
+	BuildLocalServerLaunchSettings(&Preview);
+	CHostGameSettings Settings;
+	mem_zero(&Settings, sizeof(Settings));
+	Settings.m_Visibility = Visibility == ROOM_VISIBILITY_FRIENDS ? PLATFORM_LOBBY_FRIENDS : PLATFORM_LOBBY_PUBLIC;
+	Settings.m_MaxClients = Preview.m_MaxClients;
+	Settings.m_Difficulty = Preview.m_MapLevel;
+	Settings.m_Seed = Preview.m_Seed;
+	Settings.m_Bots = Preview.m_Bots;
+	Settings.m_BotLevel = Preview.m_BotLevel;
+	Settings.m_ModeRule = Preview.m_ModeRule;
+	Settings.m_RandomSeed = Preview.m_RandomSeed;
+	Settings.m_Roguelite = Preview.m_Roguelite;
+	Settings.m_Contracts = Preview.m_Contracts;
+	Settings.m_UseCheckpoint = Preview.m_UseCheckpoint;
+	str_copy(Settings.m_aName, Preview.m_aName, sizeof(Settings.m_aName));
+	str_copy(Settings.m_aPassword, Preview.m_aPassword, sizeof(Settings.m_aPassword));
+	str_copy(Settings.m_aMap, Preview.m_pMode->m_ppMapCommands[Preview.m_Map], sizeof(Settings.m_aMap));
+	str_copy(Settings.m_aGameType, Preview.m_pMode->m_pGameType, sizeof(Settings.m_aGameType));
+	str_copy(Settings.m_aConfig, Preview.m_pConfig, sizeof(Settings.m_aConfig));
+	str_copy(Settings.m_aModHash, g_Config.m_ClModHash, sizeof(Settings.m_aModHash));
+	str_copy(Settings.m_aModIDs, g_Config.m_ClModIds, sizeof(Settings.m_aModIDs));
+	Client()->StartSteamHostedGame(Settings);
+}
+
+void CMenus::RenderCreateRoom(CUIRect MainView)
+{
+	static int s_aModeButtons[LOCAL_MODE_COUNT];
+	static int s_aVisibilityButtons[4];
+	static int s_ChangeMode, s_MapPrevious, s_MapNext, s_SlotsPrevious, s_SlotsNext;
+	static int s_DifficultyPrevious, s_DifficultyNext, s_BotsPrevious, s_BotsNext;
+	static int s_RulePrevious, s_RuleNext, s_InvasionPrevious, s_InvasionNext, s_FloorPrevious, s_FloorNext;
+	static int s_PortPrevious, s_PortNext;
+	static int s_Advanced, s_RandomSeed, s_Roguelite, s_Contracts;
+	static int s_Create, s_Log, s_Stop;
+	static float s_NameOffset, s_PasswordOffset, s_SeedOffset;
+	static char s_aSeedText[8] = "0";
+	static int s_SeedTextValue = -1;
+	const float LayoutDivisor = max(1.0f, UI()->Scale());
+	auto L = [LayoutDivisor](float Value) { return Value / LayoutDivisor; };
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	const bool SteamAvailable = pPlatform && pPlatform->Available();
+	if(!CLineInput::GetActiveInput())
+	{
+		for(int EventIndex = 0; EventIndex < m_NumInputEvents; EventIndex++)
+		{
+			const IInput::CEvent &Event = m_aInputEvents[EventIndex];
+			if(!(Event.m_Flags & IInput::FLAG_PRESS))
+				continue;
+			const bool Left = Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT;
+			const bool Right = Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT;
+			const bool Up = Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP;
+			const bool Down = Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN;
+			const bool Confirm = Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A;
+			if(Event.m_Key == KEY_GAMEPAD_BUTTON_B)
+			{
+				if(m_CreateRoomStep == CREATE_ROOM_CONFIGURE)
+					m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
+				continue;
+			}
+			if(m_CreateRoomStep == CREATE_ROOM_CHOOSE_MODE)
+			{
+				m_LocalServerFocus = clamp(m_LocalServerFocus, (int)LOCAL_MODE_INVASION, (int)LOCAL_MODE_COUNT - 1);
+				if(Left || Right || Up || Down)
+				{
+					const bool InPve = LocalGameMode(m_LocalServerFocus).m_Pve;
+					const int *pModes = InPve ? s_aLocalPveModes : s_aLocalPvpModes;
+					const int Count = InPve ? (int)(sizeof(s_aLocalPveModes) / sizeof(s_aLocalPveModes[0])) : (int)(sizeof(s_aLocalPvpModes) / sizeof(s_aLocalPvpModes[0]));
+					int Index = 0;
+					while(Index + 1 < Count && pModes[Index] != m_LocalServerFocus)
+						Index++;
+					if(Up || Down)
+						m_LocalServerFocus = pModes[clamp(Index + (Down ? 1 : -1), 0, Count - 1)];
+					else
+					{
+						const int *pOther = InPve ? s_aLocalPvpModes : s_aLocalPveModes;
+						const int OtherCount = InPve ? (int)(sizeof(s_aLocalPvpModes) / sizeof(s_aLocalPvpModes[0])) : (int)(sizeof(s_aLocalPveModes) / sizeof(s_aLocalPveModes[0]));
+						if((InPve && Right) || (!InPve && Left))
+							m_LocalServerFocus = pOther[min(Index, OtherCount - 1)];
+					}
+				}
+				else if(Confirm)
+				{
+					ApplyLocalGameModeDefaults(m_LocalServerFocus);
+					m_CreateRoomPreviousSlots = g_Config.m_ClLocalServerMaxClients;
+					m_CreateRoomStep = CREATE_ROOM_CONFIGURE;
+				}
+			}
+			else if(Left || Right)
+			{
+				int Visibility = g_Config.m_ClRoomVisibility;
+				do
+					Visibility = (Visibility + (Right ? 1 : 3)) % 4;
+				while(!SteamAvailable && (Visibility == ROOM_VISIBILITY_FRIENDS || Visibility == ROOM_VISIBILITY_PUBLIC));
+				if(g_Config.m_ClRoomVisibility != ROOM_VISIBILITY_SOLO)
+					m_CreateRoomPreviousSlots = max(2, g_Config.m_ClLocalServerMaxClients);
+				const bool LeavingSolo = g_Config.m_ClRoomVisibility == ROOM_VISIBILITY_SOLO;
+				g_Config.m_ClRoomVisibility = Visibility;
+				g_Config.m_ClLocalServerMaxClients = Visibility == ROOM_VISIBILITY_SOLO ? 1 : LeavingSolo ? clamp(m_CreateRoomPreviousSlots, 2, 16) : g_Config.m_ClLocalServerMaxClients;
+			}
+		}
+	}
+
+	if(m_EscapePressed)
+	{
+		if(m_CreateRoomStep == CREATE_ROOM_CONFIGURE)
+			m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
+		m_EscapePressed = false;
+	}
+
+	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
+	MainView.Margin(L(12.0f), &MainView);
+	CUIRect Header, Body, Footer;
+	const float LargeScale = max(0.0f, UI()->Scale() - 1.0f);
+	const float HeaderHeight = L(48.0f + LargeScale * 84.0f);
+	const float StepOffset = L(27.0f + LargeScale * 66.0f);
+	MainView.HSplitTop(HeaderHeight, &Header, &Body);
+	Body.HSplitBottom(L(72.0f), &Body, &Footer);
+	const char *pTitle = m_CreateRoomStep == CREATE_ROOM_CHOOSE_MODE ? "Choose a game mode" : "Configure room";
+	UI()->DoLabelScaled(&Header, Localize(pTitle), 22.0f, -1);
+	CUIRect StepLabel = Header;
+	StepLabel.y += StepOffset;
+	UI()->DoLabelScaled(&StepLabel, Localize(m_CreateRoomStep == CREATE_ROOM_CHOOSE_MODE ? "Step 1 of 2" : "Step 2 of 2"), 10.0f, -1);
+	DrawAccentUnderline(&Header);
+
+	if(m_CreateRoomStep == CREATE_ROOM_CHOOSE_MODE)
+	{
+		Body.HMargin(L(6.0f), &Body);
+		const bool SingleColumn = Body.w < 650.0f;
+		static CScrollRegion s_ModeScrollRegion;
+		vec2 ScrollOffset(0.0f, 0.0f);
+		CUIRect ModeContent = Body;
+		CScrollRegionParams ScrollParams;
+		ConfigureScrollRegion(&ScrollParams);
+		ScrollParams.m_ClipBgColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+		ScrollParams.m_ScrollUnit = L(94.0f);
+		s_ModeScrollRegion.Begin(&Body, &ScrollOffset, &ScrollParams);
+		ModeContent.y += ScrollOffset.y;
+		ModeContent.VSplitRight(L(20.0f), &ModeContent, 0);
+		CUIRect Pve = ModeContent, Pvp;
+		const int PveCount = (int)(sizeof(s_aLocalPveModes) / sizeof(s_aLocalPveModes[0]));
+		const int PvpCount = (int)(sizeof(s_aLocalPvpModes) / sizeof(s_aLocalPvpModes[0]));
+		const float PveHeight = L(26.0f + PveCount * 94.0f);
+		const float PvpHeight = L(26.0f + PvpCount * 94.0f);
+		if(SingleColumn)
+		{
+			ModeContent.HSplitTop(PveHeight, &Pve, &Pvp);
+			Pvp.HSplitTop(L(12.0f), 0, &Pvp);
+		}
+		else
+		{
+			ModeContent.VSplitMid(&Pve, &Pvp);
+			Pve.VSplitRight(L(4.0f), &Pve, 0);
+			Pvp.VSplitLeft(L(4.0f), 0, &Pvp);
+		}
+		auto DrawModeGroup = [&](CUIRect Group, const char *pGroupName, const int *pModes, int Count) {
+			CUIRect GroupTitle;
+			Group.HSplitTop(L(26.0f), &GroupTitle, &Group);
+			UI()->DoLabelScaled(&GroupTitle, Localize(pGroupName), 14.0f, -1);
+			for(int Index = 0; Index < Count; Index++)
+			{
+				const int Mode = pModes[Index];
+				CUIRect Card, Top, Description, Meta, Mechanics, Select;
+				Group.HSplitTop(L(88.0f), &Card, &Group);
+				Group.HSplitTop(L(6.0f), 0, &Group);
+				DrawMenuInset(&Card, CUI::CORNER_ALL);
+				Card.Margin(L(7.0f), &Card);
+				CUIRect Preview, Content;
+				Card.VSplitLeft(L(88.0f), &Preview, &Content);
+				const float PreviewHeight = min(Preview.h, L(44.0f));
+				Preview.y += (Preview.h - PreviewHeight) * 0.5f;
+				Preview.h = PreviewHeight;
+				DrawModeVoteImage(Preview, s_aLocalGameModes[Mode].m_pGameVoteImage, m_LocalServerFocus == Mode);
+				Content.VSplitLeft(L(8.0f), 0, &Card);
+				Card.HSplitTop(L(20.0f), &Top, &Card);
+				Top.VSplitRight(L(76.0f), &Top, &Select);
+				UI()->DoLabelScaled(&Top, Localize(s_aLocalGameModes[Mode].m_pName), 14.0f, -1);
+				if(DoButton_Menu(&s_aModeButtons[Mode], Localize("Select"), m_LocalServerFocus == Mode, &Select, BUTTONSTYLE_ACCENT))
+				{
+					ApplyLocalGameModeDefaults(Mode);
+					m_CreateRoomPreviousSlots = g_Config.m_ClLocalServerMaxClients;
+					m_CreateRoomStep = CREATE_ROOM_CONFIGURE;
+				}
+				Card.HSplitTop(L(25.0f), &Description, &Card);
+				UI()->DoLabelScaled(&Description, Localize(s_aLocalGameModes[Mode].m_pDescription), 9.0f, -1, (int)Description.w);
+				Card.HSplitTop(L(16.0f), &Meta, &Card);
+				char aMeta[160];
+				str_format(aMeta, sizeof(aMeta), Localize("Recommended: %s players  ·  %s  ·  %s difficulty"), s_aLocalGameModes[Mode].m_pRecommendedPlayers, Localize(s_aLocalGameModes[Mode].m_pDuration), Localize(s_aLocalGameModes[Mode].m_pRecommendedDifficulty));
+				UI()->DoLabelScaled(&Meta, aMeta, 8.5f, -1);
+				Card.HSplitTop(L(15.0f), &Mechanics, &Card);
+				UI()->DoLabelScaled(&Mechanics, Localize(s_aLocalGameModes[Mode].m_pMechanics), 8.5f, -1);
+			}
+		};
+		DrawModeGroup(Pve, "PVE", s_aLocalPveModes, PveCount);
+		DrawModeGroup(Pvp, "PVP", s_aLocalPvpModes, PvpCount);
+		CUIRect ScrollContent = ModeContent;
+		ScrollContent.h = SingleColumn ? PveHeight + L(12.0f) + PvpHeight : max(PveHeight, PvpHeight);
+		s_ModeScrollRegion.AddRect(ScrollContent);
+		s_ModeScrollRegion.End();
+		DrawMenuInset(&Footer, CUI::CORNER_ALL);
+		Footer.Margin(L(9.0f), &Footer);
+		UI()->DoLabelScaled(&Footer, Localize("Training is available from the Play hub."), 10.0f, -1);
+		return;
+	}
+
+	const int Mode = clamp(g_Config.m_ClLocalServerMode, (int)LOCAL_MODE_INVASION, (int)LOCAL_MODE_COUNT - 1);
+	const CLocalGameMode &ModeDef = LocalGameMode(Mode);
+	g_Config.m_ClLocalServerMap = clamp(g_Config.m_ClLocalServerMap, 0, ModeDef.m_MapCount - 1);
+	CUIRect Summary, Change;
+	Body.HSplitTop(L(42.0f), &Summary, &Body);
+	Summary.VSplitRight(L(124.0f), &Summary, &Change);
+	char aModeSummary[256];
+	str_format(aModeSummary, sizeof(aModeSummary), "%s  ·  %s  ·  %s", Localize(ModeDef.m_pName), Localize(ModeDef.m_pDescription), Localize(ModeDef.m_pMechanics));
+	UI()->DoLabelScaled(&Summary, aModeSummary, FitLabelFontSize(TextRender(), aModeSummary, 11.0f, Summary.w), -1);
+	if(DoButton_Menu(&s_ChangeMode, Localize("Change mode"), 0, &Change))
+		m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
+	Body.HSplitTop(L(8.0f), 0, &Body);
+
+	CUIRect MainSettings, Identity;
+	Body.VSplitMid(&MainSettings, &Identity);
+	MainSettings.VSplitRight(L(5.0f), &MainSettings, 0);
+	Identity.VSplitLeft(L(5.0f), 0, &Identity);
+	DrawMenuInset(&MainSettings, CUI::CORNER_ALL);
+	DrawMenuInset(&Identity, CUI::CORNER_ALL);
+	MainSettings.Margin(L(9.0f), &MainSettings);
+	Identity.Margin(L(9.0f), &Identity);
+	CUIRect Row, Label, Control, Previous, Next, Value;
+	char aLabel[160];
+	auto SplitRow = [&](CUIRect &Area, CUIRect *pLabel, CUIRect *pControl) {
+		Area.HSplitTop(L(31.0f), &Row, &Area);
+		Area.HSplitTop(L(4.0f), 0, &Area);
+		Row.VSplitLeft(Row.w * 0.39f, pLabel, pControl);
+		pControl->VSplitLeft(L(6.0f), 0, pControl);
+	};
+	auto Stepper = [&](CUIRect Rect, int *pPrevious, int *pNext, const char *pValue) {
+		Rect.VSplitLeft(L(29.0f), &Previous, &Value);
+		Value.VSplitRight(L(29.0f), &Value, &Next);
+		const int Delta = (DoButton_Menu(pPrevious, "-", 0, &Previous) ? -1 : 0) + (DoButton_Menu(pNext, "+", 0, &Next) ? 1 : 0);
+		UI()->DoLabelScaled(&Value, pValue, 11.0f, 0);
+		return Delta;
+	};
+
+	MainSettings.HSplitTop(L(20.0f), &Row, &MainSettings);
+	UI()->DoLabelScaled(&Row, Localize("Visibility"), 12.0f, -1);
+	MainSettings.HSplitTop(L(32.0f), &Row, &MainSettings);
+	const char *apVisibility[] = {"Solo", "Friends", "LAN", "Public"};
+	for(int i = 0; i < 4; i++)
+	{
+		CUIRect Button;
+		Row.VSplitLeft(Row.w / (4 - i), &Button, &Row);
+			const bool Disabled = RoomVisibilityRequiresSteam(i) && !SteamAvailable;
+		if(DoButton_Menu(&s_aVisibilityButtons[i], Localize(apVisibility[i]), g_Config.m_ClRoomVisibility == i, &Button, g_Config.m_ClRoomVisibility == i ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL) && !Disabled)
+		{
+			const int Old = g_Config.m_ClRoomVisibility;
+			if(Old != ROOM_VISIBILITY_SOLO)
+				m_CreateRoomPreviousSlots = max(2, g_Config.m_ClLocalServerMaxClients);
+			g_Config.m_ClRoomVisibility = i;
+			if(i == ROOM_VISIBILITY_SOLO)
+				g_Config.m_ClLocalServerMaxClients = 1;
+			else if(Old == ROOM_VISIBILITY_SOLO)
+				g_Config.m_ClLocalServerMaxClients = clamp(m_CreateRoomPreviousSlots, 2, 16);
+		}
+	}
+	MainSettings.HSplitTop(L(6.0f), 0, &MainSettings);
+	if(!SteamAvailable)
+	{
+		MainSettings.HSplitTop(L(22.0f), &Row, &MainSettings);
+		UI()->DoLabelScaled(&Row, Localize("Friends and Public require Steam."), 9.0f, -1);
+	}
+
+	SplitRow(MainSettings, &Label, &Control);
+	UI()->DoLabelScaled(&Label, Localize("Map preset"), 11.0f, -1);
+	int Delta = Stepper(Control, &s_MapPrevious, &s_MapNext, Localize(ModeDef.m_SelectableMap ? ModeDef.m_ppMapNames[g_Config.m_ClLocalServerMap] : "Automatic by Invasion floor"));
+	if(ModeDef.m_SelectableMap && Delta)
+		g_Config.m_ClLocalServerMap = (g_Config.m_ClLocalServerMap + Delta + ModeDef.m_MapCount) % ModeDef.m_MapCount;
+
+	SplitRow(MainSettings, &Label, &Control);
+	UI()->DoLabelScaled(&Label, Localize("Human slots"), 11.0f, -1);
+	str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerMaxClients);
+	Delta = Stepper(Control, &s_SlotsPrevious, &s_SlotsNext, aLabel);
+	if(g_Config.m_ClRoomVisibility != ROOM_VISIBILITY_SOLO)
+	{
+		g_Config.m_ClLocalServerMaxClients = clamp(g_Config.m_ClLocalServerMaxClients + Delta, 2, 16);
+		m_CreateRoomPreviousSlots = g_Config.m_ClLocalServerMaxClients;
+	}
+	else
+		g_Config.m_ClLocalServerMaxClients = 1;
+
+	SplitRow(MainSettings, &Label, &Control);
+	UI()->DoLabelScaled(&Label, Localize(ModeDef.m_Pve ? "Mission difficulty" : "AI difficulty"), 11.0f, -1);
+	str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerDifficulty);
+	Delta = Stepper(Control, &s_DifficultyPrevious, &s_DifficultyNext, aLabel);
+	g_Config.m_ClLocalServerDifficulty = clamp(g_Config.m_ClLocalServerDifficulty + Delta, 1, 50);
+
+	if(!ModeDef.m_Pve)
+	{
+		SplitRow(MainSettings, &Label, &Control);
+		UI()->DoLabelScaled(&Label, Localize(LocalGamePopulationLabel(Mode)), 11.0f, -1);
+		g_Config.m_ClLocalServerBots = clamp(g_Config.m_ClLocalServerBots, 0, 16);
+		if(g_Config.m_ClLocalServerBots == 0)
+			str_copy(aLabel, Localize("No bots"), sizeof(aLabel));
+		else
+			str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerBots);
+		Delta = Stepper(Control, &s_BotsPrevious, &s_BotsNext, aLabel);
+		g_Config.m_ClLocalServerBots = clamp(g_Config.m_ClLocalServerBots + Delta, 0, 16);
+	}
+
+	if(Mode == LOCAL_MODE_INVASION)
+	{
+		SplitRow(MainSettings, &Label, &Control);
+		UI()->DoLabelScaled(&Label, Localize("Starting point"), 11.0f, -1);
+		Delta = Stepper(Control, &s_InvasionPrevious, &s_InvasionNext, Localize(LocalInvasionStartName(g_Config.m_ClLocalServerInvasionStart)));
+		g_Config.m_ClLocalServerInvasionStart = (g_Config.m_ClLocalServerInvasionStart + Delta + 3) % 3;
+		if(g_Config.m_ClLocalServerInvasionStart == LOCAL_INVASION_CUSTOM_FLOOR)
+		{
+			SplitRow(MainSettings, &Label, &Control);
+			UI()->DoLabelScaled(&Label, Localize("Starting floor"), 11.0f, -1);
+			const int MaxFloor = max(1, g_Config.m_ClPveHighestInvasion);
+			g_Config.m_ClLocalServerInvasionFloor = clamp(g_Config.m_ClLocalServerInvasionFloor, 1, MaxFloor);
+			str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerInvasionFloor);
+			Delta = Stepper(Control, &s_FloorPrevious, &s_FloorNext, aLabel);
+			g_Config.m_ClLocalServerInvasionFloor = clamp(g_Config.m_ClLocalServerInvasionFloor + Delta, 1, MaxFloor);
+		}
+	}
+	else if(int *pRule = LocalModeRuleConfig(ModeDef.m_Rule))
+	{
+		SplitRow(MainSettings, &Label, &Control);
+		UI()->DoLabelScaled(&Label, Localize(LocalGameRuleLabel(ModeDef.m_Rule)), 11.0f, -1);
+		str_format(aLabel, sizeof(aLabel), ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? Localize("%d min") : "%d", *pRule);
+		Delta = Stepper(Control, &s_RulePrevious, &s_RuleNext, aLabel);
+		const int Step = ModeDef.m_Rule == LOCAL_RULE_CTF_SCORE ? 25 : ModeDef.m_Rule == LOCAL_RULE_BALL_SCORE ? 1 : ModeDef.m_Rule >= LOCAL_RULE_DM_SCORE ? 5 : 1;
+		const int Minimum = ModeDef.m_Rule == LOCAL_RULE_HORDE ? 0 : ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? 2 : 1;
+		const int Maximum = ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? 15 : ModeDef.m_Rule == LOCAL_RULE_HORDE || ModeDef.m_Rule == LOCAL_RULE_BALL_SCORE ? 100 : 1000;
+		*pRule = clamp(*pRule + Delta * Step, Minimum, Maximum);
+	}
+
+	Identity.HSplitTop(L(20.0f), &Row, &Identity);
+	UI()->DoLabelScaled(&Row, Localize("Room details"), 12.0f, -1);
+	SplitRow(Identity, &Label, &Control);
+	UI()->DoLabelScaled(&Label, Localize("Room name"), 11.0f, -1);
+	DoEditBox(g_Config.m_ClLocalServerName, &Control, g_Config.m_ClLocalServerName, sizeof(g_Config.m_ClLocalServerName), 11.0f, &s_NameOffset);
+	SplitRow(Identity, &Label, &Control);
+	UI()->DoLabelScaled(&Label, Localize("Password (optional)"), 11.0f, -1);
+	DoEditBox(g_Config.m_ClLocalServerPassword, &Control, g_Config.m_ClLocalServerPassword, sizeof(g_Config.m_ClLocalServerPassword), 11.0f, &s_PasswordOffset, true);
+	Identity.HSplitTop(L(7.0f), 0, &Identity);
+	Identity.HSplitTop(L(31.0f), &Row, &Identity);
+	if(DoButton_Menu(&s_Advanced, Localize(g_Config.m_ClLocalServerAdvanced ? "Hide advanced settings" : "Advanced settings"), g_Config.m_ClLocalServerAdvanced, &Row))
+		g_Config.m_ClLocalServerAdvanced ^= 1;
+	if(g_Config.m_ClLocalServerAdvanced)
+	{
+		SplitRow(Identity, &Label, &Control);
+		if(DoButton_CheckBox(&s_RandomSeed, Localize("Random map seed"), g_Config.m_ClLocalServerRandomSeed, &Label))
+			g_Config.m_ClLocalServerRandomSeed ^= 1;
+		if(!g_Config.m_ClLocalServerRandomSeed)
+		{
+			UI()->DoLabelScaled(&Control, Localize("Map seed"), 9.0f, -1);
+			if(s_SeedTextValue != g_Config.m_ClLocalServerSeed)
+			{
+				str_format(s_aSeedText, sizeof(s_aSeedText), "%d", g_Config.m_ClLocalServerSeed);
+				s_SeedTextValue = g_Config.m_ClLocalServerSeed;
+			}
+			if(DoEditBox(s_aSeedText, &Control, s_aSeedText, sizeof(s_aSeedText), 10.0f, &s_SeedOffset))
+				g_Config.m_ClLocalServerSeed = clamp(str_toint(s_aSeedText), 0, 32767);
+		}
+		if(ModeDef.m_Pve)
+		{
+			SplitRow(Identity, &Label, &Control);
+			if(DoButton_CheckBox(&s_Roguelite, Localize("Roguelite Director"), g_Config.m_ClLocalServerRoguelite, &Label))
+				g_Config.m_ClLocalServerRoguelite ^= 1;
+			if(DoButton_CheckBox(&s_Contracts, Localize("Team contracts"), g_Config.m_ClLocalServerContracts && g_Config.m_ClLocalServerRoguelite, &Control) && g_Config.m_ClLocalServerRoguelite)
+				g_Config.m_ClLocalServerContracts ^= 1;
+		}
+		SplitRow(Identity, &Label, &Control);
+		UI()->DoLabelScaled(&Label, Localize("Port"), 10.0f, -1);
+		str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerPort);
+		Delta = Stepper(Control, &s_PortPrevious, &s_PortNext, aLabel);
+		g_Config.m_ClLocalServerPort = clamp(g_Config.m_ClLocalServerPort + Delta, 1024, 65535);
+		Identity.HSplitTop(L(18.0f), &Row, &Identity);
+		UI()->DoLabelScaled(&Row, Localize(g_Config.m_ClRoomVisibility == ROOM_VISIBILITY_LAN ? "LAN binding" : "Managed automatically"), 9.0f, -1);
+	}
+
+	CLocalServerLaunchSettings Preview;
+	BuildLocalServerLaunchSettings(&Preview);
+	DrawMenuInset(&Footer, CUI::CORNER_ALL);
+	Footer.Margin(L(8.0f), &Footer);
+	CUIRect Status, Action;
+	Footer.VSplitRight(L(164.0f), &Status, &Action);
+	const char *pVisibility = apVisibility[g_Config.m_ClRoomVisibility];
+	char aFinalSummary[512];
+	if(Preview.m_pMode->m_Pve)
+		str_format(aFinalSummary, sizeof(aFinalSummary), Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  Unofficial"), Localize(Preview.m_pMode->m_pName), Localize(pVisibility), Localize(Preview.m_pMapName), Preview.m_MaxClients);
+	else
+	{
+		char aPopulation[96];
+		if(Preview.m_Bots <= 0)
+			str_copy(aPopulation, Localize("No bots"), sizeof(aPopulation));
+		else
+			str_format(aPopulation, sizeof(aPopulation), Localize("%s: %d"), Localize(LocalGamePopulationLabel(Mode)), Preview.m_Bots);
+		str_format(aFinalSummary, sizeof(aFinalSummary), Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Unofficial"), Localize(Preview.m_pMode->m_pName), Localize(pVisibility), Localize(Preview.m_pMapName), Preview.m_MaxClients, aPopulation);
+	}
+	UI()->DoLabelScaled(&Status, aFinalSummary, FitLabelFontSize(TextRender(), aFinalSummary, 10.0f, Status.w), -1);
+	CClientAsyncStatus SteamStatus;
+	Client()->SteamHostedGameStatus(&SteamStatus);
+	CUIRect StatusDetail = Status;
+	StatusDetail.y += L(23.0f);
+	if(SteamStatus.m_State == CLIENT_ASYNC_FAILED)
+		UI()->DoLabelScaled(&StatusDetail, Localize(SteamStatus.m_aErrorKey), 8.5f, -1, (int)StatusDetail.w);
+	else if(m_LocalServerState == LOCAL_SERVER_FAILED)
+		UI()->DoLabelScaled(&StatusDetail, Localize("Room creation failed. Your settings were kept; retry or open the log."), 8.5f, -1, (int)StatusDetail.w);
+	const bool RelayUnavailable = !SteamAvailable && RoomVisibilityRequiresSteam(g_Config.m_ClRoomVisibility);
+	CUIRect PrimaryAction = Action, SecondaryAction;
+	const bool SteamHostActive = SteamStatus.m_State == CLIENT_ASYNC_WORKING || SteamStatus.m_State == CLIENT_ASYNC_SUCCEEDED;
+	const bool ShowSecondary = m_LocalServerState == LOCAL_SERVER_RUNNING || m_LocalServerState == LOCAL_SERVER_STARTING || SteamHostActive || (m_LocalServerState == LOCAL_SERVER_FAILED && m_aLocalServerLogPath[0]);
+	if(ShowSecondary)
+	{
+		Action.HSplitTop(L(25.0f), &SecondaryAction, &PrimaryAction);
+		PrimaryAction.HSplitTop(L(5.0f), 0, &PrimaryAction);
+	}
+	const int PrimaryState = SteamStatus.m_State == CLIENT_ASYNC_WORKING ? ROOM_PRIMARY_CREATING_STEAM :
+		m_LocalServerState == LOCAL_SERVER_STARTING ? ROOM_PRIMARY_STARTING_LOCAL :
+		m_LocalServerState == LOCAL_SERVER_STOPPING ? ROOM_PRIMARY_STOPPING_LOCAL :
+		m_LocalServerState == LOCAL_SERVER_RUNNING ? ROOM_PRIMARY_RESTART_LOCAL :
+		SteamStatus.m_State == CLIENT_ASYNC_SUCCEEDED ? ROOM_PRIMARY_RESTART_STEAM : ROOM_PRIMARY_CREATE;
+	if(DoButton_Menu(&s_Create, Localize(RoomPrimaryActionLabel(PrimaryState)), 0, &PrimaryAction, BUTTONSTYLE_ACCENT) && !RelayUnavailable && RoomPrimaryActionEnabled(PrimaryState))
+		CreateConfiguredRoom();
+	if(m_LocalServerState == LOCAL_SERVER_RUNNING || m_LocalServerState == LOCAL_SERVER_STARTING || SteamHostActive)
+	{
+		const char *pStopLabel = m_LocalServerState == LOCAL_SERVER_STARTING && !SteamHostActive ? "Cancel" : "Stop";
+		if(DoButton_Menu(&s_Stop, Localize(pStopLabel), 0, &SecondaryAction, BUTTONSTYLE_DANGER))
+		{
+			if(SteamHostActive)
+				Client()->StopSteamHostedGame();
+			else
+				StopLocalServer(false);
+		}
+	}
+	if(m_LocalServerState == LOCAL_SERVER_FAILED && m_aLocalServerLogPath[0])
+	{
+		if(DoButton_Menu(&s_Log, Localize("Log"), 0, &SecondaryAction))
+		{
+			char aBody[512];
+			str_format(aBody, sizeof(aBody), "%s\n\n%s", m_aLocalServerLogPath, m_aLocalServerErrorDetail);
+			PopupMessage(Localize("Local server log"), aBody, Localize("OK"));
+		}
+	}
+}
+
 void CMenus::RenderLocalServer(CUIRect MainView)
 {
 	static int s_aModeButtons[sizeof(s_aLocalGameModes) / sizeof(s_aLocalGameModes[0])] = {0};
@@ -1859,7 +2818,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			if(Focus == FOCUS_INVASION_FLOOR)
 				return Mode == LOCAL_MODE_INVASION && g_Config.m_ClLocalServerInvasionStart == LOCAL_INVASION_CUSTOM_FLOOR;
 			if(Focus == FOCUS_DIFFICULTY)
-				return Mode != LOCAL_MODE_INVASION;
+				return Mode != LOCAL_MODE_INVASION && Mode != LOCAL_MODE_TUTORIAL;
 			if(Focus == FOCUS_BOTS)
 				return !Pve;
 			if(Focus == FOCUS_SEED)
@@ -1872,7 +2831,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			if(Focus == FOCUS_ROGUELITE || Focus == FOCUS_CONTRACTS)
 				return Pve;
 			if(Focus == FOCUS_MODE_RULE)
-				return Mode != LOCAL_MODE_INVASION;
+				return Mode != LOCAL_MODE_INVASION && Mode != LOCAL_MODE_TUTORIAL;
 		}
 		if((Focus == FOCUS_RESTART || Focus == FOCUS_STOP) && m_LocalServerState != LOCAL_SERVER_RUNNING)
 			return false;
@@ -1958,7 +2917,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 				else if(m_LocalServerFocus == FOCUS_DIFFICULTY)
 					g_Config.m_ClLocalServerDifficulty = clamp(g_Config.m_ClLocalServerDifficulty + Direction, 1, 50);
 				else if(m_LocalServerFocus == FOCUS_BOTS)
-					g_Config.m_ClLocalServerBots = clamp(g_Config.m_ClLocalServerBots + Direction, 0, max(0, g_Config.m_ClLocalServerMaxClients - 1));
+					g_Config.m_ClLocalServerBots = clamp(g_Config.m_ClLocalServerBots + Direction, 0, 16);
 				else if(m_LocalServerFocus == FOCUS_SLOTS)
 					g_Config.m_ClLocalServerMaxClients = clamp(g_Config.m_ClLocalServerMaxClients + Direction, 1, 16);
 				else if(m_LocalServerFocus == FOCUS_PORT)
@@ -2130,7 +3089,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 
 		SplitSettingRow(&Label, &Control);
 		DrawFocusMarker(Label, FOCUS_SLOTS);
-		str_format(aLabel, sizeof(aLabel), "%s: %d", Localize("Player slots"), g_Config.m_ClLocalServerMaxClients);
+		str_format(aLabel, sizeof(aLabel), "%s: %d", Localize("Human slots"), g_Config.m_ClLocalServerMaxClients);
 		UI()->DoLabelScaled(&Label, aLabel, 12.0f, -1);
 		Control.HMargin(L(5.0f), &Control);
 		g_Config.m_ClLocalServerMaxClients = 1 + (int)(DoScrollbarH(&g_Config.m_ClLocalServerMaxClients, &Control, (g_Config.m_ClLocalServerMaxClients - 1) / 15.0f) * 15.0f + 0.5f);
@@ -2169,7 +3128,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 				g_Config.m_ClLocalServerMap = (g_Config.m_ClLocalServerMap + 1) % MapCount;
 			UI()->DoLabelScaled(&Value, Localize(pMapName), 12.0f, 0);
 		}
-		else
+		else if(g_Config.m_ClLocalServerMode != LOCAL_MODE_TUTORIAL)
 		{
 			UI()->DoLabelScaled(&Label, Localize("Map selection"), 12.0f, -1);
 			UI()->DoLabelScaled(&Control, Localize("Automatic by Invasion floor"), 11.0f, -1);
@@ -2223,16 +3182,19 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		if(ModeDef.m_Pve)
 		{
 			UI()->DoLabelScaled(&Label, Localize("Enemy scaling"), 12.0f, -1);
-			UI()->DoLabelScaled(&Control, Localize(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION ? "Automatic by floor and party size" : "Health, elites and party size"), 11.0f, -1);
+			UI()->DoLabelScaled(&Control, Localize(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION || g_Config.m_ClLocalServerMode == LOCAL_MODE_TUTORIAL ? "Automatic by floor and party size" : "Health, elites and party size"), 11.0f, -1);
 		}
 		else
 		{
 			DrawFocusMarker(Label, FOCUS_BOTS);
-			g_Config.m_ClLocalServerBots = clamp(g_Config.m_ClLocalServerBots, 0, max(0, g_Config.m_ClLocalServerMaxClients - 1));
-			str_format(aLabel, sizeof(aLabel), "%s: %d", Localize("AI players"), g_Config.m_ClLocalServerBots);
+			g_Config.m_ClLocalServerBots = clamp(g_Config.m_ClLocalServerBots, 0, 16);
+			if(g_Config.m_ClLocalServerBots == 0)
+				str_format(aLabel, sizeof(aLabel), "%s: %s", Localize(LocalGamePopulationLabel(g_Config.m_ClLocalServerMode)), Localize("No bots"));
+			else
+				str_format(aLabel, sizeof(aLabel), "%s: %d", Localize(LocalGamePopulationLabel(g_Config.m_ClLocalServerMode)), g_Config.m_ClLocalServerBots);
 			UI()->DoLabelScaled(&Label, aLabel, 12.0f, -1);
 			Control.HMargin(L(5.0f), &Control);
-			const int MaxBots = max(0, g_Config.m_ClLocalServerMaxClients - 1);
+			const int MaxBots = 16;
 			if(MaxBots > 0)
 				g_Config.m_ClLocalServerBots = (int)(DoScrollbarH(&g_Config.m_ClLocalServerBots, &Control, g_Config.m_ClLocalServerBots / (float)MaxBots) * MaxBots + 0.5f);
 			else
@@ -2282,12 +3244,11 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			UI()->DoLabelScaled(&Control, Localize(g_Config.m_ClLocalServerRoguelite ? "Offer optional team challenges" : "Requires Roguelite Director"), 10.0f, -1);
 		}
 
-		if(g_Config.m_ClLocalServerMode != LOCAL_MODE_INVASION)
+		if(g_Config.m_ClLocalServerMode != LOCAL_MODE_INVASION && g_Config.m_ClLocalServerMode != LOCAL_MODE_TUTORIAL)
 		{
 			SplitSettingRow(&Label, &Control);
 			DrawFocusMarker(Label, FOCUS_MODE_RULE);
-			const char *pRuleLabel = g_Config.m_ClLocalServerMode == LOCAL_MODE_HORDE ? "Target waves" : (g_Config.m_ClLocalServerMode == LOCAL_MODE_EXTRACTION ? "Mission time" : "Score limit");
-			UI()->DoLabelScaled(&Label, Localize(pRuleLabel), 12.0f, -1);
+			UI()->DoLabelScaled(&Label, Localize(LocalGameRuleLabel(ModeDef.m_Rule)), 12.0f, -1);
 			Control.VSplitLeft(L(30.0f), &Previous, &Value);
 			Value.VSplitRight(L(30.0f), &Value, &Next);
 			if(DoButton_Menu(&s_RulePrevious, "-", 0, &Previous))
@@ -2300,12 +3261,8 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 				str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerHordeWaves);
 			else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_EXTRACTION)
 				str_format(aLabel, sizeof(aLabel), Localize("%d min"), g_Config.m_ClLocalServerExtractionTime);
-			else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_DM)
-				str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerDmScore);
-			else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_TDM)
-				str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerTdmScore);
-			else
-				str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerCtfScore);
+			else if(int *pRule = LocalModeRuleConfig(ModeDef.m_Rule))
+				str_format(aLabel, sizeof(aLabel), "%d", *pRule);
 			UI()->DoLabelScaled(&Value, aLabel, 12.0f, 0);
 		}
 
@@ -2400,66 +3357,334 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 void CMenus::RenderFront(CUIRect MainView)
 {
 	s_ResetMenu = false;
-	
+	const float ScaleDivisor = max(1.0f, UI()->Scale());
+	auto L = [ScaleDivisor](float Value) { return Value / ScaleDivisor; };
+	CUIRect Screen = MainView;
+	DrawMenuPanel(&Screen, CUI::CORNER_ALL);
+	Screen.Margin(L(14.0f), &Screen);
+	CUIRect Header, Hero, Status, Cards;
+	Screen.HSplitTop(L(46.0f), &Header, &Screen);
 	if(gs_TextureLogo == -1)
 		gs_TextureLogo = Graphics()->LoadTexture("logo.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, 0);
-	
-	vec2 s = vec2(800, 120) * 0.72f;
-	
-	CUIRect Screen = *UI()->Screen();
-	
 	Graphics()->TextureSet(gs_TextureLogo);
 	Graphics()->QuadsBegin();
 	Graphics()->SetColor(1, 1, 1, 1);
-	
-	IGraphics::CQuadItem QuadItem((Screen.w-s.x)/2, 90, s.x, s.y);
-	Graphics()->QuadsDrawTL(&QuadItem, 1);
+	IGraphics::CQuadItem Logo(Header.x, Header.y + L(2.0f), min(L(226.0f), Header.w * 0.34f), L(34.0f));
+	Graphics()->QuadsDrawTL(&Logo, 1);
 	Graphics()->QuadsEnd();
+	CUIRect HeaderText;
+	Header.VSplitLeft(min(L(245.0f), Header.w * 0.37f), 0, &HeaderText);
+	UI()->DoLabelScaled(&HeaderText, Localize("TACTICAL COMMAND"), L(9.0f), -1);
+	HeaderText.HSplitTop(L(17.0f), 0, &HeaderText);
+	UI()->DoLabelScaled(&HeaderText, Localize("Choose how to deploy"), L(15.0f), -1);
+	DrawAccentUnderline(&Header);
 
-	CUIRect ButtonCol;
-	ButtonCol.w = 220.0f;
-	ButtonCol.h = 200.0f;
-	ButtonCol.x = (Screen.w - ButtonCol.w) * 0.5f;
-	ButtonCol.y = 240.0f;
-
-	CUIRect Button;
-	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
-	static int s_PlayButton=0;
-	if(DoButton_Menu(&s_PlayButton, Localize("Play"), 0, &Button, BUTTONSTYLE_ACCENT) || m_EnterPressed)
+	Screen.HSplitTop(L(8.0f), 0, &Screen);
+	Screen.HSplitTop(L(126.0f), &Hero, &Screen);
+	DrawMenuInset(&Hero, CUI::CORNER_ALL);
+	CUIRect HeroAccent = Hero;
+	HeroAccent.w = L(5.0f);
+	RenderTools()->DrawUIRect(&HeroAccent, ms_ColorAccent, CUI::CORNER_L, ms_ControlRounding);
+	Hero.Margin(L(16.0f), &Hero);
+	CMenuHomeState HomeState = {
+		m_LocalServerState == LOCAL_SERVER_STARTING,
+		m_LocalServerState == LOCAL_SERVER_RUNNING,
+		IsConnectedToLocalServer(),
+		g_Config.m_ClTutorialState == 1,
+		g_Config.m_ClTutorialChapter};
+	const CMenuHomePrimary Primary = ResolveMenuHomePrimary(HomeState);
+	CUIRect HeroActions, HeroCopy = Hero;
+	Hero.VSplitRight(min(L(238.0f), Hero.w * .38f), &HeroCopy, &HeroActions);
+	CUIRect Eyebrow, Title, Description;
+	HeroCopy.HSplitTop(L(18.0f), &Eyebrow, &HeroCopy);
+	TextRender()->TextColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 1.0f);
+	UI()->DoLabelScaled(&Eyebrow, Localize("RECOMMENDED ACTION"), L(8.5f), -1);
+	TextRender()->TextColor(1, 1, 1, 1);
+	HeroCopy.HSplitTop(L(31.0f), &Title, &Description);
+	UI()->DoLabelScaled(&Title, Localize(Primary.m_pTitle), L(21.0f), -1);
+	char aDescription[192];
+	if(Primary.m_Chapter)
+		str_format(aDescription, sizeof(aDescription), Localize(Primary.m_pDescription), Primary.m_Chapter);
+	else
+		str_copy(aDescription, Localize(Primary.m_pDescription), sizeof(aDescription));
+	UI()->DoLabelScaled(&Description, aDescription, L(10.0f), -1, (int)Description.w);
+	HeroActions.VSplitLeft(L(10.0f), 0, &HeroActions);
+	CUIRect PrimaryButton, SecondaryButton;
+	HeroActions.HSplitTop(L(42.0f), &PrimaryButton, &HeroActions);
+	HeroActions.HSplitTop(L(7.0f), 0, &HeroActions);
+	HeroActions.HSplitTop(L(31.0f), &SecondaryButton, &HeroActions);
+	static int s_Primary, s_Browse;
+	const bool KeyboardActivate = !m_NavigationHasFocus && m_LastInputDevice != 0 && m_EnterPressed;
+	if(DoButton_Menu(&s_Primary, Localize(Primary.m_pTitle), true, &PrimaryButton, BUTTONSTYLE_ACCENT) || KeyboardActivate)
 	{
+		m_EnterPressed = false;
+		if(Primary.m_Action == MENU_HOME_JOIN_LOCAL)
+			JoinLocalServer();
+		else if(Primary.m_Action == MENU_HOME_SHOW_LOCAL)
+		{
+			if(IsConnectedToLocalServer()) SetActive(false);
+			else { m_PlayTab = 1; g_Config.m_UiPage = PAGE_LOCAL_SERVER; }
+		}
+		else if(Primary.m_Action == MENU_HOME_CONTINUE_TUTORIAL)
+			StartTutorial(Primary.m_Chapter, true);
+		else
+		{
+			m_PlayTab = 1;
+			g_Config.m_UiPage = PAGE_LOCAL_SERVER;
+		}
+	}
+	if(DoButton_Menu(&s_Browse, Localize("Browse rooms"), 0, &SecondaryButton))
+	{
+		m_PlayTab = 0;
 		ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
 		g_Config.m_UiPage = PAGE_INTERNET;
 	}
-	
-	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
-	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
-	static int s_LocalButton=0;
-	if(DoButton_Menu(&s_LocalButton, Localize("Local game"), 0, &Button, BUTTONSTYLE_ACCENT))
-		g_Config.m_UiPage = PAGE_LOCAL_SERVER;
 
-	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
-	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
-	static int s_CustomizeButton=0;
-	if(DoButton_Menu(&s_CustomizeButton, Localize("Customize"), 0, &Button))
-		g_Config.m_UiPage = PAGE_CUSTOMIZE;
-	
-	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
-	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
-	static int s_SettingsButton=0;
-	static int s_ResearchButton=0;
-	if(DoButton_Menu(&s_ResearchButton, Localize("Research"), 0, &Button))
-		g_Config.m_UiPage = PAGE_RESEARCH;
+	Screen.HSplitTop(L(8.0f), 0, &Screen);
+	Screen.HSplitTop(L(28.0f), &Status, &Screen);
+	const float BadgeGap = L(6.0f);
+	CUIRect TutorialBadge, ServerBadge, NetworkBadge;
+	Status.VSplitLeft((Status.w - BadgeGap * 2.0f) / 3.0f, &TutorialBadge, &Status);
+	Status.VSplitLeft(BadgeGap, 0, &Status);
+	Status.VSplitLeft((Status.w - BadgeGap) / 2.0f, &ServerBadge, &Status);
+	Status.VSplitLeft(BadgeGap, 0, &Status);
+	NetworkBadge = Status;
+	char aTutorial[96];
+	if(g_Config.m_ClTutorialState == 1)
+		str_format(aTutorial, sizeof(aTutorial), Localize("Training · chapter %d/6"), clamp(g_Config.m_ClTutorialChapter, 1, 6));
+	else
+		str_copy(aTutorial, Localize(g_Config.m_ClTutorialState == 2 ? "Training · complete" : g_Config.m_ClTutorialState == 3 ? "Training · skipped" : "Training · not started"), sizeof(aTutorial));
+	DrawStatusBadge(TutorialBadge, aTutorial, g_Config.m_ClTutorialState == 2 ? ms_ColorAccentDim : ms_ColorAccent);
+	const char *pServerStatus = m_LocalServerState == LOCAL_SERVER_RUNNING ? "Local server · running" : m_LocalServerState == LOCAL_SERVER_STARTING ? "Local server · starting" : m_LocalServerState == LOCAL_SERVER_FAILED ? "Local server · attention" : "Local server · idle";
+	DrawStatusBadge(ServerBadge, Localize(pServerStatus), m_LocalServerState == LOCAL_SERVER_FAILED ? ms_ColorDanger : (m_LocalServerState == LOCAL_SERVER_RUNNING ? ms_ColorAccentDim : vec4(.62f, .66f, .72f, 1.0f)));
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	DrawStatusBadge(NetworkBadge, Localize(pPlatform && pPlatform->Available() ? "Steam · online" : "Standalone · UDP ready"), ms_ColorAccentDim);
 
-	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
-	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
-	if(DoButton_Menu(&s_SettingsButton, Localize("Settings"), 0, &Button))
-		g_Config.m_UiPage = PAGE_SETTINGS;
+	Screen.HSplitTop(L(8.0f), 0, &Cards);
+	const float Gap = L(8.0f);
+	// Use effective width so raising UI scale selects the same denser layout as
+	// a physically smaller window.
+	const float ResponsiveWidth = UI()->Screen()->w / max(1.0f, UI()->Scale());
+	const bool Wide = ResponsiveWidth >= 1050.0f;
+	const bool Medium = !Wide && ResponsiveWidth >= 700.0f;
+	CUIRect CardRects[3];
+	static CScrollRegion s_HomeScroll;
+	bool HomeScrollActive = false;
+	if(Wide)
+	{
+		CUIRect Remaining = Cards;
+		Remaining.VSplitLeft((Remaining.w - Gap * 2.0f) / 3.0f, &CardRects[0], &Remaining);
+		Remaining.VSplitLeft(Gap, 0, &Remaining);
+		Remaining.VSplitLeft((Remaining.w - Gap) / 2.0f, &CardRects[1], &Remaining);
+		Remaining.VSplitLeft(Gap, 0, &Remaining);
+		CardRects[2] = Remaining;
+	}
+	else if(Medium)
+	{
+		Cards.HSplitTop((Cards.h - Gap) * .54f, &CardRects[0], &CardRects[2]);
+		CUIRect FirstRow = CardRects[0];
+		FirstRow.VSplitLeft((FirstRow.w - Gap) * .5f, &CardRects[0], &CardRects[1]);
+		CardRects[1].VSplitLeft(Gap, 0, &CardRects[1]);
+		CardRects[2].HSplitTop(Gap, 0, &CardRects[2]);
+	}
+	else
+	{
+		vec2 ScrollOffset(0.0f, 0.0f);
+		CScrollRegionParams Params;
+		ConfigureScrollRegion(&Params);
+		Params.m_ScrollUnit = L(116.0f);
+		s_HomeScroll.Begin(&Cards, &ScrollOffset, &Params);
+		HomeScrollActive = true;
+		Cards.y += ScrollOffset.y;
+		Cards.VSplitRight(L(18.0f), &Cards, 0);
+		for(int i = 0; i < 3; i++)
+		{
+			Cards.HSplitTop(L(150.0f), &CardRects[i], &Cards);
+			Cards.HSplitTop(Gap, 0, &Cards);
+		}
+	}
 
-	ButtonCol.HSplitTop(8.0f, 0, &ButtonCol);
-	ButtonCol.HSplitTop(32.0f, &Button, &ButtonCol);
-	static int s_QuitButton=0;
-	if(DoButton_Menu(&s_QuitButton, Localize("Quit"), 0, &Button, BUTTONSTYLE_DANGER))
-		m_Popup = POPUP_QUIT;
+	static int s_Training, s_Pve, s_Pvp;
+	auto Card = [&](CUIRect Rect, int Mode, const vec4 &Color, const char *pTitle, const char *pBody, const char *pMeta, const void *pButtonID, const char *pButton, int Action) {
+		DrawMenuInset(&Rect, CUI::CORNER_ALL);
+		CUIRect Art, Content = Rect;
+		const float ArtHeight = min(L(58.0f), Rect.h * .37f);
+		Content.HSplitTop(ArtHeight, &Art, &Content);
+		DrawPlayArtwork(Art, Mode, Color);
+		Content.Margin(L(9.0f), &Content);
+		CUIRect Line, Button;
+		Content.HSplitTop(L(19.0f), &Line, &Content);
+		UI()->DoLabelScaled(&Line, Localize(pTitle), L(13.0f), -1);
+		Content.HSplitTop(L(15.0f), &Line, &Content);
+		TextRender()->TextColor(Color.r, Color.g, Color.b, 1.0f);
+		UI()->DoLabelScaled(&Line, Localize(pMeta), FitLabelFontSize(TextRender(), Localize(pMeta), L(8.5f), Line.w), -1);
+		TextRender()->TextColor(1, 1, 1, 1);
+		Content.HSplitBottom(L(28.0f), &Line, &Button);
+		UI()->DoLabelScaled(&Line, Localize(pBody), L(8.5f), -1, (int)Line.w);
+		if(DoButton_Menu(pButtonID, Localize(pButton), 0, &Button))
+		{
+			if(Action == 1) OpenTutorialChapterSelect();
+			else if(Action == 2 || Action == 3)
+			{
+				m_PlayTab = 1;
+				m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
+				m_LocalServerFocus = Action == 2 ? LOCAL_MODE_INVASION : LOCAL_MODE_DM;
+				g_Config.m_UiPage = PAGE_LOCAL_SERVER;
+			}
+		}
+	};
+	Card(CardRects[0], 0, ms_ColorAccent, "Training", "Six guided chapters, always replayable.", "SOLO · 30–45 MIN", &s_Training, "Choose chapter", 1);
+	Card(CardRects[1], 1, ms_ColorAccentDim, "Co-op PvE", "Invasion, Horde, Extraction and Reactor Defense.", "4 PVE MODES · CO-OP", &s_Pve, "Configure PvE", 2);
+	Card(CardRects[2], 2, vec4(.78f, .32f, .28f, 1.0f), "Local PvP", "Eight competitive modes with adjustable match population.", "8 PVP MODES · SOLO / LAN / STEAM", &s_Pvp, "Choose PvP mode", 3);
+	if(HomeScrollActive)
+	{
+		CUIRect ScrollContent = CardRects[0];
+		ScrollContent.h = CardRects[2].y + CardRects[2].h - CardRects[0].y;
+		s_HomeScroll.AddRect(ScrollContent);
+		s_HomeScroll.End();
+	}
+}
+
+void CMenus::RenderTutorialChapterSelect(CUIRect MainView)
+{
+	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
+	MainView.Margin(16.0f, &MainView);
+	CUIRect Header, Body, Back;
+	MainView.HSplitTop(48.0f, &Header, &Body);
+	Header.VSplitRight(110.0f, &Header, &Back);
+	UI()->DoLabelScaled(&Header, Localize("Tutorial chapters"), 20.0f, -1);
+	static int s_Back;
+	if(DoButton_Menu(&s_Back, Localize("Back to Play"), 0, &Back))
+		g_Config.m_UiPage = PAGE_FRONT;
+
+	const char *apNames[NUM_TUTORIAL_CHAPTERS] = {
+		"First Deployment", "Combat and Recovery", "PvE Mission", "Forge and Build", "Build and Growth", "Multiplayer Ready"};
+	const char *apDescriptions[NUM_TUTORIAL_CHAPTERS] = {
+		"Movement, weapons and the training target.",
+		"Combat, recovery and respawning.",
+		"Objectives, defense and extraction.",
+		"Materials, forging and construction.",
+		"Perks, drones and research.",
+		"Bot PvP and multiplayer rooms."};
+	static int s_aChapterButtons[NUM_TUTORIAL_CHAPTERS];
+	const float Gap = 10.0f;
+	const float RowHeight = (Body.h - Gap) / 2.0f;
+	const float ColumnWidth = (Body.w - Gap * 2.0f) / 3.0f;
+	const bool HasCurrentProgress = g_Config.m_ClTutorialState == 1;
+
+	for(int Index = 0; Index < NUM_TUTORIAL_CHAPTERS; Index++)
+	{
+		const int Chapter = Index + 1;
+		CUIRect Card = {Body.x + (Index % 3) * (ColumnWidth + Gap), Body.y + (Index / 3) * (RowHeight + Gap), ColumnWidth, RowHeight};
+		DrawMenuInset(&Card, CUI::CORNER_ALL);
+		Card.Margin(10.0f, &Card);
+		CUIRect Line, Button;
+		Card.HSplitTop(22.0f, &Line, &Card);
+		char aChapter[32];
+		str_format(aChapter, sizeof(aChapter), Localize("Chapter %d"), Chapter);
+		UI()->DoLabelScaled(&Line, aChapter, 9.0f, -1);
+		Card.HSplitTop(25.0f, &Line, &Card);
+		UI()->DoLabelScaled(&Line, Localize(apNames[Index]), 13.0f, -1);
+		Card.HSplitTop(38.0f, &Line, &Card);
+		UI()->DoLabelScaled(&Line, Localize(apDescriptions[Index]), 9.0f, -1, (int)Line.w);
+
+		const bool Completed = TutorialChapterCompleted(Chapter, g_Config.m_ClTutorialCompletedMask);
+		const bool InProgress = HasCurrentProgress && g_Config.m_ClTutorialChapter == Chapter && !Completed;
+		const bool Unlocked = TutorialChapterUnlocked(Chapter, g_Config.m_ClTutorialCompletedMask, g_Config.m_ClTutorialChapter, HasCurrentProgress);
+		char aStatus[96];
+		const char *pAction;
+		if(InProgress)
+		{
+			str_format(aStatus, sizeof(aStatus), Localize("Step %d of %d"), clamp(g_Config.m_ClTutorialStep + 1, 1, TutorialStepCount(Chapter)), TutorialStepCount(Chapter));
+			pAction = "Continue";
+		}
+		else if(Completed)
+		{
+			str_copy(aStatus, Localize("Completed"), sizeof(aStatus));
+			pAction = "Replay";
+		}
+		else if(Unlocked)
+		{
+			str_copy(aStatus, Localize("Available"), sizeof(aStatus));
+			pAction = "Start";
+		}
+		else
+		{
+			str_format(aStatus, sizeof(aStatus), Localize("Complete chapter %d first"), Chapter - 1);
+			pAction = "Locked";
+		}
+		Card.HSplitTop(18.0f, &Line, &Card);
+		UI()->DoLabelScaled(&Line, aStatus, 9.0f, -1);
+		Card.HSplitBottom(30.0f, &Card, &Button);
+		if(DoButton_Menu(&s_aChapterButtons[Index], Localize(pAction), InProgress, &Button, InProgress || (!Completed && Unlocked) ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL) && Unlocked)
+			StartTutorial(Chapter, InProgress);
+	}
+}
+
+void CMenus::RenderTutorialRoomPractice(CUIRect MainView)
+{
+	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
+	MainView.Margin(16.0f, &MainView);
+	CUIRect Header, Body, Footer;
+	MainView.HSplitTop(54.0f, &Header, &Body);
+	Body.HSplitBottom(54.0f, &Body, &Footer);
+	UI()->DoLabelScaled(&Header, Localize("Multiplayer room practice"), 20.0f, -1);
+	CUIRect Subtitle = Header;
+	Subtitle.y += 27.0f;
+	UI()->DoLabelScaled(&Subtitle, Localize(g_Config.m_ClTutorialStep == 1 ? "Configure a simulated room, then create it." : "Filter the simulated room list, then join the training room."), 9.5f, -1);
+
+	static int s_aVisibility[4];
+	static int s_aFilters[3];
+	static int s_Create, s_Join;
+	if(g_Config.m_ClTutorialStep == 1)
+	{
+		CUIRect Panel = Body;
+		Panel.Margin(22.0f, &Panel);
+		DrawMenuInset(&Panel, CUI::CORNER_ALL);
+		Panel.Margin(14.0f, &Panel);
+		CUIRect Row, Label;
+		Panel.HSplitTop(28.0f, &Label, &Panel);
+		UI()->DoLabelScaled(&Label, Localize("Room visibility"), 12.0f, -1);
+		Panel.HSplitTop(34.0f, &Row, &Panel);
+		const char *apVisibility[] = {"Solo", "Friends", "LAN", "Public"};
+		for(int i = 0; i < 4; i++)
+		{
+			CUIRect Button;
+			Row.VSplitLeft(Row.w / (4 - i), &Button, &Row);
+			if(DoButton_Menu(&s_aVisibility[i], Localize(apVisibility[i]), g_Config.m_ClRoomVisibility == i, &Button, g_Config.m_ClRoomVisibility == i ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+				g_Config.m_ClRoomVisibility = i;
+		}
+		Panel.HSplitTop(18.0f, 0, &Panel);
+		Panel.HSplitTop(26.0f, &Label, &Panel);
+		UI()->DoLabelScaled(&Label, Localize("Training Room · Tutorial rules · 4 slots"), 11.0f, -1);
+		Panel.HSplitBottom(34.0f, &Panel, &Row);
+		if(DoButton_Menu(&s_Create, Localize("Create simulated room"), 0, &Row, BUTTONSTYLE_ACCENT))
+			m_pClient->m_pPveRoguelite->SendTutorialAction(TUTORIAL_ACTION_UI_ROOM_CREATE, g_Config.m_ClRoomVisibility);
+	}
+	else
+	{
+		CUIRect Filters, List, Room, Button;
+		Body.HSplitTop(38.0f, &Filters, &List);
+		const char *apFilters[] = {"All rooms", "Friends", "Low ping"};
+		for(int i = 0; i < 3; i++)
+		{
+			Filters.VSplitLeft(120.0f, &Button, &Filters);
+			DoButton_Menu(&s_aFilters[i], Localize(apFilters[i]), i == 0, &Button, i == 0 ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL);
+			Filters.VSplitLeft(6.0f, 0, &Filters);
+		}
+		List.HSplitTop(12.0f, 0, &List);
+		List.HSplitTop(74.0f, &Room, &List);
+		DrawMenuInset(&Room, CUI::CORNER_ALL);
+		Room.Margin(10.0f, &Room);
+		Room.VSplitRight(150.0f, &Room, &Button);
+		CUIRect Name, Meta;
+		Room.HSplitTop(25.0f, &Name, &Meta);
+		UI()->DoLabelScaled(&Name, Localize("Ninslash Training Room"), 13.0f, -1);
+		UI()->DoLabelScaled(&Meta, Localize("Tutorial · 1/4 players · local simulation"), 9.0f, -1);
+		if(DoButton_Menu(&s_Join, Localize("Join simulated room"), 0, &Button, BUTTONSTYLE_ACCENT))
+			m_pClient->m_pPveRoguelite->SendTutorialAction(TUTORIAL_ACTION_UI_ROOM_JOIN, 0);
+	}
+	UI()->DoLabelScaled(&Footer, Localize("This practice does not publish a real room or contact external services."), 9.0f, -1);
 }
 
 
@@ -2520,8 +3745,6 @@ void CMenus::RenderPlay(CUIRect MainView)
 	static int s_Filter = 0;
 	static int s_Selected = -1;
 	static float s_Scroll = 0.0f;
-	static int s_Visibility = PLATFORM_LOBBY_FRIENDS;
-	static int s_HostType = 0;
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
 
 	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
@@ -2530,106 +3753,145 @@ void CMenus::RenderPlay(CUIRect MainView)
 	MainView.HSplitTop(36.0f, &Title, &MainView);
 	UI()->DoLabelScaled(&Title, Localize("Play"), 22.0f, -1);
 	MainView.HSplitTop(32.0f, &Tabs, &Body);
-	const char *apTabs[] = {"Browse rooms", "Create room", "LAN & direct"};
-	static int s_aTabs[3];
-	for(int i = 0; i < 3; i++)
+	const char *apTabs[] = {"Browse rooms", "Create room"};
+	static int s_aTabs[2];
+	for(int i = 0; i < 2; i++)
 	{
 		CUIRect Button;
-		Tabs.VSplitLeft(min(150.0f, Tabs.w / (3 - i)), &Button, &Tabs);
-		if(DoButton_MenuTab(&s_aTabs[i], Localize(apTabs[i]), m_PlayTab == i, &Button, i == 0 ? CUI::CORNER_TL : i == 2 ? CUI::CORNER_TR : 0))
+		Tabs.VSplitLeft(min(150.0f, Tabs.w / (2 - i)), &Button, &Tabs);
+		if(DoButton_MenuTab(&s_aTabs[i], Localize(apTabs[i]), m_PlayTab == i, &Button, i == 0 ? CUI::CORNER_TL : CUI::CORNER_TR))
 		{
 			m_PlayTab = i;
 			if(i == 0) { ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
-			if(i == 2) ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
 		}
 	}
 	Body.HSplitTop(8.0f, 0, &Body);
 
 	if(m_PlayTab == 1)
 	{
-		CUIRect Choice, Content, Button, Row, Label, Edit;
-		Body.HSplitTop(36.0f, &Choice, &Content);
-		static int s_SteamHost, s_LocalHost;
-		Choice.VSplitLeft(170.0f, &Button, &Choice);
-		if(DoButton_Menu(&s_SteamHost, Localize("Steam room"), s_HostType == 0, &Button, BUTTONSTYLE_ACCENT)) s_HostType = 0;
-		Choice.VSplitLeft(6.0f, 0, &Choice);
-		Choice.VSplitLeft(190.0f, &Button, &Choice);
-		if(DoButton_Menu(&s_LocalHost, Localize("Local / LAN game"), s_HostType == 1, &Button)) s_HostType = 1;
-		Content.HSplitTop(8.0f, 0, &Content);
-		if(s_HostType == 1)
-		{
-			RenderLocalServer(Content);
-			return;
-		}
-		DrawMenuInset(&Content, CUI::CORNER_ALL);
-		Content.Margin(12.0f, &Content);
-		if(!pPlatform || !pPlatform->Available())
-		{
-			CUIRect Banner;
-			Content.HSplitTop(42.0f, &Banner, &Content);
-			DrawMenuBorder(&Banner, ms_ColorBgInset, ms_ColorDanger, CUI::CORNER_ALL, ms_ControlRounding);
-			Banner.Margin(8.0f, &Banner);
-			UI()->DoLabelScaled(&Banner, Localize("Steam hosting is unavailable. Start Steam or create a LAN game."), 11.0f, -1);
-		}
-		Content.HSplitTop(30.0f, &Row, &Content); Row.VSplitLeft(110.0f, &Label, &Edit); UI()->DoLabelScaled(&Label, Localize("Room name"), 11.0f, -1); static float s_NameOffset; DoEditBox(&g_Config.m_ClLocalServerName, &Edit, g_Config.m_ClLocalServerName, sizeof(g_Config.m_ClLocalServerName), 11.0f, &s_NameOffset);
-		Content.HSplitTop(8.0f, 0, &Content);
-		Content.HSplitTop(30.0f, &Row, &Content); Row.VSplitLeft(110.0f, &Label, &Edit); UI()->DoLabelScaled(&Label, Localize("Password"), 11.0f, -1); static float s_PasswordOffset; DoEditBox(&g_Config.m_ClLocalServerPassword, &Edit, g_Config.m_ClLocalServerPassword, sizeof(g_Config.m_ClLocalServerPassword), 11.0f, &s_PasswordOffset, true);
-		Content.HSplitTop(12.0f, 0, &Content);
-		Content.HSplitTop(34.0f, &Row, &Content);
-		const char *apVisibility[] = {"Invite only", "Friends", "Public"}; static int s_aVisibility[3];
-		for(int i = 0; i < 3; i++) { Row.VSplitLeft(120.0f, &Button, &Row); if(DoButton_Menu(&s_aVisibility[i], Localize(apVisibility[i]), s_Visibility == i, &Button)) s_Visibility = i; Row.VSplitLeft(5.0f, 0, &Row); }
-		Content.HSplitTop(14.0f, 0, &Content);
-		char aSummary[512];
-		str_format(aSummary, sizeof(aSummary), Localize("Relay Listen Server  |  %s  |  %s on %s  |  %d players  |  Steam authentication  |  Unofficial"), Localize(apVisibility[s_Visibility]), g_Config.m_SvGametype, g_Config.m_SvMap, g_Config.m_ClLocalServerMaxClients);
-		CUIRect Summary; Content.HSplitTop(60.0f, &Summary, &Content); DrawMenuInset(&Summary, CUI::CORNER_ALL); Summary.Margin(8.0f, &Summary); UI()->DoLabelScaled(&Summary, aSummary, FitLabelFontSize(TextRender(), aSummary, 11.0f, Summary.w), -1);
-		Content.HSplitTop(12.0f, 0, &Content); Content.HSplitTop(36.0f, &Button, &Content); static int s_Create;
-		if(DoButton_Menu(&s_Create, Localize("Create Steam room"), 0, &Button, BUTTONSTYLE_ACCENT) && pPlatform && pPlatform->Available())
-		{
-			CHostGameSettings Settings; mem_zero(&Settings, sizeof(Settings)); Settings.m_Visibility = s_Visibility; Settings.m_MaxClients = g_Config.m_ClLocalServerMaxClients;
-			str_copy(Settings.m_aName, g_Config.m_ClLocalServerName, sizeof(Settings.m_aName)); str_copy(Settings.m_aPassword, g_Config.m_ClLocalServerPassword, sizeof(Settings.m_aPassword)); str_copy(Settings.m_aMap, g_Config.m_SvMap, sizeof(Settings.m_aMap)); str_copy(Settings.m_aGameType, g_Config.m_SvGametype, sizeof(Settings.m_aGameType)); str_copy(Settings.m_aModHash, g_Config.m_ClModHash, sizeof(Settings.m_aModHash)); str_copy(Settings.m_aModIDs, g_Config.m_ClModIds, sizeof(Settings.m_aModIDs));
-			Client()->StartSteamHostedGame(Settings);
-		}
-		CClientAsyncStatus Status; Client()->SteamHostedGameStatus(&Status);
-		if(Status.m_State == CLIENT_ASYNC_WORKING || Status.m_State == CLIENT_ASYNC_FAILED) { Content.HSplitTop(10.0f, 0, &Content); char aStatus[256]; if(Status.m_State == CLIENT_ASYNC_FAILED) str_copy(aStatus, Localize(Status.m_aErrorKey), sizeof(aStatus)); else str_format(aStatus, sizeof(aStatus), "%s  %d%%", Localize(Status.m_Stage == CLIENT_STAGE_STARTING_SERVER ? "Starting server" : "Creating room"), (int)(Status.m_Progress * 100)); UI()->DoLabelScaled(&Content, aStatus, 11.0f, -1); }
+		RenderCreateRoom(Body);
 		return;
 	}
 
-	if(m_PlayTab == 2)
-	{
-		CUIRect Toolbar, Button;
-		Body.HSplitTop(36.0f, &Toolbar, &Body);
-		static int s_RefreshLan, s_CreateLocal;
-		Toolbar.VSplitLeft(120.0f, &Button, &Toolbar); if(DoButton_Menu(&s_RefreshLan, Localize("Refresh LAN"), 0, &Button)) ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
-		Toolbar.VSplitLeft(6.0f, 0, &Toolbar); Toolbar.VSplitLeft(160.0f, &Button, &Toolbar); if(DoButton_Menu(&s_CreateLocal, Localize("Create local game"), 0, &Button, BUTTONSTYLE_ACCENT)) { m_PlayTab = 1; s_HostType = 1; }
-		Body.HSplitTop(6.0f, 0, &Body);
-		RenderServerbrowser(Body);
-		return;
-	}
-
+	UpdatePlaySnapshots();
 	CUIRect StatusBar, Filters, List, Detail, Actions, Button;
 	Body.HSplitTop(30.0f, &StatusBar, &Body);
 	CClientAsyncStatus Connection; Client()->ConnectionStatus(&Connection);
 	CPlatformOperationStatus LobbyStatus; mem_zero(&LobbyStatus, sizeof(LobbyStatus)); if(pPlatform) pPlatform->LobbyOperationStatus(&LobbyStatus);
 	if(LobbyStatus.m_State == CLIENT_ASYNC_WORKING && LobbyStatus.m_Stage == CLIENT_STAGE_JOINING_ROOM) { CUIRect Cancel; StatusBar.VSplitRight(90.0f, &StatusBar, &Cancel); UI()->DoLabelScaled(&StatusBar, Localize("Joining room"), 10.0f, -1); static int s_CancelJoin; if(DoButton_Menu(&s_CancelJoin, Localize("Cancel"), 0, &Cancel, BUTTONSTYLE_DANGER) || m_EscapePressed) { pPlatform->LeaveLobby(); m_EscapePressed = false; } }
 	else if(Connection.m_State == CLIENT_ASYNC_FAILED) { TextRender()->TextColor(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 1.0f); UI()->DoLabelScaled(&StatusBar, Localize(Connection.m_aErrorKey), 10.0f, -1); TextRender()->TextColor(1, 1, 1, 1); }
+	else if(ServerBrowser()->IsRefreshing()) { char aStatus[96]; str_format(aStatus, sizeof(aStatus), "%s  %d%%", Localize("Refreshing"), ServerBrowser()->LoadingProgression()); UI()->DoLabelScaled(&StatusBar, aStatus, 10.0f, -1); }
 	else if(!pPlatform || !pPlatform->Available()) UI()->DoLabelScaled(&StatusBar, Localize("Steam unavailable — dedicated servers, Favorites and direct connection remain available."), 10.0f, -1);
-	else UI()->DoLabelScaled(&StatusBar, Localize("Dedicated servers and Steam rooms"), 10.0f, -1);
+	else UI()->DoLabelScaled(&StatusBar, Localize("Dedicated servers, LAN, Favorites and Steam rooms"), 10.0f, -1);
+
 	Body.HSplitTop(28.0f, &Filters, &Body);
-	const char *apFilters[] = {"All", "Official", "Community", "Friends", "Modded", "Favorites"}; static int s_aFilters[6];
-	for(int i = 0; i < 6; i++) { Filters.VSplitLeft(86.0f, &Button, &Filters); if(DoButton_MenuTab(&s_aFilters[i], Localize(apFilters[i]), s_Filter == i, &Button, 0)) s_Filter = i; Filters.VSplitLeft(3.0f, 0, &Filters); }
-	Body.HSplitTop(6.0f, 0, &Body); Body.HSplitBottom(40.0f, &Body, &Actions); Body.VSplitRight(max(220.0f, Body.w * 0.30f), &List, &Detail); List.VSplitRight(6.0f, &List, 0);
+	const char *apFilters[] = {"All", "Official", "Community", "Friends", "Modded", "Favorites", "LAN"}; static int s_aFilters[7], s_FilterButton;
+	for(int i = 0; i < 7; i++)
+	{
+		Filters.VSplitLeft(min(82.0f, Filters.w / (8 - i)), &Button, &Filters);
+		if(DoButton_MenuTab(&s_aFilters[i], Localize(apFilters[i]), s_Filter == i, &Button, 0))
+		{
+			s_Filter = i;
+			m_PlayBrowserCollection = i == 6 ? PLAY_COLLECTION_LAN : i == 5 ? PLAY_COLLECTION_FAVORITES : PLAY_COLLECTION_INTERNET;
+			ServerBrowser()->Refresh(m_PlayBrowserCollection == PLAY_COLLECTION_LAN ? IServerBrowser::TYPE_LAN : m_PlayBrowserCollection == PLAY_COLLECTION_FAVORITES ? IServerBrowser::TYPE_FAVORITES : IServerBrowser::TYPE_INTERNET);
+			if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList();
+		}
+		Filters.VSplitLeft(3.0f, 0, &Filters);
+	}
+	if(DoButton_Menu(&s_FilterButton, Localize("Filter"), m_PlayFiltersOpen, &Filters)) m_PlayFiltersOpen = !m_PlayFiltersOpen;
+	if(m_PlayFiltersOpen)
+	{
+		CUIRect Presets, Advanced;
+		Body.HSplitTop(22.0f, &Presets, &Body); RenderFilterPresetBar(Presets);
+		Body.HSplitTop(min(178.0f, Body.h * 0.42f), &Advanced, &Body); DrawMenuInset(&Advanced, CUI::CORNER_ALL); Advanced.Margin(6.0f, &Advanced); RenderServerbrowserFilters(Advanced);
+		Body.HSplitTop(6.0f, 0, &Body);
+	}
+	Body.HSplitTop(30.0f, &Filters, &Body);
+	CUIRect SearchLabel, Search; Filters.VSplitLeft(52.0f, &SearchLabel, &Search); UI()->DoLabelScaled(&SearchLabel, Localize("Search"), 10.0f, -1);
+	static float s_SearchOffset; if(DoEditBox(&g_Config.m_BrFilterString, &Search, g_Config.m_BrFilterString, sizeof(g_Config.m_BrFilterString), 10.0f, &s_SearchOffset)) Client()->ServerBrowserUpdate();
+
+	Body.HSplitTop(6.0f, 0, &Body); Body.HSplitBottom(72.0f, &Body, &Actions);
+	const bool Compact = Body.w < 760.0f;
+	if(!Compact) { Body.VSplitRight(max(220.0f, Body.w * 0.30f), &List, &Detail); List.VSplitRight(6.0f, &List, 0); }
+	else { List = Body; Detail = CUIRect(); }
+
 	CPlayRoomEntry aEntries[512]; int EntryCount = 0;
-	for(int i = 0; i < ServerBrowser()->NumSortedServers() && EntryCount < 512; i++) { const CServerInfo *pInfo = ServerBrowser()->SortedGet(i); if(!pInfo) continue; const bool Show = s_Filter == 0 || (s_Filter == 1 && pInfo->m_Official) || (s_Filter == 2 && !pInfo->m_Official) || (s_Filter == 4 && pInfo->m_Modded) || (s_Filter == 5 && pInfo->m_Favorite); if(Show) { CPlayRoomEntry &Entry = aEntries[EntryCount++]; Entry.m_Source = CPlayRoomEntry::SOURCE_DEDICATED; Entry.m_SourceIndex = i; str_copy(Entry.m_aStableID, pInfo->m_aAddress, sizeof(Entry.m_aStableID)); } }
-	if(pPlatform && pPlatform->Available()) for(int i = 0; i < pPlatform->LobbyCount() && EntryCount < 512; i++) { CPlatformLobbyInfo Info; pPlatform->LobbyInfo(i, &Info); const bool Show = s_Filter == 0 || (s_Filter == 2) || (s_Filter == 3 && Info.m_FriendHosted) || (s_Filter == 4 && Info.m_Modded); if(Show) { CPlayRoomEntry &Entry = aEntries[EntryCount++]; Entry.m_Source = CPlayRoomEntry::SOURCE_STEAM_LOBBY; Entry.m_SourceIndex = i; str_format(Entry.m_aStableID, sizeof(Entry.m_aStableID), "lobby:%llu", Info.m_LobbyID); } }
+	auto AddServer = [&](const CPlayServerSnapshot *pServer) {
+		if(!pServer || EntryCount >= 512) return;
+		const bool Show = s_Filter == 0 || (s_Filter == 1 && pServer->m_Official) || (s_Filter == 2 && !pServer->m_Official) || (s_Filter == 4 && pServer->m_Modded) || (s_Filter == 5 && pServer->m_Favorite) || (s_Filter == 6 && pServer->m_Collection == PLAY_COLLECTION_LAN);
+		if(!Show || (g_Config.m_BrFilterString[0] && !str_find_nocase(pServer->m_aName, g_Config.m_BrFilterString) && !str_find_nocase(pServer->m_aMap, g_Config.m_BrFilterString) && !str_find_nocase(pServer->m_aAddress, g_Config.m_BrFilterString))) return;
+		for(int i = 0; i < EntryCount; i++)
+			if(!str_comp(aEntries[i].m_aStableID, pServer->m_aAddress))
+			{
+				if(pServer->m_Favorite)
+					aEntries[i].m_pServer = pServer;
+				return;
+			}
+		CPlayRoomEntry &Entry = aEntries[EntryCount++]; Entry.m_Source = CPlayRoomEntry::SOURCE_DEDICATED; Entry.m_pServer = pServer; Entry.m_pLobby = 0; str_copy(Entry.m_aStableID, pServer->m_aAddress, sizeof(Entry.m_aStableID));
+	};
+	for(int Collection = 0; Collection < NUM_PLAY_COLLECTIONS; Collection++) for(int i = 0; i < m_aPlayServerSnapshotCount[Collection]; i++) AddServer(&m_aaPlayServerSnapshots[Collection][i]);
+	for(int i = 0; i < m_PlayLobbySnapshotCount && EntryCount < 512; i++)
+	{
+		const CPlatformLobbyInfo &Info = m_aPlayLobbySnapshots[i].m_Info;
+		const bool Show = s_Filter == 0 || s_Filter == 2 || (s_Filter == 3 && Info.m_FriendHosted) || (s_Filter == 4 && Info.m_Modded);
+		if(Show && (!g_Config.m_BrFilterString[0] || str_find_nocase(Info.m_aHostName, g_Config.m_BrFilterString) || str_find_nocase(Info.m_aMap, g_Config.m_BrFilterString))) { CPlayRoomEntry &Entry = aEntries[EntryCount++]; Entry.m_Source = CPlayRoomEntry::SOURCE_STEAM_LOBBY; Entry.m_pServer = 0; Entry.m_pLobby = &m_aPlayLobbySnapshots[i]; str_format(Entry.m_aStableID, sizeof(Entry.m_aStableID), "lobby:%llu", Info.m_LobbyID); }
+	}
+	for(int i = 1; i < EntryCount; i++)
+	{
+		CPlayRoomEntry Key = aEntries[i]; int j = i - 1;
+		auto Compare = [&](const CPlayRoomEntry &A, const CPlayRoomEntry &B) {
+			const char *pA = A.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? A.m_pServer->m_aName : A.m_pLobby->m_Info.m_aHostName;
+			const char *pB = B.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? B.m_pServer->m_aName : B.m_pLobby->m_Info.m_aHostName;
+			int Result = str_comp_nocase(pA, pB);
+			if(g_Config.m_BrSort == IServerBrowser::SORT_MAP) Result = str_comp_nocase(A.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? A.m_pServer->m_aMap : A.m_pLobby->m_Info.m_aMap, B.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? B.m_pServer->m_aMap : B.m_pLobby->m_Info.m_aMap);
+			else if(g_Config.m_BrSort == IServerBrowser::SORT_GAMETYPE) Result = str_comp_nocase(A.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? A.m_pServer->m_aGameType : A.m_pLobby->m_Info.m_aGameType, B.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? B.m_pServer->m_aGameType : B.m_pLobby->m_Info.m_aGameType);
+			else if(g_Config.m_BrSort == IServerBrowser::SORT_NUMPLAYERS) Result = (A.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? A.m_pServer->m_NumClients : A.m_pLobby->m_Info.m_Members) - (B.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? B.m_pServer->m_NumClients : B.m_pLobby->m_Info.m_Members);
+			else if(g_Config.m_BrSort == IServerBrowser::SORT_PING) { const int PingA = A.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? A.m_pServer->m_Latency : 10000; const int PingB = B.m_Source == CPlayRoomEntry::SOURCE_DEDICATED ? B.m_pServer->m_Latency : 10000; Result = PingA - PingB; }
+			return g_Config.m_BrSortOrder ? Result < 0 : Result > 0;
+		};
+		while(j >= 0 && Compare(aEntries[j], Key)) { aEntries[j + 1] = aEntries[j]; j--; } aEntries[j + 1] = Key;
+	}
+	if(!m_aPlaySelectedID[0] && EntryCount) str_copy(m_aPlaySelectedID, aEntries[0].m_aStableID, sizeof(m_aPlaySelectedID));
+	s_Selected = -1; for(int i = 0; i < EntryCount; i++) if(!str_comp(m_aPlaySelectedID, aEntries[i].m_aStableID)) { s_Selected = i; break; }
+	if(s_Selected < 0 && EntryCount) { s_Selected = 0; str_copy(m_aPlaySelectedID, aEntries[0].m_aStableID, sizeof(m_aPlaySelectedID)); }
+	if(m_PlayListHasFocus) for(int i = 0; i < m_NumInputEvents; i++) if(m_aInputEvents[i].m_Flags & IInput::FLAG_PRESS) { const int Key = m_aInputEvents[i].m_Key; if((Key == KEY_UP || Key == KEY_GAMEPAD_BUTTON_DPAD_UP) && s_Selected > 0) s_Selected--; if((Key == KEY_DOWN || Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN) && s_Selected + 1 < EntryCount) s_Selected++; }
+	if(s_Selected >= 0) str_copy(m_aPlaySelectedID, aEntries[s_Selected].m_aStableID, sizeof(m_aPlaySelectedID));
+
+	CUIRect Headers; List.HSplitTop(20.0f, &Headers, &List); DrawSectionHeader(&Headers, CUI::CORNER_T);
+	struct CColumn { const char *m_pName; int m_Sort; float m_Width; CUIRect m_Rect; }; CColumn aColumns[] = {{"Source", -1, Compact ? 66.0f : 76.0f, {}}, {"Name", IServerBrowser::SORT_NAME, Compact ? 0.0f : 0.0f, {}}, {"Type", IServerBrowser::SORT_GAMETYPE, Compact ? 0.0f : 70.0f, {}}, {"Map", IServerBrowser::SORT_MAP, Compact ? 0.0f : 100.0f, {}}, {"Players", IServerBrowser::SORT_NUMPLAYERS, 62.0f, {}}, {"Ping", IServerBrowser::SORT_PING, 56.0f, {}}};
+	CUIRect Remaining = Headers;
+	Remaining.VSplitLeft(aColumns[0].m_Width, &aColumns[0].m_Rect, &Remaining);
+	Remaining.VSplitRight(aColumns[5].m_Width, &Remaining, &aColumns[5].m_Rect);
+	Remaining.VSplitRight(aColumns[4].m_Width, &Remaining, &aColumns[4].m_Rect);
+	if(!Compact)
+	{
+		Remaining.VSplitRight(aColumns[3].m_Width, &Remaining, &aColumns[3].m_Rect);
+		Remaining.VSplitRight(aColumns[2].m_Width, &Remaining, &aColumns[2].m_Rect);
+	}
+	aColumns[1].m_Rect = Remaining;
+	for(int i = 0; i < 6; i++) if(aColumns[i].m_Rect.w > 0.0f && DoButton_GridHeader(&aColumns[i], Localize(aColumns[i].m_pName), g_Config.m_BrSort == aColumns[i].m_Sort, &aColumns[i].m_Rect) && aColumns[i].m_Sort >= 0) { if(g_Config.m_BrSort == aColumns[i].m_Sort) g_Config.m_BrSortOrder ^= 1; else { g_Config.m_BrSort = aColumns[i].m_Sort; g_Config.m_BrSortOrder = 0; } }
 	static int s_aEntryIDs[512]; for(int i = 0; i < 512; i++) s_aEntryIDs[i] = i;
-	UiDoListboxStart(&s_aEntryIDs, &List, 34.0f, Localize("Rooms"), "", EntryCount, 1, s_Selected, s_Scroll);
-	for(int i = 0; i < EntryCount; i++) { CListboxItem Item = UiDoListboxNextItem(&s_aEntryIDs[i], s_Selected == i); if(!Item.m_Visible) continue; char aLine[512]; if(aEntries[i].m_Source == CPlayRoomEntry::SOURCE_DEDICATED) { const CServerInfo *pInfo = ServerBrowser()->SortedGet(aEntries[i].m_SourceIndex); str_format(aLine, sizeof(aLine), "%s  %s  |  %s  %s  |  %d/%d  |  %dms%s%s", pInfo->m_Official ? Localize("OFFICIAL") : Localize("COMMUNITY"), pInfo->m_aName, pInfo->m_aGameType, pInfo->m_aMap, pInfo->m_NumClients, pInfo->m_MaxClients, pInfo->m_Latency, pInfo->m_Flags ? "  LOCK" : "", pInfo->m_Modded ? "  MOD" : ""); } else { CPlatformLobbyInfo Info; pPlatform->LobbyInfo(aEntries[i].m_SourceIndex, &Info); str_format(aLine, sizeof(aLine), "%s  %s  |  %s  %s  |  %d/%d  |  RELAY%s%s", Info.m_FriendHosted ? Localize("FRIEND") : Localize("STEAM"), Info.m_aHostName, Info.m_aGameType, Info.m_aMap, Info.m_Members, Info.m_MaxMembers, Info.m_Password ? "  LOCK" : "", Info.m_Modded ? "  MOD" : ""); } Item.m_Rect.Margin(6.0f, &Item.m_Rect); UI()->DoLabelScaled(&Item.m_Rect, aLine, FitLabelFontSize(TextRender(), aLine, 10.5f, Item.m_Rect.w), -1); }
-	s_Selected = UiDoListboxEnd(&s_Scroll, 0); s_Selected = clamp(s_Selected, -1, max(-1, EntryCount - 1));
-	DrawMenuInset(&Detail, CUI::CORNER_ALL); Detail.Margin(10.0f, &Detail);
-	if(s_Selected < 0) UI()->DoLabelScaled(&Detail, Localize("Select a room to see address, region, version, Mods and join requirements."), 11.0f, -1);
-	else { char aDetail[768]; const CPlayRoomEntry &Entry = aEntries[s_Selected]; if(Entry.m_Source == CPlayRoomEntry::SOURCE_DEDICATED) { const CServerInfo *pInfo = ServerBrowser()->SortedGet(Entry.m_SourceIndex); str_format(aDetail, sizeof(aDetail), "%s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s", pInfo->m_aName, Localize("Address"), pInfo->m_aAddress, Localize("Version"), pInfo->m_aVersion, Localize("Source"), pInfo->m_DiscoverySources & IServerBrowser::DISCOVERY_STEAM ? "Steam GameServer + UDP" : "UDP", Localize("Mods"), pInfo->m_Modded ? Localize("Required") : Localize("None"), Localize("Authentication"), pInfo->m_AuthPolicy ? Localize("Required") : Localize("Open")); } else { CPlatformLobbyInfo Info; pPlatform->LobbyInfo(Entry.m_SourceIndex, &Info); str_format(aDetail, sizeof(aDetail), "%s\nLobbyID: %llu\n%s: %llu\n%s: %s\n%s: %s\nMod hash: %s\nRelay / Steam authentication", Info.m_aHostName, Info.m_LobbyID, Localize("Host"), Info.m_HostSteamID, Localize("Region"), Info.m_aRegion, Localize("Source"), Info.m_FriendHosted ? Localize("Friend room") : Localize("Steam local room"), Info.m_aModHash); } UI()->DoLabelScaled(&Detail, aDetail, 10.5f, -1); }
-	Actions.HSplitTop(6.0f, 0, &Actions); Actions.VSplitRight(110.0f, &Actions, &Button); static int s_Join; if(DoButton_Menu(&s_Join, Localize("Join"), 0, &Button, BUTTONSTYLE_ACCENT) && s_Selected >= 0) { const CPlayRoomEntry &Entry = aEntries[s_Selected]; if(Entry.m_Source == CPlayRoomEntry::SOURCE_DEDICATED) Client()->Connect(ServerBrowser()->SortedGet(Entry.m_SourceIndex)->m_aAddress); else { CPlatformLobbyInfo Info; if(pPlatform->LobbyInfo(Entry.m_SourceIndex, &Info)) pPlatform->JoinLobby(Info.m_LobbyID); } }
-	Actions.VSplitRight(6.0f, &Actions, 0); Actions.VSplitRight(100.0f, &Actions, &Button); static int s_Refresh; if(DoButton_Menu(&s_Refresh, Localize("Refresh"), 0, &Button)) { ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
+	UiDoListboxStart(&s_aEntryIDs, &List, 30.0f, Localize("Rooms"), "", EntryCount, 1, s_Selected, s_Scroll);
+	for(int i = 0; i < EntryCount; i++)
+	{
+		CListboxItem Item = UiDoListboxNextItem(&s_aEntryIDs[i], s_Selected == i); if(!Item.m_Visible) continue; CUIRect Row = Item.m_Rect; Row.Margin(4.0f, &Row);
+		for(int Column = 0; Column < 6; Column++) { CUIRect Cell = aColumns[Column].m_Rect; Cell.x = Row.x + (Cell.x - Headers.x); Cell.y = Row.y; Cell.h = Row.h; const CPlayRoomEntry &Entry = aEntries[i]; const CPlayServerSnapshot *pServer = Entry.m_pServer; const CPlatformLobbyInfo *pLobby = Entry.m_pLobby ? &Entry.m_pLobby->m_Info : 0; char aValue[128]; if(Column == 0) str_copy(aValue, Entry.m_Source == CPlayRoomEntry::SOURCE_STEAM_LOBBY ? (pLobby->m_FriendHosted ? Localize("FRIEND") : "STEAM") : pServer->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pServer->m_Official ? Localize("OFFICIAL") : Localize("COMMUNITY"), sizeof(aValue)); else if(Column == 1) str_copy(aValue, pServer ? pServer->m_aName : pLobby->m_aHostName, sizeof(aValue)); else if(Column == 2) str_copy(aValue, pServer ? pServer->m_aGameType : pLobby->m_aGameType, sizeof(aValue)); else if(Column == 3) str_copy(aValue, pServer ? pServer->m_aMap : pLobby->m_aMap, sizeof(aValue)); else if(Column == 4) str_format(aValue, sizeof(aValue), "%d/%d", pServer ? pServer->m_NumClients : pLobby->m_Members, pServer ? pServer->m_MaxClients : pLobby->m_MaxMembers); else str_copy(aValue, pServer ? (pServer->m_Latency >= 0 ? "" : "-") : "RELAY", sizeof(aValue)); if(Column == 5 && pServer && pServer->m_Latency >= 0) str_format(aValue, sizeof(aValue), "%dms", pServer->m_Latency); UI()->DoLabelScaled(&Cell, aValue, FitLabelFontSize(TextRender(), aValue, 10.0f, Cell.w), -1); }
+	}
+	const int NewSelection = UiDoListboxEnd(&s_Scroll, 0); if(NewSelection >= 0 && NewSelection < EntryCount) { s_Selected = NewSelection; str_copy(m_aPlaySelectedID, aEntries[s_Selected].m_aStableID, sizeof(m_aPlaySelectedID)); m_PlayListHasFocus = true; }
+
+	auto RenderDetail = [&](CUIRect View) { DrawMenuInset(&View, CUI::CORNER_ALL); View.Margin(10.0f, &View); if(s_Selected < 0) UI()->DoLabelScaled(&View, Localize("No servers found"), 11.0f, -1); else { const CPlayRoomEntry &Entry = aEntries[s_Selected]; char aDetail[768]; if(Entry.m_pServer) { const CPlayServerSnapshot *pInfo = Entry.m_pServer; str_format(aDetail, sizeof(aDetail), "%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s", pInfo->m_aName, Localize("Address"), pInfo->m_aAddress, Localize("Version"), pInfo->m_aVersion, Localize("Source"), pInfo->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pInfo->m_DiscoverySources & IServerBrowser::DISCOVERY_STEAM ? "Steam GameServer + UDP" : "UDP", Localize("Mods"), pInfo->m_Modded ? Localize("Required") : Localize("None"), Localize("Authentication"), pInfo->m_AuthPolicy ? Localize("Required") : Localize("Open"), Localize("Region"), pInfo->m_aMap); } else { const CPlatformLobbyInfo &Info = Entry.m_pLobby->m_Info; str_format(aDetail, sizeof(aDetail), "%s\n\nLobbyID: %llu\n%s: %llu\n%s: %s\n%s: %s\nMod hash: %s\nRelay / Steam authentication", Info.m_aHostName, Info.m_LobbyID, Localize("Host"), Info.m_HostSteamID, Localize("Region"), Info.m_aRegion, Localize("Source"), Info.m_FriendHosted ? Localize("Friend room") : Localize("Steam local room"), Info.m_aModHash); } UI()->DoLabelScaled(&View, aDetail, 10.5f, -1); } };
+	if(!Compact) RenderDetail(Detail);
+	Actions.HSplitTop(6.0f, 0, &Actions); CUIRect Direct, ActionButtons; Actions.HSplitTop(30.0f, &Direct, &ActionButtons);
+	CUIRect DirectLabel, DirectBox; Direct.VSplitLeft(76.0f, &DirectLabel, &DirectBox); UI()->DoLabelScaled(&DirectLabel, Localize("Host address"), 10.0f, -1); static float s_DirectOffset; DoEditBox(&g_Config.m_UiServerAddress, &DirectBox, g_Config.m_UiServerAddress, sizeof(g_Config.m_UiServerAddress), 10.0f, &s_DirectOffset);
+	static int s_Join, s_Refresh, s_Copy, s_Favorite, s_Details; CUIRect JoinButton, RefreshButton, CopyButton, FavoriteButton, DetailButton;
+	ActionButtons.VSplitRight(100.0f, &ActionButtons, &JoinButton); ActionButtons.VSplitRight(4.0f, &ActionButtons, 0); ActionButtons.VSplitRight(80.0f, &ActionButtons, &RefreshButton); ActionButtons.VSplitRight(4.0f, &ActionButtons, 0); ActionButtons.VSplitRight(70.0f, &ActionButtons, &CopyButton); ActionButtons.VSplitRight(4.0f, &ActionButtons, 0); ActionButtons.VSplitRight(92.0f, &ActionButtons, &FavoriteButton); if(Compact) { ActionButtons.VSplitRight(4.0f, &ActionButtons, 0); ActionButtons.VSplitRight(74.0f, &ActionButtons, &DetailButton); }
+	const bool HasDedicated = s_Selected >= 0 && aEntries[s_Selected].m_pServer;
+	if(DoButton_Menu(&s_Join, Localize("Join"), 0, &JoinButton, BUTTONSTYLE_ACCENT) || (m_PlayListHasFocus && m_EnterPressed && s_Selected >= 0)) { if(s_Selected >= 0) { const CPlayRoomEntry &Entry = aEntries[s_Selected]; if(Entry.m_pServer) Client()->Connect(Entry.m_pServer->m_aAddress); else if(pPlatform) pPlatform->JoinLobby(Entry.m_pLobby->m_Info.m_LobbyID); } else if(g_Config.m_UiServerAddress[0]) Client()->Connect(g_Config.m_UiServerAddress); m_EnterPressed = false; }
+	if(DoButton_Menu(&s_Refresh, Localize("Refresh"), 0, &RefreshButton)) { ServerBrowser()->Refresh(m_PlayBrowserCollection == PLAY_COLLECTION_LAN ? IServerBrowser::TYPE_LAN : m_PlayBrowserCollection == PLAY_COLLECTION_FAVORITES ? IServerBrowser::TYPE_FAVORITES : IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
+	if(DoButton_Menu(&s_Copy, Localize("Copy"), 0, &CopyButton) && s_Selected >= 0) Input()->SetClipboardText(HasDedicated ? aEntries[s_Selected].m_pServer->m_aAddress : aEntries[s_Selected].m_aStableID);
+	if(HasDedicated && DoButton_Menu(&s_Favorite, Localize(aEntries[s_Selected].m_pServer->m_Favorite ? "Unfavorite" : "Favorite"), 0, &FavoriteButton)) { const CPlayServerSnapshot *pInfo = aEntries[s_Selected].m_pServer; if(pInfo->m_Favorite) ServerBrowser()->RemoveFavorite(pInfo->m_NetAddr); else ServerBrowser()->AddFavorite(pInfo->m_NetAddr); }
+	if(Compact && DoButton_Menu(&s_Details, Localize("Details"), m_PlayDetailOpen, &DetailButton)) m_PlayDetailOpen = !m_PlayDetailOpen;
+	if(Compact && m_PlayDetailOpen) { CUIRect Overlay = Body; Overlay.Margin(8.0f, &Overlay); RenderDetail(Overlay); if(m_EscapePressed) { m_PlayDetailOpen = false; m_EscapePressed = false; } }
 }
 
 void CMenus::RenderMods(CUIRect MainView)
@@ -2660,9 +3922,8 @@ int CMenus::Render()
 	static bool s_First = true;
 	if(s_First)
 	{
-		if(g_Config.m_UiPage == PAGE_FRONT || g_Config.m_UiPage == PAGE_STEAM || g_Config.m_UiPage == PAGE_INTERNET)
+		if(g_Config.m_UiPage == PAGE_STEAM || g_Config.m_UiPage == PAGE_INTERNET)
 		{
-			g_Config.m_UiPage = PAGE_INTERNET;
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
 			IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
 			if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList();
@@ -2671,6 +3932,11 @@ int CMenus::Render()
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
 		else if(g_Config.m_UiPage == PAGE_FAVORITES)
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_FAVORITES);
+		else if(g_Config.m_UiPage == PAGE_LOCAL_SERVER)
+		{
+			m_PlayTab = 1;
+			m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
+		}
 		m_pClient->m_pSounds->Enqueue(CSounds::CHN_MUSIC, SOUND_MENU);
 		s_First = false;
 	}
@@ -2706,12 +3972,15 @@ int CMenus::Render()
 		const float NavigationWidth = Screen.w < 900.0f ? 62.0f : 172.0f;
 		Screen.VSplitLeft(NavigationWidth, &Navigation, &MainView);
 		MainView.VSplitLeft(8.0f, 0, &MainView);
-		RenderMenubar(Navigation);
 
 		// render current page
 		if(Client()->State() != IClient::STATE_OFFLINE)
 		{
-			if(m_GamePage == PAGE_GAME)
+			if(m_GamePage == PAGE_LOCAL_SERVER && g_Config.m_ClTutorialActive && g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER && g_Config.m_ClTutorialStep >= 1)
+				RenderTutorialRoomPractice(MainView);
+			else if(m_GamePage == PAGE_LOCAL_SERVER)
+				RenderCreateRoom(MainView);
+			else if(m_GamePage == PAGE_GAME)
 				RenderGame(MainView);
 			else if(m_GamePage == PAGE_PLAYERS)
 				RenderPlayers(MainView);
@@ -2726,6 +3995,10 @@ int CMenus::Render()
 			else if(m_GamePage == PAGE_CUSTOMIZE)
 				RenderCustomize(MainView);
 		}
+		else if(g_Config.m_UiPage == PAGE_FRONT)
+			RenderFront(MainView);
+		else if(g_Config.m_UiPage == PAGE_TUTORIAL_SELECT)
+			RenderTutorialChapterSelect(MainView);
 		else if(g_Config.m_UiPage == PAGE_NEWS)
 			RenderNews(MainView);
 		else if(g_Config.m_UiPage == PAGE_INTERNET || g_Config.m_UiPage == PAGE_LAN || g_Config.m_UiPage == PAGE_FAVORITES || g_Config.m_UiPage == PAGE_LOCAL_SERVER)
@@ -2742,6 +4015,9 @@ int CMenus::Render()
 			RenderMods(MainView);
 		else if(g_Config.m_UiPage == PAGE_CUSTOMIZE)
 			RenderCustomize(MainView);
+
+		// Draw navigation last so compact hover labels can float over the page.
+		RenderMenubar(Navigation);
 	}
 	else
 	{
@@ -2839,6 +4115,12 @@ int CMenus::Render()
 			pExtraText = Localize("Are you sure that you want to quit?");
 			ExtraAlign = -1;
 		}
+		else if(m_Popup == POPUP_TUTORIAL_EXIT)
+		{
+			pTitle = Localize("Leave training?");
+			pExtraText = Localize("Your last completed checkpoint is saved locally. You can continue now, return to the hub, or skip training.");
+			ExtraAlign = -1;
+		}
 		else if(m_Popup == POPUP_FIRST_LAUNCH)
 		{
 			pTitle = Localize("Welcome to Ninslash");
@@ -2875,7 +4157,49 @@ int CMenus::Render()
 		else
 			UI()->DoLabelScaled(&Part, pExtraText, 14.f, 0, -1);
 
-		if(m_Popup == POPUP_QUIT)
+		if(m_Popup == POPUP_TUTORIAL_EXIT)
+		{
+			CUIRect Continue, Save, Skip;
+			Box.HSplitBottom(28.0f, &Box, &Part);
+			Part.VMargin(24.0f, &Part);
+			Part.VSplitLeft((Part.w - 12.0f) / 3.0f, &Continue, &Part);
+			Part.VSplitLeft(6.0f, 0, &Part);
+			Part.VSplitLeft((Part.w - 6.0f) / 2.0f, &Save, &Part);
+			Part.VSplitLeft(6.0f, 0, &Part);
+			Skip = Part;
+			static int s_ContinueTraining, s_SaveTraining, s_SkipTraining;
+			if(DoButton_Menu(&s_ContinueTraining, Localize("Continue"), 0, &Continue, BUTTONSTYLE_ACCENT) || m_EscapePressed)
+			{
+				m_Popup = POPUP_NONE;
+				SetActive(false);
+			}
+			if(DoButton_Menu(&s_SaveTraining, Localize("Exit and save"), 0, &Save))
+			{
+				if(g_Config.m_ClTutorialState == 2)
+					FinishTutorial();
+				else
+				{
+					m_Popup = POPUP_NONE;
+					g_Config.m_ClTutorialActive = 0;
+					StopLocalServer(false);
+					OpenTutorialChapterSelect();
+				}
+			}
+			if(DoButton_Menu(&s_SkipTraining, Localize(g_Config.m_ClTutorialState == 2 ? "Return to hub" : "Skip training"), 0, &Skip, g_Config.m_ClTutorialState == 2 ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_DANGER))
+			{
+				if(g_Config.m_ClTutorialState == 2)
+					FinishTutorial();
+				else
+				{
+					g_Config.m_ClTutorialState = 3;
+					g_Config.m_ClTutorialActive = 0;
+					m_Popup = POPUP_NONE;
+					g_Config.m_UiPage = PAGE_FRONT;
+					StopLocalServer(false);
+				}
+			}
+		}
+		else if(m_Popup == POPUP_QUIT)
 		{
 			CUIRect Yes, No;
 			Box.HSplitBottom(20.f, &Box, &Part);
@@ -3457,7 +4781,11 @@ bool CMenus::OnInput(IInput::CEvent e)
 		if(e.m_Key == KEY_GAMEPAD_BUTTON_B && IsActive())
 		{
 			m_EscapePressed = true;
-			if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE)
+			const bool LocalGameSubpage = m_GamePage == PAGE_LOCAL_SERVER && m_CreateRoomStep == CREATE_ROOM_CONFIGURE &&
+				!(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER);
+			// Popups consume B/Escape first. Their render handlers clear or dismiss
+			// themselves below, so a confirmation cannot accidentally close the menu.
+			if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE && !LocalGameSubpage)
 				SetActive(false);
 			return true;
 		}
@@ -3474,7 +4802,9 @@ bool CMenus::OnInput(IInput::CEvent e)
 			if(IsActive())
 			{
 				m_EscapePressed = true;
-				if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE)
+				const bool LocalGameSubpage = m_GamePage == PAGE_LOCAL_SERVER && m_CreateRoomStep == CREATE_ROOM_CONFIGURE &&
+					!(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER);
+				if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE && !LocalGameSubpage)
 					SetActive(false);
 			}
 			else

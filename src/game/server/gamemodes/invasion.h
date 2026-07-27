@@ -127,14 +127,14 @@ private:
 	
 	void Trigger(bool IncreaseLevel);
 	
-	class CRadar *m_pDoor;
-	class CRadar *m_pEnemySpawn;
-	class CRadar *m_pReactor;
-	class CRadar *m_apSwitchRadar[8];
+	class CServerRadar *m_pDoor;
+	class CServerRadar *m_pEnemySpawn;
+	class CServerRadar *m_pReactor;
+	class CServerRadar *m_apSwitchRadar[8];
 	int m_NumSwitchRadars;
 
 	static const int MAX_OBJECTIVE_TURRETS = 4;
-	class CRadar *m_apTurretRadar[MAX_OBJECTIVE_TURRETS];
+	class CServerRadar *m_apTurretRadar[MAX_OBJECTIVE_TURRETS];
 	int m_ObjectiveTurretCount;
 	bool m_DestroyTurretsActive;
 	int m_DestroyFxTick;

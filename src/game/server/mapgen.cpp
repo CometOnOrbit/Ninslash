@@ -15,6 +15,7 @@
 #include <game/layers.h>
 #include <game/mapitems.h>
 #include <game/questinfo.h>
+#include <game/tutorial.h>
 
 CMapGen::CMapGen()
 {
@@ -247,6 +248,34 @@ void CMapGen::ExpandExtractMazeCanvas()
 	m_pCollision->RefreshMapgenDimensions();
 }
 
+void CMapGen::FitTutorialCanvas()
+{
+	if(!IsTutorialGametype(g_Config.m_SvGametype) || !m_pLayers || !m_pLayers->GameLayer() || !m_pLayers->Map())
+		return;
+	CMapItemLayerTilemap *pGame = m_pLayers->GameLayer();
+	const int NewW = g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 120 : 140;
+	const int NewH = 80;
+	if(pGame->m_Width == NewW && pGame->m_Height == NewH)
+		return;
+	dbg_msg("mapgen", "fitting tutorial canvas %dx%d -> %dx%d", pGame->m_Width, pGame->m_Height, NewW, NewH);
+	IMap *pMap = m_pLayers->Map();
+	int LayerStart = 0;
+	int LayerNum = 0;
+	pMap->GetType(MAPITEMTYPE_LAYER, &LayerStart, &LayerNum);
+	for(int i = 0; i < LayerNum; i++)
+	{
+		CMapItemLayer *pLayer = static_cast<CMapItemLayer *>(pMap->GetItem(LayerStart + i, 0, 0));
+		if(!pLayer || pLayer->m_Type != LAYERTYPE_TILES)
+			continue;
+		CMapItemLayerTilemap *pTilemap = reinterpret_cast<CMapItemLayerTilemap *>(pLayer);
+		pTilemap->m_Width = NewW;
+		pTilemap->m_Height = NewH;
+		if(!pMap->ReplaceData(pTilemap->m_Data, NewW * NewH * (int)sizeof(CTile)))
+			dbg_msg("mapgen", "failed to resize tutorial tile layer data index=%d", pTilemap->m_Data);
+	}
+	m_pCollision->RefreshMapgenDimensions();
+}
+
 void CMapGen::FillMap()
 {
 	dbg_msg("mapgen", "started map generation");
@@ -254,6 +283,7 @@ void CMapGen::FillMap()
 	for (int i = 0; i < g_Config.m_SvMapGenLevel; i++)
 		rand();
 
+	FitTutorialCanvas();
 	ExpandEscapeTowerCanvas();
 	ExpandExtractMazeCanvas();
 	
@@ -305,7 +335,7 @@ void CMapGen::GenerateEnd(CGenLayer *pTiles)
 	int h = pTiles->Height();
 	
 	// find a platform
-	if (InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)
+	if (str_comp(g_Config.m_SvGametype, "coop") == 0 && InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)
 	{
 		for(int y = 3; y < h-3; y++)
 			for(int x = w-3; x > 3; x--)
@@ -1237,6 +1267,7 @@ void CMapGen::GenerateLevel()
 	pTiles->Scan();
 	
 	// start pos — skip invalid (0,0) so we never stamp ENTITY_SPAWN into solids
+	int TutorialPlayerSpawns = 0;
 	for (int i = 0; i < 4; i++)
 	{
 		ivec2 p = pTiles->GetPlayerSpawn();
@@ -1244,6 +1275,130 @@ void CMapGen::GenerateLevel()
 			continue;
 		ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
 		ModifTile(p+ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
+		TutorialPlayerSpawns += 2;
+	}
+
+	if(IsTutorialGametype(g_Config.m_SvGametype))
+	{
+		const int Chapter = clamp(g_Config.m_SvTutorialChapter, 1, 6);
+		if(TutorialPlayerSpawns == 0)
+		{
+			ivec2 Best(0, 0);
+			int BestScore = 0x7fffffff;
+			const int DesiredX = pTiles->Width() / 3;
+			for(int y = 4; y < pTiles->Height() - 4; y++)
+				for(int x = 3; x < pTiles->Width() - 3; x++)
+				{
+					bool Clear = true;
+					for(int dx = -1; dx <= 1 && Clear; dx++)
+					{
+						if(!pTiles->Get(x + dx, y + 1))
+							Clear = false;
+						for(int dy = -2; dy <= 0 && Clear; dy++)
+							if(pTiles->Get(x + dx, y + dy))
+								Clear = false;
+					}
+					if(!Clear)
+						continue;
+					const int Score = abs(x - DesiredX) * 100 + (pTiles->Height() - y);
+					if(Score < BestScore)
+					{
+						Best = ivec2(x, y);
+						BestScore = Score;
+					}
+				}
+			if(Best.x != 0)
+			{
+				ModifTile(Best, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
+				pTiles->Use(Best.x, Best.y);
+				TutorialPlayerSpawns = 1;
+				dbg_msg("mapgen", "tutorial fallback player spawn placed at %d,%d", Best.x, Best.y);
+			}
+		}
+		dbg_msg("mapgen", "tutorial player spawns placed: %d", TutorialPlayerSpawns);
+		// Objective switches need scarce platform slots more than the optional
+		// controlled-target anchors do. Distribute them across the map so holding
+		// one switch cannot accidentally activate the objectives for later steps.
+		if(Chapter == TUTORIAL_CHAPTER_OBJECTIVES)
+		{
+			ivec2 aPlaced[4];
+			int NumPlaced = 0;
+			const int SwitchCount = TutorialStepCount(Chapter);
+			for(int Slot = 0; Slot < SwitchCount; Slot++)
+			{
+				const int DesiredX = (Slot + 1) * pTiles->Width() / (SwitchCount + 1);
+				ivec2 Best(0, 0);
+				int BestScore = 0x7fffffff;
+				for(int y = 4; y < pTiles->Height() - 4; y++)
+					for(int x = 3; x < pTiles->Width() - 3; x++)
+					{
+						// Get() hides the generator's negative air reservations but still
+						// reports real collision tiles. This keeps the entity one tile above
+						// actual ground instead of treating reserved air as a floor.
+						if(pTiles->Get(x, y) || !pTiles->Get(x, y + 1) || !pTiles->Get(x - 1, y + 1) || !pTiles->Get(x + 1, y + 1) ||
+							pTiles->Get(x, y - 1) || pTiles->Get(x, y - 2))
+							continue;
+						bool FarEnough = true;
+						for(int i = 0; i < NumPlaced; i++)
+							if(abs(aPlaced[i].x - x) < 8)
+							{
+								FarEnough = false;
+								break;
+							}
+						if(!FarEnough)
+							continue;
+						const int Score = abs(x - DesiredX) * 100 + y;
+						if(Score < BestScore)
+						{
+							Best = ivec2(x, y);
+							BestScore = Score;
+						}
+					}
+				if(Best.x != 0)
+				{
+					ModifTile(Best, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SWITCH);
+					pTiles->Use(Best.x, Best.y);
+					aPlaced[NumPlaced++] = Best;
+					dbg_msg("mapgen", "tutorial objective switch %d/%d placed at %d,%d", NumPlaced, SwitchCount, Best.x, Best.y);
+				}
+			}
+			while(NumPlaced < SwitchCount && GenerateSwitch(pTiles))
+				NumPlaced++;
+			dbg_msg("mapgen", "tutorial objective switches placed %d/%d", NumPlaced, SwitchCount);
+			GenerateReactor(pTiles);
+		}
+		// Explicit target slots. Runtime ownership stays with the tutorial
+		// controller/director; the generator only supplies stable locations.
+		const int EnemySlots = Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 6 : 4;
+		for(int i = 0; i < EnemySlots; i++)
+			GenerateEnemySpawn(pTiles);
+		if(Chapter == TUTORIAL_CHAPTER_DEPLOYMENT)
+		{
+			GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
+			GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
+		}
+		else if(Chapter == TUTORIAL_CHAPTER_COMBAT)
+		{
+			for(int i = 0; i < 3; i++) GenerateHearts(pTiles);
+			for(int i = 0; i < 3; i++) GenerateAmmo(pTiles);
+		}
+		else if(Chapter == TUTORIAL_CHAPTER_FORGE)
+		{
+			for(int i = 0; i < 4; i++) GenerateAmmo(pTiles);
+			for(int i = 0; i < 4; i++) GenerateArmor(pTiles);
+			for(int i = 0; i < 4; i++) GenerateWeapon(pTiles, ENTITY_KIT);
+		}
+		else if(Chapter == TUTORIAL_CHAPTER_BUILD)
+		{
+			GeneratePowerupper(pTiles);
+			for(int i = 0; i < 3; i++) GenerateWeapon(pTiles, ENTITY_KIT);
+		}
+
+		delete pRoom;
+		delete pTiles;
+		delete pMaze;
+		dbg_msg("mapgen", "tutorial chapter %d generated with fixed profile seed %d", Chapter, g_Config.m_SvMapGenSeed);
+		return;
 	}
 
 	// Theme switches / reactors must be placed before other generators consume platforms.

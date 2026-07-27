@@ -9,6 +9,8 @@
 
 #include <engine/demo.h>
 #include <engine/friends.h>
+#include <engine/platform_services.h>
+#include <engine/serverbrowser.h>
 
 #include <game/voting.h>
 #include <game/client/component.h>
@@ -33,8 +35,36 @@ struct CPlayRoomEntry
 {
 	enum ESource { SOURCE_DEDICATED, SOURCE_STEAM_LOBBY };
 	int m_Source;
-	int m_SourceIndex;
 	char m_aStableID[128];
+	const struct CPlayServerSnapshot *m_pServer;
+	const struct CPlayLobbySnapshot *m_pLobby;
+};
+
+// The server browser exposes one UDP collection at a time. Keep a compact,
+// menu-only snapshot for each collection so Play can present a unified view.
+struct CPlayServerSnapshot
+{
+	NETADDR m_NetAddr;
+	int m_Collection;
+	int m_MaxClients;
+	int m_NumClients;
+	int m_Flags;
+	int m_Latency;
+	int m_DiscoverySources;
+	int m_AuthPolicy;
+	bool m_Official;
+	bool m_Modded;
+	bool m_Favorite;
+	char m_aAddress[NETADDR_MAXSTRSIZE];
+	char m_aName[64];
+	char m_aGameType[16];
+	char m_aMap[32];
+	char m_aVersion[32];
+};
+
+struct CPlayLobbySnapshot
+{
+	CPlatformLobbyInfo m_Info;
 };
 
 class CMenus : public CComponent
@@ -74,6 +104,10 @@ class CMenus : public CComponent
 	void DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding);
 	void ConfigureScrollRegion(CScrollRegionParams *pParams) const;
 	void LayoutCenterPanel(CUIRect *pScreen, CUIRect *pOut);
+	void DrawNavigationIcon(const CUIRect &Rect, int Icon, bool Active);
+	void DrawPlayArtwork(const CUIRect &Rect, int Mode, const vec4 &Color);
+	void DrawModeVoteImage(const CUIRect &Rect, const char *pImage, bool Active);
+	void DrawStatusBadge(CUIRect Rect, const char *pText, const vec4 &Color);
 
 	float AnimSelected(const void *pID, bool Selected, float Speed = 12.0f);
 	static vec4 MixColor(const vec4 &A, const vec4 &B, float t);
@@ -163,6 +197,7 @@ class CMenus : public CComponent
 		POPUP_QUIT,
 		POPUP_SLICE_DEMO,
 		POPUP_RENDER_DEMO,
+		POPUP_TUTORIAL_EXIT,
 	};
 
 	enum
@@ -184,6 +219,7 @@ class CMenus : public CComponent
 		PAGE_LOCAL_SERVER,
 		PAGE_STEAM,
 		PAGE_MODS,
+		PAGE_TUTORIAL_SELECT,
 	};
 
 	enum
@@ -201,6 +237,8 @@ class CMenus : public CComponent
 	int m_NavigationFocus;
 	int m_LastInputDevice;
 	int m_PlayTab;
+	int m_CreateRoomStep;
+	int m_CreateRoomPreviousSlots;
 	bool m_NavigationHasFocus;
 	bool m_MenuActive;
 	bool m_UseMouseButtons;
@@ -217,6 +255,7 @@ class CMenus : public CComponent
 	int m_LocalServerActualPort;
 	bool m_LocalServerAutoJoin;
 	bool m_LocalServerRestartPending;
+	bool m_TutorialChapterReplay;
 	bool m_LocalServerSummaryLocalized;
 	int m_LocalServerFocus;
 	NETADDR m_LocalServerAddress;
@@ -406,6 +445,27 @@ class CMenus : public CComponent
 	int m_FilterPresetRenameSlot;
 	char m_aFilterPresetRenameBuf[32];
 
+	enum
+	{
+		PLAY_COLLECTION_INTERNET = 0,
+		PLAY_COLLECTION_LAN,
+		PLAY_COLLECTION_FAVORITES,
+		NUM_PLAY_COLLECTIONS,
+		MAX_PLAY_SERVER_SNAPSHOTS = 256,
+		MAX_PLAY_LOBBY_SNAPSHOTS = 256,
+	};
+	CPlayServerSnapshot m_aaPlayServerSnapshots[NUM_PLAY_COLLECTIONS][MAX_PLAY_SERVER_SNAPSHOTS];
+	int m_aPlayServerSnapshotCount[NUM_PLAY_COLLECTIONS];
+	CPlayLobbySnapshot m_aPlayLobbySnapshots[MAX_PLAY_LOBBY_SNAPSHOTS];
+	int m_PlayLobbySnapshotCount;
+	int m_PlayBrowserCollection;
+	char m_aPlaySelectedID[128];
+	bool m_PlayFiltersOpen;
+	bool m_PlayDetailOpen;
+	bool m_PlayListHasFocus;
+
+	void UpdatePlaySnapshots();
+
 	void LoadFilterPresets();
 	void SaveFilterPresets();
 	void SnapshotConfigToFilterPreset(int Slot);
@@ -437,10 +497,15 @@ class CMenus : public CComponent
 	void RenderSettings(CUIRect MainView);
 	void RenderCustomize(CUIRect MainView);
 	void RenderFront(CUIRect MainView);
+	void RenderTutorialRoomPractice(CUIRect MainView);
 	void RenderLocalServer(CUIRect MainView);
+	void RenderCreateRoom(CUIRect MainView);
+	void CreateConfiguredRoom();
 	void UpdateLocalServer();
 	void StartLocalServer(bool AutoJoin);
 	void StopLocalServer(bool Restart);
+	void StartTutorial(int Chapter = 1, bool Resume = true);
+	void StartPvpPractice();
 	void JoinLocalServer();
 	bool IsConnectedToLocalServer() const;
 	void RefreshLocalServerErrorDetail();
@@ -456,6 +521,7 @@ class CMenus : public CComponent
 	
 public:
 	void RenderBackground();
+	void RenderTutorialChapterSelect(CUIRect MainView);
 
 	void UseMouseButtons(bool Use) { m_UseMouseButtons = Use; }
 
@@ -472,7 +538,12 @@ public:
 	static vec4 ThemeText();
 	float AnimHover(const void *pID, float Speed = 14.0f);
 	void OpenResearchPage();
+	void OpenTutorialChapterSelect();
+	void HandleTutorialChapterCompleted(int Chapter, int CompletedMask);
+	void FinishTutorial();
 	void ShutdownLocalServer();
+	void OpenTutorialRoomPractice();
+	void OpenPlayHub();
 
 	void RenderLoading();
 

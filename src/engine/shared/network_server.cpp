@@ -88,6 +88,11 @@ int CNetServer::Drop(int ClientID, const char *pReason)
 		dbg_msg("net_server", "refusing to drop invalid client id %d", ClientID);
 		return -1;
 	}
+	// Bot slots deliberately have an offline network connection, so the bot
+	// marker is part of the active-slot test. Making Drop idempotent prevents a
+	// second callback from deleting an already removed game-side player.
+	if(m_aSlots[ClientID].m_Connection.State() == NET_CONNSTATE_OFFLINE && !m_SlotTakenByBot[ClientID])
+		return 0;
 	// TODO: insert lots of checks here
 	/*NETADDR Addr = ClientAddr(ClientID);
 

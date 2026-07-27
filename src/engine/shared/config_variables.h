@@ -149,12 +149,13 @@ MACRO_CONFIG_INT(ClPvePreferredCheckpoint, cl_pve_preferred_checkpoint, 1, 1, 99
 MACRO_CONFIG_INT(ClPveDroneTutorialSeen, cl_pve_drone_tutorial_seen, 0, 0, 1, CFGFLAG_CLIENT, "Legacy drone tutorial state; migrated to pve_progress.json")
 
 // One-click local game hosting. The password is intentionally session-only.
-MACRO_CONFIG_INT(ClLocalServerMode, cl_local_server_mode, 0, 0, 5, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game mode")
+MACRO_CONFIG_INT(ClLocalServerMode, cl_local_server_mode, 1, 0, 12, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game mode")
+MACRO_CONFIG_INT(ClRoomVisibility, cl_room_visibility, 0, 0, 3, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Room visibility: solo, friends, LAN, or public")
 MACRO_CONFIG_INT(ClLocalServerMap, cl_local_server_map, 0, 0, 7, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game map preset")
 MACRO_CONFIG_INT(ClLocalServerDifficulty, cl_local_server_difficulty, 1, 1, 50, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Local game map or AI difficulty")
 MACRO_CONFIG_INT(ClLocalServerInvasionStart, cl_local_server_invasion_start, 0, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Invasion start policy: team checkpoint, floor one, or custom floor")
 MACRO_CONFIG_INT(ClLocalServerInvasionFloor, cl_local_server_invasion_floor, 1, 1, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Custom local Invasion starting floor")
-MACRO_CONFIG_INT(ClLocalServerBots, cl_local_server_bots, 5, 0, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Number of AI players in local competitive games")
+MACRO_CONFIG_INT(ClLocalServerBots, cl_local_server_bots, 5, 0, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT, "AI population target: total active players in free-for-all modes or players per team in team modes; 0 disables bots")
 MACRO_CONFIG_INT(ClLocalServerMaxClients, cl_local_server_max_clients, 8, 1, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Maximum total player slots in a local game")
 MACRO_CONFIG_INT(ClLocalServerPort, cl_local_server_port, 8303, 1024, 65535, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Port used by the local game server")
 MACRO_CONFIG_INT(ClLocalServerLan, cl_local_server_lan, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Allow other players on the LAN to join the local game")
@@ -169,6 +170,8 @@ MACRO_CONFIG_INT(ClLocalServerExtractionTime, cl_local_server_extraction_time, 4
 MACRO_CONFIG_INT(ClLocalServerDmScore, cl_local_server_dm_score, 20, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Deathmatch score limit")
 MACRO_CONFIG_INT(ClLocalServerTdmScore, cl_local_server_tdm_score, 50, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Team deathmatch score limit")
 MACRO_CONFIG_INT(ClLocalServerCtfScore, cl_local_server_ctf_score, 500, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Capture the flag score limit")
+MACRO_CONFIG_INT(ClLocalServerReactorScore, cl_local_server_reactor_score, 400, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Reactor Assault score limit")
+MACRO_CONFIG_INT(ClLocalServerBallScore, cl_local_server_ball_score, 5, 1, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Ball goal limit")
 MACRO_CONFIG_INT(ClLocalServerAdvanced, cl_local_server_advanced, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show advanced local game rules")
 
 // ===== AntiPing / Prediction System =====

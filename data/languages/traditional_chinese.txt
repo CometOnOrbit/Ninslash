@@ -1,6 +1,315 @@
 
 ##### translated strings #####
 
+Reactor Defense
+== 反應爐防禦
+
+Fortify the reactor and survive waves of hostile machines.
+== 加固反應爐並抵禦一波波敵對機械。
+
+Reactor  ·  Building  ·  Boss waves
+== 反應爐 · 建造 · 首領波次
+
+Reactor Assault
+== 反應爐突襲
+
+Plant or disarm the bomb in round-based reactor combat.
+== 在回合制反應爐戰鬥中安放或拆除炸彈。
+
+Teams  ·  Bomb  ·  Reactor
+== 團隊 · 炸彈 · 反應爐
+
+Ball
+== 球賽
+
+Carry the ball into the enemy goal while defending your own.
+== 將球帶入敵方球門，同時守住己方球門。
+
+Teams  ·  Ball  ·  Goals
+== 團隊 · 運球 · 球門
+
+Battle Royale
+== 大逃殺
+
+Outlast every opponent in a single-life survival match.
+== 在單命生存比賽中堅持到最後。
+
+Last survivor  ·  Closing hazard
+== 最後生還者 · 收縮危險區
+
+Grenade DM
+== 榴彈死亡競賽
+
+Fight a fast free-for-all with unlimited grenades.
+== 使用無限榴彈進行快節奏自由混戰。
+
+Grenades  ·  Free-for-all
+== 榴彈 · 自由混戰
+
+Instagib CTF
+== 一擊必殺奪旗
+
+Capture the flag with lethal precision weapons and instant kills.
+== 使用致命精準武器和一擊必殺規則奪取旗幟。
+
+Instagib  ·  Flags  ·  Teams
+== 一擊必殺 · 旗幟 · 團隊
+
+Goal target
+== 進球目標
+
+Last survivor
+== 最後生還者
+
+Arena I
+== 競技場 I
+
+Arena II
+== 競技場 II
+
+Invasion, Horde, Extraction and Reactor Defense.
+== 入侵、屍潮、撤離與反應爐防禦。
+
+4 PVE MODES · CO-OP
+== 4 種 PVE 玩法 · 合作
+
+Eight competitive modes with adjustable match population.
+== 八種競技玩法，可調整對局人數目標。
+
+8 PVP MODES · SOLO / LAN / STEAM
+== 8 種 PVP 玩法 · 單人 / 區域網路 / STEAM
+
+TACTICAL COMMAND
+== 戰術指揮
+
+Choose how to deploy
+== 選擇部署方式
+
+RECOMMENDED ACTION
+== 建議行動
+
+Create a room
+== 建立房間
+
+Choose a mode, configure the mission and invite your squad.
+== 選擇模式、設定任務並邀請你的小隊。
+
+Join local mission
+== 加入本機任務
+
+Your local server is ready. Rejoin without changing its setup.
+== 本機伺服器已就緒，可直接重新加入且不會變更設定。
+
+Continue local mission
+== 繼續本機任務
+
+Your local server is running and you are connected.
+== 本機伺服器正在執行，你已連線。
+
+Local server starting
+== 本機伺服器啟動中
+
+Open server status while the mission is prepared.
+== 在任務準備期間查看伺服器狀態。
+
+Resume chapter %d of 6 from your latest step.
+== 從最近步驟繼續第 %d/6 章。
+
+Training · chapter %d/6
+== 訓練 · 第 %d/6 章
+
+Training · complete
+== 訓練 · 已完成
+
+Training · skipped
+== 訓練 · 已跳過
+
+Training · not started
+== 訓練 · 未開始
+
+Local server · running
+== 本機伺服器 · 執行中
+
+Local server · starting
+== 本機伺服器 · 啟動中
+
+Local server · attention
+== 本機伺服器 · 需要處理
+
+Local server · idle
+== 本機伺服器 · 閒置
+
+Steam · online
+== Steam · 線上
+
+Standalone · UDP ready
+== 獨立網路 · UDP 就緒
+
+Six guided chapters, always replayable.
+== 六個引導章節，隨時可以重玩。
+
+SOLO · 30–45 MIN
+== 單人 · 30–45 分鐘
+
+Invasion, Horde and Extraction missions.
+== Invasion、Horde 與 Extraction 任務。
+
+CO-OP · 15–40 MIN
+== 合作 · 15–40 分鐘
+
+Configure PvE
+== 設定 PvE
+
+Choose PvP mode
+== 選擇 PvP 模式
+
+Restart with changes
+== 套用變更並重新啟動
+
+Short bot matches before online combat.
+== 線上對戰前先進行短局機器人練習。
+
+DM · TDM · CTF · 5–15 MIN
+== DM · TDM · CTF · 5–15 分鐘
+
+Choose how to play
+== 選擇玩法
+
+New player path: training recommended
+== 新玩家路徑：建議先完成訓練
+
+Training in progress
+== 訓練進行中
+
+Training in progress · stage %d/6
+== 訓練進行中 · 第 %d/6 階段
+
+Training complete
+== 訓練已完成
+
+Training skipped
+== 已跳過訓練
+
+Training Invasion
+== Invasion 訓練
+
+10-15 min · solo · recommended first
+== 10-15 分鐘 · 單人 · 建議優先
+
+Co-op PvE
+== 合作 PvE
+
+Explore Invasion, survive Horde or activate switches and extract.
+== 探索 Invasion、抵禦 Horde，或啟動開關並撤離。
+
+Invasion · Horde · Extraction
+== Invasion · Horde · Extraction
+
+Choose a PvE mode
+== 選擇 PvE 模式
+
+Local PvP
+== 本機 PvP
+
+Build confidence in short matches against low-pressure bots before joining online.
+== 先與低壓力機器人進行短局練習，再進入線上對戰。
+
+DM · TDM · CTF · bots
+== DM · TDM · CTF · 機器人
+
+Practice with bots
+== 與機器人練習
+
+Leave training?
+== 離開訓練？
+
+Your last completed checkpoint is saved locally. You can continue now, return to the hub, or skip training.
+== 最近完成的檢查點已儲存在本機。你可以繼續、返回玩法中心或跳過訓練。
+
+Exit and save
+== 儲存並離開
+
+Return to hub
+== 返回玩法中心
+
+Defeat nearby enemies: %d/3. Health and ammo pickups keep you moving.
+== 擊敗附近敵人：%d/3。生命和彈藥補給能讓你繼續前進。
+
+Choose one run perk. Run choices help this mission; research persists between missions.
+== 選擇一個局內增益。局內選擇協助本次任務，研究則會在任務之間保留。
+
+Aim and fire with %s
+== 使用 %s 瞄準並射擊
+
+Clear the nearby enemies. Health and ammo pickups keep you moving.
+== 清理附近敵人。生命和彈藥補給能讓你繼續前進。
+
+Continue co-op PvE
+== 繼續合作 PvE
+
+Continue training
+== 繼續訓練
+
+Follow the radar marker to the objective.
+== 跟隨雷達標記前往目標。
+
+Guided solo mission
+== 單人引導任務
+
+Move with %s, then jump with %s
+== 使用 %s 移動，然後使用 %s 跳躍
+
+Open Forge with %s and combine a recommended weapon.
+== 使用 %s 開啟鍛爐並組合推薦武器。
+
+Open Forge with %s and craft the recommended weapon.
+== 使用 %s 開啟鍛爐並製作推薦武器。
+
+Open your build with %s. Run choices help this mission; research persists between missions.
+== 使用 %s 開啟構築。局內選擇只幫助本次任務；研究會在任務之間保留。
+
+Practice PvP with bots
+== 與機器人練習 PvP
+
+Browse online servers
+== 瀏覽線上伺服器
+
+Skip training
+== 跳過訓練
+
+Start training
+== 開始訓練
+
+Replay training
+== 重玩訓練
+
+TRAINING
+== 訓練
+
+Training complete. Return to the hub to choose co-op PvE, PvP practice, or online servers.
+== 訓練完成。返回中心以選擇合作 PvE、PvP 練習或線上伺服器。
+
+Connected
+== 已連線
+
+Copy
+== 複製
+
+Dedicated servers, LAN, Favorites and Steam rooms
+== 專用伺服器、區域網路、收藏和 Steam 房間
+
+Details
+== 詳情
+
+Refreshing
+== 重新整理中
+
+Search
+== 搜尋
+
+Unfavorite
+== 取消收藏
+
 %d Bytes
 == %d 字節
 
@@ -2524,11 +2833,14 @@ Enemy scaling
 Automatic for this mode
 == 由目前模式自動調整
 
-AI players
-== AI 玩家
+Target active players
+== 目標在場人數
 
-Player slots
-== 玩家欄位
+Target players per team
+== 每隊目標人數
+
+Human slots
+== 真人玩家欄位
 
 Port
 == 連接埠
@@ -2963,8 +3275,14 @@ Random seed
 Seed %d
 == 種子 %d
 
-%d slots
-== %d 個槽位
+%d human slots
+== %d 個真人玩家欄位
+
+%d players per team
+== 每隊 %d 人
+
+Target %d active players
+== 目標在場人數 %d
 
 Starting local server and waiting for readiness...
 == 正在啟動本機伺服器並等待就緒……
@@ -3240,3 +3558,369 @@ This room requires a different Mod collection. Open Mods and enable the required
 == 此房間需要其他模組集合。請開啟模組頁面並啟用所需集合。
 Joining room
 == 正在加入房間
+
+Choose a game mode
+== 選擇玩法
+
+Configure room
+== 設定房間
+
+Step 1 of 2
+== 第 1 步，共 2 步
+
+Step 2 of 2
+== 第 2 步，共 2 步
+
+PVE
+== PvE 合作玩法
+
+PVP
+== PvP 對戰玩法
+
+Solo
+== 單人
+
+Change mode
+== 更換模式
+
+Visibility
+== 可見性
+
+Friends and Public require Steam.
+== 好友和公開房間需要 Steam。
+
+Room details
+== 房間資訊
+
+Advanced settings
+== 進階設定
+
+Hide advanced settings
+== 收起進階設定
+
+Create and join
+== 建立並加入
+
+Managed automatically
+== 自動管理
+
+LAN binding
+== 區域網路綁定
+
+Training is available from the Play hub.
+== 教學模式可從玩法中心的訓練入口啟動。
+
+Room creation failed. Your settings were kept; retry or open the log.
+== 房間建立失敗。設定已保留；請重試或開啟記錄。
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  Unofficial
+== %s  ·  %s  ·  %s  ·  %d 個真人玩家欄位  ·  非官方
+
+Explore generated floors, complete objectives and keep your build between maps.
+== 探索生成樓層、完成目標，並在地圖之間保留你的構築。
+
+Defend, build and survive increasingly dangerous enemy waves.
+== 防守、建造，並在越來越危險的敵潮中生存。
+
+Finish the mission and reach the extraction zone before time runs out.
+== 完成任務，並在時間耗盡前抵達撤離區。
+
+Fight every player and reach the score limit first.
+== 擊敗所有對手，率先達到分數限制。
+
+Coordinate with your team to win the score race.
+== 與隊友配合，在分數競賽中取勝。
+
+Steal the enemy flag while defending your own base.
+== 奪取敵方旗幟，同時守住己方基地。
+
+Objectives  ·  Progression  ·  Builds
+== 目標  ·  進度  ·  構築
+
+Waves  ·  Building  ·  Survival
+== 敵潮  ·  建造  ·  生存
+
+Timed  ·  Objectives  ·  Extraction
+== 限時  ·  目標  ·  撤離
+
+Free-for-all  ·  Fast respawn
+== 自由混戰  ·  快速重生
+
+Teams  ·  Building  ·  Score race
+== 團隊  ·  建造  ·  分數競賽
+
+Flags  ·  Teams  ·  Base defense
+== 旗幟  ·  團隊  ·  基地防守
+
+30-60 min
+== 30-60 分鐘
+
+20-40 min
+== 20-40 分鐘
+
+10-20 min
+== 10-20 分鐘
+
+10 min
+== 10 分鐘
+
+15 min
+== 15 分鐘
+
+15-25 min
+== 15-25 分鐘
+
+First Deployment
+== 初次部署
+
+Combat and Recovery
+== 戰鬥與恢復
+
+PvE Mission
+== PvE 任務
+
+Forge and Build
+== 鍛造與建造
+
+Build and Growth
+== 構築與成長
+
+Multiplayer Ready
+== 多人準備
+
+Switch weapons and hit the training target.
+== 切換武器並擊中訓練目標。
+
+Defeat the marked enemies and watch your ammunition.
+== 擊敗標記敵人，並留意彈藥。
+
+Take controlled damage, then collect health.
+== 承受一次受控傷害，然後拾取生命補給。
+
+Respawn near the current objective and finish the encounter.
+== 在目前目標附近復活並完成戰鬥。
+
+Follow the radar marker and activate the switch.
+== 跟隨雷達標記並啟動開關。
+
+Follow the radar marker. Stay near the switch for 2 seconds to activate it.
+== 跟隨雷達標記，靠近開關並停留 2 秒即可啟動。
+
+Stay near the next marked switch for 2 seconds to secure the defense area.
+== 靠近下一個標記開關並停留 2 秒，以確保防守區域安全。
+
+Activate the next marked switch and watch the HUD progress.
+== 啟動下一個標記開關，並留意 HUD 上的進度。
+
+Activate the final marked switch to open the extraction route.
+== 啟動最後一個標記開關以開啟撤離路線。
+
+Hold the marked defense area.
+== 守住標記的防禦區域。
+
+Track mission progress on the HUD.
+== 在 HUD 上查看任務進度。
+
+Reach the extraction area.
+== 抵達撤離區域。
+
+Collect the marked sandbox materials.
+== 收集標記的沙盒材料。
+
+Build a defense and survive the controlled wave.
+== 建造防禦設施並撐過受控敵潮。
+
+Choose a run perk for this mission.
+== 為本次任務選擇一個局內增益。
+
+Choose one of the three run perks.
+== 從三個局內增益中選擇一個。
+
+Hold %s, choose a drone module, then release to switch.
+== 按住 %s，選擇一個無人機模組，然後放開以切換。
+
+Purchase the highlighted sandbox research node. Tutorial points do not affect your save.
+== 購買高亮的沙盒研究節點。教程點數不會影響你的存檔。
+
+Select and command a drone module.
+== 選擇並操作一個無人機模組。
+
+Complete the highlighted sandbox research node.
+== 完成高亮的沙盒研究節點。
+
+Complete the short bot PvP objective.
+== 完成簡短的機器人 PvP 目標。
+
+Configure and create the simulated room.
+== 設定並建立模擬房間。
+
+Filter the simulated room list and join a room.
+== 篩選模擬房間列表並加入房間。
+
+Multiplayer room practice
+== 多人房間練習
+
+Configure a simulated room, then create it.
+== 設定一個模擬房間，然後建立它。
+
+Filter the simulated room list, then join the training room.
+== 篩選模擬房間列表，然後加入訓練房間。
+
+Room visibility
+== 房間可見性
+
+Training Room · Tutorial rules · 4 slots
+== 訓練房間 · 教程規則 · 4 個位置
+
+Create simulated room
+== 建立模擬房間
+
+All rooms
+== 全部房間
+
+Low ping
+== 低延遲
+
+Ninslash Training Room
+== Ninslash 訓練房間
+
+Tutorial · 1/4 players · local simulation
+== 教程 · 1/4 玩家 · 本機模擬
+
+Join simulated room
+== 加入模擬房間
+
+This practice does not publish a real room or contact external services.
+== 此練習不會發布真實房間，也不會連線外部服務。
+
+Choose chapter
+== 選擇章節
+
+Tutorial chapters
+== 教程章節
+
+Back to Play
+== 返回玩法中心
+
+Chapter %d
+== 第 %d 章
+
+CHAPTER %d/6 · %s · %d/%d
+== 第 %d/6 章 · %s · %d/%d
+
+Step %d of %d
+== 步驟 %d/%d
+
+Completed
+== 已完成
+
+Available
+== 已解鎖
+
+Replay
+== 重玩
+
+Complete chapter %d first
+== 請先完成第 %d 章
+
+Movement, weapons and the training target.
+== 移動、武器與訓練靶。
+
+Combat, recovery and respawning.
+== 戰鬥、恢復與復活。
+
+Objectives, defense and extraction.
+== 任務目標、防守與撤離。
+
+Materials, forging and construction.
+== 材料、鍛造與建造。
+
+Perks, drones and research.
+== 增益、無人機與研究。
+
+Bot PvP and multiplayer rooms.
+== 機器人 PvP 與多人房間。
+
+CONTENT
+== 內容
+
+SYSTEM
+== 系統
+
+SESSION
+== 對局
+
+PROFILE
+== 檔案
+
+Resume
+== 繼續
+
+Tutorial
+== 教程
+
+Easy
+== 簡單
+
+Normal
+== 普通
+
+Hard
+== 困難
+
+Guided
+== 引導
+
+45 min
+== 45 分鐘
+
+5-10 min
+== 5–10 分鐘
+
+Objectives  ·  Forge  ·  Builds
+== 目標  ·  鍛造  ·  建造
+
+Six guided solo chapters for controls, combat, objectives, forging, builds and rooms.
+== 六章單人引導教程，涵蓋操作、戰鬥、目標、鍛造、建造與房間。
+
+No bots
+== 不加入機器人
+
+%s: %d
+== %s：%d
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Unofficial
+== %s  ·  %s  ·  %s  ·  %d 個真人欄位  ·  %s  ·  非官方
+
+Recommended: %s players  ·  %s  ·  %s difficulty
+== 建議 %s 人  ·  %s  ·  %s難度
+
+Official
+== 官方
+
+Community
+== 社群
+
+Modded
+== 已啟用模組
+
+Aim to select
+== 移動瞄準以選擇
+
+Training
+== 訓練
+
+Online
+== 線上
+
+Standalone network
+== 獨立網路
+
+UDP available
+== UDP 可用
+
+Starting local game
+== 正在啟動本機遊戲
+
+Stopping local game
+== 正在停止本機遊戲

@@ -1,6 +1,315 @@
 
 ##### translated strings #####
 
+Reactor Defense
+== 反应堆防御
+
+Fortify the reactor and survive waves of hostile machines.
+== 加固反应堆并抵御一波波敌对机械。
+
+Reactor  ·  Building  ·  Boss waves
+== 反应堆 · 建造 · 首领波次
+
+Reactor Assault
+== 反应堆突袭
+
+Plant or disarm the bomb in round-based reactor combat.
+== 在回合制反应堆战斗中安放或拆除炸弹。
+
+Teams  ·  Bomb  ·  Reactor
+== 团队 · 炸弹 · 反应堆
+
+Ball
+== 球赛
+
+Carry the ball into the enemy goal while defending your own.
+== 将球带入敌方球门，同时守住己方球门。
+
+Teams  ·  Ball  ·  Goals
+== 团队 · 运球 · 球门
+
+Battle Royale
+== 大逃杀
+
+Outlast every opponent in a single-life survival match.
+== 在单命生存比赛中坚持到最后。
+
+Last survivor  ·  Closing hazard
+== 最后生还者 · 收缩危险区
+
+Grenade DM
+== 榴弹死亡竞赛
+
+Fight a fast free-for-all with unlimited grenades.
+== 使用无限榴弹进行快节奏自由混战。
+
+Grenades  ·  Free-for-all
+== 榴弹 · 自由混战
+
+Instagib CTF
+== 一击必杀夺旗
+
+Capture the flag with lethal precision weapons and instant kills.
+== 使用致命精准武器和一击必杀规则夺取旗帜。
+
+Instagib  ·  Flags  ·  Teams
+== 一击必杀 · 旗帜 · 团队
+
+Goal target
+== 进球目标
+
+Last survivor
+== 最后生还者
+
+Arena I
+== 竞技场 I
+
+Arena II
+== 竞技场 II
+
+Invasion, Horde, Extraction and Reactor Defense.
+== 入侵、尸潮、撤离与反应堆防御。
+
+4 PVE MODES · CO-OP
+== 4 种 PVE 玩法 · 合作
+
+Eight competitive modes with adjustable match population.
+== 八种竞技玩法，可调整对局人数目标。
+
+8 PVP MODES · SOLO / LAN / STEAM
+== 8 种 PVP 玩法 · 单人 / 局域网 / STEAM
+
+TACTICAL COMMAND
+== 战术指挥
+
+Choose how to deploy
+== 选择部署方式
+
+RECOMMENDED ACTION
+== 推荐行动
+
+Create a room
+== 创建房间
+
+Choose a mode, configure the mission and invite your squad.
+== 选择模式、配置任务并邀请你的小队。
+
+Join local mission
+== 加入本地任务
+
+Your local server is ready. Rejoin without changing its setup.
+== 本地服务器已就绪，可直接重新加入且不会更改配置。
+
+Continue local mission
+== 继续本地任务
+
+Your local server is running and you are connected.
+== 本地服务器正在运行，你已连接。
+
+Local server starting
+== 本地服务器启动中
+
+Open server status while the mission is prepared.
+== 在任务准备期间查看服务器状态。
+
+Resume chapter %d of 6 from your latest step.
+== 从最近步骤继续第 %d/6 章。
+
+Training · chapter %d/6
+== 训练 · 第 %d/6 章
+
+Training · complete
+== 训练 · 已完成
+
+Training · skipped
+== 训练 · 已跳过
+
+Training · not started
+== 训练 · 未开始
+
+Local server · running
+== 本地服务器 · 运行中
+
+Local server · starting
+== 本地服务器 · 启动中
+
+Local server · attention
+== 本地服务器 · 需要处理
+
+Local server · idle
+== 本地服务器 · 空闲
+
+Steam · online
+== Steam · 在线
+
+Standalone · UDP ready
+== 独立网络 · UDP 就绪
+
+Six guided chapters, always replayable.
+== 六个引导章节，随时可以重玩。
+
+SOLO · 30–45 MIN
+== 单人 · 30–45 分钟
+
+Invasion, Horde and Extraction missions.
+== Invasion、Horde 与 Extraction 任务。
+
+CO-OP · 15–40 MIN
+== 合作 · 15–40 分钟
+
+Configure PvE
+== 配置 PvE
+
+Choose PvP mode
+== 选择 PvP 模式
+
+Restart with changes
+== 应用更改并重启
+
+Short bot matches before online combat.
+== 在线对战前先进行短局机器人练习。
+
+DM · TDM · CTF · 5–15 MIN
+== DM · TDM · CTF · 5–15 分钟
+
+Choose how to play
+== 选择玩法
+
+New player path: training recommended
+== 新玩家路径：推荐先完成训练
+
+Training in progress
+== 训练进行中
+
+Training in progress · stage %d/6
+== 训练进行中 · 第 %d/6 阶段
+
+Training complete
+== 训练已完成
+
+Training skipped
+== 已跳过训练
+
+Training Invasion
+== Invasion 训练
+
+10-15 min · solo · recommended first
+== 10-15 分钟 · 单人 · 推荐优先
+
+Co-op PvE
+== 合作 PvE
+
+Explore Invasion, survive Horde or activate switches and extract.
+== 探索 Invasion、抵御 Horde，或启动开关并撤离。
+
+Invasion · Horde · Extraction
+== Invasion · Horde · Extraction
+
+Choose a PvE mode
+== 选择 PvE 模式
+
+Local PvP
+== 本地 PvP
+
+Build confidence in short matches against low-pressure bots before joining online.
+== 先与低压力机器人进行短局练习，再进入在线对战。
+
+DM · TDM · CTF · bots
+== DM · TDM · CTF · 机器人
+
+Practice with bots
+== 与机器人练习
+
+Leave training?
+== 退出训练？
+
+Your last completed checkpoint is saved locally. You can continue now, return to the hub, or skip training.
+== 最近完成的检查点已保存在本地。你可以继续、返回玩法中心或跳过训练。
+
+Exit and save
+== 保存并退出
+
+Return to hub
+== 返回玩法中心
+
+Defeat nearby enemies: %d/3. Health and ammo pickups keep you moving.
+== 击败附近敌人：%d/3。生命和弹药补给能让你继续前进。
+
+Choose one run perk. Run choices help this mission; research persists between missions.
+== 选择一个局内增益。局内选择帮助本次任务，研究则会在任务之间保留。
+
+Aim and fire with %s
+== 使用 %s 瞄准并射击
+
+Clear the nearby enemies. Health and ammo pickups keep you moving.
+== 清理附近敌人。生命和弹药补给能让你继续前进。
+
+Continue co-op PvE
+== 继续合作 PvE
+
+Continue training
+== 继续训练
+
+Follow the radar marker to the objective.
+== 跟随雷达标记前往目标。
+
+Guided solo mission
+== 单人引导任务
+
+Move with %s, then jump with %s
+== 使用 %s 移动，然后使用 %s 跳跃
+
+Open Forge with %s and combine a recommended weapon.
+== 使用 %s 打开锻炉并组合推荐武器。
+
+Open Forge with %s and craft the recommended weapon.
+== 使用 %s 打开锻炉并制作推荐武器。
+
+Open your build with %s. Run choices help this mission; research persists between missions.
+== 使用 %s 打开构筑。局内选择只帮助本次任务；研究会在任务之间保留。
+
+Practice PvP with bots
+== 与机器人练习 PvP
+
+Browse online servers
+== 浏览在线服务器
+
+Skip training
+== 跳过训练
+
+Start training
+== 开始训练
+
+Replay training
+== 重玩训练
+
+TRAINING
+== 训练
+
+Training complete. Return to the hub to choose co-op PvE, PvP practice, or online servers.
+== 训练完成。返回中心以选择合作 PvE、PvP 练习或在线服务器。
+
+Connected
+== 已连接
+
+Copy
+== 复制
+
+Dedicated servers, LAN, Favorites and Steam rooms
+== 专用服务器、局域网、收藏和 Steam 房间
+
+Details
+== 详情
+
+Refreshing
+== 刷新中
+
+Search
+== 搜索
+
+Unfavorite
+== 取消收藏
+
 %d Bytes
 == %d 字节
 
@@ -2632,11 +2941,14 @@ Enemy scaling
 Automatic for this mode
 == 由当前模式自动调整
 
-AI players
-== AI 玩家
+Target active players
+== 目标在场人数
 
-Player slots
-== 玩家槽位
+Target players per team
+== 每队目标人数
+
+Human slots
+== 人类玩家槽位
 
 Port
 == 端口
@@ -3037,8 +3349,14 @@ Random seed
 Seed %d
 == 种子 %d
 
-%d slots
-== %d 个槽位
+%d human slots
+== %d 个人类玩家槽位
+
+%d players per team
+== 每队 %d 人
+
+Target %d active players
+== 目标在场人数 %d
 
 Starting local server and waiting for readiness...
 == 正在启动本地服务器并等待就绪……
@@ -3314,3 +3632,369 @@ This room requires a different Mod collection. Open Mods and enable the required
 == 此房间需要其他模组集合。请打开模组页面并启用所需集合。
 Joining room
 == 正在加入房间
+
+Choose a game mode
+== 选择玩法
+
+Configure room
+== 配置房间
+
+Step 1 of 2
+== 第 1 步，共 2 步
+
+Step 2 of 2
+== 第 2 步，共 2 步
+
+PVE
+== PvE 合作玩法
+
+PVP
+== PvP 对战玩法
+
+Solo
+== 单人
+
+Change mode
+== 更换模式
+
+Visibility
+== 可见性
+
+Friends and Public require Steam.
+== 好友和公开房间需要 Steam。
+
+Room details
+== 房间信息
+
+Advanced settings
+== 高级设置
+
+Hide advanced settings
+== 收起高级设置
+
+Create and join
+== 创建并加入
+
+Managed automatically
+== 自动管理
+
+LAN binding
+== 局域网绑定
+
+Training is available from the Play hub.
+== 教学模式可从玩法中心的训练入口启动。
+
+Room creation failed. Your settings were kept; retry or open the log.
+== 房间创建失败。设置已保留；请重试或打开日志。
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  Unofficial
+== %s  ·  %s  ·  %s  ·  %d 个人类玩家槽位  ·  非官方
+
+Explore generated floors, complete objectives and keep your build between maps.
+== 探索生成楼层、完成目标，并在地图之间保留你的构筑。
+
+Defend, build and survive increasingly dangerous enemy waves.
+== 防守、建造，并在越来越危险的敌潮中生存。
+
+Finish the mission and reach the extraction zone before time runs out.
+== 完成任务，并在时间耗尽前抵达撤离区。
+
+Fight every player and reach the score limit first.
+== 击败所有对手，率先达到分数限制。
+
+Coordinate with your team to win the score race.
+== 与队友配合，在分数竞赛中取胜。
+
+Steal the enemy flag while defending your own base.
+== 夺取敌方旗帜，同时守住己方基地。
+
+Objectives  ·  Progression  ·  Builds
+== 目标  ·  进度  ·  构筑
+
+Waves  ·  Building  ·  Survival
+== 敌潮  ·  建造  ·  生存
+
+Timed  ·  Objectives  ·  Extraction
+== 限时  ·  目标  ·  撤离
+
+Free-for-all  ·  Fast respawn
+== 自由混战  ·  快速重生
+
+Teams  ·  Building  ·  Score race
+== 团队  ·  建造  ·  分数竞赛
+
+Flags  ·  Teams  ·  Base defense
+== 旗帜  ·  团队  ·  基地防守
+
+30-60 min
+== 30-60 分钟
+
+20-40 min
+== 20-40 分钟
+
+10-20 min
+== 10-20 分钟
+
+10 min
+== 10 分钟
+
+15 min
+== 15 分钟
+
+15-25 min
+== 15-25 分钟
+
+First Deployment
+== 初次部署
+
+Combat and Recovery
+== 战斗与恢复
+
+PvE Mission
+== PvE 任务
+
+Forge and Build
+== 锻造与建造
+
+Build and Growth
+== 构筑与成长
+
+Multiplayer Ready
+== 多人准备
+
+Switch weapons and hit the training target.
+== 切换武器并击中训练目标。
+
+Defeat the marked enemies and watch your ammunition.
+== 击败标记敌人，并留意弹药。
+
+Take controlled damage, then collect health.
+== 承受一次受控伤害，然后拾取生命补给。
+
+Respawn near the current objective and finish the encounter.
+== 在当前目标附近复活并完成战斗。
+
+Follow the radar marker and activate the switch.
+== 跟随雷达标记并启动开关。
+
+Follow the radar marker. Stay near the switch for 2 seconds to activate it.
+== 跟随雷达标记，靠近开关并停留 2 秒即可激活。
+
+Stay near the next marked switch for 2 seconds to secure the defense area.
+== 靠近下一个标记开关并停留 2 秒，以确保防守区域安全。
+
+Activate the next marked switch and watch the HUD progress.
+== 激活下一个标记开关，并留意 HUD 上的进度。
+
+Activate the final marked switch to open the extraction route.
+== 激活最后一个标记开关以打开撤离路线。
+
+Hold the marked defense area.
+== 守住标记的防御区域。
+
+Track mission progress on the HUD.
+== 在 HUD 上查看任务进度。
+
+Reach the extraction area.
+== 抵达撤离区域。
+
+Collect the marked sandbox materials.
+== 收集标记的沙盒材料。
+
+Build a defense and survive the controlled wave.
+== 建造防御设施并撑过受控敌潮。
+
+Choose a run perk for this mission.
+== 为本次任务选择一个局内增益。
+
+Choose one of the three run perks.
+== 从三个局内增益中选择一个。
+
+Hold %s, choose a drone module, then release to switch.
+== 按住 %s，选择一个无人机模块，然后松开以切换。
+
+Purchase the highlighted sandbox research node. Tutorial points do not affect your save.
+== 购买高亮的沙盒研究节点。教程点数不会影响你的存档。
+
+Select and command a drone module.
+== 选择并操作一个无人机模块。
+
+Complete the highlighted sandbox research node.
+== 完成高亮的沙盒研究节点。
+
+Complete the short bot PvP objective.
+== 完成简短的机器人 PvP 目标。
+
+Configure and create the simulated room.
+== 配置并创建模拟房间。
+
+Filter the simulated room list and join a room.
+== 筛选模拟房间列表并加入房间。
+
+Multiplayer room practice
+== 多人房间练习
+
+Configure a simulated room, then create it.
+== 配置一个模拟房间，然后创建它。
+
+Filter the simulated room list, then join the training room.
+== 筛选模拟房间列表，然后加入训练房间。
+
+Room visibility
+== 房间可见性
+
+Training Room · Tutorial rules · 4 slots
+== 训练房间 · 教程规则 · 4 个位置
+
+Create simulated room
+== 创建模拟房间
+
+All rooms
+== 全部房间
+
+Low ping
+== 低延迟
+
+Ninslash Training Room
+== Ninslash 训练房间
+
+Tutorial · 1/4 players · local simulation
+== 教程 · 1/4 玩家 · 本地模拟
+
+Join simulated room
+== 加入模拟房间
+
+This practice does not publish a real room or contact external services.
+== 此练习不会发布真实房间，也不会连接外部服务。
+
+Choose chapter
+== 选择章节
+
+Tutorial chapters
+== 教程章节
+
+Back to Play
+== 返回玩法中心
+
+Chapter %d
+== 第 %d 章
+
+CHAPTER %d/6 · %s · %d/%d
+== 第 %d/6 章 · %s · %d/%d
+
+Step %d of %d
+== 步骤 %d/%d
+
+Completed
+== 已完成
+
+Available
+== 已解锁
+
+Replay
+== 重玩
+
+Complete chapter %d first
+== 请先完成第 %d 章
+
+Movement, weapons and the training target.
+== 移动、武器与训练靶。
+
+Combat, recovery and respawning.
+== 战斗、恢复与复活。
+
+Objectives, defense and extraction.
+== 任务目标、防守与撤离。
+
+Materials, forging and construction.
+== 材料、锻造与建造。
+
+Perks, drones and research.
+== 增益、无人机与研究。
+
+Bot PvP and multiplayer rooms.
+== 机器人 PvP 与多人房间。
+
+CONTENT
+== 内容
+
+SYSTEM
+== 系统
+
+SESSION
+== 对局
+
+PROFILE
+== 档案
+
+Resume
+== 继续
+
+Tutorial
+== 教程
+
+Easy
+== 简单
+
+Normal
+== 普通
+
+Hard
+== 困难
+
+Guided
+== 引导
+
+45 min
+== 45 分钟
+
+5-10 min
+== 5–10 分钟
+
+Objectives  ·  Forge  ·  Builds
+== 目标  ·  锻造  ·  建造
+
+Six guided solo chapters for controls, combat, objectives, forging, builds and rooms.
+== 六章单人引导教程，涵盖操作、战斗、目标、锻造、建造与房间。
+
+No bots
+== 不添加机器人
+
+%s: %d
+== %s：%d
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Unofficial
+== %s  ·  %s  ·  %s  ·  %d 个真人槽位  ·  %s  ·  非官方
+
+Recommended: %s players  ·  %s  ·  %s difficulty
+== 推荐 %s 人  ·  %s  ·  %s难度
+
+Official
+== 官方
+
+Community
+== 社区
+
+Modded
+== 已启用模组
+
+Aim to select
+== 移动矄准以选择
+
+Training
+== 训练
+
+Online
+== 在线
+
+Standalone network
+== 独立网络
+
+UDP available
+== UDP 可用
+
+Starting local game
+== 正在启动本地游戏
+
+Stopping local game
+== 正在停止本地游戏

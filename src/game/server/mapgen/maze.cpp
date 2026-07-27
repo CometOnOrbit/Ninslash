@@ -4,6 +4,7 @@
 
 #include <engine/shared/config.h>
 #include <game/questinfo.h>
+#include <game/tutorial.h>
 
 #include "room.h"
 #include "maze.h"
@@ -45,6 +46,31 @@ void CMaze::Generate()
 	{
 		int Level = g_Config.m_SvMapGenLevel;
 		const int Theme = InvasionThemeFromLevel(Level);
+
+		if(IsTutorialGametype(g_Config.m_SvGametype))
+		{
+			// A compact, readable spine with deterministic objective pockets. The
+			// chapter changes the shape slightly without inheriting floor themes.
+			const int Chapter = clamp(g_Config.m_SvTutorialChapter, 1, 6);
+			const int Nodes = Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 5 : 4 + (Chapter >= 3);
+			const float Span = Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 0.44f : 0.34f;
+			const float X0 = 0.5f - Span * 0.5f;
+			for(int i = 0; i < Nodes; i++)
+			{
+				const float T = Nodes <= 1 ? 0.5f : i / float(Nodes - 1);
+				const float Y = 0.48f + ((i & 1) ? 0.055f : -0.055f);
+				m_aRoom[m_Rooms++] = vec2(m_W * (X0 + T * Span), m_H * Y);
+			}
+			for(int i = 0; i + 1 < m_Rooms; i++)
+				Connect(m_aRoom[i], m_aRoom[i + 1]);
+			if(Chapter >= TUTORIAL_CHAPTER_OBJECTIVES)
+			{
+				Connect(vec2(m_W * 0.38f, m_H * 0.48f), vec2(m_W * 0.38f, m_H * 0.30f));
+				Connect(vec2(m_W * 0.62f, m_H * 0.48f), vec2(m_W * 0.62f, m_H * 0.66f));
+			}
+			ConnectEverything();
+			return;
+		}
 
 		// Extraction: tighter snake-like maze with fewer wide shortcuts
 		if (str_comp(g_Config.m_SvGametype, "extract") == 0)

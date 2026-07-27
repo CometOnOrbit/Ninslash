@@ -37,7 +37,7 @@ private:
 	bool m_DoorChoiceStarted;
 	bool m_EliteContractSpawned;
 	class CDroid *m_pMidBoss;
-	class CRadar *m_pDoor;
+	class CServerRadar *m_pDoor;
 
 	void SpawnInitialEnemies();
 	void SpawnMidBoss();

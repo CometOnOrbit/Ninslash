@@ -83,6 +83,15 @@ class CPveRoguelite : public CComponent
 	float m_SelectionPulse;
 	float m_aCardFocus[3];
 	int m_ResearchAnimTab;
+	int m_TutorialMoveMask;
+	int m_TutorialFireCount;
+	int m_TutorialKillCount;
+	int m_TutorialObjectiveSignature;
+	bool m_TutorialPerkChosen;
+	int m_TutorialNonce;
+	int m_TutorialProgress;
+	int m_TutorialTarget;
+	int m_TutorialFlags;
 
 	CPveResearchMask ParseResearchMask() const;
 	void StoreResearchMask(CPveResearchMask Mask);
@@ -98,12 +107,16 @@ class CPveRoguelite : public CComponent
 	void DrawContractHud();
 	void DrawBuildHud();
 	void DrawDrones();
+	void DrawTutorialHud();
+	void AdvanceTutorial();
+	void TickTutorial();
 	void DrawDroneWheel();
 	void DrawText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth = -1.0f, int Align = -1);
 	void DrawWrappedText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth, int MaxLines);
 	void DrawPanel(const CUIRect &Rect, vec4 Color, float Rounding = 8.0f);
 	void DrawIcon(int Image, int Sprite, float X, float Y, float Size, vec4 Color);
 	bool CanBuyResearch(int CardID, const CPveResearchMask &Mask) const;
+	bool TutorialResearchActive() const;
 	void BuySelectedResearch();
 	void CycleCheckpoint();
 	static void ConDebugChoice(IConsole::IResult *pResult, void *pUserData);
@@ -117,6 +130,7 @@ class CPveRoguelite : public CComponent
 	static void ConKeyDroneWheel(IConsole::IResult *pResult, void *pUserData);
 
 public:
+	void SendTutorialAction(int Action, int Value = 0);
 	CPveRoguelite();
 	virtual void OnReset();
 	virtual void OnConsoleInit();
@@ -135,6 +149,7 @@ public:
 	int BuildingCost(int BaseCost) const;
 	bool ChoiceActive() const { return m_ChoiceActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
 	bool DroneWheelActive() const { return m_DroneWheelActive; }
+	void OnGameOver();
 
 	// World drones must paint with players/droids (before the light pass), not with HUD overlays.
 	class CRenderWorld : public CComponent

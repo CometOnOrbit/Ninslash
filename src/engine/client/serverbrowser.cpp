@@ -159,6 +159,7 @@ void CServerBrowser::Filter()
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "DEF") != 0 &&
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "INF") != 0 &&
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "INV") != 0 &&
+			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "TUT") != 0 &&
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "GUN") != 0 &&
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "CTF") != 0))
 		{

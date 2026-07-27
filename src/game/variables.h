@@ -35,6 +35,16 @@ MACRO_CONFIG_INT(EdShowkeys, ed_showkeys, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, 
 //MACRO_CONFIG_INT(ClFlow, cl_flow, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "")
 
 MACRO_CONFIG_INT(ClShowWelcome, cl_show_welcome, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "")
+// 0 = not started, 1 = in progress, 2 = complete, 3 = skipped.  Kept separate
+// from account/progress storage so an offline player can resume the tutorial.
+MACRO_CONFIG_INT(ClTutorialState, cl_tutorial_state, 0, 0, 3, CFGFLAG_CLIENT|CFGFLAG_SAVE, "New player tutorial state")
+MACRO_CONFIG_INT(ClTutorialCheckpoint, cl_tutorial_checkpoint, 0, 0, 6, CFGFLAG_CLIENT|CFGFLAG_SAVE, "New player tutorial checkpoint")
+MACRO_CONFIG_INT(ClTutorialActive, cl_tutorial_active, 0, 0, 1, CFGFLAG_CLIENT, "Show the local tutorial HUD")
+MACRO_CONFIG_INT(ClTutorialVersion, cl_tutorial_version, 0, 0, 99, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Tutorial content version")
+MACRO_CONFIG_INT(ClTutorialChapter, cl_tutorial_chapter, 1, 1, 6, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Tutorial chapter to resume")
+MACRO_CONFIG_INT(ClTutorialStep, cl_tutorial_step, 0, 0, 9, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Tutorial step to resume")
+MACRO_CONFIG_INT(ClTutorialCompletedMask, cl_tutorial_completed_mask, 0, 0, 63, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Completed tutorial chapters")
+MACRO_CONFIG_INT(ClTutorialPromptHandled, cl_tutorial_prompt_handled, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Initial tutorial prompt has been handled")
 MACRO_CONFIG_INT(ClMotdTime, cl_motd_time, 10, 0, 100, CFGFLAG_CLIENT|CFGFLAG_SAVE, "How long to show the server message of the day")
 
 MACRO_CONFIG_STR(ClVersionServer, cl_version_server, 100, "version.ninslash.com", CFGFLAG_CLIENT|CFGFLAG_SAVE, "Server to use to check for new versions")
@@ -60,7 +70,7 @@ MACRO_CONFIG_INT(UiToolboxPage, ui_toolbox_page, 0, 0, 2, CFGFLAG_CLIENT|CFGFLAG
 MACRO_CONFIG_STR(UiServerAddress, ui_server_address, 64, "localhost:8303", CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface server address")
 MACRO_CONFIG_STR(ClModHash, cl_mod_hash, 65, "", CFGFLAG_CLIENT|CFGFLAG_SAVE, "Installed Workshop mod collection hash sent during connection")
 MACRO_CONFIG_STR(ClModIds, cl_mod_ids, 1024, "", CFGFLAG_CLIENT|CFGFLAG_SAVE, "Comma-separated enabled Workshop root PublishedFileIDs")
-MACRO_CONFIG_INT(UiScale, ui_scale, 100, 50, 150, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface scale")
+MACRO_CONFIG_INT(UiScale, ui_scale, 100, 50, 200, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface scale")
 MACRO_CONFIG_INT(UiMousesens, ui_mousesens, 100, 5, 100000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Mouse sensitivity for menus/editor")
 
 MACRO_CONFIG_INT(UiColorHue, ui_color_hue, 150, 0, 255, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface color hue")
@@ -93,7 +103,7 @@ MACRO_CONFIG_INT(SvRoundSwap, sv_round_swap, 1, 0, 1, CFGFLAG_SERVER, "Swap team
 MACRO_CONFIG_INT(SvPowerups, sv_powerups, 1, 0, 1, CFGFLAG_SERVER, "Allow powerups like ninja")
 MACRO_CONFIG_INT(SvScorelimit, sv_scorelimit, 0, 0, 1000, CFGFLAG_SERVER, "Score limit (0 disables)")
 MACRO_CONFIG_INT(SvTimelimit, sv_timelimit, 0, 0, 1000, CFGFLAG_SERVER, "Time limit in minutes (0 disables)")
-MACRO_CONFIG_STR(SvGametype, sv_gametype, 32, "dm", CFGFLAG_SERVER, "Game type (dm, tdm, ctf, base, coop, horde, extract, ball, roam)")
+MACRO_CONFIG_STR(SvGametype, sv_gametype, 32, "dm", CFGFLAG_SERVER, "Game type (dm, tdm, ctf, base, coop, tutorial, horde, extract, ball, roam)")
 MACRO_CONFIG_INT(SvTournamentMode, sv_tournament_mode, 0, 0, 1, CFGFLAG_SERVER, "Tournament mode. When enabled, players joins the server as spectator")
 MACRO_CONFIG_INT(SvSpamprotection, sv_spamprotection, 1, 0, 1, CFGFLAG_SERVER, "Spam protection")
 
@@ -130,7 +140,7 @@ MACRO_CONFIG_INT(SvAbilities, sv_abilities, 0, 0, 1, CFGFLAG_SERVER, "Enable cla
 MACRO_CONFIG_INT(SvPickupDrops, sv_pickupdrops, 1, 0, 1, CFGFLAG_SERVER, "Pickup drops")
 MACRO_CONFIG_INT(SvHealthPickups, sv_healthpickups, 1, 0, 1, CFGFLAG_SERVER, "Enable hp and armor pickups")
 MACRO_CONFIG_INT(SvWeaponDrops, sv_weapondrops, 1, 0, 1, CFGFLAG_SERVER, "Enable weapon drops")
-MACRO_CONFIG_INT(SvNumBots, sv_bots, 4, 0, 30, CFGFLAG_SERVER, "Max number of bots")
+MACRO_CONFIG_INT(SvNumBots, sv_bots, 4, 0, 30, CFGFLAG_SERVER, "AI population target: total active players in free-for-all modes or players per team in team modes; 0 disables bots")
 MACRO_CONFIG_INT(SvNoBotTeam, sv_nobotteam, -1, -1, 9, CFGFLAG_SERVER, "")
 MACRO_CONFIG_INT(SvBotLevel, sv_botlevel, 6, 1, 30, CFGFLAG_SERVER, "AI level of bots")
 MACRO_CONFIG_INT(SvUnlimitedTurbo, sv_unlimited_turbo, 0, 0, 1, CFGFLAG_SERVER, "Unlimited turbo")
@@ -162,6 +172,10 @@ MACRO_CONFIG_INT(SvStartGold, sv_startgold, 0, 0, 999, CFGFLAG_SERVER, "Starting
 MACRO_CONFIG_INT(SvForgeMode, sv_forge_mode, 0, 0, 2, CFGFLAG_SERVER, "Forge mode (0=legacy inventory, 1=available anywhere, 2=screen proximity only)")
 MACRO_CONFIG_INT(SvForgeBaseCost, sv_forge_base_cost, 5, -999, 999, CFGFLAG_SERVER, "Base gold cost for forging")
 MACRO_CONFIG_INT(SvForgeLevelCost, sv_forge_level_cost, 2, -999, 999, CFGFLAG_SERVER, "Gold cost per combined weapon level for forging")
+MACRO_CONFIG_INT(SvTutorialMode, sv_tutorial_mode, 0, 0, 1, CFGFLAG_SERVER, "Deterministic local tutorial rules")
+MACRO_CONFIG_INT(SvTutorialChapter, sv_tutorial_chapter, 1, 1, 6, CFGFLAG_SERVER, "Tutorial chapter being hosted")
+MACRO_CONFIG_INT(SvTutorialStep, sv_tutorial_step, 0, 0, 9, CFGFLAG_SERVER, "Tutorial step being hosted")
+MACRO_CONFIG_INT(SvTutorialCompletedMask, sv_tutorial_completed_mask, 0, 0, 63, CFGFLAG_SERVER, "Tutorial chapters already completed")
 
 // 
 MACRO_CONFIG_INT(SvInfiniteGrenades, sv_infinitegrenades, 0, 0, 1, CFGFLAG_SERVER, "Infinite grenades")

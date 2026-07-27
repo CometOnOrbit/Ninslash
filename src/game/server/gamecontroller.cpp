@@ -27,6 +27,7 @@
 #include "gamecontroller.h"
 #include "gamecontext.h"
 #include "pve_director.h"
+#include "tutorial_director.h"
 #include <game/questinfo.h>
 
 
@@ -42,6 +43,9 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_SuddenDeath = 0;
 	m_RoundStartTick = Server()->Tick();
 	m_RoundCount = 0;
+	m_Round = 0;
+	m_GameState = 0;
+	m_GameVote = 0;
 	m_GameVoteEndTick = 0;
 	m_GameFlags = 0;
 	m_aTeamscore[TEAM_RED] = 0;
@@ -53,6 +57,7 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_ForceBalanced = false;
 
 	m_RoundTimeLimit = 0;
+	m_TimeLimit = 0;
 	m_ResetTime = false;
 	
 	m_aNumSpawnPoints[0] = 0;
@@ -63,12 +68,14 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_SurvivalStartTick = Server()->Tick();
 	m_SurvivalDeathTick = 0;
 	m_SurvivalResetTick = 0;
+	m_SurvivalDeathReset = false;
 	m_ClearBroadcastTick = 0;
 	m_RisingAcid = false;
 	m_RisingAcidStartTick = 0;
 	m_RisingAcidDuration = 0;
 	
 	m_BombStatus = 0;
+	m_BombPos = vec2(0, 0);
 	m_pBall = 0;
 	
 	GameServer()->Collision()->GenerateWaypoints();
@@ -1402,6 +1409,13 @@ void IGameController::OnPlayerInfoChange(class CPlayer *pP)
 
 int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
+	if(GameServer()->m_pTutorialDirector)
+	{
+		if(!pVictim->m_IsBot)
+			GameServer()->m_pTutorialDirector->OnDeath(pVictim->GetPlayer()->GetCID());
+		else if(pKiller && !pKiller->m_IsBot)
+			GameServer()->m_pTutorialDirector->OnGameplayProgress(pKiller->GetCID(), TUTORIAL_EVENT_KILL);
+	}
 	if (pVictim->m_IsBot && pVictim->GetPlayer()->m_pAI)
 		pVictim->GetPlayer()->m_pAI->OnCharacterDeath();
 	

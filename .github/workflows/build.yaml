@@ -21,11 +21,17 @@ jobs:
       - name: Configure focused tests
         run: cmake -B build-tests -DCLIENT=OFF -DNINSLASH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build focused tests
-        run: cmake --build build-tests --target ninslash_test_pve_progress -j"$(nproc)"
+      - name: Build focused tests and dedicated server
+        run: cmake --build build-tests -j"$(nproc)"
 
       - name: Run focused tests
         run: ctest --test-dir build-tests --output-on-failure
+
+      - name: Run fixed-seed PvE smoke baseline
+        run: |
+          python3 scripts/smoke_pve_matrix.py \
+            --server build-tests/ninslash_srv \
+            --depth 1 --depth 5 --timeout 12 --port 8397 --log-dir smoke-logs
 
       - name: Validate release tooling
         run: |

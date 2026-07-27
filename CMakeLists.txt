@@ -678,6 +678,14 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_network_transport PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_network_transport ${LIBS})
   add_test(NAME network_transport COMMAND ninslash_test_network_transport)
+  add_executable(ninslash_test_memory_thread_safety
+    tests/memory_thread_safety.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_memory_thread_safety PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_memory_thread_safety ${LIBS})
+  add_test(NAME memory_thread_safety COMMAND ninslash_test_memory_thread_safety)
   add_executable(ninslash_test_platform_event_queue
     tests/platform_event_queue.cpp
     $<TARGET_OBJECTS:engine-shared>
@@ -693,6 +701,27 @@ if(NINSLASH_BUILD_TESTS)
   add_executable(ninslash_test_platform_auth_policy tests/platform_auth_policy.cpp)
   target_include_directories(ninslash_test_platform_auth_policy PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   add_test(NAME platform_auth_policy COMMAND ninslash_test_platform_auth_policy)
+
+  add_executable(ninslash_test_room_creation tests/room_creation.cpp)
+  target_include_directories(ninslash_test_room_creation PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME room_creation COMMAND ninslash_test_room_creation)
+
+  add_executable(ninslash_test_menu_home tests/menu_home.cpp)
+  target_include_directories(ninslash_test_menu_home PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME menu_home COMMAND ninslash_test_menu_home)
+
+  add_executable(ninslash_test_tutorial_state tests/tutorial_state.cpp)
+  target_include_directories(ninslash_test_tutorial_state PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME tutorial_state COMMAND ninslash_test_tutorial_state)
+
+  add_executable(ninslash_test_tutorial_controller_type tests/tutorial_controller_type.cpp)
+  target_include_directories(ninslash_test_tutorial_controller_type PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME tutorial_controller_type COMMAND ninslash_test_tutorial_controller_type)
+
+  add_executable(ninslash_test_listen_server_entity_names tests/listen_server_entity_names.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_listen_server_entity_names PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_listen_server_entity_names ${LIBS})
+  add_test(NAME listen_server_entity_names COMMAND ninslash_test_listen_server_entity_names)
   add_executable(ninslash_test_platform_ban tests/platform_ban.cpp src/engine/server/platform_ban.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
   target_include_directories(ninslash_test_platform_ban PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_platform_ban ${LIBS})
@@ -739,6 +768,7 @@ if(NINSLASH_BUILD_TESTS)
     ninslash_test_pve_progress
     ninslash_test_mod_manifest
     ninslash_test_network_transport
+    ninslash_test_memory_thread_safety
     ninslash_test_platform_event_queue
     ninslash_test_platform_server_metadata
     ninslash_test_platform_auth_policy
@@ -868,6 +898,8 @@ if(CLIENT)
     components/pve_roguelite.h
     pve_progress_storage.cpp
     pve_progress_storage.h
+    local_game_modes.h
+    room_creation.h
     components/radar.cpp
     components/radar.h
     components/scoreboard.cpp
@@ -1210,6 +1242,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   gamemodes/roam.h
   gamemodes/tdm.cpp
   gamemodes/tdm.h
+  gamemodes/tutorial.cpp
+  gamemodes/tutorial.h
   gamemodes/texasrun.cpp
   gamemodes/texasrun.h
   mapgen/gen_layer.cpp
@@ -1243,6 +1277,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   playerdata.h
   pve_director.cpp
   pve_director.h
+  tutorial_director.cpp
+  tutorial_director.h
 )
 
 set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER})

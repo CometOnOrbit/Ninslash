@@ -54,7 +54,7 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	m_DoorChoiceStarted = false;
 	m_EliteContractSpawned = false;
 	m_pMidBoss = 0;
-	m_pDoor = new CRadar(&GameServer()->m_World, RADAR_DOOR);
+	m_pDoor = new CServerRadar(&GameServer()->m_World, RADAR_DOOR);
 
 	g_Config.m_SvOneHitKill = 0;
 	g_Config.m_SvWarmup = 0;
@@ -443,7 +443,7 @@ void CGameControllerExtract::Tick()
 						Pos = vec2(4000.0f + Extra * 96.0f, 4000.0f);
 					new CBuilding(&GameServer()->m_World, Pos, BUILDING_SWITCH, TEAM_NEUTRAL);
 					m_AvailableSwitches++;
-					CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+					CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
 					pRadar->Activate(Pos);
 				}
 			// Use the authoritative number actually placed on this generated map.

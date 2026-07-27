@@ -489,6 +489,8 @@ void CServer::SetClientScore(int ClientID, int Score)
 
 void CServer::SendPlatformEvent(int ClientID, int Event, int Value)
 {
+	if(g_Config.m_SvTutorialMode)
+		return;
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || Event < 0 || Event >= NUM_PLATFORM_SERVER_EVENTS)
 		return;
 	CClient &Client = m_aClients[ClientID];
@@ -737,7 +739,7 @@ int CServer::LoadAISkin(const char *pFilename, const char *pFoldername, int Stor
 			else if(!str_comp_num(pLine, "blood-color:", 12))
 			{
 				char aBlood[24] = "";
-				sscanf(pLine, "blood-color: %24s", aBlood);
+				sscanf(pLine, "blood-color: %23s", aBlood);
 				
 				if(!str_comp(aBlood, "red")) AISkin.m_ColorBlood = 0;
 				else if(!str_comp(aBlood, "green")) AISkin.m_ColorBlood = 1;
@@ -747,7 +749,7 @@ int CServer::LoadAISkin(const char *pFilename, const char *pFoldername, int Stor
 			else if(!str_comp_num(pLine, "wave-group:", 11))
 			{
 				char aGroup[24] = "";
-				sscanf(pLine, "wave-group: %24s", aGroup);
+				sscanf(pLine, "wave-group: %23s", aGroup);
 				
 				if(!str_comp(aGroup, "alien")) AISkin.m_WaveGroup = WAVE_ALIENS;
 				else if(!str_comp(aGroup, "robot")) AISkin.m_WaveGroup = WAVE_ROBOTS;
@@ -1389,7 +1391,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					// client's transport, not merely the presence of a Relay listener.
 					const NETADDR *pPeerAddress = m_NetServer.ClientAddr(ClientID);
 					const bool Relay = PlatformConnectionUsesRelay(m_pListenTransport != 0, pPeerAddress && pPeerAddress->type == NETTYPE_STEAM);
-					const int AuthPolicy = PlatformEffectiveAuthPolicy(g_Config.m_SvSteamAuth, g_Config.m_SvOfficial != 0, Relay);
+					const int AuthPolicy = PlatformConnectionAuthPolicy(g_Config.m_SvSteamAuth, g_Config.m_SvOfficial != 0, m_pListenTransport != 0, pPeerAddress && pPeerAddress->type == NETTYPE_STEAM);
 					if(AuthPolicy > 0 || g_Config.m_SvModHash[0])
 					{
 						m_aClients[ClientID].m_PlatformAuthRequested = true;
@@ -1478,7 +1480,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					pID+=Length;if(*pID==',')pID++;else if(*pID){m_NetServer.Drop(ClientID,"Invalid Workshop Mod ID list");return;}
 				}
 			}
-			const int AuthPolicy = PlatformEffectiveAuthPolicy(g_Config.m_SvSteamAuth, g_Config.m_SvOfficial != 0, RelayAuthenticated);
+			const int AuthPolicy = PlatformConnectionAuthPolicy(g_Config.m_SvSteamAuth, g_Config.m_SvOfficial != 0, m_pListenTransport != 0, RelayAuthenticated);
 			const EPlatformAuthResult Result = IdentityKind == PLATFORM_IDENTITY_ANONYMOUS ? PLATFORM_AUTH_UNAVAILABLE :
 				RelayAuthenticated ? PLATFORM_AUTH_OK : m_pPlatformGameServer->Authenticate(SteamID, pTicket, TicketSize);
 			const EPlatformJoinDecision Decision = PlatformJoinDecision(IdentityKind, AuthPolicy, RelayAuthenticated, Result);
@@ -1488,7 +1490,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 			{
 				m_aClients[ClientID].m_SteamID = 0;
 				m_aClients[ClientID].m_PlatformAuthenticated = false;
-				char aLog[256]; str_format(aLog, sizeof(aLog), "action=accept identity=anonymous auth=none room=dedicated modhash=%s", pModHash[0] ? pModHash : "none"); Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-auth", aLog);
+				char aLog[256]; str_format(aLog, sizeof(aLog), "action=accept identity=anonymous auth=none room=%s modhash=%s", m_pListenTransport ? "local_listen_host" : "dedicated", pModHash[0] ? pModHash : "none"); Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-auth", aLog);
 			}
 			else if(Decision == PLATFORM_JOIN_VERIFIED)
 			{

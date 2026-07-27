@@ -912,4 +912,20 @@ Messages = [
 		NetIntRange("m_ProductAmmo", 0, 'max_int'),
 		NetIntRange("m_ProductMaxAmmo", 0, 'max_int'),
 	]),
+
+	NetMessage("Sv_TutorialState", [
+		NetIntRange("m_Chapter", 1, 6),
+		NetIntRange("m_Step", 0, 9),
+		NetIntRange("m_Progress", 0, 999),
+		NetIntRange("m_Target", 0, 999),
+		NetIntAny("m_Nonce"),
+		NetIntRange("m_CompletedMask", 0, 63),
+		NetIntRange("m_Flags", 0, 15),
+	]),
+
+	NetMessage("Cl_TutorialAction", [
+		NetIntRange("m_Action", 0, 4),
+		NetIntAny("m_Nonce"),
+		NetIntAny("m_Value"),
+	]),
 ]

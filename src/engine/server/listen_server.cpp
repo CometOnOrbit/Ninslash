@@ -23,6 +23,16 @@ void CaptureSettings(CListenServerSettings *pSettings)
 	pSettings->m_RegisterSteam = g_Config.m_SvRegisterSteam;
 	pSettings->m_Official = g_Config.m_SvOfficial;
 	pSettings->m_SteamAuth = g_Config.m_SvSteamAuth;
+	pSettings->m_MapGenLevel = g_Config.m_SvMapGenLevel;
+	pSettings->m_MapGenSeed = g_Config.m_SvMapGenSeed;
+	pSettings->m_MapGenRandomSeed = g_Config.m_SvMapGenRandSeed;
+	pSettings->m_Bots = g_Config.m_SvNumBots;
+	pSettings->m_BotLevel = g_Config.m_SvBotLevel;
+	pSettings->m_ScoreLimit = g_Config.m_SvScorelimit;
+	pSettings->m_TimeLimit = g_Config.m_SvTimelimit;
+	pSettings->m_PveRoguelite = g_Config.m_SvPveRoguelite;
+	pSettings->m_PveContracts = g_Config.m_SvPveContracts;
+	pSettings->m_InvasionUseCheckpoint = g_Config.m_SvInvasionUseCheckpoint;
 	str_copy(pSettings->m_aBindAddress, g_Config.m_Bindaddr, sizeof(pSettings->m_aBindAddress));
 	str_copy(pSettings->m_aName, g_Config.m_SvName, sizeof(pSettings->m_aName));
 	str_copy(pSettings->m_aPassword, g_Config.m_Password, sizeof(pSettings->m_aPassword));
@@ -41,6 +51,16 @@ void ApplySettings(const CListenServerSettings &Settings)
 	g_Config.m_SvRegisterSteam = Settings.m_RegisterSteam;
 	g_Config.m_SvOfficial = Settings.m_Official;
 	g_Config.m_SvSteamAuth = Settings.m_SteamAuth;
+	g_Config.m_SvMapGenLevel = Settings.m_MapGenLevel;
+	g_Config.m_SvMapGenSeed = Settings.m_MapGenSeed;
+	g_Config.m_SvMapGenRandSeed = Settings.m_MapGenRandomSeed;
+	g_Config.m_SvNumBots = Settings.m_Bots;
+	g_Config.m_SvBotLevel = Settings.m_BotLevel;
+	g_Config.m_SvScorelimit = Settings.m_ScoreLimit;
+	g_Config.m_SvTimelimit = Settings.m_TimeLimit;
+	g_Config.m_SvPveRoguelite = Settings.m_PveRoguelite;
+	g_Config.m_SvPveContracts = Settings.m_PveContracts;
+	g_Config.m_SvInvasionUseCheckpoint = Settings.m_InvasionUseCheckpoint;
 	str_copy(g_Config.m_Bindaddr, Settings.m_aBindAddress, sizeof(g_Config.m_Bindaddr));
 	str_copy(g_Config.m_SvName, Settings.m_aName, sizeof(g_Config.m_SvName));
 	str_copy(g_Config.m_Password, Settings.m_aPassword, sizeof(g_Config.m_Password));
@@ -106,6 +126,13 @@ class CListenServerRuntime : public IListenServerRuntime
 			pMasterServer->Init();
 			pMasterServer->Load();
 			pServer->RegisterCommands();
+			if(m_Settings.m_aConfig[0])
+			{
+				pConsole->ExecuteFile(m_Settings.m_aConfig);
+				// Mode configs provide their baseline; the room form wins for every
+				// value the player can edit.
+				ApplySettings(m_Settings);
+			}
 			pServer->LoadAISkins();
 			pServer->LoadGameVotes();
 			pServer->SetListenTransport(m_pTransport);

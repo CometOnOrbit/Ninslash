@@ -194,16 +194,41 @@ typedef struct MEMTAIL
 static struct MEMHEADER *first = 0;
 static const int MEM_GUARD_VAL = 0xbaadc0de;
 
+/*
+	The Steam listen server runs in the client process on a second thread. The
+	debug allocator's allocation list and counters are process-global, so they
+	must be protected without using lock_create (which allocates through this
+	allocator itself).
+*/
+#if defined(CONF_FAMILY_UNIX)
+static pthread_mutex_t memory_mutex = PTHREAD_MUTEX_INITIALIZER;
+static void memory_lock_wait(void) { pthread_mutex_lock(&memory_mutex); }
+static void memory_lock_unlock(void) { pthread_mutex_unlock(&memory_mutex); }
+#elif defined(CONF_FAMILY_WINDOWS)
+static volatile LONG memory_mutex = 0;
+static void memory_lock_wait(void)
+{
+	while(InterlockedCompareExchange(&memory_mutex, 1, 0) != 0)
+		Sleep(0);
+}
+static void memory_lock_unlock(void) { InterlockedExchange(&memory_mutex, 0); }
+#endif
+
 void *mem_alloc_debug(const char *filename, int line, unsigned size, unsigned alignment)
 {
 	/* TODO: fix alignment */
 	/* TODO: add debugging */
-	MEMTAIL *tail;
-	MEMHEADER *header = (struct MEMHEADER *)malloc(size+sizeof(MEMHEADER)+sizeof(MEMTAIL));
-	dbg_assert(header != 0, "mem_alloc failure");
+	char *tail;
+	MEMHEADER *header;
+	memory_lock_wait();
+	header = (struct MEMHEADER *)malloc(size+sizeof(MEMHEADER)+sizeof(MEMTAIL));
 	if(!header)
+	{
+		memory_lock_unlock();
+		dbg_assert(header != 0, "mem_alloc failure");
 		return NULL;
-	tail = (struct MEMTAIL *)(((char*)(header+1))+size);
+	}
+	tail = ((char *)(header + 1)) + size;
 	header->size = size;
 	header->filename = filename;
 	header->line = line;
@@ -212,13 +237,14 @@ void *mem_alloc_debug(const char *filename, int line, unsigned size, unsigned al
 	memory_stats.total_allocations++;
 	memory_stats.active_allocations++;
 
-	tail->guard = MEM_GUARD_VAL;
+	memcpy(tail, &MEM_GUARD_VAL, sizeof(MEMTAIL));
 
 	header->prev = (MEMHEADER *)0;
 	header->next = first;
 	if(first)
 		first->prev = header;
 	first = header;
+	memory_lock_unlock();
 
 	/*dbg_msg("mem", "++ %p", header+1); */
 	return header+1;
@@ -228,10 +254,15 @@ void mem_free(void *p)
 {
 	if(p)
 	{
-		MEMHEADER *header = (MEMHEADER *)p - 1;
-		MEMTAIL *tail = (MEMTAIL *)(((char*)(header+1))+header->size);
+		MEMHEADER *header;
+		char *tail;
+		int tail_guard;
+		memory_lock_wait();
+		header = (MEMHEADER *)p - 1;
+		tail = ((char *)(header + 1)) + header->size;
+		memcpy(&tail_guard, tail, sizeof(MEMTAIL));
 
-		if(tail->guard != MEM_GUARD_VAL)
+		if(tail_guard != MEM_GUARD_VAL)
 			dbg_msg("mem", "!! %p", p);
 		/* dbg_msg("mem", "-- %p", p); */
 		memory_stats.allocated -= header->size;
@@ -245,18 +276,21 @@ void mem_free(void *p)
 			header->next->prev = header->prev;
 
 		free(header);
+		memory_lock_unlock();
 	}
 }
 
 void mem_debug_dump(IOHANDLE file)
 {
 	char buf[1024];
-	MEMHEADER *header = first;
+	MEMHEADER *header;
 	if(!file)
 		file = io_open("memory.txt", IOFLAG_WRITE);
 
 	if(file)
 	{
+		memory_lock_wait();
+		header = first;
 		while(header)
 		{
 			str_format(buf, sizeof(buf), "%s(%d): %d", header->filename, header->line, header->size);
@@ -264,6 +298,7 @@ void mem_debug_dump(IOHANDLE file)
 			io_write_newline(file);
 			header = header->next;
 		}
+		memory_lock_unlock();
 
 		io_close(file);
 	}
@@ -287,19 +322,25 @@ void mem_zero(void *block,unsigned size)
 
 int mem_check_imp()
 {
-	MEMHEADER *header = first;
+	MEMHEADER *header;
+	int result = 1;
+	memory_lock_wait();
+	header = first;
 	while(header)
 	{
-		MEMTAIL *tail = (MEMTAIL *)(((char*)(header+1))+header->size);
-		if(tail->guard != MEM_GUARD_VAL)
+		int tail_guard;
+		memcpy(&tail_guard, ((char *)(header + 1)) + header->size, sizeof(MEMTAIL));
+		if(tail_guard != MEM_GUARD_VAL)
 		{
 			dbg_msg("mem", "Memory check failed at %s(%d): %d", header->filename, header->line, header->size);
-			return 0;
+			result = 0;
+			break;
 		}
 		header = header->next;
 	}
+	memory_lock_unlock();
 
-	return 1;
+	return result;
 }
 
 IOHANDLE io_open(const char *filename, int flags)
@@ -2098,7 +2139,15 @@ int mem_comp(const void *a, const void *b, int size)
 
 const MEMSTATS *mem_stats()
 {
-	return &memory_stats;
+#if defined(_MSC_VER)
+	static __declspec(thread) MEMSTATS snapshot;
+#else
+	static __thread MEMSTATS snapshot;
+#endif
+	memory_lock_wait();
+	snapshot = memory_stats;
+	memory_lock_unlock();
+	return &snapshot;
 }
 
 void net_stats(NETSTATS *stats_inout)

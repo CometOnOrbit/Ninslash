@@ -733,6 +733,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 					str_comp(pItem->m_aGameType, "DEF") == 0 ||
 					str_comp(pItem->m_aGameType, "INF") == 0 ||
 					str_comp(pItem->m_aGameType, "INV") == 0 ||
+					str_comp(pItem->m_aGameType, "TUT") == 0 ||
 					str_comp(pItem->m_aGameType, "GUN") == 0 ||
 					str_comp(pItem->m_aGameType, "CTF") == 0)
 				{

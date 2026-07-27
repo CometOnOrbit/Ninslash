@@ -109,10 +109,6 @@ cmake -S . -B build-steam -DCMAKE_BUILD_TYPE=Release \
 cmake --build build-steam --parallel
 ```
 
-Steam 集成边界见 [`docs/steam-integration_zh-CN.md`](docs/steam-integration_zh-CN.md)。SteamPipe 分包与 Depot 模板见
-[`packaging/steam/README_zh-CN.md`](packaging/steam/README_zh-CN.md)，Steam Cloud 路径和发行检查见
-[`docs/release/README_zh-CN.md`](docs/release/README_zh-CN.md)。
-
 ## 参与贡献
 
 欢迎提交错误报告和 Pull Request。提交修改前请注意：
@@ -130,5 +126,4 @@ Steam 集成边界见 [`docs/steam-integration_zh-CN.md`](docs/steam-integration
 源代码使用 [`license.txt`](license.txt) 中说明的宽松许可证，并保留对 Teeworlds 和 Ninslash 原作者的署名。随附依赖拥有各自的许可证，概览见
 [`THIRD_PARTY_LICENSES_zh-CN.md`](THIRD_PARTY_LICENSES_zh-CN.md)。
 
-除非文件带有更具体的第三方声明，`data/` 中的内容采用 Ninslash 素材许可证 CC-BY-SA 3.0；该许可证不同于源代码许可证。每次公开发行仍必须通过
-[素材授权审计](docs/release/README_zh-CN.md)。
+除非文件带有更具体的第三方声明，`data/` 中的内容采用 Ninslash 素材许可证 CC-BY-SA 3.0

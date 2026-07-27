@@ -2537,13 +2537,52 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 
 	CListenServerSettings Settings;
 	mem_zero(&Settings, sizeof(Settings));
-	Settings.m_Port = clamp(g_Config.m_ClLocalServerPort, 1024, 65535);
+	const int PreferredPort = clamp(g_Config.m_ClLocalServerPort, 1024, 65535);
+	Settings.m_Port = -1;
+	for(int Offset = 0; Offset < 10; Offset++)
+	{
+		const int Candidate = PreferredPort + Offset <= 65535 ? PreferredPort + Offset : 1024 + PreferredPort + Offset - 65536;
+		NETADDR BindAddress;
+		mem_zero(&BindAddress, sizeof(BindAddress));
+		BindAddress.type = NETTYPE_IPV4;
+		BindAddress.ip[0] = 127;
+		BindAddress.ip[3] = 1;
+		BindAddress.port = Candidate;
+		NETSOCKET Probe = net_udp_create(BindAddress);
+		if(Probe.type == NETTYPE_INVALID)
+			continue;
+		net_udp_close(Probe);
+		Settings.m_Port = Candidate;
+		break;
+	}
+	if(Settings.m_Port < 0)
+	{
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, "The preferred port and the next nine ports are already in use.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	if(Settings.m_Port != PreferredPort)
+		dbg_msg("steam", "preferred room port %d is busy; using %d", PreferredPort, Settings.m_Port);
 	Settings.m_MaxClients = clamp(Host.m_MaxClients, 1, (int)MAX_CLIENTS);
+	Settings.m_SteamAuth = 1;
+	Settings.m_MapGenLevel = max(1, Host.m_Difficulty);
+	Settings.m_MapGenSeed = clamp(Host.m_Seed, 0, 32767);
+	Settings.m_MapGenRandomSeed = Host.m_RandomSeed;
+	// Bots occupy logical high client IDs and do not consume Relay connection
+	// slots. sv_bots is a population target, not a count bounded by human slots.
+	Settings.m_Bots = clamp(Host.m_Bots, 0, 30);
+	Settings.m_BotLevel = clamp(Host.m_BotLevel, 1, 30);
+	Settings.m_ScoreLimit = str_comp(Host.m_aGameType, "extract") == 0 ? 0 : Host.m_ModeRule;
+	Settings.m_TimeLimit = str_comp(Host.m_aGameType, "extract") == 0 ? Host.m_ModeRule : 0;
+	Settings.m_PveRoguelite = Host.m_Roguelite;
+	Settings.m_PveContracts = Host.m_Contracts;
+	Settings.m_InvasionUseCheckpoint = Host.m_UseCheckpoint;
 	str_copy(Settings.m_aBindAddress, "127.0.0.1", sizeof(Settings.m_aBindAddress));
 	str_copy(Settings.m_aName, Host.m_aName, sizeof(Settings.m_aName));
 	str_copy(Settings.m_aPassword, Host.m_aPassword, sizeof(Settings.m_aPassword));
 	str_copy(Settings.m_aMap, Host.m_aMap, sizeof(Settings.m_aMap));
 	str_copy(Settings.m_aGameType, Host.m_aGameType, sizeof(Settings.m_aGameType));
+	str_copy(Settings.m_aConfig, Host.m_aConfig, sizeof(Settings.m_aConfig));
 	str_copy(Settings.m_aModHash, Host.m_aModHash, sizeof(Settings.m_aModHash));
 	str_copy(Settings.m_aModIDs, Host.m_aModIDs, sizeof(Settings.m_aModIDs));
 	if(!m_pListenServer->Start(m_pPlatformServices->RelayListenTransport(), Settings))
@@ -2563,7 +2602,7 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	}
 	m_SteamHostStatus.m_Progress = 0.65f;
 	m_SteamHostStatus.m_Stage = CLIENT_STAGE_CREATING_ROOM;
-	if(!m_pPlatformServices->CreateLobby((EPlatformLobbyVisibility)clamp(Host.m_Visibility, (int)PLATFORM_LOBBY_INVITE_ONLY, (int)PLATFORM_LOBBY_PUBLIC), Settings.m_MaxClients))
+	if(!m_pPlatformServices->CreateLobby((EPlatformLobbyVisibility)clamp(Host.m_Visibility, (int)PLATFORM_LOBBY_INVITE_ONLY, (int)PLATFORM_LOBBY_PUBLIC), Settings.m_MaxClients, Settings.m_Port))
 	{
 		m_pListenServer->Stop();
 		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;

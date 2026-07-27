@@ -62,8 +62,14 @@ inline int InvasionThemeFromLevel(int Level)
 inline bool IsCoopMapGenGametype(const char *pType)
 {
 	return str_comp(pType, "coop") == 0
+		|| str_comp(pType, "tutorial") == 0
 		|| str_comp(pType, "horde") == 0
 		|| str_comp(pType, "extract") == 0;
+}
+
+inline bool IsTutorialGametype(const char *pType)
+{
+	return str_comp(pType, "tutorial") == 0;
 }
 
 

@@ -23,7 +23,19 @@
 
 void CMenus::RenderGame(CUIRect MainView)
 {
-	CUIRect Button, ButtonBar;
+	CUIRect Button, ButtonBar, SessionHeader;
+	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
+	MainView.HSplitTop(54.0f, &SessionHeader, &MainView);
+	SessionHeader.Margin(8.0f, &SessionHeader);
+	DrawMenuInset(&SessionHeader, CUI::CORNER_ALL);
+	SessionHeader.Margin(7.0f, &SessionHeader);
+	CServerInfo ServerInfo;
+	Client()->GetServerInfo(&ServerInfo);
+	char aSession[512];
+	const int Ping = m_pClient->m_Snap.m_pLocalInfo ? m_pClient->m_Snap.m_pLocalInfo->m_Latency : 0;
+	str_format(aSession, sizeof(aSession), "%s\n%s  |  %s  |  %d/%d  |  %dms  |  %s", ServerInfo.m_aName, ServerInfo.m_aGameType, ServerInfo.m_aMap, ServerInfo.m_NumClients, ServerInfo.m_MaxClients, Ping, Localize("Connected"));
+	UI()->DoLabelScaled(&SessionHeader, aSession, 11.0f, -1);
+	MainView.HSplitTop(6.0f, 0, &MainView);
 	MainView.HSplitTop(40.0f, &ButtonBar, &MainView);
 	DrawMenuPanel(&ButtonBar, CUI::CORNER_ALL);
 

@@ -2,6 +2,7 @@
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
+#include <game/server/tutorial_director.h>
 #include "droid.h"
 
 
@@ -101,6 +102,9 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 	
 	const int HealthBefore = m_Health;
 	m_Health -= Dmg;
+	if(GameServer()->m_pTutorialDirector && From >= 0 && From < MAX_CLIENTS &&
+		GameServer()->m_apPlayers[From] && !GameServer()->m_apPlayers[From]->m_IsBot)
+		GameServer()->m_pTutorialDirector->OnGameplayProgress(From, TUTORIAL_EVENT_TARGET_HIT);
 	GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
 	
 	
