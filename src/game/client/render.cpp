@@ -1941,49 +1941,35 @@ void CRenderTools::RenderMelee(CPlayerInfo *PlayerInfo, CTeeRenderInfo *pInfo, v
 		int WeaponDir = Dir.x < 0 ? -1 : 1;
 		bool FlipY = false;
 
-		vec2 Size = vec2(96, 32);
 		float BladeLen = -28;
 		float Radius = 20.0f;
 		
 		WeaponAngle -= PlayerInfo->m_Weapon2Recoil.y*0.05f;
 		
-		if (PlayerInfo->WeaponStaticType() == SW_TOOL)
+		if (PlayerInfo->m_MeleeState == MELEE_UP)
 		{
-			WeaponAngle = 0;
-			WeaponAngle -= 40*RAD;
-			WeaponAngle += PlayerInfo->m_ToolAngleOffset*RAD;
-			Size = vec2(64, 32) * 0.8f;
-			BladeLen = -12;
-			WeaponPos.y += 16;
-			Radius = 8.0f;
-		}
-		else
-		{
-			if (PlayerInfo->m_MeleeState == MELEE_UP)
+			if (PlayerInfo->m_MeleeAnimState > 0.0f)
 			{
-				if (PlayerInfo->m_MeleeAnimState > 0.0f)
-				{
-					WeaponAngle += 140*RAD - min(140*2*RAD , PlayerInfo->m_MeleeAnimState*3.0f);
-					FlipY = true;
-				}
-				else
-				{
-					WeaponAngle -= 140*RAD;
-					FlipY = false;
-				}
+				WeaponAngle += 140*RAD - min(140*2*RAD , PlayerInfo->m_MeleeAnimState*3.0f);
+				FlipY = true;
 			}
 			else
 			{
-				if (PlayerInfo->m_MeleeAnimState > 0.0f)
-				{
-					WeaponAngle -= 140*RAD - min(140*2*RAD , PlayerInfo->m_MeleeAnimState*3.0f);
-					FlipY = false;
-				}
-				else
-				{
-					WeaponAngle += 140*RAD;
-					FlipY = true;
-				}
+				WeaponAngle -= 140*RAD;
+				FlipY = false;
+			}
+		}
+		else
+		{
+			if (PlayerInfo->m_MeleeAnimState > 0.0f)
+			{
+				WeaponAngle -= 140*RAD - min(140*2*RAD , PlayerInfo->m_MeleeAnimState*3.0f);
+				FlipY = false;
+			}
+			else
+			{
+				WeaponAngle += 140*RAD;
+				FlipY = true;
 			}
 		}
 		
@@ -2073,49 +2059,35 @@ void CRenderTools::RenderMelee(CPlayerInfo *PlayerInfo, CTeeRenderInfo *pInfo, v
 		int WeaponDir = Dir.x < 0 ? -1 : 1;
 		bool FlipY = false;
 
-		vec2 Size = vec2(64, 32);
 		float BladeLen = -28;
 		float Radius = 20.0f;
 		
 		WeaponAngle -= PlayerInfo->m_Weapon2Recoil.y*0.05f;
 		
-		if (PlayerInfo->WeaponStaticType() == SW_TOOL)
+		if (PlayerInfo->m_MeleeState == MELEE_UP)
 		{
-			WeaponAngle = 0;
-			WeaponAngle -= 40*RAD;
-			WeaponAngle += PlayerInfo->m_ToolAngleOffset*RAD;
-			Size = vec2(64, 32) * 0.8f;
-			BladeLen = -12;
-			WeaponPos.y += 16;
-			Radius = 8.0f;
-		}
-		else
-		{
-			if (PlayerInfo->m_MeleeState == MELEE_UP)
+			if (PlayerInfo->m_MeleeAnimState > 0.0f)
 			{
-				if (PlayerInfo->m_MeleeAnimState > 0.0f)
-				{
-					WeaponAngle += 140*RAD - min(140*2*RAD , PlayerInfo->m_MeleeAnimState*3.0f);
-					FlipY = true;
-				}
-				else
-				{
-					WeaponAngle -= 140*RAD;
-					FlipY = false;
-				}
+				WeaponAngle += 140*RAD - min(140*2*RAD , PlayerInfo->m_MeleeAnimState*3.0f);
+				FlipY = true;
 			}
 			else
 			{
-				if (PlayerInfo->m_MeleeAnimState > 0.0f)
-				{
-					WeaponAngle -= 140*RAD - min(140*2*RAD , PlayerInfo->m_MeleeAnimState*3.0f);
-					FlipY = false;
-				}
-				else
-				{
-					WeaponAngle += 140*RAD;
-					FlipY = true;
-				}
+				WeaponAngle -= 140*RAD;
+				FlipY = false;
+			}
+		}
+		else
+		{
+			if (PlayerInfo->m_MeleeAnimState > 0.0f)
+			{
+				WeaponAngle -= 140*RAD - min(140*2*RAD , PlayerInfo->m_MeleeAnimState*3.0f);
+				FlipY = false;
+			}
+			else
+			{
+				WeaponAngle += 140*RAD;
+				FlipY = true;
 			}
 		}
 		

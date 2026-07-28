@@ -47,6 +47,7 @@ struct CHostGameSettings
 	int m_BotLevel;
 	int m_ModeRule;
 	bool m_RandomSeed;
+	bool m_MapGen;
 	bool m_Roguelite;
 	bool m_Contracts;
 	bool m_UseCheckpoint;

@@ -131,7 +131,7 @@ class CMenus : public CComponent
 	*/
 
 	int DoButton_Icon(int ImageId, int SpriteId, const CUIRect *pRect);
-	int DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
+	int DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Interactive = true);
 
 	//static void ui_draw_browse_icon(int what, const CUIRect *r);
 	//static void ui_draw_grid_header(const void *id, const char *text, int checked, const CUIRect *r, const void *extra);
@@ -172,7 +172,7 @@ class CMenus : public CComponent
 
 	void UiDoListboxStart(const void *pID, const CUIRect *pRect, float RowHeight, const char *pTitle, const char *pBottomText, int NumItems,
 						int ItemsPerRow, int SelectedIndex, float ScrollValue);
-	CListboxItem UiDoListboxNextItem(const void *pID, bool Selected = false);
+	CListboxItem UiDoListboxNextItem(const void *pID, bool Selected = false, bool Interactive = true);
 	CListboxItem UiDoListboxNextRow();
 	int UiDoListboxEnd(float *pScrollValue, bool *pItemActivated);
 
@@ -461,6 +461,8 @@ class CMenus : public CComponent
 	int m_PlayBrowserCollection;
 	char m_aPlaySelectedID[128];
 	bool m_PlayFiltersOpen;
+	bool m_PlayFiltersAdvanced;
+	bool m_FilterPresetMenuOpen;
 	bool m_PlayDetailOpen;
 	bool m_PlayListHasFocus;
 

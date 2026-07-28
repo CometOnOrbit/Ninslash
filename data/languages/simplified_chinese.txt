@@ -3998,3 +3998,37 @@ Starting local game
 
 Stopping local game
 == 正在停止本地游戏
+Preset
+== 预设
+
+Common filters
+== 常用过滤
+
+Advanced filters
+== 高级过滤
+
+New
+== 新建
+
+Done
+== 完成
+
+Save
+== 保存
+Steam room creation timed out. Check Steam connection and retry.
+== Steam 房间创建超时。请检查 Steam 连接后重试。
+
+Steam is offline. Reconnect Steam and retry room creation.
+== Steam 当前离线。请重新连接 Steam 后创建房间。
+
+Steam denied room creation for this account.
+== Steam 拒绝此账户创建房间。
+
+Steam room limit reached. Close another room and retry.
+== 已达到 Steam 房间数量上限。请关闭其他房间后重试。
+
+Steam room service is busy. Wait a moment and retry.
+== Steam 房间服务繁忙。请稍后重试。
+
+Steam could not start room creation. Restart Steam and retry.
+== Steam 无法启动房间创建。请重启 Steam 后重试。

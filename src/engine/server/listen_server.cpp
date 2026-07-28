@@ -23,6 +23,7 @@ void CaptureSettings(CListenServerSettings *pSettings)
 	pSettings->m_RegisterSteam = g_Config.m_SvRegisterSteam;
 	pSettings->m_Official = g_Config.m_SvOfficial;
 	pSettings->m_SteamAuth = g_Config.m_SvSteamAuth;
+	pSettings->m_MapGen = g_Config.m_SvMapGen != 0;
 	pSettings->m_MapGenLevel = g_Config.m_SvMapGenLevel;
 	pSettings->m_MapGenSeed = g_Config.m_SvMapGenSeed;
 	pSettings->m_MapGenRandomSeed = g_Config.m_SvMapGenRandSeed;
@@ -51,6 +52,7 @@ void ApplySettings(const CListenServerSettings &Settings)
 	g_Config.m_SvRegisterSteam = Settings.m_RegisterSteam;
 	g_Config.m_SvOfficial = Settings.m_Official;
 	g_Config.m_SvSteamAuth = Settings.m_SteamAuth;
+	g_Config.m_SvMapGen = Settings.m_MapGen ? 1 : 0;
 	g_Config.m_SvMapGenLevel = Settings.m_MapGenLevel;
 	g_Config.m_SvMapGenSeed = Settings.m_MapGenSeed;
 	g_Config.m_SvMapGenRandSeed = Settings.m_MapGenRandomSeed;

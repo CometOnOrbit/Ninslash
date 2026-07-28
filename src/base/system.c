@@ -37,8 +37,11 @@
 
 #elif defined(CONF_FAMILY_WINDOWS)
 	#define WIN32_LEAN_AND_MEAN
-	#define _WIN32_WINNT 0x0501 /* required for mingw to get getaddrinfo to work */
+	#ifndef _WIN32_WINNT
+		#define _WIN32_WINNT 0x0601
+	#endif
 	#include <windows.h>
+	#include <dbghelp.h>
 	#include <winsock2.h>
 	#include <ws2tcpip.h>
 	#include <fcntl.h>
@@ -176,6 +179,129 @@ void dbg_logger_file(const char *filename)
 
 }
 /* */
+
+#if defined(CONF_FAMILY_WINDOWS)
+static char windows_startup_log[1024];
+static char windows_startup_marker[1024];
+static char windows_startup_directory[1024];
+static int windows_startup_recovery;
+
+typedef BOOL (WINAPI *MINIDUMP_WRITE_DUMP)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
+	const MINIDUMP_EXCEPTION_INFORMATION *, const MINIDUMP_USER_STREAM_INFORMATION *, const MINIDUMP_CALLBACK_INFORMATION *);
+
+static LONG WINAPI windows_unhandled_exception_filter(EXCEPTION_POINTERS *exception)
+{
+	SYSTEMTIME now;
+	char timestamp[64];
+	char path[1200];
+	char text[512];
+	DWORD written;
+	HANDLE file;
+	HMODULE dbghelp;
+	MINIDUMP_WRITE_DUMP write_dump;
+
+	GetLocalTime(&now);
+	_snprintf(timestamp, sizeof(timestamp), "%04u%02u%02u-%02u%02u%02u",
+		now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
+
+	_snprintf(path, sizeof(path), "%s/crash-%s.txt", windows_startup_directory, timestamp);
+	file = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(file != INVALID_HANDLE_VALUE)
+	{
+		_snprintf(text, sizeof(text),
+			"Ninslash unhandled exception\r\ncode=0x%08lx\r\naddress=%p\r\nstartup_log=%s\r\n",
+			exception && exception->ExceptionRecord ? exception->ExceptionRecord->ExceptionCode : 0,
+			exception && exception->ExceptionRecord ? exception->ExceptionRecord->ExceptionAddress : NULL,
+			windows_startup_log);
+		WriteFile(file, text, (DWORD)strlen(text), &written, NULL);
+		CloseHandle(file);
+	}
+
+	dbghelp = LoadLibraryA("dbghelp.dll");
+	if(dbghelp)
+	{
+		write_dump = (MINIDUMP_WRITE_DUMP)GetProcAddress(dbghelp, "MiniDumpWriteDump");
+		if(write_dump)
+		{
+			MINIDUMP_EXCEPTION_INFORMATION info;
+			_snprintf(path, sizeof(path), "%s/crash-%s.dmp", windows_startup_directory, timestamp);
+			file = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if(file != INVALID_HANDLE_VALUE)
+			{
+				info.ThreadId = GetCurrentThreadId();
+				info.ExceptionPointers = exception;
+				info.ClientPointers = FALSE;
+				write_dump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, NULL, NULL);
+				CloseHandle(file);
+			}
+		}
+		FreeLibrary(dbghelp);
+	}
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
+void windows_refresh_crash_handler()
+{
+	SetUnhandledExceptionFilter(windows_unhandled_exception_filter);
+}
+
+int windows_init_startup_diagnostics(const char *appname)
+{
+	char root[1024];
+	DWORD attributes;
+	IOHANDLE marker;
+
+	windows_startup_log[0] = 0;
+	windows_startup_marker[0] = 0;
+	windows_startup_directory[0] = 0;
+	if(fs_storage_path(appname, root, sizeof(root)) != 0)
+	{
+		DWORD length = GetTempPathA(sizeof(root), root);
+		if(!length || length >= sizeof(root))
+			str_copy(root, ".", sizeof(root));
+		str_append(root, "/Ninslash", sizeof(root));
+	}
+	fs_makedir(root);
+	str_format(windows_startup_directory, sizeof(windows_startup_directory), "%s/logs", root);
+	fs_makedir(windows_startup_directory);
+	str_format(windows_startup_log, sizeof(windows_startup_log), "%s/startup.log", windows_startup_directory);
+	str_format(windows_startup_marker, sizeof(windows_startup_marker), "%s/startup.pending", windows_startup_directory);
+
+	attributes = GetFileAttributesA(windows_startup_marker);
+	marker = io_open(windows_startup_marker, IOFLAG_WRITE);
+	if(marker)
+	{
+		io_write(marker, "startup in progress\n", 20);
+		io_close(marker);
+	}
+
+	dbg_logger_file(windows_startup_log);
+	windows_refresh_crash_handler();
+	dbg_msg("startup", "persistent startup log: %s", windows_startup_log);
+	if(attributes != INVALID_FILE_ATTRIBUTES)
+		dbg_msg("startup", "previous launch did not reach the main menu; using safe graphics mode");
+	windows_startup_recovery = attributes != INVALID_FILE_ATTRIBUTES;
+	return windows_startup_recovery;
+}
+
+int windows_startup_recovery_requested()
+{
+	return windows_startup_recovery;
+}
+
+void windows_mark_startup_ready()
+{
+	if(windows_startup_marker[0])
+		fs_remove(windows_startup_marker);
+	dbg_msg("startup", "main menu initialization completed");
+}
+
+const char *windows_startup_log_path()
+{
+	return windows_startup_log;
+}
+#endif
 
 typedef struct MEMHEADER
 {

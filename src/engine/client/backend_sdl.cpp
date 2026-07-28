@@ -861,6 +861,30 @@ void CCommandProcessor_SDL_OpenGL::RunBuffer(CCommandBuffer *pBuffer)
 
 // ------------ CGraphicsBackend_SDL_OpenGL
 
+CGraphicsBackend_SDL_OpenGL::CGraphicsBackend_SDL_OpenGL() :
+	m_pWindow(NULL),
+	m_GLContext(NULL),
+	m_OffscreenCapture(false),
+	m_pProcessor(NULL),
+	m_TextureMemoryUsage(0)
+{
+}
+
+void CGraphicsBackend_SDL_OpenGL::CleanupFailedInit()
+{
+	if(m_GLContext)
+	{
+		SDL_GL_DestroyContext(m_GLContext);
+		m_GLContext = NULL;
+	}
+	if(m_pWindow)
+	{
+		SDL_DestroyWindow(m_pWindow);
+		m_pWindow = NULL;
+	}
+	SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
 // Keep gfx_screen as a 0-based index. Older builds wrongly saved SDL_DisplayID here.
 int CGraphicsBackend_SDL_OpenGL::ResolveScreenIndex(int Screen) const
 {
@@ -924,6 +948,7 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height
 		if(!SDL_GetDisplayBounds(DisplayID, &ScreenPos))
 		{
 			dbg_msg("gfx", "unable to retrieve screen information: %s", SDL_GetError());
+			CleanupFailedInit();
 			return -1;
 		}
 
@@ -931,6 +956,7 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height
 		if(!pDisplayMode)
 		{
 			dbg_msg("gfx", "unable to get desktop resolution: %s", SDL_GetError());
+			CleanupFailedInit();
 			return -1;
 		}
 
@@ -945,6 +971,7 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height
 	else
 	{
 		dbg_msg("gfx", "unable to retrieve number of screens: %s", SDL_GetError());
+		CleanupFailedInit();
 		return -1;
 	}
 
@@ -980,23 +1007,32 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height
 	SDLFlags |= SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
 	// CreateWindow apparently doesn't care about the window position in fullscreen
-	m_pWindow = SDL_CreateWindow(
-		pName,
-		*Width,
-		*Height,
-		SDLFlags
-	);
-	SDL_SetWindowPosition(
-		m_pWindow,
-		SDL_WINDOWPOS_UNDEFINED_DISPLAY(0),
-		SDL_WINDOWPOS_UNDEFINED_DISPLAY(0)
-	);
-
+	const char *pForceWindowFailure = SDL_getenv("NINSLASH_TEST_FORCE_WINDOW_FAILURE");
+	if(pForceWindowFailure && pForceWindowFailure[0] && SDL_strcmp(pForceWindowFailure, "0") != 0)
+	{
+		SDL_SetError("forced window creation failure for startup test");
+		m_pWindow = NULL;
+	}
+	else
+	{
+		m_pWindow = SDL_CreateWindow(
+			pName,
+			*Width,
+			*Height,
+			SDLFlags
+		);
+	}
 	if(m_pWindow == NULL)
 	{
 		dbg_msg("gfx", "unable to create window: %s", SDL_GetError());
+		CleanupFailedInit();
 		return -1;
 	}
+	SDL_SetWindowPosition(
+		m_pWindow,
+		SDL_WINDOWPOS_UNDEFINED_DISPLAY(*pScreen),
+		SDL_WINDOWPOS_UNDEFINED_DISPLAY(*pScreen)
+	);
 	if(m_OffscreenCapture)
 		dbg_msg("gfx", "using hidden SDL OpenGL context for offscreen capture");
 
@@ -1010,7 +1046,8 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height
 
 	if(m_GLContext == NULL)
 	{
-		dbg_msg("gfx", "unable to create renderer: %s", SDL_GetError());
+		dbg_msg("gfx", "unable to create OpenGL context: %s", SDL_GetError());
+		CleanupFailedInit();
 		return -1;
 	}
 	
@@ -1038,6 +1075,11 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName, int *Width, int *Height
 
 int CGraphicsBackend_SDL_OpenGL::Shutdown()
 {
+	if(!m_pProcessor)
+	{
+		CleanupFailedInit();
+		return 0;
+	}
 	// issue a shutdown command
 	CCommandBuffer CmdBuffer(1024, 512);
 	CCommandProcessorFragment_SDL::SCommand_Shutdown Cmd;
@@ -1048,10 +1090,12 @@ int CGraphicsBackend_SDL_OpenGL::Shutdown()
 	// stop and delete the processor
 	StopProcessor();
 	delete m_pProcessor;
-	m_pProcessor = 0;
+	m_pProcessor = NULL;
 
 	SDL_GL_DestroyContext(m_GLContext);
+	m_GLContext = NULL;
 	SDL_DestroyWindow(m_pWindow);
+	m_pWindow = NULL;
 	SDL_QuitSubSystem(SDL_INIT_VIDEO);
 	return 0;
 }

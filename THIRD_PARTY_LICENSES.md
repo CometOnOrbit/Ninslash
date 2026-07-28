@@ -19,6 +19,13 @@ are reproduced in `src/engine/external/json-parser/LICENSE.txt`.
 Copyright © 1998–2006 Conifer Software. BSD 3-Clause terms are reproduced in
 `src/engine/external/wavpack/license.txt`.
 
+## FreeType
+
+The Windows client bundles FreeType 2.14.3. FreeType License terms are
+reproduced in `other/freetype/LICENSE.TXT` and shipped as
+`freetype-license.txt`; source and build provenance are recorded in
+`other/freetype/README.ninslash.md`.
+
 ## DejaVu Sans
 
 Bitstream Vera and Arev-derived font terms are reproduced in
@@ -28,4 +35,4 @@ Bitstream Vera and Arev-derived font terms are reproduced in
 
 Unless a file carries a more specific third-party notice, content below
 `data/` uses the Ninslash asset license, CC-BY-SA 3.0. File-specific entries in
-`docs/release/asset_licenses.csv` override that default.
+`data/asset_licenses.csv` override that default.

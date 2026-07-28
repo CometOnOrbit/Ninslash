@@ -56,6 +56,10 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(TARGET_OS "mac")
 endif()
 
+if(TARGET_OS STREQUAL "windows" AND NOT TARGET_BITS STREQUAL "64")
+  message(FATAL_ERROR "Ninslash supports Windows x86-64 builds only")
+endif()
+
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 include(CheckSymbolExists)
@@ -705,6 +709,7 @@ if(NINSLASH_BUILD_TESTS)
   add_executable(ninslash_test_room_creation tests/room_creation.cpp)
   target_include_directories(ninslash_test_room_creation PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   add_test(NAME room_creation COMMAND ninslash_test_room_creation)
+  set_tests_properties(room_creation PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
   add_executable(ninslash_test_menu_home tests/menu_home.cpp)
   target_include_directories(ninslash_test_menu_home PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)

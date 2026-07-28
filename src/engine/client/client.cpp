@@ -51,7 +51,9 @@
 #include "client.h"
 
 #if defined(CONF_FAMILY_WINDOWS)
-	#define _WIN32_WINNT 0x0501
+	#ifndef _WIN32_WINNT
+		#define _WIN32_WINNT 0x0601
+	#endif
 	#define WIN32_LEAN_AND_MEAN
 	#include <windows.h>
 #endif
@@ -743,6 +745,11 @@ void CClient::ServerInfoRequest()
 int CClient::LoadData()
 {
 	m_DebugFont = Graphics()->LoadTexture("debug_font.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, IGraphics::TEXLOAD_NORESAMPLE);
+	if(m_DebugFont <= 0)
+	{
+		dbg_msg("startup", "required resource failed to load: debug_font.png");
+		return 0;
+	}
 	return 1;
 }
 
@@ -1917,6 +1924,12 @@ void CClient::Run()
 		if(!SDL_Init(0))
 		{
 			dbg_msg("client", "unable to init SDL base: %s", SDL_GetError());
+#if defined(CONF_FAMILY_WINDOWS)
+			char aMessage[1400];
+			str_format(aMessage, sizeof(aMessage), "Ninslash could not initialize SDL.\n\n%s\n\nStartup log:\n%s", SDL_GetError(), windows_startup_log_path());
+			if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+				gui_messagebox("Ninslash startup failed", aMessage);
+#endif
 			return;
 		}
 
@@ -1928,11 +1941,20 @@ void CClient::Run()
 		if(!m_pPlatformServices->Init())
 		{
 			if(m_pPlatformServices->ExitRequested())
+			{
+#if defined(CONF_FAMILY_WINDOWS)
+				windows_mark_startup_ready();
+#endif
 				return;
+			}
 			dbg_msg("steam", "continuing with standalone networking after Steam initialization failure");
 		}
 		m_pPlatformServices->SetRichPresence("In menus", "");
 	}
+#if defined(CONF_FAMILY_WINDOWS)
+	// Steam may install its own top-level filter, so restore startup diagnostics.
+	windows_refresh_crash_handler();
+#endif
 
 	// init graphics
 	{
@@ -1946,6 +1968,14 @@ void CClient::Run()
 		if(RegisterFail || m_pGraphics->Init() != 0)
 		{
 			dbg_msg("client", "couldn't init graphics");
+#if defined(CONF_FAMILY_WINDOWS)
+			char aMessage[1400];
+			str_format(aMessage, sizeof(aMessage),
+				"Ninslash could not create a working OpenGL window, including safe mode.\n\nLast SDL error: %s\n\nStartup log:\n%s",
+				SDL_GetError(), windows_startup_log_path());
+			if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+				gui_messagebox("Ninslash graphics startup failed", aMessage);
+#endif
 			return;
 		}
 	}
@@ -1977,7 +2007,16 @@ void CClient::Run()
 	}
 
 	// init font rendering
-	Kernel()->RequestInterface<IEngineTextRender>()->Init();
+	if(Kernel()->RequestInterface<IEngineTextRender>()->Init() != 0)
+	{
+#if defined(CONF_FAMILY_WINDOWS)
+		char aMessage[1400];
+		str_format(aMessage, sizeof(aMessage), "Ninslash could not initialize its font renderer.\n\nStartup log:\n%s", windows_startup_log_path());
+		if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+			gui_messagebox("Ninslash font startup failed", aMessage);
+#endif
+		return;
+	}
 
 	// init the input
 	Input()->Init();
@@ -1991,9 +2030,20 @@ void CClient::Run()
 
 	// load data
 	if(!LoadData())
+	{
+#if defined(CONF_FAMILY_WINDOWS)
+		char aMessage[1400];
+		str_format(aMessage, sizeof(aMessage), "Ninslash could not load required game resources.\n\nCheck that the data directory is installed next to the executable.\n\nStartup log:\n%s", windows_startup_log_path());
+		if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+			gui_messagebox("Ninslash resource startup failed", aMessage);
+#endif
 		return;
+	}
 
 	GameClient()->OnInit();
+#if defined(CONF_FAMILY_WINDOWS)
+	windows_mark_startup_ready();
+#endif
 
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "version %s", GameClient()->NetVersion());
@@ -2046,14 +2096,16 @@ void CClient::Run()
 			}
 			if(m_pPlatformServices->ConsumeListenServerStopRequest() && m_pListenServer)
 			{
+				CPlatformOperationStatus LobbyFailure;
+				m_pPlatformServices->LobbyOperationStatus(&LobbyFailure);
 				m_pPlatformServices->LeaveLobby();
 				m_pListenServer->Stop();
 				if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING)
 				{
 					m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
-					str_copy(m_SteamHostStatus.m_aErrorKey, "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+					str_copy(m_SteamHostStatus.m_aErrorKey, LobbyFailure.m_State == CLIENT_ASYNC_FAILED && LobbyFailure.m_aErrorKey[0] ? LobbyFailure.m_aErrorKey : "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
 				}
-				dbg_msg("steam", "hosted Lobby closed; Listen Server stopped");
+				dbg_msg("steam", "room creation failed; Listen Server stopped");
 			}
 			char aJoinAddress[256];
 			if(m_pPlatformServices->ConsumeJoinRequest(aJoinAddress, sizeof(aJoinAddress)))
@@ -2565,6 +2617,7 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 		dbg_msg("steam", "preferred room port %d is busy; using %d", PreferredPort, Settings.m_Port);
 	Settings.m_MaxClients = clamp(Host.m_MaxClients, 1, (int)MAX_CLIENTS);
 	Settings.m_SteamAuth = 1;
+	Settings.m_MapGen = Host.m_MapGen;
 	Settings.m_MapGenLevel = max(1, Host.m_Difficulty);
 	Settings.m_MapGenSeed = clamp(Host.m_Seed, 0, 32767);
 	Settings.m_MapGenRandomSeed = Host.m_RandomSeed;
@@ -2604,9 +2657,11 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	m_SteamHostStatus.m_Stage = CLIENT_STAGE_CREATING_ROOM;
 	if(!m_pPlatformServices->CreateLobby((EPlatformLobbyVisibility)clamp(Host.m_Visibility, (int)PLATFORM_LOBBY_INVITE_ONLY, (int)PLATFORM_LOBBY_PUBLIC), Settings.m_MaxClients, Settings.m_Port))
 	{
+		CPlatformOperationStatus LobbyFailure;
+		m_pPlatformServices->LobbyOperationStatus(&LobbyFailure);
 		m_pListenServer->Stop();
 		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
-		str_copy(m_SteamHostStatus.m_aErrorKey, "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		str_copy(m_SteamHostStatus.m_aErrorKey, LobbyFailure.m_State == CLIENT_ASYNC_FAILED && LobbyFailure.m_aErrorKey[0] ? LobbyFailure.m_aErrorKey : "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
 		return false;
 	}
 	return true;
@@ -2997,6 +3052,7 @@ static CClient *CreateClient()
 int main(int argc, const char **argv) // ignore_convention
 {
 #if defined(CONF_FAMILY_WINDOWS)
+	windows_init_startup_diagnostics("Ninslash");
 	for(int i = 1; i < argc; i++) // ignore_convention
 	{
 		if(str_comp("-s", argv[i]) == 0 || str_comp("--silent", argv[i]) == 0) // ignore_convention

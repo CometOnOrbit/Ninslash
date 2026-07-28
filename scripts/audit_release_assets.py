@@ -32,7 +32,7 @@ def matching_rule(relative: str, rules):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--manifest", default="docs/release/asset_licenses.csv")
+    parser.add_argument("--manifest", default="data/asset_licenses.csv")
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--strict", action="store_true", help="fail unless every asset is approved")
     args = parser.parse_args()

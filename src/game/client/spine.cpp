@@ -1,6 +1,7 @@
 
 #include <engine/storage.h>
 #include <engine/external/json-parser/json.h>
+#include <engine/shared/config.h>
 
 #include "spine.h"
 
@@ -49,7 +50,8 @@ bool CSpineReader::LoadFromFile(class IStorage *pStorage, const char *pFilename,
 		return false;
 	}
 
-	dbg_msg("spine", "load file: %s", pFilename);
+	if(g_Config.m_Debug)
+		dbg_msg("spine", "load file: %s", pFilename);
 
 	IOHANDLE File = pStorage->OpenFile(pFilename, IOFLAG_READ, StorageType);
 	if(!File)
@@ -433,8 +435,8 @@ bool CSpineReader::Load(const char *pData,
 					Animation.m_lBoneTimeline[pBoneName] = BoneTimeline;
 				}
 			}
-
-			dbg_msg("spine", "animation: %s", pAnimationName);
+			if(g_Config.m_Debug)
+				dbg_msg("spine", "animation: %s", pAnimationName);
 			(*pmAnimations)[pAnimationName] = Animation;
 		}
 	}
@@ -452,7 +454,8 @@ bool CSpineReader::LoadAtlasFromFile(class IStorage *pStorage , const char *pFil
 	if(!pFilename)
 		return false;
 
-	dbg_msg("spine", "load atlas file: %s", pFilename);
+	if(g_Config.m_Debug)
+		dbg_msg("spine", "load atlas file: %s", pFilename);
 
 	IOHANDLE File = pStorage->OpenFile(pFilename, IOFLAG_READ, StorageType);
 	if(!File)
@@ -523,7 +526,8 @@ bool CSpineReader::LoadAtlas(const char *pAtlasData, CSpineAtlas *pAtlas)
 				// parse tuple
 				char aBuf[128];
 				str_copy(aBuf, pSize, sizeof(aBuf));
-				dbg_msg("spine", "atlas size: %s", aBuf);
+				if(g_Config.m_Debug)
+					dbg_msg("spine", "atlas size: %s", aBuf);
 				array<string> aSize = ParseTuple(aBuf);
 
 				if(aSize.size() != 2)
@@ -548,7 +552,8 @@ bool CSpineReader::LoadAtlas(const char *pAtlasData, CSpineAtlas *pAtlas)
 
 				pLine = str_skip_whitespaces(pLine);
 				const char *pFormat = pLine + str_length("format: ");
-				dbg_msg("spine", "atlas format: %s", pFormat);
+				if(g_Config.m_Debug)
+					dbg_msg("spine", "atlas format: %s", pFormat);
 
 				int Format = ParsePageFormat(pFormat);
 				if(Format == -1)
@@ -577,7 +582,8 @@ bool CSpineReader::LoadAtlas(const char *pAtlasData, CSpineAtlas *pAtlas)
 				// parse tuple
 				char aBuf[128];
 				str_copy(aBuf, pFilter, sizeof(aBuf));
-				dbg_msg("spine", "atlas filter: %s", pFilter);
+				if(g_Config.m_Debug)
+					dbg_msg("spine", "atlas filter: %s", pFilter);
 				array<string> aFilters = ParseTuple(aBuf);
 
 				if(aFilters.size() != 2)
@@ -814,4 +820,3 @@ int CSpineReader::ParsePageFilter(const char *pFilter) const
 
 	return -1;
 }
-

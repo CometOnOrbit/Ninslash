@@ -234,7 +234,9 @@ class CGraphicsBackend_SDL_OpenGL : public CGraphicsBackend_Threaded
 	volatile int m_TextureMemoryUsage;
 	int ResolveScreenIndex(int Screen) const;
 	SDL_DisplayID DisplayIDFromIndex(int Index) const;
+	void CleanupFailedInit();
 public:
+	CGraphicsBackend_SDL_OpenGL();
 	virtual int Init(const char *pName, int *Width, int *Height, int *pScreen, int FsaaSamples, int Flags, int *pDesktopWidth, int *pDesktopHeight);
 	virtual int Shutdown();
 

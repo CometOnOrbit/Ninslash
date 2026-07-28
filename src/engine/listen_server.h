@@ -11,6 +11,7 @@ struct CListenServerSettings
 	int m_RegisterSteam;
 	int m_Official;
 	int m_SteamAuth;
+	bool m_MapGen;
 	int m_MapGenLevel;
 	int m_MapGenSeed;
 	int m_MapGenRandomSeed;

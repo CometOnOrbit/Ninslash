@@ -10,6 +10,15 @@ import shutil
 import subprocess
 from pathlib import Path
 
+WINDOWS_SYSTEM_DLLS = {
+    "advapi32.dll", "bcrypt.dll", "comdlg32.dll", "crypt32.dll", "dwmapi.dll",
+    "gdi32.dll", "glu32.dll", "imm32.dll", "kernel32.dll", "msvcrt.dll",
+    "ntdll.dll", "ole32.dll", "oleaut32.dll", "opengl32.dll", "rpcrt4.dll",
+    "secur32.dll", "setupapi.dll", "shell32.dll", "shlwapi.dll", "user32.dll",
+    "userenv.dll", "version.dll", "winmm.dll", "ws2_32.dll",
+}
+WINDOWS_FORBIDDEN_RUNTIME_DLLS = {"msvcr100.dll", "msvcp100.dll", "atl100.dll", "mfc100.dll", "mfc100u.dll"}
+
 
 def copy_tree(source: Path, target: Path):
     if source.exists():
@@ -24,19 +33,31 @@ def copy_required(source: Path, target: Path):
 
 
 def copy_windows_runtime_dependencies(executable: Path, build_dir: Path, output: Path):
-    inspection = subprocess.run(
-        ["x86_64-w64-mingw32-objdump", "-p", str(executable)],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    ).stdout
-    imports = {match.group(1) for match in re.finditer(r"DLL Name:\s*([^\r\n]+)", inspection, re.IGNORECASE)}
     local_dlls = {path.name.lower(): path for path in build_dir.glob("*.dll")}
-    for imported in sorted(imports, key=str.lower):
-        source = local_dlls.get(imported.lower())
-        if source and imported.lower() != "steam_api64.dll":
+    queue = [executable]
+    visited = set()
+    while queue:
+        current = queue.pop(0)
+        key = current.resolve()
+        if key in visited:
+            continue
+        visited.add(key)
+        inspection = subprocess.run(
+            ["x86_64-w64-mingw32-objdump", "-p", str(current)],
+            check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        ).stdout
+        if "pei-x86-64" not in inspection.lower():
+            raise RuntimeError(f"Windows release binary is not x86-64: {current}")
+        imports = {match.group(1).lower() for match in re.finditer(r"DLL Name:\s*([^\r\n]+)", inspection, re.IGNORECASE)}
+        forbidden = imports & WINDOWS_FORBIDDEN_RUNTIME_DLLS
+        if forbidden:
+            raise RuntimeError(f"forbidden legacy VC runtime imported by {current}: {', '.join(sorted(forbidden))}")
+        for imported in sorted(imports - WINDOWS_SYSTEM_DLLS - {"steam_api64.dll"}):
+            source = local_dlls.get(imported)
+            if not source:
+                raise RuntimeError(f"unable to resolve Windows runtime library {imported} for {current}")
             copy_required(source, output / source.name)
+            queue.append(source)
 
 
 LINUX_SYSTEM_LIBRARIES = {
@@ -98,6 +119,8 @@ def main():
     copy_tree(root / "cfg", output / "cfg")
     for filename in ("autoexec.cfg", "storage.cfg", "license.txt", "THIRD_PARTY_LICENSES.md", "README.md", "README_zh-CN.md"):
         copy_required(root / filename, output / filename)
+    if args.platform == "windows" and args.kind == "client":
+        copy_required(root / "other/freetype/LICENSE.TXT", output / "freetype-license.txt")
 
     if args.steam_api:
         api = Path(args.steam_api)

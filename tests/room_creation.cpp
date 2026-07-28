@@ -28,6 +28,7 @@ int main()
 	assert(str_comp(LocalGameMode(LOCAL_MODE_REACTOR_DEFENSE).m_pGameVoteImage, "reactor_def1") == 0);
 	assert(!LocalGameModeUsesTeamPopulation(LOCAL_MODE_DM));
 	assert(!LocalGameModeUsesTeamPopulation(LOCAL_MODE_BATTLE_ROYALE));
+	assert(LocalGameMode(LOCAL_MODE_BATTLE_ROYALE).m_MapGen);
 	assert(LocalGameModeUsesTeamPopulation(LOCAL_MODE_TDM));
 	assert(LocalGameModeUsesTeamPopulation(LOCAL_MODE_CTF));
 	assert(LocalGameModeUsesTeamPopulation(LOCAL_MODE_REACTOR_ASSAULT));

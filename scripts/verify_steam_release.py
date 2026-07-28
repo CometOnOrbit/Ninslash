@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -24,6 +25,9 @@ WINDOWS_SYSTEM_DLLS = {
     "ntdll.dll", "ole32.dll", "oleaut32.dll", "opengl32.dll", "rpcrt4.dll",
     "secur32.dll", "setupapi.dll", "shell32.dll", "shlwapi.dll", "user32.dll",
     "userenv.dll", "version.dll", "winmm.dll", "ws2_32.dll",
+}
+WINDOWS_FORBIDDEN_RUNTIME_DLLS = {
+    "msvcr100.dll", "msvcp100.dll", "atl100.dll", "mfc100.dll", "mfc100u.dll",
 }
 LINUX_SYSTEM_LIBRARIES = {
     "ld-linux-x86-64.so.2", "libc.so.6", "libdl.so.2", "libm.so.6",
@@ -74,6 +78,54 @@ def verify_forbidden(root, errors):
             errors.append(f"{root}: forbidden user/development file: {path.relative_to(root)}")
 
 
+def inspect_windows_imports(path):
+    objdump = shutil.which("x86_64-w64-mingw32-objdump")
+    if objdump:
+        output = command_output([objdump, "-p", str(path)]).lower()
+        return output, set(re.findall(r"dll name:\s*([^\r\n]+)", output))
+    try:
+        import pefile
+    except ImportError as exc:
+        raise RuntimeError("install pefile or x86_64-w64-mingw32-objdump to inspect Windows dependencies") from exc
+    pe = pefile.PE(str(path), fast_load=True)
+    pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_IMPORT"]])
+    imports = {
+        entry.dll.decode("ascii", errors="replace").lower()
+        for entry in getattr(pe, "DIRECTORY_ENTRY_IMPORT", [])
+    }
+    architecture = "pei-x86-64" if pe.FILE_HEADER.Machine == 0x8664 else f"machine-{pe.FILE_HEADER.Machine:#x}"
+    return architecture, imports
+
+
+def verify_windows_dependency_closure(root, entrypoints, errors):
+    bundled = {path.name.lower(): path for path in root.glob("*.dll")}
+    queue = list(entrypoints)
+    visited = set()
+    while queue:
+        path = queue.pop(0)
+        key = path.resolve()
+        if key in visited:
+            continue
+        visited.add(key)
+        try:
+            output, imports = inspect_windows_imports(path)
+        except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
+            errors.append(f"{path}: dependency inspection failed: {exc}")
+            continue
+        if "pei-x86-64" not in output:
+            errors.append(f"{path}: Windows release binary is not x86-64")
+        forbidden = sorted(imports & WINDOWS_FORBIDDEN_RUNTIME_DLLS)
+        if forbidden:
+            errors.append(f"{path}: forbidden legacy VC runtime dependency: {', '.join(forbidden)}")
+        missing = sorted(imports - WINDOWS_SYSTEM_DLLS - set(bundled))
+        if missing:
+            errors.append(f"{path}: missing imported runtime DLLs: {', '.join(missing)}")
+        for imported in sorted(imports - WINDOWS_SYSTEM_DLLS):
+            dependency = bundled.get(imported)
+            if dependency:
+                queue.append(dependency)
+
+
 def verify_depot_executable(root, executable, steam_api, platform, errors):
     try:
         if platform == "linux":
@@ -98,15 +150,10 @@ def verify_depot_executable(root, executable, steam_api, platform, errors):
                 if f"{library} => {expected_library}" not in linked:
                     errors.append(f"{executable}: {library} is not resolved from its depot root")
         else:
-            imports = command_output(["x86_64-w64-mingw32-objdump", "-p", str(executable)]).lower()
+            _, imports = inspect_windows_imports(executable)
             if "steam_api64.dll" not in imports:
                 errors.append(f"{executable}: missing steam_api64.dll import")
-            imported_dlls = set(re.findall(r"dll name:\s*([^\r\n]+)", imports))
-            depot_dlls = {path.name.lower() for path in root.glob("*.dll")}
-            missing = sorted(imported_dlls - WINDOWS_SYSTEM_DLLS - depot_dlls)
-            if missing:
-                errors.append(f"{executable}: missing imported runtime DLLs: {', '.join(missing)}")
-    except (OSError, subprocess.CalledProcessError) as exc:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         errors.append(f"{executable}: dependency inspection failed: {exc}")
 
 
@@ -123,6 +170,8 @@ def verify_depot(root_text, platform, kind, errors):
             errors.append(f"{root}: missing {executable.name}")
     if not steam_api.is_file():
         errors.append(f"{root}: missing {steam_api.name}")
+    if platform == "windows" and kind == "client" and not (root / "freetype-license.txt").is_file():
+        errors.append(f"{root}: missing freetype-license.txt")
     verify_forbidden(root, errors)
     verify_inventory(root, errors)
     if not steam_api.is_file():
@@ -130,6 +179,8 @@ def verify_depot(root_text, platform, kind, errors):
     for executable in executables:
         if executable.is_file():
             verify_depot_executable(root, executable, steam_api, platform, errors)
+    if platform == "windows":
+        verify_windows_dependency_closure(root, [path for path in executables if path.is_file()], errors)
 
 
 def verify_standalone(binary_text, platform, errors):
@@ -140,12 +191,19 @@ def verify_standalone(binary_text, platform, errors):
         errors.append(f"{binary}: standalone binary missing")
         return
     try:
-        output = command_output(["ldd", str(binary)]) if platform == "linux" else command_output(["x86_64-w64-mingw32-objdump", "-p", str(binary)])
-        if "steam_api" in output.lower() or "steamclient" in output.lower():
+        if platform == "linux":
+            output = command_output(["ldd", str(binary)])
+            imported_names = output.lower()
+        else:
+            output, imports = inspect_windows_imports(binary)
+            imported_names = " ".join(imports)
+        if "steam_api" in imported_names or "steamclient" in imported_names:
             errors.append(f"{binary}: standalone binary unexpectedly depends on Steam")
         if platform == "linux" and "not found" in output:
             errors.append(f"{binary}: unresolved Linux dependency")
-    except (OSError, subprocess.CalledProcessError) as exc:
+        if platform == "windows":
+            verify_windows_dependency_closure(binary.parent, [binary], errors)
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         errors.append(f"{binary}: standalone dependency inspection failed: {exc}")
 
 

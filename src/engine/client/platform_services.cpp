@@ -272,6 +272,11 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	int m_HostLocalPort;
 	bool m_ListenServerStopRequested;
 	bool m_LobbyCreatePending;
+	ELobbyType m_LobbyCreateType;
+	int m_LobbyCreateMaxMembers;
+	int m_LobbyCreateRetries;
+	int64 m_LobbyCreateRetryAt;
+	char m_aLobbyCreateFailure[128];
 	bool m_LobbyRefreshPending;
 	bool m_LobbyJoinPending;
 	IStorage *m_pStorage;
@@ -336,6 +341,39 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	{
 		str_copy(m_aJoinFailure, pReason ? pReason : "Unable to join Steam Lobby", sizeof(m_aJoinFailure));
 		m_aPendingJoin[0] = 0;
+	}
+	static bool LobbyCreateFailureIsTransient(EResult Result, bool IOError)
+	{
+		return IOError || Result == k_EResultNoConnection || Result == k_EResultBusy || Result == k_EResultTimeout || Result == k_EResultServiceUnavailable || Result == k_EResultConnectFailed;
+	}
+	static const char *LobbyCreateFailureKey(EResult Result, bool IOError)
+	{
+		if(IOError || Result == k_EResultTimeout)
+			return "Steam room creation timed out. Check Steam connection and retry.";
+		if(Result == k_EResultNoConnection || Result == k_EResultConnectFailed)
+			return "Steam is offline. Reconnect Steam and retry room creation.";
+		if(Result == k_EResultAccessDenied)
+			return "Steam denied room creation for this account.";
+		if(Result == k_EResultLimitExceeded)
+			return "Steam room limit reached. Close another room and retry.";
+		if(Result == k_EResultBusy || Result == k_EResultServiceUnavailable)
+			return "Steam room service is busy. Wait a moment and retry.";
+		return "Steam rejected room creation. Check your connection and retry.";
+	}
+	bool BeginLobbyCreateCall()
+	{
+		if(!m_Initialized || !SteamMatchmaking())
+			return false;
+		const SteamAPICall_t Call = SteamMatchmaking()->CreateLobby(m_LobbyCreateType, m_LobbyCreateMaxMembers);
+		if(Call == k_uAPICallInvalid)
+		{
+			str_copy(m_aLobbyCreateFailure, "Steam could not start room creation. Restart Steam and retry.", sizeof(m_aLobbyCreateFailure));
+			dbg_msg("steam", "CreateLobby returned an invalid API call");
+			return false;
+		}
+		m_LobbyCreatePending = true;
+		m_LobbyCreatedCall.Set(Call, this, &CSteamPlatformServices::OnLobbyCreated);
+		return true;
 	}
 	bool InitSteamInput()
 	{
@@ -424,7 +462,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 
 public:
 	CSteamPlatformServices() :
-		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_HostLocalPort(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_NextEventRetry(0), m_WorkshopItemCount(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
+		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_HostLocalPort(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyCreateType(k_ELobbyTypeFriendsOnly), m_LobbyCreateMaxMembers(0), m_LobbyCreateRetries(0), m_LobbyCreateRetryAt(0), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_NextEventRetry(0), m_WorkshopItemCount(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
 		m_JoinRequestedCallback(this, &CSteamPlatformServices::OnJoinRequested),
 		m_AuthTicketCallback(this, &CSteamPlatformServices::OnAuthTicketResponse),
 		m_LobbyJoinRequestedCallback(this, &CSteamPlatformServices::OnLobbyJoinRequested),
@@ -433,6 +471,7 @@ public:
 	{
 		m_aPendingJoin[0] = 0;
 		m_aJoinFailure[0] = 0;
+		m_aLobbyCreateFailure[0] = 0;
 		mem_zero(m_aInputActionSets, sizeof(m_aInputActionSets));
 		mem_zero(m_aDigitalActions, sizeof(m_aDigitalActions));
 		mem_zero(&m_WorkshopPublish, sizeof(m_WorkshopPublish));
@@ -511,6 +550,15 @@ public:
 		if(m_Initialized)
 		{
 			SteamAPI_RunCallbacks();
+			if(m_LobbyCreatePending && m_LobbyCreateRetryAt && time_get() >= m_LobbyCreateRetryAt)
+			{
+				m_LobbyCreateRetryAt = 0;
+				if(!BeginLobbyCreateCall())
+				{
+					m_LobbyCreatePending = false;
+					m_ListenServerStopRequested = true;
+				}
+			}
 			if(m_SteamInputInitialized && SteamInput())
 				SteamInput()->RunFrame();
 			PumpEventQueue();
@@ -607,15 +655,17 @@ public:
 		if(!m_Initialized || !SteamMatchmaking() || m_CurrentLobbyID || m_LobbyCreatePending || MaxMembers < 1 || MaxMembers > 64)
 			return false;
 		m_HostLocalPort = clamp(HostLocalPort, 1024, 65535);
-		ELobbyType Type = k_ELobbyTypeFriendsOnly;
+		m_LobbyCreateType = k_ELobbyTypeFriendsOnly;
 		if(Visibility == PLATFORM_LOBBY_INVITE_ONLY)
-			Type = k_ELobbyTypePrivate;
+			m_LobbyCreateType = k_ELobbyTypePrivate;
 		else if(Visibility == PLATFORM_LOBBY_PUBLIC)
-			Type = k_ELobbyTypePublic;
+			m_LobbyCreateType = k_ELobbyTypePublic;
+		m_LobbyCreateMaxMembers = MaxMembers;
+		m_LobbyCreateRetries = 0;
+		m_LobbyCreateRetryAt = 0;
+		m_aLobbyCreateFailure[0] = 0;
 		m_ListenServerStopRequested = false;
-		m_LobbyCreatePending = true;
-		m_LobbyCreatedCall.Set(SteamMatchmaking()->CreateLobby(Type, MaxMembers), this, &CSteamPlatformServices::OnLobbyCreated);
-		return true;
+		return BeginLobbyCreateCall();
 	}
 	virtual bool JoinLobby(unsigned long long LobbyID)
 	{
@@ -630,6 +680,8 @@ public:
 		m_LobbyCreatedCall.Cancel();
 		m_LobbyEnteredCall.Cancel();
 		m_LobbyCreatePending = false;
+		m_LobbyCreateRetryAt = 0;
+		m_LobbyCreateRetries = 0;
 		m_LobbyJoinPending = false;
 		if(m_Initialized && m_CurrentLobbyID && SteamMatchmaking())
 			SteamMatchmaking()->LeaveLobby(CSteamID(m_CurrentLobbyID));
@@ -639,6 +691,7 @@ public:
 		m_HostLocalPort = 0;
 		m_aPendingJoin[0] = 0;
 		m_aJoinFailure[0] = 0;
+		m_aLobbyCreateFailure[0] = 0;
 		if(SteamFriends())
 		{
 			SteamFriends()->SetRichPresence("connect", "");
@@ -709,6 +762,12 @@ public:
 		{
 			pStatus->m_State = CLIENT_ASYNC_WORKING;
 			pStatus->m_Stage = m_LobbyCreatePending ? CLIENT_STAGE_CREATING_ROOM : m_LobbyJoinPending ? CLIENT_STAGE_JOINING_ROOM : CLIENT_STAGE_REFRESHING_ROOMS;
+		}
+		else if(m_aLobbyCreateFailure[0])
+		{
+			pStatus->m_State = CLIENT_ASYNC_FAILED;
+			pStatus->m_Stage = CLIENT_STAGE_CREATING_ROOM;
+			str_copy(pStatus->m_aErrorKey, m_aLobbyCreateFailure, sizeof(pStatus->m_aErrorKey));
 		}
 		else if(m_CurrentLobbyID || m_LobbyCount)
 		{
@@ -1034,9 +1093,22 @@ void CSteamPlatformServices::OnLobbyCreated(LobbyCreated_t *pResult, bool IOErro
 	m_LobbyCreatePending = false;
 	if(IOError || !pResult || pResult->m_eResult != k_EResultOK)
 	{
+		const EResult Result = pResult ? pResult->m_eResult : k_EResultFail;
+		dbg_msg("steam", "CreateLobby failed: io=%d result=%d attempt=%d", IOError ? 1 : 0, (int)Result, m_LobbyCreateRetries + 1);
+		if(LobbyCreateFailureIsTransient(Result, IOError) && m_LobbyCreateRetries < 1)
+		{
+			m_LobbyCreateRetries++;
+			m_LobbyCreatePending = true;
+			m_LobbyCreateRetryAt = time_get() + time_freq();
+			dbg_msg("steam", "retrying CreateLobby in 1 second");
+			return;
+		}
+		str_copy(m_aLobbyCreateFailure, LobbyCreateFailureKey(Result, IOError), sizeof(m_aLobbyCreateFailure));
 		m_ListenServerStopRequested = true;
 		return;
 	}
+	m_LobbyCreateRetryAt = 0;
+	m_aLobbyCreateFailure[0] = 0;
 	m_CurrentLobbyID = pResult->m_ulSteamIDLobby;
 	m_HostedLobbyID = m_CurrentLobbyID;
 	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "protocol", GAME_NETVERSION);

@@ -568,7 +568,7 @@ CMenus::CListboxItem CMenus::UiDoListboxNextRow()
 	return Item;
 }
 
-CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected)
+CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected, bool Interactive)
 {
 	int ThisItemIndex = gs_ListBoxItemIndex;
 	if(Selected)
@@ -580,8 +580,17 @@ CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected)
 
 	CListboxItem Item = UiDoListboxNextRow();
 
-	if(Item.m_Visible && UI()->DoButtonLogic(pId, "", gs_ListBoxSelectedIndex == gs_ListBoxItemIndex, &Item.m_HitRect))
-		gs_ListBoxNewSelected = ThisItemIndex;
+	if(Item.m_Visible && Interactive)
+	{
+		if(UI()->DoButtonLogic(pId, "", gs_ListBoxSelectedIndex == ThisItemIndex, &Item.m_HitRect))
+			gs_ListBoxNewSelected = ThisItemIndex;
+	}
+	else if(UI()->ActiveItem() == pId && !UI()->MouseButton(0) && !UI()->MouseButton(1))
+	{
+		// A list may refresh or scroll between press and release. Do not leave
+		// an invisible row holding the global UI active item.
+		UI()->SetActiveItem(0);
+	}
 
 	// process input, regard selected index
 	if(gs_ListBoxSelectedIndex == ThisItemIndex)

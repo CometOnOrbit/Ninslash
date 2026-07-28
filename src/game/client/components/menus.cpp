@@ -149,6 +149,8 @@ CMenus::CMenus()
 	m_PlayBrowserCollection = PLAY_COLLECTION_INTERNET;
 	m_aPlaySelectedID[0] = 0;
 	m_PlayFiltersOpen = false;
+	m_PlayFiltersAdvanced = false;
+	m_FilterPresetMenuOpen = false;
 	m_PlayDetailOpen = false;
 	m_PlayListHasFocus = false;
 	str_copy(m_aFilterPresets[UI_FILTER_PRESET_ALL].m_aName, "All", sizeof(m_aFilterPresets[UI_FILTER_PRESET_ALL].m_aName));
@@ -550,7 +552,7 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
 }
 
-int CMenus::DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
+int CMenus::DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Interactive)
 {
 	const float Sel = AnimSelected(pID, Checked);
 	const float Hover = AnimHover(pID);
@@ -573,7 +575,7 @@ int CMenus::DoButton_GridHeader(const void *pID, const char *pText, int Checked,
 	pRect->VSplitLeft(5.0f, 0, &t);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	UI()->DoLabel(&t, pText, min(pRect->h*ms_FontmodHeight, 12.0f), -1);
-	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
+	return Interactive ? UI()->DoButtonLogic(pID, pText, Checked, pRect) : 0;
 }
 
 int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect)
@@ -2305,6 +2307,7 @@ void CMenus::CreateConfiguredRoom()
 	Settings.m_BotLevel = Preview.m_BotLevel;
 	Settings.m_ModeRule = Preview.m_ModeRule;
 	Settings.m_RandomSeed = Preview.m_RandomSeed;
+	Settings.m_MapGen = Preview.m_MapGen;
 	Settings.m_Roguelite = Preview.m_Roguelite;
 	Settings.m_Contracts = Preview.m_Contracts;
 	Settings.m_UseCheckpoint = Preview.m_UseCheckpoint;
@@ -3749,6 +3752,7 @@ void CMenus::RenderPlay(CUIRect MainView)
 
 	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
 	MainView.Margin(10.0f, &MainView);
+	const CUIRect PageBounds = MainView;
 	CUIRect Title, Tabs, Body;
 	MainView.HSplitTop(36.0f, &Title, &MainView);
 	UI()->DoLabelScaled(&Title, Localize("Play"), 22.0f, -1);
@@ -3786,9 +3790,13 @@ void CMenus::RenderPlay(CUIRect MainView)
 
 	Body.HSplitTop(28.0f, &Filters, &Body);
 	const char *apFilters[] = {"All", "Official", "Community", "Friends", "Modded", "Favorites", "LAN"}; static int s_aFilters[7], s_FilterButton;
+	CUIRect FilterTabs, FilterAnchor;
+	Filters.VSplitRight(96.0f, &FilterTabs, &FilterAnchor);
+	FilterTabs.VSplitRight(4.0f, &FilterTabs, 0);
 	for(int i = 0; i < 7; i++)
 	{
-		Filters.VSplitLeft(min(82.0f, Filters.w / (8 - i)), &Button, &Filters);
+		const float AvailableTabWidth = FilterTabs.w / UI()->Scale() / (7 - i);
+		FilterTabs.VSplitLeft(min(82.0f, AvailableTabWidth), &Button, &FilterTabs);
 		if(DoButton_MenuTab(&s_aFilters[i], Localize(apFilters[i]), s_Filter == i, &Button, 0))
 		{
 			s_Filter = i;
@@ -3796,21 +3804,67 @@ void CMenus::RenderPlay(CUIRect MainView)
 			ServerBrowser()->Refresh(m_PlayBrowserCollection == PLAY_COLLECTION_LAN ? IServerBrowser::TYPE_LAN : m_PlayBrowserCollection == PLAY_COLLECTION_FAVORITES ? IServerBrowser::TYPE_FAVORITES : IServerBrowser::TYPE_INTERNET);
 			if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList();
 		}
-		Filters.VSplitLeft(3.0f, 0, &Filters);
+		FilterTabs.VSplitLeft(3.0f, 0, &FilterTabs);
 	}
-	if(DoButton_Menu(&s_FilterButton, Localize("Filter"), m_PlayFiltersOpen, &Filters)) m_PlayFiltersOpen = !m_PlayFiltersOpen;
-	if(m_PlayFiltersOpen)
+	const int ActiveFilterCount =
+		(g_Config.m_BrFilterEmpty != 0) + (g_Config.m_BrFilterSpectators != 0) + (g_Config.m_BrFilterFull != 0) +
+		(g_Config.m_BrFilterFriends != 0) + (g_Config.m_BrFilterPw != 0) + (g_Config.m_BrFilterCompatversion != 0) +
+		(g_Config.m_BrFilterPure != 0) + (g_Config.m_BrFilterPureMap != 0) + (g_Config.m_BrFilterGametypeStrict != 0) +
+		(g_Config.m_BrFilterPing < 999) + (g_Config.m_BrFilterGametype[0] != 0) + (g_Config.m_BrFilterServerAddress[0] != 0) +
+		(g_Config.m_BrFilterCountry != 0);
+	char aFilterLabel[64];
+	if(ActiveFilterCount > 0)
+		str_format(aFilterLabel, sizeof(aFilterLabel), "%s  %d", Localize("Filter"), ActiveFilterCount);
+	else
+		str_copy(aFilterLabel, Localize("Filter"), sizeof(aFilterLabel));
+	if(DoButton_Menu(&s_FilterButton, aFilterLabel, m_PlayFiltersOpen || ActiveFilterCount > 0, &FilterAnchor, ActiveFilterCount > 0 ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
 	{
-		CUIRect Presets, Advanced;
-		Body.HSplitTop(22.0f, &Presets, &Body); RenderFilterPresetBar(Presets);
-		Body.HSplitTop(min(178.0f, Body.h * 0.42f), &Advanced, &Body); DrawMenuInset(&Advanced, CUI::CORNER_ALL); Advanced.Margin(6.0f, &Advanced); RenderServerbrowserFilters(Advanced);
-		Body.HSplitTop(6.0f, 0, &Body);
+		m_PlayFiltersOpen = !m_PlayFiltersOpen;
+		if(!m_PlayFiltersOpen)
+		{
+			m_FilterPresetMenuOpen = false;
+			m_FilterPresetRenameSlot = -1;
+		}
 	}
 	Body.HSplitTop(30.0f, &Filters, &Body);
 	CUIRect SearchLabel, Search; Filters.VSplitLeft(52.0f, &SearchLabel, &Search); UI()->DoLabelScaled(&SearchLabel, Localize("Search"), 10.0f, -1);
 	static float s_SearchOffset; if(DoEditBox(&g_Config.m_BrFilterString, &Search, g_Config.m_BrFilterString, sizeof(g_Config.m_BrFilterString), 10.0f, &s_SearchOffset)) Client()->ServerBrowserUpdate();
 
 	Body.HSplitTop(6.0f, 0, &Body); Body.HSplitBottom(72.0f, &Body, &Actions);
+	CUIRect FilterPopup;
+	if(m_PlayFiltersOpen)
+	{
+		int VisiblePresetCount = 0;
+		for(int Slot = 0; Slot < NUM_UI_FILTER_PRESETS; Slot++)
+			if(Slot < UI_FILTER_PRESET_CUSTOM_START || m_aFilterPresets[Slot].m_Used)
+				VisiblePresetCount++;
+		const float PopupWidth = min(PageBounds.w, 420.0f * UI()->Scale());
+		const float PresetMenuHeight = min(350.0f, 130.0f + VisiblePresetCount * 22.0f);
+		const float DesiredHeight = (m_FilterPresetMenuOpen ? PresetMenuHeight : (m_PlayFiltersAdvanced ? 376.0f : 224.0f)) * UI()->Scale();
+		FilterPopup.w = PopupWidth;
+		FilterPopup.x = clamp(FilterAnchor.x + FilterAnchor.w - PopupWidth, PageBounds.x, PageBounds.x + PageBounds.w - PopupWidth);
+		FilterPopup.y = Filters.y + Filters.h + 4.0f * UI()->Scale();
+		FilterPopup.h = min(DesiredHeight, max(120.0f * UI()->Scale(), PageBounds.y + PageBounds.h - FilterPopup.y - 6.0f * UI()->Scale()));
+		if(UI()->MouseButtonClicked(0) && !UI()->MouseInside(&FilterPopup) && !UI()->MouseInside(&FilterAnchor))
+		{
+			m_PlayFiltersOpen = false;
+			m_FilterPresetMenuOpen = false;
+			m_FilterPresetRenameSlot = -1;
+			UI()->SetActiveItem(0);
+		}
+		else if(m_EscapePressed)
+		{
+			if(m_FilterPresetMenuOpen)
+				m_FilterPresetMenuOpen = false;
+			else if(m_FilterPresetRenameSlot >= 0)
+				m_FilterPresetRenameSlot = -1;
+			else
+				m_PlayFiltersOpen = false;
+			m_EscapePressed = false;
+			UI()->SetActiveItem(0);
+		}
+	}
+	const bool BlockPlayListInput = m_PlayFiltersOpen && UI()->MouseInside(&FilterPopup);
 	const bool Compact = Body.w < 760.0f;
 	if(!Compact) { Body.VSplitRight(max(220.0f, Body.w * 0.30f), &List, &Detail); List.VSplitRight(6.0f, &List, 0); }
 	else { List = Body; Detail = CUIRect(); }
@@ -3851,11 +3905,21 @@ void CMenus::RenderPlay(CUIRect MainView)
 		};
 		while(j >= 0 && Compare(aEntries[j], Key)) { aEntries[j + 1] = aEntries[j]; j--; } aEntries[j + 1] = Key;
 	}
-	if(!m_aPlaySelectedID[0] && EntryCount) str_copy(m_aPlaySelectedID, aEntries[0].m_aStableID, sizeof(m_aPlaySelectedID));
+	auto SelectPlayEntry = [&](int Index) {
+		if(Index < 0 || Index >= EntryCount)
+			return;
+		str_copy(m_aPlaySelectedID, aEntries[Index].m_aStableID, sizeof(m_aPlaySelectedID));
+		if(aEntries[Index].m_pServer)
+			str_copy(g_Config.m_UiServerAddress, aEntries[Index].m_pServer->m_aAddress, sizeof(g_Config.m_UiServerAddress));
+		else
+			g_Config.m_UiServerAddress[0] = 0;
+	};
+	if(!m_aPlaySelectedID[0] && EntryCount) SelectPlayEntry(0);
 	s_Selected = -1; for(int i = 0; i < EntryCount; i++) if(!str_comp(m_aPlaySelectedID, aEntries[i].m_aStableID)) { s_Selected = i; break; }
-	if(s_Selected < 0 && EntryCount) { s_Selected = 0; str_copy(m_aPlaySelectedID, aEntries[0].m_aStableID, sizeof(m_aPlaySelectedID)); }
-	if(m_PlayListHasFocus) for(int i = 0; i < m_NumInputEvents; i++) if(m_aInputEvents[i].m_Flags & IInput::FLAG_PRESS) { const int Key = m_aInputEvents[i].m_Key; if((Key == KEY_UP || Key == KEY_GAMEPAD_BUTTON_DPAD_UP) && s_Selected > 0) s_Selected--; if((Key == KEY_DOWN || Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN) && s_Selected + 1 < EntryCount) s_Selected++; }
-	if(s_Selected >= 0) str_copy(m_aPlaySelectedID, aEntries[s_Selected].m_aStableID, sizeof(m_aPlaySelectedID));
+	if(s_Selected < 0 && EntryCount) { s_Selected = 0; SelectPlayEntry(s_Selected); }
+	const int SelectionBeforeKeyboard = s_Selected;
+	if(m_PlayListHasFocus && !m_PlayFiltersOpen) for(int i = 0; i < m_NumInputEvents; i++) if(m_aInputEvents[i].m_Flags & IInput::FLAG_PRESS) { const int Key = m_aInputEvents[i].m_Key; if((Key == KEY_UP || Key == KEY_GAMEPAD_BUTTON_DPAD_UP) && s_Selected > 0) s_Selected--; if((Key == KEY_DOWN || Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN) && s_Selected + 1 < EntryCount) s_Selected++; }
+	if(s_Selected >= 0 && s_Selected != SelectionBeforeKeyboard) SelectPlayEntry(s_Selected);
 
 	CUIRect Headers; List.HSplitTop(20.0f, &Headers, &List); DrawSectionHeader(&Headers, CUI::CORNER_T);
 	struct CColumn { const char *m_pName; int m_Sort; float m_Width; CUIRect m_Rect; }; CColumn aColumns[] = {{"Source", -1, Compact ? 66.0f : 76.0f, {}}, {"Name", IServerBrowser::SORT_NAME, Compact ? 0.0f : 0.0f, {}}, {"Type", IServerBrowser::SORT_GAMETYPE, Compact ? 0.0f : 70.0f, {}}, {"Map", IServerBrowser::SORT_MAP, Compact ? 0.0f : 100.0f, {}}, {"Players", IServerBrowser::SORT_NUMPLAYERS, 62.0f, {}}, {"Ping", IServerBrowser::SORT_PING, 56.0f, {}}};
@@ -3869,29 +3933,312 @@ void CMenus::RenderPlay(CUIRect MainView)
 		Remaining.VSplitRight(aColumns[2].m_Width, &Remaining, &aColumns[2].m_Rect);
 	}
 	aColumns[1].m_Rect = Remaining;
-	for(int i = 0; i < 6; i++) if(aColumns[i].m_Rect.w > 0.0f && DoButton_GridHeader(&aColumns[i], Localize(aColumns[i].m_pName), g_Config.m_BrSort == aColumns[i].m_Sort, &aColumns[i].m_Rect) && aColumns[i].m_Sort >= 0) { if(g_Config.m_BrSort == aColumns[i].m_Sort) g_Config.m_BrSortOrder ^= 1; else { g_Config.m_BrSort = aColumns[i].m_Sort; g_Config.m_BrSortOrder = 0; } }
+	for(int i = 0; i < 6; i++) if(aColumns[i].m_Rect.w > 0.0f && DoButton_GridHeader(&aColumns[i], Localize(aColumns[i].m_pName), g_Config.m_BrSort == aColumns[i].m_Sort, &aColumns[i].m_Rect, !BlockPlayListInput) && aColumns[i].m_Sort >= 0) { if(g_Config.m_BrSort == aColumns[i].m_Sort) g_Config.m_BrSortOrder ^= 1; else { g_Config.m_BrSort = aColumns[i].m_Sort; g_Config.m_BrSortOrder = 0; } }
+	static int s_EntryListID;
 	static int s_aEntryIDs[512]; for(int i = 0; i < 512; i++) s_aEntryIDs[i] = i;
-	UiDoListboxStart(&s_aEntryIDs, &List, 30.0f, Localize("Rooms"), "", EntryCount, 1, s_Selected, s_Scroll);
+	if(!UI()->MouseButton(0) && !UI()->MouseButton(1))
+	{
+		for(int i = EntryCount; i < 512; i++)
+		{
+			if(UI()->ActiveItem() == &s_aEntryIDs[i])
+			{
+				UI()->SetActiveItem(0);
+				break;
+			}
+		}
+	}
+	UiDoListboxStart(&s_EntryListID, &List, 30.0f, Localize("Rooms"), "", EntryCount, 1, s_Selected, s_Scroll);
 	for(int i = 0; i < EntryCount; i++)
 	{
-		CListboxItem Item = UiDoListboxNextItem(&s_aEntryIDs[i], s_Selected == i); if(!Item.m_Visible) continue; CUIRect Row = Item.m_Rect; Row.Margin(4.0f, &Row);
+		CListboxItem Item = UiDoListboxNextItem(&s_aEntryIDs[i], s_Selected == i, !BlockPlayListInput); if(!Item.m_Visible) continue; CUIRect Row = Item.m_Rect; Row.Margin(4.0f, &Row);
 		for(int Column = 0; Column < 6; Column++) { CUIRect Cell = aColumns[Column].m_Rect; Cell.x = Row.x + (Cell.x - Headers.x); Cell.y = Row.y; Cell.h = Row.h; const CPlayRoomEntry &Entry = aEntries[i]; const CPlayServerSnapshot *pServer = Entry.m_pServer; const CPlatformLobbyInfo *pLobby = Entry.m_pLobby ? &Entry.m_pLobby->m_Info : 0; char aValue[128]; if(Column == 0) str_copy(aValue, Entry.m_Source == CPlayRoomEntry::SOURCE_STEAM_LOBBY ? (pLobby->m_FriendHosted ? Localize("FRIEND") : "STEAM") : pServer->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pServer->m_Official ? Localize("OFFICIAL") : Localize("COMMUNITY"), sizeof(aValue)); else if(Column == 1) str_copy(aValue, pServer ? pServer->m_aName : pLobby->m_aHostName, sizeof(aValue)); else if(Column == 2) str_copy(aValue, pServer ? pServer->m_aGameType : pLobby->m_aGameType, sizeof(aValue)); else if(Column == 3) str_copy(aValue, pServer ? pServer->m_aMap : pLobby->m_aMap, sizeof(aValue)); else if(Column == 4) str_format(aValue, sizeof(aValue), "%d/%d", pServer ? pServer->m_NumClients : pLobby->m_Members, pServer ? pServer->m_MaxClients : pLobby->m_MaxMembers); else str_copy(aValue, pServer ? (pServer->m_Latency >= 0 ? "" : "-") : "RELAY", sizeof(aValue)); if(Column == 5 && pServer && pServer->m_Latency >= 0) str_format(aValue, sizeof(aValue), "%dms", pServer->m_Latency); UI()->DoLabelScaled(&Cell, aValue, FitLabelFontSize(TextRender(), aValue, 10.0f, Cell.w), -1); }
 	}
-	const int NewSelection = UiDoListboxEnd(&s_Scroll, 0); if(NewSelection >= 0 && NewSelection < EntryCount) { s_Selected = NewSelection; str_copy(m_aPlaySelectedID, aEntries[s_Selected].m_aStableID, sizeof(m_aPlaySelectedID)); m_PlayListHasFocus = true; }
+	const int NewSelection = UiDoListboxEnd(&s_Scroll, 0); if(NewSelection >= 0 && NewSelection < EntryCount) { if(NewSelection != s_Selected) { s_Selected = NewSelection; SelectPlayEntry(s_Selected); } m_PlayListHasFocus = true; }
 
 	auto RenderDetail = [&](CUIRect View) { DrawMenuInset(&View, CUI::CORNER_ALL); View.Margin(10.0f, &View); if(s_Selected < 0) UI()->DoLabelScaled(&View, Localize("No servers found"), 11.0f, -1); else { const CPlayRoomEntry &Entry = aEntries[s_Selected]; char aDetail[768]; if(Entry.m_pServer) { const CPlayServerSnapshot *pInfo = Entry.m_pServer; str_format(aDetail, sizeof(aDetail), "%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s", pInfo->m_aName, Localize("Address"), pInfo->m_aAddress, Localize("Version"), pInfo->m_aVersion, Localize("Source"), pInfo->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pInfo->m_DiscoverySources & IServerBrowser::DISCOVERY_STEAM ? "Steam GameServer + UDP" : "UDP", Localize("Mods"), pInfo->m_Modded ? Localize("Required") : Localize("None"), Localize("Authentication"), pInfo->m_AuthPolicy ? Localize("Required") : Localize("Open"), Localize("Region"), pInfo->m_aMap); } else { const CPlatformLobbyInfo &Info = Entry.m_pLobby->m_Info; str_format(aDetail, sizeof(aDetail), "%s\n\nLobbyID: %llu\n%s: %llu\n%s: %s\n%s: %s\nMod hash: %s\nRelay / Steam authentication", Info.m_aHostName, Info.m_LobbyID, Localize("Host"), Info.m_HostSteamID, Localize("Region"), Info.m_aRegion, Localize("Source"), Info.m_FriendHosted ? Localize("Friend room") : Localize("Steam local room"), Info.m_aModHash); } UI()->DoLabelScaled(&View, aDetail, 10.5f, -1); } };
 	if(!Compact) RenderDetail(Detail);
 	Actions.HSplitTop(6.0f, 0, &Actions); CUIRect Direct, ActionButtons; Actions.HSplitTop(30.0f, &Direct, &ActionButtons);
-	CUIRect DirectLabel, DirectBox; Direct.VSplitLeft(76.0f, &DirectLabel, &DirectBox); UI()->DoLabelScaled(&DirectLabel, Localize("Host address"), 10.0f, -1); static float s_DirectOffset; DoEditBox(&g_Config.m_UiServerAddress, &DirectBox, g_Config.m_UiServerAddress, sizeof(g_Config.m_UiServerAddress), 10.0f, &s_DirectOffset);
+	CUIRect DirectLabel, DirectBox; Direct.VSplitLeft(76.0f, &DirectLabel, &DirectBox); UI()->DoLabelScaled(&DirectLabel, Localize("Host address"), 10.0f, -1); static float s_DirectOffset; if(!(BlockPlayListInput && UI()->MouseInside(&DirectBox))) DoEditBox(&g_Config.m_UiServerAddress, &DirectBox, g_Config.m_UiServerAddress, sizeof(g_Config.m_UiServerAddress), 10.0f, &s_DirectOffset);
 	static int s_Join, s_Refresh, s_Copy, s_Favorite, s_Details; CUIRect JoinButton, RefreshButton, CopyButton, FavoriteButton, DetailButton;
 	ActionButtons.VSplitRight(100.0f, &ActionButtons, &JoinButton); ActionButtons.VSplitRight(4.0f, &ActionButtons, 0); ActionButtons.VSplitRight(80.0f, &ActionButtons, &RefreshButton); ActionButtons.VSplitRight(4.0f, &ActionButtons, 0); ActionButtons.VSplitRight(70.0f, &ActionButtons, &CopyButton); ActionButtons.VSplitRight(4.0f, &ActionButtons, 0); ActionButtons.VSplitRight(92.0f, &ActionButtons, &FavoriteButton); if(Compact) { ActionButtons.VSplitRight(4.0f, &ActionButtons, 0); ActionButtons.VSplitRight(74.0f, &ActionButtons, &DetailButton); }
 	const bool HasDedicated = s_Selected >= 0 && aEntries[s_Selected].m_pServer;
-	if(DoButton_Menu(&s_Join, Localize("Join"), 0, &JoinButton, BUTTONSTYLE_ACCENT) || (m_PlayListHasFocus && m_EnterPressed && s_Selected >= 0)) { if(s_Selected >= 0) { const CPlayRoomEntry &Entry = aEntries[s_Selected]; if(Entry.m_pServer) Client()->Connect(Entry.m_pServer->m_aAddress); else if(pPlatform) pPlatform->JoinLobby(Entry.m_pLobby->m_Info.m_LobbyID); } else if(g_Config.m_UiServerAddress[0]) Client()->Connect(g_Config.m_UiServerAddress); m_EnterPressed = false; }
-	if(DoButton_Menu(&s_Refresh, Localize("Refresh"), 0, &RefreshButton)) { ServerBrowser()->Refresh(m_PlayBrowserCollection == PLAY_COLLECTION_LAN ? IServerBrowser::TYPE_LAN : m_PlayBrowserCollection == PLAY_COLLECTION_FAVORITES ? IServerBrowser::TYPE_FAVORITES : IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
-	if(DoButton_Menu(&s_Copy, Localize("Copy"), 0, &CopyButton) && s_Selected >= 0) Input()->SetClipboardText(HasDedicated ? aEntries[s_Selected].m_pServer->m_aAddress : aEntries[s_Selected].m_aStableID);
-	if(HasDedicated && DoButton_Menu(&s_Favorite, Localize(aEntries[s_Selected].m_pServer->m_Favorite ? "Unfavorite" : "Favorite"), 0, &FavoriteButton)) { const CPlayServerSnapshot *pInfo = aEntries[s_Selected].m_pServer; if(pInfo->m_Favorite) ServerBrowser()->RemoveFavorite(pInfo->m_NetAddr); else ServerBrowser()->AddFavorite(pInfo->m_NetAddr); }
-	if(Compact && DoButton_Menu(&s_Details, Localize("Details"), m_PlayDetailOpen, &DetailButton)) m_PlayDetailOpen = !m_PlayDetailOpen;
+	const bool JoinBlocked = BlockPlayListInput && UI()->MouseInside(&JoinButton);
+	const bool RefreshBlocked = BlockPlayListInput && UI()->MouseInside(&RefreshButton);
+	const bool CopyBlocked = BlockPlayListInput && UI()->MouseInside(&CopyButton);
+	const bool FavoriteBlocked = BlockPlayListInput && UI()->MouseInside(&FavoriteButton);
+	const bool DetailBlocked = BlockPlayListInput && UI()->MouseInside(&DetailButton);
+	if((!JoinBlocked && DoButton_Menu(&s_Join, Localize("Join"), 0, &JoinButton, BUTTONSTYLE_ACCENT)) || (!m_PlayFiltersOpen && m_PlayListHasFocus && m_EnterPressed && s_Selected >= 0)) { if(s_Selected >= 0) { const CPlayRoomEntry &Entry = aEntries[s_Selected]; if(Entry.m_pServer) Client()->Connect(Entry.m_pServer->m_aAddress); else if(pPlatform) pPlatform->JoinLobby(Entry.m_pLobby->m_Info.m_LobbyID); } else if(g_Config.m_UiServerAddress[0]) Client()->Connect(g_Config.m_UiServerAddress); m_EnterPressed = false; }
+	if(!RefreshBlocked && DoButton_Menu(&s_Refresh, Localize("Refresh"), 0, &RefreshButton)) { ServerBrowser()->Refresh(m_PlayBrowserCollection == PLAY_COLLECTION_LAN ? IServerBrowser::TYPE_LAN : m_PlayBrowserCollection == PLAY_COLLECTION_FAVORITES ? IServerBrowser::TYPE_FAVORITES : IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
+	if(!CopyBlocked && DoButton_Menu(&s_Copy, Localize("Copy"), 0, &CopyButton) && s_Selected >= 0) Input()->SetClipboardText(HasDedicated ? aEntries[s_Selected].m_pServer->m_aAddress : aEntries[s_Selected].m_aStableID);
+	if(HasDedicated && !FavoriteBlocked && DoButton_Menu(&s_Favorite, Localize(aEntries[s_Selected].m_pServer->m_Favorite ? "Unfavorite" : "Favorite"), 0, &FavoriteButton)) { const CPlayServerSnapshot *pInfo = aEntries[s_Selected].m_pServer; if(pInfo->m_Favorite) ServerBrowser()->RemoveFavorite(pInfo->m_NetAddr); else ServerBrowser()->AddFavorite(pInfo->m_NetAddr); }
+	if(Compact && !DetailBlocked && DoButton_Menu(&s_Details, Localize("Details"), m_PlayDetailOpen, &DetailButton)) m_PlayDetailOpen = !m_PlayDetailOpen;
 	if(Compact && m_PlayDetailOpen) { CUIRect Overlay = Body; Overlay.Margin(8.0f, &Overlay); RenderDetail(Overlay); if(m_EscapePressed) { m_PlayDetailOpen = false; m_EscapePressed = false; } }
+
+	if(m_PlayFiltersOpen)
+	{
+		DrawMenuBorder(&FilterPopup, vec4(0.035f, 0.043f, 0.052f, 0.99f), vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.72f), CUI::CORNER_ALL, ms_PanelRounding);
+		CUIRect PopupContent = FilterPopup;
+		PopupContent.Margin(8.0f, &PopupContent);
+
+		CUIRect PopupHeader, PresetRow, FilterContent, Footer;
+		PopupContent.HSplitTop(24.0f, &PopupHeader, &PopupContent);
+		CUIRect CloseButton;
+		PopupHeader.VSplitRight(24.0f, &PopupHeader, &CloseButton);
+		UI()->DoLabelScaled(&PopupHeader, Localize("Server filter"), 13.0f, -1);
+		static int s_CloseFilters;
+		if(DoButton_Menu(&s_CloseFilters, "x", 0, &CloseButton))
+		{
+			m_PlayFiltersOpen = false;
+			m_FilterPresetMenuOpen = false;
+			m_FilterPresetRenameSlot = -1;
+			UI()->SetActiveItem(0);
+		}
+
+		PopupContent.HSplitTop(4.0f, 0, &PopupContent);
+		PopupContent.HSplitTop(26.0f, &PresetRow, &PopupContent);
+		const bool CustomPreset = m_ActiveFilterPreset >= UI_FILTER_PRESET_CUSTOM_START && m_aFilterPresets[m_ActiveFilterPreset].m_Used;
+		if(m_FilterPresetRenameSlot >= UI_FILTER_PRESET_CUSTOM_START)
+		{
+			CUIRect RenameBox, SaveButton, CancelButton;
+			PresetRow.VSplitRight(108.0f, &RenameBox, &SaveButton);
+			SaveButton.VSplitLeft(52.0f, &SaveButton, &CancelButton);
+			CancelButton.VSplitLeft(4.0f, 0, &CancelButton);
+			static float s_RenameOffset;
+			DoEditBox(&m_aFilterPresetRenameBuf, &RenameBox, m_aFilterPresetRenameBuf, sizeof(m_aFilterPresetRenameBuf), 10.0f, &s_RenameOffset);
+			static int s_SavePresetName, s_CancelPresetName;
+			if((DoButton_Menu(&s_SavePresetName, Localize("Save"), 0, &SaveButton, BUTTONSTYLE_ACCENT) || m_EnterPressed) && m_aFilterPresetRenameBuf[0])
+			{
+				str_copy(m_aFilterPresets[m_FilterPresetRenameSlot].m_aName, m_aFilterPresetRenameBuf, sizeof(m_aFilterPresets[m_FilterPresetRenameSlot].m_aName));
+				m_FilterPresetRenameSlot = -1;
+				m_EnterPressed = false;
+				SaveFilterPresets();
+			}
+			if(DoButton_Menu(&s_CancelPresetName, Localize("Cancel"), 0, &CancelButton))
+				m_FilterPresetRenameSlot = -1;
+		}
+		else
+		{
+			const char *pPresetName = m_aFilterPresets[m_ActiveFilterPreset].m_aName;
+			if(m_ActiveFilterPreset == UI_FILTER_PRESET_ALL)
+				pPresetName = Localize("All");
+			else if(m_ActiveFilterPreset == UI_FILTER_PRESET_FAVORITES)
+				pPresetName = Localize("Favorites");
+			char aPresetLabel[96];
+			str_format(aPresetLabel, sizeof(aPresetLabel), "%s:  %s", Localize("Preset"), pPresetName);
+			static int s_PresetSelector;
+			if(DoButton_Menu(&s_PresetSelector, aPresetLabel, m_FilterPresetMenuOpen, &PresetRow, m_FilterPresetMenuOpen ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+				m_FilterPresetMenuOpen = !m_FilterPresetMenuOpen;
+		}
+
+		PopupContent.HSplitTop(6.0f, 0, &PopupContent);
+		PopupContent.HSplitBottom(24.0f, &FilterContent, &Footer);
+		if(m_FilterPresetMenuOpen)
+		{
+			CUIRect PresetList, PresetActions;
+			FilterContent.HSplitBottom(30.0f, &PresetList, &PresetActions);
+			PresetActions.HSplitTop(6.0f, 0, &PresetActions);
+			static CScrollRegion s_PresetScrollRegion;
+			CScrollRegionParams ScrollParams;
+			ConfigureScrollRegion(&ScrollParams);
+			ScrollParams.m_ClipBgColor = vec4(0, 0, 0, 0);
+			vec2 ScrollOffset;
+			s_PresetScrollRegion.Begin(&PresetList, &ScrollOffset, &ScrollParams);
+			CUIRect PresetRows = PresetList;
+			PresetRows.y += ScrollOffset.y;
+			static int s_aPresetIds[NUM_UI_FILTER_PRESETS];
+			for(int Slot = 0; Slot < NUM_UI_FILTER_PRESETS; Slot++)
+			{
+				if(Slot >= UI_FILTER_PRESET_CUSTOM_START && !m_aFilterPresets[Slot].m_Used)
+					continue;
+				CUIRect Row;
+				PresetRows.HSplitTop(22.0f, &Row, &PresetRows);
+				const char *pName = m_aFilterPresets[Slot].m_aName;
+				if(Slot == UI_FILTER_PRESET_ALL)
+					pName = Localize("All");
+				else if(Slot == UI_FILTER_PRESET_FAVORITES)
+					pName = Localize("Favorites");
+				if(!s_PresetScrollRegion.IsRectClipped(Row) && DoButton_Menu(&s_aPresetIds[Slot], pName, Slot == m_ActiveFilterPreset, &Row, Slot == m_ActiveFilterPreset ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+				{
+					SwitchFilterPreset(Slot);
+					m_FilterPresetMenuOpen = false;
+				}
+				s_PresetScrollRegion.AddRect(Row);
+			}
+			s_PresetScrollRegion.End();
+
+			CUIRect NewButton, RenameButton, DeleteButton;
+			PresetActions.VSplitLeft((PresetActions.w - 8.0f * UI()->Scale()) / 3.0f, &NewButton, &PresetActions);
+			PresetActions.VSplitLeft(4.0f, 0, &PresetActions);
+			PresetActions.VSplitLeft((PresetActions.w - 4.0f * UI()->Scale()) / 2.0f, &RenameButton, &DeleteButton);
+			DeleteButton.VSplitLeft(4.0f, 0, &DeleteButton);
+			static int s_NewPreset, s_RenamePreset, s_DeletePreset;
+			if(DoButton_Menu(&s_NewPreset, Localize("New"), 0, &NewButton, BUTTONSTYLE_ACCENT))
+			{
+				int Slot = -1;
+				for(int i = UI_FILTER_PRESET_CUSTOM_START; i < NUM_UI_FILTER_PRESETS; i++)
+					if(!m_aFilterPresets[i].m_Used) { Slot = i; break; }
+				if(Slot >= 0)
+				{
+					m_aFilterPresets[Slot].m_Used = true;
+					str_format(m_aFilterPresets[Slot].m_aName, sizeof(m_aFilterPresets[Slot].m_aName), "%s %d", Localize("Preset"), Slot - UI_FILTER_PRESET_CUSTOM_START + 1);
+					SnapshotConfigToFilterPreset(Slot);
+					SwitchFilterPreset(Slot);
+					m_FilterPresetRenameSlot = Slot;
+					str_copy(m_aFilterPresetRenameBuf, m_aFilterPresets[Slot].m_aName, sizeof(m_aFilterPresetRenameBuf));
+					m_FilterPresetMenuOpen = false;
+				}
+			}
+			if(DoButton_Menu(&s_RenamePreset, Localize("Rename"), 0, &RenameButton) && CustomPreset)
+			{
+				m_FilterPresetRenameSlot = m_ActiveFilterPreset;
+				str_copy(m_aFilterPresetRenameBuf, m_aFilterPresets[m_ActiveFilterPreset].m_aName, sizeof(m_aFilterPresetRenameBuf));
+				m_FilterPresetMenuOpen = false;
+			}
+			if(DoButton_Menu(&s_DeletePreset, Localize("Delete"), 0, &DeleteButton, CustomPreset ? BUTTONSTYLE_DANGER : BUTTONSTYLE_NORMAL) && CustomPreset)
+			{
+				m_aFilterPresets[m_ActiveFilterPreset].m_Used = false;
+				SwitchFilterPreset(UI_FILTER_PRESET_ALL);
+				m_FilterPresetMenuOpen = false;
+				SaveFilterPresets();
+			}
+		}
+		else
+		{
+			static CScrollRegion s_PlayFilterScrollRegion;
+			CScrollRegionParams ScrollParams;
+			ConfigureScrollRegion(&ScrollParams);
+			ScrollParams.m_ClipBgColor = vec4(0, 0, 0, 0);
+			vec2 ScrollOffset;
+			s_PlayFilterScrollRegion.Begin(&FilterContent, &ScrollOffset, &ScrollParams);
+			CUIRect Content = FilterContent;
+			Content.y += ScrollOffset.y;
+			Content.VSplitRight(8.0f, &Content, 0);
+
+			CUIRect SectionLabel;
+			Content.HSplitTop(16.0f, &SectionLabel, &Content);
+			TextRender()->TextColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 1.0f);
+			if(!s_PlayFilterScrollRegion.IsRectClipped(SectionLabel))
+				UI()->DoLabelScaled(&SectionLabel, Localize("Common filters"), 9.0f, -1);
+			TextRender()->TextColor(1, 1, 1, 1);
+			s_PlayFilterScrollRegion.AddRect(SectionLabel);
+
+			auto RenderToggleRow = [&](int &LeftValue, const char *pLeftText, int &RightValue, const char *pRightText) {
+				CUIRect Row, Left, Right;
+				Content.HSplitTop(22.0f, &Row, &Content);
+				Row.VSplitMid(&Left, &Right);
+				Right.VSplitLeft(4.0f, 0, &Right);
+				if(!s_PlayFilterScrollRegion.IsRectClipped(Left) && DoButton_CheckBox(&LeftValue, Localize(pLeftText), LeftValue, &Left)) LeftValue ^= 1;
+				if(!s_PlayFilterScrollRegion.IsRectClipped(Right) && DoButton_CheckBox(&RightValue, Localize(pRightText), RightValue, &Right)) RightValue ^= 1;
+				s_PlayFilterScrollRegion.AddRect(Row);
+			};
+			RenderToggleRow(g_Config.m_BrFilterEmpty, "Has people playing", g_Config.m_BrFilterFull, "Server not full");
+			RenderToggleRow(g_Config.m_BrFilterPw, "No password", g_Config.m_BrFilterFriends, "Show friends only");
+
+			Content.HSplitTop(4.0f, 0, &Content);
+			CUIRect PingRow, PingLabel, PingBox;
+			Content.HSplitTop(24.0f, &PingRow, &Content);
+			PingRow.VSplitRight(76.0f, &PingLabel, &PingBox);
+			if(!s_PlayFilterScrollRegion.IsRectClipped(PingLabel))
+				UI()->DoLabelScaled(&PingLabel, Localize("Maximum ping:"), 10.0f, -1);
+			char aPing[5];
+			str_format(aPing, sizeof(aPing), "%d", g_Config.m_BrFilterPing);
+			static float s_PingOffset;
+			if(!s_PlayFilterScrollRegion.IsRectClipped(PingBox))
+			{
+				DoEditBox(&g_Config.m_BrFilterPing, &PingBox, aPing, sizeof(aPing), 10.0f, &s_PingOffset);
+				UI()->ClipEnable(&FilterContent);
+			}
+			g_Config.m_BrFilterPing = clamp(str_toint(aPing), 0, 999);
+			s_PlayFilterScrollRegion.AddRect(PingRow);
+
+			Content.HSplitTop(6.0f, 0, &Content);
+			CUIRect AdvancedButton;
+			Content.HSplitTop(24.0f, &AdvancedButton, &Content);
+			static int s_AdvancedFilters;
+			if(!s_PlayFilterScrollRegion.IsRectClipped(AdvancedButton) && DoButton_Menu(&s_AdvancedFilters, Localize("Advanced filters"), m_PlayFiltersAdvanced, &AdvancedButton, m_PlayFiltersAdvanced ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+				m_PlayFiltersAdvanced = !m_PlayFiltersAdvanced;
+			s_PlayFilterScrollRegion.AddRect(AdvancedButton);
+
+			if(m_PlayFiltersAdvanced)
+			{
+				Content.HSplitTop(4.0f, 0, &Content);
+				RenderToggleRow(g_Config.m_BrFilterSpectators, "Count players only", g_Config.m_BrFilterCompatversion, "Compatible version");
+				RenderToggleRow(g_Config.m_BrFilterPure, "Standard gametype", g_Config.m_BrFilterPureMap, "Standard map");
+				CUIRect StrictRow;
+				Content.HSplitTop(22.0f, &StrictRow, &Content);
+				if(!s_PlayFilterScrollRegion.IsRectClipped(StrictRow) && DoButton_CheckBox(&g_Config.m_BrFilterGametypeStrict, Localize("Strict gametype filter"), g_Config.m_BrFilterGametypeStrict, &StrictRow)) g_Config.m_BrFilterGametypeStrict ^= 1;
+				s_PlayFilterScrollRegion.AddRect(StrictRow);
+
+				auto RenderTextFilter = [&](void *pID, const char *pLabel, char *pBuffer, unsigned BufferSize, float *pOffset) {
+					CUIRect Row, Label, Edit;
+					Content.HSplitTop(3.0f, 0, &Content);
+					Content.HSplitTop(24.0f, &Row, &Content);
+					Row.VSplitLeft(112.0f, &Label, &Edit);
+					if(!s_PlayFilterScrollRegion.IsRectClipped(Row))
+					{
+						UI()->DoLabelScaled(&Label, Localize(pLabel), 10.0f, -1);
+						if(DoEditBox(pID, &Edit, pBuffer, BufferSize, 10.0f, pOffset)) Client()->ServerBrowserUpdate();
+						UI()->ClipEnable(&FilterContent);
+					}
+					s_PlayFilterScrollRegion.AddRect(Row);
+				};
+				static float s_GameTypeOffset, s_AddressOffset;
+				RenderTextFilter(&g_Config.m_BrFilterGametype, "Game types:", g_Config.m_BrFilterGametype, sizeof(g_Config.m_BrFilterGametype), &s_GameTypeOffset);
+				RenderTextFilter(&g_Config.m_BrFilterServerAddress, "Server address:", g_Config.m_BrFilterServerAddress, sizeof(g_Config.m_BrFilterServerAddress), &s_AddressOffset);
+
+				CUIRect CountryRow, CountryLabel, Flag;
+				Content.HSplitTop(3.0f, 0, &Content);
+				Content.HSplitTop(24.0f, &CountryRow, &Content);
+				CountryRow.VSplitRight(54.0f, &CountryLabel, &Flag);
+				const bool CountryVisible = !s_PlayFilterScrollRegion.IsRectClipped(CountryRow);
+				if(CountryVisible && DoButton_CheckBox(&g_Config.m_BrFilterCountry, Localize("Player country:"), g_Config.m_BrFilterCountry, &CountryLabel)) g_Config.m_BrFilterCountry ^= 1;
+				CUIRect FlagImage = Flag;
+				FlagImage.Margin(3.0f, &FlagImage);
+				const float OldWidth = FlagImage.w;
+				FlagImage.w = FlagImage.h * 2.0f;
+				FlagImage.x += (OldWidth - FlagImage.w) * 0.5f;
+				vec4 FlagColor(1, 1, 1, g_Config.m_BrFilterCountry ? 1.0f : 0.45f);
+				if(CountryVisible)
+					m_pClient->m_pCountryFlags->Render(g_Config.m_BrFilterCountryIndex, &FlagColor, FlagImage.x, FlagImage.y, FlagImage.w, FlagImage.h);
+				if(CountryVisible && g_Config.m_BrFilterCountry && UI()->DoButtonLogic(&g_Config.m_BrFilterCountryIndex, "", 0, &Flag)) m_Popup = POPUP_COUNTRY;
+				s_PlayFilterScrollRegion.AddRect(CountryRow);
+			}
+			s_PlayFilterScrollRegion.End();
+		}
+
+		CUIRect ResetButton, DoneButton;
+		Footer.VSplitLeft((Footer.w - 4.0f * UI()->Scale()) * 0.5f, &ResetButton, &DoneButton);
+		DoneButton.VSplitLeft(4.0f, 0, &DoneButton);
+		static int s_ResetFilters, s_DoneFilters;
+		if(DoButton_Menu(&s_ResetFilters, Localize("Reset filter"), 0, &ResetButton))
+		{
+			g_Config.m_BrFilterString[0] = 0;
+			g_Config.m_BrFilterFull = 0;
+			g_Config.m_BrFilterEmpty = 0;
+			g_Config.m_BrFilterSpectators = 0;
+			g_Config.m_BrFilterFriends = 0;
+			g_Config.m_BrFilterCountry = 0;
+			g_Config.m_BrFilterCountryIndex = -1;
+			g_Config.m_BrFilterPw = 0;
+			g_Config.m_BrFilterPing = 999;
+			g_Config.m_BrFilterGametype[0] = 0;
+			g_Config.m_BrFilterGametypeStrict = 0;
+			g_Config.m_BrFilterServerAddress[0] = 0;
+			g_Config.m_BrFilterPure = 0;
+			g_Config.m_BrFilterPureMap = 0;
+			g_Config.m_BrFilterCompatversion = 0;
+			m_ActiveFilterPreset = UI_FILTER_PRESET_ALL;
+			Client()->ServerBrowserUpdate();
+			SaveFilterPresets();
+		}
+		if(DoButton_Menu(&s_DoneFilters, Localize("Done"), 0, &DoneButton, BUTTONSTYLE_ACCENT))
+		{
+			m_PlayFiltersOpen = false;
+			m_FilterPresetMenuOpen = false;
+			m_FilterPresetRenameSlot = -1;
+			UI()->SetActiveItem(0);
+		}
+	}
 }
 
 void CMenus::RenderMods(CUIRect MainView)

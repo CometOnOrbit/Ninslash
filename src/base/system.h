@@ -1223,6 +1223,16 @@ void dbg_logger_stdout();
 void dbg_logger_debugger();
 void dbg_logger_file(const char *filename);
 
+#if defined(CONF_FAMILY_WINDOWS)
+/* Initializes the persistent early-startup log and crash dump handler.
+   Returns non-zero when the previous launch did not reach the main menu. */
+int windows_init_startup_diagnostics(const char *appname);
+int windows_startup_recovery_requested();
+void windows_refresh_crash_handler();
+void windows_mark_startup_ready();
+const char *windows_startup_log_path();
+#endif
+
 typedef struct
 {
 	int allocated;

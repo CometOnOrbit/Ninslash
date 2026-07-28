@@ -868,35 +868,58 @@ int CGraphics_Threaded::IssueInit()
 
 int CGraphics_Threaded::InitWindow()
 {
+	bool ForceSafeMode = false;
+#if defined(CONF_FAMILY_WINDOWS)
+	ForceSafeMode = windows_startup_recovery_requested() != 0;
+#endif
+	if(ForceSafeMode)
+	{
+		dbg_msg("gfx", "startup recovery requested; skipping saved graphics configuration");
+		g_Config.m_GfxFsaaSamples = 0;
+		g_Config.m_GfxScreen = 0;
+		g_Config.m_GfxFullscreen = 0;
+		g_Config.m_GfxBorderless = 0;
+		g_Config.m_GfxScreenWidth = 1280;
+		g_Config.m_GfxScreenHeight = 720;
+		if(IssueInit() == 0)
+		{
+			dbg_msg("gfx", "safe graphics mode initialized successfully");
+			return 0;
+		}
+		dbg_msg("gfx", "safe graphics mode failed; see the preceding backend error");
+		return -1;
+	}
+
+	dbg_msg("gfx", "trying saved graphics configuration: screen=%d size=%dx%d fullscreen=%d borderless=%d fsaa=%d",
+		g_Config.m_GfxScreen, g_Config.m_GfxScreenWidth, g_Config.m_GfxScreenHeight,
+		g_Config.m_GfxFullscreen, g_Config.m_GfxBorderless, g_Config.m_GfxFsaaSamples);
 	if(IssueInit() == 0)
 		return 0;
 
-	// try disabling fsaa
-	while(g_Config.m_GfxFsaaSamples)
+	// Retry the same configuration once without multisampling.
+	if(g_Config.m_GfxFsaaSamples)
 	{
-		g_Config.m_GfxFsaaSamples--;
-
-		if(g_Config.m_GfxFsaaSamples)
-			dbg_msg("gfx", "lowering FSAA to %d and trying again", g_Config.m_GfxFsaaSamples);
-		else
-			dbg_msg("gfx", "disabling FSAA and trying again");
-
+		g_Config.m_GfxFsaaSamples = 0;
+		dbg_msg("gfx", "saved graphics configuration failed; retrying with FSAA disabled");
 		if(IssueInit() == 0)
 			return 0;
 	}
 
-	// try lowering the resolution
-	if(g_Config.m_GfxScreenWidth != 640 || g_Config.m_GfxScreenHeight != 480)
+	// Last resort: a conservative window on the primary display.
+	dbg_msg("gfx", "retrying in safe graphics mode: primary display, 1280x720 window, no FSAA");
+	g_Config.m_GfxFsaaSamples = 0;
+	g_Config.m_GfxScreen = 0;
+	g_Config.m_GfxFullscreen = 0;
+	g_Config.m_GfxBorderless = 0;
+	g_Config.m_GfxScreenWidth = 1280;
+	g_Config.m_GfxScreenHeight = 720;
+	if(IssueInit() == 0)
 	{
-		dbg_msg("gfx", "setting resolution to 640x480 and trying again");
-		g_Config.m_GfxScreenWidth = 640;
-		g_Config.m_GfxScreenHeight = 480;
-
-		if(IssueInit() == 0)
-			return 0;
+		dbg_msg("gfx", "safe graphics mode initialized successfully; recovered settings will be saved");
+		return 0;
 	}
 
-	dbg_msg("gfx", "out of ideas. failed to init graphics");
+	dbg_msg("gfx", "all graphics initialization attempts failed; see the preceding backend error");
 
 	return -1;
 }
