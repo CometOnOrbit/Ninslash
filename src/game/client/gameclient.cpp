@@ -1595,8 +1595,10 @@ void CGameClient::OnPredict()
 
 	for(int Tick = Client()->GameTick()+1; Tick <= PredGameTick; Tick++)
 	{
-		// fetch the local at the original predicted tick (before anti-ping extension)
-		if(Tick == Client()->PredGameTick() && HasLocalClient && World.m_apCharacters[LocalClientID])
+		// Keep the interpolation pair adjacent even when AntiPing extends the
+		// prediction horizon. Pairing an old state with the extended final state
+		// amplifies landing corrections into visible backwards movement.
+		if(Tick == PredGameTick && HasLocalClient && World.m_apCharacters[LocalClientID])
 			m_PredictedPrevChar = *World.m_apCharacters[LocalClientID];
 
 		// first calculate where everyone should move

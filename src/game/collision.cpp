@@ -1251,6 +1251,31 @@ void CCollision::MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, float Elas
 	if (Vel.y < 0.0f)
 		Down = true;
 
+	auto ProjectOntoSlope = [&](int Collision, vec2 *pVelocity) {
+		const vec2 Before = *pVelocity;
+		vec2 Projected;
+		if(Collision == SS_COL_RR && Before.x >= -Before.y && (!check_speed || fabs(Before.x) > 0.005f))
+		{
+			const float Force = Before.x * invsqrt2 - Before.y * invsqrt2;
+			Projected = vec2(Force * invsqrt2, -Force * invsqrt2);
+		}
+		else if(Collision == SS_COL_RL && Before.x <= Before.y && (!check_speed || fabs(Before.x) > 0.005f))
+		{
+			const float Force = -Before.x * invsqrt2 - Before.y * invsqrt2;
+			Projected = vec2(-Force * invsqrt2, -Force * invsqrt2);
+		}
+		else
+			return false;
+
+		// A large downward velocity at the seam between a ramp and flat ground
+		// can make the slope projection point backwards. Collision response may
+		// reduce horizontal speed, but must not reverse the player's direction.
+		if(fabs(Before.x) > 0.005f && Projected.x * Before.x < 0.0f)
+			return false;
+		*pVelocity = Projected;
+		return true;
+	};
+
 	float Distance = length(Vel);
 	int Max = (int)Distance;
 
@@ -1289,26 +1314,7 @@ void CCollision::MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, float Elas
 				{
 					//bool taken_care = false;
 					NewPos.y = Pos.y;
-					if(r == SS_COL_RR && Vel.x >= -Vel.y && (!check_speed || fabs(Vel.x) > 0.005f)) {
-						float new_force = Vel.x * invsqrt2 - Vel.y * invsqrt2; 
-						//if(new_force/Distance < 0.95f) {
-							Vel.y = -new_force * invsqrt2;
-							Vel.x = new_force  * invsqrt2;
-							//std::cerr << "C1 " << new_force/Distance << std::endl;
-							//taken_care = true;
-						//}
-					}
-					else if(r == SS_COL_RL && Vel.x <= Vel.y && (!check_speed || fabs(Vel.x) > 0.005f)) {
-						float new_force = -Vel.x * invsqrt2 - Vel.y * invsqrt2;
-						//std::cerr << "C2pre " << Vel.x << ", " << check_speed << std::endl;
-						//if(new_force/Distance < 0.95f) {
-							Vel.y = -new_force * invsqrt2;
-							Vel.x = -new_force * invsqrt2;
-							//std::cerr << "C2 " << new_force/Distance << std::endl;
-							//taken_care = true;
-						//}
-					}
-					else
+					if(!ProjectOntoSlope(r, &Vel))
 						Vel.y *= -Elasticity;
 					Hits++;
 					//Vel.y *= -Elasticity;
@@ -1331,25 +1337,7 @@ void CCollision::MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, float Elas
 					if(!climbing) {*/
 					//bool taken_care = false;
 					NewPos.x = Pos.x;
-					if(r == SS_COL_RR && Vel.x >= -Vel.y && (!check_speed || fabs(Vel.x) > 0.005f)) {
-						float new_force = Vel.x * invsqrt2 - Vel.y * invsqrt2; 
-						//if(new_force/Distance < 0.95f) {
-							Vel.y = -new_force * invsqrt2;
-							Vel.x = new_force  * invsqrt2;
-							//std::cerr << "D1 " << new_force/Distance << std::endl;
-							//taken_care = true;
-						//}
-					}
-					else if(r == SS_COL_RL && Vel.x <= Vel.y && (!check_speed || fabs(Vel.x) > 0.005f)) {
-						float new_force = -Vel.x * invsqrt2 - Vel.y * invsqrt2;
-						//if(new_force/Distance < 0.95f) {
-							Vel.y = -new_force * invsqrt2;
-							Vel.x = -new_force * invsqrt2;
-							//std::cerr << "D2 " << new_force/Distance << std::endl;
-							//taken_care = true;
-						//}
-					}
-					else
+					if(!ProjectOntoSlope(r, &Vel))
 						Vel.x *= -Elasticity;
 							
 					//} else {

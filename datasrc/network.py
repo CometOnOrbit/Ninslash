@@ -353,6 +353,7 @@ Objects = [
 		NetIntAny("m_Y"),
 		NetIntAny("m_VelX"),
 		NetIntAny("m_VelY"),
+		NetIntRange("m_MoveSpeedMultiplier", 10, 300),
 		NetIntAny("m_Movement1"),
 		
 		NetIntRange("m_Health", 0, 100),

@@ -26,6 +26,12 @@ int main()
 	assert(PlatformConnectionAuthPolicy(2, true, false, false) == 2); // Official dedicated server.
 	assert(PlatformConnectionAuthPolicy(2, false, true, false) == 0); // Listen-server host over loopback.
 	assert(PlatformConnectionAuthPolicy(0, false, true, true) == 2); // Remote Relay peer.
+	assert(!PlatformClientUsesSteamIdentity(0, false, true, true));
+	assert(!PlatformClientUsesSteamIdentity(1, false, true, true)); // Optional auth never blocks loopback.
+	assert(PlatformClientUsesSteamIdentity(2, false, true, true));
+	assert(PlatformClientUsesSteamIdentity(1, false, false, true));
+	assert(PlatformClientUsesSteamIdentity(1, true, true, true));
+	assert(!PlatformClientUsesSteamIdentity(2, true, false, false));
 
 	assert(PlatformJoinDecision(PLATFORM_IDENTITY_ANONYMOUS, 0, false, PLATFORM_AUTH_UNAVAILABLE) == PLATFORM_JOIN_ANONYMOUS);
 	assert(PlatformJoinDecision(PLATFORM_IDENTITY_ANONYMOUS, 1, false, PLATFORM_AUTH_UNAVAILABLE) == PLATFORM_JOIN_ANONYMOUS);

@@ -227,6 +227,8 @@ public:
 	
 	vec2 m_FeetPos;
 	vec2 m_FeetRecoil, m_FeetRecoilVel;
+	vec2 m_LastPhysicsVelocity;
+	bool m_HaveLastPhysicsVelocity;
 	
 	vec2 m_WeaponRecoil, m_WeaponRecoilVel;
 	vec2 m_Weapon2Recoil, m_Weapon2RecoilVel;

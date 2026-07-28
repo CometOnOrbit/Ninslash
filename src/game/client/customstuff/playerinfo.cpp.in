@@ -146,8 +146,6 @@ void CPlayerInfo::Reset()
 	m_FeetPos = vec2(0, 0);
 	m_FeetRecoil = vec2(0, 0);
 	m_FeetRecoilVel = vec2(0, 0);
-	m_LastPhysicsVelocity = vec2(0, 0);
-	m_HaveLastPhysicsVelocity = false;
 	
 	m_BodyTilt = 0;
 	
@@ -464,18 +462,6 @@ bool CPlayerInfo::BackHook()
 
 void CPlayerInfo::PhysicsTick(vec2 PlayerVel, vec2 PrevVel)
 {
-	if(!m_HaveLastPhysicsVelocity)
-	{
-		m_LastPhysicsVelocity = PrevVel;
-		m_HaveLastPhysicsVelocity = true;
-	}
-	vec2 VelocityDelta = PlayerVel - m_LastPhysicsVelocity;
-	m_LastPhysicsVelocity = PlayerVel;
-	// Snapshot velocity is stored at 1/256 units. Limit only the visual
-	// impulse so extreme landings cannot throw the skeleton across the player.
-	VelocityDelta.x = clamp(VelocityDelta.x, -4096.0f, 4096.0f);
-	VelocityDelta.y = clamp(VelocityDelta.y, -6144.0f, 6144.0f);
-
 	// weapon charge
 	if (m_Charge > 0)
 		m_ChargeAngle += 0.1f;
@@ -538,8 +524,8 @@ void CPlayerInfo::PhysicsTick(vec2 PlayerVel, vec2 PrevVel)
 		}
 		
 		m_Hand[i].m_Vel *= 0.9f;
-		m_Hand[i].m_Vel.x -= ((VelocityDelta.x/2000)*(VelocityDelta.x/2000))/2.0f;
-		m_Hand[i].m_Vel.y += ((VelocityDelta.y/2000)*(VelocityDelta.y/2000))/2.0f;
+		m_Hand[i].m_Vel.x -= (((PrevVel.x-PlayerVel.x)/2000)*((PrevVel.x-PlayerVel.x)/2000))/2.0f;
+		m_Hand[i].m_Vel.y += (((PrevVel.y-PlayerVel.y)/2000)*((PrevVel.y-PlayerVel.y)/2000))/2.0f;
 		m_Hand[i].m_Vel += (-m_Hand[i].m_Offset)/14.0f;
 		
 		if ((!m_Hang || i == HAND_WEAPON) && length(m_Hand[i].m_Vel) > 3.0f)
@@ -637,18 +623,17 @@ void CPlayerInfo::PhysicsTick(vec2 PlayerVel, vec2 PrevVel)
 	
 	if (Anim != PANIM_SLIDE && Anim != PANIM_SLIDEDOWN && Anim != PANIM_SLIDEUP && Anim != PANIM_SLIDEKICK)
 	{
-		const float VisualVelocityX = clamp(PlayerVel.x, -4800.0f, 4800.0f);
 		if (Animation()->m_Flip)
 		{
-			Animation()->m_BodyTilt = -VisualVelocityX*0.000075f;
-			Animation()->m_HeadTiltCorrect = +VisualVelocityX*0.000035f;
+			Animation()->m_BodyTilt = -PlayerVel.x*0.000075f;
+			Animation()->m_HeadTiltCorrect = +PlayerVel.x*0.000035f;
 		}
 		else
 		{
-			Animation()->m_BodyTilt = VisualVelocityX*0.000075f;
-			Animation()->m_HeadTiltCorrect = -VisualVelocityX*0.000035f;
+			Animation()->m_BodyTilt = PlayerVel.x*0.000075f;
+			Animation()->m_HeadTiltCorrect = -PlayerVel.x*0.000035f;
 		}
-	}
+}
 	
 	// flame motion, adjust the angle a bit
 	m_aFlameAngle[0] = m_Angle + (m_Angle < pi/2 ? 0.05f : -0.05f);
@@ -664,7 +649,8 @@ void CPlayerInfo::PhysicsTick(vec2 PlayerVel, vec2 PrevVel)
 			
 	m_WeaponRecoil += m_WeaponRecoilVel;
 	
-	m_Weapon2RecoilVel -= VelocityDelta/2000.0f;
+	m_Weapon2RecoilVel.x -= (PlayerVel.x-PrevVel.x)/2000.0f;
+	m_Weapon2RecoilVel.y -= (PlayerVel.y-PrevVel.y)/2000.0f;
 		
 	m_Weapon2RecoilVel.x -= m_Weapon2Recoil.x / 16.0f;
 	m_Weapon2RecoilVel.y -= m_Weapon2Recoil.y / 16.0f;
@@ -682,12 +668,9 @@ void CPlayerInfo::PhysicsTick(vec2 PlayerVel, vec2 PrevVel)
 	m_FeetRecoilVel -= m_FeetRecoil / 14.0f;
 	m_FeetRecoilVel *= 0.95f;
 	
-	m_FeetRecoilVel += VelocityDelta/1200.0f;
-	if(length(m_FeetRecoilVel) > 6.0f)
-		m_FeetRecoilVel = normalize(m_FeetRecoilVel) * 6.0f;
 	m_FeetRecoil += m_FeetRecoilVel;
-	if(length(m_FeetRecoil) > 18.0f)
-		m_FeetRecoil = normalize(m_FeetRecoil) * 18.0f;
+	
+	m_FeetRecoilVel += (PlayerVel-PrevVel)/1200.0f;
 	
 	//Animation()->m_FeetDir = vec2(m_FeetRecoil.y, m_FeetRecoil.x);
 	Animation()->m_FeetDir = m_FeetRecoil;

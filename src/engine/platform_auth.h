@@ -47,6 +47,15 @@ inline int PlatformConnectionAuthPolicy(int ConfiguredPolicy, bool Official, boo
 	return PlatformEffectiveAuthPolicy(ConfiguredPolicy, Official, Relay);
 }
 
+inline bool PlatformClientUsesSteamIdentity(int AuthPolicy, bool RelayRequired, bool Loopback, bool SteamAvailable)
+{
+	if(!SteamAvailable || AuthPolicy <= 0)
+		return false;
+	// Optional authentication must never make a local connection depend on a
+	// Steam GameServer callback. Required and Relay connections still use Steam.
+	return !Loopback || AuthPolicy >= 2 || RelayRequired;
+}
+
 inline EPlatformJoinDecision PlatformJoinDecision(int IdentityKind, int AuthPolicy, bool Relay, EPlatformAuthResult AuthResult)
 {
 	if(IdentityKind == PLATFORM_IDENTITY_ANONYMOUS)

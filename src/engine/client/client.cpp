@@ -79,6 +79,20 @@ bool IsSafePlatformJoinAddress(const char *pAddress)
 	}
 	return true;
 }
+
+bool IsLoopbackAddress(const NETADDR &Address)
+{
+	if((Address.type & NETTYPE_IPV4) && Address.ip[0] == 127)
+		return true;
+	if(Address.type & NETTYPE_IPV6)
+	{
+		for(int i = 0; i < 15; i++)
+			if(Address.ip[i] != 0)
+				return false;
+		return Address.ip[15] == 1;
+	}
+	return false;
+}
 }
 
 void CGraph::Init(float Min, float Max)
@@ -407,7 +421,8 @@ void CClient::SendInfo()
 
 void CClient::SendPlatformAuth(int Policy, bool RelayRequired)
 {
-	const bool UseSteamIdentity = Policy > 0 && m_pPlatformServices && m_pPlatformServices->Available() && m_pPlatformServices->LocalUserID() != 0;
+	const bool SteamAvailable = m_pPlatformServices && m_pPlatformServices->Available() && m_pPlatformServices->LocalUserID() != 0;
+	const bool UseSteamIdentity = PlatformClientUsesSteamIdentity(Policy, RelayRequired, IsLoopbackAddress(m_ServerAddress), SteamAvailable);
 	unsigned char aTicket[2048];
 	int TicketSize = UseSteamIdentity ? m_pPlatformServices->GetAuthSessionTicket(aTicket, sizeof(aTicket)) : 0;
 	if(TicketSize < 0)

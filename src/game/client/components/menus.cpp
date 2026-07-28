@@ -2045,7 +2045,9 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	apArguments[NumArguments++] = Settings.m_pConfig;
 	apArguments[NumArguments++] = "sv_register 0";
 	apArguments[NumArguments++] = "sv_register_steam 0";
-	apArguments[NumArguments++] = "sv_steam_auth 1";
+	// This managed process is a local/LAN game. Steam Relay rooms use the
+	// in-process listen server and enforce Steam identity on remote peers there.
+	apArguments[NumArguments++] = "sv_steam_auth 0";
 	if(!Settings.m_Lan)
 		apArguments[NumArguments++] = "bindaddr 127.0.0.1";
 	apArguments[NumArguments++] = aPort;

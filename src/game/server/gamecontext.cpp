@@ -1643,9 +1643,12 @@ void CGameContext::AbortVoteKickOnDisconnect(int ClientID)
 		m_VoteCloseTime = -1;
 }
 
-
+// Not for now.
 void CGameContext::CheckPureTuning()
 {
+	return;
+
+	/*
 	// might not be created yet during start up
 	if(!m_pController)
 		return;
@@ -1670,7 +1673,7 @@ void CGameContext::CheckPureTuning()
 			Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "resetting tuning due to pure server");
 			m_Tuning = p;
 		}
-	}
+	}*/
 }
 
 void CGameContext::SendTuningParams(int ClientID)
