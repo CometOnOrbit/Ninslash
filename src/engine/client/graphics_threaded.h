@@ -539,7 +539,7 @@ public:
 	virtual void Shutdown();
 
 	virtual unsigned TakeScreenshot(const char *pFilename);
-	virtual bool ConsumeScreenshotResult(CScreenshotResult *pResult);
+	virtual bool ConsumeScreenshotResult(CScreenshotResult *pResult, unsigned RequestID = 0);
 	virtual void Swap();
 
 	virtual int GetVideoModes(CVideoMode *pModes, int MaxModes, int screen);

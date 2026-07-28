@@ -1129,11 +1129,20 @@ unsigned CGraphics_Threaded::TakeScreenshot(const char *pFilename)
 	return RequestID;
 }
 
-bool CGraphics_Threaded::ConsumeScreenshotResult(CScreenshotResult *pResult)
+bool CGraphics_Threaded::ConsumeScreenshotResult(CScreenshotResult *pResult, unsigned RequestID)
 {
 	if(!pResult || m_ScreenshotResultCount <= 0) return false;
-	*pResult = m_aScreenshotResults[0];
-	for(int i = 1; i < m_ScreenshotResultCount; i++)
+	int ResultIndex = 0;
+	if(RequestID)
+	{
+		for(; ResultIndex < m_ScreenshotResultCount; ResultIndex++)
+			if(m_aScreenshotResults[ResultIndex].m_RequestID == RequestID)
+				break;
+		if(ResultIndex == m_ScreenshotResultCount)
+			return false;
+	}
+	*pResult = m_aScreenshotResults[ResultIndex];
+	for(int i = ResultIndex + 1; i < m_ScreenshotResultCount; i++)
 		m_aScreenshotResults[i - 1] = m_aScreenshotResults[i];
 	m_ScreenshotResultCount--;
 	return true;

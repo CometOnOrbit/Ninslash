@@ -2134,23 +2134,19 @@ void CClient::Run()
 		if(m_pPlatformServices)
 		{
 			m_pPlatformServices->RunCallbacks();
-			IGraphics::CScreenshotResult Screenshot;
-			if(Graphics()->ConsumeScreenshotResult(&Screenshot))
+			for(int i = 0; i < m_PendingScreenshotContextCount;)
 			{
-				CPlatformScreenshotContext Context;
-				bool Matched = false;
-				for(int i = 0; i < m_PendingScreenshotContextCount; i++)
+				IGraphics::CScreenshotResult Screenshot;
+				const CPlatformScreenshotContext Context = m_aPendingScreenshotContexts[i];
+				if(!Graphics()->ConsumeScreenshotResult(&Screenshot, Context.m_RequestID))
 				{
-					if(m_aPendingScreenshotContexts[i].m_RequestID != Screenshot.m_RequestID)
-						continue;
-					Context = m_aPendingScreenshotContexts[i];
-					for(int j = i + 1; j < m_PendingScreenshotContextCount; j++)
-						m_aPendingScreenshotContexts[j - 1] = m_aPendingScreenshotContexts[j];
-					m_PendingScreenshotContextCount--;
-					Matched = true;
-					break;
+					i++;
+					continue;
 				}
-				if(Matched && Screenshot.m_Success && Context.m_SyncToSteam && !m_pPlatformServices->RegisterScreenshot(Screenshot.m_aAbsolutePath, Screenshot.m_Width, Screenshot.m_Height, Context))
+				for(int j = i + 1; j < m_PendingScreenshotContextCount; j++)
+					m_aPendingScreenshotContexts[j - 1] = m_aPendingScreenshotContexts[j];
+				m_PendingScreenshotContextCount--;
+				if(Screenshot.m_Success && Context.m_SyncToSteam && !m_pPlatformServices->RegisterScreenshot(Screenshot.m_aAbsolutePath, Screenshot.m_Width, Screenshot.m_Height, Context))
 					m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Screenshot saved locally; Steam library registration was unavailable");
 			}
 			CPlatformPartyLaunch PartyLaunch;
@@ -2342,6 +2338,11 @@ void CClient::Run()
 					}
 					if(m_Video.IsRecording())
 						VideoRecordFrame();
+					// All request owners have now had a chance to consume results
+					// from the previous swap. Discard completions for local-only
+					// screenshots so the bounded result queue cannot fill up.
+					IGraphics::CScreenshotResult UnclaimedScreenshot;
+					while(Graphics()->ConsumeScreenshotResult(&UnclaimedScreenshot)) {}
 					m_pGraphics->Swap();
 				}
 			}

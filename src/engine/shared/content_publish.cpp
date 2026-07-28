@@ -6,7 +6,7 @@
 namespace
 {
 bool Fail(char *pError,int ErrorSize,const char *pText){if(pError&&ErrorSize>0)str_copy(pError,pText,ErrorSize);return false;}
-bool SafeText(const char *pText,int Max){if(!pText||str_length(pText)>=Max)return false;for(int i=0;pText[i];i++)if((unsigned char)pText[i]<32||pText[i]=='"'||pText[i]=='\\')return false;return true;}
+bool SafeText(const char *pText,int Max){if(!pText||!pText[0]||str_length(pText)>=Max)return false;for(int i=0;pText[i];i++)if((unsigned char)pText[i]<32||pText[i]=='"'||pText[i]=='\\')return false;return true;}
 bool Copy(const char *pSource,const char *pTarget){if(fs_is_symlink(pSource))return false;IOHANDLE Source=io_open(pSource,IOFLAG_READ);if(!Source)return false;IOHANDLE Target=io_open(pTarget,IOFLAG_WRITE);if(!Target){io_close(Source);return false;}unsigned char aBuf[16384];bool Ok=true;for(;;){unsigned Read=io_read(Source,aBuf,sizeof(aBuf));if(!Read)break;if(io_write(Target,aBuf,Read)!=Read){Ok=false;break;}}io_close(Source);io_close(Target);return Ok;}
 bool WriteManifest(const char *pPath,const char *pTemplate,const char *pHash){char aJson[4096];str_format(aJson,sizeof(aJson),pTemplate,pHash);IOHANDLE File=io_open(pPath,IOFLAG_WRITE);if(!File)return false;const unsigned Size=str_length(aJson);const bool Ok=io_write(File,aJson,Size)==Size;io_close(File);return Ok;}
 }

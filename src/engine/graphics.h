@@ -218,7 +218,8 @@ public:
 	};
 	// Returns a monotonically increasing request ID. Completion is consumed once.
 	virtual unsigned TakeScreenshot(const char *pFilename) = 0;
-	virtual bool ConsumeScreenshotResult(CScreenshotResult *pResult) = 0;
+	// RequestID 0 consumes the oldest result; otherwise only the matching result.
+	virtual bool ConsumeScreenshotResult(CScreenshotResult *pResult, unsigned RequestID = 0) = 0;
 	// Fills pImage with RGB data (caller must mem_free pImage->m_pData). Returns false on failure.
 	virtual bool CaptureFrame(CImageInfo *pImage) = 0;
 	virtual int GetVideoModes(CVideoMode *pModes, int MaxModes, int screen) = 0;

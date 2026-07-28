@@ -1567,7 +1567,13 @@ public:
 	}
 	virtual bool CreateWorkshopItem()
 	{
-		if(!m_Initialized || !SteamUGC() || m_WorkshopPublish.m_Active) return false;
+		if(m_WorkshopPublish.m_Active) return false;
+		if(!m_Initialized || !SteamUGC())
+		{
+			mem_zero(&m_WorkshopPublish, sizeof(m_WorkshopPublish));
+			str_copy(m_WorkshopPublish.m_aStatus, "Steam UGC interface is unavailable", sizeof(m_WorkshopPublish.m_aStatus));
+			return false;
+		}
 		mem_zero(&m_WorkshopPublish,sizeof(m_WorkshopPublish)); m_WorkshopPublish.m_Active=true;
 		str_copy(m_WorkshopPublish.m_aStatus,"creating Workshop item",sizeof(m_WorkshopPublish.m_aStatus));
 		const SteamAPICall_t Call=SteamUGC()->CreateItem((AppId_t)STEAM_APP_ID,k_EWorkshopFileTypeCommunity);
@@ -1580,15 +1586,15 @@ public:
 		char aID[32],aError[256];str_format(aID,sizeof(aID),"%llu",ID);CContentManifest Manifest;
 		if(!ContentPackageValidate(pContentRoot,aID,GAME_NETVERSION,&Manifest,aError,sizeof(aError))){mem_zero(&m_WorkshopPublish,sizeof(m_WorkshopPublish));str_copy(m_WorkshopPublish.m_aStatus,aError,sizeof(m_WorkshopPublish.m_aStatus));return false;}
 		m_WorkshopUpdateHandle=SteamUGC()->StartItemUpdate((AppId_t)STEAM_APP_ID,(PublishedFileId_t)ID);
-		if(m_WorkshopUpdateHandle==k_UGCUpdateHandleInvalid)return false;
+		if(m_WorkshopUpdateHandle==k_UGCUpdateHandleInvalid){str_copy(m_WorkshopPublish.m_aStatus,"Steam rejected StartItemUpdate",sizeof(m_WorkshopPublish.m_aStatus));return false;}
 		char aMetadata[384];str_format(aMetadata,sizeof(aMetadata),"schema=1;type=%s;version=%s;protocol=%s;hash=%s;rating=%s",ContentTypeName(Manifest.m_ContentType),Manifest.m_aVersion,Manifest.m_aTargetProtocol,Manifest.m_aContentHash,Manifest.m_aContentRating);
 		bool Ok=SteamUGC()->SetItemTitle(m_WorkshopUpdateHandle,Manifest.m_aName)&&SteamUGC()->SetItemDescription(m_WorkshopUpdateHandle,Manifest.m_aDescription)&&SteamUGC()->SetItemMetadata(m_WorkshopUpdateHandle,aMetadata)&&SteamUGC()->SetItemContent(m_WorkshopUpdateHandle,pContentRoot);
 		if(Ok&&pPreviewFile&&pPreviewFile[0])Ok=SteamUGC()->SetItemPreview(m_WorkshopUpdateHandle,pPreviewFile);
 		const char *apTags[8];uint32 TagCount=0; static const char *s_apTypeTags[] = {"Mods", "Maps", "Room Presets", "Challenges"}; apTags[TagCount++]=s_apTypeTags[Manifest.m_ContentType]; if(Manifest.m_ContentType==CONTENT_TYPE_MOD&&Manifest.m_Api.m_Capabilities&MOD_CAPABILITY_GAMEPLAY_RULES)apTags[TagCount++]="Gameplay";if(Manifest.m_ContentType==CONTENT_TYPE_MOD&&Manifest.m_Api.m_Capabilities&MOD_CAPABILITY_WEAPONS)apTags[TagCount++]="Weapons";if(Manifest.m_ContentType==CONTENT_TYPE_MOD&&Manifest.m_Api.m_Capabilities&MOD_CAPABILITY_ITEMS)apTags[TagCount++]="Items";if(Manifest.m_Api.m_Capabilities&MOD_CAPABILITY_RESOURCES)apTags[TagCount++]="Resources";apTags[TagCount++]=Manifest.m_aContentRating;
 		SteamParamStringArray_t Tags={apTags,(int32)TagCount};if(Ok&&TagCount)Ok=SteamUGC()->SetItemTags(m_WorkshopUpdateHandle,&Tags,false);
-		if(!Ok){m_WorkshopUpdateHandle=k_UGCUpdateHandleInvalid;return false;}
+		if(!Ok){m_WorkshopUpdateHandle=k_UGCUpdateHandleInvalid;str_copy(m_WorkshopPublish.m_aStatus,"Steam rejected Workshop item metadata, content, preview, or tags",sizeof(m_WorkshopPublish.m_aStatus));return false;}
 		mem_zero(&m_WorkshopPublish,sizeof(m_WorkshopPublish));m_WorkshopPublish.m_Active=true;m_WorkshopPublish.m_PublishedFileID=ID;str_copy(m_WorkshopPublish.m_aStatus,"submitting Workshop update",sizeof(m_WorkshopPublish.m_aStatus));
-		const SteamAPICall_t Call=SteamUGC()->SubmitItemUpdate(m_WorkshopUpdateHandle,"Ninslash content update");if(Call==k_uAPICallInvalid){m_WorkshopPublish.m_Active=false;return false;}m_WorkshopSubmittedCall.Set(Call,this,&CSteamPlatformServices::OnWorkshopSubmitted);return true;
+		const SteamAPICall_t Call=SteamUGC()->SubmitItemUpdate(m_WorkshopUpdateHandle,"Ninslash content update");if(Call==k_uAPICallInvalid){m_WorkshopPublish.m_Active=false;m_WorkshopUpdateHandle=k_UGCUpdateHandleInvalid;str_copy(m_WorkshopPublish.m_aStatus,"Steam rejected SubmitItemUpdate",sizeof(m_WorkshopPublish.m_aStatus));return false;}m_WorkshopSubmittedCall.Set(Call,this,&CSteamPlatformServices::OnWorkshopSubmitted);return true;
 	}
 	virtual void WorkshopPublishStatus(CPlatformWorkshopPublishStatus *pStatus) const
 	{
@@ -1912,7 +1918,15 @@ void CSteamPlatformServices::OnLobbyList(LobbyMatchList_t *pResult, bool IOError
 void CSteamPlatformServices::OnWorkshopCreated(CreateItemResult_t *pResult, bool IOError)
 {
 	m_WorkshopPublish.m_Active=false;
-	if(IOError||!pResult||pResult->m_eResult!=k_EResultOK){str_copy(m_WorkshopPublish.m_aStatus,"Workshop item creation failed",sizeof(m_WorkshopPublish.m_aStatus));return;}
+	if(IOError||!pResult){str_copy(m_WorkshopPublish.m_aStatus,"Workshop item creation failed due to a Steam I/O error",sizeof(m_WorkshopPublish.m_aStatus));return;}
+	if(pResult->m_eResult!=k_EResultOK)
+	{
+		if(pResult->m_eResult==k_EResultBusy)
+			str_copy(m_WorkshopPublish.m_aStatus,"Steam Workshop is busy; wait a moment and retry",sizeof(m_WorkshopPublish.m_aStatus));
+		else
+			str_format(m_WorkshopPublish.m_aStatus,sizeof(m_WorkshopPublish.m_aStatus),"Workshop item creation failed (Steam result %d)",(int)pResult->m_eResult);
+		return;
+	}
 	m_WorkshopPublish.m_PublishedFileID=pResult->m_nPublishedFileId;m_WorkshopPublish.m_NeedsLegalAgreement=pResult->m_bUserNeedsToAcceptWorkshopLegalAgreement;
 	str_copy(m_WorkshopPublish.m_aStatus,pResult->m_bUserNeedsToAcceptWorkshopLegalAgreement?"item created; accept the Workshop legal agreement, then add this ID to ninslash_content.json":"item created; add this ID to ninslash_content.json before publishing content",sizeof(m_WorkshopPublish.m_aStatus));
 }
@@ -1920,7 +1934,15 @@ void CSteamPlatformServices::OnWorkshopCreated(CreateItemResult_t *pResult, bool
 void CSteamPlatformServices::OnWorkshopSubmitted(SubmitItemUpdateResult_t *pResult, bool IOError)
 {
 	m_WorkshopPublish.m_Active=false;m_WorkshopUpdateHandle=k_UGCUpdateHandleInvalid;
-	if(IOError||!pResult||pResult->m_eResult!=k_EResultOK){str_copy(m_WorkshopPublish.m_aStatus,"Workshop update failed",sizeof(m_WorkshopPublish.m_aStatus));return;}
+	if(IOError||!pResult){str_copy(m_WorkshopPublish.m_aStatus,"Workshop update failed due to a Steam I/O error",sizeof(m_WorkshopPublish.m_aStatus));return;}
+	if(pResult->m_eResult!=k_EResultOK)
+	{
+		if(pResult->m_eResult==k_EResultInvalidParam)
+			str_copy(m_WorkshopPublish.m_aStatus,"Workshop upload rejected: publish Steam Cloud quotas and enable ISteamUGC file transfer in Steamworks (InvalidParam)",sizeof(m_WorkshopPublish.m_aStatus));
+		else
+			str_format(m_WorkshopPublish.m_aStatus,sizeof(m_WorkshopPublish.m_aStatus),"Workshop update failed (Steam result %d)",(int)pResult->m_eResult);
+		return;
+	}
 	m_WorkshopPublish.m_PublishedFileID=pResult->m_nPublishedFileId;m_WorkshopPublish.m_NeedsLegalAgreement=pResult->m_bUserNeedsToAcceptWorkshopLegalAgreement;
 	str_copy(m_WorkshopPublish.m_aStatus,pResult->m_bUserNeedsToAcceptWorkshopLegalAgreement?"update submitted; Workshop legal agreement acceptance required":"Workshop update published",sizeof(m_WorkshopPublish.m_aStatus));RefreshWorkshopItems();
 }
