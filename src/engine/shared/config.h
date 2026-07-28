@@ -22,6 +22,8 @@ enum
 	CFGFLAG_STORE=8,
 	CFGFLAG_MASTER=16,
 	CFGFLAG_ECON=32,
+	// Portable, non-secret preferences that may be copied to Steam Cloud.
+	CFGFLAG_CLOUD=64,
 };
 
 #endif

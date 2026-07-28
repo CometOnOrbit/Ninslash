@@ -423,6 +423,8 @@ void CClient::SendPlatformAuth(int Policy, bool RelayRequired)
 {
 	const bool SteamAvailable = m_pPlatformServices && m_pPlatformServices->Available() && m_pPlatformServices->LocalUserID() != 0;
 	const bool UseSteamIdentity = PlatformClientUsesSteamIdentity(Policy, RelayRequired, IsLoopbackAddress(m_ServerAddress), SteamAvailable);
+	if(!UseSteamIdentity && m_pPlatformServices)
+		m_pPlatformServices->CancelAuthSessionTicket();
 	unsigned char aTicket[2048];
 	int TicketSize = UseSteamIdentity ? m_pPlatformServices->GetAuthSessionTicket(aTicket, sizeof(aTicket)) : 0;
 	if(TicketSize < 0)

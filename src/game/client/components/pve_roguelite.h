@@ -131,6 +131,8 @@ class CPveRoguelite : public CComponent
 
 public:
 	void SendTutorialAction(int Action, int Value = 0);
+	void ReloadPersistentProgress() { LoadProgress(); }
+	void FlushPersistentProgress() { SaveProgress(); }
 	CPveRoguelite();
 	virtual void OnReset();
 	virtual void OnConsoleInit();

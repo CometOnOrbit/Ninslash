@@ -32,6 +32,10 @@ int main()
 	assert(PlatformClientUsesSteamIdentity(1, false, false, true));
 	assert(PlatformClientUsesSteamIdentity(1, true, true, true));
 	assert(!PlatformClientUsesSteamIdentity(2, true, false, false));
+	assert(PlatformAuthTimeoutAllowsAnonymous(0, false));
+	assert(PlatformAuthTimeoutAllowsAnonymous(1, false));
+	assert(!PlatformAuthTimeoutAllowsAnonymous(2, false));
+	assert(!PlatformAuthTimeoutAllowsAnonymous(0, true));
 
 	assert(PlatformJoinDecision(PLATFORM_IDENTITY_ANONYMOUS, 0, false, PLATFORM_AUTH_UNAVAILABLE) == PLATFORM_JOIN_ANONYMOUS);
 	assert(PlatformJoinDecision(PLATFORM_IDENTITY_ANONYMOUS, 1, false, PLATFORM_AUTH_UNAVAILABLE) == PLATFORM_JOIN_ANONYMOUS);

@@ -14,6 +14,7 @@
 
 #include <game/voting.h>
 #include <game/client/component.h>
+#include <game/client/cloud_profile.h>
 #include <game/client/ui.h>
 #include <game/client/ui_scrollregion.h>
 
@@ -198,6 +199,7 @@ class CMenus : public CComponent
 		POPUP_SLICE_DEMO,
 		POPUP_RENDER_DEMO,
 		POPUP_TUTORIAL_EXIT,
+		POPUP_CLOUD_CONFLICT,
 	};
 
 	enum
@@ -233,6 +235,24 @@ class CMenus : public CComponent
 
 	int m_GamePage;
 	int m_Popup;
+	bool m_CloudInitialized;
+	bool m_CloudConflict;
+	bool m_CloudPaused;
+	bool m_CloudDirty;
+	int64 m_CloudNextCheck;
+	int m_CloudRevision;
+	unsigned long long m_CloudSyncedHash;
+	CCloudProfileSummary m_CloudLocalSummary;
+	CCloudProfileSummary m_CloudRemoteSummary;
+	char m_aCloudLocalProfile[64 * 1024];
+	char m_aCloudRemoteProfile[64 * 1024];
+	char m_aCloudStatus[192];
+	void InitCloudProfile();
+	void PumpCloudProfile(bool Force);
+	bool UploadCloudProfile();
+	void ResolveCloudConflict(bool UseRemote);
+	void SaveCloudSyncState(unsigned long long Hash, int Revision);
+	void BackupCloudProfile(const char *pData, const char *pSuffix);
 	int m_ActivePage;
 	int m_NavigationFocus;
 	int m_LastInputDevice;
@@ -494,6 +514,7 @@ class CMenus : public CComponent
 	void RenderSettingsControls(CUIRect MainView);
 	void RenderSettingsGraphics(CUIRect MainView);
 	void RenderSettingsSound(CUIRect MainView);
+	void RenderSettingsCloud(CUIRect MainView);
 	void RenderSettingsGamepad(CUIRect MainView);
 	void RenderSettingsCustom(CUIRect MainView);
 	void RenderSettings(CUIRect MainView);

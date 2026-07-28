@@ -91,6 +91,16 @@ struct CPlatformOperationStatus
 	char m_aErrorKey[128];
 };
 
+struct CPlatformCloudStatus
+{
+	bool m_Available;
+	bool m_AccountEnabled;
+	bool m_AppEnabled;
+	unsigned long long m_BytesTotal;
+	unsigned long long m_BytesAvailable;
+	char m_aError[128];
+};
+
 enum EPlatformLobbyVisibility
 {
 	PLATFORM_LOBBY_INVITE_ONLY,
@@ -120,6 +130,11 @@ public:
 	virtual void SetRichPresence(const char *pStatus, const char *pConnect) = 0;
 	virtual bool ConsumeJoinRequest(char *pBuffer, int BufferSize) = 0;
 	virtual bool ConsumeJoinFailure(char *pBuffer, int BufferSize) = 0;
+	virtual void CloudStatus(CPlatformCloudStatus *pStatus) const = 0;
+	virtual int CloudFileSize(const char *pFilename) const = 0;
+	virtual long long CloudFileTimestamp(const char *pFilename) const = 0;
+	virtual int CloudReadFile(const char *pFilename, void *pBuffer, int BufferSize) = 0;
+	virtual bool CloudWriteFile(const char *pFilename, const void *pBuffer, int BufferSize) = 0;
 
 	// All methods below are asynchronous on Steam. They report whether the
 	// request was accepted locally; completion arrives through RunCallbacks.

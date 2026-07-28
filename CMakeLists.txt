@@ -705,6 +705,20 @@ if(NINSLASH_BUILD_TESTS)
   add_executable(ninslash_test_platform_auth_policy tests/platform_auth_policy.cpp)
   target_include_directories(ninslash_test_platform_auth_policy PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   add_test(NAME platform_auth_policy COMMAND ninslash_test_platform_auth_policy)
+  add_executable(ninslash_test_cloud_profile_policy tests/cloud_profile_policy.cpp)
+  target_include_directories(ninslash_test_cloud_profile_policy PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME cloud_profile_policy COMMAND ninslash_test_cloud_profile_policy)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_cloud_profile_policy)
+  add_executable(ninslash_test_cloud_profile_storage
+    tests/cloud_profile_storage.cpp
+    src/game/client/cloud_profile.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_cloud_profile_storage PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_cloud_profile_storage ${LIBS})
+  add_test(NAME cloud_profile_storage COMMAND ninslash_test_cloud_profile_storage)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_cloud_profile_storage)
 
   add_executable(ninslash_test_room_creation tests/room_creation.cpp)
   target_include_directories(ninslash_test_room_creation PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
@@ -901,6 +915,8 @@ if(CLIENT)
     components/players.h
     components/pve_roguelite.cpp
     components/pve_roguelite.h
+    cloud_profile.cpp
+    cloud_profile.h
     pve_progress_storage.cpp
     pve_progress_storage.h
     local_game_modes.h

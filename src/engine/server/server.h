@@ -175,6 +175,7 @@ public:
 		bool m_PlatformAuthPending;
 		bool m_PlatformAuthSession;
 		bool m_PlatformAuthRequested;
+		int m_PlatformAuthPolicy;
 		int m_PlatformIdentityKind;
 		int64 m_PlatformAuthStartTime;
 		bool m_InfoReceived;

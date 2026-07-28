@@ -3958,3 +3958,36 @@ Steam room service is busy. Wait a moment and retry.
 
 Steam could not start room creation. Restart Steam and retry.
 == Steam 無法啟動房間建立。請重新啟動 Steam 後重試。
+
+Steam Cloud
+== Steam 雲端存檔
+
+Steam
+== Steam
+
+Steam Cloud is unavailable
+== Steam 雲端存檔無法使用
+
+Steam Cloud conflict
+== Steam 雲端存檔衝突
+
+This device
+== 此裝置
+
+highest floor
+== 最高層
+
+Use this device
+== 使用此裝置
+
+Use Steam Cloud
+== 使用 Steam 雲端存檔
+
+Resolve conflict
+== 解決衝突
+
+Sync now
+== 立即同步
+
+Progress, appearance, portable preferences and custom key bindings are synchronized. Display, device and local network settings stay on this device.
+== 同步遊戲進度、角色外觀、可攜式偏好和自訂按鍵。顯示器、裝置及本機網路設定只保留在此裝置。

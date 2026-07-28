@@ -1185,6 +1185,7 @@ int CServer::NewClientCallback(int ClientID, void *pUser)
 	pThis->m_aClients[ClientID].m_PlatformAuthPending = false;
 	pThis->m_aClients[ClientID].m_PlatformAuthSession = false;
 	pThis->m_aClients[ClientID].m_PlatformAuthRequested = false;
+	pThis->m_aClients[ClientID].m_PlatformAuthPolicy = 0;
 	pThis->m_aClients[ClientID].m_PlatformIdentityKind = PLATFORM_IDENTITY_ANONYMOUS;
 	pThis->m_aClients[ClientID].m_PlatformAuthStartTime = 0;
 	pThis->m_aClients[ClientID].m_InfoReceived = false;
@@ -1221,6 +1222,7 @@ int CServer::DelClientCallback(int ClientID, const char *pReason, void *pUser)
 	pThis->m_aClients[ClientID].m_PlatformAuthPending = false;
 	pThis->m_aClients[ClientID].m_PlatformAuthSession = false;
 	pThis->m_aClients[ClientID].m_PlatformAuthRequested = false;
+	pThis->m_aClients[ClientID].m_PlatformAuthPolicy = 0;
 	pThis->m_aClients[ClientID].m_PlatformIdentityKind = PLATFORM_IDENTITY_ANONYMOUS;
 	pThis->m_aClients[ClientID].m_PlatformAuthStartTime = 0;
 	pThis->m_aClients[ClientID].m_InfoReceived = false;
@@ -1256,7 +1258,25 @@ void CServer::UpdatePlatformAuthentication()
 		if(Result == PLATFORM_AUTH_PENDING)
 		{
 			if(time_get() - Client.m_PlatformAuthStartTime > time_freq() * 30)
-				m_NetServer.Drop(ClientID, "Steam authentication timed out");
+			{
+				const bool Relay = m_pListenTransport && m_NetServer.ClientAddr(ClientID) && m_NetServer.ClientAddr(ClientID)->type == NETTYPE_STEAM;
+				if(PlatformAuthTimeoutAllowsAnonymous(Client.m_PlatformAuthPolicy, Relay))
+				{
+					m_pPlatformGameServer->EndAuthentication(Client.m_SteamID);
+					Client.m_SteamID = 0;
+					Client.m_PlatformAuthPending = false;
+					Client.m_PlatformAuthSession = false;
+					Client.m_PlatformIdentityKind = PLATFORM_IDENTITY_ANONYMOUS;
+					Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-auth", "optional Steam authentication timed out; accepting anonymous client");
+					CMsgPacker Reply(NETMSG_PLATFORM_AUTH_RESULT);
+					Reply.AddInt(0);
+					SendMsgEx(&Reply, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientID, true);
+					Client.m_State = CClient::STATE_CONNECTING;
+					SendMap(ClientID);
+				}
+				else
+					m_NetServer.Drop(ClientID, "Steam authentication timed out");
+			}
 			continue;
 		}
 
@@ -1397,6 +1417,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					if(AuthPolicy > 0 || g_Config.m_SvModHash[0])
 					{
 						m_aClients[ClientID].m_PlatformAuthRequested = true;
+						m_aClients[ClientID].m_PlatformAuthPolicy = AuthPolicy;
 						m_aClients[ClientID].m_PlatformAuthStartTime = time_get();
 						CMsgPacker Request(NETMSG_PLATFORM_AUTH_REQUEST);
 						Request.AddInt(AuthPolicy);

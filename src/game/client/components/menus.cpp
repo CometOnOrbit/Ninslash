@@ -1,6 +1,7 @@
 
 
 #include <math.h>
+#include <stdio.h>
 
 #include <base/system.h>
 #include <base/math.h>
@@ -153,8 +154,179 @@ CMenus::CMenus()
 	m_FilterPresetMenuOpen = false;
 	m_PlayDetailOpen = false;
 	m_PlayListHasFocus = false;
+	m_CloudInitialized = false;
+	m_CloudConflict = false;
+	m_CloudPaused = false;
+	m_CloudDirty = false;
+	m_CloudNextCheck = 0;
+	m_CloudRevision = 0;
+	m_CloudSyncedHash = 0;
+	mem_zero(&m_CloudLocalSummary, sizeof(m_CloudLocalSummary));
+	mem_zero(&m_CloudRemoteSummary, sizeof(m_CloudRemoteSummary));
+	m_aCloudLocalProfile[0] = 0;
+	m_aCloudRemoteProfile[0] = 0;
+	m_aCloudStatus[0] = 0;
 	str_copy(m_aFilterPresets[UI_FILTER_PRESET_ALL].m_aName, "All", sizeof(m_aFilterPresets[UI_FILTER_PRESET_ALL].m_aName));
 	str_copy(m_aFilterPresets[UI_FILTER_PRESET_FAVORITES].m_aName, "Favorites", sizeof(m_aFilterPresets[UI_FILTER_PRESET_FAVORITES].m_aName));
+}
+
+void CMenus::SaveCloudSyncState(unsigned long long Hash, int Revision)
+{
+	IOHANDLE File = Storage()->OpenFile("cloud_sync_state.tmp", IOFLAG_WRITE, IStorage::TYPE_SAVE);
+	if(!File) return;
+	char aState[96];
+	str_format(aState, sizeof(aState), "%016llx %d\n", Hash, Revision);
+	const int Length = str_length(aState);
+	const bool Written = io_write(File, aState, Length) == (unsigned)Length && io_flush(File) == 0;
+	io_close(File);
+	if(!Written) { Storage()->RemoveFile("cloud_sync_state.tmp", IStorage::TYPE_SAVE); return; }
+	Storage()->RemoveFile("cloud_sync_state.json", IStorage::TYPE_SAVE);
+	Storage()->RenameFile("cloud_sync_state.tmp", "cloud_sync_state.json", IStorage::TYPE_SAVE);
+	m_CloudSyncedHash = Hash;
+	m_CloudRevision = Revision;
+}
+
+void CMenus::BackupCloudProfile(const char *pData, const char *pSuffix)
+{
+	if(!pData || !pData[0]) return;
+	char aFilename[128];
+	str_format(aFilename, sizeof(aFilename), "cloud_profile_conflict_%s.json", pSuffix ? pSuffix : "backup");
+	IOHANDLE File = Storage()->OpenFile(aFilename, IOFLAG_WRITE, IStorage::TYPE_SAVE);
+	if(!File) return;
+	io_write(File, pData, str_length(pData));
+	io_flush(File);
+	io_close(File);
+}
+
+bool CMenus::UploadCloudProfile()
+{
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	CPlatformCloudStatus Status;
+	if(!pPlatform) return false;
+	pPlatform->CloudStatus(&Status);
+	if(!Status.m_Available || !Status.m_AccountEnabled || !Status.m_AppEnabled)
+	{
+		str_copy(m_aCloudStatus, Status.m_aError[0] ? Status.m_aError : "Steam Cloud is unavailable", sizeof(m_aCloudStatus));
+		return false;
+	}
+	const int Revision = max(m_CloudRevision, m_CloudRemoteSummary.m_Revision) + 1;
+	if(!CloudProfileBuild(m_pClient->m_pBinds, Revision, time_timestamp(), m_aCloudLocalProfile, sizeof(m_aCloudLocalProfile), &m_CloudLocalSummary))
+	{
+		str_copy(m_aCloudStatus, "Cloud profile is too large", sizeof(m_aCloudStatus));
+		return false;
+	}
+	if(!pPlatform->CloudWriteFile("steam_cloud_profile.json", m_aCloudLocalProfile, str_length(m_aCloudLocalProfile)))
+	{
+		str_copy(m_aCloudStatus, "Steam Cloud upload failed; local progress is safe", sizeof(m_aCloudStatus));
+		m_CloudDirty = true;
+		return false;
+	}
+	m_CloudRemoteSummary = m_CloudLocalSummary;
+	SaveCloudSyncState(m_CloudLocalSummary.m_ContentHash, Revision);
+	m_CloudDirty = false;
+	str_copy(m_aCloudStatus, "Steam Cloud is up to date", sizeof(m_aCloudStatus));
+	return true;
+}
+
+void CMenus::ResolveCloudConflict(bool UseRemote)
+{
+	if(!m_CloudConflict) return;
+	if(UseRemote)
+	{
+		BackupCloudProfile(m_aCloudLocalProfile, "local");
+		if(CloudProfileApply(m_aCloudRemoteProfile, str_length(m_aCloudRemoteProfile), m_pClient->m_pBinds, &m_CloudRemoteSummary) != CLOUD_PROFILE_OK)
+		{
+			str_copy(m_aCloudStatus, "Steam Cloud profile is invalid; local progress was kept", sizeof(m_aCloudStatus));
+			m_CloudPaused = true;
+		}
+		else
+		{
+			m_pClient->m_pPveRoguelite->FlushPersistentProgress();
+			SaveCloudSyncState(m_CloudRemoteSummary.m_ContentHash, m_CloudRemoteSummary.m_Revision);
+			str_copy(m_aCloudStatus, "Steam Cloud profile applied", sizeof(m_aCloudStatus));
+		}
+	}
+	else
+	{
+		BackupCloudProfile(m_aCloudRemoteProfile, "steam");
+		UploadCloudProfile();
+	}
+	m_CloudConflict = false;
+	m_Popup = POPUP_NONE;
+}
+
+void CMenus::InitCloudProfile()
+{
+	m_CloudInitialized = true;
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	CPlatformCloudStatus Status;
+	if(!pPlatform) return;
+	pPlatform->CloudStatus(&Status);
+	if(!Status.m_Available || !Status.m_AccountEnabled || !Status.m_AppEnabled)
+	{
+		str_copy(m_aCloudStatus, Status.m_aError, sizeof(m_aCloudStatus));
+		return;
+	}
+	IOHANDLE StateFile = Storage()->OpenFile("cloud_sync_state.json", IOFLAG_READ, IStorage::TYPE_SAVE);
+	if(StateFile)
+	{
+		char aState[96];
+		const int Read = io_read(StateFile, aState, sizeof(aState) - 1);
+		io_close(StateFile);
+		aState[clamp(Read, 0, (int)sizeof(aState) - 1)] = 0;
+		sscanf(aState, "%llx %d", &m_CloudSyncedHash, &m_CloudRevision);
+	}
+	CloudProfileBuild(m_pClient->m_pBinds, m_CloudRevision, time_timestamp(), m_aCloudLocalProfile, sizeof(m_aCloudLocalProfile), &m_CloudLocalSummary);
+	const int RemoteSize = pPlatform->CloudFileSize("steam_cloud_profile.json");
+	if(RemoteSize <= 0) { UploadCloudProfile(); return; }
+	if(RemoteSize >= (int)sizeof(m_aCloudRemoteProfile) || pPlatform->CloudReadFile("steam_cloud_profile.json", m_aCloudRemoteProfile, sizeof(m_aCloudRemoteProfile) - 1) != RemoteSize)
+	{
+		str_copy(m_aCloudStatus, "Steam Cloud download failed; local progress was kept", sizeof(m_aCloudStatus));
+		m_CloudPaused = true;
+		return;
+	}
+	m_aCloudRemoteProfile[RemoteSize] = 0;
+	const ECloudProfileReadResult RemoteResult = CloudProfileInspect(m_aCloudRemoteProfile, RemoteSize, &m_CloudRemoteSummary);
+	if(RemoteResult != CLOUD_PROFILE_OK)
+	{
+		str_copy(m_aCloudStatus, RemoteResult == CLOUD_PROFILE_FUTURE_VERSION ? "Steam Cloud data was created by a newer game version" : "Steam Cloud profile is invalid; local progress was kept", sizeof(m_aCloudStatus));
+		m_CloudPaused = true;
+		return;
+	}
+	const bool LocalDefault = m_CloudLocalSummary.m_ResearchPoints == 0 && m_CloudLocalSummary.m_HighestInvasion == 0 && m_CloudLocalSummary.m_TutorialCompletedMask == 0 && str_comp(g_Config.m_PlayerName, "bloodless") == 0;
+	const ECloudProfileSyncDecision Decision = CloudProfileDecide(m_CloudLocalSummary.m_ContentHash, m_CloudRemoteSummary.m_ContentHash, m_CloudSyncedHash, LocalDefault);
+	if(Decision == CLOUD_SYNC_CURRENT)
+	{
+		SaveCloudSyncState(m_CloudRemoteSummary.m_ContentHash, m_CloudRemoteSummary.m_Revision);
+		str_copy(m_aCloudStatus, "Steam Cloud is up to date", sizeof(m_aCloudStatus));
+		return;
+	}
+	if(Decision == CLOUD_SYNC_APPLY_REMOTE)
+	{
+		BackupCloudProfile(m_aCloudLocalProfile, "local");
+		CloudProfileApply(m_aCloudRemoteProfile, RemoteSize, m_pClient->m_pBinds, &m_CloudRemoteSummary);
+		m_pClient->m_pPveRoguelite->FlushPersistentProgress();
+		SaveCloudSyncState(m_CloudRemoteSummary.m_ContentHash, m_CloudRemoteSummary.m_Revision);
+		str_copy(m_aCloudStatus, "Steam Cloud profile applied", sizeof(m_aCloudStatus));
+		return;
+	}
+	if(Decision == CLOUD_SYNC_UPLOAD_LOCAL) { UploadCloudProfile(); return; }
+	m_CloudConflict = true;
+	m_Popup = POPUP_CLOUD_CONFLICT;
+	str_copy(m_aCloudStatus, "Steam Cloud conflict needs your choice", sizeof(m_aCloudStatus));
+}
+
+void CMenus::PumpCloudProfile(bool Force)
+{
+	if(!m_CloudInitialized || m_CloudConflict || m_CloudPaused) return;
+	const int64 Now = time_get();
+	if(!Force && Now < m_CloudNextCheck) return;
+	m_CloudNextCheck = Now + time_freq() * 5;
+	char aCurrent[64 * 1024];
+	CCloudProfileSummary Current;
+	if(!CloudProfileBuild(m_pClient->m_pBinds, m_CloudRevision, time_timestamp(), aCurrent, sizeof(aCurrent), &Current)) return;
+	if(Current.m_ContentHash != m_CloudSyncedHash) m_CloudDirty = true;
+	if(m_CloudDirty && (Force || Client()->State() == IClient::STATE_OFFLINE)) UploadCloudProfile();
 }
 
 void CMenus::UpdatePlaySnapshots()
@@ -1410,6 +1582,7 @@ void CMenus::OnInit()
 	Console()->Chain("add_friend", ConchainFriendlistUpdate, this);
 	Console()->Chain("remove_friend", ConchainFriendlistUpdate, this);
 	LoadFilterPresets();
+	InitCloudProfile();
 
 	// setup load amount
 	m_LoadCurrent = 0;
@@ -4470,6 +4643,13 @@ int CMenus::Render()
 			pExtraText = Localize("Your last completed checkpoint is saved locally. You can continue now, return to the hub, or skip training.");
 			ExtraAlign = -1;
 		}
+		else if(m_Popup == POPUP_CLOUD_CONFLICT)
+		{
+			pTitle = Localize("Steam Cloud conflict");
+			str_format(aBuf, sizeof(aBuf), "%s: %d RP, %s %d\n%s: %d RP, %s %d", Localize("This device"), m_CloudLocalSummary.m_ResearchPoints, Localize("highest floor"), m_CloudLocalSummary.m_HighestInvasion, Localize("Steam Cloud"), m_CloudRemoteSummary.m_ResearchPoints, Localize("highest floor"), m_CloudRemoteSummary.m_HighestInvasion);
+			pExtraText = aBuf;
+			ExtraAlign = -1;
+		}
 		else if(m_Popup == POPUP_FIRST_LAUNCH)
 		{
 			pTitle = Localize("Welcome to Ninslash");
@@ -4506,7 +4686,27 @@ int CMenus::Render()
 		else
 			UI()->DoLabelScaled(&Part, pExtraText, 14.f, 0, -1);
 
-		if(m_Popup == POPUP_TUTORIAL_EXIT)
+		if(m_Popup == POPUP_CLOUD_CONFLICT)
+		{
+			CUIRect LocalButton, CloudButton;
+			Box.HSplitBottom(28.0f, &Box, &Part);
+			Part.VMargin(24.0f, &Part);
+			Part.VSplitMid(&LocalButton, &CloudButton);
+			LocalButton.VMargin(6.0f, &LocalButton);
+			CloudButton.VMargin(6.0f, &CloudButton);
+			static int s_UseLocalCloudProfile, s_UseRemoteCloudProfile;
+			if(DoButton_Menu(&s_UseLocalCloudProfile, Localize("Use this device"), 0, &LocalButton))
+				ResolveCloudConflict(false);
+			if(DoButton_Menu(&s_UseRemoteCloudProfile, Localize("Use Steam Cloud"), 0, &CloudButton, BUTTONSTYLE_ACCENT) || m_EnterPressed)
+				ResolveCloudConflict(true);
+			if(m_EscapePressed)
+			{
+				m_CloudPaused = true;
+				m_Popup = POPUP_NONE;
+				str_copy(m_aCloudStatus, "Steam Cloud conflict postponed; cloud writes are paused", sizeof(m_aCloudStatus));
+			}
+		}
+		else if(m_Popup == POPUP_TUTORIAL_EXIT)
 		{
 			CUIRect Continue, Save, Skip;
 			Box.HSplitBottom(28.0f, &Box, &Part);
@@ -5227,6 +5427,7 @@ extern "C" void font_debug_render();
 void CMenus::OnRender()
 {
 	UpdateLocalServer();
+	PumpCloudProfile(false);
 
 	/*
 	// text rendering test stuff

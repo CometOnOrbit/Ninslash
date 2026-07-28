@@ -3022,6 +3022,32 @@ void CMenus::RenderCustomize(CUIRect MainView)
 }
 
 	
+void CMenus::RenderSettingsCloud(CUIRect MainView)
+{
+	CUIRect Title, StatusLine, Action;
+	MainView.HSplitTop(34.0f, &Title, &MainView);
+	UI()->DoLabelScaled(&Title, Localize("Steam Cloud"), 20.0f, -1);
+	MainView.HSplitTop(44.0f, &StatusLine, &MainView);
+	UI()->DoLabelScaled(&StatusLine, Localize(m_aCloudStatus[0] ? m_aCloudStatus : "Steam Cloud is unavailable"), 13.0f, -1, (int)StatusLine.w);
+	MainView.HSplitTop(8.0f, 0, &MainView);
+	MainView.HSplitTop(28.0f, &Action, &MainView);
+	static int s_CloudAction;
+	const char *pAction = m_CloudConflict ? Localize("Resolve conflict") : Localize("Sync now");
+	if(DoButton_Menu(&s_CloudAction, pAction, 0, &Action, BUTTONSTYLE_ACCENT))
+	{
+		if(m_CloudConflict)
+			m_Popup = POPUP_CLOUD_CONFLICT;
+		else
+		{
+			m_CloudPaused = false;
+			m_CloudDirty = true;
+			PumpCloudProfile(true);
+		}
+	}
+	MainView.HSplitTop(16.0f, 0, &MainView);
+	UI()->DoLabelScaled(&MainView, Localize("Progress, appearance, portable preferences and custom key bindings are synchronized. Display, device and local network settings stay on this device."), 12.0f, -1, (int)MainView.w);
+}
+
 void CMenus::RenderSettings(CUIRect MainView)
 {
 	static int s_SettingsPage = 0;
@@ -3043,7 +3069,8 @@ void CMenus::RenderSettings(CUIRect MainView)
 		Localize("Customize"),
 		Localize("Controls"),
 		Localize("Graphics"),
-		Localize("Sound")};
+		Localize("Sound"),
+		Localize("Steam")};
 
 	int NumTabs = (int)(sizeof(aTabs)/sizeof(*aTabs));
 	CUIRect Tab;
@@ -3077,6 +3104,8 @@ void CMenus::RenderSettings(CUIRect MainView)
 		RenderSettingsGraphics(Content);
 	else if(s_SettingsPage == 6)
 		RenderSettingsSound(Content);
+	else if(s_SettingsPage == 7)
+		RenderSettingsCloud(Content);
 
 	if(m_NeedRestartGraphics || m_NeedRestartSound)
 	{

@@ -23,6 +23,7 @@
 #include <game/client/components/countryflags.h>
 
 #include "menus.h"
+#include "pve_roguelite.h"
 
 static const char *UI_FILTER_PRESETS_FILE = "ui_filters.cfg";
 
@@ -408,6 +409,8 @@ void CMenus::RenderFilterPresetBar(CUIRect View)
 
 void CMenus::OnRelease()
 {
+	m_pClient->m_pPveRoguelite->FlushPersistentProgress();
+	PumpCloudProfile(true);
 	SaveFilterPresets();
 }
 

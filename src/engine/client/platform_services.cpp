@@ -223,6 +223,11 @@ public:
 		return false;
 	}
 	virtual bool ConsumeJoinFailure(char *pBuffer, int BufferSize) { if(pBuffer && BufferSize > 0) pBuffer[0] = 0; return false; }
+	virtual void CloudStatus(CPlatformCloudStatus *pStatus) const { if(pStatus) mem_zero(pStatus, sizeof(*pStatus)); }
+	virtual int CloudFileSize(const char *pFilename) const { (void)pFilename; return -1; }
+	virtual long long CloudFileTimestamp(const char *pFilename) const { (void)pFilename; return 0; }
+	virtual int CloudReadFile(const char *pFilename, void *pBuffer, int BufferSize) { (void)pFilename; (void)pBuffer; (void)BufferSize; return -1; }
+	virtual bool CloudWriteFile(const char *pFilename, const void *pBuffer, int BufferSize) { (void)pFilename; (void)pBuffer; (void)BufferSize; return false; }
 	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers, int HostLocalPort) { (void)Visibility; (void)MaxMembers; (void)HostLocalPort; return false; }
 	virtual bool JoinLobby(unsigned long long LobbyID) { (void)LobbyID; return false; }
 	virtual void LeaveLobby() {}
@@ -572,6 +577,62 @@ public:
 	virtual unsigned long long LocalUserID() const
 	{
 		return m_Initialized && SteamUser() ? SteamUser()->GetSteamID().ConvertToUint64() : 0;
+	}
+
+	virtual void CloudStatus(CPlatformCloudStatus *pStatus) const
+	{
+		if(!pStatus)
+			return;
+		mem_zero(pStatus, sizeof(*pStatus));
+		pStatus->m_Available = m_Initialized && SteamRemoteStorage();
+		if(!pStatus->m_Available)
+		{
+			str_copy(pStatus->m_aError, "Steam Cloud is unavailable", sizeof(pStatus->m_aError));
+			return;
+		}
+		pStatus->m_AccountEnabled = SteamRemoteStorage()->IsCloudEnabledForAccount();
+		pStatus->m_AppEnabled = SteamRemoteStorage()->IsCloudEnabledForApp();
+		uint64 Total = 0, Available = 0;
+		if(SteamRemoteStorage()->GetQuota(&Total, &Available))
+		{
+			pStatus->m_BytesTotal = Total;
+			pStatus->m_BytesAvailable = Available;
+		}
+		if(!pStatus->m_AccountEnabled || !pStatus->m_AppEnabled)
+			str_copy(pStatus->m_aError, "Steam Cloud is disabled", sizeof(pStatus->m_aError));
+	}
+
+	virtual int CloudFileSize(const char *pFilename) const
+	{
+		if(!m_Initialized || !SteamRemoteStorage() || !pFilename || !pFilename[0])
+			return -1;
+		return SteamRemoteStorage()->GetFileSize(pFilename);
+	}
+
+	virtual long long CloudFileTimestamp(const char *pFilename) const
+	{
+		if(!m_Initialized || !SteamRemoteStorage() || !pFilename || !pFilename[0])
+			return 0;
+		return (long long)SteamRemoteStorage()->GetFileTimestamp(pFilename);
+	}
+
+	virtual int CloudReadFile(const char *pFilename, void *pBuffer, int BufferSize)
+	{
+		if(!m_Initialized || !SteamRemoteStorage() || !pFilename || !pBuffer || BufferSize <= 0)
+			return -1;
+		const int Size = SteamRemoteStorage()->GetFileSize(pFilename);
+		if(Size < 0 || Size > BufferSize)
+			return -1;
+		return SteamRemoteStorage()->FileRead(pFilename, pBuffer, Size);
+	}
+
+	virtual bool CloudWriteFile(const char *pFilename, const void *pBuffer, int BufferSize)
+	{
+		if(!m_Initialized || !SteamRemoteStorage() || !pFilename || !pFilename[0] || !pBuffer || BufferSize < 0)
+			return false;
+		if(!SteamRemoteStorage()->IsCloudEnabledForAccount() || !SteamRemoteStorage()->IsCloudEnabledForApp())
+			return false;
+		return SteamRemoteStorage()->FileWrite(pFilename, pBuffer, BufferSize);
 	}
 
 	virtual int GetAuthSessionTicket(void *pBuffer, int BufferSize)

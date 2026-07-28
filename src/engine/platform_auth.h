@@ -56,6 +56,11 @@ inline bool PlatformClientUsesSteamIdentity(int AuthPolicy, bool RelayRequired, 
 	return !Loopback || AuthPolicy >= 2 || RelayRequired;
 }
 
+inline bool PlatformAuthTimeoutAllowsAnonymous(int AuthPolicy, bool Relay)
+{
+	return AuthPolicy < 2 && !Relay;
+}
+
 inline EPlatformJoinDecision PlatformJoinDecision(int IdentityKind, int AuthPolicy, bool Relay, EPlatformAuthResult AuthResult)
 {
 	if(IdentityKind == PLATFORM_IDENTITY_ANONYMOUS)
