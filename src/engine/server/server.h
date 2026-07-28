@@ -261,6 +261,7 @@ public:
 
 	void SendMap(int ClientID);
 	void SendConnectionReady(int ClientID);
+	void SendPlatformPlayerIdentity(int SubjectClientID, int TargetClientID, bool Present);
 	void SendRconLine(int ClientID, const char *pLine);
 	static void SendRconLineAuthed(const char *pLine, void *pUser);
 

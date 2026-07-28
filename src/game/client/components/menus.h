@@ -109,6 +109,7 @@ class CMenus : public CComponent
 	void DrawPlayArtwork(const CUIRect &Rect, int Mode, const vec4 &Color);
 	void DrawModeVoteImage(const CUIRect &Rect, const char *pImage, bool Active);
 	void DrawStatusBadge(CUIRect Rect, const char *pText, const vec4 &Color);
+	const char *DisplayGameType(const char *pGameType) const;
 
 	float AnimSelected(const void *pID, bool Selected, float Speed = 12.0f);
 	static vec4 MixColor(const vec4 &A, const vec4 &B, float t);
@@ -485,8 +486,22 @@ class CMenus : public CComponent
 	bool m_FilterPresetMenuOpen;
 	bool m_PlayDetailOpen;
 	bool m_PlayListHasFocus;
+	struct CSteamAvatarTexture
+	{
+		unsigned long long m_UserID;
+		int m_Texture;
+		int64 m_LastUsed;
+		int64 m_NextRetry;
+	};
+	CSteamAvatarTexture m_aSteamAvatars[128];
+	CPlatformUserInfo m_aSteamFriendCache[512];
+	int m_SteamFriendCacheCount;
+	int64 m_SteamFriendCacheNextRefresh;
 
 	void UpdatePlaySnapshots();
+	int SteamAvatarTexture(unsigned long long UserID);
+	void DrawSteamAvatar(const CUIRect &Rect, unsigned long long UserID);
+	void RenderSteamFriends(CUIRect MainView);
 
 	void LoadFilterPresets();
 	void SaveFilterPresets();

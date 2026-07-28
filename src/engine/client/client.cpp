@@ -1349,6 +1349,28 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 			if(!Unpacker.Error() && Event >= 0 && Event < NUM_PLATFORM_SERVER_EVENTS && m_pPlatformServices)
 				m_pPlatformServices->ProcessServerEvent(Event, Value, LeaderboardEligible);
 		}
+		else if(Msg == NETMSG_PLATFORM_PLAYER_IDENTITY)
+		{
+			const int ClientID = Unpacker.GetInt();
+			const bool Present = Unpacker.GetInt() != 0;
+			const char *pUserID = Unpacker.GetString(CUnpacker::SANITIZE_CC);
+			unsigned long long UserID = 0;
+			bool Valid = !Unpacker.Error() && ClientID >= 0 && ClientID < MAX_CLIENTS;
+			if(Present)
+			{
+				Valid = Valid && pUserID[0] != 0;
+				for(const char *p = pUserID; Valid && *p; ++p)
+				{
+					if(*p < '0' || *p > '9' || UserID > (~0ULL - (unsigned)(*p - '0')) / 10ULL)
+						Valid = false;
+					else
+						UserID = UserID * 10ULL + (unsigned)(*p - '0');
+				}
+				Valid = Valid && UserID != 0;
+			}
+			if(Valid)
+				GameClient()->OnPlatformPlayerIdentity(ClientID, Present, Present ? UserID : 0);
+		}
 		else if(Msg == NETMSG_RCON_CMD_ADD)
 		{
 			const char *pName = Unpacker.GetString(CUnpacker::SANITIZE_CC);

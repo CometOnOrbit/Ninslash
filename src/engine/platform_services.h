@@ -73,6 +73,20 @@ struct CPlatformLobbyInfo
 	char m_aModHash[65];
 };
 
+struct CPlatformUserInfo
+{
+	unsigned long long m_UserID;
+	unsigned long long m_LobbyID;
+	int m_PersonaState;
+	bool m_Friend;
+	bool m_PlayingThisGame;
+	bool m_Joinable;
+	bool m_Local;
+	bool m_LobbyOwner;
+	char m_aName[128];
+	char m_aConnect[256];
+};
+
 struct CPlatformWorkshopPublishStatus
 {
 	bool m_Active;
@@ -147,6 +161,17 @@ public:
 	// Listen servers close instead of migrating when Steam transfers ownership.
 	virtual bool ConsumeListenServerStopRequest() = 0;
 	virtual bool OpenLobbyInviteDialog() = 0;
+	virtual int FriendCount() const = 0;
+	virtual bool FriendInfo(int Index, CPlatformUserInfo *pInfo) const = 0;
+	virtual bool UserInfo(unsigned long long UserID, CPlatformUserInfo *pInfo) const = 0;
+	virtual int LobbyMemberCount() const = 0;
+	virtual bool LobbyMemberInfo(int Index, CPlatformUserInfo *pInfo) const = 0;
+	virtual bool InviteUser(unsigned long long UserID, const char *pConnect) = 0;
+	virtual bool JoinUser(unsigned long long UserID) = 0;
+	virtual bool OpenUserProfile(unsigned long long UserID) = 0;
+	virtual void SetPlayedWith(unsigned long long UserID) = 0;
+	// Returns 1 when RGBA data was copied, 0 while loading, and -1 when unavailable.
+	virtual int UserAvatarRGBA(unsigned long long UserID, int PreferredSize, void *pBuffer, int BufferSize, int *pWidth, int *pHeight) = 0;
 	virtual bool RefreshLobbyList() = 0;
 	virtual bool RefreshDedicatedServerList() = 0;
 	virtual int LobbyCount() const = 0;

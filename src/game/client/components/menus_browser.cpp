@@ -409,6 +409,13 @@ void CMenus::RenderFilterPresetBar(CUIRect View)
 
 void CMenus::OnRelease()
 {
+	for(int i = 0; i < 128; i++)
+	{
+		if(m_aSteamAvatars[i].m_Texture >= 0)
+			Graphics()->UnloadTexture(m_aSteamAvatars[i].m_Texture);
+		m_aSteamAvatars[i].m_Texture = -1;
+		m_aSteamAvatars[i].m_UserID = 0;
+	}
 	m_pClient->m_pPveRoguelite->FlushPersistentProgress();
 	PumpCloudProfile(true);
 	SaveFilterPresets();

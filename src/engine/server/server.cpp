@@ -1197,6 +1197,12 @@ int CServer::NewClientCallback(int ClientID, void *pUser)
 int CServer::DelClientCallback(int ClientID, const char *pReason, void *pUser)
 {
 	CServer *pThis = (CServer *)pUser;
+	if(pThis->m_aClients[ClientID].m_State == CClient::STATE_INGAME && pThis->m_aClients[ClientID].m_PlatformAuthenticated)
+	{
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(i != ClientID && pThis->m_aClients[i].m_State == CClient::STATE_INGAME)
+				pThis->SendPlatformPlayerIdentity(ClientID, i, false);
+	}
 
 	char aAddrStr[NETADDR_MAXSTRSIZE];
 	net_addr_str(pThis->m_NetServer.ClientAddr(ClientID), aAddrStr, sizeof(aAddrStr), true);
@@ -1308,6 +1314,23 @@ void CServer::SendConnectionReady(int ClientID)
 {
 	CMsgPacker Msg(NETMSG_CON_READY);
 	SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH, ClientID, true);
+}
+
+void CServer::SendPlatformPlayerIdentity(int SubjectClientID, int TargetClientID, bool Present)
+{
+	if(SubjectClientID < 0 || SubjectClientID >= MAX_CLIENTS || TargetClientID < 0 || TargetClientID >= MAX_CLIENTS)
+		return;
+	const CClient &Subject = m_aClients[SubjectClientID];
+	if(Present && (!Subject.m_PlatformAuthenticated || Subject.m_PlatformIdentityKind != PLATFORM_IDENTITY_STEAM || !Subject.m_SteamID))
+		return;
+	char aUserID[32] = "";
+	if(Present)
+		str_format(aUserID, sizeof(aUserID), "%llu", Subject.m_SteamID);
+	CMsgPacker Msg(NETMSG_PLATFORM_PLAYER_IDENTITY);
+	Msg.AddInt(SubjectClientID);
+	Msg.AddInt(Present ? 1 : 0);
+	Msg.AddString(aUserID, sizeof(aUserID));
+	SendMsgEx(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH, TargetClientID, true);
 }
 
 void CServer::SendRconLine(int ClientID, const char *pLine)
@@ -1607,6 +1630,14 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 				m_aClients[ClientID].m_State = CClient::STATE_INGAME;
 				GameServer()->OnClientEnter(ClientID);
+				for(int i = 0; i < MAX_CLIENTS; i++)
+				{
+					if(m_aClients[i].m_State != CClient::STATE_INGAME)
+						continue;
+					SendPlatformPlayerIdentity(i, ClientID, true);
+					if(i != ClientID)
+						SendPlatformPlayerIdentity(ClientID, i, true);
+				}
 				if(m_aClients[ClientID].m_PlatformAuthSession && m_aClients[ClientID].m_PlatformAuthenticated)
 					m_pPlatformGameServer->UpdateUserData(m_aClients[ClientID].m_SteamID, m_aClients[ClientID].m_aName, m_aClients[ClientID].m_Score);
 			}

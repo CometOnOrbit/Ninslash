@@ -78,6 +78,23 @@ static float FitLabelFontSize(ITextRender *pTextRender, const char *pText, float
 	return FontSize;
 }
 
+const char *CMenus::DisplayGameType(const char *pGameType) const
+{
+	if(!pGameType || !pGameType[0]) return Localize("Unknown");
+	struct CGameTypeName { const char *m_pCode; const char *m_pName; };
+	static const CGameTypeName s_aNames[] = {
+		{"dm", "Deathmatch"}, {"tdm", "Team deathmatch"}, {"ctf", "Capture the flag"},
+		{"ball", "Ball"}, {"def", "Reactor defense"}, {"base", "Reactor defense"},
+		{"inf", "Infection"}, {"inv", "Invasion"}, {"coop", "Invasion"},
+		{"extract", "Extraction"}, {"horde", "Horde"}, {"tut", "Tutorial"},
+		{"tutorial", "Tutorial"}, {"roam", "Roam"}, {"gun", "Gun game"},
+	};
+	for(unsigned i = 0; i < sizeof(s_aNames) / sizeof(s_aNames[0]); i++)
+		if(str_comp_nocase(pGameType, s_aNames[i].m_pCode) == 0)
+			return Localize(s_aNames[i].m_pName);
+	return pGameType;
+}
+
 CMenus::CMenus()
 {
 	m_Popup = POPUP_NONE;
@@ -154,6 +171,15 @@ CMenus::CMenus()
 	m_FilterPresetMenuOpen = false;
 	m_PlayDetailOpen = false;
 	m_PlayListHasFocus = false;
+	for(int i = 0; i < 128; i++)
+	{
+		m_aSteamAvatars[i].m_UserID = 0;
+		m_aSteamAvatars[i].m_Texture = -1;
+		m_aSteamAvatars[i].m_LastUsed = 0;
+		m_aSteamAvatars[i].m_NextRetry = 0;
+	}
+	m_SteamFriendCacheCount = 0;
+	m_SteamFriendCacheNextRefresh = 0;
 	m_CloudInitialized = false;
 	m_CloudConflict = false;
 	m_CloudPaused = false;
@@ -1262,7 +1288,7 @@ int CMenus::RenderMenubar(CUIRect r)
 	Client()->SteamHostedGameStatus(&SteamHostStatus);
 	const bool ManagedLocalGameActive = m_LocalServerState == LOCAL_SERVER_STARTING || m_LocalServerState == LOCAL_SERVER_RUNNING;
 	const bool SteamHostedGameActive = SteamHostStatus.m_State == CLIENT_ASYNC_WORKING || SteamHostStatus.m_State == CLIENT_ASYNC_SUCCEEDED;
-	const char *apOfflineLabels[] = {"Play", "Character", "Progress", "Mods", "Replays", "Settings"};
+	const char *apOfflineLabels[] = {"Play", "Character", "Progress", "Mods", "Demos", "Settings"};
 	const int aOfflinePages[] = {PAGE_FRONT, PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS};
 	const char *apGameLabels[] = {"Continue", "Game", InGameRoomActionLabel(ManagedLocalGameActive, SteamHostedGameActive), "Players", "Server", "Vote", "Progress", "Settings", "Leave"};
 	const int aGamePages[] = {-2, PAGE_GAME, PAGE_LOCAL_SERVER, PAGE_PLAYERS, PAGE_SERVER_INFO, PAGE_CALLVOTE, PAGE_RESEARCH, PAGE_SETTINGS, -3};
@@ -3779,7 +3805,7 @@ void CMenus::RenderTutorialChapterSelect(CUIRect MainView)
 		else if(Completed)
 		{
 			str_copy(aStatus, Localize("Completed"), sizeof(aStatus));
-			pAction = "Replay";
+			pAction = "Replay chapter";
 		}
 		else if(Unlocked)
 		{
@@ -3894,7 +3920,7 @@ void CMenus::RenderSteam(CUIRect MainView)
 		Toolbar.VSplitLeft(4.0f,0,&Toolbar);Toolbar.VSplitLeft(86.0f,&Button,&Toolbar);if(DoButton_Menu(&s_Leave,Localize("Leave"),0,&Button))pPlatform->LeaveLobby();
 		static int s_aRoomIDs[128];for(int i=0;i<128;i++)s_aRoomIDs[i]=i;
 		UiDoListboxStart(&s_aRoomIDs,&List,34.0f,Localize("Steam rooms"),"",pPlatform->LobbyCount(),1,s_Selected,s_Scroll);
-		for(int i=0;i<pPlatform->LobbyCount();i++){CPlatformLobbyInfo Info;pPlatform->LobbyInfo(i,&Info);CListboxItem Item=UiDoListboxNextItem(&s_aRoomIDs[i],s_Selected==i);if(Item.m_Visible){char aLine[512];str_format(aLine,sizeof(aLine),"%s  |  %s  |  %s  |  %d/%d%s%s%s",Info.m_aHostName[0]?Info.m_aHostName:"Steam host",Info.m_aGameType,Info.m_aMap,Info.m_Members,Info.m_MaxMembers,Info.m_FriendHosted?"  FRIEND":"",Info.m_Password?"  PASSWORD":"",Info.m_Modded?"  MODDED":"");Item.m_Rect.Margin(6.0f,&Item.m_Rect);UI()->DoLabelScaled(&Item.m_Rect,aLine,11.0f,-1);}}
+		for(int i=0;i<pPlatform->LobbyCount();i++){CPlatformLobbyInfo Info;pPlatform->LobbyInfo(i,&Info);CListboxItem Item=UiDoListboxNextItem(&s_aRoomIDs[i],s_Selected==i);if(Item.m_Visible){char aLine[512];str_format(aLine,sizeof(aLine),"%s  |  %s  |  %d/%d%s%s%s",Info.m_aHostName[0]?Info.m_aHostName:"Steam host",DisplayGameType(Info.m_aGameType),Info.m_Members,Info.m_MaxMembers,Info.m_FriendHosted?"  FRIEND":"",Info.m_Password?"  PASSWORD":"",Info.m_Modded?"  MODDED":"");Item.m_Rect.Margin(6.0f,&Item.m_Rect);UI()->DoLabelScaled(&Item.m_Rect,aLine,11.0f,-1);}}
 		s_Selected=UiDoListboxEnd(&s_Scroll,0);s_Selected=clamp(s_Selected,-1,max(-1,pPlatform->LobbyCount()-1));
 		Actions.VSplitRight(110.0f,&Actions,&Button);static int s_Join=0;if(DoButton_Menu(&s_Join,Localize("Join"),0,&Button,BUTTONSTYLE_ACCENT)&&s_Selected>=0){CPlatformLobbyInfo Info;if(pPlatform->LobbyInfo(s_Selected,&Info))pPlatform->JoinLobby(Info.m_LobbyID);}
 		if(s_Selected>=0){CPlatformLobbyInfo Info;if(pPlatform->LobbyInfo(s_Selected,&Info)){char aDetail[512];str_format(aDetail,sizeof(aDetail),"SteamID %llu  |  %s  |  %s",Info.m_HostSteamID,Info.m_aRegion,Info.m_aModHash);UI()->DoLabelScaled(&Actions,aDetail,10.0f,-1);}}
@@ -3915,7 +3941,177 @@ void CMenus::RenderSteam(CUIRect MainView)
 		Detail.HSplitTop(10.0f,0,&Detail);Detail.HSplitTop(34.0f,&Button,&Detail);if(DoButton_Menu(&s_Publish,Localize("Publish update"),0,&Button,BUTTONSTYLE_ACCENT)&&s_Selected>=0){CPlatformWorkshopItem Info;if(pPlatform->WorkshopItem(s_Selected,&Info))pPlatform->UpdateWorkshopItem(Info.m_PublishedFileID,s_aContent,s_aPreview);}
 		CPlatformWorkshopPublishStatus Status;pPlatform->WorkshopPublishStatus(&Status);char aStatus[512];const int Percent=Status.m_Total?(int)(Status.m_Processed*100/Status.m_Total):0;if(Status.m_Active)str_format(aStatus,sizeof(aStatus),"%s  %d%%  ID %llu",Status.m_aStatus,Percent,Status.m_PublishedFileID);else str_format(aStatus,sizeof(aStatus),"%s  ID %llu",Status.m_aStatus,Status.m_PublishedFileID);Detail.HSplitTop(12.0f,0,&Detail);UI()->DoLabelScaled(&Detail,aStatus,10.0f,-1);
 	}
-	#endif
+#endif
+}
+
+int CMenus::SteamAvatarTexture(unsigned long long UserID)
+{
+	if(!UserID)
+		return -1;
+	const int64 Now = time_get();
+	int Slot = -1;
+	for(int i = 0; i < 128; i++)
+	{
+		if(m_aSteamAvatars[i].m_UserID == UserID)
+		{
+			Slot = i;
+			m_aSteamAvatars[i].m_LastUsed = Now;
+			if(m_aSteamAvatars[i].m_Texture >= 0)
+				return m_aSteamAvatars[i].m_Texture;
+			if(Now < m_aSteamAvatars[i].m_NextRetry)
+				return -1;
+			break;
+		}
+	}
+	if(Slot < 0)
+	{
+		for(int i = 0; i < 128; i++)
+			if(m_aSteamAvatars[i].m_UserID == 0) { Slot = i; break; }
+		if(Slot < 0)
+		{
+			Slot = 0;
+			for(int i = 1; i < 128; i++)
+				if(m_aSteamAvatars[i].m_LastUsed < m_aSteamAvatars[Slot].m_LastUsed) Slot = i;
+			if(m_aSteamAvatars[Slot].m_Texture >= 0)
+				Graphics()->UnloadTexture(m_aSteamAvatars[Slot].m_Texture);
+		}
+		m_aSteamAvatars[Slot].m_UserID = UserID;
+		m_aSteamAvatars[Slot].m_Texture = -1;
+		m_aSteamAvatars[Slot].m_LastUsed = Now;
+		m_aSteamAvatars[Slot].m_NextRetry = 0;
+	}
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	unsigned char aPixels[128 * 128 * 4];
+	int Width = 0, Height = 0;
+	const int Result = pPlatform ? pPlatform->UserAvatarRGBA(UserID, 64, aPixels, sizeof(aPixels), &Width, &Height) : -1;
+	if(Result != 1)
+	{
+		m_aSteamAvatars[Slot].m_NextRetry = Now + time_freq() * (Result == 0 ? 2 : 30);
+		return -1;
+	}
+	m_aSteamAvatars[Slot].m_Texture = Graphics()->LoadTextureRaw(Width, Height, CImageInfo::FORMAT_RGBA, aPixels, CImageInfo::FORMAT_RGBA, IGraphics::TEXLOAD_NOMIPMAPS);
+	m_aSteamAvatars[Slot].m_NextRetry = 0;
+	return m_aSteamAvatars[Slot].m_Texture;
+}
+
+void CMenus::DrawSteamAvatar(const CUIRect &Rect, unsigned long long UserID)
+{
+	const int Texture = SteamAvatarTexture(UserID);
+	if(Texture < 0)
+	{
+		DrawMenuInset(&Rect, CUI::CORNER_ALL);
+		CUIRect Initial = Rect;
+		UI()->DoLabelScaled(&Initial, "?", Rect.h * 0.48f, 0);
+		return;
+	}
+	Graphics()->TextureSet(Texture);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1, 1, 1, 1);
+	IGraphics::CQuadItem Quad(Rect.x, Rect.y, Rect.w, Rect.h);
+	Graphics()->QuadsDrawTL(&Quad, 1);
+	Graphics()->QuadsEnd();
+}
+
+void CMenus::RenderSteamFriends(CUIRect MainView)
+{
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	DrawMenuInset(&MainView, CUI::CORNER_ALL);
+	MainView.Margin(8.0f, &MainView);
+	if(!pPlatform || !pPlatform->Available())
+	{
+		UI()->DoLabelScaled(&MainView, Localize("Steam friends are unavailable in standalone mode."), 12.0f, 0);
+		return;
+	}
+
+	static char s_aSearch[64] = "";
+	static float s_SearchOffset = 0.0f;
+	static unsigned long long s_SelectedUser = 0;
+	static float s_Scroll = 0.0f;
+	CUIRect Toolbar, Content, Actions, SearchLabel, SearchBox, OverlayButton;
+	MainView.HSplitTop(30.0f, &Toolbar, &MainView);
+	Toolbar.VSplitRight(150.0f, &Toolbar, &OverlayButton);
+	Toolbar.VSplitLeft(54.0f, &SearchLabel, &Toolbar);
+	Toolbar.VSplitLeft(min(260.0f, Toolbar.w), &SearchBox, &Toolbar);
+	UI()->DoLabelScaled(&SearchLabel, Localize("Search"), 10.0f, -1);
+	DoEditBox(&s_aSearch, &SearchBox, s_aSearch, sizeof(s_aSearch), 10.0f, &s_SearchOffset);
+	static int s_OverlayInvite;
+	if(DoButton_Menu(&s_OverlayInvite, Localize("Overlay invite"), 0, &OverlayButton) && pPlatform->CurrentLobbyID())
+		pPlatform->OpenLobbyInviteDialog();
+	MainView.HSplitTop(6.0f, 0, &MainView);
+	MainView.HSplitBottom(36.0f, &Content, &Actions);
+
+	const int64 Now = time_get();
+	if(Now >= m_SteamFriendCacheNextRefresh)
+	{
+		m_SteamFriendCacheCount = 0;
+		for(int i = 0; i < pPlatform->FriendCount() && m_SteamFriendCacheCount < 512; i++)
+			if(pPlatform->FriendInfo(i, &m_aSteamFriendCache[m_SteamFriendCacheCount])) m_SteamFriendCacheCount++;
+		auto Rank = [](const CPlatformUserInfo &Info) { return Info.m_Joinable ? 0 : Info.m_PlayingThisGame ? 1 : Info.m_PersonaState != 0 ? 2 : 3; };
+		for(int i = 1; i < m_SteamFriendCacheCount; i++)
+		{
+			CPlatformUserInfo Key = m_aSteamFriendCache[i];
+			int j = i - 1;
+			while(j >= 0 && (Rank(m_aSteamFriendCache[j]) > Rank(Key) || (Rank(m_aSteamFriendCache[j]) == Rank(Key) && str_comp_nocase(m_aSteamFriendCache[j].m_aName, Key.m_aName) > 0)))
+			{
+				m_aSteamFriendCache[j + 1] = m_aSteamFriendCache[j];
+				j--;
+			}
+			m_aSteamFriendCache[j + 1] = Key;
+		}
+		m_SteamFriendCacheNextRefresh = Now + time_freq();
+	}
+	int aVisibleFriends[512], Count = 0;
+	for(int i = 0; i < m_SteamFriendCacheCount; i++)
+		if(!s_aSearch[0] || str_find_nocase(m_aSteamFriendCache[i].m_aName, s_aSearch)) aVisibleFriends[Count++] = i;
+	auto FriendAt = [&](int Index) -> CPlatformUserInfo & { return m_aSteamFriendCache[aVisibleFriends[Index]]; };
+	int Selected = -1;
+	for(int i = 0; i < Count; i++) if(FriendAt(i).m_UserID == s_SelectedUser) Selected = i;
+	if(Selected < 0 && Count) { Selected = 0; s_SelectedUser = FriendAt(0).m_UserID; }
+
+	CUIRect List = Content, Detail;
+	const bool Wide = Content.w > 650.0f;
+	if(Wide) { Content.VSplitRight(250.0f, &List, &Detail); List.VSplitRight(8.0f, &List, 0); }
+	static int s_ListID, s_aFriendIDs[512]; for(int i = 0; i < 512; i++) s_aFriendIDs[i] = i;
+	UiDoListboxStart(&s_ListID, &List, 44.0f, Localize("Steam friends"), "", Count, 1, Selected, s_Scroll);
+	for(int i = 0; i < Count; i++)
+	{
+		CListboxItem Item = UiDoListboxNextItem(&s_aFriendIDs[i], i == Selected);
+		if(!Item.m_Visible) continue;
+		CUIRect Row = Item.m_Rect, Avatar, Text;
+		Row.Margin(4.0f, &Row); Row.VSplitLeft(34.0f, &Avatar, &Text); Text.VSplitLeft(8.0f, 0, &Text);
+		CPlatformUserInfo &Friend = FriendAt(i);
+		DrawSteamAvatar(Avatar, Friend.m_UserID);
+		const char *pState = Friend.m_Joinable ? Localize("Joinable") : Friend.m_PlayingThisGame ? Localize("Playing Ninslash") : Friend.m_PersonaState != 0 ? Localize("Online") : Localize("Offline");
+		char aLine[256]; str_format(aLine, sizeof(aLine), "%s\n%s", Friend.m_aName, pState);
+		UI()->DoLabelScaled(&Text, aLine, 10.0f, -1);
+	}
+	const int NewSelected = UiDoListboxEnd(&s_Scroll, 0);
+	if(NewSelected >= 0 && NewSelected < Count) { Selected = NewSelected; s_SelectedUser = FriendAt(Selected).m_UserID; }
+	if(Wide)
+	{
+		DrawMenuInset(&Detail, CUI::CORNER_ALL); Detail.Margin(10.0f, &Detail);
+		if(Selected >= 0)
+		{
+			CUIRect Avatar, Name; Detail.HSplitTop(64.0f, &Avatar, &Detail); Avatar.VSplitLeft(64.0f, &Avatar, &Name); Name.VSplitLeft(10.0f, 0, &Name);
+			CPlatformUserInfo &Friend = FriendAt(Selected);
+			DrawSteamAvatar(Avatar, Friend.m_UserID);
+			char aText[320]; str_format(aText, sizeof(aText), "%s\n%s\nSteamID %llu", Friend.m_aName, Localize(Friend.m_Joinable ? "Joinable" : Friend.m_PlayingThisGame ? "Playing Ninslash" : Friend.m_PersonaState != 0 ? "Online" : "Offline"), Friend.m_UserID);
+			UI()->DoLabelScaled(&Name, aText, 10.0f, -1);
+		}
+	}
+
+	static int s_JoinFriend, s_InviteFriend, s_ProfileFriend;
+	CUIRect Join, Invite, Profile;
+	Actions.VSplitRight(110.0f, &Actions, &Join); Actions.VSplitRight(6.0f, &Actions, 0); Actions.VSplitRight(110.0f, &Actions, &Invite); Actions.VSplitRight(6.0f, &Actions, 0); Actions.VSplitRight(110.0f, &Actions, &Profile);
+	if(Selected >= 0)
+	{
+		CPlatformUserInfo &Friend = FriendAt(Selected);
+		if(DoButton_Menu(&s_JoinFriend, Localize("Join friend"), 0, &Join, BUTTONSTYLE_ACCENT) && Friend.m_Joinable) pPlatform->JoinUser(Friend.m_UserID);
+		NETADDR Address; Client()->GetServerAddress(&Address); char aConnect[NETADDR_MAXSTRSIZE] = ""; if(Client()->State() >= IClient::STATE_CONNECTING) net_addr_str(&Address, aConnect, sizeof(aConnect), true);
+		if(DoButton_Menu(&s_InviteFriend, Localize("Invite"), 0, &Invite) && (pPlatform->CurrentLobbyID() || aConnect[0])) pPlatform->InviteUser(Friend.m_UserID, aConnect);
+		if(DoButton_Menu(&s_ProfileFriend, Localize("Profile"), 0, &Profile)) pPlatform->OpenUserProfile(Friend.m_UserID);
+	}
+	char aCount[64]; str_format(aCount, sizeof(aCount), "%d %s", Count, Localize("friends")); UI()->DoLabelScaled(&Actions, aCount, 10.0f, -1);
 }
 
 void CMenus::RenderPlay(CUIRect MainView)
@@ -3932,19 +4128,24 @@ void CMenus::RenderPlay(CUIRect MainView)
 	MainView.HSplitTop(36.0f, &Title, &MainView);
 	UI()->DoLabelScaled(&Title, Localize("Play"), 22.0f, -1);
 	MainView.HSplitTop(32.0f, &Tabs, &Body);
-	const char *apTabs[] = {"Browse rooms", "Create room"};
-	static int s_aTabs[2];
-	for(int i = 0; i < 2; i++)
+	const char *apTabs[] = {"Browse rooms", "Create room", "Steam friends"};
+	static int s_aTabs[3];
+	for(int i = 0; i < 3; i++)
 	{
 		CUIRect Button;
-		Tabs.VSplitLeft(min(150.0f, Tabs.w / (2 - i)), &Button, &Tabs);
-		if(DoButton_MenuTab(&s_aTabs[i], Localize(apTabs[i]), m_PlayTab == i, &Button, i == 0 ? CUI::CORNER_TL : CUI::CORNER_TR))
+		Tabs.VSplitLeft(min(150.0f, Tabs.w / (3 - i)), &Button, &Tabs);
+		if(DoButton_MenuTab(&s_aTabs[i], Localize(apTabs[i]), m_PlayTab == i, &Button, i == 0 ? CUI::CORNER_TL : i == 2 ? CUI::CORNER_TR : 0))
 		{
 			m_PlayTab = i;
 			if(i == 0) { ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
 		}
 	}
 	Body.HSplitTop(8.0f, 0, &Body);
+	if(m_PlayTab == 2)
+	{
+		RenderSteamFriends(Body);
+		return;
+	}
 
 	if(m_PlayTab == 1)
 	{
@@ -4097,16 +4298,12 @@ void CMenus::RenderPlay(CUIRect MainView)
 	if(s_Selected >= 0 && s_Selected != SelectionBeforeKeyboard) SelectPlayEntry(s_Selected);
 
 	CUIRect Headers; List.HSplitTop(20.0f, &Headers, &List); DrawSectionHeader(&Headers, CUI::CORNER_T);
-	struct CColumn { const char *m_pName; int m_Sort; float m_Width; CUIRect m_Rect; }; CColumn aColumns[] = {{"Source", -1, Compact ? 66.0f : 76.0f, {}}, {"Name", IServerBrowser::SORT_NAME, Compact ? 0.0f : 0.0f, {}}, {"Type", IServerBrowser::SORT_GAMETYPE, Compact ? 0.0f : 70.0f, {}}, {"Map", IServerBrowser::SORT_MAP, Compact ? 0.0f : 100.0f, {}}, {"Players", IServerBrowser::SORT_NUMPLAYERS, 62.0f, {}}, {"Ping", IServerBrowser::SORT_PING, 56.0f, {}}};
+	struct CColumn { const char *m_pName; int m_Sort; float m_Width; CUIRect m_Rect; }; CColumn aColumns[] = {{"Source", -1, Compact ? 66.0f : 76.0f, {}}, {"Name", IServerBrowser::SORT_NAME, 0.0f, {}}, {"Type", IServerBrowser::SORT_GAMETYPE, Compact ? 92.0f : 120.0f, {}}, {"Map", IServerBrowser::SORT_MAP, 0.0f, {}}, {"Players", IServerBrowser::SORT_NUMPLAYERS, 62.0f, {}}, {"Ping", IServerBrowser::SORT_PING, 56.0f, {}}};
 	CUIRect Remaining = Headers;
 	Remaining.VSplitLeft(aColumns[0].m_Width, &aColumns[0].m_Rect, &Remaining);
 	Remaining.VSplitRight(aColumns[5].m_Width, &Remaining, &aColumns[5].m_Rect);
 	Remaining.VSplitRight(aColumns[4].m_Width, &Remaining, &aColumns[4].m_Rect);
-	if(!Compact)
-	{
-		Remaining.VSplitRight(aColumns[3].m_Width, &Remaining, &aColumns[3].m_Rect);
-		Remaining.VSplitRight(aColumns[2].m_Width, &Remaining, &aColumns[2].m_Rect);
-	}
+	Remaining.VSplitRight(aColumns[2].m_Width, &Remaining, &aColumns[2].m_Rect);
 	aColumns[1].m_Rect = Remaining;
 	for(int i = 0; i < 6; i++) if(aColumns[i].m_Rect.w > 0.0f && DoButton_GridHeader(&aColumns[i], Localize(aColumns[i].m_pName), g_Config.m_BrSort == aColumns[i].m_Sort, &aColumns[i].m_Rect, !BlockPlayListInput) && aColumns[i].m_Sort >= 0) { if(g_Config.m_BrSort == aColumns[i].m_Sort) g_Config.m_BrSortOrder ^= 1; else { g_Config.m_BrSort = aColumns[i].m_Sort; g_Config.m_BrSortOrder = 0; } }
 	static int s_EntryListID;
@@ -4126,11 +4323,11 @@ void CMenus::RenderPlay(CUIRect MainView)
 	for(int i = 0; i < EntryCount; i++)
 	{
 		CListboxItem Item = UiDoListboxNextItem(&s_aEntryIDs[i], s_Selected == i, !BlockPlayListInput); if(!Item.m_Visible) continue; CUIRect Row = Item.m_Rect; Row.Margin(4.0f, &Row);
-		for(int Column = 0; Column < 6; Column++) { CUIRect Cell = aColumns[Column].m_Rect; Cell.x = Row.x + (Cell.x - Headers.x); Cell.y = Row.y; Cell.h = Row.h; const CPlayRoomEntry &Entry = aEntries[i]; const CPlayServerSnapshot *pServer = Entry.m_pServer; const CPlatformLobbyInfo *pLobby = Entry.m_pLobby ? &Entry.m_pLobby->m_Info : 0; char aValue[128]; if(Column == 0) str_copy(aValue, Entry.m_Source == CPlayRoomEntry::SOURCE_STEAM_LOBBY ? (pLobby->m_FriendHosted ? Localize("FRIEND") : "STEAM") : pServer->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pServer->m_Official ? Localize("OFFICIAL") : Localize("COMMUNITY"), sizeof(aValue)); else if(Column == 1) str_copy(aValue, pServer ? pServer->m_aName : pLobby->m_aHostName, sizeof(aValue)); else if(Column == 2) str_copy(aValue, pServer ? pServer->m_aGameType : pLobby->m_aGameType, sizeof(aValue)); else if(Column == 3) str_copy(aValue, pServer ? pServer->m_aMap : pLobby->m_aMap, sizeof(aValue)); else if(Column == 4) str_format(aValue, sizeof(aValue), "%d/%d", pServer ? pServer->m_NumClients : pLobby->m_Members, pServer ? pServer->m_MaxClients : pLobby->m_MaxMembers); else str_copy(aValue, pServer ? (pServer->m_Latency >= 0 ? "" : "-") : "RELAY", sizeof(aValue)); if(Column == 5 && pServer && pServer->m_Latency >= 0) str_format(aValue, sizeof(aValue), "%dms", pServer->m_Latency); UI()->DoLabelScaled(&Cell, aValue, FitLabelFontSize(TextRender(), aValue, 10.0f, Cell.w), -1); }
+		for(int Column = 0; Column < 6; Column++) { if(aColumns[Column].m_Rect.w <= 0.0f) continue; CUIRect Cell = aColumns[Column].m_Rect; Cell.x = Row.x + (Cell.x - Headers.x); Cell.y = Row.y; Cell.h = Row.h; const CPlayRoomEntry &Entry = aEntries[i]; const CPlayServerSnapshot *pServer = Entry.m_pServer; const CPlatformLobbyInfo *pLobby = Entry.m_pLobby ? &Entry.m_pLobby->m_Info : 0; char aValue[128]; if(Column == 0) str_copy(aValue, Entry.m_Source == CPlayRoomEntry::SOURCE_STEAM_LOBBY ? (pLobby->m_FriendHosted ? Localize("FRIEND") : "STEAM") : pServer->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pServer->m_Official ? Localize("OFFICIAL") : Localize("COMMUNITY"), sizeof(aValue)); else if(Column == 1) str_copy(aValue, pServer ? pServer->m_aName : pLobby->m_aHostName, sizeof(aValue)); else if(Column == 2) str_copy(aValue, DisplayGameType(pServer ? pServer->m_aGameType : pLobby->m_aGameType), sizeof(aValue)); else if(Column == 4) str_format(aValue, sizeof(aValue), "%d/%d", pServer ? pServer->m_NumClients : pLobby->m_Members, pServer ? pServer->m_MaxClients : pLobby->m_MaxMembers); else str_copy(aValue, pServer ? (pServer->m_Latency >= 0 ? "" : "-") : "RELAY", sizeof(aValue)); if(Column == 5 && pServer && pServer->m_Latency >= 0) str_format(aValue, sizeof(aValue), "%dms", pServer->m_Latency); UI()->DoLabelScaled(&Cell, aValue, FitLabelFontSize(TextRender(), aValue, 10.0f, Cell.w), -1); }
 	}
 	const int NewSelection = UiDoListboxEnd(&s_Scroll, 0); if(NewSelection >= 0 && NewSelection < EntryCount) { if(NewSelection != s_Selected) { s_Selected = NewSelection; SelectPlayEntry(s_Selected); } m_PlayListHasFocus = true; }
 
-	auto RenderDetail = [&](CUIRect View) { DrawMenuInset(&View, CUI::CORNER_ALL); View.Margin(10.0f, &View); if(s_Selected < 0) UI()->DoLabelScaled(&View, Localize("No servers found"), 11.0f, -1); else { const CPlayRoomEntry &Entry = aEntries[s_Selected]; char aDetail[768]; if(Entry.m_pServer) { const CPlayServerSnapshot *pInfo = Entry.m_pServer; str_format(aDetail, sizeof(aDetail), "%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s", pInfo->m_aName, Localize("Address"), pInfo->m_aAddress, Localize("Version"), pInfo->m_aVersion, Localize("Source"), pInfo->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pInfo->m_DiscoverySources & IServerBrowser::DISCOVERY_STEAM ? "Steam GameServer + UDP" : "UDP", Localize("Mods"), pInfo->m_Modded ? Localize("Required") : Localize("None"), Localize("Authentication"), pInfo->m_AuthPolicy ? Localize("Required") : Localize("Open"), Localize("Region"), pInfo->m_aMap); } else { const CPlatformLobbyInfo &Info = Entry.m_pLobby->m_Info; str_format(aDetail, sizeof(aDetail), "%s\n\nLobbyID: %llu\n%s: %llu\n%s: %s\n%s: %s\nMod hash: %s\nRelay / Steam authentication", Info.m_aHostName, Info.m_LobbyID, Localize("Host"), Info.m_HostSteamID, Localize("Region"), Info.m_aRegion, Localize("Source"), Info.m_FriendHosted ? Localize("Friend room") : Localize("Steam local room"), Info.m_aModHash); } UI()->DoLabelScaled(&View, aDetail, 10.5f, -1); } };
+	auto RenderDetail = [&](CUIRect View) { DrawMenuInset(&View, CUI::CORNER_ALL); View.Margin(10.0f, &View); if(s_Selected < 0) UI()->DoLabelScaled(&View, Localize("No servers found"), 11.0f, -1); else { const CPlayRoomEntry &Entry = aEntries[s_Selected]; char aDetail[768]; if(Entry.m_pServer) { const CPlayServerSnapshot *pInfo = Entry.m_pServer; str_format(aDetail, sizeof(aDetail), "%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s", pInfo->m_aName, Localize("Game type"), DisplayGameType(pInfo->m_aGameType), Localize("Address"), pInfo->m_aAddress, Localize("Version"), pInfo->m_aVersion, Localize("Source"), pInfo->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pInfo->m_DiscoverySources & IServerBrowser::DISCOVERY_STEAM ? "Steam GameServer + UDP" : "UDP", Localize("Mods"), pInfo->m_Modded ? Localize("Required") : Localize("None"), Localize("Authentication"), pInfo->m_AuthPolicy ? Localize("Required") : Localize("Open")); } else { const CPlatformLobbyInfo &Info = Entry.m_pLobby->m_Info; str_format(aDetail, sizeof(aDetail), "%s\n\n%s: %s\nLobbyID: %llu\n%s: %llu\n%s: %s\n%s: %s\nMod hash: %s\nRelay / Steam authentication", Info.m_aHostName, Localize("Game type"), DisplayGameType(Info.m_aGameType), Info.m_LobbyID, Localize("Host"), Info.m_HostSteamID, Localize("Region"), Info.m_aRegion, Localize("Source"), Info.m_FriendHosted ? Localize("Friend room") : Localize("Steam local room"), Info.m_aModHash); } UI()->DoLabelScaled(&View, aDetail, 10.5f, -1); } };
 	if(!Compact) RenderDetail(Detail);
 	Actions.HSplitTop(6.0f, 0, &Actions); CUIRect Direct, ActionButtons; Actions.HSplitTop(30.0f, &Direct, &ActionButtons);
 	CUIRect DirectLabel, DirectBox; Direct.VSplitLeft(76.0f, &DirectLabel, &DirectBox); UI()->DoLabelScaled(&DirectLabel, Localize("Host address"), 10.0f, -1); static float s_DirectOffset; if(!(BlockPlayListInput && UI()->MouseInside(&DirectBox))) DoEditBox(&g_Config.m_UiServerAddress, &DirectBox, g_Config.m_UiServerAddress, sizeof(g_Config.m_UiServerAddress), 10.0f, &s_DirectOffset);

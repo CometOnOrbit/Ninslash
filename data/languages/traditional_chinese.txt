@@ -3820,6 +3820,9 @@ Available
 Replay
 == 重玩
 
+Replay chapter
+== 重玩章節
+
 Complete chapter %d first
 == 請先完成第 %d 章
 
@@ -3991,3 +3994,57 @@ Sync now
 
 Progress, appearance, portable preferences and custom key bindings are synchronized. Display, device and local network settings stay on this device.
 == 同步遊戲進度、角色外觀、可攜式偏好和自訂按鍵。顯示器、裝置及本機網路設定只保留在此裝置。
+
+Steam friends
+== Steam 好友
+
+Steam friends are unavailable in standalone mode.
+== 獨立模式下無法使用 Steam 好友。
+
+Overlay invite
+== Steam 介面邀請
+
+Joinable
+== 可加入
+
+Playing Ninslash
+== 正在玩 Ninslash
+
+Offline
+== 離線
+
+Join friend
+== 加入好友
+
+Profile
+== 個人資料
+
+friends
+== 位好友
+
+Session members
+== 目前成員
+
+Steam member
+== Steam 成員
+
+Anonymous connection
+== 匿名連線
+
+You
+== 你
+
+Friend
+== 好友
+
+Unknown
+== 未知
+
+Infection
+== 感染模式
+
+Roam
+== 漫遊模式
+
+Gun game
+== 槍械升級戰

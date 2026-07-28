@@ -224,6 +224,7 @@ public:
 	virtual void OnStateChange(int NewState, int OldState) = 0;
 	virtual void OnConnected() = 0;
 	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker) = 0;
+	virtual void OnPlatformPlayerIdentity(int ClientID, bool Present, unsigned long long UserID) = 0;
 	virtual void OnPredict() = 0;
 	virtual void OnActivateEditor() = 0;
 

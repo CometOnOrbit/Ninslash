@@ -236,6 +236,16 @@ public:
 	virtual bool ConsumeLobbyJoin(unsigned long long *pLobbyID) { if(pLobbyID) *pLobbyID = 0; return false; }
 	virtual bool ConsumeListenServerStopRequest() { return false; }
 	virtual bool OpenLobbyInviteDialog() { return false; }
+	virtual int FriendCount() const { return 0; }
+	virtual bool FriendInfo(int Index, CPlatformUserInfo *pInfo) const { (void)Index; if(pInfo) mem_zero(pInfo, sizeof(*pInfo)); return false; }
+	virtual bool UserInfo(unsigned long long UserID, CPlatformUserInfo *pInfo) const { (void)UserID; if(pInfo) mem_zero(pInfo, sizeof(*pInfo)); return false; }
+	virtual int LobbyMemberCount() const { return 0; }
+	virtual bool LobbyMemberInfo(int Index, CPlatformUserInfo *pInfo) const { (void)Index; if(pInfo) mem_zero(pInfo, sizeof(*pInfo)); return false; }
+	virtual bool InviteUser(unsigned long long UserID, const char *pConnect) { (void)UserID; (void)pConnect; return false; }
+	virtual bool JoinUser(unsigned long long UserID) { (void)UserID; return false; }
+	virtual bool OpenUserProfile(unsigned long long UserID) { (void)UserID; return false; }
+	virtual void SetPlayedWith(unsigned long long UserID) { (void)UserID; }
+	virtual int UserAvatarRGBA(unsigned long long UserID, int PreferredSize, void *pBuffer, int BufferSize, int *pWidth, int *pHeight) { (void)UserID; (void)PreferredSize; (void)pBuffer; (void)BufferSize; if(pWidth) *pWidth = 0; if(pHeight) *pHeight = 0; return -1; }
 	virtual bool RefreshLobbyList() { return false; }
 	virtual bool RefreshDedicatedServerList() { return false; }
 	virtual int LobbyCount() const { return 0; }
@@ -785,6 +795,113 @@ public:
 			return false;
 		SteamFriends()->ActivateGameOverlayInviteDialog(CSteamID(m_CurrentLobbyID));
 		return true;
+	}
+	bool FillUserInfo(CSteamID User, bool LobbyMember, CPlatformUserInfo *pInfo) const
+	{
+		if(!pInfo || !m_Initialized || !User.IsValid() || !SteamFriends())
+			return false;
+		mem_zero(pInfo, sizeof(*pInfo));
+		pInfo->m_UserID = User.ConvertToUint64();
+		pInfo->m_Local = SteamUser() && User == SteamUser()->GetSteamID();
+		pInfo->m_Friend = SteamFriends()->HasFriend(User, k_EFriendFlagImmediate);
+		pInfo->m_PersonaState = pInfo->m_Local ? (int)SteamFriends()->GetPersonaState() : (int)SteamFriends()->GetFriendPersonaState(User);
+		str_copy(pInfo->m_aName, pInfo->m_Local ? SteamFriends()->GetPersonaName() : SteamFriends()->GetFriendPersonaName(User), sizeof(pInfo->m_aName));
+		FriendGameInfo_t GameInfo;
+		mem_zero(&GameInfo, sizeof(GameInfo));
+		if(SteamFriends()->GetFriendGamePlayed(User, &GameInfo) && GameInfo.m_gameID.AppID() == (AppId_t)STEAM_APP_ID)
+		{
+			pInfo->m_PlayingThisGame = true;
+			if(GameInfo.m_steamIDLobby.IsValid())
+				pInfo->m_LobbyID = GameInfo.m_steamIDLobby.ConvertToUint64();
+		}
+		const char *pConnect = SteamFriends()->GetFriendRichPresence(User, "connect");
+		if(pConnect)
+			str_copy(pInfo->m_aConnect, pConnect, sizeof(pInfo->m_aConnect));
+		pInfo->m_Joinable = pInfo->m_PlayingThisGame && (pInfo->m_LobbyID || pInfo->m_aConnect[0]);
+		if(LobbyMember && m_CurrentLobbyID && SteamMatchmaking())
+		{
+			pInfo->m_LobbyID = m_CurrentLobbyID;
+			pInfo->m_PlayingThisGame = true;
+			pInfo->m_LobbyOwner = SteamMatchmaking()->GetLobbyOwner(CSteamID(m_CurrentLobbyID)) == User;
+		}
+		return true;
+	}
+	virtual int FriendCount() const
+	{
+		return m_Initialized && SteamFriends() ? SteamFriends()->GetFriendCount(k_EFriendFlagImmediate) : 0;
+	}
+	virtual bool FriendInfo(int Index, CPlatformUserInfo *pInfo) const
+	{
+		if(Index < 0 || Index >= FriendCount())
+			return false;
+		return FillUserInfo(SteamFriends()->GetFriendByIndex(Index, k_EFriendFlagImmediate), false, pInfo);
+	}
+	virtual bool UserInfo(unsigned long long UserID, CPlatformUserInfo *pInfo) const
+	{
+		return UserID != 0 && FillUserInfo(CSteamID(UserID), false, pInfo);
+	}
+	virtual int LobbyMemberCount() const
+	{
+		return m_Initialized && m_CurrentLobbyID && SteamMatchmaking() ? SteamMatchmaking()->GetNumLobbyMembers(CSteamID(m_CurrentLobbyID)) : 0;
+	}
+	virtual bool LobbyMemberInfo(int Index, CPlatformUserInfo *pInfo) const
+	{
+		if(Index < 0 || Index >= LobbyMemberCount())
+			return false;
+		return FillUserInfo(SteamMatchmaking()->GetLobbyMemberByIndex(CSteamID(m_CurrentLobbyID), Index), true, pInfo);
+	}
+	virtual bool InviteUser(unsigned long long UserID, const char *pConnect)
+	{
+		if(!m_Initialized || !UserID)
+			return false;
+		const CSteamID User(UserID);
+		if(m_CurrentLobbyID && SteamMatchmaking())
+			return SteamMatchmaking()->InviteUserToLobby(CSteamID(m_CurrentLobbyID), User);
+		return pConnect && pConnect[0] && SteamFriends() && SteamFriends()->InviteUserToGame(User, pConnect);
+	}
+	virtual bool JoinUser(unsigned long long UserID)
+	{
+		if(!m_Initialized || !UserID || !SteamFriends())
+			return false;
+		CPlatformUserInfo Info;
+		if(!FillUserInfo(CSteamID(UserID), false, &Info) || !Info.m_Joinable)
+			return false;
+		if(Info.m_LobbyID)
+			return JoinLobby(Info.m_LobbyID);
+		str_copy(m_aPendingJoin, Info.m_aConnect, sizeof(m_aPendingJoin));
+		return m_aPendingJoin[0] != 0;
+	}
+	virtual bool OpenUserProfile(unsigned long long UserID)
+	{
+		if(!m_Initialized || !UserID || !SteamFriends())
+			return false;
+		SteamFriends()->ActivateGameOverlayToUser("steamid", CSteamID(UserID));
+		return true;
+	}
+	virtual void SetPlayedWith(unsigned long long UserID)
+	{
+		if(m_Initialized && UserID && SteamFriends() && UserID != LocalUserID())
+			SteamFriends()->SetPlayedWith(CSteamID(UserID));
+	}
+	virtual int UserAvatarRGBA(unsigned long long UserID, int PreferredSize, void *pBuffer, int BufferSize, int *pWidth, int *pHeight)
+	{
+		if(pWidth) *pWidth = 0;
+		if(pHeight) *pHeight = 0;
+		if(!m_Initialized || !UserID || !pBuffer || !SteamFriends() || !SteamUtils())
+			return -1;
+		const CSteamID User(UserID);
+		SteamFriends()->RequestUserInformation(User, true);
+		const int Image = PreferredSize >= 64 ? SteamFriends()->GetMediumFriendAvatar(User) : SteamFriends()->GetSmallFriendAvatar(User);
+		if(Image == -1)
+			return 0;
+		uint32 Width = 0, Height = 0;
+		if(Image <= 0 || !SteamUtils()->GetImageSize(Image, &Width, &Height) || Width == 0 || Height == 0 || BufferSize < (int)(Width * Height * 4))
+			return -1;
+		if(!SteamUtils()->GetImageRGBA(Image, (uint8 *)pBuffer, Width * Height * 4))
+			return -1;
+		if(pWidth) *pWidth = (int)Width;
+		if(pHeight) *pHeight = (int)Height;
+		return 1;
 	}
 	virtual bool RefreshLobbyList()
 	{

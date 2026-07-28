@@ -870,6 +870,24 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 	}
 }
 
+void CGameClient::OnPlatformPlayerIdentity(int ClientID, bool Present, unsigned long long UserID)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return;
+	CClientData &Data = m_aClients[ClientID];
+	if(Present && Data.m_PlatformIdentityVerified && Data.m_PlatformUserID == UserID && Data.m_PlatformPlayedWithReported)
+		return;
+	Data.m_PlatformUserID = Present ? UserID : 0;
+	Data.m_PlatformIdentityVerified = Present && UserID != 0;
+	Data.m_PlatformPlayedWithReported = false;
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	if(Data.m_PlatformIdentityVerified && pPlatform && pPlatform->Available() && UserID != pPlatform->LocalUserID())
+	{
+		pPlatform->SetPlayedWith(UserID);
+		Data.m_PlatformPlayedWithReported = true;
+	}
+}
+
 void CGameClient::OnStateChange(int NewState, int OldState)
 {
 	// reset everything when not already connected (to keep gathered stuff)
@@ -1789,6 +1807,9 @@ void CGameClient::CClientData::UpdateRenderInfo()
 
 void CGameClient::CClientData::Reset()
 {
+	m_PlatformUserID = 0;
+	m_PlatformIdentityVerified = false;
+	m_PlatformPlayedWithReported = false;
 	m_aName[0] = 0;
 	m_aClan[0] = 0;
 	m_Country = -1;
