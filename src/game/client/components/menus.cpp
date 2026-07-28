@@ -17,6 +17,9 @@
 #include <engine/storage.h>
 #include <engine/textrender.h>
 #include <engine/shared/config.h>
+#include <engine/shared/content_package.h>
+#include <engine/shared/community_challenge.h>
+#include <engine/shared/room_preset.h>
 #include <engine/platform_services.h>
 
 #include <game/version.h>
@@ -178,6 +181,18 @@ CMenus::CMenus()
 		m_aSteamAvatars[i].m_LastUsed = 0;
 		m_aSteamAvatars[i].m_NextRetry = 0;
 	}
+	for(int i = 0; i < 32; i++)
+	{
+		m_aWorkshopPreviews[i].m_PublishedFileID = 0;
+		m_aWorkshopPreviews[i].m_UpdatedAt = 0;
+		m_aWorkshopPreviews[i].m_OperationID = 0;
+		m_aWorkshopPreviews[i].m_Texture = -1;
+		m_aWorkshopPreviews[i].m_LastUsed = 0;
+		m_aWorkshopPreviews[i].m_NextRetry = 0;
+	}
+	m_WorkshopSelectedID = 0;
+	m_WorkshopDiscover = false;
+	m_WorkshopDetailOpen = false;
 	m_SteamFriendCacheCount = 0;
 	m_SteamFriendCacheNextRefresh = 0;
 	m_CloudInitialized = false;
@@ -1667,6 +1682,7 @@ static void ApplyLocalGameModeDefaults(int Mode)
 	const CRoomModeDefaults Defaults = RoomModeDefaults(Mode);
 	g_Config.m_ClLocalServerMode = Mode;
 	g_Config.m_ClLocalServerMap = 0;
+	g_Config.m_ClLocalServerWorkshopMap[0] = 0;
 	g_Config.m_ClLocalServerMaxClients = Defaults.m_Players;
 	g_Config.m_ClLocalServerDifficulty = Defaults.m_Difficulty;
 	g_Config.m_ClLocalServerBots = min(Defaults.m_Bots, Defaults.m_Players - 1);
@@ -1748,6 +1764,35 @@ static int *LocalModeRuleConfig(int Rule)
 	return 0;
 }
 
+static bool LoadWorkshopRoomPreset(const CPlatformWorkshopItem &Item, CRoomPreset *pPreset, char *pError, int ErrorSize)
+{
+	if(!pPreset || !Item.m_Valid || (Item.m_ContentType != CONTENT_TYPE_ROOM_PRESET && Item.m_ContentType != CONTENT_TYPE_CHALLENGE)) { str_copy(pError, "Content is not an installed validated room preset", ErrorSize); return false; }
+	char aID[32]; str_format(aID, sizeof(aID), "%llu", Item.m_PublishedFileID); CContentManifest Manifest;
+	if(!ContentPackageValidate(Item.m_aInstallPath, aID, GAME_NETVERSION, &Manifest, pError, ErrorSize)) return false;
+	const char *pDefinition = 0; for(int i = 0; i < Manifest.m_FileCount; i++) if(Manifest.m_aFiles[i].m_Type == CONTENT_FILE_DEFINITION) { pDefinition = Manifest.m_aFiles[i].m_aPath; break; }
+	if(!pDefinition) { str_copy(pError, "Preset definition is missing", ErrorSize); return false; }
+	char aPath[1400]; str_format(aPath, sizeof(aPath), "%s/%s", Item.m_aInstallPath, pDefinition); IOHANDLE File = io_open(aPath, IOFLAG_READ); if(!File) { str_copy(pError, "Unable to read preset definition", ErrorSize); return false; }
+	const long Size = io_length(File); if(Size <= 0 || Size > 64 * 1024) { io_close(File); str_copy(pError, "Invalid preset definition size", ErrorSize); return false; }
+	char *pJson = (char *)mem_alloc((unsigned)Size + 1, 1); const unsigned Read = io_read(File, pJson, (unsigned)Size); io_close(File); pJson[Read] = 0; const bool Result = Read == (unsigned)Size && RoomPresetParse(pJson, (int)Size, Item.m_ContentType == CONTENT_TYPE_CHALLENGE, pPreset, pError, ErrorSize); mem_free(pJson); return Result;
+}
+
+static bool LoadWorkshopChallengeDescriptor(const CPlatformWorkshopItem &Item, CCommunityChallengeDescriptor *pDescriptor, char *pError, int ErrorSize)
+{
+	if(Item.m_ContentType != CONTENT_TYPE_CHALLENGE || !Item.m_Valid || !pDescriptor) return false;
+	char aID[32]; str_format(aID, sizeof(aID), "%llu", Item.m_PublishedFileID); CContentManifest Manifest; if(!ContentPackageValidate(Item.m_aInstallPath, aID, GAME_NETVERSION, &Manifest, pError, ErrorSize)) return false; const char *pDefinition = 0; for(int i = 0; i < Manifest.m_FileCount; i++) if(Manifest.m_aFiles[i].m_Type == CONTENT_FILE_DEFINITION) pDefinition = Manifest.m_aFiles[i].m_aPath; if(!pDefinition) return false; char aPath[1400]; str_format(aPath, sizeof(aPath), "%s/%s", Item.m_aInstallPath, pDefinition); IOHANDLE File = io_open(aPath, IOFLAG_READ); if(!File) return false; const long Size = io_length(File); if(Size <= 0 || Size > 64 * 1024) { io_close(File); return false; } char *pJson = (char *)mem_alloc((unsigned)Size + 1, 1); const unsigned Read = io_read(File, pJson, (unsigned)Size); io_close(File); pJson[Read] = 0; const bool Result = Read == (unsigned)Size && CommunityChallengeParse(pJson, (int)Size, Manifest, pDescriptor, pError, ErrorSize); mem_free(pJson); return Result;
+}
+
+static bool ApplyWorkshopRoomPreset(const CRoomPreset &Preset, int PartySize, char *pSummary, int SummarySize)
+{
+	int Mode = -1; for(int i = 0; i < LocalGameModeCount(); i++) if(str_comp(LocalGameMode(i).m_pGameType, Preset.m_aGameType) == 0) { Mode = i; break; }
+	if(Mode < 0) { str_copy(pSummary, "Preset uses an unsupported game type", SummarySize); return false; }
+	g_Config.m_ClLocalServerMode = Mode; g_Config.m_ClLocalServerMaxClients = clamp(max(Preset.m_MaxPlayers, PartySize), 1, 16); g_Config.m_ClLocalServerDifficulty = clamp(Preset.m_Difficulty, 1, 50); g_Config.m_ClLocalServerBots = clamp(Preset.m_Bots, 0, max(0, g_Config.m_ClLocalServerMaxClients - 1)); g_Config.m_ClLocalServerRandomSeed = Preset.m_RandomSeed; g_Config.m_ClLocalServerSeed = clamp(Preset.m_Seed, 0, 32767); g_Config.m_ClLocalServerRoguelite = Preset.m_Roguelite; g_Config.m_ClLocalServerContracts = Preset.m_Contracts; g_Config.m_ClLocalServerInvasionStart = Preset.m_InvasionStart; g_Config.m_ClLocalServerInvasionFloor = Preset.m_InvasionFloor;
+	g_Config.m_ClLocalServerWorkshopMap[0] = 0; const CLocalGameMode &ModeDef = LocalGameMode(Mode); bool FoundMap = false; for(int i = 0; i < ModeDef.m_MapCount; i++) if(str_comp(ModeDef.m_ppMapCommands[i], Preset.m_aMapLocator) == 0) { g_Config.m_ClLocalServerMap = i; FoundMap = true; break; }
+	if(!FoundMap && str_comp_num(Preset.m_aMapLocator, "workshop:", 9) == 0) str_copy(g_Config.m_ClLocalServerWorkshopMap, Preset.m_aMapLocator, sizeof(g_Config.m_ClLocalServerWorkshopMap)); else if(!FoundMap) { str_copy(pSummary, "Preset map is not valid for this game mode", SummarySize); return false; }
+	int *pRule = LocalModeRuleConfig(ModeDef.m_Rule); if(pRule) *pRule = Preset.m_ModeRule;
+	str_format(pSummary, SummarySize, "Applied %s, %s, %d players, difficulty %d, %d bots, %s seed. Visibility, password and server name were left unchanged.", ModeDef.m_pName, Preset.m_aMapLocator, g_Config.m_ClLocalServerMaxClients, Preset.m_Difficulty, g_Config.m_ClLocalServerBots, Preset.m_RandomSeed ? "random" : "fixed"); return true;
+}
+
 static bool LocalRuleUsesScoreLimit(int Rule)
 {
 	return Rule == LOCAL_RULE_HORDE || Rule == LOCAL_RULE_DM_SCORE || Rule == LOCAL_RULE_TDM_SCORE ||
@@ -1763,6 +1808,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 	pSettings->m_Map = clamp(g_Config.m_ClLocalServerMap, 0, pSettings->m_pMode->m_MapCount - 1);
 	pSettings->m_pMapName = pSettings->m_pMode->m_SelectableMap ? pSettings->m_pMode->m_ppMapNames[pSettings->m_Map] : "Automatic by Invasion floor";
 	pSettings->m_pMapCommand = pSettings->m_pMode->m_SelectableMap ? pSettings->m_pMode->m_ppMapCommands[pSettings->m_Map] : 0;
+	if(g_Config.m_ClLocalServerWorkshopMap[0]) { pSettings->m_pMapName = g_Config.m_ClLocalServerWorkshopMap; pSettings->m_pMapCommand = g_Config.m_ClLocalServerWorkshopMap; }
 	pSettings->m_Port = clamp(g_Config.m_ClLocalServerPort, 1024, 65535);
 	pSettings->m_MaxClients = clamp(g_Config.m_ClLocalServerMaxClients, 1, 16);
 	pSettings->m_Bots = pSettings->m_pMode->m_Pve ? 0 : clamp(g_Config.m_ClLocalServerBots, 0, 16);
@@ -1772,7 +1818,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 	pSettings->m_InvasionFloor = clamp(g_Config.m_ClLocalServerInvasionFloor, 1, max(1, g_Config.m_ClPveHighestInvasion));
 	pSettings->m_Lan = g_Config.m_ClLocalServerLan != 0;
 	pSettings->m_RandomSeed = g_Config.m_ClLocalServerRandomSeed != 0;
-	pSettings->m_MapGen = pSettings->m_pMode->m_MapGen;
+	pSettings->m_MapGen = pSettings->m_pMode->m_MapGen && !g_Config.m_ClLocalServerWorkshopMap[0];
 	pSettings->m_Seed = clamp(g_Config.m_ClLocalServerSeed, 0, 32767);
 	pSettings->m_Roguelite = pSettings->m_pMode->m_Pve && g_Config.m_ClLocalServerRoguelite != 0;
 	pSettings->m_Contracts = pSettings->m_Roguelite && g_Config.m_ClLocalServerContracts != 0;
@@ -4016,6 +4062,42 @@ void CMenus::DrawSteamAvatar(const CUIRect &Rect, unsigned long long UserID)
 	Graphics()->QuadsEnd();
 }
 
+int CMenus::WorkshopPreviewTexture(const CPlatformWorkshopItem &Item)
+{
+	if(!Item.m_PublishedFileID || !Item.m_aPreviewURL[0]) return -1;
+	const int64 Now = time_get();
+	int Slot = -1;
+	for(int i = 0; i < 32; i++) if(m_aWorkshopPreviews[i].m_PublishedFileID == Item.m_PublishedFileID && m_aWorkshopPreviews[i].m_UpdatedAt == Item.m_UpdatedAt) { Slot = i; break; }
+	if(Slot < 0)
+	{
+		for(int i = 0; i < 32; i++) if(!m_aWorkshopPreviews[i].m_PublishedFileID) { Slot = i; break; }
+		if(Slot < 0) { Slot = 0; for(int i = 1; i < 32; i++) if(m_aWorkshopPreviews[i].m_LastUsed < m_aWorkshopPreviews[Slot].m_LastUsed) Slot = i; }
+		if(m_aWorkshopPreviews[Slot].m_Texture >= 0) Graphics()->UnloadTexture(m_aWorkshopPreviews[Slot].m_Texture);
+		mem_zero(&m_aWorkshopPreviews[Slot], sizeof(m_aWorkshopPreviews[Slot])); m_aWorkshopPreviews[Slot].m_PublishedFileID = Item.m_PublishedFileID; m_aWorkshopPreviews[Slot].m_UpdatedAt = Item.m_UpdatedAt; m_aWorkshopPreviews[Slot].m_Texture = -1;
+	}
+	m_aWorkshopPreviews[Slot].m_LastUsed = Now;
+	if(m_aWorkshopPreviews[Slot].m_Texture >= 0) return m_aWorkshopPreviews[Slot].m_Texture;
+	if(!m_aWorkshopPreviews[Slot].m_OperationID && Now >= m_aWorkshopPreviews[Slot].m_NextRetry)
+	{
+		IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+		m_aWorkshopPreviews[Slot].m_OperationID = pPlatform ? pPlatform->RequestWorkshopPreview(Item.m_PublishedFileID) : 0;
+		if(!m_aWorkshopPreviews[Slot].m_OperationID) m_aWorkshopPreviews[Slot].m_NextRetry = Now + time_freq() * 5;
+	}
+	return -1;
+}
+
+void CMenus::DrawWorkshopPreview(const CUIRect &Rect, const CPlatformWorkshopItem &Item)
+{
+	const int Texture = WorkshopPreviewTexture(Item);
+	if(Texture < 0)
+	{
+		DrawMenuInset(&Rect, CUI::CORNER_ALL);
+		const char *apTypes[] = {"MOD", "MAP", "PRESET", "CHALLENGE"};
+		CUIRect Label = Rect; UI()->DoLabelScaled(&Label, apTypes[clamp(Item.m_ContentType, 0, 3)], min(12.0f, Rect.h * 0.22f), 0); return;
+	}
+	Graphics()->TextureSet(Texture); Graphics()->QuadsBegin(); Graphics()->SetColor(1, 1, 1, 1); IGraphics::CQuadItem Quad(Rect.x, Rect.y, Rect.w, Rect.h); Graphics()->QuadsDrawTL(&Quad, 1); Graphics()->QuadsEnd();
+}
+
 void CMenus::RenderSteamFriends(CUIRect MainView)
 {
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
@@ -4747,21 +4829,175 @@ void CMenus::RenderPlay(CUIRect MainView)
 void CMenus::RenderMods(CUIRect MainView)
 {
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
-	DrawMenuPanel(&MainView, CUI::CORNER_ALL); MainView.Margin(10.0f, &MainView);
-	CUIRect Title, Toolbar, Body, List, Detail, Button, Row; MainView.HSplitTop(36.0f, &Title, &MainView); UI()->DoLabelScaled(&Title, Localize("Mods"), 22.0f, -1);
-	if(!pPlatform || !pPlatform->Available()) { UI()->DoLabelScaled(&MainView, Localize("Steam Workshop is unavailable. Installed game data remains unchanged."), 12.0f, -1); return; }
-	CPlatformOperationStatus ModStatus; pPlatform->WorkshopOperationStatus(&ModStatus);
-	if(ModStatus.m_State == CLIENT_ASYNC_WORKING) { CUIRect Progress; MainView.HSplitTop(18.0f, &Progress, &MainView); char aProgress[96]; str_format(aProgress, sizeof(aProgress), "%s  %d%%", Localize("Synchronizing Mods"), (int)(ModStatus.m_Progress * 100)); UI()->DoLabelScaled(&Progress, aProgress, 10.0f, -1); MainView.HSplitTop(4.0f, 0, &MainView); }
-	static int s_Tab = 0, s_Selected = -1; static float s_Scroll = 0.0f; static int s_aTabs[3]; const char *apTabs[] = {"Installed", "Needs update", "Disabled"};
-	MainView.HSplitTop(30.0f, &Toolbar, &Body); for(int i = 0; i < 3; i++) { Toolbar.VSplitLeft(130.0f, &Button, &Toolbar); if(DoButton_MenuTab(&s_aTabs[i], Localize(apTabs[i]), s_Tab == i, &Button, 0)) s_Tab = i; Toolbar.VSplitLeft(4.0f, 0, &Toolbar); }
-	Body.HSplitTop(8.0f, 0, &Body); Body.VSplitLeft(Body.w * 0.60f, &List, &Detail); List.VSplitRight(8.0f, &List, 0);
-	int aItems[256], Count = 0; for(int i = 0; i < pPlatform->WorkshopItemCount(); i++) { CPlatformWorkshopItem Info; pPlatform->WorkshopItem(i, &Info); const bool Disabled = (Info.m_State & 128) != 0; const bool NeedsUpdate = (Info.m_State & 8) != 0 || (Info.m_Total > 0 && Info.m_Downloaded < Info.m_Total); if((s_Tab == 0 && !Disabled && !NeedsUpdate) || (s_Tab == 1 && NeedsUpdate) || (s_Tab == 2 && Disabled)) aItems[Count++] = i; }
-	static int s_aIDs[256]; for(int i = 0; i < 256; i++) s_aIDs[i] = i; UiDoListboxStart(&s_aIDs, &List, 42.0f, Localize("Player Mods"), "", Count, 1, s_Selected, s_Scroll);
-	for(int i = 0; i < Count; i++) { CPlatformWorkshopItem Info; pPlatform->WorkshopItem(aItems[i], &Info); CListboxItem Item = UiDoListboxNextItem(&s_aIDs[i], s_Selected == i); if(Item.m_Visible) { char aLine[512]; const int Percent = Info.m_Total ? (int)(Info.m_Downloaded * 100 / Info.m_Total) : (Info.m_Valid ? 100 : 0); str_format(aLine, sizeof(aLine), "%s  v%s  |  %s  |  %d%%", Info.m_aName[0] ? Info.m_aName : Localize("Downloading Mod"), Info.m_aVersion[0] ? Info.m_aVersion : "-", Info.m_Valid ? Localize("VALID") : Localize("CHECK REQUIRED"), Percent); Item.m_Rect.Margin(6.0f, &Item.m_Rect); UI()->DoLabelScaled(&Item.m_Rect, aLine, FitLabelFontSize(TextRender(), aLine, 10.5f, Item.m_Rect.w), -1); } }
-	s_Selected = UiDoListboxEnd(&s_Scroll, 0); s_Selected = clamp(s_Selected, -1, max(-1, Count - 1)); DrawMenuInset(&Detail, CUI::CORNER_ALL); Detail.Margin(10.0f, &Detail);
-	if(s_Selected < 0) UI()->DoLabelScaled(&Detail, Localize("No Mods in this category."), 11.0f, -1);
-	else { CPlatformWorkshopItem Info; pPlatform->WorkshopItem(aItems[s_Selected], &Info); char aDetail[768], aID[32]; str_format(aID, sizeof(aID), "%llu", Info.m_PublishedFileID); str_format(aDetail, sizeof(aDetail), "%s\nWorkshop ID: %llu\n%s: %s\n%s: %s\n%s: %s\n%s", Info.m_aName, Info.m_PublishedFileID, Localize("Version"), Info.m_aVersion, Localize("Protocol / content hash"), Info.m_Valid ? Localize("Verified for this build") : Localize("Not verified"), Localize("Current collection"), str_find(g_Config.m_ClModIds, aID) ? Localize("Active") : Localize("Inactive"), Info.m_aError); UI()->DoLabelScaled(&Detail, aDetail, 10.5f, -1); Detail.HSplitBottom(126.0f, &Detail, &Row); static int s_Use, s_Toggle, s_Remove, s_Community; Row.HSplitTop(28.0f, &Button, &Row); if(DoButton_Menu(&s_Use, Localize("Use collection"), 0, &Button, BUTTONSTYLE_ACCENT)) { str_format(g_Config.m_ClModIds, sizeof(g_Config.m_ClModIds), "%llu", Info.m_PublishedFileID); pPlatform->RefreshWorkshopItems(); } Row.HSplitTop(4.0f, 0, &Row); Row.HSplitTop(28.0f, &Button, &Row); const bool Disabled = (Info.m_State & 128) != 0; if(DoButton_Menu(&s_Toggle, Localize(Disabled ? "Enable" : "Disable"), 0, &Button)) pPlatform->SetWorkshopItemDisabled(Info.m_PublishedFileID, !Disabled); Row.HSplitTop(4.0f, 0, &Row); Row.HSplitTop(28.0f, &Button, &Row); Button.VSplitLeft(Button.w / 2 - 2.0f, &Button, &Row); if(DoButton_Menu(&s_Remove, Localize("Unsubscribe"), 0, &Button, BUTTONSTYLE_DANGER)) pPlatform->UnsubscribeWorkshopItem(Info.m_PublishedFileID); Row.VSplitLeft(4.0f, 0, &Row); if(DoButton_Menu(&s_Community, Localize("Community / Report"), 0, &Row)) pPlatform->OpenWorkshopItemPage(Info.m_PublishedFileID); }
-	CUIRect Browse; MainView.HSplitBottom(34.0f, &MainView, &Browse); static int s_Refresh, s_Browse; Browse.VSplitLeft(110.0f, &Button, &Browse); if(DoButton_Menu(&s_Refresh, Localize("Refresh"), 0, &Button)) pPlatform->RefreshWorkshopItems(); Browse.VSplitLeft(6.0f, 0, &Browse); Browse.VSplitLeft(170.0f, &Button, &Browse); if(DoButton_Menu(&s_Browse, Localize("Browse Workshop"), 0, &Button, BUTTONSTYLE_ACCENT)) pPlatform->OpenWorkshopBrowsePage();
+	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
+	MainView.Margin(10.0f, &MainView);
+	CUIRect Title, ViewTabs, SearchRow, CategoryRow, StatusRow, Body, Footer, Button;
+	MainView.HSplitTop(36.0f, &Title, &MainView);
+	UI()->DoLabelScaled(&Title, Localize("Workshop"), 22.0f, -1);
+	if(!pPlatform || !pPlatform->Available())
+	{
+		UI()->DoLabelScaled(&MainView, Localize("Steam Workshop is unavailable. Installed game data remains unchanged."), 12.0f, -1);
+		return;
+	}
+
+	static char s_aSearch[128] = "";
+	static float s_SearchOffset = 0.0f;
+	static int s_Category = 0, s_LibraryStatus = 0, s_Sort = PLATFORM_WORKSHOP_POPULAR, s_Page = 1;
+	static unsigned s_QueryOperation = 0, s_TotalMatching = 0;
+	static bool s_QueryWorking = false;
+	static char s_aQueryError[128] = "";
+	static int s_aViewTabs[2], s_aCategories[5], s_aStatuses[5], s_aSorts[4];
+	static float s_ListScroll = 0.0f;
+	static int s_ListSelection = -1;
+
+	auto ContentTypeFilter = [&]() { return s_Category == 0 ? -1 : s_Category == 4 ? CONTENT_TYPE_MOD : s_Category; };
+	auto StartQuery = [&](int Page) {
+		CPlatformWorkshopQuery Query; mem_zero(&Query, sizeof(Query)); Query.m_ContentType = ContentTypeFilter(); Query.m_Sort = s_Sort; Query.m_Page = Page; str_copy(Query.m_aSearch, s_aSearch, sizeof(Query.m_aSearch));
+		const unsigned Operation = pPlatform->QueryWorkshop(Query);
+		if(Operation) { s_QueryOperation = Operation; s_Page = Page; s_QueryWorking = true; s_aQueryError[0] = 0; }
+	};
+
+	CPlatformWorkshopQueryResult QueryResult;
+	while(pPlatform->ConsumeWorkshopQueryResult(&QueryResult))
+	{
+		if(QueryResult.m_OperationID != s_QueryOperation) continue;
+		s_QueryWorking = false;
+		if(QueryResult.m_Succeeded) { s_TotalMatching = QueryResult.m_TotalMatching; s_aQueryError[0] = 0; }
+		else str_copy(s_aQueryError, QueryResult.m_aError, sizeof(s_aQueryError));
+	}
+	CPlatformWorkshopPreviewResult PreviewResult;
+	while(pPlatform->ConsumeWorkshopPreviewResult(&PreviewResult))
+	{
+		for(int i = 0; i < 32; i++) if(m_aWorkshopPreviews[i].m_PublishedFileID == PreviewResult.m_PublishedFileID && m_aWorkshopPreviews[i].m_OperationID == PreviewResult.m_OperationID)
+		{
+			m_aWorkshopPreviews[i].m_OperationID = 0;
+			if(PreviewResult.m_Succeeded) m_aWorkshopPreviews[i].m_Texture = Graphics()->LoadTexture(PreviewResult.m_aCachePath, IStorage::TYPE_SAVE, CImageInfo::FORMAT_AUTO, IGraphics::TEXLOAD_NOMIPMAPS);
+			else m_aWorkshopPreviews[i].m_NextRetry = time_get() + time_freq() * 30;
+			break;
+		}
+	}
+
+	MainView.HSplitTop(30.0f, &ViewTabs, &MainView);
+	for(int i = 0; i < 2; i++)
+	{
+		ViewTabs.VSplitLeft(140.0f, &Button, &ViewTabs);
+		const bool Active = i == (m_WorkshopDiscover ? 1 : 0);
+		if(DoButton_MenuTab(&s_aViewTabs[i], Localize(i ? "Discover" : "My Library"), Active, &Button, i == 0 ? CUI::CORNER_L : CUI::CORNER_R))
+		{
+			m_WorkshopDiscover = i == 1; m_WorkshopSelectedID = 0; s_ListSelection = -1; s_ListScroll = 0.0f;
+			if(m_WorkshopDiscover) StartQuery(1); else pPlatform->RefreshWorkshopItems();
+		}
+	}
+	MainView.HSplitTop(5.0f, 0, &MainView);
+	MainView.HSplitTop(30.0f, &SearchRow, &MainView);
+	CUIRect Search, SearchButton, RefreshButton;
+	SearchRow.VSplitRight(82.0f, &SearchRow, &RefreshButton); SearchRow.VSplitRight(5.0f, &SearchRow, 0);
+	if(m_WorkshopDiscover) { SearchRow.VSplitRight(76.0f, &SearchRow, &SearchButton); SearchRow.VSplitRight(5.0f, &SearchRow, 0); }
+	Search = SearchRow;
+	DoEditBox(&s_aSearch, &Search, s_aSearch, sizeof(s_aSearch), 10.0f, &s_SearchOffset);
+	static int s_SearchButton;
+	const bool SubmitSearch = m_WorkshopDiscover && (DoButton_Menu(&s_SearchButton, Localize("Search"), 0, &SearchButton, BUTTONSTYLE_ACCENT) || (m_EnterPressed && UI()->ActiveItem() == &s_aSearch));
+	if(SubmitSearch) { m_EnterPressed = false; StartQuery(1); }
+	static int s_Refresh;
+	if(DoButton_Menu(&s_Refresh, Localize("Refresh"), 0, &RefreshButton)) { if(m_WorkshopDiscover) StartQuery(s_Page); else pPlatform->RefreshWorkshopItems(); }
+
+	MainView.HSplitTop(5.0f, 0, &MainView);
+	MainView.HSplitTop(28.0f, &CategoryRow, &MainView);
+	const char *apCategories[] = {"All", "Maps", "Room Presets", "Challenges", "Mods"};
+	for(int i = 0; i < 5; i++)
+	{
+		CategoryRow.VSplitLeft(min(112.0f, CategoryRow.w / (5 - i)), &Button, &CategoryRow);
+		if(DoButton_MenuTab(&s_aCategories[i], Localize(apCategories[i]), s_Category == i, &Button, 0)) { s_Category = i; m_WorkshopSelectedID = 0; if(m_WorkshopDiscover) StartQuery(1); }
+		CategoryRow.VSplitLeft(3.0f, 0, &CategoryRow);
+	}
+	MainView.HSplitTop(4.0f, 0, &MainView);
+	MainView.HSplitTop(26.0f, &StatusRow, &MainView);
+	if(m_WorkshopDiscover)
+	{
+		const char *apSorts[] = {"Latest", "Popular", "Rating", "Most subscribed"};
+		for(int i = 0; i < 4; i++) { StatusRow.VSplitLeft(min(116.0f, StatusRow.w / (4 - i)), &Button, &StatusRow); if(DoButton_MenuTab(&s_aSorts[i], Localize(apSorts[i]), s_Sort == i, &Button, 0)) { s_Sort = i; StartQuery(1); } StatusRow.VSplitLeft(3.0f, 0, &StatusRow); }
+	}
+	else
+	{
+		const char *apStatuses[] = {"All", "Installed", "Downloading", "Disabled", "Invalid"};
+		for(int i = 0; i < 5; i++) { StatusRow.VSplitLeft(min(108.0f, StatusRow.w / (5 - i)), &Button, &StatusRow); if(DoButton_MenuTab(&s_aStatuses[i], Localize(apStatuses[i]), s_LibraryStatus == i, &Button, 0)) { s_LibraryStatus = i; m_WorkshopSelectedID = 0; } StatusRow.VSplitLeft(3.0f, 0, &StatusRow); }
+	}
+	MainView.HSplitTop(7.0f, 0, &MainView);
+	MainView.HSplitBottom(32.0f, &Body, &Footer);
+
+	int aItems[256], Count = 0;
+	const int SourceCount = m_WorkshopDiscover ? pPlatform->WorkshopQueryItemCount() : pPlatform->WorkshopItemCount();
+	for(int i = 0; i < SourceCount && Count < 256; i++)
+	{
+		CPlatformWorkshopItem Info; if(!(m_WorkshopDiscover ? pPlatform->WorkshopQueryItem(i, &Info) : pPlatform->WorkshopItem(i, &Info))) continue;
+		if(ContentTypeFilter() >= 0 && Info.m_ContentType != ContentTypeFilter()) continue;
+		if(!m_WorkshopDiscover && s_aSearch[0] && !str_find_nocase(Info.m_aName, s_aSearch) && !str_find_nocase(Info.m_aAuthor, s_aSearch) && !str_find_nocase(Info.m_aDescription, s_aSearch)) continue;
+		const bool Downloading = (Info.m_State & (16 | 32)) != 0 || (Info.m_Total && Info.m_Downloaded < Info.m_Total);
+		const bool Disabled = (Info.m_State & 64) != 0;
+		if(!m_WorkshopDiscover && ((s_LibraryStatus == 1 && !Info.m_Valid) || (s_LibraryStatus == 2 && !Downloading) || (s_LibraryStatus == 3 && !Disabled) || (s_LibraryStatus == 4 && (Info.m_Valid || Downloading)))) continue;
+		aItems[Count++] = i;
+	}
+	auto GetItem = [&](int VisibleIndex, CPlatformWorkshopItem *pInfo) { return VisibleIndex >= 0 && VisibleIndex < Count && (m_WorkshopDiscover ? pPlatform->WorkshopQueryItem(aItems[VisibleIndex], pInfo) : pPlatform->WorkshopItem(aItems[VisibleIndex], pInfo)); };
+	bool SelectionFound = false;
+	if(m_WorkshopSelectedID) for(int i = 0; i < Count; i++) { CPlatformWorkshopItem Info; if(GetItem(i, &Info) && Info.m_PublishedFileID == m_WorkshopSelectedID) { s_ListSelection = i; SelectionFound = true; break; } }
+	if(m_WorkshopSelectedID && !SelectionFound) { m_WorkshopSelectedID = 0; s_ListSelection = -1; }
+	if(!m_WorkshopSelectedID && Count) { CPlatformWorkshopItem Info; if(GetItem(0, &Info)) { m_WorkshopSelectedID = Info.m_PublishedFileID; s_ListSelection = 0; } }
+	if(!Count) { s_ListSelection = -1; m_WorkshopSelectedID = 0; }
+
+	const bool Compact = Body.w / max(1.0f, UI()->Scale()) < 760.0f;
+	CUIRect List = Body, Detail;
+	if(!Compact) { Body.VSplitLeft(Body.w * 0.60f, &List, &Detail); List.VSplitRight(8.0f, &List, 0); }
+	static int s_aListIDs[256]; for(int i = 0; i < 256; i++) s_aListIDs[i] = i;
+	UiDoListboxStart(&s_aListIDs, &List, 72.0f, Localize("Workshop content"), "", Count, 1, s_ListSelection, s_ListScroll);
+	for(int i = 0; i < Count; i++)
+	{
+		CPlatformWorkshopItem Info; if(!GetItem(i, &Info)) continue;
+		CListboxItem Entry = UiDoListboxNextItem(&s_aListIDs[i], s_ListSelection == i);
+		if(!Entry.m_Visible) continue;
+		CUIRect Row = Entry.m_Rect, Preview, Text, Line, Badge; Row.Margin(5.0f, &Row); Row.VSplitLeft(92.0f, &Preview, &Text); Text.VSplitLeft(8.0f, 0, &Text); DrawWorkshopPreview(Preview, Info);
+		Text.HSplitTop(18.0f, &Line, &Text); UI()->DoLabelScaled(&Line, Info.m_aName[0] ? Info.m_aName : Localize("Downloading content"), FitLabelFontSize(TextRender(), Info.m_aName, 11.5f, Line.w), -1);
+		Text.HSplitTop(17.0f, &Line, &Text); const char *apTypes[] = {"Mod", "Map", "Room Preset", "Challenge"}; char aMeta[256], aAuthor[128]; if(!pPlatform->UserDisplayName(Info.m_OwnerUserID, aAuthor, sizeof(aAuthor))) str_copy(aAuthor, Info.m_aAuthor, sizeof(aAuthor)); str_format(aMeta, sizeof(aMeta), "%s  ·  %s", Localize(apTypes[clamp(Info.m_ContentType, 0, 3)]), aAuthor[0] ? aAuthor : Localize("Unknown author")); UI()->DoLabelScaled(&Line, aMeta, 9.5f, -1);
+		Text.HSplitTop(16.0f, &Line, &Text); const bool Downloading = (Info.m_State & (16 | 32)) != 0 || (Info.m_Total && Info.m_Downloaded < Info.m_Total); const bool Disabled = (Info.m_State & 64) != 0; const char *pState = Downloading ? "Downloading" : Disabled ? "Disabled" : Info.m_Valid ? "Verified" : m_WorkshopDiscover ? "Not subscribed" : "Invalid"; char aState[128]; str_format(aState, sizeof(aState), "%s%s%s", Localize(pState), Info.m_aVersion[0] ? "  ·  v" : "", Info.m_aVersion); UI()->DoLabelScaled(&Line, aState, 9.0f, -1);
+		if(Downloading) { Text.HSplitBottom(5.0f, &Text, &Badge); RenderTools()->DrawUIRect(&Badge, vec4(.10f, .11f, .14f, 1), CUI::CORNER_ALL, 2.0f); if(Info.m_Total) { CUIRect Fill = Badge; Fill.w *= clamp(Info.m_Downloaded / (float)Info.m_Total, 0.0f, 1.0f); RenderTools()->DrawUIRect(&Fill, ms_ColorAccent, CUI::CORNER_ALL, 2.0f); } }
+	}
+	const int NewSelection = UiDoListboxEnd(&s_ListScroll, 0);
+	if(NewSelection >= 0 && NewSelection < Count && NewSelection != s_ListSelection) { s_ListSelection = NewSelection; CPlatformWorkshopItem Info; if(GetItem(NewSelection, &Info)) { m_WorkshopSelectedID = Info.m_PublishedFileID; m_WorkshopDetailOpen = Compact; } }
+
+	auto UseItem = [&](const CPlatformWorkshopItem &Info) {
+		if(Info.m_ContentType == CONTENT_TYPE_MOD) { str_format(g_Config.m_ClModIds, sizeof(g_Config.m_ClModIds), "%llu", Info.m_PublishedFileID); pPlatform->RefreshWorkshopItems(); return; }
+		if(Info.m_ContentType == CONTENT_TYPE_ROOM_PRESET || Info.m_ContentType == CONTENT_TYPE_CHALLENGE) { CRoomPreset Preset; char aMessage[512]; if(LoadWorkshopRoomPreset(Info, &Preset, aMessage, sizeof(aMessage)) && ApplyWorkshopRoomPreset(Preset, max(1, pPlatform->PartyMemberCount()), aMessage, sizeof(aMessage))) { CPlatformPartyState Party; if(pPlatform->PartyState(&Party) && Party.m_LocalOwner && Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE) pPlatform->ClearPartyTarget(); g_Config.m_UiPage = PAGE_LOCAL_SERVER; PopupMessage(Localize("Room preset applied"), aMessage, Localize("Continue")); } else PopupMessage(Localize("Unable to apply preset"), aMessage, Localize("OK")); return; }
+		if(Info.m_ContentType == CONTENT_TYPE_MAP) { char aID[32], aError[256]; str_format(aID, sizeof(aID), "%llu", Info.m_PublishedFileID); CContentManifest Manifest; if(ContentPackageValidate(Info.m_aInstallPath, aID, GAME_NETVERSION, &Manifest, aError, sizeof(aError))) for(int i = 0; i < Manifest.m_FileCount; i++) if(Manifest.m_aFiles[i].m_Type == CONTENT_FILE_MAP) { str_format(g_Config.m_ClLocalServerWorkshopMap, sizeof(g_Config.m_ClLocalServerWorkshopMap), "workshop:%llu:%s", Info.m_PublishedFileID, Manifest.m_aFiles[i].m_aPath); g_Config.m_UiPage = PAGE_LOCAL_SERVER; PopupMessage(Localize("Workshop map selected"), Localize("Review room rules, visibility and password before creating the room."), Localize("Continue")); break; } }
+	};
+	auto RenderDetail = [&](CUIRect View, const CPlatformWorkshopItem &Info, bool Overlay) {
+		DrawMenuInset(&View, CUI::CORNER_ALL); View.Margin(9.0f, &View);
+		if(Overlay) { CUIRect Header, Close; View.HSplitTop(28.0f, &Header, &View); Header.VSplitRight(32.0f, &Header, &Close); UI()->DoLabelScaled(&Header, Localize("Workshop details"), 14.0f, -1); static int s_Close; if(DoButton_Menu(&s_Close, "x", 0, &Close)) m_WorkshopDetailOpen = false; View.HSplitTop(5.0f, 0, &View); }
+		CUIRect Actions, Preview; View.HSplitBottom(96.0f, &View, &Actions); View.HSplitTop(min(150.0f, View.w * 9.0f / 16.0f), &Preview, &View); DrawWorkshopPreview(Preview, Info); View.HSplitTop(7.0f, 0, &View);
+		static CScrollRegion s_DetailScroll; static vec2 s_DetailOffset(0.0f, 0.0f); CScrollRegionParams Params; ConfigureScrollRegion(&Params); Params.m_ScrollUnit = 32.0f; s_DetailScroll.Begin(&View, &s_DetailOffset, &Params); CUIRect Content = View; Content.y += s_DetailOffset.y; Content.VSplitRight(16.0f, &Content, 0);
+		CUIRect Line; Content.HSplitTop(25.0f, &Line, &Content); UI()->DoLabelScaled(&Line, Info.m_aName, FitLabelFontSize(TextRender(), Info.m_aName, 14.0f, Line.w), -1); s_DetailScroll.AddRect(Line);
+		char aAuthor[128]; if(!pPlatform->UserDisplayName(Info.m_OwnerUserID, aAuthor, sizeof(aAuthor))) str_copy(aAuthor, Info.m_aAuthor, sizeof(aAuthor)); char aDetails[1024]; const unsigned Votes = Info.m_VotesUp + Info.m_VotesDown; str_format(aDetails, sizeof(aDetails), "%s: %s\n%s: %s    %s: %s\n%s: %s    %s: %.0f%% (%u)\n%s: %.2f MB\nID: %llu\nHash: %.16s%s", Localize("Author"), aAuthor[0] ? aAuthor : Localize("Unknown author"), Localize("Version"), Info.m_aVersion[0] ? Info.m_aVersion : "-", Localize("Protocol"), Info.m_aTargetProtocol[0] ? Info.m_aTargetProtocol : "-", Localize("Content rating"), Info.m_aContentRating[0] ? Info.m_aContentRating : "-", Localize("Rating"), Info.m_Score * 100.0f, Votes, Localize("Size"), Info.m_Total / (1024.0f * 1024.0f), Info.m_PublishedFileID, Info.m_aContentHash, Info.m_aContentHash[0] ? "…" : "-"); Content.HSplitTop(105.0f, &Line, &Content); UI()->DoLabelScaled(&Line, aDetails, 9.5f, -1); s_DetailScroll.AddRect(Line);
+		Content.HSplitTop(22.0f, &Line, &Content); UI()->DoLabelScaled(&Line, Localize("Description"), 11.0f, -1); s_DetailScroll.AddRect(Line); Content.HSplitTop(max(90.0f, min(220.0f, 70.0f + str_length(Info.m_aDescription) * 0.16f)), &Line, &Content); UI()->DoLabelScaled(&Line, Info.m_aDescription[0] ? Info.m_aDescription : Localize("No description provided."), 9.5f, -1); s_DetailScroll.AddRect(Line);
+		if(Info.m_aError[0]) { Content.HSplitTop(22.0f, &Line, &Content); TextRender()->TextColor(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 1); UI()->DoLabelScaled(&Line, Info.m_aError, 9.5f, -1); TextRender()->TextColor(1, 1, 1, 1); s_DetailScroll.AddRect(Line); }
+		if(Info.m_ContentType == CONTENT_TYPE_CHALLENGE) { Content.HSplitTop(24.0f, &Line, &Content); UI()->DoLabelScaled(&Line, Localize("Community leaderboard · Unverified"), 11.0f, -1); s_DetailScroll.AddRect(Line); for(int i = 0; i < pPlatform->CommunityLeaderboardEntryCount() && i < 8; i++) { CPlatformLeaderboardEntry Entry; if(!pPlatform->CommunityLeaderboardEntry(i, &Entry)) continue; char aRank[192]; str_format(aRank, sizeof(aRank), "#%d  %s  %d", Entry.m_Rank, Entry.m_aName, Entry.m_Score); Content.HSplitTop(18.0f, &Line, &Content); UI()->DoLabelScaled(&Line, aRank, 9.5f, -1); s_DetailScroll.AddRect(Line); } }
+		s_DetailScroll.End();
+		const bool Subscribed = (Info.m_State & 1) != 0; const bool Disabled = (Info.m_State & 64) != 0; const bool Downloading = (Info.m_State & (16 | 32)) != 0 || (Info.m_Total && Info.m_Downloaded < Info.m_Total);
+		CUIRect MainAction, Secondary, Community, Remove; Actions.HSplitTop(30.0f, &MainAction, &Actions); Actions.HSplitTop(4.0f, 0, &Actions); Actions.HSplitTop(28.0f, &Secondary, &Actions); Secondary.VSplitLeft(Secondary.w / 2.0f - 2.0f, &Secondary, &Community); Community.VSplitLeft(4.0f, 0, &Community); Actions.HSplitTop(4.0f, 0, &Actions); Remove = Actions;
+		static int s_Main, s_Toggle, s_Community, s_Remove, s_LeaderboardScope;
+		const char *pMain = !Subscribed ? "Subscribe" : Downloading ? "Downloading" : !Info.m_Valid ? "Retry download" : Info.m_ContentType == CONTENT_TYPE_MOD ? "Use Mod collection" : "Use to create room";
+		if(DoButton_Menu(&s_Main, Localize(pMain), 0, &MainAction, BUTTONSTYLE_ACCENT) && !Downloading) { if(!Subscribed) pPlatform->SubscribeWorkshopItem(Info.m_PublishedFileID); else if(!Info.m_Valid) pPlatform->RequestWorkshopDownload(Info.m_PublishedFileID); else UseItem(Info); }
+		const char *apScopes[] = {"Leaderboard: Global", "Leaderboard: Friends", "Leaderboard: Around me"}; const char *pToggle = Info.m_ContentType == CONTENT_TYPE_CHALLENGE ? apScopes[s_LeaderboardScope] : Disabled ? "Enable" : "Disable";
+		if(DoButton_Menu(&s_Toggle, Localize(pToggle), 0, &Secondary) && Subscribed) { if(Info.m_ContentType == CONTENT_TYPE_CHALLENGE && Info.m_Valid) { CCommunityChallengeDescriptor Descriptor; char aError[128]; if(LoadWorkshopChallengeDescriptor(Info, &Descriptor, aError, sizeof(aError))) { pPlatform->QueryCommunityChallenge(Descriptor.m_PublishedFileID, Descriptor.m_Revision, Descriptor.m_Metric, (EPlatformLeaderboardScope)s_LeaderboardScope); s_LeaderboardScope = (s_LeaderboardScope + 1) % 3; } } else pPlatform->SetWorkshopItemDisabled(Info.m_PublishedFileID, !Disabled); }
+		if(DoButton_Menu(&s_Community, Localize("Community / Report"), 0, &Community)) pPlatform->OpenWorkshopItemPage(Info.m_PublishedFileID);
+		if(DoButton_Menu(&s_Remove, Localize("Unsubscribe"), 0, &Remove, BUTTONSTYLE_DANGER) && Subscribed) { pPlatform->UnsubscribeWorkshopItem(Info.m_PublishedFileID); m_WorkshopSelectedID = 0; }
+	};
+
+	CPlatformWorkshopItem Selected; const bool HasSelection = GetItem(s_ListSelection, &Selected);
+	if(!Compact) { if(HasSelection) RenderDetail(Detail, Selected, false); else { DrawMenuInset(&Detail, CUI::CORNER_ALL); Detail.Margin(10.0f, &Detail); UI()->DoLabelScaled(&Detail, Localize(Count ? "Select Workshop content to view details." : s_aQueryError[0] ? s_aQueryError : s_QueryWorking ? "Loading Workshop content…" : "No Workshop content matches these filters."), 11.0f, -1); } }
+	if(Compact && HasSelection) { CUIRect DetailButton; Footer.VSplitRight(100.0f, &Footer, &DetailButton); static int s_Details; if(DoButton_Menu(&s_Details, Localize("Details"), m_WorkshopDetailOpen, &DetailButton, BUTTONSTYLE_ACCENT)) m_WorkshopDetailOpen = true; }
+	if(Compact && m_WorkshopDetailOpen && HasSelection) { CUIRect Overlay = Body; RenderDetail(Overlay, Selected, true); if(m_EscapePressed) { m_WorkshopDetailOpen = false; m_EscapePressed = false; } }
+
+	static int s_Browse, s_Previous, s_Next;
+	Footer.VSplitLeft(145.0f, &Button, &Footer); if(DoButton_Menu(&s_Browse, Localize("Browse Workshop"), 0, &Button)) pPlatform->OpenWorkshopBrowsePage();
+	if(m_WorkshopDiscover) { Footer.VSplitLeft(8.0f, 0, &Footer); Footer.VSplitLeft(38.0f, &Button, &Footer); if(DoButton_Menu(&s_Previous, "<", 0, &Button) && s_Page > 1) StartQuery(s_Page - 1); Footer.VSplitLeft(6.0f, 0, &Footer); CUIRect PageLabel; Footer.VSplitLeft(86.0f, &PageLabel, &Footer); char aPage[64]; str_format(aPage, sizeof(aPage), "%d / %u", s_Page, max(1u, (s_TotalMatching + 49) / 50)); UI()->DoLabelScaled(&PageLabel, aPage, 10.0f, 0); Footer.VSplitLeft(38.0f, &Button, &Footer); if(DoButton_Menu(&s_Next, ">", 0, &Button) && (unsigned)(s_Page * 50) < s_TotalMatching) StartQuery(s_Page + 1); if(s_QueryWorking) UI()->DoLabelScaled(&Footer, Localize("Loading Workshop content…"), 9.5f, 1); else if(s_aQueryError[0]) { TextRender()->TextColor(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 1); UI()->DoLabelScaled(&Footer, s_aQueryError, 9.5f, 1); TextRender()->TextColor(1, 1, 1, 1); } }
 }
 
 int CMenus::Render()
@@ -5620,6 +5856,15 @@ void CMenus::SetActive(bool Active)
 
 void CMenus::OnReset()
 {
+	for(int i = 0; i < 32; i++)
+	{
+		if(m_aWorkshopPreviews[i].m_Texture >= 0)
+			Graphics()->UnloadTexture(m_aWorkshopPreviews[i].m_Texture);
+		m_aWorkshopPreviews[i].m_PublishedFileID = 0;
+		m_aWorkshopPreviews[i].m_Texture = -1;
+		m_aWorkshopPreviews[i].m_OperationID = 0;
+	}
+	m_WorkshopDetailOpen = false;
 }
 
 bool CMenus::OnMouseMove(float x, float y)

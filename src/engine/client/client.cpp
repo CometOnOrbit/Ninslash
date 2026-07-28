@@ -321,6 +321,7 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 	
 	m_SnapCrcErrors = 0;
 	m_AutoScreenshotRecycle = false;
+	mem_zero(&m_PendingScreenshotContext, sizeof(m_PendingScreenshotContext));
 	m_EditorActive = false;
 	m_VideoFps = 30;
 	m_VideoFinished = false;
@@ -580,18 +581,19 @@ void CClient::SetState(int s)
 		m_pInput->SetGamepadActionSet(s == IClient::STATE_ONLINE ? PLATFORM_INPUT_GAME : (s == IClient::STATE_DEMOPLAYBACK ? PLATFORM_INPUT_SPECTATOR : PLATFORM_INPUT_MENU));
 	if(m_pPlatformServices && m_pPlatformServices->Available())
 	{
-		const char *pStatus = "In menus";
-		const char *pConnect = "";
+		CPlatformPresence Presence; mem_zero(&Presence, sizeof(Presence)); Presence.m_State = PLATFORM_PRESENCE_MENU;
 		if(s == IClient::STATE_CONNECTING || s == IClient::STATE_LOADING)
-			pStatus = "Joining a game";
+			Presence.m_State = PLATFORM_PRESENCE_LOADING;
 		else if(s == IClient::STATE_ONLINE)
 		{
-			pStatus = "Playing Ninslash";
-			pConnect = m_aServerAddressStr;
+			Presence.m_State = PLATFORM_PRESENCE_PLAYING;
+			Presence.m_ConnectVerified = IsSafePlatformJoinAddress(m_aServerAddressStr);
+			str_copy(Presence.m_aConnect, m_aServerAddressStr, sizeof(Presence.m_aConnect));
 		}
 		else if(s == IClient::STATE_DEMOPLAYBACK)
-			pStatus = "Watching a replay";
-		m_pPlatformServices->SetRichPresence(pStatus, pConnect);
+			Presence.m_State = PLATFORM_PRESENCE_REPLAY;
+		m_pPlatformServices->SetRichPresence(Presence);
+		m_pPlatformServices->SetTimelineMode(s == IClient::STATE_ONLINE ? PLATFORM_TIMELINE_PLAYING : s == IClient::STATE_DEMOPLAYBACK ? PLATFORM_TIMELINE_REPLAY : (s == IClient::STATE_CONNECTING || s == IClient::STATE_LOADING) ? PLATFORM_TIMELINE_LOADING : PLATFORM_TIMELINE_MENU, "");
 	}
 	if(Old != s)
 		GameClient()->OnStateChange(m_State, Old);
@@ -1993,7 +1995,7 @@ void CClient::Run()
 			}
 			dbg_msg("steam", "continuing with standalone networking after Steam initialization failure");
 		}
-		m_pPlatformServices->SetRichPresence("In menus", "");
+		CPlatformPresence Presence; mem_zero(&Presence, sizeof(Presence)); Presence.m_State = PLATFORM_PRESENCE_MENU; m_pPlatformServices->SetRichPresence(Presence);
 	}
 #if defined(CONF_FAMILY_WINDOWS)
 	// Steam may install its own top-level filter, so restore startup diagnostics.
@@ -2117,6 +2119,13 @@ void CClient::Run()
 		if(m_pPlatformServices)
 		{
 			m_pPlatformServices->RunCallbacks();
+			IGraphics::CScreenshotResult Screenshot;
+			if(Graphics()->ConsumeScreenshotResult(&Screenshot) && Screenshot.m_RequestID == m_PendingScreenshotContext.m_RequestID && Screenshot.m_Success)
+			{
+				if(m_PendingScreenshotContext.m_SyncToSteam && !m_pPlatformServices->RegisterScreenshot(Screenshot.m_aAbsolutePath, Screenshot.m_Width, Screenshot.m_Height, m_PendingScreenshotContext))
+					m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Screenshot saved locally; Steam library registration was unavailable");
+				mem_zero(&m_PendingScreenshotContext, sizeof(m_PendingScreenshotContext));
+			}
 			CPlatformPartyLaunch PartyLaunch;
 			if(m_pPlatformServices->ConsumePartyLaunch(&PartyLaunch))
 			{
@@ -2150,16 +2159,25 @@ void CClient::Run()
 			if(m_pPlatformServices->Available() && time_get() >= m_NextPlatformPresenceUpdate)
 			{
 				m_NextPlatformPresenceUpdate = time_get() + time_freq() * 5;
-				char aStatus[256]; const char *pConnect = "";
+				CPlatformPresence Presence; mem_zero(&Presence, sizeof(Presence)); Presence.m_State = PLATFORM_PRESENCE_MENU;
 				if(State() == IClient::STATE_ONLINE)
 				{
-					str_format(aStatus, sizeof(aStatus), "%s on %s (%d/%d)", m_CurrentServerInfo.m_aGameType[0] ? m_CurrentServerInfo.m_aGameType : "Playing", m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, m_CurrentServerInfo.m_NumClients, m_CurrentServerInfo.m_MaxClients);
-					pConnect = m_aServerAddressStr;
+					Presence.m_State = PLATFORM_PRESENCE_PLAYING;
+					str_copy(Presence.m_aMode, m_CurrentServerInfo.m_aGameType, sizeof(Presence.m_aMode));
+					str_copy(Presence.m_aMap, m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, sizeof(Presence.m_aMap));
+					Presence.m_RoomPlayers = m_CurrentServerInfo.m_NumClients; Presence.m_RoomCapacity = m_CurrentServerInfo.m_MaxClients;
+					Presence.m_ConnectVerified = IsSafePlatformJoinAddress(m_aServerAddressStr); str_copy(Presence.m_aConnect, m_aServerAddressStr, sizeof(Presence.m_aConnect));
 				}
-				else if(State() == IClient::STATE_CONNECTING || State() == IClient::STATE_LOADING) str_copy(aStatus, "Joining a game", sizeof(aStatus));
-				else if(State() == IClient::STATE_DEMOPLAYBACK) str_copy(aStatus, "Watching a replay", sizeof(aStatus));
-				else str_copy(aStatus, "In menus", sizeof(aStatus));
-				m_pPlatformServices->SetRichPresence(aStatus, pConnect);
+				else if(State() == IClient::STATE_CONNECTING || State() == IClient::STATE_LOADING) Presence.m_State = PLATFORM_PRESENCE_LOADING;
+				else if(State() == IClient::STATE_DEMOPLAYBACK) Presence.m_State = PLATFORM_PRESENCE_REPLAY;
+				m_pPlatformServices->SetRichPresence(Presence);
+				if(State() == IClient::STATE_ONLINE)
+				{
+					CPlatformScreenshotContext Context; mem_zero(&Context, sizeof(Context)); str_copy(Context.m_aLocation, Presence.m_aMap, sizeof(Context.m_aLocation));
+					for(int i = 0; i < m_pPlatformServices->LobbyMemberCount() && Context.m_UserCount < 32; i++) { CPlatformUserInfo Info; if(m_pPlatformServices->LobbyMemberInfo(i, &Info)) Context.m_aUsers[Context.m_UserCount++] = Info.m_UserID; }
+					const char *pID = g_Config.m_ClModIds; while(*pID && Context.m_PublishedFileCount < 32) { unsigned long long ID = 0; int Length = 0; if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0) break; Context.m_aPublishedFiles[Context.m_PublishedFileCount++] = ID; pID += Length; if(*pID == ',') pID++; else if(*pID) break; }
+					m_pPlatformServices->SetScreenshotContext(Context);
+				}
 			}
 			if(m_pPlatformServices->ConsumeListenServerStopRequest() && m_pListenServer)
 			{
@@ -2403,7 +2421,11 @@ void CClient::AutoScreenshot_Start()
 {
 	if(g_Config.m_ClAutoScreenshot)
 	{
-		Graphics()->TakeScreenshot("auto/autoscreen");
+		mem_zero(&m_PendingScreenshotContext, sizeof(m_PendingScreenshotContext));
+		m_PendingScreenshotContext.m_RequestID = Graphics()->TakeScreenshot("auto/autoscreen");
+		m_PendingScreenshotContext.m_SyncToSteam = g_Config.m_ClAutoScreenshotSteam != 0;
+		str_copy(m_PendingScreenshotContext.m_aLocation, m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, sizeof(m_PendingScreenshotContext.m_aLocation));
+		if(m_pPlatformServices) m_pPlatformServices->SetScreenshotContext(m_PendingScreenshotContext);
 		m_AutoScreenshotRecycle = true;
 	}
 }
@@ -2425,7 +2447,16 @@ void CClient::AutoScreenshot_Cleanup()
 void CClient::Con_Screenshot(IConsole::IResult *pResult, void *pUserData)
 {
 	CClient *pSelf = (CClient *)pUserData;
-	pSelf->Graphics()->TakeScreenshot(0);
+	mem_zero(&pSelf->m_PendingScreenshotContext, sizeof(pSelf->m_PendingScreenshotContext));
+	pSelf->m_PendingScreenshotContext.m_RequestID = pSelf->Graphics()->TakeScreenshot(0);
+	pSelf->m_PendingScreenshotContext.m_SyncToSteam = true;
+	str_copy(pSelf->m_PendingScreenshotContext.m_aLocation, pSelf->m_CurrentServerInfo.m_aMap[0] ? pSelf->m_CurrentServerInfo.m_aMap : pSelf->m_aCurrentMap, sizeof(pSelf->m_PendingScreenshotContext.m_aLocation));
+	if(pSelf->m_pPlatformServices)
+	{
+		for(int i = 0; i < pSelf->m_pPlatformServices->LobbyMemberCount() && i < 32; i++) { CPlatformUserInfo Info; if(pSelf->m_pPlatformServices->LobbyMemberInfo(i, &Info)) pSelf->m_PendingScreenshotContext.m_aUsers[pSelf->m_PendingScreenshotContext.m_UserCount++] = Info.m_UserID; }
+		const char *pID = g_Config.m_ClModIds; while(*pID && pSelf->m_PendingScreenshotContext.m_PublishedFileCount < 32) { unsigned long long ID = 0; int Length = 0; if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0) break; pSelf->m_PendingScreenshotContext.m_aPublishedFiles[pSelf->m_PendingScreenshotContext.m_PublishedFileCount++] = ID; pID += Length; if(*pID == ',') pID++; else if(*pID) break; }
+		pSelf->m_pPlatformServices->SetScreenshotContext(pSelf->m_PendingScreenshotContext);
+	}
 }
 
 void CClient::Con_Rcon(IConsole::IResult *pResult, void *pUserData)

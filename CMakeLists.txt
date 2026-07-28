@@ -320,6 +320,7 @@ find_package(ZLIB)
 find_package(Freetype)
 find_package(Git)
 find_package(Pnglite)
+find_package(JPEG)
 find_package(Python3)
 find_package(SDL3)
 find_package(Threads)
@@ -367,6 +368,7 @@ endif()
 
 show_dependency_status("Freetype" FREETYPE)
 show_dependency_status("Pnglite" PNGLITE)
+show_dependency_status("JPEG" JPEG)
 show_dependency_status("Python3" PYTHON3)
 show_dependency_status("SDL3" SDL3)
 show_dependency_status("Wavpack" WAVPACK)
@@ -571,8 +573,14 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   network_server.cpp
   network.cpp
   network.h
-  mod_manifest.cpp
-  mod_manifest.h
+  content_manifest.cpp
+  content_manifest.h
+  content_publish.cpp
+  content_publish.h
+  community_challenge.cpp
+  community_challenge.h
+  room_preset.cpp
+  room_preset.h
   mod_api.cpp
   mod_api.h
   packer.cpp
@@ -663,17 +671,17 @@ if(NINSLASH_BUILD_TESTS)
   set_tests_properties(pve_progress_storage PROPERTIES
     ENVIRONMENT "HOME=${PROJECT_BINARY_DIR}/test-home"
   )
-  add_executable(ninslash_test_mod_manifest
-    tests/mod_manifest.cpp
+  add_executable(ninslash_test_content_manifest
+    tests/content_manifest.cpp
     $<TARGET_OBJECTS:engine-shared>
     $<TARGET_OBJECTS:json>
   )
-  target_include_directories(ninslash_test_mod_manifest PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  target_include_directories(ninslash_test_content_manifest PRIVATE ${PROJECT_SOURCE_DIR}/src)
   if(ENABLE_LUA_MODS)
-    target_compile_definitions(ninslash_test_mod_manifest PRIVATE CONF_LUA_MOD_API)
+    target_compile_definitions(ninslash_test_content_manifest PRIVATE CONF_LUA_MOD_API)
   endif()
-  target_link_libraries(ninslash_test_mod_manifest ${LIBS})
-  add_test(NAME mod_manifest COMMAND ninslash_test_mod_manifest)
+  target_link_libraries(ninslash_test_content_manifest ${LIBS})
+  add_test(NAME content_manifest COMMAND ninslash_test_content_manifest)
   add_executable(ninslash_test_network_transport
     tests/network_transport.cpp
     $<TARGET_OBJECTS:engine-shared>
@@ -720,8 +728,9 @@ if(NINSLASH_BUILD_TESTS)
   add_test(NAME cloud_profile_storage COMMAND ninslash_test_cloud_profile_storage)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_cloud_profile_storage)
 
-  add_executable(ninslash_test_room_creation tests/room_creation.cpp)
+  add_executable(ninslash_test_room_creation tests/room_creation.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
   target_include_directories(ninslash_test_room_creation PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_room_creation ${LIBS})
   add_test(NAME room_creation COMMAND ninslash_test_room_creation)
   set_tests_properties(room_creation PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
@@ -751,14 +760,26 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_sha256 PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_sha256 ${LIBS})
   add_test(NAME sha256 COMMAND ninslash_test_sha256)
-  add_executable(ninslash_test_mod_package tests/mod_package.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
-  target_include_directories(ninslash_test_mod_package PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
-  target_link_libraries(ninslash_test_mod_package ${LIBS})
-  add_test(NAME mod_package COMMAND ninslash_test_mod_package)
-  add_executable(ninslash_test_mod_collection tests/mod_collection.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
-  target_include_directories(ninslash_test_mod_collection PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
-  target_link_libraries(ninslash_test_mod_collection ${LIBS})
-  add_test(NAME mod_collection COMMAND ninslash_test_mod_collection)
+  add_executable(ninslash_test_content_package tests/content_package.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_content_package PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_content_package ${LIBS})
+  add_test(NAME content_package COMMAND ninslash_test_content_package)
+  add_executable(ninslash_test_content_collection tests/content_collection.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_content_collection PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_content_collection ${LIBS})
+  add_test(NAME content_collection COMMAND ninslash_test_content_collection)
+  add_executable(ninslash_test_community_challenge tests/community_challenge.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_community_challenge PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_community_challenge ${LIBS})
+  add_test(NAME community_challenge COMMAND ninslash_test_community_challenge)
+  add_executable(ninslash_test_room_preset tests/room_preset.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_room_preset PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_room_preset ${LIBS})
+  add_test(NAME room_preset COMMAND ninslash_test_room_preset)
+  add_executable(ninslash_test_content_publish tests/content_publish.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_content_publish PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_content_publish ${LIBS})
+  add_test(NAME content_publish COMMAND ninslash_test_content_publish)
   if(ENABLE_LUA_MODS)
     add_executable(ninslash_test_lua_mod_runtime
       tests/lua_mod_runtime.cpp
@@ -785,7 +806,7 @@ if(NINSLASH_BUILD_TESTS)
   endif()
   list(APPEND NINSLASH_TEST_TARGETS
     ninslash_test_pve_progress
-    ninslash_test_mod_manifest
+    ninslash_test_content_manifest
     ninslash_test_network_transport
     ninslash_test_memory_thread_safety
     ninslash_test_platform_event_queue
@@ -793,8 +814,11 @@ if(NINSLASH_BUILD_TESTS)
     ninslash_test_platform_auth_policy
     ninslash_test_platform_ban
     ninslash_test_sha256
-    ninslash_test_mod_package
-    ninslash_test_mod_collection
+    ninslash_test_content_package
+    ninslash_test_content_collection
+    ninslash_test_community_challenge
+    ninslash_test_room_preset
+    ninslash_test_content_publish
   )
   # These focused tests use assert() for both checks and fixture operations.
   # Keep assertions active even when the test build itself is Release.
@@ -1030,6 +1054,12 @@ if(CLIENT)
 
   add_executable(${TARGET_CLIENT} ${TARGET_CLIENT_SOURCES})
   target_link_libraries(${TARGET_CLIENT} ${LIBS_CLIENT})
+
+  if(JPEG_FOUND)
+    target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_JPEG)
+    target_include_directories(${TARGET_CLIENT} PRIVATE ${JPEG_INCLUDE_DIRS})
+    target_link_libraries(${TARGET_CLIENT} ${JPEG_LIBRARIES})
+  endif()
 
   if(ENABLE_STEAMWORKS)
     target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_STEAMWORKS STEAM_APP_ID=${STEAM_APP_ID} STEAM_GAMESERVER_APP_ID=${STEAM_GAMESERVER_APP_ID})

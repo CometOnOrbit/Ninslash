@@ -3,7 +3,8 @@
 #ifndef ENGINE_CLIENT_CLIENT_H
 #define ENGINE_CLIENT_CLIENT_H
 
-class IPlatformServices;
+#include <engine/platform_services.h>
+
 class IListenServerRuntime;
 
 class CGraph
@@ -109,6 +110,7 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	bool m_MouseIsFree;
 	int m_SnapCrcErrors;
 	bool m_AutoScreenshotRecycle;
+	CPlatformScreenshotContext m_PendingScreenshotContext;
 	bool m_EditorActive;
 	bool m_SoundInitFailed;
 	bool m_GamepadInitFailed;

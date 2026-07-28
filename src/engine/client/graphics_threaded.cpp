@@ -4,6 +4,13 @@
 
 #include <base/system.h>
 #include <engine/external/pnglite/pnglite.h>
+#if defined(CONF_JPEG)
+#include <cstdio>
+extern "C" {
+#include <jpeglib.h>
+}
+#include <setjmp.h>
+#endif
 
 #include <engine/shared/config.h>
 #include <engine/graphics.h>
@@ -32,6 +39,22 @@ static CVideoMode g_aFakeModes[] = {
 	{1856,1392,8,8,8}, {1920,1080,8,8,8}, {1920,1200,8,8,8},
 	{1920,1440,8,8,8}, {1920,2400,8,8,8}, {2048,1536,8,8,8}
 };
+
+static void LimitWorkshopPreviewSize(CImageInfo *pImage, const char *pFilename)
+{
+	if(!pImage || !pImage->m_pData || !pFilename || !str_find(pFilename, "workshop_cache/previews/") || max(pImage->m_Width, pImage->m_Height) <= 512) return;
+	const int Channels = pImage->m_Format == CImageInfo::FORMAT_RGBA ? 4 : 3;
+	const float Scale = 512.0f / max(pImage->m_Width, pImage->m_Height);
+	const int Width = max(1, (int)(pImage->m_Width * Scale)); const int Height = max(1, (int)(pImage->m_Height * Scale));
+	unsigned char *pData = (unsigned char *)mem_alloc((size_t)Width * Height * Channels, 1);
+	if(!pData) return;
+	for(int y = 0; y < Height; y++) for(int x = 0; x < Width; x++)
+	{
+		const int SourceX = x * pImage->m_Width / Width, SourceY = y * pImage->m_Height / Height;
+		mem_copy(pData + ((size_t)y * Width + x) * Channels, (unsigned char *)pImage->m_pData + ((size_t)SourceY * pImage->m_Width + SourceX) * Channels, Channels);
+	}
+	mem_free(pImage->m_pData); pImage->m_pData = pData; pImage->m_Width = Width; pImage->m_Height = Height;
+}
 
 void CGraphics_Threaded::FlushVertices()
 {
@@ -153,6 +176,10 @@ CGraphics_Threaded::CGraphics_Threaded()
 
 	m_RenderEnable = true;
 	m_DoScreenshot = false;
+	m_NextScreenshotRequestID = 0;
+	m_ScreenshotRequestID = 0;
+	m_HasScreenshotResult = false;
+	mem_zero(&m_ScreenshotResult, sizeof(m_ScreenshotResult));
 }
 
 void CGraphics_Threaded::ClipEnable(int x, int y, int w, int h)
@@ -488,6 +515,7 @@ int CGraphics_Threaded::LoadTexture(const char *pFilename, int StorageType, int 
 		return -1;
 	if(LoadPNG(&Img, pFilename, StorageType))
 	{
+		LimitWorkshopPreviewSize(&Img, pFilename);
 		if (StoreFormat == CImageInfo::FORMAT_AUTO)
 			StoreFormat = Img.m_Format;
 
@@ -497,8 +525,51 @@ int CGraphics_Threaded::LoadTexture(const char *pFilename, int StorageType, int 
 			dbg_msg("graphics/texture", "loaded %s", pFilename);
 		return ID;
 	}
+	if(LoadJPEG(&Img, pFilename, StorageType))
+	{
+		LimitWorkshopPreviewSize(&Img, pFilename);
+		if(StoreFormat == CImageInfo::FORMAT_AUTO)
+			StoreFormat = Img.m_Format;
+		ID = LoadTextureRaw(Img.m_Width, Img.m_Height, Img.m_Format, Img.m_pData, StoreFormat, Flags);
+		mem_free(Img.m_pData);
+		return ID;
+	}
 
 	return m_InvalidTexture;
+}
+
+int CGraphics_Threaded::LoadJPEG(CImageInfo *pImg, const char *pFilename, int StorageType)
+{
+#if defined(CONF_JPEG)
+	struct CError { jpeg_error_mgr m_Base; jmp_buf m_Jump; };
+	auto ErrorExit = [](j_common_ptr pInfo) { CError *pError = (CError *)pInfo->err; longjmp(pError->m_Jump, 1); };
+	char aCompleteFilename[512];
+	IOHANDLE Probe = m_pStorage->OpenFile(pFilename, IOFLAG_READ, StorageType, aCompleteFilename, sizeof(aCompleteFilename));
+	if(!Probe) return 0;
+	io_close(Probe);
+	FILE *pFile = fopen(aCompleteFilename, "rb");
+	if(!pFile) return 0;
+	jpeg_decompress_struct Info;
+	CError Error;
+	Info.err = jpeg_std_error(&Error.m_Base);
+	Error.m_Base.error_exit = ErrorExit;
+	volatile bool Created = false;
+	if(setjmp(Error.m_Jump)) { if(Created) jpeg_destroy_decompress(&Info); fclose(pFile); return 0; }
+	jpeg_create_decompress(&Info);
+	Created = true;
+	jpeg_stdio_src(&Info, pFile);
+	if(jpeg_read_header(&Info, TRUE) != JPEG_HEADER_OK || Info.image_width == 0 || Info.image_height == 0 || Info.image_width > 4096 || Info.image_height > 4096) { jpeg_destroy_decompress(&Info); fclose(pFile); return 0; }
+	Info.out_color_space = JCS_RGB;
+	jpeg_start_decompress(&Info);
+	const size_t RowSize = (size_t)Info.output_width * 3;
+	unsigned char *pData = (unsigned char *)mem_alloc(RowSize * Info.output_height, 1);
+	if(!pData) { jpeg_destroy_decompress(&Info); fclose(pFile); return 0; }
+	while(Info.output_scanline < Info.output_height) { JSAMPROW pRow = pData + RowSize * Info.output_scanline; jpeg_read_scanlines(&Info, &pRow, 1); }
+	pImg->m_Width = Info.output_width; pImg->m_Height = Info.output_height; pImg->m_Format = CImageInfo::FORMAT_RGB; pImg->m_pData = pData;
+	jpeg_finish_decompress(&Info); jpeg_destroy_decompress(&Info); fclose(pFile); return 1;
+#else
+	(void)pImg; (void)pFilename; (void)StorageType; return 0;
+#endif
 }
 
 int CGraphics_Threaded::LoadPNG(CImageInfo *pImg, const char *pFilename, int StorageType)
@@ -528,7 +599,7 @@ int CGraphics_Threaded::LoadPNG(CImageInfo *pImg, const char *pFilename, int Sto
 		return 0;
 	}
 
-	if(Png.depth != 8 || (Png.color_type != PNG_TRUECOLOR && Png.color_type != PNG_TRUECOLOR_ALPHA)) // ignore_convention
+	if(Png.width == 0 || Png.height == 0 || Png.width > 4096 || Png.height > 4096 || Png.depth != 8 || (Png.color_type != PNG_TRUECOLOR && Png.color_type != PNG_TRUECOLOR_ALPHA)) // ignore_convention
 	{
 		dbg_msg("game/png", "invalid format. filename='%s'", aCompleteFilename);
 		png_close_file(&Png); // ignore_convention
@@ -576,11 +647,11 @@ bool CGraphics_Threaded::CaptureFrame(CImageInfo *pImage)
 	return pImage->m_pData != 0;
 }
 
-void CGraphics_Threaded::ScreenshotDirect(const char *pFilename)
+bool CGraphics_Threaded::ScreenshotDirect(const char *pFilename, CScreenshotResult *pResult)
 {
 	CImageInfo Image;
 	if(!CaptureFrame(&Image))
-		return;
+		return false;
 
 	// find filename
 	char aWholePath[1024];
@@ -594,11 +665,22 @@ void CGraphics_Threaded::ScreenshotDirect(const char *pFilename)
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "saved screenshot to '%s'", aWholePath);
 	m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", aBuf);
-	png_open_file_write(&Png, aWholePath); // ignore_convention
-	png_set_data(&Png, Image.m_Width, Image.m_Height, 8, PNG_TRUECOLOR, (unsigned char *)Image.m_pData); // ignore_convention
-	png_close_file(&Png); // ignore_convention
+	const int OpenResult = png_open_file_write(&Png, aWholePath); // ignore_convention
+	if(OpenResult == PNG_NO_ERROR)
+	{
+		png_set_data(&Png, Image.m_Width, Image.m_Height, 8, PNG_TRUECOLOR, (unsigned char *)Image.m_pData); // ignore_convention
+		png_close_file(&Png); // ignore_convention
+	}
+	if(pResult)
+	{
+		pResult->m_Success = OpenResult == PNG_NO_ERROR;
+		pResult->m_Width = Image.m_Width;
+		pResult->m_Height = Image.m_Height;
+		str_copy(pResult->m_aAbsolutePath, aWholePath, sizeof(pResult->m_aAbsolutePath));
+	}
 
 	mem_free(Image.m_pData);
+	return OpenResult == PNG_NO_ERROR;
 }
 
 void CGraphics_Threaded::TextureSet(int TextureID, int BufferTexture)
@@ -1029,13 +1111,23 @@ int CGraphics_Threaded::WindowOpen()
 
 }
 
-void CGraphics_Threaded::TakeScreenshot(const char *pFilename)
+unsigned CGraphics_Threaded::TakeScreenshot(const char *pFilename)
 {
 	// TODO: screenshot support
 	char aDate[20];
 	str_timestamp(aDate, sizeof(aDate));
 	str_format(m_aScreenshotName, sizeof(m_aScreenshotName), "screenshots/%s_%s.png", pFilename?pFilename:"screenshot", aDate);
 	m_DoScreenshot = true;
+	m_ScreenshotRequestID = ++m_NextScreenshotRequestID;
+	return m_ScreenshotRequestID;
+}
+
+bool CGraphics_Threaded::ConsumeScreenshotResult(CScreenshotResult *pResult)
+{
+	if(!pResult || !m_HasScreenshotResult) return false;
+	*pResult = m_ScreenshotResult;
+	m_HasScreenshotResult = false;
+	return true;
 }
 
 void CGraphics_Threaded::Swap()
@@ -1044,7 +1136,12 @@ void CGraphics_Threaded::Swap()
 	if(m_DoScreenshot)
 	{
 		if(WindowActive())
-			ScreenshotDirect(m_aScreenshotName);
+		{
+			mem_zero(&m_ScreenshotResult, sizeof(m_ScreenshotResult));
+			m_ScreenshotResult.m_RequestID = m_ScreenshotRequestID;
+			ScreenshotDirect(m_aScreenshotName, &m_ScreenshotResult);
+			m_HasScreenshotResult = true;
+		}
 		m_DoScreenshot = false;
 	}
 

@@ -3,6 +3,7 @@
 #include <engine/graphics.h>
 #include <engine/textrender.h>
 #include <engine/shared/config.h>
+#include <engine/platform_services.h>
 #include <generated/protocol.h>
 #include <generated/game_data.h>
 
@@ -39,6 +40,16 @@ void CKillMessages::OnMessage(int MsgType, void *pRawMsg)
 		Kill.m_Source = Source;
 		Kill.m_ModeSpecial = pMsg->m_ModeSpecial;
 		Kill.m_Tick = Client()->GameTick();
+		const int LocalID = m_pClient->m_Snap.m_LocalClientID;
+		if(LocalID >= 0 && (Kill.m_VictimID == LocalID || Kill.m_KillerID == LocalID))
+		{
+			IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+			if(pPlatform)
+			{
+				CPlatformTimelineEvent Event; mem_zero(&Event, sizeof(Event)); Event.m_SessionID = (unsigned long long)(uintptr_t)m_pClient; Event.m_ServerTick = Kill.m_Tick; Event.m_EventType = Kill.m_VictimID == LocalID ? 1 : 2; Event.m_ClipPriority = Kill.m_VictimID == LocalID ? PLATFORM_TIMELINE_CLIP_STANDARD : PLATFORM_TIMELINE_CLIP_NONE; str_copy(Event.m_aIcon, Kill.m_VictimID == LocalID ? "steam_skull" : "steam_starburst", sizeof(Event.m_aIcon)); str_copy(Event.m_aTitle, Kill.m_VictimID == LocalID ? "You were defeated" : "Elimination", sizeof(Event.m_aTitle)); str_format(Event.m_aDescription, sizeof(Event.m_aDescription), Kill.m_VictimID == LocalID ? "Defeated by %s" : "Defeated %s", Kill.m_VictimID == LocalID ? Kill.m_aKillerName : Kill.m_aVictimName); pPlatform->AddTimelineEvent(Event);
+				if(g_Config.m_ClSteamRumble) pPlatform->TriggerInputVibration(Kill.m_VictimID == LocalID ? 42000 : 12000, Kill.m_VictimID == LocalID ? 52000 : 26000);
+			}
+		}
 
 		if(!g_Config.m_ClShowsocial)
 		{

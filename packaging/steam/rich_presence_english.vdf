@@ -1,0 +1,17 @@
+"lang"
+{
+	"english"
+	{
+		"tokens"
+		{
+			"#Status_Menu" "In the menus"
+			"#Status_Party" "Forming a party"
+			"#Status_Ready" "Party ready check"
+			"#Status_Loading" "Loading a game"
+			"#Status_Playing" "%mode% on %map% · %players%/%capacity%"
+			"#Status_Challenge" "Challenge: %challenge% · Floor %floor%"
+			"#Status_Spectating" "Spectating %mode% on %map%"
+			"#Status_Replay" "Watching a replay"
+		}
+	}
+}

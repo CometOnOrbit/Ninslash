@@ -208,7 +208,17 @@ public:
 	virtual void SetColorVertex(const CColorVertex *pArray, int Num) = 0;
 	virtual void SetColor(float r, float g, float b, float a) = 0;
 
-	virtual void TakeScreenshot(const char *pFilename) = 0;
+	struct CScreenshotResult
+	{
+		unsigned m_RequestID;
+		bool m_Success;
+		int m_Width;
+		int m_Height;
+		char m_aAbsolutePath[1024];
+	};
+	// Returns a monotonically increasing request ID. Completion is consumed once.
+	virtual unsigned TakeScreenshot(const char *pFilename) = 0;
+	virtual bool ConsumeScreenshotResult(CScreenshotResult *pResult) = 0;
 	// Fills pImage with RGB data (caller must mem_free pImage->m_pData). Returns false on failure.
 	virtual bool CaptureFrame(CImageInfo *pImage) = 0;
 	virtual int GetVideoModes(CVideoMode *pModes, int MaxModes, int screen) = 0;

@@ -70,6 +70,11 @@ MACRO_CONFIG_INT(UiToolboxPage, ui_toolbox_page, 0, 0, 2, CFGFLAG_CLIENT|CFGFLAG
 MACRO_CONFIG_STR(UiServerAddress, ui_server_address, 64, "localhost:8303", CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface server address")
 MACRO_CONFIG_STR(ClModHash, cl_mod_hash, 65, "", CFGFLAG_CLIENT|CFGFLAG_SAVE, "Installed Workshop mod collection hash sent during connection")
 MACRO_CONFIG_STR(ClModIds, cl_mod_ids, 1024, "", CFGFLAG_CLIENT|CFGFLAG_SAVE, "Comma-separated enabled Workshop root PublishedFileIDs")
+MACRO_CONFIG_INT(ClAutoScreenshotSteam, cl_auto_screenshot_steam, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE|CFGFLAG_CLOUD, "Also add automatic post-match screenshots to the Steam library")
+MACRO_CONFIG_INT(ClSteamGyro, cl_steam_gyro, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE|CFGFLAG_CLOUD, "Enable Steam Input gyroscope aiming")
+MACRO_CONFIG_INT(ClSteamGyroSensitivity, cl_steam_gyro_sensitivity, 100, 1, 1000, CFGFLAG_CLIENT|CFGFLAG_SAVE|CFGFLAG_CLOUD, "Steam Input gyroscope sensitivity")
+MACRO_CONFIG_INT(ClSteamGyroInvert, cl_steam_gyro_invert, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE|CFGFLAG_CLOUD, "Invert Steam Input gyroscope vertical aim")
+MACRO_CONFIG_INT(ClSteamRumble, cl_steam_rumble, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE|CFGFLAG_CLOUD, "Enable Steam Input vibration")
 MACRO_CONFIG_INT(UiScale, ui_scale, 100, 50, 200, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Interface scale")
 MACRO_CONFIG_INT(UiMousesens, ui_mousesens, 100, 5, 100000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Mouse sensitivity for menus/editor")
 

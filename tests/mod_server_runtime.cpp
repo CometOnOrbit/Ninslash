@@ -1,6 +1,6 @@
 #include <engine/server/mod_server.h>
-#include <engine/shared/mod_collection.h>
-#include <engine/shared/mod_package.h>
+#include <engine/shared/content_collection.h>
+#include <engine/shared/content_package.h>
 #include <base/system.h>
 
 #include <assert.h>
@@ -19,29 +19,29 @@ static void CreatePackage(const char *pWorkshop, const char *pID, const char *pS
 	str_format(aRoot,sizeof(aRoot),"%s/%s",pWorkshop,pID); assert(fs_makedir(aRoot)==0);
 	str_format(aRules,sizeof(aRules),"%s/rules",aRoot); assert(fs_makedir(aRules)==0);
 	str_format(aScript,sizeof(aScript),"%s/main.lua",aRules); WriteFile(aScript,pScript);
-	str_format(aManifest,sizeof(aManifest),"%s/ninslash_mod.json",aRoot);
-	const char *pDependencies = pDependencyID ? "\"dependencies\":[{\"published_file_id\":\"%s\",\"version\":\"1\",\"content_hash\":\"%s\"}]," : "%s%s";
+	str_format(aManifest,sizeof(aManifest),"%s/ninslash_content.json",aRoot);
+	const char *pDependencies = pDependencyID ? "\"dependencies\":[{\"schema_version\":1,\"content_type\":\"mod\",\"published_file_id\":\"%s\",\"version\":\"1\",\"content_hash\":\"%s\"}]," : "%s%s";
 	char aDependency[512];
 	if(pDependencyID) str_format(aDependency,sizeof(aDependency),pDependencies,pDependencyID,pDependencyHash);
 	else aDependency[0]=0;
-	const char *pTemplate="{\"published_file_id\":\"%s\",\"name\":\"Test\",\"version\":\"1\",\"author\":\"Test\",\"target_protocol\":\"test\",\"content_hash\":\"%s\",\"content_rating\":\"everyone\",\"api_version\":1,\"capabilities\":[\"gameplay_rules\"],%s\"scripts\":[\"rules/main.lua\"]}";
+	const char *pTemplate="{\"schema_version\":1,\"content_type\":\"mod\",\"published_file_id\":\"%s\",\"name\":\"Test\",\"description\":\"Runtime test\",\"version\":\"1\",\"author\":\"Test\",\"target_protocol\":\"test\",\"content_hash\":\"%s\",\"content_rating\":\"everyone\",\"api_version\":1,\"capabilities\":[\"gameplay_rules\"],%s\"scripts\":[\"rules/main.lua\"]}";
 	char aJson[2048], aError[256];
 	str_format(aJson,sizeof(aJson),pTemplate,pID,"0000000000000000000000000000000000000000000000000000000000000000",aDependency);
-	CModManifest Manifest; assert(ModManifestParse(aJson,(int)strlen(aJson),"test",&Manifest,aError,sizeof(aError)));
-	char aHash[65]; assert(ModPackageComputeHash(aRoot,Manifest,aHash,aError,sizeof(aError)));
+	CContentManifest Manifest; assert(ContentManifestParse(aJson,(int)strlen(aJson),"test",&Manifest,aError,sizeof(aError)));
+	char aHash[65]; assert(ContentPackageComputeHash(aRoot,Manifest,aHash,aError,sizeof(aError)));
 	str_format(aJson,sizeof(aJson),pTemplate,pID,aHash,aDependency); WriteFile(aManifest,aJson);
 }
 
 static void PackageHash(const char *pWorkshop, const char *pID, char aHash[65])
 {
 	char aRoot[512], aError[256]; str_format(aRoot,sizeof(aRoot),"%s/%s",pWorkshop,pID);
-	CModManifest Manifest; assert(ModPackageValidate(aRoot,pID,"test",&Manifest,aError,sizeof(aError)));
+	CContentManifest Manifest; assert(ContentPackageValidate(aRoot,pID,"test",&Manifest,aError,sizeof(aError)));
 	str_copy(aHash,Manifest.m_aContentHash,65);
 }
 
 static void CollectionHash(const char *pWorkshop, const char *pRootID, char aHash[65])
 {
-	CModCollection Collection; char aRoot[512], aError[256];
+	CContentCollection Collection; char aRoot[512], aError[256];
 	for(int ID=1;ID<=4;ID++)
 	{
 		char aID[8]; str_format(aID,sizeof(aID),"%d",ID); str_format(aRoot,sizeof(aRoot),"%s/%s",pWorkshop,aID);

@@ -29,7 +29,7 @@ class CInput : public IEngineInput
 	
 	int m_GamepadOldAimX;
 	int m_GamepadOldAimY;
-	bool m_aSteamInputPrevious[16];
+	bool m_aSteamInputPrevious[64];
 	int m_GamepadActionSet;
 	bool m_TextInputActive;
 

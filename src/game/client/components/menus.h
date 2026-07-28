@@ -494,6 +494,19 @@ class CMenus : public CComponent
 		int64 m_NextRetry;
 	};
 	CSteamAvatarTexture m_aSteamAvatars[128];
+	struct CWorkshopPreviewTexture
+	{
+		unsigned long long m_PublishedFileID;
+		unsigned int m_UpdatedAt;
+		unsigned m_OperationID;
+		int m_Texture;
+		int64 m_LastUsed;
+		int64 m_NextRetry;
+	};
+	CWorkshopPreviewTexture m_aWorkshopPreviews[32];
+	unsigned long long m_WorkshopSelectedID;
+	bool m_WorkshopDiscover;
+	bool m_WorkshopDetailOpen;
 	CPlatformUserInfo m_aSteamFriendCache[512];
 	int m_SteamFriendCacheCount;
 	int64 m_SteamFriendCacheNextRefresh;
@@ -501,6 +514,8 @@ class CMenus : public CComponent
 	void UpdatePlaySnapshots();
 	int SteamAvatarTexture(unsigned long long UserID);
 	void DrawSteamAvatar(const CUIRect &Rect, unsigned long long UserID);
+	int WorkshopPreviewTexture(const CPlatformWorkshopItem &Item);
+	void DrawWorkshopPreview(const CUIRect &Rect, const CPlatformWorkshopItem &Item);
 	void RenderSteamFriends(CUIRect MainView);
 	void RenderPartyPanel(CUIRect *pMainView);
 

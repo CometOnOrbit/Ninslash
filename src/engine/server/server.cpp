@@ -13,6 +13,7 @@
 
 #include <engine/shared/compression.h>
 #include <engine/shared/config.h>
+#include <engine/shared/content_package.h>
 #include <engine/shared/datafile.h>
 #include <engine/shared/demo.h>
 #include <engine/shared/econ.h>
@@ -1992,10 +1993,20 @@ int CServer::LoadMap(const char *pMapName)
 	KickBots();
 	
 	char aBuf[512];
-	str_format(aBuf, sizeof(aBuf), "maps/%s.map", pMapName);
+	int StorageType = IStorage::TYPE_ALL;
+	if(str_comp_num(pMapName, "workshop:", 9) == 0)
+	{
+		char aWorkshopRoot[1024], aAbsolutePath[1536], aError[256]; Storage()->GetCompletePath(IStorage::TYPE_SAVE, "workshop", aWorkshopRoot, sizeof(aWorkshopRoot));
+		if(!ContentPackageResolveMapLocator(aWorkshopRoot, pMapName, GameServer()->NetVersion(), aAbsolutePath, sizeof(aAbsolutePath), aError, sizeof(aError))) { Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "workshop", aError); return 0; }
+		const char *pID = pMapName + 9, *pEntry = str_find(pID, ":"); if(!pEntry) return 0;
+		char aID[32]; const int IDLength = (int)(pEntry - pID); if(IDLength <= 0 || IDLength >= (int)sizeof(aID)) return 0; mem_copy(aID, pID, IDLength); aID[IDLength] = 0;
+		str_format(aBuf, sizeof(aBuf), "workshop/%s/%s", aID, pEntry + 1); StorageType = IStorage::TYPE_SAVE;
+	}
+	else
+		str_format(aBuf, sizeof(aBuf), "maps/%s.map", pMapName);
 
 	// check for valid standard map
-	if(!m_MapChecker.ReadAndValidateMap(Storage(), aBuf, IStorage::TYPE_ALL))
+	if(!m_MapChecker.ReadAndValidateMap(Storage(), aBuf, StorageType))
 	{
 		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "mapchecker", "invalid standard map");
 		return 0;
