@@ -110,7 +110,8 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	bool m_MouseIsFree;
 	int m_SnapCrcErrors;
 	bool m_AutoScreenshotRecycle;
-	CPlatformScreenshotContext m_PendingScreenshotContext;
+	CPlatformScreenshotContext m_aPendingScreenshotContexts[8];
+	int m_PendingScreenshotContextCount;
 	bool m_EditorActive;
 	bool m_SoundInitFailed;
 	bool m_GamepadInitFailed;
@@ -364,6 +365,7 @@ public:
 
 	void AutoScreenshot_Start();
 	void AutoScreenshot_Cleanup();
+	void QueueScreenshotContext(const CPlatformScreenshotContext &Context);
 
 	void ServerBrowserUpdate();
 };

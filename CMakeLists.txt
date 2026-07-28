@@ -432,6 +432,7 @@ set(COPY_FILES
   ${FREETYPE_COPY_FILES}
   ${SDL3_COPY_FILES}
   autoexec.cfg
+  autoexec_client.cfg
   storage.cfg
 )
 file(COPY ${COPY_FILES} DESTINATION .)

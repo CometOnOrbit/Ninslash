@@ -175,11 +175,11 @@ CGraphics_Threaded::CGraphics_Threaded()
 	m_TextureMemoryUsage = 0;
 
 	m_RenderEnable = true;
-	m_DoScreenshot = false;
+	m_ScreenshotRequestCount = 0;
 	m_NextScreenshotRequestID = 0;
-	m_ScreenshotRequestID = 0;
-	m_HasScreenshotResult = false;
-	mem_zero(&m_ScreenshotResult, sizeof(m_ScreenshotResult));
+	m_ScreenshotResultCount = 0;
+	mem_zero(m_aScreenshotRequests, sizeof(m_aScreenshotRequests));
+	mem_zero(m_aScreenshotResults, sizeof(m_aScreenshotResults));
 }
 
 void CGraphics_Threaded::ClipEnable(int x, int y, int w, int h)
@@ -1113,36 +1113,51 @@ int CGraphics_Threaded::WindowOpen()
 
 unsigned CGraphics_Threaded::TakeScreenshot(const char *pFilename)
 {
-	// TODO: screenshot support
+	if(m_ScreenshotRequestCount >= MAX_SCREENSHOT_QUEUE)
+	{
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", "Screenshot queue is full");
+		return 0;
+	}
 	char aDate[20];
 	str_timestamp(aDate, sizeof(aDate));
-	str_format(m_aScreenshotName, sizeof(m_aScreenshotName), "screenshots/%s_%s.png", pFilename?pFilename:"screenshot", aDate);
-	m_DoScreenshot = true;
-	m_ScreenshotRequestID = ++m_NextScreenshotRequestID;
-	return m_ScreenshotRequestID;
+	unsigned RequestID = ++m_NextScreenshotRequestID;
+	if(!RequestID)
+		RequestID = ++m_NextScreenshotRequestID;
+	CScreenshotRequest &Request = m_aScreenshotRequests[m_ScreenshotRequestCount++];
+	Request.m_RequestID = RequestID;
+	str_format(Request.m_aName, sizeof(Request.m_aName), "screenshots/%s_%s_%u.png", pFilename ? pFilename : "screenshot", aDate, RequestID);
+	return RequestID;
 }
 
 bool CGraphics_Threaded::ConsumeScreenshotResult(CScreenshotResult *pResult)
 {
-	if(!pResult || !m_HasScreenshotResult) return false;
-	*pResult = m_ScreenshotResult;
-	m_HasScreenshotResult = false;
+	if(!pResult || m_ScreenshotResultCount <= 0) return false;
+	*pResult = m_aScreenshotResults[0];
+	for(int i = 1; i < m_ScreenshotResultCount; i++)
+		m_aScreenshotResults[i - 1] = m_aScreenshotResults[i];
+	m_ScreenshotResultCount--;
 	return true;
 }
 
 void CGraphics_Threaded::Swap()
 {
-	// TODO: screenshot support
-	if(m_DoScreenshot)
+	if(m_ScreenshotRequestCount > 0)
 	{
-		if(WindowActive())
+		const CScreenshotRequest Request = m_aScreenshotRequests[0];
+		for(int i = 1; i < m_ScreenshotRequestCount; i++)
+			m_aScreenshotRequests[i - 1] = m_aScreenshotRequests[i];
+		m_ScreenshotRequestCount--;
+		if(m_ScreenshotResultCount >= MAX_SCREENSHOT_QUEUE)
 		{
-			mem_zero(&m_ScreenshotResult, sizeof(m_ScreenshotResult));
-			m_ScreenshotResult.m_RequestID = m_ScreenshotRequestID;
-			ScreenshotDirect(m_aScreenshotName, &m_ScreenshotResult);
-			m_HasScreenshotResult = true;
+			for(int i = 1; i < m_ScreenshotResultCount; i++)
+				m_aScreenshotResults[i - 1] = m_aScreenshotResults[i];
+			m_ScreenshotResultCount--;
 		}
-		m_DoScreenshot = false;
+		CScreenshotResult &Result = m_aScreenshotResults[m_ScreenshotResultCount++];
+		mem_zero(&Result, sizeof(Result));
+		Result.m_RequestID = Request.m_RequestID;
+		if(WindowActive())
+			ScreenshotDirect(Request.m_aName, &Result);
 	}
 
 	// add swap command

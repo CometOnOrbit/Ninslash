@@ -321,7 +321,8 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 	
 	m_SnapCrcErrors = 0;
 	m_AutoScreenshotRecycle = false;
-	mem_zero(&m_PendingScreenshotContext, sizeof(m_PendingScreenshotContext));
+	m_PendingScreenshotContextCount = 0;
+	mem_zero(m_aPendingScreenshotContexts, sizeof(m_aPendingScreenshotContexts));
 	m_EditorActive = false;
 	m_VideoFps = 30;
 	m_VideoFinished = false;
@@ -2004,6 +2005,9 @@ void CClient::Run()
 
 	// init graphics
 	{
+#if defined(CONF_FAMILY_WINDOWS)
+		windows_mark_graphics_starting();
+#endif
 
 		m_pGraphics = CreateEngineGraphicsThreaded();
 		
@@ -2024,6 +2028,9 @@ void CClient::Run()
 #endif
 			return;
 		}
+#if defined(CONF_FAMILY_WINDOWS)
+		windows_mark_graphics_ready();
+#endif
 	}
 
 	// init sound, allowed to fail
@@ -2128,11 +2135,23 @@ void CClient::Run()
 		{
 			m_pPlatformServices->RunCallbacks();
 			IGraphics::CScreenshotResult Screenshot;
-			if(Graphics()->ConsumeScreenshotResult(&Screenshot) && Screenshot.m_RequestID == m_PendingScreenshotContext.m_RequestID && Screenshot.m_Success)
+			if(Graphics()->ConsumeScreenshotResult(&Screenshot))
 			{
-				if(m_PendingScreenshotContext.m_SyncToSteam && !m_pPlatformServices->RegisterScreenshot(Screenshot.m_aAbsolutePath, Screenshot.m_Width, Screenshot.m_Height, m_PendingScreenshotContext))
+				CPlatformScreenshotContext Context;
+				bool Matched = false;
+				for(int i = 0; i < m_PendingScreenshotContextCount; i++)
+				{
+					if(m_aPendingScreenshotContexts[i].m_RequestID != Screenshot.m_RequestID)
+						continue;
+					Context = m_aPendingScreenshotContexts[i];
+					for(int j = i + 1; j < m_PendingScreenshotContextCount; j++)
+						m_aPendingScreenshotContexts[j - 1] = m_aPendingScreenshotContexts[j];
+					m_PendingScreenshotContextCount--;
+					Matched = true;
+					break;
+				}
+				if(Matched && Screenshot.m_Success && Context.m_SyncToSteam && !m_pPlatformServices->RegisterScreenshot(Screenshot.m_aAbsolutePath, Screenshot.m_Width, Screenshot.m_Height, Context))
 					m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Screenshot saved locally; Steam library registration was unavailable");
-				mem_zero(&m_PendingScreenshotContext, sizeof(m_PendingScreenshotContext));
 			}
 			CPlatformPartyLaunch PartyLaunch;
 			if(m_pPlatformServices->ConsumePartyLaunch(&PartyLaunch))
@@ -2429,13 +2448,29 @@ void CClient::AutoScreenshot_Start()
 {
 	if(g_Config.m_ClAutoScreenshot)
 	{
-		mem_zero(&m_PendingScreenshotContext, sizeof(m_PendingScreenshotContext));
-		m_PendingScreenshotContext.m_RequestID = Graphics()->TakeScreenshot("auto/autoscreen");
-		m_PendingScreenshotContext.m_SyncToSteam = g_Config.m_ClAutoScreenshotSteam != 0;
-		str_copy(m_PendingScreenshotContext.m_aLocation, m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, sizeof(m_PendingScreenshotContext.m_aLocation));
-		if(m_pPlatformServices) m_pPlatformServices->SetScreenshotContext(m_PendingScreenshotContext);
+		CPlatformScreenshotContext Context;
+		mem_zero(&Context, sizeof(Context));
+		Context.m_RequestID = Graphics()->TakeScreenshot("auto/autoscreen");
+		Context.m_SyncToSteam = g_Config.m_ClAutoScreenshotSteam != 0;
+		str_copy(Context.m_aLocation, m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, sizeof(Context.m_aLocation));
+		QueueScreenshotContext(Context);
 		m_AutoScreenshotRecycle = true;
 	}
+}
+
+void CClient::QueueScreenshotContext(const CPlatformScreenshotContext &Context)
+{
+	if(!Context.m_RequestID)
+		return;
+	if(m_PendingScreenshotContextCount >= (int)(sizeof(m_aPendingScreenshotContexts) / sizeof(m_aPendingScreenshotContexts[0])))
+	{
+		for(int i = 1; i < m_PendingScreenshotContextCount; i++)
+			m_aPendingScreenshotContexts[i - 1] = m_aPendingScreenshotContexts[i];
+		m_PendingScreenshotContextCount--;
+	}
+	m_aPendingScreenshotContexts[m_PendingScreenshotContextCount++] = Context;
+	if(m_pPlatformServices)
+		m_pPlatformServices->SetScreenshotContext(Context);
 }
 
 void CClient::AutoScreenshot_Cleanup()
@@ -2455,16 +2490,17 @@ void CClient::AutoScreenshot_Cleanup()
 void CClient::Con_Screenshot(IConsole::IResult *pResult, void *pUserData)
 {
 	CClient *pSelf = (CClient *)pUserData;
-	mem_zero(&pSelf->m_PendingScreenshotContext, sizeof(pSelf->m_PendingScreenshotContext));
-	pSelf->m_PendingScreenshotContext.m_RequestID = pSelf->Graphics()->TakeScreenshot(0);
-	pSelf->m_PendingScreenshotContext.m_SyncToSteam = true;
-	str_copy(pSelf->m_PendingScreenshotContext.m_aLocation, pSelf->m_CurrentServerInfo.m_aMap[0] ? pSelf->m_CurrentServerInfo.m_aMap : pSelf->m_aCurrentMap, sizeof(pSelf->m_PendingScreenshotContext.m_aLocation));
+	CPlatformScreenshotContext Context;
+	mem_zero(&Context, sizeof(Context));
+	Context.m_RequestID = pSelf->Graphics()->TakeScreenshot(0);
+	Context.m_SyncToSteam = true;
+	str_copy(Context.m_aLocation, pSelf->m_CurrentServerInfo.m_aMap[0] ? pSelf->m_CurrentServerInfo.m_aMap : pSelf->m_aCurrentMap, sizeof(Context.m_aLocation));
 	if(pSelf->m_pPlatformServices)
 	{
-		for(int i = 0; i < pSelf->m_pPlatformServices->LobbyMemberCount() && i < 32; i++) { CPlatformUserInfo Info; if(pSelf->m_pPlatformServices->LobbyMemberInfo(i, &Info)) pSelf->m_PendingScreenshotContext.m_aUsers[pSelf->m_PendingScreenshotContext.m_UserCount++] = Info.m_UserID; }
-		const char *pID = g_Config.m_ClModIds; while(*pID && pSelf->m_PendingScreenshotContext.m_PublishedFileCount < 32) { unsigned long long ID = 0; int Length = 0; if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0) break; pSelf->m_PendingScreenshotContext.m_aPublishedFiles[pSelf->m_PendingScreenshotContext.m_PublishedFileCount++] = ID; pID += Length; if(*pID == ',') pID++; else if(*pID) break; }
-		pSelf->m_pPlatformServices->SetScreenshotContext(pSelf->m_PendingScreenshotContext);
+		for(int i = 0; i < pSelf->m_pPlatformServices->LobbyMemberCount() && i < 32; i++) { CPlatformUserInfo Info; if(pSelf->m_pPlatformServices->LobbyMemberInfo(i, &Info)) Context.m_aUsers[Context.m_UserCount++] = Info.m_UserID; }
+		const char *pID = g_Config.m_ClModIds; while(*pID && Context.m_PublishedFileCount < 32) { unsigned long long ID = 0; int Length = 0; if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0) break; Context.m_aPublishedFiles[Context.m_PublishedFileCount++] = ID; pID += Length; if(*pID == ',') pID++; else if(*pID) break; }
 	}
+	pSelf->QueueScreenshotContext(Context);
 }
 
 void CClient::Con_Rcon(IConsole::IResult *pResult, void *pUserData)
@@ -3263,8 +3299,10 @@ int main(int argc, const char **argv) // ignore_convention
 	// execute config file
 	pConsole->ExecuteFile("settings.cfg");
 
-	// execute autoexec file
-	pConsole->ExecuteFile("autoexec.cfg");
+	// autoexec.cfg contains the defaults for the bundled dedicated/listen server.
+	// Loading it in the client produces a page of unknown server commands and can
+	// accidentally apply future commands whose names overlap client settings.
+	pConsole->ExecuteFile("autoexec_client.cfg");
 
 	// parse the command line arguments
 	if(argc > 1) // ignore_convention

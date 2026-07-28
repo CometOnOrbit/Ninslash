@@ -33,6 +33,11 @@ The wrapper never accepts a password. SteamCMD handles password and Steam Guard
 interaction itself. Set `STEAM_ACCOUNT` and `STEAMCMD` in the environment when
 desired; use `--no-build` to package existing binaries and `--strict-assets` for
 the final public-release asset gate.
+SteamCMD uses exit code 6 for both permanent rejection and temporary SteamPipe
+CDN failures. The wrapper retries up to three times only when logs written by
+the current attempt contain HTTP 5xx; stale logs and permission/configuration
+errors do not trigger a retry. Override this with `--upload-attempts` and
+`--upload-retry-delay` when necessary.
 Use `--upload-target client` or `--upload-target server` to retry only one AppID
 without creating another build for an AppID that already succeeded.
 Add `--set-live internal` (or another configured branch name) to make the new

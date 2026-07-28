@@ -7,15 +7,130 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+TRANSIENT_STEAMPIPE_HTTP = re.compile(r"\bHTTP\s+(5\d\d)\b", re.IGNORECASE)
+
+
+class SteamUploadError(RuntimeError):
+    def __init__(self, returncode, attempts, transient_http_statuses=()):
+        super().__init__(f"SteamCMD exited with {returncode}")
+        self.returncode = returncode
+        self.attempts = attempts
+        self.transient_http_statuses = tuple(sorted(set(transient_http_statuses)))
 
 
 def run(command, cwd=ROOT):
     print("+", " ".join(str(part) for part in command), flush=True)
     subprocess.run([str(part) for part in command], cwd=cwd, check=True)
+
+
+def run_streamed(command, cwd=ROOT):
+    """Run an interactive command while retaining the output used for diagnosis."""
+    command = [str(part) for part in command]
+    print("+", " ".join(command), flush=True)
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        stdin=None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    chunks = []
+    while True:
+        chunk = os.read(process.stdout.fileno(), 4096)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        output_buffer = getattr(sys.stdout, "buffer", None)
+        if output_buffer is not None:
+            output_buffer.write(chunk)
+        else:
+            sys.stdout.write(chunk.decode("utf-8", errors="replace"))
+        sys.stdout.flush()
+    returncode = process.wait()
+    output = b"".join(chunks).decode("utf-8", errors="replace")
+    if returncode:
+        raise subprocess.CalledProcessError(returncode, command, output=output)
+    return output
+
+
+def steam_log_snapshot(build_output):
+    """Keep prior log bytes so appended output can exclude stale failures."""
+    snapshot = {}
+    if not build_output.is_dir():
+        return snapshot
+    for path in build_output.glob("*.log"):
+        try:
+            snapshot[path] = path.read_bytes()
+        except OSError:
+            continue
+    return snapshot
+
+
+def changed_steam_logs(build_output, before):
+    changed = []
+    if not build_output.is_dir():
+        return changed
+    for path in build_output.glob("*.log"):
+        try:
+            contents = path.read_bytes()
+        except OSError:
+            continue
+        previous = before.get(path)
+        if previous == contents:
+            continue
+        # SteamPipe may append rather than replace a log. In that case inspect
+        # only bytes written by this attempt so an old HTTP 5xx cannot cause a
+        # retry of a new, permanent failure.
+        if previous is not None and contents.startswith(previous):
+            contents = contents[len(previous):]
+        changed.append((path, contents.decode("utf-8", errors="replace")))
+    return changed
+
+
+def transient_steampipe_http_statuses(logs):
+    """Return HTTP 5xx statuses emitted by SteamPipe during the current attempt."""
+    statuses = set()
+    for _path, contents in logs:
+        statuses.update(int(match.group(1)) for match in TRANSIENT_STEAMPIPE_HTTP.finditer(contents))
+    return statuses
+
+
+def upload_with_retry(command, build_output, attempts, retry_delay):
+    transient_statuses = set()
+    for attempt in range(1, attempts + 1):
+        before = steam_log_snapshot(build_output)
+        try:
+            run_streamed(command)
+            return
+        except subprocess.CalledProcessError as exc:
+            current_logs = changed_steam_logs(build_output, before)
+            if exc.output:
+                current_logs.append((None, exc.output))
+            current_statuses = transient_steampipe_http_statuses(current_logs)
+            # Exit code 6 covers both permanent SteamPipe rejection and temporary
+            # CDN failures. Retry only when this attempt's logs prove HTTP 5xx.
+            is_transient = exc.returncode == 6 and bool(current_statuses)
+            transient_statuses.update(current_statuses)
+            if not is_transient or attempt == attempts:
+                raise SteamUploadError(
+                    exc.returncode,
+                    attempt,
+                    transient_statuses if is_transient else (),
+                ) from None
+            delay = retry_delay * (2 ** (attempt - 1))
+            statuses = ", ".join(f"HTTP {status}" for status in sorted(current_statuses))
+            print(
+                f"SteamPipe returned a temporary CDN error ({statuses}) on attempt "
+                f"{attempt}/{attempts}; retrying the verified manifests in {delay:g} seconds...",
+                file=sys.stderr,
+                flush=True,
+            )
+            time.sleep(delay)
 
 
 def git_value(*arguments, default="unknown"):
@@ -96,6 +211,8 @@ def main():
     parser.add_argument("--set-live", metavar="BRANCH", help="Set uploaded target builds live on this Steam branch (use default for public)")
     parser.add_argument("--steam-account", default=os.environ.get("STEAM_ACCOUNT"), help="Steam partner account name; password is never accepted here")
     parser.add_argument("--steamcmd", default=os.environ.get("STEAMCMD", "steamcmd"))
+    parser.add_argument("--upload-attempts", type=int, default=3, help="Attempts for proven transient SteamPipe HTTP 5xx failures (default: 3)")
+    parser.add_argument("--upload-retry-delay", type=float, default=5.0, help="Initial retry delay in seconds; subsequent delays use exponential backoff")
     parser.add_argument("--standalone-linux-build-dir", help="Optional non-Steam build to verify")
     parser.add_argument("--standalone-windows-build-dir", help="Optional non-Steam build to verify")
     args = parser.parse_args()
@@ -109,6 +226,10 @@ def main():
         )
     if args.set_live and not args.upload:
         raise SystemExit("--set-live requires --upload")
+    if not 1 <= args.upload_attempts <= 10:
+        raise SystemExit("--upload-attempts must be between 1 and 10")
+    if not 0 <= args.upload_retry_delay <= 300:
+        raise SystemExit("--upload-retry-delay must be between 0 and 300 seconds")
 
     linux_build = Path(args.linux_build_dir).expanduser().resolve()
     windows_build = Path(args.windows_build_dir).expanduser().resolve()
@@ -210,9 +331,17 @@ def main():
         upload.extend(["+run_app_build", manifests / "tool_build.vdf"])
     upload.append("+quit")
     try:
-        run(upload)
-    except subprocess.CalledProcessError as exc:
-        if exc.returncode == 6:
+        upload_with_retry(upload, build_output, args.upload_attempts, args.upload_retry_delay)
+    except SteamUploadError as exc:
+        if exc.transient_http_statuses:
+            statuses = ", ".join(f"HTTP {status}" for status in exc.transient_http_statuses)
+            detail = (
+                f"SteamPipe's CDN still returned {statuses} after {exc.attempts} attempts while fetching or "
+                "uploading depot data. The local file mapping and offline verification completed before upload; "
+                "retry later. If the same manifest fails for an extended period, verify that the depot's previous "
+                "manifest still exists in Steamworks and contact Steamworks Support."
+            )
+        elif exc.returncode == 6:
             detail = (
                 "SteamPipe rejected the build. Check that the build account can edit and publish the target AppID, "
                 "that its depots are saved and published, and that those depots belong to an account-owned package."

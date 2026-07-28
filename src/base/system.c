@@ -183,6 +183,7 @@ void dbg_logger_file(const char *filename)
 #if defined(CONF_FAMILY_WINDOWS)
 static char windows_startup_log[1024];
 static char windows_startup_marker[1024];
+static char windows_graphics_marker[1024];
 static char windows_startup_directory[1024];
 static int windows_startup_recovery;
 
@@ -194,11 +195,35 @@ static LONG WINAPI windows_unhandled_exception_filter(EXCEPTION_POINTERS *except
 	SYSTEMTIME now;
 	char timestamp[64];
 	char path[1200];
-	char text[512];
+	char text[2048];
+	char module_path[1024];
+	const char *access_type = "unknown";
+	unsigned long long module_offset = 0;
+	unsigned long long access_address = 0;
 	DWORD written;
 	HANDLE file;
 	HMODULE dbghelp;
+	HMODULE fault_module = 0;
 	MINIDUMP_WRITE_DUMP write_dump;
+	EXCEPTION_RECORD *record = exception ? exception->ExceptionRecord : 0;
+
+	str_copy(module_path, "<unknown>", sizeof(module_path));
+	if(record && GetModuleHandleExA(
+		GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		(LPCSTR)record->ExceptionAddress, &fault_module))
+	{
+		const DWORD length = GetModuleFileNameA(fault_module, module_path, sizeof(module_path));
+		if(!length || length >= sizeof(module_path))
+			str_copy(module_path, "<unknown>", sizeof(module_path));
+		module_offset = (unsigned long long)((ULONG_PTR)record->ExceptionAddress - (ULONG_PTR)fault_module);
+	}
+	if(record && record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && record->NumberParameters >= 2)
+	{
+		access_type = record->ExceptionInformation[0] == 0 ? "read" :
+			record->ExceptionInformation[0] == 1 ? "write" :
+			record->ExceptionInformation[0] == 8 ? "execute" : "unknown";
+		access_address = (unsigned long long)record->ExceptionInformation[1];
+	}
 
 	GetLocalTime(&now);
 	_snprintf(timestamp, sizeof(timestamp), "%04u%02u%02u-%02u%02u%02u",
@@ -209,10 +234,16 @@ static LONG WINAPI windows_unhandled_exception_filter(EXCEPTION_POINTERS *except
 	if(file != INVALID_HANDLE_VALUE)
 	{
 		_snprintf(text, sizeof(text),
-			"Ninslash unhandled exception\r\ncode=0x%08lx\r\naddress=%p\r\nstartup_log=%s\r\n",
-			exception && exception->ExceptionRecord ? exception->ExceptionRecord->ExceptionCode : 0,
-			exception && exception->ExceptionRecord ? exception->ExceptionRecord->ExceptionAddress : NULL,
+			"Ninslash unhandled exception\r\n"
+			"code=0x%08lx\r\naddress=%p\r\n"
+			"module=%s\r\nmodule_offset=0x%I64x\r\n"
+			"access_type=%s\r\naccess_address=0x%I64x\r\n"
+			"startup_log=%s\r\n",
+			record ? record->ExceptionCode : 0,
+			record ? record->ExceptionAddress : NULL,
+			module_path, module_offset, access_type, access_address,
 			windows_startup_log);
+		text[sizeof(text) - 1] = 0;
 		WriteFile(file, text, (DWORD)strlen(text), &written, NULL);
 		CloseHandle(file);
 	}
@@ -249,11 +280,13 @@ void windows_refresh_crash_handler()
 int windows_init_startup_diagnostics(const char *appname)
 {
 	char root[1024];
-	DWORD attributes;
+	DWORD startup_attributes;
+	DWORD graphics_attributes;
 	IOHANDLE marker;
 
 	windows_startup_log[0] = 0;
 	windows_startup_marker[0] = 0;
+	windows_graphics_marker[0] = 0;
 	windows_startup_directory[0] = 0;
 	if(fs_storage_path(appname, root, sizeof(root)) != 0)
 	{
@@ -267,8 +300,13 @@ int windows_init_startup_diagnostics(const char *appname)
 	fs_makedir(windows_startup_directory);
 	str_format(windows_startup_log, sizeof(windows_startup_log), "%s/startup.log", windows_startup_directory);
 	str_format(windows_startup_marker, sizeof(windows_startup_marker), "%s/startup.pending", windows_startup_directory);
+	str_format(windows_graphics_marker, sizeof(windows_graphics_marker), "%s/graphics.pending", windows_startup_directory);
 
-	attributes = GetFileAttributesA(windows_startup_marker);
+	startup_attributes = GetFileAttributesA(windows_startup_marker);
+	graphics_attributes = GetFileAttributesA(windows_graphics_marker);
+	/* A stale graphics marker only requests recovery for this launch. It will be
+	   created again immediately before the next graphics initialization. */
+	fs_remove(windows_graphics_marker);
 	marker = io_open(windows_startup_marker, IOFLAG_WRITE);
 	if(marker)
 	{
@@ -279,9 +317,11 @@ int windows_init_startup_diagnostics(const char *appname)
 	dbg_logger_file(windows_startup_log);
 	windows_refresh_crash_handler();
 	dbg_msg("startup", "persistent startup log: %s", windows_startup_log);
-	if(attributes != INVALID_FILE_ATTRIBUTES)
-		dbg_msg("startup", "previous launch did not reach the main menu; using safe graphics mode");
-	windows_startup_recovery = attributes != INVALID_FILE_ATTRIBUTES;
+	if(startup_attributes != INVALID_FILE_ATTRIBUTES)
+		dbg_msg("startup", "previous launch did not reach the main menu");
+	if(graphics_attributes != INVALID_FILE_ATTRIBUTES)
+		dbg_msg("startup", "previous launch stopped during graphics initialization; using safe graphics mode");
+	windows_startup_recovery = graphics_attributes != INVALID_FILE_ATTRIBUTES;
 	return windows_startup_recovery;
 }
 
@@ -290,10 +330,30 @@ int windows_startup_recovery_requested()
 	return windows_startup_recovery;
 }
 
+void windows_mark_graphics_starting()
+{
+	IOHANDLE marker;
+	if(!windows_graphics_marker[0])
+		return;
+	marker = io_open(windows_graphics_marker, IOFLAG_WRITE);
+	if(marker)
+	{
+		io_write(marker, "graphics initialization in progress\n", 36);
+		io_close(marker);
+	}
+}
+
+void windows_mark_graphics_ready()
+{
+	if(windows_graphics_marker[0])
+		fs_remove(windows_graphics_marker);
+}
+
 void windows_mark_startup_ready()
 {
 	if(windows_startup_marker[0])
 		fs_remove(windows_startup_marker);
+	windows_mark_graphics_ready();
 	dbg_msg("startup", "main menu initialization completed");
 }
 

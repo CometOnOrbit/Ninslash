@@ -36,12 +36,125 @@ LINUX_SYSTEM_LIBRARIES = {
     "libXdmcp.so.6", "libbsd.so.0", "libmd.so.0",
 }
 
+STEAM_INPUT_ACTIONS = (
+    "confirm", "cancel", "fire", "turbo", "scoreboard", "build", "drop", "emote",
+    "weapon_picker", "last_weapon", "prev_weapon", "next_weapon", "up", "down", "left",
+    "right", "jump", "crouch", "charge", "inventory", "forge", "drone_radial", "weapon_1",
+    "weapon_2", "weapon_3", "weapon_4", "ready", "vote_yes", "vote_no", "chat", "pause",
+    "replay_play_pause", "replay_seek_back", "replay_seek_forward", "editor_primary", "editor_secondary",
+)
+STEAM_INPUT_LAYERS = ("menu", "spectator", "chat", "inventory", "build", "radial_menu", "replay", "editor")
+
 
 def command_output(args):
     return subprocess.run(
         args, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True, env=dict(os.environ, LC_ALL="C"),
     ).stdout
+
+
+def parse_vdf(text):
+    tokens = []
+    position = 0
+    while position < len(text):
+        if text[position].isspace():
+            position += 1
+            continue
+        if text.startswith("//", position):
+            newline = text.find("\n", position)
+            position = len(text) if newline < 0 else newline + 1
+            continue
+        if text[position] in "{}":
+            tokens.append(text[position])
+            position += 1
+            continue
+        if text[position] != '"':
+            raise ValueError(f"unexpected character at byte {position}")
+        position += 1
+        value = []
+        while position < len(text) and text[position] != '"':
+            if text[position] == "\\" and position + 1 < len(text):
+                position += 1
+            value.append(text[position])
+            position += 1
+        if position >= len(text):
+            raise ValueError("unterminated string")
+        position += 1
+        tokens.append("".join(value))
+
+    def parse_pairs(index, nested):
+        pairs = []
+        while index < len(tokens):
+            if tokens[index] == "}":
+                if not nested:
+                    raise ValueError("unexpected closing brace")
+                return pairs, index + 1
+            if tokens[index] == "{":
+                raise ValueError("missing key before opening brace")
+            key = tokens[index]
+            index += 1
+            if index >= len(tokens):
+                raise ValueError(f"missing value for {key}")
+            if tokens[index] == "{":
+                value, index = parse_pairs(index + 1, True)
+            elif tokens[index] == "}":
+                raise ValueError(f"missing value for {key}")
+            else:
+                value = tokens[index]
+                index += 1
+            pairs.append((key, value))
+        if nested:
+            raise ValueError("missing closing brace")
+        return pairs, index
+
+    pairs, consumed = parse_pairs(0, False)
+    if consumed != len(tokens):
+        raise ValueError("trailing VDF tokens")
+    return pairs
+
+
+def vdf_block(pairs, key):
+    for candidate, value in pairs:
+        if candidate == key and isinstance(value, list):
+            return value
+    return None
+
+
+def verify_steam_input_manifest(root, errors):
+    path = root / "data/steam_input_manifest.vdf"
+    if not path.is_file():
+        errors.append(f"{root}: missing Steam Input action manifest")
+        return
+    try:
+        top = parse_vdf(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc:
+        errors.append(f"{path}: invalid VDF: {exc}")
+        return
+    manifest = vdf_block(top, "Action Manifest")
+    if manifest is None or len(top) != 1:
+        errors.append(f"{path}: root must be a single Action Manifest block")
+        return
+    actions = vdf_block(manifest, "actions")
+    gameplay = vdf_block(actions or [], "gameplay")
+    buttons = vdf_block(gameplay or [], "Button")
+    analog = vdf_block(gameplay or [], "StickPadGyro")
+    declared_actions = {key for key, value in buttons or [] if isinstance(value, str)}
+    missing_actions = sorted(set(STEAM_INPUT_ACTIONS) - declared_actions)
+    if missing_actions:
+        errors.append(f"{path}: missing digital actions: {', '.join(missing_actions)}")
+    declared_analog = {key for key, value in analog or [] if isinstance(value, list)}
+    if not {"move", "aim"}.issubset(declared_analog):
+        errors.append(f"{path}: move and aim analog actions are required")
+    layers = vdf_block(manifest, "action_layers")
+    declared_layers = {key for key, value in layers or [] if isinstance(value, list)}
+    missing_layers = sorted(set(STEAM_INPUT_LAYERS) - declared_layers)
+    if missing_layers:
+        errors.append(f"{path}: missing action layers: {', '.join(missing_layers)}")
+    localization = vdf_block(manifest, "localization")
+    declared_languages = {key for key, value in localization or [] if isinstance(value, list)}
+    missing_languages = sorted({"english", "schinese", "tchinese"} - declared_languages)
+    if missing_languages:
+        errors.append(f"{path}: missing Steam Input localization: {', '.join(missing_languages)}")
 
 
 def verify_inventory(root, errors):
@@ -170,7 +283,7 @@ def verify_depot(root_text, platform, kind, errors):
     executable_names = ["ninslash", "ninslash_srv"] if kind == "client" else ["ninslash_srv"]
     executables = [root / f"{name}{suffix}" for name in executable_names]
     steam_api = root / ("steam_api64.dll" if platform == "windows" else "libsteam_api.so")
-    for required in ("data", "cfg", "autoexec.cfg", "storage.cfg"):
+    for required in ("data", "cfg", "autoexec.cfg", "autoexec_client.cfg", "storage.cfg"):
         path = root / required
         if not path.exists():
             errors.append(f"{root}: missing startup resource {required}")
@@ -183,6 +296,8 @@ def verify_depot(root_text, platform, kind, errors):
         errors.append(f"{root}: missing freetype-license.txt")
     verify_forbidden(root, errors)
     verify_inventory(root, errors)
+    if kind == "client":
+        verify_steam_input_manifest(root, errors)
     if not steam_api.is_file():
         return
     for executable in executables:

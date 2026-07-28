@@ -4163,7 +4163,11 @@ void CEditor::Init()
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
 	m_RenderTools.m_pGraphics = m_pGraphics;
 	m_RenderTools.m_pUI = &m_UI;
+	m_UI.SetRenderTools(&m_RenderTools);
 	m_UI.SetGraphics(m_pGraphics, m_pTextRender);
+	m_UI.SetClient(m_pClient);
+	m_UI.SetInput(m_pInput);
+	CLineInput::Init(m_pInput, m_pTextRender, m_pGraphics, m_pClient);
 	m_Map.m_pEditor = this;
 
 	ms_CheckerTexture = Graphics()->LoadTexture("editor/checker.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, 0);
@@ -4273,6 +4277,7 @@ void CEditor::UpdateAndRender()
 		m_ShowMousePointer = false;
 
 	Render();
+	CLineInput::RenderCandidates();
 
 	if(Input()->KeyDown(KEY_F10))
 	{

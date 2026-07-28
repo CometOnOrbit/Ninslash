@@ -117,7 +117,7 @@ def main():
             copy_linux_runtime_dependencies(executable_path, output)
     copy_tree(root / "data", output / "data")
     copy_tree(root / "cfg", output / "cfg")
-    for filename in ("autoexec.cfg", "storage.cfg", "license.txt", "THIRD_PARTY_LICENSES.md", "README.md", "README_zh-CN.md"):
+    for filename in ("autoexec.cfg", "autoexec_client.cfg", "storage.cfg", "license.txt", "THIRD_PARTY_LICENSES.md", "README.md", "README_zh-CN.md"):
         copy_required(root / filename, output / filename)
     if args.platform == "windows" and args.kind == "client":
         copy_required(root / "other/freetype/LICENSE.TXT", output / "freetype-license.txt")

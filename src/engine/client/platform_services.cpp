@@ -408,6 +408,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	InputDigitalActionHandle_t m_aDigitalActions[NUM_PLATFORM_INPUT_ACTIONS];
 	InputAnalogActionHandle_t m_MoveAction;
 	InputAnalogActionHandle_t m_AimAction;
+	InputHandle_t m_GlyphController;
 	char m_aaInputGlyphs[NUM_PLATFORM_INPUT_ACTIONS][512];
 	CPlatformScreenshotContext m_ScreenshotContext;
 	struct CPendingScreenshot { ScreenshotHandle m_Handle; CPlatformScreenshotContext m_Context; };
@@ -501,46 +502,57 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	{
 		if(!SteamInput() || !SteamInput()->Init(false))
 			return false;
-		char aExecutable[1024];
-		char aManifest[1200];
-		bool ManifestFound = false;
-		if(fs_executable_path(aExecutable, sizeof(aExecutable)) == 0)
-		{
-			char *pSlash = strrchr(aExecutable, '/');
-#if defined(CONF_FAMILY_WINDOWS)
-			char *pBackslash = strrchr(aExecutable, '\\');
-			if(!pSlash || (pBackslash && pBackslash > pSlash)) pSlash = pBackslash;
-#endif
-			if(pSlash) *pSlash = 0;
-			str_format(aManifest, sizeof(aManifest), "%s/data/steam_input_manifest.vdf", aExecutable);
-			IOHANDLE File = io_open(aManifest, IOFLAG_READ);
-			ManifestFound = File != 0;
-			if(File) io_close(File);
-		}
-		if(!ManifestFound)
-		{
-			char aCurrent[1024];
-			if(fs_getcwd(aCurrent, sizeof(aCurrent)))
-			{
-				str_format(aManifest, sizeof(aManifest), "%s/data/steam_input_manifest.vdf", aCurrent);
-				IOHANDLE File = io_open(aManifest, IOFLAG_READ);
-				ManifestFound = File != 0;
-				if(File) io_close(File);
-			}
-		}
-		if(!ManifestFound || !SteamInput()->SetInputActionManifestFilePath(aManifest))
-		{
-			SteamInput()->Shutdown();
-			dbg_msg("steam", "Steam Input manifest unavailable; using SDL gamepad fallback");
-			return false;
-		}
+		// Production action manifests and official layouts are distributed by the
+		// Steam backend. SetInputActionManifestFilePath is a development override
+		// for manifests that also bundle local configuration VDFs; pointing it at
+		// the depot's upload-source manifest would suppress published layouts.
 		static const char *s_apSets[] = {"gameplay", "menu", "spectator", "chat", "inventory", "build", "radial_menu", "replay", "editor"};
 		static const char *s_apActions[] = {"confirm", "cancel", "fire", "turbo", "scoreboard", "build", "drop", "emote", "weapon_picker", "last_weapon", "prev_weapon", "next_weapon", "up", "down", "left", "right", "jump", "crouch", "charge", "inventory", "forge", "drone_radial", "weapon_1", "weapon_2", "weapon_3", "weapon_4", "ready", "vote_yes", "vote_no", "chat", "pause", "replay_play_pause", "replay_seek_back", "replay_seek_forward", "editor_primary", "editor_secondary"};
 		for(int i = 0; i < NUM_PLATFORM_INPUT_ACTION_SETS; i++) m_aInputActionSets[i] = SteamInput()->GetActionSetHandle(s_apSets[i]);
 		for(int i = 0; i < NUM_PLATFORM_INPUT_ACTIONS; i++) m_aDigitalActions[i] = SteamInput()->GetDigitalActionHandle(s_apActions[i]);
 		m_MoveAction = SteamInput()->GetAnalogActionHandle("move");
 		m_AimAction = SteamInput()->GetAnalogActionHandle("aim");
+		for(int i = 0; i < NUM_PLATFORM_INPUT_ACTION_SETS; i++)
+			if(!m_aInputActionSets[i])
+			{
+				dbg_msg("steam", "Steam Input action set/layer is missing: %s", s_apSets[i]);
+				SteamInput()->Shutdown();
+				return false;
+			}
+		for(int i = 0; i < NUM_PLATFORM_INPUT_ACTIONS; i++)
+			if(!m_aDigitalActions[i])
+			{
+				dbg_msg("steam", "Steam Input digital action is missing: %s", s_apActions[i]);
+				SteamInput()->Shutdown();
+				return false;
+			}
+		if(!m_MoveAction || !m_AimAction)
+		{
+			dbg_msg("steam", "Steam Input analog actions are missing");
+			SteamInput()->Shutdown();
+			return false;
+		}
 		return true;
+	}
+	bool RequiredInterfacesAvailable() const
+	{
+		bool Available = true;
+		auto Require = [&](const void *pInterface, const char *pName) {
+			if(pInterface)
+				return;
+			dbg_msg("steam", "required Steam interface is unavailable: %s", pName);
+			Available = false;
+		};
+		// SteamAPI_InitFlat intentionally skips the SDK header-version preflight.
+		// Validate every interface used unconditionally by lobby callbacks before
+		// exposing the platform service to the rest of the client.
+		Require(SteamUser(), "SteamUser");
+		Require(SteamFriends(), "SteamFriends");
+		Require(SteamUtils(), "SteamUtils");
+		Require(SteamMatchmaking(), "SteamMatchmaking");
+		Require(SteamNetworkingSockets(), "SteamNetworkingSockets");
+		Require(SteamNetworkingUtils(), "SteamNetworkingUtils");
+		return Available;
 	}
 	CCallback<CSteamPlatformServices, GameRichPresenceJoinRequested_t> m_JoinRequestedCallback;
 	CCallback<CSteamPlatformServices, GetAuthSessionTicketResponse_t> m_AuthTicketCallback;
@@ -594,7 +606,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 
 public:
 	CSteamPlatformServices() :
-		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PartyLobbyID(0), m_PartyOwnerID(0), m_PendingPartyInviteUserID(0), m_CreatingParty(false), m_JoiningParty(false), m_OpenPartyInviteAfterCreate(false), m_ConsumedPartyLaunchGeneration(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_HostLocalPort(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyCreateType(k_ELobbyTypeFriendsOnly), m_LobbyCreateMaxMembers(0), m_LobbyCreateRetries(0), m_LobbyCreateRetryAt(0), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_NextEventRetry(0), m_CommunityEntryCount(0), m_CommunityOperationID(0), m_CommunityOperation(0), m_CommunityScore(0), m_CommunityScope(PLATFORM_LEADERBOARD_GLOBAL), m_CommunityResultReady(false), m_WorkshopItemCount(0), m_WorkshopQueryItemCount(0), m_WorkshopQueryHandle(k_UGCQueryHandleInvalid), m_WorkshopQueryOperationID(0), m_WorkshopQueryPending(false), m_WorkshopQueryResultReady(false), m_WorkshopPreviewRequestCount(0), m_WorkshopPreviewResultCount(0), m_WorkshopPreviewOperationID(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_PendingScreenshotCount(0), m_TimelineDedupeCount(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
+		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PartyLobbyID(0), m_PartyOwnerID(0), m_PendingPartyInviteUserID(0), m_CreatingParty(false), m_JoiningParty(false), m_OpenPartyInviteAfterCreate(false), m_ConsumedPartyLaunchGeneration(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_HostLocalPort(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyCreateType(k_ELobbyTypeFriendsOnly), m_LobbyCreateMaxMembers(0), m_LobbyCreateRetries(0), m_LobbyCreateRetryAt(0), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_NextEventRetry(0), m_CommunityEntryCount(0), m_CommunityOperationID(0), m_CommunityOperation(0), m_CommunityScore(0), m_CommunityScope(PLATFORM_LEADERBOARD_GLOBAL), m_CommunityResultReady(false), m_WorkshopItemCount(0), m_WorkshopQueryItemCount(0), m_WorkshopQueryHandle(k_UGCQueryHandleInvalid), m_WorkshopQueryOperationID(0), m_WorkshopQueryPending(false), m_WorkshopQueryResultReady(false), m_WorkshopPreviewRequestCount(0), m_WorkshopPreviewResultCount(0), m_WorkshopPreviewOperationID(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_GlyphController(0), m_PendingScreenshotCount(0), m_TimelineDedupeCount(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
 		m_JoinRequestedCallback(this, &CSteamPlatformServices::OnJoinRequested),
 		m_AuthTicketCallback(this, &CSteamPlatformServices::OnAuthTicketResponse),
 		m_LobbyJoinRequestedCallback(this, &CSteamPlatformServices::OnLobbyJoinRequested),
@@ -635,11 +647,30 @@ public:
 		}
 		dbg_msg("steam", "initializing Steam API for AppID %d", STEAM_APP_ID);
 		SteamErrMsg aInitError;
+		mem_zero(aInitError, sizeof(aInitError));
+#if defined(CONF_FAMILY_WINDOWS)
+		// SteamAPI_InitEx performs an in-process interface-version preflight before
+		// creating the Steam client pipe. Some current Windows Steam client builds
+		// crash inside that preflight instead of reporting an incompatible interface.
+		// InitFlat is the SDK-supported compatibility entry point: it initializes the
+		// same client API without that optional preflight, allowing normal runtime
+		// interface checks and our existing null-service fallback to handle failures.
+		dbg_msg("steam", "using Windows compatibility initialization");
+		const ESteamAPIInitResult InitResult = SteamAPI_InitFlat(&aInitError);
+#else
 		const ESteamAPIInitResult InitResult = SteamAPI_InitEx(&aInitError);
+#endif
 		m_Initialized = InitResult == k_ESteamAPIInitResult_OK;
 		if(!m_Initialized)
 		{
 			dbg_msg("steam", "SteamAPI_Init failed (%d): %s; Steam features are unavailable", (int)InitResult, aInitError[0] ? aInitError : "no detail");
+			return false;
+		}
+		if(!RequiredInterfacesAvailable())
+		{
+			dbg_msg("steam", "Steam API initialized without required interfaces; continuing in standalone mode");
+			SteamAPI_Shutdown();
+			m_Initialized = false;
 			return false;
 		}
 		dbg_msg("steam", "initialized for user %llu", LocalUserID());
@@ -680,7 +711,8 @@ public:
 		m_CommunityFoundCall.Cancel(); m_CommunityUploadedCall.Cancel(); m_CommunityDownloadedCall.Cancel(); m_CommunityOperation = 0; m_CommunityResultReady = false;
 		m_ActiveLeaderboardEvent = -1;
 		m_LobbyCreatePending = false;
-		SteamFriends()->ClearRichPresence();
+		if(SteamFriends())
+			SteamFriends()->ClearRichPresence();
 		if(m_CurrentLobbyID && SteamMatchmaking())
 			SteamMatchmaking()->LeaveLobby(CSteamID(m_CurrentLobbyID));
 		if(m_PartyLobbyID && m_PartyLobbyID != m_CurrentLobbyID && SteamMatchmaking())
@@ -1599,8 +1631,11 @@ public:
 	virtual bool SteamInputActive() const { return m_SteamInputInitialized; }
 	virtual void SetInputActionSet(EPlatformInputActionSet ActionSet)
 	{
-		if(ActionSet >= PLATFORM_INPUT_GAME && ActionSet < NUM_PLATFORM_INPUT_ACTION_SETS)
+		if(ActionSet >= PLATFORM_INPUT_GAME && ActionSet < NUM_PLATFORM_INPUT_ACTION_SETS && ActionSet != m_InputActionSet)
+		{
 			m_InputActionSet = ActionSet;
+			mem_zero(m_aaInputGlyphs, sizeof(m_aaInputGlyphs));
+		}
 	}
 	virtual bool ReadInputState(CPlatformInputState *pState)
 	{
@@ -1611,7 +1646,10 @@ public:
 		const int Count = SteamInput()->GetConnectedControllers(aControllers);
 		if(Count <= 0) return false;
 		const InputHandle_t Controller = aControllers[0];
-		SteamInput()->ActivateActionSet(Controller, m_aInputActionSets[m_InputActionSet]);
+		SteamInput()->ActivateActionSet(Controller, m_aInputActionSets[PLATFORM_INPUT_GAME]);
+		SteamInput()->DeactivateAllActionSetLayers(Controller);
+		if(m_InputActionSet != PLATFORM_INPUT_GAME)
+			SteamInput()->ActivateActionSetLayer(Controller, m_aInputActionSets[m_InputActionSet]);
 		pState->m_Connected = true;
 		for(int i = 0; i < NUM_PLATFORM_INPUT_ACTIONS; i++)
 		{
@@ -1629,11 +1667,17 @@ public:
 	virtual bool InputGlyph(EPlatformInputAction Action, char *pBuffer, int BufferSize)
 	{
 		if(!pBuffer || BufferSize <= 0 || Action < 0 || Action >= NUM_PLATFORM_INPUT_ACTIONS || !m_SteamInputInitialized || !SteamInput()) return false;
+		InputHandle_t aControllers[STEAM_INPUT_MAX_COUNT];
+		if(SteamInput()->GetConnectedControllers(aControllers) <= 0) return false;
+		if(m_GlyphController != aControllers[0])
+		{
+			m_GlyphController = aControllers[0];
+			mem_zero(m_aaInputGlyphs, sizeof(m_aaInputGlyphs));
+		}
 		if(!m_aaInputGlyphs[Action][0])
 		{
-			InputHandle_t aControllers[STEAM_INPUT_MAX_COUNT]; if(SteamInput()->GetConnectedControllers(aControllers) <= 0) return false;
 			EInputActionOrigin aOrigins[STEAM_INPUT_MAX_ORIGINS];
-			if(SteamInput()->GetDigitalActionOrigins(aControllers[0], m_aInputActionSets[m_InputActionSet], m_aDigitalActions[Action], aOrigins) <= 0) return false;
+			if(SteamInput()->GetDigitalActionOrigins(aControllers[0], m_aInputActionSets[PLATFORM_INPUT_GAME], m_aDigitalActions[Action], aOrigins) <= 0) return false;
 			const char *pGlyph = SteamInput()->GetGlyphPNGForActionOrigin(aOrigins[0], k_ESteamInputGlyphSize_Medium, 0);
 			if(!pGlyph || !pGlyph[0]) return false;
 			str_copy(m_aaInputGlyphs[Action], pGlyph, sizeof(m_aaInputGlyphs[Action]));
@@ -1769,7 +1813,7 @@ void CSteamPlatformServices::OnLobbyJoinRequested(GameLobbyJoinRequested_t *pReq
 
 void CSteamPlatformServices::OnLobbyMembersChanged(LobbyChatUpdate_t *pUpdate)
 {
-	if(!pUpdate || !SteamFriends() || !SteamMatchmaking())
+	if(!pUpdate || !SteamFriends() || !SteamMatchmaking() || !SteamUser())
 		return;
 	if(pUpdate->m_ulSteamIDLobby == m_PartyLobbyID)
 	{
@@ -1975,6 +2019,13 @@ void CSteamPlatformServices::OnScreenshotReady(ScreenshotReady_t *pResult)
 void CSteamPlatformServices::OnLobbyCreated(LobbyCreated_t *pResult, bool IOError)
 {
 	m_LobbyCreatePending = false;
+	if(!SteamMatchmaking() || !SteamUser() || !SteamFriends())
+	{
+		str_copy(m_aLobbyCreateFailure, "Steam room interfaces became unavailable. Restart Steam and retry.", sizeof(m_aLobbyCreateFailure));
+		m_ListenServerStopRequested = !m_CreatingParty;
+		m_CreatingParty = false;
+		return;
+	}
 	if(IOError || !pResult || pResult->m_eResult != k_EResultOK)
 	{
 		const EResult Result = pResult ? pResult->m_eResult : k_EResultFail;
@@ -2056,6 +2107,12 @@ void CSteamPlatformServices::OnLobbyCreated(LobbyCreated_t *pResult, bool IOErro
 void CSteamPlatformServices::OnLobbyEntered(LobbyEnter_t *pResult, bool IOError)
 {
 	m_LobbyJoinPending = false;
+	if(!SteamMatchmaking())
+	{
+		SetJoinFailure("Steam room interfaces became unavailable. Restart Steam and retry.");
+		m_JoiningParty = false;
+		return;
+	}
 	if(IOError || !pResult || pResult->m_EChatRoomEnterResponse != k_EChatRoomEnterResponseSuccess)
 	{
 		SetJoinFailure("Steam rejected the room join request. Refresh rooms and try again.");

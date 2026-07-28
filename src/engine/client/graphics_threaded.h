@@ -398,6 +398,7 @@ class CGraphics_Threaded : public IEngineGraphics
 
 		MAX_VERTICES = 32*1024,
 		MAX_TEXTURES = 1024*4,
+		MAX_SCREENSHOT_QUEUE = 8,
 		
 		DRAWING_QUADS=1,
 		DRAWING_LINES=2,
@@ -425,12 +426,16 @@ class CGraphics_Threaded : public IEngineGraphics
 
 	float m_Rotation;
 	int m_Drawing;
-	bool m_DoScreenshot;
-	char m_aScreenshotName[128];
+	struct CScreenshotRequest
+	{
+		unsigned m_RequestID;
+		char m_aName[128];
+	};
+	CScreenshotRequest m_aScreenshotRequests[MAX_SCREENSHOT_QUEUE];
+	int m_ScreenshotRequestCount;
 	unsigned m_NextScreenshotRequestID;
-	unsigned m_ScreenshotRequestID;
-	bool m_HasScreenshotResult;
-	CScreenshotResult m_ScreenshotResult;
+	CScreenshotResult m_aScreenshotResults[MAX_SCREENSHOT_QUEUE];
+	int m_ScreenshotResultCount;
 
 	int m_InvalidTexture;
 

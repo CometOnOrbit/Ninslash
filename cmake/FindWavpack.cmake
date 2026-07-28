@@ -22,9 +22,32 @@ if(NOT PREFER_BUNDLED_LIBS)
     include(FindPackageHandleStandardArgs)
     find_package_handle_standard_args(Wavpack DEFAULT_MSG WAVPACK_LIBRARY WAVPACK_INCLUDEDIR)
 
-    set(WAVPACK_LIBRARIES ${WAVPACK_LIBRARY})
-    set(WAVPACK_INCLUDE_DIRS ${WAVPACK_INCLUDEDIR})
-    set(WAVPACK_BUNDLED OFF)
+    # The decoder embedded by this engine uses WavPack 4's read_stream API.
+    # Modern system WavPack libraries export a different function with the
+    # same C symbol name, so merely finding and linking the library succeeds
+    # but every sound fails at runtime due to an ABI mismatch.
+    include(CheckCSourceCompiles)
+    set(_WAVPACK_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
+    set(_WAVPACK_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+    set(CMAKE_REQUIRED_INCLUDES ${WAVPACK_INCLUDEDIR})
+    set(CMAKE_REQUIRED_LIBRARIES ${WAVPACK_LIBRARY})
+    check_c_source_compiles("\
+#include <wavpack.h>\n\
+static int read_callback(void *buffer, int size) { (void)buffer; return size; }\n\
+int main(void) { char error[80]; return WavpackOpenFileInput(read_callback, error) == 0; }\n"
+      WAVPACK_HAS_LEGACY_STREAM_API)
+    set(CMAKE_REQUIRED_INCLUDES ${_WAVPACK_REQUIRED_INCLUDES})
+    set(CMAKE_REQUIRED_LIBRARIES ${_WAVPACK_REQUIRED_LIBRARIES})
+    if(WAVPACK_HAS_LEGACY_STREAM_API)
+      set(WAVPACK_LIBRARIES ${WAVPACK_LIBRARY})
+      set(WAVPACK_INCLUDE_DIRS ${WAVPACK_INCLUDEDIR})
+      set(WAVPACK_BUNDLED OFF)
+    else()
+      message(STATUS "System WavPack API is incompatible with the engine decoder; using bundled version")
+      set(WAVPACK_FOUND FALSE)
+      set(Wavpack_FOUND FALSE)
+      unset(WAVPACK_LIBRARIES)
+    endif()
   endif()
 endif()
 

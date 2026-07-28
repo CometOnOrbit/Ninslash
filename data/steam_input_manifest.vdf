@@ -1,62 +1,96 @@
-"In Game Actions"
+"Action Manifest"
 {
 	"actions"
 	{
-		"gameplay" { "title" "#Set_Gameplay" "legacy_set" "0" }
-		"menu" { "title" "#Set_Menu" "legacy_set" "0" }
-		"spectator" { "title" "#Set_Spectator" "legacy_set" "0" }
-		"chat" { "title" "#Set_Chat" "legacy_set" "0" }
-		"inventory" { "title" "#Set_Inventory" "legacy_set" "0" }
-		"build" { "title" "#Set_Build" "legacy_set" "0" }
-		"radial_menu" { "title" "#Set_Radial" "legacy_set" "0" }
-		"replay" { "title" "#Set_Replay" "legacy_set" "0" }
-		"editor" { "title" "#Set_Editor" "legacy_set" "0" }
+		"gameplay"
+		{
+			"title"		"#Set_Gameplay"
+			"legacy_set"		"0"
+			"StickPadGyro"
+			{
+				"move" { "title" "#Action_Move" "input_mode" "joystick_move" }
+				"aim" { "title" "#Action_Aim" "input_mode" "joystick_move" }
+			}
+			"Button"
+			{
+				"confirm" "#Action_Confirm"
+				"cancel" "#Action_Cancel"
+				"fire" "#Action_Fire"
+				"turbo" "#Action_Turbo"
+				"scoreboard" "#Action_Scoreboard"
+				"build" "#Action_Build"
+				"drop" "#Action_Drop"
+				"emote" "#Action_Emote"
+				"weapon_picker" "#Action_WeaponPicker"
+				"last_weapon" "#Action_LastWeapon"
+				"prev_weapon" "#Action_PrevWeapon"
+				"next_weapon" "#Action_NextWeapon"
+				"up" "#Action_Up"
+				"down" "#Action_Down"
+				"left" "#Action_Left"
+				"right" "#Action_Right"
+				"jump" "#Action_Jump"
+				"crouch" "#Action_Crouch"
+				"charge" "#Action_Charge"
+				"inventory" "#Action_Inventory"
+				"forge" "#Action_Forge"
+				"drone_radial" "#Action_DroneRadial"
+				"weapon_1" "#Action_Weapon1"
+				"weapon_2" "#Action_Weapon2"
+				"weapon_3" "#Action_Weapon3"
+				"weapon_4" "#Action_Weapon4"
+				"ready" "#Action_Ready"
+				"vote_yes" "#Action_VoteYes"
+				"vote_no" "#Action_VoteNo"
+				"chat" "#Action_Chat"
+				"pause" "#Action_Pause"
+				"replay_play_pause" "#Action_ReplayPlayPause"
+				"replay_seek_back" "#Action_ReplayBack"
+				"replay_seek_forward" "#Action_ReplayForward"
+				"editor_primary" "#Action_EditorPrimary"
+				"editor_secondary" "#Action_EditorSecondary"
+			}
+			"Layers"
+			{
+				"menu" "#Set_Menu"
+				"spectator" "#Set_Spectator"
+				"chat" "#Set_Chat"
+				"inventory" "#Set_Inventory"
+				"build" "#Set_Build"
+				"radial_menu" "#Set_Radial"
+				"replay" "#Set_Replay"
+				"editor" "#Set_Editor"
+			}
+		}
 	}
-	"action_sets"
+	"action_layers"
 	{
-		"gameplay" { "title" "#Set_Gameplay" }
-		"menu" { "title" "#Set_Menu" }
-		"spectator" { "title" "#Set_Spectator" }
-		"chat" { "title" "#Set_Chat" }
-		"inventory" { "title" "#Set_Inventory" }
-		"build" { "title" "#Set_Build" }
-		"radial_menu" { "title" "#Set_Radial" }
-		"replay" { "title" "#Set_Replay" }
-		"editor" { "title" "#Set_Editor" }
-	}
-	"digital_actions"
-	{
-		"confirm" { "title" "#Action_Confirm" } "cancel" { "title" "#Action_Cancel" }
-		"fire" { "title" "#Action_Fire" } "turbo" { "title" "#Action_Turbo" } "charge" { "title" "#Action_Charge" }
-		"jump" { "title" "#Action_Jump" } "crouch" { "title" "#Action_Crouch" }
-		"scoreboard" { "title" "#Action_Scoreboard" } "build" { "title" "#Action_Build" } "inventory" { "title" "#Action_Inventory" } "forge" { "title" "#Action_Forge" }
-		"drop" { "title" "#Action_Drop" } "emote" { "title" "#Action_Emote" } "weapon_picker" { "title" "#Action_WeaponPicker" } "drone_radial" { "title" "#Action_DroneRadial" }
-		"last_weapon" { "title" "#Action_LastWeapon" } "prev_weapon" { "title" "#Action_PrevWeapon" } "next_weapon" { "title" "#Action_NextWeapon" }
-		"weapon_1" { "title" "#Action_Weapon1" } "weapon_2" { "title" "#Action_Weapon2" } "weapon_3" { "title" "#Action_Weapon3" } "weapon_4" { "title" "#Action_Weapon4" }
-		"ready" { "title" "#Action_Ready" } "vote_yes" { "title" "#Action_VoteYes" } "vote_no" { "title" "#Action_VoteNo" } "chat" { "title" "#Action_Chat" }
-		"pause" { "title" "#Action_Pause" } "replay_play_pause" { "title" "#Action_ReplayPlayPause" } "replay_seek_back" { "title" "#Action_ReplayBack" } "replay_seek_forward" { "title" "#Action_ReplayForward" }
-		"editor_primary" { "title" "#Action_EditorPrimary" } "editor_secondary" { "title" "#Action_EditorSecondary" }
-		"up" { "title" "#Action_Up" } "down" { "title" "#Action_Down" } "left" { "title" "#Action_Left" } "right" { "title" "#Action_Right" }
-	}
-	"analog_actions"
-	{
-		"move" { "title" "#Action_Move" "input_mode" "joystick_move" }
-		"aim" { "title" "#Action_Aim" "input_mode" "joystick_move" }
+		"menu" { "title" "#Set_Menu" "legacy_set" "1" "set_layer" "1" "parent_set_name" "gameplay" }
+		"spectator" { "title" "#Set_Spectator" "legacy_set" "1" "set_layer" "1" "parent_set_name" "gameplay" }
+		"chat" { "title" "#Set_Chat" "legacy_set" "1" "set_layer" "1" "parent_set_name" "gameplay" }
+		"inventory" { "title" "#Set_Inventory" "legacy_set" "1" "set_layer" "1" "parent_set_name" "gameplay" }
+		"build" { "title" "#Set_Build" "legacy_set" "1" "set_layer" "1" "parent_set_name" "gameplay" }
+		"radial_menu" { "title" "#Set_Radial" "legacy_set" "1" "set_layer" "1" "parent_set_name" "gameplay" }
+		"replay" { "title" "#Set_Replay" "legacy_set" "1" "set_layer" "1" "parent_set_name" "gameplay" }
+		"editor" { "title" "#Set_Editor" "legacy_set" "1" "set_layer" "1" "parent_set_name" "gameplay" }
 	}
 	"localization"
 	{
 		"english"
 		{
+			"title" "Ninslash Official Controls" "description" "Official Ninslash Steam Input actions"
 			"Set_Gameplay" "Gameplay" "Set_Menu" "Menu" "Set_Spectator" "Spectator" "Set_Chat" "Chat" "Set_Inventory" "Inventory" "Set_Build" "Build" "Set_Radial" "Radial menu" "Set_Replay" "Replay" "Set_Editor" "Editor"
 			"Action_Confirm" "Confirm" "Action_Cancel" "Cancel" "Action_Fire" "Fire" "Action_Turbo" "Turbo" "Action_Charge" "Charge" "Action_Jump" "Jump" "Action_Crouch" "Crouch / slide" "Action_Scoreboard" "Scoreboard" "Action_Build" "Build mode" "Action_Inventory" "Inventory" "Action_Forge" "Forge" "Action_Drop" "Drop weapon" "Action_Emote" "Emote" "Action_WeaponPicker" "Weapon wheel" "Action_DroneRadial" "Drone wheel" "Action_LastWeapon" "Last weapon" "Action_PrevWeapon" "Previous weapon" "Action_NextWeapon" "Next weapon" "Action_Weapon1" "Weapon 1" "Action_Weapon2" "Weapon 2" "Action_Weapon3" "Weapon 3" "Action_Weapon4" "Weapon 4" "Action_Ready" "Ready" "Action_VoteYes" "Vote yes" "Action_VoteNo" "Vote no" "Action_Chat" "Chat" "Action_Pause" "Pause" "Action_ReplayPlayPause" "Play / pause" "Action_ReplayBack" "Seek back" "Action_ReplayForward" "Seek forward" "Action_EditorPrimary" "Editor primary" "Action_EditorSecondary" "Editor secondary" "Action_Up" "Up" "Action_Down" "Down" "Action_Left" "Left" "Action_Right" "Right" "Action_Move" "Move" "Action_Aim" "Aim / gyro"
 		}
 		"schinese"
 		{
+			"title" "Ninslash 官方控制" "description" "Ninslash 官方 Steam Input 操作"
 			"Set_Gameplay" "游戏" "Set_Menu" "菜单" "Set_Spectator" "观战" "Set_Chat" "聊天" "Set_Inventory" "物品栏" "Set_Build" "建造" "Set_Radial" "轮盘" "Set_Replay" "回放" "Set_Editor" "编辑器"
 			"Action_Confirm" "确认" "Action_Cancel" "取消" "Action_Fire" "射击" "Action_Turbo" "涡轮" "Action_Charge" "蓄力" "Action_Jump" "跳跃" "Action_Crouch" "下蹲 / 滑行" "Action_Scoreboard" "比分板" "Action_Build" "建造模式" "Action_Inventory" "物品栏" "Action_Forge" "锻造" "Action_Drop" "丢弃武器" "Action_Emote" "表情" "Action_WeaponPicker" "武器轮盘" "Action_DroneRadial" "无人机轮盘" "Action_LastWeapon" "上一把武器" "Action_PrevWeapon" "前一武器" "Action_NextWeapon" "后一武器" "Action_Weapon1" "武器 1" "Action_Weapon2" "武器 2" "Action_Weapon3" "武器 3" "Action_Weapon4" "武器 4" "Action_Ready" "准备" "Action_VoteYes" "赞成" "Action_VoteNo" "反对" "Action_Chat" "聊天" "Action_Pause" "暂停" "Action_ReplayPlayPause" "播放 / 暂停" "Action_ReplayBack" "后退" "Action_ReplayForward" "前进" "Action_EditorPrimary" "编辑器主操作" "Action_EditorSecondary" "编辑器次操作" "Action_Up" "上" "Action_Down" "下" "Action_Left" "左" "Action_Right" "右" "Action_Move" "移动" "Action_Aim" "瞄准 / 陀螺仪"
 		}
 		"tchinese"
 		{
+			"title" "Ninslash 官方控制" "description" "Ninslash 官方 Steam Input 操作"
 			"Set_Gameplay" "遊戲" "Set_Menu" "選單" "Set_Spectator" "觀戰" "Set_Chat" "聊天" "Set_Inventory" "物品欄" "Set_Build" "建造" "Set_Radial" "輪盤" "Set_Replay" "重播" "Set_Editor" "編輯器"
 			"Action_Confirm" "確認" "Action_Cancel" "取消" "Action_Fire" "射擊" "Action_Turbo" "渦輪" "Action_Charge" "蓄力" "Action_Jump" "跳躍" "Action_Crouch" "蹲下 / 滑行" "Action_Scoreboard" "比分板" "Action_Build" "建造模式" "Action_Inventory" "物品欄" "Action_Forge" "鍛造" "Action_Drop" "丟棄武器" "Action_Emote" "表情" "Action_WeaponPicker" "武器輪盤" "Action_DroneRadial" "無人機輪盤" "Action_LastWeapon" "上一把武器" "Action_PrevWeapon" "前一武器" "Action_NextWeapon" "後一武器" "Action_Weapon1" "武器 1" "Action_Weapon2" "武器 2" "Action_Weapon3" "武器 3" "Action_Weapon4" "武器 4" "Action_Ready" "準備" "Action_VoteYes" "贊成" "Action_VoteNo" "反對" "Action_Chat" "聊天" "Action_Pause" "暫停" "Action_ReplayPlayPause" "播放 / 暫停" "Action_ReplayBack" "後退" "Action_ReplayForward" "前進" "Action_EditorPrimary" "編輯器主操作" "Action_EditorSecondary" "編輯器次操作" "Action_Up" "上" "Action_Down" "下" "Action_Left" "左" "Action_Right" "右" "Action_Move" "移動" "Action_Aim" "瞄準 / 陀螺儀"
 		}
