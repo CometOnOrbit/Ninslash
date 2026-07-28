@@ -1054,6 +1054,9 @@ if(CLIENT)
 
   add_executable(${TARGET_CLIENT} ${TARGET_CLIENT_SOURCES})
   target_link_libraries(${TARGET_CLIENT} ${LIBS_CLIENT})
+  if(TARGET_OS STREQUAL "windows")
+    set_target_properties(${TARGET_CLIENT} PROPERTIES WIN32_EXECUTABLE TRUE)
+  endif()
 
   if(JPEG_FOUND)
     target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_JPEG)

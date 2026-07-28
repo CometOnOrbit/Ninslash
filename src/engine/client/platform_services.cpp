@@ -627,19 +627,12 @@ public:
 		LoadEventQueue();
 		if(m_Initialized)
 			return true;
-		// On Windows the executable is also distributed as a standalone build.
-		// RestartAppIfNecessary exits that process immediately when it was opened
-		// outside Steam, which looks exactly like a startup crash if Steam cannot
-		// relaunch the private/test AppID. Steam-launched processes already carry
-		// the correct app context, so initialize directly and retain the existing
-		// standalone fallback.
-#if !defined(CONF_FAMILY_WINDOWS)
 		if(SteamAPI_RestartAppIfNecessary((AppId_t)STEAM_APP_ID))
 		{
+			dbg_msg("steam", "relaunching AppID %d through Steam", STEAM_APP_ID);
 			m_ExitRequested = true;
 			return false;
 		}
-#endif
 		dbg_msg("steam", "initializing Steam API for AppID %d", STEAM_APP_ID);
 		SteamErrMsg aInitError;
 		const ESteamAPIInitResult InitResult = SteamAPI_InitEx(&aInitError);

@@ -461,8 +461,13 @@ void CCommandProcessorFragment_OpenGL::Cmd_LoadShaders(const CCommandBuffer::SCo
 	m_aShader[SHADER_ACID] = LoadShader("data/shaders/basic.vert", "data/shaders/acid.frag");
 	m_aShader[SHADER_GRAYSCALE] = LoadShader("data/shaders/basic.vert", "data/shaders/grayscale.frag");
 	m_aShader[SHADER_MENU] = LoadShader("data/shaders/basic.vert", "data/shaders/menu.frag");
-	
-	
+	for(int i = 0; i < NUM_SHADERS; i++)
+		if(!m_aShader[i].Handle())
+		{
+			dbg_msg("gfx", "shader initialization incomplete; using fixed-function rendering");
+			return;
+		}
+
 	g_Config.m_GfxShaders = 1;
 	m_ShadersLoaded = true;
 }

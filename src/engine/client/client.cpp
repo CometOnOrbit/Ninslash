@@ -2048,6 +2048,14 @@ void CClient::Run()
 		if(!m_NetClient.Open(BindAddr, 0))
 		{
 			dbg_msg("client", "couldn't open socket");
+#if defined(CONF_FAMILY_WINDOWS)
+			char aMessage[1400];
+			str_format(aMessage, sizeof(aMessage),
+				"Ninslash could not open its network socket.\n\nCheck firewall, VPN, and any configured bind address.\n\nStartup log:\n%s",
+				windows_startup_log_path());
+			if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+				gui_messagebox("Ninslash network startup failed", aMessage);
+#endif
 			return;
 		}
 	}
@@ -3154,8 +3162,29 @@ static CClient *CreateClient()
 
 int main(int argc, const char **argv) // ignore_convention
 {
+	// A launcher can provide an empty or stale working directory. Release assets,
+	// cfg files and legacy direct file loads expect data beside the client, so use
+	// the executable directory whenever it contains the staged data directory.
+	char aExecutable[1024];
+	if(fs_executable_path(aExecutable, sizeof(aExecutable)) == 0)
+	{
+		char *pSlash = strrchr(aExecutable, '/');
+		char *pBackslash = strrchr(aExecutable, '\\');
+		if(!pSlash || (pBackslash && pBackslash > pSlash)) pSlash = pBackslash;
+		if(pSlash)
+		{
+			*pSlash = 0;
+			char aDataDirectory[1200], aConfigDirectory[1200];
+			str_format(aDataDirectory, sizeof(aDataDirectory), "%s/data", aExecutable);
+			str_format(aConfigDirectory, sizeof(aConfigDirectory), "%s/cfg", aExecutable);
+			if(fs_is_dir(aDataDirectory) && fs_is_dir(aConfigDirectory)) fs_chdir(aExecutable);
+		}
+	}
 #if defined(CONF_FAMILY_WINDOWS)
 	windows_init_startup_diagnostics("Ninslash");
+	char aWorkingDirectory[1024];
+	if(fs_getcwd(aWorkingDirectory, sizeof(aWorkingDirectory)))
+		dbg_msg("startup", "working directory: %s", aWorkingDirectory);
 	for(int i = 1; i < argc; i++) // ignore_convention
 	{
 		if(str_comp("-s", argv[i]) == 0 || str_comp("--silent", argv[i]) == 0) // ignore_convention

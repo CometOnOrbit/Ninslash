@@ -129,6 +129,7 @@ class CCommandProcessorFragment_OpenGL
 		std::map<const GLcharARB*, CUniformLocation> m_aUniformLocationCache;
 
 	public:
+		CShader() : m_Program(0) {}
 		GLuint Handle() const { return m_Program; }
 		GLint getUniformLocation(const char *pName);
 

@@ -93,7 +93,7 @@ def inspect_windows_imports(path):
         entry.dll.decode("ascii", errors="replace").lower()
         for entry in getattr(pe, "DIRECTORY_ENTRY_IMPORT", [])
     }
-    architecture = "pei-x86-64" if pe.FILE_HEADER.Machine == 0x8664 else f"machine-{pe.FILE_HEADER.Machine:#x}"
+    architecture = ("pei-x86-64" if pe.FILE_HEADER.Machine == 0x8664 else f"machine-{pe.FILE_HEADER.Machine:#x}") + f" subsystem-{pe.OPTIONAL_HEADER.Subsystem}"
     return architecture, imports
 
 
@@ -150,9 +150,14 @@ def verify_depot_executable(root, executable, steam_api, platform, errors):
                 if f"{library} => {expected_library}" not in linked:
                     errors.append(f"{executable}: {library} is not resolved from its depot root")
         else:
-            _, imports = inspect_windows_imports(executable)
+            image, imports = inspect_windows_imports(executable)
             if "steam_api64.dll" not in imports:
                 errors.append(f"{executable}: missing steam_api64.dll import")
+            is_client = executable.name.lower() == "ninslash.exe"
+            if is_client and "windows gui" not in image.lower() and "subsystem-2" not in image.lower():
+                errors.append(f"{executable}: Windows client must use the GUI subsystem")
+            if not is_client and "windows cui" not in image.lower() and "subsystem-3" not in image.lower():
+                errors.append(f"{executable}: Windows server must retain the console subsystem")
     except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         errors.append(f"{executable}: dependency inspection failed: {exc}")
 
@@ -165,6 +170,10 @@ def verify_depot(root_text, platform, kind, errors):
     executable_names = ["ninslash", "ninslash_srv"] if kind == "client" else ["ninslash_srv"]
     executables = [root / f"{name}{suffix}" for name in executable_names]
     steam_api = root / ("steam_api64.dll" if platform == "windows" else "libsteam_api.so")
+    for required in ("data", "cfg", "autoexec.cfg", "storage.cfg"):
+        path = root / required
+        if not path.exists():
+            errors.append(f"{root}: missing startup resource {required}")
     for executable in executables:
         if not executable.is_file():
             errors.append(f"{root}: missing {executable.name}")

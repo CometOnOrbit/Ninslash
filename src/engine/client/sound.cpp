@@ -311,7 +311,7 @@ void CSound::RateConvert(int SampleID)
 		return;
 
 	// allocate new data
-	NumFrames = (int)((pSample->m_NumFrames/(float)pSample->m_Rate)*m_MixingRate);
+	NumFrames = max(1, (int)((pSample->m_NumFrames/(float)pSample->m_Rate)*m_MixingRate));
 	pNewData = (short *)mem_alloc(NumFrames*pSample->m_Channels*sizeof(short), 1);
 
 	for(int i = 0; i < NumFrames; i++)
@@ -345,10 +345,9 @@ int CSound::ReadData(void *pBuffer, int Size)
 
 int CSound::LoadWV(const char *pFilename)
 {
-	CSample *pSample;
 	int SampleID = -1;
 	char aError[100];
-	WavpackContext *pContext;
+	WavpackContext *pContext = 0;
 
 	// don't waste memory on sound when we are stress testing
 	if(g_Config.m_DbgStress)
@@ -361,6 +360,10 @@ int CSound::LoadWV(const char *pFilename)
 	if(!m_pStorage)
 		return -1;
 
+	SampleID = AllocID();
+	if(SampleID < 0)
+		return -1;
+
 	ms_File = m_pStorage->OpenFile(pFilename, IOFLAG_READ, IStorage::TYPE_ALL);
 	if(!ms_File)
 	{
@@ -368,69 +371,54 @@ int CSound::LoadWV(const char *pFilename)
 		return -1;
 	}
 
-	SampleID = AllocID();
-	if(SampleID < 0)
-		return -1;
-	pSample = &m_aSamples[SampleID];
-
 	pContext = WavpackOpenFileInput(ReadData, aError);
-	if (pContext)
-	{
-		int m_aSamples = WavpackGetNumSamples(pContext);
-		int BitsPerSample = WavpackGetBitsPerSample(pContext);
-		unsigned int SampleRate = WavpackGetSampleRate(pContext);
-		int m_aChannels = WavpackGetNumChannels(pContext);
-		int *pData;
-		int *pSrc;
-		short *pDst;
-		int i;
-
-		pSample->m_Channels = m_aChannels;
-		pSample->m_Rate = SampleRate;
-
-		if(pSample->m_Channels > 2)
-		{
-			dbg_msg("sound/wv", "file is not mono or stereo. filename='%s'", pFilename);
-			return -1;
-		}
-
-		/*
-		if(snd->rate != 44100)
-		{
-			dbg_msg("sound/wv", "file is %d Hz, not 44100 Hz. filename='%s'", snd->rate, filename);
-			return -1;
-		}*/
-
-		if(BitsPerSample != 16)
-		{
-			dbg_msg("sound/wv", "bps is %d, not 16, filname='%s'", BitsPerSample, pFilename);
-			return -1;
-		}
-
-		pData = (int *)mem_alloc(4*m_aSamples*m_aChannels, 1);
-		WavpackUnpackSamples(pContext, pData, m_aSamples); // TODO: check return value
-		pSrc = pData;
-
-		pSample->m_pData = (short *)mem_alloc(2*m_aSamples*m_aChannels, 1);
-		pDst = pSample->m_pData;
-
-		for (i = 0; i < m_aSamples*m_aChannels; i++)
-			*pDst++ = (short)*pSrc++;
-
-		mem_free(pData);
-
-		pSample->m_NumFrames = m_aSamples;
-		pSample->m_LoopStart = -1;
-		pSample->m_LoopEnd = -1;
-		pSample->m_PausedAt = 0;
-	}
-	else
+	if(!pContext)
 	{
 		dbg_msg("sound/wv", "failed to open %s: %s", pFilename, aError);
+		io_close(ms_File);
+		ms_File = NULL;
+		return -1;
 	}
 
+	const int NumFrames = WavpackGetNumSamples(pContext);
+	const int BitsPerSample = WavpackGetBitsPerSample(pContext);
+	const unsigned int SampleRate = WavpackGetSampleRate(pContext);
+	const int Channels = WavpackGetNumChannels(pContext);
+	if(Channels < 1 || Channels > 2 || BitsPerSample != 16 || !SampleRate || NumFrames <= 0 || NumFrames > 16 * 1024 * 1024 / Channels)
+	{
+		dbg_msg("sound/wv", "invalid sound format. filename='%s' frames=%d channels=%d bps=%d rate=%u", pFilename, NumFrames, Channels, BitsPerSample, SampleRate);
+		io_close(ms_File);
+		ms_File = NULL;
+		return -1;
+	}
+
+	const int NumSamples = NumFrames * Channels;
+	int *pData = (int *)mem_alloc(sizeof(int) * NumSamples, 1);
+	const unsigned int Unpacked = WavpackUnpackSamples(pContext, pData, NumFrames);
+	if(Unpacked != (unsigned int)NumFrames)
+	{
+		dbg_msg("sound/wv", "truncated sound data. filename='%s' expected=%d decoded=%u", pFilename, NumFrames, Unpacked);
+		mem_free(pData);
+		io_close(ms_File);
+		ms_File = NULL;
+		return -1;
+	}
+
+	short *pDecoded = (short *)mem_alloc(sizeof(short) * NumSamples, 1);
+	for(int i = 0; i < NumSamples; i++)
+		pDecoded[i] = (short)pData[i];
+	mem_free(pData);
 	io_close(ms_File);
 	ms_File = NULL;
+
+	CSample *pSample = &m_aSamples[SampleID];
+	pSample->m_pData = pDecoded;
+	pSample->m_Channels = Channels;
+	pSample->m_Rate = SampleRate;
+	pSample->m_NumFrames = NumFrames;
+	pSample->m_LoopStart = -1;
+	pSample->m_LoopEnd = -1;
+	pSample->m_PausedAt = 0;
 
 	if(g_Config.m_Debug)
 		dbg_msg("sound/wv", "loaded %s", pFilename);
@@ -540,4 +528,3 @@ void CSound::StopAll()
 IOHANDLE CSound::ms_File = 0;
 
 IEngineSound *CreateEngineSound() { return new CSound; }
-
