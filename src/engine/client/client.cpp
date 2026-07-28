@@ -647,7 +647,9 @@ void CClient::Connect(const char *pAddress)
 	char aBuf[512];
 	int Port = 8303;
 
-	Disconnect();
+	// Joining a new endpoint may happen immediately after entering its Steam
+	// game Lobby. Keep that Lobby while resetting the network connection.
+	DisconnectWithReason(0);
 
 	str_copy(m_aServerAddressStr, pAddress, sizeof(m_aServerAddressStr));
 
@@ -740,6 +742,9 @@ void CClient::DisconnectWithReason(const char *pReason)
 void CClient::Disconnect()
 {
 	DisconnectWithReason(0);
+	// The persistent party is deliberately untouched.
+	if(m_pPlatformServices)
+		m_pPlatformServices->LeaveGameLobby();
 }
 
 
@@ -2112,6 +2117,29 @@ void CClient::Run()
 		if(m_pPlatformServices)
 		{
 			m_pPlatformServices->RunCallbacks();
+			CPlatformPartyLaunch PartyLaunch;
+			if(m_pPlatformServices->ConsumePartyLaunch(&PartyLaunch))
+			{
+				if(PartyLaunch.m_TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY)
+				{
+					if(!PartyLaunch.m_TargetLobbyID || !m_pPlatformServices->JoinLobby(PartyLaunch.m_TargetLobbyID))
+					{
+						m_ConnectionAsyncStatus.m_State = CLIENT_ASYNC_FAILED;
+						m_ConnectionAsyncStatus.m_Stage = CLIENT_STAGE_JOINING_ROOM;
+						str_copy(m_ConnectionAsyncStatus.m_aErrorKey, "The party game room is no longer available.", sizeof(m_ConnectionAsyncStatus.m_aErrorKey));
+					}
+				}
+				else if(PartyLaunch.m_TargetType == PLATFORM_PARTY_TARGET_ADDRESS)
+				{
+					if(IsSafePlatformJoinAddress(PartyLaunch.m_aTargetAddress))
+					{
+						m_pPlatformServices->LeaveGameLobby();
+						Connect(PartyLaunch.m_aTargetAddress);
+					}
+					else
+						dbg_msg("platform", "ignored unsafe party join request");
+				}
+			}
 			if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING && m_SteamHostStatus.m_Stage == CLIENT_STAGE_CREATING_ROOM && m_pPlatformServices->CurrentLobbyID())
 			{
 				m_SteamHostStatus.m_State = CLIENT_ASYNC_SUCCEEDED;
@@ -2709,7 +2737,12 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 void CClient::StopSteamHostedGame()
 {
 	if(m_pPlatformServices)
+	{
 		m_pPlatformServices->LeaveLobby();
+		CPlatformPartyState Party;
+		if(m_pPlatformServices->PartyState(&Party) && Party.m_LocalOwner)
+			m_pPlatformServices->ClearPartyTarget();
+	}
 	if(m_pListenServer)
 		m_pListenServer->Stop();
 	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));

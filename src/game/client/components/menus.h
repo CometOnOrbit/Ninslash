@@ -502,6 +502,7 @@ class CMenus : public CComponent
 	int SteamAvatarTexture(unsigned long long UserID);
 	void DrawSteamAvatar(const CUIRect &Rect, unsigned long long UserID);
 	void RenderSteamFriends(CUIRect MainView);
+	void RenderPartyPanel(CUIRect *pMainView);
 
 	void LoadFilterPresets();
 	void SaveFilterPresets();

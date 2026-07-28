@@ -4122,3 +4122,60 @@ Roam
 
 Gun game
 == 枪械升级战
+
+Invite to party
+== 邀请加入小队
+
+In your party
+== 已在你的小队中
+
+In party
+== 已在小队
+
+Steam party
+== Steam 小队
+
+Steam party · not in a party
+== Steam 小队 · 尚未加入小队
+
+Creating party...
+== 正在创建小队……
+
+Create party
+== 创建小队
+
+Create a private party or invite a friend to begin.
+== 创建私人小队，或邀请好友开始组队。
+
+Leader
+== 队长
+
+Member
+== 成员
+
+Steam room selected
+== 已选择 Steam 房间
+
+Choose a game or server
+== 选择游戏或服务器
+
+Not ready
+== 未准备
+
+Leave party
+== 离开小队
+
+Start party
+== 全队开始
+
+Force start
+== 强制开始
+
+Confirm force start
+== 确认强制开始
+
+Select a room below, then wait for Ready.
+== 在下方选择房间，然后等待成员准备。
+
+The leader selects the target.
+== 由队长选择目标。

@@ -4048,3 +4048,60 @@ Roam
 
 Gun game
 == 槍械升級戰
+
+Invite to party
+== 邀請加入小隊
+
+In your party
+== 已在你的小隊中
+
+In party
+== 已在小隊
+
+Steam party
+== Steam 小隊
+
+Steam party · not in a party
+== Steam 小隊 · 尚未加入小隊
+
+Creating party...
+== 正在建立小隊……
+
+Create party
+== 建立小隊
+
+Create a private party or invite a friend to begin.
+== 建立私人小隊，或邀請好友開始組隊。
+
+Leader
+== 隊長
+
+Member
+== 成員
+
+Steam room selected
+== 已選擇 Steam 房間
+
+Choose a game or server
+== 選擇遊戲或伺服器
+
+Not ready
+== 未準備
+
+Leave party
+== 離開小隊
+
+Start party
+== 全隊開始
+
+Force start
+== 強制開始
+
+Confirm force start
+== 確認強制開始
+
+Select a room below, then wait for Ready.
+== 在下方選擇房間，然後等待成員準備。
+
+The leader selects the target.
+== 由隊長選擇目標。

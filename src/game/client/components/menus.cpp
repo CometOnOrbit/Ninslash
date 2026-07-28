@@ -2490,6 +2490,9 @@ void CMenus::CreateConfiguredRoom()
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
 	if(!pPlatform || !pPlatform->Available())
 		return;
+	CPlatformPartyState Party;
+	if(pPlatform->PartyState(&Party) && !Party.m_LocalOwner)
+		return;
 	// A managed local process and the in-process Steam listen server otherwise
 	// compete for cl_local_server_port when the player changes visibility.
 	// Stop the old host synchronously before handing the room to Steam Relay.
@@ -2501,7 +2504,8 @@ void CMenus::CreateConfiguredRoom()
 	CHostGameSettings Settings;
 	mem_zero(&Settings, sizeof(Settings));
 	Settings.m_Visibility = Visibility == ROOM_VISIBILITY_FRIENDS ? PLATFORM_LOBBY_FRIENDS : PLATFORM_LOBBY_PUBLIC;
-	Settings.m_MaxClients = Preview.m_MaxClients;
+	Settings.m_MaxClients = max(Preview.m_MaxClients, pPlatform->PartyMemberCount());
+	Settings.m_MaxClients = clamp(Settings.m_MaxClients, 1, (int)MAX_CLIENTS);
 	Settings.m_Difficulty = Preview.m_MapLevel;
 	Settings.m_Seed = Preview.m_Seed;
 	Settings.m_Bots = Preview.m_Bots;
@@ -4035,8 +4039,8 @@ void CMenus::RenderSteamFriends(CUIRect MainView)
 	UI()->DoLabelScaled(&SearchLabel, Localize("Search"), 10.0f, -1);
 	DoEditBox(&s_aSearch, &SearchBox, s_aSearch, sizeof(s_aSearch), 10.0f, &s_SearchOffset);
 	static int s_OverlayInvite;
-	if(DoButton_Menu(&s_OverlayInvite, Localize("Overlay invite"), 0, &OverlayButton) && pPlatform->CurrentLobbyID())
-		pPlatform->OpenLobbyInviteDialog();
+	if(DoButton_Menu(&s_OverlayInvite, Localize("Invite to party"), 0, &OverlayButton))
+		pPlatform->OpenPartyInviteDialog();
 	MainView.HSplitTop(6.0f, 0, &MainView);
 	MainView.HSplitBottom(36.0f, &Content, &Actions);
 
@@ -4081,7 +4085,7 @@ void CMenus::RenderSteamFriends(CUIRect MainView)
 		Row.Margin(4.0f, &Row); Row.VSplitLeft(34.0f, &Avatar, &Text); Text.VSplitLeft(8.0f, 0, &Text);
 		CPlatformUserInfo &Friend = FriendAt(i);
 		DrawSteamAvatar(Avatar, Friend.m_UserID);
-		const char *pState = Friend.m_Joinable ? Localize("Joinable") : Friend.m_PlayingThisGame ? Localize("Playing Ninslash") : Friend.m_PersonaState != 0 ? Localize("Online") : Localize("Offline");
+		const char *pState = Friend.m_PartyMember ? Localize("In your party") : Friend.m_Joinable ? Localize("Joinable") : Friend.m_PlayingThisGame ? Localize("Playing Ninslash") : Friend.m_PersonaState != 0 ? Localize("Online") : Localize("Offline");
 		char aLine[256]; str_format(aLine, sizeof(aLine), "%s\n%s", Friend.m_aName, pState);
 		UI()->DoLabelScaled(&Text, aLine, 10.0f, -1);
 	}
@@ -4095,7 +4099,7 @@ void CMenus::RenderSteamFriends(CUIRect MainView)
 			CUIRect Avatar, Name; Detail.HSplitTop(64.0f, &Avatar, &Detail); Avatar.VSplitLeft(64.0f, &Avatar, &Name); Name.VSplitLeft(10.0f, 0, &Name);
 			CPlatformUserInfo &Friend = FriendAt(Selected);
 			DrawSteamAvatar(Avatar, Friend.m_UserID);
-			char aText[320]; str_format(aText, sizeof(aText), "%s\n%s\nSteamID %llu", Friend.m_aName, Localize(Friend.m_Joinable ? "Joinable" : Friend.m_PlayingThisGame ? "Playing Ninslash" : Friend.m_PersonaState != 0 ? "Online" : "Offline"), Friend.m_UserID);
+			char aText[320]; str_format(aText, sizeof(aText), "%s\n%s\nSteamID %llu", Friend.m_aName, Localize(Friend.m_PartyMember ? "In your party" : Friend.m_Joinable ? "Joinable" : Friend.m_PlayingThisGame ? "Playing Ninslash" : Friend.m_PersonaState != 0 ? "Online" : "Offline"), Friend.m_UserID);
 			UI()->DoLabelScaled(&Name, aText, 10.0f, -1);
 		}
 	}
@@ -4107,11 +4111,108 @@ void CMenus::RenderSteamFriends(CUIRect MainView)
 	{
 		CPlatformUserInfo &Friend = FriendAt(Selected);
 		if(DoButton_Menu(&s_JoinFriend, Localize("Join friend"), 0, &Join, BUTTONSTYLE_ACCENT) && Friend.m_Joinable) pPlatform->JoinUser(Friend.m_UserID);
-		NETADDR Address; Client()->GetServerAddress(&Address); char aConnect[NETADDR_MAXSTRSIZE] = ""; if(Client()->State() >= IClient::STATE_CONNECTING) net_addr_str(&Address, aConnect, sizeof(aConnect), true);
-		if(DoButton_Menu(&s_InviteFriend, Localize("Invite"), 0, &Invite) && (pPlatform->CurrentLobbyID() || aConnect[0])) pPlatform->InviteUser(Friend.m_UserID, aConnect);
+		if(DoButton_Menu(&s_InviteFriend, Localize(Friend.m_PartyMember ? "In party" : "Invite to party"), Friend.m_PartyMember, &Invite) && !Friend.m_PartyMember) pPlatform->InvitePartyUser(Friend.m_UserID);
 		if(DoButton_Menu(&s_ProfileFriend, Localize("Profile"), 0, &Profile)) pPlatform->OpenUserProfile(Friend.m_UserID);
 	}
 	char aCount[64]; str_format(aCount, sizeof(aCount), "%d %s", Count, Localize("friends")); UI()->DoLabelScaled(&Actions, aCount, 10.0f, -1);
+}
+
+void CMenus::RenderPartyPanel(CUIRect *pMainView)
+{
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	if(!pMainView || !pPlatform || !pPlatform->Available())
+		return;
+	CUIRect Panel;
+	pMainView->HSplitTop(92.0f, &Panel, pMainView);
+	pMainView->HSplitTop(6.0f, 0, pMainView);
+	DrawMenuInset(&Panel, CUI::CORNER_ALL);
+	Panel.Margin(7.0f, &Panel);
+	CPlatformPartyState Party;
+	const bool InParty = pPlatform->PartyState(&Party);
+	CPlatformOperationStatus Status;
+	pPlatform->PartyOperationStatus(&Status);
+	CUIRect Header, Members, Actions;
+	Panel.HSplitTop(20.0f, &Header, &Panel);
+	Panel.HSplitBottom(25.0f, &Members, &Actions);
+	static int s_CreateParty, s_LeaveParty, s_Ready, s_Launch;
+	static bool s_ConfirmForce = false;
+	if(!InParty)
+	{
+		CUIRect Button;
+		Header.VSplitRight(126.0f, &Header, &Button);
+		UI()->DoLabelScaled(&Header, Localize(Status.m_State == CLIENT_ASYNC_WORKING ? "Creating party..." : "Steam party · not in a party"), 10.5f, -1);
+		if(Status.m_State != CLIENT_ASYNC_WORKING && DoButton_Menu(&s_CreateParty, Localize("Create party"), 0, &Button, BUTTONSTYLE_ACCENT))
+			pPlatform->CreateParty();
+		if(Status.m_State == CLIENT_ASYNC_FAILED)
+		{
+			TextRender()->TextColor(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 1.0f);
+			UI()->DoLabelScaled(&Members, Localize(Status.m_aErrorKey), 9.0f, -1);
+			TextRender()->TextColor(1, 1, 1, 1);
+		}
+		else
+			UI()->DoLabelScaled(&Members, Localize("Create a private party or invite a friend to begin."), 9.5f, -1);
+		return;
+	}
+
+	char aHeader[384];
+	const char *pTarget = Party.m_TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY ? Localize("Steam room selected") : Party.m_TargetType == PLATFORM_PARTY_TARGET_ADDRESS ? Party.m_aTargetAddress : Localize("Choose a game or server");
+	str_format(aHeader, sizeof(aHeader), "%s · %d/16 · %s: %s", Localize("Steam party"), pPlatform->PartyMemberCount(), Localize(Party.m_LocalOwner ? "Leader" : "Member"), pTarget);
+	UI()->DoLabelScaled(&Header, aHeader, FitLabelFontSize(TextRender(), aHeader, 10.5f, Header.w), -1);
+
+	CPlatformUserInfo LocalMember;
+	mem_zero(&LocalMember, sizeof(LocalMember));
+	bool AllReady = Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE;
+	for(int i = 0; i < pPlatform->PartyMemberCount(); i++)
+	{
+		CPlatformUserInfo Member;
+		if(!pPlatform->PartyMemberInfo(i, &Member))
+			continue;
+		if(Member.m_Local) LocalMember = Member;
+		AllReady = AllReady && Member.m_PartyReady;
+		CUIRect Cell, Avatar, Label;
+		Members.VSplitLeft(min(110.0f, Members.w), &Cell, &Members);
+		Cell.VSplitLeft(26.0f, &Avatar, &Label);
+		Avatar.Margin(1.0f, &Avatar);
+		DrawSteamAvatar(Avatar, Member.m_UserID);
+		char aMember[160];
+		str_format(aMember, sizeof(aMember), "%s%s\n%s", Member.m_LobbyOwner ? "★ " : "", Member.m_aName, Member.m_PartyReady ? Localize("Ready") : Localize("Not ready"));
+		UI()->DoLabelScaled(&Label, aMember, FitLabelFontSize(TextRender(), aMember, 8.5f, Label.w), -1);
+		if(Members.w <= 1.0f) break;
+	}
+
+	CUIRect Leave, Ready, Launch;
+	Actions.VSplitRight(100.0f, &Actions, &Leave);
+	Leave.VSplitLeft(4.0f, 0, &Leave);
+	if(DoButton_Menu(&s_LeaveParty, Localize("Leave party"), 0, &Leave, BUTTONSTYLE_DANGER))
+	{
+		pPlatform->LeaveParty();
+		s_ConfirmForce = false;
+		return;
+	}
+	if(Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE)
+	{
+		Actions.VSplitRight(108.0f, &Actions, &Ready);
+		Ready.VSplitLeft(4.0f, 0, &Ready);
+		if(DoButton_Menu(&s_Ready, Localize(LocalMember.m_PartyReady ? "Not ready" : "Ready"), LocalMember.m_PartyReady, &Ready, LocalMember.m_PartyReady ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+			pPlatform->SetPartyReady(!LocalMember.m_PartyReady);
+	}
+	if(Party.m_LocalOwner && Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE)
+	{
+		Actions.VSplitRight(142.0f, &Actions, &Launch);
+		Launch.VSplitLeft(4.0f, 0, &Launch);
+		const char *pLabel = AllReady ? "Start party" : s_ConfirmForce ? "Confirm force start" : "Force start";
+		if(DoButton_Menu(&s_Launch, Localize(pLabel), 0, &Launch, AllReady ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_DANGER))
+		{
+			if(AllReady || s_ConfirmForce)
+			{
+				pPlatform->LaunchParty(!AllReady);
+				s_ConfirmForce = false;
+			}
+			else s_ConfirmForce = true;
+		}
+	}
+	else s_ConfirmForce = false;
+	UI()->DoLabelScaled(&Actions, Localize(Party.m_LocalOwner ? "Select a room below, then wait for Ready." : "The leader selects the target."), 9.0f, -1);
 }
 
 void CMenus::RenderPlay(CUIRect MainView)
@@ -4141,6 +4242,7 @@ void CMenus::RenderPlay(CUIRect MainView)
 		}
 	}
 	Body.HSplitTop(8.0f, 0, &Body);
+	RenderPartyPanel(&Body);
 	if(m_PlayTab == 2)
 	{
 		RenderSteamFriends(Body);
@@ -4339,7 +4441,36 @@ void CMenus::RenderPlay(CUIRect MainView)
 	const bool CopyBlocked = BlockPlayListInput && UI()->MouseInside(&CopyButton);
 	const bool FavoriteBlocked = BlockPlayListInput && UI()->MouseInside(&FavoriteButton);
 	const bool DetailBlocked = BlockPlayListInput && UI()->MouseInside(&DetailButton);
-	if((!JoinBlocked && DoButton_Menu(&s_Join, Localize("Join"), 0, &JoinButton, BUTTONSTYLE_ACCENT)) || (!m_PlayFiltersOpen && m_PlayListHasFocus && m_EnterPressed && s_Selected >= 0)) { if(s_Selected >= 0) { const CPlayRoomEntry &Entry = aEntries[s_Selected]; if(Entry.m_pServer) Client()->Connect(Entry.m_pServer->m_aAddress); else if(pPlatform) pPlatform->JoinLobby(Entry.m_pLobby->m_Info.m_LobbyID); } else if(g_Config.m_UiServerAddress[0]) Client()->Connect(g_Config.m_UiServerAddress); m_EnterPressed = false; }
+	if((!JoinBlocked && DoButton_Menu(&s_Join, Localize("Join"), 0, &JoinButton, BUTTONSTYLE_ACCENT)) || (!m_PlayFiltersOpen && m_PlayListHasFocus && m_EnterPressed && s_Selected >= 0))
+	{
+		CPlatformPartyState Party;
+		const bool InParty = pPlatform && pPlatform->PartyState(&Party);
+		if(InParty)
+		{
+			if(Party.m_LocalOwner)
+			{
+				if(s_Selected >= 0)
+				{
+					const CPlayRoomEntry &Entry = aEntries[s_Selected];
+					if(Entry.m_pServer)
+						pPlatform->SetPartyTarget(PLATFORM_PARTY_TARGET_ADDRESS, 0, Entry.m_pServer->m_aAddress, Entry.m_pServer->m_Modded ? (g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "none") : "none");
+					else
+						pPlatform->SetPartyTarget(PLATFORM_PARTY_TARGET_GAME_LOBBY, Entry.m_pLobby->m_Info.m_LobbyID, "", Entry.m_pLobby->m_Info.m_aModHash);
+				}
+				else if(g_Config.m_UiServerAddress[0])
+					pPlatform->SetPartyTarget(PLATFORM_PARTY_TARGET_ADDRESS, 0, g_Config.m_UiServerAddress, g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "none");
+				pPlatform->SetPartyReady(true);
+			}
+		}
+		else if(s_Selected >= 0)
+		{
+			const CPlayRoomEntry &Entry = aEntries[s_Selected];
+			if(Entry.m_pServer) Client()->Connect(Entry.m_pServer->m_aAddress);
+			else if(pPlatform) pPlatform->JoinLobby(Entry.m_pLobby->m_Info.m_LobbyID);
+		}
+		else if(g_Config.m_UiServerAddress[0]) Client()->Connect(g_Config.m_UiServerAddress);
+		m_EnterPressed = false;
+	}
 	if(!RefreshBlocked && DoButton_Menu(&s_Refresh, Localize("Refresh"), 0, &RefreshButton)) { ServerBrowser()->Refresh(m_PlayBrowserCollection == PLAY_COLLECTION_LAN ? IServerBrowser::TYPE_LAN : m_PlayBrowserCollection == PLAY_COLLECTION_FAVORITES ? IServerBrowser::TYPE_FAVORITES : IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
 	if(!CopyBlocked && DoButton_Menu(&s_Copy, Localize("Copy"), 0, &CopyButton) && s_Selected >= 0) Input()->SetClipboardText(HasDedicated ? aEntries[s_Selected].m_pServer->m_aAddress : aEntries[s_Selected].m_aStableID);
 	if(HasDedicated && !FavoriteBlocked && DoButton_Menu(&s_Favorite, Localize(aEntries[s_Selected].m_pServer->m_Favorite ? "Unfavorite" : "Favorite"), 0, &FavoriteButton)) { const CPlayServerSnapshot *pInfo = aEntries[s_Selected].m_pServer; if(pInfo->m_Favorite) ServerBrowser()->RemoveFavorite(pInfo->m_NetAddr); else ServerBrowser()->AddFavorite(pInfo->m_NetAddr); }

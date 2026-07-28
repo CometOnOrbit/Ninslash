@@ -83,8 +83,41 @@ struct CPlatformUserInfo
 	bool m_Joinable;
 	bool m_Local;
 	bool m_LobbyOwner;
+	bool m_PartyMember;
+	bool m_PartyReady;
+	int m_PartyReadyRevision;
 	char m_aName[128];
 	char m_aConnect[256];
+};
+
+enum EPlatformPartyTargetType
+{
+	PLATFORM_PARTY_TARGET_NONE,
+	PLATFORM_PARTY_TARGET_GAME_LOBBY,
+	PLATFORM_PARTY_TARGET_ADDRESS,
+};
+
+struct CPlatformPartyState
+{
+	unsigned long long m_LobbyID;
+	unsigned long long m_OwnerUserID;
+	unsigned long long m_TargetLobbyID;
+	int m_TargetType;
+	int m_TargetRevision;
+	unsigned int m_LaunchGeneration;
+	bool m_LocalOwner;
+	char m_aPhase[24];
+	char m_aTargetAddress[256];
+	char m_aTargetModHash[65];
+};
+
+struct CPlatformPartyLaunch
+{
+	unsigned long long m_TargetLobbyID;
+	int m_TargetType;
+	unsigned int m_Generation;
+	char m_aTargetAddress[256];
+	char m_aTargetModHash[65];
 };
 
 struct CPlatformWorkshopPublishStatus
@@ -150,12 +183,32 @@ public:
 	virtual int CloudReadFile(const char *pFilename, void *pBuffer, int BufferSize) = 0;
 	virtual bool CloudWriteFile(const char *pFilename, const void *pBuffer, int BufferSize) = 0;
 
+	// A party is an invite-only, persistent coordination Lobby. It is kept
+	// separate from the transient game Lobby used by Steam listen servers.
+	virtual bool CreateParty() = 0;
+	virtual bool JoinParty(unsigned long long LobbyID) = 0;
+	virtual void LeaveParty() = 0;
+	virtual unsigned long long PartyLobbyID() const = 0;
+	virtual bool PartyState(CPlatformPartyState *pState) const = 0;
+	virtual int PartyMemberCount() const = 0;
+	virtual bool PartyMemberInfo(int Index, CPlatformUserInfo *pInfo) const = 0;
+	virtual bool InvitePartyUser(unsigned long long UserID) = 0;
+	virtual bool OpenPartyInviteDialog() = 0;
+	virtual bool SetPartyReady(bool Ready) = 0;
+	virtual bool SetPartyTarget(int TargetType, unsigned long long TargetLobbyID, const char *pAddress, const char *pModHash) = 0;
+	virtual bool ClearPartyTarget() = 0;
+	virtual bool LaunchParty(bool Force) = 0;
+	virtual bool ConsumePartyLaunch(CPlatformPartyLaunch *pLaunch) = 0;
+	virtual void PartyOperationStatus(CPlatformOperationStatus *pStatus) const = 0;
+
 	// All methods below are asynchronous on Steam. They report whether the
 	// request was accepted locally; completion arrives through RunCallbacks.
 	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers, int HostLocalPort) = 0;
 	virtual bool JoinLobby(unsigned long long LobbyID) = 0;
 	virtual void LeaveLobby() = 0;
 	virtual unsigned long long CurrentLobbyID() const = 0;
+	virtual unsigned long long GameLobbyID() const = 0;
+	virtual void LeaveGameLobby() = 0;
 	virtual bool SetLobbyData(const char *pKey, const char *pValue) = 0;
 	virtual bool ConsumeLobbyJoin(unsigned long long *pLobbyID) = 0;
 	// Listen servers close instead of migrating when Steam transfers ownership.

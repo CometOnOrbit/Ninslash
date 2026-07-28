@@ -228,10 +228,27 @@ public:
 	virtual long long CloudFileTimestamp(const char *pFilename) const { (void)pFilename; return 0; }
 	virtual int CloudReadFile(const char *pFilename, void *pBuffer, int BufferSize) { (void)pFilename; (void)pBuffer; (void)BufferSize; return -1; }
 	virtual bool CloudWriteFile(const char *pFilename, const void *pBuffer, int BufferSize) { (void)pFilename; (void)pBuffer; (void)BufferSize; return false; }
+	virtual bool CreateParty() { return false; }
+	virtual bool JoinParty(unsigned long long LobbyID) { (void)LobbyID; return false; }
+	virtual void LeaveParty() {}
+	virtual unsigned long long PartyLobbyID() const { return 0; }
+	virtual bool PartyState(CPlatformPartyState *pState) const { if(pState) mem_zero(pState, sizeof(*pState)); return false; }
+	virtual int PartyMemberCount() const { return 0; }
+	virtual bool PartyMemberInfo(int Index, CPlatformUserInfo *pInfo) const { (void)Index; if(pInfo) mem_zero(pInfo, sizeof(*pInfo)); return false; }
+	virtual bool InvitePartyUser(unsigned long long UserID) { (void)UserID; return false; }
+	virtual bool OpenPartyInviteDialog() { return false; }
+	virtual bool SetPartyReady(bool Ready) { (void)Ready; return false; }
+	virtual bool SetPartyTarget(int TargetType, unsigned long long TargetLobbyID, const char *pAddress, const char *pModHash) { (void)TargetType; (void)TargetLobbyID; (void)pAddress; (void)pModHash; return false; }
+	virtual bool ClearPartyTarget() { return false; }
+	virtual bool LaunchParty(bool Force) { (void)Force; return false; }
+	virtual bool ConsumePartyLaunch(CPlatformPartyLaunch *pLaunch) { if(pLaunch) mem_zero(pLaunch, sizeof(*pLaunch)); return false; }
+	virtual void PartyOperationStatus(CPlatformOperationStatus *pStatus) const { if(pStatus) mem_zero(pStatus, sizeof(*pStatus)); }
 	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers, int HostLocalPort) { (void)Visibility; (void)MaxMembers; (void)HostLocalPort; return false; }
 	virtual bool JoinLobby(unsigned long long LobbyID) { (void)LobbyID; return false; }
 	virtual void LeaveLobby() {}
 	virtual unsigned long long CurrentLobbyID() const { return 0; }
+	virtual unsigned long long GameLobbyID() const { return 0; }
+	virtual void LeaveGameLobby() {}
 	virtual bool SetLobbyData(const char *pKey, const char *pValue) { (void)pKey; (void)pValue; return false; }
 	virtual bool ConsumeLobbyJoin(unsigned long long *pLobbyID) { if(pLobbyID) *pLobbyID = 0; return false; }
 	virtual bool ConsumeListenServerStopRequest() { return false; }
@@ -282,6 +299,14 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	char m_aPendingJoin[256];
 	char m_aJoinFailure[256];
 	unsigned long long m_CurrentLobbyID;
+	unsigned long long m_PartyLobbyID;
+	unsigned long long m_PartyOwnerID;
+	unsigned long long m_PendingPartyInviteUserID;
+	bool m_CreatingParty;
+	bool m_JoiningParty;
+	bool m_OpenPartyInviteAfterCreate;
+	unsigned int m_ConsumedPartyLaunchGeneration;
+	CPlatformPartyLaunch m_PendingPartyLaunch;
 	unsigned long long m_PendingLobbyJoinID;
 	unsigned long long m_HostedLobbyID;
 	int m_HostLocalPort;
@@ -329,6 +354,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	void OnJoinRequested(GameRichPresenceJoinRequested_t *pRequest);
 	void OnLobbyJoinRequested(GameLobbyJoinRequested_t *pRequest);
 	void OnLobbyMembersChanged(LobbyChatUpdate_t *pUpdate);
+	void OnLobbyDataUpdated(LobbyDataUpdate_t *pUpdate);
 	void OnLobbyCreated(LobbyCreated_t *pResult, bool IOError);
 	void OnLobbyEntered(LobbyEnter_t *pResult, bool IOError);
 	void OnLobbyList(LobbyMatchList_t *pResult, bool IOError);
@@ -439,6 +465,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	CCallback<CSteamPlatformServices, GetAuthSessionTicketResponse_t> m_AuthTicketCallback;
 	CCallback<CSteamPlatformServices, GameLobbyJoinRequested_t> m_LobbyJoinRequestedCallback;
 	CCallback<CSteamPlatformServices, LobbyChatUpdate_t> m_LobbyMembersChangedCallback;
+	CCallback<CSteamPlatformServices, LobbyDataUpdate_t> m_LobbyDataUpdatedCallback;
 	CCallback<CSteamPlatformServices, DownloadItemResult_t> m_WorkshopDownloadedCallback;
 	CCallResult<CSteamPlatformServices, LobbyCreated_t> m_LobbyCreatedCall;
 	CCallResult<CSteamPlatformServices, LobbyEnter_t> m_LobbyEnteredCall;
@@ -477,16 +504,18 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 
 public:
 	CSteamPlatformServices() :
-		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_HostLocalPort(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyCreateType(k_ELobbyTypeFriendsOnly), m_LobbyCreateMaxMembers(0), m_LobbyCreateRetries(0), m_LobbyCreateRetryAt(0), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_NextEventRetry(0), m_WorkshopItemCount(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
+		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PartyLobbyID(0), m_PartyOwnerID(0), m_PendingPartyInviteUserID(0), m_CreatingParty(false), m_JoiningParty(false), m_OpenPartyInviteAfterCreate(false), m_ConsumedPartyLaunchGeneration(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_HostLocalPort(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyCreateType(k_ELobbyTypeFriendsOnly), m_LobbyCreateMaxMembers(0), m_LobbyCreateRetries(0), m_LobbyCreateRetryAt(0), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_NextEventRetry(0), m_WorkshopItemCount(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
 		m_JoinRequestedCallback(this, &CSteamPlatformServices::OnJoinRequested),
 		m_AuthTicketCallback(this, &CSteamPlatformServices::OnAuthTicketResponse),
 		m_LobbyJoinRequestedCallback(this, &CSteamPlatformServices::OnLobbyJoinRequested),
 		m_LobbyMembersChangedCallback(this, &CSteamPlatformServices::OnLobbyMembersChanged),
+		m_LobbyDataUpdatedCallback(this, &CSteamPlatformServices::OnLobbyDataUpdated),
 		m_WorkshopDownloadedCallback(this, &CSteamPlatformServices::OnWorkshopDownloaded)
 	{
 		m_aPendingJoin[0] = 0;
 		m_aJoinFailure[0] = 0;
 		m_aLobbyCreateFailure[0] = 0;
+		mem_zero(&m_PendingPartyLaunch, sizeof(m_PendingPartyLaunch));
 		mem_zero(m_aInputActionSets, sizeof(m_aInputActionSets));
 		mem_zero(m_aDigitalActions, sizeof(m_aDigitalActions));
 		mem_zero(&m_WorkshopPublish, sizeof(m_WorkshopPublish));
@@ -553,6 +582,8 @@ public:
 		SteamFriends()->ClearRichPresence();
 		if(m_CurrentLobbyID && SteamMatchmaking())
 			SteamMatchmaking()->LeaveLobby(CSteamID(m_CurrentLobbyID));
+		if(m_PartyLobbyID && m_PartyLobbyID != m_CurrentLobbyID && SteamMatchmaking())
+			SteamMatchmaking()->LeaveLobby(CSteamID(m_PartyLobbyID));
 		if(m_SteamInputInitialized && SteamInput())
 			SteamInput()->Shutdown();
 		m_SteamInputInitialized = false;
@@ -571,7 +602,8 @@ public:
 				if(!BeginLobbyCreateCall())
 				{
 					m_LobbyCreatePending = false;
-					m_ListenServerStopRequested = true;
+					if(!m_CreatingParty)
+						m_ListenServerStopRequested = true;
 				}
 			}
 			if(m_SteamInputInitialized && SteamInput())
@@ -688,12 +720,13 @@ public:
 		SteamFriends()->SetRichPresence("status", pStatus ? pStatus : "");
 		SteamFriends()->SetRichPresence("connect", pConnect ? pConnect : "");
 		SteamFriends()->SetRichPresence("steam_display", "#Status");
-		if(m_CurrentLobbyID && SteamMatchmaking())
+		const unsigned long long GroupLobbyID = m_PartyLobbyID ? m_PartyLobbyID : m_CurrentLobbyID;
+		if(GroupLobbyID && SteamMatchmaking())
 		{
 			char aLobbyID[32];
 			char aMembers[16];
-			str_format(aLobbyID, sizeof(aLobbyID), "%llu", m_CurrentLobbyID);
-			str_format(aMembers, sizeof(aMembers), "%d", SteamMatchmaking()->GetNumLobbyMembers(CSteamID(m_CurrentLobbyID)));
+			str_format(aLobbyID, sizeof(aLobbyID), "%llu", GroupLobbyID);
+			str_format(aMembers, sizeof(aMembers), "%d", SteamMatchmaking()->GetNumLobbyMembers(CSteamID(GroupLobbyID)));
 			SteamFriends()->SetRichPresence("steam_player_group", aLobbyID);
 			SteamFriends()->SetRichPresence("steam_player_group_size", aMembers);
 		}
@@ -721,10 +754,209 @@ public:
 		return true;
 	}
 
+	virtual bool CreateParty()
+	{
+		if(!m_Initialized || !SteamMatchmaking() || m_PartyLobbyID || m_LobbyCreatePending)
+			return false;
+		m_CreatingParty = true;
+		m_LobbyCreateType = k_ELobbyTypePrivate;
+		m_LobbyCreateMaxMembers = 16;
+		m_LobbyCreateRetries = 0;
+		m_LobbyCreateRetryAt = 0;
+		m_aLobbyCreateFailure[0] = 0;
+		if(BeginLobbyCreateCall())
+			return true;
+		m_CreatingParty = false;
+		return false;
+	}
+	virtual bool JoinParty(unsigned long long LobbyID)
+	{
+		if(!m_Initialized || !SteamMatchmaking() || !LobbyID || m_PartyLobbyID || m_LobbyJoinPending)
+			return false;
+		m_JoiningParty = true;
+		m_LobbyJoinPending = true;
+		m_LobbyEnteredCall.Set(SteamMatchmaking()->JoinLobby(CSteamID(LobbyID)), this, &CSteamPlatformServices::OnLobbyEntered);
+		return true;
+	}
+	virtual void LeaveParty()
+	{
+		CPlatformPartyState State;
+		const bool StopHostedGame = PartyState(&State) && State.m_LocalOwner && m_HostedLobbyID;
+		if(StopHostedGame)
+		{
+			m_ListenServerStopRequested = true;
+			LeaveLobby();
+		}
+		if(m_Initialized && m_PartyLobbyID && SteamMatchmaking())
+			SteamMatchmaking()->LeaveLobby(CSteamID(m_PartyLobbyID));
+		m_PartyLobbyID = 0;
+		m_PartyOwnerID = 0;
+		m_PendingPartyInviteUserID = 0;
+		m_CreatingParty = false;
+		m_JoiningParty = false;
+		m_OpenPartyInviteAfterCreate = false;
+		m_ConsumedPartyLaunchGeneration = 0;
+		mem_zero(&m_PendingPartyLaunch, sizeof(m_PendingPartyLaunch));
+	}
+	virtual unsigned long long PartyLobbyID() const { return m_PartyLobbyID; }
+	virtual bool PartyState(CPlatformPartyState *pState) const
+	{
+		if(!pState)
+			return false;
+		mem_zero(pState, sizeof(*pState));
+		if(!m_Initialized || !m_PartyLobbyID || !SteamMatchmaking())
+			return false;
+		const CSteamID Lobby(m_PartyLobbyID);
+		const CSteamID Owner = SteamMatchmaking()->GetLobbyOwner(Lobby);
+		pState->m_LobbyID = m_PartyLobbyID;
+		pState->m_OwnerUserID = Owner.ConvertToUint64();
+		pState->m_LocalOwner = SteamUser() && Owner == SteamUser()->GetSteamID();
+		str_copy(pState->m_aPhase, SteamMatchmaking()->GetLobbyData(Lobby, "party_phase"), sizeof(pState->m_aPhase));
+		const char *pType = SteamMatchmaking()->GetLobbyData(Lobby, "target_type");
+		pState->m_TargetType = pType && !str_comp(pType, "game_lobby") ? PLATFORM_PARTY_TARGET_GAME_LOBBY : pType && !str_comp(pType, "address") ? PLATFORM_PARTY_TARGET_ADDRESS : PLATFORM_PARTY_TARGET_NONE;
+		sscanf(SteamMatchmaking()->GetLobbyData(Lobby, "target_lobby"), "%llu", &pState->m_TargetLobbyID);
+		pState->m_TargetRevision = str_toint(SteamMatchmaking()->GetLobbyData(Lobby, "target_revision"));
+		pState->m_LaunchGeneration = (unsigned int)str_toint(SteamMatchmaking()->GetLobbyData(Lobby, "launch_generation"));
+		str_copy(pState->m_aTargetAddress, SteamMatchmaking()->GetLobbyData(Lobby, "target_address"), sizeof(pState->m_aTargetAddress));
+		str_copy(pState->m_aTargetModHash, SteamMatchmaking()->GetLobbyData(Lobby, "target_mod_hash"), sizeof(pState->m_aTargetModHash));
+		return true;
+	}
+	virtual int PartyMemberCount() const
+	{
+		return m_Initialized && m_PartyLobbyID && SteamMatchmaking() ? SteamMatchmaking()->GetNumLobbyMembers(CSteamID(m_PartyLobbyID)) : 0;
+	}
+	virtual bool PartyMemberInfo(int Index, CPlatformUserInfo *pInfo) const
+	{
+		if(Index < 0 || Index >= PartyMemberCount() || !FillUserInfo(SteamMatchmaking()->GetLobbyMemberByIndex(CSteamID(m_PartyLobbyID), Index), false, pInfo))
+			return false;
+		CPlatformPartyState State;
+		PartyState(&State);
+		const CSteamID User(pInfo->m_UserID);
+		const char *pReady = SteamMatchmaking()->GetLobbyMemberData(CSteamID(m_PartyLobbyID), User, "ready_revision");
+		pInfo->m_PartyMember = true;
+		pInfo->m_LobbyOwner = State.m_OwnerUserID == pInfo->m_UserID;
+		pInfo->m_PartyReadyRevision = str_toint(pReady);
+		pInfo->m_PartyReady = State.m_TargetRevision > 0 && pInfo->m_PartyReadyRevision == State.m_TargetRevision;
+		return true;
+	}
+	virtual bool InvitePartyUser(unsigned long long UserID)
+	{
+		if(!m_Initialized || !UserID || !SteamMatchmaking())
+			return false;
+		if(m_PartyLobbyID)
+		{
+			for(int i = 0; i < PartyMemberCount(); i++)
+				if(SteamMatchmaking()->GetLobbyMemberByIndex(CSteamID(m_PartyLobbyID), i).ConvertToUint64() == UserID)
+					return true;
+			return SteamMatchmaking()->InviteUserToLobby(CSteamID(m_PartyLobbyID), CSteamID(UserID));
+		}
+		m_PendingPartyInviteUserID = UserID;
+		if(CreateParty())
+			return true;
+		m_PendingPartyInviteUserID = 0;
+		return false;
+	}
+	virtual bool OpenPartyInviteDialog()
+	{
+		if(!m_Initialized || !SteamFriends())
+			return false;
+		if(!m_PartyLobbyID)
+		{
+			m_OpenPartyInviteAfterCreate = true;
+			if(CreateParty()) return true;
+			m_OpenPartyInviteAfterCreate = false;
+			return false;
+		}
+		SteamFriends()->ActivateGameOverlayInviteDialog(CSteamID(m_PartyLobbyID));
+		return true;
+	}
+	virtual bool SetPartyReady(bool Ready)
+	{
+		CPlatformPartyState State;
+		if(!PartyState(&State) || !SteamMatchmaking())
+			return false;
+		char aRevision[16];
+		str_format(aRevision, sizeof(aRevision), "%d", Ready ? State.m_TargetRevision : 0);
+		SteamMatchmaking()->SetLobbyMemberData(CSteamID(m_PartyLobbyID), "ready_revision", aRevision);
+		return true;
+	}
+	virtual bool SetPartyTarget(int TargetType, unsigned long long TargetLobbyID, const char *pAddress, const char *pModHash)
+	{
+		CPlatformPartyState State;
+		if(!PartyState(&State) || !State.m_LocalOwner || !SteamMatchmaking() ||
+			(TargetType != PLATFORM_PARTY_TARGET_GAME_LOBBY && TargetType != PLATFORM_PARTY_TARGET_ADDRESS) ||
+			(TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY && !TargetLobbyID) ||
+			(TargetType == PLATFORM_PARTY_TARGET_ADDRESS && (!pAddress || !pAddress[0])))
+			return false;
+		if(m_HostedLobbyID && (TargetType != PLATFORM_PARTY_TARGET_GAME_LOBBY || TargetLobbyID != m_HostedLobbyID))
+			m_ListenServerStopRequested = true;
+		const CSteamID Lobby(m_PartyLobbyID);
+		char aNumber[32];
+		str_format(aNumber, sizeof(aNumber), "%d", max(1, State.m_TargetRevision + 1));
+		SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "ready_check");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_type", TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY ? "game_lobby" : "address");
+		char aLobby[32]; str_format(aLobby, sizeof(aLobby), "%llu", TargetLobbyID);
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_lobby", TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY ? aLobby : "0");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_address", TargetType == PLATFORM_PARTY_TARGET_ADDRESS ? pAddress : "");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_mod_hash", pModHash && pModHash[0] ? pModHash : "none");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_revision", aNumber);
+		SteamMatchmaking()->SetLobbyMemberData(Lobby, "ready_revision", "0");
+		return true;
+	}
+	virtual bool ClearPartyTarget()
+	{
+		CPlatformPartyState State;
+		if(!PartyState(&State) || !State.m_LocalOwner || !SteamMatchmaking())
+			return false;
+		const CSteamID Lobby(m_PartyLobbyID);
+		char aRevision[16]; str_format(aRevision, sizeof(aRevision), "%d", max(1, State.m_TargetRevision + 1));
+		SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "forming");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_type", "none");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_lobby", "0");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_address", "");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_mod_hash", "none");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_revision", aRevision);
+		return true;
+	}
+	virtual bool LaunchParty(bool Force)
+	{
+		CPlatformPartyState State;
+		if(!PartyState(&State) || !State.m_LocalOwner || State.m_TargetType == PLATFORM_PARTY_TARGET_NONE || !SteamMatchmaking())
+			return false;
+		if(!Force)
+			for(int i = 0; i < PartyMemberCount(); i++) { CPlatformUserInfo Info; if(!PartyMemberInfo(i, &Info) || !Info.m_PartyReady) return false; }
+		const CSteamID Lobby(m_PartyLobbyID);
+		char aOwner[32], aGeneration[16];
+		str_format(aOwner, sizeof(aOwner), "%llu", State.m_OwnerUserID);
+		str_format(aGeneration, sizeof(aGeneration), "%u", State.m_LaunchGeneration + 1);
+		SteamMatchmaking()->SetLobbyData(Lobby, "launch_owner", aOwner);
+		SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "launching");
+		return SteamMatchmaking()->SetLobbyData(Lobby, "launch_generation", aGeneration);
+	}
+	virtual bool ConsumePartyLaunch(CPlatformPartyLaunch *pLaunch)
+	{
+		if(!pLaunch || !m_PendingPartyLaunch.m_Generation)
+			return false;
+		*pLaunch = m_PendingPartyLaunch;
+		m_ConsumedPartyLaunchGeneration = m_PendingPartyLaunch.m_Generation;
+		mem_zero(&m_PendingPartyLaunch, sizeof(m_PendingPartyLaunch));
+		return true;
+	}
+	virtual void PartyOperationStatus(CPlatformOperationStatus *pStatus) const
+	{
+		if(!pStatus) return;
+		mem_zero(pStatus, sizeof(*pStatus));
+		pStatus->m_State = m_LobbyCreatePending && m_CreatingParty ? CLIENT_ASYNC_WORKING : m_PartyLobbyID ? CLIENT_ASYNC_SUCCEEDED : m_aLobbyCreateFailure[0] ? CLIENT_ASYNC_FAILED : CLIENT_ASYNC_IDLE;
+		pStatus->m_Stage = CLIENT_STAGE_CREATING_ROOM;
+		pStatus->m_Progress = m_PartyLobbyID ? 1.0f : 0.25f;
+		str_copy(pStatus->m_aErrorKey, m_aLobbyCreateFailure, sizeof(pStatus->m_aErrorKey));
+	}
+
 	virtual bool CreateLobby(EPlatformLobbyVisibility Visibility, int MaxMembers, int HostLocalPort)
 	{
 		if(!m_Initialized || !SteamMatchmaking() || m_CurrentLobbyID || m_LobbyCreatePending || MaxMembers < 1 || MaxMembers > 64)
 			return false;
+		m_CreatingParty = false;
 		m_HostLocalPort = clamp(HostLocalPort, 1024, 65535);
 		m_LobbyCreateType = k_ELobbyTypeFriendsOnly;
 		if(Visibility == PLATFORM_LOBBY_INVITE_ONLY)
@@ -742,6 +974,25 @@ public:
 	{
 		if(!m_Initialized || !SteamMatchmaking() || !LobbyID)
 			return false;
+		if(LobbyID == m_CurrentLobbyID)
+		{
+			if(m_HostedLobbyID == m_CurrentLobbyID)
+				str_format(m_aPendingJoin, sizeof(m_aPendingJoin), "127.0.0.1:%d", m_HostLocalPort);
+			else
+			{
+				const char *pConnect = SteamMatchmaking()->GetLobbyData(CSteamID(m_CurrentLobbyID), "connect");
+				if(pConnect) str_copy(m_aPendingJoin, pConnect, sizeof(m_aPendingJoin));
+			}
+			return m_aPendingJoin[0] != 0;
+		}
+		if(m_CurrentLobbyID)
+		{
+			SteamMatchmaking()->LeaveLobby(CSteamID(m_CurrentLobbyID));
+			m_CurrentLobbyID = 0;
+			m_PendingLobbyJoinID = 0;
+			m_HostedLobbyID = 0;
+		}
+		m_JoiningParty = false;
 		m_LobbyJoinPending = true;
 		m_LobbyEnteredCall.Set(SteamMatchmaking()->JoinLobby(CSteamID(LobbyID)), this, &CSteamPlatformServices::OnLobbyEntered);
 		return true;
@@ -766,11 +1017,16 @@ public:
 		if(SteamFriends())
 		{
 			SteamFriends()->SetRichPresence("connect", "");
-			SteamFriends()->SetRichPresence("steam_player_group", "");
-			SteamFriends()->SetRichPresence("steam_player_group_size", "");
+			if(!m_PartyLobbyID)
+			{
+				SteamFriends()->SetRichPresence("steam_player_group", "");
+				SteamFriends()->SetRichPresence("steam_player_group_size", "");
+			}
 		}
 	}
 	virtual unsigned long long CurrentLobbyID() const { return m_CurrentLobbyID; }
+	virtual unsigned long long GameLobbyID() const { return m_CurrentLobbyID; }
+	virtual void LeaveGameLobby() { LeaveLobby(); }
 	virtual bool SetLobbyData(const char *pKey, const char *pValue)
 	{
 		return m_Initialized && m_CurrentLobbyID && pKey && pValue && SteamMatchmaking() && SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), pKey, pValue);
@@ -823,6 +1079,15 @@ public:
 			pInfo->m_LobbyID = m_CurrentLobbyID;
 			pInfo->m_PlayingThisGame = true;
 			pInfo->m_LobbyOwner = SteamMatchmaking()->GetLobbyOwner(CSteamID(m_CurrentLobbyID)) == User;
+		}
+		if(m_PartyLobbyID && SteamMatchmaking())
+		{
+			for(int i = 0; i < SteamMatchmaking()->GetNumLobbyMembers(CSteamID(m_PartyLobbyID)); i++)
+				if(SteamMatchmaking()->GetLobbyMemberByIndex(CSteamID(m_PartyLobbyID), i) == User)
+				{
+					pInfo->m_PartyMember = true;
+					break;
+				}
 		}
 		return true;
 	}
@@ -1196,13 +1461,42 @@ void CSteamPlatformServices::OnJoinRequested(GameRichPresenceJoinRequested_t *pR
 
 void CSteamPlatformServices::OnLobbyJoinRequested(GameLobbyJoinRequested_t *pRequest)
 {
-	if(pRequest)
-		JoinLobby(pRequest->m_steamIDLobby.ConvertToUint64());
+	if(!pRequest || !SteamMatchmaking())
+		return;
+	const CSteamID Lobby = pRequest->m_steamIDLobby;
+	const char *pRoomType = SteamMatchmaking()->GetLobbyData(Lobby, "room_type");
+	if(pRoomType && str_comp(pRoomType, "party") == 0)
+	{
+		if(m_PartyLobbyID && m_PartyLobbyID != Lobby.ConvertToUint64())
+			LeaveParty();
+		JoinParty(Lobby.ConvertToUint64());
+	}
+	else
+		JoinLobby(Lobby.ConvertToUint64());
 }
 
 void CSteamPlatformServices::OnLobbyMembersChanged(LobbyChatUpdate_t *pUpdate)
 {
-	if(!pUpdate || pUpdate->m_ulSteamIDLobby != m_CurrentLobbyID || !SteamFriends() || !SteamMatchmaking())
+	if(!pUpdate || !SteamFriends() || !SteamMatchmaking())
+		return;
+	if(pUpdate->m_ulSteamIDLobby == m_PartyLobbyID)
+	{
+		const unsigned long long NewOwner = SteamMatchmaking()->GetLobbyOwner(CSteamID(m_PartyLobbyID)).ConvertToUint64();
+		const bool WasOwner = m_PartyOwnerID == LocalUserID();
+		m_PartyOwnerID = NewOwner;
+		if(WasOwner && NewOwner != LocalUserID() && m_HostedLobbyID)
+		{
+			m_ListenServerStopRequested = true;
+			LeaveLobby();
+		}
+		else if(!WasOwner && NewOwner == LocalUserID())
+			ClearPartyTarget();
+		char aMembers[16];
+		str_format(aMembers, sizeof(aMembers), "%d", PartyMemberCount());
+		SteamFriends()->SetRichPresence("steam_player_group_size", aMembers);
+		return;
+	}
+	if(pUpdate->m_ulSteamIDLobby != m_CurrentLobbyID)
 		return;
 	if(m_HostedLobbyID == m_CurrentLobbyID && SteamMatchmaking()->GetLobbyOwner(CSteamID(m_CurrentLobbyID)) != SteamUser()->GetSteamID())
 	{
@@ -1212,6 +1506,35 @@ void CSteamPlatformServices::OnLobbyMembersChanged(LobbyChatUpdate_t *pUpdate)
 	char aMembers[16];
 	str_format(aMembers, sizeof(aMembers), "%d", SteamMatchmaking()->GetNumLobbyMembers(CSteamID(m_CurrentLobbyID)));
 	SteamFriends()->SetRichPresence("steam_player_group_size", aMembers);
+}
+
+void CSteamPlatformServices::OnLobbyDataUpdated(LobbyDataUpdate_t *pUpdate)
+{
+	if(!pUpdate || !pUpdate->m_bSuccess || pUpdate->m_ulSteamIDLobby != m_PartyLobbyID ||
+		pUpdate->m_ulSteamIDMember != m_PartyLobbyID || !SteamMatchmaking())
+		return;
+	CPlatformPartyState State;
+	if(!PartyState(&State) || State.m_LaunchGeneration <= m_ConsumedPartyLaunchGeneration ||
+		State.m_LaunchGeneration <= m_PendingPartyLaunch.m_Generation || State.m_TargetType == PLATFORM_PARTY_TARGET_NONE)
+		return;
+	unsigned long long LaunchOwner = 0;
+	char Trailing = 0;
+	const char *pLaunchOwner = SteamMatchmaking()->GetLobbyData(CSteamID(m_PartyLobbyID), "launch_owner");
+	if(!pLaunchOwner || sscanf(pLaunchOwner, "%llu%c", &LaunchOwner, &Trailing) != 1 || LaunchOwner != State.m_OwnerUserID)
+		return;
+	const char *pLocalModHash = g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "none";
+	if(State.m_aTargetModHash[0] && str_comp(State.m_aTargetModHash, "none") && str_comp(State.m_aTargetModHash, pLocalModHash))
+	{
+		m_ConsumedPartyLaunchGeneration = State.m_LaunchGeneration;
+		SetJoinFailure("The party target requires a different Mod collection.");
+		return;
+	}
+	mem_zero(&m_PendingPartyLaunch, sizeof(m_PendingPartyLaunch));
+	m_PendingPartyLaunch.m_TargetType = State.m_TargetType;
+	m_PendingPartyLaunch.m_TargetLobbyID = State.m_TargetLobbyID;
+	m_PendingPartyLaunch.m_Generation = State.m_LaunchGeneration;
+	str_copy(m_PendingPartyLaunch.m_aTargetAddress, State.m_aTargetAddress, sizeof(m_PendingPartyLaunch.m_aTargetAddress));
+	str_copy(m_PendingPartyLaunch.m_aTargetModHash, State.m_aTargetModHash, sizeof(m_PendingPartyLaunch.m_aTargetModHash));
 }
 
 void CSteamPlatformServices::OnLobbyList(LobbyMatchList_t *pResult, bool IOError)
@@ -1282,11 +1605,44 @@ void CSteamPlatformServices::OnLobbyCreated(LobbyCreated_t *pResult, bool IOErro
 			return;
 		}
 		str_copy(m_aLobbyCreateFailure, LobbyCreateFailureKey(Result, IOError), sizeof(m_aLobbyCreateFailure));
-		m_ListenServerStopRequested = true;
+		if(!m_CreatingParty)
+			m_ListenServerStopRequested = true;
+		else
+			m_PendingPartyInviteUserID = 0;
+		m_OpenPartyInviteAfterCreate = false;
+		m_CreatingParty = false;
 		return;
 	}
 	m_LobbyCreateRetryAt = 0;
 	m_aLobbyCreateFailure[0] = 0;
+	if(m_CreatingParty)
+	{
+		m_CreatingParty = false;
+		m_PartyLobbyID = pResult->m_ulSteamIDLobby;
+		m_PartyOwnerID = LocalUserID();
+		m_ConsumedPartyLaunchGeneration = 0;
+		const CSteamID Lobby(m_PartyLobbyID);
+		SteamMatchmaking()->SetLobbyData(Lobby, "protocol", GAME_NETVERSION);
+		SteamMatchmaking()->SetLobbyData(Lobby, "room_type", "party");
+		SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "forming");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_type", "none");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_lobby", "0");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_address", "");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_mod_hash", "none");
+		SteamMatchmaking()->SetLobbyData(Lobby, "target_revision", "0");
+		SteamMatchmaking()->SetLobbyData(Lobby, "launch_generation", "0");
+		SteamMatchmaking()->SetLobbyData(Lobby, "launch_owner", "0");
+		SteamMatchmaking()->SetLobbyMemberData(Lobby, "ready_revision", "0");
+		if(m_PendingPartyInviteUserID)
+		{
+			SteamMatchmaking()->InviteUserToLobby(Lobby, CSteamID(m_PendingPartyInviteUserID));
+			m_PendingPartyInviteUserID = 0;
+		}
+		if(m_OpenPartyInviteAfterCreate && SteamFriends())
+			SteamFriends()->ActivateGameOverlayInviteDialog(Lobby);
+		m_OpenPartyInviteAfterCreate = false;
+		return;
+	}
 	m_CurrentLobbyID = pResult->m_ulSteamIDLobby;
 	m_HostedLobbyID = m_CurrentLobbyID;
 	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "protocol", GAME_NETVERSION);
@@ -1304,7 +1660,13 @@ void CSteamPlatformServices::OnLobbyCreated(LobbyCreated_t *pResult, bool IOErro
 	char aConnect[48];
 	str_format(aConnect, sizeof(aConnect), "steam:%s", aHostSteamID);
 	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "connect", aConnect);
-	str_format(m_aPendingJoin, sizeof(m_aPendingJoin), "127.0.0.1:%d", m_HostLocalPort);
+	if(m_PartyLobbyID)
+	{
+		SetPartyTarget(PLATFORM_PARTY_TARGET_GAME_LOBBY, m_CurrentLobbyID, "", g_Config.m_SvModHash[0] ? g_Config.m_SvModHash : "none");
+		SetPartyReady(true);
+	}
+	else
+		str_format(m_aPendingJoin, sizeof(m_aPendingJoin), "127.0.0.1:%d", m_HostLocalPort);
 	SteamFriends()->SetRichPresence("connect", aConnect);
 }
 
@@ -1314,6 +1676,25 @@ void CSteamPlatformServices::OnLobbyEntered(LobbyEnter_t *pResult, bool IOError)
 	if(IOError || !pResult || pResult->m_EChatRoomEnterResponse != k_EChatRoomEnterResponseSuccess)
 	{
 		SetJoinFailure("Steam rejected the room join request. Refresh rooms and try again.");
+		m_JoiningParty = false;
+		return;
+	}
+	if(m_JoiningParty)
+	{
+		m_JoiningParty = false;
+		const CSteamID Lobby(pResult->m_ulSteamIDLobby);
+		const char *pRoomType = SteamMatchmaking()->GetLobbyData(Lobby, "room_type");
+		const char *pProtocol = SteamMatchmaking()->GetLobbyData(Lobby, "protocol");
+		if(!pRoomType || str_comp(pRoomType, "party") || !pProtocol || str_comp(pProtocol, GAME_NETVERSION))
+		{
+			SteamMatchmaking()->LeaveLobby(Lobby);
+			SetJoinFailure("This party uses an incompatible game version.");
+			return;
+		}
+		m_PartyLobbyID = Lobby.ConvertToUint64();
+		m_PartyOwnerID = SteamMatchmaking()->GetLobbyOwner(Lobby).ConvertToUint64();
+		m_ConsumedPartyLaunchGeneration = (unsigned int)str_toint(SteamMatchmaking()->GetLobbyData(Lobby, "launch_generation"));
+		SteamMatchmaking()->SetLobbyMemberData(Lobby, "ready_revision", "0");
 		return;
 	}
 	m_CurrentLobbyID = pResult->m_ulSteamIDLobby;
