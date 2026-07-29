@@ -406,6 +406,7 @@ jobs:
           cmake -S SDL -B SDL/build -DCMAKE_BUILD_TYPE=Release
           sudo cmake --build SDL/build -j"$(nproc)"
           sudo cmake --install SDL/build
+          sudo ldconfig
 
       - name: Install SteamCMD and restore cached login
         shell: bash

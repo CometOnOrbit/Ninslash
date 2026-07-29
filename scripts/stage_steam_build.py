@@ -86,7 +86,10 @@ def copy_linux_runtime_dependencies(executable: Path, output: Path):
     for library in sorted(needed - LINUX_SYSTEM_LIBRARIES - {"libsteam_api.so"}):
         source = resolved.get(library)
         if not source or not source.is_file():
-            raise RuntimeError(f"unable to resolve Linux runtime library {library} for {executable}")
+            raise RuntimeError(
+                f"unable to resolve Linux runtime library {library} for {executable}\n"
+                f"ldd output:\n{linked.rstrip()}"
+            )
         copy_required(source.resolve(), output / library)
 
 
