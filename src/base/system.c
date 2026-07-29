@@ -188,7 +188,7 @@ static char windows_startup_directory[1024];
 static int windows_startup_recovery;
 
 typedef BOOL (WINAPI *MINIDUMP_WRITE_DUMP)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
-	const MINIDUMP_EXCEPTION_INFORMATION *, const MINIDUMP_USER_STREAM_INFORMATION *, const MINIDUMP_CALLBACK_INFORMATION *);
+		const MINIDUMP_EXCEPTION_INFORMATION *, const MINIDUMP_USER_STREAM_INFORMATION *, const MINIDUMP_CALLBACK_INFORMATION *);
 
 static LONG WINAPI windows_unhandled_exception_filter(EXCEPTION_POINTERS *exception)
 {
@@ -236,12 +236,12 @@ static LONG WINAPI windows_unhandled_exception_filter(EXCEPTION_POINTERS *except
 		_snprintf(text, sizeof(text),
 			"Ninslash unhandled exception\r\n"
 			"code=0x%08lx\r\naddress=%p\r\n"
-			"module=%s\r\nmodule_offset=0x%I64x\r\n"
-			"access_type=%s\r\naccess_address=0x%I64x\r\n"
+			"module=%s\r\nmodule_offset=%p\r\n"
+			"access_type=%s\r\naccess_address=%p\r\n"
 			"startup_log=%s\r\n",
 			record ? record->ExceptionCode : 0,
 			record ? record->ExceptionAddress : NULL,
-			module_path, module_offset, access_type, access_address,
+			module_path, (void *)(ULONG_PTR)module_offset, access_type, (void *)(ULONG_PTR)access_address,
 			windows_startup_log);
 		text[sizeof(text) - 1] = 0;
 		WriteFile(file, text, (DWORD)strlen(text), &written, NULL);
