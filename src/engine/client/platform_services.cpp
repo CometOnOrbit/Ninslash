@@ -85,15 +85,17 @@ class CSteamRelayTransport : public INetPacketTransport
 		lock_wait(m_Lock);
 		if(m_ListenSocket != k_HSteamListenSocket_Invalid && pStatus->m_info.m_eState == k_ESteamNetworkingConnectionState_Connecting && pStatus->m_info.m_hListenSocket == m_ListenSocket)
 		{
+			const unsigned long long RemoteSteamID = pStatus->m_info.m_identityRemote.GetSteamID64();
 			const int Peer = FreePeer();
-			if(Peer < 0 || SteamNetworkingSockets()->AcceptConnection(pStatus->m_hConn) != k_EResultOK)
+			const CSteamID RemoteUser(RemoteSteamID);
+			if(!RemoteUser.IsValid() || !RemoteUser.BIndividualAccount() || FindPeer(RemoteSteamID) >= 0 || Peer < 0 || SteamNetworkingSockets()->AcceptConnection(pStatus->m_hConn) != k_EResultOK)
 			{
 				SteamNetworkingSockets()->CloseConnection(pStatus->m_hConn, 0, "relay busy", false);
 				lock_unlock(m_Lock);
 				return;
 			}
 			m_aPeers[Peer].m_Connection = pStatus->m_hConn;
-			m_aPeers[Peer].m_SteamID = pStatus->m_info.m_identityRemote.GetSteamID64();
+			m_aPeers[Peer].m_SteamID = RemoteSteamID;
 		}
 		else if(pStatus->m_info.m_eState == k_ESteamNetworkingConnectionState_ClosedByPeer || pStatus->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally)
 		{
@@ -136,7 +138,8 @@ public:
 
 	bool ConnectPeer(unsigned long long PeerID)
 	{
-		if(!PeerID || !SteamNetworkingSockets())
+		const CSteamID PeerUser(PeerID);
+		if(!PeerUser.IsValid() || !PeerUser.BIndividualAccount() || !SteamNetworkingSockets())
 			return false;
 		lock_wait(m_Lock);
 		if(FindPeer(PeerID) >= 0) { lock_unlock(m_Lock); return true; }
@@ -252,6 +255,7 @@ public:
 	}
 	virtual bool ConsumeJoinFailure(char *pBuffer, int BufferSize) { if(pBuffer && BufferSize > 0) pBuffer[0] = 0; return false; }
 	virtual void CloudStatus(CPlatformCloudStatus *pStatus) const { if(pStatus) mem_zero(pStatus, sizeof(*pStatus)); }
+	virtual bool CloudFileExists(const char *pFilename) const { (void)pFilename; return false; }
 	virtual int CloudFileSize(const char *pFilename) const { (void)pFilename; return -1; }
 	virtual long long CloudFileTimestamp(const char *pFilename) const { (void)pFilename; return 0; }
 	virtual int CloudReadFile(const char *pFilename, void *pBuffer, int BufferSize) { (void)pFilename; (void)pBuffer; (void)BufferSize; return -1; }
@@ -367,6 +371,8 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	CPlatformEventQueue m_EventQueue;
 	int m_ActiveLeaderboardEvent;
 	int m_ActiveLeaderboardValue;
+	bool m_StatsStorePending;
+	bool m_StatsStoreDirty;
 	int64 m_NextEventRetry;
 	CPlatformLeaderboardEntry m_aCommunityEntries[100];
 	int m_CommunityEntryCount;
@@ -378,6 +384,8 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	CPlatformLeaderboardResult m_CommunityResult;
 	CPlatformWorkshopItem m_aWorkshopItems[256];
 	int m_WorkshopItemCount;
+	UGCQueryHandle_t m_WorkshopMetadataQueryHandle;
+	bool m_WorkshopMetadataQueryPending;
 	CPlatformWorkshopItem m_aWorkshopQueryItems[50];
 	int m_WorkshopQueryItemCount;
 	UGCQueryHandle_t m_WorkshopQueryHandle;
@@ -387,6 +395,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	CPlatformWorkshopQueryResult m_WorkshopQueryResult;
 	struct CWorkshopPreviewRequest
 	{
+		CCallResult<CSteamPlatformServices, HTTPRequestCompleted_t> m_Call;
 		HTTPRequestHandle m_Handle;
 		unsigned m_OperationID;
 		unsigned long long m_PublishedFileID;
@@ -437,12 +446,19 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	void OnLobbyCreated(LobbyCreated_t *pResult, bool IOError);
 	void OnLobbyEntered(LobbyEnter_t *pResult, bool IOError);
 	void OnLobbyList(LobbyMatchList_t *pResult, bool IOError);
-	void OnWorkshopDownloaded(DownloadItemResult_t *pResult) { if(pResult && pResult->m_unAppID == STEAM_APP_ID) RefreshWorkshopItems(); }
+	void OnWorkshopDownloaded(DownloadItemResult_t *pResult);
+	void OnWorkshopSubscribed(RemoteStoragePublishedFileSubscribed_t *pResult) { if(pResult && pResult->m_nAppID == STEAM_APP_ID) RefreshWorkshopItems(); }
+	void OnWorkshopUnsubscribed(RemoteStoragePublishedFileUnsubscribed_t *pResult) { if(pResult && pResult->m_nAppID == STEAM_APP_ID) RefreshWorkshopItems(); }
+	void OnWorkshopDeleted(RemoteStoragePublishedFileDeleted_t *pResult) { if(pResult && pResult->m_nAppID == STEAM_APP_ID) RefreshWorkshopItems(); }
 	void OnWorkshopCreated(CreateItemResult_t *pResult, bool IOError);
 	void OnWorkshopSubmitted(SubmitItemUpdateResult_t *pResult, bool IOError);
+	void OnWorkshopMetadataQuery(SteamUGCQueryCompleted_t *pResult, bool IOError);
 	void OnWorkshopQuery(SteamUGCQueryCompleted_t *pResult, bool IOError);
-	void OnWorkshopPreviewDownloaded(HTTPRequestCompleted_t *pResult);
+	void OnWorkshopPreviewDownloaded(HTTPRequestCompleted_t *pResult, bool IOError);
 	void OnScreenshotReady(ScreenshotReady_t *pResult);
+	void OnInputDeviceConnected(SteamInputDeviceConnected_t *pResult) { (void)pResult; m_GlyphController = 0; mem_zero(m_aaInputGlyphs, sizeof(m_aaInputGlyphs)); }
+	void OnInputDeviceDisconnected(SteamInputDeviceDisconnected_t *pResult) { (void)pResult; m_GlyphController = 0; mem_zero(m_aaInputGlyphs, sizeof(m_aaInputGlyphs)); }
+	void OnInputConfigurationLoaded(SteamInputConfigurationLoaded_t *pResult) { if(pResult && pResult->m_unAppID == STEAM_APP_ID) { m_GlyphController = 0; mem_zero(m_aaInputGlyphs, sizeof(m_aaInputGlyphs)); } }
 	void ServerResponded(HServerListRequest Request, int ServerIndex)
 	{
 		if(Request != m_DedicatedServerRequest || !SteamMatchmakingServers()) return;
@@ -462,7 +478,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	}
 	void SetJoinFailure(const char *pReason)
 	{
-		str_copy(m_aJoinFailure, pReason ? pReason : "Unable to join Steam Lobby", sizeof(m_aJoinFailure));
+		str_copy(m_aJoinFailure, pReason ? pReason : "Unable to join the Steam room", sizeof(m_aJoinFailure));
 		m_aPendingJoin[0] = 0;
 	}
 	static bool LobbyCreateFailureIsTransient(EResult Result, bool IOError)
@@ -502,6 +518,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	{
 		if(!SteamInput() || !SteamInput()->Init(false))
 			return false;
+		SteamInput()->EnableDeviceCallbacks();
 		// Production action manifests and official layouts are distributed by the
 		// Steam backend. SetInputActionManifestFilePath is a development override
 		// for manifests that also bundle local configuration VDFs; pointing it at
@@ -560,13 +577,20 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	CCallback<CSteamPlatformServices, LobbyChatUpdate_t> m_LobbyMembersChangedCallback;
 	CCallback<CSteamPlatformServices, LobbyDataUpdate_t> m_LobbyDataUpdatedCallback;
 	CCallback<CSteamPlatformServices, DownloadItemResult_t> m_WorkshopDownloadedCallback;
-	CCallback<CSteamPlatformServices, HTTPRequestCompleted_t> m_WorkshopPreviewDownloadedCallback;
+	CCallback<CSteamPlatformServices, RemoteStoragePublishedFileSubscribed_t> m_WorkshopSubscribedCallback;
+	CCallback<CSteamPlatformServices, RemoteStoragePublishedFileUnsubscribed_t> m_WorkshopUnsubscribedCallback;
+	CCallback<CSteamPlatformServices, RemoteStoragePublishedFileDeleted_t> m_WorkshopDeletedCallback;
 	CCallback<CSteamPlatformServices, ScreenshotReady_t> m_ScreenshotReadyCallback;
+	CCallback<CSteamPlatformServices, SteamInputDeviceConnected_t> m_InputDeviceConnectedCallback;
+	CCallback<CSteamPlatformServices, SteamInputDeviceDisconnected_t> m_InputDeviceDisconnectedCallback;
+	CCallback<CSteamPlatformServices, SteamInputConfigurationLoaded_t> m_InputConfigurationLoadedCallback;
+	CCallback<CSteamPlatformServices, UserStatsStored_t> m_UserStatsStoredCallback;
 	CCallResult<CSteamPlatformServices, LobbyCreated_t> m_LobbyCreatedCall;
 	CCallResult<CSteamPlatformServices, LobbyEnter_t> m_LobbyEnteredCall;
 	CCallResult<CSteamPlatformServices, LobbyMatchList_t> m_LobbyListCall;
 	CCallResult<CSteamPlatformServices, CreateItemResult_t> m_WorkshopCreatedCall;
 	CCallResult<CSteamPlatformServices, SubmitItemUpdateResult_t> m_WorkshopSubmittedCall;
+	CCallResult<CSteamPlatformServices, SteamUGCQueryCompleted_t> m_WorkshopMetadataQueryCall;
 	CCallResult<CSteamPlatformServices, SteamUGCQueryCompleted_t> m_WorkshopQueryCall;
 	CCallResult<CSteamPlatformServices, LeaderboardFindResult_t> m_LeaderboardFoundCall;
 	CCallResult<CSteamPlatformServices, LeaderboardScoreUploaded_t> m_LeaderboardUploadedCall;
@@ -603,18 +627,25 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	void OnCommunityFound(LeaderboardFindResult_t *pResult, bool IOError);
 	void OnCommunityUploaded(LeaderboardScoreUploaded_t *pResult, bool IOError);
 	void OnCommunityDownloaded(LeaderboardScoresDownloaded_t *pResult, bool IOError);
+	void OnUserStatsStored(UserStatsStored_t *pResult);
 
 public:
 	CSteamPlatformServices() :
-		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PartyLobbyID(0), m_PartyOwnerID(0), m_PendingPartyInviteUserID(0), m_CreatingParty(false), m_JoiningParty(false), m_OpenPartyInviteAfterCreate(false), m_ConsumedPartyLaunchGeneration(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_HostLocalPort(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyCreateType(k_ELobbyTypeFriendsOnly), m_LobbyCreateMaxMembers(0), m_LobbyCreateRetries(0), m_LobbyCreateRetryAt(0), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_NextEventRetry(0), m_CommunityEntryCount(0), m_CommunityOperationID(0), m_CommunityOperation(0), m_CommunityScore(0), m_CommunityScope(PLATFORM_LEADERBOARD_GLOBAL), m_CommunityResultReady(false), m_WorkshopItemCount(0), m_WorkshopQueryItemCount(0), m_WorkshopQueryHandle(k_UGCQueryHandleInvalid), m_WorkshopQueryOperationID(0), m_WorkshopQueryPending(false), m_WorkshopQueryResultReady(false), m_WorkshopPreviewRequestCount(0), m_WorkshopPreviewResultCount(0), m_WorkshopPreviewOperationID(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_GlyphController(0), m_PendingScreenshotCount(0), m_TimelineDedupeCount(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
+		m_Initialized(false), m_ExitRequested(false), m_SteamInputInitialized(false), m_CurrentLobbyID(0), m_PartyLobbyID(0), m_PartyOwnerID(0), m_PendingPartyInviteUserID(0), m_CreatingParty(false), m_JoiningParty(false), m_OpenPartyInviteAfterCreate(false), m_ConsumedPartyLaunchGeneration(0), m_PendingLobbyJoinID(0), m_HostedLobbyID(0), m_HostLocalPort(0), m_ListenServerStopRequested(false), m_LobbyCreatePending(false), m_LobbyCreateType(k_ELobbyTypeFriendsOnly), m_LobbyCreateMaxMembers(0), m_LobbyCreateRetries(0), m_LobbyCreateRetryAt(0), m_LobbyRefreshPending(false), m_LobbyJoinPending(false), m_pStorage(0), m_ActiveLeaderboardEvent(-1), m_ActiveLeaderboardValue(0), m_StatsStorePending(false), m_StatsStoreDirty(false), m_NextEventRetry(0), m_CommunityEntryCount(0), m_CommunityOperationID(0), m_CommunityOperation(0), m_CommunityScore(0), m_CommunityScope(PLATFORM_LEADERBOARD_GLOBAL), m_CommunityResultReady(false), m_WorkshopItemCount(0), m_WorkshopMetadataQueryHandle(k_UGCQueryHandleInvalid), m_WorkshopMetadataQueryPending(false), m_WorkshopQueryItemCount(0), m_WorkshopQueryHandle(k_UGCQueryHandleInvalid), m_WorkshopQueryOperationID(0), m_WorkshopQueryPending(false), m_WorkshopQueryResultReady(false), m_WorkshopPreviewRequestCount(0), m_WorkshopPreviewResultCount(0), m_WorkshopPreviewOperationID(0), m_LobbyCount(0), m_WorkshopUpdateHandle(k_UGCUpdateHandleInvalid), m_DedicatedServerRequest(0), m_InputActionSet(PLATFORM_INPUT_MENU), m_MoveAction(0), m_AimAction(0), m_GlyphController(0), m_PendingScreenshotCount(0), m_TimelineDedupeCount(0), m_AuthTicketSize(0), m_AuthTicketHandle(k_HAuthTicketInvalid), m_AuthTicketState(0),
 		m_JoinRequestedCallback(this, &CSteamPlatformServices::OnJoinRequested),
 		m_AuthTicketCallback(this, &CSteamPlatformServices::OnAuthTicketResponse),
 		m_LobbyJoinRequestedCallback(this, &CSteamPlatformServices::OnLobbyJoinRequested),
 		m_LobbyMembersChangedCallback(this, &CSteamPlatformServices::OnLobbyMembersChanged),
 		m_LobbyDataUpdatedCallback(this, &CSteamPlatformServices::OnLobbyDataUpdated),
 		m_WorkshopDownloadedCallback(this, &CSteamPlatformServices::OnWorkshopDownloaded),
-		m_WorkshopPreviewDownloadedCallback(this, &CSteamPlatformServices::OnWorkshopPreviewDownloaded),
-		m_ScreenshotReadyCallback(this, &CSteamPlatformServices::OnScreenshotReady)
+		m_WorkshopSubscribedCallback(this, &CSteamPlatformServices::OnWorkshopSubscribed),
+		m_WorkshopUnsubscribedCallback(this, &CSteamPlatformServices::OnWorkshopUnsubscribed),
+		m_WorkshopDeletedCallback(this, &CSteamPlatformServices::OnWorkshopDeleted),
+		m_ScreenshotReadyCallback(this, &CSteamPlatformServices::OnScreenshotReady),
+		m_InputDeviceConnectedCallback(this, &CSteamPlatformServices::OnInputDeviceConnected),
+		m_InputDeviceDisconnectedCallback(this, &CSteamPlatformServices::OnInputDeviceDisconnected),
+		m_InputConfigurationLoadedCallback(this, &CSteamPlatformServices::OnInputConfigurationLoaded),
+		m_UserStatsStoredCallback(this, &CSteamPlatformServices::OnUserStatsStored)
 	{
 		m_aPendingJoin[0] = 0;
 		m_aJoinFailure[0] = 0;
@@ -628,7 +659,13 @@ public:
 		mem_zero(m_aTimelineDedupe, sizeof(m_aTimelineDedupe));
 		mem_zero(&m_WorkshopPublish, sizeof(m_WorkshopPublish));
 		mem_zero(&m_WorkshopQueryResult, sizeof(m_WorkshopQueryResult));
-		mem_zero(m_aWorkshopPreviewRequests, sizeof(m_aWorkshopPreviewRequests));
+		for(int i = 0; i < 4; i++)
+		{
+			m_aWorkshopPreviewRequests[i].m_Handle = INVALID_HTTPREQUEST_HANDLE;
+			m_aWorkshopPreviewRequests[i].m_OperationID = 0;
+			m_aWorkshopPreviewRequests[i].m_PublishedFileID = 0;
+			m_aWorkshopPreviewRequests[i].m_UpdatedAt = 0;
+		}
 		mem_zero(m_aWorkshopPreviewResults, sizeof(m_aWorkshopPreviewResults));
 		mem_zero(&m_CommunityResult, sizeof(m_CommunityResult));
 	}
@@ -674,6 +711,10 @@ public:
 			return false;
 		}
 		dbg_msg("steam", "initialized for user %llu", LocalUserID());
+		// Prime SDR authentication and routing before the user creates or joins a
+		// relay-backed room. Without this, the first connection pays the entire
+		// relay initialization cost and can time out while the room UI is waiting.
+		SteamNetworkingUtils()->InitRelayNetworkAccess();
 		m_SteamInputInitialized = InitSteamInput();
 		RefreshWorkshopItems();
 		// Recent Steamworks SDKs populate local-user stats automatically; older
@@ -691,12 +732,19 @@ public:
 		m_LobbyListCall.Cancel();
 		m_WorkshopCreatedCall.Cancel();
 		m_WorkshopSubmittedCall.Cancel();
+		m_WorkshopMetadataQueryCall.Cancel();
+		if(m_WorkshopMetadataQueryHandle != k_UGCQueryHandleInvalid && SteamUGC()) SteamUGC()->ReleaseQueryUGCRequest(m_WorkshopMetadataQueryHandle);
+		m_WorkshopMetadataQueryHandle = k_UGCQueryHandleInvalid; m_WorkshopMetadataQueryPending = false;
 		m_WorkshopQueryCall.Cancel();
 		if(m_WorkshopQueryHandle != k_UGCQueryHandleInvalid && SteamUGC()) SteamUGC()->ReleaseQueryUGCRequest(m_WorkshopQueryHandle);
 		m_WorkshopQueryHandle = k_UGCQueryHandleInvalid; m_WorkshopQueryPending = false; m_WorkshopQueryResultReady = false;
-		if(SteamHTTP())
-			for(int i = 0; i < m_WorkshopPreviewRequestCount; i++)
+		for(int i = 0; i < 4; i++)
+		{
+			m_aWorkshopPreviewRequests[i].m_Call.Cancel();
+			if(m_aWorkshopPreviewRequests[i].m_Handle != INVALID_HTTPREQUEST_HANDLE && SteamHTTP())
 				SteamHTTP()->ReleaseHTTPRequest(m_aWorkshopPreviewRequests[i].m_Handle);
+			m_aWorkshopPreviewRequests[i].m_Handle = INVALID_HTTPREQUEST_HANDLE;
+		}
 		m_WorkshopPreviewRequestCount = 0; m_WorkshopPreviewResultCount = 0;
 		if(m_DedicatedServerRequest && SteamMatchmakingServers())
 		{
@@ -710,13 +758,29 @@ public:
 		m_LeaderboardUploadedCall.Cancel();
 		m_CommunityFoundCall.Cancel(); m_CommunityUploadedCall.Cancel(); m_CommunityDownloadedCall.Cancel(); m_CommunityOperation = 0; m_CommunityResultReady = false;
 		m_ActiveLeaderboardEvent = -1;
+		m_StatsStorePending = false;
+		m_StatsStoreDirty = false;
 		m_LobbyCreatePending = false;
+		m_LobbyRefreshPending = false;
+		m_LobbyJoinPending = false;
 		if(SteamFriends())
 			SteamFriends()->ClearRichPresence();
 		if(m_CurrentLobbyID && SteamMatchmaking())
 			SteamMatchmaking()->LeaveLobby(CSteamID(m_CurrentLobbyID));
 		if(m_PartyLobbyID && m_PartyLobbyID != m_CurrentLobbyID && SteamMatchmaking())
 			SteamMatchmaking()->LeaveLobby(CSteamID(m_PartyLobbyID));
+		m_CurrentLobbyID = 0;
+		m_HostedLobbyID = 0;
+		m_PendingLobbyJoinID = 0;
+		m_PartyLobbyID = 0;
+		m_PartyOwnerID = 0;
+		m_CreatingParty = false;
+		m_JoiningParty = false;
+		m_OpenPartyInviteAfterCreate = false;
+		m_RelayTransport.ClosePeer();
+		m_RelayTransport.CloseListen();
+		m_RelayListenTransport.ClosePeer();
+		m_RelayListenTransport.CloseListen();
 		if(m_SteamInputInitialized && SteamInput())
 			SteamInput()->Shutdown();
 		m_SteamInputInitialized = false;
@@ -782,6 +846,11 @@ public:
 		if(!m_Initialized || !SteamRemoteStorage() || !pFilename || !pFilename[0])
 			return -1;
 		return SteamRemoteStorage()->GetFileSize(pFilename);
+	}
+
+	virtual bool CloudFileExists(const char *pFilename) const
+	{
+		return m_Initialized && SteamRemoteStorage() && pFilename && pFilename[0] && SteamRemoteStorage()->FileExists(pFilename);
 	}
 
 	virtual long long CloudFileTimestamp(const char *pFilename) const
@@ -901,9 +970,9 @@ public:
 	virtual void SetScreenshotContext(const CPlatformScreenshotContext &Context) { m_ScreenshotContext = Context; }
 	virtual bool RegisterScreenshot(const char *pAbsolutePath, int Width, int Height, const CPlatformScreenshotContext &Context)
 	{
-		if(!m_Initialized || !SteamScreenshots() || !pAbsolutePath || !pAbsolutePath[0] || Width <= 0 || Height <= 0 || !Context.m_SyncToSteam) return false;
+		if(!m_Initialized || !SteamScreenshots() || !pAbsolutePath || !pAbsolutePath[0] || Width <= 0 || Height <= 0 || !Context.m_SyncToSteam || m_PendingScreenshotCount >= 16) return false;
 		const ScreenshotHandle Handle = SteamScreenshots()->AddScreenshotToLibrary(pAbsolutePath, 0, Width, Height);
-		if(Handle == INVALID_SCREENSHOT_HANDLE || m_PendingScreenshotCount >= 16) return false;
+		if(Handle == INVALID_SCREENSHOT_HANDLE) return false;
 		m_aPendingScreenshots[m_PendingScreenshotCount].m_Handle = Handle; m_aPendingScreenshots[m_PendingScreenshotCount].m_Context = Context; m_PendingScreenshotCount++;
 		return true;
 	}
@@ -944,9 +1013,15 @@ public:
 	{
 		if(!m_Initialized || !SteamMatchmaking() || !LobbyID || m_PartyLobbyID || m_LobbyJoinPending)
 			return false;
+		const SteamAPICall_t Call = SteamMatchmaking()->JoinLobby(CSteamID(LobbyID));
+		if(Call == k_uAPICallInvalid)
+		{
+			SetJoinFailure("Steam could not start joining the party. Restart Steam and retry.");
+			return false;
+		}
 		m_JoiningParty = true;
 		m_LobbyJoinPending = true;
-		m_LobbyEnteredCall.Set(SteamMatchmaking()->JoinLobby(CSteamID(LobbyID)), this, &CSteamPlatformServices::OnLobbyEntered);
+		m_LobbyEnteredCall.Set(Call, this, &CSteamPlatformServices::OnLobbyEntered);
 		return true;
 	}
 	virtual void LeaveParty()
@@ -1064,15 +1139,15 @@ public:
 		const CSteamID Lobby(m_PartyLobbyID);
 		char aNumber[32];
 		str_format(aNumber, sizeof(aNumber), "%d", max(1, State.m_TargetRevision + 1));
-		SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "ready_check");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_type", TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY ? "game_lobby" : "address");
+		bool Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_type", TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY ? "game_lobby" : "address");
 		char aLobby[32]; str_format(aLobby, sizeof(aLobby), "%llu", TargetLobbyID);
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_lobby", TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY ? aLobby : "0");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_address", TargetType == PLATFORM_PARTY_TARGET_ADDRESS ? pAddress : "");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_mod_hash", pModHash && pModHash[0] ? pModHash : "none");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_revision", aNumber);
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_lobby", TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY ? aLobby : "0") && Updated;
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_address", TargetType == PLATFORM_PARTY_TARGET_ADDRESS ? pAddress : "") && Updated;
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_mod_hash", pModHash && pModHash[0] ? pModHash : "none") && Updated;
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_revision", aNumber) && Updated;
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "ready_check") && Updated;
 		SteamMatchmaking()->SetLobbyMemberData(Lobby, "ready_revision", "0");
-		return true;
+		return Updated;
 	}
 	virtual bool ClearPartyTarget()
 	{
@@ -1081,13 +1156,13 @@ public:
 			return false;
 		const CSteamID Lobby(m_PartyLobbyID);
 		char aRevision[16]; str_format(aRevision, sizeof(aRevision), "%d", max(1, State.m_TargetRevision + 1));
-		SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "forming");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_type", "none");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_lobby", "0");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_address", "");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_mod_hash", "none");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_revision", aRevision);
-		return true;
+		bool Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_type", "none");
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_lobby", "0") && Updated;
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_address", "") && Updated;
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_mod_hash", "none") && Updated;
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "target_revision", aRevision) && Updated;
+		Updated = SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "forming") && Updated;
+		return Updated;
 	}
 	virtual bool LaunchParty(bool Force)
 	{
@@ -1164,8 +1239,14 @@ public:
 			m_HostedLobbyID = 0;
 		}
 		m_JoiningParty = false;
+		const SteamAPICall_t Call = SteamMatchmaking()->JoinLobby(CSteamID(LobbyID));
+		if(Call == k_uAPICallInvalid)
+		{
+			SetJoinFailure("Steam could not start joining the room. Restart Steam and retry.");
+			return false;
+		}
 		m_LobbyJoinPending = true;
-		m_LobbyEnteredCall.Set(SteamMatchmaking()->JoinLobby(CSteamID(LobbyID)), this, &CSteamPlatformServices::OnLobbyEntered);
+		m_LobbyEnteredCall.Set(Call, this, &CSteamPlatformServices::OnLobbyEntered);
 		return true;
 	}
 	virtual void LeaveLobby()
@@ -1343,11 +1424,17 @@ public:
 	{
 		if(!m_Initialized || !SteamMatchmaking()) return false;
 		m_LobbyCount = 0;
-		m_LobbyRefreshPending = true;
 		SteamMatchmaking()->AddRequestLobbyListStringFilter("protocol", GAME_NETVERSION, k_ELobbyComparisonEqual);
 		SteamMatchmaking()->AddRequestLobbyListStringFilter("room_type", "steam_listen", k_ELobbyComparisonEqual);
 		SteamMatchmaking()->AddRequestLobbyListResultCountFilter(128);
-		m_LobbyListCall.Set(SteamMatchmaking()->RequestLobbyList(), this, &CSteamPlatformServices::OnLobbyList);
+		const SteamAPICall_t Call = SteamMatchmaking()->RequestLobbyList();
+		if(Call == k_uAPICallInvalid)
+		{
+			m_LobbyRefreshPending = false;
+			return false;
+		}
+		m_LobbyRefreshPending = true;
+		m_LobbyListCall.Set(Call, this, &CSteamPlatformServices::OnLobbyList);
 		return true;
 	}
 	virtual bool RefreshDedicatedServerList()
@@ -1433,27 +1520,50 @@ public:
 		{
 			CPlatformWorkshopItem &Item=m_aWorkshopItems[m_WorkshopItemCount++];mem_zero(&Item,sizeof(Item));Item.m_PublishedFileID=aIDs[i];Item.m_State=SteamUGC()->GetItemState(aIDs[i]);
 			uint64 Downloaded=0,Total=0;SteamUGC()->GetItemDownloadInfo(aIDs[i],&Downloaded,&Total);Item.m_Downloaded=Downloaded;Item.m_Total=Total;
-			if((Item.m_State & k_EItemStateNeedsUpdate) || !(Item.m_State & k_EItemStateInstalled)) { SteamUGC()->DownloadItem(aIDs[i],false); str_copy(Item.m_aError,"download or update required",sizeof(Item.m_aError)); continue; }
+			if((Item.m_State & k_EItemStateNeedsUpdate) || !(Item.m_State & k_EItemStateInstalled)) { const bool Requested = SteamUGC()->DownloadItem(aIDs[i],false); if(Requested) Item.m_State |= k_EItemStateDownloadPending; else str_copy(Item.m_aError,"Steam could not start the Workshop download",sizeof(Item.m_aError)); continue; }
 			uint64 Size=0;uint32 Timestamp=0;char aSteamInstallPath[1024];if(!SteamUGC()->GetItemInstallInfo(aIDs[i],&Size,aSteamInstallPath,sizeof(aSteamInstallPath),&Timestamp)){str_copy(Item.m_aError,"install directory unavailable",sizeof(Item.m_aError));continue;}
 			char aID[32];str_format(aID,sizeof(aID),"%llu",(unsigned long long)aIDs[i]);CContentManifest Manifest;
 			if(!aWorkshopRoot[0] || !ContentPackageStage(aSteamInstallPath,aWorkshopRoot,aID,GAME_NETVERSION,&Manifest,Item.m_aInstallPath,sizeof(Item.m_aInstallPath),Item.m_aError,sizeof(Item.m_aError)))continue;
 			Item.m_Valid=true; Item.m_ContentType=Manifest.m_ContentType; str_copy(Item.m_aName,Manifest.m_aName,sizeof(Item.m_aName)); str_copy(Item.m_aDescription,Manifest.m_aDescription,sizeof(Item.m_aDescription)); str_copy(Item.m_aAuthor,Manifest.m_aAuthor,sizeof(Item.m_aAuthor)); str_copy(Item.m_aVersion,Manifest.m_aVersion,sizeof(Item.m_aVersion)); str_copy(Item.m_aTargetProtocol,Manifest.m_aTargetProtocol,sizeof(Item.m_aTargetProtocol)); str_copy(Item.m_aContentHash,Manifest.m_aContentHash,sizeof(Item.m_aContentHash)); str_copy(Item.m_aContentRating,Manifest.m_aContentRating,sizeof(Item.m_aContentRating));
-			if(Manifest.m_ContentType==CONTENT_TYPE_MOD && !m_ModCollection.AddManifest(Manifest,Item.m_aInstallPath,Item.m_aError,sizeof(Item.m_aError)))Item.m_Valid=false;
+			if(Manifest.m_ContentType==CONTENT_TYPE_MOD && !(Item.m_State & k_EItemStateDisabledLocally) && !m_ModCollection.AddManifest(Manifest,Item.m_aInstallPath,Item.m_aError,sizeof(Item.m_aError)))Item.m_Valid=false;
 		}
 		const char *apRoots[64];char aaRoots[64][32];int RootCount=0;const char *p=g_Config.m_ClModIds;
 		while(*p&&RootCount<64){int N=0;while(p[N]&&p[N]!=','&&N<31){aaRoots[RootCount][N]=p[N];N++;}aaRoots[RootCount][N]=0;if(N){apRoots[RootCount]=aaRoots[RootCount];RootCount++;}p+=N;if(*p==',')p++;else if(*p)break;}
 		if(!RootCount) g_Config.m_ClModHash[0]=0;
-		else {int aOrder[64],OrderCount=0;char aError[256];if(!m_ModCollection.Resolve(apRoots,RootCount,aOrder,&OrderCount,g_Config.m_ClModHash,aError,sizeof(aError)))g_Config.m_ClModHash[0]=0;}
-		if(Count > 0 && !m_WorkshopQueryPending)
+		else
 		{
-			m_WorkshopQueryHandle = SteamUGC()->CreateQueryUGCDetailsRequest(aIDs, min(Count, (uint32)50));
-			bool QueryStarted = false;
-			if(m_WorkshopQueryHandle != k_UGCQueryHandleInvalid && SteamUGC()->SetReturnMetadata(m_WorkshopQueryHandle, true) && SteamUGC()->SetReturnLongDescription(m_WorkshopQueryHandle, true))
+			int aOrder[64], OrderCount = 0; char aError[256];
+			if(!m_ModCollection.Resolve(apRoots, RootCount, aOrder, &OrderCount, g_Config.m_ClModHash, aError, sizeof(aError)))
 			{
-				const SteamAPICall_t Call = SteamUGC()->SendQueryUGCRequest(m_WorkshopQueryHandle);
-				if(Call != k_uAPICallInvalid) { mem_zero(&m_WorkshopQueryResult, sizeof(m_WorkshopQueryResult)); m_WorkshopQueryResult.m_OperationID = ++m_WorkshopQueryOperationID; m_WorkshopQueryPending = true; m_WorkshopQueryResultReady = false; m_WorkshopQueryCall.Set(Call, this, &CSteamPlatformServices::OnWorkshopQuery); QueryStarted = true; }
+				g_Config.m_ClModHash[0] = 0;
+				for(int Root = 0; Root < RootCount; Root++)
+					for(int ItemIndex = 0; ItemIndex < m_WorkshopItemCount; ItemIndex++)
+					{
+						char aID[32]; str_format(aID, sizeof(aID), "%llu", m_aWorkshopItems[ItemIndex].m_PublishedFileID);
+						if(str_comp(aID, apRoots[Root]) == 0)
+						{
+							m_aWorkshopItems[ItemIndex].m_Valid = false;
+							str_copy(m_aWorkshopItems[ItemIndex].m_aError, aError, sizeof(m_aWorkshopItems[ItemIndex].m_aError));
+							break;
+						}
+					}
 			}
-			if(!QueryStarted && m_WorkshopQueryHandle != k_UGCQueryHandleInvalid) { SteamUGC()->ReleaseQueryUGCRequest(m_WorkshopQueryHandle); m_WorkshopQueryHandle = k_UGCQueryHandleInvalid; }
+		}
+		if(Count > 0 && !m_WorkshopMetadataQueryPending)
+		{
+			m_WorkshopMetadataQueryHandle = SteamUGC()->CreateQueryUGCDetailsRequest(aIDs, min(Count, (uint32)50));
+			bool QueryStarted = false;
+			if(m_WorkshopMetadataQueryHandle != k_UGCQueryHandleInvalid && SteamUGC()->SetReturnMetadata(m_WorkshopMetadataQueryHandle, true) && SteamUGC()->SetReturnLongDescription(m_WorkshopMetadataQueryHandle, true))
+			{
+				const SteamAPICall_t Call = SteamUGC()->SendQueryUGCRequest(m_WorkshopMetadataQueryHandle);
+				if(Call != k_uAPICallInvalid)
+				{
+					m_WorkshopMetadataQueryPending = true;
+					m_WorkshopMetadataQueryCall.Set(Call, this, &CSteamPlatformServices::OnWorkshopMetadataQuery);
+					QueryStarted = true;
+				}
+			}
+			if(!QueryStarted && m_WorkshopMetadataQueryHandle != k_UGCQueryHandleInvalid) { SteamUGC()->ReleaseQueryUGCRequest(m_WorkshopMetadataQueryHandle); m_WorkshopMetadataQueryHandle = k_UGCQueryHandleInvalid; }
 		}
 		return m_WorkshopItemCount;
 	}
@@ -1464,7 +1574,28 @@ public:
 		if(!m_Initialized||!SteamUGC()||!ID)return false;
 		PublishedFileId_t FileID=(PublishedFileId_t)ID;
 		const bool Result=SteamUGC()->SetItemsDisabledLocally(&FileID,1,Disabled);
-		if(Result)RefreshWorkshopItems();
+		if(Result)
+		{
+			if(Disabled && g_Config.m_ClModIds[0])
+			{
+				char aRemaining[sizeof(g_Config.m_ClModIds)]; aRemaining[0] = 0;
+				const char *pID = g_Config.m_ClModIds;
+				while(*pID)
+				{
+					unsigned long long Current = 0; int Length = 0;
+					if(sscanf(pID, "%llu%n", &Current, &Length) != 1 || Length <= 0) break;
+					if(Current != ID)
+					{
+						char aNumber[32]; str_format(aNumber, sizeof(aNumber), "%llu", Current);
+						if(aRemaining[0]) str_append(aRemaining, ",", sizeof(aRemaining));
+						str_append(aRemaining, aNumber, sizeof(aRemaining));
+					}
+					pID += Length; if(*pID == ',') pID++; else if(*pID) break;
+				}
+				str_copy(g_Config.m_ClModIds, aRemaining, sizeof(g_Config.m_ClModIds));
+			}
+			RefreshWorkshopItems();
+		}
 		return Result;
 	}
 	virtual void WorkshopOperationStatus(CPlatformOperationStatus *pStatus) const
@@ -1478,13 +1609,14 @@ public:
 			const CPlatformWorkshopItem &Item = m_aWorkshopItems[i];
 			Downloaded += Item.m_Downloaded;
 			Total += Item.m_Total;
-			Working = Working || (Item.m_Total > 0 && Item.m_Downloaded < Item.m_Total);
-			Failed = Failed || (!Item.m_Valid && Item.m_aError[0] && !Working);
+			const bool ItemWorking = (Item.m_State & (k_EItemStateDownloading | k_EItemStateDownloadPending)) != 0 || (Item.m_Total > 0 && Item.m_Downloaded < Item.m_Total);
+			Working = Working || ItemWorking;
+			Failed = Failed || (!Item.m_Valid && Item.m_aError[0] && !ItemWorking);
 		}
 		pStatus->m_State = Working ? CLIENT_ASYNC_WORKING : Failed ? CLIENT_ASYNC_FAILED : m_WorkshopItemCount ? CLIENT_ASYNC_SUCCEEDED : CLIENT_ASYNC_IDLE;
 		pStatus->m_Stage = Working ? CLIENT_STAGE_SYNCING_MODS : CLIENT_STAGE_NONE;
 		pStatus->m_Progress = Total ? clamp(Downloaded / (float)Total, 0.0f, 1.0f) : (pStatus->m_State == CLIENT_ASYNC_SUCCEEDED ? 1.0f : 0.0f);
-		if(Failed) str_copy(pStatus->m_aErrorKey, "One or more Mods failed validation. Open Mods for details.", sizeof(pStatus->m_aErrorKey));
+		if(Failed) str_copy(pStatus->m_aErrorKey, "One or more Workshop items failed validation. Open Workshop for details.", sizeof(pStatus->m_aErrorKey));
 	}
 	virtual unsigned QueryWorkshop(const CPlatformWorkshopQuery &Query)
 	{
@@ -1513,13 +1645,20 @@ public:
 	virtual bool WorkshopQueryItem(int Index,CPlatformWorkshopItem *pItem) const { if(!pItem || Index < 0 || Index >= m_WorkshopQueryItemCount) return false; *pItem = m_aWorkshopQueryItems[Index]; return true; }
 	virtual unsigned RequestWorkshopPreview(unsigned long long PublishedFileID)
 	{
-		if(!m_Initialized || !SteamHTTP() || !m_pStorage || !PublishedFileID || m_WorkshopPreviewRequestCount >= 4)
+		if(!m_Initialized || !SteamHTTP() || !m_pStorage || !PublishedFileID)
 			return 0;
 		const CPlatformWorkshopItem *pItem = 0;
 		for(int i = 0; i < m_WorkshopQueryItemCount && !pItem; i++) if(m_aWorkshopQueryItems[i].m_PublishedFileID == PublishedFileID) pItem = &m_aWorkshopQueryItems[i];
 		for(int i = 0; i < m_WorkshopItemCount && !pItem; i++) if(m_aWorkshopItems[i].m_PublishedFileID == PublishedFileID) pItem = &m_aWorkshopItems[i];
 		if(!pItem || !pItem->m_aPreviewURL[0] || str_comp_num(pItem->m_aPreviewURL, "https://", 8)) return 0;
-		for(int i = 0; i < m_WorkshopPreviewRequestCount; i++) if(m_aWorkshopPreviewRequests[i].m_PublishedFileID == PublishedFileID) return m_aWorkshopPreviewRequests[i].m_OperationID;
+		int FreeRequest = -1;
+		for(int i = 0; i < 4; i++)
+		{
+			if(m_aWorkshopPreviewRequests[i].m_Handle != INVALID_HTTPREQUEST_HANDLE && m_aWorkshopPreviewRequests[i].m_PublishedFileID == PublishedFileID)
+				return m_aWorkshopPreviewRequests[i].m_OperationID;
+			if(FreeRequest < 0 && m_aWorkshopPreviewRequests[i].m_Handle == INVALID_HTTPREQUEST_HANDLE)
+				FreeRequest = i;
+		}
 		const unsigned OperationID = ++m_WorkshopPreviewOperationID;
 		m_pStorage->CreateFolder("workshop_cache", IStorage::TYPE_SAVE);
 		m_pStorage->CreateFolder("workshop_cache/previews", IStorage::TYPE_SAVE);
@@ -1530,22 +1669,26 @@ public:
 			if(File)
 			{
 				io_close(File);
-				if(m_WorkshopPreviewResultCount < 16)
-				{
-					CPlatformWorkshopPreviewResult &Result = m_aWorkshopPreviewResults[m_WorkshopPreviewResultCount++]; mem_zero(&Result, sizeof(Result));
-					Result.m_OperationID = OperationID; Result.m_PublishedFileID = PublishedFileID; Result.m_UpdatedAt = pItem->m_UpdatedAt; Result.m_Succeeded = true; str_copy(Result.m_aCachePath, aPath, sizeof(Result.m_aCachePath));
-				}
+				if(m_WorkshopPreviewResultCount >= 16) { for(int i = 1; i < 16; i++) m_aWorkshopPreviewResults[i - 1] = m_aWorkshopPreviewResults[i]; m_WorkshopPreviewResultCount = 15; }
+				CPlatformWorkshopPreviewResult &Result = m_aWorkshopPreviewResults[m_WorkshopPreviewResultCount++]; mem_zero(&Result, sizeof(Result));
+				Result.m_OperationID = OperationID; Result.m_PublishedFileID = PublishedFileID; Result.m_UpdatedAt = pItem->m_UpdatedAt; Result.m_Succeeded = true; str_copy(Result.m_aCachePath, aPath, sizeof(Result.m_aCachePath));
 				return OperationID;
 			}
 		}
+		if(FreeRequest < 0)
+			return 0;
 		const HTTPRequestHandle Handle = SteamHTTP()->CreateHTTPRequest(k_EHTTPMethodGET, pItem->m_aPreviewURL);
 		if(Handle == INVALID_HTTPREQUEST_HANDLE) return 0;
 		SteamAPICall_t Call = k_uAPICallInvalid;
-		if(!SteamHTTP()->SetHTTPRequestContextValue(Handle, OperationID) || !SteamHTTP()->SetHTTPRequestNetworkActivityTimeout(Handle, 15) || !SteamHTTP()->SendHTTPRequest(Handle, &Call))
+		if(!SteamHTTP()->SetHTTPRequestContextValue(Handle, OperationID) ||
+			!SteamHTTP()->SetHTTPRequestNetworkActivityTimeout(Handle, 15) ||
+			!SteamHTTP()->SetHTTPRequestAbsoluteTimeoutMS(Handle, 30000) ||
+			!SteamHTTP()->SetHTTPRequestRequiresVerifiedCertificate(Handle, true) ||
+			!SteamHTTP()->SendHTTPRequest(Handle, &Call) || Call == k_uAPICallInvalid)
 		{
 			SteamHTTP()->ReleaseHTTPRequest(Handle); return 0;
 		}
-		CWorkshopPreviewRequest &Request = m_aWorkshopPreviewRequests[m_WorkshopPreviewRequestCount++]; Request.m_Handle = Handle; Request.m_OperationID = OperationID; Request.m_PublishedFileID = PublishedFileID; Request.m_UpdatedAt = pItem->m_UpdatedAt;
+		CWorkshopPreviewRequest &Request = m_aWorkshopPreviewRequests[FreeRequest]; Request.m_Handle = Handle; Request.m_OperationID = OperationID; Request.m_PublishedFileID = PublishedFileID; Request.m_UpdatedAt = pItem->m_UpdatedAt; Request.m_Call.Set(Call, this, &CSteamPlatformServices::OnWorkshopPreviewDownloaded); m_WorkshopPreviewRequestCount++;
 		return OperationID;
 	}
 	virtual bool ConsumeWorkshopPreviewResult(CPlatformWorkshopPreviewResult *pResult)
@@ -1555,7 +1698,12 @@ public:
 		for(int i = 1; i < m_WorkshopPreviewResultCount; i++) m_aWorkshopPreviewResults[i - 1] = m_aWorkshopPreviewResults[i];
 		m_WorkshopPreviewResultCount--; return true;
 	}
-	virtual bool RequestWorkshopDownload(unsigned long long PublishedFileID) { return m_Initialized && SteamUGC() && PublishedFileID && SteamUGC()->DownloadItem((PublishedFileId_t)PublishedFileID, true); }
+	virtual bool RequestWorkshopDownload(unsigned long long PublishedFileID)
+	{
+		if(!m_Initialized || !SteamUGC() || !PublishedFileID || !SteamUGC()->DownloadItem((PublishedFileId_t)PublishedFileID, true)) return false;
+		for(int i = 0; i < m_WorkshopItemCount; i++) if(m_aWorkshopItems[i].m_PublishedFileID == PublishedFileID) { m_aWorkshopItems[i].m_State |= k_EItemStateDownloadPending; m_aWorkshopItems[i].m_aError[0] = 0; break; }
+		return true;
+	}
 	virtual bool UserDisplayName(unsigned long long UserID, char *pBuffer, int BufferSize)
 	{
 		if(!pBuffer || BufferSize <= 0) return false;
@@ -1623,13 +1771,23 @@ public:
 	{
 		if(!m_Initialized || !SteamUserStats() || m_CommunityOperation || !PublishedFileID || Revision <= 0 || Metric < 0 || Metric > 1 || Score < 0) return 0;
 		CCommunityChallengeDescriptor Descriptor; mem_zero(&Descriptor, sizeof(Descriptor)); Descriptor.m_PublishedFileID = PublishedFileID; Descriptor.m_Revision = Revision; Descriptor.m_Metric = Metric; mem_zero(&m_CommunityResult, sizeof(m_CommunityResult)); if(!CommunityChallengeLeaderboardName(Descriptor, m_CommunityResult.m_aName, sizeof(m_CommunityResult.m_aName))) return 0;
-		m_CommunityResult.m_OperationID = ++m_CommunityOperationID; m_CommunityResult.m_Upload = true; m_CommunityScore = Score; m_CommunityOperation = 1; m_CommunityResultReady = false; const ELeaderboardSortMethod Sort = Metric == COMMUNITY_CHALLENGE_CLEAR_TIME_MS ? k_ELeaderboardSortMethodAscending : k_ELeaderboardSortMethodDescending; const ELeaderboardDisplayType Display = Metric == COMMUNITY_CHALLENGE_CLEAR_TIME_MS ? k_ELeaderboardDisplayTypeTimeMilliSeconds : k_ELeaderboardDisplayTypeNumeric; m_CommunityFoundCall.Set(SteamUserStats()->FindOrCreateLeaderboard(m_CommunityResult.m_aName, Sort, Display), this, &CSteamPlatformServices::OnCommunityFound); return m_CommunityOperationID;
+		const ELeaderboardSortMethod Sort = Metric == COMMUNITY_CHALLENGE_CLEAR_TIME_MS ? k_ELeaderboardSortMethodAscending : k_ELeaderboardSortMethodDescending;
+		const ELeaderboardDisplayType Display = Metric == COMMUNITY_CHALLENGE_CLEAR_TIME_MS ? k_ELeaderboardDisplayTypeTimeMilliSeconds : k_ELeaderboardDisplayTypeNumeric;
+		const SteamAPICall_t Call = SteamUserStats()->FindOrCreateLeaderboard(m_CommunityResult.m_aName, Sort, Display);
+		if(Call == k_uAPICallInvalid) return 0;
+		m_CommunityResult.m_OperationID = ++m_CommunityOperationID; m_CommunityResult.m_Upload = true; m_CommunityScore = Score; m_CommunityOperation = 1; m_CommunityResultReady = false;
+		m_CommunityFoundCall.Set(Call, this, &CSteamPlatformServices::OnCommunityFound); return m_CommunityOperationID;
 	}
 	virtual unsigned QueryCommunityChallenge(unsigned long long PublishedFileID,int Revision,int Metric,EPlatformLeaderboardScope Scope)
 	{
 		if(!m_Initialized || !SteamUserStats() || m_CommunityOperation || !PublishedFileID || Revision <= 0 || Metric < 0 || Metric > 1 || Scope < PLATFORM_LEADERBOARD_GLOBAL || Scope > PLATFORM_LEADERBOARD_AROUND_ME) return 0;
 		CCommunityChallengeDescriptor Descriptor; mem_zero(&Descriptor, sizeof(Descriptor)); Descriptor.m_PublishedFileID = PublishedFileID; Descriptor.m_Revision = Revision; Descriptor.m_Metric = Metric; mem_zero(&m_CommunityResult, sizeof(m_CommunityResult)); if(!CommunityChallengeLeaderboardName(Descriptor, m_CommunityResult.m_aName, sizeof(m_CommunityResult.m_aName))) return 0;
-		m_CommunityResult.m_OperationID = ++m_CommunityOperationID; m_CommunityScope = Scope; m_CommunityOperation = 2; m_CommunityResultReady = false; m_CommunityEntryCount = 0; const ELeaderboardSortMethod Sort = Metric == COMMUNITY_CHALLENGE_CLEAR_TIME_MS ? k_ELeaderboardSortMethodAscending : k_ELeaderboardSortMethodDescending; const ELeaderboardDisplayType Display = Metric == COMMUNITY_CHALLENGE_CLEAR_TIME_MS ? k_ELeaderboardDisplayTypeTimeMilliSeconds : k_ELeaderboardDisplayTypeNumeric; m_CommunityFoundCall.Set(SteamUserStats()->FindOrCreateLeaderboard(m_CommunityResult.m_aName, Sort, Display), this, &CSteamPlatformServices::OnCommunityFound); return m_CommunityOperationID;
+		const ELeaderboardSortMethod Sort = Metric == COMMUNITY_CHALLENGE_CLEAR_TIME_MS ? k_ELeaderboardSortMethodAscending : k_ELeaderboardSortMethodDescending;
+		const ELeaderboardDisplayType Display = Metric == COMMUNITY_CHALLENGE_CLEAR_TIME_MS ? k_ELeaderboardDisplayTypeTimeMilliSeconds : k_ELeaderboardDisplayTypeNumeric;
+		const SteamAPICall_t Call = SteamUserStats()->FindOrCreateLeaderboard(m_CommunityResult.m_aName, Sort, Display);
+		if(Call == k_uAPICallInvalid) return 0;
+		m_CommunityResult.m_OperationID = ++m_CommunityOperationID; m_CommunityScope = Scope; m_CommunityOperation = 2; m_CommunityResultReady = false; m_CommunityEntryCount = 0;
+		m_CommunityFoundCall.Set(Call, this, &CSteamPlatformServices::OnCommunityFound); return m_CommunityOperationID;
 	}
 	virtual bool ConsumeCommunityLeaderboardResult(CPlatformLeaderboardResult *pResult) { if(!pResult || !m_CommunityResultReady) return false; *pResult = m_CommunityResult; m_CommunityResultReady = false; return true; }
 	virtual int CommunityLeaderboardEntryCount() const { return m_CommunityEntryCount; }
@@ -1683,7 +1841,7 @@ public:
 		if(!m_aaInputGlyphs[Action][0])
 		{
 			EInputActionOrigin aOrigins[STEAM_INPUT_MAX_ORIGINS];
-			if(SteamInput()->GetDigitalActionOrigins(aControllers[0], m_aInputActionSets[PLATFORM_INPUT_GAME], m_aDigitalActions[Action], aOrigins) <= 0) return false;
+			if(SteamInput()->GetDigitalActionOrigins(aControllers[0], m_aInputActionSets[m_InputActionSet], m_aDigitalActions[Action], aOrigins) <= 0) return false;
 			const char *pGlyph = SteamInput()->GetGlyphPNGForActionOrigin(aOrigins[0], k_ESteamInputGlyphSize_Medium, 0);
 			if(!pGlyph || !pGlyph[0]) return false;
 			str_copy(m_aaInputGlyphs[Action], pGlyph, sizeof(m_aaInputGlyphs[Action]));
@@ -1706,21 +1864,30 @@ public:
 
 void CSteamPlatformServices::PumpEventQueue()
 {
-	if(!m_Initialized || !SteamUserStats() || m_ActiveLeaderboardEvent >= 0 || time_get() < m_NextEventRetry)
+	if(!m_Initialized || !SteamUserStats() || m_ActiveLeaderboardEvent >= 0 || m_StatsStorePending || time_get() < m_NextEventRetry)
 		return;
 	const CPlatformEventQueue::CEntry *pEntry = m_EventQueue.First();
 	if(!pEntry)
 		return;
+	if(m_StatsStoreDirty)
+	{
+		if(SteamUserStats()->StoreStats())
+			m_StatsStorePending = true;
+		else
+			m_NextEventRetry = time_get() + time_freq() * 30;
+		return;
+	}
 	static const char *s_apAchievements[12] = {
 		"ACH_FIRST_INVASION", "ACH_FIRST_HORDE", "ACH_FIRST_EXTRACTION", "ACH_INVASION_10",
 		"ACH_INVASION_30", "ACH_INVASION_60", "ACH_FIRST_FORGE", "ACH_FIRST_BUILD",
 		"ACH_COOP_RESCUE", "ACH_FIRST_PVP_WIN", "ACH_FIRST_COOP_COMPLETE", "ACH_FIRST_BOSS"};
 	if(pEntry->m_Event >= 0 && pEntry->m_Event < 12)
 	{
-		if(UnlockAchievement(s_apAchievements[pEntry->m_Event]))
+		if(SteamUserStats()->SetAchievement(s_apAchievements[pEntry->m_Event]))
 		{
-			m_EventQueue.RemoveFirst();
-			SaveEventQueue();
+			m_StatsStoreDirty = true;
+			if(SteamUserStats()->StoreStats()) m_StatsStorePending = true;
+			else m_NextEventRetry = time_get() + time_freq() * 30;
 		}
 		else m_NextEventRetry = time_get() + time_freq() * 30;
 		return;
@@ -1728,11 +1895,11 @@ void CSteamPlatformServices::PumpEventQueue()
 	if(pEntry->m_Event == PLATFORM_EVENT_STAT_COOP_COMPLETIONS)
 	{
 		int32 Current = 0;
-		if(SteamUserStats()->GetStat("STAT_COOP_COMPLETIONS", &Current) &&
-			SteamUserStats()->SetStat("STAT_COOP_COMPLETIONS", Current + max(1, pEntry->m_Value)) && SteamUserStats()->StoreStats())
+		if(SteamUserStats()->GetStat("STAT_COOP_COMPLETIONS", &Current) && SteamUserStats()->SetStat("STAT_COOP_COMPLETIONS", Current + max(1, pEntry->m_Value)))
 		{
-			m_EventQueue.RemoveFirst();
-			SaveEventQueue();
+			m_StatsStoreDirty = true;
+			if(SteamUserStats()->StoreStats()) m_StatsStorePending = true;
+			else m_NextEventRetry = time_get() + time_freq() * 30;
 		}
 		else m_NextEventRetry = time_get() + time_freq() * 30;
 		return;
@@ -1748,7 +1915,33 @@ void CSteamPlatformServices::PumpEventQueue()
 	const ELeaderboardDisplayType Display = pEntry->m_Event == PLATFORM_EVENT_LB_INVASION_FLOOR ? k_ELeaderboardDisplayTypeNumeric : k_ELeaderboardDisplayTypeTimeMilliSeconds;
 	m_ActiveLeaderboardEvent = pEntry->m_Event;
 	m_ActiveLeaderboardValue = pEntry->m_Value;
-	m_LeaderboardFoundCall.Set(SteamUserStats()->FindOrCreateLeaderboard(pName, Sort, Display), this, &CSteamPlatformServices::OnLeaderboardFound);
+	const SteamAPICall_t Call = SteamUserStats()->FindOrCreateLeaderboard(pName, Sort, Display);
+	if(Call == k_uAPICallInvalid)
+	{
+		m_ActiveLeaderboardEvent = -1;
+		m_NextEventRetry = time_get() + time_freq() * 30;
+		return;
+	}
+	m_LeaderboardFoundCall.Set(Call, this, &CSteamPlatformServices::OnLeaderboardFound);
+}
+
+void CSteamPlatformServices::OnUserStatsStored(UserStatsStored_t *pResult)
+{
+	if(!m_StatsStorePending || !pResult || pResult->m_nGameID != CGameID((AppId_t)STEAM_APP_ID).ToUint64())
+		return;
+	m_StatsStorePending = false;
+	if(pResult->m_eResult == k_EResultOK)
+	{
+		m_StatsStoreDirty = false;
+		m_EventQueue.RemoveFirst();
+		SaveEventQueue();
+		PumpEventQueue();
+	}
+	else
+	{
+		dbg_msg("steam", "StoreStats failed: result=%d; queued event retained", (int)pResult->m_eResult);
+		m_NextEventRetry = time_get() + time_freq() * 30;
+	}
 }
 
 void CSteamPlatformServices::OnLeaderboardFound(LeaderboardFindResult_t *pResult, bool IOError)
@@ -1759,7 +1952,14 @@ void CSteamPlatformServices::OnLeaderboardFound(LeaderboardFindResult_t *pResult
 		m_NextEventRetry = time_get() + time_freq() * 30;
 		return;
 	}
-	m_LeaderboardUploadedCall.Set(SteamUserStats()->UploadLeaderboardScore(pResult->m_hSteamLeaderboard, k_ELeaderboardUploadScoreMethodKeepBest, m_ActiveLeaderboardValue, 0, 0), this, &CSteamPlatformServices::OnLeaderboardUploaded);
+	const SteamAPICall_t Call = SteamUserStats()->UploadLeaderboardScore(pResult->m_hSteamLeaderboard, k_ELeaderboardUploadScoreMethodKeepBest, m_ActiveLeaderboardValue, 0, 0);
+	if(Call == k_uAPICallInvalid)
+	{
+		m_ActiveLeaderboardEvent = -1;
+		m_NextEventRetry = time_get() + time_freq() * 30;
+		return;
+	}
+	m_LeaderboardUploadedCall.Set(Call, this, &CSteamPlatformServices::OnLeaderboardUploaded);
 }
 
 void CSteamPlatformServices::OnLeaderboardUploaded(LeaderboardScoreUploaded_t *pResult, bool IOError)
@@ -1777,11 +1977,24 @@ void CSteamPlatformServices::OnLeaderboardUploaded(LeaderboardScoreUploaded_t *p
 void CSteamPlatformServices::OnCommunityFound(LeaderboardFindResult_t *pResult, bool IOError)
 {
 	if(IOError || !pResult || !pResult->m_bLeaderboardFound || !pResult->m_hSteamLeaderboard || !SteamUserStats()) { str_copy(m_CommunityResult.m_aError, "Community leaderboard is unavailable", sizeof(m_CommunityResult.m_aError)); m_CommunityOperation = 0; m_CommunityResultReady = true; return; }
-	if(m_CommunityOperation == 1) m_CommunityUploadedCall.Set(SteamUserStats()->UploadLeaderboardScore(pResult->m_hSteamLeaderboard, k_ELeaderboardUploadScoreMethodKeepBest, m_CommunityScore, 0, 0), this, &CSteamPlatformServices::OnCommunityUploaded);
+	SteamAPICall_t Call = k_uAPICallInvalid;
+	if(m_CommunityOperation == 1)
+		Call = SteamUserStats()->UploadLeaderboardScore(pResult->m_hSteamLeaderboard, k_ELeaderboardUploadScoreMethodKeepBest, m_CommunityScore, 0, 0);
 	else if(m_CommunityOperation == 2)
 	{
-		ELeaderboardDataRequest Request = m_CommunityScope == PLATFORM_LEADERBOARD_FRIENDS ? k_ELeaderboardDataRequestFriends : m_CommunityScope == PLATFORM_LEADERBOARD_AROUND_ME ? k_ELeaderboardDataRequestGlobalAroundUser : k_ELeaderboardDataRequestGlobal; const int Start = m_CommunityScope == PLATFORM_LEADERBOARD_AROUND_ME ? -10 : 1; const int End = m_CommunityScope == PLATFORM_LEADERBOARD_AROUND_ME ? 10 : 100; m_CommunityDownloadedCall.Set(SteamUserStats()->DownloadLeaderboardEntries(pResult->m_hSteamLeaderboard, Request, Start, End), this, &CSteamPlatformServices::OnCommunityDownloaded);
+		ELeaderboardDataRequest Request = m_CommunityScope == PLATFORM_LEADERBOARD_FRIENDS ? k_ELeaderboardDataRequestFriends : m_CommunityScope == PLATFORM_LEADERBOARD_AROUND_ME ? k_ELeaderboardDataRequestGlobalAroundUser : k_ELeaderboardDataRequestGlobal; const int Start = m_CommunityScope == PLATFORM_LEADERBOARD_AROUND_ME ? -10 : 1; const int End = m_CommunityScope == PLATFORM_LEADERBOARD_AROUND_ME ? 10 : 100; Call = SteamUserStats()->DownloadLeaderboardEntries(pResult->m_hSteamLeaderboard, Request, Start, End);
 	}
+	if(Call == k_uAPICallInvalid)
+	{
+		str_copy(m_CommunityResult.m_aError, "Steam could not start the community leaderboard request", sizeof(m_CommunityResult.m_aError));
+		m_CommunityOperation = 0;
+		m_CommunityResultReady = true;
+		return;
+	}
+	if(m_CommunityOperation == 1)
+		m_CommunityUploadedCall.Set(Call, this, &CSteamPlatformServices::OnCommunityUploaded);
+	else
+		m_CommunityDownloadedCall.Set(Call, this, &CSteamPlatformServices::OnCommunityDownloaded);
 }
 
 void CSteamPlatformServices::OnCommunityUploaded(LeaderboardScoreUploaded_t *pResult, bool IOError)
@@ -1798,6 +2011,8 @@ void CSteamPlatformServices::OnCommunityDownloaded(LeaderboardScoresDownloaded_t
 
 void CSteamPlatformServices::OnJoinRequested(GameRichPresenceJoinRequested_t *pRequest)
 {
+	if(!pRequest)
+		return;
 	str_copy(m_aPendingJoin, pRequest->m_rgchConnect, sizeof(m_aPendingJoin));
 }
 
@@ -1915,6 +2130,36 @@ void CSteamPlatformServices::OnLobbyList(LobbyMatchList_t *pResult, bool IOError
 	}
 }
 
+void CSteamPlatformServices::OnWorkshopDownloaded(DownloadItemResult_t *pResult)
+{
+	if(!pResult || pResult->m_unAppID != STEAM_APP_ID)
+		return;
+	if(pResult->m_eResult == k_EResultOK)
+	{
+		RefreshWorkshopItems();
+		return;
+	}
+	for(int i = 0; i < m_WorkshopItemCount; i++)
+	{
+		CPlatformWorkshopItem &Item = m_aWorkshopItems[i];
+		if(Item.m_PublishedFileID != pResult->m_nPublishedFileId)
+			continue;
+		Item.m_Valid = false;
+		if(SteamUGC())
+		{
+			Item.m_State = SteamUGC()->GetItemState(pResult->m_nPublishedFileId);
+			uint64 Downloaded = 0, Total = 0;
+			if(SteamUGC()->GetItemDownloadInfo(pResult->m_nPublishedFileId, &Downloaded, &Total))
+			{
+				Item.m_Downloaded = Downloaded;
+				Item.m_Total = Total;
+			}
+		}
+		str_format(Item.m_aError, sizeof(Item.m_aError), "Workshop download failed (Steam result %d); retry manually", (int)pResult->m_eResult);
+		break;
+	}
+}
+
 void CSteamPlatformServices::OnWorkshopCreated(CreateItemResult_t *pResult, bool IOError)
 {
 	m_WorkshopPublish.m_Active=false;
@@ -1928,7 +2173,7 @@ void CSteamPlatformServices::OnWorkshopCreated(CreateItemResult_t *pResult, bool
 		return;
 	}
 	m_WorkshopPublish.m_PublishedFileID=pResult->m_nPublishedFileId;m_WorkshopPublish.m_NeedsLegalAgreement=pResult->m_bUserNeedsToAcceptWorkshopLegalAgreement;
-	str_copy(m_WorkshopPublish.m_aStatus,pResult->m_bUserNeedsToAcceptWorkshopLegalAgreement?"item created; accept the Workshop legal agreement, then add this ID to ninslash_content.json":"item created; add this ID to ninslash_content.json before publishing content",sizeof(m_WorkshopPublish.m_aStatus));
+	str_copy(m_WorkshopPublish.m_aStatus,pResult->m_bUserNeedsToAcceptWorkshopLegalAgreement?"Workshop item created; preparing upload (legal agreement acceptance required)":"Workshop item created; preparing content upload",sizeof(m_WorkshopPublish.m_aStatus));
 }
 
 void CSteamPlatformServices::OnWorkshopSubmitted(SubmitItemUpdateResult_t *pResult, bool IOError)
@@ -1938,13 +2183,51 @@ void CSteamPlatformServices::OnWorkshopSubmitted(SubmitItemUpdateResult_t *pResu
 	if(pResult->m_eResult!=k_EResultOK)
 	{
 		if(pResult->m_eResult==k_EResultInvalidParam)
-			str_copy(m_WorkshopPublish.m_aStatus,"Workshop upload rejected: publish Steam Cloud quotas and enable ISteamUGC file transfer in Steamworks (InvalidParam)",sizeof(m_WorkshopPublish.m_aStatus));
+			str_copy(m_WorkshopPublish.m_aStatus,"Workshop upload rejected (InvalidParam). Verify the Workshop depot, Cloud/UGC settings and item tags; see workshop_log.txt",sizeof(m_WorkshopPublish.m_aStatus));
 		else
 			str_format(m_WorkshopPublish.m_aStatus,sizeof(m_WorkshopPublish.m_aStatus),"Workshop update failed (Steam result %d)",(int)pResult->m_eResult);
 		return;
 	}
 	m_WorkshopPublish.m_PublishedFileID=pResult->m_nPublishedFileId;m_WorkshopPublish.m_NeedsLegalAgreement=pResult->m_bUserNeedsToAcceptWorkshopLegalAgreement;
 	str_copy(m_WorkshopPublish.m_aStatus,pResult->m_bUserNeedsToAcceptWorkshopLegalAgreement?"update submitted; Workshop legal agreement acceptance required":"Workshop update published",sizeof(m_WorkshopPublish.m_aStatus));RefreshWorkshopItems();
+}
+
+void CSteamPlatformServices::OnWorkshopMetadataQuery(SteamUGCQueryCompleted_t *pResult, bool IOError)
+{
+	m_WorkshopMetadataQueryPending = false;
+	const UGCQueryHandle_t Handle = m_WorkshopMetadataQueryHandle;
+	m_WorkshopMetadataQueryHandle = k_UGCQueryHandleInvalid;
+	if(!SteamUGC() || Handle == k_UGCQueryHandleInvalid)
+		return;
+	if(!IOError && pResult && pResult->m_eResult == k_EResultOK && pResult->m_handle == Handle)
+	{
+		const uint32 Count = min((uint32)50, pResult->m_unNumResultsReturned);
+		for(uint32 i = 0; i < Count; i++)
+		{
+			SteamUGCDetails_t Details;
+			if(!SteamUGC()->GetQueryUGCResult(Handle, i, &Details) || Details.m_eResult != k_EResultOK || Details.m_bBanned)
+				continue;
+			for(int Local = 0; Local < m_WorkshopItemCount; Local++)
+			{
+				CPlatformWorkshopItem &Item = m_aWorkshopItems[Local];
+				if(Item.m_PublishedFileID != Details.m_nPublishedFileId)
+					continue;
+				Item.m_OwnerUserID = Details.m_ulSteamIDOwner;
+				Item.m_State = SteamUGC()->GetItemState(Details.m_nPublishedFileId);
+				if(Details.m_ulTotalFilesSize)
+					Item.m_Total = Details.m_ulTotalFilesSize;
+				Item.m_CreatedAt = Details.m_rtimeCreated;
+				Item.m_UpdatedAt = Details.m_rtimeUpdated;
+				Item.m_VotesUp = Details.m_unVotesUp;
+				Item.m_VotesDown = Details.m_unVotesDown;
+				Item.m_Score = Details.m_flScore;
+				str_copy(Item.m_aTags, Details.m_rgchTags, sizeof(Item.m_aTags));
+				SteamUGC()->GetQueryUGCPreviewURL(Handle, i, Item.m_aPreviewURL, sizeof(Item.m_aPreviewURL));
+				break;
+			}
+		}
+	}
+	SteamUGC()->ReleaseQueryUGCRequest(Handle);
 }
 
 void CSteamPlatformServices::OnWorkshopQuery(SteamUGCQueryCompleted_t *pResult, bool IOError)
@@ -1975,15 +2258,19 @@ void CSteamPlatformServices::OnWorkshopQuery(SteamUGCQueryCompleted_t *pResult, 
 	SteamUGC()->ReleaseQueryUGCRequest(m_WorkshopQueryHandle); m_WorkshopQueryHandle = k_UGCQueryHandleInvalid;
 }
 
-void CSteamPlatformServices::OnWorkshopPreviewDownloaded(HTTPRequestCompleted_t *pResult)
+void CSteamPlatformServices::OnWorkshopPreviewDownloaded(HTTPRequestCompleted_t *pResult, bool IOError)
 {
 	if(!pResult || !SteamHTTP()) return;
 	int RequestIndex = -1;
-	for(int i = 0; i < m_WorkshopPreviewRequestCount; i++) if(m_aWorkshopPreviewRequests[i].m_Handle == pResult->m_hRequest) { RequestIndex = i; break; }
-	if(RequestIndex < 0) { SteamHTTP()->ReleaseHTTPRequest(pResult->m_hRequest); return; }
-	const CWorkshopPreviewRequest Request = m_aWorkshopPreviewRequests[RequestIndex];
-	m_aWorkshopPreviewRequests[RequestIndex] = m_aWorkshopPreviewRequests[--m_WorkshopPreviewRequestCount];
+	for(int i = 0; i < 4; i++) if(m_aWorkshopPreviewRequests[i].m_Handle == pResult->m_hRequest) { RequestIndex = i; break; }
+	if(RequestIndex < 0) return;
+	CWorkshopPreviewRequest &Request = m_aWorkshopPreviewRequests[RequestIndex];
 	CPlatformWorkshopPreviewResult Result; mem_zero(&Result, sizeof(Result)); Result.m_OperationID = Request.m_OperationID; Result.m_PublishedFileID = Request.m_PublishedFileID; Result.m_UpdatedAt = Request.m_UpdatedAt;
+	Request.m_Handle = INVALID_HTTPREQUEST_HANDLE;
+	Request.m_OperationID = 0;
+	Request.m_PublishedFileID = 0;
+	Request.m_UpdatedAt = 0;
+	m_WorkshopPreviewRequestCount = max(0, m_WorkshopPreviewRequestCount - 1);
 	uint32 BodySize = 0;
 	bool MimeValid = true; uint32 MimeSize = 0;
 	if(SteamHTTP()->GetHTTPResponseHeaderSize(pResult->m_hRequest, "content-type", &MimeSize) && MimeSize > 0)
@@ -1991,7 +2278,7 @@ void CSteamPlatformServices::OnWorkshopPreviewDownloaded(HTTPRequestCompleted_t 
 		if(MimeSize > 63) MimeValid = false;
 		else { char aMime[64]; mem_zero(aMime, sizeof(aMime)); MimeValid = SteamHTTP()->GetHTTPResponseHeaderValue(pResult->m_hRequest, "content-type", (uint8 *)aMime, MimeSize) && (str_find_nocase(aMime, "image/png") || str_find_nocase(aMime, "image/jpeg") || str_find_nocase(aMime, "image/jpg")); }
 	}
-	if(!pResult->m_bRequestSuccessful || pResult->m_eStatusCode != k_EHTTPStatusCode200OK || !MimeValid || !SteamHTTP()->GetHTTPResponseBodySize(pResult->m_hRequest, &BodySize) || BodySize < 16 || BodySize > 8 * 1024 * 1024)
+	if(IOError || !pResult->m_bRequestSuccessful || pResult->m_eStatusCode != k_EHTTPStatusCode200OK || !MimeValid || !SteamHTTP()->GetHTTPResponseBodySize(pResult->m_hRequest, &BodySize) || BodySize < 16 || BodySize > 8 * 1024 * 1024)
 		str_copy(Result.m_aError, "Workshop preview download failed", sizeof(Result.m_aError));
 	else
 	{
@@ -2006,7 +2293,7 @@ void CSteamPlatformServices::OnWorkshopPreviewDownloaded(HTTPRequestCompleted_t 
 				str_copy(Result.m_aError, "Workshop preview format is unsupported", sizeof(Result.m_aError));
 			else if(m_pStorage)
 			{
-				char aFinal[256], aTemporary[272]; str_format(aFinal, sizeof(aFinal), "workshop_cache/previews/%llu_%u.%s", Request.m_PublishedFileID, Request.m_UpdatedAt, JPEG ? "jpg" : "png"); str_format(aTemporary, sizeof(aTemporary), "%s.tmp", aFinal);
+				char aFinal[256], aTemporary[272]; str_format(aFinal, sizeof(aFinal), "workshop_cache/previews/%llu_%u.%s", Result.m_PublishedFileID, Result.m_UpdatedAt, JPEG ? "jpg" : "png"); str_format(aTemporary, sizeof(aTemporary), "%s.tmp", aFinal);
 				IOHANDLE File = m_pStorage->OpenFile(aTemporary, IOFLAG_WRITE, IStorage::TYPE_SAVE);
 				const bool Written = File && io_write(File, pData, BodySize) == BodySize;
 				if(File) io_close(File);
@@ -2024,7 +2311,7 @@ void CSteamPlatformServices::OnWorkshopPreviewDownloaded(HTTPRequestCompleted_t 
 
 void CSteamPlatformServices::OnScreenshotReady(ScreenshotReady_t *pResult)
 {
-	if(!pResult || pResult->m_eResult != k_EResultOK || !SteamScreenshots()) return;
+	if(!pResult) return;
 	CPlatformScreenshotContext Context = m_ScreenshotContext;
 	for(int i = 0; i < m_PendingScreenshotCount; i++)
 	{
@@ -2033,6 +2320,9 @@ void CSteamPlatformServices::OnScreenshotReady(ScreenshotReady_t *pResult)
 		m_aPendingScreenshots[i] = m_aPendingScreenshots[--m_PendingScreenshotCount];
 		break;
 	}
+	// Failed registrations still receive ScreenshotReady_t. Always consume the
+	// frozen context so a failed handle cannot occupy the queue indefinitely.
+	if(pResult->m_eResult != k_EResultOK || !SteamScreenshots()) return;
 	if(Context.m_aLocation[0]) SteamScreenshots()->SetLocation(pResult->m_hLocal, Context.m_aLocation);
 	for(int i = 0; i < clamp(Context.m_UserCount, 0, 32); i++) if(Context.m_aUsers[i]) SteamScreenshots()->TagUser(pResult->m_hLocal, CSteamID(Context.m_aUsers[i]));
 	for(int i = 0; i < clamp(Context.m_PublishedFileCount, 0, 32); i++) if(Context.m_aPublishedFiles[i]) SteamScreenshots()->TagPublishedFile(pResult->m_hLocal, (PublishedFileId_t)Context.m_aPublishedFiles[i]);
@@ -2078,16 +2368,24 @@ void CSteamPlatformServices::OnLobbyCreated(LobbyCreated_t *pResult, bool IOErro
 		m_PartyOwnerID = LocalUserID();
 		m_ConsumedPartyLaunchGeneration = 0;
 		const CSteamID Lobby(m_PartyLobbyID);
-		SteamMatchmaking()->SetLobbyData(Lobby, "protocol", GAME_NETVERSION);
-		SteamMatchmaking()->SetLobbyData(Lobby, "room_type", "party");
-		SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "forming");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_type", "none");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_lobby", "0");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_address", "");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_mod_hash", "none");
-		SteamMatchmaking()->SetLobbyData(Lobby, "target_revision", "0");
-		SteamMatchmaking()->SetLobbyData(Lobby, "launch_generation", "0");
-		SteamMatchmaking()->SetLobbyData(Lobby, "launch_owner", "0");
+		bool MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "protocol", GAME_NETVERSION);
+		MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "room_type", "party") && MetadataOK;
+		MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "target_type", "none") && MetadataOK;
+		MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "target_lobby", "0") && MetadataOK;
+		MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "target_address", "") && MetadataOK;
+		MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "target_mod_hash", "none") && MetadataOK;
+		MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "target_revision", "0") && MetadataOK;
+		MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "launch_generation", "0") && MetadataOK;
+		MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "launch_owner", "0") && MetadataOK;
+		MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "party_phase", "forming") && MetadataOK;
+		if(!MetadataOK)
+		{
+			SteamMatchmaking()->LeaveLobby(Lobby);
+			m_PartyLobbyID = 0;
+			m_PartyOwnerID = 0;
+			str_copy(m_aLobbyCreateFailure, "Steam could not initialize party data. Retry creating the party.", sizeof(m_aLobbyCreateFailure));
+			return;
+		}
 		SteamMatchmaking()->SetLobbyMemberData(Lobby, "ready_revision", "0");
 		if(m_PendingPartyInviteUserID)
 		{
@@ -2101,24 +2399,42 @@ void CSteamPlatformServices::OnLobbyCreated(LobbyCreated_t *pResult, bool IOErro
 	}
 	m_CurrentLobbyID = pResult->m_ulSteamIDLobby;
 	m_HostedLobbyID = m_CurrentLobbyID;
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "protocol", GAME_NETVERSION);
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "room_type", "steam_listen");
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "map", g_Config.m_SvMap);
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "gametype", g_Config.m_SvGametype);
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "mod_hash", g_Config.m_SvModHash[0] ? g_Config.m_SvModHash : "none");
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "mod_ids", g_Config.m_ClModIds);
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "password", g_Config.m_Password[0] ? "1" : "0");
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "official", "0");
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "region", "auto");
+	const CSteamID Lobby(m_CurrentLobbyID);
+	bool MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "protocol", GAME_NETVERSION);
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "room_type", "steam_listen") && MetadataOK;
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "map", g_Config.m_SvMap) && MetadataOK;
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "gametype", g_Config.m_SvGametype) && MetadataOK;
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "mod_hash", g_Config.m_SvModHash[0] ? g_Config.m_SvModHash : "none") && MetadataOK;
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "mod_ids", g_Config.m_ClModIds) && MetadataOK;
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "password", g_Config.m_Password[0] ? "1" : "0") && MetadataOK;
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "official", "0") && MetadataOK;
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "region", "auto") && MetadataOK;
 	char aHostSteamID[32];
 	str_format(aHostSteamID, sizeof(aHostSteamID), "%llu", SteamUser()->GetSteamID().ConvertToUint64());
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "host_steamid", aHostSteamID);
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "host_steamid", aHostSteamID) && MetadataOK;
 	char aConnect[48];
 	str_format(aConnect, sizeof(aConnect), "steam:%s", aHostSteamID);
-	SteamMatchmaking()->SetLobbyData(CSteamID(m_CurrentLobbyID), "connect", aConnect);
+	MetadataOK = SteamMatchmaking()->SetLobbyData(Lobby, "connect", aConnect) && MetadataOK;
+	if(!MetadataOK)
+	{
+		SteamMatchmaking()->LeaveLobby(Lobby);
+		m_CurrentLobbyID = 0;
+		m_HostedLobbyID = 0;
+		m_ListenServerStopRequested = true;
+		str_copy(m_aLobbyCreateFailure, "Steam could not publish room data. The local server was stopped; retry creating the room.", sizeof(m_aLobbyCreateFailure));
+		return;
+	}
 	if(m_PartyLobbyID)
 	{
-		SetPartyTarget(PLATFORM_PARTY_TARGET_GAME_LOBBY, m_CurrentLobbyID, "", g_Config.m_SvModHash[0] ? g_Config.m_SvModHash : "none");
+		if(!SetPartyTarget(PLATFORM_PARTY_TARGET_GAME_LOBBY, m_CurrentLobbyID, "", g_Config.m_SvModHash[0] ? g_Config.m_SvModHash : "none"))
+		{
+			SteamMatchmaking()->LeaveLobby(Lobby);
+			m_CurrentLobbyID = 0;
+			m_HostedLobbyID = 0;
+			m_ListenServerStopRequested = true;
+			str_copy(m_aLobbyCreateFailure, "Steam could not publish the party room target. The local server was stopped; retry creating the room.", sizeof(m_aLobbyCreateFailure));
+			return;
+		}
 		SetPartyReady(true);
 	}
 	else
@@ -2202,7 +2518,7 @@ void CSteamPlatformServices::OnLobbyEntered(LobbyEnter_t *pResult, bool IOError)
 				if(SteamUGC()) SteamUGC()->DownloadItem((PublishedFileId_t)ID, true);
 				pID += Length; if(*pID == ',') pID++; else if(*pID) ValidIDs = false;
 			}
-			SetJoinFailure(ValidIDs && Requested ? "Required Mods are downloading. Open Mods, wait for validation, then retry joining." : "This room requires a different Mod collection. Open Mods and enable the required collection.");
+			SetJoinFailure(ValidIDs && Requested ? "Required Workshop content is downloading. Open Workshop, wait for validation, then retry joining." : "This room requires a different Mod collection. Open Workshop and enable the required content.");
 		}
 		else
 			str_copy(m_aPendingJoin, pConnect, sizeof(m_aPendingJoin));

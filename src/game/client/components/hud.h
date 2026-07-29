@@ -27,6 +27,7 @@ class CHud : public CComponent
 	int64 m_DebugStatusUntil;
 	int m_DebugStatusScreenshotFrames;
 	int m_LastObjectiveSignature;
+	int64 m_ObjectiveTransitionStart;
 	int64 m_ObjectiveNoticeUntil;
 	int64 m_LastHitEvent;
 	int64 m_LastHitSound;
@@ -34,6 +35,8 @@ class CHud : public CComponent
 	int m_HitDamage;
 	int m_HitTargetType;
 	bool m_HitKilled;
+	float m_aStatusAppear[4];
+	int64 m_LastAnimationTime;
 
 	static void ConDebugStatus(IConsole::IResult *pResult, void *pUserData);
 	bool DebugStatusActive(int Flag) const;
@@ -60,7 +63,8 @@ class CHud : public CComponent
 	void RenderScoreHud();
 	void RenderSpectatorHud();
 	void RenderMovementInformation();
-	void RenderStatusNotice(const char *pText, float Y, vec4 AccentColor);
+	void UpdateAnimations();
+	void RenderStatusNotice(const char *pText, float Y, vec4 AccentColor, float Amount);
 
 	// Shared HUD layout anchors (screen space: height=300).
 	float ScoreHudTop() const;

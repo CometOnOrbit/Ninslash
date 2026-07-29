@@ -29,6 +29,8 @@
 CScoreboard::CScoreboard()
 {
 	m_DebugActive = false;
+	m_AppearAmount = 0.0f;
+	m_LastAnimationTime = time_get();
 	OnReset();
 }
 
@@ -45,6 +47,8 @@ void CScoreboard::ConDebugScoreboard(IConsole::IResult *pResult, void *pUserData
 void CScoreboard::OnReset()
 {
 	m_Active = false;
+	m_AppearAmount = 0.0f;
+	m_LastAnimationTime = time_get();
 	mem_zero(&m_TotalRect, sizeof(m_TotalRect));
 }
 
@@ -428,12 +432,14 @@ void CScoreboard::RenderRecordingNotification(float x)
 
 void CScoreboard::OnRender()
 {
-	if(!Active())
-		return;
-	
-	if (m_pClient->m_pGameVoteDisplay->IsActive())
-		return;
-	if (m_pClient->m_pPveRoguelite->ChoiceActive())
+	const bool Blocked = m_pClient->m_pGameVoteDisplay->IsActive() || m_pClient->m_pPveRoguelite->ChoiceActive();
+	const bool TargetVisible = Active() && !Blocked;
+	const int64 Now = time_get();
+	const float Dt = clamp((float)((Now - m_LastAnimationTime) / (double)time_freq()), 0.0f, 0.05f);
+	m_AppearAmount += ((TargetVisible ? 1.0f : 0.0f) - m_AppearAmount) * (1.0f - expf(-14.0f * Dt));
+	m_AppearAmount = clamp(m_AppearAmount, 0.0f, 1.0f);
+	m_LastAnimationTime = Now;
+	if(!TargetVisible && m_AppearAmount < 0.01f)
 		return;
 	
 	// if the score board is active, then we should clear the motd message aswell
@@ -447,7 +453,7 @@ void CScoreboard::OnRender()
 	Graphics()->MapScreen(0, 0, Width, Height);
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.01f, 0.015f, 0.02f, 0.42f);
+	Graphics()->SetColor(0.01f, 0.015f, 0.02f, 0.42f * m_AppearAmount);
 	IGraphics::CQuadItem Backdrop(0, 0, Width, Height);
 	Graphics()->QuadsDrawTL(&Backdrop, 1);
 	Graphics()->QuadsEnd();
@@ -455,7 +461,8 @@ void CScoreboard::OnRender()
 	const bool Teams = m_pClient->m_Snap.m_pGameInfoObj && (m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags&GAMEFLAG_TEAMS);
 	const float Gap = 14.0f;
 	const float w = Teams ? clamp((Width-120.0f-Gap)*0.5f, 560.0f, 720.0f) : clamp(Width*0.56f, 760.0f, 920.0f);
-	const float PanelY = 92.0f;
+	const float Eased = 1.0f - (1.0f - m_AppearAmount) * (1.0f - m_AppearAmount) * (1.0f - m_AppearAmount);
+	const float PanelY = 92.0f + (1.0f - Eased) * 18.0f;
 	float ScoreboardHeight = 0.0f;
 	float PanelLeft = Width*0.5f-w*0.5f;
 	float TotalWidth = w;

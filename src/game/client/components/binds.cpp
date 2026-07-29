@@ -148,7 +148,7 @@ void CBinds::SetDefaults()
 	Bind(KEY_GAMEPAD_BUTTON_BACK, "+gamepadscoreboard");
 	
 	Bind(KEY_GAMEPAD_BUTTON_B, "+gamepaddropweapon");
-	Bind(KEY_GAMEPAD_BUTTON_Y, "+gamepadbuild");
+	Bind(KEY_GAMEPAD_BUTTON_Y, "+buildmenu");
 	
 	Bind(KEY_GAMEPAD_BUTTON_A, "+gamepademote");
 	

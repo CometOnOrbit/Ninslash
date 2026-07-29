@@ -54,6 +54,7 @@
 #include "components/cbelt.h"
 #include "components/buildings.h"
 #include "components/buildings2.h"
+#include "components/build_placement.h"
 #include "components/droids.h"
 #include "components/killmessages.h"
 #include "components/mapimages.h"
@@ -115,6 +116,7 @@ static CScoreboard gs_Scoreboard;
 static CSounds gs_Sounds;
 static CPicker gs_Picker;
 static CInventory gs_Inventory;
+static CBuildPlacement gs_BuildPlacement;
 static CDamageInd gsDamageInd;
 static CVoting gs_Voting;
 static CSpectator gs_Spectator;
@@ -189,6 +191,7 @@ void CGameClient::OnConsoleInit()
 	m_pLight = &::gs_Light;
 	m_pMenus = &::gs_Menus;
 	m_pInventory = &::gs_Inventory;
+	m_pBuildPlacement = &::gs_BuildPlacement;
 	m_pSkins = &::gs_Skins;
 	m_pCountryFlags = &::gs_CountryFlags;
 	m_pChat = &::gs_Chat;
@@ -292,6 +295,7 @@ void CGameClient::OnConsoleInit()
 	m_All.Add(m_pRadar);
 	m_All.Add(m_pInventory);
 	m_All.Add(&gs_Hud);
+	m_All.Add(m_pBuildPlacement);
 	m_All.Add(&gs_Spectator);
 	m_All.Add(&gs_Picker);
 	m_All.Add(&gs_KillMessages);
@@ -311,6 +315,7 @@ void CGameClient::OnConsoleInit()
 	m_Input.Add(m_pGameConsole);
 	m_Input.Add(m_pChat); // chat has higher prio due to tha you can quit it by pressing esc
 	m_Input.Add(m_pMotd); // for pressing esc to remove it
+	m_Input.Add(m_pBuildPlacement);
 	m_Input.Add(m_pPveRoguelite);
 	m_Input.Add(m_pMenus);
 	m_Input.Add(m_pGameVoteDisplay);
@@ -472,6 +477,12 @@ void CGameClient::DispatchInput()
 {
 	if(m_pMenus->IsActive())
 		Input()->SetGamepadActionSet(PLATFORM_INPUT_MENU);
+	else if(m_pBuildPlacement->WheelActive())
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_RADIAL_MENU);
+	else if(m_pBuildPlacement->PlacementActive())
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_BUILD);
+	else if(m_pInventory->IsVisible())
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_INVENTORY);
 	else if(m_Snap.m_LocalClientID >= 0 && m_Snap.m_paPlayerInfos[m_Snap.m_LocalClientID] && m_Snap.m_paPlayerInfos[m_Snap.m_LocalClientID]->m_Team == TEAM_SPECTATORS)
 		Input()->SetGamepadActionSet(PLATFORM_INPUT_SPECTATOR);
 	else if(Client()->State() == IClient::STATE_ONLINE)

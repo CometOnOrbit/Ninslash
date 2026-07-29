@@ -2411,7 +2411,7 @@ void CRenderTools::RenderFreeHand(CPlayerInfo *PlayerInfo, CTeeRenderInfo *pInfo
 
 
 
-void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, float Size, bool BeginQuads, int Flags, float Alpha2, bool KillMessage, bool NoFlags, bool Turret)
+void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, float Size, bool BeginQuads, int Flags, float Alpha2, bool KillMessage, bool NoFlags, bool Turret, float OverallAlpha)
 {
 	//Pos.x -= Size / 4;
 	CResolvedWeaponProfile Profile;
@@ -2434,7 +2434,7 @@ void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, f
 			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 			Graphics()->QuadsBegin();
 			Graphics()->QuadsSetRotation(GetAngle(Dir));
-			Graphics()->SetColor(1, 1, 1, 1);
+			Graphics()->SetColor(1, 1, 1, OverallAlpha);
 		}
 	
 		SelectSprite(SPRITE_WEAPON_STATIC1 + Definition.m_StaticType, NoFlags ? Flags : ((Dir.x < 0 ? SPRITE_FLAG_FLIP_Y : 0) ^ Flags));
@@ -2460,7 +2460,7 @@ void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, f
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 		Graphics()->QuadsBegin();
 		Graphics()->QuadsSetRotation(GetAngle(Dir));
-		Graphics()->SetColor(1, 1, 1, 1);
+		Graphics()->SetColor(1, 1, 1, OverallAlpha);
 	}
 	
 	if (Profile.m_Visual.m_RenderType == WRT_SPIN || Profile.m_Visual.m_RenderType == WRT_MELEE)
@@ -2471,7 +2471,7 @@ void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, f
 		// back outlines
 		if (Part1SpriteIndex >= 0)
 		{
-			Graphics()->SetColor(1, 1, 1, 1);
+			Graphics()->SetColor(1, 1, 1, OverallAlpha);
 			SelectSprite(SPRITE_WEAPON_PART1_BG_0+Part1SpriteIndex, Flags);
 			//DrawSprite(Pos.x, Pos.y, Size);
 			IGraphics::CQuadItem QuadItem(Pos.x, Pos.y, Size*WSize.x, Size*WSize.y);
@@ -2482,7 +2482,7 @@ void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, f
 		if (Definition.m_Part1 == PART1_SPIN)
 		{
 			Graphics()->QuadsSetRotation(GetAngle(Dir)+pi);
-			Graphics()->SetColor(1, 1, 1, Alpha2);
+			Graphics()->SetColor(1, 1, 1, Alpha2 * OverallAlpha);
 			SelectSprite(SPRITE_WEAPON_PART2_0+Part2SpriteIndex, Flags);
 			IGraphics::CQuadItem QuadItem2(Pos.x-Dir.x*Size*7/2, Pos.y-Dir.y*Size*7/2, Size*WSize2.x, Size*WSize2.y);
 			Graphics()->QuadsDraw(&QuadItem2, 1);
@@ -2493,7 +2493,7 @@ void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, f
 		// front / blade
 		if (Part2SpriteIndex >= 0)
 		{
-			Graphics()->SetColor(1, 1, 1, Alpha2);
+			Graphics()->SetColor(1, 1, 1, Alpha2 * OverallAlpha);
 			SelectSprite(SPRITE_WEAPON_PART2_0+Part2SpriteIndex, Flags);
 			IGraphics::CQuadItem QuadItem2(Pos.x+Dir.x*Size*7/2, Pos.y+Dir.y*Size*7/2, Size*WSize2.x, Size*WSize2.y);
 			Graphics()->QuadsDraw(&QuadItem2, 1);
@@ -2502,7 +2502,7 @@ void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, f
 		// back
 		if (Part1SpriteIndex >= 0)
 		{
-			Graphics()->SetColor(1, 1, 1, 1);
+			Graphics()->SetColor(1, 1, 1, OverallAlpha);
 			SelectSprite(SPRITE_WEAPON_PART1_0+Part1SpriteIndex, Flags);
 			//DrawSprite(Pos.x, Pos.y, Size);
 			IGraphics::CQuadItem QuadItem3(Pos.x, Pos.y, Size*WSize.x, Size*WSize.y);
@@ -2548,7 +2548,7 @@ void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, f
 		Graphics()->ShaderEnd();
 		Graphics()->QuadsBegin();
 		Graphics()->QuadsSetRotation(GetAngle(Dir));
-		Graphics()->SetColor(1, 1, 1, 1);
+		Graphics()->SetColor(1, 1, 1, OverallAlpha);
 		
 		SelectSprite(SPRITE_WEAPON_TURRET, Dir.x < 0 ? SPRITE_FLAG_FLIP_Y : 0);
 		IGraphics::CQuadItem QuadItem3(Pos.x, Pos.y, Size*WSize.x, Size*WSize.y);

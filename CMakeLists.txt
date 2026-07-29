@@ -656,6 +656,22 @@ list(APPEND TARGETS_OWN engine-shared game-shared)
 if(NINSLASH_BUILD_TESTS)
   enable_testing()
   set(NINSLASH_TEST_TARGETS)
+  add_test(NAME build_config COMMAND ${CMAKE_COMMAND}
+    -DNINSLASH_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+    -P ${PROJECT_SOURCE_DIR}/tests/build_config.cmake
+  )
+  add_executable(ninslash_test_pve_definitions
+    tests/pve_definitions.cpp
+    src/game/pve_roguelite.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_pve_definitions PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_BINARY_DIR}/src
+  )
+  target_link_libraries(ninslash_test_pve_definitions ${LIBS})
+  add_test(NAME pve_definitions COMMAND ninslash_test_pve_definitions)
   add_executable(ninslash_test_pve_progress
     tests/pve_progress_storage.cpp
     src/game/client/pve_progress_storage.cpp
@@ -734,6 +750,16 @@ if(NINSLASH_BUILD_TESTS)
   target_link_libraries(ninslash_test_room_creation ${LIBS})
   add_test(NAME room_creation COMMAND ninslash_test_room_creation)
   set_tests_properties(room_creation PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+
+  add_executable(ninslash_test_inventory_logic tests/inventory_logic.cpp)
+  target_include_directories(ninslash_test_inventory_logic PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_inventory_logic ${LIBS})
+  add_test(NAME inventory_logic COMMAND ninslash_test_inventory_logic)
+
+  add_executable(ninslash_test_build_placement_logic tests/build_placement_logic.cpp)
+  target_include_directories(ninslash_test_build_placement_logic PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_build_placement_logic ${LIBS})
+  add_test(NAME build_placement_logic COMMAND ninslash_test_build_placement_logic)
 
   add_executable(ninslash_test_menu_home tests/menu_home.cpp)
   target_include_directories(ninslash_test_menu_home PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
@@ -880,6 +906,9 @@ if(CLIENT)
     components/buildings.h
     components/buildings2.cpp
     components/buildings2.h
+    components/build_placement.cpp
+    components/build_placement.h
+    components/build_placement_logic.h
     components/camera.cpp
     components/camera.h
     components/cbelt.cpp

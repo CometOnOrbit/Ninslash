@@ -157,10 +157,6 @@ public:
 	
 	int m_LatestWeapon;
 	
-	vec2 m_BuildPos;
-	bool m_BuildPosValid;
-	bool m_FlipBuilding;
-	
 	float m_CameraShake;
 	vec2 m_CameraKick;
 	
@@ -178,8 +174,6 @@ public:
 	CWeaponSpec m_aItem[12];
 	int m_aItemAmmo[12];
 	int m_Gold;
-	
-	bool m_BuildMode;
 	
 	// Droids
 	float m_DroidDamageIntensity[MAX_DROIDS];

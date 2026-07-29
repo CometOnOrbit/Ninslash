@@ -12,8 +12,7 @@
 #include <game/client/render.h>
 #include <game/client/customstuff.h>
 #include <game/client/components/controls.h>
-
-#include <game/client/components/controls.h>
+#include <game/client/components/build_placement.h>
 #include <game/client/components/sounds.h>
 #include "picker.h"
 
@@ -38,21 +37,11 @@ void CPicker::ConKeyPicker(IConsole::IResult *pResult, void *pUserData)
 {
 	CPicker *pSelf = (CPicker *)pUserData;
 	
-	if (!pSelf->m_pClient->m_pControls->m_BuildMode)
-	{
-		if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
-			pSelf->m_Active = pResult->GetInteger(0) != 0;
-		
-		pSelf->m_PickerType = PICKER_WEAPON;
-	}
-	else
-	{
-		if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
-			pSelf->m_Active = pResult->GetInteger(0) != 0;
-		
-		pSelf->m_PickerType = PICKER_TOOL;
-		pSelf->m_ItemSelected = -1;
-	}
+	if(pSelf->m_pClient->m_pBuildPlacement->Active())
+		return;
+	if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		pSelf->m_Active = pResult->GetInteger(0) != 0;
+	pSelf->m_PickerType = PICKER_WEAPON;
 }
 
 void CPicker::ConLastWeaponpick(IConsole::IResult *pResult, void *pUserData)
@@ -203,74 +192,6 @@ void CPicker::DrawWeapons()
 
 
 
-void CPicker::DrawKit()
-{
-	/*
-	// reset mouse to active weapon
-	if (m_ResetMouse)
-	{
-		//m_SelectorMouse = vec2(0, 0);
-		m_ResetMouse = false;
-
-		m_Selected = -1;
-	}
-	
-	CUIRect Screen = *UI()->Screen();
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_BUILDINGS].m_Id);
-	Graphics()->QuadsBegin();
-
-	bool Unselect = true;
-	
-	for (int i = 0; i < NUM_KITS; i++)
-	{
-		float Angle = -pi/2.0f + 2*pi*i/NUM_KITS;
-		if (Angle > pi)
-			Angle -= 2*pi;
-
-		bool Selected = m_Selected == i;
-
-		float Size = Selected ? 1.2f : 1.0f;
-
-		float NudgeX = 135.0f * cosf(Angle);
-		float NudgeY = 135.0f * sinf(Angle);
-		RenderTools()->SelectSprite(SPRITE_KIT_BARREL+i);
-		
-		vec2 Pos = vec2(Screen.w/2 + NudgeX, Screen.h/2 + NudgeY);
-		RenderTools()->DrawSprite(Pos.x, Pos.y, 70 * Size);
-		
-		if (distance(m_SelectorMouse+vec2(Screen.w/2, Screen.h/2), Pos) < 40 && 
-		length(m_SelectorMouse) > 100.0f)
-		{
-			if (m_Selected != i)
-				m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_UI_PICK, 0);
-			
-			m_Selected = i;
-			Unselect = false;
-		}
-	}
-	
-	Graphics()->QuadsEnd();
-	
-	if (Unselect)
-		m_Selected = -1;
-	
-	// render number of kits to mid
-	vec2 KitPos = vec2(0, 60);
-	
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-	Graphics()->QuadsBegin();
-	Graphics()->SetColor(1, 1, 1, 0.5f);
-	RenderTools()->SelectSprite(SPRITE_PICKUP_KIT);
-	RenderTools()->DrawSprite(Screen.w/2+KitPos.x, Screen.h/2+KitPos.y, 64);
-	Graphics()->QuadsEnd();
-	
-	char aBuf[128];
-	str_format(aBuf, sizeof(aBuf), "%d", clamp(CustomStuff()->m_LocalKits ,0, 9));
-	TextRender()->TextColor(0.2f, 0.7f, 0.2f, 1);
-	TextRender()->Text(0, Screen.w/2+KitPos.x+25, Screen.h/2+KitPos.y+10, 16, aBuf, -1);
-	TextRender()->TextColor(1, 1, 1, 1);
-	*/
-}
 
 
 
@@ -292,8 +213,6 @@ void CPicker::OnRender()
 					Weaponpick(m_Selected);
 				if (m_PickerType == PICKER_EMOTICON)
 					Emote(m_Selected);
-				if (m_PickerType == PICKER_TOOL)
-					m_pClient->m_pControls->m_SelectedBuilding = m_Selected+1;
 			}
 		}
 		m_WasActive = false;
@@ -348,10 +267,6 @@ void CPicker::OnRender()
 		case PICKER_WEAPON:
 			DrawWeapons();
 			break;
-		case PICKER_TOOL:
-			DrawKit();
-			break;
-	
 		default:
 			break;
 	};

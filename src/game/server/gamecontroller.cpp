@@ -47,6 +47,7 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_GameState = 0;
 	m_GameVote = 0;
 	m_GameVoteEndTick = 0;
+	m_PostRoundTransitionStarted = false;
 	m_GameFlags = 0;
 	m_aTeamscore[TEAM_RED] = 0;
 	m_aTeamscore[TEAM_BLUE] = 0;
@@ -1173,6 +1174,7 @@ void IGameController::ResetGame()
 {
 	m_GameVote = 0;
 	m_GameVoteEndTick = 0;
+	m_PostRoundTransitionStarted = false;
 	GameServer()->m_World.m_ResetRequested = true;
 }
 
@@ -1835,6 +1837,13 @@ void IGameController::ResetGameVotes()
 	m_GameVoteEndTick = 0;
 }
 
+void IGameController::BeginPostRoundTransition()
+{
+	m_GameVote = 1;
+	m_GameVoteEndTick = Server()->Tick() + Server()->TickSpeed() * 60;
+	SendGameVotes();
+}
+
 
 int IGameController::GetVoteTime()
 {
@@ -1887,11 +1896,10 @@ void IGameController::Tick()
 	if(m_GameOverTick != -1)
 	{
 		// game over.. wait for vote start
-		if(!m_GameVote && Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*3)
+		if(!m_PostRoundTransitionStarted && Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*3)
 		{
-			m_GameVote = 1;
-			m_GameVoteEndTick = Server()->Tick() + Server()->TickSpeed()*60;
-			SendGameVotes();
+			m_PostRoundTransitionStarted = true;
+			BeginPostRoundTransition();
 		}
 		
 		// check votes
@@ -1943,6 +1951,7 @@ void IGameController::Tick()
 	{
 		m_GameVote = 0;
 		m_GameVoteEndTick = 0;
+		m_PostRoundTransitionStarted = false;
 	}
 	
 	// clear / interrupt broadcast

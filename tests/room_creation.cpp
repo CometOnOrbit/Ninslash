@@ -80,5 +80,18 @@ int main()
 	assert(!RoomPrimaryActionEnabled(ROOM_PRIMARY_STARTING_LOCAL));
 	assert(!RoomPrimaryActionEnabled(ROOM_PRIMARY_STOPPING_LOCAL));
 	assert(!RoomPrimaryActionEnabled(ROOM_PRIMARY_CREATING_STEAM));
+
+	const CRoomConfigureLayout Narrow = RoomConfigureLayout(620.0f, 1.0f, true, 5, 3, true);
+	assert(Narrow.m_SingleColumn);
+	assert(Narrow.m_ContentHeight == 50.0f + Narrow.m_MainSettingsHeight + 8.0f + Narrow.m_IdentityHeight);
+	assert(Narrow.m_ContentHeight > 400.0f); // Requires scrolling in the 800x600 Play view.
+	const CRoomConfigureLayout NarrowScaled = RoomConfigureLayout(620.0f, 1.5f, true, 5, 3, true);
+	assert(NarrowScaled.m_SingleColumn);
+	assert(NarrowScaled.m_ContentHeight > 260.0f);
+	assert(NarrowScaled.m_ContentHeight < Narrow.m_ContentHeight);
+	const CRoomConfigureLayout Wide = RoomConfigureLayout(700.0f, 1.0f, false, 5, 3, true);
+	assert(!Wide.m_SingleColumn);
+	assert(Wide.m_ContentHeight == 50.0f + (Wide.m_MainSettingsHeight > Wide.m_IdentityHeight ? Wide.m_MainSettingsHeight : Wide.m_IdentityHeight));
+	assert(Wide.m_MainSettingsHeight > Narrow.m_MainSettingsHeight); // Offline hint has reserved space.
 	return 0;
 }

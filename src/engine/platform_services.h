@@ -296,6 +296,7 @@ public:
 	virtual bool ConsumeJoinRequest(char *pBuffer, int BufferSize) = 0;
 	virtual bool ConsumeJoinFailure(char *pBuffer, int BufferSize) = 0;
 	virtual void CloudStatus(CPlatformCloudStatus *pStatus) const = 0;
+	virtual bool CloudFileExists(const char *pFilename) const = 0;
 	virtual int CloudFileSize(const char *pFilename) const = 0;
 	virtual long long CloudFileTimestamp(const char *pFilename) const = 0;
 	virtual int CloudReadFile(const char *pFilename, void *pBuffer, int BufferSize) = 0;

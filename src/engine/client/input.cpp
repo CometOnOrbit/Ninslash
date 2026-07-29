@@ -112,7 +112,7 @@ void CInput::StopTextInput()
 
 void CInput::SetGamepadActionSet(int ActionSet)
 {
-	if(ActionSet >= PLATFORM_INPUT_GAME && ActionSet <= PLATFORM_INPUT_CHAT)
+	if(ActionSet >= PLATFORM_INPUT_GAME && ActionSet < NUM_PLATFORM_INPUT_ACTION_SETS)
 		m_GamepadActionSet = ActionSet;
 }
 

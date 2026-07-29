@@ -138,12 +138,31 @@ def extract_client_strings() -> set[str]:
     return strings
 
 
+def extract_platform_status_strings() -> set[str]:
+    """Extract status keys that reach Localize through async result structs."""
+    strings: set[str] = set()
+    for relative in (
+        "src/engine/client/platform_services.cpp",
+        "src/engine/client/client.cpp",
+    ):
+        text = open(os.path.join(ROOT, relative), encoding="utf-8").read()
+        patterns = (
+            r'str_copy\([^,]*(?:m_aErrorKey|m_aLobbyCreateFailure)[^,]*,\s*"([^"]+)"',
+            r'str_copy\([^,]*m_CommunityResult\.m_aError[^,]*,\s*"([^"]+)"',
+        )
+        for pattern in patterns:
+            strings.update(re.findall(pattern, text))
+        for call in re.findall(r"SetJoinFailure\((.*?)\);", text, re.DOTALL):
+            strings.update(re.findall(r'"([^"]+)"', call))
+    return strings
+
+
 # These strings are selected through tables or helper return values before they
 # reach Localize(), so the direct-call scan above cannot discover them. Keep the
 # set close to the menu's user-visible state vocabulary; missing translations
 # here otherwise silently fall back to English.
 MENU_DYNAMIC_KEYS = {
-    "Play", "Character", "Progress", "Mods", "Replays", "Settings",
+    "Play", "Character", "Progress", "Workshop", "Replays", "Settings",
     "Continue", "Game", "Change mode", "Players", "Server", "Vote", "Leave",
     "CONTENT", "SYSTEM", "SESSION", "PROFILE",
     "Solo", "Friends", "LAN", "Public", "PVE", "PVP",
@@ -174,6 +193,14 @@ MENU_DYNAMIC_KEYS = {
     "Objectives, defense and extraction.", "Materials, forging and construction.",
     "Perks, drones and research.", "Bot PvP and multiplayer rooms.",
     "Start", "Replay", "Locked", "Resume",
+    "Cloud profile is too large", "Steam Cloud conflict needs your choice",
+    "Steam Cloud conflict postponed; cloud writes are paused",
+    "Steam Cloud data was created by a newer game version",
+    "Steam Cloud is synchronizing; retrying...", "Steam Cloud is up to date",
+    "Steam Cloud profile applied",
+    "Steam Cloud profile is empty; local progress was kept",
+    "Steam Cloud profile is invalid; local progress was kept",
+    "Steam Cloud upload failed; local progress is safe",
 }
 
 
@@ -244,6 +271,18 @@ def extract_pve_definition_strings() -> set[str]:
         r'CARD[013]\(PVE_CARD_[^,]+,\s*"([^"]+)",\s*"([^"]+)"', text
     ):
         strings.update(match.groups())
+    short_descriptions = re.search(
+        r'gs_apShortCardDescriptions\[NUM_PVE_CARDS\]\s*=\s*\{(.*?)\};',
+        text,
+        re.DOTALL,
+    )
+    if short_descriptions:
+        strings.update(re.findall(r'"([^"]+)"', short_descriptions.group(1)))
+    choice_description = re.search(
+        r'const char \*PveChoiceDescription\(int ID\)(.*?)\n\}', text, re.DOTALL
+    )
+    if choice_description:
+        strings.update(re.findall(r'return "([^"]+)";', choice_description.group(1)))
     for match in re.finditer(
         r'\{PVE_CONTRACT_[^,]+,\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"', text
     ):
@@ -333,6 +372,7 @@ def main() -> int:
         set(MENU_DYNAMIC_KEYS)
         | extract_local_game_mode_strings()
         | extract_menu_home_strings()
+        | extract_platform_status_strings()
     )
     client_strings = (extract_client_strings() | dynamic_client_strings) - pve_client_strings
     lang_dir = os.path.join(ROOT, "data/languages")

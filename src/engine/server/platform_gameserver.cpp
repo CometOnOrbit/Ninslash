@@ -1,5 +1,7 @@
 #include "platform_gameserver.h"
 
+#include <game/version.h>
+
 #if defined(CONF_STEAMWORKS_GAMESERVER)
 #include <steam_gameserver.h>
 #include <stdlib.h>
@@ -41,7 +43,34 @@ class CSteamPlatformGameServer : public IPlatformGameServer
 	};
 	CAuthSession m_aAuthSessions[64];
 	bool m_Initialized;
+	bool m_Connected;
+	bool m_AdvertiseRequested;
 	CCallbackManual<CSteamPlatformGameServer, ValidateAuthTicketResponse_t, true> m_ValidateAuthCallback;
+	CCallbackManual<CSteamPlatformGameServer, SteamServersConnected_t, true> m_ServersConnectedCallback;
+	CCallbackManual<CSteamPlatformGameServer, SteamServerConnectFailure_t, true> m_ServerConnectFailureCallback;
+	CCallbackManual<CSteamPlatformGameServer, SteamServersDisconnected_t, true> m_ServersDisconnectedCallback;
+
+	void OnServersConnected(SteamServersConnected_t *pResponse)
+	{
+		(void)pResponse;
+		m_Connected = true;
+		if(SteamGameServer()) SteamGameServer()->SetAdvertiseServerActive(m_AdvertiseRequested);
+		dbg_msg("steam", "Steam GameServer connected");
+	}
+
+	void OnServerConnectFailure(SteamServerConnectFailure_t *pResponse)
+	{
+		m_Connected = false;
+		if(SteamGameServer()) SteamGameServer()->SetAdvertiseServerActive(false);
+		dbg_msg("steam", "Steam GameServer connection failed: result=%d retrying=%d", pResponse ? (int)pResponse->m_eResult : -1, pResponse && pResponse->m_bStillRetrying ? 1 : 0);
+	}
+
+	void OnServersDisconnected(SteamServersDisconnected_t *pResponse)
+	{
+		m_Connected = false;
+		if(SteamGameServer()) SteamGameServer()->SetAdvertiseServerActive(false);
+		dbg_msg("steam", "Steam GameServer disconnected: result=%d", pResponse ? (int)pResponse->m_eResult : -1);
+	}
 
 	int FindSession(unsigned long long SteamID) const
 	{
@@ -74,7 +103,7 @@ class CSteamPlatformGameServer : public IPlatformGameServer
 			m_aAuthSessions[Session].m_Result = PLATFORM_AUTH_INVALID_TICKET;
 	}
 public:
-	CSteamPlatformGameServer() : m_Initialized(false) { mem_zero(m_aAuthSessions, sizeof(m_aAuthSessions)); }
+	CSteamPlatformGameServer() : m_Initialized(false), m_Connected(false), m_AdvertiseRequested(false) { mem_zero(m_aAuthSessions, sizeof(m_aAuthSessions)); }
 	bool Init(unsigned short Port)
 	{
 		if(m_Initialized)
@@ -90,10 +119,14 @@ public:
 		str_format(aAppID, sizeof(aAppID), "%d", STEAM_APP_ID);
 		setenv("SteamAppId", aAppID, 0);
 #endif
-		m_Initialized = SteamGameServer_Init(0, Port, Port + 1, eServerModeAuthenticationAndSecure, "1.0.0.0");
+		const unsigned short QueryPort = Port == 65535 ? 65534 : (unsigned short)(Port + 1);
+		m_Initialized = SteamGameServer_Init(0, Port, QueryPort, eServerModeAuthenticationAndSecure, GAME_VERSION);
 		if(m_Initialized)
 		{
-		m_ValidateAuthCallback.Register(this, &CSteamPlatformGameServer::OnValidateAuthTicket);
+			m_ValidateAuthCallback.Register(this, &CSteamPlatformGameServer::OnValidateAuthTicket);
+			m_ServersConnectedCallback.Register(this, &CSteamPlatformGameServer::OnServersConnected);
+			m_ServerConnectFailureCallback.Register(this, &CSteamPlatformGameServer::OnServerConnectFailure);
+			m_ServersDisconnectedCallback.Register(this, &CSteamPlatformGameServer::OnServersDisconnected);
 			SteamGameServer()->SetProduct("ninslash");
 			SteamGameServer()->SetModDir("ninslash");
 			SteamGameServer()->SetDedicatedServer(true);
@@ -110,17 +143,23 @@ public:
 				if(m_aAuthSessions[i].m_SteamID)
 					SteamGameServer()->EndAuthSession(CSteamID(m_aAuthSessions[i].m_SteamID));
 			m_ValidateAuthCallback.Unregister();
+			m_ServersConnectedCallback.Unregister();
+			m_ServerConnectFailureCallback.Unregister();
+			m_ServersDisconnectedCallback.Unregister();
 			SteamGameServer_Shutdown();
 		}
 		mem_zero(m_aAuthSessions, sizeof(m_aAuthSessions));
 		m_Initialized = false;
+		m_Connected = false;
+		m_AdvertiseRequested = false;
 	}
 	void RunCallbacks() { if(m_Initialized) SteamGameServer_RunCallbacks(); }
 	bool Available() const { return m_Initialized; }
 	void SetAdvertiseServerActive(bool Active)
 	{
+		m_AdvertiseRequested = Active;
 		if(m_Initialized && SteamGameServer())
-			SteamGameServer()->SetAdvertiseServerActive(Active);
+			SteamGameServer()->SetAdvertiseServerActive(Active && m_Connected);
 	}
 	void UpdateMetadata(const char *pName, const char *pMap, int Players, int MaxPlayers, bool PasswordProtected, bool Official, int AuthPolicy, const char *pModHash)
 	{
@@ -138,12 +177,12 @@ public:
 	}
 	void UpdateUserData(unsigned long long SteamID, const char *pName, int Score)
 	{
-		if(m_Initialized && SteamID && AuthenticationResult(SteamID) == PLATFORM_AUTH_OK)
+		if(m_Initialized && m_Connected && SteamID && AuthenticationResult(SteamID) == PLATFORM_AUTH_OK)
 			SteamGameServer()->BUpdateUserData(CSteamID(SteamID), pName ? pName : "", Score < 0 ? 0 : (uint32)Score);
 	}
 	EPlatformAuthResult Authenticate(unsigned long long SteamID, const void *pTicket, int TicketSize)
 	{
-		if(!m_Initialized)
+		if(!m_Initialized || !m_Connected)
 			return PLATFORM_AUTH_UNAVAILABLE;
 		if(!SteamID || !pTicket || TicketSize <= 0 || TicketSize > 2048)
 			return PLATFORM_AUTH_INVALID_TICKET;

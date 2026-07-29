@@ -2,18 +2,122 @@
 
 #include "pve_roguelite.h"
 
+// TODO: rewrite this to be more data-driven and less hardcoded, and to use the new card system instead of the old one.
 namespace
 {
+const char *const gs_apShortCardDescriptions[NUM_PVE_CARDS] = {
+	"All damage is 8% higher for each stack, up to three stacks.",
+	"At each stage start, gain 8 armor for each stack.",
+	"At each stage start, gain 2 kits for each stack.",
+	"Gold income is 12% higher for each stack.",
+	"At each stage start, restore 15% ammunition for each stack.",
+	"Health and armor recovery is 20% higher for each stack.",
+	"Weapon attacks recharge 8% faster for each stack, up to 30%.",
+	"Deal 20% more damage per stack to enemies below 30% health.",
+	"Deal 25% more damage to bosses.",
+	"Kills briefly grant 4% more damage, up to five times.",
+	"Deal 35% more damage, but take 20% more damage.",
+	"Take 8% less damage for each stack, up to 50%.",
+	"Below 35% health, gain 15 armor once each stage.",
+	"Nearby allies take 12% less damage.",
+	"Once each stage, survive lethal damage with 1 health.",
+	"Shop prices are 10% lower for each stack, up to 40%.",
+	"Shops offer one additional high-tier item.",
+	"Buildings cost 20% less and repairs restore 25% more.",
+	"Destroyed friendly buildings refund 40% of their kit cost.",
+	"Firearm damage is 12% higher for each stack.",
+	"Continuous firearm hits build up to 25% more damage.",
+	"Firearms reload 20% faster and handle more smoothly.",
+	"Explosive damage is 12% higher for each stack.",
+	"Explosion radius is 25% larger, up to 50%.",
+	"Explosive kills can trigger a secondary blast.",
+	"Electric damage is 12% higher for each stack.",
+	"Electric hits arc to one nearby enemy for 35% damage.",
+	"Every fifth electric hit deals double damage.",
+	"Melee damage is 12% higher for each stack.",
+	"Melee kills restore 4 health.",
+	"Heavy melee hits release a damaging shockwave.",
+	"Invasion stage-start supplies are 25% higher for each stack.",
+	"Deal 20% more damage to Invasion objectives.",
+	"After each Invasion floor, gain 4% more damage for the run.",
+	"Horde breaks restore 20% health and ammunition for each stack.",
+	"Horde multikills grant 15% more damage for 5 seconds.",
+	"Buildings deal 30% more damage during Horde.",
+	"Extraction interactions are 25% faster for each stack.",
+	"Move 15% faster while evacuating.",
+	"Reviving an ally grants both players 20 armor.",
+	"Six direct hits apply Vulnerable for 4 seconds. Each stack adds 3% damage.",
+	"At stage start, gain 6 Barrier per stack, up to 30.",
+	"Every 5 kills restore 2 health per stack, up to three times each stage.",
+	"Every 8 kills grant 1 kit per stack, up to 6 kits each stage.",
+	"Stage completion pays 5% interest per stack, up to 30 gold.",
+	"Nearby allies receive 6% more recovery for each stack.",
+	"Deploy a support drone. Each stack improves its module efficiency by 10%.",
+	"Every 10 firearm hits, the next shot deals 15% more damage per stack.",
+	"Every 5 enemy hits, the next blast deals 8% more damage per stack.",
+	"Every 10 electric hits, the next hit chains to one extra target per stack.",
+	"Every 10 melee hits, the next hit deals 20% more damage per stack.",
+	"The first objective each stage restores 10% ammo and grants 3 armor per stack.",
+	"Deal 15% more damage to Vulnerable targets.",
+	"Every tenth direct hit deals 75% more damage and refreshes Vulnerable.",
+	"After 5 seconds unharmed, restore 2 Barrier each second.",
+	"When Barrier breaks, gain 15 armor once each stage.",
+	"Gain 2% more damage per 50 gold held, up to 20%.",
+	"Every 25 gold spent grants 5 Barrier, up to 15 per purchase.",
+	"Drone attack and repair intervals are 8% shorter per stack, up to 30%.",
+	"The drone attacks every 1.2 seconds for 20% weapon damage.",
+	"The drone makes nearby allies take 10% less damage.",
+	"The drone restores 2 armor or durability each second.",
+	"Current drone module efficiency is 25% higher.",
+	"Current drone module efficiency is 50% higher. Disabled drones recover after 5 seconds.",
+	"Focus needs 1 fewer hit per stack, to a minimum of 7.",
+	"Consuming Focus applies Vulnerable for 5 seconds.",
+	"After consuming Focus, the next magazine's first 6 shots deal 35% more damage.",
+	"Deal 8% more firearm damage per stack to Vulnerable targets.",
+	"After a full reload, the first 5 shots deal 15% more damage.",
+	"Against the assault drone target, players deal 15% more damage and the drone 50% more.",
+	"Empowered blasts need 1 fewer hit per stack, to a minimum of 3.",
+	"Empowered explosions apply Vulnerable for 5 seconds.",
+	"Every third empowered explosion creates a delayed blast for 60% damage.",
+	"Empowered explosions apply 1 Bleed stack for each card stack.",
+	"Take 50% less self-explosion damage. Empowered blasts have 20% more radius.",
+	"Deal 30% more explosive damage to bosses, objectives, and buildings.",
+	"Gain 1 extra Voltage per stack when charging, up to 3 per hit.",
+	"Consuming Voltage makes the target Conductive for 5 seconds. Arcs deal 25% more damage.",
+	"Every third full Voltage release calls lightning for 100% damage.",
+	"Electric kills restore 2 Voltage for each stack.",
+	"Consuming Voltage grants 10 Barrier.",
+	"Above 5 Voltage, current drone module efficiency is 35% higher.",
+	"Gain 1 extra Fury per stack on hit, up to 4 per hit.",
+	"Consuming Fury applies 3 Bleed stacks.",
+	"After full Fury, deal 40% more melee damage and take 20% less damage for 6 seconds.",
+	"Heavy hits extend Vulnerable by 2 seconds per stack, up to 6 seconds.",
+	"When a bleeding enemy dies, restore 5 health, up to 15 each event.",
+	"Each enemy hit by a shockwave grants 1 Fury and 2 Barrier.",
+	"Objectives show direction and distance. Interactions are 15% faster.",
+	"The final objective takes 50% more damage. Completion grants the team 20 Barrier.",
+	"Each completed objective grants 4 gold for each stack.",
+	"A deathless floor grants 4% more damage on later floors, up to 20%.",
+	"A deathless wave grants 8 gold to every player.",
+	"Deathless waves grant 5% more player and building damage, up to 25%. Death resets it.",
+	"At wave start, repair friendly buildings by 5% maximum durability per stack.",
+	"Inside the defense area, take 15% less damage and gain 25% drone efficiency.",
+	"While carrying an objective, move 10% faster and take 10% less damage.",
+	"When the exit opens, the team deals 30% more damage and moves 15% faster. Healing stops.",
+	"Interactions are 10% faster per stack, up to 60%.",
+	"Entering evacuation restores 30% ammo and grants 20 Barrier once.",
+};
+
 #define CARD0(Id, Name, Desc, Rarity, Stacks, Cost, Base, Legendary, Keywords, Tab, Branch, Tier, Mode, Spec) \
-	{Id, Name, Desc, Rarity, Stacks, Cost, Base, Legendary, Keywords, {-1, -1, -1}, 0, Tab, Branch, Tier, Mode, Spec}
+	{Id, Name, Desc, gs_apShortCardDescriptions[Id], Rarity, Stacks, Cost, Base, Legendary, Keywords, {-1, -1, -1}, 0, Tab, Branch, Tier, Mode, Spec}
 #define CARD1(Id, Name, Desc, Rarity, Stacks, Cost, Base, Legendary, Keywords, Prereq, Tab, Branch, Tier, Mode, Spec) \
-	{Id, Name, Desc, Rarity, Stacks, Cost, Base, Legendary, Keywords, {Prereq, -1, -1}, 1, Tab, Branch, Tier, Mode, Spec}
+	{Id, Name, Desc, gs_apShortCardDescriptions[Id], Rarity, Stacks, Cost, Base, Legendary, Keywords, {Prereq, -1, -1}, 1, Tab, Branch, Tier, Mode, Spec}
 #define CARD3(Id, Name, Desc, Rarity, Stacks, Cost, Base, Legendary, Keywords, Prereq0, Prereq1, Prereq2, Tab, Branch, Tier, Mode, Spec) \
-	{Id, Name, Desc, Rarity, Stacks, Cost, Base, Legendary, Keywords, {Prereq0, Prereq1, Prereq2}, 3, Tab, Branch, Tier, Mode, Spec}
+	{Id, Name, Desc, gs_apShortCardDescriptions[Id], Rarity, Stacks, Cost, Base, Legendary, Keywords, {Prereq0, Prereq1, Prereq2}, 3, Tab, Branch, Tier, Mode, Spec}
 
 const CPveCardDef gs_aCards[NUM_PVE_CARDS] = {
 	// Original seven base cards (IDs 0-6).
-	CARD0(PVE_CARD_COMBAT_TRAINING, "Combat Training", "All damage +8% per stack (maximum 3).", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_NONE, PVE_TAB_CORE, 0, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
+	CARD0(PVE_CARD_COMBAT_TRAINING, "All Damage", "All damage +8% per stack (maximum 3).", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_NONE, PVE_TAB_CORE, 0, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD0(PVE_CARD_REINFORCED_PLATES, "Reinforced Plates", "Gain 8 armor at the start of each stage per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_NONE, PVE_TAB_CORE, 1, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD0(PVE_CARD_FIELD_SUPPLIES, "Field Supplies", "Gain 2 kits at the start of each stage per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_NONE, PVE_TAB_CORE, 2, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD0(PVE_CARD_SCAVENGER, "Scavenger", "Gold income +12% per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_NONE, PVE_TAB_CORE, 2, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
@@ -34,16 +138,16 @@ const CPveCardDef gs_aCards[NUM_PVE_CARDS] = {
 	CARD1(PVE_CARD_PREMIUM_STOCK, "Premium Stock", "Shops offer one additional high-tier item.", PVE_RARITY_RARE, 1, 2, false, false, PVE_KEYWORD_NONE, PVE_CARD_QUARTERMASTER, PVE_TAB_CORE, 2, 2, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD1(PVE_CARD_ENGINEER, "Engineer", "Building costs -20% and repairs +25%.", PVE_RARITY_EPIC, 1, 3, false, false, PVE_KEYWORD_NONE, PVE_CARD_PREMIUM_STOCK, PVE_TAB_CORE, 2, 3, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD1(PVE_CARD_RECYCLER, "Recycler", "Destroyed friendly buildings refund 40% of their kit cost.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_NONE, PVE_CARD_ENGINEER, PVE_TAB_CORE, 2, 4, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
-	CARD0(PVE_CARD_HOLLOW_POINT, "Hollow Point", "Firearm damage +12% per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_TAB_WEAPON, 0, 1, PVE_MODE_ANY, PVE_SPECIALIZATION_FIREARM),
+	CARD0(PVE_CARD_HOLLOW_POINT, "Firearm Damage", "Firearm damage +12% per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_TAB_WEAPON, 0, 1, PVE_MODE_ANY, PVE_SPECIALIZATION_FIREARM),
 	CARD1(PVE_CARD_SUSTAINED_FIRE, "Sustained Fire", "Continuous firearm hits build up to +25% damage.", PVE_RARITY_RARE, 1, 3, false, false, PVE_KEYWORD_NONE, PVE_CARD_HOLLOW_POINT, PVE_TAB_WEAPON, 0, 2, PVE_MODE_ANY, PVE_SPECIALIZATION_FIREARM),
 	CARD1(PVE_CARD_GUNSLINGER, "Gunslinger", "Firearms reload 20% faster and gain improved handling.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_NONE, PVE_CARD_SUSTAINED_FIRE, PVE_TAB_WEAPON, 0, 3, PVE_MODE_ANY, PVE_SPECIALIZATION_FIREARM),
-	CARD0(PVE_CARD_DEMOLITION, "Demolition", "Explosive damage +12% per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_TAB_WEAPON, 1, 1, PVE_MODE_ANY, PVE_SPECIALIZATION_EXPLOSIVE),
+	CARD0(PVE_CARD_DEMOLITION, "Explosive Damage", "Explosive damage +12% per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_TAB_WEAPON, 1, 1, PVE_MODE_ANY, PVE_SPECIALIZATION_EXPLOSIVE),
 	CARD1(PVE_CARD_WIDE_BLAST, "Wide Blast", "Explosion radius +25% (maximum +50%).", PVE_RARITY_RARE, 1, 3, false, false, PVE_KEYWORD_NONE, PVE_CARD_DEMOLITION, PVE_TAB_WEAPON, 1, 2, PVE_MODE_ANY, PVE_SPECIALIZATION_EXPLOSIVE),
 	CARD1(PVE_CARD_CHAIN_REACTION, "Chain Reaction", "Explosive kills have a chance to trigger a secondary blast.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_NONE, PVE_CARD_WIDE_BLAST, PVE_TAB_WEAPON, 1, 3, PVE_MODE_ANY, PVE_SPECIALIZATION_EXPLOSIVE),
-	CARD0(PVE_CARD_OVERCHARGE, "Overcharge", "Electric damage +12% per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_TAB_WEAPON, 2, 1, PVE_MODE_ANY, PVE_SPECIALIZATION_ELECTRIC),
+	CARD0(PVE_CARD_OVERCHARGE, "Electric Damage", "Electric damage +12% per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_TAB_WEAPON, 2, 1, PVE_MODE_ANY, PVE_SPECIALIZATION_ELECTRIC),
 	CARD1(PVE_CARD_ARC_CONDUCTOR, "Arc Conductor", "Electric hits arc to one nearby enemy for 35% damage.", PVE_RARITY_RARE, 1, 3, false, false, PVE_KEYWORD_NONE, PVE_CARD_OVERCHARGE, PVE_TAB_WEAPON, 2, 2, PVE_MODE_ANY, PVE_SPECIALIZATION_ELECTRIC),
 	CARD1(PVE_CARD_CAPACITOR, "Capacitor", "Every fifth electric hit deals double damage.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_NONE, PVE_CARD_ARC_CONDUCTOR, PVE_TAB_WEAPON, 2, 3, PVE_MODE_ANY, PVE_SPECIALIZATION_ELECTRIC),
-	CARD0(PVE_CARD_BERSERKER, "Berserker", "Melee damage +12% per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_TAB_WEAPON, 3, 1, PVE_MODE_ANY, PVE_SPECIALIZATION_MELEE),
+	CARD0(PVE_CARD_BERSERKER, "Melee Damage", "Melee damage +12% per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_TAB_WEAPON, 3, 1, PVE_MODE_ANY, PVE_SPECIALIZATION_MELEE),
 	CARD1(PVE_CARD_BLOOD_DRIVE, "Blood Drive", "Melee kills restore 4 health.", PVE_RARITY_RARE, 1, 3, false, false, PVE_KEYWORD_NONE, PVE_CARD_BERSERKER, PVE_TAB_WEAPON, 3, 2, PVE_MODE_ANY, PVE_SPECIALIZATION_MELEE),
 	CARD1(PVE_CARD_SHOCKWAVE, "Shockwave", "Heavy melee hits release a damaging shockwave.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_NONE, PVE_CARD_BLOOD_DRIVE, PVE_TAB_WEAPON, 3, 3, PVE_MODE_ANY, PVE_SPECIALIZATION_MELEE),
 	CARD0(PVE_CARD_DELVER, "Delver", "Invasion stage-start supplies +25% per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_TAB_MODE, 0, 1, PVE_MODE_INVASION, PVE_SPECIALIZATION_NONE),
@@ -64,17 +168,17 @@ const CPveCardDef gs_aCards[NUM_PVE_CARDS] = {
 	CARD0(PVE_CARD_RESERVE_FUND, "Reserve Fund", "Stage completion pays 5% interest on current gold per stack, capped at 30 gold per stage.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_NONE, PVE_TAB_CORE, 2, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD0(PVE_CARD_FIELD_RELAY, "Field Relay", "Allies within 350 range receive 6% more health, armor and Barrier recovery per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_BARRIER, PVE_TAB_CORE, 1, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD0(PVE_CARD_DRONE_CHASSIS, "Drone Chassis", "Deploy a support drone; each stack increases current module efficiency by 10%, capped at 30%.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_DRONE, PVE_TAB_CORE, 3, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
-	CARD0(PVE_CARD_FOCUS_DRILL, "Focus Drill", "Firearm hits build Focus. At 10, the next shot consumes it for +15% damage per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_FOCUS, PVE_TAB_WEAPON, 0, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_FIREARM),
-	CARD0(PVE_CARD_BLAST_BATTERY, "Blast Battery", "Explosions gain one charge per enemy hit. At 5, the next blast consumes five for +8% damage per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_BLAST_CHARGE, PVE_TAB_WEAPON, 1, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_EXPLOSIVE),
-	CARD0(PVE_CARD_VOLTAGE_BANK, "Voltage Bank", "Electric hits gain Voltage. At 10, the next hit consumes it and arcs to one extra target per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_VOLTAGE, PVE_TAB_WEAPON, 2, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_ELECTRIC),
-	CARD0(PVE_CARD_FURY_METER, "Fury Meter", "Melee hits gain Fury. At 10, the next melee hit consumes it for +20% damage per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_FURY, PVE_TAB_WEAPON, 3, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_MELEE),
+	CARD0(PVE_CARD_FOCUS_DRILL, "Bonus Shot Damage", "Firearm hits build Focus. At 10, the next shot consumes it for +15% damage per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_FOCUS, PVE_TAB_WEAPON, 0, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_FIREARM),
+	CARD0(PVE_CARD_BLAST_BATTERY, "Bonus Blast Damage", "Explosions gain one charge per enemy hit. At 5, the next blast consumes five for +8% damage per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_BLAST_CHARGE, PVE_TAB_WEAPON, 1, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_EXPLOSIVE),
+	CARD0(PVE_CARD_VOLTAGE_BANK, "Extra Chain Target", "Electric hits gain Voltage. At 10, the next hit consumes it and arcs to one extra target per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_VOLTAGE, PVE_TAB_WEAPON, 2, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_ELECTRIC),
+	CARD0(PVE_CARD_FURY_METER, "Bonus Melee Damage", "Melee hits gain Fury. At 10, the next melee hit consumes it for +20% damage per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_FURY, PVE_TAB_WEAPON, 3, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_MELEE),
 	CARD0(PVE_CARD_OBJECTIVE_CACHE, "Objective Cache", "The first objective completed each stage restores 10% ammo and grants 3 armor per stack.", PVE_RARITY_COMMON, 3, 0, true, false, PVE_KEYWORD_NONE, PVE_TAB_MODE, 0, 0, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 
 	// Core and drone research (IDs 52-63).
 	CARD1(PVE_CARD_PREDATOR, "Predator", "Deal +15% damage to Vulnerable targets.", PVE_RARITY_RARE, 1, 3, false, false, PVE_KEYWORD_VULNERABLE, PVE_CARD_GLASS_EDGE, PVE_TAB_CORE, 0, 5, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD1(PVE_CARD_APEX_EXECUTION, "Apex Execution", "Every 10th direct hit deals +75% damage and refreshes Vulnerable.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_VULNERABLE, PVE_CARD_PREDATOR, PVE_TAB_CORE, 0, 6, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD1(PVE_CARD_BARRIER_REFIT, "Barrier Refit", "After 5 seconds without taking damage, restore 2 Barrier each second.", PVE_RARITY_RARE, 1, 3, false, false, PVE_KEYWORD_BARRIER, PVE_CARD_LAST_STAND, PVE_TAB_CORE, 1, 5, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
-	CARD1(PVE_CARD_AEGIS_LOOP, "Aegis Loop", "When Barrier breaks, gain 15 armor once per stage.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_BARRIER, PVE_CARD_BARRIER_REFIT, PVE_TAB_CORE, 1, 6, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
+	CARD1(PVE_CARD_AEGIS_LOOP, "Barrier Break Armor", "When Barrier breaks, gain 15 armor once per stage.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_BARRIER, PVE_CARD_BARRIER_REFIT, PVE_TAB_CORE, 1, 6, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD1(PVE_CARD_LIQUID_ASSETS, "Liquid Assets", "Gain +2% damage per 50 gold held, capped at +20%.", PVE_RARITY_RARE, 1, 3, false, false, PVE_KEYWORD_NONE, PVE_CARD_RECYCLER, PVE_TAB_CORE, 2, 5, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD1(PVE_CARD_WAR_ECONOMY, "War Economy", "Every 25 gold spent grants 5 Barrier, up to 15 Barrier per purchase.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_BARRIER, PVE_CARD_LIQUID_ASSETS, PVE_TAB_CORE, 2, 6, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
 	CARD0(PVE_CARD_SERVO_LINK, "Servo Link", "Drone attack and repair intervals are 8% shorter per stack, subject to the 30% cooldown cap.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_DRONE, PVE_TAB_CORE, 3, 1, PVE_MODE_ANY, PVE_SPECIALIZATION_NONE),
@@ -118,7 +222,7 @@ const CPveCardDef gs_aCards[NUM_PVE_CARDS] = {
 
 	// Invasion, Horde and Extraction research (IDs 88-99).
 	CARD1(PVE_CARD_CARTOGRAPHER, "Cartographer", "Objectives always show direction and distance; interaction speed is +15%.", PVE_RARITY_RARE, 1, 3, false, false, PVE_KEYWORD_NONE, PVE_CARD_ADAPTATION, PVE_TAB_MODE, 0, 4, PVE_MODE_INVASION, PVE_SPECIALIZATION_NONE),
-	CARD1(PVE_CARD_DEEP_SOVEREIGN, "Deep Sovereign", "The final objective on each floor takes +50% damage; completion grants the team 20 Barrier.", PVE_RARITY_LEGENDARY, 1, 5, false, true, PVE_KEYWORD_BARRIER, PVE_CARD_CARTOGRAPHER, PVE_TAB_MODE, 0, 5, PVE_MODE_INVASION, PVE_SPECIALIZATION_NONE),
+	CARD1(PVE_CARD_DEEP_SOVEREIGN, "Final Objective Boost", "The final objective on each floor takes +50% damage; completion grants the team 20 Barrier.", PVE_RARITY_LEGENDARY, 1, 5, false, true, PVE_KEYWORD_BARRIER, PVE_CARD_CARTOGRAPHER, PVE_TAB_MODE, 0, 5, PVE_MODE_INVASION, PVE_SPECIALIZATION_NONE),
 	CARD1(PVE_CARD_RELIC_SCANNER, "Relic Scanner", "Each completed objective grants 4 gold per stack.", PVE_RARITY_COMMON, 3, 2, false, false, PVE_KEYWORD_NONE, PVE_CARD_DELVER, PVE_TAB_MODE, 0, 6, PVE_MODE_INVASION, PVE_SPECIALIZATION_NONE),
 	CARD1(PVE_CARD_FLOOR_MEMORY, "Floor Memory", "A deathless floor grants +4% damage on later floors, capped at +20%.", PVE_RARITY_EPIC, 1, 4, false, false, PVE_KEYWORD_NONE, PVE_CARD_RELIC_SCANNER, PVE_TAB_MODE, 0, 7, PVE_MODE_INVASION, PVE_SPECIALIZATION_NONE),
 	CARD1(PVE_CARD_WAVE_DIVIDEND, "Wave Dividend", "A wave completed without player deaths grants 8 gold to each player.", PVE_RARITY_RARE, 1, 3, false, false, PVE_KEYWORD_NONE, PVE_CARD_SIEGE_MASTER, PVE_TAB_MODE, 1, 4, PVE_MODE_HORDE, PVE_SPECIALIZATION_NONE),
@@ -135,6 +239,7 @@ const CPveCardDef gs_aCards[NUM_PVE_CARDS] = {
 #undef CARD1
 #undef CARD3
 
+// TODO: rewrite this to be more data-driven, e.g. lua script or JSON file, so that we can add new contracts without recompiling the game.
 const CPveContractDef gs_aContracts[NUM_PVE_CONTRACTS] = {
 	{PVE_CONTRACT_GLASS_CANNON, "Glass Cannon", "Team damage +25%; damage taken +35%.", "Extreme incoming damage", PVE_MODE_ANY},
 	{PVE_CONTRACT_ELITE_HUNT, "Elite Hunt", "An additional boss spawns two levels above the stage.", "Extra high-level boss", PVE_MODE_ANY},
@@ -262,13 +367,13 @@ const char *PveChoiceDescription(int ID)
 {
 	const CPveCardDef *pDef = PveCardDef(ID);
 	if(pDef)
-		return pDef->m_pDescription;
+		return pDef->m_pShortDescription;
 	if(ID == PVE_SUPPLY_ARMOR)
-		return "Gain 25 armor immediately.";
+		return "+25 armor now";
 	if(ID == PVE_SUPPLY_AMMO)
-		return "Refill all weapon ammunition immediately.";
+		return "Refill all ammo now";
 	if(ID == PVE_SUPPLY_KITS)
-		return "Gain 5 kits immediately.";
+		return "+5 kits now";
 	return "";
 }
 
@@ -338,6 +443,14 @@ bool PveValidateDefinitions(char *pError, int ErrorSize)
 			return false;
 		}
 		aCardIDs[Def.m_ID] = true;
+		if(!Def.m_pName || !Def.m_pName[0] || str_length(Def.m_pName) > 28 ||
+			!Def.m_pShortDescription || !Def.m_pShortDescription[0] || str_length(Def.m_pShortDescription) > 88 ||
+			str_find(Def.m_pShortDescription, "/stack") || str_find(Def.m_pShortDescription, " · ") ||
+			str_find(Def.m_pShortDescription, ":") || str_find(Def.m_pShortDescription, " +") || str_find(Def.m_pShortDescription, " -"))
+		{
+			str_format(pError, ErrorSize, "invalid short description for card %d", i);
+			return false;
+		}
 		if(Def.m_MaxStacks < 1 || Def.m_MaxStacks > 3 || (Def.m_Rarity != PVE_RARITY_COMMON && Def.m_MaxStacks != 1) || Def.m_Legendary != (Def.m_Rarity == PVE_RARITY_LEGENDARY))
 		{
 			str_format(pError, ErrorSize, "invalid rarity or stack rule for card %d", i);

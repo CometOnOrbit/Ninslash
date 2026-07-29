@@ -297,7 +297,7 @@ public:
 	// render player with custom info (teesplatter, bounciness etc...)
 	void RenderPlayer(class CPlayerInfo *PlayerInfo, CTeeRenderInfo *pInfo, int Emote, vec2 Dir, vec2 Pos);
 	
-	void RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, float Size, bool BeginQuads = false, int Flags = 0, float Alpha2 = 1.0f, bool KillMessage = false, bool NoFlags = false, bool Turret = false);
+	void RenderWeapon(const CWeaponSpec &Weapon, vec2 Pos, vec2 Dir, float Size, bool BeginQuads = false, int Flags = 0, float Alpha2 = 1.0f, bool KillMessage = false, bool NoFlags = false, bool Turret = false, float OverallAlpha = 1.0f);
 
 	void RenderStaticPlayer(CTeeRenderInfo *pInfo, vec2 Pos);
 	void RenderPortrait(CTeeRenderInfo *pInfo, vec2 Position, int EyeType);

@@ -124,6 +124,7 @@ private:
 	void TickRetryResult();
 	void FinishRetryResult();
 	void RegenerateMapFromTemplate();
+	void BeginPostRoundTransition() override;
 	
 	void Trigger(bool IncreaseLevel);
 	

@@ -1,6 +1,216 @@
 
 ##### translated strings #####
 
+Not enough kits
+== 工具包不足
+
+Position occupied
+== 位置已被佔用
+
+Needs ground support
+== 需要地面支撐
+
+Not enough clearance
+== 淨空不足
+
+Too close to another building
+== 距離其他建築太近
+
+Needs a wall
+== 需要牆面
+
+Needs a ceiling anchor
+== 需要頂部錨點
+
+Blocked by force field
+== 受力場限制
+
+Choose material below
+== 從下方選擇材料
+
+Choose target below
+== 從下方選擇目標武器
+
+No valid result
+== 無有效合成結果
+
+Place material
+== 放入材料
+
+Place target
+== 放入目標武器
+
+Select target and material
+== 選擇目標武器和材料
+
+Weapon inventory
+== 武器庫存
+
+Automatic barrel
+== 自動槍管
+
+Balanced frame
+== 均衡框架
+
+Blade frame
+== 刀刃框架
+
+Charge core
+== 蓄力核心
+
+Charged blade
+== 蓄能刀刃
+
+Cost
+== 花費
+
+Energy blade
+== 能量刀刃
+
+Heavy blade
+== 重型刀刃
+
+Heavy frame
+== 重型框架
+
+Hook blade
+== 鉤刃
+
+Light blade
+== 輕型刀刃
+
+Light frame
+== 輕型框架
+
+Long barrel
+== 長槍管
+
+Precision frame
+== 精準框架
+
+Rail barrel
+== 軌道槍管
+
+Rapid frame
+== 速射框架
+
+Saw blade
+== 鋸刃
+
+Scatter barrel
+== 散射槍管
+
+Bounce frame
+== 彈射框架
+
+Spin frame
+== 旋刃框架
+
+Standard barrel
+== 標準槍管
+
+Activate
+== 啟用
+
+Automatic
+== 自動
+
+Build
+== 建造
+
+Burst pistol
+== 連發手槍
+
+Buy
+== 購買
+
+Chainsaw
+== 鏈鋸
+
+Charge
+== 蓄力
+
+Cluster grenade
+== 集束手榴彈
+
+Confirm
+== 確認
+
+Confirm purchase
+== 確認購買
+
+Damage
+== 傷害
+
+Drop
+== 丟棄
+
+Empty slot
+== 空欄位
+
+Equip
+== 裝備
+
+Equipment
+== 裝備欄
+
+Esc / B  Cancel
+== Esc / B  取消
+
+Explosive
+== 爆炸
+
+Flamethrower
+== 火焰噴射器
+
+Gold
+== 金幣
+
+Infinite
+== 無限
+
+Kits
+== 建造套件
+
+Laser
+== 雷射
+
+Placing
+== 放置中
+
+Price
+== 價格
+
+Ricochet
+== 跳彈
+
+Ricochet gun
+== 跳彈槍
+
+Rocket launcher
+== 火箭發射器
+
+Select items
+== 選擇物品
+
+Semi-auto
+== 半自動
+
+Shop
+== 商店
+
+Shuriken
+== 手裏劍
+
+Throw
+== 投擲
+
+Unknown item
+== 未知物品
+
+Waiting
+== 等待中
+
 Reactor Defense
 == 反應爐防禦
 
@@ -1836,8 +2046,8 @@ Refill all weapon ammunition immediately.
 Gain 5 kits immediately.
 == 立即獲得 5 個工具包。
 
-Combat Training
-== 戰鬥訓練
+All Damage
+== 全傷害
 
 All damage +8% per stack (maximum 3).
 == 每層全傷害 +8%（最多 3 層）。
@@ -1950,8 +2160,8 @@ Recycler
 Destroyed friendly buildings refund 40% of their kit cost.
 == 友方建築摧毀時返還其 40% 工具包費用。
 
-Hollow Point
-== 空尖彈
+Firearm Damage
+== 槍械傷害
 
 Firearm damage +12% per stack.
 == 每層槍械傷害 +12%。
@@ -1968,8 +2178,8 @@ Gunslinger
 Firearms reload 20% faster and gain improved handling.
 == 槍械裝填速度 +20%，操控性提高。
 
-Demolition
-== 爆破專家
+Explosive Damage
+== 爆炸傷害
 
 Explosive damage +12% per stack.
 == 每層爆炸傷害 +12%。
@@ -1986,8 +2196,8 @@ Chain Reaction
 Explosive kills have a chance to trigger a secondary blast.
 == 爆炸擊殺有機率觸發二次爆炸。
 
-Overcharge
-== 過載
+Electric Damage
+== 電能傷害
 
 Electric damage +12% per stack.
 == 每層電能傷害 +12%。
@@ -2004,8 +2214,8 @@ Capacitor
 Every fifth electric hit deals double damage.
 == 每第 5 次電能命中造成雙倍傷害。
 
-Berserker
-== 狂戰士
+Melee Damage
+== 近戰傷害
 
 Melee damage +12% per stack.
 == 每層近戰傷害 +12%。
@@ -2269,26 +2479,26 @@ Drone Chassis
 Deploy a support drone; each stack increases current module efficiency by 10%, capped at 30%.
 == 部署一架支援無人機；每層使當前模組效率提高 10%，上限 30%。
 
-Focus Drill
-== 专注訓練
+Bonus Shot Damage
+== 額外射擊傷害
 
 Firearm hits build Focus. At 10, the next shot consumes it for +15% damage per stack.
 == 槍械命中积累专注。達到 10 層後，下一發消耗全部专注并每卡層增加 15% 傷害。
 
-Blast Battery
-== 爆炸電池
+Bonus Blast Damage
+== 額外爆炸傷害
 
 Explosions gain one charge per enemy hit. At 5, the next blast consumes five for +8% damage per stack.
 == 爆炸每命中一個敵人獲得 1 充能。達到 5 層後，下一次爆炸消耗 5 層并每卡層增加 8% 傷害。
 
-Voltage Bank
-== 電荷库
+Extra Chain Target
+== 額外連鎖目標
 
 Electric hits gain Voltage. At 10, the next hit consumes it and arcs to one extra target per stack.
 == 電能命中獲得電荷。達到 10 層後，下一次命中消耗全部電荷并每卡層額外電弧一個目標。
 
-Fury Meter
-== 怒氣计
+Bonus Melee Damage
+== 額外近戰傷害
 
 Melee hits gain Fury. At 10, the next melee hit consumes it for +20% damage per stack.
 == 近戰命中獲得怒氣。達到 10 層後，下一次近戰消耗全部怒氣并每卡層增加 20% 傷害。
@@ -2317,8 +2527,8 @@ Barrier Refit
 After 5 seconds without taking damage, restore 2 Barrier each second.
 == 連續 5 秒未受傷後，每秒恢復 2 點壁壘。
 
-Aegis Loop
-== 神盾回路
+Barrier Break Armor
+== 壁壘破裂護甲
 
 When Barrier breaks, gain 15 armor once per stage.
 == 壁壘破碎時獲得 15 點護甲，每階段一次。
@@ -2521,8 +2731,8 @@ Cartographer
 Objectives always show direction and distance; interaction speed is +15%.
 == 任務目標始终顯示方向與距離，互動速度提高 15%。
 
-Deep Sovereign
-== 深層主宰
+Final Objective Boost
+== 最終目標強化
 
 The final objective on each floor takes +50% damage; completion grants the team 20 Barrier.
 == 每層最後一個任務目標承傷增加 50%；完成後全隊獲得 20 點壁壘。
@@ -3099,6 +3309,306 @@ Take the hard corridor. More enemies come through, but rewards scale up.
 
 ##### needs translation #####
 
+All damage is 8% higher for each stack, up to three stacks.
+== 每層使所有傷害提高 8%，最多疊加 3 層。
+
+At each stage start, gain 8 armor for each stack.
+== 每層在階段開始時獲得 8 護甲。
+
+At each stage start, gain 2 kits for each stack.
+== 每層在階段開始時獲得 2 個工具包。
+
+Gold income is 12% higher for each stack.
+== 每層使金幣收入提高 12%。
+
+At each stage start, restore 15% ammunition for each stack.
+== 每層在階段開始時恢復 15% 彈藥。
+
+Health and armor recovery is 20% higher for each stack.
+== 每層使生命與護甲恢復效果提高 20%。
+
+Weapon attacks recharge 8% faster for each stack, up to 30%.
+== 每層武器攻擊冷卻 -8%（最多 -30%）。
+
+Deal 20% more damage per stack to enemies below 30% health.
+== 對生命低於 30% 的敵人，每層造成 20% 更多傷害。
+
+Deal 25% more damage to bosses.
+== 對首領造成 25% 更多傷害。
+
+Kills briefly grant 4% more damage, up to five times.
+== 擊殺會短暫使傷害提高 4%，最多疊加 5 次。
+
+Deal 35% more damage, but take 20% more damage.
+== 造成的傷害提高 35%，但承受的傷害也提高 20%。
+
+Take 8% less damage for each stack, up to 50%.
+== 每層承受傷害 -8%（總減傷最多 50%）。
+
+Below 35% health, gain 15 armor once each stage.
+== 每階段首次低於 35% 生命時獲得 15 護甲。
+
+Nearby allies take 12% less damage.
+== 附近隊友承受傷害降低 12%。
+
+Once each stage, survive lethal damage with 1 health.
+== 每階段一次，以 1 點生命抵擋致命傷害。
+
+Shop prices are 10% lower for each stack, up to 40%.
+== 每層商店價格 -10%（最多 -40%）。
+
+Shops offer one additional high-tier item.
+== 商店額外提供一件高階物品。
+
+Buildings cost 20% less and repairs restore 25% more.
+== 建造費用降低 20%，維修效果提高 25%。
+
+Destroyed friendly buildings refund 40% of their kit cost.
+== 友方建築摧毀時返還其 40% 工具包費用。
+
+Firearm damage is 12% higher for each stack.
+== 每層使槍械傷害提高 12%。
+
+Continuous firearm hits build up to 25% more damage.
+== 槍械連續命中可逐步使傷害提高，最多提高 25%。
+
+Firearms reload 20% faster and handle more smoothly.
+== 槍械裝填速度提高 20%，操控性也得到改善。
+
+Explosive damage is 12% higher for each stack.
+== 每層使爆炸傷害提高 12%。
+
+Explosion radius is 25% larger, up to 50%.
+== 爆炸範圍擴大 25%，最多擴大 50%。
+
+Explosive kills can trigger a secondary blast.
+== 爆炸擊殺有機率觸發二次爆炸。
+
+Electric damage is 12% higher for each stack.
+== 每層使電能傷害提高 12%。
+
+Electric hits arc to one nearby enemy for 35% damage.
+== 電能命中會向附近一名敵人傳導 35% 傷害。
+
+Every fifth electric hit deals double damage.
+== 每第 5 次電能命中造成雙倍傷害。
+
+Melee damage is 12% higher for each stack.
+== 每層使近戰傷害提高 12%。
+
+Melee kills restore 4 health.
+== 近戰擊殺恢復 4 點生命。
+
+Heavy melee hits release a damaging shockwave.
+== 重型近戰命中會釋放傷害衝擊波。
+
+Invasion stage-start supplies are 25% higher for each stack.
+== 每層使入侵模式的階段開始補給提高 25%。
+
+Deal 20% more damage to Invasion objectives.
+== 對入侵模式目標造成 20% 更多傷害。
+
+After each Invasion floor, gain 4% more damage for the run.
+== 每完成一層入侵模式，本局傷害提高 4%。
+
+Horde breaks restore 20% health and ammunition for each stack.
+== 每層使屍潮模式間歇恢復 20% 生命與彈藥。
+
+Horde multikills grant 15% more damage for 5 seconds.
+== 屍潮模式多殺會使傷害提高 15%，持續 5 秒。
+
+Buildings deal 30% more damage during Horde.
+== 屍潮模式中，建築造成的傷害提高 30%。
+
+Extraction interactions are 25% faster for each stack.
+== 每層使撤離模式的開關與目標互動速度提高 25%。
+
+Move 15% faster while evacuating.
+== 撤離期間移動速度提高 15%。
+
+Reviving an ally grants both players 20 armor.
+== 復活隊友時雙方獲得 20 護甲。
+
+Six direct hits apply Vulnerable for 4 seconds. Each stack adds 3% damage.
+== 对同一敵人直接命中 6 次後施加 4 秒破绽；每層使其承傷增加 3%，总上限 25%。
+
+At stage start, gain 6 Barrier per stack, up to 30.
+== 每階段開始時每層獲得 6 點壁壘。壁壘先于護甲承傷，上限 30。
+
+Every 5 kills restore 2 health per stack, up to three times each stage.
+== 每累计擊殺 5 個敵人恢復每層 2 點生命，每階段最多觸發 3 次。
+
+Every 8 kills grant 1 kit per stack, up to 6 kits each stage.
+== 每累计擊殺 8 個敵人獲得每層 1 個工具包，每階段最多獲得 6 個。
+
+Stage completion pays 5% interest per stack, up to 30 gold.
+== 階段完成時按當前金幣支付每層 5% 的利息，每階段最多 30 金幣。
+
+Nearby allies receive 6% more recovery for each stack.
+== 350 距離内隊友受到的生命、護甲和壁壘恢復每層提高 6%。
+
+Deploy a support drone. Each stack improves its module efficiency by 10%.
+== 部署一架支援無人機；每層使當前模組效率提高 10%，上限 30%。
+
+Every 10 firearm hits, the next shot deals 15% more damage per stack.
+== 槍械命中积累专注。達到 10 層後，下一發消耗全部专注并每卡層增加 15% 傷害。
+
+Every 5 enemy hits, the next blast deals 8% more damage per stack.
+== 爆炸每命中一個敵人獲得 1 充能。達到 5 層後，下一次爆炸消耗 5 層并每卡層增加 8% 傷害。
+
+Every 10 electric hits, the next hit chains to one extra target per stack.
+== 電能命中獲得電荷。達到 10 層後，下一次命中消耗全部電荷并每卡層額外電弧一個目標。
+
+Every 10 melee hits, the next hit deals 20% more damage per stack.
+== 近戰命中獲得怒氣。達到 10 層後，下一次近戰消耗全部怒氣并每卡層增加 20% 傷害。
+
+The first objective each stage restores 10% ammo and grants 3 armor per stack.
+== 每階段首次完成目標時，每層恢復 10% 彈藥并獲得 3 點護甲。
+
+Deal 15% more damage to Vulnerable targets.
+== 对破绽目標造成的傷害增加 15%。
+
+Every tenth direct hit deals 75% more damage and refreshes Vulnerable.
+== 每第 10 次直接命中造成額外 75% 傷害并刷新破绽。
+
+After 5 seconds unharmed, restore 2 Barrier each second.
+== 連續 5 秒未受傷後，每秒恢復 2 點壁壘。
+
+When Barrier breaks, gain 15 armor once each stage.
+== 壁壘破碎時獲得 15 點護甲，每階段一次。
+
+Gain 2% more damage per 50 gold held, up to 20%.
+== 每持有 50 金幣，傷害增加 2%，上限 20%。
+
+Every 25 gold spent grants 5 Barrier, up to 15 per purchase.
+== 每消费 25 金幣獲得 5 點壁壘，单次购买最多獲得 15 點。
+
+Drone attack and repair intervals are 8% shorter per stack, up to 30%.
+== 無人機攻擊與維修间隔每層缩短 8%，仍受 30% 冷卻縮減上限限制。
+
+The drone attacks every 1.2 seconds for 20% weapon damage.
+== 無人機每 1.2 秒攻擊最近敵人，造成當前武器基础傷害的 20%。
+
+The drone makes nearby allies take 10% less damage.
+== 無人機使 280 範圍内隊友受到的傷害减少 10%。
+
+The drone restores 2 armor or durability each second.
+== 每秒為護甲最低的隊友或友方建築恢復 2 點護甲或耐久。
+
+Current drone module efficiency is 25% higher.
+== 使當前無人機模組效率提高 25%。
+
+Current drone module efficiency is 50% higher. Disabled drones recover after 5 seconds.
+== 使當前模組效率再提高 50%；無人機被禁用後 5 秒自動恢復。
+
+Focus needs 1 fewer hit per stack, to a minimum of 7.
+== 专注觸發阈值每層降低 1，最低為 7。
+
+Consuming Focus applies Vulnerable for 5 seconds.
+== 消耗专注時施加 5 秒破绽。
+
+After consuming Focus, the next magazine's first 6 shots deal 35% more damage.
+== 每次消耗专注後，下一弹匣前 6 發傷害增加 35%。
+
+Deal 8% more firearm damage per stack to Vulnerable targets.
+== 对破绽目標的槍械傷害每層增加 8%。
+
+After a full reload, the first 5 shots deal 15% more damage.
+== 完整换弹後，前 5 發傷害增加 15%。
+
+Against the assault drone target, players deal 15% more damage and the drone 50% more.
+== 攻擊無人機鎖定的目標時，玩家傷害增加 15%，無人機傷害增加 50%。
+
+Empowered blasts need 1 fewer hit per stack, to a minimum of 3.
+== 强化爆炸觸發阈值每層降低 1，最低為 3。
+
+Empowered explosions apply Vulnerable for 5 seconds.
+== 强化爆炸施加 5 秒破绽。
+
+Every third empowered explosion creates a delayed blast for 60% damage.
+== 每第 3 次强化爆炸产生一次延迟二次爆炸，造成 60% 傷害。
+
+Empowered explosions apply 1 Bleed stack for each card stack.
+== 强化爆炸施加每卡層 1 層流血。
+
+Take 50% less self-explosion damage. Empowered blasts have 20% more radius.
+== 自身爆炸傷害减少 50%；强化爆炸半径增加 20%。
+
+Deal 30% more explosive damage to bosses, objectives, and buildings.
+== 对首领、任務目標和建築目標的爆炸傷害增加 30%。
+
+Gain 1 extra Voltage per stack when charging, up to 3 per hit.
+== 獲得電荷時每層額外獲得 1 點，单次命中最多獲得 3 點。
+
+Consuming Voltage makes the target Conductive for 5 seconds. Arcs deal 25% more damage.
+== 消耗電荷後使目標導電 5 秒；後续電弧傷害增加 25%。
+
+Every third full Voltage release calls lightning for 100% damage.
+== 每第 3 次滿电释放在目標處降下造成 100% 傷害的雷击。
+
+Electric kills restore 2 Voltage for each stack.
+== 電能擊殺返還每層 2 點電荷。
+
+Consuming Voltage grants 10 Barrier.
+== 消耗電荷時獲得 10 點壁壘。
+
+Above 5 Voltage, current drone module efficiency is 35% higher.
+== 電荷超過 5 時，無人機當前模組效率提高 35%。
+
+Gain 1 extra Fury per stack on hit, up to 4 per hit.
+== 命中獲得怒氣時每層額外獲得 1 點，单次最多獲得 4 點。
+
+Consuming Fury applies 3 Bleed stacks.
+== 消耗怒氣時施加 3 層流血。
+
+After full Fury, deal 40% more melee damage and take 20% less damage for 6 seconds.
+== 消耗滿怒氣後 6 秒内近戰傷害增加 40%，承傷减少 20%。
+
+Heavy hits extend Vulnerable by 2 seconds per stack, up to 6 seconds.
+== 重击每層增加 2 秒破绽，最長 6 秒。
+
+When a bleeding enemy dies, restore 5 health, up to 15 each event.
+== 流血敵人死亡時恢復 5 點生命，单次最多 15 點。
+
+Each enemy hit by a shockwave grants 1 Fury and 2 Barrier.
+== 衝擊波每命中一個敵人獲得 1 點怒氣和 2 點壁壘。
+
+Objectives show direction and distance. Interactions are 15% faster.
+== 任務目標始终顯示方向與距離，互動速度提高 15%。
+
+The final objective takes 50% more damage. Completion grants the team 20 Barrier.
+== 每層最後一個任務目標承傷增加 50%；完成後全隊獲得 20 點壁壘。
+
+Each completed objective grants 4 gold for each stack.
+== 每完成一個任務，每層獲得 4 金幣。
+
+A deathless floor grants 4% more damage on later floors, up to 20%.
+== 無死亡完成樓層後，後续樓層傷害增加 4%，上限 20%。
+
+A deathless wave grants 8 gold to every player.
+== 無玩家死亡完成波次時，每人獲得 8 金幣。
+
+Deathless waves grant 5% more player and building damage, up to 25%. Death resets it.
+== 連續無死亡波次使玩家和建築傷害每波增加 5%，上限 25%；有人死亡時清空。
+
+At wave start, repair friendly buildings by 5% maximum durability per stack.
+== 每波開始時修复所有友方建築每層 5% 的最大耐久。
+
+Inside the defense area, take 15% less damage and gain 25% drone efficiency.
+== 處于任務防守區時承傷减少 15%，無人機效率提高 25%。
+
+While carrying an objective, move 10% faster and take 10% less damage.
+== 攜帶任務物品時移動速度提高 10%，承傷减少 10%。
+
+When the exit opens, the team deals 30% more damage and moves 15% faster. Healing stops.
+== 撤離門開啟後全隊傷害增加 30%、移動速度提高 15%，但生命恢復停止。
+
+Interactions are 10% faster per stack, up to 60%.
+== 開關和任務互動速度每層提高 10%，合计加成上限 60%。
+
+Entering evacuation restores 30% ammo and grants 20 Barrier once.
+== 進入撤離区時恢復 30% 彈藥并獲得 20 點壁壘，每次撤離階段一次。
+
 ##### old translations #####
 Drone integrity
 == 無人機完整度
@@ -3389,7 +3899,7 @@ Leave
 == 離開
 
 Level %d
-== 等級 %d
+== 關卡 %d
 
 Loading map
 == 正在載入地圖
@@ -3430,9 +3940,6 @@ Refresh LAN
 Region
 == 地區
 
-Relay Listen Server  |  %s  |  %s on %s  |  %d players  |  Steam authentication  |  Unofficial
-== 中繼監聽伺服器  |  %s  |  %s - %s  |  %d 名玩家  |  Steam 驗證  |  非官方
-
 Required
 == 必要
 
@@ -3457,9 +3964,6 @@ Steam Workshop is unavailable. Installed game data remains unchanged.
 Steam hosting is unavailable. Start Steam or create a LAN game.
 == Steam 託管無法使用。請啟動 Steam 或建立區域網路遊戲。
 
-Steam local room
-== Steam 本機房間
-
 Steam room
 == Steam 房間
 
@@ -3472,8 +3976,8 @@ Steam unavailable
 Steam unavailable — dedicated servers, Favorites and direct connection remain available.
 == Steam 無法使用——專用伺服器、我的最愛與直接連線仍可使用。
 
-Synchronizing Mods
-== 正在同步模組
+Synchronizing Workshop content
+== 正在同步工作坊內容
 
 Unsubscribe
 == 取消訂閱
@@ -3537,8 +4041,8 @@ The Steam room server did not become ready. Retry or create a LAN game.
 Steam rejected room creation. Check your connection and retry.
 == Steam 拒絕建立房間。請檢查網路連線後再試。
 
-One or more Mods failed validation. Open Mods for details.
-== 一個或多個模組驗證失敗。請開啟模組頁面查看詳情。
+One or more Workshop items failed validation. Open Workshop for details.
+== 一個或多個工作坊項目驗證失敗。請開啟工作坊查看詳情。
 Steam rejected the room join request. Refresh rooms and try again.
 == Steam 拒絕加入房間。請重新整理房間清單後再試。
 
@@ -3551,11 +4055,11 @@ The room host identity could not be verified. Leave the room and choose another.
 The room connection data is invalid. Ask the host to recreate the room.
 == 房間連線資料無效。請讓房主重新建立房間。
 
-Required Mods are downloading. Open Mods, wait for validation, then retry joining.
-== 正在下載所需模組。請開啟模組頁面，等待驗證完成後重新加入。
+Required Workshop content is downloading. Open Workshop, wait for validation, then retry joining.
+== 正在下載所需工作坊內容。請開啟工作坊，等待驗證完成後重新加入。
 
-This room requires a different Mod collection. Open Mods and enable the required collection.
-== 此房間需要其他模組集合。請開啟模組頁面並啟用所需集合。
+This room requires a different Mod collection. Open Workshop and enable the required content.
+== 此房間需要其他模組集合。請開啟工作坊並啟用所需內容。
 Joining room
 == 正在加入房間
 
@@ -3613,8 +4117,8 @@ Training is available from the Play hub.
 Room creation failed. Your settings were kept; retry or open the log.
 == 房間建立失敗。設定已保留；請重試或開啟記錄。
 
-%s  ·  %s  ·  %s  ·  %d human slots  ·  Unofficial
-== %s  ·  %s  ·  %s  ·  %d 個真人玩家欄位  ·  非官方
+%s  ·  %s  ·  %s  ·  %d human slots  ·  Community room · Unverified
+== %s  ·  %s  ·  %s  ·  %d 個真人玩家欄位  ·  社群房間 · 未驗證
 
 Explore generated floors, complete objectives and keep your build between maps.
 == 探索生成樓層、完成目標，並在地圖之間保留你的構築。
@@ -3892,8 +4396,8 @@ No bots
 %s: %d
 == %s：%d
 
-%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Unofficial
-== %s  ·  %s  ·  %s  ·  %d 個真人欄位  ·  %s  ·  非官方
+%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Community room · Unverified
+== %s  ·  %s  ·  %s  ·  %d 個真人欄位  ·  %s  ·  社群房間 · 未驗證
 
 Recommended: %s players  ·  %s  ·  %s difficulty
 == 建議 %s 人  ·  %s  ·  %s難度
@@ -4109,6 +4613,9 @@ The leader selects the target.
 My Library
 == 我的內容庫
 
+Workshop
+== 工作坊
+
 Workshop content
 == 工作坊內容
 
@@ -4147,3 +4654,184 @@ Retry download
 
 Community leaderboard · Unverified
 == 社群榜 · 未驗證
+Author
+== 作者
+
+CHALLENGE
+== 挑戰
+
+Challenge
+== 挑戰
+
+Challenges
+== 挑戰
+
+Discover
+== 探索
+
+Downloading
+== 正在下載
+
+Downloading content
+== 正在下載內容
+
+Gyroscope sensitivity
+== 陀螺儀靈敏度
+
+Invalid
+== 無效
+
+Invert gyroscope vertical aim
+== 反轉陀螺儀垂直瞄準
+
+Latest
+== 最新
+
+MAP
+== 地圖
+
+MOD
+== 模組
+
+Maps
+== 地圖
+
+Mod
+== 模組
+
+Open Steam controller configuration
+== 開啟 Steam 控制器設定
+
+PRESET
+== 預設
+
+Popular
+== 熱門
+
+Protocol
+== 通訊協定
+
+Rating
+== 評分
+
+Review room rules, visibility and password before creating the room.
+== 建立房間前，請檢查房間規則、可見性與密碼。
+
+Room Preset
+== 房間預設
+
+Room Presets
+== 房間預設
+
+Room preset applied
+== 已套用房間預設
+
+Steam Input gyroscope aiming
+== Steam Input 陀螺儀瞄準
+
+Steam Input vibration
+== Steam Input 震動
+
+Unable to apply preset
+== 無法套用預設
+
+Workshop map selected
+== 已選擇工作坊地圖
+Cloud profile is too large
+== 雲端設定檔過大
+
+Steam Cloud conflict needs your choice
+== Steam 雲端存檔衝突，需要你選擇要保留的版本
+
+Steam Cloud conflict postponed; cloud writes are paused
+== Steam 雲端存檔衝突已延後；雲端寫入已暫停
+
+Steam Cloud data was created by a newer game version
+== Steam 雲端資料由較新版本的遊戲建立
+
+Steam Cloud is synchronizing; retrying...
+== Steam 雲端存檔正在同步；即將重試……
+
+Steam Cloud is up to date
+== Steam 雲端存檔已是最新
+
+Steam Cloud profile applied
+== 已套用 Steam 雲端設定檔
+
+Steam Cloud profile is empty; local progress was kept
+== Steam 雲端設定檔為空；已保留本機進度
+
+Steam Cloud profile is invalid; local progress was kept
+== Steam 雲端設定檔無效；已保留本機進度
+
+Steam Cloud upload failed; local progress is safe
+== Steam 雲端存檔上傳失敗；本機進度未受影響
+Unable to start Steam Workshop query.
+== 無法啟動 Steam 工作坊查詢。
+Loading community leaderboard…
+== 正在載入社群排行榜……
+
+Unable to start community leaderboard request.
+== 無法啟動社群排行榜請求。
+
+Community leaderboard is unavailable
+== 社群排行榜無法使用
+
+Steam could not start the community leaderboard request
+== Steam 無法啟動社群排行榜請求
+
+Community score upload failed
+== 社群成績上傳失敗
+
+Community leaderboard download failed
+== 社群排行榜下載失敗
+Steam room interfaces became unavailable. Restart Steam and retry.
+== Steam 房間介面已無法使用。請重新啟動 Steam 後再試。
+
+Steam could not initialize party data. Retry creating the party.
+== Steam 無法初始化隊伍資料。請重新建立隊伍。
+
+Steam could not publish room data. The local server was stopped; retry creating the room.
+== Steam 無法發佈房間資料。本機伺服器已停止；請重新建立房間。
+
+Steam could not publish the party room target. The local server was stopped; retry creating the room.
+== Steam 無法發佈隊伍房間目標。本機伺服器已停止；請重新建立房間。
+Unable to update Steam party target. Retry or recreate the party.
+== 無法更新 Steam 隊伍目標。請重試或重新建立隊伍。
+Enable to use
+== 啟用後使用
+Steam could not start joining the party. Restart Steam and retry.
+== Steam 無法開始加入隊伍。請重新啟動 Steam 後再試。
+
+Steam could not start joining the room. Restart Steam and retry.
+== Steam 無法開始加入房間。請重新啟動 Steam 後再試。
+
+The party game room is no longer available.
+== 隊伍遊戲房間已無法使用。
+
+The party target requires a different Mod collection.
+== 隊伍目標需要不同的模組集合。
+
+This party uses an incompatible game version.
+== 此隊伍使用不相容的遊戲版本。
+Unable to join the Steam room
+== 無法加入 Steam 房間
+
+#### Compact Perk descriptions
++25 armor now
+== 立即獲得25護甲
+
+Refill all ammo now
+== 立即補滿所有彈藥
+
++5 kits now
+== 立即獲得5工具包
+
+%d · %s · Lv. %d/%d
+== %d · %s · 等級 %d/%d
+
+%d · Supply
+== %d · 補給
+
+A tie or no votes grants one final retry.
+== 平票或無人投票時獲得一次最終重試。

@@ -81,6 +81,11 @@ static float FitLabelFontSize(ITextRender *pTextRender, const char *pText, float
 	return FontSize;
 }
 
+static float FitScaledLabelFontSize(ITextRender *pTextRender, const char *pText, float FontSize, float MaxWidth, float Scale)
+{
+	return FitLabelFontSize(pTextRender, pText, FontSize, MaxWidth / max(Scale, 0.01f));
+}
+
 const char *CMenus::DisplayGameType(const char *pGameType) const
 {
 	if(!pGameType || !pGameType[0]) return Localize("Unknown");
@@ -103,6 +108,21 @@ CMenus::CMenus()
 	m_Popup = POPUP_NONE;
 	m_ActivePage = PAGE_FRONT;
 	m_GamePage = PAGE_GAME;
+	m_LastAnimatedPage = PAGE_FRONT;
+	m_LastAnimatedPopup = POPUP_NONE;
+	m_LastCreateRoomStep = 0;
+	m_LastPlayTab = 0;
+	m_LastWorkshopDiscover = false;
+	m_LastPlayFiltersOpen = false;
+	m_LastWorkshopAnimatedID = 0;
+	m_PageTransition = 0.0f;
+	m_PopupTransition = 0.0f;
+	m_CreateRoomTransition = 1.0f;
+	m_PlayTabTransition = 1.0f;
+	m_WorkshopTransition = 1.0f;
+	m_WorkshopDetailTransition = 1.0f;
+	m_PlayFilterTransition = 1.0f;
+	m_MenuOpenTransition = 0.0f;
 	m_NavigationFocus = 0;
 	m_LastInputDevice = 0;
 	m_PlayTab = 0;
@@ -318,12 +338,23 @@ void CMenus::InitCloudProfile()
 		sscanf(aState, "%llx %d", &m_CloudSyncedHash, &m_CloudRevision);
 	}
 	CloudProfileBuild(m_pClient->m_pBinds, m_CloudRevision, time_timestamp(), m_aCloudLocalProfile, sizeof(m_aCloudLocalProfile), &m_CloudLocalSummary);
+	if(!pPlatform->CloudFileExists("steam_cloud_profile.json")) { UploadCloudProfile(); return; }
 	const int RemoteSize = pPlatform->CloudFileSize("steam_cloud_profile.json");
-	if(RemoteSize <= 0) { UploadCloudProfile(); return; }
+	if(RemoteSize <= 0)
+	{
+		m_CloudPaused = true;
+		str_copy(m_aCloudStatus, "Steam Cloud profile is empty; local progress was kept", sizeof(m_aCloudStatus));
+		return;
+	}
 	if(RemoteSize >= (int)sizeof(m_aCloudRemoteProfile) || pPlatform->CloudReadFile("steam_cloud_profile.json", m_aCloudRemoteProfile, sizeof(m_aCloudRemoteProfile) - 1) != RemoteSize)
 	{
-		str_copy(m_aCloudStatus, "Steam Cloud download failed; local progress was kept", sizeof(m_aCloudStatus));
-		m_CloudPaused = true;
+		// Steam can report the remote size before the file has finished
+		// synchronizing. Treat that read failure as transient: in particular, do
+		// not upload the local profile over a remote file that is temporarily
+		// unavailable and do not disable Cloud for the rest of the session.
+		m_CloudInitialized = false;
+		m_CloudNextCheck = time_get() + time_freq() * 5;
+		str_copy(m_aCloudStatus, "Steam Cloud is synchronizing; retrying...", sizeof(m_aCloudStatus));
 		return;
 	}
 	m_aCloudRemoteProfile[RemoteSize] = 0;
@@ -359,8 +390,14 @@ void CMenus::InitCloudProfile()
 
 void CMenus::PumpCloudProfile(bool Force)
 {
-	if(!m_CloudInitialized || m_CloudConflict || m_CloudPaused) return;
 	const int64 Now = time_get();
+	if(!m_CloudInitialized)
+	{
+		if(Force || Now >= m_CloudNextCheck)
+			InitCloudProfile();
+		return;
+	}
+	if(m_CloudConflict || m_CloudPaused) return;
 	if(!Force && Now < m_CloudNextCheck) return;
 	m_CloudNextCheck = Now + time_freq() * 5;
 	char aCurrent[64 * 1024];
@@ -511,13 +548,14 @@ vec4 CMenus::MixColor(const vec4 &A, const vec4 &B, float t)
 
 namespace {
 
-enum { MENU_ANIM_SLOTS = 128 };
+enum { MENU_ANIM_SLOTS = 1024 };
 
 struct CMenuAnimSlot
 {
 	const void *m_pID;
 	float m_Hover;
 	float m_Selected;
+	float m_Pressed;
 	float m_LastTime;
 	float m_FrameDt;
 	float m_FrameStamp;
@@ -554,6 +592,7 @@ CMenuAnimSlot *MenuAnimSlot(const void *pID)
 	pSlot->m_pID = pID;
 	pSlot->m_Hover = 0.0f;
 	pSlot->m_Selected = 0.0f;
+	pSlot->m_Pressed = 0.0f;
 	pSlot->m_LastTime = 0.0f;
 	pSlot->m_FrameDt = 0.0f;
 	pSlot->m_FrameStamp = -1.0f;
@@ -564,6 +603,12 @@ float SmoothToward(float Current, float Target, float dt, float Speed)
 {
 	const float t = 1.0f - expf(-Speed * dt);
 	return Current + (Target - Current) * t;
+}
+
+float MenuEaseOutCubic(float Amount)
+{
+	const float Remaining = 1.0f - clamp(Amount, 0.0f, 1.0f);
+	return 1.0f - Remaining * Remaining * Remaining;
 }
 
 float MenuAnimDt(CMenuAnimSlot *pSlot, float Now)
@@ -597,6 +642,8 @@ float CMenus::AnimHover(const void *pID, float Speed)
 float CMenus::AnimSelected(const void *pID, bool Selected, float Speed)
 {
 	CMenuAnimSlot *pSlot = MenuAnimSlot(pID);
+	if(Speed <= 0.0f)
+		return pSlot->m_Selected;
 	const float Now = Client()->LocalTime();
 	const float dt = MenuAnimDt(pSlot, Now);
 
@@ -604,6 +651,18 @@ float CMenus::AnimSelected(const void *pID, bool Selected, float Speed)
 	if(fabs(pSlot->m_Selected - (Selected ? 1.0f : 0.0f)) < 0.001f)
 		pSlot->m_Selected = Selected ? 1.0f : 0.0f;
 	return pSlot->m_Selected;
+}
+
+float CMenus::AnimPressed(const void *pID, float Speed)
+{
+	CMenuAnimSlot *pSlot = MenuAnimSlot(pID);
+	const float Now = Client()->LocalTime();
+	const float dt = MenuAnimDt(pSlot, Now);
+	const float Target = UI()->ActiveItem() == pID ? 1.0f : 0.0f;
+	pSlot->m_Pressed = SmoothToward(pSlot->m_Pressed, Target, dt, Speed);
+	if(fabs(pSlot->m_Pressed - Target) < 0.001f)
+		pSlot->m_Pressed = Target;
+	return pSlot->m_Pressed;
 }
 
 vec4 CMenus::ButtonColorMul(const void *pID)
@@ -654,7 +713,11 @@ int CMenus::DoButton_Toggle(const void *pID, int Checked, const CUIRect *pRect, 
 int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Style)
 {
 	const float Hover = AnimHover(pID);
-	const float Press = UI()->ActiveItem() == pID ? 1.0f : 0.0f;
+	const float Selected = AnimSelected(pID, Checked != 0);
+	const float Press = AnimPressed(pID);
+	CUIRect VisualRect = *pRect;
+	VisualRect.Margin(Press * 0.7f, &VisualRect);
+	VisualRect.y += Press * 0.45f;
 
 	vec4 FillBase = vec4(0.09f, 0.10f, 0.12f, 0.96f);
 	vec4 FillHot = vec4(0.15f, 0.16f, 0.19f, 0.98f);
@@ -676,17 +739,17 @@ int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const
 		BorderHot = ms_ColorAccent;
 	}
 
-	vec4 Fill = MixColor(FillBase, FillHot, Hover);
-	vec4 Border = MixColor(BorderBase, BorderHot, Hover);
+	vec4 Fill = MixColor(FillBase, FillHot, max(Hover, Selected * 0.55f));
+	vec4 Border = MixColor(BorderBase, BorderHot, max(Hover, Selected * 0.82f));
 	if(Press > 0.0f)
 		Fill = MixColor(Fill, vec4(Fill.r * 0.82f, Fill.g * 0.82f, Fill.b * 0.82f, Fill.a), Press);
 
-	DrawMenuBorder(pRect, Fill, Border, CUI::CORNER_ALL, ms_ControlRounding);
+	DrawMenuBorder(&VisualRect, Fill, Border, CUI::CORNER_ALL, ms_ControlRounding);
 
-	const float EdgeAlpha = (Style == BUTTONSTYLE_ACCENT || Style == BUTTONSTYLE_DANGER) ? 1.0f : Hover;
+	const float EdgeAlpha = (Style == BUTTONSTYLE_ACCENT || Style == BUTTONSTYLE_DANGER) ? 1.0f : max(Hover, Selected);
 	if(EdgeAlpha > 0.02f)
 	{
-		CUIRect Edge = *pRect;
+		CUIRect Edge = VisualRect;
 		Edge.HSplitBottom(2.0f, 0, &Edge);
 		vec4 EdgeCol = Style == BUTTONSTYLE_DANGER ? ms_ColorDanger : ms_ColorAccent;
 		EdgeCol.a *= EdgeAlpha;
@@ -694,7 +757,7 @@ int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const
 	}
 
 	CUIRect Temp;
-	pRect->HMargin(pRect->h>=20.0f?2.0f:1.0f, &Temp);
+	VisualRect.HMargin(VisualRect.h>=20.0f?2.0f:1.0f, &Temp);
 	float FontSize = min(Temp.h*ms_FontmodHeight, 14.0f);
 	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w - 8.0f);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -721,6 +784,10 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 	const bool IsQuit = str_comp(pText, Localize("Quit")) == 0;
 	const float Hover = AnimHover(pID);
 	const float Sel = AnimSelected(pID, Checked);
+	const float Press = AnimPressed(pID);
+	CUIRect VisualRect = *pRect;
+	VisualRect.Margin(Press * 0.55f, &VisualRect);
+	VisualRect.y += Press * 0.35f;
 
 	vec4 FillIdle = IsQuit ? vec4(0.22f, 0.07f, 0.09f, 0.92f) : vec4(0.08f, 0.09f, 0.11f, 0.92f);
 	vec4 FillOn = IsQuit ? vec4(0.34f, 0.11f, 0.13f, 0.96f) : vec4(0.12f, 0.13f, 0.16f, 0.98f);
@@ -733,11 +800,11 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 	Fill = MixColor(Fill, FillHot, Hover * (1.0f - Sel * 0.5f));
 	vec4 Border = MixColor(BorderIdle, BorderOn, max(Sel, Hover * 0.85f));
 
-	DrawMenuBorder(pRect, Fill, Border, Corners, ms_PanelRounding);
+	DrawMenuBorder(&VisualRect, Fill, Border, Corners, ms_PanelRounding);
 
 	if(!IsQuit && Sel > 0.02f)
 	{
-		CUIRect Line = *pRect;
+		CUIRect Line = VisualRect;
 		Line.HSplitBottom(2.0f, 0, &Line);
 		vec4 Accent = ms_ColorAccent;
 		Accent.a *= Sel;
@@ -745,13 +812,13 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 	}
 	else if(IsQuit)
 	{
-		CUIRect Edge = *pRect;
+		CUIRect Edge = VisualRect;
 		Edge.HSplitBottom(2.0f, 0, &Edge);
 		RenderTools()->DrawUIRect(&Edge, ms_ColorDanger, 0, 0.0f);
 	}
 
 	CUIRect Temp;
-	pRect->HMargin(2.0f, &Temp);
+	VisualRect.HMargin(2.0f, &Temp);
 	float FontSize = min(Temp.h*ms_FontmodHeight, 13.0f);
 	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w - 8.0f);
 	TextRender()->TextColor(
@@ -1276,7 +1343,7 @@ void CMenus::DrawModeVoteImage(const CUIRect &Rect, const char *pImage, bool Act
 	else
 	{
 		TextRender()->TextColor(ms_ColorAccentDim.r, ms_ColorAccentDim.g, ms_ColorAccentDim.b, 1.0f);
-		UI()->DoLabelScaled(&Rect, pImage, FitLabelFontSize(TextRender(), pImage, 8.0f, Rect.w - 8.0f), 0);
+		UI()->DoLabelScaled(&Rect, pImage, FitScaledLabelFontSize(TextRender(), pImage, 8.0f, Rect.w - 8.0f, UI()->Scale()), 0);
 		TextRender()->TextColor(1, 1, 1, 1);
 	}
 }
@@ -1285,7 +1352,7 @@ void CMenus::DrawStatusBadge(CUIRect Rect, const char *pText, const vec4 &Color)
 {
 	RenderTools()->DrawUIRect(&Rect, vec4(Color.r * .18f, Color.g * .18f, Color.b * .18f, .96f), CUI::CORNER_ALL, 8.0f);
 	TextRender()->TextColor(Color.r, Color.g, Color.b, 1.0f);
-	UI()->DoLabelScaled(&Rect, pText, FitLabelFontSize(TextRender(), pText, 9.0f, Rect.w - 12.0f), 0);
+	UI()->DoLabelScaled(&Rect, pText, FitScaledLabelFontSize(TextRender(), pText, 9.0f, Rect.w - 12.0f, UI()->Scale()), 0);
 	TextRender()->TextColor(1, 1, 1, 1);
 }
 
@@ -1303,7 +1370,7 @@ int CMenus::RenderMenubar(CUIRect r)
 	Client()->SteamHostedGameStatus(&SteamHostStatus);
 	const bool ManagedLocalGameActive = m_LocalServerState == LOCAL_SERVER_STARTING || m_LocalServerState == LOCAL_SERVER_RUNNING;
 	const bool SteamHostedGameActive = SteamHostStatus.m_State == CLIENT_ASYNC_WORKING || SteamHostStatus.m_State == CLIENT_ASYNC_SUCCEEDED;
-	const char *apOfflineLabels[] = {"Play", "Character", "Progress", "Mods", "Demos", "Settings"};
+	const char *apOfflineLabels[] = {"Play", "Character", "Progress", "Workshop", "Demos", "Settings"};
 	const int aOfflinePages[] = {PAGE_FRONT, PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS};
 	const char *apGameLabels[] = {"Continue", "Game", InGameRoomActionLabel(ManagedLocalGameActive, SteamHostedGameActive), "Players", "Server", "Vote", "Progress", "Settings", "Leave"};
 	const int aGamePages[] = {-2, PAGE_GAME, PAGE_LOCAL_SERVER, PAGE_PLAYERS, PAGE_SERVER_INFO, PAGE_CALLVOTE, PAGE_RESEARCH, PAGE_SETTINGS, -3};
@@ -1360,12 +1427,17 @@ int CMenus::RenderMenubar(CUIRect r)
 		const bool Focused = m_NavigationHasFocus && m_NavigationFocus == i;
 		const bool PageSelected = pPages[i] == m_ActivePage || (pPages[i] == PAGE_FRONT && m_ActivePage == PAGE_TUTORIAL_SELECT);
 		const bool Activated = DoButton_Menu(&s_aNavigationButtons[i], pText, PageSelected || Focused, &Button, pPages[i] == -3 ? BUTTONSTYLE_DANGER : BUTTONSTYLE_NORMAL) || (Focused && m_LastInputDevice != 0 && m_EnterPressed);
-		if(PageSelected)
+		const float SelectedAmount = AnimSelected(&s_aNavigationButtons[i], PageSelected || Focused, 0.0f);
+		if(SelectedAmount > 0.01f)
 		{
 			CUIRect Indicator = Button;
 			Indicator.w = 3.0f;
-			Indicator.HMargin(7.0f, &Indicator);
-			RenderTools()->DrawUIRect(&Indicator, ms_ColorAccent, CUI::CORNER_R, 2.0f);
+			const float FullHeight = max(0.0f, Indicator.h - 14.0f);
+			Indicator.h = FullHeight * MenuEaseOutCubic(SelectedAmount);
+			Indicator.y = Button.y + (Button.h - Indicator.h) * 0.5f;
+			vec4 IndicatorColor = ms_ColorAccent;
+			IndicatorColor.a *= SelectedAmount;
+			RenderTools()->DrawUIRect(&Indicator, IndicatorColor, CUI::CORNER_R, 2.0f);
 		}
 		if(Compact)
 		{
@@ -2656,6 +2728,15 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
 		m_EscapePressed = false;
 	}
+	if(m_CreateRoomStep != m_LastCreateRoomStep)
+	{
+		m_LastCreateRoomStep = m_CreateRoomStep;
+		m_CreateRoomTransition = 0.0f;
+	}
+	const float StepDt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	m_CreateRoomTransition = SmoothToward(m_CreateRoomTransition, 1.0f, StepDt, 15.0f);
+	if(fabs(m_CreateRoomTransition - 1.0f) < 0.001f)
+		m_CreateRoomTransition = 1.0f;
 
 	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
 	MainView.Margin(L(12.0f), &MainView);
@@ -2665,6 +2746,14 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	const float StepOffset = L(27.0f + LargeScale * 66.0f);
 	MainView.HSplitTop(HeaderHeight, &Header, &Body);
 	Body.HSplitBottom(L(72.0f), &Body, &Footer);
+	const float StepEase = MenuEaseOutCubic(m_CreateRoomTransition);
+	const float StepOffsetX = (1.0f - StepEase) * L(14.0f);
+	Header.x += StepOffsetX;
+	Header.w -= StepOffsetX;
+	Body.x += StepOffsetX;
+	Body.w -= StepOffsetX;
+	Footer.x += StepOffsetX;
+	Footer.w -= StepOffsetX;
 	const char *pTitle = m_CreateRoomStep == CREATE_ROOM_CHOOSE_MODE ? "Choose a game mode" : "Configure room";
 	UI()->DoLabelScaled(&Header, Localize(pTitle), 22.0f, -1);
 	CUIRect StepLabel = Header;
@@ -2755,20 +2844,50 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	const int Mode = clamp(g_Config.m_ClLocalServerMode, (int)LOCAL_MODE_INVASION, (int)LOCAL_MODE_COUNT - 1);
 	const CLocalGameMode &ModeDef = LocalGameMode(Mode);
 	g_Config.m_ClLocalServerMap = clamp(g_Config.m_ClLocalServerMap, 0, ModeDef.m_MapCount - 1);
+	static CScrollRegion s_ConfigScrollRegion;
+	static vec2 s_ConfigScrollOffset(0.0f, 0.0f);
+	CScrollRegionParams ConfigScrollParams;
+	ConfigureScrollRegion(&ConfigScrollParams);
+	ConfigScrollParams.m_ClipBgColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+	ConfigScrollParams.m_ScrollUnit = L(35.0f);
+	CUIRect ConfigViewport = Body;
+	s_ConfigScrollRegion.Begin(&ConfigViewport, &s_ConfigScrollOffset, &ConfigScrollParams);
+	CUIRect ConfigBody = ConfigViewport;
+	ConfigBody.y += s_ConfigScrollOffset.y;
+	ConfigBody.VSplitRight(L(20.0f), &ConfigBody, 0);
+	const float ConfigStartY = ConfigBody.y;
 	CUIRect Summary, Change;
-	Body.HSplitTop(L(42.0f), &Summary, &Body);
+	ConfigBody.HSplitTop(L(42.0f), &Summary, &ConfigBody);
 	Summary.VSplitRight(L(124.0f), &Summary, &Change);
 	char aModeSummary[256];
 	str_format(aModeSummary, sizeof(aModeSummary), "%s  ·  %s  ·  %s", Localize(ModeDef.m_pName), Localize(ModeDef.m_pDescription), Localize(ModeDef.m_pMechanics));
-	UI()->DoLabelScaled(&Summary, aModeSummary, FitLabelFontSize(TextRender(), aModeSummary, 11.0f, Summary.w), -1);
+	UI()->DoLabelScaled(&Summary, aModeSummary, FitScaledLabelFontSize(TextRender(), aModeSummary, 11.0f, Summary.w, UI()->Scale()), -1);
 	if(DoButton_Menu(&s_ChangeMode, Localize("Change mode"), 0, &Change))
 		m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
-	Body.HSplitTop(L(8.0f), 0, &Body);
+	ConfigBody.HSplitTop(L(8.0f), 0, &ConfigBody);
 
 	CUIRect MainSettings, Identity;
-	Body.VSplitMid(&MainSettings, &Identity);
-	MainSettings.VSplitRight(L(5.0f), &MainSettings, 0);
-	Identity.VSplitLeft(L(5.0f), 0, &Identity);
+	// Reserve the optional custom-floor row for Invasion as well, so changing
+	// the starting point cannot make the panel overlap for a single frame.
+	const int MainRows = 3 + (!ModeDef.m_Pve ? 1 : 0) + (Mode == LOCAL_MODE_INVASION ? 2 : LocalModeRuleConfig(ModeDef.m_Rule) ? 1 : 0);
+	const bool AdvancedExpanded = g_Config.m_ClLocalServerAdvanced != 0;
+	const int AdvancedRows = AdvancedExpanded ? 2 + (ModeDef.m_Pve ? 1 : 0) : 0;
+	const CRoomConfigureLayout ConfigureLayout = RoomConfigureLayout(ConfigBody.w, UI()->Scale(), SteamAvailable, MainRows, AdvancedRows, AdvancedExpanded);
+	if(ConfigureLayout.m_SingleColumn)
+	{
+		ConfigBody.HSplitTop(ConfigureLayout.m_MainSettingsHeight, &MainSettings, &ConfigBody);
+		ConfigBody.HSplitTop(L(8.0f), 0, &ConfigBody);
+		ConfigBody.HSplitTop(ConfigureLayout.m_IdentityHeight, &Identity, &ConfigBody);
+	}
+	else
+	{
+		ConfigBody.VSplitMid(&MainSettings, &Identity);
+		MainSettings.h = ConfigureLayout.m_MainSettingsHeight;
+		Identity.h = ConfigureLayout.m_IdentityHeight;
+		MainSettings.VSplitRight(L(5.0f), &MainSettings, 0);
+		Identity.VSplitLeft(L(5.0f), 0, &Identity);
+		ConfigBody.y += max(ConfigureLayout.m_MainSettingsHeight, ConfigureLayout.m_IdentityHeight);
+	}
 	DrawMenuInset(&MainSettings, CUI::CORNER_ALL);
 	DrawMenuInset(&Identity, CUI::CORNER_ALL);
 	MainSettings.Margin(L(9.0f), &MainSettings);
@@ -2893,9 +3012,9 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	DoEditBox(g_Config.m_ClLocalServerPassword, &Control, g_Config.m_ClLocalServerPassword, sizeof(g_Config.m_ClLocalServerPassword), 11.0f, &s_PasswordOffset, true);
 	Identity.HSplitTop(L(7.0f), 0, &Identity);
 	Identity.HSplitTop(L(31.0f), &Row, &Identity);
-	if(DoButton_Menu(&s_Advanced, Localize(g_Config.m_ClLocalServerAdvanced ? "Hide advanced settings" : "Advanced settings"), g_Config.m_ClLocalServerAdvanced, &Row))
+	if(DoButton_Menu(&s_Advanced, Localize(AdvancedExpanded ? "Hide advanced settings" : "Advanced settings"), AdvancedExpanded, &Row))
 		g_Config.m_ClLocalServerAdvanced ^= 1;
-	if(g_Config.m_ClLocalServerAdvanced)
+	if(AdvancedExpanded)
 	{
 		SplitRow(Identity, &Label, &Control);
 		if(DoButton_CheckBox(&s_RandomSeed, Localize("Random map seed"), g_Config.m_ClLocalServerRandomSeed, &Label))
@@ -2927,6 +3046,11 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 		Identity.HSplitTop(L(18.0f), &Row, &Identity);
 		UI()->DoLabelScaled(&Row, Localize(g_Config.m_ClRoomVisibility == ROOM_VISIBILITY_LAN ? "LAN binding" : "Managed automatically"), 9.0f, -1);
 	}
+	CUIRect ConfigExtent = ConfigViewport;
+	ConfigExtent.y = ConfigStartY;
+	ConfigExtent.h = ConfigBody.y - ConfigStartY;
+	s_ConfigScrollRegion.AddRect(ConfigExtent);
+	s_ConfigScrollRegion.End();
 
 	CLocalServerLaunchSettings Preview;
 	BuildLocalServerLaunchSettings(&Preview);
@@ -2937,7 +3061,7 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	const char *pVisibility = apVisibility[g_Config.m_ClRoomVisibility];
 	char aFinalSummary[512];
 	if(Preview.m_pMode->m_Pve)
-		str_format(aFinalSummary, sizeof(aFinalSummary), Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  Unofficial"), Localize(Preview.m_pMode->m_pName), Localize(pVisibility), Localize(Preview.m_pMapName), Preview.m_MaxClients);
+		str_format(aFinalSummary, sizeof(aFinalSummary), Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  Community room · Unverified"), Localize(Preview.m_pMode->m_pName), Localize(pVisibility), Localize(Preview.m_pMapName), Preview.m_MaxClients);
 	else
 	{
 		char aPopulation[96];
@@ -2945,9 +3069,9 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			str_copy(aPopulation, Localize("No bots"), sizeof(aPopulation));
 		else
 			str_format(aPopulation, sizeof(aPopulation), Localize("%s: %d"), Localize(LocalGamePopulationLabel(Mode)), Preview.m_Bots);
-		str_format(aFinalSummary, sizeof(aFinalSummary), Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Unofficial"), Localize(Preview.m_pMode->m_pName), Localize(pVisibility), Localize(Preview.m_pMapName), Preview.m_MaxClients, aPopulation);
+		str_format(aFinalSummary, sizeof(aFinalSummary), Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Community room · Unverified"), Localize(Preview.m_pMode->m_pName), Localize(pVisibility), Localize(Preview.m_pMapName), Preview.m_MaxClients, aPopulation);
 	}
-	UI()->DoLabelScaled(&Status, aFinalSummary, FitLabelFontSize(TextRender(), aFinalSummary, 10.0f, Status.w), -1);
+	UI()->DoLabelScaled(&Status, aFinalSummary, FitScaledLabelFontSize(TextRender(), aFinalSummary, 10.0f, Status.w, UI()->Scale()), -1);
 	CClientAsyncStatus SteamStatus;
 	Client()->SteamHostedGameStatus(&SteamStatus);
 	CUIRect StatusDetail = Status;
@@ -3771,7 +3895,7 @@ void CMenus::RenderFront(CUIRect MainView)
 		UI()->DoLabelScaled(&Line, Localize(pTitle), L(13.0f), -1);
 		Content.HSplitTop(L(15.0f), &Line, &Content);
 		TextRender()->TextColor(Color.r, Color.g, Color.b, 1.0f);
-		UI()->DoLabelScaled(&Line, Localize(pMeta), FitLabelFontSize(TextRender(), Localize(pMeta), L(8.5f), Line.w), -1);
+		UI()->DoLabelScaled(&Line, Localize(pMeta), FitScaledLabelFontSize(TextRender(), Localize(pMeta), L(8.5f), Line.w, UI()->Scale()), -1);
 		TextRender()->TextColor(1, 1, 1, 1);
 		Content.HSplitBottom(L(28.0f), &Line, &Button);
 		UI()->DoLabelScaled(&Line, Localize(pBody), L(8.5f), -1, (int)Line.w);
@@ -4239,7 +4363,7 @@ void CMenus::RenderPartyPanel(CUIRect *pMainView)
 	char aHeader[384];
 	const char *pTarget = Party.m_TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY ? Localize("Steam room selected") : Party.m_TargetType == PLATFORM_PARTY_TARGET_ADDRESS ? Party.m_aTargetAddress : Localize("Choose a game or server");
 	str_format(aHeader, sizeof(aHeader), "%s · %d/16 · %s: %s", Localize("Steam party"), pPlatform->PartyMemberCount(), Localize(Party.m_LocalOwner ? "Leader" : "Member"), pTarget);
-	UI()->DoLabelScaled(&Header, aHeader, FitLabelFontSize(TextRender(), aHeader, 10.5f, Header.w), -1);
+	UI()->DoLabelScaled(&Header, aHeader, FitScaledLabelFontSize(TextRender(), aHeader, 10.5f, Header.w, UI()->Scale()), -1);
 
 	CPlatformUserInfo LocalMember;
 	mem_zero(&LocalMember, sizeof(LocalMember));
@@ -4258,7 +4382,7 @@ void CMenus::RenderPartyPanel(CUIRect *pMainView)
 		DrawSteamAvatar(Avatar, Member.m_UserID);
 		char aMember[160];
 		str_format(aMember, sizeof(aMember), "%s%s\n%s", Member.m_LobbyOwner ? "★ " : "", Member.m_aName, Member.m_PartyReady ? Localize("Ready") : Localize("Not ready"));
-		UI()->DoLabelScaled(&Label, aMember, FitLabelFontSize(TextRender(), aMember, 8.5f, Label.w), -1);
+		UI()->DoLabelScaled(&Label, aMember, FitScaledLabelFontSize(TextRender(), aMember, 8.5f, Label.w, UI()->Scale()), -1);
 		if(Members.w <= 1.0f) break;
 	}
 
@@ -4323,6 +4447,19 @@ void CMenus::RenderPlay(CUIRect MainView)
 			if(i == 0) { ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET); if(pPlatform && pPlatform->Available()) pPlatform->RefreshLobbyList(); }
 		}
 	}
+	if(m_PlayTab != m_LastPlayTab)
+	{
+		m_LastPlayTab = m_PlayTab;
+		m_PlayTabTransition = 0.0f;
+	}
+	const float TabDt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	m_PlayTabTransition = SmoothToward(m_PlayTabTransition, 1.0f, TabDt, 15.0f);
+	if(fabs(m_PlayTabTransition - 1.0f) < 0.001f)
+		m_PlayTabTransition = 1.0f;
+	const float TabEase = MenuEaseOutCubic(m_PlayTabTransition);
+	const float TabOffset = (1.0f - TabEase) * 12.0f / max(1.0f, UI()->Scale());
+	Body.x += TabOffset;
+	Body.w -= TabOffset;
 	Body.HSplitTop(8.0f, 0, &Body);
 	RenderPartyPanel(&Body);
 	if(m_PlayTab == 2)
@@ -4391,6 +4528,14 @@ void CMenus::RenderPlay(CUIRect MainView)
 	static float s_SearchOffset; if(DoEditBox(&g_Config.m_BrFilterString, &Search, g_Config.m_BrFilterString, sizeof(g_Config.m_BrFilterString), 10.0f, &s_SearchOffset)) Client()->ServerBrowserUpdate();
 
 	Body.HSplitTop(6.0f, 0, &Body); Body.HSplitBottom(72.0f, &Body, &Actions);
+	if(m_PlayFiltersOpen != m_LastPlayFiltersOpen)
+	{
+		m_LastPlayFiltersOpen = m_PlayFiltersOpen;
+		m_PlayFilterTransition = m_PlayFiltersOpen ? 0.0f : 1.0f;
+	}
+	if(m_PlayFiltersOpen)
+		m_PlayFilterTransition = SmoothToward(m_PlayFilterTransition, 1.0f, TabDt, 18.0f);
+	const float FilterEase = MenuEaseOutCubic(m_PlayFilterTransition);
 	CUIRect FilterPopup;
 	if(m_PlayFiltersOpen)
 	{
@@ -4404,6 +4549,7 @@ void CMenus::RenderPlay(CUIRect MainView)
 		FilterPopup.w = PopupWidth;
 		FilterPopup.x = clamp(FilterAnchor.x + FilterAnchor.w - PopupWidth, PageBounds.x, PageBounds.x + PageBounds.w - PopupWidth);
 		FilterPopup.y = Filters.y + Filters.h + 4.0f * UI()->Scale();
+		FilterPopup.y -= (1.0f - FilterEase) * 10.0f / max(1.0f, UI()->Scale());
 		FilterPopup.h = min(DesiredHeight, max(120.0f * UI()->Scale(), PageBounds.y + PageBounds.h - FilterPopup.y - 6.0f * UI()->Scale()));
 		if(UI()->MouseButtonClicked(0) && !UI()->MouseInside(&FilterPopup) && !UI()->MouseInside(&FilterAnchor))
 		{
@@ -4507,11 +4653,11 @@ void CMenus::RenderPlay(CUIRect MainView)
 	for(int i = 0; i < EntryCount; i++)
 	{
 		CListboxItem Item = UiDoListboxNextItem(&s_aEntryIDs[i], s_Selected == i, !BlockPlayListInput); if(!Item.m_Visible) continue; CUIRect Row = Item.m_Rect; Row.Margin(4.0f, &Row);
-		for(int Column = 0; Column < 6; Column++) { if(aColumns[Column].m_Rect.w <= 0.0f) continue; CUIRect Cell = aColumns[Column].m_Rect; Cell.x = Row.x + (Cell.x - Headers.x); Cell.y = Row.y; Cell.h = Row.h; const CPlayRoomEntry &Entry = aEntries[i]; const CPlayServerSnapshot *pServer = Entry.m_pServer; const CPlatformLobbyInfo *pLobby = Entry.m_pLobby ? &Entry.m_pLobby->m_Info : 0; char aValue[128]; if(Column == 0) str_copy(aValue, Entry.m_Source == CPlayRoomEntry::SOURCE_STEAM_LOBBY ? (pLobby->m_FriendHosted ? Localize("FRIEND") : "STEAM") : pServer->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pServer->m_Official ? Localize("OFFICIAL") : Localize("COMMUNITY"), sizeof(aValue)); else if(Column == 1) str_copy(aValue, pServer ? pServer->m_aName : pLobby->m_aHostName, sizeof(aValue)); else if(Column == 2) str_copy(aValue, DisplayGameType(pServer ? pServer->m_aGameType : pLobby->m_aGameType), sizeof(aValue)); else if(Column == 4) str_format(aValue, sizeof(aValue), "%d/%d", pServer ? pServer->m_NumClients : pLobby->m_Members, pServer ? pServer->m_MaxClients : pLobby->m_MaxMembers); else str_copy(aValue, pServer ? (pServer->m_Latency >= 0 ? "" : "-") : "RELAY", sizeof(aValue)); if(Column == 5 && pServer && pServer->m_Latency >= 0) str_format(aValue, sizeof(aValue), "%dms", pServer->m_Latency); UI()->DoLabelScaled(&Cell, aValue, FitLabelFontSize(TextRender(), aValue, 10.0f, Cell.w), -1); }
+		for(int Column = 0; Column < 6; Column++) { if(aColumns[Column].m_Rect.w <= 0.0f) continue; CUIRect Cell = aColumns[Column].m_Rect; Cell.x = Row.x + (Cell.x - Headers.x); Cell.y = Row.y; Cell.h = Row.h; const CPlayRoomEntry &Entry = aEntries[i]; const CPlayServerSnapshot *pServer = Entry.m_pServer; const CPlatformLobbyInfo *pLobby = Entry.m_pLobby ? &Entry.m_pLobby->m_Info : 0; char aValue[128]; if(Column == 0) str_copy(aValue, Entry.m_Source == CPlayRoomEntry::SOURCE_STEAM_LOBBY ? (pLobby->m_FriendHosted ? Localize("FRIEND") : "STEAM") : pServer->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pServer->m_Official ? Localize("OFFICIAL") : Localize("COMMUNITY"), sizeof(aValue)); else if(Column == 1) str_copy(aValue, pServer ? pServer->m_aName : pLobby->m_aHostName, sizeof(aValue)); else if(Column == 2) str_copy(aValue, DisplayGameType(pServer ? pServer->m_aGameType : pLobby->m_aGameType), sizeof(aValue)); else if(Column == 4) str_format(aValue, sizeof(aValue), "%d/%d", pServer ? pServer->m_NumClients : pLobby->m_Members, pServer ? pServer->m_MaxClients : pLobby->m_MaxMembers); else str_copy(aValue, pServer ? (pServer->m_Latency >= 0 ? "" : "-") : "RELAY", sizeof(aValue)); if(Column == 5 && pServer && pServer->m_Latency >= 0) str_format(aValue, sizeof(aValue), "%dms", pServer->m_Latency); UI()->DoLabelScaled(&Cell, aValue, FitScaledLabelFontSize(TextRender(), aValue, 10.0f, Cell.w, UI()->Scale()), -1); }
 	}
 	const int NewSelection = UiDoListboxEnd(&s_Scroll, 0); if(NewSelection >= 0 && NewSelection < EntryCount) { if(NewSelection != s_Selected) { s_Selected = NewSelection; SelectPlayEntry(s_Selected); } m_PlayListHasFocus = true; }
 
-	auto RenderDetail = [&](CUIRect View) { DrawMenuInset(&View, CUI::CORNER_ALL); View.Margin(10.0f, &View); if(s_Selected < 0) UI()->DoLabelScaled(&View, Localize("No servers found"), 11.0f, -1); else { const CPlayRoomEntry &Entry = aEntries[s_Selected]; char aDetail[768]; if(Entry.m_pServer) { const CPlayServerSnapshot *pInfo = Entry.m_pServer; str_format(aDetail, sizeof(aDetail), "%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s", pInfo->m_aName, Localize("Game type"), DisplayGameType(pInfo->m_aGameType), Localize("Address"), pInfo->m_aAddress, Localize("Version"), pInfo->m_aVersion, Localize("Source"), pInfo->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pInfo->m_DiscoverySources & IServerBrowser::DISCOVERY_STEAM ? "Steam GameServer + UDP" : "UDP", Localize("Mods"), pInfo->m_Modded ? Localize("Required") : Localize("None"), Localize("Authentication"), pInfo->m_AuthPolicy ? Localize("Required") : Localize("Open")); } else { const CPlatformLobbyInfo &Info = Entry.m_pLobby->m_Info; str_format(aDetail, sizeof(aDetail), "%s\n\n%s: %s\nLobbyID: %llu\n%s: %llu\n%s: %s\n%s: %s\nMod hash: %s\nRelay / Steam authentication", Info.m_aHostName, Localize("Game type"), DisplayGameType(Info.m_aGameType), Info.m_LobbyID, Localize("Host"), Info.m_HostSteamID, Localize("Region"), Info.m_aRegion, Localize("Source"), Info.m_FriendHosted ? Localize("Friend room") : Localize("Steam local room"), Info.m_aModHash); } UI()->DoLabelScaled(&View, aDetail, 10.5f, -1); } };
+	auto RenderDetail = [&](CUIRect View) { DrawMenuInset(&View, CUI::CORNER_ALL); View.Margin(10.0f, &View); if(s_Selected < 0) UI()->DoLabelScaled(&View, Localize("No servers found"), 11.0f, -1); else { const CPlayRoomEntry &Entry = aEntries[s_Selected]; char aDetail[768]; if(Entry.m_pServer) { const CPlayServerSnapshot *pInfo = Entry.m_pServer; str_format(aDetail, sizeof(aDetail), "%s\n\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s", pInfo->m_aName, Localize("Game type"), DisplayGameType(pInfo->m_aGameType), Localize("Address"), pInfo->m_aAddress, Localize("Version"), pInfo->m_aVersion, Localize("Source"), pInfo->m_Collection == PLAY_COLLECTION_LAN ? "LAN" : pInfo->m_DiscoverySources & IServerBrowser::DISCOVERY_STEAM ? "Steam GameServer + UDP" : "UDP", Localize("Mods"), pInfo->m_Modded ? Localize("Required") : Localize("None"), Localize("Authentication"), pInfo->m_AuthPolicy ? Localize("Required") : Localize("Open")); } else { const CPlatformLobbyInfo &Info = Entry.m_pLobby->m_Info; str_format(aDetail, sizeof(aDetail), "%s\n\n%s: %s\nLobbyID: %llu\n%s: %llu\n%s: %s\n%s: %s\nMod hash: %s\nRelay / Steam authentication", Info.m_aHostName, Localize("Game type"), DisplayGameType(Info.m_aGameType), Info.m_LobbyID, Localize("Host"), Info.m_HostSteamID, Localize("Region"), Info.m_aRegion, Localize("Source"), Info.m_FriendHosted ? Localize("Friend room") : Localize("Steam room"), Info.m_aModHash); } UI()->DoLabelScaled(&View, aDetail, 10.5f, -1); } };
 	if(!Compact) RenderDetail(Detail);
 	Actions.HSplitTop(6.0f, 0, &Actions); CUIRect Direct, ActionButtons; Actions.HSplitTop(30.0f, &Direct, &ActionButtons);
 	CUIRect DirectLabel, DirectBox; Direct.VSplitLeft(76.0f, &DirectLabel, &DirectBox); UI()->DoLabelScaled(&DirectLabel, Localize("Host address"), 10.0f, -1); static float s_DirectOffset; if(!(BlockPlayListInput && UI()->MouseInside(&DirectBox))) DoEditBox(&g_Config.m_UiServerAddress, &DirectBox, g_Config.m_UiServerAddress, sizeof(g_Config.m_UiServerAddress), 10.0f, &s_DirectOffset);
@@ -4531,17 +4677,21 @@ void CMenus::RenderPlay(CUIRect MainView)
 		{
 			if(Party.m_LocalOwner)
 			{
+				bool TargetUpdated = false;
 				if(s_Selected >= 0)
 				{
 					const CPlayRoomEntry &Entry = aEntries[s_Selected];
 					if(Entry.m_pServer)
-						pPlatform->SetPartyTarget(PLATFORM_PARTY_TARGET_ADDRESS, 0, Entry.m_pServer->m_aAddress, Entry.m_pServer->m_Modded ? (g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "none") : "none");
+						TargetUpdated = pPlatform->SetPartyTarget(PLATFORM_PARTY_TARGET_ADDRESS, 0, Entry.m_pServer->m_aAddress, Entry.m_pServer->m_Modded ? (g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "none") : "none");
 					else
-						pPlatform->SetPartyTarget(PLATFORM_PARTY_TARGET_GAME_LOBBY, Entry.m_pLobby->m_Info.m_LobbyID, "", Entry.m_pLobby->m_Info.m_aModHash);
+						TargetUpdated = pPlatform->SetPartyTarget(PLATFORM_PARTY_TARGET_GAME_LOBBY, Entry.m_pLobby->m_Info.m_LobbyID, "", Entry.m_pLobby->m_Info.m_aModHash);
 				}
 				else if(g_Config.m_UiServerAddress[0])
-					pPlatform->SetPartyTarget(PLATFORM_PARTY_TARGET_ADDRESS, 0, g_Config.m_UiServerAddress, g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "none");
-				pPlatform->SetPartyReady(true);
+					TargetUpdated = pPlatform->SetPartyTarget(PLATFORM_PARTY_TARGET_ADDRESS, 0, g_Config.m_UiServerAddress, g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "none");
+				if(TargetUpdated)
+					pPlatform->SetPartyReady(true);
+				else
+					PopupMessage(Localize("Steam party"), Localize("Unable to update Steam party target. Retry or recreate the party."), Localize("OK"));
 			}
 		}
 		else if(s_Selected >= 0)
@@ -4846,6 +4996,9 @@ void CMenus::RenderMods(CUIRect MainView)
 	static unsigned s_QueryOperation = 0, s_TotalMatching = 0;
 	static bool s_QueryWorking = false;
 	static char s_aQueryError[128] = "";
+	static unsigned s_LeaderboardOperation = 0;
+	static bool s_LeaderboardWorking = false;
+	static char s_aLeaderboardError[128] = "";
 	static int s_aViewTabs[2], s_aCategories[5], s_aStatuses[5], s_aSorts[4];
 	static float s_ListScroll = 0.0f;
 	static int s_ListSelection = -1;
@@ -4855,6 +5008,7 @@ void CMenus::RenderMods(CUIRect MainView)
 		CPlatformWorkshopQuery Query; mem_zero(&Query, sizeof(Query)); Query.m_ContentType = ContentTypeFilter(); Query.m_Sort = s_Sort; Query.m_Page = Page; str_copy(Query.m_aSearch, s_aSearch, sizeof(Query.m_aSearch));
 		const unsigned Operation = pPlatform->QueryWorkshop(Query);
 		if(Operation) { s_QueryOperation = Operation; s_Page = Page; s_QueryWorking = true; s_aQueryError[0] = 0; }
+		else { s_QueryWorking = false; str_copy(s_aQueryError, Localize("Unable to start Steam Workshop query."), sizeof(s_aQueryError)); }
 	};
 
 	CPlatformWorkshopQueryResult QueryResult;
@@ -4864,6 +5018,14 @@ void CMenus::RenderMods(CUIRect MainView)
 		s_QueryWorking = false;
 		if(QueryResult.m_Succeeded) { s_TotalMatching = QueryResult.m_TotalMatching; s_aQueryError[0] = 0; }
 		else str_copy(s_aQueryError, QueryResult.m_aError, sizeof(s_aQueryError));
+	}
+	CPlatformLeaderboardResult LeaderboardResult;
+	while(pPlatform->ConsumeCommunityLeaderboardResult(&LeaderboardResult))
+	{
+		if(LeaderboardResult.m_OperationID != s_LeaderboardOperation) continue;
+		s_LeaderboardWorking = false;
+		if(LeaderboardResult.m_Succeeded) s_aLeaderboardError[0] = 0;
+		else str_copy(s_aLeaderboardError, LeaderboardResult.m_aError, sizeof(s_aLeaderboardError));
 	}
 	CPlatformWorkshopPreviewResult PreviewResult;
 	while(pPlatform->ConsumeWorkshopPreviewResult(&PreviewResult))
@@ -4888,6 +5050,19 @@ void CMenus::RenderMods(CUIRect MainView)
 			if(m_WorkshopDiscover) StartQuery(1); else pPlatform->RefreshWorkshopItems();
 		}
 	}
+	if(m_WorkshopDiscover != m_LastWorkshopDiscover)
+	{
+		m_LastWorkshopDiscover = m_WorkshopDiscover;
+		m_WorkshopTransition = 0.0f;
+	}
+	const float WorkshopDt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	m_WorkshopTransition = SmoothToward(m_WorkshopTransition, 1.0f, WorkshopDt, 15.0f);
+	if(fabs(m_WorkshopTransition - 1.0f) < 0.001f)
+		m_WorkshopTransition = 1.0f;
+	const float WorkshopEase = MenuEaseOutCubic(m_WorkshopTransition);
+	const float WorkshopOffset = (1.0f - WorkshopEase) * 12.0f / max(1.0f, UI()->Scale());
+	MainView.x += WorkshopOffset;
+	MainView.w -= WorkshopOffset;
 	MainView.HSplitTop(5.0f, 0, &MainView);
 	MainView.HSplitTop(30.0f, &SearchRow, &MainView);
 	CUIRect Search, SearchButton, RefreshButton;
@@ -4943,10 +5118,19 @@ void CMenus::RenderMods(CUIRect MainView)
 	if(m_WorkshopSelectedID && !SelectionFound) { m_WorkshopSelectedID = 0; s_ListSelection = -1; }
 	if(!m_WorkshopSelectedID && Count) { CPlatformWorkshopItem Info; if(GetItem(0, &Info)) { m_WorkshopSelectedID = Info.m_PublishedFileID; s_ListSelection = 0; } }
 	if(!Count) { s_ListSelection = -1; m_WorkshopSelectedID = 0; }
+	if(m_WorkshopSelectedID != m_LastWorkshopAnimatedID)
+	{
+		m_LastWorkshopAnimatedID = m_WorkshopSelectedID;
+		m_WorkshopDetailTransition = 0.0f;
+	}
+	m_WorkshopDetailTransition = SmoothToward(m_WorkshopDetailTransition, 1.0f, WorkshopDt, 17.0f);
+	if(fabs(m_WorkshopDetailTransition - 1.0f) < 0.001f)
+		m_WorkshopDetailTransition = 1.0f;
+	const float DetailEase = MenuEaseOutCubic(m_WorkshopDetailTransition);
 
 	const bool Compact = Body.w / max(1.0f, UI()->Scale()) < 760.0f;
 	CUIRect List = Body, Detail;
-	if(!Compact) { Body.VSplitLeft(Body.w * 0.60f, &List, &Detail); List.VSplitRight(8.0f, &List, 0); }
+	if(!Compact) { Body.VSplitLeft(Body.w * 0.60f, &List, &Detail); List.VSplitRight(8.0f, &List, 0); const float DetailOffset = (1.0f - DetailEase) * 10.0f; Detail.x += DetailOffset; Detail.w -= DetailOffset; }
 	static int s_aListIDs[256]; for(int i = 0; i < 256; i++) s_aListIDs[i] = i;
 	UiDoListboxStart(&s_aListIDs, &List, 72.0f, Localize("Workshop content"), "", Count, 1, s_ListSelection, s_ListScroll);
 	for(int i = 0; i < Count; i++)
@@ -4955,7 +5139,7 @@ void CMenus::RenderMods(CUIRect MainView)
 		CListboxItem Entry = UiDoListboxNextItem(&s_aListIDs[i], s_ListSelection == i);
 		if(!Entry.m_Visible) continue;
 		CUIRect Row = Entry.m_Rect, Preview, Text, Line, Badge; Row.Margin(5.0f, &Row); Row.VSplitLeft(92.0f, &Preview, &Text); Text.VSplitLeft(8.0f, 0, &Text); DrawWorkshopPreview(Preview, Info);
-		Text.HSplitTop(18.0f, &Line, &Text); UI()->DoLabelScaled(&Line, Info.m_aName[0] ? Info.m_aName : Localize("Downloading content"), FitLabelFontSize(TextRender(), Info.m_aName, 11.5f, Line.w), -1);
+		Text.HSplitTop(18.0f, &Line, &Text); UI()->DoLabelScaled(&Line, Info.m_aName[0] ? Info.m_aName : Localize("Downloading content"), FitScaledLabelFontSize(TextRender(), Info.m_aName, 11.5f, Line.w, UI()->Scale()), -1);
 		Text.HSplitTop(17.0f, &Line, &Text); const char *apTypes[] = {"Mod", "Map", "Room Preset", "Challenge"}; char aMeta[256], aAuthor[128]; if(!pPlatform->UserDisplayName(Info.m_OwnerUserID, aAuthor, sizeof(aAuthor))) str_copy(aAuthor, Info.m_aAuthor, sizeof(aAuthor)); str_format(aMeta, sizeof(aMeta), "%s  ·  %s", Localize(apTypes[clamp(Info.m_ContentType, 0, 3)]), aAuthor[0] ? aAuthor : Localize("Unknown author")); UI()->DoLabelScaled(&Line, aMeta, 9.5f, -1);
 		Text.HSplitTop(16.0f, &Line, &Text); const bool Downloading = (Info.m_State & (16 | 32)) != 0 || (Info.m_Total && Info.m_Downloaded < Info.m_Total); const bool Disabled = (Info.m_State & 64) != 0; const char *pState = Downloading ? "Downloading" : Disabled ? "Disabled" : Info.m_Valid ? "Verified" : m_WorkshopDiscover ? "Not subscribed" : "Invalid"; char aState[128]; str_format(aState, sizeof(aState), "%s%s%s", Localize(pState), Info.m_aVersion[0] ? "  ·  v" : "", Info.m_aVersion); UI()->DoLabelScaled(&Line, aState, 9.0f, -1);
 		if(Downloading) { Text.HSplitBottom(5.0f, &Text, &Badge); RenderTools()->DrawUIRect(&Badge, vec4(.10f, .11f, .14f, 1), CUI::CORNER_ALL, 2.0f); if(Info.m_Total) { CUIRect Fill = Badge; Fill.w *= clamp(Info.m_Downloaded / (float)Info.m_Total, 0.0f, 1.0f); RenderTools()->DrawUIRect(&Fill, ms_ColorAccent, CUI::CORNER_ALL, 2.0f); } }
@@ -4973,19 +5157,19 @@ void CMenus::RenderMods(CUIRect MainView)
 		if(Overlay) { CUIRect Header, Close; View.HSplitTop(28.0f, &Header, &View); Header.VSplitRight(32.0f, &Header, &Close); UI()->DoLabelScaled(&Header, Localize("Workshop details"), 14.0f, -1); static int s_Close; if(DoButton_Menu(&s_Close, "x", 0, &Close)) m_WorkshopDetailOpen = false; View.HSplitTop(5.0f, 0, &View); }
 		CUIRect Actions, Preview; View.HSplitBottom(96.0f, &View, &Actions); View.HSplitTop(min(150.0f, View.w * 9.0f / 16.0f), &Preview, &View); DrawWorkshopPreview(Preview, Info); View.HSplitTop(7.0f, 0, &View);
 		static CScrollRegion s_DetailScroll; static vec2 s_DetailOffset(0.0f, 0.0f); CScrollRegionParams Params; ConfigureScrollRegion(&Params); Params.m_ScrollUnit = 32.0f; s_DetailScroll.Begin(&View, &s_DetailOffset, &Params); CUIRect Content = View; Content.y += s_DetailOffset.y; Content.VSplitRight(16.0f, &Content, 0);
-		CUIRect Line; Content.HSplitTop(25.0f, &Line, &Content); UI()->DoLabelScaled(&Line, Info.m_aName, FitLabelFontSize(TextRender(), Info.m_aName, 14.0f, Line.w), -1); s_DetailScroll.AddRect(Line);
+		CUIRect Line; Content.HSplitTop(25.0f, &Line, &Content); UI()->DoLabelScaled(&Line, Info.m_aName, FitScaledLabelFontSize(TextRender(), Info.m_aName, 14.0f, Line.w, UI()->Scale()), -1); s_DetailScroll.AddRect(Line);
 		char aAuthor[128]; if(!pPlatform->UserDisplayName(Info.m_OwnerUserID, aAuthor, sizeof(aAuthor))) str_copy(aAuthor, Info.m_aAuthor, sizeof(aAuthor)); char aDetails[1024]; const unsigned Votes = Info.m_VotesUp + Info.m_VotesDown; str_format(aDetails, sizeof(aDetails), "%s: %s\n%s: %s    %s: %s\n%s: %s    %s: %.0f%% (%u)\n%s: %.2f MB\nID: %llu\nHash: %.16s%s", Localize("Author"), aAuthor[0] ? aAuthor : Localize("Unknown author"), Localize("Version"), Info.m_aVersion[0] ? Info.m_aVersion : "-", Localize("Protocol"), Info.m_aTargetProtocol[0] ? Info.m_aTargetProtocol : "-", Localize("Content rating"), Info.m_aContentRating[0] ? Info.m_aContentRating : "-", Localize("Rating"), Info.m_Score * 100.0f, Votes, Localize("Size"), Info.m_Total / (1024.0f * 1024.0f), Info.m_PublishedFileID, Info.m_aContentHash, Info.m_aContentHash[0] ? "…" : "-"); Content.HSplitTop(105.0f, &Line, &Content); UI()->DoLabelScaled(&Line, aDetails, 9.5f, -1); s_DetailScroll.AddRect(Line);
 		Content.HSplitTop(22.0f, &Line, &Content); UI()->DoLabelScaled(&Line, Localize("Description"), 11.0f, -1); s_DetailScroll.AddRect(Line); Content.HSplitTop(max(90.0f, min(220.0f, 70.0f + str_length(Info.m_aDescription) * 0.16f)), &Line, &Content); UI()->DoLabelScaled(&Line, Info.m_aDescription[0] ? Info.m_aDescription : Localize("No description provided."), 9.5f, -1); s_DetailScroll.AddRect(Line);
 		if(Info.m_aError[0]) { Content.HSplitTop(22.0f, &Line, &Content); TextRender()->TextColor(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 1); UI()->DoLabelScaled(&Line, Info.m_aError, 9.5f, -1); TextRender()->TextColor(1, 1, 1, 1); s_DetailScroll.AddRect(Line); }
-		if(Info.m_ContentType == CONTENT_TYPE_CHALLENGE) { Content.HSplitTop(24.0f, &Line, &Content); UI()->DoLabelScaled(&Line, Localize("Community leaderboard · Unverified"), 11.0f, -1); s_DetailScroll.AddRect(Line); for(int i = 0; i < pPlatform->CommunityLeaderboardEntryCount() && i < 8; i++) { CPlatformLeaderboardEntry Entry; if(!pPlatform->CommunityLeaderboardEntry(i, &Entry)) continue; char aRank[192]; str_format(aRank, sizeof(aRank), "#%d  %s  %d", Entry.m_Rank, Entry.m_aName, Entry.m_Score); Content.HSplitTop(18.0f, &Line, &Content); UI()->DoLabelScaled(&Line, aRank, 9.5f, -1); s_DetailScroll.AddRect(Line); } }
+		if(Info.m_ContentType == CONTENT_TYPE_CHALLENGE) { Content.HSplitTop(24.0f, &Line, &Content); UI()->DoLabelScaled(&Line, Localize("Community leaderboard · Unverified"), 11.0f, -1); s_DetailScroll.AddRect(Line); if(s_LeaderboardWorking || s_aLeaderboardError[0]) { Content.HSplitTop(18.0f, &Line, &Content); UI()->DoLabelScaled(&Line, Localize(s_LeaderboardWorking ? "Loading community leaderboard…" : s_aLeaderboardError), 9.0f, -1); s_DetailScroll.AddRect(Line); } for(int i = 0; i < pPlatform->CommunityLeaderboardEntryCount() && i < 8; i++) { CPlatformLeaderboardEntry Entry; if(!pPlatform->CommunityLeaderboardEntry(i, &Entry)) continue; char aRank[192]; str_format(aRank, sizeof(aRank), "#%d  %s  %d", Entry.m_Rank, Entry.m_aName, Entry.m_Score); Content.HSplitTop(18.0f, &Line, &Content); UI()->DoLabelScaled(&Line, aRank, 9.5f, -1); s_DetailScroll.AddRect(Line); } }
 		s_DetailScroll.End();
 		const bool Subscribed = (Info.m_State & 1) != 0; const bool Disabled = (Info.m_State & 64) != 0; const bool Downloading = (Info.m_State & (16 | 32)) != 0 || (Info.m_Total && Info.m_Downloaded < Info.m_Total);
 		CUIRect MainAction, Secondary, Community, Remove; Actions.HSplitTop(30.0f, &MainAction, &Actions); Actions.HSplitTop(4.0f, 0, &Actions); Actions.HSplitTop(28.0f, &Secondary, &Actions); Secondary.VSplitLeft(Secondary.w / 2.0f - 2.0f, &Secondary, &Community); Community.VSplitLeft(4.0f, 0, &Community); Actions.HSplitTop(4.0f, 0, &Actions); Remove = Actions;
 		static int s_Main, s_Toggle, s_Community, s_Remove, s_LeaderboardScope;
-		const char *pMain = !Subscribed ? "Subscribe" : Downloading ? "Downloading" : !Info.m_Valid ? "Retry download" : Info.m_ContentType == CONTENT_TYPE_MOD ? "Use Mod collection" : "Use to create room";
-		if(DoButton_Menu(&s_Main, Localize(pMain), 0, &MainAction, BUTTONSTYLE_ACCENT) && !Downloading) { if(!Subscribed) pPlatform->SubscribeWorkshopItem(Info.m_PublishedFileID); else if(!Info.m_Valid) pPlatform->RequestWorkshopDownload(Info.m_PublishedFileID); else UseItem(Info); }
-		const char *apScopes[] = {"Leaderboard: Global", "Leaderboard: Friends", "Leaderboard: Around me"}; const char *pToggle = Info.m_ContentType == CONTENT_TYPE_CHALLENGE ? apScopes[s_LeaderboardScope] : Disabled ? "Enable" : "Disable";
-		if(DoButton_Menu(&s_Toggle, Localize(pToggle), 0, &Secondary) && Subscribed) { if(Info.m_ContentType == CONTENT_TYPE_CHALLENGE && Info.m_Valid) { CCommunityChallengeDescriptor Descriptor; char aError[128]; if(LoadWorkshopChallengeDescriptor(Info, &Descriptor, aError, sizeof(aError))) { pPlatform->QueryCommunityChallenge(Descriptor.m_PublishedFileID, Descriptor.m_Revision, Descriptor.m_Metric, (EPlatformLeaderboardScope)s_LeaderboardScope); s_LeaderboardScope = (s_LeaderboardScope + 1) % 3; } } else pPlatform->SetWorkshopItemDisabled(Info.m_PublishedFileID, !Disabled); }
+		const char *pMain = !Subscribed ? "Subscribe" : Downloading ? "Downloading" : Disabled ? "Enable to use" : !Info.m_Valid ? "Retry download" : Info.m_ContentType == CONTENT_TYPE_MOD ? "Use Mod collection" : "Use to create room";
+		if(DoButton_Menu(&s_Main, Localize(pMain), 0, &MainAction, BUTTONSTYLE_ACCENT) && !Downloading) { if(!Subscribed) pPlatform->SubscribeWorkshopItem(Info.m_PublishedFileID); else if(Disabled) pPlatform->SetWorkshopItemDisabled(Info.m_PublishedFileID, false); else if(!Info.m_Valid) pPlatform->RequestWorkshopDownload(Info.m_PublishedFileID); else UseItem(Info); }
+		const char *apScopes[] = {"Leaderboard: Global", "Leaderboard: Friends", "Leaderboard: Around me"}; const char *pToggle = Disabled ? "Enable" : Info.m_ContentType == CONTENT_TYPE_CHALLENGE ? apScopes[s_LeaderboardScope] : "Disable";
+		if(DoButton_Menu(&s_Toggle, Localize(pToggle), 0, &Secondary) && Subscribed) { if(Disabled) pPlatform->SetWorkshopItemDisabled(Info.m_PublishedFileID, false); else if(Info.m_ContentType == CONTENT_TYPE_CHALLENGE && Info.m_Valid) { CCommunityChallengeDescriptor Descriptor; char aError[128]; if(LoadWorkshopChallengeDescriptor(Info, &Descriptor, aError, sizeof(aError))) { const unsigned Operation = pPlatform->QueryCommunityChallenge(Descriptor.m_PublishedFileID, Descriptor.m_Revision, Descriptor.m_Metric, (EPlatformLeaderboardScope)s_LeaderboardScope); if(Operation) { s_LeaderboardOperation = Operation; s_LeaderboardWorking = true; s_aLeaderboardError[0] = 0; s_LeaderboardScope = (s_LeaderboardScope + 1) % 3; } else { s_LeaderboardWorking = false; str_copy(s_aLeaderboardError, Localize("Unable to start community leaderboard request."), sizeof(s_aLeaderboardError)); } } } else pPlatform->SetWorkshopItemDisabled(Info.m_PublishedFileID, true); }
 		if(DoButton_Menu(&s_Community, Localize("Community / Report"), 0, &Community)) pPlatform->OpenWorkshopItemPage(Info.m_PublishedFileID);
 		if(DoButton_Menu(&s_Remove, Localize("Unsubscribe"), 0, &Remove, BUTTONSTYLE_DANGER) && Subscribed) { pPlatform->UnsubscribeWorkshopItem(Info.m_PublishedFileID); m_WorkshopSelectedID = 0; }
 	};
@@ -4993,7 +5177,7 @@ void CMenus::RenderMods(CUIRect MainView)
 	CPlatformWorkshopItem Selected; const bool HasSelection = GetItem(s_ListSelection, &Selected);
 	if(!Compact) { if(HasSelection) RenderDetail(Detail, Selected, false); else { DrawMenuInset(&Detail, CUI::CORNER_ALL); Detail.Margin(10.0f, &Detail); UI()->DoLabelScaled(&Detail, Localize(Count ? "Select Workshop content to view details." : s_aQueryError[0] ? s_aQueryError : s_QueryWorking ? "Loading Workshop content…" : "No Workshop content matches these filters."), 11.0f, -1); } }
 	if(Compact && HasSelection) { CUIRect DetailButton; Footer.VSplitRight(100.0f, &Footer, &DetailButton); static int s_Details; if(DoButton_Menu(&s_Details, Localize("Details"), m_WorkshopDetailOpen, &DetailButton, BUTTONSTYLE_ACCENT)) m_WorkshopDetailOpen = true; }
-	if(Compact && m_WorkshopDetailOpen && HasSelection) { CUIRect Overlay = Body; RenderDetail(Overlay, Selected, true); if(m_EscapePressed) { m_WorkshopDetailOpen = false; m_EscapePressed = false; } }
+	if(Compact && m_WorkshopDetailOpen && HasSelection) { CUIRect Overlay = Body; const float DetailOffset = (1.0f - DetailEase) * 12.0f; Overlay.x += DetailOffset; Overlay.w -= DetailOffset; RenderDetail(Overlay, Selected, true); if(m_EscapePressed) { m_WorkshopDetailOpen = false; m_EscapePressed = false; } }
 
 	static int s_Browse, s_Previous, s_Next;
 	Footer.VSplitLeft(145.0f, &Button, &Footer); if(DoButton_Menu(&s_Browse, Localize("Browse Workshop"), 0, &Button)) pPlatform->OpenWorkshopBrowsePage();
@@ -5004,6 +5188,13 @@ int CMenus::Render()
 {
 	CUIRect Screen = *UI()->Screen();
 	Graphics()->MapScreen(Screen.x, Screen.y, Screen.w, Screen.h);
+	const float OpenDt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	m_MenuOpenTransition = SmoothToward(m_MenuOpenTransition, 1.0f, OpenDt, 14.0f);
+	if(fabs(m_MenuOpenTransition - 1.0f) < 0.001f)
+		m_MenuOpenTransition = 1.0f;
+	const float OpenOffset = (1.0f - MenuEaseOutCubic(m_MenuOpenTransition)) * 8.0f / max(1.0f, UI()->Scale());
+	Screen.y += OpenOffset;
+	Screen.h -= OpenOffset;
 	
 	static bool s_First = true;
 	if(s_First)
@@ -5053,11 +5244,35 @@ int CMenus::Render()
 		s_SoundCheck = true;
 	}
 
+	const float MenuDt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	const int RequestedPage = Client()->State() == IClient::STATE_OFFLINE ? g_Config.m_UiPage : m_GamePage;
+	if(RequestedPage != m_LastAnimatedPage)
+	{
+		m_LastAnimatedPage = RequestedPage;
+		m_PageTransition = 0.0f;
+	}
+	m_PageTransition = SmoothToward(m_PageTransition, 1.0f, MenuDt, 13.0f);
+	if(fabs(m_PageTransition - 1.0f) < 0.001f)
+		m_PageTransition = 1.0f;
+
+	if(m_Popup != m_LastAnimatedPopup)
+	{
+		m_LastAnimatedPopup = m_Popup;
+		m_PopupTransition = m_Popup == POPUP_NONE ? 1.0f : 0.0f;
+	}
+	if(m_Popup != POPUP_NONE)
+		m_PopupTransition = SmoothToward(m_PopupTransition, 1.0f, MenuDt, 16.0f);
+
 	if(m_Popup == POPUP_NONE)
 	{
 		const float NavigationWidth = Screen.w < 900.0f ? 62.0f : 172.0f;
 		Screen.VSplitLeft(NavigationWidth, &Navigation, &MainView);
 		MainView.VSplitLeft(8.0f, 0, &MainView);
+		const CUIRect PageBounds = MainView;
+		const float PageEase = MenuEaseOutCubic(m_PageTransition);
+		const float PageOffset = (1.0f - PageEase) * 14.0f / max(1.0f, UI()->Scale());
+		MainView.x += PageOffset;
+		MainView.w -= PageOffset;
 
 		// render current page
 		if(Client()->State() != IClient::STATE_OFFLINE)
@@ -5102,6 +5317,13 @@ int CMenus::Render()
 		else if(g_Config.m_UiPage == PAGE_CUSTOMIZE)
 			RenderCustomize(MainView);
 
+		if(m_PageTransition < 0.999f)
+		{
+			vec4 Veil = ms_ColorBgDeep;
+			Veil.a = (1.0f - PageEase) * 0.22f;
+			RenderTools()->DrawUIRect(&PageBounds, Veil, CUI::CORNER_ALL, ms_PanelRounding);
+		}
+
 		// Draw navigation last so compact hover labels can float over the page.
 		RenderMenubar(Navigation);
 	}
@@ -5128,7 +5350,7 @@ int CMenus::Render()
 			Client()->ConnectionStatus(&Status);
 			if(Status.m_Stage == CLIENT_STAGE_LOADING_MAP) pTitle = Localize("Loading map");
 			else if(Status.m_Stage == CLIENT_STAGE_AUTHENTICATING) pTitle = Localize("Authenticating with Steam");
-			else if(Status.m_Stage == CLIENT_STAGE_SYNCING_MODS) pTitle = Localize("Synchronizing Mods");
+			else if(Status.m_Stage == CLIENT_STAGE_SYNCING_MODS) pTitle = Localize("Synchronizing Workshop content");
 			else pTitle = Localize("Connecting to server");
 			pExtraText = g_Config.m_UiServerAddress; // TODO: query the client about the address
 			pButtonText = Localize("Abort");
@@ -5226,6 +5448,8 @@ int CMenus::Render()
 		Box = Screen;
 		Box.VMargin(150.0f/UI()->Scale(), &Box);
 		Box.HMargin(150.0f/UI()->Scale(), &Box);
+		const float PopupEase = MenuEaseOutCubic(m_PopupTransition);
+		Box.Margin((1.0f - PopupEase) * 14.0f / max(1.0f, UI()->Scale()), &Box);
 
 		// render the box
 		DrawMenuBorder(&Box, ms_ColorBgPanel, ms_ColorAccentDim, CUI::CORNER_ALL, 15.0f);
@@ -5823,6 +6047,8 @@ void CMenus::SetClientRandomSkin()
 
 void CMenus::SetActive(bool Active)
 {
+	if(Active && !m_MenuActive)
+		m_MenuOpenTransition = 0.0f;
 	m_MenuActive = Active;
 	if(!m_MenuActive)
 	{

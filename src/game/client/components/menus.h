@@ -112,6 +112,7 @@ class CMenus : public CComponent
 	const char *DisplayGameType(const char *pGameType) const;
 
 	float AnimSelected(const void *pID, bool Selected, float Speed = 12.0f);
+	float AnimPressed(const void *pID, float Speed = 20.0f);
 	static vec4 MixColor(const vec4 &A, const vec4 &B, float t);
 
 	int64 m_LastUpdate;
@@ -255,6 +256,21 @@ class CMenus : public CComponent
 	void SaveCloudSyncState(unsigned long long Hash, int Revision);
 	void BackupCloudProfile(const char *pData, const char *pSuffix);
 	int m_ActivePage;
+	int m_LastAnimatedPage;
+	int m_LastAnimatedPopup;
+	int m_LastCreateRoomStep;
+	int m_LastPlayTab;
+	bool m_LastWorkshopDiscover;
+	bool m_LastPlayFiltersOpen;
+	unsigned long long m_LastWorkshopAnimatedID;
+	float m_PageTransition;
+	float m_PopupTransition;
+	float m_CreateRoomTransition;
+	float m_PlayTabTransition;
+	float m_WorkshopTransition;
+	float m_WorkshopDetailTransition;
+	float m_PlayFilterTransition;
+	float m_MenuOpenTransition;
 	int m_NavigationFocus;
 	int m_LastInputDevice;
 	int m_PlayTab;

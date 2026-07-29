@@ -57,7 +57,6 @@ void CCustomStuff::Reset()
 	m_CameraShake = 0.0f;
 	m_CameraKick = vec2(0, 0);
 	
-	m_BuildMode = false;
 	m_LocalPos = vec2(0, 0);
 	m_LocalWeapon = {};
 	m_LocalColor = vec4(0, 0, 0, 0);
@@ -125,9 +124,6 @@ void CCustomStuff::Reset()
 	
 	m_LastWeaponPicked = true;
 	
-	m_BuildPos = vec2(0, 0);
-	m_BuildPosValid = false;
-	m_FlipBuilding = false;
 }
 
 void CCustomStuff::SetTurretMuzzle(ivec2 Pos, int AttackTick, const CWeaponSpec &Weapon)
@@ -314,18 +310,12 @@ void CCustomStuff::Tick(bool Paused)
 	}
 	
 	m_pClient->m_pTracers->Tick();
-	m_pClient->m_pInventory->Tick();
 	
 	// Camera
 	
 	m_CameraCenter.x += (m_CameraTargetCenter.x-m_CameraCenter.x) / 24.0f;
 	m_CameraCenter.y += (m_CameraTargetCenter.y-m_CameraCenter.y) / 24.0f;
 	
-	// building
-	if (m_LocalTeam == TEAM_SPECTATORS)
-	{
-		m_BuildMode = false;
-	}
 }
 
 void CCustomStuff::AddCameraImpulse(vec2 Kick, float Shake, float FeedbackStrength)

@@ -651,6 +651,13 @@ void CGameControllerInvasion::RegenerateMapFromTemplate()
 	GameServer()->ReloadMap();
 }
 
+void CGameControllerInvasion::BeginPostRoundTransition()
+{
+	// A cleared floor always continues the same expedition. The generic game
+	// vote would allow a successful run to switch modes between generated maps.
+	RegenerateMapFromTemplate();
+}
+
 
 void CGameControllerInvasion::RewardQuestGold()
 {

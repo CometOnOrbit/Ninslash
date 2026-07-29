@@ -18,6 +18,7 @@ class CPveRoguelite : public CComponent
 	int m_ChoiceSequence;
 	int m_ContractNonce;
 	int m_ChoiceEndTick;
+	int64 m_ChoiceDismissAt;
 	int m_ContractEndTick;
 	int m_InvasionRetryNonce;
 	int m_InvasionRetryEndTick;
