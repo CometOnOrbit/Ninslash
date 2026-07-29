@@ -1850,6 +1850,7 @@ void CCharacterCore::Write(CNetObj_CharacterCore *pObjCore)
 	pObjCore->m_Health = m_Health;
 	pObjCore->m_VelX = round_to_int(m_Vel.x*256.0f);
 	pObjCore->m_VelY = round_to_int(m_Vel.y*256.0f);
+	pObjCore->m_MoveSpeedMultiplier = clamp(round_to_int(m_MoveSpeedMultiplier * 100.0f), 10, 300);
 	pObjCore->m_DamageTick = m_DamageTick;
 	pObjCore->m_Jumped = m_Jumped;
 	pObjCore->m_CoyoteTime = m_CoyoteTime;
@@ -1896,6 +1897,7 @@ void CCharacterCore::Read(const CNetObj_CharacterCore *pObjCore)
 	m_Health = pObjCore->m_Health;
 	m_Vel.x = pObjCore->m_VelX/256.0f;
 	m_Vel.y = pObjCore->m_VelY/256.0f;
+	m_MoveSpeedMultiplier = pObjCore->m_MoveSpeedMultiplier / 100.0f;
 	m_DamageTick = pObjCore->m_DamageTick;
 	m_Jumped = pObjCore->m_Jumped;
 	m_CoyoteTime = pObjCore->m_CoyoteTime;

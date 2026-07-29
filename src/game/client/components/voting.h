@@ -22,6 +22,8 @@ class CVoting : public CComponent
 	char m_aReason[VOTE_REASON_LENGTH];
 	int m_Voted;
 	int m_Yes, m_No, m_Pass, m_Total;
+	float m_DisplayedYes, m_DisplayedNo, m_DisplayedPass, m_DisplayedTotal;
+	int64 m_LastAnimationTime;
 	bool m_DebugVoteActive;
 
 	void AddOption(const char *pDescription);

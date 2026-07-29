@@ -8,9 +8,9 @@
 #include "././game/variables.h" 
 
 
-MACRO_CONFIG_STR(PlayerName, player_name, 16, "bloodless", CFGFLAG_SAVE|CFGFLAG_CLIENT, "Name of the player")
-MACRO_CONFIG_STR(PlayerClan, player_clan, 12, "", CFGFLAG_SAVE|CFGFLAG_CLIENT, "Clan of the player")
-MACRO_CONFIG_INT(PlayerCountry, player_country, -1, -1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Country of the player")
+MACRO_CONFIG_STR(PlayerName, player_name, 16, "bloodless", CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Name of the player")
+MACRO_CONFIG_STR(PlayerClan, player_clan, 12, "", CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Clan of the player")
+MACRO_CONFIG_INT(PlayerCountry, player_country, -1, -1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Country of the player")
 MACRO_CONFIG_STR(Password, password, 32, "", CFGFLAG_CLIENT|CFGFLAG_SERVER, "Password to the server")
 MACRO_CONFIG_STR(Logfile, logfile, 128, "", CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_SERVER, "Filename to log all output to")
 MACRO_CONFIG_INT(ConsoleOutputLevel, console_output_level, 0, 0, 2, CFGFLAG_CLIENT|CFGFLAG_SERVER, "Adjusts the amount of information in the console")
@@ -28,16 +28,16 @@ MACRO_CONFIG_INT(ClEventthread, cl_eventthread, 0, 0, 1, CFGFLAG_CLIENT, "Enable
 
 MACRO_CONFIG_INT(InpGrab, inp_grab, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Use forceful input grabbing method")
 
-MACRO_CONFIG_STR(BrFilterString, br_filter_string, 25, "", CFGFLAG_SAVE|CFGFLAG_CLIENT, "Server browser filtering string")
-MACRO_CONFIG_INT(BrFilterFull, br_filter_full, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Filter out full server in browser")
-MACRO_CONFIG_INT(BrFilterEmpty, br_filter_empty, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Filter out empty server in browser")
+MACRO_CONFIG_STR(BrFilterString, br_filter_string, 25, "", CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Server browser filtering string")
+MACRO_CONFIG_INT(BrFilterFull, br_filter_full, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Filter out full server in browser")
+MACRO_CONFIG_INT(BrFilterEmpty, br_filter_empty, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Filter out empty server in browser")
 MACRO_CONFIG_INT(BrFilterSpectators, br_filter_spectators, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Filter out spectators from player numbers")
 MACRO_CONFIG_INT(BrFilterFriends, br_filter_friends, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Filter out servers with no friends")
 MACRO_CONFIG_INT(BrFilterCountry, br_filter_country, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Filter out servers with non-matching player country")
 MACRO_CONFIG_INT(BrFilterCountryIndex, br_filter_country_index, -1, -1, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Player country to filter by in the server browser")
-MACRO_CONFIG_INT(BrFilterPw, br_filter_pw, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Filter out password protected servers in browser")
-MACRO_CONFIG_INT(BrFilterPing, br_filter_ping, 999, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Ping to filter by in the server browser")
-MACRO_CONFIG_STR(BrFilterGametype, br_filter_gametype, 128, "", CFGFLAG_SAVE|CFGFLAG_CLIENT, "Game types to filter")
+MACRO_CONFIG_INT(BrFilterPw, br_filter_pw, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Filter out password protected servers in browser")
+MACRO_CONFIG_INT(BrFilterPing, br_filter_ping, 999, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Ping to filter by in the server browser")
+MACRO_CONFIG_STR(BrFilterGametype, br_filter_gametype, 128, "", CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Game types to filter")
 MACRO_CONFIG_INT(BrFilterGametypeStrict, br_filter_gametype_strict, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Strict gametype filter")
 MACRO_CONFIG_STR(BrFilterServerAddress, br_filter_serveraddress, 128, "", CFGFLAG_SAVE|CFGFLAG_CLIENT, "Server address to filter")
 MACRO_CONFIG_INT(BrFilterPure, br_filter_pure, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Filter out non-standard servers in browser")
@@ -50,9 +50,9 @@ MACRO_CONFIG_INT(BrMaxRequests, br_max_requests, 25, 0, 1000, CFGFLAG_SAVE|CFGFL
 
 MACRO_CONFIG_INT(SndBufferSize, snd_buffer_size, 512, 128, 32768, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Sound buffer size")
 MACRO_CONFIG_INT(SndRate, snd_rate, 48000, 0, 0, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Sound mixing rate")
-MACRO_CONFIG_INT(SndEnable, snd_enable, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Sound enable")
-MACRO_CONFIG_INT(SndMusic, snd_enable_music, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Play background music")
-MACRO_CONFIG_INT(SndVolume, snd_volume, 100, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Sound volume")
+MACRO_CONFIG_INT(SndEnable, snd_enable, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Sound enable")
+MACRO_CONFIG_INT(SndMusic, snd_enable_music, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Play background music")
+MACRO_CONFIG_INT(SndVolume, snd_volume, 100, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Sound volume")
 
 MACRO_CONFIG_INT(SndEnvironmental, snd_environmental, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Environmental sounds")
 
@@ -62,8 +62,8 @@ MACRO_CONFIG_INT(GamepadID, gamepadid, -1, 9999, -1, CFGFLAG_SAVE|CFGFLAG_CLIENT
 
 
 
-MACRO_CONFIG_INT(GoreBlood, gore_blood, 10, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Blood amount")
-MACRO_CONFIG_INT(GoreWallSplatter, gore_wallsplatter, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Wall splatter enable")
+MACRO_CONFIG_INT(GoreBlood, gore_blood, 10, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Blood amount")
+MACRO_CONFIG_INT(GoreWallSplatter, gore_wallsplatter, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Wall splatter enable")
 
 MACRO_CONFIG_INT(SndNonactiveMute, snd_nonactive_mute, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "")
 
@@ -141,34 +141,38 @@ MACRO_CONFIG_INT(SvPveChoiceTime, sv_pve_choice_time, 10, 3, 60, CFGFLAG_SERVER,
 MACRO_CONFIG_INT(SvPveContractVoteTime, sv_pve_contract_vote_time, 8, 3, 60, CFGFLAG_SERVER, "Seconds allowed for a team contract vote")
 
 // Client-owned permanent PvE progress. Current-run combat state is never stored here.
-MACRO_CONFIG_INT(ClPveProgressVersion, cl_pve_progress_version, 2, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "PvE progression format version")
-MACRO_CONFIG_INT(ClPveResearchPoints, cl_pve_research_points, 0, 0, 999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)Unspent PvE research points")
-MACRO_CONFIG_STR(ClPveResearchMask, cl_pve_research_mask, 33, "00000000000000000000000000000000", CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)128-bit hexadecimal PvE research unlock mask")
-MACRO_CONFIG_INT(ClPveHighestInvasion, cl_pve_highest_invasion, 0, 0, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)Highest completed Invasion floor")
-MACRO_CONFIG_INT(ClPvePreferredCheckpoint, cl_pve_preferred_checkpoint, 1, 1, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "(EDIT = CHEAT)Preferred unlocked Invasion checkpoint")
-MACRO_CONFIG_INT(ClPveDroneTutorialSeen, cl_pve_drone_tutorial_seen, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Whether the drone command wheel tutorial has been shown")
+MACRO_CONFIG_INT(ClPveProgressVersion, cl_pve_progress_version, 2, 0, 999, CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Legacy PvE progression format version; migrated to pve_progress.json")
+MACRO_CONFIG_INT(ClPveResearchPoints, cl_pve_research_points, 0, 0, 999, CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Legacy PvE research points; migrated to pve_progress.json")
+MACRO_CONFIG_STR(ClPveResearchMask, cl_pve_research_mask, 33, "00000000000000000000000000000000", CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Legacy PvE research mask; migrated to pve_progress.json")
+MACRO_CONFIG_INT(ClPveHighestInvasion, cl_pve_highest_invasion, 0, 0, 9999, CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Legacy highest Invasion floor; migrated to pve_progress.json")
+MACRO_CONFIG_INT(ClPvePreferredCheckpoint, cl_pve_preferred_checkpoint, 1, 1, 9999, CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Legacy preferred Invasion checkpoint; migrated to pve_progress.json")
+MACRO_CONFIG_INT(ClPveDroneTutorialSeen, cl_pve_drone_tutorial_seen, 0, 0, 1, CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Legacy drone tutorial state; migrated to pve_progress.json")
 
 // One-click local game hosting. The password is intentionally session-only.
-MACRO_CONFIG_INT(ClLocalServerMode, cl_local_server_mode, 0, 0, 5, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game mode")
-MACRO_CONFIG_INT(ClLocalServerMap, cl_local_server_map, 0, 0, 7, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Selected local game map preset")
-MACRO_CONFIG_INT(ClLocalServerDifficulty, cl_local_server_difficulty, 1, 1, 50, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Local game map or AI difficulty")
+MACRO_CONFIG_INT(ClLocalServerMode, cl_local_server_mode, 1, 0, 12, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Selected local game mode")
+MACRO_CONFIG_INT(ClRoomVisibility, cl_room_visibility, 0, 0, 3, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Room visibility: solo, friends, LAN, or public")
+MACRO_CONFIG_INT(ClLocalServerMap, cl_local_server_map, 0, 0, 7, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Selected local game map preset")
+MACRO_CONFIG_STR(ClLocalServerWorkshopMap, cl_local_server_workshop_map, 256, "", CFGFLAG_SAVE|CFGFLAG_CLIENT, "Validated workshop:<id>:<entry> map locator selected by a room preset")
+MACRO_CONFIG_INT(ClLocalServerDifficulty, cl_local_server_difficulty, 1, 1, 50, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Local game map or AI difficulty")
 MACRO_CONFIG_INT(ClLocalServerInvasionStart, cl_local_server_invasion_start, 0, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Invasion start policy: team checkpoint, floor one, or custom floor")
 MACRO_CONFIG_INT(ClLocalServerInvasionFloor, cl_local_server_invasion_floor, 1, 1, 9999, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Custom local Invasion starting floor")
-MACRO_CONFIG_INT(ClLocalServerBots, cl_local_server_bots, 5, 0, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Number of AI players in local competitive games")
-MACRO_CONFIG_INT(ClLocalServerMaxClients, cl_local_server_max_clients, 8, 1, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Maximum total player slots in a local game")
+MACRO_CONFIG_INT(ClLocalServerBots, cl_local_server_bots, 5, 0, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "AI population target: total active players in free-for-all modes or players per team in team modes; 0 disables bots")
+MACRO_CONFIG_INT(ClLocalServerMaxClients, cl_local_server_max_clients, 8, 1, 16, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Maximum total player slots in a local game")
 MACRO_CONFIG_INT(ClLocalServerPort, cl_local_server_port, 8303, 1024, 65535, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Port used by the local game server")
 MACRO_CONFIG_INT(ClLocalServerLan, cl_local_server_lan, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Allow other players on the LAN to join the local game")
 MACRO_CONFIG_STR(ClLocalServerName, cl_local_server_name, 64, "Local Game", CFGFLAG_SAVE|CFGFLAG_CLIENT, "Local game server name")
 MACRO_CONFIG_STR(ClLocalServerPassword, cl_local_server_password, 32, "", CFGFLAG_CLIENT, "Session-only local game password")
-MACRO_CONFIG_INT(ClLocalServerRandomSeed, cl_local_server_random_seed, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Generate a new local game map seed on every launch")
-MACRO_CONFIG_INT(ClLocalServerSeed, cl_local_server_seed, 0, 0, 32767, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Fixed local game map seed")
-MACRO_CONFIG_INT(ClLocalServerRoguelite, cl_local_server_roguelite, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Enable the PvE Roguelite Director in local games")
-MACRO_CONFIG_INT(ClLocalServerContracts, cl_local_server_contracts, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Enable PvE contracts in local games")
+MACRO_CONFIG_INT(ClLocalServerRandomSeed, cl_local_server_random_seed, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Generate a new local game map seed on every launch")
+MACRO_CONFIG_INT(ClLocalServerSeed, cl_local_server_seed, 0, 0, 32767, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Fixed local game map seed")
+MACRO_CONFIG_INT(ClLocalServerRoguelite, cl_local_server_roguelite, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Enable the PvE Roguelite Director in local games")
+MACRO_CONFIG_INT(ClLocalServerContracts, cl_local_server_contracts, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Enable PvE contracts in local games")
 MACRO_CONFIG_INT(ClLocalServerHordeWaves, cl_local_server_horde_waves, 0, 0, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Horde target wave count, or zero for endless")
 MACRO_CONFIG_INT(ClLocalServerExtractionTime, cl_local_server_extraction_time, 4, 2, 15, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Extraction mission time limit in minutes")
 MACRO_CONFIG_INT(ClLocalServerDmScore, cl_local_server_dm_score, 20, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Deathmatch score limit")
 MACRO_CONFIG_INT(ClLocalServerTdmScore, cl_local_server_tdm_score, 50, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Team deathmatch score limit")
 MACRO_CONFIG_INT(ClLocalServerCtfScore, cl_local_server_ctf_score, 500, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Capture the flag score limit")
+MACRO_CONFIG_INT(ClLocalServerReactorScore, cl_local_server_reactor_score, 400, 1, 1000, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Reactor Assault score limit")
+MACRO_CONFIG_INT(ClLocalServerBallScore, cl_local_server_ball_score, 5, 1, 100, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Ball goal limit")
 MACRO_CONFIG_INT(ClLocalServerAdvanced, cl_local_server_advanced, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show advanced local game rules")
 
 // ===== AntiPing / Prediction System =====
@@ -189,10 +193,10 @@ MACRO_CONFIG_INT(ClShowhudSpectatorCount, cl_showhud_spectator_count, 1, 0, 1, C
 MACRO_CONFIG_INT(ClShowhudPlayerPosition, cl_showhud_player_position, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Player Position)")
 MACRO_CONFIG_INT(ClShowhudPlayerSpeed, cl_showhud_player_speed, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Player Speed)")
 MACRO_CONFIG_INT(ClShowhudPlayerAngle, cl_showhud_player_angle, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show ingame HUD (Player Aim Angle)")
-MACRO_CONFIG_INT(ClPveObjectiveDisplay, cl_pve_objective_display, 2, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "PvE objective display: 0 scoreboard, 1 always, 2 updates")
+MACRO_CONFIG_INT(ClPveObjectiveDisplay, cl_pve_objective_display, 2, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "PvE objective display: 0 scoreboard, 1 always, 2 updates")
 
 // ===== Chat Filtering =====
-MACRO_CONFIG_INT(ClShowChat, cl_showchat, 1, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show chat (2 to always show large chat area)")
+MACRO_CONFIG_INT(ClShowChat, cl_showchat, 1, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT|CFGFLAG_CLOUD, "Show chat (2 to always show large chat area)")
 MACRO_CONFIG_INT(ClShowChatTeamMembersOnly, cl_show_chat_team_members_only, 0, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show only chat messages from team members")
 MACRO_CONFIG_INT(ClShowChatSystem, cl_show_chat_system, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show chat messages from the server")
 MACRO_CONFIG_INT(ClShowKillMessages, cl_showkillmessages, 1, 0, 1, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Show kill messages")

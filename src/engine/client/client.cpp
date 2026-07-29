@@ -16,8 +16,12 @@
 #include <engine/graphics.h>
 #include <engine/input.h>
 #include <engine/keys.h>
+#include <engine/listen_server.h>
 #include <engine/map.h>
 #include <engine/masterserver.h>
+#include <engine/platform_services.h>
+#include <engine/platform_auth.h>
+#include <engine/platform_events.h>
 #include <engine/serverbrowser.h>
 #include <engine/sound.h>
 #include <engine/gamepad.h>
@@ -47,7 +51,9 @@
 #include "client.h"
 
 #if defined(CONF_FAMILY_WINDOWS)
-	#define _WIN32_WINNT 0x0501
+	#ifndef _WIN32_WINNT
+		#define _WIN32_WINNT 0x0601
+	#endif
 	#define WIN32_LEAN_AND_MEAN
 	#include <windows.h>
 #endif
@@ -56,6 +62,38 @@
 #ifdef main
 #undef main
 #endif
+
+namespace
+{
+bool IsSafePlatformJoinAddress(const char *pAddress)
+{
+	const int Length = str_length(pAddress);
+	if(Length <= 0 || Length >= 256)
+		return false;
+	for(int i = 0; i < Length; i++)
+	{
+		const char c = pAddress[i];
+		if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+			c == '.' || c == '-' || c == '_' || c == ':' || c == '[' || c == ']'))
+			return false;
+	}
+	return true;
+}
+
+bool IsLoopbackAddress(const NETADDR &Address)
+{
+	if((Address.type & NETTYPE_IPV4) && Address.ip[0] == 127)
+		return true;
+	if(Address.type & NETTYPE_IPV6)
+	{
+		for(int i = 0; i < 15; i++)
+			if(Address.ip[i] != 0)
+				return false;
+		return Address.ip[15] == 1;
+	}
+	return false;
+}
+}
 
 void CGraph::Init(float Min, float Max)
 {
@@ -260,6 +298,17 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 	m_pGameClient = 0;
 	m_pMap = 0;
 	m_pConsole = 0;
+	m_pPlatformServices = 0;
+	m_PlatformAuthResponsePending = false;
+	m_PlatformAuthPolicy = 0;
+	m_PlatformAuthRelayRequired = false;
+	m_NextPlatformPresenceUpdate = 0;
+	m_pListenServer = 0;
+	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
+	mem_zero(&m_ConnectionAsyncStatus, sizeof(m_ConnectionAsyncStatus));
+#if defined(CONF_STEAM_LISTEN_SERVER)
+	m_pListenServer = CreateListenServerRuntime();
+#endif
 
 	m_RenderFrameTime = 0.0001f;
 	m_RenderFrameTimeLow = 1.0f;
@@ -272,6 +321,8 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 	
 	m_SnapCrcErrors = 0;
 	m_AutoScreenshotRecycle = false;
+	m_PendingScreenshotContextCount = 0;
+	mem_zero(m_aPendingScreenshotContexts, sizeof(m_aPendingScreenshotContexts));
 	m_EditorActive = false;
 	m_VideoFps = 30;
 	m_VideoFinished = false;
@@ -367,6 +418,40 @@ void CClient::SendInfo()
 	Msg.AddString(GameClient()->NetVersion(), 128);
 	Msg.AddString(g_Config.m_Password, 128);
 	SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+}
+
+
+void CClient::SendPlatformAuth(int Policy, bool RelayRequired)
+{
+	const bool SteamAvailable = m_pPlatformServices && m_pPlatformServices->Available() && m_pPlatformServices->LocalUserID() != 0;
+	const bool UseSteamIdentity = PlatformClientUsesSteamIdentity(Policy, RelayRequired, IsLoopbackAddress(m_ServerAddress), SteamAvailable);
+	if(!UseSteamIdentity && m_pPlatformServices)
+		m_pPlatformServices->CancelAuthSessionTicket();
+	unsigned char aTicket[2048];
+	int TicketSize = UseSteamIdentity ? m_pPlatformServices->GetAuthSessionTicket(aTicket, sizeof(aTicket)) : 0;
+	if(TicketSize < 0)
+	{
+		m_PlatformAuthResponsePending = true;
+		m_PlatformAuthPolicy = Policy;
+		m_PlatformAuthRelayRequired = RelayRequired;
+		return;
+	}
+	m_PlatformAuthResponsePending = false;
+	if(TicketSize > (int)sizeof(aTicket))
+		TicketSize = 0;
+	CMsgPacker Auth(NETMSG_PLATFORM_AUTH);
+	char aSteamID[32];
+	Auth.AddInt(UseSteamIdentity ? PLATFORM_IDENTITY_STEAM : PLATFORM_IDENTITY_ANONYMOUS);
+	str_format(aSteamID, sizeof(aSteamID), "%llu", UseSteamIdentity ? m_pPlatformServices->LocalUserID() : 0);
+	Auth.AddString(aSteamID, sizeof(aSteamID));
+	Auth.AddString(g_Config.m_ClModHash, sizeof(g_Config.m_ClModHash));
+	Auth.AddString(g_Config.m_ClModIds, sizeof(g_Config.m_ClModIds));
+	Auth.AddInt(TicketSize);
+	if(TicketSize)
+		Auth.AddRaw(aTicket, TicketSize);
+	SendMsgEx(&Auth, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+	if(RelayRequired && !UseSteamIdentity)
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "This Relay room requires a Steam identity");
 }
 
 
@@ -493,6 +578,24 @@ void CClient::SetState(int s)
 		m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
 	}
 	m_State = s;
+	if(m_pInput)
+		m_pInput->SetGamepadActionSet(s == IClient::STATE_ONLINE ? PLATFORM_INPUT_GAME : (s == IClient::STATE_DEMOPLAYBACK ? PLATFORM_INPUT_SPECTATOR : PLATFORM_INPUT_MENU));
+	if(m_pPlatformServices && m_pPlatformServices->Available())
+	{
+		CPlatformPresence Presence; mem_zero(&Presence, sizeof(Presence)); Presence.m_State = PLATFORM_PRESENCE_MENU;
+		if(s == IClient::STATE_CONNECTING || s == IClient::STATE_LOADING)
+			Presence.m_State = PLATFORM_PRESENCE_LOADING;
+		else if(s == IClient::STATE_ONLINE)
+		{
+			Presence.m_State = PLATFORM_PRESENCE_PLAYING;
+			Presence.m_ConnectVerified = IsSafePlatformJoinAddress(m_aServerAddressStr);
+			str_copy(Presence.m_aConnect, m_aServerAddressStr, sizeof(Presence.m_aConnect));
+		}
+		else if(s == IClient::STATE_DEMOPLAYBACK)
+			Presence.m_State = PLATFORM_PRESENCE_REPLAY;
+		m_pPlatformServices->SetRichPresence(Presence);
+		m_pPlatformServices->SetTimelineMode(s == IClient::STATE_ONLINE ? PLATFORM_TIMELINE_PLAYING : s == IClient::STATE_DEMOPLAYBACK ? PLATFORM_TIMELINE_REPLAY : (s == IClient::STATE_CONNECTING || s == IClient::STATE_LOADING) ? PLATFORM_TIMELINE_LOADING : PLATFORM_TIMELINE_MENU, "");
+	}
 	if(Old != s)
 		GameClient()->OnStateChange(m_State, Old);
 }
@@ -541,15 +644,39 @@ void CClient::EnterGame()
 
 void CClient::Connect(const char *pAddress)
 {
+	mem_zero(&m_ConnectionAsyncStatus, sizeof(m_ConnectionAsyncStatus));
+	m_ConnectionAsyncStatus.m_State = CLIENT_ASYNC_WORKING;
+	m_ConnectionAsyncStatus.m_Stage = CLIENT_STAGE_CONNECTING;
 	char aBuf[512];
 	int Port = 8303;
 
-	Disconnect();
+	// Joining a new endpoint may happen immediately after entering its Steam
+	// game Lobby. Keep that Lobby while resetting the network connection.
+	DisconnectWithReason(0);
 
 	str_copy(m_aServerAddressStr, pAddress, sizeof(m_aServerAddressStr));
 
 	str_format(aBuf, sizeof(aBuf), "connecting to '%s'", m_aServerAddressStr);
 	m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", aBuf);
+	if(str_comp_num(m_aServerAddressStr, "steam:", 6) == 0)
+	{
+		NETADDR SteamAddr;
+		unsigned long long SteamID = 0;
+		if(net_addr_from_str(&SteamAddr, m_aServerAddressStr) == 0)
+			for(int i = 0; i < 8; i++)
+				SteamID |= (unsigned long long)SteamAddr.ip[i] << (i * 8);
+		if(!SteamID || !m_pPlatformServices || !m_pPlatformServices->RelayTransport() || m_NetClient.ConnectSteam(SteamID, m_pPlatformServices->RelayTransport()) != 0)
+		{
+			m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Unable to connect to Steam Relay host");
+			SetState(IClient::STATE_OFFLINE);
+			return;
+		}
+		mem_zero(&m_ServerAddress, sizeof(m_ServerAddress));
+		m_ServerAddress.type = NETTYPE_STEAM;
+		m_RconAuthed = 0;
+		SetState(IClient::STATE_CONNECTING);
+		return;
+	}
 
 	ServerInfoRequest();
 
@@ -587,6 +714,9 @@ void CClient::DisconnectWithReason(const char *pReason)
 
 	//
 	m_RconAuthed = 0;
+	m_PlatformAuthResponsePending = false;
+	if(m_pPlatformServices)
+		m_pPlatformServices->CancelAuthSessionTicket();
 	m_UseTempRconCommands = 0;
 	m_pConsole->DeregisterTempAll();
 	m_NetClient.Disconnect(pReason);
@@ -615,6 +745,9 @@ void CClient::DisconnectWithReason(const char *pReason)
 void CClient::Disconnect()
 {
 	DisconnectWithReason(0);
+	// The persistent party is deliberately untouched.
+	if(m_pPlatformServices)
+		m_pPlatformServices->LeaveGameLobby();
 }
 
 
@@ -637,6 +770,11 @@ void CClient::ServerInfoRequest()
 int CClient::LoadData()
 {
 	m_DebugFont = Graphics()->LoadTexture("debug_font.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, IGraphics::TEXLOAD_NORESAMPLE);
+	if(m_DebugFont <= 0)
+	{
+		dbg_msg("startup", "required resource failed to load: debug_font.png");
+		return 0;
+	}
 	return 1;
 }
 
@@ -1019,14 +1157,23 @@ void CClient::ProcessConnlessPacket(CNetChunk *pPacket)
 
 		net_addr_str(&pPacket->m_Address, Info.m_aAddress, sizeof(Info.m_aAddress), true);
 
-		for(int i = 0; i < Info.m_NumClients; i++)
+			for(int i = 0; i < Info.m_NumClients; i++)
 		{
 			str_copy(Info.m_aClients[i].m_aName, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aClients[i].m_aName));
 			str_copy(Info.m_aClients[i].m_aClan, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aClients[i].m_aClan));
 			Info.m_aClients[i].m_Country = str_toint(Up.GetString());
 			Info.m_aClients[i].m_Score = str_toint(Up.GetString());
-			Info.m_aClients[i].m_Player = str_toint(Up.GetString()) != 0 ? true : false;
-		}
+				Info.m_aClients[i].m_Player = str_toint(Up.GetString()) != 0 ? true : false;
+			}
+			if(Up.RemainingSize() > 0)
+			{
+				Info.m_AuthPolicy = str_toint(Up.GetString());
+				Info.m_Official = str_toint(Up.GetString()) != 0;
+				Info.m_Modded = str_toint(Up.GetString()) != 0;
+				Info.m_HasPlatformMetadata = !Up.Error() && Info.m_AuthPolicy >= 0 && Info.m_AuthPolicy <= 2;
+				if(!Info.m_HasPlatformMetadata)
+					return;
+			}
 
 		if(!Up.Error())
 		{
@@ -1194,6 +1341,43 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 		{
 			CMsgPacker Msg(NETMSG_PING_REPLY);
 			SendMsgEx(&Msg, 0);
+		}
+		else if(Msg == NETMSG_PLATFORM_AUTH_REQUEST)
+		{
+			const int Policy = Unpacker.GetInt();
+			const bool RelayRequired = Unpacker.GetInt() != 0;
+			if(!Unpacker.Error() && Policy >= 0 && Policy <= 2)
+				SendPlatformAuth(Policy, RelayRequired);
+		}
+		else if(Msg == NETMSG_PLATFORM_EVENT)
+		{
+			const int Event = Unpacker.GetInt();
+			const int Value = Unpacker.GetInt();
+			const bool LeaderboardEligible = Unpacker.GetInt() != 0;
+			if(!Unpacker.Error() && Event >= 0 && Event < NUM_PLATFORM_SERVER_EVENTS && m_pPlatformServices)
+				m_pPlatformServices->ProcessServerEvent(Event, Value, LeaderboardEligible);
+		}
+		else if(Msg == NETMSG_PLATFORM_PLAYER_IDENTITY)
+		{
+			const int ClientID = Unpacker.GetInt();
+			const bool Present = Unpacker.GetInt() != 0;
+			const char *pUserID = Unpacker.GetString(CUnpacker::SANITIZE_CC);
+			unsigned long long UserID = 0;
+			bool Valid = !Unpacker.Error() && ClientID >= 0 && ClientID < MAX_CLIENTS;
+			if(Present)
+			{
+				Valid = Valid && pUserID[0] != 0;
+				for(const char *p = pUserID; Valid && *p; ++p)
+				{
+					if(*p < '0' || *p > '9' || UserID > (~0ULL - (unsigned)(*p - '0')) / 10ULL)
+						Valid = false;
+					else
+						UserID = UserID * 10ULL + (unsigned)(*p - '0');
+				}
+				Valid = Valid && UserID != 0;
+			}
+			if(Valid)
+				GameClient()->OnPlatformPlayerIdentity(ClientID, Present, Present ? UserID : 0);
 		}
 		else if(Msg == NETMSG_RCON_CMD_ADD)
 		{
@@ -1770,6 +1954,7 @@ void CClient::InitInterfaces()
 	m_pMap = Kernel()->RequestInterface<IEngineMap>();
 	m_pMasterServer = Kernel()->RequestInterface<IEngineMasterServer>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
+	m_pPlatformServices = Kernel()->RequestInterface<IPlatformServices>();
 
 	//
 	m_ServerBrowser.SetBaseInfo(&m_NetClient, m_pGameClient->NetVersion());
@@ -1786,14 +1971,43 @@ void CClient::Run()
 		if(!SDL_Init(0))
 		{
 			dbg_msg("client", "unable to init SDL base: %s", SDL_GetError());
+#if defined(CONF_FAMILY_WINDOWS)
+			char aMessage[1400];
+			str_format(aMessage, sizeof(aMessage), "Ninslash could not initialize SDL.\n\n%s\n\nStartup log:\n%s", SDL_GetError(), windows_startup_log_path());
+			if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+				gui_messagebox("Ninslash startup failed", aMessage);
+#endif
 			return;
 		}
 
 		atexit(SDL_Quit); // ignore_convention
 	}
 
+	if(m_pPlatformServices)
+	{
+		if(!m_pPlatformServices->Init())
+		{
+			if(m_pPlatformServices->ExitRequested())
+			{
+#if defined(CONF_FAMILY_WINDOWS)
+				windows_mark_startup_ready();
+#endif
+				return;
+			}
+			dbg_msg("steam", "continuing with standalone networking after Steam initialization failure");
+		}
+		CPlatformPresence Presence; mem_zero(&Presence, sizeof(Presence)); Presence.m_State = PLATFORM_PRESENCE_MENU; m_pPlatformServices->SetRichPresence(Presence);
+	}
+#if defined(CONF_FAMILY_WINDOWS)
+	// Steam may install its own top-level filter, so restore startup diagnostics.
+	windows_refresh_crash_handler();
+#endif
+
 	// init graphics
 	{
+#if defined(CONF_FAMILY_WINDOWS)
+		windows_mark_graphics_starting();
+#endif
 
 		m_pGraphics = CreateEngineGraphicsThreaded();
 		
@@ -1804,8 +2018,19 @@ void CClient::Run()
 		if(RegisterFail || m_pGraphics->Init() != 0)
 		{
 			dbg_msg("client", "couldn't init graphics");
+#if defined(CONF_FAMILY_WINDOWS)
+			char aMessage[1400];
+			str_format(aMessage, sizeof(aMessage),
+				"Ninslash could not create a working OpenGL window, including safe mode.\n\nLast SDL error: %s\n\nStartup log:\n%s",
+				SDL_GetError(), windows_startup_log_path());
+			if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+				gui_messagebox("Ninslash graphics startup failed", aMessage);
+#endif
 			return;
 		}
+#if defined(CONF_FAMILY_WINDOWS)
+		windows_mark_graphics_ready();
+#endif
 	}
 
 	// init sound, allowed to fail
@@ -1819,8 +2044,8 @@ void CClient::Run()
 		NETADDR BindAddr;
 		if(g_Config.m_Bindaddr[0] && net_host_lookup(g_Config.m_Bindaddr, &BindAddr, NETTYPE_ALL) == 0)
 		{
-			// got bindaddr
-			BindAddr.type = NETTYPE_ALL;
+			// Preserve the address family returned by lookup. Forcing an IPv4
+			// bind address to NETTYPE_ALL causes a spurious IPv6 bind failure.
 		}
 		else
 		{
@@ -1830,12 +2055,29 @@ void CClient::Run()
 		if(!m_NetClient.Open(BindAddr, 0))
 		{
 			dbg_msg("client", "couldn't open socket");
+#if defined(CONF_FAMILY_WINDOWS)
+			char aMessage[1400];
+			str_format(aMessage, sizeof(aMessage),
+				"Ninslash could not open its network socket.\n\nCheck firewall, VPN, and any configured bind address.\n\nStartup log:\n%s",
+				windows_startup_log_path());
+			if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+				gui_messagebox("Ninslash network startup failed", aMessage);
+#endif
 			return;
 		}
 	}
 
 	// init font rendering
-	Kernel()->RequestInterface<IEngineTextRender>()->Init();
+	if(Kernel()->RequestInterface<IEngineTextRender>()->Init() != 0)
+	{
+#if defined(CONF_FAMILY_WINDOWS)
+		char aMessage[1400];
+		str_format(aMessage, sizeof(aMessage), "Ninslash could not initialize its font renderer.\n\nStartup log:\n%s", windows_startup_log_path());
+		if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+			gui_messagebox("Ninslash font startup failed", aMessage);
+#endif
+		return;
+	}
 
 	// init the input
 	Input()->Init();
@@ -1849,9 +2091,20 @@ void CClient::Run()
 
 	// load data
 	if(!LoadData())
+	{
+#if defined(CONF_FAMILY_WINDOWS)
+		char aMessage[1400];
+		str_format(aMessage, sizeof(aMessage), "Ninslash could not load required game resources.\n\nCheck that the data directory is installed next to the executable.\n\nStartup log:\n%s", windows_startup_log_path());
+		if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
+			gui_messagebox("Ninslash resource startup failed", aMessage);
+#endif
 		return;
+	}
 
 	GameClient()->OnInit();
+#if defined(CONF_FAMILY_WINDOWS)
+	windows_mark_startup_ready();
+#endif
 
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "version %s", GameClient()->NetVersion());
@@ -1878,6 +2131,107 @@ void CClient::Run()
 
 	while (1)
 	{
+		if(m_pPlatformServices)
+		{
+			m_pPlatformServices->RunCallbacks();
+			for(int i = 0; i < m_PendingScreenshotContextCount;)
+			{
+				IGraphics::CScreenshotResult Screenshot;
+				const CPlatformScreenshotContext Context = m_aPendingScreenshotContexts[i];
+				if(!Graphics()->ConsumeScreenshotResult(&Screenshot, Context.m_RequestID))
+				{
+					i++;
+					continue;
+				}
+				for(int j = i + 1; j < m_PendingScreenshotContextCount; j++)
+					m_aPendingScreenshotContexts[j - 1] = m_aPendingScreenshotContexts[j];
+				m_PendingScreenshotContextCount--;
+				if(Screenshot.m_Success && Context.m_SyncToSteam && !m_pPlatformServices->RegisterScreenshot(Screenshot.m_aAbsolutePath, Screenshot.m_Width, Screenshot.m_Height, Context))
+					m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Screenshot saved locally; Steam library registration was unavailable");
+			}
+			CPlatformPartyLaunch PartyLaunch;
+			if(m_pPlatformServices->ConsumePartyLaunch(&PartyLaunch))
+			{
+				if(PartyLaunch.m_TargetType == PLATFORM_PARTY_TARGET_GAME_LOBBY)
+				{
+					if(!PartyLaunch.m_TargetLobbyID || !m_pPlatformServices->JoinLobby(PartyLaunch.m_TargetLobbyID))
+					{
+						m_ConnectionAsyncStatus.m_State = CLIENT_ASYNC_FAILED;
+						m_ConnectionAsyncStatus.m_Stage = CLIENT_STAGE_JOINING_ROOM;
+						str_copy(m_ConnectionAsyncStatus.m_aErrorKey, "The party game room is no longer available.", sizeof(m_ConnectionAsyncStatus.m_aErrorKey));
+					}
+				}
+				else if(PartyLaunch.m_TargetType == PLATFORM_PARTY_TARGET_ADDRESS)
+				{
+					if(IsSafePlatformJoinAddress(PartyLaunch.m_aTargetAddress))
+					{
+						m_pPlatformServices->LeaveGameLobby();
+						Connect(PartyLaunch.m_aTargetAddress);
+					}
+					else
+						dbg_msg("platform", "ignored unsafe party join request");
+				}
+			}
+			if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING && m_SteamHostStatus.m_Stage == CLIENT_STAGE_CREATING_ROOM && m_pPlatformServices->CurrentLobbyID())
+			{
+				m_SteamHostStatus.m_State = CLIENT_ASYNC_SUCCEEDED;
+				m_SteamHostStatus.m_Progress = 1.0f;
+			}
+			if(m_PlatformAuthResponsePending)
+				SendPlatformAuth(m_PlatformAuthPolicy, m_PlatformAuthRelayRequired);
+			if(m_pPlatformServices->Available() && time_get() >= m_NextPlatformPresenceUpdate)
+			{
+				m_NextPlatformPresenceUpdate = time_get() + time_freq() * 5;
+				CPlatformPresence Presence; mem_zero(&Presence, sizeof(Presence)); Presence.m_State = PLATFORM_PRESENCE_MENU;
+				if(State() == IClient::STATE_ONLINE)
+				{
+					Presence.m_State = PLATFORM_PRESENCE_PLAYING;
+					str_copy(Presence.m_aMode, m_CurrentServerInfo.m_aGameType, sizeof(Presence.m_aMode));
+					str_copy(Presence.m_aMap, m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, sizeof(Presence.m_aMap));
+					Presence.m_RoomPlayers = m_CurrentServerInfo.m_NumClients; Presence.m_RoomCapacity = m_CurrentServerInfo.m_MaxClients;
+					Presence.m_ConnectVerified = IsSafePlatformJoinAddress(m_aServerAddressStr); str_copy(Presence.m_aConnect, m_aServerAddressStr, sizeof(Presence.m_aConnect));
+				}
+				else if(State() == IClient::STATE_CONNECTING || State() == IClient::STATE_LOADING) Presence.m_State = PLATFORM_PRESENCE_LOADING;
+				else if(State() == IClient::STATE_DEMOPLAYBACK) Presence.m_State = PLATFORM_PRESENCE_REPLAY;
+				m_pPlatformServices->SetRichPresence(Presence);
+				if(State() == IClient::STATE_ONLINE)
+				{
+					CPlatformScreenshotContext Context; mem_zero(&Context, sizeof(Context)); str_copy(Context.m_aLocation, Presence.m_aMap, sizeof(Context.m_aLocation));
+					for(int i = 0; i < m_pPlatformServices->LobbyMemberCount() && Context.m_UserCount < 32; i++) { CPlatformUserInfo Info; if(m_pPlatformServices->LobbyMemberInfo(i, &Info)) Context.m_aUsers[Context.m_UserCount++] = Info.m_UserID; }
+					const char *pID = g_Config.m_ClModIds; while(*pID && Context.m_PublishedFileCount < 32) { unsigned long long ID = 0; int Length = 0; if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0) break; Context.m_aPublishedFiles[Context.m_PublishedFileCount++] = ID; pID += Length; if(*pID == ',') pID++; else if(*pID) break; }
+					m_pPlatformServices->SetScreenshotContext(Context);
+				}
+			}
+			if(m_pPlatformServices->ConsumeListenServerStopRequest() && m_pListenServer)
+			{
+				CPlatformOperationStatus LobbyFailure;
+				m_pPlatformServices->LobbyOperationStatus(&LobbyFailure);
+				m_pPlatformServices->LeaveLobby();
+				m_pListenServer->Stop();
+				if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING)
+				{
+					m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+					str_copy(m_SteamHostStatus.m_aErrorKey, LobbyFailure.m_State == CLIENT_ASYNC_FAILED && LobbyFailure.m_aErrorKey[0] ? LobbyFailure.m_aErrorKey : "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+				}
+				dbg_msg("steam", "room creation failed; Listen Server stopped");
+			}
+			char aJoinAddress[256];
+			if(m_pPlatformServices->ConsumeJoinRequest(aJoinAddress, sizeof(aJoinAddress)))
+			{
+				if(IsSafePlatformJoinAddress(aJoinAddress))
+					Connect(aJoinAddress);
+				else
+					dbg_msg("platform", "ignored unsafe join request");
+			}
+			char aJoinFailure[256];
+			if(m_pPlatformServices->ConsumeJoinFailure(aJoinFailure, sizeof(aJoinFailure)))
+			{
+				m_ConnectionAsyncStatus.m_State = CLIENT_ASYNC_FAILED;
+				m_ConnectionAsyncStatus.m_Stage = str_find(aJoinFailure, "Workshop") || str_find(aJoinFailure, "Mod") ? CLIENT_STAGE_SYNCING_MODS : CLIENT_STAGE_JOINING_ROOM;
+				str_copy(m_ConnectionAsyncStatus.m_aErrorKey, aJoinFailure, sizeof(m_ConnectionAsyncStatus.m_aErrorKey));
+				m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", aJoinFailure);
+			}
+		}
 		//
 		VersionUpdate();
 
@@ -1984,6 +2338,11 @@ void CClient::Run()
 					}
 					if(m_Video.IsRecording())
 						VideoRecordFrame();
+					// All request owners have now had a chance to consume results
+					// from the previous swap. Discard completions for local-only
+					// screenshots so the bounded result queue cannot fill up.
+					IGraphics::CScreenshotResult UnclaimedScreenshot;
+					while(Graphics()->ConsumeScreenshotResult(&UnclaimedScreenshot)) {}
 					m_pGraphics->Swap();
 				}
 			}
@@ -2030,10 +2389,21 @@ void CClient::Run()
 
 	GameClient()->OnShutdown();
 	Disconnect();
+	if(m_pPlatformServices)
+		m_pPlatformServices->LeaveLobby();
+	if(m_pListenServer)
+	{
+		m_pListenServer->Stop();
+		delete m_pListenServer;
+		m_pListenServer = 0;
+	}
+	m_NetClient.Close();
 
 	m_pGraphics->Shutdown();
 	m_pSound->Shutdown();
 	m_pGamepad->Shutdown();
+	if(m_pPlatformServices)
+		m_pPlatformServices->Shutdown();
 
 	// shutdown SDL
 	{
@@ -2079,9 +2449,29 @@ void CClient::AutoScreenshot_Start()
 {
 	if(g_Config.m_ClAutoScreenshot)
 	{
-		Graphics()->TakeScreenshot("auto/autoscreen");
+		CPlatformScreenshotContext Context;
+		mem_zero(&Context, sizeof(Context));
+		Context.m_RequestID = Graphics()->TakeScreenshot("auto/autoscreen");
+		Context.m_SyncToSteam = g_Config.m_ClAutoScreenshotSteam != 0;
+		str_copy(Context.m_aLocation, m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, sizeof(Context.m_aLocation));
+		QueueScreenshotContext(Context);
 		m_AutoScreenshotRecycle = true;
 	}
+}
+
+void CClient::QueueScreenshotContext(const CPlatformScreenshotContext &Context)
+{
+	if(!Context.m_RequestID)
+		return;
+	if(m_PendingScreenshotContextCount >= (int)(sizeof(m_aPendingScreenshotContexts) / sizeof(m_aPendingScreenshotContexts[0])))
+	{
+		for(int i = 1; i < m_PendingScreenshotContextCount; i++)
+			m_aPendingScreenshotContexts[i - 1] = m_aPendingScreenshotContexts[i];
+		m_PendingScreenshotContextCount--;
+	}
+	m_aPendingScreenshotContexts[m_PendingScreenshotContextCount++] = Context;
+	if(m_pPlatformServices)
+		m_pPlatformServices->SetScreenshotContext(Context);
 }
 
 void CClient::AutoScreenshot_Cleanup()
@@ -2101,7 +2491,17 @@ void CClient::AutoScreenshot_Cleanup()
 void CClient::Con_Screenshot(IConsole::IResult *pResult, void *pUserData)
 {
 	CClient *pSelf = (CClient *)pUserData;
-	pSelf->Graphics()->TakeScreenshot(0);
+	CPlatformScreenshotContext Context;
+	mem_zero(&Context, sizeof(Context));
+	Context.m_RequestID = pSelf->Graphics()->TakeScreenshot(0);
+	Context.m_SyncToSteam = true;
+	str_copy(Context.m_aLocation, pSelf->m_CurrentServerInfo.m_aMap[0] ? pSelf->m_CurrentServerInfo.m_aMap : pSelf->m_aCurrentMap, sizeof(Context.m_aLocation));
+	if(pSelf->m_pPlatformServices)
+	{
+		for(int i = 0; i < pSelf->m_pPlatformServices->LobbyMemberCount() && i < 32; i++) { CPlatformUserInfo Info; if(pSelf->m_pPlatformServices->LobbyMemberInfo(i, &Info)) Context.m_aUsers[Context.m_UserCount++] = Info.m_UserID; }
+		const char *pID = g_Config.m_ClModIds; while(*pID && Context.m_PublishedFileCount < 32) { unsigned long long ID = 0; int Length = 0; if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0) break; Context.m_aPublishedFiles[Context.m_PublishedFileCount++] = ID; pID += Length; if(*pID == ',') pID++; else if(*pID) break; }
+	}
+	pSelf->QueueScreenshotContext(Context);
 }
 
 void CClient::Con_Rcon(IConsole::IResult *pResult, void *pUserData)
@@ -2287,6 +2687,234 @@ void CClient::Con_AddDemoMarker(IConsole::IResult *pResult, void *pUserData)
 	CClient *pSelf = (CClient *)pUserData;
 	pSelf->DemoRecorder_AddDemoMarker();
 }
+
+void CClient::Con_SteamLobbyCreate(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	EPlatformLobbyVisibility Visibility = PLATFORM_LOBBY_FRIENDS;
+	if(pResult->NumArguments() > 0)
+	{
+		const char *pVisibility = pResult->GetString(0);
+		if(str_comp_nocase(pVisibility, "private") == 0)
+			Visibility = PLATFORM_LOBBY_INVITE_ONLY;
+		else if(str_comp_nocase(pVisibility, "public") == 0)
+			Visibility = PLATFORM_LOBBY_PUBLIC;
+	}
+	CHostGameSettings Settings;
+	mem_zero(&Settings, sizeof(Settings));
+	Settings.m_Visibility = Visibility;
+	Settings.m_MaxClients = clamp(g_Config.m_ClLocalServerMaxClients, 1, (int)MAX_CLIENTS);
+	str_copy(Settings.m_aName, g_Config.m_ClLocalServerName[0] ? g_Config.m_ClLocalServerName : "Steam room", sizeof(Settings.m_aName));
+	str_copy(Settings.m_aPassword, g_Config.m_ClLocalServerPassword, sizeof(Settings.m_aPassword));
+	str_copy(Settings.m_aMap, g_Config.m_SvMap, sizeof(Settings.m_aMap));
+	str_copy(Settings.m_aGameType, g_Config.m_SvGametype, sizeof(Settings.m_aGameType));
+	str_copy(Settings.m_aModHash, g_Config.m_ClModHash, sizeof(Settings.m_aModHash));
+	str_copy(Settings.m_aModIDs, g_Config.m_ClModIds, sizeof(Settings.m_aModIDs));
+	if(pClient->StartSteamHostedGame(Settings))
+		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Creating Steam Lobby...");
+	else
+		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", pClient->m_SteamHostStatus.m_aErrorKey);
+}
+
+bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
+{
+	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
+	if(!m_pPlatformServices || !m_pPlatformServices->Available() || !m_pListenServer || !m_pPlatformServices->RelayListenTransport())
+	{
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, "Steam hosting is unavailable. Start Steam and try again.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	if(m_pListenServer->Running())
+		StopSteamHostedGame();
+	m_SteamHostStatus.m_State = CLIENT_ASYNC_WORKING;
+	m_SteamHostStatus.m_Stage = CLIENT_STAGE_STARTING_SERVER;
+
+	CListenServerSettings Settings;
+	mem_zero(&Settings, sizeof(Settings));
+	const int PreferredPort = clamp(g_Config.m_ClLocalServerPort, 1024, 65535);
+	Settings.m_Port = -1;
+	for(int Offset = 0; Offset < 10; Offset++)
+	{
+		const int Candidate = PreferredPort + Offset <= 65535 ? PreferredPort + Offset : 1024 + PreferredPort + Offset - 65536;
+		NETADDR BindAddress;
+		mem_zero(&BindAddress, sizeof(BindAddress));
+		BindAddress.type = NETTYPE_IPV4;
+		BindAddress.ip[0] = 127;
+		BindAddress.ip[3] = 1;
+		BindAddress.port = Candidate;
+		NETSOCKET Probe = net_udp_create(BindAddress);
+		if(Probe.type == NETTYPE_INVALID)
+			continue;
+		net_udp_close(Probe);
+		Settings.m_Port = Candidate;
+		break;
+	}
+	if(Settings.m_Port < 0)
+	{
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, "The preferred port and the next nine ports are already in use.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	if(Settings.m_Port != PreferredPort)
+		dbg_msg("steam", "preferred room port %d is busy; using %d", PreferredPort, Settings.m_Port);
+	Settings.m_MaxClients = clamp(Host.m_MaxClients, 1, (int)MAX_CLIENTS);
+	Settings.m_SteamAuth = 1;
+	Settings.m_MapGen = Host.m_MapGen;
+	Settings.m_MapGenLevel = max(1, Host.m_Difficulty);
+	Settings.m_MapGenSeed = clamp(Host.m_Seed, 0, 32767);
+	Settings.m_MapGenRandomSeed = Host.m_RandomSeed;
+	// Bots occupy logical high client IDs and do not consume Relay connection
+	// slots. sv_bots is a population target, not a count bounded by human slots.
+	Settings.m_Bots = clamp(Host.m_Bots, 0, 30);
+	Settings.m_BotLevel = clamp(Host.m_BotLevel, 1, 30);
+	Settings.m_ScoreLimit = str_comp(Host.m_aGameType, "extract") == 0 ? 0 : Host.m_ModeRule;
+	Settings.m_TimeLimit = str_comp(Host.m_aGameType, "extract") == 0 ? Host.m_ModeRule : 0;
+	Settings.m_PveRoguelite = Host.m_Roguelite;
+	Settings.m_PveContracts = Host.m_Contracts;
+	Settings.m_InvasionUseCheckpoint = Host.m_UseCheckpoint;
+	str_copy(Settings.m_aBindAddress, "127.0.0.1", sizeof(Settings.m_aBindAddress));
+	str_copy(Settings.m_aName, Host.m_aName, sizeof(Settings.m_aName));
+	str_copy(Settings.m_aPassword, Host.m_aPassword, sizeof(Settings.m_aPassword));
+	str_copy(Settings.m_aMap, Host.m_aMap, sizeof(Settings.m_aMap));
+	str_copy(Settings.m_aGameType, Host.m_aGameType, sizeof(Settings.m_aGameType));
+	str_copy(Settings.m_aConfig, Host.m_aConfig, sizeof(Settings.m_aConfig));
+	str_copy(Settings.m_aModHash, Host.m_aModHash, sizeof(Settings.m_aModHash));
+	str_copy(Settings.m_aModIDs, Host.m_aModIDs, sizeof(Settings.m_aModIDs));
+	if(!m_pListenServer->Start(m_pPlatformServices->RelayListenTransport(), Settings))
+	{
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, "The Steam room server could not start. Check the log and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	for(int Attempt = 0; Attempt < 200 && m_pListenServer->Running() && !m_pListenServer->Ready(); Attempt++)
+		thread_sleep(5);
+	if(!m_pListenServer->Ready())
+	{
+		m_pListenServer->Stop();
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, "The Steam room server did not become ready. Retry or create a LAN game.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	m_SteamHostStatus.m_Progress = 0.65f;
+	m_SteamHostStatus.m_Stage = CLIENT_STAGE_CREATING_ROOM;
+	if(!m_pPlatformServices->CreateLobby((EPlatformLobbyVisibility)clamp(Host.m_Visibility, (int)PLATFORM_LOBBY_INVITE_ONLY, (int)PLATFORM_LOBBY_PUBLIC), Settings.m_MaxClients, Settings.m_Port))
+	{
+		CPlatformOperationStatus LobbyFailure;
+		m_pPlatformServices->LobbyOperationStatus(&LobbyFailure);
+		m_pListenServer->Stop();
+		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+		str_copy(m_SteamHostStatus.m_aErrorKey, LobbyFailure.m_State == CLIENT_ASYNC_FAILED && LobbyFailure.m_aErrorKey[0] ? LobbyFailure.m_aErrorKey : "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		return false;
+	}
+	return true;
+}
+
+void CClient::StopSteamHostedGame()
+{
+	if(m_pPlatformServices)
+	{
+		m_pPlatformServices->LeaveLobby();
+		CPlatformPartyState Party;
+		if(m_pPlatformServices->PartyState(&Party) && Party.m_LocalOwner)
+			m_pPlatformServices->ClearPartyTarget();
+	}
+	if(m_pListenServer)
+		m_pListenServer->Stop();
+	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
+}
+
+void CClient::SteamHostedGameStatus(CClientAsyncStatus *pStatus) const
+{
+	if(pStatus)
+		*pStatus = m_SteamHostStatus;
+}
+
+void CClient::ConnectionStatus(CClientAsyncStatus *pStatus) const
+{
+	if(!pStatus)
+		return;
+	mem_zero(pStatus, sizeof(*pStatus));
+	if(m_ConnectionAsyncStatus.m_State == CLIENT_ASYNC_FAILED)
+	{
+		*pStatus = m_ConnectionAsyncStatus;
+		return;
+	}
+	if(State() == STATE_CONNECTING)
+	{
+		pStatus->m_State = CLIENT_ASYNC_WORKING;
+		pStatus->m_Stage = CLIENT_STAGE_CONNECTING;
+	}
+	else if(State() == STATE_LOADING)
+	{
+		pStatus->m_State = CLIENT_ASYNC_WORKING;
+		pStatus->m_Stage = CLIENT_STAGE_LOADING_MAP;
+		pStatus->m_Progress = m_MapdownloadTotalsize > 0 ? clamp(m_MapdownloadAmount / (float)m_MapdownloadTotalsize, 0.0f, 1.0f) : 0.0f;
+	}
+	else if(State() == STATE_ONLINE)
+	{
+		pStatus->m_State = CLIENT_ASYNC_SUCCEEDED;
+		pStatus->m_Progress = 1.0f;
+	}
+}
+
+void CClient::Con_SteamLobbyInvite(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	if(!pClient->m_pPlatformServices || !pClient->m_pPlatformServices->OpenLobbyInviteDialog())
+		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Create or join a Steam Lobby before inviting friends");
+}
+
+void CClient::Con_SteamLobbyLeave(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	pClient->StopSteamHostedGame();
+}
+
+void CClient::Con_SteamLobbyStatus(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	char aBuffer[128];
+	str_format(aBuffer, sizeof(aBuffer), "Steam Lobby: %llu", pClient->m_pPlatformServices ? pClient->m_pPlatformServices->CurrentLobbyID() : 0);
+	pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", aBuffer);
+}
+
+void CClient::Con_SteamLobbyRefresh(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p=static_cast<CClient *>(pUserData); if(!p->m_pPlatformServices || !p->m_pPlatformServices->RefreshLobbyList()) p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam","Unable to request Steam Lobby list");
+}
+
+void CClient::Con_SteamLobbyList(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p=static_cast<CClient *>(pUserData); if(!p->m_pPlatformServices)return;
+	for(int i=0;i<p->m_pPlatformServices->LobbyCount();i++){CPlatformLobbyInfo Info;if(!p->m_pPlatformServices->LobbyInfo(i,&Info))continue;char aBuf[512];str_format(aBuf,sizeof(aBuf),"%llu host='%s' steamid=%llu mode=%s map=%s region=%s players=%d/%d password=%d modded=%d friend=%d",Info.m_LobbyID,Info.m_aHostName,Info.m_HostSteamID,Info.m_aGameType,Info.m_aMap,Info.m_aRegion,Info.m_Members,Info.m_MaxMembers,Info.m_Password?1:0,Info.m_Modded?1:0,Info.m_FriendHosted?1:0);p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam-lobby",aBuf);}
+}
+
+void CClient::Con_SteamLobbyJoin(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;char Trailing=0;if(!p->m_pPlatformServices||sscanf(pResult->GetString(0),"%llu%c",&ID,&Trailing)!=1||!ID||!p->m_pPlatformServices->JoinLobby(ID))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam","Unable to join Steam Lobby");
+}
+
+void CClient::Con_SteamWorkshopRefresh(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient=static_cast<CClient *>(pUserData);const int Count=pClient->m_pPlatformServices?pClient->m_pPlatformServices->RefreshWorkshopItems():0;char aBuf[128];str_format(aBuf,sizeof(aBuf),"Workshop items refreshed: %d, collection hash: %s",Count,g_Config.m_ClModHash[0]?g_Config.m_ClModHash:"none");pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam",aBuf);
+}
+
+void CClient::Con_SteamWorkshopList(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *pClient=static_cast<CClient *>(pUserData);if(!pClient->m_pPlatformServices)return;pClient->m_pPlatformServices->RefreshWorkshopItems();
+	for(int i=0;i<pClient->m_pPlatformServices->WorkshopItemCount();i++){CPlatformWorkshopItem Item;if(!pClient->m_pPlatformServices->WorkshopItem(i,&Item))continue;char aBuf[512];str_format(aBuf,sizeof(aBuf),"%llu state=0x%x valid=%d download=%llu/%llu name='%s' version='%s' error='%s'",Item.m_PublishedFileID,Item.m_State,Item.m_Valid?1:0,Item.m_Downloaded,Item.m_Total,Item.m_aName,Item.m_aVersion,Item.m_aError);pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop",aBuf);}
+}
+
+static bool ParseWorkshopID(const char *pText,unsigned long long *pID){char Trailing=0;return pText&&pID&&sscanf(pText,"%llu%c",pID,&Trailing)==1&&*pID!=0;}
+void CClient::Con_SteamWorkshopDisable(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->SetWorkshopItemDisabled(ID,true))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to disable Workshop item");}
+void CClient::Con_SteamWorkshopEnable(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->SetWorkshopItemDisabled(ID,false))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to enable Workshop item");}
+void CClient::Con_SteamWorkshopUnsubscribe(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->UnsubscribeWorkshopItem(ID))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to unsubscribe Workshop item");}
+void CClient::Con_SteamWorkshopOpen(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->OpenWorkshopItemPage(ID))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to open Workshop community page");}
+void CClient::Con_SteamWorkshopSelect(IConsole::IResult *pResult,void *pUserData){str_copy(g_Config.m_ClModIds,pResult->GetString(0),sizeof(g_Config.m_ClModIds));Con_SteamWorkshopRefresh(pResult,pUserData);}
+void CClient::Con_SteamWorkshopCreate(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);if(!p->m_pPlatformServices||!p->m_pPlatformServices->CreateWorkshopItem())p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to create Workshop item");}
+void CClient::Con_SteamWorkshopPublish(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->UpdateWorkshopItem(ID,pResult->GetString(1),pResult->NumArguments()>2?pResult->GetString(2):""))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to publish: package must validate and its manifest ID/protocol/hash must match");}
+void CClient::Con_SteamWorkshopPublishStatus(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);if(!p->m_pPlatformServices)return;CPlatformWorkshopPublishStatus Status;p->m_pPlatformServices->WorkshopPublishStatus(&Status);char aBuf[512];str_format(aBuf,sizeof(aBuf),"active=%d id=%llu progress=%llu/%llu legal_agreement=%d status='%s'",Status.m_Active?1:0,Status.m_PublishedFileID,Status.m_Processed,Status.m_Total,Status.m_NeedsLegalAgreement?1:0,Status.m_aStatus);p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop",aBuf);}
 
 void CClient::DemoSlice(const char *pDstPath)
 {
@@ -2526,6 +3154,23 @@ void CClient::RegisterCommands()
 	m_pConsole->Register("add_demomarker", "", CFGFLAG_CLIENT, Con_AddDemoMarker, this, "Add demo timeline marker");
 	m_pConsole->Register("add_favorite", "s", CFGFLAG_CLIENT, Con_AddFavorite, this, "Add a server as a favorite");
 	m_pConsole->Register("remove_favorite", "s", CFGFLAG_CLIENT, Con_RemoveFavorite, this, "Remove a server from favorites");
+	m_pConsole->Register("steam_lobby_create", "?s", CFGFLAG_CLIENT, Con_SteamLobbyCreate, this, "Create Steam Lobby: private, friends (default), or public");
+	m_pConsole->Register("steam_lobby_invite", "", CFGFLAG_CLIENT, Con_SteamLobbyInvite, this, "Open Steam Overlay friend invite dialog for current Lobby");
+	m_pConsole->Register("steam_lobby_leave", "", CFGFLAG_CLIENT, Con_SteamLobbyLeave, this, "Leave current Steam Lobby");
+	m_pConsole->Register("steam_lobby_status", "", CFGFLAG_CLIENT, Con_SteamLobbyStatus, this, "Show current Steam Lobby ID");
+	m_pConsole->Register("steam_lobby_refresh", "", CFGFLAG_CLIENT, Con_SteamLobbyRefresh, this, "Refresh public Steam Listen Server Lobbies");
+	m_pConsole->Register("steam_lobby_list", "", CFGFLAG_CLIENT, Con_SteamLobbyList, this, "List validated Steam Listen Server Lobbies");
+	m_pConsole->Register("steam_lobby_join", "s", CFGFLAG_CLIENT, Con_SteamLobbyJoin, this, "Join a Steam Lobby by LobbyID");
+	m_pConsole->Register("steam_workshop_refresh", "", CFGFLAG_CLIENT, Con_SteamWorkshopRefresh, this, "Refresh subscribed Workshop content and validate the selected Mod collection");
+	m_pConsole->Register("steam_workshop_list", "", CFGFLAG_CLIENT, Con_SteamWorkshopList, this, "List Workshop install, download, and validation status");
+	m_pConsole->Register("steam_workshop_disable", "s", CFGFLAG_CLIENT, Con_SteamWorkshopDisable, this, "Disable a Workshop PublishedFileID locally");
+	m_pConsole->Register("steam_workshop_enable", "s", CFGFLAG_CLIENT, Con_SteamWorkshopEnable, this, "Enable a Workshop PublishedFileID locally");
+	m_pConsole->Register("steam_workshop_unsubscribe", "s", CFGFLAG_CLIENT, Con_SteamWorkshopUnsubscribe, this, "Unsubscribe a Workshop item; staged content is not loaded unless selected");
+	m_pConsole->Register("steam_workshop_open", "s", CFGFLAG_CLIENT, Con_SteamWorkshopOpen, this, "Open a Workshop item community page for reporting or legal information");
+	m_pConsole->Register("steam_workshop_select", "r", CFGFLAG_CLIENT, Con_SteamWorkshopSelect, this, "Select comma-separated root PublishedFileIDs for the active Mod collection");
+	m_pConsole->Register("steam_workshop_create", "", CFGFLAG_CLIENT, Con_SteamWorkshopCreate, this, "Create an empty Workshop item and return its PublishedFileID");
+	m_pConsole->Register("steam_workshop_publish", "ss?s", CFGFLAG_CLIENT, Con_SteamWorkshopPublish, this, "Publish validated content: ID content-directory [preview-file]");
+	m_pConsole->Register("steam_workshop_publish_status", "", CFGFLAG_CLIENT, Con_SteamWorkshopPublishStatus, this, "Show Workshop creation/upload progress and legal agreement state");
 
 	// used for server browser update
 	m_pConsole->Chain("br_filter_string", ConchainServerBrowserUpdate, this);
@@ -2554,7 +3199,29 @@ static CClient *CreateClient()
 
 int main(int argc, const char **argv) // ignore_convention
 {
+	// A launcher can provide an empty or stale working directory. Release assets,
+	// cfg files and legacy direct file loads expect data beside the client, so use
+	// the executable directory whenever it contains the staged data directory.
+	char aExecutable[1024];
+	if(fs_executable_path(aExecutable, sizeof(aExecutable)) == 0)
+	{
+		char *pSlash = strrchr(aExecutable, '/');
+		char *pBackslash = strrchr(aExecutable, '\\');
+		if(!pSlash || (pBackslash && pBackslash > pSlash)) pSlash = pBackslash;
+		if(pSlash)
+		{
+			*pSlash = 0;
+			char aDataDirectory[1200], aConfigDirectory[1200];
+			str_format(aDataDirectory, sizeof(aDataDirectory), "%s/data", aExecutable);
+			str_format(aConfigDirectory, sizeof(aConfigDirectory), "%s/cfg", aExecutable);
+			if(fs_is_dir(aDataDirectory) && fs_is_dir(aConfigDirectory)) fs_chdir(aExecutable);
+		}
+	}
 #if defined(CONF_FAMILY_WINDOWS)
+	windows_init_startup_diagnostics("Ninslash");
+	char aWorkingDirectory[1024];
+	if(fs_getcwd(aWorkingDirectory, sizeof(aWorkingDirectory)))
+		dbg_msg("startup", "working directory: %s", aWorkingDirectory);
 	for(int i = 1; i < argc; i++) // ignore_convention
 	{
 		if(str_comp("-s", argv[i]) == 0 || str_comp("--silent", argv[i]) == 0) // ignore_convention
@@ -2581,6 +3248,7 @@ int main(int argc, const char **argv) // ignore_convention
 	IEngineTextRender *pEngineTextRender = CreateEngineTextRender();
 	IEngineMap *pEngineMap = CreateEngineMap();
 	IEngineMasterServer *pEngineMasterServer = CreateEngineMasterServer();
+	IPlatformServices *pPlatformServices = CreatePlatformServices();
 
 	{
 		bool RegisterFail = false;
@@ -2588,6 +3256,7 @@ int main(int argc, const char **argv) // ignore_convention
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pEngine);
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pConsole);
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pConfig);
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pPlatformServices);
 
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineSound*>(pEngineSound)); // register as both
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<ISound*>(pEngineSound));
@@ -2631,8 +3300,10 @@ int main(int argc, const char **argv) // ignore_convention
 	// execute config file
 	pConsole->ExecuteFile("settings.cfg");
 
-	// execute autoexec file
-	pConsole->ExecuteFile("autoexec.cfg");
+	// autoexec.cfg contains the defaults for the bundled dedicated/listen server.
+	// Loading it in the client produces a page of unknown server commands and can
+	// accidentally apply future commands whose names overlap client settings.
+	pConsole->ExecuteFile("autoexec_client.cfg");
 
 	// parse the command line arguments
 	if(argc > 1) // ignore_convention

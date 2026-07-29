@@ -19,6 +19,7 @@
 
 void CBroadcast::OnReset()
 {
+	m_BroadcastStartTime = 0;
 	m_BroadcastTime = 0;
 }
 
@@ -31,12 +32,21 @@ void CBroadcast::OnRender()
 
 	if(time_get() < m_BroadcastTime)
 	{
+		const int64 Now = time_get();
+		const float SinceStart = (float)((Now - m_BroadcastStartTime) / (double)time_freq());
+		const float UntilEnd = (float)((m_BroadcastTime - Now) / (double)time_freq());
+		const float In = clamp(SinceStart / 0.16f, 0.0f, 1.0f);
+		const float Out = clamp(UntilEnd / 0.22f, 0.0f, 1.0f);
+		const float Amount = min(In, Out);
+		const float Eased = 1.0f - (1.0f - Amount) * (1.0f - Amount) * (1.0f - Amount);
 		CTextCursor Cursor;
 		// Keep broadcasts between the top timer strip and the centered status
 		// stack. The old y=40 anchor overlapped the warmup card exactly.
-		TextRender()->SetCursor(&Cursor, m_BroadcastRenderOffset, 24.0f, 12.0f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, Amount);
+		TextRender()->SetCursor(&Cursor, m_BroadcastRenderOffset, 24.0f - (1.0f - Eased) * 4.0f, 12.0f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
 		Cursor.m_LineWidth = 300*Graphics()->ScreenAspect()-m_BroadcastRenderOffset;
 		TextRender()->TextEx(&Cursor, m_aBroadcastText, -1);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 }
 
@@ -51,6 +61,7 @@ void CBroadcast::OnMessage(int MsgType, void *pRawMsg)
 		Cursor.m_LineWidth = 300*Graphics()->ScreenAspect();
 		TextRender()->TextEx(&Cursor, m_aBroadcastText, -1);
 		m_BroadcastRenderOffset = 150*Graphics()->ScreenAspect()-Cursor.m_X/2;
+		m_BroadcastStartTime = time_get();
 		m_BroadcastTime = time_get()+time_freq()*10;
 		
 		if (m_aBroadcastText[0] == 'D' && m_aBroadcastText[1] == 'i' && m_aBroadcastText[2] == 's' && m_aBroadcastText[3] == 'a')

@@ -1,0 +1,17 @@
+"lang"
+{
+	"schinese"
+	{
+		"tokens"
+		{
+			"#Status_Menu" "在菜单中"
+			"#Status_Party" "正在组队"
+			"#Status_Ready" "小队准备确认"
+			"#Status_Loading" "正在加载游戏"
+			"#Status_Playing" "%mode% · %map% · %players%/%capacity%"
+			"#Status_Challenge" "挑战：%challenge% · 第 %floor% 层"
+			"#Status_Spectating" "正在观战 %mode% · %map%"
+			"#Status_Replay" "正在观看回放"
+		}
+	}
+}

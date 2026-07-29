@@ -15,8 +15,6 @@ class CBuildings2 : public CComponent
 	
 	void RenderElectroWall(const struct CNetObj_LaserFail *pCurrent);
 	
-	void RenderBuildMode();
-
 public:
 	virtual void OnReset();
 	virtual void OnRender();

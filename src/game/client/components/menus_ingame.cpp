@@ -23,7 +23,19 @@
 
 void CMenus::RenderGame(CUIRect MainView)
 {
-	CUIRect Button, ButtonBar;
+	CUIRect Button, ButtonBar, SessionHeader;
+	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
+	MainView.HSplitTop(54.0f, &SessionHeader, &MainView);
+	SessionHeader.Margin(8.0f, &SessionHeader);
+	DrawMenuInset(&SessionHeader, CUI::CORNER_ALL);
+	SessionHeader.Margin(7.0f, &SessionHeader);
+	CServerInfo ServerInfo;
+	Client()->GetServerInfo(&ServerInfo);
+	char aSession[512];
+	const int Ping = m_pClient->m_Snap.m_pLocalInfo ? m_pClient->m_Snap.m_pLocalInfo->m_Latency : 0;
+	str_format(aSession, sizeof(aSession), "%s\n%s  |  %d/%d  |  %dms  |  %s", ServerInfo.m_aName, DisplayGameType(ServerInfo.m_aGameType), ServerInfo.m_NumClients, ServerInfo.m_MaxClients, Ping, Localize("Connected"));
+	UI()->DoLabelScaled(&SessionHeader, aSession, 11.0f, -1);
+	MainView.HSplitTop(6.0f, 0, &MainView);
 	MainView.HSplitTop(40.0f, &ButtonBar, &MainView);
 	DrawMenuPanel(&ButtonBar, CUI::CORNER_ALL);
 
@@ -119,6 +131,99 @@ void CMenus::RenderGame(CUIRect MainView)
 					m_pClient->SendSwitchTeam(0);
 					SetActive(false);
 				}
+			}
+		}
+	}
+
+	// Keep verified Steam identities tied to the server-assigned client slots.
+	// Anonymous players and bots remain visible under their in-game names.
+	if(MainView.h > 90.0f)
+	{
+		MainView.HSplitTop(8.0f, 0, &MainView);
+		CUIRect Members = MainView;
+		DrawMenuInset(&Members, CUI::CORNER_ALL);
+		Members.Margin(8.0f, &Members);
+		CUIRect MemberTitle, MemberList;
+		Members.HSplitTop(24.0f, &MemberTitle, &MemberList);
+		struct CMemberRow { int m_ClientID; unsigned long long m_UserID; };
+		CMemberRow aMembers[MAX_CLIENTS * 2];
+		int MemberCount = 0;
+		IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+		const unsigned long long LocalLobbyUserID = pPlatform && pPlatform->Available() && pPlatform->CurrentLobbyID() ? pPlatform->LocalUserID() : 0;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(m_pClient->m_aClients[i].m_Active && !m_pClient->m_aClients[i].m_IsBot)
+			{
+				aMembers[MemberCount].m_ClientID = i;
+				aMembers[MemberCount].m_UserID = m_pClient->m_aClients[i].m_PlatformIdentityVerified ? m_pClient->m_aClients[i].m_PlatformUserID : i == m_pClient->m_Snap.m_LocalClientID ? LocalLobbyUserID : 0;
+				MemberCount++;
+			}
+		if(pPlatform && pPlatform->Available())
+		{
+			for(int LobbyIndex = 0; LobbyIndex < pPlatform->LobbyMemberCount() && MemberCount < MAX_CLIENTS * 2; LobbyIndex++)
+			{
+				CPlatformUserInfo LobbyUser;
+				if(!pPlatform->LobbyMemberInfo(LobbyIndex, &LobbyUser)) continue;
+				bool Found = false;
+				for(int i = 0; i < MemberCount; i++) if(aMembers[i].m_UserID == LobbyUser.m_UserID) { Found = true; break; }
+				if(!Found) { aMembers[MemberCount].m_ClientID = -1; aMembers[MemberCount].m_UserID = LobbyUser.m_UserID; MemberCount++; }
+			}
+		}
+		char aMemberTitle[96];
+		str_format(aMemberTitle, sizeof(aMemberTitle), "%s  %d", Localize("Session members"), MemberCount);
+		UI()->DoLabelScaled(&MemberTitle, aMemberTitle, 13.0f, -1);
+		DrawAccentUnderline(&MemberTitle);
+
+		static int s_MemberList, s_aMemberIDs[MAX_CLIENTS * 2];
+		static int s_SelectedMember = -1;
+		static float s_MemberScroll = 0.0f;
+		for(int i = 0; i < MAX_CLIENTS * 2; i++) s_aMemberIDs[i] = i;
+		UiDoListboxStart(&s_MemberList, &MemberList, 42.0f, Localize("Players"), "", MemberCount, 1, s_SelectedMember, s_MemberScroll);
+		for(int RowIndex = 0; RowIndex < MemberCount; RowIndex++)
+		{
+			const int ClientID = aMembers[RowIndex].m_ClientID;
+			CListboxItem Item = UiDoListboxNextItem(&s_aMemberIDs[RowIndex], RowIndex == s_SelectedMember);
+			if(!Item.m_Visible) continue;
+			CUIRect Row = Item.m_Rect, Avatar, Label;
+			Row.Margin(4.0f, &Row);
+			Row.VSplitLeft(32.0f, &Avatar, &Label);
+			Label.VSplitLeft(8.0f, 0, &Label);
+			const CGameClient::CClientData *pClientData = ClientID >= 0 ? &m_pClient->m_aClients[ClientID] : 0;
+			CPlatformUserInfo UserInfo; mem_zero(&UserInfo, sizeof(UserInfo));
+			const bool HasSteam = aMembers[RowIndex].m_UserID && pPlatform && pPlatform->Available() && pPlatform->UserInfo(aMembers[RowIndex].m_UserID, &UserInfo);
+			if(HasSteam)
+			{
+				for(int LobbyIndex = 0; LobbyIndex < pPlatform->LobbyMemberCount(); LobbyIndex++)
+				{
+					CPlatformUserInfo LobbyUser;
+					if(pPlatform->LobbyMemberInfo(LobbyIndex, &LobbyUser) && LobbyUser.m_UserID == UserInfo.m_UserID)
+					{
+						UserInfo.m_LobbyOwner = LobbyUser.m_LobbyOwner;
+						break;
+					}
+				}
+				DrawSteamAvatar(Avatar, UserInfo.m_UserID);
+			}
+			else
+				DrawMenuInset(&Avatar, CUI::CORNER_ALL);
+			char aRole[160] = "";
+			if(HasSteam)
+			{
+				str_format(aRole, sizeof(aRole), "Steam · %s%s%s%s%s%s%s", Localize(UserInfo.m_PersonaState != 0 ? "Online" : "Offline"), UserInfo.m_Local ? " · " : "", UserInfo.m_Local ? Localize("You") : "", UserInfo.m_LobbyOwner ? " · " : "", UserInfo.m_LobbyOwner ? Localize("Host") : "", UserInfo.m_Friend ? " · " : "", UserInfo.m_Friend ? Localize("Friend") : "");
+			}
+			else
+				str_copy(aRole, Localize("Anonymous connection"), sizeof(aRole));
+			char aLine[320];
+			str_format(aLine, sizeof(aLine), "%s\n%s", HasSteam && UserInfo.m_aName[0] ? UserInfo.m_aName : pClientData ? pClientData->m_aName : Localize("Steam member"), aRole);
+			UI()->DoLabelScaled(&Label, aLine, 10.0f, -1);
+		}
+		const int NewSelected = UiDoListboxEnd(&s_MemberScroll, 0);
+		if(NewSelected >= 0 && NewSelected < MemberCount)
+		{
+			s_SelectedMember = NewSelected;
+			if(m_EnterPressed && aMembers[NewSelected].m_UserID && pPlatform)
+			{
+				pPlatform->OpenUserProfile(aMembers[NewSelected].m_UserID);
+				m_EnterPressed = false;
 			}
 		}
 	}
@@ -309,13 +414,11 @@ void CMenus::RenderServerInfo(CUIRect MainView)
 			sizeof(aBuf),
 			"\n\n"
 			"%s: %s\n"
-			"%s: %s\n"
 			"%s: %d\n"
 			"%s: %d\n"
 			"\n"
 			"%s: %d/%d\n",
-			Localize("Game type"), CurrentServerInfo.m_aGameType,
-			Localize("Map"), CurrentServerInfo.m_aMap,
+			Localize("Game type"), DisplayGameType(CurrentServerInfo.m_aGameType),
 			Localize("Score limit"), m_pClient->m_Snap.m_pGameInfoObj->m_ScoreLimit,
 			Localize("Time limit"), m_pClient->m_Snap.m_pGameInfoObj->m_TimeLimit,
 			Localize("Players"), m_pClient->m_Snap.m_NumPlayers, CurrentServerInfo.m_MaxClients

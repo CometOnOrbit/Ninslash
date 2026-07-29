@@ -542,6 +542,7 @@ public:
 	CTextRender()
 	{
 		m_pGraphics = 0;
+		m_FTLibrary = 0;
 
 		m_TextR = 1.0f;
 		m_TextG = 1.0f;
@@ -562,10 +563,17 @@ public:
 		//m_FontTextureFormat = GL_ALPHA;
 	}
 
-	virtual void Init()
+	virtual int Init()
 	{
 		m_pGraphics = Kernel()->RequestInterface<IGraphics>();
-		FT_Init_FreeType(&m_FTLibrary);
+		const FT_Error Error = FT_Init_FreeType(&m_FTLibrary);
+		if(Error)
+		{
+			dbg_msg("startup", "FreeType initialization failed with error %d", (int)Error);
+			return -1;
+		}
+		dbg_msg("startup", "FreeType initialized successfully");
+		return 0;
 	}
 
 

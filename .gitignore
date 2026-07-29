@@ -13,6 +13,7 @@ other/icons/*.res
 /freetype.dll
 /concepts
 /smoke-logs
+/dist/
 
 /crapnet*
 /dilate*

@@ -23,7 +23,7 @@ private:
 	int m_aPlayerKits[MAX_CLIENTS];
 	
 	bool m_Bomb;
-	class CRadar *m_pBombRadar;
+	class CServerRadar *m_pBombRadar;
 	
 public:
 	CGameControllerCS(class CGameContext *pGameServer);

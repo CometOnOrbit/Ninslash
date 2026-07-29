@@ -6,6 +6,60 @@
 
 #include "message.h"
 
+enum EClientAsyncState
+{
+	CLIENT_ASYNC_IDLE,
+	CLIENT_ASYNC_WORKING,
+	CLIENT_ASYNC_SUCCEEDED,
+	CLIENT_ASYNC_FAILED,
+};
+
+enum EClientConnectionStage
+{
+	CLIENT_STAGE_NONE,
+	CLIENT_STAGE_STARTING_SERVER,
+	CLIENT_STAGE_CREATING_ROOM,
+	CLIENT_STAGE_REFRESHING_ROOMS,
+	CLIENT_STAGE_JOINING_ROOM,
+	CLIENT_STAGE_SYNCING_MODS,
+	CLIENT_STAGE_AUTHENTICATING,
+	CLIENT_STAGE_CONNECTING,
+	CLIENT_STAGE_LOADING_MAP,
+};
+
+struct CClientAsyncStatus
+{
+	int m_State;
+	int m_Stage;
+	float m_Progress;
+	char m_aErrorKey[128];
+};
+
+// Shared value type used by menu, console compatibility commands and the two
+// host implementations. Network transports intentionally remain independent.
+struct CHostGameSettings
+{
+	int m_Visibility;
+	int m_MaxClients;
+	int m_Difficulty;
+	int m_Seed;
+	int m_Bots;
+	int m_BotLevel;
+	int m_ModeRule;
+	bool m_RandomSeed;
+	bool m_MapGen;
+	bool m_Roguelite;
+	bool m_Contracts;
+	bool m_UseCheckpoint;
+	char m_aName[128];
+	char m_aPassword[128];
+	char m_aMap[128];
+	char m_aGameType[32];
+	char m_aConfig[128];
+	char m_aModHash[65];
+	char m_aModIDs[1024];
+};
+
 class IClient : public IInterface
 {
 	MACRO_INTERFACE("client", 0)
@@ -88,6 +142,10 @@ public:
 	virtual bool ConsumeVideoFinished() = 0;
 	virtual void AutoScreenshot_Start() = 0;
 	virtual void ServerBrowserUpdate() = 0;
+	virtual bool StartSteamHostedGame(const CHostGameSettings &Settings) = 0;
+	virtual void StopSteamHostedGame() = 0;
+	virtual void SteamHostedGameStatus(CClientAsyncStatus *pStatus) const = 0;
+	virtual void ConnectionStatus(CClientAsyncStatus *pStatus) const = 0;
 
 	virtual bool Loaded() = 0;
 	virtual void LoadReady() = 0;
@@ -166,6 +224,7 @@ public:
 	virtual void OnStateChange(int NewState, int OldState) = 0;
 	virtual void OnConnected() = 0;
 	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker) = 0;
+	virtual void OnPlatformPlayerIdentity(int ClientID, bool Present, unsigned long long UserID) = 0;
 	virtual void OnPredict() = 0;
 	virtual void OnActivateEditor() = 0;
 

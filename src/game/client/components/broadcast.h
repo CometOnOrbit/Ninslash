@@ -8,6 +8,7 @@ class CBroadcast : public CComponent
 {
 	// broadcasts
 	char m_aBroadcastText[1024];
+	int64 m_BroadcastStartTime;
 	int64 m_BroadcastTime;
 	float m_BroadcastRenderOffset;
 

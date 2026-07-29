@@ -21,13 +21,6 @@ public:
 	
 	// signal wanted weapon you don't have to hud
 	int m_SignalWeapon;
-	
-	// input
-	int m_Build;
-	bool m_BuildReleased;
-	
-	bool m_BuildMode;
-	int m_SelectedBuilding;
 
 	bool m_Ready;
 	

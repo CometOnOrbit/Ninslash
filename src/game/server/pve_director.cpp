@@ -1,5 +1,6 @@
 #include <base/math.h>
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 #include <generated/protocol.h>
 
 #include <game/weapons.h>
@@ -17,6 +18,7 @@
 #include <game/server/gamemodes/invasion.h>
 #include <game/server/player.h>
 #include <game/server/playerdata.h>
+#include <game/server/tutorial_director.h>
 
 #include "pve_director.h"
 
@@ -97,11 +99,14 @@ void CPveDirector::CPlayerRun::Reset()
 }
 
 CPveDirector::CPveDirector(CGameContext *pGameServer) :
-	m_pGameServer(pGameServer)
+	m_pGameServer(pGameServer),
+	m_TutorialSandbox(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
 {
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		m_aPlayers[i].Reset();
-	if(str_comp(g_Config.m_SvGametype, "coop") == 0)
+	if(m_TutorialSandbox)
+		m_Mode = PVE_MODE_INVASION; // reuse card mechanics, never Invasion flow/progress
+	else if(str_comp(g_Config.m_SvGametype, "coop") == 0)
 		m_Mode = PVE_MODE_INVASION;
 	else if(str_comp(g_Config.m_SvGametype, "horde") == 0)
 		m_Mode = PVE_MODE_HORDE;
@@ -484,7 +489,7 @@ void CPveDirector::FinishContractVote()
 		m_ContractTarget = 3;
 		m_BlackBoxPos = m_pGameServer->GetFarHumanSpawnPos(true);
 		m_BlackBoxHoldTicks = 0;
-		m_pBlackBoxRadar = new CRadar(&m_pGameServer->m_World, RADAR_REACTOR);
+		m_pBlackBoxRadar = new CServerRadar(&m_pGameServer->m_World, RADAR_REACTOR);
 		m_pBlackBoxRadar->Activate(m_BlackBoxPos);
 	}
 	SendContractStatus();
@@ -646,12 +651,13 @@ void CPveDirector::StartIntermission(bool ContractVote, bool PerkChoice)
 {
 	if(!Enabled() || InIntermission() || EligiblePlayerCount() <= 0 || (!ContractVote && !PerkChoice))
 		return;
-	ContractVote = ContractVote && Enabled();
+	ContractVote = ContractVote && Enabled() && !m_TutorialSandbox;
 	PerkChoice = PerkChoice && Enabled();
 	if(!ContractVote && !PerkChoice)
 		return;
 	m_WasWorldPaused = m_pGameServer->m_World.m_Paused;
-	m_pGameServer->m_World.m_Paused = true;
+	if(!m_TutorialSandbox)
+		m_pGameServer->m_World.m_Paused = true;
 	if(ContractVote && g_Config.m_SvPveContracts)
 		BeginContractVote(PerkChoice);
 	else if(PerkChoice)
@@ -773,7 +779,7 @@ void CPveDirector::OnClientEnter(int ClientID)
 	DestroyDrone(ClientID);
 	m_aPlayers[ClientID].Reset();
 	m_aPlayers[ClientID].m_Connected = true;
-	if(Enabled() && pData && pData->m_PveRunMode == m_Mode)
+	if(!m_TutorialSandbox && Enabled() && pData && pData->m_PveRunMode == m_Mode)
 	{
 		for(int i = 0; i < NUM_PVE_CARDS; i++)
 			m_aPlayers[ClientID].m_aStacks[i] = pData->m_aPvePerks[i];
@@ -801,9 +807,9 @@ void CPveDirector::OnClientEnter(int ClientID)
 		}
 		m_UsedContracts |= pData->m_PveUsedContracts;
 	}
-	else if(Enabled() && pData)
+	else if(!m_TutorialSandbox && Enabled() && pData)
 		pData->Reset();
-	if(Enabled() && pData)
+	if(!m_TutorialSandbox && Enabled() && pData)
 		pData->m_PveRunMode = m_Mode;
 	if(Enabled() && m_pGameServer->GetPlayerChar(ClientID))
 		OnPlayerSpawn(ClientID);
@@ -819,6 +825,19 @@ void CPveDirector::OnClientDrop(int ClientID)
 {
 	if(ClientID >= 0 && ClientID < MAX_CLIENTS)
 	{
+		// Status effects keep non-owning entity pointers so they can apply their
+		// periodic damage. Bots are removed immediately after OnClientDrop; clear
+		// every reference while their character is still alive as a C++ object.
+		// Otherwise an environmental kill (which has no eligible player source)
+		// can leave a status pointing at freed character memory for the next tick.
+		CCharacter *pCharacter = m_pGameServer->GetPlayerChar(ClientID);
+		if(pCharacter)
+		{
+			ClearTargetStatus(pCharacter);
+			for(int i = 0; i < MAX_CLIENTS; i++)
+				if(m_aPlayers[i].m_pDroneTarget == pCharacter)
+					m_aPlayers[i].m_pDroneTarget = 0;
+		}
 		SendBuildState(ClientID, true);
 		DestroyDrone(ClientID);
 		m_aPlayers[ClientID].m_Connected = false;
@@ -829,6 +848,14 @@ void CPveDirector::OnProgress(int ClientID, int Version, int Points, int Mask0, 
 {
 	if(!IsEligiblePlayer(ClientID))
 		return;
+	if(g_Config.m_SvTutorialMode)
+	{
+		Version = 2;
+		Points = 99;
+		Mask0 = Mask1 = Mask2 = Mask3 = 0;
+		HighestInvasion = 0;
+		PreferredCheckpoint = 1;
+	}
 	CPlayerRun &Run = m_aPlayers[ClientID];
 	const unsigned long long Low = (unsigned int)Mask0 | ((unsigned long long)(unsigned int)Mask1 << 32);
 	const unsigned long long High = Version >= 2 ? ((unsigned int)Mask2 | ((unsigned long long)(unsigned int)Mask3 << 32)) : 0;
@@ -894,6 +921,8 @@ void CPveDirector::OnResearchBuy(int ClientID, int Nonce, int CardID)
 		m_pGameServer->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "pve", aBuf);
 	}
 	SendProgress(ClientID);
+	if(m_pGameServer->m_pTutorialDirector)
+		m_pGameServer->m_pTutorialDirector->OnGameplayProgress(ClientID, TUTORIAL_EVENT_RESEARCH);
 }
 
 void CPveDirector::OnChoice(int ClientID, int Nonce, int CardID)
@@ -923,6 +952,10 @@ void CPveDirector::OnChoice(int ClientID, int Nonce, int CardID)
 		return;
 	}
 	ApplyChoice(ClientID, CardID);
+	if(m_TutorialSandbox)
+		GrantTutorialBuildLoadout(ClientID);
+	if(m_pGameServer->m_pTutorialDirector)
+		m_pGameServer->m_pTutorialDirector->OnGameplayProgress(ClientID, TUTORIAL_EVENT_PERK);
 	Run.m_LastChoiceNonce = Nonce;
 	if(Run.m_Choices < m_PerkTargetChoices)
 	{
@@ -935,6 +968,29 @@ void CPveDirector::OnChoice(int ClientID, int Nonce, int CardID)
 		Run.m_ChoicePending = false;
 	if(AllChoicesComplete())
 		FinishIntermission();
+}
+
+void CPveDirector::GrantTutorialBuildLoadout(int ClientID)
+{
+	if(!m_TutorialSandbox || !IsEligiblePlayer(ClientID))
+		return;
+	CPlayerRun &Run = m_aPlayers[ClientID];
+	const int aCards[] = {PVE_CARD_DRONE_CHASSIS, PVE_CARD_SERVO_LINK, PVE_CARD_ASSAULT_MODULE, PVE_CARD_GUARDIAN_MODULE, PVE_CARD_REPAIR_MODULE};
+	for(unsigned i = 0; i < sizeof(aCards) / sizeof(aCards[0]); i++)
+	{
+		const int CardID = aCards[i];
+		Run.m_aStacks[CardID] = max(1, Run.m_aStacks[CardID]);
+		CNetMsg_Sv_PvePerk Msg;
+		Msg.m_ClientID = ClientID;
+		Msg.m_Card = CardID;
+		Msg.m_Stacks = Run.m_aStacks[CardID];
+		Msg.m_Choices = min(99, Run.m_Choices + 1);
+		m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+	}
+	Run.m_DroneModule = PVE_DRONE_ASSAULT;
+	Run.m_DroneSwitchReadyTick = 0;
+	SendBuildState(ClientID, true);
+	dbg_msg("tutorial", "granted sandbox drone chassis and three modules to player %d", ClientID);
 }
 
 void CPveDirector::OnContractVote(int ClientID, int Nonce, int ContractID)
@@ -1176,6 +1232,9 @@ void CPveDirector::RegisterEliteContractBoss(CDroid *pBoss)
 
 void CPveDirector::OnBossKilled(bool ContractBoss)
 {
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		if(m_pGameServer->m_apPlayers[i] && !m_pGameServer->m_apPlayers[i]->m_IsBot)
+			m_pGameServer->Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_BOSS);
 	if(ContractBoss && m_ContractState == PVE_CONTRACT_STATE_ACTIVE && m_ActiveContract == PVE_CONTRACT_ELITE_HUNT)
 	{
 		m_pEliteContractBoss = 0;
@@ -1457,7 +1516,7 @@ void CPveDirector::CompleteContract(bool Success)
 
 void CPveDirector::RewardResearch(int Amount, int Reason, int HighestInvasion)
 {
-	if(!Enabled() || Amount < 0)
+	if(!Enabled() || Amount < 0 || g_Config.m_SvTutorialMode)
 		return;
 	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 	{
@@ -1993,6 +2052,8 @@ void CPveDirector::OnDroneModule(int ClientID, int Nonce, int Module)
 	Run.m_DroneSwitchReadyTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 8;
 	Run.m_DroneActionTick = m_pGameServer->Server()->Tick();
 	SendBuildState(ClientID, true);
+	if(m_pGameServer->m_pTutorialDirector)
+		m_pGameServer->m_pTutorialDirector->OnGameplayProgress(ClientID, TUTORIAL_EVENT_DRONE);
 }
 
 void CPveDirector::ApplyArcConductor(const CAttackSource &Source, CEntity *pOriginalTarget, vec2 Origin, int Damage)
@@ -2156,7 +2217,6 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 			}
 		}
 
-		int &Resource = Run.m_aWeaponResources[Specialization - 1];
 		int Threshold = 10;
 		int Gain = 1;
 		bool ResourceEnabled = false;
@@ -2180,9 +2240,14 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 			Gain = min(4, 1 + Run.m_aStacks[PVE_CARD_FURY_ENGINE]);
 			ResourceEnabled = true;
 		}
-		if(ResourceEnabled && Resource >= Threshold)
+		// Non-weapon player-owned damage (for example a turret) intentionally has
+		// no specialization. Never form an out-of-bounds resources[-1] reference
+		// for it, even if none of the specialization branches would use it.
+		int *pResource = Specialization >= PVE_SPECIALIZATION_FIREARM && Specialization <= PVE_SPECIALIZATION_MELEE ?
+			&Run.m_aWeaponResources[Specialization - 1] : 0;
+		if(ResourceEnabled && pResource && *pResource >= Threshold)
 		{
-			Resource = 0;
+			*pResource = 0;
 			Run.m_LastEmpoweredSpecialization = Specialization;
 			if(Specialization == PVE_SPECIALIZATION_FIREARM)
 			{
@@ -2208,8 +2273,8 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 					Run.m_AvatarEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 6;
 			}
 		}
-		else if(ResourceEnabled)
-			Resource = min(10, Resource + Gain);
+		else if(ResourceEnabled && pResource)
+			*pResource = min(10, *pResource + Gain);
 
 		Run.m_DirectHits++;
 		if(Run.m_aStacks[PVE_CARD_APEX_EXECUTION] && Run.m_DirectHits % 10 == 0)

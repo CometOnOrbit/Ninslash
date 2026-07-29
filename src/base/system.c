@@ -37,8 +37,11 @@
 
 #elif defined(CONF_FAMILY_WINDOWS)
 	#define WIN32_LEAN_AND_MEAN
-	#define _WIN32_WINNT 0x0501 /* required for mingw to get getaddrinfo to work */
+	#ifndef _WIN32_WINNT
+		#define _WIN32_WINNT 0x0601
+	#endif
 	#include <windows.h>
+	#include <dbghelp.h>
 	#include <winsock2.h>
 	#include <ws2tcpip.h>
 	#include <fcntl.h>
@@ -85,6 +88,14 @@ extern char **environ;
 
 void dbg_logger(DBG_LOGGER logger)
 {
+	int i;
+	if(!logger)
+		return;
+	for(i = 0; i < num_loggers; i++)
+		if(loggers[i] == logger)
+			return;
+	if(num_loggers >= (int)(sizeof(loggers) / sizeof(loggers[0])))
+		return;
 	loggers[num_loggers++] = logger;
 }
 
@@ -122,7 +133,7 @@ void dbg_msg(const char *sys, const char *fmt, ...)
 	msg = (char *)str + len;
 
 	va_start(args, fmt);
-#if defined(CONF_FAMILY_WINDOWS)
+#if defined(CONF_FAMILY_WINDOWS) && !defined(__MINGW32__)
 	_vsnprintf(msg, sizeof(str)-len, fmt, args);
 #else
 	vsnprintf(msg, sizeof(str)-len, fmt, args);
@@ -169,6 +180,189 @@ void dbg_logger_file(const char *filename)
 }
 /* */
 
+#if defined(CONF_FAMILY_WINDOWS)
+static char windows_startup_log[1024];
+static char windows_startup_marker[1024];
+static char windows_graphics_marker[1024];
+static char windows_startup_directory[1024];
+static int windows_startup_recovery;
+
+typedef BOOL (WINAPI *MINIDUMP_WRITE_DUMP)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
+	const MINIDUMP_EXCEPTION_INFORMATION *, const MINIDUMP_USER_STREAM_INFORMATION *, const MINIDUMP_CALLBACK_INFORMATION *);
+
+static LONG WINAPI windows_unhandled_exception_filter(EXCEPTION_POINTERS *exception)
+{
+	SYSTEMTIME now;
+	char timestamp[64];
+	char path[1200];
+	char text[2048];
+	char module_path[1024];
+	const char *access_type = "unknown";
+	unsigned long long module_offset = 0;
+	unsigned long long access_address = 0;
+	DWORD written;
+	HANDLE file;
+	HMODULE dbghelp;
+	HMODULE fault_module = 0;
+	MINIDUMP_WRITE_DUMP write_dump;
+	EXCEPTION_RECORD *record = exception ? exception->ExceptionRecord : 0;
+
+	str_copy(module_path, "<unknown>", sizeof(module_path));
+	if(record && GetModuleHandleExA(
+		GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		(LPCSTR)record->ExceptionAddress, &fault_module))
+	{
+		const DWORD length = GetModuleFileNameA(fault_module, module_path, sizeof(module_path));
+		if(!length || length >= sizeof(module_path))
+			str_copy(module_path, "<unknown>", sizeof(module_path));
+		module_offset = (unsigned long long)((ULONG_PTR)record->ExceptionAddress - (ULONG_PTR)fault_module);
+	}
+	if(record && record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && record->NumberParameters >= 2)
+	{
+		access_type = record->ExceptionInformation[0] == 0 ? "read" :
+			record->ExceptionInformation[0] == 1 ? "write" :
+			record->ExceptionInformation[0] == 8 ? "execute" : "unknown";
+		access_address = (unsigned long long)record->ExceptionInformation[1];
+	}
+
+	GetLocalTime(&now);
+	_snprintf(timestamp, sizeof(timestamp), "%04u%02u%02u-%02u%02u%02u",
+		now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
+
+	_snprintf(path, sizeof(path), "%s/crash-%s.txt", windows_startup_directory, timestamp);
+	file = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(file != INVALID_HANDLE_VALUE)
+	{
+		_snprintf(text, sizeof(text),
+			"Ninslash unhandled exception\r\n"
+			"code=0x%08lx\r\naddress=%p\r\n"
+			"module=%s\r\nmodule_offset=0x%I64x\r\n"
+			"access_type=%s\r\naccess_address=0x%I64x\r\n"
+			"startup_log=%s\r\n",
+			record ? record->ExceptionCode : 0,
+			record ? record->ExceptionAddress : NULL,
+			module_path, module_offset, access_type, access_address,
+			windows_startup_log);
+		text[sizeof(text) - 1] = 0;
+		WriteFile(file, text, (DWORD)strlen(text), &written, NULL);
+		CloseHandle(file);
+	}
+
+	dbghelp = LoadLibraryA("dbghelp.dll");
+	if(dbghelp)
+	{
+		write_dump = (MINIDUMP_WRITE_DUMP)GetProcAddress(dbghelp, "MiniDumpWriteDump");
+		if(write_dump)
+		{
+			MINIDUMP_EXCEPTION_INFORMATION info;
+			_snprintf(path, sizeof(path), "%s/crash-%s.dmp", windows_startup_directory, timestamp);
+			file = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if(file != INVALID_HANDLE_VALUE)
+			{
+				info.ThreadId = GetCurrentThreadId();
+				info.ExceptionPointers = exception;
+				info.ClientPointers = FALSE;
+				write_dump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, NULL, NULL);
+				CloseHandle(file);
+			}
+		}
+		FreeLibrary(dbghelp);
+	}
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
+void windows_refresh_crash_handler()
+{
+	SetUnhandledExceptionFilter(windows_unhandled_exception_filter);
+}
+
+int windows_init_startup_diagnostics(const char *appname)
+{
+	char root[1024];
+	DWORD startup_attributes;
+	DWORD graphics_attributes;
+	IOHANDLE marker;
+
+	windows_startup_log[0] = 0;
+	windows_startup_marker[0] = 0;
+	windows_graphics_marker[0] = 0;
+	windows_startup_directory[0] = 0;
+	if(fs_storage_path(appname, root, sizeof(root)) != 0)
+	{
+		DWORD length = GetTempPathA(sizeof(root), root);
+		if(!length || length >= sizeof(root))
+			str_copy(root, ".", sizeof(root));
+		str_append(root, "/Ninslash", sizeof(root));
+	}
+	fs_makedir(root);
+	str_format(windows_startup_directory, sizeof(windows_startup_directory), "%s/logs", root);
+	fs_makedir(windows_startup_directory);
+	str_format(windows_startup_log, sizeof(windows_startup_log), "%s/startup.log", windows_startup_directory);
+	str_format(windows_startup_marker, sizeof(windows_startup_marker), "%s/startup.pending", windows_startup_directory);
+	str_format(windows_graphics_marker, sizeof(windows_graphics_marker), "%s/graphics.pending", windows_startup_directory);
+
+	startup_attributes = GetFileAttributesA(windows_startup_marker);
+	graphics_attributes = GetFileAttributesA(windows_graphics_marker);
+	/* A stale graphics marker only requests recovery for this launch. It will be
+	   created again immediately before the next graphics initialization. */
+	fs_remove(windows_graphics_marker);
+	marker = io_open(windows_startup_marker, IOFLAG_WRITE);
+	if(marker)
+	{
+		io_write(marker, "startup in progress\n", 20);
+		io_close(marker);
+	}
+
+	dbg_logger_file(windows_startup_log);
+	windows_refresh_crash_handler();
+	dbg_msg("startup", "persistent startup log: %s", windows_startup_log);
+	if(startup_attributes != INVALID_FILE_ATTRIBUTES)
+		dbg_msg("startup", "previous launch did not reach the main menu");
+	if(graphics_attributes != INVALID_FILE_ATTRIBUTES)
+		dbg_msg("startup", "previous launch stopped during graphics initialization; using safe graphics mode");
+	windows_startup_recovery = graphics_attributes != INVALID_FILE_ATTRIBUTES;
+	return windows_startup_recovery;
+}
+
+int windows_startup_recovery_requested()
+{
+	return windows_startup_recovery;
+}
+
+void windows_mark_graphics_starting()
+{
+	IOHANDLE marker;
+	if(!windows_graphics_marker[0])
+		return;
+	marker = io_open(windows_graphics_marker, IOFLAG_WRITE);
+	if(marker)
+	{
+		io_write(marker, "graphics initialization in progress\n", 36);
+		io_close(marker);
+	}
+}
+
+void windows_mark_graphics_ready()
+{
+	if(windows_graphics_marker[0])
+		fs_remove(windows_graphics_marker);
+}
+
+void windows_mark_startup_ready()
+{
+	if(windows_startup_marker[0])
+		fs_remove(windows_startup_marker);
+	windows_mark_graphics_ready();
+	dbg_msg("startup", "main menu initialization completed");
+}
+
+const char *windows_startup_log_path()
+{
+	return windows_startup_log;
+}
+#endif
+
 typedef struct MEMHEADER
 {
 	const char *filename;
@@ -186,16 +380,41 @@ typedef struct MEMTAIL
 static struct MEMHEADER *first = 0;
 static const int MEM_GUARD_VAL = 0xbaadc0de;
 
+/*
+	The Steam listen server runs in the client process on a second thread. The
+	debug allocator's allocation list and counters are process-global, so they
+	must be protected without using lock_create (which allocates through this
+	allocator itself).
+*/
+#if defined(CONF_FAMILY_UNIX)
+static pthread_mutex_t memory_mutex = PTHREAD_MUTEX_INITIALIZER;
+static void memory_lock_wait(void) { pthread_mutex_lock(&memory_mutex); }
+static void memory_lock_unlock(void) { pthread_mutex_unlock(&memory_mutex); }
+#elif defined(CONF_FAMILY_WINDOWS)
+static volatile LONG memory_mutex = 0;
+static void memory_lock_wait(void)
+{
+	while(InterlockedCompareExchange(&memory_mutex, 1, 0) != 0)
+		Sleep(0);
+}
+static void memory_lock_unlock(void) { InterlockedExchange(&memory_mutex, 0); }
+#endif
+
 void *mem_alloc_debug(const char *filename, int line, unsigned size, unsigned alignment)
 {
 	/* TODO: fix alignment */
 	/* TODO: add debugging */
-	MEMTAIL *tail;
-	MEMHEADER *header = (struct MEMHEADER *)malloc(size+sizeof(MEMHEADER)+sizeof(MEMTAIL));
-	dbg_assert(header != 0, "mem_alloc failure");
+	char *tail;
+	MEMHEADER *header;
+	memory_lock_wait();
+	header = (struct MEMHEADER *)malloc(size+sizeof(MEMHEADER)+sizeof(MEMTAIL));
 	if(!header)
+	{
+		memory_lock_unlock();
+		dbg_assert(header != 0, "mem_alloc failure");
 		return NULL;
-	tail = (struct MEMTAIL *)(((char*)(header+1))+size);
+	}
+	tail = ((char *)(header + 1)) + size;
 	header->size = size;
 	header->filename = filename;
 	header->line = line;
@@ -204,13 +423,14 @@ void *mem_alloc_debug(const char *filename, int line, unsigned size, unsigned al
 	memory_stats.total_allocations++;
 	memory_stats.active_allocations++;
 
-	tail->guard = MEM_GUARD_VAL;
+	memcpy(tail, &MEM_GUARD_VAL, sizeof(MEMTAIL));
 
 	header->prev = (MEMHEADER *)0;
 	header->next = first;
 	if(first)
 		first->prev = header;
 	first = header;
+	memory_lock_unlock();
 
 	/*dbg_msg("mem", "++ %p", header+1); */
 	return header+1;
@@ -220,10 +440,15 @@ void mem_free(void *p)
 {
 	if(p)
 	{
-		MEMHEADER *header = (MEMHEADER *)p - 1;
-		MEMTAIL *tail = (MEMTAIL *)(((char*)(header+1))+header->size);
+		MEMHEADER *header;
+		char *tail;
+		int tail_guard;
+		memory_lock_wait();
+		header = (MEMHEADER *)p - 1;
+		tail = ((char *)(header + 1)) + header->size;
+		memcpy(&tail_guard, tail, sizeof(MEMTAIL));
 
-		if(tail->guard != MEM_GUARD_VAL)
+		if(tail_guard != MEM_GUARD_VAL)
 			dbg_msg("mem", "!! %p", p);
 		/* dbg_msg("mem", "-- %p", p); */
 		memory_stats.allocated -= header->size;
@@ -237,18 +462,21 @@ void mem_free(void *p)
 			header->next->prev = header->prev;
 
 		free(header);
+		memory_lock_unlock();
 	}
 }
 
 void mem_debug_dump(IOHANDLE file)
 {
 	char buf[1024];
-	MEMHEADER *header = first;
+	MEMHEADER *header;
 	if(!file)
 		file = io_open("memory.txt", IOFLAG_WRITE);
 
 	if(file)
 	{
+		memory_lock_wait();
+		header = first;
 		while(header)
 		{
 			str_format(buf, sizeof(buf), "%s(%d): %d", header->filename, header->line, header->size);
@@ -256,6 +484,7 @@ void mem_debug_dump(IOHANDLE file)
 			io_write_newline(file);
 			header = header->next;
 		}
+		memory_lock_unlock();
 
 		io_close(file);
 	}
@@ -279,19 +508,25 @@ void mem_zero(void *block,unsigned size)
 
 int mem_check_imp()
 {
-	MEMHEADER *header = first;
+	MEMHEADER *header;
+	int result = 1;
+	memory_lock_wait();
+	header = first;
 	while(header)
 	{
-		MEMTAIL *tail = (MEMTAIL *)(((char*)(header+1))+header->size);
-		if(tail->guard != MEM_GUARD_VAL)
+		int tail_guard;
+		memcpy(&tail_guard, ((char *)(header + 1)) + header->size, sizeof(MEMTAIL));
+		if(tail_guard != MEM_GUARD_VAL)
 		{
 			dbg_msg("mem", "Memory check failed at %s(%d): %d", header->filename, header->line, header->size);
-			return 0;
+			result = 0;
+			break;
 		}
 		header = header->next;
 	}
+	memory_lock_unlock();
 
-	return 1;
+	return result;
 }
 
 IOHANDLE io_open(const char *filename, int flags)
@@ -818,7 +1053,15 @@ int net_addr_comp(const NETADDR *a, const NETADDR *b)
 
 void net_addr_str(const NETADDR *addr, char *string, int max_length, int add_port)
 {
-	if(addr->type == NETTYPE_IPV4)
+	if(addr->type == NETTYPE_STEAM)
+	{
+		unsigned long long steam_id = 0;
+		int i;
+		for(i = 0; i < 8; i++)
+			steam_id |= (unsigned long long)addr->ip[i] << (i * 8);
+		str_format(string, max_length, "steam:%llu", (unsigned long long)steam_id);
+	}
+	else if(addr->type == NETTYPE_IPV4)
 	{
 		if(add_port != 0)
 			str_format(string, max_length, "%d.%d.%d.%d:%d", addr->ip[0], addr->ip[1], addr->ip[2], addr->ip[3], addr->port);
@@ -962,6 +1205,23 @@ int net_addr_from_str(NETADDR *addr, const char *string)
 {
 	const char *str = string;
 	mem_zero(addr, sizeof(NETADDR));
+
+	if(strncmp(str, "steam:", 6) == 0)
+	{
+		char *end = 0;
+		unsigned long long steam_id;
+		int i;
+		if(!str[6] || str[6] == '+' || str[6] == '-')
+			return -1;
+		errno = 0;
+		steam_id = strtoull(str + 6, &end, 10);
+		if(errno == ERANGE || !steam_id || !end || *end)
+			return -1;
+		addr->type = NETTYPE_STEAM;
+		for(i = 0; i < 8; i++)
+			addr->ip[i] = (unsigned char)(steam_id >> (i * 8));
+		return 0;
+	}
 
 	if(str[0] == '[')
 	{
@@ -1619,6 +1879,17 @@ int fs_is_dir(const char *path)
 #endif
 }
 
+int fs_is_symlink(const char *path)
+{
+#if defined(CONF_FAMILY_WINDOWS)
+	DWORD attributes = GetFileAttributesA(path);
+	return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+#else
+	struct stat sb;
+	return lstat(path, &sb) == 0 && S_ISLNK(sb.st_mode);
+#endif
+}
+
 int fs_chdir(const char *path)
 {
 	if(fs_is_dir(path))
@@ -1705,6 +1976,15 @@ int fs_remove(const char *filename)
 	if(remove(filename) != 0)
 		return 1;
 	return 0;
+}
+
+int fs_removedir(const char *path)
+{
+#if defined(CONF_FAMILY_WINDOWS)
+	return _rmdir(path) == 0 ? 0 : 1;
+#else
+	return rmdir(path) == 0 ? 0 : 1;
+#endif
 }
 
 int fs_rename(const char *oldname, const char *newname)
@@ -1831,7 +2111,7 @@ int str_length(const char *str)
 
 void str_format(char *buffer, int buffer_size, const char *format, ...)
 {
-#if defined(CONF_FAMILY_WINDOWS)
+#if defined(CONF_FAMILY_WINDOWS) && !defined(__MINGW32__)
 	va_list ap;
 	va_start(ap, format);
 	_vsnprintf(buffer, buffer_size, format, ap);
@@ -1848,7 +2128,7 @@ void str_format(char *buffer, int buffer_size, const char *format, ...)
 
 void str_format_args(char *buffer, int buffer_size, const char *format, va_list args)
 {
-#if defined(CONF_FAMILY_WINDOWS)
+#if defined(CONF_FAMILY_WINDOWS) && !defined(__MINGW32__)
 	va_list ap;
 	ap = args;
 	_vsnprintf(buffer, buffer_size, format, ap);
@@ -2045,7 +2325,15 @@ int mem_comp(const void *a, const void *b, int size)
 
 const MEMSTATS *mem_stats()
 {
-	return &memory_stats;
+#if defined(_MSC_VER)
+	static __declspec(thread) MEMSTATS snapshot;
+#else
+	static __thread MEMSTATS snapshot;
+#endif
+	memory_lock_wait();
+	snapshot = memory_stats;
+	memory_lock_unlock();
+	return &snapshot;
 }
 
 void net_stats(NETSTATS *stats_inout)

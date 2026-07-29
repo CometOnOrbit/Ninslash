@@ -7,6 +7,7 @@
 #include <engine/engine.h>
 #include <engine/graphics.h>
 #include <engine/storage.h>
+#include <engine/platform_services.h>
 #include <engine/textrender.h>
 #include <engine/shared/config.h>
 #include <engine/shared/linereader.h>
@@ -510,7 +511,7 @@ void CMenus::RenderCustomization(CUIRect MainView)
 	
 	static int s_FrontPageButton=0;
 	if(DoButton_Menu(&s_FrontPageButton, Localize("Back to main menu"), 0, &BackButton))
-		g_Config.m_UiPage = PAGE_FRONT;
+		g_Config.m_UiPage = PAGE_INTERNET;
 	
 	*/
 	MainView.HSplitTop(20.0f, 0, &MainView);
@@ -2309,37 +2310,29 @@ void CMenus::RenderSettingsSound(CUIRect MainView)
 // custom menu for the client
 void CMenus::RenderSettingsGamepad(CUIRect MainView)
 {
-	/*
 	CUIRect Button;
 	MainView.VSplitMid(&MainView, 0);
-	
-	
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	static int s_OpenSteamInput;
 	MainView.HSplitTop(24.0f, &Button, &MainView);
-	if(DoButton_CheckBox(&g_Config.m_GoreGamepad, Localize("xbox 360 controller support"), g_Config.m_GoreGamepad, &Button))
-		g_Config.m_GoreGamepad ^= 1;
-	
+	if(DoButton_Menu(&s_OpenSteamInput, Localize("Open Steam controller configuration"), 0, &Button, BUTTONSTYLE_ACCENT) && pPlatform) pPlatform->OpenInputConfiguration();
 	MainView.HSplitTop(24.0f, &Button, &MainView);
-	if(DoButton_CheckBox(&g_Config.m_GoreGamepadFlipMove, Localize("Flip move & aim axis"), g_Config.m_GoreGamepadFlipMove, &Button))
-		g_Config.m_GoreGamepadFlipMove ^= 1;
-	
+	if(DoButton_CheckBox(&g_Config.m_ClSteamGyro, Localize("Steam Input gyroscope aiming"), g_Config.m_ClSteamGyro, &Button)) g_Config.m_ClSteamGyro ^= 1;
 	MainView.HSplitTop(24.0f, &Button, &MainView);
-	if(DoButton_CheckBox(&g_Config.m_GoreGamepadFlipAttack, Localize("Flip attack & hook"), g_Config.m_GoreGamepadFlipAttack, &Button))
-		g_Config.m_GoreGamepadFlipAttack ^= 1;
-	
-	// gamepad sensitivity slider
+	if(DoButton_CheckBox(&g_Config.m_ClSteamGyroInvert, Localize("Invert gyroscope vertical aim"), g_Config.m_ClSteamGyroInvert, &Button)) g_Config.m_ClSteamGyroInvert ^= 1;
+	MainView.HSplitTop(24.0f, &Button, &MainView);
+	if(DoButton_CheckBox(&g_Config.m_ClSteamRumble, Localize("Steam Input vibration"), g_Config.m_ClSteamRumble, &Button)) g_Config.m_ClSteamRumble ^= 1;
 	{
 		CUIRect Button, Label;
 		MainView.HSplitTop(25.0f, &Button, &MainView);
 		MainView.HSplitTop(24.0f, &Button, &MainView);
 		Button.VSplitLeft(190.0f, &Label, &Button);
 		Button.HMargin(2.0f, &Button);
-		UI()->DoLabelScaled(&Label, "Gamepad analog stick sensitivity", 14.0f, -1);
+		UI()->DoLabelScaled(&Label, Localize("Gyroscope sensitivity"), 14.0f, -1);
 		MainView.HSplitTop(24.0f, &Button, &MainView);
-		g_Config.m_GoreGamepadSensitivity = (int)(DoScrollbarH(&g_Config.m_GoreGamepadSensitivity, &Button, g_Config.m_GoreGamepadSensitivity/100.0f)*100.0f);
-
+		g_Config.m_ClSteamGyroSensitivity = 1 + (int)(DoScrollbarH(&g_Config.m_ClSteamGyroSensitivity, &Button, (g_Config.m_ClSteamGyroSensitivity - 1) / 999.0f) * 999.0f);
 		MainView.HSplitTop(20.0f, 0, &MainView);
 	}
-	*/
 }
 
 
@@ -2504,7 +2497,7 @@ void CMenus::RenderCustomize(CUIRect MainView)
 	
 	static int s_FrontPageButton=0;
 	if(DoButton_Menu(&s_FrontPageButton, Localize("Back to main menu"), 0, &BackButton))
-		g_Config.m_UiPage = PAGE_FRONT;
+		g_Config.m_UiPage = PAGE_INTERNET;
 	
 	
 	MainView.HSplitTop(20.0f, 0, &MainView);
@@ -3018,10 +3011,36 @@ void CMenus::RenderCustomize(CUIRect MainView)
 	
 	
 	if (m_EscapePressed)
-		g_Config.m_UiPage = PAGE_FRONT;
+		g_Config.m_UiPage = PAGE_INTERNET;
 }
 
 	
+void CMenus::RenderSettingsCloud(CUIRect MainView)
+{
+	CUIRect Title, StatusLine, Action;
+	MainView.HSplitTop(34.0f, &Title, &MainView);
+	UI()->DoLabelScaled(&Title, Localize("Steam Cloud"), 20.0f, -1);
+	MainView.HSplitTop(44.0f, &StatusLine, &MainView);
+	UI()->DoLabelScaled(&StatusLine, Localize(m_aCloudStatus[0] ? m_aCloudStatus : "Steam Cloud is unavailable"), 13.0f, -1, (int)StatusLine.w);
+	MainView.HSplitTop(8.0f, 0, &MainView);
+	MainView.HSplitTop(28.0f, &Action, &MainView);
+	static int s_CloudAction;
+	const char *pAction = m_CloudConflict ? Localize("Resolve conflict") : Localize("Sync now");
+	if(DoButton_Menu(&s_CloudAction, pAction, 0, &Action, BUTTONSTYLE_ACCENT))
+	{
+		if(m_CloudConflict)
+			m_Popup = POPUP_CLOUD_CONFLICT;
+		else
+		{
+			m_CloudPaused = false;
+			m_CloudDirty = true;
+			PumpCloudProfile(true);
+		}
+	}
+	MainView.HSplitTop(16.0f, 0, &MainView);
+	UI()->DoLabelScaled(&MainView, Localize("Progress, appearance, portable preferences and custom key bindings are synchronized. Display, device and local network settings stay on this device."), 12.0f, -1, (int)MainView.w);
+}
+
 void CMenus::RenderSettings(CUIRect MainView)
 {
 	static int s_SettingsPage = 0;
@@ -3043,7 +3062,8 @@ void CMenus::RenderSettings(CUIRect MainView)
 		Localize("Customize"),
 		Localize("Controls"),
 		Localize("Graphics"),
-		Localize("Sound")};
+		Localize("Sound"),
+		Localize("Steam")};
 
 	int NumTabs = (int)(sizeof(aTabs)/sizeof(*aTabs));
 	CUIRect Tab;
@@ -3077,6 +3097,8 @@ void CMenus::RenderSettings(CUIRect MainView)
 		RenderSettingsGraphics(Content);
 	else if(s_SettingsPage == 6)
 		RenderSettingsSound(Content);
+	else if(s_SettingsPage == 7)
+		RenderSettingsCloud(Content);
 
 	if(m_NeedRestartGraphics || m_NeedRestartSound)
 	{

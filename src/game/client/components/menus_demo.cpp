@@ -568,7 +568,7 @@ CMenus::CListboxItem CMenus::UiDoListboxNextRow()
 	return Item;
 }
 
-CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected)
+CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected, bool Interactive)
 {
 	int ThisItemIndex = gs_ListBoxItemIndex;
 	if(Selected)
@@ -580,8 +580,48 @@ CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected)
 
 	CListboxItem Item = UiDoListboxNextRow();
 
-	if(Item.m_Visible && UI()->DoButtonLogic(pId, "", gs_ListBoxSelectedIndex == gs_ListBoxItemIndex, &Item.m_HitRect))
-		gs_ListBoxNewSelected = ThisItemIndex;
+	if(Item.m_Visible && Interactive)
+	{
+		if(UI()->DoButtonLogic(pId, "", gs_ListBoxSelectedIndex == ThisItemIndex, &Item.m_HitRect))
+			gs_ListBoxNewSelected = ThisItemIndex;
+	}
+	else if(UI()->ActiveItem() == pId && !UI()->MouseButton(0) && !UI()->MouseButton(1))
+	{
+		// A list may refresh or scroll between press and release. Do not leave
+		// an invisible row holding the global UI active item.
+		UI()->SetActiveItem(0);
+	}
+
+	if(Item.m_Visible)
+	{
+		const bool IsSelected = gs_ListBoxSelectedIndex == ThisItemIndex;
+		const float Hover = Interactive ? AnimHover(pId, 16.0f) : 0.0f;
+		const float SelectedAmount = AnimSelected(pId, IsSelected, 14.0f);
+		const float Emphasis = max(SelectedAmount, Hover * 0.72f);
+		if(Emphasis > 0.01f)
+		{
+			CUIRect Highlight = Item.m_Rect;
+			Highlight.Margin(1.0f, &Highlight);
+			vec4 Fill = MixColor(vec4(0.07f, 0.08f, 0.10f, 0.0f), vec4(0.13f, 0.14f, 0.17f, 0.94f), Emphasis);
+			vec4 Border = MixColor(vec4(0.18f, 0.20f, 0.24f, 0.0f), ms_ColorAccent, Emphasis);
+			DrawMenuBorder(&Highlight, Fill, Border, CUI::CORNER_ALL, ms_ControlRounding);
+			if(SelectedAmount > 0.01f)
+			{
+				CUIRect Indicator = Highlight;
+				Indicator.w = 2.0f;
+				const float Remaining = 1.0f - clamp(SelectedAmount, 0.0f, 1.0f);
+				Indicator.h *= 1.0f - Remaining * Remaining * Remaining;
+				Indicator.y = Highlight.y + (Highlight.h - Indicator.h) * 0.5f;
+				vec4 Accent = ms_ColorAccent;
+				Accent.a *= SelectedAmount;
+				RenderTools()->DrawUIRect(&Indicator, Accent, CUI::CORNER_R, 1.0f);
+			}
+		}
+		// Keep hit-testing fixed while the row content subtly follows hover.
+		const float ContentOffset = Hover * 1.5f;
+		Item.m_Rect.x += ContentOffset;
+		Item.m_Rect.w -= ContentOffset;
+	}
 
 	// process input, regard selected index
 	if(gs_ListBoxSelectedIndex == ThisItemIndex)

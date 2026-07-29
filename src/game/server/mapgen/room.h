@@ -1,17 +1,17 @@
 #ifndef GAME_SERVER_MAPGEN_ROOM_H
 #define GAME_SERVER_MAPGEN_ROOM_H
 
-class CRoom
+class CRoomGenerated
 {
 private:
-	CRoom *m_pChild1, *m_pChild2;
+	CRoomGenerated *m_pChild1, *m_pChild2;
 	int m_X, m_Y, m_W, m_H;
 	
 	bool m_Open;
 	
 public:
-	CRoom(int x, int y, int w, int h);
-	~CRoom();
+	CRoomGenerated(int x, int y, int w, int h);
+	~CRoomGenerated();
 	
 	int MinSize() const;
 	bool TooSmall() const;

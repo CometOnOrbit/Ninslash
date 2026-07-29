@@ -19,6 +19,8 @@
 #include <game/server/gamevote.h>
 
 #include "register.h"
+#include "platform_gameserver.h"
+#include "platform_ban.h"
 
 
 class CSnapIDPool
@@ -79,6 +81,11 @@ class CServer : public IServer
 	class IGameServer *m_pGameServer;
 	class IConsole *m_pConsole;
 	class IStorage *m_pStorage;
+	INetPacketTransport *m_pListenTransport;
+	volatile bool *m_pListenReady;
+	IPlatformGameServer *m_pPlatformGameServer;
+	class CModServerRuntime *m_pModRuntime;
+	CPlatformBanList m_PlatformBans;
 
 	class CPlayerData *m_pPlayerData;
 	
@@ -163,6 +170,15 @@ public:
 		int m_Score;
 		int m_Authed;
 		int m_AuthTries;
+		unsigned long long m_SteamID;
+		bool m_PlatformAuthenticated;
+		bool m_PlatformAuthPending;
+		bool m_PlatformAuthSession;
+		bool m_PlatformAuthRequested;
+		int m_PlatformAuthPolicy;
+		int m_PlatformIdentityKind;
+		int64 m_PlatformAuthStartTime;
+		bool m_InfoReceived;
 
 		
 		const IConsole::CCommandInfo *m_pRconCmdToSend;
@@ -202,6 +218,7 @@ public:
 	CMapChecker m_MapChecker;
 
 	CServer();
+	~CServer();
 
 	int TrySetClientName(int ClientID, const char *pName);
 
@@ -210,6 +227,8 @@ public:
 	virtual void SetClientClan(int ClientID, char const *pClan);
 	virtual void SetClientCountry(int ClientID, int Country);
 	virtual void SetClientScore(int ClientID, int Score);
+	virtual void SendPlatformEvent(int ClientID, int Event, int Value = 0);
+	virtual void DispatchModEvent(EModEvent Event, int ClientID = -1, int Value = 0);
 
 	void Kick(int ClientID, const char *pReason);
 
@@ -242,6 +261,7 @@ public:
 
 	void SendMap(int ClientID);
 	void SendConnectionReady(int ClientID);
+	void SendPlatformPlayerIdentity(int SubjectClientID, int TargetClientID, bool Present);
 	void SendRconLine(int ClientID, const char *pLine);
 	static void SendRconLineAuthed(const char *pLine, void *pUser);
 
@@ -250,6 +270,7 @@ public:
 	void UpdateClientRconCommands();
 
 	void ProcessClientPacket(CNetChunk *pPacket);
+	void UpdatePlatformAuthentication();
 
 	void SendServerInfo(const NETADDR *pAddr, int Token);
 	void UpdateServerInfo();
@@ -262,9 +283,15 @@ public:
 
 	void InitRegister(CNetServer *pNetServer, IEngineMasterServer *pMasterServer, IConsole *pConsole);
 	int Run();
+	void SetListenTransport(INetPacketTransport *pTransport) { m_pListenTransport = pTransport; }
+	void SetListenReadyFlag(volatile bool *pReady) { m_pListenReady = pReady; }
+	void RequestStop() { m_RunServer = 0; }
 
 	static void ConKick(IConsole::IResult *pResult, void *pUser);
 	static void ConStatus(IConsole::IResult *pResult, void *pUser);
+	static void ConSteamBan(IConsole::IResult *pResult, void *pUser);
+	static void ConSteamUnban(IConsole::IResult *pResult, void *pUser);
+	static void ConSteamBanList(IConsole::IResult *pResult, void *pUser);
 	static void ConShutdown(IConsole::IResult *pResult, void *pUser);
 	static void ConRecord(IConsole::IResult *pResult, void *pUser);
 	static void ConStopRecord(IConsole::IResult *pResult, void *pUser);

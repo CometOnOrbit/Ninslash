@@ -1,6 +1,7 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
+#include <game/server/tutorial_director.h>
 #include <game/weapons.h>
 #include "pickup.h"
 #include "weapon.h"
@@ -23,19 +24,21 @@ CPickup::CPickup(CGameWorld *pGameWorld, int Type, int SubType, int Ammo)
 	m_pWeapon = NULL;
 	m_StaticForceTile = 0;
 	m_StaticForceTileChecked = false;
+	m_SkipAutoRespawn = g_Config.m_SvSurvivalMode != 0;
+	m_Dropable = false;
+	m_Treasure = false;
+	m_SpawnTick = -1;
+	m_Flashing = false;
+	m_FlashTimer = 0;
+	m_Mirror = false;
+	m_AngleForce = 0.0f;
+	m_Angle = 0.0f;
+	m_SpawnPos = vec2(0, 0);
 	
 	Reset();
 
 	GameWorld()->InsertEntity(this);
 	
-	if (g_Config.m_SvSurvivalMode)
-	{
-		m_SkipAutoRespawn = true;
-	}
-	else
-		m_SkipAutoRespawn = false;
-	
-	m_Dropable = false;
 	m_Life = 0;
 	m_Vel = vec2(0, 0);
 	m_Ammo = Ammo;
@@ -322,6 +325,8 @@ void CPickup::Tick()
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 					m_Life = 0;
 					m_Flashing = false;
+					if(GameServer()->m_pTutorialDirector)
+						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetPlayer()->GetCID(), TUTORIAL_EVENT_RECOVER);
 				}
 				break;
 
@@ -332,6 +337,8 @@ void CPickup::Tick()
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 					m_Life = 0;
 					m_Flashing = false;
+					if(GameServer()->m_pTutorialDirector)
+						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetPlayer()->GetCID(), TUTORIAL_EVENT_MATERIAL);
 				}
 				break;
 				
@@ -342,6 +349,8 @@ void CPickup::Tick()
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 					m_Life = 0;
 					m_Flashing = false;
+					if(GameServer()->m_pTutorialDirector)
+						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetPlayer()->GetCID(), TUTORIAL_EVENT_MATERIAL);
 				}
 				break;
 				

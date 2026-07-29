@@ -46,6 +46,7 @@ public:
 	const char *GetString(int SanitizeType = SANITIZE);
 	const unsigned char *GetRaw(int Size);
 	bool Error() const { return m_Error; }
+	int RemainingSize() const { return m_Error ? 0 : (int)(m_pEnd - m_pCurrent); }
 };
 
 #endif

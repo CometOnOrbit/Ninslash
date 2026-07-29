@@ -56,9 +56,19 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(TARGET_OS "mac")
 endif()
 
+if(TARGET_OS STREQUAL "windows" AND NOT TARGET_BITS STREQUAL "64")
+  message(FATAL_ERROR "Ninslash supports Windows x86-64 builds only")
+endif()
+
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 include(CheckSymbolExists)
+
+# MinGW otherwise routes printf/scanf through the legacy MSVCRT dialect, which
+# does not understand the C99 ll length modifier used throughout the codebase.
+if(MINGW)
+  add_definitions(-D__USE_MINGW_ANSI_STDIO=1)
+endif()
 
 check_symbol_exists(__i386 "" TARGET_ARCH_X86_i386)
 if(TARGET_ARCH_X86_i386)
@@ -75,6 +85,73 @@ endif()
 option(CLIENT "Compile client" ON)
 option(PREFER_BUNDLED_LIBS "Prefer bundled libraries over system libraries" ${AUTO_DEPENDENCIES_DEFAULT})
 option(DEV "Don't generate stuff necessary for packaging" OFF)
+option(ENABLE_STEAMWORKS "Build optional Steamworks client integration" OFF)
+option(ENABLE_STEAM_GAMESERVER "Build optional Steam GameServer registration and auth" OFF)
+option(ENABLE_STEAM_LISTEN_SERVER "Build the in-client Steam Relay listen-server support" OFF)
+option(ENABLE_LUA_MODS "Build the sandboxed Lua gameplay Mod runtime" OFF)
+option(NINSLASH_BUILD_TESTS "Build focused release-readiness tests" OFF)
+set(STEAMWORKS_SDK_ROOT "" CACHE PATH "Steamworks SDK root containing public/steam and redistributable_bin")
+set(STEAM_APP_ID "1812700" CACHE STRING "Steam AppID used by the release build")
+set(STEAM_GAMESERVER_APP_ID "5016790" CACHE STRING "Steam Dedicated Server Tool AppID")
+set(STEAM_WINDOWS_CLIENT_DEPOT_ID "1812702" CACHE STRING "Steam Windows client DepotID")
+set(STEAM_LINUX_CLIENT_DEPOT_ID "1812703" CACHE STRING "Steam Linux client DepotID")
+set(STEAM_WINDOWS_SERVER_DEPOT_ID "5016792" CACHE STRING "Steam Windows dedicated server DepotID")
+set(STEAM_LINUX_SERVER_DEPOT_ID "5016793" CACHE STRING "Steam Linux dedicated server DepotID")
+set(STEAM_CONTENT_ROOT "${PROJECT_BINARY_DIR}/steam-content" CACHE PATH "Root containing staged Steam depot content")
+set(STEAM_BUILD_OUTPUT "${PROJECT_BINARY_DIR}/steam-output" CACHE PATH "SteamPipe build output directory")
+set(LUA_MOD_MEMORY_LIMIT "8388608" CACHE STRING "Per-mod Lua memory limit in bytes")
+set(LUA_MOD_INSTRUCTION_BUDGET "100000" CACHE STRING "Per-callback Lua instruction budget")
+
+if(ENABLE_STEAMWORKS OR ENABLE_STEAM_GAMESERVER OR ENABLE_STEAM_LISTEN_SERVER)
+  if(ENABLE_STEAMWORKS AND NOT CLIENT)
+    message(FATAL_ERROR "ENABLE_STEAMWORKS requires CLIENT=ON")
+  endif()
+  if(NOT STEAMWORKS_SDK_ROOT OR NOT EXISTS "${STEAMWORKS_SDK_ROOT}/public/steam/steam_api.h")
+    message(FATAL_ERROR "Set STEAMWORKS_SDK_ROOT to a valid Steamworks SDK directory")
+  endif()
+  if(STEAM_APP_ID STREQUAL "0" OR STEAM_GAMESERVER_APP_ID STREQUAL "0")
+    message(FATAL_ERROR "Steam client and GameServer AppIDs must be valid assigned IDs")
+  endif()
+endif()
+
+if(ENABLE_LUA_MODS)
+  file(GLOB LUA_SOURCES "${PROJECT_SOURCE_DIR}/other/lua/src/*.c")
+  list(REMOVE_ITEM LUA_SOURCES
+    "${PROJECT_SOURCE_DIR}/other/lua/src/lua.c"
+    "${PROJECT_SOURCE_DIR}/other/lua/src/luac.c"
+    "${PROJECT_SOURCE_DIR}/other/lua/src/onelua.c"
+    "${PROJECT_SOURCE_DIR}/other/lua/src/liolib.c"
+    "${PROJECT_SOURCE_DIR}/other/lua/src/loslib.c"
+    "${PROJECT_SOURCE_DIR}/other/lua/src/loadlib.c"
+    "${PROJECT_SOURCE_DIR}/other/lua/src/ldblib.c")
+  add_library(ninslash-lua STATIC ${LUA_SOURCES})
+  target_include_directories(ninslash-lua PUBLIC "${PROJECT_SOURCE_DIR}/other/lua/src")
+  target_compile_definitions(ninslash-lua PRIVATE LUA_COMPAT_5_3)
+endif()
+
+set(APP_ID ${STEAM_APP_ID})
+set(SERVER_TOOL_APP_ID ${STEAM_GAMESERVER_APP_ID})
+set(WINDOWS_CLIENT_DEPOT_ID ${STEAM_WINDOWS_CLIENT_DEPOT_ID})
+set(LINUX_CLIENT_DEPOT_ID ${STEAM_LINUX_CLIENT_DEPOT_ID})
+set(WINDOWS_SERVER_DEPOT_ID ${STEAM_WINDOWS_SERVER_DEPOT_ID})
+set(LINUX_SERVER_DEPOT_ID ${STEAM_LINUX_SERVER_DEPOT_ID})
+set(VERSION ${PROJECT_VERSION})
+set(GIT_COMMIT "local")
+set(CLIENT_SET_LIVE "")
+set(SERVER_SET_LIVE "")
+set(BUILD_OUTPUT ${STEAM_BUILD_OUTPUT})
+set(CONTENT_ROOT ${STEAM_CONTENT_ROOT})
+set(WINDOWS_CLIENT_ROOT "${STEAM_CONTENT_ROOT}/windows-client")
+set(LINUX_CLIENT_ROOT "${STEAM_CONTENT_ROOT}/linux-client")
+set(WINDOWS_SERVER_ROOT "${STEAM_CONTENT_ROOT}/windows-server")
+set(LINUX_SERVER_ROOT "${STEAM_CONTENT_ROOT}/linux-server")
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/steam")
+foreach(STEAM_MANIFEST app_build tool_build depot_windows_client depot_linux_client depot_windows_server depot_linux_server)
+  configure_file("${PROJECT_SOURCE_DIR}/packaging/steam/${STEAM_MANIFEST}.vdf.in" "${PROJECT_BINARY_DIR}/steam/${STEAM_MANIFEST}.vdf" @ONLY)
+endforeach()
+if(ENABLE_STEAM_LISTEN_SERVER AND (NOT ENABLE_STEAMWORKS OR NOT CLIENT))
+  message(FATAL_ERROR "ENABLE_STEAM_LISTEN_SERVER requires ENABLE_STEAMWORKS=ON and CLIENT=ON")
+endif()
 
 # Set the default build type to Release
 if(NOT(CMAKE_BUILD_TYPE))
@@ -243,6 +320,7 @@ find_package(ZLIB)
 find_package(Freetype)
 find_package(Git)
 find_package(Pnglite)
+find_package(JPEG)
 find_package(Python3)
 find_package(SDL3)
 find_package(Threads)
@@ -290,6 +368,7 @@ endif()
 
 show_dependency_status("Freetype" FREETYPE)
 show_dependency_status("Pnglite" PNGLITE)
+show_dependency_status("JPEG" JPEG)
 show_dependency_status("Python3" PYTHON3)
 show_dependency_status("SDL3" SDL3)
 show_dependency_status("Wavpack" WAVPACK)
@@ -353,6 +432,7 @@ set(COPY_FILES
   ${FREETYPE_COPY_FILES}
   ${SDL3_COPY_FILES}
   autoexec.cfg
+  autoexec_client.cfg
   storage.cfg
 )
 file(COPY ${COPY_FILES} DESTINATION .)
@@ -438,8 +518,12 @@ set_src(ENGINE_INTERFACE GLOB src/engine
   kernel.h
   keys.h
   localization.h
+  listen_server.h
   map.h
   masterserver.h
+  platform_auth.h
+  platform_services.h
+  platform_transport.h
   message.h
   server.h
   serverbrowser.h
@@ -490,6 +574,16 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   network_server.cpp
   network.cpp
   network.h
+  content_manifest.cpp
+  content_manifest.h
+  content_publish.cpp
+  content_publish.h
+  community_challenge.cpp
+  community_challenge.h
+  room_preset.cpp
+  room_preset.h
+  mod_api.cpp
+  mod_api.h
   packer.cpp
   packer.h
   ringbuffer.cpp
@@ -500,6 +594,7 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   stream.cpp
   stream.h
 )
+list(REMOVE_ITEM ENGINE_SHARED "${PROJECT_SOURCE_DIR}/src/engine/shared/mod_runtime.cpp" "src/engine/shared/mod_runtime.cpp")
 
 set(ENGINE_GENERATED_SHARED src/generated/protocol.cpp src/generated/protocol.h)
 
@@ -552,8 +647,216 @@ set(LIBS
 
 # Targets
 add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_GENERATED_SHARED} ${BASE})
+if(ENABLE_LUA_MODS)
+  target_compile_definitions(engine-shared PRIVATE CONF_LUA_MOD_API)
+endif()
 add_library(game-shared EXCLUDE_FROM_ALL OBJECT ${GAME_SHARED} ${GAME_GENERATED_SHARED})
 list(APPEND TARGETS_OWN engine-shared game-shared)
+
+if(NINSLASH_BUILD_TESTS)
+  enable_testing()
+  set(NINSLASH_TEST_TARGETS)
+  add_test(NAME build_config COMMAND ${CMAKE_COMMAND}
+    -DNINSLASH_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+    -P ${PROJECT_SOURCE_DIR}/tests/build_config.cmake
+  )
+  add_executable(ninslash_test_pve_definitions
+    tests/pve_definitions.cpp
+    src/game/pve_roguelite.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_pve_definitions PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_BINARY_DIR}/src
+  )
+  target_link_libraries(ninslash_test_pve_definitions ${LIBS})
+  add_test(NAME pve_definitions COMMAND ninslash_test_pve_definitions)
+  add_executable(ninslash_test_pve_progress
+    tests/pve_progress_storage.cpp
+    src/game/client/pve_progress_storage.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_pve_progress PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_BINARY_DIR}/src
+  )
+  target_link_libraries(ninslash_test_pve_progress ${LIBS})
+  file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/test-home")
+  add_test(NAME pve_progress_storage COMMAND ninslash_test_pve_progress)
+  set_tests_properties(pve_progress_storage PROPERTIES
+    ENVIRONMENT "HOME=${PROJECT_BINARY_DIR}/test-home"
+  )
+  add_executable(ninslash_test_content_manifest
+    tests/content_manifest.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_content_manifest PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  if(ENABLE_LUA_MODS)
+    target_compile_definitions(ninslash_test_content_manifest PRIVATE CONF_LUA_MOD_API)
+  endif()
+  target_link_libraries(ninslash_test_content_manifest ${LIBS})
+  add_test(NAME content_manifest COMMAND ninslash_test_content_manifest)
+  add_executable(ninslash_test_network_transport
+    tests/network_transport.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_network_transport PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_network_transport ${LIBS})
+  add_test(NAME network_transport COMMAND ninslash_test_network_transport)
+  add_executable(ninslash_test_memory_thread_safety
+    tests/memory_thread_safety.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_memory_thread_safety PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_memory_thread_safety ${LIBS})
+  add_test(NAME memory_thread_safety COMMAND ninslash_test_memory_thread_safety)
+  add_executable(ninslash_test_platform_event_queue
+    tests/platform_event_queue.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_platform_event_queue PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_platform_event_queue ${LIBS})
+  add_test(NAME platform_event_queue COMMAND ninslash_test_platform_event_queue)
+  add_executable(ninslash_test_platform_server_metadata tests/platform_server_metadata.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_platform_server_metadata PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_platform_server_metadata ${LIBS})
+  add_test(NAME platform_server_metadata COMMAND ninslash_test_platform_server_metadata)
+  add_executable(ninslash_test_platform_auth_policy tests/platform_auth_policy.cpp)
+  target_include_directories(ninslash_test_platform_auth_policy PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME platform_auth_policy COMMAND ninslash_test_platform_auth_policy)
+  add_executable(ninslash_test_cloud_profile_policy tests/cloud_profile_policy.cpp)
+  target_include_directories(ninslash_test_cloud_profile_policy PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME cloud_profile_policy COMMAND ninslash_test_cloud_profile_policy)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_cloud_profile_policy)
+  add_executable(ninslash_test_cloud_profile_storage
+    tests/cloud_profile_storage.cpp
+    src/game/client/cloud_profile.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_cloud_profile_storage PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_cloud_profile_storage ${LIBS})
+  add_test(NAME cloud_profile_storage COMMAND ninslash_test_cloud_profile_storage)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_cloud_profile_storage)
+
+  add_executable(ninslash_test_room_creation tests/room_creation.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_room_creation PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_room_creation ${LIBS})
+  add_test(NAME room_creation COMMAND ninslash_test_room_creation)
+  set_tests_properties(room_creation PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+
+  add_executable(ninslash_test_inventory_logic tests/inventory_logic.cpp)
+  target_include_directories(ninslash_test_inventory_logic PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_inventory_logic ${LIBS})
+  add_test(NAME inventory_logic COMMAND ninslash_test_inventory_logic)
+
+  add_executable(ninslash_test_build_placement_logic tests/build_placement_logic.cpp)
+  target_include_directories(ninslash_test_build_placement_logic PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_build_placement_logic ${LIBS})
+  add_test(NAME build_placement_logic COMMAND ninslash_test_build_placement_logic)
+
+  add_executable(ninslash_test_menu_home tests/menu_home.cpp)
+  target_include_directories(ninslash_test_menu_home PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME menu_home COMMAND ninslash_test_menu_home)
+
+  add_executable(ninslash_test_tutorial_state tests/tutorial_state.cpp)
+  target_include_directories(ninslash_test_tutorial_state PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME tutorial_state COMMAND ninslash_test_tutorial_state)
+
+  add_executable(ninslash_test_tutorial_controller_type tests/tutorial_controller_type.cpp)
+  target_include_directories(ninslash_test_tutorial_controller_type PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME tutorial_controller_type COMMAND ninslash_test_tutorial_controller_type)
+
+  add_executable(ninslash_test_listen_server_entity_names tests/listen_server_entity_names.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_listen_server_entity_names PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_listen_server_entity_names ${LIBS})
+  add_test(NAME listen_server_entity_names COMMAND ninslash_test_listen_server_entity_names)
+  add_executable(ninslash_test_platform_ban tests/platform_ban.cpp src/engine/server/platform_ban.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_platform_ban PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_platform_ban ${LIBS})
+  file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/platform-ban-test-home")
+  add_test(NAME platform_ban COMMAND ninslash_test_platform_ban)
+  set_tests_properties(platform_ban PROPERTIES ENVIRONMENT "HOME=${PROJECT_BINARY_DIR}/platform-ban-test-home")
+  add_executable(ninslash_test_sha256 tests/sha256.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_sha256 PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_sha256 ${LIBS})
+  add_test(NAME sha256 COMMAND ninslash_test_sha256)
+  add_executable(ninslash_test_content_package tests/content_package.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_content_package PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_content_package ${LIBS})
+  add_test(NAME content_package COMMAND ninslash_test_content_package)
+  add_executable(ninslash_test_content_collection tests/content_collection.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_content_collection PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_content_collection ${LIBS})
+  add_test(NAME content_collection COMMAND ninslash_test_content_collection)
+  add_executable(ninslash_test_community_challenge tests/community_challenge.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_community_challenge PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_community_challenge ${LIBS})
+  add_test(NAME community_challenge COMMAND ninslash_test_community_challenge)
+  add_executable(ninslash_test_room_preset tests/room_preset.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_room_preset PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_room_preset ${LIBS})
+  add_test(NAME room_preset COMMAND ninslash_test_room_preset)
+  add_executable(ninslash_test_content_publish tests/content_publish.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_content_publish PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_content_publish ${LIBS})
+  add_test(NAME content_publish COMMAND ninslash_test_content_publish)
+  if(ENABLE_LUA_MODS)
+    add_executable(ninslash_test_lua_mod_runtime
+      tests/lua_mod_runtime.cpp
+      src/engine/shared/mod_runtime.cpp
+      $<TARGET_OBJECTS:engine-shared>
+      $<TARGET_OBJECTS:json>
+    )
+    target_compile_definitions(ninslash_test_lua_mod_runtime PRIVATE CONF_LUA_MODS LUA_MOD_MEMORY_LIMIT=${LUA_MOD_MEMORY_LIMIT} LUA_MOD_INSTRUCTION_BUDGET=${LUA_MOD_INSTRUCTION_BUDGET})
+    target_include_directories(ninslash_test_lua_mod_runtime PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+    target_link_libraries(ninslash_test_lua_mod_runtime ninslash-lua ${LIBS})
+    add_test(NAME lua_mod_runtime COMMAND ninslash_test_lua_mod_runtime)
+    add_executable(ninslash_test_mod_server_runtime
+      tests/mod_server_runtime.cpp
+      src/engine/server/mod_server.cpp
+      src/engine/shared/mod_runtime.cpp
+      $<TARGET_OBJECTS:engine-shared>
+      $<TARGET_OBJECTS:json>
+    )
+    target_compile_definitions(ninslash_test_mod_server_runtime PRIVATE CONF_LUA_MODS LUA_MOD_MEMORY_LIMIT=${LUA_MOD_MEMORY_LIMIT} LUA_MOD_INSTRUCTION_BUDGET=${LUA_MOD_INSTRUCTION_BUDGET})
+    target_include_directories(ninslash_test_mod_server_runtime PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+    target_link_libraries(ninslash_test_mod_server_runtime ninslash-lua ${LIBS})
+    add_test(NAME mod_server_runtime COMMAND ninslash_test_mod_server_runtime)
+    list(APPEND NINSLASH_TEST_TARGETS ninslash_test_lua_mod_runtime ninslash_test_mod_server_runtime)
+  endif()
+  list(APPEND NINSLASH_TEST_TARGETS
+    ninslash_test_pve_progress
+    ninslash_test_content_manifest
+    ninslash_test_network_transport
+    ninslash_test_memory_thread_safety
+    ninslash_test_platform_event_queue
+    ninslash_test_platform_server_metadata
+    ninslash_test_platform_auth_policy
+    ninslash_test_platform_ban
+    ninslash_test_sha256
+    ninslash_test_content_package
+    ninslash_test_content_collection
+    ninslash_test_community_challenge
+    ninslash_test_room_preset
+    ninslash_test_content_publish
+  )
+  # These focused tests use assert() for both checks and fixture operations.
+  # Keep assertions active even when the test build itself is Release.
+  foreach(TEST_TARGET IN LISTS NINSLASH_TEST_TARGETS)
+    if(MSVC)
+      target_compile_options(${TEST_TARGET} PRIVATE /UNDEBUG)
+    else()
+      target_compile_options(${TEST_TARGET} PRIVATE -UNDEBUG)
+    endif()
+  endforeach()
+endif()
 
 ########################################################################
 # CLIENT
@@ -577,6 +880,7 @@ if(CLIENT)
     input.cpp
     input.h
     keynames.h
+    platform_services.cpp
     serverbrowser.cpp
     serverbrowser.h
     sound.cpp
@@ -602,6 +906,9 @@ if(CLIENT)
     components/buildings.h
     components/buildings2.cpp
     components/buildings2.h
+    components/build_placement.cpp
+    components/build_placement.h
+    components/build_placement_logic.h
     components/camera.cpp
     components/camera.h
     components/cbelt.cpp
@@ -662,6 +969,12 @@ if(CLIENT)
     components/players.h
     components/pve_roguelite.cpp
     components/pve_roguelite.h
+    cloud_profile.cpp
+    cloud_profile.h
+    pve_progress_storage.cpp
+    pve_progress_storage.h
+    local_game_modes.h
+    room_creation.h
     components/radar.cpp
     components/radar.h
     components/scoreboard.cpp
@@ -771,6 +1084,40 @@ if(CLIENT)
 
   add_executable(${TARGET_CLIENT} ${TARGET_CLIENT_SOURCES})
   target_link_libraries(${TARGET_CLIENT} ${LIBS_CLIENT})
+  if(TARGET_OS STREQUAL "windows")
+    set_target_properties(${TARGET_CLIENT} PROPERTIES WIN32_EXECUTABLE TRUE)
+  endif()
+
+  if(JPEG_FOUND)
+    target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_JPEG)
+    target_include_directories(${TARGET_CLIENT} PRIVATE ${JPEG_INCLUDE_DIRS})
+    target_link_libraries(${TARGET_CLIENT} ${JPEG_LIBRARIES})
+  endif()
+
+  if(ENABLE_STEAMWORKS)
+    target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_STEAMWORKS STEAM_APP_ID=${STEAM_APP_ID} STEAM_GAMESERVER_APP_ID=${STEAM_GAMESERVER_APP_ID})
+    target_include_directories(${TARGET_CLIENT} PRIVATE "${STEAMWORKS_SDK_ROOT}/public/steam")
+    if(TARGET_OS STREQUAL "windows")
+      target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.lib")
+      add_custom_command(TARGET ${TARGET_CLIENT} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.dll"
+          "$<TARGET_FILE_DIR:${TARGET_CLIENT}>")
+    elseif(TARGET_OS STREQUAL "linux")
+      target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so")
+      set_target_properties(${TARGET_CLIENT} PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE INSTALL_RPATH "\$ORIGIN")
+      add_custom_command(TARGET ${TARGET_CLIENT} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so"
+          "$<TARGET_FILE_DIR:${TARGET_CLIENT}>")
+    else()
+      message(FATAL_ERROR "Steamworks release integration is supported only on Windows and Linux")
+    endif()
+  endif()
+
+  if(ENABLE_STEAM_LISTEN_SERVER)
+    target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_STEAM_LISTEN_SERVER)
+  endif()
 
   if(TARGET_OS STREQUAL "windows")
     foreach(copy_file ${FREETYPE_COPY_FILES} ${SDL3_COPY_FILES})
@@ -822,6 +1169,10 @@ set_src(ENGINE_SERVER GLOB src/engine/server
   register.h
   server.cpp
   server.h
+  platform_gameserver.cpp
+  platform_gameserver.h
+  platform_ban.cpp
+  platform_ban.h
 )
 
 set_src(GAME_SERVER GLOB_RECURSE src/game/server
@@ -975,6 +1326,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   gamemodes/roam.h
   gamemodes/tdm.cpp
   gamemodes/tdm.h
+  gamemodes/tutorial.cpp
+  gamemodes/tutorial.h
   gamemodes/texasrun.cpp
   gamemodes/texasrun.h
   mapgen/gen_layer.cpp
@@ -1008,6 +1361,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   playerdata.h
   pve_director.cpp
   pve_director.h
+  tutorial_director.cpp
+  tutorial_director.h
 )
 
 set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER})
@@ -1042,8 +1397,43 @@ list(REMOVE_ITEM TARGET_SERVER_SOURCES "")
 
 add_executable(${TARGET_SERVER} ${TARGET_SERVER_SOURCES})
 target_link_libraries(${TARGET_SERVER} ${LIBS_SERVER})
+if(ENABLE_LUA_MODS)
+  target_sources(${TARGET_SERVER} PRIVATE src/engine/shared/mod_runtime.cpp)
+  target_compile_definitions(${TARGET_SERVER} PRIVATE CONF_LUA_MODS LUA_MOD_MEMORY_LIMIT=${LUA_MOD_MEMORY_LIMIT} LUA_MOD_INSTRUCTION_BUDGET=${LUA_MOD_INSTRUCTION_BUDGET})
+  target_link_libraries(${TARGET_SERVER} ninslash-lua)
+  if(CLIENT AND ENABLE_STEAM_LISTEN_SERVER)
+    target_sources(${TARGET_CLIENT} PRIVATE src/engine/shared/mod_runtime.cpp)
+    target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_LUA_MODS LUA_MOD_MEMORY_LIMIT=${LUA_MOD_MEMORY_LIMIT} LUA_MOD_INSTRUCTION_BUDGET=${LUA_MOD_INSTRUCTION_BUDGET})
+    target_link_libraries(${TARGET_CLIENT} ninslash-lua)
+  endif()
+endif()
+if(ENABLE_STEAM_GAMESERVER)
+  target_compile_definitions(${TARGET_SERVER} PRIVATE CONF_STEAMWORKS_GAMESERVER STEAM_APP_ID=${STEAM_APP_ID} STEAM_GAMESERVER_APP_ID=${STEAM_GAMESERVER_APP_ID})
+  target_include_directories(${TARGET_SERVER} PRIVATE "${STEAMWORKS_SDK_ROOT}/public/steam")
+  if(TARGET_OS STREQUAL "windows")
+    target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.lib")
+    add_custom_command(TARGET ${TARGET_SERVER} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.dll"
+        "$<TARGET_FILE_DIR:${TARGET_SERVER}>")
+  elseif(TARGET_OS STREQUAL "linux")
+    target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so")
+    set_target_properties(${TARGET_SERVER} PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE INSTALL_RPATH "\$ORIGIN")
+    add_custom_command(TARGET ${TARGET_SERVER} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so"
+        "$<TARGET_FILE_DIR:${TARGET_SERVER}>")
+  else()
+    message(FATAL_ERROR "Steam GameServer integration is supported only on Windows and Linux")
+  endif()
+endif()
 list(APPEND TARGETS_OWN ${TARGET_SERVER})
 list(APPEND TARGETS_LINK ${TARGET_SERVER})
+
+if(CLIENT AND ENABLE_STEAM_LISTEN_SERVER)
+  target_sources(${TARGET_CLIENT} PRIVATE ${ENGINE_SERVER} ${GAME_SERVER})
+  target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_EMBEDDED_SERVER_CORE)
+endif()
 
 if(TARGET_OS AND TARGET_OS STREQUAL "mac")
   enable_language(OBJC)
@@ -1188,7 +1578,8 @@ set(CPACK_SOURCE_FILES
   license.txt
   objs/
   other/
-  readme.txt
+  README.md
+  README_zh-CN.md
   scripts/
   src/
   storage.cfg
@@ -1217,6 +1608,9 @@ set(CPACK_TARGETS
 set(CPACK_DIRS data)
 set(CPACK_FILES
   license.txt
+  THIRD_PARTY_LICENSES.md
+  README.md
+  README_zh-CN.md
   storage.cfg
   ${COPY_FILES}
 )

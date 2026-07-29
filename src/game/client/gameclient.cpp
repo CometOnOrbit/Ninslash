@@ -8,6 +8,7 @@
 #include <engine/textrender.h>
 #include <engine/demo.h>
 #include <engine/map.h>
+#include <engine/platform_services.h>
 #include <engine/storage.h>
 #include <engine/sound.h>
 #include <engine/gamepad.h>
@@ -53,6 +54,7 @@
 #include "components/cbelt.h"
 #include "components/buildings.h"
 #include "components/buildings2.h"
+#include "components/build_placement.h"
 #include "components/droids.h"
 #include "components/killmessages.h"
 #include "components/mapimages.h"
@@ -114,6 +116,7 @@ static CScoreboard gs_Scoreboard;
 static CSounds gs_Sounds;
 static CPicker gs_Picker;
 static CInventory gs_Inventory;
+static CBuildPlacement gs_BuildPlacement;
 static CDamageInd gsDamageInd;
 static CVoting gs_Voting;
 static CSpectator gs_Spectator;
@@ -188,6 +191,7 @@ void CGameClient::OnConsoleInit()
 	m_pLight = &::gs_Light;
 	m_pMenus = &::gs_Menus;
 	m_pInventory = &::gs_Inventory;
+	m_pBuildPlacement = &::gs_BuildPlacement;
 	m_pSkins = &::gs_Skins;
 	m_pCountryFlags = &::gs_CountryFlags;
 	m_pChat = &::gs_Chat;
@@ -291,6 +295,7 @@ void CGameClient::OnConsoleInit()
 	m_All.Add(m_pRadar);
 	m_All.Add(m_pInventory);
 	m_All.Add(&gs_Hud);
+	m_All.Add(m_pBuildPlacement);
 	m_All.Add(&gs_Spectator);
 	m_All.Add(&gs_Picker);
 	m_All.Add(&gs_KillMessages);
@@ -310,6 +315,7 @@ void CGameClient::OnConsoleInit()
 	m_Input.Add(m_pGameConsole);
 	m_Input.Add(m_pChat); // chat has higher prio due to tha you can quit it by pressing esc
 	m_Input.Add(m_pMotd); // for pressing esc to remove it
+	m_Input.Add(m_pBuildPlacement);
 	m_Input.Add(m_pPveRoguelite);
 	m_Input.Add(m_pMenus);
 	m_Input.Add(m_pGameVoteDisplay);
@@ -469,6 +475,19 @@ void CGameClient::OnInit()
 
 void CGameClient::DispatchInput()
 {
+	if(m_pMenus->IsActive())
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_MENU);
+	else if(m_pBuildPlacement->WheelActive())
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_RADIAL_MENU);
+	else if(m_pBuildPlacement->PlacementActive())
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_BUILD);
+	else if(m_pInventory->IsVisible())
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_INVENTORY);
+	else if(m_Snap.m_LocalClientID >= 0 && m_Snap.m_paPlayerInfos[m_Snap.m_LocalClientID] && m_Snap.m_paPlayerInfos[m_Snap.m_LocalClientID]->m_Team == TEAM_SPECTATORS)
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_SPECTATOR);
+	else if(Client()->State() == IClient::STATE_ONLINE)
+		Input()->SetGamepadActionSet(PLATFORM_INPUT_GAME);
+
 	// handle mouse movement
 	float x = 0.0f, y = 0.0f;
 	if(Input()->MouseMoved() || Input()->GamepadMoved())
@@ -862,6 +881,24 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 	}
 }
 
+void CGameClient::OnPlatformPlayerIdentity(int ClientID, bool Present, unsigned long long UserID)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return;
+	CClientData &Data = m_aClients[ClientID];
+	if(Present && Data.m_PlatformIdentityVerified && Data.m_PlatformUserID == UserID && Data.m_PlatformPlayedWithReported)
+		return;
+	Data.m_PlatformUserID = Present ? UserID : 0;
+	Data.m_PlatformIdentityVerified = Present && UserID != 0;
+	Data.m_PlatformPlayedWithReported = false;
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	if(Data.m_PlatformIdentityVerified && pPlatform && pPlatform->Available() && UserID != pPlatform->LocalUserID())
+	{
+		pPlatform->SetPlayedWith(UserID);
+		Data.m_PlatformPlayedWithReported = true;
+	}
+}
+
 void CGameClient::OnStateChange(int NewState, int OldState)
 {
 	// reset everything when not already connected (to keep gathered stuff)
@@ -885,6 +922,8 @@ void CGameClient::OnEnterGame()
 
 void CGameClient::OnGameOver()
 {
+	if(m_pPveRoguelite)
+		m_pPveRoguelite->OnGameOver();
 	if(Client()->State() != IClient::STATE_DEMOPLAYBACK && g_Config.m_ClEditor == 0)
 		Client()->AutoScreenshot_Start();
 }
@@ -1585,8 +1624,10 @@ void CGameClient::OnPredict()
 
 	for(int Tick = Client()->GameTick()+1; Tick <= PredGameTick; Tick++)
 	{
-		// fetch the local at the original predicted tick (before anti-ping extension)
-		if(Tick == Client()->PredGameTick() && HasLocalClient && World.m_apCharacters[LocalClientID])
+		// Keep the interpolation pair adjacent even when AntiPing extends the
+		// prediction horizon. Pairing an old state with the extended final state
+		// amplifies landing corrections into visible backwards movement.
+		if(Tick == PredGameTick && HasLocalClient && World.m_apCharacters[LocalClientID])
 			m_PredictedPrevChar = *World.m_apCharacters[LocalClientID];
 
 		// first calculate where everyone should move
@@ -1777,6 +1818,9 @@ void CGameClient::CClientData::UpdateRenderInfo()
 
 void CGameClient::CClientData::Reset()
 {
+	m_PlatformUserID = 0;
+	m_PlatformIdentityVerified = false;
+	m_PlatformPlayedWithReported = false;
 	m_aName[0] = 0;
 	m_aClan[0] = 0;
 	m_Country = -1;

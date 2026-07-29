@@ -1,0 +1,11 @@
+"DepotBuildConfig"
+{
+    "DepotID" "@LINUX_CLIENT_DEPOT_ID@"
+    "ContentRoot" "@LINUX_CLIENT_ROOT@"
+    "FileMapping"
+    {
+        "LocalPath" "*"
+        "DepotPath" "."
+        "recursive" "1"
+    }
+}

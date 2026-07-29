@@ -31,7 +31,7 @@ CGameControllerDM::CGameControllerDM(class CGameContext *pGameServer)
 		m_GameFlags |= GAMEFLAG_BUILD;
 	
 	//for (int i = 0; i < MAX_CLIENTS; i++)
-	//	new CRadar(&GameServer()->m_World, RADAR_CHARACTER, i);
+	//	new CServerRadar(&GameServer()->m_World, RADAR_CHARACTER, i);
 }
 
 void CGameControllerDM::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)

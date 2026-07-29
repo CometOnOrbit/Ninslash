@@ -1,6 +1,525 @@
 
 ##### translated strings #####
 
+Not enough kits
+== 工具包不足
+
+Position occupied
+== 位置已被佔用
+
+Needs ground support
+== 需要地面支撐
+
+Not enough clearance
+== 淨空不足
+
+Too close to another building
+== 距離其他建築太近
+
+Needs a wall
+== 需要牆面
+
+Needs a ceiling anchor
+== 需要頂部錨點
+
+Blocked by force field
+== 受力場限制
+
+Choose material below
+== 從下方選擇材料
+
+Choose target below
+== 從下方選擇目標武器
+
+No valid result
+== 無有效合成結果
+
+Place material
+== 放入材料
+
+Place target
+== 放入目標武器
+
+Select target and material
+== 選擇目標武器和材料
+
+Weapon inventory
+== 武器庫存
+
+Automatic barrel
+== 自動槍管
+
+Balanced frame
+== 均衡框架
+
+Blade frame
+== 刀刃框架
+
+Charge core
+== 蓄力核心
+
+Charged blade
+== 蓄能刀刃
+
+Cost
+== 花費
+
+Energy blade
+== 能量刀刃
+
+Heavy blade
+== 重型刀刃
+
+Heavy frame
+== 重型框架
+
+Hook blade
+== 鉤刃
+
+Light blade
+== 輕型刀刃
+
+Light frame
+== 輕型框架
+
+Long barrel
+== 長槍管
+
+Precision frame
+== 精準框架
+
+Rail barrel
+== 軌道槍管
+
+Rapid frame
+== 速射框架
+
+Saw blade
+== 鋸刃
+
+Scatter barrel
+== 散射槍管
+
+Bounce frame
+== 彈射框架
+
+Spin frame
+== 旋刃框架
+
+Standard barrel
+== 標準槍管
+
+Activate
+== 啟用
+
+Automatic
+== 自動
+
+Build
+== 建造
+
+Burst pistol
+== 連發手槍
+
+Buy
+== 購買
+
+Chainsaw
+== 鏈鋸
+
+Charge
+== 蓄力
+
+Cluster grenade
+== 集束手榴彈
+
+Confirm
+== 確認
+
+Confirm purchase
+== 確認購買
+
+Damage
+== 傷害
+
+Drop
+== 丟棄
+
+Empty slot
+== 空欄位
+
+Equip
+== 裝備
+
+Equipment
+== 裝備欄
+
+Esc / B  Cancel
+== Esc / B  取消
+
+Explosive
+== 爆炸
+
+Flamethrower
+== 火焰噴射器
+
+Gold
+== 金幣
+
+Infinite
+== 無限
+
+Kits
+== 建造套件
+
+Laser
+== 雷射
+
+Placing
+== 放置中
+
+Price
+== 價格
+
+Ricochet
+== 跳彈
+
+Ricochet gun
+== 跳彈槍
+
+Rocket launcher
+== 火箭發射器
+
+Select items
+== 選擇物品
+
+Semi-auto
+== 半自動
+
+Shop
+== 商店
+
+Shuriken
+== 手裏劍
+
+Throw
+== 投擲
+
+Unknown item
+== 未知物品
+
+Waiting
+== 等待中
+
+Reactor Defense
+== 反應爐防禦
+
+Fortify the reactor and survive waves of hostile machines.
+== 加固反應爐並抵禦一波波敵對機械。
+
+Reactor  ·  Building  ·  Boss waves
+== 反應爐 · 建造 · 首領波次
+
+Reactor Assault
+== 反應爐突襲
+
+Plant or disarm the bomb in round-based reactor combat.
+== 在回合制反應爐戰鬥中安放或拆除炸彈。
+
+Teams  ·  Bomb  ·  Reactor
+== 團隊 · 炸彈 · 反應爐
+
+Ball
+== 球賽
+
+Carry the ball into the enemy goal while defending your own.
+== 將球帶入敵方球門，同時守住己方球門。
+
+Teams  ·  Ball  ·  Goals
+== 團隊 · 運球 · 球門
+
+Battle Royale
+== 大逃殺
+
+Outlast every opponent in a single-life survival match.
+== 在單命生存比賽中堅持到最後。
+
+Last survivor  ·  Closing hazard
+== 最後生還者 · 收縮危險區
+
+Grenade DM
+== 榴彈死亡競賽
+
+Fight a fast free-for-all with unlimited grenades.
+== 使用無限榴彈進行快節奏自由混戰。
+
+Grenades  ·  Free-for-all
+== 榴彈 · 自由混戰
+
+Instagib CTF
+== 一擊必殺奪旗
+
+Capture the flag with lethal precision weapons and instant kills.
+== 使用致命精準武器和一擊必殺規則奪取旗幟。
+
+Instagib  ·  Flags  ·  Teams
+== 一擊必殺 · 旗幟 · 團隊
+
+Goal target
+== 進球目標
+
+Last survivor
+== 最後生還者
+
+Arena I
+== 競技場 I
+
+Arena II
+== 競技場 II
+
+Invasion, Horde, Extraction and Reactor Defense.
+== 入侵、屍潮、撤離與反應爐防禦。
+
+4 PVE MODES · CO-OP
+== 4 種 PVE 玩法 · 合作
+
+Eight competitive modes with adjustable match population.
+== 八種競技玩法，可調整對局人數目標。
+
+8 PVP MODES · SOLO / LAN / STEAM
+== 8 種 PVP 玩法 · 單人 / 區域網路 / STEAM
+
+TACTICAL COMMAND
+== 戰術指揮
+
+Choose how to deploy
+== 選擇部署方式
+
+RECOMMENDED ACTION
+== 建議行動
+
+Create a room
+== 建立房間
+
+Choose a mode, configure the mission and invite your squad.
+== 選擇模式、設定任務並邀請你的小隊。
+
+Join local mission
+== 加入本機任務
+
+Your local server is ready. Rejoin without changing its setup.
+== 本機伺服器已就緒，可直接重新加入且不會變更設定。
+
+Continue local mission
+== 繼續本機任務
+
+Your local server is running and you are connected.
+== 本機伺服器正在執行，你已連線。
+
+Local server starting
+== 本機伺服器啟動中
+
+Open server status while the mission is prepared.
+== 在任務準備期間查看伺服器狀態。
+
+Resume chapter %d of 6 from your latest step.
+== 從最近步驟繼續第 %d/6 章。
+
+Training · chapter %d/6
+== 訓練 · 第 %d/6 章
+
+Training · complete
+== 訓練 · 已完成
+
+Training · skipped
+== 訓練 · 已跳過
+
+Training · not started
+== 訓練 · 未開始
+
+Local server · running
+== 本機伺服器 · 執行中
+
+Local server · starting
+== 本機伺服器 · 啟動中
+
+Local server · attention
+== 本機伺服器 · 需要處理
+
+Local server · idle
+== 本機伺服器 · 閒置
+
+Steam · online
+== Steam · 線上
+
+Standalone · UDP ready
+== 獨立網路 · UDP 就緒
+
+Six guided chapters, always replayable.
+== 六個引導章節，隨時可以重玩。
+
+SOLO · 30–45 MIN
+== 單人 · 30–45 分鐘
+
+Invasion, Horde and Extraction missions.
+== Invasion、Horde 與 Extraction 任務。
+
+CO-OP · 15–40 MIN
+== 合作 · 15–40 分鐘
+
+Configure PvE
+== 設定 PvE
+
+Choose PvP mode
+== 選擇 PvP 模式
+
+Restart with changes
+== 套用變更並重新啟動
+
+Short bot matches before online combat.
+== 線上對戰前先進行短局機器人練習。
+
+DM · TDM · CTF · 5–15 MIN
+== DM · TDM · CTF · 5–15 分鐘
+
+Choose how to play
+== 選擇玩法
+
+New player path: training recommended
+== 新玩家路徑：建議先完成訓練
+
+Training in progress
+== 訓練進行中
+
+Training in progress · stage %d/6
+== 訓練進行中 · 第 %d/6 階段
+
+Training complete
+== 訓練已完成
+
+Training skipped
+== 已跳過訓練
+
+Training Invasion
+== Invasion 訓練
+
+10-15 min · solo · recommended first
+== 10-15 分鐘 · 單人 · 建議優先
+
+Co-op PvE
+== 合作 PvE
+
+Explore Invasion, survive Horde or activate switches and extract.
+== 探索 Invasion、抵禦 Horde，或啟動開關並撤離。
+
+Invasion · Horde · Extraction
+== Invasion · Horde · Extraction
+
+Choose a PvE mode
+== 選擇 PvE 模式
+
+Local PvP
+== 本機 PvP
+
+Build confidence in short matches against low-pressure bots before joining online.
+== 先與低壓力機器人進行短局練習，再進入線上對戰。
+
+DM · TDM · CTF · bots
+== DM · TDM · CTF · 機器人
+
+Practice with bots
+== 與機器人練習
+
+Leave training?
+== 離開訓練？
+
+Your last completed checkpoint is saved locally. You can continue now, return to the hub, or skip training.
+== 最近完成的檢查點已儲存在本機。你可以繼續、返回玩法中心或跳過訓練。
+
+Exit and save
+== 儲存並離開
+
+Return to hub
+== 返回玩法中心
+
+Defeat nearby enemies: %d/3. Health and ammo pickups keep you moving.
+== 擊敗附近敵人：%d/3。生命和彈藥補給能讓你繼續前進。
+
+Choose one run perk. Run choices help this mission; research persists between missions.
+== 選擇一個局內增益。局內選擇協助本次任務，研究則會在任務之間保留。
+
+Aim and fire with %s
+== 使用 %s 瞄準並射擊
+
+Clear the nearby enemies. Health and ammo pickups keep you moving.
+== 清理附近敵人。生命和彈藥補給能讓你繼續前進。
+
+Continue co-op PvE
+== 繼續合作 PvE
+
+Continue training
+== 繼續訓練
+
+Follow the radar marker to the objective.
+== 跟隨雷達標記前往目標。
+
+Guided solo mission
+== 單人引導任務
+
+Move with %s, then jump with %s
+== 使用 %s 移動，然後使用 %s 跳躍
+
+Open Forge with %s and combine a recommended weapon.
+== 使用 %s 開啟鍛爐並組合推薦武器。
+
+Open Forge with %s and craft the recommended weapon.
+== 使用 %s 開啟鍛爐並製作推薦武器。
+
+Open your build with %s. Run choices help this mission; research persists between missions.
+== 使用 %s 開啟構築。局內選擇只幫助本次任務；研究會在任務之間保留。
+
+Practice PvP with bots
+== 與機器人練習 PvP
+
+Browse online servers
+== 瀏覽線上伺服器
+
+Skip training
+== 跳過訓練
+
+Start training
+== 開始訓練
+
+Replay training
+== 重玩訓練
+
+TRAINING
+== 訓練
+
+Training complete. Return to the hub to choose co-op PvE, PvP practice, or online servers.
+== 訓練完成。返回中心以選擇合作 PvE、PvP 練習或線上伺服器。
+
+Connected
+== 已連線
+
+Copy
+== 複製
+
+Dedicated servers, LAN, Favorites and Steam rooms
+== 專用伺服器、區域網路、收藏和 Steam 房間
+
+Details
+== 詳情
+
+Refreshing
+== 重新整理中
+
+Search
+== 搜尋
+
+Unfavorite
+== 取消收藏
+
 %d Bytes
 == %d 字節
 
@@ -1527,8 +2046,8 @@ Refill all weapon ammunition immediately.
 Gain 5 kits immediately.
 == 立即獲得 5 個工具包。
 
-Combat Training
-== 戰鬥訓練
+All Damage
+== 全傷害
 
 All damage +8% per stack (maximum 3).
 == 每層全傷害 +8%（最多 3 層）。
@@ -1641,8 +2160,8 @@ Recycler
 Destroyed friendly buildings refund 40% of their kit cost.
 == 友方建築摧毀時返還其 40% 工具包費用。
 
-Hollow Point
-== 空尖彈
+Firearm Damage
+== 槍械傷害
 
 Firearm damage +12% per stack.
 == 每層槍械傷害 +12%。
@@ -1659,8 +2178,8 @@ Gunslinger
 Firearms reload 20% faster and gain improved handling.
 == 槍械裝填速度 +20%，操控性提高。
 
-Demolition
-== 爆破專家
+Explosive Damage
+== 爆炸傷害
 
 Explosive damage +12% per stack.
 == 每層爆炸傷害 +12%。
@@ -1677,8 +2196,8 @@ Chain Reaction
 Explosive kills have a chance to trigger a secondary blast.
 == 爆炸擊殺有機率觸發二次爆炸。
 
-Overcharge
-== 過載
+Electric Damage
+== 電能傷害
 
 Electric damage +12% per stack.
 == 每層電能傷害 +12%。
@@ -1695,8 +2214,8 @@ Capacitor
 Every fifth electric hit deals double damage.
 == 每第 5 次電能命中造成雙倍傷害。
 
-Berserker
-== 狂戰士
+Melee Damage
+== 近戰傷害
 
 Melee damage +12% per stack.
 == 每層近戰傷害 +12%。
@@ -1960,26 +2479,26 @@ Drone Chassis
 Deploy a support drone; each stack increases current module efficiency by 10%, capped at 30%.
 == 部署一架支援無人機；每層使當前模組效率提高 10%，上限 30%。
 
-Focus Drill
-== 专注訓練
+Bonus Shot Damage
+== 額外射擊傷害
 
 Firearm hits build Focus. At 10, the next shot consumes it for +15% damage per stack.
 == 槍械命中积累专注。達到 10 層後，下一發消耗全部专注并每卡層增加 15% 傷害。
 
-Blast Battery
-== 爆炸電池
+Bonus Blast Damage
+== 額外爆炸傷害
 
 Explosions gain one charge per enemy hit. At 5, the next blast consumes five for +8% damage per stack.
 == 爆炸每命中一個敵人獲得 1 充能。達到 5 層後，下一次爆炸消耗 5 層并每卡層增加 8% 傷害。
 
-Voltage Bank
-== 電荷库
+Extra Chain Target
+== 額外連鎖目標
 
 Electric hits gain Voltage. At 10, the next hit consumes it and arcs to one extra target per stack.
 == 電能命中獲得電荷。達到 10 層後，下一次命中消耗全部電荷并每卡層額外電弧一個目標。
 
-Fury Meter
-== 怒氣计
+Bonus Melee Damage
+== 額外近戰傷害
 
 Melee hits gain Fury. At 10, the next melee hit consumes it for +20% damage per stack.
 == 近戰命中獲得怒氣。達到 10 層後，下一次近戰消耗全部怒氣并每卡層增加 20% 傷害。
@@ -2008,8 +2527,8 @@ Barrier Refit
 After 5 seconds without taking damage, restore 2 Barrier each second.
 == 連續 5 秒未受傷後，每秒恢復 2 點壁壘。
 
-Aegis Loop
-== 神盾回路
+Barrier Break Armor
+== 壁壘破裂護甲
 
 When Barrier breaks, gain 15 armor once per stage.
 == 壁壘破碎時獲得 15 點護甲，每階段一次。
@@ -2212,8 +2731,8 @@ Cartographer
 Objectives always show direction and distance; interaction speed is +15%.
 == 任務目標始终顯示方向與距離，互動速度提高 15%。
 
-Deep Sovereign
-== 深層主宰
+Final Objective Boost
+== 最終目標強化
 
 The final objective on each floor takes +50% damage; completion grants the team 20 Barrier.
 == 每層最後一個任務目標承傷增加 50%；完成後全隊獲得 20 點壁壘。
@@ -2524,11 +3043,14 @@ Enemy scaling
 Automatic for this mode
 == 由目前模式自動調整
 
-AI players
-== AI 玩家
+Target active players
+== 目標在場人數
 
-Player slots
-== 玩家欄位
+Target players per team
+== 每隊目標人數
+
+Human slots
+== 真人玩家欄位
 
 Port
 == 連接埠
@@ -2787,6 +3309,306 @@ Take the hard corridor. More enemies come through, but rewards scale up.
 
 ##### needs translation #####
 
+All damage is 8% higher for each stack, up to three stacks.
+== 每層使所有傷害提高 8%，最多疊加 3 層。
+
+At each stage start, gain 8 armor for each stack.
+== 每層在階段開始時獲得 8 護甲。
+
+At each stage start, gain 2 kits for each stack.
+== 每層在階段開始時獲得 2 個工具包。
+
+Gold income is 12% higher for each stack.
+== 每層使金幣收入提高 12%。
+
+At each stage start, restore 15% ammunition for each stack.
+== 每層在階段開始時恢復 15% 彈藥。
+
+Health and armor recovery is 20% higher for each stack.
+== 每層使生命與護甲恢復效果提高 20%。
+
+Weapon attacks recharge 8% faster for each stack, up to 30%.
+== 每層武器攻擊冷卻 -8%（最多 -30%）。
+
+Deal 20% more damage per stack to enemies below 30% health.
+== 對生命低於 30% 的敵人，每層造成 20% 更多傷害。
+
+Deal 25% more damage to bosses.
+== 對首領造成 25% 更多傷害。
+
+Kills briefly grant 4% more damage, up to five times.
+== 擊殺會短暫使傷害提高 4%，最多疊加 5 次。
+
+Deal 35% more damage, but take 20% more damage.
+== 造成的傷害提高 35%，但承受的傷害也提高 20%。
+
+Take 8% less damage for each stack, up to 50%.
+== 每層承受傷害 -8%（總減傷最多 50%）。
+
+Below 35% health, gain 15 armor once each stage.
+== 每階段首次低於 35% 生命時獲得 15 護甲。
+
+Nearby allies take 12% less damage.
+== 附近隊友承受傷害降低 12%。
+
+Once each stage, survive lethal damage with 1 health.
+== 每階段一次，以 1 點生命抵擋致命傷害。
+
+Shop prices are 10% lower for each stack, up to 40%.
+== 每層商店價格 -10%（最多 -40%）。
+
+Shops offer one additional high-tier item.
+== 商店額外提供一件高階物品。
+
+Buildings cost 20% less and repairs restore 25% more.
+== 建造費用降低 20%，維修效果提高 25%。
+
+Destroyed friendly buildings refund 40% of their kit cost.
+== 友方建築摧毀時返還其 40% 工具包費用。
+
+Firearm damage is 12% higher for each stack.
+== 每層使槍械傷害提高 12%。
+
+Continuous firearm hits build up to 25% more damage.
+== 槍械連續命中可逐步使傷害提高，最多提高 25%。
+
+Firearms reload 20% faster and handle more smoothly.
+== 槍械裝填速度提高 20%，操控性也得到改善。
+
+Explosive damage is 12% higher for each stack.
+== 每層使爆炸傷害提高 12%。
+
+Explosion radius is 25% larger, up to 50%.
+== 爆炸範圍擴大 25%，最多擴大 50%。
+
+Explosive kills can trigger a secondary blast.
+== 爆炸擊殺有機率觸發二次爆炸。
+
+Electric damage is 12% higher for each stack.
+== 每層使電能傷害提高 12%。
+
+Electric hits arc to one nearby enemy for 35% damage.
+== 電能命中會向附近一名敵人傳導 35% 傷害。
+
+Every fifth electric hit deals double damage.
+== 每第 5 次電能命中造成雙倍傷害。
+
+Melee damage is 12% higher for each stack.
+== 每層使近戰傷害提高 12%。
+
+Melee kills restore 4 health.
+== 近戰擊殺恢復 4 點生命。
+
+Heavy melee hits release a damaging shockwave.
+== 重型近戰命中會釋放傷害衝擊波。
+
+Invasion stage-start supplies are 25% higher for each stack.
+== 每層使入侵模式的階段開始補給提高 25%。
+
+Deal 20% more damage to Invasion objectives.
+== 對入侵模式目標造成 20% 更多傷害。
+
+After each Invasion floor, gain 4% more damage for the run.
+== 每完成一層入侵模式，本局傷害提高 4%。
+
+Horde breaks restore 20% health and ammunition for each stack.
+== 每層使屍潮模式間歇恢復 20% 生命與彈藥。
+
+Horde multikills grant 15% more damage for 5 seconds.
+== 屍潮模式多殺會使傷害提高 15%，持續 5 秒。
+
+Buildings deal 30% more damage during Horde.
+== 屍潮模式中，建築造成的傷害提高 30%。
+
+Extraction interactions are 25% faster for each stack.
+== 每層使撤離模式的開關與目標互動速度提高 25%。
+
+Move 15% faster while evacuating.
+== 撤離期間移動速度提高 15%。
+
+Reviving an ally grants both players 20 armor.
+== 復活隊友時雙方獲得 20 護甲。
+
+Six direct hits apply Vulnerable for 4 seconds. Each stack adds 3% damage.
+== 对同一敵人直接命中 6 次後施加 4 秒破绽；每層使其承傷增加 3%，总上限 25%。
+
+At stage start, gain 6 Barrier per stack, up to 30.
+== 每階段開始時每層獲得 6 點壁壘。壁壘先于護甲承傷，上限 30。
+
+Every 5 kills restore 2 health per stack, up to three times each stage.
+== 每累计擊殺 5 個敵人恢復每層 2 點生命，每階段最多觸發 3 次。
+
+Every 8 kills grant 1 kit per stack, up to 6 kits each stage.
+== 每累计擊殺 8 個敵人獲得每層 1 個工具包，每階段最多獲得 6 個。
+
+Stage completion pays 5% interest per stack, up to 30 gold.
+== 階段完成時按當前金幣支付每層 5% 的利息，每階段最多 30 金幣。
+
+Nearby allies receive 6% more recovery for each stack.
+== 350 距離内隊友受到的生命、護甲和壁壘恢復每層提高 6%。
+
+Deploy a support drone. Each stack improves its module efficiency by 10%.
+== 部署一架支援無人機；每層使當前模組效率提高 10%，上限 30%。
+
+Every 10 firearm hits, the next shot deals 15% more damage per stack.
+== 槍械命中积累专注。達到 10 層後，下一發消耗全部专注并每卡層增加 15% 傷害。
+
+Every 5 enemy hits, the next blast deals 8% more damage per stack.
+== 爆炸每命中一個敵人獲得 1 充能。達到 5 層後，下一次爆炸消耗 5 層并每卡層增加 8% 傷害。
+
+Every 10 electric hits, the next hit chains to one extra target per stack.
+== 電能命中獲得電荷。達到 10 層後，下一次命中消耗全部電荷并每卡層額外電弧一個目標。
+
+Every 10 melee hits, the next hit deals 20% more damage per stack.
+== 近戰命中獲得怒氣。達到 10 層後，下一次近戰消耗全部怒氣并每卡層增加 20% 傷害。
+
+The first objective each stage restores 10% ammo and grants 3 armor per stack.
+== 每階段首次完成目標時，每層恢復 10% 彈藥并獲得 3 點護甲。
+
+Deal 15% more damage to Vulnerable targets.
+== 对破绽目標造成的傷害增加 15%。
+
+Every tenth direct hit deals 75% more damage and refreshes Vulnerable.
+== 每第 10 次直接命中造成額外 75% 傷害并刷新破绽。
+
+After 5 seconds unharmed, restore 2 Barrier each second.
+== 連續 5 秒未受傷後，每秒恢復 2 點壁壘。
+
+When Barrier breaks, gain 15 armor once each stage.
+== 壁壘破碎時獲得 15 點護甲，每階段一次。
+
+Gain 2% more damage per 50 gold held, up to 20%.
+== 每持有 50 金幣，傷害增加 2%，上限 20%。
+
+Every 25 gold spent grants 5 Barrier, up to 15 per purchase.
+== 每消费 25 金幣獲得 5 點壁壘，单次购买最多獲得 15 點。
+
+Drone attack and repair intervals are 8% shorter per stack, up to 30%.
+== 無人機攻擊與維修间隔每層缩短 8%，仍受 30% 冷卻縮減上限限制。
+
+The drone attacks every 1.2 seconds for 20% weapon damage.
+== 無人機每 1.2 秒攻擊最近敵人，造成當前武器基础傷害的 20%。
+
+The drone makes nearby allies take 10% less damage.
+== 無人機使 280 範圍内隊友受到的傷害减少 10%。
+
+The drone restores 2 armor or durability each second.
+== 每秒為護甲最低的隊友或友方建築恢復 2 點護甲或耐久。
+
+Current drone module efficiency is 25% higher.
+== 使當前無人機模組效率提高 25%。
+
+Current drone module efficiency is 50% higher. Disabled drones recover after 5 seconds.
+== 使當前模組效率再提高 50%；無人機被禁用後 5 秒自動恢復。
+
+Focus needs 1 fewer hit per stack, to a minimum of 7.
+== 专注觸發阈值每層降低 1，最低為 7。
+
+Consuming Focus applies Vulnerable for 5 seconds.
+== 消耗专注時施加 5 秒破绽。
+
+After consuming Focus, the next magazine's first 6 shots deal 35% more damage.
+== 每次消耗专注後，下一弹匣前 6 發傷害增加 35%。
+
+Deal 8% more firearm damage per stack to Vulnerable targets.
+== 对破绽目標的槍械傷害每層增加 8%。
+
+After a full reload, the first 5 shots deal 15% more damage.
+== 完整换弹後，前 5 發傷害增加 15%。
+
+Against the assault drone target, players deal 15% more damage and the drone 50% more.
+== 攻擊無人機鎖定的目標時，玩家傷害增加 15%，無人機傷害增加 50%。
+
+Empowered blasts need 1 fewer hit per stack, to a minimum of 3.
+== 强化爆炸觸發阈值每層降低 1，最低為 3。
+
+Empowered explosions apply Vulnerable for 5 seconds.
+== 强化爆炸施加 5 秒破绽。
+
+Every third empowered explosion creates a delayed blast for 60% damage.
+== 每第 3 次强化爆炸产生一次延迟二次爆炸，造成 60% 傷害。
+
+Empowered explosions apply 1 Bleed stack for each card stack.
+== 强化爆炸施加每卡層 1 層流血。
+
+Take 50% less self-explosion damage. Empowered blasts have 20% more radius.
+== 自身爆炸傷害减少 50%；强化爆炸半径增加 20%。
+
+Deal 30% more explosive damage to bosses, objectives, and buildings.
+== 对首领、任務目標和建築目標的爆炸傷害增加 30%。
+
+Gain 1 extra Voltage per stack when charging, up to 3 per hit.
+== 獲得電荷時每層額外獲得 1 點，单次命中最多獲得 3 點。
+
+Consuming Voltage makes the target Conductive for 5 seconds. Arcs deal 25% more damage.
+== 消耗電荷後使目標導電 5 秒；後续電弧傷害增加 25%。
+
+Every third full Voltage release calls lightning for 100% damage.
+== 每第 3 次滿电释放在目標處降下造成 100% 傷害的雷击。
+
+Electric kills restore 2 Voltage for each stack.
+== 電能擊殺返還每層 2 點電荷。
+
+Consuming Voltage grants 10 Barrier.
+== 消耗電荷時獲得 10 點壁壘。
+
+Above 5 Voltage, current drone module efficiency is 35% higher.
+== 電荷超過 5 時，無人機當前模組效率提高 35%。
+
+Gain 1 extra Fury per stack on hit, up to 4 per hit.
+== 命中獲得怒氣時每層額外獲得 1 點，单次最多獲得 4 點。
+
+Consuming Fury applies 3 Bleed stacks.
+== 消耗怒氣時施加 3 層流血。
+
+After full Fury, deal 40% more melee damage and take 20% less damage for 6 seconds.
+== 消耗滿怒氣後 6 秒内近戰傷害增加 40%，承傷减少 20%。
+
+Heavy hits extend Vulnerable by 2 seconds per stack, up to 6 seconds.
+== 重击每層增加 2 秒破绽，最長 6 秒。
+
+When a bleeding enemy dies, restore 5 health, up to 15 each event.
+== 流血敵人死亡時恢復 5 點生命，单次最多 15 點。
+
+Each enemy hit by a shockwave grants 1 Fury and 2 Barrier.
+== 衝擊波每命中一個敵人獲得 1 點怒氣和 2 點壁壘。
+
+Objectives show direction and distance. Interactions are 15% faster.
+== 任務目標始终顯示方向與距離，互動速度提高 15%。
+
+The final objective takes 50% more damage. Completion grants the team 20 Barrier.
+== 每層最後一個任務目標承傷增加 50%；完成後全隊獲得 20 點壁壘。
+
+Each completed objective grants 4 gold for each stack.
+== 每完成一個任務，每層獲得 4 金幣。
+
+A deathless floor grants 4% more damage on later floors, up to 20%.
+== 無死亡完成樓層後，後续樓層傷害增加 4%，上限 20%。
+
+A deathless wave grants 8 gold to every player.
+== 無玩家死亡完成波次時，每人獲得 8 金幣。
+
+Deathless waves grant 5% more player and building damage, up to 25%. Death resets it.
+== 連續無死亡波次使玩家和建築傷害每波增加 5%，上限 25%；有人死亡時清空。
+
+At wave start, repair friendly buildings by 5% maximum durability per stack.
+== 每波開始時修复所有友方建築每層 5% 的最大耐久。
+
+Inside the defense area, take 15% less damage and gain 25% drone efficiency.
+== 處于任務防守區時承傷减少 15%，無人機效率提高 25%。
+
+While carrying an objective, move 10% faster and take 10% less damage.
+== 攜帶任務物品時移動速度提高 10%，承傷减少 10%。
+
+When the exit opens, the team deals 30% more damage and moves 15% faster. Healing stops.
+== 撤離門開啟後全隊傷害增加 30%、移動速度提高 15%，但生命恢復停止。
+
+Interactions are 10% faster per stack, up to 60%.
+== 開關和任務互動速度每層提高 10%，合计加成上限 60%。
+
+Entering evacuation restores 30% ammo and grants 20 Barrier once.
+== 進入撤離区時恢復 30% 彈藥并獲得 20 點壁壘，每次撤離階段一次。
+
 ##### old translations #####
 Drone integrity
 == 無人機完整度
@@ -2963,8 +3785,14 @@ Random seed
 Seed %d
 == 種子 %d
 
-%d slots
-== %d 個槽位
+%d human slots
+== %d 個真人玩家欄位
+
+%d players per team
+== 每隊 %d 人
+
+Target %d active players
+== 目標在場人數 %d
 
 Starting local server and waiting for readiness...
 == 正在啟動本機伺服器並等待就緒……
@@ -2995,3 +3823,1015 @@ Map selection
 
 Automatic by Invasion floor
 == 由入侵樓層自動選擇
+Active
+== 已啟用
+
+Authenticating with Steam
+== 正在透過 Steam 驗證
+
+Authentication
+== 驗證
+
+Browse Workshop
+== 瀏覽工作坊
+
+CHECK REQUIRED
+== 需要檢查
+
+COMMUNITY
+== 社群
+
+Community / Report
+== 社群頁面 / 檢舉
+
+Community page / Report
+== 社群頁面 / 檢舉
+
+Connecting to server
+== 正在連線至伺服器
+
+Content directory
+== 內容目錄
+
+Create Steam room
+== 建立 Steam 房間
+
+Create item
+== 建立物品
+
+Create local game
+== 建立本機遊戲
+
+Current collection
+== 目前集合
+
+Dedicated servers and Steam rooms
+== 專用伺服器與 Steam 房間
+
+Disable
+== 停用
+
+Downloading Mod
+== 正在下載模組
+
+Enable
+== 啟用
+
+FRIEND
+== 好友
+
+Friend room
+== 好友房間
+
+Host
+== 房主
+
+Inactive
+== 未啟用
+
+Invite
+== 邀請
+
+Invite only
+== 僅限邀請
+
+Leave
+== 離開
+
+Level %d
+== 關卡 %d
+
+Loading map
+== 正在載入地圖
+
+Local / LAN game
+== 本機 / 區域網路遊戲
+
+Mods
+== 模組
+
+No Mods in this category.
+== 此分類中沒有模組。
+
+Not verified
+== 未驗證
+
+OFFICIAL
+== 官方
+
+Player Mods
+== 玩家模組
+
+Preview file
+== 預覽檔案
+
+Protocol / content hash
+== 協定 / 內容雜湊
+
+Public
+== 公開
+
+Publish update
+== 發佈更新
+
+Refresh LAN
+== 重新整理區域網路
+
+Region
+== 地區
+
+Required
+== 必要
+
+Room name
+== 房間名稱
+
+Rooms
+== 房間
+
+STEAM
+== STEAM
+
+Select a room to see address, region, version, Mods and join requirements.
+== 選擇房間以查看位址、地區、版本、模組及加入需求。
+
+Source
+== 來源
+
+Steam Workshop is unavailable. Installed game data remains unchanged.
+== Steam 工作坊無法使用。已安裝的遊戲資料不會變更。
+
+Steam hosting is unavailable. Start Steam or create a LAN game.
+== Steam 託管無法使用。請啟動 Steam 或建立區域網路遊戲。
+
+Steam room
+== Steam 房間
+
+Steam rooms
+== Steam 房間
+
+Steam unavailable
+== Steam 無法使用
+
+Steam unavailable — dedicated servers, Favorites and direct connection remain available.
+== Steam 無法使用——專用伺服器、我的最愛與直接連線仍可使用。
+
+Synchronizing Workshop content
+== 正在同步工作坊內容
+
+Unsubscribe
+== 取消訂閱
+
+Use collection
+== 使用此集合
+
+VALID
+== 有效
+
+Verified for this build
+== 已通過目前版本驗證
+Character
+== 角色
+
+Progress
+== 進度
+
+Replays
+== 回放
+
+Browse rooms
+== 瀏覽房間
+
+Create room
+== 建立房間
+
+LAN & direct
+== 區域網路與直接連線
+
+Installed
+== 已安裝
+
+Needs update
+== 需要更新
+
+Disabled
+== 已停用
+
+Continue
+== 繼續
+
+Server
+== 伺服器
+
+Starting server
+== 正在啟動伺服器
+
+Creating room
+== 正在建立房間
+
+Steam hosting is unavailable. Start Steam and try again.
+== Steam 託管無法使用。請啟動 Steam 後再試。
+
+The Steam room server could not start. Check the log and retry.
+== Steam 房間伺服器無法啟動。請檢查記錄後再試。
+
+The Steam room server did not become ready. Retry or create a LAN game.
+== Steam 房間伺服器未能就緒。請重試或建立區域網路遊戲。
+
+Steam rejected room creation. Check your connection and retry.
+== Steam 拒絕建立房間。請檢查網路連線後再試。
+
+One or more Workshop items failed validation. Open Workshop for details.
+== 一個或多個工作坊項目驗證失敗。請開啟工作坊查看詳情。
+Steam rejected the room join request. Refresh rooms and try again.
+== Steam 拒絕加入房間。請重新整理房間清單後再試。
+
+This room uses an incompatible game version. Update Ninslash and retry.
+== 此房間使用不相容的遊戲版本。請更新 Ninslash 後再試。
+
+The room host identity could not be verified. Leave the room and choose another.
+== 無法驗證房主身分。請離開並選擇其他房間。
+
+The room connection data is invalid. Ask the host to recreate the room.
+== 房間連線資料無效。請讓房主重新建立房間。
+
+Required Workshop content is downloading. Open Workshop, wait for validation, then retry joining.
+== 正在下載所需工作坊內容。請開啟工作坊，等待驗證完成後重新加入。
+
+This room requires a different Mod collection. Open Workshop and enable the required content.
+== 此房間需要其他模組集合。請開啟工作坊並啟用所需內容。
+Joining room
+== 正在加入房間
+
+Choose a game mode
+== 選擇玩法
+
+Configure room
+== 設定房間
+
+Step 1 of 2
+== 第 1 步，共 2 步
+
+Step 2 of 2
+== 第 2 步，共 2 步
+
+PVE
+== PvE 合作玩法
+
+PVP
+== PvP 對戰玩法
+
+Solo
+== 單人
+
+Change mode
+== 更換模式
+
+Visibility
+== 可見性
+
+Friends and Public require Steam.
+== 好友和公開房間需要 Steam。
+
+Room details
+== 房間資訊
+
+Advanced settings
+== 進階設定
+
+Hide advanced settings
+== 收起進階設定
+
+Create and join
+== 建立並加入
+
+Managed automatically
+== 自動管理
+
+LAN binding
+== 區域網路綁定
+
+Training is available from the Play hub.
+== 教學模式可從玩法中心的訓練入口啟動。
+
+Room creation failed. Your settings were kept; retry or open the log.
+== 房間建立失敗。設定已保留；請重試或開啟記錄。
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  Community room · Unverified
+== %s  ·  %s  ·  %s  ·  %d 個真人玩家欄位  ·  社群房間 · 未驗證
+
+Explore generated floors, complete objectives and keep your build between maps.
+== 探索生成樓層、完成目標，並在地圖之間保留你的構築。
+
+Defend, build and survive increasingly dangerous enemy waves.
+== 防守、建造，並在越來越危險的敵潮中生存。
+
+Finish the mission and reach the extraction zone before time runs out.
+== 完成任務，並在時間耗盡前抵達撤離區。
+
+Fight every player and reach the score limit first.
+== 擊敗所有對手，率先達到分數限制。
+
+Coordinate with your team to win the score race.
+== 與隊友配合，在分數競賽中取勝。
+
+Steal the enemy flag while defending your own base.
+== 奪取敵方旗幟，同時守住己方基地。
+
+Objectives  ·  Progression  ·  Builds
+== 目標  ·  進度  ·  構築
+
+Waves  ·  Building  ·  Survival
+== 敵潮  ·  建造  ·  生存
+
+Timed  ·  Objectives  ·  Extraction
+== 限時  ·  目標  ·  撤離
+
+Free-for-all  ·  Fast respawn
+== 自由混戰  ·  快速重生
+
+Teams  ·  Building  ·  Score race
+== 團隊  ·  建造  ·  分數競賽
+
+Flags  ·  Teams  ·  Base defense
+== 旗幟  ·  團隊  ·  基地防守
+
+30-60 min
+== 30-60 分鐘
+
+20-40 min
+== 20-40 分鐘
+
+10-20 min
+== 10-20 分鐘
+
+10 min
+== 10 分鐘
+
+15 min
+== 15 分鐘
+
+15-25 min
+== 15-25 分鐘
+
+First Deployment
+== 初次部署
+
+Combat and Recovery
+== 戰鬥與恢復
+
+PvE Mission
+== PvE 任務
+
+Forge and Build
+== 鍛造與建造
+
+Build and Growth
+== 構築與成長
+
+Multiplayer Ready
+== 多人準備
+
+Switch weapons and hit the training target.
+== 切換武器並擊中訓練目標。
+
+Defeat the marked enemies and watch your ammunition.
+== 擊敗標記敵人，並留意彈藥。
+
+Take controlled damage, then collect health.
+== 承受一次受控傷害，然後拾取生命補給。
+
+Respawn near the current objective and finish the encounter.
+== 在目前目標附近復活並完成戰鬥。
+
+Follow the radar marker and activate the switch.
+== 跟隨雷達標記並啟動開關。
+
+Follow the radar marker. Stay near the switch for 2 seconds to activate it.
+== 跟隨雷達標記，靠近開關並停留 2 秒即可啟動。
+
+Stay near the next marked switch for 2 seconds to secure the defense area.
+== 靠近下一個標記開關並停留 2 秒，以確保防守區域安全。
+
+Activate the next marked switch and watch the HUD progress.
+== 啟動下一個標記開關，並留意 HUD 上的進度。
+
+Activate the final marked switch to open the extraction route.
+== 啟動最後一個標記開關以開啟撤離路線。
+
+Hold the marked defense area.
+== 守住標記的防禦區域。
+
+Track mission progress on the HUD.
+== 在 HUD 上查看任務進度。
+
+Reach the extraction area.
+== 抵達撤離區域。
+
+Collect the marked sandbox materials.
+== 收集標記的沙盒材料。
+
+Build a defense and survive the controlled wave.
+== 建造防禦設施並撐過受控敵潮。
+
+Choose a run perk for this mission.
+== 為本次任務選擇一個局內增益。
+
+Choose one of the three run perks.
+== 從三個局內增益中選擇一個。
+
+Hold %s, choose a drone module, then release to switch.
+== 按住 %s，選擇一個無人機模組，然後放開以切換。
+
+Purchase the highlighted sandbox research node. Tutorial points do not affect your save.
+== 購買高亮的沙盒研究節點。教程點數不會影響你的存檔。
+
+Select and command a drone module.
+== 選擇並操作一個無人機模組。
+
+Complete the highlighted sandbox research node.
+== 完成高亮的沙盒研究節點。
+
+Complete the short bot PvP objective.
+== 完成簡短的機器人 PvP 目標。
+
+Configure and create the simulated room.
+== 設定並建立模擬房間。
+
+Filter the simulated room list and join a room.
+== 篩選模擬房間列表並加入房間。
+
+Multiplayer room practice
+== 多人房間練習
+
+Configure a simulated room, then create it.
+== 設定一個模擬房間，然後建立它。
+
+Filter the simulated room list, then join the training room.
+== 篩選模擬房間列表，然後加入訓練房間。
+
+Room visibility
+== 房間可見性
+
+Training Room · Tutorial rules · 4 slots
+== 訓練房間 · 教程規則 · 4 個位置
+
+Create simulated room
+== 建立模擬房間
+
+All rooms
+== 全部房間
+
+Low ping
+== 低延遲
+
+Ninslash Training Room
+== Ninslash 訓練房間
+
+Tutorial · 1/4 players · local simulation
+== 教程 · 1/4 玩家 · 本機模擬
+
+Join simulated room
+== 加入模擬房間
+
+This practice does not publish a real room or contact external services.
+== 此練習不會發布真實房間，也不會連線外部服務。
+
+Choose chapter
+== 選擇章節
+
+Tutorial chapters
+== 教程章節
+
+Back to Play
+== 返回玩法中心
+
+Chapter %d
+== 第 %d 章
+
+CHAPTER %d/6 · %s · %d/%d
+== 第 %d/6 章 · %s · %d/%d
+
+Step %d of %d
+== 步驟 %d/%d
+
+Completed
+== 已完成
+
+Available
+== 已解鎖
+
+Replay
+== 重玩
+
+Replay chapter
+== 重玩章節
+
+Complete chapter %d first
+== 請先完成第 %d 章
+
+Movement, weapons and the training target.
+== 移動、武器與訓練靶。
+
+Combat, recovery and respawning.
+== 戰鬥、恢復與復活。
+
+Objectives, defense and extraction.
+== 任務目標、防守與撤離。
+
+Materials, forging and construction.
+== 材料、鍛造與建造。
+
+Perks, drones and research.
+== 增益、無人機與研究。
+
+Bot PvP and multiplayer rooms.
+== 機器人 PvP 與多人房間。
+
+CONTENT
+== 內容
+
+SYSTEM
+== 系統
+
+SESSION
+== 對局
+
+PROFILE
+== 檔案
+
+Resume
+== 繼續
+
+Tutorial
+== 教程
+
+Easy
+== 簡單
+
+Normal
+== 普通
+
+Hard
+== 困難
+
+Guided
+== 引導
+
+45 min
+== 45 分鐘
+
+5-10 min
+== 5–10 分鐘
+
+Objectives  ·  Forge  ·  Builds
+== 目標  ·  鍛造  ·  建造
+
+Six guided solo chapters for controls, combat, objectives, forging, builds and rooms.
+== 六章單人引導教程，涵蓋操作、戰鬥、目標、鍛造、建造與房間。
+
+No bots
+== 不加入機器人
+
+%s: %d
+== %s：%d
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Community room · Unverified
+== %s  ·  %s  ·  %s  ·  %d 個真人欄位  ·  %s  ·  社群房間 · 未驗證
+
+Recommended: %s players  ·  %s  ·  %s difficulty
+== 建議 %s 人  ·  %s  ·  %s難度
+
+Official
+== 官方
+
+Community
+== 社群
+
+Modded
+== 已啟用模組
+
+Aim to select
+== 移動瞄準以選擇
+
+Training
+== 訓練
+
+Online
+== 線上
+
+Standalone network
+== 獨立網路
+
+UDP available
+== UDP 可用
+
+Starting local game
+== 正在啟動本機遊戲
+
+Stopping local game
+== 正在停止本機遊戲
+Preset
+== 預設
+
+Common filters
+== 常用過濾
+
+Advanced filters
+== 進階過濾
+
+New
+== 新建
+
+Done
+== 完成
+
+Save
+== 儲存
+Steam room creation timed out. Check Steam connection and retry.
+== Steam 房間建立逾時。請檢查 Steam 連線後重試。
+
+Steam is offline. Reconnect Steam and retry room creation.
+== Steam 目前離線。請重新連線 Steam 後建立房間。
+
+Steam denied room creation for this account.
+== Steam 拒絕此帳戶建立房間。
+
+Steam room limit reached. Close another room and retry.
+== 已達到 Steam 房間數量上限。請關閉其他房間後重試。
+
+Steam room service is busy. Wait a moment and retry.
+== Steam 房間服務忙碌。請稍後重試。
+
+Steam could not start room creation. Restart Steam and retry.
+== Steam 無法啟動房間建立。請重新啟動 Steam 後重試。
+
+Steam Cloud
+== Steam 雲端存檔
+
+Steam
+== Steam
+
+Steam Cloud is unavailable
+== Steam 雲端存檔無法使用
+
+Steam Cloud conflict
+== Steam 雲端存檔衝突
+
+This device
+== 此裝置
+
+highest floor
+== 最高層
+
+Use this device
+== 使用此裝置
+
+Use Steam Cloud
+== 使用 Steam 雲端存檔
+
+Resolve conflict
+== 解決衝突
+
+Sync now
+== 立即同步
+
+Progress, appearance, portable preferences and custom key bindings are synchronized. Display, device and local network settings stay on this device.
+== 同步遊戲進度、角色外觀、可攜式偏好和自訂按鍵。顯示器、裝置及本機網路設定只保留在此裝置。
+
+Steam friends
+== Steam 好友
+
+Steam friends are unavailable in standalone mode.
+== 獨立模式下無法使用 Steam 好友。
+
+Overlay invite
+== Steam 介面邀請
+
+Joinable
+== 可加入
+
+Playing Ninslash
+== 正在玩 Ninslash
+
+Offline
+== 離線
+
+Join friend
+== 加入好友
+
+Profile
+== 個人資料
+
+friends
+== 位好友
+
+Session members
+== 目前成員
+
+Steam member
+== Steam 成員
+
+Anonymous connection
+== 匿名連線
+
+You
+== 你
+
+Friend
+== 好友
+
+Unknown
+== 未知
+
+Infection
+== 感染模式
+
+Roam
+== 漫遊模式
+
+Gun game
+== 槍械升級戰
+
+Invite to party
+== 邀請加入小隊
+
+In your party
+== 已在你的小隊中
+
+In party
+== 已在小隊
+
+Steam party
+== Steam 小隊
+
+Steam party · not in a party
+== Steam 小隊 · 尚未加入小隊
+
+Creating party...
+== 正在建立小隊……
+
+Create party
+== 建立小隊
+
+Create a private party or invite a friend to begin.
+== 建立私人小隊，或邀請好友開始組隊。
+
+Leader
+== 隊長
+
+Member
+== 成員
+
+Steam room selected
+== 已選擇 Steam 房間
+
+Choose a game or server
+== 選擇遊戲或伺服器
+
+Not ready
+== 未準備
+
+Leave party
+== 離開小隊
+
+Start party
+== 全隊開始
+
+Force start
+== 強制開始
+
+Confirm force start
+== 確認強制開始
+
+Select a room below, then wait for Ready.
+== 在下方選擇房間，然後等待成員準備。
+
+The leader selects the target.
+== 由隊長選擇目標。
+
+My Library
+== 我的內容庫
+
+Workshop
+== 工作坊
+
+Workshop content
+== 工作坊內容
+
+Most subscribed
+== 訂閱最多
+
+Not subscribed
+== 未訂閱
+
+Unknown author
+== 未知作者
+
+Content rating
+== 內容分級
+
+Description
+== 說明
+
+No description provided.
+== 暫無說明。
+
+Workshop details
+== 工作坊詳情
+
+Select Workshop content to view details.
+== 選擇一項工作坊內容以查看詳情。
+
+Loading Workshop content…
+== 正在載入工作坊內容…
+
+No Workshop content matches these filters.
+== 沒有符合目前篩選條件的工作坊內容。
+
+Retry download
+== 重試下載
+
+Community leaderboard · Unverified
+== 社群榜 · 未驗證
+Author
+== 作者
+
+CHALLENGE
+== 挑戰
+
+Challenge
+== 挑戰
+
+Challenges
+== 挑戰
+
+Discover
+== 探索
+
+Downloading
+== 正在下載
+
+Downloading content
+== 正在下載內容
+
+Gyroscope sensitivity
+== 陀螺儀靈敏度
+
+Invalid
+== 無效
+
+Invert gyroscope vertical aim
+== 反轉陀螺儀垂直瞄準
+
+Latest
+== 最新
+
+MAP
+== 地圖
+
+MOD
+== 模組
+
+Maps
+== 地圖
+
+Mod
+== 模組
+
+Open Steam controller configuration
+== 開啟 Steam 控制器設定
+
+PRESET
+== 預設
+
+Popular
+== 熱門
+
+Protocol
+== 通訊協定
+
+Rating
+== 評分
+
+Review room rules, visibility and password before creating the room.
+== 建立房間前，請檢查房間規則、可見性與密碼。
+
+Room Preset
+== 房間預設
+
+Room Presets
+== 房間預設
+
+Room preset applied
+== 已套用房間預設
+
+Steam Input gyroscope aiming
+== Steam Input 陀螺儀瞄準
+
+Steam Input vibration
+== Steam Input 震動
+
+Unable to apply preset
+== 無法套用預設
+
+Workshop map selected
+== 已選擇工作坊地圖
+Cloud profile is too large
+== 雲端設定檔過大
+
+Steam Cloud conflict needs your choice
+== Steam 雲端存檔衝突，需要你選擇要保留的版本
+
+Steam Cloud conflict postponed; cloud writes are paused
+== Steam 雲端存檔衝突已延後；雲端寫入已暫停
+
+Steam Cloud data was created by a newer game version
+== Steam 雲端資料由較新版本的遊戲建立
+
+Steam Cloud is synchronizing; retrying...
+== Steam 雲端存檔正在同步；即將重試……
+
+Steam Cloud is up to date
+== Steam 雲端存檔已是最新
+
+Steam Cloud profile applied
+== 已套用 Steam 雲端設定檔
+
+Steam Cloud profile is empty; local progress was kept
+== Steam 雲端設定檔為空；已保留本機進度
+
+Steam Cloud profile is invalid; local progress was kept
+== Steam 雲端設定檔無效；已保留本機進度
+
+Steam Cloud upload failed; local progress is safe
+== Steam 雲端存檔上傳失敗；本機進度未受影響
+Unable to start Steam Workshop query.
+== 無法啟動 Steam 工作坊查詢。
+Loading community leaderboard…
+== 正在載入社群排行榜……
+
+Unable to start community leaderboard request.
+== 無法啟動社群排行榜請求。
+
+Community leaderboard is unavailable
+== 社群排行榜無法使用
+
+Steam could not start the community leaderboard request
+== Steam 無法啟動社群排行榜請求
+
+Community score upload failed
+== 社群成績上傳失敗
+
+Community leaderboard download failed
+== 社群排行榜下載失敗
+Steam room interfaces became unavailable. Restart Steam and retry.
+== Steam 房間介面已無法使用。請重新啟動 Steam 後再試。
+
+Steam could not initialize party data. Retry creating the party.
+== Steam 無法初始化隊伍資料。請重新建立隊伍。
+
+Steam could not publish room data. The local server was stopped; retry creating the room.
+== Steam 無法發佈房間資料。本機伺服器已停止；請重新建立房間。
+
+Steam could not publish the party room target. The local server was stopped; retry creating the room.
+== Steam 無法發佈隊伍房間目標。本機伺服器已停止；請重新建立房間。
+Unable to update Steam party target. Retry or recreate the party.
+== 無法更新 Steam 隊伍目標。請重試或重新建立隊伍。
+Enable to use
+== 啟用後使用
+Steam could not start joining the party. Restart Steam and retry.
+== Steam 無法開始加入隊伍。請重新啟動 Steam 後再試。
+
+Steam could not start joining the room. Restart Steam and retry.
+== Steam 無法開始加入房間。請重新啟動 Steam 後再試。
+
+The party game room is no longer available.
+== 隊伍遊戲房間已無法使用。
+
+The party target requires a different Mod collection.
+== 隊伍目標需要不同的模組集合。
+
+This party uses an incompatible game version.
+== 此隊伍使用不相容的遊戲版本。
+Unable to join the Steam room
+== 無法加入 Steam 房間
+
+#### Compact Perk descriptions
++25 armor now
+== 立即獲得25護甲
+
+Refill all ammo now
+== 立即補滿所有彈藥
+
++5 kits now
+== 立即獲得5工具包
+
+%d · %s · Lv. %d/%d
+== %d · %s · 等級 %d/%d
+
+%d · Supply
+== %d · 補給
+
+A tie or no votes grants one final retry.
+== 平票或無人投票時獲得一次最終重試。

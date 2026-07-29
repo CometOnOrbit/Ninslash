@@ -351,7 +351,7 @@ int CUI::DoButtonLogic(const void *pID, const char *pText, int Checked, const CU
 			SetActiveItem(0);
 		}
 	}
-	else if(HotItem() == pID)
+	else if(HotItem() == pID && Inside)
 	{
 		if(MouseButton(0))
 		{

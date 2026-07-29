@@ -1,5 +1,6 @@
 #include <new>
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 #include <game/server/gamecontext.h>
 #include <game/mapitems.h>
 
@@ -20,6 +21,7 @@
 #include <game/server/gamemodes/invasion.h>
 #include <game/server/playerdata.h>
 #include <game/server/pve_director.h>
+#include <game/server/tutorial_director.h>
 #include <game/pve_roguelite.h>
 #include <game/questinfo.h>
 
@@ -53,7 +55,7 @@ struct CInputCount
 	int m_Releases;
 };
 
-CInputCount CountInput(int Prev, int Cur)
+static CInputCount CountInput(int Prev, int Cur)
 {
 	CInputCount c = {0, 0};
 	Prev &= INPUT_STATE_MASK;
@@ -290,7 +292,7 @@ void CCharacter::RandomizeInventory()
 
 void CCharacter::SaveData()
 {
-	if (m_IsBot || !m_Spawned || !GameServer()->m_pController->IsCoop())
+	if (g_Config.m_SvTutorialMode || m_IsBot || !m_Spawned || !GameServer()->m_pController->IsCoop())
 		return;
 	
 	CPlayerData *pData = GameServer()->Server()->GetPlayerData(GetPlayer()->GetCID(), GetPlayer()->GetColorID());
@@ -713,6 +715,10 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 	SaveData();
 	GetPlayer()->SendForgeResult(FORGERESULT_SUCCESS, Recipe.m_Operation, Item1, Item2, Recipe.m_Cost,
 		Recipe.m_Product, Recipe.m_ProductAmmo, Recipe.m_ProductMaxAmmo);
+	if(GameServer()->m_pTutorialDirector)
+		GameServer()->m_pTutorialDirector->OnGameplayProgress(GetPlayer()->GetCID(), TUTORIAL_EVENT_FORGE);
+	Server()->SendPlatformEvent(GetPlayer()->GetCID(), PLATFORM_EVENT_FIRST_FORGE);
+	Server()->DispatchModEvent(MOD_EVENT_FORGE, GetPlayer()->GetCID(), Recipe.m_Operation);
 }
 
 
@@ -1011,6 +1017,8 @@ void CCharacter::DoWeaponSwitch()
 		
 		m_WeaponSlot = m_WantedSlot;
 		m_AttackTick = 0;
+		if(GameServer()->m_pTutorialDirector && !m_IsBot)
+			GameServer()->m_pTutorialDirector->OnGameplayProgress(GetPlayer()->GetCID(), TUTORIAL_EVENT_WEAPON_SWITCH);
 	}
 }
 
@@ -1205,6 +1213,16 @@ void CCharacter::GiveStartWeapon()
 	if (!m_IsBot && str_comp(g_Config.m_SvGametype, "base") == 0)
 	{
 		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_TOOL));
+	}
+
+	if(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
+	{
+		if(m_IsBot)
+			return;
+		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL1));
+		m_apWeapon[1] = GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL2));
+		GetPlayer()->m_Gold = max(GetPlayer()->m_Gold, 80);
+		return;
 	}
 	
 	if (str_comp(g_Config.m_SvGametype, "coop") == 0)
@@ -1446,6 +1464,10 @@ void CCharacter::UseKit(int Kit, vec2 Pos)
 		{
 			m_Kits -= Cost;
 			GameServer()->CreateSound(Pos, SOUND_BUILD);
+			Server()->SendPlatformEvent(GetPlayer()->GetCID(), PLATFORM_EVENT_FIRST_BUILD);
+			Server()->DispatchModEvent(MOD_EVENT_BUILD, GetPlayer()->GetCID(), Kit);
+			if(GameServer()->m_pTutorialDirector)
+				GameServer()->m_pTutorialDirector->OnGameplayProgress(GetPlayer()->GetCID(), TUTORIAL_EVENT_BUILD);
 		}
 	}
 }
@@ -2369,6 +2391,9 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 			
 			const int HealthBefore = m_HiddenHealth;
 			m_HiddenHealth -= Dmg + (g_Config.m_SvOneHitKill ? 1000 : 0);
+			if(GameServer()->m_pTutorialDirector && m_IsBot && From >= 0 && From < MAX_CLIENTS &&
+				GameServer()->m_apPlayers[From] && !GameServer()->m_apPlayers[From]->m_IsBot)
+				GameServer()->m_pTutorialDirector->OnGameplayProgress(From, TUTORIAL_EVENT_TARGET_HIT);
 			const int TargetType = m_Type == CCharacter::ROBOT ? HIT_TARGET_METAL : HIT_TARGET_FLESH;
 			if(From != m_pPlayer->GetCID())
 				GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), TargetType, m_HiddenHealth <= 0);

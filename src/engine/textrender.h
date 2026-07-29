@@ -58,7 +58,7 @@ class IEngineTextRender : public ITextRender
 {
 	MACRO_INTERFACE("enginetextrender", 0)
 public:
-	virtual void Init() = 0;
+	virtual int Init() = 0;
 };
 
 extern IEngineTextRender *CreateEngineTextRender();

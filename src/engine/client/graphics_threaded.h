@@ -398,6 +398,7 @@ class CGraphics_Threaded : public IEngineGraphics
 
 		MAX_VERTICES = 32*1024,
 		MAX_TEXTURES = 1024*4,
+		MAX_SCREENSHOT_QUEUE = 8,
 		
 		DRAWING_QUADS=1,
 		DRAWING_LINES=2,
@@ -425,8 +426,16 @@ class CGraphics_Threaded : public IEngineGraphics
 
 	float m_Rotation;
 	int m_Drawing;
-	bool m_DoScreenshot;
-	char m_aScreenshotName[128];
+	struct CScreenshotRequest
+	{
+		unsigned m_RequestID;
+		char m_aName[128];
+	};
+	CScreenshotRequest m_aScreenshotRequests[MAX_SCREENSHOT_QUEUE];
+	int m_ScreenshotRequestCount;
+	unsigned m_NextScreenshotRequestID;
+	CScreenshotResult m_aScreenshotResults[MAX_SCREENSHOT_QUEUE];
+	int m_ScreenshotResultCount;
 
 	int m_InvalidTexture;
 
@@ -488,8 +497,9 @@ public:
 	// simple uncompressed RGBA loaders
 	virtual int LoadTexture(const char *pFilename, int StorageType, int StoreFormat, int Flags);
 	virtual int LoadPNG(CImageInfo *pImg, const char *pFilename, int StorageType);
+	int LoadJPEG(CImageInfo *pImg, const char *pFilename, int StorageType);
 
-	void ScreenshotDirect(const char *pFilename);
+	bool ScreenshotDirect(const char *pFilename, CScreenshotResult *pResult);
 	virtual bool CaptureFrame(CImageInfo *pImage);
 
 	virtual void TextureSet(int TextureID, int BufferTexture = -1);
@@ -528,7 +538,8 @@ public:
 	virtual int Init();
 	virtual void Shutdown();
 
-	virtual void TakeScreenshot(const char *pFilename);
+	virtual unsigned TakeScreenshot(const char *pFilename);
+	virtual bool ConsumeScreenshotResult(CScreenshotResult *pResult, unsigned RequestID = 0);
 	virtual void Swap();
 
 	virtual int GetVideoModes(CVideoMode *pModes, int MaxModes, int screen);

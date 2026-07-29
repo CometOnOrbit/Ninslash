@@ -43,6 +43,12 @@ public:
 	int m_Flags;
 	int m_Favorite;
 	int m_Latency; // in ms
+	int m_DiscoverySources;
+	bool m_Official;
+	bool m_Modded;
+	bool m_HasPlatformMetadata;
+	int m_AuthPolicy;
+	unsigned long long m_SteamServerID;
 	char m_aGameType[16];
 	char m_aName[64];
 	char m_aMap[32];
@@ -80,7 +86,10 @@ public:
 
 		SET_MASTER_ADD=1,
 		SET_FAV_ADD,
-		SET_TOKEN
+		SET_TOKEN,
+
+		DISCOVERY_MASTER=1,
+		DISCOVERY_STEAM=2
 	};
 
 	virtual void Refresh(int Type) = 0;
@@ -94,6 +103,7 @@ public:
 	virtual const CServerInfo *SortedGet(int Index) const = 0;
 	virtual void Request(const NETADDR &Addr) = 0;
 	virtual bool GetServerInfo(const NETADDR &Addr, CServerInfo *pInfo) const = 0;
+	virtual void AddDiscoveredServer(const NETADDR &Addr, int DiscoverySource, bool Official, bool Modded, int AuthPolicy, unsigned long long SteamServerID) = 0;
 
 	virtual bool IsFavorite(const NETADDR &Addr) const = 0;
 	virtual void AddFavorite(const NETADDR &Addr) = 0;

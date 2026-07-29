@@ -55,7 +55,7 @@ void CGenerator::GenerateWalls(CLayerTiles *pLayer)
 	if (m_pRoom)
 		delete m_pRoom;
 	
-	m_pRoom = new CRoom(3, 3, pLayer->m_Width-6, pLayer->m_Height-6);
+	m_pRoom = new CEditorRoom(3, 3, pLayer->m_Width-6, pLayer->m_Height-6);
 	
 	// unlock rooms from start to end pos
 	int y = pLayer->m_Height / 2;
@@ -96,7 +96,6 @@ void CGenerator::ConnectRooms(CLayerTiles *pLayer)
 				Fill(pLayer, 0, x, y, 1, 2);
 		}
 }
-
 
 
 

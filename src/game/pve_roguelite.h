@@ -283,6 +283,7 @@ struct CPveCardDef
 	int m_ID;
 	const char *m_pName;
 	const char *m_pDescription;
+	const char *m_pShortDescription;
 	int m_Rarity;
 	int m_MaxStacks;
 	int m_ResearchCost;

@@ -1,5 +1,6 @@
 //#include "GLShader.hpp"
 #include <GL/glew.h>
+#include <base/system.h>
 #include "shaders.h"
 
 #include <string>
@@ -13,6 +14,26 @@
 std::string readFile(const char *filePath) {
     std::string content;
     std::ifstream fileStream(filePath, std::ios::in);
+	if(!fileStream.is_open())
+	{
+		// Steam normally uses the depot root as its working directory, but that
+		// is not guaranteed for every launch option or desktop shortcut. Shaders
+		// are release assets beside the executable, so fall back to that root.
+		char aExecutable[1024];
+		if(fs_executable_path(aExecutable, sizeof(aExecutable)) == 0)
+		{
+			char *pSlash = strrchr(aExecutable, '/');
+			char *pBackslash = strrchr(aExecutable, '\\');
+			if(!pSlash || (pBackslash && pBackslash > pSlash)) pSlash = pBackslash;
+			if(pSlash)
+			{
+				*pSlash = 0;
+				char aPath[1400]; str_format(aPath, sizeof(aPath), "%s/%s", aExecutable, filePath);
+				fileStream.clear();
+				fileStream.open(aPath, std::ios::in);
+			}
+		}
+	}
 
     if(!fileStream.is_open()) {
         //std::cerr << "Could not read file " << filePath << ". File does not exist." << std::endl;

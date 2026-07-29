@@ -18,6 +18,7 @@
 #include "camera.h"
 #include "effects.h"
 #include "hud.h"
+#include "inventory.h"
 #include "menus.h"
 #include "pve_roguelite.h"
 #include "scoreboard.h"
@@ -35,6 +36,7 @@ CHud::CHud()
 	m_DebugStatusUntil = 0;
 	m_DebugStatusScreenshotFrames = 0;
 	m_LastObjectiveSignature = -1;
+	m_ObjectiveTransitionStart = 0;
 	m_ObjectiveNoticeUntil = 0;
 	m_LastHitEvent = 0;
 	m_LastHitSound = 0;
@@ -42,11 +44,14 @@ CHud::CHud()
 	m_HitDamage = 0;
 	m_HitTargetType = HIT_TARGET_FLESH;
 	m_HitKilled = false;
+	mem_zero(m_aStatusAppear, sizeof(m_aStatusAppear));
+	m_LastAnimationTime = time_get();
 }
 
 void CHud::OnReset()
 {
 	m_LastObjectiveSignature = -1;
+	m_ObjectiveTransitionStart = 0;
 	m_ObjectiveNoticeUntil = 0;
 	m_LastHitEvent = 0;
 	m_LastHitSound = 0;
@@ -54,6 +59,8 @@ void CHud::OnReset()
 	m_HitDamage = 0;
 	m_HitTargetType = HIT_TARGET_FLESH;
 	m_HitKilled = false;
+	mem_zero(m_aStatusAppear, sizeof(m_aStatusAppear));
+	m_LastAnimationTime = time_get();
 	if(m_DebugStatusUntil <= time_get())
 	{
 		m_DebugStatusMask = 0;
@@ -169,18 +176,38 @@ bool CHud::ConnectionNoticeActive() const
 
 float CHud::StatusStackY(int BeforeFlag) const
 {
-	float Y = WarmupActive() ? 96.0f : 50.0f;
-	if(BeforeFlag > STATUS_STACK_PAUSED && PausedNoticeActive())
-		Y += 30.0f;
-	if(BeforeFlag > STATUS_STACK_READY && ReadyNoticeActive())
-		Y += 30.0f;
-	if(BeforeFlag > STATUS_STACK_CONNECTION && ConnectionNoticeActive())
-		Y += 30.0f;
+	float Y = 50.0f + 46.0f * m_aStatusAppear[3];
+	if(BeforeFlag > STATUS_STACK_PAUSED)
+		Y += 30.0f * m_aStatusAppear[STATUS_STACK_PAUSED];
+	if(BeforeFlag > STATUS_STACK_READY)
+		Y += 30.0f * m_aStatusAppear[STATUS_STACK_READY];
+	if(BeforeFlag > STATUS_STACK_CONNECTION)
+		Y += 30.0f * m_aStatusAppear[STATUS_STACK_CONNECTION];
 	return Y;
 }
 
-void CHud::RenderStatusNotice(const char *pText, float Y, vec4 AccentColor)
+void CHud::UpdateAnimations()
 {
+	const int64 Now = time_get();
+	const float Dt = clamp((float)((Now - m_LastAnimationTime) / (double)time_freq()), 0.0f, 0.05f);
+	const float Blend = 1.0f - expf(-14.0f * Dt);
+	const float aTargets[4] = {
+		PausedNoticeActive() ? 1.0f : 0.0f,
+		ReadyNoticeActive() ? 1.0f : 0.0f,
+		ConnectionNoticeActive() ? 1.0f : 0.0f,
+		WarmupActive() ? 1.0f : 0.0f};
+	for(int i = 0; i < 4; ++i)
+	{
+		m_aStatusAppear[i] += (aTargets[i] - m_aStatusAppear[i]) * Blend;
+		m_aStatusAppear[i] = clamp(m_aStatusAppear[i], 0.0f, 1.0f);
+	}
+	m_LastAnimationTime = Now;
+}
+
+void CHud::RenderStatusNotice(const char *pText, float Y, vec4 AccentColor, float Amount)
+{
+	const float Eased = 1.0f - (1.0f - Amount) * (1.0f - Amount) * (1.0f - Amount);
+	Y -= (1.0f - Eased) * 5.0f;
 	const vec4 Panel = CMenus::ThemeBgPanel();
 	const vec4 Inset = CMenus::ThemeBgInset();
 	const vec4 Text = CMenus::ThemeText();
@@ -191,18 +218,18 @@ void CHud::RenderStatusNotice(const char *pText, float Y, vec4 AccentColor)
 	const float X = (m_Width-W)*0.5f;
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0, 0, 0, 0.40f);
+	Graphics()->SetColor(0, 0, 0, 0.40f * Amount);
 	RenderTools()->DrawRoundRect(X+1.0f, Y+1.5f, W, H, 7.0f);
-	Graphics()->SetColor(AccentColor.r, AccentColor.g, AccentColor.b, 0.72f);
+	Graphics()->SetColor(AccentColor.r, AccentColor.g, AccentColor.b, 0.72f * Amount);
 	RenderTools()->DrawRoundRect(X-0.7f, Y-0.7f, W+1.4f, H+1.4f, 7.5f);
-	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.97f);
+	Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.97f * Amount);
 	RenderTools()->DrawRoundRect(X, Y, W, H, 7.0f);
-	Graphics()->SetColor(Inset.r, Inset.g, Inset.b, 0.44f);
+	Graphics()->SetColor(Inset.r, Inset.g, Inset.b, 0.44f * Amount);
 	RenderTools()->DrawRoundRect(X+5.0f, Y+4.0f, W-10.0f, H-8.0f, 5.0f);
-	Graphics()->SetColor(AccentColor.r, AccentColor.g, AccentColor.b, 0.96f);
+	Graphics()->SetColor(AccentColor.r, AccentColor.g, AccentColor.b, 0.96f * Amount);
 	RenderTools()->DrawRoundRect(X, Y+5.0f, 2.0f, H-10.0f, 1.0f);
 	Graphics()->QuadsEnd();
-	TextRender()->TextColor(Text.r, Text.g, Text.b, 1.0f);
+	TextRender()->TextColor(Text.r, Text.g, Text.b, Amount);
 	TextRender()->Text(0, X+(W-TextW)*0.5f, Y+6.0f, FontSize, pText, -1);
 	TextRender()->TextColor(1, 1, 1, 1);
 }
@@ -235,7 +262,8 @@ void CHud::RenderGameTimer()
 		// last 60 sec red, last 10 sec blink
 		if(m_pClient->m_Snap.m_pGameInfoObj->m_TimeLimit && Time <= 60 && !m_pClient->m_Snap.m_pGameInfoObj->m_WarmupTimer)
 		{
-			float Alpha = Time <= 10 && (2*time_get()/time_freq()) % 2 ? 0.5f : 1.0f;
+			const float Seconds = (float)(time_get() / (double)time_freq());
+			float Alpha = Time <= 10 ? 0.72f + 0.28f * (0.5f + 0.5f * sinf(Seconds * 6.2831853f)) : 1.0f;
 			vec4 Danger = CMenus::ThemeDanger();
 			TextRender()->TextColor(Danger.r, Danger.g, Danger.b, Alpha);
 		}
@@ -262,10 +290,10 @@ void CHud::RenderGameTimer()
 
 void CHud::RenderPauseNotification()
 {
-	if(PausedNoticeActive())
+	if(m_aStatusAppear[STATUS_STACK_PAUSED] > 0.01f)
 	{
 		const char *pText = Localize("Game paused");
-		RenderStatusNotice(pText, StatusStackY(STATUS_STACK_PAUSED), CMenus::ThemeAccent());
+		RenderStatusNotice(pText, StatusStackY(STATUS_STACK_PAUSED), CMenus::ThemeAccent(), m_aStatusAppear[STATUS_STACK_PAUSED]);
 	}
 }
 
@@ -304,6 +332,7 @@ void CHud::RenderObjective()
 		if(GapSignature != m_LastObjectiveSignature)
 		{
 			m_LastObjectiveSignature = GapSignature;
+			m_ObjectiveTransitionStart = time_get();
 			m_ObjectiveNoticeUntil = time_get() + time_freq() * 4;
 		}
 
@@ -325,7 +354,10 @@ void CHud::RenderObjective()
 		const float MaxCardWidth = min(112.0f, m_Width * 0.24f);
 		const float CardWidth = clamp(NaturalTextWidth + 18.0f, 72.0f, MaxCardWidth);
 		const float CardHeight = 27.0f;
-		const float CardRight = m_Width - 6.0f;
+		const float ObjectiveAge = m_ObjectiveTransitionStart ? (float)((time_get() - m_ObjectiveTransitionStart) / (double)time_freq()) : 1.0f;
+		const float ObjectiveIn = clamp(ObjectiveAge / 0.22f, 0.0f, 1.0f);
+		const float ObjectiveEased = 1.0f - (1.0f - ObjectiveIn) * (1.0f - ObjectiveIn) * (1.0f - ObjectiveIn);
+		const float CardRight = m_Width - 6.0f + (1.0f - ObjectiveEased) * 10.0f;
 		CUIRect Shadow = {CardRight - CardWidth + 1.2f, 83.2f, CardWidth, CardHeight};
 		CUIRect Card = {CardRight - CardWidth, 82.0f, CardWidth, CardHeight};
 		const vec4 Panel = CMenus::ThemeBgPanel();
@@ -375,6 +407,7 @@ void CHud::RenderObjective()
 	if(ObjectiveSignature != m_LastObjectiveSignature)
 	{
 		m_LastObjectiveSignature = ObjectiveSignature;
+		m_ObjectiveTransitionStart = time_get();
 		m_ObjectiveNoticeUntil = time_get() + time_freq() * 4;
 	}
 
@@ -447,7 +480,10 @@ void CHud::RenderObjective()
 	const float MaxCardWidth = min(112.0f, m_Width * 0.24f);
 	const float CardWidth = clamp(NaturalTextWidth + 18.0f, 72.0f, MaxCardWidth);
 	const float CardHeight = aProgress[0] ? 35.0f : 27.0f;
-	const float CardRight = m_Width - 6.0f;
+	const float ObjectiveAge = m_ObjectiveTransitionStart ? (float)((time_get() - m_ObjectiveTransitionStart) / (double)time_freq()) : 1.0f;
+	const float ObjectiveIn = clamp(ObjectiveAge / 0.22f, 0.0f, 1.0f);
+	const float ObjectiveEased = 1.0f - (1.0f - ObjectiveIn) * (1.0f - ObjectiveIn) * (1.0f - ObjectiveIn);
+	const float CardRight = m_Width - 6.0f + (1.0f - ObjectiveEased) * 10.0f;
 	CUIRect Shadow = {CardRight - CardWidth + 1.2f, 83.2f, CardWidth, CardHeight};
 	CUIRect Card = {CardRight - CardWidth, 82.0f, CardWidth, CardHeight};
 	const vec4 Panel = CMenus::ThemeBgPanel();
@@ -485,7 +521,7 @@ void CHud::RenderObjective()
 
 void CHud::RenderScoreHud()
 {
-	if(!g_Config.m_ClShowhudScore || m_pClient->m_pScoreboard->Active() || m_pClient->m_pVoting->IsVoting()) return;
+	if(!g_Config.m_ClShowhudScore || m_pClient->m_pScoreboard->Active() || m_pClient->m_pVoting->IsVoting() || m_pClient->m_pInventory->IsVisible()) return;
 	// render small score hud
 	if(!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
 	{
@@ -695,7 +731,7 @@ void CHud::RenderStartCountdown()
 
 void CHud::RenderReadyUpNotification()
 {
-	if(!ReadyNoticeActive())
+	if(m_aStatusAppear[STATUS_STACK_READY] <= 0.01f)
 		return;
 
 	const char *pKey = m_pClient->m_pBinds->GetKey("ready_change");
@@ -705,7 +741,7 @@ void CHud::RenderReadyUpNotification()
 	else
 		str_copy(aText, Localize("Bind Ready in Settings"), sizeof(aText));
 
-	RenderStatusNotice(aText, StatusStackY(STATUS_STACK_READY), CMenus::ThemeAccent());
+	RenderStatusNotice(aText, StatusStackY(STATUS_STACK_READY), CMenus::ThemeAccent(), m_aStatusAppear[STATUS_STACK_READY]);
 }
 
 void CHud::MapscreenToGroup(float CenterX, float CenterY, CMapItemGroup *pGroup)
@@ -718,6 +754,8 @@ void CHud::MapscreenToGroup(float CenterX, float CenterY, CMapItemGroup *pGroup)
 
 void CHud::RenderFps()
 {
+	if(m_pClient->m_pInventory->IsVisible())
+		return;
 	if(g_Config.m_ClShowfps)
 	{
 		// calculate avg. fps
@@ -731,10 +769,10 @@ void CHud::RenderFps()
 
 void CHud::RenderConnectionWarning()
 {
-	if(ConnectionNoticeActive())
+	if(m_aStatusAppear[STATUS_STACK_CONNECTION] > 0.01f)
 	{
 		const char *pText = Localize("Connection Problems...");
-		RenderStatusNotice(pText, StatusStackY(STATUS_STACK_CONNECTION), CMenus::ThemeDanger());
+		RenderStatusNotice(pText, StatusStackY(STATUS_STACK_CONNECTION), CMenus::ThemeDanger(), m_aStatusAppear[STATUS_STACK_CONNECTION]);
 	}
 }
 
@@ -1455,6 +1493,8 @@ float CHud::ScoreHudTop() const
 
 void CHud::RenderMovementInformation()
 {
+	if(m_pClient->m_pInventory->IsVisible())
+		return;
 	const bool ShowPos = g_Config.m_ClShowhudPlayerPosition != 0;
 	const bool ShowSpeed = g_Config.m_ClShowhudPlayerSpeed != 0;
 	const bool ShowAngle = g_Config.m_ClShowhudPlayerAngle != 0;
@@ -1570,6 +1610,7 @@ void CHud::OnRender()
 	m_Width = 300.0f*Graphics()->ScreenAspect();
 	m_Height = 300.0f;
 	Graphics()->MapScreen(0.0f, 0.0f, m_Width, m_Height);
+	UpdateAnimations();
 
 	if(g_Config.m_ClShowhud)
 	{
@@ -1585,7 +1626,7 @@ void CHud::OnRender()
 		RenderGameTimer();
 		RenderSuddenDeath();
 		RenderScoreHud();
-		if(!m_pClient->m_pScoreboard->Active())
+		if(!m_pClient->m_pScoreboard->Active() && !m_pClient->m_pInventory->IsVisible())
 			RenderObjective();
 		RenderStartCountdown();
 		RenderPauseNotification();

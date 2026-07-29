@@ -256,7 +256,7 @@ void CGameControllerCS::FindReactors()
 	
 	for (int i = 0; i < m_AreaCount; i++)
 	{
-		CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+		CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
 		pRadar->Activate(vec2((m_aArea[i].x+m_aArea[i].z)/2, (m_aArea[i].y+m_aArea[i].w)/2));
 	}
 }
@@ -294,7 +294,7 @@ void CGameControllerCS::Tick()
 	}
 	
 	if (!m_pBombRadar)
-		m_pBombRadar = new CRadar(&GameServer()->m_World, RADAR_BOMB);
+		m_pBombRadar = new CServerRadar(&GameServer()->m_World, RADAR_BOMB);
 	else
 		m_pBombRadar->Activate(GameServer()->m_pController->m_BombPos);
 	

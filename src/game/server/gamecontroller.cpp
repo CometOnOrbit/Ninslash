@@ -1,5 +1,6 @@
 #include <base/math.h>
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 #include <game/mapitems.h>
 
 #include <generated/protocol.h>
@@ -26,6 +27,7 @@
 #include "gamecontroller.h"
 #include "gamecontext.h"
 #include "pve_director.h"
+#include "tutorial_director.h"
 #include <game/questinfo.h>
 
 
@@ -41,7 +43,11 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_SuddenDeath = 0;
 	m_RoundStartTick = Server()->Tick();
 	m_RoundCount = 0;
+	m_Round = 0;
+	m_GameState = 0;
+	m_GameVote = 0;
 	m_GameVoteEndTick = 0;
+	m_PostRoundTransitionStarted = false;
 	m_GameFlags = 0;
 	m_aTeamscore[TEAM_RED] = 0;
 	m_aTeamscore[TEAM_BLUE] = 0;
@@ -52,6 +58,7 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_ForceBalanced = false;
 
 	m_RoundTimeLimit = 0;
+	m_TimeLimit = 0;
 	m_ResetTime = false;
 	
 	m_aNumSpawnPoints[0] = 0;
@@ -62,12 +69,14 @@ IGameController::IGameController(class CGameContext *pGameServer)
 	m_SurvivalStartTick = Server()->Tick();
 	m_SurvivalDeathTick = 0;
 	m_SurvivalResetTick = 0;
+	m_SurvivalDeathReset = false;
 	m_ClearBroadcastTick = 0;
 	m_RisingAcid = false;
 	m_RisingAcidStartTick = 0;
 	m_RisingAcidDuration = 0;
 	
 	m_BombStatus = 0;
+	m_BombPos = vec2(0, 0);
 	m_pBall = 0;
 	
 	GameServer()->Collision()->GenerateWaypoints();
@@ -1127,6 +1136,34 @@ void IGameController::EndRound()
 {
 	if(m_Warmup) // game can't end when we are running warmup
 		return;
+	if(m_GameOverTick != -1)
+		return;
+	if(!IsCoop())
+	{
+		int HumanCount = 0;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(GameServer()->m_apPlayers[i] && !GameServer()->m_apPlayers[i]->m_IsBot && GameServer()->m_apPlayers[i]->GetTeam() != TEAM_SPECTATORS) HumanCount++;
+		if(HumanCount >= 2 && IsTeamplay() && m_aTeamscore[TEAM_RED] != m_aTeamscore[TEAM_BLUE])
+		{
+			const int WinningTeam = m_aTeamscore[TEAM_RED] > m_aTeamscore[TEAM_BLUE] ? TEAM_RED : TEAM_BLUE;
+			for(int i = 0; i < MAX_CLIENTS; i++)
+				if(GameServer()->m_apPlayers[i] && !GameServer()->m_apPlayers[i]->m_IsBot && GameServer()->m_apPlayers[i]->GetTeam() == WinningTeam)
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_PVP_WIN);
+		}
+		else if(HumanCount >= 2 && !IsTeamplay())
+		{
+			int Winner = -1, TopScore = 0, TopScoreCount = 0;
+			for(int i = 0; i < MAX_CLIENTS; i++)
+			{
+				CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+				if(!pPlayer || pPlayer->m_IsBot || pPlayer->GetTeam() == TEAM_SPECTATORS) continue;
+				if(TopScoreCount == 0 || pPlayer->m_Score > TopScore) { Winner = i; TopScore = pPlayer->m_Score; TopScoreCount = 1; }
+				else if(pPlayer->m_Score == TopScore) TopScoreCount++;
+			}
+			if(Winner >= 0 && TopScoreCount == 1) Server()->SendPlatformEvent(Winner, PLATFORM_EVENT_FIRST_PVP_WIN);
+		}
+	}
+	Server()->DispatchModEvent(MOD_EVENT_ROUND_END);
 
 	GameServer()->m_World.m_Paused = true;
 	m_GameOverTick = Server()->Tick();
@@ -1137,6 +1174,7 @@ void IGameController::ResetGame()
 {
 	m_GameVote = 0;
 	m_GameVoteEndTick = 0;
+	m_PostRoundTransitionStarted = false;
 	GameServer()->m_World.m_ResetRequested = true;
 }
 
@@ -1202,6 +1240,7 @@ const char *IGameController::GetTeamMoveAllMessage(int Team)
 
 void IGameController::StartRound()
 {
+	Server()->DispatchModEvent(MOD_EVENT_ROUND_START);
 	ResetGame();
 
 	ClearRisingAcid();
@@ -1372,6 +1411,13 @@ void IGameController::OnPlayerInfoChange(class CPlayer *pP)
 
 int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
+	if(GameServer()->m_pTutorialDirector)
+	{
+		if(!pVictim->m_IsBot)
+			GameServer()->m_pTutorialDirector->OnDeath(pVictim->GetPlayer()->GetCID());
+		else if(pKiller && !pKiller->m_IsBot)
+			GameServer()->m_pTutorialDirector->OnGameplayProgress(pKiller->GetCID(), TUTORIAL_EVENT_KILL);
+	}
 	if (pVictim->m_IsBot && pVictim->GetPlayer()->m_pAI)
 		pVictim->GetPlayer()->m_pAI->OnCharacterDeath();
 	
@@ -1791,6 +1837,13 @@ void IGameController::ResetGameVotes()
 	m_GameVoteEndTick = 0;
 }
 
+void IGameController::BeginPostRoundTransition()
+{
+	m_GameVote = 1;
+	m_GameVoteEndTick = Server()->Tick() + Server()->TickSpeed() * 60;
+	SendGameVotes();
+}
+
 
 int IGameController::GetVoteTime()
 {
@@ -1843,11 +1896,10 @@ void IGameController::Tick()
 	if(m_GameOverTick != -1)
 	{
 		// game over.. wait for vote start
-		if(!m_GameVote && Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*3)
+		if(!m_PostRoundTransitionStarted && Server()->Tick() > m_GameOverTick+Server()->TickSpeed()*3)
 		{
-			m_GameVote = 1;
-			m_GameVoteEndTick = Server()->Tick() + Server()->TickSpeed()*60;
-			SendGameVotes();
+			m_PostRoundTransitionStarted = true;
+			BeginPostRoundTransition();
 		}
 		
 		// check votes
@@ -1899,6 +1951,7 @@ void IGameController::Tick()
 	{
 		m_GameVote = 0;
 		m_GameVoteEndTick = 0;
+		m_PostRoundTransitionStarted = false;
 	}
 	
 	// clear / interrupt broadcast

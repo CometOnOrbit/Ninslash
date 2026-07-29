@@ -14,6 +14,7 @@
 #include <engine/console.h>
 #include <engine/friends.h>
 #include <engine/masterserver.h>
+#include <engine/platform_services.h>
 
 #include <mastersrv/mastersrv.h>
 
@@ -158,6 +159,7 @@ void CServerBrowser::Filter()
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "DEF") != 0 &&
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "INF") != 0 &&
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "INV") != 0 &&
+			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "TUT") != 0 &&
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "GUN") != 0 &&
 			str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "CTF") != 0))
 		{
@@ -349,8 +351,23 @@ void CServerBrowser::QueueRequest(CServerEntry *pEntry)
 void CServerBrowser::SetInfo(CServerEntry *pEntry, const CServerInfo &Info)
 {
 	int Fav = pEntry->m_Info.m_Favorite;
+	const int DiscoverySources = pEntry->m_Info.m_DiscoverySources;
+	const bool Official = pEntry->m_Info.m_Official;
+	const bool Modded = pEntry->m_Info.m_Modded;
+	const bool HasPlatformMetadata = pEntry->m_Info.m_HasPlatformMetadata;
+	const int AuthPolicy = pEntry->m_Info.m_AuthPolicy;
+	const unsigned long long SteamServerID = pEntry->m_Info.m_SteamServerID;
 	pEntry->m_Info = Info;
 	pEntry->m_Info.m_Favorite = Fav;
+	pEntry->m_Info.m_DiscoverySources = DiscoverySources;
+	if(!pEntry->m_Info.m_HasPlatformMetadata)
+	{
+		pEntry->m_Info.m_Official = Official;
+		pEntry->m_Info.m_Modded = Modded;
+		pEntry->m_Info.m_HasPlatformMetadata = HasPlatformMetadata;
+		pEntry->m_Info.m_AuthPolicy = AuthPolicy;
+	}
+	pEntry->m_Info.m_SteamServerID = SteamServerID;
 	pEntry->m_Info.m_NetAddr = pEntry->m_Addr;
 
 	// all these are just for nice compability
@@ -431,9 +448,13 @@ void CServerBrowser::Set(const NETADDR &Addr, int Type, int Token, const CServer
 		if(m_ServerlistType != IServerBrowser::TYPE_INTERNET)
 			return;
 
-		if(!Find(Addr))
+		pEntry = Find(Addr);
+		if(pEntry)
+			pEntry->m_Info.m_DiscoverySources |= IServerBrowser::DISCOVERY_MASTER;
+		else
 		{
 			pEntry = Add(Addr);
+			pEntry->m_Info.m_DiscoverySources = IServerBrowser::DISCOVERY_MASTER;
 			QueueRequest(pEntry);
 		}
 	}
@@ -470,6 +491,27 @@ void CServerBrowser::Set(const NETADDR &Addr, int Type, int Token, const CServer
 	Sort();
 }
 
+void CServerBrowser::AddDiscoveredServer(const NETADDR &Addr, int DiscoverySource, bool Official, bool Modded, int AuthPolicy, unsigned long long SteamServerID)
+{
+	if(m_ServerlistType != IServerBrowser::TYPE_INTERNET || DiscoverySource == 0) return;
+	CServerEntry *pEntry = Find(Addr);
+	if(!pEntry)
+	{
+		pEntry = Add(Addr);
+		QueueRequest(pEntry);
+	}
+	pEntry->m_Info.m_DiscoverySources |= DiscoverySource;
+	if(DiscoverySource & IServerBrowser::DISCOVERY_STEAM)
+	{
+		pEntry->m_Info.m_Official = Official;
+		pEntry->m_Info.m_Modded = Modded;
+		pEntry->m_Info.m_HasPlatformMetadata = true;
+		pEntry->m_Info.m_AuthPolicy = AuthPolicy;
+		pEntry->m_Info.m_SteamServerID = SteamServerID;
+	}
+	Sort();
+}
+
 void CServerBrowser::Refresh(int Type)
 {
 	// clear out everything
@@ -486,6 +528,11 @@ void CServerBrowser::Refresh(int Type)
 
 	//
 	m_ServerlistType = Type;
+	if(Type == IServerBrowser::TYPE_INTERNET)
+	{
+		IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+		if(pPlatform) pPlatform->RefreshDedicatedServerList();
+	}
 
 	if(Type == IServerBrowser::TYPE_LAN)
 	{

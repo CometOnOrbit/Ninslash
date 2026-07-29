@@ -108,8 +108,17 @@ void CNetBase::SendPacketConnless(NETSOCKET Socket, NETADDR *pAddr, const void *
 void CNetBase::SendPacket(NETSOCKET Socket, NETADDR *pAddr, CNetPacketConstruct *pPacket)
 {
 	unsigned char aBuffer[NET_MAX_PACKETSIZE];
+	int FinalSize = PackPacket(pPacket, aBuffer, sizeof(aBuffer));
+	if(FinalSize > 0)
+		net_udp_send(Socket, pAddr, aBuffer, FinalSize);
+}
+
+int CNetBase::PackPacket(CNetPacketConstruct *pPacket, unsigned char *aBuffer, int BufferSize)
+{
 	int CompressedSize = -1;
 	int FinalSize = -1;
+	if(!pPacket || !aBuffer || BufferSize < NET_PACKETHEADERSIZE || pPacket->m_DataSize < 0 || pPacket->m_DataSize > NET_MAX_PAYLOAD)
+		return -1;
 
 	// log the data
 	if(ms_DataLogSent)
@@ -122,7 +131,7 @@ void CNetBase::SendPacket(NETSOCKET Socket, NETADDR *pAddr, CNetPacketConstruct 
 	}
 
 	// compress
-	CompressedSize = ms_Huffman.Compress(pPacket->m_aChunkData, pPacket->m_DataSize, &aBuffer[3], NET_MAX_PACKETSIZE-4);
+	CompressedSize = ms_Huffman.Compress(pPacket->m_aChunkData, pPacket->m_DataSize, &aBuffer[3], BufferSize-4);
 
 	// check if the compression was enabled, successful and good enough
 	if(CompressedSize > 0 && CompressedSize < pPacket->m_DataSize)
@@ -145,8 +154,6 @@ void CNetBase::SendPacket(NETSOCKET Socket, NETADDR *pAddr, CNetPacketConstruct 
 		aBuffer[0] = ((pPacket->m_Flags<<4)&0xf0)|((pPacket->m_Ack>>8)&0xf);
 		aBuffer[1] = pPacket->m_Ack&0xff;
 		aBuffer[2] = pPacket->m_NumChunks;
-		net_udp_send(Socket, pAddr, aBuffer, FinalSize);
-
 		// log raw socket data
 		if(ms_DataLogSent)
 		{
@@ -157,6 +164,22 @@ void CNetBase::SendPacket(NETSOCKET Socket, NETADDR *pAddr, CNetPacketConstruct 
 			io_flush(ms_DataLogSent);
 		}
 	}
+	return FinalSize;
+}
+
+int CNetBase::PackControl(int Ack, int ControlMsg, const void *pExtra, int ExtraSize, unsigned char *pBuffer, int BufferSize)
+{
+	if(ExtraSize < 0 || ExtraSize + 1 > NET_MAX_PAYLOAD)
+		return -1;
+	CNetPacketConstruct Construct;
+	mem_zero(&Construct, sizeof(Construct));
+	Construct.m_Flags = NET_PACKETFLAG_CONTROL;
+	Construct.m_Ack = Ack;
+	Construct.m_DataSize = 1 + ExtraSize;
+	Construct.m_aChunkData[0] = ControlMsg;
+	if(pExtra && ExtraSize > 0)
+		mem_copy(&Construct.m_aChunkData[1], pExtra, ExtraSize);
+	return PackPacket(&Construct, pBuffer, BufferSize);
 }
 
 int CNetBase::UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct *pPacket)

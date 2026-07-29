@@ -19,12 +19,11 @@ freely, subject to the following restrictions:
 
 ------------------------------------------------------------------------
 
-Licenses for content under 'data' varies; some is freely licensed under
-the CC-BY-SA 3.0 license [1], some is nonfree. Until license documentation
-for this project improves, it is recommended to look for the same file in
-the original Teeworlds source code [2], which will have better
-documentation. Any original art made for Ninslash is licensed freely under
-the CC-BY-SA 3.0 license [1].
+Unless a file contains a more specific third-party license notice, content
+under 'data' is Ninslash content licensed under the CC-BY-SA 3.0 license [1].
+File-specific third-party license notices take precedence over this default.
+Original Teeworlds files may also be compared with the upstream source [2]
+for attribution history.
 
 [1]: https://creativecommons.org/licenses/by-sa/3.0/
 [2]: https://github.com/teeworlds/teeworlds

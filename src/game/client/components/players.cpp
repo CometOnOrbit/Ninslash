@@ -517,46 +517,41 @@ void CPlayers::RenderPlayer(
 		{
 			pCustomPlayerInfo->m_MeleeTick = Player.m_AttackTick;
 			
-			bool Flip = false;
-			
 			float Charge = Player.m_WeaponSpec.m_Level / float(max(1, int(WeaponDefinition.m_MaxLevel)));
-			
+			bool Flip = false;
+
 			if (pCustomPlayerInfo->m_MeleeState == MELEE_UP)
 			{
 				if (Direction.x < 0.0f)
 					Flip = !Flip;
-				
+
 				pCustomPlayerInfo->m_MeleeAnimState = 1.0f;
 				pCustomPlayerInfo->m_MeleeState = MELEE_DOWN;
-				
+
 				if (!WeaponIsStatic || (WeaponStaticType != SW_TOOL && WeaponStaticType != SW_CLAW))
 					m_pClient->m_pEffects->SwordHit(Position+vec2(0, -24)+Direction*60, GetAngle(Direction), Flip, Charge);
-				
+
 				if (WeaponIsStatic && WeaponStaticType == SW_CLAW)
 					m_pClient->m_pEffects->ClawHit(Position+vec2(0, -24)+Direction*50, GetAngle(Direction), Flip, Charge);
-				
-				pCustomPlayerInfo->m_WeaponRecoil += Direction * 15;
-				m_pClient->AddFluidForce(Position+vec2(0, -24)+Direction*80, vec2(frandom()-frandom(), frandom()-frandom())*30);
-				m_pClient->AddFluidForce(Position+vec2(0, -24)+Direction*95, vec2(frandom()-frandom(), frandom()-frandom())*30);
 			}
 			else
 			{
 				if (Direction.x < 0.0f)
 					Flip = !Flip;
-				
+
 				pCustomPlayerInfo->m_MeleeAnimState = 1.0f;
 				pCustomPlayerInfo->m_MeleeState = MELEE_UP;
-				
+
 				if (!WeaponIsStatic || (WeaponStaticType != SW_TOOL && WeaponStaticType != SW_CLAW))
 					m_pClient->m_pEffects->SwordHit(Position+vec2(0, -24)+Direction*60, GetAngle(Direction), !Flip, Charge);
-				
+
 				if (WeaponIsStatic && WeaponStaticType == SW_CLAW)
 					m_pClient->m_pEffects->ClawHit(Position+vec2(0, -24)+Direction*50, GetAngle(Direction), !Flip, Charge);
-				
-				pCustomPlayerInfo->m_WeaponRecoil += Direction * 15;
-				m_pClient->AddFluidForce(Position+vec2(0, -24)+Direction*80, vec2(frandom()-frandom(), frandom()-frandom())*30);
-				m_pClient->AddFluidForce(Position+vec2(0, -24)+Direction*95, vec2(frandom()-frandom(), frandom()-frandom())*30);
 			}
+
+			pCustomPlayerInfo->m_WeaponRecoil += Direction * 15;
+			m_pClient->AddFluidForce(Position+vec2(0, -24)+Direction*80, vec2(frandom()-frandom(), frandom()-frandom())*30);
+			m_pClient->AddFluidForce(Position+vec2(0, -24)+Direction*95, vec2(frandom()-frandom(), frandom()-frandom())*30);
 			
 			// impact to particles
 			vec2 p = Position+vec2(0, -24)+Direction*70;
@@ -575,28 +570,6 @@ void CPlayers::RenderPlayer(
 			pCustomPlayerInfo->FireMelee();
 		}
 	}
-	
-	/*
-	else if (Player.m_Weapon == WEAPON_TOOL)
-	{
-		// melee attack effect
-		if (pCustomPlayerInfo->m_MeleeTick < Player.m_AttackTick && !Paused)
-		{
-			pCustomPlayerInfo->m_MeleeTick = Player.m_AttackTick;
-			pCustomPlayerInfo->m_ToolAngleOffset = 45.0f;
-			pCustomPlayerInfo->m_WeaponRecoil += Direction * 15;
-		}
-	}
-	else if (Player.m_Weapon == WEAPON_SCYTHE)
-	{
-		// melee attack effect
-		if (pCustomPlayerInfo->m_MeleeTick < Player.m_AttackTick && !Paused)
-		{
-			pCustomPlayerInfo->m_MeleeTick = Player.m_AttackTick;
-			pCustomPlayerInfo->FireMelee();
-		}
-	}
-	*/
 	else
 	{
 		pCustomPlayerInfo->m_MeleeTick = Player.m_AttackTick;

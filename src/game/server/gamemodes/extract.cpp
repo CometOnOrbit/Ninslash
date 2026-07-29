@@ -1,4 +1,5 @@
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 
 #include <game/questinfo.h>
 #include <game/mapitems.h>
@@ -53,7 +54,7 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	m_DoorChoiceStarted = false;
 	m_EliteContractSpawned = false;
 	m_pMidBoss = 0;
-	m_pDoor = new CRadar(&GameServer()->m_World, RADAR_DOOR);
+	m_pDoor = new CServerRadar(&GameServer()->m_World, RADAR_DOOR);
 
 	g_Config.m_SvOneHitKill = 0;
 	g_Config.m_SvWarmup = 0;
@@ -372,6 +373,13 @@ void CGameControllerExtract::NextLevel(int CID)
 			GameServer()->m_pPveDirector->RewardResearch(2, PVE_REWARD_EXTRACTION);
 		}
 		GameServer()->SendBroadcast("Extraction complete!", -1);
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(GameServer()->m_apPlayers[i] && !GameServer()->m_apPlayers[i]->m_IsBot)
+			{
+				Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_EXTRACTION);
+				Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_COOP_COMPLETE);
+				Server()->SendPlatformEvent(i, PLATFORM_EVENT_STAT_COOP_COMPLETIONS, 1);
+			}
 		// no sv_mapgen_level++
 	}
 }
@@ -435,7 +443,7 @@ void CGameControllerExtract::Tick()
 						Pos = vec2(4000.0f + Extra * 96.0f, 4000.0f);
 					new CBuilding(&GameServer()->m_World, Pos, BUILDING_SWITCH, TEAM_NEUTRAL);
 					m_AvailableSwitches++;
-					CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+					CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
 					pRadar->Activate(Pos);
 				}
 			// Use the authoritative number actually placed on this generated map.

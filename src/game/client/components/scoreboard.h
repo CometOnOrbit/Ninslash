@@ -19,6 +19,8 @@ class CScoreboard : public CComponent
 
 	bool m_Active;
 	bool m_DebugActive;
+	float m_AppearAmount;
+	int64 m_LastAnimationTime;
 	CUIRect m_TotalRect;
 
 public:

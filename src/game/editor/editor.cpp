@@ -5,6 +5,8 @@
 
 #include <engine/shared/datafile.h>
 #include <engine/shared/config.h>
+#include <engine/shared/content_publish.h>
+#include <engine/platform_services.h>
 #include <engine/client.h>
 #include <engine/console.h>
 #include <engine/graphics.h>
@@ -19,6 +21,7 @@
 #include <game/client/render.h>
 #include <game/client/ui.h>
 #include <generated/game_data.h>
+#include <game/version.h>
 
 #include "auto_map.h"
 #include "editor.h"
@@ -33,6 +36,39 @@ enum
 {
 	BUTTON_CONTEXT=1,
 };
+
+static bool WorkshopMapNameFromPath(const char *pPath, char *pName, int NameSize)
+{
+	if(!pPath || !pName || NameSize <= 0)
+		return false;
+	const char *pBase = pPath;
+	for(const char *p = pPath; *p; p++)
+		if(*p == '/' || *p == '\\')
+			pBase = p + 1;
+	str_copy(pName, pBase, NameSize);
+	const int Length = str_length(pName);
+	if(Length >= 4 && !str_comp_nocase(pName + Length - 4, ".map"))
+		pName[Length - 4] = 0;
+	if(!pName[0])
+		return false;
+	for(int i = 0; pName[i]; i++)
+		if((unsigned char)pName[i] < 32 || pName[i] == '"' || pName[i] == '\\')
+			return false;
+	return true;
+}
+
+struct CEditorWorkshopPublishState
+{
+	bool m_Active;
+	bool m_CreationRequested;
+	bool m_Submitted;
+	bool m_RestoreGui;
+	unsigned m_ScreenshotRequest;
+	char m_aPreview[1024];
+	char m_aSourceMap[512];
+	char m_aName[128];
+};
+static CEditorWorkshopPublishState gs_EditorWorkshopPublish;
 
 CEditorImage::~CEditorImage()
 {
@@ -3100,23 +3136,27 @@ void CEditor::RenderFileDialog()
 		}
 		else // file
 		{
-			str_format(m_aFileSaveName, sizeof(m_aFileSaveName), "%s/%s", m_pFileDialogPath, m_aFileDialogFileName);
-			if(!str_comp(m_pFileDialogButtonText, "Save"))
-			{
-				IOHANDLE File = Storage()->OpenFile(m_aFileSaveName, IOFLAG_READ, IStorage::TYPE_SAVE);
-				if(File)
-				{
-					io_close(File);
-					m_PopupEventType = POPEVENT_SAVE;
-					m_PopupEventActivated = true;
-				}
-				else
-					if(m_pfnFileDialogFunc)
-						m_pfnFileDialogFunc(m_aFileSaveName, m_FilesSelectedIndex >= 0 ? m_FileList[m_FilesSelectedIndex].m_StorageType : m_FileDialogStorageType, m_pFileDialogUser);
-			}
+			const bool Saving = !str_comp(m_pFileDialogButtonText, "Save");
+			if(Saving && (!m_aFileDialogFileName[0] || !str_comp_nocase(m_aFileDialogFileName, ".map")))
+				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "editor", "Enter a non-empty map filename before saving");
 			else
-				if(m_pfnFileDialogFunc)
+			{
+				str_format(m_aFileSaveName, sizeof(m_aFileSaveName), "%s/%s", m_pFileDialogPath, m_aFileDialogFileName);
+				if(Saving)
+				{
+					IOHANDLE File = Storage()->OpenFile(m_aFileSaveName, IOFLAG_READ, IStorage::TYPE_SAVE);
+					if(File)
+					{
+						io_close(File);
+						m_PopupEventType = POPEVENT_SAVE;
+						m_PopupEventActivated = true;
+					}
+					else if(m_pfnFileDialogFunc)
+						m_pfnFileDialogFunc(m_aFileSaveName, m_FilesSelectedIndex >= 0 ? m_FileList[m_FilesSelectedIndex].m_StorageType : m_FileDialogStorageType, m_pFileDialogUser);
+				}
+				else if(m_pfnFileDialogFunc)
 					m_pfnFileDialogFunc(m_aFileSaveName, m_FilesSelectedIndex >= 0 ? m_FileList[m_FilesSelectedIndex].m_StorageType : m_FileDialogStorageType, m_pFileDialogUser);
+			}
 		}
 	}
 
@@ -3668,6 +3708,7 @@ int CEditor::PopupMenuFile(CEditor *pEditor, CUIRect View)
 	static int s_NewMapButton = 0;
 	static int s_SaveButton = 0;
 	static int s_SaveAsButton = 0;
+	static int s_PublishButton = 0;
 	static int s_OpenButton = 0;
 	static int s_AppendButton = 0;
 	static int s_ExitButton = 0;
@@ -3737,6 +3778,46 @@ int CEditor::PopupMenuFile(CEditor *pEditor, CUIRect View)
 
 	View.HSplitTop(10.0f, &Slot, &View);
 	View.HSplitTop(12.0f, &Slot, &View);
+	if(pEditor->DoButton_MenuItem(&s_PublishButton, "Publish to Workshop", 0, &Slot, 0, "Validates the saved map, creates a preview and publishes a Steam Workshop item"))
+	{
+		IPlatformServices *pPlatform = pEditor->Kernel()->RequestInterface<IPlatformServices>();
+		char aPublishName[128];
+		const bool ValidPublishName = WorkshopMapNameFromPath(pEditor->m_aFileName, aPublishName, sizeof(aPublishName));
+		if(!pEditor->m_aFileName[0] || !pEditor->m_ValidSaveFilename || pEditor->HasUnsavedData())
+			pEditor->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "editor", "Save the map before publishing to Workshop");
+		else if(!ValidPublishName)
+			pEditor->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "editor", "Save the map with a non-empty filename that does not contain quotes or control characters before publishing");
+		else if(!pPlatform || !pPlatform->Available())
+			pEditor->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "editor", "Steam Workshop is unavailable; launch the game through Steam and verify that Steam initialized successfully");
+		else if(gs_EditorWorkshopPublish.m_Active)
+			pEditor->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "editor", "A Workshop publication is already active in the editor");
+		else
+		{
+			CPlatformWorkshopPublishStatus Status;
+			mem_zero(&Status, sizeof(Status));
+			pPlatform->WorkshopPublishStatus(&Status);
+			if(Status.m_Active)
+			{
+				char aBuf[384];
+				str_format(aBuf, sizeof(aBuf), "Another Workshop operation is active: %s", Status.m_aStatus[0] ? Status.m_aStatus : "waiting for Steam");
+				pEditor->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "editor", aBuf);
+			}
+			else
+			{
+				mem_zero(&gs_EditorWorkshopPublish, sizeof(gs_EditorWorkshopPublish));
+				gs_EditorWorkshopPublish.m_Active = true;
+				gs_EditorWorkshopPublish.m_RestoreGui = pEditor->m_GuiActive;
+				str_copy(gs_EditorWorkshopPublish.m_aSourceMap, pEditor->m_aFileName, sizeof(gs_EditorWorkshopPublish.m_aSourceMap));
+				str_copy(gs_EditorWorkshopPublish.m_aName, aPublishName, sizeof(gs_EditorWorkshopPublish.m_aName));
+				pEditor->m_GuiActive = false;
+				pEditor->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "editor", "Preparing Workshop preview");
+			}
+		}
+		return 1;
+	}
+
+	View.HSplitTop(10.0f, &Slot, &View);
+	View.HSplitTop(12.0f, &Slot, &View);
 	if(pEditor->DoButton_MenuItem(&s_ExitButton, "Exit", 0, &Slot, 0, "Exits from the editor"))
 	{
 		if(pEditor->HasUnsavedData())
@@ -3758,7 +3839,7 @@ void CEditor::RenderMenubar(CUIRect MenuBar)
 
 	MenuBar.VSplitLeft(60.0f, &s_File, &MenuBar);
 	if(DoButton_Menu(&s_File, "File", 0, &s_File, 0, 0))
-		UiInvokePopupMenu(&s_File, 1, s_File.x, s_File.y+s_File.h-1.0f, 120, 150, PopupMenuFile, this);
+		UiInvokePopupMenu(&s_File, 1, s_File.x, s_File.y+s_File.h-1.0f, 150, 180, PopupMenuFile, this);
 
 	/*
 	menubar.VSplitLeft(5.0f, 0, &menubar);
@@ -3785,6 +3866,96 @@ void CEditor::RenderMenubar(CUIRect MenuBar)
 
 void CEditor::Render()
 {
+	if(gs_EditorWorkshopPublish.m_Active)
+	{
+		auto FinishWorkshopPublish = [this](const char *pMessage) {
+			if(pMessage && pMessage[0])
+				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "editor", pMessage);
+			if(gs_EditorWorkshopPublish.m_RestoreGui)
+				m_GuiActive = true;
+			mem_zero(&gs_EditorWorkshopPublish, sizeof(gs_EditorWorkshopPublish));
+		};
+
+		IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+		if(!pPlatform || !pPlatform->Available())
+			FinishWorkshopPublish("Steam became unavailable; Workshop publication was cancelled");
+
+		if(gs_EditorWorkshopPublish.m_Active && !gs_EditorWorkshopPublish.m_ScreenshotRequest)
+		{
+			gs_EditorWorkshopPublish.m_ScreenshotRequest = Graphics()->TakeScreenshot("editor_workshop_preview");
+			if(!gs_EditorWorkshopPublish.m_ScreenshotRequest)
+				FinishWorkshopPublish("Unable to queue the Workshop preview screenshot");
+		}
+
+		if(gs_EditorWorkshopPublish.m_Active && !gs_EditorWorkshopPublish.m_aPreview[0])
+		{
+			IGraphics::CScreenshotResult Screenshot;
+			if(Graphics()->ConsumeScreenshotResult(&Screenshot, gs_EditorWorkshopPublish.m_ScreenshotRequest))
+			{
+				if(!Screenshot.m_Success)
+					FinishWorkshopPublish("Unable to save the Workshop preview screenshot");
+				else
+				{
+					str_copy(gs_EditorWorkshopPublish.m_aPreview, Screenshot.m_aAbsolutePath, sizeof(gs_EditorWorkshopPublish.m_aPreview));
+					if(gs_EditorWorkshopPublish.m_RestoreGui)
+						m_GuiActive = true;
+				}
+			}
+		}
+
+		if(gs_EditorWorkshopPublish.m_Active && gs_EditorWorkshopPublish.m_aPreview[0] && !gs_EditorWorkshopPublish.m_CreationRequested)
+		{
+			if(pPlatform->CreateWorkshopItem())
+			{
+				gs_EditorWorkshopPublish.m_CreationRequested = true;
+				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "editor", "Creating Steam Workshop item");
+			}
+			else
+			{
+				CPlatformWorkshopPublishStatus Status;
+				mem_zero(&Status, sizeof(Status));
+				pPlatform->WorkshopPublishStatus(&Status);
+				FinishWorkshopPublish(Status.m_aStatus[0] ? Status.m_aStatus : "Steam rejected Workshop item creation");
+			}
+		}
+
+		if(gs_EditorWorkshopPublish.m_Active && gs_EditorWorkshopPublish.m_CreationRequested)
+		{
+			CPlatformWorkshopPublishStatus Status;
+			mem_zero(&Status, sizeof(Status));
+			pPlatform->WorkshopPublishStatus(&Status);
+			if(!gs_EditorWorkshopPublish.m_Submitted && !Status.m_Active)
+			{
+				if(!Status.m_PublishedFileID)
+					FinishWorkshopPublish(Status.m_aStatus[0] ? Status.m_aStatus : "Steam failed to create the Workshop item");
+				else
+				{
+					char aSource[1024], aPublishParent[1024], aPackage[1200], aID[32], aError[256], aName[128], aAuthor[64];
+					aError[0] = 0;
+					Storage()->GetCompletePath(IStorage::TYPE_SAVE, gs_EditorWorkshopPublish.m_aSourceMap, aSource, sizeof(aSource));
+					Storage()->GetCompletePath(IStorage::TYPE_SAVE, "workshop_publish", aPublishParent, sizeof(aPublishParent));
+					fs_makedir(aPublishParent);
+					str_format(aID, sizeof(aID), "%llu", Status.m_PublishedFileID);
+					str_format(aPackage, sizeof(aPackage), "%s/%s", aPublishParent, aID);
+					str_copy(aName, gs_EditorWorkshopPublish.m_aName, sizeof(aName));
+					str_format(aAuthor, sizeof(aAuthor), "%llu", pPlatform->LocalUserID());
+					if(!ContentPublishPrepareMap(aSource, aPackage, aID, aName, "Map created with the Ninslash editor", aAuthor, "1", GAME_NETVERSION, "everyone", aError, sizeof(aError)))
+						FinishWorkshopPublish(aError[0] ? aError : "Unable to prepare the Workshop map package");
+					else if(!pPlatform->UpdateWorkshopItem(Status.m_PublishedFileID, aPackage, gs_EditorWorkshopPublish.m_aPreview))
+					{
+						CPlatformWorkshopPublishStatus UpdateStatus;
+						mem_zero(&UpdateStatus, sizeof(UpdateStatus));
+						pPlatform->WorkshopPublishStatus(&UpdateStatus);
+						FinishWorkshopPublish(UpdateStatus.m_aStatus[0] ? UpdateStatus.m_aStatus : "Steam rejected the Workshop map update");
+					}
+					else
+						gs_EditorWorkshopPublish.m_Submitted = true;
+				}
+			}
+			else if(gs_EditorWorkshopPublish.m_Submitted && !Status.m_Active)
+				FinishWorkshopPublish(Status.m_aStatus[0] ? Status.m_aStatus : "Workshop publication finished");
+		}
+	}
 	// basic start
 	Graphics()->Clear(1.0f, 0.0f, 1.0f);
 	CUIRect View = *UI()->Screen();
@@ -4127,7 +4298,11 @@ void CEditor::Init()
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
 	m_RenderTools.m_pGraphics = m_pGraphics;
 	m_RenderTools.m_pUI = &m_UI;
+	m_UI.SetRenderTools(&m_RenderTools);
 	m_UI.SetGraphics(m_pGraphics, m_pTextRender);
+	m_UI.SetClient(m_pClient);
+	m_UI.SetInput(m_pInput);
+	CLineInput::Init(m_pInput, m_pTextRender, m_pGraphics, m_pClient);
 	m_Map.m_pEditor = this;
 
 	ms_CheckerTexture = Graphics()->LoadTexture("editor/checker.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, 0);
@@ -4237,6 +4412,7 @@ void CEditor::UpdateAndRender()
 		m_ShowMousePointer = false;
 
 	Render();
+	CLineInput::RenderCandidates();
 
 	if(Input()->KeyDown(KEY_F10))
 	{

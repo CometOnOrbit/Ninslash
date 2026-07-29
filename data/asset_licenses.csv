@@ -1,0 +1,4 @@
+pattern,status,license,source,author,notes
+data/**,approved,CC-BY-SA 3.0,Ninslash project,Ninslash authors and contributors,Project owner confirms that bundled Ninslash assets use the Ninslash asset license; later file-specific third-party rules override this default.
+data/fonts/LICENSE,approved,Bitstream Vera and Arev font licenses,Repository license file,Bitstream Inc.; Tavmjong Bah,License text shipped with DejaVuSans.ttf.
+data/fonts/DejaVuSans.ttf,approved,Bitstream Vera and Arev font licenses,DejaVu Fonts,Bitstream Inc.; DejaVu contributors; Tavmjong Bah,Redistribution terms are recorded in data/fonts/LICENSE.

@@ -7,6 +7,7 @@
 #include <engine/storage.h>
 #include <engine/input.h>
 #include <engine/keys.h>
+#include <engine/platform_services.h>
 
 #include "input.h"
 
@@ -66,6 +67,9 @@ CInput::CInput()
 	m_GamepadAimY = 0;
 	m_GamepadOldAimX = 0;
 	m_GamepadOldAimY = 0;
+	mem_zero(m_aSteamInputPrevious, sizeof(m_aSteamInputPrevious));
+	m_GamepadActionSet = PLATFORM_INPUT_MENU;
+	m_TextInputActive = false;
 	
 	m_NumEvents = 0;
 
@@ -83,17 +87,20 @@ void CInput::Init()
 {
 	m_pGraphics = Kernel()->RequestInterface<IEngineGraphics>();
 	m_pGamepad = Kernel()->RequestInterface<IEngineGamepad>();
+	m_pPlatformServices = Kernel()->RequestInterface<IPlatformServices>();
 	StopTextInput();
 	ShowCursor(true);
 }
 
 void CInput::StartTextInput()
 {
+	m_TextInputActive = true;
 	SDL_StartTextInput(Window());
 }
 
 void CInput::StopTextInput()
 {
+	m_TextInputActive = false;
 	SDL_StopTextInput(Window());
 	m_CompositionLength = COMP_LENGTH_INACTIVE;
 	m_CompositionCursor = 0;
@@ -101,6 +108,72 @@ void CInput::StopTextInput()
 	m_CompositionSelectedLength = 0;
 	m_CandidateCount = 0;
 	m_CandidateSelectedIndex = -1;
+}
+
+void CInput::SetGamepadActionSet(int ActionSet)
+{
+	if(ActionSet >= PLATFORM_INPUT_GAME && ActionSet < NUM_PLATFORM_INPUT_ACTION_SETS)
+		m_GamepadActionSet = ActionSet;
+}
+
+void CInput::SetSteamVirtualKey(int Key, bool Down, bool *pPrevious)
+{
+	if(!pPrevious || *pPrevious == Down || Key < 0 || Key >= 1024)
+		return;
+	*pPrevious = Down;
+	const int Flags = Down ? IInput::FLAG_PRESS : IInput::FLAG_RELEASE;
+	if(Down)
+		m_aInputCount[m_InputCurrent][Key].m_Presses++;
+	else
+		m_aInputCount[m_InputCurrent][Key].m_Releases++;
+	m_aInputState[m_InputCurrent][Key] = Down ? 1 : 0;
+	AddEvent(0, Key, Flags);
+}
+
+void CInput::UpdateSteamInput()
+{
+	if(!m_pPlatformServices || !m_pPlatformServices->SteamInputActive())
+		return;
+	m_pPlatformServices->SetInputActionSet(m_TextInputActive ? PLATFORM_INPUT_CHAT : (EPlatformInputActionSet)m_GamepadActionSet);
+	CPlatformInputState State;
+	if(!m_pPlatformServices->ReadInputState(&State) || !State.m_Connected)
+		return;
+	m_UsingGamepad = true;
+	static const int s_aKeys[NUM_PLATFORM_INPUT_ACTIONS] = {
+		KEY_GAMEPAD_BUTTON_A, KEY_GAMEPAD_BUTTON_B, KEY_GAMEPAD_TRIGGER_RIGHT, KEY_GAMEPAD_TRIGGER_LEFT,
+		KEY_GAMEPAD_BUTTON_BACK, KEY_GAMEPAD_BUTTON_Y, KEY_GAMEPAD_BUTTON_B, KEY_GAMEPAD_BUTTON_A,
+		KEY_GAMEPAD_BUTTON_LEFTSTICK, KEY_GAMEPAD_BUTTON_RIGHTSTICK, KEY_GAMEPAD_SHOULDER_LEFT, KEY_GAMEPAD_SHOULDER_RIGHT,
+		KEY_GAMEPAD_BUTTON_DPAD_UP, KEY_GAMEPAD_BUTTON_DPAD_DOWN, KEY_GAMEPAD_BUTTON_DPAD_LEFT, KEY_GAMEPAD_BUTTON_DPAD_RIGHT,
+		KEY_GAMEPAD_BUTTON_A, KEY_GAMEPAD_BUTTON_RIGHTSTICK, KEY_GAMEPAD_TRIGGER_LEFT, KEY_GAMEPAD_BUTTON_X,
+		KEY_GAMEPAD_BUTTON_Y, KEY_GAMEPAD_BUTTON_LEFTSTICK, KEY_GAMEPAD_BUTTON_DPAD_LEFT, KEY_GAMEPAD_BUTTON_DPAD_UP,
+		KEY_GAMEPAD_BUTTON_DPAD_RIGHT, KEY_GAMEPAD_BUTTON_DPAD_DOWN, KEY_GAMEPAD_BUTTON_START, KEY_GAMEPAD_BUTTON_A,
+		KEY_GAMEPAD_BUTTON_B, KEY_GAMEPAD_BUTTON_X, KEY_GAMEPAD_BUTTON_START, KEY_GAMEPAD_BUTTON_A,
+		KEY_GAMEPAD_SHOULDER_LEFT, KEY_GAMEPAD_SHOULDER_RIGHT, KEY_GAMEPAD_TRIGGER_RIGHT, KEY_GAMEPAD_TRIGGER_LEFT};
+	const bool Left = State.m_MoveX < -0.35f;
+	const bool Right = State.m_MoveX > 0.35f;
+	const bool Up = State.m_MoveY < -0.35f;
+	const bool Down = State.m_MoveY > 0.35f;
+	for(int i = 0; i < NUM_PLATFORM_INPUT_ACTIONS; i++)
+	{
+		bool ActionDown = State.m_aActions[i];
+		if(i == PLATFORM_ACTION_LEFT) ActionDown = ActionDown || Left;
+		else if(i == PLATFORM_ACTION_RIGHT) ActionDown = ActionDown || Right;
+		else if(i == PLATFORM_ACTION_UP) ActionDown = ActionDown || Up;
+		else if(i == PLATFORM_ACTION_DOWN) ActionDown = ActionDown || Down;
+		SetSteamVirtualKey(s_aKeys[i], ActionDown, &m_aSteamInputPrevious[i]);
+	}
+	m_GamepadMove = Left ? -1 : (Right ? 1 : 0);
+	m_GamepadJump = Up;
+	m_GamepadDown = Down;
+	float AimX = State.m_AimX, AimY = State.m_AimY;
+	if(g_Config.m_ClSteamGyro)
+	{
+		const float Scale = g_Config.m_ClSteamGyroSensitivity / 200000.0f;
+		AimX += State.m_GyroX * Scale;
+		AimY += State.m_GyroY * Scale * (g_Config.m_ClSteamGyroInvert ? -1.0f : 1.0f);
+	}
+	m_GamepadAimX = (int)(clamp(AimX, -1.0f, 1.0f) * 32767.0f);
+	m_GamepadAimY = (int)(clamp(AimY, -1.0f, 1.0f) * 32767.0f);
 }
 
 void CInput::SetCompositionWindowPosition(float X, float Y, float H)
@@ -324,6 +397,7 @@ int CInput::Update()
 
 	m_MouseLeft = false;
 	m_MouseEntered = false;
+	UpdateSteamInput();
 
 	// these states must always be updated manually because they are not in the GetKeyState from SDL
 	int i = SDL_GetMouseState(NULL, NULL);

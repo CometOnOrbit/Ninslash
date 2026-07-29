@@ -1,4 +1,5 @@
 #include <engine/shared/config.h>
+#include <engine/platform_events.h>
 
 #include <game/mapitems.h>
 #include <game/questinfo.h>
@@ -15,6 +16,7 @@
 #include <game/server/gamecontext.h>
 #include <game/server/gameworld.h>
 #include <game/server/pve_director.h>
+#include <game/server/tutorial_director.h>
 
 #include "invasion.h"
 
@@ -177,11 +179,11 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_GameFlags |= GAMEFLAG_ACID;
 	
 	for (int i = 0; i < MAX_CLIENTS; i++)
-		new CRadar(&GameServer()->m_World, RADAR_HUMAN, i);
+		new CServerRadar(&GameServer()->m_World, RADAR_HUMAN, i);
 	
-	m_pDoor = new CRadar(&GameServer()->m_World, RADAR_DOOR);
-	m_pEnemySpawn = new CRadar(&GameServer()->m_World, RADAR_ENEMY);
-	m_pReactor = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+	m_pDoor = new CServerRadar(&GameServer()->m_World, RADAR_DOOR);
+	m_pEnemySpawn = new CServerRadar(&GameServer()->m_World, RADAR_ENEMY);
+	m_pReactor = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
 	m_NumSwitchRadars = 0;
 	for(int i = 0; i < 8; i++)
 		m_apSwitchRadar[i] = 0;
@@ -649,6 +651,13 @@ void CGameControllerInvasion::RegenerateMapFromTemplate()
 	GameServer()->ReloadMap();
 }
 
+void CGameControllerInvasion::BeginPostRoundTransition()
+{
+	// A cleared floor always continues the same expedition. The generic game
+	// vote would allow a successful run to switch modes between generated maps.
+	RegenerateMapFromTemplate();
+}
+
 
 void CGameControllerInvasion::RewardQuestGold()
 {
@@ -935,7 +944,7 @@ void CGameControllerInvasion::RefreshSwitchRadars()
 			continue;
 		if(m_NumSwitchRadars >= 8)
 			break;
-		CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+		CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
 		pRadar->Activate(pBuilding->m_Pos);
 		m_apSwitchRadar[m_NumSwitchRadars++] = pRadar;
 	}
@@ -993,7 +1002,7 @@ void CGameControllerInvasion::RefreshObjectiveTurretRadars()
 			continue;
 		if(RadarCount >= MAX_OBJECTIVE_TURRETS)
 			break;
-		CRadar *pRadar = new CRadar(&GameServer()->m_World, RADAR_REACTOR);
+		CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
 		pRadar->Activate(pBuilding->m_Pos);
 		m_apTurretRadar[RadarCount++] = pRadar;
 	}
@@ -1421,6 +1430,10 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 	m_QuestsCompleted++;
 	if(GameServer()->m_pPveDirector)
 		GameServer()->m_pPveDirector->OnObjectiveComplete();
+	if(GameServer()->m_pTutorialDirector)
+		for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+			if(GameServer()->m_apPlayers[ClientID] && !GameServer()->m_apPlayers[ClientID]->m_IsBot)
+				GameServer()->m_pTutorialDirector->OnGameplayProgress(ClientID, TUTORIAL_EVENT_OBJECTIVE);
 	m_ForcedWaveType = WAVE_NONE;
 }
 
@@ -2079,8 +2092,16 @@ void CGameControllerInvasion::Tick()
 					CPlayer *pPlayer = GameServer()->m_apPlayers[i];
 					if (!pPlayer || pPlayer->m_IsBot)
 						continue;
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_INVASION);
+					if(CompletedLevel >= 10) Server()->SendPlatformEvent(i, PLATFORM_EVENT_INVASION_10);
+					if(CompletedLevel >= 30) Server()->SendPlatformEvent(i, PLATFORM_EVENT_INVASION_30);
+					if(CompletedLevel >= 60) Server()->SendPlatformEvent(i, PLATFORM_EVENT_INVASION_60);
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_LB_INVASION_FLOOR, CompletedLevel);
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_COOP_COMPLETE);
+					Server()->SendPlatformEvent(i, PLATFORM_EVENT_STAT_COOP_COMPLETIONS, 1);
 					pPlayer->IncreaseGold(10 + CompletedLevel/3);
 				}
+				Server()->DispatchModEvent(MOD_EVENT_PVE_FLOOR_COMPLETE, -1, CompletedLevel);
 
 				// The next floor offers its perk after the new map and client state
 				// are ready, avoiding a selection crossing the map-load boundary.

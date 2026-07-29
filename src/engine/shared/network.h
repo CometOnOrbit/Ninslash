@@ -42,7 +42,7 @@ enum
 
 enum
 {
-	NET_VERSION = 2,
+	NET_VERSION = 3,
 
 	NET_MAX_PACKETSIZE = 1400,
 	NET_MAX_PAYLOAD = NET_MAX_PACKETSIZE-6,
@@ -126,6 +126,25 @@ public:
 	unsigned char m_aChunkData[NET_MAX_PAYLOAD];
 };
 
+/*
+ * Packet transport boundary. CNetConnection owns Ninslash packet sequencing,
+ * acknowledgement and retransmission; a transport only moves complete packet
+ * frames. Passing null preserves the legacy UDP path.
+ */
+class INetPacketTransport
+{
+public:
+	virtual ~INetPacketTransport() {}
+	virtual bool ConnectPeer(unsigned long long PeerID) = 0;
+	virtual bool Listen(int VirtualPort) = 0;
+	virtual void CloseListen() = 0;
+	virtual void ClosePeer() = 0;
+	virtual void Update() = 0;
+	virtual int RecvPacket(NETADDR *pAddr, void *pBuffer, int BufferSize) = 0;
+	virtual bool SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket) = 0;
+	virtual bool SendControl(const NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize) = 0;
+};
+
 
 class CNetConnection
 {
@@ -154,6 +173,7 @@ private:
 
 	NETADDR m_PeerAddr;
 	NETSOCKET m_Socket;
+	INetPacketTransport *m_pTransport;
 	NETSTATS m_Stats;
 
 	//
@@ -168,7 +188,7 @@ private:
 	void Resend();
 
 public:
-	void Init(NETSOCKET Socket, bool BlockCloseMsg);
+	void Init(NETSOCKET Socket, bool BlockCloseMsg, INetPacketTransport *pTransport = 0);
 	int Connect(NETADDR *pAddr);
 	void Disconnect(const char *pReason);
 
@@ -251,6 +271,7 @@ class CNetServer
 	};
 
 	NETSOCKET m_Socket;
+	INetPacketTransport *m_pTransport;
 	class CNetBan *m_pNetBan;
 	CSlot m_aSlots[NET_MAX_CLIENTS];
 	int m_MaxClients;
@@ -261,12 +282,14 @@ class CNetServer
 	void *m_UserPtr;
 
 	CNetRecvUnpacker m_RecvUnpacker;
+	void SendControl(const NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize);
 
 public:
 	int SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser);
 
 	//
 	bool Open(NETADDR BindAddr, class CNetBan *pNetBan, int MaxClients, int MaxClientsPerIP, int Flags);
+	bool OpenSteamRelay(INetPacketTransport *pTransport, int VirtualPort = 1);
 	int Close();
 
 	//
@@ -337,6 +360,7 @@ class CNetClient
 	CNetConnection m_Connection;
 	CNetRecvUnpacker m_RecvUnpacker;
 	NETSOCKET m_Socket;
+	INetPacketTransport *m_pTransport;
 public:
 	// openness
 	bool Open(NETADDR BindAddr, int Flags);
@@ -345,6 +369,7 @@ public:
 	// connection state
 	int Disconnect(const char *Reason);
 	int Connect(NETADDR *Addr);
+	int ConnectSteam(unsigned long long SteamID, INetPacketTransport *pTransport);
 
 	// communication
 	int Recv(CNetChunk *Chunk);
@@ -357,7 +382,7 @@ public:
 	int ResetErrorString();
 
 	// error and state
-	int NetType() const { return m_Socket.type; }
+	int NetType() const { return m_pTransport ? NETTYPE_STEAM : m_Socket.type; }
 	int State();
 	int GotProblems();
 	const char *ErrorString();
@@ -382,6 +407,8 @@ public:
 	static void SendPacketConnless(NETSOCKET Socket, NETADDR *pAddr, const void *pData, int DataSize);
 	static void SendPacket(NETSOCKET Socket, NETADDR *pAddr, CNetPacketConstruct *pPacket);
 	static int UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct *pPacket);
+	static int PackPacket(CNetPacketConstruct *pPacket, unsigned char *pBuffer, int BufferSize);
+	static int PackControl(int Ack, int ControlMsg, const void *pExtra, int ExtraSize, unsigned char *pBuffer, int BufferSize);
 
 	// The backroom is ack-NET_MAX_SEQUENCE/2. Used for knowing if we acked a packet or not
 	static int IsSeqInBackroom(int Seq, int Ack);

@@ -64,6 +64,7 @@ protected:
 			m_Got = false;
 			m_FriendlyTeam = -1;
 			m_Pos = vec2(100,100);
+			m_Score = 0.0f;
 			m_Used = false;
 		}
 
@@ -96,10 +97,12 @@ protected:
 	int m_Warmup;
 	int m_GameVote;
 	int m_GameVoteEndTick;
+	bool m_PostRoundTransitionStarted;
 	int m_RoundCount;
 	
 	void SendGameVotes();
 	void ResetGameVotes();
+	virtual void BeginPostRoundTransition();
 
 	int m_GameFlags;
 	int m_UnbalancedTick;

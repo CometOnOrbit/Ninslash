@@ -4,6 +4,7 @@
 
 class CInput : public IEngineInput
 {
+	class IPlatformServices *m_pPlatformServices;
 	IEngineGraphics *m_pGraphics;
 	IEngineGamepad *m_pGamepad;
 
@@ -28,8 +29,13 @@ class CInput : public IEngineInput
 	
 	int m_GamepadOldAimX;
 	int m_GamepadOldAimY;
+	bool m_aSteamInputPrevious[64];
+	int m_GamepadActionSet;
+	bool m_TextInputActive;
 
 	void ResetGamepad();
+	void UpdateSteamInput();
+	void SetSteamVirtualKey(int Key, bool Down, bool *pPrevious);
 	
 	SDL_Surface *m_pCursorSurface;
 	SDL_Cursor *m_pCursor;
@@ -64,6 +70,7 @@ public:
 	virtual bool MouseMoved();
 	virtual bool GamepadMoved();
 	virtual bool UsingGamepad(){ return m_UsingGamepad; }
+	virtual void SetGamepadActionSet(int ActionSet);
 	virtual int MouseDoubleClick();
 	virtual const char* GetClipboardText();
 	virtual void SetClipboardText(const char *Text);

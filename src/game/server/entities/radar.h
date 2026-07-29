@@ -3,7 +3,7 @@
 
 #include <game/server/entity.h>
 
-class CRadar : public CEntity
+class CServerRadar : public CEntity
 {
 	int m_Type;
 	int m_ObjectiveID;
@@ -12,7 +12,7 @@ class CRadar : public CEntity
 	int m_ActiveTick;
 	
 public:
-	CRadar(CGameWorld *pGameWorld, int Type, int ObjectiveID = 0);
+	CServerRadar(CGameWorld *pGameWorld, int Type, int ObjectiveID = 0);
 
 	void Activate(vec2 Pos) { m_Active = true; m_TargetPos = Pos;}
 	void Activate(vec2 Pos, int ActiveTick) { m_Active = true; m_TargetPos = Pos; m_ActiveTick = ActiveTick; }

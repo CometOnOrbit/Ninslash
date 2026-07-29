@@ -141,6 +141,8 @@ CVoting::CVoting()
 	m_aDescription[0] = 0;
 	m_aReason[0] = 0;
 	m_Yes = m_No = m_Pass = m_Total = 0;
+	m_DisplayedYes = m_DisplayedNo = m_DisplayedPass = m_DisplayedTotal = 0.0f;
+	m_LastAnimationTime = time_get();
 	m_Voted = 0;
 	m_DebugVoteActive = false;
 }
@@ -195,6 +197,8 @@ void CVoting::OnReset()
 	m_aDescription[0] = 0;
 	m_aReason[0] = 0;
 	m_Yes = m_No = m_Pass = m_Total = 0;
+	m_DisplayedYes = m_DisplayedNo = m_DisplayedPass = m_DisplayedTotal = 0.0f;
+	m_LastAnimationTime = time_get();
 	m_Voted = 0;
 	m_DebugVoteActive = false;
 }
@@ -309,6 +313,15 @@ void CVoting::OnRender()
 
 void CVoting::RenderBars(CUIRect Bars, bool Text)
 {
+	const int64 Now = time_get();
+	const float Dt = clamp((float)((Now - m_LastAnimationTime) / (double)time_freq()), 0.0f, 0.05f);
+	const float Blend = 1.0f - expf(-10.0f * Dt);
+	m_DisplayedYes += (m_Yes - m_DisplayedYes) * Blend;
+	m_DisplayedNo += (m_No - m_DisplayedNo) * Blend;
+	m_DisplayedPass += (m_Pass - m_DisplayedPass) * Blend;
+	m_DisplayedTotal += (m_Total - m_DisplayedTotal) * Blend;
+	m_LastAnimationTime = Now;
+
 	const vec4 Deep = CMenus::ThemeBgDeep();
 	const vec4 AccentDim = CMenus::ThemeAccentDim();
 	const vec4 Danger = CMenus::ThemeDanger();
@@ -316,11 +329,12 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 
 	if(m_Total)
 	{
+		const float DisplayedTotal = max(0.001f, m_DisplayedTotal);
 		CUIRect PassArea = Bars;
-		if(m_Yes)
+		if(m_DisplayedYes > 0.001f)
 		{
 			CUIRect YesArea = Bars;
-			YesArea.w *= m_Yes/(float)m_Total;
+			YesArea.w *= clamp(m_DisplayedYes / DisplayedTotal, 0.0f, 1.0f);
 			RenderTools()->DrawUIRect(&YesArea, vec4(0.25f, 0.78f, 0.43f, 0.92f), CUI::CORNER_ALL, Bars.h/2.0f);
 
 			if(Text)
@@ -334,10 +348,10 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 			PassArea.w -= YesArea.w;
 		}
 
-		if(m_No)
+		if(m_DisplayedNo > 0.001f)
 		{
 			CUIRect NoArea = Bars;
-			NoArea.w *= m_No/(float)m_Total;
+			NoArea.w *= clamp(m_DisplayedNo / DisplayedTotal, 0.0f, 1.0f);
 			NoArea.x = (Bars.x + Bars.w)-NoArea.w;
 			RenderTools()->DrawUIRect(&NoArea, vec4(Danger.r, Danger.g, Danger.b, 0.92f), CUI::CORNER_ALL, Bars.h/2.0f);
 
@@ -351,7 +365,7 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 			PassArea.w -= NoArea.w;
 		}
 
-		if(m_Pass && PassArea.w > 0.0f)
+		if(m_DisplayedPass > 0.001f && PassArea.w > 0.0f)
 		{
 			RenderTools()->DrawUIRect(&PassArea, vec4(AccentDim.r, AccentDim.g, AccentDim.b, 0.48f), CUI::CORNER_ALL, Bars.h/2.0f);
 			if(Text)

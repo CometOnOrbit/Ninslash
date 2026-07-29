@@ -101,6 +101,7 @@ class CPveDirector
 	};
 
 	CGameContext *m_pGameServer;
+	bool m_TutorialSandbox;
 	CPlayerRun m_aPlayers[MAX_CLIENTS];
 	int m_Mode;
 	int m_IntermissionState;
@@ -123,7 +124,7 @@ class CPveDirector
 	CDroid *m_pEliteContractBoss;
 	CDroid *m_apEliteContractGuards[8];
 	int m_NumEliteContractGuards;
-	class CRadar *m_pBlackBoxRadar;
+	class CServerRadar *m_pBlackBoxRadar;
 	vec2 m_BlackBoxPos;
 	int m_BlackBoxHoldTicks;
 	bool m_ApplyingSecondaryEffect;
@@ -177,12 +178,14 @@ class CPveDirector
 	bool InHordeDefenseArea(int ClientID) const;
 	void SendBuildState(int ClientID, bool Force = false);
 	void DestroyDrone(int ClientID);
+	void GrantTutorialBuildLoadout(int ClientID);
 
 public:
 	explicit CPveDirector(CGameContext *pGameServer);
 	~CPveDirector();
 
 	bool Enabled() const;
+	bool TutorialSandbox() const { return m_TutorialSandbox; }
 	bool InIntermission() const { return m_IntermissionState != PVE_INTERMISSION_NONE; }
 	bool TogglePauseAfterIntermission();
 	int Mode() const { return m_Mode; }

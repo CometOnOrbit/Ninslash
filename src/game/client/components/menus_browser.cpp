@@ -23,6 +23,7 @@
 #include <game/client/components/countryflags.h>
 
 #include "menus.h"
+#include "pve_roguelite.h"
 
 static const char *UI_FILTER_PRESETS_FILE = "ui_filters.cfg";
 
@@ -408,6 +409,15 @@ void CMenus::RenderFilterPresetBar(CUIRect View)
 
 void CMenus::OnRelease()
 {
+	for(int i = 0; i < 128; i++)
+	{
+		if(m_aSteamAvatars[i].m_Texture >= 0)
+			Graphics()->UnloadTexture(m_aSteamAvatars[i].m_Texture);
+		m_aSteamAvatars[i].m_Texture = -1;
+		m_aSteamAvatars[i].m_UserID = 0;
+	}
+	m_pClient->m_pPveRoguelite->FlushPersistentProgress();
+	PumpCloudProfile(true);
 	SaveFilterPresets();
 }
 
@@ -733,6 +743,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 					str_comp(pItem->m_aGameType, "DEF") == 0 ||
 					str_comp(pItem->m_aGameType, "INF") == 0 ||
 					str_comp(pItem->m_aGameType, "INV") == 0 ||
+					str_comp(pItem->m_aGameType, "TUT") == 0 ||
 					str_comp(pItem->m_aGameType, "GUN") == 0 ||
 					str_comp(pItem->m_aGameType, "CTF") == 0)
 				{
@@ -772,6 +783,16 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 				CTextCursor Cursor;
 				TextRender()->SetCursor(&Cursor, Button.x, Button.y, 10.0f * UI()->Scale(), TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
 				Cursor.m_LineWidth = Button.w;
+				if(pItem->m_HasPlatformMetadata)
+				{
+					const char *pCategory = pItem->m_Official ? "[OFFICIAL] " : (pItem->m_Modded ? "[COMMUNITY MODDED] " : "[COMMUNITY] ");
+					TextRender()->TextColor(pItem->m_Official ? 0.35f : 0.65f, pItem->m_Official ? 0.85f : 0.7f, 1.0f, 1.0f);
+					TextRender()->TextEx(&Cursor, pCategory, -1);
+					const char *pAuth = pItem->m_AuthPolicy == 2 ? "[STEAM REQUIRED] " : pItem->m_AuthPolicy == 1 ? "[STEAM OPTIONAL] " : "[OPEN] ";
+					TextRender()->TextColor(pItem->m_AuthPolicy == 2 ? 1.0f : 0.55f, pItem->m_AuthPolicy == 2 ? 0.65f : 0.9f, 0.45f, 1.0f);
+					TextRender()->TextEx(&Cursor, pAuth, -1);
+					TextRender()->TextColor(1,1,1,1);
+				}
 
 				if(g_Config.m_BrFilterString[0] && (pItem->m_QuickSearchHit&IServerBrowser::QUICK_SERVERNAME))
 				{
@@ -989,6 +1010,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 	static float Offset = 0.0f;
 	if(DoEditBox(&g_Config.m_BrFilterGametype, &Button, g_Config.m_BrFilterGametype, sizeof(g_Config.m_BrFilterGametype), FontSize, &Offset))
 		Client()->ServerBrowserUpdate();
+	UI()->ClipEnable(&ScrollArea);
 	s_FilterScrollRegion.AddRect(Button);
 
 	{
@@ -1002,6 +1024,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 		str_format(aBuf, sizeof(aBuf), "%d", g_Config.m_BrFilterPing);
 		static float Offset = 0.0f;
 		DoEditBox(&g_Config.m_BrFilterPing, &EditBox, aBuf, sizeof(aBuf), FontSize, &Offset);
+		UI()->ClipEnable(&ScrollArea);
 		g_Config.m_BrFilterPing = clamp(str_toint(aBuf), 0, 999);
 		s_FilterScrollRegion.AddRect(Button);
 		s_FilterScrollRegion.AddRect(EditBox);
@@ -1015,6 +1038,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 	static float OffsetAddr = 0.0f;
 	if(DoEditBox(&g_Config.m_BrFilterServerAddress, &Button, g_Config.m_BrFilterServerAddress, sizeof(g_Config.m_BrFilterServerAddress), FontSize, &OffsetAddr))
 		Client()->ServerBrowserUpdate();
+	UI()->ClipEnable(&ScrollArea);
 	s_FilterScrollRegion.AddRect(Button);
 
 	// player country
@@ -1516,7 +1540,7 @@ void CMenus::RenderServerbrowser(CUIRect MainView)
 		if(DoButton_Menu(&s_RefreshButton, Localize("Refresh"), 0, &RefreshBtn))
 		{
 			if(g_Config.m_UiPage == PAGE_INTERNET)
-				ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
+				ServerBrowser()->Refresh(m_PlayTab == 2 ? IServerBrowser::TYPE_LAN : IServerBrowser::TYPE_INTERNET);
 			else if(g_Config.m_UiPage == PAGE_LAN)
 				ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
 			else if(g_Config.m_UiPage == PAGE_FAVORITES)

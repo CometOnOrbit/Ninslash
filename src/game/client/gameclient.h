@@ -246,6 +246,9 @@ public:
 		bool m_Active;
 		bool m_ChatIgnore;
 		bool m_Friend;
+		unsigned long long m_PlatformUserID;
+		bool m_PlatformIdentityVerified;
+		bool m_PlatformPlayedWithReported;
 
 		void UpdateRenderInfo();
 		void Reset();
@@ -267,6 +270,7 @@ public:
 	virtual void OnConsoleInit();
 	virtual void OnStateChange(int NewState, int OldState);
 	virtual void OnMessage(int MsgId, CUnpacker *pUnpacker);
+	virtual void OnPlatformPlayerIdentity(int ClientID, bool Present, unsigned long long UserID);
 	virtual void OnNewSnapshot();
 	virtual void OnPredict();
 	virtual void OnActivateEditor();
@@ -303,6 +307,7 @@ public:
 	class CLight *m_pLight;
 	class CMenus *m_pMenus;
 	class CInventory *m_pInventory;
+	class CBuildPlacement *m_pBuildPlacement;
 	class CSkins *m_pSkins;
 	class CCountryFlags *m_pCountryFlags;
 	class CFlow *m_pFlow;

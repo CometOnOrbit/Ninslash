@@ -9,9 +9,12 @@
 
 #include <engine/demo.h>
 #include <engine/friends.h>
+#include <engine/platform_services.h>
+#include <engine/serverbrowser.h>
 
 #include <game/voting.h>
 #include <game/client/component.h>
+#include <game/client/cloud_profile.h>
 #include <game/client/ui.h>
 #include <game/client/ui_scrollregion.h>
 
@@ -25,6 +28,44 @@ public:
 	IInput::CEvent m_Key;
 	CMenusKeyBinder();
 	virtual bool OnInput(IInput::CEvent Event);
+};
+
+// UI-only adapter. Dedicated servers remain keyed/deduplicated by endpoint;
+// Steam rooms remain keyed by LobbyID.
+struct CPlayRoomEntry
+{
+	enum ESource { SOURCE_DEDICATED, SOURCE_STEAM_LOBBY };
+	int m_Source;
+	char m_aStableID[128];
+	const struct CPlayServerSnapshot *m_pServer;
+	const struct CPlayLobbySnapshot *m_pLobby;
+};
+
+// The server browser exposes one UDP collection at a time. Keep a compact,
+// menu-only snapshot for each collection so Play can present a unified view.
+struct CPlayServerSnapshot
+{
+	NETADDR m_NetAddr;
+	int m_Collection;
+	int m_MaxClients;
+	int m_NumClients;
+	int m_Flags;
+	int m_Latency;
+	int m_DiscoverySources;
+	int m_AuthPolicy;
+	bool m_Official;
+	bool m_Modded;
+	bool m_Favorite;
+	char m_aAddress[NETADDR_MAXSTRSIZE];
+	char m_aName[64];
+	char m_aGameType[16];
+	char m_aMap[32];
+	char m_aVersion[32];
+};
+
+struct CPlayLobbySnapshot
+{
+	CPlatformLobbyInfo m_Info;
 };
 
 class CMenus : public CComponent
@@ -64,8 +105,14 @@ class CMenus : public CComponent
 	void DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding);
 	void ConfigureScrollRegion(CScrollRegionParams *pParams) const;
 	void LayoutCenterPanel(CUIRect *pScreen, CUIRect *pOut);
+	void DrawNavigationIcon(const CUIRect &Rect, int Icon, bool Active);
+	void DrawPlayArtwork(const CUIRect &Rect, int Mode, const vec4 &Color);
+	void DrawModeVoteImage(const CUIRect &Rect, const char *pImage, bool Active);
+	void DrawStatusBadge(CUIRect Rect, const char *pText, const vec4 &Color);
+	const char *DisplayGameType(const char *pGameType) const;
 
 	float AnimSelected(const void *pID, bool Selected, float Speed = 12.0f);
+	float AnimPressed(const void *pID, float Speed = 20.0f);
 	static vec4 MixColor(const vec4 &A, const vec4 &B, float t);
 
 	int64 m_LastUpdate;
@@ -87,7 +134,7 @@ class CMenus : public CComponent
 	*/
 
 	int DoButton_Icon(int ImageId, int SpriteId, const CUIRect *pRect);
-	int DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
+	int DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Interactive = true);
 
 	//static void ui_draw_browse_icon(int what, const CUIRect *r);
 	//static void ui_draw_grid_header(const void *id, const char *text, int checked, const CUIRect *r, const void *extra);
@@ -128,7 +175,7 @@ class CMenus : public CComponent
 
 	void UiDoListboxStart(const void *pID, const CUIRect *pRect, float RowHeight, const char *pTitle, const char *pBottomText, int NumItems,
 						int ItemsPerRow, int SelectedIndex, float ScrollValue);
-	CListboxItem UiDoListboxNextItem(const void *pID, bool Selected = false);
+	CListboxItem UiDoListboxNextItem(const void *pID, bool Selected = false, bool Interactive = true);
 	CListboxItem UiDoListboxNextRow();
 	int UiDoListboxEnd(float *pScrollValue, bool *pItemActivated);
 
@@ -153,6 +200,8 @@ class CMenus : public CComponent
 		POPUP_QUIT,
 		POPUP_SLICE_DEMO,
 		POPUP_RENDER_DEMO,
+		POPUP_TUTORIAL_EXIT,
+		POPUP_CLOUD_CONFLICT,
 	};
 
 	enum
@@ -172,6 +221,9 @@ class CMenus : public CComponent
 		PAGE_SYSTEM,
 		PAGE_RESEARCH,
 		PAGE_LOCAL_SERVER,
+		PAGE_STEAM,
+		PAGE_MODS,
+		PAGE_TUTORIAL_SELECT,
 	};
 
 	enum
@@ -185,7 +237,46 @@ class CMenus : public CComponent
 
 	int m_GamePage;
 	int m_Popup;
+	bool m_CloudInitialized;
+	bool m_CloudConflict;
+	bool m_CloudPaused;
+	bool m_CloudDirty;
+	int64 m_CloudNextCheck;
+	int m_CloudRevision;
+	unsigned long long m_CloudSyncedHash;
+	CCloudProfileSummary m_CloudLocalSummary;
+	CCloudProfileSummary m_CloudRemoteSummary;
+	char m_aCloudLocalProfile[64 * 1024];
+	char m_aCloudRemoteProfile[64 * 1024];
+	char m_aCloudStatus[192];
+	void InitCloudProfile();
+	void PumpCloudProfile(bool Force);
+	bool UploadCloudProfile();
+	void ResolveCloudConflict(bool UseRemote);
+	void SaveCloudSyncState(unsigned long long Hash, int Revision);
+	void BackupCloudProfile(const char *pData, const char *pSuffix);
 	int m_ActivePage;
+	int m_LastAnimatedPage;
+	int m_LastAnimatedPopup;
+	int m_LastCreateRoomStep;
+	int m_LastPlayTab;
+	bool m_LastWorkshopDiscover;
+	bool m_LastPlayFiltersOpen;
+	unsigned long long m_LastWorkshopAnimatedID;
+	float m_PageTransition;
+	float m_PopupTransition;
+	float m_CreateRoomTransition;
+	float m_PlayTabTransition;
+	float m_WorkshopTransition;
+	float m_WorkshopDetailTransition;
+	float m_PlayFilterTransition;
+	float m_MenuOpenTransition;
+	int m_NavigationFocus;
+	int m_LastInputDevice;
+	int m_PlayTab;
+	int m_CreateRoomStep;
+	int m_CreateRoomPreviousSlots;
+	bool m_NavigationHasFocus;
 	bool m_MenuActive;
 	bool m_UseMouseButtons;
 	vec2 m_MousePos;
@@ -201,6 +292,7 @@ class CMenus : public CComponent
 	int m_LocalServerActualPort;
 	bool m_LocalServerAutoJoin;
 	bool m_LocalServerRestartPending;
+	bool m_TutorialChapterReplay;
 	bool m_LocalServerSummaryLocalized;
 	int m_LocalServerFocus;
 	NETADDR m_LocalServerAddress;
@@ -390,6 +482,59 @@ class CMenus : public CComponent
 	int m_FilterPresetRenameSlot;
 	char m_aFilterPresetRenameBuf[32];
 
+	enum
+	{
+		PLAY_COLLECTION_INTERNET = 0,
+		PLAY_COLLECTION_LAN,
+		PLAY_COLLECTION_FAVORITES,
+		NUM_PLAY_COLLECTIONS,
+		MAX_PLAY_SERVER_SNAPSHOTS = 256,
+		MAX_PLAY_LOBBY_SNAPSHOTS = 256,
+	};
+	CPlayServerSnapshot m_aaPlayServerSnapshots[NUM_PLAY_COLLECTIONS][MAX_PLAY_SERVER_SNAPSHOTS];
+	int m_aPlayServerSnapshotCount[NUM_PLAY_COLLECTIONS];
+	CPlayLobbySnapshot m_aPlayLobbySnapshots[MAX_PLAY_LOBBY_SNAPSHOTS];
+	int m_PlayLobbySnapshotCount;
+	int m_PlayBrowserCollection;
+	char m_aPlaySelectedID[128];
+	bool m_PlayFiltersOpen;
+	bool m_PlayFiltersAdvanced;
+	bool m_FilterPresetMenuOpen;
+	bool m_PlayDetailOpen;
+	bool m_PlayListHasFocus;
+	struct CSteamAvatarTexture
+	{
+		unsigned long long m_UserID;
+		int m_Texture;
+		int64 m_LastUsed;
+		int64 m_NextRetry;
+	};
+	CSteamAvatarTexture m_aSteamAvatars[128];
+	struct CWorkshopPreviewTexture
+	{
+		unsigned long long m_PublishedFileID;
+		unsigned int m_UpdatedAt;
+		unsigned m_OperationID;
+		int m_Texture;
+		int64 m_LastUsed;
+		int64 m_NextRetry;
+	};
+	CWorkshopPreviewTexture m_aWorkshopPreviews[32];
+	unsigned long long m_WorkshopSelectedID;
+	bool m_WorkshopDiscover;
+	bool m_WorkshopDetailOpen;
+	CPlatformUserInfo m_aSteamFriendCache[512];
+	int m_SteamFriendCacheCount;
+	int64 m_SteamFriendCacheNextRefresh;
+
+	void UpdatePlaySnapshots();
+	int SteamAvatarTexture(unsigned long long UserID);
+	void DrawSteamAvatar(const CUIRect &Rect, unsigned long long UserID);
+	int WorkshopPreviewTexture(const CPlatformWorkshopItem &Item);
+	void DrawWorkshopPreview(const CUIRect &Rect, const CPlatformWorkshopItem &Item);
+	void RenderSteamFriends(CUIRect MainView);
+	void RenderPartyPanel(CUIRect *pMainView);
+
 	void LoadFilterPresets();
 	void SaveFilterPresets();
 	void SnapshotConfigToFilterPreset(int Slot);
@@ -402,6 +547,9 @@ class CMenus : public CComponent
 	void RenderServerbrowserFilters(CUIRect View);
 	void RenderServerbrowserFriends(CUIRect View);
 	void RenderServerbrowser(CUIRect MainView);
+	void RenderSteam(CUIRect MainView);
+	void RenderPlay(CUIRect MainView);
+	void RenderMods(CUIRect MainView);
 	static void ConchainFriendlistUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainServerbrowserUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 
@@ -413,15 +561,21 @@ class CMenus : public CComponent
 	void RenderSettingsControls(CUIRect MainView);
 	void RenderSettingsGraphics(CUIRect MainView);
 	void RenderSettingsSound(CUIRect MainView);
+	void RenderSettingsCloud(CUIRect MainView);
 	void RenderSettingsGamepad(CUIRect MainView);
 	void RenderSettingsCustom(CUIRect MainView);
 	void RenderSettings(CUIRect MainView);
 	void RenderCustomize(CUIRect MainView);
 	void RenderFront(CUIRect MainView);
+	void RenderTutorialRoomPractice(CUIRect MainView);
 	void RenderLocalServer(CUIRect MainView);
+	void RenderCreateRoom(CUIRect MainView);
+	void CreateConfiguredRoom();
 	void UpdateLocalServer();
 	void StartLocalServer(bool AutoJoin);
 	void StopLocalServer(bool Restart);
+	void StartTutorial(int Chapter = 1, bool Resume = true);
+	void StartPvpPractice();
 	void JoinLocalServer();
 	bool IsConnectedToLocalServer() const;
 	void RefreshLocalServerErrorDetail();
@@ -437,6 +591,7 @@ class CMenus : public CComponent
 	
 public:
 	void RenderBackground();
+	void RenderTutorialChapterSelect(CUIRect MainView);
 
 	void UseMouseButtons(bool Use) { m_UseMouseButtons = Use; }
 
@@ -453,7 +608,12 @@ public:
 	static vec4 ThemeText();
 	float AnimHover(const void *pID, float Speed = 14.0f);
 	void OpenResearchPage();
+	void OpenTutorialChapterSelect();
+	void HandleTutorialChapterCompleted(int Chapter, int CompletedMask);
+	void FinishTutorial();
 	void ShutdownLocalServer();
+	void OpenTutorialRoomPractice();
+	void OpenPlayHub();
 
 	void RenderLoading();
 

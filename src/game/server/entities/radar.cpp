@@ -2,7 +2,7 @@
 #include "character.h"
 #include "radar.h"
 
-CRadar::CRadar(CGameWorld *pGameWorld, int Type, int ObjectiveID)
+CServerRadar::CServerRadar(CGameWorld *pGameWorld, int Type, int ObjectiveID)
 : CEntity(pGameWorld, CGameWorld::ENTTYPE_RADAR)
 {
 	m_ProximityRadius = 12;
@@ -15,12 +15,12 @@ CRadar::CRadar(CGameWorld *pGameWorld, int Type, int ObjectiveID)
 	GameWorld()->InsertEntity(this);
 }
 
-void CRadar::Reset()
+void CServerRadar::Reset()
 {
 	//GameServer()->m_World.DestroyEntity(this);
 }
 
-void CRadar::Tick()
+void CServerRadar::Tick()
 {
 	if (m_Type == RADAR_CHARACTER || m_Type == RADAR_HUMAN)
 	{
@@ -44,7 +44,7 @@ void CRadar::Tick()
 	}
 }
 
-void CRadar::Snap(int SnappingClient)
+void CServerRadar::Snap(int SnappingClient)
 {
 	if (m_Type == RADAR_CHARACTER || m_Type == RADAR_HUMAN)
 		if (SnappingClient == m_ObjectiveID)

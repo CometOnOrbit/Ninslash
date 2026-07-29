@@ -9,16 +9,38 @@
 
 #include <game/client/components/camera.h>
 #include <game/client/components/binds.h>
+#include <game/client/components/build_placement.h>
 #include <game/client/components/effects.h>
 #include <game/client/components/menus.h>
 #include <game/client/gameclient.h>
+#include <game/client/pve_progress_storage.h>
 #include <game/client/skelebank.h>
 #include <game/questinfo.h>
+#include <game/tutorial.h>
 
 #include "pve_roguelite.h"
 
 namespace
 {
+float UiEaseOutCubic(float Amount)
+{
+	const float Remaining = 1.0f - clamp(Amount, 0.0f, 1.0f);
+	return 1.0f - Remaining * Remaining * Remaining;
+}
+
+float UiStagger(float Amount, int Index)
+{
+	const float Delay = 0.055f * Index;
+	return UiEaseOutCubic(clamp((Amount - Delay) / (1.0f - Delay), 0.0f, 1.0f));
+}
+
+float UiConfirmPulse(float Remaining)
+{
+	if(Remaining <= 0.0f)
+		return 0.0f;
+	return sinf(clamp(1.0f - Remaining, 0.0f, 1.0f) * pi);
+}
+
 struct CPveUiIcon
 {
 	int m_Image;
@@ -205,6 +227,7 @@ void DrawDroneWheelSlice(IGraphics *pGraphics, float x, float y, float r, float 
 
 CPveRoguelite::CPveRoguelite()
 {
+	m_ProgressStorageWritable = true;
 	for(int i = 0; i < NUM_PVE_CARDS; i++)
 		m_aNodeButtonIDs[i] = i;
 	for(int i = 0; i < 3; i++)
@@ -225,6 +248,72 @@ CPveRoguelite::CPveRoguelite()
 	m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
 	m_RenderWorld.m_pRoguelite = this;
 	OnReset();
+}
+
+void CPveRoguelite::OnInit()
+{
+	LoadProgress();
+	m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
+}
+
+void CPveRoguelite::OnRelease()
+{
+	SaveProgress();
+}
+
+void CPveRoguelite::LoadProgress()
+{
+	CPveProgressData Data;
+	EPveProgressLoadResult Result = CPveProgressStorage::Load(Storage(), &Data);
+	bool UsedBackup = false;
+	if(Result == PVE_PROGRESS_LOAD_CORRUPT || Result == PVE_PROGRESS_LOAD_MISSING)
+	{
+		if(Result == PVE_PROGRESS_LOAD_CORRUPT)
+			Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "pve", "pve_progress.json is corrupt; trying backup");
+		const EPveProgressLoadResult BackupResult = CPveProgressStorage::Load(Storage(), &Data, "pve_progress.json.bak");
+		if(BackupResult != PVE_PROGRESS_LOAD_MISSING)
+		{
+			Result = BackupResult;
+			UsedBackup = BackupResult == PVE_PROGRESS_LOAD_OK;
+		}
+	}
+	if(Result == PVE_PROGRESS_LOAD_FUTURE_VERSION)
+	{
+		m_ProgressStorageWritable = false;
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "pve", "pve_progress.json was created by a newer game version; it will not be overwritten");
+		return;
+	}
+	if(Result == PVE_PROGRESS_LOAD_OK)
+	{
+		g_Config.m_ClPveProgressVersion = Data.m_ProgressVersion;
+		g_Config.m_ClPveResearchPoints = Data.m_ResearchPoints;
+		str_copy(g_Config.m_ClPveResearchMask, Data.m_aResearchMask, sizeof(g_Config.m_ClPveResearchMask));
+		g_Config.m_ClPveHighestInvasion = Data.m_HighestInvasion;
+		g_Config.m_ClPvePreferredCheckpoint = Data.m_PreferredCheckpoint;
+		g_Config.m_ClPveDroneTutorialSeen = Data.m_DroneTutorialSeen ? 1 : 0;
+		if(UsedBackup)
+			SaveProgress();
+		return;
+	}
+
+	// Values loaded from an older settings.cfg are the migration source. If
+	// none exist, the same path creates a valid empty progress file.
+	SaveProgress();
+}
+
+void CPveRoguelite::SaveProgress()
+{
+	if(g_Config.m_ClTutorialActive || !m_ProgressStorageWritable || !Storage())
+		return;
+	CPveProgressData Data;
+	Data.m_ProgressVersion = g_Config.m_ClPveProgressVersion;
+	Data.m_ResearchPoints = g_Config.m_ClPveResearchPoints;
+	str_copy(Data.m_aResearchMask, g_Config.m_ClPveResearchMask, sizeof(Data.m_aResearchMask));
+	Data.m_HighestInvasion = g_Config.m_ClPveHighestInvasion;
+	Data.m_PreferredCheckpoint = g_Config.m_ClPvePreferredCheckpoint;
+	Data.m_DroneTutorialSeen = g_Config.m_ClPveDroneTutorialSeen != 0;
+	if(!CPveProgressStorage::Save(Storage(), Data))
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "pve", "failed to save pve_progress.json");
 }
 
 void CPveRoguelite::OnConsoleInit()
@@ -253,13 +342,14 @@ void CPveRoguelite::ConKeyDroneWheel(IConsole::IResult *pResult, void *pUserData
 
 	if(pResult->GetInteger(0))
 	{
-		if(pSelf->ChoiceActive() || pSelf->m_ResearchVisible || pSelf->m_pClient->GameplayInputCaptured())
+		if(pSelf->ChoiceActive() || pSelf->m_ResearchVisible || pSelf->m_pClient->GameplayInputCaptured() || pSelf->m_pClient->m_pBuildPlacement->Active())
 			return;
 		pSelf->m_DroneWheelActive = true;
 		pSelf->m_DroneWheelMouse = vec2(0.0f, 0.0f);
 		pSelf->m_DroneWheelSelected = -1;
 		pSelf->m_DroneTutorialSeen = true;
 		g_Config.m_ClPveDroneTutorialSeen = 1;
+		pSelf->SaveProgress();
 		return;
 	}
 
@@ -421,12 +511,22 @@ void CPveRoguelite::ConDebugGameScreenshot(IConsole::IResult *pResult, void *pUs
 
 void CPveRoguelite::OnReset()
 {
+	m_TutorialMoveMask = 0;
+	m_TutorialFireCount = 0;
+	m_TutorialKillCount = 0;
+	m_TutorialObjectiveSignature = -1;
+	m_TutorialPerkChosen = false;
+	m_TutorialNonce = 0;
+	m_TutorialProgress = 0;
+	m_TutorialTarget = 1;
+	m_TutorialFlags = 0;
 	if(m_DebugChoiceScreenshotFrames <= 0)
 	{
 		m_ChoiceActive = false;
 		m_ChoiceNonce = 0;
 		m_ChoiceSequence = 0;
 		m_ChoiceEndTick = 0;
+		m_ChoiceDismissAt = 0;
 		for(int i = 0; i < 3; i++)
 		{
 			m_aChoiceCards[i] = -1;
@@ -506,6 +606,124 @@ void CPveRoguelite::OnReset()
 	m_ResearchProgressDisplay = 0.0f;
 	m_SelectionPulse = 0.0f;
 	m_ResearchAnimTab = -1;
+}
+
+void CPveRoguelite::AdvanceTutorial()
+{
+	if(g_Config.m_ClTutorialState != 1)
+		return;
+	if(m_TutorialNonce > 0)
+	{
+		CNetMsg_Cl_TutorialAction Msg;
+		Msg.m_Action = TUTORIAL_ACTION_UI_CONTINUE;
+		Msg.m_Nonce = m_TutorialNonce;
+		Msg.m_Value = 0;
+		Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+		return;
+	}
+	g_Config.m_ClTutorialCheckpoint = min(6, g_Config.m_ClTutorialCheckpoint + 1);
+	dbg_msg("tutorial", "checkpoint %d reached", g_Config.m_ClTutorialCheckpoint);
+	if(g_Config.m_ClTutorialCheckpoint >= 6)
+	{
+		g_Config.m_ClTutorialState = 2;
+		dbg_msg("tutorial", "completed locally; no gameplay or account data was uploaded");
+	}
+	else if(g_Config.m_ClTutorialCheckpoint == 5 && m_TutorialPerkChosen)
+		AdvanceTutorial();
+}
+
+void CPveRoguelite::SendTutorialAction(int Action, int Value)
+{
+	if(!g_Config.m_ClTutorialActive || m_TutorialNonce <= 0)
+		return;
+	CNetMsg_Cl_TutorialAction Msg;
+	Msg.m_Action = Action;
+	Msg.m_Nonce = m_TutorialNonce;
+	Msg.m_Value = Value;
+	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+}
+
+void CPveRoguelite::TickTutorial()
+{
+	if(!g_Config.m_ClTutorialActive || g_Config.m_ClTutorialState != 1 || Client()->State() != IClient::STATE_ONLINE)
+		return;
+	if(g_Config.m_ClTutorialCheckpoint != 3 || !m_pClient->m_Snap.m_pGameDataObj)
+		return;
+	const int Quest = m_pClient->m_Snap.m_pGameDataObj->m_TeamscoreRed;
+	const int Level = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierRed;
+	const int Pack = m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierBlue;
+	const int Signature = Quest * 31 + Level * 131 + (Pack & 0xFF);
+	if(m_TutorialObjectiveSignature < 0)
+	{
+		m_TutorialObjectiveSignature = Signature;
+		return;
+	}
+	// The server changes quest/level/phase only after the objective has been
+	// completed. Progress counters are deliberately excluded from the signature.
+	if(Signature != m_TutorialObjectiveSignature)
+		AdvanceTutorial();
+}
+
+void CPveRoguelite::OnGameOver()
+{
+	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 2)
+	{
+		m_pClient->m_pMenus->FinishTutorial();
+		return;
+	}
+	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 1)
+		dbg_msg("tutorial", "mission ended at checkpoint %d", g_Config.m_ClTutorialCheckpoint);
+}
+
+void CPveRoguelite::DrawTutorialHud()
+{
+	if(!g_Config.m_ClTutorialActive || g_Config.m_ClTutorialState != 1 || Client()->State() != IClient::STATE_ONLINE)
+		return;
+	const float Aspect = Graphics()->ScreenAspect();
+	const float ScreenWidth = 300.0f * Aspect;
+	Graphics()->MapScreen(0, 0, ScreenWidth, 300.0f);
+	char aMove[96], aLeft[48], aRight[48], aJump[64], aFire[64], aForge[64], aDrone[64];
+	m_pClient->m_pBinds->GetKeys("+left", aLeft, sizeof(aLeft));
+	m_pClient->m_pBinds->GetKeys("+right", aRight, sizeof(aRight));
+	str_format(aMove, sizeof(aMove), "%s%s%s", aLeft, aLeft[0] && aRight[0] ? ", " : "", aRight);
+	m_pClient->m_pBinds->GetKeys("+jump", aJump, sizeof(aJump));
+	m_pClient->m_pBinds->GetKeys("+fire", aFire, sizeof(aFire));
+	m_pClient->m_pBinds->GetKeys("+inventory", aForge, sizeof(aForge));
+	m_pClient->m_pBinds->GetKeys("+dronewheel", aDrone, sizeof(aDrone));
+	const char *pMove = aMove[0] ? aMove : "?";
+	const char *pJump = aJump[0] ? aJump : "?";
+	const char *pFire = aFire[0] ? aFire : "?";
+	const char *pForge = aForge[0] ? aForge : "?";
+	const char *pDrone = aDrone[0] ? aDrone : "?";
+	static const char *s_apChapterNames[6] = {"First Deployment", "Combat and Recovery", "PvE Mission", "Forge and Build", "Build and Growth", "Multiplayer Ready"};
+	char aText[256];
+	const int Chapter = clamp(g_Config.m_ClTutorialChapter, 1, 6);
+	const int Step = clamp(g_Config.m_ClTutorialStep, 0, 9);
+	switch(Chapter)
+	{
+	case 1: str_format(aText, sizeof(aText), Step == 0 ? Localize("Move with %s, then jump with %s") : Step == 1 ? Localize("Aim and fire with %s") : Localize("Switch weapons and hit the training target."), Step == 0 ? pMove : pFire, pJump); break;
+	case 2: str_copy(aText, Localize(Step == 0 ? "Defeat the marked enemies and watch your ammunition." : Step == 1 ? "Take controlled damage, then collect health." : "Respawn near the current objective and finish the encounter."), sizeof(aText)); break;
+	case 3: str_copy(aText, Localize(Step == 0 ? "Follow the radar marker. Stay near the switch for 2 seconds to activate it." : Step == 1 ? "Stay near the next marked switch for 2 seconds to secure the defense area." : Step == 2 ? "Activate the next marked switch and watch the HUD progress." : "Activate the final marked switch to open the extraction route."), sizeof(aText)); break;
+	case 4: str_format(aText, sizeof(aText), Step == 0 ? Localize("Collect the marked sandbox materials.") : Step == 1 ? Localize("Open Forge with %s and craft the recommended weapon.") : Localize("Build a defense and survive the controlled wave."), pForge); break;
+	case 5:
+		if(Step == 1)
+			str_format(aText, sizeof(aText), Localize("Hold %s, choose a drone module, then release to switch."), pDrone);
+		else
+			str_copy(aText, Localize(Step == 0 ? "Choose one of the three run perks." : "Purchase the highlighted sandbox research node. Tutorial points do not affect your save."), sizeof(aText));
+		break;
+	default: str_copy(aText, Localize(Step == 0 ? "Complete the short bot PvP objective." : Step == 1 ? "Configure and create the simulated room." : "Filter the simulated room list and join a room."), sizeof(aText)); break;
+	}
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 Text = CMenus::ThemeText();
+	CUIRect Hud = {ScreenWidth * 0.5f - 100.0f, 12.0f, 200.0f, 34.0f};
+	DrawPanel(Hud, vec4(Panel.r, Panel.g, Panel.b, 0.94f), 6.0f);
+	CUIRect Edge = {Hud.x, Hud.y, 2.0f, Hud.h};
+	DrawPanel(Edge, Accent, 1.0f);
+	char aTitle[128];
+	str_format(aTitle, sizeof(aTitle), Localize("CHAPTER %d/6 · %s · %d/%d"), Chapter, Localize(s_apChapterNames[Chapter - 1]), m_TutorialProgress, max(1, m_TutorialTarget));
+	DrawText(Hud.x + 8.0f, Hud.y + 5.0f, 6.0f, aTitle, Accent);
+	DrawWrappedText(Hud.x + 8.0f, Hud.y + 15.0f, 5.3f, aText, Text, Hud.w - 16.0f, 2);
 }
 
 CPveResearchMask CPveRoguelite::ParseResearchMask() const
@@ -677,7 +895,16 @@ void CPveRoguelite::DrawSelectionOverlay(bool ContractVote)
 	const float Dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
 	m_AppearAmount += (1.0f - m_AppearAmount) * (1.0f - expf(-10.0f * Dt));
 	m_SelectionPulse = max(0.0f, m_SelectionPulse - Dt * 4.0f);
-	const float Alpha = clamp(m_AppearAmount, 0.0f, 1.0f);
+	float DismissAlpha = 1.0f;
+	if(!ContractVote && m_ChoiceDismissAt > 0)
+	{
+		const float Remaining = (float)(m_ChoiceDismissAt - time_get()) / (float)time_freq();
+		DismissAlpha = clamp(Remaining / 0.08f, 0.0f, 1.0f);
+	}
+	const float Alpha = clamp(m_AppearAmount, 0.0f, 1.0f) * DismissAlpha;
+	const float Entry = UiEaseOutCubic(Alpha);
+	const float EntryOffset = (1.0f - Entry) * 10.0f;
+	const float ConfirmPulse = UiConfirmPulse(m_SelectionPulse);
 	const vec4 Deep = CMenus::ThemeBgDeep();
 	const vec4 Panel = CMenus::ThemeBgPanel();
 	const vec4 Inset = CMenus::ThemeBgInset();
@@ -688,9 +915,9 @@ void CPveRoguelite::DrawSelectionOverlay(bool ContractVote)
 
 	CUIRect Screen = {0, 0, ScreenWidth, 300.0f};
 	DrawPanel(Screen, vec4(Deep.r, Deep.g, Deep.b, 0.94f * Alpha), 0.0f);
-	CUIRect Stage = {8.0f, 42.0f, ScreenWidth - 16.0f, 218.0f};
+	CUIRect Stage = {8.0f, 42.0f + EntryOffset * 0.35f, ScreenWidth - 16.0f, 218.0f};
 	DrawPanel(Stage, vec4(Inset.r, Inset.g, Inset.b, 0.96f * Alpha), 13.0f);
-	CUIRect Line = {22.0f, 55.0f, ScreenWidth - 44.0f, 1.2f};
+	CUIRect Line = {22.0f, 55.0f + EntryOffset * 0.35f, (ScreenWidth - 44.0f) * Entry, 1.2f};
 	DrawPanel(Line, vec4(Accent.r, Accent.g, Accent.b, 0.65f * Alpha), 0.6f);
 	DrawText(ScreenWidth * 0.5f, 10.0f, 12.0f, Localize(ContractVote ? "Team Contract" : "Choose a Perk"), vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
 
@@ -698,10 +925,11 @@ void CPveRoguelite::DrawSelectionOverlay(bool ContractVote)
 	const int Seconds = max(0, (EndTick - Client()->GameTick() + Client()->GameTickSpeed() - 1) / Client()->GameTickSpeed());
 	char aTimer[64];
 	str_format(aTimer, sizeof(aTimer), Localize("%d seconds remaining"), Seconds);
+	const float WarningPulse = Seconds <= 3 ? 0.82f + 0.18f * sinf((float)time_get() / (float)time_freq() * 7.0f) : 1.0f;
 	const vec4 TimerColor = Seconds <= 3 ? Danger : Accent;
 	CUIRect Timer = {ScreenWidth * 0.5f - 48.0f, 27.0f, 96.0f, 12.0f};
 	DrawPanel(Timer, vec4(Panel.r, Panel.g, Panel.b, 0.96f * Alpha), 6.0f);
-	DrawText(ScreenWidth * 0.5f, 29.3f, 6.4f, aTimer, vec4(TimerColor.r, TimerColor.g, TimerColor.b, Alpha), -1.0f, 0);
+	DrawText(ScreenWidth * 0.5f, 29.3f, 6.4f, aTimer, vec4(TimerColor.r, TimerColor.g, TimerColor.b, Alpha * WarningPulse), -1.0f, 0);
 
 	const int Count = ContractVote ? 2 : 3;
 	const float Gap = ContractVote ? 16.0f : 8.0f;
@@ -712,7 +940,8 @@ void CPveRoguelite::DrawSelectionOverlay(bool ContractVote)
 	int Hovered = -1;
 	for(int i = 0; i < Count; i++)
 	{
-		CUIRect Hit = {StartX + i * (CardWidth + Gap), 66.0f, CardWidth, 178.0f};
+		const float CardEntry = UiStagger(Alpha, i);
+		CUIRect Hit = {StartX + i * (CardWidth + Gap), 66.0f + (1.0f - CardEntry) * 9.0f, CardWidth, 178.0f};
 		if(m_SelectorMouse.x >= Hit.x && m_SelectorMouse.x <= Hit.x + Hit.w && m_SelectorMouse.y >= Hit.y && m_SelectorMouse.y <= Hit.y + Hit.h)
 			Hovered = i;
 	}
@@ -736,64 +965,64 @@ void CPveRoguelite::DrawSelectionOverlay(bool ContractVote)
 		const bool Focused = i == m_FocusedChoice;
 		m_aCardFocus[i] += ((Focused ? 1.0f : 0.0f) - m_aCardFocus[i]) * (1.0f - expf(-14.0f * Dt));
 		const float FocusAmount = clamp(m_aCardFocus[i], 0.0f, 1.0f);
+		const float CardEntry = UiStagger(Alpha, i);
+		const float CardAlpha = Alpha * CardEntry;
 		const bool Selected = ContractVote ? i == m_SelectedContract : (m_ChoiceNonce == 0 && i == m_FocusedChoice);
 		const int ID = ContractVote ? m_aContractOptions[i] : m_aChoiceCards[i];
 		const CPveContractDef *pContract = ContractVote ? PveContractDef(ID) : 0;
 		const CPveCardDef *pCard = ContractVote ? 0 : PveCardDef(ID);
-		vec4 CategoryColor = AccentDim;
-		if(ContractVote || (pCard && pCard->m_Rarity == PVE_RARITY_RARE))
-			CategoryColor = Accent;
-		else if(pCard && pCard->m_Rarity == PVE_RARITY_EPIC)
-			CategoryColor = vec4((Accent.r + Danger.r) * 0.5f, (Accent.g + Danger.g) * 0.5f, (Accent.b + Danger.b) * 0.5f, 1.0f);
-		const float Scale = 1.0f + FocusAmount * 0.035f + (Selected ? m_SelectionPulse * 0.018f : 0.0f);
+		// Rarity is text, not a competing color code. One accent now carries all
+		// focus and selection state across perks and contracts.
+		const vec4 CategoryColor = Accent;
+		const float Scale = 1.0f + FocusAmount * 0.018f + (Selected ? ConfirmPulse * 0.012f : 0.0f);
 		CUIRect Card = {StartX + i * (CardWidth + Gap) - CardWidth * (Scale - 1.0f) * 0.5f,
-			66.0f - FocusAmount * 3.0f, CardWidth * Scale, 178.0f * Scale};
+			66.0f + (1.0f - CardEntry) * 9.0f - FocusAmount * 2.0f - (Selected ? ConfirmPulse * 0.8f : 0.0f), CardWidth * Scale, 178.0f * Scale};
 		CUIRect Border = Card;
 		Border.Margin(-1.4f, &Border);
 		const vec4 BorderColor = Selected || Focused ? CategoryColor : AccentDim;
-		DrawPanel(Border, vec4(BorderColor.r, BorderColor.g, BorderColor.b, (Focused ? 0.85f : 0.35f) * Alpha), 11.0f);
-		DrawPanel(Card, vec4(Panel.r, Panel.g, Panel.b, 0.98f * Alpha), 9.0f);
+		const float BorderAlpha = Selected ? 0.92f : (Focused ? 0.78f : 0.24f);
+		DrawPanel(Border, vec4(BorderColor.r, BorderColor.g, BorderColor.b, min(1.0f, BorderAlpha + ConfirmPulse * 0.08f) * CardAlpha), 11.0f);
+		DrawPanel(Card, vec4(Panel.r, Panel.g, Panel.b, 0.98f * CardAlpha), 9.0f);
 		const char *pName = Localize(ContractVote ? (pContract ? pContract->m_pName : "Unknown contract") : PveChoiceName(ID));
 		const char *pDescription = Localize(ContractVote ? (pContract ? pContract->m_pRule : "") : PveChoiceDescription(ID));
 
 		CUIRect Badge = {Card.x + 8.0f, Card.y + 8.0f, Card.w - 16.0f, 14.0f};
-		DrawPanel(Badge, vec4(Inset.r, Inset.g, Inset.b, 0.96f * Alpha), 7.0f);
+		DrawPanel(Badge, vec4(Inset.r, Inset.g, Inset.b, 0.96f * CardAlpha), 7.0f);
 		char aBadge[64];
 		if(ContractVote)
 			str_format(aBadge, sizeof(aBadge), Localize("RISK • %d VOTES"), m_aContractVotes[i]);
 		else if(pCard)
-			str_format(aBadge, sizeof(aBadge), Localize("%s • LEVEL %d/%d"), Localize(PveRarityName(pCard->m_Rarity)), m_aChoiceStacks[i], pCard->m_MaxStacks);
+			str_format(aBadge, sizeof(aBadge), Localize("%d · %s · Lv. %d/%d"), i + 1, Localize(PveRarityName(pCard->m_Rarity)), m_aChoiceStacks[i], pCard->m_MaxStacks);
 		else
-			str_copy(aBadge, Localize("Immediate Supply"), sizeof(aBadge));
-		DrawText(Card.x + Card.w * 0.5f, Card.y + 11.2f, 5.6f, aBadge, vec4(CategoryColor.r, CategoryColor.g, CategoryColor.b, Alpha), -1.0f, 0);
-		float NameSize = Focused ? 9.2f : 8.5f;
+			str_format(aBadge, sizeof(aBadge), Localize("%d · Supply"), i + 1);
+		DrawText(Card.x + Card.w * 0.5f, Card.y + 11.2f, 5.6f, aBadge, vec4(CategoryColor.r, CategoryColor.g, CategoryColor.b, CardAlpha), -1.0f, 0);
+		float NameSize = 8.5f + FocusAmount * 0.7f;
 		while(NameSize > 6.0f && TextRender()->TextWidth(0, NameSize, pName, -1) > Card.w - 16.0f)
 			NameSize -= 0.3f;
-		DrawText(Card.x + Card.w * 0.5f, Card.y + 32.0f, NameSize, pName, vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
+		DrawText(Card.x + Card.w * 0.5f, Card.y + 32.0f, NameSize, pName, vec4(Text.r, Text.g, Text.b, CardAlpha), -1.0f, 0);
 		const CPveUiIcon Icon = ContractVote ? CPveUiIcon() : PveChoiceIcon(ID, pCard);
-		DrawIcon(Icon.m_Image, Icon.m_Sprite, Card.x + Card.w * 0.5f, Card.y + 61.0f, (Focused ? 24.0f : 21.0f) * Icon.m_Scale,
-			vec4(Text.r, Text.g, Text.b, 0.82f * Alpha));
-		DrawWrappedText(Card.x + 10.0f, Card.y + 78.0f, 6.2f, pDescription, vec4(Text.r, Text.g, Text.b, 0.78f * Alpha), Card.w - 20.0f, 4);
+		DrawIcon(Icon.m_Image, Icon.m_Sprite, Card.x + Card.w * 0.5f, Card.y + 61.0f, (21.0f + FocusAmount * 3.0f) * Icon.m_Scale,
+			vec4(Text.r, Text.g, Text.b, 0.82f * CardAlpha));
+		const vec4 DescriptionText = vec4(0.72f, 0.74f, 0.76f, ContractVote ? 0.72f * CardAlpha : 0.64f * CardAlpha);
+		DrawWrappedText(Card.x + 10.0f, Card.y + 82.0f, 6.2f, pDescription,
+			DescriptionText, Card.w - 20.0f, ContractVote ? 4 : 3);
 		if(ContractVote && pContract)
 		{
-			DrawText(Card.x + 10.0f, Card.y + 121.0f, 5.8f, Localize(pContract->m_pRisk), vec4(Danger.r, Danger.g, Danger.b, Alpha), Card.w - 20.0f, -1);
-			DrawText(Card.x + 10.0f, Card.y + 140.0f, 5.8f, Localize("Reward: 1 Research Point"), vec4(Accent.r, Accent.g, Accent.b, Alpha), Card.w - 20.0f, -1);
+			DrawText(Card.x + 10.0f, Card.y + 121.0f, 5.8f, Localize(pContract->m_pRisk), vec4(Danger.r, Danger.g, Danger.b, CardAlpha), Card.w - 20.0f, -1);
+			DrawText(Card.x + 10.0f, Card.y + 140.0f, 5.8f, Localize("Reward: 1 Research Point"), vec4(Accent.r, Accent.g, Accent.b, CardAlpha), Card.w - 20.0f, -1);
 		}
-		else if(!ContractVote)
+		if(ContractVote)
 		{
-			char aResult[80];
-			if(pCard)
-				str_format(aResult, sizeof(aResult), Localize("After selection: level %d/%d"), min(pCard->m_MaxStacks, m_aChoiceStacks[i] + 1), pCard->m_MaxStacks);
-			else
-				str_copy(aResult, Localize("Immediate effect"), sizeof(aResult));
-			DrawText(Card.x + 10.0f, Card.y + 140.0f, 5.8f, aResult, vec4(Accent.r, Accent.g, Accent.b, Alpha), Card.w - 20.0f, -1);
+			CUIRect Button = {Card.x + 10.0f, Card.y + Card.h - 27.0f, Card.w - 20.0f, 18.0f};
+			DrawPanel(Button, vec4((Focused ? Accent : Inset).r, (Focused ? Accent : Inset).g, (Focused ? Accent : Inset).b, 0.95f * CardAlpha), 7.0f);
+			DrawText(Button.x + Button.w * 0.5f, Button.y + 5.1f, 6.5f, Localize(Selected ? "Voted" : "Vote"), vec4(Text.r, Text.g, Text.b, CardAlpha), -1.0f, 0);
 		}
-		CUIRect Button = {Card.x + 10.0f, Card.y + Card.h - 27.0f, Card.w - 20.0f, 18.0f};
-		DrawPanel(Button, vec4((Focused ? Accent : Inset).r, (Focused ? Accent : Inset).g, (Focused ? Accent : Inset).b, 0.95f * Alpha), 7.0f);
-		DrawText(Button.x + Button.w * 0.5f, Button.y + 5.1f, 6.5f, Localize(Selected ? (ContractVote ? "Voted" : "Selected") : "Select"), vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
+		else if(Selected)
+			DrawText(Card.x + Card.w * 0.5f, Card.y + Card.h - 23.0f, 6.4f + ConfirmPulse * 0.35f, Localize("Selected"), vec4(Accent.r, Accent.g, Accent.b, CardAlpha), -1.0f, 0);
 	}
 
-	DrawText(ScreenWidth * 0.5f, 274.0f, 6.5f, Localize("Mouse • Arrow Keys • 1–3 • Gamepad"), vec4(Text.r, Text.g, Text.b, 0.65f * Alpha), -1.0f, 0);
+	if(ContractVote)
+		DrawText(ScreenWidth * 0.5f, 274.0f, 6.5f, Localize("Mouse • Arrow Keys • 1–3 • Gamepad"), vec4(Text.r, Text.g, Text.b, 0.65f * Alpha), -1.0f, 0);
 	if(m_ValidationCode && time_get() < m_ValidationUntil)
 		DrawText(ScreenWidth * 0.5f, 287.0f, 6.0f, Localize("The server rejected that selection."), vec4(Danger.r, Danger.g, Danger.b, Alpha), -1.0f, 0);
 
@@ -813,6 +1042,9 @@ void CPveRoguelite::DrawInvasionRetryVote()
 	m_AppearAmount += (1.0f - m_AppearAmount) * (1.0f - expf(-9.0f * Dt));
 	m_SelectionPulse = max(0.0f, m_SelectionPulse - Dt * 4.0f);
 	const float Alpha = clamp(m_AppearAmount, 0.0f, 1.0f);
+	const float Entry = UiEaseOutCubic(Alpha);
+	const float EntryOffset = (1.0f - Entry) * 10.0f;
+	const float ConfirmPulse = UiConfirmPulse(m_SelectionPulse);
 	const vec4 Deep = CMenus::ThemeBgDeep();
 	const vec4 Panel = CMenus::ThemeBgPanel();
 	const vec4 Inset = CMenus::ThemeBgInset();
@@ -823,9 +1055,9 @@ void CPveRoguelite::DrawInvasionRetryVote()
 
 	CUIRect Screen = {0, 0, ScreenWidth, 300.0f};
 	DrawPanel(Screen, vec4(Deep.r, Deep.g, Deep.b, 0.96f * Alpha), 0.0f);
-	CUIRect Stage = {10.0f, 51.0f, ScreenWidth - 20.0f, 207.0f};
+	CUIRect Stage = {10.0f, 51.0f + EntryOffset * 0.35f, ScreenWidth - 20.0f, 207.0f};
 	DrawPanel(Stage, vec4(Inset.r, Inset.g, Inset.b, 0.97f * Alpha), 13.0f);
-	CUIRect TopLine = {Stage.x + 13.0f, Stage.y + 9.0f, Stage.w - 26.0f, 1.2f};
+	CUIRect TopLine = {Stage.x + 13.0f, Stage.y + 9.0f, (Stage.w - 26.0f) * Entry, 1.2f};
 	DrawPanel(TopLine, vec4(Danger.r, Danger.g, Danger.b, 0.68f * Alpha), 0.6f);
 	DrawText(ScreenWidth * 0.5f, 8.0f, 12.5f, Localize("The expedition has reached its limit"), vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
 	DrawText(ScreenWidth * 0.5f, 26.0f, 6.4f, Localize("Five failures. Decide the fate of this run."), vec4(Text.r, Text.g, Text.b, 0.72f * Alpha), -1.0f, 0);
@@ -840,8 +1072,9 @@ void CPveRoguelite::DrawInvasionRetryVote()
 	str_format(aTimer, sizeof(aTimer), Localize("%d seconds remaining"), Seconds);
 	CUIRect Timer = {Stage.x + Stage.w - 92.0f, Stage.y + 16.0f, 78.0f, 15.0f};
 	DrawPanel(Timer, vec4(Panel.r, Panel.g, Panel.b, 0.96f * Alpha), 7.0f);
+	const float WarningPulse = Seconds <= 3 ? 0.82f + 0.18f * sinf((float)time_get() / (float)time_freq() * 7.0f) : 1.0f;
 	const vec4 TimerColor = Seconds <= 3 ? Danger : Accent;
-	DrawText(Timer.x + Timer.w * 0.5f, Timer.y + 4.0f, 6.0f, aTimer, vec4(TimerColor.r, TimerColor.g, TimerColor.b, Alpha), -1.0f, 0);
+	DrawText(Timer.x + Timer.w * 0.5f, Timer.y + 4.0f, 6.0f, aTimer, vec4(TimerColor.r, TimerColor.g, TimerColor.b, Alpha * WarningPulse), -1.0f, 0);
 
 	const float Gap = 16.0f;
 	const float CardWidth = min(195.0f, (Stage.w - 30.0f - Gap) * 0.5f);
@@ -849,7 +1082,8 @@ void CPveRoguelite::DrawInvasionRetryVote()
 	int Hovered = -1;
 	for(int i = 0; i < 2; i++)
 	{
-		CUIRect Hit = {StartX + i * (CardWidth + Gap), 88.0f, CardWidth, 145.0f};
+		const float CardEntry = UiStagger(Alpha, i);
+		CUIRect Hit = {StartX + i * (CardWidth + Gap), 88.0f + (1.0f - CardEntry) * 9.0f, CardWidth, 145.0f};
 		if(m_SelectorMouse.x >= Hit.x && m_SelectorMouse.x <= Hit.x + Hit.w && m_SelectorMouse.y >= Hit.y && m_SelectorMouse.y <= Hit.y + Hit.h)
 			Hovered = i;
 	}
@@ -874,39 +1108,42 @@ void CPveRoguelite::DrawInvasionRetryVote()
 		const bool Selected = i == m_SelectedInvasionRetry;
 		m_aCardFocus[i] += ((Focused ? 1.0f : 0.0f) - m_aCardFocus[i]) * (1.0f - expf(-14.0f * Dt));
 		const float FocusAmount = clamp(m_aCardFocus[i], 0.0f, 1.0f);
-		const float Scale = 1.0f + FocusAmount * 0.025f + (Selected ? m_SelectionPulse * 0.012f : 0.0f);
+		const float CardEntry = UiStagger(Alpha, i);
+		const float CardAlpha = Alpha * CardEntry;
+		const float Scale = 1.0f + FocusAmount * 0.018f + (Selected ? ConfirmPulse * 0.012f : 0.0f);
 		const vec4 ChoiceColor = i == PVE_INVASION_RETRY ? Accent : Danger;
 		CUIRect Card = {StartX + i * (CardWidth + Gap) - CardWidth * (Scale - 1.0f) * 0.5f,
-			88.0f - FocusAmount * 2.0f, CardWidth * Scale, 145.0f * Scale};
+			88.0f + (1.0f - CardEntry) * 9.0f - FocusAmount * 2.0f - (Selected ? ConfirmPulse * 0.8f : 0.0f), CardWidth * Scale, 145.0f * Scale};
 		CUIRect Border = Card;
 		Border.Margin(-1.5f, &Border);
-		DrawPanel(Border, vec4(ChoiceColor.r, ChoiceColor.g, ChoiceColor.b, (Focused || Selected ? 0.92f : 0.32f) * Alpha), 11.0f);
-		DrawPanel(Card, vec4(Panel.r, Panel.g, Panel.b, 0.98f * Alpha), 9.0f);
+		const float BorderAlpha = Selected ? 0.92f : (Focused ? 0.78f : 0.24f);
+		DrawPanel(Border, vec4(ChoiceColor.r, ChoiceColor.g, ChoiceColor.b, min(1.0f, BorderAlpha + ConfirmPulse * 0.08f) * CardAlpha), 11.0f);
+		DrawPanel(Card, vec4(Panel.r, Panel.g, Panel.b, 0.98f * CardAlpha), 9.0f);
 		char aVotes[64];
 		str_format(aVotes, sizeof(aVotes), Localize("%d votes"), m_aInvasionRetryVotes[i]);
 		CUIRect VoteBadge = {Card.x + 9.0f, Card.y + 8.0f, 58.0f, 14.0f};
-		DrawPanel(VoteBadge, vec4(Inset.r, Inset.g, Inset.b, 0.96f * Alpha), 7.0f);
-		DrawText(VoteBadge.x + VoteBadge.w * 0.5f, VoteBadge.y + 3.8f, 5.8f, aVotes, vec4(ChoiceColor.r, ChoiceColor.g, ChoiceColor.b, Alpha), -1.0f, 0);
+		DrawPanel(VoteBadge, vec4(Inset.r, Inset.g, Inset.b, 0.96f * CardAlpha), 7.0f);
+		DrawText(VoteBadge.x + VoteBadge.w * 0.5f, VoteBadge.y + 3.8f, 5.8f, aVotes, vec4(ChoiceColor.r, ChoiceColor.g, ChoiceColor.b, CardAlpha), -1.0f, 0);
 		char aKey[8];
 		str_format(aKey, sizeof(aKey), "%d", i + 1);
 		CUIRect Key = {Card.x + Card.w - 25.0f, Card.y + 8.0f, 16.0f, 14.0f};
-		DrawPanel(Key, vec4(Inset.r, Inset.g, Inset.b, 0.96f * Alpha), 6.0f);
-		DrawText(Key.x + Key.w * 0.5f, Key.y + 3.8f, 5.8f, aKey, vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
-		float NameSize = Focused ? 10.0f : 9.2f;
+		DrawPanel(Key, vec4(Inset.r, Inset.g, Inset.b, 0.96f * CardAlpha), 6.0f);
+		DrawText(Key.x + Key.w * 0.5f, Key.y + 3.8f, 5.8f, aKey, vec4(Text.r, Text.g, Text.b, CardAlpha), -1.0f, 0);
+		float NameSize = 9.2f + FocusAmount * 0.8f;
 		const char *pName = Localize(apNames[i]);
 		while(NameSize > 6.7f && TextRender()->TextWidth(0, NameSize, pName, -1) > Card.w - 18.0f)
 			NameSize -= 0.3f;
-		DrawText(Card.x + Card.w * 0.5f, Card.y + 31.0f, NameSize, pName, vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
-		DrawWrappedText(Card.x + 12.0f, Card.y + 52.0f, 6.5f, Localize(apDescriptions[i]), vec4(Text.r, Text.g, Text.b, 0.78f * Alpha), Card.w - 24.0f, 3);
-		DrawText(Card.x + 12.0f, Card.y + 87.0f, 5.8f, Localize(apConsequences[i]), vec4(ChoiceColor.r, ChoiceColor.g, ChoiceColor.b, 0.92f * Alpha), Card.w - 24.0f, -1);
+		DrawText(Card.x + Card.w * 0.5f, Card.y + 31.0f, NameSize, pName, vec4(Text.r, Text.g, Text.b, CardAlpha), -1.0f, 0);
+		DrawWrappedText(Card.x + 12.0f, Card.y + 52.0f, 6.5f, Localize(apDescriptions[i]), vec4(Text.r, Text.g, Text.b, 0.78f * CardAlpha), Card.w - 24.0f, 3);
+		DrawText(Card.x + 12.0f, Card.y + 87.0f, 5.8f, Localize(apConsequences[i]), vec4(ChoiceColor.r, ChoiceColor.g, ChoiceColor.b, 0.92f * CardAlpha), Card.w - 24.0f, -1);
 		CUIRect Button = {Card.x + 10.0f, Card.y + Card.h - 27.0f, Card.w - 20.0f, 18.0f};
 		const vec4 ButtonColor = Focused || Selected ? ChoiceColor : AccentDim;
-		DrawPanel(Button, vec4(ButtonColor.r, ButtonColor.g, ButtonColor.b, 0.94f * Alpha), 7.0f);
-		DrawText(Button.x + Button.w * 0.5f, Button.y + 5.0f, 6.5f, Localize(Selected ? "Voted" : "Vote"), vec4(Text.r, Text.g, Text.b, Alpha), -1.0f, 0);
+		DrawPanel(Button, vec4(ButtonColor.r, ButtonColor.g, ButtonColor.b, 0.94f * CardAlpha), 7.0f);
+		DrawText(Button.x + Button.w * 0.5f, Button.y + 5.0f, 6.5f + (Selected ? ConfirmPulse * 0.3f : 0.0f), Localize(Selected ? "Voted" : "Vote"), vec4(Text.r, Text.g, Text.b, CardAlpha), -1.0f, 0);
 	}
 
 	DrawText(ScreenWidth * 0.5f, 270.0f, 6.4f, Localize("Mouse • Arrow Keys • 1–2 • Gamepad"), vec4(Text.r, Text.g, Text.b, 0.65f * Alpha), -1.0f, 0);
-	DrawText(ScreenWidth * 0.5f, 284.0f, 5.8f, Localize("A tie or no votes returns the team to Floor 1."), vec4(Danger.r, Danger.g, Danger.b, 0.78f * Alpha), -1.0f, 0);
+	DrawText(ScreenWidth * 0.5f, 284.0f, 5.8f, Localize("A tie or no votes grants one final retry."), vec4(Text.r, Text.g, Text.b, 0.72f * Alpha), -1.0f, 0);
 
 	Graphics()->TextureSet(-1);
 	CUIRect Cursor = {m_SelectorMouse.x, m_SelectorMouse.y, 5.0f, 5.0f};
@@ -922,7 +1159,8 @@ void CPveRoguelite::DrawInvasionRetryResult()
 	const float Dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
 	m_AppearAmount += (1.0f - m_AppearAmount) * (1.0f - expf(-7.0f * Dt));
 	const float Alpha = clamp(m_AppearAmount, 0.0f, 1.0f);
-	const float Pulse = 0.84f + 0.16f * sinf((float)time_get() / (float)time_freq() * 5.0f);
+	const float Entry = UiEaseOutCubic(Alpha);
+	const float Pulse = 0.94f + 0.06f * sinf((float)time_get() / (float)time_freq() * 4.0f);
 	const vec4 Deep = CMenus::ThemeBgDeep();
 	const vec4 Panel = CMenus::ThemeBgPanel();
 	const vec4 Accent = CMenus::ThemeAccent();
@@ -933,13 +1171,14 @@ void CPveRoguelite::DrawInvasionRetryResult()
 
 	CUIRect Screen = {0, 0, ScreenWidth, 300.0f};
 	DrawPanel(Screen, vec4(Deep.r, Deep.g, Deep.b, 0.97f * Alpha), 0.0f);
-	CUIRect Glow = {ScreenWidth * 0.5f - min(245.0f, ScreenWidth - 34.0f) * 0.5f, 103.0f, min(245.0f, ScreenWidth - 34.0f), 94.0f};
+	CUIRect Glow = {ScreenWidth * 0.5f - min(245.0f, ScreenWidth - 34.0f) * 0.5f, 103.0f + (1.0f - Entry) * 8.0f, min(245.0f, ScreenWidth - 34.0f), 94.0f};
 	DrawPanel(Glow, vec4(ResultColor.r, ResultColor.g, ResultColor.b, 0.14f * Pulse * Alpha), 18.0f);
 	CUIRect Core = Glow;
 	Core.Margin(4.0f, &Core);
 	DrawPanel(Core, vec4(Panel.r, Panel.g, Panel.b, 0.95f * Alpha), 15.0f);
-	CUIRect LineTop = {Glow.x + 18.0f, Glow.y - 12.0f, Glow.w - 36.0f, 1.5f};
-	CUIRect LineBottom = {Glow.x + 18.0f, Glow.y + Glow.h + 10.0f, Glow.w - 36.0f, 1.5f};
+	const float LineWidth = (Glow.w - 36.0f) * Entry;
+	CUIRect LineTop = {ScreenWidth * 0.5f - LineWidth * 0.5f, Glow.y - 12.0f, LineWidth, 1.5f};
+	CUIRect LineBottom = {ScreenWidth * 0.5f - LineWidth * 0.5f, Glow.y + Glow.h + 10.0f, LineWidth, 1.5f};
 	DrawPanel(LineTop, vec4(ResultColor.r, ResultColor.g, ResultColor.b, Pulse * Alpha), 0.7f);
 	DrawPanel(LineBottom, vec4(ResultColor.r, ResultColor.g, ResultColor.b, Pulse * Alpha), 0.7f);
 
@@ -1279,13 +1518,20 @@ void CPveRoguelite::RenderBuildDebug()
 bool CPveRoguelite::CanBuyResearch(int CardID, const CPveResearchMask &Mask) const
 {
 	const CPveCardDef *pDef = PveCardDef(CardID);
-	return pDef && !pDef->m_Base && !PveCardIsUnlocked(CardID, Mask) && g_Config.m_ClPveResearchPoints >= pDef->m_ResearchCost &&
+	const int ResearchPoints = TutorialResearchActive() ? 99 : g_Config.m_ClPveResearchPoints;
+	return pDef && !pDef->m_Base && !PveCardIsUnlocked(CardID, Mask) && ResearchPoints >= pDef->m_ResearchCost &&
 		Mask.PrerequisitesMet(CardID);
+}
+
+bool CPveRoguelite::TutorialResearchActive() const
+{
+	return g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 1 &&
+		g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_BUILD && g_Config.m_ClTutorialStep == 2;
 }
 
 void CPveRoguelite::BuySelectedResearch()
 {
-	CPveResearchMask Mask = ParseResearchMask();
+	CPveResearchMask Mask = TutorialResearchActive() ? CPveResearchMask() : ParseResearchMask();
 	const CPveCardDef *pSelected = PveCardDef(m_SelectedResearch);
 	if(!pSelected || !CanBuyResearch(m_SelectedResearch, Mask))
 		return;
@@ -1301,6 +1547,7 @@ void CPveRoguelite::BuySelectedResearch()
 		g_Config.m_ClPveResearchPoints -= pSelected->m_ResearchCost;
 		Mask.Set(m_SelectedResearch);
 		StoreResearchMask(Mask);
+		SaveProgress();
 	}
 	m_SelectionPulse = 1.0f;
 }
@@ -1324,6 +1571,7 @@ void CPveRoguelite::CycleCheckpoint()
 	g_Config.m_ClPvePreferredCheckpoint += 10;
 	if(g_Config.m_ClPvePreferredCheckpoint > MaxCheckpoint)
 		g_Config.m_ClPvePreferredCheckpoint = 1;
+	SaveProgress();
 	if(Client()->State() == IClient::STATE_ONLINE && m_ProgressSent)
 		SyncProgress();
 }
@@ -1407,7 +1655,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 	ResearchText(Header.x + 23.0f * Scale, Header.y + 6.0f * Scale, 13.0f * Scale, Localize("Research"), Fade(Text, 1.0f));
 
 	char aPoints[64];
-	str_format(aPoints, sizeof(aPoints), Localize("%d Research Points"), g_Config.m_ClPveResearchPoints);
+	str_format(aPoints, sizeof(aPoints), Localize("%d Research Points"), TutorialResearchActive() ? 99 : g_Config.m_ClPveResearchPoints);
 	const float PointsWidth = clamp(Header.w * 0.23f, 156.0f * Scale, 196.0f * Scale);
 	CUIRect Points = {Header.x + Header.w - PointsWidth - 10.0f * Scale, Header.y + 7.0f * Scale, PointsWidth, (Compact ? 28.0f : 32.0f) * Scale};
 	DrawPanel(Points, Fade(AccentDim, 0.34f + 0.16f * Wave), 15.0f * Scale);
@@ -1504,7 +1752,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 			BranchCount = max(BranchCount, PveCardDef(ID)->m_Branch + 1);
 	BranchCount = max(1, BranchCount);
 	m_ResearchBranch = clamp(m_ResearchBranch, 0, BranchCount - 1);
-	const CPveResearchMask Mask = ParseResearchMask();
+	const CPveResearchMask Mask = TutorialResearchActive() ? CPveResearchMask() : ParseResearchMask();
 	const float BranchGap = (Compact ? 3.5f : 5.0f) * Scale;
 	const float BranchHeaderHeight = (Compact ? 29.0f : 33.0f) * Scale;
 	const float ExpandedHeight = max(BranchHeaderHeight,
@@ -1812,7 +2060,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 		ResearchText(Details.x + 2.0f * Scale, SectionY, 8.9f * Scale, Localize("Effect"), Fade(Accent, 1.0f));
 		CUIRect Effect = {Details.x, SectionY + (Compact ? 13.0f : 15.0f) * Scale, Details.w, (Compact ? 50.0f : 68.0f) * Scale};
 		DrawPanel(Effect, Fade(Inset, 0.74f), 7.0f * Scale);
-		ResearchWrapped(Effect.x + 10.0f * Scale, Effect.y + 7.5f * Scale, 8.7f * Scale, Localize(pSelected->m_pDescription), Fade(Text, 0.94f), Effect.w - 20.0f * Scale, 5);
+		ResearchWrapped(Effect.x + 10.0f * Scale, Effect.y + 7.5f * Scale, 8.7f * Scale, Localize(pSelected->m_pDescription), vec4(0.72f, 0.74f, 0.76f, 0.65f), Effect.w - 20.0f * Scale, 5);
 		SectionY = Effect.y + Effect.h + (Compact ? 4.0f : 7.0f) * Scale;
 		CUIRect Rules = {Details.x, SectionY, Details.w, (Compact ? 42.0f : 50.0f) * Scale};
 		DrawPanel(Rules, Fade(Deep, 0.58f), 7.0f * Scale);
@@ -1943,6 +2191,13 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 
 void CPveRoguelite::OnRender()
 {
+	TickTutorial();
+	if(m_ChoiceActive && m_ChoiceDismissAt > 0 && time_get() >= m_ChoiceDismissAt)
+	{
+		m_ChoiceActive = false;
+		m_ChoiceSequence = 0;
+		m_ChoiceDismissAt = 0;
+	}
 	const bool WasResearchVisible = m_ResearchVisible;
 	m_ResearchVisible = false;
 	if(!WasResearchVisible)
@@ -2001,6 +2256,7 @@ void CPveRoguelite::OnRender()
 			DrawBuildHud();
 		}
 	}
+	DrawTutorialHud();
 	DrawDroneWheel();
 }
 
@@ -2018,6 +2274,25 @@ void CPveRoguelite::RenderMenuDebugOverlay()
 
 bool CPveRoguelite::OnInput(IInput::CEvent Event)
 {
+	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 1 && m_TutorialNonce <= 0 && (Event.m_Flags & IInput::FLAG_PRESS))
+	{
+		const char *pBind = m_pClient->m_pBinds->Get(Event.m_Key);
+		const int Checkpoint = g_Config.m_ClTutorialCheckpoint;
+		if(Checkpoint == 0)
+		{
+			if(str_comp(pBind, "+left") == 0 || str_comp(pBind, "+right") == 0 || str_comp(pBind, "+gamepadleft") == 0 || str_comp(pBind, "+gamepadright") == 0)
+				m_TutorialMoveMask |= 1;
+			if(str_comp(pBind, "+jump") == 0 || str_comp(pBind, "+gamepadjump") == 0)
+				m_TutorialMoveMask |= 2;
+			if(m_TutorialMoveMask == 3)
+				AdvanceTutorial();
+		}
+		else if(Checkpoint == 1 && (str_comp(pBind, "+fire") == 0 || str_comp(pBind, "+gamepadfire") == 0))
+		{
+			if(++m_TutorialFireCount >= 3)
+				AdvanceTutorial();
+		}
+	}
 	if(!ChoiceActive() && !m_ResearchVisible && !m_pClient->GameplayInputCaptured() &&
 		(Event.m_Flags & IInput::FLAG_PRESS) && m_aRunPerks[PVE_CARD_DRONE_CHASSIS] > 0)
 	{
@@ -2223,13 +2498,60 @@ bool CPveRoguelite::OnMouseMove(float x, float y)
 
 void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 {
-	if(MsgType == NETMSGTYPE_SV_PVEPROGRESS)
+	if(MsgType == NETMSGTYPE_SV_TUTORIALSTATE)
+	{
+		const CNetMsg_Sv_TutorialState *pMsg = (const CNetMsg_Sv_TutorialState *)pRawMsg;
+		g_Config.m_ClTutorialChapter = pMsg->m_Chapter;
+		g_Config.m_ClTutorialStep = pMsg->m_Step;
+		g_Config.m_ClTutorialCompletedMask = pMsg->m_CompletedMask;
+		m_TutorialProgress = pMsg->m_Progress;
+		m_TutorialTarget = pMsg->m_Target;
+		m_TutorialNonce = pMsg->m_Nonce;
+		m_TutorialFlags = pMsg->m_Flags;
+		if(pMsg->m_Flags & 2)
+		{
+			m_pClient->m_pMenus->HandleTutorialChapterCompleted(pMsg->m_Chapter, pMsg->m_CompletedMask);
+		}
+		else if(pMsg->m_Chapter == TUTORIAL_CHAPTER_MULTIPLAYER && pMsg->m_Step >= 1)
+		{
+			m_pClient->m_pMenus->OpenTutorialRoomPractice();
+		}
+		else if(pMsg->m_Chapter == TUTORIAL_CHAPTER_BUILD && pMsg->m_Step == 2)
+		{
+			m_SelectedResearch = PVE_CARD_SERVO_LINK;
+			const CPveCardDef *pDef = PveCardDef(m_SelectedResearch);
+			if(pDef)
+			{
+				m_ResearchTab = pDef->m_Tab;
+				m_ResearchBranch = pDef->m_Branch;
+				m_ResearchRoute = PveResearchRoute(pDef);
+			}
+			m_pClient->m_pMenus->OpenResearchPage();
+		}
+		return;
+	}
+	if(MsgType == NETMSGTYPE_SV_KILLMSG)
+	{
+		const CNetMsg_Sv_KillMsg *pMsg = (const CNetMsg_Sv_KillMsg *)pRawMsg;
+		if(g_Config.m_ClTutorialActive && m_TutorialNonce <= 0 && g_Config.m_ClTutorialState == 1 && g_Config.m_ClTutorialCheckpoint == 2 && pMsg->m_Killer == m_pClient->m_Snap.m_LocalClientID)
+			if(++m_TutorialKillCount >= 3)
+				AdvanceTutorial();
+	}
+	else if(MsgType == NETMSGTYPE_SV_FORGERESULT)
+	{
+		const CNetMsg_Sv_ForgeResult *pMsg = (const CNetMsg_Sv_ForgeResult *)pRawMsg;
+		if(g_Config.m_ClTutorialActive && m_TutorialNonce <= 0 && g_Config.m_ClTutorialState == 1 && g_Config.m_ClTutorialCheckpoint == 4 && pMsg->m_Result == FORGERESULT_SUCCESS)
+			AdvanceTutorial();
+	}
+	else if(MsgType == NETMSGTYPE_SV_PVEPROGRESS)
 	{
 		if(!m_ProgressSent)
 		{
 			SyncProgress();
 			return;
 		}
+		if(g_Config.m_ClTutorialActive)
+			return;
 		CNetMsg_Sv_PveProgress *pMsg = (CNetMsg_Sv_PveProgress *)pRawMsg;
 		const unsigned long long Low = (unsigned int)pMsg->m_ResearchMask0 | ((unsigned long long)(unsigned int)pMsg->m_ResearchMask1 << 32);
 		const unsigned long long High = (unsigned int)pMsg->m_ResearchMask2 | ((unsigned long long)(unsigned int)pMsg->m_ResearchMask3 << 32);
@@ -2238,6 +2560,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		StoreResearchMask(CPveResearchMask(Low, High));
 		g_Config.m_ClPveHighestInvasion = pMsg->m_HighestInvasion;
 		g_Config.m_ClPvePreferredCheckpoint = pMsg->m_PreferredCheckpoint;
+		SaveProgress();
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVECHOICE)
 	{
@@ -2250,6 +2573,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_ChoiceNonce = pMsg->m_Nonce;
 		m_ChoiceSequence = pMsg->m_ChoiceSequence;
 		m_ChoiceEndTick = pMsg->m_EndTick;
+		m_ChoiceDismissAt = 0;
 		m_aChoiceCards[0] = pMsg->m_Card0;
 		m_aChoiceCards[1] = pMsg->m_Card1;
 		m_aChoiceCards[2] = pMsg->m_Card2;
@@ -2271,6 +2595,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 				m_aCardFocus[i] = 0.0f;
 			m_SelectorMouse = vec2(150.0f * Graphics()->ScreenAspect(), 150.0f);
 			m_AppearAmount = 0.0f;
+			m_SelectionPulse = 0.0f;
 		}
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEPERK)
@@ -2278,15 +2603,21 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		CNetMsg_Sv_PvePerk *pMsg = (CNetMsg_Sv_PvePerk *)pRawMsg;
 		if(pMsg->m_ClientID == m_pClient->m_Snap.m_LocalClientID)
 		{
+			if(g_Config.m_ClTutorialActive)
+				m_TutorialPerkChosen = true;
 			// Perk messages also restore the existing run after an Invasion map
 			// change. Only this offer's result may dismiss the choice overlay.
 			if(m_ChoiceActive && m_ChoiceSequence > 0 && pMsg->m_Choices >= m_ChoiceSequence)
 			{
-				m_ChoiceActive = false;
-				m_ChoiceSequence = 0;
+				// Keep the accepted card visible just long enough for the confirmation
+				// pulse to read, then fade it during the final 80 ms.
+				m_ChoiceNonce = 0;
+				m_ChoiceDismissAt = time_get() + time_freq() * 220 / 1000;
 			}
 			if(pMsg->m_Card < NUM_PVE_CARDS)
 				m_aRunPerks[pMsg->m_Card] = pMsg->m_Stacks;
+			if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 1 && g_Config.m_ClTutorialCheckpoint == 5)
+				AdvanceTutorial();
 		}
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVECONTRACTVOTE)
@@ -2312,6 +2643,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 				m_aCardFocus[i] = 0.0f;
 			m_SelectorMouse = vec2(150.0f * Graphics()->ScreenAspect(), 150.0f);
 			m_AppearAmount = 0.0f;
+			m_SelectionPulse = 0.0f;
 		}
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVECONTRACTSTATUS)
@@ -2326,11 +2658,14 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVERESEARCHREWARD)
 	{
+		if(g_Config.m_ClTutorialActive)
+			return;
 		CNetMsg_Sv_PveResearchReward *pMsg = (CNetMsg_Sv_PveResearchReward *)pRawMsg;
 		g_Config.m_ClPveResearchPoints = clamp(g_Config.m_ClPveResearchPoints + pMsg->m_Amount, 0, 999);
 		g_Config.m_ClPveHighestInvasion = max(g_Config.m_ClPveHighestInvasion, pMsg->m_HighestInvasion);
 		if(g_Config.m_ClPvePreferredCheckpoint > pMsg->m_UnlockedCheckpoint)
 			g_Config.m_ClPvePreferredCheckpoint = pMsg->m_UnlockedCheckpoint;
+		SaveProgress();
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEBUILDSTATE)
 	{
@@ -2368,6 +2703,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 				m_aCardFocus[i] = 0.0f;
 			m_SelectorMouse = vec2(150.0f * Graphics()->ScreenAspect(), 150.0f);
 			m_AppearAmount = 0.0f;
+			m_SelectionPulse = 0.0f;
 		}
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEINVASIONRETRYRESULT)
@@ -2385,6 +2721,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		{
 			m_MouseTrigger = false;
 			m_AppearAmount = 0.0f;
+			m_SelectionPulse = 0.0f;
 		}
 	}
 	else if(MsgType == NETMSGTYPE_SV_PVEVALIDATION)

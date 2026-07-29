@@ -6,20 +6,20 @@
 #include "room.h"
 #include "gen_layer.h"
 
-int CRoom::MinSize() const
+int CRoomGenerated::MinSize() const
 {
 	if(str_comp(g_Config.m_SvGametype, "extract") == 0)
 		return 6;
 	return 8;
 }
 
-bool CRoom::TooSmall() const
+bool CRoomGenerated::TooSmall() const
 {
 	return m_W < MinSize() || m_H < MinSize();
 }
 
 // bsp map, acts as template for rooms
-CRoom::CRoom(int x, int y, int w, int h)
+CRoomGenerated::CRoomGenerated(int x, int y, int w, int h)
 {
 	m_Open = false;
 	
@@ -51,7 +51,7 @@ CRoom::CRoom(int x, int y, int w, int h)
 	}
 }
 
-CRoom::~CRoom()
+CRoomGenerated::~CRoomGenerated()
 {
 	if (m_pChild1)
 		delete m_pChild1;
@@ -59,7 +59,7 @@ CRoom::~CRoom()
 		delete m_pChild2;
 }
 
-void CRoom::Split(bool Vertical)
+void CRoomGenerated::Split(bool Vertical)
 {
 	if (TooSmall())
 		return;
@@ -79,10 +79,10 @@ void CRoom::Split(bool Vertical)
 			m_H = m_H/(2 + rand()%2);
 		
 		if (!m_pChild1)
-			m_pChild1 = new CRoom(m_X, m_Y, m_W, m_H);
+			m_pChild1 = new CRoomGenerated(m_X, m_Y, m_W, m_H);
 		
 		if (!m_pChild2)
-			m_pChild2 = new CRoom(m_X, m_Y+m_H, m_W, h2-m_H);
+			m_pChild2 = new CRoomGenerated(m_X, m_Y+m_H, m_W, h2-m_H);
 	}
 	else
 	{
@@ -99,15 +99,15 @@ void CRoom::Split(bool Vertical)
 			m_W = m_W/(2 + rand()%2);
 
 		if (!m_pChild1)
-			m_pChild1 = new CRoom(m_X, m_Y, m_W, m_H);
+			m_pChild1 = new CRoomGenerated(m_X, m_Y, m_W, m_H);
 		
 		if (!m_pChild2)
-			m_pChild2 = new CRoom(m_X+m_W, m_Y, w2-m_W, m_H);
+			m_pChild2 = new CRoomGenerated(m_X+m_W, m_Y, w2-m_W, m_H);
 	}
 }
 
 
-bool CRoom::Open(int x, int y)
+bool CRoomGenerated::Open(int x, int y)
 {
 	bool c1 = false;
 	bool c2 = false;
@@ -128,7 +128,7 @@ bool CRoom::Open(int x, int y)
 	return false;
 }
 
-void CRoom::Generate(CGenLayer *pTiles)
+void CRoomGenerated::Generate(CGenLayer *pTiles)
 {
 	//if (TooSmall())
 	//	return;
@@ -144,7 +144,7 @@ void CRoom::Generate(CGenLayer *pTiles)
 }
 
 
-void CRoom::Fill(CGenLayer *pTiles, int Index, int x, int y, int w, int h)
+void CRoomGenerated::Fill(CGenLayer *pTiles, int Index, int x, int y, int w, int h)
 {
 	for(int py = y; py < y+h; py++)
 		for(int px = x; px < x+w; px++)

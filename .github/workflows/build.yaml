@@ -5,6 +5,40 @@ on:
   pull_request:
 
 jobs:
+  release-readiness-tests:
+    name: Release readiness tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y build-essential cmake python3 zlib1g-dev
+
+      - name: Configure focused tests
+        run: cmake -B build-tests -DCLIENT=OFF -DNINSLASH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build focused tests and dedicated server
+        run: cmake --build build-tests -j"$(nproc)"
+
+      - name: Run focused tests
+        run: ctest --test-dir build-tests --output-on-failure
+
+      - name: Run fixed-seed PvE smoke baseline
+        run: |
+          python3 scripts/smoke_pve_matrix.py \
+            --server build-tests/ninslash_srv \
+            --depth 1 --depth 5 --timeout 12 --port 8397 --log-dir smoke-logs
+
+      - name: Validate release tooling
+        run: |
+          python3 scripts/audit_release_assets.py
+          python3 scripts/check_localization.py
+          python3 scripts/check_text_layout.py
+
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -29,6 +63,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+
+      - name: Report release asset licensing
+        run: python3 scripts/audit_release_assets.py
 
       - name: Checkout Bam
         if: matrix.builder == 'bam'
@@ -91,7 +128,7 @@ jobs:
         run: |
           tar -cJf "${{ matrix.artifact }}" \
             cfg data ninslash ninslash_srv \
-            autoexec.cfg license.txt readme.md storage.cfg
+            autoexec.cfg license.txt THIRD_PARTY_LICENSES.md README.md README_zh-CN.md storage.cfg
 
       - name: Package Release (Windows)
         if: contains(matrix.os, 'windows')
@@ -100,16 +137,64 @@ jobs:
           $dir = "ninslash-windows_x64-release"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           Copy-Item -Recurse cfg, data $dir
-          Copy-Item ninslash.exe, ninslash_srv.exe, autoexec.cfg, license.txt, readme.md, storage.cfg $dir
+          Copy-Item ninslash.exe, ninslash_srv.exe, autoexec.cfg, license.txt, THIRD_PARTY_LICENSES.md, README.md, README_zh-CN.md, storage.cfg $dir
           Copy-Item freetype.dll, SDL3.dll, glew32.dll $dir
+          Copy-Item other/freetype/LICENSE.TXT "$dir/freetype-license.txt"
           Compress-Archive -Path $dir -DestinationPath "${{ matrix.artifact }}" -Force
+
+      - name: Verify and smoke-test Windows package
+        if: contains(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          python -m pip install pefile
+          $dir = (Resolve-Path "ninslash-windows_x64-release").Path
+          python scripts/verify_steam_release.py `
+            --standalone-windows-client "$dir/ninslash.exe" `
+            --standalone-windows-server "$dir/ninslash_srv.exe"
+
+          $env:NINSLASH_OFFSCREEN = "1"
+          $process = Start-Process -FilePath "$dir/ninslash.exe" `
+            -ArgumentList '"pve_debug_screenshot 1"' -WorkingDirectory $dir -PassThru
+          $log = Join-Path $env:APPDATA "Ninslash/logs/startup.log"
+          $screenshots = Join-Path $env:APPDATA "Ninslash/screenshots"
+          $ready = $false
+          for($i = 0; $i -lt 120; $i++) {
+            Start-Sleep -Milliseconds 500
+            if($process.HasExited) { break }
+            if((Test-Path $log) -and
+               (Select-String -Path $log -SimpleMatch "main menu initialization completed" -Quiet) -and
+               (Test-Path $screenshots) -and
+               (Get-ChildItem $screenshots -Filter "screenshot_*.png" -ErrorAction SilentlyContinue)) {
+              $ready = $true
+              break
+            }
+          }
+          if(-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          if(-not $ready) {
+            if(Test-Path $log) { Get-Content $log }
+            throw "Windows client did not reach the menu and produce an offscreen screenshot"
+          }
+
+          $env:NINSLASH_TEST_FORCE_WINDOW_FAILURE = "1"
+          $env:NINSLASH_TEST_NO_MESSAGEBOX = "1"
+          $failureProcess = Start-Process -FilePath "$dir/ninslash.exe" `
+            -WorkingDirectory $dir -PassThru
+          if(-not $failureProcess.WaitForExit(30000)) {
+            Stop-Process -Id $failureProcess.Id -Force
+            throw "Forced window failure did not exit cleanly"
+          }
+          if(-not (Select-String -Path $log -SimpleMatch "forced window creation failure" -Quiet) -or
+             -not (Select-String -Path $log -SimpleMatch "all graphics initialization attempts failed" -Quiet)) {
+            if(Test-Path $log) { Get-Content $log }
+            throw "Forced window failure was not handled by the graphics fallback path"
+          }
 
       - name: Package Release (macOS)
         if: matrix.builder == 'cmake'
         run: |
           pkg="ninslash-macos_arm64-release"
           mkdir -p "$pkg"
-          cp -R cfg data autoexec.cfg license.txt readme.md storage.cfg "$pkg/"
+          cp -R cfg data autoexec.cfg license.txt THIRD_PARTY_LICENSES.md README.md README_zh-CN.md storage.cfg "$pkg/"
           cp build/ninslash build/ninslash_srv "$pkg/"
           if [ -f build/ninslash_srv-Launcher ]; then
             cp build/ninslash_srv-Launcher "$pkg/"
@@ -132,6 +217,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce release asset licensing
+        run: python3 scripts/audit_release_assets.py --strict
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:

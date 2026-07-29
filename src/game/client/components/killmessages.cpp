@@ -3,10 +3,12 @@
 #include <engine/graphics.h>
 #include <engine/textrender.h>
 #include <engine/shared/config.h>
+#include <engine/platform_services.h>
 #include <generated/protocol.h>
 #include <generated/game_data.h>
 
 #include <game/client/gameclient.h>
+#include <game/client/components/inventory.h>
 #include <game/weapon_catalog.h>
 #include "killmessages.h"
 
@@ -39,6 +41,16 @@ void CKillMessages::OnMessage(int MsgType, void *pRawMsg)
 		Kill.m_Source = Source;
 		Kill.m_ModeSpecial = pMsg->m_ModeSpecial;
 		Kill.m_Tick = Client()->GameTick();
+		const int LocalID = m_pClient->m_Snap.m_LocalClientID;
+		if(LocalID >= 0 && (Kill.m_VictimID == LocalID || Kill.m_KillerID == LocalID))
+		{
+			IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+			if(pPlatform)
+			{
+				CPlatformTimelineEvent Event; mem_zero(&Event, sizeof(Event)); Event.m_SessionID = (unsigned long long)(uintptr_t)m_pClient; Event.m_ServerTick = Kill.m_Tick; Event.m_EventType = Kill.m_VictimID == LocalID ? 1 : 2; Event.m_ClipPriority = Kill.m_VictimID == LocalID ? PLATFORM_TIMELINE_CLIP_STANDARD : PLATFORM_TIMELINE_CLIP_NONE; str_copy(Event.m_aIcon, Kill.m_VictimID == LocalID ? "steam_skull" : "steam_starburst", sizeof(Event.m_aIcon)); str_copy(Event.m_aTitle, Kill.m_VictimID == LocalID ? "You were defeated" : "Elimination", sizeof(Event.m_aTitle)); str_format(Event.m_aDescription, sizeof(Event.m_aDescription), Kill.m_VictimID == LocalID ? "Defeated by %s" : "Defeated %s", Kill.m_VictimID == LocalID ? Kill.m_aKillerName : Kill.m_aVictimName); pPlatform->AddTimelineEvent(Event);
+				if(g_Config.m_ClSteamRumble) pPlatform->TriggerInputVibration(Kill.m_VictimID == LocalID ? 42000 : 12000, Kill.m_VictimID == LocalID ? 52000 : 26000);
+			}
+		}
 
 		if(!g_Config.m_ClShowsocial)
 		{
@@ -65,7 +77,7 @@ void CKillMessages::OnMessage(int MsgType, void *pRawMsg)
 
 void CKillMessages::OnRender()
 {
-	if(!g_Config.m_ClShowKillMessages)
+	if(!g_Config.m_ClShowKillMessages || m_pClient->m_pInventory->IsVisible())
 		return;
 
 	float Width = 400*3.0f*Graphics()->ScreenAspect();
@@ -79,14 +91,20 @@ void CKillMessages::OnRender()
 	for(int i = 1; i <= MAX_KILLMSGS; i++)
 	{
 		int r = (m_KillmsgCurrent+i)%MAX_KILLMSGS;
-		if(Client()->GameTick() > m_aKillmsgs[r].m_Tick+50*10)
+		const int AgeTicks = Client()->GameTick() - m_aKillmsgs[r].m_Tick;
+		if(AgeTicks < 0 || AgeTicks > 50 * 10)
 			continue;
+		const float InAmount = clamp(AgeTicks / 8.0f, 0.0f, 1.0f);
+		const float OutAmount = clamp((50.0f * 10.0f - AgeTicks) / 15.0f, 0.0f, 1.0f);
+		const float Alpha = min(InAmount, OutAmount);
+		const float Eased = 1.0f - (1.0f - InAmount) * (1.0f - InAmount) * (1.0f - InAmount);
 
 		float FontSize = 36.0f;
 		float KillerNameW = TextRender()->TextWidth(0, FontSize, m_aKillmsgs[r].m_aKillerName, -1);
 		float VictimNameW = TextRender()->TextWidth(0, FontSize, m_aKillmsgs[r].m_aVictimName, -1);
 
-		float x = StartX;
+		float x = StartX + (1.0f - Eased) * 28.0f;
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, Alpha);
 
 		
 		int Flags = m_pClient->m_Snap.m_pGameInfoObj ? m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags : 0;
@@ -95,10 +113,10 @@ void CKillMessages::OnRender()
 		if (Flags & GAMEFLAG_TEAMS && !(Flags & GAMEFLAG_INFECTION))
 		{
 			if (m_aKillmsgs[r].m_VictimTeam == TEAM_RED)
-				TextRender()->TextColor(250/255.0f, 100/255.0f, 0, 1.0f);
+				TextRender()->TextColor(250/255.0f, 100/255.0f, 0, Alpha);
 				
 			if (m_aKillmsgs[r].m_VictimTeam == TEAM_BLUE)
-				TextRender()->TextColor(0/255.0f, 100/255.0f, 230/255.0f, 1.0f);
+				TextRender()->TextColor(0/255.0f, 100/255.0f, 230/255.0f, Alpha);
 		}
 		
 		// render victim name
@@ -141,7 +159,7 @@ void CKillMessages::OnRender()
 		if(m_aKillmsgs[r].m_Source.m_Kind == EAttackSourceKind::PlayerWeapon)
 		{
 			RenderTools()->SetShadersForWeapon(m_aKillmsgs[r].m_Source.m_Weapon);
-			RenderTools()->RenderWeapon(m_aKillmsgs[r].m_Source.m_Weapon, vec2(x+5, y+30), vec2(1, 0), 16, true, 0, 1.0f, true);
+			RenderTools()->RenderWeapon(m_aKillmsgs[r].m_Source.m_Weapon, vec2(x+5, y+30), vec2(1, 0), 16, true, 0, Alpha, true);
 			Graphics()->ShaderEnd();
 		}
 		
@@ -194,10 +212,10 @@ void CKillMessages::OnRender()
 			if (Flags & GAMEFLAG_TEAMS && !(Flags & GAMEFLAG_INFECTION))
 			{
 				if (m_aKillmsgs[r].m_KillerTeam == TEAM_RED)
-					TextRender()->TextColor(250/255.0f, 100/255.0f, 0, 1.0f);
+					TextRender()->TextColor(250/255.0f, 100/255.0f, 0, Alpha);
 				
 				if (m_aKillmsgs[r].m_KillerTeam == TEAM_BLUE)
-					TextRender()->TextColor(0/255.0f, 100/255.0f, 230/255.0f, 1.0f);
+					TextRender()->TextColor(0/255.0f, 100/255.0f, 230/255.0f, Alpha);
 			}
 			
 			// render killer tee

@@ -1,5 +1,7 @@
 #include "animdata.h"
 
+#include <base/math.h>
+
 
 CSkeletonAnimation::CSkeletonAnimation()
 {
@@ -40,11 +42,14 @@ void CSkeletonAnimation::Reset()
 	
 void CSkeletonAnimation::HeadTick()
 {
+	m_HeadTargetAngle = clamp(m_HeadTargetAngle, -0.75f, 0.75f);
 	m_HeadForce += (m_HeadTargetAngle-m_HeadAngle)/8.0f;
 	m_HeadForce *= 0.95f;
+	m_HeadForce = clamp(m_HeadForce, -0.2f, 0.2f);
 	
 	m_HeadAngle += (m_HeadTargetAngle-m_HeadAngle) / 20.0f;
 	m_HeadAngle +=  m_HeadForce;
+	m_HeadAngle = clamp(m_HeadAngle, -0.9f, 0.9f);
 
 	//m_HeadAngle = m_HeadTargetAngle;
 }

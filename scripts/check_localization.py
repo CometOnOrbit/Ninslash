@@ -68,6 +68,61 @@ def extract_server_strings() -> set[str]:
     return strings
 
 
+def extract_localize_literals(text: str) -> set[str]:
+    """Extract every literal from Localize expressions, including ternaries."""
+    strings: set[str] = set()
+    position = 0
+    marker = "Localize("
+    while True:
+        call = text.find(marker, position)
+        if call < 0:
+            break
+        index = call + len(marker)
+        argument_start = index
+        depth = 1
+        in_string = False
+        escaped = False
+        while index < len(text) and depth:
+            char = text[index]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+            elif char == '"':
+                in_string = True
+            elif char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+            index += 1
+        argument = text[argument_start : index - 1]
+        strings.update(
+            value for value in re.findall(r'"((?:\\.|[^"\\])*)"', argument) if value
+        )
+        position = max(index, call + 1)
+    return strings
+
+
+def extract_localized_string_tables(text: str) -> set[str]:
+    """Extract literal arrays whose entries are later passed to Localize."""
+    strings: set[str] = set()
+    for match in re.finditer(
+        r'(?:static\s+)?const\s+char\s+\*(\w+)(?:\s*\[[^\]]*\])+\s*=\s*\{(.*?)\};',
+        text,
+        re.DOTALL,
+    ):
+        name, body = match.groups()
+        if not re.search(rf"Localize\(\s*{re.escape(name)}\s*\[", text):
+            continue
+        strings.update(
+            value for value in re.findall(r'"([^"]+)"', body) if "\n" not in value
+        )
+    return strings
+
+
 def extract_client_strings() -> set[str]:
     strings = extract_quest_strings(
         ("GetQuestDisplayName", "GetThemeDisplayName", "GetWaveDisplayName")
@@ -78,8 +133,108 @@ def extract_client_strings() -> set[str]:
             if not fn.endswith((".cpp", ".h")):
                 continue
             text = open(os.path.join(dirpath, fn), encoding="utf-8", errors="replace").read()
-            for m in re.finditer(r'Localize\("([^"]+)"\)', text):
-                strings.add(m.group(1))
+            strings.update(extract_localize_literals(text))
+            strings.update(extract_localized_string_tables(text))
+    return strings
+
+
+def extract_platform_status_strings() -> set[str]:
+    """Extract status keys that reach Localize through async result structs."""
+    strings: set[str] = set()
+    for relative in (
+        "src/engine/client/platform_services.cpp",
+        "src/engine/client/client.cpp",
+    ):
+        text = open(os.path.join(ROOT, relative), encoding="utf-8").read()
+        patterns = (
+            r'str_copy\([^,]*(?:m_aErrorKey|m_aLobbyCreateFailure)[^,]*,\s*"([^"]+)"',
+            r'str_copy\([^,]*m_CommunityResult\.m_aError[^,]*,\s*"([^"]+)"',
+        )
+        for pattern in patterns:
+            strings.update(re.findall(pattern, text))
+        for call in re.findall(r"SetJoinFailure\((.*?)\);", text, re.DOTALL):
+            strings.update(re.findall(r'"([^"]+)"', call))
+    return strings
+
+
+# These strings are selected through tables or helper return values before they
+# reach Localize(), so the direct-call scan above cannot discover them. Keep the
+# set close to the menu's user-visible state vocabulary; missing translations
+# here otherwise silently fall back to English.
+MENU_DYNAMIC_KEYS = {
+    "Play", "Character", "Progress", "Workshop", "Replays", "Settings",
+    "Continue", "Game", "Change mode", "Players", "Server", "Vote", "Leave",
+    "CONTENT", "SYSTEM", "SESSION", "PROFILE",
+    "Solo", "Friends", "LAN", "Public", "PVE", "PVP",
+    "Choose a game mode", "Configure room", "Step 1 of 2", "Step 2 of 2",
+    "Mission difficulty", "AI difficulty", "Target active players",
+    "Target players per team", "Target waves", "Mission time",
+    "Goal target", "Score limit", "Hide advanced settings", "Advanced settings",
+    "LAN binding", "Managed automatically",
+    "Restart with changes", "Starting local game", "Stopping local game",
+    "Creating room", "Create and join",
+    "Continue local mission", "Your local server is running and you are connected.",
+    "Join local mission", "Your local server is ready. Rejoin without changing its setup.",
+    "Local server starting", "Open server status while the mission is prepared.",
+    "Continue training", "Resume chapter %d of 6 from your latest step.",
+    "Create a room", "Choose a mode, configure the mission and invite your squad.",
+    "Training · complete", "Training · skipped", "Training · not started",
+    "Local server · running", "Local server · starting",
+    "Local server · attention", "Local server · idle",
+    "Steam · online", "Standalone · UDP ready",
+    "Training", "Six guided chapters, always replayable.", "SOLO · 30–45 MIN",
+    "Choose chapter", "Co-op PvE", "Invasion, Horde, Extraction and Reactor Defense.",
+    "4 PVE MODES · CO-OP", "Configure PvE", "Local PvP",
+    "Eight competitive modes with adjustable match population.",
+    "8 PVP MODES · SOLO / LAN / STEAM", "Choose PvP mode",
+    "First Deployment", "Combat and Recovery", "PvE Mission", "Forge and Build",
+    "Build and Growth", "Multiplayer Ready",
+    "Movement, weapons and the training target.", "Combat, recovery and respawning.",
+    "Objectives, defense and extraction.", "Materials, forging and construction.",
+    "Perks, drones and research.", "Bot PvP and multiplayer rooms.",
+    "Start", "Replay", "Locked", "Resume",
+    "Cloud profile is too large", "Steam Cloud conflict needs your choice",
+    "Steam Cloud conflict postponed; cloud writes are paused",
+    "Steam Cloud data was created by a newer game version",
+    "Steam Cloud is synchronizing; retrying...", "Steam Cloud is up to date",
+    "Steam Cloud profile applied",
+    "Steam Cloud profile is empty; local progress was kept",
+    "Steam Cloud profile is invalid; local progress was kept",
+    "Steam Cloud upload failed; local progress is safe",
+}
+
+
+def extract_local_game_mode_strings() -> set[str]:
+    path = os.path.join(ROOT, "src/game/client/local_game_modes.h")
+    text = open(path, encoding="utf-8").read()
+    strings: set[str] = {"Target active players", "Target players per team"}
+    for line in text.splitlines():
+        if not line.lstrip().startswith("LOCAL_MODE_ENTRY(\""):
+            continue
+        values = re.findall(r'"([^"]*)"', line)
+        # Name, description, duration, difficulty and mechanics are localized.
+        if len(values) >= 6:
+            strings.update((values[0], values[1], values[3], values[4], values[5]))
+    for name in (
+        "s_apLocalMaps", "s_apLocalCtfMaps", "s_apLocalBallMaps",
+        "s_apLocalReactorDefenseMaps", "s_apLocalReactorAssaultMaps",
+    ):
+        match = re.search(
+            rf"static const char \*{name}\[\] = \{{(.*?)\}};", text, re.DOTALL
+        )
+        if match:
+            strings.update(re.findall(r'"([^"]*)"', match.group(1)))
+    return strings
+
+
+def extract_menu_home_strings() -> set[str]:
+    path = os.path.join(ROOT, "src/game/client/menu_home.h")
+    text = open(path, encoding="utf-8").read()
+    strings: set[str] = set()
+    for match in re.finditer(
+        r'return \{MENU_HOME_[^,]+,\s*"([^"]+)",\s*"([^"]+)"', text
+    ):
+        strings.update(match.groups())
     return strings
 
 
@@ -116,6 +271,18 @@ def extract_pve_definition_strings() -> set[str]:
         r'CARD[013]\(PVE_CARD_[^,]+,\s*"([^"]+)",\s*"([^"]+)"', text
     ):
         strings.update(match.groups())
+    short_descriptions = re.search(
+        r'gs_apShortCardDescriptions\[NUM_PVE_CARDS\]\s*=\s*\{(.*?)\};',
+        text,
+        re.DOTALL,
+    )
+    if short_descriptions:
+        strings.update(re.findall(r'"([^"]+)"', short_descriptions.group(1)))
+    choice_description = re.search(
+        r'const char \*PveChoiceDescription\(int ID\)(.*?)\n\}', text, re.DOTALL
+    )
+    if choice_description:
+        strings.update(re.findall(r'return "([^"]+)";', choice_description.group(1)))
     for match in re.finditer(
         r'\{PVE_CONTRACT_[^,]+,\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"', text
     ):
@@ -201,7 +368,13 @@ def main() -> int:
                 print(f"  {key}")
 
     pve_client_strings = extract_pve_client_strings()
-    client_strings = extract_client_strings() - pve_client_strings
+    dynamic_client_strings = (
+        set(MENU_DYNAMIC_KEYS)
+        | extract_local_game_mode_strings()
+        | extract_menu_home_strings()
+        | extract_platform_status_strings()
+    )
+    client_strings = (extract_client_strings() | dynamic_client_strings) - pve_client_strings
     lang_dir = os.path.join(ROOT, "data/languages")
     for fn in ("simplified_chinese.txt", "traditional_chinese.txt"):
         keys = load_client_keys(os.path.join(lang_dir, fn))
@@ -213,6 +386,16 @@ def main() -> int:
     for fn in ("simplified_chinese.txt", "traditional_chinese.txt"):
         path = os.path.join(lang_dir, fn)
         translations = load_client_map(path)
+        invalid_dynamic = sorted(
+            key for key in dynamic_client_strings
+            if key not in translations
+            or not translations[key].strip()
+            or "needs translation" in translations[key].lower()
+            or placeholders(key) != placeholders(translations[key])
+        )
+        if invalid_dynamic:
+            errors += 1
+            print(f"Invalid dynamic menu translations in {fn}: {invalid_dynamic}")
         missing = sorted(pve_client_strings - translations.keys())
         if missing:
             errors += 1
