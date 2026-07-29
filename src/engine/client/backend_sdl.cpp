@@ -441,10 +441,35 @@ void CCommandProcessorFragment_OpenGL::Cmd_CreateTextureBuffer(const CCommandBuf
 }
 
 
+static bool ShaderFunctionsAvailable()
+{
+	return GLEW_VERSION_2_0 &&
+		glAttachObjectARB &&
+		glCompileShaderARB &&
+		glCreateProgramObjectARB &&
+		glCreateShaderObjectARB &&
+		glDeleteObjectARB &&
+		glGetInfoLogARB &&
+		glGetObjectParameterivARB &&
+		glGetUniformLocationARB &&
+		glLinkProgramARB &&
+		glShaderSourceARB &&
+		glUniform1iARB &&
+		glUniform1fARB &&
+		glUniform2fv &&
+		glUniform4fv &&
+		glUseProgramObjectARB;
+}
+
 void CCommandProcessorFragment_OpenGL::Cmd_LoadShaders(const CCommandBuffer::SCommand_LoadShaders *pCommand)
 {
 	g_Config.m_GfxShaders = 0;
 	m_ShadersLoaded = false;
+	if(!ShaderFunctionsAvailable())
+	{
+		dbg_msg("gfx", "shader loading skipped: required OpenGL 2.0 functions unavailable");
+		return;
+	}
 	
 	m_aShader[SHADER_PLAYER] = LoadShader("data/shaders/basic.vert", "data/shaders/player.frag");
 	m_aShader[SHADER_BALL] = LoadShader("data/shaders/basic.vert", "data/shaders/ball.frag");
@@ -737,21 +762,7 @@ void CCommandProcessorFragment_SDL::Cmd_Init(const SCommand_Init *pCommand)
 	glUniform4fv = (PFNGLUNIFORM4FVPROC)SDL_GL_GetProcAddress("glUniform4fv");
 	//PFNGLUNIFORM2FVPROC glUniform2fv;
 	glUseProgramObjectARB = (PFNGLUSEPROGRAMOBJECTARBPROC) SDL_GL_GetProcAddress("glUseProgramObjectARB");
-	if (glAttachObjectARB &&
-		glCompileShaderARB &&
-		glCreateProgramObjectARB &&
-		glCreateShaderObjectARB &&
-		glDeleteObjectARB &&
-		glGetInfoLogARB &&
-		glGetObjectParameterivARB &&
-		glGetUniformLocationARB &&
-		glLinkProgramARB &&
-		glShaderSourceARB &&
-		glUniform1iARB &&
-		glUniform1fARB &&
-		glUniform2fv &&
-		glUniform4fv &&
-		glUseProgramObjectARB)
+	if(ShaderFunctionsAvailable())
 	{
 		dbg_msg("gfx", "shaders ok!");
 	}
