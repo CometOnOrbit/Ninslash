@@ -10,8 +10,10 @@ DEFAULTS = {
     "SERVER_TOOL_APP_ID": "5016790",
     "WINDOWS_CLIENT_DEPOT_ID": "1812702",
     "LINUX_CLIENT_DEPOT_ID": "1812703",
+    "MACOS_CLIENT_DEPOT_ID": "1812704",
     "WINDOWS_SERVER_DEPOT_ID": "5016792",
     "LINUX_SERVER_DEPOT_ID": "5016793",
+    "MACOS_SERVER_DEPOT_ID": "5016794",
 }
 
 
@@ -22,8 +24,10 @@ def main():
     parser.add_argument("--content-root", required=True)
     parser.add_argument("--windows-client-root", required=True)
     parser.add_argument("--linux-client-root", required=True)
+    parser.add_argument("--macos-client-root", required=True)
     parser.add_argument("--windows-server-root", required=True)
     parser.add_argument("--linux-server-root", required=True)
+    parser.add_argument("--macos-server-root", required=True)
     parser.add_argument("--version", default="local")
     parser.add_argument("--git-commit", default="unknown")
     parser.add_argument("--client-set-live", default="")
@@ -36,8 +40,10 @@ def main():
         "CONTENT_ROOT": args.content_root,
         "WINDOWS_CLIENT_ROOT": args.windows_client_root,
         "LINUX_CLIENT_ROOT": args.linux_client_root,
+        "MACOS_CLIENT_ROOT": args.macos_client_root,
         "WINDOWS_SERVER_ROOT": args.windows_server_root,
         "LINUX_SERVER_ROOT": args.linux_server_root,
+        "MACOS_SERVER_ROOT": args.macos_server_root,
         "VERSION": args.version,
         "GIT_COMMIT": args.git_commit,
         "CLIENT_SET_LIVE": args.client_set_live,

@@ -154,6 +154,13 @@ def required_file(path, description):
     return path
 
 
+def required_directory(path, description):
+    path = path.expanduser().resolve()
+    if not path.is_dir():
+        raise SystemExit(f"Missing {description}: {path}")
+    return path
+
+
 def verify_steam_build(cache, description):
     contents = cache.read_text(encoding="utf-8", errors="replace")
     required = (
@@ -163,6 +170,8 @@ def verify_steam_build(cache, description):
         "ENABLE_LUA_MODS:BOOL=ON",
         "STEAM_APP_ID:STRING=1812700",
         "STEAM_GAMESERVER_APP_ID:STRING=5016790",
+        "STEAM_MACOS_CLIENT_DEPOT_ID:STRING=1812704",
+        "STEAM_MACOS_SERVER_DEPOT_ID:STRING=5016794",
     )
     missing = [setting for setting in required if setting not in contents]
     if missing:
@@ -184,8 +193,10 @@ def configure_steam_build(build_dir, sdk_root, windows):
         "-DSTEAM_GAMESERVER_APP_ID=5016790",
         "-DSTEAM_WINDOWS_CLIENT_DEPOT_ID=1812702",
         "-DSTEAM_LINUX_CLIENT_DEPOT_ID=1812703",
+        "-DSTEAM_MACOS_CLIENT_DEPOT_ID=1812704",
         "-DSTEAM_WINDOWS_SERVER_DEPOT_ID=5016792",
         "-DSTEAM_LINUX_SERVER_DEPOT_ID=5016793",
+        "-DSTEAM_MACOS_SERVER_DEPOT_ID=5016794",
     ]
     if windows:
         toolchain = required_file(ROOT / "cmake/toolchains/mingw64.toolchain", "MinGW64 CMake toolchain")
@@ -201,6 +212,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--linux-build-dir", default="build", help="Steam-enabled Linux CMake build directory")
     parser.add_argument("--windows-build-dir", default="build-windows-steam", help="Steam-enabled Windows CMake build directory")
+    parser.add_argument("--macos-client-depot", required=True, help="Pre-staged macOS client depot from a macOS builder")
+    parser.add_argument("--macos-server-depot", required=True, help="Pre-staged macOS dedicated server depot from a macOS builder")
     parser.add_argument("--sdk-root", default=os.environ.get("STEAMWORKS_SDK_ROOT", "~/sdk"))
     parser.add_argument("--output-root", default="dist/steam-release", help="Generated content, manifests and SteamPipe output")
     parser.add_argument("--jobs", type=int, default=max(1, os.cpu_count() or 1))
@@ -233,6 +246,8 @@ def main():
 
     linux_build = Path(args.linux_build_dir).expanduser().resolve()
     windows_build = Path(args.windows_build_dir).expanduser().resolve()
+    macos_client_depot = required_directory(Path(args.macos_client_depot), "pre-staged macOS client depot")
+    macos_server_depot = required_directory(Path(args.macos_server_depot), "pre-staged macOS server depot")
     sdk_root = Path(args.sdk_root).expanduser().resolve()
     output = Path(args.output_root).expanduser().resolve()
     content = output / "content"
@@ -270,6 +285,14 @@ def main():
             "--output", content / name,
             "--steam-api", steam_api,
         ])
+    for name, source in (
+        ("macos-client", macos_client_depot),
+        ("macos-server", macos_server_depot),
+    ):
+        destination = content / name
+        if destination.exists():
+            shutil.rmtree(destination)
+        shutil.copytree(source, destination)
 
     version = git_value("describe", "--tags", "--always", "--dirty", default="local")
     commit = git_value("rev-parse", "HEAD")
@@ -283,8 +306,10 @@ def main():
         "--content-root", content,
         "--windows-client-root", content / "windows-client",
         "--linux-client-root", content / "linux-client",
+        "--macos-client-root", content / "macos-client",
         "--windows-server-root", content / "windows-server",
         "--linux-server-root", content / "linux-server",
+        "--macos-server-root", content / "macos-server",
         "--version", version,
         "--git-commit", commit,
         "--client-set-live", client_set_live,
@@ -299,6 +324,8 @@ def main():
         "--linux-server", content / "linux-server",
         "--windows-client", content / "windows-client",
         "--windows-server", content / "windows-server",
+        "--macos-client", content / "macos-client",
+        "--macos-server", content / "macos-server",
     ]
     for option, directory in (
         ("--standalone-linux", args.standalone_linux_build_dir),

@@ -90,13 +90,71 @@ def copy_linux_runtime_dependencies(executable: Path, output: Path):
         copy_required(source.resolve(), output / library)
 
 
+def macos_dependencies(path: Path):
+    inspection = subprocess.run(
+        ["otool", "-L", str(path)], check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    ).stdout
+    dependencies = []
+    for line in inspection.splitlines()[1:]:
+        match = re.match(r"\s*(\S+)\s+\(compatibility version", line)
+        if match:
+            dependencies.append(match.group(1))
+    return dependencies
+
+
+def copy_macos_runtime_dependencies(executables, build_dir: Path, output: Path, steam_api: Path | None):
+    candidates = {path.name: path for path in build_dir.glob("*.dylib")}
+    if steam_api:
+        candidates[steam_api.name] = steam_api
+    queue = list(executables)
+    scheduled = {path.resolve() for path in executables}
+    visited = set()
+    copied_sources = {}
+    while queue:
+        current = queue.pop(0)
+        resolved_current = current.resolve()
+        if resolved_current in visited:
+            continue
+        visited.add(resolved_current)
+        for dependency in macos_dependencies(current):
+            if dependency.startswith(("/System/Library/", "/usr/lib/")):
+                continue
+            name = Path(dependency).name
+            if current.suffix == ".dylib" and name == current.name:
+                continue
+            if dependency.startswith("@loader_path/"):
+                source = current.parent / dependency.removeprefix("@loader_path/")
+            elif dependency.startswith(("@rpath/", "@executable_path/")):
+                source = candidates.get(name)
+            else:
+                source = Path(dependency)
+            if not source or not source.is_file():
+                raise RuntimeError(f"unable to resolve macOS runtime library {dependency} for {current}")
+            source = source.resolve()
+            target = output / name
+            previous = copied_sources.get(name)
+            if previous and previous != source:
+                raise RuntimeError(f"conflicting macOS runtime libraries named {name}: {previous} and {source}")
+            copied_sources[name] = source
+            if not target.exists():
+                copy_required(source, target)
+            if target.resolve() not in scheduled:
+                queue.append(target)
+                scheduled.add(target.resolve())
+            subprocess.run(
+                ["install_name_tool", "-change", dependency, f"@loader_path/{name}", str(current)],
+                check=True,
+            )
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--platform", choices=("windows", "linux"), required=True)
+    parser.add_argument("--platform", choices=("windows", "linux", "macos"), required=True)
     parser.add_argument("--kind", choices=("client", "server"), required=True)
     parser.add_argument("--build-dir", default="build")
     parser.add_argument("--output", required=True)
-    parser.add_argument("--steam-api", help="steam_api64.dll or libsteam_api.so for a Steam client or GameServer build")
+    parser.add_argument("--steam-api", help="Steam API runtime for the selected platform")
     args = parser.parse_args()
 
     root = Path.cwd()
@@ -108,12 +166,15 @@ def main():
 
     executable_suffix = ".exe" if args.platform == "windows" else ""
     executable_names = ["ninslash", "ninslash_srv"] if args.kind == "client" else ["ninslash_srv"]
+    staged_executables = []
     for executable in executable_names:
         executable_path = build_dir / f"{executable}{executable_suffix}"
-        copy_required(executable_path, output / f"{executable}{executable_suffix}")
+        staged_executable = output / f"{executable}{executable_suffix}"
+        copy_required(executable_path, staged_executable)
+        staged_executables.append(staged_executable)
         if args.platform == "windows":
             copy_windows_runtime_dependencies(executable_path, build_dir, output)
-        else:
+        elif args.platform == "linux":
             copy_linux_runtime_dependencies(executable_path, output)
     copy_tree(root / "data", output / "data")
     copy_tree(root / "cfg", output / "cfg")
@@ -124,10 +185,19 @@ def main():
 
     if args.steam_api:
         api = Path(args.steam_api)
-        expected = "steam_api64.dll" if args.platform == "windows" else "libsteam_api.so"
+        expected = {
+            "windows": "steam_api64.dll",
+            "linux": "libsteam_api.so",
+            "macos": "libsteam_api.dylib",
+        }[args.platform]
         if api.name != expected:
             raise ValueError(f"expected {expected}, got {api.name}")
         copy_required(api, output / expected)
+    else:
+        api = None
+
+    if args.platform == "macos":
+        copy_macos_runtime_dependencies(staged_executables, build_dir, output, api)
 
     forbidden = {"steam_appid.txt", "settings.cfg", "pve_progress.json", "steam_bans.cfg", "steam_pending_events.dat"}
     found_forbidden = [path for path in output.rglob("*") if path.is_file() and path.name.lower() in forbidden]

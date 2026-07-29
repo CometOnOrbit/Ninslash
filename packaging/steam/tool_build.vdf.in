@@ -10,5 +10,6 @@
     {
         "@WINDOWS_SERVER_DEPOT_ID@" "depot_windows_server.vdf"
         "@LINUX_SERVER_DEPOT_ID@" "depot_linux_server.vdf"
+        "@MACOS_SERVER_DEPOT_ID@" "depot_macos_server.vdf"
     }
 }
