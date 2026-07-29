@@ -53,7 +53,7 @@ jobs:
           - name: Windows x64
             os: windows-latest
             artifact: ninslash-windows_x64-release.zip
-            builder: bam
+            builder: cmake
           - name: macOS arm64
             os: macos-latest
             artifact: ninslash-macos_arm64-release.tar.xz
@@ -102,11 +102,10 @@ jobs:
       - name: Prepare Windows
         if: contains(matrix.os, 'windows')
         run: |
-          cd bam
-          ./make_win64_msvc.bat
+          cmake -S . -B build -A x64
 
       - name: Prepare macOS
-        if: matrix.builder == 'cmake'
+        if: contains(matrix.os, 'macos')
         run: brew install cmake freetype sdl3 glew python3
 
       - name: Build Release (Linux)
@@ -114,11 +113,11 @@ jobs:
         run: bam release
 
       - name: Build Release (Windows)
-        if: matrix.builder == 'bam' && contains(matrix.os, 'windows')
-        run: ./bam/bam release
+        if: contains(matrix.os, 'windows')
+        run: cmake --build build --config Release --parallel
 
       - name: Build Release (macOS)
-        if: matrix.builder == 'cmake'
+        if: contains(matrix.os, 'macos')
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j"$(sysctl -n hw.ncpu)"
@@ -137,8 +136,9 @@ jobs:
           $dir = "ninslash-windows_x64-release"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           Copy-Item -Recurse cfg, data $dir
-          Copy-Item ninslash.exe, ninslash_srv.exe, autoexec.cfg, license.txt, THIRD_PARTY_LICENSES.md, README.md, README_zh-CN.md, storage.cfg $dir
-          Copy-Item freetype.dll, SDL3.dll, glew32.dll $dir
+          Copy-Item build/Release/ninslash.exe, build/Release/ninslash_srv.exe $dir
+          Copy-Item autoexec.cfg, autoexec_client.cfg, license.txt, THIRD_PARTY_LICENSES.md, README.md, README_zh-CN.md, storage.cfg $dir
+          Copy-Item build/Release/freetype.dll, build/Release/SDL3.dll $dir
           Copy-Item other/freetype/LICENSE.TXT "$dir/freetype-license.txt"
           Compress-Archive -Path $dir -DestinationPath "${{ matrix.artifact }}" -Force
 
@@ -146,17 +146,33 @@ jobs:
         if: contains(matrix.os, 'windows')
         shell: pwsh
         run: |
+          function Write-CiError([string]$Title, [string]$Message) {
+            $escaped = $Message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::error title=${Title}::${escaped}"
+          }
+
           python -m pip install pefile
           $dir = (Resolve-Path "ninslash-windows_x64-release").Path
-          python scripts/verify_steam_release.py `
+          $verificationOutput = @(& python scripts/verify_steam_release.py `
             --standalone-windows-client "$dir/ninslash.exe" `
-            --standalone-windows-server "$dir/ninslash_srv.exe"
+            --standalone-windows-server "$dir/ninslash_srv.exe" 2>&1)
+          $verificationExit = $LASTEXITCODE
+          $verificationOutput | ForEach-Object { Write-Host $_ }
+          if($verificationExit -ne 0) {
+            Write-CiError "Windows package verification failed" ($verificationOutput -join "`n")
+            exit $verificationExit
+          }
 
           $env:NINSLASH_OFFSCREEN = "1"
-          $process = Start-Process -FilePath "$dir/ninslash.exe" `
-            -ArgumentList '"pve_debug_screenshot 1"' -WorkingDirectory $dir -PassThru
           $log = Join-Path $env:APPDATA "Ninslash/logs/startup.log"
           $screenshots = Join-Path $env:APPDATA "Ninslash/screenshots"
+          try {
+            $process = Start-Process -FilePath "$dir/ninslash.exe" `
+              -ArgumentList '"pve_debug_screenshot 1"' -WorkingDirectory $dir -PassThru
+          } catch {
+            Write-CiError "Windows client failed to start" $_.Exception.Message
+            throw
+          }
           $ready = $false
           for($i = 0; $i -lt 120; $i++) {
             Start-Sleep -Milliseconds 500
@@ -171,26 +187,36 @@ jobs:
           }
           if(-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
           if(-not $ready) {
-            if(Test-Path $log) { Get-Content $log }
+            $exitCode = if($process.HasExited) { $process.ExitCode } else { "terminated after timeout" }
+            $details = if(Test-Path $log) { (Get-Content $log -Tail 40) -join "`n" } else { "startup.log was not created" }
+            $details = "Process exit: $exitCode`n$details"
+            Write-CiError "Windows client startup smoke test failed" $details
             throw "Windows client did not reach the menu and produce an offscreen screenshot"
           }
 
           $env:NINSLASH_TEST_FORCE_WINDOW_FAILURE = "1"
           $env:NINSLASH_TEST_NO_MESSAGEBOX = "1"
-          $failureProcess = Start-Process -FilePath "$dir/ninslash.exe" `
-            -WorkingDirectory $dir -PassThru
+          try {
+            $failureProcess = Start-Process -FilePath "$dir/ninslash.exe" `
+              -WorkingDirectory $dir -PassThru
+          } catch {
+            Write-CiError "Windows forced-failure client failed to start" $_.Exception.Message
+            throw
+          }
           if(-not $failureProcess.WaitForExit(30000)) {
             Stop-Process -Id $failureProcess.Id -Force
+            Write-CiError "Windows forced-failure smoke test timed out" "The client did not exit within 30 seconds."
             throw "Forced window failure did not exit cleanly"
           }
           if(-not (Select-String -Path $log -SimpleMatch "forced window creation failure" -Quiet) -or
              -not (Select-String -Path $log -SimpleMatch "all graphics initialization attempts failed" -Quiet)) {
-            if(Test-Path $log) { Get-Content $log }
+            $details = if(Test-Path $log) { (Get-Content $log -Tail 40) -join "`n" } else { "startup.log was not created" }
+            Write-CiError "Windows graphics fallback smoke test failed" $details
             throw "Forced window failure was not handled by the graphics fallback path"
           }
 
       - name: Package Release (macOS)
-        if: matrix.builder == 'cmake'
+        if: contains(matrix.os, 'macos')
         run: |
           pkg="ninslash-macos_arm64-release"
           mkdir -p "$pkg"
@@ -241,3 +267,185 @@ jobs:
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  steam-macos-depots:
+    name: Build Steam macOS depots
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: release-readiness-tests
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment: steam-beta
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Checkout Steamworks SDK
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.STEAMWORKS_SDK_REPOSITORY }}
+          token: ${{ secrets.STEAMWORKS_SDK_TOKEN }}
+          path: steamworks-sdk
+          persist-credentials: false
+
+      - name: Locate Steamworks SDK
+        shell: bash
+        run: |
+          if [[ -f "$GITHUB_WORKSPACE/steamworks-sdk/public/steam/steam_api.h" ]]; then
+            sdk_root="$GITHUB_WORKSPACE/steamworks-sdk"
+          elif [[ -f "$GITHUB_WORKSPACE/steamworks-sdk/sdk/public/steam/steam_api.h" ]]; then
+            sdk_root="$GITHUB_WORKSPACE/steamworks-sdk/sdk"
+          else
+            echo "Steamworks SDK checkout must contain public/steam/steam_api.h" >&2
+            exit 1
+          fi
+          echo "STEAMWORKS_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+
+      - name: Install macOS build dependencies
+        run: brew install cmake freetype sdl3 glew python3
+
+      - name: Build Steam-enabled macOS release
+        run: |
+          cmake -S . -B build-steam-macos \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_STEAMWORKS=ON \
+            -DENABLE_STEAM_GAMESERVER=ON \
+            -DENABLE_STEAM_LISTEN_SERVER=ON \
+            -DENABLE_LUA_MODS=ON \
+            -DSTEAMWORKS_SDK_ROOT="$STEAMWORKS_SDK_ROOT" \
+            -DSTEAM_APP_ID=1812700 \
+            -DSTEAM_GAMESERVER_APP_ID=5016790 \
+            -DSTEAM_MACOS_CLIENT_DEPOT_ID=1812704 \
+            -DSTEAM_MACOS_SERVER_DEPOT_ID=5016794
+          cmake --build build-steam-macos -j"$(sysctl -n hw.ncpu)"
+
+      - name: Stage and verify macOS depots
+        run: |
+          python3 scripts/stage_steam_build.py \
+            --platform macos --kind client \
+            --build-dir build-steam-macos \
+            --output dist/steam-macos/macos-client \
+            --steam-api "$STEAMWORKS_SDK_ROOT/redistributable_bin/osx/libsteam_api.dylib"
+          python3 scripts/stage_steam_build.py \
+            --platform macos --kind server \
+            --build-dir build-steam-macos \
+            --output dist/steam-macos/macos-server \
+            --steam-api "$STEAMWORKS_SDK_ROOT/redistributable_bin/osx/libsteam_api.dylib"
+          python3 scripts/verify_steam_release.py \
+            --macos-client dist/steam-macos/macos-client \
+            --macos-server dist/steam-macos/macos-server
+
+      - name: Upload macOS Steam depots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ninslash-steam-macos-depots
+          path: dist/steam-macos
+          if-no-files-found: error
+          retention-days: 7
+
+  steam-beta:
+    name: Publish Steam beta
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs:
+      - release-readiness-tests
+      - build
+      - steam-macos-depots
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: steam-beta
+    concurrency:
+      group: steam-beta
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Checkout Steamworks SDK
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.STEAMWORKS_SDK_REPOSITORY }}
+          token: ${{ secrets.STEAMWORKS_SDK_TOKEN }}
+          path: steamworks-sdk
+          persist-credentials: false
+
+      - name: Locate Steamworks SDK
+        shell: bash
+        run: |
+          if [[ -f "$GITHUB_WORKSPACE/steamworks-sdk/public/steam/steam_api.h" ]]; then
+            sdk_root="$GITHUB_WORKSPACE/steamworks-sdk"
+          elif [[ -f "$GITHUB_WORKSPACE/steamworks-sdk/sdk/public/steam/steam_api.h" ]]; then
+            sdk_root="$GITHUB_WORKSPACE/steamworks-sdk/sdk"
+          else
+            echo "Steamworks SDK checkout must contain public/steam/steam_api.h" >&2
+            exit 1
+          fi
+          echo "STEAMWORKS_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+
+      - name: Checkout SDL3
+        uses: actions/checkout@v4
+        with:
+          repository: libsdl-org/SDL
+          ref: 68bfcb6c5419f51104e74e72ea0f8d405a4615b0
+          path: SDL
+
+      - name: Install Steam build dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y build-essential cmake curl python3 mingw-w64 lib32gcc-s1 \
+            libasound2-dev libpulse-dev libaudio-dev libjack-dev libsndio-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
+            libwayland-dev libxkbcommon-dev libdrm-dev libgbm-dev \
+            libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libibus-1.0-dev libdbus-1-dev \
+            libudev-dev libinput-dev libts-dev libjpeg-dev libwebp-dev \
+            libglew-dev libfreetype6-dev
+          cmake -S SDL -B SDL/build -DCMAKE_BUILD_TYPE=Release
+          sudo cmake --build SDL/build -j"$(nproc)"
+          sudo cmake --install SDL/build
+
+      - name: Install SteamCMD and restore cached login
+        shell: bash
+        env:
+          STEAMCMD_AUTH_B64: ${{ secrets.STEAMCMD_AUTH_B64 }}
+        run: |
+          test -n "$STEAMCMD_AUTH_B64" || { echo "Missing STEAMCMD_AUTH_B64 secret" >&2; exit 1; }
+          steamcmd_root="$RUNNER_TEMP/steamcmd"
+          mkdir -p "$steamcmd_root"
+          curl -fsSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+            | tar -xz -C "$steamcmd_root"
+          "$steamcmd_root/steamcmd.sh" +quit
+          printf '%s' "$STEAMCMD_AUTH_B64" | base64 --decode | tar -xz -C "$steamcmd_root"
+          test -f "$steamcmd_root/config/config.vdf" || {
+            echo "STEAMCMD_AUTH_B64 must contain config/config.vdf and any ssfn files" >&2
+            exit 1
+          }
+          chmod -R go-rwx "$steamcmd_root/config"
+          echo "STEAMCMD=$steamcmd_root/steamcmd.sh" >> "$GITHUB_ENV"
+
+      - name: Download macOS Steam depots
+        uses: actions/download-artifact@v4
+        with:
+          name: ninslash-steam-macos-depots
+          path: dist/steam-macos
+
+      - name: Build, verify and publish Steam beta
+        env:
+          STEAM_ACCOUNT: ${{ secrets.STEAM_ACCOUNT }}
+        run: |
+          test -n "$STEAM_ACCOUNT" || { echo "Missing STEAM_ACCOUNT secret" >&2; exit 1; }
+          python3 scripts/publish_steam_depots.py \
+            --linux-build-dir build-steam-linux \
+            --windows-build-dir build-steam-windows \
+            --macos-client-depot dist/steam-macos/macos-client \
+            --macos-server-depot dist/steam-macos/macos-server \
+            --sdk-root "$STEAMWORKS_SDK_ROOT" \
+            --output-root dist/steam-beta \
+            --strict-assets \
+            --upload \
+            --set-live beta \
+            --steam-account "$STEAM_ACCOUNT" \
+            --steamcmd "$STEAMCMD"

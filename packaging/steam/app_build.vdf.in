@@ -10,5 +10,6 @@
     {
         "@WINDOWS_CLIENT_DEPOT_ID@" "depot_windows_client.vdf"
         "@LINUX_CLIENT_DEPOT_ID@" "depot_linux_client.vdf"
+        "@MACOS_CLIENT_DEPOT_ID@" "depot_macos_client.vdf"
     }
 }

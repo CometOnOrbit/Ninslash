@@ -2,14 +2,16 @@
 
 **[English](README.md) · 简体中文**
 
-Ninslash 使用 AppID `1812700`；Ninslash Dedicated Server 使用 Tool AppID `5016790`。已分配的 Windows/Linux 客户端 Depot 为 `1812702`/`1812703`，Windows/Linux 专用服务器 Depot 为 `5016792`/`5016793`。不要提交 Steam 凭据、缓存的登录令牌或仅限 Partner 使用的 SDK 文件。
+Ninslash 使用 AppID `1812700`；Ninslash Dedicated Server 使用 Tool AppID `5016790`。Windows/Linux/macOS 客户端 Depot 为 `1812702`/`1812703`/`1812704`，专用服务器 Depot 为 `5016792`/`5016793`/`5016794`。不要提交 Steam 凭据、缓存的登录令牌或仅限 Partner 使用的 SDK 文件。
 
-以下包装脚本会配置并重新编译两个平台构建、暂存四个 Depot、渲染 VDF 并运行离线验证器。Windows 构建目录不存在时，会使用仓库内的 MinGW64 toolchain 自动创建。除非明确传入 `--upload`，否则不会上传：
+以下包装脚本会重新编译 Linux/Windows、导入已在 macOS runner 暂存的内容、汇总六个 Depot、渲染 VDF 并运行离线验证器。Windows 构建目录不存在时，会使用仓库内的 MinGW64 toolchain 自动创建。除非明确传入 `--upload`，否则不会上传：
 
 ```sh
 python3 scripts/publish_steam_depots.py \
   --linux-build-dir build \
   --windows-build-dir build-windows-steam \
+  --macos-client-depot dist/steam-macos/macos-client \
+  --macos-server-depot dist/steam-macos/macos-server \
   --sdk-root "$HOME/sdk"
 ```
 
@@ -19,6 +21,8 @@ python3 scripts/publish_steam_depots.py \
 python3 scripts/publish_steam_depots.py \
   --linux-build-dir build \
   --windows-build-dir build-windows-steam \
+  --macos-client-depot dist/steam-macos/macos-client \
+  --macos-server-depot dist/steam-macos/macos-server \
   --sdk-root "$HOME/sdk" \
   --upload --steam-account YOUR_PARTNER_ACCOUNT
 ```
@@ -41,8 +45,10 @@ python3 scripts/render_steam_build.py --output dist/steampipe \
   --build-output /private/steam-output --content-root /private/content \
   --windows-client-root dist/steam/windows-client \
   --linux-client-root dist/steam/linux-client \
+  --macos-client-root dist/steam/macos-client \
   --windows-server-root dist/steam/windows-server \
-  --linux-server-root dist/steam/linux-server
+  --linux-server-root dist/steam/linux-server \
+  --macos-server-root dist/steam/macos-server
 ```
 
 仅在本地 SDK 测试时，将 `steam_appid.txt.example` 复制到客户端二进制旁并重命名为 `steam_appid.txt`。暂存脚本会拒绝将该文件放入 Depot。
@@ -56,8 +62,45 @@ python3 scripts/stage_steam_build.py --platform windows --kind client \
 python3 scripts/stage_steam_build.py --platform linux --kind server \
   --build-dir build --output dist/steam/linux-server \
   --steam-api /path/to/libsteam_api.so
+python3 scripts/stage_steam_build.py --platform macos --kind client \
+  --build-dir build-macos --output dist/steam/macos-client \
+  --steam-api /path/to/libsteam_api.dylib
 ```
 
 分别使用 `internal`、`beta` 和 `public` 分支。先上传到 `internal`，通过 Steam 在干净设备上安装并执行发行测试矩阵，之后再提升同一 BuildID；不要为分支提升单独重新构建。
 
 上传前，对渲染后的清单、已暂存的 Steam Depot 和独立版二进制运行 `scripts/verify_steam_release.py`。`sv_register_steam` 只控制 Steam 广告；`sv_register` 保留开放的旧主列表通道。
+
+## GitHub Actions 自动发布 beta
+
+每次成功推送到 Git 的 `dev` 分支后，`Publish Steam beta` Job 会等待发行测试以及 Linux、Windows、macOS 三个平台全部构建成功，在原生 runner 上生成并汇总六个 Steam Depot，完成离线校验、上传两个 AppID，并将新 Build 设为 Steam `beta` 分支的 live 版本。PR、标签和其他 Git 分支都不会上传 Steam。
+
+请新建受保护的 GitHub Environment `steam-beta`，并配置以下 Environment Secrets：
+
+- `STEAMWORKS_SDK_REPOSITORY`：存放 Steamworks SDK 的私有 GitHub 仓库，格式为 `owner/repo`；SDK 可位于仓库根目录或 `sdk/`。
+- `STEAMWORKS_SDK_TOKEN`：仅具有该私有仓库读取权限的 fine-grained token。
+- `STEAM_ACCOUNT`：对两个 AppID 具有编辑、发布以及修改 `beta` live 分支权限的 Steam Partner 构建账号。
+- `STEAMCMD_AUTH_B64`：在可信 Linux 机器上完成 SteamCMD 交互登录后，将 SteamCMD 的 `config/config.vdf` 及可选的 `ssfn*` 文件打包并进行 base64 编码的内容。不得将该档案提交到仓库，也不要打包包含浏览器缓存的整个 `config/` 目录。
+
+先使用发布账号完成一次 SteamCMD 交互登录。SteamCMD 通常将登录状态写入
+`~/.steam/steam/config/`，而不是 `steamcmd.sh` 所在目录。随后在任意临时目录执行：
+
+```bash
+auth_root="$HOME/.steam/steam"
+archive="$PWD/steamcmd-auth.tar.gz"
+(
+  cd "$auth_root"
+  set -- config/config.vdf
+  for file in ssfn*; do
+    [ -e "$file" ] && set -- "$@" "$file"
+  done
+  tar -czf "$archive" "$@"
+)
+base64 -w0 steamcmd-auth.tar.gz > steamcmd-auth.txt
+```
+
+`ssfn*` 文件并非每次登录都会生成；以上命令会在它们存在时自动加入，但始终只从
+`config/` 中包含 `config/config.vdf`，不会导出体积很大的 `config/htmlcache/`。使用
+`tar -tzf steamcmd-auth.tar.gz` 检查归档后，将
+`steamcmd-auth.txt` 的内容保存为 `STEAMCMD_AUTH_B64`，随后删除两个本地导出文件。
+可以通过 Environment protection rules 为每次上传增加人工批准，而无需修改 workflow。

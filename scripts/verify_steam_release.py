@@ -11,7 +11,10 @@ import subprocess
 from pathlib import Path
 
 
-EXPECTED_IDS = ("1812700", "1812702", "1812703", "5016790", "5016792", "5016793")
+EXPECTED_IDS = (
+    "1812700", "1812702", "1812703", "1812704",
+    "5016790", "5016792", "5016793", "5016794",
+)
 FORBIDDEN_NAMES = {
     "steam_appid.txt",
     "settings.cfg",
@@ -262,7 +265,7 @@ def verify_depot_executable(root, executable, steam_api, platform, errors):
                 expected_library = str((root / library).resolve())
                 if f"{library} => {expected_library}" not in linked:
                     errors.append(f"{executable}: {library} is not resolved from its depot root")
-        else:
+        elif platform == "windows":
             image, imports = inspect_windows_imports(executable)
             if "steam_api64.dll" not in imports:
                 errors.append(f"{executable}: missing steam_api64.dll import")
@@ -271,6 +274,34 @@ def verify_depot_executable(root, executable, steam_api, platform, errors):
                 errors.append(f"{executable}: Windows client must use the GUI subsystem")
             if not is_client and "windows cui" not in image.lower() and "subsystem-3" not in image.lower():
                 errors.append(f"{executable}: Windows server must retain the console subsystem")
+        else:
+            file_description = command_output(["file", str(executable)])
+            if "Mach-O" not in file_description or not any(architecture in file_description for architecture in ("arm64", "x86_64")):
+                errors.append(f"{executable}: macOS release binary must be 64-bit Mach-O")
+            is_entrypoint = executable.name in {"ninslash", "ninslash_srv"}
+            otool = shutil.which("otool")
+            if not otool:
+                if is_entrypoint and b"libsteam_api.dylib" not in executable.read_bytes():
+                    errors.append(f"{executable}: missing libsteam_api.dylib reference")
+                return
+            inspection = command_output([otool, "-L", str(executable)])
+            dependencies = []
+            for line in inspection.splitlines()[1:]:
+                match = re.match(r"\s*(\S+)\s+\(compatibility version", line)
+                if match:
+                    dependencies.append(match.group(1))
+            if is_entrypoint and "@loader_path/libsteam_api.dylib" not in dependencies:
+                errors.append(f"{executable}: libsteam_api.dylib must resolve through @loader_path")
+            for dependency in dependencies:
+                if dependency.startswith(("/System/Library/", "/usr/lib/")):
+                    continue
+                if executable.suffix == ".dylib" and Path(dependency).name == executable.name:
+                    continue
+                if not dependency.startswith("@loader_path/"):
+                    errors.append(f"{executable}: non-system macOS dependency is not portable: {dependency}")
+                    continue
+                if not (root / dependency.removeprefix("@loader_path/")).is_file():
+                    errors.append(f"{executable}: missing bundled macOS dependency: {dependency}")
     except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         errors.append(f"{executable}: dependency inspection failed: {exc}")
 
@@ -282,7 +313,11 @@ def verify_depot(root_text, platform, kind, errors):
     suffix = ".exe" if platform == "windows" else ""
     executable_names = ["ninslash", "ninslash_srv"] if kind == "client" else ["ninslash_srv"]
     executables = [root / f"{name}{suffix}" for name in executable_names]
-    steam_api = root / ("steam_api64.dll" if platform == "windows" else "libsteam_api.so")
+    steam_api = root / {
+        "windows": "steam_api64.dll",
+        "linux": "libsteam_api.so",
+        "macos": "libsteam_api.dylib",
+    }[platform]
     for required in ("data", "cfg", "autoexec.cfg", "autoexec_client.cfg", "storage.cfg"):
         path = root / required
         if not path.exists():
@@ -305,6 +340,9 @@ def verify_depot(root_text, platform, kind, errors):
             verify_depot_executable(root, executable, steam_api, platform, errors)
     if platform == "windows":
         verify_windows_dependency_closure(root, [path for path in executables if path.is_file()], errors)
+    elif platform == "macos":
+        for library in root.glob("*.dylib"):
+            verify_depot_executable(root, library, steam_api, platform, errors)
 
 
 def verify_standalone(binary_text, platform, errors):
@@ -356,6 +394,8 @@ def main():
     parser.add_argument("--linux-server")
     parser.add_argument("--windows-client")
     parser.add_argument("--windows-server")
+    parser.add_argument("--macos-client")
+    parser.add_argument("--macos-server")
     parser.add_argument("--standalone-linux-client")
     parser.add_argument("--standalone-linux-server")
     parser.add_argument("--standalone-windows-client")
@@ -368,6 +408,8 @@ def main():
     verify_depot(args.linux_server, "linux", "server", errors)
     verify_depot(args.windows_client, "windows", "client", errors)
     verify_depot(args.windows_server, "windows", "server", errors)
+    verify_depot(args.macos_client, "macos", "client", errors)
+    verify_depot(args.macos_server, "macos", "server", errors)
     verify_standalone(args.standalone_linux_client, "linux", errors)
     verify_standalone(args.standalone_linux_server, "linux", errors)
     verify_standalone(args.standalone_windows_client, "windows", errors)
