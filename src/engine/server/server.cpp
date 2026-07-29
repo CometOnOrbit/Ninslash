@@ -2595,17 +2595,47 @@ void CServer::SnapSetStaticsize(int ItemType, int Size)
 #if !defined(CONF_EMBEDDED_SERVER_CORE)
 static CServer *CreateServer() { return new CServer(); }
 
+#if defined(CONF_FAMILY_WINDOWS)
+static void EnsureServerConsole()
+{
+	if(GetConsoleWindow() || !AllocConsole())
+		return;
+
+	FILE *pStream;
+#if defined(_MSC_VER)
+	freopen_s(&pStream, "CONIN$", "r", stdin);
+	freopen_s(&pStream, "CONOUT$", "w", stdout);
+	freopen_s(&pStream, "CONOUT$", "w", stderr);
+#else
+	pStream = freopen("CONIN$", "r", stdin);
+	pStream = freopen("CONOUT$", "w", stdout);
+	pStream = freopen("CONOUT$", "w", stderr);
+#endif
+	(void)pStream;
+	SetConsoleOutputCP(CP_UTF8);
+	SetConsoleTitleA("Ninslash Dedicated Server");
+}
+#endif
+
 int main(int argc, const char **argv) // ignore_convention
 {
 #if defined(CONF_FAMILY_WINDOWS)
+	bool Silent = false;
 	for(int i = 1; i < argc; i++) // ignore_convention
 	{
 		if(str_comp("-s", argv[i]) == 0 || str_comp("--silent", argv[i]) == 0) // ignore_convention
 		{
-			ShowWindow(GetConsoleWindow(), SW_HIDE);
+			Silent = true;
 			break;
 		}
 	}
+	if(Silent)
+	{
+		if(GetConsoleWindow())
+			ShowWindow(GetConsoleWindow(), SW_HIDE);
+	}
+	else
+		EnsureServerConsole();
 #endif
 
 	signal(SIGINT, HandleSigIntTerm);
