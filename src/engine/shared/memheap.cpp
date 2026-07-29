@@ -1,7 +1,7 @@
 
 
 #include <base/system.h>
-#include <stddef.h>
+#include <cstddef>
 #include "memheap.h"
 
 static const int CHUNK_SIZE = 1024*64;
@@ -33,7 +33,7 @@ void CHeap::NewChunk()
 void *CHeap::AllocateFromChunk(unsigned int Size)
 {
 	char *pMem;
-	const unsigned int Alignment = alignof(max_align_t);
+	const unsigned int Alignment = alignof(std::max_align_t);
 	if(Size > ~0U - (Alignment - 1))
 		return (void *)0x0;
 	Size = (Size + Alignment - 1) & ~(Alignment - 1);
