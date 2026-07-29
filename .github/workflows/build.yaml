@@ -146,17 +146,33 @@ jobs:
         if: contains(matrix.os, 'windows')
         shell: pwsh
         run: |
+          function Write-CiError([string]$Title, [string]$Message) {
+            $escaped = $Message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::error title=${Title}::${escaped}"
+          }
+
           python -m pip install pefile
           $dir = (Resolve-Path "ninslash-windows_x64-release").Path
-          python scripts/verify_steam_release.py `
+          $verificationOutput = @(& python scripts/verify_steam_release.py `
             --standalone-windows-client "$dir/ninslash.exe" `
-            --standalone-windows-server "$dir/ninslash_srv.exe"
+            --standalone-windows-server "$dir/ninslash_srv.exe" 2>&1)
+          $verificationExit = $LASTEXITCODE
+          $verificationOutput | ForEach-Object { Write-Host $_ }
+          if($verificationExit -ne 0) {
+            Write-CiError "Windows package verification failed" ($verificationOutput -join "`n")
+            exit $verificationExit
+          }
 
           $env:NINSLASH_OFFSCREEN = "1"
-          $process = Start-Process -FilePath "$dir/ninslash.exe" `
-            -ArgumentList '"pve_debug_screenshot 1"' -WorkingDirectory $dir -PassThru
           $log = Join-Path $env:APPDATA "Ninslash/logs/startup.log"
           $screenshots = Join-Path $env:APPDATA "Ninslash/screenshots"
+          try {
+            $process = Start-Process -FilePath "$dir/ninslash.exe" `
+              -ArgumentList '"pve_debug_screenshot 1"' -WorkingDirectory $dir -PassThru
+          } catch {
+            Write-CiError "Windows client failed to start" $_.Exception.Message
+            throw
+          }
           $ready = $false
           for($i = 0; $i -lt 120; $i++) {
             Start-Sleep -Milliseconds 500
@@ -171,21 +187,29 @@ jobs:
           }
           if(-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
           if(-not $ready) {
-            if(Test-Path $log) { Get-Content $log }
+            $details = if(Test-Path $log) { Get-Content $log -Raw } else { "startup.log was not created" }
+            Write-CiError "Windows client startup smoke test failed" $details
             throw "Windows client did not reach the menu and produce an offscreen screenshot"
           }
 
           $env:NINSLASH_TEST_FORCE_WINDOW_FAILURE = "1"
           $env:NINSLASH_TEST_NO_MESSAGEBOX = "1"
-          $failureProcess = Start-Process -FilePath "$dir/ninslash.exe" `
-            -WorkingDirectory $dir -PassThru
+          try {
+            $failureProcess = Start-Process -FilePath "$dir/ninslash.exe" `
+              -WorkingDirectory $dir -PassThru
+          } catch {
+            Write-CiError "Windows forced-failure client failed to start" $_.Exception.Message
+            throw
+          }
           if(-not $failureProcess.WaitForExit(30000)) {
             Stop-Process -Id $failureProcess.Id -Force
+            Write-CiError "Windows forced-failure smoke test timed out" "The client did not exit within 30 seconds."
             throw "Forced window failure did not exit cleanly"
           }
           if(-not (Select-String -Path $log -SimpleMatch "forced window creation failure" -Quiet) -or
              -not (Select-String -Path $log -SimpleMatch "all graphics initialization attempts failed" -Quiet)) {
-            if(Test-Path $log) { Get-Content $log }
+            $details = if(Test-Path $log) { Get-Content $log -Raw } else { "startup.log was not created" }
+            Write-CiError "Windows graphics fallback smoke test failed" $details
             throw "Forced window failure was not handled by the graphics fallback path"
           }
 
