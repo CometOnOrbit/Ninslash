@@ -1,6 +1,7 @@
 
 
 #include <new>
+#include <vector>
 
 #include <stdlib.h> // qsort
 #include <stdarg.h>
@@ -59,8 +60,8 @@
 #endif
 
 #include <SDL3/SDL.h>
-#ifdef main
-#undef main
+#if defined(CONF_FAMILY_WINDOWS)
+#include <SDL3/SDL_main.h>
 #endif
 
 namespace
@@ -3197,8 +3198,11 @@ static CClient *CreateClient()
 		Upstream latency
 */
 
-int main(int argc, const char **argv) // ignore_convention
+int main(int argc, char **argv) // ignore_convention
 {
+	std::vector<const char *> Arguments(argv, argv + argc);
+	const char **ppArguments = Arguments.data();
+
 	// A launcher can provide an empty or stale working directory. Release assets,
 	// cfg files and legacy direct file loads expect data beside the client, so use
 	// the executable directory whenever it contains the staged data directory.
@@ -3224,7 +3228,7 @@ int main(int argc, const char **argv) // ignore_convention
 		dbg_msg("startup", "working directory: %s", aWorkingDirectory);
 	for(int i = 1; i < argc; i++) // ignore_convention
 	{
-		if(str_comp("-s", argv[i]) == 0 || str_comp("--silent", argv[i]) == 0) // ignore_convention
+		if(str_comp("-s", ppArguments[i]) == 0 || str_comp("--silent", ppArguments[i]) == 0) // ignore_convention
 		{
 			FreeConsole();
 			break;
@@ -3240,7 +3244,7 @@ int main(int argc, const char **argv) // ignore_convention
 	// create the components
 	IEngine *pEngine = CreateEngine("Ninslash");
 	IConsole *pConsole = CreateConsole(CFGFLAG_CLIENT);
-	IStorage *pStorage = CreateStorage("Ninslash", IStorage::STORAGETYPE_CLIENT, argc, argv); // ignore_convention
+	IStorage *pStorage = CreateStorage("Ninslash", IStorage::STORAGETYPE_CLIENT, argc, ppArguments); // ignore_convention
 	IConfig *pConfig = CreateConfig();
 	IEngineSound *pEngineSound = CreateEngineSound();
 	IEngineGamepad *pEngineGamepad = CreateEngineGamepad();
@@ -3307,7 +3311,7 @@ int main(int argc, const char **argv) // ignore_convention
 
 	// parse the command line arguments
 	if(argc > 1) // ignore_convention
-		pConsole->ParseArguments(argc-1, &argv[1]); // ignore_convention
+		pConsole->ParseArguments(argc-1, &ppArguments[1]); // ignore_convention
 
 	// restore empty config strings to their defaults
 	pConfig->RestoreStrings();
