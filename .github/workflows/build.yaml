@@ -53,7 +53,7 @@ jobs:
           - name: Windows x64
             os: windows-latest
             artifact: ninslash-windows_x64-release.zip
-            builder: bam
+            builder: cmake
           - name: macOS arm64
             os: macos-latest
             artifact: ninslash-macos_arm64-release.tar.xz
@@ -102,11 +102,10 @@ jobs:
       - name: Prepare Windows
         if: contains(matrix.os, 'windows')
         run: |
-          cd bam
-          ./make_win64_msvc.bat
+          cmake -S . -B build -A x64
 
       - name: Prepare macOS
-        if: matrix.builder == 'cmake'
+        if: contains(matrix.os, 'macos')
         run: brew install cmake freetype sdl3 glew python3
 
       - name: Build Release (Linux)
@@ -114,11 +113,11 @@ jobs:
         run: bam release
 
       - name: Build Release (Windows)
-        if: matrix.builder == 'bam' && contains(matrix.os, 'windows')
-        run: ./bam/bam release
+        if: contains(matrix.os, 'windows')
+        run: cmake --build build --config Release --parallel
 
       - name: Build Release (macOS)
-        if: matrix.builder == 'cmake'
+        if: contains(matrix.os, 'macos')
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j"$(sysctl -n hw.ncpu)"
@@ -137,8 +136,9 @@ jobs:
           $dir = "ninslash-windows_x64-release"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           Copy-Item -Recurse cfg, data $dir
-          Copy-Item ninslash.exe, ninslash_srv.exe, autoexec.cfg, license.txt, THIRD_PARTY_LICENSES.md, README.md, README_zh-CN.md, storage.cfg $dir
-          Copy-Item freetype.dll, SDL3.dll, glew32.dll $dir
+          Copy-Item build/Release/ninslash.exe, build/Release/ninslash_srv.exe $dir
+          Copy-Item autoexec.cfg, license.txt, THIRD_PARTY_LICENSES.md, README.md, README_zh-CN.md, storage.cfg $dir
+          Copy-Item build/Release/freetype.dll, build/Release/SDL3.dll $dir
           Copy-Item other/freetype/LICENSE.TXT "$dir/freetype-license.txt"
           Compress-Archive -Path $dir -DestinationPath "${{ matrix.artifact }}" -Force
 
@@ -190,7 +190,7 @@ jobs:
           }
 
       - name: Package Release (macOS)
-        if: matrix.builder == 'cmake'
+        if: contains(matrix.os, 'macos')
         run: |
           pkg="ninslash-macos_arm64-release"
           mkdir -p "$pkg"
