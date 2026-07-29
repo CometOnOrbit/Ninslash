@@ -137,7 +137,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           Copy-Item -Recurse cfg, data $dir
           Copy-Item build/Release/ninslash.exe, build/Release/ninslash_srv.exe $dir
-          Copy-Item autoexec.cfg, license.txt, THIRD_PARTY_LICENSES.md, README.md, README_zh-CN.md, storage.cfg $dir
+          Copy-Item autoexec.cfg, autoexec_client.cfg, license.txt, THIRD_PARTY_LICENSES.md, README.md, README_zh-CN.md, storage.cfg $dir
           Copy-Item build/Release/freetype.dll, build/Release/SDL3.dll $dir
           Copy-Item other/freetype/LICENSE.TXT "$dir/freetype-license.txt"
           Compress-Archive -Path $dir -DestinationPath "${{ matrix.artifact }}" -Force
@@ -187,7 +187,9 @@ jobs:
           }
           if(-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
           if(-not $ready) {
-            $details = if(Test-Path $log) { Get-Content $log -Raw } else { "startup.log was not created" }
+            $exitCode = if($process.HasExited) { $process.ExitCode } else { "terminated after timeout" }
+            $details = if(Test-Path $log) { (Get-Content $log -Tail 40) -join "`n" } else { "startup.log was not created" }
+            $details = "Process exit: $exitCode`n$details"
             Write-CiError "Windows client startup smoke test failed" $details
             throw "Windows client did not reach the menu and produce an offscreen screenshot"
           }
@@ -208,7 +210,7 @@ jobs:
           }
           if(-not (Select-String -Path $log -SimpleMatch "forced window creation failure" -Quiet) -or
              -not (Select-String -Path $log -SimpleMatch "all graphics initialization attempts failed" -Quiet)) {
-            $details = if(Test-Path $log) { Get-Content $log -Raw } else { "startup.log was not created" }
+            $details = if(Test-Path $log) { (Get-Content $log -Tail 40) -join "`n" } else { "startup.log was not created" }
             Write-CiError "Windows graphics fallback smoke test failed" $details
             throw "Forced window failure was not handled by the graphics fallback path"
           }
