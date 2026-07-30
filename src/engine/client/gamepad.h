@@ -7,10 +7,10 @@ class CGamepad : public IEngineGamepad
 {
 	int m_GamepadEnabled;
 	int m_RumbleEnabled;
-	
-	SDL_Haptic* m_Haptic;
-	
-public:
+
+	SDL_Haptic *m_Haptic;
+
+  public:
 	IEngineGraphics *m_pGraphics;
 	IStorage *m_pStorage;
 
@@ -18,15 +18,14 @@ public:
 
 	int Shutdown();
 	void ScanGamepads();
-	
+
 	virtual void ConnectGamepad();
 	virtual void DisconnectGamepad(int DeviceID);
 
 	virtual bool IsGamepadEnabled() { return m_GamepadEnabled != 0; }
-	virtual bool IsRumbleEnabled() { return m_Haptic != NULL; }
-	
-	virtual void Rumble(float Strength, unsigned int Length);
+	virtual bool IsRumbleEnabled() { return m_Haptic != 0; }
 
+	virtual void Rumble(float Strength, unsigned int Length);
 };
 
 #endif

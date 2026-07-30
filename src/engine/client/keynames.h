@@ -6,8 +6,7 @@
 
 #include <string.h>
 
-const char g_aaKeyStrings[512][20] =
-{
+const char g_aaKeyStrings[512][20] = {
 	"unknown",
 	"&1",
 	"&2",
@@ -521,4 +520,3 @@ const char g_aaKeyStrings[512][20] =
 	"&510",
 	"&511",
 };
-

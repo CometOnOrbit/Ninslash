@@ -19,12 +19,12 @@ class CBinds : public CComponent
 
 	static void ConfigSaveCallback(class IConfig *pConfig, void *pUserData);
 
-public:
+  public:
 	CBinds();
 
 	class CBindsSpecial : public CComponent
 	{
-	public:
+	  public:
 		CBinds *m_pBinds;
 		virtual bool OnInput(IInput::CEvent Event);
 	};

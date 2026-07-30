@@ -61,17 +61,14 @@ inline int InvasionThemeFromLevel(int Level)
 // Mapgen layouts that need player spawn + enemy spawn (Invasion-style).
 inline bool IsCoopMapGenGametype(const char *pType)
 {
-	return str_comp(pType, "coop") == 0
-		|| str_comp(pType, "tutorial") == 0
-		|| str_comp(pType, "horde") == 0
-		|| str_comp(pType, "extract") == 0;
+	return str_comp(pType, "coop") == 0 || str_comp(pType, "tutorial") == 0 || str_comp(pType, "horde") == 0 ||
+		   str_comp(pType, "extract") == 0;
 }
 
 inline bool IsTutorialGametype(const char *pType)
 {
 	return str_comp(pType, "tutorial") == 0;
 }
-
 
 const char *GetQuestDisplayName(int Quest);
 const char *GetQuestStartMessage(int Quest, int WaveType = WAVE_NONE);

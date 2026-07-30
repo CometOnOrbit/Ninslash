@@ -7,14 +7,11 @@
 
 #include "tdm_ai.h"
 
-
-CAItdm::CAItdm(CGameContext *pGameServer, CPlayer *pPlayer)
-: CAI(pGameServer, pPlayer)
+CAItdm::CAItdm(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
 {
 	m_SkipMoveUpdate = 0;
 	pPlayer->SetRandomSkin();
 }
-
 
 void CAItdm::OnCharacterSpawn(CCharacter *pChr)
 {
@@ -26,71 +23,67 @@ void CAItdm::OnCharacterSpawn(CCharacter *pChr)
 
 bool CAItdm::SeekFriend()
 {
-	if (SeekClosestFriend())
+	if(SeekClosestFriend())
 	{
 		m_TargetPos = m_PlayerPos;
 		return true;
 	}
-	
+
 	return false;
 }
-
 
 void CAItdm::DoBehavior()
 {
 	// reset jump and attack
-	if (Player()->GetCharacter()->GetCore().m_JetpackPower < 10 || Player()->GetCharacter()->GetCore().m_Jetpack == 0)
+	if(Player()->GetCharacter()->GetCore().m_JetpackPower < 10 || Player()->GetCharacter()->GetCore().m_Jetpack == 0)
 		m_Jump = 0;
-	
+
 	m_Attack = 0;
 
-	
 	HeadToMovingDirection();
 
 	SeekClosestEnemyInSight();
-	
+
 	// if we see a player
-	if (m_EnemiesInSight > 0)
+	if(m_EnemiesInSight > 0)
 	{
-		if (!ShootAtClosestEnemy())
-			if (!ShootAtClosestBuilding())
+		if(!ShootAtClosestEnemy())
+			if(!ShootAtClosestBuilding())
 				ShootAtClosestMonster();
-		
+
 		ReactToPlayer();
 	}
 	else
 	{
-		if (!ShootAtClosestBuilding())
+		if(!ShootAtClosestBuilding())
 			ShootAtClosestMonster();
 	}
 
-	
-	
-	int f = 800-max(400, m_EnemiesInSight*50);
+	int f = 800 - max(400, m_EnemiesInSight * 50);
 
 	bool SeekEnemy = false;
-	
-	if (SeekClosestFriend())
+
+	if(SeekClosestFriend())
 	{
 		m_TargetPos = m_PlayerPos;
-		
-		if (m_PlayerDistance < f)
+
+		if(m_PlayerDistance < f)
 			SeekEnemy = true;
 	}
 	else
 		SeekEnemy = true;
-	
-	if (SeekEnemy)
+
+	if(SeekEnemy)
 	{
-		if (SeekClosestEnemy())
+		if(SeekClosestEnemy())
 		{
 			m_TargetPos = m_PlayerPos;
-							
-			if (m_EnemiesInSight > 0)
+
+			if(m_EnemiesInSight > 0)
 			{
-				if (WeaponShootRange() - m_PlayerDistance > 200)
+				if(WeaponShootRange() - m_PlayerDistance > 200)
 				{
-					if (SeekFriend() && m_PlayerDistance < 200)
+					if(SeekFriend() && m_PlayerDistance < 200)
 						SeekRandomWaypoint();
 				}
 			}
@@ -98,13 +91,13 @@ void CAItdm::DoBehavior()
 		else
 			SeekRandomWaypoint();
 	}
-	
-	if (Player()->GetCharacter()->GetWeapon() == nullptr)
+
+	if(Player()->GetCharacter()->GetWeapon() == 0)
 		FindWeapon();
 	else
 		ShootAtBlocks();
 
-	if (UpdateWaypoint())
+	if(UpdateWaypoint())
 	{
 		MoveTowardsWaypoint();
 	}
@@ -113,12 +106,11 @@ void CAItdm::DoBehavior()
 		m_WaypointPos = m_TargetPos;
 		MoveTowardsWaypoint(true);
 	}
-	
 
 	Build();
 	RandomlyStopShooting();
-	
+
 	// next reaction in
 	m_ReactionTime = 2;
-	//m_ReactionTime = 2 + frandom()*4;
+	// m_ReactionTime = 2 + frandom()*4;
 }

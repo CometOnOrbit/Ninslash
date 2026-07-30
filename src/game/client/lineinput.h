@@ -63,12 +63,13 @@ class CLineInput
 	};
 	static void MoveCursor(EMoveDirection Direction, bool MoveWord, const char *pStr, int MaxSize, int *pCursorPos);
 	static void SetCompositionWindowPosition(vec2 Anchor, float LineHeight);
-	void DrawSelection(float HeightWeight, int Start, int End, vec4 Color, float FontSize, float OriginX, float OriginY);
+	void
+	DrawSelection(float HeightWeight, int Start, int End, vec4 Color, float FontSize, float OriginX, float OriginY);
 
 	void OnActivate();
 	void OnDeactivate();
 
-public:
+  public:
 	static void Init(IInput *pInput, ITextRender *pTextRender, IGraphics *pGraphics, IClient *pClient)
 	{
 		s_pInput = pInput;
@@ -93,7 +94,12 @@ public:
 	void Insert(const char *pString, int Begin);
 	void Append(const char *pString);
 
-	void SetRenderOrigin(float X, float Y, float FontSize) { m_OriginX = X; m_OriginY = Y; m_FontSize = FontSize; }
+	void SetRenderOrigin(float X, float Y, float FontSize)
+	{
+		m_OriginX = X;
+		m_OriginY = Y;
+		m_FontSize = FontSize;
+	}
 	float GetFontSize() const { return m_FontSize; }
 
 	const char *GetString() const { return m_pStr; }
@@ -124,7 +130,12 @@ public:
 	void SetHidden(bool Hidden) { m_Hidden = Hidden; }
 
 	bool ProcessInput(const IInput::CEvent &Event);
-	bool WasChanged() { bool Changed = m_WasChanged; m_WasChanged = false; return Changed; }
+	bool WasChanged()
+	{
+		bool Changed = m_WasChanged;
+		m_WasChanged = false;
+		return Changed;
+	}
 
 	void Render(bool Changed);
 
@@ -134,12 +145,11 @@ public:
 	void MarkRendered() { m_WasRendered = true; }
 };
 
-template<int MaxSize, int MaxChars = MaxSize>
-class CLineInputBuffered : public CLineInput
+template <int MaxSize, int MaxChars = MaxSize> class CLineInputBuffered : public CLineInput
 {
 	char m_aBuffer[MaxSize];
 
-public:
+  public:
 	CLineInputBuffered() : CLineInput()
 	{
 		m_aBuffer[0] = 0;

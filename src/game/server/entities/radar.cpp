@@ -3,7 +3,7 @@
 #include "radar.h"
 
 CServerRadar::CServerRadar(CGameWorld *pGameWorld, int Type, int ObjectiveID)
-: CEntity(pGameWorld, CGameWorld::ENTTYPE_RADAR)
+	: CEntity(pGameWorld, CGameWorld::ENTTYPE_RADAR)
 {
 	m_ProximityRadius = 12;
 	m_Type = Type;
@@ -11,22 +11,22 @@ CServerRadar::CServerRadar(CGameWorld *pGameWorld, int Type, int ObjectiveID)
 	m_TargetPos = vec2(0, 0);
 	m_Active = false;
 	m_ActiveTick = 0;
-	
+
 	GameWorld()->InsertEntity(this);
 }
 
 void CServerRadar::Reset()
 {
-	//GameServer()->m_World.DestroyEntity(this);
+	// GameServer()->m_World.DestroyEntity(this);
 }
 
 void CServerRadar::Tick()
 {
-	if (m_Type == RADAR_CHARACTER || m_Type == RADAR_HUMAN)
+	if(m_Type == RADAR_CHARACTER || m_Type == RADAR_HUMAN)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(m_ObjectiveID);
-		
-		if (pCharacter && (m_Type == RADAR_HUMAN && !pCharacter->m_IsBot))
+
+		if(pCharacter && (m_Type == RADAR_HUMAN && !pCharacter->m_IsBot))
 		{
 			m_TargetPos = pCharacter->m_Pos;
 			m_Active = true;
@@ -34,10 +34,10 @@ void CServerRadar::Tick()
 		else
 			m_Active = false;
 	}
-	
-	if (m_Type == RADAR_ENEMY)
+
+	if(m_Type == RADAR_ENEMY)
 	{
-		if (m_ActiveTick > Server()->Tick())
+		if(m_ActiveTick > Server()->Tick())
 			m_Active = true;
 		else
 			m_Active = false;
@@ -46,23 +46,25 @@ void CServerRadar::Tick()
 
 void CServerRadar::Snap(int SnappingClient)
 {
-	if (m_Type == RADAR_CHARACTER || m_Type == RADAR_HUMAN)
-		if (SnappingClient == m_ObjectiveID)
+	if(m_Type == RADAR_CHARACTER || m_Type == RADAR_HUMAN)
+		if(SnappingClient == m_ObjectiveID)
 			return;
-	
+
 	CCharacter *pCharacter = GameServer()->GetPlayerChar(SnappingClient);
 
-	if (pCharacter)
+	if(pCharacter)
 		m_Pos = pCharacter->m_Pos;
 	else
 		return;
-	
-	if (pCharacter && pCharacter->m_IsBot)
+
+	if(pCharacter && pCharacter->m_IsBot)
 		return;
-	
-	if (m_Type == RADAR_BOMB && ( pCharacter->IsBombCarrier() || (pCharacter->GetPlayer()->GetTeam() == TEAM_BLUE && GameServer()->m_pController->m_BombStatus != BOMB_ARMED)))
+
+	if(m_Type == RADAR_BOMB &&
+	   (pCharacter->IsBombCarrier() ||
+		(pCharacter->GetPlayer()->GetTeam() == TEAM_BLUE && GameServer()->m_pController->m_BombStatus != BOMB_ARMED)))
 		return;
-	
+
 	if(NetworkClipped(SnappingClient) || !m_Active)
 		return;
 

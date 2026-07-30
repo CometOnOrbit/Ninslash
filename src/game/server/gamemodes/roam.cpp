@@ -13,10 +13,7 @@
 #include <game/server/ai.h>
 #include <game/server/ai/roam_ai.h>
 
-
-
-CGameControllerRoam::CGameControllerRoam(class CGameContext *pGameServer)
-: IGameController(pGameServer)
+CGameControllerRoam::CGameControllerRoam(class CGameContext *pGameServer) : IGameController(pGameServer)
 {
 	m_pGameType = "Roam";
 	m_aBotSpawn[0] = vec2(0, 0);
@@ -24,45 +21,46 @@ CGameControllerRoam::CGameControllerRoam(class CGameContext *pGameServer)
 	g_Config.m_SvDisablePVP = true;
 	m_GameFlags = GAMEFLAG_COOP;
 
-	if (g_Config.m_SvSurvivalMode)
+	if(g_Config.m_SvSurvivalMode)
 		m_GameFlags |= GAMEFLAG_SURVIVAL;
-	
-	//if (g_Config.m_SvSurvivalMode && g_Config.m_SvSurvivalTime && g_Config.m_SvSurvivalAcid)
+
+	// if (g_Config.m_SvSurvivalMode && g_Config.m_SvSurvivalTime && g_Config.m_SvSurvivalAcid)
 	//	m_GameFlags |= GAMEFLAG_ACID;
-	
-	//if (g_Config.m_SvEnableBuilding)
+
+	// if (g_Config.m_SvEnableBuilding)
 	//	m_GameFlags |= GAMEFLAG_BUILD;
-	
-	//for (int i = 0; i < MAX_CLIENTS; i++)
+
+	// for (int i = 0; i < MAX_CLIENTS; i++)
 	//	new CServerRadar(&GameServer()->m_World, RADAR_CHARACTER, i);
 }
 
 void CGameControllerRoam::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 {
 	IGameController::OnCharacterSpawn(pChr);
-	
+
 	// init AI
-	if (RequestAI)
+	if(RequestAI)
 	{
 		GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, false);
-		
-		//pChr->GetPlayer()->m_AISkin = GameServer()->GetAISkin(false);
+
+		// pChr->GetPlayer()->m_AISkin = GameServer()->GetAISkin(false);
 		pChr->GetPlayer()->m_pAI = new CAIroam(GameServer(), pChr->GetPlayer(), 0);
 		pChr->GetPlayer()->SetAISkin();
-		
-		//m_Skin = SKIN_ALIEN1;
-		//Player()->SetCustomSkin(m_Skin);
+
+		// m_Skin = SKIN_ALIEN1;
+		// Player()->SetCustomSkin(m_Skin);
 	}
 }
 
-
-int CGameControllerRoam::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
+int CGameControllerRoam::OnCharacterDeath(class CCharacter *pVictim,
+										  class CPlayer *pKiller,
+										  const CAttackSource &Source)
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 
-	if (pVictim->m_IsBot)
+	if(pVictim->m_IsBot)
 		pVictim->GetPlayer()->m_ToBeKicked = true;
-	
+
 	/*
 	if (g_Config.m_SvSurvivalMode && !pVictim->m_IsBot && CountPlayersAlive(-1, true) <= 1)
 	{
@@ -74,46 +72,45 @@ int CGameControllerRoam::OnCharacterDeath(class CCharacter *pVictim, class CPlay
 	return 0;
 }
 
-
 void CGameControllerRoam::AddEnemy(vec2 Pos)
 {
-	if (GameServer()->m_pController->CountBots() < 32)
+	if(GameServer()->m_pController->CountBots() < 32)
 	{
 		GameServer()->AddBot();
 		m_aBotSpawn[m_BotSpawnNum] = Pos;
-		if (m_BotSpawnNum < 99)
+		if(m_BotSpawnNum < 99)
 			m_BotSpawnNum++;
 	}
 }
 
 bool CGameControllerRoam::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 {
-	if (IsBot)
+	if(IsBot)
 	{
-		if (m_BotSpawnNum > 0)
+		if(m_BotSpawnNum > 0)
 			m_BotSpawnNum--;
 		*pOutPos = m_aBotSpawn[m_BotSpawnNum];
 	}
 	else
 		GameServer()->GetRoamSpawnPos(pOutPos);
-	
+
 	return true;
 }
 
 void CGameControllerRoam::Tick()
 {
 	IGameController::Tick();
-	//AutoBalance();
+	// AutoBalance();
 	GameServer()->UpdateAI();
 
 	// kick unwanted bots
-	for (int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
 		if(!pPlayer)
 			continue;
-			
-		if (pPlayer->m_IsBot && pPlayer->m_ToBeKicked)
+
+		if(pPlayer->m_IsBot && pPlayer->m_ToBeKicked)
 			GameServer()->KickBot(pPlayer->GetCID());
 	}
 }

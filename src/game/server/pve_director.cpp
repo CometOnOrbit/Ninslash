@@ -26,8 +26,8 @@ static bool IsHeavyWeaponAttack(const CAttackSource &Source)
 {
 	CWeaponDefinition Definition;
 	return Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
-		CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition) &&
-		Source.m_Weapon.m_Level >= max(2, (Definition.m_MaxLevel + 1) / 2);
+		   CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition) &&
+		   Source.m_Weapon.m_Level >= max(2, (Definition.m_MaxLevel + 1) / 2);
 }
 
 void CPveDirector::CPlayerRun::Reset()
@@ -98,9 +98,8 @@ void CPveDirector::CPlayerRun::Reset()
 	m_PendingAmmo = false;
 }
 
-CPveDirector::CPveDirector(CGameContext *pGameServer) :
-	m_pGameServer(pGameServer),
-	m_TutorialSandbox(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
+CPveDirector::CPveDirector(CGameContext *pGameServer)
+	: m_pGameServer(pGameServer), m_TutorialSandbox(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
 {
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		m_aPlayers[i].Reset();
@@ -213,7 +212,8 @@ int CPveDirector::WeaponSpecialization(const CWeaponSpec &Weapon) const
 	if(Profile.m_Combat.m_ElectroAmount > 0.0f || Profile.m_Combat.m_LaserWeapon)
 		return PVE_SPECIALIZATION_ELECTRIC;
 	const int RenderType = Profile.m_Visual.m_RenderType;
-	if(Profile.m_Combat.m_FiringType == WFT_MELEE || RenderType == WRT_MELEE || RenderType == WRT_MELEESMALL || RenderType == WRT_SPIN)
+	if(Profile.m_Combat.m_FiringType == WFT_MELEE || RenderType == WRT_MELEE || RenderType == WRT_MELEESMALL ||
+	   RenderType == WRT_SPIN)
 		return PVE_SPECIALIZATION_MELEE;
 	return PVE_SPECIALIZATION_FIREARM;
 }
@@ -226,13 +226,11 @@ bool CPveDirector::CardEligible(int ClientID, int CardID) const
 	const CPlayerRun &Run = m_aPlayers[ClientID];
 	// Drone modules/upgrades are useless without a chassis in this run. Chassis
 	// itself and Hold the Line (also a defense buff) stay available.
-	if((pDef->m_Keywords & PVE_KEYWORD_DRONE) && CardID != PVE_CARD_DRONE_CHASSIS &&
-		CardID != PVE_CARD_HOLD_THE_LINE && !Run.m_aStacks[PVE_CARD_DRONE_CHASSIS])
+	if((pDef->m_Keywords & PVE_KEYWORD_DRONE) && CardID != PVE_CARD_DRONE_CHASSIS && CardID != PVE_CARD_HOLD_THE_LINE &&
+	   !Run.m_aStacks[PVE_CARD_DRONE_CHASSIS])
 		return false;
-	return PveCardIsUnlocked(CardID, Run.m_ResearchMask) &&
-		(pDef->m_Mode == PVE_MODE_ANY || pDef->m_Mode == m_Mode) &&
-		(!pDef->m_Legendary || Run.m_LegendaryCard < 0) &&
-		Run.m_aStacks[CardID] < pDef->m_MaxStacks;
+	return PveCardIsUnlocked(CardID, Run.m_ResearchMask) && (pDef->m_Mode == PVE_MODE_ANY || pDef->m_Mode == m_Mode) &&
+		   (!pDef->m_Legendary || Run.m_LegendaryCard < 0) && Run.m_aStacks[CardID] < pDef->m_MaxStacks;
 }
 
 int CPveDirector::DrawCard(int ClientID, const bool *pExcluded, int RequiredSpecialization, bool CommonOnly) const
@@ -311,8 +309,16 @@ void CPveDirector::SendChoice(int ClientID)
 	if(g_Config.m_Debug)
 	{
 		char aBuf[192];
-		str_format(aBuf, sizeof(aBuf), "offer client=%d sequence=%d nonce=%d cards=%d/%d/%d end=%d",
-			ClientID, Msg.m_ChoiceSequence, Msg.m_Nonce, Msg.m_Card0, Msg.m_Card1, Msg.m_Card2, Msg.m_EndTick);
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "offer client=%d sequence=%d nonce=%d cards=%d/%d/%d end=%d",
+				   ClientID,
+				   Msg.m_ChoiceSequence,
+				   Msg.m_Nonce,
+				   Msg.m_Card0,
+				   Msg.m_Card1,
+				   Msg.m_Card2,
+				   Msg.m_EndTick);
 		m_pGameServer->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "pve", aBuf);
 	}
 }
@@ -416,7 +422,8 @@ void CPveDirector::BeginContractVote(bool PerkAfterContract)
 	m_ContractNonce = ++m_NextNonce;
 	m_PerkAfterContract = PerkAfterContract;
 	m_IntermissionState = PVE_INTERMISSION_CONTRACT;
-	m_EndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * g_Config.m_SvPveContractVoteTime;
+	m_EndTick =
+		m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * g_Config.m_SvPveContractVoteTime;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		m_aPlayers[i].m_ContractVote = -1;
@@ -599,7 +606,8 @@ void CPveDirector::ApplyChoice(int ClientID, int CardID, bool Catchup)
 	SendBuildState(ClientID, true);
 	if(m_Mode != PVE_MODE_ANY && IsEligiblePlayer(ClientID))
 	{
-		CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+		CPlayerData *pData =
+			m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 		if(pData)
 		{
 			for(int i = 0; i < NUM_PVE_CARDS; i++)
@@ -637,7 +645,8 @@ void CPveDirector::GrantCatchup(int ClientID)
 			CardID = aFallbacks[n % 3];
 		ApplyChoice(ClientID, CardID, true);
 	}
-	if(m_IntermissionState == PVE_INTERMISSION_PERK && Run.m_Choices < m_PerkTargetChoices && (AutoChoices > 0 || !Run.m_ChoicePending))
+	if(m_IntermissionState == PVE_INTERMISSION_PERK && Run.m_Choices < m_PerkTargetChoices &&
+	   (AutoChoices > 0 || !Run.m_ChoicePending))
 	{
 		Run.m_ChoicePending = true;
 		Run.m_ChoiceNonce = ++m_NextNonce;
@@ -670,7 +679,8 @@ void CPveDirector::Tick()
 {
 	if(!Enabled())
 	{
-		const bool RogueliteIntermission = m_IntermissionState == PVE_INTERMISSION_CONTRACT || m_IntermissionState == PVE_INTERMISSION_PERK;
+		const bool RogueliteIntermission =
+			m_IntermissionState == PVE_INTERMISSION_CONTRACT || m_IntermissionState == PVE_INTERMISSION_PERK;
 		const bool HadState = RogueliteIntermission || m_ContractState != PVE_CONTRACT_STATE_NONE || m_pBlackBoxRadar;
 		if(RogueliteIntermission)
 		{
@@ -711,7 +721,8 @@ void CPveDirector::Tick()
 			SendContractStatus();
 		return;
 	}
-	if(Enabled() && !InIntermission() && m_ContractState == PVE_CONTRACT_STATE_ACTIVE && m_ActiveContract == PVE_CONTRACT_BLACK_BOX)
+	if(Enabled() && !InIntermission() && m_ContractState == PVE_CONTRACT_STATE_ACTIVE &&
+	   m_ActiveContract == PVE_CONTRACT_BLACK_BOX)
 		TickBlackBox();
 	if(Enabled())
 	{
@@ -773,7 +784,8 @@ void CPveDirector::OnClientEnter(int ClientID)
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_pGameServer->IsBot(ClientID))
 		return;
-	CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+	CPlayerData *pData =
+		m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 	if(m_Mode == PVE_MODE_ANY || !Enabled())
 		return;
 	DestroyDrone(ClientID);
@@ -798,8 +810,9 @@ void CPveDirector::OnClientEnter(int ClientID)
 		m_aPlayers[ClientID].m_DroneModule = clamp(pData->m_PveDroneModule, (int)PVE_DRONE_NONE, (int)PVE_DRONE_REPAIR);
 		m_aPlayers[ClientID].m_DroneSwitchReadyTick = pData->m_PveDroneSwitchReadyTick;
 		m_aPlayers[ClientID].m_DeathlessFloors = clamp(pData->m_PveDeathlessFloors, 0, 5);
-		if(pData->m_PveContractParticipant && pData->m_PveContractNonce == m_ContractNonce && m_ContractState == PVE_CONTRACT_STATE_ACTIVE)
-				m_ContractParticipants |= 1ULL << ClientID;
+		if(pData->m_PveContractParticipant && pData->m_PveContractNonce == m_ContractNonce &&
+		   m_ContractState == PVE_CONTRACT_STATE_ACTIVE)
+			m_ContractParticipants |= 1ULL << ClientID;
 		else if(m_ContractState != PVE_CONTRACT_STATE_ACTIVE)
 		{
 			pData->m_PveContractParticipant = false;
@@ -844,7 +857,15 @@ void CPveDirector::OnClientDrop(int ClientID)
 	}
 }
 
-void CPveDirector::OnProgress(int ClientID, int Version, int Points, int Mask0, int Mask1, int Mask2, int Mask3, int HighestInvasion, int PreferredCheckpoint)
+void CPveDirector::OnProgress(int ClientID,
+							  int Version,
+							  int Points,
+							  int Mask0,
+							  int Mask1,
+							  int Mask2,
+							  int Mask3,
+							  int HighestInvasion,
+							  int PreferredCheckpoint)
 {
 	if(!IsEligiblePlayer(ClientID))
 		return;
@@ -858,7 +879,8 @@ void CPveDirector::OnProgress(int ClientID, int Version, int Points, int Mask0, 
 	}
 	CPlayerRun &Run = m_aPlayers[ClientID];
 	const unsigned long long Low = (unsigned int)Mask0 | ((unsigned long long)(unsigned int)Mask1 << 32);
-	const unsigned long long High = Version >= 2 ? ((unsigned int)Mask2 | ((unsigned long long)(unsigned int)Mask3 << 32)) : 0;
+	const unsigned long long High =
+		Version >= 2 ? ((unsigned int)Mask2 | ((unsigned long long)(unsigned int)Mask3 << 32)) : 0;
 	Run.m_ResearchMask = PveSanitizeResearchMask(CPveResearchMask(Low, High));
 	Run.m_ResearchPoints = clamp(Points, 0, 999);
 	Run.m_HighestInvasion = clamp(HighestInvasion, 0, 9999);
@@ -870,8 +892,15 @@ void CPveDirector::OnProgress(int ClientID, int Version, int Points, int Mask0, 
 	if(g_Config.m_Debug)
 	{
 		char aBuf[192];
-		str_format(aBuf, sizeof(aBuf), "progress client=%d version=%d points=%d mask=%016llX%016llX checkpoint=%d",
-			ClientID, Version, Run.m_ResearchPoints, Run.m_ResearchMask.m_aWords[1], Run.m_ResearchMask.m_aWords[0], Run.m_PreferredCheckpoint);
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "progress client=%d version=%d points=%d mask=%016llX%016llX checkpoint=%d",
+				   ClientID,
+				   Version,
+				   Run.m_ResearchPoints,
+				   Run.m_ResearchMask.m_aWords[1],
+				   Run.m_ResearchMask.m_aWords[0],
+				   Run.m_PreferredCheckpoint);
 		m_pGameServer->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "pve", aBuf);
 	}
 	GrantCatchup(ClientID);
@@ -904,7 +933,7 @@ void CPveDirector::OnResearchBuy(int ClientID, int Nonce, int CardID)
 	}
 	const CPveCardDef *pDef = PveCardDef(CardID);
 	if(!pDef || PveCardIsUnlocked(CardID, Run.m_ResearchMask) || Run.m_ResearchPoints < pDef->m_ResearchCost ||
-		!Run.m_ResearchMask.PrerequisitesMet(CardID))
+	   !Run.m_ResearchMask.PrerequisitesMet(CardID))
 	{
 		SendValidation(ClientID, PVE_VALIDATION_PROGRESS);
 		return;
@@ -916,8 +945,14 @@ void CPveDirector::OnResearchBuy(int ClientID, int Nonce, int CardID)
 	if(g_Config.m_Debug)
 	{
 		char aBuf[160];
-		str_format(aBuf, sizeof(aBuf), "research purchase client=%d card=%d points=%d mask=%016llX%016llX",
-			ClientID, CardID, Run.m_ResearchPoints, Run.m_ResearchMask.m_aWords[1], Run.m_ResearchMask.m_aWords[0]);
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "research purchase client=%d card=%d points=%d mask=%016llX%016llX",
+				   ClientID,
+				   CardID,
+				   Run.m_ResearchPoints,
+				   Run.m_ResearchMask.m_aWords[1],
+				   Run.m_ResearchMask.m_aWords[0]);
 		m_pGameServer->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "pve", aBuf);
 	}
 	SendProgress(ClientID);
@@ -938,7 +973,8 @@ void CPveDirector::OnChoice(int ClientID, int Nonce, int CardID)
 		SendValidation(ClientID, Nonce == Run.m_LastChoiceNonce ? PVE_VALIDATION_DUPLICATE : PVE_VALIDATION_EXPIRED);
 		return;
 	}
-	if(Nonce != Run.m_ChoiceNonce || m_IntermissionState != PVE_INTERMISSION_PERK || m_pGameServer->Server()->Tick() > m_EndTick)
+	if(Nonce != Run.m_ChoiceNonce || m_IntermissionState != PVE_INTERMISSION_PERK ||
+	   m_pGameServer->Server()->Tick() > m_EndTick)
 	{
 		SendValidation(ClientID, PVE_VALIDATION_EXPIRED);
 		return;
@@ -975,7 +1011,11 @@ void CPveDirector::GrantTutorialBuildLoadout(int ClientID)
 	if(!m_TutorialSandbox || !IsEligiblePlayer(ClientID))
 		return;
 	CPlayerRun &Run = m_aPlayers[ClientID];
-	const int aCards[] = {PVE_CARD_DRONE_CHASSIS, PVE_CARD_SERVO_LINK, PVE_CARD_ASSAULT_MODULE, PVE_CARD_GUARDIAN_MODULE, PVE_CARD_REPAIR_MODULE};
+	const int aCards[] = {PVE_CARD_DRONE_CHASSIS,
+						  PVE_CARD_SERVO_LINK,
+						  PVE_CARD_ASSAULT_MODULE,
+						  PVE_CARD_GUARDIAN_MODULE,
+						  PVE_CARD_REPAIR_MODULE};
 	for(unsigned i = 0; i < sizeof(aCards) / sizeof(aCards[0]); i++)
 	{
 		const int CardID = aCards[i];
@@ -1001,7 +1041,8 @@ void CPveDirector::OnContractVote(int ClientID, int Nonce, int ContractID)
 		return;
 	}
 	CPlayerRun &Run = m_aPlayers[ClientID];
-	if(Nonce != m_ContractNonce || m_IntermissionState != PVE_INTERMISSION_CONTRACT || m_pGameServer->Server()->Tick() > m_EndTick)
+	if(Nonce != m_ContractNonce || m_IntermissionState != PVE_INTERMISSION_CONTRACT ||
+	   m_pGameServer->Server()->Tick() > m_EndTick)
 	{
 		SendValidation(ClientID, Nonce == Run.m_LastContractNonce ? PVE_VALIDATION_DUPLICATE : PVE_VALIDATION_EXPIRED);
 		return;
@@ -1039,7 +1080,8 @@ void CPveDirector::ApplyStageSupplies(int ClientID)
 	if(!pChr || !pChr->IsAlive())
 		return;
 	Run.m_StageSuppliesApplied = true;
-	CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+	CPlayerData *pData =
+		m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 	if(pData)
 		pData->m_PveStageSuppliesApplied = true;
 	const int SupplyBonus = m_Mode == PVE_MODE_INVASION ? Run.m_aStacks[PVE_CARD_DELVER] : 0;
@@ -1085,7 +1127,8 @@ void CPveDirector::OnStageStart()
 		Run.m_ObjectiveCacheUsed = false;
 		Run.m_CleanExitUsed = false;
 		Run.m_DiedThisStage = false;
-		CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+		CPlayerData *pData =
+			m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 		if(pData)
 		{
 			pData->m_PveLastStandUsed = false;
@@ -1102,7 +1145,9 @@ void CPveDirector::OnStageStart()
 			if(IsEligiblePlayer(ClientID))
 				FortifiedStacks = max(FortifiedStacks, m_aPlayers[ClientID].m_aStacks[PVE_CARD_FORTIFIED_CYCLE]);
 		if(FortifiedStacks > 0)
-			for(CBuilding *pBuilding = (CBuilding *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+			for(CBuilding *pBuilding = (CBuilding *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING);
+				pBuilding;
+				pBuilding = (CBuilding *)pBuilding->TypeNext())
 				if(pBuilding->m_MaxLife > 0 && pBuilding->m_Life > 0)
 					pBuilding->Repair(max(1, pBuilding->m_MaxLife * FortifiedStacks * 5 / 100));
 	}
@@ -1128,7 +1173,8 @@ void CPveDirector::OnPlayerSpawn(int ClientID)
 	Run.m_PendingArmor = 0;
 	Run.m_PendingKits = 0;
 	Run.m_PendingAmmo = false;
-	CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+	CPlayerData *pData =
+		m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 	if(pData)
 	{
 		pData->m_PvePendingArmor = 0;
@@ -1152,7 +1198,9 @@ void CPveDirector::OnStageComplete(bool Success)
 			CPlayerRun &Run = m_aPlayers[ClientID];
 			CPlayer *pPlayer = m_pGameServer->m_apPlayers[ClientID];
 			if(pPlayer && Run.m_aStacks[PVE_CARD_RESERVE_FUND])
-				pPlayer->m_Gold = min(999, pPlayer->m_Gold + min(30, pPlayer->GetGold() * Run.m_aStacks[PVE_CARD_RESERVE_FUND] * 5 / 100));
+				pPlayer->m_Gold =
+					min(999,
+						pPlayer->m_Gold + min(30, pPlayer->GetGold() * Run.m_aStacks[PVE_CARD_RESERVE_FUND] * 5 / 100));
 			if(m_Mode == PVE_MODE_INVASION && !m_AnyStageDeath && Run.m_aStacks[PVE_CARD_FLOOR_MEMORY])
 				Run.m_DeathlessFloors = min(5, Run.m_DeathlessFloors + 1);
 			if(m_Mode == PVE_MODE_INVASION && Run.m_aStacks[PVE_CARD_DEEP_SOVEREIGN])
@@ -1173,7 +1221,8 @@ void CPveDirector::OnStageComplete(bool Success)
 				continue;
 			CPlayerRun &Run = m_aPlayers[ClientID];
 			Run.m_InvasionFloorsCompleted++;
-			CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+			CPlayerData *pData =
+				m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 			if(pData)
 				pData->m_PveInvasionFloors = Run.m_InvasionFloorsCompleted;
 		}
@@ -1192,7 +1241,9 @@ void CPveDirector::OnStageComplete(bool Success)
 	}
 	if(m_ActiveContract == PVE_CONTRACT_SPEED_CLEAR && m_pGameServer->Server()->Tick() > m_ContractEndTick)
 		Success = false;
-	if((m_ActiveContract == PVE_CONTRACT_BLACK_BOX || m_ActiveContract == PVE_CONTRACT_ELITE_HUNT || m_ActiveContract == PVE_CONTRACT_ELITE_GUARD || m_ActiveContract == PVE_CONTRACT_HEAVY_CARGO) && m_ContractProgress < m_ContractTarget)
+	if((m_ActiveContract == PVE_CONTRACT_BLACK_BOX || m_ActiveContract == PVE_CONTRACT_ELITE_HUNT ||
+		m_ActiveContract == PVE_CONTRACT_ELITE_GUARD || m_ActiveContract == PVE_CONTRACT_HEAVY_CARGO) &&
+	   m_ContractProgress < m_ContractTarget)
 		Success = false;
 	CompleteContract(Success);
 }
@@ -1207,7 +1258,8 @@ void CPveDirector::OnPlayerDeath(int ClientID)
 		DestroyDrone(ClientID);
 		SendBuildState(ClientID, true);
 	}
-	if(m_ContractState == PVE_CONTRACT_STATE_ACTIVE && m_ActiveContract == PVE_CONTRACT_FLAWLESS && IsEligiblePlayer(ClientID))
+	if(m_ContractState == PVE_CONTRACT_STATE_ACTIVE && m_ActiveContract == PVE_CONTRACT_FLAWLESS &&
+	   IsEligiblePlayer(ClientID))
 		CompleteContract(false);
 }
 
@@ -1217,7 +1269,8 @@ void CPveDirector::RegisterEliteContractBoss(CDroid *pBoss)
 		return;
 	if(m_ActiveContract == PVE_CONTRACT_ELITE_HUNT)
 		m_pEliteContractBoss = pBoss;
-	else if(m_ActiveContract == PVE_CONTRACT_ELITE_GUARD && m_NumEliteContractGuards < (int)(sizeof(m_apEliteContractGuards) / sizeof(m_apEliteContractGuards[0])))
+	else if(m_ActiveContract == PVE_CONTRACT_ELITE_GUARD &&
+			m_NumEliteContractGuards < (int)(sizeof(m_apEliteContractGuards) / sizeof(m_apEliteContractGuards[0])))
 	{
 		if(m_NumEliteContractGuards == 0)
 		{
@@ -1241,7 +1294,8 @@ void CPveDirector::OnBossKilled(bool ContractBoss)
 		m_ContractProgress = 1;
 		CompleteContract(true);
 	}
-	else if(ContractBoss && m_ContractState == PVE_CONTRACT_STATE_ACTIVE && m_ActiveContract == PVE_CONTRACT_ELITE_GUARD)
+	else if(ContractBoss && m_ContractState == PVE_CONTRACT_STATE_ACTIVE &&
+			m_ActiveContract == PVE_CONTRACT_ELITE_GUARD)
 	{
 		m_pEliteContractBoss = 0;
 		m_ContractProgress = 1;
@@ -1255,7 +1309,8 @@ void CPveDirector::OnEnemyKilled(const CAttackSource &Source, vec2 Pos, CEntity 
 	CWeaponCombatProfile Combat{};
 	CWeaponVisualProfile Visual{};
 	CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual);
-	const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon ? WeaponSpecialization(Source.m_Weapon) : PVE_SPECIALIZATION_NONE;
+	const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon ? WeaponSpecialization(Source.m_Weapon)
+																				: PVE_SPECIALIZATION_NONE;
 	if(m_ApplyingSecondaryEffect)
 	{
 		ClearTargetStatus(pTarget);
@@ -1288,7 +1343,8 @@ void CPveDirector::OnEnemyKilled(const CAttackSource &Source, vec2 Pos, CEntity 
 		Run.m_SalvageKits += Kits;
 	}
 	if(Specialization == PVE_SPECIALIZATION_ELECTRIC && Run.m_aStacks[PVE_CARD_FEEDBACK])
-		Run.m_aWeaponResources[PVE_SPECIALIZATION_ELECTRIC - 1] = min(10, Run.m_aWeaponResources[PVE_SPECIALIZATION_ELECTRIC - 1] + Run.m_aStacks[PVE_CARD_FEEDBACK] * 2);
+		Run.m_aWeaponResources[PVE_SPECIALIZATION_ELECTRIC - 1] =
+			min(10, Run.m_aWeaponResources[PVE_SPECIALIZATION_ELECTRIC - 1] + Run.m_aStacks[PVE_CARD_FEEDBACK] * 2);
 	const int Now = m_pGameServer->Server()->Tick();
 	if(Run.m_aStacks[PVE_CARD_KILL_CHAIN])
 	{
@@ -1307,7 +1363,8 @@ void CPveDirector::OnEnemyKilled(const CAttackSource &Source, vec2 Pos, CEntity 
 			Run.m_ReaperEndTick = Now + m_pGameServer->Server()->TickSpeed() * 5;
 	}
 	const int RenderType = Visual.m_RenderType;
-	const bool Melee = Combat.m_FiringType == WFT_MELEE || RenderType == WRT_MELEE || RenderType == WRT_MELEESMALL || RenderType == WRT_SPIN;
+	const bool Melee = Combat.m_FiringType == WFT_MELEE || RenderType == WRT_MELEE || RenderType == WRT_MELEESMALL ||
+					   RenderType == WRT_SPIN;
 	if(Melee && Run.m_aStacks[PVE_CARD_BLOOD_DRIVE])
 	{
 		CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
@@ -1325,7 +1382,8 @@ void CPveDirector::OnDroidKilled(CDroid *pDroid, const CAttackSource &Source)
 	if(!pDroid)
 		return;
 	CTargetStatus *pStatus = TargetStatus(pDroid, false);
-	if(!m_ApplyingSecondaryEffect && IsEligiblePlayer(ClientID) && pStatus && pStatus->m_BleedStacks > 0 && m_aPlayers[ClientID].m_aStacks[PVE_CARD_BLOOD_TEMPER])
+	if(!m_ApplyingSecondaryEffect && IsEligiblePlayer(ClientID) && pStatus && pStatus->m_BleedStacks > 0 &&
+	   m_aPlayers[ClientID].m_aStacks[PVE_CARD_BLOOD_TEMPER])
 	{
 		CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
 		if(pChr)
@@ -1368,7 +1426,8 @@ void CPveDirector::OnObjectiveComplete()
 			continue;
 		CPlayerRun &Run = m_aPlayers[ClientID];
 		if(m_Mode == PVE_MODE_INVASION && Run.m_aStacks[PVE_CARD_RELIC_SCANNER] && m_pGameServer->m_apPlayers[ClientID])
-			m_pGameServer->m_apPlayers[ClientID]->m_Gold = min(999, m_pGameServer->m_apPlayers[ClientID]->m_Gold + Run.m_aStacks[PVE_CARD_RELIC_SCANNER] * 4);
+			m_pGameServer->m_apPlayers[ClientID]->m_Gold =
+				min(999, m_pGameServer->m_apPlayers[ClientID]->m_Gold + Run.m_aStacks[PVE_CARD_RELIC_SCANNER] * 4);
 		if(Run.m_ObjectiveCacheUsed || !Run.m_aStacks[PVE_CARD_OBJECTIVE_CACHE])
 			continue;
 		Run.m_ObjectiveCacheUsed = true;
@@ -1385,7 +1444,8 @@ void CPveDirector::OnObjectiveComplete()
 
 void CPveDirector::OnGoldSpent(int ClientID, int Amount)
 {
-	if(!Enabled() || !IsEligiblePlayer(ClientID) || Amount <= 0 || !m_aPlayers[ClientID].m_aStacks[PVE_CARD_WAR_ECONOMY])
+	if(!Enabled() || !IsEligiblePlayer(ClientID) || Amount <= 0 ||
+	   !m_aPlayers[ClientID].m_aStacks[PVE_CARD_WAR_ECONOMY])
 		return;
 	AddBarrier(ClientID, min(15, (Amount / 25) * 5));
 }
@@ -1501,11 +1561,13 @@ void CPveDirector::CompleteContract(bool Success)
 	if(CompletedContract == PVE_CONTRACT_NO_RESPAWN)
 		for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 			if(IsEligiblePlayer(ClientID) && !m_pGameServer->GetPlayerChar(ClientID))
-				m_pGameServer->m_apPlayers[ClientID]->m_RespawnTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
+				m_pGameServer->m_apPlayers[ClientID]->m_RespawnTick =
+					m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
 	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 		if(m_pGameServer->m_apPlayers[ClientID] && !m_pGameServer->m_apPlayers[ClientID]->m_IsBot)
 		{
-			CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+			CPlayerData *pData =
+				m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 			if(pData)
 			{
 				pData->m_PveContractParticipant = false;
@@ -1540,7 +1602,9 @@ void CPveDirector::RewardResearch(int Amount, int Reason, int HighestInvasion)
 
 int CPveDirector::PerkStacks(int ClientID, int CardID) const
 {
-	return Enabled() && ClientID >= 0 && ClientID < MAX_CLIENTS && CardID >= 0 && CardID < NUM_PVE_CARDS ? m_aPlayers[ClientID].m_aStacks[CardID] : 0;
+	return Enabled() && ClientID >= 0 && ClientID < MAX_CLIENTS && CardID >= 0 && CardID < NUM_PVE_CARDS
+			   ? m_aPlayers[ClientID].m_aStacks[CardID]
+			   : 0;
 }
 
 int CPveDirector::DroneModule(int ClientID) const
@@ -1704,7 +1768,8 @@ void CPveDirector::ScheduleSecondaryBlast(const CAttackSource &Source, vec2 Pos,
 			m_aPendingBlasts[i].m_Pos = Pos;
 			m_aPendingBlasts[i].m_Source = Source;
 			m_aPendingBlasts[i].m_Damage = max(1, Damage * 60 / 100);
-			m_aPendingBlasts[i].m_Tick = m_pGameServer->Server()->Tick() + max(1, m_pGameServer->Server()->TickSpeed() * 35 / 100);
+			m_aPendingBlasts[i].m_Tick =
+				m_pGameServer->Server()->Tick() + max(1, m_pGameServer->Server()->TickSpeed() * 35 / 100);
 			m_PendingBlastCount++;
 			return;
 		}
@@ -1722,10 +1787,13 @@ void CPveDirector::TickPendingBlasts()
 			continue;
 		m_pGameServer->CreateEffect(FX_EXPLOSION1, Blast.m_Pos);
 		m_ApplyingSecondaryEffect = true;
-		for(CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER); pCharacter; pCharacter = (CCharacter *)pCharacter->TypeNext())
+		for(CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER);
+			pCharacter;
+			pCharacter = (CCharacter *)pCharacter->TypeNext())
 			if(pCharacter->m_IsBot && pCharacter->IsAlive() && distance(Blast.m_Pos, pCharacter->m_Pos) <= 170.0f)
 				pCharacter->TakeDamage(Blast.m_Source, Blast.m_Damage, vec2(0, 0), pCharacter->m_Pos);
-		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
+		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
+			pDroid = (CDroid *)pDroid->TypeNext())
 			if(pDroid->m_Health > 0 && distance(Blast.m_Pos, pDroid->m_Pos + pDroid->m_Center) <= 170.0f)
 				pDroid->TakeDamage(vec2(0, 0), Blast.m_Damage, Blast.m_Source, pDroid->m_Pos);
 		m_ApplyingSecondaryEffect = false;
@@ -1738,7 +1806,9 @@ void CPveDirector::ApplyThunderhead(const CAttackSource &Source, CEntity *pTarge
 {
 	if(!pTarget || Damage <= 0)
 		return;
-	const vec2 Pos = pTarget->m_Pos + (pTarget->GetType() == CGameWorld::ENTTYPE_DROID ? static_cast<CDroid *>(pTarget)->m_Center : vec2(0, 0));
+	const vec2 Pos =
+		pTarget->m_Pos +
+		(pTarget->GetType() == CGameWorld::ENTTYPE_DROID ? static_cast<CDroid *>(pTarget)->m_Center : vec2(0, 0));
 	new CLightning(&m_pGameServer->m_World, Pos, Pos + vec2(0, -320.0f));
 	m_ApplyingSecondaryEffect = true;
 	if(pTarget->GetType() == CGameWorld::ENTTYPE_DROID)
@@ -1758,7 +1828,8 @@ int CPveDirector::AddBarrier(int ClientID, int Amount)
 		for(int Ally = 0; Ally < MAX_CLIENTS; Ally++)
 		{
 			CCharacter *pAlly = IsEligiblePlayer(Ally) ? m_pGameServer->GetPlayerChar(Ally) : 0;
-			if(pAlly && m_aPlayers[Ally].m_aStacks[PVE_CARD_FIELD_RELAY] && distance(pAlly->m_Pos, pTarget->m_Pos) <= 350.0f)
+			if(pAlly && m_aPlayers[Ally].m_aStacks[PVE_CARD_FIELD_RELAY] &&
+			   distance(pAlly->m_Pos, pTarget->m_Pos) <= 350.0f)
 				RecoveryScale += m_aPlayers[Ally].m_aStacks[PVE_CARD_FIELD_RELAY] * 0.06f;
 		}
 	if(ActiveContract() == PVE_CONTRACT_ATTRITION)
@@ -1779,7 +1850,8 @@ int CPveDirector::ModifyRecovery(int ClientID, int Amount, bool Health) const
 	const CPlayerRun &Run = m_aPlayers[ClientID];
 	if(Health && m_Mode == PVE_MODE_EXTRACTION && Run.m_aStacks[PVE_CARD_FINAL_DEPARTURE])
 	{
-		const CGameControllerExtract *pExtract = dynamic_cast<const CGameControllerExtract *>(m_pGameServer->m_pController);
+		const CGameControllerExtract *pExtract =
+			dynamic_cast<const CGameControllerExtract *>(m_pGameServer->m_pController);
 		if(pExtract && pExtract->Evacuating())
 			return 0;
 	}
@@ -1868,7 +1940,8 @@ void CPveDirector::TickDrone(int ClientID)
 	}
 	if(!Run.m_pDrone)
 		Run.m_pDrone = new CPveDrone(&m_pGameServer->m_World, ClientID);
-	if(!Run.m_pDrone || !Run.m_pDrone->Active() || Run.m_DroneModule == PVE_DRONE_NONE || Run.m_DroneActionTick > m_pGameServer->Server()->Tick())
+	if(!Run.m_pDrone || !Run.m_pDrone->Active() || Run.m_DroneModule == PVE_DRONE_NONE ||
+	   Run.m_DroneActionTick > m_pGameServer->Server()->Tick())
 		return;
 	const float Efficiency = DroneEfficiency(ClientID);
 	const float CooldownReduction = min(0.30f, Run.m_aStacks[PVE_CARD_SERVO_LINK] * 0.08f);
@@ -1877,7 +1950,9 @@ void CPveDirector::TickDrone(int ClientID)
 		CCharacter *pBestCharacter = 0;
 		CDroid *pBestDroid = 0;
 		float BestDistanceSquared = 700.0f * 700.0f;
-		for(CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER); pCharacter; pCharacter = (CCharacter *)pCharacter->TypeNext())
+		for(CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER);
+			pCharacter;
+			pCharacter = (CCharacter *)pCharacter->TypeNext())
 			if(pCharacter->m_IsBot && pCharacter->IsAlive())
 			{
 				const vec2 Delta = Run.m_pDrone->m_Pos - pCharacter->m_Pos;
@@ -1888,7 +1963,8 @@ void CPveDirector::TickDrone(int ClientID)
 				pBestCharacter = pCharacter;
 				pBestDroid = 0;
 			}
-		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
+		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
+			pDroid = (CDroid *)pDroid->TypeNext())
 			if(pDroid->m_Health > 0)
 			{
 				const vec2 Delta = Run.m_pDrone->m_Pos - (pDroid->m_Pos + pDroid->m_Center);
@@ -1902,8 +1978,11 @@ void CPveDirector::TickDrone(int ClientID)
 		if(pBestCharacter || pBestDroid)
 		{
 			CWeapon *pWeapon = pOwner->GetWeapon();
-			const CAttackSource Source = pWeapon ? CAttackSource::PlayerWeapon(ClientID, pWeapon->GetWeaponSpec()) : CAttackSource::World(WEAPON_GAME, ClientID);
-			float BaseDamage = pWeapon ? max(pWeapon->GetWeaponProfile().m_Combat.m_ProjectileDamage, pWeapon->GetWeaponProfile().m_Combat.m_ExplosionDamage) : 0.0f;
+			const CAttackSource Source = pWeapon ? CAttackSource::PlayerWeapon(ClientID, pWeapon->GetWeaponSpec())
+												 : CAttackSource::World(WEAPON_GAME, ClientID);
+			float BaseDamage = pWeapon ? max(pWeapon->GetWeaponProfile().m_Combat.m_ProjectileDamage,
+											 pWeapon->GetWeaponProfile().m_Combat.m_ExplosionDamage)
+									   : 0.0f;
 			if(BaseDamage <= 0.0f)
 				BaseDamage = 10.0f;
 			float DamageScale = 0.45f * Efficiency;
@@ -1912,9 +1991,13 @@ void CPveDirector::TickDrone(int ClientID)
 			const int Damage = max(1, (int)(BaseDamage * DamageScale + 0.5f));
 			const vec2 TargetPos = pBestCharacter ? pBestCharacter->m_Pos : pBestDroid->m_Pos + pBestDroid->m_Center;
 			Run.m_pDroneTarget = pBestCharacter ? (CEntity *)pBestCharacter : (CEntity *)pBestDroid;
-			Run.m_pDrone->SetAction(TargetPos, m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 5);
+			Run.m_pDrone->SetAction(TargetPos,
+									m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 5);
 			// Match droid_star projectile sprite/trace/fx; damage stays hitscan so Efficiency/Crossfire still apply.
-			new CPveDronePulse(&m_pGameServer->m_World, Run.m_pDrone->m_Pos, TargetPos, CAttackSource::Droid(ClientID, DROIDTYPE_STAR));
+			new CPveDronePulse(&m_pGameServer->m_World,
+							   Run.m_pDrone->m_Pos,
+							   TargetPos,
+							   CAttackSource::Droid(ClientID, DROIDTYPE_STAR));
 			m_pGameServer->CreateSound(Run.m_pDrone->m_Pos, SOUND_STAR_FIRE);
 			m_ApplyingSecondaryEffect = true;
 			if(pBestCharacter)
@@ -1923,7 +2006,9 @@ void CPveDirector::TickDrone(int ClientID)
 				pBestDroid->TakeDamage(vec2(0, 0), Damage, Source, TargetPos);
 			m_ApplyingSecondaryEffect = false;
 		}
-		Run.m_DroneActionTick = m_pGameServer->Server()->Tick() + max(1, (int)(m_pGameServer->Server()->TickSpeed() * 0.55f * (1.0f - CooldownReduction)));
+		Run.m_DroneActionTick =
+			m_pGameServer->Server()->Tick() +
+			max(1, (int)(m_pGameServer->Server()->TickSpeed() * 0.55f * (1.0f - CooldownReduction)));
 	}
 	else if(Run.m_DroneModule == PVE_DRONE_REPAIR)
 	{
@@ -1932,7 +2017,8 @@ void CPveDirector::TickDrone(int ClientID)
 		for(int Ally = 0; Ally < MAX_CLIENTS; Ally++)
 		{
 			CCharacter *pCharacter = IsEligiblePlayer(Ally) ? m_pGameServer->GetPlayerChar(Ally) : 0;
-			if(pCharacter && pCharacter->IsAlive() && distance(Run.m_pDrone->m_Pos, pCharacter->m_Pos) <= 600.0f && pCharacter->GetArmor() < LowestArmor)
+			if(pCharacter && pCharacter->IsAlive() && distance(Run.m_pDrone->m_Pos, pCharacter->m_Pos) <= 600.0f &&
+			   pCharacter->GetArmor() < LowestArmor)
 			{
 				pBest = pCharacter;
 				LowestArmor = pCharacter->GetArmor();
@@ -1942,15 +2028,20 @@ void CPveDirector::TickDrone(int ClientID)
 		if(pBest && LowestArmor < 100)
 		{
 			Run.m_pDroneTarget = pBest;
-			Run.m_pDrone->SetAction(pBest->m_Pos, m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 3);
+			Run.m_pDrone->SetAction(pBest->m_Pos,
+									m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 3);
 			pBest->IncreaseArmor(Repair);
 		}
 		else
 		{
 			CBuilding *pBestBuilding = 0;
 			float BestFraction = 1.0f;
-			for(CBuilding *pBuilding = (CBuilding *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
-				if(pBuilding->m_MaxLife > 0 && pBuilding->m_Life > 0 && pBuilding->m_Life < pBuilding->m_MaxLife && distance(Run.m_pDrone->m_Pos, pBuilding->m_Pos) <= 600.0f && pBuilding->m_Life / (float)pBuilding->m_MaxLife < BestFraction)
+			for(CBuilding *pBuilding = (CBuilding *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING);
+				pBuilding;
+				pBuilding = (CBuilding *)pBuilding->TypeNext())
+				if(pBuilding->m_MaxLife > 0 && pBuilding->m_Life > 0 && pBuilding->m_Life < pBuilding->m_MaxLife &&
+				   distance(Run.m_pDrone->m_Pos, pBuilding->m_Pos) <= 600.0f &&
+				   pBuilding->m_Life / (float)pBuilding->m_MaxLife < BestFraction)
 				{
 					BestFraction = pBuilding->m_Life / (float)pBuilding->m_MaxLife;
 					pBestBuilding = pBuilding;
@@ -1958,11 +2049,14 @@ void CPveDirector::TickDrone(int ClientID)
 			if(pBestBuilding)
 			{
 				Run.m_pDroneTarget = pBestBuilding;
-				Run.m_pDrone->SetAction(pBestBuilding->m_Pos, m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 3);
+				Run.m_pDrone->SetAction(pBestBuilding->m_Pos,
+										m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() / 3);
 				pBestBuilding->Repair(Repair);
 			}
 		}
-		Run.m_DroneActionTick = m_pGameServer->Server()->Tick() + max(1, (int)(m_pGameServer->Server()->TickSpeed() * 0.45f * (1.0f - CooldownReduction)));
+		Run.m_DroneActionTick =
+			m_pGameServer->Server()->Tick() +
+			max(1, (int)(m_pGameServer->Server()->TickSpeed() * 0.45f * (1.0f - CooldownReduction)));
 	}
 }
 
@@ -1986,17 +2080,25 @@ void CPveDirector::SendBuildState(int ClientID, bool Force)
 	Msg.m_LegendaryCard = Run.m_LegendaryCard;
 	Msg.m_DroneModule = Run.m_DroneModule;
 	Msg.m_DroneSwitchReadyTick = Run.m_DroneSwitchReadyTick;
-	const int aState[11] = {
-		Msg.m_Focus, Msg.m_BlastCharge, Msg.m_Voltage, Msg.m_Fury, Msg.m_Barrier,
-		Msg.m_VulnerableTargets, Msg.m_BleedingTargets, Msg.m_LegendaryCard,
-		Msg.m_DroneModule, Msg.m_DroneSwitchReadyTick, Run.m_DeathlessFloors};
+	const int aState[11] = {Msg.m_Focus,
+							Msg.m_BlastCharge,
+							Msg.m_Voltage,
+							Msg.m_Fury,
+							Msg.m_Barrier,
+							Msg.m_VulnerableTargets,
+							Msg.m_BleedingTargets,
+							Msg.m_LegendaryCard,
+							Msg.m_DroneModule,
+							Msg.m_DroneSwitchReadyTick,
+							Run.m_DeathlessFloors};
 	if(!Force && mem_comp(aState, Run.m_aLastBuildState, sizeof(aState)) == 0)
 		return;
 	mem_copy(Run.m_aLastBuildState, aState, sizeof(aState));
 	m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 	if(m_pGameServer->m_apPlayers[ClientID])
 	{
-		CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+		CPlayerData *pData =
+			m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 		if(pData)
 		{
 			pData->m_PveLegendaryCard = Run.m_LegendaryCard;
@@ -2014,7 +2116,9 @@ void CPveDirector::TickPlayerState(int ClientID)
 {
 	CPlayerRun &Run = m_aPlayers[ClientID];
 	const int Now = m_pGameServer->Server()->Tick();
-	if(Run.m_aStacks[PVE_CARD_BARRIER_REFIT] && Now >= Run.m_LastDamageTick + m_pGameServer->Server()->TickSpeed() * 5 && Now >= Run.m_LastBarrierRefitTick + m_pGameServer->Server()->TickSpeed())
+	if(Run.m_aStacks[PVE_CARD_BARRIER_REFIT] &&
+	   Now >= Run.m_LastDamageTick + m_pGameServer->Server()->TickSpeed() * 5 &&
+	   Now >= Run.m_LastBarrierRefitTick + m_pGameServer->Server()->TickSpeed())
 	{
 		Run.m_LastBarrierRefitTick = Now;
 		AddBarrier(ClientID, 2);
@@ -2036,7 +2140,9 @@ void CPveDirector::OnDroneModule(int ClientID, int Nonce, int Module)
 		SendValidation(ClientID, PVE_VALIDATION_DUPLICATE);
 		return;
 	}
-	const int Card = Module == PVE_DRONE_ASSAULT ? PVE_CARD_ASSAULT_MODULE : (Module == PVE_DRONE_GUARDIAN ? PVE_CARD_GUARDIAN_MODULE : PVE_CARD_REPAIR_MODULE);
+	const int Card = Module == PVE_DRONE_ASSAULT
+						 ? PVE_CARD_ASSAULT_MODULE
+						 : (Module == PVE_DRONE_GUARDIAN ? PVE_CARD_GUARDIAN_MODULE : PVE_CARD_REPAIR_MODULE);
 	if(!Run.m_aStacks[PVE_CARD_DRONE_CHASSIS] || !Run.m_aStacks[Card])
 	{
 		SendValidation(ClientID, PVE_VALIDATION_MODULE_LOCKED);
@@ -2071,10 +2177,13 @@ void CPveDirector::ApplyArcConductor(const CAttackSource &Source, CEntity *pOrig
 		CCharacter *pBestCharacter = 0;
 		CDroid *pBestDroid = 0;
 		float BestDistanceSquared = 320.0f * 320.0f;
-		for(CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER); pCharacter; pCharacter = (CCharacter *)pCharacter->TypeNext())
+		for(CCharacter *pCharacter = (CCharacter *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER);
+			pCharacter;
+			pCharacter = (CCharacter *)pCharacter->TypeNext())
 		{
 			bool Excluded = pCharacter == pOriginalTarget;
-			for(int i = 0; i < Arc; i++) Excluded |= apHit[i] == pCharacter;
+			for(int i = 0; i < Arc; i++)
+				Excluded |= apHit[i] == pCharacter;
 			if(Excluded || !pCharacter->m_IsBot || !pCharacter->IsAlive())
 				continue;
 			const vec2 Delta = Origin - pCharacter->m_Pos;
@@ -2086,10 +2195,12 @@ void CPveDirector::ApplyArcConductor(const CAttackSource &Source, CEntity *pOrig
 				pBestDroid = 0;
 			}
 		}
-		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
+		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
+			pDroid = (CDroid *)pDroid->TypeNext())
 		{
 			bool Excluded = pDroid == pOriginalTarget;
-			for(int i = 0; i < Arc; i++) Excluded |= apHit[i] == pDroid;
+			for(int i = 0; i < Arc; i++)
+				Excluded |= apHit[i] == pDroid;
 			if(Excluded || pDroid->m_Health <= 0)
 				continue;
 			const vec2 Delta = Origin - (pDroid->m_Pos + pDroid->m_Center);
@@ -2120,20 +2231,21 @@ void CPveDirector::ApplyArcConductor(const CAttackSource &Source, CEntity *pOrig
 	}
 }
 
-
 void CPveDirector::OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Damage)
 {
 	const int ClientID = Source.m_Owner;
 	if(!Enabled() || !IsEligiblePlayer(ClientID) || !m_aPlayers[ClientID].m_aStacks[PVE_CARD_SHOCKWAVE] || Damage <= 0)
 		return;
 	CWeaponDefinition Definition;
-	if(Source.m_Kind != EAttackSourceKind::PlayerWeapon || !CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition))
+	if(Source.m_Kind != EAttackSourceKind::PlayerWeapon ||
+	   !CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition))
 		return;
 	const int Charge = Source.m_Weapon.m_Level;
 	const int HeavyThreshold = max(2, (Definition.m_MaxLevel + 1) / 2);
 	if(Charge < HeavyThreshold || m_aPlayers[ClientID].m_ShockwaveEndTick > m_pGameServer->Server()->Tick())
 		return;
-	m_aPlayers[ClientID].m_ShockwaveEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 2 / 5;
+	m_aPlayers[ClientID].m_ShockwaveEndTick =
+		m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 2 / 5;
 	m_pGameServer->CreateEffect(FX_EXPLOSION1, Pos);
 	m_ApplyingSecondaryEffect = true;
 	int HitCount = 0;
@@ -2141,20 +2253,23 @@ void CPveDirector::OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Dama
 	for(; pCharacter; pCharacter = (CCharacter *)pCharacter->TypeNext())
 		if(pCharacter->m_IsBot && pCharacter->IsAlive() && distance(Pos, pCharacter->m_Pos) <= 190.0f)
 		{
-			pCharacter->TakeDamage(Source, max(1, Damage / 2), normalize(pCharacter->m_Pos - Pos) * 4.0f, pCharacter->m_Pos);
+			pCharacter->TakeDamage(
+				Source, max(1, Damage / 2), normalize(pCharacter->m_Pos - Pos) * 4.0f, pCharacter->m_Pos);
 			HitCount++;
 		}
 	CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID);
 	for(; pDroid; pDroid = (CDroid *)pDroid->TypeNext())
 		if(pDroid->m_Health > 0 && distance(Pos, pDroid->m_Pos + pDroid->m_Center) <= 190.0f)
 		{
-			pDroid->TakeDamage(normalize(pDroid->m_Pos + pDroid->m_Center - Pos) * 4.0f, max(1, Damage / 2), Source, pDroid->m_Pos);
+			pDroid->TakeDamage(
+				normalize(pDroid->m_Pos + pDroid->m_Center - Pos) * 4.0f, max(1, Damage / 2), Source, pDroid->m_Pos);
 			HitCount++;
 		}
 	m_ApplyingSecondaryEffect = false;
 	if(HitCount > 0 && m_aPlayers[ClientID].m_aStacks[PVE_CARD_KINETIC_RETURN])
 	{
-		m_aPlayers[ClientID].m_aWeaponResources[PVE_SPECIALIZATION_MELEE - 1] = min(10, m_aPlayers[ClientID].m_aWeaponResources[PVE_SPECIALIZATION_MELEE - 1] + HitCount);
+		m_aPlayers[ClientID].m_aWeaponResources[PVE_SPECIALIZATION_MELEE - 1] =
+			min(10, m_aPlayers[ClientID].m_aWeaponResources[PVE_SPECIALIZATION_MELEE - 1] + HitCount);
 		AddBarrier(ClientID, HitCount * 2);
 	}
 }
@@ -2169,11 +2284,14 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 	if(IsEligiblePlayer(From) && (To == -2 || m_pGameServer->IsBot(To)))
 	{
 		CPlayerRun &Run = m_aPlayers[From];
-		const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon ? WeaponSpecialization(Source.m_Weapon) : PVE_SPECIALIZATION_NONE;
+		const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon
+									   ? WeaponSpecialization(Source.m_Weapon)
+									   : PVE_SPECIALIZATION_NONE;
 		Run.m_LastEmpoweredSpecialization = PVE_SPECIALIZATION_NONE;
 		pOutgoingTarget = To >= 0 ? m_pGameServer->GetPlayerChar(To) : 0;
 		Multiplier += Run.m_aStacks[PVE_CARD_COMBAT_TRAINING] * 0.08f;
-		if(pOutgoingTarget && pOutgoingTarget->m_MaxHealth > 0 && pOutgoingTarget->m_HiddenHealth * 100 <= pOutgoingTarget->m_MaxHealth * 30)
+		if(pOutgoingTarget && pOutgoingTarget->m_MaxHealth > 0 &&
+		   pOutgoingTarget->m_HiddenHealth * 100 <= pOutgoingTarget->m_MaxHealth * 30)
 			Multiplier += Run.m_aStacks[PVE_CARD_FINISHER] * 0.20f;
 		const int Vulnerable = VulnerablePercent(pOutgoingTarget);
 		if(Vulnerable > 0)
@@ -2243,8 +2361,9 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 		// Non-weapon player-owned damage (for example a turret) intentionally has
 		// no specialization. Never form an out-of-bounds resources[-1] reference
 		// for it, even if none of the specialization branches would use it.
-		int *pResource = Specialization >= PVE_SPECIALIZATION_FIREARM && Specialization <= PVE_SPECIALIZATION_MELEE ?
-			&Run.m_aWeaponResources[Specialization - 1] : 0;
+		int *pResource = Specialization >= PVE_SPECIALIZATION_FIREARM && Specialization <= PVE_SPECIALIZATION_MELEE
+							 ? &Run.m_aWeaponResources[Specialization - 1]
+							 : 0;
 		if(ResourceEnabled && pResource && *pResource >= Threshold)
 		{
 			*pResource = 0;
@@ -2282,7 +2401,8 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 			Multiplier *= 1.75f;
 			CTargetStatus *pStatus = TargetStatus(pOutgoingTarget, false);
 			if(pStatus && pStatus->m_VulnerablePercent > 0)
-				pStatus->m_VulnerableEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 4;
+				pStatus->m_VulnerableEndTick =
+					m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 4;
 		}
 		if(Specialization == PVE_SPECIALIZATION_ELECTRIC && Run.m_aStacks[PVE_CARD_CAPACITOR])
 		{
@@ -2303,13 +2423,15 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 			Multiplier += min(0.40f, Run.m_InvasionFloorsCompleted * Run.m_aStacks[PVE_CARD_ADAPTATION] * 0.04f);
 			Multiplier += min(0.20f, Run.m_DeathlessFloors * Run.m_aStacks[PVE_CARD_FLOOR_MEMORY] * 0.04f);
 		}
-		if(m_Mode == PVE_MODE_HORDE && Run.m_aStacks[PVE_CARD_SIEGE_MASTER] && Source.m_Kind == EAttackSourceKind::Building)
+		if(m_Mode == PVE_MODE_HORDE && Run.m_aStacks[PVE_CARD_SIEGE_MASTER] &&
+		   Source.m_Kind == EAttackSourceKind::Building)
 			Multiplier += 0.30f;
 		if(m_Mode == PVE_MODE_HORDE && Run.m_aStacks[PVE_CARD_ENDLESS_ENGINE])
 			Multiplier += m_DeathlessHordeWaves * 0.05f;
 		if(m_Mode == PVE_MODE_EXTRACTION && Run.m_aStacks[PVE_CARD_FINAL_DEPARTURE])
 		{
-			const CGameControllerExtract *pExtract = dynamic_cast<const CGameControllerExtract *>(m_pGameServer->m_pController);
+			const CGameControllerExtract *pExtract =
+				dynamic_cast<const CGameControllerExtract *>(m_pGameServer->m_pController);
 			if(pExtract && pExtract->Evacuating())
 				Multiplier += 0.30f;
 		}
@@ -2341,12 +2463,13 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 			Reduction += 0.20f;
 		if(Run.m_aStacks[PVE_CARD_HOLD_THE_LINE] && InHordeDefenseArea(To))
 			Reduction += 0.15f;
-		if(m_Mode == PVE_MODE_EXTRACTION && pTarget && Run.m_aStacks[PVE_CARD_COURIER] &&
-			pTarget->IsBombCarrier())
+		if(m_Mode == PVE_MODE_EXTRACTION && pTarget && Run.m_aStacks[PVE_CARD_COURIER] && pTarget->IsBombCarrier())
 			Reduction += 0.10f;
 		float GuardianReduction = 0.0f;
 		for(int Ally = 0; Ally < MAX_CLIENTS; Ally++)
-			if(pTarget && IsEligiblePlayer(Ally) && m_aPlayers[Ally].m_DroneModule == PVE_DRONE_GUARDIAN && m_aPlayers[Ally].m_pDrone && m_aPlayers[Ally].m_pDrone->Active() && distance(m_aPlayers[Ally].m_pDrone->m_Pos, pTarget->m_Pos) <= 280.0f)
+			if(pTarget && IsEligiblePlayer(Ally) && m_aPlayers[Ally].m_DroneModule == PVE_DRONE_GUARDIAN &&
+			   m_aPlayers[Ally].m_pDrone && m_aPlayers[Ally].m_pDrone->Active() &&
+			   distance(m_aPlayers[Ally].m_pDrone->m_Pos, pTarget->m_Pos) <= 280.0f)
 				GuardianReduction = max(GuardianReduction, min(0.25f, 0.10f * DroneEfficiency(Ally)));
 		Reduction += GuardianReduction;
 		if(Run.m_aStacks[PVE_CARD_GLASS_EDGE])
@@ -2357,7 +2480,9 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 			Multiplier *= 1.25f;
 		Multiplier *= 1.0f - min(0.50f, Reduction);
 	}
-	if(IsEligiblePlayer(To) && From == To && Source.m_Kind == EAttackSourceKind::PlayerWeapon && WeaponSpecialization(Source.m_Weapon) == PVE_SPECIALIZATION_EXPLOSIVE && m_aPlayers[To].m_aStacks[PVE_CARD_CONTROLLED_FUSE])
+	if(IsEligiblePlayer(To) && From == To && Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
+	   WeaponSpecialization(Source.m_Weapon) == PVE_SPECIALIZATION_EXPLOSIVE &&
+	   m_aPlayers[To].m_aStacks[PVE_CARD_CONTROLLED_FUSE])
 		Multiplier *= 0.5f;
 
 	int Result = max(1, (int)(Damage * clamp(Multiplier, 0.0f, 2.5f) + 0.5f));
@@ -2401,17 +2526,21 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 			{
 				CTargetStatus *pStatus = TargetStatus(pOutgoingTarget, true);
 				if(pStatus)
-					pStatus->m_ConductiveEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 5;
+					pStatus->m_ConductiveEndTick =
+						m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 5;
 			}
 			if(Run.m_aStacks[PVE_CARD_THUNDERHEAD] && Run.m_FullVoltageReleases % 3 == 0)
 				ApplyThunderhead(Source, pOutgoingTarget, Result);
 		}
 		if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_OPEN_WOUND])
 			ApplyBleed(pOutgoingTarget, 3, Source);
-		if(Source.m_Kind == EAttackSourceKind::PlayerWeapon && WeaponSpecialization(Source.m_Weapon) == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_GUARD_BREAKER] && IsHeavyWeaponAttack(Source))
+		if(Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
+		   WeaponSpecialization(Source.m_Weapon) == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_GUARD_BREAKER] &&
+		   IsHeavyWeaponAttack(Source))
 			ApplyVulnerable(pOutgoingTarget, 3, min(6, Run.m_aStacks[PVE_CARD_GUARD_BREAKER] * 2));
 	}
-	if(pOutgoingTarget && Source.m_Kind == EAttackSourceKind::PlayerWeapon && WeaponSpecialization(Source.m_Weapon) == PVE_SPECIALIZATION_ELECTRIC)
+	if(pOutgoingTarget && Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
+	   WeaponSpecialization(Source.m_Weapon) == PVE_SPECIALIZATION_ELECTRIC)
 		ApplyArcConductor(Source, pOutgoingTarget, pOutgoingTarget->m_Pos, Result);
 	return Result;
 }
@@ -2423,7 +2552,8 @@ int CPveDirector::ModifyDroidDamage(const CAttackSource &Source, int Damage, boo
 		return Damage;
 	int Result = ModifyDamage(Source, -2, Damage);
 	CPlayerRun &Run = m_aPlayers[From];
-	const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon ? WeaponSpecialization(Source.m_Weapon) : PVE_SPECIALIZATION_NONE;
+	const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon ? WeaponSpecialization(Source.m_Weapon)
+																				: PVE_SPECIALIZATION_NONE;
 	if(pTarget && pTarget->m_MaxHealth > 0 && pTarget->m_Health * 100 <= pTarget->m_MaxHealth * 30)
 		Result += (int)(Damage * Run.m_aStacks[PVE_CARD_FINISHER] * 0.20f + 0.5f);
 	if(Boss)
@@ -2467,20 +2597,21 @@ int CPveDirector::ModifyDroidDamage(const CAttackSource &Source, int Damage, boo
 		{
 			CTargetStatus *pStatus = TargetStatus(pTarget, true);
 			if(pStatus)
-				pStatus->m_ConductiveEndTick = m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 5;
+				pStatus->m_ConductiveEndTick =
+					m_pGameServer->Server()->Tick() + m_pGameServer->Server()->TickSpeed() * 5;
 		}
 		if(Run.m_aStacks[PVE_CARD_THUNDERHEAD] && Run.m_FullVoltageReleases % 3 == 0)
 			ApplyThunderhead(Source, pTarget, Result);
 	}
 	if(Run.m_LastEmpoweredSpecialization == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_OPEN_WOUND])
 		ApplyBleed(pTarget, 3, Source);
-	if(Specialization == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_GUARD_BREAKER] && IsHeavyWeaponAttack(Source))
+	if(Specialization == PVE_SPECIALIZATION_MELEE && Run.m_aStacks[PVE_CARD_GUARD_BREAKER] &&
+	   IsHeavyWeaponAttack(Source))
 		ApplyVulnerable(pTarget, 3, min(6, Run.m_aStacks[PVE_CARD_GUARD_BREAKER] * 2));
 	if(pTarget && Specialization == PVE_SPECIALIZATION_ELECTRIC)
 		ApplyArcConductor(Source, pTarget, pTarget->m_Pos + pTarget->m_Center, Result);
 	return Result;
 }
-
 
 int CPveDirector::ModifyGold(int ClientID, int Amount) const
 {
@@ -2534,7 +2665,8 @@ void CPveDirector::RefundBuilding(int ClientID, int KitCost) const
 		pChr->AddKits(Refund);
 	else if(m_pGameServer->m_apPlayers[ClientID])
 	{
-		CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+		CPlayerData *pData =
+			m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 		if(pData)
 			pData->m_Kits = min(99, pData->m_Kits + Refund);
 	}
@@ -2562,9 +2694,9 @@ float CPveDirector::CooldownReduction(int ClientID, const CWeaponSpec &Weapon) c
 	if(!CWeaponCatalog::TryResolve(Weapon, &Profile))
 		return 0.0f;
 	const int RenderType = Profile.m_Visual.m_RenderType;
-	const bool Firearm = !Profile.m_Combat.m_ExplosiveProjectile &&
-		Profile.m_Combat.m_ElectroAmount <= 0.0f && !Profile.m_Combat.m_LaserWeapon &&
-		Profile.m_Combat.m_FiringType != WFT_MELEE && RenderType != WRT_MELEE && RenderType != WRT_MELEESMALL && RenderType != WRT_SPIN;
+	const bool Firearm = !Profile.m_Combat.m_ExplosiveProjectile && Profile.m_Combat.m_ElectroAmount <= 0.0f &&
+						 !Profile.m_Combat.m_LaserWeapon && Profile.m_Combat.m_FiringType != WFT_MELEE &&
+						 RenderType != WRT_MELEE && RenderType != WRT_MELEESMALL && RenderType != WRT_SPIN;
 	if(Firearm && Run.m_aStacks[PVE_CARD_GUNSLINGER])
 		Reduction += 0.20f;
 	return min(0.30f, Reduction);
@@ -2642,7 +2774,8 @@ float CPveDirector::EnemySpeedMultiplier() const
 
 float CPveDirector::EnemyHealthMultiplier() const
 {
-	const float ContractMultiplier = ActiveContract() == PVE_CONTRACT_RISING_TIDE && m_ContractProgress >= 3 ? 1.25f : 1.0f;
+	const float ContractMultiplier =
+		ActiveContract() == PVE_CONTRACT_RISING_TIDE && m_ContractProgress >= 3 ? 1.25f : 1.0f;
 	return ContractMultiplier;
 }
 
@@ -2664,7 +2797,8 @@ bool CPveDirector::UseLastStand(int ClientID)
 	if(!Run.m_aStacks[PVE_CARD_LAST_STAND] || Run.m_LastStandUsed)
 		return false;
 	Run.m_LastStandUsed = true;
-	CPlayerData *pData = m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
+	CPlayerData *pData =
+		m_pGameServer->Server()->GetPlayerData(ClientID, m_pGameServer->m_apPlayers[ClientID]->GetColorID());
 	if(pData)
 		pData->m_PveLastStandUsed = true;
 	return true;

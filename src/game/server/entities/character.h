@@ -12,8 +12,8 @@
 
 enum
 {
-	WEAPON_GAME = -3, // team switching etc
-	WEAPON_SELF = -2, // console kill command
+	WEAPON_GAME = -3,  // team switching etc
+	WEAPON_SELF = -2,  // console kill command
 	WEAPON_WORLD = -1, // death tiles etc
 };
 
@@ -24,13 +24,12 @@ enum BaseDamage
 	NEUTRAL_BASE = -1,
 };
 
-
 class CCharacter : public CEntity
 {
 	MACRO_ALLOC_POOL_ID()
 
-public:
-	//character's size
+  public:
+	// character's size
 	static const int ms_PhysSize = 28;
 
 	CCharacter(CGameWorld *pWorld);
@@ -43,21 +42,21 @@ public:
 	virtual void Snap(int SnappingClient);
 
 	bool IsGrounded();
-	bool IsZombie(){ return m_Zombie; }
-	
+	bool IsZombie() { return m_Zombie; }
+
 	int m_GrenadeGiveCooldown;
-	
-	bool PlayerCollision(){ return m_Core.m_PlayerCollision; }
-	
-	bool Wallrun(){ return (abs(m_Core.m_Wallrun) > 0 && abs(m_Core.m_Wallrun) < 10);}
-	
+
+	bool PlayerCollision() { return m_Core.m_PlayerCollision; }
+
+	bool Wallrun() { return (abs(m_Core.m_Wallrun) > 0 && abs(m_Core.m_Wallrun) < 10); }
+
 	void HandleWeaponSwitch();
 	void DoWeaponSwitch();
 
 	void HandleWeapons();
-	
+
 	bool m_ExplodeOnDeath;
-	
+
 	void Warp();
 	void Deathray(bool Kill = true);
 	void Electrocute(float Duration);
@@ -70,7 +69,7 @@ public:
 	void FireWeapon();
 
 	void ReleaseWeapons();
-	 
+
 	void Die(const CAttackSource &Source, bool SkipKillMessage = false, bool IsTurret1 = false);
 	bool TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, vec2 Pos) override;
 	void SetAflame(float Duration, const CAttackSource &Source);
@@ -79,22 +78,22 @@ public:
 	void TakeDeathrayDamage();
 
 	vec2 m_SpawnPos;
-	
+
 	bool Spawn(class CPlayer *pPlayer, vec2 Pos);
 	bool Remove();
-	
+
 	void Teleport(vec2 Pos);
-	
+
 	bool GiveBomb();
 	bool IsBombCarrier();
 
 	bool IncreaseHealth(int Amount);
 	bool IncreaseAmmo(int Amount);
 	bool IncreaseArmor(int Amount);
-	
+
 	bool AddKit();
 	bool AddKits(int Amount);
-	
+
 	void SetArmor(int Armor);
 	void SetHealth(int Health);
 	void RefillHealth();
@@ -104,136 +103,135 @@ public:
 
 	bool IsAlive() const { return m_Alive; }
 	class CPlayer *GetPlayer() { return m_pPlayer; }
-	
-	class CWeapon *GetWeapon(int Slot = -1) {
-		if (Slot >= NUM_SLOTS)
-			return NULL;
-		
-		if (Slot < 0 && m_WeaponSlot >= 0 && m_WeaponSlot < NUM_SLOTS)
+
+	class CWeapon *GetWeapon(int Slot = -1)
+	{
+		if(Slot >= NUM_SLOTS)
+			return 0;
+
+		if(Slot < 0 && m_WeaponSlot >= 0 && m_WeaponSlot < NUM_SLOTS)
 			return m_apWeapon[m_WeaponSlot];
-		
-		if (Slot < 0)
-			return NULL;
-		
+
+		if(Slot < 0)
+			return 0;
+
 		return m_apWeapon[Slot];
 	}
 	int CurrentWeaponFiringType() const;
-	
+
 	bool m_ForceCoreSend;
-	
+
 	bool m_IsBot;
 	int m_HiddenHealth;
 	int m_MaxHealth;
-	
+
 	bool m_Silent;
-	
+
 	bool m_WeaponPicked;
-	
+
 	void SaveData();
-	
+
 	int m_SkipPickups;
-	
+
 	int m_DeathTileTimer;
-	
+
 	int m_BombStatus;
-	
+
 	bool UpgradeWeapon();
-	
+
 	int m_WeaponSlot;
 	int m_WantedSlot;
-	
+
 	int GetMask();
-	
+
 	bool AddClip();
-	
+
 	// for pickup drops, easy access
 	bool HasAmmo();
-	
+
 	bool GiveWeapon(CWeapon *pWeapon);
-	int GetWeaponSlot(){ return clamp(m_WeaponSlot, 0, 3);}
+	int GetWeaponSlot() { return clamp(m_WeaponSlot, 0, 3); }
 	int GetWeaponPowerLevel(int WeaponSlot = -1);
 	int FreeSlot();
-	
+
 	bool PickWeapon(class CWeapon *pWeapon);
-	
+
 	void RandomizeInventory();
-	
+
 	void AutoWeaponChange();
-	
+
 	void GiveStartWeapon();
-	
+
 	int m_PickedWeaponSlot;
 
-
 	int m_Type;
-	
+
 	enum Types
 	{
 		PLAYER,
 		ROBOT
 	};
-	
+
 	bool SetLandmine();
 	bool SetElectromine();
 
 	void DropWeapon();
-	
+
 	int m_CryTimer;
 	int m_CryState;
-	
+
 	void Cry();
-	
+
 	bool m_DelayedKill;
-	
-	CCharacterCore GetCore(){ return m_Core; }
-	vec2 GetPosition(){ return m_Pos; }
-	
-	vec2 GetVel(){ return m_Core.m_Vel; }
-	
+
+	CCharacterCore GetCore() { return m_Core; }
+	vec2 GetPosition() { return m_Pos; }
+
+	vec2 GetVel() { return m_Core.m_Vel; }
+
 	vec2 m_LatestHitVel;
-	
+
 	int m_QueuedCustomWeapon;
-	
+
 	int m_aItem[NUM_PLAYERITEMS];
-	
+
 	bool IgnoreCollision()
 	{
-		if (m_IgnoreCollision || m_aStatus[STATUS_SPAWNING] > 0.0f)
+		if(m_IgnoreCollision || m_aStatus[STATUS_SPAWNING] > 0.0f)
 			return true;
-		
+
 		return false;
 	}
-	
+
 	bool Invisible();
-	
+
 	bool IsSliding()
 	{
-		if (m_Core.m_Slide != 0)
+		if(m_Core.m_Slide != 0)
 			return true;
-		
+
 		return false;
 	}
-	
-	
+
 	int m_ShieldHealth;
 	int m_ShieldRadius;
-	
+
 	void SelectItem(int Item);
 	void UseKit(int Kit, vec2 Pos);
 	bool GiveBuff(int Item);
 	void GiveRandomBuff();
-	
+
 	int m_AttackTick;
 	int m_DamageTakenTick;
-	int m_SendInventoryTick;	
-	
+	int m_SendInventoryTick;
+
 	int m_Kits;
-	
+
 	int Reflect();
 	bool m_DamagedByPlayer;
-	
+
 	int GetArmor() const { return m_Armor; }
-	
+
 	// inventory
 	void InventoryRoll(int Slot);
 	void DropItem(int Slot, vec2 Pos);
@@ -241,52 +239,52 @@ public:
 	void CombineItem(int Item1, int Item2, int Operation);
 	void SendInventory();
 
-	void ReleaseWeapon(class CWeapon *pWeapon = NULL);
-	bool TriggerWeapon(class CWeapon *pWeapon = NULL);
-	
+	void ReleaseWeapon(class CWeapon *pWeapon = 0);
+	bool TriggerWeapon(class CWeapon *pWeapon = 0);
+
 	bool UpgradeTurret(vec2 Pos, vec2 Dir, int Slot = -1);
-	bool Deathrayed() const { return m_ElectroWallCooldown > 0;}
-	
-private:
+	bool Deathrayed() const { return m_ElectroWallCooldown > 0; }
+
+  private:
 	// player controlling this character
 	class CPlayer *m_pPlayer;
-	
+
 	class CWeapon *m_apWeapon[12];
 
 	bool m_IgnoreCollision;
-	
+
 	int m_DeathrayTick;
 	int m_DamageSoundTimer;
-	
+
 	int m_LastStatusEffect;
-	
+
 	int m_PrevWeapon;
 	int m_ElectroWallCooldown;
-	
+
 	int m_MaskEffectTick;
-	
+
 	int m_aStatus[NUM_STATUSS];
 	CAttackSource m_aStatusSource[NUM_STATUSS];
 	void UpdateCoreStatus();
-	
+
 	bool m_Zombie;
 	bool m_Spawned;
 	bool m_Alive;
-	
+
 	int m_AcidTimer;
-	
+
 	vec2 m_Recoil;
 
 	int m_ChangeDirTick;
 	int m_LastDir;
-	
+
 	int m_ChargeTick;
-	
+
 	int m_Flamethrower;
 	void Flamethrower();
-	
+
 	CCharacter *m_LockedTo;
-	
+
 	int m_PainSoundTimer;
 
 	int m_ReloadTimer;
@@ -301,7 +299,7 @@ private:
 	int m_LastAction;
 	int m_LastBlink;
 	int m_LastNoAmmoSound;
-	
+
 	int m_LastReloadingSound;
 
 	// these are non-heldback inputs
@@ -314,18 +312,16 @@ private:
 	int m_NumInputs;
 	int m_Jumped;
 
-
 	int m_Health;
 	int m_Armor;
-	
+
 	// the player core for the physics
 	CCharacterCore m_Core;
 
 	// info for dead reckoning
-	int m_ReckoningTick; // tick that we are performing dead reckoning From
-	CCharacterCore m_SendCore; // core that we should send
+	int m_ReckoningTick;			// tick that we are performing dead reckoning From
+	CCharacterCore m_SendCore;		// core that we should send
 	CCharacterCore m_ReckoningCore; // the dead reckoning core
-
 };
 
 #endif

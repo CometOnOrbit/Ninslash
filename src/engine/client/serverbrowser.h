@@ -7,10 +7,10 @@
 
 class CServerBrowser : public IServerBrowser
 {
-public:
+  public:
 	class CServerEntry
 	{
-	public:
+	  public:
 		NETADDR m_Addr;
 		int64 m_RequestTime;
 		int m_GotInfo;
@@ -24,7 +24,7 @@ public:
 
 	enum
 	{
-		MAX_FAVORITES=256
+		MAX_FAVORITES = 256
 	};
 
 	CServerBrowser();
@@ -49,11 +49,16 @@ public:
 	void Set(const NETADDR &Addr, int Type, int Token, const CServerInfo *pInfo);
 	void Request(const NETADDR &Addr);
 	bool GetServerInfo(const NETADDR &Addr, CServerInfo *pInfo) const;
-	void AddDiscoveredServer(const NETADDR &Addr, int DiscoverySource, bool Official, bool Modded, int AuthPolicy, unsigned long long SteamServerID);
+	void AddDiscoveredServer(const NETADDR &Addr,
+							 int DiscoverySource,
+							 bool Official,
+							 bool Modded,
+							 int AuthPolicy,
+							 unsigned long long SteamServerID);
 
 	void SetBaseInfo(class CNetClient *pClient, const char *pNetVersion);
 
-private:
+  private:
 	CNetClient *m_pNetClient;
 	IMasterServer *m_pMasterServer;
 	class IConsole *m_pConsole;

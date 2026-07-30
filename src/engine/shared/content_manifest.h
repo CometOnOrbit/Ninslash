@@ -12,7 +12,13 @@ enum EContentType
 	NUM_CONTENT_TYPES,
 };
 
-enum EContentFileType { CONTENT_FILE_MAP, CONTENT_FILE_RESOURCE, CONTENT_FILE_SCRIPT, CONTENT_FILE_DEFINITION };
+enum EContentFileType
+{
+	CONTENT_FILE_MAP,
+	CONTENT_FILE_RESOURCE,
+	CONTENT_FILE_SCRIPT,
+	CONTENT_FILE_DEFINITION
+};
 
 struct CContentDependency
 {
@@ -29,7 +35,11 @@ struct CContentDeclaredFile
 
 struct CContentManifest
 {
-	enum { MAX_DEPENDENCIES = 32, MAX_FILES = 256 };
+	enum
+	{
+		MAX_DEPENDENCIES = 32,
+		MAX_FILES = 256
+	};
 	int m_SchemaVersion;
 	int m_ContentType;
 	char m_aPublishedFileID[32];
@@ -50,9 +60,16 @@ struct CContentManifest
 /* Validation is intentionally independent of Steam UGC. Both Workshop and
  * manually installed community content must pass the same trust boundary. */
 bool ContentManifestIsSafeRelativePath(const char *pPath);
-bool ContentManifestValidateText(const char *pJson, int JsonLength, const char *pExpectedProtocol, char *pError, int ErrorSize);
-bool ContentManifestReadApiDescriptor(const char *pJson, int JsonLength, CModApiDescriptor *pDescriptor, char *pError, int ErrorSize);
-bool ContentManifestParse(const char *pJson, int JsonLength, const char *pExpectedProtocol, CContentManifest *pManifest, char *pError, int ErrorSize);
+bool ContentManifestValidateText(
+	const char *pJson, int JsonLength, const char *pExpectedProtocol, char *pError, int ErrorSize);
+bool ContentManifestReadApiDescriptor(
+	const char *pJson, int JsonLength, CModApiDescriptor *pDescriptor, char *pError, int ErrorSize);
+bool ContentManifestParse(const char *pJson,
+						  int JsonLength,
+						  const char *pExpectedProtocol,
+						  CContentManifest *pManifest,
+						  char *pError,
+						  int ErrorSize);
 const char *ContentTypeName(int Type);
 bool ContentTypeFromName(const char *pName, int *pType);
 

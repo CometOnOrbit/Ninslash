@@ -11,7 +11,8 @@
 
 #include "input.h"
 
-//print >>f, "int inp_key_code(const char *key_name) { int i; if (!strcmp(key_name, \"-?-\")) return -1; else for (i = 0; i < 512; i++) if (!strcmp(key_strings[i], key_name)) return i; return -1; }"
+// print >>f, "int inp_key_code(const char *key_name) { int i; if (!strcmp(key_name, \"-?-\")) return -1; else for (i =
+// 0; i < 512; i++) if (!strcmp(key_strings[i], key_name)) return i; return -1; }"
 
 // this header is protected so you don't include it from anywere
 #define KEYS_INCLUDE
@@ -46,8 +47,8 @@ CInput::CInput()
 	m_LastMousePosX = 0;
 	m_LastMousePosY = 0;
 
-	m_pCursorSurface = NULL;
-	m_pCursor = NULL;
+	m_pCursorSurface = 0;
+	m_pCursor = 0;
 
 	m_LastRelease = 0;
 	m_ReleaseDelta = -1;
@@ -55,13 +56,12 @@ CInput::CInput()
 	m_MouseLeft = false;
 	m_MouseEntered = false;
 
-
 	m_GamepadMove = 0;
 	m_GamepadDown = false;
 	m_GamepadJump = false;
 	m_GamepadShoot = false;
 	m_GamepadSelect = false;
-	
+
 	m_UsingGamepad = false;
 	m_GamepadAimX = 0;
 	m_GamepadAimY = 0;
@@ -70,7 +70,7 @@ CInput::CInput()
 	mem_zero(m_aSteamInputPrevious, sizeof(m_aSteamInputPrevious));
 	m_GamepadActionSet = PLATFORM_INPUT_MENU;
 	m_TextInputActive = false;
-	
+
 	m_NumEvents = 0;
 
 	m_pClipboardText = 0;
@@ -134,21 +134,25 @@ void CInput::UpdateSteamInput()
 {
 	if(!m_pPlatformServices || !m_pPlatformServices->SteamInputActive())
 		return;
-	m_pPlatformServices->SetInputActionSet(m_TextInputActive ? PLATFORM_INPUT_CHAT : (EPlatformInputActionSet)m_GamepadActionSet);
+	m_pPlatformServices->SetInputActionSet(m_TextInputActive ? PLATFORM_INPUT_CHAT
+															 : (EPlatformInputActionSet)m_GamepadActionSet);
 	CPlatformInputState State;
 	if(!m_pPlatformServices->ReadInputState(&State) || !State.m_Connected)
 		return;
 	m_UsingGamepad = true;
 	static const int s_aKeys[NUM_PLATFORM_INPUT_ACTIONS] = {
-		KEY_GAMEPAD_BUTTON_A, KEY_GAMEPAD_BUTTON_B, KEY_GAMEPAD_TRIGGER_RIGHT, KEY_GAMEPAD_TRIGGER_LEFT,
-		KEY_GAMEPAD_BUTTON_BACK, KEY_GAMEPAD_BUTTON_Y, KEY_GAMEPAD_BUTTON_B, KEY_GAMEPAD_BUTTON_A,
-		KEY_GAMEPAD_BUTTON_LEFTSTICK, KEY_GAMEPAD_BUTTON_RIGHTSTICK, KEY_GAMEPAD_SHOULDER_LEFT, KEY_GAMEPAD_SHOULDER_RIGHT,
-		KEY_GAMEPAD_BUTTON_DPAD_UP, KEY_GAMEPAD_BUTTON_DPAD_DOWN, KEY_GAMEPAD_BUTTON_DPAD_LEFT, KEY_GAMEPAD_BUTTON_DPAD_RIGHT,
-		KEY_GAMEPAD_BUTTON_A, KEY_GAMEPAD_BUTTON_RIGHTSTICK, KEY_GAMEPAD_TRIGGER_LEFT, KEY_GAMEPAD_BUTTON_X,
-		KEY_GAMEPAD_BUTTON_Y, KEY_GAMEPAD_BUTTON_LEFTSTICK, KEY_GAMEPAD_BUTTON_DPAD_LEFT, KEY_GAMEPAD_BUTTON_DPAD_UP,
-		KEY_GAMEPAD_BUTTON_DPAD_RIGHT, KEY_GAMEPAD_BUTTON_DPAD_DOWN, KEY_GAMEPAD_BUTTON_START, KEY_GAMEPAD_BUTTON_A,
-		KEY_GAMEPAD_BUTTON_B, KEY_GAMEPAD_BUTTON_X, KEY_GAMEPAD_BUTTON_START, KEY_GAMEPAD_BUTTON_A,
-		KEY_GAMEPAD_SHOULDER_LEFT, KEY_GAMEPAD_SHOULDER_RIGHT, KEY_GAMEPAD_TRIGGER_RIGHT, KEY_GAMEPAD_TRIGGER_LEFT};
+		KEY_GAMEPAD_BUTTON_A,		   KEY_GAMEPAD_BUTTON_B,		 KEY_GAMEPAD_TRIGGER_RIGHT,
+		KEY_GAMEPAD_TRIGGER_LEFT,	   KEY_GAMEPAD_BUTTON_BACK,		 KEY_GAMEPAD_BUTTON_Y,
+		KEY_GAMEPAD_BUTTON_B,		   KEY_GAMEPAD_BUTTON_A,		 KEY_GAMEPAD_BUTTON_LEFTSTICK,
+		KEY_GAMEPAD_BUTTON_RIGHTSTICK, KEY_GAMEPAD_SHOULDER_LEFT,	 KEY_GAMEPAD_SHOULDER_RIGHT,
+		KEY_GAMEPAD_BUTTON_DPAD_UP,	   KEY_GAMEPAD_BUTTON_DPAD_DOWN, KEY_GAMEPAD_BUTTON_DPAD_LEFT,
+		KEY_GAMEPAD_BUTTON_DPAD_RIGHT, KEY_GAMEPAD_BUTTON_A,		 KEY_GAMEPAD_BUTTON_RIGHTSTICK,
+		KEY_GAMEPAD_TRIGGER_LEFT,	   KEY_GAMEPAD_BUTTON_X,		 KEY_GAMEPAD_BUTTON_Y,
+		KEY_GAMEPAD_BUTTON_LEFTSTICK,  KEY_GAMEPAD_BUTTON_DPAD_LEFT, KEY_GAMEPAD_BUTTON_DPAD_UP,
+		KEY_GAMEPAD_BUTTON_DPAD_RIGHT, KEY_GAMEPAD_BUTTON_DPAD_DOWN, KEY_GAMEPAD_BUTTON_START,
+		KEY_GAMEPAD_BUTTON_A,		   KEY_GAMEPAD_BUTTON_B,		 KEY_GAMEPAD_BUTTON_X,
+		KEY_GAMEPAD_BUTTON_START,	   KEY_GAMEPAD_BUTTON_A,		 KEY_GAMEPAD_SHOULDER_LEFT,
+		KEY_GAMEPAD_SHOULDER_RIGHT,	   KEY_GAMEPAD_TRIGGER_RIGHT,	 KEY_GAMEPAD_TRIGGER_LEFT};
 	const bool Left = State.m_MoveX < -0.35f;
 	const bool Right = State.m_MoveX > 0.35f;
 	const bool Up = State.m_MoveY < -0.35f;
@@ -156,10 +160,14 @@ void CInput::UpdateSteamInput()
 	for(int i = 0; i < NUM_PLATFORM_INPUT_ACTIONS; i++)
 	{
 		bool ActionDown = State.m_aActions[i];
-		if(i == PLATFORM_ACTION_LEFT) ActionDown = ActionDown || Left;
-		else if(i == PLATFORM_ACTION_RIGHT) ActionDown = ActionDown || Right;
-		else if(i == PLATFORM_ACTION_UP) ActionDown = ActionDown || Up;
-		else if(i == PLATFORM_ACTION_DOWN) ActionDown = ActionDown || Down;
+		if(i == PLATFORM_ACTION_LEFT)
+			ActionDown = ActionDown || Left;
+		else if(i == PLATFORM_ACTION_RIGHT)
+			ActionDown = ActionDown || Right;
+		else if(i == PLATFORM_ACTION_UP)
+			ActionDown = ActionDown || Up;
+		else if(i == PLATFORM_ACTION_DOWN)
+			ActionDown = ActionDown || Down;
 		SetSteamVirtualKey(s_aKeys[i], ActionDown, &m_aSteamInputPrevious[i]);
 	}
 	m_GamepadMove = Left ? -1 : (Right ? 1 : 0);
@@ -188,18 +196,19 @@ void CInput::SetCompositionWindowPosition(float X, float Y, float H)
 
 void CInput::LoadHardwareCursor()
 {
-	if(m_pCursor != NULL)
+	if(m_pCursor != 0)
 		return;
 
 	CImageInfo CursorImg;
 	if(!m_pGraphics->LoadPNG(&CursorImg, "gui_cursor_small.png", IStorage::TYPE_ALL))
 		return;
 
-	m_pCursorSurface = SDL_CreateSurfaceFrom(
-		CursorImg.m_Width, CursorImg.m_Height,
-        SDL_GetPixelFormatForMasks(32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000),
-        CursorImg.m_pData, 4*CursorImg.m_Width
-	);
+	m_pCursorSurface =
+		SDL_CreateSurfaceFrom(CursorImg.m_Width,
+							  CursorImg.m_Height,
+							  SDL_GetPixelFormatForMasks(32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000),
+							  CursorImg.m_pData,
+							  4 * CursorImg.m_Width);
 
 	if(!m_pCursorSurface)
 		return;
@@ -242,11 +251,11 @@ void CInput::GetMousePosition(float *x, float *y)
 		return;
 	}
 	*/
-	
+
 	if(GetMouseModes() & MOUSE_MODE_NO_MOUSE)
 		return;
 
-	float Sens = g_Config.m_InpMousesens/100.0f;
+	float Sens = g_Config.m_InpMousesens / 100.0f;
 	float nx = 0, ny = 0;
 	SDL_GetMouseState(&nx, &ny);
 
@@ -256,12 +265,12 @@ void CInput::GetMousePosition(float *x, float *y)
 		m_LastMousePosY = ny;
 		m_FirstWarp = false;
 	}
-	
+
 	*x = nx * Sens;
 	*y = ny * Sens;
 
 	if(GetMouseModes() & MOUSE_MODE_WARP_CENTER)
-		m_pGraphics->WarpMouse( Graphics()->ScreenWidth()/2,Graphics()->ScreenHeight()/2);
+		m_pGraphics->WarpMouse(Graphics()->ScreenWidth() / 2, Graphics()->ScreenHeight() / 2);
 }
 
 void CInput::GetRelativePosition(float *x, float *y)
@@ -273,18 +282,17 @@ void CInput::GetRelativePosition(float *x, float *y)
 		return;
 	}
 
-
-	if (m_UsingGamepad)
+	if(m_UsingGamepad)
 	{
 		*x = m_GamepadAimX / 400.0f;
 		*y = m_GamepadAimY / 400.0f;
 		return;
 	}
-	
-	*x *= (float)100/g_Config.m_InpMousesens;
-	*y *= (float)100/g_Config.m_InpMousesens;
-	*x -= Graphics()->ScreenWidth()/2;
-	*y -= Graphics()->ScreenHeight()/2;
+
+	*x *= (float)100 / g_Config.m_InpMousesens;
+	*y *= (float)100 / g_Config.m_InpMousesens;
+	*x -= Graphics()->ScreenWidth() / 2;
+	*y -= Graphics()->ScreenHeight() / 2;
 }
 
 bool CInput::MouseMoved()
@@ -296,10 +304,11 @@ bool CInput::MouseMoved()
 
 bool CInput::GamepadMoved()
 {
-	if (!m_UsingGamepad)
+	if(!m_UsingGamepad)
 		return false;
 
-	if (m_GamepadOldAimX != m_GamepadAimX || m_GamepadOldAimY != m_GamepadAimY || abs(m_GamepadAimX) + abs(m_GamepadAimY) > 10000)
+	if(m_GamepadOldAimX != m_GamepadAimX || m_GamepadOldAimY != m_GamepadAimY ||
+	   abs(m_GamepadAimX) + abs(m_GamepadAimY) > 10000)
 	{
 		m_GamepadOldAimX = m_GamepadAimX;
 		m_GamepadOldAimY = m_GamepadAimY;
@@ -362,7 +371,7 @@ void CInput::ResetGamepad()
 	m_GamepadJump = false;
 	m_GamepadShoot = false;
 	m_GamepadSelect = false;
-	
+
 	m_UsingGamepad = false;
 	m_GamepadAimX = 0;
 	m_GamepadAimY = 0;
@@ -372,8 +381,8 @@ void CInput::ResetGamepad()
 
 int CInput::Update()
 {
-//	if(m_InputGrabbed && !Graphics()->WindowActive())
-//		MouseModeAbsolute();
+	//	if(m_InputGrabbed && !Graphics()->WindowActive())
+	//		MouseModeAbsolute();
 
 	/*if(!input_grabbed && Graphics()->WindowActive())
 		Input()->MouseModeRelative();*/
@@ -381,7 +390,7 @@ int CInput::Update()
 	if(m_InputDispatched)
 	{
 		// clear and begin count on the other one
-		m_InputCurrent^=1;
+		m_InputCurrent ^= 1;
 		mem_zero(&m_aInputCount[m_InputCurrent], sizeof(m_aInputCount[m_InputCurrent]));
 		mem_zero(&m_aInputState[m_InputCurrent], sizeof(m_aInputState[m_InputCurrent]));
 		m_InputDispatched = false;
@@ -391,7 +400,7 @@ int CInput::Update()
 		int i;
 		const bool *pState = SDL_GetKeyboardState(&i);
 		if(i >= KEY_LAST)
-			i = KEY_LAST-1;
+			i = KEY_LAST - 1;
 		mem_copy(m_aInputState[m_InputCurrent], pState, i);
 	}
 
@@ -400,15 +409,23 @@ int CInput::Update()
 	UpdateSteamInput();
 
 	// these states must always be updated manually because they are not in the GetKeyState from SDL
-	int i = SDL_GetMouseState(NULL, NULL);
-	if(i&SDL_BUTTON_MASK(1)) m_aInputState[m_InputCurrent][KEY_MOUSE_1] = 1; // 1 is left
-	if(i&SDL_BUTTON_MASK(3)) m_aInputState[m_InputCurrent][KEY_MOUSE_2] = 1; // 3 is right
-	if(i&SDL_BUTTON_MASK(2)) m_aInputState[m_InputCurrent][KEY_MOUSE_3] = 1; // 2 is middle
-	if(i&SDL_BUTTON_MASK(4)) m_aInputState[m_InputCurrent][KEY_MOUSE_4] = 1;
-	if(i&SDL_BUTTON_MASK(5)) m_aInputState[m_InputCurrent][KEY_MOUSE_5] = 1;
-	if(i&SDL_BUTTON_MASK(6)) m_aInputState[m_InputCurrent][KEY_MOUSE_6] = 1;
-	if(i&SDL_BUTTON_MASK(7)) m_aInputState[m_InputCurrent][KEY_MOUSE_7] = 1;
-	if(i&SDL_BUTTON_MASK(8)) m_aInputState[m_InputCurrent][KEY_MOUSE_8] = 1;
+	int i = SDL_GetMouseState(0, 0);
+	if(i & SDL_BUTTON_MASK(1))
+		m_aInputState[m_InputCurrent][KEY_MOUSE_1] = 1; // 1 is left
+	if(i & SDL_BUTTON_MASK(3))
+		m_aInputState[m_InputCurrent][KEY_MOUSE_2] = 1; // 3 is right
+	if(i & SDL_BUTTON_MASK(2))
+		m_aInputState[m_InputCurrent][KEY_MOUSE_3] = 1; // 2 is middle
+	if(i & SDL_BUTTON_MASK(4))
+		m_aInputState[m_InputCurrent][KEY_MOUSE_4] = 1;
+	if(i & SDL_BUTTON_MASK(5))
+		m_aInputState[m_InputCurrent][KEY_MOUSE_5] = 1;
+	if(i & SDL_BUTTON_MASK(6))
+		m_aInputState[m_InputCurrent][KEY_MOUSE_6] = 1;
+	if(i & SDL_BUTTON_MASK(7))
+		m_aInputState[m_InputCurrent][KEY_MOUSE_7] = 1;
+	if(i & SDL_BUTTON_MASK(8))
+		m_aInputState[m_InputCurrent][KEY_MOUSE_8] = 1;
 
 	{
 		SDL_Event Event;
@@ -417,14 +434,14 @@ int CInput::Update()
 		{
 			int Key = -1;
 			int Action = IInput::FLAG_PRESS;
-			
+
 			int LastGamepadMove = m_GamepadMove;
 			bool LastGamepadDown = m_GamepadDown;
 			bool LastGamepadJump = m_GamepadJump;
 			bool LastGamepadShoot = m_GamepadShoot;
 			bool LastGamepadSelect = m_GamepadSelect;
-			
-			switch (Event.type)
+
+			switch(Event.type)
 			{
 				case SDL_EVENT_TEXT_EDITING:
 				{
@@ -459,7 +476,9 @@ int CInput::Update()
 					{
 						if(!Event.edit_candidates.candidates || !Event.edit_candidates.candidates[i])
 							continue;
-						str_copy(m_aaCandidates[m_CandidateCount], Event.edit_candidates.candidates[i], sizeof(m_aaCandidates[m_CandidateCount]));
+						str_copy(m_aaCandidates[m_CandidateCount],
+								 Event.edit_candidates.candidates[i],
+								 sizeof(m_aaCandidates[m_CandidateCount]));
 						m_CandidateCount++;
 					}
 					break;
@@ -480,98 +499,107 @@ int CInput::Update()
 					Key = SDL_GetScancodeFromName(SDL_GetKeyName(Event.key.key));
 					break;
 
-					
 				// handle gamepad
 				case SDL_EVENT_GAMEPAD_ADDED:
 					ResetGamepad();
 					Gamepad()->ConnectGamepad();
 					Gamepad()->Rumble(1.0f, 2000);
 					break;
-					
-					
+
 				case SDL_EVENT_GAMEPAD_REMOVED:
 					ResetGamepad();
 					Gamepad()->DisconnectGamepad(0);
 					break;
-				
-				
+
 				case SDL_EVENT_GAMEPAD_BUTTON_UP:
 					Action = IInput::FLAG_RELEASE;
-					
+
 				// fall through
 				case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
 					m_UsingGamepad = true;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) Key = KEY_GAMEPAD_SHOULDER_LEFT;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER) Key = KEY_GAMEPAD_SHOULDER_RIGHT;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_BACK) Key = KEY_GAMEPAD_BUTTON_BACK;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_LEFT_STICK) Key = KEY_GAMEPAD_BUTTON_LEFTSTICK;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_RIGHT_STICK) Key = KEY_GAMEPAD_BUTTON_RIGHTSTICK;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) Key = KEY_GAMEPAD_BUTTON_A;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_EAST) Key = KEY_GAMEPAD_BUTTON_B;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_WEST) Key = KEY_GAMEPAD_BUTTON_X;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_NORTH) Key = KEY_GAMEPAD_BUTTON_Y;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_UP) Key = KEY_GAMEPAD_BUTTON_DPAD_UP;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN) Key = KEY_GAMEPAD_BUTTON_DPAD_DOWN;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT) Key = KEY_GAMEPAD_BUTTON_DPAD_LEFT;
-					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT) Key = KEY_GAMEPAD_BUTTON_DPAD_RIGHT;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)
+						Key = KEY_GAMEPAD_SHOULDER_LEFT;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)
+						Key = KEY_GAMEPAD_SHOULDER_RIGHT;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_BACK)
+						Key = KEY_GAMEPAD_BUTTON_BACK;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_LEFT_STICK)
+						Key = KEY_GAMEPAD_BUTTON_LEFTSTICK;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_RIGHT_STICK)
+						Key = KEY_GAMEPAD_BUTTON_RIGHTSTICK;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH)
+						Key = KEY_GAMEPAD_BUTTON_A;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_EAST)
+						Key = KEY_GAMEPAD_BUTTON_B;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_WEST)
+						Key = KEY_GAMEPAD_BUTTON_X;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_NORTH)
+						Key = KEY_GAMEPAD_BUTTON_Y;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
+						Key = KEY_GAMEPAD_BUTTON_DPAD_UP;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
+						Key = KEY_GAMEPAD_BUTTON_DPAD_DOWN;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT)
+						Key = KEY_GAMEPAD_BUTTON_DPAD_LEFT;
+					if(Event.gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
+						Key = KEY_GAMEPAD_BUTTON_DPAD_RIGHT;
 					break;
-					
+
 				case SDL_EVENT_GAMEPAD_AXIS_MOTION:
-					if (!m_UsingGamepad)
+					if(!m_UsingGamepad)
 						break;
-					
+
 					// attack
-					if (Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
+					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 					{
-						if (Event.jaxis.value < 100)
+						if(Event.jaxis.value < 100)
 							m_GamepadShoot = false;
 						else
 							m_GamepadShoot = true;
 					}
-					
+
 					// select
-					if (Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER)
+					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER)
 					{
-						if (Event.jaxis.value < 100)
+						if(Event.jaxis.value < 100)
 							m_GamepadSelect = false;
 						else
 							m_GamepadSelect = true;
 					}
-					
+
 					// jump
-					if (Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFTY)
+					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFTY)
 					{
-						if (Event.jaxis.value > -20000)
+						if(Event.jaxis.value > -20000)
 							m_GamepadJump = false;
 						else
 							m_GamepadJump = true;
-						
-						if (Event.jaxis.value < 20000)
+
+						if(Event.jaxis.value < 20000)
 							m_GamepadDown = false;
 						else
 							m_GamepadDown = true;
 					}
-					
+
 					// move
-					if (Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFTX)
+					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFTX)
 					{
-						if (Event.jaxis.value > 20000)
+						if(Event.jaxis.value > 20000)
 							m_GamepadMove = 1;
-						else if (Event.jaxis.value < -20000)
+						else if(Event.jaxis.value < -20000)
 							m_GamepadMove = -1;
 						else
 							m_GamepadMove = 0;
 					}
-					
+
 					// aim
-					if (Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHTX)
+					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHTX)
 						m_GamepadAimX = Event.jaxis.value;
-					
-					if (Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHTY)
+
+					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHTY)
 						m_GamepadAimY = Event.jaxis.value;
 					break;
-					
-					
+
 				// handle mouse buttons
 				case SDL_EVENT_MOUSE_BUTTON_UP:
 					Action = IInput::FLAG_RELEASE;
@@ -581,22 +609,30 @@ int CInput::Update()
 						m_ReleaseDelta = time_get() - m_LastRelease;
 						m_LastRelease = time_get();
 					}
-				
+
 				// fall through
 				case SDL_EVENT_MOUSE_BUTTON_DOWN:
 					m_UsingGamepad = false;
-					
-					if(Event.button.button == SDL_BUTTON_LEFT) Key = KEY_MOUSE_1; // ignore_convention
-					if(Event.button.button == SDL_BUTTON_RIGHT) Key = KEY_MOUSE_2; // ignore_convention
-					if(Event.button.button == SDL_BUTTON_MIDDLE) Key = KEY_MOUSE_3; // ignore_convention
-					if(Event.button.button == 6) Key = KEY_MOUSE_6; // ignore_convention
-					if(Event.button.button == 7) Key = KEY_MOUSE_7; // ignore_convention
-					if(Event.button.button == 8) Key = KEY_MOUSE_8; // ignore_convention
+
+					if(Event.button.button == SDL_BUTTON_LEFT)
+						Key = KEY_MOUSE_1; // ignore_convention
+					if(Event.button.button == SDL_BUTTON_RIGHT)
+						Key = KEY_MOUSE_2; // ignore_convention
+					if(Event.button.button == SDL_BUTTON_MIDDLE)
+						Key = KEY_MOUSE_3; // ignore_convention
+					if(Event.button.button == 6)
+						Key = KEY_MOUSE_6; // ignore_convention
+					if(Event.button.button == 7)
+						Key = KEY_MOUSE_7; // ignore_convention
+					if(Event.button.button == 8)
+						Key = KEY_MOUSE_8; // ignore_convention
 					break;
 
 				case SDL_EVENT_MOUSE_WHEEL:
-					if(Event.wheel.y > 0) Key = KEY_MOUSE_WHEEL_UP; // ignore_convention
-					else if(Event.wheel.y < 0) Key = KEY_MOUSE_WHEEL_DOWN; // ignore_convention
+					if(Event.wheel.y > 0)
+						Key = KEY_MOUSE_WHEEL_UP; // ignore_convention
+					else if(Event.wheel.y < 0)
+						Key = KEY_MOUSE_WHEEL_DOWN; // ignore_convention
 					if(Key != -1 && !HasComposition())
 					{
 						// Emit PRESS now; common path below increments Presses and emits RELEASE.
@@ -627,9 +663,8 @@ int CInput::Update()
 				AddEvent(0, Key, Action);
 			}
 
-			
 			// send gamepad shoot
-			if (LastGamepadShoot != m_GamepadShoot)
+			if(LastGamepadShoot != m_GamepadShoot)
 			{
 				Action = m_GamepadShoot ? IInput::FLAG_PRESS : IInput::FLAG_RELEASE;
 				m_aInputCount[m_InputCurrent][KEY_GAMEPAD_TRIGGER_RIGHT].m_Presses++;
@@ -637,9 +672,9 @@ int CInput::Update()
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_TRIGGER_RIGHT] = 1;
 				AddEvent(0, KEY_GAMEPAD_TRIGGER_RIGHT, Action);
 			}
-			
+
 			// send gamepad select
-			if (LastGamepadSelect != m_GamepadSelect)
+			if(LastGamepadSelect != m_GamepadSelect)
 			{
 				Action = m_GamepadSelect ? IInput::FLAG_PRESS : IInput::FLAG_RELEASE;
 				m_aInputCount[m_InputCurrent][KEY_GAMEPAD_TRIGGER_LEFT].m_Presses++;
@@ -647,9 +682,9 @@ int CInput::Update()
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_TRIGGER_LEFT] = 1;
 				AddEvent(0, KEY_GAMEPAD_TRIGGER_LEFT, Action);
 			}
-			
+
 			// send gamepad jump
-			if (LastGamepadJump != m_GamepadJump)
+			if(LastGamepadJump != m_GamepadJump)
 			{
 				Action = m_GamepadJump ? IInput::FLAG_PRESS : IInput::FLAG_RELEASE;
 				m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_UP].m_Presses++;
@@ -657,9 +692,9 @@ int CInput::Update()
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_UP] = 1;
 				AddEvent(0, KEY_GAMEPAD_AXIS_UP, Action);
 			}
-			
+
 			// send gamepad down
-			if (LastGamepadDown != m_GamepadDown)
+			if(LastGamepadDown != m_GamepadDown)
 			{
 				Action = m_GamepadDown ? IInput::FLAG_PRESS : IInput::FLAG_RELEASE;
 				m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_DOWN].m_Presses++;
@@ -667,52 +702,52 @@ int CInput::Update()
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_DOWN] = 1;
 				AddEvent(0, KEY_GAMEPAD_AXIS_DOWN, Action);
 			}
-			
+
 			// send gamepad axis x
-			if (LastGamepadMove != m_GamepadMove)
+			if(LastGamepadMove != m_GamepadMove)
 			{
-				if (m_GamepadMove == -1)
+				if(m_GamepadMove == -1)
 				{
 					// press left
 					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT].m_Presses++;
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT] = 1;
 					AddEvent(0, KEY_GAMEPAD_AXIS_LEFT, IInput::FLAG_PRESS);
-					
+
 					// release right
-					if (LastGamepadMove == 1)
+					if(LastGamepadMove == 1)
 					{
 						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT].m_Presses++;
 						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT] = 1;
 						AddEvent(0, KEY_GAMEPAD_AXIS_RIGHT, IInput::FLAG_RELEASE);
 					}
 				}
-				else if (m_GamepadMove == 1)
+				else if(m_GamepadMove == 1)
 				{
 					// press right
 					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT].m_Presses++;
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT] = 1;
 					AddEvent(0, KEY_GAMEPAD_AXIS_RIGHT, IInput::FLAG_PRESS);
-					
+
 					// release left
-					if (LastGamepadMove == -1)
+					if(LastGamepadMove == -1)
 					{
 						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT].m_Presses++;
 						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT] = 1;
 						AddEvent(0, KEY_GAMEPAD_AXIS_LEFT, IInput::FLAG_RELEASE);
 					}
 				}
-				else if (m_GamepadMove == 0)
+				else if(m_GamepadMove == 0)
 				{
 					// release left
-					if (LastGamepadMove == -1)
+					if(LastGamepadMove == -1)
 					{
 						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT].m_Presses++;
 						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT] = 1;
 						AddEvent(0, KEY_GAMEPAD_AXIS_LEFT, IInput::FLAG_RELEASE);
 					}
-					
+
 					// release right
-					if (LastGamepadMove == 1)
+					if(LastGamepadMove == 1)
 					{
 						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT].m_Presses++;
 						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT] = 1;
@@ -729,5 +764,7 @@ int CInput::Update()
 	return 0;
 }
 
-
-IEngineInput *CreateEngineInput() { return new CInput; }
+IEngineInput *CreateEngineInput()
+{
+	return new CInput;
+}

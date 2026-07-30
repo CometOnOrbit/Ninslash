@@ -32,10 +32,9 @@ int CNetClient::Close()
 	return 0;
 }
 
-
 int CNetClient::Disconnect(const char *pReason)
 {
-	//dbg_msg("netclient", "disconnected. reason=\"%s\"", pReason);
+	// dbg_msg("netclient", "disconnected. reason=\"%s\"", pReason);
 	m_Connection.Disconnect(pReason);
 	if(m_pTransport)
 		m_pTransport->ClosePeer();
@@ -90,7 +89,8 @@ int CNetClient::Recv(CNetChunk *pChunk)
 
 		// TODO: empty the recvinfo
 		NETADDR Addr;
-		int Bytes = m_pTransport ? m_pTransport->RecvPacket(&Addr, m_RecvUnpacker.m_aBuffer, NET_MAX_PACKETSIZE) : net_udp_recv(m_Socket, &Addr, m_RecvUnpacker.m_aBuffer, NET_MAX_PACKETSIZE);
+		int Bytes = m_pTransport ? m_pTransport->RecvPacket(&Addr, m_RecvUnpacker.m_aBuffer, NET_MAX_PACKETSIZE)
+								 : net_udp_recv(m_Socket, &Addr, m_RecvUnpacker.m_aBuffer, NET_MAX_PACKETSIZE);
 
 		// no more packets for now
 		if(Bytes <= 0)
@@ -98,7 +98,7 @@ int CNetClient::Recv(CNetChunk *pChunk)
 
 		if(CNetBase::UnpackPacket(m_RecvUnpacker.m_aBuffer, Bytes, &m_RecvUnpacker.m_Data) == 0)
 		{
-			if(m_RecvUnpacker.m_Data.m_Flags&NET_PACKETFLAG_CONNLESS)
+			if(m_RecvUnpacker.m_Data.m_Flags & NET_PACKETFLAG_CONNLESS)
 			{
 				pChunk->m_Flags = NETSENDFLAG_CONNLESS;
 				pChunk->m_ClientID = -1;
@@ -125,7 +125,7 @@ int CNetClient::Send(CNetChunk *pChunk)
 		return -1;
 	}
 
-	if(pChunk->m_Flags&NETSENDFLAG_CONNLESS)
+	if(pChunk->m_Flags & NETSENDFLAG_CONNLESS)
 	{
 		// send connectionless packet
 		CNetBase::SendPacketConnless(m_Socket, &pChunk->m_Address, pChunk->m_pData, pChunk->m_DataSize);
@@ -135,12 +135,12 @@ int CNetClient::Send(CNetChunk *pChunk)
 		int Flags = 0;
 		dbg_assert(pChunk->m_ClientID == 0, "errornous client id");
 
-		if(pChunk->m_Flags&NETSENDFLAG_VITAL)
+		if(pChunk->m_Flags & NETSENDFLAG_VITAL)
 			Flags = NET_CHUNKFLAG_VITAL;
 
 		m_Connection.QueueChunk(Flags, pChunk->m_DataSize, pChunk->m_pData);
 
-		if(pChunk->m_Flags&NETSENDFLAG_FLUSH)
+		if(pChunk->m_Flags & NETSENDFLAG_FLUSH)
 			m_Connection.Flush();
 	}
 	return 0;

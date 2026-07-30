@@ -8,7 +8,8 @@
 class CMap : public IEngineMap
 {
 	CDataFileReader m_DataFile;
-public:
+
+  public:
 	CMap() {}
 
 	virtual void *GetData(int Index) { return m_DataFile.GetData(Index); }
@@ -20,10 +21,7 @@ public:
 	virtual void *FindItem(int Type, int ID) { return m_DataFile.FindItem(Type, ID); }
 	virtual int NumItems() { return m_DataFile.NumItems(); }
 
-	virtual void Unload()
-	{
-		m_DataFile.Close();
-	}
+	virtual void Unload() { m_DataFile.Close(); }
 
 	virtual bool Load(const char *pMapName)
 	{
@@ -33,17 +31,14 @@ public:
 		return m_DataFile.Open(pStorage, pMapName, IStorage::TYPE_ALL);
 	}
 
-	virtual bool IsLoaded()
-	{
-		return m_DataFile.IsOpen();
-	}
+	virtual bool IsLoaded() { return m_DataFile.IsOpen(); }
 
-	virtual unsigned Crc()
-	{
-		return m_DataFile.Crc();
-	}
+	virtual unsigned Crc() { return m_DataFile.Crc(); }
 
-	virtual CDataFileReader* GetFileReader() { return &m_DataFile; } // MapGen
+	virtual CDataFileReader *GetFileReader() { return &m_DataFile; } // MapGen
 };
 
-extern IEngineMap *CreateEngineMap() { return new CMap; }
+extern IEngineMap *CreateEngineMap()
+{
+	return new CMap;
+}

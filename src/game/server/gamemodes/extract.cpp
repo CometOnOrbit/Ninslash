@@ -16,10 +16,9 @@
 
 #include "extract.h"
 
-CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
-: IGameController(pGameServer)
+CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer) : IGameController(pGameServer)
 {
-	m_pGameType = "EXTRACT";
+	m_pGameType = "Extraction";
 	m_GameFlags = GAMEFLAG_COOP;
 	m_GameState = STATE_STARTING;
 
@@ -63,9 +62,13 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer)
 	g_Config.m_SvDisablePVP = 1;
 	g_Config.m_SvSurvivalTime = 0;
 	g_Config.m_SvSurvivalAcid = 0;
-	dbg_msg("extract", "rules: time_limit=%d roguelite=%d contracts=%d seed=%d random_seed=%d",
-		g_Config.m_SvTimelimit, g_Config.m_SvPveRoguelite, g_Config.m_SvPveContracts,
-		g_Config.m_SvMapGenSeed, g_Config.m_SvMapGenRandSeed);
+	dbg_msg("extract",
+			"rules: time_limit=%d roguelite=%d contracts=%d seed=%d random_seed=%d",
+			g_Config.m_SvTimelimit,
+			g_Config.m_SvPveRoguelite,
+			g_Config.m_SvPveContracts,
+			g_Config.m_SvMapGenSeed,
+			g_Config.m_SvMapGenRandSeed);
 
 	if(g_Config.m_SvEnableBuilding)
 		m_GameFlags |= GAMEFLAG_BUILD;
@@ -103,7 +106,8 @@ bool CGameControllerExtract::GetSpawnPos(int Team, vec2 *pOutPos)
 
 bool CGameControllerExtract::GetBossSpawnPos(vec2 *pOutPos)
 {
-	if(FindBossSpawnPosition(&GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
+	if(FindBossSpawnPosition(
+		   &GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
 		return true;
 	if(!GetSpawnPos(0, pOutPos))
 		return false;
@@ -166,7 +170,12 @@ void CGameControllerExtract::SpawnInitialEnemies()
 	const float CountScale = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->EnemyCountMultiplier() : 1.0f;
 	m_EnemiesLeft = max(1, (int)((16 + Players * 4) * CountScale + 0.5f));
 	const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
-		m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, EnemyLevel(), m_EnemiesLeft, 16);
+																			   m_aEnemySpawnPos,
+																			   m_NumEnemySpawnPos,
+																			   &m_SpawnPosRotation,
+																			   EnemyLevel(),
+																			   m_EnemiesLeft,
+																			   16);
 	m_EnemiesLeft -= ThreatReplacement.m_ThreatSpent;
 	const int BotCap = max(0, 16 - ThreatReplacement.m_EntitiesSpawned);
 	const int SpawnCount = min(m_EnemiesLeft, max(0, BotCap - CountBots()));
@@ -215,11 +224,17 @@ void CGameControllerExtract::SpawnEscapePressure()
 	if(m_EscapePressure)
 		return;
 	m_EscapePressure = true;
-	const float Pressure = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ReinforcementMultiplier() : 1.0f;
+	const float Pressure =
+		GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ReinforcementMultiplier() : 1.0f;
 	const int AddedThreat = (int)((8 + CountPlayers(0) * 2) * Pressure);
 	const int ConcurrentCap = (int)(18 * Pressure);
-	const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
-		m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, EnemyLevel(), AddedThreat,
+	const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(
+		&GameServer()->m_World,
+		m_aEnemySpawnPos,
+		m_NumEnemySpawnPos,
+		&m_SpawnPosRotation,
+		EnemyLevel(),
+		AddedThreat,
 		max(0, ConcurrentCap - CountBots() - CountAliveSpecialists(&GameServer()->m_World)));
 	m_EnemiesLeft += AddedThreat - ThreatReplacement.m_ThreatSpent;
 	const int RequestedBots = max(0, (int)(8 * Pressure) - ThreatReplacement.m_ThreatSpent);
@@ -355,7 +370,8 @@ void CGameControllerExtract::NextLevel(int CID)
 	if(GameServer()->m_pPveDirector)
 	{
 		GameServer()->m_pPveDirector->OnEvacuationZoneEntered(CID);
-		if(GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO && pPlayer->GetCharacter()->IsBombCarrier())
+		if(GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO &&
+		   pPlayer->GetCharacter()->IsBombCarrier())
 			GameServer()->m_pPveDirector->OnCargoDelivered();
 	}
 
@@ -412,7 +428,7 @@ void CGameControllerExtract::Tick()
 		if(CountPlayers(0) > 0)
 		{
 			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled() &&
-				!GameServer()->m_pPveDirector->ProgressReady() && Server()->Tick() < m_RogueliteWaitTick)
+			   !GameServer()->m_pPveDirector->ProgressReady() && Server()->Tick() < m_RogueliteWaitTick)
 				return;
 			if(!m_RogueliteStarted)
 			{
@@ -432,9 +448,14 @@ void CGameControllerExtract::Tick()
 			}
 			m_GameState = STATE_GAME;
 			m_StartTick = Server()->Tick();
-			const float DeadlineScale = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->DeadlineMultiplier() : 1.0f;
-			m_DeadlineTick = Server()->Tick() + (int)(Server()->TickSpeed() * 60 * max(1, g_Config.m_SvTimelimit) * DeadlineScale);
-			const int ExtraSwitches = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_LOCKED_ROUTE ? 2 : 0;
+			const float DeadlineScale =
+				GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->DeadlineMultiplier() : 1.0f;
+			m_DeadlineTick =
+				Server()->Tick() + (int)(Server()->TickSpeed() * 60 * max(1, g_Config.m_SvTimelimit) * DeadlineScale);
+			const int ExtraSwitches = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() ==
+																		  PVE_CONTRACT_LOCKED_ROUTE
+										  ? 2
+										  : 0;
 			if(ExtraSwitches > 0)
 				for(int Extra = 0; Extra < ExtraSwitches; Extra++)
 				{
@@ -451,7 +472,8 @@ void CGameControllerExtract::Tick()
 			// map generation could only place one; zero keeps the timed boss fallback.
 			m_SwitchesRequired = m_AvailableSwitches;
 			SpawnInitialEnemies();
-			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
+			if(GameServer()->m_pPveDirector &&
+			   GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
 				for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 				{
 					CCharacter *pCharacter = GameServer()->GetPlayerChar(ClientID);
@@ -472,8 +494,8 @@ void CGameControllerExtract::Tick()
 	if(HumansAlive > 0)
 		m_HadHumanAlive = true;
 
-	if(g_Config.m_SvSurvivalMode && !m_RoundOverTick && m_HadHumanAlive
-		&& HumansAlive <= 0 && CountHumanPlayersLocal() > 0)
+	if(g_Config.m_SvSurvivalMode && !m_RoundOverTick && m_HadHumanAlive && HumansAlive <= 0 &&
+	   CountHumanPlayersLocal() > 0)
 	{
 		GameServer()->SendBroadcast("Extraction failed — team wiped", -1);
 		if(GameServer()->m_pPveDirector)
@@ -486,7 +508,9 @@ void CGameControllerExtract::Tick()
 	if(m_BotSpawnTick && m_BotSpawnTick <= Server()->Tick() && !m_RoundOverTick)
 	{
 		m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * (m_Phase == 0 ? 5 : 4);
-		const float Pressure = m_Phase == 1 && GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->ReinforcementMultiplier() : 1.0f;
+		const float Pressure = m_Phase == 1 && GameServer()->m_pPveDirector
+								   ? GameServer()->m_pPveDirector->ReinforcementMultiplier()
+								   : 1.0f;
 		const int Cap = (int)((m_Phase == 0 ? 16 : 18) * Pressure);
 		if(CountBots() < Cap)
 		{
@@ -520,8 +544,8 @@ void CGameControllerExtract::Tick()
 	}
 
 	// no switches on map: after 25s mid boss then door
-	if(m_Phase == 0 && !m_DoorOpen && m_AvailableSwitches <= 0 && m_StartTick
-		&& Server()->Tick() > m_StartTick + Server()->TickSpeed() * 25)
+	if(m_Phase == 0 && !m_DoorOpen && m_AvailableSwitches <= 0 && m_StartTick &&
+	   Server()->Tick() > m_StartTick + Server()->TickSpeed() * 25)
 	{
 		if(!m_MidBossSpawned)
 			SpawnMidBoss();
@@ -566,7 +590,8 @@ void CGameControllerExtract::Snap(int SnappingClient)
 {
 	IGameController::Snap(SnappingClient);
 
-	CNetObj_GameData *pGameDataObj = (CNetObj_GameData *)Server()->SnapNewItem(NETOBJTYPE_GAMEDATA, 0, sizeof(CNetObj_GameData));
+	CNetObj_GameData *pGameDataObj =
+		(CNetObj_GameData *)Server()->SnapNewItem(NETOBJTYPE_GAMEDATA, 0, sizeof(CNetObj_GameData));
 	if(!pGameDataObj)
 		return;
 

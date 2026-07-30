@@ -130,7 +130,7 @@ class CPveRoguelite : public CComponent
 	static void ConDroneModule(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyDroneWheel(IConsole::IResult *pResult, void *pUserData);
 
-public:
+  public:
 	void SendTutorialAction(int Action, int Value = 0);
 	void ReloadPersistentProgress() { LoadProgress(); }
 	void FlushPersistentProgress() { SaveProgress(); }
@@ -150,16 +150,23 @@ public:
 	void RenderBuildDebug();
 	int ShopCost(int BaseCost) const;
 	int BuildingCost(int BaseCost) const;
-	bool ChoiceActive() const { return m_ChoiceActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive; }
+	bool ChoiceActive() const
+	{
+		return m_ChoiceActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive;
+	}
 	bool DroneWheelActive() const { return m_DroneWheelActive; }
 	void OnGameOver();
 
 	// World drones must paint with players/droids (before the light pass), not with HUD overlays.
 	class CRenderWorld : public CComponent
 	{
-	public:
+	  public:
 		CPveRoguelite *m_pRoguelite;
-		virtual void OnRender() { if(m_pRoguelite) m_pRoguelite->DrawDrones(); }
+		virtual void OnRender()
+		{
+			if(m_pRoguelite)
+				m_pRoguelite->DrawDrones();
+		}
 	};
 	CRenderWorld m_RenderWorld;
 };

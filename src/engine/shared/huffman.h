@@ -3,20 +3,18 @@
 #ifndef ENGINE_SHARED_HUFFMAN_H
 #define ENGINE_SHARED_HUFFMAN_H
 
-
-
 class CHuffman
 {
 	enum
 	{
 		HUFFMAN_EOF_SYMBOL = 256,
 
-		HUFFMAN_MAX_SYMBOLS=HUFFMAN_EOF_SYMBOL+1,
-		HUFFMAN_MAX_NODES=HUFFMAN_MAX_SYMBOLS*2-1,
+		HUFFMAN_MAX_SYMBOLS = HUFFMAN_EOF_SYMBOL + 1,
+		HUFFMAN_MAX_NODES = HUFFMAN_MAX_SYMBOLS * 2 - 1,
 
 		HUFFMAN_LUTBITS = 10,
-		HUFFMAN_LUTSIZE = (1<<HUFFMAN_LUTBITS),
-		HUFFMAN_LUTMASK = (HUFFMAN_LUTSIZE-1)
+		HUFFMAN_LUTSIZE = (1 << HUFFMAN_LUTBITS),
+		HUFFMAN_LUTMASK = (HUFFMAN_LUTSIZE - 1)
 	};
 
 	struct CNode
@@ -40,7 +38,7 @@ class CHuffman
 	void Setbits_r(CNode *pNode, int Bits, unsigned Depth);
 	void ConstructTree(const unsigned *pFrequencies);
 
-public:
+  public:
 	/*
 		Function: huffman_init
 			Inits the compressor/decompressor.
@@ -86,6 +84,5 @@ public:
 			Returns the size of the uncompressed data. Negative value on failure.
 	*/
 	int Decompress(const void *pInput, int InputSize, void *pOutput, int OutputSize);
-
 };
 #endif // __HUFFMAN_HEADER__

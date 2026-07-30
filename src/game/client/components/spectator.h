@@ -10,7 +10,7 @@ class CSpectator : public CComponent
 {
 	enum
 	{
-		NO_SELECTION=-2,
+		NO_SELECTION = -2,
 	};
 
 	bool m_Active;
@@ -24,7 +24,7 @@ class CSpectator : public CComponent
 	static void ConSpectateNext(IConsole::IResult *pResult, void *pUserData);
 	static void ConSpectatePrevious(IConsole::IResult *pResult, void *pUserData);
 
-public:
+  public:
 	CSpectator();
 
 	virtual void OnConsoleInit();

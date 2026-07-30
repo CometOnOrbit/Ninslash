@@ -7,112 +7,108 @@
 
 #include "bunny1_ai.h"
 
-
-CAIbunny1::CAIbunny1(CGameContext *pGameServer, CPlayer *pPlayer, int Level)
-: CAI(pGameServer, pPlayer)
+CAIbunny1::CAIbunny1(CGameContext *pGameServer, CPlayer *pPlayer, int Level) : CAI(pGameServer, pPlayer)
 {
 	m_SkipMoveUpdate = 0;
 	m_StartPos = vec2(0, 0);
 	m_ShockTimer = 0;
 	m_Triggered = false;
-	m_TriggerLevel = 5 + rand()%10;
-	
-	m_Skin = SKIN_BUNNY1+min(Level, 4);
+	m_TriggerLevel = 5 + rand() % 10;
+
+	m_Skin = SKIN_BUNNY1 + min(Level, 4);
 	Player()->SetCustomSkin(m_Skin);
 }
-
 
 void CAIbunny1::OnCharacterSpawn(CCharacter *pChr)
 {
 	CAI::OnCharacterSpawn(pChr);
-	
+
 	int Level = g_Config.m_SvMapGenLevel;
-	
+
 	m_WaypointDir = vec2(0, 0);
 	m_PowerLevel = 8;
-	
+
 	m_StartPos = Player()->GetCharacter()->m_Pos;
 	m_TargetPos = Player()->GetCharacter()->m_Pos;
-	
-	if (frandom() < 0.4f)
-		pChr->GetPlayer()->IncreaseGold(frandom()*4);
-		
-	if (m_Skin == SKIN_FOXY1)
+
+	if(frandom() < 0.4f)
+		pChr->GetPlayer()->IncreaseGold(frandom() * 4);
+
+	if(m_Skin == SKIN_FOXY1)
 	{
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE4, PART2_BARREL1, 2)));
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_SHIELD)));
-		
-		pChr->SetHealth(80+min(Level*3.0f, 320.0f));
+
+		pChr->SetHealth(80 + min(Level * 3.0f, 320.0f));
 		m_PowerLevel = 12;
-		m_TriggerLevel = 15 + rand()%5;
+		m_TriggerLevel = 15 + rand() % 5;
 	}
-	else if (m_Skin == SKIN_BUNNY3)
+	else if(m_Skin == SKIN_BUNNY3)
 	{
-		if (frandom() < 0.5f)
+		if(frandom() < 0.5f)
 			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL3)));
 		else
 			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL1)));
-		
+
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_SHIELD)));
-		
-		pChr->SetHealth(80+min(Level*3.0f, 320.0f));
+
+		pChr->SetHealth(80 + min(Level * 3.0f, 320.0f));
 		m_PowerLevel = 12;
-		m_TriggerLevel = 15 + rand()%5;
+		m_TriggerLevel = 15 + rand() % 5;
 	}
-	else if (m_Skin == SKIN_BUNNY4)
+	else if(m_Skin == SKIN_BUNNY4)
 	{
-		if (frandom() < 0.5f)
+		if(frandom() < 0.5f)
 			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_SPIN, PART2_MELEE1)));
 		else
 			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_SPIN, PART2_MELEE2)));
-		
+
 		m_AttackOnDamage = true;
-		
+
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_SHIELD)));
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_SHIELD)));
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_MASK2)));
-		
-		pChr->SetHealth(80+min(Level*3.0f, 320.0f));
+
+		pChr->SetHealth(80 + min(Level * 3.0f, 320.0f));
 		m_PowerLevel = 14;
-		m_TriggerLevel = 15 + rand()%5;
+		m_TriggerLevel = 15 + rand() % 5;
 	}
-	else if (m_Skin == SKIN_BUNNY2)
+	else if(m_Skin == SKIN_BUNNY2)
 	{
-		if (frandom() < 0.5f)
+		if(frandom() < 0.5f)
 			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL4)));
 		else
 			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1)));
-		
+
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_GRENADE2)));
 		pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Static(SW_SHIELD)));
-		
-		pChr->SetHealth(80+min(Level*4.0f, 320.0f));
+
+		pChr->SetHealth(80 + min(Level * 4.0f, 320.0f));
 		m_PowerLevel = 12;
-		m_TriggerLevel = 15 + rand()%5;
+		m_TriggerLevel = 15 + rand() % 5;
 	}
 	else
 	{
-		if (frandom() < 0.5f)
+		if(frandom() < 0.5f)
 			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL4)));
 		else
 			pChr->GiveWeapon(GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1)));
-		
-		pChr->SetHealth(40+min(Level*3.0f, 220.0f));
+
+		pChr->SetHealth(40 + min(Level * 3.0f, 220.0f));
 	}
-	
+
 	m_ShockTimer = 10;
-		
-	if (!m_Triggered)
+
+	if(!m_Triggered)
 		m_ReactionTime = 100;
 }
 
-
 void CAIbunny1::ReceiveDamage(int CID, int Dmg)
 {
-	//if (CID >= 0 && frandom() < Dmg*0.03f)
-		m_Triggered = true;
-	
-	if (m_AttackOnDamage)
+	// if (CID >= 0 && frandom() < Dmg*0.03f)
+	m_Triggered = true;
+
+	if(m_AttackOnDamage)
 	{
 		m_Attack = 1;
 		m_InputChanged = true;
@@ -120,35 +116,34 @@ void CAIbunny1::ReceiveDamage(int CID, int Dmg)
 	}
 }
 
-
 void CAIbunny1::DoBehavior()
 {
 	m_Attack = 0;
-	
-	if (m_ShockTimer > 0 && m_ShockTimer--)
+
+	if(m_ShockTimer > 0 && m_ShockTimer--)
 	{
-		m_ReactionTime = 1 + frandom()*3;
+		m_ReactionTime = 1 + frandom() * 3;
 		return;
 	}
-	
+
 	HeadToMovingDirection();
 	SeekClosestEnemyInSight();
-	//bool Shooting = false;
-	
+	// bool Shooting = false;
+
 	// if we see a player
-	if (m_EnemiesInSight > 0)
+	if(m_EnemiesInSight > 0)
 	{
 		ReactToPlayer();
-		//m_Triggered = true;
-		
-		if (!m_MoveReactTime)
+		// m_Triggered = true;
+
+		if(!m_MoveReactTime)
 			m_MoveReactTime++;
-		
-		if (ShootAtClosestEnemy())
+
+		if(ShootAtClosestEnemy())
 		{
-			//Shooting = true;
-			
-			if (WeaponShootRange() - m_PlayerDistance > 200)
+			// Shooting = true;
+
+			if(WeaponShootRange() - m_PlayerDistance > 200)
 			{
 				m_TargetPos = normalize(m_Pos - m_PlayerPos) * WeaponShootRange();
 				GameServer()->Collision()->IntersectLine(m_Pos, m_TargetPos, 0x0, &m_TargetPos);
@@ -156,11 +151,11 @@ void CAIbunny1::DoBehavior()
 		}
 		else
 		{
-			if (SeekClosestEnemy())
+			if(SeekClosestEnemy())
 			{
 				m_TargetPos = m_PlayerPos;
 
-				if (WeaponShootRange() - m_PlayerDistance > 200)
+				if(WeaponShootRange() - m_PlayerDistance > 200)
 				{
 					m_TargetPos = normalize(m_Pos - m_PlayerPos) * WeaponShootRange();
 					GameServer()->Collision()->IntersectLine(m_Pos, m_TargetPos, 0x0, &m_TargetPos);
@@ -168,7 +163,7 @@ void CAIbunny1::DoBehavior()
 			}
 		}
 	}
-	else if (!m_Triggered)
+	else if(!m_Triggered)
 	{
 		m_TargetPos = m_StartPos;
 	}
@@ -177,12 +172,12 @@ void CAIbunny1::DoBehavior()
 		// triggered, but no enemies in sight
 		ShootAtClosestBuilding();
 		ShootAtBlocks();
-		
-		if (SeekClosestEnemy())
+
+		if(SeekClosestEnemy())
 			m_TargetPos = m_PlayerPos;
 	}
 
-	if (abs(m_Pos.x - m_TargetPos.x) < 40 && abs(m_Pos.y - m_TargetPos.y) < 40)
+	if(abs(m_Pos.x - m_TargetPos.x) < 40 && abs(m_Pos.y - m_TargetPos.y) < 40)
 	{
 		// stand still
 		m_Move = 0;
@@ -191,9 +186,9 @@ void CAIbunny1::DoBehavior()
 	}
 	else
 	{
-		if (!m_MoveReactTime || m_MoveReactTime++ > 9)
+		if(!m_MoveReactTime || m_MoveReactTime++ > 9)
 		{
-			if (UpdateWaypoint())
+			if(UpdateWaypoint())
 			{
 				MoveTowardsWaypoint();
 			}
@@ -204,13 +199,13 @@ void CAIbunny1::DoBehavior()
 			}
 		}
 	}
-	
+
 	Player()->GetCharacter()->m_SkipPickups = 999;
 	RandomlyStopShooting();
-	
-	if (m_AttackOnDamageTick > GameServer()->Server()->Tick())
+
+	if(m_AttackOnDamageTick > GameServer()->Server()->Tick())
 		m_Attack = 1;
-	
+
 	// next reaction in
-	m_ReactionTime = 1 + rand()%3;
+	m_ReactionTime = 1 + rand() % 3;
 }

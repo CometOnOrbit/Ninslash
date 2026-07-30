@@ -8,14 +8,14 @@ struct CGameVoteDetails
 	char m_aName[32];
 	char m_aDescription[128];
 	char m_aImage[32];
-	
+
 	bool m_Valid;
 	int m_Texture;
 	int m_Votes;
 	float m_NameWidth;
 	float m_DescriptionWidth;
 	float m_VotesWidth;
-	
+
 	CGameVoteDetails()
 	{
 		m_aName[0] = 0;
@@ -45,7 +45,7 @@ class CGameVoteDisplay : public CComponent
 	bool m_MouseTrigger;
 	vec2 m_SelectorMouse;
 	int m_DebugScreenshotFrames;
-	
+
 	void RenderMouse();
 	void SendVote();
 	int VoteCategory(int Vote) const;
@@ -55,7 +55,7 @@ class CGameVoteDisplay : public CComponent
 	void MoveFocus(int Direction);
 	static void ConDebugPreview(IConsole::IResult *pResult, void *pUserData);
 
-public:
+  public:
 	CGameVoteDisplay();
 	virtual void OnReset();
 	virtual void OnConsoleInit();
@@ -63,7 +63,7 @@ public:
 	virtual void OnMessage(int MsgType, void *pRawMsg);
 	virtual bool OnMouseMove(float x, float y);
 	virtual bool OnInput(IInput::CEvent Event);
-	
+
 	bool IsActive() const { return m_GameVoteCount > 0; }
 };
 

@@ -4,21 +4,21 @@
 
 class CGameControllerBall : public IGameController
 {
-public:
+  public:
 	CGameControllerBall(class CGameContext *pGameServer);
 
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);
 	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
 	virtual void Snap(int SnappingClient);
 	virtual void Tick();
-	
+
 	virtual void AddMapArea(int Team, vec2 Pos);
 	virtual bool InMapArea(int Team, vec2 Pos);
 	virtual vec2 GetGoalArea(int Team);
-	
+
 	vec4 m_GoalArea[2];
 	bool m_GoalAreaSet[2];
-	
+
 	int m_RoundStartTick;
 	int m_RoundEndTick;
 	int m_GoTick;

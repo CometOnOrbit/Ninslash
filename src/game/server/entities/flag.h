@@ -5,7 +5,7 @@
 
 class CFlag : public CEntity
 {
-public:
+  public:
 	static const int ms_PhysSize = 14;
 	CCharacter *m_pCarryingCharacter;
 	vec2 m_Vel;

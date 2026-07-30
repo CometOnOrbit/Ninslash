@@ -20,7 +20,7 @@ bool WriteText(IStorage *pStorage, const char *pFilename, const char *pText)
 	io_close(File);
 	return Result;
 }
-}
+} // namespace
 
 int main(int argc, const char **argv)
 {
@@ -47,22 +47,23 @@ int main(int argc, const char **argv)
 
 	CPveProgressData Loaded;
 	if(CPveProgressStorage::Load(pStorage, &Loaded) != PVE_PROGRESS_LOAD_OK || Loaded.m_ResearchPoints != 10 ||
-		Loaded.m_PreferredCheckpoint != 21 || !Loaded.m_DroneTutorialSeen)
+	   Loaded.m_PreferredCheckpoint != 21 || !Loaded.m_DroneTutorialSeen)
 		return Fail("round-trip mismatch");
-	if(CPveProgressStorage::Load(pStorage, &Loaded, "pve_progress.json.bak") != PVE_PROGRESS_LOAD_OK || Loaded.m_ResearchPoints != 5)
+	if(CPveProgressStorage::Load(pStorage, &Loaded, "pve_progress.json.bak") != PVE_PROGRESS_LOAD_OK ||
+	   Loaded.m_ResearchPoints != 5)
 		return Fail("backup does not contain previous generation");
 
 	if(!WriteText(pStorage, "pve_progress.json", "{broken"))
 		return Fail("could not create corrupt fixture");
 	if(CPveProgressStorage::Load(pStorage, &Loaded) != PVE_PROGRESS_LOAD_CORRUPT)
 		return Fail("corrupt save was accepted");
-	if(CPveProgressStorage::Load(pStorage, &Loaded, "pve_progress.json.bak") != PVE_PROGRESS_LOAD_OK || Loaded.m_ResearchPoints != 5)
+	if(CPveProgressStorage::Load(pStorage, &Loaded, "pve_progress.json.bak") != PVE_PROGRESS_LOAD_OK ||
+	   Loaded.m_ResearchPoints != 5)
 		return Fail("backup recovery failed");
 
-	const char *pFuture =
-		"{\"schema_version\":999,\"progress_version\":2,\"research_points\":1,"
-		"\"research_mask\":\"00000000000000000000000000000000\","
-		"\"highest_invasion\":0,\"preferred_checkpoint\":1,\"drone_tutorial_seen\":0}";
+	const char *pFuture = "{\"schema_version\":999,\"progress_version\":2,\"research_points\":1,"
+						  "\"research_mask\":\"00000000000000000000000000000000\","
+						  "\"highest_invasion\":0,\"preferred_checkpoint\":1,\"drone_tutorial_seen\":0}";
 	if(!WriteText(pStorage, "pve_progress.json", pFuture))
 		return Fail("could not create future-version fixture");
 	if(CPveProgressStorage::Load(pStorage, &Loaded) != PVE_PROGRESS_LOAD_FUTURE_VERSION)

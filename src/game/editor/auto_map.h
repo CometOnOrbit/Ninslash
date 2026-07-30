@@ -6,7 +6,7 @@
 class CAutoMapper
 {
 	class CGenerator *m_pGenerator;
-	
+
 	struct CPosRule
 	{
 		int m_X;
@@ -16,7 +16,7 @@ class CAutoMapper
 
 		enum
 		{
-			EMPTY=0,
+			EMPTY = 0,
 			FULL
 		};
 	};
@@ -36,22 +36,22 @@ class CAutoMapper
 		char m_aName[128] = {};
 	};
 
-public:
+  public:
 	CAutoMapper(class CEditor *pEditor);
 
-	void Load(const char* pTileName);
+	void Load(const char *pTileName);
 	void Proceed(class CLayerTiles *pLayer, int ConfigID);
 	void Generate(class CLayerTiles *pLayer, int ConfigID);
 
 	int ConfigNamesNum() { return m_lConfigs.size(); }
-	const char* GetConfigName(int Index);
+	const char *GetConfigName(int Index);
 
 	const bool IsLoaded() { return m_FileLoaded; }
-private:
+
+  private:
 	array<CConfiguration> m_lConfigs;
 	class CEditor *m_pEditor;
 	bool m_FileLoaded;
 };
-
 
 #endif

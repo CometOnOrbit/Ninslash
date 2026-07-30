@@ -10,14 +10,14 @@ class CGameConsole : public CComponent
 {
 	class CInstance
 	{
-	public:
+	  public:
 		struct CBacklogEntry
 		{
 			float m_YOffset;
 			char m_aText[1];
 		};
-		TStaticRingBuffer<CBacklogEntry, 64*1024, CRingBufferBase::FLAG_RECYCLE> m_Backlog;
-		TStaticRingBuffer<char, 64*1024, CRingBufferBase::FLAG_RECYCLE> m_History;
+		TStaticRingBuffer<CBacklogEntry, 64 * 1024, CRingBufferBase::FLAG_RECYCLE> m_Backlog;
+		TStaticRingBuffer<char, 64 * 1024, CRingBufferBase::FLAG_RECYCLE> m_History;
 		char *m_pHistoryEntry;
 
 		CLineInputBuffered<256> m_Input;
@@ -25,7 +25,7 @@ class CGameConsole : public CComponent
 		int m_CompletionEnumerationCount;
 		int m_BacklogActPage;
 
-	public:
+	  public:
 		CGameConsole *m_pGameConsole;
 
 		char m_aCompletionBuffer[128];
@@ -79,12 +79,15 @@ class CGameConsole : public CComponent
 	static void ConClearRemoteConsole(IConsole::IResult *pResult, void *pUserData);
 	static void ConDumpLocalConsole(IConsole::IResult *pResult, void *pUserData);
 	static void ConDumpRemoteConsole(IConsole::IResult *pResult, void *pUserData);
-	static void ConchainConsoleOutputLevelUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainConsoleOutputLevelUpdate(IConsole::IResult *pResult,
+												 void *pUserData,
+												 IConsole::FCommandCallback pfnCallback,
+												 void *pCallbackUserData);
 
-public:
+  public:
 	enum
 	{
-		CONSOLETYPE_LOCAL=0,
+		CONSOLETYPE_LOCAL = 0,
 		CONSOLETYPE_REMOTE,
 	};
 

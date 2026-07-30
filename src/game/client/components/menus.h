@@ -18,11 +18,10 @@
 #include <game/client/ui.h>
 #include <game/client/ui_scrollregion.h>
 
-
 // compnent to fetch keypresses, override all other input
 class CMenusKeyBinder : public CComponent
 {
-public:
+  public:
 	bool m_TakeKey;
 	bool m_GotKey;
 	IInput::CEvent m_Key;
@@ -34,7 +33,11 @@ public:
 // Steam rooms remain keyed by LobbyID.
 struct CPlayRoomEntry
 {
-	enum ESource { SOURCE_DEDICATED, SOURCE_STEAM_LOBBY };
+	enum ESource
+	{
+		SOURCE_DEDICATED,
+		SOURCE_STEAM_LOBBY
+	};
 	int m_Source;
 	char m_aStableID[128];
 	const struct CPlayServerSnapshot *m_pServer;
@@ -120,37 +123,51 @@ class CMenus : public CComponent
 	int DoButton_DemoPlayer(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
 	int DoButton_Sprite(const void *pID, int ImageID, int SpriteID, int Checked, const CUIRect *pRect, int Corners);
 	int DoButton_Toggle(const void *pID, int Checked, const CUIRect *pRect, bool Active);
-	int DoButton_Menu(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Style = BUTTONSTYLE_NORMAL);
+	int DoButton_Menu(
+		const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Style = BUTTONSTYLE_NORMAL);
 	int DoButton_MenuTab(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Corners);
 
 	int DoButton_CheckBox_Common(const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect);
 	int DoButton_CheckBox(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
 	int DoButton_CheckBox_Number(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
 
-	/*static void ui_draw_menu_button(const void *id, const char *text, int checked, const CUIRect *r, const void *extra);
-	static void ui_draw_keyselect_button(const void *id, const char *text, int checked, const CUIRect *r, const void *extra);
-	static void ui_draw_menu_tab_button(const void *id, const char *text, int checked, const CUIRect *r, const void *extra);
-	static void ui_draw_settings_tab_button(const void *id, const char *text, int checked, const CUIRect *r, const void *extra);
+	/*static void ui_draw_menu_button(const void *id, const char *text, int checked, const CUIRect *r, const void
+	*extra); static void ui_draw_keyselect_button(const void *id, const char *text, int checked, const CUIRect *r, const
+	void *extra); static void ui_draw_menu_tab_button(const void *id, const char *text, int checked, const CUIRect *r,
+	const void *extra); static void ui_draw_settings_tab_button(const void *id, const char *text, int checked, const
+	CUIRect *r, const void *extra);
 	*/
 
 	int DoButton_Icon(int ImageId, int SpriteId, const CUIRect *pRect);
-	int DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Interactive = true);
+	int
+	DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Interactive = true);
 
-	//static void ui_draw_browse_icon(int what, const CUIRect *r);
-	//static void ui_draw_grid_header(const void *id, const char *text, int checked, const CUIRect *r, const void *extra);
+	// static void ui_draw_browse_icon(int what, const CUIRect *r);
+	// static void ui_draw_grid_header(const void *id, const char *text, int checked, const CUIRect *r, const void
+	// *extra);
 
-	/*static void ui_draw_checkbox_common(const void *id, const char *text, const char *boxtext, const CUIRect *r, const void *extra);
-	static void ui_draw_checkbox(const void *id, const char *text, int checked, const CUIRect *r, const void *extra);
-	static void ui_draw_checkbox_number(const void *id, const char *text, int checked, const CUIRect *r, const void *extra);
+	/*static void ui_draw_checkbox_common(const void *id, const char *text, const char *boxtext, const CUIRect *r, const
+	void *extra); static void ui_draw_checkbox(const void *id, const char *text, int checked, const CUIRect *r, const
+	void *extra); static void ui_draw_checkbox_number(const void *id, const char *text, int checked, const CUIRect *r,
+	const void *extra);
 	*/
-	int DoEditBox(void *pID, const CUIRect *pRect, char *pStr, unsigned StrSize, float FontSize, float *Offset, bool Hidden=false, int Corners=CUI::CORNER_ALL);
-	//static int ui_do_edit_box(void *id, const CUIRect *rect, char *str, unsigned str_size, float font_size, bool hidden=false);
+	int DoEditBox(void *pID,
+				  const CUIRect *pRect,
+				  char *pStr,
+				  unsigned StrSize,
+				  float FontSize,
+				  float *Offset,
+				  bool Hidden = false,
+				  int Corners = CUI::CORNER_ALL);
+	// static int ui_do_edit_box(void *id, const CUIRect *rect, char *str, unsigned str_size, float font_size, bool
+	// hidden=false);
 
 	float DoScrollbarV(const void *pID, const CUIRect *pRect, float Current);
 	float DoScrollbarH(const void *pID, const CUIRect *pRect, float Current);
 
 	typedef float (CMenus::*FDropdownCallback)(CUIRect View);
-	float DoIndependentDropdownMenu(void *pID, CUIRect *pRect, const char *pStr, float HeaderHeight, FDropdownCallback pfnCallback, bool *pActive);
+	float DoIndependentDropdownMenu(
+		void *pID, CUIRect *pRect, const char *pStr, float HeaderHeight, FDropdownCallback pfnCallback, bool *pActive);
 	float RenderSettingsControlsMovement(CUIRect View);
 	float RenderSettingsControlsWeapons(CUIRect View);
 	float RenderSettingsControlsVoting(CUIRect View);
@@ -162,7 +179,7 @@ class CMenus : public CComponent
 	// When set, interactive widgets skip hit-testing if scrolled out of the clip rect
 	CScrollRegion *m_pUiClipScrollRegion;
 
-	//static int ui_do_key_reader(void *id, const CUIRect *rect, int key);
+	// static int ui_do_key_reader(void *id, const CUIRect *rect, int key);
 	void UiDoGetButtons(int Start, int Stop, CUIRect View);
 
 	struct CListboxItem
@@ -173,21 +190,30 @@ class CMenus : public CComponent
 		CUIRect m_HitRect;
 	};
 
-	void UiDoListboxStart(const void *pID, const CUIRect *pRect, float RowHeight, const char *pTitle, const char *pBottomText, int NumItems,
-						int ItemsPerRow, int SelectedIndex, float ScrollValue);
+	void UiDoListboxStart(const void *pID,
+						  const CUIRect *pRect,
+						  float RowHeight,
+						  const char *pTitle,
+						  const char *pBottomText,
+						  int NumItems,
+						  int ItemsPerRow,
+						  int SelectedIndex,
+						  float ScrollValue);
 	CListboxItem UiDoListboxNextItem(const void *pID, bool Selected = false, bool Interactive = true);
 	CListboxItem UiDoListboxNextRow();
 	int UiDoListboxEnd(float *pScrollValue, bool *pItemActivated);
 
-	//static void demolist_listdir_callback(const char *name, int is_dir, void *user);
-	//static void demolist_list_callback(const CUIRect *rect, int index, void *user);
+	// static void demolist_listdir_callback(const char *name, int is_dir, void *user);
+	// static void demolist_list_callback(const CUIRect *rect, int index, void *user);
 
 	enum
 	{
-		POPUP_NONE=0,
+		POPUP_NONE = 0,
 		POPUP_FIRST_LAUNCH,
 		POPUP_CONNECTING,
 		POPUP_MESSAGE,
+		POPUP_MOD_REPLACE,
+		POPUP_MOD_IMPORT_PATH,
 		POPUP_DISCONNECTED,
 		POPUP_PURE,
 		POPUP_LANGUAGE,
@@ -206,7 +232,7 @@ class CMenus : public CComponent
 
 	enum
 	{
-		PAGE_FRONT=1,
+		PAGE_FRONT = 1,
 		PAGE_NEWS,
 		PAGE_GAME,
 		PAGE_PLAYERS,
@@ -312,11 +338,18 @@ class CMenus : public CComponent
 	char m_aMessageTopic[512];
 	char m_aMessageBody[512];
 	char m_aMessageButton[512];
+	char m_aModImportArchive[1024];
+	char m_aModImportName[128];
+	char m_aModImportVersion[32];
+	char m_aModImportPreviousVersion[32];
 
 	void PopupMessage(const char *pTopic, const char *pBody, const char *pButton);
 
 	// TODO: this is a bit ugly but.. well.. yeah
-	enum { MAX_INPUTEVENTS = 32 };
+	enum
+	{
+		MAX_INPUTEVENTS = 32
+	};
 	static IInput::CEvent m_aInputEvents[MAX_INPUTEVENTS];
 	static int m_NumInputEvents;
 
@@ -371,9 +404,14 @@ class CMenus : public CComponent
 		bool m_Valid;
 		CDemoHeader m_Info;
 
-		bool operator<(const CDemoItem &Other) { return !str_comp(m_aFilename, "..") ? true : !str_comp(Other.m_aFilename, "..") ? false :
-														m_IsDir && !Other.m_IsDir ? true : !m_IsDir && Other.m_IsDir ? false :
-														str_comp_filenames(m_aFilename, Other.m_aFilename) < 0; }
+		bool operator<(const CDemoItem &Other)
+		{
+			return !str_comp(m_aFilename, "..")			? true
+				   : !str_comp(Other.m_aFilename, "..") ? false
+				   : m_IsDir && !Other.m_IsDir			? true
+				   : !m_IsDir && Other.m_IsDir			? false
+														: str_comp_filenames(m_aFilename, Other.m_aFilename) < 0;
+		}
 	};
 
 	sorted_array<CDemoItem> m_lDemos;
@@ -425,8 +463,8 @@ class CMenus : public CComponent
 
 	// found in menus.cpp
 	int Render();
-	//void render_background();
-	//void render_loading(float percent);
+	// void render_background();
+	// void render_loading(float percent);
 	int RenderMenubar(CUIRect r);
 	void RenderNews(CUIRect MainView);
 
@@ -550,8 +588,14 @@ class CMenus : public CComponent
 	void RenderSteam(CUIRect MainView);
 	void RenderPlay(CUIRect MainView);
 	void RenderMods(CUIRect MainView);
-	static void ConchainFriendlistUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
-	static void ConchainServerbrowserUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainFriendlistUpdate(IConsole::IResult *pResult,
+										 void *pUserData,
+										 IConsole::FCommandCallback pfnCallback,
+										 void *pCallbackUserData);
+	static void ConchainServerbrowserUpdate(IConsole::IResult *pResult,
+											void *pUserData,
+											IConsole::FCommandCallback pfnCallback,
+											void *pCallbackUserData);
 
 	// found in menus_settings.cpp
 	void RenderLanguageSelection(CUIRect MainView);
@@ -584,12 +628,12 @@ class CMenus : public CComponent
 	static void ConLocalGameRestart(IConsole::IResult *pResult, void *pUserData);
 
 	void SetActive(bool Active);
-	
+
 	void SetClientRandomSkin();
-	
+
 	void SaveSkin();
-	
-public:
+
+  public:
 	void RenderBackground();
 	void RenderTutorialChapterSelect(CUIRect MainView);
 

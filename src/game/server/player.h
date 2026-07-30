@@ -33,36 +33,35 @@ enum Skins
 	SKIN_PYRO3,
 };
 
-
 // player object
 class CPlayer
 {
 	MACRO_ALLOC_POOL_ID()
 
-public:
+  public:
 	CPlayer(CGameContext *pGameServer, int ClientID, int Team);
 	~CPlayer();
-	
+
 	CAISkin m_AISkin;
 	void SetAISkin();
-	
+
 	void Init(int CID);
 
-	void SaveData();	
+	void SaveData();
 	void NewRound();
-	
+
 	bool ForceRespawn(vec2 Pos);
 	void TryRespawn();
 	void Respawn();
-	void SetTeam(int Team, bool DoChatMsg=true);
-	
-	//int GetTeam() const { return m_Team; };
+	void SetTeam(int Team, bool DoChatMsg = true);
+
+	// int GetTeam() const { return m_Team; };
 	int GetTeam();
-	
+
 	bool Spectating();
-	
+
 	int GetColorID();
-	
+
 	/*
 	int GetTeam()
 	{
@@ -71,7 +70,7 @@ public:
 		return m_WantedTeam;
 	};
 	*/
-	
+
 	int GetCID() const { return m_ClientID; };
 
 	void Tick();
@@ -85,10 +84,10 @@ public:
 	void KillCharacter();
 	void KillCharacter(const CAttackSource &Source);
 	CCharacter *GetCharacter();
-	
+
 	// bomb planting & defusing
 	int m_ActionTimer;
-	
+
 	//---------------------------------------------------------
 	// this is used for snapping so we know how we can clip the view for the player
 	vec2 m_ViewPos;
@@ -103,18 +102,18 @@ public:
 	int m_SpectatorID;
 
 	bool m_IsReady;
-	
+
 	bool m_BroadcastingCaptureStatus;
 
 	bool m_ActionSpectator;
-	
+
 	int m_Gold;
 	int m_LastForgeRequestTick;
-	
+
 	int GetGold() { return m_Gold; }
-	void ReduceGold(int Amount) { m_Gold = max(0, m_Gold-Amount); }
+	void ReduceGold(int Amount) { m_Gold = max(0, m_Gold - Amount); }
 	bool IncreaseGold(int Amount);
-	
+
 	//
 	int m_Vote;
 	int m_VotePos;
@@ -127,7 +126,6 @@ public:
 	int m_LastChangeInfo;
 	int m_LastEmote;
 	int m_LastKill;
-
 
 	struct
 	{
@@ -144,10 +142,9 @@ public:
 		bool m_IsBot;
 		int m_BloodColor;
 	} m_TeeInfos;
-	
-	
+
 	float m_InterestPoints;
-	
+
 	int m_DeathTick;
 	int m_RespawnTick;
 	int m_DieTick;
@@ -172,52 +169,58 @@ public:
 		int m_Min;
 		int m_Max;
 	} m_Latency;
-	
+
 	CAI *m_pAI;
 	bool m_IsBot;
-	
+
 	void AITick();
 	bool AIInputChanged();
-	
+
 	bool m_ToBeKicked;
 	char m_aBroadcast[256];
 	int m_BroadcastLockTick;
-	
+
 	// custom
 	void SelectItem(int Item);
 	void UseKit(int Kit, vec2 Pos);
 	void DropWeapon();
-	
+
 	// inventory
 	void InventoryRoll(int Slot);
 	void DropItem(int Slot, vec2 Pos);
 	void SwapItem(int Item1, int Item2);
 	void CombineItem(int Item1, int Item2, int Operation);
-	void SendForgeResult(int Result, int Operation, int TargetSlot, int MaterialSlot, int Cost,
-		const CWeaponSpec &Product = {}, int ProductAmmo = 0, int ProductMaxAmmo = 0);
+	void SendForgeResult(int Result,
+						 int Operation,
+						 int TargetSlot,
+						 int MaterialSlot,
+						 int Cost,
+						 const CWeaponSpec &Product = {},
+						 int ProductAmmo = 0,
+						 int ProductMaxAmmo = 0);
 	void SendInventory();
-	
+
 	void JoinTeam();
-	
+
 	bool m_ForceToSpectators;
 
-	//int m_WantedTeam;
-	
+	// int m_WantedTeam;
+
 	// settings
 	bool m_EnableAutoSpectating;
-	
+
 	// warm welcome
 	bool m_Welcomed;
-	
+
 	void SetRandomSkin();
 	void SetCustomSkin(int Type);
 
 	char m_aLanguage[64];
 
-private:
+  private:
 	bool m_Spectate;
 	bool m_GotSkin;
-	
+
 	CCharacter *m_pCharacter;
 	CGameContext *m_pGameServer;
 
@@ -226,7 +229,7 @@ private:
 
 	//
 	void ForceToSpectators();
-	
+
 	//
 	bool m_Spawning;
 	int m_ClientID;

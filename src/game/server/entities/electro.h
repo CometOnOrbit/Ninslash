@@ -7,7 +7,7 @@
 
 class CElectro : public CEntity
 {
-public:
+  public:
 	CElectro(CGameWorld *pGameWorld, vec2 Start, vec2 End, vec2 Offset, int Left);
 
 	virtual void Reset();
@@ -15,9 +15,8 @@ public:
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 
-protected:
-
-private:
+  protected:
+  private:
 	vec2 m_End;
 	bool m_Render;
 	int m_EvalTick;

@@ -5,14 +5,14 @@
 
 class CAIbase : public CAI
 {
-public:
+  public:
 	CAIbase(CGameContext *pGameServer, CPlayer *pPlayer);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);
 	void ReceiveDamage(int CID, int Dmg);
 
-private:
+  private:
 	int m_SkipMoveUpdate;
 };
 

@@ -24,7 +24,7 @@ class CGameControllerTutorial : public IGameController
 	void ClearObjectiveRadars();
 	void RefreshObjectiveRadars();
 
-public:
+  public:
 	explicit CGameControllerTutorial(class CGameContext *pGameServer);
 	bool OnEntity(int Index, vec2 Pos) override;
 	void AddEnemy(vec2 Pos) override;

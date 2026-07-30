@@ -8,7 +8,7 @@ const int StarPhysSize = 60;
 
 class CStar : public CDroid
 {
-public:
+  public:
 	CStar(CGameWorld *pGameWorld, vec2 Pos);
 
 	virtual void Reset();
@@ -16,12 +16,12 @@ public:
 	virtual void TickPaused();
 
 	void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos) override;
-	
-private:
+
+  private:
 	bool FindTarget();
 	bool Target();
 	void Fire();
-	
+
 	vec2 m_MoveTarget;
 	float m_AngleTimer;
 };

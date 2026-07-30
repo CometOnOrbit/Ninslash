@@ -9,17 +9,17 @@ struct CGameVote
 	char m_aDescription[64];
 	char m_aConfig[32];
 	char m_aImage[32];
-	
+
 	bool m_Valid;
 	int m_MinPlayers;
 	int m_MaxPlayers;
 	bool m_AlwaysOn;
 	bool m_DisplayLevel;
-	
+
 	// invasion
 	int m_MinLevel;
 	int m_MaxLevel;
-	
+
 	CGameVote()
 	{
 		m_Valid = false;

@@ -8,11 +8,18 @@
 
 int main()
 {
-	const CRoomModeDefaults Expected[] = {
-		{4, 5, 0, 0}, {6, 5, 0, 20}, {4, 5, 0, 4},
-		{5, 3, 4, 20}, {8, 8, 4, 50}, {8, 8, 4, 500},
-		{4, 14, 0, 0}, {8, 14, 6, 400}, {8, 8, 4, 5},
-		{9, 8, 8, 25}, {5, 3, 4, 15}, {8, 3, 4, 500}};
+	const CRoomModeDefaults Expected[] = {{4, 5, 0, 0},
+										  {6, 5, 0, 20},
+										  {4, 5, 0, 4},
+										  {5, 3, 4, 20},
+										  {8, 8, 4, 50},
+										  {8, 8, 4, 500},
+										  {4, 14, 0, 0},
+										  {8, 14, 6, 400},
+										  {8, 8, 4, 5},
+										  {9, 8, 8, 25},
+										  {5, 3, 4, 15},
+										  {8, 3, 4, 500}};
 	for(int Mode = 1; Mode < LOCAL_MODE_COUNT; Mode++)
 	{
 		const CRoomModeDefaults Actual = RoomModeDefaults(Mode);
@@ -53,7 +60,8 @@ int main()
 		assert(pImage);
 		fclose(pImage);
 		assert(Spec.m_MapCount > 0 && Spec.m_ppMapNames && Spec.m_ppMapCommands);
-		assert(Spec.m_MapGen == (Mode != LOCAL_MODE_REACTOR_DEFENSE && Mode != LOCAL_MODE_REACTOR_ASSAULT && Mode != LOCAL_MODE_BALL));
+		assert(Spec.m_MapGen ==
+			   (Mode != LOCAL_MODE_REACTOR_DEFENSE && Mode != LOCAL_MODE_REACTOR_ASSAULT && Mode != LOCAL_MODE_BALL));
 	}
 
 	assert(RoomHostKind(ROOM_VISIBILITY_SOLO) == ROOM_HOST_LOCAL);
@@ -91,7 +99,9 @@ int main()
 	assert(NarrowScaled.m_ContentHeight < Narrow.m_ContentHeight);
 	const CRoomConfigureLayout Wide = RoomConfigureLayout(700.0f, 1.0f, false, 5, 3, true);
 	assert(!Wide.m_SingleColumn);
-	assert(Wide.m_ContentHeight == 50.0f + (Wide.m_MainSettingsHeight > Wide.m_IdentityHeight ? Wide.m_MainSettingsHeight : Wide.m_IdentityHeight));
+	assert(Wide.m_ContentHeight ==
+		   50.0f +
+			   (Wide.m_MainSettingsHeight > Wide.m_IdentityHeight ? Wide.m_MainSettingsHeight : Wide.m_IdentityHeight));
 	assert(Wide.m_MainSettingsHeight > Narrow.m_MainSettingsHeight); // Offline hint has reserved space.
 	return 0;
 }

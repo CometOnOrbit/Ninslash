@@ -9,7 +9,6 @@
 #include "netban.h"
 #include "network.h"
 
-
 bool CNetServer::Open(NETADDR BindAddr, CNetBan *pNetBan, int MaxClients, int MaxClientsPerIP, int Flags)
 {
 	// zero out the whole structure
@@ -107,7 +106,7 @@ int CNetServer::Drop(int ClientID, const char *pReason)
 	m_aSlots[ClientID].m_Connection.Disconnect(pReason);
 
 	m_SlotTakenByBot[ClientID] = false;
-	
+
 	return 0;
 }
 
@@ -121,7 +120,7 @@ int CNetServer::Update()
 		if(Connection.State() == NET_CONNSTATE_OFFLINE)
 			continue;
 		Connection.Update();
-			
+
 		if(Connection.State() == NET_CONNSTATE_ERROR)
 		{
 			const int64 Now = time_get();
@@ -164,11 +163,11 @@ int CNetServer::Recv(CNetChunk *pChunk)
 			if(Addr.type != NETTYPE_STEAM && NetBan() && NetBan()->IsBanned(&Addr, aBuf, sizeof(aBuf)))
 			{
 				// banned, reply with a message
-				SendControl(&Addr, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf)+1);
+				SendControl(&Addr, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1);
 				continue;
 			}
 
-			if(m_RecvUnpacker.m_Data.m_Flags&NET_PACKETFLAG_CONNLESS)
+			if(m_RecvUnpacker.m_Data.m_Flags & NET_PACKETFLAG_CONNLESS)
 			{
 				pChunk->m_Flags = NETSENDFLAG_CONNLESS;
 				pChunk->m_ClientID = -1;
@@ -180,7 +179,8 @@ int CNetServer::Recv(CNetChunk *pChunk)
 			else
 			{
 				// TODO: check size here
-				if(m_RecvUnpacker.m_Data.m_Flags&NET_PACKETFLAG_CONTROL && m_RecvUnpacker.m_Data.m_aChunkData[0] == NET_CTRLMSG_CONNECT)
+				if(m_RecvUnpacker.m_Data.m_Flags & NET_PACKETFLAG_CONTROL &&
+				   m_RecvUnpacker.m_Data.m_aChunkData[0] == NET_CTRLMSG_CONNECT)
 				{
 					bool Found = false;
 
@@ -188,7 +188,7 @@ int CNetServer::Recv(CNetChunk *pChunk)
 					for(int i = 0; i < MaxClients(); i++)
 					{
 						if(!m_SlotTakenByBot[i] && m_aSlots[i].m_Connection.State() != NET_CONNSTATE_OFFLINE &&
-							net_addr_comp(m_aSlots[i].m_Connection.PeerAddress(), &Addr) == 0)
+						   net_addr_comp(m_aSlots[i].m_Connection.PeerAddress(), &Addr) == 0)
 						{
 							Found = true; // silent ignore.. we got this client already
 							break;
@@ -216,7 +216,10 @@ int CNetServer::Recv(CNetChunk *pChunk)
 								if(FoundAddr++ >= m_MaxClientsPerIP)
 								{
 									char aBuf[128];
-									str_format(aBuf, sizeof(aBuf), "Only %d players with the same IP are allowed", m_MaxClientsPerIP);
+									str_format(aBuf,
+											   sizeof(aBuf),
+											   "Only %d players with the same IP are allowed",
+											   m_MaxClientsPerIP);
 									SendControl(&Addr, 0, NET_CTRLMSG_CLOSE, aBuf, sizeof(aBuf));
 									return 0;
 								}
@@ -230,14 +233,15 @@ int CNetServer::Recv(CNetChunk *pChunk)
 							if(m_aSlots[i].m_Connection.State() == NET_CONNSTATE_OFFLINE && !m_SlotTakenByBot[i])
 							{
 								Found = true;
-								m_aSlots[i].m_Connection.Init(m_Socket, true, Addr.type == NETTYPE_STEAM ? m_pTransport : 0);
+								m_aSlots[i].m_Connection.Init(
+									m_Socket, true, Addr.type == NETTYPE_STEAM ? m_pTransport : 0);
 								m_aSlots[i].m_Connection.Feed(&m_RecvUnpacker.m_Data, &Addr);
 								if(m_pfnNewClient)
 									m_pfnNewClient(i, m_UserPtr);
 								break;
 							}
 						}
-						
+
 						// kick bot if a real player want's to join
 						if(!Found)
 						{
@@ -247,7 +251,8 @@ int CNetServer::Recv(CNetChunk *pChunk)
 								{
 									Drop(i, "Making room for a real player.");
 									Found = true;
-									m_aSlots[i].m_Connection.Init(m_Socket, true, Addr.type == NETTYPE_STEAM ? m_pTransport : 0);
+									m_aSlots[i].m_Connection.Init(
+										m_Socket, true, Addr.type == NETTYPE_STEAM ? m_pTransport : 0);
 									m_aSlots[i].m_Connection.Feed(&m_RecvUnpacker.m_Data, &Addr);
 									if(m_pfnNewClient)
 										m_pfnNewClient(i, m_UserPtr);
@@ -292,7 +297,7 @@ int CNetServer::Send(CNetChunk *pChunk)
 		return -1;
 	}
 
-	if(pChunk->m_Flags&NETSENDFLAG_CONNLESS)
+	if(pChunk->m_Flags & NETSENDFLAG_CONNLESS)
 	{
 		// send connectionless packet
 		CNetBase::SendPacketConnless(m_Socket, &pChunk->m_Address, pChunk->m_pData, pChunk->m_DataSize);
@@ -311,16 +316,19 @@ int CNetServer::Send(CNetChunk *pChunk)
 			return 0;
 		if(pChunk->m_ClientID >= MaxClients())
 		{
-			dbg_msg("netserver", "client id %d exceeds connection limit %d, dropping packet", pChunk->m_ClientID, MaxClients());
+			dbg_msg("netserver",
+					"client id %d exceeds connection limit %d, dropping packet",
+					pChunk->m_ClientID,
+					MaxClients());
 			return -1;
 		}
-		
-		if(pChunk->m_Flags&NETSENDFLAG_VITAL)
+
+		if(pChunk->m_Flags & NETSENDFLAG_VITAL)
 			Flags = NET_CHUNKFLAG_VITAL;
 
 		if(m_aSlots[pChunk->m_ClientID].m_Connection.QueueChunk(Flags, pChunk->m_DataSize, pChunk->m_pData) == 0)
 		{
-			if(pChunk->m_Flags&NETSENDFLAG_FLUSH)
+			if(pChunk->m_Flags & NETSENDFLAG_FLUSH)
 				m_aSlots[pChunk->m_ClientID].m_Connection.Flush();
 		}
 		else

@@ -6,7 +6,7 @@ class CLineWriter
 {
 	IOHANDLE m_IO;
 
-public:
+  public:
 	CLineWriter(IOHANDLE IO);
 	~CLineWriter();
 

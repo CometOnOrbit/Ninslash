@@ -20,7 +20,6 @@ enum Pickers
 	PICKER_EMOTICON,
 };
 
-
 struct CTurretMuzzle
 {
 	ivec2 m_Pos;
@@ -28,12 +27,9 @@ struct CTurretMuzzle
 	CWeaponSpec m_Weapon;
 	int m_Muzzle;
 	float m_Time;
-	
-	CTurretMuzzle()
-	{
-		Reset();
-	}
-	
+
+	CTurretMuzzle() { Reset(); }
+
 	void Reset()
 	{
 		m_Pos = ivec2(0, 0);
@@ -44,27 +40,26 @@ struct CTurretMuzzle
 	}
 };
 
-
 class CCustomStuff
 {
-private:
+  private:
 	// local tick for helping rendering physics & stuff
 	int m_Tick;
-	
+
 	int64 m_LastUpdate;
-	
+
 	vec2 m_CameraTargetCenter;
 	vec2 m_CameraCenter;
-	
+
 	CDroidAnim *m_apDroidAnim[MAX_DROIDS];
-	
+
 	float m_ChargeAngle;
-	
-	//friend class CGameClient;
+
+	// friend class CGameClient;
 	CGameClient *m_pClient;
 	class CCollision *Collision() const { return m_pClient->Collision(); }
-	
-public:
+
+  public:
 	// client prediction for jump pads
 	enum Impact
 	{
@@ -75,13 +70,13 @@ public:
 		IMPACT_HIT,
 		MAX_IMPACTSTATES
 	};
-	
+
 	CTurretMuzzle m_aTurretMuzzle[MAX_TURRETMUZZLES];
-	
+
 	void SetTurretMuzzle(ivec2 Pos, int AttackTick, const CWeaponSpec &Weapon);
-	
+
 	CTurretMuzzle GetTurretMuzzle(ivec2 Pos);
-	
+
 	int m_Impact;
 	int m_aImpactState[MAX_IMPACTS];
 	int64 m_aImpactTick[MAX_IMPACTS];
@@ -90,26 +85,26 @@ public:
 
 	vec4 BloodColor(int ClientID);
 	bool IsBot(int ClientID);
-	
+
 	float ChargeIntensity(int Charge);
-	
+
 	CDroidAnim *GetDroidAnim(int Index);
-	
+
 	void ClearImpacts()
 	{
 		m_Impact = 0;
-		
-		for (int i = 0; i < MAX_IMPACTS; i++)
+
+		for(int i = 0; i < MAX_IMPACTS; i++)
 		{
 			m_aImpactState[i] = IMPACT_OFF;
 			m_aImpactPos[i] = vec4(0, 0, 0, 0);
 			m_aImpactVel[i] = vec2(0, 0);
 		}
 	}
-	
+
 	void AddImpact(vec4 Pos, int State, vec2 Vel = vec2(0, -1))
 	{
-		if (m_Impact < MAX_IMPACTS)
+		if(m_Impact < MAX_IMPACTS)
 		{
 			m_aImpactState[m_Impact] = State;
 			m_aImpactPos[m_Impact] = Pos;
@@ -117,111 +112,112 @@ public:
 			m_Impact++;
 		}
 	}
-	
+
 	bool Impact(vec2 Pos, vec2 *pVel)
 	{
-		if (!m_Impact)
+		if(!m_Impact)
 			return false;
-		
-		for (int i = 0; i < m_Impact; i++)
+
+		for(int i = 0; i < m_Impact; i++)
 		{
-			if ((m_aImpactState[i] == IMPACT_HIT || m_aImpactState[i] == IMPACT_GRENADE || (m_aImpactState[i] == IMPACT_SCYTHE && pVel->y >= 0.0f)) &&
-				m_aImpactPos[i].x < Pos.x && m_aImpactPos[i].z > Pos.x &&
-				m_aImpactPos[i].y < Pos.y && m_aImpactPos[i].w > Pos.y)
+			if((m_aImpactState[i] == IMPACT_HIT || m_aImpactState[i] == IMPACT_GRENADE ||
+				(m_aImpactState[i] == IMPACT_SCYTHE && pVel->y >= 0.0f)) &&
+			   m_aImpactPos[i].x < Pos.x && m_aImpactPos[i].z > Pos.x && m_aImpactPos[i].y < Pos.y &&
+			   m_aImpactPos[i].w > Pos.y)
 			{
-				if (pVel)
+				if(pVel)
 					*pVel = m_aImpactVel[i];
-				
-				if (m_aImpactState[i] == IMPACT_GRENADE)
-					pVel->x += (frandom()-frandom())*0.7f;
-				
-				if (m_aImpactState[i] == IMPACT_SCYTHE)
-					pVel->x += (frandom()-frandom())*0.3f;
-				
+
+				if(m_aImpactState[i] == IMPACT_GRENADE)
+					pVel->x += (frandom() - frandom()) * 0.7f;
+
+				if(m_aImpactState[i] == IMPACT_SCYTHE)
+					pVel->x += (frandom() - frandom()) * 0.3f;
+
 				return true;
 			}
-		}		
-		
+		}
+
 		return false;
 	}
-	
-	int GetSpriteFrame(int Speed, int Range) const { return (m_Tick / Speed)%Range; }
-	
+
+	int GetSpriteFrame(int Speed, int Range) const { return (m_Tick / Speed) % Range; }
+
 	int m_aTurretFlame[512];
 	float m_aJumppad[512];
-	
+
 	float m_DoorTimer;
-	
+
 	int m_Picker;
 	int m_LocalTeam;
-	
+
 	int m_LatestWeapon;
-	
+
 	float m_CameraShake;
 	vec2 m_CameraKick;
-	
+
 	void AddCameraImpulse(vec2 Kick, float Shake, float FeedbackStrength);
 	vec2 CameraOffset(float FrameTime);
-	void SetScreenshake(float Amount, float FeedbackStrength) { AddCameraImpulse(vec2(0, 0), Amount, FeedbackStrength); }
-	
-	
+	void SetScreenshake(float Amount, float FeedbackStrength)
+	{
+		AddCameraImpulse(vec2(0, 0), Amount, FeedbackStrength);
+	}
+
 	bool m_LocalAlive;
 	vec2 m_LocalPos;
 	CWeaponSpec m_LocalWeapon;
 	vec4 m_LocalColor;
-	
+
 	bool m_Inventory;
 	CWeaponSpec m_aItem[12];
 	int m_aItemAmmo[12];
 	int m_Gold;
-	
+
 	// Droids
 	float m_DroidDamageIntensity[MAX_DROIDS];
 	float m_DroidDamageType[MAX_DROIDS];
-	
+
 	int m_FlametrapState[64];
 	int m_FlametrapSoundTick[64];
 	int m_FlametrapLastSound[64];
-	
+
 	float m_SawbladeAngle;
 	float m_MonsterAnim;
-	
+
 	// for weapon picker
 	int m_WantedWeapon;
 	int m_SelectedGroup;
-	
+
 	int m_WeaponSlot;
 	CWeaponSpec m_aSnapWeapon[4];
 	int m_LocalKits;
-	
+
 	// for weapon pick effect
 	float m_WeaponpickTimer;
 	int m_WeaponpickWeapon;
 	bool m_LastWeaponPicked;
-	
+
 	float m_WeaponSignalTimer;
 	int m_WeaponSignal;
-	
+
 	CWeaponSpec m_SelectedWeapon;
 
 	int LocalTick() const { return m_Tick; }
 	int m_WeaponDropTick;
 	int m_SwitchTick;
-	
-	void SetCameraTarget(vec2 Center){ m_CameraTargetCenter = Center; }
+
+	void SetCameraTarget(vec2 Center) { m_CameraTargetCenter = Center; }
 	vec2 GetCameraCenter() const { return m_CameraCenter; }
-	
+
 	CCustomStuff(CGameClient *pClient);
 	~CCustomStuff();
-	
+
 	void Reset();
-	
+
 	void Tick(bool Paused);
 	void Update(bool Paused = false);
-	
+
 	CPlayerInfo m_aPlayerInfo[MAX_CLIENTS];
 };
-
-
 
 #endif

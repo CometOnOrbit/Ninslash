@@ -10,8 +10,9 @@
 
 void CVoting::ConCallvote(IConsole::IResult *pResult, void *pUserData)
 {
-	CVoting *pSelf = (CVoting*)pUserData;
-	pSelf->Callvote(pResult->GetString(0), pResult->GetString(1), pResult->NumArguments() > 2 ? pResult->GetString(2) : "");
+	CVoting *pSelf = (CVoting *)pUserData;
+	pSelf->Callvote(
+		pResult->GetString(0), pResult->GetString(1), pResult->NumArguments() > 2 ? pResult->GetString(2) : "");
 }
 
 void CVoting::ConVote(IConsole::IResult *pResult, void *pUserData)
@@ -136,7 +137,7 @@ void CVoting::Vote(int v)
 CVoting::CVoting()
 {
 	ClearOptions();
-	
+
 	m_Closetime = 0;
 	m_aDescription[0] = 0;
 	m_aReason[0] = 0;
@@ -190,7 +191,7 @@ void CVoting::OnReset()
 {
 	if(m_DebugVoteActive && m_Closetime > time_get())
 		return;
-	if(Client()->State() == IClient::STATE_LOADING)	// do not reset active vote while connecting
+	if(Client()->State() == IClient::STATE_LOADING) // do not reset active vote while connecting
 		return;
 
 	m_Closetime = 0;
@@ -207,7 +208,8 @@ void CVoting::OnConsoleInit()
 {
 	Console()->Register("callvote", "ss?r", CFGFLAG_CLIENT, ConCallvote, this, "Call vote");
 	Console()->Register("vote", "r", CFGFLAG_CLIENT, ConVote, this, "Vote yes/no");
-	Console()->Register("hud_debug_vote", "?i", CFGFLAG_CLIENT, ConDebugVote, this, "Preview the in-game vote HUD for 5-60 seconds");
+	Console()->Register(
+		"hud_debug_vote", "?i", CFGFLAG_CLIENT, ConDebugVote, this, "Preview the in-game vote HUD for 5-60 seconds");
 }
 
 void CVoting::OnMessage(int MsgType, void *pRawMsg)
@@ -229,7 +231,7 @@ void CVoting::OnMessage(int MsgType, void *pRawMsg)
 	else if(MsgType == NETMSGTYPE_SV_VOTESTATUS)
 	{
 		CNetMsg_Sv_VoteStatus *pMsg = (CNetMsg_Sv_VoteStatus *)pRawMsg;
-		if (pMsg->m_Type == 0)
+		if(pMsg->m_Type == 0)
 		{
 			m_Yes = pMsg->m_Yes;
 			m_No = pMsg->m_No;
@@ -249,21 +251,50 @@ void CVoting::OnMessage(int MsgType, void *pRawMsg)
 		{
 			switch(i)
 			{
-			case 0: AddOption(pMsg->m_pDescription0); break;
-			case 1: AddOption(pMsg->m_pDescription1); break;
-			case 2: AddOption(pMsg->m_pDescription2); break;
-			case 3: AddOption(pMsg->m_pDescription3); break;
-			case 4: AddOption(pMsg->m_pDescription4); break;
-			case 5: AddOption(pMsg->m_pDescription5); break;
-			case 6: AddOption(pMsg->m_pDescription6); break;
-			case 7: AddOption(pMsg->m_pDescription7); break;
-			case 8: AddOption(pMsg->m_pDescription8); break;
-			case 9: AddOption(pMsg->m_pDescription9); break;
-			case 10: AddOption(pMsg->m_pDescription10); break;
-			case 11: AddOption(pMsg->m_pDescription11); break;
-			case 12: AddOption(pMsg->m_pDescription12); break;
-			case 13: AddOption(pMsg->m_pDescription13); break;
-			case 14: AddOption(pMsg->m_pDescription14);
+				case 0:
+					AddOption(pMsg->m_pDescription0);
+					break;
+				case 1:
+					AddOption(pMsg->m_pDescription1);
+					break;
+				case 2:
+					AddOption(pMsg->m_pDescription2);
+					break;
+				case 3:
+					AddOption(pMsg->m_pDescription3);
+					break;
+				case 4:
+					AddOption(pMsg->m_pDescription4);
+					break;
+				case 5:
+					AddOption(pMsg->m_pDescription5);
+					break;
+				case 6:
+					AddOption(pMsg->m_pDescription6);
+					break;
+				case 7:
+					AddOption(pMsg->m_pDescription7);
+					break;
+				case 8:
+					AddOption(pMsg->m_pDescription8);
+					break;
+				case 9:
+					AddOption(pMsg->m_pDescription9);
+					break;
+				case 10:
+					AddOption(pMsg->m_pDescription10);
+					break;
+				case 11:
+					AddOption(pMsg->m_pDescription11);
+					break;
+				case 12:
+					AddOption(pMsg->m_pDescription12);
+					break;
+				case 13:
+					AddOption(pMsg->m_pDescription13);
+					break;
+				case 14:
+					AddOption(pMsg->m_pDescription14);
 			}
 		}
 	}
@@ -310,7 +341,6 @@ void CVoting::OnRender()
 {
 }
 
-
 void CVoting::RenderBars(CUIRect Bars, bool Text)
 {
 	const int64 Now = time_get();
@@ -325,7 +355,7 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 	const vec4 Deep = CMenus::ThemeBgDeep();
 	const vec4 AccentDim = CMenus::ThemeAccentDim();
 	const vec4 Danger = CMenus::ThemeDanger();
-	RenderTools()->DrawUIRect(&Bars, vec4(Deep.r, Deep.g, Deep.b, 0.92f), CUI::CORNER_ALL, Bars.h/2.0f);
+	RenderTools()->DrawUIRect(&Bars, vec4(Deep.r, Deep.g, Deep.b, 0.92f), CUI::CORNER_ALL, Bars.h / 2.0f);
 
 	if(m_Total)
 	{
@@ -335,13 +365,13 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 		{
 			CUIRect YesArea = Bars;
 			YesArea.w *= clamp(m_DisplayedYes / DisplayedTotal, 0.0f, 1.0f);
-			RenderTools()->DrawUIRect(&YesArea, vec4(0.25f, 0.78f, 0.43f, 0.92f), CUI::CORNER_ALL, Bars.h/2.0f);
+			RenderTools()->DrawUIRect(&YesArea, vec4(0.25f, 0.78f, 0.43f, 0.92f), CUI::CORNER_ALL, Bars.h / 2.0f);
 
 			if(Text)
 			{
 				char Buf[256];
 				str_format(Buf, sizeof(Buf), "%d", m_Yes);
-				UI()->DoLabel(&YesArea, Buf, Bars.h*0.75f, 0);
+				UI()->DoLabel(&YesArea, Buf, Bars.h * 0.75f, 0);
 			}
 
 			PassArea.x += YesArea.w;
@@ -352,14 +382,15 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 		{
 			CUIRect NoArea = Bars;
 			NoArea.w *= clamp(m_DisplayedNo / DisplayedTotal, 0.0f, 1.0f);
-			NoArea.x = (Bars.x + Bars.w)-NoArea.w;
-			RenderTools()->DrawUIRect(&NoArea, vec4(Danger.r, Danger.g, Danger.b, 0.92f), CUI::CORNER_ALL, Bars.h/2.0f);
+			NoArea.x = (Bars.x + Bars.w) - NoArea.w;
+			RenderTools()->DrawUIRect(
+				&NoArea, vec4(Danger.r, Danger.g, Danger.b, 0.92f), CUI::CORNER_ALL, Bars.h / 2.0f);
 
 			if(Text)
 			{
 				char Buf[256];
 				str_format(Buf, sizeof(Buf), "%d", m_No);
-				UI()->DoLabel(&NoArea, Buf, Bars.h*0.75f, 0);
+				UI()->DoLabel(&NoArea, Buf, Bars.h * 0.75f, 0);
 			}
 
 			PassArea.w -= NoArea.w;
@@ -367,12 +398,13 @@ void CVoting::RenderBars(CUIRect Bars, bool Text)
 
 		if(m_DisplayedPass > 0.001f && PassArea.w > 0.0f)
 		{
-			RenderTools()->DrawUIRect(&PassArea, vec4(AccentDim.r, AccentDim.g, AccentDim.b, 0.48f), CUI::CORNER_ALL, Bars.h/2.0f);
+			RenderTools()->DrawUIRect(
+				&PassArea, vec4(AccentDim.r, AccentDim.g, AccentDim.b, 0.48f), CUI::CORNER_ALL, Bars.h / 2.0f);
 			if(Text)
 			{
 				char Buf[256];
 				str_format(Buf, sizeof(Buf), "%d", m_Pass);
-				UI()->DoLabel(&PassArea, Buf, Bars.h*0.75f, 0);
+				UI()->DoLabel(&PassArea, Buf, Bars.h * 0.75f, 0);
 			}
 		}
 	}

@@ -7,8 +7,8 @@ class CRadar : public CComponent
 {
 	friend class CGameClient;
 	void RenderRadar(const struct CNetObj_Radar *pCurrent, const struct CNetObj_Radar *pPrev);
-	
-public:
+
+  public:
 	virtual void OnRender();
 };
 #endif

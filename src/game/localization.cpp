@@ -1,6 +1,5 @@
 
 
-
 #include "localization.h"
 #include <base/tl/algorithm.h>
 
@@ -41,17 +40,24 @@ void CLocalizationDatabase::AddString(const char *pOrgStr, const char *pNewStr)
 	CString s;
 	s.m_Hash = str_quickhash(pOrgStr);
 	s.m_Replacement = *pNewStr ? pNewStr : pOrgStr;
+	sorted_array<CString>::range Existing = ::find_binary(m_Strings.all(), s);
+	if(!Existing.empty())
+	{
+		Existing.front().m_Replacement = s.m_Replacement;
+		return;
+	}
 	m_Strings.add(s);
 }
 
-bool CLocalizationDatabase::Load(const char *pFilename, IStorage *pStorage, IConsole *pConsole)
+namespace
+{
+bool LoadLocalizationFile(
+	CLocalizationDatabase *pDatabase, const char *pFilename, IStorage *pStorage, IConsole *pConsole, bool Clear)
 {
 	// empty string means unload
 	if(pFilename[0] == 0)
 	{
-		m_Strings.clear();
-		m_CurrentVersion = 0;
-		return true;
+		return false;
 	}
 
 	IOHANDLE IoHandle = pStorage->OpenFile(pFilename, IOFLAG_READ, IStorage::TYPE_ALL);
@@ -61,7 +67,8 @@ bool CLocalizationDatabase::Load(const char *pFilename, IStorage *pStorage, ICon
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "loaded '%s'", pFilename);
 	pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "localization", aBuf);
-	m_Strings.clear();
+	if(Clear)
+		pDatabase->ClearStringsForLoad();
 
 	char aOrigin[512];
 	CLineReader LineReader;
@@ -91,12 +98,28 @@ bool CLocalizationDatabase::Load(const char *pFilename, IStorage *pStorage, ICon
 		}
 
 		pReplacement += 3;
-		AddString(aOrigin, pReplacement);
+		pDatabase->AddString(aOrigin, pReplacement);
 	}
 	io_close(IoHandle);
-
-	m_CurrentVersion = ++m_VersionCounter;
+	pDatabase->FinishLoad();
 	return true;
+}
+} // namespace
+
+bool CLocalizationDatabase::Load(const char *pFilename, IStorage *pStorage, IConsole *pConsole)
+{
+	if(!pFilename[0])
+	{
+		m_Strings.clear();
+		m_CurrentVersion = 0;
+		return true;
+	}
+	return LoadLocalizationFile(this, pFilename, pStorage, pConsole, true);
+}
+
+bool CLocalizationDatabase::LoadOverlay(const char *pFilename, IStorage *pStorage, IConsole *pConsole)
+{
+	return LoadLocalizationFile(this, pFilename, pStorage, pConsole, false);
 }
 
 const char *CLocalizationDatabase::FindString(unsigned Hash)

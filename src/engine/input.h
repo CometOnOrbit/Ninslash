@@ -8,30 +8,29 @@
 
 extern const char g_aaKeyStrings[512][20];
 
-
 class IInput : public IInterface
 {
 	MACRO_INTERFACE("input", 0)
-public:
+  public:
 	class CEvent
 	{
-	public:
+	  public:
 		int m_Flags;
 		int m_Key;
-		char m_aText[32*UTF8_BYTE_LENGTH+1];
+		char m_aText[32 * UTF8_BYTE_LENGTH + 1];
 	};
 
-protected:
+  protected:
 	enum
 	{
-		INPUT_BUFFER_SIZE=32
+		INPUT_BUFFER_SIZE = 32
 	};
 
 	// quick access to events
 	int m_NumEvents;
 	IInput::CEvent m_aInputEvents[INPUT_BUFFER_SIZE];
 
-	//quick access to input
+	// quick access to input
 	struct
 	{
 		unsigned char m_Presses;
@@ -42,19 +41,19 @@ protected:
 	int m_InputCurrent;
 	bool m_InputDispatched;
 
-	int KeyWasPressed(int Key) { return m_aInputState[m_InputCurrent^1][Key]; }
+	int KeyWasPressed(int Key) { return m_aInputState[m_InputCurrent ^ 1][Key]; }
 
-public:
+  public:
 	enum
 	{
-		FLAG_PRESS=1,
-		FLAG_RELEASE=2,
-		FLAG_REPEAT=4,
-		FLAG_TEXT=8,
+		FLAG_PRESS = 1,
+		FLAG_RELEASE = 2,
+		FLAG_REPEAT = 4,
+		FLAG_TEXT = 8,
 
 		MAX_CANDIDATES = 16,
 		MAX_CANDIDATE_LENGTH = 16,
-		MAX_CANDIDATE_ARRAY_SIZE=MAX_CANDIDATE_LENGTH*UTF8_BYTE_LENGTH+1,
+		MAX_CANDIDATE_ARRAY_SIZE = MAX_CANDIDATE_LENGTH * UTF8_BYTE_LENGTH + 1,
 		MAX_COMPOSITION_ARRAY_SIZE = 32,
 
 		COMP_LENGTH_INACTIVE = -1
@@ -71,7 +70,7 @@ public:
 	{
 		if(Index < 0 || Index >= m_NumEvents)
 		{
-			IInput::CEvent e = {0,0};
+			IInput::CEvent e = {0, 0};
 			e.m_aText[0] = 0;
 			return e;
 		}
@@ -82,10 +81,11 @@ public:
 	int KeyPressed(int Key) { return m_aInputState[m_InputCurrent][Key]; }
 	int KeyReleases(int Key) { return m_aInputCount[m_InputCurrent][Key].m_Releases; }
 	int KeyPresses(int Key) { return m_aInputCount[m_InputCurrent][Key].m_Presses; }
-	int KeyDown(int Key) { return KeyPressed(Key)&&!KeyWasPressed(Key); }
+	int KeyDown(int Key) { return KeyPressed(Key) && !KeyWasPressed(Key); }
 	const char *KeyName(int Key) { return (Key >= 0 && Key < 512) ? g_aaKeyStrings[Key] : g_aaKeyStrings[0]; }
 
-	enum MouseMode {
+	enum MouseMode
+	{
 		MOUSE_MODE_NONE,
 		MOUSE_MODE_WARP_CENTER = 1 << 0,
 		MOUSE_MODE_NO_MOUSE = 1 << 1
@@ -101,7 +101,7 @@ public:
 	virtual bool UsingGamepad() = 0;
 	virtual void SetGamepadActionSet(int ActionSet) = 0;
 	virtual int MouseDoubleClick() = 0;
-	virtual const char* GetClipboardText() = 0;
+	virtual const char *GetClipboardText() = 0;
 	virtual void SetClipboardText(const char *Text) = 0;
 	virtual bool MouseLeft() = 0;
 	virtual bool MouseEntered() = 0;
@@ -122,11 +122,10 @@ public:
 	virtual void SetCompositionWindowPosition(float X, float Y, float H) = 0;
 };
 
-
 class IEngineInput : public IInput
 {
 	MACRO_INTERFACE("engineinput", 0)
-public:
+  public:
 	virtual void Init() = 0;
 	virtual int Update() = 0;
 };

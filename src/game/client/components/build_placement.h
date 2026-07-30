@@ -34,7 +34,7 @@ class CBuildPlacement : public CComponent
 	void MapGameGroup();
 	const char *InvalidReasonText(BuildPlacementLogic::EInvalidReason Reason) const;
 
-public:
+  public:
 	CBuildPlacement();
 	void OnReset() override;
 	void OnConsoleInit() override;
@@ -43,7 +43,10 @@ public:
 	bool OnInput(IInput::CEvent Event) override;
 
 	bool WheelActive() const { return m_State.State() == BuildPlacementLogic::STATE_WHEEL || m_DebugWheel != 0; }
-	bool PlacementActive() const { return m_State.State() == BuildPlacementLogic::STATE_PLACEMENT || m_DebugBuilding >= 0; }
+	bool PlacementActive() const
+	{
+		return m_State.State() == BuildPlacementLogic::STATE_PLACEMENT || m_DebugBuilding >= 0;
+	}
 	bool Active() const { return WheelActive() || PlacementActive(); }
 };
 

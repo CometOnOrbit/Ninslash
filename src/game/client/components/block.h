@@ -6,20 +6,21 @@
 class CBlocks : public CComponent
 {
 	friend class CGameClient;
-	
+
 	int *m_pBlocks;
 	int *m_pBlockSyncTick;
 	int m_Width;
 	int m_Height;
-	
+
 	void SetBlock(ivec2 Pos, int Block);
-public:
+
+  public:
 	CBlocks();
 	~CBlocks();
 
 	void ResetBlocks();
 	void RenderBlocks();
-	
+
 	virtual void OnInit();
 	virtual void OnReset();
 	virtual void OnRender();

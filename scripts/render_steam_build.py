@@ -22,17 +22,28 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--build-output", required=True)
     parser.add_argument("--content-root", required=True)
-    parser.add_argument("--windows-client-root", required=True)
-    parser.add_argument("--linux-client-root", required=True)
-    parser.add_argument("--macos-client-root", required=True)
-    parser.add_argument("--windows-server-root", required=True)
-    parser.add_argument("--linux-server-root", required=True)
-    parser.add_argument("--macos-server-root", required=True)
+    parser.add_argument("--windows-client-root", default="")
+    parser.add_argument("--linux-client-root", default="")
+    parser.add_argument("--macos-client-root", default="")
+    parser.add_argument("--windows-server-root", default="")
+    parser.add_argument("--linux-server-root", default="")
+    parser.add_argument("--macos-server-root", default="")
+    parser.add_argument("--platforms", default="windows,linux,macos",
+                        help="Comma-separated Steam depot platforms to render")
     parser.add_argument("--version", default="local")
     parser.add_argument("--git-commit", default="unknown")
     parser.add_argument("--client-set-live", default="")
     parser.add_argument("--server-set-live", default="")
     args = parser.parse_args()
+
+    platforms = {platform.strip().lower() for platform in args.platforms.split(",") if platform.strip()}
+    unknown_platforms = platforms - {"windows", "linux", "macos"}
+    if not platforms or unknown_platforms:
+        parser.error(f"invalid --platforms value: {args.platforms}")
+    for platform in platforms:
+        for kind in ("client", "server"):
+            if not getattr(args, f"{platform}_{kind}_root"):
+                parser.error(f"--platforms including {platform} requires --{platform}-{kind}-root")
 
     values = dict(DEFAULTS)
     values.update({
@@ -52,8 +63,17 @@ def main():
     root = Path(__file__).resolve().parents[1] / "packaging" / "steam"
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
+    for stale_manifest in output.glob("*.vdf"):
+        stale_manifest.unlink()
     for source in root.glob("*.vdf.in"):
+        depot_platform = next((platform for platform in ("windows", "linux", "macos")
+                               if source.name.startswith(f"depot_{platform}_")), None)
+        if depot_platform and depot_platform not in platforms:
+            continue
         rendered = source.read_text(encoding="utf-8")
+        for platform in {"windows", "linux", "macos"} - platforms:
+            marker = f"@{platform.upper()}_"
+            rendered = "\n".join(line for line in rendered.splitlines() if marker not in line) + "\n"
         for key, value in values.items():
             rendered = rendered.replace(f"@{key}@", value)
         # No setlive entry means "create the Build without changing a branch".

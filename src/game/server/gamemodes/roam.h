@@ -4,16 +4,16 @@
 
 class CGameControllerRoam : public IGameController
 {
-public:
+  public:
 	CGameControllerRoam(class CGameContext *pGameServer);
-	
+
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);
 	bool CanSpawn(int Team, vec2 *pPos, bool IsBot = false);
 	virtual void Tick();
 	void AddEnemy(vec2 Pos);
 	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
-	
-private:
+
+  private:
 	vec2 m_aBotSpawn[99];
 	int m_BotSpawnNum;
 };

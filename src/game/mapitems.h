@@ -6,13 +6,13 @@
 // layer types
 enum
 {
-	LAYERTYPE_INVALID=0,
+	LAYERTYPE_INVALID = 0,
 	LAYERTYPE_GAME,
 	LAYERTYPE_TILES,
 	LAYERTYPE_QUADS,
 	LAYERTYPE_SKELETONS,
 
-	MAPITEMTYPE_VERSION=0,
+	MAPITEMTYPE_VERSION = 0,
 	MAPITEMTYPE_INFO,
 	MAPITEMTYPE_IMAGE,
 	MAPITEMTYPE_ENVELOPE,
@@ -24,7 +24,7 @@ enum
 	MAPITEMTYPE_MODULARINFO,
 	MAPITEMTYPE_RULE,
 
-	CURVETYPE_STEP=0,
+	CURVETYPE_STEP = 0,
 	CURVETYPE_LINEAR,
 	CURVETYPE_SLOW,
 	CURVETYPE_FAST,
@@ -33,7 +33,7 @@ enum
 
 	// game layer tiles
 	// row 1
-	ENTITY_NULL=0,
+	ENTITY_NULL = 0,
 	ENTITY_SPAWN,
 	ENTITY_SPAWN_RED,
 	ENTITY_SPAWN_BLUE,
@@ -47,9 +47,9 @@ enum
 	ENTITY_BALL,
 	ENTITY_RED_AREA,
 	ENTITY_BLUE_AREA,
-	
+
 	// row 2
-	ENTITY_SWITCH = 16*1 + 1,
+	ENTITY_SWITCH = 16 * 1 + 1,
 	ENTITY_DOOR1,
 	ENTITY_GENERATOR,
 	ENTITY_BARREL,
@@ -65,14 +65,14 @@ enum
 	ENTITY_SAWBLADE,
 	ENTITY_LAZER,
 	ENTITY_POWERUPPER,
-	
+
 	// row 3
-	ENTITY_SHOP = 16*2 + 1,
+	ENTITY_SHOP = 16 * 2 + 1,
 	ENTITY_BLOCK1,
 	ENTITY_BLOCK2,
-	
+
 	// row 4
-	ENTITY_ENEMYSPAWN = 16*3 + 1,
+	ENTITY_ENEMYSPAWN = 16 * 3 + 1,
 	ENTITY_TURRET,
 	ENTITY_DROID_WALKER,
 	ENTITY_DROID_STAR,
@@ -83,7 +83,7 @@ enum
 	ENTITY_DROID_BOSSSPLITTER,
 	NUM_ENTITIES,
 
-	TILE_AIR=0,
+	TILE_AIR = 0,
 	TILE_SOLID,
 	TILE_DEATH,
 	TILE_INSTADEATH,
@@ -97,16 +97,16 @@ enum
 	TILE_HANG,
 	TILE_PLATFORM,
 
-	TILEFLAG_VFLIP=1,
-	TILEFLAG_HFLIP=2,
-	TILEFLAG_OPAQUE=4,
-	TILEFLAG_ROTATE=8,
+	TILEFLAG_VFLIP = 1,
+	TILEFLAG_HFLIP = 2,
+	TILEFLAG_OPAQUE = 4,
+	TILEFLAG_ROTATE = 8,
 
-	LAYERFLAG_DETAIL=1,
-	LAYERFLAG_LOOP=2,
-	TILESLAYERFLAG_GAME=1,
+	LAYERFLAG_DETAIL = 1,
+	LAYERFLAG_LOOP = 2,
+	TILESLAYERFLAG_GAME = 1,
 
-	ENTITY_OFFSET=255-16*4,
+	ENTITY_OFFSET = 255 - 16 * 4,
 };
 
 struct CPoint
@@ -134,7 +134,7 @@ struct CQuad
 
 class CTile
 {
-public:
+  public:
 	unsigned char m_Index;
 	unsigned char m_Flags;
 	unsigned char m_Skip;
@@ -148,7 +148,7 @@ struct CMapItemInfo
 	int m_MapVersion;
 	int m_Credits;
 	int m_License;
-} ;
+};
 
 struct CMapItemImage_v1
 {
@@ -158,11 +158,14 @@ struct CMapItemImage_v1
 	int m_External;
 	int m_ImageName;
 	int m_ImageData;
-} ;
+};
 
 struct CMapItemImage : public CMapItemImage_v1
 {
-	enum { CURRENT_VERSION=2 };
+	enum
+	{
+		CURRENT_VERSION = 2
+	};
 	int m_Format;
 };
 
@@ -176,12 +179,14 @@ struct CMapItemGroup_v1
 
 	int m_StartLayer;
 	int m_NumLayers;
-} ;
-
+};
 
 struct CMapItemGroup : public CMapItemGroup_v1
 {
-	enum { CURRENT_VERSION=3 };
+	enum
+	{
+		CURRENT_VERSION = 3
+	};
 
 	int m_UseClipping;
 	int m_ClipX;
@@ -190,14 +195,14 @@ struct CMapItemGroup : public CMapItemGroup_v1
 	int m_ClipH;
 
 	int m_aName[3];
-} ;
+};
 
 struct CMapItemLayer
 {
 	int m_Version;
 	int m_Type;
 	int m_Flags;
-} ;
+};
 
 struct CMapItemLayerTilemap
 {
@@ -216,7 +221,7 @@ struct CMapItemLayerTilemap
 	int m_Data;
 
 	int m_aName[3];
-} ;
+};
 
 struct CMapItemLayerQuads
 {
@@ -228,12 +233,15 @@ struct CMapItemLayerQuads
 	int m_Image;
 
 	int m_aName[3];
-} ;
+};
 
 // TODO: spine
 struct CMapItemLayerSkeleton
 {
-	enum { CURRENT_VERSION=1 };
+	enum
+	{
+		CURRENT_VERSION = 1
+	};
 
 	CMapItemLayer m_Layer;
 	int m_Version;
@@ -274,7 +282,7 @@ struct CEnvPoint
 	int m_aValues[4]; // 1-4 depending on envelope (22.10 fixed point)
 
 	bool operator<(const CEnvPoint &Other) { return m_Time < Other.m_Time; }
-} ;
+};
 
 struct CMapItemEnvelope_v1
 {
@@ -283,11 +291,14 @@ struct CMapItemEnvelope_v1
 	int m_StartPoint;
 	int m_NumPoints;
 	int m_aName[8];
-} ;
+};
 
 struct CMapItemEnvelope : public CMapItemEnvelope_v1
 {
-	enum { CURRENT_VERSION=2 };
+	enum
+	{
+		CURRENT_VERSION = 2
+	};
 	int m_Synchronized;
 };
 /*
@@ -343,15 +354,18 @@ struct CAttachmentDataBBox
 // instance of a skeleton with skin
 struct CSkeleton
 {
-	int m_X, m_Y; // 22.10 fixed point
+	int m_X, m_Y;			// 22.10 fixed point
 	int m_ScaleX, m_ScaleY; // 22.10 fixed point
-	int m_Rotation; // 22.10 fixed point
+	int m_Rotation;			// 22.10 fixed point
 	int m_Skin;
 };
 
 struct CMapItemSkeleton
 {
-	enum { CURRENT_VERSION=1 };
+	enum
+	{
+		CURRENT_VERSION = 1
+	};
 	int m_Version;
 
 	int m_External;
@@ -362,14 +376,17 @@ struct CMapItemSkeleton
 
 struct CMapItemAtlas
 {
-	enum { CURRENT_VERSION=1 };
+	enum
+	{
+		CURRENT_VERSION = 1
+	};
 	int m_Version;
 
 	int m_Name;
 	int m_External;
 
 	int m_Data; // atlas file content
-	
+
 	int m_NumPages;
 	int m_DataPages;
 };
@@ -378,7 +395,10 @@ struct CMapItemAtlas
 struct CAtlasPage : CMapItemImage
 {
 	// filter/format/wrapping are fixed
-	enum { CURRENT_VERSION=1 };
+	enum
+	{
+		CURRENT_VERSION = 1
+	};
 };
 
 #endif

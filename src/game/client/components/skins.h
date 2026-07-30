@@ -6,7 +6,7 @@
 
 class CSkins : public CComponent
 {
-public:
+  public:
 	struct CSkinPart
 	{
 		int m_Texture;
@@ -19,35 +19,35 @@ public:
 
 	vec3 GetColorV3(int v);
 	vec4 GetColorV4(int v);
-	
+
 	int NumToppers();
 	int NumEyes();
 	int NumHeads();
 	int NumBodies();
 	int NumHands();
 	int NumFeet();
-	
+
 	int NumGameVotes();
-	
+
 	const CSkinPart *GetTopper(int Index);
 	const CSkinPart *GetEye(int Index);
 	const CSkinPart *GetHead(int Index);
 	const CSkinPart *GetBody(int Index);
 	const CSkinPart *GetHand(int Index);
 	const CSkinPart *GetFoot(int Index);
-	
+
 	const CSkinPart *GetGameVote(int Index);
-	
+
 	int FindTopper(const char *pName);
 	int FindEye(const char *pName);
 	int FindHead(const char *pName);
 	int FindBody(const char *pName);
 	int FindHand(const char *pName);
 	int FindFoot(const char *pName);
-	
+
 	int FindGameVote(const char *pName);
 
-private:
+  private:
 	sorted_array<CSkinPart> m_aToppers;
 	sorted_array<CSkinPart> m_aEyes;
 	sorted_array<CSkinPart> m_aHeads;
@@ -62,7 +62,7 @@ private:
 	static int BodyScan(const char *pName, int IsDir, int DirType, void *pUser);
 	static int HandScan(const char *pName, int IsDir, int DirType, void *pUser);
 	static int FootScan(const char *pName, int IsDir, int DirType, void *pUser);
-	
+
 	static int GameVoteScan(const char *pName, int IsDir, int DirType, void *pUser);
 };
 #endif

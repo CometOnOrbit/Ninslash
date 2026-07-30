@@ -5,20 +5,19 @@
 
 #include "network.h"
 
-
 class CEcon
 {
 	enum
 	{
-		MAX_AUTH_TRIES=3,
+		MAX_AUTH_TRIES = 3,
 	};
 
 	class CClient
 	{
-	public:
+	  public:
 		enum
 		{
-			STATE_EMPTY=0,
+			STATE_EMPTY = 0,
 			STATE_CONNECTED,
 			STATE_AUTHED,
 		};
@@ -37,13 +36,16 @@ class CEcon
 	int m_UserClientID;
 
 	static void SendLineCB(const char *pLine, void *pUserData);
-	static void ConchainEconOutputLevelUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainEconOutputLevelUpdate(IConsole::IResult *pResult,
+											  void *pUserData,
+											  IConsole::FCommandCallback pfnCallback,
+											  void *pCallbackUserData);
 	static void ConLogout(IConsole::IResult *pResult, void *pUserData);
 
 	static int NewClientCallback(int ClientID, void *pUser);
 	static int DelClientCallback(int ClientID, const char *pReason, void *pUser);
 
-public:
+  public:
 	IConsole *Console() { return m_pConsole; }
 
 	void Init(IConsole *pConsole, class CNetBan *pNetBan);

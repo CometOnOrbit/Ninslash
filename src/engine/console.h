@@ -8,31 +8,31 @@
 class IConsole : public IInterface
 {
 	MACRO_INTERFACE("console", 0)
-public:
-
+  public:
 	//	TODO: rework/cleanup
 	enum
 	{
-		OUTPUT_LEVEL_STANDARD=0,
+		OUTPUT_LEVEL_STANDARD = 0,
 		OUTPUT_LEVEL_ADDINFO,
 		OUTPUT_LEVEL_DEBUG,
 
-		ACCESS_LEVEL_ADMIN=0,
+		ACCESS_LEVEL_ADMIN = 0,
 		ACCESS_LEVEL_MOD,
 
-		TEMPCMD_NAME_LENGTH=32,
-		TEMPCMD_HELP_LENGTH=96,
-		TEMPCMD_PARAMS_LENGTH=16,
+		TEMPCMD_NAME_LENGTH = 32,
+		TEMPCMD_HELP_LENGTH = 96,
+		TEMPCMD_PARAMS_LENGTH = 16,
 
-		MAX_PRINT_CB=4,
+		MAX_PRINT_CB = 4,
 	};
 
 	// TODO: rework this interface to reduce the amount of virtual calls
 	class IResult
 	{
-	protected:
+	  protected:
 		unsigned m_NumArgs;
-	public:
+
+	  public:
 		IResult() { m_NumArgs = 0; }
 		virtual ~IResult() {}
 
@@ -45,9 +45,10 @@ public:
 
 	class CCommandInfo
 	{
-	protected:
+	  protected:
 		int m_AccessLevel;
-	public:
+
+	  public:
 		CCommandInfo() { m_AccessLevel = ACCESS_LEVEL_ADMIN; }
 		virtual ~CCommandInfo() {}
 		const char *m_pName;
@@ -62,14 +63,23 @@ public:
 	typedef void (*FPrintCallback)(const char *pStr, void *pUser);
 	typedef void (*FPossibleCallback)(const char *pCmd, void *pUser);
 	typedef void (*FCommandCallback)(IResult *pResult, void *pUserData);
-	typedef void (*FChainCommandCallback)(IResult *pResult, void *pUserData, FCommandCallback pfnCallback, void *pCallbackUserData);
+	typedef void (*FChainCommandCallback)(IResult *pResult,
+										  void *pUserData,
+										  FCommandCallback pfnCallback,
+										  void *pCallbackUserData);
 
 	virtual const CCommandInfo *FirstCommandInfo(int AccessLevel, int Flagmask) const = 0;
 	virtual const CCommandInfo *GetCommandInfo(const char *pName, int FlagMask, bool Temp) = 0;
-	virtual void PossibleCommands(const char *pStr, int FlagMask, bool Temp, FPossibleCallback pfnCallback, void *pUser) = 0;
+	virtual void
+	PossibleCommands(const char *pStr, int FlagMask, bool Temp, FPossibleCallback pfnCallback, void *pUser) = 0;
 	virtual void ParseArguments(int NumArgs, const char **ppArguments) = 0;
 
-	virtual void Register(const char *pName, const char *pParams, int Flags, FCommandCallback pfnFunc, void *pUser, const char *pHelp) = 0;
+	virtual void Register(const char *pName,
+						  const char *pParams,
+						  int Flags,
+						  FCommandCallback pfnFunc,
+						  void *pUser,
+						  const char *pHelp) = 0;
 	virtual void RegisterTemp(const char *pName, const char *pParams, int Flags, const char *pHelp) = 0;
 	virtual void DeregisterTemp(const char *pName) = 0;
 	virtual void DeregisterTempAll() = 0;

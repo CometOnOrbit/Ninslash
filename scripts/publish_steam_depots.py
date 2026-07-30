@@ -2,17 +2,28 @@
 """Build, stage, verify and optionally upload all Ninslash Steam depots."""
 
 import argparse
+import getpass
 import os
+import pty
 import re
+import select
 import shutil
 import subprocess
 import sys
+import termios
 import time
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 TRANSIENT_STEAMPIPE_HTTP = re.compile(r"\bHTTP\s+(5\d\d)\b", re.IGNORECASE)
+ANSI_ESCAPE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+PASSWORD_PROMPT = re.compile(r"\b(?:password|passphrase)\s*:", re.IGNORECASE)
+STEAM_GUARD_PROMPT = re.compile(
+    r"(?:steam\s*guard|two[- ]factor|authenticator)[^\r\n:]*(?:code|token)[^\r\n:]*:",
+    re.IGNORECASE,
+)
+LOGIN_PROMPT_TIMEOUT = 60.0
 
 
 class SteamUploadError(RuntimeError):
@@ -23,15 +34,21 @@ class SteamUploadError(RuntimeError):
         self.transient_http_statuses = tuple(sorted(set(transient_http_statuses)))
 
 
+class SteamInteractionError(RuntimeError):
+    pass
+
+
 def run(command, cwd=ROOT):
     print("+", " ".join(str(part) for part in command), flush=True)
     subprocess.run([str(part) for part in command], cwd=cwd, check=True)
 
 
-def run_streamed(command, cwd=ROOT):
+def run_streamed(command, cwd=ROOT, password=None):
     """Run an interactive command while retaining the output used for diagnosis."""
     command = [str(part) for part in command]
     print("+", " ".join(command), flush=True)
+    if password is not None:
+        return run_streamed_with_password(command, cwd, password)
     process = subprocess.Popen(
         command,
         cwd=cwd,
@@ -51,6 +68,104 @@ def run_streamed(command, cwd=ROOT):
         else:
             sys.stdout.write(chunk.decode("utf-8", errors="replace"))
         sys.stdout.flush()
+    returncode = process.wait()
+    output = b"".join(chunks).decode("utf-8", errors="replace")
+    if returncode:
+        raise subprocess.CalledProcessError(returncode, command, output=output)
+    return output
+
+
+def normalized_terminal_output(data):
+    text = data.decode("utf-8", errors="replace")
+    return ANSI_ESCAPE.sub("", text).replace("\r", "")
+
+
+def stop_process(process):
+    if process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
+def prompt_for_steam_guard_code():
+    try:
+        code = getpass.getpass("Steam Guard code: ")
+    except (EOFError, OSError) as exc:
+        raise SteamInteractionError(
+            "Steam Guard requested a code, but no interactive terminal is available"
+        ) from exc
+    if not code:
+        raise SteamInteractionError("Steam Guard code cannot be empty")
+    return code
+
+
+def disable_terminal_echo(fd):
+    settings = termios.tcgetattr(fd)
+    settings[3] &= ~termios.ECHO
+    termios.tcsetattr(fd, termios.TCSANOW, settings)
+
+
+def run_streamed_with_password(command, cwd, password):
+    """Answer SteamCMD's password prompt without exposing it in argv or logs."""
+    master, slave = pty.openpty()
+    disable_terminal_echo(slave)
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        stdin=slave,
+        stdout=slave,
+        stderr=slave,
+        close_fds=True,
+    )
+    os.close(slave)
+    chunks = []
+    pending = b""
+    password_sent = False
+    prompt_deadline = time.monotonic() + LOGIN_PROMPT_TIMEOUT
+    try:
+        while True:
+            readable, _, _ = select.select([master], [], [], 0.25)
+            if master in readable:
+                try:
+                    chunk = os.read(master, 4096)
+                except OSError:
+                    chunk = b""
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                output_buffer = getattr(sys.stdout, "buffer", None)
+                if output_buffer is not None:
+                    output_buffer.write(chunk)
+                else:
+                    sys.stdout.write(chunk.decode("utf-8", errors="replace"))
+                sys.stdout.flush()
+                pending = (pending + chunk)[-4096:]
+                prompt_text = normalized_terminal_output(pending)
+                if not password_sent and PASSWORD_PROMPT.search(prompt_text):
+                    disable_terminal_echo(master)
+                    os.write(master, password.encode("utf-8") + b"\n")
+                    password_sent = True
+                    pending = b""
+                elif password_sent and STEAM_GUARD_PROMPT.search(prompt_text):
+                    code = prompt_for_steam_guard_code()
+                    disable_terminal_echo(master)
+                    os.write(master, code.encode("utf-8") + b"\n")
+                    pending = b""
+            if process.poll() is not None and not readable:
+                break
+            if not password_sent and time.monotonic() >= prompt_deadline:
+                raise SteamInteractionError(
+                    "SteamCMD did not present a recognized password prompt within 60 seconds"
+                )
+    except BaseException:
+        stop_process(process)
+        raise
+    finally:
+        os.close(master)
     returncode = process.wait()
     output = b"".join(chunks).decode("utf-8", errors="replace")
     if returncode:
@@ -100,12 +215,12 @@ def transient_steampipe_http_statuses(logs):
     return statuses
 
 
-def upload_with_retry(command, build_output, attempts, retry_delay):
+def upload_with_retry(command, build_output, attempts, retry_delay, password=None):
     transient_statuses = set()
     for attempt in range(1, attempts + 1):
         before = steam_log_snapshot(build_output)
         try:
-            run_streamed(command)
+            run_streamed(command, password=password)
             return
         except subprocess.CalledProcessError as exc:
             current_logs = changed_steam_logs(build_output, before)
@@ -161,6 +276,20 @@ def required_directory(path, description):
     return path
 
 
+def cmake_configured_cxx_compiler(build_dir):
+    compiler_files = sorted(
+        (build_dir / "CMakeFiles").glob("*/CMakeCXXCompiler.cmake"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for compiler_file in compiler_files:
+        contents = compiler_file.read_text(encoding="utf-8", errors="replace")
+        match = re.search(r'^set\(CMAKE_CXX_COMPILER "([^"]+)"\)$', contents, re.MULTILINE)
+        if match:
+            return Path(match.group(1)).resolve()
+    return None
+
+
 def verify_steam_build(cache, description):
     contents = cache.read_text(encoding="utf-8", errors="replace")
     required = (
@@ -179,6 +308,16 @@ def verify_steam_build(cache, description):
 
 
 def configure_steam_build(build_dir, sdk_root, windows):
+    if windows:
+        compiler = shutil.which("x86_64-w64-mingw32-g++-posix")
+        if not compiler:
+            raise SystemExit("Missing POSIX-thread MinGW64 compiler: x86_64-w64-mingw32-g++-posix")
+        cache = build_dir / "CMakeCache.txt"
+        if cache.is_file():
+            configured_compiler = cmake_configured_cxx_compiler(build_dir)
+            if configured_compiler != Path(compiler).resolve():
+                print(f"Removing incompatible Windows compiler cache: {build_dir}", flush=True)
+                shutil.rmtree(build_dir)
     command = [
         "cmake",
         "-S", ROOT,
@@ -200,8 +339,6 @@ def configure_steam_build(build_dir, sdk_root, windows):
     ]
     if windows:
         toolchain = required_file(ROOT / "cmake/toolchains/mingw64.toolchain", "MinGW64 CMake toolchain")
-        if not shutil.which("x86_64-w64-mingw32-g++"):
-            raise SystemExit("Missing MinGW64 compiler: x86_64-w64-mingw32-g++")
         command.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain}")
     run(command)
     cache = required_file(build_dir / "CMakeCache.txt", f"{'Windows' if windows else 'Linux'} CMake cache")
@@ -212,8 +349,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--linux-build-dir", default="build", help="Steam-enabled Linux CMake build directory")
     parser.add_argument("--windows-build-dir", default="build-windows-steam", help="Steam-enabled Windows CMake build directory")
-    parser.add_argument("--macos-client-depot", required=True, help="Pre-staged macOS client depot from a macOS builder")
-    parser.add_argument("--macos-server-depot", required=True, help="Pre-staged macOS dedicated server depot from a macOS builder")
+    parser.add_argument("--macos-client-depot", help="Pre-staged macOS client depot from a macOS builder")
+    parser.add_argument("--macos-server-depot", help="Pre-staged macOS dedicated server depot from a macOS builder")
+    parser.add_argument("--platforms", default="windows,linux,macos",
+                        help="Comma-separated depot platforms to publish (default: windows,linux,macos)")
     parser.add_argument("--sdk-root", default=os.environ.get("STEAMWORKS_SDK_ROOT", "~/sdk"))
     parser.add_argument("--output-root", default="dist/steam-release", help="Generated content, manifests and SteamPipe output")
     parser.add_argument("--jobs", type=int, default=max(1, os.cpu_count() or 1))
@@ -222,13 +361,22 @@ def main():
     parser.add_argument("--upload", action="store_true", help="Upload the selected app builds with SteamCMD after verification")
     parser.add_argument("--upload-target", choices=("all", "client", "server"), default="all", help="Select which verified app build to upload")
     parser.add_argument("--set-live", metavar="BRANCH", help="Set uploaded target builds live on this Steam branch (use default for public)")
-    parser.add_argument("--steam-account", default=os.environ.get("STEAM_ACCOUNT"), help="Steam partner account name; password is never accepted here")
+    parser.add_argument("--steam-account", default=os.environ.get("STEAM_ACCOUNT"), help="Steam partner account name")
+    parser.add_argument("--steam-password-env", default="STEAM_PASSWORD",
+                        help="Environment variable containing the Steam password for prompt automation")
     parser.add_argument("--steamcmd", default=os.environ.get("STEAMCMD", "steamcmd"))
     parser.add_argument("--upload-attempts", type=int, default=3, help="Attempts for proven transient SteamPipe HTTP 5xx failures (default: 3)")
     parser.add_argument("--upload-retry-delay", type=float, default=5.0, help="Initial retry delay in seconds; subsequent delays use exponential backoff")
     parser.add_argument("--standalone-linux-build-dir", help="Optional non-Steam build to verify")
     parser.add_argument("--standalone-windows-build-dir", help="Optional non-Steam build to verify")
     args = parser.parse_args()
+
+    platforms = {platform.strip().lower() for platform in args.platforms.split(",") if platform.strip()}
+    unknown_platforms = platforms - {"windows", "linux", "macos"}
+    if not platforms or unknown_platforms:
+        parser.error(f"invalid --platforms value: {args.platforms}")
+    if "macos" in platforms and (not args.macos_client_depot or not args.macos_server_depot):
+        parser.error("--platforms including macos requires --macos-client-depot and --macos-server-depot")
 
     if args.set_live and not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", args.set_live):
         raise SystemExit("--set-live must be a Steam branch name containing only letters, digits, '.', '_' or '-'")
@@ -246,35 +394,44 @@ def main():
 
     linux_build = Path(args.linux_build_dir).expanduser().resolve()
     windows_build = Path(args.windows_build_dir).expanduser().resolve()
-    macos_client_depot = required_directory(Path(args.macos_client_depot), "pre-staged macOS client depot")
-    macos_server_depot = required_directory(Path(args.macos_server_depot), "pre-staged macOS server depot")
+    macos_client_depot = required_directory(Path(args.macos_client_depot), "pre-staged macOS client depot") if "macos" in platforms else None
+    macos_server_depot = required_directory(Path(args.macos_server_depot), "pre-staged macOS server depot") if "macos" in platforms else None
     sdk_root = Path(args.sdk_root).expanduser().resolve()
     output = Path(args.output_root).expanduser().resolve()
     content = output / "content"
     manifests = output / "manifests"
     build_output = output / "steampipe-output"
 
-    linux_api = required_file(sdk_root / "redistributable_bin/linux64/libsteam_api.so", "Linux Steam API")
-    windows_api = required_file(sdk_root / "redistributable_bin/win64/steam_api64.dll", "Windows Steam API")
+    linux_api = required_file(sdk_root / "redistributable_bin/linux64/libsteam_api.so", "Linux Steam API") if "linux" in platforms else None
+    windows_api = required_file(sdk_root / "redistributable_bin/win64/steam_api64.dll", "Windows Steam API") if "windows" in platforms else None
 
     if args.no_build:
-        linux_cache = required_file(linux_build / "CMakeCache.txt", "Linux CMake cache")
-        windows_cache = required_file(windows_build / "CMakeCache.txt", "Windows CMake cache")
-        verify_steam_build(linux_cache, "Linux build")
-        verify_steam_build(windows_cache, "Windows build")
+        if "linux" in platforms:
+            linux_cache = required_file(linux_build / "CMakeCache.txt", "Linux CMake cache")
+            verify_steam_build(linux_cache, "Linux build")
+        if "windows" in platforms:
+            windows_cache = required_file(windows_build / "CMakeCache.txt", "Windows CMake cache")
+            verify_steam_build(windows_cache, "Windows build")
     else:
-        configure_steam_build(linux_build, sdk_root, windows=False)
-        configure_steam_build(windows_build, sdk_root, windows=True)
-        run(["cmake", "--build", linux_build, "--parallel", args.jobs])
-        run(["cmake", "--build", windows_build, "--parallel", args.jobs])
+        if "linux" in platforms:
+            configure_steam_build(linux_build, sdk_root, windows=False)
+            run(["cmake", "--build", linux_build, "--parallel", args.jobs])
+        if "windows" in platforms:
+            configure_steam_build(windows_build, sdk_root, windows=True)
+            run(["cmake", "--build", windows_build, "--parallel", args.jobs])
 
     stage_script = ROOT / "scripts/stage_steam_build.py"
-    depots = {
-        "linux-client": ("linux", "client", linux_build, linux_api),
-        "linux-server": ("linux", "server", linux_build, linux_api),
-        "windows-client": ("windows", "client", windows_build, windows_api),
-        "windows-server": ("windows", "server", windows_build, windows_api),
-    }
+    depots = {}
+    if "linux" in platforms:
+        depots.update({
+            "linux-client": ("linux", "client", linux_build, linux_api),
+            "linux-server": ("linux", "server", linux_build, linux_api),
+        })
+    if "windows" in platforms:
+        depots.update({
+            "windows-client": ("windows", "client", windows_build, windows_api),
+            "windows-server": ("windows", "server", windows_build, windows_api),
+        })
     for name, (platform, kind, build_dir, steam_api) in depots.items():
         run([
             sys.executable,
@@ -285,14 +442,15 @@ def main():
             "--output", content / name,
             "--steam-api", steam_api,
         ])
-    for name, source in (
-        ("macos-client", macos_client_depot),
-        ("macos-server", macos_server_depot),
-    ):
-        destination = content / name
-        if destination.exists():
-            shutil.rmtree(destination)
-        shutil.copytree(source, destination)
+    if "macos" in platforms:
+        for name, source in (
+            ("macos-client", macos_client_depot),
+            ("macos-server", macos_server_depot),
+        ):
+            destination = content / name
+            if destination.exists():
+                shutil.rmtree(destination)
+            shutil.copytree(source, destination)
 
     version = git_value("describe", "--tags", "--always", "--dirty", default="local")
     commit = git_value("rev-parse", "HEAD")
@@ -301,6 +459,7 @@ def main():
     run([
         sys.executable,
         ROOT / "scripts/render_steam_build.py",
+        "--platforms", ",".join(sorted(platforms)),
         "--output", manifests,
         "--build-output", build_output,
         "--content-root", content,
@@ -320,13 +479,10 @@ def main():
         sys.executable,
         ROOT / "scripts/verify_steam_release.py",
         "--manifests", manifests,
-        "--linux-client", content / "linux-client",
-        "--linux-server", content / "linux-server",
-        "--windows-client", content / "windows-client",
-        "--windows-server", content / "windows-server",
-        "--macos-client", content / "macos-client",
-        "--macos-server", content / "macos-server",
     ]
+    for platform in sorted(platforms):
+        verify.extend([f"--{platform}-client", content / f"{platform}-client"])
+        verify.extend([f"--{platform}-server", content / f"{platform}-server"])
     for option, directory in (
         ("--standalone-linux", args.standalone_linux_build_dir),
         ("--standalone-windows", args.standalone_windows_build_dir),
@@ -357,8 +513,15 @@ def main():
     if args.upload_target in ("all", "server"):
         upload.extend(["+run_app_build", manifests / "tool_build.vdf"])
     upload.append("+quit")
+    password = os.environ.pop(args.steam_password_env, None) or None
     try:
-        upload_with_retry(upload, build_output, args.upload_attempts, args.upload_retry_delay)
+        upload_with_retry(upload, build_output, args.upload_attempts, args.upload_retry_delay, password=password)
+    except KeyboardInterrupt:
+        raise SystemExit(
+            f"SteamCMD upload interrupted. The verified manifests remain in {manifests}."
+        ) from None
+    except SteamInteractionError as exc:
+        raise SystemExit(f"SteamCMD login failed: {exc}") from None
     except SteamUploadError as exc:
         if exc.transient_http_statuses:
             statuses = ", ".join(f"HTTP {status}" for status in exc.transient_http_statuses)

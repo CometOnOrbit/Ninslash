@@ -12,7 +12,11 @@
 
 namespace
 {
-enum { CLOUD_PROFILE_SCHEMA = 1, CONTENT_BUFFER_SIZE = 60 * 1024 };
+enum
+{
+	CLOUD_PROFILE_SCHEMA = 1,
+	CONTENT_BUFFER_SIZE = 60 * 1024
+};
 
 bool Append(char *pBuffer, int BufferSize, int *pOffset, const char *pFormat, ...)
 {
@@ -36,23 +40,28 @@ bool AppendJsonString(char *pBuffer, int BufferSize, int *pOffset, const char *p
 	{
 		if(*p == '\"' || *p == '\\')
 		{
-			if(!Append(pBuffer, BufferSize, pOffset, "\\%c", *p)) return false;
+			if(!Append(pBuffer, BufferSize, pOffset, "\\%c", *p))
+				return false;
 		}
 		else if(*p == '\n')
 		{
-			if(!Append(pBuffer, BufferSize, pOffset, "\\n")) return false;
+			if(!Append(pBuffer, BufferSize, pOffset, "\\n"))
+				return false;
 		}
 		else if(*p == '\r')
 		{
-			if(!Append(pBuffer, BufferSize, pOffset, "\\r")) return false;
+			if(!Append(pBuffer, BufferSize, pOffset, "\\r"))
+				return false;
 		}
 		else if(*p == '\t')
 		{
-			if(!Append(pBuffer, BufferSize, pOffset, "\\t")) return false;
+			if(!Append(pBuffer, BufferSize, pOffset, "\\t"))
+				return false;
 		}
 		else if(*p >= 32)
 		{
-			if(!Append(pBuffer, BufferSize, pOffset, "%c", *p)) return false;
+			if(!Append(pBuffer, BufferSize, pOffset, "%c", *p))
+				return false;
 		}
 	}
 	return Append(pBuffer, BufferSize, pOffset, "\"");
@@ -80,7 +89,8 @@ bool ReadMetadata(const json_value &Root, CCloudProfileSummary *pSummary)
 	const json_value &Revision = Root["revision"];
 	const json_value &Modified = Root["modified_at"];
 	const json_value &Hash = Root["content_hash"];
-	if(Schema.type != json_integer || Revision.type != json_integer || Modified.type != json_integer || Hash.type != json_string)
+	if(Schema.type != json_integer || Revision.type != json_integer || Modified.type != json_integer ||
+	   Hash.type != json_string)
 		return false;
 	char Trailing = 0;
 	unsigned long long ParsedHash = 0;
@@ -99,7 +109,8 @@ bool ReadMetadata(const json_value &Root, CCloudProfileSummary *pSummary)
 
 ECloudProfileReadResult Parse(const char *pData, int DataSize, json_value **ppRoot, CCloudProfileSummary *pSummary)
 {
-	if(ppRoot) *ppRoot = 0;
+	if(ppRoot)
+		*ppRoot = 0;
 	if(!pData || DataSize <= 0 || DataSize > 64 * 1024)
 		return CLOUD_PROFILE_CORRUPT;
 	json_settings Settings;
@@ -108,7 +119,8 @@ ECloudProfileReadResult Parse(const char *pData, int DataSize, json_value **ppRo
 	json_value *pRoot = json_parse_ex(&Settings, pData, DataSize, aError);
 	if(!pRoot || pRoot->type != json_object || !ReadMetadata(*pRoot, pSummary))
 	{
-		if(pRoot) json_value_free(pRoot);
+		if(pRoot)
+			json_value_free(pRoot);
 		return CLOUD_PROFILE_CORRUPT;
 	}
 	if(pSummary && DocumentContentHash(pData, DataSize) != pSummary->m_ContentHash)
@@ -141,10 +153,13 @@ ECloudProfileReadResult Parse(const char *pData, int DataSize, json_value **ppRo
 		pSummary->m_HighestInvasion = Highest.type == json_integer ? (int)Highest.u.integer : 0;
 		pSummary->m_TutorialCompletedMask = Tutorial.type == json_integer ? (int)Tutorial.u.integer : 0;
 	}
-	if(ppRoot) *ppRoot = pRoot; else json_value_free(pRoot);
+	if(ppRoot)
+		*ppRoot = pRoot;
+	else
+		json_value_free(pRoot);
 	return CLOUD_PROFILE_OK;
 }
-}
+} // namespace
 
 unsigned long long CloudProfileHash(const void *pData, int Size)
 {
@@ -158,36 +173,64 @@ unsigned long long CloudProfileHash(const void *pData, int Size)
 	return Hash;
 }
 
-bool CloudProfileBuild(CBinds *pBinds, int Revision, long long ModifiedAt, char *pBuffer, int BufferSize, CCloudProfileSummary *pSummary)
+bool CloudProfileBuild(
+	CBinds *pBinds, int Revision, long long ModifiedAt, char *pBuffer, int BufferSize, CCloudProfileSummary *pSummary)
 {
 	char aContent[CONTENT_BUFFER_SIZE];
 	int Offset = 0;
 	bool First = true;
-	if(!Append(aContent, sizeof(aContent), &Offset, "{\"profile\":{")) return false;
-#define MACRO_CONFIG_INT(Name, ScriptName, Def, Min, Max, Flags, Desc) \
-	if((Flags) & CFGFLAG_CLOUD) { if(!Append(aContent, sizeof(aContent), &Offset, "%s\"%s\":%d", First ? "" : ",", #ScriptName, g_Config.m_##Name)) return false; First = false; }
-#define MACRO_CONFIG_STR(Name, ScriptName, Len, Def, Flags, Desc) \
-	if((Flags) & CFGFLAG_CLOUD) { if(!Append(aContent, sizeof(aContent), &Offset, "%s\"%s\":", First ? "" : ",", #ScriptName) || !AppendJsonString(aContent, sizeof(aContent), &Offset, g_Config.m_##Name)) return false; First = false; }
+	if(!Append(aContent, sizeof(aContent), &Offset, "{\"profile\":{"))
+		return false;
+#define MACRO_CONFIG_INT(Name, ScriptName, Def, Min, Max, Flags, Desc)                                                 \
+	if((Flags)&CFGFLAG_CLOUD)                                                                                          \
+	{                                                                                                                  \
+		if(!Append(                                                                                                    \
+			   aContent, sizeof(aContent), &Offset, "%s\"%s\":%d", First ? "" : ",", #ScriptName, g_Config.m_##Name))  \
+			return false;                                                                                              \
+		First = false;                                                                                                 \
+	}
+#define MACRO_CONFIG_STR(Name, ScriptName, Len, Def, Flags, Desc)                                                      \
+	if((Flags)&CFGFLAG_CLOUD)                                                                                          \
+	{                                                                                                                  \
+		if(!Append(aContent, sizeof(aContent), &Offset, "%s\"%s\":", First ? "" : ",", #ScriptName) ||                 \
+		   !AppendJsonString(aContent, sizeof(aContent), &Offset, g_Config.m_##Name))                                  \
+			return false;                                                                                              \
+		First = false;                                                                                                 \
+	}
 #include <engine/shared/config_variables.h>
 #undef MACRO_CONFIG_INT
 #undef MACRO_CONFIG_STR
-	if(!Append(aContent, sizeof(aContent), &Offset, "},\"binds\":{")) return false;
+	if(!Append(aContent, sizeof(aContent), &Offset, "},\"binds\":{"))
+		return false;
 	First = true;
 	if(pBinds)
 	{
 		for(int i = 1; i < KEY_LAST; ++i)
 		{
 			const char *pBind = pBinds->Get(i);
-			if(!pBind || !pBind[0]) continue;
-			if(!Append(aContent, sizeof(aContent), &Offset, "%s\"%d\":", First ? "" : ",", i) || !AppendJsonString(aContent, sizeof(aContent), &Offset, pBind)) return false;
+			if(!pBind || !pBind[0])
+				continue;
+			if(!Append(aContent, sizeof(aContent), &Offset, "%s\"%d\":", First ? "" : ",", i) ||
+			   !AppendJsonString(aContent, sizeof(aContent), &Offset, pBind))
+				return false;
 			First = false;
 		}
 	}
-	if(!Append(aContent, sizeof(aContent), &Offset, "}}")) return false;
+	if(!Append(aContent, sizeof(aContent), &Offset, "}}"))
+		return false;
 	const unsigned long long Hash = CloudProfileHash(aContent, Offset);
 	int Out = 0;
-	if(!Append(pBuffer, BufferSize, &Out, "{\"schema_version\":%d,\"revision\":%d,\"modified_at\":%lld,\"content_hash\":\"%016llx\",", CLOUD_PROFILE_SCHEMA, max(0, Revision), ModifiedAt, Hash)) return false;
-	if(!Append(pBuffer, BufferSize, &Out, "%s", aContent + 1)) return false;
+	if(!Append(pBuffer,
+			   BufferSize,
+			   &Out,
+			   "{\"schema_version\":%d,\"revision\":%d,\"modified_at\":%lld,\"content_hash\":\"%016llx\",",
+			   CLOUD_PROFILE_SCHEMA,
+			   max(0, Revision),
+			   ModifiedAt,
+			   Hash))
+		return false;
+	if(!Append(pBuffer, BufferSize, &Out, "%s", aContent + 1))
+		return false;
 	if(pSummary)
 		CloudProfileInspect(pBuffer, Out, pSummary);
 	return true;
@@ -198,17 +241,28 @@ ECloudProfileReadResult CloudProfileInspect(const char *pData, int DataSize, CCl
 	return Parse(pData, DataSize, 0, pSummary);
 }
 
-ECloudProfileReadResult CloudProfileApply(const char *pData, int DataSize, CBinds *pBinds, CCloudProfileSummary *pSummary)
+ECloudProfileReadResult
+CloudProfileApply(const char *pData, int DataSize, CBinds *pBinds, CCloudProfileSummary *pSummary)
 {
 	json_value *pRoot = 0;
 	const ECloudProfileReadResult Result = Parse(pData, DataSize, &pRoot, pSummary);
 	if(Result != CLOUD_PROFILE_OK)
 		return Result;
 	const json_value &Profile = (*pRoot)["profile"];
-#define MACRO_CONFIG_INT(Name, ScriptName, Def, Min, Max, Flags, Desc) \
-	if((Flags) & CFGFLAG_CLOUD) { const json_value &Value = Profile[#ScriptName]; if(Value.type == json_integer) g_Config.m_##Name = clamp((int)Value.u.integer, (int)(Min), (int)(Max)); }
-#define MACRO_CONFIG_STR(Name, ScriptName, Len, Def, Flags, Desc) \
-	if((Flags) & CFGFLAG_CLOUD) { const json_value &Value = Profile[#ScriptName]; if(Value.type == json_string) str_copy(g_Config.m_##Name, (const char *)Value, sizeof(g_Config.m_##Name)); }
+#define MACRO_CONFIG_INT(Name, ScriptName, Def, Min, Max, Flags, Desc)                                                 \
+	if((Flags)&CFGFLAG_CLOUD)                                                                                          \
+	{                                                                                                                  \
+		const json_value &Value = Profile[#ScriptName];                                                                \
+		if(Value.type == json_integer)                                                                                 \
+			g_Config.m_##Name = clamp((int)Value.u.integer, (int)(Min), (int)(Max));                                   \
+	}
+#define MACRO_CONFIG_STR(Name, ScriptName, Len, Def, Flags, Desc)                                                      \
+	if((Flags)&CFGFLAG_CLOUD)                                                                                          \
+	{                                                                                                                  \
+		const json_value &Value = Profile[#ScriptName];                                                                \
+		if(Value.type == json_string)                                                                                  \
+			str_copy(g_Config.m_##Name, (const char *)Value, sizeof(g_Config.m_##Name));                               \
+	}
 #include <engine/shared/config_variables.h>
 #undef MACRO_CONFIG_INT
 #undef MACRO_CONFIG_STR

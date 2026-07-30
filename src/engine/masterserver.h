@@ -8,11 +8,10 @@
 class IMasterServer : public IInterface
 {
 	MACRO_INTERFACE("masterserver", 0)
-public:
-
+  public:
 	enum
 	{
-		MAX_MASTERSERVERS=4
+		MAX_MASTERSERVERS = 4
 	};
 
 	virtual void Init() = 0;
@@ -31,12 +30,9 @@ public:
 class IEngineMasterServer : public IMasterServer
 {
 	MACRO_INTERFACE("enginemasterserver", 0)
-public:
+  public:
 };
 
 extern IEngineMasterServer *CreateEngineMasterServer();
 
 #endif
-
-
-

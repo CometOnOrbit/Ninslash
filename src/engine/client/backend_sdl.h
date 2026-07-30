@@ -7,52 +7,52 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 
-
 // Use SDL semaphores on Mac OS X, because (unnamed) posix semaphores are not available
 #if defined(CONF_PLATFORM_MACOSX)
-	class semaphore
+class semaphore
+{
+	SDL_Semaphore *sem;
+
+  public:
+	semaphore() { sem = SDL_CreateSemaphore(0); }
+	~semaphore() { SDL_DestroySemaphore(sem); }
+	void wait() { SDL_WaitSemaphore(sem); }
+	void signal() { SDL_SignalSemaphore(sem); }
+};
+
+#include <objc/objc-runtime.h>
+
+class CAutoreleasePool
+{
+  private:
+	id m_Pool;
+
+  public:
+	CAutoreleasePool()
 	{
-		SDL_Semaphore *sem;
-	public:
-		semaphore() { sem = SDL_CreateSemaphore(0); }
-		~semaphore() { SDL_DestroySemaphore(sem); }
-		void wait() { SDL_WaitSemaphore(sem); }
-		void signal() { SDL_SignalSemaphore(sem); }
-	};
+		Class NSAutoreleasePoolClass = (Class)objc_getClass("NSAutoreleasePool");
+		m_Pool = class_createInstance(NSAutoreleasePoolClass, 0);
+		SEL selector = sel_registerName("init");
+		// arm64 requires an explicit cast for objc_msgSend
+		((id(*)(id, SEL))objc_msgSend)(m_Pool, selector);
+	}
 
-	#include <objc/objc-runtime.h>
-	
-	class CAutoreleasePool
+	~CAutoreleasePool()
 	{
-	private:
-		id m_Pool;
-
-	public:
-		CAutoreleasePool()
-		{
-			Class NSAutoreleasePoolClass = (Class) objc_getClass("NSAutoreleasePool");
-			m_Pool = class_createInstance(NSAutoreleasePoolClass, 0);
-			SEL selector = sel_registerName("init");
-			// arm64 requires an explicit cast for objc_msgSend
-			((id (*)(id, SEL))objc_msgSend)(m_Pool, selector);
-		}
-
-		~CAutoreleasePool()
-		{
-			SEL selector = sel_registerName("drain");
-			((id (*)(id, SEL))objc_msgSend)(m_Pool, selector);
-		}
-	};	
+		SEL selector = sel_registerName("drain");
+		((id(*)(id, SEL))objc_msgSend)(m_Pool, selector);
+	}
+};
 #endif
 
 // basic threaded backend, abstract, missing init and shutdown functions
 class CGraphicsBackend_Threaded : public IGraphicsBackend
 {
-public:
+  public:
 	// constructed on the main thread, the rest of the functions is run on the render thread
 	class ICommandProcessor
 	{
-	public:
+	  public:
 		virtual ~ICommandProcessor() {}
 		virtual void RunBuffer(CCommandBuffer *pBuffer) = 0;
 	};
@@ -62,14 +62,14 @@ public:
 	virtual void RunBuffer(CCommandBuffer *pBuffer);
 	virtual bool IsIdle() const;
 	virtual void WaitForIdle();
-		
-protected:
+
+  protected:
 	void StartProcessor(ICommandProcessor *pProcessor);
 	void StopProcessor();
 
-private:
+  private:
 	ICommandProcessor *m_pProcessor;
-	CCommandBuffer * volatile m_pBuffer;
+	CCommandBuffer *volatile m_pBuffer;
 	volatile bool m_Shutdown;
 	semaphore m_Activity;
 	semaphore m_BufferDone;
@@ -83,10 +83,10 @@ class CCommandProcessorFragment_General
 {
 	void Cmd_Nop();
 	void Cmd_Signal(const CCommandBuffer::SCommand_Signal *pCommand);
-public:
-	bool RunCommand(const CCommandBuffer::SCommand * pBaseCommand);
-};
 
+  public:
+	bool RunCommand(const CCommandBuffer::SCommand *pBaseCommand);
+};
 
 // takes care of opengl related rendering
 class CCommandProcessorFragment_OpenGL
@@ -100,23 +100,23 @@ class CCommandProcessorFragment_OpenGL
 	volatile int *m_pTextureMemoryUsage;
 
 	GLuint m_PixelTexture;
-	
+
 	GLuint textureBuffer[NUM_RENDERBUFFERS];
 	GLuint renderedTexture[NUM_RENDERBUFFERS];
 
 	bool m_MultiBuffering;
-	
+
 	float m_AmbientR;
 	float m_AmbientG;
 	float m_AmbientB;
-	
+
 	int m_ScreenWidth;
 	int m_ScreenHeight;
 	int m_CameraX;
 	int m_CameraY;
-	
+
 	bool m_ShadersLoaded;
-	
+
 	class CShader
 	{
 		struct CUniformLocation
@@ -126,9 +126,9 @@ class CCommandProcessorFragment_OpenGL
 		};
 
 		GLuint m_Program;
-		std::map<const GLcharARB*, CUniformLocation> m_aUniformLocationCache;
+		std::map<const GLcharARB *, CUniformLocation> m_aUniformLocationCache;
 
-	public:
+	  public:
 		CShader() : m_Program(0) {}
 		GLuint Handle() const { return m_Program; }
 		GLint getUniformLocation(const char *pName);
@@ -137,7 +137,7 @@ class CCommandProcessorFragment_OpenGL
 	};
 	CShader m_aShader[NUM_SHADERS];
 
-public:
+  public:
 	enum
 	{
 		CMD_INIT = CCommandBuffer::CMDGROUP_PLATFORM_OPENGL,
@@ -149,9 +149,10 @@ public:
 		volatile int *m_pTextureMemoryUsage;
 	};
 
-private:
+  private:
 	static int TexFormatToOpenGLFormat(int TexFormat);
-	static unsigned char Sample(int w, int h, const unsigned char *pData, int u, int v, int Offset, int ScaleW, int ScaleH, int Bpp);
+	static unsigned char
+	Sample(int w, int h, const unsigned char *pData, int u, int v, int Offset, int ScaleW, int ScaleH, int Bpp);
 	static void *Rescale(int Width, int Height, int NewWidth, int NewHeight, int Format, const unsigned char *pData);
 
 	void SetState(const CCommandBuffer::SState &State);
@@ -171,11 +172,11 @@ private:
 	void Cmd_Screenshot(const CCommandBuffer::SCommand_Screenshot *pCommand);
 
 	float GetTime();
-	
-public:
+
+  public:
 	CCommandProcessorFragment_OpenGL();
 
-	bool RunCommand(const CCommandBuffer::SCommand * pBaseCommand);
+	bool RunCommand(const CCommandBuffer::SCommand *pBaseCommand);
 };
 
 // takes care of sdl related commands
@@ -183,8 +184,9 @@ class CCommandProcessorFragment_SDL
 {
 	// SDL stuff
 	SDL_GLContext m_GLContext;
-	SDL_Window * m_pWindow;
-public:
+	SDL_Window *m_pWindow;
+
+  public:
 	enum
 	{
 		CMD_INIT = CCommandBuffer::CMDGROUP_PLATFORM_SDL,
@@ -195,7 +197,7 @@ public:
 	{
 		SCommand_Init() : SCommand(CMD_INIT) {}
 		SDL_GLContext m_GLContext;
-		SDL_Window * m_pWindow;
+		SDL_Window *m_pWindow;
 	};
 
 	struct SCommand_Shutdown : public CCommandBuffer::SCommand
@@ -203,12 +205,13 @@ public:
 		SCommand_Shutdown() : SCommand(CMD_SHUTDOWN) {}
 	};
 
-private:
+  private:
 	void Cmd_Init(const SCommand_Init *pCommand);
 	void Cmd_Shutdown(const SCommand_Shutdown *pCommand);
 	void Cmd_Swap(const CCommandBuffer::SCommand_Swap *pCommand);
 	void Cmd_VideoModes(const CCommandBuffer::SCommand_VideoModes *pCommand);
-public:
+
+  public:
 	CCommandProcessorFragment_SDL();
 
 	bool RunCommand(const CCommandBuffer::SCommand *pBaseCommand);
@@ -217,28 +220,37 @@ public:
 // command processor impelementation, uses the fragments to combine into one processor
 class CCommandProcessor_SDL_OpenGL : public CGraphicsBackend_Threaded::ICommandProcessor
 {
- 	CCommandProcessorFragment_OpenGL m_OpenGL;
- 	CCommandProcessorFragment_SDL m_SDL;
- 	CCommandProcessorFragment_General m_General;
- public:
+	CCommandProcessorFragment_OpenGL m_OpenGL;
+	CCommandProcessorFragment_SDL m_SDL;
+	CCommandProcessorFragment_General m_General;
+
+  public:
 	virtual void RunBuffer(CCommandBuffer *pBuffer);
 };
 
 // graphics backend implemented with SDL and OpenGL
 class CGraphicsBackend_SDL_OpenGL : public CGraphicsBackend_Threaded
 {
-    SDL_Window *m_pWindow;
-    SDL_GLContext m_GLContext;
+	SDL_Window *m_pWindow;
+	SDL_GLContext m_GLContext;
 	bool m_OffscreenCapture;
-	
+
 	ICommandProcessor *m_pProcessor;
 	volatile int m_TextureMemoryUsage;
 	int ResolveScreenIndex(int Screen) const;
 	SDL_DisplayID DisplayIDFromIndex(int Index) const;
 	void CleanupFailedInit();
-public:
+
+  public:
 	CGraphicsBackend_SDL_OpenGL();
-	virtual int Init(const char *pName, int *Width, int *Height, int *pScreen, int FsaaSamples, int Flags, int *pDesktopWidth, int *pDesktopHeight);
+	virtual int Init(const char *pName,
+					 int *Width,
+					 int *Height,
+					 int *pScreen,
+					 int FsaaSamples,
+					 int Flags,
+					 int *pDesktopWidth,
+					 int *pDesktopHeight);
 	virtual int Shutdown();
 
 	virtual int MemoryUsage() const;

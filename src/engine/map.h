@@ -8,7 +8,7 @@
 class IMap : public IInterface
 {
 	MACRO_INTERFACE("map", 0)
-public:
+  public:
 	virtual void *GetData(int Index) = 0;
 	virtual void *GetDataSwapped(int Index) = 0;
 	virtual void UnloadData(int Index) = 0;
@@ -18,14 +18,13 @@ public:
 	virtual void *FindItem(int Type, int ID) = 0;
 	virtual int NumItems() = 0;
 
-	virtual class CDataFileReader* GetFileReader() = 0; // MapGen
+	virtual class CDataFileReader *GetFileReader() = 0; // MapGen
 };
-
 
 class IEngineMap : public IMap
 {
 	MACRO_INTERFACE("enginemap", 0)
-public:
+  public:
 	virtual bool Load(const char *pMapName) = 0;
 	virtual bool IsLoaded() = 0;
 	virtual void Unload() = 0;

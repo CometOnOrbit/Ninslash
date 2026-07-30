@@ -9,9 +9,8 @@ class CMsgPacker : public CPacker
 {
 	int m_MsgID;
 
-public:
-	explicit CMsgPacker(int Type) :
-		m_MsgID(Type)
+  public:
+	explicit CMsgPacker(int Type) : m_MsgID(Type)
 	{
 		Reset();
 		AddInt(Type);

@@ -19,6 +19,19 @@ are reproduced in `src/engine/external/json-parser/LICENSE.txt`.
 Copyright © 1998–2006 Conifer Software. BSD 3-Clause terms are reproduced in
 `src/engine/external/wavpack/license.txt`.
 
+## MiniZip
+
+The local package importer uses the classic Zip64-capable MiniZip reader from
+zlib 1.3.1. Copyright © 1998–2010 Gilles Vollant, Even Rouault, and Mathias
+Svensson. It is distributed under the zlib license; notices and provenance are
+retained in `src/engine/external/minizip/`.
+
+## Portable File Dialogs
+
+Copyright © 2018–2022 Sam Hocevar. The standalone ZIP picker uses Portable File
+Dialogs under the WTFPL, Version 2. Its complete notice is retained in
+`src/engine/external/portable-file-dialogs/portable-file-dialogs.h`.
+
 ## FreeType
 
 The Windows client bundles FreeType 2.14.3. FreeType License terms are

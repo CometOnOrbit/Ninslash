@@ -7,8 +7,8 @@ class CFileCollection
 {
 	enum
 	{
-		MAX_ENTRIES=1000,
-		TIMESTAMP_LENGTH=20,	// _YYYY-MM-DD_HH-MM-SS
+		MAX_ENTRIES = 1000,
+		TIMESTAMP_LENGTH = 20, // _YYYY-MM-DD_HH-MM-SS
 	};
 
 	int64 m_aTimestamps[MAX_ENTRIES];
@@ -25,7 +25,7 @@ class CFileCollection
 	int64 ExtractTimestamp(const char *pTimestring);
 	void BuildTimestring(int64 Timestamp, char *pTimestring);
 
-public:
+  public:
 	void Init(IStorage *pStorage, const char *pPath, const char *pFileDesc, const char *pFileExt, int MaxEntries);
 	void AddEntry(int64 Timestamp);
 

@@ -16,6 +16,18 @@
 
 版权所有 © 1998–2006 Conifer Software。BSD 3-Clause 条款全文见 `src/engine/external/wavpack/license.txt`。
 
+## MiniZip
+
+本地内容包导入器使用 zlib 1.3.1 中支持 Zip64 的经典 MiniZip 读取器。
+版权所有 © 1998–2010 Gilles Vollant、Even Rouault 和 Mathias Svensson，按
+zlib 许可证分发；声明与来源保留在 `src/engine/external/minizip/`。
+
+## Portable File Dialogs
+
+版权所有 © 2018–2022 Sam Hocevar。独立版 ZIP 文件选择器使用 WTFPL
+Version 2 下的 Portable File Dialogs；完整声明保留在
+`src/engine/external/portable-file-dialogs/portable-file-dialogs.h`。
+
 ## FreeType
 
 Windows 客户端内置 FreeType 2.14.3。FreeType License 条款见

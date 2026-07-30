@@ -88,7 +88,7 @@ option(DEV "Don't generate stuff necessary for packaging" OFF)
 option(ENABLE_STEAMWORKS "Build optional Steamworks client integration" OFF)
 option(ENABLE_STEAM_GAMESERVER "Build optional Steam GameServer registration and auth" OFF)
 option(ENABLE_STEAM_LISTEN_SERVER "Build the in-client Steam Relay listen-server support" OFF)
-option(ENABLE_LUA_MODS "Build the sandboxed Lua gameplay Mod runtime" OFF)
+option(ENABLE_LUA_MODS "Build the sandboxed Lua gameplay Mod runtime" ON)
 option(NINSLASH_BUILD_TESTS "Build focused release-readiness tests" OFF)
 set(STEAMWORKS_SDK_ROOT "" CACHE PATH "Steamworks SDK root containing public/steam and redistributable_bin")
 set(STEAM_APP_ID "1812700" CACHE STRING "Steam AppID used by the release build")
@@ -116,20 +116,18 @@ if(ENABLE_STEAMWORKS OR ENABLE_STEAM_GAMESERVER OR ENABLE_STEAM_LISTEN_SERVER)
   endif()
 endif()
 
-if(ENABLE_LUA_MODS)
-  file(GLOB LUA_SOURCES "${PROJECT_SOURCE_DIR}/other/lua/src/*.c")
-  list(REMOVE_ITEM LUA_SOURCES
-    "${PROJECT_SOURCE_DIR}/other/lua/src/lua.c"
-    "${PROJECT_SOURCE_DIR}/other/lua/src/luac.c"
-    "${PROJECT_SOURCE_DIR}/other/lua/src/onelua.c"
-    "${PROJECT_SOURCE_DIR}/other/lua/src/liolib.c"
-    "${PROJECT_SOURCE_DIR}/other/lua/src/loslib.c"
-    "${PROJECT_SOURCE_DIR}/other/lua/src/loadlib.c"
-    "${PROJECT_SOURCE_DIR}/other/lua/src/ldblib.c")
-  add_library(ninslash-lua STATIC ${LUA_SOURCES})
-  target_include_directories(ninslash-lua PUBLIC "${PROJECT_SOURCE_DIR}/other/lua/src")
-  target_compile_definitions(ninslash-lua PRIVATE LUA_COMPAT_5_3)
-endif()
+file(GLOB LUA_SOURCES "${PROJECT_SOURCE_DIR}/other/lua/src/*.c")
+list(REMOVE_ITEM LUA_SOURCES
+  "${PROJECT_SOURCE_DIR}/other/lua/src/lua.c"
+  "${PROJECT_SOURCE_DIR}/other/lua/src/luac.c"
+  "${PROJECT_SOURCE_DIR}/other/lua/src/onelua.c"
+  "${PROJECT_SOURCE_DIR}/other/lua/src/liolib.c"
+  "${PROJECT_SOURCE_DIR}/other/lua/src/loslib.c"
+  "${PROJECT_SOURCE_DIR}/other/lua/src/loadlib.c"
+  "${PROJECT_SOURCE_DIR}/other/lua/src/ldblib.c")
+add_library(ninslash-lua STATIC ${LUA_SOURCES})
+target_include_directories(ninslash-lua PUBLIC "${PROJECT_SOURCE_DIR}/other/lua/src")
+target_compile_definitions(ninslash-lua PRIVATE LUA_COMPAT_5_3)
 
 set(APP_ID ${STEAM_APP_ID})
 set(SERVER_TOOL_APP_ID ${STEAM_GAMESERVER_APP_ID})
@@ -399,7 +397,7 @@ endif()
 
 if(TARGET_OS STREQUAL "windows")
   set(PLATFORM_CLIENT)
-  set(PLATFORM_CLIENT_LIBS opengl32 glu32 winmm)
+  set(PLATFORM_CLIENT_LIBS opengl32 glu32 winmm comdlg32 ole32 shell32 userenv)
   set(PLATFORM_LIBS ws2_32) # Windows sockets
 elseif(TARGET_OS STREQUAL "mac")
   find_library(COCOA Cocoa)
@@ -457,10 +455,6 @@ function(chash output_file)
 endfunction()
 
 function(generate_source output_file script_parameter)
-  set(extra_dependencies)
-  if(script_parameter STREQUAL "weapon_profiles")
-    list(APPEND extra_dependencies datasrc/weapon_profiles.py)
-  endif()
   add_custom_command(OUTPUT ${output_file}
     COMMAND ${Python3_EXECUTABLE} datasrc/compile.py ${script_parameter}
       > "${PROJECT_BINARY_DIR}/${output_file}"
@@ -470,7 +464,6 @@ function(generate_source output_file script_parameter)
       datasrc/datatypes.py
       datasrc/network.py
       datasrc/weapon_types.py
-      ${extra_dependencies}
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
   )
 endfunction()
@@ -486,7 +479,26 @@ generate_source("src/generated/game_data.cpp" "game_content_source")
 generate_source("src/generated/game_data.h" "game_content_header")
 generate_source("src/generated/protocol.cpp" "network_source")
 generate_source("src/generated/protocol.h" "network_header")
-generate_source("src/generated/weapon_profiles.inc" "weapon_profiles")
+file(STRINGS "${PROJECT_SOURCE_DIR}/data/weapons/official_manifest.txt" OFFICIAL_WEAPON_FILES)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  "${PROJECT_SOURCE_DIR}/data/weapons/official_manifest.txt")
+list(TRANSFORM OFFICIAL_WEAPON_FILES PREPEND "data/weapons/")
+add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc"
+  COMMAND ${Python3_EXECUTABLE} scripts/embed_binary.py
+    data/weapons/weapon_dsl.lua
+    gs_aWeaponDslLua
+    > "${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc"
+  DEPENDS scripts/embed_binary.py data/weapons/weapon_dsl.lua
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
+add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/src/generated/official_weapons.inc"
+  COMMAND ${Python3_EXECUTABLE} scripts/embed_binary.py
+    @data/weapons/official_manifest.txt
+    gs_aOfficialWeaponsLua
+    > "${PROJECT_BINARY_DIR}/src/generated/official_weapons.inc"
+  DEPENDS scripts/embed_binary.py data/weapons/official_manifest.txt ${OFFICIAL_WEAPON_FILES}
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
 
 
 ########################################################################
@@ -600,6 +612,13 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   stream.cpp
   stream.h
 )
+set_src(MINIZIP_SRC GLOB src/engine/external/minizip
+  ioapi.c
+  ioapi.h
+  unzip.c
+  unzip.h
+)
+list(APPEND ENGINE_SHARED ${MINIZIP_SRC})
 list(REMOVE_ITEM ENGINE_SHARED "${PROJECT_SOURCE_DIR}/src/engine/shared/mod_runtime.cpp" "src/engine/shared/mod_runtime.cpp")
 
 set(ENGINE_GENERATED_SHARED src/generated/protocol.cpp src/generated/protocol.h)
@@ -631,7 +650,15 @@ set_src(GAME_SHARED GLOB src/game
   voting.h
   weapon_catalog.cpp
   weapon_catalog.h
-  weapons.h
+  weapon_lua.cpp
+  weapon_lua.h
+	weapon_packages.cpp
+	weapon_packages.h
+	weapon_presentation_runtime.cpp
+	weapon_presentation_runtime.h
+	weapon_script_runtime.cpp
+	weapon_script_runtime.h
+	weapons.h
 )
 
 set(GAME_GENERATED_SHARED
@@ -639,7 +666,8 @@ set(GAME_GENERATED_SHARED
   src/generated/protocol.h
   src/generated/game_data.cpp
   src/generated/game_data.h
-  ${PROJECT_BINARY_DIR}/src/generated/weapon_profiles.inc
+  ${PROJECT_BINARY_DIR}/src/generated/official_weapons.inc
+  ${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc
 )
 
 set(DEPS ${DEP_JSON} ${ZLIB_DEP})
@@ -649,19 +677,118 @@ set(LIBS
   ${CMAKE_THREAD_LIBS_INIT}
   ${ZLIB_LIBRARIES}
   ${PLATFORM_LIBS}
+  ninslash-lua
 )
 
 # Targets
 add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_GENERATED_SHARED} ${BASE})
+target_compile_definitions(engine-shared PRIVATE NOUNCRYPT)
 if(ENABLE_LUA_MODS)
   target_compile_definitions(engine-shared PRIVATE CONF_LUA_MOD_API)
 endif()
 add_library(game-shared EXCLUDE_FROM_ALL OBJECT ${GAME_SHARED} ${GAME_GENERATED_SHARED})
+target_compile_definitions(game-shared PRIVATE CONF_LUA_WEAPONS)
+target_link_libraries(game-shared PUBLIC ninslash-lua)
 list(APPEND TARGETS_OWN engine-shared game-shared)
 
 if(NINSLASH_BUILD_TESTS)
   enable_testing()
   set(NINSLASH_TEST_TARGETS)
+  add_executable(ninslash_weapon_balance
+    tools/weapon_balance.cpp
+    $<TARGET_OBJECTS:game-shared>
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_weapon_balance PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_weapon_balance ${LIBS})
+  add_executable(ninslash_test_weapon_lua
+    tests/weapon_lua.cpp
+    $<TARGET_OBJECTS:game-shared>
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_weapon_lua PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_weapon_lua ${LIBS})
+  add_test(NAME weapon_lua COMMAND ninslash_test_weapon_lua)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_weapon_lua)
+  add_executable(ninslash_test_weapon_lua_components
+    tests/weapon_lua_components.cpp
+    "${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc"
+    "${PROJECT_BINARY_DIR}/src/generated/official_weapons.inc"
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  # This target includes weapon_lua.cpp directly for isolated fault injection.
+  # Prefer CMake's generated embeds over source-tree embeds left by Bam.
+  target_include_directories(ninslash_test_weapon_lua_components BEFORE PRIVATE ${PROJECT_BINARY_DIR}/src ${PROJECT_SOURCE_DIR}/src)
+  target_link_libraries(ninslash_test_weapon_lua_components ${LIBS})
+  add_test(NAME weapon_lua_components COMMAND ninslash_test_weapon_lua_components)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_weapon_lua_components)
+  add_executable(ninslash_test_weapon_content_hash
+    tests/weapon_content_hash.cpp
+    $<TARGET_OBJECTS:game-shared>
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_weapon_content_hash PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_weapon_content_hash ${LIBS})
+  add_test(NAME weapon_content_hash
+    COMMAND ${Python3_EXECUTABLE} scripts/check_official_weapon_hash.py $<TARGET_FILE:ninslash_test_weapon_content_hash>)
+  set_tests_properties(weapon_content_hash PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_weapon_content_hash)
+  add_executable(ninslash_test_weapon_packages
+    tests/weapon_packages.cpp
+    $<TARGET_OBJECTS:game-shared>
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_weapon_packages PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_weapon_packages ${LIBS})
+  add_test(NAME weapon_packages COMMAND ninslash_test_weapon_packages)
+  set_tests_properties(weapon_packages PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_weapon_packages)
+  add_executable(ninslash_test_weapon_script_runtime
+    tests/weapon_script_runtime.cpp
+    $<TARGET_OBJECTS:game-shared>
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_weapon_script_runtime PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_weapon_script_runtime ${LIBS})
+  add_test(NAME weapon_script_runtime COMMAND ninslash_test_weapon_script_runtime)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_weapon_script_runtime)
+  add_executable(ninslash_test_weapon_presentation_runtime tests/weapon_presentation_runtime.cpp $<TARGET_OBJECTS:game-shared> $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_weapon_presentation_runtime PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_weapon_presentation_runtime ${LIBS})
+  add_test(NAME weapon_presentation_runtime COMMAND ninslash_test_weapon_presentation_runtime)
+	add_test(NAME weapon_execution_static
+		COMMAND ${Python3_EXECUTABLE} scripts/check_weapon_execution.py)
+	set_tests_properties(weapon_execution_static PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	add_test(NAME weapon_lua_api
+		COMMAND ${Python3_EXECUTABLE} scripts/check_weapon_lua_api.py)
+	set_tests_properties(weapon_lua_api PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	add_test(NAME weapon_float_literals
+		COMMAND ${Python3_EXECUTABLE} scripts/normalize_weapon_floats.py)
+	set_tests_properties(weapon_float_literals PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	add_test(NAME weapon_lua_format
+		COMMAND ${Python3_EXECUTABLE} scripts/format_weapon_lua.py)
+	set_tests_properties(weapon_lua_format PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	add_test(NAME weapon_visual_baseline
+		COMMAND ${Python3_EXECUTABLE} scripts/export_legacy_weapon_visuals.py)
+	set_tests_properties(weapon_visual_baseline PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	add_test(NAME graphics_batch_order
+		COMMAND ${Python3_EXECUTABLE} tests/check_graphics_batch_order.py)
+	set_tests_properties(graphics_batch_order PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	add_test(NAME steam_platform_render
+		COMMAND ${Python3_EXECUTABLE} tests/check_steam_platform_render.py)
+	set_tests_properties(steam_platform_render PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	if(UNIX)
+		add_test(NAME steam_password_prompt
+			COMMAND ${Python3_EXECUTABLE} tests/check_steam_password_prompt.py)
+		set_tests_properties(steam_password_prompt PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	endif()
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_weapon_presentation_runtime)
   add_test(NAME build_config COMMAND ${CMAKE_COMMAND}
     -DNINSLASH_SOURCE_DIR=${PROJECT_SOURCE_DIR}
     -P ${PROJECT_SOURCE_DIR}/tests/build_config.cmake
@@ -797,6 +924,35 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_content_package PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_content_package ${LIBS})
   add_test(NAME content_package COMMAND ninslash_test_content_package)
+  set(CONTENT_IMPORT_FIXTURES "${PROJECT_BINARY_DIR}/content-import-fixtures")
+  add_custom_command(
+    OUTPUT "${CONTENT_IMPORT_FIXTURES}/friendly.zip"
+    COMMAND ${Python3_EXECUTABLE} tests/create_content_import_fixtures.py examples/workshop_weapon "${CONTENT_IMPORT_FIXTURES}"
+    DEPENDS tests/create_content_import_fixtures.py
+      examples/workshop_weapon/ninslash_content.json
+      examples/workshop_weapon/plasma.weapon.lua
+      examples/workshop_weapon/plasma.weapon_runtime.lua
+      examples/workshop_weapon/plasma.weapon_presentation.lua
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+  )
+  add_custom_target(ninslash_content_import_fixtures DEPENDS "${CONTENT_IMPORT_FIXTURES}/friendly.zip")
+  add_executable(ninslash_test_content_package_import tests/content_package_import.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  add_dependencies(ninslash_test_content_package_import ninslash_content_import_fixtures)
+  target_include_directories(ninslash_test_content_package_import PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_content_package_import ${LIBS})
+  add_test(NAME content_package_import COMMAND ninslash_test_content_package_import "${CONTENT_IMPORT_FIXTURES}")
+  add_executable(ninslash_test_server_mod_manager
+    tests/server_mod_manager.cpp
+    src/engine/server/server_mod_manager.cpp
+    $<TARGET_OBJECTS:game-shared>
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  add_dependencies(ninslash_test_server_mod_manager ninslash_content_import_fixtures)
+  target_include_directories(ninslash_test_server_mod_manager PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_server_mod_manager ${LIBS})
+  add_test(NAME server_mod_manager COMMAND ninslash_test_server_mod_manager "${CONTENT_IMPORT_FIXTURES}")
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_server_mod_manager)
   add_executable(ninslash_test_content_collection tests/content_collection.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
   target_include_directories(ninslash_test_content_collection PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_content_collection ${LIBS})
@@ -828,6 +984,7 @@ if(NINSLASH_BUILD_TESTS)
       tests/mod_server_runtime.cpp
       src/engine/server/mod_server.cpp
       src/engine/shared/mod_runtime.cpp
+      $<TARGET_OBJECTS:game-shared>
       $<TARGET_OBJECTS:engine-shared>
       $<TARGET_OBJECTS:json>
     )
@@ -977,6 +1134,8 @@ if(CLIENT)
     components/pve_roguelite.h
     cloud_profile.cpp
     cloud_profile.h
+    weapon_resources.cpp
+    weapon_resources.h
     pve_progress_storage.cpp
     pve_progress_storage.h
     local_game_modes.h
@@ -1176,10 +1335,14 @@ endif()
 
 # Sources
 set_src(ENGINE_SERVER GLOB src/engine/server
-  localization.cpp
-  localization.h
-  register.cpp
-  register.h
+	localization.cpp
+	localization.h
+	mod_server.cpp
+	mod_server.h
+	register.cpp
+	register.h
+	server_mod_manager.cpp
+	server_mod_manager.h
   server.cpp
   server.h
   platform_gameserver.cpp

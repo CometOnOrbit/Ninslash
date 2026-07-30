@@ -72,7 +72,17 @@ struct CPlatformInputState
 	float m_GyroY;
 };
 
-enum EPlatformPresenceState { PLATFORM_PRESENCE_MENU, PLATFORM_PRESENCE_PARTY, PLATFORM_PRESENCE_READY, PLATFORM_PRESENCE_LOADING, PLATFORM_PRESENCE_PLAYING, PLATFORM_PRESENCE_CHALLENGE, PLATFORM_PRESENCE_SPECTATING, PLATFORM_PRESENCE_REPLAY };
+enum EPlatformPresenceState
+{
+	PLATFORM_PRESENCE_MENU,
+	PLATFORM_PRESENCE_PARTY,
+	PLATFORM_PRESENCE_READY,
+	PLATFORM_PRESENCE_LOADING,
+	PLATFORM_PRESENCE_PLAYING,
+	PLATFORM_PRESENCE_CHALLENGE,
+	PLATFORM_PRESENCE_SPECTATING,
+	PLATFORM_PRESENCE_REPLAY
+};
 struct CPlatformPresence
 {
 	int m_State;
@@ -88,8 +98,21 @@ struct CPlatformPresence
 	char m_aConnect[256];
 };
 
-enum EPlatformTimelineMode { PLATFORM_TIMELINE_MENU, PLATFORM_TIMELINE_PARTY, PLATFORM_TIMELINE_LOADING, PLATFORM_TIMELINE_PLAYING, PLATFORM_TIMELINE_PAUSED, PLATFORM_TIMELINE_REPLAY };
-enum EPlatformTimelineClipPriority { PLATFORM_TIMELINE_CLIP_NONE, PLATFORM_TIMELINE_CLIP_STANDARD, PLATFORM_TIMELINE_CLIP_FEATURED };
+enum EPlatformTimelineMode
+{
+	PLATFORM_TIMELINE_MENU,
+	PLATFORM_TIMELINE_PARTY,
+	PLATFORM_TIMELINE_LOADING,
+	PLATFORM_TIMELINE_PLAYING,
+	PLATFORM_TIMELINE_PAUSED,
+	PLATFORM_TIMELINE_REPLAY
+};
+enum EPlatformTimelineClipPriority
+{
+	PLATFORM_TIMELINE_CLIP_NONE,
+	PLATFORM_TIMELINE_CLIP_STANDARD,
+	PLATFORM_TIMELINE_CLIP_FEATURED
+};
 struct CPlatformTimelineEvent
 {
 	unsigned long long m_SessionID;
@@ -125,6 +148,7 @@ struct CPlatformWorkshopItem
 	unsigned int m_VotesDown;
 	float m_Score;
 	bool m_Valid;
+	bool m_LocalInstall;
 	char m_aName[128];
 	char m_aVersion[32];
 	char m_aInstallPath[1024];
@@ -149,7 +173,13 @@ struct CPlatformWorkshopPreviewResult
 	char m_aError[128];
 };
 
-enum EPlatformWorkshopSort { PLATFORM_WORKSHOP_LATEST, PLATFORM_WORKSHOP_POPULAR, PLATFORM_WORKSHOP_RATING, PLATFORM_WORKSHOP_SUBSCRIPTIONS };
+enum EPlatformWorkshopSort
+{
+	PLATFORM_WORKSHOP_LATEST,
+	PLATFORM_WORKSHOP_POPULAR,
+	PLATFORM_WORKSHOP_RATING,
+	PLATFORM_WORKSHOP_SUBSCRIPTIONS
+};
 struct CPlatformWorkshopQuery
 {
 	int m_ContentType; // -1 for all.
@@ -167,9 +197,28 @@ struct CPlatformWorkshopQueryResult
 	char m_aError[128];
 };
 
-enum EPlatformLeaderboardScope { PLATFORM_LEADERBOARD_GLOBAL, PLATFORM_LEADERBOARD_FRIENDS, PLATFORM_LEADERBOARD_AROUND_ME };
-struct CPlatformLeaderboardEntry { unsigned long long m_UserID; int m_Rank; int m_Score; char m_aName[128]; };
-struct CPlatformLeaderboardResult { unsigned m_OperationID; bool m_Succeeded; bool m_Upload; int m_EntryCount; char m_aName[128]; char m_aError[128]; };
+enum EPlatformLeaderboardScope
+{
+	PLATFORM_LEADERBOARD_GLOBAL,
+	PLATFORM_LEADERBOARD_FRIENDS,
+	PLATFORM_LEADERBOARD_AROUND_ME
+};
+struct CPlatformLeaderboardEntry
+{
+	unsigned long long m_UserID;
+	int m_Rank;
+	int m_Score;
+	char m_aName[128];
+};
+struct CPlatformLeaderboardResult
+{
+	unsigned m_OperationID;
+	bool m_Succeeded;
+	bool m_Upload;
+	int m_EntryCount;
+	char m_aName[128];
+	char m_aError[128];
+};
 
 struct CPlatformLobbyInfo
 {
@@ -244,6 +293,28 @@ struct CPlatformWorkshopPublishStatus
 	char m_aStatus[256];
 };
 
+enum EPlatformLocalImportState
+{
+	PLATFORM_LOCAL_IMPORT_NONE,
+	PLATFORM_LOCAL_IMPORT_INSTALLED,
+	PLATFORM_LOCAL_IMPORT_ALREADY_INSTALLED,
+	PLATFORM_LOCAL_IMPORT_REPLACE_REQUIRED,
+	PLATFORM_LOCAL_IMPORT_FAILED,
+};
+
+struct CPlatformLocalImportResult
+{
+	int m_State;
+	char m_aArchivePath[1024];
+	char m_aPublishedFileID[32];
+	char m_aName[128];
+	char m_aVersion[32];
+	char m_aContentHash[65];
+	char m_aPreviousVersion[32];
+	char m_aPreviousHash[65];
+	char m_aError[256];
+};
+
 struct CPlatformOperationStatus
 {
 	int m_State; // EClientAsyncState-compatible: idle/working/succeeded/failed.
@@ -273,7 +344,7 @@ class IPlatformServices : public IInterface
 {
 	MACRO_INTERFACE("platformservices", 0)
 
-public:
+  public:
 	virtual bool Init() = 0;
 	// True only when Steam requested that this process exits because it has
 	// forwarded startup to the Steam client. Other Init failures fall back to
@@ -291,7 +362,8 @@ public:
 	virtual void SetRichPresence(const CPlatformPresence &Presence) = 0;
 	virtual void SetTimelineMode(EPlatformTimelineMode Mode, const char *pDescription) = 0;
 	virtual bool AddTimelineEvent(const CPlatformTimelineEvent &Event) = 0;
-	virtual bool RegisterScreenshot(const char *pAbsolutePath, int Width, int Height, const CPlatformScreenshotContext &Context) = 0;
+	virtual bool
+	RegisterScreenshot(const char *pAbsolutePath, int Width, int Height, const CPlatformScreenshotContext &Context) = 0;
 	virtual void SetScreenshotContext(const CPlatformScreenshotContext &Context) = 0;
 	virtual bool ConsumeJoinRequest(char *pBuffer, int BufferSize) = 0;
 	virtual bool ConsumeJoinFailure(char *pBuffer, int BufferSize) = 0;
@@ -314,7 +386,8 @@ public:
 	virtual bool InvitePartyUser(unsigned long long UserID) = 0;
 	virtual bool OpenPartyInviteDialog() = 0;
 	virtual bool SetPartyReady(bool Ready) = 0;
-	virtual bool SetPartyTarget(int TargetType, unsigned long long TargetLobbyID, const char *pAddress, const char *pModHash) = 0;
+	virtual bool
+	SetPartyTarget(int TargetType, unsigned long long TargetLobbyID, const char *pAddress, const char *pModHash) = 0;
 	virtual bool ClearPartyTarget() = 0;
 	virtual bool LaunchParty(bool Force) = 0;
 	virtual bool ConsumePartyLaunch(CPlatformPartyLaunch *pLaunch) = 0;
@@ -343,7 +416,8 @@ public:
 	virtual bool OpenUserProfile(unsigned long long UserID) = 0;
 	virtual void SetPlayedWith(unsigned long long UserID) = 0;
 	// Returns 1 when RGBA data was copied, 0 while loading, and -1 when unavailable.
-	virtual int UserAvatarRGBA(unsigned long long UserID, int PreferredSize, void *pBuffer, int BufferSize, int *pWidth, int *pHeight) = 0;
+	virtual int UserAvatarRGBA(
+		unsigned long long UserID, int PreferredSize, void *pBuffer, int BufferSize, int *pWidth, int *pHeight) = 0;
 	virtual bool RefreshLobbyList() = 0;
 	virtual bool RefreshDedicatedServerList() = 0;
 	virtual int LobbyCount() const = 0;
@@ -353,8 +427,14 @@ public:
 	virtual bool UnsubscribeWorkshopItem(unsigned long long PublishedFileID) = 0;
 	virtual bool OpenWorkshopItemPage(unsigned long long PublishedFileID) = 0;
 	virtual bool OpenWorkshopBrowsePage() = 0;
-	virtual bool WorkshopDownloadProgress(unsigned long long PublishedFileID, unsigned long long *pDownloaded, unsigned long long *pTotal) const = 0;
+	virtual bool WorkshopDownloadProgress(unsigned long long PublishedFileID,
+										  unsigned long long *pDownloaded,
+										  unsigned long long *pTotal) const = 0;
 	virtual int RefreshWorkshopItems() = 0;
+	virtual bool BeginLocalContentImport() = 0;
+	virtual bool ImportLocalContentArchive(const char *pArchivePath, bool ReplaceExisting) = 0;
+	virtual bool ConsumeLocalContentImportResult(CPlatformLocalImportResult *pResult) = 0;
+	virtual bool CompleteLocalContentImport(bool KeepInstalled) = 0;
 	virtual int WorkshopItemCount() const = 0;
 	virtual bool WorkshopItem(int Index, CPlatformWorkshopItem *pItem) const = 0;
 	virtual bool SetWorkshopItemDisabled(unsigned long long PublishedFileID, bool Disabled) = 0;
@@ -368,12 +448,17 @@ public:
 	virtual bool RequestWorkshopDownload(unsigned long long PublishedFileID) = 0;
 	virtual bool UserDisplayName(unsigned long long UserID, char *pBuffer, int BufferSize) = 0;
 	virtual bool CreateWorkshopItem() = 0;
-	virtual bool UpdateWorkshopItem(unsigned long long PublishedFileID, const char *pContentRoot, const char *pPreviewFile) = 0;
+	virtual bool
+	UpdateWorkshopItem(unsigned long long PublishedFileID, const char *pContentRoot, const char *pPreviewFile) = 0;
 	virtual void WorkshopPublishStatus(CPlatformWorkshopPublishStatus *pStatus) const = 0;
 	virtual bool UnlockAchievement(const char *pAchievement) = 0;
 	virtual void ProcessServerEvent(int Event, int Value, bool LeaderboardEligible) = 0;
-	virtual unsigned SubmitCommunityChallenge(unsigned long long PublishedFileID, int Revision, int Metric, int Score) = 0;
-	virtual unsigned QueryCommunityChallenge(unsigned long long PublishedFileID, int Revision, int Metric, EPlatformLeaderboardScope Scope) = 0;
+	virtual unsigned
+	SubmitCommunityChallenge(unsigned long long PublishedFileID, int Revision, int Metric, int Score) = 0;
+	virtual unsigned QueryCommunityChallenge(unsigned long long PublishedFileID,
+											 int Revision,
+											 int Metric,
+											 EPlatformLeaderboardScope Scope) = 0;
 	virtual bool ConsumeCommunityLeaderboardResult(CPlatformLeaderboardResult *pResult) = 0;
 	virtual int CommunityLeaderboardEntryCount() const = 0;
 	virtual bool CommunityLeaderboardEntry(int Index, CPlatformLeaderboardEntry *pEntry) const = 0;

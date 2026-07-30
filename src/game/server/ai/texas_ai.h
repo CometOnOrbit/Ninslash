@@ -5,13 +5,13 @@
 
 class CAItexas : public CAI
 {
-public:
+  public:
 	CAItexas(CGameContext *pGameServer, CPlayer *pPlayer);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);
 
-private:
+  private:
 	int m_SkipMoveUpdate;
 };
 

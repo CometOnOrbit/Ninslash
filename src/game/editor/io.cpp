@@ -8,10 +8,10 @@
 #include <game/gamecore.h>
 #include "editor.h"
 
-template<typename T>
-static int MakeVersion(int i, const T &v)
-{ return (i<<16)+sizeof(T); }
-
+template <typename T> static int MakeVersion(int i, const T &v)
+{
+	return (i << 16) + sizeof(T);
+}
 
 int CEditor::Save(const char *pFilename)
 {
@@ -44,19 +44,19 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 		Item.m_Version = 1;
 
 		if(m_MapInfo.m_aAuthor[0])
-			Item.m_Author = df.AddData(str_length(m_MapInfo.m_aAuthor)+1, m_MapInfo.m_aAuthor);
+			Item.m_Author = df.AddData(str_length(m_MapInfo.m_aAuthor) + 1, m_MapInfo.m_aAuthor);
 		else
 			Item.m_Author = -1;
 		if(m_MapInfo.m_aVersion[0])
-			Item.m_MapVersion = df.AddData(str_length(m_MapInfo.m_aVersion)+1, m_MapInfo.m_aVersion);
+			Item.m_MapVersion = df.AddData(str_length(m_MapInfo.m_aVersion) + 1, m_MapInfo.m_aVersion);
 		else
 			Item.m_MapVersion = -1;
 		if(m_MapInfo.m_aCredits[0])
-			Item.m_Credits = df.AddData(str_length(m_MapInfo.m_aCredits)+1, m_MapInfo.m_aCredits);
+			Item.m_Credits = df.AddData(str_length(m_MapInfo.m_aCredits) + 1, m_MapInfo.m_aCredits);
 		else
 			Item.m_Credits = -1;
 		if(m_MapInfo.m_aLicense[0])
-			Item.m_License = df.AddData(str_length(m_MapInfo.m_aLicense)+1, m_MapInfo.m_aLicense);
+			Item.m_License = df.AddData(str_length(m_MapInfo.m_aLicense) + 1, m_MapInfo.m_aLicense);
 		else
 			Item.m_License = -1;
 
@@ -77,11 +77,11 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 		Item.m_Width = pImg->m_Width;
 		Item.m_Height = pImg->m_Height;
 		Item.m_External = pImg->m_External;
-		Item.m_ImageName = df.AddData(str_length(pImg->m_aName)+1, pImg->m_aName);
+		Item.m_ImageName = df.AddData(str_length(pImg->m_aName) + 1, pImg->m_aName);
 		if(pImg->m_External)
 			Item.m_ImageData = -1;
 		else
-			Item.m_ImageData = df.AddData(Item.m_Width*Item.m_Height*4, pImg->m_pData);
+			Item.m_ImageData = df.AddData(Item.m_Width * Item.m_Height * 4, pImg->m_pData);
 		df.AddItem(MAPITEMTYPE_IMAGE, i, sizeof(Item), &Item);
 	}
 
@@ -92,14 +92,14 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 		Item.m_ChunkSize = m_pEditor->m_ChunkSize;
 		Item.m_RuleCount = m_pEditor->m_MapChunks;
 		df.AddItem(MAPITEMTYPE_MODULARINFO, 0, sizeof(Item), &Item);
-		
-		for (int i = 0; i < m_pEditor->m_MapChunks; i++)
+
+		for(int i = 0; i < m_pEditor->m_MapChunks; i++)
 		{
 			CMapRule Rule;
-			Rule.m_Rule1 = m_pEditor->m_apChunkRule[i*4+0];
-			Rule.m_Rule2 = m_pEditor->m_apChunkRule[i*4+1];
-			Rule.m_Rule3 = m_pEditor->m_apChunkRule[i*4+2];
-			Rule.m_Rule4 = m_pEditor->m_apChunkRule[i*4+3];
+			Rule.m_Rule1 = m_pEditor->m_apChunkRule[i * 4 + 0];
+			Rule.m_Rule2 = m_pEditor->m_apChunkRule[i * 4 + 1];
+			Rule.m_Rule3 = m_pEditor->m_apChunkRule[i * 4 + 2];
+			Rule.m_Rule4 = m_pEditor->m_apChunkRule[i * 4 + 3];
 			df.AddItem(MAPITEMTYPE_RULE, i, sizeof(Rule), &Rule);
 		}
 	}
@@ -128,7 +128,7 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 		GItem.m_NumLayers = 0;
 
 		// save group name
-		StrToInts(GItem.m_aName, sizeof(GItem.m_aName)/sizeof(int), pGroup->m_aName);
+		StrToInts(GItem.m_aName, sizeof(GItem.m_aName) / sizeof(int), pGroup->m_aName);
 
 		for(int l = 0; l < pGroup->m_lLayers.size(); l++)
 		{
@@ -155,10 +155,10 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 				Item.m_Height = pLayer->m_Height;
 				Item.m_Flags = pLayer->m_Game ? TILESLAYERFLAG_GAME : 0;
 				Item.m_Image = pLayer->m_Image;
-				Item.m_Data = df.AddData(pLayer->m_Width*pLayer->m_Height*sizeof(CTile), pLayer->m_pTiles);
+				Item.m_Data = df.AddData(pLayer->m_Width * pLayer->m_Height * sizeof(CTile), pLayer->m_pTiles);
 
 				// save layer name
-				StrToInts(Item.m_aName, sizeof(Item.m_aName)/sizeof(int), pLayer->m_aName);
+				StrToInts(Item.m_aName, sizeof(Item.m_aName) / sizeof(int), pLayer->m_aName);
 
 				df.AddItem(MAPITEMTYPE_LAYER, LayerCount, sizeof(Item), &Item);
 
@@ -179,15 +179,16 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 
 					// add the data
 					Item.m_NumQuads = pLayer->m_lQuads.size();
-					Item.m_Data = df.AddDataSwapped(pLayer->m_lQuads.size()*sizeof(CQuad), pLayer->m_lQuads.base_ptr());
+					Item.m_Data =
+						df.AddDataSwapped(pLayer->m_lQuads.size() * sizeof(CQuad), pLayer->m_lQuads.base_ptr());
 
 					// save layer name
-					StrToInts(Item.m_aName, sizeof(Item.m_aName)/sizeof(int), pLayer->m_aName);
+					StrToInts(Item.m_aName, sizeof(Item.m_aName) / sizeof(int), pLayer->m_aName);
 
 					df.AddItem(MAPITEMTYPE_LAYER, LayerCount, sizeof(Item), &Item);
 
 					// clean up
-					//mem_free(quads);
+					// mem_free(quads);
 
 					GItem.m_NumLayers++;
 					LayerCount++;
@@ -208,7 +209,7 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 		Item.m_StartPoint = PointCount;
 		Item.m_NumPoints = m_lEnvelopes[e]->m_lPoints.size();
 		Item.m_Synchronized = m_lEnvelopes[e]->m_Synchronized;
-		StrToInts(Item.m_aName, sizeof(Item.m_aName)/sizeof(int), m_lEnvelopes[e]->m_aName);
+		StrToInts(Item.m_aName, sizeof(Item.m_aName) / sizeof(int), m_lEnvelopes[e]->m_aName);
 
 		df.AddItem(MAPITEMTYPE_ENVELOPE, e, sizeof(Item), &Item);
 		PointCount += Item.m_NumPoints;
@@ -222,7 +223,7 @@ int CEditorMap::Save(class IStorage *pStorage, const char *pFileName)
 	for(int e = 0; e < m_lEnvelopes.size(); e++)
 	{
 		int Count = m_lEnvelopes[e]->m_lPoints.size();
-		mem_copy(&pPoints[PointCount], m_lEnvelopes[e]->m_lPoints.base_ptr(), sizeof(CEnvPoint)*Count);
+		mem_copy(&pPoints[PointCount], m_lEnvelopes[e]->m_lPoints.base_ptr(), sizeof(CEnvPoint) * Count);
 		PointCount += Count;
 	}
 
@@ -256,7 +257,7 @@ int CEditor::Load(const char *pFileName, int StorageType)
 int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int StorageType)
 {
 	CDataFileReader DataFile;
-	//DATAFILE *df = datafile_load(filename);
+	// DATAFILE *df = datafile_load(filename);
 	if(!DataFile.Open(pStorage, pFileName, StorageType))
 		return 0;
 
@@ -275,7 +276,7 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 	}
 	else if(pItem->m_Version == 1)
 	{
-		//editor.reset(false);
+		// editor.reset(false);
 
 		// load map info
 		{
@@ -283,23 +284,28 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 			if(pItem && pItem->m_Version == 1)
 			{
 				if(pItem->m_Author > -1)
-					str_copy(m_MapInfo.m_aAuthor, (char *)DataFile.GetData(pItem->m_Author), sizeof(m_MapInfo.m_aAuthor));
+					str_copy(
+						m_MapInfo.m_aAuthor, (char *)DataFile.GetData(pItem->m_Author), sizeof(m_MapInfo.m_aAuthor));
 				if(pItem->m_MapVersion > -1)
-					str_copy(m_MapInfo.m_aVersion, (char *)DataFile.GetData(pItem->m_MapVersion), sizeof(m_MapInfo.m_aVersion));
+					str_copy(m_MapInfo.m_aVersion,
+							 (char *)DataFile.GetData(pItem->m_MapVersion),
+							 sizeof(m_MapInfo.m_aVersion));
 				if(pItem->m_Credits > -1)
-					str_copy(m_MapInfo.m_aCredits, (char *)DataFile.GetData(pItem->m_Credits), sizeof(m_MapInfo.m_aCredits));
+					str_copy(
+						m_MapInfo.m_aCredits, (char *)DataFile.GetData(pItem->m_Credits), sizeof(m_MapInfo.m_aCredits));
 				if(pItem->m_License > -1)
-					str_copy(m_MapInfo.m_aLicense, (char *)DataFile.GetData(pItem->m_License), sizeof(m_MapInfo.m_aLicense));
+					str_copy(
+						m_MapInfo.m_aLicense, (char *)DataFile.GetData(pItem->m_License), sizeof(m_MapInfo.m_aLicense));
 			}
 		}
 
 		// load images
 		{
 			int Start, Num;
-			DataFile.GetType( MAPITEMTYPE_IMAGE, &Start, &Num);
+			DataFile.GetType(MAPITEMTYPE_IMAGE, &Start, &Num);
 			for(int i = 0; i < Num; i++)
 			{
-				CMapItemImage *pItem = (CMapItemImage *)DataFile.GetItem(Start+i, 0, 0);
+				CMapItemImage *pItem = (CMapItemImage *)DataFile.GetItem(Start + i, 0, 0);
 				char *pName = (char *)DataFile.GetData(pItem->m_ImageName);
 
 				// copy base info
@@ -309,14 +315,19 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 				if(pItem->m_External)
 				{
 					char aBuf[256];
-					str_format(aBuf, sizeof(aBuf),"mapres/%s.png", pName);
+					str_format(aBuf, sizeof(aBuf), "mapres/%s.png", pName);
 
 					// load external
 					CEditorImage ImgInfo(m_pEditor);
 					if(m_pEditor->Graphics()->LoadPNG(&ImgInfo, aBuf, IStorage::TYPE_ALL))
 					{
 						*pImg = ImgInfo;
-						pImg->m_TexID = m_pEditor->Graphics()->LoadTextureRaw(ImgInfo.m_Width, ImgInfo.m_Height, ImgInfo.m_Format, ImgInfo.m_pData, CImageInfo::FORMAT_AUTO, 0);
+						pImg->m_TexID = m_pEditor->Graphics()->LoadTextureRaw(ImgInfo.m_Width,
+																			  ImgInfo.m_Height,
+																			  ImgInfo.m_Format,
+																			  ImgInfo.m_pData,
+																			  CImageInfo::FORMAT_AUTO,
+																			  0);
 						ImgInfo.m_pData = 0;
 						pImg->m_External = 1;
 					}
@@ -329,9 +340,10 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 
 					// copy image data
 					void *pData = DataFile.GetData(pItem->m_ImageData);
-					pImg->m_pData = mem_alloc(pImg->m_Width*pImg->m_Height*4, 1);
-					mem_copy(pImg->m_pData, pData, pImg->m_Width*pImg->m_Height*4);
-					pImg->m_TexID = m_pEditor->Graphics()->LoadTextureRaw(pImg->m_Width, pImg->m_Height, pImg->m_Format, pImg->m_pData, CImageInfo::FORMAT_AUTO, 0);
+					pImg->m_pData = mem_alloc(pImg->m_Width * pImg->m_Height * 4, 1);
+					mem_copy(pImg->m_pData, pData, pImg->m_Width * pImg->m_Height * 4);
+					pImg->m_TexID = m_pEditor->Graphics()->LoadTextureRaw(
+						pImg->m_Width, pImg->m_Height, pImg->m_Format, pImg->m_pData, CImageInfo::FORMAT_AUTO, 0);
 				}
 
 				// copy image name
@@ -350,35 +362,35 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 			}
 		}
 
-	// load modular generation rules
-	{
-		CMapModularInfo *pItem = (CMapModularInfo *)DataFile.FindItem(MAPITEMTYPE_MODULARINFO, 0);
-		
-		if(pItem)
+		// load modular generation rules
 		{
-			m_pEditor->m_IsInfinite = pItem->m_IsModular;
-			m_pEditor->m_ChunkSize = pItem->m_ChunkSize;
-			m_pEditor->m_MapChunks = pItem->m_RuleCount;
-			
-			if (m_pEditor->m_apChunkRule)
-				delete m_pEditor->m_apChunkRule;
-			
-			m_pEditor->m_apChunkRule = new int[(m_pEditor->m_MapChunks+1)*4];
-			
-			for (int i = 0; i < m_pEditor->m_MapChunks; i++)
+			CMapModularInfo *pItem = (CMapModularInfo *)DataFile.FindItem(MAPITEMTYPE_MODULARINFO, 0);
+
+			if(pItem)
 			{
-				CMapRule *pRule = (CMapRule *)DataFile.FindItem(MAPITEMTYPE_RULE, i);
-				
-				if (pRule)
+				m_pEditor->m_IsInfinite = pItem->m_IsModular;
+				m_pEditor->m_ChunkSize = pItem->m_ChunkSize;
+				m_pEditor->m_MapChunks = pItem->m_RuleCount;
+
+				if(m_pEditor->m_apChunkRule)
+					delete m_pEditor->m_apChunkRule;
+
+				m_pEditor->m_apChunkRule = new int[(m_pEditor->m_MapChunks + 1) * 4];
+
+				for(int i = 0; i < m_pEditor->m_MapChunks; i++)
 				{
-					m_pEditor->m_apChunkRule[i*4+0] = pRule->m_Rule1;
-					m_pEditor->m_apChunkRule[i*4+1] = pRule->m_Rule2;
-					m_pEditor->m_apChunkRule[i*4+2] = pRule->m_Rule3;
-					m_pEditor->m_apChunkRule[i*4+3] = pRule->m_Rule4;
+					CMapRule *pRule = (CMapRule *)DataFile.FindItem(MAPITEMTYPE_RULE, i);
+
+					if(pRule)
+					{
+						m_pEditor->m_apChunkRule[i * 4 + 0] = pRule->m_Rule1;
+						m_pEditor->m_apChunkRule[i * 4 + 1] = pRule->m_Rule2;
+						m_pEditor->m_apChunkRule[i * 4 + 2] = pRule->m_Rule3;
+						m_pEditor->m_apChunkRule[i * 4 + 3] = pRule->m_Rule4;
+					}
 				}
 			}
 		}
-	}
 
 		// load groups
 		{
@@ -389,7 +401,7 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 			DataFile.GetType(MAPITEMTYPE_GROUP, &Start, &Num);
 			for(int g = 0; g < Num; g++)
 			{
-				CMapItemGroup *pGItem = (CMapItemGroup *)DataFile.GetItem(Start+g, 0, 0);
+				CMapItemGroup *pGItem = (CMapItemGroup *)DataFile.GetItem(Start + g, 0, 0);
 
 				if(pGItem->m_Version < 1 || pGItem->m_Version > CMapItemGroup::CURRENT_VERSION)
 					continue;
@@ -411,12 +423,13 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 
 				// load group name
 				if(pGItem->m_Version >= 3)
-					IntsToStr(pGItem->m_aName, sizeof(pGroup->m_aName)/sizeof(int), pGroup->m_aName);
+					IntsToStr(pGItem->m_aName, sizeof(pGroup->m_aName) / sizeof(int), pGroup->m_aName);
 
 				for(int l = 0; l < pGItem->m_NumLayers; l++)
 				{
 					CLayer *pLayer = 0;
-					CMapItemLayer *pLayerItem = (CMapItemLayer *)DataFile.GetItem(LayersStart+pGItem->m_StartLayer+l, 0, 0);
+					CMapItemLayer *pLayerItem =
+						(CMapItemLayer *)DataFile.GetItem(LayersStart + pGItem->m_StartLayer + l, 0, 0);
 					if(!pLayerItem)
 						continue;
 
@@ -425,7 +438,7 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 						CMapItemLayerTilemap *pTilemapItem = (CMapItemLayerTilemap *)pLayerItem;
 						CLayerTiles *pTiles = 0;
 
-						if(pTilemapItem->m_Flags&TILESLAYERFLAG_GAME)
+						if(pTilemapItem->m_Flags & TILESLAYERFLAG_GAME)
 						{
 							pTiles = new CLayerGame(pTilemapItem->m_Width, pTilemapItem->m_Height);
 							MakeGameLayer(pTiles);
@@ -445,17 +458,17 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 						pGroup->AddLayer(pTiles);
 						void *pData = DataFile.GetData(pTilemapItem->m_Data);
 						pTiles->m_Image = pTilemapItem->m_Image;
-						pTiles->m_Game = pTilemapItem->m_Flags&TILESLAYERFLAG_GAME;
+						pTiles->m_Game = pTilemapItem->m_Flags & TILESLAYERFLAG_GAME;
 
 						// load layer name
 						if(pTilemapItem->m_Version >= 3)
-							IntsToStr(pTilemapItem->m_aName, sizeof(pTiles->m_aName)/sizeof(int), pTiles->m_aName);
+							IntsToStr(pTilemapItem->m_aName, sizeof(pTiles->m_aName) / sizeof(int), pTiles->m_aName);
 
-						mem_copy(pTiles->m_pTiles, pData, pTiles->m_Width*pTiles->m_Height*sizeof(CTile));
+						mem_copy(pTiles->m_pTiles, pData, pTiles->m_Width * pTiles->m_Height * sizeof(CTile));
 
 						if(pTiles->m_Game && pTilemapItem->m_Version == MakeVersion(1, *pTilemapItem))
 						{
-							for(int i = 0; i < pTiles->m_Width*pTiles->m_Height; i++)
+							for(int i = 0; i < pTiles->m_Width * pTiles->m_Height; i++)
 							{
 								if(pTiles->m_pTiles[i].m_Index)
 									pTiles->m_pTiles[i].m_Index += ENTITY_OFFSET;
@@ -476,12 +489,12 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 
 						// load layer name
 						if(pQuadsItem->m_Version >= 2)
-							IntsToStr(pQuadsItem->m_aName, sizeof(pQuads->m_aName)/sizeof(int), pQuads->m_aName);
+							IntsToStr(pQuadsItem->m_aName, sizeof(pQuads->m_aName) / sizeof(int), pQuads->m_aName);
 
 						void *pData = DataFile.GetDataSwapped(pQuadsItem->m_Data);
 						pGroup->AddLayer(pQuads);
 						pQuads->m_lQuads.set_size(pQuadsItem->m_NumQuads);
-						mem_copy(pQuads->m_lQuads.base_ptr(), pData, sizeof(CQuad)*pQuadsItem->m_NumQuads);
+						mem_copy(pQuads->m_lQuads.base_ptr(), pData, sizeof(CQuad) * pQuadsItem->m_NumQuads);
 						DataFile.UnloadData(pQuadsItem->m_Data);
 					}
 
@@ -506,12 +519,13 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 			DataFile.GetType(MAPITEMTYPE_ENVELOPE, &Start, &Num);
 			for(int e = 0; e < Num; e++)
 			{
-				CMapItemEnvelope *pItem = (CMapItemEnvelope *)DataFile.GetItem(Start+e, 0, 0);
+				CMapItemEnvelope *pItem = (CMapItemEnvelope *)DataFile.GetItem(Start + e, 0, 0);
 				CEnvelope *pEnv = new CEnvelope(pItem->m_Channels);
 				pEnv->m_lPoints.set_size(pItem->m_NumPoints);
-				mem_copy(pEnv->m_lPoints.base_ptr(), &pPoints[pItem->m_StartPoint], sizeof(CEnvPoint)*pItem->m_NumPoints);
-				if(pItem->m_aName[0] != -1)	// compatibility with old maps
-					IntsToStr(pItem->m_aName, sizeof(pItem->m_aName)/sizeof(int), pEnv->m_aName);
+				mem_copy(
+					pEnv->m_lPoints.base_ptr(), &pPoints[pItem->m_StartPoint], sizeof(CEnvPoint) * pItem->m_NumPoints);
+				if(pItem->m_aName[0] != -1) // compatibility with old maps
+					IntsToStr(pItem->m_aName, sizeof(pItem->m_aName) / sizeof(int), pEnv->m_aName);
 				m_lEnvelopes.add(pEnv);
 				if(pItem->m_Version >= 2)
 					pEnv->m_Synchronized = pItem->m_Synchronized;

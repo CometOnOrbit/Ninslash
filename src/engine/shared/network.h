@@ -26,60 +26,58 @@ CURRENT:
 
 enum
 {
-	NETFLAG_ALLOWSTATELESS=1,
-	NETSENDFLAG_VITAL=1,
-	NETSENDFLAG_CONNLESS=2,
-	NETSENDFLAG_FLUSH=4,
+	NETFLAG_ALLOWSTATELESS = 1,
+	NETSENDFLAG_VITAL = 1,
+	NETSENDFLAG_CONNLESS = 2,
+	NETSENDFLAG_FLUSH = 4,
 
-	NETSTATE_OFFLINE=0,
+	NETSTATE_OFFLINE = 0,
 	NETSTATE_CONNECTING,
 	NETSTATE_ONLINE,
 
-	NETBANTYPE_SOFT=1,
-	NETBANTYPE_DROP=2
+	NETBANTYPE_SOFT = 1,
+	NETBANTYPE_DROP = 2
 };
-
 
 enum
 {
 	NET_VERSION = 3,
 
 	NET_MAX_PACKETSIZE = 1400,
-	NET_MAX_PAYLOAD = NET_MAX_PACKETSIZE-6,
+	NET_MAX_PAYLOAD = NET_MAX_PACKETSIZE - 6,
 	NET_MAX_CHUNKHEADERSIZE = 5,
 	NET_PACKETHEADERSIZE = 3,
 	NET_MAX_CLIENTS = 64,
 	NET_MAX_CONSOLE_CLIENTS = 4,
-	NET_MAX_SEQUENCE = 1<<10,
-	NET_SEQUENCE_MASK = NET_MAX_SEQUENCE-1,
+	NET_MAX_SEQUENCE = 1 << 10,
+	NET_SEQUENCE_MASK = NET_MAX_SEQUENCE - 1,
 
-	NET_CONNSTATE_OFFLINE=0,
-	NET_CONNSTATE_CONNECT=1,
-	NET_CONNSTATE_PENDING=2,
-	NET_CONNSTATE_ONLINE=3,
-	NET_CONNSTATE_ERROR=4,
+	NET_CONNSTATE_OFFLINE = 0,
+	NET_CONNSTATE_CONNECT = 1,
+	NET_CONNSTATE_PENDING = 2,
+	NET_CONNSTATE_ONLINE = 3,
+	NET_CONNSTATE_ERROR = 4,
 
-	NET_PACKETFLAG_CONTROL=1,
-	NET_PACKETFLAG_CONNLESS=2,
-	NET_PACKETFLAG_RESEND=4,
-	NET_PACKETFLAG_COMPRESSION=8,
+	NET_PACKETFLAG_CONTROL = 1,
+	NET_PACKETFLAG_CONNLESS = 2,
+	NET_PACKETFLAG_RESEND = 4,
+	NET_PACKETFLAG_COMPRESSION = 8,
 
-	NET_CHUNKFLAG_VITAL=1,
-	NET_CHUNKFLAG_RESEND=2,
+	NET_CHUNKFLAG_VITAL = 1,
+	NET_CHUNKFLAG_RESEND = 2,
 
-	NET_CTRLMSG_KEEPALIVE=0,
-	NET_CTRLMSG_CONNECT=1,
-	NET_CTRLMSG_CONNECTACCEPT=2,
-	NET_CTRLMSG_ACCEPT=3,
-	NET_CTRLMSG_CLOSE=4,
+	NET_CTRLMSG_KEEPALIVE = 0,
+	NET_CTRLMSG_CONNECT = 1,
+	NET_CTRLMSG_CONNECTACCEPT = 2,
+	NET_CTRLMSG_ACCEPT = 3,
+	NET_CTRLMSG_CLOSE = 4,
 
-	NET_CONN_BUFFERSIZE=1024*32,
+	NET_CONN_BUFFERSIZE = 1024 * 32,
 
 	NET_ENUM_TERMINATOR
 };
 
-
-typedef int (*NETFUNC_DELCLIENT)(int ClientID, const char* pReason, void *pUser);
+typedef int (*NETFUNC_DELCLIENT)(int ClientID, const char *pReason, void *pUser);
 typedef int (*NETFUNC_NEWCLIENT)(int ClientID, void *pUser);
 
 struct CNetChunk
@@ -95,7 +93,7 @@ struct CNetChunk
 
 class CNetChunkHeader
 {
-public:
+  public:
 	int m_Flags;
 	int m_Size;
 	int m_Sequence;
@@ -106,7 +104,7 @@ public:
 
 class CNetChunkResend
 {
-public:
+  public:
 	int m_Flags;
 	int m_DataSize;
 	unsigned char *m_pData;
@@ -118,7 +116,7 @@ public:
 
 class CNetPacketConstruct
 {
-public:
+  public:
 	int m_Flags;
 	int m_Ack;
 	int m_NumChunks;
@@ -133,7 +131,7 @@ public:
  */
 class INetPacketTransport
 {
-public:
+  public:
 	virtual ~INetPacketTransport() {}
 	virtual bool ConnectPeer(unsigned long long PeerID) = 0;
 	virtual bool Listen(int VirtualPort) = 0;
@@ -145,14 +143,14 @@ public:
 	virtual bool SendControl(const NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize) = 0;
 };
 
-
 class CNetConnection
 {
 	// TODO: is this needed because this needs to be aware of
 	// the ack sequencing number and is also responible for updating
 	// that. this should be fixed.
 	friend class CNetRecvUnpacker;
-private:
+
+  private:
 	unsigned short m_Sequence;
 	unsigned short m_Ack;
 	unsigned m_State;
@@ -187,7 +185,7 @@ private:
 	void ResendChunk(CNetChunkResend *pResend);
 	void Resend();
 
-public:
+  public:
 	void Init(NETSOCKET Socket, bool BlockCloseMsg, INetPacketTransport *pTransport = 0);
 	int Connect(NETADDR *pAddr);
 	void Disconnect(const char *pReason);
@@ -215,7 +213,7 @@ public:
 
 class CConsoleNetConnection
 {
-private:
+  private:
 	int m_State;
 
 	NETADDR m_PeerAddr;
@@ -229,7 +227,7 @@ private:
 	bool m_LineEndingDetected;
 	char m_aLineEnding[3];
 
-public:
+  public:
 	void Init(NETSOCKET Socket, const NETADDR *pAddr);
 	void Disconnect(const char *pReason);
 
@@ -245,7 +243,7 @@ public:
 
 class CNetRecvUnpacker
 {
-public:
+  public:
 	bool m_Valid;
 
 	NETADDR m_Addr;
@@ -266,7 +264,7 @@ class CNetServer
 {
 	struct CSlot
 	{
-	public:
+	  public:
 		CNetConnection m_Connection;
 	};
 
@@ -284,7 +282,7 @@ class CNetServer
 	CNetRecvUnpacker m_RecvUnpacker;
 	void SendControl(const NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize);
 
-public:
+  public:
 	int SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser);
 
 	//
@@ -309,7 +307,7 @@ public:
 
 	//
 	void SetMaxClientsPerIP(int Max);
-	
+
 	bool m_SlotTakenByBot[NET_MAX_CLIENTS];
 };
 
@@ -319,7 +317,7 @@ class CNetConsole
 	{
 		CConsoleNetConnection m_Connection;
 	};
-	
+
 	NETSOCKET m_Socket;
 	class CNetBan *m_pNetBan;
 	CSlot m_aSlots[NET_MAX_CONSOLE_CLIENTS];
@@ -330,7 +328,7 @@ class CNetConsole
 
 	CNetRecvUnpacker m_RecvUnpacker;
 
-public:
+  public:
 	void SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser);
 
 	//
@@ -351,8 +349,6 @@ public:
 	class CNetBan *NetBan() const { return m_pNetBan; }
 };
 
-
-
 // client side
 class CNetClient
 {
@@ -361,7 +357,8 @@ class CNetClient
 	CNetRecvUnpacker m_RecvUnpacker;
 	NETSOCKET m_Socket;
 	INetPacketTransport *m_pTransport;
-public:
+
+  public:
 	// openness
 	bool Open(NETADDR BindAddr, int Flags);
 	int Close();
@@ -388,31 +385,31 @@ public:
 	const char *ErrorString();
 };
 
-
-
 // TODO: both, fix these. This feels like a junk class for stuff that doesn't fit anywere
 class CNetBase
 {
 	static IOHANDLE ms_DataLogSent;
 	static IOHANDLE ms_DataLogRecv;
 	static CHuffman ms_Huffman;
-public:
+
+  public:
 	static void OpenLog(IOHANDLE DataLogSent, IOHANDLE DataLogRecv);
 	static void CloseLog();
 	static void Init();
 	static int Compress(const void *pData, int DataSize, void *pOutput, int OutputSize);
 	static int Decompress(const void *pData, int DataSize, void *pOutput, int OutputSize);
 
-	static void SendControlMsg(NETSOCKET Socket, NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize);
+	static void
+	SendControlMsg(NETSOCKET Socket, NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize);
 	static void SendPacketConnless(NETSOCKET Socket, NETADDR *pAddr, const void *pData, int DataSize);
 	static void SendPacket(NETSOCKET Socket, NETADDR *pAddr, CNetPacketConstruct *pPacket);
 	static int UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct *pPacket);
 	static int PackPacket(CNetPacketConstruct *pPacket, unsigned char *pBuffer, int BufferSize);
-	static int PackControl(int Ack, int ControlMsg, const void *pExtra, int ExtraSize, unsigned char *pBuffer, int BufferSize);
+	static int
+	PackControl(int Ack, int ControlMsg, const void *pExtra, int ExtraSize, unsigned char *pBuffer, int BufferSize);
 
 	// The backroom is ack-NET_MAX_SEQUENCE/2. Used for knowing if we acked a packet or not
 	static int IsSeqInBackroom(int Seq, int Ack);
 };
-
 
 #endif

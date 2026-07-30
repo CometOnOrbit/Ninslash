@@ -15,7 +15,7 @@ class CFriends : public IFriends
 
 	static void ConfigSaveCallback(IConfig *pConfig, void *pUserData);
 
-public:
+  public:
 	CFriends();
 
 	void Init();

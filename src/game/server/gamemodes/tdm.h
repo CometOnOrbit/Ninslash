@@ -6,7 +6,7 @@
 
 class CGameControllerTDM : public IGameController
 {
-public:
+  public:
 	CGameControllerTDM(class CGameContext *pGameServer);
 
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);

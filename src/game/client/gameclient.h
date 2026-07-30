@@ -6,13 +6,16 @@
 #include <engine/console.h>
 #include <game/layers.h>
 #include <game/gamecore.h>
+#include <game/weapon_catalog.h>
 #include "render.h"
+
+struct CNetObj_WeaponRuntime;
 
 class CGameClient : public IGameClient
 {
 	class CStack
 	{
-	public:
+	  public:
 		enum
 		{
 			MAX_COMPONENTS = 128,
@@ -43,8 +46,7 @@ class CGameClient : public IGameClient
 	class IServerBrowser *m_pServerBrowser;
 	class IEditor *m_pEditor;
 	class IFriends *m_pFriends;
-	
-	
+
 	class CCustomStuff *m_pCustomStuff;
 	class CSkelebank *m_pSkelebank;
 
@@ -60,14 +62,32 @@ class CGameClient : public IGameClient
 	int m_LastNewPredictedTick;
 
 	int64 m_LastSendInfo;
-	
+
 	static void ConTeam(IConsole::IResult *pResult, void *pUserData);
 	static void ConKill(IConsole::IResult *pResult, void *pUserData);
 	static void ConReadyChange(IConsole::IResult *pResult, void *pUserData);
+	static void ConWeaponReloadClient(IConsole::IResult *pResult, void *pUserData);
 
-	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult,
+										  void *pUserData,
+										  IConsole::FCommandCallback pfnCallback,
+										  void *pCallbackUserData);
 
-public:
+  public:
+	struct CPredictedScriptEntity
+	{
+		bool m_Active;
+		CWeaponSpec m_Weapon;
+		int m_Kind;
+		vec2 m_Pos;
+		vec2 m_From;
+		vec2 m_Velocity;
+		int m_Radius;
+		int m_Life;
+	};
+	CPredictedScriptEntity m_aPredictedScriptEntities[64];
+	int m_NumPredictedScriptEntities;
+
 	IKernel *Kernel() { return IInterface::Kernel(); }
 	IEngine *Engine() const { return m_pEngine; }
 	class IGraphics *Graphics() const { return m_pGraphics; }
@@ -78,6 +98,7 @@ public:
 	class IInput *Input() const { return m_pInput; }
 	class IStorage *Storage() const { return m_pStorage; }
 	class IConsole *Console() { return m_pConsole; }
+	bool ReloadWeaponPackages(char *pError, int ErrorSize);
 	bool GameplayInputCaptured() const;
 	bool GameplayInputFullyCaptured() const;
 	class ITextRender *TextRender() const { return m_pTextRender; }
@@ -88,7 +109,7 @@ public:
 	class CLayers *Layers() { return &m_Layers; };
 	class CCollision *Collision() { return &m_Collision; };
 	class IEditor *Editor() { return m_pEditor; }
-	
+
 	class IFriends *Friends() { return m_pFriends; }
 	class CCustomStuff *CustomStuff() { return m_pCustomStuff; }
 	class CSkelebank *Skelebank() { return m_pSkelebank; }
@@ -100,13 +121,13 @@ public:
 	bool m_NewTick;
 	bool m_NewPredictedTick;
 	int m_FlagDropTick[2];
-	
+
 	// TODO: move this
 	CTuningParams m_Tuning;
 
 	enum
 	{
-		SERVERMODE_PURE=0,
+		SERVERMODE_PURE = 0,
 		SERVERMODE_MOD,
 		SERVERMODE_PUREMOD,
 	};
@@ -115,18 +136,18 @@ public:
 	int m_DemoSpecID;
 
 	vec2 m_LocalCharacterPos;
-	
+
 	// for building checks
 	bool BuildingNear(vec2 Pos, float Range);
-	
+
 	bool IsLocalUndead();
 	bool BuildingEnabled();
 	bool Survival();
 	bool SurvivalAcid();
 	bool IsCoop();
-	
+
 	void AddFluidForce(vec2 Pos, vec2 Vel);
-	
+
 	vec4 GetPlayerColor(int ClientID);
 	vec4 GetBloodColor(int ClientID);
 
@@ -140,7 +161,7 @@ public:
 
 	CBallCore m_PredictedPrevBall;
 	CBallCore m_PredictedBall;
-	
+
 	// snap pointers
 	struct CSnapState
 	{
@@ -155,17 +176,18 @@ public:
 		int m_GameDataSnapID;
 
 		const CNetObj_PlayerInfo *m_paPlayerInfos[MAX_CLIENTS];
+		const CNetObj_WeaponRuntime *m_apWeaponRuntimes[MAX_CLIENTS];
 		const CNetObj_PlayerInfo *m_paInfoByScore[MAX_CLIENTS];
 		const CNetObj_PlayerInfo *m_paInfoByTeam[MAX_CLIENTS];
 
 		int m_LocalClientID;
 		int m_NumPlayers;
 		int m_aTeamSize[2];
-		
+
 		// jumppad positions
 		int m_ImpactCount;
 		vec4 m_aImpactPos[MAX_IMPACTS];
-		
+
 		// spectate data
 		struct CSpectateInfo
 		{
@@ -189,12 +211,12 @@ public:
 		};
 
 		CCharacterInfo m_aCharacters[MAX_CLIENTS];
-		
+
 		//
 		struct CBallInfo
 		{
 			bool m_Active;
-			
+
 			// snapshots
 			CNetObj_Ball m_Prev;
 			CNetObj_Ball m_Cur;
@@ -215,7 +237,7 @@ public:
 		int m_ColorFeet;
 		int m_ColorTopper;
 		int m_ColorSkin;
-		
+
 		bool m_IsBot;
 		int m_BloodColor;
 
@@ -239,7 +261,7 @@ public:
 		int m_EmoticonStart;
 		CCharacterCore m_Predicted;
 
-		CTeeRenderInfo m_SkinInfo; // this is what the server reports
+		CTeeRenderInfo m_SkinInfo;	 // this is what the server reports
 		CTeeRenderInfo m_RenderInfo; // this is what we use
 
 		float m_Angle;
@@ -255,11 +277,11 @@ public:
 	};
 
 	CClientData m_aClients[MAX_CLIENTS];
-	
+
 	CRenderTools m_RenderTools;
 
 	void AddPlayerSplatter(vec2 Pos, vec4 Color);
-	
+
 	void OnReset();
 
 	// hooks
@@ -334,14 +356,18 @@ public:
 	class CMapLayers *m_pMapLayersForeGround;
 };
 
-
 inline float HueToRgb(float v1, float v2, float h)
 {
-	if(h < 0.0f) h += 1;
-	if(h > 1.0f) h -= 1;
-	if((6.0f * h) < 1.0f) return v1 + (v2 - v1) * 6.0f * h;
-	if((2.0f * h) < 1.0f) return v2;
-	if((3.0f * h) < 2.0f) return v1 + (v2 - v1) * ((2.0f/3.0f) - h) * 6.0f;
+	if(h < 0.0f)
+		h += 1;
+	if(h > 1.0f)
+		h -= 1;
+	if((6.0f * h) < 1.0f)
+		return v1 + (v2 - v1) * 6.0f * h;
+	if((2.0f * h) < 1.0f)
+		return v2;
+	if((3.0f * h) < 2.0f)
+		return v1 + (v2 - v1) * ((2.0f / 3.0f) - h) * 6.0f;
 	return v1;
 }
 
@@ -351,13 +377,13 @@ inline vec3 HslToRgb(vec3 HSL)
 		return vec3(HSL.l, HSL.l, HSL.l);
 	else
 	{
-		float v2 = HSL.l < 0.5f ? HSL.l * (1.0f + HSL.s) : (HSL.l+HSL.s) - (HSL.s*HSL.l);
+		float v2 = HSL.l < 0.5f ? HSL.l * (1.0f + HSL.s) : (HSL.l + HSL.s) - (HSL.s * HSL.l);
 		float v1 = 2.0f * HSL.l - v2;
 
-		return vec3(HueToRgb(v1, v2, HSL.h + (1.0f/3.0f)), HueToRgb(v1, v2, HSL.h), HueToRgb(v1, v2, HSL.h - (1.0f/3.0f)));
+		return vec3(
+			HueToRgb(v1, v2, HSL.h + (1.0f / 3.0f)), HueToRgb(v1, v2, HSL.h), HueToRgb(v1, v2, HSL.h - (1.0f / 3.0f)));
 	}
 }
-
 
 extern const char *Localize(const char *Str);
 

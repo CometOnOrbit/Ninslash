@@ -12,18 +12,18 @@ enum TexasGameState
 
 class CGameControllerTexasRun : public IGameController
 {
-public:
+  public:
 	CGameControllerTexasRun(class CGameContext *pGameServer);
 
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);
 	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
 	virtual void Snap(int SnappingClient);
 	virtual void Tick();
-	
-private:
+
+  private:
 	int m_EndTick;
 	int m_GameStateLockTick;
-	
+
 	void SelectStartingDead();
 	void MovePlayersToRed();
 };

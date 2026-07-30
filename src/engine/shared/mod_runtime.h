@@ -5,7 +5,7 @@
 
 class ILuaModRuntime : public IModRuntime, public IModEventSink
 {
-public:
+  public:
 	virtual bool LoadScript(const char *pName, const char *pSource, int SourceSize, char *pError, int ErrorSize) = 0;
 	virtual void SetRandomSeed(unsigned int Seed) = 0;
 	virtual int MemoryUsed() const = 0;

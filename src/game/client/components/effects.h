@@ -9,14 +9,15 @@ class CEffects : public CComponent
 {
 	bool m_Add50hz;
 	bool m_Add100hz;
-public:
+
+  public:
 	CEffects();
 
 	virtual void OnRender();
 
 	void SpriteExplosion(vec2 Pos, float Size, int Sprite);
 	void SpriteSmoke(vec2 Pos, float Size, vec4 Color);
-	
+
 	void BulletTrail(vec2 Start, vec2 End, vec4 Color, float Size = 1.5f);
 	void BulletTrail(vec2 Pos);
 	void SmokeTrail(vec2 Pos, vec2 Vel);

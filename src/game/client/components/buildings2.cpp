@@ -26,313 +26,321 @@
 
 void CBuildings2::OnReset()
 {
-
 }
-
-
 
 void CBuildings2::RenderLightningWall(const struct CNetObj_Building *pCurrent)
 {
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_BUILDINGS].m_Id);
 	Graphics()->QuadsBegin();
-	
+
 	RenderTools()->SelectSprite(SPRITE_LIGHTNINGWALL);
-	
+
 	Graphics()->SetColor(1, 1, 1, 1);
 	Graphics()->QuadsSetRotation(0);
-		
-	RenderTools()->DrawSprite(pCurrent->m_X, pCurrent->m_Y-4, 64);
-	
+
+	RenderTools()->DrawSprite(pCurrent->m_X, pCurrent->m_Y - 4, 64);
+
 	Graphics()->QuadsEnd();
-	
-	
-	if (!(pCurrent->m_Status & (1<<BSTATUS_ON)))
+
+	if(!(pCurrent->m_Status & (1 << BSTATUS_ON)))
 		return;
-	
+
 	// lightning effect
-	
+
 	vec2 Out, Border;
-	
-	vec2 From = vec2(pCurrent->m_X, pCurrent->m_Y-5);
+
+	vec2 From = vec2(pCurrent->m_X, pCurrent->m_Y - 5);
 	vec2 Pos = From + vec2(0, -600);
-	
+
 	Collision()->IntersectLine(From, Pos, 0x0, &Pos);
-	
+
 	Pos.y += 20;
-	
-	vec2 Dir = normalize(Pos-From);
-	
-	//Graphics()->ShaderBegin(SHADER_ELECTRIC, 1.0f);
+
+	vec2 Dir = normalize(Pos - From);
+
+	// Graphics()->ShaderBegin(SHADER_ELECTRIC, 1.0f);
 	Graphics()->BlendNormal();
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(frandom()*0.25f, 1.0f-frandom()*0.25f, 1, 1.0f);
-		
-	//Graphics()->SetColor(0.3f + frandom()*0.4f, 0.3f + frandom()*0.4f, 1, 1.0f);
+	Graphics()->SetColor(frandom() * 0.25f, 1.0f - frandom() * 0.25f, 1, 1.0f);
+
+	// Graphics()->SetColor(0.3f + frandom()*0.4f, 0.3f + frandom()*0.4f, 1, 1.0f);
 	int Steps = 2 + length(Pos - From) / 60;
 	vec2 Step = (Pos - From) / Steps;
 	Out = vec2(Dir.y, -Dir.x) * 1.0f;
-		
+
 	vec2 p1 = From;
 	vec2 s1 = vec2(0, 0);
-		
+
 	vec2 o1 = vec2(0, 0);
-			
-	for (int i = 0; i < Steps; i++)
+
+	for(int i = 0; i < Steps; i++)
 	{
 		vec2 p2 = p1 + Step;
 		vec2 o2 = vec2(0, 0);
-			
-		if (i < Steps-1)
-			o2 = vec2(frandom()-frandom(), (frandom()-frandom())/2) * 15.0f;
-			
-		vec2 s2 = Out * frandom()*8.0f;
-			
-		if (i == Steps -1)
+
+		if(i < Steps - 1)
+			o2 = vec2(frandom() - frandom(), (frandom() - frandom()) / 2) * 15.0f;
+
+		vec2 s2 = Out * frandom() * 8.0f;
+
+		if(i == Steps - 1)
 			s2 = vec2(0, 0);
-			
-		IGraphics::CFreeformItem FreeFormItem(
-			p1.x-s1.x+o1.x, p1.y-s1.y+o1.y,
-			p1.x+s1.x+o1.x, p1.y+s1.y+o1.y,
-			p2.x-s2.x+o2.x, p2.y-s2.y+o2.y,
-			p2.x+s2.x+o2.x, p2.y+s2.y+o2.y);
-								
+
+		IGraphics::CFreeformItem FreeFormItem(p1.x - s1.x + o1.x,
+											  p1.y - s1.y + o1.y,
+											  p1.x + s1.x + o1.x,
+											  p1.y + s1.y + o1.y,
+											  p2.x - s2.x + o2.x,
+											  p2.y - s2.y + o2.y,
+											  p2.x + s2.x + o2.x,
+											  p2.y + s2.y + o2.y);
+
 		Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-		
-		//m_pClient->m_pEffects->BulletTrail(p1+o1, p2+o2, vec4(0.5f, 0.5f, 1.0f, 0.2f));
-		
+
+		// m_pClient->m_pEffects->BulletTrail(p1+o1, p2+o2, vec4(0.5f, 0.5f, 1.0f, 0.2f));
+
 		s1 = s2;
 		p1 = p2;
 		o1 = o2;
 	}
-	
-	Graphics()->QuadsEnd();
-	
-	m_pClient->m_pEffects->BoxLight((Pos+From)/2, vec4(0.25f, 1.0f, 1.0f, 0.7f), vec2(40, abs(Pos.y - From.y)+60));
-	
-	//Graphics()->ShaderEnd();
-}
 
+	Graphics()->QuadsEnd();
+
+	m_pClient->m_pEffects->BoxLight(
+		(Pos + From) / 2, vec4(0.25f, 1.0f, 1.0f, 0.7f), vec2(40, abs(Pos.y - From.y) + 60));
+
+	// Graphics()->ShaderEnd();
+}
 
 void CBuildings2::RenderLightningWallTop(const struct CNetObj_Building *pCurrent)
 {
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_BUILDINGS].m_Id);
 	Graphics()->QuadsBegin();
-	
+
 	RenderTools()->SelectSprite(SPRITE_LIGHTNINGWALL, SPRITE_FLAG_FLIP_Y);
-	
+
 	Graphics()->SetColor(1, 1, 1, 1);
 	Graphics()->QuadsSetRotation(0);
-		
-	RenderTools()->DrawSprite(pCurrent->m_X, pCurrent->m_Y+4, 64);
-	
+
+	RenderTools()->DrawSprite(pCurrent->m_X, pCurrent->m_Y + 4, 64);
+
 	Graphics()->QuadsEnd();
 }
 
-
-
 void CBuildings2::RenderElectroWall(const CNetObj_LaserFail *pCurrent)
 {
-	if (pCurrent->m_PowerLevel != 100)
+	if(pCurrent->m_PowerLevel != 100)
 		return;
-	
+
 	vec2 Pos = vec2(pCurrent->m_X, pCurrent->m_Y);
 	vec2 From = vec2(pCurrent->m_FromX, pCurrent->m_FromY);
-	vec2 Dir = normalize(Pos-From);
+	vec2 Dir = normalize(Pos - From);
 
 	float Ticks = Client()->GameTick() + Client()->IntraGameTick() - pCurrent->m_StartTick;
-	float Ms = (Ticks/50.0f) * 1000.0f;
+	float Ms = (Ticks / 50.0f) * 1000.0f;
 	float a = Ms / m_pClient->m_Tuning.m_LaserBounceDelay;
 	a = clamp(a, 0.0f, 1.0f);
-	float Ia = 1-a;
+	float Ia = 1 - a;
 
-	//Graphics()->ShaderBegin(SHADER_ELECTRIC, 1.0f);
-	
+	// Graphics()->ShaderBegin(SHADER_ELECTRIC, 1.0f);
+
 	vec2 Out;
 
 	Graphics()->BlendNormal();
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
 
-	
 	int Steps = 2 + length(Pos - From) / 75;
 	vec2 Step = (Pos - From) / Steps;
-	Out = vec2(Dir.y, -Dir.x) * (5.0f*Ia);
-		
-	
-	for (int ew = 0; ew < 2; ew++)
+	Out = vec2(Dir.y, -Dir.x) * (5.0f * Ia);
+
+	for(int ew = 0; ew < 2; ew++)
 	{
 		vec2 p1 = From;
 		vec2 s1 = Out * 0.1f;
 		vec2 o1 = vec2(0, 0);
-		Graphics()->SetColor(1.0f-frandom()*0.15f, 1.0f-frandom()*0.25f, 0.9f-frandom()*0.3f, 0.5f+frandom()*0.5f);
-		
+		Graphics()->SetColor(
+			1.0f - frandom() * 0.15f, 1.0f - frandom() * 0.25f, 0.9f - frandom() * 0.3f, 0.5f + frandom() * 0.5f);
+
 		bool Trail = frandom() < 0.2f;
-		
-		for (int i = 0; i < Steps; i++)
+
+		for(int i = 0; i < Steps; i++)
 		{
 			vec2 p2 = p1 + Step;
 			vec2 o2 = vec2(0, 0);
-				
-			if (i < Steps-1)
-				o2 = vec2(frandom()-frandom(), frandom()-frandom()) * (40.0f + a*70.0f);
-				
-			vec2 s2 = Out * frandom()*3.0f;
-				
-			if (i == Steps -1)
+
+			if(i < Steps - 1)
+				o2 = vec2(frandom() - frandom(), frandom() - frandom()) * (40.0f + a * 70.0f);
+
+			vec2 s2 = Out * frandom() * 3.0f;
+
+			if(i == Steps - 1)
 				s2 *= 0.1f;
-				
-			IGraphics::CFreeformItem FreeFormItem(
-				p1.x-s1.x+o1.x, p1.y-s1.y+o1.y,
-				p1.x+s1.x+o1.x, p1.y+s1.y+o1.y,
-				p2.x-s2.x+o2.x, p2.y-s2.y+o2.y,
-				p2.x+s2.x+o2.x, p2.y+s2.y+o2.y);
-									
+
+			IGraphics::CFreeformItem FreeFormItem(p1.x - s1.x + o1.x,
+												  p1.y - s1.y + o1.y,
+												  p1.x + s1.x + o1.x,
+												  p1.y + s1.y + o1.y,
+												  p2.x - s2.x + o2.x,
+												  p2.y - s2.y + o2.y,
+												  p2.x + s2.x + o2.x,
+												  p2.y + s2.y + o2.y);
+
 			Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-			
-			if (Trail)
-				m_pClient->m_pEffects->BulletTrail(p1+o1, p2+o2, vec4(1.0f, 1.0f, 0.8f, 0.2f));
-			
+
+			if(Trail)
+				m_pClient->m_pEffects->BulletTrail(p1 + o1, p2 + o2, vec4(1.0f, 1.0f, 0.8f, 0.2f));
+
 			s1 = s2;
 			p1 = p2;
 			o1 = o2;
 		}
 	}
-	
+
 	Graphics()->QuadsEnd();
-	//Graphics()->ShaderEnd();
+	// Graphics()->ShaderEnd();
 	Graphics()->BlendNormal();
-	
-	m_pClient->m_pEffects->BoxLight((Pos+From)/2, vec4(1.0f, 0.8f, 0.6f, 0.7f), vec2(100, length(Pos - From)+80), atan2(Dir.y, Dir.x)+pi/2);
+
+	m_pClient->m_pEffects->BoxLight((Pos + From) / 2,
+									vec4(1.0f, 0.8f, 0.6f, 0.7f),
+									vec2(100, length(Pos - From) + 80),
+									atan2(Dir.y, Dir.x) + pi / 2);
 }
-
-
 
 void CBuildings2::RenderSawblade(const struct CNetObj_Building *pCurrent)
 {
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_BUILDINGS].m_Id);
 	Graphics()->QuadsBegin();
-	
+
 	RenderTools()->SelectSprite(SPRITE_SAWBLADE);
-	
+
 	Graphics()->SetColor(1, 1, 1, 1);
 	Graphics()->QuadsSetRotation(CustomStuff()->m_SawbladeAngle);
-		
-	RenderTools()->DrawSprite(pCurrent->m_X, pCurrent->m_Y, (128+32));
-	
+
+	RenderTools()->DrawSprite(pCurrent->m_X, pCurrent->m_Y, (128 + 32));
+
 	Graphics()->QuadsEnd();
 }
-
 
 void CBuildings2::RenderJumppad(const struct CNetObj_Building *pCurrent)
 {
 	float Time = 0.0f;
-	
-	int Anim = pCurrent->m_Status & (1<<BSTATUS_ON) ? ANIM_TRIGGER : ANIM_IDLE;
-	
-	
+
+	int Anim = pCurrent->m_Status & (1 << BSTATUS_ON) ? ANIM_TRIGGER : ANIM_IDLE;
+
 	// todo: get a truly unique index
-	int i = (pCurrent->m_X/7 + pCurrent->m_Y/15)%512;
-	
+	int i = (pCurrent->m_X / 7 + pCurrent->m_Y / 15) % 512;
+
 	float OffsetY = 0.0f;
-	
-	if (Anim == ANIM_TRIGGER && (CustomStuff()->m_aJumppad[i] < 0.01f || CustomStuff()->m_aJumppad[i] > 1.0f))
+
+	if(Anim == ANIM_TRIGGER && (CustomStuff()->m_aJumppad[i] < 0.01f || CustomStuff()->m_aJumppad[i] > 1.0f))
 	{
-		
-		//if (CustomStuff()->m_aImpactTick[i] < Client()->GameTick() + 20 * Client()->GameTickSpeed()/1000)
+
+		// if (CustomStuff()->m_aImpactTick[i] < Client()->GameTick() + 20 * Client()->GameTickSpeed()/1000)
 		//	m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_JUMPPAD, 1.0f, vec2(pCurrent->m_X, pCurrent->m_Y));
-			
+
 		CustomStuff()->m_aImpactTick[i] = Client()->GameTick() + 1000 + Client()->GameTickSpeed();
-		
-		//if (CustomStuff()->m_aJumppad[i] < 0.01f)
+
+		// if (CustomStuff()->m_aJumppad[i] < 0.01f)
 		{
 			CustomStuff()->m_aJumppad[i] = 0.01f;
-			CustomStuff()->AddImpact(vec4(pCurrent->m_X-64, pCurrent->m_Y+OffsetY-16, pCurrent->m_X+64, pCurrent->m_Y+OffsetY+16), CCustomStuff::IMPACT_HIT);
+			CustomStuff()->AddImpact(
+				vec4(
+					pCurrent->m_X - 64, pCurrent->m_Y + OffsetY - 16, pCurrent->m_X + 64, pCurrent->m_Y + OffsetY + 16),
+				CCustomStuff::IMPACT_HIT);
 			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_JUMPPAD, 1.0f, vec2(pCurrent->m_X, pCurrent->m_Y));
 		}
-		//else
-		//	CustomStuff()->AddImpact(vec4(pCurrent->m_X-64, pCurrent->m_Y+OffsetY-16, pCurrent->m_X+64, pCurrent->m_Y+OffsetY+16), CCustomStuff::IMPACT_READY);
+		// else
+		//	CustomStuff()->AddImpact(vec4(pCurrent->m_X-64, pCurrent->m_Y+OffsetY-16, pCurrent->m_X+64,
+		// pCurrent->m_Y+OffsetY+16), CCustomStuff::IMPACT_READY);
 	}
 	else
 	{
-	//	CustomStuff()->m_aJumppad[i] = 0.0f;
-		CustomStuff()->AddImpact(vec4(pCurrent->m_X-64, pCurrent->m_Y+OffsetY-16, pCurrent->m_X+64, pCurrent->m_Y+OffsetY+16), CCustomStuff::IMPACT_READY);
+		//	CustomStuff()->m_aJumppad[i] = 0.0f;
+		CustomStuff()->AddImpact(
+			vec4(pCurrent->m_X - 64, pCurrent->m_Y + OffsetY - 16, pCurrent->m_X + 64, pCurrent->m_Y + OffsetY + 16),
+			CCustomStuff::IMPACT_READY);
 	}
-	
-	if (CustomStuff()->m_aJumppad[i] < 3.7f)
+
+	if(CustomStuff()->m_aJumppad[i] < 3.7f)
 		Time = CustomStuff()->m_aJumppad[i] * 0.11f;
 	else
 		CustomStuff()->m_aJumppad[i] = 0.0f;
-	
-	RenderTools()->RenderSkeleton(vec2(pCurrent->m_X, pCurrent->m_Y), ATLAS_JUMPPAD, RenderTools()->Skelebank()->GetAnimList(ANIM_TRIGGER), Time, vec2(1.0f, 1.0f)*0.54f, 1, 0);
-}
 
+	RenderTools()->RenderSkeleton(vec2(pCurrent->m_X, pCurrent->m_Y),
+								  ATLAS_JUMPPAD,
+								  RenderTools()->Skelebank()->GetAnimList(ANIM_TRIGGER),
+								  Time,
+								  vec2(1.0f, 1.0f) * 0.54f,
+								  1,
+								  0);
+}
 
 void CBuildings2::RenderGenerator(const struct CNetObj_Building *pCurrent, const CNetObj_Building *pPrev)
 {
 	vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
-	
-	float c = cos(CustomStuff()->m_SawbladeAngle*0.25f+(pCurrent->m_X/17)%30*0.1f)*0.3f + 0.7f;
-	
+
+	float c = cos(CustomStuff()->m_SawbladeAngle * 0.25f + (pCurrent->m_X / 17) % 30 * 0.1f) * 0.3f + 0.7f;
+
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GENERATOR_SHIELD].m_Id);
 	Graphics()->QuadsBegin();
-	
-	//team color
-	if (m_pClient->m_Snap.m_pGameInfoObj)
+
+	// team color
+	if(m_pClient->m_Snap.m_pGameInfoObj)
 	{
 		int Flags = m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags;
 		int Team = pCurrent->m_Team;
-	
-		if ((Flags & GAMEFLAG_TEAMS) && !(Flags & GAMEFLAG_INFECTION))
+
+		if((Flags & GAMEFLAG_TEAMS) && !(Flags & GAMEFLAG_INFECTION))
 		{
-			if (Team == TEAM_RED)
-				Graphics()->SetColor(1, 0.5f + c*0.5f, 0.5f, 0.5f);
-			else if (Team == TEAM_BLUE)
-				Graphics()->SetColor(0.5f, 0.5f + c*0.5f, 1, 0.5f);
+			if(Team == TEAM_RED)
+				Graphics()->SetColor(1, 0.5f + c * 0.5f, 0.5f, 0.5f);
+			else if(Team == TEAM_BLUE)
+				Graphics()->SetColor(0.5f, 0.5f + c * 0.5f, 1, 0.5f);
 		}
-		else if (Team == TEAM_RED)
+		else if(Team == TEAM_RED)
 		{
 			vec4 pc = CustomStuff()->m_LocalColor;
-			Graphics()->SetColor(0.5f+pc.r*0.5f, 0.5f+pc.g*0.5f, 0.5f+pc.b*0.5f, 0.5f);
+			Graphics()->SetColor(0.5f + pc.r * 0.5f, 0.5f + pc.g * 0.5f, 0.5f + pc.b * 0.5f, 0.5f);
 		}
 		else
-			Graphics()->SetColor(0.0f, 0.5f+c*0.5f, 1, 0.5f);
+			Graphics()->SetColor(0.0f, 0.5f + c * 0.5f, 1, 0.5f);
 	}
 	else
-		Graphics()->SetColor(0.5f, 0.5f+c*0.5f, 1, 0.5f);
-	
-	
-	//Graphics()->SetColor(0, 0.5f+c*0.5f, 1, 0.5f);
+		Graphics()->SetColor(0.5f, 0.5f + c * 0.5f, 1, 0.5f);
+
+	// Graphics()->SetColor(0, 0.5f+c*0.5f, 1, 0.5f);
 	RenderTools()->SelectSprite(SPRITE_GENERATOR_SHIELD);
-	RenderTools()->DrawSprite(Pos.x, Pos.y, 512+226+50.0f*c);
+	RenderTools()->DrawSprite(Pos.x, Pos.y, 512 + 226 + 50.0f * c);
 	Graphics()->QuadsEnd();
-	
-	m_pClient->m_pEffects->SimpleLight(Pos, vec4(0.5f, 0.5f+c*0.5f, 1, 0.5f), 512+226+50.0f*c);
+
+	m_pClient->m_pEffects->SimpleLight(Pos, vec4(0.5f, 0.5f + c * 0.5f, 1, 0.5f), 512 + 226 + 50.0f * c);
 }
 
 void CBuildings2::RenderFlametrap(const CNetObj_Building *pCurrent, const CNetObj_Building *pPrev)
 {
 	vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
-	
+
 	// render flame effect
-	int i = Pos.x/4 + Pos.y/16;
-	i = i%64;
-	
+	int i = Pos.x / 4 + Pos.y / 16;
+	i = i % 64;
+
 	i = clamp(i, 0, 63);
-	
+
 	int s = pCurrent->m_Status;
-	if (s & (1<<BSTATUS_FIRE))
+	if(s & (1 << BSTATUS_FIRE))
 	{
-		if (CustomStuff()->m_FlametrapState[i] == 0)
+		if(CustomStuff()->m_FlametrapState[i] == 0)
 			CustomStuff()->m_FlametrapState[i]++;
-		
-		if (CustomStuff()->m_FlametrapState[i] > 9*6)
-			CustomStuff()->m_FlametrapState[i] = 5*6;
-		
-		if (CustomStuff()->m_FlametrapSoundTick[i] <= Client()->GameTick())
+
+		if(CustomStuff()->m_FlametrapState[i] > 9 * 6)
+			CustomStuff()->m_FlametrapState[i] = 5 * 6;
+
+		if(CustomStuff()->m_FlametrapSoundTick[i] <= Client()->GameTick())
 		{
-			CustomStuff()->m_FlametrapSoundTick[i] = Client()->GameTick() + 190 * Client()->GameTickSpeed()/1000;
-			if (CustomStuff()->m_FlametrapLastSound[i] == 0)
+			CustomStuff()->m_FlametrapSoundTick[i] = Client()->GameTick() + 190 * Client()->GameTickSpeed() / 1000;
+			if(CustomStuff()->m_FlametrapLastSound[i] == 0)
 			{
 				CustomStuff()->m_FlametrapLastSound[i] = 1;
 				m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_JETPACK1, 1.0f, Pos);
@@ -342,58 +350,57 @@ void CBuildings2::RenderFlametrap(const CNetObj_Building *pCurrent, const CNetOb
 				CustomStuff()->m_FlametrapLastSound[i] = 0;
 				m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_JETPACK2, 1.0f, Pos);
 			}
-			
+
 			// new sound
-			//CustomStuff()->m_FlametrapSoundTick[i] = Client()->GameTick() + 2000 * Client()->GameTickSpeed()/1000;
-			//m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_FIRETRAP, 1.0f, vec2(pCurrent->m_X, pCurrent->m_Y));
+			// CustomStuff()->m_FlametrapSoundTick[i] = Client()->GameTick() + 2000 * Client()->GameTickSpeed()/1000;
+			// m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_FIRETRAP, 1.0f, vec2(pCurrent->m_X,
+			// pCurrent->m_Y));
 		}
 	}
-	
-	if (CustomStuff()->m_FlametrapState[i] > 0)
+
+	if(CustomStuff()->m_FlametrapState[i] > 0)
 	{
 		int f = CustomStuff()->m_FlametrapState[i] / 6;
-		
+
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_FLAME].m_Id);
 		Graphics()->QuadsBegin();
-		
-		bool Flip = s & (1<<BSTATUS_MIRROR);
-		RenderTools()->SelectSprite(SPRITE_FLAME1+f, Flip ? SPRITE_FLAG_FLIP_X : 0);
-		
+
+		bool Flip = s & (1 << BSTATUS_MIRROR);
+		RenderTools()->SelectSprite(SPRITE_FLAME1 + f, Flip ? SPRITE_FLAG_FLIP_X : 0);
+
 		Graphics()->SetColor(1, 1, 1, 1);
 		Graphics()->QuadsSetRotation(0);
-			
-		IGraphics::CQuadItem QuadItem2(Pos.x + (Flip ? -13-72 : 13+72), Pos.y - 18, 128, 64);
+
+		IGraphics::CQuadItem QuadItem2(Pos.x + (Flip ? -13 - 72 : 13 + 72), Pos.y - 18, 128, 64);
 		Graphics()->QuadsDraw(&QuadItem2, 1);
-		
+
 		Graphics()->QuadsEnd();
-		
-		m_pClient->m_pEffects->SimpleLight(Pos+vec2((Flip ? -13-90 : 13+90), -14), vec4(1.0f, 0.7f, 0.4f, 0.5f), vec2(240, 100));
+
+		m_pClient->m_pEffects->SimpleLight(
+			Pos + vec2((Flip ? -13 - 90 : 13 + 90), -14), vec4(1.0f, 0.7f, 0.4f, 0.5f), vec2(240, 100));
 	}
-	
-	
+
 	// render frame
 	/*
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_BUILDINGS].m_Id);
 	Graphics()->QuadsBegin();
-		
+
 	s = pCurrent->m_Status;
 	bool Flip = s & (1<<BSTATUS_MIRROR);
-	
+
 	RenderTools()->SelectSprite(SPRITE_FLAMETRAP, Flip ? SPRITE_FLAG_FLIP_X : 0);
-	
+
 	Graphics()->SetColor(1, 1, 1, 1);
 	Graphics()->QuadsSetRotation(0);
-		
+
 	IGraphics::CQuadItem QuadItem(pCurrent->m_X + (Flip ? -13 : 13), pCurrent->m_Y, 64, 64);
 	Graphics()->QuadsDraw(&QuadItem, 1);
-	
+
 	Graphics()->QuadsEnd();
 	*/
 }
 
-
 // todo: separate from buildings2.cpp
-
 
 void CBuildings2::OnRender()
 {
@@ -406,47 +413,43 @@ void CBuildings2::OnRender()
 		IClient::CSnapItem Item;
 		const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
 
-		if (Item.m_Type == NETOBJTYPE_LASERFAIL)
+		if(Item.m_Type == NETOBJTYPE_LASERFAIL)
 		{
 			RenderElectroWall((const CNetObj_LaserFail *)pData);
 		}
-		else if (Item.m_Type == NETOBJTYPE_BUILDING)
+		else if(Item.m_Type == NETOBJTYPE_BUILDING)
 		{
 			const struct CNetObj_Building *pBuilding = (const CNetObj_Building *)pData;
 			const void *pPrev = Client()->SnapFindItem(IClient::SNAP_PREV, Item.m_Type, Item.m_ID);
-			
-			switch (pBuilding->m_Type)
+
+			switch(pBuilding->m_Type)
 			{
-			case BUILDING_LIGHTNINGWALL:
-				RenderLightningWall(pBuilding);
-				break;
-				
-			case BUILDING_LIGHTNINGWALL2:
-				RenderLightningWallTop(pBuilding);
-				break;
-				
-				
-			case BUILDING_SAWBLADE:
-				RenderSawblade(pBuilding);
-				break;
-				
-			case BUILDING_FLAMETRAP:
-				RenderFlametrap(pBuilding, pPrev ? (const CNetObj_Building *)pPrev : pBuilding);
-				break;
-			
-			case BUILDING_GENERATOR:
-				RenderGenerator(pBuilding, pPrev ? (const CNetObj_Building *)pPrev : pBuilding);
-				break;
-				
-			case BUILDING_JUMPPAD:
-				RenderJumppad(pBuilding);
-				break;
-				
-			default:;
+				case BUILDING_LIGHTNINGWALL:
+					RenderLightningWall(pBuilding);
+					break;
+
+				case BUILDING_LIGHTNINGWALL2:
+					RenderLightningWallTop(pBuilding);
+					break;
+
+				case BUILDING_SAWBLADE:
+					RenderSawblade(pBuilding);
+					break;
+
+				case BUILDING_FLAMETRAP:
+					RenderFlametrap(pBuilding, pPrev ? (const CNetObj_Building *)pPrev : pBuilding);
+					break;
+
+				case BUILDING_GENERATOR:
+					RenderGenerator(pBuilding, pPrev ? (const CNetObj_Building *)pPrev : pBuilding);
+					break;
+
+				case BUILDING_JUMPPAD:
+					RenderJumppad(pBuilding);
+					break;
+
+				default:;
 			};
 		}
 	}
-	
 }
-
-

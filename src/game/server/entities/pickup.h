@@ -10,7 +10,7 @@ const int PickupPhysSize = 14;
 
 class CPickup : public CEntity
 {
-public:
+  public:
 	CPickup(CGameWorld *pGameWorld, int Type, int SubType = 0, int Ammo = -1);
 
 	virtual void Reset();
@@ -19,23 +19,23 @@ public:
 	virtual void Snap(int SnappingClient);
 
 	class CWeapon *m_pWeapon;
-	
+
 	float m_Ammo;
-	
+
 	void Respawn()
 	{
-		if (!m_Dropable || m_ResetableDropable)
+		if(!m_Dropable || m_ResetableDropable)
 		{
 			m_SpawnTick = -1;
 			m_Flashing = false;
 			m_FlashTimer = 0;
 		}
-		
+
 		ClearWeapon();
 	}
-	
+
 	virtual void SurvivalReset();
-	
+
 	void RespawnDropable()
 	{
 		m_SpawnTick = -1;
@@ -48,7 +48,7 @@ public:
 		m_Treasure = false;
 		ClearWeapon();
 	}
-	
+
 	void RespawnTreasure()
 	{
 		m_SpawnTick = -1;
@@ -62,11 +62,11 @@ public:
 		m_SkipAutoRespawn = true;
 		ClearWeapon();
 	}
-	
+
 	void SetRandomWeapon();
-	
+
 	bool IsWeapon();
-	
+
 	void Hide()
 	{
 		m_SpawnTick = 1;
@@ -77,51 +77,48 @@ public:
 		m_WeaponSpec = {};
 		ClearWeapon();
 	}
-	
+
 	void AddForce(vec2 Force);
-	
+
 	void ClearWeapon();
-	
+
 	bool m_SkipAutoRespawn;
-	
+
 	bool m_Dropable;
 	int m_Life;
 	int m_SpawnTick;
-	
+
 	bool m_Treasure;
-	
+
 	bool m_Flashing;
 	int m_FlashTimer;
-	
+
 	vec2 m_Vel;
-	
-	int GetType(){ return m_Type; }
-	int GetSubtype(){ return m_Type; }
-	
-	void SetSubtype(int Type)
-	{
-		m_Subtype = Type;
-	}
+
+	int GetType() { return m_Type; }
+	int GetSubtype() { return m_Type; }
+
+	void SetSubtype(int Type) { m_Subtype = Type; }
 
 	void SetWeaponSpec(const CWeaponSpec &Spec)
 	{
 		m_WeaponSpec = Spec;
 		m_Subtype = 0;
 	}
-	
+
 	float m_Angle;
 	float m_AngleForce;
-	
-private:
+
+  private:
 	int m_BoxSize;
 	int m_Type;
 	int m_Subtype;
 	int m_StaticForceTile;
 	bool m_StaticForceTileChecked;
 	CWeaponSpec m_WeaponSpec;
-	
+
 	bool m_Mirror;
-	
+
 	vec2 m_SpawnPos;
 	bool m_ResetableDropable;
 };

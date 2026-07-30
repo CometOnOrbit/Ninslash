@@ -14,15 +14,20 @@ struct CForgeRecipe
 	int m_Cost = 0;
 	int m_ProductAmmo = 0;
 	int m_ProductMaxAmmo = 0;
+	char m_aRecipeName[128] = {};
 };
 
 class CForge
 {
-public:
+  public:
 	static int Cost(int BaseCost, int LevelCost, int TargetLevel, int MaterialLevel);
 	static int MapAmmo(int TargetAmmo, int TargetMaxAmmo, int ProductMaxAmmo);
-	static CForgeRecipe Resolve(const CWeaponSpec &Target, const CWeaponSpec &Material,
-		int TargetAmmo, int BaseCost, int LevelCost);
+	static CForgeRecipe Resolve(const CWeaponSpec &Target,
+								const CWeaponSpec &Material,
+								int TargetAmmo,
+								int BaseCost,
+								int LevelCost,
+								int MaterialAmmo = 0);
 	static bool Validate();
 };
 

@@ -7,12 +7,12 @@ class CKernel : public IKernel
 {
 	enum
 	{
-		MAX_INTERFACES=32,
+		MAX_INTERFACES = 32,
 	};
 
 	class CInterfaceInfo
 	{
-	public:
+	  public:
 		CInterfaceInfo()
 		{
 			m_aName[0] = 0;
@@ -36,13 +36,8 @@ class CKernel : public IKernel
 		return 0x0;
 	}
 
-public:
-
-	CKernel()
-	{
-		m_NumInterfaces = 0;
-	}
-
+  public:
+	CKernel() { m_NumInterfaces = 0; }
 
 	virtual bool RegisterInterfaceImpl(const char *pName, IInterface *pInterface)
 	{
@@ -98,4 +93,7 @@ public:
 	}
 };
 
-IKernel *IKernel::Create() { return new CKernel; }
+IKernel *IKernel::Create()
+{
+	return new CKernel;
+}

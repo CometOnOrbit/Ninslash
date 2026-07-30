@@ -1,6 +1,6 @@
 #include <random>
 
-#include <stdio.h>	// sscanf
+#include <stdio.h> // sscanf
 #include <base/system.h>
 #include <base/math.h>
 #include <base/vmath.h>
@@ -26,7 +26,6 @@ CMapGen::CMapGen()
 }
 CMapGen::~CMapGen()
 {
-	
 }
 
 void CMapGen::Init(CLayers *pLayers, CCollision *pCollision, IStorage *pStorage)
@@ -34,13 +33,11 @@ void CMapGen::Init(CLayers *pLayers, CCollision *pCollision, IStorage *pStorage)
 	m_pLayers = pLayers;
 	m_pCollision = pCollision;
 	m_pStorage = pStorage;
-	
+
 	Load("metal_main");
 }
 
-
-
-void CMapGen::Load(const char* pTileName)
+void CMapGen::Load(const char *pTileName)
 {
 	char aPath[256];
 	str_format(aPath, sizeof(aPath), "editor/%s.rules", pTileName);
@@ -58,10 +55,10 @@ void CMapGen::Load(const char* pTileName)
 	while(char *pLine = LineReader.Get())
 	{
 		// skip blank/empty lines as well as comments
-		if(str_length(pLine) > 0 && pLine[0] != '#' && pLine[0] != '\n' && pLine[0] != '\r'
-			&& pLine[0] != '\t' && pLine[0] != '\v' && pLine[0] != ' ')
+		if(str_length(pLine) > 0 && pLine[0] != '#' && pLine[0] != '\n' && pLine[0] != '\r' && pLine[0] != '\t' &&
+		   pLine[0] != '\v' && pLine[0] != ' ')
 		{
-			if(pLine[0]== '[')
+			if(pLine[0] == '[')
 			{
 				// new configuration, get the name
 				pLine++;
@@ -100,15 +97,15 @@ void CMapGen::Load(const char* pTileName)
 						else if(!str_comp(aFlip, "YFLIP"))
 							NewIndexRule.m_Flag = TILEFLAG_HFLIP;
 						else if(!str_comp(aFlip, "XYFLIP"))
-							NewIndexRule.m_Flag = TILEFLAG_VFLIP+TILEFLAG_HFLIP;
+							NewIndexRule.m_Flag = TILEFLAG_VFLIP + TILEFLAG_HFLIP;
 						else if(!str_comp(aFlip, "ROTATE"))
 							NewIndexRule.m_Flag = TILEFLAG_ROTATE;
 						else if(!str_comp(aFlip, "XFLIP_ROTATE"))
-							NewIndexRule.m_Flag = TILEFLAG_ROTATE+TILEFLAG_VFLIP;
+							NewIndexRule.m_Flag = TILEFLAG_ROTATE + TILEFLAG_VFLIP;
 						else if(!str_comp(aFlip, "YFLIP_ROTATE"))
-							NewIndexRule.m_Flag = TILEFLAG_ROTATE+TILEFLAG_HFLIP;
+							NewIndexRule.m_Flag = TILEFLAG_ROTATE + TILEFLAG_HFLIP;
 						else if(!str_comp(aFlip, "XYFLIP_ROTATE"))
-							NewIndexRule.m_Flag = TILEFLAG_ROTATE+TILEFLAG_VFLIP+TILEFLAG_HFLIP;
+							NewIndexRule.m_Flag = TILEFLAG_ROTATE + TILEFLAG_VFLIP + TILEFLAG_HFLIP;
 					}
 
 					// add the index rule object and make it current
@@ -156,15 +153,13 @@ void CMapGen::Load(const char* pTileName)
 	m_FileLoaded = true;
 }
 
-const char* CMapGen::GetConfigName(int Index)
+const char *CMapGen::GetConfigName(int Index)
 {
 	if(Index < 0 || Index >= m_lConfigs.size())
 		return "";
 
 	return m_lConfigs[Index].m_aName;
 }
-
-
 
 void CMapGen::ExpandEscapeTowerCanvas()
 {
@@ -185,8 +180,7 @@ void CMapGen::ExpandEscapeTowerCanvas()
 
 	const int NewW = TargetW;
 	const int NewH = max(TargetH, pGame->m_Height);
-	dbg_msg("mapgen", "expanding escape tower canvas %dx%d -> %dx%d",
-		pGame->m_Width, pGame->m_Height, NewW, NewH);
+	dbg_msg("mapgen", "expanding escape tower canvas %dx%d -> %dx%d", pGame->m_Width, pGame->m_Height, NewW, NewH);
 
 	IMap *pMap = m_pLayers->Map();
 	int LayerStart = 0;
@@ -195,14 +189,14 @@ void CMapGen::ExpandEscapeTowerCanvas()
 
 	for(int i = 0; i < LayerNum; i++)
 	{
-		CMapItemLayer *pLayer = static_cast<CMapItemLayer *>(pMap->GetItem(LayerStart+i, 0, 0));
+		CMapItemLayer *pLayer = static_cast<CMapItemLayer *>(pMap->GetItem(LayerStart + i, 0, 0));
 		if(!pLayer || pLayer->m_Type != LAYERTYPE_TILES)
 			continue;
 
 		CMapItemLayerTilemap *pTilemap = reinterpret_cast<CMapItemLayerTilemap *>(pLayer);
 		pTilemap->m_Width = NewW;
 		pTilemap->m_Height = NewH;
-		if(!pMap->ReplaceData(pTilemap->m_Data, NewW*NewH*(int)sizeof(CTile)))
+		if(!pMap->ReplaceData(pTilemap->m_Data, NewW * NewH * (int)sizeof(CTile)))
 			dbg_msg("mapgen", "failed to resize tile layer data index=%d", pTilemap->m_Data);
 	}
 
@@ -224,8 +218,7 @@ void CMapGen::ExpandExtractMazeCanvas()
 
 	const int NewW = max(TargetW, pGame->m_Width);
 	const int NewH = max(TargetH, pGame->m_Height);
-	dbg_msg("mapgen", "expanding extract maze canvas %dx%d -> %dx%d",
-		pGame->m_Width, pGame->m_Height, NewW, NewH);
+	dbg_msg("mapgen", "expanding extract maze canvas %dx%d -> %dx%d", pGame->m_Width, pGame->m_Height, NewW, NewH);
 
 	IMap *pMap = m_pLayers->Map();
 	int LayerStart = 0;
@@ -234,14 +227,14 @@ void CMapGen::ExpandExtractMazeCanvas()
 
 	for(int i = 0; i < LayerNum; i++)
 	{
-		CMapItemLayer *pLayer = static_cast<CMapItemLayer *>(pMap->GetItem(LayerStart+i, 0, 0));
+		CMapItemLayer *pLayer = static_cast<CMapItemLayer *>(pMap->GetItem(LayerStart + i, 0, 0));
 		if(!pLayer || pLayer->m_Type != LAYERTYPE_TILES)
 			continue;
 
 		CMapItemLayerTilemap *pTilemap = reinterpret_cast<CMapItemLayerTilemap *>(pLayer);
 		pTilemap->m_Width = NewW;
 		pTilemap->m_Height = NewH;
-		if(!pMap->ReplaceData(pTilemap->m_Data, NewW*NewH*(int)sizeof(CTile)))
+		if(!pMap->ReplaceData(pTilemap->m_Data, NewW * NewH * (int)sizeof(CTile)))
 			dbg_msg("mapgen", "failed to resize tile layer data index=%d", pTilemap->m_Data);
 	}
 
@@ -280,24 +273,23 @@ void CMapGen::FillMap()
 {
 	dbg_msg("mapgen", "started map generation");
 
-	for (int i = 0; i < g_Config.m_SvMapGenLevel; i++)
+	for(int i = 0; i < g_Config.m_SvMapGenLevel; i++)
 		rand();
 
 	FitTutorialCanvas();
 	ExpandEscapeTowerCanvas();
 	ExpandExtractMazeCanvas();
-	
+
 	int64 ProcessTime = 0;
 	int64 TotalTime = time_get();
 
 	// clear map, but keep background, envelopes etc
 	ProcessTime = time_get();
 	const int Group = m_pLayers->GetGameGroupIndex();
-	const bool BatchCleared =
-		m_pCollision->ClearTileLayer(Group, m_pLayers->GetGameLayerIndex()) &&
-		m_pCollision->ClearTileLayer(Group, m_pLayers->GetBackgroundLayerIndex()) &&
-		m_pCollision->ClearTileLayer(Group, m_pLayers->GetDoodadsLayerIndex()) &&
-		m_pCollision->ClearTileLayer(Group, m_pLayers->GetForegroundLayerIndex());
+	const bool BatchCleared = m_pCollision->ClearTileLayer(Group, m_pLayers->GetGameLayerIndex()) &&
+							  m_pCollision->ClearTileLayer(Group, m_pLayers->GetBackgroundLayerIndex()) &&
+							  m_pCollision->ClearTileLayer(Group, m_pLayers->GetDoodadsLayerIndex()) &&
+							  m_pCollision->ClearTileLayer(Group, m_pLayers->GetForegroundLayerIndex());
 	if(!BatchCleared)
 	{
 		const int Width = m_pLayers->GameLayer()->m_Width;
@@ -314,115 +306,116 @@ void CMapGen::FillMap()
 			ModifTile(TilePos, m_pLayers->GetForegroundLayerIndex(), TILE_AIR);
 		}
 	}
-	dbg_msg("mapgen", "map normalized in %.5fs", (float)(time_get()-ProcessTime)/time_freq());
-
+	dbg_msg("mapgen", "map normalized in %.5fs", (float)(time_get() - ProcessTime) / time_freq());
 
 	ProcessTime = time_get();
-	
-	if (IsCoopMapGenGametype(g_Config.m_SvGametype))
+
+	if(IsCoopMapGenGametype(g_Config.m_SvGametype))
 		GenerateLevel();
 	else
 		GeneratePVPLevel();
-	
-	dbg_msg("mapgen", "map successfully generated in %.5fs", (float)(time_get()-TotalTime)/time_freq());
+
+	dbg_msg("mapgen", "map successfully generated in %.5fs", (float)(time_get() - TotalTime) / time_freq());
 }
-
-
 
 void CMapGen::GenerateEnd(CGenLayer *pTiles)
 {
 	int w = pTiles->Width();
 	int h = pTiles->Height();
-	
+
 	// find a platform
-	if (str_comp(g_Config.m_SvGametype, "coop") == 0 && InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)
+	if(str_comp(g_Config.m_SvGametype, "coop") == 0 &&
+	   InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)
 	{
-		for(int y = 3; y < h-3; y++)
-			for(int x = w-3; x > 3; x--)
+		for(int y = 3; y < h - 3; y++)
+			for(int x = w - 3; x > 3; x--)
 			{
-				if (!pTiles->Get(x-2, y) && !pTiles->Get(x-1, y) && !pTiles->Get(x, y) && !pTiles->Get(x+1, y) && !pTiles->Get(x+2, y) && !pTiles->Get(x+3, y) && 
-					pTiles->Get(x-3, y+1) && pTiles->Get(x-2, y+1) && pTiles->Get(x-1, y+1) && pTiles->Get(x, y+1) && pTiles->Get(x+1, y+1) && pTiles->Get(x+2, y+1) && pTiles->Get(x+3, y+1) &&
-					!pTiles->Get(x, y-2) && !pTiles->Get(x, y-3) && !pTiles->Get(x, y-4) && !pTiles->Get(x, y-5))
+				if(!pTiles->Get(x - 2, y) && !pTiles->Get(x - 1, y) && !pTiles->Get(x, y) && !pTiles->Get(x + 1, y) &&
+				   !pTiles->Get(x + 2, y) && !pTiles->Get(x + 3, y) && pTiles->Get(x - 3, y + 1) &&
+				   pTiles->Get(x - 2, y + 1) && pTiles->Get(x - 1, y + 1) && pTiles->Get(x, y + 1) &&
+				   pTiles->Get(x + 1, y + 1) && pTiles->Get(x + 2, y + 1) && pTiles->Get(x + 3, y + 1) &&
+				   !pTiles->Get(x, y - 2) && !pTiles->Get(x, y - 3) && !pTiles->Get(x, y - 4) && !pTiles->Get(x, y - 5))
 				{
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_DOOR1);
-					
+					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_DOOR1);
+
 					pTiles->m_EndPos = ivec2(x, y);
-					
-					pTiles->Set(-1, x-2, y);
-					pTiles->Set(-1, x-1, y);
+
+					pTiles->Set(-1, x - 2, y);
+					pTiles->Set(-1, x - 1, y);
 					pTiles->Set(-1, x, y);
-					pTiles->Set(-1, x+1, y);
-					pTiles->Set(-1, x+2, y);
-					
+					pTiles->Set(-1, x + 1, y);
+					pTiles->Set(-1, x + 2, y);
+
 					// clear
-					for (int xx = -2; xx < 3; xx++)
-						for (int yy = -4; yy < 0; yy++)
-							pTiles->Set(-1, x+xx, y+yy);
-						
+					for(int xx = -2; xx < 3; xx++)
+						for(int yy = -4; yy < 0; yy++)
+							pTiles->Set(-1, x + xx, y + yy);
+
 					// background
-					for (int xx = -5; xx < 6; xx++)
-						for (int yy = -7; yy < 500; yy++)
-							pTiles->Set(1, x+xx, y+yy, 0, CGenLayer::BACKGROUND);
-					
+					for(int xx = -5; xx < 6; xx++)
+						for(int yy = -7; yy < 500; yy++)
+							pTiles->Set(1, x + xx, y + yy, 0, CGenLayer::BACKGROUND);
+
 					return;
 				}
 			}
 	}
 	else
 	{
-		for(int x = w-3; x > 3; x--)
-			for(int y = 3; y < h-3; y++)
+		for(int x = w - 3; x > 3; x--)
+			for(int y = 3; y < h - 3; y++)
 			{
-				if (!pTiles->Get(x-2, y) && !pTiles->Get(x-1, y) && !pTiles->Get(x, y) && !pTiles->Get(x+1, y) && !pTiles->Get(x+2, y) && !pTiles->Get(x+3, y) && 
-					pTiles->Get(x-3, y+1) && pTiles->Get(x-2, y+1) && pTiles->Get(x-1, y+1) && pTiles->Get(x, y+1) && pTiles->Get(x+1, y+1) && pTiles->Get(x+2, y+1) && pTiles->Get(x+3, y+1) &&
-					!pTiles->Get(x, y-2) && !pTiles->Get(x, y-3) && !pTiles->Get(x, y-4) && !pTiles->Get(x, y-5))
+				if(!pTiles->Get(x - 2, y) && !pTiles->Get(x - 1, y) && !pTiles->Get(x, y) && !pTiles->Get(x + 1, y) &&
+				   !pTiles->Get(x + 2, y) && !pTiles->Get(x + 3, y) && pTiles->Get(x - 3, y + 1) &&
+				   pTiles->Get(x - 2, y + 1) && pTiles->Get(x - 1, y + 1) && pTiles->Get(x, y + 1) &&
+				   pTiles->Get(x + 1, y + 1) && pTiles->Get(x + 2, y + 1) && pTiles->Get(x + 3, y + 1) &&
+				   !pTiles->Get(x, y - 2) && !pTiles->Get(x, y - 3) && !pTiles->Get(x, y - 4) && !pTiles->Get(x, y - 5))
 				{
-					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_DOOR1);
-					
+					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_DOOR1);
+
 					pTiles->m_EndPos = ivec2(x, y);
-					
-					pTiles->Set(-1, x-2, y);
-					pTiles->Set(-1, x-1, y);
+
+					pTiles->Set(-1, x - 2, y);
+					pTiles->Set(-1, x - 1, y);
 					pTiles->Set(-1, x, y);
-					pTiles->Set(-1, x+1, y);
-					pTiles->Set(-1, x+2, y);
-					
+					pTiles->Set(-1, x + 1, y);
+					pTiles->Set(-1, x + 2, y);
+
 					// clear
-					for (int xx = -2; xx < 3; xx++)
-						for (int yy = -4; yy < 0; yy++)
-							pTiles->Set(-1, x+xx, y+yy);
-						
+					for(int xx = -2; xx < 3; xx++)
+						for(int yy = -4; yy < 0; yy++)
+							pTiles->Set(-1, x + xx, y + yy);
+
 					// background
-					for (int xx = -5; xx < 6; xx++)
-						for (int yy = -7; yy < 500; yy++)
-							pTiles->Set(1, x+xx, y+yy, 0, CGenLayer::BACKGROUND);
-					
+					for(int xx = -5; xx < 6; xx++)
+						for(int yy = -7; yy < 500; yy++)
+							pTiles->Set(1, x + xx, y + yy, 0, CGenLayer::BACKGROUND);
+
 					return;
 				}
 			}
 	}
 }
 
-
 void CMapGen::GenerateSawblade(CGenLayer *pTiles)
 {
 	ivec2 p = ivec2(0, 0);
-	
-	if (frandom() < 0.4f)
+
+	if(frandom() < 0.4f)
 		p = pTiles->GetSharpCorner();
-	else if (frandom() < 0.4f)
+	else if(frandom() < 0.4f)
 	{
 		p = pTiles->GetCeiling();
 		p.y -= 1;
 	}
-	else if (frandom() < 0.4f)
+	else if(frandom() < 0.4f)
 	{
 		p = pTiles->GetWall();
-		
-		if (p.x == 0)
+
+		if(p.x == 0)
 			return;
-		
-		if (pTiles->Get(p.x-1, p.y))
+
+		if(pTiles->Get(p.x - 1, p.y))
 			p.x -= 1;
 		else
 			p.x += 1;
@@ -432,56 +425,55 @@ void CMapGen::GenerateSawblade(CGenLayer *pTiles)
 		p = pTiles->GetPlatform();
 		p.y += 1;
 	}
-	
-	if (p.x == 0)
-		return;
-	
-	for (int x = -2; x < 2; x++)
-		for (int y = -2; y < 2; y++)
-			pTiles->Use(p.x+x, p.y+y);
-		
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SAWBLADE);
-}
 
+	if(p.x == 0)
+		return;
+
+	for(int x = -2; x < 2; x++)
+		for(int y = -2; y < 2; y++)
+			pTiles->Use(p.x + x, p.y + y);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SAWBLADE);
+}
 
 void CMapGen::GenerateWeapon(CGenLayer *pTiles, int Weapon)
 {
 	ivec2 p = ivec2(0, 0);
-	
+
 	p = pTiles->GetTopCorner();
-		
-	if (p.x != 0)
+
+	if(p.x != 0)
 	{
-		if (pTiles->Get(p.x-1, p.y))
+		if(pTiles->Get(p.x - 1, p.y))
 			p.x += 1;
 		else
 			p.x -= 1;
-		
+
 		p.y += 1;
-		
+
 		pTiles->Use(p.x, p.y);
-		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+Weapon);
+		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + Weapon);
 	}
 	else
 	{
 		p = pTiles->GetCeiling();
-		
-		if (p.x != 0)
+
+		if(p.x != 0)
 		{
 			p.y += 1;
-			
+
 			pTiles->Use(p.x, p.y);
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+Weapon);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + Weapon);
 		}
 		else
 		{
 			p = pTiles->GetPlatform();
-		
-			if (p.x == 0)
+
+			if(p.x == 0)
 				return;
-			
+
 			pTiles->Use(p.x, p.y);
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+Weapon);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + Weapon);
 		}
 	}
 }
@@ -489,41 +481,41 @@ void CMapGen::GenerateWeapon(CGenLayer *pTiles, int Weapon)
 void CMapGen::GenerateBarrel(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetPlatform();
-	
+
 	bool Dublos = false;
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 	{
 		p = pTiles->GetMedPlatform();
 		Dublos = true;
 	}
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	if (Dublos)
+
+	if(Dublos)
 	{
-		if (frandom() < 0.3f)
-			ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_POWERBARREL);
+		if(frandom() < 0.3f)
+			ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_POWERBARREL);
 		else
-			ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_BARREL);
-		
-		ModifTile(p+ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_POWERBARREL);
+			ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_BARREL);
+
+		ModifTile(p + ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_POWERBARREL);
 	}
 	else
 	{
-		if (frandom() < 0.3f)
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_POWERBARREL);
+		if(frandom() < 0.3f)
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_POWERBARREL);
 		else
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_BARREL);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_BARREL);
 	}
-	
-	if (IsCoopMapGenGametype(g_Config.m_SvGametype))
+
+	if(IsCoopMapGenGametype(g_Config.m_SvGametype))
 	{
-		if (frandom() < 0.3f && g_Config.m_SvMapGenLevel > 5)
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_POWERBARREL);
+		if(frandom() < 0.3f && g_Config.m_SvMapGenLevel > 5)
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_POWERBARREL);
 		else
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_BARREL);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_BARREL);
 	}
 	else
 	{
@@ -533,65 +525,65 @@ void CMapGen::GenerateBarrel(CGenLayer *pTiles)
 void CMapGen::GenerateLightningWall(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		p = pTiles->GetMedPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_LIGHTNINGWALL);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_LIGHTNINGWALL);
 	pTiles->Use(p.x, p.y);
 }
 
 void CMapGen::GenerateConveyorBelt(CGenLayer *pTiles)
 {
 	ivec3 p = pTiles->GetLongPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
+
 	int i = TILE_MOVELEFT;
-	
-	if (frandom() < 0.5f)
+
+	if(frandom() < 0.5f)
 		i = TILE_MOVERIGHT;
-	
-	for (int x = p.x; x <= p.z; x++)
+
+	for(int x = p.x; x <= p.z; x++)
 		ModifTile(ivec2(x, p.y), m_pLayers->GetGameLayerIndex(), i);
 }
 
 void CMapGen::GenerateHangables(CGenLayer *pTiles)
 {
 	ivec3 p = pTiles->GetLongCeiling();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
+
 	p.y++;
 
-	for (int x = p.x; x <= p.z; x++)
+	for(int x = p.x; x <= p.z; x++)
 	{
 		ModifTile(ivec2(x, p.y), m_pLayers->GetGameLayerIndex(), TILE_HANG);
-		if (frandom() < 0.11f)
+		if(frandom() < 0.11f)
 			ModifTile(ivec2(x, p.y), m_pLayers->GetForegroundLayerIndex(), 91, 0);
 		else
 			ModifTile(ivec2(x, p.y), m_pLayers->GetForegroundLayerIndex(), 90, 0);
 	}
-	
-	if (pTiles->Get(p.x-1, p.y))
+
+	if(pTiles->Get(p.x - 1, p.y))
 		ModifTile(ivec2(p.x, p.y), m_pLayers->GetForegroundLayerIndex(), 89, 0);
 	else
 	{
 		ModifTile(ivec2(p.x, p.y), m_pLayers->GetForegroundLayerIndex(), 92, TILEFLAG_VFLIP);
-		ModifTile(ivec2(p.x+1, p.y), m_pLayers->GetForegroundLayerIndex(), 91, 0);
+		ModifTile(ivec2(p.x + 1, p.y), m_pLayers->GetForegroundLayerIndex(), 91, 0);
 	}
-	
-	if (pTiles->Get(p.z+1, p.y))
+
+	if(pTiles->Get(p.z + 1, p.y))
 		ModifTile(ivec2(p.z, p.y), m_pLayers->GetForegroundLayerIndex(), 89, TILEFLAG_VFLIP);
 	else
 	{
 		ModifTile(ivec2(p.z, p.y), m_pLayers->GetForegroundLayerIndex(), 92, 0);
-		ModifTile(ivec2(p.z-1, p.y), m_pLayers->GetForegroundLayerIndex(), 91, 0);
+		ModifTile(ivec2(p.z - 1, p.y), m_pLayers->GetForegroundLayerIndex(), 91, 0);
 	}
 }
 
@@ -604,49 +596,49 @@ void CMapGen::GenerateMine(CGenLayer *pTiles)
 void CMapGen::GenerateWalker(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetMedPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_DROID_WALKER);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_DROID_WALKER);
 	pTiles->Use(p.x, p.y);
 }
 
 void CMapGen::GenerateStarDroid(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetOpenArea();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_DROID_STAR);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_DROID_STAR);
 	pTiles->Use(p.x, p.y);
 }
 
 void CMapGen::GenerateBossCrawlerDroid(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetOpenArea();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_DROID_BOSSCRAWLER);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_DROID_BOSSCRAWLER);
 	pTiles->Use(p.x, p.y);
 }
 
 void CMapGen::GenerateCrawlerDroid(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetMedPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 	{
 		p = pTiles->GetPlatform();
-		
-		if (p.x == 0)
+
+		if(p.x == 0)
 			return;
 	}
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_DROID_CRAWLER);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_DROID_CRAWLER);
 	pTiles->Use(p.x, p.y);
 }
 
@@ -655,16 +647,15 @@ static ivec2 FindStandableFallback(CGenLayer *pTiles, bool PreferBottom)
 	ivec2 p = ivec2(0, 0);
 	const int w = pTiles->Width();
 	const int h = pTiles->Height();
-	const int yStart = PreferBottom ? h-4 : 4;
-	const int yEnd = PreferBottom ? 3 : h-4;
+	const int yStart = PreferBottom ? h - 4 : 4;
+	const int yEnd = PreferBottom ? 3 : h - 4;
 	const int yStep = PreferBottom ? -1 : 1;
 
-	for (int y = yStart; (PreferBottom ? y > yEnd : y < yEnd) && p.x == 0; y += yStep)
-		for (int x = 3; x < w-3; x++)
+	for(int y = yStart; (PreferBottom ? y > yEnd : y < yEnd) && p.x == 0; y += yStep)
+		for(int x = 3; x < w - 3; x++)
 		{
-			if (!pTiles->Get(x, y) && !pTiles->Used(x, y) &&
-				pTiles->Get(x, y+1) && pTiles->Get(x-1, y+1) && pTiles->Get(x+1, y+1) &&
-				!pTiles->Get(x, y-1) && !pTiles->Get(x, y-2))
+			if(!pTiles->Get(x, y) && !pTiles->Used(x, y) && pTiles->Get(x, y + 1) && pTiles->Get(x - 1, y + 1) &&
+			   pTiles->Get(x + 1, y + 1) && !pTiles->Get(x, y - 1) && !pTiles->Get(x, y - 2))
 			{
 				p = ivec2(x, y);
 				break;
@@ -677,32 +668,32 @@ bool CMapGen::GenerateSwitch(CGenLayer *pTiles)
 {
 	ivec2 p = ivec2(0, 0);
 	const int Theme = InvasionThemeFromLevel(g_Config.m_SvMapGenLevel);
-	
-	if (Theme == INVASION_THEME_ACID_ESCAPE)
+
+	if(Theme == INVASION_THEME_ACID_ESCAPE)
 		p = pTiles->GetBotPlatform();
 	else
 		p = pTiles->GetPlatform();
 
-	if (p.x == 0)
+	if(p.x == 0)
 		p = pTiles->GetPlatform();
-	if (p.x == 0)
+	if(p.x == 0)
 		p = pTiles->GetLeftPlatform();
-	if (p.x == 0)
+	if(p.x == 0)
 		p = pTiles->GetMedPlatform();
-	if (p.x == 0)
+	if(p.x == 0)
 		p = pTiles->GetBotPlatform();
 
 	// last resort: scan for any standable tile (escape prefers bottom)
-	if (p.x == 0)
+	if(p.x == 0)
 		p = FindStandableFallback(pTiles, Theme == INVASION_THEME_ACID_ESCAPE);
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 	{
 		dbg_msg("mapgen", "GenerateSwitch failed: no platform found");
 		return false;
 	}
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SWITCH);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SWITCH);
 	pTiles->Use(p.x, p.y);
 	dbg_msg("mapgen", "switch placed at %d,%d", p.x, p.y);
 	return true;
@@ -713,22 +704,22 @@ bool CMapGen::GenerateReactor(CGenLayer *pTiles)
 	// Reactor-defend wants the objective on the far right so players can
 	// approach from one side instead of holding a centered crossfire.
 	ivec2 p = pTiles->GetRightPlatform();
-	if (p.x == 0)
+	if(p.x == 0)
 		p = pTiles->GetMedPlatform();
-	if (p.x == 0)
+	if(p.x == 0)
 		p = pTiles->GetPlatform();
-	if (p.x == 0)
+	if(p.x == 0)
 		p = pTiles->GetBotPlatform();
-	if (p.x == 0)
+	if(p.x == 0)
 		p = FindStandableFallback(pTiles, false);
 
-	if (p.x == 0)
+	if(p.x == 0)
 	{
 		dbg_msg("mapgen", "GenerateReactor failed: no platform found");
 		return false;
 	}
 
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_REACTOR);
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_REACTOR);
 	pTiles->Use(p.x, p.y);
 	dbg_msg("mapgen", "reactor placed at %d,%d", p.x, p.y);
 	return true;
@@ -736,113 +727,113 @@ bool CMapGen::GenerateReactor(CGenLayer *pTiles)
 
 void CMapGen::GenerateTurretStand(CGenLayer *pTiles)
 {
-	
-	if (frandom() < 0.4f)
+
+	if(frandom() < 0.4f)
 	{
 		ivec2 p = ivec2(0, 0);
-		
-		if (frandom() < 0.6f)
+
+		if(frandom() < 0.6f)
 			p = pTiles->GetLeftCeiling();
 		else
 			p = pTiles->GetCeiling();
-		
-		if (p.x != 0)
+
+		if(p.x != 0)
 		{
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_STAND);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_STAND);
 			pTiles->Use(p.x, p.y);
 			return;
 		}
 	}
-	
+
 	ivec2 p = pTiles->GetLeftPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_STAND);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_STAND);
 	pTiles->Use(p.x, p.y);
 }
 
 void CMapGen::GenerateTurret(CGenLayer *pTiles)
 {
-	
-	if (frandom() < 0.4f)
+
+	if(frandom() < 0.4f)
 	{
 		ivec2 p = pTiles->GetRightCeiling();
-		
-		if (p.x != 0)
+
+		if(p.x != 0)
 		{
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_TURRET);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_TURRET);
 			pTiles->Use(p.x, p.y);
 			return;
 		}
 	}
-	
+
 	ivec2 p = pTiles->GetRightPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_TURRET);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_TURRET);
 	pTiles->Use(p.x, p.y);
 }
 
 void CMapGen::GenerateTeslacoil(CGenLayer *pTiles)
 {
-	
-	if (frandom() < 0.4f)
+
+	if(frandom() < 0.4f)
 	{
 		ivec2 p = pTiles->GetRightCeiling();
-		
-		if (p.x != 0)
+
+		if(p.x != 0)
 		{
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_TESLACOIL);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_TESLACOIL);
 			pTiles->Use(p.x, p.y);
 			return;
 		}
 	}
-	
+
 	ivec2 p = pTiles->GetRightPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_TESLACOIL);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_TESLACOIL);
 	pTiles->Use(p.x, p.y);
 }
 
 void CMapGen::GeneratePowerupper(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		p = pTiles->GetMedPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_POWERUPPER);
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_POWERUPPER);
 	pTiles->Use(p.x, p.y);
 }
 
 void CMapGen::GenerateEnemySpawn(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		p = pTiles->GetMedPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		p = pTiles->GetOpenArea();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		p = pTiles->GetCeiling();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ENEMYSPAWN);
-	ModifTile(p+ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ENEMYSPAWN);
+
+	ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ENEMYSPAWN);
+	ModifTile(p + ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ENEMYSPAWN);
 	pTiles->Use(p.x, p.y);
 }
 
@@ -865,78 +856,77 @@ void CMapGen::GenerateBossEnemySpawn(CGenLayer *pTiles)
 void CMapGen::GenerateFiretrap(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetWall();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	if (pTiles->Get(p.x-1, p.y))
-		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_FLAMETRAP_RIGHT);
+
+	if(pTiles->Get(p.x - 1, p.y))
+		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_FLAMETRAP_RIGHT);
 	else
-		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_FLAMETRAP_LEFT);
-	
-	for (int x = -1; x < 1; x++)
-		for (int y = -1; y < 1; y++)
-			pTiles->Use(p.x+x, p.y+y);
+		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_FLAMETRAP_LEFT);
+
+	for(int x = -1; x < 1; x++)
+		for(int y = -1; y < 1; y++)
+			pTiles->Use(p.x + x, p.y + y);
 }
 
 void CMapGen::GenerateDeathray(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetCeiling();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
+
 	bool Valid = false;
-	
-	for (int y = 1; y < 22; y++)
+
+	for(int y = 1; y < 22; y++)
 	{
-		if (pTiles->Get(p.x, p.y+y))
+		if(pTiles->Get(p.x, p.y + y))
 			Valid = true;
 	}
-	
-	if (Valid)
-		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_LAZER);
-	else
-		ModifTile(p+ivec2(0, -1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SAWBLADE);
-	
-	for (int x = -1; x < 1; x++)
-		for (int y = -1; y < 1; y++)
-			pTiles->Use(p.x+x, p.y+y);
-}
 
+	if(Valid)
+		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_LAZER);
+	else
+		ModifTile(p + ivec2(0, -1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SAWBLADE);
+
+	for(int x = -1; x < 1; x++)
+		for(int y = -1; y < 1; y++)
+			pTiles->Use(p.x + x, p.y + y);
+}
 
 void CMapGen::GenerateScreen(CGenLayer *pTiles)
 {
 	/*
 	ivec3 p = pTiles->GetLongPlatform();
-	
+
 	if (p.x == 0)
 		return;
 	int x = (p.x+p.z)/2;
-	
+
 	for (int y = 1; y < 6; y++)
 		if (pTiles->Get(x, p.y-y))
 			return;
-	
-	
+
+
 	if (frandom() < 0.7f)
 		ModifTile(ivec2(x, p.y-1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SCREEN);
 	else
 		ModifTile(ivec2(x, p.y-1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_REACTOR);
-	
+
 	pTiles->Use(x, p.y-1);
 	*/
-	
+
 	ivec2 p = pTiles->GetMedPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	if (frandom() < 0.7f)
-		ModifTile(ivec2(p.x, p.y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SCREEN);
+
+	if(frandom() < 0.7f)
+		ModifTile(ivec2(p.x, p.y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SCREEN);
 	else
-		ModifTile(ivec2(p.x, p.y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_REACTOR);
-	
+		ModifTile(ivec2(p.x, p.y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_REACTOR);
+
 	pTiles->Use(p.x, p.y);
 }
 
@@ -944,337 +934,334 @@ void CMapGen::GenerateShop(CGenLayer *pTiles)
 {
 	/*
 	ivec3 p = pTiles->GetLongPlatform();
-	
+
 	if (p.x == 0)
 		return;
 	int x = (p.x+p.z)/2;
-	
+
 	for (int y = 1; y < 6; y++)
 		if (pTiles->Get(x, p.y-y))
 			return;
-	
+
 	ModifTile(ivec2(x, p.y-1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SHOP);
-	
+
 	pTiles->Use(x, p.y-1);
 	*/
-	
+
 	ivec2 p = pTiles->GetMedPlatform();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	ModifTile(ivec2(p.x, p.y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SHOP);
+
+	ModifTile(ivec2(p.x, p.y), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SHOP);
 	pTiles->Use(p.x, p.y);
 }
 
 void CMapGen::GenerateHearts(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetTopCorner();
-	
-	if (p.x != 0)
+
+	if(p.x != 0)
 	{
-		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
-		ModifTile(p+ivec2(0, 1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
-		ModifTile(p+ivec2(0, 2), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
+		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
+		ModifTile(p + ivec2(0, 1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
+		ModifTile(p + ivec2(0, 2), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
 	}
 	else
 	{
 		p = pTiles->GetCeiling();
-		
-		if (p.x != 0)
+
+		if(p.x != 0)
 		{
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
-			ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
-			ModifTile(p+ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
+			ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
+			ModifTile(p + ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
 		}
 		else
 		{
 			p = pTiles->GetWall();
-		
-			if (p.x != 0)
+
+			if(p.x != 0)
 			{
-				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
-				ModifTile(p+ivec2(0, -1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
+				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
+				ModifTile(p + ivec2(0, -1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
 			}
 			else
 			{
 				p = pTiles->GetPlatform();
-				
-				if (p.x == 0)
+
+				if(p.x == 0)
 					p = pTiles->GetMedPlatform();
-				
-				if (p.x == 0)
+
+				if(p.x == 0)
 					return;
-				
-				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
-				ModifTile(p+ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
-				ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_HEALTH_1);
+
+				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
+				ModifTile(p + ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
+				ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_HEALTH_1);
 			}
 		}
 	}
 }
-
 
 void CMapGen::GenerateAmmo(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetTopCorner();
-	
-	if (p.x != 0)
+
+	if(p.x != 0)
 	{
-		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
-		ModifTile(p+ivec2(0, 1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
-		ModifTile(p+ivec2(0, 2), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
+		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
+		ModifTile(p + ivec2(0, 1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
+		ModifTile(p + ivec2(0, 2), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
 	}
 	else
 	{
 		p = pTiles->GetCeiling();
-		
-		if (p.x != 0)
+
+		if(p.x != 0)
 		{
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
-			ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
-			ModifTile(p+ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
+			ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
+			ModifTile(p + ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
 		}
 		else
 		{
 			p = pTiles->GetWall();
-		
-			if (p.x != 0)
+
+			if(p.x != 0)
 			{
-				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
-				ModifTile(p+ivec2(0, -1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
+				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
+				ModifTile(p + ivec2(0, -1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
 			}
 			else
 			{
 				p = pTiles->GetPlatform();
-				
-				if (p.x == 0)
+
+				if(p.x == 0)
 					p = pTiles->GetMedPlatform();
-				
-				if (p.x == 0)
+
+				if(p.x == 0)
 					return;
-				
-				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
-				ModifTile(p+ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
-				ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_AMMO_1);
+
+				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
+				ModifTile(p + ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
+				ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_AMMO_1);
 			}
 		}
 	}
 }
-
-
 
 void CMapGen::GenerateArmor(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetTopCorner();
-	
-	if (p.x != 0)
+
+	if(p.x != 0)
 	{
-		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
-		ModifTile(p+ivec2(0, 1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
-		ModifTile(p+ivec2(0, 2), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
+		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
+		ModifTile(p + ivec2(0, 1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
+		ModifTile(p + ivec2(0, 2), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
 	}
 	else
 	{
 		p = pTiles->GetCeiling();
-		
-		if (p.x != 0)
+
+		if(p.x != 0)
 		{
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
-			ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
-			ModifTile(p+ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
+			ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
+			ModifTile(p + ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
 		}
 		else
 		{
 			p = pTiles->GetWall();
-		
-			if (p.x != 0)
+
+			if(p.x != 0)
 			{
-				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
-				ModifTile(p+ivec2(0, -1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
+				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
+				ModifTile(p + ivec2(0, -1), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
 			}
 			else
 			{
 				p = pTiles->GetPlatform();
-				
-				if (p.x == 0)
+
+				if(p.x == 0)
 					p = pTiles->GetMedPlatform();
-				
-				if (p.x == 0)
+
+				if(p.x == 0)
 					return;
-				
-				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
-				ModifTile(p+ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
-				ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_ARMOR_1);
+
+				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
+				ModifTile(p + ivec2(1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
+				ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_ARMOR_1);
 			}
 		}
 	}
 }
 
-
 void CMapGen::GenerateAcid(CGenLayer *pTiles)
 {
 	ivec4 p = pTiles->GetPit();
-	
-	if (p.x == 0)
+
+	if(p.x == 0)
 		return;
-	
-	for (int x = p.x; x < p.z; x++)
-		for (int y = p.y; y < p.w; y++)
+
+	for(int x = p.x; x < p.z; x++)
+		for(int y = p.y; y < p.w; y++)
 		{
 			ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_DAMAGEFLUID);
 			pTiles->Use(x, y);
 		}
 }
 
-
-
 void CMapGen::GenerateLevel()
 {
 	int w = m_pLayers->GameLayer()->m_Width;
 	int h = m_pLayers->GameLayer()->m_Height;
 
-	if (w < 10 || h < 10)
+	if(w < 10 || h < 10)
 		return;
-	
+
 	CGenLayer *pTiles = new CGenLayer(w, h);
-	
+
 	// generate room structure
-	CRoomGenerated *pRoom = new CRoomGenerated(3, 3, w-6, h-6);
+	CRoomGenerated *pRoom = new CRoomGenerated(3, 3, w - 6, h - 6);
 	CMaze *pMaze = new CMaze(w, h);
-	
+
 	int Level = g_Config.m_SvMapGenLevel;
 
 	pMaze->OpenRooms(pRoom);
 
 	pRoom->Generate(pTiles);
-	
-	//pTiles->GenerateMoreForeground();
-	
+
+	// pTiles->GenerateMoreForeground();
+
 	// check for too tight corridors
 	{
-		for(int y = 3; y < h-4; y++)
-			for(int x = 3; x < w-4; x++)
+		for(int y = 3; y < h - 4; y++)
+			for(int x = 3; x < w - 4; x++)
 			{
-				if (!pTiles->Get(x-1, y) && pTiles->Get(x, y) && pTiles->Get(x+1, y) && !pTiles->Get(x+2, y))
+				if(!pTiles->Get(x - 1, y) && pTiles->Get(x, y) && pTiles->Get(x + 1, y) && !pTiles->Get(x + 2, y))
 					pRoom->Fill(pTiles, 0, x, y, 2, 1);
-				
-				if (!pTiles->Get(x, y-1) && pTiles->Get(x, y) && pTiles->Get(x, y+1) && !pTiles->Get(x, y+2))
+
+				if(!pTiles->Get(x, y - 1) && pTiles->Get(x, y) && pTiles->Get(x, y + 1) && !pTiles->Get(x, y + 2))
 					pRoom->Fill(pTiles, 0, x, y, 1, 2);
 			}
 	}
-	
+
 	pTiles->GenerateSlopes();
 	pTiles->RemoveSingles();
-	
+
 	dbg_msg("mapgen", "rooms generated, map size: %d", pTiles->Size());
-	
-	int n = pTiles->Size()/500;
-	
+
+	int n = pTiles->Size() / 500;
+
 	GenerateEnd(pTiles);
 	pTiles->GenerateBackground();
 	pTiles->GenerateMoreBackground();
-	
+
 	// Keep escape towers vertical — skip wide air platforms on acid-escape themes.
 	// Extraction mazes get extra platforms for vertical complexity.
-	if (str_comp(g_Config.m_SvGametype, "extract") == 0)
+	if(str_comp(g_Config.m_SvGametype, "extract") == 0)
 	{
-		const int Platforms = max(3, n/3) + rand() % 2;
+		const int Platforms = max(3, n / 3) + rand() % 2;
 		pTiles->GenerateAirPlatforms(Platforms);
 	}
-	else if (InvasionThemeFromLevel(Level) != INVASION_THEME_ACID_ESCAPE)
+	else if(InvasionThemeFromLevel(Level) != INVASION_THEME_ACID_ESCAPE)
 	{
-		if (n > 1)
-			pTiles->GenerateAirPlatforms(n/2 + rand()%(n/2));
+		if(n > 1)
+			pTiles->GenerateAirPlatforms(n / 2 + rand() % (n / 2));
 		else
 			pTiles->GenerateAirPlatforms(n);
 	}
 
 	dbg_msg("mapgen", "Proceed tiles");
 	Proceed(pTiles, 0);
-	
+
 	pTiles->GenerateBoxes();
 	pTiles->GeneratePlatforms();
-	
+
 	pTiles->GenerateFences();
-	
+
 	// write to layers; foreground
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y);
-			
-			if (i > 0)
+
+			if(i > 0)
 			{
 				int f = pTiles->GetFlags(x, y);
 				ModifTile(ivec2(x, y), m_pLayers->GetForegroundLayerIndex(), i, f);
-				
+
 				// slopes
-				if (i == 20 && f == TILEFLAG_VFLIP)
+				if(i == 20 && f == TILEFLAG_VFLIP)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_RAMP_RIGHT);
-				else if (i == 20 && f == 0)
+				else if(i == 20 && f == 0)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_RAMP_LEFT);
-				else if (i == 20 && f == TILEFLAG_HFLIP+TILEFLAG_VFLIP)
+				else if(i == 20 && f == TILEFLAG_HFLIP + TILEFLAG_VFLIP)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_ROOFSLOPE_RIGHT);
-				else if (i == 20 && f == TILEFLAG_HFLIP)
+				else if(i == 20 && f == TILEFLAG_HFLIP)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_ROOFSLOPE_LEFT);
 				else
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), 1);
 			}
 		}
-		
+
 	// write to layers; FGOBJECTS to foreground
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y, CGenLayer::FGOBJECTS);
-			
-			if (i > 0)
+
+			if(i > 0)
 			{
 				int f = pTiles->GetFlags(x, y, CGenLayer::FGOBJECTS);
 				ModifTile(ivec2(x, y), m_pLayers->GetForegroundLayerIndex(), i, f);
-				
-				if (i >= 14*16+1 && i <= 14*16+3)
+
+				if(i >= 14 * 16 + 1 && i <= 14 * 16 + 3)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_PLATFORM);
 				else
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), 1);
 			}
 		}
-		
+
 	// background
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y, CGenLayer::BACKGROUND);
-			
-			if (i > 0)
-				ModifTile(ivec2(x, y), m_pLayers->GetBackgroundLayerIndex(), i, pTiles->GetFlags(x, y, CGenLayer::BACKGROUND));
+
+			if(i > 0)
+				ModifTile(ivec2(x, y),
+						  m_pLayers->GetBackgroundLayerIndex(),
+						  i,
+						  pTiles->GetFlags(x, y, CGenLayer::BACKGROUND));
 		}
-	
+
 	// doodads
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y, CGenLayer::DOODADS);
-			
-			if (i > 0)
-				ModifTile(ivec2(x, y), m_pLayers->GetDoodadsLayerIndex(), i, pTiles->GetFlags(x, y, CGenLayer::DOODADS));
+
+			if(i > 0)
+				ModifTile(
+					ivec2(x, y), m_pLayers->GetDoodadsLayerIndex(), i, pTiles->GetFlags(x, y, CGenLayer::DOODADS));
 		}
-	
-	
+
 	// find platforms, corners etc.
 	dbg_msg("mapgen", "Scanning level");
 	pTiles->Scan();
-	
+
 	// start pos — skip invalid (0,0) so we never stamp ENTITY_SPAWN into solids
 	int TutorialPlayerSpawns = 0;
-	for (int i = 0; i < 4; i++)
+	for(int i = 0; i < 4; i++)
 	{
 		ivec2 p = pTiles->GetPlayerSpawn();
 		if(p.x <= 1 || p.y <= 1)
 			continue;
-		ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
-		ModifTile(p+ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
+		ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
+		ModifTile(p + ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
 		TutorialPlayerSpawns += 2;
 	}
 
@@ -1335,8 +1322,8 @@ void CMapGen::GenerateLevel()
 						// Get() hides the generator's negative air reservations but still
 						// reports real collision tiles. This keeps the entity one tile above
 						// actual ground instead of treating reserved air as a floor.
-						if(pTiles->Get(x, y) || !pTiles->Get(x, y + 1) || !pTiles->Get(x - 1, y + 1) || !pTiles->Get(x + 1, y + 1) ||
-							pTiles->Get(x, y - 1) || pTiles->Get(x, y - 2))
+						if(pTiles->Get(x, y) || !pTiles->Get(x, y + 1) || !pTiles->Get(x - 1, y + 1) ||
+						   !pTiles->Get(x + 1, y + 1) || pTiles->Get(x, y - 1) || pTiles->Get(x, y - 2))
 							continue;
 						bool FarEnough = true;
 						for(int i = 0; i < NumPlaced; i++)
@@ -1359,7 +1346,12 @@ void CMapGen::GenerateLevel()
 					ModifTile(Best, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SWITCH);
 					pTiles->Use(Best.x, Best.y);
 					aPlaced[NumPlaced++] = Best;
-					dbg_msg("mapgen", "tutorial objective switch %d/%d placed at %d,%d", NumPlaced, SwitchCount, Best.x, Best.y);
+					dbg_msg("mapgen",
+							"tutorial objective switch %d/%d placed at %d,%d",
+							NumPlaced,
+							SwitchCount,
+							Best.x,
+							Best.y);
 				}
 			}
 			while(NumPlaced < SwitchCount && GenerateSwitch(pTiles))
@@ -1379,19 +1371,25 @@ void CMapGen::GenerateLevel()
 		}
 		else if(Chapter == TUTORIAL_CHAPTER_COMBAT)
 		{
-			for(int i = 0; i < 3; i++) GenerateHearts(pTiles);
-			for(int i = 0; i < 3; i++) GenerateAmmo(pTiles);
+			for(int i = 0; i < 3; i++)
+				GenerateHearts(pTiles);
+			for(int i = 0; i < 3; i++)
+				GenerateAmmo(pTiles);
 		}
 		else if(Chapter == TUTORIAL_CHAPTER_FORGE)
 		{
-			for(int i = 0; i < 4; i++) GenerateAmmo(pTiles);
-			for(int i = 0; i < 4; i++) GenerateArmor(pTiles);
-			for(int i = 0; i < 4; i++) GenerateWeapon(pTiles, ENTITY_KIT);
+			for(int i = 0; i < 4; i++)
+				GenerateAmmo(pTiles);
+			for(int i = 0; i < 4; i++)
+				GenerateArmor(pTiles);
+			for(int i = 0; i < 4; i++)
+				GenerateWeapon(pTiles, ENTITY_KIT);
 		}
 		else if(Chapter == TUTORIAL_CHAPTER_BUILD)
 		{
 			GeneratePowerupper(pTiles);
-			for(int i = 0; i < 3; i++) GenerateWeapon(pTiles, ENTITY_KIT);
+			for(int i = 0; i < 3; i++)
+				GenerateWeapon(pTiles, ENTITY_KIT);
 		}
 
 		delete pRoom;
@@ -1405,24 +1403,26 @@ void CMapGen::GenerateLevel()
 	const int Theme = InvasionThemeFromLevel(Level);
 	const int HazardDiv = (Level >= 5 && Level <= 15) ? 2 : 1;
 	const bool ExtractMode = str_comp(g_Config.m_SvGametype, "extract") == 0;
-	if (Theme == INVASION_THEME_ACID_ESCAPE && !ExtractMode)
+	if(Theme == INVASION_THEME_ACID_ESCAPE && !ExtractMode)
 	{
-		if (!GenerateSwitch(pTiles))
+		if(!GenerateSwitch(pTiles))
 			GenerateSwitch(pTiles);
 	}
-	else if (ExtractMode)
+	else if(ExtractMode)
 	{
 		// 3–5 switches, spread across the maze
-		auto PlaceSwitchAt = [&](ivec2 p) -> bool {
+		auto PlaceSwitchAt = [&](ivec2 p) -> bool
+		{
 			if(p.x == 0)
 				return false;
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SWITCH);
+			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SWITCH);
 			pTiles->Use(p.x, p.y);
 			dbg_msg("mapgen", "extract switch at %d,%d", p.x, p.y);
 			return true;
 		};
 
-		auto FarEnough = [&](ivec2 Cand, const ivec2 *aPlaced, int Count, int MinDist) -> bool {
+		auto FarEnough = [&](ivec2 Cand, const ivec2 *aPlaced, int Count, int MinDist) -> bool
+		{
 			for(int i = 0; i < Count; i++)
 			{
 				if(abs(Cand.x - aPlaced[i].x) + abs(Cand.y - aPlaced[i].y) < MinDist)
@@ -1438,11 +1438,7 @@ void CMapGen::GenerateLevel()
 
 		// seed corners / extremes first
 		ivec2 Seeds[4] = {
-			pTiles->GetLeftPlatform(),
-			pTiles->GetRightPlatform(),
-			pTiles->GetBotPlatform(),
-			pTiles->GetMedPlatform()
-		};
+			pTiles->GetLeftPlatform(), pTiles->GetRightPlatform(), pTiles->GetBotPlatform(), pTiles->GetMedPlatform()};
 		for(int s = 0; s < 4 && Placed < Wanted; s++)
 		{
 			ivec2 p = Seeds[s];
@@ -1472,374 +1468,365 @@ void CMapGen::GenerateLevel()
 
 		dbg_msg("mapgen", "extract placed %d/%d switches (minDist=%d)", Placed, Wanted, MinDist);
 	}
-	else if (Theme == INVASION_THEME_DUAL_SWITCHES)
+	else if(Theme == INVASION_THEME_DUAL_SWITCHES)
 	{
 		int Placed = 0;
-		for (int i = 0; i < 16 && Placed < 2; i++)
+		for(int i = 0; i < 16 && Placed < 2; i++)
 		{
-			if (GenerateSwitch(pTiles))
+			if(GenerateSwitch(pTiles))
 				Placed++;
 		}
-		if (Placed < 2)
+		if(Placed < 2)
 			dbg_msg("mapgen", "dual-switch layout: only placed %d/2 switches", Placed);
 	}
-	else if (Theme == INVASION_THEME_REACTOR_DEFEND)
+	else if(Theme == INVASION_THEME_REACTOR_DEFEND)
 	{
 		bool Placed = false;
-		for (int i = 0; i < 8 && !Placed; i++)
+		for(int i = 0; i < 8 && !Placed; i++)
 			Placed = GenerateReactor(pTiles);
-		if (!Placed)
+		if(!Placed)
 			dbg_msg("mapgen", "reactor-defend layout: failed to place reactor");
 	}
-	
+
 	// acid pools (fewer on escape towers so the climb stays readable; skip rising-acid feel for extract/horde)
-	int AcidPools = (Theme == INVASION_THEME_ACID_ESCAPE) ? 1 + Level/20 : 2 + Level/2;
+	int AcidPools = (Theme == INVASION_THEME_ACID_ESCAPE) ? 1 + Level / 20 : 2 + Level / 2;
 	AcidPools = (AcidPools + HazardDiv - 1) / HazardDiv;
-	if (ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+	if(ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
 		AcidPools = min(AcidPools, 2);
-	for (int i = 0; i < AcidPools; i++)
+	for(int i = 0; i < AcidPools; i++)
 		GenerateAcid(pTiles);
 
 	// conveyor belts
 	{
-		int c = rand()%(min(6, 1+Level/2));
+		int c = rand() % (min(6, 1 + Level / 2));
 		c = (c + HazardDiv - 1) / HazardDiv;
-		for (int i = 0; i < c; i++)
+		for(int i = 0; i < c; i++)
 			GenerateConveyorBelt(pTiles);
 	}
-	
+
 	// hangables
 	{
-		int c = 1+rand()%(min(11, 1+Level/4));
+		int c = 1 + rand() % (min(11, 1 + Level / 4));
 		c = (c + HazardDiv - 1) / HazardDiv;
-		for (int i = 0; i < c; i++)
+		for(int i = 0; i < c; i++)
 			GenerateHangables(pTiles);
 	}
-	
-	for (int i = 0; i < min(4, 2 + int(Level * 0.5f)); i++)
+
+	for(int i = 0; i < min(4, 2 + int(Level * 0.5f)); i++)
 		GeneratePowerupper(pTiles);
-	
-	if (Level > 2)
+
+	if(Level > 2)
 		GenerateShop(pTiles);
-	
-	
-	
-	if (Level > 3)
+
+	if(Level > 3)
 	{
-		if (Level <= 15 && frandom() >= 0.5f) { /* skip half walkers early */ }
+		if(Level <= 15 && frandom() >= 0.5f)
+		{ /* skip half walkers early */
+		}
 		else
 			GenerateWalker(pTiles);
 	}
 
-	if (Level > 7)
+	if(Level > 7)
 		GenerateWalker(pTiles);
-	
-	if (Level > 12)
+
+	if(Level > 12)
 		GenerateWalker(pTiles);
-	
-	if (Level > 17)
+
+	if(Level > 17)
 		GenerateWalker(pTiles);
-	
-	
+
 	// Enemy spawn positions. Keep one wide candidate for large runtime bosses.
 	GenerateBossEnemySpawn(pTiles);
-	for (int i = 0; i < 4 ; i++)
+	for(int i = 0; i < 4; i++)
 		GenerateEnemySpawn(pTiles);
-	
-	//if (Level > 3 && frandom() < 0.75f)		
 
+	// if (Level > 3 && frandom() < 0.75f)
 
-	for (int i = 0; i < 4; i++)
+	for(int i = 0; i < 4; i++)
 		GenerateScreen(pTiles);
-	
-	if (Theme == INVASION_THEME_BOSS_ASSAULT)
-		for (int i = 0; i < min(12, Level/3); i++)
+
+	if(Theme == INVASION_THEME_BOSS_ASSAULT)
+		for(int i = 0; i < min(12, Level / 3); i++)
 			GenerateCrawlerDroid(pTiles);
-	else if (Level > 3)
-		for (int i = 0; i < min(15, 1+Level/4); i++)
+	else if(Level > 3)
+		for(int i = 0; i < min(15, 1 + Level / 4); i++)
 			GenerateCrawlerDroid(pTiles);
-	
-	if (Theme != INVASION_THEME_BOSS_ASSAULT && (Level%20 == 0))
+
+	if(Theme != INVASION_THEME_BOSS_ASSAULT && (Level % 20 == 0))
 		GenerateBossCrawlerDroid(pTiles);
-	else if (Level > 20)
-		for (int i = 0; i < min(3, Level/5-3); i++)
+	else if(Level > 20)
+		for(int i = 0; i < min(3, Level / 5 - 3); i++)
 			GenerateBossCrawlerDroid(pTiles);
 
 	// trap theme: sprinkle mines
-	if (Theme == INVASION_THEME_TRAP_RUN)
+	if(Theme == INVASION_THEME_TRAP_RUN)
 	{
-		int Mines = 4 + Level/5;
-		for (int i = 0; i < Mines; i++)
+		int Mines = 4 + Level / 5;
+		for(int i = 0; i < Mines; i++)
 			GenerateMine(pTiles);
 	}
-	
-	
+
 	// lightning walls
-	if (Level > 1)
+	if(Level > 1)
 	{
-		int l = 1 + rand()%min(10, 1 + Level/2);
-		for (int i = 0; i < l; i++)
+		int l = 1 + rand() % min(10, 1 + Level / 2);
+		for(int i = 0; i < l; i++)
 			GenerateLightningWall(pTiles);
 	}
-	
+
 	{
-		int TurretStands = 3+Level/5;
-		if (Theme == INVASION_THEME_REACTOR_DEFEND)
-			TurretStands = 6 + Level/3;
-		for (int i = 0; i < TurretStands; i++)
+		int TurretStands = 3 + Level / 5;
+		if(Theme == INVASION_THEME_REACTOR_DEFEND)
+			TurretStands = 6 + Level / 3;
+		for(int i = 0; i < TurretStands; i++)
 			GenerateTurretStand(pTiles);
 	}
-	
+
 	// pickups
-	//for (int i = 0; i < (pTiles->Size()-Level*5)/700; i++)
-	
-	//w = 2 + rand()%3 + (Level > 15 ? 1 : 0);
-	
+	// for (int i = 0; i < (pTiles->Size()-Level*5)/700; i++)
+
+	// w = 2 + rand()%3 + (Level > 15 ? 1 : 0);
+
 	w = 4 + min(4, Level / 3);
-	if (ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+	if(ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
 		w = 12 + min(8, Level);
 
-	for (int i = 0; i < w; i++)
+	for(int i = 0; i < w; i++)
 		GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
 
 	GenerateWeapon(pTiles, ENTITY_KIT);
 	GenerateWeapon(pTiles, ENTITY_KIT);
-	
-	if (Level > 3 || ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0) GenerateWeapon(pTiles, ENTITY_KIT);
-	if (Level > 8 || ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0) GenerateWeapon(pTiles, ENTITY_KIT);
-	if (ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+
+	if(Level > 3 || ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+		GenerateWeapon(pTiles, ENTITY_KIT);
+	if(Level > 8 || ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+		GenerateWeapon(pTiles, ENTITY_KIT);
+	if(ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
 	{
 		GenerateWeapon(pTiles, ENTITY_KIT);
 		GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
 		GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
 	}
-	
-	if (Theme == INVASION_THEME_REACTOR_DEFEND || Level%5 == 4 || Level%7 == 6 || Level%11 == 9)
+
+	if(Theme == INVASION_THEME_REACTOR_DEFEND || Level % 5 == 4 || Level % 7 == 6 || Level % 11 == 9)
 	{
-		for (int i = 0; i < 2 + (0.3f + frandom())*min(10.0f, Level * 0.8f); i++)
+		for(int i = 0; i < 2 + (0.3f + frandom()) * min(10.0f, Level * 0.8f); i++)
 			GenerateTurret(pTiles);
-		
-		if (Level > 10 && frandom() < 0.7f)
+
+		if(Level > 10 && frandom() < 0.7f)
 			GenerateTeslacoil(pTiles);
 	}
 	else
 	{
-		if (frandom() < 0.5f && Level > 2)
+		if(frandom() < 0.5f && Level > 2)
 			GenerateTurret(pTiles);
-		
-		if (frandom() < 0.5f && Level > 4)
+
+		if(frandom() < 0.5f && Level > 4)
 			GenerateTurret(pTiles);
 	}
-	
-	for (int i = 0; i < (pTiles->Size())/900; i++)
+
+	for(int i = 0; i < (pTiles->Size()) / 900; i++)
 		GenerateHearts(pTiles);
-	
-	for (int i = 0; i < (pTiles->Size())/900; i++)
+
+	for(int i = 0; i < (pTiles->Size()) / 900; i++)
 		GenerateAmmo(pTiles);
-	
-	for (int i = 0; i < (pTiles->Size())/1100; i++)
+
+	for(int i = 0; i < (pTiles->Size()) / 1100; i++)
 		GenerateArmor(pTiles);
 
-	if (ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
+	if(ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
 	{
-		for (int i = 0; i < 6; i++)
+		for(int i = 0; i < 6; i++)
 			GenerateAmmo(pTiles);
-		for (int i = 0; i < 4; i++)
+		for(int i = 0; i < 4; i++)
 			GenerateHearts(pTiles);
-		for (int i = 0; i < 3; i++)
+		for(int i = 0; i < 3; i++)
 			GenerateArmor(pTiles);
 	}
-	
+
 	// walkers
 	/*
 	if (Level%3 == 0 || Level%7 == 0 || Level%13 == 0 || Level%17 == 0)
 	{
 		int w = 1+rand()%(1+min(Level/4, 4));
-		
+
 		for (int i = 0; i < w; i++)
 			GenerateWalker(pTiles);
 	}
 	*/
-	
+
 	/*
 	if (Level > 3)
 		GenerateWalker(pTiles);
-	
+
 	if (Level > 7)
 		GenerateWalker(pTiles);
-	
+
 	if (Level > 12)
 		GenerateWalker(pTiles);
 	*/
 
-	if (Level > 4)
+	if(Level > 4)
 		GenerateStarDroid(pTiles);
-	
-	if (Level > 8)
+
+	if(Level > 8)
 		GenerateStarDroid(pTiles);
-	
+
 	// barrels
-	int b = max(4, 15 - Level/3)+rand()%3;
-	
-	for (int i = 0; i < (pTiles->NumPlatforms() + pTiles->NumMedPlatforms()) / b; i++)
+	int b = max(4, 15 - Level / 3) + rand() % 3;
+
+	for(int i = 0; i < (pTiles->NumPlatforms() + pTiles->NumMedPlatforms()) / b; i++)
 		GenerateBarrel(pTiles);
-	
+
 	// star droids
 	/*
 	if (Level > 5)
 		if (Level%4 == 0 || Level%7 == 0 || Level%11 == 0 || Level%17 == 0)
 		{
 			int w = 1+rand()%(1+min(Level/4, 4));
-			
+
 			for (int i = 0; i < w; i++)
 				GenerateStarDroid(pTiles);
 		}
 		*/
 
-
 	// obstacles
-	if (Level%20 == 0)
-		for (int i = 0; i < Level/20; i++)
+	if(Level % 20 == 0)
+		for(int i = 0; i < Level / 20; i++)
 			GenerateDeathray(pTiles);
-	
-	for (int i = 0; i < Level/4; i++)
+
+	for(int i = 0; i < Level / 4; i++)
 		GenerateFiretrap(pTiles);
-	
-	for (int i = 0; i < Level/6; i++)
+
+	for(int i = 0; i < Level / 6; i++)
 		GenerateSawblade(pTiles);
 
-
 	// more enemy spawn positions
-	for (int i = 0; i < min(Level, 10); i++)
+	for(int i = 0; i < min(Level, 10); i++)
 		GenerateEnemySpawn(pTiles);
-	
-	if (pRoom)
+
+	if(pRoom)
 		delete pRoom;
-	
-	if (pTiles)
+
+	if(pTiles)
 		delete pTiles;
-	
-	if (pMaze)
+
+	if(pMaze)
 		delete pMaze;
-	
+
 	dbg_msg("mapgen", "Level generated");
 }
-
-
-
 
 void CMapGen::Mirror(CGenLayer *pTiles)
 {
 	int w = pTiles->Width();
 	int h = pTiles->Height();
-	
-	for (int x = 0; x < w/2; x++)
-		for (int y = 0; y < h; y++)
+
+	for(int x = 0; x < w / 2; x++)
+		for(int y = 0; y < h; y++)
 		{
-			pTiles->Set(pTiles->Get(w/2-x, y), w/2+x, y);
+			pTiles->Set(pTiles->Get(w / 2 - x, y), w / 2 + x, y);
 		}
-	
 }
-
-
 
 void CMapGen::GeneratePVPLevel()
 {
 	int w = m_pLayers->GameLayer()->m_Width;
 	int h = m_pLayers->GameLayer()->m_Height;
 
-	if (w < 10 || h < 10)
+	if(w < 10 || h < 10)
 		return;
-	
+
 	CGenLayer *pTiles = new CGenLayer(w, h);
-	
+
 	// generate room structure
-	CRoomGenerated *pRoom = new CRoomGenerated(3, 3, w-6, h-6);
+	CRoomGenerated *pRoom = new CRoomGenerated(3, 3, w - 6, h - 6);
 	CMaze *pMaze = new CMaze(w, h);
-	
+
 	pMaze->OpenRooms(pRoom);
 
 	pRoom->Generate(pTiles);
-	
-	//pTiles->GenerateMoreForeground();
-	
+
+	// pTiles->GenerateMoreForeground();
+
 	// check for too tight corridors
 	{
-		for(int y = 3; y < h-4; y++)
-			for(int x = 3; x < w-4; x++)
+		for(int y = 3; y < h - 4; y++)
+			for(int x = 3; x < w - 4; x++)
 			{
-				if (!pTiles->Get(x-1, y) && pTiles->Get(x, y) && pTiles->Get(x+1, y) && !pTiles->Get(x+2, y))
+				if(!pTiles->Get(x - 1, y) && pTiles->Get(x, y) && pTiles->Get(x + 1, y) && !pTiles->Get(x + 2, y))
 					pRoom->Fill(pTiles, 0, x, y, 2, 1);
-				
-				if (!pTiles->Get(x, y-1) && pTiles->Get(x, y) && pTiles->Get(x, y+1) && !pTiles->Get(x, y+2))
+
+				if(!pTiles->Get(x, y - 1) && pTiles->Get(x, y) && pTiles->Get(x, y + 1) && !pTiles->Get(x, y + 2))
 					pRoom->Fill(pTiles, 0, x, y, 1, 2);
 			}
 	}
-	
+
 	pTiles->GenerateSlopes();
-	
+
 	bool BR = false;
-	
-	if (str_comp(g_Config.m_SvGametype, "dm") == 0)
+
+	if(str_comp(g_Config.m_SvGametype, "dm") == 0)
 	{
-		if (g_Config.m_SvSurvivalMode)
+		if(g_Config.m_SvSurvivalMode)
 			BR = true; // battle royale
 	}
 	else
 		Mirror(pTiles);
-	
+
 	pTiles->RemoveSingles();
-	
+
 	dbg_msg("mapgen", "rooms generated, map size: %d", pTiles->Size());
-	
-	int n = pTiles->Size()/500;
+
+	int n = pTiles->Size() / 500;
 
 	pTiles->GenerateBackground();
 	pTiles->GenerateMoreBackground();
-	
-	if (n > 1)
-		pTiles->GenerateAirPlatforms(n/2 + rand()%(n/2));
+
+	if(n > 1)
+		pTiles->GenerateAirPlatforms(n / 2 + rand() % (n / 2));
 	else
 		pTiles->GenerateAirPlatforms(n);
 
 	dbg_msg("mapgen", "Proceed tiles");
 	Proceed(pTiles, 0);
-	
+
 	pTiles->GenerateBoxes();
 	pTiles->GeneratePlatforms();
-	
+
 	pTiles->GenerateFences();
-	
+
 	WriteLayers(pTiles);
 	WriteBackground(pTiles);
-	
+
 	// find platforms, corners etc.
 	dbg_msg("mapgen", "Scanning level");
 	pTiles->Scan();
-	
+
 	// flags to ctf
-	if (str_comp(g_Config.m_SvGametype, "ctf") == 0)
+	if(str_comp(g_Config.m_SvGametype, "ctf") == 0)
 	{
 		// left & rightmost tiles as spawns
-		
+
 		// red team spawn pos
 		/*
 		for (int i = 0; i < 2; i++)
 		{
 			ivec2 p = pTiles->GetLeftPlatform();
-			
+
 			if (p.x != 0)
 			{
 				pTiles->Use(p.x, p.y);
 				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN_RED);
 			}
 		}
-		
+
 		// blue team spawn pos
 		for (int i = 0; i < 2; i++)
 		{
 			ivec2 p = pTiles->GetRightPlatform();
-			
+
 			if (p.x != 0)
 			{
 				pTiles->Use(p.x, p.y);
@@ -1847,14 +1834,14 @@ void CMapGen::GeneratePVPLevel()
 			}
 		}
 		*/
-		
+
 		{
 			ivec2 p = pTiles->GetLeftPlatform();
-			
-			if (p.x != 0)
+
+			if(p.x != 0)
 			{
 				pTiles->Use(p.x, p.y);
-				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_FLAGSTAND_RED);
+				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_FLAGSTAND_RED);
 				WriteBase(pTiles, 0, p, 6);
 			}
 			else
@@ -1862,139 +1849,143 @@ void CMapGen::GeneratePVPLevel()
 		}
 		{
 			ivec2 p = pTiles->GetRightPlatform();
-			
-			if (p.x != 0)
+
+			if(p.x != 0)
 			{
 				pTiles->Use(p.x, p.y);
-				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_FLAGSTAND_BLUE);
+				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_FLAGSTAND_BLUE);
 				WriteBase(pTiles, 1, p, 6);
 			}
 			else
 				dbg_msg("mapgen", "Can't set blue flag");
 		}
 	}
-	
+
 	// dm spawn pos
-	if (str_comp(g_Config.m_SvGametype, "dm") == 0)
+	if(str_comp(g_Config.m_SvGametype, "dm") == 0)
 	{
-		for (int i = 0; i < 16; i++)
+		for(int i = 0; i < 16; i++)
 		{
 			ivec2 p = pTiles->GetPlatform();
-			
-			if (p.x == 0)
+
+			if(p.x == 0)
 				p = pTiles->GetWall();
-			if (p.x == 0)
+			if(p.x == 0)
 				p = pTiles->GetCeiling();
-			
-			if (p.x != 0)
-				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN);
+
+			if(p.x != 0)
+				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
 		}
 	}
 	else
 	// tdm & ctf
 	{
-		for (int i = 0; i < 6; i++)
+		for(int i = 0; i < 6; i++)
 		{
 			// red team spawn pos
 			{
 				ivec2 p = pTiles->GetLeftPlatform();
-				
-				if (p.x != 0)
+
+				if(p.x != 0)
 				{
 					pTiles->Use(p.x, p.y);
-					ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN_RED);
-					ModifTile(p+ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN_RED);
+					ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN_RED);
+					ModifTile(p + ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN_RED);
 				}
 			}
-			
+
 			// blue team spawn pos
 			{
 				ivec2 p = pTiles->GetRightPlatform();
-				
-				if (p.x != 0)
+
+				if(p.x != 0)
 				{
 					pTiles->Use(p.x, p.y);
-					ModifTile(p+ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN_BLUE);
-					ModifTile(p+ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET+ENTITY_SPAWN_BLUE);
+					ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN_BLUE);
+					ModifTile(p + ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN_BLUE);
 				}
 			}
 		}
 	}
-	
-	
+
 	// acid pools
-	for (int i = 0; i < 40; i++)
+	for(int i = 0; i < 40; i++)
 		GenerateAcid(pTiles);
 
 	// conveyor belts
 	{
-		int c = 2 + rand()%8;
-		for (int i = 0; i < c; i++)
+		int c = 2 + rand() % 8;
+		for(int i = 0; i < c; i++)
 			GenerateConveyorBelt(pTiles);
 	}
-	
+
 	// hangables
-	int c = 2+rand()%4;
-	for (int i = 0; i < c; i++)
+	int c = 2 + rand() % 4;
+	for(int i = 0; i < c; i++)
 		GenerateHangables(pTiles);
-		
-	for (int i = 0; i < 4; i++)
+
+	for(int i = 0; i < 4; i++)
 		GenerateScreen(pTiles);
-	
-	int Obs = 3; //1 + pTiles->NumPlatforms() / 4.0f;
-	
+
+	int Obs = 3; // 1 + pTiles->NumPlatforms() / 4.0f;
+
 	GeneratePowerupper(pTiles);
 	GeneratePowerupper(pTiles);
-	
-	if (BR)
+
+	if(BR)
 		GeneratePowerupper(pTiles);
-	
+
 	// barrels
-	int b = 5 + rand()%3;
-	
-	for (int i = 0; i < (pTiles->NumPlatforms() + pTiles->NumMedPlatforms()) / b; i++)
+	int b = 5 + rand() % 3;
+
+	for(int i = 0; i < (pTiles->NumPlatforms() + pTiles->NumMedPlatforms()) / b; i++)
 		GenerateBarrel(pTiles);
-	
+
 	w = 2 + (pTiles->NumPlatforms() + pTiles->NumMedPlatforms()) / 4.0f;
-	
-	for (int i = 0; i < w; i++)
+
+	for(int i = 0; i < w; i++)
 		GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
-	
-	for (int i = 0; i < 5; i++)
+
+	for(int i = 0; i < 5; i++)
 		GenerateWeapon(pTiles, ENTITY_KIT);
-	
-	for (int i = 0; i < (pTiles->Size())/750; i++)
+
+	for(int i = 0; i < (pTiles->Size()) / 750; i++)
 		GenerateHearts(pTiles);
-	
-	for (int i = 0; i < (pTiles->Size())/750; i++)
+
+	for(int i = 0; i < (pTiles->Size()) / 750; i++)
 		GenerateAmmo(pTiles);
-	
-	for (int i = 0; i < (pTiles->Size())/1000; i++)
+
+	for(int i = 0; i < (pTiles->Size()) / 1000; i++)
 		GenerateArmor(pTiles);
 
-
 	// obstacles
-	
-	while (Obs-- > 0)
+
+	while(Obs-- > 0)
 	{
-		switch (rand()%6)
+		switch(rand() % 6)
 		{
-		case 0:
-		case 1:
-		case 2: GenerateSawblade(pTiles); break;
-		case 3:
-		case 4: GenerateFiretrap(pTiles); break;
-		case 5: GenerateDeathray(pTiles); break;
+			case 0:
+			case 1:
+			case 2:
+				GenerateSawblade(pTiles);
+				break;
+			case 3:
+			case 4:
+				GenerateFiretrap(pTiles);
+				break;
+			case 5:
+				GenerateDeathray(pTiles);
+				break;
 		}
 	}
 
-	if (pRoom)
+	if(pRoom)
 		delete pRoom;
-	
-	if (pTiles)
+
+	if(pTiles)
 		delete pTiles;
-	
-	if (pMaze)
+
+	if(pMaze)
 		delete pMaze;
 }
 
@@ -2002,118 +1993,118 @@ void CMapGen::WriteBase(class CGenLayer *pTiles, int BaseNum, ivec2 Pos, float S
 {
 	int w = m_pLayers->GameLayer()->m_Width;
 	int h = m_pLayers->GameLayer()->m_Height;
-	
+
 	CGenLayer *pBaseTiles = new CGenLayer(w, h);
 	pBaseTiles->CleanTiles();
-	
+
 	// copy tiles & check distance to base pos
-	for(int x = 1; x < w-1; x++)
-		for(int y = 1; y < h-1; y++)
+	for(int x = 1; x < w - 1; x++)
+		for(int y = 1; y < h - 1; y++)
 		{
 			int i = pTiles->Get(x, y);
-			
-			if (i > 0 && distance(vec2(Pos.x, Pos.y), vec2(x, y)) < Size)
+
+			if(i > 0 && distance(vec2(Pos.x, Pos.y), vec2(x, y)) < Size)
 				pBaseTiles->Set(1, x, y);
 		}
-	
+
 	// auto map
 	pBaseTiles->RemoveSingles();
 	pBaseTiles->BaseCleanup();
 	Proceed(pBaseTiles, 0);
-	
+
 	// write to layer
 	int LayerIndex = 0;
-	
-	if (BaseNum == 0)
+
+	if(BaseNum == 0)
 		LayerIndex = m_pLayers->GetBase1LayerIndex();
-	else if (BaseNum == 1)
+	else if(BaseNum == 1)
 		LayerIndex = m_pLayers->GetBase2LayerIndex();
-	
-	
+
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pBaseTiles->Get(x, y);
-			
-			if (i > 0)
+
+			if(i > 0)
 			{
 				int f = pBaseTiles->GetFlags(x, y);
 				ModifTile(ivec2(x, y), LayerIndex, i, f);
 			}
 		}
-		
+
 	delete pBaseTiles;
 }
-
 
 void CMapGen::WriteLayers(CGenLayer *pTiles)
 {
 	int w = m_pLayers->GameLayer()->m_Width;
 	int h = m_pLayers->GameLayer()->m_Height;
-	
+
 	// write to layers; foreground
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y);
-			
-			if (i > 0)
+
+			if(i > 0)
 			{
 				int f = pTiles->GetFlags(x, y);
 				ModifTile(ivec2(x, y), m_pLayers->GetForegroundLayerIndex(), i, f);
-				
+
 				// slopes
-				if (i == 20 && f == TILEFLAG_VFLIP)
+				if(i == 20 && f == TILEFLAG_VFLIP)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_RAMP_RIGHT);
-				else if (i == 20 && f == 0)
+				else if(i == 20 && f == 0)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_RAMP_LEFT);
-				else if (i == 20 && f == TILEFLAG_HFLIP+TILEFLAG_VFLIP)
+				else if(i == 20 && f == TILEFLAG_HFLIP + TILEFLAG_VFLIP)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_ROOFSLOPE_RIGHT);
-				else if (i == 20 && f == TILEFLAG_HFLIP)
+				else if(i == 20 && f == TILEFLAG_HFLIP)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_ROOFSLOPE_LEFT);
 				else
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), 1);
 			}
 		}
-		
+
 	// write to layers; FGOBJECTS to foreground
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y, CGenLayer::FGOBJECTS);
-			
-			if (i > 0)
+
+			if(i > 0)
 			{
 				int f = pTiles->GetFlags(x, y, CGenLayer::FGOBJECTS);
 				ModifTile(ivec2(x, y), m_pLayers->GetForegroundLayerIndex(), i, f);
-				
-				if (i >= 14*16+1 && i <= 14*16+3)
+
+				if(i >= 14 * 16 + 1 && i <= 14 * 16 + 3)
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), TILE_PLATFORM);
 				else
 					ModifTile(ivec2(x, y), m_pLayers->GetGameLayerIndex(), 1);
 			}
 		}
-		
+
 	/*
 	// background
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y, CGenLayer::BACKGROUND);
-			
+
 			if (i > 0)
-				ModifTile(ivec2(x, y), m_pLayers->GetBackgroundLayerIndex(), i, pTiles->GetFlags(x, y, CGenLayer::BACKGROUND));
+				ModifTile(ivec2(x, y), m_pLayers->GetBackgroundLayerIndex(), i, pTiles->GetFlags(x, y,
+	CGenLayer::BACKGROUND));
 		}
 	*/
-	
+
 	// doodads
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y, CGenLayer::DOODADS);
-			
-			if (i > 0)
-				ModifTile(ivec2(x, y), m_pLayers->GetDoodadsLayerIndex(), i, pTiles->GetFlags(x, y, CGenLayer::DOODADS));
+
+			if(i > 0)
+				ModifTile(
+					ivec2(x, y), m_pLayers->GetDoodadsLayerIndex(), i, pTiles->GetFlags(x, y, CGenLayer::DOODADS));
 		}
 }
 
@@ -2121,27 +2112,25 @@ void CMapGen::WriteBackground(CGenLayer *pTiles)
 {
 	int w = m_pLayers->GameLayer()->m_Width;
 	int h = m_pLayers->GameLayer()->m_Height;
-	
+
 	// background
 	for(int x = 0; x < w; x++)
 		for(int y = 0; y < h; y++)
 		{
 			int i = pTiles->Get(x, y, CGenLayer::BACKGROUND);
-			
-			if (i > 0)
-				ModifTile(ivec2(x, y), m_pLayers->GetBackgroundLayerIndex(), i, pTiles->GetFlags(x, y, CGenLayer::BACKGROUND));
+
+			if(i > 0)
+				ModifTile(ivec2(x, y),
+						  m_pLayers->GetBackgroundLayerIndex(),
+						  i,
+						  pTiles->GetFlags(x, y, CGenLayer::BACKGROUND));
 		}
 }
-
-
 
 inline void CMapGen::ModifTile(ivec2 Pos, int Layer, int Tile, int Flags)
 {
 	m_pCollision->ModifTile(Pos, m_pLayers->GetGameGroupIndex(), Layer, Tile, Flags, 0);
 }
-
-
-
 
 void CMapGen::Proceed(CGenLayer *pTiles, int ConfigID)
 {
@@ -2188,17 +2177,17 @@ void CMapGen::Proceed(CGenLayer *pTiles, int ConfigID)
 	int *apLayerFlags[3] = {pTiles->m_pFlags, pTiles->m_pBGFlags, pTiles->m_pDoodadsFlags};
 
 	// auto map !
-	for (int l = 0; l < 3; l++)
+	for(int l = 0; l < 3; l++)
 	{
 		int *pLayerTiles = apLayerTiles[l];
 		int *pLayerFlags = apLayerFlags[l];
-		for (int y = 0; y < Height; y++)
+		for(int y = 0; y < Height; y++)
 		{
 			for(int i = 0; i < aRules.size(); i++)
 				aRuleYMatches[i] = aRules[i]->m_YDivisor < 2 || y % aRules[i]->m_YDivisor == aRules[i]->m_YRemainder;
 
 			const int RowStart = y * Width;
-			for (int x = 0; x < Width; x++)
+			for(int x = 0; x < Width; x++)
 			{
 				const int TileIndex = RowStart + x;
 				if(pLayerTiles[TileIndex] <= 0)
@@ -2207,37 +2196,38 @@ void CMapGen::Proceed(CGenLayer *pTiles, int ConfigID)
 				pLayerTiles[TileIndex] = BaseTile;
 				pLayerFlags[TileIndex] = 0;
 
-				if (y == 0 || y == Height-1 || x == 0 || x == Width-1)
+				if(y == 0 || y == Height - 1 || x == 0 || x == Width - 1)
 					continue;
 
-				for (int i = 0; i < aRules.size(); ++i)
+				for(int i = 0; i < aRules.size(); ++i)
 				{
 					CIndexRule *pIndexRule = aRules[i];
 					bool RespectRules = true;
-					for (int j = 0; j < pIndexRule->m_aRules.size() && RespectRules; ++j)
+					for(int j = 0; j < pIndexRule->m_aRules.size() && RespectRules; ++j)
 					{
 						CPosRule *pRule = &pIndexRule->m_aRules[j];
 						const int CheckIndex = TileIndex + pRule->m_Offset;
 
-						if (CheckIndex < 0 || CheckIndex >= MaxIndex)
+						if(CheckIndex < 0 || CheckIndex >= MaxIndex)
 							RespectRules = false;
 						else
 						{
 							const int RawTileValue = pLayerTiles[CheckIndex];
 							const int TileValue = RawTileValue < 0 ? 0 : RawTileValue;
-							if (pRule->m_IndexValue)
+							if(pRule->m_IndexValue)
 							{
-								if (TileValue != pRule->m_Value)
+								if(TileValue != pRule->m_Value)
 									RespectRules = false;
 							}
 							else if((TileValue > 0 && pRule->m_Value == CPosRule::EMPTY) ||
-								(TileValue == 0 && pRule->m_Value == CPosRule::FULL))
+									(TileValue == 0 && pRule->m_Value == CPosRule::FULL))
 								RespectRules = false;
 						}
 					}
 
-					if (RespectRules && aRuleYMatches[i] &&
-						(pIndexRule->m_RandomValue <= 1 || (int)((float)rand() / ((float)RAND_MAX + 1) * pIndexRule->m_RandomValue) == 1))
+					if(RespectRules && aRuleYMatches[i] &&
+					   (pIndexRule->m_RandomValue <= 1 ||
+						(int)((float)rand() / ((float)RAND_MAX + 1) * pIndexRule->m_RandomValue) == 1))
 					{
 						pLayerTiles[TileIndex] = pIndexRule->m_ID;
 						pLayerFlags[TileIndex] = pIndexRule->m_Flag;

@@ -10,7 +10,7 @@ Emoticons = ["OOP", "EXCLAMATION", "HEARTS", "DROP", "DOTDOT", "MUSIC", "SORRY",
 
 Powerups = ["HEALTH", "AMMO", "WEAPON", "ARMOR", "COIN", "KIT"]
 
-WEAPON_DEFINITION_ID_MAX = weapon_types.DEFINITION_ID_MAX
+WEAPON_DEFINITION_ID_MAX = 65535
 WEAPON_LEVEL_MAX = weapon_types.LEVEL_MAX
 ATTACK_SOURCE_KIND_MAX = 4
 
@@ -44,7 +44,7 @@ CoreAction = ["IDLE", "JUMP", "WALLJUMP", "ROLL", "SLIDE", "SLIDEKICK", "FALL", 
 
 InventoryAction = ["SWAP", "COMBINE", "TAKEPART", "DROP", "SHOP", "ROLL"]
 
-ForgeOperation = ["REPLACE_PART2", "SPIN", "UPGRADE", "AUTO"]
+ForgeOperation = ["REPLACE_PART2", "SPIN", "UPGRADE", "MOD_RECIPE", "AUTO"]
 ForgeResult = ["SUCCESS", "DISABLED", "TOO_FAR", "NOT_ENOUGH_GOLD", "BUSY", "INVALID_SLOT", "INVALID_RECIPE", "NO_CHANGE"]
 
 Radar = ["CHARACTER", "HUMAN", "ENEMY", "DOOR", "REACTOR", "BOMB"]
@@ -211,6 +211,41 @@ Objects = [
 
 		*AttackSourceFields(),
 		NetTick("m_StartTick"),
+	]),
+
+	# A bounded, script-owned combat entity. Its simulation remains authoritative
+	# on the server, while the fixed state slots allow clients to deterministically
+	# reconstruct and predict the same entity without arbitrary Lua object
+	# serialization.
+	NetObject("ScriptEntity", [
+		NetIntRange("m_Kind", 0, 3),
+		NetIntAny("m_X"),
+		NetIntAny("m_Y"),
+		NetIntAny("m_VelX"),
+		NetIntAny("m_VelY"),
+		NetIntAny("m_FromX"),
+		NetIntAny("m_FromY"),
+		NetIntRange("m_Radius", 0, 4096),
+		NetIntRange("m_Life", 0, 65535),
+		*AttackSourceFields(),
+		NetIntAny("m_State0"),
+		NetIntAny("m_State1"),
+		NetIntAny("m_State2"),
+		NetIntAny("m_State3"),
+		NetIntAny("m_State4"),
+		NetIntAny("m_State5"),
+		NetIntAny("m_State6"),
+		NetIntAny("m_State7"),
+	]),
+
+	# Explicit, bounded state for a held scripted weapon. It is separate from
+	# Character so older character prediction can stay focused on movement.
+	NetObject("WeaponRuntime", [
+		NetIntRange("m_Owner", 0, 'MAX_CLIENTS-1'),
+		*WeaponSpecFields("m_Weapon"),
+		NetIntAny("m_RandomState"),
+		NetIntAny("m_State0"), NetIntAny("m_State1"), NetIntAny("m_State2"), NetIntAny("m_State3"),
+		NetIntAny("m_State4"), NetIntAny("m_State5"), NetIntAny("m_State6"), NetIntAny("m_State7"),
 	]),
 
 	NetObject("Laser", [
@@ -562,6 +597,14 @@ Objects = [
 		NetIntRange("m_Killed", 0, 1),
 		*AttackSourceFields(),
 	]),
+
+	# Appended for protocol v15; custom weapon resources use the runtime ID
+	# already negotiated by the matching Mod collection.
+	NetEvent("WeaponSound:Common", [
+		NetIntRange("m_WeaponDefinitionId", 0, WEAPON_DEFINITION_ID_MAX),
+		NetIntRange("m_WeaponLevel", 0, WEAPON_LEVEL_MAX),
+		NetIntRange("m_Slot", 0, 2),
+	]),
 ]
 
 # todo: remove unnecessary ones
@@ -610,7 +653,9 @@ Messages = [
 
 	NetMessage("Sv_TuneParams", []),
 	NetMessage("Sv_ExtraProjectile", []),
-	NetMessage("Sv_ReadyToEnter", []),
+	NetMessage("Sv_ReadyToEnter", [
+		NetStringStrict("m_pWeaponContentHash"),
+	]),
 
 	NetMessage("Sv_Emoticon", [
 		NetIntRange("m_ClientID", 0, 'MAX_CLIENTS-1'),

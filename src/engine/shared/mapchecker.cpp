@@ -27,7 +27,7 @@ void CMapChecker::Init()
 
 void CMapChecker::SetDefaults()
 {
-	//AddMaplist(s_aMapVersionList, s_NumMapVersionItems);
+	// AddMaplist(s_aMapVersionList, s_NumMapVersionItems);
 	m_RemoveDefaultList = true;
 }
 
@@ -43,8 +43,10 @@ void CMapChecker::AddMaplist(CMapVersion *pMaplist, int Num)
 		m_pFirst = pEntry;
 
 		str_copy(pEntry->m_aMapName, pMaplist[i].m_aName, sizeof(pEntry->m_aMapName));
-		pEntry->m_MapCrc = (pMaplist[i].m_aCrc[0]<<24) | (pMaplist[i].m_aCrc[1]<<16) | (pMaplist[i].m_aCrc[2]<<8) | pMaplist[i].m_aCrc[3];
-		pEntry->m_MapSize = (pMaplist[i].m_aSize[0]<<24) | (pMaplist[i].m_aSize[1]<<16) | (pMaplist[i].m_aSize[2]<<8) | pMaplist[i].m_aSize[3];
+		pEntry->m_MapCrc = (pMaplist[i].m_aCrc[0] << 24) | (pMaplist[i].m_aCrc[1] << 16) |
+						   (pMaplist[i].m_aCrc[2] << 8) | pMaplist[i].m_aCrc[3];
+		pEntry->m_MapSize = (pMaplist[i].m_aSize[0] << 24) | (pMaplist[i].m_aSize[1] << 16) |
+							(pMaplist[i].m_aSize[2] << 8) | pMaplist[i].m_aSize[3];
 	}
 }
 
@@ -60,7 +62,7 @@ bool CMapChecker::IsMapValid(const char *pMapName, unsigned MapCrc, unsigned Map
 				return true;
 		}
 	}
-	return StandardMap?false:true;
+	return StandardMap ? false : true;
 }
 
 bool CMapChecker::ReadAndValidateMap(IStorage *pStorage, const char *pFilename, int StorageType)
@@ -77,14 +79,14 @@ bool CMapChecker::ReadAndValidateMap(IStorage *pStorage, const char *pFilename, 
 	for(const char *pSrc = pFilename; *pSrc; ++pSrc)
 	{
 		if(*pSrc == '/' || *pSrc == '\\')
-			pExtractedName = pSrc+1;
+			pExtractedName = pSrc + 1;
 		else if(*pSrc == '.')
 			pEnd = pSrc;
 	}
 	int Length = (int)(pEnd - pExtractedName);
 	if(Length <= 0 || Length >= MAX_MAP_LENGTH)
 		return true;
-	str_copy(aMapName, pExtractedName, min((int)MAX_MAP_LENGTH, (int)(pEnd-pExtractedName+1)));
+	str_copy(aMapName, pExtractedName, min((int)MAX_MAP_LENGTH, (int)(pEnd - pExtractedName + 1)));
 
 	// check for valid map
 	for(CWhitelistEntry *pCurrent = m_pFirst; pCurrent; pCurrent = pCurrent->m_pNext)
@@ -103,7 +105,7 @@ bool CMapChecker::ReadAndValidateMap(IStorage *pStorage, const char *pFilename, 
 				return true;
 		}
 	}
-	return StandardMap?false:true;
+	return StandardMap ? false : true;
 }
 
 // MapGen

@@ -1,6 +1,8 @@
 #include "weapon_catalog.h"
+#include "weapon_lua.h"
 
 #include <base/system.h>
+#include <engine/shared/mod_api.h>
 #include <generated/game_data.h>
 
 namespace
@@ -9,12 +11,6 @@ constexpr int ToInt(WeaponDefinitionId Id)
 {
 	return static_cast<int>(Id);
 }
-
-constexpr float CAPACITOR_MIN_DAMAGE_SCALE = 0.25f;
-constexpr float CAPACITOR_DAMAGE_CHARGE_SCALE = 0.75f;
-constexpr float CAPACITOR_MIN_RANGE_SCALE = 0.60f;
-constexpr float CAPACITOR_RANGE_CHARGE_SCALE = 0.40f;
-constexpr float CAPACITOR_MAX_CHARGE = 100.0f;
 
 bool IsValidPartCombination(int Part1, int Part2)
 {
@@ -30,18 +26,35 @@ int DenseDefinitionIndex(const CWeaponDefinition &Definition)
 	if(Definition.m_Kind == EWeaponDefinitionKind::Static)
 		return Definition.m_StaticType;
 	if(Definition.m_Part1 <= PART1_BASE6)
-		return NUM_STATIC_WEAPONS +
-			(Definition.m_Part1 - PART1_BASE1) * WEAPON_RANGED_PART2_COUNT +
-			Definition.m_Part2 - PART2_BARREL1;
+		return NUM_STATIC_WEAPONS + (Definition.m_Part1 - PART1_BASE1) * WEAPON_RANGED_PART2_COUNT +
+			   Definition.m_Part2 - PART2_BARREL1;
 	return NUM_STATIC_WEAPONS + WEAPON_RANGED_PART1_COUNT * WEAPON_RANGED_PART2_COUNT +
-		(Definition.m_Part1 - PART1_MELEE) * WEAPON_MELEE_PART2_COUNT +
-		Definition.m_Part2 - PART2_MELEE1;
+		   (Definition.m_Part1 - PART1_MELEE) * WEAPON_MELEE_PART2_COUNT + Definition.m_Part2 - PART2_MELEE1;
 }
 
 CWeaponVisualProfile EmptyVisualProfile()
 {
-	return {0, ivec2(0, 0), ivec2(0, 0), vec2(0.0f, 0.0f), vec2(0.0f, 0.0f), vec2(0.0f, 0.0f),
-		vec2(0.0f, 0.0f), vec2(0.0f, 0.0f), 0.0f, 0.0f, 0.0f, 0, 0.0f, 0, 0, 0, 0, 0, 0, 0.0f};
+	return {0,
+			ivec2(0, 0),
+			ivec2(0, 0),
+			vec2(0.0f, 0.0f),
+			vec2(0.0f, 0.0f),
+			vec2(0.0f, 0.0f),
+			vec2(0.0f, 0.0f),
+			vec2(0.0f, 0.0f),
+			0.0f,
+			0.0f,
+			0.0f,
+			0,
+			0.0f,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0.0f,
+			WEAPON_IMPACT_EFFECT_NONE};
 }
 
 bool IsValidSound(int Sound)
@@ -52,112 +65,173 @@ bool IsValidSound(int Sound)
 bool IsValidProfile(const CWeaponCombatProfile &Combat, const CWeaponVisualProfile &Visual)
 {
 	if(Combat.m_FiringType < WFT_NONE || Combat.m_FiringType > WFT_ACTIVATE || Combat.m_MaxAmmo < 0 ||
-		Combat.m_ShotSpread < 0 || Combat.m_Cost < 0 || Combat.m_ProjectileBounces < 0 ||
-		Combat.m_CursorWeapon < 0 || Combat.m_CursorWeapon >= NUM_WEAPONS ||
-		Combat.m_ProjectilePosType < WEAPON_PROJECTILE_PATH_STANDARD || Combat.m_ProjectilePosType > WEAPON_PROJECTILE_PATH_ROCKET)
+	   Combat.m_ShotSpread < 0 || Combat.m_Cost < 0 || Combat.m_ProjectileBounces < 0 ||
+	   Combat.m_ProjectilePenetration < WEAPON_INFINITE_PENETRATION || Combat.m_ChargePenetrationMax < 0 ||
+	   Combat.m_ChargeDamageMin < 0.0f || Combat.m_ChargeDamageMax < Combat.m_ChargeDamageMin ||
+	   Combat.m_ChargeRangeMin < 0.0f || Combat.m_ChargeRangeMax < Combat.m_ChargeRangeMin ||
+	   Combat.m_ChargePowerMin < 0.0f || Combat.m_ChargePowerMax < Combat.m_ChargePowerMin ||
+	   Combat.m_CursorWeapon < 0 || Combat.m_CursorWeapon >= NUM_WEAPONS ||
+	   Combat.m_ProjectilePosType < WEAPON_PROJECTILE_PATH_STANDARD ||
+	   Combat.m_ProjectilePosType > WEAPON_PROJECTILE_PATH_ROCKET)
 		return false;
 	if(Combat.m_FiringType == WFT_PROJECTILE && Combat.m_ProjectileLife <= 0.0f)
 		return false;
-	if(Visual.m_RenderType < WRT_NONE || Visual.m_RenderType > WRT_SPIN ||
-		Visual.m_VisualSize.x < 0 || Visual.m_VisualSize.y < 0 || Visual.m_VisualSize2.x < 0 || Visual.m_VisualSize2.y < 0 ||
-		Visual.m_ProjectileSprite < 0.0f || Visual.m_ProjectileSprite != static_cast<int>(Visual.m_ProjectileSprite) ||
-		SPRITE_PROJECTILE1_1 + static_cast<int>(Visual.m_ProjectileSprite) >= NUM_SPRITES ||
-		Visual.m_ExplosionSprite < 0 || Visual.m_ExplosionSprite >= NUM_SPRITES ||
-		Visual.m_MuzzleType < 0 || Visual.m_MuzzleType > 2 || Visual.m_MuzzleAmount < 0)
+	if(Visual.m_RenderType < WRT_NONE || Visual.m_RenderType > WRT_SPIN || Visual.m_VisualSize.x < 0 ||
+	   Visual.m_VisualSize.y < 0 || Visual.m_VisualSize2.x < 0 || Visual.m_VisualSize2.y < 0 ||
+	   Visual.m_ProjectileSprite < 0.0f || Visual.m_ProjectileSprite != static_cast<int>(Visual.m_ProjectileSprite) ||
+	   SPRITE_PROJECTILE1_1 + static_cast<int>(Visual.m_ProjectileSprite) >= NUM_SPRITES ||
+	   Visual.m_ExplosionSprite < 0 || Visual.m_ExplosionSprite >= NUM_SPRITES || Visual.m_MuzzleType < 0 ||
+	   Visual.m_MuzzleType > 2 || Visual.m_MuzzleAmount < 0 || Visual.m_ImpactEffect < WEAPON_IMPACT_EFFECT_NONE ||
+	   Visual.m_ImpactEffect >= NUM_WEAPON_IMPACT_EFFECTS)
 		return false;
-	return IsValidSound(Visual.m_FireSound) && IsValidSound(Visual.m_FireSound2) && IsValidSound(Visual.m_ExplosionSound);
+	return IsValidSound(Visual.m_FireSound) && IsValidSound(Visual.m_FireSound2) &&
+		   IsValidSound(Visual.m_ExplosionSound);
 }
 
-#include <generated/weapon_profiles.inc>
+} // namespace
+
+bool CWeaponCatalog::Initialize(char *pError, int ErrorSize)
+{
+	return WeaponLuaInitialize(pError, ErrorSize);
+}
+
+const char *CWeaponCatalog::OfficialContentHash()
+{
+	return WeaponLuaOfficialContentHash();
+}
+
+bool CWeaponCatalog::LoadLuaDefinitions(
+	const char *pPackageId, const char *pSource, int SourceSize, char *pError, int ErrorSize)
+{
+	return WeaponLuaLoadPackage(pPackageId,
+								MOD_CAPABILITY_WEAPONS | MOD_CAPABILITY_WEAPON_MODULES | MOD_CAPABILITY_FORGE_RECIPES,
+								0,
+								0,
+								pSource,
+								SourceSize,
+								pError,
+								ErrorSize);
+}
+
+bool CWeaponCatalog::LoadLuaDefinitions(const char *pPackageId,
+										int Capabilities,
+										const char *const *ppDependencies,
+										int DependencyCount,
+										const char *pSource,
+										int SourceSize,
+										char *pError,
+										int ErrorSize)
+{
+	return WeaponLuaLoadPackage(
+		pPackageId, Capabilities, ppDependencies, DependencyCount, pSource, SourceSize, pError, ErrorSize);
+}
+
+bool CWeaponCatalog::FinalizeLuaDefinitions(char *pError, int ErrorSize)
+{
+	return WeaponLuaFinalize(pError, ErrorSize);
+}
+
+void CWeaponCatalog::ResetCustomDefinitions()
+{
+	WeaponLuaResetCustom();
+}
+
+void CWeaponCatalog::BeginCustomDefinitionReload()
+{
+	WeaponLuaBeginCustomReload();
+}
+
+void CWeaponCatalog::CommitCustomDefinitionReload()
+{
+	WeaponLuaCommitCustomReload();
+}
+
+void CWeaponCatalog::RollbackCustomDefinitionReload()
+{
+	WeaponLuaRollbackCustomReload();
+}
+
+bool CWeaponCatalog::TryFromStableId(const char *pStableId, int Level, CWeaponSpec *pSpec)
+{
+	if(Level < 0 || Level > WEAPON_SPEC_MAX_LEVEL)
+		return false;
+	WeaponDefinitionId Id;
+	if(!WeaponLuaTryStableId(pStableId, &Id))
+		return false;
+	const CWeaponSpec Spec{Id, static_cast<uint8_t>(Level)};
+	if(pSpec)
+		*pSpec = Spec;
+	return true;
+}
+
+const char *CWeaponCatalog::StableId(const CWeaponSpec &Spec)
+{
+	return WeaponLuaStableId(Spec.m_DefinitionId);
+}
+
+bool CWeaponCatalog::IsCustom(const CWeaponSpec &Spec)
+{
+	CWeaponDefinition Definition;
+	return TryGetDefinition(Spec.m_DefinitionId, &Definition) && Definition.m_Custom;
+}
+
+int CWeaponCatalog::DefinitionCount()
+{
+	return WeaponLuaDefinitionCount();
+}
+
+bool CWeaponCatalog::TryGetDefinitionByIndex(int Index, CWeaponDefinition *pDefinition)
+{
+	return WeaponLuaDefinitionByIndex(Index, pDefinition);
 }
 
 bool CWeaponCatalog::TryGetDefinition(WeaponDefinitionId Id, CWeaponDefinition *pDefinition)
 {
-	const int Value = ToInt(Id);
-	CWeaponDefinition Definition{};
-	Definition.m_Id = Id;
-	if(Value >= ToInt(WeaponDefinitionId::StaticFirst) && Value <= ToInt(WeaponDefinitionId::StaticLast))
-	{
-		Definition.m_Kind = EWeaponDefinitionKind::Static;
-		Definition.m_StaticType = Value - ToInt(WeaponDefinitionId::StaticFirst);
-	}
-	else if(Value >= ToInt(WeaponDefinitionId::ModularFirst) && Value <= ToInt(WeaponDefinitionId::ModularLast))
-	{
-		const int Index = Value - ToInt(WeaponDefinitionId::ModularFirst);
-		Definition.m_Kind = EWeaponDefinitionKind::Modular;
-		Definition.m_Part1 = Index / WEAPON_MODULAR_PART2_COUNT + PART1_BASE1;
-		Definition.m_Part2 = Index % WEAPON_MODULAR_PART2_COUNT + PART2_BARREL1;
-		if(!IsValidPartCombination(Definition.m_Part1, Definition.m_Part2))
-			return false;
-	}
-	else
-		return false;
-
-	const int DenseIndex = DenseDefinitionIndex(Definition);
-	if(DenseIndex < 0 || DenseIndex >= WEAPON_DEFINITION_COUNT)
-		return false;
-	Definition.m_MaxLevel = s_aWeaponMaxLevels[DenseIndex];
-	if(pDefinition)
-		*pDefinition = Definition;
-	return true;
+	return WeaponLuaTryGetDefinition(Id, pDefinition);
 }
 
 CWeaponSpec CWeaponCatalog::Static(StaticWeaponType Type, int Level)
 {
 	if(Type < 0 || Type >= NUM_STATIC_WEAPONS || Level < 0 || Level > WEAPON_SPEC_MAX_LEVEL)
 		return {};
-	const CWeaponSpec Spec{static_cast<WeaponDefinitionId>(ToInt(WeaponDefinitionId::StaticFirst) + Type), static_cast<uint8_t>(Level)};
-	return IsValidSpec(Spec) ? Spec : CWeaponSpec{};
+	for(int Index = 0; Index < DefinitionCount(); ++Index)
+	{
+		CWeaponDefinition Definition;
+		if(TryGetDefinitionByIndex(Index, &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Static &&
+		   Definition.m_StaticType == Type)
+			return {Definition.m_Id, static_cast<uint8_t>(Level)};
+	}
+	return {};
 }
 
 CWeaponSpec CWeaponCatalog::Modular(int Part1, int Part2, int Level)
 {
 	if(!IsValidPartCombination(Part1, Part2) || Level < 0 || Level > WEAPON_SPEC_MAX_LEVEL)
 		return {};
-	const CWeaponSpec Spec{static_cast<WeaponDefinitionId>(ToInt(WeaponDefinitionId::ModularFirst) + (Part1 - PART1_BASE1) * WEAPON_MODULAR_PART2_COUNT + Part2 - PART2_BARREL1), static_cast<uint8_t>(Level)};
-	return IsValidSpec(Spec) ? Spec : CWeaponSpec{};
+	for(int Index = 0; Index < DefinitionCount(); ++Index)
+	{
+		CWeaponDefinition Definition;
+		if(TryGetDefinitionByIndex(Index, &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Modular &&
+		   Definition.m_Part1 == Part1 && Definition.m_Part2 == Part2)
+			return {Definition.m_Id, static_cast<uint8_t>(Level)};
+	}
+	return {};
+}
+
+const char *CWeaponCatalog::Part1NameKey(int Part1)
+{
+	return WeaponLuaPart1NameKey(Part1);
+}
+
+const char *CWeaponCatalog::Part2NameKey(int Part2)
+{
+	return WeaponLuaPart2NameKey(Part2);
 }
 
 bool CWeaponCatalog::IsValidSpec(const CWeaponSpec &Spec)
 {
 	CWeaponDefinition Definition;
 	return TryGetDefinition(Spec.m_DefinitionId, &Definition) && Spec.m_Level <= WEAPON_SPEC_MAX_LEVEL;
-}
-
-float CWeaponCatalog::CapacitorDamageScale(int Charge)
-{
-	const float ChargeRatio = Charge <= 0 ? 0.0f : (Charge >= CAPACITOR_MAX_CHARGE ? 1.0f : Charge / CAPACITOR_MAX_CHARGE);
-	return CAPACITOR_MIN_DAMAGE_SCALE + CAPACITOR_DAMAGE_CHARGE_SCALE * ChargeRatio;
-}
-
-float CWeaponCatalog::CapacitorRangeScale(int Charge)
-{
-	const float ChargeRatio = Charge <= 0 ? 0.0f : (Charge >= CAPACITOR_MAX_CHARGE ? 1.0f : Charge / CAPACITOR_MAX_CHARGE);
-	return CAPACITOR_MIN_RANGE_SCALE + CAPACITOR_RANGE_CHARGE_SCALE * ChargeRatio;
-}
-
-int CWeaponCatalog::CapacitorPenetration(int Charge)
-{
-	if(Charge >= CAPACITOR_MAX_CHARGE)
-		return 2;
-	if(Charge >= CAPACITOR_MAX_CHARGE / 2)
-		return 1;
-	return 0;
-}
-
-int CWeaponCatalog::ProjectilePenetration(int Part2, int Charge)
-{
-	if(Part2 == PART2_CAPACITOR)
-		return CapacitorPenetration(Charge);
-	if(Part2 == PART2_RAIL)
-		return WEAPON_INFINITE_PENETRATION;
-	return 0;
-}
-
-float CWeaponCatalog::ChargedBladePowerScale(int Charge)
-{
-	const float ChargeRatio = Charge <= 0 ? 0.0f : (Charge >= CAPACITOR_MAX_CHARGE ? 1.0f : Charge / CAPACITOR_MAX_CHARGE);
-	return 0.5f + 1.5f * ChargeRatio;
 }
 
 bool CWeaponCatalog::TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec)
@@ -174,28 +248,14 @@ bool CWeaponCatalog::TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *p
 
 bool CWeaponCatalog::TryResolve(const CWeaponSpec &Spec, CResolvedWeaponProfile *pProfile)
 {
-	CWeaponDefinition Definition;
-	if(!pProfile || !TryGetDefinition(Spec.m_DefinitionId, &Definition) || Spec.m_Level > WEAPON_SPEC_MAX_LEVEL)
-		return false;
-	const int ProfileIndex = DenseDefinitionIndex(Definition) * WEAPON_SPEC_LEVEL_COUNT + Spec.m_Level;
-	*pProfile = {Definition, Spec, s_aWeaponCombatProfiles[ProfileIndex], s_aWeaponVisualProfiles[ProfileIndex]};
-	return true;
+	return WeaponLuaTryResolve(Spec, pProfile);
 }
 
 bool CWeaponCatalog::Validate()
 {
 	CWeaponSpec InvalidSpec;
-	if(IsValidSpec(InvalidSpec) || TryFromProtocol(0, 0, &InvalidSpec) ||
-		TryFromProtocol(ToInt(WeaponDefinitionId::ModularLast) + 1, 0, &InvalidSpec) ||
-		TryFromProtocol(ToInt(WeaponDefinitionId::StaticFirst), WEAPON_SPEC_MAX_LEVEL + 1, &InvalidSpec) ||
-		CapacitorDamageScale(-1) != 0.25f || CapacitorDamageScale(0) != 0.25f || CapacitorDamageScale(50) != 0.625f || CapacitorDamageScale(100) != 1.0f || CapacitorDamageScale(101) != 1.0f ||
-		CapacitorRangeScale(-1) != 0.60f || CapacitorRangeScale(0) != 0.60f || CapacitorRangeScale(50) != 0.80f || CapacitorRangeScale(100) != 1.0f || CapacitorRangeScale(101) != 1.0f ||
-		CapacitorPenetration(-1) != 0 || CapacitorPenetration(0) != 0 || CapacitorPenetration(49) != 0 ||
-		CapacitorPenetration(50) != 1 || CapacitorPenetration(99) != 1 || CapacitorPenetration(100) != 2 || CapacitorPenetration(101) != 2 ||
-		ProjectilePenetration(PART2_BARREL1, 100) != 0 || ProjectilePenetration(PART2_CAPACITOR, 100) != 2 ||
-		ProjectilePenetration(PART2_RAIL, 0) != WEAPON_INFINITE_PENETRATION || ProjectilePenetration(PART2_MELEE1, 100) != 0 ||
-		ChargedBladePowerScale(-1) != 0.5f || ChargedBladePowerScale(0) != 0.5f || ChargedBladePowerScale(50) != 1.25f ||
-		ChargedBladePowerScale(100) != 2.0f || ChargedBladePowerScale(101) != 2.0f)
+	if(IsValidSpec(InvalidSpec) || TryFromProtocol(0, 0, &InvalidSpec) || TryFromProtocol(65535, 0, &InvalidSpec) ||
+	   TryFromProtocol(ToInt(WeaponDefinitionId::StaticFirst), WEAPON_SPEC_MAX_LEVEL + 1, &InvalidSpec))
 		return false;
 
 	bool aSeenDefinitions[WEAPON_DEFINITION_COUNT] = {};
@@ -208,12 +268,13 @@ bool CWeaponCatalog::Validate()
 			continue;
 		const int DenseIndex = DenseDefinitionIndex(Definition);
 		if(Definition.m_Id != Id || Definition.m_MaxLevel > WEAPON_SPEC_MAX_LEVEL || DenseIndex < 0 ||
-			DenseIndex >= WEAPON_DEFINITION_COUNT || aSeenDefinitions[DenseIndex])
+		   DenseIndex >= WEAPON_DEFINITION_COUNT || aSeenDefinitions[DenseIndex])
 			return false;
 		aSeenDefinitions[DenseIndex] = true;
 		++DefinitionCount;
-		const CWeaponSpec FactorySpec = Definition.m_Kind == EWeaponDefinitionKind::Static ?
-			Static(static_cast<StaticWeaponType>(Definition.m_StaticType)) : Modular(Definition.m_Part1, Definition.m_Part2);
+		const CWeaponSpec FactorySpec = Definition.m_Kind == EWeaponDefinitionKind::Static
+											? Static(static_cast<StaticWeaponType>(Definition.m_StaticType))
+											: Modular(Definition.m_Part1, Definition.m_Part2);
 		if(FactorySpec.m_DefinitionId != Id)
 			return false;
 		for(int Level = 0; Level <= WEAPON_SPEC_MAX_LEVEL; ++Level)
@@ -246,36 +307,39 @@ bool CWeaponCatalog::Validate()
 	CResolvedWeaponProfile SpinLightBlade;
 	CResolvedWeaponProfile ChargedBlade;
 	CResolvedWeaponProfile SpinChargedBlade;
-	if(!TryResolve(Modular(PART1_BASE5, PART2_BARREL1), &Base5) ||
-		Base5.m_Combat.m_ProjectileDamage != 20.0f || Base5.m_Combat.m_MaxAmmo != 16 ||
-		!Base5.m_Combat.m_LaserWeapon || !Base5.m_Combat.m_Aimline || !Base5.m_Combat.m_ValidForTurret ||
-		!TryResolve(Modular(PART1_BASE1, PART2_CAPACITOR), &ProjectileCapacitor) ||
-		ProjectileCapacitor.m_Combat.m_LaserWeapon || ProjectileCapacitor.m_Combat.m_ExplosiveProjectile ||
-		!TryResolve(Modular(PART1_BASE2, PART2_CAPACITOR), &ExplosiveCapacitor) ||
-		ExplosiveCapacitor.m_Combat.m_LaserWeapon || !ExplosiveCapacitor.m_Combat.m_ExplosiveProjectile ||
-		!TryResolve(Modular(PART1_BASE5, PART2_CAPACITOR), &Capacitor) ||
-		Capacitor.m_Combat.m_FiringType != WFT_CHARGE || Capacitor.m_Combat.m_ProjectileDamage != 40.0f ||
-		Capacitor.m_Combat.m_MaxAmmo != 9 || !Capacitor.m_Combat.m_LaserWeapon || Capacitor.m_Combat.m_LaserRange != 900 || Capacitor.m_Combat.m_ValidForTurret ||
-		!TryResolve(Modular(PART1_BASE6, PART2_BARREL1), &Ricochet) ||
-		Ricochet.m_Combat.m_MaxAmmo != 20 || Ricochet.m_Combat.m_ProjectileDamage != 15.5999994f ||
-		Ricochet.m_Combat.m_ProjectileSpeed != 1260.0f || Ricochet.m_Combat.m_ProjectileBounces != 3 ||
-		Ricochet.m_Visual.m_ProjectileSprite != 13.0f || !Ricochet.m_Combat.m_ValidForTurret ||
-		!TryResolve(Modular(PART1_BASE6, PART2_BARREL1, 4), &RicochetLevel4) || RicochetLevel4.m_Combat.m_ProjectileBounces != 7 ||
-		!TryResolve(Modular(PART1_BASE6, PART2_BARREL1, 15), &RicochetLevel15) || RicochetLevel15.m_Combat.m_ProjectileBounces != 18 ||
-		!TryResolve(Modular(PART1_BASE1, PART2_RAIL), &Rail) || Rail.m_Combat.m_MaxAmmo != 13 ||
-		Rail.m_Combat.m_ProjectileDamage != 23.0f || Rail.m_Combat.m_ProjectileSpeed != 1680.00012f || !Rail.m_Combat.m_Aimline || Rail.m_Combat.m_LaserWeapon ||
-		!TryResolve(Modular(PART1_BASE5, PART2_RAIL), &LaserRail) || LaserRail.m_Combat.m_MaxAmmo != 8 ||
-		LaserRail.m_Combat.m_ProjectileDamage != 23.0f || !LaserRail.m_Combat.m_LaserWeapon || !LaserRail.m_Combat.m_Aimline ||
-		!TryResolve(Modular(PART1_MELEE, PART2_MELEE5, 4), &LightBlade) ||
-		LightBlade.m_Combat.m_FireRate != 220.0f || LightBlade.m_Combat.m_ProjectileDamage != 32.0f ||
-		LightBlade.m_Combat.m_ProjectileKnockback != 5.6f || LightBlade.m_Combat.m_MeleeHitRadius != 76.0f ||
-		!TryResolve(Modular(PART1_SPIN, PART2_MELEE5, 4), &SpinLightBlade) ||
-		SpinLightBlade.m_Combat.m_FireRate != 50.0f || SpinLightBlade.m_Combat.m_ProjectileDamage != 8.0f ||
-		SpinLightBlade.m_Combat.m_ProjectileKnockback != 1.4f || SpinLightBlade.m_Combat.m_MeleeHitRadius != 96.0f ||
-		!TryResolve(Modular(PART1_MELEE, PART2_MELEE6, 4), &ChargedBlade) || ChargedBlade.m_Combat.m_FiringType != WFT_CHARGE ||
-		ChargedBlade.m_Combat.m_FireRate != 320.0f || ChargedBlade.m_Combat.m_ProjectileDamage != 40.0f || ChargedBlade.m_Combat.m_MeleeHitRadius != 80.0f ||
-		!TryResolve(Modular(PART1_SPIN, PART2_MELEE6, 4), &SpinChargedBlade) || SpinChargedBlade.m_Combat.m_FiringType != WFT_HOLD ||
-		SpinChargedBlade.m_Combat.m_FireRate != 60.0f || SpinChargedBlade.m_Combat.m_ProjectileDamage != 11.0f || SpinChargedBlade.m_Combat.m_MeleeHitRadius != 104.0f)
+	if(!TryResolve(Modular(PART1_BASE5, PART2_BARREL1), &Base5) || Base5.m_Combat.m_ProjectileDamage != 20.0f ||
+	   Base5.m_Combat.m_MaxAmmo != 16 || !Base5.m_Combat.m_LaserWeapon || !Base5.m_Combat.m_Aimline ||
+	   !Base5.m_Combat.m_ValidForTurret || !TryResolve(Modular(PART1_BASE1, PART2_CAPACITOR), &ProjectileCapacitor) ||
+	   ProjectileCapacitor.m_Combat.m_LaserWeapon || ProjectileCapacitor.m_Combat.m_ExplosiveProjectile ||
+	   !TryResolve(Modular(PART1_BASE2, PART2_CAPACITOR), &ExplosiveCapacitor) ||
+	   ExplosiveCapacitor.m_Combat.m_LaserWeapon || !ExplosiveCapacitor.m_Combat.m_ExplosiveProjectile ||
+	   !TryResolve(Modular(PART1_BASE5, PART2_CAPACITOR), &Capacitor) ||
+	   Capacitor.m_Combat.m_FiringType != WFT_CHARGE || Capacitor.m_Combat.m_ProjectileDamage != 40.0f ||
+	   Capacitor.m_Combat.m_MaxAmmo != 9 || !Capacitor.m_Combat.m_LaserWeapon ||
+	   Capacitor.m_Combat.m_LaserRange != 900 || Capacitor.m_Combat.m_ValidForTurret ||
+	   !TryResolve(Modular(PART1_BASE6, PART2_BARREL1), &Ricochet) || Ricochet.m_Combat.m_MaxAmmo != 20 ||
+	   Ricochet.m_Combat.m_ProjectileDamage != 15.6f || Ricochet.m_Combat.m_ProjectileSpeed != 1260.0f ||
+	   Ricochet.m_Combat.m_ProjectileBounces != 3 || Ricochet.m_Visual.m_ProjectileSprite != 13.0f ||
+	   !Ricochet.m_Combat.m_ValidForTurret || !TryResolve(Modular(PART1_BASE6, PART2_BARREL1, 4), &RicochetLevel4) ||
+	   RicochetLevel4.m_Combat.m_ProjectileBounces != 7 ||
+	   !TryResolve(Modular(PART1_BASE6, PART2_BARREL1, 15), &RicochetLevel15) ||
+	   RicochetLevel15.m_Combat.m_ProjectileBounces != 18 || !TryResolve(Modular(PART1_BASE1, PART2_RAIL), &Rail) ||
+	   Rail.m_Combat.m_MaxAmmo != 13 || Rail.m_Combat.m_ProjectileDamage != 23.0f ||
+	   Rail.m_Combat.m_ProjectileSpeed != 1680.0f || !Rail.m_Combat.m_Aimline || Rail.m_Combat.m_LaserWeapon ||
+	   !TryResolve(Modular(PART1_BASE5, PART2_RAIL), &LaserRail) || LaserRail.m_Combat.m_MaxAmmo != 8 ||
+	   LaserRail.m_Combat.m_ProjectileDamage != 23.0f || !LaserRail.m_Combat.m_LaserWeapon ||
+	   !LaserRail.m_Combat.m_Aimline || !TryResolve(Modular(PART1_MELEE, PART2_MELEE5, 4), &LightBlade) ||
+	   LightBlade.m_Combat.m_FireRate != 220.0f || LightBlade.m_Combat.m_ProjectileDamage != 32.0f ||
+	   LightBlade.m_Combat.m_ProjectileKnockback != 5.6f || LightBlade.m_Combat.m_MeleeHitRadius != 76.0f ||
+	   !TryResolve(Modular(PART1_SPIN, PART2_MELEE5, 4), &SpinLightBlade) ||
+	   SpinLightBlade.m_Combat.m_FireRate != 50.0f || SpinLightBlade.m_Combat.m_ProjectileDamage != 8.0f ||
+	   SpinLightBlade.m_Combat.m_ProjectileKnockback != 1.4f || SpinLightBlade.m_Combat.m_MeleeHitRadius != 96.0f ||
+	   !TryResolve(Modular(PART1_MELEE, PART2_MELEE6, 4), &ChargedBlade) ||
+	   ChargedBlade.m_Combat.m_FiringType != WFT_CHARGE || ChargedBlade.m_Combat.m_FireRate != 320.0f ||
+	   ChargedBlade.m_Combat.m_ProjectileDamage != 40.0f || ChargedBlade.m_Combat.m_MeleeHitRadius != 80.0f ||
+	   !TryResolve(Modular(PART1_SPIN, PART2_MELEE6, 4), &SpinChargedBlade) ||
+	   SpinChargedBlade.m_Combat.m_FiringType != WFT_HOLD || SpinChargedBlade.m_Combat.m_FireRate != 60.0f ||
+	   SpinChargedBlade.m_Combat.m_ProjectileDamage != 11.0f || SpinChargedBlade.m_Combat.m_MeleeHitRadius != 104.0f)
 		return false;
 	for(int Type = 0; Type < WEAPON_DROID_PROFILE_COUNT; ++Type)
 	{
@@ -304,12 +368,13 @@ bool CWeaponCatalog::Validate()
 	}
 	CWeaponCombatProfile AcidCombat;
 	if(!TryResolveAttack(CAttackSource::World(WEAPON_ACID), &AcidCombat) || AcidCombat.m_ProjectileSpeed != 0.0f ||
-		AcidCombat.m_FlameAmount != 0.0f || AcidCombat.m_ElectroAmount != 0.0f)
+	   AcidCombat.m_FlameAmount != 0.0f || AcidCombat.m_ElectroAmount != 0.0f)
 		return false;
 	CAttackSource ProtocolSource;
-	if(TryAttackSourceFromProtocol(static_cast<int>(EAttackSourceKind::Droid), WEAPON_DROID_PROFILE_COUNT, 0, 0, &ProtocolSource) ||
-		TryAttackSourceFromProtocol(static_cast<int>(EAttackSourceKind::Building), 0, 0, 0, &ProtocolSource) ||
-		TryAttackSourceFromProtocol(static_cast<int>(EAttackSourceKind::World), WEAPON_ACID, 1, 0, &ProtocolSource))
+	if(TryAttackSourceFromProtocol(
+		   static_cast<int>(EAttackSourceKind::Droid), WEAPON_DROID_PROFILE_COUNT, 0, 0, &ProtocolSource) ||
+	   TryAttackSourceFromProtocol(static_cast<int>(EAttackSourceKind::Building), 0, 0, 0, &ProtocolSource) ||
+	   TryAttackSourceFromProtocol(static_cast<int>(EAttackSourceKind::World), WEAPON_ACID, 1, 0, &ProtocolSource))
 		return false;
 	return true;
 }
@@ -337,7 +402,9 @@ CAttackSource CAttackSource::World(int Type, int Owner)
 	return Source;
 }
 
-bool CWeaponCatalog::TryResolveAttack(const CAttackSource &Source, CWeaponCombatProfile *pCombat, CWeaponVisualProfile *pVisual)
+bool CWeaponCatalog::TryResolveAttack(const CAttackSource &Source,
+									  CWeaponCombatProfile *pCombat,
+									  CWeaponVisualProfile *pVisual)
 {
 	if(Source.m_Kind == EAttackSourceKind::PlayerWeapon)
 	{
@@ -351,72 +418,54 @@ bool CWeaponCatalog::TryResolveAttack(const CAttackSource &Source, CWeaponCombat
 		return true;
 	}
 
-	const CWeaponCombatProfile *pResolvedCombat = nullptr;
-	const CWeaponVisualProfile *pResolvedVisual = nullptr;
 	switch(Source.m_Kind)
 	{
-	case EAttackSourceKind::Droid:
-		if(Source.m_Type < 0 || Source.m_Type >= WEAPON_DROID_PROFILE_COUNT)
+		case EAttackSourceKind::Droid:
+		case EAttackSourceKind::DeathEffect:
+		case EAttackSourceKind::Building:
+			return WeaponLuaTryAttack(Source.m_Kind, Source.m_Type, pCombat, pVisual);
+		case EAttackSourceKind::World:
+			if(Source.m_Type == 0)
+				return false;
+			if(pCombat)
+				*pCombat = {};
+			if(pVisual)
+				*pVisual = EmptyVisualProfile();
+			return true;
+		case EAttackSourceKind::PlayerWeapon:
 			return false;
-		pResolvedCombat = &s_aDroidCombatProfiles[Source.m_Type];
-		pResolvedVisual = &s_aDroidVisualProfiles[Source.m_Type];
-		break;
-	case EAttackSourceKind::DeathEffect:
-		if(Source.m_Type < 0 || Source.m_Type >= WEAPON_DROID_PROFILE_COUNT)
-			return false;
-		pResolvedCombat = &s_aDroidDeathCombatProfiles[Source.m_Type];
-		pResolvedVisual = &s_aDroidDeathVisualProfiles[Source.m_Type];
-		break;
-	case EAttackSourceKind::Building:
-		if(Source.m_Type < 0 || Source.m_Type >= WEAPON_BUILDING_PROFILE_COUNT)
-			return false;
-		pResolvedCombat = &s_aBuildingCombatProfiles[Source.m_Type];
-		pResolvedVisual = &s_aBuildingVisualProfiles[Source.m_Type];
-		break;
-	case EAttackSourceKind::World:
-		if(Source.m_Type == 0)
-			return false;
-		if(pCombat)
-			*pCombat = {};
-		if(pVisual)
-			*pVisual = EmptyVisualProfile();
-		return true;
-	case EAttackSourceKind::PlayerWeapon:
-		return false;
 	}
-	if(pCombat)
-		*pCombat = *pResolvedCombat;
-	if(pVisual)
-		*pVisual = *pResolvedVisual;
-	return true;
+	return false;
 }
 
-bool CWeaponCatalog::TryAttackSourceFromProtocol(int Kind, int Type, int DefinitionId, int Level, CAttackSource *pSource)
+bool CWeaponCatalog::TryAttackSourceFromProtocol(
+	int Kind, int Type, int DefinitionId, int Level, CAttackSource *pSource)
 {
-	if(!pSource || Kind < static_cast<int>(EAttackSourceKind::PlayerWeapon) || Kind > static_cast<int>(EAttackSourceKind::DeathEffect))
+	if(!pSource || Kind < static_cast<int>(EAttackSourceKind::PlayerWeapon) ||
+	   Kind > static_cast<int>(EAttackSourceKind::DeathEffect))
 		return false;
 	CAttackSource Source;
 	Source.m_Kind = static_cast<EAttackSourceKind>(Kind);
 	Source.m_Type = Type;
 	switch(Source.m_Kind)
 	{
-	case EAttackSourceKind::PlayerWeapon:
-		if(Type != 0 || !TryFromProtocol(DefinitionId, Level, &Source.m_Weapon))
-			return false;
-		break;
-	case EAttackSourceKind::Droid:
-	case EAttackSourceKind::DeathEffect:
-		if(Type < 0 || Type >= WEAPON_DROID_PROFILE_COUNT)
-			return false;
-		break;
-	case EAttackSourceKind::Building:
-		if(Type <= 0 || Type >= WEAPON_BUILDING_PROFILE_COUNT)
-			return false;
-		break;
-	case EAttackSourceKind::World:
-		if(Type == 0)
-			return false;
-		break;
+		case EAttackSourceKind::PlayerWeapon:
+			if(Type != 0 || !TryFromProtocol(DefinitionId, Level, &Source.m_Weapon))
+				return false;
+			break;
+		case EAttackSourceKind::Droid:
+		case EAttackSourceKind::DeathEffect:
+			if(Type < 0 || Type >= WEAPON_DROID_PROFILE_COUNT)
+				return false;
+			break;
+		case EAttackSourceKind::Building:
+			if(Type <= 0 || Type >= WEAPON_BUILDING_PROFILE_COUNT)
+				return false;
+			break;
+		case EAttackSourceKind::World:
+			if(Type == 0)
+				return false;
+			break;
 	}
 	if(Source.m_Kind != EAttackSourceKind::PlayerWeapon && (DefinitionId != 0 || Level != 0))
 		return false;

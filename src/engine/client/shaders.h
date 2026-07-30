@@ -4,12 +4,13 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 
-typedef struct {
+typedef struct
+{
 	GLhandleARB program;
 	GLhandleARB vert_shader;
 	GLhandleARB frag_shader;
 	const char *vert_source;
-    const char *frag_source;
+	const char *frag_source;
 } ShaderData;
 
 /*#if defined(CONF_FAMILY_WINDOWS)
@@ -30,8 +31,6 @@ static PFNGLUNIFORM4FVPROC glUniform4fv;
 static PFNGLUSEPROGRAMOBJECTARBPROC glUseProgramObjectARB;
 #endif*/
 
-
 GLuint LoadShader(const char *vertex_path, const char *fragment_path);
-	
 
 #endif

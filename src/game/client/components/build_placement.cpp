@@ -25,9 +25,15 @@
 
 using namespace BuildPlacementLogic;
 
-static const char *s_apBuildNames[NUM_BUILDABLES] = {
-	"Block", "Hard block", "Barrel", "Power barrel", "Turret stand",
-	"Flamer", "Electric wall", "Teslacoil", "Shield generator"};
+static const char *s_apBuildNames[NUM_BUILDABLES] = {"Block",
+													 "Hard block",
+													 "Barrel",
+													 "Power barrel",
+													 "Turret stand",
+													 "Flamer",
+													 "Electric wall",
+													 "Teslacoil",
+													 "Shield generator"};
 
 static bool IsBlock(int Building)
 {
@@ -65,11 +71,14 @@ static void DrawDisc(IGraphics *pGraphics, vec2 Center, float Radius, vec4 Color
 		const float A0 = 2.0f * pi * i / Segments;
 		const float A1 = 2.0f * pi * (i + 1) / Segments;
 		const float A2 = 2.0f * pi * (i + 2) / Segments;
-		aItems[NumItems++] = IGraphics::CFreeformItem(
-			Center.x, Center.y,
-			Center.x + cosf(A0) * Radius, Center.y + sinf(A0) * Radius,
-			Center.x + cosf(A2) * Radius, Center.y + sinf(A2) * Radius,
-			Center.x + cosf(A1) * Radius, Center.y + sinf(A1) * Radius);
+		aItems[NumItems++] = IGraphics::CFreeformItem(Center.x,
+													  Center.y,
+													  Center.x + cosf(A0) * Radius,
+													  Center.y + sinf(A0) * Radius,
+													  Center.x + cosf(A2) * Radius,
+													  Center.y + sinf(A2) * Radius,
+													  Center.x + cosf(A1) * Radius,
+													  Center.y + sinf(A1) * Radius);
 	}
 	pGraphics->QuadsDrawFreeform(aItems, NumItems);
 }
@@ -94,7 +103,12 @@ void CBuildPlacement::OnConsoleInit()
 {
 	Console()->Register("+buildmenu", "", CFGFLAG_CLIENT, ConKeyBuildMenu, this, "Open build wheel");
 	Console()->Register("dbg_build_wheel", "i", CFGFLAG_CLIENT, ConDebugWheel, this, "Force build wheel preview");
-	Console()->Register("dbg_build_placement", "ii", CFGFLAG_CLIENT, ConDebugPlacement, this, "Force building preview: building validity (-1 disables)");
+	Console()->Register("dbg_build_placement",
+						"ii",
+						CFGFLAG_CLIENT,
+						ConDebugPlacement,
+						this,
+						"Force building preview: building validity (-1 disables)");
 }
 
 void CBuildPlacement::ConKeyBuildMenu(IConsole::IResult *pResult, void *pUserData)
@@ -122,9 +136,9 @@ void CBuildPlacement::ConDebugPlacement(IConsole::IResult *pResult, void *pUserD
 
 bool CBuildPlacement::CanOpenWheel() const
 {
-	return m_pClient->BuildingEnabled() && CustomStuff()->m_LocalAlive &&
-		!m_pClient->m_Snap.m_SpecInfo.m_Active && Client()->State() != IClient::STATE_DEMOPLAYBACK &&
-		!m_pClient->m_pInventory->IsVisible() && !m_pClient->GameplayInputFullyCaptured();
+	return m_pClient->BuildingEnabled() && CustomStuff()->m_LocalAlive && !m_pClient->m_Snap.m_SpecInfo.m_Active &&
+		   Client()->State() != IClient::STATE_DEMOPLAYBACK && !m_pClient->m_pInventory->IsVisible() &&
+		   !m_pClient->GameplayInputFullyCaptured();
 }
 
 int CBuildPlacement::SelectedBuilding() const
@@ -203,7 +217,15 @@ bool CBuildPlacement::OnInput(IInput::CEvent Event)
 
 	if(WheelActive())
 	{
-		static const char *s_apMovement[] = {"+left", "+right", "+down", "+jump", "+charge", "+gamepadleft", "+gamepadright", "+gamepaddown", "+gamepadjump"};
+		static const char *s_apMovement[] = {"+left",
+											 "+right",
+											 "+down",
+											 "+jump",
+											 "+charge",
+											 "+gamepadleft",
+											 "+gamepadright",
+											 "+gamepaddown",
+											 "+gamepadjump"};
 		for(const char *pMovement : s_apMovement)
 			if(str_comp(pBinding, pMovement) == 0)
 				return false;
@@ -238,8 +260,7 @@ void CBuildPlacement::EvaluatePlacement()
 	if(Selected < 0 || Selected >= NUM_BUILDABLES)
 		return;
 	m_Result.m_Price = BuildingPrice(Selected);
-	m_Result.m_MinimumDistance = Selected == BUILDABLE_TESLACOIL ? 74.0f :
-		(IsBlock(Selected) ? 32.0f : 48.0f);
+	m_Result.m_MinimumDistance = Selected == BUILDABLE_TESLACOIL ? 74.0f : (IsBlock(Selected) ? 32.0f : 48.0f);
 	vec2 Pos = m_pClient->m_pControls->m_TargetPos;
 	bool Valid = false;
 	EInvalidReason Reason = INVALID_OCCUPIED;
@@ -254,7 +275,7 @@ void CBuildPlacement::EvaluatePlacement()
 		if(Collision()->IsTileSolid(Pos.x, Pos.y) || !Collision()->CanBuildBlock(Pos))
 			Reason = INVALID_OCCUPIED;
 		else if(!Collision()->IsTileSolid(Pos.x, Pos.y - 32) && !Collision()->IsTileSolid(Pos.x, Pos.y + 32) &&
-			!Collision()->IsTileSolid(Pos.x - 32, Pos.y) && !Collision()->IsTileSolid(Pos.x + 32, Pos.y))
+				!Collision()->IsTileSolid(Pos.x - 32, Pos.y) && !Collision()->IsTileSolid(Pos.x + 32, Pos.y))
 			Reason = INVALID_NO_SUPPORT;
 		else
 			Valid = true;
@@ -342,7 +363,8 @@ void CBuildPlacement::EvaluatePlacement()
 				m_Result.m_HasAnchor = true;
 				m_Result.m_FlipVertical = true;
 				Valid = true;
-				if(!Collision()->IsTileSolid(Hit.x - 22, Hit.y - 12) || !Collision()->IsTileSolid(Hit.x + 22, Hit.y - 12))
+				if(!Collision()->IsTileSolid(Hit.x - 22, Hit.y - 12) ||
+				   !Collision()->IsTileSolid(Hit.x + 22, Hit.y - 12))
 				{
 					Valid = false;
 					Reason = INVALID_NO_CEILING;
@@ -422,15 +444,29 @@ void CBuildPlacement::MapGameGroup()
 {
 	CMapItemGroup *pGroup = Layers()->GameGroup();
 	float aPoints[4];
-	RenderTools()->MapscreenToWorld(m_pClient->m_pCamera->m_Center.x, m_pClient->m_pCamera->m_Center.y,
-		pGroup->m_ParallaxX / 100.0f, pGroup->m_ParallaxY / 100.0f, pGroup->m_OffsetX, pGroup->m_OffsetY,
-		Graphics()->ScreenAspect(), m_pClient->m_pCamera->m_Zoom, aPoints);
+	RenderTools()->MapscreenToWorld(m_pClient->m_pCamera->m_Center.x,
+									m_pClient->m_pCamera->m_Center.y,
+									pGroup->m_ParallaxX / 100.0f,
+									pGroup->m_ParallaxY / 100.0f,
+									pGroup->m_OffsetX,
+									pGroup->m_OffsetY,
+									Graphics()->ScreenAspect(),
+									m_pClient->m_pCamera->m_Zoom,
+									aPoints);
 	Graphics()->MapScreen(aPoints[0], aPoints[1], aPoints[2], aPoints[3]);
 }
 
 const char *CBuildPlacement::InvalidReasonText(EInvalidReason Reason) const
 {
-	static const char *s_apReasons[] = {nullptr, "Not enough kits", "Position occupied", "Needs ground support", "Not enough clearance", "Too close to another building", "Needs a wall", "Needs a ceiling anchor", "Blocked by force field"};
+	static const char *s_apReasons[] = {0,
+										"Not enough kits",
+										"Position occupied",
+										"Needs ground support",
+										"Not enough clearance",
+										"Too close to another building",
+										"Needs a wall",
+										"Needs a ceiling anchor",
+										"Blocked by force field"};
 	if(Reason == INVALID_NONE)
 		return "";
 	return Localize(s_apReasons[clamp((int)Reason, 0, (int)INVALID_FORCE_TILE)]);
@@ -449,7 +485,10 @@ void CBuildPlacement::RenderPlacement()
 	Graphics()->SetColor(Color.r, Color.g, Color.b, 0.55f);
 	if(m_Result.m_HasAnchor)
 	{
-		IGraphics::CLineItem AnchorLine(m_Result.m_AnchorPosition.x, m_Result.m_AnchorPosition.y, m_Result.m_PreviewPosition.x, m_Result.m_PreviewPosition.y);
+		IGraphics::CLineItem AnchorLine(m_Result.m_AnchorPosition.x,
+										m_Result.m_AnchorPosition.y,
+										m_Result.m_PreviewPosition.x,
+										m_Result.m_PreviewPosition.y);
 		Graphics()->LinesDraw(&AnchorLine, 1);
 	}
 	IGraphics::CLineItem aRange[32];
@@ -458,9 +497,9 @@ void CBuildPlacement::RenderPlacement()
 		const float A0 = 2.0f * pi * i / 32.0f;
 		const float A1 = 2.0f * pi * (i + 1) / 32.0f;
 		aRange[i] = IGraphics::CLineItem(m_Result.m_PreviewPosition.x + cosf(A0) * m_Result.m_MinimumDistance,
-			m_Result.m_PreviewPosition.y + sinf(A0) * m_Result.m_MinimumDistance,
-			m_Result.m_PreviewPosition.x + cosf(A1) * m_Result.m_MinimumDistance,
-			m_Result.m_PreviewPosition.y + sinf(A1) * m_Result.m_MinimumDistance);
+										 m_Result.m_PreviewPosition.y + sinf(A0) * m_Result.m_MinimumDistance,
+										 m_Result.m_PreviewPosition.x + cosf(A1) * m_Result.m_MinimumDistance,
+										 m_Result.m_PreviewPosition.y + sinf(A1) * m_Result.m_MinimumDistance);
 	}
 	Graphics()->LinesDraw(aRange, 32);
 	Graphics()->LinesEnd();
@@ -508,18 +547,23 @@ void CBuildPlacement::RenderWheel()
 	for(int Sector = 0; Sector < NUM_BUILDABLES; ++Sector)
 	{
 		const bool Affordable = CanAfford(Sector);
-		const vec4 Color = Sector == Hovered ?
-			(Affordable ? vec4(0.96f, 0.64f, 0.14f, 0.96f) : vec4(0.48f, 0.20f, 0.18f, 0.94f)) :
-			(Affordable ? vec4(0.085f, 0.105f, 0.115f, 0.96f) : vec4(0.055f, 0.062f, 0.066f, 0.94f));
+		const vec4 Color =
+			Sector == Hovered
+				? (Affordable ? vec4(0.96f, 0.64f, 0.14f, 0.96f) : vec4(0.48f, 0.20f, 0.18f, 0.94f))
+				: (Affordable ? vec4(0.085f, 0.105f, 0.115f, 0.96f) : vec4(0.055f, 0.062f, 0.066f, 0.94f));
 		Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
 		for(int Slice = 0; Slice < 5; ++Slice)
 		{
 			const float A0 = -pi / 2.0f + 2.0f * pi * (Sector - 0.5f + Slice / 5.0f) / NUM_BUILDABLES;
 			const float A1 = -pi / 2.0f + 2.0f * pi * (Sector - 0.5f + (Slice + 1) / 5.0f) / NUM_BUILDABLES;
-			IGraphics::CFreeformItem Quad(Center.x + cosf(A0) * Inner, Center.y + sinf(A0) * Inner,
-				Center.x + cosf(A0) * Radius, Center.y + sinf(A0) * Radius,
-				Center.x + cosf(A1) * Inner, Center.y + sinf(A1) * Inner,
-				Center.x + cosf(A1) * Radius, Center.y + sinf(A1) * Radius);
+			IGraphics::CFreeformItem Quad(Center.x + cosf(A0) * Inner,
+										  Center.y + sinf(A0) * Inner,
+										  Center.x + cosf(A0) * Radius,
+										  Center.y + sinf(A0) * Radius,
+										  Center.x + cosf(A1) * Inner,
+										  Center.y + sinf(A1) * Inner,
+										  Center.x + cosf(A1) * Radius,
+										  Center.y + sinf(A1) * Radius);
 			Graphics()->QuadsDrawFreeform(&Quad, 1);
 		}
 	}
@@ -532,9 +576,10 @@ void CBuildPlacement::RenderWheel()
 	for(int Sector = 0; Sector < NUM_BUILDABLES; ++Sector)
 	{
 		const float Angle = WheelAngle(Sector) - pi / NUM_BUILDABLES;
-		aSeparators[Sector] = IGraphics::CLineItem(
-			Center.x + cosf(Angle) * (Inner + 2.0f), Center.y + sinf(Angle) * (Inner + 2.0f),
-			Center.x + cosf(Angle) * (Radius - 2.0f), Center.y + sinf(Angle) * (Radius - 2.0f));
+		aSeparators[Sector] = IGraphics::CLineItem(Center.x + cosf(Angle) * (Inner + 2.0f),
+												   Center.y + sinf(Angle) * (Inner + 2.0f),
+												   Center.x + cosf(Angle) * (Radius - 2.0f),
+												   Center.y + sinf(Angle) * (Radius - 2.0f));
 	}
 	Graphics()->LinesDraw(aSeparators, NUM_BUILDABLES);
 	Graphics()->LinesEnd();
@@ -559,9 +604,12 @@ void CBuildPlacement::RenderWheel()
 		str_format(aCost, sizeof(aCost), "%d", BuildingPrice(Sector));
 		CUIRect Badge = {Pos.x - 11.0f, Pos.y - 5.0f, 22.0f, 10.0f};
 		RenderTools()->DrawUIRect(&Badge,
-			Sector == Hovered ? vec4(0.08f, 0.065f, 0.035f, 0.94f) : vec4(0.025f, 0.032f, 0.036f, 0.92f),
-			CUI::CORNER_ALL, 3.0f);
-		TextRender()->TextColor(Affordable ? 1.0f : 0.95f, Affordable ? 0.92f : 0.36f, Affordable ? 0.70f : 0.32f, 1.0f);
+								  Sector == Hovered ? vec4(0.08f, 0.065f, 0.035f, 0.94f)
+													: vec4(0.025f, 0.032f, 0.036f, 0.92f),
+								  CUI::CORNER_ALL,
+								  3.0f);
+		TextRender()->TextColor(
+			Affordable ? 1.0f : 0.95f, Affordable ? 0.92f : 0.36f, Affordable ? 0.70f : 0.32f, 1.0f);
 		UI()->DoLabel(&Badge, aCost, 6.2f, 0);
 	}
 	const int Display = Hovered >= 0 ? Hovered : (m_State.Selected() >= 0 ? m_State.Selected() : 0);
@@ -572,7 +620,8 @@ void CBuildPlacement::RenderWheel()
 	UI()->DoLabel(&NameLabel, Localize(s_apBuildNames[Display]), 7.0f, 0);
 	str_format(aCenter, sizeof(aCenter), "%s  %d", Localize("Cost"), BuildingPrice(Display));
 	CUIRect CostLabel = {Center.x - Inner + 4.0f, Center.y - 12.0f, Inner * 2.0f - 8.0f, 10.0f};
-	TextRender()->TextColor(DisplayAffordable ? 1.0f : 0.98f, DisplayAffordable ? 0.72f : 0.30f, DisplayAffordable ? 0.24f : 0.25f, 1.0f);
+	TextRender()->TextColor(
+		DisplayAffordable ? 1.0f : 0.98f, DisplayAffordable ? 0.72f : 0.30f, DisplayAffordable ? 0.24f : 0.25f, 1.0f);
 	UI()->DoLabel(&CostLabel, aCenter, 5.8f, 0);
 	str_format(aCenter, sizeof(aCenter), "%s  %d", Localize("Kits"), CustomStuff()->m_LocalKits);
 	CUIRect KitsLabel = {Center.x - Inner + 4.0f, Center.y + 17.0f, Inner * 2.0f - 8.0f, 10.0f};

@@ -252,11 +252,15 @@ class NetMessage(NetObject):
 			lines += ["\t"+line for line in v.emit_unpack()]
 		for v in self.variables:
 			lines += ["\t"+line for line in v.emit_unpack_check()]
-		lines += ["} break;"]
+		lines += ["}"]
+		lines += ["break;"]
 		return lines
 	def emit_declaration(self):
 		extra = []
-		extra += ["\tint MsgID() const { return %s; }" % self.enum_name]
+		extra += ["\tint MsgID() const"]
+		extra += ["\t{"]
+		extra += ["\t\treturn %s;" % self.enum_name]
+		extra += ["\t}"]
 		extra += ["\t"]
 		extra += ["\tbool Pack(CMsgPacker *pPacker)"]
 		extra += ["\t{"]
@@ -318,7 +322,13 @@ class NetIntRange(NetIntAny):
 	def emit_validate(self):
 		return ["ClampInt(\"%s\", pObj->%s, %s, %s);"%(self.name,self.name, self.min, self.max)]
 	def emit_unpack_check(self):
-		return ["if(pMsg->%s < %s || pMsg->%s > %s) { m_pMsgFailedOn = \"%s\"; break; }" % (self.name, self.min, self.name, self.max, self.name)]
+		return [
+			"if(pMsg->%s < %s || pMsg->%s > %s)" % (self.name, self.min, self.name, self.max),
+			"{",
+			"\tm_pMsgFailedOn = \"%s\";" % self.name,
+			"\tbreak;",
+			"}",
+		]
 
 class NetBool(NetIntRange):
 	def __init__(self, name):

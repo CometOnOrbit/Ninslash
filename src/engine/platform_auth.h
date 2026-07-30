@@ -36,7 +36,10 @@ inline int PlatformEffectiveAuthPolicy(int ConfiguredPolicy, bool Official, bool
 	return ConfiguredPolicy < 0 ? 0 : ConfiguredPolicy > 2 ? 2 : ConfiguredPolicy;
 }
 
-inline int PlatformConnectionAuthPolicy(int ConfiguredPolicy, bool Official, bool ServerHasRelayListener, bool PeerUsesSteamTransport)
+inline int PlatformConnectionAuthPolicy(int ConfiguredPolicy,
+										bool Official,
+										bool ServerHasRelayListener,
+										bool PeerUsesSteamTransport)
 {
 	const bool Relay = PlatformConnectionUsesRelay(ServerHasRelayListener, PeerUsesSteamTransport);
 	// The listen-server owner joins over loopback. Steam Relay already proves
@@ -61,7 +64,8 @@ inline bool PlatformAuthTimeoutAllowsAnonymous(int AuthPolicy, bool Relay)
 	return AuthPolicy < 2 && !Relay;
 }
 
-inline EPlatformJoinDecision PlatformJoinDecision(int IdentityKind, int AuthPolicy, bool Relay, EPlatformAuthResult AuthResult)
+inline EPlatformJoinDecision
+PlatformJoinDecision(int IdentityKind, int AuthPolicy, bool Relay, EPlatformAuthResult AuthResult)
 {
 	if(IdentityKind == PLATFORM_IDENTITY_ANONYMOUS)
 		return AuthPolicy < 2 && !Relay ? PLATFORM_JOIN_ANONYMOUS : PLATFORM_JOIN_REJECT;

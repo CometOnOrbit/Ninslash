@@ -5,16 +5,14 @@
 
 #include "ball.h"
 
-//MACRO_ALLOC_POOL_ID_IMPL(CBall, 1)
+// MACRO_ALLOC_POOL_ID_IMPL(CBall, 1)
 
-CBall::CBall(CGameWorld *pWorld)
-: CEntity(pWorld, CGameWorld::ENTTYPE_BALL)
+CBall::CBall(CGameWorld *pWorld) : CEntity(pWorld, CGameWorld::ENTTYPE_BALL)
 {
 	m_ProximityRadius = ms_PhysSize;
 	m_ForceCoreSend = false;
 	m_OriginalPos = vec2(0, 0);
 }
-
 
 void CBall::Reset()
 {
@@ -26,9 +24,9 @@ bool CBall::Spawn(vec2 Pos)
 	m_Pos = Pos;
 	GameServer()->m_pController->m_LastBallToucher = -1;
 
-	if (m_OriginalPos.x == 0)
+	if(m_OriginalPos.x == 0)
 		m_OriginalPos = m_Pos;
-	
+
 	m_Core.Reset();
 	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision());
 	m_Core.m_Pos = m_Pos;
@@ -41,25 +39,24 @@ bool CBall::Spawn(vec2 Pos)
 	mem_zero(&m_ReckoningCore, sizeof(m_ReckoningCore));
 
 	GameServer()->m_World.InsertEntity(this);
-	
+
 	return true;
 }
 
 void CBall::RoundReset()
 {
 	GameServer()->m_pController->m_LastBallToucher = -1;
-	if (m_OriginalPos.x != 0)
+	if(m_OriginalPos.x != 0)
 		m_Pos = m_OriginalPos;
-	
+
 	m_Core.Reset();
 	m_Core.m_Pos = m_Pos;
 }
 
 void CBall::Destroy()
 {
-	//GameServer()->m_World.m_Core.m_pBall = 0;
+	// GameServer()->m_World.m_Core.m_pBall = 0;
 }
-
 
 void CBall::AddForce(vec2 Force)
 {
@@ -70,14 +67,15 @@ void CBall::AddForce(vec2 Force)
 void CBall::Tick()
 {
 	m_Core.Tick();
-	
-	if (m_Core.m_ForceCoreSend)
+
+	if(m_Core.m_ForceCoreSend)
 	{
 		m_Core.m_ForceCoreSend = false;
 		m_ForceCoreSend = true;
 	}
-	
-	if (m_Core.m_Pos.x < -1000 || m_Core.m_Pos.x > GameServer()->Collision()->GetWidth()*32+1000 || m_Core.m_Pos.y < -1000 || m_Core.m_Pos.y > GameServer()->Collision()->GetWidth()*32+1000)
+
+	if(m_Core.m_Pos.x < -1000 || m_Core.m_Pos.x > GameServer()->Collision()->GetWidth() * 32 + 1000 ||
+	   m_Core.m_Pos.y < -1000 || m_Core.m_Pos.y > GameServer()->Collision()->GetWidth() * 32 + 1000)
 		RoundReset();
 }
 
@@ -105,7 +103,8 @@ void CBall::TickDefered()
 		m_ReckoningCore.Write(&Predicted);
 		m_Core.Write(&Current);
 
-		if(m_ForceCoreSend || m_ReckoningTick+Server()->TickSpeed()*0.5f < Server()->Tick() || mem_comp(&Predicted, &Current, sizeof(CNetObj_Ball)) != 0)
+		if(m_ForceCoreSend || m_ReckoningTick + Server()->TickSpeed() * 0.5f < Server()->Tick() ||
+		   mem_comp(&Predicted, &Current, sizeof(CNetObj_Ball)) != 0)
 		{
 			m_ForceCoreSend = false;
 			m_ReckoningTick = Server()->Tick();
@@ -120,20 +119,19 @@ void CBall::TickPaused()
 	++m_ReckoningTick;
 }
 
-
 void CBall::Snap(int SnappingClient)
 {
 	if(NetworkClipped(SnappingClient))
 		return;
 
-	//GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "Ball", "Snap");
-	
+	// GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "Ball", "Snap");
+
 	CNetObj_Ball *pBall = static_cast<CNetObj_Ball *>(Server()->SnapNewItem(NETOBJTYPE_BALL, 0, sizeof(CNetObj_Ball)));
 	if(!pBall)
 		return;
 
-	//GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "Ball", "Snapped");
-	
+	// GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "Ball", "Snapped");
+
 	// write down the m_Core
 	if(!m_ReckoningTick || GameServer()->m_World.m_Paused)
 	{

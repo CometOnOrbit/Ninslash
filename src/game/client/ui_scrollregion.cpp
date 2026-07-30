@@ -17,7 +17,7 @@ CScrollRegion::CScrollRegion()
 	m_AnimInitScrollY = 0;
 	m_AnimTargetScrollY = 0;
 	m_RequestScrollY = -1;
-	m_ContentScrollOff = vec2(0,0);
+	m_ContentScrollOff = vec2(0, 0);
 	m_Params = CScrollRegionParams();
 }
 
@@ -27,7 +27,7 @@ void CScrollRegion::Begin(CUIRect *pClipRect, vec2 *pOutOffset, CScrollRegionPar
 		m_Params = *pParams;
 
 	const bool ContentOverflows = m_ContentH > pClipRect->h;
-	const bool ForceShowScrollbar = m_Params.m_Flags&CScrollRegionParams::FLAG_CONTENT_STATIC_WIDTH;
+	const bool ForceShowScrollbar = m_Params.m_Flags & CScrollRegionParams::FLAG_CONTENT_STATIC_WIDTH;
 
 	CUIRect ScrollBarBg;
 	bool HasScrollBar = ContentOverflows || ForceShowScrollbar;
@@ -40,7 +40,7 @@ void CScrollRegion::Begin(CUIRect *pClipRect, vec2 *pOutOffset, CScrollRegionPar
 		if(m_Params.m_ScrollbarBgColor.a > 0)
 			ScrollBarBg.Draw(m_Params.m_ScrollbarBgColor, 4.0f, CUI::CORNER_R);
 		if(m_Params.m_RailBgColor.a > 0)
-			m_RailRect.Draw(m_Params.m_RailBgColor, m_RailRect.w/2.0f, CUI::CORNER_ALL);
+			m_RailRect.Draw(m_Params.m_RailBgColor, m_RailRect.w / 2.0f, CUI::CORNER_ALL);
 	}
 	if(!ContentOverflows)
 		m_ContentScrollOff.y = 0;
@@ -85,8 +85,7 @@ void CScrollRegion::End()
 		}
 	}
 
-	const float SliderHeight = max(m_Params.m_SliderMinHeight,
-		m_ClipRect.h/m_ContentH * m_RailRect.h);
+	const float SliderHeight = max(m_Params.m_SliderMinHeight, m_ClipRect.h / m_ContentH * m_RailRect.h);
 
 	CUIRect Slider = m_RailRect;
 	Slider.h = SliderHeight;
@@ -117,7 +116,7 @@ void CScrollRegion::End()
 		m_ScrollY = m_AnimTargetScrollY;
 	}
 
-	Slider.y += (MaxScroll > 0.0001f) ? (m_ScrollY/MaxScroll * MaxSlider) : 0;
+	Slider.y += (MaxScroll > 0.0001f) ? (m_ScrollY / MaxScroll * MaxSlider) : 0;
 
 	bool Hovered = false;
 	bool Grabbed = false;
@@ -149,9 +148,9 @@ void CScrollRegion::End()
 	}
 	else if(InsideRail && UI()->MouseButtonClicked(0))
 	{
-		m_ScrollY += (UI()->MouseY() - (Slider.y+Slider.h/2)) / MaxSlider * MaxScroll;
+		m_ScrollY += (UI()->MouseY() - (Slider.y + Slider.h / 2)) / MaxSlider * MaxScroll;
 		UI()->SetActiveItem(pID);
-		m_SliderGrabPos.y = Slider.h/2;
+		m_SliderGrabPos.y = Slider.h / 2;
 		m_AnimTargetScrollY = m_ScrollY;
 		m_AnimTime = 0;
 		Hovered = true;
@@ -171,7 +170,7 @@ void CScrollRegion::End()
 		SliderColor = m_Params.m_SliderColorHover;
 	else
 		SliderColor = m_Params.m_SliderColor;
-	Slider.Draw(SliderColor, Slider.w/2.0f, CUI::CORNER_ALL);
+	Slider.Draw(SliderColor, Slider.w / 2.0f, CUI::CORNER_ALL);
 }
 
 void CScrollRegion::AddRect(const CUIRect &Rect)
@@ -199,23 +198,23 @@ void CScrollRegion::ScrollHere(int Option)
 			break;
 
 		case CScrollRegion::SCROLLHERE_KEEP_IN_VIEW:
-		default: {
+		default:
+		{
 			const float dy = m_LastAddedRect.y - m_ClipRect.y;
 
 			if(dy < 0)
 				m_RequestScrollY = TopScroll;
-			else if(dy > (m_ClipRect.h-MinHeight))
+			else if(dy > (m_ClipRect.h - MinHeight))
 				m_RequestScrollY = TopScroll - (m_ClipRect.h - MinHeight);
-		} break;
+		}
+		break;
 	}
 }
 
 bool CScrollRegion::IsRectClipped(const CUIRect &Rect) const
 {
-	return (m_ClipRect.x > (Rect.x + Rect.w)
-		|| (m_ClipRect.x + m_ClipRect.w) < Rect.x
-		|| m_ClipRect.y > (Rect.y + Rect.h)
-		|| (m_ClipRect.y + m_ClipRect.h) < Rect.y);
+	return (m_ClipRect.x > (Rect.x + Rect.w) || (m_ClipRect.x + m_ClipRect.w) < Rect.x ||
+			m_ClipRect.y > (Rect.y + Rect.h) || (m_ClipRect.y + m_ClipRect.h) < Rect.y);
 }
 
 bool CScrollRegion::IsScrollbarShown() const

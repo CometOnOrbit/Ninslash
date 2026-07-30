@@ -11,17 +11,17 @@ enum
 // stored player data for switching between levels
 class CPlayerData
 {
-private:
+  private:
 	CPlayerData *m_pChild1;
 	CPlayerData *m_pChild2;
 
-public:
+  public:
 	CPlayerData(const char *pName, int ColorID);
 	void Die();
 	void Reset();
 	void ClearPveRun();
 	void ResetWeapons();
-	
+
 	int m_WeaponDataVersion;
 	int m_aWeaponDefinitionId[99];
 	int m_aWeaponLevel[99];
@@ -50,17 +50,16 @@ public:
 	int m_PveDroneModule;
 	int m_PveDroneSwitchReadyTick;
 	int m_PveDeathlessFloors;
-	
+
 	int m_ColorID;
-	
+
 	char m_aName[16];
-	
+
 	void Add(CPlayerData *pPlayerData);
 	CPlayerData *Get(const char *pName, int ColorID);
-	
+
 	int GetHighScore(int Score);
 	int GetPlayerCount(int Score);
-
 };
 
 #endif

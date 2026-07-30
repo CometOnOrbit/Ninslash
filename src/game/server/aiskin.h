@@ -10,9 +10,9 @@ struct CAISkin
 	char m_aFoot[24];
 	char m_aTopper[24];
 	char m_aEye[24];
-	
+
 	bool m_Valid;
-	
+
 	int m_ColorSkin;
 	int m_ColorTopper;
 	int m_ColorBody;
@@ -20,7 +20,7 @@ struct CAISkin
 	int m_ColorBlood;
 	int m_WaveGroup;
 	int m_Level;
-	
+
 	CAISkin()
 	{
 		m_Valid = false;

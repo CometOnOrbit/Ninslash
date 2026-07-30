@@ -4,16 +4,17 @@
 #define ENGINE_SHARED_DATAFILE_H
 #include <base/system.h>
 
-// FIXME: Original definition in "graphics" (CImageInfo)... clone like CImageInfoFile for server/client compatibility (really redefined in client side :/)
+// FIXME: Original definition in "graphics" (CImageInfo)... clone like CImageInfoFile for server/client compatibility
+// (really redefined in client side :/)
 class CImageInfoFile
 {
-public:
+  public:
 	enum
 	{
-		FORMAT_AUTO=-1,
-		FORMAT_RGB=0,
-		FORMAT_RGBA=1,
-		FORMAT_ALPHA=2,
+		FORMAT_AUTO = -1,
+		FORMAT_RGB = 0,
+		FORMAT_RGBA = 1,
+		FORMAT_ALPHA = 2,
 	};
 
 	/* Variable: width
@@ -38,7 +39,8 @@ class CDataFileReader
 {
 	struct CDatafile *m_pDataFile;
 	void *GetDataImpl(int Index, int Swap);
-public:
+
+  public:
 	CDataFileReader() : m_pDataFile(0) {}
 	~CDataFileReader() { Close(); }
 
@@ -47,7 +49,8 @@ public:
 	bool Open(class IStorage *pStorage, const char *pFilename, int StorageType);
 	bool Close();
 
-	static bool GetCrcSize(class IStorage *pStorage, const char *pFilename, int StorageType, unsigned *pCrc, unsigned *pSize);
+	static bool
+	GetCrcSize(class IStorage *pStorage, const char *pFilename, int StorageType, unsigned *pCrc, unsigned *pSize);
 
 	void *GetData(int Index);
 	void *GetDataSwapped(int Index); // makes sure that the data is 32bit LE ints when saved
@@ -94,9 +97,9 @@ class CDataFileWriter
 
 	enum
 	{
-		MAX_ITEM_TYPES=0xffff,
-		MAX_ITEMS=1024,
-		MAX_DATAS=1024,
+		MAX_ITEM_TYPES = 0xffff,
+		MAX_ITEMS = 1024,
+		MAX_DATAS = 1024,
 	};
 
 	IOHANDLE m_File;
@@ -107,7 +110,7 @@ class CDataFileWriter
 	CItemInfo *m_pItems;
 	CDataInfo *m_pDatas;
 
-public:
+  public:
 	CDataFileWriter();
 	~CDataFileWriter();
 	bool Open(class IStorage *pStorage, const char *Filename);
@@ -118,8 +121,11 @@ public:
 
 	// MapGen
 	bool CreateEmptyMap(class IStorage *pStorage, const char *pFileName, int w, int h, CImageInfoFile *pTileset = 0x0);
-	bool SaveMap(class IStorage *pStorage, CDataFileReader *pFileMap, const char *pFileName, char *pBlocksData = 0x0, int BlocksDataSize = 0);
+	bool SaveMap(class IStorage *pStorage,
+				 CDataFileReader *pFileMap,
+				 const char *pFileName,
+				 char *pBlocksData = 0x0,
+				 int BlocksDataSize = 0);
 };
-
 
 #endif

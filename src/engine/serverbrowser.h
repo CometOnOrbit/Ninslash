@@ -12,13 +12,13 @@
 */
 class CServerInfo
 {
-public:
+  public:
 	/*
 		Structure: CInfoClient
 	*/
 	class CClient
 	{
-	public:
+	  public:
 		char m_aName[MAX_NAME_LENGTH];
 		char m_aClan[MAX_CLAN_LENGTH];
 		int m_Country;
@@ -49,7 +49,7 @@ public:
 	bool m_HasPlatformMetadata;
 	int m_AuthPolicy;
 	unsigned long long m_SteamServerID;
-	char m_aGameType[16];
+	char m_aGameType[32];
 	char m_aName[64];
 	char m_aMap[32];
 	char m_aVersion[32];
@@ -60,8 +60,7 @@ public:
 class IServerBrowser : public IInterface
 {
 	MACRO_INTERFACE("serverbrowser", 0)
-public:
-
+  public:
 	/* Constants: Server Browser Sorting
 		SORT_NAME - Sort by name.
 		SORT_PING - Sort by ping.
@@ -69,27 +68,28 @@ public:
 		SORT_GAMETYPE - Sort by game type. DM, TDM etc.
 		SORT_NUMPLAYERS - Sort after how many players there are on the server.
 	*/
-	enum{
+	enum
+	{
 		SORT_NAME = 0,
 		SORT_PING,
 		SORT_MAP,
 		SORT_GAMETYPE,
 		SORT_NUMPLAYERS,
 
-		QUICK_SERVERNAME=1,
-		QUICK_PLAYER=2,
-		QUICK_MAPNAME=4,
+		QUICK_SERVERNAME = 1,
+		QUICK_PLAYER = 2,
+		QUICK_MAPNAME = 4,
 
 		TYPE_INTERNET = 0,
 		TYPE_LAN = 1,
 		TYPE_FAVORITES = 2,
 
-		SET_MASTER_ADD=1,
+		SET_MASTER_ADD = 1,
 		SET_FAV_ADD,
 		SET_TOKEN,
 
-		DISCOVERY_MASTER=1,
-		DISCOVERY_STEAM=2
+		DISCOVERY_MASTER = 1,
+		DISCOVERY_STEAM = 2
 	};
 
 	virtual void Refresh(int Type) = 0;
@@ -103,7 +103,12 @@ public:
 	virtual const CServerInfo *SortedGet(int Index) const = 0;
 	virtual void Request(const NETADDR &Addr) = 0;
 	virtual bool GetServerInfo(const NETADDR &Addr, CServerInfo *pInfo) const = 0;
-	virtual void AddDiscoveredServer(const NETADDR &Addr, int DiscoverySource, bool Official, bool Modded, int AuthPolicy, unsigned long long SteamServerID) = 0;
+	virtual void AddDiscoveredServer(const NETADDR &Addr,
+									 int DiscoverySource,
+									 bool Official,
+									 bool Modded,
+									 int AuthPolicy,
+									 unsigned long long SteamServerID) = 0;
 
 	virtual bool IsFavorite(const NETADDR &Addr) const = 0;
 	virtual void AddFavorite(const NETADDR &Addr) = 0;

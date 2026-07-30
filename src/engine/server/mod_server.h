@@ -7,13 +7,19 @@ class CModServerRuntime
 {
 	struct CImpl;
 	CImpl *m_pImpl;
-public:
+
+  public:
 	CModServerRuntime();
 	~CModServerRuntime();
-	bool Load(const char *pWorkshopRoot,const char *pRootIDs,const char *pProtocol,const char *pExpectedHash,char *pError,int ErrorSize);
+	bool Load(const char *pWorkshopRoot,
+			  const char *pRootIDs,
+			  const char *pProtocol,
+			  const char *pExpectedHash,
+			  char *pError,
+			  int ErrorSize);
 	void Unload();
 	bool Active() const;
-	void Dispatch(EModEvent Event,int ClientID,int Value);
+	void Dispatch(EModEvent Event, int ClientID, int Value);
 };
 
 #endif

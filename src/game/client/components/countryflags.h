@@ -8,14 +8,17 @@
 
 class CCountryFlags : public CComponent
 {
-public:
+  public:
 	struct CCountryFlag
 	{
 		int m_CountryCode;
 		char m_aCountryCodeString[8];
 		int m_Texture;
 
-		bool operator<(const CCountryFlag &Other) { return str_comp(m_aCountryCodeString, Other.m_aCountryCodeString) < 0; }
+		bool operator<(const CCountryFlag &Other)
+		{
+			return str_comp(m_aCountryCodeString, Other.m_aCountryCodeString) < 0;
+		}
 	};
 
 	void OnInit();
@@ -25,12 +28,12 @@ public:
 	const CCountryFlag *GetByIndex(int Index) const;
 	void Render(int CountryCode, const vec4 *pColor, float x, float y, float w, float h);
 
-private:
+  private:
 	enum
 	{
-		CODE_LB=-1,
-		CODE_UB=999,
-		CODE_RANGE=CODE_UB-CODE_LB+1,
+		CODE_LB = -1,
+		CODE_UB = 999,
+		CODE_RANGE = CODE_UB - CODE_LB + 1,
 	};
 	sorted_array<CCountryFlag> m_aCountryFlags;
 	int m_CodeIndexLUT[CODE_RANGE];

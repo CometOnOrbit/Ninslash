@@ -6,7 +6,7 @@
 
 class CGameControllerExtract : public IGameController
 {
-private:
+  private:
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 
 	int m_Phase; // 0 fight/switches, 1 evacuate, 2 won/lost
@@ -48,7 +48,7 @@ private:
 	int EnemyLevel() const;
 	bool GetBossSpawnPos(vec2 *pOutPos);
 
-public:
+  public:
 	CGameControllerExtract(class CGameContext *pGameServer);
 	virtual ~CGameControllerExtract();
 

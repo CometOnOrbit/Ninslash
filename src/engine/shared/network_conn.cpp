@@ -109,20 +109,20 @@ int CNetConnection::QueueChunkEx(int Flags, int DataSize, const void *pData, int
 
 	//
 	m_Construct.m_NumChunks++;
-	m_Construct.m_DataSize = (int)(pChunkData-m_Construct.m_aChunkData);
+	m_Construct.m_DataSize = (int)(pChunkData - m_Construct.m_aChunkData);
 
 	// set packet flags aswell
 
-	if(Flags&NET_CHUNKFLAG_VITAL && !(Flags&NET_CHUNKFLAG_RESEND))
+	if(Flags & NET_CHUNKFLAG_VITAL && !(Flags & NET_CHUNKFLAG_RESEND))
 	{
 		// save packet if we need to resend
-		CNetChunkResend *pResend = m_Buffer.Allocate(sizeof(CNetChunkResend)+DataSize);
+		CNetChunkResend *pResend = m_Buffer.Allocate(sizeof(CNetChunkResend) + DataSize);
 		if(pResend)
 		{
 			pResend->m_Sequence = Sequence;
 			pResend->m_Flags = Flags;
 			pResend->m_DataSize = DataSize;
-			pResend->m_pData = (unsigned char *)(pResend+1);
+			pResend->m_pData = (unsigned char *)(pResend + 1);
 			pResend->m_FirstSendTime = time_get();
 			pResend->m_LastSendTime = pResend->m_FirstSendTime;
 			mem_copy(pResend->m_pData, pData, DataSize);
@@ -140,8 +140,8 @@ int CNetConnection::QueueChunkEx(int Flags, int DataSize, const void *pData, int
 
 int CNetConnection::QueueChunk(int Flags, int DataSize, const void *pData)
 {
-	if(Flags&NET_CHUNKFLAG_VITAL)
-		m_Sequence = (m_Sequence+1)%NET_MAX_SEQUENCE;
+	if(Flags & NET_CHUNKFLAG_VITAL)
+		m_Sequence = (m_Sequence + 1) % NET_MAX_SEQUENCE;
 	return QueueChunkEx(Flags, DataSize, pData, m_Sequence);
 }
 
@@ -157,7 +157,7 @@ void CNetConnection::SendControl(int ControlMsg, const void *pExtra, int ExtraSi
 
 void CNetConnection::ResendChunk(CNetChunkResend *pResend)
 {
-	QueueChunkEx(pResend->m_Flags|NET_CHUNKFLAG_RESEND, pResend->m_DataSize, pResend->m_pData, pResend->m_Sequence);
+	QueueChunkEx(pResend->m_Flags | NET_CHUNKFLAG_RESEND, pResend->m_DataSize, pResend->m_pData, pResend->m_Sequence);
 	pResend->m_LastSendTime = time_get();
 }
 
@@ -189,7 +189,7 @@ void CNetConnection::Disconnect(const char *pReason)
 	if(m_RemoteClosed == 0)
 	{
 		if(pReason)
-			SendControl(NET_CTRLMSG_CLOSE, pReason, str_length(pReason)+1);
+			SendControl(NET_CTRLMSG_CLOSE, pReason, str_length(pReason) + 1);
 		else
 			SendControl(NET_CTRLMSG_CLOSE, 0, 0);
 
@@ -206,11 +206,11 @@ int CNetConnection::Feed(CNetPacketConstruct *pPacket, NETADDR *pAddr)
 	int64 Now = time_get();
 
 	// check if resend is requested
-	if(pPacket->m_Flags&NET_PACKETFLAG_RESEND)
+	if(pPacket->m_Flags & NET_PACKETFLAG_RESEND)
 		Resend();
 
 	//
-	if(pPacket->m_Flags&NET_PACKETFLAG_CONTROL)
+	if(pPacket->m_Flags & NET_PACKETFLAG_CONTROL)
 	{
 		int CtrlMsg = pPacket->m_aChunkData[0];
 
@@ -305,9 +305,7 @@ int CNetConnection::Update()
 	const int64 Frequency = time_freq();
 
 	// check for timeout
-	if(State() != NET_CONNSTATE_OFFLINE &&
-		State() != NET_CONNSTATE_CONNECT &&
-		(Now-m_LastRecvTime) > Frequency*10)
+	if(State() != NET_CONNSTATE_OFFLINE && State() != NET_CONNSTATE_CONNECT && (Now - m_LastRecvTime) > Frequency * 10)
 	{
 		m_State = NET_CONNSTATE_ERROR;
 		SetError("Timeout");
@@ -319,7 +317,7 @@ int CNetConnection::Update()
 		CNetChunkResend *pResend = m_Buffer.First();
 
 		// check if we have some really old stuff laying around and abort if not acked
-		if(Now-pResend->m_FirstSendTime > Frequency*20)
+		if(Now - pResend->m_FirstSendTime > Frequency * 20)
 		{
 			m_State = NET_CONNSTATE_ERROR;
 			SetError("Too weak connection (not acked for 20 seconds)");
@@ -327,7 +325,7 @@ int CNetConnection::Update()
 		else
 		{
 			// resend packet if we havn't got it acked in 1 second
-			if(Now-pResend->m_LastSendTime > Frequency)
+			if(Now - pResend->m_LastSendTime > Frequency)
 				ResendChunk(pResend);
 		}
 	}
@@ -335,24 +333,24 @@ int CNetConnection::Update()
 	// send keep alives if nothing has happend for 250ms
 	if(State() == NET_CONNSTATE_ONLINE)
 	{
-		if(Now-m_LastSendTime > Frequency/2) // flush connection after 500ms if needed
+		if(Now - m_LastSendTime > Frequency / 2) // flush connection after 500ms if needed
 		{
 			int NumFlushedChunks = Flush();
 			if(NumFlushedChunks && g_Config.m_Debug)
 				dbg_msg("connection", "flushed connection due to timeout. %d chunks.", NumFlushedChunks);
 		}
 
-		if(Now-m_LastSendTime > Frequency)
+		if(Now - m_LastSendTime > Frequency)
 			SendControl(NET_CTRLMSG_KEEPALIVE, 0, 0);
 	}
 	else if(State() == NET_CONNSTATE_CONNECT)
 	{
-		if(Now-m_LastSendTime > Frequency/2) // send a new connect every 500ms
+		if(Now - m_LastSendTime > Frequency / 2) // send a new connect every 500ms
 			SendControl(NET_CTRLMSG_CONNECT, 0, 0);
 	}
 	else if(State() == NET_CONNSTATE_PENDING)
 	{
-		if(Now-m_LastSendTime > Frequency/2) // send a new connect/accept every 500ms
+		if(Now - m_LastSendTime > Frequency / 2) // send a new connect/accept every 500ms
 			SendControl(NET_CTRLMSG_CONNECTACCEPT, 0, 0);
 	}
 

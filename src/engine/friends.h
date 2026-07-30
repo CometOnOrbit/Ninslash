@@ -18,14 +18,14 @@ struct CFriendInfo
 class IFriends : public IInterface
 {
 	MACRO_INTERFACE("friends", 0)
-public:
+  public:
 	enum
 	{
-		FRIEND_NO=0,
+		FRIEND_NO = 0,
 		FRIEND_CLAN,
 		FRIEND_PLAYER,
 
-		MAX_FRIENDS=128,
+		MAX_FRIENDS = 128,
 	};
 
 	virtual void Init() = 0;

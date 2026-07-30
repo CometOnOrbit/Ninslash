@@ -22,13 +22,13 @@ int CGamepad::Init()
 	// if(!g_Config.m_SndEnable)
 	//	return 0;
 
-	if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD))
+	if(!SDL_InitSubSystem(SDL_INIT_GAMEPAD))
 	{
 		dbg_msg("gamepad", "unable to init SDL gamecontroller: %s", SDL_GetError());
 		return -1;
 	}
 
-	if (!SDL_InitSubSystem(SDL_INIT_HAPTIC))
+	if(!SDL_InitSubSystem(SDL_INIT_HAPTIC))
 	{
 		dbg_msg("gamepad", "unable to init SDL haptic: %s", SDL_GetError());
 	}
@@ -44,7 +44,7 @@ int CGamepad::Init()
 
 void CGamepad::Rumble(float Strength, unsigned int Length)
 {
-	if (!IsRumbleEnabled())
+	if(!IsRumbleEnabled())
 		return;
 
 	SDL_PlayHapticRumble(m_Haptic, Strength, Length);
@@ -67,32 +67,32 @@ void CGamepad::DisconnectGamepad(int DeviceID)
 
 void CGamepad::ScanGamepads()
 {
-	for (int i = 0; i < 9; i++)
+	for(int i = 0; i < 9; i++)
 	{
 		SDL_Gamepad *Pad = SDL_OpenGamepad(i);
 
-		if (Pad)
+		if(Pad)
 		{
 			SDL_Joystick *Joy = SDL_GetGamepadJoystick(Pad);
 
-			if (Joy)
+			if(Joy)
 			{
 				int InstanceID = SDL_GetJoystickID(Joy);
 				dbg_msg("gamepad", "Gamepad found, id: %u", InstanceID);
 
-				if (m_RumbleEnabled)
+				if(m_RumbleEnabled)
 				{
-					if (SDL_IsJoystickHaptic(Joy))
+					if(SDL_IsJoystickHaptic(Joy))
 					{
 						m_Haptic = SDL_OpenHapticFromJoystick(Joy);
 
-						if (SDL_HapticRumbleSupported(m_Haptic))
+						if(SDL_HapticRumbleSupported(m_Haptic))
 						{
-							if (SDL_InitHapticRumble(m_Haptic) != 0)
+							if(SDL_InitHapticRumble(m_Haptic) != 0)
 							{
 								dbg_msg("gamepad", "Haptic Rumble Init: %s", SDL_GetError());
 								SDL_CloseHaptic(m_Haptic);
-								m_Haptic = NULL;
+								m_Haptic = 0;
 							}
 						}
 					}
@@ -110,4 +110,7 @@ int CGamepad::Shutdown()
 	return 0;
 }
 
-IEngineGamepad *CreateEngineGamepad() { return new CGamepad; }
+IEngineGamepad *CreateEngineGamepad()
+{
+	return new CGamepad;
+}

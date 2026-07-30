@@ -2,8 +2,7 @@
 #include <game/server/gamecontext.h>
 #include "lightning.h"
 
-CLightning::CLightning(CGameWorld *pGameWorld, vec2 Pos, vec2 From)
-: CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER)
+CLightning::CLightning(CGameWorld *pGameWorld, vec2 Pos, vec2 From) : CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER)
 {
 	m_Pos = Pos;
 	m_From = From;
@@ -12,8 +11,6 @@ CLightning::CLightning(CGameWorld *pGameWorld, vec2 Pos, vec2 From)
 	GameWorld()->InsertEntity(this);
 }
 
-
-
 void CLightning::Reset()
 {
 	GameServer()->m_World.DestroyEntity(this);
@@ -21,7 +18,7 @@ void CLightning::Reset()
 
 void CLightning::Tick()
 {
-	if(Server()->Tick() > m_EvalTick+(Server()->TickSpeed()*GameServer()->Tuning()->m_LaserBounceDelay)/1000.0f)
+	if(Server()->Tick() > m_EvalTick + (Server()->TickSpeed() * GameServer()->Tuning()->m_LaserBounceDelay) / 1000.0f)
 		GameServer()->m_World.DestroyEntity(this);
 }
 
@@ -35,7 +32,8 @@ void CLightning::Snap(int SnappingClient)
 	if(NetworkClipped(SnappingClient))
 		return;
 
-	CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
+	CNetObj_Laser *pObj =
+		static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
 	if(!pObj)
 		return;
 

@@ -24,7 +24,7 @@ const int GeneratorPhysSize = 50;
 
 class CBuilding : public CEntity
 {
-public:
+  public:
 	CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team);
 
 	virtual void Reset();
@@ -33,33 +33,30 @@ public:
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 
-	virtual CWeaponSpec GetItem(int Slot)
-	{
-		return {};
-	}
-	
-	virtual void ClearItem(int Slot) { }
-	
+	virtual CWeaponSpec GetItem(int Slot) { return {}; }
+
+	virtual void ClearItem(int Slot) {}
+
 	int m_Type;
 	int m_Team;
 	int m_Life;
 	int m_MaxLife;
-	
+
 	bool Repair(int Amount = 10);
-	
+
 	int m_aStatus[NUM_BSTATUS];
 	int m_Status;
-	
+
 	bool m_Collision;
-	
+
 	vec2 m_Center;
-	
+
 	bool m_Mirror;
-	
+
 	bool m_CanMove;
 	bool m_Moving;
 	vec2 m_Vel;
-	
+
 	void Move();
 	void DoFallCheck();
 
@@ -72,30 +69,30 @@ public:
 	bool m_PveReactorObjective;
 	bool m_PveDestroyObjective;
 	int m_SwitchHoldTicks;
-	
+
 	bool m_DestructionTriggered;
-	
+
 	bool Jumppad();
 	void Trigger();
 	void SetPveSwitchActive(bool Active);
 	void SetPveReactorObjective(bool Active, int MaxLife = 0);
 	virtual void TakeDamage(int Damage, const CAttackSource &Source, vec2 Force = vec2(0, 0));
 	void Destroy();
-	
+
 	vec2 m_DamagePos;
-	
-protected:
+
+  protected:
 	void UpdateStatus();
 	float m_Bounciness;
 	bool m_AttachOnFall;
 	bool m_DestroyOnFall;
-	
+
 	int m_TriggerTimer;
 	vec2 m_BoxSize;
-	
-private:
+
+  private:
 	int m_SetTimer;
-	
+
 	// lightning wall
 	void CreateLightningWallTop();
 	int m_Height;

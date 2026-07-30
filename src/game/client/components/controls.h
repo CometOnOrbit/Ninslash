@@ -7,7 +7,7 @@
 
 class CControls : public CComponent
 {
-public:
+  public:
 	vec2 m_MousePos;
 	vec2 m_TargetPos;
 
@@ -15,15 +15,15 @@ public:
 	CNetObj_PlayerInput m_LastData;
 	int m_InputDirectionLeft;
 	int m_InputDirectionRight;
-	
+
 	// weapon change from picker
 	int m_PickedWeapon;
-	
+
 	// signal wanted weapon you don't have to hud
 	int m_SignalWeapon;
 
 	bool m_Ready;
-	
+
 	// switch back to shooting
 	int m_LastWeapon;
 

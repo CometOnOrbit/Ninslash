@@ -16,7 +16,7 @@ class CTutorialDirector
 	bool m_CombatRespawnReady;
 	void SendState(int ClientID = -1) const;
 
-public:
+  public:
 	explicit CTutorialDirector(CGameContext *pGameServer);
 	const CTutorialState &State() const { return m_Machine.State(); }
 	void OnClientEnter(int ClientID);

@@ -4,20 +4,20 @@
 #include <game/server/entity.h>
 #include <game/server/entities/building.h>
 
-
 class CPowerupper : public CBuilding
 {
-public:
+  public:
 	CPowerupper(CGameWorld *pGameWorld, vec2 Pos);
 
 	virtual void Reset();
 	virtual void SurvivalReset();
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
-	
+
 	int m_Item;
 	int m_ItemTakenTick;
-private:
+
+  private:
 };
 
 #endif

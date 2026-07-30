@@ -5,7 +5,7 @@
 
 class CStaticlaser : public CEntity
 {
-public:
+  public:
 	CStaticlaser(CGameWorld *pGameWorld, vec2 From, vec2 To, int Life);
 
 	virtual void Reset();
@@ -15,7 +15,7 @@ public:
 
 	vec2 m_From;
 
-private:
+  private:
 	int m_Life;
 };
 

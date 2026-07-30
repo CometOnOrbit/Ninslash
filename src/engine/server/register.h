@@ -7,7 +7,7 @@ class CRegister
 {
 	enum
 	{
-		REGISTERSTATE_START=0,
+		REGISTERSTATE_START = 0,
 		REGISTERSTATE_UPDATE_ADDRS,
 		REGISTERSTATE_QUERY_COUNT,
 		REGISTERSTATE_HEARTBEAT,
@@ -41,7 +41,7 @@ class CRegister
 	void RegisterSendCountRequest(NETADDR Addr);
 	void RegisterGotCount(struct CNetChunk *pChunk);
 
-public:
+  public:
 	CRegister();
 	void Init(class CNetServer *pNetServer, class IEngineMasterServer *pMasterServer, class IConsole *pConsole);
 	void RegisterUpdate(int Nettype);

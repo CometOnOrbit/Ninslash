@@ -8,7 +8,7 @@ const int BossWalkerPhysSize = 80;
 
 class CBossWalker : public CDroid
 {
-public:
+  public:
 	CBossWalker(CGameWorld *pGameWorld, vec2 Pos);
 
 	virtual void Reset();
@@ -22,9 +22,8 @@ public:
 		WALKER,
 		DRONE,
 	};
-	
-private:
 
+  private:
 	bool FindTarget();
 	bool Target();
 	void Fire();

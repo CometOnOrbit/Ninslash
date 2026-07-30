@@ -10,7 +10,8 @@ class CUIRect
 	float Scale() const;
 	static class IGraphics *s_pGraphics;
 	static class CRenderTools *s_pRenderTools;
-public:
+
+  public:
 	static void Init(class IGraphics *pGraphics, class CRenderTools *pRenderTools);
 
 	float x, y, w, h;
@@ -34,7 +35,8 @@ class CUI;
 class CUIElementBase
 {
 	static CUI *s_pUI;
-public:
+
+  public:
 	static void Init(CUI *pUI) { s_pUI = pUI; }
 	CUI *UI() const { return s_pUI; }
 	class IClient *Client() const;
@@ -47,7 +49,8 @@ class CButtonContainer : public CUIElementBase
 {
 	float m_FadeStartTime;
 	bool m_CleanBackground;
-public:
+
+  public:
 	CButtonContainer(bool CleanBackground = false) : m_FadeStartTime(0.0f), m_CleanBackground(CleanBackground) {}
 	float GetFade(bool Checked = false, float Seconds = 0.6f);
 	bool IsCleanBackground() const { return m_CleanBackground; }
@@ -72,7 +75,7 @@ class CUI
 	class IInput *m_pInput;
 	class CRenderTools *m_pRenderTools;
 
-public:
+  public:
 	void SetGraphics(class IGraphics *pGraphics, class ITextRender *pTextRender);
 	void SetClient(class IClient *pClient) { m_pClient = pClient; }
 	void SetInput(class IInput *pInput) { m_pInput = pInput; }
@@ -88,17 +91,17 @@ public:
 
 	enum
 	{
-		CORNER_TL=1,
-		CORNER_TR=2,
-		CORNER_BL=4,
-		CORNER_BR=8,
+		CORNER_TL = 1,
+		CORNER_TR = 2,
+		CORNER_BL = 4,
+		CORNER_BR = 8,
 
-		CORNER_T=CORNER_TL|CORNER_TR,
-		CORNER_B=CORNER_BL|CORNER_BR,
-		CORNER_R=CORNER_TR|CORNER_BR,
-		CORNER_L=CORNER_TL|CORNER_BL,
+		CORNER_T = CORNER_TL | CORNER_TR,
+		CORNER_B = CORNER_BL | CORNER_BR,
+		CORNER_R = CORNER_TR | CORNER_BR,
+		CORNER_L = CORNER_TL | CORNER_BL,
 
-		CORNER_ALL=CORNER_T|CORNER_B
+		CORNER_ALL = CORNER_T | CORNER_B
 	};
 
 	int Update(float mx, float my, float Mwx, float Mwy, int m_Buttons);
@@ -107,17 +110,30 @@ public:
 	float MouseY() const { return m_MouseY; }
 	float MouseWorldX() const { return m_MouseWorldX; }
 	float MouseWorldY() const { return m_MouseWorldY; }
-	int MouseButton(int Index) const { return (m_MouseButtons>>Index)&1; }
-	int MouseButtonClicked(int Index) { return MouseButton(Index) && !((m_LastMouseButtons>>Index)&1) ; }
+	int MouseButton(int Index) const { return (m_MouseButtons >> Index) & 1; }
+	int MouseButtonClicked(int Index) { return MouseButton(Index) && !((m_LastMouseButtons >> Index) & 1); }
 
 	void SetHotItem(const void *pID) { m_pBecommingHotItem = pID; }
-	void SetActiveItem(const void *pID) { m_pActiveItem = pID; if (pID) m_pLastActiveItem = pID; }
+	void SetActiveItem(const void *pID)
+	{
+		m_pActiveItem = pID;
+		if(pID)
+			m_pLastActiveItem = pID;
+	}
 	void ClearLastActiveItem() { m_pLastActiveItem = 0; }
 	const void *HotItem() const { return m_pHotItem; }
 	const void *NextHotItem() const { return m_pBecommingHotItem; }
 	const void *ActiveItem() const { return m_pActiveItem; }
 	const void *LastActiveItem() const { return m_pLastActiveItem; }
-	bool CheckActiveItem(const void *pID) { if(m_pActiveItem == pID) { m_ActiveItemValid = true; return true; } return false; }
+	bool CheckActiveItem(const void *pID)
+	{
+		if(m_pActiveItem == pID)
+		{
+			m_ActiveItemValid = true;
+			return true;
+		}
+		return false;
+	}
 
 	int MouseInside(const CUIRect *pRect);
 	bool MouseHovered(const CUIRect *pRect) const;
@@ -139,8 +155,11 @@ public:
 	void DoLabelScaled(const CUIRect *pRect, const char *pText, float Size, int Align, int MaxWidth = -1);
 
 	bool OnInput(const IInput::CEvent &e);
-	bool DoEditBox(class CLineInput *pLineInput, const CUIRect *pRect, float FontSize, int Corners = CORNER_ALL, bool *pChanged = 0);
+	bool DoEditBox(class CLineInput *pLineInput,
+				   const CUIRect *pRect,
+				   float FontSize,
+				   int Corners = CORNER_ALL,
+				   bool *pChanged = 0);
 };
-
 
 #endif

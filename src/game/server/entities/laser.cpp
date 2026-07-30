@@ -4,8 +4,15 @@
 #include "building.h"
 #include "droid.h"
 
-CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, const CAttackSource &Source, int Damage, int Charge, int Penetration)
-: CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER)
+CLaser::CLaser(CGameWorld *pGameWorld,
+			   vec2 Pos,
+			   vec2 Direction,
+			   float StartEnergy,
+			   const CAttackSource &Source,
+			   int Damage,
+			   int Charge,
+			   int Penetration)
+	: CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER)
 {
 	m_Damage = Damage;
 	m_Pos = Pos;
@@ -13,12 +20,12 @@ CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEner
 	m_Owner = Source.m_Owner;
 	m_Energy = StartEnergy;
 	m_Dir = Direction;
-	//m_OwnerBuilding = OwnerBuilding;
+	// m_OwnerBuilding = OwnerBuilding;
 	m_Charge = Charge;
 	m_InfinitePenetration = Penetration == WEAPON_INFINITE_PENETRATION;
 	m_RemainingPenetrations = max(0, Penetration);
-	
-	if (m_Charge == -1)
+
+	if(m_Charge == -1)
 		m_Bounces = 99;
 	else
 		m_Bounces = 0;
@@ -28,32 +35,32 @@ CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEner
 	DoBounce();
 }
 
-
 bool CLaser::HitCharacter(vec2 From, vec2 To)
 {
 	vec2 At;
 	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
-	
+
 	CWeaponDefinition Definition;
-	if (m_Source.m_Kind == EAttackSourceKind::PlayerWeapon && CWeaponCatalog::TryGetDefinition(m_Source.m_Weapon.m_DefinitionId, &Definition) && Definition.m_Kind == EWeaponDefinitionKind::Static && Definition.m_StaticType == SW_GRENADE2)
-		pOwnerChar = NULL;
-	
+	if(m_Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
+	   CWeaponCatalog::TryGetDefinition(m_Source.m_Weapon.m_DefinitionId, &Definition) &&
+	   WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_LASER))
+		pOwnerChar = 0;
+
 	CCharacter *pHit = GameServer()->m_World.IntersectCharacter(m_Pos, To, 0.f, At, pOwnerChar);
 	if(!pHit)
 		return false;
-	
-	if (pHit->GetPlayer()->GetCID() == m_IgnoreScythe)
+
+	if(pHit->GetPlayer()->GetCID() == m_IgnoreScythe)
 		return false;
-	
+
 	m_From = From;
 	m_Pos = At;
 	m_Energy = -1;
-	
-	pHit->TakeDamage(m_Source, m_Damage, normalize(To-From)*0.1f, At);
-	
+
+	pHit->TakeDamage(m_Source, m_Damage, normalize(To - From) * 0.1f, At);
+
 	return true;
 }
-
 
 bool CLaser::HitScythe(vec2 From, vec2 To)
 {
@@ -63,43 +70,42 @@ bool CLaser::HitScythe(vec2 From, vec2 To)
 	if(!pHit)
 		return false;
 
-	if (pHit->GetPlayer()->GetCID() == m_IgnoreScythe)
+	if(pHit->GetPlayer()->GetCID() == m_IgnoreScythe)
 		return false;
-	
+
 	m_From = From;
 	m_Pos = At;
-	
-	//vec2 d = (pHit->m_Pos+vec2(0, -24))-From;
-	//d += vec2(frandom()-frandom(), frandom()-frandom()) * length(d) * 0.4f;
-	//m_Dir = -normalize(d);
-	//m_Dir = normalize(vec2(frandom()-0.5f, frandom()-0.5f));
-	
-	vec2 d = (pHit->m_Pos+vec2(0, -24)) - From;
+
+	// vec2 d = (pHit->m_Pos+vec2(0, -24))-From;
+	// d += vec2(frandom()-frandom(), frandom()-frandom()) * length(d) * 0.4f;
+	// m_Dir = -normalize(d);
+	// m_Dir = normalize(vec2(frandom()-0.5f, frandom()-0.5f));
+
+	vec2 d = (pHit->m_Pos + vec2(0, -24)) - From;
 	m_Dir = GameServer()->Collision()->Reflect(m_Dir, normalize(d));
-	
+
 	GameServer()->CreateBuildingHit(m_Pos);
 	m_IgnoreScythe = pHit->GetPlayer()->GetCID();
-	
+
 	return true;
 }
-
 
 bool CLaser::HitMonster(vec2 From, vec2 To)
 {
 	vec2 At;
 	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
-	if (!pOwnerChar)
+	if(!pOwnerChar)
 		return false;
-	
+
 	CDroid *pHit = GameServer()->m_World.IntersectWalker(m_Pos, To, 8.0f, At);
 	if(!pHit)
 		return false;
-	
+
 	m_From = From;
 	m_Pos = At;
 	m_Energy = -1;
 
-	pHit->TakeDamage(normalize(To-From)*0.1f, m_Damage, m_Source, At);
+	pHit->TakeDamage(normalize(To - From) * 0.1f, m_Damage, m_Source, At);
 	return true;
 }
 
@@ -107,13 +113,14 @@ bool CLaser::HitBuilding(vec2 From, vec2 To)
 {
 	vec2 At;
 	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
-	if (!pOwnerChar)
+	if(!pOwnerChar)
 		return false;
-	
-	CBuilding *pHit = GameServer()->m_World.IntersectBuilding(m_Pos, To, 8.0f, At, pOwnerChar->GetPlayer()->GetTeam(), m_OwnerBuilding);
+
+	CBuilding *pHit = GameServer()->m_World.IntersectBuilding(
+		m_Pos, To, 8.0f, At, pOwnerChar->GetPlayer()->GetTeam(), m_OwnerBuilding);
 	if(!pHit)
 		return false;
-	
+
 	m_From = From;
 	m_Pos = At;
 	m_Energy = -1;
@@ -123,14 +130,14 @@ bool CLaser::HitBuilding(vec2 From, vec2 To)
 
 void CLaser::DamageBuilding(CBuilding *pHit, vec2 At)
 {
-	if (pHit->m_Type == BUILDING_GENERATOR)
+	if(pHit->m_Type == BUILDING_GENERATOR)
 	{
 		pHit->m_DamagePos = At;
-		
-		if (distance(pHit->m_Pos, At) > pHit->m_ProximityRadius)
+
+		if(distance(pHit->m_Pos, At) > pHit->m_ProximityRadius)
 		{
 			GameServer()->CreateEffect(FX_SHIELDHIT, At);
-			pHit->TakeDamage(m_Damage/3, m_Source);
+			pHit->TakeDamage(m_Damage / 3, m_Source);
 		}
 		else
 		{
@@ -148,22 +155,25 @@ void CLaser::DamageBuilding(CBuilding *pHit, vec2 At)
 bool CLaser::HitPenetratingTargets(vec2 From, vec2 To)
 {
 	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
-	CCharacter *pIgnoredCharacter = NULL;
-	CDroid *pIgnoredDroid = NULL;
+	CCharacter *pIgnoredCharacter = 0;
+	CDroid *pIgnoredDroid = 0;
 	vec2 SearchFrom = From;
 
 	while(true)
 	{
 		vec2 CharacterAt = To;
 		CCharacter *pCharacter = GameServer()->m_World.IntersectCharacter(
-			SearchFrom, To, 0.0f, CharacterAt, pOwnerChar, false, NULL, 0.0f, pIgnoredCharacter);
+			SearchFrom, To, 0.0f, CharacterAt, pOwnerChar, false, 0, 0.0f, pIgnoredCharacter);
 
 		vec2 DroidAt = To;
-		CDroid *pDroid = pOwnerChar ? GameServer()->m_World.IntersectWalker(SearchFrom, To, 8.0f, DroidAt, pIgnoredDroid) : NULL;
+		CDroid *pDroid =
+			pOwnerChar ? GameServer()->m_World.IntersectWalker(SearchFrom, To, 8.0f, DroidAt, pIgnoredDroid) : 0;
 
 		vec2 BuildingAt = To;
-		CBuilding *pBuilding = pOwnerChar ? GameServer()->m_World.IntersectBuilding(
-			SearchFrom, To, 8.0f, BuildingAt, pOwnerChar->GetPlayer()->GetTeam(), m_OwnerBuilding) : NULL;
+		CBuilding *pBuilding =
+			pOwnerChar ? GameServer()->m_World.IntersectBuilding(
+							 SearchFrom, To, 8.0f, BuildingAt, pOwnerChar->GetPlayer()->GetTeam(), m_OwnerBuilding)
+					   : 0;
 
 		enum
 		{
@@ -245,10 +255,9 @@ void CLaser::DoBounce()
 {
 	m_EvalTick = Server()->Tick();
 
-	
-	if (GameServer()->Collision()->IsInFluid(m_Pos.x, m_Pos.y))
+	if(GameServer()->Collision()->IsInFluid(m_Pos.x, m_Pos.y))
 		m_Energy = -1;
-	
+
 	if(m_Energy < 0)
 	{
 		GameServer()->m_World.DestroyEntity(this);
@@ -259,7 +268,7 @@ void CLaser::DoBounce()
 	vec2 ColPos;
 
 	int Collision = GameServer()->Collision()->IntersectLine(m_Pos, To, &ColPos, &To);
-	
+
 	const vec2 From = m_Pos;
 	if(HitScythe(From, To))
 		return;
@@ -288,16 +297,16 @@ void CLaser::DoBounce()
 		m_Energy = -1;
 	m_IgnoreScythe = -1;
 
-	if (GameServer()->Collision()->CheckBlocks(m_Pos))
+	if(GameServer()->Collision()->CheckBlocks(m_Pos))
 		GameServer()->DamageBlocks(m_Pos, m_Damage, 1);
-	else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(-4, -4)))
-		GameServer()->DamageBlocks(m_Pos+vec2(-4, -4), m_Damage, 1);
-	else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(4, -4)))
-		GameServer()->DamageBlocks(m_Pos+vec2(4, -4), m_Damage, 1);
-	else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(-4, 4)))
-		GameServer()->DamageBlocks(m_Pos+vec2(-4, 4), m_Damage, 1);
-	else if (GameServer()->Collision()->CheckBlocks(m_Pos+vec2(4, 4)))
-		GameServer()->DamageBlocks(m_Pos+vec2(4, 4), m_Damage, 1);
+	else if(GameServer()->Collision()->CheckBlocks(m_Pos + vec2(-4, -4)))
+		GameServer()->DamageBlocks(m_Pos + vec2(-4, -4), m_Damage, 1);
+	else if(GameServer()->Collision()->CheckBlocks(m_Pos + vec2(4, -4)))
+		GameServer()->DamageBlocks(m_Pos + vec2(4, -4), m_Damage, 1);
+	else if(GameServer()->Collision()->CheckBlocks(m_Pos + vec2(-4, 4)))
+		GameServer()->DamageBlocks(m_Pos + vec2(-4, 4), m_Damage, 1);
+	else if(GameServer()->Collision()->CheckBlocks(m_Pos + vec2(4, 4)))
+		GameServer()->DamageBlocks(m_Pos + vec2(4, 4), m_Damage, 1);
 
 	GameServer()->CreateSound(m_Pos, SOUND_LASER_BOUNCE);
 }
@@ -309,7 +318,7 @@ void CLaser::Reset()
 
 void CLaser::Tick()
 {
-	if(Server()->Tick() > m_EvalTick+(Server()->TickSpeed()*GameServer()->Tuning()->m_LaserBounceDelay)/1000.0f)
+	if(Server()->Tick() > m_EvalTick + (Server()->TickSpeed() * GameServer()->Tuning()->m_LaserBounceDelay) / 1000.0f)
 		DoBounce();
 }
 
@@ -323,7 +332,8 @@ void CLaser::Snap(int SnappingClient)
 	if(NetworkClipped(SnappingClient))
 		return;
 
-	CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
+	CNetObj_Laser *pObj =
+		static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
 	if(!pObj)
 		return;
 

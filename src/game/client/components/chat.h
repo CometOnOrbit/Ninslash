@@ -32,12 +32,12 @@ class CChat : public CComponent
 	// chat
 	enum
 	{
-		MODE_NONE=0,
+		MODE_NONE = 0,
 		MODE_ALL,
 		MODE_TEAM,
 		MODE_WHISPER,
 
-		CHAT_SERVER=0,
+		CHAT_SERVER = 0,
 		CHAT_HIGHLIGHT,
 		CHAT_CLIENT,
 		CHAT_NUM,
@@ -63,7 +63,7 @@ class CChat : public CComponent
 		char m_aText[1];
 	};
 	CHistoryEntry *m_pHistoryEntry;
-	TStaticRingBuffer<CHistoryEntry, 64*1024, CRingBufferBase::FLAG_RECYCLE> m_History;
+	TStaticRingBuffer<CHistoryEntry, 64 * 1024, CRingBufferBase::FLAG_RECYCLE> m_History;
 	int m_PendingChatCounter;
 	int64 m_LastChatSend;
 	int64 m_aLastSoundPlayed[CHAT_NUM];
@@ -74,7 +74,7 @@ class CChat : public CComponent
 	static void ConChat(IConsole::IResult *pResult, void *pUserData);
 	static void ConShowChat(IConsole::IResult *pResult, void *pUserData);
 
-public:
+  public:
 	CChat();
 
 	bool IsActive() const { return m_Mode != MODE_NONE; }

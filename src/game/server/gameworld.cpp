@@ -1,6 +1,5 @@
 
 
-
 #include "gameworld.h"
 #include "entity.h"
 #include "gamecontext.h"
@@ -55,20 +54,21 @@ int CGameWorld::FindEntities(vec2 Pos, float Radius, CEntity **ppEnts, int Max, 
 
 	// linear scan per entity type; entity counts are small enough for this to be fine
 	vec2 OPos = Pos;
-	
+
 	int Num = 0;
-	for(CEntity *pEnt = m_apFirstEntityTypes[Type];	pEnt; pEnt = pEnt->m_pNextTypeEntity)
+	for(CEntity *pEnt = m_apFirstEntityTypes[Type]; pEnt; pEnt = pEnt->m_pNextTypeEntity)
 	{
-		if (Type == CGameWorld::ENTTYPE_DROID)
+		if(Type == CGameWorld::ENTTYPE_DROID)
 			Pos = OPos + pEnt->m_Center;
-		
+
 		const float CollisionRange = Radius + pEnt->m_ProximityRadius;
 		const float CollisionRangeSquared = CollisionRange * CollisionRange;
 		const vec2 BodyDelta = pEnt->m_Pos - Pos;
 		// circle body collision
 		if(Radius <= 0.0f || dot(BodyDelta, BodyDelta) < CollisionRangeSquared ||
-			// head collision if character
-			(Type == CGameWorld::ENTTYPE_CHARACTER && DistanceSquared(pEnt->m_Pos + vec2(0, -27), Pos) < CollisionRangeSquared))
+		   // head collision if character
+		   (Type == CGameWorld::ENTTYPE_CHARACTER &&
+			DistanceSquared(pEnt->m_Pos + vec2(0, -27), Pos) < CollisionRangeSquared))
 		{
 			if(ppEnts)
 				ppEnts[Num] = pEnt;
@@ -76,19 +76,17 @@ int CGameWorld::FindEntities(vec2 Pos, float Radius, CEntity **ppEnts, int Max, 
 			if(Num == Max)
 				break;
 		}
-		
 	}
 
 	return Num;
 }
-
 
 int CGameWorld::FindBlocks(vec2 Pos, ivec2 Radius, CEntity **ppEnts, int Max)
 {
 	int Num = 0;
-	for(CEntity *pEnt = m_apFirstEntityTypes[CGameWorld::ENTTYPE_BLOCK];	pEnt; pEnt = pEnt->m_pNextTypeEntity)
+	for(CEntity *pEnt = m_apFirstEntityTypes[CGameWorld::ENTTYPE_BLOCK]; pEnt; pEnt = pEnt->m_pNextTypeEntity)
 	{
-		if (abs(pEnt->m_Pos.x - Pos.x) < Radius.x && abs(pEnt->m_Pos.y - Pos.y) < Radius.y)
+		if(abs(pEnt->m_Pos.x - Pos.x) < Radius.x && abs(pEnt->m_Pos.y - Pos.y) < Radius.y)
 		{
 			if(ppEnts)
 				ppEnts[Num] = pEnt;
@@ -100,7 +98,6 @@ int CGameWorld::FindBlocks(vec2 Pos, ivec2 Radius, CEntity **ppEnts, int Max)
 
 	return Num;
 }
-
 
 void CGameWorld::InsertEntity(CEntity *pEnt)
 {
@@ -149,7 +146,7 @@ void CGameWorld::RemoveEntity(CEntity *pEnt)
 void CGameWorld::Snap(int SnappingClient)
 {
 	for(int i = 0; i < NUM_ENTTYPES; i++)
-		for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
+		for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt;)
 		{
 			m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 			pEnt->Snap(SnappingClient);
@@ -161,7 +158,7 @@ void CGameWorld::Reset()
 {
 	// reset all entities
 	for(int i = 0; i < NUM_ENTTYPES; i++)
-		for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
+		for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt;)
 		{
 			m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 			pEnt->Reset();
@@ -183,7 +180,7 @@ void CGameWorld::RemoveEntities()
 
 	// destroy objects marked for destruction
 	for(int i = 0; i < NUM_ENTTYPES; i++)
-		for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
+		for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt;)
 		{
 			m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 			if(pEnt->m_MarkedForDestroy)
@@ -195,19 +192,18 @@ void CGameWorld::RemoveEntities()
 		}
 }
 
-
 int CGameWorld::CountEntities()
 {
 	int Entities = 0;
-	
+
 	for(int i = 0; i < NUM_ENTTYPES; i++)
-		for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
+		for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt;)
 		{
 			m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 			Entities++;
 			pEnt = m_pNextTraverseEntity;
 		}
-		
+
 	return Entities;
 }
 
@@ -223,10 +219,10 @@ void CGameWorld::Tick()
 		// update all objects
 		for(int i = 0; i < NUM_ENTTYPES; i++)
 		{
-			if (i == ENTTYPE_CHARACTER)
+			if(i == ENTTYPE_CHARACTER)
 				m_Core.ClearDroidHookImpacts();
 
-			for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
+			for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt;)
 			{
 				m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 				pEnt->Tick();
@@ -235,7 +231,7 @@ void CGameWorld::Tick()
 		}
 
 		for(int i = 0; i < NUM_ENTTYPES; i++)
-			for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
+			for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt;)
 			{
 				m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 				pEnt->TickDefered();
@@ -246,7 +242,7 @@ void CGameWorld::Tick()
 	{
 		// update all objects
 		for(int i = 0; i < NUM_ENTTYPES; i++)
-			for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt; )
+			for(CEntity *pEnt = m_apFirstEntityTypes[i]; pEnt;)
 			{
 				m_pNextTraverseEntity = pEnt->m_pNextTypeEntity;
 				pEnt->TickPaused();
@@ -257,31 +253,28 @@ void CGameWorld::Tick()
 	RemoveEntities();
 }
 
-
-
 bool CGameWorld::IsShielded(vec2 Pos0, vec2 Pos1, float Radius, int Team)
 {
 	CWeapon *w = (CWeapon *)FindFirst(ENTTYPE_WEAPON);
 	for(; w; w = (CWeapon *)w->TypeNext())
- 	{
-		if (!w->m_Disabled && w->GetWeaponProfile().m_Definition.m_Kind == EWeaponDefinitionKind::Static && w->GetWeaponProfile().m_Definition.m_StaticType == SW_AREASHIELD)
+	{
+		if(!w->m_Disabled && WeaponHasBehavior(w->GetWeaponProfile().m_Definition, WEAPON_BEHAVIOR_AREA_SHIELD))
 		{
-			
+
 			const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, w->m_Pos);
 			const float ShieldRange = 180.0f + Radius;
 			const float ShieldRangeSquared = ShieldRange * ShieldRange;
 			const vec2 ShieldPos = w->m_Pos + w->m_Center;
-			if(DistanceSquared(ShieldPos, IntersectPos) < ShieldRangeSquared && DistanceSquared(ShieldPos, Pos0) >= ShieldRangeSquared)
+			if(DistanceSquared(ShieldPos, IntersectPos) < ShieldRangeSquared &&
+			   DistanceSquared(ShieldPos, Pos0) >= ShieldRangeSquared)
 			{
 				return true;
-			}	
+			}
 		}
 	}
-	
+
 	return false;
 }
-	
-	
 
 CBuilding *CGameWorld::IntersectBuilding(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, int Team, CEntity *pNotThis)
 {
@@ -290,13 +283,13 @@ CBuilding *CGameWorld::IntersectBuilding(vec2 Pos0, vec2 Pos1, float Radius, vec
 
 	CBuilding *p = (CBuilding *)FindFirst(ENTTYPE_BUILDING);
 	for(; p; p = (CBuilding *)p->TypeNext())
- 	{
+	{
 		if(p == pNotThis || !p->m_Collision)
 			continue;
-		
-		//if (!GameServer()->m_pController->IsTeamplay())
+
+		// if (!GameServer()->m_pController->IsTeamplay())
 		//	continue;
-		
+
 		/*
 		if (GameServer()->m_pController->IsTeamplay())
 		{
@@ -305,34 +298,36 @@ CBuilding *CGameWorld::IntersectBuilding(vec2 Pos0, vec2 Pos1, float Radius, vec
 		}
 		else
 		{
-			if (Team == 
+			if (Team ==
 		}
 		*/
-		
-		if (Team == p->m_Team)
+
+		if(Team == p->m_Team)
 			continue;
-		
-		//if (p->m_Team >= 0)
+
+		// if (p->m_Team >= 0)
 		//	continue;
-		
-		if (GameServer()->m_pController->IsCoop() && Team >= 0 && p->m_Team >= 0 && (p->m_Type == BUILDING_TURRET || p->m_Type == BUILDING_GENERATOR || p->m_Type == BUILDING_TESLACOIL || p->m_Type == BUILDING_REACTOR))
+
+		if(GameServer()->m_pController->IsCoop() && Team >= 0 && p->m_Team >= 0 &&
+		   (p->m_Type == BUILDING_TURRET || p->m_Type == BUILDING_GENERATOR || p->m_Type == BUILDING_TESLACOIL ||
+			p->m_Type == BUILDING_REACTOR))
 		{
-			if (Team >= 0 && Team < MAX_CLIENTS)
+			if(Team >= 0 && Team < MAX_CLIENTS)
 			{
 				CPlayer *pPlayer = GameServer()->m_apPlayers[Team];
-				
+
 				if(pPlayer && !pPlayer->m_IsBot)
 					continue;
 			}
 		}
-		
+
 		/*
 				// co-op player to player collisiong ignore
 		if (g_Config.m_SvDisablePVP && !p->m_IsBot)
 		{
 			if (pNotThis && pNotThis->GetType() != CGameWorld::ENTTYPE_CHARACTER)
 				continue;
-			
+
 			if (pNotThis && pNotThis->GetType() == CGameWorld::ENTTYPE_CHARACTER)
 			{
 				CCharacter *pOwnerChar = (CCharacter *)pNotThis;
@@ -341,14 +336,15 @@ CBuilding *CGameWorld::IntersectBuilding(vec2 Pos0, vec2 Pos1, float Radius, vec
 			}
 		}
 		*/
-		
+
 		const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
 		const vec2 Center = p->m_Pos + p->m_Center;
 		const float CenterDistanceSquared = DistanceSquared(Center, IntersectPos);
 		const float CollisionRange = p->m_ProximityRadius + Radius;
 		const float GeneratorRange = 240.0f + Radius;
 		if(CenterDistanceSquared < CollisionRange * CollisionRange ||
-			(p->m_Type == BUILDING_GENERATOR && CenterDistanceSquared < GeneratorRange * GeneratorRange && DistanceSquared(Center, Pos0) >= GeneratorRange * GeneratorRange))
+		   (p->m_Type == BUILDING_GENERATOR && CenterDistanceSquared < GeneratorRange * GeneratorRange &&
+			DistanceSquared(Center, Pos0) >= GeneratorRange * GeneratorRange))
 		{
 			const float AlongSegmentSquared = DistanceSquared(Pos0, IntersectPos);
 			if(AlongSegmentSquared < ClosestLenSquared)
@@ -363,22 +359,20 @@ CBuilding *CGameWorld::IntersectBuilding(vec2 Pos0, vec2 Pos1, float Radius, vec
 	return pClosest;
 }
 
-
 CBall *CGameWorld::IntersectBall(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos)
 {
-	if (!GameServer()->m_pController->m_pBall)
-		return NULL;
-	
+	if(!GameServer()->m_pController->m_pBall)
+		return 0;
+
 	CBall *pBall = GameServer()->m_pController->m_pBall;
-	
+
 	const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, pBall->m_Pos);
 	const float CollisionRange = pBall->m_ProximityRadius + Radius;
 	if(DistanceSquared(pBall->m_Pos, IntersectPos) < CollisionRange * CollisionRange)
 		return pBall;
 
-	return NULL;
+	return 0;
 }
-
 
 CDroid *CGameWorld::IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, CEntity *pNotThis)
 {
@@ -387,10 +381,10 @@ CDroid *CGameWorld::IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &Ne
 
 	CDroid *p = (CDroid *)FindFirst(ENTTYPE_DROID);
 	for(; p; p = (CDroid *)p->TypeNext())
- 	{
-		if (p == pNotThis || p->m_Health <= 0)
+	{
+		if(p == pNotThis || p->m_Health <= 0)
 			continue;
-		
+
 		const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
 		const float CollisionRange = p->m_ProximityRadius + Radius;
 		if(DistanceSquared(p->m_Pos + p->m_Center, IntersectPos) < CollisionRange * CollisionRange)
@@ -408,13 +402,12 @@ CDroid *CGameWorld::IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &Ne
 	return pClosest;
 }
 
-
 bool CGameWorld::GetDroidPosChange(int ID)
 {
 	CDroid *p = (CDroid *)FindFirst(ENTTYPE_DROID);
 	for(; p; p = (CDroid *)p->TypeNext())
- 	{
-		if (p->m_ID == ID)
+	{
+		if(p->m_ID == ID)
 		{
 			return true;
 		}
@@ -423,11 +416,16 @@ bool CGameWorld::GetDroidPosChange(int ID)
 	return false;
 }
 
-
-
 // line-segment vs. character hit test (body + head)
-CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2& NewPos,
-	CEntity *pNotThis, bool IgnoreDeathrayed, CCharacter **ppReflect, float ReflectRadius, CEntity *pNotThis2)
+CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0,
+										   vec2 Pos1,
+										   float Radius,
+										   vec2 &NewPos,
+										   CEntity *pNotThis,
+										   bool IgnoreDeathrayed,
+										   CCharacter **ppReflect,
+										   float ReflectRadius,
+										   CEntity *pNotThis2)
 {
 	// Find other players
 	float ClosestLenSquared = DistanceSquared(Pos0, Pos1) * 10000.0f;
@@ -439,26 +437,26 @@ CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, v
 
 	CCharacter *p = (CCharacter *)FindFirst(ENTTYPE_CHARACTER);
 	for(; p; p = (CCharacter *)p->TypeNext())
- 	{
+	{
 		if(p == pNotThis || p == pNotThis2)
 			continue;
-		
+
 		if(p->IgnoreCollision())
 			continue;
-		
-		if (IgnoreDeathrayed && p->Deathrayed())
+
+		if(IgnoreDeathrayed && p->Deathrayed())
 			continue;
-		
+
 		// co-op player to player collisiong ignore
-		if (g_Config.m_SvDisablePVP && !p->m_IsBot)
+		if(g_Config.m_SvDisablePVP && !p->m_IsBot)
 		{
-			if (pNotThis && pNotThis->GetType() != CGameWorld::ENTTYPE_CHARACTER)
+			if(pNotThis && pNotThis->GetType() != CGameWorld::ENTTYPE_CHARACTER)
 				continue;
-			
-			if (pNotThis && pNotThis->GetType() == CGameWorld::ENTTYPE_CHARACTER)
+
+			if(pNotThis && pNotThis->GetType() == CGameWorld::ENTTYPE_CHARACTER)
 			{
 				CCharacter *pOwnerChar = (CCharacter *)pNotThis;
-				if (!pOwnerChar->m_IsBot)
+				if(!pOwnerChar->m_IsBot)
 					continue;
 			}
 		}
@@ -522,43 +520,41 @@ CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, v
 
 CCharacter *CGameWorld::GetFriendlyCharacterInBox(vec2 TopLeft, vec2 BotRight, int Team)
 {
-	vec2 Center = (TopLeft+BotRight)/2;
-	
+	vec2 Center = (TopLeft + BotRight) / 2;
+
 	// Find other players
 	CCharacter *p = (CCharacter *)FindFirst(ENTTYPE_CHARACTER);
 	for(; p; p = (CCharacter *)p->TypeNext())
- 	{
-		if (!p->GetPlayer())
+	{
+		if(!p->GetPlayer())
 			continue;
-		
+
 		// team checks, assume team is clientID in dm
-		if (g_Config.m_SvDisablePVP)
+		if(g_Config.m_SvDisablePVP)
 		{
-			if ((Team < 0 && !p->m_IsBot) || (Team >= 0 && p->m_IsBot))
+			if((Team < 0 && !p->m_IsBot) || (Team >= 0 && p->m_IsBot))
 				continue;
 		}
 		else
 		{
-			if (GameServer()->m_pController->IsTeamplay())
+			if(GameServer()->m_pController->IsTeamplay())
 			{
-				if (Team != p->GetPlayer()->GetTeam())
+				if(Team != p->GetPlayer()->GetTeam())
 					continue;
 			}
-			else
-				if (Team != p->GetPlayer()->GetCID())
-					continue;
+			else if(Team != p->GetPlayer()->GetCID())
+				continue;
 		}
-		
-		if (abs(p->m_Pos.x - Center.x) < abs(TopLeft.x - BotRight.x) &&
-			abs(p->m_Pos.y - Center.y) < abs(TopLeft.y - BotRight.y))
+
+		if(abs(p->m_Pos.x - Center.x) < abs(TopLeft.x - BotRight.x) &&
+		   abs(p->m_Pos.y - Center.y) < abs(TopLeft.y - BotRight.y))
 			return p;
 	}
 
-	return NULL;
+	return 0;
 }
 
-
-CCharacter *CGameWorld::IntersectReflect(vec2 Pos0, vec2 Pos1, float Radius, vec2& NewPos, CEntity *pNotThis)
+CCharacter *CGameWorld::IntersectReflect(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, CEntity *pNotThis)
 {
 	// Find other players
 	float ClosestLen = distance(Pos0, Pos1) * 100.0f;
@@ -566,40 +562,40 @@ CCharacter *CGameWorld::IntersectReflect(vec2 Pos0, vec2 Pos1, float Radius, vec
 
 	CCharacter *p = (CCharacter *)FindFirst(ENTTYPE_CHARACTER);
 	for(; p; p = (CCharacter *)p->TypeNext())
- 	{
+	{
 		if(p == pNotThis)
 			continue;
-		
+
 		if(p->IgnoreCollision())
 			continue;
-		
+
 		// co-op player to player collisiong ignore
-		if (g_Config.m_SvDisablePVP && !p->m_IsBot)
+		if(g_Config.m_SvDisablePVP && !p->m_IsBot)
 		{
-			if (pNotThis && pNotThis->GetType() != CGameWorld::ENTTYPE_CHARACTER)
+			if(pNotThis && pNotThis->GetType() != CGameWorld::ENTTYPE_CHARACTER)
 				continue;
-			
-			if (pNotThis && pNotThis->GetType() == CGameWorld::ENTTYPE_CHARACTER)
+
+			if(pNotThis && pNotThis->GetType() == CGameWorld::ENTTYPE_CHARACTER)
 			{
 				CCharacter *pOwnerChar = (CCharacter *)pNotThis;
-				if (!pOwnerChar->m_IsBot)
+				if(!pOwnerChar->m_IsBot)
 					continue;
 			}
 		}
 
 		int Reflect = p->Reflect();
-		
-		if (!Reflect)
+
+		if(!Reflect)
 			continue;
-		
+
 		vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
-		
+
 		// only reflect in some directions
-		//if (abs(GetAngle(normalize(p->m_Pos - IntersectPos)) - GetAngle(normalize(p->GetVel()))) > pi/4.0f)
+		// if (abs(GetAngle(normalize(p->m_Pos - IntersectPos)) - GetAngle(normalize(p->GetVel()))) > pi/4.0f)
 		//	continue;
-		
+
 		float Len = distance(p->m_Pos + vec2(0, -32), IntersectPos);
-		if(Len < Reflect+Radius)
+		if(Len < Reflect + Radius)
 		{
 			Len = distance(Pos0, IntersectPos);
 			if(Len < ClosestLen)
@@ -614,7 +610,6 @@ CCharacter *CGameWorld::IntersectReflect(vec2 Pos0, vec2 Pos1, float Radius, vec
 	return pClosest;
 }
 
-
 CCharacter *CGameWorld::ClosestCharacter(vec2 Pos, float Radius, CEntity *pNotThis)
 {
 	// Find other players
@@ -624,7 +619,7 @@ CCharacter *CGameWorld::ClosestCharacter(vec2 Pos, float Radius, CEntity *pNotTh
 
 	CCharacter *p = (CCharacter *)GameServer()->m_World.FindFirst(ENTTYPE_CHARACTER);
 	for(; p; p = (CCharacter *)p->TypeNext())
- 	{
+	{
 		if(p == pNotThis)
 			continue;
 

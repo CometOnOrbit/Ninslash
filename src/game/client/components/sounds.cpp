@@ -9,7 +9,6 @@
 #include <game/client/components/menus.h>
 #include "sounds.h"
 
-
 struct CUserData
 {
 	CGameClient *m_pGameClient;
@@ -37,9 +36,10 @@ static int LoadSoundsThread(void *pUser)
 
 int CSounds::GetSampleId(int SetId)
 {
-	if(!g_Config.m_SndEnable || !Sound()->IsSoundEnabled() || m_WaitForSoundJob || SetId < 0 || SetId >= g_pData->m_NumSounds)
+	if(!g_Config.m_SndEnable || !Sound()->IsSoundEnabled() || m_WaitForSoundJob || SetId < 0 ||
+	   SetId >= g_pData->m_NumSounds)
 		return -1;
-	
+
 	CDataSoundset *pSet = &g_pData->m_aSounds[SetId];
 	if(!pSet->m_NumSounds)
 		return -1;
@@ -52,8 +52,7 @@ int CSounds::GetSampleId(int SetId)
 	do
 	{
 		Id = rand() % pSet->m_NumSounds;
-	}
-	while(Id == pSet->m_Last);
+	} while(Id == pSet->m_Last);
 	pSet->m_Last = Id;
 	return pSet->m_aSounds[Id].m_Id;
 }
@@ -129,9 +128,9 @@ void CSounds::OnRender()
 		if(m_QueueWaitTime <= Now)
 		{
 			Play(m_aQueue[0].m_Channel, m_aQueue[0].m_SetId, 1.0f);
-			m_QueueWaitTime = Now+time_freq()*3/10; // wait 300ms before playing the next one
+			m_QueueWaitTime = Now + time_freq() * 3 / 10; // wait 300ms before playing the next one
 			if(--m_QueuePos > 0)
-				mem_move(m_aQueue, m_aQueue+1, m_QueuePos*sizeof(QueueEntry));
+				mem_move(m_aQueue, m_aQueue + 1, m_QueuePos * sizeof(QueueEntry));
 		}
 	}
 }
@@ -160,7 +159,7 @@ void CSounds::PlayAndRecord(int Chn, int SetId, float Vol, vec2 Pos)
 {
 	CNetMsg_Sv_SoundGlobal Msg;
 	Msg.m_SoundID = SetId;
-	Client()->SendPackMsg(&Msg, MSGFLAG_NOSEND|MSGFLAG_RECORD);
+	Client()->SendPackMsg(&Msg, MSGFLAG_NOSEND | MSGFLAG_RECORD);
 
 	Play(Chn, SetId, Vol);
 }
@@ -185,7 +184,7 @@ void CSounds::PlayAt(int Chn, int SetId, float Vol, vec2 Pos)
 {
 	if(Chn == CHN_MUSIC && !g_Config.m_SndMusic)
 		return;
-	
+
 	int SampleId = GetSampleId(SetId);
 	if(SampleId == -1)
 		return;

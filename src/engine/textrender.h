@@ -6,16 +6,16 @@
 
 enum
 {
-	TEXTFLAG_RENDER=1,
-	TEXTFLAG_ALLOW_NEWLINE=2,
-	TEXTFLAG_STOP_AT_END=4
+	TEXTFLAG_RENDER = 1,
+	TEXTFLAG_ALLOW_NEWLINE = 2,
+	TEXTFLAG_STOP_AT_END = 4
 };
 
 class CFont;
 
 class CTextCursor
 {
-public:
+  public:
 	int m_Flags;
 	int m_LineCount;
 	int m_CharCount;
@@ -33,7 +33,7 @@ public:
 class ITextRender : public IInterface
 {
 	MACRO_INTERFACE("textrender", 0)
-public:
+  public:
 	virtual void SetCursor(CTextCursor *pCursor, float x, float y, float FontSize, int Flags) = 0;
 
 	virtual CFont *LoadFont(const char *pFilename) = 0;
@@ -57,7 +57,7 @@ public:
 class IEngineTextRender : public ITextRender
 {
 	MACRO_INTERFACE("enginetextrender", 0)
-public:
+  public:
 	virtual int Init() = 0;
 };
 

@@ -8,7 +8,7 @@
 class IConfig : public IInterface
 {
 	MACRO_INTERFACE("config", 0)
-public:
+  public:
 	typedef void (*SAVECALLBACKFUNC)(IConfig *pConfig, void *pUserData);
 
 	virtual void Init() = 0;

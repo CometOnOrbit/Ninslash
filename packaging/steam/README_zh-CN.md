@@ -27,9 +27,10 @@ python3 scripts/publish_steam_depots.py \
   --upload --steam-account YOUR_PARTNER_ACCOUNT
 ```
 
-包装器永不接收密码。密码和 Steam Guard 交互由 SteamCMD 自行处理。需要时可设置环境变量 `STEAM_ACCOUNT` 和 `STEAMCMD`；使用 `--no-build` 打包已有二进制，使用 `--strict-assets` 执行最终公开发行素材门禁。
+默认由 SteamCMD 处理密码和 Steam Guard 交互。本机包装脚本可通过临时 `STEAM_PASSWORD` 环境变量提供密码；密码不会进入命令行参数或日志。需要时可设置环境变量 `STEAM_ACCOUNT` 和 `STEAMCMD`；使用 `--no-build` 打包已有二进制，使用 `--strict-assets` 执行最终公开发行素材门禁。
 SteamCMD 对永久拒绝和临时 SteamPipe CDN 故障都会返回退出码 6。包装器现在仅在本次上传新写入的日志明确包含 HTTP 5xx 时重试，默认最多三次；旧日志、权限错误和配置错误不会触发重试。需要时可用 `--upload-attempts` 和 `--upload-retry-delay` 调整。
 使用 `--upload-target client` 或 `--upload-target server` 可以只重试一个 AppID，避免为已经成功的 AppID 再创建一次构建。
+在没有 macOS 工具链的 Linux 工作站上使用 `--platforms linux,windows`；生成的 App manifest 将只包含四个所选 Depot。
 添加 `--set-live internal`（或其他已配置的 beta 分支名）可在上传后自动让新 BuildID 在该分支生效。SteamPipe 不能自动将公开 `default` 分支设为 live；应省略 `--set-live` 完成上传，再到 Steamworks App Admin 的 Builds 页面手动提升该 Build。
 排查 commit 失败时应先省略 `--set-live`。上传权限可以创建 Build，但修改 live 分支可能需要额外的 Steamworks 发布权限。成功创建并测试 Build 后，再单独提升分支。
 

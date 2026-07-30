@@ -7,10 +7,11 @@
 bool CBinds::CBindsSpecial::OnInput(IInput::CEvent Event)
 {
 	// don't handle invalid events and keys that arn't set to anything
-	if(((Event.m_Key >= KEY_F1 && Event.m_Key <= KEY_F12) || (Event.m_Key >= KEY_F13 && Event.m_Key <= KEY_F24)) && m_pBinds->m_aaKeyBindings[Event.m_Key][0] != 0)
+	if(((Event.m_Key >= KEY_F1 && Event.m_Key <= KEY_F12) || (Event.m_Key >= KEY_F13 && Event.m_Key <= KEY_F24)) &&
+	   m_pBinds->m_aaKeyBindings[Event.m_Key][0] != 0)
 	{
 		int Stroke = 0;
-		if(Event.m_Flags&IInput::FLAG_PRESS)
+		if(Event.m_Flags & IInput::FLAG_PRESS)
 			Stroke = 1;
 
 		m_pBinds->GetConsole()->ExecuteLineStroked(Stroke, m_pBinds->m_aaKeyBindings[Event.m_Key]);
@@ -40,7 +41,6 @@ void CBinds::Bind(int KeyID, const char *pStr)
 	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "binds", aBuf);
 }
 
-
 bool CBinds::OnInput(IInput::CEvent e)
 {
 	// don't handle invalid events and keys that arn't set to anything
@@ -48,7 +48,7 @@ bool CBinds::OnInput(IInput::CEvent e)
 		return false;
 
 	int Stroke = 0;
-	if(e.m_Flags&IInput::FLAG_PRESS)
+	if(e.m_Flags & IInput::FLAG_PRESS)
 		Stroke = 1;
 	Console()->ExecuteLineStroked(Stroke, m_aaKeyBindings[e.m_Key]);
 	return true;
@@ -121,12 +121,12 @@ void CBinds::SetDefaults()
 	Bind(KEY_R, "+buildmenu");
 	Bind(KEY_W, "+charge");
 	Bind(KEY_Q, "+dronewheel");
-	//Bind(KEY_Q, "+build");
+	// Bind(KEY_Q, "+build");
 	Bind(KEY_MOUSE_3, "+inventoryroll");
-	//Bind(KEY_MOUSE_3, "+switch");
+	// Bind(KEY_MOUSE_3, "+switch");
 	Bind(KEY_F, "+dropweapon");
 	Bind(KEY_LSHIFT, "+emote");
-	//Bind(KEY_E, "+itempicker");
+	// Bind(KEY_E, "+itempicker");
 	Bind(KEY_RSHIFT, "+spectate");
 	Bind(KEY_RIGHT, "spectate_next");
 	Bind(KEY_LEFT, "spectate_previous");
@@ -136,22 +136,22 @@ void CBinds::SetDefaults()
 	Bind(KEY_GAMEPAD_AXIS_UP, "+gamepadjump");
 	Bind(KEY_GAMEPAD_AXIS_LEFT, "+gamepadleft");
 	Bind(KEY_GAMEPAD_AXIS_RIGHT, "+gamepadright");
-	
+
 	Bind(KEY_GAMEPAD_TRIGGER_RIGHT, "+gamepadfire");
 	Bind(KEY_GAMEPAD_TRIGGER_LEFT, "+gamepadturbo");
 	Bind(KEY_GAMEPAD_BUTTON_LEFTSTICK, "+gamepadpicker");
 	Bind(KEY_GAMEPAD_BUTTON_RIGHTSTICK, "+gamepadlastweapon");
-	
+
 	Bind(KEY_GAMEPAD_SHOULDER_LEFT, "+gamepadprevweapon");
 	Bind(KEY_GAMEPAD_SHOULDER_RIGHT, "+gamepadnextweapon");
-	
+
 	Bind(KEY_GAMEPAD_BUTTON_BACK, "+gamepadscoreboard");
-	
+
 	Bind(KEY_GAMEPAD_BUTTON_B, "+gamepaddropweapon");
 	Bind(KEY_GAMEPAD_BUTTON_Y, "+buildmenu");
-	
+
 	Bind(KEY_GAMEPAD_BUTTON_A, "+gamepademote");
-	
+
 	Bind(KEY_1, "+weapon2");
 	Bind(KEY_2, "+weapon3");
 	Bind(KEY_3, "+weapon4");
@@ -210,7 +210,6 @@ void CBinds::ConBind(IConsole::IResult *pResult, void *pUserData)
 	pBinds->Bind(id, pResult->GetString(1));
 }
 
-
 void CBinds::ConUnbind(IConsole::IResult *pResult, void *pUserData)
 {
 	CBinds *pBinds = (CBinds *)pUserData;
@@ -228,13 +227,11 @@ void CBinds::ConUnbind(IConsole::IResult *pResult, void *pUserData)
 	pBinds->Bind(id, "");
 }
 
-
 void CBinds::ConUnbindAll(IConsole::IResult *pResult, void *pUserData)
 {
 	CBinds *pBinds = (CBinds *)pUserData;
 	pBinds->UnbindAll();
 }
-
 
 void CBinds::ConDumpBinds(IConsole::IResult *pResult, void *pUserData)
 {
@@ -254,7 +251,7 @@ int CBinds::GetKeyID(const char *pKeyName)
 	// check for numeric
 	if(pKeyName[0] == '&')
 	{
-		int i = str_toint(pKeyName+1);
+		int i = str_toint(pKeyName + 1);
 		if(i > 0 && i < KEY_LAST)
 			return i; // numeric
 	}
@@ -274,7 +271,7 @@ void CBinds::ConfigSaveCallback(IConfig *pConfig, void *pUserData)
 	CBinds *pSelf = (CBinds *)pUserData;
 
 	char aBuffer[256];
-	char *pEnd = aBuffer+sizeof(aBuffer)-8;
+	char *pEnd = aBuffer + sizeof(aBuffer) - 8;
 	pConfig->WriteLine("unbindall");
 	for(int i = 0; i < KEY_LAST; i++)
 	{

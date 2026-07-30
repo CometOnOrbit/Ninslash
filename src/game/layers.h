@@ -17,10 +17,10 @@ class CLayers
 	CMapItemGroup *m_pGameGroup;
 	CMapItemLayerTilemap *m_pGameLayer;
 	class IMap *m_pMap;
-	
+
 	int *m_apChunkRule;
 	class CMapChunk *m_pMapChunk;
-	
+
 	// MapGen: Direct layer access
 	int m_GameGroupIndex;
 	int m_GameLayerIndex;
@@ -38,11 +38,11 @@ class CLayers
 	// for generating layers
 	class CTile *m_pTiles;
 
-	//class CGenerator *m_pGenerator;
-	
+	// class CGenerator *m_pGenerator;
+
 	void GenerateLayers();
-	
-public:
+
+  public:
 	CLayers();
 	void Init(class IKernel *pKernel);
 	int NumGroups() const { return m_GroupsNum; };

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "content_type": "mod",
+  "published_file_id": "9000000001",
+  "name": "Plasma Carbine Example",
+  "description": "Complete example Lua weapon with custom resources, combat behavior, HUD, and localization",
+  "version": "1",
+  "author": "Ninslash",
+  "target_protocol": "0.5.1 abc123-luaweapons5",
+  "content_hash": "7dd81e4c4dca9fc273d5c4d5a88205f489acbfa703cd498513f2b5723611b32f",
+  "content_rating": "everyone",
+  "api_version": 1,
+  "capabilities": [
+    "resources",
+    "weapons",
+    "weapon_modules",
+    "forge_recipes"
+  ],
+  "dependencies": [],
+  "definitions": [
+    "plasma_variant.weapon.lua",
+    "plasma.weapon.lua"
+  ],
+  "scripts": [
+    "plasma.weapon_runtime.lua",
+    "plasma.weapon_presentation.lua"
+  ],
+  "resources": [
+    "resources/plasma_carbine.png",
+    "resources/plasma_bolt.png",
+    "resources/plasma_muzzle.png",
+    "resources/plasma_fire.wv",
+    "localization/simplified_chinese.txt",
+    "localization/traditional_chinese.txt",
+    "README.md"
+  ]
+}

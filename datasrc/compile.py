@@ -44,18 +44,11 @@ gen_network_header = False
 gen_network_source = False
 gen_game_content_header = False
 gen_game_content_source = False
-gen_weapon_profiles = False
 
 if "network_header" in sys.argv: gen_network_header = True
 if "network_source" in sys.argv: gen_network_source = True
 if "game_content_header" in sys.argv: gen_game_content_header = True
 if "game_content_source" in sys.argv: gen_game_content_source = True
-if "weapon_profiles" in sys.argv: gen_weapon_profiles = True
-
-if gen_weapon_profiles:
-	import weapon_profiles
-	weapon_profiles.emit()
-
 if gen_game_content_header:
 	print("#ifndef GAME_CONTENT_HEADER")
 	print("#define GAME_CONTENT_HEADER")
@@ -160,9 +153,18 @@ if gen_network_source:
 	lines += ['\tm_NumObjCorrections = 0;']
 	lines += ['}']
 	lines += ['']
-	lines += ['int CNetObjHandler::NumObjCorrections() { return m_NumObjCorrections; }']
-	lines += ['const char *CNetObjHandler::CorrectedObjOn() { return m_pObjCorrectedOn; }']
-	lines += ['const char *CNetObjHandler::FailedMsgOn() { return m_pMsgFailedOn; }']
+	lines += ['int CNetObjHandler::NumObjCorrections()']
+	lines += ['{']
+	lines += ['\treturn m_NumObjCorrections;']
+	lines += ['}']
+	lines += ['const char *CNetObjHandler::CorrectedObjOn()']
+	lines += ['{']
+	lines += ['\treturn m_pObjCorrectedOn;']
+	lines += ['}']
+	lines += ['const char *CNetObjHandler::FailedMsgOn()']
+	lines += ['{']
+	lines += ['\treturn m_pMsgFailedOn;']
+	lines += ['}']
 	lines += ['']
 	lines += ['']
 	lines += ['']
@@ -173,8 +175,18 @@ if gen_network_source:
 
 	lines += ['int CNetObjHandler::ClampInt(const char *pErrorMsg, int Value, int Min, int Max)']
 	lines += ['{']
-	lines += ['\tif(Value < Min) { m_pObjCorrectedOn = pErrorMsg; m_NumObjCorrections++; return Min; }']
-	lines += ['\tif(Value > Max) { m_pObjCorrectedOn = pErrorMsg; m_NumObjCorrections++; return Max; }']
+	lines += ['\tif(Value < Min)']
+	lines += ['\t{']
+	lines += ['\t\tm_pObjCorrectedOn = pErrorMsg;']
+	lines += ['\t\tm_NumObjCorrections++;']
+	lines += ['\t\treturn Min;']
+	lines += ['\t}']
+	lines += ['\tif(Value > Max)']
+	lines += ['\t{']
+	lines += ['\t\tm_pObjCorrectedOn = pErrorMsg;']
+	lines += ['\t\tm_NumObjCorrections++;']
+	lines += ['\t\treturn Max;']
+	lines += ['\t}']
 	lines += ['\treturn Value;']
 	lines += ['}']
 

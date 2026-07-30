@@ -32,7 +32,7 @@ enum EPveProgressLoadResult
 
 class CPveProgressStorage
 {
-public:
+  public:
 	static const char *Filename();
 	static EPveProgressLoadResult Load(IStorage *pStorage, CPveProgressData *pData, const char *pFilename = 0);
 	static bool Save(IStorage *pStorage, const CPveProgressData &Data);

@@ -1,12 +1,11 @@
 #include <game/server/gamecontext.h>
 #include "flag.h"
 
-CFlag::CFlag(CGameWorld *pGameWorld, int Team)
-: CEntity(pGameWorld, CGameWorld::ENTTYPE_FLAG)
+CFlag::CFlag(CGameWorld *pGameWorld, int Team) : CEntity(pGameWorld, CGameWorld::ENTTYPE_FLAG)
 {
 	m_Team = Team;
 	m_ProximityRadius = ms_PhysSize;
-	m_pCarryingCharacter = NULL;
+	m_pCarryingCharacter = 0;
 	m_GrabTick = 0;
 
 	Reset();
@@ -14,10 +13,10 @@ CFlag::CFlag(CGameWorld *pGameWorld, int Team)
 
 void CFlag::Reset()
 {
-	m_pCarryingCharacter = NULL;
+	m_pCarryingCharacter = 0;
 	m_AtStand = 1;
 	m_Pos = m_StandPos;
-	m_Vel = vec2(0,0);
+	m_Vel = vec2(0, 0);
 	m_GrabTick = 0;
 }
 

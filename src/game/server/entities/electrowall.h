@@ -3,10 +3,9 @@
 
 #include <game/server/entity.h>
 
-
 class CElectroWall : public CEntity
 {
-public:
+  public:
 	CElectroWall(CGameWorld *pGameWorld, vec2 Pos1, vec2 Pos2);
 
 	virtual void Reset();
@@ -14,11 +13,11 @@ public:
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 
-private:
+  private:
 	vec2 m_Pos2;
 	int m_StartTick;
 	int m_DestructionTick;
-	
+
 	bool HitCharacter();
 };
 

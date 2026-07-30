@@ -12,11 +12,11 @@
 class IServer : public IInterface
 {
 	MACRO_INTERFACE("server", 0)
-protected:
+  protected:
 	int m_CurrentGameTick;
 	int m_TickSpeed;
 
-public:
+  public:
 	/*
 		Structure: CClientInfo
 	*/
@@ -39,8 +39,7 @@ public:
 
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags, int ClientID) = 0;
 
-	template<class T>
-	int SendPackMsg(T *pMsg, int Flags, int ClientID)
+	template <class T> int SendPackMsg(T *pMsg, int Flags, int ClientID)
 	{
 		CMsgPacker Packer(pMsg->MsgID());
 		if(pMsg->Pack(&Packer))
@@ -64,8 +63,8 @@ public:
 
 	enum
 	{
-		RCON_CID_SERV=-1,
-		RCON_CID_VOTE=-2,
+		RCON_CID_SERV = -1,
+		RCON_CID_VOTE = -2,
 	};
 	virtual void SetRconCID(int ClientID) = 0;
 	virtual bool IsAuthed(int ClientID) = 0;
@@ -73,17 +72,17 @@ public:
 
 	virtual void DemoRecorder_HandleAutoStart() = 0;
 	virtual bool DemoRecorder_IsRecording() = 0;
-	
+
 	virtual void AddZombie() = 0;
 	virtual void GetAISkin(class CAISkin *pAISkin, bool PVP, int Level, int WaveGroup) = 0;
 
 	virtual void ResetGameVoting() = 0;
 	virtual bool GetGameVote(class CGameVote *pGameVote, int Players) = 0;
-	
+
 	virtual class CPlayerData *GetPlayerData(int ClientID, int ColorID) = 0;
 	virtual int GetHighScore() = 0;
 	virtual int GetPlayerCount() = 0;
-	
+
 	virtual char *GetMapName() = 0;
 	bool m_MapGenerated; // MapGen
 	char m_aMapInUse[64];
@@ -94,8 +93,8 @@ public:
 class IGameServer : public IInterface
 {
 	MACRO_INTERFACE("gameserver", 0)
-protected:
-public:
+  protected:
+  public:
 	virtual void OnInit() = 0;
 	virtual void OnConsoleInit() = 0;
 	virtual void OnShutdown() = 0;
@@ -107,12 +106,11 @@ public:
 
 	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID) = 0;
 
-
 	virtual void AddZombie() = 0;
 	virtual void GetAISkin(class CAISkin *pAISkin, bool PVP, int Level, int WaveGroup) = 0;
 	virtual bool AIInputUpdateNeeded(int ClientID) = 0;
 	virtual void AIUpdateInput(int ClientID, int *Data) = 0; // MAX_INPUT_SIZE
-	
+
 	virtual void OnClientConnected(int ClientID, bool AI = false) = 0;
 	virtual void OnClientEnter(int ClientID) = 0;
 	virtual void OnClientDrop(int ClientID, const char *pReason) = 0;

@@ -24,11 +24,11 @@ class CPicker : public CComponent
 	static void ConSwitchGroup(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyEmote(IConsole::IResult *pResult, void *pUserData);
 	static void ConEmote(IConsole::IResult *pResult, void *pUserData);
-	
+
 	int m_PickerType;
 	bool m_ResetMouse;
 
-public:
+  public:
 	CPicker();
 
 	virtual void OnReset();

@@ -10,8 +10,11 @@ class CBuildings : public CComponent
 	void RenderSawblade(const struct CNetObj_Building *pCurrent);
 	void RenderMine(const struct CNetObj_Building *pCurrent);
 	void RenderElectromine(const struct CNetObj_Building *pCurrent);
-	void RenderBarrel(const struct CNetObj_Building *pCurrent, const struct CNetObj_Building *pPrev, int SpriteVariation);
-	void RenderPowerBarrel(const struct CNetObj_Building *pCurrent, const struct CNetObj_Building *pPrev, int SpriteVariation);
+	void
+	RenderBarrel(const struct CNetObj_Building *pCurrent, const struct CNetObj_Building *pPrev, int SpriteVariation);
+	void RenderPowerBarrel(const struct CNetObj_Building *pCurrent,
+						   const struct CNetObj_Building *pPrev,
+						   int SpriteVariation);
 	void RenderLazer(const struct CNetObj_Building *pCurrent);
 	void RenderBase(const struct CNetObj_Building *pCurrent);
 	void RenderStand(const struct CNetObj_Building *pCurrent, const struct CNetObj_Building *pPrev);
@@ -26,7 +29,7 @@ class CBuildings : public CComponent
 	void RenderScreen(const struct CNetObj_Building *pCurrent);
 	void RenderShop(const struct CNetObj_Shop *pCurrent);
 
-public:
+  public:
 	virtual void OnReset();
 	virtual void OnRender();
 };

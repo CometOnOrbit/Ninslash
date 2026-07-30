@@ -2,7 +2,6 @@
 
 #include <engine/graphics.h>
 
-
 class CCommandBuffer
 {
 	class CBuffer
@@ -10,7 +9,8 @@ class CCommandBuffer
 		unsigned char *m_pData;
 		unsigned m_Size;
 		unsigned m_Used;
-	public:
+
+	  public:
 		CBuffer(unsigned BufferSize)
 		{
 			m_Size = BufferSize;
@@ -20,16 +20,13 @@ class CCommandBuffer
 
 		~CBuffer()
 		{
-			delete [] m_pData;
+			delete[] m_pData;
 			m_pData = 0x0;
 			m_Used = 0;
 			m_Size = 0;
 		}
 
-		void Reset()
-		{
-			m_Used = 0;
-		}
+		void Reset() { m_Used = 0; }
 
 		void *Alloc(unsigned Requested)
 		{
@@ -45,19 +42,19 @@ class CCommandBuffer
 		unsigned DataUsed() { return m_Used; }
 	};
 
-public:
+  public:
 	CBuffer m_CmdBuffer;
 	CBuffer m_DataBuffer;
 
 	enum
 	{
-		MAX_TEXTURES=1024*4,
+		MAX_TEXTURES = 1024 * 4,
 	};
 
 	enum
 	{
 		// commadn groups
-		CMDGROUP_CORE = 0, // commands that everyone has to implement
+		CMDGROUP_CORE = 0,				  // commands that everyone has to implement
 		CMDGROUP_PLATFORM_OPENGL = 10000, // commands specific to a platform
 		CMDGROUP_PLATFORM_SDL = 20000,
 
@@ -87,7 +84,7 @@ public:
 		CMD_SCREENSHOT,
 		CMD_VIDEOMODES,
 		CMD_CREATETEXTUREBUFFER,
-		
+
 		// shaders
 		CMD_LOADSHADERS,
 		CMD_SHADERBEGIN,
@@ -111,7 +108,7 @@ public:
 	{
 		//
 		PRIMTYPE_INVALID = 0,
-		PRIMTYPE_LINES,	
+		PRIMTYPE_LINES,
 		PRIMTYPE_QUADS,
 	};
 
@@ -123,7 +120,7 @@ public:
 		BLEND_BUFFER,
 		BLEND_LIGHT,
 	};
-	
+
 	enum
 	{
 		RENDERTARGET_SCREEN = 0,
@@ -136,9 +133,18 @@ public:
 		WRAP_CLAMP,
 	};
 
-	struct SPoint { float x, y, z; };
-	struct STexCoord { float u, v; };
-	struct SColor { float r, g, b, a; };
+	struct SPoint
+	{
+		float x, y, z;
+	};
+	struct STexCoord
+	{
+		float u, v;
+	};
+	struct SColor
+	{
+		float r, g, b, a;
+	};
 
 	struct SVertex
 	{
@@ -149,7 +155,7 @@ public:
 
 	struct SCommand
 	{
-	public:
+	  public:
 		SCommand(unsigned Cmd) : m_Cmd(Cmd), m_Size(0) {}
 		unsigned m_Cmd;
 		unsigned m_Size;
@@ -174,18 +180,18 @@ public:
 		int m_ClipW;
 		int m_ClipH;
 	};
-		
+
 	struct SCommand_Clear : public SCommand
 	{
 		SCommand_Clear() : SCommand(CMD_CLEAR) {}
 		SColor m_Color;
 	};
-		
+
 	struct SCommand_ClearBufferTexture : public SCommand
 	{
 		SCommand_ClearBufferTexture() : SCommand(CMD_CLEARBUFFERTEXTURE) {}
 	};
-		
+
 	struct SCommand_Signal : public SCommand
 	{
 		SCommand_Signal() : SCommand(CMD_SIGNAL) {}
@@ -218,8 +224,8 @@ public:
 		SCommand_VideoModes() : SCommand(CMD_VIDEOMODES) {}
 
 		CVideoMode *m_pModes; // processor will fill this in
-		int m_MaxModes; // maximum of modes the processor can write to the m_pModes
-		int *m_pNumModes; // processor will write to this pointer
+		int m_MaxModes;		  // maximum of modes the processor can write to the m_pModes
+		int *m_pNumModes;	  // processor will write to this pointer
 		int m_Screen;
 	};
 
@@ -237,12 +243,12 @@ public:
 		int m_Width;
 		int m_Height;
 	};
-	
+
 	struct SCommand_LoadShaders : public SCommand
 	{
 		SCommand_LoadShaders() : SCommand(CMD_LOADSHADERS) {}
 	};
-	
+
 	struct SCommand_ShaderBegin : public SCommand
 	{
 		SCommand_ShaderBegin() : SCommand(CMD_SHADERBEGIN) {}
@@ -256,7 +262,7 @@ public:
 		float m_Electro;
 		float m_Deathray;
 	};
-	
+
 	struct SCommand_ShaderEnd : public SCommand
 	{
 		SCommand_ShaderEnd() : SCommand(CMD_SHADEREND) {}
@@ -271,7 +277,7 @@ public:
 		int m_CameraX;
 		int m_CameraY;
 	};
-	
+
 	struct SCommand_Texture_Create : public SCommand
 	{
 		SCommand_Texture_Create() : SCommand(CMD_TEXTURE_CREATE) {}
@@ -303,7 +309,6 @@ public:
 		void *m_pData; // will be freed by the command processor
 	};
 
-
 	struct SCommand_Texture_Destroy : public SCommand
 	{
 		SCommand_Texture_Destroy() : SCommand(CMD_TEXTURE_DESTROY) {}
@@ -311,20 +316,16 @@ public:
 		// texture information
 		int m_Slot;
 	};
-	
+
 	//
 	CCommandBuffer(unsigned CmdBufferSize, unsigned DataBufferSize)
-	: m_CmdBuffer(CmdBufferSize), m_DataBuffer(DataBufferSize)
+		: m_CmdBuffer(CmdBufferSize), m_DataBuffer(DataBufferSize)
 	{
 	}
 
-	void *AllocData(unsigned WantedSize)
-	{
-		return m_DataBuffer.Alloc(WantedSize);
-	}
+	void *AllocData(unsigned WantedSize) { return m_DataBuffer.Alloc(WantedSize); }
 
-	template<class T>
-	bool AddCommand(const T &Command)
+	template <class T> bool AddCommand(const T &Command)
 	{
 		// make sure that we don't do something stupid like ->AddCommand(&Cmd);
 		(void)static_cast<const SCommand *>(&Command);
@@ -341,7 +342,7 @@ public:
 	SCommand *GetCommand(unsigned *pIndex)
 	{
 		if(*pIndex >= m_CmdBuffer.DataUsed())
-			return NULL;
+			return 0;
 
 		SCommand *pCommand = (SCommand *)&m_CmdBuffer.DataPtr()[*pIndex];
 		*pIndex += pCommand->m_Size;
@@ -355,12 +356,11 @@ public:
 	}
 };
 
-
 // interface for the graphics backend
 // all these functions are called on the main thread
 class IGraphicsBackend
 {
-public:
+  public:
 	enum
 	{
 		INITFLAG_FULLSCREEN = 1,
@@ -371,7 +371,14 @@ public:
 
 	virtual ~IGraphicsBackend() {}
 
-	virtual int Init(const char *pName, int *Width, int *Height, int *pScreen, int FsaaSamples, int Flags, int *pDesktopWidth, int *pDesktopHeight) = 0;
+	virtual int Init(const char *pName,
+					 int *Width,
+					 int *Height,
+					 int *pScreen,
+					 int FsaaSamples,
+					 int Flags,
+					 int *pDesktopWidth,
+					 int *pDesktopHeight) = 0;
 	virtual int Shutdown() = 0;
 
 	virtual int MemoryUsage() const = 0;
@@ -396,18 +403,18 @@ class CGraphics_Threaded : public IEngineGraphics
 	{
 		NUM_CMDBUFFERS = 2,
 
-		MAX_VERTICES = 32*1024,
-		MAX_TEXTURES = 1024*4,
+		MAX_VERTICES = 32 * 1024,
+		MAX_TEXTURES = 1024 * 4,
 		MAX_SCREENSHOT_QUEUE = 8,
-		
-		DRAWING_QUADS=1,
-		DRAWING_LINES=2,
-		DRAWING_TRIANGLES=3,
+
+		DRAWING_QUADS = 1,
+		DRAWING_LINES = 2,
+		DRAWING_TRIANGLES = 3,
 	};
 
 	CCommandBuffer::SState m_State;
 	IGraphicsBackend *m_pBackend;
-	
+
 	CCommandBuffer *m_apCommandBuffers[NUM_CMDBUFFERS];
 	CCommandBuffer *m_pCommandBuffer;
 	unsigned m_CurrentCommandBuffer;
@@ -452,7 +459,7 @@ class CGraphics_Threaded : public IEngineGraphics
 	int IssueInit();
 	int InitWindow();
 
-public:
+  public:
 	CGraphics_Threaded();
 
 	virtual void ClipEnable(int x, int y, int w, int h);
@@ -481,15 +488,21 @@ public:
 	virtual void TrianglesDraw(const CTriangleItem *pArray, int Num);
 
 	virtual void CreateTextureBuffer(int Width, int Height);
-	
+
 	virtual void LoadShaders();
 	virtual void ShaderBegin(int Shader, float Intensity = 1.0f, float ColorSwap = 0.0f, float WeaponCharge = 0.0f);
-	virtual void PlayerShaderBegin(float colorG, float colorB, float Charge = 0.0f, float Visibility = 1.0f, float Electro = 0.0f, float Damage = 0.0f, float Deathray = 0.0f);
+	virtual void PlayerShaderBegin(float colorG,
+								   float colorB,
+								   float Charge = 0.0f,
+								   float Visibility = 1.0f,
+								   float Electro = 0.0f,
+								   float Damage = 0.0f,
+								   float Deathray = 0.0f);
 	virtual void BallShaderBegin(float Speed, float Speed2);
 	virtual void ShaderEnd();
-	
+
 	virtual void CameraToShaders(int ScreenWidth, int ScreenHeight, int CameraX, int CameraY);
-	
+
 	virtual int UnloadTexture(int Index);
 	virtual int LoadTextureRaw(int Width, int Height, int Format, const void *pData, int StoreFormat, int Flags);
 	virtual int LoadTextureRawSub(int TextureID, int x, int y, int Width, int Height, int Format, const void *pData);
@@ -503,7 +516,7 @@ public:
 	virtual bool CaptureFrame(CImageInfo *pImage);
 
 	virtual void TextureSet(int TextureID, int BufferTexture = -1);
-	
+
 	virtual void RenderToScreen();
 	virtual void RenderToTexture(int RenderBuffer);
 
@@ -518,9 +531,7 @@ public:
 	virtual void SetColor(float r, float g, float b, float a);
 
 	virtual void QuadsSetSubset(float TlU, float TlV, float BrU, float BrV, bool FreeForm = false);
-	virtual void QuadsSetSubsetFree(
-		float x0, float y0, float x1, float y1,
-		float x2, float y2, float x3, float y3);
+	virtual void QuadsSetSubsetFree(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3);
 
 	virtual void QuadsDraw(CQuadItem *pArray, int Num);
 	virtual void QuadsDrawTL(const CQuadItem *pArray, int Num);
@@ -530,8 +541,8 @@ public:
 	virtual void Minimize();
 	virtual void Maximize();
 
-    virtual void GrabWindow(bool grab);
-    virtual void WarpMouse(int x, int y);
+	virtual void GrabWindow(bool grab);
+	virtual void WarpMouse(int x, int y);
 	virtual int WindowActive();
 	virtual int WindowOpen();
 
@@ -547,7 +558,6 @@ public:
 
 	virtual int GetDesktopScreenWidth() { return m_DesktopScreenWidth; }
 	virtual int GetDesktopScreenHeight() { return m_DesktopScreenHeight; }
-
 
 	// syncronization
 	virtual void InsertSignal(semaphore *pSemaphore);

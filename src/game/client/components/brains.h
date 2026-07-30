@@ -15,7 +15,7 @@ struct CBrainSpill
 		m_Gravity = 0;
 		m_Friction = 0;
 		m_FlowAffected = 1.0f;
-		m_Color = vec4(1,1,1,1);
+		m_Color = vec4(1, 1, 1, 1);
 		m_Freeze = false;
 		m_Parts = 6;
 		m_Angle = 0.0f;
@@ -24,21 +24,21 @@ struct CBrainSpill
 	void SetPosition(vec2 Pos)
 	{
 		m_aPos[0] = Pos;
-	
-		for (int p = 1; p < m_Parts+1; p++)
+
+		for(int p = 1; p < m_Parts + 1; p++)
 		{
-			float a = 2*pi / float(m_Parts) * (p-1);
-			m_aPos[p] = Pos + vec2(sin(a), cos(a))*20;
+			float a = 2 * pi / float(m_Parts) * (p - 1);
+			m_aPos[p] = Pos + vec2(sin(a), cos(a)) * 20;
 		}
 	}
-	
+
 	vec2 m_aPos[19];
 	vec2 m_aVel[19];
 
 	bool m_Freeze;
-	
+
 	float m_Angle;
-	
+
 	int m_Parts;
 	int m_Spr;
 
@@ -63,10 +63,11 @@ struct CBrainSpill
 class CBrains : public CComponent
 {
 	friend class CGameClient;
-public:
+
+  public:
 	enum
 	{
-		GROUP_BRAINS=0,
+		GROUP_BRAINS = 0,
 		NUM_GROUPS
 	};
 
@@ -77,13 +78,12 @@ public:
 	virtual void OnReset();
 	virtual void OnRender();
 
-private:
- 
+  private:
 	enum
 	{
-		MAX_BRAINS=128,
+		MAX_BRAINS = 128,
 	};
-	
+
 	CBrainSpill m_aBrains[MAX_BRAINS];
 	int m_FirstFree;
 	int m_aFirstPart[NUM_GROUPS];
@@ -91,10 +91,9 @@ private:
 	void RenderGroup(int Group);
 	void Update(float TimePassed);
 
-	template<int TGROUP>
-	class CRenderGroup : public CComponent
+	template <int TGROUP> class CRenderGroup : public CComponent
 	{
-	public:
+	  public:
 		CBrains *m_pParts;
 		virtual void OnRender() { m_pParts->RenderGroup(TGROUP); }
 	};

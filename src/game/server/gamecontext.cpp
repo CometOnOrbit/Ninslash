@@ -12,8 +12,9 @@
 #include "gamecontext.h"
 #include <game/version.h>
 #include <game/collision.h>
-#include <game/gamecore.h> 
+#include <game/gamecore.h>
 #include <game/weapon_catalog.h>
+#include <game/weapon_packages.h>
 #include <game/forge.h>
 #include "gamemodes/dm.h"
 #include "gamemodes/cs.h"
@@ -55,7 +56,6 @@
 const int ExplosionDmg = 40;
 const int MineExplosionDmg = 20;
 
-
 enum
 {
 	RESET,
@@ -71,7 +71,7 @@ void CGameContext::Construct(int Resetting)
 		m_apPlayers[i] = 0;
 
 	m_BroadcastLockTick = 0;
-	
+
 	m_pController = 0;
 	m_pPveDirector = 0;
 	m_pTutorialDirector = 0;
@@ -82,13 +82,13 @@ void CGameContext::Construct(int Resetting)
 	m_LockTeams = 0;
 	m_NumGameVotes = 0;
 	m_WinnerVote = -1;
-	
+
 	ClearFlameHits();
-	
+
 	m_aMostInterestingPlayer[0] = -1;
 	m_aMostInterestingPlayer[1] = -1;
 
-	if(Resetting==NO_RESET)
+	if(Resetting == NO_RESET)
 		m_pVoteOptionHeap = new CHeap();
 }
 
@@ -125,7 +125,7 @@ void CGameContext::Clear()
 	m_Resetting = true;
 	this->~CGameContext();
 	mem_zero(this, sizeof(*this));
-	new (this) CGameContext(RESET);
+	new(this) CGameContext(RESET);
 
 	m_pVoteOptionHeap = pVoteOptionHeap;
 	m_pVoteOptionFirst = pVoteOptionFirst;
@@ -134,24 +134,23 @@ void CGameContext::Clear()
 	m_Tuning = Tuning;
 }
 
-
 CPlayerSpecData CGameContext::GetPlayerSpecData(int ClientID)
 {
 	CPlayerSpecData data;
 	CCharacter *pCharacter = GetPlayerChar(ClientID);
-	
-	if (!pCharacter)
+
+	if(!pCharacter)
 		return data;
-	
+
 	data.m_Kits = pCharacter->m_Kits;
 	data.m_WeaponSlot = pCharacter->GetWeaponSlot();
-		
-	for (int i = 0; i < 4; i++)
+
+	for(int i = 0; i < 4; i++)
 	{
 		CWeapon *pWeapon = pCharacter->GetWeapon(i);
 		data.m_aWeapon[i] = pWeapon ? pWeapon->GetWeaponSpec() : CWeaponSpec{};
 	}
-	
+
 	return data;
 }
 
@@ -159,35 +158,37 @@ bool CGameContext::RespawnAlly(vec2 Pos, int Team, int Reviver)
 {
 	int Current = -1;
 	int DeathTick = 0;
-	
-	if (m_pController->IsCoop() && Team < 0)
+
+	if(m_pController->IsCoop() && Team < 0)
 		return false;
 	if(m_pPveDirector && !m_pPveDirector->RespawnAllowed())
 		return false;
-	
-	if (!Collision()->IsTileSolid(Pos.x-32, Pos.y-24) && !Collision()->IsTileSolid(Pos.x-32, Pos.y+24))
+
+	if(!Collision()->IsTileSolid(Pos.x - 32, Pos.y - 24) && !Collision()->IsTileSolid(Pos.x - 32, Pos.y + 24))
 		Pos.x -= 32;
-	else if (!Collision()->IsTileSolid(Pos.x+32, Pos.y-24) && !Collision()->IsTileSolid(Pos.x+32, Pos.y+24))
+	else if(!Collision()->IsTileSolid(Pos.x + 32, Pos.y - 24) && !Collision()->IsTileSolid(Pos.x + 32, Pos.y + 24))
 		Pos.x += 32;
-	
-	for (int i = 0; i < MAX_CLIENTS; i++)
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if (m_apPlayers[i] && m_apPlayers[i]->GetTeam() == Team && !GetPlayerChar(i))
+		if(m_apPlayers[i] && m_apPlayers[i]->GetTeam() == Team && !GetPlayerChar(i))
 		{
-			if (Current < 0 || DeathTick > m_apPlayers[i]->m_DeathTick)
+			if(Current < 0 || DeathTick > m_apPlayers[i]->m_DeathTick)
 			{
 				Current = i;
 				DeathTick = m_apPlayers[i]->m_DeathTick;
 			}
 		}
 	}
-	
-	if (Current >= 0)
+
+	if(Current >= 0)
 	{
 		m_apPlayers[Current]->ForceRespawn(Pos);
-		if(Reviver >= 0 && Reviver < MAX_CLIENTS && Reviver != Current && m_apPlayers[Reviver] && !m_apPlayers[Reviver]->m_IsBot)
+		if(Reviver >= 0 && Reviver < MAX_CLIENTS && Reviver != Current && m_apPlayers[Reviver] &&
+		   !m_apPlayers[Reviver]->m_IsBot)
 			Server()->SendPlatformEvent(Reviver, PLATFORM_EVENT_COOP_RESCUE);
-		if(m_pPveDirector && Reviver >= 0 && Reviver < MAX_CLIENTS && m_pPveDirector->PerkStacks(Reviver, PVE_CARD_NO_ONE_LEFT))
+		if(m_pPveDirector && Reviver >= 0 && Reviver < MAX_CLIENTS &&
+		   m_pPveDirector->PerkStacks(Reviver, PVE_CARD_NO_ONE_LEFT))
 		{
 			if(GetPlayerChar(Reviver))
 				GetPlayerChar(Reviver)->IncreaseArmor(20);
@@ -196,21 +197,22 @@ bool CGameContext::RespawnAlly(vec2 Pos, int Team, int Reviver)
 		}
 		return true;
 	}
-	
+
 	return false;
 }
 
 class CCharacter *CGameContext::GetPlayerChar(int ClientID)
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_apPlayers[ClientID])
-		return NULL;
-	
+		return 0;
+
 	return m_apPlayers[ClientID]->GetCharacter();
 }
 
 void CGameContext::CreateBuildingHit(vec2 Pos)
 {
-	CNetEvent_BuildingHit *pEvent = (CNetEvent_BuildingHit *)m_Events.Create(NETEVENTTYPE_BUILDINGHIT, sizeof(CNetEvent_BuildingHit));
+	CNetEvent_BuildingHit *pEvent =
+		(CNetEvent_BuildingHit *)m_Events.Create(NETEVENTTYPE_BUILDINGHIT, sizeof(CNetEvent_BuildingHit));
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
@@ -220,7 +222,8 @@ void CGameContext::CreateBuildingHit(vec2 Pos)
 
 void CGameContext::CreateFlameHit(vec2 Pos)
 {
-	CNetEvent_FlameHit *pEvent = (CNetEvent_FlameHit *)m_Events.Create(NETEVENTTYPE_FLAMEHIT, sizeof(CNetEvent_FlameHit));
+	CNetEvent_FlameHit *pEvent =
+		(CNetEvent_FlameHit *)m_Events.Create(NETEVENTTYPE_FLAMEHIT, sizeof(CNetEvent_FlameHit));
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
@@ -230,13 +233,14 @@ void CGameContext::CreateFlameHit(vec2 Pos)
 
 void CGameContext::CreateDamageInd(vec2 Pos, float Angle, int Damage, int ClientID)
 {
-	CNetEvent_DamageInd *pEvent = (CNetEvent_DamageInd *)m_Events.Create(NETEVENTTYPE_DAMAGEIND, sizeof(CNetEvent_DamageInd));
+	CNetEvent_DamageInd *pEvent =
+		(CNetEvent_DamageInd *)m_Events.Create(NETEVENTTYPE_DAMAGEIND, sizeof(CNetEvent_DamageInd));
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
 		pEvent->m_Y = (int)Pos.y;
-		pEvent->m_Angle = (int)(Angle*256.0f + frandom()*200 - frandom()*200);
-		//pEvent->m_Angle = (int)(Angle*256.0f);
+		pEvent->m_Angle = (int)(Angle * 256.0f + frandom() * 200 - frandom() * 200);
+		// pEvent->m_Angle = (int)(Angle*256.0f);
 		pEvent->m_Damage = Damage;
 		pEvent->m_ClientID = ClientID;
 	}
@@ -258,7 +262,8 @@ void CGameContext::CreateHitConfirm(vec2 Pos, const CAttackSource &Source, int D
 			Mask |= CmaskOne(i);
 	}
 
-	CNetEvent_HitConfirm *pEvent = (CNetEvent_HitConfirm *)m_Events.Create(NETEVENTTYPE_HITCONFIRM, sizeof(CNetEvent_HitConfirm), Mask);
+	CNetEvent_HitConfirm *pEvent =
+		(CNetEvent_HitConfirm *)m_Events.Create(NETEVENTTYPE_HITCONFIRM, sizeof(CNetEvent_HitConfirm), Mask);
 	if(!pEvent)
 		return;
 
@@ -286,7 +291,8 @@ void CGameContext::CreateRepairInd(vec2 Pos)
 void CGameContext::CreateHammerHit(vec2 Pos)
 {
 	// create the event
-	CNetEvent_HammerHit *pEvent = (CNetEvent_HammerHit *)m_Events.Create(NETEVENTTYPE_HAMMERHIT, sizeof(CNetEvent_HammerHit));
+	CNetEvent_HammerHit *pEvent =
+		(CNetEvent_HammerHit *)m_Events.Create(NETEVENTTYPE_HAMMERHIT, sizeof(CNetEvent_HammerHit));
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
@@ -294,17 +300,15 @@ void CGameContext::CreateHammerHit(vec2 Pos)
 	}
 }
 
-
 bool CGameContext::GetRoamSpawnPos(vec2 *Pos)
 {
-	if (!m_pBlockEntities)
+	if(!m_pBlockEntities)
 		return false;
-	
+
 	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, Pos->x, false);
-	
+
 	return m_pBlockEntities->GetSpawn(Pos);
 }
-	
 
 int CGameContext::CreateDeathray(vec2 Pos)
 {
@@ -312,9 +316,9 @@ int CGameContext::CreateDeathray(vec2 Pos)
 	vec2 To = Pos + vec2(0, 1200);
 
 	Collision()->IntersectLine(Pos, To, 0x0, &To);
-	
+
 	int Height = To.y - Pos.y + 14;
-	
+
 	// create the event
 	CNetEvent_Lazer *pEvent = (CNetEvent_Lazer *)m_Events.Create(NETEVENTTYPE_LAZER, sizeof(CNetEvent_Lazer));
 	if(pEvent)
@@ -323,14 +327,13 @@ int CGameContext::CreateDeathray(vec2 Pos)
 		pEvent->m_Y = (int)Pos.y;
 		pEvent->m_Height = Height;
 	}
-	
+
 	return Height;
 }
 
-
 bool CGameContext::BuildableSpot(vec2 Pos)
 {
-	if (Collision()->GetCollisionAt(Pos.x, Pos.y)&CCollision::COLFLAG_SOLID || !Collision()->CanBuildBlock(Pos))
+	if(Collision()->GetCollisionAt(Pos.x, Pos.y) & CCollision::COLFLAG_SOLID || !Collision()->CanBuildBlock(Pos))
 		return false;
 
 	CEntity *apEnts[8];
@@ -340,62 +343,60 @@ bool CGameContext::BuildableSpot(vec2 Pos)
 		CGameWorld::ENTTYPE_PICKUP,
 		CGameWorld::ENTTYPE_BLOCK,
 	};
-	for(unsigned t = 0; t < sizeof(s_aBlockingTypes)/sizeof(s_aBlockingTypes[0]); t++)
+	for(unsigned t = 0; t < sizeof(s_aBlockingTypes) / sizeof(s_aBlockingTypes[0]); t++)
 	{
 		if(m_World.FindEntities(Pos, 32.0f, apEnts, 8, s_aBlockingTypes[t]) > 0)
 			return false;
 	}
 
-	for (int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CCharacter *pCharacter = GetPlayerChar(i);
-		
-		if (pCharacter && abs(Pos.x - pCharacter->m_Pos.x) < 32.0f && abs(Pos.y - pCharacter->m_Pos.y + 10) < 64.0f)
+
+		if(pCharacter && abs(Pos.x - pCharacter->m_Pos.x) < 32.0f && abs(Pos.y - pCharacter->m_Pos.y + 10) < 64.0f)
 			return false;
 	}
-	
+
 	return true;
 }
-	
 
 void CGameContext::OnBlockChange(vec2 Pos)
 {
 	// force characters to update and send the core
-	for (int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CCharacter *pCharacter = GetPlayerChar(i);
-		
-		if (pCharacter && abs(Pos.x - pCharacter->m_Pos.x) < 1000 && abs(Pos.y - pCharacter->m_Pos.y) < 1000)
-			pCharacter->m_ForceCoreSend = true;	
+
+		if(pCharacter && abs(Pos.x - pCharacter->m_Pos.x) < 1000 && abs(Pos.y - pCharacter->m_Pos.y) < 1000)
+			pCharacter->m_ForceCoreSend = true;
 	}
-	
+
 	// check if buildings are affected
 	CBuilding *apEnts[512];
-	int Num = m_World.FindEntities(Pos, 100, (CEntity**)apEnts, 512, CGameWorld::ENTTYPE_BUILDING);
+	int Num = m_World.FindEntities(Pos, 100, (CEntity **)apEnts, 512, CGameWorld::ENTTYPE_BUILDING);
 
-	for (int i = 0; i < Num; ++i)
+	for(int i = 0; i < Num; ++i)
 	{
 		apEnts[i]->DoFallCheck();
 	}
 }
-	
-	
+
 bool CGameContext::AddBlock(int Type, vec2 Pos, int Owner, int KitCost)
 {
-	if (!BuildableSpot(Pos))
+	if(!BuildableSpot(Pos))
 		return false;
-	
-	// remove existing blocks
-	vec2 BPos = vec2(int(Pos.x / 32)*32, int(Pos.y / 32)*32);
-	CBlock *apEnts[16];
-	int Num = m_World.FindBlocks(BPos, ivec2(1, 1), (CEntity**)apEnts, 16);
 
-	for (int i = 0; i < Num; ++i)
+	// remove existing blocks
+	vec2 BPos = vec2(int(Pos.x / 32) * 32, int(Pos.y / 32) * 32);
+	CBlock *apEnts[16];
+	int Num = m_World.FindBlocks(BPos, ivec2(1, 1), (CEntity **)apEnts, 16);
+
+	for(int i = 0; i < Num; ++i)
 	{
 		CBlock *pTarget = apEnts[i];
 		pTarget->Destroy();
 	}
-	
+
 	// add new one
 	CBlock *pBlock = new CBlock(&m_World, Type, Pos);
 	pBlock->m_PveBuilder = Owner;
@@ -403,28 +404,27 @@ bool CGameContext::AddBlock(int Type, vec2 Pos, int Owner, int KitCost)
 	return true;
 }
 
-
 void CGameContext::DamageBlocks(vec2 Pos, int Damage, int Range)
 {
-	vec2 BPos = vec2(int(Pos.x / 32)*32, int(Pos.y / 32)*32);
-	
-	CBlock *apEnts[1024];
-	int Num = m_World.FindBlocks(BPos, ivec2(1, 1)*Range, (CEntity**)apEnts, 1024);
+	vec2 BPos = vec2(int(Pos.x / 32) * 32, int(Pos.y / 32) * 32);
 
-	for (int i = 0; i < Num; ++i)
+	CBlock *apEnts[1024];
+	int Num = m_World.FindBlocks(BPos, ivec2(1, 1) * Range, (CEntity **)apEnts, 1024);
+
+	for(int i = 0; i < Num; ++i)
 	{
 		CBlock *pTarget = apEnts[i];
-		
-		if (Range > 8)
+
+		if(Range > 8)
 		{
 			float Radius = Range;
 			float InnerRadius = Radius * 0.5f;
 			vec2 Diff = pTarget->m_Pos - Pos + vec2(16, 16);
-			
+
 			float l = length(Diff);
-			l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
+			l = 1 - clamp((l - InnerRadius) / (Radius - InnerRadius), 0.0f, 1.0f);
 			float Dmg = Damage * l;
-							
+
 			if((int)Dmg && Dmg > 0.0f)
 				pTarget->TakeDamage((int)Dmg);
 		}
@@ -432,7 +432,6 @@ void CGameContext::DamageBlocks(vec2 Pos, int Damage, int Range)
 			pTarget->TakeDamage(Damage);
 	}
 }
-
 
 void CGameContext::CreateEffect(int FX, vec2 Pos)
 {
@@ -446,155 +445,151 @@ void CGameContext::CreateEffect(int FX, vec2 Pos)
 	}
 }
 
-
 CWeapon *CGameContext::NewWeapon(const CWeaponSpec &Spec)
 {
 	return new CWeapon(&m_World, Spec);
 }
 
-
 bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner, int PaidCost)
 {
-	//float OffsetY = -(int(Pos.y)%32) + 12;
+	// float OffsetY = -(int(Pos.y)%32) + 12;
 	float CheckRange = 40.0f;
-	
-	if (!g_Config.m_SvEnableBuilding)
+
+	if(!g_Config.m_SvEnableBuilding)
 		return false;
 	if(PaidCost < 0 && Kit >= 0 && Kit < NUM_BUILDABLES)
 		PaidCost = BuildableCost[Kit];
-	
-	
-	if (Kit == BUILDABLE_BLOCK1 || Kit == BUILDABLE_BLOCK2)
+
+	if(Kit == BUILDABLE_BLOCK1 || Kit == BUILDABLE_BLOCK2)
 		CheckRange = 32.0f;
 
 	// check sanity
 	/*
-	if (!Collision()->GetCollisionAt(Pos.x-24, Pos.y+24)&CCollision::COLFLAG_SOLID || 
+	if (!Collision()->GetCollisionAt(Pos.x-24, Pos.y+24)&CCollision::COLFLAG_SOLID ||
 		!Collision()->GetCollisionAt(Pos.x+24, Pos.y+24)&CCollision::COLFLAG_SOLID ||
 		Collision()->IsForceTile(Pos.x, Pos.y+24) != 0)
 		return false;
 		*/
-	
+
 	// check for close by buildings
 	CBuilding *apEnts[16];
-	int Num = m_World.FindEntities(Pos, 32, (CEntity**)apEnts, 16, CGameWorld::ENTTYPE_BUILDING);
+	int Num = m_World.FindEntities(Pos, 32, (CEntity **)apEnts, 16, CGameWorld::ENTTYPE_BUILDING);
 
-	for (int i = 0; i < Num; ++i)
+	for(int i = 0; i < Num; ++i)
 	{
 		CBuilding *pTarget = apEnts[i];
-		
-		if (distance(pTarget->m_Pos, Pos) < CheckRange)
+
+		if(distance(pTarget->m_Pos, Pos) < CheckRange)
 			return false;
 	}
-	
 
-	if (Kit == BUILDABLE_BLOCK1)
+	if(Kit == BUILDABLE_BLOCK1)
 		return AddBlock(1, Pos, Owner, PaidCost);
-	
-	if (Kit == BUILDABLE_BLOCK2)
+
+	if(Kit == BUILDABLE_BLOCK2)
 		return AddBlock(4, Pos, Owner, PaidCost);
-	
-	if (Kit == BUILDABLE_BARREL)
+
+	if(Kit == BUILDABLE_BARREL)
 	{
-		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_BARREL+rand()%3, TEAM_NEUTRAL);
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_BARREL + rand() % 3, TEAM_NEUTRAL);
 		pBuilding->m_PveBuilder = Owner;
 		pBuilding->m_PveKitCost = PaidCost;
 		return true;
 	}
 
-	if (Kit == BUILDABLE_POWERBARREL)
+	if(Kit == BUILDABLE_POWERBARREL)
 	{
-		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_POWERBARREL+rand()%2, TEAM_NEUTRAL);
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_POWERBARREL + rand() % 2, TEAM_NEUTRAL);
 		pBuilding->m_PveBuilder = Owner;
 		pBuilding->m_PveKitCost = PaidCost;
 		return true;
 	}
 
-	if (Kit == BUILDABLE_TURRET)
+	if(Kit == BUILDABLE_TURRET)
 	{
-			CBuilding *pBuilding = new CBuilding(&m_World, Pos+vec2(0, 8), BUILDING_STAND, TEAM_NEUTRAL);
-			pBuilding->m_PveBuilder = Owner;
-			pBuilding->m_PveKitCost = PaidCost;
-			return true;
-	}
-	
-	if (Kit == BUILDABLE_LIGHTNINGWALL)
-	{
-		int Team = m_apPlayers[Owner]->GetTeam();
-		if (!m_pController->IsTeamplay())
-			Team = m_apPlayers[Owner]->GetCID();
-		
-		CBuilding *pBuilding = new CBuilding(&m_World, Pos+vec2(0, -14), BUILDING_LIGHTNINGWALL, Team);
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos + vec2(0, 8), BUILDING_STAND, TEAM_NEUTRAL);
 		pBuilding->m_PveBuilder = Owner;
 		pBuilding->m_PveKitCost = PaidCost;
 		return true;
 	}
-	
-	if (Kit == BUILDABLE_TESLACOIL)
+
+	if(Kit == BUILDABLE_LIGHTNINGWALL)
 	{
 		int Team = m_apPlayers[Owner]->GetTeam();
-		if (!m_pController->IsTeamplay())
+		if(!m_pController->IsTeamplay())
 			Team = m_apPlayers[Owner]->GetCID();
-		
-		CTeslacoil *Tesla = new CTeslacoil(&m_World, Pos+vec2(0, +35), Team, Owner);
+
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos + vec2(0, -14), BUILDING_LIGHTNINGWALL, Team);
+		pBuilding->m_PveBuilder = Owner;
+		pBuilding->m_PveKitCost = PaidCost;
+		return true;
+	}
+
+	if(Kit == BUILDABLE_TESLACOIL)
+	{
+		int Team = m_apPlayers[Owner]->GetTeam();
+		if(!m_pController->IsTeamplay())
+			Team = m_apPlayers[Owner]->GetCID();
+
+		CTeslacoil *Tesla = new CTeslacoil(&m_World, Pos + vec2(0, +35), Team, Owner);
 		Tesla->m_DamageOwner = Owner;
 		Tesla->m_PveBuilder = Owner;
 		Tesla->m_PveKitCost = PaidCost;
 		return true;
 	}
-	
-	if (Kit == BUILDABLE_GENERATOR)
+
+	if(Kit == BUILDABLE_GENERATOR)
 	{
 		int Team = m_apPlayers[Owner]->GetTeam();
-		if (!m_pController->IsTeamplay())
+		if(!m_pController->IsTeamplay())
 			Team = m_apPlayers[Owner]->GetCID();
-		
-		CBuilding *pBuilding = new CBuilding(&m_World, Pos+vec2(0, -34), BUILDING_GENERATOR, Team);
+
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos + vec2(0, -34), BUILDING_GENERATOR, Team);
 		pBuilding->m_PveBuilder = Owner;
 		pBuilding->m_PveKitCost = PaidCost;
 		return true;
 	}
-	
-	if (Kit == BUILDABLE_FLAMETRAP)
+
+	if(Kit == BUILDABLE_FLAMETRAP)
 	{
-			CBuilding *pFlametrap = new CBuilding(&m_World, Pos+vec2(0, -18), BUILDING_FLAMETRAP, TEAM_NEUTRAL);
-			pFlametrap->m_PveBuilder = Owner;
-			pFlametrap->m_PveKitCost = PaidCost;
-			
-			if (Collision()->IsTileSolid(Pos.x+32, Pos.y))
-			{
-				pFlametrap->m_Mirror = true;
-				pFlametrap->m_Pos.x += 13;
-			}
-			else
-				pFlametrap->m_Pos.x -= 12;
-		
-			return true;
+		CBuilding *pFlametrap = new CBuilding(&m_World, Pos + vec2(0, -18), BUILDING_FLAMETRAP, TEAM_NEUTRAL);
+		pFlametrap->m_PveBuilder = Owner;
+		pFlametrap->m_PveKitCost = PaidCost;
+
+		if(Collision()->IsTileSolid(Pos.x + 32, Pos.y))
+		{
+			pFlametrap->m_Mirror = true;
+			pFlametrap->m_Pos.x += 13;
+		}
+		else
+			pFlametrap->m_Pos.x -= 12;
+
+		return true;
 	}
-	
+
 	return false;
 }
 
-
 void CGameContext::ClearFlameHits()
 {
-	for (int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CLIENTS; i++)
 		m_aFlameHit[i] = false;
 }
 
-
-void CGameContext::CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos, float PowerScale)
+void CGameContext::CreateMeleeHit(
+	const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos, float PowerScale)
 {
 	const int DamageOwner = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
 	CWeaponVisualProfile Visual{};
 	CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual);
 	CWeaponDefinition Definition{};
-	const bool HasDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon && CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition);
-	const bool IsStatic = HasDefinition && Definition.m_Kind == EWeaponDefinitionKind::Static;
-	const bool IsModular = HasDefinition && Definition.m_Kind == EWeaponDefinitionKind::Modular;
-	const int StaticType = IsStatic ? Definition.m_StaticType : -1;
-	const int Part2 = IsModular ? Definition.m_Part2 : 0;
+	const bool HasDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
+							   CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition);
+	const bool HammerImpact = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_HAMMER_IMPACT);
+	const bool Flamer = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_FLAMER);
+	const bool Chainsaw = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_CHAINSAW);
+	const bool Tool = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_TOOL);
 	float ProximityRadius = Combat.m_MeleeHitRadius;
 	float Damage = Combat.m_ProjectileDamage;
 	float Knockback = Combat.m_ProjectileKnockback;
@@ -603,100 +598,106 @@ void CGameContext::CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 P
 	const float ImpactScale = 0.75f + 0.25f * PowerScale;
 	Knockback *= ImpactScale;
 	ProximityRadius *= ImpactScale;
-	
+
 	// melee damage mask
-	if (StaticType != SW_FLAMER)
+	if(!Flamer)
 	{
 		CCharacter *pChr = GetPlayerChar(DamageOwner);
-		
-		if (pChr && pChr->GetMask() == 5)
+
+		if(pChr && pChr->GetMask() == 5)
 			Dmg *= 1.5f;
 	}
-	
-	//AddBlock(1, Pos);
-	
+
+	// AddBlock(1, Pos);
+
 	// for testing the collision
-	//CreateBuildingHit(Pos);
-	
+	// CreateBuildingHit(Pos);
+
 	// player collision
 	{
 		CCharacter *apEnts[MAX_CLIENTS];
-		int Num = m_World.FindEntities(Pos, ProximityRadius, (CEntity**)apEnts,
-														MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+		int Num =
+			m_World.FindEntities(Pos, ProximityRadius, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
 
-		for (int i = 0; i < Num; ++i)
+		for(int i = 0; i < Num; ++i)
 		{
 			CCharacter *pTarget = apEnts[i];
 
-			if (pTarget->GetPlayer()->GetCID() == DamageOwner || pTarget->IgnoreCollision())
+			if(pTarget->GetPlayer()->GetCID() == DamageOwner || pTarget->IgnoreCollision())
 				continue;
-			
-			if (StaticType == SW_FLAMER && Collision()->IntersectLine(Pos, pTarget->m_Pos, NULL, NULL))
+
+			if(Flamer && Collision()->IntersectLine(Pos, pTarget->m_Pos, 0, 0))
 				continue;
-			
-			if (m_pController->IsCoop() && !pTarget->m_IsBot && (DamageOwner >= 0 && !IsBot(DamageOwner)))
+
+			if(m_pController->IsCoop() && !pTarget->m_IsBot && (DamageOwner >= 0 && !IsBot(DamageOwner)))
 				continue;
-			
-			
-			if (StaticType == SW_FLAMER)
+
+			if(Flamer)
 			{
-				if (m_aFlameHit[pTarget->GetPlayer()->GetCID()])
+				if(m_aFlameHit[pTarget->GetPlayer()->GetCID()])
 					continue;
-				
+
 				m_aFlameHit[pTarget->GetPlayer()->GetCID()] = true;
 			}
 			else
 			{
-				if (StaticType == SW_CHAINSAW || (IsStatic && StaticType == SW_TOOL))
-					CreateEffect(FX_BLOOD2, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
-				else if (Visual.m_RenderType != WRT_SPIN)
+				if(Chainsaw || Tool)
+					CreateEffect(FX_BLOOD2, (Pos + pTarget->m_Pos) / 2.0f + vec2(0, -4));
+				else if(Visual.m_RenderType != WRT_SPIN)
 				{
 					// hammer
-					if (Part2 == PART2_MELEE4)
-						CreateEffect(FX_BLOOD3, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
+					if(HammerImpact)
+						CreateEffect(FX_BLOOD3, (Pos + pTarget->m_Pos) / 2.0f + vec2(0, -4));
 					// swords
 					else
-						CreateEffect(FX_BLOOD1, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
+						CreateEffect(FX_BLOOD1, (Pos + pTarget->m_Pos) / 2.0f + vec2(0, -4));
 				}
 			}
-			
+
 			float f = Combat.m_FlameAmount;
-			if (f > 0.0f)
+			if(f > 0.0f)
 				pTarget->SetAflame(f, Source);
-			
-			if (Visual.m_RenderType == WRT_SPIN)
-				pTarget->TakeDamage(Source, Damage * Dmg, normalize(pTarget->m_Pos-WeaponPos)*Knockback, mix(Pos, pTarget->m_Pos + vec2(0, -24), 0.75f));
+
+			if(Visual.m_RenderType == WRT_SPIN)
+				pTarget->TakeDamage(Source,
+									Damage * Dmg,
+									normalize(pTarget->m_Pos - WeaponPos) * Knockback,
+									mix(Pos, pTarget->m_Pos + vec2(0, -24), 0.75f));
 			else
-				pTarget->TakeDamage(Source, Damage * Dmg, (normalize(pTarget->m_Pos-WeaponPos)+normalize(Direction))*Knockback*0.5f, Pos);
+				pTarget->TakeDamage(Source,
+									Damage * Dmg,
+									(normalize(pTarget->m_Pos - WeaponPos) + normalize(Direction)) * Knockback * 0.5f,
+									Pos);
 		}
 	}
-	
-	if (IsStatic && StaticType == SW_TOOL)
+
+	if(Tool)
 		Damage *= -2;
-	
-	if (StaticType == SW_FLAMER)
-		DamageBlocks(Pos, 1+Damage*0.5f, ProximityRadius*1.7f);
-	else if (StaticType == SW_CHAINSAW)
-		DamageBlocks(Pos, Damage*0.5f, 24 + ProximityRadius);
+
+	if(Flamer)
+		DamageBlocks(Pos, 1 + Damage * 0.5f, ProximityRadius * 1.7f);
+	else if(Chainsaw)
+		DamageBlocks(Pos, Damage * 0.5f, 24 + ProximityRadius);
 	else
-		DamageBlocks(Pos, Damage*0.5f, ProximityRadius*0.9f);
-	
+		DamageBlocks(Pos, Damage * 0.5f, ProximityRadius * 0.9f);
+
 	// buildings
 	{
 		CBuilding *apEnts[MAX_CLIENTS];
-		int Num = m_World.FindEntities(Pos, ProximityRadius, (CEntity**)apEnts,
-														MAX_CLIENTS, CGameWorld::ENTTYPE_BUILDING);
+		int Num =
+			m_World.FindEntities(Pos, ProximityRadius, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_BUILDING);
 
-		for (int i = 0; i < Num; ++i)
+		for(int i = 0; i < Num; ++i)
 		{
 			CBuilding *pTarget = apEnts[i];
-			
+
 			// skip own buildings in co-op
-			if (m_pController->IsCoop())
+			if(m_pController->IsCoop())
 			{
-				if (pTarget->m_Type == BUILDING_TURRET || pTarget->m_Type == BUILDING_GENERATOR || pTarget->m_Type == BUILDING_TESLACOIL || pTarget->m_Type == BUILDING_REACTOR)
+				if(pTarget->m_Type == BUILDING_TURRET || pTarget->m_Type == BUILDING_GENERATOR ||
+				   pTarget->m_Type == BUILDING_TESLACOIL || pTarget->m_Type == BUILDING_REACTOR)
 				{
-					if (DamageOwner >= 0 && DamageOwner < MAX_CLIENTS)
+					if(DamageOwner >= 0 && DamageOwner < MAX_CLIENTS)
 					{
 						CPlayer *pPlayer = m_apPlayers[DamageOwner];
 						if(pTarget->m_Team >= 0 && pPlayer && !pPlayer->m_IsBot && Damage > 0)
@@ -704,9 +705,9 @@ void CGameContext::CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 P
 					}
 				}
 			}
-			else if (m_pController->IsTeamplay())
+			else if(m_pController->IsTeamplay())
 			{
-				if (DamageOwner >= 0 && DamageOwner < MAX_CLIENTS)
+				if(DamageOwner >= 0 && DamageOwner < MAX_CLIENTS)
 				{
 					CPlayer *pPlayer = m_apPlayers[DamageOwner];
 					if(pPlayer && pPlayer->GetTeam() == pTarget->m_Team && Damage > 0)
@@ -715,216 +716,222 @@ void CGameContext::CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 P
 			}
 			else
 			{
-				if (DamageOwner >= 0 && DamageOwner < MAX_CLIENTS)
+				if(DamageOwner >= 0 && DamageOwner < MAX_CLIENTS)
 				{
 					CPlayer *pPlayer = m_apPlayers[DamageOwner];
 					if(pPlayer && pPlayer->GetCID() == pTarget->m_Team && Damage > 0)
 						continue;
 				}
 			}
-			
-			if (pTarget->m_Collision)
+
+			if(pTarget->m_Collision)
 			{
-				if (StaticType == SW_FLAMER || Visual.m_RenderType == WRT_SPIN)
+				if(Flamer || Visual.m_RenderType == WRT_SPIN)
 					;
-				else if (StaticType == SW_CHAINSAW || (IsStatic && StaticType == SW_TOOL))
-					CreateEffect(FX_BLOOD2, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
+				else if(Chainsaw || Tool)
+					CreateEffect(FX_BLOOD2, (Pos + pTarget->m_Pos) / 2.0f + vec2(0, -4));
 				else
-					CreateEffect(FX_BLOOD1, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
-				
-				pTarget->TakeDamage(Damage * Dmg, Source, normalize(pTarget->m_Pos-WeaponPos)*Knockback*0.5f);
-				
-				if (StaticType == SW_FLAMER)
-					CreateFlameHit((Pos+pTarget->m_Pos)/2.0f+vec2(frandom()-frandom(), frandom()-frandom())*8.0f);
+					CreateEffect(FX_BLOOD1, (Pos + pTarget->m_Pos) / 2.0f + vec2(0, -4));
+
+				pTarget->TakeDamage(Damage * Dmg, Source, normalize(pTarget->m_Pos - WeaponPos) * Knockback * 0.5f);
+
+				if(Flamer)
+					CreateFlameHit((Pos + pTarget->m_Pos) / 2.0f +
+								   vec2(frandom() - frandom(), frandom() - frandom()) * 8.0f);
 				else
-					CreateBuildingHit((Pos+pTarget->m_Pos)/2.0f);
+					CreateBuildingHit((Pos + pTarget->m_Pos) / 2.0f);
 			}
 		}
 	}
-	
-	if (Source.m_Kind == EAttackSourceKind::Droid)
+
+	if(Source.m_Kind == EAttackSourceKind::Droid)
 		return;
-	
+
 	// droids & walkers
 	{
 		CDroid *apEnts[MAX_CLIENTS];
-		int Num = m_World.FindEntities(Pos, ProximityRadius, (CEntity**)apEnts,
-										MAX_CLIENTS, CGameWorld::ENTTYPE_DROID);
+		int Num =
+			m_World.FindEntities(Pos, ProximityRadius, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_DROID);
 
-		for (int i = 0; i < Num; ++i)
+		for(int i = 0; i < Num; ++i)
 		{
 			CDroid *pTarget = apEnts[i];
 
-			if (pTarget->m_Health <= 0)
+			if(pTarget->m_Health <= 0)
 				continue;
 
-			pTarget->TakeDamage(normalize(pTarget->m_Pos-WeaponPos)*Knockback*0.5f, Damage * Dmg, Source, vec2(0, 0));
-			
-			if (StaticType == SW_FLAMER || Visual.m_RenderType == WRT_SPIN)
+			pTarget->TakeDamage(
+				normalize(pTarget->m_Pos - WeaponPos) * Knockback * 0.5f, Damage * Dmg, Source, vec2(0, 0));
+
+			if(Flamer || Visual.m_RenderType == WRT_SPIN)
 				;
-			else if (StaticType == SW_CHAINSAW || (IsStatic && StaticType == SW_TOOL))
-				CreateEffect(FX_BLOOD2, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
+			else if(Chainsaw || Tool)
+				CreateEffect(FX_BLOOD2, (Pos + pTarget->m_Pos) / 2.0f + vec2(0, -4));
 			else
-				CreateEffect(FX_BLOOD1, (Pos+pTarget->m_Pos)/2.0f + vec2(0, -4));
+				CreateEffect(FX_BLOOD1, (Pos + pTarget->m_Pos) / 2.0f + vec2(0, -4));
 		}
 	}
 	if(m_pPveDirector)
 		m_pPveDirector->OnMeleeAttack(Source, Pos, max(1, (int)(Damage * Dmg + 0.5f)));
 }
 
-
-void CGameContext::CreateProjectile(const CAttackSource &Source, int Charge, vec2 Pos, vec2 Direction, vec2 WeaponPos, CBuilding *OwnerBuilding)
+void CGameContext::CreateProjectile(
+	const CAttackSource &Source, int Charge, vec2 Pos, vec2 Direction, vec2 WeaponPos, CBuilding *OwnerBuilding)
 {
 	const int DamageOwner = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
 	CWeaponVisualProfile Visual{};
 	CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual);
 	CWeaponDefinition Definition{};
-	const bool HasDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon && CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition);
-	const bool IsStatic = HasDefinition && Definition.m_Kind == EWeaponDefinitionKind::Static;
-	const bool IsModular = HasDefinition && Definition.m_Kind == EWeaponDefinitionKind::Modular;
-	const int StaticType = IsStatic ? Definition.m_StaticType : -1;
-	const int Part1 = IsModular ? Definition.m_Part1 : 0;
-	const int Part2 = IsModular ? Definition.m_Part2 : 0;
+	const bool HasDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
+							   CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition);
+	const bool IsMelee = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_MELEE);
+	const bool Shuriken = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_SHURIKEN);
+	const bool Chainsaw = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_CHAINSAW);
+	const bool Tool = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_TOOL);
+	const bool Claw = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_CLAW);
+	const bool Flamer = HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_FLAMER);
 	// less damage for bots in co-op
 	float Dmg = 1.0f;
-	if (m_pController->IsCoop() && Source.m_Kind != EAttackSourceKind::Droid && (DamageOwner < 0 || IsBot(DamageOwner)))
+	if(m_pController->IsCoop() && Source.m_Kind != EAttackSourceKind::Droid && (DamageOwner < 0 || IsBot(DamageOwner)))
 		Dmg = 0.5f;
 
 	vec2 Vel = vec2(0, 0);
-	
-	if (GetPlayerChar(DamageOwner))
+
+	if(GetPlayerChar(DamageOwner))
 		Vel = GetPlayerChar(DamageOwner)->GetVel();
-	
+
 	// sword hit
-	if (IsModular)
+	if(IsMelee)
 	{
-		if (Part1 >= PART1_MELEE)
-		{
-			const float PowerScale = Part1 == PART1_MELEE && Part2 == PART2_MELEE6 ? CWeaponCatalog::ChargedBladePowerScale(Charge) : 1.0f;
-			CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos, PowerScale);
-			return;
-		}
+		const float ChargeRatio = clamp(Charge / 100.0f, 0.0f, 1.0f);
+		const float PowerScale = mix(Combat.m_ChargePowerMin, Combat.m_ChargePowerMax, ChargeRatio);
+		CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos, PowerScale);
+		return;
 	}
-	
-	if (Source.m_Kind == EAttackSourceKind::Droid && (Source.m_Type == DROIDTYPE_CRAWLER || Source.m_Type == DROIDTYPE_BOSSCRAWLER || Source.m_Type == DROIDTYPE_BOSSSPLITTER))
+
+	if(Combat.m_DirectMelee)
 	{
 		CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos);
 	}
-	
-	if (IsStatic)
+
+	if(Shuriken || Chainsaw || Tool || Claw)
 	{
-		if (StaticType == SW_SHURIKEN || StaticType == SW_CHAINSAW || (IsStatic && (StaticType == SW_TOOL || StaticType == SW_CLAW)))
-		{
-			if (StaticType == SW_CHAINSAW)
-				Pos += normalize(Direction) * Charge*5.0f;
-				
-			CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos);
-			return;
-		}
-		else if (StaticType == SW_FLAMER)
-		{
-			ClearFlameHits();
-			for (int i = 0; i < 4; i++)
-			{
-				vec2 To = Pos+Direction*i*58;
-				
-				Collision()->IntersectLine(Pos, To, 0x0, &To);
-				CreateMeleeHit(Source, Dmg, To, Direction, WeaponPos);
-			
-				// to visualize hit points
-				//CreateFlameHit(To);
-			}
-			ClearFlameHits();
-			return;
-		}
+		if(Chainsaw)
+			Pos += normalize(Direction) * Charge * 5.0f;
+
+		CreateMeleeHit(Source, Dmg, Pos, Direction, WeaponPos);
+		return;
 	}
-	
+	else if(Flamer)
+	{
+		ClearFlameHits();
+		for(int i = 0; i < 4; i++)
+		{
+			vec2 To = Pos + Direction * i * 58;
+
+			Collision()->IntersectLine(Pos, To, 0x0, &To);
+			CreateMeleeHit(Source, Dmg, To, Direction, WeaponPos);
+
+			// to visualize hit points
+			// CreateFlameHit(To);
+		}
+		ClearFlameHits();
+		return;
+	}
+
 	// define the projectile type
 	int HitSound = -1;
 	float BulletSpread = Combat.m_ProjectileSpread;
 	float Damage = Combat.m_ProjectileDamage;
 	float Knockback = Combat.m_ProjectileKnockback;
 	float BulletLife = Combat.m_ProjectileLife;
-	const bool Capacitor = IsModular && Part2 == PART2_CAPACITOR;
-	const float CapacitorDamage = Capacitor ? CWeaponCatalog::CapacitorDamageScale(Charge) : 1.0f;
-	const float CapacitorRange = Capacitor ? CWeaponCatalog::CapacitorRangeScale(Charge) : 1.0f;
-	const int ProjectilePenetration = IsModular ? CWeaponCatalog::ProjectilePenetration(Part2, Charge) : 0;
-	if(Capacitor && !Combat.m_LaserWeapon)
-		BulletLife *= CapacitorRange;
-	if(IsStatic && StaticType == SW_CLUSTER && Source.m_Weapon.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
+	const float ChargeRatio = clamp(Charge / 100.0f, 0.0f, 1.0f);
+	const float ChargeDamage = mix(Combat.m_ChargeDamageMin, Combat.m_ChargeDamageMax, ChargeRatio);
+	const float ChargeRange = mix(Combat.m_ChargeRangeMin, Combat.m_ChargeRangeMax, ChargeRatio);
+	const int ProjectilePenetration =
+		Combat.m_ProjectilePenetration == WEAPON_INFINITE_PENETRATION
+			? WEAPON_INFINITE_PENETRATION
+			: Combat.m_ProjectilePenetration + static_cast<int>(ChargeRatio * Combat.m_ChargePenetrationMax);
+	if(!Combat.m_LaserWeapon)
+		BulletLife *= ChargeRange;
+	if(HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_CLUSTER) &&
+	   Source.m_Weapon.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
 		BulletLife += frandom() * 0.7f;
-	
+
 	int ShotSpread = Combat.m_ShotSpread;
-	
+
 	// laser pistol
-	if (IsStatic && StaticType == SW_GUN2)
+	if(HasDefinition && WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_ELECTRIC_GUN))
 	{
-		new CLaser(&m_World, Pos, Direction, 200.0f+Charge*3.5f, Source, Damage * Dmg * (0.1f + Charge*0.009f), Charge);
+		new CLaser(
+			&m_World, Pos, Direction, 200.0f + Charge * 3.5f, Source, Damage * Dmg * (0.1f + Charge * 0.009f), Charge);
 		return;
 	}
-	
-	
-	if (Combat.m_LaserWeapon)
+
+	if(Combat.m_LaserWeapon)
 	{
-		const float LaserDamage = Damage * Dmg * CapacitorDamage;
-		const float LaserRange = Combat.m_LaserRange * CapacitorRange;
-		const int LaserCharge = Capacitor ? Charge : Combat.m_LaserCharge;
-		for (int i = 0; i < ShotSpread; i++)
+		const float LaserDamage = Damage * Dmg * ChargeDamage;
+		const float LaserRange = Combat.m_LaserRange * ChargeRange;
+		const int LaserCharge = Combat.m_ChargeControlsLaser ? Charge : Combat.m_LaserCharge;
+		for(int i = 0; i < ShotSpread; i++)
 		{
 			float Angle = GetAngle(Direction);
-			Angle -= (ShotSpread-1)/2.0f * pi/180 * 4;
-			Angle += i * pi/180 * 4;
-			Angle += (frandom()-frandom())*BulletSpread;
-			new CLaser(&m_World, Pos, vec2(cosf(Angle), sinf(Angle)), LaserRange, Source, LaserDamage, LaserCharge, ProjectilePenetration);
+			Angle -= (ShotSpread - 1) / 2.0f * pi / 180 * 4;
+			Angle += i * pi / 180 * 4;
+			Angle += (frandom() - frandom()) * BulletSpread;
+			new CLaser(&m_World,
+					   Pos,
+					   vec2(cosf(Angle), sinf(Angle)),
+					   LaserRange,
+					   Source,
+					   LaserDamage,
+					   LaserCharge,
+					   ProjectilePenetration);
 		}
 		return;
 	}
-	
-	
+
 	CMsgPacker Msg(NETMSGTYPE_SV_EXTRAPROJECTILE);
 	Msg.AddInt(ShotSpread);
 
-	for (int i = 0; i < ShotSpread; i++)
+	for(int i = 0; i < ShotSpread; i++)
 	{
 		float Angle = GetAngle(Direction);
-		Angle -= (ShotSpread-1)/2.0f * pi/180 * 4;
-		Angle += i * pi/180 * 4;
-		Angle += (frandom()-frandom())*BulletSpread;
+		Angle -= (ShotSpread - 1) / 2.0f * pi / 180 * 4;
+		Angle += i * pi / 180 * 4;
+		Angle += (frandom() - frandom()) * BulletSpread;
 
 		CProjectile *pProj = new CProjectile(&m_World,
-			Source,
-			Pos,
-			vec2(cosf(Angle), sinf(Angle)),
-			Vel,
-			(int)(Server()->TickSpeed()*BulletLife),
-			Damage * Dmg * CapacitorDamage,
-			Knockback,
-			HitSound,
-			CapacitorDamage,
-			ProjectilePenetration);
-			
+											 Source,
+											 Pos,
+											 vec2(cosf(Angle), sinf(Angle)),
+											 Vel,
+											 (int)(Server()->TickSpeed() * BulletLife),
+											 Damage * Dmg * ChargeDamage,
+											 Knockback,
+											 HitSound,
+											 ChargeDamage,
+											 ProjectilePenetration);
+
 		pProj->m_OwnerBuilding = OwnerBuilding;
 
 		// pack the Projectile and send it to the client Directly
 		CNetObj_Projectile p;
 		pProj->FillInfo(&p);
 
-		for(unsigned i = 0; i < sizeof(CNetObj_Projectile)/sizeof(int); i++)
+		for(unsigned i = 0; i < sizeof(CNetObj_Projectile) / sizeof(int); i++)
 			Msg.AddInt(((int *)&p)[i]);
 	}
 
-	if (DamageOwner >= 0 && DamageOwner < MAX_CLIENTS)
+	if(DamageOwner >= 0 && DamageOwner < MAX_CLIENTS)
 		Server()->SendMsg(&Msg, 0, DamageOwner);
 }
 
-
-
-
-
 void CGameContext::AmmoFill(vec2 Pos, int Weapon)
 {
-	CNetEvent_AmmoFill *pEvent = (CNetEvent_AmmoFill *)m_Events.Create(NETEVENTTYPE_AMMOFILL, sizeof(CNetEvent_AmmoFill));
+	CNetEvent_AmmoFill *pEvent =
+		(CNetEvent_AmmoFill *)m_Events.Create(NETEVENTTYPE_AMMOFILL, sizeof(CNetEvent_AmmoFill));
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
@@ -933,13 +940,11 @@ void CGameContext::AmmoFill(vec2 Pos, int Weapon)
 	}
 }
 
-
-
 void CGameContext::Repair(vec2 Pos)
 {
 	/*
 	float CheckRange = 42.0f;
-	
+
 	// check if there's turret base near
 	CBuilding *apEnts[16];
 	int Num = m_World.FindEntities(Pos, 32, (CEntity**)apEnts, 16, CGameWorld::ENTTYPE_BUILDING);
@@ -947,25 +952,24 @@ void CGameContext::Repair(vec2 Pos)
 	for (int i = 0; i < Num; ++i)
 	{
 		CBuilding *pTarget = apEnts[i];
-			
+
 		if (distance(pTarget->m_Pos, Pos) < CheckRange)
 		{
 			if (pTarget->Repair())
 			{
-				CNetEvent_Repair *pEvent = (CNetEvent_Repair *)m_Events.Create(NETEVENTTYPE_REPAIR, sizeof(CNetEvent_Repair));
-				if(pEvent)
+				CNetEvent_Repair *pEvent = (CNetEvent_Repair *)m_Events.Create(NETEVENTTYPE_REPAIR,
+	sizeof(CNetEvent_Repair)); if(pEvent)
 				{
 					pEvent->m_X = (int)(pTarget->m_Pos.x + Pos.x)/2;
 					pEvent->m_Y = (int)(pTarget->m_Pos.y + Pos.y)/2;
 				}
 			}
-			
+
 			CreateBuildingHit(Pos);
 		}
 	}
 	*/
 }
-
 
 void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source, float DamageScale)
 {
@@ -979,11 +983,12 @@ void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source, float 
 	const float ExplosionDamage = BaseExplosionDamage * max(0.0f, DamageScale);
 	const int ExplosionSound = Visual.m_ExplosionSound;
 
-	if (m_pController->IsCoop() && IsBot(Owner))
+	if(m_pController->IsCoop() && IsBot(Owner))
 		Dmg2 = 0.6f;
 
 	// create the event
-	CNetEvent_Explosion *pEvent = (CNetEvent_Explosion *)m_Events.Create(NETEVENTTYPE_EXPLOSION, sizeof(CNetEvent_Explosion));
+	CNetEvent_Explosion *pEvent =
+		(CNetEvent_Explosion *)m_Events.Create(NETEVENTTYPE_EXPLOSION, sizeof(CNetEvent_Explosion));
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
@@ -993,100 +998,104 @@ void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source, float 
 		pEvent->m_WeaponDefinitionId = static_cast<int>(Source.m_Weapon.m_DefinitionId);
 		pEvent->m_WeaponLevel = Source.m_Weapon.m_Level;
 	}
-	
-	if(ExplosionSound)
+
+	CWeaponDefinition ExplosionDefinition;
+	if(Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
+	   CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &ExplosionDefinition) &&
+	   ExplosionDefinition.m_aExplosionSound[0])
+		CreateWeaponSound(Pos, Source.m_Weapon, 2);
+	else if(ExplosionSound)
 		CreateSound(Pos, ExplosionSound);
-	
+
 	// deal damage
 	if(!ExplosionDamage)
 		return;
-	
+
 	CCharacter *apEnts[MAX_CLIENTS];
-	float Radius = Combat.m_ExplosionSize*0.7f;
+	float Radius = Combat.m_ExplosionSize * 0.7f;
 	if(m_pPveDirector)
 		Radius = m_pPveDirector->ModifyExplosionRadius(Owner, Radius);
-	//const float InnerRadius = Radius < 200.0f ? Radius*(0.5f + (200.0f-Radius)/400.0f) : Radius*0.5f;
-	const float InnerRadius = Radius*0.5f;
-	
+	// const float InnerRadius = Radius < 200.0f ? Radius*(0.5f + (200.0f-Radius)/400.0f) : Radius*0.5f;
+	const float InnerRadius = Radius * 0.5f;
+
 	DamageBlocks(Pos, ExplosionDamage * 0.5f, Radius * 0.8f);
-	
-	int Num = m_World.FindEntities(Pos, Radius, (CEntity**)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+
+	int Num = m_World.FindEntities(Pos, Radius, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
 	for(int i = 0; i < Num; i++)
 	{
 		vec2 Diff = apEnts[i]->m_Pos - Pos - vec2(0, 8);
-		vec2 ForceDir(0,1);
+		vec2 ForceDir(0, 1);
 		float l = length(Diff);
 		if(l)
 			ForceDir = Diff / l;
-		l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
+		l = 1 - clamp((l - InnerRadius) / (Radius - InnerRadius), 0.0f, 1.0f);
 		float Dmg = ExplosionDamage * l;
-						
+
 		if((int)Dmg && Dmg > 0.0f)
-			apEnts[i]->TakeDamage(Source, (int)Dmg*Dmg2, ForceDir*Dmg*0.3f, vec2(0, 0));
+			apEnts[i]->TakeDamage(Source, (int)Dmg * Dmg2, ForceDir * Dmg * 0.3f, vec2(0, 0));
 	}
-	
+
 	CBuilding *apBuildings[32];
-	Num = m_World.FindEntities(Pos, Radius, (CEntity**)apBuildings, 32, CGameWorld::ENTTYPE_BUILDING);
+	Num = m_World.FindEntities(Pos, Radius, (CEntity **)apBuildings, 32, CGameWorld::ENTTYPE_BUILDING);
 	for(int i = 0; i < Num; i++)
 	{
 		vec2 Diff = apBuildings[i]->m_Pos - Pos - vec2(0, 8);
-		vec2 ForceDir(0,1);
+		vec2 ForceDir(0, 1);
 		float l = length(Diff);
 		if(l)
 			ForceDir = Diff / l;
-		l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
+		l = 1 - clamp((l - InnerRadius) / (Radius - InnerRadius), 0.0f, 1.0f);
 		float Dmg = ExplosionDamage * l;
-						
+
 		if((int)Dmg && Dmg > 0.0f)
-			apBuildings[i]->TakeDamage((int)Dmg*Dmg2, Source, ForceDir*Dmg*0.3f);
+			apBuildings[i]->TakeDamage((int)Dmg * Dmg2, Source, ForceDir * Dmg * 0.3f);
 	}
-	
+
 	// ball
-	if (m_pController->m_pBall)
+	if(m_pController->m_pBall)
 	{
 		vec2 BPos = m_pController->m_pBall->m_Pos;
 		vec2 Diff = BPos - Pos - vec2(0, 8);
-		vec2 ForceDir(0,1);
+		vec2 ForceDir(0, 1);
 		float l = length(Diff);
 		if(l)
 			ForceDir = Diff / l;
-		l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
+		l = 1 - clamp((l - InnerRadius) / (Radius - InnerRadius), 0.0f, 1.0f);
 		float Dmg = ExplosionDamage * l;
-							
+
 		if((int)Dmg && Dmg > 0.0f)
 		{
-			m_pController->m_pBall->AddForce(ForceDir*Dmg*0.3f); //
+			m_pController->m_pBall->AddForce(ForceDir * Dmg * 0.3f); //
 			m_pController->m_LastBallToucher = Owner;
 		}
 	}
-	
+
 	{
 		CPickup *apPickups[64];
-		Num = m_World.FindEntities(Pos, Radius, (CEntity**)apPickups, 64, CGameWorld::ENTTYPE_PICKUP);
+		Num = m_World.FindEntities(Pos, Radius, (CEntity **)apPickups, 64, CGameWorld::ENTTYPE_PICKUP);
 		for(int i = 0; i < Num; i++)
 		{
 			vec2 Diff = apPickups[i]->m_Pos - Pos - vec2(0, 8);
-			vec2 ForceDir(0,1);
+			vec2 ForceDir(0, 1);
 			float l = length(Diff);
 			if(l)
 				ForceDir = Diff / l;
-			l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
+			l = 1 - clamp((l - InnerRadius) / (Radius - InnerRadius), 0.0f, 1.0f);
 			float Dmg = ExplosionDamage * l;
-							
+
 			if((int)Dmg && Dmg > 0.0f)
-				apPickups[i]->AddForce(ForceDir*Dmg*0.3f); //
+				apPickups[i]->AddForce(ForceDir * Dmg * 0.3f); //
 		}
 	}
-	
+
 	CDroid *apDEnts[MAX_CLIENTS];
-	int DNum = m_World.FindEntities(Pos, Radius, (CEntity**)apDEnts,
-									MAX_CLIENTS, CGameWorld::ENTTYPE_DROID);
-	
-	for (int i = 0; i < DNum; ++i)
+	int DNum = m_World.FindEntities(Pos, Radius, (CEntity **)apDEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_DROID);
+
+	for(int i = 0; i < DNum; ++i)
 	{
 		CDroid *pTarget = apDEnts[i];
 
-		if (pTarget->m_Health <= 0)
+		if(pTarget->m_Health <= 0)
 			continue;
 
 		vec2 Diff = pTarget->m_Pos - Pos - vec2(0, 8);
@@ -1094,15 +1103,13 @@ void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source, float 
 		float l = length(Diff);
 		if(l)
 			ForceDir = Diff / l;
-		l = 1-clamp((l-InnerRadius)/(Radius-InnerRadius), 0.0f, 1.0f);
+		l = 1 - clamp((l - InnerRadius) / (Radius - InnerRadius), 0.0f, 1.0f);
 		float Dmg = ExplosionDamage * l;
-						
+
 		if((int)Dmg && Dmg > 0.0f)
-			pTarget->TakeDamage(ForceDir*Dmg*0.3f, (int)Dmg*Dmg2, Source, vec2(0, 0));
+			pTarget->TakeDamage(ForceDir * Dmg * 0.3f, (int)Dmg * Dmg2, Source, vec2(0, 0));
 	}
 }
-
-
 
 void CGameContext::SendEffect(int ClientID, int EffectID)
 {
@@ -1113,7 +1120,6 @@ void CGameContext::SendEffect(int ClientID, int EffectID)
 		pEvent->m_EffectID = EffectID;
 	}
 }
-
 
 void CGameContext::CreatePlayerSpawn(vec2 Pos)
 {
@@ -1140,11 +1146,12 @@ void CGameContext::CreateDeath(vec2 Pos, int ClientID)
 
 void CGameContext::CreateSound(vec2 Pos, int Sound, int64 Mask)
 {
-	if (Sound < 0)
+	if(Sound < 0)
 		return;
 
 	// create a sound
-	CNetEvent_SoundWorld *pEvent = (CNetEvent_SoundWorld *)m_Events.Create(NETEVENTTYPE_SOUNDWORLD, sizeof(CNetEvent_SoundWorld), Mask);
+	CNetEvent_SoundWorld *pEvent =
+		(CNetEvent_SoundWorld *)m_Events.Create(NETEVENTTYPE_SOUNDWORLD, sizeof(CNetEvent_SoundWorld), Mask);
 	if(pEvent)
 	{
 		pEvent->m_X = (int)Pos.x;
@@ -1153,9 +1160,25 @@ void CGameContext::CreateSound(vec2 Pos, int Sound, int64 Mask)
 	}
 }
 
+void CGameContext::CreateWeaponSound(vec2 Pos, const CWeaponSpec &Weapon, int Slot, int64 Mask)
+{
+	if(Slot < 0 || Slot > 2 || !CWeaponCatalog::IsCustom(Weapon))
+		return;
+	CNetEvent_WeaponSound *pEvent =
+		(CNetEvent_WeaponSound *)m_Events.Create(NETEVENTTYPE_WEAPONSOUND, sizeof(CNetEvent_WeaponSound), Mask);
+	if(pEvent)
+	{
+		pEvent->m_X = (int)Pos.x;
+		pEvent->m_Y = (int)Pos.y;
+		pEvent->m_WeaponDefinitionId = static_cast<int>(Weapon.m_DefinitionId);
+		pEvent->m_WeaponLevel = Weapon.m_Level;
+		pEvent->m_Slot = Slot;
+	}
+}
+
 void CGameContext::CreateSoundGlobal(int Sound, int Target)
 {
-	if (Sound < 0)
+	if(Sound < 0)
 		return;
 
 	CNetMsg_Sv_SoundGlobal Msg;
@@ -1171,29 +1194,25 @@ void CGameContext::CreateSoundGlobal(int Sound, int Target)
 	}
 }
 
-
-
-
-
 bool CGameContext::IsBot(int ClientID)
 {
-	if (ClientID < 0 || ClientID >= MAX_CLIENTS)
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return false;
-	
+
 	if(m_apPlayers[ClientID] && m_apPlayers[ClientID]->m_IsBot)
 		return true;
-	
+
 	return false;
 }
 
 bool CGameContext::IsHuman(int ClientID)
 {
-	if (ClientID < 0 || ClientID >= MAX_CLIENTS)
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return false;
-	
+
 	if(m_apPlayers[ClientID] && !m_apPlayers[ClientID]->m_pAI)
 		return true;
-	
+
 	return false;
 }
 
@@ -1202,17 +1221,17 @@ void CGameContext::SendChatTarget(int To, const char *pText, ...)
 	if(To >= MAX_CLIENTS)
 		return;
 	// skip sending to bots
-	if (IsBot(To))
+	if(IsBot(To))
 		return;
 
 	int Start = (To < 0 ? 0 : To);
-	int End = (To < 0 ? MAX_CLIENTS : To+1);
-	
+	int End = (To < 0 ? MAX_CLIENTS : To + 1);
+
 	CNetMsg_Sv_Chat Msg;
 	Msg.m_Mode = CHATMODE_ALL;
 	Msg.m_ClientID = -1;
 	Msg.m_TargetID = -1;
-	
+
 	va_list VarArgs;
 	va_start(VarArgs, pText);
 
@@ -1229,16 +1248,16 @@ void CGameContext::SendChatTarget(int To, const char *pText, ...)
 			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, i);
 		}
 	}
-	
+
 	va_end(VarArgs);
 }
-
 
 void CGameContext::SendChat(int ChatterClientID, int Mode, const char *pText, int TargetID)
 {
 	char aBuf[256];
 	if(ChatterClientID >= 0 && ChatterClientID < MAX_CLIENTS)
-		str_format(aBuf, sizeof(aBuf), "%d:%d:%s: %s", ChatterClientID, Mode, Server()->ClientName(ChatterClientID), pText);
+		str_format(
+			aBuf, sizeof(aBuf), "%d:%d:%s: %s", ChatterClientID, Mode, Server()->ClientName(ChatterClientID), pText);
 	else
 		str_format(aBuf, sizeof(aBuf), "*** %s", pText);
 	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, Mode != CHATMODE_ALL ? "teamchat" : "chat", aBuf);
@@ -1256,14 +1275,14 @@ void CGameContext::SendChat(int ChatterClientID, int Mode, const char *pText, in
 	else if(Mode == CHATMODE_TEAM)
 	{
 		// pack one for the recording only
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NOSEND, -1);
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NOSEND, -1);
 
 		int Team = ChatterClientID >= 0 && ChatterClientID < MAX_CLIENTS ? m_apPlayers[ChatterClientID]->GetTeam() : -1;
 		// send to the clients
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			if(m_apPlayers[i] && !IsBot(i) && m_apPlayers[i]->GetTeam() == Team)
-				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
+				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
 		}
 	}
 	else if(Mode == CHATMODE_WHISPER)
@@ -1288,15 +1307,15 @@ void CGameContext::ResetGameVotes()
 {
 	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GameContext", "Resetting gamevotes");
 	Server()->ResetGameVoting();
-	
-	for (int i = 0; i < MAX_CLIENTS; i++)
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
 		m_aPlayerGameVote[i] = -1;
 
 	m_NumGameVotes = 0;
 	m_WinnerVote = -1;
 	for(int i = 0; i < MAX_GAME_VOTES; i++)
 		m_aGameVote[i].m_Valid = false;
-	
+
 	while(m_NumGameVotes < MAX_GAME_VOTES)
 	{
 		CGameVote Vote;
@@ -1308,26 +1327,25 @@ void CGameContext::ResetGameVotes()
 	}
 }
 
-
 void CGameContext::RegisterGameVote(int ClientID, int Vote)
 {
-	if (ClientID < 0 || ClientID >= MAX_CLIENTS || Vote < 0 || Vote >= m_NumGameVotes || !m_aGameVote[Vote].m_Valid)
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || Vote < 0 || Vote >= m_NumGameVotes || !m_aGameVote[Vote].m_Valid)
 		return;
-	
+
 	m_aPlayerGameVote[ClientID] = Vote;
-	
+
 	SendGameVoteStats();
 }
-	
+
 void CGameContext::SendGameVoteStats(int ClientID)
 {
 	int aVotes[MAX_GAME_VOTES] = {0};
 
 	// count
-	for (int i = 0; i < MAX_CLIENTS; i++)
-		if (m_aPlayerGameVote[i] >= 0 && m_aPlayerGameVote[i] < m_NumGameVotes)
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		if(m_aPlayerGameVote[i] >= 0 && m_aPlayerGameVote[i] < m_NumGameVotes)
 			aVotes[m_aPlayerGameVote[i]]++;
-	
+
 	for(int i = 0; i < m_NumGameVotes; i++)
 	{
 		CNetMsg_Sv_GameVoteStatus Msg;
@@ -1348,22 +1366,22 @@ void CGameContext::CalculateVoteWinnerConfig()
 	int aVotes[MAX_GAME_VOTES] = {0};
 
 	// count
-	for (int i = 0; i < MAX_CLIENTS; i++)
-		if (m_aPlayerGameVote[i] >= 0 && m_aPlayerGameVote[i] < m_NumGameVotes)
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		if(m_aPlayerGameVote[i] >= 0 && m_aPlayerGameVote[i] < m_NumGameVotes)
 			aVotes[m_aPlayerGameVote[i]]++;
-	
+
 	int Biggest = 0;
-	
-	for (int i = 0; i < m_NumGameVotes; i++)
-		if (aVotes[i] > Biggest)
+
+	for(int i = 0; i < m_NumGameVotes; i++)
+		if(aVotes[i] > Biggest)
 			Biggest = aVotes[i];
-	
+
 	int Tied = 0;
 	for(int i = 0; i < m_NumGameVotes; i++)
 		if(aVotes[i] == Biggest)
 			Tied++;
 
-	int Pick = rand()%Tied;
+	int Pick = rand() % Tied;
 	for(int i = 0; i < m_NumGameVotes; i++)
 	{
 		if(aVotes[i] != Biggest)
@@ -1384,21 +1402,21 @@ void CGameContext::CalculateVoteWinnerConfig()
 	for (int i = 0; i < MAX_CLIENTS; i++)
 		if (m_aPlayerGameVote[i] >= 0 && m_aPlayerGameVote[i] < 6)
 			aVotes[m_aPlayerGameVote[i]]++;
-	
+
 	int Biggest = 0;
-	
+
 	for (int i = 0; i < 6; i++)
 		if (aVotes[i] > Biggest)
 			Biggest = aVotes[i];
-	
+
 	int j = 0;
 	int i = rand()%6;
-	
+
 	while (aVotes[i] < Biggest && j++ < 1000)
 	{
 		i = rand()%6;
 	}
-	
+
 	if (!m_aGameVote[i].m_Valid)
 		return "reload";
 	else
@@ -1406,18 +1424,18 @@ void CGameContext::CalculateVoteWinnerConfig()
 		char aBuf[128];
 		str_format(aBuf, sizeof(aBuf), "exec %s.cfg", m_aGameVote[i].m_aConfig);
 		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GetVoteWinnerConfig", aBuf);
-		
+
 		return static_cast < const char * > (aBuf);
-		
+
 		//return static_cast < const char * > (aBuf);
 	}
 }*/
 
-	
 void CGameContext::SendGameVotes(int ClientID)
 {
 	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GameContext", "Sending gamevotes");
-	auto LocalizeDescription = [&](int Vote, int Target, char *pBuf, int BufSize) -> const char * {
+	auto LocalizeDescription = [&](int Vote, int Target, char *pBuf, int BufSize) -> const char *
+	{
 		const char *pDescription = Localize(m_aGameVote[Vote].m_aDescription, Target);
 		if(!m_aGameVote[Vote].m_DisplayLevel)
 			return pDescription;
@@ -1428,13 +1446,13 @@ void CGameContext::SendGameVotes(int ClientID)
 		return pBuf;
 	};
 
-	for (int i = 0; i < m_NumGameVotes; i++)
+	for(int i = 0; i < m_NumGameVotes; i++)
 	{
-		if (m_aGameVote[i].m_Valid)
+		if(m_aGameVote[i].m_Valid)
 		{
 			if(ClientID == -1)
 			{
-				for (int j = 0; j < MAX_CLIENTS; j++)
+				for(int j = 0; j < MAX_CLIENTS; j++)
 				{
 					if(!m_apPlayers[j])
 						continue;
@@ -1468,7 +1486,7 @@ void CGameContext::SendGameVotes(int ClientID)
 			// Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GameContext", "Sending gamevote");
 		}
 	}
-	
+
 	/*
 	CNetMsg_Sv_Broadcast Msg;
 	Msg.m_pMessage = pText;
@@ -1492,13 +1510,13 @@ void CGameContext::SendBroadcast(const char *pText, int ClientID, bool Lock)
 		return;
 	CNetMsg_Sv_Broadcast Msg;
 	int Start = (ClientID < 0 ? 0 : ClientID);
-	int End = (ClientID < 0 ? MAX_CLIENTS : ClientID+1);
-	
+	int End = (ClientID < 0 ? MAX_CLIENTS : ClientID + 1);
+
 	// only for server demo record
 	if(ClientID < 0)
 	{
 		Msg.m_pMessage = pText;
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NOSEND, -1);
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NOSEND, -1);
 	}
 
 	for(int i = Start; i < End; i++)
@@ -1510,14 +1528,16 @@ void CGameContext::SendBroadcast(const char *pText, int ClientID, bool Lock)
 		}
 	}
 
-	if (ClientID < 0)
+	if(ClientID < 0)
 	{
-		if (Lock)
+		if(Lock)
 			m_BroadcastLockTick = Server()->Tick() + g_Config.m_SvBroadcastLock * Server()->TickSpeed();
 	}
 	else
 	{
-		str_copy(m_apPlayers[ClientID]->m_aBroadcast, Lock ? Localize(pText, ClientID) : "", sizeof(m_apPlayers[ClientID]->m_aBroadcast));
+		str_copy(m_apPlayers[ClientID]->m_aBroadcast,
+				 Lock ? Localize(pText, ClientID) : "",
+				 sizeof(m_apPlayers[ClientID]->m_aBroadcast));
 		m_apPlayers[ClientID]->m_BroadcastLockTick = Lock ? Server()->Tick() : 0;
 	}
 }
@@ -1528,13 +1548,13 @@ void CGameContext::SendBroadcastFormat(int ClientID, bool Lock, const char *pTex
 		return;
 	CNetMsg_Sv_Broadcast Msg;
 	int Start = (ClientID < 0 ? 0 : ClientID);
-	int End = (ClientID < 0 ? MAX_CLIENTS : ClientID+1);
-	
+	int End = (ClientID < 0 ? MAX_CLIENTS : ClientID + 1);
+
 	// only for server demo record
 	if(ClientID < 0)
 	{
 		Msg.m_pMessage = pText;
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NOSEND, -1);
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NOSEND, -1);
 	}
 
 	va_list VarArgs;
@@ -1544,7 +1564,7 @@ void CGameContext::SendBroadcastFormat(int ClientID, bool Lock, const char *pTex
 	for(int i = Start; i < End; i++)
 	{
 		if(m_apPlayers[i])
-		{	
+		{
 			va_list Copy;
 			va_copy(Copy, VarArgs);
 			str_format_args(aText, sizeof(aText), Localize(pText, i), Copy);
@@ -1554,14 +1574,16 @@ void CGameContext::SendBroadcastFormat(int ClientID, bool Lock, const char *pTex
 		}
 	}
 
-	if (ClientID < 0)
+	if(ClientID < 0)
 	{
-		if (Lock)
+		if(Lock)
 			m_BroadcastLockTick = Server()->Tick() + g_Config.m_SvBroadcastLock * Server()->TickSpeed();
 	}
 	else
 	{
-		str_copy(m_apPlayers[ClientID]->m_aBroadcast, Lock ? Localize(pText, ClientID) : "", sizeof(m_apPlayers[ClientID]->m_aBroadcast));
+		str_copy(m_apPlayers[ClientID]->m_aBroadcast,
+				 Lock ? Localize(pText, ClientID) : "",
+				 sizeof(m_apPlayers[ClientID]->m_aBroadcast));
 		m_apPlayers[ClientID]->m_BroadcastLockTick = Lock ? Server()->Tick() : 0;
 	}
 	va_end(VarArgs);
@@ -1571,13 +1593,13 @@ void CGameContext::SendBroadcastFormat(int ClientID, bool Lock, const char *pTex
 void CGameContext::StartVote(const char *pDesc, const char *pCommand, const char *pReason)
 {
 	// check if vote time has expired or is invalid
-	if (time_get() > m_VoteCloseTime || m_VoteCloseTime < time_get() - time_freq()*25)
+	if(time_get() > m_VoteCloseTime || m_VoteCloseTime < time_get() - time_freq() * 25)
 		m_VoteCloseTime = 0;
-	
+
 	// check if a vote is already running
 	if(m_VoteCloseTime)
 		return;
-	
+
 	// reset votes
 	m_VoteEnforce = VOTE_ENFORCE_UNKNOWN;
 	for(int i = 0; i < MAX_CLIENTS; i++)
@@ -1590,14 +1612,13 @@ void CGameContext::StartVote(const char *pDesc, const char *pCommand, const char
 	}
 
 	// start vote
-	m_VoteCloseTime = time_get() + time_freq()*25;
+	m_VoteCloseTime = time_get() + time_freq() * 25;
 	str_copy(m_aVoteDescription, pDesc, sizeof(m_aVoteDescription));
 	str_copy(m_aVoteCommand, pCommand, sizeof(m_aVoteCommand));
 	str_copy(m_aVoteReason, pReason, sizeof(m_aVoteReason));
 	SendVoteSet(-1);
 	m_VoteUpdate = true;
 }
-
 
 void CGameContext::EndVote()
 {
@@ -1610,7 +1631,7 @@ void CGameContext::SendVoteSet(int ClientID)
 	CNetMsg_Sv_VoteSet Msg;
 	if(m_VoteCloseTime)
 	{
-		Msg.m_Timeout = (m_VoteCloseTime-time_get())/time_freq();
+		Msg.m_Timeout = (m_VoteCloseTime - time_get()) / time_freq();
 		Msg.m_pDescription = m_aVoteDescription;
 		Msg.m_pReason = m_aVoteReason;
 	}
@@ -1630,15 +1651,15 @@ void CGameContext::SendVoteStatus(int ClientID, int Total, int Yes, int No)
 	Msg.m_Total = Total;
 	Msg.m_Yes = Yes;
 	Msg.m_No = No;
-	Msg.m_Pass = Total - (Yes+No);
+	Msg.m_Pass = Total - (Yes + No);
 
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
-
 }
 
 void CGameContext::AbortVoteKickOnDisconnect(int ClientID)
 {
-	if(m_VoteCloseTime && ((!str_comp_num(m_aVoteCommand, "kick ", 5) && str_toint(&m_aVoteCommand[5]) == ClientID) ||
+	if(m_VoteCloseTime &&
+	   ((!str_comp_num(m_aVoteCommand, "kick ", 5) && str_toint(&m_aVoteCommand[5]) == ClientID) ||
 		(!str_comp_num(m_aVoteCommand, "set_team ", 9) && str_toint(&m_aVoteCommand[9]) == ClientID)))
 		m_VoteCloseTime = -1;
 }
@@ -1658,11 +1679,11 @@ void CGameContext::CheckPureTuning()
 	{
 	case 'B': Pure = str_comp(m_pController->m_pGameType, "BALL") == 0; break;
 	case 'C': Pure = str_comp(m_pController->m_pGameType, "CTF") == 0; break;
-	case 'D': Pure = str_comp(m_pController->m_pGameType, "DM") == 0 || str_comp(m_pController->m_pGameType, "DEF") == 0; break;
-	case 'G': Pure = str_comp(m_pController->m_pGameType, "GUN") == 0; break;
-	case 'I': Pure = str_comp(m_pController->m_pGameType, "INF") == 0 || str_comp(m_pController->m_pGameType, "INV") == 0; break;
-	case 'T': Pure = str_comp(m_pController->m_pGameType, "TDM") == 0 || str_comp(m_pController->m_pGameType, "TUT") == 0; break;
-	default: break;
+	case 'D': Pure = str_comp(m_pController->m_pGameType, "DM") == 0 || str_comp(m_pController->m_pGameType, "DEF") ==
+	0; break; case 'G': Pure = str_comp(m_pController->m_pGameType, "GUN") == 0; break; case 'I': Pure =
+	str_comp(m_pController->m_pGameType, "INF") == 0 || str_comp(m_pController->m_pGameType, "INV") == 0; break; case
+	'T': Pure = str_comp(m_pController->m_pGameType, "TDM") == 0 || str_comp(m_pController->m_pGameType, "TUT") == 0;
+	break; default: break;
 	}
 
 	if(Pure)
@@ -1682,105 +1703,105 @@ void CGameContext::SendTuningParams(int ClientID)
 
 	CMsgPacker Msg(NETMSGTYPE_SV_TUNEPARAMS);
 	int *pParams = (int *)&m_Tuning;
-	for(unsigned i = 0; i < sizeof(m_Tuning)/sizeof(int); i++)
+	for(unsigned i = 0; i < sizeof(m_Tuning) / sizeof(int); i++)
 		Msg.AddInt(pParams[i]);
 	Server()->SendMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
 
-
 void CGameContext::UpdateSpectators()
 {
 	bool Found[2] = {false, false};
-		
+
 	// check validity
-	for (int i = 0; i < 2; i++)
+	for(int i = 0; i < 2; i++)
 	{
-		if (m_aMostInterestingPlayer[i] >= 0)
+		if(m_aMostInterestingPlayer[i] >= 0)
 		{
 			// player left or something
-			if (!m_apPlayers[m_aMostInterestingPlayer[i]])
+			if(!m_apPlayers[m_aMostInterestingPlayer[i]])
 			{
 				m_aMostInterestingPlayer[i] = -1;
 			}
 			else
 			{
 				// player is a spectator
-				if (m_apPlayers[m_aMostInterestingPlayer[i]]->Spectating())
+				if(m_apPlayers[m_aMostInterestingPlayer[i]]->Spectating())
 					m_aMostInterestingPlayer[i] = -1;
 			}
 		}
 	}
 
-
 	// find the most interesting player of both teams
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		
+
 		// player and character exists
-		if (m_apPlayers[i] && m_apPlayers[i]->m_EnableAutoSpectating && m_apPlayers[i]->GetCharacter() && m_apPlayers[i]->GetCharacter()->IsAlive() &&
-			(!m_apPlayers[i] || !g_Config.m_SvSpectateOnlyHumans))
+		if(m_apPlayers[i] && m_apPlayers[i]->m_EnableAutoSpectating && m_apPlayers[i]->GetCharacter() &&
+		   m_apPlayers[i]->GetCharacter()->IsAlive() && (!m_apPlayers[i] || !g_Config.m_SvSpectateOnlyHumans))
 		{
 			int Team = m_apPlayers[i]->GetTeam();
-			
+
 			// team is correct
 			if(Team == TEAM_RED || Team == TEAM_BLUE)
 			{
 				// most interesting player exists
 				int Points = -1;
 				int Player = m_aMostInterestingPlayer[Team];
-				
+
 				m_apPlayers[i]->m_InterestPoints += frandom();
-				
-				if (Player >= 0)
-					if (m_apPlayers[Player] && m_apPlayers[Player]->GetCharacter())
+
+				if(Player >= 0)
+					if(m_apPlayers[Player] && m_apPlayers[Player]->GetCharacter())
 						Points = m_apPlayers[Player]->m_InterestPoints;
-					
-					
-				if (m_apPlayers[i]->m_InterestPoints > Points)
+
+				if(m_apPlayers[i]->m_InterestPoints > Points)
 				{
 					m_aMostInterestingPlayer[Team] = i;
-					Found[Team] = true;				
+					Found[Team] = true;
 				}
 			}
 		}
 	}
 
-
 	// update the spectator views
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		//if(m_apPlayers[i] && (m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS || !m_apPlayers[i]->GetCharacter()) && !m_apPlayers[i]->m_IsBot)
-		if(m_apPlayers[i] && !m_apPlayers[i]->m_IsBot && m_apPlayers[i]->m_ActionSpectator && m_apPlayers[i]->Spectating())
+		// if(m_apPlayers[i] && (m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS || !m_apPlayers[i]->GetCharacter()) &&
+		// !m_apPlayers[i]->m_IsBot)
+		if(m_apPlayers[i] && !m_apPlayers[i]->m_IsBot && m_apPlayers[i]->m_ActionSpectator &&
+		   m_apPlayers[i]->Spectating())
 		{
-			if (!m_apPlayers[i]->m_LastSetSpectatorMode)
-				m_apPlayers[i]->m_LastSetSpectatorMode = Server()->Tick() - Server()->TickSpeed()*g_Config.m_SvSpectatorUpdateTime;
+			if(!m_apPlayers[i]->m_LastSetSpectatorMode)
+				m_apPlayers[i]->m_LastSetSpectatorMode =
+					Server()->Tick() - Server()->TickSpeed() * g_Config.m_SvSpectatorUpdateTime;
 			else
 			{
-				if (m_apPlayers[i]->m_LastSetSpectatorMode+Server()->TickSpeed()*g_Config.m_SvSpectatorUpdateTime < Server()->Tick())	
+				if(m_apPlayers[i]->m_LastSetSpectatorMode + Server()->TickSpeed() * g_Config.m_SvSpectatorUpdateTime <
+				   Server()->Tick())
 				{
 					int WantedPlayer = -1;
-					
+
 					/*
 					if (!m_pController->IsTeamplay())
 					{
 						if (m_apPlayers[i]->GetTeam() != TEAM_SPECTATORS)
 						{
-							
-							
-							
+
+
+
 						}
 					}
 					else*/
 					{
 						int Team = m_apPlayers[i]->GetTeam();
-							
+
 						// get the correct player
-						if (Team == TEAM_RED || Team == TEAM_BLUE)
+						if(Team == TEAM_RED || Team == TEAM_BLUE)
 						{
 							WantedPlayer = m_aMostInterestingPlayer[Team];
-								
+
 							// update the view
-							if (WantedPlayer >= 0 && m_apPlayers[i]->m_SpectatorID != WantedPlayer && Found[Team])
+							if(WantedPlayer >= 0 && m_apPlayers[i]->m_SpectatorID != WantedPlayer && Found[Team])
 							{
 								m_apPlayers[i]->m_LastSetSpectatorMode = Server()->Tick();
 								m_apPlayers[i]->m_SpectatorID = WantedPlayer;
@@ -1794,8 +1815,6 @@ void CGameContext::UpdateSpectators()
 	}
 }
 
-
-
 void CGameContext::SwapTeams()
 {
 	if(!m_pController->IsTeamplay() || m_pController->IsInfection())
@@ -1806,12 +1825,11 @@ void CGameContext::SwapTeams()
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 	{
 		if(m_apPlayers[i] && m_apPlayers[i]->GetTeam() != TEAM_SPECTATORS)
-			m_apPlayers[i]->SetTeam(m_apPlayers[i]->GetTeam()^1, false);
+			m_apPlayers[i]->SetTeam(m_apPlayers[i]->GetTeam() ^ 1, false);
 	}
 
 	(void)m_pController->CheckTeamBalance();
 }
-
 
 void CGameContext::OnTick()
 {
@@ -1826,9 +1844,9 @@ void CGameContext::OnTick()
 		m_pPveDirector->Tick();
 	m_World.Tick();
 
-	//if(world.paused) // make sure that the game object always updates
+	// if(world.paused) // make sure that the game object always updates
 	m_pController->Tick();
-	
+
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(m_apPlayers[i])
@@ -1860,16 +1878,17 @@ void CGameContext::OnTick()
 				bool aVoteChecked[MAX_CLIENTS] = {0};
 				for(int i = 0; i < MAX_CLIENTS; i++)
 				{
-					if(!m_apPlayers[i] || IsBot(i) || m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS || aVoteChecked[i])	// don't count in votes by spectators
+					if(!m_apPlayers[i] || IsBot(i) || m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS ||
+					   aVoteChecked[i]) // don't count in votes by spectators
 						continue;
 
 					int ActVote = m_apPlayers[i]->m_Vote;
 					int ActVotePos = m_apPlayers[i]->m_VotePos;
 
 					// check for more players with the same ip (only use the vote of the one who voted first)
-					for(int j = i+1; j < MAX_CLIENTS; ++j)
+					for(int j = i + 1; j < MAX_CLIENTS; ++j)
 					{
-						if(!m_apPlayers[j] ||  IsBot(i) || aVoteChecked[j] || str_comp(aaBuf[j], aaBuf[i]))
+						if(!m_apPlayers[j] || IsBot(i) || aVoteChecked[j] || str_comp(aaBuf[j], aaBuf[i]))
 							continue;
 
 						aVoteChecked[j] = true;
@@ -1887,9 +1906,9 @@ void CGameContext::OnTick()
 						No++;
 				}
 
-				if(Yes >= Total/2+1)
+				if(Yes >= Total / 2 + 1)
 					m_VoteEnforce = VOTE_ENFORCE_YES;
-				else if(No >= (Total+1)/2)
+				else if(No >= (Total + 1) / 2)
 					m_VoteEnforce = VOTE_ENFORCE_NO;
 			}
 
@@ -1917,30 +1936,26 @@ void CGameContext::OnTick()
 		}
 	}
 
-
 #ifdef CONF_DEBUG
 	if(g_Config.m_DbgDummies)
 	{
-		for(int i = 0; i < g_Config.m_DbgDummies ; i++)
+		for(int i = 0; i < g_Config.m_DbgDummies; i++)
 		{
 			CNetObj_PlayerInput Input = {0};
-			Input.m_Direction = (i&1)?-1:1;
-			m_apPlayers[MAX_CLIENTS-i-1]->OnPredictedInput(&Input);
+			Input.m_Direction = (i & 1) ? -1 : 1;
+			m_apPlayers[MAX_CLIENTS - i - 1]->OnPredictedInput(&Input);
 		}
 	}
 #endif
 }
 
-
-
 bool CGameContext::AIInputUpdateNeeded(int ClientID)
 {
 	if(m_apPlayers[ClientID])
 		return m_apPlayers[ClientID]->AIInputChanged();
-		
+
 	return false;
 }
-
 
 void CGameContext::UpdateAI()
 {
@@ -1951,7 +1966,6 @@ void CGameContext::UpdateAI()
 	}
 }
 
-
 /*
 enum InputList
 {
@@ -1960,19 +1974,16 @@ enum InputList
 	INPUT_JUMP = 3,
 	INPUT_HOOK = 5
 	INPUT_DOWN = 6
-	
+
 	//1 & 2 vectors for weapon direction
 };
 */
-
 
 void CGameContext::AIUpdateInput(int ClientID, int *Data)
 {
 	if(m_apPlayers[ClientID] && m_apPlayers[ClientID]->m_pAI)
 		m_apPlayers[ClientID]->m_pAI->UpdateInput(Data);
 }
-
-
 
 // Server hooks
 void CGameContext::AddZombie()
@@ -1984,7 +1995,6 @@ void CGameContext::GetAISkin(CAISkin *pAISkin, bool PVP, int Level, int WaveGrou
 {
 	Server()->GetAISkin(pAISkin, PVP, Level, WaveGroup);
 }
-
 
 void CGameContext::OnClientDirectInput(int ClientID, void *pInput)
 {
@@ -2002,7 +2012,7 @@ void CGameContext::OnClientPredictedInput(int ClientID, void *pInput)
 
 void CGameContext::OnClientEnter(int ClientID)
 {
-	//world.insert_entity(&players[client_id]);
+	// world.insert_entity(&players[client_id]);
 	m_apPlayers[ClientID]->Respawn();
 	if(m_pPveDirector)
 		m_pPveDirector->OnClientEnter(ClientID);
@@ -2011,24 +2021,30 @@ void CGameContext::OnClientEnter(int ClientID)
 	SendChatTarget(-1, "'%s' joined the fun", Server()->ClientName(ClientID));
 
 	char aBuf[512];
-	str_format(aBuf, sizeof(aBuf), "team_join player='%d:%s' team=%d", ClientID, Server()->ClientName(ClientID), m_apPlayers[ClientID]->GetTeam());
+	str_format(aBuf,
+			   sizeof(aBuf),
+			   "team_join player='%d:%s' team=%d",
+			   ClientID,
+			   Server()->ClientName(ClientID),
+			   m_apPlayers[ClientID]->GetTeam());
 	Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
 
-	if (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGen)
+	if(str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGen)
 	{
-		if (!g_Config.m_SvInvFails)
+		if(!g_Config.m_SvInvFails)
 			SendBroadcastFormat(ClientID, false, "Level %d", g_Config.m_SvMapGenLevel);
-		else if (g_Config.m_SvInvFails == 1)
+		else if(g_Config.m_SvInvFails == 1)
 			SendBroadcastFormat(ClientID, false, "Level %d - Second try", g_Config.m_SvMapGenLevel);
-		else if (g_Config.m_SvInvFails == 6)
+		else if(g_Config.m_SvInvFails == 6)
 			SendBroadcastFormat(ClientID, false, "Level %d - Final attempt", g_Config.m_SvMapGenLevel);
 		else
-			SendBroadcastFormat(ClientID, false, "Level %d - Attempt %d", g_Config.m_SvMapGenLevel, g_Config.m_SvInvFails + 1);
+			SendBroadcastFormat(
+				ClientID, false, "Level %d - Attempt %d", g_Config.m_SvMapGenLevel, g_Config.m_SvInvFails + 1);
 	}
-	
+
 	m_VoteUpdate = true;
-	
-	if (m_pController->GameVoting())
+
+	if(m_pController->GameVoting())
 	{
 		SendGameVotes(ClientID);
 		SendGameVoteStats(ClientID);
@@ -2045,43 +2061,43 @@ void CGameContext::OnClientConnected(int ClientID, bool AI)
 	// Check which team the player should be on
 	int StartTeam = g_Config.m_SvTournamentMode ? TEAM_SPECTATORS : m_pController->GetAutoTeam(ClientID);
 
-	if (m_pController->IsTeamplay() && !m_pController->IsCoop() && (g_Config.m_SvNoBotTeam == TEAM_RED || g_Config.m_SvNoBotTeam == TEAM_BLUE))
+	if(m_pController->IsTeamplay() && !m_pController->IsCoop() &&
+	   (g_Config.m_SvNoBotTeam == TEAM_RED || g_Config.m_SvNoBotTeam == TEAM_BLUE))
 	{
-		if (AI && StartTeam == g_Config.m_SvNoBotTeam)
+		if(AI && StartTeam == g_Config.m_SvNoBotTeam)
 		{
-			if (StartTeam == TEAM_RED)
+			if(StartTeam == TEAM_RED)
 				StartTeam = TEAM_BLUE;
-			else if (StartTeam == TEAM_BLUE)
+			else if(StartTeam == TEAM_BLUE)
 				StartTeam = TEAM_RED;
 		}
-		else if (!AI && StartTeam != g_Config.m_SvNoBotTeam)
+		else if(!AI && StartTeam != g_Config.m_SvNoBotTeam)
 		{
-			if (StartTeam == TEAM_RED)
+			if(StartTeam == TEAM_RED)
 				StartTeam = TEAM_BLUE;
-			else if (StartTeam == TEAM_BLUE)
+			else if(StartTeam == TEAM_BLUE)
 				StartTeam = TEAM_RED;
 		}
 	}
-	
-	if (!AI)
+
+	if(!AI)
 	{
 		m_pController->OnPlayerJoin();
 	}
-	
+
 	m_apPlayers[ClientID] = new(ClientID) CPlayer(this, ClientID, StartTeam);
-	//players[client_id].init(client_id);
-	//players[client_id].client_id = client_id;
+	// players[client_id].init(client_id);
+	// players[client_id].client_id = client_id;
 
 	m_apPlayers[ClientID]->m_IsBot = AI;
 	m_apPlayers[ClientID]->m_TeeInfos.m_IsBot = AI;
-	
+
 	(void)m_pController->CheckTeamBalance();
 
-	
 #ifdef CONF_DEBUG
 	if(g_Config.m_DbgDummies)
 	{
-		if(ClientID >= MAX_CLIENTS-g_Config.m_DbgDummies)
+		if(ClientID >= MAX_CLIENTS - g_Config.m_DbgDummies)
 			return;
 	}
 #endif
@@ -2105,33 +2121,33 @@ void CGameContext::OnClientConnected(int ClientID, bool AI)
 	*/
 }
 
-
 bool CGameContext::Shop(CPlayer *pPlayer, int Slot, bool AI)
 {
-	if (!pPlayer->GetCharacter())
+	if(!pPlayer->GetCharacter())
 		return false;
 	if(m_pPveDirector && !m_pPveDirector->ShopsAllowed())
 	{
 		CreateSoundGlobal(SOUND_GUI_DENIED1, pPlayer->GetCID());
 		return false;
 	}
-	
-	vec2 Pos = pPlayer->GetCharacter()->m_Pos;
-	
-	CBuilding *apEnts[32];
-	int Num = m_World.FindEntities(Pos, 400, (CEntity**)apEnts, 32, CGameWorld::ENTTYPE_BUILDING);
 
-	for (int i = 0; i < Num; ++i)
+	vec2 Pos = pPlayer->GetCharacter()->m_Pos;
+
+	CBuilding *apEnts[32];
+	int Num = m_World.FindEntities(Pos, 400, (CEntity **)apEnts, 32, CGameWorld::ENTTYPE_BUILDING);
+
+	for(int i = 0; i < Num; ++i)
 	{
 		CBuilding *pTarget = apEnts[i];
-		
-			if (pTarget->m_Type == BUILDING_SHOP && abs(Pos.x - pTarget->m_Pos.x) < 100 && abs(Pos.y - pTarget->m_Pos.y) < 100)
-			{
-				if(Slot == 4 && (!m_pPveDirector || !m_pPveDirector->PerkStacks(pPlayer->GetCID(), PVE_CARD_PREMIUM_STOCK)))
-					continue;
-				CWeaponSpec Item = pTarget->GetItem(Slot);
-			
-			if (Item.IsValid())
+
+		if(pTarget->m_Type == BUILDING_SHOP && abs(Pos.x - pTarget->m_Pos.x) < 100 &&
+		   abs(Pos.y - pTarget->m_Pos.y) < 100)
+		{
+			if(Slot == 4 && (!m_pPveDirector || !m_pPveDirector->PerkStacks(pPlayer->GetCID(), PVE_CARD_PREMIUM_STOCK)))
+				continue;
+			CWeaponSpec Item = pTarget->GetItem(Slot);
+
+			if(Item.IsValid())
 			{
 				CResolvedWeaponProfile Profile;
 				if(!CWeaponCatalog::TryResolve(Item, &Profile))
@@ -2139,16 +2155,17 @@ bool CGameContext::Shop(CPlayer *pPlayer, int Slot, bool AI)
 				int Cost = Profile.m_Combat.m_Cost;
 				if(m_pPveDirector)
 					Cost = m_pPveDirector->ModifyShopCost(pPlayer->GetCID(), Cost);
-				if ((!AI || Item.m_DefinitionId != CWeaponCatalog::Static(SW_UPGRADE).m_DefinitionId) && pPlayer->GetGold() >= Cost)
+				if((!AI || !WeaponHasBehavior(Profile.m_Definition, WEAPON_BEHAVIOR_UPGRADE)) &&
+				   pPlayer->GetGold() >= Cost)
 				{
-					if (pPlayer->GetCharacter()->GiveWeapon(NewWeapon(Item)))
+					if(pPlayer->GetCharacter()->GiveWeapon(NewWeapon(Item)))
 					{
 						pPlayer->ReduceGold(Cost);
 						if(m_pPveDirector)
 							m_pPveDirector->OnGoldSpent(pPlayer->GetCID(), Cost);
 						pPlayer->GetCharacter()->SendInventory();
 						pTarget->ClearItem(Slot);
-						
+
 						CreateSound(Pos, SOUND_PICKUP_SHOTGUN);
 						return true;
 					}
@@ -2160,10 +2177,9 @@ bool CGameContext::Shop(CPlayer *pPlayer, int Slot, bool AI)
 			}
 		}
 	}
-	
+
 	return false;
 }
-
 
 void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 {
@@ -2197,7 +2213,12 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		if(g_Config.m_Debug)
 		{
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "dropped weird message '%s' (%d), failed on '%s'", m_NetObjHandler.GetMsgName(MsgID), MsgID, m_NetObjHandler.FailedMsgOn());
+			str_format(aBuf,
+					   sizeof(aBuf),
+					   "dropped weird message '%s' (%d), failed on '%s'",
+					   m_NetObjHandler.GetMsgName(MsgID),
+					   MsgID,
+					   m_NetObjHandler.FailedMsgOn());
 			Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "server", aBuf);
 		}
 		return;
@@ -2209,9 +2230,15 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		{
 			CNetMsg_Cl_PveProgress *pMsg = (CNetMsg_Cl_PveProgress *)pRawMsg;
 			if(m_pPveDirector)
-				m_pPveDirector->OnProgress(ClientID, pMsg->m_Version, pMsg->m_ResearchPoints,
-					pMsg->m_ResearchMask0, pMsg->m_ResearchMask1, pMsg->m_ResearchMask2, pMsg->m_ResearchMask3,
-					pMsg->m_HighestInvasion, pMsg->m_PreferredCheckpoint);
+				m_pPveDirector->OnProgress(ClientID,
+										   pMsg->m_Version,
+										   pMsg->m_ResearchPoints,
+										   pMsg->m_ResearchMask0,
+										   pMsg->m_ResearchMask1,
+										   pMsg->m_ResearchMask2,
+										   pMsg->m_ResearchMask3,
+										   pMsg->m_HighestInvasion,
+										   pMsg->m_PreferredCheckpoint);
 		}
 		else if(MsgID == NETMSGTYPE_CL_PVECHOICE)
 		{
@@ -2252,26 +2279,28 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		}
 		else if(MsgID == NETMSGTYPE_CL_SAY)
 		{
-			if(g_Config.m_SvSpamprotection && pPlayer->m_LastChat && pPlayer->m_LastChat+Server()->TickSpeed() > Server()->Tick())
+			if(g_Config.m_SvSpamprotection && pPlayer->m_LastChat &&
+			   pPlayer->m_LastChat + Server()->TickSpeed() > Server()->Tick())
 				return;
 
 			CNetMsg_Cl_Say *pMsg = (CNetMsg_Cl_Say *)pRawMsg;
 			int Mode = pMsg->m_Mode;
 			int TargetID = pMsg->m_Target;
-			
+
 			// trim right and set maximum length to 128 utf8-characters
 			int Length = 0;
 			const char *p = pMsg->m_pMessage;
 			const char *pEnd = 0;
 			while(*p)
- 			{
+			{
 				const char *pStrOld = p;
 				int Code = str_utf8_decode(&p);
 
 				// check if unicode is not empty
-				if(Code > 0x20 && Code != 0xA0 && Code != 0x034F && (Code < 0x2000 || Code > 0x200F) && (Code < 0x2028 || Code > 0x202F) &&
-					(Code < 0x205F || Code > 0x2064) && (Code < 0x206A || Code > 0x206F) && (Code < 0xFE00 || Code > 0xFE0F) &&
-					Code != 0xFEFF && (Code < 0xFFF9 || Code > 0xFFFC))
+				if(Code > 0x20 && Code != 0xA0 && Code != 0x034F && (Code < 0x2000 || Code > 0x200F) &&
+				   (Code < 0x2028 || Code > 0x202F) && (Code < 0x205F || Code > 0x2064) &&
+				   (Code < 0x206A || Code > 0x206F) && (Code < 0xFE00 || Code > 0xFE0F) && Code != 0xFEFF &&
+				   (Code < 0xFFF9 || Code > 0xFFFC))
 				{
 					pEnd = 0;
 				}
@@ -2283,45 +2312,49 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 					*(const_cast<char *>(p)) = 0;
 					break;
 				}
- 			}
+			}
 			if(pEnd != 0)
 				*(const_cast<char *>(pEnd)) = 0;
 
 			// drop empty and autocreated spam messages (more than 16 characters per second)
-			if(Length == 0 || (g_Config.m_SvSpamprotection && pPlayer->m_LastChat && pPlayer->m_LastChat+Server()->TickSpeed()*((15+Length)/16) > Server()->Tick()))
+			if(Length == 0 || (g_Config.m_SvSpamprotection && pPlayer->m_LastChat &&
+							   pPlayer->m_LastChat + Server()->TickSpeed() * ((15 + Length) / 16) > Server()->Tick()))
 				return;
 
 			bool SkipSending = false;
-			
+
 			pPlayer->m_LastChat = Server()->Tick();
 
-			
-			if ( strcmp(pMsg->m_pMessage, "/color") == 0 )
+			if(strcmp(pMsg->m_pMessage, "/color") == 0)
 			{
-				SendChatTarget(ClientID, "Body: %d, feet: %d, skin: %d, topper: %d", pPlayer->m_TeeInfos.m_ColorBody, pPlayer->m_TeeInfos.m_ColorFeet, pPlayer->m_TeeInfos.m_ColorSkin, pPlayer->m_TeeInfos.m_ColorTopper);
+				SendChatTarget(ClientID,
+							   "Body: %d, feet: %d, skin: %d, topper: %d",
+							   pPlayer->m_TeeInfos.m_ColorBody,
+							   pPlayer->m_TeeInfos.m_ColorFeet,
+							   pPlayer->m_TeeInfos.m_ColorSkin,
+							   pPlayer->m_TeeInfos.m_ColorTopper);
 				SkipSending = true;
 			}
-			
-			
-			if ( strcmp(pMsg->m_pMessage, "/seed") == 0 )
+
+			if(strcmp(pMsg->m_pMessage, "/seed") == 0)
 			{
 				SendChatTarget(ClientID, "Mapgen seed: %d", g_Config.m_SvMapGenSeed);
 				SkipSending = true;
 			}
-			
-			if ( strcmp(pMsg->m_pMessage, "/highest") == 0 )
+
+			if(strcmp(pMsg->m_pMessage, "/highest") == 0)
 			{
 				SendChatTarget(ClientID, "Highest level reached on server: %d", Server()->GetHighScore());
 				SkipSending = true;
 			}
-			
-			if ( strcmp(pMsg->m_pMessage, "/playercount") == 0 )
+
+			if(strcmp(pMsg->m_pMessage, "/playercount") == 0)
 			{
 				SendChatTarget(ClientID, "Number of player profiles in Invasion: %d", Server()->GetPlayerCount());
 				SkipSending = true;
 			}
-		
-			if (!SkipSending)
+
+			if(!SkipSending)
 			{
 				if(Mode == CHATMODE_WHISPER)
 				{
@@ -2341,7 +2374,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		}
 		else if(MsgID == NETMSGTYPE_CL_CALLVOTE)
 		{
-			if(g_Config.m_SvSpamprotection && pPlayer->m_LastVoteTry && pPlayer->m_LastVoteTry+Server()->TickSpeed()*1 > Server()->Tick())
+			if(g_Config.m_SvSpamprotection && pPlayer->m_LastVoteTry &&
+			   pPlayer->m_LastVoteTry + Server()->TickSpeed() * 1 > Server()->Tick())
 				return;
 
 			int64 Now = Server()->Tick();
@@ -2358,11 +2392,14 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				return;
 			}
 
-			int Timeleft = pPlayer->m_LastVoteCall + Server()->TickSpeed()*60 - Now;
+			int Timeleft = pPlayer->m_LastVoteCall + Server()->TickSpeed() * 60 - Now;
 			if(pPlayer->m_LastVoteCall && Timeleft > 0)
 			{
 				char aChatmsg[512] = {0};
-				str_format(aChatmsg, sizeof(aChatmsg), Localize("You must wait %d seconds before making another vote", ClientID), (Timeleft/Server()->TickSpeed())+1);
+				str_format(aChatmsg,
+						   sizeof(aChatmsg),
+						   Localize("You must wait %d seconds before making another vote", ClientID),
+						   (Timeleft / Server()->TickSpeed()) + 1);
 				SendChatTarget(ClientID, aChatmsg);
 				return;
 			}
@@ -2376,13 +2413,17 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			if(str_comp_nocase(pMsg->m_Type, "option") == 0)
 			{
 				CVoteOptionServer *pOption = m_pVoteOptionFirst;
-				
+
 				while(pOption)
 				{
 					if(str_comp_nocase(pMsg->m_Value, pOption->m_aDescription) == 0)
 					{
-						str_format(aChatmsg, sizeof(aChatmsg), "'%s' called vote to change server option '%s' (%s)", Server()->ClientName(ClientID),
-									pOption->m_aDescription, pReason);
+						str_format(aChatmsg,
+								   sizeof(aChatmsg),
+								   "'%s' called vote to change server option '%s' (%s)",
+								   Server()->ClientName(ClientID),
+								   pOption->m_aDescription,
+								   pReason);
 						str_format(aDesc, sizeof(aDesc), "%s", pOption->m_aDescription);
 						str_format(aCmd, sizeof(aCmd), "%s", pOption->m_aCommand);
 						break;
@@ -2392,8 +2433,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				}
 
 				if(!pOption)
-				{						
-					SendChatTarget(ClientID, "'%s' isn't an option on this server", pMsg->m_Value);	
+				{
+					SendChatTarget(ClientID, "'%s' isn't an option on this server", pMsg->m_Value);
 					return;
 				}
 			}
@@ -2414,7 +2455,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 
 					if(PlayerNum < g_Config.m_SvVoteKickMin)
 					{
-						SendChatTarget(ClientID, "Kick voting requires %d players on the server", g_Config.m_SvVoteKickMin);
+						SendChatTarget(
+							ClientID, "Kick voting requires %d players on the server", g_Config.m_SvVoteKickMin);
 						return;
 					}
 				}
@@ -2434,14 +2476,22 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				{
 					SendChatTarget(ClientID, "You can't kick admins");
 					char aBufKick[128];
-					str_format(aBufKick, sizeof(aBufKick), Localize("'%s' called for vote to kick you", ClientID), Server()->ClientName(ClientID));
+					str_format(aBufKick,
+							   sizeof(aBufKick),
+							   Localize("'%s' called for vote to kick you", ClientID),
+							   Server()->ClientName(ClientID));
 					SendChatTarget(KickID, aBufKick);
 					return;
 				}
 
-				str_format(aChatmsg, sizeof(aChatmsg), "'%s' called for vote to kick '%s' (%s)", Server()->ClientName(ClientID), Server()->ClientName(KickID), pReason);
+				str_format(aChatmsg,
+						   sizeof(aChatmsg),
+						   "'%s' called for vote to kick '%s' (%s)",
+						   Server()->ClientName(ClientID),
+						   Server()->ClientName(KickID),
+						   pReason);
 				str_format(aDesc, sizeof(aDesc), "Kick '%s'", Server()->ClientName(KickID));
-				if (!g_Config.m_SvVoteKickBantime)
+				if(!g_Config.m_SvVoteKickBantime)
 					str_format(aCmd, sizeof(aCmd), "kick %d Kicked by vote", KickID);
 				else
 				{
@@ -2459,7 +2509,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				}
 
 				int SpectateID = str_toint(pMsg->m_Value);
-				if(SpectateID < 0 || SpectateID >= MAX_CLIENTS || !m_apPlayers[SpectateID] || m_apPlayers[SpectateID]->GetTeam() == TEAM_SPECTATORS)
+				if(SpectateID < 0 || SpectateID >= MAX_CLIENTS || !m_apPlayers[SpectateID] ||
+				   m_apPlayers[SpectateID]->GetTeam() == TEAM_SPECTATORS)
 				{
 					SendChatTarget(ClientID, "Invalid client id to move");
 					return;
@@ -2470,11 +2521,16 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 					return;
 				}
 
-				str_format(aChatmsg, sizeof(aChatmsg), "'%s' called for vote to move '%s' to spectators (%s)", Server()->ClientName(ClientID), Server()->ClientName(SpectateID), pReason);
+				str_format(aChatmsg,
+						   sizeof(aChatmsg),
+						   "'%s' called for vote to move '%s' to spectators (%s)",
+						   Server()->ClientName(ClientID),
+						   Server()->ClientName(SpectateID),
+						   pReason);
 				str_format(aDesc, sizeof(aDesc), "move '%s' to spectators", Server()->ClientName(SpectateID));
 				str_format(aCmd, sizeof(aCmd), "set_team %d -1 %d", SpectateID, g_Config.m_SvVoteSpectateRejoindelay);
 			}
-			
+
 			// do nothing
 			if(str_comp(aCmd, "null") == 0)
 			{
@@ -2507,20 +2563,22 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				m_VoteUpdate = true;
 			}
 		}
-		else if (MsgID == NETMSGTYPE_CL_SETTEAM && !m_World.m_Paused)
+		else if(MsgID == NETMSGTYPE_CL_SETTEAM && !m_World.m_Paused)
 		{
 			CNetMsg_Cl_SetTeam *pMsg = (CNetMsg_Cl_SetTeam *)pRawMsg;
 
-			if(pPlayer->GetTeam() == pMsg->m_Team || (g_Config.m_SvSpamprotection && pPlayer->m_LastSetTeam && pPlayer->m_LastSetTeam+Server()->TickSpeed()*1 > Server()->Tick()))
+			if(pPlayer->GetTeam() == pMsg->m_Team ||
+			   (g_Config.m_SvSpamprotection && pPlayer->m_LastSetTeam &&
+				pPlayer->m_LastSetTeam + Server()->TickSpeed() * 1 > Server()->Tick()))
 				return;
-			
+
 			pPlayer->m_LastSetTeam = Server()->Tick();
 			if(pPlayer->GetTeam() == TEAM_SPECTATORS || pMsg->m_Team == TEAM_SPECTATORS)
 				m_VoteUpdate = true;
-			
+
 			pPlayer->SetTeam(pMsg->m_Team);
 			pPlayer->m_TeamChangeTick = Server()->Tick();
-			
+
 			/*
 			if(pMsg->m_Team != TEAM_SPECTATORS && m_LockTeams)
 			{
@@ -2536,11 +2594,10 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				pPlayer->m_LastSetTeam = Server()->Tick();
 				int TimeLeft = (pPlayer->m_TeamChangeTick - Server()->Tick())/Server()->TickSpeed();
 				char aBuf[128];
-				str_format(aBuf, sizeof(aBuf), "Time to wait before changing team: %02d:%02d", TimeLeft/60, TimeLeft%60);
-				SendBroadcast(aBuf, ClientID);
-				return;
+				str_format(aBuf, sizeof(aBuf), "Time to wait before changing team: %02d:%02d", TimeLeft/60,
+			TimeLeft%60); SendBroadcast(aBuf, ClientID); return;
 			}
-			
+
 
 			// Switch team on given client and kill/respawn him
 			if(m_pController->CanJoinTeam(pMsg->m_Team, ClientID))
@@ -2560,31 +2617,34 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			else
 			{
 				char aBuf[128];
-				str_format(aBuf, sizeof(aBuf), "Only %d active players are allowed", Server()->MaxClients()-g_Config.m_SvSpectatorSlots);
-				SendBroadcast(aBuf, ClientID);
+				str_format(aBuf, sizeof(aBuf), "Only %d active players are allowed",
+			Server()->MaxClients()-g_Config.m_SvSpectatorSlots); SendBroadcast(aBuf, ClientID);
 			}
 			*/
 		}
-		else if (MsgID == NETMSGTYPE_CL_SETSPECTATORMODE && !m_World.m_Paused)
+		else if(MsgID == NETMSGTYPE_CL_SETSPECTATORMODE && !m_World.m_Paused)
 		{
 			CNetMsg_Cl_SetSpectatorMode *pMsg = (CNetMsg_Cl_SetSpectatorMode *)pRawMsg;
 
 			pPlayer->m_ActionSpectator = false;
-			
-			if((pPlayer->GetTeam() != TEAM_SPECTATORS && !g_Config.m_SvSurvivalMode) || 
-				pPlayer->m_SpectatorID == pMsg->m_SpectatorID || ClientID == pMsg->m_SpectatorID ||
-				(g_Config.m_SvSpamprotection && pPlayer->m_LastSetSpectatorMode && pPlayer->m_LastSetSpectatorMode+Server()->TickSpeed()*1 > Server()->Tick()))
+
+			if((pPlayer->GetTeam() != TEAM_SPECTATORS && !g_Config.m_SvSurvivalMode) ||
+			   pPlayer->m_SpectatorID == pMsg->m_SpectatorID || ClientID == pMsg->m_SpectatorID ||
+			   (g_Config.m_SvSpamprotection && pPlayer->m_LastSetSpectatorMode &&
+				pPlayer->m_LastSetSpectatorMode + Server()->TickSpeed() * 1 > Server()->Tick()))
 				return;
 
 			pPlayer->m_LastSetSpectatorMode = Server()->Tick();
-			if(pMsg->m_SpectatorID != SPEC_FREEVIEW && (!m_apPlayers[pMsg->m_SpectatorID] || m_apPlayers[pMsg->m_SpectatorID]->GetTeam() == TEAM_SPECTATORS))
+			if(pMsg->m_SpectatorID != SPEC_FREEVIEW &&
+			   (!m_apPlayers[pMsg->m_SpectatorID] || m_apPlayers[pMsg->m_SpectatorID]->GetTeam() == TEAM_SPECTATORS))
 				SendChatTarget(ClientID, "Invalid spectator id used");
 			else
 				pPlayer->m_SpectatorID = pMsg->m_SpectatorID;
 		}
-		else if (MsgID == NETMSGTYPE_CL_CHANGEINFO)
+		else if(MsgID == NETMSGTYPE_CL_CHANGEINFO)
 		{
-			if(g_Config.m_SvSpamprotection && pPlayer->m_LastChangeInfo && pPlayer->m_LastChangeInfo+Server()->TickSpeed()*5 > Server()->Tick())
+			if(g_Config.m_SvSpamprotection && pPlayer->m_LastChangeInfo &&
+			   pPlayer->m_LastChangeInfo + Server()->TickSpeed() * 5 > Server()->Tick())
 				return;
 
 			CNetMsg_Cl_ChangeInfo *pMsg = (CNetMsg_Cl_ChangeInfo *)pRawMsg;
@@ -2610,63 +2670,79 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			pPlayer->m_TeeInfos.m_ColorTopper = pMsg->m_ColorTopper;
 			pPlayer->m_TeeInfos.m_BloodColor = pMsg->m_BloodColor;
 			pPlayer->m_TeeInfos.m_ColorSkin = pMsg->m_ColorSkin;
-			str_copy(pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Language), sizeof(pPlayer->m_aLanguage));
+			str_copy(
+				pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Language), sizeof(pPlayer->m_aLanguage));
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 		}
-		else if (MsgID == NETMSGTYPE_CL_EMOTICON && !m_World.m_Paused)
+		else if(MsgID == NETMSGTYPE_CL_EMOTICON && !m_World.m_Paused)
 		{
 			CNetMsg_Cl_Emoticon *pMsg = (CNetMsg_Cl_Emoticon *)pRawMsg;
 
-			if(g_Config.m_SvSpamprotection && pPlayer->m_LastEmote && pPlayer->m_LastEmote+Server()->TickSpeed()*1 > Server()->Tick())
+			if(g_Config.m_SvSpamprotection && pPlayer->m_LastEmote &&
+			   pPlayer->m_LastEmote + Server()->TickSpeed() * 1 > Server()->Tick())
 				return;
 
 			pPlayer->m_LastEmote = Server()->Tick();
-			
-			if ((pMsg->m_Emoticon == EMOTICON_EYES || pMsg->m_Emoticon == EMOTICON_HEARTS) && pPlayer->GetCharacter())
+
+			if((pMsg->m_Emoticon == EMOTICON_EYES || pMsg->m_Emoticon == EMOTICON_HEARTS) && pPlayer->GetCharacter())
 				pPlayer->GetCharacter()->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
-			
-			if ((pMsg->m_Emoticon == EMOTICON_SPLATTEE || pMsg->m_Emoticon == EMOTICON_DEVILTEE || pMsg->m_Emoticon == EMOTICON_ZOMG) && pPlayer->GetCharacter())
+
+			if((pMsg->m_Emoticon == EMOTICON_SPLATTEE || pMsg->m_Emoticon == EMOTICON_DEVILTEE ||
+				pMsg->m_Emoticon == EMOTICON_ZOMG) &&
+			   pPlayer->GetCharacter())
 				pPlayer->GetCharacter()->SetEmote(EMOTE_ANGRY, Server()->Tick() + Server()->TickSpeed());
-			
+
 			SendEmoticon(ClientID, pMsg->m_Emoticon);
 		}
-		else if (MsgID == NETMSGTYPE_CL_DROPWEAPON && !m_World.m_Paused)
+		else if(MsgID == NETMSGTYPE_CL_DROPWEAPON && !m_World.m_Paused)
 		{
 			pPlayer->DropWeapon();
 		}
-		else if (MsgID == NETMSGTYPE_CL_SELECTITEM && !m_World.m_Paused)
+		else if(MsgID == NETMSGTYPE_CL_SELECTITEM && !m_World.m_Paused)
 		{
 			CNetMsg_Cl_SelectItem *pMsg = (CNetMsg_Cl_SelectItem *)pRawMsg;
 			pPlayer->SelectItem(pMsg->m_Item);
 		}
-		else if (MsgID == NETMSGTYPE_CL_INVENTORYACTION)
+		else if(MsgID == NETMSGTYPE_CL_INVENTORYACTION)
 		{
 			CNetMsg_Cl_InventoryAction *pMsg = (CNetMsg_Cl_InventoryAction *)pRawMsg;
-			switch (pMsg->m_Type)
+			switch(pMsg->m_Type)
 			{
-				case INVENTORYACTION_ROLL: pPlayer->InventoryRoll(pMsg->m_Slot); break;
-				case INVENTORYACTION_DROP: pPlayer->DropItem(pMsg->m_Slot, vec2(pMsg->m_Item1, pMsg->m_Item2)); break;
-				case INVENTORYACTION_SWAP: pPlayer->SwapItem(pMsg->m_Item1, pMsg->m_Item2); break;
-				case INVENTORYACTION_COMBINE: pPlayer->CombineItem(pMsg->m_Item1, pMsg->m_Item2, pMsg->m_Slot); break;
-				case INVENTORYACTION_TAKEPART: break;
-				case INVENTORYACTION_SHOP: Shop(pPlayer, pMsg->m_Slot); break;
-				default: return;
+				case INVENTORYACTION_ROLL:
+					pPlayer->InventoryRoll(pMsg->m_Slot);
+					break;
+				case INVENTORYACTION_DROP:
+					pPlayer->DropItem(pMsg->m_Slot, vec2(pMsg->m_Item1, pMsg->m_Item2));
+					break;
+				case INVENTORYACTION_SWAP:
+					pPlayer->SwapItem(pMsg->m_Item1, pMsg->m_Item2);
+					break;
+				case INVENTORYACTION_COMBINE:
+					pPlayer->CombineItem(pMsg->m_Item1, pMsg->m_Item2, pMsg->m_Slot);
+					break;
+				case INVENTORYACTION_TAKEPART:
+					break;
+				case INVENTORYACTION_SHOP:
+					Shop(pPlayer, pMsg->m_Slot);
+					break;
+				default:
+					return;
 			};
 		}
-		else if (MsgID == NETMSGTYPE_CL_USEKIT && !m_World.m_Paused)
+		else if(MsgID == NETMSGTYPE_CL_USEKIT && !m_World.m_Paused)
 		{
 			CNetMsg_Cl_UseKit *pMsg = (CNetMsg_Cl_UseKit *)pRawMsg;
 			pPlayer->UseKit(pMsg->m_Kit, vec2(pMsg->m_X, pMsg->m_Y));
 		}
-		else if (MsgID == NETMSGTYPE_CL_VOTEGAMEMODE)
+		else if(MsgID == NETMSGTYPE_CL_VOTEGAMEMODE)
 		{
 			CNetMsg_Cl_VoteGameMode *pMsg = (CNetMsg_Cl_VoteGameMode *)pRawMsg;
 			RegisterGameVote(ClientID, pMsg->m_Vote);
 		}
-		else if (MsgID == NETMSGTYPE_CL_KILL && !m_World.m_Paused)
+		else if(MsgID == NETMSGTYPE_CL_KILL && !m_World.m_Paused)
 		{
-			if(pPlayer->m_LastKill && pPlayer->m_LastKill+Server()->TickSpeed()*1 > Server()->Tick())
+			if(pPlayer->m_LastKill && pPlayer->m_LastKill + Server()->TickSpeed() * 1 > Server()->Tick())
 				return;
 
 			pPlayer->m_LastKill = Server()->Tick();
@@ -2679,9 +2755,9 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		if(MsgID == NETMSGTYPE_CL_STARTINFO)
 		{
 			// limit players to 4 in invasion
-			if (m_pController->IsCoop() && m_pController->CountHumans() > 16)
+			if(m_pController->IsCoop() && m_pController->CountHumans() > 16)
 				Server()->Kick(ClientID, "Server full - max 16 players in co-op modes");
-			
+
 			if(pPlayer->m_IsReady)
 				return;
 
@@ -2703,7 +2779,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			pPlayer->m_TeeInfos.m_ColorTopper = pMsg->m_ColorTopper;
 			pPlayer->m_TeeInfos.m_ColorSkin = pMsg->m_ColorSkin;
 			pPlayer->m_TeeInfos.m_BloodColor = pMsg->m_BloodColor;
-			str_copy(pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Language), sizeof(pPlayer->m_aLanguage));
+			str_copy(
+				pPlayer->m_aLanguage, Localization()->GetLanguageCode(pMsg->m_Language), sizeof(pPlayer->m_aLanguage));
 
 			m_pController->OnPlayerInfoChange(pPlayer);
 
@@ -2733,21 +2810,49 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			{
 				switch(NumOptions++)
 				{
-				case 0: OptionMsg.m_pDescription0 = pCurrent->m_aDescription; break;
-				case 1: OptionMsg.m_pDescription1 = pCurrent->m_aDescription; break;
-				case 2: OptionMsg.m_pDescription2 = pCurrent->m_aDescription; break;
-				case 3: OptionMsg.m_pDescription3 = pCurrent->m_aDescription; break;
-				case 4: OptionMsg.m_pDescription4 = pCurrent->m_aDescription; break;
-				case 5: OptionMsg.m_pDescription5 = pCurrent->m_aDescription; break;
-				case 6: OptionMsg.m_pDescription6 = pCurrent->m_aDescription; break;
-				case 7: OptionMsg.m_pDescription7 = pCurrent->m_aDescription; break;
-				case 8: OptionMsg.m_pDescription8 = pCurrent->m_aDescription; break;
-				case 9: OptionMsg.m_pDescription9 = pCurrent->m_aDescription; break;
-				case 10: OptionMsg.m_pDescription10 = pCurrent->m_aDescription; break;
-				case 11: OptionMsg.m_pDescription11 = pCurrent->m_aDescription; break;
-				case 12: OptionMsg.m_pDescription12 = pCurrent->m_aDescription; break;
-				case 13: OptionMsg.m_pDescription13 = pCurrent->m_aDescription; break;
-				case 14:
+					case 0:
+						OptionMsg.m_pDescription0 = pCurrent->m_aDescription;
+						break;
+					case 1:
+						OptionMsg.m_pDescription1 = pCurrent->m_aDescription;
+						break;
+					case 2:
+						OptionMsg.m_pDescription2 = pCurrent->m_aDescription;
+						break;
+					case 3:
+						OptionMsg.m_pDescription3 = pCurrent->m_aDescription;
+						break;
+					case 4:
+						OptionMsg.m_pDescription4 = pCurrent->m_aDescription;
+						break;
+					case 5:
+						OptionMsg.m_pDescription5 = pCurrent->m_aDescription;
+						break;
+					case 6:
+						OptionMsg.m_pDescription6 = pCurrent->m_aDescription;
+						break;
+					case 7:
+						OptionMsg.m_pDescription7 = pCurrent->m_aDescription;
+						break;
+					case 8:
+						OptionMsg.m_pDescription8 = pCurrent->m_aDescription;
+						break;
+					case 9:
+						OptionMsg.m_pDescription9 = pCurrent->m_aDescription;
+						break;
+					case 10:
+						OptionMsg.m_pDescription10 = pCurrent->m_aDescription;
+						break;
+					case 11:
+						OptionMsg.m_pDescription11 = pCurrent->m_aDescription;
+						break;
+					case 12:
+						OptionMsg.m_pDescription12 = pCurrent->m_aDescription;
+						break;
+					case 13:
+						OptionMsg.m_pDescription13 = pCurrent->m_aDescription;
+						break;
+					case 14:
 					{
 						OptionMsg.m_pDescription14 = pCurrent->m_aDescription;
 						OptionMsg.m_NumOptions = NumOptions;
@@ -2784,7 +2889,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			// client is ready to enter
 			pPlayer->m_IsReady = true;
 			CNetMsg_Sv_ReadyToEnter m;
-			Server()->SendPackMsg(&m, MSGFLAG_VITAL|MSGFLAG_FLUSH, ClientID);
+			m.m_pWeaponContentHash = CWeaponCatalog::OfficialContentHash();
+			Server()->SendPackMsg(&m, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientID);
 		}
 	}
 }
@@ -2869,9 +2975,9 @@ void CGameContext::ConSay(IConsole::IResult *pResult, void *pUserData)
 void CGameContext::ConSetTeam(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	int ClientID = clamp(pResult->GetInteger(0), 0, (int)MAX_CLIENTS-1);
+	int ClientID = clamp(pResult->GetInteger(0), 0, (int)MAX_CLIENTS - 1);
 	int Team = clamp(pResult->GetInteger(1), -1, 1);
-	int Delay = pResult->NumArguments()>2 ? pResult->GetInteger(2) : 0;
+	int Delay = pResult->NumArguments() > 2 ? pResult->GetInteger(2) : 0;
 	if(!pSelf->m_apPlayers[ClientID])
 		return;
 
@@ -2879,7 +2985,8 @@ void CGameContext::ConSetTeam(IConsole::IResult *pResult, void *pUserData)
 	str_format(aBuf, sizeof(aBuf), "moved client %d to team %d", ClientID, Team);
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 
-	pSelf->m_apPlayers[ClientID]->m_TeamChangeTick = pSelf->Server()->Tick()+pSelf->Server()->TickSpeed()*Delay*60;
+	pSelf->m_apPlayers[ClientID]->m_TeamChangeTick =
+		pSelf->Server()->Tick() + pSelf->Server()->TickSpeed() * Delay * 60;
 	pSelf->m_apPlayers[ClientID]->SetTeam(Team);
 	(void)pSelf->m_pController->CheckTeamBalance();
 }
@@ -2890,7 +2997,7 @@ void CGameContext::ConSetTeamAll(IConsole::IResult *pResult, void *pUserData)
 	int Team = clamp(pResult->GetInteger(0), -1, 1);
 
 	pSelf->SendChatTarget(-1, pSelf->m_pController->GetTeamMoveAllMessage(Team));
-	
+
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 		if(pSelf->m_apPlayers[i])
 			pSelf->m_apPlayers[i]->SetTeam(Team, false);
@@ -2914,8 +3021,8 @@ void CGameContext::ConShuffleTeams(IConsole::IResult *pResult, void *pUserData)
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 		if(pSelf->m_apPlayers[i] && pSelf->m_apPlayers[i]->GetTeam() != TEAM_SPECTATORS)
 			++PlayerTeam;
-	PlayerTeam = (PlayerTeam+1)/2;
-	
+	PlayerTeam = (PlayerTeam + 1) / 2;
+
 	pSelf->SendChatTarget(-1, "Teams were shuffled");
 
 	/*
@@ -2928,7 +3035,7 @@ void CGameContext::ConShuffleTeams(IConsole::IResult *pResult, void *pUserData)
 			else if(CounterBlue == PlayerTeam)
 				pSelf->m_apPlayers[i]->SetTeam(TEAM_RED, false);
 			else
-			{	
+			{
 				if(rand() % 2)
 				{
 					pSelf->m_apPlayers[i]->SetTeam(TEAM_BLUE, false);
@@ -3015,7 +3122,7 @@ void CGameContext::ConAddVote(IConsole::IResult *pResult, void *pUserData)
 		pSelf->m_pVoteOptionFirst = pOption;
 
 	str_copy(pOption->m_aDescription, pDescription, sizeof(pOption->m_aDescription));
-	mem_copy(pOption->m_aCommand, pCommand, Len+1);
+	mem_copy(pOption->m_aCommand, pCommand, Len + 1);
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "added option '%s' '%s'", pOption->m_aDescription, pOption->m_aCommand);
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
@@ -3072,7 +3179,8 @@ void CGameContext::ConForceVote(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	const char *pType = pResult->GetString(0);
 	const char *pValue = pResult->GetString(1);
-	const char *pReason = pResult->NumArguments() > 2 && pResult->GetString(2)[0] ? pResult->GetString(2) : "No reason given";
+	const char *pReason =
+		pResult->NumArguments() > 2 && pResult->GetString(2)[0] ? pResult->GetString(2) : "No reason given";
 	char aBuf[128] = {0};
 
 	if(str_comp_nocase(pType, "option") == 0)
@@ -3106,7 +3214,7 @@ void CGameContext::ConForceVote(IConsole::IResult *pResult, void *pUserData)
 			return;
 		}
 
-		if (!g_Config.m_SvVoteKickBantime)
+		if(!g_Config.m_SvVoteKickBantime)
 		{
 			str_format(aBuf, sizeof(aBuf), "kick %d %s", KickID, pReason);
 			pSelf->Console()->ExecuteLine(aBuf);
@@ -3122,14 +3230,16 @@ void CGameContext::ConForceVote(IConsole::IResult *pResult, void *pUserData)
 	else if(str_comp_nocase(pType, "spectate") == 0)
 	{
 		int SpectateID = str_toint(pValue);
-		if(SpectateID < 0 || SpectateID >= MAX_CLIENTS || !pSelf->m_apPlayers[SpectateID] || pSelf->m_apPlayers[SpectateID]->GetTeam() == TEAM_SPECTATORS)
+		if(SpectateID < 0 || SpectateID >= MAX_CLIENTS || !pSelf->m_apPlayers[SpectateID] ||
+		   pSelf->m_apPlayers[SpectateID]->GetTeam() == TEAM_SPECTATORS)
 		{
 			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid client id to move");
 			return;
 		}
 
-		pSelf->SendChatTarget(-1, "admin moved '%s' to spectator (%s)", pSelf->Server()->ClientName(SpectateID), pReason);
-		
+		pSelf->SendChatTarget(
+			-1, "admin moved '%s' to spectator (%s)", pSelf->Server()->ClientName(SpectateID), pReason);
+
 		str_format(aBuf, sizeof(aBuf), "set_team %d -1 %d", SpectateID, g_Config.m_SvVoteSpectateRejoindelay);
 		pSelf->Console()->ExecuteLine(aBuf);
 	}
@@ -3139,8 +3249,6 @@ void CGameContext::ReloadMap()
 {
 	Console()->ExecuteLine("reload");
 }
-
-
 
 void CGameContext::ConClearVotes(IConsole::IResult *pResult, void *pUserData)
 {
@@ -3163,6 +3271,76 @@ void CGameContext::ConEndRound(IConsole::IResult *pResult, void *pUserData)
 	pSelf->m_pController->EndRound();
 }
 
+void CGameContext::ConWeaponList(IConsole::IResult *pResult, void *pUserData)
+{
+	(void)pResult;
+	CGameContext *pSelf = static_cast<CGameContext *>(pUserData);
+	char aLine[256];
+	for(int Index = 0; Index < CWeaponCatalog::DefinitionCount(); ++Index)
+	{
+		CWeaponDefinition Definition;
+		if(!CWeaponCatalog::TryGetDefinitionByIndex(Index, &Definition))
+			continue;
+		str_format(aLine,
+				   sizeof(aLine),
+				   "id=%d stable=%s source=%s",
+				   (int)Definition.m_Id,
+				   Definition.m_aStableId,
+				   Definition.m_Custom ? Definition.m_aPackageId : "official");
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon", aLine);
+	}
+}
+
+void CGameContext::ConWeaponValidate(IConsole::IResult *pResult, void *pUserData)
+{
+	(void)pResult;
+	CGameContext *pSelf = static_cast<CGameContext *>(pUserData);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD,
+							"weapon",
+							CWeaponCatalog::Validate() ? "weapon registry is valid"
+													   : "weapon registry validation failed");
+}
+
+void CGameContext::ConWeaponSpawn(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = static_cast<CGameContext *>(pUserData);
+	const int ClientId = pResult->GetInteger(0);
+	const int Level = pResult->NumArguments() > 2 ? pResult->GetInteger(2) : 0;
+	CWeaponSpec Spec;
+	CCharacter *pCharacter = ClientId >= 0 && ClientId < MAX_CLIENTS ? pSelf->GetPlayerChar(ClientId) : 0;
+	if(!pCharacter || !CWeaponCatalog::TryFromStableId(pResult->GetString(1), Level, &Spec))
+	{
+		pSelf->Console()->Print(
+			IConsole::OUTPUT_LEVEL_STANDARD, "weapon", "usage failed: weapon_spawn <client-id> <stable-id> [level]");
+		return;
+	}
+	pSelf->m_pController->DropWeapon(pCharacter->m_Pos, vec2(0, -8), pSelf->NewWeapon(Spec));
+}
+
+void CGameContext::ConWeaponReload(IConsole::IResult *pResult, void *pUserData)
+{
+	(void)pResult;
+	CGameContext *pSelf = static_cast<CGameContext *>(pUserData);
+	for(int ClientId = 0; ClientId < MAX_CLIENTS; ++ClientId)
+		if(pSelf->m_apPlayers[ClientId])
+		{
+			pSelf->Console()->Print(
+				IConsole::OUTPUT_LEVEL_STANDARD, "weapon", "weapon_reload requires an empty server");
+			return;
+		}
+	char aRoot[1024], aError[256];
+	pSelf->Storage()->GetCompletePath(IStorage::TYPE_SAVE, "workshop", aRoot, sizeof(aRoot));
+	if(!WeaponPackagesLoadCollection(
+		   aRoot, g_Config.m_SvModIds, pSelf->NetVersion(), g_Config.m_SvModHash, aError, sizeof(aError)))
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon", aError);
+	else
+	{
+		pSelf->Console()->Print(
+			IConsole::OUTPUT_LEVEL_STANDARD, "weapon", "weapon definitions reloaded; restarting map");
+		pSelf->Console()->ExecuteLine("reload");
+	}
+}
+
 void CGameContext::ConVote(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
@@ -3175,15 +3353,18 @@ void CGameContext::ConVote(IConsole::IResult *pResult, void *pUserData)
 		pSelf->m_VoteEnforce = CGameContext::VOTE_ENFORCE_YES;
 	else if(str_comp_nocase(pResult->GetString(0), "no") == 0)
 		pSelf->m_VoteEnforce = CGameContext::VOTE_ENFORCE_NO;
-	
+
 	pSelf->SendChatTarget(-1, "admin forced vote %s", pResult->GetString(0));
-		
+
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "forcing vote %s", pResult->GetString(0));
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 }
 
-void CGameContext::ConchainSpecialMotdupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
+void CGameContext::ConchainSpecialMotdupdate(IConsole::IResult *pResult,
+											 void *pUserData,
+											 IConsole::FCommandCallback pfnCallback,
+											 void *pCallbackUserData)
 {
 	pfnCallback(pResult, pCallbackUserData);
 	if(pResult->NumArguments())
@@ -3209,8 +3390,9 @@ void CGameContext::OnConsoleInit()
 	Console()->Register("tune_dump", "", CFGFLAG_SERVER, ConTuneDump, this, "Dump tuning");
 
 	Console()->Register("pause", "", CFGFLAG_SERVER, ConPause, this, "Pause/unpause game");
-	Console()->Register("change_map", "?r", CFGFLAG_SERVER|CFGFLAG_STORE, ConChangeMap, this, "Change map");
-	Console()->Register("restart", "?i", CFGFLAG_SERVER|CFGFLAG_STORE, ConRestart, this, "Restart in x seconds (0 = abort)");
+	Console()->Register("change_map", "?r", CFGFLAG_SERVER | CFGFLAG_STORE, ConChangeMap, this, "Change map");
+	Console()->Register(
+		"restart", "?i", CFGFLAG_SERVER | CFGFLAG_STORE, ConRestart, this, "Restart in x seconds (0 = abort)");
 	Console()->Register("broadcast", "r", CFGFLAG_SERVER, ConBroadcast, this, "Broadcast message");
 	Console()->Register("say", "r", CFGFLAG_SERVER, ConSay, this, "Say in chat");
 	Console()->Register("set_team", "ii?i", CFGFLAG_SERVER, ConSetTeam, this, "Set team of player to team");
@@ -3224,75 +3406,76 @@ void CGameContext::OnConsoleInit()
 	Console()->Register("force_vote", "ss?r", CFGFLAG_SERVER, ConForceVote, this, "Force a voting option");
 	Console()->Register("clear_votes", "", CFGFLAG_SERVER, ConClearVotes, this, "Clears the voting options");
 	Console()->Register("vote", "r", CFGFLAG_SERVER, ConVote, this, "Force a vote to yes/no");
-	
+
 	Console()->Register("end_round", "", CFGFLAG_SERVER, ConEndRound, this, "Ends the current round");
+	Console()->Register("weapon_list", "", CFGFLAG_SERVER, ConWeaponList, this, "Lists registered Lua weapons");
+	Console()->Register(
+		"weapon_validate", "", CFGFLAG_SERVER, ConWeaponValidate, this, "Validates the Lua weapon registry");
+	Console()->Register(
+		"weapon_spawn", "is?i", CFGFLAG_SERVER, ConWeaponSpawn, this, "Spawns a weapon near a client by stable ID");
+	Console()->Register(
+		"weapon_reload", "", CFGFLAG_SERVER, ConWeaponReload, this, "Reloads data-only weapon Mods on an empty server");
 
-
-	//Console()->Chain("sv_motd", ConchainSpecialMotdupdate, this);
+	// Console()->Chain("sv_motd", ConchainSpecialMotdupdate, this);
 }
-
 
 void CGameContext::ActivateBlockEntities(int x)
 {
-	if (!m_pBlockEntities)
+	if(!m_pBlockEntities)
 		return;
-	
-	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, x/32, false);
-	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, (x-1000)/32, true);
-	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, (x+1000)/32, true);
-}
 
+	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, x / 32, false);
+	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, (x - 1000) / 32, true);
+	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, (x + 1000) / 32, true);
+}
 
 void CGameContext::CreateEntitiesForBlock(int block)
 {
 	CMapItemLayerTilemap *pTileMap = m_Layers.GameLayer();
 	CTile *pTiles = (CTile *)Kernel()->RequestInterface<IMap>()->GetData(pTileMap->m_Data);
-	
-	int OffX = block*m_Collision.GetChunkSize();
-	
+
+	int OffX = block * m_Collision.GetChunkSize();
+
 	for(int y = 0; y < pTileMap->m_Height; y++)
 	{
 		for(int x = 0; x < m_Collision.GetChunkSize(); x++)
 		{
-			int xx = m_Collision.GetModularPos(x+OffX);
-			int Index = pTiles[y*pTileMap->m_Width+xx].m_Index;
+			int xx = m_Collision.GetModularPos(x + OffX);
+			int Index = pTiles[y * pTileMap->m_Width + xx].m_Index;
 
-			if (Index-ENTITY_OFFSET == ENTITY_SPAWN && m_pBlockEntities)
+			if(Index - ENTITY_OFFSET == ENTITY_SPAWN && m_pBlockEntities)
 			{
-				if (m_pBlockEntities->AddSpawn(vec2((x+OffX), y)))
+				if(m_pBlockEntities->AddSpawn(vec2((x + OffX), y)))
 					Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "game", "Spawn created");
 				else
 					Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "game", "Spawn creation failure");
 			}
-			else if (Index-ENTITY_OFFSET == ENTITY_ENEMYSPAWN)
-				m_pController->AddEnemy(vec2((x+OffX)*32.0f+16.0f, y*32.0f+16.0f));
+			else if(Index - ENTITY_OFFSET == ENTITY_ENEMYSPAWN)
+				m_pController->AddEnemy(vec2((x + OffX) * 32.0f + 16.0f, y * 32.0f + 16.0f));
 			else if(Index >= ENTITY_OFFSET)
 			{
-				vec2 Pos((x+OffX)*32.0f+16.0f, y*32.0f+16.0f);
-				m_pController->OnEntity(Index-ENTITY_OFFSET, Pos);
+				vec2 Pos((x + OffX) * 32.0f + 16.0f, y * 32.0f + 16.0f);
+				m_pController->OnEntity(Index - ENTITY_OFFSET, Pos);
 			}
 		}
 	}
 }
 
-
 bool CGameContext::StoreEntity(int ObjType, int Type, int Subtype, int x, int y)
 {
-	if (!m_Collision.IsMapModular())
+	if(!m_Collision.IsMapModular())
 		return false;
-	
-	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, x/32, false);
+
+	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, x / 32, false);
 	m_pBlockEntities->StoreEntity(ObjType, Type, Subtype, x, y);
-	
+
 	return true;
 }
-
 
 void CGameContext::RestoreEntity(int ObjType, int Type, int Subtype, int x, int y)
 {
 	m_pController->RestoreEntity(ObjType, Type, Subtype, x, y);
 }
-
 
 void CGameContext::OnInit(/*class IKernel *pKernel*/)
 {
@@ -3304,11 +3487,11 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	m_pLocalization = Kernel()->RequestInterface<ILocalization>();
 	m_World.SetGameServer(this);
 	m_Events.SetGameServer(this);
-	
-	m_pBlockEntities = NULL;
 
-	//if(!data) // only load once
-		//data = load_data_from_memory(internal_data);
+	m_pBlockEntities = 0;
+
+	// if(!data) // only load once
+	// data = load_data_from_memory(internal_data);
 
 	for(int i = 0; i < NUM_NETOBJTYPES; i++)
 		Server()->SnapSetStaticsize(i, m_NetObjHandler.GetObjSize(i));
@@ -3318,8 +3501,8 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	m_MapGen.Init(&m_Layers, &m_Collision, m_pStorage); // MapGen
 
 	// reset everything here
-	//world = new GAMEWORLD;
-	//players = new CPlayer[MAX_CLIENTS];
+	// world = new GAMEWORLD;
+	// players = new CPlayer[MAX_CLIENTS];
 
 	// select gametype
 	if(str_comp(g_Config.m_SvGametype, "ctf") == 0)
@@ -3350,32 +3533,28 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	m_pPveDirector = new CPveDirector(this);
 	if(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
 		m_pTutorialDirector = new CTutorialDirector(this);
-	
-	//if (str_comp(g_Config.m_SvGametype, "coop") != 0)
+
+	// if (str_comp(g_Config.m_SvGametype, "coop") != 0)
 	//	Server()->ResetPlayerData();
-		
 
 	// MapGen
-	//if (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGen && !m_pServer->m_MapGenerated)
-	if (g_Config.m_SvMapGen && !m_pServer->m_MapGenerated)
+	// if (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGen && !m_pServer->m_MapGenerated)
+	if(g_Config.m_SvMapGen && !m_pServer->m_MapGenerated)
 	{
 		m_MapGen.FillMap();
 		SaveMap("");
-		
+
 		str_copy(g_Config.m_SvMap, "generated", sizeof(g_Config.m_SvMap));
 		m_pServer->m_MapGenerated = true;
 	}
 
 	// setup core world
-	//for(int i = 0; i < MAX_CLIENTS; i++)
+	// for(int i = 0; i < MAX_CLIENTS; i++)
 	//	game.players[i].core.world = &game.world.core;
 
 	// create all entities from the game layer
 	CMapItemLayerTilemap *pTileMap = m_Layers.GameLayer();
 	CTile *pTiles = (CTile *)Kernel()->RequestInterface<IMap>()->GetData(pTileMap->m_Data);
-
-
-
 
 	/*
 	num_spawn_points[0] = 0;
@@ -3384,40 +3563,39 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	*/
 
 	// create entities for non-modular maps
-	if (!m_Collision.IsMapModular())
+	if(!m_Collision.IsMapModular())
 	{
 		for(int y = 0; y < pTileMap->m_Height; y++)
 		{
 			for(int x = 0; x < pTileMap->m_Width; x++)
 			{
-				int Index = pTiles[y*pTileMap->m_Width+x].m_Index;
+				int Index = pTiles[y * pTileMap->m_Width + x].m_Index;
 
 				if(Index >= ENTITY_OFFSET)
 				{
-					vec2 Pos(x*32.0f+16.0f, y*32.0f+16.0f);
-					m_pController->OnEntity(Index-ENTITY_OFFSET, Pos);
+					vec2 Pos(x * 32.0f + 16.0f, y * 32.0f + 16.0f);
+					m_pController->OnEntity(Index - ENTITY_OFFSET, Pos);
 				}
 			}
 		}
 	}
-	// 
+	//
 	else
 	{
-		//for (int i = 0; i < 9; i++)
+		// for (int i = 0; i < 9; i++)
 		//	CreateEntitiesForBlock(i);
-		m_pBlockEntities = new CBlockEntities(this, 0, m_Collision.GetChunkSize(), NULL);
+		m_pBlockEntities = new CBlockEntities(this, 0, m_Collision.GetChunkSize(), 0);
 		ActivateBlockEntities(0);
 	}
-	
 
-	//game.world.insert_entity(game.Controller);
+	// game.world.insert_entity(game.Controller);
 
-	//SetupVotes(-1);
-	
+	// SetupVotes(-1);
+
 	/*
 	CNetMsg_Sv_VoteClearOptions VoteClearOptionsMsg;
 	Server()->SendPackMsg(&VoteClearOptionsMsg, MSGFLAG_VITAL, -1);
-	
+
 	m_pVoteOptionHeap->Reset();
 	m_pVoteOptionFirst = 0;
 	m_pVoteOptionLast = 0;
@@ -3425,20 +3603,16 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	*/
 }
 
-
-
-
-
 void CGameContext::OnShutdown()
 {
 	KickBots();
-	
-	if (m_pBlockEntities)
+
+	if(m_pBlockEntities)
 	{
 		delete m_pBlockEntities;
-		m_pBlockEntities = NULL;
+		m_pBlockEntities = 0;
 	}
-	
+
 	delete m_pPveDirector;
 	m_pPveDirector = 0;
 	delete m_pTutorialDirector;
@@ -3450,18 +3624,19 @@ void CGameContext::OnShutdown()
 
 void CGameContext::OnSnap(int ClientID)
 {
-	if (ClientID != -1 && m_apPlayers[ClientID] && m_apPlayers[ClientID]->m_IsBot)
+	if(ClientID != -1 && m_apPlayers[ClientID] && m_apPlayers[ClientID]->m_IsBot)
 		return;
 
 	// add tuning to demo
 	CTuningParams StandardTuning;
-	if(ClientID == -1 && Server()->DemoRecorder_IsRecording() && mem_comp(&StandardTuning, &m_Tuning, sizeof(CTuningParams)) != 0)
+	if(ClientID == -1 && Server()->DemoRecorder_IsRecording() &&
+	   mem_comp(&StandardTuning, &m_Tuning, sizeof(CTuningParams)) != 0)
 	{
 		CMsgPacker Msg(NETMSGTYPE_SV_TUNEPARAMS);
 		int *pParams = (int *)&m_Tuning;
-		for(unsigned i = 0; i < sizeof(m_Tuning)/sizeof(int); i++)
+		for(unsigned i = 0; i < sizeof(m_Tuning) / sizeof(int); i++)
 			Msg.AddInt(pParams[i]);
-		Server()->SendMsg(&Msg, MSGFLAG_RECORD|MSGFLAG_NOSEND, ClientID);
+		Server()->SendMsg(&Msg, MSGFLAG_RECORD | MSGFLAG_NOSEND, ClientID);
 	}
 
 	m_World.Snap(ClientID);
@@ -3474,7 +3649,9 @@ void CGameContext::OnSnap(int ClientID)
 			m_apPlayers[i]->Snap(ClientID);
 	}
 }
-void CGameContext::OnPreSnap() {}
+void CGameContext::OnPreSnap()
+{
+}
 void CGameContext::OnPostSnap()
 {
 	m_Events.Clear();
@@ -3490,13 +3667,23 @@ bool CGameContext::IsClientPlayer(int ClientID)
 	return m_apPlayers[ClientID] && m_apPlayers[ClientID]->GetTeam() == TEAM_SPECTATORS ? false : true;
 }
 
-const char *CGameContext::GameType() { return m_pController && m_pController->m_pGameType ? m_pController->m_pGameType : ""; }
-const char *CGameContext::Version() { return GAME_VERSION; }
-const char *CGameContext::NetVersion() { return GAME_NETVERSION; }
+const char *CGameContext::GameType()
+{
+	return m_pController && m_pController->m_pGameType ? m_pController->m_pGameType : "";
+}
+const char *CGameContext::Version()
+{
+	return GAME_VERSION;
+}
+const char *CGameContext::NetVersion()
+{
+	return GAME_NETVERSION;
+}
 
-IGameServer *CreateGameServer() { return new CGameContext; }
-
-
+IGameServer *CreateGameServer()
+{
+	return new CGameContext;
+}
 
 void CGameContext::KickBots()
 {
@@ -3509,20 +3696,17 @@ void CGameContext::KickBots()
 	}
 }
 
-
 void CGameContext::KickBot(int ClientID)
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_apPlayers[ClientID])
 		return;
-	
-	if (m_apPlayers[ClientID]->GetCharacter())
+
+	if(m_apPlayers[ClientID]->GetCharacter())
 		m_apPlayers[ClientID]->GetCharacter()->Die(CAttackSource::World(WEAPON_WORLD, ClientID), true);
-	
+
 	if(IsBot(ClientID))
 		Server()->Kick(ClientID, "");
 }
-
-
 
 void CGameContext::AddBot()
 {
@@ -3542,27 +3726,24 @@ void CGameContext::AddBot()
 	Server()->AddZombie();
 }
 
-
-
-
 int CGameContext::CountBots(bool SkipSpecialTees)
 {
 	int n = 0;
-	
-	for (int i = 0; i < MAX_CLIENTS; i++)
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if (IsBot(i))
+		if(IsBot(i))
 		{
-			if (SkipSpecialTees)
+			if(SkipSpecialTees)
 			{
-				if (m_apPlayers[i]->m_pAI && m_apPlayers[i]->m_pAI->m_Special < 0)
+				if(m_apPlayers[i]->m_pAI && m_apPlayers[i]->m_pAI->m_Special < 0)
 					n++;
 			}
 			else
 				n++;
 		}
 	}
-	
+
 	return n;
 }
 
@@ -3570,13 +3751,13 @@ int CGameContext::CountBots(bool SkipSpecialTees)
 int CGameContext::CountHumans()
 {
 	int n = 0;
-	
+
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if (IsHuman(i))
 			n++;
 	}
-	
+
 	return n;
 }
 */
@@ -3584,99 +3765,92 @@ int CGameContext::CountHumans()
 int CGameContext::CountBotsAlive(bool SkipSpecialTees)
 {
 	int n = 0;
-	
-	for (int i = 0; i < MAX_CLIENTS; i++)
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if (IsBot(i) && m_apPlayers[i]->GetCharacter() && m_apPlayers[i]->GetCharacter()->IsAlive())
+		if(IsBot(i) && m_apPlayers[i]->GetCharacter() && m_apPlayers[i]->GetCharacter()->IsAlive())
 		{
-			if (SkipSpecialTees)
+			if(SkipSpecialTees)
 			{
-				if (m_apPlayers[i]->m_pAI && m_apPlayers[i]->m_pAI->m_Special < 0)
+				if(m_apPlayers[i]->m_pAI && m_apPlayers[i]->m_pAI->m_Special < 0)
 					n++;
 			}
 			else
 				n++;
 		}
 	}
-	
+
 	return n;
 }
 
 int CGameContext::CountHumansAlive()
 {
 	int n = 0;
-	
-	for (int i = 0; i < MAX_CLIENTS; i++)
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if (IsHuman(i) && m_apPlayers[i]->GetCharacter() && m_apPlayers[i]->GetCharacter()->IsAlive())
+		if(IsHuman(i) && m_apPlayers[i]->GetCharacter() && m_apPlayers[i]->GetCharacter()->IsAlive())
 			n++;
 	}
-	
+
 	return n;
 }
-
-
-
-
 
 int CGameContext::DistanceToHuman(vec2 Pos)
 {
 	int MinDist = 10000;
-		
-	for (int i = 0; i < MAX_CLIENTS; i++)
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if (m_apPlayers[i] && !m_apPlayers[i]->m_IsBot && m_apPlayers[i]->GetCharacter())
+		if(m_apPlayers[i] && !m_apPlayers[i]->m_IsBot && m_apPlayers[i]->GetCharacter())
 		{
-			if (distance(Pos, m_apPlayers[i]->GetCharacter()->m_Pos) < MinDist)
+			if(distance(Pos, m_apPlayers[i]->GetCharacter()->m_Pos) < MinDist)
 				MinDist = distance(Pos, m_apPlayers[i]->GetCharacter()->m_Pos);
-		}		
+		}
 	}
-	
+
 	return MinDist;
 }
-
 
 vec2 CGameContext::GetNearHumanSpawnPos(bool AllowVision)
 {
 	int n = 0;
 	vec2 ReturnPos = Collision()->GetRandomWaypointPos();
 	int Dist = 100000;
-	
-	
-	while (n++ < 50)
+
+	while(n++ < 50)
 	{
 		vec2 Pos = Collision()->GetRandomWaypointPos();
-		
+
 		bool Valid = true;
 		int MinDist = 10000;
-		
-		for (int i = 0; i < MAX_CLIENTS; i++)
+
+		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
-			if (m_apPlayers[i] && !m_apPlayers[i]->m_IsBot && m_apPlayers[i]->GetCharacter())
+			if(m_apPlayers[i] && !m_apPlayers[i]->m_IsBot && m_apPlayers[i]->GetCharacter())
 			{
 				vec2 PlayerPos = m_apPlayers[i]->GetCharacter()->m_Pos;
-				
-				if (!AllowVision && abs(Pos.x - PlayerPos.x) < 1200 && abs(Pos.x - PlayerPos.x) < 900)
+
+				if(!AllowVision && abs(Pos.x - PlayerPos.x) < 1200 && abs(Pos.x - PlayerPos.x) < 900)
 				{
 					Valid = false;
 					break;
 				}
 				else
 				{
-					
-					if (distance(Pos, PlayerPos) < MinDist)
+
+					if(distance(Pos, PlayerPos) < MinDist)
 						MinDist = distance(Pos, PlayerPos);
 				}
 			}
-			
 		}
-		
-		if (Valid)
+
+		if(Valid)
 		{
-			if (MinDist < 1800)
+			if(MinDist < 1800)
 				return Pos;
-			
-			if (MinDist < Dist)
+
+			if(MinDist < Dist)
 			{
 				Dist = MinDist;
 				ReturnPos = Pos;
@@ -3686,49 +3860,45 @@ vec2 CGameContext::GetNearHumanSpawnPos(bool AllowVision)
 	return ReturnPos;
 }
 
-
-
 vec2 CGameContext::GetFarHumanSpawnPos(bool AllowVision)
 {
 	int n = 0;
 	vec2 ReturnPos = Collision()->GetRandomWaypointPos();
 	int Dist = 1;
-	
-	
-	while (n++ < 50)
+
+	while(n++ < 50)
 	{
 		vec2 Pos = Collision()->GetRandomWaypointPos();
-		
+
 		bool Valid = true;
 		int MaxDist = 1;
-		
-		for (int i = 0; i < MAX_CLIENTS; i++)
+
+		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
-			if (m_apPlayers[i] && !m_apPlayers[i]->m_IsBot && m_apPlayers[i]->GetCharacter())
+			if(m_apPlayers[i] && !m_apPlayers[i]->m_IsBot && m_apPlayers[i]->GetCharacter())
 			{
 				vec2 PlayerPos = m_apPlayers[i]->GetCharacter()->m_Pos;
-				
-				if (!AllowVision && abs(Pos.x - PlayerPos.x) < 1200 && abs(Pos.x - PlayerPos.x) < 900)
+
+				if(!AllowVision && abs(Pos.x - PlayerPos.x) < 1200 && abs(Pos.x - PlayerPos.x) < 900)
 				{
 					Valid = false;
 					break;
 				}
 				else
 				{
-					
-					if (distance(Pos, PlayerPos) > MaxDist)
+
+					if(distance(Pos, PlayerPos) > MaxDist)
 						MaxDist = distance(Pos, PlayerPos);
 				}
 			}
-			
 		}
-		
-		if (Valid)
+
+		if(Valid)
 		{
-			if (MaxDist > 3000)
+			if(MaxDist > 3000)
 				return Pos;
-			
-			if (MaxDist > Dist)
+
+			if(MaxDist > Dist)
 			{
 				Dist = MaxDist;
 				ReturnPos = Pos;
@@ -3738,39 +3908,38 @@ vec2 CGameContext::GetFarHumanSpawnPos(bool AllowVision)
 	return ReturnPos;
 }
 
-
 // MapGen
 void CGameContext::SaveMap(const char *path)
 {
-    IMap *pMap = Layers()->Map();
-    if (!pMap)
-        return;
+	IMap *pMap = Layers()->Map();
+	if(!pMap)
+		return;
 
-    CDataFileWriter fileWrite;
-    char aMapFile[512];
-	//str_format(aMapFile, sizeof(aMapFile), "maps/%s_%d.map", Server()->GetMapName(), g_Config.m_SvMapGenSeed);
+	CDataFileWriter fileWrite;
+	char aMapFile[512];
+	// str_format(aMapFile, sizeof(aMapFile), "maps/%s_%d.map", Server()->GetMapName(), g_Config.m_SvMapGenSeed);
 	str_format(aMapFile, sizeof(aMapFile), "maps/generated.map");
-		
+
 	// Map will be saved to current dir, not to ~/.ninslash/maps or to data/maps, so we need to create a dir for it
 	Storage()->CreateFolder("maps", IStorage::TYPE_SAVE);
-		
-    fileWrite.SaveMap(Storage(), pMap->GetFileReader(), aMapFile);
 
-    char aBuf[128];
-    str_format(aBuf, sizeof(aBuf), "Map saved in '%s'!", aMapFile);
-    Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	fileWrite.SaveMap(Storage(), pMap->GetFileReader(), aMapFile);
+
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Map saved in '%s'!", aMapFile);
+	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 }
 
 const char *CGameContext::Localize(const char *pText, int ClientID)
 {
 	if(!m_apPlayers[ClientID])
 		return pText;
-	
+
 	return Localization()->Localize(m_apPlayers[ClientID]->m_aLanguage, pText);
 }
 
 /*
 Server-side localization keys (see data/server/languages/en-template.json):
-Quest start/completion strings, game-vote names/descriptions, team-move messages, and all SendBroadcast/SendChatTarget literals.
-Run scripts/check_localization.py to verify coverage.
+Quest start/completion strings, game-vote names/descriptions, team-move messages, and all SendBroadcast/SendChatTarget
+literals. Run scripts/check_localization.py to verify coverage.
 */

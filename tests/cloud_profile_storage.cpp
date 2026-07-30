@@ -4,9 +4,19 @@
 
 #include <assert.h>
 
-const char *CBinds::Get(int KeyID) { (void)KeyID; return ""; }
-void CBinds::Bind(int KeyID, const char *pStr) { (void)KeyID; (void)pStr; }
-void CBinds::UnbindAll() {}
+const char *CBinds::Get(int KeyID)
+{
+	(void)KeyID;
+	return "";
+}
+void CBinds::Bind(int KeyID, const char *pStr)
+{
+	(void)KeyID;
+	(void)pStr;
+}
+void CBinds::UnbindAll()
+{
+}
 
 int main()
 {

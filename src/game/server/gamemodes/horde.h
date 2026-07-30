@@ -6,7 +6,7 @@
 
 class CGameControllerHorde : public IGameController
 {
-private:
+  private:
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 
 	int m_Wave;
@@ -68,7 +68,7 @@ private:
 	bool HeavyContractActive() const;
 	bool BossContractActive() const;
 
-public:
+  public:
 	CGameControllerHorde(class CGameContext *pGameServer);
 	virtual ~CGameControllerHorde();
 

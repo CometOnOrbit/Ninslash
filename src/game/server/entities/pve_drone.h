@@ -5,7 +5,7 @@
 
 class CPveDrone : public CEntity
 {
-public:
+  public:
 	CPveDrone(CGameWorld *pGameWorld, int Owner);
 
 	void Reset() override;
@@ -21,7 +21,7 @@ public:
 	void ApplyEmp(int DurationTicks);
 	void SetAction(vec2 Target, int ActionTick);
 
-private:
+  private:
 	int m_Owner;
 	int m_StartTick;
 	int m_Health;

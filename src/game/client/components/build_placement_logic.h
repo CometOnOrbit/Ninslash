@@ -58,7 +58,7 @@ class CStateMachine
 	EState m_StateBeforeWheel = STATE_IDLE;
 	int m_Selected = -1;
 
-public:
+  public:
 	EState State() const { return m_State; }
 	int Selected() const { return m_Selected; }
 
@@ -104,7 +104,7 @@ class CPlacementTrigger
 	int m_GridX = 0;
 	int m_GridY = 0;
 
-public:
+  public:
 	void SetDown(bool Down)
 	{
 		m_Down = Down;
@@ -126,6 +126,6 @@ public:
 		return true;
 	}
 };
-}
+} // namespace BuildPlacementLogic
 
 #endif

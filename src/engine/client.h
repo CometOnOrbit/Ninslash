@@ -63,7 +63,7 @@ struct CHostGameSettings
 class IClient : public IInterface
 {
 	MACRO_INTERFACE("client", 0)
-protected:
+  protected:
 	// quick access to state of the client
 	int m_State;
 
@@ -80,11 +80,11 @@ protected:
 	float m_RenderFrameTime;
 
 	int m_GameTickSpeed;
-public:
 
+  public:
 	class CSnapItem
 	{
-	public:
+	  public:
 		int m_Type;
 		int m_ID;
 		int m_DataSize;
@@ -101,7 +101,7 @@ public:
 
 	enum
 	{
-		STATE_OFFLINE=0,
+		STATE_OFFLINE = 0,
 		STATE_CONNECTING,
 		STATE_LOADING,
 		STATE_ONLINE,
@@ -149,7 +149,7 @@ public:
 
 	virtual bool Loaded() = 0;
 	virtual void LoadReady() = 0;
-	
+
 	// networking
 	virtual void EnterGame() = 0;
 
@@ -174,8 +174,8 @@ public:
 
 	enum
 	{
-		SNAP_CURRENT=0,
-		SNAP_PREV=1
+		SNAP_CURRENT = 0,
+		SNAP_PREV = 1
 	};
 
 	// TODO: Refactor: should redo this a bit i think, too many virtual calls
@@ -188,8 +188,7 @@ public:
 
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags) = 0;
 
-	template<class T>
-	int SendPackMsg(T *pMsg, int Flags)
+	template <class T> int SendPackMsg(T *pMsg, int Flags)
 	{
 		CMsgPacker Packer(pMsg->MsgID());
 		if(pMsg->Pack(&Packer))
@@ -211,8 +210,8 @@ public:
 class IGameClient : public IInterface
 {
 	MACRO_INTERFACE("gameclient", 0)
-protected:
-public:
+  protected:
+  public:
 	virtual void OnConsoleInit() = 0;
 
 	virtual void OnRconLine(const char *pLine) = 0;
@@ -233,7 +232,6 @@ public:
 	virtual const char *GetItemName(int Type) = 0;
 	virtual const char *Version() = 0;
 	virtual const char *NetVersion() = 0;
-
 };
 
 extern IGameClient *CreateGameClient();

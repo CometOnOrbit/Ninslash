@@ -22,17 +22,16 @@
 #include "platform_gameserver.h"
 #include "platform_ban.h"
 
-
 class CSnapIDPool
 {
 	enum
 	{
-		MAX_IDS = 16*1024,
+		MAX_IDS = 16 * 1024,
 	};
 
 	class CID
 	{
-	public:
+	  public:
 		short m_Next;
 		short m_State; // 0 = free, 1 = alloced, 2 = timed
 		int m_Timeout;
@@ -46,8 +45,7 @@ class CSnapIDPool
 	int m_Usage;
 	int m_InUsage;
 
-public:
-
+  public:
 	CSnapIDPool();
 
 	void Reset();
@@ -57,24 +55,22 @@ public:
 	void FreeID(int ID);
 };
 
-
 class CServerBan : public CNetBan
 {
 	class CServer *m_pServer;
 
-	template<class T> int BanExt(T *pBanPool, const typename T::CDataType *pData, int Seconds, const char *pReason);
+	template <class T> int BanExt(T *pBanPool, const typename T::CDataType *pData, int Seconds, const char *pReason);
 
-public:
+  public:
 	class CServer *Server() const { return m_pServer; }
 
-	void InitServerBan(class IConsole *pConsole, class IStorage *pStorage, class CServer* pServer);
+	void InitServerBan(class IConsole *pConsole, class IStorage *pStorage, class CServer *pServer);
 
 	virtual int BanAddr(const NETADDR *pAddr, int Seconds, const char *pReason);
 	virtual int BanRange(const CNetRange *pRange, int Seconds, const char *pReason);
 
 	static void ConBanExt(class IConsole::IResult *pResult, void *pUser);
 };
-
 
 class CServer : public IServer
 {
@@ -85,10 +81,12 @@ class CServer : public IServer
 	volatile bool *m_pListenReady;
 	IPlatformGameServer *m_pPlatformGameServer;
 	class CModServerRuntime *m_pModRuntime;
+	class CServerModManager *m_pModManager;
+	bool m_ServerStarted;
 	CPlatformBanList m_PlatformBans;
 
 	class CPlayerData *m_pPlayerData;
-	
+
 	CAISkin m_aAISkinPVP[99];
 	CAISkin m_aAISkinPVE[99];
 	int m_AISkinPVPCount;
@@ -96,39 +94,39 @@ class CServer : public IServer
 	static int AISkinPVPScan(const char *pName, int IsDir, int DirType, void *pUser);
 	static int AISkinPVEScan(const char *pName, int IsDir, int DirType, void *pUser);
 	int LoadAISkin(const char *pFilename, const char *pFoldername, int StorageType, bool PVP);
-	
+
 	CGameVote m_aGameVote[MAX_GAME_VOTES];
 	int m_GameVoteCount;
 	static int GameVoteScan(const char *pName, int IsDir, int DirType, void *pUser);
 	int LoadGameVote(const char *pFilename, const char *pFoldername, int StorageType);
-	
+
 	bool m_aGameVoteUsed[MAX_GAME_VOTES];
 	int m_GameModesLeft;
-	
-public:
+
+  public:
 	class IGameServer *GameServer() { return m_pGameServer; }
 	class IConsole *Console() { return m_pConsole; }
 	class IStorage *Storage() { return m_pStorage; }
+	class CServerModManager *ServerModManager() { return m_pModManager; }
 
 	class CPlayerData *GetPlayerData(int ClientID, int ColorID);
 	int GetHighScore();
 	int GetPlayerCount();
 	void LoadAISkins();
 	void LoadGameVotes();
-	
+
 	enum
 	{
-		AUTHED_NO=0,
+		AUTHED_NO = 0,
 		AUTHED_MOD,
 		AUTHED_ADMIN,
 
-		MAX_RCONCMD_SEND=16,
+		MAX_RCONCMD_SEND = 16,
 	};
 
 	class CClient
 	{
-	public:
-
+	  public:
 		enum
 		{
 			STATE_EMPTY = 0,
@@ -137,14 +135,14 @@ public:
 			STATE_READY,
 			STATE_INGAME,
 
-			SNAPRATE_INIT=0,
+			SNAPRATE_INIT = 0,
 			SNAPRATE_FULL,
 			SNAPRATE_RECOVER
 		};
 
 		class CInput
 		{
-		public:
+		  public:
 			int m_aData[MAX_INPUT_SIZE];
 			int m_GameTick; // the tick that was chosen for the input
 		};
@@ -155,7 +153,7 @@ public:
 		int m_SnapRate;
 
 		bool m_Bot;
-		
+
 		int m_LastAckedSnapshot;
 		int m_LastInputTick;
 		CSnapshotStorage m_Snapshots;
@@ -180,7 +178,6 @@ public:
 		int64 m_PlatformAuthStartTime;
 		bool m_InfoReceived;
 
-		
 		const IConsole::CCommandInfo *m_pRconCmdToSend;
 
 		void Reset();
@@ -198,7 +195,7 @@ public:
 	IEngineMap *m_pMap;
 
 	int64 m_GameStartTime;
-	//int m_CurrentGameTick;
+	// int m_CurrentGameTick;
 	int m_RunServer;
 	int m_MapReload;
 	int m_RconClientID;
@@ -206,7 +203,7 @@ public:
 	int m_PrintCBIndex;
 
 	int64 m_Lastheartbeat;
-	//static NETADDR4 master_server;
+	// static NETADDR4 master_server;
 
 	char m_aCurrentMap[64];
 	unsigned m_CurrentMapCrc;
@@ -235,9 +232,9 @@ public:
 	void DemoRecorder_HandleAutoStart();
 	bool DemoRecorder_IsRecording();
 
-	//int Tick()
+	// int Tick()
 	int64 TickStartTime(int Tick);
-	//int TickSpeed()
+	// int TickSpeed()
 
 	int Init();
 
@@ -297,27 +294,51 @@ public:
 	static void ConStopRecord(IConsole::IResult *pResult, void *pUser);
 	static void ConMapReload(IConsole::IResult *pResult, void *pUser);
 	static void ConLogout(IConsole::IResult *pResult, void *pUser);
-	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
-	static void ConchainMaxclientsperipUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
-	static void ConchainModCommandUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
-	static void ConchainConsoleOutputLevelUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult,
+										  void *pUserData,
+										  IConsole::FCommandCallback pfnCallback,
+										  void *pCallbackUserData);
+	static void ConchainMaxclientsperipUpdate(IConsole::IResult *pResult,
+											  void *pUserData,
+											  IConsole::FCommandCallback pfnCallback,
+											  void *pCallbackUserData);
+	static void ConchainModCommandUpdate(IConsole::IResult *pResult,
+										 void *pUserData,
+										 IConsole::FCommandCallback pfnCallback,
+										 void *pCallbackUserData);
+	static void ConchainConsoleOutputLevelUpdate(IConsole::IResult *pResult,
+												 void *pUserData,
+												 IConsole::FCommandCallback pfnCallback,
+												 void *pCallbackUserData);
 	static void ConMapsList(IConsole::IResult *pResult, void *pUserData);
 	static void ConReloadLocalizations(IConsole::IResult *pResult, void *pUserData);
+	static void ConModImport(IConsole::IResult *pResult, void *pUserData);
+	static void ConModImportStatus(IConsole::IResult *pResult, void *pUserData);
+	static void ConModList(IConsole::IResult *pResult, void *pUserData);
+	static void ConModStatus(IConsole::IResult *pResult, void *pUserData);
+	static void ConModProfileList(IConsole::IResult *pResult, void *pUserData);
+	static void ConModProfileCreate(IConsole::IResult *pResult, void *pUserData);
+	static void ConModProfileDelete(IConsole::IResult *pResult, void *pUserData);
+	static void ConModProfileSelect(IConsole::IResult *pResult, void *pUserData);
+	static void ConModEnable(IConsole::IResult *pResult, void *pUserData);
+	static void ConModDisable(IConsole::IResult *pResult, void *pUserData);
+	static void ConModMove(IConsole::IResult *pResult, void *pUserData);
+	static void ConModRemove(IConsole::IResult *pResult, void *pUserData);
+	static void ConModApply(IConsole::IResult *pResult, void *pUserData);
 
 	void RegisterCommands();
-
 
 	virtual int SnapNewID();
 	virtual void SnapFreeID(int ID);
 	virtual void *SnapNewItem(int Type, int ID, int Size);
 	void SnapSetStaticsize(int ItemType, int Size);
-	
+
 	virtual void AddZombie();
 	virtual void GetAISkin(CAISkin *pAISkin, bool PVP, int Level, int WaveGroup);
-	
+
 	virtual void ResetGameVoting();
 	virtual bool GetGameVote(CGameVote *pGameVote, int Players);
-	
+
 	void KickBots();
 };
 

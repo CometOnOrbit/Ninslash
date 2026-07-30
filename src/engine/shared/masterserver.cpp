@@ -1,6 +1,6 @@
 
 
-#include <stdio.h>	// sscanf
+#include <stdio.h> // sscanf
 
 #include <base/system.h>
 
@@ -12,7 +12,7 @@
 
 class CMasterServer : public IEngineMasterServer
 {
-public:
+  public:
 	// master server functions
 	struct CMasterInfo
 	{
@@ -92,25 +92,13 @@ public:
 		}
 	}
 
-	virtual int IsRefreshing()
-	{
-		return m_State != STATE_READY;
-	}
+	virtual int IsRefreshing() { return m_State != STATE_READY; }
 
-	virtual NETADDR GetAddr(int Index)
-	{
-		return m_aMasterServers[Index].m_Addr;
-	}
+	virtual NETADDR GetAddr(int Index) { return m_aMasterServers[Index].m_Addr; }
 
-	virtual const char *GetName(int Index)
-	{
-		return m_aMasterServers[Index].m_aHostname;
-	}
+	virtual const char *GetName(int Index) { return m_aMasterServers[Index].m_aHostname; }
 
-	virtual bool IsValid(int Index)
-	{
-		return m_aMasterServers[Index].m_Valid;
-	}
+	virtual bool IsValid(int Index) { return m_aMasterServers[Index].m_Valid; }
 
 	virtual void Init()
 	{
@@ -123,7 +111,7 @@ public:
 	{
 		mem_zero(m_aMasterServers, sizeof(m_aMasterServers));
 
-		str_copy(m_aMasterServers[0].m_aHostname, "master.ninslash.fun", sizeof(m_aMasterServers[0].m_aHostname));	
+		str_copy(m_aMasterServers[0].m_aHostname, "master.ninslash.fun", sizeof(m_aMasterServers[0].m_aHostname));
 		for(int i = 1; i < MAX_MASTERSERVERS; i++)
 			str_format(m_aMasterServers[i].m_aHostname, sizeof(m_aMasterServers[i].m_aHostname), "154.49.136.95");
 	}
@@ -149,7 +137,8 @@ public:
 
 			// parse line
 			char aAddrStr[NETADDR_MAXSTRSIZE];
-			if(sscanf(pLine, "%127s %47s", Info.m_aHostname, aAddrStr) == 2 && net_addr_from_str(&Info.m_Addr, aAddrStr) == 0)
+			if(sscanf(pLine, "%127s %47s", Info.m_aHostname, aAddrStr) == 2 &&
+			   net_addr_from_str(&Info.m_Addr, aAddrStr) == 0)
 			{
 				Info.m_Addr.port = 8300;
 				bool Added = false;
@@ -185,7 +174,7 @@ public:
 	{
 		if(!m_pStorage)
 			return -1;
-		
+
 		// try to open file
 		IOHANDLE File = m_pStorage->OpenFile("masters.cfg", IOFLAG_WRITE, IStorage::TYPE_SAVE);
 		if(!File)
@@ -209,4 +198,7 @@ public:
 	}
 };
 
-IEngineMasterServer *CreateEngineMasterServer() { return new CMasterServer; }
+IEngineMasterServer *CreateEngineMasterServer()
+{
+	return new CMasterServer;
+}

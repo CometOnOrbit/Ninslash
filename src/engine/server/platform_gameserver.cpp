@@ -11,17 +11,40 @@ namespace
 {
 class CNullPlatformGameServer : public IPlatformGameServer
 {
-public:
-	bool Init(unsigned short Port) { (void)Port; return true; }
+  public:
+	bool Init(unsigned short Port)
+	{
+		(void)Port;
+		return true;
+	}
 	void Shutdown() {}
 	void RunCallbacks() {}
 	bool Available() const { return false; }
 	void SetAdvertiseServerActive(bool Active) { (void)Active; }
-	void UpdateMetadata(const char *pName, const char *pMap, int Players, int MaxPlayers, bool PasswordProtected, bool Official, int AuthPolicy, const char *pModHash)
+	void UpdateMetadata(const char *pName,
+						const char *pMap,
+						int Players,
+						int MaxPlayers,
+						bool PasswordProtected,
+						bool Official,
+						int AuthPolicy,
+						const char *pModHash)
 	{
-		(void)pName; (void)pMap; (void)Players; (void)MaxPlayers; (void)PasswordProtected; (void)Official; (void)AuthPolicy; (void)pModHash;
+		(void)pName;
+		(void)pMap;
+		(void)Players;
+		(void)MaxPlayers;
+		(void)PasswordProtected;
+		(void)Official;
+		(void)AuthPolicy;
+		(void)pModHash;
 	}
-	void UpdateUserData(unsigned long long SteamID, const char *pName, int Score) { (void)SteamID; (void)pName; (void)Score; }
+	void UpdateUserData(unsigned long long SteamID, const char *pName, int Score)
+	{
+		(void)SteamID;
+		(void)pName;
+		(void)Score;
+	}
 	EPlatformAuthResult Authenticate(unsigned long long SteamID, const void *pTicket, int TicketSize)
 	{
 		(void)SteamID;
@@ -29,7 +52,11 @@ public:
 		(void)TicketSize;
 		return PLATFORM_AUTH_UNAVAILABLE;
 	}
-	EPlatformAuthResult AuthenticationResult(unsigned long long SteamID) const { (void)SteamID; return PLATFORM_AUTH_UNAVAILABLE; }
+	EPlatformAuthResult AuthenticationResult(unsigned long long SteamID) const
+	{
+		(void)SteamID;
+		return PLATFORM_AUTH_UNAVAILABLE;
+	}
 	void EndAuthentication(unsigned long long SteamID) { (void)SteamID; }
 };
 
@@ -54,21 +81,27 @@ class CSteamPlatformGameServer : public IPlatformGameServer
 	{
 		(void)pResponse;
 		m_Connected = true;
-		if(SteamGameServer()) SteamGameServer()->SetAdvertiseServerActive(m_AdvertiseRequested);
+		if(SteamGameServer())
+			SteamGameServer()->SetAdvertiseServerActive(m_AdvertiseRequested);
 		dbg_msg("steam", "Steam GameServer connected");
 	}
 
 	void OnServerConnectFailure(SteamServerConnectFailure_t *pResponse)
 	{
 		m_Connected = false;
-		if(SteamGameServer()) SteamGameServer()->SetAdvertiseServerActive(false);
-		dbg_msg("steam", "Steam GameServer connection failed: result=%d retrying=%d", pResponse ? (int)pResponse->m_eResult : -1, pResponse && pResponse->m_bStillRetrying ? 1 : 0);
+		if(SteamGameServer())
+			SteamGameServer()->SetAdvertiseServerActive(false);
+		dbg_msg("steam",
+				"Steam GameServer connection failed: result=%d retrying=%d",
+				pResponse ? (int)pResponse->m_eResult : -1,
+				pResponse && pResponse->m_bStillRetrying ? 1 : 0);
 	}
 
 	void OnServersDisconnected(SteamServersDisconnected_t *pResponse)
 	{
 		m_Connected = false;
-		if(SteamGameServer()) SteamGameServer()->SetAdvertiseServerActive(false);
+		if(SteamGameServer())
+			SteamGameServer()->SetAdvertiseServerActive(false);
 		dbg_msg("steam", "Steam GameServer disconnected: result=%d", pResponse ? (int)pResponse->m_eResult : -1);
 	}
 
@@ -102,8 +135,12 @@ class CSteamPlatformGameServer : public IPlatformGameServer
 		else
 			m_aAuthSessions[Session].m_Result = PLATFORM_AUTH_INVALID_TICKET;
 	}
-public:
-	CSteamPlatformGameServer() : m_Initialized(false), m_Connected(false), m_AdvertiseRequested(false) { mem_zero(m_aAuthSessions, sizeof(m_aAuthSessions)); }
+
+  public:
+	CSteamPlatformGameServer() : m_Initialized(false), m_Connected(false), m_AdvertiseRequested(false)
+	{
+		mem_zero(m_aAuthSessions, sizeof(m_aAuthSessions));
+	}
 	bool Init(unsigned short Port)
 	{
 		if(m_Initialized)
@@ -153,15 +190,29 @@ public:
 		m_Connected = false;
 		m_AdvertiseRequested = false;
 	}
-	void RunCallbacks() { if(m_Initialized) SteamGameServer_RunCallbacks(); }
-	bool Available() const { return m_Initialized; }
+	void RunCallbacks()
+	{
+		if(m_Initialized)
+			SteamGameServer_RunCallbacks();
+	}
+	bool Available() const
+	{
+		return m_Initialized;
+	}
 	void SetAdvertiseServerActive(bool Active)
 	{
 		m_AdvertiseRequested = Active;
 		if(m_Initialized && SteamGameServer())
 			SteamGameServer()->SetAdvertiseServerActive(Active && m_Connected);
 	}
-	void UpdateMetadata(const char *pName, const char *pMap, int Players, int MaxPlayers, bool PasswordProtected, bool Official, int AuthPolicy, const char *pModHash)
+	void UpdateMetadata(const char *pName,
+						const char *pMap,
+						int Players,
+						int MaxPlayers,
+						bool PasswordProtected,
+						bool Official,
+						int AuthPolicy,
+						const char *pModHash)
 	{
 		if(!m_Initialized || !SteamGameServer())
 			return;
@@ -171,7 +222,13 @@ public:
 		SteamGameServer()->SetMaxPlayerCount(MaxPlayers);
 		SteamGameServer()->SetPasswordProtected(PasswordProtected);
 		char aTags[256];
-		str_format(aTags, sizeof(aTags), "official=%d,modded=%d,modhash=%s,auth=%d", Official ? 1 : 0, pModHash && pModHash[0] ? 1 : 0, pModHash && pModHash[0] ? pModHash : "none", PlatformEffectiveAuthPolicy(AuthPolicy, Official, false));
+		str_format(aTags,
+				   sizeof(aTags),
+				   "official=%d,modded=%d,modhash=%s,auth=%d",
+				   Official ? 1 : 0,
+				   pModHash && pModHash[0] ? 1 : 0,
+				   pModHash && pModHash[0] ? pModHash : "none",
+				   PlatformEffectiveAuthPolicy(AuthPolicy, Official, false));
 		SteamGameServer()->SetGameTags(aTags);
 		(void)Players; // Steam derives player count from authenticated sessions.
 	}
@@ -191,7 +248,8 @@ public:
 		const int Session = FreeSession();
 		if(Session < 0)
 			return PLATFORM_AUTH_UNAVAILABLE;
-		const EBeginAuthSessionResult Result = SteamGameServer()->BeginAuthSession(pTicket, TicketSize, CSteamID(SteamID));
+		const EBeginAuthSessionResult Result =
+			SteamGameServer()->BeginAuthSession(pTicket, TicketSize, CSteamID(SteamID));
 		if(Result == k_EBeginAuthSessionResultOK)
 		{
 			m_aAuthSessions[Session].m_SteamID = SteamID;
@@ -220,7 +278,7 @@ public:
 	}
 };
 #endif
-}
+} // namespace
 
 IPlatformGameServer *CreatePlatformGameServer()
 {

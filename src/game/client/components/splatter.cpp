@@ -14,18 +14,17 @@ CSplatter::CSplatter()
 	m_RenderSplatter.m_pParts = this;
 }
 
-
 void CSplatter::OnReset()
 {
 	// reset blood
 	for(int i = 0; i < MAX_SPLATTER; i++)
 	{
-		m_aSplatter[i].m_PrevPart = i-1;
-		m_aSplatter[i].m_NextPart = i+1;
+		m_aSplatter[i].m_PrevPart = i - 1;
+		m_aSplatter[i].m_NextPart = i + 1;
 	}
 
 	m_aSplatter[0].m_PrevPart = 0;
-	m_aSplatter[MAX_SPLATTER-1].m_NextPart = -1;
+	m_aSplatter[MAX_SPLATTER - 1].m_NextPart = -1;
 	m_FirstFree = 0;
 
 	for(int i = 0; i < NUM_GROUPS; i++)
@@ -42,11 +41,12 @@ void CSplatter::Add(int Group, CBloodspill *pPart)
 	}
 	else
 	{
-		if(m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED)
+		if(m_pClient->m_Snap.m_pGameInfoObj &&
+		   m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED)
 			return;
 	}
 
-	if (m_FirstFree == -1)
+	if(m_FirstFree == -1)
 		return;
 
 	// remove from the free list
@@ -80,10 +80,9 @@ void CSplatter::Update(float TimePassed)
 
 			m_aSplatter[i].m_Life += TimePassed;
 			m_aSplatter[i].m_Life += TimePassed * (m_aSplatter[i].m_Life / m_aSplatter[i].m_LifeSpan) * 3.0f;
-				
-			
-			m_aSplatter[i].m_Pos.y += TimePassed*3.0f;
-				
+
+			m_aSplatter[i].m_Pos.y += TimePassed * 3.0f;
+
 			// check blood death
 			if(m_aSplatter[i].m_Life > m_aSplatter[i].m_LifeSpan)
 			{
@@ -121,12 +120,13 @@ void CSplatter::OnRender()
 	{
 		const IDemoPlayer::CInfo *pInfo = DemoPlayer()->BaseInfo();
 		if(!pInfo->m_Paused)
-			Update((float)((t-LastTime)/(double)time_freq())*pInfo->m_Speed);
+			Update((float)((t - LastTime) / (double)time_freq()) * pInfo->m_Speed);
 	}
 	else
 	{
-		if(m_pClient->m_Snap.m_pGameInfoObj && !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED))
-			Update((float)((t-LastTime)/(double)time_freq()));
+		if(m_pClient->m_Snap.m_pGameInfoObj &&
+		   !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED))
+			Update((float)((t - LastTime) / (double)time_freq()));
 	}
 
 	LastTime = t;
@@ -134,29 +134,29 @@ void CSplatter::OnRender()
 
 void CSplatter::RenderGroup(int Group)
 {
-	if (!g_Config.m_GfxMultiBuffering)
+	if(!g_Config.m_GfxMultiBuffering)
 		return;
-	
+
 	Graphics()->RenderToTexture(RENDERBUFFER_SPLATTER);
-	//Graphics()->BlendNormal();
+	// Graphics()->BlendNormal();
 	Graphics()->BlendAdditive();
-	//gfx_blend_additive();
-	//Graphics()->TextureSet(g_pData->m_aImages[IMAGE_SPLATTER].m_Id);
+	// gfx_blend_additive();
+	// Graphics()->TextureSet(g_pData->m_aImages[IMAGE_SPLATTER].m_Id);
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_LIGHTS].m_Id);
 	Graphics()->QuadsBegin();
 
 	int i = m_aFirstPart[Group];
 	while(i != -1)
 	{
-		//RenderTools()->SelectSprite(m_aSplatter[i].m_Spr);
+		// RenderTools()->SelectSprite(m_aSplatter[i].m_Spr);
 		float a = m_aSplatter[i].m_Life / m_aSplatter[i].m_LifeSpan;
 		vec2 p = m_aSplatter[i].m_Pos;
 		float Size = m_aSplatter[i].m_Size;
 
 		Graphics()->QuadsSetRotation(m_aSplatter[i].m_Rot);
-		
-		//Graphics()->SetColor(m_aSplatter[i].m_Color.r, m_aSplatter[i].m_Color.g, m_aSplatter[i].m_Color.b, 1.0f - a);
-		
+
+		// Graphics()->SetColor(m_aSplatter[i].m_Color.r, m_aSplatter[i].m_Color.g, m_aSplatter[i].m_Color.b, 1.0f - a);
+
 		/*
 		Graphics()->SetColor(
 			max(m_aSplatter[i].m_Color.r-a*0.9f, 0.15f),
@@ -164,11 +164,11 @@ void CSplatter::RenderGroup(int Group)
 			0,
 			1.0f - a); //0.8f-a*0.8f); // pow(a, 0.75f) *
 			*/
-			
-		//Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f-a);
-		//Graphics()->SetColor(1.0f, 0.0f, 0.0f, 1.0f-a);
+
+		// Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f-a);
+		// Graphics()->SetColor(1.0f, 0.0f, 0.0f, 1.0f-a);
 		vec4 c = m_aSplatter[i].m_Color;
-		Graphics()->SetColor(c.r, c.g, c.b, 1.0f-a);
+		Graphics()->SetColor(c.r, c.g, c.b, 1.0f - a);
 
 		IGraphics::CQuadItem QuadItem(p.x, p.y, Size, Size);
 		Graphics()->QuadsDraw(&QuadItem, 1);

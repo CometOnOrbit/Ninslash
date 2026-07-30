@@ -9,7 +9,7 @@ class CGenLayer
 {
 	friend class CMapGen;
 
-private:
+  private:
 	int *m_pTiles;
 	int *m_pBGTiles;
 	int *m_pDoodadsTiles;
@@ -24,44 +24,44 @@ private:
 
 	ivec2 m_aPlatform[GEN_MAX];
 	int m_NumPlatforms;
-	
+
 	ivec2 m_aMedPlatform[GEN_MAX];
 	int m_NumMedPlatforms;
-	
+
 	ivec2 m_aOpenArea[GEN_MAX];
 	int m_NumOpenAreas;
-	
+
 	// inner top corners
 	ivec2 m_aTopCorner[GEN_MAX];
 	int m_NumTopCorners;
-	
+
 	// sharp corners
 	ivec2 m_aCorner[GEN_MAX];
 	int m_NumCorners;
-	
+
 	// acid pools
 	ivec4 m_aPit[GEN_MAX];
 	int m_NumPits;
-	
+
 	ivec2 m_aWall[GEN_MAX];
 	int m_NumWalls;
-	
+
 	ivec2 m_aCeiling[GEN_MAX];
 	int m_NumCeilings;
-	
+
 	ivec3 m_aLongCeiling[GEN_MAX];
 	int m_NumLongCeilings;
-	
+
 	ivec3 m_aLongPlatform[GEN_MAX];
 	int m_NumLongPlatforms;
-	
+
 	ivec2 m_aPlayerSpawn[GEN_MAX];
 	int m_NumPlayerSpawns;
-	
-public:
+
+  public:
 	CGenLayer(int w, int h);
 	~CGenLayer();
-	
+
 	enum Layer
 	{
 		FOREGROUND,
@@ -69,7 +69,7 @@ public:
 		DOODADS,
 		FGOBJECTS,
 	};
-	
+
 	void Set(int Tile, int x, int y, int Flags = 0, int Layer = FOREGROUND)
 	{
 		if(x < 0 || y < 0 || x >= m_Width || y >= m_Height)
@@ -149,14 +149,14 @@ public:
 		return 0;
 	}
 	bool Used(int x, int y);
-	
+
 	bool IsFloor(int x, int y);
-	
+
 	void Use(int x, int y);
-	
+
 	int Width() { return m_Width; }
 	int Height() { return m_Height; }
-	
+
 	int NumPlatforms() { return m_NumPlatforms; }
 	int NumMedPlatforms() { return m_NumMedPlatforms; }
 	int NumTopCorners() { return m_NumTopCorners; }
@@ -175,9 +175,9 @@ public:
 	void GenerateAirPlatforms(int Num);
 	void Scan();
 	int Size();
-	
+
 	void CleanTiles();
-	
+
 	ivec2 GetPlayerSpawn();
 	ivec2 GetOpenArea();
 	ivec2 GetLeftPlatform();
@@ -193,12 +193,12 @@ public:
 	ivec2 GetTopCorner();
 	ivec2 GetSharpCorner();
 	ivec4 GetPit();
-	
+
 	bool IsNearSlope(int x, int y);
-	
+
 	ivec3 GetLongPlatform();
 	ivec3 GetLongCeiling();
-	
+
 	ivec2 m_EndPos;
 };
 

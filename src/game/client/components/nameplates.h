@@ -6,13 +6,11 @@
 
 class CNamePlates : public CComponent
 {
-	void RenderNameplate(
-		const CNetObj_Character *pPrevChar,
-		const CNetObj_Character *pPlayerChar,
-		const CNetObj_PlayerInfo *pPlayerInfo
-	);
+	void RenderNameplate(const CNetObj_Character *pPrevChar,
+						 const CNetObj_Character *pPlayerChar,
+						 const CNetObj_PlayerInfo *pPlayerInfo);
 
-public:
+  public:
 	virtual void OnRender();
 };
 

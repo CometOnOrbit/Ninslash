@@ -180,7 +180,7 @@ class CPveDirector
 	void DestroyDrone(int ClientID);
 	void GrantTutorialBuildLoadout(int ClientID);
 
-public:
+  public:
 	explicit CPveDirector(CGameContext *pGameServer);
 	~CPveDirector();
 
@@ -189,13 +189,24 @@ public:
 	bool InIntermission() const { return m_IntermissionState != PVE_INTERMISSION_NONE; }
 	bool TogglePauseAfterIntermission();
 	int Mode() const { return m_Mode; }
-	int ActiveContract() const { return Enabled() && m_ContractState == PVE_CONTRACT_STATE_ACTIVE ? m_ActiveContract : -1; }
+	int ActiveContract() const
+	{
+		return Enabled() && m_ContractState == PVE_CONTRACT_STATE_ACTIVE ? m_ActiveContract : -1;
+	}
 	int ContractState() const { return m_ContractState; }
 
 	void Tick();
 	void OnClientEnter(int ClientID);
 	void OnClientDrop(int ClientID);
-	void OnProgress(int ClientID, int Version, int Points, int Mask0, int Mask1, int Mask2, int Mask3, int HighestInvasion, int PreferredCheckpoint);
+	void OnProgress(int ClientID,
+					int Version,
+					int Points,
+					int Mask0,
+					int Mask1,
+					int Mask2,
+					int Mask3,
+					int HighestInvasion,
+					int PreferredCheckpoint);
 	void OnResearchBuy(int ClientID, int Nonce, int CardID);
 	void OnChoice(int ClientID, int Nonce, int CardID);
 	void OnContractVote(int ClientID, int Nonce, int ContractID);

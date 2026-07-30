@@ -6,7 +6,7 @@
 
 class CGameControllerInvasion : public IGameController
 {
-private:
+  private:
 	int m_LevelQuestsLeft;
 	int m_QuestsCompleted;
 	int m_LevelTheme;
@@ -15,7 +15,7 @@ private:
 	int m_NextQuest;
 	int m_QuestChangeTick;
 	int m_QuestProgressCounter;
-	
+
 	int m_QuestWaveType;
 	int m_QuestWaveEndTick;
 	int m_QuestWaveEnemiesLeft;
@@ -26,7 +26,7 @@ private:
 	int m_DefendPrepEndTick;
 	int m_SwitchesRequired;
 	int m_SwitchesActivated;
-	
+
 	void ChangeQuest(int NextQuest, float QueueTimeInSeconds);
 	void SendQuestStartMessage(int Quest);
 	void SendQuestCompletedMessage(int Quest);
@@ -55,31 +55,31 @@ private:
 	void RewardQuestGold();
 
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
-	
+
 	int m_Deaths;
 	bool m_RoundWin;
 	int m_RoundWinTick;
 	int m_RoundOverTick;
-	
+
 	// enemy grouping
 	vec2 m_GroupSpawnPos;
-	
+
 	void SpawnNewWave(bool AddBots = true);
-	
+
 	vec2 GetBotSpawnPos();
 	bool GetBossSpawnPos(vec2 *pOutPos);
 	void RandomGroupSpawnPos();
 	int m_BotSpawnTick;
-	
+
 	// hordes of enemies
 	int m_EnemyCount;
 	int m_EnemiesLeft;
-	
+
 	int m_BossesLeft;
-	
+
 	int m_NumEnemySpawnPos;
 	int m_SpawnPosRotation;
-	
+
 	int m_TriggerLevel;
 	int m_TriggerTick;
 
@@ -89,7 +89,7 @@ private:
 	bool m_SwitchCoopLevel;
 	int m_ReactorCountCheckTick;
 	int m_CachedReactorsLeft;
-	
+
 	int m_ForcedWaveType;
 	int m_WaveSizeNerf;
 	bool m_RunBuffActive;
@@ -110,7 +110,7 @@ private:
 	int m_RetryResultEndTick;
 	int m_RetryResultLastSyncTick;
 	char m_aRetryPlayerName[MAX_NAME_LENGTH];
-	
+
 	bool m_AutoRestart;
 	bool IsRetryVoter(int ClientID) const;
 	int RetryVoterCount() const;
@@ -125,9 +125,9 @@ private:
 	void FinishRetryResult();
 	void RegenerateMapFromTemplate();
 	void BeginPostRoundTransition() override;
-	
+
 	void Trigger(bool IncreaseLevel);
-	
+
 	class CServerRadar *m_pDoor;
 	class CServerRadar *m_pEnemySpawn;
 	class CServerRadar *m_pReactor;
@@ -149,11 +149,11 @@ private:
 	void ClearSwitchRadars();
 	void RefreshSwitchRadars();
 	bool AnyCartographer() const;
-	
-public:
+
+  public:
 	CGameControllerInvasion(class CGameContext *pGameServer);
 	virtual ~CGameControllerInvasion();
-	
+
 	virtual bool OnEntity(int Index, vec2 Pos);
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);
 	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
@@ -164,14 +164,14 @@ public:
 	virtual void Snap(int SnappingClient);
 	virtual void OnSwitchTriggered();
 	void OnRetryVote(int ClientID, int Nonce, int Choice);
-	
+
 	void DisplayExit(vec2 Pos);
-	
+
 	bool RunBuffActive() const { return m_RunBuffActive; }
 	bool IsObjectiveTarget(bool Boss) const;
 	virtual bool IsReactorDefenseActive() const;
 	bool IsFinalObjective() const { return m_LevelQuestsLeft > 0 && m_QuestsCompleted >= m_LevelQuestsLeft - 1; }
-	
+
 	enum GameState
 	{
 		STATE_STARTING,

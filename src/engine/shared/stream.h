@@ -5,7 +5,7 @@
 
 class CInputStream
 {
-public:
+  public:
 	virtual ~CInputStream() {}
 
 	virtual unsigned Read(void *pBuffer, unsigned Size) = 0;
@@ -15,7 +15,7 @@ class CIOStream : public CInputStream
 {
 	IOHANDLE m_File;
 
-public:
+  public:
 	CIOStream(IOHANDLE File) { m_File = File; }
 	virtual ~CIOStream() {}
 
@@ -27,7 +27,7 @@ class CStringStream : public CInputStream
 	const char *m_pStr;
 	unsigned m_Cur;
 
-public:
+  public:
 	CStringStream(const char *pStr);
 	virtual ~CStringStream();
 
