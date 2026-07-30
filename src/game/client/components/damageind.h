@@ -18,7 +18,7 @@ class CDamageInd : public CComponent
 
 	enum
 	{
-		MAX_ITEMS=64,
+		MAX_ITEMS = 64,
 	};
 
 	CItem m_aItems[MAX_ITEMS];
@@ -27,7 +27,7 @@ class CDamageInd : public CComponent
 	CItem *CreateI();
 	void DestroyI(CItem *i);
 
-public:
+  public:
 	CDamageInd();
 
 	void Create(vec2 Pos, vec2 Dir);

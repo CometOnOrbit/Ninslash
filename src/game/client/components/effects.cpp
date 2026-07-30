@@ -26,7 +26,10 @@
 #include <game/client/customstuff.h>
 #include <game/client/customstuff/playerinfo.h>
 
-inline vec2 RandomDir() { return normalize(vec2(frandom()-0.5f, frandom()-0.5f)); }
+inline vec2 RandomDir()
+{
+	return normalize(vec2(frandom() - 0.5f, frandom() - 0.5f));
+}
 
 CEffects::CEffects()
 {
@@ -44,8 +47,8 @@ void CEffects::AirJump(vec2 Pos)
 	p.m_LifeSpan = 0.5f;
 	p.m_StartSize = 48.0f;
 	p.m_EndSize = 0;
-	p.m_Rot = frandom()*pi*2;
-	p.m_Rotspeed = pi*2;
+	p.m_Rot = frandom() * pi * 2;
+	p.m_Rotspeed = pi * 2;
 	p.m_Gravity = 500;
 	p.m_Friction = 0.7f;
 	p.m_FlowAffected = 0.0f;
@@ -57,7 +60,6 @@ void CEffects::AirJump(vec2 Pos)
 	m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_PLAYER_AIRJUMP, 1.0f, Pos);
 }
 
-
 void CEffects::Blood(vec2 Pos, vec2 Dir, vec4 Color)
 {
 	CBlooddrop b;
@@ -65,50 +67,50 @@ void CEffects::Blood(vec2 Pos, vec2 Dir, vec4 Color)
 	b.m_Pos = Pos;
 
 	// bones
-	if (frandom()*100 < 2)
+	if(frandom() * 100 < 2)
 	{
-		b.m_Spr = SPRITE_BONE01 + (rand()%2);
-		b.m_LifeSpan = 8.0f + frandom()*8.0f;
-		b.m_Rotspeed = frandom()*12.0f - frandom()*12.0f;
+		b.m_Spr = SPRITE_BONE01 + (rand() % 2);
+		b.m_LifeSpan = 8.0f + frandom() * 8.0f;
+		b.m_Rotspeed = frandom() * 12.0f - frandom() * 12.0f;
 
-		b.m_StartSize = 24.0f + frandom()*24;
+		b.m_StartSize = 24.0f + frandom() * 24;
 		b.m_EndSize = b.m_StartSize;
 		b.m_Gravity = 1600.0f;
 	}
 	else
 	// blood
 	{
-		b.m_Spr = SPRITE_BLOOD01 + (rand()%6);
-		b.m_LifeSpan = 6.0f + frandom()*6.0f;
+		b.m_Spr = SPRITE_BLOOD01 + (rand() % 6);
+		b.m_LifeSpan = 6.0f + frandom() * 6.0f;
 		b.m_Rotspeed = 0.0f;
-		b.m_StartSize = 32.0f + frandom()*32;
+		b.m_StartSize = 32.0f + frandom() * 32;
 		b.m_EndSize = 24.0f;
-		b.m_Gravity = 1400.0f + frandom()*300;
+		b.m_Gravity = 1400.0f + frandom() * 300;
 	}
 
-	b.m_Friction = 0.85f+frandom()*0.075f;
+	b.m_Friction = 0.85f + frandom() * 0.075f;
 
-	if (g_Config.m_GfxMultiBuffering)
+	if(g_Config.m_GfxMultiBuffering)
 	{
 		b.m_Spr = SPRITE_BLOOD02;
 		b.m_Rotspeed = 0.0f;
-		//b.m_StartSize *= 0.75f;
+		// b.m_StartSize *= 0.75f;
 		b.m_StartSize = 64.0f;
 		b.m_EndSize = 4.0f;
 		b.m_LifeSpan = 8.0f;
-		b.m_StartSize = 42.0f + frandom()*16;
-		b.m_Gravity = 1500.0f + frandom()*400;
-		//b.m_Friction = 0.95f;
+		b.m_StartSize = 42.0f + frandom() * 16;
+		b.m_Gravity = 1500.0f + frandom() * 400;
+		// b.m_Friction = 0.95f;
 	}
 
-	b.m_Vel = Dir * ((frandom()+0.50f)*1200.0f);
+	b.m_Vel = Dir * ((frandom() + 0.50f) * 1200.0f);
 
 	b.m_Rot = GetAngle(b.m_Vel);
 
-	//b.m_Gravity = 1600.0f;
-	//b.m_Friction *= 0.95f;
-	//float c = frandom()*0.3f + 0.7f;
-	//b.m_Color = vec4(c, c, c, 1.0f);
+	// b.m_Gravity = 1600.0f;
+	// b.m_Friction *= 0.95f;
+	// float c = frandom()*0.3f + 0.7f;
+	// b.m_Color = vec4(c, c, c, 1.0f);
 	b.m_Color = Color;
 	m_pClient->m_pBlood->Add(CBlood::GROUP_BLOOD, &b);
 }
@@ -116,24 +118,24 @@ void CEffects::Blood(vec2 Pos, vec2 Dir, vec4 Color)
 void CEffects::Guts(vec2 Pos, vec4 Color)
 {
 	// gut
-	vec2 Dir = vec2((frandom()-frandom())*2.0f, -1-frandom()*1.7f);
+	vec2 Dir = vec2((frandom() - frandom()) * 2.0f, -1 - frandom() * 1.7f);
 	{
 		CGutSpill b;
 		b.SetDefault();
 
 		b.m_Spr = 0;
 		b.m_Parts = 5;
-		b.m_LifeSpan = 4.0f + frandom()*2.0f;
-		b.m_StartSize = 32.0f + frandom()*32;
+		b.m_LifeSpan = 4.0f + frandom() * 2.0f;
+		b.m_StartSize = 32.0f + frandom() * 32;
 		b.m_EndSize = 24.0f;
-		b.m_Gravity = 1400.0f + frandom()*300;
+		b.m_Gravity = 1400.0f + frandom() * 300;
 
 		b.m_Friction = 0.85f;
 
-		for (int i = 0; i < 5; i++)
+		for(int i = 0; i < 5; i++)
 		{
-			b.m_aPos[i] = Pos + RandomDir()*(frandom()*4.0f);
-			b.m_aVel[i] = (Dir + RandomDir()) * ((frandom()+0.50f)*250.0f);
+			b.m_aPos[i] = Pos + RandomDir() * (frandom() * 4.0f);
+			b.m_aVel[i] = (Dir + RandomDir()) * ((frandom() + 0.50f) * 250.0f);
 		}
 
 		b.m_Color = Color;
@@ -141,55 +143,55 @@ void CEffects::Guts(vec2 Pos, vec4 Color)
 	}
 
 	// something else
-	Dir = vec2((frandom()-frandom())*2.0f, -1-frandom()*1.7f);
+	Dir = vec2((frandom() - frandom()) * 2.0f, -1 - frandom() * 1.7f);
 	{
 		CGutSpill b;
 		b.SetDefault();
 
 		b.m_Spr = 1;
 		b.m_Parts = 5;
-		b.m_LifeSpan = 4.0f + frandom()*2.0f;
-		b.m_StartSize = 32.0f + frandom()*32;
+		b.m_LifeSpan = 4.0f + frandom() * 2.0f;
+		b.m_StartSize = 32.0f + frandom() * 32;
 		b.m_EndSize = 24.0f;
 		b.m_ControlDist = 12.0f;
-		b.m_Gravity = 1400.0f + frandom()*300;
+		b.m_Gravity = 1400.0f + frandom() * 300;
 
 		b.m_Friction = 0.85f;
 
-		vec2 Vel = (Dir + RandomDir()) * ((frandom()+0.50f)*250.0f);
-		for (int i = 0; i < 5; i++)
+		vec2 Vel = (Dir + RandomDir()) * ((frandom() + 0.50f) * 250.0f);
+		for(int i = 0; i < 5; i++)
 		{
-			b.m_aPos[i] = Pos + RandomDir()*(frandom()*4.0f);
-			b.m_aVel[i] = Vel + RandomDir() * ((frandom()+0.50f)*150.0f);
+			b.m_aPos[i] = Pos + RandomDir() * (frandom() * 4.0f);
+			b.m_aVel[i] = Vel + RandomDir() * ((frandom() + 0.50f) * 150.0f);
 		}
 
-		b.m_Color = Color/3;
+		b.m_Color = Color / 3;
 		b.m_Color.a = Color.a;
 		m_pClient->m_pGuts->Add(CGuts::GROUP_GUTS, &b);
 	}
 
 	// brain
-	Dir = vec2((frandom()-frandom())*4.0f, -1-frandom()*1.7f);
+	Dir = vec2((frandom() - frandom()) * 4.0f, -1 - frandom() * 1.7f);
 	{
 		CBrainSpill b;
 		b.SetDefault();
 
-		b.m_LifeSpan = 4.0f + frandom()*2.0f;
-		b.m_StartSize = 32.0f + frandom()*32;
+		b.m_LifeSpan = 4.0f + frandom() * 2.0f;
+		b.m_StartSize = 32.0f + frandom() * 32;
 		b.m_EndSize = 24.0f;
-		b.m_Gravity = 1400.0f + frandom()*300;
+		b.m_Gravity = 1400.0f + frandom() * 300;
 
 		b.m_Friction = 0.85f;
 
 		b.SetPosition(Pos);
 
-		for (int i = 0; i < 9; i++)
+		for(int i = 0; i < 9; i++)
 		{
-			//b.m_aPos[i] = Pos + RandomDir()*(frandom()*8.0f);
-			b.m_aVel[i] = (Dir + RandomDir()) * ((frandom()+0.50f)*250.0f);
+			// b.m_aPos[i] = Pos + RandomDir()*(frandom()*8.0f);
+			b.m_aVel[i] = (Dir + RandomDir()) * ((frandom() + 0.50f) * 250.0f);
 		}
 
-		b.m_Color = Color/2;
+		b.m_Color = Color / 2;
 		b.m_Color.g *= 0.7f;
 		b.m_Color.b *= 0.7f;
 		b.m_Color.a = Color.a;
@@ -204,49 +206,47 @@ void CEffects::Acid(vec2 Pos, vec2 Dir)
 	b.m_Pos = Pos;
 
 	// bones
-	if (frandom()*100 < 2)
+	if(frandom() * 100 < 2)
 	{
-		b.m_Spr = SPRITE_BONE01 + (rand()%2);
-		b.m_LifeSpan = 8.0f + frandom()*8.0f;
-		b.m_Rotspeed = frandom()*12.0f - frandom()*12.0f;
+		b.m_Spr = SPRITE_BONE01 + (rand() % 2);
+		b.m_LifeSpan = 8.0f + frandom() * 8.0f;
+		b.m_Rotspeed = frandom() * 12.0f - frandom() * 12.0f;
 
-		b.m_StartSize = 24.0f + frandom()*24;
+		b.m_StartSize = 24.0f + frandom() * 24;
 		b.m_EndSize = b.m_StartSize;
 		b.m_Gravity = 1600.0f;
 	}
 	else
 	// blood
 	{
-		b.m_Spr = SPRITE_BLOOD01 + (rand()%6);
-		b.m_LifeSpan = 6.0f + frandom()*6.0f;
+		b.m_Spr = SPRITE_BLOOD01 + (rand() % 6);
+		b.m_LifeSpan = 6.0f + frandom() * 6.0f;
 		b.m_Rotspeed = 0.0f;
-		b.m_StartSize = 32.0f + frandom()*32;
+		b.m_StartSize = 32.0f + frandom() * 32;
 		b.m_EndSize = 24.0f;
-		b.m_Gravity = 1400.0f + frandom()*300;
+		b.m_Gravity = 1400.0f + frandom() * 300;
 	}
 
-	if (g_Config.m_GfxMultiBuffering)
+	if(g_Config.m_GfxMultiBuffering)
 	{
 		b.m_Spr = SPRITE_BLOOD02;
 		b.m_Rotspeed = 0.0f;
 		b.m_StartSize *= 0.75f;
 		b.m_EndSize = 0.0f;
 		b.m_LifeSpan = 8.0f;
-		b.m_StartSize = 32.0f + frandom()*32;
+		b.m_StartSize = 32.0f + frandom() * 32;
 	}
 
-	b.m_Vel = Dir * ((frandom()+0.50f)*1200.0f);
+	b.m_Vel = Dir * ((frandom() + 0.50f) * 1200.0f);
 
 	b.m_Rot = GetAngle(b.m_Vel);
 
-	b.m_Friction = 0.85f+frandom()*0.075f;
-	//float c = frandom()*0.3f + 0.7f;
-	//b.m_Color = vec4(c, c, c, 1.0f);
+	b.m_Friction = 0.85f + frandom() * 0.075f;
+	// float c = frandom()*0.3f + 0.7f;
+	// b.m_Color = vec4(c, c, c, 1.0f);
 	b.m_Color = vec4(0, 1, 0, 1.0f);
 	m_pClient->m_pBlood->Add(CBlood::GROUP_ACID, &b);
 }
-
-
 
 void CEffects::Splatter(vec2 Pos, float Angle, float Size, vec4 Color)
 {
@@ -254,23 +254,21 @@ void CEffects::Splatter(vec2 Pos, float Angle, float Size, vec4 Color)
 	b.SetDefault();
 	b.m_Pos = Pos;
 
-
-	b.m_Spr = SPRITE_SPLATTER01 + (rand()%4);
-	b.m_LifeSpan = 24.0f + frandom()*8.0f;
-	//b.m_LifeSpan = frandom()*8.0f;
-	if (Size == -1)
-		b.m_Size = 16.0f + frandom()*64;
+	b.m_Spr = SPRITE_SPLATTER01 + (rand() % 4);
+	b.m_LifeSpan = 24.0f + frandom() * 8.0f;
+	// b.m_LifeSpan = frandom()*8.0f;
+	if(Size == -1)
+		b.m_Size = 16.0f + frandom() * 64;
 	else
 		b.m_Size = Size;
 
 	b.m_Rot = Angle;
 
-	//b.m_Color = vec4(frandom()*0.2f + 0.5f, 0, 0, 1.0f);
-	//b.m_Color = vec4(0.65f, 0, 0, 1.0f);
+	// b.m_Color = vec4(frandom()*0.2f + 0.5f, 0, 0, 1.0f);
+	// b.m_Color = vec4(0.65f, 0, 0, 1.0f);
 	b.m_Color = Color;
 	m_pClient->m_pSplatter->Add(CSplatter::GROUP_SPLATTER, &b);
 }
-
 
 void CEffects::Spark(vec2 Pos)
 {
@@ -278,12 +276,12 @@ void CEffects::Spark(vec2 Pos)
 	b.SetDefault();
 	b.m_Pos = Pos;
 	b.m_Size = 0.5f + frandom();
-	b.m_LifeSpan = 0.1f + frandom()*0.3f;
-	b.m_Rotspeed = frandom()*12.0f - frandom()*12.0f;
-	b.m_Vel = RandomDir() * ((frandom()+0.165f)*500.0f);
+	b.m_LifeSpan = 0.1f + frandom() * 0.3f;
+	b.m_Rotspeed = frandom() * 12.0f - frandom() * 12.0f;
+	b.m_Vel = RandomDir() * ((frandom() + 0.165f) * 500.0f);
 	b.m_Rot = GetAngle(b.m_Vel);
 
-	b.m_Color = vec4(1.0f, 0.2f + frandom()*0.8f, 0.0f, 1.0f);
+	b.m_Color = vec4(1.0f, 0.2f + frandom() * 0.8f, 0.0f, 1.0f);
 	m_pClient->m_pSpark->Add(CSpark::GROUP_SPARKS, &b);
 }
 
@@ -321,22 +319,28 @@ void CEffects::Muzzle(vec2 Pos, vec2 Dir, const CWeaponSpec &Weapon)
 	if(!CWeaponCatalog::TryResolve(Weapon, &Profile))
 		return;
 	int s = Profile.m_Visual.m_MuzzleAmount;
-	for (int i = 0; i < s; i++)
+	for(int i = 0; i < s; i++)
 	{
 		CSinglespark b;
 		b.SetDefault();
 		b.m_Pos = Pos;
 		b.m_Size = 0.5f + frandom();
-		b.m_LifeSpan = 0.05f + frandom()*0.1f;
-		b.m_Rotspeed = frandom()*12.0f - frandom()*12.0f;
-		b.m_Vel = (Dir*2.0f + RandomDir()/3.0f) * ((frandom()+0.2f)*500.0f);
+		b.m_LifeSpan = 0.05f + frandom() * 0.1f;
+		b.m_Rotspeed = frandom() * 12.0f - frandom() * 12.0f;
+		b.m_Vel = (Dir * 2.0f + RandomDir() / 3.0f) * ((frandom() + 0.2f) * 500.0f);
 		b.m_Rot = GetAngle(b.m_Vel);
 
-		switch (Profile.m_Visual.m_MuzzleType)
+		switch(Profile.m_Visual.m_MuzzleType)
 		{
-			case 1: b.m_Color = vec4(frandom()*0.5f, 0.5f + frandom()*0.5f, 1.0f, 1.0f); break;
-			case 2: b.m_Color = vec4(frandom()*0.5f, 1.0f, frandom()*0.5f, 1.0f); break;
-			default: b.m_Color = vec4(1.0f, 0.2f + frandom()*0.8f, 0.0f, 1.0f); break;
+			case 1:
+				b.m_Color = vec4(frandom() * 0.5f, 0.5f + frandom() * 0.5f, 1.0f, 1.0f);
+				break;
+			case 2:
+				b.m_Color = vec4(frandom() * 0.5f, 1.0f, frandom() * 0.5f, 1.0f);
+				break;
+			default:
+				b.m_Color = vec4(1.0f, 0.2f + frandom() * 0.8f, 0.0f, 1.0f);
+				break;
 		};
 
 		m_pClient->m_pSpark->Add(CSpark::GROUP_SPARKS, &b);
@@ -349,12 +353,12 @@ void CEffects::GreenSpark(vec2 Pos)
 	b.SetDefault();
 	b.m_Pos = Pos;
 	b.m_Size = 0.5f + frandom();
-	b.m_LifeSpan = 0.1f + frandom()*0.1f;
-	b.m_Rotspeed = frandom()*12.0f - frandom()*12.0f;
-	b.m_Vel = RandomDir() * ((frandom()+0.165f)*600.0f);
+	b.m_LifeSpan = 0.1f + frandom() * 0.1f;
+	b.m_Rotspeed = frandom() * 12.0f - frandom() * 12.0f;
+	b.m_Vel = RandomDir() * ((frandom() + 0.165f) * 600.0f);
 	b.m_Rot = GetAngle(b.m_Vel);
 
-	b.m_Color = vec4(frandom()*0.5f, 1.0f, frandom()*0.5f, 1.0f);
+	b.m_Color = vec4(frandom() * 0.5f, 1.0f, frandom() * 0.5f, 1.0f);
 	m_pClient->m_pSpark->Add(CSpark::GROUP_SPARKS, &b);
 }
 
@@ -364,15 +368,14 @@ void CEffects::BlueSpark(vec2 Pos)
 	b.SetDefault();
 	b.m_Pos = Pos;
 	b.m_Size = 0.5f + frandom();
-	b.m_LifeSpan = 0.1f + frandom()*0.1f;
-	b.m_Rotspeed = frandom()*12.0f - frandom()*12.0f;
-	b.m_Vel = RandomDir() * ((frandom()+0.165f)*600.0f);
+	b.m_LifeSpan = 0.1f + frandom() * 0.1f;
+	b.m_Rotspeed = frandom() * 12.0f - frandom() * 12.0f;
+	b.m_Vel = RandomDir() * ((frandom() + 0.165f) * 600.0f);
 	b.m_Rot = GetAngle(b.m_Vel);
 
-	b.m_Color = vec4(0.25f + frandom()*0.25f, 0.5f + frandom()*0.5f, 1.0f, 1.0f);
+	b.m_Color = vec4(0.25f + frandom() * 0.25f, 0.5f + frandom() * 0.5f, 1.0f, 1.0f);
 	m_pClient->m_pSpark->Add(CSpark::GROUP_SPARKS, &b);
 }
-
 
 void CEffects::DamageIndicator(vec2 Pos, vec2 Dir)
 {
@@ -381,17 +384,17 @@ void CEffects::DamageIndicator(vec2 Pos, vec2 Dir)
 
 void CEffects::DamageInd(vec2 Pos, vec2 Dir, int Damage, vec4 Color)
 {
-	//if(!m_Add50hz)
+	// if(!m_Add50hz)
 	//	return;
 
 	CParticle p;
 	p.SetDefault();
 	p.m_Spr = Damage;
 	p.m_Pos = Pos;
-	p.m_Vel = Dir * 50 * (1 + min(Damage, 60)*0.025f);
-	p.m_LifeSpan = 0.5f+min(Damage, 60)*0.025f;
-	p.m_StartSize = 16.0f+min(Damage, 60)*0.7f;
-	p.m_EndSize = 16.0f+min(Damage, 60)*0.5f;
+	p.m_Vel = Dir * 50 * (1 + min(Damage, 60) * 0.025f);
+	p.m_LifeSpan = 0.5f + min(Damage, 60) * 0.025f;
+	p.m_StartSize = 16.0f + min(Damage, 60) * 0.7f;
+	p.m_EndSize = 16.0f + min(Damage, 60) * 0.5f;
 	p.m_Color = Color;
 	p.m_Rot = 0;
 	p.m_Rotspeed = 0;
@@ -404,19 +407,19 @@ void CEffects::DamageInd(vec2 Pos, vec2 Dir, int Damage, vec4 Color)
 
 void CEffects::PowerupShine(vec2 Pos, vec2 size)
 {
-	//if(!m_Add50hz)
+	// if(!m_Add50hz)
 	//	return;
 
 	CParticle p;
 	p.SetDefault();
 	p.m_Spr = SPRITE_PART_SLICE;
-	p.m_Pos = Pos + vec2((frandom()-0.5f)*size.x, (frandom()-0.5f)*size.y);
+	p.m_Pos = Pos + vec2((frandom() - 0.5f) * size.x, (frandom() - 0.5f) * size.y);
 	p.m_Vel = vec2(0, 0);
 	p.m_LifeSpan = 0.5f;
 	p.m_StartSize = 16.0f;
 	p.m_EndSize = 0;
-	p.m_Rot = frandom()*pi*2;
-	p.m_Rotspeed = pi*2;
+	p.m_Rot = frandom() * pi * 2;
+	p.m_Rotspeed = pi * 2;
 	p.m_Gravity = 500;
 	p.m_Friction = 0.9f;
 	p.m_FlowAffected = 0.0f;
@@ -425,14 +428,14 @@ void CEffects::PowerupShine(vec2 Pos, vec2 size)
 
 void CEffects::Repair(vec2 Pos)
 {
-	//if(!m_Add50hz)
+	// if(!m_Add50hz)
 	//	return;
 
 	CParticle p;
 	p.SetDefault();
 	p.m_Spr = SPRITE_REPAIR;
 	p.m_Pos = Pos;
-	p.m_Vel = vec2((frandom()-frandom())*600, -1000);
+	p.m_Vel = vec2((frandom() - frandom()) * 600, -1000);
 	p.m_LifeSpan = 1.5f;
 	p.m_StartSize = 32.0f;
 	p.m_EndSize = 48.0f;
@@ -445,14 +448,14 @@ void CEffects::Repair(vec2 Pos)
 
 void CEffects::AmmoFill(vec2 Pos, int Weapon)
 {
-	//if(!m_Add50hz)
+	// if(!m_Add50hz)
 	//	return;
 
 	CParticle p;
 	p.SetDefault();
 	p.m_Spr = Weapon;
 	p.m_Pos = Pos;
-	p.m_Vel = vec2((frandom()-frandom())*600, -1000);
+	p.m_Vel = vec2((frandom() - frandom()) * 600, -1000);
 	p.m_LifeSpan = 1.5f;
 	p.m_StartSize = 32.0f;
 	p.m_EndSize = 48.0f;
@@ -480,40 +483,39 @@ void CEffects::BoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot)
 
 void CEffects::SmokeTrail(vec2 Pos, vec2 Vel)
 {
-	//if(!m_Add50hz)
+	// if(!m_Add50hz)
 	//	return;
 
 	CParticle p;
 	p.SetDefault();
 	p.m_Spr = SPRITE_PART_SMOKE;
 	p.m_Pos = Pos;
-	p.m_Vel = Vel + RandomDir()*50.0f;
-	p.m_LifeSpan = 0.5f + frandom()*0.5f;
-	p.m_StartSize = 12.0f + frandom()*8;
+	p.m_Vel = Vel + RandomDir() * 50.0f;
+	p.m_LifeSpan = 0.5f + frandom() * 0.5f;
+	p.m_StartSize = 12.0f + frandom() * 8;
 	p.m_EndSize = 0;
 	p.m_Friction = 0.7f;
-	p.m_Gravity = frandom()*-300.0f;
-	p.m_Color = vec4(1,1,1, 0.5f);
+	p.m_Gravity = frandom() * -300.0f;
+	p.m_Color = vec4(1, 1, 1, 0.5f);
 	m_pClient->m_pParticles->Add(CParticles::GROUP_PROJECTILE_TRAIL, &p);
 }
 
-
 void CEffects::SkidTrail(vec2 Pos, vec2 Vel)
 {
-	//if(!m_Add100hz)
+	// if(!m_Add100hz)
 	//	return;
 
 	CParticle p;
 	p.SetDefault();
 	p.m_Spr = SPRITE_PART_SMOKE;
 	p.m_Pos = Pos;
-	p.m_Vel = Vel + RandomDir()*50.0f;
-	p.m_LifeSpan = 0.5f + frandom()*0.5f;
-	p.m_StartSize = 24.0f + frandom()*12;
+	p.m_Vel = Vel + RandomDir() * 50.0f;
+	p.m_LifeSpan = 0.5f + frandom() * 0.5f;
+	p.m_StartSize = 24.0f + frandom() * 12;
 	p.m_EndSize = 0;
 	p.m_Friction = 0.7f;
-	p.m_Gravity = frandom()*-500.0f;
-	p.m_Color = vec4(0.75f,0.75f,0.75f,1.0f);
+	p.m_Gravity = frandom() * -500.0f;
+	p.m_Color = vec4(0.75f, 0.75f, 0.75f, 1.0f);
 	m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
 }
 
@@ -543,59 +545,59 @@ void CEffects::MovementDust(vec2 Pos, vec2 Vel, float Strength)
 
 void CEffects::Triangle(vec2 Pos, vec2 Vel)
 {
-	//if(!m_Add100hz)
+	// if(!m_Add100hz)
 	//	return;
 
 	CParticle p;
 	p.SetDefault();
-	//p.m_Spr = SPRITE_PART_PARTICLE1 + (rand()%3);
-	p.m_Spr = SPRITE_PART_SPLAT01 + (rand()%2);
+	// p.m_Spr = SPRITE_PART_PARTICLE1 + (rand()%3);
+	p.m_Spr = SPRITE_PART_SPLAT01 + (rand() % 2);
 	p.m_Pos = Pos;
-	//p.m_Vel = Vel + RandomDir()*750.0f;
-	p.m_Vel = Vel + RandomDir()*50.0f;
-	p.m_LifeSpan = 0.5f + frandom()*0.5f;
-	p.m_StartSize = 12.0f + frandom()*12;
-	p.m_Rot = frandom()*600.0f;
+	// p.m_Vel = Vel + RandomDir()*750.0f;
+	p.m_Vel = Vel + RandomDir() * 50.0f;
+	p.m_LifeSpan = 0.5f + frandom() * 0.5f;
+	p.m_StartSize = 12.0f + frandom() * 12;
+	p.m_Rot = frandom() * 600.0f;
 	p.m_EndSize = 0;
 	p.m_Friction = 0.7f;
-	p.m_Gravity = frandom()*-500.0f;
-	p.m_Color = vec4(1.0f, frandom()*0.8, 0, 1.0f);
+	p.m_Gravity = frandom() * -500.0f;
+	p.m_Color = vec4(1.0f, frandom() * 0.8, 0, 1.0f);
 	m_pClient->m_pParticles->Add(CParticles::GROUP_TRIANGLES, &p);
 }
 
 void CEffects::Flame(vec2 Pos, vec2 Vel, float Alpha, bool IgnoreCollision)
 {
-	//if(!m_Add100hz)
+	// if(!m_Add100hz)
 	//	return;
 
 	CParticle p;
 	p.SetDefault();
-	//p.m_Spr = SPRITE_PART_PARTICLE1 + (rand()%3);
-	p.m_Spr = SPRITE_PART_SPLAT01 + (rand()%3);
+	// p.m_Spr = SPRITE_PART_PARTICLE1 + (rand()%3);
+	p.m_Spr = SPRITE_PART_SPLAT01 + (rand() % 3);
 	p.m_Pos = Pos;
-	//p.m_Vel = Vel + RandomDir()*750.0f;
-	p.m_Vel = Vel + RandomDir()*50.0f;
-	p.m_LifeSpan = 0.5f + frandom()*0.75f;
-	p.m_StartSize = 12.0f + frandom()*20;
+	// p.m_Vel = Vel + RandomDir()*750.0f;
+	p.m_Vel = Vel + RandomDir() * 50.0f;
+	p.m_LifeSpan = 0.5f + frandom() * 0.75f;
+	p.m_StartSize = 12.0f + frandom() * 20;
 	p.m_IgnoreCollision = IgnoreCollision;
-	p.m_Rot = frandom()*600.0f;
+	p.m_Rot = frandom() * 600.0f;
 	p.m_EndSize = 0;
 	p.m_Friction = 0.7f;
-	p.m_Gravity = frandom()*-500.0f;
-	p.m_Color = vec4(1.0f, frandom()*0.8f, 0, Alpha);
+	p.m_Gravity = frandom() * -500.0f;
+	p.m_Color = vec4(1.0f, frandom() * 0.8f, 0, Alpha);
 	m_pClient->m_pParticles->Add(CParticles::GROUP_FLAMES, &p);
 }
 
 void CEffects::BulletTrail(vec2 Pos)
 {
-	//if(!m_Add100hz)
+	// if(!m_Add100hz)
 	//	return;
 
 	CParticle p;
 	p.SetDefault();
 	p.m_Spr = SPRITE_PART_BALL;
 	p.m_Pos = Pos;
-	p.m_LifeSpan = 0.15f + frandom()*0.15f;
+	p.m_LifeSpan = 0.15f + frandom() * 0.15f;
 	p.m_StartSize = 8.0f;
 	p.m_EndSize = 0;
 	p.m_Friction = 0.7f;
@@ -605,7 +607,7 @@ void CEffects::BulletTrail(vec2 Pos)
 
 void CEffects::BulletTrail(vec2 Start, vec2 End, vec4 Color, float Size)
 {
-	//if(!m_Add100hz)
+	// if(!m_Add100hz)
 	//	return;
 
 	CParticle p;
@@ -650,7 +652,7 @@ void CEffects::PlayerSpawn(vec2 Pos)
 	p.SetDefault();
 	p.m_Spr = SPRITE_PLAYERSPAWN1;
 	p.m_Frames = 11;
-	p.m_Pos = Pos+vec2(0, -16);
+	p.m_Pos = Pos + vec2(0, -16);
 	p.m_LifeSpan = 0.5f;
 	p.m_StartSize = 110;
 	p.m_EndSize = 110;
@@ -663,89 +665,95 @@ void CEffects::PlayerDeath(vec2 Pos, int ClientID)
 {
 	CParticle p;
 	p.SetDefault();
-	//p.m_Special = CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_BloodColor;
+	// p.m_Special = CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_BloodColor;
 	p.m_Spr = SPRITE_DEATH1;
 	p.m_Frames = 8;
 	p.m_Pos = Pos + vec2(0, -24);
 	p.m_LifeSpan = 0.3f;
 	p.m_StartSize = 100;
 	p.m_EndSize = 100;
-	p.m_Rot = frandom()*pi*2;
+	p.m_Rot = frandom() * pi * 2;
 
-	switch (CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_BloodColor)
+	switch(CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_BloodColor)
 	{
-		case 1: p.m_Color = vec4(0, 1, 0, 1); break;
-		case 2: p.m_Color = vec4(0, 0, 0.1f, 1); break;
-		default: p.m_Color = vec4(1, 0, 0, 1); break;
+		case 1:
+			p.m_Color = vec4(0, 1, 0, 1);
+			break;
+		case 2:
+			p.m_Color = vec4(0, 0, 0.1f, 1);
+			break;
+		default:
+			p.m_Color = vec4(1, 0, 0, 1);
+			break;
 	};
 
 	m_pClient->m_pParticles->Add(CParticles::GROUP_DEATH, &p);
 
-	if (ClientID < 0 || ClientID >= MAX_CLIENTS)
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return;
 
 	Guts(Pos, p.m_Color);
-	//Guts(Pos, vec2((frandom()-frandom())*1.5f, -1-frandom()*1.7f), p.m_Color);
+	// Guts(Pos, vec2((frandom()-frandom())*1.5f, -1-frandom()*1.7f), p.m_Color);
 
 	// body
-	for (int i = 0; i < 4; i++)
+	for(int i = 0; i < 4; i++)
 	{
 		CParticle p;
 		p.SetDefault();
 		p.m_Special = CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_BloodColor;
-		p.m_Spr = SPRITE_MEAT1+2*rand()%6;
-		p.m_Pos = Pos + vec2(0, -14) + vec2(frandom()-frandom(), frandom()-frandom())*12;
-		p.m_Vel = RandomDir()*(frandom()+0.2f)*600.0f + vec2(0, -100);
-		p.m_LifeSpan = 4.0f+frandom();
+		p.m_Spr = SPRITE_MEAT1 + 2 * rand() % 6;
+		p.m_Pos = Pos + vec2(0, -14) + vec2(frandom() - frandom(), frandom() - frandom()) * 12;
+		p.m_Vel = RandomDir() * (frandom() + 0.2f) * 600.0f + vec2(0, -100);
+		p.m_LifeSpan = 4.0f + frandom();
 		p.m_StartSize = 32;
 		p.m_EndSize = p.m_StartSize;
-		p.m_Rot = frandom()*pi*2;
+		p.m_Rot = frandom() * pi * 2;
 		p.m_Rotspeed = p.m_Vel.x / 10;
 		p.m_Friction = 0.9f;
 		p.m_Chunk = true;
-		p.m_Gravity = 1200.0f + frandom()*400;
+		p.m_Gravity = 1200.0f + frandom() * 400;
 		p.m_Color = CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_ColorBody;
 		m_pClient->m_pParticles->Add(CParticles::GROUP_MEAT, &p);
 	}
 
 	// feet
-	for (int i = 0; i < 4; i++)
+	for(int i = 0; i < 4; i++)
 	{
 		CParticle p;
 		p.SetDefault();
 		p.m_Special = CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_BloodColor;
-		p.m_Spr = SPRITE_MEAT1+2*rand()%6;
-		p.m_Pos = Pos + vec2(0, +4) + vec2(frandom()-frandom(), frandom()-frandom())*12;
-		p.m_Vel = RandomDir()*(frandom()+0.2f)*400.0f;
-		p.m_LifeSpan = 4.0f+frandom();
+		p.m_Spr = SPRITE_MEAT1 + 2 * rand() % 6;
+		p.m_Pos = Pos + vec2(0, +4) + vec2(frandom() - frandom(), frandom() - frandom()) * 12;
+		p.m_Vel = RandomDir() * (frandom() + 0.2f) * 400.0f;
+		p.m_LifeSpan = 4.0f + frandom();
 		p.m_StartSize = 32;
 		p.m_EndSize = p.m_StartSize;
-		p.m_Rot = frandom()*pi*2;
+		p.m_Rot = frandom() * pi * 2;
 		p.m_Rotspeed = p.m_Vel.x / 10;
 		p.m_Friction = 0.9f;
 		p.m_Chunk = true;
-		p.m_Gravity = 1200.0f + frandom()*400;
+		p.m_Gravity = 1200.0f + frandom() * 400;
 		p.m_Color = CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_ColorFeet;
 		m_pClient->m_pParticles->Add(CParticles::GROUP_MEAT, &p);
 	}
 
 	// skin (head)
-	for (int i = 0; i < 7; i++)
+	for(int i = 0; i < 7; i++)
 	{
 		CParticle p;
 		p.SetDefault();
 		p.m_Special = CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_BloodColor;
-		p.m_Spr = SPRITE_MEAT7+2*rand()%2;
-		p.m_Pos = Pos + vec2(0, -36) + vec2(frandom()-frandom(), frandom()-frandom())*12;
-		p.m_Vel = RandomDir()*(frandom()+0.2f)*700.0f + vec2(0, -100);
-		p.m_LifeSpan = 4.0f+frandom();
+		p.m_Spr = SPRITE_MEAT7 + 2 * rand() % 2;
+		p.m_Pos = Pos + vec2(0, -36) + vec2(frandom() - frandom(), frandom() - frandom()) * 12;
+		p.m_Vel = RandomDir() * (frandom() + 0.2f) * 700.0f + vec2(0, -100);
+		p.m_LifeSpan = 4.0f + frandom();
 		p.m_StartSize = 32;
 		p.m_EndSize = p.m_StartSize;
-		p.m_Rot = frandom()*pi*2;
+		p.m_Rot = frandom() * pi * 2;
 		p.m_Rotspeed = p.m_Vel.x / 10;
 		p.m_Friction = 0.9f;
 		p.m_Chunk = true;
-		p.m_Gravity = 1200.0f + frandom()*400;
+		p.m_Gravity = 1200.0f + frandom() * 400;
 		p.m_Color = CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_ColorSkin;
 		m_pClient->m_pParticles->Add(CParticles::GROUP_MEAT, &p);
 	}
@@ -773,7 +781,6 @@ void CEffects::PlayerDeath(vec2 Pos, int ClientID)
 	*/
 }
 
-
 void CEffects::Lazer(vec2 Pos, int Height)
 {
 	CParticle p;
@@ -789,13 +796,12 @@ void CEffects::Lazer(vec2 Pos, int Height)
 	m_pClient->m_pParticles->Add(CParticles::GROUP_LAZER, &p);
 }
 
-
 void CEffects::Electrospark(vec2 Pos, float Size, vec2 Vel)
 {
 	CParticle p;
 	p.SetDefault();
 	p.m_Spr = SPRITE_SPARK1_1;
-	if (frandom() < 0.5f)
+	if(frandom() < 0.5f)
 		p.m_Spr = SPRITE_SPARK2_1;
 	p.m_Frames = 3;
 	p.m_Vel = Vel;
@@ -806,58 +812,59 @@ void CEffects::Electrospark(vec2 Pos, float Size, vec2 Vel)
 	p.m_LifeSpan = 0.2f;
 	p.m_StartSize = Size;
 	p.m_EndSize = Size;
-	p.m_Rot = frandom()*pi*2;;
+	p.m_Rot = frandom() * pi * 2;
+	;
 	m_pClient->m_pParticles->Add(CParticles::GROUP_SPARKS, &p);
 }
 
-
 void CEffects::SpriteSheet(int FX, vec2 Pos)
 {
-	switch (FX)
+	switch(FX)
 	{
-	case FX_MINE:
+		case FX_MINE:
 		{ // smoke
 			CParticle p;
 			p.SetDefault();
 			p.m_Spr = SPRITE_MINE1_1;
 			p.m_Frames = 8;
-			p.m_Pos = Pos+vec2(35, -45);
+			p.m_Pos = Pos + vec2(35, -45);
 			p.m_LifeSpan = 0.35f;
 			p.m_StartSize = 110;
 			p.m_EndSize = 110;
 			p.m_Rot = 0;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_MINE1, &p);
-		}{ // explosion
-			CParticle p;
-			p.SetDefault();
-			p.m_Spr = SPRITE_MINE2_1;
-			p.m_Frames = 4;
-			p.m_Pos = Pos+vec2(10, -45);
-			p.m_LifeSpan = 0.25f;
-			p.m_StartSize = 120;
-			p.m_EndSize = 120;
-			p.m_Rot = 0;
-			m_pClient->m_pParticles->Add(CParticles::GROUP_MINE2, &p);
 		}
-		break;
+			{ // explosion
+				CParticle p;
+				p.SetDefault();
+				p.m_Spr = SPRITE_MINE2_1;
+				p.m_Frames = 4;
+				p.m_Pos = Pos + vec2(10, -45);
+				p.m_LifeSpan = 0.25f;
+				p.m_StartSize = 120;
+				p.m_EndSize = 120;
+				p.m_Rot = 0;
+				m_pClient->m_pParticles->Add(CParticles::GROUP_MINE2, &p);
+			}
+			break;
 
-	case FX_ELECTROMINE:
+		case FX_ELECTROMINE:
 		{
 			CParticle p;
 			p.SetDefault();
 			p.m_Spr = SPRITE_ELECTROMINE1;
 			p.m_Frames = 12;
-			p.m_Pos = Pos+vec2(0, -20);
+			p.m_Pos = Pos + vec2(0, -20);
 			p.m_LifeSpan = 0.35f;
 			p.m_StartSize = 180;
 			p.m_EndSize = 180;
-			p.m_Rot = -pi/2;
+			p.m_Rot = -pi / 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_ELECTROMINE, &p);
 			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_ELECTROMINE, 1, Pos);
 		}
 		break;
 
-	case FX_SMALLELECTRIC:
+		case FX_SMALLELECTRIC:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -867,12 +874,12 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.20f;
 			p.m_StartSize = 70;
 			p.m_EndSize = 70;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_ELECTRIC, &p);
 		}
 		break;
 
-	case FX_ELECTRIC:
+		case FX_ELECTRIC:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -882,12 +889,12 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.20f;
 			p.m_StartSize = 150;
 			p.m_EndSize = 150;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_ELECTRIC, &p);
 		}
 		break;
 
-	case FX_SUPERELECTRIC:
+		case FX_SUPERELECTRIC:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -897,15 +904,15 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.20f;
 			p.m_StartSize = 210;
 			p.m_EndSize = 210;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_ELECTRIC, &p);
 
-			for (int i = 0; i < 4; i++)
-				Electrospark(Pos+vec2(frandom()-frandom(), frandom()-frandom())*120.0f, 64);
+			for(int i = 0; i < 4; i++)
+				Electrospark(Pos + vec2(frandom() - frandom(), frandom() - frandom()) * 120.0f, 64);
 		}
 		break;
 
-	case FX_GREEN_EXPLOSION:
+		case FX_GREEN_EXPLOSION:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -915,15 +922,15 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.26f;
 			p.m_StartSize = 140;
 			p.m_EndSize = 160;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_GREEN_EXPLOSION, &p);
 
-			for (int i = 0; i < 24; i++)
+			for(int i = 0; i < 24; i++)
 				GreenSpark(Pos);
 		}
 		break;
 
-	case FX_ROLLDASH:
+		case FX_ROLLDASH:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -936,66 +943,66 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_Rot = 0;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_EFFECT1, &p);
 
-			for (int i = 0; i < 24; i++)
+			for(int i = 0; i < 24; i++)
 				GreenSpark(Pos);
 		}
 		break;
 
-	case FX_LAZERLOAD:
-		m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_DEATHRAY, 1.0f, Pos);
-		{
-			CParticle p;
-			p.SetDefault();
-			p.m_Spr = SPRITE_LAZERLOAD1;
-			p.m_Frames = 8;
-			p.m_Pos = Pos;
-			p.m_LifeSpan = 0.3f;
-			p.m_StartSize = 60;
-			p.m_EndSize = 60;
-			p.m_Rot = 0;
-			m_pClient->m_pParticles->Add(CParticles::GROUP_LAZERLOAD, &p);
-		}
-		break;
+		case FX_LAZERLOAD:
+			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_DEATHRAY, 1.0f, Pos);
+			{
+				CParticle p;
+				p.SetDefault();
+				p.m_Spr = SPRITE_LAZERLOAD1;
+				p.m_Frames = 8;
+				p.m_Pos = Pos;
+				p.m_LifeSpan = 0.3f;
+				p.m_StartSize = 60;
+				p.m_EndSize = 60;
+				p.m_Rot = 0;
+				m_pClient->m_pParticles->Add(CParticles::GROUP_LAZERLOAD, &p);
+			}
+			break;
 
-	case FX_TAKEOFF:
-		m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_WALKER_TAKEOFF, 1.0f, Pos);
-		{
-			CParticle p;
-			p.SetDefault();
-			p.m_Spr = SPRITE_TAKEOFF1;
-			p.m_Frames = 8;
-			p.m_Pos = Pos;
-			p.m_LifeSpan = 0.4f;
-			p.m_StartSize = 70;
-			p.m_EndSize = 80;
-			p.m_Rot = 0;
-			m_pClient->m_pParticles->Add(CParticles::GROUP_TAKEOFF, &p);
-		}
-		break;
+		case FX_TAKEOFF:
+			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_WALKER_TAKEOFF, 1.0f, Pos);
+			{
+				CParticle p;
+				p.SetDefault();
+				p.m_Spr = SPRITE_TAKEOFF1;
+				p.m_Frames = 8;
+				p.m_Pos = Pos;
+				p.m_LifeSpan = 0.4f;
+				p.m_StartSize = 70;
+				p.m_EndSize = 80;
+				p.m_Rot = 0;
+				m_pClient->m_pParticles->Add(CParticles::GROUP_TAKEOFF, &p);
+			}
+			break;
 
-	case FX_FLAME1:
-		//m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_WALKER_TAKEOFF, 1.0f, Pos);
-		{
-			CParticle p;
-			p.SetDefault();
-			p.m_Spr = SPRITE_FLAME1_1;
-			p.m_Frames = 8;
-			p.m_Pos = Pos;
-			p.m_LifeSpan = 0.3f;
-			p.m_StartSize = 90;
-			p.m_EndSize = 90;
-			p.m_Rot = 0;
-			m_pClient->m_pParticles->Add(CParticles::GROUP_FLAME1, &p);
-		}
-		break;
+		case FX_FLAME1:
+			// m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_WALKER_TAKEOFF, 1.0f, Pos);
+			{
+				CParticle p;
+				p.SetDefault();
+				p.m_Spr = SPRITE_FLAME1_1;
+				p.m_Frames = 8;
+				p.m_Pos = Pos;
+				p.m_LifeSpan = 0.3f;
+				p.m_StartSize = 90;
+				p.m_EndSize = 90;
+				p.m_Rot = 0;
+				m_pClient->m_pParticles->Add(CParticles::GROUP_FLAME1, &p);
+			}
+			break;
 
-	case FX_BARREL:
+		case FX_BARREL:
 		{
 			CParticle p;
 			p.SetDefault();
 			p.m_Spr = SPRITE_SMOKE1_1;
 			p.m_Frames = 11;
-			p.m_Pos = Pos+vec2(0, -20);
+			p.m_Pos = Pos + vec2(0, -20);
 			p.m_LifeSpan = 0.35f;
 			p.m_StartSize = 200;
 			p.m_EndSize = 300;
@@ -1004,7 +1011,7 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 		}
 		break;
 
-	case FX_ELECTROHIT:
+		case FX_ELECTROHIT:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -1014,14 +1021,14 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.3f;
 			p.m_StartSize = 60;
 			p.m_EndSize = 60;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_HITEFFECTS, &p);
 
 			Electrospark(Pos, 64);
 		}
 		break;
 
-	case FX_SHIELDHIT:
+		case FX_SHIELDHIT:
 		{
 			Electrospark(Pos, 64);
 
@@ -1033,15 +1040,15 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.3f;
 			p.m_StartSize = 60;
 			p.m_EndSize = 60;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_HITEFFECTS, &p);
 
-		m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_SHIELD_HIT, 1.0f, Pos);
-	}
-	break;
+			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_SHIELD_HIT, 1.0f, Pos);
+		}
+		break;
 
-	// sword hit
-	case FX_BLOOD1:
+		// sword hit
+		case FX_BLOOD1:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -1051,14 +1058,14 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.25f;
 			p.m_StartSize = 110;
 			p.m_EndSize = 110;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_BLOODFX, &p);
-		m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, 1.0f, Pos);
-	}
-	break;
+			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, 1.0f, Pos);
+		}
+		break;
 
-	// chainsaw
-	case FX_BLOOD2:
+		// chainsaw
+		case FX_BLOOD2:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -1068,14 +1075,14 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.20f;
 			p.m_StartSize = 60;
 			p.m_EndSize = 60;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_BLOODFX, &p);
-			//m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, 1.0f, Pos);
+			// m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, 1.0f, Pos);
 		}
 		break;
 
-	// hammer hit
-	case FX_BLOOD3:
+		// hammer hit
+		case FX_BLOOD3:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -1085,13 +1092,13 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.25f;
 			p.m_StartSize = 110;
 			p.m_EndSize = 110;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_BLOODFX, &p);
-		m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_KICKHIT, 1.0f, Pos);
-	}
-	break;
+			m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_KICKHIT, 1.0f, Pos);
+		}
+		break;
 
-	case FX_MONSTERDEATH:
+		case FX_MONSTERDEATH:
 		{
 			CParticle p;
 			p.SetDefault();
@@ -1101,19 +1108,19 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 			p.m_LifeSpan = 0.3f;
 			p.m_StartSize = 75;
 			p.m_EndSize = 75;
-			p.m_Rot = frandom()*pi*2;
+			p.m_Rot = frandom() * pi * 2;
 			m_pClient->m_pParticles->Add(CParticles::GROUP_DEATH, &p);
-			//m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, 1.0f, Pos);
+			// m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, 1.0f, Pos);
 		}
 		break;
 
-	case FX_MONSTERSPAWN:
+		case FX_MONSTERSPAWN:
 		{
 			CParticle p;
 			p.SetDefault();
 			p.m_Spr = SPRITE_MONSTERSPAWN1;
 			p.m_Frames = 11;
-			p.m_Pos = Pos+vec2(0, -16);
+			p.m_Pos = Pos + vec2(0, -16);
 			p.m_LifeSpan = 0.5f;
 			p.m_StartSize = 90;
 			p.m_EndSize = 90;
@@ -1123,13 +1130,9 @@ void CEffects::SpriteSheet(int FX, vec2 Pos)
 		}
 		break;
 
-	default:;
+		default:;
 	};
-
-
 }
-
-
 
 void CEffects::DashEffect(vec2 Pos, int Angle)
 {
@@ -1138,18 +1141,17 @@ void CEffects::DashEffect(vec2 Pos, int Angle)
 	p.m_Spr = SPRITE_FX_DASH1;
 	p.m_Frames = 8;
 	p.m_Pos = Pos;
-	p.m_Vel = -vec2(cosf(Angle/256.0f), sinf(Angle/256.0f)) * 400.0f;
+	p.m_Vel = -vec2(cosf(Angle / 256.0f), sinf(Angle / 256.0f)) * 400.0f;
 	p.m_LifeSpan = 0.5f;
 	p.m_IgnoreCollision = true;
 	p.m_Friction = 0.8f;
 	p.m_StartSize = 80;
 	p.m_EndSize = 100;
-	p.m_Rot = Angle/256.0f-pi/2;
+	p.m_Rot = Angle / 256.0f - pi / 2;
 	m_pClient->m_pParticles->Add(CParticles::GROUP_EFFECT1, &p);
 
 	m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_DASH, 1.0f, Pos);
 }
-
 
 void CEffects::SpriteExplosion(vec2 Pos, float Size, int Sprite)
 {
@@ -1163,8 +1165,8 @@ void CEffects::SpriteExplosion(vec2 Pos, float Size, int Sprite)
 	p.m_Pos = Pos;
 	p.m_LifeSpan = 0.3f;
 	p.m_StartSize = Size;
-	p.m_EndSize = Size*1.1f;
-	p.m_Rot = frandom()*pi*2;
+	p.m_EndSize = Size * 1.1f;
+	p.m_Rot = frandom() * pi * 2;
 	m_pClient->m_pParticles->Add(CParticles::GROUP_EXPLOSIONS, &p);
 
 	// add smoke
@@ -1177,18 +1179,16 @@ void CEffects::SpriteExplosion(vec2 Pos, float Size, int Sprite)
 		p.SetDefault();
 		p.m_Spr = SPRITE_PART_SMOKE;
 		p.m_Pos = Pos;
-		p.m_Vel = RandomDir() * ((1.0f + frandom()*0.2f) * 1000.0f);
-		p.m_LifeSpan = 1.0f + frandom()*0.6f;
-		p.m_StartSize = (32.0f + frandom()*8);
+		p.m_Vel = RandomDir() * ((1.0f + frandom() * 0.2f) * 1000.0f);
+		p.m_LifeSpan = 1.0f + frandom() * 0.6f;
+		p.m_StartSize = (32.0f + frandom() * 8);
 		p.m_EndSize = 0;
-		p.m_Gravity = frandom()*-800.0f;
+		p.m_Gravity = frandom() * -800.0f;
 		p.m_Friction = 0.4f;
-		p.m_Color = mix(vec4(0.75f,0.75f,0.75f,0.5f), vec4(0.5f,0.5f,0.5f,0.5f), frandom());
+		p.m_Color = mix(vec4(0.75f, 0.75f, 0.75f, 0.5f), vec4(0.5f, 0.5f, 0.5f, 0.5f), frandom());
 		m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
 	}
 }
-
-
 
 void CEffects::SpriteSmoke(vec2 Pos, float Size, vec4 Color)
 {
@@ -1196,13 +1196,13 @@ void CEffects::SpriteSmoke(vec2 Pos, float Size, vec4 Color)
 	p.SetDefault();
 	p.m_Spr = SPRITE_PART_SMOKE;
 	p.m_Pos = Pos;
-	p.m_Vel = RandomDir() * ((1.0f + frandom()*0.2f) * 20.0f * Size);
-	p.m_LifeSpan = 1.0f + frandom()*0.6f;
-	p.m_StartSize = (Size + frandom()*8);
+	p.m_Vel = RandomDir() * ((1.0f + frandom() * 0.2f) * 20.0f * Size);
+	p.m_LifeSpan = 1.0f + frandom() * 0.6f;
+	p.m_StartSize = (Size + frandom() * 8);
 	p.m_EndSize = 0;
-	p.m_Gravity = frandom()*-20.0f * Size;
+	p.m_Gravity = frandom() * -20.0f * Size;
 	p.m_Friction = 0.4f;
-	p.m_Color = mix(Color, vec4(Color.r/2, Color.g/2, Color.b/2, Color.a), frandom());
+	p.m_Color = mix(Color, vec4(Color.r / 2, Color.g / 2, Color.b / 2, Color.a), frandom());
 	m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
 }
 
@@ -1215,7 +1215,7 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 
 	CWeaponDefinition Definition{};
 	if(Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
-		!CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition))
+	   !CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition))
 		return;
 
 	const float ExplosionSize = Combat.m_ExplosionSize;
@@ -1237,34 +1237,45 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 	}
 	*/
 
-
-	if (Source.m_Kind == EAttackSourceKind::Droid)
+	if(Source.m_Kind == EAttackSourceKind::Droid || Source.m_Kind == EAttackSourceKind::Building)
 	{
-		if (ExplosionSprite)
+		if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_SPRITE ||
+		   Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_SPRITE_ELECTRIC)
 			SpriteExplosion(Pos, ExplosionSize, ExplosionSprite);
-		else
+		if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_SPARKS)
+			for(int i = 0; i < 9; ++i)
+				Spark(Pos + vec2(0, frandom() - frandom()) * 10.0f);
+		if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_SPRITE_ELECTRIC)
+		{
+			CParticle p;
+			p.SetDefault();
+			p.m_Spr = SPRITE_ELECTRIC1;
+			p.m_Frames = 8;
+			p.m_Pos = Pos;
+			p.m_LifeSpan = 0.20f;
+			p.m_StartSize = 600;
+			p.m_EndSize = p.m_StartSize * 1.3f;
+			p.m_Color = vec4(1, 1, 1, 0.35f);
+			p.m_Rot = frandom() * pi * 2;
+			m_pClient->m_pParticles->Add(CParticles::GROUP_ELECTRIC, &p);
+		}
+		if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_ELECTRIC ||
+		   Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_ELECTRIC_AREA)
 		{
 			Electrospark(Pos, 64 * ProjectileSize);
-
-			// add sparks
-			for(int i = 0; i < 6*ProjectileSize; i++)
+			for(int i = 0; i < 6 * ProjectileSize; ++i)
 				BlueSpark(Pos);
-
-			if (Source.m_Type == DROIDTYPE_STAR || Source.m_Type == DROIDTYPE_BOSSSTAR)
+			if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_ELECTRIC_AREA)
 			{
-				if (g_Config.m_GfxShaders)
+				if(g_Config.m_GfxShaders)
 				{
-					CSinglespark b;
-					b.SetDefault();
-					b.m_Pos = Pos;
-					b.m_Size = 84.0f * ProjectileSize;
-					b.m_LifeSpan = 0.35f;
-					b.m_Rotspeed = 0;
-					b.m_Vel = vec2(0, 0);
-					b.m_Rot = 0;
-
-					b.m_Color = vec4(0.0f, 1.0f, 1.0f, 1.0f);
-					m_pClient->m_pSpark->Add(CSpark::GROUP_AREA1, &b);
+					CSinglespark Spark;
+					Spark.SetDefault();
+					Spark.m_Pos = Pos;
+					Spark.m_Size = 84.0f * ProjectileSize;
+					Spark.m_LifeSpan = 0.35f;
+					Spark.m_Color = vec4(0.0f, 1.0f, 1.0f, 1.0f);
+					m_pClient->m_pSpark->Add(CSpark::GROUP_AREA1, &Spark);
 				}
 				else
 				{
@@ -1276,39 +1287,86 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 					p.m_LifeSpan = 0.20f;
 					p.m_StartSize = 70 * ProjectileSize;
 					p.m_EndSize = p.m_StartSize;
-					p.m_Rot = frandom()*pi*2;
+					p.m_Rot = frandom() * pi * 2;
 					m_pClient->m_pParticles->Add(CParticles::GROUP_ELECTRIC, &p);
 				}
 			}
 		}
-
 		return;
 	}
 
-	// buildings
-	if (Source.m_Kind == EAttackSourceKind::Building)
+	if(Definition.m_Kind == EWeaponDefinitionKind::Static)
 	{
-		if (Source.m_Type == BUILDING_STAND)
+		if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_IMPACT_SPARK))
 		{
-			for(int i = 0; i < 9; i++)
-				Spark(Pos+vec2(0, frandom()-frandom())*10.0f);
+			for(int i = 0; i < 3; i++)
+				Spark(Pos);
 
+			SpriteSmoke(Pos, 16, vec4(1.0f, 1.0f, 1.0f, 1.0f));
 		}
-
-		if (Source.m_Type == BUILDING_TURRET)
+		else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_SHURIKEN))
 		{
-			SpriteExplosion(Pos, ExplosionSize, ExplosionSprite);
+			for(int i = 0; i < 5; i++)
+				Spark(Pos);
 		}
-
-		if (Source.m_Type == BUILDING_TESLACOIL)
+		else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_EXPLOSION_SMOKE))
 		{
-			SpriteExplosion(Pos, ExplosionSize, ExplosionSprite);
+			// add explosion
+			CParticle p;
+			p.SetDefault();
+			p.m_Spr = ExplosionSprite;
+
+			p.m_Frames = 8;
+			p.m_Pos = Pos;
+			p.m_LifeSpan = 0.3f;
+			p.m_StartSize = ExplosionSize;
+			p.m_EndSize = ExplosionSize * 1.1f;
+			p.m_Rot = frandom() * pi * 2;
+			m_pClient->m_pParticles->Add(CParticles::GROUP_EXPLOSIONS, &p);
+
+			// add smoke
+			for(int i = 0; i < 20 * ProjectileSize; i++)
+			{
+				Spark(Pos);
+				Spark(Pos);
+
+				CParticle p;
+				p.SetDefault();
+				p.m_Spr = SPRITE_PART_SMOKE;
+				p.m_Pos = Pos;
+				p.m_Vel = RandomDir() * ((1.0f + frandom() * 0.2f) * (1000.0f * ProjectileSize));
+				p.m_LifeSpan = 1.0f + frandom() * 0.6f;
+				p.m_StartSize = (32.0f + frandom() * 8) * ProjectileSize;
+				p.m_EndSize = 0;
+				p.m_Gravity = frandom() * -800.0f;
+				p.m_Friction = 0.4f;
+				p.m_Color = mix(vec4(0.75f, 0.75f, 0.75f, 0.5f), vec4(0.5f, 0.5f, 0.5f, 0.5f), frandom());
+				m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
+			}
 		}
-
-		if (Source.m_Type == BUILDING_GENERATOR)
+		else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_LASER))
 		{
-			SpriteExplosion(Pos, ExplosionSize, ExplosionSprite);
+			Electrospark(Pos, 96);
+			Electrospark(Pos, 96);
 
+			if(g_Config.m_GfxShaders)
+			{
+				for(int i = 0; i < 2; i++)
+				{
+					CSinglespark b;
+					b.SetDefault();
+					b.m_Pos = Pos;
+					b.m_Size = 256.0f + i * 128;
+					b.m_LifeSpan = 0.30f - i * 0.05f;
+					b.m_Rotspeed = 0;
+					b.m_Vel = vec2(0, 0);
+					b.m_Rot = 0;
+
+					b.m_Color = vec4(0.0f, 0.5f + i * 0.5f, 1.0f, 1.0f);
+					m_pClient->m_pSpark->Add(CSpark::GROUP_AREA1, &b);
+				}
+			}
+			else
 			{
 				CParticle p;
 				p.SetDefault();
@@ -1316,160 +1374,27 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 				p.m_Frames = 8;
 				p.m_Pos = Pos;
 				p.m_LifeSpan = 0.20f;
-				p.m_StartSize = 600;
-				p.m_EndSize = p.m_StartSize*1.3f;
-				p.m_Color = vec4(1, 1, 1, 0.35f);
-				p.m_Rot = frandom()*pi*2;
+				p.m_StartSize = 160;
+				p.m_EndSize = p.m_StartSize;
+				p.m_Rot = frandom() * pi * 2;
 				m_pClient->m_pParticles->Add(CParticles::GROUP_ELECTRIC, &p);
 			}
 		}
-
-		if (Source.m_Type == BUILDING_FLAMETRAP)
+		else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_DROP))
 		{
-			SpriteExplosion(Pos, ExplosionSize, ExplosionSprite);
+			Electrospark(Pos, 96);
+			Electrospark(Pos, 96);
 		}
-
-		if (Source.m_Type == BUILDING_REACTOR)
-		{
-			SpriteExplosion(Pos, ExplosionSize, ExplosionSprite);
-		}
-
-
-		if (Source.m_Type == BUILDING_BARREL ||
-			Source.m_Type == BUILDING_BARREL2 ||
-			Source.m_Type == BUILDING_BARREL3 ||
-			Source.m_Type == BUILDING_POWERBARREL ||
-			Source.m_Type == BUILDING_POWERBARREL2)
+		else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GREEN_EXPLOSION))
+			SpriteSheet(FX_GREEN_EXPLOSION, Pos);
+		else if(ExplosionSprite)
 			SpriteExplosion(Pos, ExplosionSize, ExplosionSprite);
 
 		return;
 	}
 
-	if (Definition.m_Kind == EWeaponDefinitionKind::Static)
-	{
-		switch (Definition.m_StaticType)
-		{
-			case SW_GUN1:
-			{
-				for(int i = 0; i < 3; i++)
-					Spark(Pos);
-
-				SpriteSmoke(Pos, 16, vec4(1.0f, 1.0f, 1.0f, 1.0f));
-				break;
-			}
-
-			case SW_SHURIKEN:
-			{
-				for(int i = 0; i < 5; i++)
-					Spark(Pos);
-
-				break;
-			}
-
-			case SW_CLUSTER:
-			case SW_GRENADE1:
-			{
-				// add explosion
-				CParticle p;
-				p.SetDefault();
-				p.m_Spr = ExplosionSprite;
-
-				p.m_Frames = 8;
-				p.m_Pos = Pos;
-				p.m_LifeSpan = 0.3f;
-				p.m_StartSize = ExplosionSize;
-				p.m_EndSize = ExplosionSize*1.1f;
-				p.m_Rot = frandom()*pi*2;
-				m_pClient->m_pParticles->Add(CParticles::GROUP_EXPLOSIONS, &p);
-
-				// add smoke
-				for(int i = 0; i < 20*ProjectileSize; i++)
-				{
-					Spark(Pos);
-					Spark(Pos);
-
-					CParticle p;
-					p.SetDefault();
-					p.m_Spr = SPRITE_PART_SMOKE;
-					p.m_Pos = Pos;
-					p.m_Vel = RandomDir() * ((1.0f + frandom()*0.2f) * (1000.0f*ProjectileSize));
-					p.m_LifeSpan = 1.0f + frandom()*0.6f;
-					p.m_StartSize = (32.0f + frandom()*8)*ProjectileSize;
-					p.m_EndSize = 0;
-					p.m_Gravity = frandom()*-800.0f;
-					p.m_Friction = 0.4f;
-					p.m_Color = mix(vec4(0.75f,0.75f,0.75f,0.5f), vec4(0.5f,0.5f,0.5f,0.5f), frandom());
-					m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
-				}
-			} break;
-
-			case SW_GRENADE2:
-			{
-				Electrospark(Pos, 96);
-				Electrospark(Pos, 96);
-
-				if (g_Config.m_GfxShaders)
-				{
-					for (int i = 0; i < 2; i++)
-					{
-						CSinglespark b;
-						b.SetDefault();
-						b.m_Pos = Pos;
-						b.m_Size = 256.0f+i*128;
-						b.m_LifeSpan = 0.30f-i*0.05f;
-						b.m_Rotspeed = 0;
-						b.m_Vel = vec2(0, 0);
-						b.m_Rot = 0;
-
-						b.m_Color = vec4(0.0f, 0.5f+i*0.5f, 1.0f, 1.0f);
-						m_pClient->m_pSpark->Add(CSpark::GROUP_AREA1, &b);
-					}
-				}
-				else
-				{
-					CParticle p;
-					p.SetDefault();
-					p.m_Spr = SPRITE_ELECTRIC1;
-					p.m_Frames = 8;
-					p.m_Pos = Pos;
-					p.m_LifeSpan = 0.20f;
-					p.m_StartSize = 160;
-					p.m_EndSize = p.m_StartSize;
-					p.m_Rot = frandom()*pi*2;
-					m_pClient->m_pParticles->Add(CParticles::GROUP_ELECTRIC, &p);
-				}
-
-			} break;
-
-			case SW_GRENADE3:
-			{
-				Electrospark(Pos, 96);
-				Electrospark(Pos, 96);
-			} break;
-
-			case SW_BOUNCER:
-			{
-				SpriteSheet(FX_GREEN_EXPLOSION, Pos);
-				break;
-			}
-
-			default:
-			{
-				if (ExplosionSprite)
-					SpriteExplosion(Pos, ExplosionSize, ExplosionSprite);
-
-				break;
-			}
-		};
-
-		return;
-	}
-
-	// weapons
-	int Part1 = Definition.m_Part1;
-
-	// launcher
-	if (Part1 == PART1_BASE2)
+	// Lua selects the generic impact recipe; C++ only executes bounded particles.
+	if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_LAUNCHER)
 	{
 		// add explosion
 		CParticle p;
@@ -1480,12 +1405,12 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 		p.m_Pos = Pos;
 		p.m_LifeSpan = 0.3f;
 		p.m_StartSize = ExplosionSize;
-		p.m_EndSize = ExplosionSize*1.1f;
-		p.m_Rot = frandom()*pi*2;
+		p.m_EndSize = ExplosionSize * 1.1f;
+		p.m_Rot = frandom() * pi * 2;
 		m_pClient->m_pParticles->Add(CParticles::GROUP_EXPLOSIONS, &p);
 
 		// add smoke
-		for(int i = 0; i < 10*ProjectileSize; i++)
+		for(int i = 0; i < 10 * ProjectileSize; i++)
 		{
 			Spark(Pos);
 			Spark(Pos);
@@ -1494,42 +1419,40 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 			p.SetDefault();
 			p.m_Spr = SPRITE_PART_SMOKE;
 			p.m_Pos = Pos;
-			p.m_Vel = RandomDir() * ((1.0f + frandom()*0.2f) * (1000.0f*ProjectileSize));
-			p.m_LifeSpan = 1.0f + frandom()*0.6f;
-			p.m_StartSize = (32.0f + frandom()*8)*ProjectileSize;
+			p.m_Vel = RandomDir() * ((1.0f + frandom() * 0.2f) * (1000.0f * ProjectileSize));
+			p.m_LifeSpan = 1.0f + frandom() * 0.6f;
+			p.m_StartSize = (32.0f + frandom() * 8) * ProjectileSize;
 			p.m_EndSize = 0;
-			p.m_Gravity = frandom()*-800.0f;
+			p.m_Gravity = frandom() * -800.0f;
 			p.m_Friction = 0.4f;
-			p.m_Color = mix(vec4(0.75f,0.75f,0.75f,0.5f), vec4(0.5f,0.5f,0.5f,0.5f), frandom());
+			p.m_Color = mix(vec4(0.75f, 0.75f, 0.75f, 0.5f), vec4(0.5f, 0.5f, 0.5f, 0.5f), frandom());
 			m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
 		}
 	}
 
-	// basic / rifle
-	if (Part1 == PART1_BASE1)
+	if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_BALLISTIC)
 	{
 		// add sparks
-		for(int i = 0; i < 6*ProjectileSize; i++)
+		for(int i = 0; i < 6 * ProjectileSize; i++)
 			Spark(Pos);
 
 		CParticle p;
 		p.SetDefault();
 		p.m_Spr = SPRITE_PART_SMOKE;
 		p.m_Pos = Pos;
-		p.m_Vel = RandomDir() * ((1.0f + frandom()*0.2f) * (400.0f*ProjectileSize));
-		p.m_LifeSpan = 0.5f + frandom()*0.4f;
-		p.m_StartSize = (32.0f + frandom()*8)*ProjectileSize;
+		p.m_Vel = RandomDir() * ((1.0f + frandom() * 0.2f) * (400.0f * ProjectileSize));
+		p.m_LifeSpan = 0.5f + frandom() * 0.4f;
+		p.m_StartSize = (32.0f + frandom() * 8) * ProjectileSize;
 		p.m_EndSize = 0;
-		p.m_Gravity = frandom()*-800.0f;
+		p.m_Gravity = frandom() * -800.0f;
 		p.m_Friction = 0.4f;
-		p.m_Color = mix(vec4(0.75f,0.75f,0.75f,0.5f), vec4(0.5f,0.5f,0.5f,0.5f), frandom());
+		p.m_Color = mix(vec4(0.75f, 0.75f, 0.75f, 0.5f), vec4(0.5f, 0.5f, 0.5f, 0.5f), frandom());
 		m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
 	}
 
-	// sniper
-	if (Part1 == PART1_BASE4)
+	if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_GREEN)
 	{
-		for(int i = 0; i < 4*ProjectileSize; i++)
+		for(int i = 0; i < 4 * ProjectileSize; i++)
 		{
 			GreenSpark(Pos);
 
@@ -1537,30 +1460,28 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 			p.SetDefault();
 			p.m_Spr = SPRITE_PART_SMOKE;
 			p.m_Pos = Pos;
-			p.m_Vel = RandomDir() * ((1.0f + frandom()*0.2f) * (300.0f*ProjectileSize));
-			p.m_LifeSpan = 0.4f + frandom()*0.2f;
-			p.m_StartSize = (16.0f + frandom()*8)*ProjectileSize;
+			p.m_Vel = RandomDir() * ((1.0f + frandom() * 0.2f) * (300.0f * ProjectileSize));
+			p.m_LifeSpan = 0.4f + frandom() * 0.2f;
+			p.m_StartSize = (16.0f + frandom() * 8) * ProjectileSize;
 			p.m_EndSize = 0;
-			p.m_Gravity = frandom()*-800.0f;
+			p.m_Gravity = frandom() * -800.0f;
 			p.m_Friction = 0.4f;
-			p.m_Color = mix(vec4(0.1f,0.6f,0.1f,0.5f), vec4(0.2f, 0.8f,0.2f,0.5f), frandom());
+			p.m_Color = mix(vec4(0.1f, 0.6f, 0.1f, 0.5f), vec4(0.2f, 0.8f, 0.2f, 0.5f), frandom());
 			m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
 		}
 	}
 
-	// electro
-	if (Part1 == PART1_BASE3 || Part1 == PART1_BASE5)
+	if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_ELECTRIC)
 	{
 		// add sparks
-		for(int i = 0; i < 6*ProjectileSize; i++)
+		for(int i = 0; i < 6 * ProjectileSize; i++)
 			BlueSpark(Pos);
 
-		//Area1(Pos);'
+		// Area1(Pos);'
 
 		Electrospark(Pos, 64 * ProjectileSize);
 
-
-		//if (g_Config.m_GfxShaders)
+		// if (g_Config.m_GfxShaders)
 		{
 			CSinglespark b;
 			b.SetDefault();
@@ -1577,23 +1498,21 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 	}
 }
 
-
 void CEffects::ChainsawSmoke(vec2 Pos)
 {
-		CParticle p;
-		p.SetDefault();
-		p.m_Spr = SPRITE_PART_SMOKE;
-		p.m_Pos = Pos;
-		p.m_Vel = vec2((frandom()-frandom()) * 0.5f, -1.0f) * ((1.0f + frandom()*0.2f) * 350.0f);
-		p.m_LifeSpan = 0.4f + frandom()*0.2f;
-		p.m_StartSize = 14.0f + frandom()*4;
-		p.m_EndSize = 0;
-		p.m_Gravity = frandom()*-600.0f;
-		p.m_Friction = 0.4f;
-		p.m_Color = mix(vec4(0.75f,0.75f,0.75f,0.3f), vec4(0.5f,0.5f,0.5f,0.3f), frandom());
-		m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
+	CParticle p;
+	p.SetDefault();
+	p.m_Spr = SPRITE_PART_SMOKE;
+	p.m_Pos = Pos;
+	p.m_Vel = vec2((frandom() - frandom()) * 0.5f, -1.0f) * ((1.0f + frandom() * 0.2f) * 350.0f);
+	p.m_LifeSpan = 0.4f + frandom() * 0.2f;
+	p.m_StartSize = 14.0f + frandom() * 4;
+	p.m_EndSize = 0;
+	p.m_Gravity = frandom() * -600.0f;
+	p.m_Friction = 0.4f;
+	p.m_Color = mix(vec4(0.75f, 0.75f, 0.75f, 0.3f), vec4(0.5f, 0.5f, 0.5f, 0.3f), frandom());
+	m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
 }
-
 
 void CEffects::FlameExplosion(vec2 Pos)
 {
@@ -1604,20 +1523,19 @@ void CEffects::FlameExplosion(vec2 Pos)
 		p.SetDefault();
 		p.m_Spr = SPRITE_PART_SMOKE;
 		p.m_Pos = Pos;
-		p.m_Vel = RandomDir() * ((1.0f + frandom()*0.2f) * 300.0f);
-		p.m_LifeSpan = 1.0f + frandom()*0.6f;
-		p.m_StartSize = 32.0f + frandom()*8;
+		p.m_Vel = RandomDir() * ((1.0f + frandom() * 0.2f) * 300.0f);
+		p.m_LifeSpan = 1.0f + frandom() * 0.6f;
+		p.m_StartSize = 32.0f + frandom() * 8;
 		p.m_EndSize = 0;
-		p.m_Gravity = frandom()*-800.0f;
+		p.m_Gravity = frandom() * -800.0f;
 		p.m_Friction = 0.4f;
-		p.m_Color = mix(vec4(0.75f,0.75f,0.75f,0.5f), vec4(0.5f,0.5f,0.5f,0.5f), frandom());
+		p.m_Color = mix(vec4(0.75f, 0.75f, 0.75f, 0.5f), vec4(0.5f, 0.5f, 0.5f, 0.5f), frandom());
 		m_pClient->m_pParticles->Add(CParticles::GROUP_GENERAL, &p);
 
-		for (int f = 0; f < 3; f++)
-			Flame(Pos+vec2(frandom()-frandom(), frandom()-frandom())*5.0f, RandomDir()*(frandom()*200));
+		for(int f = 0; f < 3; f++)
+			Flame(Pos + vec2(frandom() - frandom(), frandom() - frandom()) * 5.0f, RandomDir() * (frandom() * 200));
 	}
 }
-
 
 void CEffects::HammerHit(vec2 Pos)
 {
@@ -1629,7 +1547,7 @@ void CEffects::HammerHit(vec2 Pos)
 	p.m_LifeSpan = 0.2f;
 	p.m_StartSize = 120.0f;
 	p.m_EndSize = 0;
-	p.m_Rot = frandom()*pi*2;
+	p.m_Rot = frandom() * pi * 2;
 	m_pClient->m_pParticles->Add(CParticles::GROUP_EXPLOSIONS, &p);
 	m_pClient->m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, 1.0f, Pos);
 }
@@ -1642,11 +1560,11 @@ void CEffects::SwordHit(vec2 Pos, float Angle, bool Flip, float Charge)
 	p.m_Frames = 3;
 	p.m_Pos = Pos;
 	p.m_LifeSpan = 0.12f;
-	p.m_StartSize = 170+Charge*40.0f;
-	p.m_EndSize = 170+Charge*40.0f;
+	p.m_StartSize = 170 + Charge * 40.0f;
+	p.m_EndSize = 170 + Charge * 40.0f;
 	p.m_Rot = Angle;
 	p.m_Flip = Flip;
-	p.m_Color = vec4(0.5f+Charge*0.25f, 1.0f, 0.5f+Charge*0.5f, 1.0f);
+	p.m_Color = vec4(0.5f + Charge * 0.25f, 1.0f, 0.5f + Charge * 0.5f, 1.0f);
 	m_pClient->m_pParticles->Add(CParticles::GROUP_SWORDHITS, &p);
 }
 
@@ -1658,8 +1576,8 @@ void CEffects::ClawHit(vec2 Pos, float Angle, bool Flip, float Charge)
 	p.m_Frames = 3;
 	p.m_Pos = Pos;
 	p.m_LifeSpan = 0.12f;
-	p.m_StartSize = 90+Charge*40.0f;
-	p.m_EndSize = 90+Charge*40.0f;
+	p.m_StartSize = 90 + Charge * 40.0f;
+	p.m_EndSize = 90 + Charge * 40.0f;
 	p.m_Rot = Angle;
 	p.m_Flip = Flip;
 	p.m_Color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1675,7 +1593,7 @@ void CEffects::OnRender()
 	{
 		const IDemoPlayer::CInfo *pInfo = DemoPlayer()->BaseInfo();
 
-		if(time_get()-LastUpdate100hz > time_freq()/(100*pInfo->m_Speed))
+		if(time_get() - LastUpdate100hz > time_freq() / (100 * pInfo->m_Speed))
 		{
 			m_Add100hz = true;
 			LastUpdate100hz = time_get();
@@ -1683,7 +1601,7 @@ void CEffects::OnRender()
 		else
 			m_Add100hz = false;
 
-		if(time_get()-LastUpdate50hz > time_freq()/(100*pInfo->m_Speed))
+		if(time_get() - LastUpdate50hz > time_freq() / (100 * pInfo->m_Speed))
 		{
 			m_Add50hz = true;
 			LastUpdate50hz = time_get();
@@ -1697,7 +1615,7 @@ void CEffects::OnRender()
 		return;
 	}
 
-	if(time_get()-LastUpdate100hz > time_freq()/100)
+	if(time_get() - LastUpdate100hz > time_freq() / 100)
 	{
 		m_Add100hz = true;
 		LastUpdate100hz = time_get();
@@ -1705,7 +1623,7 @@ void CEffects::OnRender()
 	else
 		m_Add100hz = false;
 
-	if(time_get()-LastUpdate50hz > time_freq()/100)
+	if(time_get() - LastUpdate50hz > time_freq() / 100)
 	{
 		m_Add50hz = true;
 		LastUpdate50hz = time_get();

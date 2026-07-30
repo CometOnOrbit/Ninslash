@@ -15,7 +15,7 @@
 #include "laserfail.h"
 
 CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
-: CEntity(pGameWorld, CGameWorld::ENTTYPE_BUILDING)
+	: CEntity(pGameWorld, CGameWorld::ENTTYPE_BUILDING)
 {
 	m_SetTimer = 0;
 	m_Center = vec2(0, 0);
@@ -27,7 +27,7 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	m_AttachOnFall = false;
 	m_DestroyOnFall = false;
 	m_BoxSize = vec2(32, 32);
-	
+
 	m_DamagePos = vec2(0.0f, 0.0f);
 	m_DestructionTriggered = false;
 	m_PveBuilder = -1;
@@ -37,181 +37,180 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	m_PveReactorObjective = false;
 	m_PveDestroyObjective = false;
 	m_SwitchHoldTicks = 0;
-	
+
 	m_Status = 0;
-	for (int i = 0; i < NUM_BSTATUS; i++)
+	for(int i = 0; i < NUM_BSTATUS; i++)
 		m_aStatus[i] = 0;
-	
-	
+
 	m_TriggerTimer = 0;
-	
-	switch (Type)
+
+	switch(Type)
 	{
-	case BUILDING_SAWBLADE:
-		m_ProximityRadius = SawbladePhysSize;
-		m_Life = 100;
-		break;
-		
-	case BUILDING_MINE1:
-	case BUILDING_MINE2:
-		m_ProximityRadius = MinePhysSize;
-		m_Life = 10+frandom()*5;
-		m_SetTimer = GameServer()->Server()->TickSpeed()*1.5f;
-		break;
-		
-	case BUILDING_BARREL:
-	case BUILDING_BARREL2:
-	case BUILDING_BARREL3:
-		m_Bounciness = 0.3f;
-		Pos.y -= 6;
-		m_BoxSize = vec2(24.0f, 60.0f);
-		m_CanMove = true;
-		m_Moving = true;
-		m_ProximityRadius = BarrelPhysSize;
-		m_Life = 20+frandom()*5;
-		break;
-		
-	case BUILDING_POWERBARREL:
-	case BUILDING_POWERBARREL2:
-		m_Bounciness = 0.33f;
-		Pos.y -= 6;
-		m_BoxSize = vec2(24.0f, 60.0f);
-		m_CanMove = true;
-		m_Moving = true;
-		m_ProximityRadius = BarrelPhysSize;
-		m_Life = 25+frandom()*5;
-		break;
-		
-	case BUILDING_LAZER:
-		m_ProximityRadius = LazerPhysSize;
-		m_Life = 100;
-		m_Collision = false;
-		break;
-	
-	case BUILDING_BASE:
-		m_ProximityRadius = BasePhysSize;
-		m_Life = 60;
-		break;
-		
-	case BUILDING_STAND:
-		m_ProximityRadius = StandPhysSize;
-		m_Life = 60;
-		m_Center = vec2(0, -10);
-		
-		m_AttachOnFall = true;
-		m_Bounciness = 0.0f;
-		m_BoxSize = vec2(24.0f, 40.0f);
-		m_CanMove = true;
-		m_Moving = false;
-		
-		if (GameServer()->Collision()->IsTileSolid(Pos.x, Pos.y - 30))
-		{
-			m_Mirror = true;
-			m_Center = vec2(0, +10);
-			Pos.y += 16;
-		}
-		break;
-		
-	case BUILDING_SWITCH:
-		m_ProximityRadius = SwitchPhysSize;
-		m_Life = 9000;
-		m_Center = vec2(0, -34);
-		break;
-		
-	case BUILDING_LIGHTNINGWALL:
-		m_DestroyOnFall = true;
-		m_Bounciness = 0.0f;
-		m_CanMove = true;
-		m_BoxSize = vec2(24.0f, 40.0f);
-		m_ProximityRadius = LightningWallPhysSize;
-		m_Life = 70;
-		m_Center = vec2(0, 10);
-		break;
-		
-	case BUILDING_LIGHTNINGWALL2:
-		m_DestroyOnFall = true;
-		m_Bounciness = 0.0f;
-		m_CanMove = true;
-		m_BoxSize = vec2(24.0f, 40.0f);
-		m_ProximityRadius = LightningWallPhysSize;
-		m_Life = 70;
-		m_Center = vec2(0, -10);
-		break;
-		
-	case BUILDING_REACTOR:
-		m_ProximityRadius = ReactorPhysSize;
-		
-		if(str_comp(g_Config.m_SvGametype, "base") == 0)
-			m_Life = 400;
-		else
-		{
+		case BUILDING_SAWBLADE:
+			m_ProximityRadius = SawbladePhysSize;
+			m_Life = 100;
+			break;
+
+		case BUILDING_MINE1:
+		case BUILDING_MINE2:
+			m_ProximityRadius = MinePhysSize;
+			m_Life = 10 + frandom() * 5;
+			m_SetTimer = GameServer()->Server()->TickSpeed() * 1.5f;
+			break;
+
+		case BUILDING_BARREL:
+		case BUILDING_BARREL2:
+		case BUILDING_BARREL3:
+			m_Bounciness = 0.3f;
+			Pos.y -= 6;
+			m_BoxSize = vec2(24.0f, 60.0f);
+			m_CanMove = true;
+			m_Moving = true;
+			m_ProximityRadius = BarrelPhysSize;
+			m_Life = 20 + frandom() * 5;
+			break;
+
+		case BUILDING_POWERBARREL:
+		case BUILDING_POWERBARREL2:
+			m_Bounciness = 0.33f;
+			Pos.y -= 6;
+			m_BoxSize = vec2(24.0f, 60.0f);
+			m_CanMove = true;
+			m_Moving = true;
+			m_ProximityRadius = BarrelPhysSize;
+			m_Life = 25 + frandom() * 5;
+			break;
+
+		case BUILDING_LAZER:
+			m_ProximityRadius = LazerPhysSize;
+			m_Life = 100;
+			m_Collision = false;
+			break;
+
+		case BUILDING_BASE:
+			m_ProximityRadius = BasePhysSize;
+			m_Life = 60;
+			break;
+
+		case BUILDING_STAND:
+			m_ProximityRadius = StandPhysSize;
+			m_Life = 60;
+			m_Center = vec2(0, -10);
+
+			m_AttachOnFall = true;
+			m_Bounciness = 0.0f;
+			m_BoxSize = vec2(24.0f, 40.0f);
+			m_CanMove = true;
+			m_Moving = false;
+
+			if(GameServer()->Collision()->IsTileSolid(Pos.x, Pos.y - 30))
+			{
+				m_Mirror = true;
+				m_Center = vec2(0, +10);
+				Pos.y += 16;
+			}
+			break;
+
+		case BUILDING_SWITCH:
+			m_ProximityRadius = SwitchPhysSize;
+			m_Life = 9000;
+			m_Center = vec2(0, -34);
+			break;
+
+		case BUILDING_LIGHTNINGWALL:
+			m_DestroyOnFall = true;
+			m_Bounciness = 0.0f;
+			m_CanMove = true;
+			m_BoxSize = vec2(24.0f, 40.0f);
+			m_ProximityRadius = LightningWallPhysSize;
+			m_Life = 70;
+			m_Center = vec2(0, 10);
+			break;
+
+		case BUILDING_LIGHTNINGWALL2:
+			m_DestroyOnFall = true;
+			m_Bounciness = 0.0f;
+			m_CanMove = true;
+			m_BoxSize = vec2(24.0f, 40.0f);
+			m_ProximityRadius = LightningWallPhysSize;
+			m_Life = 70;
+			m_Center = vec2(0, -10);
+			break;
+
+		case BUILDING_REACTOR:
+			m_ProximityRadius = ReactorPhysSize;
+
+			if(str_comp(g_Config.m_SvGametype, "base") == 0)
+				m_Life = 400;
+			else
+			{
+				m_Life = 9000;
+				m_Collision = false;
+			}
+
+			m_Center = vec2(0, 0);
+			Pos += vec2(0, -50);
+			break;
+
+		case BUILDING_REACTOR_DESTROYED:
+			m_ProximityRadius = ReactorPhysSize;
+			m_Life = 9000;
+			m_Center = vec2(0, 0);
+			m_Collision = false;
+			break;
+
+		case BUILDING_DOOR1:
+			m_ProximityRadius = DoorPhysSize;
+			m_Life = 9000;
+			m_Center = vec2(0, -20);
+			m_Collision = false;
+			break;
+
+		case BUILDING_GENERATOR:
+			m_AttachOnFall = true;
+			m_BoxSize = vec2(GeneratorPhysSize, 150);
+			m_Bounciness = 0.2f;
+			m_CanMove = true;
+
+			m_Life = 200;
+			// m_Center = vec2(0, -40);
+			m_Collision = true;
+			m_ProximityRadius = GeneratorPhysSize;
+			break;
+
+		case BUILDING_SCREEN:
 			m_Life = 9000;
 			m_Collision = false;
-		}
-		
-		m_Center = vec2(0, 0);
-		Pos += vec2(0, -50);
-		break;
-		
-	case BUILDING_REACTOR_DESTROYED:
-		m_ProximityRadius = ReactorPhysSize;
-		m_Life = 9000;
-		m_Center = vec2(0, 0);
-		m_Collision = false;
-		break;
-		
-	case BUILDING_DOOR1:
-		m_ProximityRadius = DoorPhysSize;
-		m_Life = 9000;
-		m_Center = vec2(0, -20);
-		m_Collision = false;
-		break;
-		
-	case BUILDING_GENERATOR:
-		m_AttachOnFall = true;
-		m_BoxSize = vec2(GeneratorPhysSize, 150);
-		m_Bounciness = 0.2f;
-		m_CanMove = true;
-		
-		m_Life = 200;
-		//m_Center = vec2(0, -40);
-		m_Collision = true;
-		m_ProximityRadius = GeneratorPhysSize;
-		break;
-		
-	case BUILDING_SCREEN:
-		m_Life = 9000;
-		m_Collision = false;
-		break;
-		
-	case BUILDING_SHOP:
-		m_Life = 9000;
-		m_Collision = false;
-		break;
-		
-	case BUILDING_JUMPPAD:
-		m_ProximityRadius = JumppadPhysSize;
-		m_Life = 9000;
-		Pos += vec2(48, 16);
-		m_Center = vec2(0, 0);
-		m_Collision = false;
-		break;
-		
-	case BUILDING_FLAMETRAP:
-		m_AttachOnFall = true;
-		m_BoxSize = vec2(32.0f, 32.0f);
-		m_Bounciness = 0.2f;
-		m_CanMove = true;
-		m_TriggerTimer = GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * (frandom()*4.0f);
-		m_ProximityRadius = FlametrapPhysSize;
-		m_Life = 60;
-		break;
-	
-	default:
-		m_ProximityRadius = BuildingPhysSize;
-		m_Life = 100;
+			break;
+
+		case BUILDING_SHOP:
+			m_Life = 9000;
+			m_Collision = false;
+			break;
+
+		case BUILDING_JUMPPAD:
+			m_ProximityRadius = JumppadPhysSize;
+			m_Life = 9000;
+			Pos += vec2(48, 16);
+			m_Center = vec2(0, 0);
+			m_Collision = false;
+			break;
+
+		case BUILDING_FLAMETRAP:
+			m_AttachOnFall = true;
+			m_BoxSize = vec2(32.0f, 32.0f);
+			m_Bounciness = 0.2f;
+			m_CanMove = true;
+			m_TriggerTimer = GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * (frandom() * 4.0f);
+			m_ProximityRadius = FlametrapPhysSize;
+			m_Life = 60;
+			break;
+
+		default:
+			m_ProximityRadius = BuildingPhysSize;
+			m_Life = 100;
 	};
-	
+
 	m_Pos = Pos;
 	m_Vel = vec2(0, 0);
 	m_Team = Team;
@@ -222,17 +221,17 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 		const int CheckInterval = max(1, GameServer()->Server()->TickSpeed() / 10);
 		m_LightningBlockCheckTick = GameServer()->Server()->Tick() + m_ID % CheckInterval;
 	}
-	
+
 	/*
 	if (!GameServer()->m_pController->IsTeamplay())
 		m_Team = TEAM_NEUTRAL;
 	*/
-	
-	if (GameServer()->m_pController->IsTeamplay())
+
+	if(GameServer()->m_pController->IsTeamplay())
 	{
-		if (m_Team == TEAM_BLUE)
+		if(m_Team == TEAM_BLUE)
 			m_DamageOwner = BLUE_BASE;
-		else if (m_Team == TEAM_RED)
+		else if(m_Team == TEAM_RED)
 			m_DamageOwner = RED_BASE;
 		else
 			m_DamageOwner = NEUTRAL_BASE;
@@ -241,82 +240,82 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	{
 		m_DamageOwner = Team;
 	}
-	
+
 	GameWorld()->InsertEntity(this);
-	
-	if (Type == BUILDING_LIGHTNINGWALL)
+
+	if(Type == BUILDING_LIGHTNINGWALL)
 		CreateLightningWallTop();
 }
 
 void CBuilding::Reset()
 {
-	//GameServer()->m_World.DestroyEntity(this);
+	// GameServer()->m_World.DestroyEntity(this);
 }
 
 void CBuilding::SurvivalReset()
 {
-	if (m_Type == BUILDING_REACTOR_DESTROYED)
+	if(m_Type == BUILDING_REACTOR_DESTROYED)
 	{
-		if (!m_DestructionTriggered)
+		if(!m_DestructionTriggered)
 		{
-			new CBuilding(&GameServer()->m_World, m_Pos+vec2(0, 50), BUILDING_REACTOR, TEAM_NEUTRAL);
+			new CBuilding(&GameServer()->m_World, m_Pos + vec2(0, 50), BUILDING_REACTOR, TEAM_NEUTRAL);
 			m_DestructionTriggered = true;
 		}
-		
+
 		Destroy();
 	}
 }
 
-
 void CBuilding::Move()
 {
-	if (!m_Moving)
+	if(!m_Moving)
 		return;
-	
-	if (m_DestroyOnFall)
+
+	if(m_DestroyOnFall)
 	{
-		//m_Life = 1;
+		// m_Life = 1;
 		TakeDamage(200, CAttackSource::World(WEAPON_WORLD));
 		return;
 	}
-	
-	m_Vel.y += 0.75f;
-	//m_Vel *= 0.99f;
-	
-	bool Grounded = false;
-	if(GameServer()->Collision()->CheckPoint(m_Pos.x+m_BoxSize.x/2, m_Pos.y+m_BoxSize.y/2+1))
-		Grounded = true;
-	if(GameServer()->Collision()->CheckPoint(m_Pos.x-m_BoxSize.x/2, m_Pos.y+m_BoxSize.y/2+1))
-		Grounded = true;
-		
-	const int OnForceTile = GameServer()->Collision()->IsForceTile(m_Pos.x-12, m_Pos.x+12, m_Pos.y+m_BoxSize.y/2+1);
 
-	if (Grounded)
+	m_Vel.y += 0.75f;
+	// m_Vel *= 0.99f;
+
+	bool Grounded = false;
+	if(GameServer()->Collision()->CheckPoint(m_Pos.x + m_BoxSize.x / 2, m_Pos.y + m_BoxSize.y / 2 + 1))
+		Grounded = true;
+	if(GameServer()->Collision()->CheckPoint(m_Pos.x - m_BoxSize.x / 2, m_Pos.y + m_BoxSize.y / 2 + 1))
+		Grounded = true;
+
+	const int OnForceTile =
+		GameServer()->Collision()->IsForceTile(m_Pos.x - 12, m_Pos.x + 12, m_Pos.y + m_BoxSize.y / 2 + 1);
+
+	if(Grounded)
 	{
 		m_Vel.x *= 0.99f;
-		m_Vel.x = (m_Vel.x + OnForceTile*0.37f) * 0.925f;
+		m_Vel.x = (m_Vel.x + OnForceTile * 0.37f) * 0.925f;
 	}
 	else
 	{
 		m_Vel.x *= 0.99f;
 		m_Vel.y *= 0.99f;
 	}
-	
+
 	vec2 OldVel = m_Vel;
 	GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, m_BoxSize, m_Bounciness, false);
-	
+
 	// fall damage
-	if ((((OldVel.y < 0 && m_Vel.y > 0) || (OldVel.y > 0 && m_Vel.y < 0)) && abs(m_Vel.y) > 2.0f))
+	if((((OldVel.y < 0 && m_Vel.y > 0) || (OldVel.y > 0 && m_Vel.y < 0)) && abs(m_Vel.y) > 2.0f))
 	{
 		GameServer()->CreateSound(m_Pos, SOUND_SFX_BOUNCE1);
-		TakeDamage(abs(m_Vel.y)*10, CAttackSource::World(WEAPON_WORLD));
+		TakeDamage(abs(m_Vel.y) * 10, CAttackSource::World(WEAPON_WORLD));
 	}
-	
-	if (m_AttachOnFall && m_Vel.y == 0.0f && OldVel.y > 0.0f)
+
+	if(m_AttachOnFall && m_Vel.y == 0.0f && OldVel.y > 0.0f)
 	{
 		m_Moving = false;
-		
-		if (m_Mirror && (m_Type == BUILDING_TESLACOIL || m_Type == BUILDING_STAND || m_Type == BUILDING_TURRET))
+
+		if(m_Mirror && (m_Type == BUILDING_TESLACOIL || m_Type == BUILDING_STAND || m_Type == BUILDING_TURRET))
 		{
 			m_Life = 1;
 			TakeDamage(20, CAttackSource::World(WEAPON_WORLD));
@@ -326,38 +325,38 @@ void CBuilding::Move()
 
 void CBuilding::DoFallCheck()
 {
-	if (!m_CanMove || m_Moving)
+	if(!m_CanMove || m_Moving)
 		return;
-	
-	if (m_Type == BUILDING_FLAMETRAP)
+
+	if(m_Type == BUILDING_FLAMETRAP)
 	{
-		if (m_Mirror)
+		if(m_Mirror)
 		{
-			if (!GameServer()->Collision()->IsTileSolid(m_Pos.x+m_BoxSize.x, m_Pos.y))
+			if(!GameServer()->Collision()->IsTileSolid(m_Pos.x + m_BoxSize.x, m_Pos.y))
 				m_Moving = true;
 		}
 		else
 		{
-			if (!GameServer()->Collision()->IsTileSolid(m_Pos.x-m_BoxSize.x, m_Pos.y))
+			if(!GameServer()->Collision()->IsTileSolid(m_Pos.x - m_BoxSize.x, m_Pos.y))
 				m_Moving = true;
 		}
-		
+
 		return;
 	}
-	
-	if (m_Mirror || m_Type == BUILDING_LIGHTNINGWALL2)
+
+	if(m_Mirror || m_Type == BUILDING_LIGHTNINGWALL2)
 	{
-		if (!GameServer()->Collision()->IsTileSolid(m_Pos.x-m_BoxSize.x/2, m_Pos.y-m_BoxSize.y-1) &&
-			!GameServer()->Collision()->IsTileSolid(m_Pos.x+m_BoxSize.x/2, m_Pos.y-m_BoxSize.y-1))
+		if(!GameServer()->Collision()->IsTileSolid(m_Pos.x - m_BoxSize.x / 2, m_Pos.y - m_BoxSize.y - 1) &&
+		   !GameServer()->Collision()->IsTileSolid(m_Pos.x + m_BoxSize.x / 2, m_Pos.y - m_BoxSize.y - 1))
 			m_Moving = true;
 	}
 	else
 	{
-		if (!GameServer()->Collision()->IsTileSolid(m_Pos.x-m_BoxSize.x/2, m_Pos.y+m_BoxSize.y/2+1) &&
-			!GameServer()->Collision()->IsTileSolid(m_Pos.x+m_BoxSize.x/2, m_Pos.y+m_BoxSize.y/2+1))
+		if(!GameServer()->Collision()->IsTileSolid(m_Pos.x - m_BoxSize.x / 2, m_Pos.y + m_BoxSize.y / 2 + 1) &&
+		   !GameServer()->Collision()->IsTileSolid(m_Pos.x + m_BoxSize.x / 2, m_Pos.y + m_BoxSize.y / 2 + 1))
 			m_Moving = true;
 	}
-	
+
 	// check if the building is still attached to something
 	/*
 	switch (m_Type)
@@ -375,94 +374,89 @@ void CBuilding::DoFallCheck()
 	*/
 }
 
-
 void CBuilding::CreateLightningWallTop()
 {
 	vec2 To = m_Pos + vec2(0, -600);
 
-	if (GameServer()->Collision()->IntersectLine(m_Pos, To, 0x0, &To))
+	if(GameServer()->Collision()->IntersectLine(m_Pos, To, 0x0, &To))
 	{
-		m_Height = m_Pos.y-To.y;
-		new CBuilding(&GameServer()->m_World, To+vec2(0, 15), BUILDING_LIGHTNINGWALL2, TEAM_NEUTRAL);
+		m_Height = m_Pos.y - To.y;
+		new CBuilding(&GameServer()->m_World, To + vec2(0, 15), BUILDING_LIGHTNINGWALL2, TEAM_NEUTRAL);
 	}
 	else
 		GameServer()->m_World.DestroyEntity(this);
 }
 
-
 bool CBuilding::Jumppad()
 {
 	CCharacter *apEnts[MAX_CLIENTS];
-	int Num = GameServer()->m_World.FindEntities(m_Pos, m_ProximityRadius*10.0f, (CEntity**)apEnts,
-														MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+	int Num = GameServer()->m_World.FindEntities(
+		m_Pos, m_ProximityRadius * 10.0f, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
 	bool ret = false;
-														
-	for (int i = 0; i < Num; ++i)
+
+	for(int i = 0; i < Num; ++i)
 	{
 		CCharacter *pTarget = apEnts[i];
 
-		if (abs(pTarget->m_Pos.x - m_Pos.x) < 64 && abs(pTarget->m_Pos.y - m_Pos.y) < 16)
+		if(abs(pTarget->m_Pos.x - m_Pos.x) < 64 && abs(pTarget->m_Pos.y - m_Pos.y) < 16)
 		{
 			pTarget->Jumppad();
 			m_aStatus[BSTATUS_ON] = 1;
 			m_TriggerTimer = GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * 0.05f;
-			//GameServer()->CreateSound(m_Pos, SOUND_DOOR1);
+			// GameServer()->CreateSound(m_Pos, SOUND_DOOR1);
 			ret = true;
 		}
 	}
-	
+
 	return ret;
 }
 
-
 bool CBuilding::Repair(int Amount)
 {
-	if (m_Life >= m_MaxLife)
+	if(m_Life >= m_MaxLife)
 		return false;
-	
+
 	m_Life += Amount;
-	if (m_Life > m_MaxLife)
+	if(m_Life > m_MaxLife)
 		m_Life = m_MaxLife;
-	
-	GameServer()->CreateRepairInd(m_Pos+vec2(frandom()-frandom(), frandom()-frandom()));
-	
+
+	GameServer()->CreateRepairInd(m_Pos + vec2(frandom() - frandom(), frandom() - frandom()));
+
 	return true;
 }
 
 void CBuilding::UpdateStatus()
 {
-	if (m_Mirror)
+	if(m_Mirror)
 		m_aStatus[BSTATUS_MIRROR] = 1;
-	
-	if (m_Type == BUILDING_REACTOR)
+
+	if(m_Type == BUILDING_REACTOR)
 	{
-		if (m_Life < 200)
+		if(m_Life < 200)
 			m_aStatus[BSTATUS_REPAIR] = 1;
 		else
 			m_aStatus[BSTATUS_REPAIR] = 0;
 	}
-	else if (m_Type == BUILDING_GENERATOR)
+	else if(m_Type == BUILDING_GENERATOR)
 	{
-		if (m_Life < 80)
+		if(m_Life < 80)
 			m_aStatus[BSTATUS_REPAIR] = 1;
 		else
 			m_aStatus[BSTATUS_REPAIR] = 0;
 	}
-	
+
 	m_Status = 0;
-	
-	for (int i = 0; i < NUM_BSTATUS; i++)
+
+	for(int i = 0; i < NUM_BSTATUS; i++)
 	{
-		if (m_aStatus[i] > 0)
+		if(m_aStatus[i] > 0)
 			m_Status |= 1 << i;
 	}
 }
 
-
-
 void CBuilding::Trigger()
 {
-	if (m_Type == BUILDING_DOOR1 && !m_aStatus[BSTATUS_EVENT])
+	if(m_Type == BUILDING_DOOR1 && !m_aStatus[BSTATUS_EVENT])
 	{
 		m_aStatus[BSTATUS_EVENT] = 1;
 		m_TriggerTimer = GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * 0.5f;
@@ -511,8 +505,10 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 	CWeaponCombatProfile Combat{};
 	CWeaponCatalog::TryResolveAttack(Source, &Combat);
 	CWeaponDefinition WeaponDefinition{};
-	const bool HasWeaponDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon && CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &WeaponDefinition);
-	const bool IsBomb = HasWeaponDefinition && WeaponDefinition.m_Kind == EWeaponDefinitionKind::Static && WeaponDefinition.m_StaticType == SW_BOMB;
+	const bool HasWeaponDefinition =
+		Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
+		CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &WeaponDefinition);
+	const bool IsBomb = HasWeaponDefinition && WeaponHasBehavior(WeaponDefinition, WEAPON_BEHAVIOR_BOMB);
 	const bool IsReactorSource = Source.m_Kind == EAttackSourceKind::Building && Source.m_Type == BUILDING_REACTOR;
 	if(m_Type == BUILDING_SWITCH && !m_PveSwitchActive)
 		return;
@@ -530,7 +526,8 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 		if(GameServer()->m_pPveDirector->PerkStacks(Owner, PVE_CARD_SIEGE_PAYLOAD) && Combat.m_ExplosiveProjectile)
 			Damage = max(1, Damage * 130 / 100);
 	}
-	if (m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON] && Owner >= 0 && GameServer()->m_apPlayers[Owner] && !GameServer()->m_apPlayers[Owner]->m_IsBot)
+	if(m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON] && Owner >= 0 && GameServer()->m_apPlayers[Owner] &&
+	   !GameServer()->m_apPlayers[Owner]->m_IsBot)
 	{
 		// Coop PvE switches are hold-to-activate so interaction-speed cards matter.
 		if(IsCoopMapGenGametype(g_Config.m_SvGametype))
@@ -539,197 +536,191 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 		GameServer()->m_pController->TriggerSwitch(m_Pos);
 		return;
 	}
-	
+
 	// reactor defense
-	if (m_Type == BUILDING_REACTOR && !m_PveReactorObjective && (IsReactorSource || IsBomb))
+	if(m_Type == BUILDING_REACTOR && !m_PveReactorObjective && (IsReactorSource || IsBomb))
 	{
 		m_Life = 0;
 		m_DeathTimer = 5;
 		return;
 	}
-	
-	if (m_Life >= 5000)
+
+	if(m_Life >= 5000)
 		return;
-	
-	if (Damage < 0 && m_Life >= m_MaxLife)
+
+	if(Damage < 0 && m_Life >= m_MaxLife)
 		return;
-	
-	if (m_Moving)
+
+	if(m_Moving)
 	{
 		m_Vel += Force;
-		if (length(m_Vel) > 30.0f)
-			m_Vel = normalize(m_Vel)*30.0f;
+		if(length(m_Vel) > 30.0f)
+			m_Vel = normalize(m_Vel) * 30.0f;
 	}
-	
-	if ((m_Type == BUILDING_TURRET || m_Type == BUILDING_TESLACOIL) && GameServer()->m_pController->IsCoop() && m_Team >= 0)
+
+	if((m_Type == BUILDING_TURRET || m_Type == BUILDING_TESLACOIL) && GameServer()->m_pController->IsCoop() &&
+	   m_Team >= 0)
 	{
-		if (Owner >= 0 && Owner < MAX_CLIENTS && Damage >= 0)
+		if(Owner >= 0 && Owner < MAX_CLIENTS && Damage >= 0)
 		{
 			CPlayer *pPlayer = GameServer()->m_apPlayers[Owner];
-				
+
 			if(pPlayer && !pPlayer->m_IsBot)
 				return;
 		}
 	}
-	
-	if (m_Team >= 0)
+
+	if(m_Team >= 0)
 	{
 		int Team = Owner;
-	
+
 		CCharacter *OwnerChar = GameServer()->GetPlayerChar(Owner);
-	
-		if (OwnerChar && GameServer()->m_pController->IsTeamplay())
+
+		if(OwnerChar && GameServer()->m_pController->IsTeamplay())
 			Team = OwnerChar->GetPlayer()->GetTeam();
-	
-		if (m_Team == Team && Damage >= 0)
+
+		if(m_Team == Team && Damage >= 0)
 			return;
 	}
-	
-	
-	if (g_Config.m_SvOneHitKill)
+
+	if(g_Config.m_SvOneHitKill)
 		Damage = 1000;
-	
-	if (m_DeathTimer > 0 || m_Life <= 0)
+
+	if(m_DeathTimer > 0 || m_Life <= 0)
 		return;
-	
-	if (m_Type == BUILDING_SAWBLADE || m_Type == BUILDING_LAZER || m_Type == BUILDING_POWERUPPER)
+
+	if(m_Type == BUILDING_SAWBLADE || m_Type == BUILDING_LAZER || m_Type == BUILDING_POWERUPPER)
 		return;
-	
+
 	int Dmg = Damage / 2;
-	
-	if (Damage > 0 && Dmg == 0)
+
+	if(Damage > 0 && Dmg == 0)
 		Dmg = 1;
-	
-	//if (Dmg == 0)
+
+	// if (Dmg == 0)
 	//	return;
-	
+
 	const int LifeBefore = m_Life;
 	m_Life -= Dmg;
-	
-	if (m_Life > m_MaxLife)
+
+	if(m_Life > m_MaxLife)
 		m_Life = m_MaxLife;
-	
+
 	vec2 DmgPos = m_DamagePos;
-	
-	if (DmgPos.x == 0.0f)
-		DmgPos = m_Pos+vec2(frandom()-frandom(), frandom()-frandom());
-	
+
+	if(DmgPos.x == 0.0f)
+		DmgPos = m_Pos + vec2(frandom() - frandom(), frandom() - frandom());
+
 	m_DamagePos = vec2(0.0f, 0.0f);
-	
-	if (Damage > 0)
+
+	if(Damage > 0)
 	{
 		GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, LifeBefore), HIT_TARGET_METAL, m_Life <= 0);
-		if (Dmg < 200)
-			GameServer()->CreateDamageInd(DmgPos, frandom()*pi, -Dmg, -1);
+		if(Dmg < 200)
+			GameServer()->CreateDamageInd(DmgPos, frandom() * pi, -Dmg, -1);
 		else
-			GameServer()->CreateDamageInd(DmgPos, frandom()*pi, -1, -1);
+			GameServer()->CreateDamageInd(DmgPos, frandom() * pi, -1, -1);
 	}
 	else
 	{
-		if (Damage < 0)
+		if(Damage < 0)
 			GameServer()->CreateRepairInd(DmgPos);
 	}
-	
-	if (m_Life <= 0)
+
+	if(m_Life <= 0)
 	{
 		m_DeathTimer = 5;
-		
-		if (m_Type == BUILDING_BARREL || 
-			m_Type == BUILDING_BARREL2 || 
-			m_Type == BUILDING_BARREL3 || 
-			m_Type == BUILDING_POWERBARREL || 
-			m_Type == BUILDING_POWERBARREL2)
+
+		if(m_Type == BUILDING_BARREL || m_Type == BUILDING_BARREL2 || m_Type == BUILDING_BARREL3 ||
+		   m_Type == BUILDING_POWERBARREL || m_Type == BUILDING_POWERBARREL2)
 			m_DamageOwner = Owner;
 	}
 }
 
-
 void CBuilding::Destroy()
 {
-	if (m_Stored)
+	if(m_Stored)
 		return;
 	if(!m_PveRefunded && GameServer()->m_pPveDirector && m_PveBuilder >= 0 && m_PveKitCost > 0)
 	{
 		m_PveRefunded = true;
 		GameServer()->m_pPveDirector->RefundBuilding(m_PveBuilder, m_PveKitCost);
 	}
-	
+
 	GameServer()->CreateExplosion(m_Pos, CAttackSource::Building(m_DamageOwner, m_Type));
-	
-	if (m_Type == BUILDING_MINE1)
+
+	if(m_Type == BUILDING_MINE1)
 	{
 		m_Life = 9000;
 		GameServer()->m_World.DestroyEntity(this);
 	}
-	else if (m_Type == BUILDING_MINE2)
+	else if(m_Type == BUILDING_MINE2)
 	{
 		m_Life = 9000;
 		GameServer()->m_World.DestroyEntity(this);
 	}
-	else if (m_Type == BUILDING_BARREL || 
-			 m_Type == BUILDING_BARREL2 || 
-			 m_Type == BUILDING_BARREL3 || 
-			 m_Type == BUILDING_POWERBARREL || 
-			 m_Type == BUILDING_POWERBARREL2)
+	else if(m_Type == BUILDING_BARREL || m_Type == BUILDING_BARREL2 || m_Type == BUILDING_BARREL3 ||
+			m_Type == BUILDING_POWERBARREL || m_Type == BUILDING_POWERBARREL2)
 	{
 		GameServer()->m_World.DestroyEntity(this);
 	}
-	else if (m_Type == BUILDING_REACTOR)
+	else if(m_Type == BUILDING_REACTOR)
 	{
-		if (!m_DestructionTriggered)
+		if(!m_DestructionTriggered)
 		{
 			new CBuilding(&GameServer()->m_World, m_Pos, BUILDING_REACTOR_DESTROYED, TEAM_NEUTRAL);
 			GameServer()->m_pController->ReactorDestroyed();
 			m_DestructionTriggered = true;
 		}
-			
-		//GameServer()->CreateSound(m_Pos, SOUND_GRENADE_EXPLODE);
+
+		// GameServer()->CreateSound(m_Pos, SOUND_GRENADE_EXPLODE);
 		GameServer()->m_World.DestroyEntity(this);
-		
-		
-		//GameServer()->SendBroadcast("Reactor lost", -1);
-		//GameServer()->CreateSoundGlobal(SOUND_CTF_DROP);
+
+		// GameServer()->SendBroadcast("Reactor lost", -1);
+		// GameServer()->CreateSoundGlobal(SOUND_CTF_DROP);
 	}
-	else if (m_Type == BUILDING_FLAMETRAP)
+	else if(m_Type == BUILDING_FLAMETRAP)
 	{
-		//GameServer()->CreateSound(m_Pos, SOUND_GRENADE_EXPLODE);
+		// GameServer()->CreateSound(m_Pos, SOUND_GRENADE_EXPLODE);
 		GameServer()->m_World.DestroyEntity(this);
 	}
-	else if (m_Type == BUILDING_LIGHTNINGWALL)
+	else if(m_Type == BUILDING_LIGHTNINGWALL)
 	{
 		m_Life = 0;
-		
+
 		// find the other part
 		CBuilding *apBuildings[99];
-		int Num = GameServer()->m_World.FindEntities(m_Pos+vec2(0, -400), 1200, (CEntity**)apBuildings, 99, CGameWorld::ENTTYPE_BUILDING);
+		int Num = GameServer()->m_World.FindEntities(
+			m_Pos + vec2(0, -400), 1200, (CEntity **)apBuildings, 99, CGameWorld::ENTTYPE_BUILDING);
 
 		for(int i = 0; i < Num; i++)
 		{
-			if (apBuildings[i]->m_Type == BUILDING_LIGHTNINGWALL2 && apBuildings[i]->m_Life > 0 && apBuildings[i]->m_Pos.y < m_Pos.y &&
-				abs(apBuildings[i]->m_Pos.x - m_Pos.x) < 4.0f)
+			if(apBuildings[i]->m_Type == BUILDING_LIGHTNINGWALL2 && apBuildings[i]->m_Life > 0 &&
+			   apBuildings[i]->m_Pos.y < m_Pos.y && abs(apBuildings[i]->m_Pos.x - m_Pos.x) < 4.0f)
 				apBuildings[i]->Destroy();
 		}
-		
+
 		new CLaserFail(GameWorld(), m_Pos, m_Pos + vec2(0, -m_Height), 1);
-		
+
 		GameServer()->CreateEffect(FX_SMALLELECTRIC, m_Pos);
 		GameServer()->m_World.DestroyEntity(this);
 	}
-	else if (m_Type == BUILDING_LIGHTNINGWALL2)
+	else if(m_Type == BUILDING_LIGHTNINGWALL2)
 	{
 		m_Life = 0;
-		
+
 		// find the other part
 		CBuilding *apBuildings[99];
-		int Num = GameServer()->m_World.FindEntities(m_Pos+vec2(0, +400), 1200, (CEntity**)apBuildings, 99, CGameWorld::ENTTYPE_BUILDING);
+		int Num = GameServer()->m_World.FindEntities(
+			m_Pos + vec2(0, +400), 1200, (CEntity **)apBuildings, 99, CGameWorld::ENTTYPE_BUILDING);
 
 		for(int i = 0; i < Num; i++)
 		{
-			if (apBuildings[i]->m_Type == BUILDING_LIGHTNINGWALL && apBuildings[i]->m_Life > 0 && apBuildings[i]->m_Pos.y > m_Pos.y &&
-				abs(apBuildings[i]->m_Pos.x - m_Pos.x) < 4.0f)
+			if(apBuildings[i]->m_Type == BUILDING_LIGHTNINGWALL && apBuildings[i]->m_Life > 0 &&
+			   apBuildings[i]->m_Pos.y > m_Pos.y && abs(apBuildings[i]->m_Pos.x - m_Pos.x) < 4.0f)
 				apBuildings[i]->Destroy();
 		}
-		
+
 		GameServer()->CreateEffect(FX_SMALLELECTRIC, m_Pos);
 		GameServer()->m_World.DestroyEntity(this);
 	}
@@ -737,22 +728,22 @@ void CBuilding::Destroy()
 		GameServer()->m_World.DestroyEntity(this);
 }
 
-
 void CBuilding::Tick()
 {
-	if (m_SnapTick && m_SnapTick < Server()->Tick()-Server()->TickSpeed()*5.0f)
+	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
-		if (GameServer()->StoreEntity(m_ObjType, m_Type, m_Mirror?1:0, m_Pos.x, m_Pos.y))
+		if(GameServer()->StoreEntity(m_ObjType, m_Type, m_Mirror ? 1 : 0, m_Pos.x, m_Pos.y))
 		{
 			m_Stored = true;
 			GameServer()->m_World.DestroyEntity(this);
 			return;
 		}
 	}
-	
+
 	Move();
 
-	if(m_Type == BUILDING_SWITCH && m_PveSwitchActive && !m_aStatus[BSTATUS_ON] && IsCoopMapGenGametype(g_Config.m_SvGametype))
+	if(m_Type == BUILDING_SWITCH && m_PveSwitchActive && !m_aStatus[BSTATUS_ON] &&
+	   IsCoopMapGenGametype(g_Config.m_SvGametype))
 	{
 		const float HoldRadius = 80.0f;
 		const int RequiredTicks = GameServer()->Server()->TickSpeed() * 2;
@@ -781,26 +772,26 @@ void CBuilding::Tick()
 			GameServer()->m_pController->TriggerSwitch(m_Pos);
 		}
 	}
-	
-	if (m_Type == BUILDING_DOOR1)
+
+	if(m_Type == BUILDING_DOOR1)
 	{
-		if (m_TriggerTimer > 0 && m_TriggerTimer < GameServer()->Server()->Tick())
+		if(m_TriggerTimer > 0 && m_TriggerTimer < GameServer()->Server()->Tick())
 		{
 			m_aStatus[BSTATUS_ON] = 1;
 		}
-		
-		if (m_TriggerTimer > 0 && m_TriggerTimer < GameServer()->Server()->Tick() - Server()->TickSpeed()*0.6f)
+
+		if(m_TriggerTimer > 0 && m_TriggerTimer < GameServer()->Server()->Tick() - Server()->TickSpeed() * 0.6f)
 		{
-			CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, m_ProximityRadius/2.0f, 0);
-					
+			CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, m_ProximityRadius / 2.0f, 0);
+
 			if(pChr && pChr->IsAlive() && !pChr->m_IsBot)
 			{
 				GameServer()->m_pController->NextLevel(pChr->GetPlayer()->GetCID());
 			}
 		}
 	}
-	
-	if (m_Type == BUILDING_LIGHTNINGWALL)
+
+	if(m_Type == BUILDING_LIGHTNINGWALL)
 	{
 		// Block geometry changes rarely, while IntersectBlocks samples the full
 		// wall pixel by pixel. Check it at 10 Hz and stagger walls by entity ID;
@@ -808,60 +799,61 @@ void CBuilding::Tick()
 		if(Server()->Tick() >= m_LightningBlockCheckTick)
 		{
 			m_LightningBlockCheckTick = Server()->Tick() + max(1, Server()->TickSpeed() / 10);
-			if(GameServer()->Collision()->IntersectBlocks(m_Pos, m_Pos+vec2(0, -m_Height)))
+			if(GameServer()->Collision()->IntersectBlocks(m_Pos, m_Pos + vec2(0, -m_Height)))
 				TakeDamage(200, CAttackSource::World(WEAPON_WORLD));
 		}
-		
-		if (!GameServer()->m_World.GetFriendlyCharacterInBox(m_Pos+vec2(-64, -(m_Height-48)), m_Pos+vec2(64, 0), m_Team))
+
+		if(!GameServer()->m_World.GetFriendlyCharacterInBox(
+			   m_Pos + vec2(-64, -(m_Height - 48)), m_Pos + vec2(64, 0), m_Team))
 		{
 			m_aStatus[BSTATUS_ON] = 1;
 			vec2 At;
-			CCharacter *pHit = GameServer()->m_World.IntersectCharacter(m_Pos, m_Pos+vec2(0, -m_Height), 4.0f, At);
-			
+			CCharacter *pHit = GameServer()->m_World.IntersectCharacter(m_Pos, m_Pos + vec2(0, -m_Height), 4.0f, At);
+
 			if(pHit)
 				pHit->TakeDamage(CAttackSource::Building(NEUTRAL_BASE, m_Type), 3, vec2(0, 0), vec2(0, 0));
 		}
 		else
 		{
-			if (m_aStatus[BSTATUS_ON] == 1)
+			if(m_aStatus[BSTATUS_ON] == 1)
 				new CLaserFail(GameWorld(), m_Pos, m_Pos + vec2(0, -m_Height), 1);
-			
+
 			m_aStatus[BSTATUS_ON] = 0;
 		}
 	}
-	
-	if (m_Type == BUILDING_JUMPPAD)
+
+	if(m_Type == BUILDING_JUMPPAD)
 	{
-		//if (m_TriggerTimer < GameServer()->Server()->Tick())
+		// if (m_TriggerTimer < GameServer()->Server()->Tick())
 		{
 			Jumppad();
-			//if (!Jumppad())
+			// if (!Jumppad())
 			//	m_aStatus[BSTATUS_ON] = 0;
 		}
-		if (m_TriggerTimer < GameServer()->Server()->Tick())
+		if(m_TriggerTimer < GameServer()->Server()->Tick())
 			m_aStatus[BSTATUS_ON] = 0;
 	}
-	
-	if (m_Type == BUILDING_SAWBLADE)
+
+	if(m_Type == BUILDING_SAWBLADE)
 	{
-		CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, m_ProximityRadius*1.4f, 0);
+		CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, m_ProximityRadius * 1.4f, 0);
 		if(pChr && pChr->IsAlive())
 			pChr->TakeSawbladeDamage(m_Pos);
-		
+
 		// walker / drone collision
 		CDroid *apEnts[MAX_CLIENTS];
-		int Num = GameServer()->m_World.FindEntities(m_Pos, m_ProximityRadius*1.5f, (CEntity**)apEnts,
-													MAX_CLIENTS, CGameWorld::ENTTYPE_DROID);
+		int Num = GameServer()->m_World.FindEntities(
+			m_Pos, m_ProximityRadius * 1.5f, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_DROID);
 
-		for (int i = 0; i < Num; ++i)
+		for(int i = 0; i < Num; ++i)
 		{
 			CDroid *pTarget = apEnts[i];
 
-			if (pTarget->m_Health <= 0)
+			if(pTarget->m_Health <= 0)
 				continue;
 
 			vec2 Dir;
-			if (length(pTarget->m_Pos - m_Pos) > 0.0f)
+			if(length(pTarget->m_Pos - m_Pos) > 0.0f)
 				Dir = normalize(pTarget->m_Pos - m_Pos);
 			else
 				Dir = vec2(0.f, 0.f);
@@ -869,32 +861,33 @@ void CBuilding::Tick()
 			pTarget->TakeDamage(Dir * 10.0f, 5, CAttackSource::Building(-1, BUILDING_SAWBLADE), vec2(0, 0));
 		}
 	}
-	
-	 // effect testing on all buildings
-	//if (GameServer()->Server()->Tick()%40 == 1)
+
+	// effect testing on all buildings
+	// if (GameServer()->Server()->Tick()%40 == 1)
 	//	GameServer()->CreateEffect(FX_BARREL, m_Pos);
 
-
-	if (m_SetTimer > 0)
+	if(m_SetTimer > 0)
 		m_SetTimer--;
-	
-	if (m_Type == BUILDING_FLAMETRAP)
+
+	if(m_Type == BUILDING_FLAMETRAP)
 	{
 		// on / off
-		if (m_TriggerTimer < GameServer()->Server()->Tick() - GameServer()->Server()->TickSpeed() * 3.0f)
+		if(m_TriggerTimer < GameServer()->Server()->Tick() - GameServer()->Server()->TickSpeed() * 3.0f)
 			m_TriggerTimer = GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * 2.0f;
-		
+
 		// if on
-		if (m_TriggerTimer > GameServer()->Server()->Tick())
+		if(m_TriggerTimer > GameServer()->Server()->Tick())
 		{
 			m_aStatus[BSTATUS_FIRE] = 1;
-			
+
 			// small delay before settings players to aflame
-			if (m_TriggerTimer > GameServer()->Server()->Tick() && m_TriggerTimer < GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * 1.7f)
+			if(m_TriggerTimer > GameServer()->Server()->Tick() &&
+			   m_TriggerTimer < GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * 1.7f)
 			{
 				{
-					CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos + vec2((m_Mirror ? -50 : 50), -4), m_ProximityRadius, 0);
-				
+					CCharacter *pChr = GameServer()->m_World.ClosestCharacter(
+						m_Pos + vec2((m_Mirror ? -50 : 50), -4), m_ProximityRadius, 0);
+
 					if(pChr && pChr->IsAlive())
 					{
 						const CAttackSource Source = CAttackSource::Building(NEUTRAL_BASE, m_Type);
@@ -903,8 +896,9 @@ void CBuilding::Tick()
 					}
 				}
 				{
-					CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos + vec2((m_Mirror ? -102 : 102), -4), m_ProximityRadius*1.3f, 0);
-				
+					CCharacter *pChr = GameServer()->m_World.ClosestCharacter(
+						m_Pos + vec2((m_Mirror ? -102 : 102), -4), m_ProximityRadius * 1.3f, 0);
+
 					if(pChr && pChr->IsAlive())
 					{
 						const CAttackSource Source = CAttackSource::Building(NEUTRAL_BASE, m_Type);
@@ -918,33 +912,32 @@ void CBuilding::Tick()
 			m_aStatus[BSTATUS_FIRE] = 0;
 	}
 
-	
 	// destruction
-	if (m_DeathTimer > 0)
+	if(m_DeathTimer > 0)
 	{
 		m_DeathTimer--;
 
-		if (m_Life <= 0 && m_DeathTimer <= 0)
+		if(m_Life <= 0 && m_DeathTimer <= 0)
 		{
 			// turret?
 			Destroy();
-			//GameServer()->m_World.DestroyEntity(this);
+			// GameServer()->m_World.DestroyEntity(this);
 		}
 	}
-	else
-	if (m_SetTimer <= 0 && (m_Type == BUILDING_MINE1 || m_Type == BUILDING_MINE2))
+	else if(m_SetTimer <= 0 && (m_Type == BUILDING_MINE1 || m_Type == BUILDING_MINE2))
 	{
-		CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, m_ProximityRadius*1.7f, 0);
-		if(pChr && pChr->IsAlive() && !pChr->IsSliding())// && (pChr->GetPlayer()->GetTeam() != m_Team || !GameServer()->m_pController->IsTeamplay()))
+		CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, m_ProximityRadius * 1.7f, 0);
+		if(pChr && pChr->IsAlive() && !pChr->IsSliding()) // && (pChr->GetPlayer()->GetTeam() != m_Team ||
+														  // !GameServer()->m_pController->IsTeamplay()))
 		{
 			// co-op, ignore real players if mine set by a real player
-			if (GameServer()->m_pController->IsCoop() && !pChr->m_IsBot && m_DamageOwner >= 0)
+			if(GameServer()->m_pController->IsCoop() && !pChr->m_IsBot && m_DamageOwner >= 0)
 			{
-				// do nothing	
+				// do nothing
 			}
 			else
 			{
-				if (pChr->GetPlayer()->GetTeam() != m_Team || !GameServer()->m_pController->IsTeamplay())
+				if(pChr->GetPlayer()->GetTeam() != m_Team || !GameServer()->m_pController->IsTeamplay())
 				{
 					m_DeathTimer = 1;
 					m_Life = 0;
@@ -952,12 +945,9 @@ void CBuilding::Tick()
 			}
 		}
 	}
-	
+
 	UpdateStatus();
 }
-
-
-
 
 void CBuilding::TickPaused()
 {
@@ -972,7 +962,8 @@ void CBuilding::Snap(int SnappingClient)
 
 	m_SnapTick = Server()->Tick();
 
-	CNetObj_Building *pP = static_cast<CNetObj_Building *>(Server()->SnapNewItem(NETOBJTYPE_BUILDING, m_ID, sizeof(CNetObj_Building)));
+	CNetObj_Building *pP =
+		static_cast<CNetObj_Building *>(Server()->SnapNewItem(NETOBJTYPE_BUILDING, m_ID, sizeof(CNetObj_Building)));
 	if(!pP)
 		return;
 
@@ -980,16 +971,16 @@ void CBuilding::Snap(int SnappingClient)
 	pP->m_Y = (int)m_Pos.y;
 	pP->m_Status = m_Status;
 	pP->m_Type = m_Type;
-	
-	if (m_Type != BUILDING_GENERATOR)
+
+	if(m_Type != BUILDING_GENERATOR)
 		pP->m_Team = m_Team;
 	else
 	{
-		if (GameServer()->m_pController->IsTeamplay())
+		if(GameServer()->m_pController->IsTeamplay())
 			pP->m_Team = m_Team;
 		else
 		{
-			if (SnappingClient == m_Team)
+			if(SnappingClient == m_Team)
 				pP->m_Team = TEAM_RED;
 			else
 				pP->m_Team = -1;

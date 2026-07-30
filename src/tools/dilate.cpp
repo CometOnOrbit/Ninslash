@@ -26,9 +26,9 @@ static void Dilate(int w, int h, CPixel *pSrc, CPixel *pDest)
 
 			for(int c = 0; c < 4; c++)
 			{
-				ix = clamp(x + xo[c], 0, w-1);
-				iy = clamp(y + yo[c], 0, h-1);
-				int k = iy*w+ix;
+				ix = clamp(x + xo[c], 0, w - 1);
+				iy = clamp(y + yo[c], 0, h - 1);
+				int k = iy * w + ix;
 				if(pSrc[k].a)
 				{
 					pDest[m] = pSrc[k];
@@ -51,7 +51,7 @@ static void CopyAlpha(int w, int h, CPixel *pSrc, CPixel *pDest)
 int DilateFile(const char *pFileName)
 {
 	png_t Png;
-	CPixel *pBuffer[3] = {0,0,0};
+	CPixel *pBuffer[3] = {0, 0, 0};
 
 	png_init(0, 0);
 	png_open_file(&Png, pFileName);
@@ -62,9 +62,9 @@ int DilateFile(const char *pFileName)
 		return 1;
 	}
 
-	pBuffer[0] = (CPixel*)mem_alloc(Png.width*Png.height*sizeof(CPixel), 1);
-	pBuffer[1] = (CPixel*)mem_alloc(Png.width*Png.height*sizeof(CPixel), 1);
-	pBuffer[2] = (CPixel*)mem_alloc(Png.width*Png.height*sizeof(CPixel), 1);
+	pBuffer[0] = (CPixel *)mem_alloc(Png.width * Png.height * sizeof(CPixel), 1);
+	pBuffer[1] = (CPixel *)mem_alloc(Png.width * Png.height * sizeof(CPixel), 1);
+	pBuffer[2] = (CPixel *)mem_alloc(Png.width * Png.height * sizeof(CPixel), 1);
 	png_get_data(&Png, (unsigned char *)pBuffer[0]);
 	png_close_file(&Png);
 

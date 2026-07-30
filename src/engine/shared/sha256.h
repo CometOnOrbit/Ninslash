@@ -8,7 +8,8 @@ class CSha256
 	unsigned char m_aBuffer[64];
 	int m_BufferSize;
 	void Transform(const unsigned char *pBlock);
-public:
+
+  public:
 	CSha256();
 	void Update(const void *pData, unsigned Size);
 	void Finish(unsigned char aDigest[32]);

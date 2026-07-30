@@ -5,17 +5,17 @@
 
 class CAIrobot1 : public CAI
 {
-public:
+  public:
 	CAIrobot1(CGameContext *pGameServer, CPlayer *pPlayer, int Level);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);
 	void ReceiveDamage(int CID, int Dmg);
 
-private:
+  private:
 	int m_SkipMoveUpdate;
 	vec2 m_StartPos;
-	
+
 	int m_Skin;
 };
 

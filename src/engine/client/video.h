@@ -20,7 +20,7 @@ class CVideo
 
 	static bool HasFFmpeg();
 
-public:
+  public:
 	CVideo();
 	~CVideo();
 

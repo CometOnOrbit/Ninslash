@@ -16,12 +16,11 @@ class COverseerShieldNode : public CBuilding
 	int m_ExpireTick;
 	int m_Index;
 	static int s_Alive;
-public:
-	COverseerShieldNode(CGameWorld *pWorld, vec2 Pos, COverseerCore *pCore, int Index) :
-		CBuilding(pWorld, Pos, BUILDING_PVE_SHIELD_NODE, TEAM_NEUTRAL),
-		m_pCore(pCore),
-		m_ExpireTick(Server()->Tick() + Server()->TickSpeed() * 18),
-		m_Index(Index)
+
+  public:
+	COverseerShieldNode(CGameWorld *pWorld, vec2 Pos, COverseerCore *pCore, int Index)
+		: CBuilding(pWorld, Pos, BUILDING_PVE_SHIELD_NODE, TEAM_NEUTRAL), m_pCore(pCore),
+		  m_ExpireTick(Server()->Tick() + Server()->TickSpeed() * 18), m_Index(Index)
 	{
 		m_Life = m_MaxLife = 260;
 		m_Collision = false;
@@ -34,7 +33,8 @@ public:
 	static int Alive() { return s_Alive; }
 	static bool Protects(CGameWorld *pWorld, COverseerCore *pCore)
 	{
-		for(CBuilding *pBuilding = (CBuilding *)pWorld->FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+		for(CBuilding *pBuilding = (CBuilding *)pWorld->FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding;
+			pBuilding = (CBuilding *)pBuilding->TypeNext())
 		{
 			COverseerShieldNode *pNode = dynamic_cast<COverseerShieldNode *>(pBuilding);
 			if(pNode && pNode->m_pCore == pCore && pNode->m_Life > 0)
@@ -46,7 +46,8 @@ public:
 	void Tick() override
 	{
 		COverseerCore *pLivingCore = 0;
-		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
+		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
+			pDroid = (CDroid *)pDroid->TypeNext())
 			if(pDroid == m_pCore && pDroid->m_Health > 0)
 			{
 				pLivingCore = m_pCore;
@@ -67,13 +68,11 @@ public:
 	}
 };
 int COverseerShieldNode::s_Alive = 0;
-}
+} // namespace
 
-COverseerCore::COverseerCore(CGameWorld *pWorld, vec2 Pos) :
-	CSpecialistDroid(pWorld, Pos, DROIDTYPE_OVERSEER_CORE, 4400, true),
-	m_EmpTick(0),
-	m_Burst(0),
-	m_OrbitAngle(frandom() * 2.0f * pi)
+COverseerCore::COverseerCore(CGameWorld *pWorld, vec2 Pos)
+	: CSpecialistDroid(pWorld, Pos, DROIDTYPE_OVERSEER_CORE, 4400, true), m_EmpTick(0), m_Burst(0),
+	  m_OrbitAngle(frandom() * 2.0f * pi)
 {
 	m_apAssemblers[0] = m_apAssemblers[1] = 0;
 }
@@ -90,7 +89,7 @@ void COverseerCore::MovementTick(CCharacter *pTarget)
 	// The Core is a true flying boss. It orbits above and around its target,
 	// accelerates decisively when displaced, and relies on MoveBox to slide
 	// along real map geometry rather than crossing it.
-		m_OrbitAngle += 0.022f;
+	m_OrbitAngle += 0.022f;
 	vec2 Desired = m_StartPos + vec2(cosf(m_OrbitAngle) * 200.0f, -150.0f + sinf(m_OrbitAngle * 0.7f) * 55.0f);
 	if(pTarget)
 		Desired = pTarget->m_Pos + vec2(cosf(m_OrbitAngle) * 280.0f, -170.0f + sinf(m_OrbitAngle) * 95.0f);
@@ -106,7 +105,7 @@ void COverseerCore::MovementTick(CCharacter *pTarget)
 			const vec2 Candidate = BeforeHit - Forward * 70.0f + Side * Sign * 190.0f;
 			vec2 CandidateHit, CandidateBefore;
 			if(GameServer()->Collision()->TestBox(Candidate, CollisionSize()) ||
-				GameServer()->Collision()->IntersectLine(m_Pos, Candidate, &CandidateHit, &CandidateBefore))
+			   GameServer()->Collision()->IntersectLine(m_Pos, Candidate, &CandidateHit, &CandidateBefore))
 				continue;
 			const float Remaining = distance(Candidate, Desired);
 			if(Remaining < BestRemaining)
@@ -150,23 +149,39 @@ void COverseerCore::AbilityTick()
 				const CAttackSource Source = CAttackSource::Droid(NEUTRAL_BASE, m_Type);
 				CWeaponCombatProfile Combat;
 				CWeaponCatalog::TryResolveAttack(Source, &Combat);
-				new CProjectile(&GameServer()->m_World, Source,
-					m_Pos + m_Center + Dir * 38.0f, Dir, vec2(0, 0), Server()->TickSpeed() * 2,
-					18, Combat.m_ProjectileKnockback, -1);
+				new CProjectile(&GameServer()->m_World,
+								Source,
+								m_Pos + m_Center + Dir * 38.0f,
+								Dir,
+								vec2(0, 0),
+								Server()->TickSpeed() * 2,
+								18,
+								Combat.m_ProjectileKnockback,
+								-1);
 			}
 			m_AttackTick = Server()->Tick();
 		}
 	}
 	if(Server()->Tick() >= m_EmpTick)
 	{
-		CCharacter *apChars[MAX_CLIENTS]; int Num = GameServer()->m_World.FindEntities(m_Pos, 420.0f, (CEntity **)apChars, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
-		for(int i = 0; i < Num; i++) apChars[i]->Electrocute(5.0f);
-		for(CEntity *pEnt = GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_LASER); pEnt; pEnt = pEnt->TypeNext()) if(CPveDrone *pDrone = dynamic_cast<CPveDrone *>(pEnt)) if(distance(m_Pos, pDrone->m_Pos) <= 600.0f) pDrone->ApplyEmp(Server()->TickSpeed() * 4);
-		GameServer()->CreateEffect(FX_ELECTRIC, m_Pos); m_EmpTick = Server()->Tick() + Server()->TickSpeed() * 8;
+		CCharacter *apChars[MAX_CLIENTS];
+		int Num = GameServer()->m_World.FindEntities(
+			m_Pos, 420.0f, (CEntity **)apChars, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+		for(int i = 0; i < Num; i++)
+			apChars[i]->Electrocute(5.0f);
+		for(CEntity *pEnt = GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_LASER); pEnt; pEnt = pEnt->TypeNext())
+			if(CPveDrone *pDrone = dynamic_cast<CPveDrone *>(pEnt))
+				if(distance(m_Pos, pDrone->m_Pos) <= 600.0f)
+					pDrone->ApplyEmp(Server()->TickSpeed() * 4);
+		GameServer()->CreateEffect(FX_ELECTRIC, m_Pos);
+		m_EmpTick = Server()->Tick() + Server()->TickSpeed() * 8;
 	}
 	m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 2 / 5;
 }
-void COverseerCore::OnHealthThreshold(int Threshold) { SpawnPhase(Threshold); }
+void COverseerCore::OnHealthThreshold(int Threshold)
+{
+	SpawnPhase(Threshold);
+}
 void COverseerCore::SpawnPhase(int Threshold)
 {
 	// Four total active phase assets: shield nodes plus Assemblers.
@@ -174,13 +189,17 @@ void COverseerCore::SpawnPhase(int Threshold)
 	int Assets = Assemblers + COverseerShieldNode::Alive();
 	if(Threshold == 75)
 	{
-		if(Assets++ < 4 && COverseerShieldNode::CanSpawn()) new COverseerShieldNode(GameWorld(), m_Pos + vec2(-110, -70), this, 0);
-		if(Assets++ < 4 && COverseerShieldNode::CanSpawn()) new COverseerShieldNode(GameWorld(), m_Pos + vec2(110, -70), this, 1);
+		if(Assets++ < 4 && COverseerShieldNode::CanSpawn())
+			new COverseerShieldNode(GameWorld(), m_Pos + vec2(-110, -70), this, 0);
+		if(Assets++ < 4 && COverseerShieldNode::CanSpawn())
+			new COverseerShieldNode(GameWorld(), m_Pos + vec2(110, -70), this, 1);
 	}
 	else
 	{
-		if(Assets++ < 4 && Assemblers++ < 2) m_apAssemblers[0] = new CAssembler(GameWorld(), m_Pos + vec2(-80, -20));
-		if(Assets++ < 4 && Assemblers++ < 2) m_apAssemblers[1] = new CAssembler(GameWorld(), m_Pos + vec2(80, -20));
+		if(Assets++ < 4 && Assemblers++ < 2)
+			m_apAssemblers[0] = new CAssembler(GameWorld(), m_Pos + vec2(-80, -20));
+		if(Assets++ < 4 && Assemblers++ < 2)
+			m_apAssemblers[1] = new CAssembler(GameWorld(), m_Pos + vec2(80, -20));
 	}
 }
 
@@ -188,7 +207,8 @@ void COverseerCore::OnSpecialistDeath()
 {
 	for(int i = 0; i < 2; i++)
 	{
-		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
+		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
+			pDroid = (CDroid *)pDroid->TypeNext())
 			if(pDroid == m_apAssemblers[i])
 			{
 				GameWorld()->DestroyEntity(pDroid);

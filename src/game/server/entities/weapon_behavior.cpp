@@ -1,4 +1,5 @@
 #include <game/server/gamecontext.h>
+#include <game/weapon_script_runtime.h>
 
 #include "electrowall.h"
 #include "laser.h"
@@ -10,7 +11,7 @@ namespace
 constexpr int WEAPON_CHARGE_MAX = 100;
 constexpr int WEAPON_CHARGE_STEP = 1;
 constexpr int THROWN_WEAPON_CHARGE_STEP = 3;
-}
+} // namespace
 
 namespace
 {
@@ -19,7 +20,24 @@ vec2 RandomDirection()
 	return normalize(vec2(frandom() - 0.5f, frandom() - 0.5f));
 }
 
+bool HasScriptEvent(CWeapon &Weapon, EWeaponScriptEvent Event, const char **ppStableId)
+{
+	const char *pStableId = CWeaponCatalog::StableId(Weapon.GetWeaponSpec());
+	if(ppStableId)
+		*ppStableId = pStableId;
+	return pStableId && CWeaponScriptRuntime::HasHandler(pStableId, Event);
 }
+
+bool DispatchScriptEvent(CWeapon &Weapon, EWeaponScriptEvent Event, const char *pStableId)
+{
+	char aError[256];
+	if(CWeaponScriptRuntime::Dispatch(pStableId, Event, &Weapon, aError, sizeof(aError)))
+		return true;
+	Weapon.GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-script", aError);
+	return false;
+}
+
+} // namespace
 
 bool CWeaponBehaviorExecutor::CreateElectroWall(CWeapon &Weapon)
 {
@@ -32,9 +50,9 @@ bool CWeaponBehaviorExecutor::CreateElectroWall(CWeapon &Weapon)
 		const float Angle = float(i) / 10.0f * pi + Weapon.m_Angle;
 		vec2 To1 = Weapon.m_Pos + vec2(cos(Angle), sin(Angle)) * 900.0f;
 		vec2 To2 = Weapon.m_Pos - vec2(cos(Angle), sin(Angle)) * 900.0f;
-		if(Weapon.GameServer()->Collision()->IntersectLine(Weapon.m_Pos, To1, nullptr, &To1) &&
-			Weapon.GameServer()->Collision()->IntersectLine(Weapon.m_Pos, To2, nullptr, &To2) &&
-			distance(To1, To2) < BestDistance)
+		if(Weapon.GameServer()->Collision()->IntersectLine(Weapon.m_Pos, To1, 0, &To1) &&
+		   Weapon.GameServer()->Collision()->IntersectLine(Weapon.m_Pos, To2, 0, &To2) &&
+		   distance(To1, To2) < BestDistance)
 		{
 			BestDistance = distance(To1, To2);
 			Point1 = To1;
@@ -74,7 +92,8 @@ bool CWeaponBehaviorExecutor::Fire(CWeapon &Weapon, float *pKnockback)
 		Weapon.m_BurstCount = 0;
 	if(Weapon.m_BurstCount > 0)
 	{
-		Weapon.m_ReloadTimer = Weapon.m_FireRate * Weapon.m_WeaponProfile.m_Combat.m_BurstReload * Weapon.Server()->TickSpeed() / 1000;
+		Weapon.m_ReloadTimer =
+			Weapon.m_FireRate * Weapon.m_WeaponProfile.m_Combat.m_BurstReload * Weapon.Server()->TickSpeed() / 1000;
 		Weapon.m_BurstReloadTimer = Weapon.m_FireRate * Weapon.Server()->TickSpeed() / 1000;
 	}
 	else
@@ -85,13 +104,23 @@ bool CWeaponBehaviorExecutor::Fire(CWeapon &Weapon, float *pKnockback)
 	if(Weapon.m_IsTurret)
 		Weapon.m_ReloadTimer *= 1.5f;
 
-	if(FiringType == WFT_PROJECTILE || FiringType == WFT_MELEE)
+	const char *pStableId = 0;
+	const bool ScriptedFire = HasScriptEvent(Weapon, EWeaponScriptEvent::Fire, &pStableId);
+	if(ScriptedFire)
+	{
+		if(!DispatchScriptEvent(Weapon, EWeaponScriptEvent::Fire, pStableId))
+			return false;
+	}
+	else if(FiringType == WFT_PROJECTILE || FiringType == WFT_MELEE)
 		Weapon.CreateProjectile();
 	else if(FiringType == WFT_HOLD)
 	{
-		const bool Flamer = Weapon.m_WeaponProfile.m_Definition.m_Kind == EWeaponDefinitionKind::Static && Weapon.m_WeaponProfile.m_Definition.m_StaticType == SW_FLAMER;
-		Weapon.m_TriggerTick = Weapon.Server()->Tick() + Weapon.m_FireRate * (Flamer ? 2 : 1) * Weapon.Server()->TickSpeed() / 1000;
-		if(Weapon.m_FireSound >= 0)
+		const bool Flamer = WeaponHasBehavior(Weapon.m_WeaponProfile.m_Definition, WEAPON_BEHAVIOR_FLAMER);
+		Weapon.m_TriggerTick =
+			Weapon.Server()->Tick() + Weapon.m_FireRate * (Flamer ? 2 : 1) * Weapon.Server()->TickSpeed() / 1000;
+		if(Weapon.m_WeaponProfile.m_Definition.m_aFireSound[0])
+			Weapon.GameServer()->CreateWeaponSound(Weapon.m_Pos, Weapon.m_WeaponSpec, 0);
+		else if(Weapon.m_FireSound >= 0)
 			Weapon.GameServer()->CreateSound(Weapon.m_Pos, Weapon.m_FireSound);
 	}
 	else
@@ -106,12 +135,13 @@ bool CWeaponBehaviorExecutor::Fire(CWeapon &Weapon, float *pKnockback)
 
 bool CWeaponBehaviorExecutor::Activate(CWeapon &Weapon)
 {
+	const char *pStableId = 0;
+	if(HasScriptEvent(Weapon, EWeaponScriptEvent::Activate, &pStableId))
+		return DispatchScriptEvent(Weapon, EWeaponScriptEvent::Activate, pStableId);
 	if(Weapon.m_DestructionTick)
 		return false;
 	const CWeaponDefinition &Definition = Weapon.m_WeaponProfile.m_Definition;
-	if(Definition.m_Kind != EWeaponDefinitionKind::Static)
-		return false;
-	if(Definition.m_StaticType == SW_INVIS || Definition.m_StaticType == SW_SHIELD || Definition.m_StaticType == SW_RESPAWNER)
+	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_CONTROLLER_ACTIVATE))
 	{
 		if(Weapon.GameServer()->m_pController->TriggerWeapon(&Weapon))
 		{
@@ -120,7 +150,7 @@ bool CWeaponBehaviorExecutor::Activate(CWeapon &Weapon)
 		}
 		return false;
 	}
-	if(Definition.m_StaticType != SW_BOMB)
+	if(!WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_BOMB))
 		return false;
 	if(Weapon.GameServer()->m_pController->InBombArea(Weapon.m_Pos))
 	{
@@ -129,7 +159,8 @@ bool CWeaponBehaviorExecutor::Activate(CWeapon &Weapon)
 		Weapon.GameServer()->CreateSound(Weapon.m_Pos, SOUND_BOMB_BEEP);
 		Weapon.m_BombResetTick = Weapon.Server()->Tick() + Weapon.Server()->TickSpeed();
 		if(Weapon.m_Owner >= 0 && (Weapon.m_BombCounter == 0 || Weapon.m_BombCounter % 3 == 0))
-			Weapon.GameServer()->SendBroadcastFormat(Weapon.m_Owner, false, "Arming bomb... %d", Weapon.m_Owner, 4 - Weapon.m_BombCounter / 3);
+			Weapon.GameServer()->SendBroadcastFormat(
+				Weapon.m_Owner, false, "Arming bomb... %d", Weapon.m_Owner, 4 - Weapon.m_BombCounter / 3);
 		if(Weapon.m_BombCounter++ > 12 && Weapon.GameServer()->m_pController->TriggerWeapon(&Weapon))
 		{
 			Weapon.m_DestructionTick = Weapon.Server()->Tick() + 20.0f * Weapon.Server()->TickSpeed();
@@ -152,6 +183,9 @@ bool CWeaponBehaviorExecutor::Activate(CWeapon &Weapon)
 
 bool CWeaponBehaviorExecutor::Charge(CWeapon &Weapon)
 {
+	const char *pStableId = 0;
+	if(HasScriptEvent(Weapon, EWeaponScriptEvent::Charge, &pStableId))
+		return DispatchScriptEvent(Weapon, EWeaponScriptEvent::Charge, pStableId);
 	if(!Weapon.m_CanFire || Weapon.m_ReloadTimer > 0)
 		return false;
 	if(Weapon.m_UseAmmo && Weapon.m_MaxAmmo > 0 && Weapon.m_Ammo <= 0)
@@ -164,39 +198,41 @@ bool CWeaponBehaviorExecutor::Charge(CWeapon &Weapon)
 		return false;
 	}
 	const CWeaponDefinition &Definition = Weapon.m_WeaponProfile.m_Definition;
-	if(!Weapon.m_DestructionTick && Definition.m_Kind == EWeaponDefinitionKind::Static)
+	if(!Weapon.m_DestructionTick)
 	{
-		switch(Definition.m_StaticType)
-		{
-		case SW_BALL:
+		if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_BALL))
 			Weapon.m_AttackTick = Weapon.Server()->Tick();
-			break;
-		case SW_GRENADE1:
+		else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_TIMED))
+		{
 			Weapon.m_AttackTick = Weapon.Server()->Tick();
 			Weapon.m_DestructionTick = Weapon.Server()->Tick() + 2.0f * Weapon.Server()->TickSpeed();
-			break;
-		case SW_GRENADE2:
-		case SW_GRENADE3:
-		case SW_ELECTROWALL:
+		}
+		else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_LASER) ||
+				WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_DROP) ||
+				WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_ELECTROWALL))
+		{
 			Weapon.m_AttackTick = Weapon.Server()->Tick();
 			Weapon.m_TriggerTick = Weapon.Server()->Tick() + 2.0f * Weapon.Server()->TickSpeed();
 			Weapon.m_DestructionTick = Weapon.Server()->Tick() + 4.0f * Weapon.Server()->TickSpeed();
-			break;
-		case SW_AREASHIELD:
+		}
+		else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_AREA_SHIELD))
+		{
 			Weapon.m_AttackTick = Weapon.Server()->Tick();
 			Weapon.m_TriggerTick = Weapon.Server()->Tick() + 2.0f * Weapon.Server()->TickSpeed();
 			Weapon.m_DestructionTick = Weapon.Server()->Tick() + 10.0f * Weapon.Server()->TickSpeed();
-			break;
-		default: break;
 		}
 	}
-	const int ChargeStep = Weapon.m_WeaponProfile.m_Combat.m_FiringType == WFT_THROW ? THROWN_WEAPON_CHARGE_STEP : WEAPON_CHARGE_STEP;
+	const int ChargeStep =
+		Weapon.m_WeaponProfile.m_Combat.m_FiringType == WFT_THROW ? THROWN_WEAPON_CHARGE_STEP : WEAPON_CHARGE_STEP;
 	Weapon.m_Charge = min(Weapon.m_Charge + ChargeStep, WEAPON_CHARGE_MAX);
 	return true;
 }
 
 bool CWeaponBehaviorExecutor::ReleaseCharge(CWeapon &Weapon, float *pKnockback)
 {
+	const char *pStableId = 0;
+	if(HasScriptEvent(Weapon, EWeaponScriptEvent::Release, &pStableId))
+		return DispatchScriptEvent(Weapon, EWeaponScriptEvent::Release, pStableId);
 	(void)pKnockback;
 	if(!Weapon.m_CanFire)
 	{
@@ -211,11 +247,12 @@ bool CWeaponBehaviorExecutor::ReleaseCharge(CWeapon &Weapon, float *pKnockback)
 	if(Weapon.m_WeaponProfile.m_Combat.m_FiringType == WFT_CHARGE)
 	{
 		const CWeaponDefinition &Definition = Weapon.m_WeaponProfile.m_Definition;
-		if(Definition.m_Kind == EWeaponDefinitionKind::Modular && Definition.m_Part1 == PART1_BASE1)
+		if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_CHARGED_BURST))
 		{
 			Weapon.m_TriggerCount = Weapon.m_WeaponSpec.m_Level;
 			if(Weapon.m_TriggerCount)
-				Weapon.m_TriggerTick = Weapon.Server()->Tick() + Weapon.m_FireRate * 0.5f * Weapon.Server()->TickSpeed() / 1000;
+				Weapon.m_TriggerTick =
+					Weapon.Server()->Tick() + Weapon.m_FireRate * 0.5f * Weapon.Server()->TickSpeed() / 1000;
 		}
 		Weapon.CreateProjectile();
 		if(Weapon.m_UseAmmo && Weapon.m_Ammo > 0 && !Weapon.m_InfiniteAmmo)
@@ -229,17 +266,21 @@ bool CWeaponBehaviorExecutor::ReleaseCharge(CWeapon &Weapon, float *pKnockback)
 
 bool CWeaponBehaviorExecutor::Throw(CWeapon &Weapon)
 {
+	const char *pStableId = 0;
+	if(HasScriptEvent(Weapon, EWeaponScriptEvent::Throw, &pStableId))
+		return DispatchScriptEvent(Weapon, EWeaponScriptEvent::Throw, pStableId);
 	if(Weapon.m_Released)
 		return false;
 
 	vec2 Velocity;
 	Velocity.x = sin(Weapon.m_Direction.x) * (Weapon.m_Direction.x > 0.0f ? 1 : -1) * Weapon.m_Vel.x;
 	Velocity.y = sin(Weapon.m_Direction.y) * (Weapon.m_Direction.y > 0.0f ? 1 : -1) * Weapon.m_Vel.y;
-	Weapon.m_Vel = Velocity + Weapon.m_Direction * Weapon.m_Charge * 0.24f * Weapon.m_WeaponProfile.m_Combat.m_ThrowForce;
+	Weapon.m_Vel =
+		Velocity + Weapon.m_Direction * Weapon.m_Charge * 0.24f * Weapon.m_WeaponProfile.m_Combat.m_ThrowForce;
 	Weapon.m_Angle = 0.0f;
 	Weapon.m_AngleForce = Weapon.m_Vel.x * 0.3f;
 
-	if(Weapon.m_WeaponProfile.m_Definition.m_Kind == EWeaponDefinitionKind::Static && Weapon.m_WeaponProfile.m_Definition.m_StaticType == SW_SHURIKEN)
+	if(WeaponHasBehavior(Weapon.m_WeaponProfile.m_Definition, WEAPON_BEHAVIOR_SHURIKEN))
 	{
 		Weapon.m_AngleForce = Weapon.m_Charge * 0.1f * (Weapon.m_Direction.x < 0 ? -1.0f : 1.0f);
 		Weapon.m_AttackTick = Weapon.Server()->Tick();
@@ -256,10 +297,20 @@ void CWeaponBehaviorExecutor::CreateProjectile(CWeapon &Weapon)
 	vec2 StartPos = Weapon.m_Pos + Weapon.m_Direction * Offset.x + vec2(0, Offset.y);
 	const int FiringType = Weapon.m_WeaponProfile.m_Combat.m_FiringType;
 	if(FiringType == WFT_PROJECTILE || FiringType == WFT_HOLD)
-		Weapon.GameServer()->Collision()->IntersectLine(Weapon.m_Pos, StartPos, nullptr, &StartPos);
+		Weapon.GameServer()->Collision()->IntersectLine(Weapon.m_Pos, StartPos, 0, &StartPos);
 
-	Weapon.GameServer()->CreateProjectile(CAttackSource::PlayerWeapon(Weapon.m_Owner, Weapon.m_WeaponSpec), Weapon.m_Charge, StartPos, Weapon.m_Direction, Weapon.m_Pos + vec2(0, 20));
-	if(Weapon.m_FireSound >= 0 && FiringType != WFT_HOLD)
+	Weapon.GameServer()->CreateProjectile(CAttackSource::PlayerWeapon(Weapon.m_Owner, Weapon.m_WeaponSpec),
+										  Weapon.m_Charge,
+										  StartPos,
+										  Weapon.m_Direction,
+										  Weapon.m_Pos + vec2(0, 20));
+	if(FiringType != WFT_HOLD && Weapon.m_WeaponProfile.m_Definition.m_aFireSound[0])
+	{
+		Weapon.GameServer()->CreateWeaponSound(Weapon.m_Pos, Weapon.m_WeaponSpec, 0);
+		if(Weapon.m_WeaponProfile.m_Definition.m_aFireSound2[0])
+			Weapon.GameServer()->CreateWeaponSound(Weapon.m_Pos, Weapon.m_WeaponSpec, 1);
+	}
+	else if(Weapon.m_FireSound >= 0 && FiringType != WFT_HOLD)
 	{
 		Weapon.GameServer()->CreateSound(Weapon.m_Pos, Weapon.m_FireSound);
 		if(Weapon.m_FireSound2 >= 0)
@@ -269,6 +320,12 @@ void CWeaponBehaviorExecutor::CreateProjectile(CWeapon &Weapon)
 
 void CWeaponBehaviorExecutor::Trigger(CWeapon &Weapon)
 {
+	const char *pStableId = 0;
+	if(HasScriptEvent(Weapon, EWeaponScriptEvent::Trigger, &pStableId))
+	{
+		DispatchScriptEvent(Weapon, EWeaponScriptEvent::Trigger, pStableId);
+		return;
+	}
 	if(Weapon.m_WeaponProfile.m_Combat.m_FiringType == WFT_HOLD)
 	{
 		if(Weapon.m_WeaponProfile.m_Visual.m_RenderType != WRT_SPIN || Weapon.Server()->Tick() % 2 == 0)
@@ -277,61 +334,81 @@ void CWeaponBehaviorExecutor::Trigger(CWeapon &Weapon)
 	}
 
 	const CWeaponDefinition &Definition = Weapon.m_WeaponProfile.m_Definition;
-	if(Definition.m_Kind != EWeaponDefinitionKind::Static)
-		return;
-	switch(Definition.m_StaticType)
+	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_LASER))
 	{
-	case SW_GRENADE2:
 		Weapon.m_TriggerTick = Weapon.Server()->Tick() + 0.05f * Weapon.Server()->TickSpeed();
-		new CLaser(&Weapon.GameServer()->m_World, Weapon.m_Pos, RandomDirection(), 160.0f, CAttackSource::PlayerWeapon(Weapon.m_Owner, Weapon.m_WeaponSpec), 4, -2);
-		new CLaser(&Weapon.GameServer()->m_World, Weapon.m_Pos, RandomDirection(), 160.0f, CAttackSource::PlayerWeapon(Weapon.m_Owner, Weapon.m_WeaponSpec), 4, -2);
-		break;
-	case SW_GRENADE3:
+		new CLaser(&Weapon.GameServer()->m_World,
+				   Weapon.m_Pos,
+				   RandomDirection(),
+				   160.0f,
+				   CAttackSource::PlayerWeapon(Weapon.m_Owner, Weapon.m_WeaponSpec),
+				   4,
+				   -2);
+		new CLaser(&Weapon.GameServer()->m_World,
+				   Weapon.m_Pos,
+				   RandomDirection(),
+				   160.0f,
+				   CAttackSource::PlayerWeapon(Weapon.m_Owner, Weapon.m_WeaponSpec),
+				   4,
+				   -2);
+	}
+	else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_DROP))
+	{
 		Weapon.m_TriggerTick = Weapon.Server()->Tick() + 0.25f * Weapon.Server()->TickSpeed();
 		Weapon.GameServer()->CreateEffect(FX_SMALLELECTRIC, Weapon.m_Pos);
 		if(frandom() < 0.35f)
-			Weapon.GameServer()->m_pController->DropPickup(Weapon.m_Pos + vec2(0, -6), POWERUP_HEALTH, vec2(frandom() - frandom(), frandom() - frandom() * 1.4f) * 14.0f, 0);
+			Weapon.GameServer()->m_pController->DropPickup(Weapon.m_Pos + vec2(0, -6),
+														   POWERUP_HEALTH,
+														   vec2(frandom() - frandom(), frandom() - frandom() * 1.4f) *
+															   14.0f,
+														   0);
 		else if(frandom() < 0.4f)
-			Weapon.GameServer()->m_pController->DropPickup(Weapon.m_Pos + vec2(0, -6), POWERUP_AMMO, vec2(frandom() - frandom(), frandom() - frandom() * 1.4f) * 14.0f, 0);
+			Weapon.GameServer()->m_pController->DropPickup(Weapon.m_Pos + vec2(0, -6),
+														   POWERUP_AMMO,
+														   vec2(frandom() - frandom(), frandom() - frandom() * 1.4f) *
+															   14.0f,
+														   0);
 		else if(frandom() < 0.6f)
-			Weapon.GameServer()->m_pController->DropPickup(Weapon.m_Pos + vec2(0, -6), POWERUP_ARMOR, vec2(frandom() - frandom(), frandom() - frandom() * 1.4f) * 14.0f, 0);
+			Weapon.GameServer()->m_pController->DropPickup(Weapon.m_Pos + vec2(0, -6),
+														   POWERUP_ARMOR,
+														   vec2(frandom() - frandom(), frandom() - frandom() * 1.4f) *
+															   14.0f,
+														   0);
 		else
-			Weapon.GameServer()->m_pController->DropPickup(Weapon.m_Pos + vec2(0, -6), POWERUP_KIT, vec2(frandom() - frandom(), frandom() - frandom() * 1.4f) * 14.0f, 0);
-		break;
-	case SW_ELECTROWALL:
+			Weapon.GameServer()->m_pController->DropPickup(Weapon.m_Pos + vec2(0, -6),
+														   POWERUP_KIT,
+														   vec2(frandom() - frandom(), frandom() - frandom() * 1.4f) *
+															   14.0f,
+														   0);
+	}
+	else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_ELECTROWALL))
+	{
 		Weapon.m_TriggerTick = Weapon.Server()->Tick() + 0.1f * Weapon.Server()->TickSpeed();
 		if(CreateElectroWall(Weapon))
 		{
 			Weapon.GameServer()->CreateEffect(FX_SMALLELECTRIC, Weapon.m_Pos);
 			Weapon.m_DestructionTick = Weapon.Server()->Tick();
 		}
-		break;
-	default:
-		break;
 	}
 }
 
 void CWeaponBehaviorExecutor::SelfDestruct(CWeapon &Weapon)
 {
+	const char *pStableId = 0;
+	if(HasScriptEvent(Weapon, EWeaponScriptEvent::Destroy, &pStableId))
+		DispatchScriptEvent(Weapon, EWeaponScriptEvent::Destroy, pStableId);
 	if(!Weapon.m_Released)
 		Weapon.GameServer()->m_pController->ReleaseWeapon(&Weapon);
 	const CWeaponDefinition &Definition = Weapon.m_WeaponProfile.m_Definition;
-	if(Definition.m_Kind == EWeaponDefinitionKind::Static)
+	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_TIMED) ||
+	   WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_LASER) ||
+	   WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_GRENADE_DROP) ||
+	   WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_BOMB))
 	{
-		switch(Definition.m_StaticType)
-		{
-		case SW_GRENADE1:
-		case SW_GRENADE2:
-		case SW_GRENADE3:
-		case SW_BOMB:
-			Weapon.GameServer()->CreateExplosion(Weapon.m_Pos, CAttackSource::PlayerWeapon(Weapon.m_Owner, Weapon.m_WeaponSpec));
-			break;
-		case SW_ELECTROWALL:
-			Weapon.GameServer()->CreateEffect(FX_SMALLELECTRIC, Weapon.m_Pos);
-			break;
-		default:
-			break;
-		}
+		Weapon.GameServer()->CreateExplosion(Weapon.m_Pos,
+											 CAttackSource::PlayerWeapon(Weapon.m_Owner, Weapon.m_WeaponSpec));
 	}
+	else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_ELECTROWALL))
+		Weapon.GameServer()->CreateEffect(FX_SMALLELECTRIC, Weapon.m_Pos);
 	Weapon.GameServer()->m_World.DestroyEntity(&Weapon);
 }

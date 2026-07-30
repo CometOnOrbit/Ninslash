@@ -9,16 +9,18 @@
 #include "versionsrv.h"
 #include "mapversions.h"
 
-enum {
-	MAX_MAPS_PER_PACKET=48,
-	MAX_PACKETS=16,
-	MAX_MAPS=MAX_MAPS_PER_PACKET*MAX_PACKETS,
+enum
+{
+	MAX_MAPS_PER_PACKET = 48,
+	MAX_PACKETS = 16,
+	MAX_MAPS = MAX_MAPS_PER_PACKET * MAX_PACKETS,
 };
 
 struct CPacketData
 {
 	int m_Size;
-	struct {
+	struct
+	{
 		unsigned char m_aHeader[sizeof(VERSIONSRV_MAPLIST)];
 		CMapVersion m_aMaplist[MAX_MAPS_PER_PACKET];
 	} m_Data;
@@ -51,7 +53,7 @@ void BuildPackets()
 			pCurrent++;
 		}
 
-		m_aPackets[m_NumPackets].m_Size = sizeof(VERSIONSRV_MAPLIST) + sizeof(CMapVersion)*Chunk;
+		m_aPackets[m_NumPackets].m_Size = sizeof(VERSIONSRV_MAPLIST) + sizeof(CMapVersion) * Chunk;
 
 		m_NumPackets++;
 	}
@@ -103,13 +105,13 @@ int main(int argc, char **argv) // ignore_convention
 		while(g_NetOp.Recv(&Packet))
 		{
 			if(Packet.m_DataSize == sizeof(VERSIONSRV_GETVERSION) &&
-				mem_comp(Packet.m_pData, VERSIONSRV_GETVERSION, sizeof(VERSIONSRV_GETVERSION)) == 0)
+			   mem_comp(Packet.m_pData, VERSIONSRV_GETVERSION, sizeof(VERSIONSRV_GETVERSION)) == 0)
 			{
 				SendVer(&Packet.m_Address);
 			}
 
 			if(Packet.m_DataSize == sizeof(VERSIONSRV_GETMAPLIST) &&
-				mem_comp(Packet.m_pData, VERSIONSRV_GETMAPLIST, sizeof(VERSIONSRV_GETMAPLIST)) == 0)
+			   mem_comp(Packet.m_pData, VERSIONSRV_GETMAPLIST, sizeof(VERSIONSRV_GETMAPLIST)) == 0)
 			{
 				CNetChunk p;
 				p.m_ClientID = -1;

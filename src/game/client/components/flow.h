@@ -19,7 +19,8 @@ class CFlow : public CComponent
 
 	void DbgRender();
 	void Init();
-public:
+
+  public:
 	CFlow();
 
 	vec2 Get(vec2 Pos);

@@ -19,7 +19,8 @@ class CJob
 
 	JOBFUNC m_pfnFunc;
 	void *m_pFuncData;
-public:
+
+  public:
 	CJob()
 	{
 		m_Status = STATE_DONE;
@@ -28,13 +29,13 @@ public:
 
 	enum
 	{
-		STATE_PENDING=0,
+		STATE_PENDING = 0,
 		STATE_RUNNING,
 		STATE_DONE
 	};
 
 	int Status() const { return m_Status; }
-	int Result() const {return m_Result; }
+	int Result() const { return m_Result; }
 };
 
 class CJobPool
@@ -45,7 +46,7 @@ class CJobPool
 
 	static void WorkerThread(void *pUser);
 
-public:
+  public:
 	CJobPool();
 
 	int Init(int NumThreads);

@@ -46,11 +46,11 @@ Select target and material
 Weapon inventory
 == 武器库存
 
-Automatic barrel
-== 自动枪管
+Rapid-fire barrel
+== 速射枪管
 
-Balanced frame
-== 均衡框架
+Explosive frame
+== 爆破框架
 
 Blade frame
 == 刀刃框架
@@ -70,8 +70,8 @@ Energy blade
 Heavy blade
 == 重型刀刃
 
-Heavy frame
-== 重型框架
+Arc frame
+== 电弧框架
 
 Hook blade
 == 钩刃
@@ -79,20 +79,20 @@ Hook blade
 Light blade
 == 轻型刀刃
 
-Light frame
-== 轻型框架
+Ballistic frame
+== 弹道框架
 
-Long barrel
-== 长枪管
+Precision barrel
+== 精确枪管
 
-Precision frame
-== 精准框架
+Beam frame
+== 光束框架
 
-Rail barrel
-== 轨道枪管
+Piercing barrel
+== 穿透枪管
 
-Rapid frame
-== 速射框架
+Marksman frame
+== 精确射击框架
 
 Saw blade
 == 锯刃
@@ -100,14 +100,17 @@ Saw blade
 Scatter barrel
 == 散射枪管
 
-Bounce frame
-== 弹射框架
+Ricochet frame
+== 跳弹框架
 
 Spin frame
 == 旋刃框架
 
 Standard barrel
 == 标准枪管
+
+Overcharge capacitor
+== 过载电容
 
 Activate
 == 启用
@@ -843,6 +846,15 @@ Flip move & aim axis
 
 Folder
 == 文件夹
+
+Enter the full path to a ZIP package.
+== 输入 ZIP 内容包的完整路径。
+
+Import
+== 导入
+
+Unsubscribe from this Workshop item before installing a different local package with the same ID.
+== 请先取消订阅此创意工坊项目，再安装具有相同 ID 的其他本地内容包。
 
 Follow factor
 == 跟随系数
@@ -3945,11 +3957,20 @@ Dedicated servers and Steam rooms
 Disable
 == 禁用
 
+Disable Mod
+== 停用模组
+
 Downloading Mod
 == 正在下载模组
 
 Enable
 == 启用
+
+Enable Mod
+== 启用模组
+
+Enabled
+== 已启用
 
 FRIEND
 == 好友
@@ -3981,14 +4002,32 @@ Loading map
 Local / LAN game
 == 本地 / 局域网游戏
 
+Local Mods
+== 本地模组
+
 Mods
 == 模组
+
+Mod manager
+== 模组管理器
+
+Mod manager is unavailable.
+== 模组管理器不可用。
+
+The Mod change will apply after reconnecting.
+== 模组更改将在重新连接后生效。
+
+Unable to update the enabled Mod collection.
+== 无法更新已启用的模组集合。
 
 No Mods in this category.
 == 此分类中没有模组。
 
 Not verified
 == 未验证
+
+Invalid Mod
+== 无效模组
 
 OFFICIAL
 == 官方
@@ -4909,3 +4948,33 @@ Refill all ammo now
 
 A tie or no votes grants one final retry.
 == 平票或无人投票时获得一次最终重试。
+
+Import ZIP
+== 导入 ZIP
+
+Replace local Mod?
+== 替换本地模组？
+
+Replace
+== 替换
+
+Unable to import Mod
+== 无法导入模组
+
+Unable to start the Mod import.
+== 无法启动模组导入。
+
+Unable to open the ZIP importer.
+== 无法打开 ZIP 导入器。
+
+This Mod version is already installed.
+== 已安装此版本的模组。
+
+Disconnect before replacing an enabled Mod.
+== 请先断开连接，再替换已启用的模组。
+
+Mod installed
+== 模组已安装
+
+Folder
+== 文件夹

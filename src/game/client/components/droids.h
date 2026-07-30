@@ -8,8 +8,8 @@ class CDroids : public CComponent
 	void RenderWalker(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID);
 	void RenderStar(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID);
 	void RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID);
-	
-public:
+
+  public:
 	virtual void OnReset();
 	virtual void OnRender();
 };

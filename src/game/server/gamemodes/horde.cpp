@@ -30,10 +30,9 @@ static int HordeConcurrentEnemyCap(int Wave)
 	return min(18, 12 + Wave / 2);
 }
 
-CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer)
-: IGameController(pGameServer)
+CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer) : IGameController(pGameServer)
 {
-	m_pGameType = "HORDE";
+	m_pGameType = "Horde";
 	m_GameFlags = GAMEFLAG_COOP;
 	m_GameState = STATE_STARTING;
 
@@ -76,9 +75,13 @@ CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer)
 	g_Config.m_SvSurvivalTime = 0;
 	g_Config.m_SvSurvivalAcid = 0;
 	// keep map as-is; optional one-shot mapgen via cfg, never level++
-	dbg_msg("horde", "rules: target_waves=%d roguelite=%d contracts=%d seed=%d random_seed=%d",
-		g_Config.m_SvScorelimit, g_Config.m_SvPveRoguelite, g_Config.m_SvPveContracts,
-		g_Config.m_SvMapGenSeed, g_Config.m_SvMapGenRandSeed);
+	dbg_msg("horde",
+			"rules: target_waves=%d roguelite=%d contracts=%d seed=%d random_seed=%d",
+			g_Config.m_SvScorelimit,
+			g_Config.m_SvPveRoguelite,
+			g_Config.m_SvPveContracts,
+			g_Config.m_SvMapGenSeed,
+			g_Config.m_SvMapGenRandSeed);
 
 	if(g_Config.m_SvEnableBuilding)
 		m_GameFlags |= GAMEFLAG_BUILD;
@@ -130,7 +133,8 @@ bool CGameControllerHorde::GetSpawnPos(int Team, vec2 *pOutPos)
 
 bool CGameControllerHorde::GetBossSpawnPos(vec2 *pOutPos)
 {
-	if(FindBossSpawnPosition(&GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
+	if(FindBossSpawnPosition(
+		   &GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
 		return true;
 	if(!GetSpawnPos(0, pOutPos))
 		return false;
@@ -222,8 +226,11 @@ void CGameControllerHorde::EnsureDefenseArea(vec2 FallbackPos)
 	m_DefenseAreaReady = true;
 	CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
 	pRadar->Activate(m_DefenseAreaCenter);
-	dbg_msg("horde", "defense area: center=(%.0f,%.0f) radius=%d",
-		m_DefenseAreaCenter.x, m_DefenseAreaCenter.y, PVE_HORDE_DEFENSE_RADIUS);
+	dbg_msg("horde",
+			"defense area: center=(%.0f,%.0f) radius=%d",
+			m_DefenseAreaCenter.x,
+			m_DefenseAreaCenter.y,
+			PVE_HORDE_DEFENSE_RADIUS);
 }
 
 bool CGameControllerHorde::InDefenseArea(vec2 Pos) const
@@ -242,9 +249,8 @@ bool CGameControllerHorde::HeavyContractActive() const
 	if(!GameServer()->m_pPveDirector)
 		return false;
 	const int Contract = GameServer()->m_pPveDirector->ActiveContract();
-	return Contract == PVE_CONTRACT_NO_RESPAWN
-		|| Contract == PVE_CONTRACT_BOSS_RUSH
-		|| Contract == PVE_CONTRACT_RISING_TIDE;
+	return Contract == PVE_CONTRACT_NO_RESPAWN || Contract == PVE_CONTRACT_BOSS_RUSH ||
+		   Contract == PVE_CONTRACT_RISING_TIDE;
 }
 
 bool CGameControllerHorde::BossContractActive() const
@@ -324,43 +330,43 @@ void CGameControllerHorde::RollWaveEvent()
 	m_LastEventWave = m_Wave;
 	switch(Picked)
 	{
-	case HORDE_EVENT_BREATHER:
-		m_EventCountMod = 0.75f;
-		GameServer()->SendBroadcast("Event: Breather wave", -1);
-		break;
-	case HORDE_EVENT_RABBLE:
-		m_EventCountMod = 1.30f;
-		m_EventLevelMod = -2;
-		GameServer()->SendBroadcast("Event: Rabble swarm!", -1);
-		break;
-	case HORDE_EVENT_HARDENED_SQUAD:
-		m_EventCountMod = 0.85f;
-		m_EventLevelMod = 2;
-		GameServer()->SendBroadcast("Event: Hardened squad!", -1);
-		break;
-	case HORDE_EVENT_CRAWLER_PACK:
-		GameServer()->SendBroadcast("Event: Crawler pack!", -1);
-		break;
-	case HORDE_EVENT_SUPPLY_DROP:
-		GameServer()->SendBroadcast("Event: Supply drop!", -1);
-		break;
-	case HORDE_EVENT_FIELD_RATIONS:
-		GameServer()->SendBroadcast("Event: Field rations!", -1);
-		break;
-	case HORDE_EVENT_FORTIFY_DROP:
-		GameServer()->SendBroadcast("Event: Fortify drop!", -1);
-		break;
-	case HORDE_EVENT_REINFORCEMENTS:
-		m_EventActionTick = 1;
-		GameServer()->SendBroadcast("Event: Reinforcements inbound!", -1);
-		break;
-	case HORDE_EVENT_CRAWLER_NEST:
-		m_EventActionTick = 1;
-		GameServer()->SendBroadcast("Event: Crawler nest!", -1);
-		break;
-	case HORDE_EVENT_ROGUE_BOSS:
-		GameServer()->SendBroadcast("Event: Rogue boss!", -1);
-		break;
+		case HORDE_EVENT_BREATHER:
+			m_EventCountMod = 0.75f;
+			GameServer()->SendBroadcast("Event: Breather wave", -1);
+			break;
+		case HORDE_EVENT_RABBLE:
+			m_EventCountMod = 1.30f;
+			m_EventLevelMod = -2;
+			GameServer()->SendBroadcast("Event: Rabble swarm!", -1);
+			break;
+		case HORDE_EVENT_HARDENED_SQUAD:
+			m_EventCountMod = 0.85f;
+			m_EventLevelMod = 2;
+			GameServer()->SendBroadcast("Event: Hardened squad!", -1);
+			break;
+		case HORDE_EVENT_CRAWLER_PACK:
+			GameServer()->SendBroadcast("Event: Crawler pack!", -1);
+			break;
+		case HORDE_EVENT_SUPPLY_DROP:
+			GameServer()->SendBroadcast("Event: Supply drop!", -1);
+			break;
+		case HORDE_EVENT_FIELD_RATIONS:
+			GameServer()->SendBroadcast("Event: Field rations!", -1);
+			break;
+		case HORDE_EVENT_FORTIFY_DROP:
+			GameServer()->SendBroadcast("Event: Fortify drop!", -1);
+			break;
+		case HORDE_EVENT_REINFORCEMENTS:
+			m_EventActionTick = 1;
+			GameServer()->SendBroadcast("Event: Reinforcements inbound!", -1);
+			break;
+		case HORDE_EVENT_CRAWLER_NEST:
+			m_EventActionTick = 1;
+			GameServer()->SendBroadcast("Event: Crawler nest!", -1);
+			break;
+		case HORDE_EVENT_ROGUE_BOSS:
+			GameServer()->SendBroadcast("Event: Rogue boss!", -1);
+			break;
 	}
 }
 
@@ -490,7 +496,7 @@ int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller
 		pVictim->GetPlayer()->m_ToBeKicked = true;
 	}
 	else if(HumanVictim && g_Config.m_SvSurvivalMode && !m_RoundOverTick &&
-		CountHumansAlive(pVictimPlayer->GetCID()) <= 0)
+			CountHumansAlive(pVictimPlayer->GetCID()) <= 0)
 	{
 		// OnCharacterDeath runs before the victim is marked dead. Excluding its
 		// CID makes a solo death and the final death of a party end the run, while
@@ -503,7 +509,8 @@ int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller
 	else if(HumanVictim)
 	{
 		const bool RespawnAllowed = !GameServer()->m_pPveDirector || GameServer()->m_pPveDirector->RespawnAllowed();
-		pVictimPlayer->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * (RespawnAllowed ? g_Config.m_SvRespawnDelay : 3600);
+		pVictimPlayer->m_RespawnTick =
+			Server()->Tick() + Server()->TickSpeed() * (RespawnAllowed ? g_Config.m_SvRespawnDelay : 3600);
 	}
 
 	return 0;
@@ -534,8 +541,12 @@ void CGameControllerHorde::NextWave()
 		m_EventWaveBudget = m_Deaths;
 
 	const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
-		m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, EnemyLevel(), m_EnemiesLeft,
-		HordeConcurrentEnemyCap(m_Wave));
+																			   m_aEnemySpawnPos,
+																			   m_NumEnemySpawnPos,
+																			   &m_SpawnPosRotation,
+																			   EnemyLevel(),
+																			   m_EnemiesLeft,
+																			   HordeConcurrentEnemyCap(m_Wave));
 	m_EnemiesLeft -= ThreatReplacement.m_ThreatSpent;
 	m_Deaths -= ThreatReplacement.m_ThreatSpent;
 
@@ -569,7 +580,8 @@ void CGameControllerHorde::NextWave()
 			SpawnBoss(&GameServer()->m_World, p, max(5, m_Wave + 2));
 		}
 	}
-	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT && !m_EliteContractSpawned)
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT &&
+	   !m_EliteContractSpawned)
 	{
 		vec2 p;
 		if(!GetBossSpawnPos(&p))
@@ -615,7 +627,7 @@ void CGameControllerHorde::Tick()
 		if(CountPlayers(0) > 0 && !m_WaveStartTick)
 		{
 			if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled() &&
-				!GameServer()->m_pPveDirector->ProgressReady() && Server()->Tick() < m_RogueliteWaitTick)
+			   !GameServer()->m_pPveDirector->ProgressReady() && Server()->Tick() < m_RogueliteWaitTick)
 				return;
 			if(!m_RogueliteStarted)
 			{
@@ -643,7 +655,8 @@ void CGameControllerHorde::Tick()
 		// permanently after their first batch was killed.
 		if(!m_RoundOverTick && !m_WaveStartTick && m_EnemiesLeft > 0)
 		{
-			const int Missing = max(0, HordeConcurrentEnemyCap(m_Wave) - CountAliveSpecialists(&GameServer()->m_World) - CountBots());
+			const int Missing =
+				max(0, HordeConcurrentEnemyCap(m_Wave) - CountAliveSpecialists(&GameServer()->m_World) - CountBots());
 			const int SpawnCount = min(m_EnemiesLeft, Missing);
 			for(int i = 0; i < SpawnCount; i++)
 				GameServer()->AddBot();
@@ -651,8 +664,9 @@ void CGameControllerHorde::Tick()
 
 		TickWaveEvent();
 
-		if(!m_RoundOverTick && m_Deaths <= 0 && !CountBotsAlive() && CountAliveSpecialists(&GameServer()->m_World) <= 0 && AliveBossCount() <= 0
-			&& CountPlayersAlive(-1, true) > 0 && !m_WaveStartTick)
+		if(!m_RoundOverTick && m_Deaths <= 0 && !CountBotsAlive() &&
+		   CountAliveSpecialists(&GameServer()->m_World) <= 0 && AliveBossCount() <= 0 &&
+		   CountPlayersAlive(-1, true) > 0 && !m_WaveStartTick)
 		{
 			if(m_LastContractProgressWave != m_Wave && GameServer()->m_pPveDirector)
 			{
@@ -685,7 +699,8 @@ void CGameControllerHorde::Tick()
 						Server()->SendPlatformEvent(i, PLATFORM_EVENT_STAT_COOP_COMPLETIONS, 1);
 						if(!g_Config.m_SvMapGenRandSeed)
 						{
-							const int ElapsedMs = (int)(((long long)(Server()->Tick() - m_RoundStartTick) * 1000) / Server()->TickSpeed());
+							const int ElapsedMs = (int)(((long long)(Server()->Tick() - m_RoundStartTick) * 1000) /
+														Server()->TickSpeed());
 							Server()->SendPlatformEvent(i, PLATFORM_EVENT_LB_FIXED_SEED_TIME_MS, max(1, ElapsedMs));
 						}
 					}
@@ -733,7 +748,8 @@ void CGameControllerHorde::Snap(int SnappingClient)
 {
 	IGameController::Snap(SnappingClient);
 
-	CNetObj_GameData *pGameDataObj = (CNetObj_GameData *)Server()->SnapNewItem(NETOBJTYPE_GAMEDATA, 0, sizeof(CNetObj_GameData));
+	CNetObj_GameData *pGameDataObj =
+		(CNetObj_GameData *)Server()->SnapNewItem(NETOBJTYPE_GAMEDATA, 0, sizeof(CNetObj_GameData));
 	if(!pGameDataObj)
 		return;
 

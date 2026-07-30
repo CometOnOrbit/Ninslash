@@ -12,8 +12,9 @@
 
 #include "sound.h"
 
-extern "C" { // wavpack
-	#include <engine/external/wavpack/wavpack.h>
+extern "C"
+{ // wavpack
+#include <engine/external/wavpack/wavpack.h>
 }
 #include <math.h>
 
@@ -39,7 +40,7 @@ struct CChannel
 {
 	int m_Vol;
 	int m_Pan;
-} ;
+};
 
 struct CVoice
 {
@@ -49,11 +50,11 @@ struct CVoice
 	int m_Vol; // 0 - 255
 	int m_Flags;
 	int m_X, m_Y;
-} ;
+};
 
-static CSample m_aSamples[NUM_SAMPLES] = { {0} };
-static CVoice m_aVoices[NUM_VOICES] = { {0} };
-static CChannel m_aChannels[NUM_CHANNELS] = { {255, 0} };
+static CSample m_aSamples[NUM_SAMPLES] = {{0}};
+static CVoice m_aVoices[NUM_VOICES] = {{0}};
+static CChannel m_aChannels[NUM_CHANNELS] = {{255, 0}};
 
 static LOCK m_SoundLock = 0;
 
@@ -64,7 +65,7 @@ static int m_MixingRate = 48000;
 static volatile int m_SoundVolume = 100;
 
 static int m_NextVoice = 0;
-static int *m_pMixBuffer = 0;	// buffer only used by the thread callback function
+static int *m_pMixBuffer = 0; // buffer only used by the thread callback function
 static unsigned m_MaxFrames = 0;
 
 // TODO: there should be a faster way todo this
@@ -79,7 +80,7 @@ static short Int2Short(int i)
 
 static int IntAbs(int i)
 {
-	if(i<0)
+	if(i < 0)
 		return -i;
 	return i;
 }
@@ -87,7 +88,7 @@ static int IntAbs(int i)
 static void Mix(short *pFinalOut, unsigned Frames)
 {
 	int MasterVol;
-	mem_zero(m_pMixBuffer, m_MaxFrames*2*sizeof(int));
+	mem_zero(m_pMixBuffer, m_MaxFrames * 2 * sizeof(int));
 	Frames = min(Frames, m_MaxFrames);
 
 	// aquire lock while we are mixing
@@ -104,10 +105,10 @@ static void Mix(short *pFinalOut, unsigned Frames)
 			int *pOut = m_pMixBuffer;
 
 			int Step = v->m_pSample->m_Channels; // setup input sources
-			short *pInL = &v->m_pSample->m_pData[v->m_Tick*Step];
-			short *pInR = &v->m_pSample->m_pData[v->m_Tick*Step+1];
+			short *pInL = &v->m_pSample->m_pData[v->m_Tick * Step];
+			short *pInR = &v->m_pSample->m_pData[v->m_Tick * Step + 1];
 
-			unsigned End = v->m_pSample->m_NumFrames-v->m_Tick;
+			unsigned End = v->m_pSample->m_NumFrames - v->m_Tick;
 
 			int Rvol = v->m_pChannel->m_Vol;
 			int Lvol = v->m_pChannel->m_Vol;
@@ -121,25 +122,25 @@ static void Mix(short *pFinalOut, unsigned Frames)
 				pInR = pInL;
 
 			// volume calculation
-			if(v->m_Flags&ISound::FLAG_POS && v->m_pChannel->m_Pan)
+			if(v->m_Flags & ISound::FLAG_POS && v->m_pChannel->m_Pan)
 			{
 				// TODO: we should respect the channel panning value
 				const int Range = 1500; // magic value, remove
 				int dx = v->m_X - m_CenterX;
 				int dy = v->m_Y - m_CenterY;
-				int Dist = (int)sqrtf((float)dx*dx+dy*dy); // float here. nasty
+				int Dist = (int)sqrtf((float)dx * dx + dy * dy); // float here. nasty
 				int p = IntAbs(dx);
 				if(Dist >= 0 && Dist < Range)
 				{
 					// panning
 					if(dx > 0)
-						Lvol = ((Range-p)*Lvol)/Range;
+						Lvol = ((Range - p) * Lvol) / Range;
 					else
-						Rvol = ((Range-p)*Rvol)/Range;
+						Rvol = ((Range - p) * Rvol) / Range;
 
 					// falloff
-					Lvol = (Lvol*(Range-Dist))/Range;
-					Rvol = (Rvol*(Range-Dist))/Range;
+					Lvol = (Lvol * (Range - Dist)) / Range;
+					Rvol = (Rvol * (Range - Dist)) / Range;
 				}
 				else
 				{
@@ -151,8 +152,8 @@ static void Mix(short *pFinalOut, unsigned Frames)
 			// process all frames
 			for(unsigned s = 0; s < End; s++)
 			{
-				*pOut++ += (*pInL)*Lvol;
-				*pOut++ += (*pInR)*Rvol;
+				*pOut++ += (*pInL) * Lvol;
+				*pOut++ += (*pInR) * Rvol;
 				pInL += Step;
 				pInR += Step;
 				v->m_Tick++;
@@ -161,14 +162,13 @@ static void Mix(short *pFinalOut, unsigned Frames)
 			// free voice if not used any more
 			if(v->m_Tick == v->m_pSample->m_NumFrames)
 			{
-				if(v->m_Flags&ISound::FLAG_LOOP)
+				if(v->m_Flags & ISound::FLAG_LOOP)
 					v->m_Tick = 0;
 				else
 					v->m_pSample = 0;
 			}
 		}
 	}
-
 
 	// release the lock
 	lock_unlock(m_SoundLock);
@@ -178,12 +178,12 @@ static void Mix(short *pFinalOut, unsigned Frames)
 		// TODO: this seams slow
 		for(unsigned i = 0; i < Frames; i++)
 		{
-			int j = i<<1;
-			int vl = ((m_pMixBuffer[j]*MasterVol)/101)>>8;
-			int vr = ((m_pMixBuffer[j+1]*MasterVol)/101)>>8;
+			int j = i << 1;
+			int vl = ((m_pMixBuffer[j] * MasterVol) / 101) >> 8;
+			int vr = ((m_pMixBuffer[j + 1] * MasterVol) / 101) >> 8;
 
 			pFinalOut[j] = Int2Short(vl);
-			pFinalOut[j+1] = Int2Short(vr);
+			pFinalOut[j + 1] = Int2Short(vr);
 		}
 	}
 
@@ -195,16 +195,16 @@ static void Mix(short *pFinalOut, unsigned Frames)
 static void SDLCallback(void *pUnused, Uint8 *pStream, int Len)
 {
 	(void)pUnused;
-	Mix((short *)pStream, Len/2/2);
+	Mix((short *)pStream, Len / 2 / 2);
 }
 
 static void SDLNewCallback(void *pUnused, SDL_AudioStream *pStream, int AdditionalAmount, int TotalAmount)
 {
 	/* Calculate a little more audio here, maybe using `userdata`, write it to `stream`
-		*
-		* If you want to use the original callback, you could do something like this:
-		*/
-	if (AdditionalAmount > 0)
+	 *
+	 * If you want to use the original callback, you could do something like this:
+	 */
+	if(AdditionalAmount > 0)
 	{
 		Uint8 *pData = SDL_stack_alloc(Uint8, AdditionalAmount);
 		if(pData)
@@ -215,8 +215,6 @@ static void SDLNewCallback(void *pUnused, SDL_AudioStream *pStream, int Addition
 		}
 	}
 }
-
-
 
 int CSound::Init()
 {
@@ -238,7 +236,7 @@ int CSound::Init()
 	m_MixingRate = g_Config.m_SndRate;
 
 	const SDL_AudioSpec Format = {SDL_AUDIO_S16, 2, g_Config.m_SndRate};
-	SDL_AudioStream *pStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &Format, SDLNewCallback, nullptr);
+	SDL_AudioStream *pStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &Format, SDLNewCallback, 0);
 	// Open the audio device and start playing sound!
 	if(!pStream)
 	{
@@ -248,10 +246,10 @@ int CSound::Init()
 	else
 		dbg_msg("client/sound", "sound init successful");
 
-	m_MaxFrames = g_Config.m_SndBufferSize*2;
-	m_pMixBuffer = (int *)mem_alloc(m_MaxFrames*2*sizeof(int), 1);
+	m_MaxFrames = g_Config.m_SndBufferSize * 2;
+	m_pMixBuffer = (int *)mem_alloc(m_MaxFrames * 2 * sizeof(int), 1);
 
-    SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(pStream));
+	SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(pStream));
 
 	m_SoundEnabled = 1;
 	Update(); // update the volume
@@ -311,24 +309,24 @@ void CSound::RateConvert(int SampleID)
 		return;
 
 	// allocate new data
-	NumFrames = max(1, (int)((pSample->m_NumFrames/(float)pSample->m_Rate)*m_MixingRate));
-	pNewData = (short *)mem_alloc(NumFrames*pSample->m_Channels*sizeof(short), 1);
+	NumFrames = max(1, (int)((pSample->m_NumFrames / (float)pSample->m_Rate) * m_MixingRate));
+	pNewData = (short *)mem_alloc(NumFrames * pSample->m_Channels * sizeof(short), 1);
 
 	for(int i = 0; i < NumFrames; i++)
 	{
 		// resample TODO: this should be done better, like linear atleast
-		float a = i/(float)NumFrames;
-		int f = (int)(a*pSample->m_NumFrames);
+		float a = i / (float)NumFrames;
+		int f = (int)(a * pSample->m_NumFrames);
 		if(f >= pSample->m_NumFrames)
-			f = pSample->m_NumFrames-1;
+			f = pSample->m_NumFrames - 1;
 
 		// set new data
 		if(pSample->m_Channels == 1)
 			pNewData[i] = pSample->m_pData[f];
 		else if(pSample->m_Channels == 2)
 		{
-			pNewData[i*2] = pSample->m_pData[f*2];
-			pNewData[i*2+1] = pSample->m_pData[f*2+1];
+			pNewData[i * 2] = pSample->m_pData[f * 2];
+			pNewData[i * 2 + 1] = pSample->m_pData[f * 2 + 1];
 		}
 	}
 
@@ -376,7 +374,7 @@ int CSound::LoadWV(const char *pFilename)
 	{
 		dbg_msg("sound/wv", "failed to open %s: %s", pFilename, aError);
 		io_close(ms_File);
-		ms_File = NULL;
+		ms_File = 0;
 		return -1;
 	}
 
@@ -384,11 +382,18 @@ int CSound::LoadWV(const char *pFilename)
 	const int BitsPerSample = WavpackGetBitsPerSample(pContext);
 	const unsigned int SampleRate = WavpackGetSampleRate(pContext);
 	const int Channels = WavpackGetNumChannels(pContext);
-	if(Channels < 1 || Channels > 2 || BitsPerSample != 16 || !SampleRate || NumFrames <= 0 || NumFrames > 16 * 1024 * 1024 / Channels)
+	if(Channels < 1 || Channels > 2 || BitsPerSample != 16 || !SampleRate || NumFrames <= 0 ||
+	   NumFrames > 16 * 1024 * 1024 / Channels)
 	{
-		dbg_msg("sound/wv", "invalid sound format. filename='%s' frames=%d channels=%d bps=%d rate=%u", pFilename, NumFrames, Channels, BitsPerSample, SampleRate);
+		dbg_msg("sound/wv",
+				"invalid sound format. filename='%s' frames=%d channels=%d bps=%d rate=%u",
+				pFilename,
+				NumFrames,
+				Channels,
+				BitsPerSample,
+				SampleRate);
 		io_close(ms_File);
-		ms_File = NULL;
+		ms_File = 0;
 		return -1;
 	}
 
@@ -397,10 +402,11 @@ int CSound::LoadWV(const char *pFilename)
 	const unsigned int Unpacked = WavpackUnpackSamples(pContext, pData, NumFrames);
 	if(Unpacked != (unsigned int)NumFrames)
 	{
-		dbg_msg("sound/wv", "truncated sound data. filename='%s' expected=%d decoded=%u", pFilename, NumFrames, Unpacked);
+		dbg_msg(
+			"sound/wv", "truncated sound data. filename='%s' expected=%d decoded=%u", pFilename, NumFrames, Unpacked);
 		mem_free(pData);
 		io_close(ms_File);
-		ms_File = NULL;
+		ms_File = 0;
 		return -1;
 	}
 
@@ -409,7 +415,7 @@ int CSound::LoadWV(const char *pFilename)
 		pDecoded[i] = (short)pData[i];
 	mem_free(pData);
 	io_close(ms_File);
-	ms_File = NULL;
+	ms_File = 0;
 
 	CSample *pSample = &m_aSamples[SampleID];
 	pSample->m_pData = pDecoded;
@@ -433,11 +439,10 @@ void CSound::SetListenerPos(float x, float y)
 	m_CenterY = (int)y;
 }
 
-
 void CSound::SetChannel(int ChannelID, float Vol, float Pan)
 {
-	m_aChannels[ChannelID].m_Vol = (int)(Vol*255.0f);
-	m_aChannels[ChannelID].m_Pan = (int)(Pan*255.0f); // TODO: this is only on and off right now
+	m_aChannels[ChannelID].m_Vol = (int)(Vol * 255.0f);
+	m_aChannels[ChannelID].m_Pan = (int)(Pan * 255.0f); // TODO: this is only on and off right now
 }
 
 int CSound::Play(int ChannelID, int SampleID, int Flags, float x, float y)
@@ -454,7 +459,7 @@ int CSound::Play(int ChannelID, int SampleID, int Flags, float x, float y)
 		if(!m_aVoices[id].m_pSample)
 		{
 			VoiceID = id;
-			m_NextVoice = id+1;
+			m_NextVoice = id + 1;
 			break;
 		}
 	}
@@ -480,7 +485,7 @@ int CSound::Play(int ChannelID, int SampleID, int Flags, float x, float y)
 
 int CSound::PlayAt(int ChannelID, int SampleID, int Flags, float x, float y)
 {
-	return Play(ChannelID, SampleID, Flags|ISound::FLAG_POS, x, y);
+	return Play(ChannelID, SampleID, Flags | ISound::FLAG_POS, x, y);
 }
 
 int CSound::Play(int ChannelID, int SampleID, int Flags)
@@ -527,4 +532,7 @@ void CSound::StopAll()
 
 IOHANDLE CSound::ms_File = 0;
 
-IEngineSound *CreateEngineSound() { return new CSound; }
+IEngineSound *CreateEngineSound()
+{
+	return new CSound;
+}

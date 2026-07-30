@@ -6,7 +6,7 @@
 
 class CPveDronePulse : public CEntity
 {
-public:
+  public:
 	CPveDronePulse(CGameWorld *pGameWorld, vec2 From, vec2 To, const CAttackSource &Source);
 
 	void Reset() override;
@@ -14,7 +14,7 @@ public:
 	void TickPaused() override;
 	void Snap(int SnappingClient) override;
 
-private:
+  private:
 	vec2 m_From;
 	vec2 m_To;
 	CAttackSource m_Source;

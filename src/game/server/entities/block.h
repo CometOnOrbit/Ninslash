@@ -7,7 +7,7 @@ const int BlockPhysSize = 32;
 
 class CBlock : public CEntity
 {
-public:
+  public:
 	CBlock(CGameWorld *pGameWorld, int Type, vec2 Pos);
 
 	virtual void Reset();
@@ -23,16 +23,16 @@ public:
 	int m_PveBuilder;
 	int m_PveKitCost;
 	bool m_PveRefunded;
-	
+
 	bool m_aSnapped[MAX_CLIENTS];
 	int m_aSnapTimer[MAX_CLIENTS];
-	
+
 	void Sync();
 	void Destroy();
 
 	void TakeDamage(int Damage);
-	
-private:
+
+  private:
 	int m_OriginalType;
 };
 

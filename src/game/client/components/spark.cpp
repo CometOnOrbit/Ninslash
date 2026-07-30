@@ -15,18 +15,17 @@ CSpark::CSpark()
 	m_RenderArea1.m_pParts = this;
 }
 
-
 void CSpark::OnReset()
 {
 	// reset blood
 	for(int i = 0; i < MAX_SPARKS; i++)
 	{
-		m_aSpark[i].m_PrevPart = i-1;
-		m_aSpark[i].m_NextPart = i+1;
+		m_aSpark[i].m_PrevPart = i - 1;
+		m_aSpark[i].m_NextPart = i + 1;
 	}
 
 	m_aSpark[0].m_PrevPart = 0;
-	m_aSpark[MAX_SPARKS-1].m_NextPart = -1;
+	m_aSpark[MAX_SPARKS - 1].m_NextPart = -1;
 	m_FirstFree = 0;
 
 	for(int i = 0; i < NUM_GROUPS; i++)
@@ -43,11 +42,12 @@ void CSpark::Add(int Group, CSinglespark *pPart)
 	}
 	else
 	{
-		if(m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED)
+		if(m_pClient->m_Snap.m_pGameInfoObj &&
+		   m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED)
 			return;
 	}
 
-	if (m_FirstFree == -1)
+	if(m_FirstFree == -1)
 		return;
 
 	// remove from the free list
@@ -80,26 +80,24 @@ void CSpark::Update(float TimePassed)
 			int Next = m_aSpark[i].m_NextPart;
 
 			// move the point
-			vec2 Vel = m_aSpark[i].m_Vel*TimePassed;
-			
-			
+			vec2 Vel = m_aSpark[i].m_Vel * TimePassed;
+
 			m_aSpark[i].m_Pos += Vel;
-			
-			m_aSpark[i].m_Vel = Vel* (1.0f/TimePassed);
+
+			m_aSpark[i].m_Vel = Vel * (1.0f / TimePassed);
 
 			m_aSpark[i].m_Life += TimePassed;
-			
-			
-			if (abs(m_aSpark[i].m_Vel.x) + abs(m_aSpark[i].m_Vel.y) > 60.0f)
+
+			if(abs(m_aSpark[i].m_Vel.x) + abs(m_aSpark[i].m_Vel.y) > 60.0f)
 			{
-				if (m_aSpark[i].m_Rotspeed == 0.0f)
+				if(m_aSpark[i].m_Rotspeed == 0.0f)
 					m_aSpark[i].m_Rot = GetAngle(m_aSpark[i].m_Vel);
 				else
 				{
 					m_aSpark[i].m_Rot += TimePassed * m_aSpark[i].m_Rotspeed;
 				}
 			}
-				
+
 			// check death
 			if(m_aSpark[i].m_Life > m_aSpark[i].m_LifeSpan)
 			{
@@ -137,12 +135,13 @@ void CSpark::OnRender()
 	{
 		const IDemoPlayer::CInfo *pInfo = DemoPlayer()->BaseInfo();
 		if(!pInfo->m_Paused)
-			Update((float)((t-LastTime)/(double)time_freq())*pInfo->m_Speed);
+			Update((float)((t - LastTime) / (double)time_freq()) * pInfo->m_Speed);
 	}
 	else
 	{
-		if(m_pClient->m_Snap.m_pGameInfoObj && !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED))
-			Update((float)((t-LastTime)/(double)time_freq()));
+		if(m_pClient->m_Snap.m_pGameInfoObj &&
+		   !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED))
+			Update((float)((t - LastTime) / (double)time_freq()));
 	}
 
 	LastTime = t;
@@ -151,9 +150,8 @@ void CSpark::OnRender()
 void CSpark::RenderGroup(int Group)
 {
 	Graphics()->BlendNormal();
-	
-	
-	if (Group == GROUP_SPARKS)
+
+	if(Group == GROUP_SPARKS)
 	{
 		Graphics()->TextureSet(-1);
 		Graphics()->QuadsBegin();
@@ -177,11 +175,10 @@ void CSpark::RenderGroup(int Group)
 			IGraphics::CQuadItem QuadItem(p.x, p.y, Size, Size);
 			Graphics()->QuadsDraw(&QuadItem, 1);
 			*/
-			
 
 			float a = 1.0f - m_aSpark[i].m_Life / m_aSpark[i].m_LifeSpan;
 			vec2 p = m_aSpark[i].m_Pos;
-			
+
 			/*
 			Graphics()->SetColor(
 				m_aSpark[i].m_Color.r,
@@ -189,33 +186,41 @@ void CSpark::RenderGroup(int Group)
 				m_aSpark[i].m_Color.b,
 				1.2f-a); // pow(a, 0.75f) *
 			*/
-				
+
 			IGraphics::CColorVertex aColors[4] = {
 				IGraphics::CColorVertex(0, m_aSpark[i].m_Color.r, m_aSpark[i].m_Color.g, m_aSpark[i].m_Color.b, a),
 				IGraphics::CColorVertex(1, m_aSpark[i].m_Color.r, m_aSpark[i].m_Color.g, m_aSpark[i].m_Color.b, a),
 				IGraphics::CColorVertex(2, m_aSpark[i].m_Color.r, m_aSpark[i].m_Color.g, m_aSpark[i].m_Color.b, 0.0f),
 				IGraphics::CColorVertex(3, m_aSpark[i].m_Color.r, m_aSpark[i].m_Color.g, m_aSpark[i].m_Color.b, 0.0f)};
 			Graphics()->SetColorVertex(aColors, 4);
-				
+
 			vec2 r = normalize(m_aSpark[i].m_Vel);
-			
+
 			vec2 Out = vec2(r.y, -r.x) * m_aSpark[i].m_Size;
-				
-			IGraphics::CFreeformItem Freeform1(
-					m_aSpark[i].m_Vel.x/20.0f + p.x-Out.x, m_aSpark[i].m_Vel.y/20.0f + p.y-Out.y,
-					m_aSpark[i].m_Vel.x/20.0f + p.x+Out.x, m_aSpark[i].m_Vel.y/20.0f + p.y+Out.y,
-					p.x-Out.x, p.y-Out.y,
-					p.x+Out.x, p.y+Out.y);
+
+			IGraphics::CFreeformItem Freeform1(m_aSpark[i].m_Vel.x / 20.0f + p.x - Out.x,
+											   m_aSpark[i].m_Vel.y / 20.0f + p.y - Out.y,
+											   m_aSpark[i].m_Vel.x / 20.0f + p.x + Out.x,
+											   m_aSpark[i].m_Vel.y / 20.0f + p.y + Out.y,
+											   p.x - Out.x,
+											   p.y - Out.y,
+											   p.x + Out.x,
+											   p.y + Out.y);
 			Graphics()->QuadsDrawFreeform(&Freeform1, 1);
-			
-			m_pClient->m_pEffects->SimpleLight(p, vec4(m_aSpark[i].m_Color.r/2+0.5f, m_aSpark[i].m_Color.g/2+0.5f, m_aSpark[i].m_Color.b/2+0.5f, a), a*16);
+
+			m_pClient->m_pEffects->SimpleLight(p,
+											   vec4(m_aSpark[i].m_Color.r / 2 + 0.5f,
+													m_aSpark[i].m_Color.g / 2 + 0.5f,
+													m_aSpark[i].m_Color.b / 2 + 0.5f,
+													a),
+											   a * 16);
 
 			i = m_aSpark[i].m_NextPart;
 		}
 		Graphics()->QuadsEnd();
 		Graphics()->BlendNormal();
 	}
-	else if (Group == GROUP_AREA1)
+	else if(Group == GROUP_AREA1)
 	{
 		Graphics()->TextureSet(-1);
 
@@ -223,16 +228,16 @@ void CSpark::RenderGroup(int Group)
 		while(i != -1)
 		{
 			float a = m_aSpark[i].m_Life / m_aSpark[i].m_LifeSpan;
-			
+
 			Graphics()->ShaderBegin(SHADER_RAGE, a);
 			Graphics()->QuadsBegin();
-		
+
 			vec2 p = m_aSpark[i].m_Pos;
-			
+
 			Graphics()->SetColor(1, 1, 1, 1.0f);
-			
-			//vec2 Out = vec2(1, 1) * m_aSpark[i].m_Size;
-				
+
+			// vec2 Out = vec2(1, 1) * m_aSpark[i].m_Size;
+
 			/*
 			IGraphics::CFreeformItem Freeform1(
 					p.x-Out.x, p.y-Out.y,
@@ -241,10 +246,10 @@ void CSpark::RenderGroup(int Group)
 					p.x+Out.x, p.y+Out.y);
 			Graphics()->QuadsDrawFreeform(&Freeform1, 1);
 			*/
-			
+
 			IGraphics::CQuadItem QuadItem(p.x, p.y, m_aSpark[i].m_Size, m_aSpark[i].m_Size);
 			Graphics()->QuadsDraw(&QuadItem, 1);
-			
+
 			Graphics()->QuadsEnd();
 
 			i = m_aSpark[i].m_NextPart;

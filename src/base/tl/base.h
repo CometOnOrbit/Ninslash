@@ -10,8 +10,7 @@ inline void tl_assert(bool statement)
 	dbg_assert(statement, "assert!");
 }
 
-template<class T>
-inline void tl_swap(T &a, T &b)
+template <class T> inline void tl_swap(T &a, T &b)
 {
 	T c = b;
 	b = a;

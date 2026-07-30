@@ -22,10 +22,17 @@ class CDemoRecorder : public IDemoRecorder
 
 	void WriteTickMarker(int Tick, int Keyframe);
 	void Write(int Type, const void *pData, int Size);
-public:
+
+  public:
 	CDemoRecorder(class CSnapshotDelta *pSnapshotDelta);
 
-	int Start(class IStorage *pStorage, class IConsole *pConsole, const char *pFilename, const char *pNetversion, const char *pMap, unsigned MapCrc, const char *pType);
+	int Start(class IStorage *pStorage,
+			  class IConsole *pConsole,
+			  const char *pFilename,
+			  const char *pNetversion,
+			  const char *pMap,
+			  unsigned MapCrc,
+			  const char *pType);
 	int Stop();
 	void AddDemoMarker();
 
@@ -34,15 +41,15 @@ public:
 
 	bool IsRecording() const { return m_File != 0; }
 
-	int Length() const { return (m_LastTickMarker - m_FirstTick)/SERVER_TICK_SPEED; }
+	int Length() const { return (m_LastTickMarker - m_FirstTick) / SERVER_TICK_SPEED; }
 };
 
 class CDemoPlayer : public IDemoPlayer
 {
-public:
+  public:
 	class IListner
 	{
-	public:
+	  public:
 		virtual ~IListner() {}
 		virtual void OnDemoPlayerSnapshot(void *pData, int Size) = 0;
 		virtual void OnDemoPlayerMessage(void *pData, int Size) = 0;
@@ -67,9 +74,8 @@ public:
 		float m_TickTime;
 	};
 
-private:
+  private:
 	IListner *m_pListner;
-
 
 	// Playback
 	struct CKeyFrame
@@ -101,8 +107,7 @@ private:
 	int NextFrame();
 	int Advance(int64 TimeStep);
 
-public:
-
+  public:
 	CDemoPlayer(class CSnapshotDelta *m_pSnapshotDelta);
 
 	void SetListner(IListner *pListner);

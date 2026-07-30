@@ -5,19 +5,19 @@
 
 class CAIball : public CAI
 {
-public:
+  public:
 	CAIball(CGameContext *pGameServer, CPlayer *pPlayer);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);
 
-private:
+  private:
 	int m_SkipMoveUpdate;
 	bool SeekFriend();
-	
+
 	int m_Team;
 	int m_Role;
-	
+
 	vec2 m_aGoalPos[2];
 };
 

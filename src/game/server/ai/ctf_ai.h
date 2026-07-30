@@ -5,13 +5,13 @@
 
 class CAIctf : public CAI
 {
-public:
+  public:
 	CAIctf(CGameContext *pGameServer, CPlayer *pPlayer);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);
 
-private:
+  private:
 };
 
 #endif

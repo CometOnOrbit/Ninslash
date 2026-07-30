@@ -9,7 +9,7 @@ class CCamera : public CComponent
 {
 	enum
 	{
-		CAMTYPE_UNDEFINED=-1,
+		CAMTYPE_UNDEFINED = -1,
 		CAMTYPE_SPEC,
 		CAMTYPE_PLAYER,
 	};
@@ -19,7 +19,7 @@ class CCamera : public CComponent
 	int64 m_LastUpdate;
 	int64 m_CameraSmoothStart;
 
-public:
+  public:
 	vec2 m_Center;
 	vec2 m_Center2;
 	vec2 m_TargetCenter;

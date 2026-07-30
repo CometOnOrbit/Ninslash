@@ -36,16 +36,15 @@ enum Shaders
 	NUM_SHADERS
 };
 
-
 class CImageInfo
 {
-public:
+  public:
 	enum
 	{
-		FORMAT_AUTO=-1,
-		FORMAT_RGB=0,
-		FORMAT_RGBA=1,
-		FORMAT_ALPHA=2,
+		FORMAT_AUTO = -1,
+		FORMAT_RGB = 0,
+		FORMAT_RGBA = 1,
+		FORMAT_ALPHA = 2,
 	};
 
 	/* Variable: width
@@ -70,7 +69,7 @@ public:
 */
 class CVideoMode
 {
-public:
+  public:
 	int m_Width, m_Height;
 	int m_Red, m_Green, m_Blue;
 	bool operator<(const CVideoMode &Other) { return Other.m_Width < m_Width; }
@@ -79,12 +78,13 @@ public:
 class IGraphics : public IInterface
 {
 	MACRO_INTERFACE("graphics", 0)
-protected:
+  protected:
 	int m_ScreenWidth;
 	int m_ScreenHeight;
 	int m_DesktopScreenWidth;
 	int m_DesktopScreenHeight;
-public:
+
+  public:
 	/* Constants: Texture Loading Flags
 		TEXLOAD_NORESAMPLE - Prevents the texture from any resampling
 	*/
@@ -98,10 +98,9 @@ public:
 	{
 		friend class IGraphics;
 		int m_Id;
-	public:
-		CTextureHandle()
-		: m_Id(-1)
-		{}
+
+	  public:
+		CTextureHandle() : m_Id(-1) {}
 
 		bool IsValid() const { return Id() >= 0; }
 		int Id() const { return m_Id; }
@@ -110,7 +109,7 @@ public:
 	int ScreenHeight() const { return m_ScreenHeight; }
 	int DesktopWidth() const { return m_DesktopScreenWidth; }
 	int DesktopHeight() const { return m_DesktopScreenHeight; }
-	float ScreenAspect() const { return (float)ScreenWidth()/(float)ScreenHeight(); }
+	float ScreenAspect() const { return (float)ScreenWidth() / (float)ScreenHeight(); }
 
 	virtual void Clear(float r, float g, float b) = 0;
 	virtual void ClearBufferTexture() = 0;
@@ -135,20 +134,27 @@ public:
 
 	virtual void LoadShaders() = 0;
 	virtual void ShaderBegin(int Shade, float Intensity = 1.0f, float ColorSwap = 0.0f, float WeaponCharge = 0.0f) = 0;
-	virtual void PlayerShaderBegin(float colorG, float colorB, float Charge = 0.0f, float Visibility = 1.0f, float Electro = 0.0f, float Damage = 0.0f, float Deathray = 0.0f) = 0;
+	virtual void PlayerShaderBegin(float colorG,
+								   float colorB,
+								   float Charge = 0.0f,
+								   float Visibility = 1.0f,
+								   float Electro = 0.0f,
+								   float Damage = 0.0f,
+								   float Deathray = 0.0f) = 0;
 	virtual void BallShaderBegin(float Speed, float Speed2) = 0;
 	virtual void ShaderEnd() = 0;
-	
+
 	virtual void CameraToShaders(int ScreenWidth, int ScreenHeight, int CameraX, int CameraY) = 0;
-	
+
 	virtual int LoadPNG(CImageInfo *pImg, const char *pFilename, int StorageType) = 0;
 	virtual int UnloadTexture(int Index) = 0;
 	virtual int LoadTextureRaw(int Width, int Height, int Format, const void *pData, int StoreFormat, int Flags) = 0;
 	virtual int LoadTexture(const char *pFilename, int StorageType, int StoreFormat, int Flags) = 0;
-	virtual int LoadTextureRawSub(int TextureID, int x, int y, int Width, int Height, int Format, const void *pData) = 0;
+	virtual int
+	LoadTextureRawSub(int TextureID, int x, int y, int Width, int Height, int Format, const void *pData) = 0;
 	virtual void TextureSet(int TextureID, int BufferTexture = -1) = 0;
 	void TextureClear() { TextureSet(-1); }
-	
+
 	virtual void RenderToScreen() = 0;
 	virtual void RenderToTexture(int RenderBuffer) = 0;
 
@@ -165,7 +171,8 @@ public:
 	virtual void QuadsBegin() = 0;
 	virtual void QuadsEnd() = 0;
 	virtual void QuadsSetRotation(float Angle) = 0;
-	virtual void QuadsSetSubset(float TopLeftY, float TopLeftV, float BottomRightU, float BottomRightV, bool FreeForm = false) = 0;
+	virtual void
+	QuadsSetSubset(float TopLeftY, float TopLeftV, float BottomRightU, float BottomRightV, bool FreeForm = false) = 0;
 	virtual void QuadsSetSubsetFree(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3) = 0;
 
 	struct CQuadItem
@@ -182,19 +189,24 @@ public:
 		float m_X0, m_Y0, m_X1, m_Y1, m_X2, m_Y2, m_X3, m_Y3;
 		CFreeformItem() {}
 		CFreeformItem(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3)
-			: m_X0(x0), m_Y0(y0), m_X1(x1), m_Y1(y1), m_X2(x2), m_Y2(y2), m_X3(x3), m_Y3(y3) {}
+			: m_X0(x0), m_Y0(y0), m_X1(x1), m_Y1(y1), m_X2(x2), m_Y2(y2), m_X3(x3), m_Y3(y3)
+		{
+		}
 	};
 	virtual void QuadsDrawFreeform(const CFreeformItem *pArray, int Num) = 0;
 	virtual void QuadsText(float x, float y, float Size, const char *pText) = 0;
 
 	virtual void TrianglesBegin() = 0;
 	virtual void TrianglesEnd() = 0;
-	
+
 	struct CTriangleItem
 	{
 		float m_X0, m_Y0, m_X1, m_Y1, m_X2, m_Y2;
 		CTriangleItem() {}
-		CTriangleItem(float x0, float y0, float x1, float y1, float x2, float y2) : m_X0(x0), m_Y0(y0), m_X1(x1), m_Y1(y1), m_X2(x2), m_Y2(y2) {}
+		CTriangleItem(float x0, float y0, float x1, float y1, float x2, float y2)
+			: m_X0(x0), m_Y0(y0), m_X1(x1), m_Y1(y1), m_X2(x2), m_Y2(y2)
+		{
+		}
 	};
 	virtual void TrianglesDraw(const CTriangleItem *pArray, int Num) = 0;
 
@@ -231,8 +243,8 @@ public:
 	virtual void InsertSignal(class semaphore *pSemaphore) = 0;
 	virtual bool IsIdle() = 0;
 	virtual void WaitForIdle() = 0;
-	
-protected:
+
+  protected:
 	inline CTextureHandle CreateTextureHandle(int Index)
 	{
 		CTextureHandle Tex;
@@ -244,14 +256,14 @@ protected:
 class IEngineGraphics : public IGraphics
 {
 	MACRO_INTERFACE("enginegraphics", 0)
-public:
+  public:
 	virtual int Init() = 0;
 	virtual void Shutdown() = 0;
 
 	virtual void Minimize() = 0;
 	virtual void Maximize() = 0;
 
-    virtual void GrabWindow(bool grab) = 0;
+	virtual void GrabWindow(bool grab) = 0;
 	virtual void WarpMouse(int x, int y) = 0;
 	virtual int WindowActive() = 0;
 	virtual int WindowOpen() = 0;

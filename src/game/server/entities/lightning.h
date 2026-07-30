@@ -5,7 +5,7 @@
 
 class CLightning : public CEntity
 {
-public:
+  public:
 	CLightning(CGameWorld *pGameWorld, vec2 Pos, vec2 From);
 
 	virtual void Reset();
@@ -13,9 +13,8 @@ public:
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 
-protected:
-
-private:
+  protected:
+  private:
 	vec2 m_From;
 	vec2 m_Dir;
 	int m_EvalTick;

@@ -14,7 +14,7 @@
 // JSON representation of the spine items
 class CSpineBone
 {
-public:
+  public:
 	string m_Name;
 	string m_Parent;
 
@@ -26,7 +26,7 @@ public:
 
 class CSpineSlot
 {
-public:
+  public:
 	string m_Name;
 	string m_Bone;
 	string m_Color;
@@ -35,13 +35,13 @@ public:
 
 enum
 {
-	SPINE_ATTACHMENT_REGION=0,
+	SPINE_ATTACHMENT_REGION = 0,
 	SPINE_ATTACHMENT_REGIONSEQUENCE,
 	SPINE_ATTACHMENT_BBOX,
 	SPINE_ATTACHMENT_MESH,
 	SPINE_ATTACHMENT_SKINNED_MESH,
 
-	SPINE_SEQUENCE_MODE_FORWARD=0,
+	SPINE_SEQUENCE_MODE_FORWARD = 0,
 	SPINE_SEQUENCE_MODE_BACKWARD,
 	SPINE_SEQUENCE_MODE_FORWARD_LOOP,
 	SPINE_SEQUENCE_MODE_BACKWARD_LOOP,
@@ -51,9 +51,8 @@ enum
 
 class CSpineAttachment
 {
-public:
-	CSpineAttachment() :
-		m_Type(SPINE_ATTACHMENT_REGION)
+  public:
+	CSpineAttachment() : m_Type(SPINE_ATTACHMENT_REGION)
 	{
 		m_Region.m_X = 0.0f;
 		m_Region.m_Y = 0.0f;
@@ -105,15 +104,14 @@ public:
 
 class CSpineEvent
 {
-public:
-
+  public:
 	// TODO:
 };
 
 // animations
 enum
 {
-	SPINE_CURVE_LINEAR=0,
+	SPINE_CURVE_LINEAR = 0,
 	SPINE_CURVE_STEPPED,
 	SPINE_CURVE_BEZIER,
 };
@@ -121,7 +119,7 @@ enum
 // timelines
 class CSpineTimelineCurve
 {
-public:
+  public:
 	int m_Type;
 	array<float> m_lPoints; // for bezier
 };
@@ -129,19 +127,22 @@ public:
 // bone timelines
 class CSpineBoneKeyframeTranslate
 {
-public:
+  public:
 	float m_Time;
 	CSpineTimelineCurve m_Curve;
 
 	float m_X, m_Y; // relative
 
-public:
+  public:
 	// TODO: shouldn't be here
-	bool operator< (CSpineBoneKeyframeTranslate const& rOther) const { return m_Time < rOther.m_Time; }
+	bool operator<(CSpineBoneKeyframeTranslate const &rOther) const { return m_Time < rOther.m_Time; }
 
 	//
 	typedef float KeyframeReturnType;
-	enum { NumValues = 2 };
+	enum
+	{
+		NumValues = 2
+	};
 
 	int GetCurveType() const { return m_Curve.m_Type; }
 
@@ -149,23 +150,29 @@ public:
 	KeyframeReturnType GetValue0() const { return m_X; }
 	KeyframeReturnType GetValue1() const { return m_Y; }
 
-	static KeyframeReturnType interpolate(KeyframeReturnType a, KeyframeReturnType b, KeyframeReturnType t) { return mix(a, b, t); }
+	static KeyframeReturnType interpolate(KeyframeReturnType a, KeyframeReturnType b, KeyframeReturnType t)
+	{
+		return mix(a, b, t);
+	}
 };
 
 class CSpineBoneKeyframeScale
 {
-public:
+  public:
 	float m_Time;
 	CSpineTimelineCurve m_Curve;
 
 	float m_ScaleX, m_ScaleY; // relative
 
-public:
+  public:
 	// TODO: shouldn't be here
-	bool operator< (CSpineBoneKeyframeScale const& rOther) const { return m_Time < rOther.m_Time; }
+	bool operator<(CSpineBoneKeyframeScale const &rOther) const { return m_Time < rOther.m_Time; }
 
 	typedef float KeyframeReturnType;
-	enum { NumValues = 2 };
+	enum
+	{
+		NumValues = 2
+	};
 
 	int GetCurveType() const { return m_Curve.m_Type; }
 
@@ -173,36 +180,49 @@ public:
 	KeyframeReturnType GetValue0() const { return m_ScaleX; }
 	KeyframeReturnType GetValue1() const { return m_ScaleY; }
 
-	static KeyframeReturnType interpolate(KeyframeReturnType a, KeyframeReturnType b, KeyframeReturnType t) { return mix(a, b, t); }
+	static KeyframeReturnType interpolate(KeyframeReturnType a, KeyframeReturnType b, KeyframeReturnType t)
+	{
+		return mix(a, b, t);
+	}
 };
 
 class CSpineBoneKeyframeRotate
 {
-public:
+  public:
 	float m_Time;
 	CSpineTimelineCurve m_Curve;
 
 	float m_Rotation; // relative
 
-public:
+  public:
 	// TODO: shouldn't be here
-	bool operator< (CSpineBoneKeyframeRotate const& rOther) const { return m_Time < rOther.m_Time; }
+	bool operator<(CSpineBoneKeyframeRotate const &rOther) const { return m_Time < rOther.m_Time; }
 
 	typedef float KeyframeReturnType;
-	enum { NumValues = 1 };
+	enum
+	{
+		NumValues = 1
+	};
 
 	int GetCurveType() const { return m_Curve.m_Type; }
 
 	static KeyframeReturnType GetValueDefault() { return 0.0f; }
 	KeyframeReturnType GetValue0() const { return m_Rotation; }
-	KeyframeReturnType GetValue1() const { dbg_assert(false, "Invalid value"); return 0.0f; }
+	KeyframeReturnType GetValue1() const
+	{
+		dbg_assert(false, "Invalid value");
+		return 0.0f;
+	}
 
-	static KeyframeReturnType interpolate(KeyframeReturnType a, KeyframeReturnType b, KeyframeReturnType t) { return mix_angle(a, b, t); }
+	static KeyframeReturnType interpolate(KeyframeReturnType a, KeyframeReturnType b, KeyframeReturnType t)
+	{
+		return mix_angle(a, b, t);
+	}
 };
 
 class CSpineBoneTimeline
 {
-public:
+  public:
 	sorted_array<CSpineBoneKeyframeTranslate> m_lTranslations;
 	sorted_array<CSpineBoneKeyframeScale> m_lScales;
 	sorted_array<CSpineBoneKeyframeRotate> m_lRotations;
@@ -211,16 +231,19 @@ public:
 // slot timeline
 class CSpineSlotKeyframeAttachment
 {
-public:
+  public:
 	float m_Time;
 	string m_Attachment;
 
-public:
+  public:
 	// TODO: shouldn't be here
-	bool operator< (CSpineSlotKeyframeAttachment const& rOther) const { return m_Time < rOther.m_Time; }
+	bool operator<(CSpineSlotKeyframeAttachment const &rOther) const { return m_Time < rOther.m_Time; }
 
 	typedef string KeyframeReturnType;
-	enum { NumValues = 1 };
+	enum
+	{
+		NumValues = 1
+	};
 
 	int GetCurveType() const { return SPINE_CURVE_STEPPED; }
 
@@ -229,17 +252,20 @@ public:
 
 class CSpineSlotKeyframeColor
 {
-public:
+  public:
 	float m_Time;
 	string m_Color;
 	CSpineTimelineCurve m_Curve;
 
-public:
+  public:
 	// TODO: shouldn't be here
-	bool operator< (CSpineSlotKeyframeColor const& rOther) const { return m_Time < rOther.m_Time; }
+	bool operator<(CSpineSlotKeyframeColor const &rOther) const { return m_Time < rOther.m_Time; }
 
 	typedef string KeyframeReturnType;
-	enum { NumValues = 1 };
+	enum
+	{
+		NumValues = 1
+	};
 
 	int GetCurveType() const { return m_Curve.m_Type; }
 
@@ -248,7 +274,7 @@ public:
 
 class CSpineSlotTimeline
 {
-public:
+  public:
 	sorted_array<CSpineSlotKeyframeAttachment> m_lAttachments;
 	sorted_array<CSpineSlotKeyframeColor> m_lColors;
 };
@@ -256,7 +282,7 @@ public:
 // event timeline
 class CSpineEventKeyframe
 {
-public:
+  public:
 	float m_Time;
 	string m_Name;
 
@@ -265,37 +291,36 @@ public:
 	float m_Float;
 	string m_String;
 
-public:
+  public:
 	// TODO: shouldn't be here
-	bool operator< (CSpineEventKeyframe const& rOther) const { return m_Time < rOther.m_Time; }
+	bool operator<(CSpineEventKeyframe const &rOther) const { return m_Time < rOther.m_Time; }
 };
 
 class CSpineEventTimeline
 {
-public:
+  public:
 	sorted_array<CSpineEventKeyframe> m_lKeyframes;
 };
 
 // draworder timeline
 class CSpineDraworderKeyframe
 {
-public:
+  public:
 	string m_Name;
 	array<int> m_Offset;
 };
 
 class CSpineAnimation
 {
-public:
+  public:
 	std::map<string, CSpineSlotTimeline> m_lSlotTimeline;
 	std::map<string, CSpineBoneTimeline> m_lBoneTimeline;
 };
 
-
 // texture atlas
 class CSpineAtlasRegion
 {
-public:
+  public:
 	string m_Name;
 	bool m_Rotate; // TODO: CW?
 	int m_X, m_Y;
@@ -308,16 +333,16 @@ public:
 enum
 {
 	// TODO:
-	SPINE_ATLAS_FMT_R8G8B8A8=0,
+	SPINE_ATLAS_FMT_R8G8B8A8 = 0,
 
 	// TODO:
-	SPINE_ATLAS_FILTER_NEAREST=0,
+	SPINE_ATLAS_FILTER_NEAREST = 0,
 	SPINE_ATLAS_FILTER_LINEAR,
 };
 
 class CSpineAtlasPage
 {
-public:
+  public:
 	string m_Name;
 	int m_Format = SPINE_ATLAS_FMT_R8G8B8A8;
 	int m_Width = 0, m_Height = 0;
@@ -329,11 +354,11 @@ public:
 
 class CSpineAtlas
 {
-public:
+  public:
 	array<CSpineAtlasPage> m_lPages;
 };
 
-typedef std::map<string, std::map<string, std::map<string, CSpineAttachment> > > SkinMap;
+typedef std::map<string, std::map<string, std::map<string, CSpineAttachment>>> SkinMap;
 
 // spine file reader
 class CSpineReader
@@ -343,23 +368,25 @@ class CSpineReader
 	int ParsePageFormat(const char *pFormat) const;
 	int ParsePageFilter(const char *pFilter) const;
 
-public:
+  public:
 	CSpineReader();
 	~CSpineReader();
 
-	bool LoadFromFile(class IStorage *pStorage, const char *pFilename, int StorageType,
-		array<CSpineBone> *plBones,
-		array<CSpineSlot> *plSlots,
-		SkinMap *pmSkins,
-		std::map<string, CSpineAnimation>* pmAnimations);
+	bool LoadFromFile(class IStorage *pStorage,
+					  const char *pFilename,
+					  int StorageType,
+					  array<CSpineBone> *plBones,
+					  array<CSpineSlot> *plSlots,
+					  SkinMap *pmSkins,
+					  std::map<string, CSpineAnimation> *pmAnimations);
 
 	bool Load(const char *pJsonData,
-		array<CSpineBone> *plBones,
-		array<CSpineSlot> *plSlots,
-		SkinMap *pmSkins,
-		std::map<string, CSpineAnimation>* pmAnimations);
+			  array<CSpineBone> *plBones,
+			  array<CSpineSlot> *plSlots,
+			  SkinMap *pmSkins,
+			  std::map<string, CSpineAnimation> *pmAnimations);
 
-	bool LoadAtlasFromFile(class IStorage *pStorage , const char *pFilename, int StorageType, CSpineAtlas* pAtlas);
+	bool LoadAtlasFromFile(class IStorage *pStorage, const char *pFilename, int StorageType, CSpineAtlas *pAtlas);
 	bool LoadAtlas(const char *pAtlasData, CSpineAtlas *pAtlas);
 
 	void Clear();

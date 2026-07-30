@@ -6,8 +6,8 @@
 #include "projectile.h"
 #include "droid_specialist.h"
 
-CSpecialistDroid::CSpecialistDroid(CGameWorld *pWorld, vec2 Pos, int Type, int Health, bool Boss) :
-	CDroid(pWorld, Pos, Type), m_BaseHealth(Health), m_IsBoss(Boss)
+CSpecialistDroid::CSpecialistDroid(CGameWorld *pWorld, vec2 Pos, int Type, int Health, bool Boss)
+	: CDroid(pWorld, Pos, Type), m_BaseHealth(Health), m_IsBoss(Boss)
 {
 	m_StartPos = Pos;
 	Reset();
@@ -47,7 +47,8 @@ bool CSpecialistDroid::AcquireTarget(float Range, bool RequireSight)
 			continue;
 		const vec2 Delta = m_Pos - pChr->m_Pos;
 		const float DistanceSquared = dot(Delta, Delta);
-		if(DistanceSquared >= BestDistanceSquared || (RequireSight && GameServer()->Collision()->FastIntersectLine(m_Pos + m_Center, pChr->m_Pos - vec2(0, 24))))
+		if(DistanceSquared >= BestDistanceSquared ||
+		   (RequireSight && GameServer()->Collision()->FastIntersectLine(m_Pos + m_Center, pChr->m_Pos - vec2(0, 24))))
 			continue;
 		BestDistanceSquared = DistanceSquared;
 		pBest = pChr;
@@ -69,10 +70,15 @@ void CSpecialistDroid::FireProjectile(int Damage, float Spread)
 	CWeaponCombatProfile Combat;
 	if(!CWeaponCatalog::TryResolveAttack(Source, &Combat))
 		return;
-	new CProjectile(&GameServer()->m_World, Source,
-		m_Pos + m_Center + Dir * 24.0f, Dir, vec2(0, 0),
-		(int)(Server()->TickSpeed() * Combat.m_ProjectileLife), Damage,
-		Combat.m_ProjectileKnockback, -1);
+	new CProjectile(&GameServer()->m_World,
+					Source,
+					m_Pos + m_Center + Dir * 24.0f,
+					Dir,
+					vec2(0, 0),
+					(int)(Server()->TickSpeed() * Combat.m_ProjectileLife),
+					Damage,
+					Combat.m_ProjectileKnockback,
+					-1);
 	m_AttackTick = Server()->Tick();
 }
 
@@ -112,17 +118,23 @@ void CSpecialistDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Sour
 	}
 	if(m_Type == DROIDTYPE_SIEGE_ENGINE)
 	{
-		if(ConsumeThreshold(70, 1)) OnHealthThreshold(70);
-		if(ConsumeThreshold(35, 2)) OnHealthThreshold(35);
+		if(ConsumeThreshold(70, 1))
+			OnHealthThreshold(70);
+		if(ConsumeThreshold(35, 2))
+			OnHealthThreshold(35);
 	}
 	else if(m_Type == DROIDTYPE_OVERSEER_CORE)
 	{
-		if(ConsumeThreshold(75, 1)) OnHealthThreshold(75);
-		if(ConsumeThreshold(40, 2)) OnHealthThreshold(40);
+		if(ConsumeThreshold(75, 1))
+			OnHealthThreshold(75);
+		if(ConsumeThreshold(40, 2))
+			OnHealthThreshold(40);
 	}
 }
 
-void CSpecialistDroid::AbilityTick() {}
+void CSpecialistDroid::AbilityTick()
+{
+}
 
 void CSpecialistDroid::SetMovementGoal(vec2 Pos, int DurationTicks)
 {
@@ -134,12 +146,18 @@ vec2 CSpecialistDroid::CollisionSize() const
 {
 	switch(m_Type)
 	{
-	case DROIDTYPE_BULWARK: return vec2(94.0f, 92.0f);
-	case DROIDTYPE_ASSEMBLER: return vec2(82.0f, 88.0f);
-	case DROIDTYPE_SABOTEUR: return vec2(104.0f, 74.0f);
-	case DROIDTYPE_RAILGUNNER: return vec2(78.0f, 96.0f);
-	case DROIDTYPE_SIEGE_ENGINE: return vec2(142.0f, 92.0f);
-	default: return vec2(72.0f, 72.0f);
+		case DROIDTYPE_BULWARK:
+			return vec2(94.0f, 92.0f);
+		case DROIDTYPE_ASSEMBLER:
+			return vec2(82.0f, 88.0f);
+		case DROIDTYPE_SABOTEUR:
+			return vec2(104.0f, 74.0f);
+		case DROIDTYPE_RAILGUNNER:
+			return vec2(78.0f, 96.0f);
+		case DROIDTYPE_SIEGE_ENGINE:
+			return vec2(142.0f, 92.0f);
+		default:
+			return vec2(72.0f, 72.0f);
 	}
 }
 
@@ -196,10 +214,12 @@ void CSpecialistDroid::MovementTick(CCharacter *pTarget)
 		const float AheadX = m_Pos.x + m_Dir * (MoveSize.x * 0.55f + 10.0f);
 		const int AheadFoot = GameServer()->Collision()->GetCollisionAt(AheadX, m_Pos.y + MoveSize.y * 0.5f + 4.0f);
 		const int AheadChest = GameServer()->Collision()->GetCollisionAt(AheadX, m_Pos.y - MoveSize.y * 0.05f);
-		const bool RampAhead = AheadFoot == CCollision::COLFLAG_RAMP_LEFT || AheadFoot == CCollision::COLFLAG_RAMP_RIGHT;
+		const bool RampAhead =
+			AheadFoot == CCollision::COLFLAG_RAMP_LEFT || AheadFoot == CCollision::COLFLAG_RAMP_RIGHT;
 		const bool WallAhead = AheadChest == CCollision::COLFLAG_SOLID;
 		vec2 FloorHit;
-		const bool FloorAhead = GameServer()->Collision()->IntersectLine(vec2(AheadX, m_Pos.y), vec2(AheadX, m_Pos.y + MoveSize.y + 80.0f), 0, &FloorHit, false, true);
+		const bool FloorAhead = GameServer()->Collision()->IntersectLine(
+			vec2(AheadX, m_Pos.y), vec2(AheadX, m_Pos.y + MoveSize.y + 80.0f), 0, &FloorHit, false, true);
 		const bool TargetAbove = Goal.y < m_Pos.y - MoveSize.y * 0.45f;
 		const bool LongPursuit = !TacticalGoal && pTarget && abs(Goal.x - m_Pos.x) > 340.0f && frandom() < 0.012f;
 		const bool Stalled = abs(m_Vel.x) < 0.65f && abs(Goal.x - m_Pos.x) > 100.0f && frandom() < 0.075f;
@@ -209,7 +229,8 @@ void CSpecialistDroid::MovementTick(CCharacter *pTarget)
 			m_Vel.y = min(m_Vel.y, -0.85f * SpeedScale);
 
 		if(Grounded && Server()->Tick() >= m_NextHopTick &&
-			(WallAhead || TargetAbove || (!FloorAhead && !RampAhead && abs(Goal.x - m_Pos.x) > PreferredRange) || LongPursuit || (Stalled && !OnRamp && !RampAhead)))
+		   (WallAhead || TargetAbove || (!FloorAhead && !RampAhead && abs(Goal.x - m_Pos.x) > PreferredRange) ||
+			LongPursuit || (Stalled && !OnRamp && !RampAhead)))
 		{
 			const float Hop = m_IsBoss ? 8.5f : (m_Type == DROIDTYPE_SABOTEUR ? 11.2f : 10.4f);
 			m_Vel.y = min(m_Vel.y, -Hop);

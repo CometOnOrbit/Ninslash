@@ -7,7 +7,7 @@
 
 class CKillMessages : public CComponent
 {
-public:
+  public:
 	// kill messages
 	struct CKillMsg
 	{

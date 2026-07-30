@@ -6,17 +6,10 @@
 
 #include "pve_drone.h"
 
-CPveDrone::CPveDrone(CGameWorld *pGameWorld, int Owner) :
-	CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER),
-	m_Owner(Owner),
-	m_StartTick(Server()->Tick()),
-	m_Health(40),
-	m_DisabledUntilTick(0),
-	m_Vel(0, 0),
-	m_MoveTarget(0, 0),
-	m_Target(m_Pos),
-	m_ActionTick(0),
-	m_AngleTimer(Owner * 1.73f)
+CPveDrone::CPveDrone(CGameWorld *pGameWorld, int Owner)
+	: CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER), m_Owner(Owner), m_StartTick(Server()->Tick()), m_Health(40),
+	  m_DisabledUntilTick(0), m_Vel(0, 0), m_MoveTarget(0, 0), m_Target(m_Pos), m_ActionTick(0),
+	  m_AngleTimer(Owner * 1.73f)
 {
 	m_ProximityRadius = 12.0f;
 	CCharacter *pOwner = GameServer()->GetPlayerChar(Owner);
@@ -123,7 +116,8 @@ void CPveDrone::Snap(int SnappingClient)
 	CCharacter *pOwner = GameServer()->GetPlayerChar(m_Owner);
 	if(!pOwner)
 		return;
-	CNetObj_PveDrone *pObj = static_cast<CNetObj_PveDrone *>(Server()->SnapNewItem(NETOBJTYPE_PVEDRONE, m_ID, sizeof(CNetObj_PveDrone)));
+	CNetObj_PveDrone *pObj =
+		static_cast<CNetObj_PveDrone *>(Server()->SnapNewItem(NETOBJTYPE_PVEDRONE, m_ID, sizeof(CNetObj_PveDrone)));
 	if(!pObj)
 		return;
 	pObj->m_X = (int)m_Pos.x;
@@ -146,5 +140,6 @@ void CPveDrone::Snap(int SnappingClient)
 	pObj->m_TargetX = (int)m_Target.x;
 	pObj->m_TargetY = (int)m_Target.y;
 	pObj->m_ActionTick = m_Health <= 0 || Server()->Tick() < m_DisabledUntilTick ? m_DisabledUntilTick : m_ActionTick;
-	pObj->m_SwitchReadyTick = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->DroneSwitchReadyTick(m_Owner) : 0;
+	pObj->m_SwitchReadyTick =
+		GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->DroneSwitchReadyTick(m_Owner) : 0;
 }

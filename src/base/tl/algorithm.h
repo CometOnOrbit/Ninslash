@@ -5,7 +5,6 @@
 
 #include "range.h"
 
-
 /*
 	insert 4
 		v
@@ -13,9 +12,7 @@
 
 */
 
-
-template<class R, class T>
-R partition_linear(R range, T value)
+template <class R, class T> R partition_linear(R range, T value)
 {
 	concept_empty::check(range);
 	concept_forwarditeration::check(range);
@@ -29,9 +26,7 @@ R partition_linear(R range, T value)
 	return range;
 }
 
-
-template<class R, class T>
-R partition_binary(R range, T value)
+template <class R, class T> R partition_binary(R range, T value)
 {
 	concept_empty::check(range);
 	concept_index::check(range);
@@ -46,17 +41,16 @@ R partition_binary(R range, T value)
 
 	while(range.size() > 1)
 	{
-		unsigned pivot = (range.size()-1)/2;
+		unsigned pivot = (range.size() - 1) / 2;
 		if(range.index(pivot) < value)
-			range = range.slice(pivot+1, range.size()-1);
+			range = range.slice(pivot + 1, range.size() - 1);
 		else
-			range = range.slice(0, pivot+1);
+			range = range.slice(0, pivot + 1);
 	}
 	return range;
 }
 
-template<class R, class T>
-R find_linear(R range, T value)
+template <class R, class T> R find_linear(R range, T value)
 {
 	concept_empty::check(range);
 	concept_forwarditeration::check(range);
@@ -66,18 +60,17 @@ R find_linear(R range, T value)
 	return range;
 }
 
-template<class R, class T>
-R find_binary(R range, T value)
+template <class R, class T> R find_binary(R range, T value)
 {
 	range = partition_linear(range, value);
-	if(range.empty()) return range;
-	if(range.front() == value) return range;
+	if(range.empty())
+		return range;
+	if(range.front() == value)
+		return range;
 	return R();
 }
 
-
-template<class R>
-void sort_bubble(R range)
+template <class R> void sort_bubble(R range)
 {
 	concept_empty::check(range);
 	concept_forwarditeration::check(range);
@@ -106,16 +99,12 @@ void sort_quick(R range)
 	concept_index::check(range);
 }*/
 
-
-template<class R>
-void sort(R range)
+template <class R> void sort(R range)
 {
 	sort_bubble(range);
 }
 
-
-template<class R>
-bool sort_verify(R range)
+template <class R> bool sort_verify(R range)
 {
 	concept_empty::check(range);
 	concept_forwarditeration::check(range);

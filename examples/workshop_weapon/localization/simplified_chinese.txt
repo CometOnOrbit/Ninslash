@@ -1,0 +1,4 @@
+Plasma Carbine
+== 等离子卡宾枪
+A compact plasma weapon.
+== 一把紧凑的等离子武器。

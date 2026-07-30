@@ -11,7 +11,7 @@ class CMapGen
 {
 	IStorage *m_pStorage;
 	IStorage *Storage() const { return m_pStorage; }
-	
+
 	class CLayers *m_pLayers;
 	CCollision *m_pCollision;
 
@@ -20,15 +20,15 @@ class CMapGen
 	void ExpandEscapeTowerCanvas();
 	void ExpandExtractMazeCanvas();
 	void FitTutorialCanvas();
-	
+
 	void WriteLayers(class CGenLayer *pTiles);
 	void WriteBackground(class CGenLayer *pTiles);
 	void WriteBase(class CGenLayer *pTiles, int BaseNum, ivec2 Pos, float Size);
-	
+
 	void Mirror(class CGenLayer *pTiles);
-	
+
 	void GenerateEnd(class CGenLayer *pTiles);
-	
+
 	void GenerateShop(class CGenLayer *pTiles);
 	void GenerateScreen(class CGenLayer *pTiles);
 	void GeneratePowerupper(class CGenLayer *pTiles);
@@ -50,14 +50,14 @@ class CMapGen
 	void GenerateAmmo(class CGenLayer *pTiles);
 	void GenerateArmor(class CGenLayer *pTiles);
 	void GenerateAcid(class CGenLayer *pTiles);
-	
+
 	void GenerateConveyorBelt(class CGenLayer *pTiles);
 	void GenerateHangables(class CGenLayer *pTiles);
-	
+
 	void GenerateSawblade(class CGenLayer *pTiles);
 	void GenerateFiretrap(class CGenLayer *pTiles);
 	void GenerateDeathray(class CGenLayer *pTiles);
-	
+
 	void GenerateWeapon(class CGenLayer *pTiles, int Weapon);
 
 	void ModifTile(ivec2 Pos, int Layer, int Tile, int Flags = 0);
@@ -73,7 +73,7 @@ class CMapGen
 
 		enum
 		{
-			EMPTY=0,
+			EMPTY = 0,
 			FULL
 		};
 	};
@@ -94,20 +94,19 @@ class CMapGen
 		array<CIndexRule> m_aIndexRules;
 		char m_aName[128] = {};
 	};
-	
+
 	array<CConfiguration> m_lConfigs;
 	bool m_FileLoaded;
-	
-	void Load(const char* pTileName);
+
+	void Load(const char *pTileName);
 	void Proceed(class CGenLayer *pTiles, int ConfigID);
 
 	int ConfigNamesNum() { return m_lConfigs.size(); }
-	const char* GetConfigName(int Index);
+	const char *GetConfigName(int Index);
 
-	
 	const bool IsLoaded() { return m_FileLoaded; }
-	
-public:
+
+  public:
 	CMapGen();
 	~CMapGen();
 

@@ -15,18 +15,18 @@ struct CGutSpill
 		m_Gravity = 0;
 		m_Friction = 0;
 		m_FlowAffected = 1.0f;
-		m_Color = vec4(1,1,1,1);
+		m_Color = vec4(1, 1, 1, 1);
 		m_Parts = 5;
 		m_ControlDist = 20;
 	}
 
 	vec2 m_aPos[5];
 	vec2 m_aVel[5];
-	
+
 	int m_Spr;
 	int m_Parts;
 	float m_ControlDist;
-	
+
 	float m_FlowAffected;
 
 	float m_LifeSpan;
@@ -45,14 +45,14 @@ struct CGutSpill
 	int m_NextPart;
 };
 
-
 class CGuts : public CComponent
 {
 	friend class CGameClient;
-public:
+
+  public:
 	enum
 	{
-		GROUP_GUTS=0,
+		GROUP_GUTS = 0,
 		NUM_GROUPS
 	};
 
@@ -63,11 +63,10 @@ public:
 	virtual void OnReset();
 	virtual void OnRender();
 
-private:
- 
+  private:
 	enum
 	{
-		MAX_GUTS=128,
+		MAX_GUTS = 128,
 	};
 
 	CGutSpill m_aGuts[MAX_GUTS];
@@ -77,10 +76,9 @@ private:
 	void RenderGroup(int Group);
 	void Update(float TimePassed);
 
-	template<int TGROUP>
-	class CRenderGroup : public CComponent
+	template <int TGROUP> class CRenderGroup : public CComponent
 	{
-	public:
+	  public:
 		CGuts *m_pParts;
 		virtual void OnRender() { m_pParts->RenderGroup(TGROUP); }
 	};

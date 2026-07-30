@@ -31,30 +31,30 @@ struct CPingConfig
 };
 
 static CPingConfig m_aConfigPings[] = {
-//		base	flux	spike	loss	delay	delayfreq
-		{0,		0,		0,		0,		0,		0},
-		{40,	20,		100,		0,		0,		0},
-		{140,	40,		200,		0,		0,		0},
+	//		base	flux	spike	loss	delay	delayfreq
+	{0, 0, 0, 0, 0, 0},
+	{40, 20, 100, 0, 0, 0},
+	{140, 40, 200, 0, 0, 0},
 };
 
-static int m_ConfigNumpingconfs = sizeof(m_aConfigPings)/sizeof(CPingConfig);
+static int m_ConfigNumpingconfs = sizeof(m_aConfigPings) / sizeof(CPingConfig);
 static int m_ConfigInterval = 10; // seconds between different pingconfigs
 static int m_ConfigLog = 0;
 static int m_ConfigReorder = 0;
 
 void Run(int Port, NETADDR Dest)
 {
-	NETADDR Src = {NETTYPE_IPV4, {0,0,0,0}, static_cast<unsigned short>(Port)};
+	NETADDR Src = {NETTYPE_IPV4, {0, 0, 0, 0}, static_cast<unsigned short>(Port)};
 	NETSOCKET Socket = net_udp_create(Src);
 
-	char aBuffer[1024*2];
+	char aBuffer[1024 * 2];
 	int ID = 0;
 	int Delaycounter = 0;
 
 	while(1)
 	{
 		static int Lastcfg = 0;
-		int n = ((time_get()/time_freq())/m_ConfigInterval) % m_ConfigNumpingconfs;
+		int n = ((time_get() / time_freq()) / m_ConfigInterval) % m_ConfigNumpingconfs;
 		CPingConfig Ping = m_aConfigPings[n];
 
 		if(n != Lastcfg)
@@ -67,11 +67,11 @@ void Run(int Port, NETADDR Dest)
 			// fetch data
 			int DataTrash = 0;
 			NETADDR From;
-			int Bytes = net_udp_recv(Socket, &From, aBuffer, 1024*2);
+			int Bytes = net_udp_recv(Socket, &From, aBuffer, 1024 * 2);
 			if(Bytes <= 0)
 				break;
 
-			if((rand()%100) < Ping.m_Loss) // drop the packet
+			if((rand() % 100) < Ping.m_Loss) // drop the packet
 			{
 				if(m_ConfigLog)
 					dbg_msg("crapnet", "dropped packet");
@@ -79,7 +79,7 @@ void Run(int Port, NETADDR Dest)
 			}
 
 			// create new packet
-			CPacket *p = (CPacket *)mem_alloc(sizeof(CPacket)+Bytes, 1);
+			CPacket *p = (CPacket *)mem_alloc(sizeof(CPacket) + Bytes, 1);
 
 			if(net_addr_comp(&From, &Dest) == 0)
 				p->m_SendTo = Src; // from the server
@@ -109,10 +109,10 @@ void Run(int Port, NETADDR Dest)
 
 			if(ID > 20 && Bytes > 6 && DataTrash)
 			{
-				p->m_aData[6+(rand()%(Bytes-6))] = rand()&255; // modify a byte
-				if((rand()%10) == 0)
+				p->m_aData[6 + (rand() % (Bytes - 6))] = rand() & 255; // modify a byte
+				if((rand() % 10) == 0)
 				{
-					p->m_DataSize -= rand()%32;
+					p->m_DataSize -= rand() % 32;
 					if(p->m_DataSize < 6)
 						p->m_DataSize = 6;
 				}
@@ -121,7 +121,7 @@ void Run(int Port, NETADDR Dest)
 			if(Delaycounter <= 0)
 			{
 				if(Ping.m_Delay)
-					p->m_Timestamp += (time_freq()*1000)/Ping.m_Delay;
+					p->m_Timestamp += (time_freq() * 1000) / Ping.m_Delay;
 				Delaycounter = Ping.m_DelayFreq;
 			}
 			Delaycounter--;
@@ -146,11 +146,11 @@ void Run(int Port, NETADDR Dest)
 				break;
 			pNext = p->m_pNext;
 
-			if((time_get()-p->m_Timestamp) > m_CurrentLatency)
+			if((time_get() - p->m_Timestamp) > m_CurrentLatency)
 			{
 				char aFlags[] = "  ";
 
-				if(m_ConfigReorder && (rand()%2) == 0 && p->m_pNext)
+				if(m_ConfigReorder && (rand() % 2) == 0 && p->m_pNext)
 				{
 					aFlags[0] = 'R';
 					p = m_pFirst->m_pNext;
@@ -174,19 +174,20 @@ void Run(int Port, NETADDR Dest)
 				}*/
 
 				// send and remove packet
-				//if((rand()%20) != 0) // heavy packetloss
+				// if((rand()%20) != 0) // heavy packetloss
 				net_udp_send(Socket, &p->m_SendTo, p->m_aData, p->m_DataSize);
 
 				// update lag
-				double Flux = rand()/(double)RAND_MAX;
+				double Flux = rand() / (double)RAND_MAX;
 				int MsSpike = Ping.m_Spike;
 				int MsFlux = Ping.m_Flux;
 				int MsPing = Ping.m_Base;
-				m_CurrentLatency = ((time_freq()*MsPing)/1000) + (int64)(((time_freq()*MsFlux)/1000)*Flux); // 50ms
+				m_CurrentLatency =
+					((time_freq() * MsPing) / 1000) + (int64)(((time_freq() * MsFlux) / 1000) * Flux); // 50ms
 
-				if(MsSpike && (p->m_ID%100) == 0)
+				if(MsSpike && (p->m_ID % 100) == 0)
 				{
-					m_CurrentLatency += (time_freq()*MsSpike)/1000;
+					m_CurrentLatency += (time_freq() * MsSpike) / 1000;
 					aFlags[1] = 'S';
 				}
 
@@ -196,7 +197,6 @@ void Run(int Port, NETADDR Dest)
 					net_addr_str(&p->m_SendTo, aAddrStr, sizeof(aAddrStr), true);
 					dbg_msg("crapnet", ">> %08d %s (%d) %s", p->m_ID, aAddrStr, p->m_DataSize, aFlags);
 				}
-
 
 				mem_free(p);
 			}
@@ -208,7 +208,7 @@ void Run(int Port, NETADDR Dest)
 
 int main(int argc, char **argv) // ignore_convention
 {
-	NETADDR Addr = {NETTYPE_IPV4, {127,0,0,1},8303};
+	NETADDR Addr = {NETTYPE_IPV4, {127, 0, 0, 1}, 8303};
 	dbg_logger_stdout();
 	Run(8302, Addr);
 	return 0;

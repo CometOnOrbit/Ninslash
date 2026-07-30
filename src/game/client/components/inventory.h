@@ -20,7 +20,7 @@ class CInventory : public CComponent
 	int TabItemCount() const;
 	void ResetInteractionState();
 	void Close();
-	
+
 	bool m_WasActive;
 	bool m_Active;
 	bool m_Render;
@@ -41,21 +41,21 @@ class CInventory : public CComponent
 	int m_ShopConfirmSlot;
 	bool m_DebugVisible;
 	int m_DebugTab;
-	
+
 	static void ConKeyInventory(IConsole::IResult *pResult, void *pUserData);
 	static void ConInventoryRoll(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugInventory(IConsole::IResult *pResult, void *pUserData);
-	
+
 	bool m_Mouse1;
 	bool m_MouseTrigger;
 	bool m_Mouse1Loaded;
-	
+
 	vec2 m_MoveStartPos;
 	bool m_Moved;
 	bool m_MoveTrigger;
-	
+
 	int m_WantedTab;
-	
+
 	int m_DragItem;
 	void Drop(int Slot);
 	void Swap(int Item1, int Item2);
@@ -67,12 +67,12 @@ class CInventory : public CComponent
 	int m_ForgeResultEndTick;
 
 	void InventoryRoll(bool All);
-	
+
 	bool m_StupidLock;
-	
+
 	bool m_Minimized;
-	
-public:
+
+  public:
 	CInventory();
 
 	virtual void OnReset();
@@ -82,7 +82,7 @@ public:
 	virtual void OnMessage(int MsgType, void *pRawMsg);
 	virtual bool OnMouseMove(float x, float y);
 	virtual bool OnInput(IInput::CEvent Event);
-	
+
 	bool IsVisible() const { return m_Render || m_Active; }
 };
 

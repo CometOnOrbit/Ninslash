@@ -8,8 +8,8 @@
 #include <string.h>
 
 #if defined(CONF_FAMILY_WINDOWS)
-	#define popen _popen
-	#define pclose _pclose
+#define popen _popen
+#define pclose _pclose
 #endif
 
 CVideo::CVideo()
@@ -67,7 +67,8 @@ bool CVideo::Start(IStorage *pStorage, IConsole *pConsole, const char *pFilename
 
 	// resolve absolute path via storage write probe
 	{
-		IOHANDLE File = pStorage->OpenFile(pFilename, IOFLAG_WRITE, IStorage::TYPE_SAVE, m_aAbsPath, sizeof(m_aAbsPath));
+		IOHANDLE File =
+			pStorage->OpenFile(pFilename, IOFLAG_WRITE, IStorage::TYPE_SAVE, m_aAbsPath, sizeof(m_aAbsPath));
 		if(!File)
 		{
 			if(m_pConsole)
@@ -86,10 +87,16 @@ bool CVideo::Start(IStorage *pStorage, IConsole *pConsole, const char *pFilename
 		OutH = 2;
 
 	char aCmd[2048];
-	str_format(aCmd, sizeof(aCmd),
-		"ffmpeg -y -loglevel error -f rawvideo -pix_fmt rgb24 -s %dx%d -r %d -i pipe:0 "
-		"-vf scale=%d:%d -c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p \"%s\"",
-		m_Width, m_Height, m_FPS, OutW, OutH, m_aAbsPath);
+	str_format(aCmd,
+			   sizeof(aCmd),
+			   "ffmpeg -y -loglevel error -f rawvideo -pix_fmt rgb24 -s %dx%d -r %d -i pipe:0 "
+			   "-vf scale=%d:%d -c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p \"%s\"",
+			   m_Width,
+			   m_Height,
+			   m_FPS,
+			   OutW,
+			   OutH,
+			   m_aAbsPath);
 
 #if defined(CONF_FAMILY_WINDOWS)
 	m_pPipe = popen(aCmd, "wb");
@@ -151,7 +158,11 @@ void CVideo::Stop()
 	{
 		char aBuf[512];
 		if(Status == 0)
-			str_format(aBuf, sizeof(aBuf), "saved video '%s' (%d frames)", m_aAbsPath[0] ? m_aAbsPath : m_aFilename, m_FrameCount);
+			str_format(aBuf,
+					   sizeof(aBuf),
+					   "saved video '%s' (%d frames)",
+					   m_aAbsPath[0] ? m_aAbsPath : m_aFilename,
+					   m_FrameCount);
 		else
 			str_format(aBuf, sizeof(aBuf), "ffmpeg exited with status %d (%d frames)", Status, m_FrameCount);
 		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "video", aBuf);

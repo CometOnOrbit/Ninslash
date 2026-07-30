@@ -5,7 +5,6 @@
 #include <base/vmath.h>
 #include <map>
 
-
 enum PlayerAnimation
 {
 	PANIM_IDLE,
@@ -32,81 +31,61 @@ enum PlayerAnimation
 	NUM_PANIMS
 };
 
-
 const string Anim[NUM_PANIMS] = {
-	"idle",
-	"walk",
-	"run",
-	"runback",
-	"wall",
-	"jump",
-	"jump_ground",
-	"jump_slide",
-	"jumppad",
-	"airjump",
-	"wallrun",
-	"walljump",
-	"roll",
-	"slide",
-	"slide_down",
-	"slide_up",
-	"sliderun",
-	"sliderun_back",
-	"slide_front",
-	"slide_back",
-	"slide_kick",
+	"idle",		  "walk",	  "run",	  "runback",	   "wall",		  "jump",		"jump_ground",
+	"jump_slide", "jumppad",  "airjump",  "wallrun",	   "walljump",	  "roll",		"slide",
+	"slide_down", "slide_up", "sliderun", "sliderun_back", "slide_front", "slide_back", "slide_kick",
 };
-
 
 class CSkeletonAnimation
 {
 	int64 m_LastUpdate;
-	
-public:
+
+  public:
 	float m_Speed;
 	float m_Time;
 	int m_Anim;
-	
+
 	float m_Mix;
 	int m_NewAnim;
-	
+
 	bool m_Flip;
-	
+
 	float m_BodyTilt;
 	float m_HeadTilt;
 	float m_HeadTiltCorrect;
-	
+
 	bool m_FeetPhysics;
 	vec2 m_FeetDir;
 	float m_FeetAngle;
-	
+
 	vec2 m_HeadOffset;
-	
+
 	// for roll animation
 	bool m_FlipBody;
-	
+
 	int m_Eyes;
-	
+
 	vec2 m_Scale;
-	
+
 	vec4 m_ColorFeet;
 	vec4 m_ColorBody;
 	vec4 m_ColorTopper;
 	vec4 m_ColorSkin;
-	
+
 	CSkeletonAnimation();
-	
+
 	float m_HeadAngle;
 	float m_HeadForce;
 	float m_HeadTargetAngle;
-	
+
 	void HeadTick();
 	void UpdateHead();
-	
+
 	void Reset();
-	
+
 	int GetAnimation() const { return m_Anim; }
-	
+
 	void SetAnimation(int Anim, float Speed = 0.0f);
 	void SetSpeed(float Speed);
 	void Tick();

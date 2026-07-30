@@ -9,14 +9,14 @@
 #include <game/mapitems.h>
 #include <game/gamecore.h>
 
-static const int DEBUG=0;
+static const int DEBUG = 0;
 
 struct CDatafileItemType
 {
 	int m_Type;
 	int m_Start;
 	int m_Num;
-} ;
+};
 
 struct CDatafileItem
 {
@@ -80,13 +80,12 @@ bool CDataFileReader::Open(class IStorage *pStorage, const char *pFilename, int 
 		return false;
 	}
 
-
 	// take the CRC of the file and store it
 	unsigned Crc = 0;
 	{
 		enum
 		{
-			BUFFER_SIZE = 64*1024
+			BUFFER_SIZE = 64 * 1024
 		};
 
 		unsigned char aBuffer[BUFFER_SIZE];
@@ -102,7 +101,6 @@ bool CDataFileReader::Open(class IStorage *pStorage, const char *pFilename, int 
 		io_seek(File, 0, IOSEEK_START);
 	}
 
-
 	// TODO: change this header
 	CDatafileHeader Header;
 	io_read(File, &Header, sizeof(Header));
@@ -110,13 +108,18 @@ bool CDataFileReader::Open(class IStorage *pStorage, const char *pFilename, int 
 	{
 		if(Header.m_aID[0] != 'D' || Header.m_aID[1] != 'A' || Header.m_aID[2] != 'T' || Header.m_aID[3] != 'A')
 		{
-			dbg_msg("datafile", "wrong signature. %x %x %x %x", Header.m_aID[0], Header.m_aID[1], Header.m_aID[2], Header.m_aID[3]);
+			dbg_msg("datafile",
+					"wrong signature. %x %x %x %x",
+					Header.m_aID[0],
+					Header.m_aID[1],
+					Header.m_aID[2],
+					Header.m_aID[3]);
 			return 0;
 		}
 	}
 
 #if defined(CONF_ARCH_ENDIAN_BIG)
-	swap_endian(&Header, sizeof(int), sizeof(Header)/sizeof(int));
+	swap_endian(&Header, sizeof(int), sizeof(Header) / sizeof(int));
 #endif
 	if(Header.m_Version != 3 && Header.m_Version != 4)
 	{
@@ -126,26 +129,26 @@ bool CDataFileReader::Open(class IStorage *pStorage, const char *pFilename, int 
 
 	// read in the rest except the data
 	unsigned Size = 0;
-	Size += Header.m_NumItemTypes*sizeof(CDatafileItemType);
-	Size += (Header.m_NumItems+Header.m_NumRawData)*sizeof(int);
+	Size += Header.m_NumItemTypes * sizeof(CDatafileItemType);
+	Size += (Header.m_NumItems + Header.m_NumRawData) * sizeof(int);
 	if(Header.m_Version == 4)
-		Size += Header.m_NumRawData*sizeof(int); // v4 has uncompressed data sizes aswell
+		Size += Header.m_NumRawData * sizeof(int); // v4 has uncompressed data sizes aswell
 	Size += Header.m_ItemSize;
 
 	unsigned AllocSize = Size;
-	AllocSize += sizeof(CDatafile); // add space for info structure
-	AllocSize += Header.m_NumRawData*sizeof(void*); // add space for data pointers
+	AllocSize += sizeof(CDatafile);					   // add space for info structure
+	AllocSize += Header.m_NumRawData * sizeof(void *); // add space for data pointers
 
-	CDatafile *pTmpDataFile = (CDatafile*)mem_alloc(AllocSize, 1);
+	CDatafile *pTmpDataFile = (CDatafile *)mem_alloc(AllocSize, 1);
 	pTmpDataFile->m_Header = Header;
 	pTmpDataFile->m_DataStartOffset = sizeof(CDatafileHeader) + Size;
-	pTmpDataFile->m_ppDataPtrs = (char**)(pTmpDataFile+1);
-	pTmpDataFile->m_pData = (char *)(pTmpDataFile+1)+Header.m_NumRawData*sizeof(char *);
+	pTmpDataFile->m_ppDataPtrs = (char **)(pTmpDataFile + 1);
+	pTmpDataFile->m_pData = (char *)(pTmpDataFile + 1) + Header.m_NumRawData * sizeof(char *);
 	pTmpDataFile->m_File = File;
 	pTmpDataFile->m_Crc = Crc;
 
 	// clear the data pointers
-	mem_zero(pTmpDataFile->m_ppDataPtrs, Header.m_NumRawData*sizeof(void*));
+	mem_zero(pTmpDataFile->m_ppDataPtrs, Header.m_NumRawData * sizeof(void *));
 
 	// read types, offsets, sizes and item data
 	unsigned ReadSize = io_read(File, pTmpDataFile->m_pData, Size);
@@ -165,7 +168,7 @@ bool CDataFileReader::Open(class IStorage *pStorage, const char *pFilename, int 
 	swap_endian(m_pDataFile->m_pData, sizeof(int), min(static_cast<unsigned>(Header.m_Swaplen), Size) / sizeof(int));
 #endif
 
-	//if(DEBUG)
+	// if(DEBUG)
 	{
 		dbg_msg("datafile", "allocsize=%d", AllocSize);
 		dbg_msg("datafile", "readsize=%d", ReadSize);
@@ -179,9 +182,11 @@ bool CDataFileReader::Open(class IStorage *pStorage, const char *pFilename, int 
 	m_pDataFile->m_Info.m_pDataSizes = (int *)&m_pDataFile->m_Info.m_pDataOffsets[m_pDataFile->m_Header.m_NumRawData];
 
 	if(Header.m_Version == 4)
-		m_pDataFile->m_Info.m_pItemStart = (char *)&m_pDataFile->m_Info.m_pDataSizes[m_pDataFile->m_Header.m_NumRawData];
+		m_pDataFile->m_Info.m_pItemStart =
+			(char *)&m_pDataFile->m_Info.m_pDataSizes[m_pDataFile->m_Header.m_NumRawData];
 	else
-		m_pDataFile->m_Info.m_pItemStart = (char *)&m_pDataFile->m_Info.m_pDataOffsets[m_pDataFile->m_Header.m_NumRawData];
+		m_pDataFile->m_Info.m_pItemStart =
+			(char *)&m_pDataFile->m_Info.m_pDataOffsets[m_pDataFile->m_Header.m_NumRawData];
 	m_pDataFile->m_Info.m_pDataStart = m_pDataFile->m_Info.m_pItemStart + m_pDataFile->m_Header.m_ItemSize;
 
 	dbg_msg("datafile", "loading done. datafile='%s'", pFilename);
@@ -225,7 +230,8 @@ bool CDataFileReader::Open(class IStorage *pStorage, const char *pFilename, int 
 	return true;
 }
 
-bool CDataFileReader::GetCrcSize(class IStorage *pStorage, const char *pFilename, int StorageType, unsigned *pCrc, unsigned *pSize)
+bool CDataFileReader::GetCrcSize(
+	class IStorage *pStorage, const char *pFilename, int StorageType, unsigned *pCrc, unsigned *pSize)
 {
 	IOHANDLE File = pStorage->OpenFile(pFilename, IOFLAG_READ, StorageType);
 	if(!File)
@@ -234,7 +240,7 @@ bool CDataFileReader::GetCrcSize(class IStorage *pStorage, const char *pFilename
 	// get crc and size
 	unsigned Crc = 0;
 	unsigned Size = 0;
-	unsigned char aBuffer[64*1024];
+	unsigned char aBuffer[64 * 1024];
 	while(1)
 	{
 		unsigned Bytes = io_read(File, aBuffer, sizeof(aBuffer));
@@ -253,23 +259,32 @@ bool CDataFileReader::GetCrcSize(class IStorage *pStorage, const char *pFilename
 
 int CDataFileReader::NumData()
 {
-	if(!m_pDataFile) { return 0; }
+	if(!m_pDataFile)
+	{
+		return 0;
+	}
 	return m_pDataFile->m_Header.m_NumRawData;
 }
 
 // always returns the size in the file
 int CDataFileReader::GetDataSize(int Index)
 {
-	if(!m_pDataFile) { return 0; }
+	if(!m_pDataFile)
+	{
+		return 0;
+	}
 
-	if(Index == m_pDataFile->m_Header.m_NumRawData-1)
-		return m_pDataFile->m_Header.m_DataSize-m_pDataFile->m_Info.m_pDataOffsets[Index];
-	return m_pDataFile->m_Info.m_pDataOffsets[Index+1]-m_pDataFile->m_Info.m_pDataOffsets[Index];
+	if(Index == m_pDataFile->m_Header.m_NumRawData - 1)
+		return m_pDataFile->m_Header.m_DataSize - m_pDataFile->m_Info.m_pDataOffsets[Index];
+	return m_pDataFile->m_Info.m_pDataOffsets[Index + 1] - m_pDataFile->m_Info.m_pDataOffsets[Index];
 }
 
 void *CDataFileReader::GetDataImpl(int Index, int Swap)
 {
-	if(!m_pDataFile) { return 0; }
+	if(!m_pDataFile)
+	{
+		return 0;
+	}
 
 	// load it if needed
 	if(!m_pDataFile->m_ppDataPtrs[Index])
@@ -287,16 +302,19 @@ void *CDataFileReader::GetDataImpl(int Index, int Swap)
 			unsigned long UncompressedSize = m_pDataFile->m_Info.m_pDataSizes[Index];
 			unsigned long s;
 
-			dbg_msg("datafile", "loading data index=%d size=%d uncompressed=%d", Index, DataSize, (int)UncompressedSize);
+			dbg_msg(
+				"datafile", "loading data index=%d size=%d uncompressed=%d", Index, DataSize, (int)UncompressedSize);
 			m_pDataFile->m_ppDataPtrs[Index] = (char *)mem_alloc(UncompressedSize, 1);
 
 			// read the compressed data
-			io_seek(m_pDataFile->m_File, m_pDataFile->m_DataStartOffset+m_pDataFile->m_Info.m_pDataOffsets[Index], IOSEEK_START);
+			io_seek(m_pDataFile->m_File,
+					m_pDataFile->m_DataStartOffset + m_pDataFile->m_Info.m_pDataOffsets[Index],
+					IOSEEK_START);
 			io_read(m_pDataFile->m_File, pTemp, DataSize);
 
 			// decompress the data, TODO: check for errors
 			s = UncompressedSize;
-			uncompress((Bytef*)m_pDataFile->m_ppDataPtrs[Index], &s, (Bytef*)pTemp, DataSize); // ignore_convention
+			uncompress((Bytef *)m_pDataFile->m_ppDataPtrs[Index], &s, (Bytef *)pTemp, DataSize); // ignore_convention
 #if defined(CONF_ARCH_ENDIAN_BIG)
 			SwapSize = s;
 #endif
@@ -309,13 +327,15 @@ void *CDataFileReader::GetDataImpl(int Index, int Swap)
 			// load the data
 			dbg_msg("datafile", "loading data index=%d size=%d", Index, DataSize);
 			m_pDataFile->m_ppDataPtrs[Index] = (char *)mem_alloc(DataSize, 1);
-			io_seek(m_pDataFile->m_File, m_pDataFile->m_DataStartOffset+m_pDataFile->m_Info.m_pDataOffsets[Index], IOSEEK_START);
+			io_seek(m_pDataFile->m_File,
+					m_pDataFile->m_DataStartOffset + m_pDataFile->m_Info.m_pDataOffsets[Index],
+					IOSEEK_START);
 			io_read(m_pDataFile->m_File, m_pDataFile->m_ppDataPtrs[Index], DataSize);
 		}
 
 #if defined(CONF_ARCH_ENDIAN_BIG)
 		if(Swap && SwapSize)
-			swap_endian(m_pDataFile->m_ppDataPtrs[Index], sizeof(int), SwapSize/sizeof(int));
+			swap_endian(m_pDataFile->m_ppDataPtrs[Index], sizeof(int), SwapSize / sizeof(int));
 #endif
 	}
 
@@ -357,22 +377,32 @@ void *CDataFileReader::ReplaceData(int Index, int NewSize)
 
 int CDataFileReader::GetItemSize(int Index)
 {
-	if(!m_pDataFile) { return 0; }
-	if(Index == m_pDataFile->m_Header.m_NumItems-1)
-		return m_pDataFile->m_Header.m_ItemSize-m_pDataFile->m_Info.m_pItemOffsets[Index];
-	return m_pDataFile->m_Info.m_pItemOffsets[Index+1]-m_pDataFile->m_Info.m_pItemOffsets[Index];
+	if(!m_pDataFile)
+	{
+		return 0;
+	}
+	if(Index == m_pDataFile->m_Header.m_NumItems - 1)
+		return m_pDataFile->m_Header.m_ItemSize - m_pDataFile->m_Info.m_pItemOffsets[Index];
+	return m_pDataFile->m_Info.m_pItemOffsets[Index + 1] - m_pDataFile->m_Info.m_pItemOffsets[Index];
 }
 
 void *CDataFileReader::GetItem(int Index, int *pType, int *pID)
 {
-	if(!m_pDataFile) { if(pType) *pType = 0; if(pID) *pID = 0; return 0; }
+	if(!m_pDataFile)
+	{
+		if(pType)
+			*pType = 0;
+		if(pID)
+			*pID = 0;
+		return 0;
+	}
 
-	CDatafileItem *i = (CDatafileItem *)(m_pDataFile->m_Info.m_pItemStart+m_pDataFile->m_Info.m_pItemOffsets[Index]);
+	CDatafileItem *i = (CDatafileItem *)(m_pDataFile->m_Info.m_pItemStart + m_pDataFile->m_Info.m_pItemOffsets[Index]);
 	if(pType)
-		*pType = (i->m_TypeAndID>>16)&0xffff; // remove sign extention
+		*pType = (i->m_TypeAndID >> 16) & 0xffff; // remove sign extention
 	if(pID)
-		*pID = i->m_TypeAndID&0xffff;
-	return (void *)(i+1);
+		*pID = i->m_TypeAndID & 0xffff;
+	return (void *)(i + 1);
 }
 
 void CDataFileReader::GetType(int Type, int *pStart, int *pNum)
@@ -396,14 +426,15 @@ void CDataFileReader::GetType(int Type, int *pStart, int *pNum)
 
 void *CDataFileReader::FindItem(int Type, int ID)
 {
-	if(!m_pDataFile) return 0;
+	if(!m_pDataFile)
+		return 0;
 
 	int Start, Num;
 	GetType(Type, &Start, &Num);
 	for(int i = 0; i < Num; i++)
 	{
 		int ItemID;
-		void *pItem = GetItem(Start+i,0, &ItemID);
+		void *pItem = GetItem(Start + i, 0, &ItemID);
 		if(ID == ItemID)
 			return pItem;
 	}
@@ -412,7 +443,8 @@ void *CDataFileReader::FindItem(int Type, int ID)
 
 int CDataFileReader::NumItems()
 {
-	if(!m_pDataFile) return 0;
+	if(!m_pDataFile)
+		return 0;
 	return m_pDataFile->m_Header.m_NumItems;
 }
 
@@ -434,10 +466,10 @@ bool CDataFileReader::Close()
 
 unsigned CDataFileReader::Crc()
 {
-	if(!m_pDataFile) return 0xFFFFFFFF;
+	if(!m_pDataFile)
+		return 0xFFFFFFFF;
 	return m_pDataFile->m_Crc;
 }
-
 
 CDataFileWriter::CDataFileWriter()
 {
@@ -480,11 +512,12 @@ bool CDataFileWriter::Open(class IStorage *pStorage, const char *pFilename)
 
 int CDataFileWriter::AddItem(int Type, int ID, int Size, void *pData)
 {
-	if(!m_File) return 0;
+	if(!m_File)
+		return 0;
 
 	dbg_assert(Type >= 0 && Type < 0xFFFF, "incorrect type");
 	dbg_assert(m_NumItems < 1024, "too many items");
-	dbg_assert(Size%sizeof(int) == 0, "incorrect boundary");
+	dbg_assert(Size % sizeof(int) == 0, "incorrect boundary");
 
 	m_pItems[m_NumItems].m_Type = Type;
 	m_pItems[m_NumItems].m_ID = ID;
@@ -511,12 +544,13 @@ int CDataFileWriter::AddItem(int Type, int ID, int Size, void *pData)
 	m_pItemTypes[Type].m_Num++;
 
 	m_NumItems++;
-	return m_NumItems-1;
+	return m_NumItems - 1;
 }
 
 int CDataFileWriter::AddData(int Size, void *pData)
 {
-	if(!m_File) return 0;
+	if(!m_File)
+		return 0;
 
 	dbg_assert(m_NumDatas < 1024, "too much data");
 
@@ -524,7 +558,7 @@ int CDataFileWriter::AddData(int Size, void *pData)
 	unsigned long s = compressBound(Size);
 	void *pCompData = mem_alloc(s, 1); // temporary buffer that we use during compression
 
-	int Result = compress((Bytef*)pCompData, &s, (Bytef*)pData, Size); // ignore_convention
+	int Result = compress((Bytef *)pCompData, &s, (Bytef *)pData, Size); // ignore_convention
 	if(Result != Z_OK)
 	{
 		dbg_msg("datafile", "compression error %d", Result);
@@ -538,17 +572,17 @@ int CDataFileWriter::AddData(int Size, void *pData)
 	mem_free(pCompData);
 
 	m_NumDatas++;
-	return m_NumDatas-1;
+	return m_NumDatas - 1;
 }
 
 int CDataFileWriter::AddDataSwapped(int Size, void *pData)
 {
-	dbg_assert(Size%sizeof(int) == 0, "incorrect boundary");
+	dbg_assert(Size % sizeof(int) == 0, "incorrect boundary");
 
 #if defined(CONF_ARCH_ENDIAN_BIG)
 	void *pSwapped = mem_alloc(Size, 1); // temporary buffer that we use during compression
 	mem_copy(pSwapped, pData, Size);
-	swap_endian(pSwapped, sizeof(int), Size/sizeof(int));
+	swap_endian(pSwapped, sizeof(int), Size / sizeof(int));
 	int Index = AddData(Size, pSwapped);
 	mem_free(pSwapped);
 	return Index;
@@ -557,10 +591,10 @@ int CDataFileWriter::AddDataSwapped(int Size, void *pData)
 #endif
 }
 
-
 int CDataFileWriter::Finish()
 {
-	if(!m_File) return 1;
+	if(!m_File)
+		return 1;
 
 	int ItemSize = 0;
 	int TypesSize, HeaderSize, OffsetSize, FileSize, SwapSize;
@@ -575,25 +609,34 @@ int CDataFileWriter::Finish()
 	for(int i = 0; i < m_NumItems; i++)
 	{
 		if(DEBUG)
-			dbg_msg("datafile", "item=%d size=%d (%d)", i, m_pItems[i].m_Size, int(m_pItems[i].m_Size+sizeof(CDatafileItem)));
+			dbg_msg("datafile",
+					"item=%d size=%d (%d)",
+					i,
+					m_pItems[i].m_Size,
+					int(m_pItems[i].m_Size + sizeof(CDatafileItem)));
 		ItemSize += m_pItems[i].m_Size + sizeof(CDatafileItem);
 	}
-
 
 	for(int i = 0; i < m_NumDatas; i++)
 		DataSize += m_pDatas[i].m_CompressedSize;
 
 	// calculate the complete size
-	TypesSize = m_NumItemTypes*sizeof(CDatafileItemType);
+	TypesSize = m_NumItemTypes * sizeof(CDatafileItemType);
 	HeaderSize = sizeof(CDatafileHeader);
-	OffsetSize = (m_NumItems + m_NumDatas + m_NumDatas) * sizeof(int); // ItemOffsets, DataOffsets, DataUncompressedSizes
+	OffsetSize =
+		(m_NumItems + m_NumDatas + m_NumDatas) * sizeof(int); // ItemOffsets, DataOffsets, DataUncompressedSizes
 	FileSize = HeaderSize + TypesSize + OffsetSize + ItemSize + DataSize;
 	SwapSize = FileSize - DataSize;
 
 	(void)SwapSize;
 
 	if(DEBUG)
-		dbg_msg("datafile", "num_m_aItemTypes=%d TypesSize=%d m_aItemsize=%d DataSize=%d", m_NumItemTypes, TypesSize, ItemSize, DataSize);
+		dbg_msg("datafile",
+				"num_m_aItemTypes=%d TypesSize=%d m_aItemsize=%d DataSize=%d",
+				m_NumItemTypes,
+				TypesSize,
+				ItemSize,
+				DataSize);
 
 	// construct Header
 	{
@@ -614,7 +657,7 @@ int CDataFileWriter::Finish()
 		if(DEBUG)
 			dbg_msg("datafile", "HeaderSize=%d", (int)sizeof(Header));
 #if defined(CONF_ARCH_ENDIAN_BIG)
-		swap_endian(&Header, sizeof(int), sizeof(Header)/sizeof(int));
+		swap_endian(&Header, sizeof(int), sizeof(Header) / sizeof(int));
 #endif
 		io_write(m_File, &Header, sizeof(Header));
 	}
@@ -632,7 +675,7 @@ int CDataFileWriter::Finish()
 			if(DEBUG)
 				dbg_msg("datafile", "writing type=%x start=%d num=%d", Info.m_Type, Info.m_Start, Info.m_Num);
 #if defined(CONF_ARCH_ENDIAN_BIG)
-			swap_endian(&Info, sizeof(int), sizeof(CDatafileItemType)/sizeof(int));
+			swap_endian(&Info, sizeof(int), sizeof(CDatafileItemType) / sizeof(int));
 #endif
 			io_write(m_File, &Info, sizeof(Info));
 			Count += m_pItemTypes[i].m_Num;
@@ -652,7 +695,7 @@ int CDataFileWriter::Finish()
 					dbg_msg("datafile", "writing item offset num=%d offset=%d", k, Offset);
 				int Temp = Offset;
 #if defined(CONF_ARCH_ENDIAN_BIG)
-				swap_endian(&Temp, sizeof(int), sizeof(Temp)/sizeof(int));
+				swap_endian(&Temp, sizeof(int), sizeof(Temp) / sizeof(int));
 #endif
 				io_write(m_File, &Temp, sizeof(Temp));
 				Offset += m_pItems[k].m_Size + sizeof(CDatafileItem);
@@ -670,7 +713,7 @@ int CDataFileWriter::Finish()
 			dbg_msg("datafile", "writing data offset num=%d offset=%d", i, Offset);
 		int Temp = Offset;
 #if defined(CONF_ARCH_ENDIAN_BIG)
-		swap_endian(&Temp, sizeof(int), sizeof(Temp)/sizeof(int));
+		swap_endian(&Temp, sizeof(int), sizeof(Temp) / sizeof(int));
 #endif
 		io_write(m_File, &Temp, sizeof(Temp));
 		Offset += m_pDatas[i].m_CompressedSize;
@@ -683,7 +726,7 @@ int CDataFileWriter::Finish()
 			dbg_msg("datafile", "writing data uncompressed size num=%d size=%d", i, m_pDatas[i].m_UncompressedSize);
 		int UncompressedSize = m_pDatas[i].m_UncompressedSize;
 #if defined(CONF_ARCH_ENDIAN_BIG)
-		swap_endian(&UncompressedSize, sizeof(int), sizeof(UncompressedSize)/sizeof(int));
+		swap_endian(&UncompressedSize, sizeof(int), sizeof(UncompressedSize) / sizeof(int));
 #endif
 		io_write(m_File, &UncompressedSize, sizeof(UncompressedSize));
 	}
@@ -698,14 +741,19 @@ int CDataFileWriter::Finish()
 			while(k != -1)
 			{
 				CDatafileItem Item;
-				Item.m_TypeAndID = (i<<16)|m_pItems[k].m_ID;
+				Item.m_TypeAndID = (i << 16) | m_pItems[k].m_ID;
 				Item.m_Size = m_pItems[k].m_Size;
 				if(DEBUG)
-					dbg_msg("datafile", "writing item type=%x idx=%d id=%d size=%d", i, k, m_pItems[k].m_ID, m_pItems[k].m_Size);
+					dbg_msg("datafile",
+							"writing item type=%x idx=%d id=%d size=%d",
+							i,
+							k,
+							m_pItems[k].m_ID,
+							m_pItems[k].m_Size);
 
 #if defined(CONF_ARCH_ENDIAN_BIG)
-				swap_endian(&Item, sizeof(int), sizeof(Item)/sizeof(int));
-				swap_endian(m_pItems[k].m_pData, sizeof(int), m_pItems[k].m_Size/sizeof(int));
+				swap_endian(&Item, sizeof(int), sizeof(Item) / sizeof(int));
+				swap_endian(m_pItems[k].m_pData, sizeof(int), m_pItems[k].m_Size / sizeof(int));
 #endif
 				io_write(m_File, &Item, sizeof(Item));
 				io_write(m_File, m_pItems[k].m_pData, m_pItems[k].m_Size);
@@ -739,7 +787,8 @@ int CDataFileWriter::Finish()
 }
 
 // MapGen
-bool CDataFileWriter::SaveMap(class IStorage *pStorage, CDataFileReader *pFileMap, const char *pFileName, char *pBlocksData, int BlocksDataSize)
+bool CDataFileWriter::SaveMap(
+	class IStorage *pStorage, CDataFileReader *pFileMap, const char *pFileName, char *pBlocksData, int BlocksDataSize)
 {
 	dbg_msg("CDataFileWriter", "saving to '%s'...", pFileName);
 	char aBuf[128];
@@ -750,7 +799,6 @@ bool CDataFileWriter::SaveMap(class IStorage *pStorage, CDataFileReader *pFileMa
 		return 0;
 	}
 
-
 	// save version
 	{
 		CMapItemVersion *pItem = (CMapItemVersion *)pFileMap->FindItem(MAPITEMTYPE_VERSION, 0);
@@ -758,31 +806,30 @@ bool CDataFileWriter::SaveMap(class IStorage *pStorage, CDataFileReader *pFileMa
 		dbg_msg("CDataFileWriter", "saving version");
 	}
 
-
 	// save map info
 	{
-        CMapItemInfo Item = *((CMapItemInfo *)pFileMap->FindItem(MAPITEMTYPE_INFO, 0));
+		CMapItemInfo Item = *((CMapItemInfo *)pFileMap->FindItem(MAPITEMTYPE_INFO, 0));
 		if(Item.m_Version == 1)
 		{
 			if(Item.m_Author > -1)
 			{
 				str_copy(aBuf, (char *)pFileMap->GetData(Item.m_Author), sizeof(aBuf));
-				Item.m_Author = AddData(str_length(aBuf)+1, aBuf);
+				Item.m_Author = AddData(str_length(aBuf) + 1, aBuf);
 			}
 			if(Item.m_MapVersion > -1)
 			{
 				str_copy(aBuf, (char *)pFileMap->GetData(Item.m_MapVersion), sizeof(aBuf));
-				Item.m_MapVersion = AddData(str_length(aBuf)+1, aBuf);
+				Item.m_MapVersion = AddData(str_length(aBuf) + 1, aBuf);
 			}
 			if(Item.m_Credits > -1)
 			{
 				str_copy(aBuf, (char *)pFileMap->GetData(Item.m_Credits), sizeof(aBuf));
-				Item.m_Credits = AddData(str_length(aBuf)+1, aBuf);
+				Item.m_Credits = AddData(str_length(aBuf) + 1, aBuf);
 			}
 			if(Item.m_License > -1)
 			{
 				str_copy(aBuf, (char *)pFileMap->GetData(Item.m_License), sizeof(aBuf));
-				Item.m_License = AddData(str_length(aBuf)+1, aBuf);
+				Item.m_License = AddData(str_length(aBuf) + 1, aBuf);
 			}
 		}
 
@@ -790,107 +837,117 @@ bool CDataFileWriter::SaveMap(class IStorage *pStorage, CDataFileReader *pFileMa
 		dbg_msg("CDataFileWriter", "saving info");
 	}
 
-
 	// save images
 	int Start, Count;
 	pFileMap->GetType(MAPITEMTYPE_IMAGE, &Start, &Count);
 	for(int i = 0; i < Count; i++)
 	{
-	    dbg_msg("CDataFileWriter", "saving image");
-		CMapItemImage Item = *((CMapItemImage *)pFileMap->GetItem(Start+i, 0, 0));
+		dbg_msg("CDataFileWriter", "saving image");
+		CMapItemImage Item = *((CMapItemImage *)pFileMap->GetItem(Start + i, 0, 0));
 		str_copy(aBuf, (char *)pFileMap->GetData(Item.m_ImageName), sizeof(aBuf));
-		Item.m_ImageName = AddData(str_length(aBuf)+1, aBuf);
+		Item.m_ImageName = AddData(str_length(aBuf) + 1, aBuf);
 		if(Item.m_External == 0)
-        {
+		{
 			const int PixelSize = Item.m_Format == CImageInfoFile::FORMAT_RGB ? 3 : 4;
 			void *pData = pFileMap->GetData(Item.m_ImageData);
-			Item.m_ImageData = AddData(Item.m_Width*Item.m_Height*PixelSize, pData);
-        }
+			Item.m_ImageData = AddData(Item.m_Width * Item.m_Height * PixelSize, pData);
+		}
 		AddItem(MAPITEMTYPE_IMAGE, i, sizeof(CMapItemImage), &Item);
 	}
 
-
 	// save layers
-    enum
+	enum
 	{
-		COLFLAG_SOLID=1,
-		COLFLAG_DEATH=2,
-		COLFLAG_NOHOOK=4,
-		
-		COLFLAG_RAMP_LEFT=8,
-		COLFLAG_RAMP_RIGHT=16,
-		COLFLAG_ROOFSLOPE_LEFT=32,
-		COLFLAG_ROOFSLOPE_RIGHT=64,
-		
-		COLFLAG_DAMAGEFLUID=128,
-		
+		COLFLAG_SOLID = 1,
+		COLFLAG_DEATH = 2,
+		COLFLAG_NOHOOK = 4,
+
+		COLFLAG_RAMP_LEFT = 8,
+		COLFLAG_RAMP_RIGHT = 16,
+		COLFLAG_ROOFSLOPE_LEFT = 32,
+		COLFLAG_ROOFSLOPE_RIGHT = 64,
+
+		COLFLAG_DAMAGEFLUID = 128,
+
 		// 256 = out of range for unsigned char, ugly!
-		COLFLAG_MOVELEFT=129,
-		COLFLAG_MOVERIGHT=130,
-		COLFLAG_HANG=131,
-		COLFLAG_PLATFORM=132,
+		COLFLAG_MOVELEFT = 129,
+		COLFLAG_MOVERIGHT = 130,
+		COLFLAG_HANG = 131,
+		COLFLAG_PLATFORM = 132,
 	};
 
-	int LayerStart, LayerCount=0, LayerNum, GroupStart, GroupCount=0, GroupNum;
+	int LayerStart, LayerCount = 0, LayerNum, GroupStart, GroupCount = 0, GroupNum;
 	pFileMap->GetType(MAPITEMTYPE_GROUP, &GroupStart, &GroupNum);
 	pFileMap->GetType(MAPITEMTYPE_LAYER, &LayerStart, &LayerNum);
 
 	for(int g = 0; g < GroupNum; g++)
 	{
-		CMapItemGroup *pGroup = static_cast<CMapItemGroup *>(pFileMap->GetItem(GroupStart+g, 0, 0));
+		CMapItemGroup *pGroup = static_cast<CMapItemGroup *>(pFileMap->GetItem(GroupStart + g, 0, 0));
 
 		for(int l = 0; l < pGroup->m_NumLayers; l++)
 		{
-			CMapItemLayer *pLayer = static_cast<CMapItemLayer *>(pFileMap->GetItem(LayerStart+(pGroup->m_StartLayer+l), 0, 0));
+			CMapItemLayer *pLayer =
+				static_cast<CMapItemLayer *>(pFileMap->GetItem(LayerStart + (pGroup->m_StartLayer + l), 0, 0));
 
 			if(pLayer->m_Type == LAYERTYPE_TILES)
 			{
-			    //dbg_msg("CDataFileWriter", "saving tile layer");
+				// dbg_msg("CDataFileWriter", "saving tile layer");
 
 				CMapItemLayerTilemap Tilemap = *(reinterpret_cast<CMapItemLayerTilemap *>(pLayer));
 				CTile *pTiles = (CTile *)pFileMap->GetData(Tilemap.m_Data);
 
-                if (Tilemap.m_Flags&TILESLAYERFLAG_GAME)
-                {
-                    for (int u=0; u<Tilemap.m_Width; u++)
-                    {
-                        for (int o=0; o<Tilemap.m_Height; o++)
-                        {
-                            const int tpos = o*Tilemap.m_Width+u;
-                            const int index = pTiles[tpos].m_Index;
-                            if (index <= 133)
-                            {
-                                if (index&COLFLAG_DEATH) pTiles[tpos].m_Index = TILE_DEATH;
-                                if (index&COLFLAG_SOLID) pTiles[tpos].m_Index = TILE_SOLID;
-                                if (index&COLFLAG_DAMAGEFLUID) pTiles[tpos].m_Index = TILE_DAMAGEFLUID;
-                                if (index == COLFLAG_RAMP_LEFT) pTiles[tpos].m_Index = TILE_RAMP_LEFT;
-                                if (index == COLFLAG_RAMP_RIGHT) pTiles[tpos].m_Index = TILE_RAMP_RIGHT;
-                                if (index == COLFLAG_ROOFSLOPE_LEFT) pTiles[tpos].m_Index = TILE_ROOFSLOPE_LEFT;
-                                if (index == COLFLAG_ROOFSLOPE_RIGHT) pTiles[tpos].m_Index = TILE_ROOFSLOPE_RIGHT;
-                                if (index == COLFLAG_MOVELEFT) pTiles[tpos].m_Index = TILE_MOVELEFT;
-                                if (index == COLFLAG_MOVERIGHT) pTiles[tpos].m_Index = TILE_MOVERIGHT;
-                                if (index == COLFLAG_HANG) pTiles[tpos].m_Index = TILE_HANG;
-                                if (index == COLFLAG_PLATFORM) pTiles[tpos].m_Index = TILE_PLATFORM;
-                            }
-                        }
-                    }
-                }
+				if(Tilemap.m_Flags & TILESLAYERFLAG_GAME)
+				{
+					for(int u = 0; u < Tilemap.m_Width; u++)
+					{
+						for(int o = 0; o < Tilemap.m_Height; o++)
+						{
+							const int tpos = o * Tilemap.m_Width + u;
+							const int index = pTiles[tpos].m_Index;
+							if(index <= 133)
+							{
+								if(index & COLFLAG_DEATH)
+									pTiles[tpos].m_Index = TILE_DEATH;
+								if(index & COLFLAG_SOLID)
+									pTiles[tpos].m_Index = TILE_SOLID;
+								if(index & COLFLAG_DAMAGEFLUID)
+									pTiles[tpos].m_Index = TILE_DAMAGEFLUID;
+								if(index == COLFLAG_RAMP_LEFT)
+									pTiles[tpos].m_Index = TILE_RAMP_LEFT;
+								if(index == COLFLAG_RAMP_RIGHT)
+									pTiles[tpos].m_Index = TILE_RAMP_RIGHT;
+								if(index == COLFLAG_ROOFSLOPE_LEFT)
+									pTiles[tpos].m_Index = TILE_ROOFSLOPE_LEFT;
+								if(index == COLFLAG_ROOFSLOPE_RIGHT)
+									pTiles[tpos].m_Index = TILE_ROOFSLOPE_RIGHT;
+								if(index == COLFLAG_MOVELEFT)
+									pTiles[tpos].m_Index = TILE_MOVELEFT;
+								if(index == COLFLAG_MOVERIGHT)
+									pTiles[tpos].m_Index = TILE_MOVERIGHT;
+								if(index == COLFLAG_HANG)
+									pTiles[tpos].m_Index = TILE_HANG;
+								if(index == COLFLAG_PLATFORM)
+									pTiles[tpos].m_Index = TILE_PLATFORM;
+							}
+						}
+					}
+				}
 
-                Tilemap.m_Data = AddData(Tilemap.m_Width*Tilemap.m_Height*sizeof(CTile), pTiles);
+				Tilemap.m_Data = AddData(Tilemap.m_Width * Tilemap.m_Height * sizeof(CTile), pTiles);
 				AddItem(MAPITEMTYPE_LAYER, LayerCount++, sizeof(CMapItemLayerTilemap), &Tilemap);
 			}
-			else if (pLayer->m_Type == LAYERTYPE_QUADS)
+			else if(pLayer->m_Type == LAYERTYPE_QUADS)
 			{
-			    dbg_msg("CDataFileWriter", "saving quad layer");
+				dbg_msg("CDataFileWriter", "saving quad layer");
 
-				CMapItemLayerQuads QLayer = *(reinterpret_cast<CMapItemLayerQuads*>(pLayer));
+				CMapItemLayerQuads QLayer = *(reinterpret_cast<CMapItemLayerQuads *>(pLayer));
 				CQuad *pQuads = (CQuad *)pFileMap->GetDataSwapped(QLayer.m_Data);
-				QLayer.m_Data = AddDataSwapped(QLayer.m_NumQuads*sizeof(CQuad), pQuads);
+				QLayer.m_Data = AddDataSwapped(QLayer.m_NumQuads * sizeof(CQuad), pQuads);
 				AddItem(MAPITEMTYPE_LAYER, LayerCount++, sizeof(CMapItemLayerQuads), &QLayer);
 			}
 		}
 
-        dbg_msg("CDataFileWriter", "saving group");
+		dbg_msg("CDataFileWriter", "saving group");
 		AddItem(MAPITEMTYPE_GROUP, GroupCount++, sizeof(CMapItemGroup), pGroup);
 	}
 
@@ -900,8 +957,8 @@ bool CDataFileWriter::SaveMap(class IStorage *pStorage, CDataFileReader *pFileMa
 	pFileMap->GetType(MAPITEMTYPE_ENVELOPE, &StartEV, &NumEV);
 	for(int e = 0; e < NumEV; e++)
 	{
-	    dbg_msg("CDataFileWriter", "saving envelope");
-	    CMapItemEnvelope *pEnvelope = (CMapItemEnvelope*)pFileMap->GetItem(StartEV+e, 0, 0);
+		dbg_msg("CDataFileWriter", "saving envelope");
+		CMapItemEnvelope *pEnvelope = (CMapItemEnvelope *)pFileMap->GetItem(StartEV + e, 0, 0);
 		AddItem(MAPITEMTYPE_ENVELOPE, e, sizeof(CMapItemEnvelope), pEnvelope);
 		Count += pEnvelope->m_NumPoints;
 	}
@@ -909,10 +966,10 @@ bool CDataFileWriter::SaveMap(class IStorage *pStorage, CDataFileReader *pFileMa
 	// save points
 	int StartEP, NumEP;
 	pFileMap->GetType(MAPITEMTYPE_ENVPOINTS, &StartEP, &NumEP);
-	if (NumEP)
+	if(NumEP)
 	{
 		CEnvPoint *pPoints = (CEnvPoint *)pFileMap->GetItem(StartEP, 0, 0);
-		int TotalSizePoints = sizeof(CEnvPoint)*Count;
+		int TotalSizePoints = sizeof(CEnvPoint) * Count;
 		AddItem(MAPITEMTYPE_ENVPOINTS, 0, TotalSizePoints, pPoints);
 	}
 
@@ -923,7 +980,8 @@ bool CDataFileWriter::SaveMap(class IStorage *pStorage, CDataFileReader *pFileMa
 	return true;
 }
 
-bool CDataFileWriter::CreateEmptyMap(class IStorage *pStorage, const char *pFileName, int w, int h, CImageInfoFile *pTileset)
+bool CDataFileWriter::CreateEmptyMap(
+	class IStorage *pStorage, const char *pFileName, int w, int h, CImageInfoFile *pTileset)
 {
 	dbg_msg("CDataFileWriter", "Saving Empty MineTee Map to '%s'...", pFileName);
 
@@ -933,8 +991,8 @@ bool CDataFileWriter::CreateEmptyMap(class IStorage *pStorage, const char *pFile
 		return 0;
 	}
 
-	CTile *pTiles = (CTile*)mem_alloc(sizeof(CTile)*w*h, 1);
-	mem_zero(pTiles, sizeof(CTile)*w*h);
+	CTile *pTiles = (CTile *)mem_alloc(sizeof(CTile) * w * h, 1);
+	mem_zero(pTiles, sizeof(CTile) * w * h);
 	int LayerCount = 0, GroupCount = 0;
 
 	// save version
@@ -945,37 +1003,35 @@ bool CDataFileWriter::CreateEmptyMap(class IStorage *pStorage, const char *pFile
 		dbg_msg("CDataFileWriter", "saving version");
 	}
 
-
 	// save map info
 	{
 		CMapItemInfo Item;
 		Item.m_Version = 1;
-        Item.m_Author = -1;
-        Item.m_MapVersion = -1;
-        Item.m_Credits = -1;
-        Item.m_License = -1;
+		Item.m_Author = -1;
+		Item.m_MapVersion = -1;
+		Item.m_Credits = -1;
+		Item.m_License = -1;
 
 		AddItem(MAPITEMTYPE_INFO, 0, sizeof(Item), &Item);
 		dbg_msg("CDataFileWriter", "saving info");
 	}
-
 
 	// save images
 	{
 		CMapItemImage Item;
 		Item.m_Version = CMapItemImage::CURRENT_VERSION;
 		char aName[12];
-		mem_zero(aName,sizeof(aName));
+		mem_zero(aName, sizeof(aName));
 		str_copy(aName, "grass_main", sizeof(aName));
-		Item.m_ImageName = AddData(str_length(aName)+1, aName);
-		if (pTileset && pTileset->m_pData)
+		Item.m_ImageName = AddData(str_length(aName) + 1, aName);
+		if(pTileset && pTileset->m_pData)
 		{
 			Item.m_External = 0;
 			Item.m_Format = pTileset->m_Format;
 			Item.m_Width = pTileset->m_Width;
 			Item.m_Height = pTileset->m_Height;
 			const int PixelSize = pTileset->m_Format == CImageInfoFile::FORMAT_RGB ? 3 : 4;
-			Item.m_ImageData = AddData(Item.m_Width*Item.m_Height*PixelSize, pTileset->m_pData);
+			Item.m_ImageData = AddData(Item.m_Width * Item.m_Height * PixelSize, pTileset->m_pData);
 		}
 		else
 		{
@@ -989,8 +1045,8 @@ bool CDataFileWriter::CreateEmptyMap(class IStorage *pStorage, const char *pFile
 		dbg_msg("CDataFileWriter", "saving images");
 	}
 
-    // Background Layer
-    {
+	// Background Layer
+	{
 		CMapItemGroup GItem;
 		GItem.m_NumLayers = 1;
 		GItem.m_StartLayer = 0;
@@ -1004,14 +1060,14 @@ bool CDataFileWriter::CreateEmptyMap(class IStorage *pStorage, const char *pFile
 		GItem.m_ClipY = 0;
 		GItem.m_ClipW = 0;
 		GItem.m_ClipH = 0;
-		StrToInts(GItem.m_aName, sizeof(GItem.m_aName)/sizeof(int), "\0");
+		StrToInts(GItem.m_aName, sizeof(GItem.m_aName) / sizeof(int), "\0");
 		CMapItemLayerQuads Item;
 		Item.m_Image = -1;
 		Item.m_NumQuads = 1;
 		Item.m_Version = 2;
 		Item.m_Layer.m_Flags = 0;
 		Item.m_Layer.m_Type = LAYERTYPE_QUADS;
-		StrToInts(Item.m_aName, sizeof(Item.m_aName)/sizeof(int), "Quads\0");
+		StrToInts(Item.m_aName, sizeof(Item.m_aName) / sizeof(int), "Quads\0");
 		CQuad QuadBkg;
 		const int Width = 1000000;
 		const int Height = 800000;
@@ -1034,20 +1090,20 @@ bool CDataFileWriter::CreateEmptyMap(class IStorage *pStorage, const char *pFile
 		QuadBkg.m_aColors[2].a = QuadBkg.m_aColors[3].a = 255;
 		QuadBkg.m_aTexcoords[0].x = 0;
 		QuadBkg.m_aTexcoords[0].y = 0;
-		QuadBkg.m_aTexcoords[1].x = 1<<10;
+		QuadBkg.m_aTexcoords[1].x = 1 << 10;
 		QuadBkg.m_aTexcoords[1].y = 0;
 		QuadBkg.m_aTexcoords[2].x = 0;
-		QuadBkg.m_aTexcoords[2].y = 1<<10;
-		QuadBkg.m_aTexcoords[3].x = 1<<10;
-		QuadBkg.m_aTexcoords[3].y = 1<<10;
+		QuadBkg.m_aTexcoords[2].y = 1 << 10;
+		QuadBkg.m_aTexcoords[3].x = 1 << 10;
+		QuadBkg.m_aTexcoords[3].y = 1 << 10;
 		Item.m_Data = AddDataSwapped(sizeof(CQuad), &QuadBkg);
 		AddItem(MAPITEMTYPE_LAYER, LayerCount++, sizeof(Item), &Item);
 		AddItem(MAPITEMTYPE_GROUP, GroupCount++, sizeof(GItem), &GItem);
 		dbg_msg("CDataFileWriter", "saving background group");
-    }
+	}
 
-    // Game Group
-    {
+	// Game Group
+	{
 		CMapItemGroup GItem;
 		GItem.m_Version = CMapItemGroup::CURRENT_VERSION;
 		GItem.m_NumLayers = 4;
@@ -1061,43 +1117,43 @@ bool CDataFileWriter::CreateEmptyMap(class IStorage *pStorage, const char *pFile
 		GItem.m_ClipY = 0;
 		GItem.m_ClipW = 0;
 		GItem.m_ClipH = 0;
-		StrToInts(GItem.m_aName, sizeof(GItem.m_aName)/sizeof(int), "Game\0");
+		StrToInts(GItem.m_aName, sizeof(GItem.m_aName) / sizeof(int), "Game\0");
 
 		CMapItemLayerTilemap Item;
 		Item.m_Width = w;
 		Item.m_Height = h;
 		Item.m_Version = 3;
-		Item.m_Color.r=Item.m_Color.g=Item.m_Color.b=Item.m_Color.a=255;
+		Item.m_Color.r = Item.m_Color.g = Item.m_Color.b = Item.m_Color.a = 255;
 		Item.m_ColorEnv = -1;
 		Item.m_ColorEnvOffset = 0;
 		Item.m_Layer.m_Flags = 0;
 		Item.m_Layer.m_Type = LAYERTYPE_TILES;
 
 		// background
-		StrToInts(Item.m_aName, sizeof(Item.m_aName)/sizeof(int), "background\0");
+		StrToInts(Item.m_aName, sizeof(Item.m_aName) / sizeof(int), "background\0");
 		Item.m_Image = 0;
 		Item.m_Flags = 0;
-		Item.m_Data = AddData(w*h*sizeof(CTile), pTiles);
+		Item.m_Data = AddData(w * h * sizeof(CTile), pTiles);
 		AddItem(MAPITEMTYPE_LAYER, LayerCount++, sizeof(Item), &Item);
 		// game
-		StrToInts(Item.m_aName, sizeof(Item.m_aName)/sizeof(int), "Game\0");
+		StrToInts(Item.m_aName, sizeof(Item.m_aName) / sizeof(int), "Game\0");
 		Item.m_Image = -1;
 		Item.m_Flags = TILESLAYERFLAG_GAME;
-		Item.m_Data = AddData(w*h*sizeof(CTile), pTiles);
+		Item.m_Data = AddData(w * h * sizeof(CTile), pTiles);
 		AddItem(MAPITEMTYPE_LAYER, LayerCount++, sizeof(Item), &Item);
 		// foreground
-		StrToInts(Item.m_aName, sizeof(Item.m_aName)/sizeof(int), "foreground\0");
+		StrToInts(Item.m_aName, sizeof(Item.m_aName) / sizeof(int), "foreground\0");
 		Item.m_Image = 0;
 		Item.m_Flags = 0;
-		Item.m_Data = AddData(w*h*sizeof(CTile), pTiles);
+		Item.m_Data = AddData(w * h * sizeof(CTile), pTiles);
 		AddItem(MAPITEMTYPE_LAYER, LayerCount++, sizeof(Item), &Item);
 		AddItem(MAPITEMTYPE_GROUP, GroupCount++, sizeof(GItem), &GItem);
 		dbg_msg("CDataFileWriter", "saving game group");
-    }
+	}
 
-    mem_free(pTiles);
+	mem_free(pTiles);
 
-   // AddItem(MAPITEMTYPE_ENVPOINTS, 0, 0, 0x0);
+	// AddItem(MAPITEMTYPE_ENVPOINTS, 0, 0, 0x0);
 
 	// finish the data file
 	Finish();
@@ -1105,4 +1161,3 @@ bool CDataFileWriter::CreateEmptyMap(class IStorage *pStorage, const char *pFile
 
 	return true;
 }
-

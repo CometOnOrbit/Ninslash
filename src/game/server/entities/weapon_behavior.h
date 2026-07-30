@@ -5,10 +5,8 @@ class CWeapon;
 
 class CWeaponBehaviorExecutor
 {
-private:
+  public:
 	static bool CreateElectroWall(CWeapon &Weapon);
-
-public:
 	static bool Fire(CWeapon &Weapon, float *pKnockback);
 	static bool Activate(CWeapon &Weapon);
 	static bool Charge(CWeapon &Weapon);

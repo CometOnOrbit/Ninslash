@@ -36,7 +36,8 @@ void CLineReader::InitString(const char *pString)
 
 void CLineReader::Shutdown()
 {
-	if(m_pStream) {
+	if(m_pStream)
+	{
 		delete m_pStream;
 		m_pStream = 0x0;
 	}
@@ -66,7 +67,7 @@ char *CLineReader::Get()
 			m_BufferPos = Left;
 
 			// fill the buffer
-			Read = m_pStream->Read(&m_aBuffer[m_BufferPos], m_BufferMaxSize-m_BufferPos);
+			Read = m_pStream->Read(&m_aBuffer[m_BufferPos], m_BufferMaxSize - m_BufferPos);
 			m_BufferSize = Left + Read;
 			LineStart = 0;
 
@@ -90,14 +91,14 @@ char *CLineReader::Get()
 				// line found
 				if(m_aBuffer[m_BufferPos] == '\r')
 				{
-					if(m_BufferPos+1 >= m_BufferSize)
+					if(m_BufferPos + 1 >= m_BufferSize)
 					{
 						// read more to get the connected '\n'
 						CRLFBreak = true;
 						++m_BufferPos;
 						continue;
 					}
-					else if(m_aBuffer[m_BufferPos+1] == '\n')
+					else if(m_aBuffer[m_BufferPos + 1] == '\n')
 						m_aBuffer[m_BufferPos++] = 0;
 				}
 				m_aBuffer[m_BufferPos++] = 0;

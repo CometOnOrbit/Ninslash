@@ -32,7 +32,7 @@ void CControls::OnReset()
 	m_LastData.m_Down = 0;
 	m_LastData.m_Charge = 0;
 	// simulate releasing the fire button
-	if((m_LastData.m_Fire&1) != 0)
+	if((m_LastData.m_Fire & 1) != 0)
 		m_LastData.m_Fire++;
 	m_LastData.m_Fire &= INPUT_STATE_MASK;
 	m_LastData.m_Jump = 0;
@@ -40,7 +40,7 @@ void CControls::OnReset()
 
 	m_InputDirectionLeft = 0;
 	m_InputDirectionRight = 0;
-	
+
 	m_PickedWeapon = -1;
 	m_SignalWeapon = -1;
 	m_LastWeapon = 1;
@@ -65,7 +65,7 @@ static void ConKeyInputState(IConsole::IResult *pResult, void *pUserData)
 static void ConKeyInputCounter(IConsole::IResult *pResult, void *pUserData)
 {
 	int *v = (int *)pUserData;
-	if(((*v)&1) != pResult->GetInteger(0))
+	if(((*v) & 1) != pResult->GetInteger(0))
 		(*v)++;
 	*v &= INPUT_STATE_MASK;
 }
@@ -105,7 +105,8 @@ void CControls::ConZoomPlus(IConsole::IResult *pResult, void *pUserData)
 		return;
 	if(pControls->m_pClient->m_pMenus->IsActive())
 		return;
-	if(pControls->Client()->State() != IClient::STATE_ONLINE && pControls->Client()->State() != IClient::STATE_DEMOPLAYBACK)
+	if(pControls->Client()->State() != IClient::STATE_ONLINE &&
+	   pControls->Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
 	if(g_Config.m_ClZoom < 30)
 		g_Config.m_ClZoom++;
@@ -120,7 +121,8 @@ void CControls::ConZoomMinus(IConsole::IResult *pResult, void *pUserData)
 		return;
 	if(pControls->m_pClient->m_pMenus->IsActive())
 		return;
-	if(pControls->Client()->State() != IClient::STATE_ONLINE && pControls->Client()->State() != IClient::STATE_DEMOPLAYBACK)
+	if(pControls->Client()->State() != IClient::STATE_ONLINE &&
+	   pControls->Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
 	if(g_Config.m_ClZoom > 1)
 		g_Config.m_ClZoom--;
@@ -147,26 +149,64 @@ void CControls::OnConsoleInit()
 	Console()->Register("+gamepadturbo", "", CFGFLAG_CLIENT, ConKeyInputState, &m_InputData.m_Hook, "Turbo");
 	Console()->Register("+gamepadfire", "", CFGFLAG_CLIENT, ConKeyInputCounter, &m_InputData.m_Fire, "Fire");
 
-	{ static CInputSet s_Set = {this, &m_InputData.m_NextWeapon, 0}; Console()->Register("+gamepadnextweapon", "", CFGFLAG_CLIENT, ConKeyInputNextPrevWeapon, (void *)&s_Set, "Switch to next weapon"); }
-	{ static CInputSet s_Set = {this, &m_InputData.m_PrevWeapon, 0}; Console()->Register("+gamepadprevweapon", "", CFGFLAG_CLIENT, ConKeyInputNextPrevWeapon, (void *)&s_Set, "Switch to previous weapon"); }
+	{
+		static CInputSet s_Set = {this, &m_InputData.m_NextWeapon, 0};
+		Console()->Register("+gamepadnextweapon",
+							"",
+							CFGFLAG_CLIENT,
+							ConKeyInputNextPrevWeapon,
+							(void *)&s_Set,
+							"Switch to next weapon");
+	}
+	{
+		static CInputSet s_Set = {this, &m_InputData.m_PrevWeapon, 0};
+		Console()->Register("+gamepadprevweapon",
+							"",
+							CFGFLAG_CLIENT,
+							ConKeyInputNextPrevWeapon,
+							(void *)&s_Set,
+							"Switch to previous weapon");
+	}
 
-	
-	
 	// can't pick tool except with build key
-	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 2}; Console()->Register("+weapon2", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon2"); }
-	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 3}; Console()->Register("+weapon3", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon3"); }
-	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 4}; Console()->Register("+weapon4", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon4"); }
-	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 5}; Console()->Register("+weapon5", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon5"); }
+	{
+		static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 2};
+		Console()->Register("+weapon2", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon2");
+	}
+	{
+		static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 3};
+		Console()->Register("+weapon3", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon3");
+	}
+	{
+		static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 4};
+		Console()->Register("+weapon4", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon4");
+	}
+	{
+		static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 5};
+		Console()->Register("+weapon5", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon5");
+	}
 	/*
-	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 6}; Console()->Register("+weapon6", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon6"); }
-	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 7}; Console()->Register("+weapon7", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon7"); }
-	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 8}; Console()->Register("+weapon8", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon8"); }
-	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 9}; Console()->Register("+weapon9", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon9"); }
-	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 10}; Console()->Register("+weapon10", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon10"); }
+	{ static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 6}; Console()->Register("+weapon6", "",
+	CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon6"); } { static CInputSet s_Set = {this,
+	&m_InputData.m_WantedWeapon, 7}; Console()->Register("+weapon7", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set,
+	"Switch to weapon7"); } { static CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 8};
+	Console()->Register("+weapon8", "", CFGFLAG_CLIENT, ConKeyInputSet, (void *)&s_Set, "Switch to weapon8"); } { static
+	CInputSet s_Set = {this, &m_InputData.m_WantedWeapon, 9}; Console()->Register("+weapon9", "", CFGFLAG_CLIENT,
+	ConKeyInputSet, (void *)&s_Set, "Switch to weapon9"); } { static CInputSet s_Set = {this,
+	&m_InputData.m_WantedWeapon, 10}; Console()->Register("+weapon10", "", CFGFLAG_CLIENT, ConKeyInputSet, (void
+	*)&s_Set, "Switch to weapon10"); }
 	*/
-	
-	{ static CInputSet s_Set = {this, &m_InputData.m_NextWeapon, 0}; Console()->Register("+nextweapon", "", CFGFLAG_CLIENT, ConKeyInputNextPrevWeapon, (void *)&s_Set, "Switch to next weapon"); }
-	{ static CInputSet s_Set = {this, &m_InputData.m_PrevWeapon, 0}; Console()->Register("+prevweapon", "", CFGFLAG_CLIENT, ConKeyInputNextPrevWeapon, (void *)&s_Set, "Switch to previous weapon"); }
+
+	{
+		static CInputSet s_Set = {this, &m_InputData.m_NextWeapon, 0};
+		Console()->Register(
+			"+nextweapon", "", CFGFLAG_CLIENT, ConKeyInputNextPrevWeapon, (void *)&s_Set, "Switch to next weapon");
+	}
+	{
+		static CInputSet s_Set = {this, &m_InputData.m_PrevWeapon, 0};
+		Console()->Register(
+			"+prevweapon", "", CFGFLAG_CLIENT, ConKeyInputNextPrevWeapon, (void *)&s_Set, "Switch to previous weapon");
+	}
 
 	Console()->Register("zoom+", "", CFGFLAG_CLIENT, ConZoomPlus, this, "Zoom in");
 	Console()->Register("zoom-", "", CFGFLAG_CLIENT, ConZoomMinus, this, "Zoom out");
@@ -175,8 +215,6 @@ void CControls::OnConsoleInit()
 void CControls::OnMessage(int Msg, void *pRawMsg)
 {
 }
-
-
 
 int CControls::SnapInput(int *pData)
 {
@@ -205,7 +243,7 @@ int CControls::SnapInput(int *pData)
 
 	// Focused overlays own the controls. Reset held movement/fire as well as
 	// blocking new events so opening an overlay cannot leave an old action stuck.
-	if(!(m_InputData.m_PlayerFlags&PLAYERFLAG_PLAYING))
+	if(!(m_InputData.m_PlayerFlags & PLAYERFLAG_PLAYING))
 	{
 		OnReset();
 
@@ -251,41 +289,49 @@ int CControls::SnapInput(int *pData)
 			float t = Client()->LocalTime();
 			mem_zero(&m_InputData, sizeof(m_InputData));
 
-			m_InputData.m_Direction = ((int)t/2)&1;
+			m_InputData.m_Direction = ((int)t / 2) & 1;
 			m_InputData.m_Jump = ((int)t);
-			m_InputData.m_Fire = ((int)(t*10));
-			m_InputData.m_Hook = ((int)(t*2))&1;
-			m_InputData.m_Down = ((int)(t*3))&1;
-			m_InputData.m_Charge = ((int)(t*4))&1;
-			m_InputData.m_WantedWeapon = ((int)t)%4;
-			m_InputData.m_TargetX = (int)(sinf(t*3)*100.0f);
-			m_InputData.m_TargetY = (int)(cosf(t*3)*100.0f);
+			m_InputData.m_Fire = ((int)(t * 10));
+			m_InputData.m_Hook = ((int)(t * 2)) & 1;
+			m_InputData.m_Down = ((int)(t * 3)) & 1;
+			m_InputData.m_Charge = ((int)(t * 4)) & 1;
+			m_InputData.m_WantedWeapon = ((int)t) % 4;
+			m_InputData.m_TargetX = (int)(sinf(t * 3) * 100.0f);
+			m_InputData.m_TargetY = (int)(cosf(t * 3) * 100.0f);
 		}
 
 		m_PickedWeapon = -1;
-		
-		if (m_InputData.m_WantedWeapon != PrevWeapon)
+
+		if(m_InputData.m_WantedWeapon != PrevWeapon)
 		{
 			PrevWeapon = m_InputData.m_WantedWeapon;
 		}
-		
+
 		// check if we need to send input
-		if(m_InputData.m_Direction != m_LastData.m_Direction) Send = true;
-		else if(m_InputData.m_Jump != m_LastData.m_Jump) Send = true;
-		else if(m_InputData.m_Fire != m_LastData.m_Fire) Send = true;
-		else if(m_InputData.m_Hook != m_LastData.m_Hook) Send = true;
-		else if(m_InputData.m_Down != m_LastData.m_Down) Send = true;
-		else if(m_InputData.m_Charge != m_LastData.m_Charge) Send = true;
-		else if(m_InputData.m_WantedWeapon != m_LastData.m_WantedWeapon) Send = true;
-		else if(m_InputData.m_NextWeapon != m_LastData.m_NextWeapon) Send = true;
-		else if(m_InputData.m_PrevWeapon != m_LastData.m_PrevWeapon) Send = true;
+		if(m_InputData.m_Direction != m_LastData.m_Direction)
+			Send = true;
+		else if(m_InputData.m_Jump != m_LastData.m_Jump)
+			Send = true;
+		else if(m_InputData.m_Fire != m_LastData.m_Fire)
+			Send = true;
+		else if(m_InputData.m_Hook != m_LastData.m_Hook)
+			Send = true;
+		else if(m_InputData.m_Down != m_LastData.m_Down)
+			Send = true;
+		else if(m_InputData.m_Charge != m_LastData.m_Charge)
+			Send = true;
+		else if(m_InputData.m_WantedWeapon != m_LastData.m_WantedWeapon)
+			Send = true;
+		else if(m_InputData.m_NextWeapon != m_LastData.m_NextWeapon)
+			Send = true;
+		else if(m_InputData.m_PrevWeapon != m_LastData.m_PrevWeapon)
+			Send = true;
 
 		// send at at least 10hz
-		if(time_get() > LastSendTime + time_freq()/25)
+		if(time_get() > LastSendTime + time_freq() / 25)
 			Send = true;
-		
 	}
-	
+
 	// copy and return size
 	m_LastData = m_InputData;
 
@@ -310,8 +356,9 @@ void CControls::OnRender()
 
 bool CControls::OnMouseMove(float x, float y)
 {
-	if((m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED) ||
-		(m_pClient->m_Snap.m_SpecInfo.m_Active && m_pClient->m_pChat->IsActive()))
+	if((m_pClient->m_Snap.m_pGameInfoObj &&
+		m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED) ||
+	   (m_pClient->m_Snap.m_SpecInfo.m_Active && m_pClient->m_pChat->IsActive()))
 		return false;
 
 	Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
@@ -319,9 +366,9 @@ bool CControls::OnMouseMove(float x, float y)
 
 	Input()->GetRelativePosition(&x, &y);
 
-	if (Input()->UsingGamepad())
+	if(Input()->UsingGamepad())
 	{
-		if (m_pClient->m_Snap.m_SpecInfo.m_Active)
+		if(m_pClient->m_Snap.m_SpecInfo.m_Active)
 			m_MousePos += vec2(x, y) * ((200.0f + g_Config.m_InpMousesens) / 1500.0f);
 		else
 			m_MousePos += vec2(x, y) * ((200.0f + g_Config.m_InpMousesens) / 150.0f);
@@ -337,17 +384,17 @@ void CControls::ClampMousePos()
 {
 	if(m_pClient->m_Snap.m_SpecInfo.m_Active && !m_pClient->m_Snap.m_SpecInfo.m_UsePosition)
 	{
-		m_MousePos.x = clamp(m_MousePos.x, 200.0f, Collision()->GetWidth()*32-200.0f);
-		m_MousePos.y = clamp(m_MousePos.y, 200.0f, Collision()->GetHeight()*32-200.0f);
-
+		m_MousePos.x = clamp(m_MousePos.x, 200.0f, Collision()->GetWidth() * 32 - 200.0f);
+		m_MousePos.y = clamp(m_MousePos.y, 200.0f, Collision()->GetHeight() * 32 - 200.0f);
 	}
 	else
 	{
 		float CameraMaxDistance = 200.0f;
-		float FollowFactor = g_Config.m_ClMouseFollowfactor/100.0f;
-		float MouseMax = min(CameraMaxDistance/FollowFactor + g_Config.m_ClMouseDeadzone, (float)g_Config.m_ClMouseMaxDistance);
+		float FollowFactor = g_Config.m_ClMouseFollowfactor / 100.0f;
+		float MouseMax =
+			min(CameraMaxDistance / FollowFactor + g_Config.m_ClMouseDeadzone, (float)g_Config.m_ClMouseMaxDistance);
 
 		if(length(m_MousePos) > MouseMax)
-			m_MousePos = normalize(m_MousePos)*MouseMax;
+			m_MousePos = normalize(m_MousePos) * MouseMax;
 	}
 }

@@ -35,10 +35,12 @@ python3 scripts/publish_steam_depots.py \
   --upload --steam-account YOUR_PARTNER_ACCOUNT
 ```
 
-The wrapper never accepts a password. SteamCMD handles password and Steam Guard
-interaction itself. Set `STEAM_ACCOUNT` and `STEAMCMD` in the environment when
-desired; use `--no-build` to package existing binaries and `--strict-assets` for
-the final public-release asset gate.
+By default SteamCMD handles password and Steam Guard interaction itself. Local
+wrappers may provide a password through the transient `STEAM_PASSWORD`
+environment variable; it is never placed in command arguments or logs. Set
+`STEAM_ACCOUNT` and `STEAMCMD` in the environment when desired; use `--no-build`
+to package existing binaries and `--strict-assets` for the final public-release
+asset gate.
 SteamCMD uses exit code 6 for both permanent rejection and temporary SteamPipe
 CDN failures. The wrapper retries up to three times only when logs written by
 the current attempt contain HTTP 5xx; stale logs and permission/configuration
@@ -46,6 +48,9 @@ errors do not trigger a retry. Override this with `--upload-attempts` and
 `--upload-retry-delay` when necessary.
 Use `--upload-target client` or `--upload-target server` to retry only one AppID
 without creating another build for an AppID that already succeeded.
+On a Linux workstation without a macOS toolchain, use
+`--platforms linux,windows`; the rendered app manifests then contain only the
+four selected depots.
 Add `--set-live internal` (or another configured branch name) to make the new
 BuildID live on that beta branch after upload. SteamPipe cannot automatically
 set the public `default` branch live; upload without `--set-live`, then promote

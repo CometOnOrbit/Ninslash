@@ -6,7 +6,7 @@
 #include <engine/textrender.h>
 
 #ifdef CONF_FAMILY_WINDOWS
-	#include <windows.h>
+#include <windows.h>
 #endif
 
 // ft2 texture
@@ -20,9 +20,8 @@ enum
 	MAX_CHARACTERS = 64,
 };
 
-
-static int aFontSizes[] = {8,9,10,11,12,13,14,15,16,17,18,19,20,36,64};
-#define NUM_FONT_SIZES (sizeof(aFontSizes)/sizeof(int))
+static int aFontSizes[] = {8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 36, 64};
+#define NUM_FONT_SIZES (sizeof(aFontSizes) / sizeof(int))
 
 struct CFontChar
 {
@@ -55,19 +54,18 @@ struct CFontSizeData
 	int m_CharMaxWidth;
 	int m_CharMaxHeight;
 
-	CFontChar m_aCharacters[MAX_CHARACTERS*MAX_CHARACTERS];
+	CFontChar m_aCharacters[MAX_CHARACTERS * MAX_CHARACTERS];
 
 	int m_CurrentCharacter;
 };
 
 class CFont
 {
-public:
+  public:
 	char m_aFilename[512];
 	FT_Face m_FtFace;
 	CFontSizeData m_aSizes[NUM_FONT_SIZES];
 };
-
 
 class CTextRender : public IEngineTextRender
 {
@@ -76,57 +74,44 @@ class CTextRender : public IEngineTextRender
 
 	static bool IsCjk(int Chr)
 	{
-		return (Chr >= 0x2e80 && Chr <= 0x9fff) ||
-			(Chr >= 0xf900 && Chr <= 0xfaff) ||
-			(Chr >= 0x3040 && Chr <= 0x30ff) ||
-			(Chr >= 0xac00 && Chr <= 0xd7af) ||
-			(Chr >= 0x20000 && Chr <= 0x3134f);
+		return (Chr >= 0x2e80 && Chr <= 0x9fff) || (Chr >= 0xf900 && Chr <= 0xfaff) ||
+			   (Chr >= 0x3040 && Chr <= 0x30ff) || (Chr >= 0xac00 && Chr <= 0xd7af) ||
+			   (Chr >= 0x20000 && Chr <= 0x3134f);
 	}
 
 	static bool IsOpeningPunctuation(int Chr)
 	{
-		return Chr == '(' || Chr == '[' || Chr == '{' || Chr == '<' ||
-			Chr == 0x2018 || Chr == 0x201c || Chr == 0x3008 || Chr == 0x300a ||
-			Chr == 0x300c || Chr == 0x300e || Chr == 0x3010 || Chr == 0x3014 ||
-			Chr == 0x3016 || Chr == 0x3018 || Chr == 0x301a || Chr == 0xff08 ||
-			Chr == 0xff3b || Chr == 0xff5b;
+		return Chr == '(' || Chr == '[' || Chr == '{' || Chr == '<' || Chr == 0x2018 || Chr == 0x201c ||
+			   Chr == 0x3008 || Chr == 0x300a || Chr == 0x300c || Chr == 0x300e || Chr == 0x3010 || Chr == 0x3014 ||
+			   Chr == 0x3016 || Chr == 0x3018 || Chr == 0x301a || Chr == 0xff08 || Chr == 0xff3b || Chr == 0xff5b;
 	}
 
 	static bool IsClosingPunctuation(int Chr)
 	{
-		return Chr == ')' || Chr == ']' || Chr == '}' || Chr == '>' || Chr == ',' ||
-			Chr == '.' || Chr == '!' || Chr == '?' || Chr == ':' || Chr == ';' ||
-			Chr == 0x2019 || Chr == 0x201d || Chr == 0x3001 || Chr == 0x3002 ||
-			Chr == 0x3009 || Chr == 0x300b || Chr == 0x300d || Chr == 0x300f ||
-			Chr == 0x3011 || Chr == 0x3015 || Chr == 0x3017 || Chr == 0x3019 ||
-			Chr == 0x301b || Chr == 0xff01 || Chr == 0xff09 || Chr == 0xff0c ||
-			Chr == 0xff0e || Chr == 0xff1a || Chr == 0xff1b || Chr == 0xff1f ||
-			Chr == 0xff3d || Chr == 0xff5d;
+		return Chr == ')' || Chr == ']' || Chr == '}' || Chr == '>' || Chr == ',' || Chr == '.' || Chr == '!' ||
+			   Chr == '?' || Chr == ':' || Chr == ';' || Chr == 0x2019 || Chr == 0x201d || Chr == 0x3001 ||
+			   Chr == 0x3002 || Chr == 0x3009 || Chr == 0x300b || Chr == 0x300d || Chr == 0x300f || Chr == 0x3011 ||
+			   Chr == 0x3015 || Chr == 0x3017 || Chr == 0x3019 || Chr == 0x301b || Chr == 0xff01 || Chr == 0xff09 ||
+			   Chr == 0xff0c || Chr == 0xff0e || Chr == 0xff1a || Chr == 0xff1b || Chr == 0xff1f || Chr == 0xff3d ||
+			   Chr == 0xff5d;
 	}
 
-	static bool IsBreakSpace(int Chr)
-	{
-		return Chr == ' ' || Chr == '\t' || Chr == 0x3000;
-	}
+	static bool IsBreakSpace(int Chr) { return Chr == ' ' || Chr == '\t' || Chr == 0x3000; }
 
 	static bool IsLatinWordCharacter(int Chr)
 	{
-		return (Chr >= '0' && Chr <= '9') || (Chr >= 'A' && Chr <= 'Z') ||
-			(Chr >= 'a' && Chr <= 'z') || (Chr >= 0x00c0 && Chr <= 0x02af);
+		return (Chr >= '0' && Chr <= '9') || (Chr >= 'A' && Chr <= 'Z') || (Chr >= 'a' && Chr <= 'z') ||
+			   (Chr >= 0x00c0 && Chr <= 0x02af);
 	}
 
 	static bool IsInternalWordPunctuation(int Chr)
 	{
-		return Chr == '\'' || Chr == 0x2019 || Chr == '-' || Chr == '_' ||
-			Chr == '.' || Chr == ',' || Chr == ':' || Chr == ';' || Chr == '/' ||
-			Chr == '\\' || Chr == '@' || Chr == '#' || Chr == '%' || Chr == '&' ||
-			Chr == '=' || Chr == '+' || Chr == '?' || Chr == '~';
+		return Chr == '\'' || Chr == 0x2019 || Chr == '-' || Chr == '_' || Chr == '.' || Chr == ',' || Chr == ':' ||
+			   Chr == ';' || Chr == '/' || Chr == '\\' || Chr == '@' || Chr == '#' || Chr == '%' || Chr == '&' ||
+			   Chr == '=' || Chr == '+' || Chr == '?' || Chr == '~';
 	}
 
-	static bool IsLatinWordToken(int Chr)
-	{
-		return IsLatinWordCharacter(Chr) || IsInternalWordPunctuation(Chr);
-	}
+	static bool IsLatinWordToken(int Chr) { return IsLatinWordCharacter(Chr) || IsInternalWordPunctuation(Chr); }
 
 	static bool CanBreakBetween(int Left, int Right)
 	{
@@ -149,17 +134,17 @@ class CTextRender : public IEngineTextRender
 		const char *p = pText;
 		int Left = str_utf8_decode(&p);
 		if(Left == '\n')
-			return p-pText;
+			return p - pText;
 		while(p < pEnd)
 		{
 			const char *pNext = p;
 			int Right = str_utf8_decode(&pNext);
 			if(CanBreakBetween(Left, Right))
-				return p-pText;
+				return p - pText;
 			Left = Right;
 			p = pNext;
 		}
-		return pEnd-pText;
+		return pEnd - pText;
 	}
 
 	static int Utf8BytesForCharacters(const char *pText, const char *pEnd, int Characters)
@@ -167,7 +152,7 @@ class CTextRender : public IEngineTextRender
 		const char *p = pText;
 		while(p < pEnd && Characters-- > 0)
 			str_utf8_decode(&p);
-		return p-pText;
+		return p - pText;
 	}
 
 	float m_TextR;
@@ -180,7 +165,7 @@ class CTextRender : public IEngineTextRender
 	float m_TextOutlineB;
 	float m_TextOutlineA;
 
-	//int m_FontTextureFormat;
+	// int m_FontTextureFormat;
 
 	CFont *m_pDefaultFont;
 	CFont *m_pCallbackFonts[32];
@@ -197,54 +182,53 @@ class CTextRender : public IEngineTextRender
 				return i;
 		}
 
-		return NUM_FONT_SIZES-1;
+		return NUM_FONT_SIZES - 1;
 	}
-
-
 
 	void Grow(unsigned char *pIn, unsigned char *pOut, int w, int h)
 	{
 		for(int y = 0; y < h; y++)
 			for(int x = 0; x < w; x++)
 			{
-				int c = pIn[y*w+x];
+				int c = pIn[y * w + x];
 
 				for(int sy = -1; sy <= 1; sy++)
 					for(int sx = -1; sx <= 1; sx++)
 					{
-						int GetX = x+sx;
-						int GetY = y+sy;
-						if (GetX >= 0 && GetY >= 0 && GetX < w && GetY < h)
+						int GetX = x + sx;
+						int GetY = y + sy;
+						if(GetX >= 0 && GetY >= 0 && GetX < w && GetY < h)
 						{
-							int Index = GetY*w+GetX;
+							int Index = GetY * w + GetX;
 							if(pIn[Index] > c)
 								c = pIn[Index];
 						}
 					}
 
-				pOut[y*w+x] = c;
+				pOut[y * w + x] = c;
 			}
 	}
 
 	void InitTexture(CFontSizeData *pSizeData, int CharWidth, int CharHeight, int Xchars, int Ychars)
 	{
 		static int FontMemoryUsage = 0;
-		int Width = CharWidth*Xchars;
-		int Height = CharHeight*Ychars;
-		void *pMem = mem_alloc(Width*Height, 1);
-		mem_zero(pMem, Width*Height);
+		int Width = CharWidth * Xchars;
+		int Height = CharHeight * Ychars;
+		void *pMem = mem_alloc(Width * Height, 1);
+		mem_zero(pMem, Width * Height);
 
 		for(int i = 0; i < 2; i++)
 		{
 			if(pSizeData->m_aTextures[i] != 0)
 			{
 				Graphics()->UnloadTexture(pSizeData->m_aTextures[i]);
-				FontMemoryUsage -= pSizeData->m_TextureWidth*pSizeData->m_TextureHeight;
+				FontMemoryUsage -= pSizeData->m_TextureWidth * pSizeData->m_TextureHeight;
 				pSizeData->m_aTextures[i] = 0;
 			}
 
-			pSizeData->m_aTextures[i] = Graphics()->LoadTextureRaw(Width, Height, CImageInfo::FORMAT_ALPHA, pMem, CImageInfo::FORMAT_ALPHA, IGraphics::TEXLOAD_NOMIPMAPS);
-			FontMemoryUsage += Width*Height;
+			pSizeData->m_aTextures[i] = Graphics()->LoadTextureRaw(
+				Width, Height, CImageInfo::FORMAT_ALPHA, pMem, CImageInfo::FORMAT_ALPHA, IGraphics::TEXLOAD_NOMIPMAPS);
+			FontMemoryUsage += Width * Height;
 		}
 
 		pSizeData->m_NumXChars = Xchars;
@@ -252,7 +236,7 @@ class CTextRender : public IEngineTextRender
 		pSizeData->m_TextureWidth = Width;
 		pSizeData->m_TextureHeight = Height;
 		pSizeData->m_CurrentCharacter = 0;
-		
+
 		dbg_msg("", "pFont memory usage: %d", FontMemoryUsage);
 
 		mem_free(pMem);
@@ -273,9 +257,12 @@ class CTextRender : public IEngineTextRender
 			pSizeData->m_NumXChars <<= 1;
 		else
 			pSizeData->m_NumYChars <<= 1;
-		InitTexture(pSizeData, pSizeData->m_CharMaxWidth, pSizeData->m_CharMaxHeight, pSizeData->m_NumXChars, pSizeData->m_NumYChars);
+		InitTexture(pSizeData,
+					pSizeData->m_CharMaxWidth,
+					pSizeData->m_CharMaxHeight,
+					pSizeData->m_NumXChars,
+					pSizeData->m_NumYChars);
 	}
-
 
 	// TODO: Refactor: move this into a pFont class
 	void InitIndex(CFont *pFont, int Index)
@@ -298,20 +285,24 @@ class CTextRender : public IEngineTextRender
 				// do stuff
 				FT_Load_Glyph(pFont->m_FtFace, GlyphIndex, FT_LOAD_DEFAULT);
 
-				if(pFont->m_FtFace->glyph->metrics.width > MaxW) MaxW = pFont->m_FtFace->glyph->metrics.width; // ignore_convention
-				if(pFont->m_FtFace->glyph->metrics.height > MaxH) MaxH = pFont->m_FtFace->glyph->metrics.height; // ignore_convention
+				if(pFont->m_FtFace->glyph->metrics.width > MaxW)
+					MaxW = pFont->m_FtFace->glyph->metrics.width; // ignore_convention
+				if(pFont->m_FtFace->glyph->metrics.height > MaxH)
+					MaxH = pFont->m_FtFace->glyph->metrics.height; // ignore_convention
 				Charcode = FT_Get_Next_Char(pFont->m_FtFace, Charcode, &GlyphIndex);
 			}
 
-			MaxW = (MaxW>>6)+2+OutlineThickness*2;
-			MaxH = (MaxH>>6)+2+OutlineThickness*2;
+			MaxW = (MaxW >> 6) + 2 + OutlineThickness * 2;
+			MaxH = (MaxH >> 6) + 2 + OutlineThickness * 2;
 
-			for(pSizeData->m_CharMaxWidth = 1; pSizeData->m_CharMaxWidth < MaxW; pSizeData->m_CharMaxWidth <<= 1);
-			for(pSizeData->m_CharMaxHeight = 1; pSizeData->m_CharMaxHeight < MaxH; pSizeData->m_CharMaxHeight <<= 1);
+			for(pSizeData->m_CharMaxWidth = 1; pSizeData->m_CharMaxWidth < MaxW; pSizeData->m_CharMaxWidth <<= 1)
+				;
+			for(pSizeData->m_CharMaxHeight = 1; pSizeData->m_CharMaxHeight < MaxH; pSizeData->m_CharMaxHeight <<= 1)
+				;
 		}
 
-		//dbg_msg("pFont", "init size %d, texture size %d %d", pFont->sizes[index].font_size, w, h);
-		//FT_New_Face(m_FTLibrary, "data/fonts/vera.ttf", 0, &pFont->ft_face);
+		// dbg_msg("pFont", "init size %d, texture size %d %d", pFont->sizes[index].font_size, w, h);
+		// FT_New_Face(m_FTLibrary, "data/fonts/vera.ttf", 0, &pFont->ft_face);
 		InitTexture(pSizeData, pSizeData->m_CharMaxWidth, pSizeData->m_CharMaxHeight, 8, 8);
 	}
 
@@ -323,16 +314,18 @@ class CTextRender : public IEngineTextRender
 		return &pFont->m_aSizes[Index];
 	}
 
-
 	void UploadGlyph(CFontSizeData *pSizeData, int Texnum, int SlotID, int Chr, const void *pData)
 	{
-		int x = (SlotID%pSizeData->m_NumXChars) * (pSizeData->m_TextureWidth/pSizeData->m_NumXChars);
-		int y = (SlotID/pSizeData->m_NumXChars) * (pSizeData->m_TextureHeight/pSizeData->m_NumYChars);
+		int x = (SlotID % pSizeData->m_NumXChars) * (pSizeData->m_TextureWidth / pSizeData->m_NumXChars);
+		int y = (SlotID / pSizeData->m_NumXChars) * (pSizeData->m_TextureHeight / pSizeData->m_NumYChars);
 
-		Graphics()->LoadTextureRawSub(pSizeData->m_aTextures[Texnum], x, y,
-			pSizeData->m_TextureWidth/pSizeData->m_NumXChars,
-			pSizeData->m_TextureHeight/pSizeData->m_NumYChars,
-			CImageInfo::FORMAT_ALPHA, pData);
+		Graphics()->LoadTextureRawSub(pSizeData->m_aTextures[Texnum],
+									  x,
+									  y,
+									  pSizeData->m_TextureWidth / pSizeData->m_NumXChars,
+									  pSizeData->m_TextureHeight / pSizeData->m_NumYChars,
+									  CImageInfo::FORMAT_ALPHA,
+									  pData);
 		/*
 		glBindTexture(GL_TEXTURE_2D, pSizeData->m_aTextures[Texnum]);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, x, y,
@@ -342,12 +335,12 @@ class CTextRender : public IEngineTextRender
 	}
 
 	// 32k of data used for rendering glyphs
-	unsigned char ms_aGlyphData[(1024/8) * (1024/8)];
-	unsigned char ms_aGlyphDataOutlined[(1024/8) * (1024/8)];
+	unsigned char ms_aGlyphData[(1024 / 8) * (1024 / 8)];
+	unsigned char ms_aGlyphDataOutlined[(1024 / 8) * (1024 / 8)];
 
 	int GetSlot(CFontSizeData *pSizeData)
 	{
-		int CharCount = pSizeData->m_NumXChars*pSizeData->m_NumYChars;
+		int CharCount = pSizeData->m_NumXChars * pSizeData->m_NumYChars;
 		if(pSizeData->m_CurrentCharacter < CharCount)
 		{
 			int i = pSizeData->m_CurrentCharacter;
@@ -365,8 +358,8 @@ class CTextRender : public IEngineTextRender
 					Oldest = i;
 			}
 
-			if(time_get()-pSizeData->m_aCharacters[Oldest].m_TouchTime < time_freq() &&
-				(pSizeData->m_NumXChars < MAX_CHARACTERS || pSizeData->m_NumYChars < MAX_CHARACTERS))
+			if(time_get() - pSizeData->m_aCharacters[Oldest].m_TouchTime < time_freq() &&
+			   (pSizeData->m_NumXChars < MAX_CHARACTERS || pSizeData->m_NumYChars < MAX_CHARACTERS))
 			{
 				IncreaseTextureSize(pSizeData);
 				return GetSlot(pSizeData);
@@ -382,14 +375,14 @@ class CTextRender : public IEngineTextRender
 		int SlotID = 0;
 		int SlotW = pSizeData->m_TextureWidth / pSizeData->m_NumXChars;
 		int SlotH = pSizeData->m_TextureHeight / pSizeData->m_NumYChars;
-		int SlotSize = SlotW*SlotH;
+		int SlotSize = SlotW * SlotH;
 		int x = 1;
 		int y = 1;
 		int px, py;
 
 		FT_Set_Pixel_Sizes(pFont->m_FtFace, 0, pSizeData->m_FontSize);
 
-		if(FT_Load_Char(pFont->m_FtFace, Chr, FT_LOAD_RENDER|FT_LOAD_NO_BITMAP))
+		if(FT_Load_Char(pFont->m_FtFace, Chr, FT_LOAD_RENDER | FT_LOAD_NO_BITMAP))
 		{
 			dbg_msg("pFont", "error loading glyph %d", Chr);
 			return -1;
@@ -412,23 +405,25 @@ class CTextRender : public IEngineTextRender
 
 		if(pBitmap->pixel_mode == FT_PIXEL_MODE_GRAY) // ignore_convention
 		{
-			for(py = 0; (unsigned int)py < pBitmap->rows; py++) // ignore_convention
+			for(py = 0; (unsigned int)py < pBitmap->rows; py++)		 // ignore_convention
 				for(px = 0; (unsigned int)px < pBitmap->width; px++) // ignore_convention
-					ms_aGlyphData[(py+y)*SlotW+px+x] = pBitmap->buffer[py*pBitmap->pitch+px]; // ignore_convention
+					ms_aGlyphData[(py + y) * SlotW + px + x] =
+						pBitmap->buffer[py * pBitmap->pitch + px]; // ignore_convention
 		}
 		else if(pBitmap->pixel_mode == FT_PIXEL_MODE_MONO) // ignore_convention
 		{
-			for(py = 0; (unsigned int)py < pBitmap->rows; py++) // ignore_convention
+			for(py = 0; (unsigned int)py < pBitmap->rows; py++)		 // ignore_convention
 				for(px = 0; (unsigned int)px < pBitmap->width; px++) // ignore_convention
 				{
-					if(pBitmap->buffer[py*pBitmap->pitch+px/8]&(1<<(7-(px%8)))) // ignore_convention
-						ms_aGlyphData[(py+y)*SlotW+px+x] = 255;
+					if(pBitmap->buffer[py * pBitmap->pitch + px / 8] & (1 << (7 - (px % 8)))) // ignore_convention
+						ms_aGlyphData[(py + y) * SlotW + px + x] = 255;
 				}
 		}
 
-		if(0) for(py = 0; py < SlotW; py++)
-			for(px = 0; px < SlotH; px++)
-				ms_aGlyphData[py*SlotW+px] = 255;
+		if(0)
+			for(py = 0; py < SlotW; py++)
+				for(px = 0; px < SlotH; px++)
+					ms_aGlyphData[py * SlotW + px] = 255;
 
 		// upload the glyph
 		UploadGlyph(pSizeData, 0, SlotID, Chr, ms_aGlyphData);
@@ -440,7 +435,7 @@ class CTextRender : public IEngineTextRender
 		}
 		else
 		{
-			for(int i = OutlineThickness; i > 0; i-=2)
+			for(int i = OutlineThickness; i > 0; i -= 2)
 			{
 				Grow(ms_aGlyphData, ms_aGlyphDataOutlined, SlotW, SlotH);
 				Grow(ms_aGlyphDataOutlined, ms_aGlyphData, SlotW, SlotH);
@@ -451,23 +446,24 @@ class CTextRender : public IEngineTextRender
 		// set char info
 		{
 			CFontChar *pFontchr = &pSizeData->m_aCharacters[SlotID];
-			float Scale = 1.0f/pSizeData->m_FontSize;
-			float Uscale = 1.0f/pSizeData->m_TextureWidth;
-			float Vscale = 1.0f/pSizeData->m_TextureHeight;
-			int Height = pBitmap->rows + OutlineThickness*2 + 2; // ignore_convention
-			int Width = pBitmap->width + OutlineThickness*2 + 2; // ignore_convention
+			float Scale = 1.0f / pSizeData->m_FontSize;
+			float Uscale = 1.0f / pSizeData->m_TextureWidth;
+			float Vscale = 1.0f / pSizeData->m_TextureHeight;
+			int Height = pBitmap->rows + OutlineThickness * 2 + 2; // ignore_convention
+			int Width = pBitmap->width + OutlineThickness * 2 + 2; // ignore_convention
 
 			pFontchr->m_ID = Chr;
 			pFontchr->m_Height = Height * Scale;
 			pFontchr->m_Width = Width * Scale;
-			pFontchr->m_OffsetX = (pFont->m_FtFace->glyph->bitmap_left-1) * Scale; // ignore_convention
-			pFontchr->m_OffsetY = (pSizeData->m_FontSize - pFont->m_FtFace->glyph->bitmap_top) * Scale; // ignore_convention
-			pFontchr->m_AdvanceX = (pFont->m_FtFace->glyph->advance.x>>6) * Scale; // ignore_convention
+			pFontchr->m_OffsetX = (pFont->m_FtFace->glyph->bitmap_left - 1) * Scale; // ignore_convention
+			pFontchr->m_OffsetY =
+				(pSizeData->m_FontSize - pFont->m_FtFace->glyph->bitmap_top) * Scale; // ignore_convention
+			pFontchr->m_AdvanceX = (pFont->m_FtFace->glyph->advance.x >> 6) * Scale;  // ignore_convention
 
-			pFontchr->m_aUvs[0] = (SlotID%pSizeData->m_NumXChars) / (float)(pSizeData->m_NumXChars);
-			pFontchr->m_aUvs[1] = (SlotID/pSizeData->m_NumXChars) / (float)(pSizeData->m_NumYChars);
-			pFontchr->m_aUvs[2] = pFontchr->m_aUvs[0] + Width*Uscale;
-			pFontchr->m_aUvs[3] = pFontchr->m_aUvs[1] + Height*Vscale;
+			pFontchr->m_aUvs[0] = (SlotID % pSizeData->m_NumXChars) / (float)(pSizeData->m_NumXChars);
+			pFontchr->m_aUvs[1] = (SlotID / pSizeData->m_NumXChars) / (float)(pSizeData->m_NumYChars);
+			pFontchr->m_aUvs[2] = pFontchr->m_aUvs[0] + Width * Uscale;
+			pFontchr->m_aUvs[3] = pFontchr->m_aUvs[1] + Height * Vscale;
 		}
 
 		return SlotID;
@@ -475,13 +471,13 @@ class CTextRender : public IEngineTextRender
 
 	CFontChar *GetChar(CFont *pFont, CFontSizeData *pSizeData, int Chr)
 	{
-		if(!FT_Get_Char_Index(pFont->m_FtFace, (FT_ULong) Chr))
+		if(!FT_Get_Char_Index(pFont->m_FtFace, (FT_ULong)Chr))
 		{
 			// find callback font
-			CFont *pCallbackFont = nullptr;
+			CFont *pCallbackFont = 0;
 			if(m_aCallbackFont[0])
 			{
-				for(int i = 0; i < m_CallbackFontNum; i ++)
+				for(int i = 0; i < m_CallbackFontNum; i++)
 				{
 					if(str_comp(m_aCallbackFont, m_pCallbackFonts[i]->m_FtFace->family_name) == 0)
 						pCallbackFont = m_pCallbackFonts[i];
@@ -489,12 +485,12 @@ class CTextRender : public IEngineTextRender
 			}
 
 			if(!pCallbackFont)
-				return nullptr;
+				return 0;
 
 			pFont = pCallbackFont;
 		}
 
-		CFontChar *pFontchr = NULL;
+		CFontChar *pFontchr = 0;
 
 		// search for the character
 		// TODO: remove this linear search
@@ -525,20 +521,16 @@ class CTextRender : public IEngineTextRender
 	}
 
 	// must only be called from the rendering function as the pFont must be set to the correct size
-	void RenderSetup(CFont *pFont, int size)
-	{
-		FT_Set_Pixel_Sizes(pFont->m_FtFace, 0, size);
-	}
+	void RenderSetup(CFont *pFont, int size) { FT_Set_Pixel_Sizes(pFont->m_FtFace, 0, size); }
 
 	float Kerning(CFont *pFont, int Left, int Right)
 	{
-		FT_Vector Kerning = {0,0};
+		FT_Vector Kerning = {0, 0};
 		FT_Get_Kerning(pFont->m_FtFace, Left, Right, FT_KERNING_DEFAULT, &Kerning);
-		return (Kerning.x>>6);
+		return (Kerning.x >> 6);
 	}
 
-
-public:
+  public:
 	CTextRender()
 	{
 		m_pGraphics = 0;
@@ -560,7 +552,7 @@ public:
 		mem_zero(m_pCallbackFonts, sizeof(m_pCallbackFonts));
 
 		// GL_LUMINANCE can be good for debugging
-		//m_FontTextureFormat = GL_ALPHA;
+		// m_FontTextureFormat = GL_ALPHA;
 	}
 
 	virtual int Init()
@@ -576,7 +568,6 @@ public:
 		return 0;
 	}
 
-
 	virtual CFont *LoadFont(const char *pFilename)
 	{
 		CFont *pFont = (CFont *)mem_alloc(sizeof(CFont), 1);
@@ -587,7 +578,7 @@ public:
 		if(FT_New_Face(m_FTLibrary, pFont->m_aFilename, 0, &pFont->m_FtFace))
 		{
 			mem_free(pFont);
-			return NULL;
+			return 0;
 		}
 
 		for(unsigned i = 0; i < NUM_FONT_SIZES; i++)
@@ -609,11 +600,11 @@ public:
 			mem_free(pFont);
 			return false;
 		}
-		
+
 		int FaceNum = pFont->m_FtFace->num_faces;
 		mem_free(pFont);
 		int Index = 0;
-		for(int i = 0; i < FaceNum && Index < 32; i ++)
+		for(int i = 0; i < FaceNum && Index < 32; i++)
 		{
 			pFont = (CFont *)mem_alloc(sizeof(CFont), 1);
 			str_copy(pFont->m_aFilename, pFilename, sizeof(pFont->m_aFilename));
@@ -623,11 +614,11 @@ public:
 				continue;
 			}
 
-			for(unsigned j = 0; j < NUM_FONT_SIZES; j ++)
+			for(unsigned j = 0; j < NUM_FONT_SIZES; j++)
 				pFont->m_aSizes[j].m_FontSize = -1;
 
 			m_pCallbackFonts[Index] = pFont;
-			Index ++;
+			Index++;
 
 			dbg_msg("textrender", "loaded callback font '%s' from '%s'", pFont->m_FtFace->family_name, pFilename);
 		}
@@ -637,10 +628,7 @@ public:
 		return true;
 	};
 
-	virtual void DestroyFont(CFont *pFont)
-	{
-		mem_free(pFont);
-	}
+	virtual void DestroyFont(CFont *pFont) { mem_free(pFont); }
 
 	virtual void SetDefaultFont(CFont *pFont)
 	{
@@ -667,7 +655,6 @@ public:
 		pCursor->m_Flags = Flags;
 		pCursor->m_CharCount = 0;
 	}
-
 
 	virtual void Text(void *pFontSetV, float x, float y, float Size, const char *pText, int MaxWidth)
 	{
@@ -713,9 +700,9 @@ public:
 	virtual void TextEx(CTextCursor *pCursor, const char *pText, int Length)
 	{
 		CFont *pFont = pCursor->m_pFont;
-		CFontSizeData *pSizeData = NULL;
+		CFontSizeData *pSizeData = 0;
 
-		//dbg_msg("textrender", "rendering text '%s'", text);
+		// dbg_msg("textrender", "rendering text '%s'", text);
 
 		float ScreenX0, ScreenY0, ScreenX1, ScreenY1;
 		float FakeToScreenX, FakeToScreenY;
@@ -734,8 +721,8 @@ public:
 		// to correct coords, convert to screen coords, round, and convert back
 		Graphics()->GetScreen(&ScreenX0, &ScreenY0, &ScreenX1, &ScreenY1);
 
-		FakeToScreenX = (Graphics()->ScreenWidth()/(ScreenX1-ScreenX0));
-		FakeToScreenY = (Graphics()->ScreenHeight()/(ScreenY1-ScreenY0));
+		FakeToScreenX = (Graphics()->ScreenWidth() / (ScreenX1 - ScreenX0));
+		FakeToScreenY = (Graphics()->ScreenHeight() / (ScreenY1 - ScreenY0));
 		ActualX = (int)(pCursor->m_X * FakeToScreenX);
 		ActualY = (int)(pCursor->m_Y * FakeToScreenY);
 
@@ -756,7 +743,7 @@ public:
 		pSizeData = GetSize(pFont, ActualSize);
 		RenderSetup(pFont, ActualSize);
 
-		float Scale = 1/pSizeData->m_FontSize;
+		float Scale = 1 / pSizeData->m_FontSize;
 
 		// set length
 		if(Length < 0)
@@ -764,30 +751,30 @@ public:
 
 		// if we don't want to render, we can just skip the first outline pass
 		i = 1;
-		if(pCursor->m_Flags&TEXTFLAG_RENDER)
+		if(pCursor->m_Flags & TEXTFLAG_RENDER)
 			i = 0;
 
 		const int InitialCharCount = pCursor->m_CharCount;
-		for(;i < 2; i++)
+		for(; i < 2; i++)
 		{
 			const char *pCurrent = (char *)pText;
-			const char *pEnd = pCurrent+Length;
+			const char *pEnd = pCurrent + Length;
 			DrawX = CursorX;
 			DrawY = CursorY;
 			LineCount = pCursor->m_LineCount;
 			pCursor->m_CharCount = InitialCharCount;
 
-			if(pCursor->m_Flags&TEXTFLAG_RENDER)
+			if(pCursor->m_Flags & TEXTFLAG_RENDER)
 			{
 				// TODO: Make this better
-				if (i == 0)
+				if(i == 0)
 					Graphics()->TextureSet(pSizeData->m_aTextures[1]);
 				else
 					Graphics()->TextureSet(pSizeData->m_aTextures[0]);
 
 				Graphics()->QuadsBegin();
-				if (i == 0)
-					Graphics()->SetColor(m_TextOutlineR, m_TextOutlineG, m_TextOutlineB, m_TextOutlineA*m_TextA);
+				if(i == 0)
+					Graphics()->SetColor(m_TextOutlineR, m_TextOutlineG, m_TextOutlineB, m_TextOutlineA * m_TextA);
 				else
 					Graphics()->SetColor(m_TextR, m_TextG, m_TextB, m_TextA);
 			}
@@ -796,7 +783,7 @@ public:
 			{
 				int NewLine = 0;
 				const char *pBatchEnd = pEnd;
-				if(pCursor->m_LineWidth > 0 && !(pCursor->m_Flags&TEXTFLAG_STOP_AT_END))
+				if(pCursor->m_LineWidth > 0 && !(pCursor->m_Flags & TEXTFLAG_STOP_AT_END))
 				{
 					int Wlen = TextRunLength(pCurrent, pEnd);
 					CTextCursor Compare = *pCursor;
@@ -806,7 +793,7 @@ public:
 					Compare.m_LineWidth = -1;
 					TextEx(&Compare, pCurrent, Wlen);
 
-					if(Compare.m_X-DrawX > pCursor->m_LineWidth + WidthTolerance)
+					if(Compare.m_X - DrawX > pCursor->m_LineWidth + WidthTolerance)
 					{
 						// word can't be fitted in one line, cut it
 						CTextCursor Cutter = *pCursor;
@@ -818,13 +805,13 @@ public:
 
 						TextEx(&Cutter, (const char *)pCurrent, Wlen);
 						const int RunLength = Wlen;
-						Wlen = Utf8BytesForCharacters(pCurrent, pCurrent+RunLength, Cutter.m_CharCount);
+						Wlen = Utf8BytesForCharacters(pCurrent, pCurrent + RunLength, Cutter.m_CharCount);
 						NewLine = 1;
 
 						if(Wlen == 0) // an over-wide glyph on an empty line must still make progress
-							Wlen = Utf8BytesForCharacters(pCurrent, pCurrent+RunLength, 1);
+							Wlen = Utf8BytesForCharacters(pCurrent, pCurrent + RunLength, 1);
 					}
-					else if(Compare.m_X-pCursor->m_StartX > pCursor->m_LineWidth + WidthTolerance)
+					else if(Compare.m_X - pCursor->m_StartX > pCursor->m_LineWidth + WidthTolerance)
 					{
 						NewLine = 1;
 						Wlen = 0;
@@ -857,23 +844,27 @@ public:
 					CFontChar *pChr = GetChar(pFont, pSizeData, Character);
 					if(pChr)
 					{
-						float Advance = pChr->m_AdvanceX + Kerning(pFont, Character, NextCharacter)*Scale;
-						if((pCursor->m_Flags&TEXTFLAG_STOP_AT_END) && pCursor->m_LineWidth > 0 &&
-							DrawX+Advance*Size-pCursor->m_StartX > pCursor->m_LineWidth + WidthTolerance)
+						float Advance = pChr->m_AdvanceX + Kerning(pFont, Character, NextCharacter) * Scale;
+						if((pCursor->m_Flags & TEXTFLAG_STOP_AT_END) && pCursor->m_LineWidth > 0 &&
+						   DrawX + Advance * Size - pCursor->m_StartX > pCursor->m_LineWidth + WidthTolerance)
 						{
 							// we hit the end of the line, no more to render or count
 							pCurrent = pEnd;
 							break;
 						}
 
-						if(pCursor->m_Flags&TEXTFLAG_RENDER)
+						if(pCursor->m_Flags & TEXTFLAG_RENDER)
 						{
-							Graphics()->QuadsSetSubset(pChr->m_aUvs[0], pChr->m_aUvs[1], pChr->m_aUvs[2], pChr->m_aUvs[3]);
-							IGraphics::CQuadItem QuadItem(DrawX+pChr->m_OffsetX*Size, DrawY+pChr->m_OffsetY*Size, pChr->m_Width*Size, pChr->m_Height*Size);
+							Graphics()->QuadsSetSubset(
+								pChr->m_aUvs[0], pChr->m_aUvs[1], pChr->m_aUvs[2], pChr->m_aUvs[3]);
+							IGraphics::CQuadItem QuadItem(DrawX + pChr->m_OffsetX * Size,
+														  DrawY + pChr->m_OffsetY * Size,
+														  pChr->m_Width * Size,
+														  pChr->m_Height * Size);
 							Graphics()->QuadsDrawTL(&QuadItem, 1);
 						}
 
-						DrawX += Advance*Size;
+						DrawX += Advance * Size;
 						pCursor->m_CharCount++;
 					}
 				}
@@ -889,7 +880,7 @@ public:
 				}
 			}
 
-			if(pCursor->m_Flags&TEXTFLAG_RENDER)
+			if(pCursor->m_Flags & TEXTFLAG_RENDER)
 				Graphics()->QuadsEnd();
 		}
 
@@ -899,7 +890,9 @@ public:
 		if(GotNewLine)
 			pCursor->m_Y = DrawY;
 	}
-
 };
 
-IEngineTextRender *CreateEngineTextRender() { return new CTextRender; }
+IEngineTextRender *CreateEngineTextRender()
+{
+	return new CTextRender;
+}

@@ -42,7 +42,6 @@ void CJobPool::WorkerThread(void *pUser)
 		else
 			thread_sleep(10);
 	}
-
 }
 
 int CJobPool::Init(int NumThreads)
@@ -72,4 +71,3 @@ int CJobPool::Add(CJob *pJob, JOBFUNC pfnFunc, void *pData)
 	lock_unlock(m_Lock);
 	return 0;
 }
-

@@ -24,7 +24,7 @@ EInputPriority CLineInput::s_ActiveInputPriority = NONE;
 vec2 CLineInput::s_CompositionWindowPosition = vec2(0, 0);
 float CLineInput::s_CompositionLineHeight = 0.0f;
 
-char CLineInput::s_aStars[128] = { '\0' };
+char CLineInput::s_aStars[128] = {'\0'};
 
 void CLineInput::SetBuffer(char *pStr, int MaxSize, int MaxChars)
 {
@@ -73,7 +73,11 @@ void CLineInput::SetRange(const char *pString, int Begin, int End)
 	str_utf8_stats(m_pStr + Begin, End - Begin + 1, m_MaxChars, &RemovedCharSize, &RemovedCharCount);
 
 	int AddedCharSize, AddedCharCount;
-	str_utf8_stats(pString, m_MaxSize - m_Len + RemovedCharSize, m_MaxChars - m_NumChars + RemovedCharCount, &AddedCharSize, &AddedCharCount);
+	str_utf8_stats(pString,
+				   m_MaxSize - m_Len + RemovedCharSize,
+				   m_MaxChars - m_NumChars + RemovedCharCount,
+				   &AddedCharSize,
+				   &AddedCharCount);
 
 	if(RemovedCharSize || AddedCharSize)
 	{
@@ -122,7 +126,7 @@ const char *CLineInput::GetDisplayedString()
 
 	unsigned NumStars = GetNumChars();
 	if(NumStars >= sizeof(s_aStars))
-		NumStars = sizeof(s_aStars)-1;
+		NumStars = sizeof(s_aStars) - 1;
 	for(unsigned int i = 0; i < NumStars; ++i)
 		s_aStars[i] = '*';
 	s_aStars[NumStars] = '\0';
@@ -209,10 +213,10 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 	const bool Selecting = s_pInput->KeyPressed(KEY_LSHIFT) || s_pInput->KeyPressed(KEY_RSHIFT);
 	const int SelectionLength = GetSelectionLength();
 
-	if(Event.m_Flags&IInput::FLAG_TEXT && !(KEY_LCTRL <= Event.m_Key && Event.m_Key <= KEY_RGUI))
+	if(Event.m_Flags & IInput::FLAG_TEXT && !(KEY_LCTRL <= Event.m_Key && Event.m_Key <= KEY_RGUI))
 		SetRange(Event.m_aText, m_SelectionStart, m_SelectionEnd);
 
-	if(Event.m_Flags&IInput::FLAG_PRESS)
+	if(Event.m_Flags & IInput::FLAG_PRESS)
 	{
 		const bool CtrlPressed = s_pInput->KeyPressed(KEY_LCTRL) || s_pInput->KeyPressed(KEY_RCTRL);
 		const bool AltPressed = s_pInput->KeyPressed(KEY_LALT) || s_pInput->KeyPressed(KEY_RALT);
@@ -351,7 +355,8 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 	return m_WasChanged;
 }
 
-void CLineInput::DrawSelection(float HeightWeight, int Start, int End, vec4 Color, float FontSize, float OriginX, float OriginY)
+void CLineInput::DrawSelection(
+	float HeightWeight, int Start, int End, vec4 Color, float FontSize, float OriginX, float OriginY)
 {
 	const char *pDisplayStr = GetDisplayedString();
 	const float StartX = OriginX + s_pTextRender->TextWidth(0, FontSize, pDisplayStr, Start);
@@ -398,7 +403,13 @@ void CLineInput::Render(bool Changed)
 
 			const float CompStartX = OriginX + s_pTextRender->TextWidth(0, FontSize, pDisplayStr, DisplayCursorOffset);
 			const float CompW = s_pTextRender->TextWidth(0, FontSize, s_pInput->GetComposition(), -1);
-			DrawSelection(0.1f, DisplayCursorOffset, DisplayCursorOffset + s_pInput->GetCompositionLength(), vec4(0.7f, 0.7f, 0.7f, 0.7f), FontSize, OriginX, OriginY);
+			DrawSelection(0.1f,
+						  DisplayCursorOffset,
+						  DisplayCursorOffset + s_pInput->GetCompositionLength(),
+						  vec4(0.7f, 0.7f, 0.7f, 0.7f),
+						  FontSize,
+						  OriginX,
+						  OriginY);
 			(void)CompStartX;
 			(void)CompW;
 		}
@@ -409,13 +420,21 @@ void CLineInput::Render(bool Changed)
 
 		if(GetSelectionLength() || HasComposition)
 		{
-			const int DisplayCompositionStart = OffsetFromActualToDisplay(CursorOffset + s_pInput->GetCompositionCursor());
+			const int DisplayCompositionStart =
+				OffsetFromActualToDisplay(CursorOffset + s_pInput->GetCompositionCursor());
 			const int Start = HasComposition ? DisplayCompositionStart : OffsetFromActualToDisplay(GetSelectionStart());
-			const int End = HasComposition ? (DisplayCompositionStart + s_pInput->GetCompositionSelectedLength()) : OffsetFromActualToDisplay(GetSelectionEnd());
+			const int End = HasComposition ? (DisplayCompositionStart + s_pInput->GetCompositionSelectedLength())
+										   : OffsetFromActualToDisplay(GetSelectionEnd());
 			DrawSelection(1.0f, Start, End, vec4(0.3f, 0.3f, 0.3f, 0.3f), FontSize, OriginX, OriginY);
 		}
 
-		const float CaretX = OriginX + s_pTextRender->TextWidth(0, FontSize, pDisplayStr, HasComposition ? OffsetFromActualToDisplay(CursorOffset + s_pInput->GetCompositionCursor()) : DisplayCursorOffset);
+		const float CaretX =
+			OriginX + s_pTextRender->TextWidth(
+						  0,
+						  FontSize,
+						  pDisplayStr,
+						  HasComposition ? OffsetFromActualToDisplay(CursorOffset + s_pInput->GetCompositionCursor())
+										 : DisplayCursorOffset);
 		m_CaretPosition = vec2(CaretX, OriginY);
 
 		{
@@ -445,7 +464,7 @@ void CLineInput::RenderCandidates()
 	// Drop UI inputs that were not drawn this frame (closed menus/popups).
 	// Chat/console draw manually — they call MarkRendered() instead of Render().
 	CLineInput *pActiveInput = GetActiveInput();
-	if(pActiveInput != nullptr)
+	if(pActiveInput != 0)
 	{
 		if(pActiveInput->m_WasRendered)
 			pActiveInput->m_WasRendered = false;
@@ -473,7 +492,7 @@ void CLineInput::RenderCandidates()
 	for(int i = 0; i < s_pInput->GetCandidateCount(); ++i)
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d. %s", (i+1)%10, s_pInput->GetCandidate(i));
+		str_format(aBuf, sizeof(aBuf), "%d. %s", (i + 1) % 10, s_pInput->GetCandidate(i));
 		MaxW = max(MaxW, s_pTextRender->TextWidth(0, FontSize, aBuf, -1));
 	}
 
@@ -492,7 +511,7 @@ void CLineInput::RenderCandidates()
 	s_pGraphics->QuadsBegin();
 	s_pGraphics->BlendNormal();
 	s_pGraphics->SetColor(0.0f, 0.0f, 0.0f, 0.8f);
-	IGraphics::CQuadItem Shadow(BoxX+0.75f, BoxY+0.75f, BoxW, BoxH);
+	IGraphics::CQuadItem Shadow(BoxX + 0.75f, BoxY + 0.75f, BoxW, BoxH);
 	s_pGraphics->QuadsDrawTL(&Shadow, 1);
 	s_pGraphics->SetColor(0.15f, 0.15f, 0.15f, 1.0f);
 	IGraphics::CQuadItem Bg(BoxX, BoxY, BoxW, BoxH);
@@ -502,7 +521,8 @@ void CLineInput::RenderCandidates()
 	if(Selected >= 0 && Selected < s_pInput->GetCandidateCount())
 	{
 		s_pGraphics->SetColor(0.1f, 0.4f, 0.8f, 1.0f);
-		IGraphics::CQuadItem Hi(BoxX+HMargin/4, BoxY+VMargin/2+Selected*FontSize*1.35f, BoxW-HMargin/2, FontSize*1.35f);
+		IGraphics::CQuadItem Hi(
+			BoxX + HMargin / 4, BoxY + VMargin / 2 + Selected * FontSize * 1.35f, BoxW - HMargin / 2, FontSize * 1.35f);
 		s_pGraphics->QuadsDrawTL(&Hi, 1);
 	}
 	s_pGraphics->QuadsEnd();
@@ -510,9 +530,10 @@ void CLineInput::RenderCandidates()
 	for(int i = 0; i < s_pInput->GetCandidateCount(); ++i)
 	{
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "%d. %s", (i+1)%10, s_pInput->GetCandidate(i));
+		str_format(aBuf, sizeof(aBuf), "%d. %s", (i + 1) % 10, s_pInput->GetCandidate(i));
 		CTextCursor Cand;
-		s_pTextRender->SetCursor(&Cand, BoxX+HMargin/2, BoxY+VMargin/2+i*FontSize*1.35f, FontSize, TEXTFLAG_RENDER);
+		s_pTextRender->SetCursor(
+			&Cand, BoxX + HMargin / 2, BoxY + VMargin / 2 + i * FontSize * 1.35f, FontSize, TEXTFLAG_RENDER);
 		s_pTextRender->TextEx(&Cand, aBuf, -1);
 	}
 }
@@ -527,7 +548,9 @@ void CLineInput::SetCompositionWindowPosition(vec2 Anchor, float LineHeight)
 	vec2 ScreenScale = vec2(ScreenWidth / (ScreenX1 - ScreenX0), ScreenHeight / (ScreenY1 - ScreenY0));
 	s_CompositionWindowPosition = Anchor * ScreenScale;
 	s_CompositionLineHeight = LineHeight * ScreenScale.y;
-	s_pInput->SetCompositionWindowPosition(s_CompositionWindowPosition.x, s_CompositionWindowPosition.y - s_CompositionLineHeight, s_CompositionLineHeight);
+	s_pInput->SetCompositionWindowPosition(s_CompositionWindowPosition.x,
+										   s_CompositionWindowPosition.y - s_CompositionLineHeight,
+										   s_CompositionLineHeight);
 }
 
 void CLineInput::Activate(EInputPriority Priority)

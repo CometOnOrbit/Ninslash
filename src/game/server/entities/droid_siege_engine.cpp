@@ -13,12 +13,11 @@ class CSiegeStrike : public CEntity
 	vec2 m_Target;
 	int m_FireTick;
 	CSiegeEngine *m_pOwner;
-public:
-	CSiegeStrike(CGameWorld *pWorld, vec2 Target, CSiegeEngine *pOwner) :
-		CEntity(pWorld, CGameWorld::ENTTYPE_LASER),
-		m_Target(Target),
-		m_FireTick(Server()->Tick() + Server()->TickSpeed()),
-		m_pOwner(pOwner)
+
+  public:
+	CSiegeStrike(CGameWorld *pWorld, vec2 Target, CSiegeEngine *pOwner)
+		: CEntity(pWorld, CGameWorld::ENTTYPE_LASER), m_Target(Target),
+		  m_FireTick(Server()->Tick() + Server()->TickSpeed()), m_pOwner(pOwner)
 	{
 		m_Pos = Target;
 		GameWorld()->InsertEntity(this);
@@ -28,7 +27,8 @@ public:
 	void Tick() override
 	{
 		bool OwnerAlive = false;
-		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
+		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
+			pDroid = (CDroid *)pDroid->TypeNext())
 			if(pDroid == m_pOwner && pDroid->m_Health > 0)
 			{
 				OwnerAlive = true;
@@ -45,7 +45,13 @@ public:
 				GameServer()->CreateEffect(FX_ELECTRIC, m_Target);
 			return;
 		}
-		new CLaser(GameWorld(), m_Target - vec2(0, 760), vec2(0, 1), 760.0f, CAttackSource::Droid(NEUTRAL_BASE, DROIDTYPE_SIEGE_ENGINE), 38, 0);
+		new CLaser(GameWorld(),
+				   m_Target - vec2(0, 760),
+				   vec2(0, 1),
+				   760.0f,
+				   CAttackSource::Droid(NEUTRAL_BASE, DROIDTYPE_SIEGE_ENGINE),
+				   38,
+				   0);
 		GameServer()->CreateExplosion(m_Target, CAttackSource::Droid(NEUTRAL_BASE, DROIDTYPE_SIEGE_ENGINE));
 		GameWorld()->DestroyEntity(this);
 	}
@@ -56,18 +62,19 @@ class CSiegeMine : public CBuilding
 {
 	CSiegeEngine *m_pOwner;
 	int m_ExpireTick;
-public:
-	CSiegeMine(CGameWorld *pWorld, vec2 Pos, CSiegeEngine *pOwner) :
-		CBuilding(pWorld, Pos, BUILDING_MINE1, TEAM_NEUTRAL),
-		m_pOwner(pOwner),
-		m_ExpireTick(Server()->Tick() + Server()->TickSpeed() * 14)
+
+  public:
+	CSiegeMine(CGameWorld *pWorld, vec2 Pos, CSiegeEngine *pOwner)
+		: CBuilding(pWorld, Pos, BUILDING_MINE1, TEAM_NEUTRAL), m_pOwner(pOwner),
+		  m_ExpireTick(Server()->Tick() + Server()->TickSpeed() * 14)
 	{
 		m_Life = m_MaxLife = 45;
 	}
 	void Tick() override
 	{
 		bool OwnerAlive = false;
-		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
+		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
+			pDroid = (CDroid *)pDroid->TypeNext())
 			if(pDroid == m_pOwner && pDroid->m_Health > 0)
 			{
 				OwnerAlive = true;
@@ -86,13 +93,11 @@ public:
 		m_ExpireTick++;
 	}
 };
-}
+} // namespace
 
-CSiegeEngine::CSiegeEngine(CGameWorld *pWorld, vec2 Pos) :
-	CSpecialistDroid(pWorld, Pos, DROIDTYPE_SIEGE_ENGINE, 3200, true),
-	m_SkillCycle(0),
-	m_ChargeEndTick(0),
-	m_ChargeHit(false)
+CSiegeEngine::CSiegeEngine(CGameWorld *pWorld, vec2 Pos)
+	: CSpecialistDroid(pWorld, Pos, DROIDTYPE_SIEGE_ENGINE, 3200, true), m_SkillCycle(0), m_ChargeEndTick(0),
+	  m_ChargeHit(false)
 {
 	m_apGuards[0] = m_apGuards[1] = 0;
 }
@@ -128,23 +133,23 @@ void CSiegeEngine::AbilityTick()
 		return;
 	switch(m_SkillCycle++ % 3)
 	{
-	case 0: // One full second of telegraph before the vertical impact.
-		new CSiegeStrike(GameWorld(), p->m_Pos, this);
-		m_AttackTick = Server()->Tick();
-		break;
-	case 1: // A sustained, colliding armoured charge.
-		m_Dir = p->m_Pos.x < m_Pos.x ? -1 : 1;
-		m_ChargeEndTick = Server()->Tick() + Server()->TickSpeed() * 4 / 5;
-		m_ChargeHit = false;
-		m_AttackTick = Server()->Tick();
-		break;
-	default: // Visible mines deny the approach lane, then expire with the Boss.
-		for(int i = -3; i <= 3; i++)
-			new CSiegeMine(GameWorld(), m_Pos + vec2(i * 48.0f, 34.0f), this);
-		m_AttackTick = Server()->Tick();
-		break;
+		case 0: // One full second of telegraph before the vertical impact.
+			new CSiegeStrike(GameWorld(), p->m_Pos, this);
+			m_AttackTick = Server()->Tick();
+			break;
+		case 1: // A sustained, colliding armoured charge.
+			m_Dir = p->m_Pos.x < m_Pos.x ? -1 : 1;
+			m_ChargeEndTick = Server()->Tick() + Server()->TickSpeed() * 4 / 5;
+			m_ChargeHit = false;
+			m_AttackTick = Server()->Tick();
+			break;
+		default: // Visible mines deny the approach lane, then expire with the Boss.
+			for(int i = -3; i <= 3; i++)
+				new CSiegeMine(GameWorld(), m_Pos + vec2(i * 48.0f, 34.0f), this);
+			m_AttackTick = Server()->Tick();
+			break;
 	}
-		m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 2;
+	m_AbilityTick = Server()->Tick() + Server()->TickSpeed() * 2;
 }
 void CSiegeEngine::OnHealthThreshold(int)
 {
@@ -161,7 +166,8 @@ void CSiegeEngine::OnSpecialistDeath()
 {
 	for(int i = 0; i < 2; i++)
 	{
-		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid; pDroid = (CDroid *)pDroid->TypeNext())
+		for(CDroid *pDroid = (CDroid *)GameWorld()->FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
+			pDroid = (CDroid *)pDroid->TypeNext())
 			if(pDroid == m_apGuards[i])
 			{
 				GameWorld()->DestroyEntity(pDroid);

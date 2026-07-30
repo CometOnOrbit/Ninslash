@@ -20,14 +20,14 @@ class CSounds : public CComponent
 	int64 m_QueueWaitTime;
 	class CJob m_SoundJob;
 	bool m_WaitForSoundJob;
-	
+
 	int GetSampleId(int SetId);
 
-public:
+  public:
 	// sound channels
 	enum
 	{
-		CHN_GUI=0,
+		CHN_GUI = 0,
 		CHN_MUSIC,
 		CHN_WORLD,
 		CHN_GLOBAL,
@@ -47,6 +47,5 @@ public:
 	void SetHitFeedbackVolume(float Volume);
 	void Stop(int SetId);
 };
-
 
 #endif

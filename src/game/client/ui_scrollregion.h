@@ -41,7 +41,7 @@ struct CScrollRegionParams
 
 class CScrollRegion : private CUIElementBase
 {
-private:
+  private:
 	float m_ScrollY;
 	float m_ContentH;
 	float m_RequestScrollY;
@@ -57,7 +57,7 @@ private:
 	vec2 m_ContentScrollOff;
 	CScrollRegionParams m_Params;
 
-public:
+  public:
 	enum
 	{
 		SCROLLHERE_KEEP_IN_VIEW = 0,

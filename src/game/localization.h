@@ -15,13 +15,11 @@ Localize("Mask of regeneration"),Localize("Mask of speed"),Localize("Mask of pro
 Localize("Mask of melee"),Localize("Invisibility device"),Localize("Electrowall")
 Localize("Area Shield"),Localize("The Cure"),Localize("Zombie claw")
 Localize("Bomb (for destroying reactors)"),Localize("Terminate the enemies"),Localize("Reach the door"),
-Localize("Survive the wave of enemies"),Localize("Hold out against the wave"),Localize("Seek the door"),Localize("Wave incoming"),
-Localize("Hold the line"),Localize("Stand by"),
-Localize("Drone wheel"),
-Localize("Wave of aliens incoming"),Localize("Wave of robots incoming"),Localize("Wave of skeletons incoming"),
-Localize("Wave of furries incoming"),Localize("Wave of cyborgs incoming"),
-Localize("Terminate the aliens"),Localize("Terminate the robots"),Localize("Terminate the skeletons"),
-Localize("Terminate the furries"),Localize("Terminate the cyborgs"),
+Localize("Survive the wave of enemies"),Localize("Hold out against the wave"),Localize("Seek the door"),Localize("Wave
+incoming"), Localize("Hold the line"),Localize("Stand by"), Localize("Drone wheel"), Localize("Wave of aliens
+incoming"),Localize("Wave of robots incoming"),Localize("Wave of skeletons incoming"), Localize("Wave of furries
+incoming"),Localize("Wave of cyborgs incoming"), Localize("Terminate the aliens"),Localize("Terminate the
+robots"),Localize("Terminate the skeletons"), Localize("Terminate the furries"),Localize("Terminate the cyborgs"),
 Localize("Alien wave cleared"),Localize("Robot wave cleared"),Localize("Skeleton wave cleared"),
 Localize("Furry wave cleared"),Localize("Cyborg wave cleared"),
 Localize("Aliens terminated"),Localize("Robots terminated"),Localize("Skeletons terminated"),
@@ -32,11 +30,12 @@ Localize("Boss assault"),Localize("Purge"),Localize("Standard wave"),Localize("D
 Localize("Reactor defense"),Localize("Timed survive"),Localize("Trap run"),Localize("Elite wave"),
 Localize("Z-sector wave"),Localize("Acid escape"),Localize("Aliens"),Localize("Robots"),
 Localize("Skeletons"),Localize("Furries"),Localize("Cyborgs"),Localize("Invasion"),
-Localize("Weapon forge"),Localize("Target"),Localize("Material"),Localize("Result"),Localize("Weapon level"),Localize("Ammo"),
-Localize("Part 2 transplant"),Localize("Spin"),Localize("Upgrade"),Localize("Forge"),Localize("Forging..."),
-Localize("Waiting for server"),Localize("Forge complete"),Localize("Forge disabled"),Localize("Move closer to a screen"),
-Localize("Not enough gold"),Localize("Weapon is busy"),Localize("Invalid slots"),Localize("Invalid recipe"),
-Localize("Result would not change"),Localize("Select a target weapon"),Localize("Select a material weapon"),Localize("Ready to forge"),
+Localize("Weapon forge"),Localize("Target"),Localize("Material"),Localize("Result"),Localize("Weapon
+level"),Localize("Ammo"), Localize("Part 2
+transplant"),Localize("Spin"),Localize("Upgrade"),Localize("Forge"),Localize("Forging..."), Localize("Waiting for
+server"),Localize("Forge complete"),Localize("Forge disabled"),Localize("Move closer to a screen"), Localize("Not enough
+gold"),Localize("Weapon is busy"),Localize("Invalid slots"),Localize("Invalid recipe"), Localize("Result would not
+change"),Localize("Select a target weapon"),Localize("Select a material weapon"),Localize("Ready to forge"),
 Localize("Press %s to open forge"),
 */
 
@@ -44,30 +43,34 @@ class CLocalizationDatabase
 {
 	class CString
 	{
-	public:
+	  public:
 		unsigned m_Hash;
 
 		// TODO: do this as an const char * and put everything on a incremental heap
 		string m_Replacement;
 
-		bool operator <(const CString &Other) const { return m_Hash < Other.m_Hash; }
-		bool operator <=(const CString &Other) const { return m_Hash <= Other.m_Hash; }
-		bool operator ==(const CString &Other) const { return m_Hash == Other.m_Hash; }
+		bool operator<(const CString &Other) const { return m_Hash < Other.m_Hash; }
+		bool operator<=(const CString &Other) const { return m_Hash <= Other.m_Hash; }
+		bool operator==(const CString &Other) const { return m_Hash == Other.m_Hash; }
 	};
 
 	sorted_array<CString> m_Strings;
 	int m_VersionCounter;
 	int m_CurrentVersion;
 
-public:
+  public:
 	CLocalizationDatabase();
 
 	bool Load(const char *pFilename, class IStorage *pStorage, class IConsole *pConsole);
+	bool LoadOverlay(const char *pFilename, class IStorage *pStorage, class IConsole *pConsole);
 
 	int Version() { return m_CurrentVersion; }
 
 	void AddString(const char *pOrgStr, const char *pNewStr);
 	const char *FindString(unsigned Hash);
+	// Internal load helpers shared by the base file and package overlays.
+	void ClearStringsForLoad() { m_Strings.clear(); }
+	void FinishLoad() { m_CurrentVersion = ++m_VersionCounter; }
 };
 
 extern CLocalizationDatabase g_Localization;
@@ -78,7 +81,8 @@ class CLocConstString
 	const char *m_pCurrentStr;
 	unsigned m_Hash;
 	int m_Version;
-public:
+
+  public:
 	CLocConstString(const char *pStr);
 	void Reload();
 
@@ -89,7 +93,6 @@ public:
 		return m_pCurrentStr;
 	}
 };
-
 
 extern const char *Localize(const char *pStr);
 #endif

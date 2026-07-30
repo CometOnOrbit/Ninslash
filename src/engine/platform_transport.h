@@ -8,7 +8,7 @@
  */
 class IPlatformTransport
 {
-public:
+  public:
 	enum EKind
 	{
 		KIND_UDP,

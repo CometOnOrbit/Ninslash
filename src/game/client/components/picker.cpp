@@ -7,7 +7,7 @@
 
 #include <game/client/gameclient.h>
 #include <game/gamecore.h> // get_angle
-#include <game/weapons.h> // get_angle
+#include <game/weapons.h>  // get_angle
 #include <game/client/ui.h>
 #include <game/client/render.h>
 #include <game/client/customstuff.h>
@@ -28,7 +28,7 @@ void CPicker::ConKeyEmote(IConsole::IResult *pResult, void *pUserData)
 	CPicker *pSelf = (CPicker *)pUserData;
 	if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		pSelf->m_Active = pResult->GetInteger(0) != 0;
-	
+
 	pSelf->m_PickerType = PICKER_EMOTICON;
 	pSelf->m_ItemSelected = -1;
 }
@@ -36,7 +36,7 @@ void CPicker::ConKeyEmote(IConsole::IResult *pResult, void *pUserData)
 void CPicker::ConKeyPicker(IConsole::IResult *pResult, void *pUserData)
 {
 	CPicker *pSelf = (CPicker *)pUserData;
-	
+
 	if(pSelf->m_pClient->m_pBuildPlacement->Active())
 		return;
 	if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
@@ -74,21 +74,20 @@ void CPicker::ConSwitchGroup(IConsole::IResult *pResult, void *pUserData)
 	((CPicker *)pUserData)->SwitchGroup();
 }
 
-
 void CPicker::OnConsoleInit()
 {
-	//Console()->Register("+itempicker", "", CFGFLAG_CLIENT, ConKeyItemPicker, this, "Open item selector");
-	//Console()->Register("+gamepaditempicker", "", CFGFLAG_CLIENT, ConKeyItemPicker, this, "Open item selector");
-	
+	// Console()->Register("+itempicker", "", CFGFLAG_CLIENT, ConKeyItemPicker, this, "Open item selector");
+	// Console()->Register("+gamepaditempicker", "", CFGFLAG_CLIENT, ConKeyItemPicker, this, "Open item selector");
+
 	Console()->Register("+switch", "", CFGFLAG_CLIENT, ConSwitchGroup, this, "Switch between weapon groups");
 	Console()->Register("+gamepaddropweapon", "", CFGFLAG_CLIENT, ConDropWeapon, this, "Drop weapon");
 	Console()->Register("+dropweapon", "", CFGFLAG_CLIENT, ConDropWeapon, this, "Drop weapon");
 	Console()->Register("+lastweapon", "", CFGFLAG_CLIENT, ConLastWeaponpick, this, "Select last picked weapon");
 	Console()->Register("+gamepadlastweapon", "", CFGFLAG_CLIENT, ConLastWeaponpick, this, "Select last picked weapon");
-	//Console()->Register("+picker", "", CFGFLAG_CLIENT, ConKeyPicker, this, "Open weapon selector");
+	// Console()->Register("+picker", "", CFGFLAG_CLIENT, ConKeyPicker, this, "Open weapon selector");
 	Console()->Register("+gamepadpicker", "", CFGFLAG_CLIENT, ConKeyPicker, this, "Open weapon selector");
 	Console()->Register("weaponpick", "i", CFGFLAG_CLIENT, ConWeaponpick, this, "Use weapon");
-	
+
 	Console()->Register("+gamepademote", "", CFGFLAG_CLIENT, ConKeyEmote, this, "Open emote selector");
 	Console()->Register("+emote", "", CFGFLAG_CLIENT, ConKeyEmote, this, "Open emote selector");
 	Console()->Register("emote", "i", CFGFLAG_CLIENT, ConEmote, this, "Use emote");
@@ -117,11 +116,11 @@ bool CPicker::OnMouseMove(float x, float y)
 {
 	if(!m_Active)
 		return false;
-	
+
 	Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
 
 	Input()->GetRelativePosition(&x, &y);
-	m_SelectorMouse += vec2(x,y);
+	m_SelectorMouse += vec2(x, y);
 	return true;
 }
 
@@ -130,11 +129,11 @@ void CPicker::DrawCircle(float x, float y, float r, int Segments)
 	IGraphics::CFreeformItem Array[32];
 	int NumItems = 0;
 	float FSegments = (float)Segments;
-	for(int i = 0; i < Segments; i+=2)
+	for(int i = 0; i < Segments; i += 2)
 	{
-		float a1 = i/FSegments * 2*pi;
-		float a2 = (i+1)/FSegments * 2*pi;
-		float a3 = (i+2)/FSegments * 2*pi;
+		float a1 = i / FSegments * 2 * pi;
+		float a2 = (i + 1) / FSegments * 2 * pi;
+		float a3 = (i + 2) / FSegments * 2 * pi;
 		float Ca1 = cosf(a1);
 		float Ca2 = cosf(a2);
 		float Ca3 = cosf(a3);
@@ -143,10 +142,7 @@ void CPicker::DrawCircle(float x, float y, float r, int Segments)
 		float Sa3 = sinf(a3);
 
 		Array[NumItems++] = IGraphics::CFreeformItem(
-			x, y,
-			x+Ca1*r, y+Sa1*r,
-			x+Ca3*r, y+Sa3*r,
-			x+Ca2*r, y+Sa2*r);
+			x, y, x + Ca1 * r, y + Sa1 * r, x + Ca3 * r, y + Sa3 * r, x + Ca2 * r, y + Sa2 * r);
 		if(NumItems == 32)
 		{
 			m_pClient->Graphics()->QuadsDrawFreeform(Array, 32);
@@ -157,18 +153,17 @@ void CPicker::DrawCircle(float x, float y, float r, int Segments)
 		m_pClient->Graphics()->QuadsDrawFreeform(Array, NumItems);
 }
 
-
 void CPicker::DrawEmoticons()
 {
 	CUIRect Screen = *UI()->Screen();
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_EMOTICONS].m_Id);
 	Graphics()->QuadsBegin();
 
-	for (int i = 0; i < NUM_EMOTICONS; i++)
+	for(int i = 0; i < NUM_EMOTICONS; i++)
 	{
-		float Angle = -pi/2.0f + 2*pi*i/NUM_EMOTICONS;
-		if (Angle > pi)
-			Angle -= 2*pi;
+		float Angle = -pi / 2.0f + 2 * pi * i / NUM_EMOTICONS;
+		if(Angle > pi)
+			Angle -= 2 * pi;
 
 		bool Selected = m_Selected == i;
 
@@ -177,41 +172,34 @@ void CPicker::DrawEmoticons()
 		float NudgeX = 150.0f * cosf(Angle);
 		float NudgeY = 150.0f * sinf(Angle);
 		RenderTools()->SelectSprite(SPRITE_OOP + i);
-		IGraphics::CQuadItem QuadItem(Screen.w/2 + NudgeX, Screen.h/2 + NudgeY, Size, Size);
+		IGraphics::CQuadItem QuadItem(Screen.w / 2 + NudgeX, Screen.h / 2 + NudgeY, Size, Size);
 		Graphics()->QuadsDraw(&QuadItem, 1);
 	}
 
 	Graphics()->QuadsEnd();
 }
 
-
 void CPicker::DrawWeapons()
 {
 }
 
-
-
-
-
-
-
 void CPicker::OnRender()
 {
-	if (m_PickerType == PICKER_WEAPON && CustomStuff()->m_SelectedGroup > 2)
+	if(m_PickerType == PICKER_WEAPON && CustomStuff()->m_SelectedGroup > 2)
 		m_Active = false;
-	
+
 	if(!m_Active)
 	{
 		m_ResetMouse = true;
-		if(m_WasActive && (m_Selected != -1  || m_ItemSelected != -1))
+		if(m_WasActive && (m_Selected != -1 || m_ItemSelected != -1))
 		{
-			if (m_ItemSelected != -1)
+			if(m_ItemSelected != -1)
 				Itempick(m_ItemSelected);
 			else
 			{
-				if (m_PickerType == PICKER_WEAPON)
+				if(m_PickerType == PICKER_WEAPON)
 					Weaponpick(m_Selected);
-				if (m_PickerType == PICKER_EMOTICON)
+				if(m_PickerType == PICKER_EMOTICON)
 					Emote(m_Selected);
 			}
 		}
@@ -228,22 +216,22 @@ void CPicker::OnRender()
 
 	m_WasActive = true;
 
-	if (length(m_SelectorMouse) > 170.0f)
+	if(length(m_SelectorMouse) > 170.0f)
 		m_SelectorMouse = normalize(m_SelectorMouse) * 170.0f;
 
-	//float SelectedAngle = GetAngle(m_SelectorMouse) + 2*pi/24 +pi/2.0f;
-	float SelectedAngle = GetAngle(m_SelectorMouse) + 3*pi/24 +pi/2.0f;
-	if (SelectedAngle < 0)
-		SelectedAngle += 2*pi;
+	// float SelectedAngle = GetAngle(m_SelectorMouse) + 2*pi/24 +pi/2.0f;
+	float SelectedAngle = GetAngle(m_SelectorMouse) + 3 * pi / 24 + pi / 2.0f;
+	if(SelectedAngle < 0)
+		SelectedAngle += 2 * pi;
 
-	if (length(m_SelectorMouse) > 100.0f)
+	if(length(m_SelectorMouse) > 100.0f)
 	{
-		if (m_PickerType == PICKER_EMOTICON)
-			m_Selected = (int)(SelectedAngle / (2*pi) * NUM_EMOTICONS);
+		if(m_PickerType == PICKER_EMOTICON)
+			m_Selected = (int)(SelectedAngle / (2 * pi) * NUM_EMOTICONS);
 	}
-	
+
 	// items in the middle
-	else if (m_PickerType == PICKER_WEAPON)
+	else if(m_PickerType == PICKER_WEAPON)
 	{
 	}
 
@@ -255,11 +243,11 @@ void CPicker::OnRender()
 
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0,0,0,0.3f);
-	DrawCircle(Screen.w/2, Screen.h/2, 190.0f, 64);
+	Graphics()->SetColor(0, 0, 0, 0.3f);
+	DrawCircle(Screen.w / 2, Screen.h / 2, 190.0f, 64);
 	Graphics()->QuadsEnd();
 
-	switch (m_PickerType)
+	switch(m_PickerType)
 	{
 		case PICKER_EMOTICON:
 			DrawEmoticons();
@@ -273,12 +261,11 @@ void CPicker::OnRender()
 
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_CURSOR].m_Id);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(1,1,1,1);
-	IGraphics::CQuadItem QuadItem(m_SelectorMouse.x+Screen.w/2,m_SelectorMouse.y+Screen.h/2,24,24);
+	Graphics()->SetColor(1, 1, 1, 1);
+	IGraphics::CQuadItem QuadItem(m_SelectorMouse.x + Screen.w / 2, m_SelectorMouse.y + Screen.h / 2, 24, 24);
 	Graphics()->QuadsDrawTL(&QuadItem, 1);
 	Graphics()->QuadsEnd();
 }
-
 
 void CPicker::UseKit(int Kit)
 {
@@ -291,7 +278,7 @@ void CPicker::UseKit(int Kit)
 		m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_UI_NEGATIVE, 0);
 		return;
 	}
-	
+
 	m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_UI_POSITIVE, 0);
 
 	CNetMsg_Cl_UseKit Msg;
@@ -300,27 +287,22 @@ void CPicker::UseKit(int Kit)
 	*/
 }
 
-
 void CPicker::Itempick(int Item)
 {
-
 }
-
 
 void CPicker::LastWeaponpick()
 {
-	if (CustomStuff()->m_WeaponpickTimer > 0.0f)
+	if(CustomStuff()->m_WeaponpickTimer > 0.0f)
 	{
 		Weaponpick(CustomStuff()->m_WeaponpickWeapon);
 		CustomStuff()->m_LastWeaponPicked = true;
 	}
 }
 
-
-	
 void CPicker::Weaponpick(int Weapon)
 {
-	if (Weapon < 0 || Weapon >= NUM_WEAPONS)
+	if(Weapon < 0 || Weapon >= NUM_WEAPONS)
 		return;
 
 	/*
@@ -331,54 +313,52 @@ void CPicker::Weaponpick(int Weapon)
 		return;
 	}
 	*/
-	
+
 	m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_UI_POSITIVE, 0);
 
-	m_pClient->m_pControls->m_PickedWeapon = Weapon+1;
+	m_pClient->m_pControls->m_PickedWeapon = Weapon + 1;
 }
 
 void CPicker::DropWeapon()
 {
-	if (CustomStuff()->m_WeaponDropTick > CustomStuff()->LocalTick() - 20)
+	if(CustomStuff()->m_WeaponDropTick > CustomStuff()->LocalTick() - 20)
 	{
 		CustomStuff()->m_WeaponDropTick = CustomStuff()->LocalTick();
 		return;
 	}
-	
+
 	CustomStuff()->m_WeaponDropTick = CustomStuff()->LocalTick();
-	
+
 	CNetMsg_Cl_DropWeapon Msg;
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
-	
+
 	m_pClient->m_pControls->m_InputData.m_WantedWeapon = 0;
 }
 
-
 void CPicker::SwitchGroup()
 {
-	//m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_UI_POSITIVE, 0);
-	
-	if (CustomStuff()->m_SwitchTick > CustomStuff()->LocalTick() - 20)
+	// m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_UI_POSITIVE, 0);
+
+	if(CustomStuff()->m_SwitchTick > CustomStuff()->LocalTick() - 20)
 	{
 		CustomStuff()->m_SwitchTick = CustomStuff()->LocalTick();
 		return;
 	}
-	
+
 	CustomStuff()->m_SwitchTick = CustomStuff()->LocalTick();
-	
-	if (CustomStuff()->m_SelectedGroup == 1)
+
+	if(CustomStuff()->m_SelectedGroup == 1)
 		Console()->ExecuteLine("+weapon2");
-	else if (CustomStuff()->m_SelectedGroup == 2)
+	else if(CustomStuff()->m_SelectedGroup == 2)
 		Console()->ExecuteLine("+weapon3");
-	else if (CustomStuff()->m_SelectedGroup == 3)
+	else if(CustomStuff()->m_SelectedGroup == 3)
 		Console()->ExecuteLine("+weapon1");
-	
+
 	/*
 	CNetMsg_Cl_SwitchGroup Msg;
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
 	*/
 }
-
 
 void CPicker::Emote(int Emoticon)
 {

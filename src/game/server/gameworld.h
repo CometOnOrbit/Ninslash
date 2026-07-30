@@ -15,7 +15,7 @@ class CCharacter;
 */
 class CGameWorld
 {
-public:
+  public:
 	enum
 	{
 		ENTTYPE_PROJECTILE = 0,
@@ -33,10 +33,11 @@ public:
 		ENTTYPE_BLOCK,
 		ENTTYPE_RADAR,
 		ENTTYPE_BALL,
+		ENTTYPE_SCRIPTED,
 		NUM_ENTTYPES
 	};
 
-private:
+  private:
 	void Reset();
 	void RemoveEntities();
 
@@ -47,7 +48,7 @@ private:
 	class CGameContext *m_pGameServer;
 	class IServer *m_pServer;
 
-public:
+  public:
 	class CGameContext *GameServer() { return m_pGameServer; }
 	class IServer *Server() { return m_pServer; }
 
@@ -60,10 +61,7 @@ public:
 
 	void SetGameServer(CGameContext *pGameServer);
 
-	CEntity *FindFirst(int Type)
-	{
-		return Type < 0 || Type >= NUM_ENTTYPES ? 0 : m_apFirstEntityTypes[Type];
-	}
+	CEntity *FindFirst(int Type) { return Type < 0 || Type >= NUM_ENTTYPES ? 0 : m_apFirstEntityTypes[Type]; }
 
 	/*
 		Function: find_entities
@@ -81,10 +79,9 @@ public:
 			Number of entities found and added to the ents array.
 	*/
 	int FindEntities(vec2 Pos, float Radius, CEntity **ppEnts, int Max, int Type);
-	
-	
+
 	bool GetDroidPosChange(int ID);
-	
+
 	int FindBlocks(vec2 Pos, ivec2 Radius, CEntity **ppEnts, int Max);
 
 	/*
@@ -99,23 +96,29 @@ public:
 			notthis - Entity to ignore intersecting with
 
 		Returns:
-			Returns a pointer to the closest hit or NULL of there is no intersection.
+			Returns a pointer to the closest hit or 0 of there is no intersection.
 	*/
-	class CCharacter *IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos,
-		class CEntity *pNotThis = 0, bool IgnoreDeathrayed = false,
-		class CCharacter **ppReflect = 0, float ReflectRadius = 0.0f,
-		class CEntity *pNotThis2 = 0);
+	class CCharacter *IntersectCharacter(vec2 Pos0,
+										 vec2 Pos1,
+										 float Radius,
+										 vec2 &NewPos,
+										 class CEntity *pNotThis = 0,
+										 bool IgnoreDeathrayed = false,
+										 class CCharacter **ppReflect = 0,
+										 float ReflectRadius = 0.0f,
+										 class CEntity *pNotThis2 = 0);
 
 	class CCharacter *GetFriendlyCharacterInBox(vec2 TopLeft, vec2 BotRight, int Team);
 
 	class CCharacter *IntersectReflect(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, class CEntity *pNotThis = 0);
-	
-	class CBuilding *IntersectBuilding(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, int Team, class CEntity *pNotThis = 0);
-	
+
+	class CBuilding *
+	IntersectBuilding(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, int Team, class CEntity *pNotThis = 0);
+
 	bool IsShielded(vec2 Pos0, vec2 Pos1, float Radius, int Team);
-	
+
 	class CBall *IntersectBall(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos);
-	
+
 	class CDroid *IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, class CEntity *pNotThis = 0);
 
 	/*
@@ -128,7 +131,7 @@ public:
 			notthis - Entity to ignore
 
 		Returns:
-			Returns a pointer to the closest CCharacter or NULL if no CCharacter is close enough.
+			Returns a pointer to the closest CCharacter or 0 if no CCharacter is close enough.
 	*/
 	class CCharacter *ClosestCharacter(vec2 Pos, float Radius, CEntity *ppNotThis);
 
@@ -149,7 +152,7 @@ public:
 			entity - Entity to remove
 	*/
 	void RemoveEntity(CEntity *pEntity);
-	
+
 	int CountEntities();
 
 	/*

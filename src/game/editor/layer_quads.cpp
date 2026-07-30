@@ -28,9 +28,19 @@ void CLayerQuads::Render()
 		Graphics()->TextureSet(m_pEditor->m_Map.m_lImages[m_Image]->m_TexID);
 
 	Graphics()->BlendNone();
-	m_pEditor->RenderTools()->RenderQuads(m_lQuads.base_ptr(), m_lQuads.size(), LAYERRENDERFLAG_OPAQUE, m_pEditor->EnvelopeEval, m_pEditor, m_Flags&LAYERFLAG_LOOP);
+	m_pEditor->RenderTools()->RenderQuads(m_lQuads.base_ptr(),
+										  m_lQuads.size(),
+										  LAYERRENDERFLAG_OPAQUE,
+										  m_pEditor->EnvelopeEval,
+										  m_pEditor,
+										  m_Flags & LAYERFLAG_LOOP);
 	Graphics()->BlendNormal();
-	m_pEditor->RenderTools()->RenderQuads(m_lQuads.base_ptr(), m_lQuads.size(), LAYERRENDERFLAG_TRANSPARENT, m_pEditor->EnvelopeEval, m_pEditor, m_Flags&LAYERFLAG_LOOP);
+	m_pEditor->RenderTools()->RenderQuads(m_lQuads.base_ptr(),
+										  m_lQuads.size(),
+										  LAYERRENDERFLAG_TRANSPARENT,
+										  m_pEditor->EnvelopeEval,
+										  m_pEditor,
+										  m_Flags & LAYERFLAG_LOOP);
 }
 
 CQuad *CLayerQuads::NewQuad()
@@ -46,15 +56,15 @@ CQuad *CLayerQuads::NewQuad()
 	int x = 0, y = 0;
 	q->m_aPoints[0].x = x;
 	q->m_aPoints[0].y = y;
-	q->m_aPoints[1].x = x+64;
+	q->m_aPoints[1].x = x + 64;
 	q->m_aPoints[1].y = y;
 	q->m_aPoints[2].x = x;
-	q->m_aPoints[2].y = y+64;
-	q->m_aPoints[3].x = x+64;
-	q->m_aPoints[3].y = y+64;
+	q->m_aPoints[2].y = y + 64;
+	q->m_aPoints[3].x = x + 64;
+	q->m_aPoints[3].y = y + 64;
 
-	q->m_aPoints[4].x = x+32; // pivot
-	q->m_aPoints[4].y = y+32;
+	q->m_aPoints[4].x = x + 32; // pivot
+	q->m_aPoints[4].y = y + 32;
 
 	for(int i = 0; i < 5; i++)
 	{
@@ -62,23 +72,34 @@ CQuad *CLayerQuads::NewQuad()
 		q->m_aPoints[i].y <<= 10;
 	}
 
-
 	q->m_aTexcoords[0].x = 0;
 	q->m_aTexcoords[0].y = 0;
 
-	q->m_aTexcoords[1].x = 1<<10;
+	q->m_aTexcoords[1].x = 1 << 10;
 	q->m_aTexcoords[1].y = 0;
 
 	q->m_aTexcoords[2].x = 0;
-	q->m_aTexcoords[2].y = 1<<10;
+	q->m_aTexcoords[2].y = 1 << 10;
 
-	q->m_aTexcoords[3].x = 1<<10;
-	q->m_aTexcoords[3].y = 1<<10;
+	q->m_aTexcoords[3].x = 1 << 10;
+	q->m_aTexcoords[3].y = 1 << 10;
 
-	q->m_aColors[0].r = 255; q->m_aColors[0].g = 255; q->m_aColors[0].b = 255; q->m_aColors[0].a = 255;
-	q->m_aColors[1].r = 255; q->m_aColors[1].g = 255; q->m_aColors[1].b = 255; q->m_aColors[1].a = 255;
-	q->m_aColors[2].r = 255; q->m_aColors[2].g = 255; q->m_aColors[2].b = 255; q->m_aColors[2].a = 255;
-	q->m_aColors[3].r = 255; q->m_aColors[3].g = 255; q->m_aColors[3].b = 255; q->m_aColors[3].a = 255;
+	q->m_aColors[0].r = 255;
+	q->m_aColors[0].g = 255;
+	q->m_aColors[0].b = 255;
+	q->m_aColors[0].a = 255;
+	q->m_aColors[1].r = 255;
+	q->m_aColors[1].g = 255;
+	q->m_aColors[1].b = 255;
+	q->m_aColors[1].a = 255;
+	q->m_aColors[2].r = 255;
+	q->m_aColors[2].g = 255;
+	q->m_aColors[2].b = 255;
+	q->m_aColors[2].a = 255;
+	q->m_aColors[3].r = 255;
+	q->m_aColors[3].g = 255;
+	q->m_aColors[3].b = 255;
+	q->m_aColors[3].a = 255;
 
 	return q;
 }
@@ -86,11 +107,10 @@ CQuad *CLayerQuads::NewQuad()
 void CLayerQuads::BrushSelecting(CUIRect Rect)
 {
 	// draw selection rectangle
-	IGraphics::CLineItem Array[4] = {
-		IGraphics::CLineItem(Rect.x, Rect.y, Rect.x+Rect.w, Rect.y),
-		IGraphics::CLineItem(Rect.x+Rect.w, Rect.y, Rect.x+Rect.w, Rect.y+Rect.h),
-		IGraphics::CLineItem(Rect.x+Rect.w, Rect.y+Rect.h, Rect.x, Rect.y+Rect.h),
-		IGraphics::CLineItem(Rect.x, Rect.y+Rect.h, Rect.x, Rect.y)};
+	IGraphics::CLineItem Array[4] = {IGraphics::CLineItem(Rect.x, Rect.y, Rect.x + Rect.w, Rect.y),
+									 IGraphics::CLineItem(Rect.x + Rect.w, Rect.y, Rect.x + Rect.w, Rect.y + Rect.h),
+									 IGraphics::CLineItem(Rect.x + Rect.w, Rect.y + Rect.h, Rect.x, Rect.y + Rect.h),
+									 IGraphics::CLineItem(Rect.x, Rect.y + Rect.h, Rect.x, Rect.y)};
 	Graphics()->TextureSet(-1);
 	Graphics()->LinesBegin();
 	Graphics()->LinesDraw(Array, 4);
@@ -105,14 +125,14 @@ int CLayerQuads::BrushGrab(CLayerGroup *pBrush, CUIRect Rect)
 	pGrabbed->m_Image = m_Image;
 	pBrush->AddLayer(pGrabbed);
 
-	//dbg_msg("", "%f %f %f %f", rect.x, rect.y, rect.w, rect.h);
+	// dbg_msg("", "%f %f %f %f", rect.x, rect.y, rect.w, rect.h);
 	for(int i = 0; i < m_lQuads.size(); i++)
 	{
 		CQuad *q = &m_lQuads[i];
 		float px = fx2f(q->m_aPoints[4].x);
 		float py = fx2f(q->m_aPoints[4].y);
 
-		if(px > Rect.x && px < Rect.x+Rect.w && py > Rect.y && py < Rect.y+Rect.h)
+		if(px > Rect.x && px < Rect.x + Rect.w && py > Rect.y && py < Rect.y + Rect.h)
 		{
 			CQuad n;
 			n = *q;
@@ -127,7 +147,7 @@ int CLayerQuads::BrushGrab(CLayerGroup *pBrush, CUIRect Rect)
 		}
 	}
 
-	return pGrabbed->m_lQuads.size()?1:0;
+	return pGrabbed->m_lQuads.size() ? 1 : 0;
 }
 
 void CLayerQuads::BrushPlace(CLayer *pBrush, float wx, float wy)
@@ -187,7 +207,8 @@ void CLayerQuads::BrushRotate(float Amount)
 
 void CLayerQuads::GetSize(float *w, float *h)
 {
-	*w = 0; *h = 0;
+	*w = 0;
+	*h = 0;
 
 	for(int i = 0; i < m_lQuads.size(); i++)
 	{
@@ -206,7 +227,7 @@ int CLayerQuads::RenderProperties(CUIRect *pToolBox)
 	// layer props
 	enum
 	{
-		PROP_IMAGE=0,
+		PROP_IMAGE = 0,
 		NUM_PROPS,
 	};
 
@@ -224,14 +245,13 @@ int CLayerQuads::RenderProperties(CUIRect *pToolBox)
 	if(Prop == PROP_IMAGE)
 	{
 		if(NewVal >= 0)
-			m_Image = NewVal%m_pEditor->m_Map.m_lImages.size();
+			m_Image = NewVal % m_pEditor->m_Map.m_lImages.size();
 		else
 			m_Image = -1;
 	}
 
 	return 0;
 }
-
 
 void CLayerQuads::ModifyImageIndex(INDEX_MODIFY_FUNC Func)
 {

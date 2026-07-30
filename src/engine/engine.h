@@ -8,7 +8,7 @@
 
 class CHostLookup
 {
-public:
+  public:
 	CJob m_Job;
 	char m_aHostname[128];
 	int m_Nettype;
@@ -19,10 +19,10 @@ class IEngine : public IInterface
 {
 	MACRO_INTERFACE("engine", 0)
 
-protected:
+  protected:
 	class CJobPool m_JobPool;
 
-public:
+  public:
 	virtual void Init() = 0;
 	virtual void InitLogfile() = 0;
 	virtual void HostLookup(CHostLookup *pLookup, const char *pHostname, int Nettype) = 0;

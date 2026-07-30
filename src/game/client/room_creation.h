@@ -47,14 +47,22 @@ struct CRoomConfigureLayout
 	float m_ContentHeight;
 };
 
-inline CRoomConfigureLayout RoomConfigureLayout(float Width, float Scale, bool SteamAvailable, int MainRows, int AdvancedRows, bool AdvancedExpanded)
+inline CRoomConfigureLayout RoomConfigureLayout(
+	float Width, float Scale, bool SteamAvailable, int MainRows, int AdvancedRows, bool AdvancedExpanded)
 {
 	const float InvScale = Scale > 0.01f ? 1.0f / Scale : 1.0f;
 	CRoomConfigureLayout Layout;
 	Layout.m_SingleColumn = Width < 650.0f;
-	Layout.m_MainSettingsHeight = (18.0f + 20.0f + 32.0f + 6.0f + (!SteamAvailable ? 22.0f : 0.0f) + MainRows * 35.0f) * InvScale;
-	Layout.m_IdentityHeight = (18.0f + 20.0f + 35.0f + 35.0f + 7.0f + 31.0f + AdvancedRows * 35.0f + (AdvancedExpanded ? 18.0f : 0.0f)) * InvScale;
-	Layout.m_ContentHeight = 50.0f * InvScale + (Layout.m_SingleColumn ? Layout.m_MainSettingsHeight + 8.0f * InvScale + Layout.m_IdentityHeight : Layout.m_MainSettingsHeight > Layout.m_IdentityHeight ? Layout.m_MainSettingsHeight : Layout.m_IdentityHeight);
+	Layout.m_MainSettingsHeight =
+		(18.0f + 20.0f + 32.0f + 6.0f + (!SteamAvailable ? 22.0f : 0.0f) + MainRows * 35.0f) * InvScale;
+	Layout.m_IdentityHeight =
+		(18.0f + 20.0f + 35.0f + 35.0f + 7.0f + 31.0f + AdvancedRows * 35.0f + (AdvancedExpanded ? 18.0f : 0.0f)) *
+		InvScale;
+	Layout.m_ContentHeight =
+		50.0f * InvScale + (Layout.m_SingleColumn
+								? Layout.m_MainSettingsHeight + 8.0f * InvScale + Layout.m_IdentityHeight
+							: Layout.m_MainSettingsHeight > Layout.m_IdentityHeight ? Layout.m_MainSettingsHeight
+																					: Layout.m_IdentityHeight);
 	return Layout;
 }
 
@@ -122,7 +130,8 @@ inline const char *RoomPrimaryActionLabel(int State)
 
 inline bool RoomPrimaryActionEnabled(int State)
 {
-	return State != ROOM_PRIMARY_CREATING_STEAM && State != ROOM_PRIMARY_STARTING_LOCAL && State != ROOM_PRIMARY_STOPPING_LOCAL;
+	return State != ROOM_PRIMARY_CREATING_STEAM && State != ROOM_PRIMARY_STARTING_LOCAL &&
+		   State != ROOM_PRIMARY_STOPPING_LOCAL;
 }
 
 #endif

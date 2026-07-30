@@ -53,11 +53,11 @@ struct CPlayerSpecData
 	{
 		m_Kits = 0;
 		m_WeaponSlot = 0;
-		
-		for (int i = 0; i < 4; i++)
+
+		for(int i = 0; i < 4; i++)
 			m_aWeapon[i] = {};
 	}
-	
+
 	int m_WeaponSlot;
 	CWeaponSpec m_aWeapon[4];
 	int m_Kits;
@@ -94,15 +94,23 @@ class CGameContext : public IGameServer
 	static void ConForceVote(IConsole::IResult *pResult, void *pUserData);
 	static void ConClearVotes(IConsole::IResult *pResult, void *pUserData);
 	static void ConEndRound(IConsole::IResult *pResult, void *pUserData);
+	static void ConWeaponList(IConsole::IResult *pResult, void *pUserData);
+	static void ConWeaponValidate(IConsole::IResult *pResult, void *pUserData);
+	static void ConWeaponSpawn(IConsole::IResult *pResult, void *pUserData);
+	static void ConWeaponReload(IConsole::IResult *pResult, void *pUserData);
 	static void ConVote(IConsole::IResult *pResult, void *pUserData);
-	static void ConchainSpecialMotdupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainSpecialMotdupdate(IConsole::IResult *pResult,
+										  void *pUserData,
+										  IConsole::FCommandCallback pfnCallback,
+										  void *pCallbackUserData);
 	static void ConMapsList(IConsole::IResult *pResult, void *pUserData);
 
 	CGameContext(int Resetting);
 	void Construct(int Resetting);
-	
+
 	bool m_Resetting;
-public:
+
+  public:
 	IServer *Server() const { return m_pServer; }
 	class IConsole *Console() { return m_pConsole; }
 	CCollision *Collision() { return &m_Collision; }
@@ -118,8 +126,8 @@ public:
 	CBlockEntities *m_pBlockEntities;
 	void CreateEntitiesForBlock(int block);
 	void ActivateBlockEntities(int x);
-	
-	bool StoreEntity(int ObjType,int Type, int Subtype, int x, int y);
+
+	bool StoreEntity(int ObjType, int Type, int Subtype, int x, int y);
 	void RestoreEntity(int ObjType, int Type, int Subtype, int x, int y);
 
 	CGameContext();
@@ -128,7 +136,7 @@ public:
 	void Clear();
 
 	void ReloadMap();
-	
+
 	CEventHandler m_Events;
 	CPlayer *m_apPlayers[MAX_CLIENTS];
 
@@ -136,13 +144,13 @@ public:
 	class CPveDirector *m_pPveDirector;
 	class CTutorialDirector *m_pTutorialDirector;
 	CGameWorld m_World;
-	
+
 	CPlayerSpecData GetPlayerSpecData(int ClientID);
-	
+
 	int m_aMostInterestingPlayer[2];
-	
+
 	void UpdateSpectators();
-	
+
 	// helper functions
 	class CCharacter *GetPlayerChar(int ClientID);
 
@@ -166,7 +174,7 @@ public:
 	int m_VoteEnforce;
 	enum
 	{
-		VOTE_ENFORCE_UNKNOWN=0,
+		VOTE_ENFORCE_UNKNOWN = 0,
 		VOTE_ENFORCE_NO,
 		VOTE_ENFORCE_YES,
 	};
@@ -187,38 +195,45 @@ public:
 	int CreateDeathray(vec2 Pos);
 	void CreatePlayerSpawn(vec2 Pos);
 	void CreateDeath(vec2 Pos, int Who);
-	void CreateSound(vec2 Pos, int Sound, int64 Mask=-1);
-	void CreateSoundGlobal(int Sound, int Target=-1);
-	
+	void CreateSound(vec2 Pos, int Sound, int64 Mask = -1);
+	void CreateWeaponSound(vec2 Pos, const CWeaponSpec &Weapon, int Slot, int64 Mask = -1);
+	void CreateSoundGlobal(int Sound, int Target = -1);
+
 	bool BuildableSpot(vec2 Pos);
 	bool AddBlock(int Type, vec2 Pos, int Owner = -1, int KitCost = 0);
 	void DamageBlocks(vec2 Pos, int Damage, int Range);
 	void OnBlockChange(vec2 Pos);
-	
+
 	class CWeapon *NewWeapon(const CWeaponSpec &Spec);
-	
+
 	bool RespawnAlly(vec2 Pos, int Team, int Reviver);
-	
+
 	bool AddBuilding(int Kit, vec2 Pos, int Owner, int PaidCost = -1);
-	
+
 	bool Shop(class CPlayer *pPlayer, int Slot, bool AI = false);
-	
-	void CreateProjectile(const CAttackSource &Source, int Charge, vec2 Pos, vec2 Direction, vec2 WeaponPos, class CBuilding *OwnerBuilding = NULL);
-	void CreateMeleeHit(const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos, float PowerScale = 1.0f);
+
+	void CreateProjectile(const CAttackSource &Source,
+						  int Charge,
+						  vec2 Pos,
+						  vec2 Direction,
+						  vec2 WeaponPos,
+						  class CBuilding *OwnerBuilding = 0);
+	void CreateMeleeHit(
+		const CAttackSource &Source, float Dmg, vec2 Pos, vec2 Direction, vec2 WeaponPos, float PowerScale = 1.0f);
 
 	void ClearFlameHits();
-	
+
 	bool m_aFlameHit[MAX_CLIENTS];
-	
+
 	void Repair(vec2 Pos);
 	void AmmoFill(vec2 Pos, int Weapon);
-	
+
 	enum
 	{
-		CHAT_ALL=-2,
-		CHAT_SPEC=-1,
-		CHAT_RED=0,
-		CHAT_BLUE=1
+		CHAT_ALL = -2,
+		CHAT_SPEC = -1,
+		CHAT_RED = 0,
+		CHAT_BLUE = 1
 	};
 
 	// network
@@ -228,19 +243,18 @@ public:
 	void SendBroadcast(const char *pText, int ClientID, bool Lock = false);
 	void SendBroadcastFormat(int ClientID, bool Lock, const char *pText, ...);
 	void SendGameVotes(int ClientID = -1);
-	
+
 	void ResetGameVotes();
-	
+
 	int m_WinnerVote;
 	int m_NumGameVotes;
 	CGameVote m_aGameVote[MAX_GAME_VOTES];
 	int m_aPlayerGameVote[MAX_CLIENTS];
-	
+
 	void RegisterGameVote(int ClientID, int Vote);
 	void SendGameVoteStats(int ClientID = -1);
 	// const char *GetVoteWinnerConfig();
 	void CalculateVoteWinnerConfig();
-
 
 	//
 	void CheckPureTuning();
@@ -251,7 +265,7 @@ public:
 
 	//
 	void UpdateAI();
-	
+
 	// engine events
 	virtual void OnInit();
 	virtual void OnConsoleInit();
@@ -271,9 +285,9 @@ public:
 
 	int CountBots(bool SkipSpecialTees = false);
 	int CountBotsAlive(bool SkipSpecialTees = false);
-	//int CountHumans();
+	// int CountHumans();
 	int CountHumansAlive();
-	
+
 	virtual void OnClientConnected(int ClientID, bool AI = false);
 	virtual void OnClientEnter(int ClientID);
 	virtual void OnClientDrop(int ClientID, const char *pReason);
@@ -286,28 +300,40 @@ public:
 	virtual const char *GameType();
 	virtual const char *Version();
 	virtual const char *NetVersion();
-	
+
 	// MapGen
 	virtual void SaveMap(const char *path);
 
 	vec2 GetNearHumanSpawnPos(bool AllowVision = false);
 	vec2 GetFarHumanSpawnPos(bool AllowVision = false);
 	int DistanceToHuman(vec2 Pos);
-	
+
 	void AddBot();
 	void KickBots();
 	void KickBot(int ClientID);
-	
+
 	bool IsBot(int ClientID);
 	bool IsHuman(int ClientID);
-	
+
 	int m_BroadcastLockTick;
 
 	const char *Localize(const char *pText, int ClientID);
 };
 
-inline int64 CmaskAll() { return -1; }
-inline int64 CmaskOne(int ClientID) { return (int64)(1ULL<<ClientID); }
-inline int64 CmaskAllExceptOne(int ClientID) { return CmaskAll()^CmaskOne(ClientID); }
-inline bool CmaskIsSet(int64 Mask, int ClientID) { return (Mask&CmaskOne(ClientID)) != 0; }
+inline int64 CmaskAll()
+{
+	return -1;
+}
+inline int64 CmaskOne(int ClientID)
+{
+	return (int64)(1ULL << ClientID);
+}
+inline int64 CmaskAllExceptOne(int ClientID)
+{
+	return CmaskAll() ^ CmaskOne(ClientID);
+}
+inline bool CmaskIsSet(int64 Mask, int ClientID)
+{
+	return (Mask & CmaskOne(ClientID)) != 0;
+}
 #endif

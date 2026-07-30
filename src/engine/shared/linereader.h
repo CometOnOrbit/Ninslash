@@ -9,14 +9,14 @@
 // buffered stream for reading lines, should perhaps be something smaller
 class CLineReader
 {
-	char m_aBuffer[4*1024];
+	char m_aBuffer[4 * 1024];
 	unsigned m_BufferPos;
 	unsigned m_BufferSize;
 	unsigned m_BufferMaxSize;
-	
+
 	CInputStream *m_pStream;
 
-public:
+  public:
 	CLineReader();
 	~CLineReader();
 	void Init(IOHANDLE IoHandle);

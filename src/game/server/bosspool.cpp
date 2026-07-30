@@ -55,14 +55,14 @@ bool TryBossLanding(CGameWorld *pWorld, vec2 Probe, vec2 *pOutPos)
 		if(pCollision->TestBox(TestPos, s_BossClearanceSize))
 			return false;
 		if(pCollision->IsInFluid(TestPos.x, TestPos.y) ||
-			pCollision->IsInFluid(TestPos.x, TestPos.y + HalfHeight - 4.0f))
+		   pCollision->IsInFluid(TestPos.x, TestPos.y + HalfHeight - 4.0f))
 			return false;
 	}
 
 	*pOutPos = Landing;
 	return true;
 }
-}
+} // namespace
 
 int SelectBossType(int Depth)
 {
@@ -78,7 +78,8 @@ int SelectBossType(int Depth)
 	return Types[rand() % Count];
 }
 
-bool FindBossSpawnPosition(CGameWorld *pWorld, const vec2 *pSpawnPoints, int NumSpawnPoints, int *pRotation, vec2 *pOutPos)
+bool FindBossSpawnPosition(
+	CGameWorld *pWorld, const vec2 *pSpawnPoints, int NumSpawnPoints, int *pRotation, vec2 *pOutPos)
 {
 	if(!pWorld || !pSpawnPoints || NumSpawnPoints <= 0 || !pOutPos)
 		return false;
@@ -122,12 +123,12 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 
 	switch(Type)
 	{
-	case DROIDTYPE_BOSSSTAR:
-		return new CBossStar(pWorld, Pos);
-	case DROIDTYPE_BOSSSPLITTER:
-		return new CBossSplitter(pWorld, Pos);
-	default:
-		return new CBossCrawler(pWorld, Pos);
+		case DROIDTYPE_BOSSSTAR:
+			return new CBossStar(pWorld, Pos);
+		case DROIDTYPE_BOSSSPLITTER:
+			return new CBossSplitter(pWorld, Pos);
+		default:
+			return new CBossCrawler(pWorld, Pos);
 	}
 }
 
@@ -155,18 +156,28 @@ int DroidThreatCost(int Type)
 {
 	switch(Type)
 	{
-	case DROIDTYPE_RAILGUNNER:
-	case DROIDTYPE_SABOTEUR: return 3;
-	case DROIDTYPE_BULWARK:
-	case DROIDTYPE_ASSEMBLER: return 4;
-	case DROIDTYPE_SIEGE_ENGINE:
-	case DROIDTYPE_OVERSEER_CORE: return 10;
-	default: return 1;
+		case DROIDTYPE_RAILGUNNER:
+		case DROIDTYPE_SABOTEUR:
+			return 3;
+		case DROIDTYPE_BULWARK:
+		case DROIDTYPE_ASSEMBLER:
+			return 4;
+		case DROIDTYPE_SIEGE_ENGINE:
+		case DROIDTYPE_OVERSEER_CORE:
+			return 10;
+		default:
+			return 1;
 	}
 }
 
-SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld, const vec2 *pSpawnPoints,
-	int NumSpawnPoints, int *pRotation, int Depth, int OrdinaryThreat, int MaxEntities, int ThreatDivisor)
+SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld,
+												 const vec2 *pSpawnPoints,
+												 int NumSpawnPoints,
+												 int *pRotation,
+												 int Depth,
+												 int OrdinaryThreat,
+												 int MaxEntities,
+												 int ThreatDivisor)
 {
 	// Lost Protocol specialist replacement is disabled (see SpawnSpecialist).
 	(void)pWorld;
@@ -208,13 +219,9 @@ SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld, const vec2 
 		if(Result.m_ThreatSpent + Cost > SpendLimit)
 			break;
 
-		const int Index = pRotation ? (*pRotation + 1 + NumSpawnPoints) % NumSpawnPoints : Result.m_EntitiesSpawned % NumSpawnPoints;
-		if(pRotation)
-			*pRotation = Index;
-		if(!SpawnSpecialist(pWorld, pSpawnPoints[Index] + vec2(0.0f, -100.0f), Type))
-			break;
-		Result.m_ThreatSpent += Cost;
-		Result.m_EntitiesSpawned++;
+		const int Index = pRotation ? (*pRotation + 1 + NumSpawnPoints) % NumSpawnPoints : Result.m_EntitiesSpawned %
+	NumSpawnPoints; if(pRotation) *pRotation = Index; if(!SpawnSpecialist(pWorld, pSpawnPoints[Index] + vec2(0.0f,
+	-100.0f), Type)) break; Result.m_ThreatSpent += Cost; Result.m_EntitiesSpawned++;
 	}
 	*/
 	return Result;
@@ -229,8 +236,8 @@ int CountAliveSpecialists(CGameWorld *pWorld)
 	int Specialists = 0;
 	for(int i = 0; i < Num; i++)
 		if(apEnts[i] && apEnts[i]->m_Health > 0 &&
-			(apEnts[i]->m_Type == DROIDTYPE_BULWARK || apEnts[i]->m_Type == DROIDTYPE_ASSEMBLER ||
-			 apEnts[i]->m_Type == DROIDTYPE_SABOTEUR || apEnts[i]->m_Type == DROIDTYPE_RAILGUNNER))
+		   (apEnts[i]->m_Type == DROIDTYPE_BULWARK || apEnts[i]->m_Type == DROIDTYPE_ASSEMBLER ||
+			apEnts[i]->m_Type == DROIDTYPE_SABOTEUR || apEnts[i]->m_Type == DROIDTYPE_RAILGUNNER))
 			Specialists++;
 	return Specialists;
 }
@@ -238,7 +245,7 @@ int CountAliveSpecialists(CGameWorld *pWorld)
 int CountAliveBosses(CGameWorld *pWorld)
 {
 	CDroid *apEnts[256];
-	int Num = pWorld->FindEntities(vec2(0, 0), 0.0f, (CEntity**)apEnts, 256, CGameWorld::ENTTYPE_DROID);
+	int Num = pWorld->FindEntities(vec2(0, 0), 0.0f, (CEntity **)apEnts, 256, CGameWorld::ENTTYPE_DROID);
 	int Bosses = 0;
 	for(int i = 0; i < Num; i++)
 	{

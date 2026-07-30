@@ -11,8 +11,8 @@ typedef struct
 
 static void TilesetBorderrem(int w, int h, CPixel *pSrc, CPixel *pDest)
 {
-	int TileW = w/16;
-	int TileH = h/16;
+	int TileW = w / 16;
+	int TileH = h / 16;
 
 	for(int tx = 0; tx < 16; tx++)
 	{
@@ -31,18 +31,16 @@ static void TilesetBorderrem(int w, int h, CPixel *pSrc, CPixel *pDest)
 					int DestI = DestY * (w - 16 * 4) + DestX;
 
 					pDest[DestI] = pSrc[SourceI];
-
 				}
 			}
 		}
 	}
 }
 
-
 int FixFile(const char *pFileName)
 {
 	png_t Png;
-	CPixel *pBuffer[2] = {0,0};
+	CPixel *pBuffer[2] = {0, 0};
 
 	png_init(0, 0);
 	png_open_file(&Png, pFileName);
@@ -56,8 +54,8 @@ int FixFile(const char *pFileName)
 	int w = Png.width;
 	int h = Png.height;
 
-	pBuffer[0] = (CPixel*)mem_alloc(w*h*sizeof(CPixel), 1);
-	pBuffer[1] = (CPixel*)mem_alloc((w-16*4)*(h-16*4)*sizeof(CPixel), 1);
+	pBuffer[0] = (CPixel *)mem_alloc(w * h * sizeof(CPixel), 1);
+	pBuffer[1] = (CPixel *)mem_alloc((w - 16 * 4) * (h - 16 * 4) * sizeof(CPixel), 1);
 	png_get_data(&Png, (unsigned char *)pBuffer[0]);
 	png_close_file(&Png);
 

@@ -7,7 +7,7 @@
 
 enum
 {
-	MAX_TIMELINE_MARKERS=64
+	MAX_TIMELINE_MARKERS = 64
 };
 
 struct CDemoHeader
@@ -32,10 +32,10 @@ struct CTimelineMarkers
 class IDemoPlayer : public IInterface
 {
 	MACRO_INTERFACE("demoplayer", 0)
-public:
+  public:
 	class CInfo
 	{
-	public:
+	  public:
 		bool m_Paused;
 		float m_Speed;
 
@@ -49,7 +49,7 @@ public:
 
 	enum
 	{
-		DEMOTYPE_INVALID=0,
+		DEMOTYPE_INVALID = 0,
 		DEMOTYPE_CLIENT,
 		DEMOTYPE_SERVER,
 	};
@@ -61,14 +61,15 @@ public:
 	virtual void Unpause() = 0;
 	virtual const CInfo *BaseInfo() const = 0;
 	virtual void GetDemoName(char *pBuffer, int BufferSize) const = 0;
-	virtual bool GetDemoInfo(class IStorage *pStorage, const char *pFilename, int StorageType, CDemoHeader *pDemoHeader) const = 0;
+	virtual bool
+	GetDemoInfo(class IStorage *pStorage, const char *pFilename, int StorageType, CDemoHeader *pDemoHeader) const = 0;
 	virtual int GetDemoType() const = 0;
 };
 
 class IDemoRecorder : public IInterface
 {
 	MACRO_INTERFACE("demorecorder", 0)
-public:
+  public:
 	~IDemoRecorder() {}
 	virtual bool IsRecording() const = 0;
 	virtual int Stop() = 0;

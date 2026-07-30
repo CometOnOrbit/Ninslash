@@ -11,7 +11,7 @@ struct CParticle
 	{
 		m_Special = 0;
 		m_Frames = 1;
-		m_Vel = vec2(0,0);
+		m_Vel = vec2(0, 0);
 		m_LifeSpan = 0;
 		m_StartSize = 32;
 		m_EndSize = 32;
@@ -20,11 +20,11 @@ struct CParticle
 		m_Gravity = 0;
 		m_Friction = 0;
 		m_FlowAffected = 1.0f;
-		m_Color = vec4(1,1,1,0.75f);
-		
+		m_Color = vec4(1, 1, 1, 0.75f);
+
 		m_StartPos = vec2(0, 0);
 		m_EndPos = vec2(0, 0);
-		
+
 		m_Height = 0;
 		m_Flip = false;
 		m_IgnoreCollision = false;
@@ -32,14 +32,14 @@ struct CParticle
 	}
 
 	int m_Special;
-	
+
 	vec2 m_Pos;
 	vec2 m_Vel;
-	
+
 	bool m_IgnoreCollision;
-	
+
 	int m_Height; // lazer
-	bool m_Flip; // mine
+	bool m_Flip;  // mine
 
 	int m_Spr;
 	int m_Frames;
@@ -59,11 +59,11 @@ struct CParticle
 	float m_Friction;
 
 	vec4 m_Color;
-	
+
 	// bullet trail extras
 	vec2 m_StartPos;
 	vec2 m_EndPos;
-	
+
 	vec2 m_TrailDir;
 
 	// set by the particle system
@@ -75,10 +75,11 @@ struct CParticle
 class CParticles : public CComponent
 {
 	friend class CGameClient;
-public:
+
+  public:
 	enum
 	{
-		GROUP_PROJECTILE_TRAIL=0,
+		GROUP_PROJECTILE_TRAIL = 0,
 		GROUP_COLORTRAIL,
 		GROUP_EXPLOSIONS,
 		GROUP_GREEN_EXPLOSION,
@@ -114,15 +115,14 @@ public:
 	void Add(int Group, CParticle *pPart);
 
 	void RenderLights();
-	
+
 	virtual void OnReset();
 	virtual void OnRender();
 
-private:
-
+  private:
 	enum
 	{
-		MAX_PARTICLES=1024*8,
+		MAX_PARTICLES = 1024 * 8,
 	};
 
 	CParticle m_aParticles[MAX_PARTICLES];
@@ -132,10 +132,9 @@ private:
 	void RenderGroup(int Group);
 	void Update(float TimePassed);
 
-	template<int TGROUP>
-	class CRenderGroup : public CComponent
+	template <int TGROUP> class CRenderGroup : public CComponent
 	{
-	public:
+	  public:
 		CParticles *m_pParts;
 		virtual void OnRender() { m_pParts->RenderGroup(TGROUP); }
 	};

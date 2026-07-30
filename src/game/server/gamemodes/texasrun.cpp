@@ -11,40 +11,41 @@
 #include <game/server/ai.h>
 #include <game/server/ai/texas_ai.h>
 
-
 CGameControllerTexasRun::CGameControllerTexasRun(class CGameContext *pGameServer) : IGameController(pGameServer)
 {
-	m_pGameType = "INF";
-	m_GameFlags = GAMEFLAG_TEAMS|GAMEFLAG_INFECTION;
+	m_pGameType = "Infection";
+	m_GameFlags = GAMEFLAG_TEAMS | GAMEFLAG_INFECTION;
 	m_GameState = TEXAS_STARTING;
 	m_EndTick = 0;
 	m_GameStateLockTick = 0;
-	
+
 	g_Config.m_SvDisablePVP = 0;
-	
-	if (g_Config.m_SvEnableBuilding)
+
+	if(g_Config.m_SvEnableBuilding)
 		m_GameFlags |= GAMEFLAG_BUILD;
 }
 
 void CGameControllerTexasRun::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 {
 	IGameController::OnCharacterSpawn(pChr);
-	
+
 	// init AI
-	if (RequestAI)
+	if(RequestAI)
 		pChr->GetPlayer()->m_pAI = new CAItexas(GameServer(), pChr->GetPlayer());
-	
-	if (pChr->GetPlayer()->GetTeam() == TEAM_BLUE && CountPlayers(TEAM_BLUE) < 3)
+
+	if(pChr->GetPlayer()->GetTeam() == TEAM_BLUE && CountPlayers(TEAM_BLUE) < 3)
 		pChr->GiveRandomBuff();
 }
 
-int CGameControllerTexasRun::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
+int CGameControllerTexasRun::OnCharacterDeath(class CCharacter *pVictim,
+											  class CPlayer *pKiller,
+											  const CAttackSource &Source)
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
-	
-	if (CountPlayers() > 1 && m_GameState == TEXAS_STARTED)
+
+	if(CountPlayers() > 1 && m_GameState == TEXAS_STARTED)
 		m_GameState = TEXAS_FIRSTDEATH;
-	
+
 	if(pKiller && !(Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME))
 	{
 		/*
@@ -56,7 +57,8 @@ int CGameControllerTexasRun::OnCharacterDeath(class CCharacter *pVictim, class C
 		*/
 	}
 
-	pVictim->GetPlayer()->m_RespawnTick = max(pVictim->GetPlayer()->m_RespawnTick, Server()->Tick()+Server()->TickSpeed()*g_Config.m_SvRespawnDelay);
+	pVictim->GetPlayer()->m_RespawnTick =
+		max(pVictim->GetPlayer()->m_RespawnTick, Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay);
 
 	return 0;
 }
@@ -65,7 +67,8 @@ void CGameControllerTexasRun::Snap(int SnappingClient)
 {
 	IGameController::Snap(SnappingClient);
 
-	CNetObj_GameData *pGameDataObj = (CNetObj_GameData *)Server()->SnapNewItem(NETOBJTYPE_GAMEDATA, 0, sizeof(CNetObj_GameData));
+	CNetObj_GameData *pGameDataObj =
+		(CNetObj_GameData *)Server()->SnapNewItem(NETOBJTYPE_GAMEDATA, 0, sizeof(CNetObj_GameData));
 	if(!pGameDataObj)
 		return;
 
@@ -76,41 +79,38 @@ void CGameControllerTexasRun::Snap(int SnappingClient)
 	pGameDataObj->m_FlagCarrierBlue = 0;
 }
 
-
-
 void CGameControllerTexasRun::MovePlayersToRed()
 {
-	for (int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
 		if(!pPlayer)
 			continue;
-			
-		if (pPlayer->GetTeam() == TEAM_BLUE)
+
+		if(pPlayer->GetTeam() == TEAM_BLUE)
 			pPlayer->SetTeam(TEAM_RED, false);
 	}
 }
 
-
 void CGameControllerTexasRun::SelectStartingDead()
 {
-	if (CountPlayers() < 1)
+	if(CountPlayers() < 1)
 		return;
 
-	//char aBuf[256];
-	//str_format(aBuf, sizeof(aBuf), "Blue team size: '%d'", CountPlayers(TEAM_BLUE));
-	//GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
-	
-	int i = rand()%MAX_CLIENTS;
+	// char aBuf[256];
+	// str_format(aBuf, sizeof(aBuf), "Blue team size: '%d'", CountPlayers(TEAM_BLUE));
+	// GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
+
+	int i = rand() % MAX_CLIENTS;
 
 	CPlayer *pPlayer = GameServer()->m_apPlayers[i];
 	if(!pPlayer)
 		return;
-		
-	if (pPlayer->GetTeam() != TEAM_SPECTATORS)
+
+	if(pPlayer->GetTeam() != TEAM_SPECTATORS)
 	{
 		pPlayer->SetTeam(TEAM_BLUE, false);
-		
+
 		GameServer()->SendBroadcast("KILL!", pPlayer->GetCID());
 	}
 }
@@ -118,72 +118,80 @@ void CGameControllerTexasRun::SelectStartingDead()
 void CGameControllerTexasRun::Tick()
 {
 	IGameController::Tick();
-	
-	if (m_GameStateLockTick > GameServer()->Server()->Tick())
+
+	if(m_GameStateLockTick > GameServer()->Server()->Tick())
 		return;
-	
-	if (m_Warmup)
+
+	if(m_Warmup)
 		m_GameState = TEXAS_STARTING;
 	else
 	{
-		if (m_GameState == TEXAS_STARTING && CountPlayers() > 1)
+		if(m_GameState == TEXAS_STARTING && CountPlayers() > 1)
 		{
 			m_GameState = TEXAS_STARTED;
 			GameServer()->SendBroadcast("", -1);
 		}
 	}
-	
-	if (m_GameState == TEXAS_STARTED)
+
+	if(m_GameState == TEXAS_STARTED)
 	{
 		// set random player to blue team
-		if (CountPlayers(TEAM_BLUE) == 0)
+		if(CountPlayers(TEAM_BLUE) == 0)
 		{
-			switch (rand()%3)
+			switch(rand() % 3)
 			{
 				case 0:
-					GameServer()->SendBroadcast("Run", -1); break;
+					GameServer()->SendBroadcast("Run", -1);
+					break;
 				case 1:
-					GameServer()->SendBroadcast("Hide", -1); break;
+					GameServer()->SendBroadcast("Hide", -1);
+					break;
 				case 2:
-					GameServer()->SendBroadcast("Escape", -1); break;
+					GameServer()->SendBroadcast("Escape", -1);
+					break;
 				default:
-					GameServer()->SendBroadcast("Run", -1); break;
+					GameServer()->SendBroadcast("Run", -1);
+					break;
 			};
-			
+
 			SelectStartingDead();
 		}
 	}
-	
-	if (m_GameState == TEXAS_FIRSTDEATH)
+
+	if(m_GameState == TEXAS_FIRSTDEATH)
 	{
-		if (CountPlayers(TEAM_RED) == 0)
+		if(CountPlayers(TEAM_RED) == 0)
 		{
-			//EndRound();
-			switch (rand()%5)
+			// EndRound();
+			switch(rand() % 5)
 			{
 				case 0:
-					GameServer()->SendBroadcast("All hope is lost", -1); break;
+					GameServer()->SendBroadcast("All hope is lost", -1);
+					break;
 				case 1:
-					GameServer()->SendBroadcast("Slaughter", -1); break;
+					GameServer()->SendBroadcast("Slaughter", -1);
+					break;
 				case 2:
-					GameServer()->SendBroadcast("Ocean of blood", -1); break;
+					GameServer()->SendBroadcast("Ocean of blood", -1);
+					break;
 				case 3:
-					GameServer()->SendBroadcast("Death takes all", -1); break;
+					GameServer()->SendBroadcast("Death takes all", -1);
+					break;
 				default:
-					GameServer()->SendBroadcast("Everybody dies", -1); break;
+					GameServer()->SendBroadcast("Everybody dies", -1);
+					break;
 			};
 			m_GameState = TEXAS_ENDING;
 			m_GameStateLockTick = GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * 5;
-			//MovePlayersToRed();
+			// MovePlayersToRed();
 		}
-		
 	}
-	else if (m_GameState == TEXAS_ENDING)
+	else if(m_GameState == TEXAS_ENDING)
 	{
 		m_GameState = TEXAS_STARTING;
 		MovePlayersToRed();
 	}
-	
+
 	AutoBalance();
 	GameServer()->UpdateAI();
 }

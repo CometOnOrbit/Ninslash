@@ -5,7 +5,7 @@
 
 class CAIdef : public CAI
 {
-public:
+  public:
 	CAIdef(CGameContext *pGameServer, CPlayer *pPlayer);
 
 	virtual void DoBehavior();
@@ -19,20 +19,20 @@ public:
 		AISTATE_DEF,
 		AISTATE_ATTACK,
 	};
-	
-private:
+
+  private:
 	int m_SkipMoveUpdate;
 	bool SeekFriend();
 	int m_State;
 	int m_StateTimer;
-	
+
 	vec2 m_ReactorPos;
 	int m_NextTargetTick;
-	
+
 	bool m_Shopped;
 	bool FindShop();
 	vec2 m_ShopPos;
-	
+
 	int m_Role;
 };
 

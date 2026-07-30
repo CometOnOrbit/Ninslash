@@ -9,7 +9,7 @@ class CMapChecker
 {
 	enum
 	{
-		MAX_MAP_LENGTH=8,
+		MAX_MAP_LENGTH = 8,
 	};
 
 	struct CWhitelistEntry
@@ -28,7 +28,7 @@ class CMapChecker
 	void Init();
 	void SetDefaults();
 
-public:
+  public:
 	CMapChecker();
 	void AddMaplist(struct CMapVersion *pMaplist, int Num);
 	bool IsMapValid(const char *pMapName, unsigned MapCrc, unsigned MapSize);

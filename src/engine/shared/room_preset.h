@@ -20,7 +20,8 @@ struct CRoomPreset
 	bool m_Contracts;
 };
 
-bool RoomPresetParse(const char *pJson, int JsonLength, bool Challenge, CRoomPreset *pPreset, char *pError, int ErrorSize);
+bool RoomPresetParse(
+	const char *pJson, int JsonLength, bool Challenge, CRoomPreset *pPreset, char *pError, int ErrorSize);
 unsigned RoomPresetDifferenceMask(const CRoomPreset &A, const CRoomPreset &B);
 
 enum ERoomPresetDifference

@@ -16,17 +16,17 @@ class CInput : public IEngineInput
 	char *m_pClipboardText;
 	bool m_MouseLeft;
 	bool m_MouseEntered;
-	
+
 	int m_GamepadMove;
 	bool m_GamepadDown;
 	bool m_GamepadJump;
 	bool m_GamepadShoot;
 	bool m_GamepadSelect;
-	
+
 	bool m_UsingGamepad;
 	int m_GamepadAimX;
 	int m_GamepadAimY;
-	
+
 	int m_GamepadOldAimX;
 	int m_GamepadOldAimY;
 	bool m_aSteamInputPrevious[64];
@@ -36,7 +36,7 @@ class CInput : public IEngineInput
 	void ResetGamepad();
 	void UpdateSteamInput();
 	void SetSteamVirtualKey(int Key, bool Down, bool *pPrevious);
-	
+
 	SDL_Surface *m_pCursorSurface;
 	SDL_Cursor *m_pCursor;
 
@@ -58,7 +58,7 @@ class CInput : public IEngineInput
 	IEngineGamepad *Gamepad() { return m_pGamepad; }
 	SDL_Window *Window() { return (SDL_Window *)m_pGraphics->GetWindowHandle(); }
 
-public:
+  public:
 	CInput();
 
 	virtual void Init();
@@ -69,10 +69,10 @@ public:
 	virtual void GetRelativePosition(float *x, float *y);
 	virtual bool MouseMoved();
 	virtual bool GamepadMoved();
-	virtual bool UsingGamepad(){ return m_UsingGamepad; }
+	virtual bool UsingGamepad() { return m_UsingGamepad; }
 	virtual void SetGamepadActionSet(int ActionSet);
 	virtual int MouseDoubleClick();
-	virtual const char* GetClipboardText();
+	virtual const char *GetClipboardText();
 	virtual void SetClipboardText(const char *Text);
 	virtual bool MouseLeft();
 	virtual bool MouseEntered();

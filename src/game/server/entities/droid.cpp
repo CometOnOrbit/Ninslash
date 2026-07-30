@@ -5,18 +5,15 @@
 #include <game/server/tutorial_director.h>
 #include "droid.h"
 
-
-CDroid::CDroid(CGameWorld *pGameWorld, vec2 Pos, int Type)
-: CEntity(pGameWorld, CGameWorld::ENTTYPE_DROID)
+CDroid::CDroid(CGameWorld *pGameWorld, vec2 Pos, int Type) : CEntity(pGameWorld, CGameWorld::ENTTYPE_DROID)
 {
 	m_ProximityRadius = DroidPhysSize;
 
 	m_StartPos = Pos;
 	m_Type = Type;
-	
-	Reset();
-	//GameWorld()->InsertEntity(this);
 
+	Reset();
+	// GameWorld()->InsertEntity(this);
 }
 
 void CDroid::Reset()
@@ -44,8 +41,6 @@ void CDroid::Reset()
 	m_AttackTimer = 0;
 }
 
-
-
 void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos)
 {
 	const int From = Source.m_Owner;
@@ -54,14 +49,16 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 	if(m_Health <= 0)
 		return;
 	// skip everything while spawning
-	//if (m_aStatus[STATUS_SPAWNING] > 0.0f)
+	// if (m_aStatus[STATUS_SPAWNING] > 0.0f)
 	//	return false;
-	
-	if (g_Config.m_SvOneHitKill)
+
+	if(g_Config.m_SvOneHitKill)
 		Dmg = 1000;
 	if(GameServer()->m_pPveDirector)
 	{
-		const bool Boss = m_Type == DROIDTYPE_BOSSCRAWLER || m_Type == DROIDTYPE_BOSSSTAR || m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER || m_Type == DROIDTYPE_SIEGE_ENGINE || m_Type == DROIDTYPE_OVERSEER_CORE;
+		const bool Boss = m_Type == DROIDTYPE_BOSSCRAWLER || m_Type == DROIDTYPE_BOSSSTAR ||
+						  m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER ||
+						  m_Type == DROIDTYPE_SIEGE_ENGINE || m_Type == DROIDTYPE_OVERSEER_CORE;
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, Boss, this);
 	}
 	// A living Bulwark projects 35% cover to mechanical allies within 300 units. Keep this in
@@ -69,7 +66,8 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 	if(m_Type != DROIDTYPE_BULWARK && Dmg > 1)
 	{
 		CDroid *apDroids[16];
-		const int Num = GameServer()->m_World.FindEntities(m_Pos, 300.0f, (CEntity **)apDroids, 16, CGameWorld::ENTTYPE_DROID);
+		const int Num =
+			GameServer()->m_World.FindEntities(m_Pos, 300.0f, (CEntity **)apDroids, 16, CGameWorld::ENTTYPE_DROID);
 		for(int i = 0; i < Num; i++)
 		{
 			if(apDroids[i] && apDroids[i]->m_Type == DROIDTYPE_BULWARK && apDroids[i]->m_Health > 0)
@@ -81,99 +79,106 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 	}
 
 	vec2 DmgPos = m_Pos + m_Center;
-	
+
 	// create damage indicator
-	if (Combat.m_ElectroAmount > 0.0f)
+	if(Combat.m_ElectroAmount > 0.0f)
 		m_Status = DROIDSTATUS_ELECTRIC;
-	else if (Combat.m_FlameAmount > 0.0f)
+	else if(Combat.m_FlameAmount > 0.0f)
 		m_Status = DROIDSTATUS_HURT;
 	else
 	{
-		if (Pos.x != 0 && Pos.y != 0)
+		if(Pos.x != 0 && Pos.y != 0)
 			DmgPos = Pos;
-		
+
 		GameServer()->CreateBuildingHit(DmgPos);
 		m_Status = DROIDSTATUS_HURT;
 	}
-	
+
 	GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, -1);
-	
-	m_Vel += Force*0.75f;
-	
+
+	m_Vel += Force * 0.75f;
+
 	const int HealthBefore = m_Health;
 	m_Health -= Dmg;
-	if(GameServer()->m_pTutorialDirector && From >= 0 && From < MAX_CLIENTS &&
-		GameServer()->m_apPlayers[From] && !GameServer()->m_apPlayers[From]->m_IsBot)
+	if(GameServer()->m_pTutorialDirector && From >= 0 && From < MAX_CLIENTS && GameServer()->m_apPlayers[From] &&
+	   !GameServer()->m_apPlayers[From]->m_IsBot)
 		GameServer()->m_pTutorialDirector->OnGameplayProgress(From, TUTORIAL_EVENT_TARGET_HIT);
 	GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
-	
-	
+
 	// check for death
 	if(m_Health <= 0)
 	{
 		if(GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->OnDroidKilled(this, Source);
 		// set attacker's face to happy (taunt!)
-		if (From >= 0 && GameServer()->m_apPlayers[From])
+		if(From >= 0 && GameServer()->m_apPlayers[From])
 		{
 			CCharacter *pChr = GameServer()->m_apPlayers[From]->GetCharacter();
-			if (pChr)
+			if(pChr)
 				pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
 		}
 
-		GameServer()->CreateExplosion(m_Pos+m_Center, CAttackSource::Droid(TEAM_NEUTRAL, m_Type, true));
+		GameServer()->CreateExplosion(m_Pos + m_Center, CAttackSource::Droid(TEAM_NEUTRAL, m_Type, true));
 		m_DeathTick = Server()->Tick();
-		
+
 		// random pickup drop
-		if (frandom()*10 < 4)
-			GameServer()->m_pController->DropPickup(m_Pos + vec2(0, -42), POWERUP_AMMO, Force+vec2(frandom()*6.0-frandom()*6.0, frandom()*6.0-frandom()*6.0), 0);
-		else if (frandom()*10 < 4)
-			GameServer()->m_pController->DropPickup(m_Pos + vec2(0, -42), POWERUP_HEALTH, Force+vec2(frandom()*6.0-frandom()*6.0, frandom()*6.0-frandom()*6.0), 0);
-		else if (frandom()*10 < 4)
-			GameServer()->m_pController->DropPickup(m_Pos + vec2(0, -42), POWERUP_ARMOR, Force+vec2(frandom()*6.0-frandom()*6.0, frandom()*6.0-frandom()*6.0), 0);			
+		if(frandom() * 10 < 4)
+			GameServer()->m_pController->DropPickup(
+				m_Pos + vec2(0, -42),
+				POWERUP_AMMO,
+				Force + vec2(frandom() * 6.0 - frandom() * 6.0, frandom() * 6.0 - frandom() * 6.0),
+				0);
+		else if(frandom() * 10 < 4)
+			GameServer()->m_pController->DropPickup(
+				m_Pos + vec2(0, -42),
+				POWERUP_HEALTH,
+				Force + vec2(frandom() * 6.0 - frandom() * 6.0, frandom() * 6.0 - frandom() * 6.0),
+				0);
+		else if(frandom() * 10 < 4)
+			GameServer()->m_pController->DropPickup(
+				m_Pos + vec2(0, -42),
+				POWERUP_ARMOR,
+				Force + vec2(frandom() * 6.0 - frandom() * 6.0, frandom() * 6.0 - frandom() * 6.0),
+				0);
 		else
-			GameServer()->m_pController->DropPickup(m_Pos + vec2(0, -42), POWERUP_KIT, Force+vec2(frandom()*6.0-frandom()*6.0, frandom()*6.0-frandom()*6.0), 0);			
-		
+			GameServer()->m_pController->DropPickup(
+				m_Pos + vec2(0, -42),
+				POWERUP_KIT,
+				Force + vec2(frandom() * 6.0 - frandom() * 6.0, frandom() * 6.0 - frandom() * 6.0),
+				0);
+
 		return;
 	}
 
 	m_DamageTakenTick = Server()->Tick();
 }
 
-
-
 void CDroid::Fire()
 {
-	
 }
 
 void CDroid::Tick()
 {
-
 }
-
-
-
 
 bool CDroid::Target()
 {
-	vec2 TurretPos = m_Pos+m_Center;
-	
-	if (m_TargetIndex >= 0 && m_TargetIndex < MAX_CLIENTS)
+	vec2 TurretPos = m_Pos + m_Center;
+
+	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CLIENTS)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[m_TargetIndex];
 		if(!pPlayer)
 			return false;
-			
+
 		CCharacter *pCharacter = pPlayer->GetCharacter();
-		if (!pCharacter)
+		if(!pCharacter)
 			return false;
-		
-		if (!pCharacter->IsAlive())
+
+		if(!pCharacter->IsAlive())
 			return false;
-		
-		if ((m_Dir < 0 && pCharacter->m_Pos.x > m_Pos.x) || 
-			(m_Dir > 0 && pCharacter->m_Pos.x < m_Pos.x))
+
+		if((m_Dir < 0 && pCharacter->m_Pos.x > m_Pos.x) || (m_Dir > 0 && pCharacter->m_Pos.x < m_Pos.x))
 		{
 			m_Dir *= -1;
 			m_State = CDroid::IDLE;
@@ -181,54 +186,52 @@ bool CDroid::Target()
 		}
 
 		int Distance = distance(pCharacter->m_Pos, TurretPos);
-		if (Distance < 700 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos+vec2(0, -24), TurretPos))
+		if(Distance < 700 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), TurretPos))
 		{
-			vec2 r = vec2(sin(Server()->Tick()*0.075f), cos(Server()->Tick()*0.075f))*Distance*0.3f;
-			m_NewTarget = r + TurretPos - ((pCharacter->m_Pos+vec2(0, -24)) + pCharacter->GetCore().m_Vel * 2.0f);
+			vec2 r = vec2(sin(Server()->Tick() * 0.075f), cos(Server()->Tick() * 0.075f)) * Distance * 0.3f;
+			m_NewTarget = r + TurretPos - ((pCharacter->m_Pos + vec2(0, -24)) + pCharacter->GetCore().m_Vel * 2.0f);
 			return true;
 		}
 		else
 			return false;
 	}
-	
+
 	return false;
 }
-
 
 bool CDroid::FindTarget()
 {
 	m_TargetIndex = -1;
-	CCharacter *pClosestCharacter = NULL;
+	CCharacter *pClosestCharacter = 0;
 	int ClosestDistance = 0;
-	vec2 TurretPos = m_Pos+vec2(0, -67);
-	
-	for (int i = 0; i < MAX_CLIENTS; i++)
+	vec2 TurretPos = m_Pos + vec2(0, -67);
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
 		if(!pPlayer)
 			continue;
 
-		//if (pPlayer->GetTeam() == m_Team && GameServer()->m_pController->IsTeamplay())
+		// if (pPlayer->GetTeam() == m_Team && GameServer()->m_pController->IsTeamplay())
 		//	continue;
 
 		CCharacter *pCharacter = pPlayer->GetCharacter();
-		if (!pCharacter)
+		if(!pCharacter)
 			continue;
-		
-		if (!pCharacter->IsAlive())
+
+		if(!pCharacter->IsAlive())
 			continue;
-		
-		if (GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
+
+		if(GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
 			continue;
-			
-		if ((m_Dir < 0 && pCharacter->m_Pos.x > m_Pos.x) || 
-			(m_Dir > 0 && pCharacter->m_Pos.x < m_Pos.x))
+
+		if((m_Dir < 0 && pCharacter->m_Pos.x > m_Pos.x) || (m_Dir > 0 && pCharacter->m_Pos.x < m_Pos.x))
 			continue;
-			
+
 		int Distance = distance(pCharacter->m_Pos, TurretPos);
-		if (Distance < 800 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos+vec2(0, -24), TurretPos))
+		if(Distance < 800 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), TurretPos))
 		{
-			if (!pClosestCharacter || Distance < ClosestDistance)
+			if(!pClosestCharacter || Distance < ClosestDistance)
 			{
 				pClosestCharacter = pCharacter;
 				ClosestDistance = Distance;
@@ -236,25 +239,22 @@ bool CDroid::FindTarget()
 			}
 		}
 	}
-	
-	if (pClosestCharacter)
+
+	if(pClosestCharacter)
 		return true;
-	
+
 	return false;
 }
-
 
 void CDroid::SetState(int State)
 {
 	m_State = State;
 	m_NextState = State;
 	m_StateChangeTick = Server()->Tick();
-	
 }
 
 void CDroid::TickPaused()
 {
-	
 }
 
 void CDroid::Snap(int SnappingClient)
@@ -264,7 +264,8 @@ void CDroid::Snap(int SnappingClient)
 
 	m_SnapTick = Server()->Tick();
 
-	CNetObj_Droid *pP = static_cast<CNetObj_Droid *>(Server()->SnapNewItem(NETOBJTYPE_DROID, m_ID, sizeof(CNetObj_Droid)));
+	CNetObj_Droid *pP =
+		static_cast<CNetObj_Droid *>(Server()->SnapNewItem(NETOBJTYPE_DROID, m_ID, sizeof(CNetObj_Droid)));
 	if(!pP)
 		return;
 
@@ -275,5 +276,5 @@ void CDroid::Snap(int SnappingClient)
 	pP->m_AttackTick = m_Health <= 0 ? m_DeathTick : m_AttackTick;
 	pP->m_Anim = m_Anim;
 	pP->m_Dir = m_Dir;
-	pP->m_Angle = GetAngle(vec2(abs(m_Target.x), m_Target.y)) * (180/pi);
+	pP->m_Angle = GetAngle(vec2(abs(m_Target.x), m_Target.y)) * (180 / pi);
 }

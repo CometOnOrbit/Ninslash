@@ -1,0 +1,12 @@
+official/components.lua
+official/static/core.lua
+official/static/devices.lua
+official/static/special.lua
+official/modular/ranged.lua
+official/modular/ranged_mechanics.lua
+official/modular/melee.lua
+official/modular/spin.lua
+official/visuals.lua
+official/attacks/droid.lua
+official/attacks/droid_death.lua
+official/attacks/building.lua

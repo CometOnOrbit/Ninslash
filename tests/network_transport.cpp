@@ -5,7 +5,7 @@
 
 class CMockTransport : public INetPacketTransport
 {
-public:
+  public:
 	unsigned char m_aPacket[NET_MAX_PACKETSIZE];
 	int m_PacketSize;
 	CMockTransport() : m_PacketSize(0) {}
@@ -16,15 +16,22 @@ public:
 	void Update() {}
 	int RecvPacket(NETADDR *pAddr, void *pBuffer, int BufferSize)
 	{
-		(void)pAddr; (void)pBuffer; (void)BufferSize; return 0;
+		(void)pAddr;
+		(void)pBuffer;
+		(void)BufferSize;
+		return 0;
 	}
 	bool SendPacket(const NETADDR *pAddr, CNetPacketConstruct *pPacket)
 	{
-		(void)pAddr; m_PacketSize = CNetBase::PackPacket(pPacket, m_aPacket, sizeof(m_aPacket)); return m_PacketSize > 0;
+		(void)pAddr;
+		m_PacketSize = CNetBase::PackPacket(pPacket, m_aPacket, sizeof(m_aPacket));
+		return m_PacketSize > 0;
 	}
 	bool SendControl(const NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize)
 	{
-		(void)pAddr; m_PacketSize = CNetBase::PackControl(Ack, ControlMsg, pExtra, ExtraSize, m_aPacket, sizeof(m_aPacket)); return m_PacketSize > 0;
+		(void)pAddr;
+		m_PacketSize = CNetBase::PackControl(Ack, ControlMsg, pExtra, ExtraSize, m_aPacket, sizeof(m_aPacket));
+		return m_PacketSize > 0;
 	}
 };
 

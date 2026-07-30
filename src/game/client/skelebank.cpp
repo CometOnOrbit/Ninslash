@@ -1,12 +1,10 @@
 #include "skelebank.h"
 #include <engine/storage.h>
 
-
 CSkelebank::CSkelebank(CRenderTools *pRenderTools)
 {
 	m_pRenderTools = pRenderTools;
 }
-
 
 void CSkelebank::Init(IStorage *pStorage)
 {
@@ -27,37 +25,37 @@ void CSkelebank::Init(IStorage *pStorage)
 
 	AddSkeleton("data/anim/skele.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/skele.atlas", IStorage::STORAGETYPE_CLIENT);
-	
+
 	AddSkeleton("data/anim/ears.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/ears.atlas", IStorage::STORAGETYPE_CLIENT);
-	
+
 	AddSkeleton("data/anim/gasmask.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/gasmask.atlas", IStorage::STORAGETYPE_CLIENT);
 
 	AddSkeleton("data/anim/walker.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/walker.atlas", IStorage::STORAGETYPE_CLIENT);
-	
+
 	AddSkeleton("data/anim/drone.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/drone.atlas", IStorage::STORAGETYPE_CLIENT);
-	
+
 	AddSkeleton("data/anim/walker_bottom.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/walker_bottom.atlas", IStorage::STORAGETYPE_CLIENT);
-	
+
 	AddSkeleton("data/anim/door1.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/door1.atlas", IStorage::STORAGETYPE_CLIENT);
-	
+
 	AddSkeleton("data/anim/jumppad.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/jumppad.atlas", IStorage::STORAGETYPE_CLIENT);
-	
+
 	AddSkeleton("data/anim/reactor.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/reactor.atlas", IStorage::STORAGETYPE_CLIENT);
 
 	AddSkeleton("data/anim/teslacoil.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/teslacoil.atlas", IStorage::STORAGETYPE_CLIENT);
-	
+
 	AddSkeleton("data/anim/screen.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/screen.atlas", IStorage::STORAGETYPE_CLIENT);
-	
+
 	AddSkeleton("data/anim/shop.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/shop.atlas", IStorage::STORAGETYPE_CLIENT);
 
@@ -97,7 +95,6 @@ void CSkelebank::Init(IStorage *pStorage)
 
 CSkelebank::~CSkelebank()
 {
-
 }
 
 void CSkelebank::AddSkeleton(const char *pFilename, int StorageType)
@@ -135,7 +132,7 @@ void CSkelebank::AddSkeleton(const char *pFilename, int StorageType)
 
 	//
 	unsigned DataSize = io_length(File);
-	pSkeletonInfo->m_pJsonData = (char *)mem_alloc(DataSize+1, 1);
+	pSkeletonInfo->m_pJsonData = (char *)mem_alloc(DataSize + 1, 1);
 	io_read(File, pSkeletonInfo->m_pJsonData, DataSize);
 	pSkeletonInfo->m_pJsonData[DataSize] = '\0';
 	io_close(File);
@@ -143,8 +140,6 @@ void CSkelebank::AddSkeleton(const char *pFilename, int StorageType)
 	//
 	m_lSkeletons.add(pSkeletonInfo);
 }
-
-
 
 void CSkelebank::AddAtlas(const char *pFilename, int StorageType)
 {
@@ -184,7 +179,7 @@ void CSkelebank::AddAtlas(const char *pFilename, int StorageType)
 
 	//
 	unsigned DataSize = io_length(File);
-	pAtlas->m_pAtlasData = (char *)mem_alloc(DataSize+1, 1);
+	pAtlas->m_pAtlasData = (char *)mem_alloc(DataSize + 1, 1);
 	io_read(File, pAtlas->m_pAtlasData, DataSize);
 	pAtlas->m_pAtlasData[DataSize] = '\0';
 	io_close(File);

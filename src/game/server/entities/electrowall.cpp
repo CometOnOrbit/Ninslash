@@ -3,63 +3,58 @@
 #include "electrowall.h"
 
 CElectroWall::CElectroWall(CGameWorld *pGameWorld, vec2 Pos1, vec2 Pos2)
-: CEntity(pGameWorld, CGameWorld::ENTTYPE_LASERFAIL)
+	: CEntity(pGameWorld, CGameWorld::ENTTYPE_LASERFAIL)
 {
 	m_Pos = Pos1;
 	m_Pos2 = Pos2;
-	
+
 	GameWorld()->InsertEntity(this);
 	m_StartTick = Server()->Tick();
-	m_DestructionTick = Server()->Tick()+Server()->TickSpeed()*10.0f;
+	m_DestructionTick = Server()->Tick() + Server()->TickSpeed() * 10.0f;
 }
-
-
 
 void CElectroWall::Reset()
 {
 	GameServer()->m_World.DestroyEntity(this);
 }
 
-
 void CElectroWall::Tick()
 {
 	if(Server()->Tick() > m_DestructionTick)
 		GameServer()->m_World.DestroyEntity(this);
 
-	if (Server()->Tick() < m_DestructionTick-Server()->TickSpeed()*0.1f)
+	if(Server()->Tick() < m_DestructionTick - Server()->TickSpeed() * 0.1f)
 	{
 		m_StartTick = Server()->Tick();
 		HitCharacter();
 	}
 }
 
-
 bool CElectroWall::HitCharacter()
 {
-	vec2 From = m_Pos-normalize(m_Pos-m_Pos2)*12.0f;
-	vec2 To = m_Pos2+normalize(m_Pos-m_Pos2)*12.0f;
-	CCharacter *pHit = GameServer()->m_World.IntersectCharacter(From, To, 4.0f, To, NULL, true);
+	vec2 From = m_Pos - normalize(m_Pos - m_Pos2) * 12.0f;
+	vec2 To = m_Pos2 + normalize(m_Pos - m_Pos2) * 12.0f;
+	CCharacter *pHit = GameServer()->m_World.IntersectCharacter(From, To, 4.0f, To, 0, true);
 	if(!pHit)
 		return false;
-	
+
 	pHit->TakeDamage(CAttackSource::PlayerWeapon(-1, CWeaponCatalog::Static(SW_ELECTROWALL)), 0, vec2(0, 0), To);
-	
+
 	return true;
 }
-
 
 void CElectroWall::TickPaused()
 {
 	++m_StartTick;
 }
 
-
 void CElectroWall::Snap(int SnappingClient)
 {
 	if(NetworkClipped(SnappingClient))
 		return;
 
-	CNetObj_LaserFail *pObj = static_cast<CNetObj_LaserFail *>(Server()->SnapNewItem(NETOBJTYPE_LASERFAIL, m_ID, sizeof(CNetObj_LaserFail)));
+	CNetObj_LaserFail *pObj =
+		static_cast<CNetObj_LaserFail *>(Server()->SnapNewItem(NETOBJTYPE_LASERFAIL, m_ID, sizeof(CNetObj_LaserFail)));
 	if(!pObj)
 		return;
 

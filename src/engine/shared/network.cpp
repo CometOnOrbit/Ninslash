@@ -2,7 +2,6 @@
 
 #include <base/system.h>
 
-
 #include "config.h"
 #include "network.h"
 #include "huffman.h"
@@ -53,19 +52,19 @@ int CNetRecvUnpacker::FetchChunk(CNetChunk *pChunk)
 		pData = Header.Unpack(pData);
 		m_CurrentChunk++;
 
-		if(pData+Header.m_Size > pEnd)
+		if(pData + Header.m_Size > pEnd)
 		{
 			Clear();
 			return 0;
 		}
 
 		// handle sequence stuff
-		if(m_pConnection && (Header.m_Flags&NET_CHUNKFLAG_VITAL))
+		if(m_pConnection && (Header.m_Flags & NET_CHUNKFLAG_VITAL))
 		{
-			if(Header.m_Sequence == (m_pConnection->m_Ack+1)%NET_MAX_SEQUENCE)
+			if(Header.m_Sequence == (m_pConnection->m_Ack + 1) % NET_MAX_SEQUENCE)
 			{
 				// in sequence
-				m_pConnection->m_Ack = (m_pConnection->m_Ack+1)%NET_MAX_SEQUENCE;
+				m_pConnection->m_Ack = (m_pConnection->m_Ack + 1) % NET_MAX_SEQUENCE;
 			}
 			else
 			{
@@ -75,7 +74,10 @@ int CNetRecvUnpacker::FetchChunk(CNetChunk *pChunk)
 
 				// out of sequence, request resend
 				if(g_Config.m_Debug)
-					dbg_msg("conn", "asking for resend %d %d", Header.m_Sequence, (m_pConnection->m_Ack+1)%NET_MAX_SEQUENCE);
+					dbg_msg("conn",
+							"asking for resend %d %d",
+							Header.m_Sequence,
+							(m_pConnection->m_Ack + 1) % NET_MAX_SEQUENCE);
 				m_pConnection->SignalResend();
 				continue; // take the next chunk in the packet
 			}
@@ -102,7 +104,7 @@ void CNetBase::SendPacketConnless(NETSOCKET Socket, NETADDR *pAddr, const void *
 	aBuffer[4] = 0xff;
 	aBuffer[5] = 0xff;
 	mem_copy(&aBuffer[6], pData, DataSize);
-	net_udp_send(Socket, pAddr, aBuffer, 6+DataSize);
+	net_udp_send(Socket, pAddr, aBuffer, 6 + DataSize);
 }
 
 void CNetBase::SendPacket(NETSOCKET Socket, NETADDR *pAddr, CNetPacketConstruct *pPacket)
@@ -117,7 +119,8 @@ int CNetBase::PackPacket(CNetPacketConstruct *pPacket, unsigned char *aBuffer, i
 {
 	int CompressedSize = -1;
 	int FinalSize = -1;
-	if(!pPacket || !aBuffer || BufferSize < NET_PACKETHEADERSIZE || pPacket->m_DataSize < 0 || pPacket->m_DataSize > NET_MAX_PAYLOAD)
+	if(!pPacket || !aBuffer || BufferSize < NET_PACKETHEADERSIZE || pPacket->m_DataSize < 0 ||
+	   pPacket->m_DataSize > NET_MAX_PAYLOAD)
 		return -1;
 
 	// log the data
@@ -131,7 +134,7 @@ int CNetBase::PackPacket(CNetPacketConstruct *pPacket, unsigned char *aBuffer, i
 	}
 
 	// compress
-	CompressedSize = ms_Huffman.Compress(pPacket->m_aChunkData, pPacket->m_DataSize, &aBuffer[3], BufferSize-4);
+	CompressedSize = ms_Huffman.Compress(pPacket->m_aChunkData, pPacket->m_DataSize, &aBuffer[3], BufferSize - 4);
 
 	// check if the compression was enabled, successful and good enough
 	if(CompressedSize > 0 && CompressedSize < pPacket->m_DataSize)
@@ -151,8 +154,8 @@ int CNetBase::PackPacket(CNetPacketConstruct *pPacket, unsigned char *aBuffer, i
 	if(FinalSize >= 0)
 	{
 		FinalSize += NET_PACKETHEADERSIZE;
-		aBuffer[0] = ((pPacket->m_Flags<<4)&0xf0)|((pPacket->m_Ack>>8)&0xf);
-		aBuffer[1] = pPacket->m_Ack&0xff;
+		aBuffer[0] = ((pPacket->m_Flags << 4) & 0xf0) | ((pPacket->m_Ack >> 8) & 0xf);
+		aBuffer[1] = pPacket->m_Ack & 0xff;
 		aBuffer[2] = pPacket->m_NumChunks;
 		// log raw socket data
 		if(ms_DataLogSent)
@@ -167,7 +170,8 @@ int CNetBase::PackPacket(CNetPacketConstruct *pPacket, unsigned char *aBuffer, i
 	return FinalSize;
 }
 
-int CNetBase::PackControl(int Ack, int ControlMsg, const void *pExtra, int ExtraSize, unsigned char *pBuffer, int BufferSize)
+int CNetBase::PackControl(
+	int Ack, int ControlMsg, const void *pExtra, int ExtraSize, unsigned char *pBuffer, int BufferSize)
 {
 	if(ExtraSize < 0 || ExtraSize + 1 > NET_MAX_PAYLOAD)
 		return -1;
@@ -202,12 +206,12 @@ int CNetBase::UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct
 	}
 
 	// read the packet
-	pPacket->m_Flags = pBuffer[0]>>4;
-	pPacket->m_Ack = ((pBuffer[0]&0xf)<<8) | pBuffer[1];
+	pPacket->m_Flags = pBuffer[0] >> 4;
+	pPacket->m_Ack = ((pBuffer[0] & 0xf) << 8) | pBuffer[1];
 	pPacket->m_NumChunks = pBuffer[2];
 	pPacket->m_DataSize = Size - NET_PACKETHEADERSIZE;
 
-	if(pPacket->m_Flags&NET_PACKETFLAG_CONNLESS)
+	if(pPacket->m_Flags & NET_PACKETFLAG_CONNLESS)
 	{
 		if(Size < 6)
 		{
@@ -223,8 +227,9 @@ int CNetBase::UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct
 	}
 	else
 	{
-		if(pPacket->m_Flags&NET_PACKETFLAG_COMPRESSION)
-			pPacket->m_DataSize = ms_Huffman.Decompress(&pBuffer[3], pPacket->m_DataSize, pPacket->m_aChunkData, sizeof(pPacket->m_aChunkData));
+		if(pPacket->m_Flags & NET_PACKETFLAG_COMPRESSION)
+			pPacket->m_DataSize = ms_Huffman.Decompress(
+				&pBuffer[3], pPacket->m_DataSize, pPacket->m_aChunkData, sizeof(pPacket->m_aChunkData));
 		else
 			mem_copy(pPacket->m_aChunkData, &pBuffer[3], pPacket->m_DataSize);
 	}
@@ -251,14 +256,14 @@ int CNetBase::UnpackPacket(unsigned char *pBuffer, int Size, CNetPacketConstruct
 	return 0;
 }
 
-
-void CNetBase::SendControlMsg(NETSOCKET Socket, NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize)
+void CNetBase::SendControlMsg(
+	NETSOCKET Socket, NETADDR *pAddr, int Ack, int ControlMsg, const void *pExtra, int ExtraSize)
 {
 	CNetPacketConstruct Construct;
 	Construct.m_Flags = NET_PACKETFLAG_CONTROL;
 	Construct.m_Ack = Ack;
 	Construct.m_NumChunks = 0;
-	Construct.m_DataSize = 1+ExtraSize;
+	Construct.m_DataSize = 1 + ExtraSize;
 	Construct.m_aChunkData[0] = ControlMsg;
 	mem_copy(&Construct.m_aChunkData[1], pExtra, ExtraSize);
 
@@ -266,16 +271,14 @@ void CNetBase::SendControlMsg(NETSOCKET Socket, NETADDR *pAddr, int Ack, int Con
 	CNetBase::SendPacket(Socket, pAddr, &Construct);
 }
 
-
-
 unsigned char *CNetChunkHeader::Pack(unsigned char *pData)
 {
-	pData[0] = ((m_Flags&3)<<6)|((m_Size>>4)&0x3f);
-	pData[1] = (m_Size&0xf);
-	if(m_Flags&NET_CHUNKFLAG_VITAL)
+	pData[0] = ((m_Flags & 3) << 6) | ((m_Size >> 4) & 0x3f);
+	pData[1] = (m_Size & 0xf);
+	if(m_Flags & NET_CHUNKFLAG_VITAL)
 	{
-		pData[1] |= (m_Sequence>>2)&0xf0;
-		pData[2] = m_Sequence&0xff;
+		pData[1] |= (m_Sequence >> 2) & 0xf0;
+		pData[2] = m_Sequence & 0xff;
 		return pData + 3;
 	}
 	return pData + 2;
@@ -283,21 +286,20 @@ unsigned char *CNetChunkHeader::Pack(unsigned char *pData)
 
 unsigned char *CNetChunkHeader::Unpack(unsigned char *pData)
 {
-	m_Flags = (pData[0]>>6)&3;
-	m_Size = ((pData[0]&0x3f)<<4) | (pData[1]&0xf);
+	m_Flags = (pData[0] >> 6) & 3;
+	m_Size = ((pData[0] & 0x3f) << 4) | (pData[1] & 0xf);
 	m_Sequence = -1;
-	if(m_Flags&NET_CHUNKFLAG_VITAL)
+	if(m_Flags & NET_CHUNKFLAG_VITAL)
 	{
-		m_Sequence = ((pData[1]&0xf0)<<2) | pData[2];
+		m_Sequence = ((pData[1] & 0xf0) << 2) | pData[2];
 		return pData + 3;
 	}
 	return pData + 2;
 }
 
-
 int CNetBase::IsSeqInBackroom(int Seq, int Ack)
 {
-	int Bottom = (Ack-NET_MAX_SEQUENCE/2);
+	int Bottom = (Ack - NET_MAX_SEQUENCE / 2);
 	if(Bottom < 0)
 	{
 		if(Seq <= Ack)
@@ -317,7 +319,6 @@ int CNetBase::IsSeqInBackroom(int Seq, int Ack)
 IOHANDLE CNetBase::ms_DataLogSent = 0;
 IOHANDLE CNetBase::ms_DataLogRecv = 0;
 CHuffman CNetBase::ms_Huffman;
-
 
 void CNetBase::OpenLog(IOHANDLE DataLogSent, IOHANDLE DataLogRecv)
 {
@@ -365,21 +366,20 @@ int CNetBase::Decompress(const void *pData, int DataSize, void *pOutput, int Out
 	return ms_Huffman.Decompress(pData, DataSize, pOutput, OutputSize);
 }
 
-
-static const unsigned gs_aFreqTable[256+1] = {
-	1<<30,4545,2657,431,1950,919,444,482,2244,617,838,542,715,1814,304,240,754,212,647,186,
-	283,131,146,166,543,164,167,136,179,859,363,113,157,154,204,108,137,180,202,176,
-	872,404,168,134,151,111,113,109,120,126,129,100,41,20,16,22,18,18,17,19,
-	16,37,13,21,362,166,99,78,95,88,81,70,83,284,91,187,77,68,52,68,
-	59,66,61,638,71,157,50,46,69,43,11,24,13,19,10,12,12,20,14,9,
-	20,20,10,10,15,15,12,12,7,19,15,14,13,18,35,19,17,14,8,5,
-	15,17,9,15,14,18,8,10,2173,134,157,68,188,60,170,60,194,62,175,71,
-	148,67,167,78,211,67,156,69,1674,90,174,53,147,89,181,51,174,63,163,80,
-	167,94,128,122,223,153,218,77,200,110,190,73,174,69,145,66,277,143,141,60,
-	136,53,180,57,142,57,158,61,166,112,152,92,26,22,21,28,20,26,30,21,
-	32,27,20,17,23,21,30,22,22,21,27,25,17,27,23,18,39,26,15,21,
-	12,18,18,27,20,18,15,19,11,17,33,12,18,15,19,18,16,26,17,18,
-	9,10,25,22,22,17,20,16,6,16,15,20,14,18,24,335,1517};
+static const unsigned gs_aFreqTable[256 + 1] = {
+	1 << 30, 4545, 2657, 431, 1950, 919, 444, 482, 2244, 617, 838, 542, 715, 1814, 304, 240, 754, 212, 647, 186,
+	283,	 131,  146,	 166, 543,	164, 167, 136, 179,	 859, 363, 113, 157, 154,  204, 108, 137, 180, 202, 176,
+	872,	 404,  168,	 134, 151,	111, 113, 109, 120,	 126, 129, 100, 41,	 20,   16,	22,	 18,  18,  17,	19,
+	16,		 37,   13,	 21,  362,	166, 99,  78,  95,	 88,  81,  70,	83,	 284,  91,	187, 77,  68,  52,	68,
+	59,		 66,   61,	 638, 71,	157, 50,  46,  69,	 43,  11,  24,	13,	 19,   10,	12,	 12,  20,  14,	9,
+	20,		 20,   10,	 10,  15,	15,	 12,  12,  7,	 19,  15,  14,	13,	 18,   35,	19,	 17,  14,  8,	5,
+	15,		 17,   9,	 15,  14,	18,	 8,	  10,  2173, 134, 157, 68,	188, 60,   170, 60,	 194, 62,  175, 71,
+	148,	 67,   167,	 78,  211,	67,	 156, 69,  1674, 90,  174, 53,	147, 89,   181, 51,	 174, 63,  163, 80,
+	167,	 94,   128,	 122, 223,	153, 218, 77,  200,	 110, 190, 73,	174, 69,   145, 66,	 277, 143, 141, 60,
+	136,	 53,   180,	 57,  142,	57,	 158, 61,  166,	 112, 152, 92,	26,	 22,   21,	28,	 20,  26,  30,	21,
+	32,		 27,   20,	 17,  23,	21,	 30,  22,  22,	 21,  27,  25,	17,	 27,   23,	18,	 39,  26,  15,	21,
+	12,		 18,   18,	 27,  20,	18,	 15,  19,  11,	 17,  33,  12,	18,	 15,   19,	18,	 16,  26,  17,	18,
+	9,		 10,   25,	 22,  22,	17,	 20,  16,  6,	 16,  15,  20,	14,	 18,   24,	335, 1517};
 
 void CNetBase::Init()
 {

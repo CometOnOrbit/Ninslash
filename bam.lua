@@ -100,9 +100,50 @@ function ContentCompile(action, output)
 	AddDependency(output, Path("datasrc/compile.py"))
 	AddDependency(output, Path("datasrc/datatypes.py"))
 	AddDependency(output, Path("datasrc/weapon_types.py"))
-	if action == "weapon_profiles" then
-		AddDependency(output, Path("datasrc/weapon_profiles.py"))
+	return output
+end
+
+function EmbedBinary(input, output, symbol)
+	input = Path(input)
+	output = Path(output)
+	AddJob(output, "embed " .. output, Python("scripts/embed_binary.py") .. " " .. input .. " " .. symbol .. " > " .. output)
+	AddDependency(output, input)
+	AddDependency(output, Path("scripts/embed_binary.py"))
+	return output
+end
+
+function EmbedBinaries(inputs, output, symbol)
+	output = Path(output)
+	local command = Python("scripts/embed_binary.py")
+	for _, input in ipairs(inputs) do
+		command = command .. " " .. Path(input)
 	end
+	AddJob(output, "embed " .. output, command .. " " .. symbol .. " > " .. output)
+	for _, input in ipairs(inputs) do
+		AddDependency(output, Path(input))
+	end
+	AddDependency(output, Path("scripts/embed_binary.py"))
+	return output
+end
+
+function ManifestFiles(manifest)
+	local result = {}
+	for line in io.lines(manifest) do
+		if line ~= "" and string.sub(line, 1, 1) ~= "#" then
+			table.insert(result, "data/weapons/" .. line)
+		end
+	end
+	return result
+end
+
+function EmbedManifest(manifest, output, symbol)
+	output = Path(output)
+	AddJob(output, "embed " .. output, Python("scripts/embed_binary.py") .. " @" .. Path(manifest) .. " " .. symbol .. " > " .. output)
+	AddDependency(output, Path(manifest))
+	for _, input in ipairs(ManifestFiles(manifest)) do
+		AddDependency(output, Path(input))
+	end
+	AddDependency(output, Path("scripts/embed_binary.py"))
 	return output
 end
 
@@ -111,7 +152,8 @@ network_source = ContentCompile("network_source", "src/generated/protocol.cpp")
 network_header = ContentCompile("network_header", "src/generated/protocol.h")
 game_content_source = ContentCompile("game_content_source", "src/generated/game_data.cpp")
 game_content_header = ContentCompile("game_content_header", "src/generated/game_data.h")
-weapon_profiles = ContentCompile("weapon_profiles", "src/generated/weapon_profiles.inc")
+weapon_dsl = EmbedBinary("data/weapons/weapon_dsl.lua", "src/generated/weapon_dsl.inc", "gs_aWeaponDslLua")
+official_weapons = EmbedManifest("data/weapons/official_manifest.txt", "src/generated/official_weapons.inc", "gs_aOfficialWeaponsLua")
 
 AddDependency(network_source, network_header)
 AddDependency(game_content_source, game_content_header)
@@ -215,6 +257,7 @@ function build(settings)
 
 	-- set some platform specific settings
 	settings.cc.includes:Add("src")
+	settings.cc.includes:Add("other/lua/src")
 
 	if family == "unix" then
 		if platform == "macosx" then
@@ -234,6 +277,8 @@ function build(settings)
 		settings.link.libs:Add("ws2_32")
 		settings.link.libs:Add("ole32")
 		settings.link.libs:Add("shell32")
+		settings.link.libs:Add("comdlg32")
+		settings.link.libs:Add("userenv")
 		if config.compiler.driver == "gcc" then
 			-- Match CMakeLists.txt: ship without MinGW runtime DLLs
 			-- (libstdc++-6.dll / libgcc_s_seh-1.dll / libwinpthread-1.dll).
@@ -258,6 +303,14 @@ function build(settings)
 	wavpack = Compile(settings, Collect("src/engine/external/wavpack/*.c"))
 	pnglite = Compile(settings, Collect("src/engine/external/pnglite/*.c"))
 	json_parser = Compile(settings, Collect("src/engine/external/json-parser/*.c"))
+	lua_sources = Collect("other/lua/src/*.c")
+	for index = #lua_sources, 1, -1 do
+		local filename = PathFilename(lua_sources[index])
+		if filename == "lua.c" or filename == "luac.c" or filename == "onelua.c" or filename == "liolib.c" or filename == "loslib.c" or filename == "loadlib.c" or filename == "ldblib.c" then
+			table.remove(lua_sources, index)
+		end
+	end
+	lua = StaticLibrary(settings, "ninslash_lua", Compile(settings, lua_sources))
 	
 	-- Keep the C++ standard aligned with CMake. Add it after compiling the C
 	-- libraries so the flag is only applied to engine and game C++ sources.
@@ -303,7 +356,8 @@ function build(settings)
 		glew = Compile(client_settings, "other/glew/src/glew.c")
 	end
 
-	engine = Compile(engine_settings, Collect("src/engine/shared/*.cpp", "src/base/*.c"))
+	engine_settings.cc.defines:Add("NOUNCRYPT")
+	engine = Compile(engine_settings, Collect("src/engine/shared/*.cpp", "src/base/*.c", "src/engine/external/minizip/*.c"))
 	client = Compile(client_settings, Collect("src/engine/client/*.cpp"))
 	server = Compile(server_settings, Collect("src/engine/server/*.cpp"))
 
@@ -311,7 +365,8 @@ function build(settings)
 	masterserver = Compile(settings, Collect("src/mastersrv/*.cpp"))
 	game_shared = Compile(settings, Collect("src/game/*.cpp"), nethash, network_source, game_content_source)
 	for _, object in ipairs(game_shared) do
-		AddDependency(object, weapon_profiles)
+		AddDependency(object, official_weapons)
+		AddDependency(object, weapon_dsl)
 	end
 	game_client = Compile(settings, CollectRecursive("src/game/client/*.cpp"))
 	game_server = Compile(settings, CollectRecursive("src/game/server/*.cpp"))
@@ -334,10 +389,10 @@ function build(settings)
 	-- build client, server, version server and master server
 	client_exe = Link(client_settings, "ninslash", game_shared, game_client,
 		engine, client, game_editor, zlib, pnglite, wavpack, json_parser, glew,
-		client_link_other)
+		lua, client_link_other)
 
 	server_exe = Link(server_settings, "ninslash_srv", engine, server,
-		game_shared, game_server, zlib, server_link_other, json_parser)
+		game_shared, game_server, zlib, server_link_other, json_parser, lua)
 
 	serverlaunch = {}
 	if platform == "macosx" then

@@ -25,7 +25,8 @@ struct CLayout
 	float m_H;
 };
 
-inline CLayout SidebarLayout(float ScreenWidth, float ScreenHeight, float UiScale, float AppearAmount, bool Wide = false)
+inline CLayout
+SidebarLayout(float ScreenWidth, float ScreenHeight, float UiScale, float AppearAmount, bool Wide = false)
 {
 	const float Scale = clamp(UiScale, 1.0f, 1.5f);
 	const float BaseWidth = Wide ? 190.0f : 154.0f;
@@ -59,8 +60,7 @@ inline int NextAvailableTab(int Current, int Direction, bool ForgeAvailable, boo
 	for(int Step = 1; Step <= NUM_TABS; ++Step)
 	{
 		const int Candidate = (Current + Direction * Step + NUM_TABS * 2) % NUM_TABS;
-		if((Candidate != TAB_FORGE || ForgeAvailable) &&
-			(Candidate != TAB_SHOP || ShopAvailable))
+		if((Candidate != TAB_FORGE || ForgeAvailable) && (Candidate != TAB_SHOP || ShopAvailable))
 			return Candidate;
 	}
 	return TAB_INVENTORY;
@@ -120,6 +120,6 @@ inline CForgeSlots DropForgeItem(CForgeSlots Slots, int DraggedSlot, EForgeDropT
 		return AssignForgeSlot(Slots, DraggedSlot, false);
 	return Slots;
 }
-}
+} // namespace InventoryLogic
 
 #endif

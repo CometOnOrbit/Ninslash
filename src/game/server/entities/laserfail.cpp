@@ -3,18 +3,16 @@
 #include "laserfail.h"
 
 CLaserFail::CLaserFail(CGameWorld *pGameWorld, vec2 From, vec2 To, int PowerLevel)
-: CEntity(pGameWorld, CGameWorld::ENTTYPE_LASERFAIL)
+	: CEntity(pGameWorld, CGameWorld::ENTTYPE_LASERFAIL)
 {
 	m_From = From;
 	m_Pos = To;
 	m_PowerLevel = PowerLevel;
-	
+
 	m_EvalTick = 0;
 	GameWorld()->InsertEntity(this);
 	m_EvalTick = Server()->Tick();
 }
-
-
 
 void CLaserFail::Reset()
 {
@@ -23,11 +21,10 @@ void CLaserFail::Reset()
 
 void CLaserFail::Tick()
 {
-	if(Server()->Tick() > m_EvalTick+(Server()->TickSpeed()*GameServer()->Tuning()->m_LaserBounceDelay)/1000.0f)
+	if(Server()->Tick() > m_EvalTick + (Server()->TickSpeed() * GameServer()->Tuning()->m_LaserBounceDelay) / 1000.0f)
 		GameServer()->m_World.DestroyEntity(this);
 
-
-	//if(Server()->Tick() > m_EvalTick+(Server()->TickSpeed()*GameServer()->Tuning()->m_LaserBounceDelay)/1000.0f)
+	// if(Server()->Tick() > m_EvalTick+(Server()->TickSpeed()*GameServer()->Tuning()->m_LaserBounceDelay)/1000.0f)
 	//	m_EvalTick = Server()->Tick();
 }
 
@@ -41,8 +38,10 @@ void CLaserFail::Snap(int SnappingClient)
 	if(NetworkClipped(SnappingClient))
 		return;
 
-	CNetObj_LaserFail *pObj = static_cast<CNetObj_LaserFail *>(Server()->SnapNewItem(NETOBJTYPE_LASERFAIL, m_ID, sizeof(CNetObj_LaserFail)));
-	//CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
+	CNetObj_LaserFail *pObj =
+		static_cast<CNetObj_LaserFail *>(Server()->SnapNewItem(NETOBJTYPE_LASERFAIL, m_ID, sizeof(CNetObj_LaserFail)));
+	// CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID,
+	// sizeof(CNetObj_Laser)));
 	if(!pObj)
 		return;
 

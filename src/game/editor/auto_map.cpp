@@ -1,4 +1,4 @@
-#include <stdio.h>	// sscanf
+#include <stdio.h> // sscanf
 
 #include <engine/console.h>
 #include <engine/storage.h>
@@ -15,7 +15,7 @@ CAutoMapper::CAutoMapper(CEditor *pEditor)
 	m_pGenerator = new CGenerator();
 }
 
-void CAutoMapper::Load(const char* pTileName)
+void CAutoMapper::Load(const char *pTileName)
 {
 	char aPath[256];
 	str_format(aPath, sizeof(aPath), "editor/%s.rules", pTileName);
@@ -35,10 +35,10 @@ void CAutoMapper::Load(const char* pTileName)
 	while(char *pLine = LineReader.Get())
 	{
 		// skip blank/empty lines as well as comments
-		if(str_length(pLine) > 0 && pLine[0] != '#' && pLine[0] != '\n' && pLine[0] != '\r'
-			&& pLine[0] != '\t' && pLine[0] != '\v' && pLine[0] != ' ')
+		if(str_length(pLine) > 0 && pLine[0] != '#' && pLine[0] != '\n' && pLine[0] != '\r' && pLine[0] != '\t' &&
+		   pLine[0] != '\v' && pLine[0] != ' ')
 		{
-			if(pLine[0]== '[')
+			if(pLine[0] == '[')
 			{
 				// new configuration, get the name
 				pLine++;
@@ -75,15 +75,15 @@ void CAutoMapper::Load(const char* pTileName)
 						else if(!str_comp(aFlip, "YFLIP"))
 							NewIndexRule.m_Flag = TILEFLAG_HFLIP;
 						else if(!str_comp(aFlip, "XYFLIP"))
-							NewIndexRule.m_Flag = TILEFLAG_VFLIP+TILEFLAG_HFLIP;
+							NewIndexRule.m_Flag = TILEFLAG_VFLIP + TILEFLAG_HFLIP;
 						else if(!str_comp(aFlip, "ROTATE"))
 							NewIndexRule.m_Flag = TILEFLAG_ROTATE;
 						else if(!str_comp(aFlip, "XFLIP_ROTATE"))
-							NewIndexRule.m_Flag = TILEFLAG_ROTATE+TILEFLAG_VFLIP;
+							NewIndexRule.m_Flag = TILEFLAG_ROTATE + TILEFLAG_VFLIP;
 						else if(!str_comp(aFlip, "YFLIP_ROTATE"))
-							NewIndexRule.m_Flag = TILEFLAG_ROTATE+TILEFLAG_HFLIP;
+							NewIndexRule.m_Flag = TILEFLAG_ROTATE + TILEFLAG_HFLIP;
 						else if(!str_comp(aFlip, "XYFLIP_ROTATE"))
-							NewIndexRule.m_Flag = TILEFLAG_ROTATE+TILEFLAG_VFLIP+TILEFLAG_HFLIP;
+							NewIndexRule.m_Flag = TILEFLAG_ROTATE + TILEFLAG_VFLIP + TILEFLAG_HFLIP;
 					}
 
 					// add the index rule object and make it current
@@ -124,13 +124,13 @@ void CAutoMapper::Load(const char* pTileName)
 
 	io_close(RulesFile);
 
-	str_format(aBuf, sizeof(aBuf),"loaded %s", aPath);
+	str_format(aBuf, sizeof(aBuf), "loaded %s", aPath);
 	m_pEditor->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "editor", aBuf);
 
 	m_FileLoaded = true;
 }
 
-const char* CAutoMapper::GetConfigName(int Index)
+const char *CAutoMapper::GetConfigName(int Index)
 {
 	if(Index < 0 || Index >= m_lConfigs.size())
 		return "";
@@ -141,14 +141,14 @@ const char* CAutoMapper::GetConfigName(int Index)
 void CAutoMapper::Generate(CLayerTiles *pLayer, int ConfigID)
 {
 	// generate layer
-	if (pLayer->m_Readonly)
+	if(pLayer->m_Readonly)
 		return;
-	
+
 	m_pGenerator->Generate(pLayer);
-	
+
 	Proceed(pLayer, ConfigID);
 }
-	
+
 void CAutoMapper::Proceed(CLayerTiles *pLayer, int ConfigID)
 {
 	if(!m_FileLoaded || pLayer->m_Readonly || ConfigID < 0 || ConfigID >= m_lConfigs.size())
@@ -172,18 +172,18 @@ void CAutoMapper::Proceed(CLayerTiles *pLayer, int ConfigID)
 	}
 
 	// auto map !
-	int MaxIndex = pLayer->m_Width*pLayer->m_Height;
+	int MaxIndex = pLayer->m_Width * pLayer->m_Height;
 	for(int y = 0; y < pLayer->m_Height; y++)
 		for(int x = 0; x < pLayer->m_Width; x++)
 		{
-			CTile *pTile = &(pLayer->m_pTiles[y*pLayer->m_Width+x]);
+			CTile *pTile = &(pLayer->m_pTiles[y * pLayer->m_Width + x]);
 			if(pTile->m_Index == 0)
 				continue;
 
 			pTile->m_Index = BaseTile;
 			m_pEditor->m_Map.m_Modified = true;
 
-			if(y == 0 || y == pLayer->m_Height-1 || x == 0 || x == pLayer->m_Width-1)
+			if(y == 0 || y == pLayer->m_Height - 1 || x == 0 || x == pLayer->m_Width - 1)
 				continue;
 
 			for(int i = 0; i < pConf->m_aIndexRules.size(); ++i)
@@ -195,13 +195,13 @@ void CAutoMapper::Proceed(CLayerTiles *pLayer, int ConfigID)
 				for(int j = 0; j < pConf->m_aIndexRules[i].m_aRules.size() && RespectRules; ++j)
 				{
 					CPosRule *pRule = &pConf->m_aIndexRules[i].m_aRules[j];
-					int CheckIndex = (y+pRule->m_Y)*pLayer->m_Width+(x+pRule->m_X);
+					int CheckIndex = (y + pRule->m_Y) * pLayer->m_Width + (x + pRule->m_X);
 
 					if(CheckIndex < 0 || CheckIndex >= MaxIndex)
 						RespectRules = false;
 					else
 					{
- 						if(pRule->m_IndexValue)
+						if(pRule->m_IndexValue)
 						{
 							if(pLayer->m_pTiles[CheckIndex].m_Index != pRule->m_Value)
 								RespectRules = false;
@@ -218,7 +218,8 @@ void CAutoMapper::Proceed(CLayerTiles *pLayer, int ConfigID)
 				}
 
 				if(RespectRules &&
-					(pConf->m_aIndexRules[i].m_RandomValue <= 1 || (int)((float)rand() / ((float)RAND_MAX + 1) * pConf->m_aIndexRules[i].m_RandomValue) == 1))
+				   (pConf->m_aIndexRules[i].m_RandomValue <= 1 ||
+					(int)((float)rand() / ((float)RAND_MAX + 1) * pConf->m_aIndexRules[i].m_RandomValue) == 1))
 				{
 					pTile->m_Index = pConf->m_aIndexRules[i].m_ID;
 					pTile->m_Flags = pConf->m_aIndexRules[i].m_Flag;

@@ -11,7 +11,6 @@
 #include <game/client/components/motd.h>
 #include <game/client/components/scoreboard.h>
 
-
 #include <game/client/customstuff.h>
 #include <game/client/customstuff/playerinfo.h>
 
@@ -28,7 +27,7 @@ void CBroadcast::OnRender()
 	if(m_pClient->m_pScoreboard->Active() || m_pClient->m_pMotd->IsActive())
 		return;
 
-	Graphics()->MapScreen(0, 0, 300*Graphics()->ScreenAspect(), 300);
+	Graphics()->MapScreen(0, 0, 300 * Graphics()->ScreenAspect(), 300);
 
 	if(time_get() < m_BroadcastTime)
 	{
@@ -43,8 +42,12 @@ void CBroadcast::OnRender()
 		// Keep broadcasts between the top timer strip and the centered status
 		// stack. The old y=40 anchor overlapped the warmup card exactly.
 		TextRender()->TextColor(1.0f, 1.0f, 1.0f, Amount);
-		TextRender()->SetCursor(&Cursor, m_BroadcastRenderOffset, 24.0f - (1.0f - Eased) * 4.0f, 12.0f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
-		Cursor.m_LineWidth = 300*Graphics()->ScreenAspect()-m_BroadcastRenderOffset;
+		TextRender()->SetCursor(&Cursor,
+								m_BroadcastRenderOffset,
+								24.0f - (1.0f - Eased) * 4.0f,
+								12.0f,
+								TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
+		Cursor.m_LineWidth = 300 * Graphics()->ScreenAspect() - m_BroadcastRenderOffset;
 		TextRender()->TextEx(&Cursor, m_aBroadcastText, -1);
 		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	}
@@ -58,15 +61,17 @@ void CBroadcast::OnMessage(int MsgType, void *pRawMsg)
 		str_copy(m_aBroadcastText, pMsg->m_pMessage, sizeof(m_aBroadcastText));
 		CTextCursor Cursor;
 		TextRender()->SetCursor(&Cursor, 0, 0, 12.0f, TEXTFLAG_STOP_AT_END);
-		Cursor.m_LineWidth = 300*Graphics()->ScreenAspect();
+		Cursor.m_LineWidth = 300 * Graphics()->ScreenAspect();
 		TextRender()->TextEx(&Cursor, m_aBroadcastText, -1);
-		m_BroadcastRenderOffset = 150*Graphics()->ScreenAspect()-Cursor.m_X/2;
+		m_BroadcastRenderOffset = 150 * Graphics()->ScreenAspect() - Cursor.m_X / 2;
 		m_BroadcastStartTime = time_get();
-		m_BroadcastTime = time_get()+time_freq()*10;
-		
-		if (m_aBroadcastText[0] == 'D' && m_aBroadcastText[1] == 'i' && m_aBroadcastText[2] == 's' && m_aBroadcastText[3] == 'a')
-			m_BroadcastTime = time_get()+time_freq()*1.5f;
-		if (m_aBroadcastText[0] == 'A' && m_aBroadcastText[1] == 'r' && m_aBroadcastText[2] == 'm' && m_aBroadcastText[3] == 'i')
-			m_BroadcastTime = time_get()+time_freq()*1.5f;
+		m_BroadcastTime = time_get() + time_freq() * 10;
+
+		if(m_aBroadcastText[0] == 'D' && m_aBroadcastText[1] == 'i' && m_aBroadcastText[2] == 's' &&
+		   m_aBroadcastText[3] == 'a')
+			m_BroadcastTime = time_get() + time_freq() * 1.5f;
+		if(m_aBroadcastText[0] == 'A' && m_aBroadcastText[1] == 'r' && m_aBroadcastText[2] == 'm' &&
+		   m_aBroadcastText[3] == 'i')
+			m_BroadcastTime = time_get() + time_freq() * 1.5f;
 	}
 }

@@ -11,8 +11,8 @@ typedef struct
 
 static void TilesetBorderset(int w, int h, CPixel *pSrc, CPixel *pDest)
 {
-	int TileW = w/16;
-	int TileH = h/16;
+	int TileW = w / 16;
+	int TileH = h / 16;
 
 	for(int tx = 0; tx < 16; tx++)
 	{
@@ -22,19 +22,19 @@ static void TilesetBorderset(int w, int h, CPixel *pSrc, CPixel *pDest)
 			{
 				for(int y = 0; y < TileH; y++)
 				{
-					#define TILE_INDEX(tx_, ty_, x_, y_) (((ty_) * TileH + (y_)) * w + (tx_) * TileW + (x_))
-					pDest[TILE_INDEX(tx, ty, x, y)] = pSrc[TILE_INDEX(tx, ty, clamp(x, 2, TileW - 3), clamp(y, 2, TileH - 3))];
+#define TILE_INDEX(tx_, ty_, x_, y_) (((ty_)*TileH + (y_)) * w + (tx_)*TileW + (x_))
+					pDest[TILE_INDEX(tx, ty, x, y)] =
+						pSrc[TILE_INDEX(tx, ty, clamp(x, 2, TileW - 3), clamp(y, 2, TileH - 3))];
 				}
 			}
 		}
 	}
 }
 
-
 int FixFile(const char *pFileName)
 {
 	png_t Png;
-	CPixel *pBuffer[2] = {0,0};
+	CPixel *pBuffer[2] = {0, 0};
 
 	png_init(0, 0);
 	png_open_file(&Png, pFileName);
@@ -48,8 +48,8 @@ int FixFile(const char *pFileName)
 	int w = Png.width;
 	int h = Png.height;
 
-	pBuffer[0] = (CPixel*)mem_alloc(w*h*sizeof(CPixel), 1);
-	pBuffer[1] = (CPixel*)mem_alloc(w*h*sizeof(CPixel), 1);
+	pBuffer[0] = (CPixel *)mem_alloc(w * h * sizeof(CPixel), 1);
+	pBuffer[1] = (CPixel *)mem_alloc(w * h * sizeof(CPixel), 1);
 	png_get_data(&Png, (unsigned char *)pBuffer[0]);
 	png_close_file(&Png);
 

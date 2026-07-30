@@ -10,6 +10,8 @@ enum EModCapability
 	MOD_CAPABILITY_GAMEPLAY_RULES = 1 << 2,
 	MOD_CAPABILITY_WEAPONS = 1 << 3,
 	MOD_CAPABILITY_ITEMS = 1 << 4,
+	MOD_CAPABILITY_WEAPON_MODULES = 1 << 5,
+	MOD_CAPABILITY_FORGE_RECIPES = 1 << 6,
 };
 
 enum EModEvent
@@ -41,14 +43,14 @@ struct CModApiDescriptor
 
 class IModEventSink
 {
-public:
+  public:
 	virtual ~IModEventSink() {}
 	virtual void OnModEvent(EModEvent Event, int ClientID, int Value) = 0;
 };
 
 class IModRuntime
 {
-public:
+  public:
 	virtual ~IModRuntime() {}
 	virtual EModActivationResult Activate(const CModApiDescriptor &Descriptor) = 0;
 	virtual void Deactivate() = 0;

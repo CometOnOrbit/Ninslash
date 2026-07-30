@@ -11,12 +11,11 @@
 
 #include "skins.h"
 
-
 int CSkins::TopperScan(const char *pName, int IsDir, int DirType, void *pUser)
 {
 	CSkins *pSelf = (CSkins *)pUser;
 	int l = str_length(pName);
-	if(l < 4 || IsDir || str_comp(pName+l-4, ".png") != 0)
+	if(l < 4 || IsDir || str_comp(pName + l - 4, ".png") != 0)
 		return 0;
 
 	char aBuf[512];
@@ -30,11 +29,12 @@ int CSkins::TopperScan(const char *pName, int IsDir, int DirType, void *pUser)
 	}
 
 	CSkinPart Topper;
-	Topper.m_Texture = pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
+	Topper.m_Texture =
+		pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
 	mem_free(Info.m_pData);
 
 	// set skin data
-	str_copy(Topper.m_aName, pName, min((int)sizeof(Topper.m_aName),l-3));
+	str_copy(Topper.m_aName, pName, min((int)sizeof(Topper.m_aName), l - 3));
 	if(g_Config.m_Debug)
 	{
 		str_format(aBuf, sizeof(aBuf), "load topper %s", Topper.m_aName);
@@ -49,7 +49,7 @@ int CSkins::EyeScan(const char *pName, int IsDir, int DirType, void *pUser)
 {
 	CSkins *pSelf = (CSkins *)pUser;
 	int l = str_length(pName);
-	if(l < 4 || IsDir || str_comp(pName+l-4, ".png") != 0)
+	if(l < 4 || IsDir || str_comp(pName + l - 4, ".png") != 0)
 		return 0;
 
 	char aBuf[512];
@@ -63,11 +63,12 @@ int CSkins::EyeScan(const char *pName, int IsDir, int DirType, void *pUser)
 	}
 
 	CSkinPart Eye;
-	Eye.m_Texture = pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
+	Eye.m_Texture =
+		pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
 	mem_free(Info.m_pData);
 
 	// set skin data
-	str_copy(Eye.m_aName, pName, min((int)sizeof(Eye.m_aName),l-3));
+	str_copy(Eye.m_aName, pName, min((int)sizeof(Eye.m_aName), l - 3));
 	if(g_Config.m_Debug)
 	{
 		str_format(aBuf, sizeof(aBuf), "load eye %s", Eye.m_aName);
@@ -82,7 +83,7 @@ int CSkins::HeadScan(const char *pName, int IsDir, int DirType, void *pUser)
 {
 	CSkins *pSelf = (CSkins *)pUser;
 	int l = str_length(pName);
-	if(l < 4 || IsDir || str_comp(pName+l-4, ".png") != 0)
+	if(l < 4 || IsDir || str_comp(pName + l - 4, ".png") != 0)
 		return 0;
 
 	char aBuf[512];
@@ -96,11 +97,12 @@ int CSkins::HeadScan(const char *pName, int IsDir, int DirType, void *pUser)
 	}
 
 	CSkinPart SkinPart;
-	SkinPart.m_Texture = pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
+	SkinPart.m_Texture =
+		pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
 	mem_free(Info.m_pData);
 
 	// set skin data
-	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName),l-3));
+	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName), l - 3));
 	if(g_Config.m_Debug)
 	{
 		str_format(aBuf, sizeof(aBuf), "load skin %s", SkinPart.m_aName);
@@ -115,7 +117,7 @@ int CSkins::BodyScan(const char *pName, int IsDir, int DirType, void *pUser)
 {
 	CSkins *pSelf = (CSkins *)pUser;
 	int l = str_length(pName);
-	if(l < 4 || IsDir || str_comp(pName+l-4, ".png") != 0)
+	if(l < 4 || IsDir || str_comp(pName + l - 4, ".png") != 0)
 		return 0;
 
 	char aBuf[512];
@@ -129,11 +131,12 @@ int CSkins::BodyScan(const char *pName, int IsDir, int DirType, void *pUser)
 	}
 
 	CSkinPart SkinPart;
-	SkinPart.m_Texture = pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
+	SkinPart.m_Texture =
+		pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
 	mem_free(Info.m_pData);
 
 	// set skin data
-	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName),l-3));
+	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName), l - 3));
 	if(g_Config.m_Debug)
 	{
 		str_format(aBuf, sizeof(aBuf), "load skin %s", SkinPart.m_aName);
@@ -148,7 +151,7 @@ int CSkins::HandScan(const char *pName, int IsDir, int DirType, void *pUser)
 {
 	CSkins *pSelf = (CSkins *)pUser;
 	int l = str_length(pName);
-	if(l < 4 || IsDir || str_comp(pName+l-4, ".png") != 0)
+	if(l < 4 || IsDir || str_comp(pName + l - 4, ".png") != 0)
 		return 0;
 
 	char aBuf[512];
@@ -162,11 +165,12 @@ int CSkins::HandScan(const char *pName, int IsDir, int DirType, void *pUser)
 	}
 
 	CSkinPart SkinPart;
-	SkinPart.m_Texture = pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
+	SkinPart.m_Texture =
+		pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
 	mem_free(Info.m_pData);
 
 	// set skin data
-	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName),l-3));
+	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName), l - 3));
 	if(g_Config.m_Debug)
 	{
 		str_format(aBuf, sizeof(aBuf), "load skin %s", SkinPart.m_aName);
@@ -181,7 +185,7 @@ int CSkins::FootScan(const char *pName, int IsDir, int DirType, void *pUser)
 {
 	CSkins *pSelf = (CSkins *)pUser;
 	int l = str_length(pName);
-	if(l < 4 || IsDir || str_comp(pName+l-4, ".png") != 0)
+	if(l < 4 || IsDir || str_comp(pName + l - 4, ".png") != 0)
 		return 0;
 
 	char aBuf[512];
@@ -195,11 +199,12 @@ int CSkins::FootScan(const char *pName, int IsDir, int DirType, void *pUser)
 	}
 
 	CSkinPart SkinPart;
-	SkinPart.m_Texture = pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
+	SkinPart.m_Texture =
+		pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
 	mem_free(Info.m_pData);
 
 	// set skin data
-	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName),l-3));
+	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName), l - 3));
 	if(g_Config.m_Debug)
 	{
 		str_format(aBuf, sizeof(aBuf), "load skin %s", SkinPart.m_aName);
@@ -210,12 +215,11 @@ int CSkins::FootScan(const char *pName, int IsDir, int DirType, void *pUser)
 	return 0;
 }
 
-
 int CSkins::GameVoteScan(const char *pName, int IsDir, int DirType, void *pUser)
 {
 	CSkins *pSelf = (CSkins *)pUser;
 	int l = str_length(pName);
-	if(l < 4 || IsDir || str_comp(pName+l-4, ".png") != 0)
+	if(l < 4 || IsDir || str_comp(pName + l - 4, ".png") != 0)
 		return 0;
 
 	char aBuf[512];
@@ -229,11 +233,12 @@ int CSkins::GameVoteScan(const char *pName, int IsDir, int DirType, void *pUser)
 	}
 
 	CSkinPart SkinPart;
-	SkinPart.m_Texture = pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
+	SkinPart.m_Texture =
+		pSelf->Graphics()->LoadTextureRaw(Info.m_Width, Info.m_Height, Info.m_Format, Info.m_pData, Info.m_Format, 0);
 	mem_free(Info.m_pData);
 
 	// set skin data
-	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName),l-3));
+	str_copy(SkinPart.m_aName, pName, min((int)sizeof(SkinPart.m_aName), l - 3));
 	if(g_Config.m_Debug)
 	{
 		str_format(aBuf, sizeof(aBuf), "load gamevote pic %s", SkinPart.m_aName);
@@ -243,7 +248,6 @@ int CSkins::GameVoteScan(const char *pName, int IsDir, int DirType, void *pUser)
 
 	return 0;
 }
-
 
 void CSkins::OnInit()
 {
@@ -258,7 +262,7 @@ void CSkins::OnInit()
 		str_copy(DummySkin.m_aName, "dummy", sizeof(DummySkin.m_aName));
 		m_aToppers.add(DummySkin);
 	}
-	
+
 	// load eyes
 	m_aEyes.clear();
 	Storage()->ListDirectory(IStorage::TYPE_ALL, "skins/eyes", EyeScan, this);
@@ -270,34 +274,79 @@ void CSkins::OnInit()
 		str_copy(DummySkin.m_aName, "dummy", sizeof(DummySkin.m_aName));
 		m_aEyes.add(DummySkin);
 	}
-	
-	m_aHeads.clear(); Storage()->ListDirectory(IStorage::TYPE_ALL, "skins/heads", HeadScan, this);
-	m_aBodies.clear(); Storage()->ListDirectory(IStorage::TYPE_ALL, "skins/bodies", BodyScan, this);
-	m_aHands.clear(); Storage()->ListDirectory(IStorage::TYPE_ALL, "skins/hands", HandScan, this);
-	m_aFeet.clear(); Storage()->ListDirectory(IStorage::TYPE_ALL, "skins/feet", FootScan, this);
-	
-	m_aGameVote.clear(); Storage()->ListDirectory(IStorage::TYPE_ALL, "gamevotes", GameVoteScan, this);
+
+	m_aHeads.clear();
+	Storage()->ListDirectory(IStorage::TYPE_ALL, "skins/heads", HeadScan, this);
+	m_aBodies.clear();
+	Storage()->ListDirectory(IStorage::TYPE_ALL, "skins/bodies", BodyScan, this);
+	m_aHands.clear();
+	Storage()->ListDirectory(IStorage::TYPE_ALL, "skins/hands", HandScan, this);
+	m_aFeet.clear();
+	Storage()->ListDirectory(IStorage::TYPE_ALL, "skins/feet", FootScan, this);
+
+	m_aGameVote.clear();
+	Storage()->ListDirectory(IStorage::TYPE_ALL, "gamevotes", GameVoteScan, this);
 }
 
+int CSkins::NumToppers()
+{
+	return m_aToppers.size();
+}
+int CSkins::NumEyes()
+{
+	return m_aEyes.size();
+}
+int CSkins::NumBodies()
+{
+	return m_aBodies.size();
+}
+int CSkins::NumHeads()
+{
+	return m_aHeads.size();
+}
+int CSkins::NumHands()
+{
+	return m_aHands.size();
+}
+int CSkins::NumFeet()
+{
+	return m_aFeet.size();
+}
 
-int CSkins::NumToppers(){ return m_aToppers.size(); }
-int CSkins::NumEyes(){ return m_aEyes.size(); }
-int CSkins::NumBodies(){ return m_aBodies.size(); }
-int CSkins::NumHeads(){ return m_aHeads.size(); }
-int CSkins::NumHands(){ return m_aHands.size(); }
-int CSkins::NumFeet(){ return m_aFeet.size(); }
+int CSkins::NumGameVotes()
+{
+	return m_aGameVote.size();
+}
 
-int CSkins::NumGameVotes(){ return m_aGameVote.size(); }
+const CSkins::CSkinPart *CSkins::GetTopper(int Index)
+{
+	return &m_aToppers[max(0, Index % m_aToppers.size())];
+}
+const CSkins::CSkinPart *CSkins::GetEye(int Index)
+{
+	return &m_aEyes[max(0, Index % m_aEyes.size())];
+}
+const CSkins::CSkinPart *CSkins::GetHead(int Index)
+{
+	return &m_aHeads[max(0, Index % m_aHeads.size())];
+}
+const CSkins::CSkinPart *CSkins::GetBody(int Index)
+{
+	return &m_aBodies[max(0, Index % m_aBodies.size())];
+}
+const CSkins::CSkinPart *CSkins::GetHand(int Index)
+{
+	return &m_aHands[max(0, Index % m_aHands.size())];
+}
+const CSkins::CSkinPart *CSkins::GetFoot(int Index)
+{
+	return &m_aFeet[max(0, Index % m_aFeet.size())];
+}
 
-const CSkins::CSkinPart *CSkins::GetTopper(int Index){ return &m_aToppers[max(0, Index%m_aToppers.size())]; }
-const CSkins::CSkinPart *CSkins::GetEye(int Index){ return &m_aEyes[max(0, Index%m_aEyes.size())]; }
-const CSkins::CSkinPart *CSkins::GetHead(int Index){ return &m_aHeads[max(0, Index%m_aHeads.size())]; }
-const CSkins::CSkinPart *CSkins::GetBody(int Index){ return &m_aBodies[max(0, Index%m_aBodies.size())]; }
-const CSkins::CSkinPart *CSkins::GetHand(int Index){ return &m_aHands[max(0, Index%m_aHands.size())]; }
-const CSkins::CSkinPart *CSkins::GetFoot(int Index){ return &m_aFeet[max(0, Index%m_aFeet.size())]; }
-
-const CSkins::CSkinPart *CSkins::GetGameVote(int Index){ return &m_aGameVote[max(0, Index%m_aGameVote.size())]; }
-
+const CSkins::CSkinPart *CSkins::GetGameVote(int Index)
+{
+	return &m_aGameVote[max(0, Index % m_aGameVote.size())];
+}
 
 int CSkins::FindTopper(const char *pName)
 {
@@ -359,7 +408,6 @@ int CSkins::FindFoot(const char *pName)
 	return -1;
 }
 
-
 int CSkins::FindGameVote(const char *pName)
 {
 	for(int i = 0; i < m_aGameVote.size(); i++)
@@ -370,11 +418,9 @@ int CSkins::FindGameVote(const char *pName)
 	return -1;
 }
 
-
-
 vec3 CSkins::GetColorV3(int v)
 {
-	return HslToRgb(vec3(((v>>16)&0xff)/255.0f, ((v>>8)&0xff)/255.0f, 0.5f+(v&0xff)/255.0f*0.5f));
+	return HslToRgb(vec3(((v >> 16) & 0xff) / 255.0f, ((v >> 8) & 0xff) / 255.0f, 0.5f + (v & 0xff) / 255.0f * 0.5f));
 }
 
 vec4 CSkins::GetColorV4(int v)

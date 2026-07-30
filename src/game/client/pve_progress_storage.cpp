@@ -41,7 +41,7 @@ bool FileExists(IStorage *pStorage, const char *pFilename)
 	io_close(File);
 	return true;
 }
-}
+} // namespace
 
 CPveProgressData::CPveProgressData()
 {
@@ -112,14 +112,12 @@ EPveProgressLoadResult CPveProgressStorage::Load(IStorage *pStorage, CPveProgres
 	CPveProgressData Loaded;
 	int TutorialSeen = 0;
 	const json_value &Mask = (*pJson)["research_mask"];
-	const bool Valid =
-		ReadInt(*pJson, "schema_version", &Loaded.m_SchemaVersion) &&
-		ReadInt(*pJson, "progress_version", &Loaded.m_ProgressVersion) &&
-		ReadInt(*pJson, "research_points", &Loaded.m_ResearchPoints) &&
-		Mask.type == json_string &&
-		ReadInt(*pJson, "highest_invasion", &Loaded.m_HighestInvasion) &&
-		ReadInt(*pJson, "preferred_checkpoint", &Loaded.m_PreferredCheckpoint) &&
-		ReadInt(*pJson, "drone_tutorial_seen", &TutorialSeen);
+	const bool Valid = ReadInt(*pJson, "schema_version", &Loaded.m_SchemaVersion) &&
+					   ReadInt(*pJson, "progress_version", &Loaded.m_ProgressVersion) &&
+					   ReadInt(*pJson, "research_points", &Loaded.m_ResearchPoints) && Mask.type == json_string &&
+					   ReadInt(*pJson, "highest_invasion", &Loaded.m_HighestInvasion) &&
+					   ReadInt(*pJson, "preferred_checkpoint", &Loaded.m_PreferredCheckpoint) &&
+					   ReadInt(*pJson, "drone_tutorial_seen", &TutorialSeen);
 	if(Valid)
 		str_copy(Loaded.m_aResearchMask, (const char *)Mask, sizeof(Loaded.m_aResearchMask));
 	json_value_free(pJson);
@@ -144,18 +142,24 @@ bool CPveProgressStorage::Save(IStorage *pStorage, const CPveProgressData &Sourc
 	Data.Sanitize();
 
 	char aJson[768];
-	str_format(aJson, sizeof(aJson),
-		"{\n"
-		"  \"schema_version\": %d,\n"
-		"  \"progress_version\": %d,\n"
-		"  \"research_points\": %d,\n"
-		"  \"research_mask\": \"%s\",\n"
-		"  \"highest_invasion\": %d,\n"
-		"  \"preferred_checkpoint\": %d,\n"
-		"  \"drone_tutorial_seen\": %d\n"
-		"}\n",
-		Data.m_SchemaVersion, Data.m_ProgressVersion, Data.m_ResearchPoints, Data.m_aResearchMask,
-		Data.m_HighestInvasion, Data.m_PreferredCheckpoint, Data.m_DroneTutorialSeen ? 1 : 0);
+	str_format(aJson,
+			   sizeof(aJson),
+			   "{\n"
+			   "  \"schema_version\": %d,\n"
+			   "  \"progress_version\": %d,\n"
+			   "  \"research_points\": %d,\n"
+			   "  \"research_mask\": \"%s\",\n"
+			   "  \"highest_invasion\": %d,\n"
+			   "  \"preferred_checkpoint\": %d,\n"
+			   "  \"drone_tutorial_seen\": %d\n"
+			   "}\n",
+			   Data.m_SchemaVersion,
+			   Data.m_ProgressVersion,
+			   Data.m_ResearchPoints,
+			   Data.m_aResearchMask,
+			   Data.m_HighestInvasion,
+			   Data.m_PreferredCheckpoint,
+			   Data.m_DroneTutorialSeen ? 1 : 0);
 
 	pStorage->RemoveFile(PROGRESS_TEMP_FILENAME, IStorage::TYPE_SAVE);
 	IOHANDLE File = pStorage->OpenFile(PROGRESS_TEMP_FILENAME, IOFLAG_WRITE, IStorage::TYPE_SAVE);

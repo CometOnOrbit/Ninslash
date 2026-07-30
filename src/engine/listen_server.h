@@ -35,7 +35,7 @@ struct CListenServerSettings
 
 class IListenServerRuntime
 {
-public:
+  public:
 	virtual ~IListenServerRuntime() {}
 	virtual bool Start(INetPacketTransport *pTransport, const CListenServerSettings &Settings) = 0;
 	virtual void Stop() = 0;

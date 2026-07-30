@@ -10,7 +10,7 @@ class CConsole : public IConsole
 {
 	class CCommand : public CCommandInfo
 	{
-	public:
+	  public:
 		CCommand *m_pNext;
 		int m_Flags;
 		bool m_Temp;
@@ -19,13 +19,15 @@ class CConsole : public IConsole
 
 		virtual const CCommandInfo *NextCommandInfo(int AccessLevel, int FlagMask) const;
 
-		void SetAccessLevel(int AccessLevel) { m_AccessLevel = clamp(AccessLevel, (int)(ACCESS_LEVEL_ADMIN), (int)(ACCESS_LEVEL_MOD)); }
+		void SetAccessLevel(int AccessLevel)
+		{
+			m_AccessLevel = clamp(AccessLevel, (int)(ACCESS_LEVEL_ADMIN), (int)(ACCESS_LEVEL_MOD));
+		}
 	};
-
 
 	class CChain
 	{
-	public:
+	  public:
 		FChainCommandCallback m_pfnChainCallback;
 		FCommandCallback m_pfnCallback;
 		void *m_pCallbackUserData;
@@ -39,7 +41,7 @@ class CConsole : public IConsole
 
 	class CExecFile
 	{
-	public:
+	  public:
 		const char *m_pFilename;
 		CExecFile *m_pPrev;
 	};
@@ -73,13 +75,13 @@ class CConsole : public IConsole
 	enum
 	{
 		CONSOLE_MAX_STR_LENGTH = 1024,
-		MAX_PARTS = (CONSOLE_MAX_STR_LENGTH+1)/2
+		MAX_PARTS = (CONSOLE_MAX_STR_LENGTH + 1) / 2
 	};
 
 	class CResult : public IResult
 	{
-	public:
-		char m_aStringStorage[CONSOLE_MAX_STR_LENGTH+1];
+	  public:
+		char m_aStringStorage[CONSOLE_MAX_STR_LENGTH + 1];
 		char *m_pArgsStart;
 
 		const char *m_pCommand;
@@ -93,24 +95,21 @@ class CConsole : public IConsole
 			mem_zero(m_apArgs, sizeof(m_apArgs));
 		}
 
-		CResult &operator =(const CResult &Other)
+		CResult &operator=(const CResult &Other)
 		{
 			if(this != &Other)
 			{
 				IResult::operator=(Other);
 				mem_copy(m_aStringStorage, Other.m_aStringStorage, sizeof(m_aStringStorage));
-				m_pArgsStart = m_aStringStorage+(Other.m_pArgsStart-Other.m_aStringStorage);
-				m_pCommand = m_aStringStorage+(Other.m_pCommand-Other.m_aStringStorage);
+				m_pArgsStart = m_aStringStorage + (Other.m_pArgsStart - Other.m_aStringStorage);
+				m_pCommand = m_aStringStorage + (Other.m_pCommand - Other.m_aStringStorage);
 				for(unsigned i = 0; i < Other.m_NumArgs; ++i)
-					m_apArgs[i] = m_aStringStorage+(Other.m_apArgs[i]-Other.m_aStringStorage);
+					m_apArgs[i] = m_aStringStorage + (Other.m_apArgs[i] - Other.m_aStringStorage);
 			}
 			return *this;
 		}
 
-		void AddArgument(const char *pArg)
-		{
-			m_apArgs[m_NumArgs++] = pArg;
-		}
+		void AddArgument(const char *pArg) { m_apArgs[m_NumArgs++] = pArg; }
 
 		virtual const char *GetString(unsigned Index);
 		virtual int GetInteger(unsigned Index);
@@ -124,14 +123,14 @@ class CConsole : public IConsole
 	{
 		CHeap m_Queue;
 
-	public:
+	  public:
 		struct CQueueEntry
 		{
 			CQueueEntry *m_pNext;
 			FCommandCallback m_pfnCommandCallback;
 			void *m_pCommandUserData;
 			CResult m_Result;
-		} *m_pFirst, *m_pLast;
+		} * m_pFirst, *m_pLast;
 
 		void AddEntry()
 		{
@@ -154,15 +153,17 @@ class CConsole : public IConsole
 	void AddCommandSorted(CCommand *pCommand);
 	CCommand *FindCommand(const char *pName, int FlagMask);
 
-public:
+  public:
 	CConsole(int FlagMask);
 
 	virtual const CCommandInfo *FirstCommandInfo(int AccessLevel, int FlagMask) const;
 	virtual const CCommandInfo *GetCommandInfo(const char *pName, int FlagMask, bool Temp);
-	virtual void PossibleCommands(const char *pStr, int FlagMask, bool Temp, FPossibleCallback pfnCallback, void *pUser);
+	virtual void
+	PossibleCommands(const char *pStr, int FlagMask, bool Temp, FPossibleCallback pfnCallback, void *pUser);
 
 	virtual void ParseArguments(int NumArgs, const char **ppArguments);
-	virtual void Register(const char *pName, const char *pParams, int Flags, FCommandCallback pfnFunc, void *pUser, const char *pHelp);
+	virtual void Register(
+		const char *pName, const char *pParams, int Flags, FCommandCallback pfnFunc, void *pUser, const char *pHelp);
 	virtual void RegisterTemp(const char *pName, const char *pParams, int Flags, const char *pHelp);
 	virtual void DeregisterTemp(const char *pName);
 	virtual void DeregisterTempAll();
@@ -178,7 +179,10 @@ public:
 	virtual void SetPrintOutputLevel(int Index, int OutputLevel);
 	virtual void Print(int Level, const char *pFrom, const char *pStr);
 
-	void SetAccessLevel(int AccessLevel) { m_AccessLevel = clamp(AccessLevel, (int)(ACCESS_LEVEL_ADMIN), (int)(ACCESS_LEVEL_MOD)); }
+	void SetAccessLevel(int AccessLevel)
+	{
+		m_AccessLevel = clamp(AccessLevel, (int)(ACCESS_LEVEL_ADMIN), (int)(ACCESS_LEVEL_MOD));
+	}
 };
 
 #endif

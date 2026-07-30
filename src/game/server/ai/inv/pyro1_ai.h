@@ -5,7 +5,7 @@
 
 class CAIpyro1 : public CAI
 {
-public:
+  public:
 	CAIpyro1(CGameContext *pGameServer, CPlayer *pPlayer, int Level);
 
 	virtual void DoBehavior();
@@ -13,10 +13,10 @@ public:
 	void OnCharacterDeath();
 	void ReceiveDamage(int CID, int Dmg);
 
-private:
+  private:
 	int m_SkipMoveUpdate;
 	vec2 m_StartPos;
-	
+
 	int m_ShockTimer;
 	int m_Skin;
 };

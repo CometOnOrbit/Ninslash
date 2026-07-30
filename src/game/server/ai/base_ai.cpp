@@ -7,13 +7,10 @@
 
 #include "base_ai.h"
 
-
-CAIbase::CAIbase(CGameContext *pGameServer, CPlayer *pPlayer)
-: CAI(pGameServer, pPlayer)
+CAIbase::CAIbase(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
 {
 	m_SkipMoveUpdate = 0;
 }
-
 
 void CAIbase::OnCharacterSpawn(CCharacter *pChr)
 {
@@ -23,67 +20,64 @@ void CAIbase::OnCharacterSpawn(CCharacter *pChr)
 	pChr->m_SkipPickups = 999;
 }
 
-
 void CAIbase::ReceiveDamage(int CID, int Dmg)
 {
-	if (frandom() > Dmg*0.02f)
+	if(frandom() > Dmg * 0.02f)
 		return;
-	
-	if (CID < 0 || CID >= MAX_CLIENTS)
+
+	if(CID < 0 || CID >= MAX_CLIENTS)
 		return;
-	
+
 	int p = CID;
-		
+
 	CPlayer *pPlayer = GameServer()->m_apPlayers[p];
 	if(!pPlayer)
 		return;
-		
-	if (pPlayer == Player())
+
+	if(pPlayer == Player())
 		return;
 
 	CCharacter *pCharacter = pPlayer->GetCharacter();
-	if (!pCharacter)
+	if(!pCharacter)
 		return;
-		
-	if (!pCharacter->IsAlive())
+
+	if(!pCharacter->IsAlive())
 		return;
-		
+
 	m_pTargetPlayer = pPlayer;
 	m_PlayerDirection = m_pTargetPlayer->GetCharacter()->m_Pos - m_Pos;
 	m_PlayerPos = m_pTargetPlayer->GetCharacter()->m_Pos;
 	m_PlayerDistance = distance(m_pTargetPlayer->GetCharacter()->m_Pos, m_Pos);
 }
 
-
 void CAIbase::DoBehavior()
 {
 	m_Attack = 0;
-	
+
 	HeadToMovingDirection();
 	SeekClosestEnemyInSight();
 
-	
 	// if we see a player
-	
-	if (m_EnemiesInSight > 0)
+
+	if(m_EnemiesInSight > 0)
 	{
-		if (!ShootAtClosestEnemy())
+		if(!ShootAtClosestEnemy())
 		{
-			if (!ShootAtClosestBuilding())
+			if(!ShootAtClosestBuilding())
 				ShootAtClosestMonster();
 		}
-		
+
 		ReactToPlayer();
 	}
 	else
 	{
 		ShootAtClosestBuilding();
 	}
-	
+
 	SeekClosestReactor();
 	ShootAtBlocks();
-	
-	if (UpdateWaypoint())
+
+	if(UpdateWaypoint())
 	{
 		MoveTowardsWaypoint();
 	}
@@ -93,20 +87,18 @@ void CAIbase::DoBehavior()
 		m_TargetPos = m_WaypointPos;
 		MoveTowardsWaypoint();
 	}
-	
+
 	/*else
 	{
 		m_WaypointPos = m_TargetPos;
 		MoveTowardsWaypoint(true);
 	}*/
-	
-	
-	//DoJumping();
-	//Unstuck();
+
+	// DoJumping();
+	// Unstuck();
 
 	RandomlyStopShooting();
-	
+
 	// next reaction in
 	m_ReactionTime = 2;
-	
 }

@@ -52,11 +52,11 @@
 #include "client.h"
 
 #if defined(CONF_FAMILY_WINDOWS)
-	#ifndef _WIN32_WINNT
-		#define _WIN32_WINNT 0x0601
-	#endif
-	#define WIN32_LEAN_AND_MEAN
-	#include <windows.h>
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #endif
 
 #include <SDL3/SDL.h>
@@ -74,8 +74,8 @@ bool IsSafePlatformJoinAddress(const char *pAddress)
 	for(int i = 0; i < Length; i++)
 	{
 		const char c = pAddress[i];
-		if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-			c == '.' || c == '-' || c == '_' || c == ':' || c == '[' || c == ']'))
+		if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '-' ||
+			 c == '_' || c == ':' || c == '[' || c == ']'))
 			return false;
 	}
 	return true;
@@ -94,7 +94,7 @@ bool IsLoopbackAddress(const NETADDR &Address)
 	}
 	return false;
 }
-}
+} // namespace
 
 void CGraph::Init(float Min, float Max)
 {
@@ -127,7 +127,7 @@ void CGraph::ScaleMin()
 
 void CGraph::Add(float v, float r, float g, float b)
 {
-	m_Index = (m_Index+1)&(MAX_VALUES-1);
+	m_Index = (m_Index + 1) & (MAX_VALUES - 1);
 	m_aValues[m_Index] = v;
 	m_aColors[m_Index][0] = r;
 	m_aColors[m_Index][1] = g;
@@ -136,8 +136,7 @@ void CGraph::Add(float v, float r, float g, float b)
 
 void CGraph::Render(IGraphics *pGraphics, int Font, float x, float y, float w, float h, const char *pDescription)
 {
-	//m_pGraphics->BlendNormal();
-
+	// m_pGraphics->BlendNormal();
 
 	pGraphics->TextureClear();
 
@@ -149,46 +148,43 @@ void CGraph::Render(IGraphics *pGraphics, int Font, float x, float y, float w, f
 
 	pGraphics->LinesBegin();
 	pGraphics->SetColor(0.95f, 0.95f, 0.95f, 1.00f);
-	IGraphics::CLineItem LineItem(x, y+h/2, x+w, y+h/2);
+	IGraphics::CLineItem LineItem(x, y + h / 2, x + w, y + h / 2);
 	pGraphics->LinesDraw(&LineItem, 1);
 	pGraphics->SetColor(0.5f, 0.5f, 0.5f, 0.75f);
-	IGraphics::CLineItem Array[2] = {
-		IGraphics::CLineItem(x, y+(h*3)/4, x+w, y+(h*3)/4),
-		IGraphics::CLineItem(x, y+h/4, x+w, y+h/4)};
+	IGraphics::CLineItem Array[2] = {IGraphics::CLineItem(x, y + (h * 3) / 4, x + w, y + (h * 3) / 4),
+									 IGraphics::CLineItem(x, y + h / 4, x + w, y + h / 4)};
 	pGraphics->LinesDraw(Array, 2);
 	for(int i = 1; i < MAX_VALUES; i++)
 	{
-		float a0 = (i-1)/(float)MAX_VALUES;
-		float a1 = i/(float)MAX_VALUES;
-		int i0 = (m_Index+i-1)&(MAX_VALUES-1);
-		int i1 = (m_Index+i)&(MAX_VALUES-1);
+		float a0 = (i - 1) / (float)MAX_VALUES;
+		float a1 = i / (float)MAX_VALUES;
+		int i0 = (m_Index + i - 1) & (MAX_VALUES - 1);
+		int i1 = (m_Index + i) & (MAX_VALUES - 1);
 
-		float v0 = (m_aValues[i0]-m_Min) / (m_Max-m_Min);
-		float v1 = (m_aValues[i1]-m_Min) / (m_Max-m_Min);
+		float v0 = (m_aValues[i0] - m_Min) / (m_Max - m_Min);
+		float v1 = (m_aValues[i1] - m_Min) / (m_Max - m_Min);
 
 		IGraphics::CColorVertex Array[2] = {
 			IGraphics::CColorVertex(0, m_aColors[i0][0], m_aColors[i0][1], m_aColors[i0][2], 0.75f),
 			IGraphics::CColorVertex(1, m_aColors[i1][0], m_aColors[i1][1], m_aColors[i1][2], 0.75f)};
 		pGraphics->SetColorVertex(Array, 2);
-		IGraphics::CLineItem LineItem(x+a0*w, y+h-v0*h, x+a1*w, y+h-v1*h);
+		IGraphics::CLineItem LineItem(x + a0 * w, y + h - v0 * h, x + a1 * w, y + h - v1 * h);
 		pGraphics->LinesDraw(&LineItem, 1);
-
 	}
 	pGraphics->LinesEnd();
 
 	pGraphics->TextureSet(Font);
 	pGraphics->QuadsBegin();
-	pGraphics->QuadsText(x+2, y+h-16, 16, pDescription);
+	pGraphics->QuadsText(x + 2, y + h - 16, 16, pDescription);
 
 	char aBuf[32];
 	str_format(aBuf, sizeof(aBuf), "%.2f", m_Max);
-	pGraphics->QuadsText(x+w-8*str_length(aBuf)-8, y+2, 16, aBuf);
+	pGraphics->QuadsText(x + w - 8 * str_length(aBuf) - 8, y + 2, 16, aBuf);
 
 	str_format(aBuf, sizeof(aBuf), "%.2f", m_Min);
-	pGraphics->QuadsText(x+w-8*str_length(aBuf)-8, y+h-16, 16, aBuf);
+	pGraphics->QuadsText(x + w - 8 * str_length(aBuf) - 8, y + h - 16, 16, aBuf);
 	pGraphics->QuadsEnd();
 }
-
 
 void CSmoothTime::Init(int64 Target)
 {
@@ -219,13 +215,13 @@ int64 CSmoothTime::Get(int64 Now)
 	if(t > c)
 		AdjustSpeed = m_aAdjustSpeed[1];
 
-	float a = ((Now-m_Snap)/(float)time_freq()) * AdjustSpeed;
+	float a = ((Now - m_Snap) / (float)time_freq()) * AdjustSpeed;
 	if(a > 1.0f)
 		a = 1.0f;
 
-	int64 r = c + (int64)((t-c)*a);
+	int64 r = c + (int64)((t - c) * a);
 
-	m_Graph.Add(a+0.5f,1,1,1);
+	m_Graph.Add(a + 0.5f, 1, 1, 1);
 
 	return r;
 }
@@ -258,12 +254,12 @@ void CSmoothTime::Update(CGraph *pGraph, int64 Target, int TimeLeft, int AdjustD
 		{
 			// ignore this ping spike
 			UpdateTimer = 0;
-			pGraph->Add(TimeLeft, 1,1,0);
+			pGraph->Add(TimeLeft, 1, 1, 0);
 			m_BadnessScore += 10;
 		}
 		else
 		{
-			pGraph->Add(TimeLeft, 1,0,0);
+			pGraph->Add(TimeLeft, 1, 0, 0);
 			m_BadnessScore += 50;
 			if(m_aAdjustSpeed[AdjustDirection] < 30.0f)
 				m_aAdjustSpeed[AdjustDirection] *= 2.0f;
@@ -274,7 +270,7 @@ void CSmoothTime::Update(CGraph *pGraph, int64 Target, int TimeLeft, int AdjustD
 		if(m_SpikeCounter)
 			m_SpikeCounter--;
 
-		pGraph->Add(TimeLeft, 0,1,0);
+		pGraph->Add(TimeLeft, 0, 1, 0);
 
 		m_aAdjustSpeed[AdjustDirection] *= 0.95f;
 		if(m_aAdjustSpeed[AdjustDirection] < 2.0f)
@@ -284,9 +280,8 @@ void CSmoothTime::Update(CGraph *pGraph, int64 Target, int TimeLeft, int AdjustD
 	if(UpdateTimer)
 		UpdateInt(Target);
 
-	m_BadnessScore -= 1+m_BadnessScore/100;
+	m_BadnessScore -= 1 + m_BadnessScore / 100;
 }
-
 
 CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotDelta)
 {
@@ -319,7 +314,7 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 
 	m_GameTickSpeed = SERVER_TICK_SPEED;
 	m_MouseIsFree = false;
-	
+
 	m_SnapCrcErrors = 0;
 	m_AutoScreenshotRecycle = false;
 	m_PendingScreenshotContextCount = 0;
@@ -397,18 +392,18 @@ int CClient::SendMsgEx(CMsgPacker *pMsg, int Flags, bool System)
 	Packet.m_pData = WireMsg.Data();
 	Packet.m_DataSize = WireMsg.Size();
 
-	if(Flags&MSGFLAG_VITAL)
+	if(Flags & MSGFLAG_VITAL)
 		Packet.m_Flags |= NETSENDFLAG_VITAL;
-	if(Flags&MSGFLAG_FLUSH)
+	if(Flags & MSGFLAG_FLUSH)
 		Packet.m_Flags |= NETSENDFLAG_FLUSH;
 
-	if(Flags&MSGFLAG_RECORD)
+	if(Flags & MSGFLAG_RECORD)
 	{
 		if(m_DemoRecorder.IsRecording())
 			m_DemoRecorder.RecordMessage(Packet.m_pData, Packet.m_DataSize);
 	}
 
-	if(!(Flags&MSGFLAG_NOSEND))
+	if(!(Flags & MSGFLAG_NOSEND))
 		m_NetClient.Send(&Packet);
 	return 0;
 }
@@ -418,14 +413,15 @@ void CClient::SendInfo()
 	CMsgPacker Msg(NETMSG_INFO);
 	Msg.AddString(GameClient()->NetVersion(), 128);
 	Msg.AddString(g_Config.m_Password, 128);
-	SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+	SendMsgEx(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH);
 }
-
 
 void CClient::SendPlatformAuth(int Policy, bool RelayRequired)
 {
-	const bool SteamAvailable = m_pPlatformServices && m_pPlatformServices->Available() && m_pPlatformServices->LocalUserID() != 0;
-	const bool UseSteamIdentity = PlatformClientUsesSteamIdentity(Policy, RelayRequired, IsLoopbackAddress(m_ServerAddress), SteamAvailable);
+	const bool SteamAvailable =
+		m_pPlatformServices && m_pPlatformServices->Available() && m_pPlatformServices->LocalUserID() != 0;
+	const bool UseSteamIdentity =
+		PlatformClientUsesSteamIdentity(Policy, RelayRequired, IsLoopbackAddress(m_ServerAddress), SteamAvailable);
 	if(!UseSteamIdentity && m_pPlatformServices)
 		m_pPlatformServices->CancelAuthSessionTicket();
 	unsigned char aTicket[2048];
@@ -450,22 +446,21 @@ void CClient::SendPlatformAuth(int Policy, bool RelayRequired)
 	Auth.AddInt(TicketSize);
 	if(TicketSize)
 		Auth.AddRaw(aTicket, TicketSize);
-	SendMsgEx(&Auth, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+	SendMsgEx(&Auth, MSGFLAG_VITAL | MSGFLAG_FLUSH);
 	if(RelayRequired && !UseSteamIdentity)
 		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "This Relay room requires a Steam identity");
 }
 
-
 void CClient::SendEnterGame()
 {
 	CMsgPacker Msg(NETMSG_ENTERGAME);
-	SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+	SendMsgEx(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH);
 }
 
 void CClient::SendReady()
 {
 	CMsgPacker Msg(NETMSG_READY);
-	SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+	SendMsgEx(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH);
 }
 
 void CClient::RconAuth(const char *pName, const char *pPassword)
@@ -505,12 +500,11 @@ void CClient::DirectInput(int *pInput, int Size)
 	Msg.AddInt(m_PredTick);
 	Msg.AddInt(Size);
 
-	for(i = 0; i < Size/4; i++)
+	for(i = 0; i < Size / 4; i++)
 		Msg.AddInt(pInput[i]);
 
 	SendMsgEx(&Msg, 0);
 }
-
 
 void CClient::SendInput()
 {
@@ -536,11 +530,11 @@ void CClient::SendInput()
 	m_aInputs[m_CurrentInput].m_Time = Now;
 
 	// pack it
-	for(int i = 0; i < Size/4; i++)
+	for(int i = 0; i < Size / 4; i++)
 		Msg.AddInt(m_aInputs[m_CurrentInput].m_aData[i]);
 
 	m_CurrentInput++;
-	m_CurrentInput%=200;
+	m_CurrentInput %= 200;
 
 	SendMsgEx(&Msg, MSGFLAG_FLUSH);
 }
@@ -580,10 +574,15 @@ void CClient::SetState(int s)
 	}
 	m_State = s;
 	if(m_pInput)
-		m_pInput->SetGamepadActionSet(s == IClient::STATE_ONLINE ? PLATFORM_INPUT_GAME : (s == IClient::STATE_DEMOPLAYBACK ? PLATFORM_INPUT_SPECTATOR : PLATFORM_INPUT_MENU));
+		m_pInput->SetGamepadActionSet(
+			s == IClient::STATE_ONLINE
+				? PLATFORM_INPUT_GAME
+				: (s == IClient::STATE_DEMOPLAYBACK ? PLATFORM_INPUT_SPECTATOR : PLATFORM_INPUT_MENU));
 	if(m_pPlatformServices && m_pPlatformServices->Available())
 	{
-		CPlatformPresence Presence; mem_zero(&Presence, sizeof(Presence)); Presence.m_State = PLATFORM_PRESENCE_MENU;
+		CPlatformPresence Presence;
+		mem_zero(&Presence, sizeof(Presence));
+		Presence.m_State = PLATFORM_PRESENCE_MENU;
 		if(s == IClient::STATE_CONNECTING || s == IClient::STATE_LOADING)
 			Presence.m_State = PLATFORM_PRESENCE_LOADING;
 		else if(s == IClient::STATE_ONLINE)
@@ -595,7 +594,12 @@ void CClient::SetState(int s)
 		else if(s == IClient::STATE_DEMOPLAYBACK)
 			Presence.m_State = PLATFORM_PRESENCE_REPLAY;
 		m_pPlatformServices->SetRichPresence(Presence);
-		m_pPlatformServices->SetTimelineMode(s == IClient::STATE_ONLINE ? PLATFORM_TIMELINE_PLAYING : s == IClient::STATE_DEMOPLAYBACK ? PLATFORM_TIMELINE_REPLAY : (s == IClient::STATE_CONNECTING || s == IClient::STATE_LOADING) ? PLATFORM_TIMELINE_LOADING : PLATFORM_TIMELINE_MENU, "");
+		m_pPlatformServices->SetTimelineMode(s == IClient::STATE_ONLINE			? PLATFORM_TIMELINE_PLAYING
+											 : s == IClient::STATE_DEMOPLAYBACK ? PLATFORM_TIMELINE_REPLAY
+											 : (s == IClient::STATE_CONNECTING || s == IClient::STATE_LOADING)
+												 ? PLATFORM_TIMELINE_LOADING
+												 : PLATFORM_TIMELINE_MENU,
+											 "");
 	}
 	if(Old != s)
 		GameClient()->OnStateChange(m_State, Old);
@@ -666,7 +670,8 @@ void CClient::Connect(const char *pAddress)
 		if(net_addr_from_str(&SteamAddr, m_aServerAddressStr) == 0)
 			for(int i = 0; i < 8; i++)
 				SteamID |= (unsigned long long)SteamAddr.ip[i] << (i * 8);
-		if(!SteamID || !m_pPlatformServices || !m_pPlatformServices->RelayTransport() || m_NetClient.ConnectSteam(SteamID, m_pPlatformServices->RelayTransport()) != 0)
+		if(!SteamID || !m_pPlatformServices || !m_pPlatformServices->RelayTransport() ||
+		   m_NetClient.ConnectSteam(SteamID, m_pPlatformServices->RelayTransport()) != 0)
 		{
 			m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Unable to connect to Steam Relay host");
 			SetState(IClient::STATE_OFFLINE);
@@ -705,7 +710,7 @@ void CClient::Connect(const char *pAddress)
 void CClient::DisconnectWithReason(const char *pReason)
 {
 	char aBuf[512];
-	str_format(aBuf, sizeof(aBuf), "disconnecting. reason='%s'", pReason?pReason:"unknown");
+	str_format(aBuf, sizeof(aBuf), "disconnecting. reason='%s'", pReason ? pReason : "unknown");
 	m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", aBuf);
 
 	// stop demo playback and recorder
@@ -751,7 +756,6 @@ void CClient::Disconnect()
 		m_pPlatformServices->LeaveGameLobby();
 }
 
-
 void CClient::GetServerInfo(CServerInfo *pServerInfo)
 {
 	mem_copy(pServerInfo, &m_CurrentServerInfo, sizeof(m_CurrentServerInfo));
@@ -770,7 +774,8 @@ void CClient::ServerInfoRequest()
 
 int CClient::LoadData()
 {
-	m_DebugFont = Graphics()->LoadTexture("debug_font.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, IGraphics::TEXLOAD_NORESAMPLE);
+	m_DebugFont = Graphics()->LoadTexture(
+		"debug_font.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, IGraphics::TEXLOAD_NORESAMPLE);
 	if(m_DebugFont <= 0)
 	{
 		dbg_msg("startup", "required resource failed to load: debug_font.png");
@@ -799,9 +804,11 @@ void CClient::SnapInvalidateItem(int SnapID, int Index)
 	i = m_aSnapshots[SnapID]->m_pAltSnap->GetItem(Index);
 	if(i)
 	{
-		if((char *)i < (char *)m_aSnapshots[SnapID]->m_pAltSnap || (char *)i > (char *)m_aSnapshots[SnapID]->m_pAltSnap + m_aSnapshots[SnapID]->m_SnapSize)
+		if((char *)i < (char *)m_aSnapshots[SnapID]->m_pAltSnap ||
+		   (char *)i > (char *)m_aSnapshots[SnapID]->m_pAltSnap + m_aSnapshots[SnapID]->m_SnapSize)
 			m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", "snap invalidate problem");
-		if((char *)i >= (char *)m_aSnapshots[SnapID]->m_pSnap && (char *)i < (char *)m_aSnapshots[SnapID]->m_pSnap + m_aSnapshots[SnapID]->m_SnapSize)
+		if((char *)i >= (char *)m_aSnapshots[SnapID]->m_pSnap &&
+		   (char *)i < (char *)m_aSnapshots[SnapID]->m_pSnap + m_aSnapshots[SnapID]->m_SnapSize)
 			m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", "snap invalidate problem");
 		i->m_TypeAndID = -1;
 	}
@@ -837,7 +844,6 @@ void CClient::SnapSetStaticsize(int ItemType, int Size)
 	m_SnapshotDelta.SetStaticsize(ItemType, Size);
 }
 
-
 void CClient::DebugRender()
 {
 	static NETSTATS Prev, Current;
@@ -849,12 +855,12 @@ void CClient::DebugRender()
 	if(!g_Config.m_Debug)
 		return;
 
-	//m_pGraphics->BlendNormal();
+	// m_pGraphics->BlendNormal();
 	Graphics()->TextureSet(m_DebugFont);
-	Graphics()->MapScreen(0,0,Graphics()->ScreenWidth(),Graphics()->ScreenHeight());
+	Graphics()->MapScreen(0, 0, Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
 	Graphics()->QuadsBegin();
 
-	if(time_get()-LastSnap > time_freq())
+	if(time_get() - LastSnap > time_freq())
 	{
 		LastSnap = time_get();
 		Prev = Current;
@@ -867,29 +873,45 @@ void CClient::DebugRender()
 		udp = 8
 		total = 42
 	*/
-	FrameTimeAvg = FrameTimeAvg*0.9f + m_RenderFrameTime*0.1f;
-	str_format(aBuffer, sizeof(aBuffer), "ticks: %8d %8d mem %dk %d gfxmem: %dk fps: %3d",
-		m_CurGameTick, m_PredTick,
-		mem_stats()->allocated/1024,
-		mem_stats()->total_allocations,
-		Graphics()->MemoryUsage()/1024,
-		(int)(1.0f/FrameTimeAvg + 0.5f));
+	FrameTimeAvg = FrameTimeAvg * 0.9f + m_RenderFrameTime * 0.1f;
+	str_format(aBuffer,
+			   sizeof(aBuffer),
+			   "ticks: %8d %8d mem %dk %d gfxmem: %dk fps: %3d",
+			   m_CurGameTick,
+			   m_PredTick,
+			   mem_stats()->allocated / 1024,
+			   mem_stats()->total_allocations,
+			   Graphics()->MemoryUsage() / 1024,
+			   (int)(1.0f / FrameTimeAvg + 0.5f));
 	Graphics()->QuadsText(2, 2, 16, aBuffer);
 
-
 	{
-		int SendPackets = (Current.sent_packets-Prev.sent_packets);
-		int SendBytes = (Current.sent_bytes-Prev.sent_bytes);
-		int SendTotal = SendBytes + SendPackets*42;
-		int RecvPackets = (Current.recv_packets-Prev.recv_packets);
-		int RecvBytes = (Current.recv_bytes-Prev.recv_bytes);
-		int RecvTotal = RecvBytes + RecvPackets*42;
+		int SendPackets = (Current.sent_packets - Prev.sent_packets);
+		int SendBytes = (Current.sent_bytes - Prev.sent_bytes);
+		int SendTotal = SendBytes + SendPackets * 42;
+		int RecvPackets = (Current.recv_packets - Prev.recv_packets);
+		int RecvBytes = (Current.recv_bytes - Prev.recv_bytes);
+		int RecvTotal = RecvBytes + RecvPackets * 42;
 
-		if(!SendPackets) SendPackets++;
-		if(!RecvPackets) RecvPackets++;
-		str_format(aBuffer, sizeof(aBuffer), "send: %3d %5d+%4d=%5d (%3d kbps) avg: %5d\nrecv: %3d %5d+%4d=%5d (%3d kbps) avg: %5d",
-			SendPackets, SendBytes, SendPackets*42, SendTotal, (SendTotal*8)/1024, SendBytes/SendPackets,
-			RecvPackets, RecvBytes, RecvPackets*42, RecvTotal, (RecvTotal*8)/1024, RecvBytes/RecvPackets);
+		if(!SendPackets)
+			SendPackets++;
+		if(!RecvPackets)
+			RecvPackets++;
+		str_format(aBuffer,
+				   sizeof(aBuffer),
+				   "send: %3d %5d+%4d=%5d (%3d kbps) avg: %5d\nrecv: %3d %5d+%4d=%5d (%3d kbps) avg: %5d",
+				   SendPackets,
+				   SendBytes,
+				   SendPackets * 42,
+				   SendTotal,
+				   (SendTotal * 8) / 1024,
+				   SendBytes / SendPackets,
+				   RecvPackets,
+				   RecvBytes,
+				   RecvPackets * 42,
+				   RecvTotal,
+				   (RecvTotal * 8) / 1024,
+				   RecvBytes / RecvPackets);
 		Graphics()->QuadsText(2, 14, 16, aBuffer);
 	}
 
@@ -901,33 +923,41 @@ void CClient::DebugRender()
 		{
 			if(m_SnapshotDelta.GetDataRate(i))
 			{
-				str_format(aBuffer, sizeof(aBuffer), "%4d %20s: %8d %8d %8d", i, GameClient()->GetItemName(i), m_SnapshotDelta.GetDataRate(i)/8, m_SnapshotDelta.GetDataUpdates(i),
-					(m_SnapshotDelta.GetDataRate(i)/m_SnapshotDelta.GetDataUpdates(i))/8);
-				Graphics()->QuadsText(2, 100+y*12, 16, aBuffer);
+				str_format(aBuffer,
+						   sizeof(aBuffer),
+						   "%4d %20s: %8d %8d %8d",
+						   i,
+						   GameClient()->GetItemName(i),
+						   m_SnapshotDelta.GetDataRate(i) / 8,
+						   m_SnapshotDelta.GetDataUpdates(i),
+						   (m_SnapshotDelta.GetDataRate(i) / m_SnapshotDelta.GetDataUpdates(i)) / 8);
+				Graphics()->QuadsText(2, 100 + y * 12, 16, aBuffer);
 				y++;
 			}
 		}
 	}
 
-	str_format(aBuffer, sizeof(aBuffer), "pred: %d ms",
-		(int)((m_PredictedTime.Get(Now)-m_GameTime.Get(Now))*1000/(float)time_freq()));
+	str_format(aBuffer,
+			   sizeof(aBuffer),
+			   "pred: %d ms",
+			   (int)((m_PredictedTime.Get(Now) - m_GameTime.Get(Now)) * 1000 / (float)time_freq()));
 	Graphics()->QuadsText(2, 70, 16, aBuffer);
 	Graphics()->QuadsEnd();
 
 	// render graphs
 	if(g_Config.m_DbgGraphs)
 	{
-		//Graphics()->MapScreen(0,0,400.0f,300.0f);
-		float w = Graphics()->ScreenWidth()/4.0f;
-		float h = Graphics()->ScreenHeight()/6.0f;
-		float sp = Graphics()->ScreenWidth()/100.0f;
-		float x = Graphics()->ScreenWidth()-w-sp;
+		// Graphics()->MapScreen(0,0,400.0f,300.0f);
+		float w = Graphics()->ScreenWidth() / 4.0f;
+		float h = Graphics()->ScreenHeight() / 6.0f;
+		float sp = Graphics()->ScreenWidth() / 100.0f;
+		float x = Graphics()->ScreenWidth() - w - sp;
 
 		m_FpsGraph.ScaleMax();
 		m_FpsGraph.ScaleMin();
-		m_FpsGraph.Render(Graphics(), m_DebugFont, x, sp*5, w, h, "FPS");
-		m_InputtimeMarginGraph.Render(Graphics(), m_DebugFont, x, sp*5+h+sp, w, h, "Prediction Margin");
-		m_GametimeMarginGraph.Render(Graphics(), m_DebugFont, x, sp*5+h+sp+h+sp, w, h, "Gametime Margin");
+		m_FpsGraph.Render(Graphics(), m_DebugFont, x, sp * 5, w, h, "FPS");
+		m_InputtimeMarginGraph.Render(Graphics(), m_DebugFont, x, sp * 5 + h + sp, w, h, "Prediction Margin");
+		m_GametimeMarginGraph.Render(Graphics(), m_DebugFont, x, sp * 5 + h + sp + h + sp, w, h, "Gametime Margin");
 	}
 }
 
@@ -944,7 +974,7 @@ const char *CClient::ErrorString()
 void CClient::Render()
 {
 	if(g_Config.m_GfxClear)
-		Graphics()->Clear(1,1,0);
+		Graphics()->Clear(1, 1, 0);
 
 	GameClient()->OnRender();
 	DebugRender();
@@ -986,8 +1016,6 @@ const char *CClient::LoadMap(const char *pName, const char *pFilename, unsigned 
 	return 0x0;
 }
 
-
-
 const char *CClient::LoadMapSearch(const char *pMapName, int WantedCrc)
 {
 	const char *pError = 0;
@@ -995,7 +1023,7 @@ const char *CClient::LoadMapSearch(const char *pMapName, int WantedCrc)
 	str_format(aBuf, sizeof(aBuf), "loading map, map=%s wanted crc=%08x", pMapName, WantedCrc);
 	m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "client", aBuf);
 	SetState(IClient::STATE_LOADING);
-	
+
 	// try the normal maps folder
 	str_format(aBuf, sizeof(aBuf), "maps/%s.map", pMapName);
 	pError = LoadMap(pMapName, aBuf, WantedCrc);
@@ -1035,23 +1063,22 @@ int CClient::PlayerScoreComp(const void *a, const void *b)
 void CClient::ProcessConnlessPacket(CNetChunk *pPacket)
 {
 	// version server
-	if(m_VersionInfo.m_State == CVersionInfo::STATE_READY && net_addr_comp(&pPacket->m_Address, &m_VersionInfo.m_VersionServeraddr.m_Addr) == 0)
+	if(m_VersionInfo.m_State == CVersionInfo::STATE_READY &&
+	   net_addr_comp(&pPacket->m_Address, &m_VersionInfo.m_VersionServeraddr.m_Addr) == 0)
 	{
 		// version info
 		if(pPacket->m_DataSize == (int)(sizeof(VERSIONSRV_VERSION) + sizeof(GAME_RELEASE_VERSION)) &&
-			mem_comp(pPacket->m_pData, VERSIONSRV_VERSION, sizeof(VERSIONSRV_VERSION)) == 0)
+		   mem_comp(pPacket->m_pData, VERSIONSRV_VERSION, sizeof(VERSIONSRV_VERSION)) == 0)
 
 		{
-			char *pVersionData = (char*)pPacket->m_pData + sizeof(VERSIONSRV_VERSION);
+			char *pVersionData = (char *)pPacket->m_pData + sizeof(VERSIONSRV_VERSION);
 			int VersionMatch = !mem_comp(pVersionData, GAME_RELEASE_VERSION, sizeof(GAME_RELEASE_VERSION));
 
 			char aVersion[sizeof(GAME_RELEASE_VERSION)];
 			str_copy(aVersion, pVersionData, sizeof(aVersion));
 
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "version does %s (%s)",
-				VersionMatch ? "match" : "NOT match",
-				aVersion);
+			str_format(aBuf, sizeof(aBuf), "version does %s (%s)", VersionMatch ? "match" : "NOT match", aVersion);
 			m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "client/version", aBuf);
 
 			// assume version is out of date when version-data doesn't match
@@ -1073,17 +1100,17 @@ void CClient::ProcessConnlessPacket(CNetChunk *pPacket)
 
 		// map version list
 		if(pPacket->m_DataSize >= (int)sizeof(VERSIONSRV_MAPLIST) &&
-			mem_comp(pPacket->m_pData, VERSIONSRV_MAPLIST, sizeof(VERSIONSRV_MAPLIST)) == 0)
+		   mem_comp(pPacket->m_pData, VERSIONSRV_MAPLIST, sizeof(VERSIONSRV_MAPLIST)) == 0)
 		{
-			int Size = pPacket->m_DataSize-sizeof(VERSIONSRV_MAPLIST);
-			int Num = Size/sizeof(CMapVersion);
-			m_MapChecker.AddMaplist((CMapVersion *)((char*)pPacket->m_pData+sizeof(VERSIONSRV_MAPLIST)), Num);
+			int Size = pPacket->m_DataSize - sizeof(VERSIONSRV_MAPLIST);
+			int Num = Size / sizeof(CMapVersion);
+			m_MapChecker.AddMaplist((CMapVersion *)((char *)pPacket->m_pData + sizeof(VERSIONSRV_MAPLIST)), Num);
 		}
 	}
 
 	// server list from master server
 	if(pPacket->m_DataSize >= (int)sizeof(SERVERBROWSE_LIST) &&
-		mem_comp(pPacket->m_pData, SERVERBROWSE_LIST, sizeof(SERVERBROWSE_LIST)) == 0)
+	   mem_comp(pPacket->m_pData, SERVERBROWSE_LIST, sizeof(SERVERBROWSE_LIST)) == 0)
 	{
 		// check for valid master server address
 		bool Valid = false;
@@ -1102,14 +1129,15 @@ void CClient::ProcessConnlessPacket(CNetChunk *pPacket)
 		if(!Valid)
 			return;
 
-		int Size = pPacket->m_DataSize-sizeof(SERVERBROWSE_LIST);
-		int Num = Size/sizeof(CMastersrvAddr);
-		CMastersrvAddr *pAddrs = (CMastersrvAddr *)((char*)pPacket->m_pData+sizeof(SERVERBROWSE_LIST));
+		int Size = pPacket->m_DataSize - sizeof(SERVERBROWSE_LIST);
+		int Num = Size / sizeof(CMastersrvAddr);
+		CMastersrvAddr *pAddrs = (CMastersrvAddr *)((char *)pPacket->m_pData + sizeof(SERVERBROWSE_LIST));
 		for(int i = 0; i < Num; i++)
 		{
 			NETADDR Addr;
 
-			static char IPV4Mapping[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (char)0xFF, (char)0xFF };
+			static char IPV4Mapping[] = {
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (char)0xFF, (char)0xFF};
 
 			// copy address
 			if(!mem_comp(IPV4Mapping, pAddrs[i].m_aIp, sizeof(IPV4Mapping)))
@@ -1126,25 +1154,34 @@ void CClient::ProcessConnlessPacket(CNetChunk *pPacket)
 				Addr.type = NETTYPE_IPV6;
 				mem_copy(Addr.ip, pAddrs[i].m_aIp, sizeof(Addr.ip));
 			}
-			Addr.port = (pAddrs[i].m_aPort[0]<<8) | pAddrs[i].m_aPort[1];
+			Addr.port = (pAddrs[i].m_aPort[0] << 8) | pAddrs[i].m_aPort[1];
 
 			m_ServerBrowser.Set(Addr, IServerBrowser::SET_MASTER_ADD, -1, 0x0);
 		}
 	}
 
 	// server info
-	if(pPacket->m_DataSize >= (int)sizeof(SERVERBROWSE_INFO) && mem_comp(pPacket->m_pData, SERVERBROWSE_INFO, sizeof(SERVERBROWSE_INFO)) == 0)
+	if(pPacket->m_DataSize >= (int)sizeof(SERVERBROWSE_INFO) &&
+	   mem_comp(pPacket->m_pData, SERVERBROWSE_INFO, sizeof(SERVERBROWSE_INFO)) == 0)
 	{
 		// we got ze info
 		CUnpacker Up;
 		CServerInfo Info = {0};
 
-		Up.Reset((unsigned char*)pPacket->m_pData+sizeof(SERVERBROWSE_INFO), pPacket->m_DataSize-sizeof(SERVERBROWSE_INFO));
+		Up.Reset((unsigned char *)pPacket->m_pData + sizeof(SERVERBROWSE_INFO),
+				 pPacket->m_DataSize - sizeof(SERVERBROWSE_INFO));
 		int Token = str_toint(Up.GetString());
-		str_copy(Info.m_aVersion, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aVersion));
-		str_copy(Info.m_aName, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aName));
-		str_copy(Info.m_aMap, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aMap));
-		str_copy(Info.m_aGameType, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aGameType));
+		str_copy(Info.m_aVersion,
+				 Up.GetString(CUnpacker::SANITIZE_CC | CUnpacker::SKIP_START_WHITESPACES),
+				 sizeof(Info.m_aVersion));
+		str_copy(Info.m_aName,
+				 Up.GetString(CUnpacker::SANITIZE_CC | CUnpacker::SKIP_START_WHITESPACES),
+				 sizeof(Info.m_aName));
+		str_copy(
+			Info.m_aMap, Up.GetString(CUnpacker::SANITIZE_CC | CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aMap));
+		str_copy(Info.m_aGameType,
+				 Up.GetString(CUnpacker::SANITIZE_CC | CUnpacker::SKIP_START_WHITESPACES),
+				 sizeof(Info.m_aGameType));
 		Info.m_Flags = str_toint(Up.GetString());
 		Info.m_NumPlayers = str_toint(Up.GetString());
 		Info.m_MaxPlayers = str_toint(Up.GetString());
@@ -1152,29 +1189,34 @@ void CClient::ProcessConnlessPacket(CNetChunk *pPacket)
 		Info.m_MaxClients = str_toint(Up.GetString());
 
 		// don't add invalid info to the server browser list
-		if(Info.m_NumClients < 0 || Info.m_NumClients > MAX_CLIENTS || Info.m_MaxClients < 0 || Info.m_MaxClients > MAX_CLIENTS ||
-			Info.m_NumPlayers < 0 || Info.m_NumPlayers > Info.m_NumClients || Info.m_MaxPlayers < 0 || Info.m_MaxPlayers > Info.m_MaxClients)
+		if(Info.m_NumClients < 0 || Info.m_NumClients > MAX_CLIENTS || Info.m_MaxClients < 0 ||
+		   Info.m_MaxClients > MAX_CLIENTS || Info.m_NumPlayers < 0 || Info.m_NumPlayers > Info.m_NumClients ||
+		   Info.m_MaxPlayers < 0 || Info.m_MaxPlayers > Info.m_MaxClients)
 			return;
 
 		net_addr_str(&pPacket->m_Address, Info.m_aAddress, sizeof(Info.m_aAddress), true);
 
-			for(int i = 0; i < Info.m_NumClients; i++)
+		for(int i = 0; i < Info.m_NumClients; i++)
 		{
-			str_copy(Info.m_aClients[i].m_aName, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aClients[i].m_aName));
-			str_copy(Info.m_aClients[i].m_aClan, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(Info.m_aClients[i].m_aClan));
+			str_copy(Info.m_aClients[i].m_aName,
+					 Up.GetString(CUnpacker::SANITIZE_CC | CUnpacker::SKIP_START_WHITESPACES),
+					 sizeof(Info.m_aClients[i].m_aName));
+			str_copy(Info.m_aClients[i].m_aClan,
+					 Up.GetString(CUnpacker::SANITIZE_CC | CUnpacker::SKIP_START_WHITESPACES),
+					 sizeof(Info.m_aClients[i].m_aClan));
 			Info.m_aClients[i].m_Country = str_toint(Up.GetString());
 			Info.m_aClients[i].m_Score = str_toint(Up.GetString());
-				Info.m_aClients[i].m_Player = str_toint(Up.GetString()) != 0 ? true : false;
-			}
-			if(Up.RemainingSize() > 0)
-			{
-				Info.m_AuthPolicy = str_toint(Up.GetString());
-				Info.m_Official = str_toint(Up.GetString()) != 0;
-				Info.m_Modded = str_toint(Up.GetString()) != 0;
-				Info.m_HasPlatformMetadata = !Up.Error() && Info.m_AuthPolicy >= 0 && Info.m_AuthPolicy <= 2;
-				if(!Info.m_HasPlatformMetadata)
-					return;
-			}
+			Info.m_aClients[i].m_Player = str_toint(Up.GetString()) != 0 ? true : false;
+		}
+		if(Up.RemainingSize() > 0)
+		{
+			Info.m_AuthPolicy = str_toint(Up.GetString());
+			Info.m_Official = str_toint(Up.GetString()) != 0;
+			Info.m_Modded = str_toint(Up.GetString()) != 0;
+			Info.m_HasPlatformMetadata = !Up.Error() && Info.m_AuthPolicy >= 0 && Info.m_AuthPolicy <= 2;
+			if(!Info.m_HasPlatformMetadata)
+				return;
+		}
 
 		if(!Up.Error())
 		{
@@ -1200,7 +1242,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 
 	// unpack msgid and system flag
 	int Msg = Unpacker.GetInt();
-	int Sys = Msg&1;
+	int Sys = Msg & 1;
 	Msg >>= 1;
 
 	if(Unpacker.Error())
@@ -1211,7 +1253,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 		// system message
 		if(Msg == NETMSG_MAP_CHANGE)
 		{
-			const char *pMap = Unpacker.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES);
+			const char *pMap = Unpacker.GetString(CUnpacker::SANITIZE_CC | CUnpacker::SKIP_START_WHITESPACES);
 			int MapCrc = Unpacker.GetInt();
 			int MapSize = Unpacker.GetInt();
 			const char *pError = 0;
@@ -1246,14 +1288,19 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 				else
 				{
 					// don't flood downloadedmaps folder with generated maps
-					if (str_comp(pMap, "generated") == 0)
+					if(str_comp(pMap, "generated") == 0)
 					{
 						if(!m_DemoRecorder.IsRecording())
 							m_pStorage->RemoveFile("downloadedmaps/generated.map", IStorage::TYPE_SAVE);
-						str_format(m_aMapdownloadFilename, sizeof(m_aMapdownloadFilename), "downloadedmaps/%s.map", pMap);
+						str_format(
+							m_aMapdownloadFilename, sizeof(m_aMapdownloadFilename), "downloadedmaps/%s.map", pMap);
 					}
 					else
-						str_format(m_aMapdownloadFilename, sizeof(m_aMapdownloadFilename), "downloadedmaps/%s_%08x.map", pMap, MapCrc);
+						str_format(m_aMapdownloadFilename,
+								   sizeof(m_aMapdownloadFilename),
+								   "downloadedmaps/%s_%08x.map",
+								   pMap,
+								   MapCrc);
 
 					char aBuf[256];
 					str_format(aBuf, sizeof(aBuf), "starting to download map to '%s'", m_aMapdownloadFilename);
@@ -1267,10 +1314,10 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 					m_MapdownloadCrc = MapCrc;
 					m_MapdownloadTotalsize = MapSize;
 					m_MapdownloadAmount = 0;
-			
+
 					CMsgPacker Msg(NETMSG_REQUEST_MAP_DATA);
 					Msg.AddInt(m_MapdownloadChunk);
-					SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+					SendMsgEx(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH);
 
 					if(g_Config.m_Debug)
 					{
@@ -1289,7 +1336,8 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 			const unsigned char *pData = Unpacker.GetRaw(Size);
 
 			// check fior errors
-			if(Unpacker.Error() || Size <= 0 || MapCRC != m_MapdownloadCrc || Chunk != m_MapdownloadChunk || !m_MapdownloadFile)
+			if(Unpacker.Error() || Size <= 0 || MapCRC != m_MapdownloadCrc || Chunk != m_MapdownloadChunk ||
+			   !m_MapdownloadFile)
 				return;
 
 			io_write(m_MapdownloadFile, pData, Size);
@@ -1324,7 +1372,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 
 				CMsgPacker Msg(NETMSG_REQUEST_MAP_DATA);
 				Msg.AddInt(m_MapdownloadChunk);
-				SendMsgEx(&Msg, MSGFLAG_VITAL|MSGFLAG_FLUSH);
+				SendMsgEx(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH);
 
 				if(g_Config.m_Debug)
 				{
@@ -1415,7 +1463,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 		else if(Msg == NETMSG_PING_REPLY)
 		{
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "latency %.2f", (time_get() - m_PingStartTime)*1000 / (float)time_freq());
+			str_format(aBuf, sizeof(aBuf), "latency %.2f", (time_get() - m_PingStartTime) * 1000 / (float)time_freq());
 			m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client/network", aBuf);
 		}
 		else if(Msg == NETMSG_INPUTTIMING)
@@ -1430,7 +1478,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 				if(m_aInputs[k].m_Tick == InputPredTick)
 				{
 					Target = m_aInputs[k].m_PredictedTime + (time_get() - m_aInputs[k].m_Time);
-					Target = Target - (int64)(((TimeLeft-PREDICTION_MARGIN)/1000.0f)*time_freq());
+					Target = Target - (int64)(((TimeLeft - PREDICTION_MARGIN) / 1000.0f) * time_freq());
 					break;
 				}
 			}
@@ -1443,7 +1491,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 			int NumParts = 1;
 			int Part = 0;
 			int GameTick = Unpacker.GetInt();
-			int DeltaTick = GameTick-Unpacker.GetInt();
+			int DeltaTick = GameTick - Unpacker.GetInt();
 			int PartSize = 0;
 			int Crc = 0;
 			int CompleteSize = 0;
@@ -1479,10 +1527,10 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 				}
 
 				// TODO: clean this up abit
-				mem_copy((char*)m_aSnapshotIncommingData + Part*MAX_SNAPSHOT_PACKSIZE, pData, PartSize);
-				m_SnapshotParts |= 1<<Part;
+				mem_copy((char *)m_aSnapshotIncommingData + Part * MAX_SNAPSHOT_PACKSIZE, pData, PartSize);
+				m_SnapshotParts |= 1 << Part;
 
-				if(m_SnapshotParts == (unsigned)((1<<NumParts)-1))
+				if(m_SnapshotParts == (unsigned)((1 << NumParts) - 1))
 				{
 					static CSnapshot Emptysnap;
 					CSnapshot *pDeltaShot = &Emptysnap;
@@ -1491,10 +1539,10 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 					int DeltaSize;
 					unsigned char aTmpBuffer2[CSnapshot::MAX_SIZE];
 					unsigned char aTmpBuffer3[CSnapshot::MAX_SIZE];
-					CSnapshot *pTmpBuffer3 = (CSnapshot*)aTmpBuffer3;	// Fix compiler warning for strict-aliasing
+					CSnapshot *pTmpBuffer3 = (CSnapshot *)aTmpBuffer3; // Fix compiler warning for strict-aliasing
 					int SnapSize;
 
-					CompleteSize = (NumParts-1) * MAX_SNAPSHOT_PACKSIZE + PartSize;
+					CompleteSize = (NumParts - 1) * MAX_SNAPSHOT_PACKSIZE + PartSize;
 
 					// reset snapshoting
 					m_SnapshotParts = 0;
@@ -1527,7 +1575,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 
 					// decompress snapshot
 					pDeltaData = m_SnapshotDelta.EmptyDelta();
-					DeltaSize = sizeof(int)*3;
+					DeltaSize = sizeof(int) * 3;
 
 					if(CompleteSize)
 					{
@@ -1553,8 +1601,16 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 						if(g_Config.m_Debug)
 						{
 							char aBuf[256];
-							str_format(aBuf, sizeof(aBuf), "snapshot crc error #%d - tick=%d wantedcrc=%d gotcrc=%d compressed_size=%d delta_tick=%d",
-								m_SnapCrcErrors, GameTick, Crc, pTmpBuffer3->Crc(), CompleteSize, DeltaTick);
+							str_format(aBuf,
+									   sizeof(aBuf),
+									   "snapshot crc error #%d - tick=%d wantedcrc=%d gotcrc=%d compressed_size=%d "
+									   "delta_tick=%d",
+									   m_SnapCrcErrors,
+									   GameTick,
+									   Crc,
+									   pTmpBuffer3->Crc(),
+									   CompleteSize,
+									   DeltaTick);
 							m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
 						}
 
@@ -1601,9 +1657,9 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 					if(m_RecivedSnapshots == 2)
 					{
 						// start at 200ms and work from there
-						m_PredictedTime.Init(GameTick*time_freq()/50);
+						m_PredictedTime.Init(GameTick * time_freq() / 50);
 						m_PredictedTime.SetAdjustSpeed(1, 1000.0f);
-						m_GameTime.Init((GameTick-1)*time_freq()/50);
+						m_GameTime.Init((GameTick - 1) * time_freq() / 50);
 						m_aSnapshots[SNAP_PREV] = m_SnapshotStorage.m_pFirst;
 						m_aSnapshots[SNAP_CURRENT] = m_SnapshotStorage.m_pLast;
 						m_LocalStartTime = time_get();
@@ -1615,9 +1671,9 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 					if(m_RecivedSnapshots > 2)
 					{
 						int64 Now = m_GameTime.Get(time_get());
-						int64 TickStart = GameTick*time_freq()/50;
-						int64 TimeLeft = (TickStart-Now)*1000 / time_freq();
-						m_GameTime.Update(&m_GametimeMarginGraph, (GameTick-1)*time_freq()/50, TimeLeft, 0);
+						int64 TickStart = GameTick * time_freq() / 50;
+						int64 TimeLeft = (TickStart - Now) * 1000 / time_freq();
+						m_GameTime.Update(&m_GametimeMarginGraph, (GameTick - 1) * time_freq() / 50, TimeLeft, 0);
 					}
 
 					// ack snapshot
@@ -1643,7 +1699,8 @@ void CClient::PumpNetwork()
 	if(State() != IClient::STATE_DEMOPLAYBACK)
 	{
 		// check for errors
-		if(State() != IClient::STATE_OFFLINE && State() != IClient::STATE_QUITING && m_NetClient.State() == NETSTATE_OFFLINE)
+		if(State() != IClient::STATE_OFFLINE && State() != IClient::STATE_QUITING &&
+		   m_NetClient.State() == NETSTATE_OFFLINE)
 		{
 			SetState(IClient::STATE_OFFLINE);
 			Disconnect();
@@ -1701,7 +1758,7 @@ void CClient::OnDemoPlayerMessage(void *pData, int Size)
 
 	// unpack msgid and system flag
 	int Msg = Unpacker.GetInt();
-	int Sys = Msg&1;
+	int Sys = Msg & 1;
 	Msg >>= 1;
 
 	if(Unpacker.Error())
@@ -1795,7 +1852,7 @@ void CClient::Update()
 		while(1)
 		{
 			CSnapshotStorage::CHolder *pCur = m_aSnapshots[SNAP_CURRENT];
-			int64 TickStart = (pCur->m_Tick)*time_freq()/50;
+			int64 TickStart = (pCur->m_Tick) * time_freq() / 50;
 
 			if(TickStart < Now)
 			{
@@ -1824,22 +1881,23 @@ void CClient::Update()
 
 		if(m_aSnapshots[SNAP_CURRENT] && m_aSnapshots[SNAP_PREV])
 		{
-			int64 CurtickStart = (m_aSnapshots[SNAP_CURRENT]->m_Tick)*time_freq()/50;
-			int64 PrevtickStart = (m_aSnapshots[SNAP_PREV]->m_Tick)*time_freq()/50;
-			int PrevPredTick = (int)(PredNow*50/time_freq());
-			int NewPredTick = PrevPredTick+1;
+			int64 CurtickStart = (m_aSnapshots[SNAP_CURRENT]->m_Tick) * time_freq() / 50;
+			int64 PrevtickStart = (m_aSnapshots[SNAP_PREV]->m_Tick) * time_freq() / 50;
+			int PrevPredTick = (int)(PredNow * 50 / time_freq());
+			int NewPredTick = PrevPredTick + 1;
 
-			m_GameIntraTick = (Now - PrevtickStart) / (float)(CurtickStart-PrevtickStart);
+			m_GameIntraTick = (Now - PrevtickStart) / (float)(CurtickStart - PrevtickStart);
 			m_GameTickTime = (Now - PrevtickStart) / (float)Freq; //(float)SERVER_TICK_SPEED);
 
-			CurtickStart = NewPredTick*time_freq()/50;
-			PrevtickStart = PrevPredTick*time_freq()/50;
-			m_PredIntraTick = (PredNow - PrevtickStart) / (float)(CurtickStart-PrevtickStart);
+			CurtickStart = NewPredTick * time_freq() / 50;
+			PrevtickStart = PrevPredTick * time_freq() / 50;
+			m_PredIntraTick = (PredNow - PrevtickStart) / (float)(CurtickStart - PrevtickStart);
 
-			if(NewPredTick < m_aSnapshots[SNAP_PREV]->m_Tick-SERVER_TICK_SPEED || NewPredTick > m_aSnapshots[SNAP_PREV]->m_Tick+SERVER_TICK_SPEED)
+			if(NewPredTick < m_aSnapshots[SNAP_PREV]->m_Tick - SERVER_TICK_SPEED ||
+			   NewPredTick > m_aSnapshots[SNAP_PREV]->m_Tick + SERVER_TICK_SPEED)
 			{
 				m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "client", "prediction time reset!");
-				m_PredictedTime.Init(m_aSnapshots[SNAP_CURRENT]->m_Tick*time_freq()/50);
+				m_PredictedTime.Init(m_aSnapshots[SNAP_CURRENT]->m_Tick * time_freq() / 50);
 			}
 
 			if(NewPredTick > m_PredTick)
@@ -1855,17 +1913,16 @@ void CClient::Update()
 		// only do sane predictions
 		if(Repredict)
 		{
-			if(m_PredTick > m_CurGameTick && m_PredTick < m_CurGameTick+50)
+			if(m_PredTick > m_CurGameTick && m_PredTick < m_CurGameTick + 50)
 				GameClient()->OnPredict();
 		}
 
 		// fetch server info if we don't have it
-		if(State() >= IClient::STATE_LOADING &&
-			m_CurrentServerInfoRequestTime >= 0 &&
-			time_get() > m_CurrentServerInfoRequestTime)
+		if(State() >= IClient::STATE_LOADING && m_CurrentServerInfoRequestTime >= 0 &&
+		   time_get() > m_CurrentServerInfoRequestTime)
 		{
 			m_ServerBrowser.Request(m_ServerAddress);
-			m_CurrentServerInfoRequestTime = time_get()+time_freq()*2;
+			m_CurrentServerInfoRequestTime = time_get() + time_freq() * 2;
 		}
 	}
 
@@ -1876,7 +1933,7 @@ void CClient::Update()
 		int64 Now = time_get();
 		if(State() == IClient::STATE_OFFLINE)
 		{
-			if(Now > ActionTaken+time_freq()*2)
+			if(Now > ActionTaken + time_freq() * 2)
 			{
 				m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "stress", "reconnecting!");
 				Connect(g_Config.m_DbgStressServer);
@@ -1885,7 +1942,7 @@ void CClient::Update()
 		}
 		else
 		{
-			if(Now > ActionTaken+time_freq()*(10+g_Config.m_DbgStress))
+			if(Now > ActionTaken + time_freq() * (10 + g_Config.m_DbgStress))
 			{
 				m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "stress", "disconnecting!");
 				Disconnect();
@@ -1936,10 +1993,10 @@ void CClient::VersionUpdate()
 
 void CClient::RegisterInterfaces()
 {
-	Kernel()->RegisterInterface(static_cast<IDemoRecorder*>(&m_DemoRecorder));
-	Kernel()->RegisterInterface(static_cast<IDemoPlayer*>(&m_DemoPlayer));
-	Kernel()->RegisterInterface(static_cast<IServerBrowser*>(&m_ServerBrowser));
-	Kernel()->RegisterInterface(static_cast<IFriends*>(&m_Friends));
+	Kernel()->RegisterInterface(static_cast<IDemoRecorder *>(&m_DemoRecorder));
+	Kernel()->RegisterInterface(static_cast<IDemoPlayer *>(&m_DemoPlayer));
+	Kernel()->RegisterInterface(static_cast<IServerBrowser *>(&m_ServerBrowser));
+	Kernel()->RegisterInterface(static_cast<IFriends *>(&m_Friends));
 }
 
 void CClient::InitInterfaces()
@@ -1947,7 +2004,7 @@ void CClient::InitInterfaces()
 	// fetch interfaces
 	m_pEngine = Kernel()->RequestInterface<IEngine>();
 	m_pEditor = Kernel()->RequestInterface<IEditor>();
-	//m_pGraphics = Kernel()->RequestInterface<IEngineGraphics>();
+	// m_pGraphics = Kernel()->RequestInterface<IEngineGraphics>();
 	m_pSound = Kernel()->RequestInterface<IEngineSound>();
 	m_pGamepad = Kernel()->RequestInterface<IEngineGamepad>();
 	m_pGameClient = Kernel()->RequestInterface<IGameClient>();
@@ -1974,7 +2031,11 @@ void CClient::Run()
 			dbg_msg("client", "unable to init SDL base: %s", SDL_GetError());
 #if defined(CONF_FAMILY_WINDOWS)
 			char aMessage[1400];
-			str_format(aMessage, sizeof(aMessage), "Ninslash could not initialize SDL.\n\n%s\n\nStartup log:\n%s", SDL_GetError(), windows_startup_log_path());
+			str_format(aMessage,
+					   sizeof(aMessage),
+					   "Ninslash could not initialize SDL.\n\n%s\n\nStartup log:\n%s",
+					   SDL_GetError(),
+					   windows_startup_log_path());
 			if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
 				gui_messagebox("Ninslash startup failed", aMessage);
 #endif
@@ -1997,7 +2058,10 @@ void CClient::Run()
 			}
 			dbg_msg("steam", "continuing with standalone networking after Steam initialization failure");
 		}
-		CPlatformPresence Presence; mem_zero(&Presence, sizeof(Presence)); Presence.m_State = PLATFORM_PRESENCE_MENU; m_pPlatformServices->SetRichPresence(Presence);
+		CPlatformPresence Presence;
+		mem_zero(&Presence, sizeof(Presence));
+		Presence.m_State = PLATFORM_PRESENCE_MENU;
+		m_pPlatformServices->SetRichPresence(Presence);
 	}
 #if defined(CONF_FAMILY_WINDOWS)
 	// Steam may install its own top-level filter, so restore startup diagnostics.
@@ -2011,19 +2075,23 @@ void CClient::Run()
 #endif
 
 		m_pGraphics = CreateEngineGraphicsThreaded();
-		
+
 		bool RegisterFail = false;
-		RegisterFail = RegisterFail || !Kernel()->RegisterInterface(static_cast<IEngineGraphics*>(m_pGraphics)); // register graphics as both
-		RegisterFail = RegisterFail || !Kernel()->RegisterInterface(static_cast<IGraphics*>(m_pGraphics));
+		RegisterFail = RegisterFail || !Kernel()->RegisterInterface(
+										   static_cast<IEngineGraphics *>(m_pGraphics)); // register graphics as both
+		RegisterFail = RegisterFail || !Kernel()->RegisterInterface(static_cast<IGraphics *>(m_pGraphics));
 
 		if(RegisterFail || m_pGraphics->Init() != 0)
 		{
 			dbg_msg("client", "couldn't init graphics");
 #if defined(CONF_FAMILY_WINDOWS)
 			char aMessage[1400];
-			str_format(aMessage, sizeof(aMessage),
-				"Ninslash could not create a working OpenGL window, including safe mode.\n\nLast SDL error: %s\n\nStartup log:\n%s",
-				SDL_GetError(), windows_startup_log_path());
+			str_format(aMessage,
+					   sizeof(aMessage),
+					   "Ninslash could not create a working OpenGL window, including safe mode.\n\nLast SDL error: "
+					   "%s\n\nStartup log:\n%s",
+					   SDL_GetError(),
+					   windows_startup_log_path());
 			if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
 				gui_messagebox("Ninslash graphics startup failed", aMessage);
 #endif
@@ -2036,7 +2104,7 @@ void CClient::Run()
 
 	// init sound, allowed to fail
 	m_SoundInitFailed = Sound()->Init() != 0;
-	
+
 	// init gamepad, allowed to fail
 	m_GamepadInitFailed = Gamepad()->Init() != 0;
 
@@ -2058,9 +2126,11 @@ void CClient::Run()
 			dbg_msg("client", "couldn't open socket");
 #if defined(CONF_FAMILY_WINDOWS)
 			char aMessage[1400];
-			str_format(aMessage, sizeof(aMessage),
-				"Ninslash could not open its network socket.\n\nCheck firewall, VPN, and any configured bind address.\n\nStartup log:\n%s",
-				windows_startup_log_path());
+			str_format(aMessage,
+					   sizeof(aMessage),
+					   "Ninslash could not open its network socket.\n\nCheck firewall, VPN, and any configured bind "
+					   "address.\n\nStartup log:\n%s",
+					   windows_startup_log_path());
 			if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
 				gui_messagebox("Ninslash network startup failed", aMessage);
 #endif
@@ -2073,7 +2143,10 @@ void CClient::Run()
 	{
 #if defined(CONF_FAMILY_WINDOWS)
 		char aMessage[1400];
-		str_format(aMessage, sizeof(aMessage), "Ninslash could not initialize its font renderer.\n\nStartup log:\n%s", windows_startup_log_path());
+		str_format(aMessage,
+				   sizeof(aMessage),
+				   "Ninslash could not initialize its font renderer.\n\nStartup log:\n%s",
+				   windows_startup_log_path());
 		if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
 			gui_messagebox("Ninslash font startup failed", aMessage);
 #endif
@@ -2089,13 +2162,16 @@ void CClient::Run()
 	// init the editor
 	m_pEditor->Init();
 
-
 	// load data
 	if(!LoadData())
 	{
 #if defined(CONF_FAMILY_WINDOWS)
 		char aMessage[1400];
-		str_format(aMessage, sizeof(aMessage), "Ninslash could not load required game resources.\n\nCheck that the data directory is installed next to the executable.\n\nStartup log:\n%s", windows_startup_log_path());
+		str_format(aMessage,
+				   sizeof(aMessage),
+				   "Ninslash could not load required game resources.\n\nCheck that the data directory is installed "
+				   "next to the executable.\n\nStartup log:\n%s",
+				   windows_startup_log_path());
 		if(!SDL_getenv("NINSLASH_TEST_NO_MESSAGEBOX"))
 			gui_messagebox("Ninslash resource startup failed", aMessage);
 #endif
@@ -2130,7 +2206,7 @@ void CClient::Run()
 	// process pending commands
 	m_pConsole->StoreCommands(false);
 
-	while (1)
+	while(1)
 	{
 		if(m_pPlatformServices)
 		{
@@ -2147,8 +2223,12 @@ void CClient::Run()
 				for(int j = i + 1; j < m_PendingScreenshotContextCount; j++)
 					m_aPendingScreenshotContexts[j - 1] = m_aPendingScreenshotContexts[j];
 				m_PendingScreenshotContextCount--;
-				if(Screenshot.m_Success && Context.m_SyncToSteam && !m_pPlatformServices->RegisterScreenshot(Screenshot.m_aAbsolutePath, Screenshot.m_Width, Screenshot.m_Height, Context))
-					m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Screenshot saved locally; Steam library registration was unavailable");
+				if(Screenshot.m_Success && Context.m_SyncToSteam &&
+				   !m_pPlatformServices->RegisterScreenshot(
+					   Screenshot.m_aAbsolutePath, Screenshot.m_Width, Screenshot.m_Height, Context))
+					m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,
+									  "steam",
+									  "Screenshot saved locally; Steam library registration was unavailable");
 			}
 			CPlatformPartyLaunch PartyLaunch;
 			if(m_pPlatformServices->ConsumePartyLaunch(&PartyLaunch))
@@ -2159,7 +2239,9 @@ void CClient::Run()
 					{
 						m_ConnectionAsyncStatus.m_State = CLIENT_ASYNC_FAILED;
 						m_ConnectionAsyncStatus.m_Stage = CLIENT_STAGE_JOINING_ROOM;
-						str_copy(m_ConnectionAsyncStatus.m_aErrorKey, "The party game room is no longer available.", sizeof(m_ConnectionAsyncStatus.m_aErrorKey));
+						str_copy(m_ConnectionAsyncStatus.m_aErrorKey,
+								 "The party game room is no longer available.",
+								 sizeof(m_ConnectionAsyncStatus.m_aErrorKey));
 					}
 				}
 				else if(PartyLaunch.m_TargetType == PLATFORM_PARTY_TARGET_ADDRESS)
@@ -2173,7 +2255,8 @@ void CClient::Run()
 						dbg_msg("platform", "ignored unsafe party join request");
 				}
 			}
-			if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING && m_SteamHostStatus.m_Stage == CLIENT_STAGE_CREATING_ROOM && m_pPlatformServices->CurrentLobbyID())
+			if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING &&
+			   m_SteamHostStatus.m_Stage == CLIENT_STAGE_CREATING_ROOM && m_pPlatformServices->CurrentLobbyID())
 			{
 				m_SteamHostStatus.m_State = CLIENT_ASYNC_SUCCEEDED;
 				m_SteamHostStatus.m_Progress = 1.0f;
@@ -2183,23 +2266,51 @@ void CClient::Run()
 			if(m_pPlatformServices->Available() && time_get() >= m_NextPlatformPresenceUpdate)
 			{
 				m_NextPlatformPresenceUpdate = time_get() + time_freq() * 5;
-				CPlatformPresence Presence; mem_zero(&Presence, sizeof(Presence)); Presence.m_State = PLATFORM_PRESENCE_MENU;
+				CPlatformPresence Presence;
+				mem_zero(&Presence, sizeof(Presence));
+				Presence.m_State = PLATFORM_PRESENCE_MENU;
 				if(State() == IClient::STATE_ONLINE)
 				{
 					Presence.m_State = PLATFORM_PRESENCE_PLAYING;
 					str_copy(Presence.m_aMode, m_CurrentServerInfo.m_aGameType, sizeof(Presence.m_aMode));
-					str_copy(Presence.m_aMap, m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, sizeof(Presence.m_aMap));
-					Presence.m_RoomPlayers = m_CurrentServerInfo.m_NumClients; Presence.m_RoomCapacity = m_CurrentServerInfo.m_MaxClients;
-					Presence.m_ConnectVerified = IsSafePlatformJoinAddress(m_aServerAddressStr); str_copy(Presence.m_aConnect, m_aServerAddressStr, sizeof(Presence.m_aConnect));
+					str_copy(Presence.m_aMap,
+							 m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap,
+							 sizeof(Presence.m_aMap));
+					Presence.m_RoomPlayers = m_CurrentServerInfo.m_NumClients;
+					Presence.m_RoomCapacity = m_CurrentServerInfo.m_MaxClients;
+					Presence.m_ConnectVerified = IsSafePlatformJoinAddress(m_aServerAddressStr);
+					str_copy(Presence.m_aConnect, m_aServerAddressStr, sizeof(Presence.m_aConnect));
 				}
-				else if(State() == IClient::STATE_CONNECTING || State() == IClient::STATE_LOADING) Presence.m_State = PLATFORM_PRESENCE_LOADING;
-				else if(State() == IClient::STATE_DEMOPLAYBACK) Presence.m_State = PLATFORM_PRESENCE_REPLAY;
+				else if(State() == IClient::STATE_CONNECTING || State() == IClient::STATE_LOADING)
+					Presence.m_State = PLATFORM_PRESENCE_LOADING;
+				else if(State() == IClient::STATE_DEMOPLAYBACK)
+					Presence.m_State = PLATFORM_PRESENCE_REPLAY;
 				m_pPlatformServices->SetRichPresence(Presence);
 				if(State() == IClient::STATE_ONLINE)
 				{
-					CPlatformScreenshotContext Context; mem_zero(&Context, sizeof(Context)); str_copy(Context.m_aLocation, Presence.m_aMap, sizeof(Context.m_aLocation));
-					for(int i = 0; i < m_pPlatformServices->LobbyMemberCount() && Context.m_UserCount < 32; i++) { CPlatformUserInfo Info; if(m_pPlatformServices->LobbyMemberInfo(i, &Info)) Context.m_aUsers[Context.m_UserCount++] = Info.m_UserID; }
-					const char *pID = g_Config.m_ClModIds; while(*pID && Context.m_PublishedFileCount < 32) { unsigned long long ID = 0; int Length = 0; if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0) break; Context.m_aPublishedFiles[Context.m_PublishedFileCount++] = ID; pID += Length; if(*pID == ',') pID++; else if(*pID) break; }
+					CPlatformScreenshotContext Context;
+					mem_zero(&Context, sizeof(Context));
+					str_copy(Context.m_aLocation, Presence.m_aMap, sizeof(Context.m_aLocation));
+					for(int i = 0; i < m_pPlatformServices->LobbyMemberCount() && Context.m_UserCount < 32; i++)
+					{
+						CPlatformUserInfo Info;
+						if(m_pPlatformServices->LobbyMemberInfo(i, &Info))
+							Context.m_aUsers[Context.m_UserCount++] = Info.m_UserID;
+					}
+					const char *pID = g_Config.m_ClModIds;
+					while(*pID && Context.m_PublishedFileCount < 32)
+					{
+						unsigned long long ID = 0;
+						int Length = 0;
+						if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0)
+							break;
+						Context.m_aPublishedFiles[Context.m_PublishedFileCount++] = ID;
+						pID += Length;
+						if(*pID == ',')
+							pID++;
+						else if(*pID)
+							break;
+					}
 					m_pPlatformServices->SetScreenshotContext(Context);
 				}
 			}
@@ -2212,7 +2323,11 @@ void CClient::Run()
 				if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING)
 				{
 					m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
-					str_copy(m_SteamHostStatus.m_aErrorKey, LobbyFailure.m_State == CLIENT_ASYNC_FAILED && LobbyFailure.m_aErrorKey[0] ? LobbyFailure.m_aErrorKey : "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+					str_copy(m_SteamHostStatus.m_aErrorKey,
+							 LobbyFailure.m_State == CLIENT_ASYNC_FAILED && LobbyFailure.m_aErrorKey[0]
+								 ? LobbyFailure.m_aErrorKey
+								 : "Steam rejected room creation. Check your connection and retry.",
+							 sizeof(m_SteamHostStatus.m_aErrorKey));
 				}
 				dbg_msg("steam", "room creation failed; Listen Server stopped");
 			}
@@ -2228,8 +2343,11 @@ void CClient::Run()
 			if(m_pPlatformServices->ConsumeJoinFailure(aJoinFailure, sizeof(aJoinFailure)))
 			{
 				m_ConnectionAsyncStatus.m_State = CLIENT_ASYNC_FAILED;
-				m_ConnectionAsyncStatus.m_Stage = str_find(aJoinFailure, "Workshop") || str_find(aJoinFailure, "Mod") ? CLIENT_STAGE_SYNCING_MODS : CLIENT_STAGE_JOINING_ROOM;
-				str_copy(m_ConnectionAsyncStatus.m_aErrorKey, aJoinFailure, sizeof(m_ConnectionAsyncStatus.m_aErrorKey));
+				m_ConnectionAsyncStatus.m_Stage = str_find(aJoinFailure, "Workshop") || str_find(aJoinFailure, "Mod")
+													  ? CLIENT_STAGE_SYNCING_MODS
+													  : CLIENT_STAGE_JOINING_ROOM;
+				str_copy(
+					m_ConnectionAsyncStatus.m_aErrorKey, aJoinFailure, sizeof(m_ConnectionAsyncStatus.m_aErrorKey));
 				m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", aJoinFailure);
 			}
 		}
@@ -2244,19 +2362,18 @@ void CClient::Run()
 			m_aCmdConnect[0] = 0;
 		}
 
-        if(m_MouseIsFree)
-            Input()->SetMouseModes(0);
-		
+		if(m_MouseIsFree)
+			Input()->SetMouseModes(0);
+
 		// update input
 		if(Input()->Update())
-			break;	// SDL_QUIT
+			break; // SDL_QUIT
 
 		// update sound
 		Sound()->Update();
 
 		// release focus
-		if(!m_MouseIsFree &&
-		    (Input()->MouseLeft() || (g_Config.m_DbgFocus && Input()->KeyPressed(KEY_ESCAPE)) ))
+		if(!m_MouseIsFree && (Input()->MouseLeft() || (g_Config.m_DbgFocus && Input()->KeyPressed(KEY_ESCAPE))))
 		{
 			m_MouseModes = Input()->GetMouseModes();
 			Input()->SetMouseModes(0);
@@ -2265,7 +2382,7 @@ void CClient::Run()
 		if(m_MouseIsFree && (Input()->MouseEntered() || Input()->KeyPressed(KEY_MOUSE_1)))
 		{
 			Input()->SetMouseModes(m_MouseModes);
-			m_MouseIsFree = false; 
+			m_MouseIsFree = false;
 		}
 
 		// panic quit button
@@ -2282,13 +2399,13 @@ void CClient::Run()
 			g_Config.m_DbgGraphs ^= 1;
 
 		if(Input()->KeyPressed(KEY_LCTRL) && Input()->KeyPressed(KEY_LSHIFT) && Input()->KeyDown(KEY_E))
-			g_Config.m_ClEditor = g_Config.m_ClEditor^1;
+			g_Config.m_ClEditor = g_Config.m_ClEditor ^ 1;
 
 		/*
 		if(!gfx_window_open())
 			break;
 		*/
-		
+
 		// render
 		{
 			if(g_Config.m_ClEditor)
@@ -2296,22 +2413,22 @@ void CClient::Run()
 				if(!m_EditorActive)
 				{
 					GameClient()->OnActivateEditor();
-        			m_MouseModes = Input()->GetMouseModes();
-    			    Input()->SetMouseModes(0);
-    			    m_ShowCursor = Input()->ShowCursor(0);
-    			    Input()->ShowCursor(0);
+					m_MouseModes = Input()->GetMouseModes();
+					Input()->SetMouseModes(0);
+					m_ShowCursor = Input()->ShowCursor(0);
+					Input()->ShowCursor(0);
 					m_EditorActive = true;
 				}
 			}
 			else if(m_EditorActive)
 			{
-			    Input()->SetMouseModes(m_MouseModes);
-			    Input()->ShowCursor(m_ShowCursor);
+				Input()->SetMouseModes(m_MouseModes);
+				Input()->ShowCursor(m_ShowCursor);
 				m_EditorActive = false;
 			}
 
 			Update();
-			
+
 			if(!g_Config.m_GfxAsyncRender || m_pGraphics->IsIdle() || m_Video.IsRecording())
 			{
 				m_RenderFrames++;
@@ -2323,12 +2440,12 @@ void CClient::Run()
 					m_RenderFrameTimeLow = m_RenderFrameTime;
 				if(m_RenderFrameTime > m_RenderFrameTimeHigh)
 					m_RenderFrameTimeHigh = m_RenderFrameTime;
-				m_FpsGraph.Add(1.0f/m_RenderFrameTime, 1,1,1);
+				m_FpsGraph.Add(1.0f / m_RenderFrameTime, 1, 1, 1);
 
 				m_LastRenderTime = Now;
 
 				// when we are stress testing only render every 10th frame
-				if(m_Video.IsRecording() || !g_Config.m_DbgStress || (m_RenderFrames%10) == 0 )
+				if(m_Video.IsRecording() || !g_Config.m_DbgStress || (m_RenderFrames % 10) == 0)
 				{
 					if(!m_EditorActive)
 						Render();
@@ -2343,7 +2460,9 @@ void CClient::Run()
 					// from the previous swap. Discard completions for local-only
 					// screenshots so the bounded result queue cannot fill up.
 					IGraphics::CScreenshotResult UnclaimedScreenshot;
-					while(Graphics()->ConsumeScreenshotResult(&UnclaimedScreenshot)) {}
+					while(Graphics()->ConsumeScreenshotResult(&UnclaimedScreenshot))
+					{
+					}
 					m_pGraphics->Swap();
 				}
 			}
@@ -2385,7 +2504,7 @@ void CClient::Run()
 		}*/
 
 		// update local time
-		m_LocalTime = (time_get()-m_LocalStartTime)/(float)time_freq();
+		m_LocalTime = (time_get() - m_LocalStartTime) / (float)time_freq();
 	}
 
 	GameClient()->OnShutdown();
@@ -2411,7 +2530,6 @@ void CClient::Run()
 		SDL_Quit();
 	}
 }
-
 
 void CClient::Con_Connect(IConsole::IResult *pResult, void *pUserData)
 {
@@ -2454,7 +2572,9 @@ void CClient::AutoScreenshot_Start()
 		mem_zero(&Context, sizeof(Context));
 		Context.m_RequestID = Graphics()->TakeScreenshot("auto/autoscreen");
 		Context.m_SyncToSteam = g_Config.m_ClAutoScreenshotSteam != 0;
-		str_copy(Context.m_aLocation, m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap, sizeof(Context.m_aLocation));
+		str_copy(Context.m_aLocation,
+				 m_CurrentServerInfo.m_aMap[0] ? m_CurrentServerInfo.m_aMap : m_aCurrentMap,
+				 sizeof(Context.m_aLocation));
 		QueueScreenshotContext(Context);
 		m_AutoScreenshotRecycle = true;
 	}
@@ -2464,7 +2584,8 @@ void CClient::QueueScreenshotContext(const CPlatformScreenshotContext &Context)
 {
 	if(!Context.m_RequestID)
 		return;
-	if(m_PendingScreenshotContextCount >= (int)(sizeof(m_aPendingScreenshotContexts) / sizeof(m_aPendingScreenshotContexts[0])))
+	if(m_PendingScreenshotContextCount >=
+	   (int)(sizeof(m_aPendingScreenshotContexts) / sizeof(m_aPendingScreenshotContexts[0])))
 	{
 		for(int i = 1; i < m_PendingScreenshotContextCount; i++)
 			m_aPendingScreenshotContexts[i - 1] = m_aPendingScreenshotContexts[i];
@@ -2496,11 +2617,31 @@ void CClient::Con_Screenshot(IConsole::IResult *pResult, void *pUserData)
 	mem_zero(&Context, sizeof(Context));
 	Context.m_RequestID = pSelf->Graphics()->TakeScreenshot(0);
 	Context.m_SyncToSteam = true;
-	str_copy(Context.m_aLocation, pSelf->m_CurrentServerInfo.m_aMap[0] ? pSelf->m_CurrentServerInfo.m_aMap : pSelf->m_aCurrentMap, sizeof(Context.m_aLocation));
+	str_copy(Context.m_aLocation,
+			 pSelf->m_CurrentServerInfo.m_aMap[0] ? pSelf->m_CurrentServerInfo.m_aMap : pSelf->m_aCurrentMap,
+			 sizeof(Context.m_aLocation));
 	if(pSelf->m_pPlatformServices)
 	{
-		for(int i = 0; i < pSelf->m_pPlatformServices->LobbyMemberCount() && i < 32; i++) { CPlatformUserInfo Info; if(pSelf->m_pPlatformServices->LobbyMemberInfo(i, &Info)) Context.m_aUsers[Context.m_UserCount++] = Info.m_UserID; }
-		const char *pID = g_Config.m_ClModIds; while(*pID && Context.m_PublishedFileCount < 32) { unsigned long long ID = 0; int Length = 0; if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0) break; Context.m_aPublishedFiles[Context.m_PublishedFileCount++] = ID; pID += Length; if(*pID == ',') pID++; else if(*pID) break; }
+		for(int i = 0; i < pSelf->m_pPlatformServices->LobbyMemberCount() && i < 32; i++)
+		{
+			CPlatformUserInfo Info;
+			if(pSelf->m_pPlatformServices->LobbyMemberInfo(i, &Info))
+				Context.m_aUsers[Context.m_UserCount++] = Info.m_UserID;
+		}
+		const char *pID = g_Config.m_ClModIds;
+		while(*pID && Context.m_PublishedFileCount < 32)
+		{
+			unsigned long long ID = 0;
+			int Length = 0;
+			if(sscanf(pID, "%llu%n", &ID, &Length) != 1 || Length <= 0)
+				break;
+			Context.m_aPublishedFiles[Context.m_PublishedFileCount++] = ID;
+			pID += Length;
+			if(*pID == ',')
+				pID++;
+			else if(*pID)
+				break;
+		}
 	}
 	pSelf->QueueScreenshotContext(Context);
 }
@@ -2547,10 +2688,8 @@ const char *CClient::DemoPlayer_Play(const char *pFilename, int StorageType)
 		return "error loading demo";
 
 	// load map
-	Crc = (m_DemoPlayer.Info()->m_Header.m_aMapCrc[0]<<24)|
-		(m_DemoPlayer.Info()->m_Header.m_aMapCrc[1]<<16)|
-		(m_DemoPlayer.Info()->m_Header.m_aMapCrc[2]<<8)|
-		(m_DemoPlayer.Info()->m_Header.m_aMapCrc[3]);
+	Crc = (m_DemoPlayer.Info()->m_Header.m_aMapCrc[0] << 24) | (m_DemoPlayer.Info()->m_Header.m_aMapCrc[1] << 16) |
+		  (m_DemoPlayer.Info()->m_Header.m_aMapCrc[2] << 8) | (m_DemoPlayer.Info()->m_Header.m_aMapCrc[3]);
 	pError = LoadMapSearch(m_DemoPlayer.Info()->m_Header.m_aMapName, Crc);
 	if(pError)
 	{
@@ -2630,7 +2769,8 @@ void CClient::DemoRecorder_Start(const char *pFilename, bool WithTimestamp)
 		}
 	}
 
-	if(m_DemoRecorder.Start(Storage(), m_pConsole, aFilename, GameClient()->NetVersion(), m_aCurrentMap, m_CurrentMapCrc, "client") < 0)
+	if(m_DemoRecorder.Start(
+		   Storage(), m_pConsole, aFilename, GameClient()->NetVersion(), m_aCurrentMap, m_CurrentMapCrc, "client") < 0)
 		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "demorec/record", "recording failed");
 	else
 	{
@@ -2705,7 +2845,9 @@ void CClient::Con_SteamLobbyCreate(IConsole::IResult *pResult, void *pUserData)
 	mem_zero(&Settings, sizeof(Settings));
 	Settings.m_Visibility = Visibility;
 	Settings.m_MaxClients = clamp(g_Config.m_ClLocalServerMaxClients, 1, (int)MAX_CLIENTS);
-	str_copy(Settings.m_aName, g_Config.m_ClLocalServerName[0] ? g_Config.m_ClLocalServerName : "Steam room", sizeof(Settings.m_aName));
+	str_copy(Settings.m_aName,
+			 g_Config.m_ClLocalServerName[0] ? g_Config.m_ClLocalServerName : "Steam room",
+			 sizeof(Settings.m_aName));
 	str_copy(Settings.m_aPassword, g_Config.m_ClLocalServerPassword, sizeof(Settings.m_aPassword));
 	str_copy(Settings.m_aMap, g_Config.m_SvMap, sizeof(Settings.m_aMap));
 	str_copy(Settings.m_aGameType, g_Config.m_SvGametype, sizeof(Settings.m_aGameType));
@@ -2720,10 +2862,13 @@ void CClient::Con_SteamLobbyCreate(IConsole::IResult *pResult, void *pUserData)
 bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 {
 	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
-	if(!m_pPlatformServices || !m_pPlatformServices->Available() || !m_pListenServer || !m_pPlatformServices->RelayListenTransport())
+	if(!m_pPlatformServices || !m_pPlatformServices->Available() || !m_pListenServer ||
+	   !m_pPlatformServices->RelayListenTransport())
 	{
 		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
-		str_copy(m_SteamHostStatus.m_aErrorKey, "Steam hosting is unavailable. Start Steam and try again.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		str_copy(m_SteamHostStatus.m_aErrorKey,
+				 "Steam hosting is unavailable. Start Steam and try again.",
+				 sizeof(m_SteamHostStatus.m_aErrorKey));
 		return false;
 	}
 	if(m_pListenServer->Running())
@@ -2737,7 +2882,8 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	Settings.m_Port = -1;
 	for(int Offset = 0; Offset < 10; Offset++)
 	{
-		const int Candidate = PreferredPort + Offset <= 65535 ? PreferredPort + Offset : 1024 + PreferredPort + Offset - 65536;
+		const int Candidate =
+			PreferredPort + Offset <= 65535 ? PreferredPort + Offset : 1024 + PreferredPort + Offset - 65536;
 		NETADDR BindAddress;
 		mem_zero(&BindAddress, sizeof(BindAddress));
 		BindAddress.type = NETTYPE_IPV4;
@@ -2754,7 +2900,9 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	if(Settings.m_Port < 0)
 	{
 		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
-		str_copy(m_SteamHostStatus.m_aErrorKey, "The preferred port and the next nine ports are already in use.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		str_copy(m_SteamHostStatus.m_aErrorKey,
+				 "The preferred port and the next nine ports are already in use.",
+				 sizeof(m_SteamHostStatus.m_aErrorKey));
 		return false;
 	}
 	if(Settings.m_Port != PreferredPort)
@@ -2785,7 +2933,9 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	if(!m_pListenServer->Start(m_pPlatformServices->RelayListenTransport(), Settings))
 	{
 		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
-		str_copy(m_SteamHostStatus.m_aErrorKey, "The Steam room server could not start. Check the log and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		str_copy(m_SteamHostStatus.m_aErrorKey,
+				 "The Steam room server could not start. Check the log and retry.",
+				 sizeof(m_SteamHostStatus.m_aErrorKey));
 		return false;
 	}
 	for(int Attempt = 0; Attempt < 200 && m_pListenServer->Running() && !m_pListenServer->Ready(); Attempt++)
@@ -2794,18 +2944,28 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	{
 		m_pListenServer->Stop();
 		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
-		str_copy(m_SteamHostStatus.m_aErrorKey, "The Steam room server did not become ready. Retry or create a LAN game.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		str_copy(m_SteamHostStatus.m_aErrorKey,
+				 "The Steam room server did not become ready. Retry or create a LAN game.",
+				 sizeof(m_SteamHostStatus.m_aErrorKey));
 		return false;
 	}
 	m_SteamHostStatus.m_Progress = 0.65f;
 	m_SteamHostStatus.m_Stage = CLIENT_STAGE_CREATING_ROOM;
-	if(!m_pPlatformServices->CreateLobby((EPlatformLobbyVisibility)clamp(Host.m_Visibility, (int)PLATFORM_LOBBY_INVITE_ONLY, (int)PLATFORM_LOBBY_PUBLIC), Settings.m_MaxClients, Settings.m_Port))
+	if(!m_pPlatformServices->CreateLobby((EPlatformLobbyVisibility)clamp(Host.m_Visibility,
+																		 (int)PLATFORM_LOBBY_INVITE_ONLY,
+																		 (int)PLATFORM_LOBBY_PUBLIC),
+										 Settings.m_MaxClients,
+										 Settings.m_Port))
 	{
 		CPlatformOperationStatus LobbyFailure;
 		m_pPlatformServices->LobbyOperationStatus(&LobbyFailure);
 		m_pListenServer->Stop();
 		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
-		str_copy(m_SteamHostStatus.m_aErrorKey, LobbyFailure.m_State == CLIENT_ASYNC_FAILED && LobbyFailure.m_aErrorKey[0] ? LobbyFailure.m_aErrorKey : "Steam rejected room creation. Check your connection and retry.", sizeof(m_SteamHostStatus.m_aErrorKey));
+		str_copy(m_SteamHostStatus.m_aErrorKey,
+				 LobbyFailure.m_State == CLIENT_ASYNC_FAILED && LobbyFailure.m_aErrorKey[0]
+					 ? LobbyFailure.m_aErrorKey
+					 : "Steam rejected room creation. Check your connection and retry.",
+				 sizeof(m_SteamHostStatus.m_aErrorKey));
 		return false;
 	}
 	return true;
@@ -2850,7 +3010,8 @@ void CClient::ConnectionStatus(CClientAsyncStatus *pStatus) const
 	{
 		pStatus->m_State = CLIENT_ASYNC_WORKING;
 		pStatus->m_Stage = CLIENT_STAGE_LOADING_MAP;
-		pStatus->m_Progress = m_MapdownloadTotalsize > 0 ? clamp(m_MapdownloadAmount / (float)m_MapdownloadTotalsize, 0.0f, 1.0f) : 0.0f;
+		pStatus->m_Progress =
+			m_MapdownloadTotalsize > 0 ? clamp(m_MapdownloadAmount / (float)m_MapdownloadTotalsize, 0.0f, 1.0f) : 0.0f;
 	}
 	else if(State() == STATE_ONLINE)
 	{
@@ -2863,7 +3024,8 @@ void CClient::Con_SteamLobbyInvite(IConsole::IResult *pResult, void *pUserData)
 {
 	CClient *pClient = static_cast<CClient *>(pUserData);
 	if(!pClient->m_pPlatformServices || !pClient->m_pPlatformServices->OpenLobbyInviteDialog())
-		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Create or join a Steam Lobby before inviting friends");
+		pClient->m_pConsole->Print(
+			IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Create or join a Steam Lobby before inviting friends");
 }
 
 void CClient::Con_SteamLobbyLeave(IConsole::IResult *pResult, void *pUserData)
@@ -2876,46 +3038,177 @@ void CClient::Con_SteamLobbyStatus(IConsole::IResult *pResult, void *pUserData)
 {
 	CClient *pClient = static_cast<CClient *>(pUserData);
 	char aBuffer[128];
-	str_format(aBuffer, sizeof(aBuffer), "Steam Lobby: %llu", pClient->m_pPlatformServices ? pClient->m_pPlatformServices->CurrentLobbyID() : 0);
+	str_format(aBuffer,
+			   sizeof(aBuffer),
+			   "Steam Lobby: %llu",
+			   pClient->m_pPlatformServices ? pClient->m_pPlatformServices->CurrentLobbyID() : 0);
 	pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", aBuffer);
 }
 
 void CClient::Con_SteamLobbyRefresh(IConsole::IResult *pResult, void *pUserData)
 {
-	CClient *p=static_cast<CClient *>(pUserData); if(!p->m_pPlatformServices || !p->m_pPlatformServices->RefreshLobbyList()) p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam","Unable to request Steam Lobby list");
+	CClient *p = static_cast<CClient *>(pUserData);
+	if(!p->m_pPlatformServices || !p->m_pPlatformServices->RefreshLobbyList())
+		p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Unable to request Steam Lobby list");
 }
 
 void CClient::Con_SteamLobbyList(IConsole::IResult *pResult, void *pUserData)
 {
-	CClient *p=static_cast<CClient *>(pUserData); if(!p->m_pPlatformServices)return;
-	for(int i=0;i<p->m_pPlatformServices->LobbyCount();i++){CPlatformLobbyInfo Info;if(!p->m_pPlatformServices->LobbyInfo(i,&Info))continue;char aBuf[512];str_format(aBuf,sizeof(aBuf),"%llu host='%s' steamid=%llu mode=%s map=%s region=%s players=%d/%d password=%d modded=%d friend=%d",Info.m_LobbyID,Info.m_aHostName,Info.m_HostSteamID,Info.m_aGameType,Info.m_aMap,Info.m_aRegion,Info.m_Members,Info.m_MaxMembers,Info.m_Password?1:0,Info.m_Modded?1:0,Info.m_FriendHosted?1:0);p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam-lobby",aBuf);}
+	CClient *p = static_cast<CClient *>(pUserData);
+	if(!p->m_pPlatformServices)
+		return;
+	for(int i = 0; i < p->m_pPlatformServices->LobbyCount(); i++)
+	{
+		CPlatformLobbyInfo Info;
+		if(!p->m_pPlatformServices->LobbyInfo(i, &Info))
+			continue;
+		char aBuf[512];
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "%llu host='%s' steamid=%llu mode=%s map=%s region=%s players=%d/%d password=%d modded=%d friend=%d",
+				   Info.m_LobbyID,
+				   Info.m_aHostName,
+				   Info.m_HostSteamID,
+				   Info.m_aGameType,
+				   Info.m_aMap,
+				   Info.m_aRegion,
+				   Info.m_Members,
+				   Info.m_MaxMembers,
+				   Info.m_Password ? 1 : 0,
+				   Info.m_Modded ? 1 : 0,
+				   Info.m_FriendHosted ? 1 : 0);
+		p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam-lobby", aBuf);
+	}
 }
 
 void CClient::Con_SteamLobbyJoin(IConsole::IResult *pResult, void *pUserData)
 {
-	CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;char Trailing=0;if(!p->m_pPlatformServices||sscanf(pResult->GetString(0),"%llu%c",&ID,&Trailing)!=1||!ID||!p->m_pPlatformServices->JoinLobby(ID))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam","Unable to join Steam Lobby");
+	CClient *p = static_cast<CClient *>(pUserData);
+	unsigned long long ID = 0;
+	char Trailing = 0;
+	if(!p->m_pPlatformServices || sscanf(pResult->GetString(0), "%llu%c", &ID, &Trailing) != 1 || !ID ||
+	   !p->m_pPlatformServices->JoinLobby(ID))
+		p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Unable to join Steam Lobby");
 }
 
 void CClient::Con_SteamWorkshopRefresh(IConsole::IResult *pResult, void *pUserData)
 {
-	CClient *pClient=static_cast<CClient *>(pUserData);const int Count=pClient->m_pPlatformServices?pClient->m_pPlatformServices->RefreshWorkshopItems():0;char aBuf[128];str_format(aBuf,sizeof(aBuf),"Workshop items refreshed: %d, collection hash: %s",Count,g_Config.m_ClModHash[0]?g_Config.m_ClModHash:"none");pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"steam",aBuf);
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	const int Count = pClient->m_pPlatformServices ? pClient->m_pPlatformServices->RefreshWorkshopItems() : 0;
+	char aBuf[128];
+	str_format(aBuf,
+			   sizeof(aBuf),
+			   "Workshop items refreshed: %d, collection hash: %s",
+			   Count,
+			   g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "none");
+	pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", aBuf);
 }
 
 void CClient::Con_SteamWorkshopList(IConsole::IResult *pResult, void *pUserData)
 {
-	CClient *pClient=static_cast<CClient *>(pUserData);if(!pClient->m_pPlatformServices)return;pClient->m_pPlatformServices->RefreshWorkshopItems();
-	for(int i=0;i<pClient->m_pPlatformServices->WorkshopItemCount();i++){CPlatformWorkshopItem Item;if(!pClient->m_pPlatformServices->WorkshopItem(i,&Item))continue;char aBuf[512];str_format(aBuf,sizeof(aBuf),"%llu state=0x%x valid=%d download=%llu/%llu name='%s' version='%s' error='%s'",Item.m_PublishedFileID,Item.m_State,Item.m_Valid?1:0,Item.m_Downloaded,Item.m_Total,Item.m_aName,Item.m_aVersion,Item.m_aError);pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop",aBuf);}
+	CClient *pClient = static_cast<CClient *>(pUserData);
+	if(!pClient->m_pPlatformServices)
+		return;
+	pClient->m_pPlatformServices->RefreshWorkshopItems();
+	for(int i = 0; i < pClient->m_pPlatformServices->WorkshopItemCount(); i++)
+	{
+		CPlatformWorkshopItem Item;
+		if(!pClient->m_pPlatformServices->WorkshopItem(i, &Item))
+			continue;
+		char aBuf[512];
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "%llu state=0x%x valid=%d download=%llu/%llu name='%s' version='%s' error='%s'",
+				   Item.m_PublishedFileID,
+				   Item.m_State,
+				   Item.m_Valid ? 1 : 0,
+				   Item.m_Downloaded,
+				   Item.m_Total,
+				   Item.m_aName,
+				   Item.m_aVersion,
+				   Item.m_aError);
+		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "workshop", aBuf);
+	}
 }
 
-static bool ParseWorkshopID(const char *pText,unsigned long long *pID){char Trailing=0;return pText&&pID&&sscanf(pText,"%llu%c",pID,&Trailing)==1&&*pID!=0;}
-void CClient::Con_SteamWorkshopDisable(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->SetWorkshopItemDisabled(ID,true))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to disable Workshop item");}
-void CClient::Con_SteamWorkshopEnable(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->SetWorkshopItemDisabled(ID,false))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to enable Workshop item");}
-void CClient::Con_SteamWorkshopUnsubscribe(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->UnsubscribeWorkshopItem(ID))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to unsubscribe Workshop item");}
-void CClient::Con_SteamWorkshopOpen(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->OpenWorkshopItemPage(ID))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to open Workshop community page");}
-void CClient::Con_SteamWorkshopSelect(IConsole::IResult *pResult,void *pUserData){str_copy(g_Config.m_ClModIds,pResult->GetString(0),sizeof(g_Config.m_ClModIds));Con_SteamWorkshopRefresh(pResult,pUserData);}
-void CClient::Con_SteamWorkshopCreate(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);if(!p->m_pPlatformServices||!p->m_pPlatformServices->CreateWorkshopItem())p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to create Workshop item");}
-void CClient::Con_SteamWorkshopPublish(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);unsigned long long ID=0;if(!ParseWorkshopID(pResult->GetString(0),&ID)||!p->m_pPlatformServices||!p->m_pPlatformServices->UpdateWorkshopItem(ID,pResult->GetString(1),pResult->NumArguments()>2?pResult->GetString(2):""))p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop","Unable to publish: package must validate and its manifest ID/protocol/hash must match");}
-void CClient::Con_SteamWorkshopPublishStatus(IConsole::IResult *pResult,void *pUserData){CClient *p=static_cast<CClient *>(pUserData);if(!p->m_pPlatformServices)return;CPlatformWorkshopPublishStatus Status;p->m_pPlatformServices->WorkshopPublishStatus(&Status);char aBuf[512];str_format(aBuf,sizeof(aBuf),"active=%d id=%llu progress=%llu/%llu legal_agreement=%d status='%s'",Status.m_Active?1:0,Status.m_PublishedFileID,Status.m_Processed,Status.m_Total,Status.m_NeedsLegalAgreement?1:0,Status.m_aStatus);p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,"workshop",aBuf);}
+static bool ParseWorkshopID(const char *pText, unsigned long long *pID)
+{
+	char Trailing = 0;
+	return pText && pID && sscanf(pText, "%llu%c", pID, &Trailing) == 1 && *pID != 0;
+}
+void CClient::Con_SteamWorkshopDisable(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p = static_cast<CClient *>(pUserData);
+	unsigned long long ID = 0;
+	if(!ParseWorkshopID(pResult->GetString(0), &ID) || !p->m_pPlatformServices ||
+	   !p->m_pPlatformServices->SetWorkshopItemDisabled(ID, true))
+		p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "workshop", "Unable to disable Workshop item");
+}
+void CClient::Con_SteamWorkshopEnable(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p = static_cast<CClient *>(pUserData);
+	unsigned long long ID = 0;
+	if(!ParseWorkshopID(pResult->GetString(0), &ID) || !p->m_pPlatformServices ||
+	   !p->m_pPlatformServices->SetWorkshopItemDisabled(ID, false))
+		p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "workshop", "Unable to enable Workshop item");
+}
+void CClient::Con_SteamWorkshopUnsubscribe(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p = static_cast<CClient *>(pUserData);
+	unsigned long long ID = 0;
+	if(!ParseWorkshopID(pResult->GetString(0), &ID) || !p->m_pPlatformServices ||
+	   !p->m_pPlatformServices->UnsubscribeWorkshopItem(ID))
+		p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "workshop", "Unable to unsubscribe Workshop item");
+}
+void CClient::Con_SteamWorkshopOpen(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p = static_cast<CClient *>(pUserData);
+	unsigned long long ID = 0;
+	if(!ParseWorkshopID(pResult->GetString(0), &ID) || !p->m_pPlatformServices ||
+	   !p->m_pPlatformServices->OpenWorkshopItemPage(ID))
+		p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "workshop", "Unable to open Workshop community page");
+}
+void CClient::Con_SteamWorkshopSelect(IConsole::IResult *pResult, void *pUserData)
+{
+	str_copy(g_Config.m_ClModIds, pResult->GetString(0), sizeof(g_Config.m_ClModIds));
+	Con_SteamWorkshopRefresh(pResult, pUserData);
+}
+void CClient::Con_SteamWorkshopCreate(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p = static_cast<CClient *>(pUserData);
+	if(!p->m_pPlatformServices || !p->m_pPlatformServices->CreateWorkshopItem())
+		p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "workshop", "Unable to create Workshop item");
+}
+void CClient::Con_SteamWorkshopPublish(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p = static_cast<CClient *>(pUserData);
+	unsigned long long ID = 0;
+	if(!ParseWorkshopID(pResult->GetString(0), &ID) || !p->m_pPlatformServices ||
+	   !p->m_pPlatformServices->UpdateWorkshopItem(
+		   ID, pResult->GetString(1), pResult->NumArguments() > 2 ? pResult->GetString(2) : ""))
+		p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD,
+							 "workshop",
+							 "Unable to publish: package must validate and its manifest ID/protocol/hash must match");
+}
+void CClient::Con_SteamWorkshopPublishStatus(IConsole::IResult *pResult, void *pUserData)
+{
+	CClient *p = static_cast<CClient *>(pUserData);
+	if(!p->m_pPlatformServices)
+		return;
+	CPlatformWorkshopPublishStatus Status;
+	p->m_pPlatformServices->WorkshopPublishStatus(&Status);
+	char aBuf[512];
+	str_format(aBuf,
+			   sizeof(aBuf),
+			   "active=%d id=%llu progress=%llu/%llu legal_agreement=%d status='%s'",
+			   Status.m_Active ? 1 : 0,
+			   Status.m_PublishedFileID,
+			   Status.m_Processed,
+			   Status.m_Total,
+			   Status.m_NeedsLegalAgreement ? 1 : 0,
+			   Status.m_aStatus);
+	p->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "workshop", aBuf);
+}
 
 void CClient::DemoSlice(const char *pDstPath)
 {
@@ -2959,7 +3252,7 @@ void CClient::DemoSlice(const char *pDstPath)
 	}
 
 	// Copy the entire demo file
-	char aBuffer[64*1024];
+	char aBuffer[64 * 1024];
 	while(1)
 	{
 		int Bytes = io_read(SrcFile, aBuffer, sizeof(aBuffer));
@@ -3119,7 +3412,10 @@ void CClient::ServerBrowserUpdate()
 	m_ResortServerBrowser = true;
 }
 
-void CClient::ConchainServerBrowserUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
+void CClient::ConchainServerBrowserUpdate(IConsole::IResult *pResult,
+										  void *pUserData,
+										  IConsole::FCommandCallback pfnCallback,
+										  void *pCallbackUserData)
 {
 	pfnCallback(pResult, pCallbackUserData);
 	if(pResult->NumArguments())
@@ -3140,38 +3436,108 @@ void CClient::RegisterCommands()
 	m_pConsole->Register("stoprecord", "", CFGFLAG_SERVER, 0, 0, "Stop recording");
 	m_pConsole->Register("reload", "", CFGFLAG_SERVER, 0, 0, "Reload the map");
 
-	m_pConsole->Register("quit", "", CFGFLAG_CLIENT|CFGFLAG_STORE, Con_Quit, this, "Quit Ninslash");
-	m_pConsole->Register("exit", "", CFGFLAG_CLIENT|CFGFLAG_STORE, Con_Quit, this, "Quit Ninslash");
-	m_pConsole->Register("minimize", "", CFGFLAG_CLIENT|CFGFLAG_STORE, Con_Minimize, this, "Minimize Ninslash");
+	m_pConsole->Register("quit", "", CFGFLAG_CLIENT | CFGFLAG_STORE, Con_Quit, this, "Quit Ninslash");
+	m_pConsole->Register("exit", "", CFGFLAG_CLIENT | CFGFLAG_STORE, Con_Quit, this, "Quit Ninslash");
+	m_pConsole->Register("minimize", "", CFGFLAG_CLIENT | CFGFLAG_STORE, Con_Minimize, this, "Minimize Ninslash");
 	m_pConsole->Register("connect", "s", CFGFLAG_CLIENT, Con_Connect, this, "Connect to the specified host/ip");
 	m_pConsole->Register("disconnect", "", CFGFLAG_CLIENT, Con_Disconnect, this, "Disconnect from the server");
 	m_pConsole->Register("ping", "", CFGFLAG_CLIENT, Con_Ping, this, "Ping the current server");
 	m_pConsole->Register("screenshot", "", CFGFLAG_CLIENT, Con_Screenshot, this, "Take a screenshot");
 	m_pConsole->Register("rcon", "r", CFGFLAG_CLIENT, Con_Rcon, this, "Send specified command to rcon");
 	m_pConsole->Register("rcon_auth", "s", CFGFLAG_CLIENT, Con_RconAuth, this, "Authenticate to rcon");
-	m_pConsole->Register("play", "r", CFGFLAG_CLIENT|CFGFLAG_STORE, Con_Play, this, "Play the file specified");
+	m_pConsole->Register("play", "r", CFGFLAG_CLIENT | CFGFLAG_STORE, Con_Play, this, "Play the file specified");
 	m_pConsole->Register("record", "?s", CFGFLAG_CLIENT, Con_Record, this, "Record to the file");
 	m_pConsole->Register("stoprecord", "", CFGFLAG_CLIENT, Con_StopRecord, this, "Stop recording");
 	m_pConsole->Register("add_demomarker", "", CFGFLAG_CLIENT, Con_AddDemoMarker, this, "Add demo timeline marker");
 	m_pConsole->Register("add_favorite", "s", CFGFLAG_CLIENT, Con_AddFavorite, this, "Add a server as a favorite");
-	m_pConsole->Register("remove_favorite", "s", CFGFLAG_CLIENT, Con_RemoveFavorite, this, "Remove a server from favorites");
-	m_pConsole->Register("steam_lobby_create", "?s", CFGFLAG_CLIENT, Con_SteamLobbyCreate, this, "Create Steam Lobby: private, friends (default), or public");
-	m_pConsole->Register("steam_lobby_invite", "", CFGFLAG_CLIENT, Con_SteamLobbyInvite, this, "Open Steam Overlay friend invite dialog for current Lobby");
-	m_pConsole->Register("steam_lobby_leave", "", CFGFLAG_CLIENT, Con_SteamLobbyLeave, this, "Leave current Steam Lobby");
-	m_pConsole->Register("steam_lobby_status", "", CFGFLAG_CLIENT, Con_SteamLobbyStatus, this, "Show current Steam Lobby ID");
-	m_pConsole->Register("steam_lobby_refresh", "", CFGFLAG_CLIENT, Con_SteamLobbyRefresh, this, "Refresh public Steam Listen Server Lobbies");
-	m_pConsole->Register("steam_lobby_list", "", CFGFLAG_CLIENT, Con_SteamLobbyList, this, "List validated Steam Listen Server Lobbies");
-	m_pConsole->Register("steam_lobby_join", "s", CFGFLAG_CLIENT, Con_SteamLobbyJoin, this, "Join a Steam Lobby by LobbyID");
-	m_pConsole->Register("steam_workshop_refresh", "", CFGFLAG_CLIENT, Con_SteamWorkshopRefresh, this, "Refresh subscribed Workshop content and validate the selected Mod collection");
-	m_pConsole->Register("steam_workshop_list", "", CFGFLAG_CLIENT, Con_SteamWorkshopList, this, "List Workshop install, download, and validation status");
-	m_pConsole->Register("steam_workshop_disable", "s", CFGFLAG_CLIENT, Con_SteamWorkshopDisable, this, "Disable a Workshop PublishedFileID locally");
-	m_pConsole->Register("steam_workshop_enable", "s", CFGFLAG_CLIENT, Con_SteamWorkshopEnable, this, "Enable a Workshop PublishedFileID locally");
-	m_pConsole->Register("steam_workshop_unsubscribe", "s", CFGFLAG_CLIENT, Con_SteamWorkshopUnsubscribe, this, "Unsubscribe a Workshop item; staged content is not loaded unless selected");
-	m_pConsole->Register("steam_workshop_open", "s", CFGFLAG_CLIENT, Con_SteamWorkshopOpen, this, "Open a Workshop item community page for reporting or legal information");
-	m_pConsole->Register("steam_workshop_select", "r", CFGFLAG_CLIENT, Con_SteamWorkshopSelect, this, "Select comma-separated root PublishedFileIDs for the active Mod collection");
-	m_pConsole->Register("steam_workshop_create", "", CFGFLAG_CLIENT, Con_SteamWorkshopCreate, this, "Create an empty Workshop item and return its PublishedFileID");
-	m_pConsole->Register("steam_workshop_publish", "ss?s", CFGFLAG_CLIENT, Con_SteamWorkshopPublish, this, "Publish validated content: ID content-directory [preview-file]");
-	m_pConsole->Register("steam_workshop_publish_status", "", CFGFLAG_CLIENT, Con_SteamWorkshopPublishStatus, this, "Show Workshop creation/upload progress and legal agreement state");
+	m_pConsole->Register(
+		"remove_favorite", "s", CFGFLAG_CLIENT, Con_RemoveFavorite, this, "Remove a server from favorites");
+	m_pConsole->Register("steam_lobby_create",
+						 "?s",
+						 CFGFLAG_CLIENT,
+						 Con_SteamLobbyCreate,
+						 this,
+						 "Create Steam Lobby: private, friends (default), or public");
+	m_pConsole->Register("steam_lobby_invite",
+						 "",
+						 CFGFLAG_CLIENT,
+						 Con_SteamLobbyInvite,
+						 this,
+						 "Open Steam Overlay friend invite dialog for current Lobby");
+	m_pConsole->Register(
+		"steam_lobby_leave", "", CFGFLAG_CLIENT, Con_SteamLobbyLeave, this, "Leave current Steam Lobby");
+	m_pConsole->Register(
+		"steam_lobby_status", "", CFGFLAG_CLIENT, Con_SteamLobbyStatus, this, "Show current Steam Lobby ID");
+	m_pConsole->Register("steam_lobby_refresh",
+						 "",
+						 CFGFLAG_CLIENT,
+						 Con_SteamLobbyRefresh,
+						 this,
+						 "Refresh public Steam Listen Server Lobbies");
+	m_pConsole->Register(
+		"steam_lobby_list", "", CFGFLAG_CLIENT, Con_SteamLobbyList, this, "List validated Steam Listen Server Lobbies");
+	m_pConsole->Register(
+		"steam_lobby_join", "s", CFGFLAG_CLIENT, Con_SteamLobbyJoin, this, "Join a Steam Lobby by LobbyID");
+	m_pConsole->Register("steam_workshop_refresh",
+						 "",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopRefresh,
+						 this,
+						 "Refresh subscribed Workshop content and validate the selected Mod collection");
+	m_pConsole->Register("steam_workshop_list",
+						 "",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopList,
+						 this,
+						 "List Workshop install, download, and validation status");
+	m_pConsole->Register("steam_workshop_disable",
+						 "s",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopDisable,
+						 this,
+						 "Disable a Workshop PublishedFileID locally");
+	m_pConsole->Register("steam_workshop_enable",
+						 "s",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopEnable,
+						 this,
+						 "Enable a Workshop PublishedFileID locally");
+	m_pConsole->Register("steam_workshop_unsubscribe",
+						 "s",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopUnsubscribe,
+						 this,
+						 "Unsubscribe a Workshop item; staged content is not loaded unless selected");
+	m_pConsole->Register("steam_workshop_open",
+						 "s",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopOpen,
+						 this,
+						 "Open a Workshop item community page for reporting or legal information");
+	m_pConsole->Register("steam_workshop_select",
+						 "r",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopSelect,
+						 this,
+						 "Select comma-separated root PublishedFileIDs for the active Mod collection");
+	m_pConsole->Register("steam_workshop_create",
+						 "",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopCreate,
+						 this,
+						 "Create an empty Workshop item and return its PublishedFileID");
+	m_pConsole->Register("steam_workshop_publish",
+						 "ss?s",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopPublish,
+						 this,
+						 "Publish validated content: ID content-directory [preview-file]");
+	m_pConsole->Register("steam_workshop_publish_status",
+						 "",
+						 CFGFLAG_CLIENT,
+						 Con_SteamWorkshopPublishStatus,
+						 this,
+						 "Show Workshop creation/upload progress and legal agreement state");
 
 	// used for server browser update
 	m_pConsole->Chain("br_filter_string", ConchainServerBrowserUpdate, this);
@@ -3211,14 +3577,16 @@ int main(int argc, char **argv) // ignore_convention
 	{
 		char *pSlash = strrchr(aExecutable, '/');
 		char *pBackslash = strrchr(aExecutable, '\\');
-		if(!pSlash || (pBackslash && pBackslash > pSlash)) pSlash = pBackslash;
+		if(!pSlash || (pBackslash && pBackslash > pSlash))
+			pSlash = pBackslash;
 		if(pSlash)
 		{
 			*pSlash = 0;
 			char aDataDirectory[1200], aConfigDirectory[1200];
 			str_format(aDataDirectory, sizeof(aDataDirectory), "%s/data", aExecutable);
 			str_format(aConfigDirectory, sizeof(aConfigDirectory), "%s/cfg", aExecutable);
-			if(fs_is_dir(aDataDirectory) && fs_is_dir(aConfigDirectory)) fs_chdir(aExecutable);
+			if(fs_is_dir(aDataDirectory) && fs_is_dir(aConfigDirectory))
+				fs_chdir(aExecutable);
 		}
 	}
 #if defined(CONF_FAMILY_WINDOWS)
@@ -3244,7 +3612,8 @@ int main(int argc, char **argv) // ignore_convention
 	// create the components
 	IEngine *pEngine = CreateEngine("Ninslash");
 	IConsole *pConsole = CreateConsole(CFGFLAG_CLIENT);
-	IStorage *pStorage = CreateStorage("Ninslash", IStorage::STORAGETYPE_CLIENT, argc, ppArguments); // ignore_convention
+	IStorage *pStorage =
+		CreateStorage("Ninslash", IStorage::STORAGETYPE_CLIENT, argc, ppArguments); // ignore_convention
 	IConfig *pConfig = CreateConfig();
 	IEngineSound *pEngineSound = CreateEngineSound();
 	IEngineGamepad *pEngineGamepad = CreateEngineGamepad();
@@ -3262,23 +3631,29 @@ int main(int argc, char **argv) // ignore_convention
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pConfig);
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(pPlatformServices);
 
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineSound*>(pEngineSound)); // register as both
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<ISound*>(pEngineSound));
+		RegisterFail =
+			RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineSound *>(pEngineSound)); // register as both
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<ISound *>(pEngineSound));
 
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineGamepad*>(pEngineGamepad)); // register as both
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IGamepad*>(pEngineGamepad));
+		RegisterFail = RegisterFail ||
+					   !pKernel->RegisterInterface(static_cast<IEngineGamepad *>(pEngineGamepad)); // register as both
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IGamepad *>(pEngineGamepad));
 
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineInput*>(pEngineInput)); // register as both
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IInput*>(pEngineInput));
+		RegisterFail =
+			RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineInput *>(pEngineInput)); // register as both
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IInput *>(pEngineInput));
 
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineTextRender*>(pEngineTextRender)); // register as both
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<ITextRender*>(pEngineTextRender));
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(
+										   static_cast<IEngineTextRender *>(pEngineTextRender)); // register as both
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<ITextRender *>(pEngineTextRender));
 
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineMap*>(pEngineMap)); // register as both
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IMap*>(pEngineMap));
+		RegisterFail =
+			RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineMap *>(pEngineMap)); // register as both
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IMap *>(pEngineMap));
 
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IEngineMasterServer*>(pEngineMasterServer)); // register as both
-		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IMasterServer*>(pEngineMasterServer));
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(
+										   static_cast<IEngineMasterServer *>(pEngineMasterServer)); // register as both
+		RegisterFail = RegisterFail || !pKernel->RegisterInterface(static_cast<IMasterServer *>(pEngineMasterServer));
 
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(CreateEditor());
 		RegisterFail = RegisterFail || !pKernel->RegisterInterface(CreateGameClient());
@@ -3310,8 +3685,8 @@ int main(int argc, char **argv) // ignore_convention
 	pConsole->ExecuteFile("autoexec_client.cfg");
 
 	// parse the command line arguments
-	if(argc > 1) // ignore_convention
-		pConsole->ParseArguments(argc-1, &ppArguments[1]); // ignore_convention
+	if(argc > 1)											 // ignore_convention
+		pConsole->ParseArguments(argc - 1, &ppArguments[1]); // ignore_convention
 
 	// restore empty config strings to their defaults
 	pConfig->RestoreStrings();

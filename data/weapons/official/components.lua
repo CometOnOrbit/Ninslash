@@ -1,0 +1,22 @@
+weapon.component {slot = weapon.component_slot.frame, id = weapon.part1.base1, name = "Ballistic frame"}
+weapon.component {slot = weapon.component_slot.frame, id = weapon.part1.base2, name = "Explosive frame"}
+weapon.component {slot = weapon.component_slot.frame, id = weapon.part1.base3, name = "Arc frame"}
+weapon.component {slot = weapon.component_slot.frame, id = weapon.part1.base4, name = "Marksman frame"}
+weapon.component {slot = weapon.component_slot.frame, id = weapon.part1.base5, name = "Beam frame"}
+weapon.component {slot = weapon.component_slot.frame, id = weapon.part1.base6, name = "Ricochet frame"}
+weapon.component {slot = weapon.component_slot.frame, id = weapon.part1.melee, name = "Blade frame"}
+weapon.component {slot = weapon.component_slot.frame, id = weapon.part1.spin, name = "Spin frame"}
+
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.barrel1, name = "Standard barrel"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.barrel2, name = "Scatter barrel"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.barrel3, name = "Precision barrel"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.barrel4, name = "Rapid-fire barrel"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.charge, name = "Charge core"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.capacitor, name = "Overcharge capacitor"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.rail, name = "Piercing barrel"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.melee1, name = "Light blade"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.melee2, name = "Heavy blade"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.melee3, name = "Energy blade"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.melee4, name = "Hook blade"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.melee5, name = "Saw blade"}
+weapon.component {slot = weapon.component_slot.part, id = weapon.part2.melee6, name = "Charged blade"}

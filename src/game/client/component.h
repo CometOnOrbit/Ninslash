@@ -8,7 +8,7 @@
 
 class CComponent
 {
-protected:
+  protected:
 	friend class CGameClient;
 
 	CGameClient *m_pClient;
@@ -30,18 +30,19 @@ protected:
 	class IServerBrowser *ServerBrowser() const { return m_pClient->ServerBrowser(); }
 	class CLayers *Layers() const { return m_pClient->Layers(); }
 	class CCollision *Collision() const { return m_pClient->Collision(); }
-	
+
 	class CCustomStuff *CustomStuff() const { return m_pClient->CustomStuff(); }
-public:
+
+  public:
 	virtual ~CComponent() {}
 
-	virtual void OnStateChange(int NewState, int OldState) {};
-	virtual void OnConsoleInit() {};
-	virtual void OnInit() {};
-	virtual void OnReset() {};
-	virtual void OnRender() {};
-	virtual void OnRelease() {};
-	virtual void OnMapLoad() {};
+	virtual void OnStateChange(int NewState, int OldState){};
+	virtual void OnConsoleInit(){};
+	virtual void OnInit(){};
+	virtual void OnReset(){};
+	virtual void OnRender(){};
+	virtual void OnRelease(){};
+	virtual void OnMapLoad(){};
 	virtual void OnMessage(int Msg, void *pRawMsg) {}
 	virtual bool OnMouseMove(float x, float y) { return false; }
 	virtual bool OnInput(IInput::CEvent e) { return false; }

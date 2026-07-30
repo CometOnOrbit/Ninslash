@@ -15,13 +15,9 @@
 #include <game/server/pve_director.h>
 #include <game/server/tutorial_director.h>
 
-CGameControllerTutorial::CGameControllerTutorial(CGameContext *pGameServer) :
-	IGameController(pGameServer),
-	m_NumTargetSpawnPoints(0),
-	m_TargetSpawnRotation(0),
-	m_TargetSlotsReported(false),
-	m_CurrentTargetPos(0, 0),
-	m_NumObjectiveRadars(0)
+CGameControllerTutorial::CGameControllerTutorial(CGameContext *pGameServer)
+	: IGameController(pGameServer), m_NumTargetSpawnPoints(0), m_TargetSpawnRotation(0), m_TargetSlotsReported(false),
+	  m_CurrentTargetPos(0, 0), m_NumObjectiveRadars(0)
 {
 	for(int i = 0; i < MAX_TUTORIAL_TARGET_SLOTS; i++)
 		m_aTargetSpawnPoints[i] = vec2(0, 0);
@@ -29,7 +25,7 @@ CGameControllerTutorial::CGameControllerTutorial(CGameContext *pGameServer) :
 		m_aRespawnNearTarget[i] = false;
 	for(int i = 0; i < 4; i++)
 		m_apObjectiveRadars[i] = 0;
-	m_pGameType = "TUT";
+	m_pGameType = "Tutorial";
 	const int Chapter = clamp(g_Config.m_SvTutorialChapter, 1, (int)NUM_TUTORIAL_CHAPTERS);
 	g_Config.m_SvTutorialMode = 1;
 	m_GameFlags = Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 0 : GAMEFLAG_COOP;
@@ -42,8 +38,11 @@ CGameControllerTutorial::CGameControllerTutorial(CGameContext *pGameServer) :
 	g_Config.m_SvMapGenSeed = TutorialFixedSeed(Chapter);
 	g_Config.m_SvMapGenRandSeed = 0;
 	srand(g_Config.m_SvMapGenSeed);
-	dbg_msg("tutorial", "TUT controller chapter=%d seed=%d pvp=%d", Chapter, g_Config.m_SvMapGenSeed,
-		Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 1 : 0);
+	dbg_msg("tutorial",
+			"TUT controller chapter=%d seed=%d pvp=%d",
+			Chapter,
+			g_Config.m_SvMapGenSeed,
+			Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 1 : 0);
 }
 
 void CGameControllerTutorial::AddTargetSpawn(vec2 Pos)
@@ -97,7 +96,8 @@ void CGameControllerTutorial::ClearObjectiveRadars()
 void CGameControllerTutorial::RefreshObjectiveRadars()
 {
 	ClearObjectiveRadars();
-	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding;
+		pBuilding = (CBuilding *)pBuilding->TypeNext())
 	{
 		if(pBuilding->m_Type != BUILDING_SWITCH || pBuilding->m_aStatus[BSTATUS_ON] || m_NumObjectiveRadars >= 4)
 			continue;
@@ -127,16 +127,19 @@ bool CGameControllerTutorial::GetRespawnNearTarget(vec2 *pOutPos) const
 {
 	if(!pOutPos || m_NumTargetSpawnPoints <= 0)
 		return false;
-	const vec2 Anchor = m_CurrentTargetPos.x != 0.0f || m_CurrentTargetPos.y != 0.0f ? m_CurrentTargetPos : m_aTargetSpawnPoints[0];
+	const vec2 Anchor =
+		m_CurrentTargetPos.x != 0.0f || m_CurrentTargetPos.y != 0.0f ? m_CurrentTargetPos : m_aTargetSpawnPoints[0];
 	for(int Pass = 0; Pass < 2; Pass++)
 		for(int i = 0; i < m_NumTargetSpawnPoints; i++)
 		{
 			const vec2 Candidate = m_aTargetSpawnPoints[i];
 			const float Dist = distance(Candidate, Anchor);
-			if((Pass == 0 && (Dist < 48.0f || Dist > 420.0f)) || GameServer()->Collision()->TestBox(Candidate, vec2(32.0f, 74.0f)))
+			if((Pass == 0 && (Dist < 48.0f || Dist > 420.0f)) ||
+			   GameServer()->Collision()->TestBox(Candidate, vec2(32.0f, 74.0f)))
 				continue;
 			CCharacter *apCharacters[MAX_CLIENTS];
-			const int Num = GameServer()->m_World.FindEntities(Candidate, 48.0f, (CEntity **)apCharacters, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+			const int Num = GameServer()->m_World.FindEntities(
+				Candidate, 48.0f, (CEntity **)apCharacters, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
 			if(Num > 0)
 				continue;
 			*pOutPos = Candidate;
@@ -151,12 +154,16 @@ bool CGameControllerTutorial::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 		return GetSpawnPos(1, pOutPos);
 	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 		if(GameServer()->m_apPlayers[ClientID] && !GameServer()->m_apPlayers[ClientID]->m_IsBot &&
-			GameServer()->m_apPlayers[ClientID]->GetTeam() == Team && m_aRespawnNearTarget[ClientID])
+		   GameServer()->m_apPlayers[ClientID]->GetTeam() == Team && m_aRespawnNearTarget[ClientID])
 		{
 			m_aRespawnNearTarget[ClientID] = false;
 			if(GetRespawnNearTarget(pOutPos))
 			{
-				dbg_msg("tutorial", "respawned player %d near current target at %.0f,%.0f", ClientID, pOutPos->x, pOutPos->y);
+				dbg_msg("tutorial",
+						"respawned player %d near current target at %.0f,%.0f",
+						ClientID,
+						pOutPos->x,
+						pOutPos->y);
 				return true;
 			}
 			break;
@@ -165,7 +172,8 @@ bool CGameControllerTutorial::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 		return true;
 	if(GetRespawnNearTarget(pOutPos))
 	{
-		dbg_msg("tutorial", "using controlled target slot as fallback player spawn at %.0f,%.0f", pOutPos->x, pOutPos->y);
+		dbg_msg(
+			"tutorial", "using controlled target slot as fallback player spawn at %.0f,%.0f", pOutPos->x, pOutPos->y);
 		return true;
 	}
 	return false;
@@ -178,11 +186,16 @@ int CGameControllerTutorial::DesiredBots() const
 	const CTutorialState &State = GameServer()->m_pTutorialDirector->State();
 	switch(State.m_Chapter)
 	{
-	case TUTORIAL_CHAPTER_DEPLOYMENT: return 1;
-	case TUTORIAL_CHAPTER_COMBAT: return State.m_Step == 0 ? 3 : State.m_Step == 2 ? 1 : 0;
-	case TUTORIAL_CHAPTER_FORGE: return State.m_Step == 2 ? 3 : 0;
-	case TUTORIAL_CHAPTER_MULTIPLAYER: return State.m_Step == 0 ? 3 : 0;
-	default: return 0;
+		case TUTORIAL_CHAPTER_DEPLOYMENT:
+			return 1;
+		case TUTORIAL_CHAPTER_COMBAT:
+			return State.m_Step == 0 ? 3 : State.m_Step == 2 ? 1 : 0;
+		case TUTORIAL_CHAPTER_FORGE:
+			return State.m_Step == 2 ? 3 : 0;
+		case TUTORIAL_CHAPTER_MULTIPLAYER:
+			return State.m_Step == 0 ? 3 : 0;
+		default:
+			return 0;
 	}
 }
 
@@ -216,12 +229,15 @@ void CGameControllerTutorial::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	pChr->m_IsBot = true;
 	pChr->GetPlayer()->m_IsBot = true;
 	pChr->GetPlayer()->m_TeeInfos.m_IsBot = true;
-	GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin,
-		g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER, 1, 1);
+	GameServer()->GetAISkin(
+		&pChr->GetPlayer()->m_AISkin, g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER, 1, 1);
 	pChr->GetPlayer()->SetAISkin();
 	m_CurrentTargetPos = pChr->m_Pos;
-	dbg_msg("tutorial", "spawned controlled %s at %.0f,%.0f", g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_DEPLOYMENT ? "target" : "bot",
-		pChr->m_Pos.x, pChr->m_Pos.y);
+	dbg_msg("tutorial",
+			"spawned controlled %s at %.0f,%.0f",
+			g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_DEPLOYMENT ? "target" : "bot",
+			pChr->m_Pos.x,
+			pChr->m_Pos.y);
 	// The deployment target deliberately has no AI and therefore cannot attack.
 	if(g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_DEPLOYMENT)
 		return;

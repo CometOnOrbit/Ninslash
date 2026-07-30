@@ -30,7 +30,7 @@ class CVoting : public CComponent
 	void ClearOptions();
 	void Callvote(const char *pType, const char *pValue, const char *pReason);
 
-public:
+  public:
 	int m_NumVoteOptions;
 	CVoteOptionClient *m_pFirst;
 	CVoteOptionClient *m_pLast;
@@ -55,7 +55,7 @@ public:
 
 	void Vote(int v); // -1 = no, 1 = yes
 
-	int SecondsLeft() { return (m_Closetime - time_get())/time_freq(); }
+	int SecondsLeft() { return (m_Closetime - time_get()) / time_freq(); }
 	bool IsVoting() { return m_Closetime != 0; }
 	int TakenChoice() const { return m_Voted; }
 	const char *VoteDescription() const { return m_aDescription; }

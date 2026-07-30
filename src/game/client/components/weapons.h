@@ -6,8 +6,8 @@
 class CWeapons : public CComponent
 {
 	void RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *pCurrent);
-	
-public:
+
+  public:
 	virtual void OnReset();
 	virtual void OnRender();
 };

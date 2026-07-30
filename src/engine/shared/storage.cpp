@@ -9,7 +9,7 @@
 
 class CStorage : public IStorage
 {
-public:
+  public:
 	enum
 	{
 		MAX_PATHS = 16,
@@ -52,7 +52,8 @@ public:
 		}
 
 		// add save directories
-		if(StorageType != STORAGETYPE_BASIC && m_NumPaths && (!m_aaStoragePaths[TYPE_SAVE][0] || !fs_makedir(m_aaStoragePaths[TYPE_SAVE])))
+		if(StorageType != STORAGETYPE_BASIC && m_NumPaths &&
+		   (!m_aaStoragePaths[TYPE_SAVE][0] || !fs_makedir(m_aaStoragePaths[TYPE_SAVE])))
 		{
 			char aPath[MAX_PATH_LENGTH];
 			if(StorageType == STORAGETYPE_CLIENT)
@@ -84,7 +85,7 @@ public:
 			if(Pos < MAX_PATH_LENGTH)
 			{
 				char aBuffer[MAX_PATH_LENGTH];
-				str_copy(aBuffer, pArgv0, Pos+1);
+				str_copy(aBuffer, pArgv0, Pos + 1);
 				str_append(aBuffer, "/storage.cfg", sizeof(aBuffer));
 				File = io_open(aBuffer, IOFLAG_READ);
 			}
@@ -103,7 +104,7 @@ public:
 		while((pLine = LineReader.Get()))
 		{
 			if(str_length(pLine) > 9 && !str_comp_num(pLine, "add_path ", 9))
-				AddPath(pLine+9);
+				AddPath(pLine + 9);
 		}
 
 		io_close(File);
@@ -181,7 +182,7 @@ public:
 			if(Pos < MAX_PATH_LENGTH)
 			{
 				char aBaseDir[MAX_PATH_LENGTH];
-				str_copy(aBaseDir, pArgv0, Pos+1);
+				str_copy(aBaseDir, pArgv0, Pos + 1);
 				str_format(m_aDatadir, sizeof(m_aDatadir), "%s/data", aBaseDir);
 				str_append(aBaseDir, "/data/mapres", sizeof(aBaseDir));
 
@@ -192,20 +193,18 @@ public:
 			}
 		}
 
-	#if defined(CONF_FAMILY_UNIX)
+#if defined(CONF_FAMILY_UNIX)
 		// 4) check for all default locations
 		{
-			const char *aDirs[] = {
-				"/usr/share/ninslash/data",
-				"/usr/share/games/ninslash/data",
-				"/usr/local/share/ninslash/data",
-				"/usr/local/share/games/ninslash/data",
-				"/opt/ninslash/data"
-			};
+			const char *aDirs[] = {"/usr/share/ninslash/data",
+								   "/usr/share/games/ninslash/data",
+								   "/usr/local/share/ninslash/data",
+								   "/usr/local/share/games/ninslash/data",
+								   "/opt/ninslash/data"};
 			const int DirsCount = sizeof(aDirs) / sizeof(aDirs[0]);
 
 			int i;
-			for (i = 0; i < DirsCount; i++)
+			for(i = 0; i < DirsCount; i++)
 			{
 				char aBuf[128];
 				str_format(aBuf, sizeof(aBuf), "%s/mapres", aDirs[i]);
@@ -216,7 +215,7 @@ public:
 				}
 			}
 		}
-	#endif
+#endif
 
 		// no data-dir found
 		dbg_msg("storage", "warning no data directory found");
@@ -253,7 +252,7 @@ public:
 			BufferSize = sizeof(aBuffer);
 		}
 
-		if(Flags&IOFLAG_WRITE)
+		if(Flags & IOFLAG_WRITE)
 		{
 			return io_open(GetPath(TYPE_SAVE, pFilename, pBuffer, BufferSize), Flags);
 		}
@@ -362,13 +361,14 @@ public:
 		return !fs_remove(GetPath(Type, pFilename, aBuffer, sizeof(aBuffer)));
 	}
 
-	virtual bool RenameFile(const char* pOldFilename, const char* pNewFilename, int Type)
+	virtual bool RenameFile(const char *pOldFilename, const char *pNewFilename, int Type)
 	{
 		if(Type < 0 || Type >= m_NumPaths)
 			return false;
 		char aOldBuffer[MAX_PATH_LENGTH];
 		char aNewBuffer[MAX_PATH_LENGTH];
-		return !fs_rename(GetPath(Type, pOldFilename, aOldBuffer, sizeof(aOldBuffer)), GetPath(Type, pNewFilename, aNewBuffer, sizeof (aNewBuffer)));
+		return !fs_rename(GetPath(Type, pOldFilename, aOldBuffer, sizeof(aOldBuffer)),
+						  GetPath(Type, pNewFilename, aNewBuffer, sizeof(aNewBuffer)));
 	}
 
 	virtual bool CreateFolder(const char *pFoldername, int Type)
@@ -405,4 +405,7 @@ public:
 	}
 };
 
-IStorage *CreateStorage(const char *pApplicationName, int StorageType, int NumArgs, const char **ppArguments) { return CStorage::Create(pApplicationName, StorageType, NumArgs, ppArguments); }
+IStorage *CreateStorage(const char *pApplicationName, int StorageType, int NumArgs, const char **ppArguments)
+{
+	return CStorage::Create(pApplicationName, StorageType, NumArgs, ppArguments);
+}

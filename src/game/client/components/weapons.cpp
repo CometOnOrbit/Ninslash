@@ -17,121 +17,121 @@
 #include <game/client/components/tracer.h>
 
 #include "weapons.h"
+#include <game/client/weapon_resources.h>
 
 void CWeapons::OnReset()
 {
-	
 }
-
-
-
 
 void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *pCurrent)
 {
 	CWeaponSpec WeaponSpec;
 	CResolvedWeaponProfile WeaponProfile;
 	if(!CWeaponCatalog::TryFromProtocol(pCurrent->m_WeaponDefinitionId, pCurrent->m_WeaponLevel, &WeaponSpec) ||
-		!CWeaponCatalog::TryResolve(WeaponSpec, &WeaponProfile))
+	   !CWeaponCatalog::TryResolve(WeaponSpec, &WeaponProfile))
 		return;
-	const bool IsStatic = WeaponProfile.m_Definition.m_Kind == EWeaponDefinitionKind::Static;
-	const int StaticType = IsStatic ? WeaponProfile.m_Definition.m_StaticType : -1;
+	const CWeaponDefinition &Definition = WeaponProfile.m_Definition;
 	const CWeaponVisualProfile &Visual = WeaponProfile.m_Visual;
 
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
+	const int CustomHeldTexture = g_WeaponResources.HeldTexture(WeaponSpec);
+	Graphics()->TextureSet(CustomHeldTexture >= 0 ? CustomHeldTexture : g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 	vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
 
 	float Angle = mix(pPrev->m_Angle, pCurrent->m_Angle, Client()->IntraGameTick()) / 256.0f;
-	
-	if (pCurrent->m_Angle > (256.0f * pi) && pPrev->m_Angle < 0)
+
+	if(pCurrent->m_Angle > (256.0f * pi) && pPrev->m_Angle < 0)
 	{
 		float ca = pCurrent->m_Angle - 256.0f * 2 * pi;
 		Angle = mix((float)pPrev->m_Angle, ca, Client()->IntraGameTick()) / 256.0f;
 	}
-	else if (pCurrent->m_Angle < 0 && pPrev->m_Angle > (256.0f * pi))
+	else if(pCurrent->m_Angle < 0 && pPrev->m_Angle > (256.0f * pi))
 	{
 		float ca = pCurrent->m_Angle + 256.0f * 2 * pi;
 		Angle = mix((float)pPrev->m_Angle, ca, Client()->IntraGameTick()) / 256.0f;
 	}
-	
+
 	vec2 Vel = vec2(pCurrent->m_X, pCurrent->m_Y) - vec2(pPrev->m_X, pPrev->m_Y);
 	m_pClient->AddFluidForce(Pos, Vel);
 
-	
 	int Phase1Tick = (Client()->GameTick() - pCurrent->m_AttackTick);
-	float ChargeLevel = min(Phase1Tick*0.013f, 1.0f);
-	
-	if (ChargeLevel == 1.0f)
-		ChargeLevel = 0.7f+cos(Phase1Tick*0.4f)*0.3f;
-	
-	if (Visual.m_ProjectileTraceType != 0)
+	float ChargeLevel = min(Phase1Tick * 0.013f, 1.0f);
+
+	if(ChargeLevel == 1.0f)
+		ChargeLevel = 0.7f + cos(Phase1Tick * 0.4f) * 0.3f;
+
+	if(Visual.m_ProjectileTraceType != 0)
 	{
-		if (length(Vel) >= Visual.m_TraceThreshold)
-			m_pClient->m_pTracers->Add(Visual.m_ProjectileTraceType, pCurrent->m_AttackTick, Pos, Pos, pCurrent->m_AttackTick, Visual.m_ProjectileSize);
-		else if (length(Vel) > Visual.m_TraceThreshold / 5.0f)
+		if(length(Vel) >= Visual.m_TraceThreshold)
+			m_pClient->m_pTracers->Add(Visual.m_ProjectileTraceType,
+									   pCurrent->m_AttackTick,
+									   Pos,
+									   Pos,
+									   pCurrent->m_AttackTick,
+									   Visual.m_ProjectileSize);
+		else if(length(Vel) > Visual.m_TraceThreshold / 5.0f)
 			m_pClient->m_pTracers->UpdatePos(pCurrent->m_AttackTick, Pos);
-		
-		if (StaticType == SW_SHURIKEN)
+
+		if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_SHURIKEN))
 			ChargeLevel = 0.0f;
 	}
-	
-	if (StaticType == SW_CLUSTER && WeaponSpec.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
+
+	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_CLUSTER) && WeaponSpec.m_Level == WEAPON_CLUSTER_FRAGMENT_LEVEL)
 		ChargeLevel = 0.0f;
-	
-	if (StaticType == SW_BOMB)
+
+	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_BOMB))
 	{
-		ChargeLevel = min(Phase1Tick*0.0011f, 1.0f);
-	
-		if (ChargeLevel == 1.0f)
-			ChargeLevel = 0.7f+cos(Phase1Tick*0.5f)*0.3f;
+		ChargeLevel = min(Phase1Tick * 0.0011f, 1.0f);
+
+		if(ChargeLevel == 1.0f)
+			ChargeLevel = 0.7f + cos(Phase1Tick * 0.5f) * 0.3f;
 	}
-	
-	if (StaticType == SW_BALL)
+
+	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_BALL))
 		ChargeLevel = 0;
-		
-	//Graphics()->ShaderBegin(SHADER_COLORSWAP, 1.0f, 0.0f, ChargeLevel);
+
+	// Graphics()->ShaderBegin(SHADER_COLORSWAP, 1.0f, 0.0f, ChargeLevel);
 	RenderTools()->SetShadersForWeapon(WeaponSpec, ChargeLevel);
 	Graphics()->QuadsBegin();
 	Graphics()->QuadsSetRotation(Angle);
 
 	static float s_Time = 0.0f;
 	static float s_LastLocalTime = Client()->LocalTime();
-	//float Offset = Pos.y/32.0f + Pos.x/32.0f;
+	// float Offset = Pos.y/32.0f + Pos.x/32.0f;
 	if(Client()->State() == IClient::STATE_DEMOPLAYBACK)
 	{
 		const IDemoPlayer::CInfo *pInfo = DemoPlayer()->BaseInfo();
 		if(!pInfo->m_Paused)
-			s_Time += (Client()->LocalTime()-s_LastLocalTime)*pInfo->m_Speed;
+			s_Time += (Client()->LocalTime() - s_LastLocalTime) * pInfo->m_Speed;
 	}
 	else
 	{
-		if(m_pClient->m_Snap.m_pGameInfoObj && !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED))
-			s_Time += Client()->LocalTime()-s_LastLocalTime;
- 	}
-	
-	
+		if(m_pClient->m_Snap.m_pGameInfoObj &&
+		   !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED))
+			s_Time += Client()->LocalTime() - s_LastLocalTime;
+	}
+
 	s_LastLocalTime = Client()->LocalTime();
-	
+
 	RenderTools()->RenderWeapon(WeaponSpec, Pos, vec2(1, 0), WEAPON_GAME_SIZE);
-	
+
 	Graphics()->QuadsEnd();
 	Graphics()->ShaderEnd();
-	
-	
-	if (StaticType == SW_AREASHIELD)
+
+	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_AREA_SHIELD))
 	{
-		float c = cos(CustomStuff()->m_SawbladeAngle*0.25f)*0.3f + 0.7f;
-		
+		float c = cos(CustomStuff()->m_SawbladeAngle * 0.25f) * 0.3f + 0.7f;
+
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GENERATOR_SHIELD].m_Id);
 		Graphics()->QuadsBegin();
 		Graphics()->QuadsSetRotation(Angle);
-		
+
 		/*
 		//team color
 		if (m_pClient->m_Snap.m_pGameInfoObj)
 		{
 			int Flags = m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags;
 			int Team = pCurrent->m_Team;
-		
+
 			if ((Flags & GAMEFLAG_TEAMS) && !(Flags & GAMEFLAG_INFECTION))
 			{
 				if (Team == TEAM_RED)
@@ -149,30 +149,24 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 		}
 		else
 			*/
-			
+
 		float a = clamp(Phase1Tick * 0.02f, 0.0f, 1.0f);
-		Graphics()->SetColor(0.5f, 0.5f+c*0.5f, 1, 0.5f*a*a);
-		
-		//Graphics()->SetColor(0, 0.5f+c*0.5f, 1, 0.5f);
+		Graphics()->SetColor(0.5f, 0.5f + c * 0.5f, 1, 0.5f * a * a);
+
+		// Graphics()->SetColor(0, 0.5f+c*0.5f, 1, 0.5f);
 		RenderTools()->SelectSprite(SPRITE_GENERATOR_SHIELD);
-		RenderTools()->DrawSprite(Pos.x, Pos.y, (512+40.0f*c));
+		RenderTools()->DrawSprite(Pos.x, Pos.y, (512 + 40.0f * c));
 		Graphics()->QuadsEnd();
-		
-		m_pClient->m_pEffects->SimpleLight(Pos, vec4(0.5f, 0.5f+c*0.5f, 1, 0.5f), 512+40.0f*c);
+
+		m_pClient->m_pEffects->SimpleLight(Pos, vec4(0.5f, 0.5f + c * 0.5f, 1, 0.5f), 512 + 40.0f * c);
 	}
 }
-
-
-
-
-
-
 
 void CWeapons::OnRender()
 {
 	if(!Client()->IsGameWorldActive())
 		return;
-	
+
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
 	for(int i = 0; i < Num; i++)
 	{

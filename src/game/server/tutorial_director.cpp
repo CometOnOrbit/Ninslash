@@ -7,8 +7,8 @@
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
 
-CTutorialDirector::CTutorialDirector(CGameContext *pGameServer) :
-	m_pGameServer(pGameServer), m_InputMask(0), m_LastFire(0), m_LastWantedWeapon(0), m_CombatRespawnReady(false)
+CTutorialDirector::CTutorialDirector(CGameContext *pGameServer)
+	: m_pGameServer(pGameServer), m_InputMask(0), m_LastFire(0), m_LastWantedWeapon(0), m_CombatRespawnReady(false)
 {
 	m_Machine.Start(g_Config.m_SvTutorialChapter, g_Config.m_SvTutorialStep, g_Config.m_SvTutorialCompletedMask);
 }
@@ -31,7 +31,7 @@ void CTutorialDirector::OnClientEnter(int ClientID)
 {
 	SendState(ClientID);
 	if(m_Machine.State().m_Chapter == TUTORIAL_CHAPTER_BUILD && m_Machine.State().m_Step == 0 &&
-		m_pGameServer->m_pPveDirector && !m_pGameServer->m_pPveDirector->InIntermission())
+	   m_pGameServer->m_pPveDirector && !m_pGameServer->m_pPveDirector->InIntermission())
 		m_pGameServer->m_pPveDirector->StartIntermission(false, true);
 }
 
@@ -94,7 +94,7 @@ void CTutorialDirector::OnGameplayProgress(int ClientID, int Event, int Amount)
 	const int PreviousStep = State.m_Step;
 	m_Machine.AddProgress(Amount);
 	if(State.m_Chapter == TUTORIAL_CHAPTER_COMBAT && PreviousStep == 0 && m_Machine.State().m_Step == 1 &&
-		ClientID >= 0 && ClientID < MAX_CLIENTS)
+	   ClientID >= 0 && ClientID < MAX_CLIENTS)
 	{
 		CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
 		if(pChr)

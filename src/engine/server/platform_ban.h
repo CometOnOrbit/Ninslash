@@ -5,8 +5,11 @@ class IStorage;
 
 class CPlatformBanList
 {
-public:
-	enum { MAX_BANS = 1024 };
+  public:
+	enum
+	{
+		MAX_BANS = 1024
+	};
 	struct CBan
 	{
 		unsigned long long m_SteamID;
@@ -14,13 +17,13 @@ public:
 		char m_aReason[128];
 	};
 
-private:
+  private:
 	CBan m_aBans[MAX_BANS];
 	int m_Count;
 	IStorage *m_pStorage;
 	void PurgeExpired();
 
-public:
+  public:
 	CPlatformBanList();
 	void Init(IStorage *pStorage);
 	bool Load();

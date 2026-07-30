@@ -3,14 +3,16 @@
 #include "droid_specialist.h"
 class CSiegeEngine : public CSpecialistDroid
 {
-public:
+  public:
 	CSiegeEngine(CGameWorld *pWorld, vec2 Pos);
-protected:
+
+  protected:
 	void AbilityTick() override;
 	void MovementTick(class CCharacter *pTarget) override;
 	void OnHealthThreshold(int Threshold) override;
 	void OnSpecialistDeath() override;
-private:
+
+  private:
 	int m_SkillCycle;
 	int m_ChargeEndTick;
 	bool m_ChargeHit;

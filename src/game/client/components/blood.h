@@ -9,7 +9,7 @@ struct CBlooddrop
 {
 	void SetDefault()
 	{
-		m_Vel = vec2(0,0);
+		m_Vel = vec2(0, 0);
 		m_LifeSpan = 0;
 		m_StartSize = 32;
 		m_EndSize = 32;
@@ -18,7 +18,7 @@ struct CBlooddrop
 		m_Gravity = 0;
 		m_Friction = 0;
 		m_FlowAffected = 1.0f;
-		m_Color = vec4(1,1,1,1);
+		m_Color = vec4(1, 1, 1, 1);
 		m_Freeze = false;
 	}
 
@@ -26,7 +26,7 @@ struct CBlooddrop
 	vec2 m_Vel;
 
 	bool m_Freeze;
-	
+
 	int m_Spr;
 
 	float m_FlowAffected;
@@ -53,10 +53,11 @@ struct CBlooddrop
 class CBlood : public CComponent
 {
 	friend class CGameClient;
-public:
+
+  public:
 	enum
 	{
-		GROUP_BLOOD=0,
+		GROUP_BLOOD = 0,
 		GROUP_ACID,
 		GROUP_ACIDLAYER,
 		NUM_GROUPS
@@ -69,15 +70,14 @@ public:
 	virtual void OnReset();
 	virtual void OnRender();
 
-private:
- 
+  private:
 	enum
 	{
-		MAX_BLOOD=1024*8,
+		MAX_BLOOD = 1024 * 8,
 	};
 
 	void Bounce(vec2 Pos, vec2 Dir, int Group, vec4 Color);
-	
+
 	CBlooddrop m_aBlood[MAX_BLOOD];
 	int m_FirstFree;
 	int m_aFirstPart[NUM_GROUPS];
@@ -85,10 +85,9 @@ private:
 	void RenderGroup(int Group);
 	void Update(float TimePassed);
 
-	template<int TGROUP>
-	class CRenderGroup : public CComponent
+	template <int TGROUP> class CRenderGroup : public CComponent
 	{
-	public:
+	  public:
 		CBlood *m_pParts;
 		virtual void OnRender() { m_pParts->RenderGroup(TGROUP); }
 	};

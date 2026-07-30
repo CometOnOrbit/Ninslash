@@ -23,7 +23,7 @@ class CScoreboard : public CComponent
 	int64 m_LastAnimationTime;
 	CUIRect m_TotalRect;
 
-public:
+  public:
 	CScoreboard();
 	virtual void OnReset();
 	virtual void OnConsoleInit();

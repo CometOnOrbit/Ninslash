@@ -92,6 +92,20 @@ Mode-specific presets live in [`cfg/`](cfg/). Server settings can be supplied
 in a configuration file or as command-line console arguments. Do not expose a
 server with a weak RCON password.
 
+To host Mods, install each package directory under the server save directory's
+`workshop/` folder and set only the root package IDs, for example:
+
+```cfg
+sv_mod_ids 9000000001
+```
+
+The folder name may be descriptive; package identity comes from
+`published_file_id` in `ninslash_content.json`. The server resolves dependencies
+and computes `sv_mod_hash` from the installed content at startup. Do not copy a
+client hash into the server configuration manually. Clients must have the same
+package versions enabled or the server log reports both collection hashes and
+ID lists.
+
 For a private or solo session, open **Local Game** in the client. It starts the
 dedicated server as a managed child process, selects an available port and can
 join it automatically.

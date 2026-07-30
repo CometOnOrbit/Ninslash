@@ -6,7 +6,7 @@
 // used for lightning wall destruction effect
 class CLaserFail : public CEntity
 {
-public:
+  public:
 	CLaserFail(CGameWorld *pGameWorld, vec2 From, vec2 To, int PowerLevel);
 
 	virtual void Reset();
@@ -14,7 +14,7 @@ public:
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 
-private:
+  private:
 	vec2 m_From;
 	int m_EvalTick;
 	int m_PowerLevel;

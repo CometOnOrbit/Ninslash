@@ -25,7 +25,7 @@ void Worker(void *pUser)
 	for(void *pAllocation : apAllocations)
 		mem_free(pAllocation);
 }
-}
+} // namespace
 
 int main()
 {

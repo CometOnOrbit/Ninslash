@@ -11,10 +11,12 @@ import subprocess
 from pathlib import Path
 
 
-EXPECTED_IDS = (
-    "1812700", "1812702", "1812703", "1812704",
-    "5016790", "5016792", "5016793", "5016794",
-)
+APP_IDS = ("1812700", "5016790")
+PLATFORM_DEPOT_IDS = {
+    "windows": ("1812702", "5016792"),
+    "linux": ("1812703", "5016793"),
+    "macos": ("1812704", "5016794"),
+}
 FORBIDDEN_NAMES = {
     "steam_appid.txt",
     "settings.cfg",
@@ -369,7 +371,7 @@ def verify_standalone(binary_text, platform, errors):
         errors.append(f"{binary}: standalone dependency inspection failed: {exc}")
 
 
-def verify_vdfs(directory_text, errors):
+def verify_vdfs(directory_text, platforms, errors):
     if not directory_text:
         return
     directory = Path(directory_text)
@@ -382,9 +384,16 @@ def verify_vdfs(directory_text, errors):
         errors.append(f"{directory}: unresolved VDF template token")
     if re.search(r'"setlive"\s+"(?:None|null)"', combined, re.IGNORECASE):
         errors.append(f"{directory}: invalid empty setlive value")
-    for expected_id in EXPECTED_IDS:
+    expected_ids = list(APP_IDS)
+    for platform in sorted(platforms):
+        expected_ids.extend(PLATFORM_DEPOT_IDS[platform])
+    for expected_id in expected_ids:
         if f'"{expected_id}"' not in combined:
             errors.append(f"{directory}: missing assigned Steam ID {expected_id}")
+    for platform in set(PLATFORM_DEPOT_IDS) - set(platforms):
+        for omitted_id in PLATFORM_DEPOT_IDS[platform]:
+            if f'"{omitted_id}"' in combined:
+                errors.append(f"{directory}: contains unselected {platform} DepotID {omitted_id}")
 
 
 def main():
@@ -403,7 +412,12 @@ def main():
     args = parser.parse_args()
 
     errors = []
-    verify_vdfs(args.manifests, errors)
+    platforms = {
+        platform
+        for platform in ("linux", "windows", "macos")
+        if getattr(args, f"{platform}_client") or getattr(args, f"{platform}_server")
+    }
+    verify_vdfs(args.manifests, platforms, errors)
     verify_depot(args.linux_client, "linux", "client", errors)
     verify_depot(args.linux_server, "linux", "server", errors)
     verify_depot(args.windows_client, "windows", "client", errors)

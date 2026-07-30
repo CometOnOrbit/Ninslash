@@ -9,15 +9,14 @@
 
 class CSnapshotItem
 {
-public:
+  public:
 	int m_TypeAndID;
 
-	int *Data() { return (int *)(this+1); }
-	int Type() { return m_TypeAndID>>16; }
-	int ID() { return m_TypeAndID&0xffff; }
+	int *Data() { return (int *)(this + 1); }
+	int Type() { return m_TypeAndID >> 16; }
+	int ID() { return m_TypeAndID & 0xffff; }
 	int Key() { return m_TypeAndID; }
 };
-
 
 class CSnapshot
 {
@@ -25,16 +24,20 @@ class CSnapshot
 	int m_DataSize;
 	int m_NumItems;
 
-	int *Offsets() const { return (int *)(this+1); }
-	char *DataStart() const { return (char*)(Offsets()+m_NumItems); }
+	int *Offsets() const { return (int *)(this + 1); }
+	char *DataStart() const { return (char *)(Offsets() + m_NumItems); }
 
-public:
+  public:
 	enum
 	{
-		MAX_SIZE=64*1024
+		MAX_SIZE = 64 * 1024
 	};
 
-	void Clear() { m_DataSize = 0; m_NumItems = 0; }
+	void Clear()
+	{
+		m_DataSize = 0;
+		m_NumItems = 0;
+	}
 	int NumItems() const { return m_NumItems; }
 	CSnapshotItem *GetItem(int Index);
 	int GetItemSize(int Index);
@@ -44,22 +47,21 @@ public:
 	void DebugDump();
 };
 
-
 // CSnapshotDelta
 
 class CSnapshotDelta
 {
-public:
+  public:
 	class CData
 	{
-	public:
+	  public:
 		int m_NumDeletedItems;
 		int m_NumUpdateItems;
 		int m_NumTempItems; // needed?
 		int m_pData[1];
 	};
 
-private:
+  private:
 	// TODO: strange arbitrary number
 	short m_aItemSizes[64];
 	int m_aSnapshotDataRate[0xffff];
@@ -69,7 +71,7 @@ private:
 
 	void UndiffItem(int *pPast, int *pDiff, int *pOut, int Size);
 
-public:
+  public:
 	CSnapshotDelta();
 	int GetDataRate(int Index) { return m_aSnapshotDataRate[Index]; }
 	int GetDataUpdates(int Index) { return m_aSnapshotDataUpdates[Index]; }
@@ -79,15 +81,14 @@ public:
 	int UnpackDelta(class CSnapshot *pFrom, class CSnapshot *pTo, void *pData, int DataSize);
 };
 
-
 // CSnapshotStorage
 
 class CSnapshotStorage
 {
-public:
+  public:
 	class CHolder
 	{
-	public:
+	  public:
 		CHolder *m_pPrev;
 		CHolder *m_pNext;
 
@@ -98,7 +99,6 @@ public:
 		CSnapshot *m_pSnap;
 		CSnapshot *m_pAltSnap;
 	};
-
 
 	CHolder *m_pFirst;
 	CHolder *m_pLast;
@@ -123,7 +123,7 @@ class CSnapshotBuilder
 	int m_aOffsets[MAX_ITEMS];
 	int m_NumItems;
 
-public:
+  public:
 	void Init();
 
 	void *NewItem(int Type, int ID, int Size);
@@ -133,6 +133,5 @@ public:
 
 	int Finish(void *Snapdata);
 };
-
 
 #endif // ENGINE_SNAPSHOT_H

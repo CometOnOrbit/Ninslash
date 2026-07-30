@@ -8,7 +8,7 @@ const int BossSplitterPhysSize = 70;
 
 class CBossSplitter : public CDroid
 {
-public:
+  public:
 	CBossSplitter(CGameWorld *pGameWorld, vec2 Pos);
 
 	virtual void Reset();
@@ -17,21 +17,21 @@ public:
 
 	void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos) override;
 
-private:
+  private:
 	bool FindTarget();
 	bool Target();
 	void Fire();
-	
+
 	void Move();
 	void MoveDead();
-	
+
 	int m_Move;
-	
+
 	vec2 m_MoveTarget;
 	float m_AngleTimer;
-	
+
 	int m_AttackCount;
-	
+
 	int m_JumpTick;
 	float m_JumpForce;
 };

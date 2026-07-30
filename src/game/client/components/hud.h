@@ -49,7 +49,7 @@ class CHud : public CComponent
 	void RenderCursor();
 
 	void DrawCircular(float x, float y, float r, int Segments, int FillAmount, int Max, bool Flip = false);
-	
+
 	void RenderFps();
 	void RenderConnectionWarning();
 	void RenderStartCountdown();
@@ -71,7 +71,8 @@ class CHud : public CComponent
 	float BottomReservedHeight() const;
 
 	void MapscreenToGroup(float CenterX, float CenterY, struct CMapItemGroup *PGroup);
-public:
+
+  public:
 	CHud();
 	void RenderObjective();
 	void OnHitConfirm(vec2 Pos, int Damage, int TargetType, bool Killed);

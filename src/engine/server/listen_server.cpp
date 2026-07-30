@@ -84,10 +84,7 @@ class CListenServerRuntime : public IListenServerRuntime
 	CListenServerSettings m_PreviousSettings;
 	bool m_HavePreviousSettings;
 
-	static void ThreadEntry(void *pUser)
-	{
-		static_cast<CListenServerRuntime *>(pUser)->Run();
-	}
+	static void ThreadEntry(void *pUser) { static_cast<CListenServerRuntime *>(pUser)->Run(); }
 
 	void Run()
 	{
@@ -152,12 +149,21 @@ class CListenServerRuntime : public IListenServerRuntime
 		delete pStorage;
 		delete pConfig;
 		delete pLocalization;
-		if(m_HavePreviousSettings) { ApplySettings(m_PreviousSettings); m_HavePreviousSettings = false; }
+		if(m_HavePreviousSettings)
+		{
+			ApplySettings(m_PreviousSettings);
+			m_HavePreviousSettings = false;
+		}
 		m_Running = false;
 	}
 
-public:
-	CListenServerRuntime() : m_pThread(0), m_Running(false), m_Ready(false), m_pServer(0), m_pTransport(0), m_HavePreviousSettings(false) { mem_zero(&m_Settings, sizeof(m_Settings)); mem_zero(&m_PreviousSettings, sizeof(m_PreviousSettings)); }
+  public:
+	CListenServerRuntime()
+		: m_pThread(0), m_Running(false), m_Ready(false), m_pServer(0), m_pTransport(0), m_HavePreviousSettings(false)
+	{
+		mem_zero(&m_Settings, sizeof(m_Settings));
+		mem_zero(&m_PreviousSettings, sizeof(m_PreviousSettings));
+	}
 	~CListenServerRuntime() { Stop(); }
 	bool Start(INetPacketTransport *pTransport, const CListenServerSettings &Settings)
 	{
@@ -170,21 +176,35 @@ public:
 		m_Ready = false;
 		m_Running = true;
 		m_pThread = thread_init(ThreadEntry, this);
-		if(!m_pThread) { m_Running = false; ApplySettings(m_PreviousSettings); m_HavePreviousSettings = false; }
+		if(!m_pThread)
+		{
+			m_Running = false;
+			ApplySettings(m_PreviousSettings);
+			m_HavePreviousSettings = false;
+		}
 		return m_Running;
 	}
 	void Stop()
 	{
-		if(m_pServer) m_pServer->RequestStop();
-		if(m_pThread) { thread_wait(m_pThread); m_pThread = 0; }
+		if(m_pServer)
+			m_pServer->RequestStop();
+		if(m_pThread)
+		{
+			thread_wait(m_pThread);
+			m_pThread = 0;
+		}
 		m_Running = false;
 		m_Ready = false;
-		if(m_HavePreviousSettings) { ApplySettings(m_PreviousSettings); m_HavePreviousSettings = false; }
+		if(m_HavePreviousSettings)
+		{
+			ApplySettings(m_PreviousSettings);
+			m_HavePreviousSettings = false;
+		}
 	}
 	bool Running() const { return m_Running; }
 	bool Ready() const { return m_Ready; }
 };
-}
+} // namespace
 
 IListenServerRuntime *CreateListenServerRuntime()
 {

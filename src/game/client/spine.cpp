@@ -22,21 +22,21 @@ array<string> ParseTuple(char *pStr)
 
 CSpineReader::CSpineReader()
 {
-
 }
 
 CSpineReader::~CSpineReader()
 {
-
 }
 
 // parsing spine json format
 // esotericsoftware.com/spine-json-format
-bool CSpineReader::LoadFromFile(class IStorage *pStorage, const char *pFilename, int StorageType,
-		array<CSpineBone> *plBones,
-		array<CSpineSlot> *plSlots,
-		SkinMap *pmSkins,
-		std::map<string, CSpineAnimation>* pmAnimations)
+bool CSpineReader::LoadFromFile(class IStorage *pStorage,
+								const char *pFilename,
+								int StorageType,
+								array<CSpineBone> *plBones,
+								array<CSpineSlot> *plSlots,
+								SkinMap *pmSkins,
+								std::map<string, CSpineAnimation> *pmAnimations)
 {
 	if(!pStorage)
 	{
@@ -59,7 +59,7 @@ bool CSpineReader::LoadFromFile(class IStorage *pStorage, const char *pFilename,
 
 	// load file content into memory
 	unsigned DataSize = io_length(File);
-	char *pData = (char *)mem_alloc(DataSize+1, 1);
+	char *pData = (char *)mem_alloc(DataSize + 1, 1);
 	io_read(File, pData, DataSize);
 	pData[DataSize] = '\0';
 	io_close(File);
@@ -72,10 +72,10 @@ bool CSpineReader::LoadFromFile(class IStorage *pStorage, const char *pFilename,
 }
 
 bool CSpineReader::Load(const char *pData,
-		array<CSpineBone> *plBones,
-		array<CSpineSlot> *plSlots,
-		SkinMap *pmSkins,
-		std::map<string, CSpineAnimation>* pmAnimations)
+						array<CSpineBone> *plBones,
+						array<CSpineSlot> *plSlots,
+						SkinMap *pmSkins,
+						std::map<string, CSpineAnimation> *pmAnimations)
 {
 	// TODO: sanity checks! typecheck json values!
 
@@ -90,7 +90,7 @@ bool CSpineReader::Load(const char *pData,
 	mem_zero(&JsonSettings, sizeof(JsonSettings));
 	char aError[256];
 	unsigned int DataSize = str_length(pData);
-	json_value *pJsonData = json_parse_ex(&JsonSettings, pData, DataSize+1, aError);
+	json_value *pJsonData = json_parse_ex(&JsonSettings, pData, DataSize + 1, aError);
 
 	if(!pJsonData)
 	{
@@ -99,34 +99,34 @@ bool CSpineReader::Load(const char *pData,
 	}
 
 	// parse bones
-	const json_value& rBones = (*pJsonData)["bones"];
+	const json_value &rBones = (*pJsonData)["bones"];
 	if(rBones.type == json_array && plBones)
 	{
 		for(unsigned int i = 0; i < rBones.u.array.length; i++)
 		{
-			const json_value& rBone = rBones[i];
+			const json_value &rBone = rBones[i];
 
 			CSpineBone Bone;
 			Bone.m_Name = (const char *)rBone["name"];
 			Bone.m_Parent = (const char *)rBone["parent"]; // defaults to empty string
-			Bone.m_Length = (double)rBone["length"]; // defaults to 0.0
-			Bone.m_X = (double)rBone["x"]; // defaults to 0.0
-			Bone.m_Y = (double)rBone["y"]; // defaults to 0.0
+			Bone.m_Length = (double)rBone["length"];	   // defaults to 0.0
+			Bone.m_X = (double)rBone["x"];				   // defaults to 0.0
+			Bone.m_Y = (double)rBone["y"];				   // defaults to 0.0
 			Bone.m_ScaleX = rBone["scaleX"].type == json_none ? 1.0f : (double)rBone["scaleX"]; // defaults to 1.0
 			Bone.m_ScaleY = rBone["scaleY"].type == json_none ? 1.0f : (double)rBone["scaleY"]; // defaults to 1.0
-			Bone.m_Rotation = (double)rBone["rotation"]; // defaults to 0.0
+			Bone.m_Rotation = (double)rBone["rotation"];										// defaults to 0.0
 
 			plBones->add(Bone);
 		}
 	}
 
 	// parse slots
-	const json_value& rSlots = (*pJsonData)["slots"];
+	const json_value &rSlots = (*pJsonData)["slots"];
 	if(rBones.type == json_array && plSlots)
 	{
 		for(unsigned int i = 0; i < rSlots.u.array.length; i++)
 		{
-			const json_value& rSlot = rSlots[i];
+			const json_value &rSlot = rSlots[i];
 
 			CSpineSlot Slot;
 			Slot.m_Name = (const char *)rSlot["name"];
@@ -142,25 +142,26 @@ bool CSpineReader::Load(const char *pData,
 	if((*pJsonData)["skins"].type != json_none && pmSkins)
 	{
 		// TODO:
-		const json_value& rSkins = (*pJsonData)["skins"];
+		const json_value &rSkins = (*pJsonData)["skins"];
 		for(unsigned int i = 0; i < rSkins.u.object.length; i++)
 		{
 			const char *pSkinName = rSkins.u.object.values[i].name;
-			const json_value& rSkin = (*rSkins.u.object.values[i].value);
+			const json_value &rSkin = (*rSkins.u.object.values[i].value);
 
 			for(unsigned int j = 0; j < rSkin.u.object.length; j++)
 			{
 				const char *pSlotName = rSkin.u.object.values[j].name;
-				const json_value& rAttachments = (*rSkin.u.object.values[j].value);
+				const json_value &rAttachments = (*rSkin.u.object.values[j].value);
 
 				for(unsigned int k = 0; k < rAttachments.u.object.length; k++)
 				{
 					const char *pAttachmentName = rAttachments.u.object.values[k].name;
-					const json_value& rAttachment = (*rAttachments.u.object.values[k].value);
+					const json_value &rAttachment = (*rAttachments.u.object.values[k].value);
 
 					CSpineAttachment Attachment;
-					Attachment.m_Name = rAttachment["name"].type == json_none ? pAttachmentName : (const char *)rAttachment["name"];
-					
+					Attachment.m_Name =
+						rAttachment["name"].type == json_none ? pAttachmentName : (const char *)rAttachment["name"];
+
 					// attachment type
 					{
 						int Type = SPINE_ATTACHMENT_REGION;
@@ -175,20 +176,25 @@ bool CSpineReader::Load(const char *pData,
 							else if(str_comp("skinnedmesh", rAttachment["type"]) == 0)
 								Type = SPINE_ATTACHMENT_SKINNED_MESH;
 							else
-								dbg_msg("spine", "Unsupported attachment type: %s", (const char *) rAttachment["type"]);
+								dbg_msg("spine", "Unsupported attachment type: %s", (const char *)rAttachment["type"]);
 						}
 
 						Attachment.m_Type = Type;
 					}
 
-					if(Attachment.m_Type == SPINE_ATTACHMENT_REGION || Attachment.m_Type == SPINE_ATTACHMENT_REGIONSEQUENCE)
+					if(Attachment.m_Type == SPINE_ATTACHMENT_REGION ||
+					   Attachment.m_Type == SPINE_ATTACHMENT_REGIONSEQUENCE)
 					{
 						// region + regionsequence values
 						Attachment.m_Region.m_X = (double)rAttachment["x"]; // defaults to 0.0
 						Attachment.m_Region.m_Y = (double)rAttachment["y"]; // defaults to 0.0
-						Attachment.m_Region.m_ScaleX = rAttachment["scaleX"].type == json_none ? 1.0f : (double)rAttachment["scaleX"]; // defaults to 1.0
-						Attachment.m_Region.m_ScaleY = rAttachment["scaleY"].type == json_none ? 1.0f : (double)rAttachment["scaleY"]; // defaults to 1.0
-						Attachment.m_Region.m_Rotation = (double)rAttachment["rotation"]; // defaults to 0.0
+						Attachment.m_Region.m_ScaleX = rAttachment["scaleX"].type == json_none
+														   ? 1.0f
+														   : (double)rAttachment["scaleX"]; // defaults to 1.0
+						Attachment.m_Region.m_ScaleY = rAttachment["scaleY"].type == json_none
+														   ? 1.0f
+														   : (double)rAttachment["scaleY"]; // defaults to 1.0
+						Attachment.m_Region.m_Rotation = (double)rAttachment["rotation"];	// defaults to 0.0
 						Attachment.m_Region.m_Width = (double)rAttachment["width"];
 						Attachment.m_Region.m_Height = (double)rAttachment["height"];
 
@@ -213,7 +219,9 @@ bool CSpineReader::Load(const char *pData,
 								else if(str_comp("random", rAttachment["mode"]) == 0)
 									SeqMode = SPINE_SEQUENCE_MODE_RANDOM;
 								else
-									dbg_msg("spine", "Unsupported attachment region sequence mode: %s", (const char *) rAttachment["mode"]);
+									dbg_msg("spine",
+											"Unsupported attachment region sequence mode: %s",
+											(const char *)rAttachment["mode"]);
 							}
 
 							Attachment.m_RegionSeq.m_Mode = SeqMode;
@@ -238,16 +246,16 @@ bool CSpineReader::Load(const char *pData,
 							for(unsigned int v = 0; v < rAttachment["vertices"].u.array.length; v++)
 								Attachment.m_SkinnedMesh.m_aVertices.add((double)rAttachment["vertices"][v]);
 						}
-						
+
 						Attachment.m_SkinnedMesh.m_Hull = (int)rAttachment["hull"]; // defaults to 0
-						
+
 						if(rAttachment["edges"].type != json_none)
 						{
 							for(unsigned int v = 0; v < rAttachment["edges"].u.array.length; v++)
 								Attachment.m_SkinnedMesh.m_aEdges.add((double)rAttachment["edges"][v]);
 						}
 
-						Attachment.m_SkinnedMesh.m_Width = (double)rAttachment["width"]; // defaults to 0.0
+						Attachment.m_SkinnedMesh.m_Width = (double)rAttachment["width"];   // defaults to 0.0
 						Attachment.m_SkinnedMesh.m_Height = (double)rAttachment["height"]; // defaults to 0.0
 					}
 
@@ -274,32 +282,32 @@ bool CSpineReader::Load(const char *pData,
 	if((*pJsonData)["animations"].type == json_object && pmAnimations)
 	{
 		// TODO:
-		const json_value& rAnimations = (*pJsonData)["animations"];
+		const json_value &rAnimations = (*pJsonData)["animations"];
 		for(unsigned int i = 0; i < rAnimations.u.object.length; i++)
 		{
 			const char *pAnimationName = rAnimations.u.object.values[i].name;
-			const json_value& rAnimation = (*rAnimations.u.object.values[i].value);
+			const json_value &rAnimation = (*rAnimations.u.object.values[i].value);
 
 			CSpineAnimation Animation;
 
 			if(rAnimation["slots"].type == json_object)
 			{
-				const json_value& rSlots = rAnimation["slots"];
+				const json_value &rSlots = rAnimation["slots"];
 
 				for(unsigned int j = 0; j < rSlots.u.object.length; j++)
 				{
 					const char *pSlotName = rSlots.u.object.values[j].name;
-					const json_value& rSlot = (*rSlots.u.object.values[j].value);
+					const json_value &rSlot = (*rSlots.u.object.values[j].value);
 
 					CSpineSlotTimeline SlotTimeline;
 
 					if(rSlot["attachment"].type == json_array)
 					{
-						const json_value& rSlotAttachments = rSlot["attachment"];
+						const json_value &rSlotAttachments = rSlot["attachment"];
 
 						for(unsigned int k = 0; k < rSlotAttachments.u.array.length; k++)
 						{
-							const json_value& rAttachment = rSlotAttachments[k];
+							const json_value &rAttachment = rSlotAttachments[k];
 
 							CSpineSlotKeyframeAttachment AttachmentKeyframe;
 							AttachmentKeyframe.m_Time = (double)rAttachment["time"];
@@ -311,27 +319,26 @@ bool CSpineReader::Load(const char *pData,
 
 					Animation.m_lSlotTimeline[pSlotName] = SlotTimeline;
 				}
-
 			}
-			
+
 			if(rAnimation["bones"].type == json_object)
 			{
-				const json_value& rBones = rAnimation["bones"];
+				const json_value &rBones = rAnimation["bones"];
 
 				for(unsigned int j = 0; j < rBones.u.object.length; j++)
 				{
 					const char *pBoneName = rBones.u.object.values[j].name;
-					const json_value& rBone = (*rBones.u.object.values[j].value);
+					const json_value &rBone = (*rBones.u.object.values[j].value);
 
 					CSpineBoneTimeline BoneTimeline;
 
 					if(rBone["translate"].type == json_array)
 					{
-						const json_value& rBoneTranslations = rBone["translate"];
+						const json_value &rBoneTranslations = rBone["translate"];
 
 						for(unsigned int k = 0; k < rBoneTranslations.u.array.length; k++)
 						{
-							const json_value& rTranslation = rBoneTranslations[k];
+							const json_value &rTranslation = rBoneTranslations[k];
 
 							CSpineBoneKeyframeTranslate TranslationKeyframe;
 							TranslationKeyframe.m_Time = (double)rTranslation["time"];
@@ -346,12 +353,13 @@ bool CSpineReader::Load(const char *pData,
 								else if(str_comp("linear", rTranslation["curve"]) == 0)
 									TranslationKeyframe.m_Curve.m_Type = SPINE_CURVE_LINEAR;
 								else
-									dbg_msg("spine", "Unsupported keyframe type: %s", (const char *) rTranslation["curve"]);
+									dbg_msg(
+										"spine", "Unsupported keyframe type: %s", (const char *)rTranslation["curve"]);
 							}
 							else if(rTranslation["curve"].type == json_array)
 							{
 								TranslationKeyframe.m_Curve.m_Type = SPINE_CURVE_BEZIER;
-								const json_value& rCurve = rTranslation["curve"];
+								const json_value &rCurve = rTranslation["curve"];
 								for(unsigned int l = 0; l < rCurve.u.array.length; l++)
 									TranslationKeyframe.m_Curve.m_lPoints.add((double)rCurve[l]);
 							}
@@ -362,11 +370,11 @@ bool CSpineReader::Load(const char *pData,
 
 					if(rBone["rotate"].type == json_array)
 					{
-						const json_value& rBoneRotations = rBone["rotate"];
+						const json_value &rBoneRotations = rBone["rotate"];
 
 						for(unsigned int k = 0; k < rBoneRotations.u.array.length; k++)
 						{
-							const json_value& rRotation = rBoneRotations[k];
+							const json_value &rRotation = rBoneRotations[k];
 
 							CSpineBoneKeyframeRotate RotationKeyframe;
 
@@ -381,12 +389,12 @@ bool CSpineReader::Load(const char *pData,
 								else if(str_comp("linear", rRotation["curve"]) == 0)
 									RotationKeyframe.m_Curve.m_Type = SPINE_CURVE_LINEAR;
 								else
-									dbg_msg("spine", "Unsupported keyframe type: %s", (const char *) rRotation["curve"]);
+									dbg_msg("spine", "Unsupported keyframe type: %s", (const char *)rRotation["curve"]);
 							}
 							else if(rRotation["curve"].type == json_array)
 							{
 								RotationKeyframe.m_Curve.m_Type = SPINE_CURVE_BEZIER;
-								const json_value& rCurve = rRotation["curve"];
+								const json_value &rCurve = rRotation["curve"];
 								for(unsigned int l = 0; l < rCurve.u.array.length; l++)
 									RotationKeyframe.m_Curve.m_lPoints.add((double)rCurve[l]);
 							}
@@ -395,14 +403,13 @@ bool CSpineReader::Load(const char *pData,
 						}
 					}
 
-
 					if(rBone["scale"].type == json_array)
 					{
-						const json_value& rBoneScales = rBone["scale"];
+						const json_value &rBoneScales = rBone["scale"];
 
 						for(unsigned int k = 0; k < rBoneScales.u.array.length; k++)
 						{
-							const json_value& rScale = rBoneScales[k];
+							const json_value &rScale = rBoneScales[k];
 
 							CSpineBoneKeyframeScale ScaleKeyframe;
 
@@ -418,12 +425,12 @@ bool CSpineReader::Load(const char *pData,
 								else if(str_comp("linear", rScale["curve"]) == 0)
 									ScaleKeyframe.m_Curve.m_Type = SPINE_CURVE_LINEAR;
 								else
-									dbg_msg("spine", "Unsupported keyframe type: %s", (const char *) rScale["curve"]);
+									dbg_msg("spine", "Unsupported keyframe type: %s", (const char *)rScale["curve"]);
 							}
 							else if(rScale["curve"].type == json_array)
 							{
 								ScaleKeyframe.m_Curve.m_Type = SPINE_CURVE_BEZIER;
-								const json_value& rCurve = rScale["curve"];
+								const json_value &rCurve = rScale["curve"];
 								for(unsigned int l = 0; l < rCurve.u.array.length; l++)
 									ScaleKeyframe.m_Curve.m_lPoints.add((double)rCurve[l]);
 							}
@@ -446,7 +453,10 @@ bool CSpineReader::Load(const char *pData,
 	return true;
 }
 
-bool CSpineReader::LoadAtlasFromFile(class IStorage *pStorage , const char *pFilename, int StorageType, CSpineAtlas* pAtlas)
+bool CSpineReader::LoadAtlasFromFile(class IStorage *pStorage,
+									 const char *pFilename,
+									 int StorageType,
+									 CSpineAtlas *pAtlas)
 {
 	if(!pStorage)
 		return false;
@@ -463,7 +473,7 @@ bool CSpineReader::LoadAtlasFromFile(class IStorage *pStorage , const char *pFil
 
 	// load file content into memory
 	unsigned DataSize = io_length(File);
-	char *pData = (char *)mem_alloc(DataSize+1, 1);
+	char *pData = (char *)mem_alloc(DataSize + 1, 1);
 	io_read(File, pData, DataSize);
 	pData[DataSize] = '\0';
 	io_close(File);
@@ -508,7 +518,7 @@ bool CSpineReader::LoadAtlas(const char *pAtlasData, CSpineAtlas *pAtlas)
 			// fill new page
 			CSpineAtlasPage Page;
 			Page.m_Name = pLine;
-			//dbg_msg("spine", "atlas page: %s", Page.m_Name);
+			// dbg_msg("spine", "atlas page: %s", Page.m_Name);
 
 			{
 				// size
@@ -617,11 +627,11 @@ bool CSpineReader::LoadAtlas(const char *pAtlasData, CSpineAtlas *pAtlas)
 				}
 
 				pLine = str_skip_whitespaces(pLine);
-				//const char *pFilter = pLine + str_length("rotate: ");
+				// const char *pFilter = pLine + str_length("rotate: ");
 			}
 
 			pAtlas->m_lPages.add(Page);
-			pCurPage = &pAtlas->m_lPages[pAtlas->m_lPages.size()-1];
+			pCurPage = &pAtlas->m_lPages[pAtlas->m_lPages.size() - 1];
 		}
 		else
 		{
@@ -792,7 +802,7 @@ bool CSpineReader::LoadAtlas(const char *pAtlasData, CSpineAtlas *pAtlas)
 			pCurPage->m_lRegions.add(Region);
 		}
 	}
-	
+
 	m_LineReader.Shutdown();
 	return (!Error);
 }

@@ -4,10 +4,9 @@
 #include <game/server/entity.h>
 #include <game/server/entities/building.h>
 
-
 class CTeslacoil : public CBuilding
 {
-public:
+  public:
 	CTeslacoil(CGameWorld *pGameWorld, vec2 Pos, int Team, int OwnerPlayer = -1);
 
 	virtual void Tick();
@@ -17,8 +16,8 @@ public:
 	int m_OwnerPlayer;
 	int m_AttackTick;
 	int m_FlipY;
-	
-private:
+
+  private:
 	void Fire();
 };
 

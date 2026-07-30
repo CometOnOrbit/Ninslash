@@ -5,14 +5,14 @@
 
 class CSpecialistDroid : public CDroid
 {
-public:
+  public:
 	CSpecialistDroid(CGameWorld *pWorld, vec2 Pos, int Type, int Health, bool Boss);
 	void Reset() override;
 	void Tick() override;
 	void TickPaused() override;
 	void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos) override;
 
-protected:
+  protected:
 	virtual void AbilityTick();
 	virtual void MovementTick(class CCharacter *pTarget);
 	virtual vec2 CollisionSize() const;

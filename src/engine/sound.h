@@ -8,12 +8,12 @@
 class ISound : public IInterface
 {
 	MACRO_INTERFACE("sound", 0)
-public:
+  public:
 	enum
 	{
-		FLAG_LOOP=1,
-		FLAG_POS=2,
-		FLAG_ALL=3
+		FLAG_LOOP = 1,
+		FLAG_POS = 2,
+		FLAG_ALL = 3
 	};
 
 	virtual bool IsSoundEnabled() = 0;
@@ -29,11 +29,10 @@ public:
 	virtual void StopAll() = 0;
 };
 
-
 class IEngineSound : public ISound
 {
 	MACRO_INTERFACE("enginesound", 0)
-public:
+  public:
 	virtual int Init() = 0;
 	virtual int Update() = 0;
 	virtual int Shutdown() = 0;

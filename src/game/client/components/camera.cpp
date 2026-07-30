@@ -18,12 +18,11 @@ CCamera::CCamera()
 	m_CameraSmoothStart = 0;
 	m_Zoom = 1.0f;
 	m_TargetZoom = 1.0f;
-	m_Center = vec2(0,0);
-	m_Center2 = vec2(0,0);
-	m_PrevCenter = vec2(0,0);
-	m_TargetCenter = vec2(0,0);
+	m_Center = vec2(0, 0);
+	m_Center2 = vec2(0, 0);
+	m_PrevCenter = vec2(0, 0);
+	m_TargetCenter = vec2(0, 0);
 }
-
 
 void CCamera::OnRender()
 {
@@ -66,7 +65,7 @@ void CCamera::OnRender()
 		}
 		else
 		{
-			int step = time_freq()/800;
+			int step = time_freq() / 800;
 			if(step <= 0)
 				step = 1;
 
@@ -125,7 +124,8 @@ void CCamera::OnRender()
 			if(g_Config.m_ClDyncamStabilizing > 0)
 			{
 				float MouseSpeed = length(m_pClient->m_pControls->m_MousePos) * FrameTime;
-				float StabilizeFactor = 1.0f - g_Config.m_ClDyncamStabilizing / 100.0f * clamp(MouseSpeed / 10.0f, 0.0f, 1.0f);
+				float StabilizeFactor =
+					1.0f - g_Config.m_ClDyncamStabilizing / 100.0f * clamp(MouseSpeed / 10.0f, 0.0f, 1.0f);
 				SmoothFactor *= StabilizeFactor;
 			}
 

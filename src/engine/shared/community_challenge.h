@@ -3,7 +3,11 @@
 
 #include "content_manifest.h"
 
-enum ECommunityChallengeMetric { COMMUNITY_CHALLENGE_CLEAR_TIME_MS, COMMUNITY_CHALLENGE_HIGHEST_FLOOR };
+enum ECommunityChallengeMetric
+{
+	COMMUNITY_CHALLENGE_CLEAR_TIME_MS,
+	COMMUNITY_CHALLENGE_HIGHEST_FLOOR
+};
 
 struct CCommunityChallengeDescriptor
 {
@@ -15,8 +19,14 @@ struct CCommunityChallengeDescriptor
 	char m_aContentHash[65];
 };
 
-bool CommunityChallengeParse(const char *pJson, int JsonLength, const CContentManifest &Manifest, CCommunityChallengeDescriptor *pDescriptor, char *pError, int ErrorSize);
-bool CommunityChallengeStillEligible(const CCommunityChallengeDescriptor &Run, const CCommunityChallengeDescriptor &Current);
+bool CommunityChallengeParse(const char *pJson,
+							 int JsonLength,
+							 const CContentManifest &Manifest,
+							 CCommunityChallengeDescriptor *pDescriptor,
+							 char *pError,
+							 int ErrorSize);
+bool CommunityChallengeStillEligible(const CCommunityChallengeDescriptor &Run,
+									 const CCommunityChallengeDescriptor &Current);
 bool CommunityChallengeLeaderboardName(const CCommunityChallengeDescriptor &Descriptor, char *pBuffer, int BufferSize);
 
 #endif

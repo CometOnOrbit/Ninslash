@@ -9,11 +9,11 @@ class IListenServerRuntime;
 
 class CGraph
 {
-public:
+  public:
 	enum
 	{
 		// restrictions: Must be power of two
-		MAX_VALUES=128,
+		MAX_VALUES = 128,
 	};
 
 	float m_Min, m_Max;
@@ -30,7 +30,6 @@ public:
 	void Render(IGraphics *pGraphics, int Font, float x, float y, float w, float h, const char *pDescription);
 };
 
-
 class CSmoothTime
 {
 	int64 m_Snap;
@@ -45,7 +44,7 @@ class CSmoothTime
 	int m_BadnessScore;
 
 	float m_aAdjustSpeed[2]; // 0 = down, 1 = up
-public:
+  public:
 	void Init(int64 Target);
 	void SetAdjustSpeed(int Direction, float Value);
 
@@ -55,7 +54,6 @@ public:
 	void UpdateInt(int64 Target);
 	void Update(CGraph *pGraph, int64 Target, int TimeLeft, int AdjustDirection);
 };
-
 
 class CClient : public IClient, public CDemoPlayer::IListner
 {
@@ -79,8 +77,8 @@ class CClient : public IClient, public CDemoPlayer::IListner
 
 	enum
 	{
-		NUM_SNAPSHOT_TYPES=2,
-		PREDICTION_MARGIN=1000/50/2, // magic network prediction value
+		NUM_SNAPSHOT_TYPES = 2,
+		PREDICTION_MARGIN = 1000 / 50 / 2, // magic network prediction value
 	};
 
 	class CNetClient m_NetClient;
@@ -99,14 +97,14 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	int64 m_LocalStartTime;
 
 	int m_DebugFont;
-	
+
 	int64 m_LastRenderTime;
 	float m_RenderFrameTimeLow;
 	float m_RenderFrameTimeHigh;
 	int m_RenderFrames;
 
 	NETADDR m_ServerAddress;
-	
+
 	bool m_MouseIsFree;
 	int m_SnapCrcErrors;
 	bool m_AutoScreenshotRecycle;
@@ -154,8 +152,8 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	struct // TODO: handle input better
 	{
 		int m_aData[MAX_INPUT_SIZE]; // the input data
-		int m_Tick; // the tick that the input is for
-		int64 m_PredictedTime; // prediction latency when we sent this input
+		int m_Tick;					 // the tick that the input is for
+		int64 m_PredictedTime;		 // prediction latency when we sent this input
 		int64 m_Time;
 	} m_aInputs[200];
 
@@ -190,7 +188,7 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	{
 		enum
 		{
-			STATE_INIT=0,
+			STATE_INIT = 0,
 			STATE_START,
 			STATE_READY,
 		};
@@ -200,13 +198,14 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	} m_VersionInfo;
 
 	volatile int m_GfxState;
-	static void GraphicsThreadProxy(void *pThis) { ((CClient*)pThis)->GraphicsThread(); }
+	static void GraphicsThreadProxy(void *pThis) { ((CClient *)pThis)->GraphicsThread(); }
 	void GraphicsThread();
 
 	bool m_Loaded;
-	
+
 	int64 TickStartTime(int Tick);
-public:
+
+  public:
 	IEngine *Engine() { return m_pEngine; }
 	IEngineGraphics *Graphics() { return m_pGraphics; }
 	IEngineInput *Input() { return m_pInput; }
@@ -221,7 +220,7 @@ public:
 	// ----- send functions -----
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags);
 
-	int SendMsgEx(CMsgPacker *pMsg, int Flags, bool System=true);
+	int SendMsgEx(CMsgPacker *pMsg, int Flags, bool System = true);
 	void SendInfo();
 	void SendPlatformAuth(int Policy, bool RelayRequired);
 	void SendEnterGame();
@@ -236,7 +235,7 @@ public:
 	virtual int GetInputtimeMarginStabilityScore();
 
 	virtual bool SoundInitFailed() { return m_SoundInitFailed; }
-	
+
 	virtual bool GamepadInitFailed() { return m_GamepadInitFailed; }
 
 	virtual int GetDebugFont() { return m_DebugFont; }
@@ -256,10 +255,10 @@ public:
 	// called when the map is loaded and we should init for a new round
 	void OnEnterGame();
 	virtual void EnterGame();
-	
+
 	virtual bool Loaded();
 	virtual void LoadReady();
-	
+
 	virtual void Connect(const char *pAddress);
 	virtual bool StartSteamHostedGame(const CHostGameSettings &Settings);
 	virtual void StopSteamHostedGame();
@@ -267,7 +266,6 @@ public:
 	virtual void ConnectionStatus(CClientAsyncStatus *pStatus) const;
 	void DisconnectWithReason(const char *pReason);
 	virtual void Disconnect();
-
 
 	virtual void GetServerInfo(CServerInfo *pServerInfo);
 	virtual void GetServerAddress(NETADDR *pAddress) const;
@@ -313,7 +311,6 @@ public:
 
 	void Run();
 
-
 	static void Con_Connect(IConsole::IResult *pResult, void *pUserData);
 	static void Con_Disconnect(IConsole::IResult *pResult, void *pUserData);
 	static void Con_Quit(IConsole::IResult *pResult, void *pUserData);
@@ -345,7 +342,10 @@ public:
 	static void Con_SteamWorkshopCreate(IConsole::IResult *pResult, void *pUserData);
 	static void Con_SteamWorkshopPublish(IConsole::IResult *pResult, void *pUserData);
 	static void Con_SteamWorkshopPublishStatus(IConsole::IResult *pResult, void *pUserData);
-	static void ConchainServerBrowserUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainServerBrowserUpdate(IConsole::IResult *pResult,
+											void *pUserData,
+											IConsole::FCommandCallback pfnCallback,
+											void *pCallbackUserData);
 
 	void RegisterCommands();
 

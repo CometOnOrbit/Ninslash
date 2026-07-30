@@ -7,7 +7,6 @@
 #define MAX_PICKUPS 1024
 #define MAX_DROPPABLES 60
 
-
 enum BombStatuses
 {
 	BOMB_IDLE,
@@ -15,7 +14,6 @@ enum BombStatuses
 	BOMB_ARMED,
 	BOMB_DISARMED
 };
-
 
 /*
 	Class: Game Controller
@@ -30,11 +28,11 @@ class IGameController
 	class CGameContext *m_pGameServer;
 	class IServer *m_pServer;
 
-protected:
+  protected:
 	int m_ClearBroadcastTick;
 
 	void AutoBalance();
-	
+
 	void RespawnPickups();
 	void FlashPickups();
 	void ClearPickups();
@@ -43,16 +41,14 @@ protected:
 
 	void ResetSurvivalRound();
 	void KillEveryone();
-	
+
 	// for hooking to different gamemodes, e.g. reseting flags
 	virtual void NewSurvivalRound();
-	
-	
+
 	// CSTT & CSBB
 	int m_Round;
 	int m_GameState;
-	
-	
+
 	//
 	CGameContext *GameServer() const { return m_pGameServer; }
 	IServer *Server() const { return m_pServer; }
@@ -63,7 +59,7 @@ protected:
 		{
 			m_Got = false;
 			m_FriendlyTeam = -1;
-			m_Pos = vec2(100,100);
+			m_Pos = vec2(100, 100);
 			m_Score = 0.0f;
 			m_Used = false;
 		}
@@ -99,7 +95,7 @@ protected:
 	int m_GameVoteEndTick;
 	bool m_PostRoundTransitionStarted;
 	int m_RoundCount;
-	
+
 	void SendGameVotes();
 	void ResetGameVotes();
 	virtual void BeginPostRoundTransition();
@@ -107,7 +103,7 @@ protected:
 	int m_GameFlags;
 	int m_UnbalancedTick;
 	bool m_ForceBalanced;
-	
+
 	int m_TimeLimit;
 
 	enum SurvivalStatus
@@ -115,7 +111,7 @@ protected:
 		SURVIVAL_CANJOIN,
 		SURVIVAL_NOCANDO,
 	};
-	
+
 	int m_SurvivalStatus;
 	int m_SurvivalDeathTick;
 	int m_SurvivalStartTick;
@@ -127,58 +123,57 @@ protected:
 	int m_RisingAcidDuration;
 
 	int GetRisingAcidTime() const;
-	
-	bool m_SurvivalDeathReset;
-	
-public:
 
+	bool m_SurvivalDeathReset;
+
+  public:
 	class CBall *m_pBall;
-	
+
 	int m_LastBallToucher;
-	
+
 	void RestoreEntity(int ObjType, int Type, int Subtype, int x, int y);
-	
+
 	bool GameVoting() { return m_GameVote == 1; }
-	
+
 	int GetVoteTime();
-	
+
 	// CSTT & CSBB
-	int GetRoundState(){ return m_GameState; }
-	int GetRound(){ return m_Round; }
+	int GetRoundState() { return m_GameState; }
+	int GetRound() { return m_Round; }
 
 	virtual int GetDefendingTeam();
 	virtual vec2 GetAttackPos();
-	
+
 	virtual bool InBombArea(vec2 Pos);
-	
+
 	virtual vec2 GetGoalArea(int Team);
-	
+
 	virtual void TriggerBomb();
 	virtual void DisarmBomb();
 	virtual void ReactorDestroyed();
 	virtual bool IsReactorDefenseActive() const { return false; }
-	
+
 	virtual void AddMapArea(int Team, vec2 Pos);
 	virtual bool InMapArea(int Team, vec2 Pos);
-	
+
 	virtual void OnSurvivalTimeOut();
-	
+
 	void ResetBallRound();
-	
+
 	int m_BombStatus;
 	vec2 m_BombPos;
-	
+
 	void DropPickup(vec2 Pos, int PickupType, vec2 Force, int PickupSubtype, float Ammo = -1.0f, int PowerLevel = 0);
 	void DropWeapon(vec2 Pos, vec2 Force, class CWeapon *pWeapon);
-	
+
 	void ReleaseWeapon(class CWeapon *pWeapon);
 	bool TriggerWeapon(class CWeapon *pWeapon);
-	
+
 	int GetTimeLeft();
-	
+
 	CWeaponSpec GetRandomWeapon();
 	CWeaponSpec GetRandomModularWeapon();
-	
+
 	//
 	const char *m_pGameType;
 
@@ -189,7 +184,7 @@ public:
 	int CountBots();
 	int CountBotsAlive();
 	bool AllVotingHumansVoted() const;
-	
+
 	void TriggerSwitch(vec2 Pos);
 	bool FindEscape(vec2 *pExitPos = 0) const;
 	bool TriggerEscape(vec2 *pExitPos = 0);
@@ -197,9 +192,9 @@ public:
 	void ClearRisingAcid();
 	bool IsRisingAcid() const { return m_RisingAcid; }
 	virtual void OnSwitchTriggered();
-	
+
 	virtual void NextLevel(int CID = -1);
-	
+
 	bool IsCoop() const;
 	bool IsSurvival() const;
 	bool IsTeamplay() const;
@@ -208,12 +203,12 @@ public:
 
 	// called when client connects
 	void OnPlayerJoin();
-	
+
 	IGameController(class CGameContext *pGameServer);
 	virtual ~IGameController();
 
 	virtual void DoWincheck();
-	
+
 	/*
 	virtual class CCharacter *GetHead();
 	virtual void SetHead(class CCharacter *Boss);
@@ -264,10 +259,8 @@ public:
 			chr - The CCharacter that was spawned.
 	*/
 	virtual void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false);
-	
-	
+
 	virtual bool GetSpawnPos(int Team, vec2 *pOutPos);
-	
 
 	/*
 		Function: on_CCharacter_death
@@ -280,11 +273,11 @@ public:
 				weapon when switching team or player suicides.
 	*/
 	virtual int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source);
-	
+
 	// for ctf ai
 	virtual vec2 GetFlagPos(int Team);
 	virtual int GetFlagState(int Team);
-	
+
 	virtual bool CanCharacterSpawn(int ClientID);
 	virtual bool CanSeePickup(int CID, int Type, int Subtype); // for gungame
 	virtual bool CanDropWeapon(class CCharacter *pCharacter);
@@ -293,12 +286,11 @@ public:
 	virtual class CFlag *GetRandomBase(int NotThisTeam = -1);
 	virtual class CFlag *GetUndefendedBase(int Team = -1);
 	virtual int Defenders(class CFlag *Base);
-	
+
 	virtual int CountBases(int Team = -1);
-	
+
 	virtual void OnPlayerInfoChange(class CPlayer *pP);
-	
-	
+
 	virtual void AddEnemy(vec2 Pos);
 
 	//
@@ -308,7 +300,7 @@ public:
 
 	*/
 	virtual int GetLockedWeapon(class CCharacter *pCharacter);
-	
+
 	virtual const char *GetTeamName(int Team);
 	const char *GetTeamMoveAllMessage(int Team);
 	virtual int GetAutoTeam(int NotThisID);

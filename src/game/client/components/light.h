@@ -3,15 +3,13 @@
 #include <base/vmath.h>
 #include <game/client/component.h>
 
-
-
 struct CSimpleLight
 {
 	vec2 m_Pos;
 	vec4 m_Color;
 	vec2 m_Size;
 	float m_Rot;
-	
+
 	void Set(vec2 Pos, vec4 Color, vec2 Size, float Rot = 0.0f)
 	{
 		m_Pos = Pos;
@@ -24,10 +22,11 @@ struct CSimpleLight
 class CLight : public CComponent
 {
 	friend class CGameClient;
-public:
+
+  public:
 	enum
 	{
-		GROUP_LIGHTSOURCE=0,
+		GROUP_LIGHTSOURCE = 0,
 		NUM_GROUPS
 	};
 
@@ -39,13 +38,12 @@ public:
 	virtual void OnReset();
 	virtual void OnRender();
 
-private:
- 
+  private:
 	enum
 	{
-		MAX_LIGHTSOURCES=1024*2,
+		MAX_LIGHTSOURCES = 1024 * 2,
 	};
-	
+
 	int m_Count;
 	int m_SmallCount;
 	int m_BoxCount;
@@ -57,17 +55,16 @@ private:
 	void RenderLight(vec2 Pos, vec2 Size, vec4 Color);
 	void RenderLight(ivec2 Pos);
 	void RenderLight(vec2 Pos1, vec2 Pos2, vec2 Pos3, vec2 Pos4, vec4 Color);
-	
+
 	int m_FirstFree;
 	int m_aFirstPart[NUM_GROUPS];
 
 	void RenderGroup(int Group);
 	void Update(float TimePassed);
 
-	template<int TGROUP>
-	class CRenderGroup : public CComponent
+	template <int TGROUP> class CRenderGroup : public CComponent
 	{
-	public:
+	  public:
 		CLight *m_pParts;
 		virtual void OnRender() { m_pParts->RenderGroup(TGROUP); }
 	};

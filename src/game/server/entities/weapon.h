@@ -3,12 +3,13 @@
 
 #include <game/server/entity.h>
 #include <game/weapon_catalog.h>
+#include <game/weapon_script_runtime.h>
 
-
-class CWeapon : public CEntity
+class CWeapon : public CEntity, public IWeaponScriptHost
 {
 	friend class CWeaponBehaviorExecutor;
-public:
+
+  public:
 	static const int ms_PhysSize = 14;
 	CWeapon(CGameWorld *pGameWorld, const CWeaponSpec &Spec);
 
@@ -17,82 +18,88 @@ public:
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 	virtual void CreateProjectile();
-	
+
 	virtual void SurvivalReset();
-	
+
 	const CWeaponSpec &GetWeaponSpec() const { return m_WeaponSpec; }
 	const CResolvedWeaponProfile &GetWeaponProfile() const { return m_WeaponProfile; }
 	const int GetPowerLevel() { return m_PowerLevel; }
 	const int GetOwner() { return m_Owner; }
-	
+
 	void OnOwnerDeath(bool IsActive);
-	
+
 	void ReduceAmmo(int Amount);
 	void IncreaseAmmo(int Amount);
-	
+
 	void Clear();
-	
-	bool Fire(float *pKnockback = NULL);
-	
+
+	bool Fire(float *pKnockback = 0);
+
 	bool Activate();
-	
+
 	bool Throw();
 	bool Charge();
-	bool ReleaseCharge(float *pKnockback = NULL);
+	bool ReleaseCharge(float *pKnockback = 0);
 	int GetCharge();
-	
+
 	bool Drop();
 	bool CanSwitch();
 	bool AddClip();
-	
+
 	void UpdateStats();
-	
+
 	void SetOwner(int CID);
-	
+
 	void SetCharge(int Charge);
 	void SetPos(vec2 Pos, vec2 Vel, vec2 Direction, float Radius);
-	
+
 	bool FullAuto() const { return m_FullAuto; }
-	
+
 	bool UsesAmmo() const { return m_MaxAmmo > 0 ? true : false; }
 	int GetAmmo() const { return m_Ammo; }
-	
+
 	int Reflect();
-	
+
 	bool Overcharge();
 	bool Supercharge();
 	bool Upgrade();
-	
+
 	void SetTurret(bool TurretBit = true);
-	
+
+	int ScriptStateGet(int Index) const override;
+	void ScriptStateSet(int Index, int Value) override;
+	uint32_t ScriptRandom() override;
+	bool ScriptCommand(const CWeaponScriptCommand &Command) override;
+	uint32_t ScriptRandomState() const { return m_ScriptRandomState; }
+
 	int m_Ammo;
 	int m_MaxAmmo;
 	int m_PowerLevel;
 	bool m_Disabled; // for dropping shurikens safely
-	
+
 	void OnPlayerPick();
 	void Deactivate();
-	
+
 	int m_DestructionTick;
 	bool m_InfiniteAmmo;
-	
-protected:
+
+  protected:
 	vec2 m_Vel;
 	vec2 m_Direction;
-	
+
 	int m_MaxLevel;
-	
+
 	bool m_Stuck;
-	
+
 	bool m_Released;
-	
+
 	void Move();
-	
+
 	bool m_IsTurret;
-	
+
 	int m_BurstCount;
 	int m_BurstMax;
-	
+
 	CWeaponSpec m_WeaponSpec;
 	CResolvedWeaponProfile m_WeaponProfile;
 	int m_ReloadTimer;
@@ -100,13 +107,13 @@ protected:
 	float m_RogueliteCooldownCarry;
 	bool m_FullAuto;
 	int m_Owner;
-	
+
 	int m_AttackTick;
 	int m_TriggerTick;
 	int m_TriggerCount;
-	
+
 	void Trigger();
-	
+
 	int m_Charge;
 	bool m_ChargeLocked;
 
@@ -115,29 +122,33 @@ protected:
 	bool m_CanFire;
 	float m_FireRate;
 	float m_KnockBack;
-	
+
 	bool m_UseAmmo;
-	
+
 	int m_ChargeSoundTimer;
-	
+
 	// for rendering thrown weapon
 	float m_Angle;
 	float m_AngleForce;
-	
-private:
+
+  private:
+	bool ScriptSpawn(const CWeaponScriptSpawn &Spawn);
+	void ScriptVisual(int Kind, int Value);
 	bool IsStatic() const { return m_WeaponProfile.m_Definition.m_Kind == EWeaponDefinitionKind::Static; }
 	bool IsModular() const { return m_WeaponProfile.m_Definition.m_Kind == EWeaponDefinitionKind::Modular; }
 	int StaticType() const { return IsStatic() ? m_WeaponProfile.m_Definition.m_StaticType : -1; }
 	int Part1() const { return IsModular() ? m_WeaponProfile.m_Definition.m_Part1 : 0; }
 
 	int m_LastNoAmmoSound;
-	
+	int m_aScriptState[8];
+	uint32_t m_ScriptRandomState;
+
 	void SelfDestruct();
-	
+
 	int m_BombDisarmCounter;
 	int m_BombCounter;
 	int m_BombResetTick;
-	
+
 	int m_SkipPickTick;
 };
 

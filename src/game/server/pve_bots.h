@@ -20,11 +20,16 @@ inline CAI *CreatePveBotAI(CGameContext *pGameServer, CPlayer *pPlayer, int Leve
 
 	switch(Roll)
 	{
-	case 0: return new CAIrobot1(pGameServer, pPlayer, Level);
-	case 1: return new CAIbunny1(pGameServer, pPlayer, Level);
-	case 2: return new CAIpyro1(pGameServer, pPlayer, Level);
-	case 3: return new CAIalien1(pGameServer, pPlayer, Level);
-	default: return new CAIalien1(pGameServer, pPlayer, Level);
+		case 0:
+			return new CAIrobot1(pGameServer, pPlayer, Level);
+		case 1:
+			return new CAIbunny1(pGameServer, pPlayer, Level);
+		case 2:
+			return new CAIpyro1(pGameServer, pPlayer, Level);
+		case 3:
+			return new CAIalien1(pGameServer, pPlayer, Level);
+		default:
+			return new CAIalien1(pGameServer, pPlayer, Level);
 	}
 }
 

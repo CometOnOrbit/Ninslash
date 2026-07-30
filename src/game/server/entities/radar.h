@@ -10,14 +10,27 @@ class CServerRadar : public CEntity
 	vec2 m_TargetPos;
 	bool m_Active;
 	int m_ActiveTick;
-	
-public:
+
+  public:
 	CServerRadar(CGameWorld *pGameWorld, int Type, int ObjectiveID = 0);
 
-	void Activate(vec2 Pos) { m_Active = true; m_TargetPos = Pos;}
-	void Activate(vec2 Pos, int ActiveTick) { m_Active = true; m_TargetPos = Pos; m_ActiveTick = ActiveTick; }
-	void Deactivate() { m_Active = false; m_ActiveTick = 0; }
-	
+	void Activate(vec2 Pos)
+	{
+		m_Active = true;
+		m_TargetPos = Pos;
+	}
+	void Activate(vec2 Pos, int ActiveTick)
+	{
+		m_Active = true;
+		m_TargetPos = Pos;
+		m_ActiveTick = ActiveTick;
+	}
+	void Deactivate()
+	{
+		m_Active = false;
+		m_ActiveTick = 0;
+	}
+
 	virtual void Reset();
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);

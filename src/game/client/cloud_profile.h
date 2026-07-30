@@ -18,7 +18,10 @@ enum ECloudProfileSyncDecision
 	CLOUD_SYNC_CONFLICT,
 };
 
-inline ECloudProfileSyncDecision CloudProfileDecide(unsigned long long LocalHash, unsigned long long RemoteHash, unsigned long long SyncedHash, bool LocalIsDefault)
+inline ECloudProfileSyncDecision CloudProfileDecide(unsigned long long LocalHash,
+													unsigned long long RemoteHash,
+													unsigned long long SyncedHash,
+													bool LocalIsDefault)
 {
 	if(LocalHash == RemoteHash)
 		return CLOUD_SYNC_CURRENT;
@@ -43,8 +46,10 @@ struct CCloudProfileSummary
 };
 
 unsigned long long CloudProfileHash(const void *pData, int Size);
-bool CloudProfileBuild(CBinds *pBinds, int Revision, long long ModifiedAt, char *pBuffer, int BufferSize, CCloudProfileSummary *pSummary);
+bool CloudProfileBuild(
+	CBinds *pBinds, int Revision, long long ModifiedAt, char *pBuffer, int BufferSize, CCloudProfileSummary *pSummary);
 ECloudProfileReadResult CloudProfileInspect(const char *pData, int DataSize, CCloudProfileSummary *pSummary);
-ECloudProfileReadResult CloudProfileApply(const char *pData, int DataSize, CBinds *pBinds, CCloudProfileSummary *pSummary);
+ECloudProfileReadResult
+CloudProfileApply(const char *pData, int DataSize, CBinds *pBinds, CCloudProfileSummary *pSummary);
 
 #endif

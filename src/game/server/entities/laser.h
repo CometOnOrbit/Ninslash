@@ -8,9 +8,17 @@
 
 class CLaser : public CEntity
 {
-public:
-	//CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, int Owner, int Damage, int PowerLevel, class CBuilding *OwnerBuilding = NULL);
-	CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, const CAttackSource &Source, int Damage, int Charge, int Penetration = 0);
+  public:
+	// CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, int Owner, int Damage, int
+	// PowerLevel, class CBuilding *OwnerBuilding = 0);
+	CLaser(CGameWorld *pGameWorld,
+		   vec2 Pos,
+		   vec2 Direction,
+		   float StartEnergy,
+		   const CAttackSource &Source,
+		   int Damage,
+		   int Charge,
+		   int Penetration = 0);
 
 	virtual void Reset();
 	virtual void Tick();
@@ -19,7 +27,7 @@ public:
 
 	class CBuilding *m_OwnerBuilding;
 
-protected:
+  protected:
 	bool HitScythe(vec2 From, vec2 To);
 	bool HitCharacter(vec2 From, vec2 To);
 	bool HitMonster(vec2 From, vec2 To);
@@ -28,7 +36,7 @@ protected:
 	void DamageBuilding(class CBuilding *pBuilding, vec2 At);
 	void DoBounce();
 
-private:
+  private:
 	vec2 m_From;
 	vec2 m_Dir;
 	float m_Energy;
@@ -40,7 +48,7 @@ private:
 	int m_RemainingPenetrations;
 	bool m_InfinitePenetration;
 	CAttackSource m_Source;
-	
+
 	int m_IgnoreScythe;
 };
 

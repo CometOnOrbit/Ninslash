@@ -12,14 +12,14 @@ struct CBloodspill
 		m_Size = 32;
 		m_Rot = 0;
 		m_FlowAffected = 1.0f;
-		m_Color = vec4(1,1,1,1);
+		m_Color = vec4(1, 1, 1, 1);
 		m_Freeze = false;
 	}
 
 	vec2 m_Pos;
 
 	bool m_Freeze;
-	
+
 	int m_Spr;
 
 	float m_FlowAffected;
@@ -41,10 +41,11 @@ struct CBloodspill
 class CSplatter : public CComponent
 {
 	friend class CGameClient;
-public:
+
+  public:
 	enum
 	{
-		GROUP_SPLATTER=0,
+		GROUP_SPLATTER = 0,
 		NUM_GROUPS
 	};
 
@@ -55,11 +56,10 @@ public:
 	virtual void OnReset();
 	virtual void OnRender();
 
-private:
- 
+  private:
 	enum
 	{
-		MAX_SPLATTER=1024*8,
+		MAX_SPLATTER = 1024 * 8,
 	};
 
 	CBloodspill m_aSplatter[MAX_SPLATTER];
@@ -69,10 +69,9 @@ private:
 	void RenderGroup(int Group);
 	void Update(float TimePassed);
 
-	template<int TGROUP>
-	class CRenderGroup : public CComponent
+	template <int TGROUP> class CRenderGroup : public CComponent
 	{
-	public:
+	  public:
 		CSplatter *m_pParts;
 		virtual void OnRender() { m_pParts->RenderGroup(TGROUP); }
 	};
