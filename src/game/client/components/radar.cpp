@@ -32,6 +32,7 @@ void CRadar::RenderRadar(const CNetObj_Radar *pCurrent, const CNetObj_Radar *pPr
 	const bool InvasionReactorObjective =
 		pCurrent->m_Type == RADAR_REACTOR &&
 		(str_comp(ServerInfo.m_aGameType, "Invasion") == 0 || str_comp(ServerInfo.m_aGameType, "Tutorial") == 0 ||
+		 str_comp(ServerInfo.m_aGameType, "coop") == 0 || str_comp(ServerInfo.m_aGameType, "tutorial") == 0 ||
 		 str_comp(ServerInfo.m_aGameType, "INV") == 0 || str_comp(ServerInfo.m_aGameType, "TUT") == 0);
 	if(HordeDefenseArea || InvasionReactorObjective)
 	{

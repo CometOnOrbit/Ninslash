@@ -269,6 +269,7 @@ class CClient : public IClient, public CDemoPlayer::IListner
 
 	virtual void GetServerInfo(CServerInfo *pServerInfo);
 	virtual void GetServerAddress(NETADDR *pAddress) const;
+	virtual const char *GetConnectAddress() const;
 	void ServerInfoRequest();
 
 	int LoadData();

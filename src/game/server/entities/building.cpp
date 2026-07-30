@@ -533,6 +533,8 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 		if(IsCoopMapGenGametype(g_Config.m_SvGametype))
 			return;
 		m_aStatus[BSTATUS_ON] = 1;
+		GameServer()->CreateEffect(FX_ELECTRIC, m_Pos + vec2(0, -14));
+		GameServer()->CreateSound(m_Pos, SOUND_WEAPON_SPAWN);
 		GameServer()->m_pController->TriggerSwitch(m_Pos);
 		return;
 	}
@@ -769,6 +771,8 @@ void CBuilding::Tick()
 		{
 			m_aStatus[BSTATUS_ON] = 1;
 			m_SwitchHoldTicks = 0;
+			GameServer()->CreateEffect(FX_ELECTRIC, m_Pos + vec2(0, -14));
+			GameServer()->CreateSound(m_Pos, SOUND_WEAPON_SPAWN);
 			GameServer()->m_pController->TriggerSwitch(m_Pos);
 		}
 	}

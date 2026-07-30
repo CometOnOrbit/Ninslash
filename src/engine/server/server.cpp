@@ -1543,6 +1543,8 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 				SteamID = 0;
 			const NETADDR *pPeerAddress = m_NetServer.ClientAddr(ClientID);
 			const bool RelayAuthenticated = pPeerAddress && pPeerAddress->type == NETTYPE_STEAM;
+			const bool LocalListenHost =
+				PlatformConnectionAcceptsLocalHostIdentity(m_pListenTransport != 0, RelayAuthenticated);
 			if(RelayAuthenticated)
 			{
 				unsigned long long TransportSteamID = 0;
@@ -1557,7 +1559,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 			const bool AnonymousShapeValid = IdentityKind == PLATFORM_IDENTITY_ANONYMOUS && SteamIDTextValid &&
 											 str_comp(pSteamID, "0") == 0 && SteamID == 0 && TicketSize == 0;
 			const bool SteamShapeValid = IdentityKind == PLATFORM_IDENTITY_STEAM && SteamIDTextValid && SteamID != 0 &&
-										 (TicketSize > 0 || RelayAuthenticated);
+										 (TicketSize > 0 || RelayAuthenticated || LocalListenHost);
 			if(!AnonymousShapeValid && !SteamShapeValid)
 			{
 				m_NetServer.Drop(ClientID, "Platform identity fields are inconsistent");
@@ -1650,9 +1652,9 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 			const int AuthPolicy = PlatformConnectionAuthPolicy(
 				g_Config.m_SvSteamAuth, g_Config.m_SvOfficial != 0, m_pListenTransport != 0, RelayAuthenticated);
 			const EPlatformAuthResult Result = IdentityKind == PLATFORM_IDENTITY_ANONYMOUS ? PLATFORM_AUTH_UNAVAILABLE
-											   : RelayAuthenticated
-												   ? PLATFORM_AUTH_OK
-												   : m_pPlatformGameServer->Authenticate(SteamID, pTicket, TicketSize);
+										   : RelayAuthenticated || LocalListenHost
+											   ? PLATFORM_AUTH_OK
+											   : m_pPlatformGameServer->Authenticate(SteamID, pTicket, TicketSize);
 			const EPlatformJoinDecision Decision =
 				PlatformJoinDecision(IdentityKind, AuthPolicy, RelayAuthenticated, Result);
 			m_aClients[ClientID].m_PlatformAuthRequested = false;
@@ -1673,7 +1675,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 			{
 				m_aClients[ClientID].m_SteamID = SteamID;
 				m_aClients[ClientID].m_PlatformAuthenticated = true;
-				m_aClients[ClientID].m_PlatformAuthSession = !RelayAuthenticated;
+				m_aClients[ClientID].m_PlatformAuthSession = !RelayAuthenticated && !LocalListenHost;
 				char aLog[256];
 				str_format(aLog,
 						   sizeof(aLog),

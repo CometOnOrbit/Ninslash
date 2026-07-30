@@ -59,6 +59,16 @@ inline bool PlatformClientUsesSteamIdentity(int AuthPolicy, bool RelayRequired, 
 	return !Loopback || AuthPolicy >= 2 || RelayRequired;
 }
 
+inline bool PlatformClientUsesLocalHostIdentity(bool ListenServerRunning, bool Loopback, bool SteamAvailable)
+{
+	return ListenServerRunning && Loopback && SteamAvailable;
+}
+
+inline bool PlatformConnectionAcceptsLocalHostIdentity(bool ServerHasRelayListener, bool PeerUsesSteamTransport)
+{
+	return ServerHasRelayListener && !PeerUsesSteamTransport;
+}
+
 inline bool PlatformAuthTimeoutAllowsAnonymous(int AuthPolicy, bool Relay)
 {
 	return AuthPolicy < 2 && !Relay;

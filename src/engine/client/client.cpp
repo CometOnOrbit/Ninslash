@@ -420,12 +420,16 @@ void CClient::SendPlatformAuth(int Policy, bool RelayRequired)
 {
 	const bool SteamAvailable =
 		m_pPlatformServices && m_pPlatformServices->Available() && m_pPlatformServices->LocalUserID() != 0;
+	const bool Loopback = IsLoopbackAddress(m_ServerAddress);
+	const bool LocalListenHost = PlatformClientUsesLocalHostIdentity(
+		m_pListenServer && m_pListenServer->Running(), Loopback, SteamAvailable);
 	const bool UseSteamIdentity =
-		PlatformClientUsesSteamIdentity(Policy, RelayRequired, IsLoopbackAddress(m_ServerAddress), SteamAvailable);
+		LocalListenHost || PlatformClientUsesSteamIdentity(Policy, RelayRequired, Loopback, SteamAvailable);
 	if(!UseSteamIdentity && m_pPlatformServices)
 		m_pPlatformServices->CancelAuthSessionTicket();
 	unsigned char aTicket[2048];
-	int TicketSize = UseSteamIdentity ? m_pPlatformServices->GetAuthSessionTicket(aTicket, sizeof(aTicket)) : 0;
+	int TicketSize =
+		UseSteamIdentity && !LocalListenHost ? m_pPlatformServices->GetAuthSessionTicket(aTicket, sizeof(aTicket)) : 0;
 	if(TicketSize < 0)
 	{
 		m_PlatformAuthResponsePending = true;
@@ -649,6 +653,8 @@ void CClient::EnterGame()
 
 void CClient::Connect(const char *pAddress)
 {
+	char aConnectAddress[sizeof(m_aServerAddressStr)];
+	str_copy(aConnectAddress, pAddress, sizeof(aConnectAddress));
 	mem_zero(&m_ConnectionAsyncStatus, sizeof(m_ConnectionAsyncStatus));
 	m_ConnectionAsyncStatus.m_State = CLIENT_ASYNC_WORKING;
 	m_ConnectionAsyncStatus.m_Stage = CLIENT_STAGE_CONNECTING;
@@ -659,7 +665,7 @@ void CClient::Connect(const char *pAddress)
 	// game Lobby. Keep that Lobby while resetting the network connection.
 	DisconnectWithReason(0);
 
-	str_copy(m_aServerAddressStr, pAddress, sizeof(m_aServerAddressStr));
+	str_copy(m_aServerAddressStr, aConnectAddress, sizeof(m_aServerAddressStr));
 
 	str_format(aBuf, sizeof(aBuf), "connecting to '%s'", m_aServerAddressStr);
 	m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", aBuf);
@@ -764,6 +770,11 @@ void CClient::GetServerInfo(CServerInfo *pServerInfo)
 void CClient::GetServerAddress(NETADDR *pAddress) const
 {
 	mem_copy(pAddress, &m_ServerAddress, sizeof(m_ServerAddress));
+}
+
+const char *CClient::GetConnectAddress() const
+{
+	return m_aServerAddressStr;
 }
 
 void CClient::ServerInfoRequest()

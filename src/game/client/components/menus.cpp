@@ -7468,7 +7468,7 @@ int CMenus::Render()
 				pTitle = Localize("Synchronizing Workshop content");
 			else
 				pTitle = Localize("Connecting to server");
-			pExtraText = g_Config.m_UiServerAddress; // TODO: query the client about the address
+			pExtraText = Client()->GetConnectAddress();
 			pButtonText = Localize("Abort");
 			if(Client()->MapDownloadTotalsize() > 0)
 			{
@@ -7778,7 +7778,7 @@ int CMenus::Render()
 			static int s_ButtonTryAgain = 0;
 			if(DoButton_Menu(&s_ButtonTryAgain, Localize("Try again"), 0, &TryAgain) || m_EnterPressed)
 			{
-				Client()->Connect(g_Config.m_UiServerAddress);
+				Client()->Connect(Client()->GetConnectAddress());
 			}
 
 			Box.HSplitBottom(60.f, &Box, &Part);

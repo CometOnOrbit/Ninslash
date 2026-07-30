@@ -32,6 +32,13 @@ int main()
 	assert(PlatformClientUsesSteamIdentity(1, false, false, true));
 	assert(PlatformClientUsesSteamIdentity(1, true, true, true));
 	assert(!PlatformClientUsesSteamIdentity(2, true, false, false));
+	assert(PlatformClientUsesLocalHostIdentity(true, true, true));
+	assert(!PlatformClientUsesLocalHostIdentity(false, true, true));
+	assert(!PlatformClientUsesLocalHostIdentity(true, false, true));
+	assert(!PlatformClientUsesLocalHostIdentity(true, true, false));
+	assert(PlatformConnectionAcceptsLocalHostIdentity(true, false));
+	assert(!PlatformConnectionAcceptsLocalHostIdentity(false, false));
+	assert(!PlatformConnectionAcceptsLocalHostIdentity(true, true));
 	assert(PlatformAuthTimeoutAllowsAnonymous(0, false));
 	assert(PlatformAuthTimeoutAllowsAnonymous(1, false));
 	assert(!PlatformAuthTimeoutAllowsAnonymous(2, false));
