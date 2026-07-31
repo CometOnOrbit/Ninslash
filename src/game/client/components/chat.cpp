@@ -632,6 +632,7 @@ void CChat::OnRender()
 
 		TextRender()->TextEx(
 			&Cursor, m_Input.GetString() + m_ChatStringOffset, m_Input.GetCursorOffset() - m_ChatStringOffset);
+		CLineInput::SetCompositionWindowPosition(vec2(Cursor.m_X, Cursor.m_Y + 8.0f), 8.0f);
 		if(Input()->HasComposition())
 		{
 			TextRender()->TextColor(0.7f, 0.7f, 0.7f, 1.0f);

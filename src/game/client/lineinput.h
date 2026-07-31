@@ -62,7 +62,6 @@ class CLineInput
 		REWIND
 	};
 	static void MoveCursor(EMoveDirection Direction, bool MoveWord, const char *pStr, int MaxSize, int *pCursorPos);
-	static void SetCompositionWindowPosition(vec2 Anchor, float LineHeight);
 	void
 	DrawSelection(float HeightWeight, int Start, int End, vec4 Color, float FontSize, float OriginX, float OriginY);
 
@@ -78,6 +77,7 @@ class CLineInput
 		s_pClient = pClient;
 	}
 	static void RenderCandidates();
+	static void SetCompositionWindowPosition(vec2 Anchor, float LineHeight);
 
 	static CLineInput *GetActiveInput() { return s_pActiveInput; }
 

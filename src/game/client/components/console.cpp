@@ -484,6 +484,7 @@ void CGameConsole::OnRender()
 		Cursor.m_LineWidth = Screen.w - 10.0f - x;
 
 		TextRender()->TextEx(&Cursor, aInputString, pConsole->m_Input.GetCursorOffset());
+		CLineInput::SetCompositionWindowPosition(vec2(Cursor.m_X, Cursor.m_Y + FontSize), FontSize);
 		if(Input()->HasComposition())
 		{
 			TextRender()->TextColor(0.7f, 0.7f, 0.7f, 1.0f);

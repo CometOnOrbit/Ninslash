@@ -186,11 +186,12 @@ void CInput::UpdateSteamInput()
 
 void CInput::SetCompositionWindowPosition(float X, float Y, float H)
 {
+	const float Scale = g_Config.m_GfxScreenWidth > 0 ? m_pGraphics->ScreenWidth() / (float)g_Config.m_GfxScreenWidth : 1.0f;
 	SDL_Rect Rect;
-	Rect.x = (int)X;
-	Rect.y = (int)(Y - H);
+	Rect.x = (int)(X / Scale);
+	Rect.y = (int)(Y / Scale);
 	Rect.w = 0;
-	Rect.h = (int)H;
+	Rect.h = (int)(H / Scale);
 	SDL_SetTextInputArea(Window(), &Rect, 0);
 }
 
