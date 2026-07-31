@@ -859,6 +859,24 @@ Race  ·  Checkpoints  ·  Modular course
 CP %d/%d
 == 检查点 %d/%d
 
+Time
+== 时间
+
+Steam could not inspect the invitation. Ask the host to send a new invite.
+== Steam 无法检查邀请。请让房主发送新的邀请。
+
+Steam could not read the invitation. Ask the host to send a new invite.
+== Steam 无法读取邀请。请让房主发送新的邀请。
+
+Steam could not start joining the invited party. Restart Steam and retry.
+== Steam 无法开始加入受邀的队伍。请重启 Steam 后重试。
+
+Steam could not start joining the invited room. Restart Steam and retry.
+== Steam 无法开始加入受邀的房间。请重启 Steam 后重试。
+
+Steam invitation data is unavailable or invalid. Ask the host to send a new invite.
+== Steam 邀请数据不可用或无效。请让房主发送新的邀请。
+
 Checkpoints
 == 检查点
 

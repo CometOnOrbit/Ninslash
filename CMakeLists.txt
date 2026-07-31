@@ -267,7 +267,7 @@ endfunction()
 ########################################################################
 
 set(TARGETS_OWN)
-set(TARGETS_DEP)
+set(TARGETS_DEP ninslash-lua)
 
 set(TARGETS_LINK) # Targets with a linking stage.
 

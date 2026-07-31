@@ -21,15 +21,17 @@
 #include <memory>
 #include <string>
 
-#if defined(CONF_FAMILY_WINDOWS) && defined(__MINGW32__)
+#if defined(CONF_FAMILY_WINDOWS)
 // MinGW 10 advertises IFileDialog but ships incomplete C++ declarations.
-// Ninslash only uses PFD's legacy file-open path, so disable the optional
-// Vista folder picker and isolate COM's IStorage name from the engine API.
+// Ninslash only uses PFD's legacy file-open path there. On every Windows
+// compiler, isolate COM's IStorage name from the engine storage interface.
+#if defined(__MINGW32__)
 #define PFD_HAS_IFILEDIALOG 0
+#endif
 #define IStorage PfdWindowsIStorage
 #endif
 #include <engine/external/portable-file-dialogs/portable-file-dialogs.h>
-#if defined(CONF_FAMILY_WINDOWS) && defined(__MINGW32__)
+#if defined(CONF_FAMILY_WINDOWS)
 #undef IStorage
 #endif
 #include <engine/storage.h>

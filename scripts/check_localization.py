@@ -3,12 +3,49 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
 import sys
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
+
+
+def strip_cpp_comments(text: str) -> str:
+    """Remove comments without treating comment markers inside literals as syntax."""
+    pattern = re.compile(
+        r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*.*?\*/',
+        re.DOTALL,
+    )
+
+    def replace(match: re.Match[str]) -> str:
+        value = match.group(0)
+        if value.startswith(('"', "'")):
+            return value
+        return "\n" * value.count("\n")
+
+    return pattern.sub(replace, text)
+
+
+def extract_c_string_expressions(text: str) -> set[str]:
+    """Extract C string expressions, concatenating adjacent string literals."""
+    matches = list(re.finditer(r'"(?:\\.|[^"\\])*"', text))
+    strings: set[str] = set()
+    current = ""
+    previous_end = -1
+    for match in matches:
+        value = ast.literal_eval(match.group(0))
+        if previous_end >= 0 and not text[previous_end : match.start()].strip():
+            current += value
+        else:
+            if current:
+                strings.add(current)
+            current = value
+        previous_end = match.end()
+    if current:
+        strings.add(current)
+    return strings
 
 
 def extract_quest_strings(function_names: tuple[str, ...]) -> set[str]:
@@ -70,6 +107,7 @@ def extract_server_strings() -> set[str]:
 
 def extract_localize_literals(text: str) -> set[str]:
     """Extract every literal from Localize expressions, including ternaries."""
+    text = strip_cpp_comments(text)
     strings: set[str] = set()
     position = 0
     marker = "Localize("
@@ -99,9 +137,7 @@ def extract_localize_literals(text: str) -> set[str]:
                 depth -= 1
             index += 1
         argument = text[argument_start : index - 1]
-        strings.update(
-            value for value in re.findall(r'"((?:\\.|[^"\\])*)"', argument) if value
-        )
+        strings.update(extract_c_string_expressions(argument))
         position = max(index, call + 1)
     return strings
 
@@ -145,7 +181,7 @@ def extract_platform_status_strings() -> set[str]:
         "src/engine/client/platform_services.cpp",
         "src/engine/client/client.cpp",
     ):
-        text = open(os.path.join(ROOT, relative), encoding="utf-8").read()
+        text = strip_cpp_comments(open(os.path.join(ROOT, relative), encoding="utf-8").read())
         patterns = (
             r'str_copy\([^,]*(?:m_aErrorKey|m_aLobbyCreateFailure)[^,]*,\s*"([^"]+)"',
             r'str_copy\([^,]*m_CommunityResult\.m_aError[^,]*,\s*"([^"]+)"',
@@ -153,7 +189,7 @@ def extract_platform_status_strings() -> set[str]:
         for pattern in patterns:
             strings.update(re.findall(pattern, text))
         for call in re.findall(r"SetJoinFailure\((.*?)\);", text, re.DOTALL):
-            strings.update(re.findall(r'"([^"]+)"', call))
+            strings.update(extract_c_string_expressions(call))
     return strings
 
 
