@@ -24,6 +24,7 @@
 
 CChat::CChat()
 {
+	ClearLines();
 	OnReset();
 }
 
@@ -31,7 +32,7 @@ void CChat::OnInit()
 {
 }
 
-void CChat::OnReset()
+void CChat::ClearLines()
 {
 	for(int i = 0; i < MAX_LINES; i++)
 	{
@@ -39,7 +40,12 @@ void CChat::OnReset()
 		m_aLines[i].m_aText[0] = 0;
 		m_aLines[i].m_aName[0] = 0;
 	}
+	m_CurrentLine = 0;
+}
 
+void CChat::OnReset()
+{
+	m_Mode = MODE_NONE;
 	m_Show = false;
 	m_Filtered = false;
 	m_InputUpdate = false;
@@ -65,12 +71,10 @@ void CChat::OnRelease()
 
 void CChat::OnStateChange(int NewState, int OldState)
 {
-	if(OldState <= IClient::STATE_CONNECTING)
+	if(NewState == IClient::STATE_CONNECTING && OldState != IClient::STATE_CONNECTING)
 	{
 		m_Mode = MODE_NONE;
-		for(int i = 0; i < MAX_LINES; i++)
-			m_aLines[i].m_Time = 0;
-		m_CurrentLine = 0;
+		ClearLines();
 	}
 }
 
@@ -646,7 +650,8 @@ void CChat::OnRender()
 
 	int64 Now = time_get();
 	float LineWidth = 200.0f;
-	float HeightLimit = (g_Config.m_ClShowChat == 2 || !m_Show) ? 200.0f : 50.0f;
+	const bool ShowHistory = m_Show || m_Mode != MODE_NONE;
+	float HeightLimit = (g_Config.m_ClShowChat == 2 || !ShowHistory) ? 200.0f : 50.0f;
 	if(m_pClient->m_pScoreboard->Active())
 	{
 		const CUIRect &ScoreboardRect = m_pClient->m_pScoreboard->GetScoreboardRect();
@@ -671,7 +676,9 @@ void CChat::OnRender()
 	for(int i = 0; i < MAX_LINES; i++)
 	{
 		int r = ((m_CurrentLine - i) + MAX_LINES) % MAX_LINES;
-		if(Now > m_aLines[r].m_Time + 16 * time_freq() && !m_Show)
+		if(m_aLines[r].m_Time == 0)
+			break;
+		if(Now > m_aLines[r].m_Time + 16 * time_freq() && !ShowHistory)
 			break;
 
 		// get the y offset (calculate it if we haven't done that yet)
@@ -699,7 +706,7 @@ void CChat::OnRender()
 		if(!g_Config.m_ClShowChatSystem && m_aLines[r].m_ClientID == -1)
 			continue;
 
-		float Blend = Now > m_aLines[r].m_Time + 14 * time_freq() && !m_Show
+		float Blend = Now > m_aLines[r].m_Time + 14 * time_freq() && !ShowHistory
 						  ? 1.0f - (Now - m_aLines[r].m_Time - 14 * time_freq()) / (2.0f * time_freq())
 						  : 1.0f;
 

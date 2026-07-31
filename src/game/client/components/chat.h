@@ -67,6 +67,7 @@ class CChat : public CComponent
 	int m_PendingChatCounter;
 	int64 m_LastChatSend;
 	int64 m_aLastSoundPlayed[CHAT_NUM];
+	void ClearLines();
 
 	static void ConSay(IConsole::IResult *pResult, void *pUserData);
 	static void ConSayTeam(IConsole::IResult *pResult, void *pUserData);

@@ -1113,7 +1113,7 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 				Hovered = Slot;
 		}
 		const float GridBottom = ContentY + 10.0f + 3.0f * (CellH + Gap);
-		if(Press && Hovered >= 0)
+		if(Press && Hovered >= 0 && CustomStuff()->m_aItem[Hovered].IsValid())
 		{
 			m_SelectedSlot = Hovered;
 			m_DragItem = Hovered;
@@ -1123,8 +1123,16 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 		{
 			if(m_Moved && Hovered >= 0 && Hovered != m_DragItem && m_Tab == InventoryLogic::TAB_INVENTORY)
 				Swap(m_DragItem, Hovered);
+			else if(InventoryLogic::ShouldDropOutsideInventory(m_DragItem,
+														 CustomStuff()->m_aItem[m_DragItem].IsValid(),
+														 m_Moved,
+														 Hovered,
+														 Inside(Panel)))
+				Drop(m_DragItem);
 			ReleasedClick = !m_Moved && Hovered >= 0;
 			m_DragItem = -1;
+			m_Moved = false;
+			m_MoveTrigger = false;
 		}
 		if((Click || ReleasedClick) && Hovered >= 0)
 		{

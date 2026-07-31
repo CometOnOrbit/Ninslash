@@ -32,6 +32,12 @@ int main()
 	Check(DropConfirmationActive(5, 5, 99, 100));
 	Check(!DropConfirmationActive(5, 4, 99, 100));
 	Check(!DropConfirmationActive(5, 5, 101, 100));
+	Check(ShouldDropOutsideInventory(5, true, true, -1, false));
+	Check(!ShouldDropOutsideInventory(5, true, false, -1, false));
+	Check(!ShouldDropOutsideInventory(5, true, true, 6, false));
+	Check(!ShouldDropOutsideInventory(5, true, true, -1, true));
+	Check(!ShouldDropOutsideInventory(5, false, true, -1, false));
+	Check(!ShouldDropOutsideInventory(12, true, true, -1, false));
 	CForgeSlots Forge{-1, -1};
 	Forge = AssignForgeSlot(Forge, 3, true);
 	Check(Forge.m_Target == 3 && Forge.m_Material == -1);

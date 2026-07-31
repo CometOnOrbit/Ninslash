@@ -80,6 +80,13 @@ inline bool DropConfirmationActive(int ConfirmSlot, int SelectedSlot, long long 
 	return ConfirmSlot == SelectedSlot && SelectedSlot >= 0 && Now <= Deadline;
 }
 
+inline bool ShouldDropOutsideInventory(
+	int DraggedSlot, bool DraggedItemValid, bool Moved, int HoveredSlot, bool CursorInsidePanel)
+{
+	return DraggedSlot >= 0 && DraggedSlot < NUM_SLOTS && DraggedItemValid && Moved && HoveredSlot < 0 &&
+		   !CursorInsidePanel;
+}
+
 struct CForgeSlots
 {
 	int m_Target;
