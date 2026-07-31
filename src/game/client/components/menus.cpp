@@ -5803,12 +5803,15 @@ void CMenus::RenderPlay(CUIRect MainView)
 		CUIRect m_Rect;
 	};
 	CColumn aColumns[] = {{"Source", -1, Compact ? 66.0f : 76.0f, {}},
-						  {"Name", IServerBrowser::SORT_NAME, 0.0f, {}},
-						  {"Type", IServerBrowser::SORT_GAMETYPE, Compact ? 92.0f : 120.0f, {}},
-						  {"Map", IServerBrowser::SORT_MAP, 0.0f, {}},
-						  {"Players", IServerBrowser::SORT_NUMPLAYERS, 62.0f, {}},
-						  {"Ping", IServerBrowser::SORT_PING, 56.0f, {}}};
-	CUIRect Remaining = Headers;
+							  {"Name", IServerBrowser::SORT_NAME, 0.0f, {}},
+							  {"Type", IServerBrowser::SORT_GAMETYPE, Compact ? 92.0f : 120.0f, {}},
+							  {"Map", IServerBrowser::SORT_MAP, 0.0f, {}},
+							  {"Players", IServerBrowser::SORT_NUMPLAYERS, 62.0f, {}},
+							  {"Ping", IServerBrowser::SORT_PING, 56.0f, {}}};
+	CUIRect ColumnArea = Headers;
+	ColumnArea.VSplitRight(15.0f, &ColumnArea, 0);
+	ColumnArea.VMargin(5.0f, &ColumnArea);
+	CUIRect Remaining = ColumnArea;
 	Remaining.VSplitLeft(aColumns[0].m_Width, &aColumns[0].m_Rect, &Remaining);
 	Remaining.VSplitRight(aColumns[5].m_Width, &Remaining, &aColumns[5].m_Rect);
 	Remaining.VSplitRight(aColumns[4].m_Width, &Remaining, &aColumns[4].m_Rect);
@@ -5853,15 +5856,16 @@ void CMenus::RenderPlay(CUIRect MainView)
 		if(!Item.m_Visible)
 			continue;
 		CUIRect Row = Item.m_Rect;
-		Row.Margin(4.0f, &Row);
+		Row.HMargin(4.0f, &Row);
 		for(int Column = 0; Column < 6; Column++)
 		{
 			if(aColumns[Column].m_Rect.w <= 0.0f)
 				continue;
 			CUIRect Cell = aColumns[Column].m_Rect;
-			Cell.x = Row.x + (Cell.x - Headers.x);
+			Cell.x = Row.x + (Cell.x - ColumnArea.x);
 			Cell.y = Row.y;
 			Cell.h = Row.h;
+			Cell.VMargin(4.0f, &Cell);
 			const CPlayRoomEntry &Entry = aEntries[i];
 			const CPlayServerSnapshot *pServer = Entry.m_pServer;
 			const CPlatformLobbyInfo *pLobby = Entry.m_pLobby ? &Entry.m_pLobby->m_Info : 0;

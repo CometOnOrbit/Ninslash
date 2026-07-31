@@ -1671,7 +1671,7 @@ void CGameContext::CheckPureTuning()
 
 	/*
 	// might not be created yet during start up
-	if(!m_pController)
+	if(!m_pController)服务器
 		return;
 
 	bool Pure = false;
