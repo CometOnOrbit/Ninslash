@@ -3,6 +3,9 @@
 #include <base/vmath.h>
 #include <game/client/component.h>
 
+#include <map>
+#include <utility>
+
 class CBlocks : public CComponent
 {
 	friend class CGameClient;
@@ -11,8 +14,15 @@ class CBlocks : public CComponent
 	int *m_pBlockSyncTick;
 	int m_Width;
 	int m_Height;
+	struct CModularBlock
+	{
+		int m_Type;
+		int m_SyncTick;
+	};
+	std::map<std::pair<int, int>, CModularBlock> m_ModularBlocks;
 
 	void SetBlock(ivec2 Pos, int Block);
+	void RenderModularBlocks();
 
   public:
 	CBlocks();

@@ -312,8 +312,9 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 		Graphics()->QuadsEnd();
 		TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 0.92f);
 		const float HeaderFont = 14.0f;
-		tw = TextRender()->TextWidth(0, HeaderFont, Localize("Score"), -1);
-		TextRender()->Text(0, ScoreX + ScoreW - tw - 5.0f, HeaderY + 10.0f, HeaderFont, Localize("Score"), -1);
+		const char *pScoreLabel = m_pClient->m_Snap.m_pRaceInfo ? Localize("Time") : Localize("Score");
+		tw = TextRender()->TextWidth(0, HeaderFont, pScoreLabel, -1);
+		TextRender()->Text(0, ScoreX + ScoreW - tw - 5.0f, HeaderY + 10.0f, HeaderFont, pScoreLabel, -1);
 		if(IdW > 0.0f)
 			TextRender()->Text(0, IdX + 3.0f, HeaderY + 10.0f, HeaderFont, Localize("ID"), -1);
 		TextRender()->Text(0, NameX + 4.0f, HeaderY + 10.0f, HeaderFont, Localize("Name"), -1);
@@ -355,6 +356,14 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 			TextRender()->TextColor(Text.r * Dim, Text.g * Dim, Text.b * Dim, 1.0f);
 			if(g_Config.m_ClHideSelfScore && pInfo->m_Local)
 				aBuf[0] = 0;
+			else if(m_pClient->m_Snap.m_pRaceInfo && m_pClient->m_Snap.m_apRacePlayers[ClientID])
+			{
+				const int Time = m_pClient->m_Snap.m_apRacePlayers[ClientID]->m_Time;
+				if(Time < 0)
+					str_copy(aBuf, "--:--.--", sizeof(aBuf));
+				else
+					str_format(aBuf, sizeof(aBuf), "%d:%02d.%02d", Time / 6000, (Time / 100) % 60, Time % 100);
+			}
 			else
 				str_format(aBuf, sizeof(aBuf), "%d", clamp(pInfo->m_Score, -9999, 99999));
 			tw = TextRender()->TextWidth(0, FontSize, aBuf, -1);

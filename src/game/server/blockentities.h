@@ -36,6 +36,7 @@ class CBlockEntities
 	bool AddSpawn(vec2 Pos);
 
 	CBlockEntities *GetBlockEntities(class CGameContext *pGameServer, int X, bool Activate = false);
+	CBlockEntities *FreeOutside(class CGameContext *pGameServer, int LowX, int HighX);
 	int GetSize() const { return m_SizeX; }
 
 	void StoreEntity(int ObjType, int Type, int Subtype, int x, int y);

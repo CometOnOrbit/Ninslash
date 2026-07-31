@@ -173,6 +173,8 @@ class CGameClient : public IGameClient
 		const CNetObj_Flag *m_paFlags[2];
 		const CNetObj_GameInfo *m_pGameInfoObj;
 		const CNetObj_GameData *m_pGameDataObj;
+		const CNetObj_RaceInfo *m_pRaceInfo;
+		const CNetObj_RacePlayer *m_apRacePlayers[MAX_CLIENTS];
 		int m_GameDataSnapID;
 
 		const CNetObj_PlayerInfo *m_paPlayerInfos[MAX_CLIENTS];

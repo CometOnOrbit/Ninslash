@@ -19,6 +19,7 @@ class CMapChunk
 	~CMapChunk();
 
 	CMapChunk *GetMapChunk(int X);
+	CMapChunk *FreeOutside(int LowX, int HighX);
 	int GetIndex() const { return m_ChunkIndex; }
 	int GetSize() const { return m_SizeX; }
 	int GetX() const { return m_X; }

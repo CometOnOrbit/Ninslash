@@ -101,3 +101,38 @@ CMapChunk *CMapChunk::GetMapChunk(int X)
 
 	return this;
 }
+
+CMapChunk *CMapChunk::FreeOutside(int LowX, int HighX)
+{
+	if(LowX > HighX)
+	{
+		const int Tmp = LowX;
+		LowX = HighX;
+		HighX = Tmp;
+	}
+
+	CMapChunk *pFirst = GetMapChunk(LowX);
+	while(pFirst->m_pPrev && pFirst->m_pPrev->m_X + pFirst->m_pPrev->m_SizeX > LowX)
+		pFirst = pFirst->m_pPrev;
+
+	if(pFirst->m_pPrev)
+	{
+		CMapChunk *pDiscard = pFirst->m_pPrev;
+		pFirst->m_pPrev = 0;
+		pDiscard->m_pNext = 0;
+		DestroyChain(pDiscard);
+	}
+
+	CMapChunk *pLast = pFirst;
+	while(pLast->m_pNext && pLast->m_pNext->m_X <= HighX)
+		pLast = pLast->m_pNext;
+	if(pLast->m_pNext)
+	{
+		CMapChunk *pDiscard = pLast->m_pNext;
+		pLast->m_pNext = 0;
+		pDiscard->m_pPrev = 0;
+		delete pDiscard;
+	}
+
+	return pFirst;
+}

@@ -1593,6 +1593,14 @@ void CGameClient::OnNewSnapshot()
 					OnStartGame();
 				s_GameOver = m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER;
 			}
+			else if(Item.m_Type == NETOBJTYPE_RACEINFO)
+				m_Snap.m_pRaceInfo = (const CNetObj_RaceInfo *)pData;
+			else if(Item.m_Type == NETOBJTYPE_RACEPLAYER)
+			{
+				const CNetObj_RacePlayer *pRacePlayer = (const CNetObj_RacePlayer *)pData;
+				if(pRacePlayer->m_ClientID >= 0 && pRacePlayer->m_ClientID < MAX_CLIENTS)
+					m_Snap.m_apRacePlayers[pRacePlayer->m_ClientID] = pRacePlayer;
+			}
 			else if(Item.m_Type == NETOBJTYPE_GAMEDATA)
 			{
 				m_Snap.m_pGameDataObj = (const CNetObj_GameData *)pData;
@@ -1691,8 +1699,23 @@ void CGameClient::OnNewSnapshot()
 	}
 	std::sort(m_Snap.m_paInfoByScore,
 			  m_Snap.m_paInfoByScore + NumPlayerInfos,
-			  [](const CNetObj_PlayerInfo *pLeft, const CNetObj_PlayerInfo *pRight)
+			  [this](const CNetObj_PlayerInfo *pLeft, const CNetObj_PlayerInfo *pRight)
 			  {
+				  if(m_Snap.m_pRaceInfo)
+				  {
+					  const CNetObj_RacePlayer *pLeftRace = m_Snap.m_apRacePlayers[pLeft->m_ClientID];
+					  const CNetObj_RacePlayer *pRightRace = m_Snap.m_apRacePlayers[pRight->m_ClientID];
+					  const bool LeftFinished = pLeftRace && pLeftRace->m_Time >= 0;
+					  const bool RightFinished = pRightRace && pRightRace->m_Time >= 0;
+					  if(LeftFinished != RightFinished)
+						  return LeftFinished;
+					  if(LeftFinished && pLeftRace->m_Time != pRightRace->m_Time)
+						  return pLeftRace->m_Time < pRightRace->m_Time;
+					  const int LeftCheckpoint = pLeftRace ? pLeftRace->m_Checkpoint : -1;
+					  const int RightCheckpoint = pRightRace ? pRightRace->m_Checkpoint : -1;
+					  if(LeftCheckpoint != RightCheckpoint)
+						  return LeftCheckpoint > RightCheckpoint;
+				  }
 				  if(pLeft->m_Score != pRight->m_Score)
 					  return pLeft->m_Score > pRight->m_Score;
 				  return pLeft->m_ClientID < pRight->m_ClientID;

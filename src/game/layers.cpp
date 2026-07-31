@@ -49,6 +49,12 @@ CLayers::~CLayers()
 	ClearModular();
 }
 
+void CLayers::PruneMapChunks(int LowTileX, int HighTileX)
+{
+	if(m_pMapChunk)
+		m_pMapChunk = m_pMapChunk->FreeOutside(LowTileX, HighTileX);
+}
+
 void CLayers::Init(class IKernel *pKernel)
 {
 	m_pMap = pKernel->RequestInterface<IMap>();

@@ -74,11 +74,32 @@ static void TestOutOfRangeRulesSkipped()
 	CMapChunk::DestroyChain(pRoot);
 }
 
+static void TestFreeOutside()
+{
+	int aRules[4 * 4] = {
+		0, 1, 2, 3,
+		0, 1, 2, 3,
+		0, 1, 2, 3,
+		0, 1, 2, 3,
+	};
+	CMapChunk *pRoot = new CMapChunk(0, 16, 4, aRules, 0);
+	pRoot->GetMapChunk(-160);
+	pRoot->GetMapChunk(160);
+
+	CMapChunk *pKept = pRoot->FreeOutside(-32, 32);
+	assert(pKept->GetX() == -32);
+	assert(pKept->GetMapChunk(-32)->GetX() == -32);
+	assert(pKept->GetMapChunk(32)->GetX() == 32);
+
+	CMapChunk::DestroyChain(pKept);
+}
+
 int main()
 {
 	TestModPositive();
 	TestZeroRulesFallback();
 	TestGrowRightAndLeft();
 	TestOutOfRangeRulesSkipped();
+	TestFreeOutside();
 	return 0;
 }

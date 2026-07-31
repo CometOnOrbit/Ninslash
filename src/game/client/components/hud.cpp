@@ -297,6 +297,48 @@ void CHud::RenderGameTimer()
 	}
 }
 
+void CHud::RenderRaceTimer()
+{
+	if(!g_Config.m_ClShowhudTimer || !m_pClient->m_Snap.m_pRaceInfo)
+		return;
+
+	int ClientID = m_pClient->m_Snap.m_LocalClientID;
+	if(m_pClient->m_Snap.m_SpecInfo.m_Active &&
+	   m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW)
+		ClientID = m_pClient->m_Snap.m_SpecInfo.m_SpectatorID;
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return;
+
+	const CNetObj_RacePlayer *pRace = m_pClient->m_Snap.m_apRacePlayers[ClientID];
+	if(!pRace)
+		return;
+
+	int Time = pRace->m_Time;
+	if(Time < 0)
+		Time = max(0, (Client()->GameTick() - pRace->m_StartTick) * 100 / Client()->GameTickSpeed());
+
+	char aTime[32];
+	char aCheckpoint[32];
+	str_format(aTime, sizeof(aTime), "%d:%02d.%02d", Time / 6000, (Time / 100) % 60, Time % 100);
+	str_format(aCheckpoint,
+			   sizeof(aCheckpoint),
+			   "CP %d/%d",
+			   pRace->m_Checkpoint,
+			   m_pClient->m_Snap.m_pRaceInfo->m_NumCheckpoints);
+
+	const float Half = 300.0f * Graphics()->ScreenAspect() / 2.0f;
+	const float TimeSize = 10.0f;
+	const float CpSize = 6.0f;
+	vec4 Accent = CMenus::ThemeAccent();
+	TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 1.0f);
+	TextRender()->Text(
+		0, Half - TextRender()->TextWidth(0, TimeSize, aTime, -1) / 2.0f, 2.0f, TimeSize, aTime, -1);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.85f);
+	TextRender()->Text(
+		0, Half - TextRender()->TextWidth(0, CpSize, aCheckpoint, -1) / 2.0f, 13.0f, CpSize, aCheckpoint, -1);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
 void CHud::RenderPauseNotification()
 {
 	if(m_aStatusAppear[STATUS_STACK_PAUSED] > 0.01f)
@@ -1650,7 +1692,10 @@ void CHud::OnRender()
 			RenderSpectatorHud();
 		}
 
-		RenderGameTimer();
+		if(m_pClient->m_Snap.m_pRaceInfo)
+			RenderRaceTimer();
+		else
+			RenderGameTimer();
 		RenderSuddenDeath();
 		RenderScoreHud();
 		if(!m_pClient->m_pScoreboard->Active() && !m_pClient->m_pInventory->IsVisible())

@@ -605,6 +605,19 @@ Objects = [
 		NetIntRange("m_WeaponLevel", 0, WEAPON_LEVEL_MAX),
 		NetIntRange("m_Slot", 0, 2),
 	]),
+
+	# Appended for protocol v16. Keep race objects after all existing object
+	# and event IDs so older IDs remain stable.
+	NetObject("RaceInfo", [
+		NetIntRange("m_NumCheckpoints", 0, 64),
+	]),
+
+	NetObject("RacePlayer", [
+		NetIntRange("m_ClientID", 0, 'MAX_CLIENTS-1'),
+		NetTick("m_StartTick"),
+		NetIntAny("m_Time"),
+		NetIntRange("m_Checkpoint", 0, 64),
+	]),
 ]
 
 # todo: remove unnecessary ones

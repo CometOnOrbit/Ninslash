@@ -58,6 +58,7 @@ class CLayers
 	CMapRule *GetRule(int Index) const;
 
 	class CMapChunk *GetMapChunk() const { return m_pMapChunk; }
+	void PruneMapChunks(int LowTileX, int HighTileX);
 
 	// MapGen: Direct layer access
 	int GetGameGroupIndex() const { return m_GameGroupIndex; }

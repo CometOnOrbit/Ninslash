@@ -58,6 +58,7 @@ class CHud : public CComponent
 	void RenderVoting();
 	void RenderHealthAndAmmo(const CNetObj_Character *pCharacter);
 	void RenderGameTimer();
+	void RenderRaceTimer();
 	void RenderPauseNotification();
 	void RenderSuddenDeath();
 	void RenderScoreHud();

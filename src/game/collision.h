@@ -4,6 +4,9 @@
 #include <base/vmath.h>
 #include "pathfinding.h"
 
+#include <set>
+#include <utility>
+
 class CCharacterCore;
 
 class CCollision
@@ -15,6 +18,7 @@ class CCollision
 	int m_Height;
 	class CLayers *m_pLayers;
 	bool *m_pBlocks;
+	std::set<std::pair<int, int>> m_ModularBlocks;
 	int *m_pLightRays;
 	enum
 	{
@@ -37,6 +41,7 @@ class CCollision
 
 	int m_WaypointCount;
 	int m_ConnectionCount;
+	int m_LastWaypointChunk;
 
 	void ClearWaypoints();
 
@@ -59,6 +64,7 @@ class CCollision
 	bool IsMapModular() { return m_pMapChunkRoot ? true : false; }
 	int GetModularPos(int x);
 	int GetChunkSize();
+	void PruneMapChunks(int LowTileX, int HighTileX);
 
 	enum
 	{
@@ -95,6 +101,7 @@ class CCollision
 	int GetRayPoint(int x, int y);
 
 	void GenerateWaypoints();
+	void GenerateWaypointsAround(int WorldTileX);
 	bool GenerateSomeMoreWaypoints();
 	int WaypointCount() { return m_WaypointCount; }
 	int ConnectionCount() { return m_ConnectionCount; }

@@ -305,7 +305,7 @@ bool CGameContext::GetRoamSpawnPos(vec2 *Pos)
 	if(!m_pBlockEntities)
 		return false;
 
-	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, Pos->x, false);
+	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, 0, true);
 
 	return m_pBlockEntities->GetSpawn(Pos);
 }
@@ -3427,6 +3427,26 @@ void CGameContext::ActivateBlockEntities(int x)
 	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, x / 32, false);
 	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, (x - 1000) / 32, true);
 	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, (x + 1000) / 32, true);
+
+	const int ChunkSize = m_Collision.GetChunkSize();
+	if(ChunkSize > 0)
+	{
+		int MinTileX = x / 32;
+		int MaxTileX = MinTileX;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+		{
+			CPlayer *pPlayer = m_apPlayers[i];
+			if(!pPlayer || pPlayer->m_IsBot || !pPlayer->GetCharacter())
+				continue;
+			const int PlayerTileX = (int)pPlayer->GetCharacter()->m_Pos.x / 32;
+			MinTileX = min(MinTileX, PlayerTileX);
+			MaxTileX = max(MaxTileX, PlayerTileX);
+		}
+		const int Margin = ChunkSize * 3;
+		m_Collision.GenerateWaypointsAround((MinTileX + MaxTileX) / 2);
+		m_Collision.PruneMapChunks(MinTileX - Margin, MaxTileX + Margin);
+		m_pBlockEntities = m_pBlockEntities->FreeOutside(this, MinTileX - Margin, MaxTileX + Margin);
+	}
 }
 
 void CGameContext::CreateEntitiesForBlock(int block)

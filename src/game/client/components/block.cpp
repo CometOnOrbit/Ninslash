@@ -10,6 +10,11 @@
 #include <game/gamecore.h>
 #include "block.h"
 
+static int BlockPixelToTile(int Position)
+{
+	return Position >= 0 ? Position / 32 : -((-Position + 31) / 32);
+}
+
 CBlocks::CBlocks()
 {
 	m_pBlocks = 0;
@@ -20,11 +25,8 @@ CBlocks::CBlocks()
 
 CBlocks::~CBlocks()
 {
-	if(m_pBlocks)
-		delete m_pBlocks;
-
-	if(m_pBlockSyncTick)
-		delete m_pBlockSyncTick;
+	delete[] m_pBlocks;
+	delete[] m_pBlockSyncTick;
 
 	m_pBlocks = 0;
 	m_pBlockSyncTick = 0;
@@ -47,8 +49,9 @@ void CBlocks::OnMapLoad()
 
 void CBlocks::ResetBlocks()
 {
-	if(m_pBlocks)
-		delete m_pBlocks;
+	delete[] m_pBlocks;
+	delete[] m_pBlockSyncTick;
+	m_ModularBlocks.clear();
 
 	m_Width = Collision()->GetWidth();
 	m_Height = Collision()->GetHeight();
@@ -67,6 +70,17 @@ void CBlocks::SetBlock(ivec2 Pos, int Block)
 	if(!m_pBlocks)
 		ResetBlocks();
 
+	if(Collision()->IsMapModular())
+	{
+		const std::pair<int, int> Key(BlockPixelToTile(Pos.x), BlockPixelToTile(Pos.y));
+		if(Block)
+			m_ModularBlocks[Key] = {Block, Client()->GameTick()};
+		else
+			m_ModularBlocks.erase(Key);
+		Collision()->SetBlock(Pos, Block);
+		return;
+	}
+
 	int Nx = clamp(Pos.x / 32, 0, m_Width - 1);
 	int Ny = clamp(Pos.y / 32, 0, m_Height - 1);
 
@@ -76,10 +90,54 @@ void CBlocks::SetBlock(ivec2 Pos, int Block)
 	Collision()->SetBlock(Pos, Block);
 }
 
+void CBlocks::RenderModularBlocks()
+{
+	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_BLOCKS].m_Id);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+	const float PixX = 1 / 256.0f;
+	const float PixY = 1 / 128.0f;
+	const float Size = 32.0f;
+	const int OldestTick = Client()->GameTick() - Client()->GameTickSpeed() * 6;
+
+	for(std::map<std::pair<int, int>, CModularBlock>::iterator It = m_ModularBlocks.begin();
+		It != m_ModularBlocks.end();)
+	{
+		if(It->second.m_SyncTick > Client()->GameTick() || It->second.m_SyncTick < OldestTick)
+		{
+			Collision()->SetBlock(ivec2(It->first.first * 32, It->first.second * 32), false);
+			It = m_ModularBlocks.erase(It);
+			continue;
+		}
+
+		const int Type = It->second.m_Type;
+		const float X0 = (Type - 1) % 3 / 4.0f;
+		const float X1 = X0 + 1.0f / 4.0f;
+		const float Y0 = Type > 3 ? 0.5f : 0.0f;
+		const float Y1 = Y0 + 0.5f;
+		Graphics()->QuadsSetSubsetFree(
+			X0 + PixX, Y0 + PixY, X1 - PixX, Y0 + PixY, X0 + PixX, Y1 - PixY, X1 - PixX, Y1 - PixY);
+
+		const vec2 Pos(It->first.first * Size, It->first.second * Size);
+		IGraphics::CFreeformItem Item(
+			Pos.x, Pos.y, Pos.x + Size, Pos.y, Pos.x, Pos.y + Size, Pos.x + Size, Pos.y + Size);
+		Graphics()->QuadsDrawFreeform(&Item, 1);
+		++It;
+	}
+
+	Graphics()->QuadsEnd();
+}
+
 void CBlocks::RenderBlocks()
 {
 	if(!m_Width)
 		return;
+	if(Collision()->IsMapModular())
+	{
+		RenderModularBlocks();
+		return;
+	}
 
 	/*
 	CUIRect Screen = *UI()->Screen();

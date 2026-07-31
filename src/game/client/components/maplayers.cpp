@@ -142,6 +142,12 @@ void CMapLayers::OnRender()
 	vec2 Center = m_pClient->m_pCamera->m_Center;
 	// float center_x = gameclient.camera->center.x;
 	// float center_y = gameclient.camera->center.y;
+	if(Collision()->IsMapModular())
+	{
+		const int CenterTileX = (int)Center.x / 32;
+		const int Margin = Collision()->GetChunkSize() * 3;
+		Collision()->PruneMapChunks(CenterTileX - Margin, CenterTileX + Margin);
+	}
 
 	bool PassedGameLayer = false;
 
