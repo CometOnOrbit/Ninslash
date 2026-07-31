@@ -25,6 +25,7 @@ class CCollision
 	class CMapItemLayerTilemap *m_apModifTilemap[MODIF_TILE_CACHE_SIZE];
 	class CTile *m_apModifTiles[MODIF_TILE_CACHE_SIZE];
 
+	class CMapChunk *m_pMapChunkRoot;
 	class CMapChunk *m_pMapChunk;
 
 	int SolidState(int x, int y, bool IncludeDeath = false, bool Down = false, bool IncludeBlocks = true);
@@ -55,7 +56,7 @@ class CCollision
 	void ClearModifTileCache();
 
   public:
-	bool IsMapModular() { return m_pMapChunk ? true : false; }
+	bool IsMapModular() { return m_pMapChunkRoot ? true : false; }
 	int GetModularPos(int x);
 	int GetChunkSize();
 

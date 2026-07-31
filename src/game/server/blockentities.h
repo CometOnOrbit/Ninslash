@@ -39,6 +39,8 @@ class CBlockEntities
 	int GetSize() const { return m_SizeX; }
 
 	void StoreEntity(int ObjType, int Type, int Subtype, int x, int y);
+
+	static void DestroyChain(CBlockEntities *pAny);
 };
 
 #endif

@@ -373,9 +373,11 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 				m_pEditor->m_MapChunks = pItem->m_RuleCount;
 
 				if(m_pEditor->m_apChunkRule)
-					delete m_pEditor->m_apChunkRule;
+					delete[] m_pEditor->m_apChunkRule;
 
-				m_pEditor->m_apChunkRule = new int[(m_pEditor->m_MapChunks + 1) * 4];
+				m_pEditor->m_apChunkRule = new int[m_pEditor->m_MapChunks * 4];
+				for(int i = 0; i < m_pEditor->m_MapChunks * 4; i++)
+					m_pEditor->m_apChunkRule[i] = 0;
 
 				for(int i = 0; i < m_pEditor->m_MapChunks; i++)
 				{

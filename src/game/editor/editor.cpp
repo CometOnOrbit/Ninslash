@@ -2639,26 +2639,21 @@ void CEditor::RenderLayers(CUIRect ToolBox, CUIRect ToolBar, CUIRect View)
 
 			// if map is infinite or not
 			static int s_aIds[1] = {0};
-			CProperty aProps[] = {{"Chunk", m_SelectedChunk, PROPTYPE_INT_STEP, 0, m_MapChunks}, {0}};
+			const int MaxChunkIndex = m_MapChunks > 0 ? m_MapChunks - 1 : 0;
+			CProperty aProps[] = {{"Chunk", m_SelectedChunk, PROPTYPE_INT_STEP, 0, MaxChunkIndex}, {0}};
 
 			int NewVal = 0;
 			int Prop = DoProperties(&Slot, aProps, s_aIds, &NewVal);
 
-			if(Prop != -1)
+			if(Prop != -1 && m_MapChunks > 0)
 			{
 				m_Map.m_Modified = true;
-				m_SelectedChunk = NewVal;
-
-				if(m_SelectedChunk > m_MapChunks)
-					m_SelectedChunk = m_MapChunks;
-
-				if(m_SelectedChunk < 0)
-					m_SelectedChunk = 0;
+				m_SelectedChunk = clamp(NewVal, 0, MaxChunkIndex);
 			}
 		}
 
 		// simple user defined modular generation ruleset
-		if(m_apChunkRule)
+		if(m_apChunkRule && m_MapChunks > 0)
 		{
 			// for (int i = 0; i < 4; i++)
 			{
@@ -2666,12 +2661,13 @@ void CEditor::RenderLayers(CUIRect ToolBox, CUIRect ToolBar, CUIRect View)
 				LayersBox.HSplitTop(12.0f, &Slot, &LayersBox);
 
 				// if map is infinite or not
+				const int MaxChunkIndex = m_MapChunks - 1;
 				static int s_aIds[4] = {0};
 				CProperty aProps[] = {
-					{"rule", m_apChunkRule[m_SelectedChunk * 4 + 0], PROPTYPE_INT_STEP, 0, m_MapChunks},
-					{"rule", m_apChunkRule[m_SelectedChunk * 4 + 1], PROPTYPE_INT_STEP, 0, m_MapChunks},
-					{"rule", m_apChunkRule[m_SelectedChunk * 4 + 2], PROPTYPE_INT_STEP, 0, m_MapChunks},
-					{"rule", m_apChunkRule[m_SelectedChunk * 4 + 3], PROPTYPE_INT_STEP, 0, m_MapChunks},
+					{"rule", m_apChunkRule[m_SelectedChunk * 4 + 0], PROPTYPE_INT_STEP, 0, MaxChunkIndex},
+					{"rule", m_apChunkRule[m_SelectedChunk * 4 + 1], PROPTYPE_INT_STEP, 0, MaxChunkIndex},
+					{"rule", m_apChunkRule[m_SelectedChunk * 4 + 2], PROPTYPE_INT_STEP, 0, MaxChunkIndex},
+					{"rule", m_apChunkRule[m_SelectedChunk * 4 + 3], PROPTYPE_INT_STEP, 0, MaxChunkIndex},
 					{0}};
 
 				int NewVal = 0;
@@ -2682,13 +2678,7 @@ void CEditor::RenderLayers(CUIRect ToolBox, CUIRect ToolBar, CUIRect View)
 					m_Map.m_Modified = true;
 					int i = Prop;
 
-					m_apChunkRule[m_SelectedChunk * 4 + i] = NewVal;
-
-					if(m_apChunkRule[m_SelectedChunk * 4 + i] > m_MapChunks)
-						m_apChunkRule[m_SelectedChunk * 4 + i] = m_MapChunks;
-
-					if(m_apChunkRule[m_SelectedChunk * 4 + i] < 0)
-						m_apChunkRule[m_SelectedChunk * 4 + i] = 0;
+					m_apChunkRule[m_SelectedChunk * 4 + i] = clamp(NewVal, 0, MaxChunkIndex);
 
 					m_HighlightedChunk = m_apChunkRule[m_SelectedChunk * 4 + i];
 					m_HighlightTimer = 1.0f;
@@ -2716,26 +2706,28 @@ void CEditor::UpdateModularRules()
 		// copy or create rules
 		if(!m_apChunkRule)
 		{
-			m_apChunkRule = new int[(NewSize + 1) * 4];
+			m_apChunkRule = new int[NewSize * 4];
 
-			for(int i = 0; i < (NewSize + 1) * 4; i++)
+			for(int i = 0; i < NewSize * 4; i++)
 				m_apChunkRule[i] = 0;
 		}
 		else
 		{
-			int *apNewRule = new int[(NewSize + 1) * 4];
+			int *apNewRule = new int[NewSize * 4];
 
-			for(int i = 0; i < (NewSize + 1) * 4; i++)
+			for(int i = 0; i < NewSize * 4; i++)
 				apNewRule[i] = 0;
 
 			for(int i = 0; i < min(m_MapChunks, NewSize) * 4; i++)
 				apNewRule[i] = m_apChunkRule[i];
 
-			delete m_apChunkRule;
+			delete[] m_apChunkRule;
 			m_apChunkRule = apNewRule;
 		}
 
 		m_MapChunks = NewSize;
+		if(m_SelectedChunk >= m_MapChunks)
+			m_SelectedChunk = m_MapChunks > 0 ? m_MapChunks - 1 : 0;
 	}
 }
 

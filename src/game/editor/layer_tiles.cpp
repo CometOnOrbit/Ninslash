@@ -38,23 +38,19 @@ CLayerTiles::~CLayerTiles()
 {
 	delete[] m_pTiles;
 
-	if(m_pMapChunk)
-		delete m_pMapChunk;
+	CMapChunk::DestroyChain(m_pMapChunk);
+	m_pMapChunk = 0;
 }
 
 void CLayerTiles::AddInfinity(int ChunkSize, int NumChunks, int *apGenerationRules)
 {
-	if(m_pMapChunk)
-		delete m_pMapChunk;
-
+	CMapChunk::DestroyChain(m_pMapChunk);
 	m_pMapChunk = new CMapChunk(0, ChunkSize, NumChunks, apGenerationRules, 0);
 }
 
 void CLayerTiles::RemoveInfinity()
 {
-	if(m_pMapChunk)
-		delete m_pMapChunk;
-
+	CMapChunk::DestroyChain(m_pMapChunk);
 	m_pMapChunk = 0;
 }
 

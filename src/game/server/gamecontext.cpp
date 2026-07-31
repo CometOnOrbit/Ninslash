@@ -3609,7 +3609,7 @@ void CGameContext::OnShutdown()
 
 	if(m_pBlockEntities)
 	{
-		delete m_pBlockEntities;
+		CBlockEntities::DestroyChain(m_pBlockEntities);
 		m_pBlockEntities = 0;
 	}
 

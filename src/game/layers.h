@@ -42,8 +42,11 @@ class CLayers
 
 	void GenerateLayers();
 
+	void ClearModular();
+
   public:
 	CLayers();
+	~CLayers();
 	void Init(class IKernel *pKernel);
 	int NumGroups() const { return m_GroupsNum; };
 	class IMap *Map() const { return m_pMap; };

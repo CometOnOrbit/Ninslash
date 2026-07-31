@@ -43,8 +43,20 @@ CBlockEntities::~CBlockEntities()
 	if(m_pStoredEntities)
 		delete m_pStoredEntities;
 
-	if(m_pNext)
-		delete m_pNext;
+	// Only free the right side; DestroyChain walks left first.
+	delete m_pNext;
+	m_pNext = 0;
+}
+
+void CBlockEntities::DestroyChain(CBlockEntities *pAny)
+{
+	if(!pAny)
+		return;
+
+	while(pAny->m_pPrev)
+		pAny = pAny->m_pPrev;
+
+	delete pAny;
 }
 
 bool CBlockEntities::AddSpawn(vec2 Pos)
@@ -143,10 +155,12 @@ CBlockEntities *CBlockEntities::GetBlockEntities(CGameContext *pGameServer, int 
 
 	if(X < m_X)
 	{
-		if(m_pPrev)
-			return m_pPrev->GetBlockEntities(pGameServer, X);
-		else
-			return this;
+		if(!m_pPrev)
+		{
+			m_pPrev = new CBlockEntities(pGameServer, m_X - m_SizeX, m_SizeX, 0, Activate);
+			m_pPrev->m_pNext = this;
+		}
+		return m_pPrev->GetBlockEntities(pGameServer, X, Activate);
 	}
 
 	if(X >= m_X + m_SizeX)

@@ -32,6 +32,7 @@ CCollision::CCollision()
 	m_pBlocks = 0;
 	m_pLightRays = 0;
 	ClearModifTileCache();
+	m_pMapChunkRoot = 0;
 	m_pMapChunk = 0;
 
 	m_PathLen = 0;
@@ -56,8 +57,9 @@ CCollision::~CCollision()
 		if(m_apWaypoint[i])
 			delete m_apWaypoint[i];
 
-	if(m_pMapChunk)
-		delete[] m_pMapChunk;
+	// Chunk chain is owned by CLayers.
+	m_pMapChunkRoot = 0;
+	m_pMapChunk = 0;
 }
 
 void CCollision::Init(class CLayers *pLayers)
@@ -68,7 +70,8 @@ void CCollision::Init(class CLayers *pLayers)
 	m_Height = m_pLayers->GameLayer()->m_Height;
 	m_pTiles = static_cast<CTile *>(m_pLayers->Map()->GetData(m_pLayers->GameLayer()->m_Data));
 
-	m_pMapChunk = m_pLayers->GetMapChunk();
+	m_pMapChunkRoot = m_pLayers->GetMapChunk();
+	m_pMapChunk = m_pMapChunkRoot;
 
 	m_pBlocks = new bool[m_Width * m_Height];
 	for(int i = 0; i < m_Width * m_Height; i++)
@@ -244,7 +247,7 @@ void CCollision::GenerateWaypoints()
 {
 	ClearWaypoints();
 
-	if(m_pMapChunk)
+	if(m_pMapChunkRoot)
 		return;
 
 	for(int x = 2; x < m_Width - 2; x++)
@@ -809,17 +812,19 @@ bool CCollision::CanBuildBlock(int x, int y)
 
 int CCollision::GetChunkSize()
 {
-	return m_pMapChunk ? m_pMapChunk->GetSize() : 0;
+	return m_pMapChunkRoot ? m_pMapChunkRoot->GetSize() : 0;
 }
 
 int CCollision::GetModularPos(int x)
 {
-	if(m_pMapChunk)
+	if(m_pMapChunkRoot)
 	{
+		if(!m_pMapChunk)
+			m_pMapChunk = m_pMapChunkRoot;
 		m_pMapChunk = m_pMapChunk->GetMapChunk(x);
-		int chunk = m_pMapChunk->GetIndex();
-		int chunksize = m_pMapChunk->GetSize();
-		return x % chunksize + chunk * chunksize;
+		const int Chunk = m_pMapChunk->GetIndex();
+		const int ChunkSize = m_pMapChunk->GetSize();
+		return CMapChunk::ModPositive(x, ChunkSize) + Chunk * ChunkSize;
 	}
 
 	return x;

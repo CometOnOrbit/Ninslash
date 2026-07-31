@@ -35,6 +35,20 @@ CLayers::CLayers()
 	m_Base2LayerIndex = -1;
 }
 
+void CLayers::ClearModular()
+{
+	CMapChunk::DestroyChain(m_pMapChunk);
+	m_pMapChunk = 0;
+
+	delete[] m_apChunkRule;
+	m_apChunkRule = 0;
+}
+
+CLayers::~CLayers()
+{
+	ClearModular();
+}
+
 void CLayers::Init(class IKernel *pKernel)
 {
 	m_pMap = pKernel->RequestInterface<IMap>();
@@ -43,22 +57,15 @@ void CLayers::Init(class IKernel *pKernel)
 	m_pMap->GetType(MAPITEMTYPE_MODULARINFO, &m_ModularInfoStart, &m_ModularInfoNum);
 	m_pMap->GetType(MAPITEMTYPE_RULE, &m_RulesStart, &m_RulesNum);
 
-	// load modular rules
-	if(m_apChunkRule)
-		delete m_apChunkRule;
-
-	if(m_pMapChunk)
-		delete m_pMapChunk;
-
-	m_pMapChunk = 0;
-	m_apChunkRule = 0;
+	ClearModular();
 
 	CMapModularInfo *pModularInfo = GetModularInfo(0);
 
-	if(pModularInfo && pModularInfo->m_IsModular && !m_pMapChunk)
+	if(pModularInfo && pModularInfo->m_IsModular && pModularInfo->m_RuleCount > 0)
 	{
-
-		m_apChunkRule = new int[(pModularInfo->m_RuleCount + 1) * 4];
+		m_apChunkRule = new int[pModularInfo->m_RuleCount * 4];
+		for(int i = 0; i < pModularInfo->m_RuleCount * 4; i++)
+			m_apChunkRule[i] = 0;
 
 		for(int i = 0; i < pModularInfo->m_RuleCount; i++)
 		{

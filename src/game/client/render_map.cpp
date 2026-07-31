@@ -270,7 +270,7 @@ void CRenderTools::RenderTilemap(CTile *pTiles,
 			if(pMapChunk) // chunk loop
 			{
 				pMapChunk = pMapChunk->GetMapChunk(mx);
-				mx = mx % pMapChunk->GetSize() + pMapChunk->GetIndex() * pMapChunk->GetSize();
+				mx = CMapChunk::ModPositive(mx, pMapChunk->GetSize()) + pMapChunk->GetIndex() * pMapChunk->GetSize();
 
 				if(mx < 0)
 					mx = 0;
