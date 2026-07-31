@@ -34,6 +34,7 @@ class CBlockEntities
 	~CBlockEntities();
 	bool GetSpawn(vec2 *Pos);
 	bool AddSpawn(vec2 Pos);
+	bool AddSpawnLocal(vec2 Pos);
 
 	CBlockEntities *GetBlockEntities(class CGameContext *pGameServer, int X, bool Activate = false);
 	CBlockEntities *FreeOutside(class CGameContext *pGameServer, int LowX, int HighX);

@@ -11,6 +11,7 @@
 #include <game/server/mapgen/gen_layer.h>
 #include <game/server/mapgen/room.h>
 #include <game/server/mapgen/maze.h>
+#include <game/server/roam_mapgen_layout.h>
 #include <game/server/gamecontext.h>
 #include <game/layers.h>
 #include <game/mapitems.h>
@@ -23,6 +24,12 @@ CMapGen::CMapGen()
 	m_pCollision = 0x0;
 	m_pStorage = 0x0;
 	m_FileLoaded = false;
+	m_HasModularInfo = false;
+	mem_zero(&m_ModularInfo, sizeof(m_ModularInfo));
+	mem_zero(m_aModularRules, sizeof(m_aModularRules));
+	m_HasPathInfo = false;
+	mem_zero(&m_PathInfo, sizeof(m_PathInfo));
+	mem_zero(m_aPathPlacements, sizeof(m_aPathPlacements));
 }
 CMapGen::~CMapGen()
 {
@@ -272,11 +279,14 @@ void CMapGen::FitTutorialCanvas()
 void CMapGen::FillMap()
 {
 	dbg_msg("mapgen", "started map generation");
+	m_HasModularInfo = false;
+	m_HasPathInfo = false;
 
 	for(int i = 0; i < g_Config.m_SvMapGenLevel; i++)
 		rand();
 
 	FitTutorialCanvas();
+	FitRoamAtlasCanvas();
 	ExpandEscapeTowerCanvas();
 	ExpandExtractMazeCanvas();
 
@@ -310,7 +320,14 @@ void CMapGen::FillMap()
 
 	ProcessTime = time_get();
 
-	if(IsCoopMapGenGametype(g_Config.m_SvGametype))
+	if(str_comp(g_Config.m_SvGametype, "roam") == 0)
+	{
+		if(g_Config.m_SvMapGenRandSeed)
+			g_Config.m_SvMapGenSeed = (int)(time_get() % 32768);
+		srand(g_Config.m_SvMapGenLevel + g_Config.m_SvMapGenSeed);
+		GenerateRoamLevel();
+	}
+	else if(IsCoopMapGenGametype(g_Config.m_SvGametype))
 		GenerateLevel();
 	else
 		GeneratePVPLevel();
@@ -1730,6 +1747,201 @@ void CMapGen::Mirror(CGenLayer *pTiles)
 		}
 }
 
+void CMapGen::FitRoamAtlasCanvas()
+{
+	if(str_comp(g_Config.m_SvGametype, "roam") != 0 || !m_pLayers || !m_pLayers->GameLayer() || !m_pLayers->Map())
+		return;
+
+	const int NewW = RoamMapGen::AtlasWidth();
+	const int NewH = RoamMapGen::AtlasHeight();
+	CMapItemLayerTilemap *pGame = m_pLayers->GameLayer();
+	if(pGame->m_Width == NewW && pGame->m_Height == NewH)
+		return;
+
+	dbg_msg("mapgen", "fitting roam atlas canvas %dx%d -> %dx%d", pGame->m_Width, pGame->m_Height, NewW, NewH);
+	IMap *pMap = m_pLayers->Map();
+	int LayerStart = 0;
+	int LayerNum = 0;
+	pMap->GetType(MAPITEMTYPE_LAYER, &LayerStart, &LayerNum);
+	for(int i = 0; i < LayerNum; i++)
+	{
+		CMapItemLayer *pLayer = static_cast<CMapItemLayer *>(pMap->GetItem(LayerStart + i, 0, 0));
+		if(!pLayer || pLayer->m_Type != LAYERTYPE_TILES)
+			continue;
+		CMapItemLayerTilemap *pTilemap = reinterpret_cast<CMapItemLayerTilemap *>(pLayer);
+		pTilemap->m_Width = NewW;
+		pTilemap->m_Height = NewH;
+		if(!pMap->ReplaceData(pTilemap->m_Data, NewW * NewH * (int)sizeof(CTile)))
+			dbg_msg("mapgen", "failed to resize roam tile layer data index=%d", pTilemap->m_Data);
+	}
+	m_pCollision->RefreshMapgenDimensions();
+}
+
+void CMapGen::GenerateRoamLevel()
+{
+	const int Width = m_pLayers->GameLayer()->m_Width;
+	const int Height = m_pLayers->GameLayer()->m_Height;
+	const int NeedW = RoamMapGen::AtlasWidth();
+	const int NeedH = RoamMapGen::AtlasHeight();
+	if(Width < NeedW || Height < NeedH)
+	{
+		dbg_msg("mapgen", "roam atlas too small: %dx%d (need %dx%d)", Width, Height, NeedW, NeedH);
+		return;
+	}
+
+	const int CheckpointCount = RoamMapGen::ClampCheckpointCount(g_Config.m_SvRoamCheckpoints);
+	const int CourseLength = CheckpointCount + 1;
+	RoamMapGen::CCoursePlacement aCourse[RoamMapGen::MAX_COURSE_LENGTH];
+	const int PlacementCount = RoamMapGen::GenerateCourse(g_Config.m_SvMapGenSeed, aCourse, CourseLength);
+	if(PlacementCount != CourseLength)
+	{
+		dbg_msg("mapgen", "roam course generation failed: seed=%d checkpoints=%d", g_Config.m_SvMapGenSeed, CheckpointCount);
+		return;
+	}
+
+	CGenLayer Tiles(Width, Height);
+	int aCanonicalPortTiles[3][2][RoamMapGen::PORT_WIDTH + 2] = {{{0}}};
+	int aCanonicalPortFlags[3][2][RoamMapGen::PORT_WIDTH + 2] = {{{0}}};
+	bool aCanonicalPortSet[3][2] = {{false, false}, {false, false}, {false, false}};
+	for(int y = 0; y < Height; y++)
+		for(int x = 0; x < Width; x++)
+		{
+			Tiles.Set(0, x, y, 0, CGenLayer::FOREGROUND);
+			Tiles.Set(0, x, y, 0, CGenLayer::BACKGROUND);
+			Tiles.Set(0, x, y, 0, CGenLayer::DOODADS);
+			Tiles.Set(0, x, y, 0, CGenLayer::FGOBJECTS);
+		}
+	for(int Template = 0; Template < RoamMapGen::TEMPLATE_COUNT; Template++)
+	{
+		const int AtlasX = RoamMapGen::AtlasX(Template);
+		const int AtlasY = RoamMapGen::AtlasY(Template);
+		RoamMapGen::CTemplateGrid Grid;
+		const RoamMapGen::CTemplateSpec Spec = RoamMapGen::TemplateSpec(Template);
+		RoamMapGen::GenerateTemplate(Spec, &Grid);
+		if(!RoamMapGen::ValidateTemplate(Spec, Grid))
+		{
+			dbg_msg("mapgen", "invalid roam template %d", Template);
+			return;
+		}
+
+		// Auto-map each template in isolation. The one-tile halo describes only
+		// its declared ports, so atlas neighbours can never influence an edge.
+		CGenLayer Local(RoamMapGen::CHUNK_W + 2, RoamMapGen::CHUNK_H + 2);
+		for(int y = -1; y <= RoamMapGen::CHUNK_H; y++)
+			for(int x = -1; x <= RoamMapGen::CHUNK_W; x++)
+			{
+				bool Solid = true;
+				if(x >= 0 && x < RoamMapGen::CHUNK_W && y >= 0 && y < RoamMapGen::CHUNK_H)
+					Solid = Grid.Solid(x, y);
+				else
+				{
+					const bool LeftOpen = x < 0 && (Spec.m_EntryDir == MAPPATH_DIR_LEFT || (!Spec.m_Finish && Spec.m_ExitDir == MAPPATH_DIR_LEFT)) && y >= 10 && y <= 17;
+					const bool RightOpen = x >= RoamMapGen::CHUNK_W && (Spec.m_EntryDir == MAPPATH_DIR_RIGHT || (!Spec.m_Finish && Spec.m_ExitDir == MAPPATH_DIR_RIGHT)) && y >= 10 && y <= 17;
+					const bool UpOpen = y < 0 && (Spec.m_EntryDir == MAPPATH_DIR_UP || (!Spec.m_Finish && Spec.m_ExitDir == MAPPATH_DIR_UP)) && x >= 17 && x <= 24;
+					const bool DownOpen = y >= RoamMapGen::CHUNK_H && (Spec.m_EntryDir == MAPPATH_DIR_DOWN || (!Spec.m_Finish && Spec.m_ExitDir == MAPPATH_DIR_DOWN)) && x >= 17 && x <= 24;
+					Solid = !(LeftOpen || RightOpen || UpOpen || DownOpen);
+				}
+				Local.Set(Solid ? 1 : 0, x + 1, y + 1);
+			}
+		Local.GenerateBackground();
+		Local.GenerateMoreBackground();
+		Proceed(&Local, 0);
+		for(int Dir = 0; Dir < 4; Dir++)
+		{
+			const bool HasPort = Dir == Spec.m_EntryDir || (!Spec.m_Finish && Dir == Spec.m_ExitDir);
+			if(!HasPort) continue;
+			const int Axis = Dir == MAPPATH_DIR_LEFT || Dir == MAPPATH_DIR_RIGHT ? 0 : 1;
+			for(int Across = -1; Across <= RoamMapGen::PORT_WIDTH; Across++)
+			{
+				const int X = Axis == 0 ? (Dir == MAPPATH_DIR_LEFT ? 1 : RoamMapGen::CHUNK_W) : 18 + Across;
+				const int Y = Axis == 1 ? (Dir == MAPPATH_DIR_UP ? 1 : RoamMapGen::CHUNK_H) : 11 + Across;
+				const int Slot = Across + 1;
+				for(int Layer = CGenLayer::FOREGROUND; Layer <= CGenLayer::DOODADS; Layer++)
+				{
+					const int Tile = Local.Get(X, Y, Layer);
+					const int Flags = Local.GetFlags(X, Y, Layer);
+					if(aCanonicalPortSet[Layer][Axis])
+						Local.Set(aCanonicalPortTiles[Layer][Axis][Slot], X, Y, aCanonicalPortFlags[Layer][Axis][Slot], Layer);
+					else
+					{
+						aCanonicalPortTiles[Layer][Axis][Slot] = Tile;
+						aCanonicalPortFlags[Layer][Axis][Slot] = Flags;
+					}
+				}
+			}
+			for(int Layer = CGenLayer::FOREGROUND; Layer <= CGenLayer::DOODADS; Layer++)
+				aCanonicalPortSet[Layer][Axis] = true;
+		}
+		for(int y = 0; y < RoamMapGen::CHUNK_H; y++)
+			for(int x = 0; x < RoamMapGen::CHUNK_W; x++)
+			{
+				for(int Layer = CGenLayer::FOREGROUND; Layer <= CGenLayer::FGOBJECTS; Layer++)
+					Tiles.Set(Local.Get(x + 1, y + 1, Layer), AtlasX + x, AtlasY + y,
+						Local.GetFlags(x + 1, y + 1, Layer), Layer);
+			}
+	}
+	WriteLayers(&Tiles);
+	WriteBackground(&Tiles);
+
+	// Four rendering-only columns follow the logical atlas. All four carry a
+	// continuous dark background; column 3 additionally seals the exact tile
+	// ring around placed chunks on the foreground layer.
+	for(int y = 0; y < Height; y++)
+	{
+		for(int Swatch = 0; Swatch < RoamMapGen::VISUAL_SWATCH_COLUMNS; Swatch++)
+			ModifTile(ivec2(RoamMapGen::AtlasLogicalWidth() + Swatch, y), m_pLayers->GetBackgroundLayerIndex(),
+				34 + ((y + Swatch * 7) % 13 == 0 ? 17 : 0), TILEFLAG_OPAQUE);
+		ModifTile(ivec2(RoamMapGen::AtlasLogicalWidth() + 3, y), m_pLayers->GetForegroundLayerIndex(), 19, TILEFLAG_OPAQUE);
+	}
+
+	// Non-colliding tile gates. Middle/finish templates get a checkpoint strip
+	// at their entry; finish templates also get a double strip in the arena.
+	auto DrawGate = [&](int Template, int Dir, bool Finish)
+	{
+		const RoamMapGen::CTileAabb B = RoamMapGen::RaceGateLocalAabb(Dir, Finish);
+		const bool VerticalStrip = Dir == MAPPATH_DIR_LEFT || Dir == MAPPATH_DIR_RIGHT;
+		const int Lines = Finish ? 2 : 1;
+		for(int Line = 0; Line < Lines; Line++)
+			for(int Across = 0; Across < RoamMapGen::PORT_WIDTH; Across++)
+			{
+				int X, Y;
+				if(VerticalStrip) { X = B.m_MinX + Line; Y = B.m_MinY + Across; }
+				else { X = B.m_MinX + Across; Y = B.m_MinY + Line; }
+				const int Tile = Across == 0 ? 89 : Across == RoamMapGen::PORT_WIDTH - 1 ? 92 : (Across + Line) % 2 ? 90 : 91;
+				int Flags = VerticalStrip ? TILEFLAG_ROTATE : 0;
+				if(Dir == MAPPATH_DIR_RIGHT || Dir == MAPPATH_DIR_DOWN) Flags |= TILEFLAG_HFLIP;
+				ModifTile(ivec2(RoamMapGen::AtlasX(Template) + X, RoamMapGen::AtlasY(Template) + Y),
+					m_pLayers->GetDoodadsLayerIndex(), Tile, Flags);
+			}
+	};
+	for(int Template = RoamMapGen::TEMPL_MIDDLE_FIRST; Template < RoamMapGen::TEMPLATE_COUNT; Template++)
+	{
+		const RoamMapGen::CTemplateSpec Spec = RoamMapGen::TemplateSpec(Template);
+		DrawGate(Template, Spec.m_EntryDir, false);
+		if(Spec.m_Finish) DrawGate(Template, Spec.m_EntryDir, true);
+	}
+
+	m_HasPathInfo = true;
+	m_PathInfo.m_Version = 1;
+	m_PathInfo.m_ChunkWidth = RoamMapGen::CHUNK_W;
+	m_PathInfo.m_ChunkHeight = RoamMapGen::CHUNK_H;
+	m_PathInfo.m_AtlasColumns = RoamMapGen::ATLAS_COLS;
+	m_PathInfo.m_TemplateCount = RoamMapGen::TEMPLATE_COUNT;
+	m_PathInfo.m_PlacementCount = PlacementCount;
+	for(int i = 0; i < PlacementCount; i++)
+	{
+		m_aPathPlacements[i].m_GridX = aCourse[i].m_GridX;
+		m_aPathPlacements[i].m_GridY = aCourse[i].m_GridY;
+		m_aPathPlacements[i].m_TemplateIndex = aCourse[i].m_TemplateIndex;
+		m_aPathPlacements[i].m_CourseIndex = aCourse[i].m_CourseIndex;
+		m_aPathPlacements[i].m_EntryDir = aCourse[i].m_EntryDir;
+		m_aPathPlacements[i].m_ExitDir = aCourse[i].m_ExitDir;
+	}
+
+	dbg_msg("mapgen", "roam path-v2 generated: seed=%d checkpoints=%d placements=%d chunk=%dx%d",
+		g_Config.m_SvMapGenSeed, CheckpointCount, PlacementCount, RoamMapGen::CHUNK_W, RoamMapGen::CHUNK_H);
+}
+
 void CMapGen::GeneratePVPLevel()
 {
 	int w = m_pLayers->GameLayer()->m_Width;
@@ -2162,9 +2374,8 @@ void CMapGen::Proceed(CGenLayer *pTiles, int ConfigID)
 		aRules.add(pIndexRule);
 	}
 
-	const int Width = m_pLayers->GameLayer()->m_Width;
-	const int Height = m_pLayers->GameLayer()->m_Height;
-	const int MaxIndex = Width * Height;
+	const int Width = pTiles->Width();
+	const int Height = pTiles->Height();
 	for(int i = 0; i < aRules.size(); i++)
 		for(int j = 0; j < aRules[i]->m_aRules.size(); j++)
 			aRules[i]->m_aRules[j].m_Offset = aRules[i]->m_aRules[j].m_Y * Width + aRules[i]->m_aRules[j].m_X;
@@ -2206,12 +2417,13 @@ void CMapGen::Proceed(CGenLayer *pTiles, int ConfigID)
 					for(int j = 0; j < pIndexRule->m_aRules.size() && RespectRules; ++j)
 					{
 						CPosRule *pRule = &pIndexRule->m_aRules[j];
-						const int CheckIndex = TileIndex + pRule->m_Offset;
-
-						if(CheckIndex < 0 || CheckIndex >= MaxIndex)
+						const int CheckX = x + pRule->m_X;
+						const int CheckY = y + pRule->m_Y;
+						if(CheckX < 0 || CheckX >= Width || CheckY < 0 || CheckY >= Height)
 							RespectRules = false;
 						else
 						{
+							const int CheckIndex = CheckY * Width + CheckX;
 							const int RawTileValue = pLayerTiles[CheckIndex];
 							const int TileValue = RawTileValue < 0 ? 0 : RawTileValue;
 							if(pRule->m_IndexValue)

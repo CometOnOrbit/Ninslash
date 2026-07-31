@@ -19,6 +19,7 @@ enum ELocalGameMode
 	LOCAL_MODE_BATTLE_ROYALE,
 	LOCAL_MODE_GRENADE_DM,
 	LOCAL_MODE_INSTAGIB_CTF,
+	LOCAL_MODE_ROAM,
 	LOCAL_MODE_COUNT,
 };
 
@@ -33,6 +34,7 @@ enum ELocalGameRule
 	LOCAL_RULE_CTF_SCORE,
 	LOCAL_RULE_REACTOR_SCORE,
 	LOCAL_RULE_BALL_SCORE,
+	LOCAL_RULE_ROAM_CHECKPOINTS,
 };
 
 struct CLocalGameMode
@@ -290,6 +292,21 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 s_apLocalCtfMaps,
 					 s_apLocalCtfMapCommands,
 					 LOCAL_RULE_CTF_SCORE),
+	LOCAL_MODE_ENTRY("Roam Race",
+					 "Race through a generated modular course with a selectable number of checkpoints.",
+					 "1-8",
+					 "10 min",
+					 "Normal",
+					 "Race  ·  Checkpoints  ·  Modular course",
+					 "cfg/roam_mapgen.cfg",
+					 "roam",
+					 "invasion1",
+					 false,
+					 true,
+					 true,
+					 s_apLocalMaps,
+					 s_apLocalMapCommands,
+					 LOCAL_RULE_ROAM_CHECKPOINTS),
 };
 
 static const int s_aLocalPveModes[] = {
@@ -301,7 +318,8 @@ static const int s_aLocalPvpModes[] = {LOCAL_MODE_DM,
 									   LOCAL_MODE_BALL,
 									   LOCAL_MODE_BATTLE_ROYALE,
 									   LOCAL_MODE_GRENADE_DM,
-									   LOCAL_MODE_INSTAGIB_CTF};
+									   LOCAL_MODE_INSTAGIB_CTF,
+									   LOCAL_MODE_ROAM};
 
 #undef LOCAL_MODE_ENTRY
 
@@ -336,6 +354,8 @@ inline const char *LocalGameRuleLabel(int Rule)
 		return "Mission time";
 	if(Rule == LOCAL_RULE_BALL_SCORE)
 		return "Goal target";
+	if(Rule == LOCAL_RULE_ROAM_CHECKPOINTS)
+		return "Checkpoints";
 	return "Score limit";
 }
 

@@ -80,26 +80,35 @@ void CMapChunk::DestroyChain(CMapChunk *pAny)
 
 CMapChunk *CMapChunk::GetMapChunk(int X)
 {
-	if(X < m_X)
+	// ponytail: reject one-shot teleports over 128 chunks. Continuous movement
+	// remains unbounded; a sparse indexed chain can replace this ceiling if needed.
+	const int MaxLookupChunks = 128;
+	const int64 Delta = X < m_X ? (int64)m_X - X :
+		(X >= m_X + m_SizeX ? (int64)X - (m_X + m_SizeX) + 1 : 0);
+	if(m_SizeX <= 0 || Delta > (int64)m_SizeX * MaxLookupChunks)
+		return this;
+
+	CMapChunk *pChunk = this;
+	while(X < pChunk->m_X)
 	{
-		if(!m_pPrev)
+		if(!pChunk->m_pPrev)
 		{
-			m_pPrev = new CMapChunk(m_X - m_SizeX, m_SizeX, m_NumChunks, m_apGenerationRules, 0);
-			m_pPrev->m_ChunkIndex = PickIndex(GetIndex(), m_pPrev->m_X, m_NumChunks, m_apGenerationRules);
-			m_pPrev->m_pNext = this;
+			pChunk->m_pPrev =
+				new CMapChunk(pChunk->m_X - pChunk->m_SizeX, pChunk->m_SizeX, pChunk->m_NumChunks, pChunk->m_apGenerationRules, 0);
+			pChunk->m_pPrev->m_ChunkIndex =
+				PickIndex(pChunk->GetIndex(), pChunk->m_pPrev->m_X, pChunk->m_NumChunks, pChunk->m_apGenerationRules);
+			pChunk->m_pPrev->m_pNext = pChunk;
 		}
-		return m_pPrev->GetMapChunk(X);
+		pChunk = pChunk->m_pPrev;
 	}
-
-	if(X >= m_X + m_SizeX)
+	while(X >= pChunk->m_X + pChunk->m_SizeX)
 	{
-		if(!m_pNext)
-			m_pNext = new CMapChunk(m_X + m_SizeX, m_SizeX, m_NumChunks, m_apGenerationRules, this);
-
-		return m_pNext->GetMapChunk(X);
+		if(!pChunk->m_pNext)
+			pChunk->m_pNext =
+				new CMapChunk(pChunk->m_X + pChunk->m_SizeX, pChunk->m_SizeX, pChunk->m_NumChunks, pChunk->m_apGenerationRules, pChunk);
+		pChunk = pChunk->m_pNext;
 	}
-
-	return this;
+	return pChunk;
 }
 
 CMapChunk *CMapChunk::FreeOutside(int LowX, int HighX)

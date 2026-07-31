@@ -314,6 +314,13 @@ MACRO_CONFIG_INT(SvMapGen, sv_mapgen, 1, 0, 1, CFGFLAG_SERVER, "Map Generation S
 MACRO_CONFIG_INT(SvMapGenLevel, sv_mapgen_level, 1, 1, 9999, CFGFLAG_SERVER, "Map Difficulty")
 MACRO_CONFIG_INT(SvMapGenSeed, sv_mapgen_seed, 0, 0, 32767, CFGFLAG_SERVER, "Map generation seed")
 MACRO_CONFIG_INT(SvMapGenRandSeed, sv_mapgen_random_seed, 1, 0, 1, CFGFLAG_SERVER, "Random map generation seed")
+MACRO_CONFIG_INT(SvRoamCheckpoints,
+				 sv_roam_checkpoints,
+				 24,
+				 3,
+				 63,
+				 CFGFLAG_SERVER,
+				 "Number of checkpoints in a generated Roam race")
 
 // Invasion
 MACRO_CONFIG_INT(SvInvFails, sv_inv_fails, 0, 0, 9, CFGFLAG_SERVER, "Invasion level fails")
@@ -505,6 +512,13 @@ MACRO_CONFIG_INT(ClLocalServerExtractionTime,
 				 15,
 				 CFGFLAG_SAVE | CFGFLAG_CLIENT,
 				 "Extraction mission time limit in minutes")
+MACRO_CONFIG_INT(ClLocalServerRoamCheckpoints,
+				 cl_local_server_roam_checkpoints,
+				 24,
+				 3,
+				 63,
+				 CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_CLOUD,
+				 "Number of checkpoints in a local Roam race")
 MACRO_CONFIG_INT(ClLocalServerDmScore,
 				 cl_local_server_dm_score,
 				 20,

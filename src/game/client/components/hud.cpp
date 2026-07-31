@@ -313,16 +313,12 @@ void CHud::RenderRaceTimer()
 	if(!pRace)
 		return;
 
-	int Time = pRace->m_Time;
-	if(Time < 0)
-		Time = max(0, (Client()->GameTick() - pRace->m_StartTick) * 100 / Client()->GameTickSpeed());
-
 	char aTime[32];
 	char aCheckpoint[32];
-	str_format(aTime, sizeof(aTime), "%d:%02d.%02d", Time / 6000, (Time / 100) % 60, Time % 100);
+	CGameClient::FormatRaceTime(m_pClient->RaceTime(ClientID), aTime, sizeof(aTime));
 	str_format(aCheckpoint,
 			   sizeof(aCheckpoint),
-			   "CP %d/%d",
+			   Localize("CP %d/%d"),
 			   pRace->m_Checkpoint,
 			   m_pClient->m_Snap.m_pRaceInfo->m_NumCheckpoints);
 
@@ -689,7 +685,8 @@ void CHud::RenderScoreHud()
 				const int ClientID = pInfo->m_ClientID;
 				if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 					continue;
-				if((GameFlags & GAMEFLAG_COOP) && m_pClient->m_aClients[ClientID].m_IsBot)
+				if((GameFlags & GAMEFLAG_COOP) && !m_pClient->m_Snap.m_pRaceInfo &&
+				   m_pClient->m_aClients[ClientID].m_IsBot)
 					continue;
 				Position++;
 				if(NumRows < 2)
@@ -714,7 +711,8 @@ void CHud::RenderScoreHud()
 			const vec4 Accent = CMenus::ThemeAccent();
 			const vec4 Panel = CMenus::ThemeBgPanel();
 			const vec4 Inset = CMenus::ThemeBgInset();
-			const float CardWidth = clamp(Whole * 0.20f, 82.0f, 96.0f);
+			const bool Race = m_pClient->m_Snap.m_pRaceInfo != 0;
+			const float CardWidth = Race ? clamp(Whole * 0.23f, 104.0f, 116.0f) : clamp(Whole * 0.20f, 82.0f, 96.0f);
 			const float CardHeight = 17.0f;
 			const float RowGap = 2.0f;
 			const float CardX = Whole - CardWidth - 5.0f;
@@ -746,7 +744,10 @@ void CHud::RenderScoreHud()
 					&Info, vec2(Card.x + 24.0f, Card.y + Card.h * 0.5f + Info.m_Size * 0.55f + 1.5f), 0);
 
 				char aScore[32];
-				str_format(aScore, sizeof(aScore), "%d", pInfo->m_Score);
+				if(Race)
+					CGameClient::FormatRaceTime(m_pClient->RaceTime(ID), aScore, sizeof(aScore));
+				else
+					str_format(aScore, sizeof(aScore), "%d", pInfo->m_Score);
 				const float ScoreWidth = max(16.0f, TextRender()->TextWidth(0, 8.0f, aScore, -1));
 				const float ScoreX = Card.x + Card.w - ScoreWidth - 4.0f;
 				TextRender()->Text(0, ScoreX, Card.y + 4.0f, 8.0f, aScore, -1);

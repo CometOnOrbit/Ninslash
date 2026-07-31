@@ -384,7 +384,8 @@ class CRenderTools
 					   void *pUser,
 					   int ColorEnv,
 					   int ColorEnvOffset,
-					   class CMapChunk *pMapChunk = 0);
+					   class CMapChunk *pMapChunk = 0,
+					   class CMapPath *pMapPath = 0);
 
 	// helpers
 	void MapscreenToWorld(float CenterX,

@@ -59,6 +59,14 @@ void CBlockEntities::DestroyChain(CBlockEntities *pAny)
 	delete pAny;
 }
 
+bool CBlockEntities::AddSpawnLocal(vec2 Pos)
+{
+	if(m_NumSpawns >= 9)
+		return false;
+	m_aSpawn[m_NumSpawns++] = Pos;
+	return true;
+}
+
 bool CBlockEntities::AddSpawn(vec2 Pos)
 {
 	if(Pos.x < m_X)
@@ -77,11 +85,7 @@ bool CBlockEntities::AddSpawn(vec2 Pos)
 		return m_pNext->AddSpawn(Pos);
 	}
 
-	if(m_NumSpawns >= 9)
-		return false;
-
-	m_aSpawn[m_NumSpawns++] = Pos;
-	return true;
+	return AddSpawnLocal(Pos);
 }
 
 bool CBlockEntities::GetSpawn(vec2 *Pos)

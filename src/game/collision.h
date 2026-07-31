@@ -31,6 +31,7 @@ class CCollision
 
 	class CMapChunk *m_pMapChunkRoot;
 	class CMapChunk *m_pMapChunk;
+	class CMapPath *m_pMapPath;
 
 	int SolidState(int x, int y, bool IncludeDeath = false, bool Down = false, bool IncludeBlocks = true);
 	int ForceState(int x, int y);
@@ -38,6 +39,7 @@ class CCollision
 	int GetTile(int x, int y, bool Down = true, bool IncludeBlocks = true);
 	int GetTileRay(int x, int y, bool Down = true);
 	bool GetBlock(int x, int y);
+	bool ResolveAtlasTile(int WorldTileX, int WorldTileY, int *pAtlasX, int *pAtlasY) const;
 
 	int m_WaypointCount;
 	int m_ConnectionCount;
@@ -61,9 +63,12 @@ class CCollision
 	void ClearModifTileCache();
 
   public:
-	bool IsMapModular() { return m_pMapChunkRoot ? true : false; }
+	bool IsMapModular() { return m_pMapPath || m_pMapChunkRoot; }
+	bool IsMapPath() const { return m_pMapPath != 0; }
+	class CMapPath *GetMapPath() const { return m_pMapPath; }
 	int GetModularPos(int x);
 	int GetChunkSize();
+	int GetChunkHeight();
 	void PruneMapChunks(int LowTileX, int HighTileX);
 
 	enum
@@ -163,6 +168,9 @@ class CCollision
 
 	int CheckPoint(float x, float y, bool IncludeDeath = false, bool Down = true, bool IncludeBlocks = true)
 	{
+		if(x != x || y != y || x <= -2147483000.0f || x >= 2147483000.0f ||
+		   y <= -2147483000.0f || y >= 2147483000.0f)
+			return true;
 		return SolidState(round_to_int(x), round_to_int(y), IncludeDeath, Down, IncludeBlocks);
 	}
 	bool CheckPoint(vec2 Pos, bool Down = true, bool IncludeBlocks = true)

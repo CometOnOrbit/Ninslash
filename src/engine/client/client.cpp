@@ -2928,8 +2928,12 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	// slots. sv_bots is a population target, not a count bounded by human slots.
 	Settings.m_Bots = clamp(Host.m_Bots, 0, 30);
 	Settings.m_BotLevel = clamp(Host.m_BotLevel, 1, 30);
-	Settings.m_ScoreLimit = str_comp(Host.m_aGameType, "extract") == 0 ? 0 : Host.m_ModeRule;
-	Settings.m_TimeLimit = str_comp(Host.m_aGameType, "extract") == 0 ? Host.m_ModeRule : 0;
+	const bool Extraction = str_comp(Host.m_aGameType, "extract") == 0;
+	const bool Roam = str_comp(Host.m_aGameType, "roam") == 0;
+	const int ModeRule = Roam && Host.m_ModeRule <= 0 ? g_Config.m_ClLocalServerRoamCheckpoints : Host.m_ModeRule;
+	Settings.m_ScoreLimit = Extraction || Roam ? 0 : ModeRule;
+	Settings.m_TimeLimit = Extraction ? ModeRule : 0;
+	Settings.m_RoamCheckpoints = Roam ? clamp(ModeRule, 3, 63) : 23;
 	Settings.m_PveRoguelite = Host.m_Roguelite;
 	Settings.m_PveContracts = Host.m_Contracts;
 	Settings.m_InvasionUseCheckpoint = Host.m_UseCheckpoint;

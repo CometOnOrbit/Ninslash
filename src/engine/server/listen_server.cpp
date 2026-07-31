@@ -27,6 +27,7 @@ void CaptureSettings(CListenServerSettings *pSettings)
 	pSettings->m_MapGenLevel = g_Config.m_SvMapGenLevel;
 	pSettings->m_MapGenSeed = g_Config.m_SvMapGenSeed;
 	pSettings->m_MapGenRandomSeed = g_Config.m_SvMapGenRandSeed;
+	pSettings->m_RoamCheckpoints = g_Config.m_SvRoamCheckpoints;
 	pSettings->m_Bots = g_Config.m_SvNumBots;
 	pSettings->m_BotLevel = g_Config.m_SvBotLevel;
 	pSettings->m_ScoreLimit = g_Config.m_SvScorelimit;
@@ -56,6 +57,7 @@ void ApplySettings(const CListenServerSettings &Settings)
 	g_Config.m_SvMapGenLevel = Settings.m_MapGenLevel;
 	g_Config.m_SvMapGenSeed = Settings.m_MapGenSeed;
 	g_Config.m_SvMapGenRandSeed = Settings.m_MapGenRandomSeed;
+	g_Config.m_SvRoamCheckpoints = Settings.m_RoamCheckpoints;
 	g_Config.m_SvNumBots = Settings.m_Bots;
 	g_Config.m_SvBotLevel = Settings.m_BotLevel;
 	g_Config.m_SvScorelimit = Settings.m_ScoreLimit;

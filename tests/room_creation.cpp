@@ -19,7 +19,8 @@ int main()
 										  {8, 8, 4, 5},
 										  {9, 8, 8, 25},
 										  {5, 3, 4, 15},
-										  {8, 3, 4, 500}};
+										  {8, 3, 4, 500},
+										  {8, 8, 4, 24}};
 	for(int Mode = 1; Mode < LOCAL_MODE_COUNT; Mode++)
 	{
 		const CRoomModeDefaults Actual = RoomModeDefaults(Mode);
@@ -30,8 +31,12 @@ int main()
 	}
 	assert(LOCAL_MODE_INVASION == 1 && LOCAL_MODE_CTF == 6);
 	assert(LOCAL_MODE_REACTOR_DEFENSE == 7 && LOCAL_MODE_INSTAGIB_CTF == 12);
+	assert(!LocalGameMode(LOCAL_MODE_ROAM).m_Pve);
+	assert(RoomModeDefaults(LOCAL_MODE_ROAM).m_Bots == 4);
+	assert(RoomModeDefaults(LOCAL_MODE_ROAM).m_Rule == 24);
+	assert(LocalGameMode(LOCAL_MODE_ROAM).m_Rule == LOCAL_RULE_ROAM_CHECKPOINTS);
 	assert((int)(sizeof(s_aLocalPveModes) / sizeof(s_aLocalPveModes[0])) == 4);
-	assert((int)(sizeof(s_aLocalPvpModes) / sizeof(s_aLocalPvpModes[0])) == 8);
+	assert((int)(sizeof(s_aLocalPvpModes) / sizeof(s_aLocalPvpModes[0])) == 9);
 	assert(str_comp(LocalGameMode(LOCAL_MODE_REACTOR_DEFENSE).m_pGameVoteImage, "reactor_def1") == 0);
 	assert(!LocalGameModeUsesTeamPopulation(LOCAL_MODE_DM));
 	assert(!LocalGameModeUsesTeamPopulation(LOCAL_MODE_BATTLE_ROYALE));
@@ -47,6 +52,7 @@ int main()
 	assert(str_comp(LocalGameRuleLabel(LOCAL_RULE_BALL_SCORE), "Goal target") == 0);
 	assert(str_comp(LocalGameRuleLabel(LOCAL_RULE_HORDE), "Target waves") == 0);
 	assert(str_comp(LocalGameRuleLabel(LOCAL_RULE_EXTRACTION), "Mission time") == 0);
+	assert(str_comp(LocalGameRuleLabel(LOCAL_RULE_ROAM_CHECKPOINTS), "Checkpoints") == 0);
 	for(int Mode = 1; Mode < LOCAL_MODE_COUNT; Mode++)
 	{
 		const CLocalGameMode &Spec = LocalGameMode(Mode);

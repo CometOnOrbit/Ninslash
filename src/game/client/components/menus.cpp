@@ -1992,6 +1992,8 @@ static void ApplyLocalGameModeDefaults(int Mode)
 		g_Config.m_ClLocalServerReactorScore = Defaults.m_Rule;
 	else if(LocalGameMode(Mode).m_Rule == LOCAL_RULE_BALL_SCORE)
 		g_Config.m_ClLocalServerBallScore = Defaults.m_Rule;
+	else if(LocalGameMode(Mode).m_Rule == LOCAL_RULE_ROAM_CHECKPOINTS)
+		g_Config.m_ClLocalServerRoamCheckpoints = Defaults.m_Rule;
 }
 
 struct CLocalServerLaunchSettings
@@ -2051,6 +2053,8 @@ static int *LocalModeRuleConfig(int Rule)
 		return &g_Config.m_ClLocalServerReactorScore;
 	if(Rule == LOCAL_RULE_BALL_SCORE)
 		return &g_Config.m_ClLocalServerBallScore;
+	if(Rule == LOCAL_RULE_ROAM_CHECKPOINTS)
+		return &g_Config.m_ClLocalServerRoamCheckpoints;
 	return 0;
 }
 
@@ -2335,6 +2339,8 @@ FormatLocalServerSummary(const CLocalServerLaunchSettings &Settings, int Port, c
 		str_copy(aRule, Localize("Last survivor"), sizeof(aRule));
 	else if(Settings.m_Mode == LOCAL_MODE_REACTOR_DEFENSE)
 		str_copy(aRule, Localize("Defend the reactor"), sizeof(aRule));
+	else if(Settings.m_Mode == LOCAL_MODE_ROAM)
+		str_format(aRule, sizeof(aRule), Localize("%d checkpoints"), Settings.m_ModeRule);
 	else
 		str_copy(aRule, Localize(Settings.m_Roguelite ? "Roguelite" : "Classic PvE"), sizeof(aRule));
 	if(Settings.m_RandomSeed)
@@ -2747,6 +2753,8 @@ void CMenus::StartLocalServer(bool AutoJoin)
 		str_format(aModeRule, sizeof(aModeRule), "sv_scorelimit %d", Settings.m_ModeRule);
 	else if(Settings.m_pMode->m_Rule == LOCAL_RULE_EXTRACTION)
 		str_format(aModeRule, sizeof(aModeRule), "sv_timelimit %d", Settings.m_ModeRule);
+	else if(Settings.m_pMode->m_Rule == LOCAL_RULE_ROAM_CHECKPOINTS)
+		str_format(aModeRule, sizeof(aModeRule), "sv_roam_checkpoints %d", Settings.m_ModeRule);
 	EscapeLocalServerValue(Settings.m_aName, aNameValue, sizeof(aNameValue));
 	EscapeLocalServerValue(Settings.m_aPassword, aPasswordValue, sizeof(aPasswordValue));
 	EscapeLocalServerValue(m_aLocalServerLogPath, aLogValue, sizeof(aLogValue));
@@ -3452,14 +3460,16 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 		UI()->DoLabelScaled(&Label, Localize(LocalGameRuleLabel(ModeDef.m_Rule)), 11.0f, -1);
 		str_format(aLabel, sizeof(aLabel), ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? Localize("%d min") : "%d", *pRule);
 		Delta = Stepper(Control, &s_RulePrevious, &s_RuleNext, aLabel);
-		const int Step = ModeDef.m_Rule == LOCAL_RULE_CTF_SCORE	   ? 25
-						 : ModeDef.m_Rule == LOCAL_RULE_BALL_SCORE ? 1
-						 : ModeDef.m_Rule >= LOCAL_RULE_DM_SCORE   ? 5
-																   : 1;
-		const int Minimum = ModeDef.m_Rule == LOCAL_RULE_HORDE ? 0 : ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? 2 : 1;
-		const int Maximum = ModeDef.m_Rule == LOCAL_RULE_EXTRACTION											? 15
-							: ModeDef.m_Rule == LOCAL_RULE_HORDE || ModeDef.m_Rule == LOCAL_RULE_BALL_SCORE ? 100
-																											: 1000;
+		int Step = ModeDef.m_Rule == LOCAL_RULE_CTF_SCORE ? 25 : ModeDef.m_Rule >= LOCAL_RULE_DM_SCORE ? 5 : 1;
+		int Minimum = ModeDef.m_Rule == LOCAL_RULE_HORDE ? 0 : ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? 2 : 1;
+		int Maximum = ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? 15 :
+			ModeDef.m_Rule == LOCAL_RULE_HORDE || ModeDef.m_Rule == LOCAL_RULE_BALL_SCORE ? 100 : 1000;
+		if(ModeDef.m_Rule == LOCAL_RULE_ROAM_CHECKPOINTS)
+		{
+			Step = 1;
+			Minimum = 3;
+			Maximum = 63;
+		}
 		*pRule = clamp(*pRule + Delta * Step, Minimum, Maximum);
 	}
 
@@ -3758,6 +3768,8 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			g_Config.m_ClLocalServerTdmScore = clamp(g_Config.m_ClLocalServerTdmScore + Direction * 5, 1, 1000);
 		else if(Mode == LOCAL_MODE_CTF)
 			g_Config.m_ClLocalServerCtfScore = clamp(g_Config.m_ClLocalServerCtfScore + Direction * 25, 1, 1000);
+		else if(Mode == LOCAL_MODE_ROAM)
+			g_Config.m_ClLocalServerRoamCheckpoints = clamp(g_Config.m_ClLocalServerRoamCheckpoints + Direction, 3, 63);
 	};
 
 	m_LocalServerFocus = clamp(m_LocalServerFocus, 0, MaxFocus);

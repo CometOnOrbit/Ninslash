@@ -883,6 +883,14 @@
         {
             "key": "red",
             "value": "red"
+        },
+        {
+            "key": "Checkpoint %d/%d",
+            "value": "Checkpoint %d/%d"
+        },
+        {
+            "key": "Finished in %d:%02d.%02d",
+            "value": "Finished in %d:%02d.%02d"
         }
     ]
 }

@@ -242,6 +242,30 @@ void CGameClient::CStack::Add(class CComponent *pComponent)
 	m_paComponents[m_Num++] = pComponent;
 }
 
+int CGameClient::RaceTime(int ClientID) const
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_Snap.m_pRaceInfo)
+		return -1;
+	const CNetObj_RacePlayer *pRace = m_Snap.m_apRacePlayers[ClientID];
+	if(!pRace)
+		return -1;
+	if(pRace->m_Time >= 0)
+		return pRace->m_Time;
+	if(!m_pClient || m_pClient->GameTickSpeed() <= 0)
+		return 0;
+	return max(0, (m_pClient->GameTick() - pRace->m_StartTick) * 100 / m_pClient->GameTickSpeed());
+}
+
+void CGameClient::FormatRaceTime(int Time, char *pBuf, int BufSize)
+{
+	if(!pBuf || BufSize <= 0)
+		return;
+	if(Time < 0)
+		str_copy(pBuf, "--:--.--", BufSize);
+	else
+		str_format(pBuf, BufSize, "%d:%02d.%02d", Time / 6000, (Time / 100) % 60, Time % 100);
+}
+
 const char *CGameClient::Version()
 {
 	return GAME_VERSION;

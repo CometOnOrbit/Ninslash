@@ -15,6 +15,7 @@ struct CListenServerSettings
 	int m_MapGenLevel;
 	int m_MapGenSeed;
 	int m_MapGenRandomSeed;
+	int m_RoamCheckpoints;
 	int m_Bots;
 	int m_BotLevel;
 	int m_ScoreLimit;

@@ -788,7 +788,15 @@ int CDataFileWriter::Finish()
 
 // MapGen
 bool CDataFileWriter::SaveMap(
-	class IStorage *pStorage, CDataFileReader *pFileMap, const char *pFileName, char *pBlocksData, int BlocksDataSize)
+	class IStorage *pStorage,
+	CDataFileReader *pFileMap,
+	const char *pFileName,
+	char *pBlocksData,
+	int BlocksDataSize,
+	const CMapModularInfo *pModularInfo,
+	const int *pModularRules,
+	const CMapPathInfo *pPathInfo,
+	const CMapPathPlacement *pPathPlacements)
 {
 	dbg_msg("CDataFileWriter", "saving to '%s'...", pFileName);
 	char aBuf[128];
@@ -835,6 +843,31 @@ bool CDataFileWriter::SaveMap(
 
 		AddItem(MAPITEMTYPE_INFO, 0, sizeof(CMapItemInfo), &Item);
 		dbg_msg("CDataFileWriter", "saving info");
+	}
+
+	if(pModularInfo && pModularRules && pModularInfo->m_IsModular && pModularInfo->m_RuleCount > 0)
+	{
+		AddItem(MAPITEMTYPE_MODULARINFO, 0, sizeof(*pModularInfo), (void *)pModularInfo);
+		for(int i = 0; i < pModularInfo->m_RuleCount; i++)
+		{
+			CMapRule Rule;
+			Rule.m_Rule1 = pModularRules[i * 4];
+			Rule.m_Rule2 = pModularRules[i * 4 + 1];
+			Rule.m_Rule3 = pModularRules[i * 4 + 2];
+			Rule.m_Rule4 = pModularRules[i * 4 + 3];
+			AddItem(MAPITEMTYPE_RULE, i, sizeof(Rule), &Rule);
+		}
+		dbg_msg("CDataFileWriter", "saving modular info: %d rules, chunk size %d",
+			pModularInfo->m_RuleCount, pModularInfo->m_ChunkSize);
+	}
+
+	if(pPathInfo && pPathPlacements && pPathInfo->m_Version >= 1 && pPathInfo->m_PlacementCount > 0)
+	{
+		AddItem(MAPITEMTYPE_PATHINFO, 0, sizeof(*pPathInfo), (void *)pPathInfo);
+		for(int i = 0; i < pPathInfo->m_PlacementCount; i++)
+			AddItem(MAPITEMTYPE_PATHPLACEMENT, i, sizeof(pPathPlacements[i]), (void *)&pPathPlacements[i]);
+		dbg_msg("CDataFileWriter", "saving path info: %d placements, chunk %dx%d",
+			pPathInfo->m_PlacementCount, pPathInfo->m_ChunkWidth, pPathInfo->m_ChunkHeight);
 	}
 
 	// save images

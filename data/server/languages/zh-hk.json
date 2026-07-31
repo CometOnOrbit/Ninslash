@@ -883,6 +883,14 @@
         {
             "key": "red",
             "value": "紅"
+        },
+        {
+            "key": "Checkpoint %d/%d",
+            "value": "檢查點 %d/%d"
+        },
+        {
+            "key": "Finished in %d:%02d.%02d",
+            "value": "完成時間 %d:%02d.%02d"
         }
     ]
 }

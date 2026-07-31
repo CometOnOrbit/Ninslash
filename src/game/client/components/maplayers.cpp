@@ -8,6 +8,7 @@
 #include <engine/storage.h>
 
 #include <game/layers.h>
+#include <engine/shared/mappath.h>
 #include <game/client/gameclient.h>
 #include <game/client/component.h>
 #include <game/client/render.h>
@@ -190,6 +191,7 @@ void CMapLayers::OnRender()
 		{
 			CMapItemLayer *pLayer = m_pLayers->GetLayer(pGroup->m_StartLayer + l);
 			CMapChunk *pMapChunk = m_pLayers->GetMapChunk();
+			CMapPath *pMapPath = m_pLayers->GetMapPath();
 			bool Render = false;
 			bool IsGameLayer = false;
 
@@ -286,7 +288,8 @@ void CMapLayers::OnRender()
 												 this,
 												 pTMap->m_ColorEnv,
 												 pTMap->m_ColorEnvOffset,
-												 pMapChunk);
+												 pMapChunk,
+												 pMapPath);
 
 					Graphics()->BlendNormal();
 					RenderTools()->RenderTilemap(pTiles,
@@ -299,7 +302,8 @@ void CMapLayers::OnRender()
 												 this,
 												 pTMap->m_ColorEnv,
 												 pTMap->m_ColorEnvOffset,
-												 pMapChunk);
+												 pMapChunk,
+												 pMapPath);
 				}
 				else if(pLayer->m_Type == LAYERTYPE_QUADS)
 				{
