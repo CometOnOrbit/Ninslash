@@ -2,6 +2,7 @@
 #include <base/math.h>
 #include <engine/graphics.h>
 #include <engine/shared/mapchunk.h>
+#include <engine/shared/mappath.h>
 #include <engine/shared/config.h>
 
 #include "render.h"
@@ -224,7 +225,8 @@ void CRenderTools::RenderTilemap(CTile *pTiles,
 								 void *pUser,
 								 int ColorEnv,
 								 int ColorEnvOffset,
-								 CMapChunk *pMapChunk)
+								 CMapChunk *pMapChunk,
+								 CMapPath *pMapPath)
 {
 	// Graphics()->TextureSet(img_get(tmap->image));
 	float ScreenX0, ScreenY0, ScreenX1, ScreenY1;
@@ -267,7 +269,16 @@ void CRenderTools::RenderTilemap(CTile *pTiles,
 			int mx = x;
 			int my = y;
 
-			if(pMapChunk) // chunk loop
+			if(pMapPath)
+			{
+				int AtlasX = 0;
+				int AtlasY = 0;
+				if(!pMapPath->ResolveVisualTile(mx, my, &AtlasX, &AtlasY))
+					continue;
+				mx = AtlasX;
+				my = AtlasY;
+			}
+			else if(pMapChunk) // chunk loop
 			{
 				pMapChunk = pMapChunk->GetMapChunk(mx);
 				mx = CMapChunk::ModPositive(mx, pMapChunk->GetSize()) + pMapChunk->GetIndex() * pMapChunk->GetSize();

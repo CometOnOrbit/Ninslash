@@ -297,6 +297,44 @@ void CHud::RenderGameTimer()
 	}
 }
 
+void CHud::RenderRaceTimer()
+{
+	if(!g_Config.m_ClShowhudTimer || !m_pClient->m_Snap.m_pRaceInfo)
+		return;
+
+	int ClientID = m_pClient->m_Snap.m_LocalClientID;
+	if(m_pClient->m_Snap.m_SpecInfo.m_Active &&
+	   m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW)
+		ClientID = m_pClient->m_Snap.m_SpecInfo.m_SpectatorID;
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return;
+
+	const CNetObj_RacePlayer *pRace = m_pClient->m_Snap.m_apRacePlayers[ClientID];
+	if(!pRace)
+		return;
+
+	char aTime[32];
+	char aCheckpoint[32];
+	CGameClient::FormatRaceTime(m_pClient->RaceTime(ClientID), aTime, sizeof(aTime));
+	str_format(aCheckpoint,
+			   sizeof(aCheckpoint),
+			   Localize("CP %d/%d"),
+			   pRace->m_Checkpoint,
+			   m_pClient->m_Snap.m_pRaceInfo->m_NumCheckpoints);
+
+	const float Half = 300.0f * Graphics()->ScreenAspect() / 2.0f;
+	const float TimeSize = 10.0f;
+	const float CpSize = 6.0f;
+	vec4 Accent = CMenus::ThemeAccent();
+	TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 1.0f);
+	TextRender()->Text(
+		0, Half - TextRender()->TextWidth(0, TimeSize, aTime, -1) / 2.0f, 2.0f, TimeSize, aTime, -1);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.85f);
+	TextRender()->Text(
+		0, Half - TextRender()->TextWidth(0, CpSize, aCheckpoint, -1) / 2.0f, 13.0f, CpSize, aCheckpoint, -1);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
 void CHud::RenderPauseNotification()
 {
 	if(m_aStatusAppear[STATUS_STACK_PAUSED] > 0.01f)
@@ -647,7 +685,8 @@ void CHud::RenderScoreHud()
 				const int ClientID = pInfo->m_ClientID;
 				if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 					continue;
-				if((GameFlags & GAMEFLAG_COOP) && m_pClient->m_aClients[ClientID].m_IsBot)
+				if((GameFlags & GAMEFLAG_COOP) && !m_pClient->m_Snap.m_pRaceInfo &&
+				   m_pClient->m_aClients[ClientID].m_IsBot)
 					continue;
 				Position++;
 				if(NumRows < 2)
@@ -672,7 +711,8 @@ void CHud::RenderScoreHud()
 			const vec4 Accent = CMenus::ThemeAccent();
 			const vec4 Panel = CMenus::ThemeBgPanel();
 			const vec4 Inset = CMenus::ThemeBgInset();
-			const float CardWidth = clamp(Whole * 0.20f, 82.0f, 96.0f);
+			const bool Race = m_pClient->m_Snap.m_pRaceInfo != 0;
+			const float CardWidth = Race ? clamp(Whole * 0.23f, 104.0f, 116.0f) : clamp(Whole * 0.20f, 82.0f, 96.0f);
 			const float CardHeight = 17.0f;
 			const float RowGap = 2.0f;
 			const float CardX = Whole - CardWidth - 5.0f;
@@ -704,7 +744,10 @@ void CHud::RenderScoreHud()
 					&Info, vec2(Card.x + 24.0f, Card.y + Card.h * 0.5f + Info.m_Size * 0.55f + 1.5f), 0);
 
 				char aScore[32];
-				str_format(aScore, sizeof(aScore), "%d", pInfo->m_Score);
+				if(Race)
+					CGameClient::FormatRaceTime(m_pClient->RaceTime(ID), aScore, sizeof(aScore));
+				else
+					str_format(aScore, sizeof(aScore), "%d", pInfo->m_Score);
 				const float ScoreWidth = max(16.0f, TextRender()->TextWidth(0, 8.0f, aScore, -1));
 				const float ScoreX = Card.x + Card.w - ScoreWidth - 4.0f;
 				TextRender()->Text(0, ScoreX, Card.y + 4.0f, 8.0f, aScore, -1);
@@ -1650,7 +1693,10 @@ void CHud::OnRender()
 			RenderSpectatorHud();
 		}
 
-		RenderGameTimer();
+		if(m_pClient->m_Snap.m_pRaceInfo)
+			RenderRaceTimer();
+		else
+			RenderGameTimer();
 		RenderSuddenDeath();
 		RenderScoreHud();
 		if(!m_pClient->m_pScoreboard->Active() && !m_pClient->m_pInventory->IsVisible())

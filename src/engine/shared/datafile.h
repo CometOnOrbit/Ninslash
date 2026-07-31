@@ -69,6 +69,10 @@ class CDataFileReader
 };
 
 // write access
+struct CMapModularInfo;
+struct CMapPathInfo;
+struct CMapPathPlacement;
+
 class CDataFileWriter
 {
 	struct CDataInfo
@@ -125,7 +129,11 @@ class CDataFileWriter
 				 CDataFileReader *pFileMap,
 				 const char *pFileName,
 				 char *pBlocksData = 0x0,
-				 int BlocksDataSize = 0);
+				 int BlocksDataSize = 0,
+				 const CMapModularInfo *pModularInfo = 0x0,
+				 const int *pModularRules = 0x0,
+				 const CMapPathInfo *pPathInfo = 0x0,
+				 const CMapPathPlacement *pPathPlacements = 0x0);
 };
 
 #endif

@@ -191,6 +191,7 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 		if(!pInfo || pInfo->m_Team != Team || pInfo->m_ClientID < 0 || pInfo->m_ClientID >= MAX_CLIENTS)
 			continue;
 		if((m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_COOP) &&
+		   !m_pClient->m_Snap.m_pRaceInfo &&
 		   m_pClient->m_aClients[pInfo->m_ClientID].m_IsBot)
 			continue;
 		apPlayers[PlayerCount++] = pInfo;
@@ -254,8 +255,11 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 		if(m_pClient->m_Snap.m_SpecInfo.m_Active && m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW &&
 		   m_pClient->m_Snap.m_paPlayerInfos[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID])
 		{
-			int Score = m_pClient->m_Snap.m_paPlayerInfos[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID]->m_Score;
-			str_format(aBuf, sizeof(aBuf), "%d", Score);
+			const int ClientID = m_pClient->m_Snap.m_SpecInfo.m_SpectatorID;
+			if(m_pClient->m_Snap.m_pRaceInfo)
+				CGameClient::FormatRaceTime(m_pClient->RaceTime(ClientID), aBuf, sizeof(aBuf));
+			else
+				str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_Snap.m_paPlayerInfos[ClientID]->m_Score);
 		}
 		else if(m_pClient->m_Snap.m_pLocalInfo)
 		{
@@ -263,8 +267,11 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 				aBuf[0] = 0;
 			else
 			{
-				int Score = m_pClient->m_Snap.m_pLocalInfo->m_Score;
-				str_format(aBuf, sizeof(aBuf), "%d", Score);
+				if(m_pClient->m_Snap.m_pRaceInfo)
+					CGameClient::FormatRaceTime(
+						m_pClient->RaceTime(m_pClient->m_Snap.m_pLocalInfo->m_ClientID), aBuf, sizeof(aBuf));
+				else
+					str_format(aBuf, sizeof(aBuf), "%d", m_pClient->m_Snap.m_pLocalInfo->m_Score);
 			}
 		}
 	}
@@ -291,7 +298,8 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 	for(int Column = 0; Column < Columns; Column++)
 	{
 		const float ColumnX = InnerX + Column * (ColumnW + ColumnGap);
-		const float ScoreW = CompactColumns ? 50.0f : 64.0f;
+		const bool Race = m_pClient->m_Snap.m_pRaceInfo != 0;
+		const float ScoreW = Race ? (CompactColumns ? 78.0f : 96.0f) : (CompactColumns ? 50.0f : 64.0f);
 		const float TeeW = CompactColumns ? 42.0f : 52.0f;
 		const float IdW = !CompactColumns && g_Config.m_ClScoreboardUserId ? 38.0f : 0.0f;
 		const float PingW = CompactColumns ? 52.0f : 62.0f;
@@ -312,8 +320,9 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 		Graphics()->QuadsEnd();
 		TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 0.92f);
 		const float HeaderFont = 14.0f;
-		tw = TextRender()->TextWidth(0, HeaderFont, Localize("Score"), -1);
-		TextRender()->Text(0, ScoreX + ScoreW - tw - 5.0f, HeaderY + 10.0f, HeaderFont, Localize("Score"), -1);
+		const char *pScoreLabel = m_pClient->m_Snap.m_pRaceInfo ? Localize("Time") : Localize("Score");
+		tw = TextRender()->TextWidth(0, HeaderFont, pScoreLabel, -1);
+		TextRender()->Text(0, ScoreX + ScoreW - tw - 5.0f, HeaderY + 10.0f, HeaderFont, pScoreLabel, -1);
 		if(IdW > 0.0f)
 			TextRender()->Text(0, IdX + 3.0f, HeaderY + 10.0f, HeaderFont, Localize("ID"), -1);
 		TextRender()->Text(0, NameX + 4.0f, HeaderY + 10.0f, HeaderFont, Localize("Name"), -1);
@@ -355,10 +364,17 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 			TextRender()->TextColor(Text.r * Dim, Text.g * Dim, Text.b * Dim, 1.0f);
 			if(g_Config.m_ClHideSelfScore && pInfo->m_Local)
 				aBuf[0] = 0;
+			else if(Race)
+				CGameClient::FormatRaceTime(m_pClient->RaceTime(ClientID), aBuf, sizeof(aBuf));
 			else
 				str_format(aBuf, sizeof(aBuf), "%d", clamp(pInfo->m_Score, -9999, 99999));
-			tw = TextRender()->TextWidth(0, FontSize, aBuf, -1);
-			TextRender()->Text(0, ScoreX + ScoreW - tw - 5.0f, TextY, FontSize, aBuf, -1);
+			float ScoreFontSize = FontSize;
+			const float ScoreTextW = max(1.0f, ScoreW - 10.0f);
+			while(ScoreFontSize > 10.0f && TextRender()->TextWidth(0, ScoreFontSize, aBuf, -1) > ScoreTextW)
+				ScoreFontSize -= 0.5f;
+			tw = TextRender()->TextWidth(0, ScoreFontSize, aBuf, -1);
+			const float ScoreTextY = RowY + (RowHeight - ScoreFontSize) * 0.5f - 1.0f;
+			TextRender()->Text(0, ScoreX + ScoreW - tw - 5.0f, ScoreTextY, ScoreFontSize, aBuf, -1);
 
 			if(m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_FLAGS && m_pClient->m_Snap.m_pGameDataObj &&
 			   (m_pClient->m_Snap.m_pGameDataObj->m_FlagCarrierRed == ClientID ||

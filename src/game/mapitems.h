@@ -23,6 +23,8 @@ enum
 	MAPITEMTYPE_ATLAS,
 	MAPITEMTYPE_MODULARINFO,
 	MAPITEMTYPE_RULE,
+	MAPITEMTYPE_PATHINFO,
+	MAPITEMTYPE_PATHPLACEMENT,
 
 	CURVETYPE_STEP = 0,
 	CURVETYPE_LINEAR,
@@ -70,6 +72,8 @@ enum
 	ENTITY_SHOP = 16 * 2 + 1,
 	ENTITY_BLOCK1,
 	ENTITY_BLOCK2,
+	ENTITY_CHECKPOINT,
+	ENTITY_FINISH,
 
 	// row 4
 	ENTITY_ENEMYSPAWN = 16 * 3 + 1,
@@ -273,6 +277,26 @@ struct CMapRule
 	int m_Rule2;
 	int m_Rule3;
 	int m_Rule4;
+};
+
+struct CMapPathInfo
+{
+	int m_Version;
+	int m_ChunkWidth;
+	int m_ChunkHeight;
+	int m_AtlasColumns;
+	int m_TemplateCount;
+	int m_PlacementCount;
+};
+
+struct CMapPathPlacement
+{
+	int m_GridX;
+	int m_GridY;
+	int m_TemplateIndex;
+	int m_CourseIndex;
+	int m_EntryDir;
+	int m_ExitDir;
 };
 
 struct CEnvPoint

@@ -2,15 +2,22 @@
 #include <base/math.h>
 #include <base/vmath.h>
 
+#include <algorithm>
 #include <math.h>
 #include <vector>
 #include <engine/map.h>
 #include <engine/kernel.h>
 #include <engine/shared/mapchunk.h>
+#include <engine/shared/mappath.h>
 
 #include <game/mapitems.h>
 #include <game/layers.h>
 #include <game/collision.h>
+
+static int PixelToTile(int Position)
+{
+	return Position >= 0 ? Position / 32 : -((-Position + 31) / 32);
+}
 
 void CCollision::ClearModifTileCache()
 {
@@ -34,10 +41,14 @@ CCollision::CCollision()
 	ClearModifTileCache();
 	m_pMapChunkRoot = 0;
 	m_pMapChunk = 0;
+	m_pMapPath = 0;
 
 	m_PathLen = 0;
 	m_pPath = 0;
 	m_pCenterWaypoint = 0;
+	m_WaypointCount = 0;
+	m_ConnectionCount = 0;
+	m_LastWaypointChunk = 0x7fffffff;
 	m_GlobalAcid = true;
 	m_Time = 0;
 
@@ -60,6 +71,7 @@ CCollision::~CCollision()
 	// Chunk chain is owned by CLayers.
 	m_pMapChunkRoot = 0;
 	m_pMapChunk = 0;
+	m_pMapPath = 0;
 }
 
 void CCollision::Init(class CLayers *pLayers)
@@ -72,6 +84,8 @@ void CCollision::Init(class CLayers *pLayers)
 
 	m_pMapChunkRoot = m_pLayers->GetMapChunk();
 	m_pMapChunk = m_pMapChunkRoot;
+	m_pMapPath = m_pLayers->GetMapPath();
+	m_ModularBlocks.clear();
 
 	m_pBlocks = new bool[m_Width * m_Height];
 	for(int i = 0; i < m_Width * m_Height; i++)
@@ -154,6 +168,7 @@ void CCollision::RefreshMapgenDimensions()
 	m_pTiles = static_cast<CTile *>(m_pLayers->Map()->GetData(m_pLayers->GameLayer()->m_Data));
 	ClearModifTileCache();
 	m_LowestPoint = 0;
+	m_ModularBlocks.clear();
 
 	if(m_pBlocks)
 		delete[] m_pBlocks;
@@ -245,10 +260,13 @@ void CCollision::AddWaypoint(vec2 Position, bool InnerCorner)
 
 void CCollision::GenerateWaypoints()
 {
-	ClearWaypoints();
-
-	if(m_pMapChunkRoot)
+	if(m_pMapPath || m_pMapChunkRoot)
+	{
+		GenerateWaypointsAround(0);
 		return;
+	}
+
+	ClearWaypoints();
 
 	for(int x = 2; x < m_Width - 2; x++)
 	{
@@ -397,6 +415,147 @@ void CCollision::GenerateWaypoints()
 	if(!ConnectionsCurrent)
 		ConnectWaypoints(&aVisibilityCache[0], &aWaypointCollisionTiles[0]);
 
+	RemoveClosedAreas();
+}
+
+void CCollision::GenerateWaypointsAround(int WorldTileX)
+{
+	if(m_pMapPath)
+	{
+		// The Roam course is small enough to keep one stable graph for every
+		// racer. A graph centered only around the leading player strands bots
+		// that fall more than two placements behind.
+		const int PathGraphKey = 0x40000000;
+		if(m_LastWaypointChunk == PathGraphKey)
+			return;
+		m_LastWaypointChunk = PathGraphKey;
+		ClearWaypoints();
+		int aWaypointPlacement[MAX_WAYPOINTS];
+		for(int Index = 0; Index < m_pMapPath->PlacementCount(); Index++)
+		{
+			const CMapPathPlacementData *pPlacement = m_pMapPath->Placement(Index);
+			if(!pPlacement)
+				continue;
+			const int StartX = pPlacement->m_GridX * m_pMapPath->Info().m_ChunkWidth;
+			const int StartY = pPlacement->m_GridY * m_pMapPath->Info().m_ChunkHeight;
+			for(int lx = 2; lx < m_pMapPath->Info().m_ChunkWidth - 2 && m_WaypointCount < MAX_WAYPOINTS; lx++)
+				for(int ly = 2; ly < m_pMapPath->Info().m_ChunkHeight - 2 && m_WaypointCount < MAX_WAYPOINTS; ly++)
+				{
+					const int x = StartX + lx;
+					const int y = StartY + ly;
+					const int WorldPixelX = x * 32 + 16;
+					const int WorldPixelY = y * 32 + 16;
+					const bool Passable =
+						!IsTileSolid(WorldPixelX, WorldPixelY) &&
+						!IsTileSolid(WorldPixelX - 32, WorldPixelY) &&
+						!IsTileSolid(WorldPixelX + 32, WorldPixelY) &&
+						!IsTileSolid(WorldPixelX, WorldPixelY - 32);
+					if(!Passable)
+						continue;
+
+					// Keep every platform edge (important for jumps and drops), then
+					// sparsely sample long flat runs. Vertical Roam segments also require
+					// air waypoints: their valid action chain uses wallrun/jetpack space and
+					// cannot be represented by grounded nodes alone.
+					const bool Grounded = IsTileSolid(WorldPixelX, WorldPixelY + 32);
+					const bool Edge = Grounded &&
+						(!IsTileSolid(WorldPixelX - 32, WorldPixelY + 32) ||
+						 !IsTileSolid(WorldPixelX + 32, WorldPixelY + 32));
+					const bool AirSample = lx % 4 == 0 && ly % 4 == 0;
+					if(Edge || (Grounded && lx % 4 == 0) || AirSample)
+					{
+						const int WaypointIndex = m_WaypointCount;
+						AddWaypoint(vec2(x, y));
+						if(m_WaypointCount > WaypointIndex)
+							aWaypointPlacement[WaypointIndex] = Index;
+					}
+				}
+		}
+		struct CWaypointEdge
+		{
+			int m_First;
+			int m_Second;
+			float m_DistanceSquared;
+			bool m_CrossesPort;
+		};
+		std::vector<CWaypointEdge> vEdges;
+		for(int i = 0; i < m_WaypointCount; i++)
+			for(int j = i + 1; j < m_WaypointCount; j++)
+			{
+				const vec2 Delta = m_apWaypoint[i]->m_Pos - m_apWaypoint[j]->m_Pos;
+				const float DistanceSquared = dot(Delta, Delta);
+				if(DistanceSquared > 1200.0f * 1200.0f)
+					continue;
+				if(FastIntersectLine(m_apWaypoint[i]->m_Pos, m_apWaypoint[j]->m_Pos))
+					continue;
+				const bool CrossesPort = abs(aWaypointPlacement[i] - aWaypointPlacement[j]) == 1;
+				vEdges.push_back({i, j, DistanceSquared, CrossesPort});
+			}
+		std::sort(vEdges.begin(), vEdges.end(), [](const CWaypointEdge &Left, const CWaypointEdge &Right)
+		{
+			if(Left.m_CrossesPort != Right.m_CrossesPort)
+				return Left.m_CrossesPort;
+			return Left.m_DistanceSquared < Right.m_DistanceSquared;
+		});
+		m_ConnectionCount = 0;
+		for(const CWaypointEdge &Edge : vEdges)
+		{
+			CWaypoint *pFirst = m_apWaypoint[Edge.m_First];
+			CWaypoint *pSecond = m_apWaypoint[Edge.m_Second];
+			if(pFirst->m_ConnectionCount < MAX_WAYPOINTCONNECTIONS &&
+			   pSecond->m_ConnectionCount < MAX_WAYPOINTCONNECTIONS && pFirst->Connect(pSecond))
+				m_ConnectionCount++;
+		}
+		RemoveClosedAreas();
+		return;
+	}
+
+	if(!m_pMapChunkRoot || GetChunkSize() <= 0)
+		return;
+
+	const int CenterChunk = WorldTileX >= 0 ?
+		WorldTileX / GetChunkSize() :
+		-((-WorldTileX + GetChunkSize() - 1) / GetChunkSize());
+	if(CenterChunk == m_LastWaypointChunk)
+		return;
+	m_LastWaypointChunk = CenterChunk;
+
+	ClearWaypoints();
+	const int StartX = (CenterChunk - 2) * GetChunkSize();
+	const int EndX = (CenterChunk + 3) * GetChunkSize();
+	for(int x = StartX; x < EndX && m_WaypointCount < MAX_WAYPOINTS; x++)
+	{
+		for(int y = 2; y < m_Height - 2 && m_WaypointCount < MAX_WAYPOINTS; y++)
+		{
+			const int WorldPixelX = x * 32 + 16;
+			const int WorldPixelY = y * 32 + 16;
+			if(IsTileSolid(WorldPixelX, WorldPixelY) || !IsTileSolid(WorldPixelX, WorldPixelY + 32))
+				continue;
+
+			const bool Edge = !IsTileSolid(WorldPixelX - 32, WorldPixelY + 32) ||
+				!IsTileSolid(WorldPixelX + 32, WorldPixelY + 32);
+			if(Edge || CMapChunk::ModPositive(x, 8) == 0)
+				AddWaypoint(vec2(x, y));
+		}
+	}
+
+	m_ConnectionCount = 0;
+	for(int i = 0; i < m_WaypointCount; i++)
+	{
+		for(int j = i + 1; j < m_WaypointCount; j++)
+		{
+			if(m_apWaypoint[i]->m_ConnectionCount >= MAX_WAYPOINTCONNECTIONS)
+				break;
+			if(m_apWaypoint[j]->m_ConnectionCount >= MAX_WAYPOINTCONNECTIONS)
+				continue;
+			if(distance(m_apWaypoint[i]->m_Pos, m_apWaypoint[j]->m_Pos) > 800.0f)
+				continue;
+			if(FastIntersectLine(m_apWaypoint[i]->m_Pos, m_apWaypoint[j]->m_Pos))
+				continue;
+			if(m_apWaypoint[i]->Connect(m_apWaypoint[j]))
+				m_ConnectionCount++;
+		}
+	}
 	RemoveClosedAreas();
 }
 
@@ -697,10 +856,14 @@ void CCollision::InitLightRays()
 	for(int y = m_Height - 1; y > 0; y--)
 		for(int x = 0; x < m_Width; x++)
 		{
-			const int Tile = GetTileRay(x * 32, y * 32, true);
-			const int LeftTile = GetTileRay((x - 1) * 32, y * 32, true);
-			const int UpTile = GetTileRay(x * 32, (y - 1) * 32, true);
-			const int UpLeftTile = GetTileRay((x - 1) * 32, (y - 1) * 32, true);
+			// This cache is stored in atlas coordinates.  In MapPath mode these
+			// coordinates are not world coordinates, so routing them through
+			// GetTileRay would resolve the path a second time and join unrelated
+			// templates at their edges.
+			const int Tile = m_pTiles[y * m_Width + x].m_Index;
+			const int LeftTile = x > 0 ? m_pTiles[y * m_Width + x - 1].m_Index : 0;
+			const int UpTile = y > 0 ? m_pTiles[(y - 1) * m_Width + x].m_Index : 0;
+			const int UpLeftTile = x > 0 && y > 0 ? m_pTiles[(y - 1) * m_Width + x - 1].m_Index : 0;
 			int &LightRay = m_pLightRays[y * m_Width + x];
 
 			// outer corners
@@ -770,29 +933,45 @@ void CCollision::InitLightRays()
 
 int CCollision::GetLightRay(ivec2 Pos)
 {
-	// int Nx = clamp(Pos.x/32, 0, m_Width-1);
-	// int Ny = clamp(Pos.y/32, 0, m_Height-1);
-
-	int Nx = GetModularPos(Pos.x / 32);
+	int Nx = 0;
+	int Ny = 0;
+	if(!ResolveAtlasTile(Pos.x / 32, Pos.y / 32, &Nx, &Ny))
+		return 0;
 	Nx = clamp(Nx, 0, m_Width - 1);
-	int Ny = clamp(Pos.y / 32, 0, m_Height - 1);
-
+	Ny = clamp(Ny, 0, m_Height - 1);
 	return m_pLightRays[Ny * m_Width + Nx];
 }
 
 void CCollision::SetBlock(ivec2 Pos, bool Block)
 {
-	int Nx = clamp(Pos.x / 32, 0, m_Width - 1);
-	int Ny = clamp(Pos.y / 32, 0, m_Height - 1);
+	const int WorldX = PixelToTile(Pos.x);
+	const int WorldY = PixelToTile(Pos.y);
+	if(IsMapModular())
+	{
+		if(m_pMapPath && !m_pMapPath->HasPlacementAtWorldTile(WorldX, WorldY))
+			return;
+		const std::pair<int, int> Key(WorldX, WorldY);
+		if(Block)
+			m_ModularBlocks.insert(Key);
+		else
+			m_ModularBlocks.erase(Key);
+		return;
+	}
 
+	int Ny = clamp(WorldY, 0, m_Height - 1);
+	int Nx = clamp(WorldX, 0, m_Width - 1);
 	m_pBlocks[Ny * m_Width + Nx] = Block;
 }
 
 bool CCollision::GetBlock(int x, int y)
 {
-	int Nx = clamp(x / 32, 0, m_Width - 1);
-	int Ny = clamp(y / 32, 0, m_Height - 1);
+	const int WorldX = PixelToTile(x);
+	const int WorldY = PixelToTile(y);
+	if(IsMapModular())
+		return m_ModularBlocks.find(std::pair<int, int>(WorldX, WorldY)) != m_ModularBlocks.end();
 
+	int Ny = clamp(WorldY, 0, m_Height - 1);
+	int Nx = clamp(WorldX, 0, m_Width - 1);
 	if(Nx > 0 && Ny > 0 && Nx < m_Width - 1 && Ny < m_Height - 1)
 		return m_pBlocks[Ny * m_Width + Nx];
 
@@ -801,9 +980,23 @@ bool CCollision::GetBlock(int x, int y)
 
 bool CCollision::CanBuildBlock(int x, int y)
 {
-	int Nx = clamp(x / 32, 0, m_Width - 1);
-	int Ny = clamp(y / 32, 0, m_Height - 1);
+	const int WorldX = PixelToTile(x);
+	const int WorldY = PixelToTile(y);
+	if(m_pMapPath)
+	{
+		if(!m_pMapPath->HasPlacementAtWorldTile(WorldX, WorldY))
+			return false;
+		const int LocalX = CMapPath::ModPositive(WorldX, m_pMapPath->Info().m_ChunkWidth);
+		const int LocalY = CMapPath::ModPositive(WorldY, m_pMapPath->Info().m_ChunkHeight);
+		// Keep port mouths clear so course connectivity stays playable.
+		return LocalX > 2 && LocalX < m_pMapPath->Info().m_ChunkWidth - 3 &&
+			LocalY > 1 && LocalY < m_pMapPath->Info().m_ChunkHeight - 2;
+	}
+	if(IsMapModular())
+		return WorldY > 0 && WorldY < m_Height - 1;
 
+	int Ny = clamp(WorldY, 0, m_Height - 1);
+	int Nx = clamp(WorldX, 0, m_Width - 1);
 	if(Nx > 0 && Ny > 0 && Nx < m_Width - 1 && Ny < m_Height - 1)
 		return true;
 
@@ -812,16 +1005,65 @@ bool CCollision::CanBuildBlock(int x, int y)
 
 int CCollision::GetChunkSize()
 {
+	if(m_pMapPath)
+		return m_pMapPath->Info().m_ChunkWidth;
 	return m_pMapChunkRoot ? m_pMapChunkRoot->GetSize() : 0;
+}
+
+int CCollision::GetChunkHeight()
+{
+	if(m_pMapPath)
+		return m_pMapPath->Info().m_ChunkHeight;
+	return m_Height;
+}
+
+void CCollision::PruneMapChunks(int LowTileX, int HighTileX)
+{
+	if(m_pMapPath)
+		return;
+	if(!m_pLayers || !m_pMapChunkRoot)
+		return;
+	m_pLayers->PruneMapChunks(LowTileX, HighTileX);
+	m_pMapChunkRoot = m_pLayers->GetMapChunk();
+	m_pMapChunk = m_pMapChunkRoot;
+}
+
+bool CCollision::ResolveAtlasTile(int WorldTileX, int WorldTileY, int *pAtlasX, int *pAtlasY) const
+{
+	if(m_pMapPath)
+		return m_pMapPath->ResolveTile(WorldTileX, WorldTileY, pAtlasX, pAtlasY);
+	if(m_pMapChunkRoot)
+	{
+		CMapChunk *pChunk = const_cast<CMapChunk *>(m_pMapChunkRoot)->GetMapChunk(WorldTileX);
+		if(WorldTileX < pChunk->GetX() || (int64)WorldTileX >= (int64)pChunk->GetX() + pChunk->GetSize())
+			return false;
+		*pAtlasX = CMapChunk::ModPositive(WorldTileX, pChunk->GetSize()) + pChunk->GetIndex() * pChunk->GetSize();
+		*pAtlasY = clamp(WorldTileY, 0, m_Height - 1);
+		return true;
+	}
+	*pAtlasX = clamp(WorldTileX, 0, m_Width - 1);
+	*pAtlasY = clamp(WorldTileY, 0, m_Height - 1);
+	return true;
 }
 
 int CCollision::GetModularPos(int x)
 {
+	if(m_pMapPath)
+	{
+		int AtlasX = 0;
+		int AtlasY = 0;
+		if(!m_pMapPath->ResolveTile(x, 0, &AtlasX, &AtlasY))
+			return -1;
+		return AtlasX;
+	}
 	if(m_pMapChunkRoot)
 	{
 		if(!m_pMapChunk)
 			m_pMapChunk = m_pMapChunkRoot;
-		m_pMapChunk = m_pMapChunk->GetMapChunk(x);
+		CMapChunk *pChunk = m_pMapChunk->GetMapChunk(x);
+		if(x < pChunk->GetX() || (int64)x >= (int64)pChunk->GetX() + pChunk->GetSize())
+			return -1;
+		m_pMapChunk = pChunk;
 		const int Chunk = m_pMapChunk->GetIndex();
 		const int ChunkSize = m_pMapChunk->GetSize();
 		return CMapChunk::ModPositive(x, ChunkSize) + Chunk * ChunkSize;
@@ -832,14 +1074,17 @@ int CCollision::GetModularPos(int x)
 
 int CCollision::GetTile(int x, int y, bool Down, bool IncludeBlocks)
 {
-	int Nx = GetModularPos(x / 32);
+	int Nx = 0;
+	int Ny = 0;
+	if(!ResolveAtlasTile(PixelToTile(x), PixelToTile(y), &Nx, &Ny))
+		return COLFLAG_SOLID;
 	Nx = clamp(Nx, 0, m_Width - 1);
-	int Ny = clamp(y / 32, 0, m_Height - 1);
+	Ny = clamp(Ny, 0, m_Height - 1);
 
 	if(m_pTiles[Ny * m_Width + Nx].m_Index == ENTITY_SAWBLADE + ENTITY_OFFSET)
 		return COLFLAG_SOLID;
 
-	if(IncludeBlocks && m_pBlocks[Ny * m_Width + Nx] && Nx > 0 && Ny > 0 && Nx < m_Width - 1 && Ny < m_Height - 1)
+	if(IncludeBlocks && GetBlock(x, y))
 		return COLFLAG_SOLID;
 
 	if(m_pTiles[Ny * m_Width + Nx].m_Index == COLFLAG_MOVELEFT ||
@@ -854,15 +1099,17 @@ int CCollision::GetTile(int x, int y, bool Down, bool IncludeBlocks)
 
 int CCollision::GetTileRay(int x, int y, bool Down)
 {
-	// int Nx = GetModularPos(x/32);
-	// Nx = clamp(Nx, 0, m_Width-1);
-	int Nx = clamp(x / 32, 0, m_Width - 1);
-	int Ny = clamp(y / 32, 0, m_Height - 1);
+	int Nx = 0;
+	int Ny = 0;
+	if(!ResolveAtlasTile(PixelToTile(x), PixelToTile(y), &Nx, &Ny))
+		return COLFLAG_SOLID;
+	Nx = clamp(Nx, 0, m_Width - 1);
+	Ny = clamp(Ny, 0, m_Height - 1);
 
 	if(m_pTiles[Ny * m_Width + Nx].m_Index == ENTITY_SAWBLADE + ENTITY_OFFSET)
 		return COLFLAG_SOLID;
 
-	if(m_pBlocks[Ny * m_Width + Nx] && Nx > 0 && Ny > 0 && Nx < m_Width - 1 && Ny < m_Height - 1)
+	if(GetBlock(x, y))
 		return COLFLAG_SOLID;
 
 	if(m_pTiles[Ny * m_Width + Nx].m_Index == COLFLAG_MOVELEFT ||
@@ -907,9 +1154,12 @@ float CCollision::GetGlobalAcidLevel()
 
 int CCollision::ForceState(int x, int y)
 {
-	int Nx = GetModularPos(x / 32);
+	int Nx = 0;
+	int Ny = 0;
+	if(!ResolveAtlasTile(PixelToTile(x), PixelToTile(y), &Nx, &Ny))
+		return 0;
 	Nx = clamp(Nx, 0, m_Width - 1);
-	int Ny = clamp(y / 32, 0, m_Height - 1);
+	Ny = clamp(Ny, 0, m_Height - 1);
 
 	if(m_pTiles[Ny * m_Width + Nx].m_Index == COLFLAG_MOVELEFT)
 		return -1;
@@ -922,38 +1172,35 @@ int CCollision::ForceState(int x, int y)
 
 bool CCollision::IsHangTile(float x, float y)
 {
-	int Nx = GetModularPos(round_to_int(x) / 32);
+	int Nx = 0;
+	int Ny = 0;
+	if(!ResolveAtlasTile(PixelToTile(round_to_int(x)), PixelToTile(round_to_int(y)), &Nx, &Ny))
+		return false;
 	Nx = clamp(Nx, 0, m_Width - 1);
-	int Ny = clamp(round_to_int(y) / 32, 0, m_Height - 1);
-
-	if(m_pTiles[Ny * m_Width + Nx].m_Index == COLFLAG_HANG)
-		return true;
-
-	return false;
+	Ny = clamp(Ny, 0, m_Height - 1);
+	return m_pTiles[Ny * m_Width + Nx].m_Index == COLFLAG_HANG;
 }
 
 bool CCollision::IsPlatform(float x, float y)
 {
-	int Nx = GetModularPos(round_to_int(x) / 32);
+	int Nx = 0;
+	int Ny = 0;
+	if(!ResolveAtlasTile(PixelToTile(round_to_int(x)), PixelToTile(round_to_int(y)), &Nx, &Ny))
+		return false;
 	Nx = clamp(Nx, 0, m_Width - 1);
-	int Ny = clamp(round_to_int(y) / 32, 0, m_Height - 1);
-
-	if(m_pTiles[Ny * m_Width + Nx].m_Index == COLFLAG_PLATFORM)
-		return true;
-
-	return false;
+	Ny = clamp(Ny, 0, m_Height - 1);
+	return m_pTiles[Ny * m_Width + Nx].m_Index == COLFLAG_PLATFORM;
 }
 
 bool CCollision::IsSawblade(float x, float y)
 {
-	int Nx = GetModularPos(round_to_int(x) / 32);
+	int Nx = 0;
+	int Ny = 0;
+	if(!ResolveAtlasTile(PixelToTile(round_to_int(x)), PixelToTile(round_to_int(y)), &Nx, &Ny))
+		return false;
 	Nx = clamp(Nx, 0, m_Width - 1);
-	int Ny = clamp(round_to_int(y) / 32, 0, m_Height - 1);
-
-	if(m_pTiles[Ny * m_Width + Nx].m_Index == ENTITY_SAWBLADE + ENTITY_OFFSET)
-		return true;
-
-	return false;
+	Ny = clamp(Ny, 0, m_Height - 1);
+	return m_pTiles[Ny * m_Width + Nx].m_Index == ENTITY_SAWBLADE + ENTITY_OFFSET;
 }
 
 int CCollision::SolidState(int x, int y, bool IncludeDeath, bool Down, bool IncludeBlocks)

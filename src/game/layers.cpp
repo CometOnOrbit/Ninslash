@@ -1,5 +1,5 @@
-#include <game/mapitems.h>
 #include <engine/shared/mapchunk.h>
+#include <engine/shared/mappath.h>
 #include "layers.h"
 #include <game/gamecore.h> // MapGen
 
@@ -13,12 +13,17 @@ CLayers::CLayers()
 	m_ModularInfoStart = 0;
 	m_RulesNum = 0;
 	m_RulesStart = 0;
+	m_PathInfoNum = 0;
+	m_PathInfoStart = 0;
+	m_PathPlacementNum = 0;
+	m_PathPlacementStart = 0;
 	m_pGameGroup = 0;
 	m_pGameLayer = 0;
 	m_pMap = 0;
 
 	m_apChunkRule = 0x0;
 	m_pMapChunk = 0x0;
+	m_pMapPath = 0x0;
 
 	m_pTiles = 0;
 	// m_pGenerator = new CGenerator();
@@ -42,11 +47,20 @@ void CLayers::ClearModular()
 
 	delete[] m_apChunkRule;
 	m_apChunkRule = 0;
+
+	delete m_pMapPath;
+	m_pMapPath = 0;
 }
 
 CLayers::~CLayers()
 {
 	ClearModular();
+}
+
+void CLayers::PruneMapChunks(int LowTileX, int HighTileX)
+{
+	if(m_pMapChunk)
+		m_pMapChunk = m_pMapChunk->FreeOutside(LowTileX, HighTileX);
 }
 
 void CLayers::Init(class IKernel *pKernel)
@@ -56,12 +70,48 @@ void CLayers::Init(class IKernel *pKernel)
 	m_pMap->GetType(MAPITEMTYPE_LAYER, &m_LayersStart, &m_LayersNum);
 	m_pMap->GetType(MAPITEMTYPE_MODULARINFO, &m_ModularInfoStart, &m_ModularInfoNum);
 	m_pMap->GetType(MAPITEMTYPE_RULE, &m_RulesStart, &m_RulesNum);
+	m_pMap->GetType(MAPITEMTYPE_PATHINFO, &m_PathInfoStart, &m_PathInfoNum);
+	m_pMap->GetType(MAPITEMTYPE_PATHPLACEMENT, &m_PathPlacementStart, &m_PathPlacementNum);
 
 	ClearModular();
 
+	CMapPathInfo *pPathInfo = GetPathInfo(0);
+	if(pPathInfo && pPathInfo->m_Version >= 1 && pPathInfo->m_PlacementCount > 0 &&
+	   pPathInfo->m_PlacementCount <= m_PathPlacementNum)
+	{
+		CMapPathInfoData Info;
+		Info.m_Version = pPathInfo->m_Version;
+		Info.m_ChunkWidth = pPathInfo->m_ChunkWidth;
+		Info.m_ChunkHeight = pPathInfo->m_ChunkHeight;
+		Info.m_AtlasColumns = pPathInfo->m_AtlasColumns;
+		Info.m_TemplateCount = pPathInfo->m_TemplateCount;
+		Info.m_PlacementCount = pPathInfo->m_PlacementCount;
+
+		CMapPathPlacementData aPlacements[MAPPATH_MAX_PLACEMENTS];
+		for(int i = 0; i < pPathInfo->m_PlacementCount; i++)
+		{
+			CMapPathPlacement *pPlacement = GetPathPlacement(i);
+			if(!pPlacement)
+				continue;
+			aPlacements[i].m_GridX = pPlacement->m_GridX;
+			aPlacements[i].m_GridY = pPlacement->m_GridY;
+			aPlacements[i].m_TemplateIndex = pPlacement->m_TemplateIndex;
+			aPlacements[i].m_CourseIndex = pPlacement->m_CourseIndex;
+			aPlacements[i].m_EntryDir = pPlacement->m_EntryDir;
+			aPlacements[i].m_ExitDir = pPlacement->m_ExitDir;
+		}
+
+		m_pMapPath = new CMapPath();
+		if(!m_pMapPath->Init(&Info, aPlacements, pPathInfo->m_PlacementCount))
+		{
+			delete m_pMapPath;
+			m_pMapPath = 0;
+		}
+	}
+
 	CMapModularInfo *pModularInfo = GetModularInfo(0);
 
-	if(pModularInfo && pModularInfo->m_IsModular && pModularInfo->m_RuleCount > 0)
+	if(!m_pMapPath && pModularInfo && pModularInfo->m_IsModular && pModularInfo->m_RuleCount > 0)
 	{
 		m_apChunkRule = new int[pModularInfo->m_RuleCount * 4];
 		for(int i = 0; i < pModularInfo->m_RuleCount * 4; i++)
@@ -209,4 +259,18 @@ CMapModularInfo *CLayers::GetModularInfo(int Index) const
 CMapRule *CLayers::GetRule(int Index) const
 {
 	return static_cast<CMapRule *>(m_pMap->GetItem(m_RulesStart + Index, 0, 0));
+}
+
+CMapPathInfo *CLayers::GetPathInfo(int Index) const
+{
+	if(!m_PathInfoNum)
+		return 0;
+	return static_cast<CMapPathInfo *>(m_pMap->GetItem(m_PathInfoStart + Index, 0, 0));
+}
+
+CMapPathPlacement *CLayers::GetPathPlacement(int Index) const
+{
+	if(!m_PathPlacementNum)
+		return 0;
+	return static_cast<CMapPathPlacement *>(m_pMap->GetItem(m_PathPlacementStart + Index, 0, 0));
 }

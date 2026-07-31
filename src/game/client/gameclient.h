@@ -10,6 +10,8 @@
 #include "render.h"
 
 struct CNetObj_WeaponRuntime;
+struct CNetObj_RaceInfo;
+struct CNetObj_RacePlayer;
 
 class CGameClient : public IGameClient
 {
@@ -92,6 +94,10 @@ class CGameClient : public IGameClient
 	IEngine *Engine() const { return m_pEngine; }
 	class IGraphics *Graphics() const { return m_pGraphics; }
 	class IClient *Client() const { return m_pClient; }
+	// Returns centiseconds. While a racer is active this is the live elapsed
+	// time; after finishing it is the frozen server result.
+	int RaceTime(int ClientID) const;
+	static void FormatRaceTime(int Time, char *pBuf, int BufSize);
 	class CUI *UI() { return &m_UI; }
 	class ISound *Sound() const { return m_pSound; }
 	class IGamepad *Gamepad() const { return m_pGamepad; }
@@ -173,6 +179,8 @@ class CGameClient : public IGameClient
 		const CNetObj_Flag *m_paFlags[2];
 		const CNetObj_GameInfo *m_pGameInfoObj;
 		const CNetObj_GameData *m_pGameDataObj;
+		const CNetObj_RaceInfo *m_pRaceInfo;
+		const CNetObj_RacePlayer *m_apRacePlayers[MAX_CLIENTS];
 		int m_GameDataSnapID;
 
 		const CNetObj_PlayerInfo *m_paPlayerInfos[MAX_CLIENTS];

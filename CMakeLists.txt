@@ -579,6 +579,8 @@ set_src(ENGINE_SHARED GLOB src/engine/shared
   mapchecker.h
   mapchunk.cpp
   mapchunk.h
+  mappath.cpp
+  mappath.h
   masterserver.cpp
   memheap.cpp
   memheap.h
@@ -924,6 +926,10 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_mapchunk PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_mapchunk ${LIBS})
   add_test(NAME mapchunk COMMAND ninslash_test_mapchunk)
+  add_executable(ninslash_test_roam_mapgen tests/roam_mapgen.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_roam_mapgen PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_roam_mapgen ${LIBS})
+  add_test(NAME roam_mapgen COMMAND ninslash_test_roam_mapgen)
   add_executable(ninslash_test_content_package tests/content_package.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
   target_include_directories(ninslash_test_content_package PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_content_package ${LIBS})

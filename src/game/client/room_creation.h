@@ -82,8 +82,9 @@ inline CRoomModeDefaults RoomModeDefaults(int Mode)
 		{9, 8, 8, 25},
 		{5, 3, 4, 15},
 		{8, 3, 4, 500},
+		{8, 8, 4, 24},
 	};
-	if(Mode < 1 || Mode > 12)
+	if(Mode < 1 || Mode >= (int)(sizeof(s_aDefaults) / sizeof(s_aDefaults[0])))
 		Mode = 1;
 	return s_aDefaults[Mode];
 }

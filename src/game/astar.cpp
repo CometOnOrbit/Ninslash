@@ -47,12 +47,13 @@ bool CCollision::AStar(vec2 Start, vec2 End)
 
 	// while (n == 0 || (CurrentWP != EndWP && n < 400))
 
-	while(n < 2000)
+	while(n < 2000 && !openList.empty())
 	{
 		// Look for the smallest F value in the openList and make it the current point
+		CurrentWP = openList.front();
 		for(i = openList.begin(); i != openList.end(); ++i)
 		{
-			if(i == openList.begin() || (*i)->m_F <= CurrentWP->m_F)
+			if((*i)->m_F <= CurrentWP->m_F)
 			{
 				CurrentWP = (*i);
 			}
@@ -126,6 +127,8 @@ bool CCollision::AStar(vec2 Start, vec2 End)
 		delete m_pPath;
 		m_pPath = 0;
 	}
+	if(CurrentWP != EndWP)
+		return false;
 
 	// Resolve the path starting from the end point
 	while(CurrentWP->m_pParent && CurrentWP != StartWP)

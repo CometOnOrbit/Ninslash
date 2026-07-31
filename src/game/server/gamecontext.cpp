@@ -6,6 +6,7 @@
 #include <base/math.h>
 #include <engine/shared/config.h>
 #include <engine/shared/datafile.h> // MapGen
+#include <engine/shared/mappath.h>
 #include <engine/map.h>
 #include <engine/console.h>
 #include <engine/platform_events.h>
@@ -27,6 +28,7 @@
 #include "gamemodes/extract.h"
 #include "gamemodes/base.h"
 #include "gamemodes/roam.h"
+#include <game/server/roam_mapgen_layout.h>
 #include "gamemodes/texasrun.h"
 
 #include <game/server/entities/ball.h>
@@ -305,7 +307,7 @@ bool CGameContext::GetRoamSpawnPos(vec2 *Pos)
 	if(!m_pBlockEntities)
 		return false;
 
-	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, Pos->x, false);
+	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, 0, true);
 
 	return m_pBlockEntities->GetSpawn(Pos);
 }
@@ -2091,6 +2093,8 @@ void CGameContext::OnClientConnected(int ClientID, bool AI)
 
 	m_apPlayers[ClientID]->m_IsBot = AI;
 	m_apPlayers[ClientID]->m_TeeInfos.m_IsBot = AI;
+	if(str_comp(g_Config.m_SvGametype, "roam") == 0)
+		static_cast<CGameControllerRoam *>(m_pController)->ResetRace(ClientID);
 
 	(void)m_pController->CheckTeamBalance();
 
@@ -2187,6 +2191,8 @@ void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 		return;
 	if(m_pPveDirector)
 		m_pPveDirector->OnClientDrop(ClientID);
+	if(str_comp(g_Config.m_SvGametype, "roam") == 0)
+		static_cast<CGameControllerRoam *>(m_pController)->ResetRace(ClientID);
 	AbortVoteKickOnDisconnect(ClientID);
 	m_apPlayers[ClientID]->OnDisconnect(pReason);
 	delete m_apPlayers[ClientID];
@@ -3424,15 +3430,180 @@ void CGameContext::ActivateBlockEntities(int x)
 	if(!m_pBlockEntities)
 		return;
 
+	CMapPath *pPath = m_Collision.GetMapPath();
+	if(pPath)
+	{
+		int Center = 0;
+		bool FoundPlayer = false;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+		{
+			CPlayer *pPlayer = m_apPlayers[i];
+			if(!pPlayer || !pPlayer->GetCharacter())
+				continue;
+			const int PX = (int)pPlayer->GetCharacter()->m_Pos.x / 32;
+			const int PY = (int)pPlayer->GetCharacter()->m_Pos.y / 32;
+			const CMapPathPlacementData *pPlayerPlacement = pPath->PlacementAtWorldTile(PX, PY);
+			if(!pPlayerPlacement)
+				continue;
+			const int Course = pPlayerPlacement->m_CourseIndex;
+			for(int Index = max(0, Course - 2); Index <= min(pPath->PlacementCount() - 1, Course + 2); Index++)
+				m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, Index, true);
+			if(!FoundPlayer || Course > Center)
+				Center = Course;
+			FoundPlayer = true;
+		}
+		if(!FoundPlayer)
+		{
+			const int TileX = x / 32;
+			for(int SampleY = -pPath->Info().m_ChunkHeight * 4; SampleY <= pPath->Info().m_ChunkHeight * 4;
+				SampleY += max(1, pPath->Info().m_ChunkHeight / 2))
+			{
+				const CMapPathPlacementData *pPlacement = pPath->PlacementAtWorldTile(TileX, SampleY);
+				if(pPlacement)
+				{
+					Center = pPlacement->m_CourseIndex;
+					break;
+				}
+			}
+			for(int Index = max(0, Center - 2); Index <= min(pPath->PlacementCount() - 1, Center + 2); Index++)
+				m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, Index, true);
+		}
+		m_Collision.GenerateWaypointsAround(Center);
+		return;
+	}
+
 	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, x / 32, false);
 	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, (x - 1000) / 32, true);
 	m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, (x + 1000) / 32, true);
+
+	const int ChunkSize = m_Collision.GetChunkSize();
+	if(ChunkSize > 0)
+	{
+		int MinTileX = x / 32;
+		int MaxTileX = MinTileX;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+		{
+			CPlayer *pPlayer = m_apPlayers[i];
+			if(!pPlayer || pPlayer->m_IsBot || !pPlayer->GetCharacter())
+				continue;
+			const int PlayerTileX = (int)pPlayer->GetCharacter()->m_Pos.x / 32;
+			MinTileX = min(MinTileX, PlayerTileX);
+			MaxTileX = max(MaxTileX, PlayerTileX);
+		}
+		const int Margin = ChunkSize * 3;
+		m_Collision.GenerateWaypointsAround((MinTileX + MaxTileX) / 2);
+		m_Collision.PruneMapChunks(MinTileX - Margin, MaxTileX + Margin);
+		m_pBlockEntities = m_pBlockEntities->FreeOutside(this, MinTileX - Margin, MaxTileX + Margin);
+	}
 }
 
 void CGameContext::CreateEntitiesForBlock(int block)
 {
 	CMapItemLayerTilemap *pTileMap = m_Layers.GameLayer();
 	CTile *pTiles = (CTile *)Kernel()->RequestInterface<IMap>()->GetData(pTileMap->m_Data);
+	CMapPath *pPath = m_Collision.GetMapPath();
+
+	if(pPath)
+	{
+		const CMapPathPlacementData *pPlacement = pPath->Placement(block);
+		if(!pPlacement)
+			return;
+		const int ChunkW = pPath->Info().m_ChunkWidth;
+		const int ChunkH = pPath->Info().m_ChunkHeight;
+		const int AtlasCol = pPlacement->m_TemplateIndex % pPath->Info().m_AtlasColumns;
+		const int AtlasRow = pPlacement->m_TemplateIndex / pPath->Info().m_AtlasColumns;
+		const int AtlasOriginX = AtlasCol * ChunkW;
+		const int AtlasOriginY = AtlasRow * ChunkH;
+		const int WorldOriginX = pPlacement->m_GridX * ChunkW;
+		const int WorldOriginY = pPlacement->m_GridY * ChunkH;
+		if(str_comp(g_Config.m_SvGametype, "roam") == 0)
+		{
+			CGameControllerRoam *pRoam = static_cast<CGameControllerRoam *>(m_pController);
+			CBlockEntities *pNode = m_pBlockEntities ? m_pBlockEntities->GetBlockEntities(this, block, false) : 0;
+			if(pPlacement->m_CourseIndex == 0 && pNode)
+			{
+				for(int i = 0; i < 4; i++)
+					pNode->AddSpawnLocal(vec2(WorldOriginX + RoamMapGen::SpawnLocalX(i), WorldOriginY + RoamMapGen::SpawnLocalY()));
+			}
+			if(pPlacement->m_CourseIndex > 0)
+			{
+				int RespawnX, RespawnY;
+				RoamMapGen::EntryRespawnLocal(pPlacement->m_EntryDir, &RespawnX, &RespawnY);
+				const vec2 Respawn((WorldOriginX + RespawnX) * 32.0f + 16.0f, (WorldOriginY + RespawnY) * 32.0f + 16.0f);
+				const RoamMapGen::CTileAabb B = RoamMapGen::RaceGateLocalAabb(pPlacement->m_EntryDir, false);
+				const vec2 Min((WorldOriginX + B.m_MinX) * 32.0f, (WorldOriginY + B.m_MinY) * 32.0f);
+				const vec2 Max((WorldOriginX + B.m_MaxX + 1) * 32.0f, (WorldOriginY + B.m_MaxY + 1) * 32.0f);
+				pRoam->RegisterRaceGate(ENTITY_CHECKPOINT, Min, Max, pPlacement->m_CourseIndex, Respawn);
+			}
+			if(pPlacement->m_CourseIndex == pPath->PlacementCount() - 1)
+			{
+				const RoamMapGen::CTileAabb B = RoamMapGen::RaceGateLocalAabb(pPlacement->m_EntryDir, true);
+				const vec2 Min((WorldOriginX + B.m_MinX) * 32.0f, (WorldOriginY + B.m_MinY) * 32.0f);
+				const vec2 Max((WorldOriginX + B.m_MaxX + 1) * 32.0f, (WorldOriginY + B.m_MaxY + 1) * 32.0f);
+				const vec2 Respawn((Min.x + Max.x) * 0.5f, (Min.y + Max.y) * 0.5f);
+				pRoam->RegisterRaceGate(ENTITY_FINISH, Min, Max, pPlacement->m_CourseIndex, Respawn);
+			}
+
+			// Trap candidates live in template metadata, but activation is based on
+			// course position so early placements remain damage-free even when a
+			// visual template is reused later.
+			const int ActiveHazards = RoamMapGen::ActiveHazardCount(
+				pPlacement->m_CourseIndex, pPath->PlacementCount(), RoamMapGen::TemplateSpec(pPlacement->m_TemplateIndex).m_Finish ? 0 : 2);
+			if(ActiveHazards > 0)
+			{
+				RoamMapGen::CTemplateGrid Grid;
+				RoamMapGen::GenerateTemplate(RoamMapGen::TemplateSpec(pPlacement->m_TemplateIndex), &Grid);
+				for(int Hazard = 0; Hazard < min(Grid.m_HazardCount, ActiveHazards); Hazard++)
+				{
+					const RoamMapGen::CHazardSpec &H = Grid.m_aHazards[Hazard];
+					const vec2 Pos((WorldOriginX + H.m_X) * 32.0f + 16.0f, (WorldOriginY + H.m_Y) * 32.0f + 16.0f);
+					if(H.m_Type == RoamMapGen::HAZARD_SAW || H.m_Type == RoamMapGen::HAZARD_FLAME)
+					{
+						const int Type = H.m_Type == RoamMapGen::HAZARD_SAW ? BUILDING_SAWBLADE : BUILDING_FLAMETRAP;
+						CBuilding *pHazard = new CBuilding(&m_World, Pos, Type, TEAM_NEUTRAL);
+						pHazard->m_NonBlockingHazard = true;
+						pHazard->m_Collision = false;
+						pHazard->m_CanMove = false;
+						pHazard->m_Moving = false;
+						if(H.m_Type == RoamMapGen::HAZARD_FLAME)
+							pHazard->m_Mirror = Grid.Solid(H.m_X + 1, H.m_Y);
+					}
+					else
+						pRoam->OnEntity(ENTITY_LAZER, Pos);
+				}
+			}
+		}
+
+		for(int ly = 0; ly < ChunkH; ly++)
+			for(int lx = 0; lx < ChunkW; lx++)
+			{
+				const int AtlasX = AtlasOriginX + lx;
+				const int AtlasY = AtlasOriginY + ly;
+				if(AtlasX < 0 || AtlasY < 0 || AtlasX >= pTileMap->m_Width || AtlasY >= pTileMap->m_Height)
+					continue;
+				const int Index = pTiles[AtlasY * pTileMap->m_Width + AtlasX].m_Index;
+				const int WorldTileX = WorldOriginX + lx;
+				const int WorldTileY = WorldOriginY + ly;
+				if(Index - ENTITY_OFFSET == ENTITY_SPAWN && m_pBlockEntities)
+				{
+					CBlockEntities *pNode = m_pBlockEntities->GetBlockEntities(this, block, false);
+					if(pNode->AddSpawnLocal(vec2(WorldTileX, WorldTileY)))
+						Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "game", "Spawn created");
+				}
+				else if(Index - ENTITY_OFFSET == ENTITY_ENEMYSPAWN)
+					m_pController->AddEnemy(vec2(WorldTileX * 32.0f + 16.0f, WorldTileY * 32.0f + 16.0f));
+				else if(Index >= ENTITY_OFFSET)
+				{
+					vec2 Pos(WorldTileX * 32.0f + 16.0f, WorldTileY * 32.0f + 16.0f);
+					if(str_comp(g_Config.m_SvGametype, "roam") == 0 &&
+					   (Index - ENTITY_OFFSET == ENTITY_CHECKPOINT || Index - ENTITY_OFFSET == ENTITY_FINISH))
+						continue; // Path race markers are placement entities, never atlas entities.
+					else
+						m_pController->OnEntity(Index - ENTITY_OFFSET, Pos);
+				}
+			}
+		return;
+	}
 
 	int OffX = block * m_Collision.GetChunkSize();
 
@@ -3582,10 +3753,39 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	//
 	else
 	{
-		// for (int i = 0; i < 9; i++)
-		//	CreateEntitiesForBlock(i);
-		m_pBlockEntities = new CBlockEntities(this, 0, m_Collision.GetChunkSize(), 0);
+		CMapPath *pPath = m_Collision.GetMapPath();
+		if(pPath)
+			m_pBlockEntities = new CBlockEntities(this, 0, 1, 0);
+		else
+			m_pBlockEntities = new CBlockEntities(this, 0, m_Collision.GetChunkSize(), 0);
+
 		ActivateBlockEntities(0);
+		if(str_comp(g_Config.m_SvGametype, "roam") == 0)
+		{
+			if(pPath)
+			{
+				for(int Index = 0; Index < pPath->PlacementCount(); Index++)
+					m_pBlockEntities = m_pBlockEntities->GetBlockEntities(this, Index, true);
+			}
+			else
+			{
+				const int ChunkSize = m_Collision.GetChunkSize();
+				for(int WorldChunk = 1; WorldChunk <= 3; WorldChunk++)
+					ActivateBlockEntities(WorldChunk * ChunkSize * 32 + 16);
+			}
+		}
+	}
+
+	if(str_comp(g_Config.m_SvGametype, "roam") == 0)
+	{
+		// During the first mapgen pass the source atlas has no persisted Path yet;
+		// the server immediately reloads generated.map.  Validate only the loaded
+		// Path instance so a successful generation does not emit a false error.
+		if(!g_Config.m_SvMapGen || m_Collision.GetMapPath())
+		{
+			vec2 SpawnPos;
+			static_cast<CGameControllerRoam *>(m_pController)->FinalizeCourse(GetRoamSpawnPos(&SpawnPos));
+		}
 	}
 
 	// game.world.insert_entity(game.Controller);
@@ -3923,7 +4123,15 @@ void CGameContext::SaveMap(const char *path)
 	// Map will be saved to current dir, not to ~/.ninslash/maps or to data/maps, so we need to create a dir for it
 	Storage()->CreateFolder("maps", IStorage::TYPE_SAVE);
 
-	fileWrite.SaveMap(Storage(), pMap->GetFileReader(), aMapFile);
+	fileWrite.SaveMap(Storage(),
+		pMap->GetFileReader(),
+		aMapFile,
+		0,
+		0,
+		m_MapGen.GetModularInfo(),
+		m_MapGen.GetModularRules(),
+		m_MapGen.GetPathInfo(),
+		m_MapGen.GetPathPlacements());
 
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "Map saved in '%s'!", aMapFile);

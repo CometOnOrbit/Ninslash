@@ -384,8 +384,17 @@ void CControls::ClampMousePos()
 {
 	if(m_pClient->m_Snap.m_SpecInfo.m_Active && !m_pClient->m_Snap.m_SpecInfo.m_UsePosition)
 	{
-		m_MousePos.x = clamp(m_MousePos.x, 200.0f, Collision()->GetWidth() * 32 - 200.0f);
-		m_MousePos.y = clamp(m_MousePos.y, 200.0f, Collision()->GetHeight() * 32 - 200.0f);
+		// TODO
+		if(Collision()->IsMapModular())
+		{
+			m_MousePos.x = clamp(m_MousePos.x, -10000000.0f, 10000000.0f);
+			m_MousePos.y = clamp(m_MousePos.y, -10000000.0f, 10000000.0f);
+		}
+		else
+		{
+			m_MousePos.x = clamp(m_MousePos.x, 200.0f, Collision()->GetWidth() * 32 - 200.0f);
+			m_MousePos.y = clamp(m_MousePos.y, 200.0f, Collision()->GetHeight() * 32 - 200.0f);
+		}
 	}
 	else
 	{

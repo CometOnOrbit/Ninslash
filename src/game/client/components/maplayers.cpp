@@ -8,6 +8,7 @@
 #include <engine/storage.h>
 
 #include <game/layers.h>
+#include <engine/shared/mappath.h>
 #include <game/client/gameclient.h>
 #include <game/client/component.h>
 #include <game/client/render.h>
@@ -142,6 +143,12 @@ void CMapLayers::OnRender()
 	vec2 Center = m_pClient->m_pCamera->m_Center;
 	// float center_x = gameclient.camera->center.x;
 	// float center_y = gameclient.camera->center.y;
+	if(Collision()->IsMapModular())
+	{
+		const int CenterTileX = (int)Center.x / 32;
+		const int Margin = Collision()->GetChunkSize() * 3;
+		Collision()->PruneMapChunks(CenterTileX - Margin, CenterTileX + Margin);
+	}
 
 	bool PassedGameLayer = false;
 
@@ -184,6 +191,7 @@ void CMapLayers::OnRender()
 		{
 			CMapItemLayer *pLayer = m_pLayers->GetLayer(pGroup->m_StartLayer + l);
 			CMapChunk *pMapChunk = m_pLayers->GetMapChunk();
+			CMapPath *pMapPath = m_pLayers->GetMapPath();
 			bool Render = false;
 			bool IsGameLayer = false;
 
@@ -280,7 +288,8 @@ void CMapLayers::OnRender()
 												 this,
 												 pTMap->m_ColorEnv,
 												 pTMap->m_ColorEnvOffset,
-												 pMapChunk);
+												 pMapChunk,
+												 pMapPath);
 
 					Graphics()->BlendNormal();
 					RenderTools()->RenderTilemap(pTiles,
@@ -293,7 +302,8 @@ void CMapLayers::OnRender()
 												 this,
 												 pTMap->m_ColorEnv,
 												 pTMap->m_ColorEnvOffset,
-												 pMapChunk);
+												 pMapChunk,
+												 pMapPath);
 				}
 				else if(pLayer->m_Type == LAYERTYPE_QUADS)
 				{

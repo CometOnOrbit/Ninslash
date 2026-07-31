@@ -59,6 +59,14 @@ void CBlockEntities::DestroyChain(CBlockEntities *pAny)
 	delete pAny;
 }
 
+bool CBlockEntities::AddSpawnLocal(vec2 Pos)
+{
+	if(m_NumSpawns >= 9)
+		return false;
+	m_aSpawn[m_NumSpawns++] = Pos;
+	return true;
+}
+
 bool CBlockEntities::AddSpawn(vec2 Pos)
 {
 	if(Pos.x < m_X)
@@ -77,35 +85,18 @@ bool CBlockEntities::AddSpawn(vec2 Pos)
 		return m_pNext->AddSpawn(Pos);
 	}
 
-	if(m_NumSpawns >= 9)
-		return false;
-
-	m_aSpawn[m_NumSpawns++] = Pos;
-	return true;
+	return AddSpawnLocal(Pos);
 }
 
 bool CBlockEntities::GetSpawn(vec2 *Pos)
 {
-	// if (!Pos)
-	//	return false;
-
-	if(!m_NumSpawns)
+	for(CBlockEntities *pChunk = this; pChunk; pChunk = pChunk->m_pPrev)
 	{
-		if(m_pPrev)
-			return m_pPrev->GetSpawn(Pos);
-
-		return false;
-	}
-
-	if(Pos->x > m_X + m_SizeX || !m_pPrev)
-	{
-		vec2 p = m_aSpawn[rand() % m_NumSpawns] * 32;
-		*Pos = p;
+		if(pChunk->m_NumSpawns <= 0)
+			continue;
+		*Pos = pChunk->m_aSpawn[rand() % pChunk->m_NumSpawns] * 32;
 		return true;
 	}
-	else if(m_pPrev)
-		return m_pPrev->GetSpawn(Pos);
-
 	return false;
 }
 
@@ -184,4 +175,46 @@ CBlockEntities *CBlockEntities::GetBlockEntities(CGameContext *pGameServer, int 
 	}
 
 	return this;
+}
+
+CBlockEntities *CBlockEntities::FreeOutside(CGameContext *pGameServer, int LowX, int HighX)
+{
+	if(LowX > HighX)
+	{
+		const int Tmp = LowX;
+		LowX = HighX;
+		HighX = Tmp;
+	}
+
+	CBlockEntities *pKeep = GetBlockEntities(pGameServer, (LowX + HighX) / 2, false);
+	CBlockEntities *pLeft = pKeep;
+	while(pLeft->m_pPrev)
+		pLeft = pLeft->m_pPrev;
+
+	// ponytail: activated chunks retain persistent entity state; only empty
+	// speculative tails are safe to reclaim until that state has an archive.
+	while(pLeft != pKeep && pLeft->m_X + pLeft->m_SizeX < LowX &&
+		  !pLeft->m_EntitiesCreated && !pLeft->m_pStoredEntities)
+	{
+		CBlockEntities *pNext = pLeft->m_pNext;
+		pLeft->m_pNext = 0;
+		pNext->m_pPrev = 0;
+		delete pLeft;
+		pLeft = pNext;
+	}
+
+	CBlockEntities *pRight = pKeep;
+	while(pRight->m_pNext)
+		pRight = pRight->m_pNext;
+	while(pRight != pKeep && pRight->m_X > HighX &&
+		  !pRight->m_EntitiesCreated && !pRight->m_pStoredEntities)
+	{
+		CBlockEntities *pPrev = pRight->m_pPrev;
+		pPrev->m_pNext = 0;
+		pRight->m_pPrev = 0;
+		delete pRight;
+		pRight = pPrev;
+	}
+
+	return pKeep;
 }

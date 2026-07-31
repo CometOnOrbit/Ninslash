@@ -847,6 +847,24 @@ Flip move & aim axis
 Folder
 == 文件夹
 
+Roam Race
+== Roam 竞速
+
+Race through a generated modular course with a selectable number of checkpoints.
+== 在自动生成的模块化赛道上穿越自选数量的检查点。
+
+Race  ·  Checkpoints  ·  Modular course
+== 竞速  ·  检查点  ·  模块化赛道
+
+CP %d/%d
+== 检查点 %d/%d
+
+Checkpoints
+== 检查点
+
+%d checkpoints
+== %d 个检查点
+
 Enter the full path to a ZIP package.
 == 输入 ZIP 内容包的完整路径。
 

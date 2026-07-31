@@ -17,6 +17,7 @@ class CMapGen
 
 	void GenerateLevel();
 	void GeneratePVPLevel();
+	void GenerateRoamLevel();
 	void ExpandEscapeTowerCanvas();
 	void ExpandExtractMazeCanvas();
 	void FitTutorialCanvas();
@@ -97,9 +98,16 @@ class CMapGen
 
 	array<CConfiguration> m_lConfigs;
 	bool m_FileLoaded;
+	bool m_HasModularInfo;
+	CMapModularInfo m_ModularInfo;
+	int m_aModularRules[6 * 4];
+	bool m_HasPathInfo;
+	CMapPathInfo m_PathInfo;
+	CMapPathPlacement m_aPathPlacements[64];
 
 	void Load(const char *pTileName);
 	void Proceed(class CGenLayer *pTiles, int ConfigID);
+	void FitRoamAtlasCanvas();
 
 	int ConfigNamesNum() { return m_lConfigs.size(); }
 	const char *GetConfigName(int Index);
@@ -112,6 +120,10 @@ class CMapGen
 
 	void FillMap();
 	void Init(CLayers *pLayers, CCollision *pCollision, IStorage *pStorage);
+	const CMapModularInfo *GetModularInfo() const { return m_HasModularInfo ? &m_ModularInfo : 0; }
+	const int *GetModularRules() const { return m_HasModularInfo ? m_aModularRules : 0; }
+	const CMapPathInfo *GetPathInfo() const { return m_HasPathInfo ? &m_PathInfo : 0; }
+	const CMapPathPlacement *GetPathPlacements() const { return m_HasPathInfo ? m_aPathPlacements : 0; }
 };
 
 #endif

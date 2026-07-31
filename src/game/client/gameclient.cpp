@@ -242,6 +242,30 @@ void CGameClient::CStack::Add(class CComponent *pComponent)
 	m_paComponents[m_Num++] = pComponent;
 }
 
+int CGameClient::RaceTime(int ClientID) const
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_Snap.m_pRaceInfo)
+		return -1;
+	const CNetObj_RacePlayer *pRace = m_Snap.m_apRacePlayers[ClientID];
+	if(!pRace)
+		return -1;
+	if(pRace->m_Time >= 0)
+		return pRace->m_Time;
+	if(!m_pClient || m_pClient->GameTickSpeed() <= 0)
+		return 0;
+	return max(0, (m_pClient->GameTick() - pRace->m_StartTick) * 100 / m_pClient->GameTickSpeed());
+}
+
+void CGameClient::FormatRaceTime(int Time, char *pBuf, int BufSize)
+{
+	if(!pBuf || BufSize <= 0)
+		return;
+	if(Time < 0)
+		str_copy(pBuf, "--:--.--", BufSize);
+	else
+		str_format(pBuf, BufSize, "%d:%02d.%02d", Time / 6000, (Time / 100) % 60, Time % 100);
+}
+
 const char *CGameClient::Version()
 {
 	return GAME_VERSION;
@@ -1593,6 +1617,14 @@ void CGameClient::OnNewSnapshot()
 					OnStartGame();
 				s_GameOver = m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER;
 			}
+			else if(Item.m_Type == NETOBJTYPE_RACEINFO)
+				m_Snap.m_pRaceInfo = (const CNetObj_RaceInfo *)pData;
+			else if(Item.m_Type == NETOBJTYPE_RACEPLAYER)
+			{
+				const CNetObj_RacePlayer *pRacePlayer = (const CNetObj_RacePlayer *)pData;
+				if(pRacePlayer->m_ClientID >= 0 && pRacePlayer->m_ClientID < MAX_CLIENTS)
+					m_Snap.m_apRacePlayers[pRacePlayer->m_ClientID] = pRacePlayer;
+			}
 			else if(Item.m_Type == NETOBJTYPE_GAMEDATA)
 			{
 				m_Snap.m_pGameDataObj = (const CNetObj_GameData *)pData;
@@ -1691,8 +1723,23 @@ void CGameClient::OnNewSnapshot()
 	}
 	std::sort(m_Snap.m_paInfoByScore,
 			  m_Snap.m_paInfoByScore + NumPlayerInfos,
-			  [](const CNetObj_PlayerInfo *pLeft, const CNetObj_PlayerInfo *pRight)
+			  [this](const CNetObj_PlayerInfo *pLeft, const CNetObj_PlayerInfo *pRight)
 			  {
+				  if(m_Snap.m_pRaceInfo)
+				  {
+					  const CNetObj_RacePlayer *pLeftRace = m_Snap.m_apRacePlayers[pLeft->m_ClientID];
+					  const CNetObj_RacePlayer *pRightRace = m_Snap.m_apRacePlayers[pRight->m_ClientID];
+					  const bool LeftFinished = pLeftRace && pLeftRace->m_Time >= 0;
+					  const bool RightFinished = pRightRace && pRightRace->m_Time >= 0;
+					  if(LeftFinished != RightFinished)
+						  return LeftFinished;
+					  if(LeftFinished && pLeftRace->m_Time != pRightRace->m_Time)
+						  return pLeftRace->m_Time < pRightRace->m_Time;
+					  const int LeftCheckpoint = pLeftRace ? pLeftRace->m_Checkpoint : -1;
+					  const int RightCheckpoint = pRightRace ? pRightRace->m_Checkpoint : -1;
+					  if(LeftCheckpoint != RightCheckpoint)
+						  return LeftCheckpoint > RightCheckpoint;
+				  }
 				  if(pLeft->m_Score != pRight->m_Score)
 					  return pLeft->m_Score > pRight->m_Score;
 				  return pLeft->m_ClientID < pRight->m_ClientID;

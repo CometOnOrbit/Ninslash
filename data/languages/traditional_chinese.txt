@@ -4904,3 +4904,21 @@ Import
 
 Unsubscribe from this Workshop item before installing a different local package with the same ID.
 == 請先取消訂閱此工作坊項目，再安裝具有相同 ID 的其他本機內容包。
+
+Roam Race
+== Roam 競速
+
+Race through a generated modular course with a selectable number of checkpoints.
+== 在自動生成的模組化賽道上穿越自選數量的檢查點。
+
+Race  ·  Checkpoints  ·  Modular course
+== 競速  ·  檢查點  ·  模組化賽道
+
+CP %d/%d
+== 檢查點 %d/%d
+
+Checkpoints
+== 檢查點
+
+%d checkpoints
+== %d 個檢查點

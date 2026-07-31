@@ -48,6 +48,9 @@ class CBuilding : public CEntity
 	int m_Status;
 
 	bool m_Collision;
+	// Runtime-generated Roam traps hurt players but must never become a solid
+	// plug in a narrow race corridor. Persisted through block unload/reload.
+	bool m_NonBlockingHazard;
 
 	vec2 m_Center;
 

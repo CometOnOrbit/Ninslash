@@ -1675,7 +1675,8 @@ void CCharacter::Tick()
 	// frandom()-frandom()*1.4f)*14.0f, 0); GameServer()->m_pController->DropPickup(m_Pos, POWERUP_HEALTH,
 	// vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0);
 
-	if(m_IsBot && m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 15.0f)
+	if(m_IsBot && !GameServer()->Collision()->IsMapPath() && m_SnapTick &&
+	   m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 15.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
 			GetPlayer()->m_ToBeKicked = true;
@@ -1875,7 +1876,7 @@ void CCharacter::Tick()
 
 	// GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "debug", "Tick end");
 
-	if(!m_IsBot)
+	if(!m_IsBot || GameServer()->Collision()->IsMapPath())
 		GameServer()->ActivateBlockEntities(m_Pos.x);
 
 	return;

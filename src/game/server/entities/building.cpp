@@ -20,6 +20,7 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	m_SetTimer = 0;
 	m_Center = vec2(0, 0);
 	m_Collision = true;
+	m_NonBlockingHazard = false;
 	m_Height = 0;
 	m_LightningBlockCheckTick = 0;
 	m_CanMove = false;
@@ -734,7 +735,7 @@ void CBuilding::Tick()
 {
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
-		if(GameServer()->StoreEntity(m_ObjType, m_Type, m_Mirror ? 1 : 0, m_Pos.x, m_Pos.y))
+		if(GameServer()->StoreEntity(m_ObjType, m_Type, (m_Mirror ? 1 : 0) | (m_NonBlockingHazard ? 2 : 0), m_Pos.x, m_Pos.y))
 		{
 			m_Stored = true;
 			GameServer()->m_World.DestroyEntity(this);

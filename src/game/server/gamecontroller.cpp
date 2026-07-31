@@ -748,8 +748,15 @@ void IGameController::RestoreEntity(int ObjType, int Type, int Subtype, int x, i
 		{
 			CBuilding *pBuilding = new CBuilding(&GameServer()->m_World, vec2(x, y), Type, TEAM_NEUTRAL);
 
-			if(Type == BUILDING_FLAMETRAP && Subtype == 1)
+			if(Type == BUILDING_FLAMETRAP && (Subtype & 1))
 				pBuilding->m_Mirror = true;
+			if(Subtype & 2)
+			{
+				pBuilding->m_NonBlockingHazard = true;
+				pBuilding->m_Collision = false;
+				pBuilding->m_CanMove = false;
+				pBuilding->m_Moving = false;
+			}
 		}
 	}
 	else if(ObjType == ENTTYPE_DROID)

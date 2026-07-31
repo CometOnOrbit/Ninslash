@@ -14,12 +14,17 @@ class CLayers
 	int m_ModularInfoStart;
 	int m_RulesNum;
 	int m_RulesStart;
+	int m_PathInfoNum;
+	int m_PathInfoStart;
+	int m_PathPlacementNum;
+	int m_PathPlacementStart;
 	CMapItemGroup *m_pGameGroup;
 	CMapItemLayerTilemap *m_pGameLayer;
 	class IMap *m_pMap;
 
 	int *m_apChunkRule;
 	class CMapChunk *m_pMapChunk;
+	class CMapPath *m_pMapPath;
 
 	// MapGen: Direct layer access
 	int m_GameGroupIndex;
@@ -56,8 +61,12 @@ class CLayers
 	CMapItemLayer *GetLayer(int Index) const;
 	CMapModularInfo *GetModularInfo(int Index) const;
 	CMapRule *GetRule(int Index) const;
+	CMapPathInfo *GetPathInfo(int Index) const;
+	CMapPathPlacement *GetPathPlacement(int Index) const;
 
 	class CMapChunk *GetMapChunk() const { return m_pMapChunk; }
+	class CMapPath *GetMapPath() const { return m_pMapPath; }
+	void PruneMapChunks(int LowTileX, int HighTileX);
 
 	// MapGen: Direct layer access
 	int GetGameGroupIndex() const { return m_GameGroupIndex; }
