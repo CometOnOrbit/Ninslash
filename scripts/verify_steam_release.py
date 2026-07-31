@@ -41,6 +41,12 @@ LINUX_SYSTEM_LIBRARIES = {
     "libXdmcp.so.6", "libbsd.so.0", "libmd.so.0",
 }
 
+LUA_MOD_RUNTIME_SIGNATURES = (
+    b"mod instruction budget exceeded",
+    b"unable to activate Lua Mod",
+)
+LUA_MOD_DISABLED_SIGNATURE = b"server was built without Lua Mod support"
+
 STEAM_INPUT_ACTIONS = (
     "confirm", "cancel", "fire", "turbo", "scoreboard", "build", "drop", "emote",
     "weapon_picker", "last_weapon", "prev_weapon", "next_weapon", "up", "down", "left",
@@ -196,6 +202,20 @@ def verify_forbidden(root, errors):
             errors.append(f"{root}: forbidden user/development file: {path.relative_to(root)}")
 
 
+def verify_lua_mod_runtime(executable, errors):
+    try:
+        contents = executable.read_bytes()
+    except OSError as exc:
+        errors.append(f"{executable}: unable to inspect Lua Mod runtime: {exc}")
+        return
+    if LUA_MOD_DISABLED_SIGNATURE in contents:
+        errors.append(f"{executable}: built without Lua Mod support")
+        return
+    missing = [signature.decode("ascii") for signature in LUA_MOD_RUNTIME_SIGNATURES if signature not in contents]
+    if missing:
+        errors.append(f"{executable}: Lua Mod runtime is incomplete; missing binary signatures: {', '.join(missing)}")
+
+
 def inspect_windows_imports(path):
     objdump = shutil.which("x86_64-w64-mingw32-objdump")
     if objdump:
@@ -339,6 +359,7 @@ def verify_depot(root_text, platform, kind, errors):
         return
     for executable in executables:
         if executable.is_file():
+            verify_lua_mod_runtime(executable, errors)
             verify_depot_executable(root, executable, steam_api, platform, errors)
     if platform == "windows":
         verify_windows_dependency_closure(root, [path for path in executables if path.is_file()], errors)
