@@ -2,6 +2,7 @@
 #include <engine/shared/config.h>
 #include <engine/platform_events.h>
 #include <game/server/gamecontext.h>
+#include <game/input_buffer.h>
 #include <game/mapitems.h>
 
 #include "character.h"
@@ -179,6 +180,8 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_Pos = Pos;
 
 	m_ChargeTick = 0;
+	m_FireBufferEndTick = 0;
+	m_SwitchBufferEndTick = 0;
 
 	m_SpawnPos = Pos;
 
@@ -1029,6 +1032,7 @@ void CCharacter::DoWeaponSwitch()
 			return;
 
 		m_WeaponSlot = m_WantedSlot;
+		m_FireBufferEndTick = 0;
 		m_AttackTick = 0;
 		if(GameServer()->m_pTutorialDirector && !m_IsBot)
 			GameServer()->m_pTutorialDirector->OnGameplayProgress(GetPlayer()->GetCID(), TUTORIAL_EVENT_WEAPON_SWITCH);
@@ -1037,7 +1041,10 @@ void CCharacter::DoWeaponSwitch()
 
 void CCharacter::HandleWeaponSwitch()
 {
-	int WantedSlot = m_WeaponSlot;
+	const bool PendingRequest = m_SwitchBufferEndTick && Server()->Tick() <= m_SwitchBufferEndTick &&
+		m_WantedSlot != m_WeaponSlot;
+	int WantedSlot = PendingRequest ? m_WantedSlot : m_WeaponSlot;
+	bool NewRequest = false;
 
 	int Next = CountInput(m_LatestPrevInput.m_NextWeapon, m_LatestInput.m_NextWeapon).m_Presses;
 	int Prev = CountInput(m_LatestPrevInput.m_PrevWeapon, m_LatestInput.m_PrevWeapon).m_Presses;
@@ -1050,6 +1057,7 @@ void CCharacter::HandleWeaponSwitch()
 			if(++WantedSlot > 3)
 				WantedSlot = 0;
 			Next--;
+			NewRequest = true;
 		}
 	}
 	if(Prev < 128)
@@ -1060,15 +1068,43 @@ void CCharacter::HandleWeaponSwitch()
 			if(--WantedSlot < 0)
 				WantedSlot = 3;
 			Prev--;
+			NewRequest = true;
 		}
 	}
 
-	if(m_LatestInput.m_WantedWeapon)
-		WantedSlot = clamp(m_Input.m_WantedWeapon - 2, 0, 3);
+	if(m_LatestInput.m_WantedWeapon && m_LatestInput.m_WantedWeapon != m_LatestPrevInput.m_WantedWeapon)
+	{
+		WantedSlot = clamp(m_LatestInput.m_WantedWeapon - 2, 0, 3);
+		NewRequest = true;
+	}
 
-	m_WantedSlot = WantedSlot;
+	if(NewRequest)
+	{
+		m_WantedSlot = WantedSlot;
+		int ReloadTicks = 0;
+		if(m_apWeapon[m_WeaponSlot])
+			ReloadTicks = max(ReloadTicks, m_apWeapon[m_WeaponSlot]->ReloadTicksRemaining());
+		if(m_apWeapon[m_WantedSlot])
+			ReloadTicks = max(ReloadTicks, m_apWeapon[m_WantedSlot]->ReloadTicksRemaining());
+		// Keep a request through the shot that is already in progress, but do
+		// not allow an old selection to trigger much later in the fight.
+		m_SwitchBufferEndTick = Server()->Tick() + SwitchInputBufferTicks(ReloadTicks, Server()->TickSpeed());
+	}
+	if(m_WantedSlot == m_WeaponSlot)
+	{
+		m_SwitchBufferEndTick = 0;
+		return;
+	}
+	if(!m_SwitchBufferEndTick || Server()->Tick() > m_SwitchBufferEndTick)
+	{
+		m_WantedSlot = m_WeaponSlot;
+		m_SwitchBufferEndTick = 0;
+		return;
+	}
 
 	DoWeaponSwitch();
+	if(m_WantedSlot == m_WeaponSlot)
+		m_SwitchBufferEndTick = 0;
 }
 
 void CCharacter::Jumppad()
@@ -1143,12 +1179,35 @@ void CCharacter::FireWeapon()
 
 	m_Core.m_ChargeLevel = 0;
 
+	// Once a normal weapon switch is queued, let the current shot finish and
+	// stop held full-auto fire from continuously restarting its cooldown.
+	if(m_WantedSlot != m_WeaponSlot && m_SwitchBufferEndTick && Server()->Tick() <= m_SwitchBufferEndTick)
+		return;
+
 	// trigger finger
 	bool FullAuto = m_IsBot ? true : GetWeapon()->FullAuto();
 
 	bool WillFire = false;
-	if(CountInput(m_LatestPrevInput.m_Fire, m_LatestInput.m_Fire).m_Presses)
-		WillFire = true;
+	const bool Pressed = CountInput(m_LatestPrevInput.m_Fire, m_LatestInput.m_Fire).m_Presses != 0;
+	if(Pressed)
+	{
+		if(!FullAuto && GetWeapon()->ReloadTicksRemaining() > 0 && GetWeapon()->ReloadTicksRemaining() <= 3 &&
+		   (!GetWeapon()->UsesAmmo() || GetWeapon()->GetAmmo() > 0))
+			m_FireBufferEndTick = QueueInputUntil(Server()->Tick(), GetWeapon()->ReloadTicksRemaining(), 3);
+		else
+			WillFire = true;
+	}
+	if(m_FireBufferEndTick)
+	{
+		const EInputBufferState BufferState = InputBufferState(Server()->Tick(), m_FireBufferEndTick, GetWeapon()->CanFireNow());
+		if(BufferState == INPUT_BUFFER_EXPIRED)
+			m_FireBufferEndTick = 0;
+		else if(BufferState == INPUT_BUFFER_READY)
+		{
+			WillFire = true;
+			m_FireBufferEndTick = 0;
+		}
+	}
 
 	if(FullAuto && (m_LatestInput.m_Fire & 1))
 		WillFire = true;
@@ -1182,6 +1241,7 @@ void CCharacter::HandleWeapons()
 	}
 	*/
 
+	HandleWeaponSwitch();
 	// fire Weapon, if wanted
 	FireWeapon();
 
@@ -1430,6 +1490,9 @@ void CCharacter::OnDirectInput(CNetObj_PlayerInput *pNewInput)
 
 void CCharacter::ResetInput()
 {
+	m_FireBufferEndTick = 0;
+	m_SwitchBufferEndTick = 0;
+	m_WantedSlot = m_WeaponSlot;
 	m_Input.m_Direction = 0;
 	m_Input.m_Hook = 0;
 	m_Input.m_Down = 0;

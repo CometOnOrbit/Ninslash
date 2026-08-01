@@ -4,6 +4,7 @@
 #include <engine/shared/config.h>
 #include <engine/graphics.h>
 #include <engine/gamepad.h>
+#include <engine/input_processing.h>
 #include <engine/storage.h>
 #include <engine/input.h>
 #include <engine/keys.h>
@@ -67,6 +68,7 @@ CInput::CInput()
 	m_GamepadAimY = 0;
 	m_GamepadOldAimX = 0;
 	m_GamepadOldAimY = 0;
+	m_LastGamepadRelativeTime = 0;
 	mem_zero(m_aSteamInputPrevious, sizeof(m_aSteamInputPrevious));
 	m_GamepadActionSet = PLATFORM_INPUT_MENU;
 	m_TextInputActive = false;
@@ -139,7 +141,6 @@ void CInput::UpdateSteamInput()
 	CPlatformInputState State;
 	if(!m_pPlatformServices->ReadInputState(&State) || !State.m_Connected)
 		return;
-	m_UsingGamepad = true;
 	static const int s_aKeys[NUM_PLATFORM_INPUT_ACTIONS] = {
 		KEY_GAMEPAD_BUTTON_A,		   KEY_GAMEPAD_BUTTON_B,		 KEY_GAMEPAD_TRIGGER_RIGHT,
 		KEY_GAMEPAD_TRIGGER_LEFT,	   KEY_GAMEPAD_BUTTON_BACK,		 KEY_GAMEPAD_BUTTON_Y,
@@ -153,10 +154,15 @@ void CInput::UpdateSteamInput()
 		KEY_GAMEPAD_BUTTON_A,		   KEY_GAMEPAD_BUTTON_B,		 KEY_GAMEPAD_BUTTON_X,
 		KEY_GAMEPAD_BUTTON_START,	   KEY_GAMEPAD_BUTTON_A,		 KEY_GAMEPAD_SHOULDER_LEFT,
 		KEY_GAMEPAD_SHOULDER_RIGHT,	   KEY_GAMEPAD_TRIGGER_RIGHT,	 KEY_GAMEPAD_TRIGGER_LEFT};
-	const bool Left = State.m_MoveX < -0.35f;
-	const bool Right = State.m_MoveX > 0.35f;
-	const bool Up = State.m_MoveY < -0.35f;
-	const bool Down = State.m_MoveY > 0.35f;
+	const float MovePress = g_Config.m_ClGamepadMoveDeadzone / 100.0f;
+	const float MoveRelease = max(0.05f, MovePress - 0.10f);
+	m_GamepadMove = ProcessDigitalAxis(State.m_MoveX, m_GamepadMove, MovePress, MoveRelease);
+	const int Vertical = ProcessDigitalAxis(State.m_MoveY, m_GamepadDown ? 1 : (m_GamepadJump ? -1 : 0), MovePress, MoveRelease);
+	const bool Left = m_GamepadMove < 0;
+	const bool Right = m_GamepadMove > 0;
+	const bool Up = Vertical < 0;
+	const bool Down = Vertical > 0;
+	bool AnyAction = false;
 	for(int i = 0; i < NUM_PLATFORM_INPUT_ACTIONS; i++)
 	{
 		bool ActionDown = State.m_aActions[i];
@@ -168,9 +174,9 @@ void CInput::UpdateSteamInput()
 			ActionDown = ActionDown || Up;
 		else if(i == PLATFORM_ACTION_DOWN)
 			ActionDown = ActionDown || Down;
+		AnyAction = AnyAction || ActionDown;
 		SetSteamVirtualKey(s_aKeys[i], ActionDown, &m_aSteamInputPrevious[i]);
 	}
-	m_GamepadMove = Left ? -1 : (Right ? 1 : 0);
 	m_GamepadJump = Up;
 	m_GamepadDown = Down;
 	float AimX = State.m_AimX, AimY = State.m_AimY;
@@ -182,6 +188,16 @@ void CInput::UpdateSteamInput()
 	}
 	m_GamepadAimX = (int)(clamp(AimX, -1.0f, 1.0f) * 32767.0f);
 	m_GamepadAimY = (int)(clamp(AimY, -1.0f, 1.0f) * 32767.0f);
+	if(AnyAction || length(vec2(AimX, AimY)) > g_Config.m_ClGamepadAimDeadzone / 100.0f)
+		m_UsingGamepad = true;
+}
+
+void CInput::GetGamepadAim(float *pX, float *pY)
+{
+	const vec2 Raw(m_GamepadAimX / 32767.0f, m_GamepadAimY / 32767.0f);
+	const CProcessedStick Processed = ProcessRadialStick(Raw, g_Config.m_ClGamepadAimDeadzone / 100.0f, 0.95f, g_Config.m_ClGamepadAimCurve / 100.0f);
+	*pX = Processed.m_Value.x;
+	*pY = Processed.m_Value.y * (g_Config.m_ClGamepadInvertY ? -1.0f : 1.0f);
 }
 
 void CInput::SetCompositionWindowPosition(float X, float Y, float H)
@@ -285,10 +301,17 @@ void CInput::GetRelativePosition(float *x, float *y)
 
 	if(m_UsingGamepad)
 	{
-		*x = m_GamepadAimX / 400.0f;
-		*y = m_GamepadAimY / 400.0f;
+		float AimX = 0.0f, AimY = 0.0f;
+		GetGamepadAim(&AimX, &AimY);
+		const int64 Now = time_get();
+		const float DeltaSeconds = m_LastGamepadRelativeTime ? (Now - m_LastGamepadRelativeTime) / (float)time_freq() : 1.0f / 60.0f;
+		m_LastGamepadRelativeTime = Now;
+		const vec2 Delta = IntegrateAimStick(vec2(AimX, AimY), 900.0f, g_Config.m_ClGamepadAimSensitivity / 100.0f, DeltaSeconds);
+		*x = Delta.x;
+		*y = Delta.y;
 		return;
 	}
+	m_LastGamepadRelativeTime = 0;
 
 	*x *= (float)100 / g_Config.m_InpMousesens;
 	*y *= (float)100 / g_Config.m_InpMousesens;
@@ -300,7 +323,10 @@ bool CInput::MouseMoved()
 {
 	float x = 0, y = 0;
 	SDL_GetRelativeMouseState(&x, &y);
-	return round_to_int(x) != 0 || round_to_int(y) != 0;
+	const bool Moved = round_to_int(x) != 0 || round_to_int(y) != 0;
+	if(Moved)
+		m_UsingGamepad = false;
+	return Moved;
 }
 
 bool CInput::GamepadMoved()
@@ -308,8 +334,9 @@ bool CInput::GamepadMoved()
 	if(!m_UsingGamepad)
 		return false;
 
-	if(m_GamepadOldAimX != m_GamepadAimX || m_GamepadOldAimY != m_GamepadAimY ||
-	   abs(m_GamepadAimX) + abs(m_GamepadAimY) > 10000)
+	float AimX = 0.0f, AimY = 0.0f;
+	GetGamepadAim(&AimX, &AimY);
+	if(m_GamepadOldAimX != m_GamepadAimX || m_GamepadOldAimY != m_GamepadAimY || length(vec2(AimX, AimY)) > 0.0f)
 	{
 		m_GamepadOldAimX = m_GamepadAimX;
 		m_GamepadOldAimY = m_GamepadAimY;
@@ -378,6 +405,7 @@ void CInput::ResetGamepad()
 	m_GamepadAimY = 0;
 	m_GamepadOldAimX = 0;
 	m_GamepadOldAimY = 0;
+	m_LastGamepadRelativeTime = 0;
 }
 
 int CInput::Update()
@@ -494,6 +522,8 @@ int CInput::Update()
 				// handle keys
 				case SDL_EVENT_KEY_DOWN:
 					Key = SDL_GetScancodeFromName(SDL_GetKeyName(Event.key.key));
+					if(Event.key.repeat)
+						Action = IInput::FLAG_REPEAT;
 					break;
 				case SDL_EVENT_KEY_UP:
 					Action = IInput::FLAG_RELEASE;
@@ -547,50 +577,40 @@ int CInput::Update()
 					break;
 
 				case SDL_EVENT_GAMEPAD_AXIS_MOTION:
-					if(!m_UsingGamepad)
-						break;
+				{
+					const bool AimAxis = Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHTX || Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHTY;
+					const bool TriggerAxis = Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER || Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
+					const int ActivationThreshold = (TriggerAxis ? 12 : (AimAxis ? g_Config.m_ClGamepadAimDeadzone : g_Config.m_ClGamepadMoveDeadzone)) * 32767 / 100;
+					if(abs(Event.jaxis.value) > ActivationThreshold)
+						m_UsingGamepad = true;
 
 					// attack
 					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 					{
-						if(Event.jaxis.value < 100)
-							m_GamepadShoot = false;
-						else
-							m_GamepadShoot = true;
+						m_GamepadShoot = ProcessAnalogButton(Event.jaxis.value / 32767.0f, m_GamepadShoot, 0.12f, 0.08f);
 					}
 
 					// select
 					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER)
 					{
-						if(Event.jaxis.value < 100)
-							m_GamepadSelect = false;
-						else
-							m_GamepadSelect = true;
+						m_GamepadSelect = ProcessAnalogButton(Event.jaxis.value / 32767.0f, m_GamepadSelect, 0.12f, 0.08f);
 					}
 
 					// jump
 					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFTY)
 					{
-						if(Event.jaxis.value > -20000)
-							m_GamepadJump = false;
-						else
-							m_GamepadJump = true;
-
-						if(Event.jaxis.value < 20000)
-							m_GamepadDown = false;
-						else
-							m_GamepadDown = true;
+						const float Value = Event.jaxis.value / 32767.0f;
+						const float Press = g_Config.m_ClGamepadMoveDeadzone / 100.0f;
+						const int Vertical = ProcessDigitalAxis(Value, m_GamepadDown ? 1 : (m_GamepadJump ? -1 : 0), Press, max(0.05f, Press - 0.10f));
+						m_GamepadJump = Vertical < 0;
+						m_GamepadDown = Vertical > 0;
 					}
 
 					// move
 					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_LEFTX)
 					{
-						if(Event.jaxis.value > 20000)
-							m_GamepadMove = 1;
-						else if(Event.jaxis.value < -20000)
-							m_GamepadMove = -1;
-						else
-							m_GamepadMove = 0;
+						const float Press = g_Config.m_ClGamepadMoveDeadzone / 100.0f;
+						m_GamepadMove = ProcessDigitalAxis(Event.jaxis.value / 32767.0f, m_GamepadMove, Press, max(0.05f, Press - 0.10f));
 					}
 
 					// aim
@@ -600,6 +620,7 @@ int CInput::Update()
 					if(Event.jaxis.axis == SDL_GAMEPAD_AXIS_RIGHTY)
 						m_GamepadAimY = Event.jaxis.value;
 					break;
+				}
 
 				// handle mouse buttons
 				case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -636,7 +657,8 @@ int CInput::Update()
 						Key = KEY_MOUSE_WHEEL_DOWN; // ignore_convention
 					if(Key != -1 && !HasComposition())
 					{
-						// Emit PRESS now; common path below increments Presses and emits RELEASE.
+						// Emit PRESS now; common path below records and emits RELEASE.
+						m_aInputCount[m_InputCurrent][Key].m_Presses++;
 						AddEvent(0, Key, Action);
 						Action = IInput::FLAG_RELEASE;
 					}
@@ -658,9 +680,16 @@ int CInput::Update()
 			//
 			if(Key != -1 && !HasComposition())
 			{
-				m_aInputCount[m_InputCurrent][Key].m_Presses++;
 				if(Action == IInput::FLAG_PRESS)
+				{
+					m_aInputCount[m_InputCurrent][Key].m_Presses++;
 					m_aInputState[m_InputCurrent][Key] = 1;
+				}
+				else if(Action == IInput::FLAG_RELEASE)
+				{
+					m_aInputCount[m_InputCurrent][Key].m_Releases++;
+					m_aInputState[m_InputCurrent][Key] = 0;
+				}
 				AddEvent(0, Key, Action);
 			}
 
@@ -668,9 +697,13 @@ int CInput::Update()
 			if(LastGamepadShoot != m_GamepadShoot)
 			{
 				Action = m_GamepadShoot ? IInput::FLAG_PRESS : IInput::FLAG_RELEASE;
-				m_aInputCount[m_InputCurrent][KEY_GAMEPAD_TRIGGER_RIGHT].m_Presses++;
 				if(Action == IInput::FLAG_PRESS)
+				{
+					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_TRIGGER_RIGHT].m_Presses++;
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_TRIGGER_RIGHT] = 1;
+				}
+				else
+					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_TRIGGER_RIGHT].m_Releases++;
 				AddEvent(0, KEY_GAMEPAD_TRIGGER_RIGHT, Action);
 			}
 
@@ -678,9 +711,13 @@ int CInput::Update()
 			if(LastGamepadSelect != m_GamepadSelect)
 			{
 				Action = m_GamepadSelect ? IInput::FLAG_PRESS : IInput::FLAG_RELEASE;
-				m_aInputCount[m_InputCurrent][KEY_GAMEPAD_TRIGGER_LEFT].m_Presses++;
 				if(Action == IInput::FLAG_PRESS)
+				{
+					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_TRIGGER_LEFT].m_Presses++;
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_TRIGGER_LEFT] = 1;
+				}
+				else
+					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_TRIGGER_LEFT].m_Releases++;
 				AddEvent(0, KEY_GAMEPAD_TRIGGER_LEFT, Action);
 			}
 
@@ -688,9 +725,13 @@ int CInput::Update()
 			if(LastGamepadJump != m_GamepadJump)
 			{
 				Action = m_GamepadJump ? IInput::FLAG_PRESS : IInput::FLAG_RELEASE;
-				m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_UP].m_Presses++;
 				if(Action == IInput::FLAG_PRESS)
+				{
+					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_UP].m_Presses++;
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_UP] = 1;
+				}
+				else
+					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_UP].m_Releases++;
 				AddEvent(0, KEY_GAMEPAD_AXIS_UP, Action);
 			}
 
@@ -698,9 +739,13 @@ int CInput::Update()
 			if(LastGamepadDown != m_GamepadDown)
 			{
 				Action = m_GamepadDown ? IInput::FLAG_PRESS : IInput::FLAG_RELEASE;
-				m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_DOWN].m_Presses++;
 				if(Action == IInput::FLAG_PRESS)
+				{
+					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_DOWN].m_Presses++;
 					m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_DOWN] = 1;
+				}
+				else
+					m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_DOWN].m_Releases++;
 				AddEvent(0, KEY_GAMEPAD_AXIS_DOWN, Action);
 			}
 
@@ -717,8 +762,8 @@ int CInput::Update()
 					// release right
 					if(LastGamepadMove == 1)
 					{
-						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT].m_Presses++;
-						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT] = 1;
+						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT].m_Releases++;
+						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT] = 0;
 						AddEvent(0, KEY_GAMEPAD_AXIS_RIGHT, IInput::FLAG_RELEASE);
 					}
 				}
@@ -732,8 +777,8 @@ int CInput::Update()
 					// release left
 					if(LastGamepadMove == -1)
 					{
-						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT].m_Presses++;
-						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT] = 1;
+						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT].m_Releases++;
+						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT] = 0;
 						AddEvent(0, KEY_GAMEPAD_AXIS_LEFT, IInput::FLAG_RELEASE);
 					}
 				}
@@ -742,16 +787,16 @@ int CInput::Update()
 					// release left
 					if(LastGamepadMove == -1)
 					{
-						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT].m_Presses++;
-						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT] = 1;
+						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT].m_Releases++;
+						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT] = 0;
 						AddEvent(0, KEY_GAMEPAD_AXIS_LEFT, IInput::FLAG_RELEASE);
 					}
 
 					// release right
 					if(LastGamepadMove == 1)
 					{
-						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT].m_Presses++;
-						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT] = 1;
+						m_aInputCount[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT].m_Releases++;
+						m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT] = 0;
 						AddEvent(0, KEY_GAMEPAD_AXIS_RIGHT, IInput::FLAG_RELEASE);
 					}
 				}
@@ -761,6 +806,16 @@ int CInput::Update()
 
 	if(m_CompositionLength == 0)
 		m_CompositionLength = COMP_LENGTH_INACTIVE;
+
+	// SDL does not expose gamepad buttons in its keyboard state array. Preserve
+	// virtual held states across input frames so overlays and bind UIs can query
+	// the actual physical state without waiting for another axis event.
+	m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_LEFT] = m_GamepadMove < 0;
+	m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_RIGHT] = m_GamepadMove > 0;
+	m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_UP] = m_GamepadJump;
+	m_aInputState[m_InputCurrent][KEY_GAMEPAD_AXIS_DOWN] = m_GamepadDown;
+	m_aInputState[m_InputCurrent][KEY_GAMEPAD_TRIGGER_RIGHT] = m_GamepadShoot;
+	m_aInputState[m_InputCurrent][KEY_GAMEPAD_TRIGGER_LEFT] = m_GamepadSelect;
 
 	return 0;
 }

@@ -239,6 +239,15 @@ MACRO_CONFIG_INT(ClSteamRumble,
 				 1,
 				 CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_CLOUD,
 				 "Enable Steam Input vibration")
+MACRO_CONFIG_INT(ClGamepadMoveDeadzone, cl_gamepad_move_deadzone, 35, 10, 80, CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_CLOUD, "Gamepad movement deadzone percentage")
+MACRO_CONFIG_INT(ClGamepadAimDeadzone, cl_gamepad_aim_deadzone, 18, 0, 60, CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_CLOUD, "Gamepad aim inner deadzone percentage")
+MACRO_CONFIG_INT(ClGamepadAimCurve, cl_gamepad_aim_curve, 150, 50, 300, CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_CLOUD, "Gamepad aim response curve times 100")
+MACRO_CONFIG_INT(ClGamepadAimSensitivity, cl_gamepad_aim_sensitivity, 100, 25, 300, CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_CLOUD, "Gamepad aim sensitivity percentage")
+MACRO_CONFIG_INT(ClGamepadInvertY, cl_gamepad_invert_y, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_CLOUD, "Invert gamepad vertical aim")
+MACRO_CONFIG_INT(ClGamepadAimAssist, cl_gamepad_aim_assist, 0, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_CLOUD, "Gamepad aim assist strength; fresh profiles default to 35")
+MACRO_CONFIG_INT(ClInputDebug, cl_input_debug, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show processed input diagnostics")
+MACRO_CONFIG_INT(UiSettingsPage, ui_settings_page, 0, 0, 7, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Last settings category")
+MACRO_CONFIG_INT(UiInputPage, ui_input_page, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Keyboard or controller input settings page")
 MACRO_CONFIG_INT(UiScale, ui_scale, 100, 50, 200, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Interface scale")
 MACRO_CONFIG_INT(
 	UiMousesens, ui_mousesens, 100, 5, 100000, CFGFLAG_SAVE | CFGFLAG_CLIENT, "Mouse sensitivity for menus/editor")

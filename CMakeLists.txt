@@ -798,6 +798,10 @@ if(NINSLASH_BUILD_TESTS)
     -DNINSLASH_SOURCE_DIR=${PROJECT_SOURCE_DIR}
     -P ${PROJECT_SOURCE_DIR}/tests/build_config.cmake
   )
+  add_executable(ninslash_test_input_processing tests/input_processing.cpp)
+  target_include_directories(ninslash_test_input_processing PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME input_processing COMMAND ninslash_test_input_processing)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_input_processing)
   add_executable(ninslash_test_pve_definitions
     tests/pve_definitions.cpp
     src/game/pve_roguelite.cpp

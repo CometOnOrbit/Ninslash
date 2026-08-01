@@ -5014,3 +5014,41 @@ Mod installed
 
 Folder
 == 文件夹
+Aim sensitivity
+== 瞄准灵敏度
+
+Movement deadzone
+== 移动死区
+
+Aim deadzone
+== 瞄准死区
+
+Aim response curve
+== 瞄准响应曲线
+
+Aim assist strength
+== 瞄准辅助强度
+
+PvE: slowdown and light magnetism · PvP: slowdown only
+== PvE：减速与轻微吸附 · PvP：仅减速
+
+Invert gamepad vertical aim
+== 反转手柄垂直瞄准
+
+Show input diagnostics
+== 显示输入诊断
+
+Processed aim
+== 处理后瞄准
+
+Reset controller defaults
+== 重置手柄默认设置
+
+Controller bindings
+== 手柄键位
+
+Keyboard & mouse
+== 键盘与鼠标
+
+Controller & advanced
+== 手柄与高级输入

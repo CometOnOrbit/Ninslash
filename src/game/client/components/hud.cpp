@@ -1712,6 +1712,16 @@ void CHud::OnRender()
 		RenderTeambalanceWarning();
 		RenderVoting();
 	}
+	if(g_Config.m_ClInputDebug)
+	{
+		float AimX = 0.0f, AimY = 0.0f;
+		Input()->GetGamepadAim(&AimX, &AimY);
+		char aInput[160];
+		str_format(aInput, sizeof(aInput), "INPUT %s  aim %.2f %.2f  assist %d%%", Input()->UsingGamepad() ? "PAD" : "KBM", AimX, AimY, g_Config.m_ClGamepadAimAssist);
+		TextRender()->TextColor(0.35f, 0.9f, 1.0f, 0.95f);
+		TextRender()->Text(0, 6.0f, 270.0f, 5.5f, aInput, -1);
+		TextRender()->TextColor(1, 1, 1, 1);
+	}
 	RenderCursor();
 	if(m_DebugStatusScreenshotFrames > 0 && --m_DebugStatusScreenshotFrames == 0)
 		Graphics()->TakeScreenshot(0);

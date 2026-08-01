@@ -4,6 +4,7 @@
 #define GAME_CLIENT_COMPONENTS_CONTROLS_H
 #include <base/vmath.h>
 #include <game/client/component.h>
+#include <game/input_buffer.h>
 
 class CControls : public CComponent
 {
@@ -26,6 +27,11 @@ class CControls : public CComponent
 
 	// switch back to shooting
 	int m_LastWeapon;
+	int64 m_LastGamepadAimTime;
+	bool m_WasGameplayCaptured;
+	int m_AimAssistTargetType;
+	int m_AimAssistTargetID;
+	CDiscreteInputPulse m_WeaponSelectionPulse;
 
 	CControls();
 
@@ -36,11 +42,15 @@ class CControls : public CComponent
 	virtual bool OnMouseMove(float x, float y);
 	virtual void OnConsoleInit();
 	virtual void OnPlayerDeath();
+	void QueueWeaponSlot(int ProtocolSlot);
+	void CancelQueuedWeaponSlot();
 
 	static void ConZoomPlus(IConsole::IResult *pResult, void *pUserData);
 	static void ConZoomMinus(IConsole::IResult *pResult, void *pUserData);
 
 	int SnapInput(int *pData);
 	void ClampMousePos();
+	void RestoreHeldMovement();
+	bool FindAimAssistTarget(vec2 AimDirection, vec2 *pTargetDirection, float *pAngle);
 };
 #endif

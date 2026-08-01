@@ -4940,3 +4940,41 @@ Checkpoints
 
 %d checkpoints
 == %d 個檢查點
+Aim sensitivity
+== 瞄準靈敏度
+
+Movement deadzone
+== 移動死區
+
+Aim deadzone
+== 瞄準死區
+
+Aim response curve
+== 瞄準響應曲線
+
+Aim assist strength
+== 瞄準輔助強度
+
+PvE: slowdown and light magnetism · PvP: slowdown only
+== PvE：減速與輕微吸附 · PvP：僅減速
+
+Invert gamepad vertical aim
+== 反轉手把垂直瞄準
+
+Show input diagnostics
+== 顯示輸入診斷
+
+Processed aim
+== 處理後瞄準
+
+Reset controller defaults
+== 重設手把預設設定
+
+Controller bindings
+== 手把按鍵
+
+Keyboard & mouse
+== 鍵盤與滑鼠
+
+Controller & advanced
+== 手把與進階輸入

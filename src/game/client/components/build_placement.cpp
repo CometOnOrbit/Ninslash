@@ -197,9 +197,17 @@ bool CBuildPlacement::OnMouseMove(float x, float y)
 	if(!WheelActive())
 		return false;
 	Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
-	Input()->GetRelativePosition(&x, &y);
-	m_WheelCursor += vec2(x, y);
 	const float MaxRadius = 132.0f;
+	if(Input()->UsingGamepad())
+	{
+		Input()->GetGamepadAim(&x, &y);
+		m_WheelCursor = vec2(x, y) * MaxRadius;
+	}
+	else
+	{
+		Input()->GetRelativePosition(&x, &y);
+		m_WheelCursor += vec2(x, y);
+	}
 	if(length(m_WheelCursor) > MaxRadius)
 		m_WheelCursor = normalize(m_WheelCursor) * MaxRadius;
 	return true;

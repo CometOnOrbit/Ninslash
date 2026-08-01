@@ -3,6 +3,7 @@
 #include <engine/demo.h>
 #include <engine/engine.h>
 #include <engine/graphics.h>
+#include <engine/gamepad.h>
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <generated/game_data.h>
@@ -274,6 +275,18 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 	CTeeRenderInfo RenderInfo = m_aRenderInfo[pInfo.m_ClientID];
 
 	CPlayerInfo *pCustomPlayerInfo = &CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID];
+	const bool WeaponChanged = !(pCustomPlayerInfo->m_Weapon == Player.m_WeaponSpec);
+	if(WeaponChanged)
+	{
+		// Recoil and movement springs belong to the old held attachment. Carrying
+		// them across a confirmed slot change can draw the new weapon flying in
+		// from an unrelated world-space offset for one frame.
+		pCustomPlayerInfo->m_WeaponRecoil = vec2(0, 0);
+		pCustomPlayerInfo->m_WeaponRecoilVel = vec2(0, 0);
+		pCustomPlayerInfo->m_Weapon2Recoil = vec2(0, 0);
+		pCustomPlayerInfo->m_Weapon2RecoilVel = vec2(0, 0);
+		pCustomPlayerInfo->m_WeaponRecoilLoaded = false;
+	}
 
 	bool NewTick = m_pClient->m_NewTick;
 
@@ -480,6 +493,8 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 				const float Impulse = FireCameraImpulse(WeaponCombat, WeaponVisual);
 				CustomStuff()->AddCameraImpulse(
 					-Direction * Impulse, Impulse * 0.18f, g_Config.m_ClHitFeedback / 100.0f);
+				if(g_Config.m_ClSteamRumble && Gamepad()->IsRumbleEnabled())
+					Gamepad()->Rumble(0.08f, 35);
 			}
 
 			if(IsCompactGun)
@@ -632,11 +647,6 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 		CustomStuff()->m_LocalPos = Position;
 		CustomStuff()->m_aPlayerInfo[pInfo.m_ClientID].SetLocal();
 
-		int Group = m_pClient->m_pControls->m_InputData.m_WantedWeapon;
-
-		if(Group > 0 && Group < 4)
-			CustomStuff()->m_WantedWeapon = m_pClient->m_pControls->m_InputData.m_WantedWeapon;
-
 		CustomStuff()->m_SelectedWeapon = Player.m_WeaponSpec;
 	}
 
@@ -686,6 +696,8 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 	{
 		pCustomPlayerInfo->m_DamageTick = Player.m_DamageTick;
 		pCustomPlayerInfo->m_EffectIntensity[EFFECT_DAMAGE] = 1.0f;
+		if(pInfo.m_ClientID == m_pClient->m_Snap.m_LocalClientID && g_Config.m_ClSteamRumble && Gamepad()->IsRumbleEnabled())
+			Gamepad()->Rumble(0.25f, 90);
 	}
 
 	pCustomPlayerInfo->ChargeIntensity(Player.m_ChargeLevel);

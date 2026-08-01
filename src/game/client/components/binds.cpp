@@ -2,6 +2,7 @@
 
 #include <engine/config.h>
 #include <engine/shared/config.h>
+#include <engine/storage.h>
 #include "binds.h"
 
 bool CBinds::CBindsSpecial::OnInput(IInput::CEvent Event)
@@ -10,6 +11,8 @@ bool CBinds::CBindsSpecial::OnInput(IInput::CEvent Event)
 	if(((Event.m_Key >= KEY_F1 && Event.m_Key <= KEY_F12) || (Event.m_Key >= KEY_F13 && Event.m_Key <= KEY_F24)) &&
 	   m_pBinds->m_aaKeyBindings[Event.m_Key][0] != 0)
 	{
+		if(!(Event.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_RELEASE)))
+			return false;
 		int Stroke = 0;
 		if(Event.m_Flags & IInput::FLAG_PRESS)
 			Stroke = 1;
@@ -45,6 +48,8 @@ bool CBinds::OnInput(IInput::CEvent e)
 {
 	// don't handle invalid events and keys that arn't set to anything
 	if(e.m_Key <= 0 || e.m_Key >= KEY_LAST || m_aaKeyBindings[e.m_Key][0] == 0)
+		return false;
+	if(!(e.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_RELEASE)))
 		return false;
 
 	int Stroke = 0;
@@ -150,17 +155,13 @@ void CBinds::SetDefaults()
 	Bind(KEY_GAMEPAD_BUTTON_B, "+gamepaddropweapon");
 	Bind(KEY_GAMEPAD_BUTTON_Y, "+buildmenu");
 
-	Bind(KEY_GAMEPAD_BUTTON_A, "+gamepademote");
+	Bind(KEY_GAMEPAD_BUTTON_A, "+gamepadjump");
+	Bind(KEY_GAMEPAD_BUTTON_X, "+gamepademote");
 
 	Bind(KEY_1, "+weapon2");
 	Bind(KEY_2, "+weapon3");
 	Bind(KEY_3, "+weapon4");
 	Bind(KEY_4, "+weapon5");
-	Bind(KEY_5, "+weapon6");
-	Bind(KEY_6, "+weapon7");
-	Bind(KEY_7, "+weapon8");
-	Bind(KEY_8, "+weapon9");
-	Bind(KEY_9, "+weapon10");
 
 	Bind(KEY_MOUSE_WHEEL_UP, "+prevweapon");
 	Bind(KEY_MOUSE_WHEEL_DOWN, "+nextweapon");
@@ -179,6 +180,16 @@ void CBinds::SetDefaults()
 
 void CBinds::OnConsoleInit()
 {
+	bool FreshProfile = true;
+	if(Storage())
+	{
+		IOHANDLE Settings = Storage()->OpenFile("settings.cfg", IOFLAG_READ, IStorage::TYPE_SAVE);
+		if(Settings)
+		{
+			FreshProfile = false;
+			io_close(Settings);
+		}
+	}
 	// bindings
 	IConfig *pConfig = Kernel()->RequestInterface<IConfig>();
 	if(pConfig)
@@ -191,6 +202,8 @@ void CBinds::OnConsoleInit()
 
 	// default bindings
 	SetDefaults();
+	if(FreshProfile)
+		g_Config.m_ClGamepadAimAssist = 35;
 }
 
 void CBinds::ConBind(IConsole::IResult *pResult, void *pUserData)

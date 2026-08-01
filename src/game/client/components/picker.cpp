@@ -332,7 +332,7 @@ void CPicker::DropWeapon()
 	CNetMsg_Cl_DropWeapon Msg;
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
 
-	m_pClient->m_pControls->m_InputData.m_WantedWeapon = 0;
+	m_pClient->m_pControls->CancelQueuedWeaponSlot();
 }
 
 void CPicker::SwitchGroup()

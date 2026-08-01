@@ -29,6 +29,7 @@ class CInput : public IEngineInput
 
 	int m_GamepadOldAimX;
 	int m_GamepadOldAimY;
+	int64 m_LastGamepadRelativeTime;
 	bool m_aSteamInputPrevious[64];
 	int m_GamepadActionSet;
 	bool m_TextInputActive;
@@ -70,6 +71,7 @@ class CInput : public IEngineInput
 	virtual bool MouseMoved();
 	virtual bool GamepadMoved();
 	virtual bool UsingGamepad() { return m_UsingGamepad; }
+	virtual void GetGamepadAim(float *pX, float *pY);
 	virtual void SetGamepadActionSet(int ActionSet);
 	virtual int MouseDoubleClick();
 	virtual const char *GetClipboardText();

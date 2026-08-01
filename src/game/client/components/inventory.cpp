@@ -3,6 +3,7 @@
 #include <engine/textrender.h>
 #include <engine/shared/config.h>
 #include <engine/keys.h>
+#include <engine/input_processing.h>
 #include <generated/protocol.h>
 #include <generated/game_data.h>
 
@@ -230,7 +231,7 @@ void CInventory::ActivateSelection()
 			return;
 		const int Target = InventoryLogic::EquipTarget(m_SelectedSlot, CustomStuff()->m_WeaponSlot);
 		if(m_SelectedSlot < 4)
-			m_pClient->m_pControls->m_InputData.m_WantedWeapon = Target + 2;
+			m_pClient->m_pControls->QueueWeaponSlot(Target + 2);
 		else if(Target >= 0)
 			Swap(m_SelectedSlot, Target);
 		m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV4, 0);
@@ -407,6 +408,7 @@ void CInventory::OnReset()
 	m_ShopConfirmSlot = -1;
 	m_SelectorMouse = vec2(0, 0);
 	m_WorldMouse = vec2(0, 0);
+	m_LastGamepadCursorTime = 0;
 	m_WantedTab = -1;
 	m_ForgeLastResult = -1;
 	m_ForgeResultEndTick = 0;
@@ -439,11 +441,25 @@ bool CInventory::OnMouseMove(float x, float y)
 
 	Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
 
-	Input()->GetRelativePosition(&x, &y);
-	const float AimScale = (200.0f + g_Config.m_InpMousesens) / (Input()->UsingGamepad() ? 1500.0f : 150.0f);
-	m_WorldMouse += vec2(x, y) * AimScale;
-	const float HudScale = 300.0f / max(1, Graphics()->ScreenHeight());
-	m_SelectorMouse += vec2(x, y) * HudScale;
+	if(Input()->UsingGamepad())
+	{
+		float AimX = 0.0f, AimY = 0.0f;
+		Input()->GetGamepadAim(&AimX, &AimY);
+		const int64 Now = time_get();
+		const float Delta = m_LastGamepadCursorTime ? (Now - m_LastGamepadCursorTime) / (float)time_freq() : 1.0f / 60.0f;
+		m_LastGamepadCursorTime = Now;
+		m_WorldMouse += IntegrateAimStick(vec2(AimX, AimY), 700.0f, 1.0f, Delta);
+		m_SelectorMouse += IntegrateAimStick(vec2(AimX, AimY), 240.0f, 1.0f, Delta);
+	}
+	else
+	{
+		m_LastGamepadCursorTime = 0;
+		Input()->GetRelativePosition(&x, &y);
+		const float AimScale = (200.0f + g_Config.m_InpMousesens) / 150.0f;
+		m_WorldMouse += vec2(x, y) * AimScale;
+		const float HudScale = 300.0f / max(1, Graphics()->ScreenHeight());
+		m_SelectorMouse += vec2(x, y) * HudScale;
+	}
 
 	if(!m_Mouse1)
 	{
@@ -1337,7 +1353,7 @@ void CInventory::OnRender()
 			if(m_Render)
 			{
 				m_SelectorMouse = vec2(300.0f * Graphics()->ScreenAspect() - 70.0f, 70.0f);
-				m_pClient->m_pControls->m_InputData.m_WantedWeapon = 0;
+				m_pClient->m_pControls->CancelQueuedWeaponSlot();
 			}
 		}
 

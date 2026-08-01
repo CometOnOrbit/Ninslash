@@ -279,6 +279,8 @@ class CCharacter : public CEntity
 	int m_LastDir;
 
 	int m_ChargeTick;
+	int m_FireBufferEndTick;
+	int m_SwitchBufferEndTick;
 
 	int m_Flamethrower;
 	void Flamethrower();

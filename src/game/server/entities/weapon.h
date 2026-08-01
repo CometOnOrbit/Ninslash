@@ -44,6 +44,8 @@ class CWeapon : public CEntity, public IWeaponScriptHost
 
 	bool Drop();
 	bool CanSwitch();
+	bool CanFireNow() const { return m_CanFire && m_ReloadTimer <= 0 && (!m_UseAmmo || m_Ammo > 0); }
+	int ReloadTicksRemaining() const { return max(0, m_ReloadTimer); }
 	bool AddClip();
 
 	void UpdateStats();

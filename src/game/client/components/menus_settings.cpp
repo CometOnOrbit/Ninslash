@@ -1825,6 +1825,7 @@ typedef struct
 	CLocConstString m_Name;
 	const char *m_pCommand;
 	int m_KeyId;
+	int m_SecondaryKeyId;
 } CKeyInfo;
 
 enum ControlSettings
@@ -1910,22 +1911,41 @@ void CMenus::UiDoGetButtons(int Start, int Stop, CUIRect View)
 	for(int i = Start; i < Stop; i++)
 	{
 		CKeyInfo &Key = gs_aKeys[i];
-		CUIRect Button, Label;
+		CUIRect Button, Label, Primary, Secondary;
 		View.HSplitTop(20.0f, &Button, &View);
 		Button.VSplitLeft(135.0f, &Label, &Button);
+		Button.VSplitMid(&Primary, &Secondary);
+		Primary.w -= 2.0f;
+		Secondary.x += 2.0f;
+		Secondary.w -= 2.0f;
 
 		char aBuf[64];
 		str_format(aBuf, sizeof(aBuf), "%s:", (const char *)Key.m_Name);
 
 		UI()->DoLabelScaled(&Label, aBuf, 13.0f, -1);
-		int OldId = Key.m_KeyId;
-		int NewId = DoKeyReader((void *)&gs_aKeys[i].m_Name, &Button, OldId);
-		if(NewId != OldId)
-		{
-			if(OldId != 0 || NewId == 0)
+		auto ApplyBinding = [&](int OldId, int NewId) {
+			if(NewId == OldId)
+				return;
+			char aDisplaced[128];
+			aDisplaced[0] = 0;
+			if(NewId)
+				str_copy(aDisplaced, m_pClient->m_pBinds->Get(NewId), sizeof(aDisplaced));
+			if(OldId)
 				m_pClient->m_pBinds->Bind(OldId, "");
-			if(NewId != 0)
-				m_pClient->m_pBinds->Bind(NewId, gs_aKeys[i].m_pCommand);
+			if(NewId)
+			{
+				if(aDisplaced[0] && str_comp(aDisplaced, Key.m_pCommand) != 0 && OldId)
+					m_pClient->m_pBinds->Bind(OldId, aDisplaced);
+				m_pClient->m_pBinds->Bind(NewId, Key.m_pCommand);
+			}
+		};
+		const int NewPrimary = DoKeyReader((void *)&Key.m_KeyId, &Primary, Key.m_KeyId);
+		if(NewPrimary != Key.m_KeyId)
+			ApplyBinding(Key.m_KeyId, NewPrimary);
+		const int NewSecondary = DoKeyReader((void *)&Key.m_SecondaryKeyId, &Secondary, Key.m_SecondaryKeyId);
+		if(NewSecondary != Key.m_SecondaryKeyId)
+		{
+			ApplyBinding(Key.m_SecondaryKeyId, NewSecondary);
 		}
 		View.HSplitTop(5.0f, 0, &View);
 	}
@@ -1972,9 +1992,28 @@ float CMenus::RenderSettingsControlsMisc(CUIRect View)
 
 void CMenus::RenderSettingsControls(CUIRect MainView)
 {
+	static int s_aInputTabIds[2];
+	CUIRect InputTabs, KeyboardTab, GamepadTab;
+	MainView.HSplitTop(26.0f, &InputTabs, &MainView);
+	InputTabs.VSplitMid(&KeyboardTab, &GamepadTab);
+	KeyboardTab.VMargin(2.0f, &KeyboardTab);
+	GamepadTab.VMargin(2.0f, &GamepadTab);
+	if(DoButton_MenuTab(&s_aInputTabIds[0], Localize("Keyboard & mouse"), g_Config.m_UiInputPage == 0, &KeyboardTab, CUI::CORNER_ALL))
+		g_Config.m_UiInputPage = 0;
+	if(DoButton_MenuTab(&s_aInputTabIds[1], Localize("Controller & advanced"), g_Config.m_UiInputPage == 1, &GamepadTab, CUI::CORNER_ALL))
+		g_Config.m_UiInputPage = 1;
+	MainView.HSplitTop(8.0f, 0, &MainView);
+	if(g_Config.m_UiInputPage == 1)
+	{
+		RenderSettingsGamepad(MainView);
+		return;
+	}
 	// this is kinda slow, but whatever
 	for(int i = 0; i < g_KeyCount; i++)
+	{
 		gs_aKeys[i].m_KeyId = 0;
+		gs_aKeys[i].m_SecondaryKeyId = 0;
+	}
 
 	for(int KeyId = 0; KeyId < KEY_LAST; KeyId++)
 	{
@@ -1985,7 +2024,10 @@ void CMenus::RenderSettingsControls(CUIRect MainView)
 		for(int i = 0; i < g_KeyCount; i++)
 			if(str_comp(pBind, gs_aKeys[i].m_pCommand) == 0)
 			{
-				gs_aKeys[i].m_KeyId = KeyId;
+				if(!gs_aKeys[i].m_KeyId)
+					gs_aKeys[i].m_KeyId = KeyId;
+				else if(!gs_aKeys[i].m_SecondaryKeyId)
+					gs_aKeys[i].m_SecondaryKeyId = KeyId;
 				break;
 			}
 	}
@@ -2496,42 +2538,122 @@ void CMenus::RenderSettingsSound(CUIRect MainView)
 // custom menu for the client
 void CMenus::RenderSettingsGamepad(CUIRect MainView)
 {
-	CUIRect Button;
-	MainView.VSplitMid(&MainView, 0);
+	CUIRect Left, Right, Button;
+	MainView.VSplitMid(&Left, &Right);
+	Left.w -= 10.0f;
+	Right.x += 10.0f;
+	Right.w -= 10.0f;
+	auto Slider = [&](CUIRect &View, int *pValue, int Min, int Max, const char *pLabel, float DisplayScale) {
+		CUIRect Label, Bar;
+		View.HSplitTop(20.0f, &Label, &View);
+		char aText[128];
+		if(DisplayScale == 1.0f)
+			str_format(aText, sizeof(aText), "%s: %d", pLabel, *pValue);
+		else
+			str_format(aText, sizeof(aText), "%s: %.2f", pLabel, *pValue * DisplayScale);
+		UI()->DoLabelScaled(&Label, aText, 13.0f, -1);
+		View.HSplitTop(18.0f, &Bar, &View);
+		*pValue = Min + (int)(DoScrollbarH(pValue, &Bar, (*pValue - Min) / (float)(Max - Min)) * (Max - Min));
+		View.HSplitTop(6.0f, 0, &View);
+	};
+	Slider(Left, &g_Config.m_ClGamepadAimSensitivity, 25, 300, Localize("Aim sensitivity"), 1.0f);
+	Slider(Left, &g_Config.m_ClGamepadMoveDeadzone, 10, 80, Localize("Movement deadzone"), 1.0f);
+	Slider(Left, &g_Config.m_ClGamepadAimDeadzone, 0, 60, Localize("Aim deadzone"), 1.0f);
+	Slider(Left, &g_Config.m_ClGamepadAimCurve, 50, 300, Localize("Aim response curve"), 0.01f);
+	Slider(Left, &g_Config.m_ClGamepadAimAssist, 0, 100, Localize("Aim assist strength"), 1.0f);
+	Left.HSplitTop(22.0f, &Button, &Left);
+	UI()->DoLabelScaled(&Button, Localize("PvE: slowdown and light magnetism · PvP: slowdown only"), 11.0f, -1);
+
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
 	static int s_OpenSteamInput;
-	MainView.HSplitTop(24.0f, &Button, &MainView);
+	Right.HSplitTop(22.0f, &Button, &Right);
 	if(DoButton_Menu(
 		   &s_OpenSteamInput, Localize("Open Steam controller configuration"), 0, &Button, BUTTONSTYLE_ACCENT) &&
 	   pPlatform)
 		pPlatform->OpenInputConfiguration();
-	MainView.HSplitTop(24.0f, &Button, &MainView);
+	Right.HSplitTop(20.0f, &Button, &Right);
+	if(DoButton_CheckBox(&g_Config.m_ClGamepadInvertY, Localize("Invert gamepad vertical aim"), g_Config.m_ClGamepadInvertY, &Button))
+		g_Config.m_ClGamepadInvertY ^= 1;
+	Right.HSplitTop(20.0f, &Button, &Right);
 	if(DoButton_CheckBox(
 		   &g_Config.m_ClSteamGyro, Localize("Steam Input gyroscope aiming"), g_Config.m_ClSteamGyro, &Button))
 		g_Config.m_ClSteamGyro ^= 1;
-	MainView.HSplitTop(24.0f, &Button, &MainView);
+	Right.HSplitTop(20.0f, &Button, &Right);
 	if(DoButton_CheckBox(&g_Config.m_ClSteamGyroInvert,
 						 Localize("Invert gyroscope vertical aim"),
 						 g_Config.m_ClSteamGyroInvert,
 						 &Button))
 		g_Config.m_ClSteamGyroInvert ^= 1;
-	MainView.HSplitTop(24.0f, &Button, &MainView);
+	Right.HSplitTop(20.0f, &Button, &Right);
 	if(DoButton_CheckBox(
 		   &g_Config.m_ClSteamRumble, Localize("Steam Input vibration"), g_Config.m_ClSteamRumble, &Button))
 		g_Config.m_ClSteamRumble ^= 1;
+	Slider(Right, &g_Config.m_ClSteamGyroSensitivity, 1, 1000, Localize("Gyroscope sensitivity"), 1.0f);
+	Right.HSplitTop(20.0f, &Button, &Right);
+	if(DoButton_CheckBox(&g_Config.m_ClInputDebug, Localize("Show input diagnostics"), g_Config.m_ClInputDebug, &Button))
+		g_Config.m_ClInputDebug ^= 1;
+	float AimX = 0.0f, AimY = 0.0f;
+	Input()->GetGamepadAim(&AimX, &AimY);
+	Right.HSplitTop(24.0f, &Button, &Right);
+	char aPreview[128];
+	str_format(aPreview, sizeof(aPreview), "%s  X %.2f  Y %.2f", Localize("Processed aim"), AimX, AimY);
+	UI()->DoLabelScaled(&Button, aPreview, 13.0f, -1);
+	Right.HSplitTop(22.0f, &Button, &Right);
+	static int s_ResetGamepad;
+	if(DoButton_Menu(&s_ResetGamepad, Localize("Reset controller defaults"), 0, &Button))
 	{
-		CUIRect Button, Label;
-		MainView.HSplitTop(25.0f, &Button, &MainView);
-		MainView.HSplitTop(24.0f, &Button, &MainView);
-		Button.VSplitLeft(190.0f, &Label, &Button);
-		Button.HMargin(2.0f, &Button);
-		UI()->DoLabelScaled(&Label, Localize("Gyroscope sensitivity"), 14.0f, -1);
-		MainView.HSplitTop(24.0f, &Button, &MainView);
-		g_Config.m_ClSteamGyroSensitivity = 1 + (int)(DoScrollbarH(&g_Config.m_ClSteamGyroSensitivity,
-																   &Button,
-																   (g_Config.m_ClSteamGyroSensitivity - 1) / 999.0f) *
-													  999.0f);
-		MainView.HSplitTop(20.0f, 0, &MainView);
+		g_Config.m_ClGamepadAimSensitivity = 100;
+		g_Config.m_ClGamepadMoveDeadzone = 35;
+		g_Config.m_ClGamepadAimDeadzone = 18;
+		g_Config.m_ClGamepadAimCurve = 150;
+		g_Config.m_ClGamepadAimAssist = 35;
+		g_Config.m_ClGamepadInvertY = 0;
+	}
+	struct CPadBinding
+	{
+		const char *m_pName;
+		const char *m_pCommand;
+		int m_Key;
+	};
+	static CPadBinding s_aPadBindings[] = {
+		{"Jump", "+gamepadjump", 0}, {"Fire", "+gamepadfire", 0}, {"Hook", "+gamepadturbo", 0},
+		{"Next weapon", "+gamepadnextweapon", 0}, {"Prev. weapon", "+gamepadprevweapon", 0},
+		{"Drop weapon", "+gamepaddropweapon", 0}, {"Build menu", "+buildmenu", 0}, {"Emoticon", "+gamepademote", 0}};
+	for(auto &Binding : s_aPadBindings)
+	{
+		Binding.m_Key = 0;
+		for(int Key = KEY_GAMEPAD_BUTTON_A; Key < KEY_LAST; Key++)
+			if(str_comp(m_pClient->m_pBinds->Get(Key), Binding.m_pCommand) == 0)
+			{
+				Binding.m_Key = Key;
+				break;
+			}
+	}
+	Right.HSplitTop(18.0f, &Button, &Right);
+	UI()->DoLabelScaled(&Button, Localize("Controller bindings"), 13.0f, -1);
+	for(auto &Binding : s_aPadBindings)
+	{
+		CUIRect Label, Reader;
+		Right.HSplitTop(18.0f, &Button, &Right);
+		Button.VSplitLeft(120.0f, &Label, &Reader);
+		UI()->DoLabelScaled(&Label, Localize(Binding.m_pName), 11.0f, -1);
+		const int OldKey = Binding.m_Key;
+		const int NewKey = DoKeyReader(&Binding, &Reader, OldKey);
+		if(NewKey != OldKey)
+		{
+			char aDisplaced[128];
+			aDisplaced[0] = 0;
+			if(NewKey)
+				str_copy(aDisplaced, m_pClient->m_pBinds->Get(NewKey), sizeof(aDisplaced));
+			if(OldKey)
+				m_pClient->m_pBinds->Bind(OldKey, "");
+			if(NewKey)
+			{
+				if(aDisplaced[0] && OldKey)
+					m_pClient->m_pBinds->Bind(OldKey, aDisplaced);
+				m_pClient->m_pBinds->Bind(NewKey, Binding.m_pCommand);
+			}
+		}
 	}
 }
 
@@ -3296,8 +3418,6 @@ void CMenus::RenderSettingsCloud(CUIRect MainView)
 
 void CMenus::RenderSettings(CUIRect MainView)
 {
-	static int s_SettingsPage = 0;
-
 	CUIRect TabBar, Content, RestartWarning;
 	MainView.HSplitBottom(18.0f, &MainView, &RestartWarning);
 	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
@@ -3331,25 +3451,25 @@ void CMenus::RenderSettings(CUIRect MainView)
 			Corners = CUI::CORNER_TL;
 		else if(i == NumTabs - 1)
 			Corners = CUI::CORNER_TR;
-		if(DoButton_MenuTab(aTabs[i], aTabs[i], s_SettingsPage == i, &Tab, Corners))
-			s_SettingsPage = i;
+		if(DoButton_MenuTab(aTabs[i], aTabs[i], g_Config.m_UiSettingsPage == i, &Tab, Corners))
+			g_Config.m_UiSettingsPage = i;
 	}
 
-	if(s_SettingsPage == 0)
+	if(g_Config.m_UiSettingsPage == 0)
 		RenderLanguageSelection(Content);
-	else if(s_SettingsPage == 1)
+	else if(g_Config.m_UiSettingsPage == 1)
 		RenderSettingsGeneral(Content);
-	else if(s_SettingsPage == 2)
+	else if(g_Config.m_UiSettingsPage == 2)
 		RenderSettingsPlayer(Content);
-	else if(s_SettingsPage == 3)
+	else if(g_Config.m_UiSettingsPage == 3)
 		RenderCustomization(Content);
-	else if(s_SettingsPage == 4)
+	else if(g_Config.m_UiSettingsPage == 4)
 		RenderSettingsControls(Content);
-	else if(s_SettingsPage == 5)
+	else if(g_Config.m_UiSettingsPage == 5)
 		RenderSettingsGraphics(Content);
-	else if(s_SettingsPage == 6)
+	else if(g_Config.m_UiSettingsPage == 6)
 		RenderSettingsSound(Content);
-	else if(s_SettingsPage == 7)
+	else if(g_Config.m_UiSettingsPage == 7)
 		RenderSettingsCloud(Content);
 
 	if(m_NeedRestartGraphics || m_NeedRestartSound)

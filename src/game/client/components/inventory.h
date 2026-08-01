@@ -30,6 +30,7 @@ class CInventory : public CComponent
 
 	vec2 m_SelectorMouse;
 	vec2 m_WorldMouse;
+	int64 m_LastGamepadCursorTime;
 
 	int m_Tab;
 	int m_SelectedSlot;

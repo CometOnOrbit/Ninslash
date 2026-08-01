@@ -1,8 +1,10 @@
 
 
 #include <base/math.h>
+#include <base/system.h>
 
 #include <engine/shared/config.h>
+#include <engine/input_processing.h>
 
 #include <engine/keys.h>
 
@@ -11,6 +13,7 @@
 #include <game/client/component.h>
 #include <game/client/components/inventory.h>
 #include <game/client/components/build_placement.h>
+#include <game/client/components/binds.h>
 #include <game/client/components/chat.h>
 #include <game/client/components/menus.h>
 #include <game/client/components/scoreboard.h>
@@ -23,6 +26,11 @@ CControls::CControls()
 {
 	mem_zero(&m_LastData, sizeof(m_LastData));
 	m_Ready = false;
+	m_LastGamepadAimTime = 0;
+	m_WasGameplayCaptured = false;
+	m_AimAssistTargetType = 0;
+	m_AimAssistTargetID = -1;
+	m_WeaponSelectionPulse.Reset();
 }
 
 void CControls::OnReset()
@@ -37,6 +45,7 @@ void CControls::OnReset()
 	m_LastData.m_Fire &= INPUT_STATE_MASK;
 	m_LastData.m_Jump = 0;
 	m_InputData = m_LastData;
+	m_LastData.m_WantedWeapon = m_InputData.m_WantedWeapon = 0;
 
 	m_InputDirectionLeft = 0;
 	m_InputDirectionRight = 0;
@@ -45,6 +54,91 @@ void CControls::OnReset()
 	m_SignalWeapon = -1;
 	m_LastWeapon = 1;
 	m_Ready = false;
+	m_LastGamepadAimTime = 0;
+	m_AimAssistTargetType = 0;
+	m_AimAssistTargetID = -1;
+	m_WeaponSelectionPulse.Reset();
+}
+
+bool CControls::FindAimAssistTarget(vec2 AimDirection, vec2 *pTargetDirection, float *pAngle)
+{
+	if(g_Config.m_ClGamepadAimAssist <= 0 || !m_pClient->m_Snap.m_pLocalCharacter || length(AimDirection) < 0.01f)
+		return false;
+	const vec2 Origin = m_pClient->m_LocalCharacterPos;
+	const bool Coop = m_pClient->m_Snap.m_pGameInfoObj && (m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_COOP);
+	const float AcquireAngle = 6.0f * pi / 180.0f;
+	const float RetainAngle = 9.0f * pi / 180.0f;
+	float BestAngle = 1000.0f;
+	int BestType = 0, BestID = -1;
+	vec2 BestDirection(0, 0);
+	auto Consider = [&](int Type, int ID, vec2 Pos) {
+		const vec2 Delta = Pos - Origin;
+		const float Dist = length(Delta);
+		if(Dist < 1.0f || Dist > 900.0f || Collision()->IntersectLine(Origin, Pos, 0, 0))
+			return;
+		const vec2 Direction = Delta / Dist;
+		const float Angle = acosf(clamp(dot(AimDirection, Direction), -1.0f, 1.0f));
+		const bool Retained = Type == m_AimAssistTargetType && ID == m_AimAssistTargetID;
+		if(Angle > (Retained ? RetainAngle : AcquireAngle) || Angle >= BestAngle)
+			return;
+		BestAngle = Angle;
+		BestType = Type;
+		BestID = ID;
+		BestDirection = Direction;
+	};
+
+	if(Coop)
+	{
+		for(int i = 0; i < Client()->SnapNumItems(IClient::SNAP_CURRENT); i++)
+		{
+			IClient::CSnapItem Item;
+			const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
+			if(Item.m_Type == NETOBJTYPE_DROID)
+			{
+				const CNetObj_Droid *pDroid = static_cast<const CNetObj_Droid *>(pData);
+				Consider(1, Item.m_ID, vec2(pDroid->m_X, pDroid->m_Y));
+			}
+		}
+	}
+	else
+	{
+		const int LocalID = m_pClient->m_Snap.m_LocalClientID;
+		const int LocalTeam = m_pClient->m_Snap.m_pLocalInfo ? m_pClient->m_Snap.m_pLocalInfo->m_Team : TEAM_SPECTATORS;
+		for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+		{
+			if(ClientID == LocalID || !m_pClient->m_Snap.m_aCharacters[ClientID].m_Active || !m_pClient->m_Snap.m_paPlayerInfos[ClientID])
+				continue;
+			const int Team = m_pClient->m_Snap.m_paPlayerInfos[ClientID]->m_Team;
+			if(LocalTeam != TEAM_SPECTATORS && LocalTeam == Team && m_pClient->m_Snap.m_pGameInfoObj && (m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_TEAMS))
+				continue;
+			Consider(2, ClientID, m_pClient->m_Snap.m_aCharacters[ClientID].m_Position);
+		}
+	}
+	if(BestID < 0)
+	{
+		m_AimAssistTargetType = 0;
+		m_AimAssistTargetID = -1;
+		return false;
+	}
+	m_AimAssistTargetType = BestType;
+	m_AimAssistTargetID = BestID;
+	*pTargetDirection = BestDirection;
+	*pAngle = BestAngle;
+	return true;
+}
+
+void CControls::RestoreHeldMovement()
+{
+	auto CommandHeld = [this](const char *pCommand) {
+		int Held = 0;
+		for(int Key = 1; Key < KEY_LAST; Key++)
+			if(str_comp(m_pClient->m_pBinds->Get(Key), pCommand) == 0 && Input()->KeyPressed(Key))
+				Held++;
+		return Held;
+	};
+	m_InputDirectionLeft = CommandHeld("+left") + CommandHeld("+gamepadleft");
+	m_InputDirectionRight = CommandHeld("+right") + CommandHeld("+gamepadright");
+	m_InputData.m_Down = CommandHeld("+down") + CommandHeld("+gamepaddown");
 }
 
 void CControls::OnRelease()
@@ -55,11 +149,26 @@ void CControls::OnRelease()
 void CControls::OnPlayerDeath()
 {
 	m_LastData.m_WantedWeapon = m_InputData.m_WantedWeapon = 0;
+	m_WeaponSelectionPulse.Reset();
+}
+
+void CControls::QueueWeaponSlot(int ProtocolSlot)
+{
+	if(ProtocolSlot > 0)
+		m_WeaponSelectionPulse.Queue(ProtocolSlot);
+}
+
+void CControls::CancelQueuedWeaponSlot()
+{
+	m_WeaponSelectionPulse.CancelQueued();
+	if(!m_WeaponSelectionPulse.NeedsRelease())
+		m_InputData.m_WantedWeapon = 0;
 }
 
 static void ConKeyInputState(IConsole::IResult *pResult, void *pUserData)
 {
-	((int *)pUserData)[0] = pResult->GetInteger(0);
+	int *pState = (int *)pUserData;
+	*pState = clamp(*pState + (pResult->GetInteger(0) ? 1 : -1), 0, 16);
 }
 
 static void ConKeyInputCounter(IConsole::IResult *pResult, void *pUserData)
@@ -88,14 +197,14 @@ static void ConKeyInputSet(IConsole::IResult *pResult, void *pUserData)
 {
 	CInputSet *pSet = (CInputSet *)pUserData;
 	if(pResult->GetInteger(0))
-		*pSet->m_pVariable = pSet->m_Value;
+		pSet->m_pControls->QueueWeaponSlot(pSet->m_Value);
 }
 
 static void ConKeyInputNextPrevWeapon(IConsole::IResult *pResult, void *pUserData)
 {
 	CInputSet *pSet = (CInputSet *)pUserData;
 	ConKeyInputCounter(pResult, pSet->m_pVariable);
-	pSet->m_pControls->m_InputData.m_WantedWeapon = 0;
+	pSet->m_pControls->CancelQueuedWeaponSlot();
 }
 
 void CControls::ConZoomPlus(IConsole::IResult *pResult, void *pUserData)
@@ -243,7 +352,8 @@ int CControls::SnapInput(int *pData)
 
 	// Focused overlays own the controls. Reset held movement/fire as well as
 	// blocking new events so opening an overlay cannot leave an old action stuck.
-	if(!(m_InputData.m_PlayerFlags & PLAYERFLAG_PLAYING))
+	const bool GameplayCaptured = !(m_InputData.m_PlayerFlags & PLAYERFLAG_PLAYING);
+	if(GameplayCaptured)
 	{
 		OnReset();
 
@@ -255,6 +365,15 @@ int CControls::SnapInput(int *pData)
 	}
 	else
 	{
+		if(m_WasGameplayCaptured)
+			RestoreHeldMovement();
+
+		// Direct weapon selection is an event, not a held state. Always put a
+		// zero packet between requests so pressing the same number twice is
+		// visible to the server as two distinct actions.
+		const int WeaponPulse = m_WeaponSelectionPulse.Prepare();
+		if(WeaponPulse >= 0)
+			m_InputData.m_WantedWeapon = WeaponPulse;
 
 		m_InputData.m_TargetX = (int)m_MousePos.x;
 		m_InputData.m_TargetY = (int)m_MousePos.y;
@@ -331,15 +450,20 @@ int CControls::SnapInput(int *pData)
 		if(time_get() > LastSendTime + time_freq() / 25)
 			Send = true;
 	}
-
-	// copy and return size
-	m_LastData = m_InputData;
+	m_WasGameplayCaptured = GameplayCaptured;
 
 	if(!Send)
+	{
+		m_LastData = m_InputData;
 		return 0;
+	}
 
 	LastSendTime = time_get();
 	mem_copy(pData, &m_InputData, sizeof(m_InputData));
+	m_LastData = m_InputData;
+	if(m_InputData.m_WantedWeapon > 0)
+		m_InputData.m_WantedWeapon = 0;
+	m_WeaponSelectionPulse.OnSent(m_LastData.m_WantedWeapon);
 	return sizeof(m_InputData);
 }
 
@@ -364,17 +488,42 @@ bool CControls::OnMouseMove(float x, float y)
 	Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
 	Input()->ShowCursor(false);
 
-	Input()->GetRelativePosition(&x, &y);
-
 	if(Input()->UsingGamepad())
 	{
-		if(m_pClient->m_Snap.m_SpecInfo.m_Active)
-			m_MousePos += vec2(x, y) * ((200.0f + g_Config.m_InpMousesens) / 1500.0f);
-		else
-			m_MousePos += vec2(x, y) * ((200.0f + g_Config.m_InpMousesens) / 150.0f);
+		float AimX = 0.0f, AimY = 0.0f;
+		Input()->GetGamepadAim(&AimX, &AimY);
+		const int64 Now = time_get();
+		const float DeltaSeconds = m_LastGamepadAimTime ? (Now - m_LastGamepadAimTime) / (float)time_freq() : 1.0f / 60.0f;
+		m_LastGamepadAimTime = Now;
+		const float Speed = m_pClient->m_Snap.m_SpecInfo.m_Active ? 140.0f : 1400.0f;
+		vec2 Delta = IntegrateAimStick(vec2(AimX, AimY), Speed, g_Config.m_ClGamepadAimSensitivity / 100.0f, DeltaSeconds);
+		vec2 TargetDirection;
+		float TargetAngle = 0.0f;
+		const vec2 AimDirection = length(m_MousePos) > 0.01f ? normalize(m_MousePos) : vec2(1, 0);
+		if(FindAimAssistTarget(AimDirection, &TargetDirection, &TargetAngle))
+		{
+			const float Strength = g_Config.m_ClGamepadAimAssist / 100.0f;
+			const float Blend = 1.0f - clamp(TargetAngle / (6.0f * pi / 180.0f), 0.0f, 1.0f);
+			Delta *= 1.0f - Strength * Blend;
+			const bool Coop = m_pClient->m_Snap.m_pGameInfoObj && (m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_COOP);
+			if(Coop && length(vec2(AimX, AimY)) >= 0.20f && length(m_MousePos) > 0.01f)
+			{
+				const float MaxTurn = (12.0f * pi / 180.0f) * (g_Config.m_ClGamepadAimAssist / 35.0f) * clamp(DeltaSeconds, 0.0f, 0.05f);
+				const float SignedAngle = atan2f(AimDirection.x * TargetDirection.y - AimDirection.y * TargetDirection.x, dot(AimDirection, TargetDirection));
+				const float Turn = clamp(SignedAngle, -MaxTurn, MaxTurn);
+				const float C = cosf(Turn), S = sinf(Turn);
+				const vec2 Turned(AimDirection.x * C - AimDirection.y * S, AimDirection.x * S + AimDirection.y * C);
+				m_MousePos = Turned * length(m_MousePos);
+			}
+		}
+		m_MousePos += Delta;
 	}
 	else
+	{
+		Input()->GetRelativePosition(&x, &y);
+		m_LastGamepadAimTime = 0;
 		m_MousePos += vec2(x, y) * ((200.0f + g_Config.m_InpMousesens) / 150.0f);
+	}
 	ClampMousePos();
 
 	return true;
