@@ -436,6 +436,7 @@ jobs:
       - name: Build, verify and publish Steam beta
         env:
           STEAM_ACCOUNT: ${{ secrets.STEAM_ACCOUNT }}
+          STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
         run: |
           test -n "$STEAM_ACCOUNT" || { echo "Missing STEAM_ACCOUNT secret" >&2; exit 1; }
           python3 scripts/publish_steam_depots.py \
