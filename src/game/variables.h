@@ -505,6 +505,13 @@ MACRO_CONFIG_INT(DbgDummies, dbg_dummies, 0, 0, 15, CFGFLAG_SERVER, "")
 
 MACRO_CONFIG_INT(DbgFocus, dbg_focus, 0, 0, 1, CFGFLAG_CLIENT, "")
 MACRO_CONFIG_INT(DbgTuning, dbg_tuning, 0, 0, 1, CFGFLAG_CLIENT, "")
+MACRO_CONFIG_INT(ClDebugWeaponWheel,
+				 cl_debug_weapon_wheel,
+				 0,
+				 0,
+				 1,
+				 CFGFLAG_CLIENT,
+				 "Log mouse-wheel weapon switch input and confirmed slots")
 
 MACRO_CONFIG_INT(ClZoom,
 				 cl_zoom,

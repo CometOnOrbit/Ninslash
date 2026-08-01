@@ -1041,6 +1041,7 @@ void CCharacter::DoWeaponSwitch()
 
 void CCharacter::HandleWeaponSwitch()
 {
+	const int StartSlot = m_WeaponSlot;
 	const bool PendingRequest = m_SwitchBufferEndTick && Server()->Tick() <= m_SwitchBufferEndTick &&
 		m_WantedSlot != m_WeaponSlot;
 	int WantedSlot = PendingRequest ? m_WantedSlot : m_WeaponSlot;
@@ -1048,6 +1049,8 @@ void CCharacter::HandleWeaponSwitch()
 
 	int Next = CountInput(m_LatestPrevInput.m_NextWeapon, m_LatestInput.m_NextWeapon).m_Presses;
 	int Prev = CountInput(m_LatestPrevInput.m_PrevWeapon, m_LatestInput.m_PrevWeapon).m_Presses;
+	const int NextPresses = Next;
+	const int PrevPresses = Prev;
 
 	if(Next < 128)
 	{
@@ -1103,6 +1106,27 @@ void CCharacter::HandleWeaponSwitch()
 	}
 
 	DoWeaponSwitch();
+	if(g_Config.m_ClDebugWeaponWheel && (NextPresses > 0 || PrevPresses > 0))
+	{
+		char aBuf[256];
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "server cid=%d tick=%d start=%d pending_start=%d next=%d prev=%d counters next=%d->%d prev=%d->%d wanted=%d result=%d buffer_end=%d",
+				   GetPlayer()->GetCID(),
+				   Server()->Tick(),
+				   StartSlot,
+				   PendingRequest ? 1 : 0,
+				   NextPresses,
+				   PrevPresses,
+				   m_LatestPrevInput.m_NextWeapon,
+				   m_LatestInput.m_NextWeapon,
+				   m_LatestPrevInput.m_PrevWeapon,
+				   m_LatestInput.m_PrevWeapon,
+				   m_WantedSlot,
+				   m_WeaponSlot,
+				   m_SwitchBufferEndTick);
+		GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
+	}
 	if(m_WantedSlot == m_WeaponSlot)
 		m_SwitchBufferEndTick = 0;
 }

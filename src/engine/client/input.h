@@ -7,6 +7,7 @@ class CInput : public IEngineInput
 	class IPlatformServices *m_pPlatformServices;
 	IEngineGraphics *m_pGraphics;
 	IEngineGamepad *m_pGamepad;
+	class IConsole *m_pConsole;
 
 	int m_MouseModes;
 
@@ -43,6 +44,8 @@ class CInput : public IEngineInput
 
 	int64 m_LastRelease;
 	int64 m_ReleaseDelta;
+	bool m_WheelDebugWasEnabled;
+	int64 m_WheelDebugHeartbeat;
 
 	// ime support
 	char m_aComposition[MAX_COMPOSITION_ARRAY_SIZE];

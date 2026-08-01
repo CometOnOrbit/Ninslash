@@ -707,14 +707,50 @@ void CGameClient::DispatchInput()
 	for(int i = 0; i < Input()->NumEvents(); i++)
 	{
 		IInput::CEvent e = Input()->GetEvent(i);
+		const bool DebugWheel = g_Config.m_ClDebugWeaponWheel &&
+			(e.m_Key == KEY_MOUSE_WHEEL_UP || e.m_Key == KEY_MOUSE_WHEEL_DOWN);
+		if(DebugWheel)
+		{
+			char aBuf[320];
+			str_format(aBuf,
+					   sizeof(aBuf),
+					   "dispatch begin event=%d/%d key=%s flags=%d slot=%d bind='%s' menu=%d captured=%d inventory=%d build_wheel=%d build_place=%d",
+					   i + 1,
+					   Input()->NumEvents(),
+					   Input()->KeyName(e.m_Key),
+					   e.m_Flags,
+					   CustomStuff()->m_WeaponSlot,
+					   m_pBinds->Get(e.m_Key),
+					   m_pMenus->IsActive() ? 1 : 0,
+					   GameplayInputFullyCaptured() ? 1 : 0,
+					   m_pInventory->IsVisible() ? 1 : 0,
+					   m_pBuildPlacement->WheelActive() ? 1 : 0,
+					   m_pBuildPlacement->PlacementActive() ? 1 : 0);
+			Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
+		}
 
+		int Consumer = -1;
 		for(int h = 0; h < m_Input.m_Num; h++)
 		{
 			if(m_Input.m_paComponents[h]->OnInput(e))
 			{
+				Consumer = h;
 				// dbg_msg("", "%d char=%d key=%d flags=%d", h, e.ch, e.key, e.flags);
 				break;
 			}
+		}
+		if(DebugWheel)
+		{
+			char aBuf[192];
+			str_format(aBuf,
+					   sizeof(aBuf),
+					   "dispatch end key=%s flags=%d slot=%d consumer=%d/%d",
+					   Input()->KeyName(e.m_Key),
+					   e.m_Flags,
+					   CustomStuff()->m_WeaponSlot,
+					   Consumer,
+					   m_Input.m_Num);
+			Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
 		}
 	}
 

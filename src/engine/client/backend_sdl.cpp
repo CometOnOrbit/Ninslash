@@ -996,6 +996,20 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName,
 	const char *pOffscreenCapture = SDL_getenv("NINSLASH_OFFSCREEN");
 	m_OffscreenCapture = pOffscreenCapture && pOffscreenCapture[0] && SDL_strcmp(pOffscreenCapture, "0") != 0;
 
+#if defined(CONF_PLATFORM_LINUX)
+	// SDL otherwise prefers X11 when both backends are available. Prefer the
+	// native Wayland backend for a Wayland session, unless the user selected a
+	// driver explicitly (including x11 or offscreen for tests).
+	// AND THIS IS CRAZY U KNOW??? OVER FIVE YEARS IM TRACINGGGGGGGGGGGG WHAT GOING ON AND ANSWER IS VIDEODRIVER????
+	const char *pVideoDriver = SDL_getenv("SDL_VIDEODRIVER");
+	const char *pWaylandDisplay = SDL_getenv("WAYLAND_DISPLAY");
+	if((!pVideoDriver || !pVideoDriver[0]) && pWaylandDisplay && pWaylandDisplay[0])
+	{
+		if(SDL_setenv_unsafe("SDL_VIDEODRIVER", "wayland", 0) == 0)
+			dbg_msg("gfx", "Wayland session detected, selecting SDL Wayland video driver");
+	}
+#endif
+
 	if(!SDL_WasInit(SDL_INIT_VIDEO))
 	{
 		if(!SDL_InitSubSystem(SDL_INIT_VIDEO))

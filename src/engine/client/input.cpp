@@ -5,6 +5,7 @@
 #include <engine/graphics.h>
 #include <engine/gamepad.h>
 #include <engine/input_processing.h>
+#include <engine/console.h>
 #include <engine/storage.h>
 #include <engine/input.h>
 #include <engine/keys.h>
@@ -50,9 +51,12 @@ CInput::CInput()
 
 	m_pCursorSurface = 0;
 	m_pCursor = 0;
+	m_pConsole = 0;
 
 	m_LastRelease = 0;
 	m_ReleaseDelta = -1;
+	m_WheelDebugWasEnabled = false;
+	m_WheelDebugHeartbeat = 0;
 
 	m_MouseLeft = false;
 	m_MouseEntered = false;
@@ -90,6 +94,7 @@ void CInput::Init()
 	m_pGraphics = Kernel()->RequestInterface<IEngineGraphics>();
 	m_pGamepad = Kernel()->RequestInterface<IEngineGamepad>();
 	m_pPlatformServices = Kernel()->RequestInterface<IPlatformServices>();
+	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	StopTextInput();
 	ShowCursor(true);
 }
@@ -410,6 +415,31 @@ void CInput::ResetGamepad()
 
 int CInput::Update()
 {
+	if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
+	{
+		const int64 Now = time_get();
+		if(!m_WheelDebugWasEnabled || Now >= m_WheelDebugHeartbeat)
+		{
+			const SDL_WindowFlags Flags = SDL_GetWindowFlags(Window());
+			char aBuf[256];
+			str_format(aBuf,
+					   sizeof(aBuf),
+					   "%s video=%s focus_mouse=%d focus_input=%d relative=%d mouse_mode=%d events=%d",
+					   m_WheelDebugWasEnabled ? "heartbeat" : "diagnostics-enabled",
+					   SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "unknown",
+					   (Flags & SDL_WINDOW_MOUSE_FOCUS) != 0,
+					   (Flags & SDL_WINDOW_INPUT_FOCUS) != 0,
+					   SDL_GetWindowRelativeMouseMode(Window()) ? 1 : 0,
+					   m_MouseModes,
+					   m_NumEvents);
+			m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
+			m_WheelDebugHeartbeat = Now + time_freq();
+		}
+		m_WheelDebugWasEnabled = true;
+	}
+	else
+		m_WheelDebugWasEnabled = false;
+
 	//	if(m_InputGrabbed && !Graphics()->WindowActive())
 	//		MouseModeAbsolute();
 
@@ -635,6 +665,21 @@ int CInput::Update()
 				// fall through
 				case SDL_EVENT_MOUSE_BUTTON_DOWN:
 					m_UsingGamepad = false;
+					if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
+					{
+						char aBuf[224];
+						str_format(aBuf,
+								   sizeof(aBuf),
+								   "raw-button button=%u edge=%s clicks=%u x=%.1f y=%.1f events=%d/%d",
+								   (unsigned)Event.button.button,
+								   Action == IInput::FLAG_RELEASE ? "release" : "press",
+								   (unsigned)Event.button.clicks,
+								   Event.button.x,
+								   Event.button.y,
+								   m_NumEvents,
+								   INPUT_BUFFER_SIZE);
+						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
+					}
 
 					if(Event.button.button == SDL_BUTTON_LEFT)
 						Key = KEY_MOUSE_1; // ignore_convention
@@ -651,12 +696,44 @@ int CInput::Update()
 					break;
 
 				case SDL_EVENT_MOUSE_WHEEL:
+					if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
+					{
+						char aBuf[256];
+						str_format(aBuf,
+								   sizeof(aBuf),
+								   "raw time_ns=%llu mouse=%u x=%.3f y=%.3f integer_x=%d integer_y=%d direction=%u events=%d/%d composition=%d input_frame=%d",
+								   (unsigned long long)Event.wheel.timestamp,
+								   (unsigned)Event.wheel.which,
+								   Event.wheel.x,
+								   Event.wheel.y,
+								   Event.wheel.integer_x,
+								   Event.wheel.integer_y,
+								   (unsigned)Event.wheel.direction,
+								   m_NumEvents,
+								   INPUT_BUFFER_SIZE,
+								   HasComposition() ? 1 : 0,
+								   m_InputCurrent);
+						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
+					}
 					if(Event.wheel.y > 0)
 						Key = KEY_MOUSE_WHEEL_UP; // ignore_convention
 					else if(Event.wheel.y < 0)
 						Key = KEY_MOUSE_WHEEL_DOWN; // ignore_convention
 					if(Key != -1 && !HasComposition())
 					{
+						if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
+						{
+							char aBuf[192];
+							str_format(aBuf,
+									   sizeof(aBuf),
+									   "raw-map key=%d name=%s press_count=%d release_count=%d queued_before=%d",
+									   Key,
+									   KeyName(Key),
+									   m_aInputCount[m_InputCurrent][Key].m_Presses,
+									   m_aInputCount[m_InputCurrent][Key].m_Releases,
+									   m_NumEvents);
+							m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
+						}
 						// Emit PRESS now; common path below records and emits RELEASE.
 						m_aInputCount[m_InputCurrent][Key].m_Presses++;
 						AddEvent(0, Key, Action);
@@ -668,9 +745,21 @@ int CInput::Update()
 
 				case SDL_EVENT_WINDOW_MOUSE_ENTER:
 					m_MouseEntered = true;
+					if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
+						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", "window mouse-enter");
 					break;
 				case SDL_EVENT_WINDOW_MOUSE_LEAVE:
 					m_MouseLeft = true;
+					if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
+						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", "window mouse-leave");
+					break;
+				case SDL_EVENT_WINDOW_FOCUS_GAINED:
+					if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
+						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", "window focus-gained");
+					break;
+				case SDL_EVENT_WINDOW_FOCUS_LOST:
+					if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
+						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", "window focus-lost");
 					break;
 				// other messages
 				case SDL_EVENT_QUIT:

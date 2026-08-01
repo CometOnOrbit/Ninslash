@@ -32,6 +32,8 @@ class CControls : public CComponent
 	int m_AimAssistTargetType;
 	int m_AimAssistTargetID;
 	CDiscreteInputPulse m_WeaponSelectionPulse;
+	int m_WheelDebugSequence;
+	int m_WheelDebugLastSlot;
 
 	CControls();
 
@@ -44,6 +46,7 @@ class CControls : public CComponent
 	virtual void OnPlayerDeath();
 	void QueueWeaponSlot(int ProtocolSlot);
 	void CancelQueuedWeaponSlot();
+	void DebugWeaponWheelEvent(int *pCounter, bool Pressed, int Before, int After);
 
 	static void ConZoomPlus(IConsole::IResult *pResult, void *pUserData);
 	static void ConZoomMinus(IConsole::IResult *pResult, void *pUserData);

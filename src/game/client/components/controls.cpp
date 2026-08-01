@@ -31,6 +31,8 @@ CControls::CControls()
 	m_AimAssistTargetType = 0;
 	m_AimAssistTargetID = -1;
 	m_WeaponSelectionPulse.Reset();
+	m_WheelDebugSequence = 0;
+	m_WheelDebugLastSlot = -1;
 }
 
 void CControls::OnReset()
@@ -165,6 +167,31 @@ void CControls::CancelQueuedWeaponSlot()
 		m_InputData.m_WantedWeapon = 0;
 }
 
+void CControls::DebugWeaponWheelEvent(int *pCounter, bool Pressed, int Before, int After)
+{
+	if(!g_Config.m_ClDebugWeaponWheel)
+		return;
+	if(Pressed)
+		m_WheelDebugSequence++;
+	const char *pDirection = pCounter == &m_InputData.m_NextWeapon ? "next" : "prev";
+	char aBuf[256];
+	str_format(aBuf,
+			   sizeof(aBuf),
+			   "event seq=%d dir=%s edge=%s slot=%d counter=%d->%d last=%d next=%d prev=%d wanted=%d fire=%d",
+			   m_WheelDebugSequence,
+			   pDirection,
+			   Pressed ? "press" : "release",
+			   CustomStuff()->m_WeaponSlot,
+			   Before,
+			   After,
+			   pCounter == &m_InputData.m_NextWeapon ? m_LastData.m_NextWeapon : m_LastData.m_PrevWeapon,
+			   m_InputData.m_NextWeapon,
+			   m_InputData.m_PrevWeapon,
+			   m_InputData.m_WantedWeapon,
+			   m_InputData.m_Fire);
+	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
+}
+
 static void ConKeyInputState(IConsole::IResult *pResult, void *pUserData)
 {
 	int *pState = (int *)pUserData;
@@ -203,7 +230,10 @@ static void ConKeyInputSet(IConsole::IResult *pResult, void *pUserData)
 static void ConKeyInputNextPrevWeapon(IConsole::IResult *pResult, void *pUserData)
 {
 	CInputSet *pSet = (CInputSet *)pUserData;
+	const int Before = *pSet->m_pVariable;
 	ConKeyInputCounter(pResult, pSet->m_pVariable);
+	pSet->m_pControls->DebugWeaponWheelEvent(
+		pSet->m_pVariable, pResult->GetInteger(0) != 0, Before, *pSet->m_pVariable);
 	pSet->m_pControls->CancelQueuedWeaponSlot();
 }
 
@@ -330,6 +360,21 @@ int CControls::SnapInput(int *pData)
 	static int64 LastSendTime = 0;
 	static int PrevWeapon = 0;
 	bool Send = false;
+	if(g_Config.m_ClDebugWeaponWheel && CustomStuff()->m_WeaponSlot != m_WheelDebugLastSlot)
+	{
+		char aBuf[192];
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "slot seq=%d confirmed=%d previous=%d next=%d prev=%d wanted=%d",
+				   m_WheelDebugSequence,
+				   CustomStuff()->m_WeaponSlot,
+				   m_WheelDebugLastSlot,
+				   m_InputData.m_NextWeapon,
+				   m_InputData.m_PrevWeapon,
+				   m_InputData.m_WantedWeapon);
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
+		m_WheelDebugLastSlot = CustomStuff()->m_WeaponSlot;
+	}
 
 	// update player state
 	if(m_pClient->m_pChat->IsActive())
@@ -460,6 +505,24 @@ int CControls::SnapInput(int *pData)
 
 	LastSendTime = time_get();
 	mem_copy(pData, &m_InputData, sizeof(m_InputData));
+	if(g_Config.m_ClDebugWeaponWheel &&
+	   (m_InputData.m_NextWeapon != m_LastData.m_NextWeapon ||
+		m_InputData.m_PrevWeapon != m_LastData.m_PrevWeapon))
+	{
+		char aBuf[224];
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "packet seq=%d slot=%d next=%d(prev=%d) prev=%d(prev=%d) wanted=%d fire=%d",
+				   m_WheelDebugSequence,
+				   CustomStuff()->m_WeaponSlot,
+				   m_InputData.m_NextWeapon,
+				   m_LastData.m_NextWeapon,
+				   m_InputData.m_PrevWeapon,
+				   m_LastData.m_PrevWeapon,
+				   m_InputData.m_WantedWeapon,
+				   m_InputData.m_Fire);
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
+	}
 	m_LastData = m_InputData;
 	if(m_InputData.m_WantedWeapon > 0)
 		m_InputData.m_WantedWeapon = 0;
