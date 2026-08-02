@@ -37,6 +37,10 @@ class CSound : public IEngineSound
 	virtual int Play(int ChannelID, int SampleID, int Flags);
 	virtual void Stop(int SampleID);
 	virtual void StopAll();
+
+	virtual void SetMusicThreat(float Threat);
+	virtual void ConfigureMusicLayer(int Layer, int Channel, int SampleID);
+	virtual void SetMusicEnabled(bool Enable);
 };
 
 #endif

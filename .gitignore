@@ -25,6 +25,7 @@ other/icons/*.res
 /ninslash*
 /ninslash_srv*
 /libninslash_lua.a
+/libninslash_lua_d.a
 /serverlaunch*
 /tileset_border*
 /versionsrv*

@@ -45,6 +45,7 @@
 
 #include <game/server/playerdata.h>
 #include <game/server/pve_director.h>
+#include <game/server/bosspool.h>
 #include <game/server/tutorial_director.h>
 #include <game/server/blockentities.h>
 
@@ -1833,6 +1834,89 @@ void CGameContext::SwapTeams()
 	(void)m_pController->CheckTeamBalance();
 }
 
+static float DroidSoundThreat(int Type)
+{
+	switch(Type)
+	{
+		case DROIDTYPE_WALKER: return 2.5f;
+		case DROIDTYPE_STAR: return 2.0f;
+		case DROIDTYPE_CRAWLER: return 1.5f;
+		case DROIDTYPE_BOSSCRAWLER: return 6.0f;
+		case DROIDTYPE_BOSSSTAR: return 7.5f;
+		case DROIDTYPE_BOSSWALKER: return 7.5f;
+		case DROIDTYPE_BOSSSPLITTER: return 8.0f;
+		default: return 1.0f;
+	}
+}
+
+void CGameContext::SendMusicThreat(int ClientID)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_apPlayers[ClientID])
+		return;
+
+	CCharacter *pChar = GetPlayerChar(ClientID);
+	if(!pChar)
+	{
+		// player is dead - send zero threat
+		CNetMsg_Sv_MusicThreat Msg;
+		Msg.m_Threat = 0;
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+		return;
+	}
+
+	vec2 PlayerPos = pChar->m_Pos;
+
+	// find all droids near the player
+	CDroid *apDroids[256];
+	int Num = m_World.FindEntities(PlayerPos, 3500.0f, (CEntity **)apDroids, 256, CGameWorld::ENTTYPE_DROID);
+
+	float TotalThreat = 0.0f;
+	for(int i = 0; i < Num; i++)
+	{
+		CDroid *pDroid = apDroids[i];
+		if(!pDroid || pDroid->m_Health <= 0)
+			continue;
+
+		float ThreatPower = DroidSoundThreat(pDroid->m_Type);
+		float Dist = distance(PlayerPos, pDroid->m_Pos);
+		if(Dist < 100.0f)
+			Dist = 100.0f;
+
+		float HealthRatio = (float)pDroid->m_Health / (float)pDroid->m_MaxHealth;
+		TotalThreat += ThreatPower * HealthRatio / Dist;
+	}
+
+	// find nearby AI-controlled enemy characters
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(!m_apPlayers[i] || !m_apPlayers[i]->m_pAI)
+			continue;
+		if(!m_pController->ArePlayersEnemies(ClientID, i))
+			continue;
+
+		CCharacter *pEnemy = GetPlayerChar(i);
+		if(!pEnemy || pEnemy->m_HiddenHealth <= 0)
+			continue;
+
+		float Dist = distance(PlayerPos, pEnemy->m_Pos);
+		if(Dist > 3500.0f)
+			continue;
+		if(Dist < 100.0f)
+			Dist = 100.0f;
+
+		float ThreatPower = m_apPlayers[i]->m_pAI->PowerLevel() / 5.0f;
+		float HealthRatio = (float)pEnemy->m_HiddenHealth / (float)pEnemy->m_MaxHealth;
+		TotalThreat += ThreatPower * HealthRatio / Dist;
+	}
+
+	// P.S.: feel free to change 1000.0f to something better
+	int ThreatValue = clamp((int)(TotalThreat * 1000.0f), 0, 255);
+
+	CNetMsg_Sv_MusicThreat Msg;
+	Msg.m_Threat = ThreatValue;
+	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+}
+
 void CGameContext::OnTick()
 {
 	// check tuning
@@ -1855,6 +1939,20 @@ void CGameContext::OnTick()
 		{
 			m_apPlayers[i]->Tick();
 			m_apPlayers[i]->PostTick();
+		}
+	}
+
+	// dynamic music threat - send to human players every 30 ticks
+	{
+		static int s_MusicThreatTick = 0;
+		if(++s_MusicThreatTick >= 30)
+		{
+			s_MusicThreatTick = 0;
+			for(int i = 0; i < MAX_CLIENTS; i++)
+			{
+				if(m_apPlayers[i] && IsHuman(i))
+					SendMusicThreat(i);
+			}
 		}
 	}
 

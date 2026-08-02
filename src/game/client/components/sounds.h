@@ -1,5 +1,3 @@
-
-
 #ifndef GAME_CLIENT_COMPONENTS_SOUNDS_H
 #define GAME_CLIENT_COMPONENTS_SOUNDS_H
 #include <engine/shared/jobs.h>
@@ -20,6 +18,7 @@ class CSounds : public CComponent
 	int64 m_QueueWaitTime;
 	class CJob m_SoundJob;
 	bool m_WaitForSoundJob;
+	bool m_MusicInitialized;
 
 	int GetSampleId(int SetId);
 
@@ -32,12 +31,19 @@ class CSounds : public CComponent
 		CHN_WORLD,
 		CHN_GLOBAL,
 		CHN_HIT,
+
+		// dynamic music layers
+		CHN_MUSIC_CALM,
+		CHN_MUSIC_TENSION,
+		CHN_MUSIC_COMBAT,
+		CHN_MUSIC_BOSS,
 	};
 
 	virtual void OnInit();
 	virtual void OnReset();
 	virtual void OnStateChange(int NewState, int OldState);
 	virtual void OnRender();
+	virtual void OnMessage(int MsgType, void *pRawMsg);
 
 	void ClearQueue();
 	void Enqueue(int Channel, int SetId);

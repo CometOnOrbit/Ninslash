@@ -223,6 +223,8 @@ class IGameController
 
 	bool IsFriendlyFire(int ClientID1, int ClientID2);
 
+	bool ArePlayersEnemies(int ClientA, int ClientB) const;
+
 	bool IsForceBalanced();
 
 	/*

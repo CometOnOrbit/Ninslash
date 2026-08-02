@@ -1,9 +1,8 @@
-
-
 #include <engine/engine.h>
 #include <engine/sound.h>
 #include <engine/shared/config.h>
 #include <generated/game_data.h>
+#include <generated/protocol.h>
 #include <game/client/gameclient.h>
 #include <game/client/components/camera.h>
 #include <game/client/components/menus.h>
@@ -66,7 +65,21 @@ void CSounds::OnInit()
 	Sound()->SetChannel(CSounds::CHN_GLOBAL, 1.0f, 0.0f);
 	Sound()->SetChannel(CSounds::CHN_HIT, g_Config.m_ClHitFeedback / 100.0f, 0.0f);
 
+	// dynamic music layers start silent, engine controls their volume
+	Sound()->SetChannel(CSounds::CHN_MUSIC_CALM, 0.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_TENSION, 0.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_COMBAT, 0.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_BOSS, 0.0f, 0.0f);
+
+	// tell engine which channels to control
+	Sound()->ConfigureMusicLayer(0, CHN_MUSIC_CALM, -1);
+	Sound()->ConfigureMusicLayer(1, CHN_MUSIC_TENSION, -1);
+	Sound()->ConfigureMusicLayer(2, CHN_MUSIC_COMBAT, -1);
+	Sound()->ConfigureMusicLayer(3, CHN_MUSIC_BOSS, -1);
+
 	Sound()->SetListenerPos(0.0f, 0.0f);
+
+	m_MusicInitialized = false;
 
 	ClearQueue();
 
@@ -98,6 +111,7 @@ void CSounds::OnReset()
 	{
 		Sound()->StopAll();
 		ClearQueue();
+		m_MusicInitialized = false;
 	}
 }
 
@@ -105,6 +119,11 @@ void CSounds::OnStateChange(int NewState, int OldState)
 {
 	if(NewState == IClient::STATE_ONLINE || NewState == IClient::STATE_DEMOPLAYBACK)
 		OnReset();
+	else if(OldState >= IClient::STATE_ONLINE && NewState < IClient::STATE_ONLINE)
+	{
+		Sound()->SetMusicEnabled(false);
+		m_MusicInitialized = false;
+	}
 }
 
 void CSounds::OnRender()
@@ -120,6 +139,24 @@ void CSounds::OnRender()
 
 	// set listner pos
 	Sound()->SetListenerPos(m_pClient->m_pCamera->m_Center.x, m_pClient->m_pCamera->m_Center.y);
+
+	// start music layers once sounds are loaded
+	if(!m_MusicInitialized && Client()->State() >= IClient::STATE_ONLINE && g_Config.m_SndMusic)
+	{
+		// TODO: Use real bgm
+		Play(CHN_MUSIC_CALM, SOUND_BG1, 1.0f);
+		Play(CHN_MUSIC_TENSION, SOUND_BG2, 1.0f);
+		Play(CHN_MUSIC_COMBAT, SOUND_BG3, 1.0f);
+		Play(CHN_MUSIC_BOSS, SOUND_BG4, 1.0f);
+		Sound()->SetMusicEnabled(true);
+		m_MusicInitialized = true;
+	}
+
+	if(!g_Config.m_SndMusic && m_MusicInitialized)
+	{
+		Sound()->SetMusicEnabled(false);
+		m_MusicInitialized = false;
+	}
 
 	// play sound from queue
 	if(m_QueuePos > 0)
@@ -166,7 +203,7 @@ void CSounds::PlayAndRecord(int Chn, int SetId, float Vol, vec2 Pos)
 
 void CSounds::Play(int Chn, int SetId, float Vol)
 {
-	if(Chn == CHN_MUSIC && !g_Config.m_SndMusic)
+	if((Chn == CHN_MUSIC || Chn >= CHN_MUSIC_CALM) && !g_Config.m_SndMusic)
 		return;
 
 	int SampleId = GetSampleId(SetId);
@@ -174,7 +211,7 @@ void CSounds::Play(int Chn, int SetId, float Vol)
 		return;
 
 	int Flags = 0;
-	if(Chn == CHN_MUSIC)
+	if(Chn == CHN_MUSIC || Chn >= CHN_MUSIC_CALM)
 		Flags = ISound::FLAG_LOOP;
 
 	Sound()->Play(Chn, SampleId, Flags);
@@ -182,7 +219,7 @@ void CSounds::Play(int Chn, int SetId, float Vol)
 
 void CSounds::PlayAt(int Chn, int SetId, float Vol, vec2 Pos)
 {
-	if(Chn == CHN_MUSIC && !g_Config.m_SndMusic)
+	if((Chn == CHN_MUSIC || Chn >= CHN_MUSIC_CALM) && !g_Config.m_SndMusic)
 		return;
 
 	int SampleId = GetSampleId(SetId);
@@ -190,7 +227,7 @@ void CSounds::PlayAt(int Chn, int SetId, float Vol, vec2 Pos)
 		return;
 
 	int Flags = 0;
-	if(Chn == CHN_MUSIC)
+	if(Chn == CHN_MUSIC || Chn >= CHN_MUSIC_CALM)
 		Flags = ISound::FLAG_LOOP;
 
 	Sound()->PlayAt(Chn, SampleId, Flags, Pos.x, Pos.y);
@@ -205,4 +242,13 @@ void CSounds::Stop(int SetId)
 
 	for(int i = 0; i < pSet->m_NumSounds; i++)
 		Sound()->Stop(pSet->m_aSounds[i].m_Id);
+}
+
+void CSounds::OnMessage(int MsgType, void *pRawMsg)
+{
+	if(MsgType == NETMSGTYPE_SV_MUSICTHREAT)
+	{
+		CNetMsg_Sv_MusicThreat *pMsg = (CNetMsg_Sv_MusicThreat *)pRawMsg;
+		Sound()->SetMusicThreat(pMsg->m_Threat / 255.0f);
+	}
 }

@@ -231,6 +231,8 @@ class CAI
 
 	virtual ~CAI();
 
+	int PowerLevel() const { return m_PowerLevel; }
+
 	void TriggerEvent(int EventNum, float InHowManySeconds = 0.0f);
 
 	int m_ChatterStartTick;

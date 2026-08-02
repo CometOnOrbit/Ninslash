@@ -73,7 +73,7 @@ int SelectBossType(int Depth)
 	Types[Count++] = DROIDTYPE_BOSSCRAWLER;
 	if(Depth >= 5)
 		Types[Count++] = DROIDTYPE_BOSSSTAR;
-	if(Depth >= 15)
+	if(Depth >= 8) // I like this one so... Uuu
 		Types[Count++] = DROIDTYPE_BOSSSPLITTER;
 	return Types[rand() % Count];
 }

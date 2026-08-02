@@ -199,6 +199,8 @@ class CGameContext : public IGameServer
 	void CreateWeaponSound(vec2 Pos, const CWeaponSpec &Weapon, int Slot, int64 Mask = -1);
 	void CreateSoundGlobal(int Sound, int Target = -1);
 
+	void SendMusicThreat(int ClientID);
+
 	bool BuildableSpot(vec2 Pos);
 	bool AddBlock(int Type, vec2 Pos, int Owner = -1, int KitCost = 0);
 	void DamageBlocks(vec2 Pos, int Damage, int Range);

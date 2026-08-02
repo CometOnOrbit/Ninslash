@@ -27,6 +27,10 @@ class ISound : public IInterface
 	virtual int Play(int ChannelID, int SampleID, int Flags) = 0;
 	virtual void Stop(int SampleID) = 0;
 	virtual void StopAll() = 0;
+
+	virtual void SetMusicThreat(float Threat) = 0;
+	virtual void ConfigureMusicLayer(int Layer, int Channel, int SampleID) = 0;
+	virtual void SetMusicEnabled(bool Enable) = 0;
 };
 
 class IEngineSound : public ISound

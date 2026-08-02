@@ -8,6 +8,8 @@
 
 #include <engine/shared/config.h>
 
+#include <engine/ifloat.h>
+
 #include <SDL3/SDL.h>
 
 #include "sound.h"
@@ -68,6 +70,18 @@ static int m_NextVoice = 0;
 static int *m_pMixBuffer = 0; // buffer only used by the thread callback function
 static unsigned m_MaxFrames = 0;
 
+// dynamic music layer state
+struct SMusicLayer
+{
+	int m_Channel = -1;
+	int m_SampleID = -1;
+};
+static constexpr int NUM_MUSIC_LAYERS = 4;
+static SMusicLayer s_aMusicLayers[NUM_MUSIC_LAYERS];
+static IFloat s_MusicState;
+static float s_MusicTarget = 0.0f;
+static bool s_MusicEnabled = true;
+
 // TODO: there should be a faster way todo this
 static short Int2Short(int i)
 {
@@ -95,6 +109,37 @@ static void Mix(short *pFinalOut, unsigned Frames)
 	lock_wait(m_SoundLock);
 
 	MasterVol = m_SoundVolume;
+
+	// update dynamic music layer volumes
+	if(s_MusicEnabled)
+	{
+		s_MusicState.set(s_MusicTarget, 12);
+		float t = s_MusicState.next();
+		if(t < 0.0f)
+			t = 0.0f;
+		
+		if(t > 1.0f)
+			t = 1.0f;
+
+		float aVol[NUM_MUSIC_LAYERS] = {};
+		float segSize = 1.0f / (NUM_MUSIC_LAYERS - 1);
+		int seg = (int)(t / segSize);	
+		if(seg < 0)
+			seg = 0;
+		if(seg >= NUM_MUSIC_LAYERS - 1)
+			seg = NUM_MUSIC_LAYERS - 2;
+
+		float segT = (t - seg * segSize) / segSize;
+		
+		aVol[seg] = Crossfade<CrossfadeType::Smooth>(1.0f, 0.0f, segT);
+		aVol[seg + 1] = Crossfade<CrossfadeType::Smooth>(0.0f, 1.0f, segT);
+
+		for(int i = 0; i < NUM_MUSIC_LAYERS; i++)
+		{
+			if(s_aMusicLayers[i].m_Channel >= 0)
+				m_aChannels[s_aMusicLayers[i].m_Channel].m_Vol = (int)(aVol[i] * 255.0f);
+		}
+	}
 
 	for(unsigned i = 0; i < NUM_VOICES; i++)
 	{
@@ -528,6 +573,24 @@ void CSound::StopAll()
 		m_aVoices[i].m_pSample = 0;
 	}
 	lock_unlock(m_SoundLock);
+}
+
+void CSound::SetMusicThreat(float Threat)
+{
+	s_MusicTarget = Threat;
+}
+
+void CSound::ConfigureMusicLayer(int Layer, int Channel, int SampleID)
+{
+	if(Layer < 0 || Layer >= NUM_MUSIC_LAYERS)
+		return;
+	s_aMusicLayers[Layer].m_Channel = Channel;
+	s_aMusicLayers[Layer].m_SampleID = SampleID;
+}
+
+void CSound::SetMusicEnabled(bool Enable)
+{
+	s_MusicEnabled = Enable;
 }
 
 IOHANDLE CSound::ms_File = 0;

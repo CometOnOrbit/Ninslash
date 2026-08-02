@@ -987,4 +987,8 @@ Messages = [
 		NetIntAny("m_Nonce"),
 		NetIntAny("m_Value"),
 	]),
+
+	NetMessage("Sv_MusicThreat", [
+		NetIntRange("m_Threat", 0, 255),
+	]),
 ]

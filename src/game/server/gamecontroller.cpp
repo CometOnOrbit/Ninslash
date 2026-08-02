@@ -1699,6 +1699,39 @@ bool IGameController::IsFriendlyFire(int ClientID1, int ClientID2)
 	return false;
 }
 
+bool IGameController::ArePlayersEnemies(int ClientA, int ClientB) const
+{
+	if(ClientA == ClientB)
+		return false;
+	if(ClientA < 0 || ClientB < 0)
+		return false;
+
+	CPlayer *pA = GameServer()->m_apPlayers[ClientA];
+	CPlayer *pB = GameServer()->m_apPlayers[ClientB];
+	if(!pA || !pB)
+		return false;
+	if(pA->GetTeam() == TEAM_SPECTATORS || pB->GetTeam() == TEAM_SPECTATORS)
+		return false;
+
+	if(IsCoop())
+	{
+		if(pA->m_IsBot == pB->m_IsBot)
+		{
+			if(!pA->m_IsBot && !g_Config.m_SvDisablePVP)
+				return true;
+			return false;
+		}
+		return true;
+	}
+
+	if(IsTeamplay())
+		return pA->GetTeam() != pB->GetTeam();
+
+	if(g_Config.m_SvDisablePVP && !pA->m_IsBot && !pB->m_IsBot)
+		return false;
+	return true;
+}
+
 bool IGameController::IsForceBalanced()
 {
 	if(m_ForceBalanced)
