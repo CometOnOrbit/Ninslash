@@ -93,6 +93,16 @@ class CPveRoguelite : public CComponent
 	int m_TutorialProgress;
 	int m_TutorialTarget;
 	int m_TutorialFlags;
+	int m_ExtractionPhase;
+	int m_ExtractionDeposited;
+	int m_ExtractionQuota;
+	int m_ExtractionCarried;
+	int m_ExtractionAlert;
+	int m_ExtractionPhaseEndTick;
+	int m_ExtractionBleedout;
+	bool m_ExtractionDowned;
+	bool m_ExtractionBoarded;
+	int m_ExtractionInteractTarget;
 
 	CPveResearchMask ParseResearchMask() const;
 	void StoreResearchMask(CPveResearchMask Mask);
@@ -109,6 +119,8 @@ class CPveRoguelite : public CComponent
 	void DrawBuildHud();
 	void DrawDrones();
 	void DrawTutorialHud();
+	void DrawExtractionHud();
+	void DrawExtractionObjects();
 	void AdvanceTutorial();
 	void TickTutorial();
 	void DrawDroneWheel();
@@ -156,6 +168,7 @@ class CPveRoguelite : public CComponent
 	}
 	bool DroneWheelActive() const { return m_DroneWheelActive; }
 	void OnGameOver();
+	bool ExtractionInteract(bool Pressed);
 
 	// World drones must paint with players/droids (before the light pass), not with HUD overlays.
 	class CRenderWorld : public CComponent
@@ -165,7 +178,10 @@ class CPveRoguelite : public CComponent
 		virtual void OnRender()
 		{
 			if(m_pRoguelite)
+			{
 				m_pRoguelite->DrawDrones();
+				m_pRoguelite->DrawExtractionObjects();
+			}
 		}
 	};
 	CRenderWorld m_RenderWorld;

@@ -228,9 +228,11 @@ class CPveDirector
 	void OnEvacuationStarted();
 	void OnEvacuationZoneEntered(int ClientID);
 	void OnCargoDelivered();
+	void OnExtractionLootDeposited(int Value);
 	void RegisterEliteContractBoss(CDroid *pBoss);
 	void CompleteContract(bool Success);
 	void RewardResearch(int Amount, int Reason, int HighestInvasion = 0);
+	void RewardResearchPlayer(int ClientID, int Amount, int Reason);
 
 	int ModifyDamage(const CAttackSource &Source, int To, int Damage);
 	int ModifyDroidDamage(const CAttackSource &Source, int Damage, bool Boss, CDroid *pTarget);

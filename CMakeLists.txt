@@ -1483,6 +1483,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/projectile.h
   entities/pve_drone.cpp
   entities/pve_drone.h
+	entities/extraction_object.cpp
+	entities/extraction_object.h
   entities/pve_drone_pulse.cpp
   entities/pve_drone_pulse.h
   entities/radar.cpp

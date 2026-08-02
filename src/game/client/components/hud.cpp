@@ -487,8 +487,8 @@ void CHud::RenderObjective()
 		str_format(aQuest, sizeof(aQuest), "%s (%s)", Localize(GetQuestDisplayName(Quest)), Localize(pWave));
 	else
 		str_copy(aQuest, Localize(GetQuestDisplayName(Quest)), sizeof(aQuest));
-	if(Quest == QUEST_EXTRACT && ExtractStage >= 1)
-		str_copy(aQuest, Localize("Reach the door"), sizeof(aQuest));
+	if(Quest == QUEST_EXTRACT && ExtractStage >= 2)
+		str_copy(aQuest, Localize("Reach the extraction zone"), sizeof(aQuest));
 
 	if(Quest == QUEST_REACHDOOR && m_pClient->SurvivalAcid())
 		str_copy(aProgress, Localize("Rising acid"), sizeof(aProgress));
@@ -507,9 +507,10 @@ void CHud::RenderObjective()
 		}
 		else if(Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND || Quest == QUEST_HOLD_ZONE)
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("seconds remaining"));
-		else if(Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH ||
-				(Quest == QUEST_EXTRACT && ExtractStage == 0))
+		else if(Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH)
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("switches remaining"));
+		else if(Quest == QUEST_EXTRACT && ExtractStage <= 1)
+			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("value remaining"));
 		else if(Quest == QUEST_EXTRACT)
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("to evacuate"));
 

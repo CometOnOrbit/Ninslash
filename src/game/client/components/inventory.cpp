@@ -288,6 +288,8 @@ void CInventory::RequestDrop()
 void CInventory::ConKeyInventory(IConsole::IResult *pResult, void *pUserData)
 {
 	CInventory *pSelf = (CInventory *)pUserData;
+	if(pSelf->m_pClient->m_pPveRoguelite->ExtractionInteract(pResult->GetInteger(0) != 0))
+		return;
 	if(pResult->GetInteger(0) && pSelf->m_pClient->m_pBuildPlacement->Active())
 		return;
 

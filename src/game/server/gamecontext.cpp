@@ -2191,6 +2191,8 @@ void CGameContext::OnClientDrop(int ClientID, const char *pReason)
 		return;
 	if(m_pPveDirector)
 		m_pPveDirector->OnClientDrop(ClientID);
+	if(str_comp(g_Config.m_SvGametype, "extract") == 0)
+		static_cast<CGameControllerExtract *>(m_pController)->OnClientDrop(ClientID);
 	if(str_comp(g_Config.m_SvGametype, "roam") == 0)
 		static_cast<CGameControllerRoam *>(m_pController)->ResetRace(ClientID);
 	AbortVoteKickOnDisconnect(ClientID);
@@ -2282,6 +2284,13 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			CNetMsg_Cl_TutorialAction *pMsg = (CNetMsg_Cl_TutorialAction *)pRawMsg;
 			if(m_pTutorialDirector)
 				m_pTutorialDirector->OnAction(ClientID, pMsg->m_Action, pMsg->m_Nonce, pMsg->m_Value);
+		}
+		else if(MsgID == NETMSGTYPE_CL_EXTRACTIONINTERACT)
+		{
+			CNetMsg_Cl_ExtractionInteract *pMsg = (CNetMsg_Cl_ExtractionInteract *)pRawMsg;
+			CGameControllerExtract *pExtract = dynamic_cast<CGameControllerExtract *>(m_pController);
+			if(pExtract)
+				pExtract->OnInteract(ClientID, pMsg->m_Target, pMsg->m_Pressed != 0);
 		}
 		else if(MsgID == NETMSGTYPE_CL_SAY)
 		{

@@ -493,11 +493,7 @@ void CPveDirector::FinishContractVote()
 	}
 	if(m_ActiveContract == PVE_CONTRACT_BLACK_BOX)
 	{
-		m_ContractTarget = 3;
-		m_BlackBoxPos = m_pGameServer->GetFarHumanSpawnPos(true);
-		m_BlackBoxHoldTicks = 0;
-		m_pBlackBoxRadar = new CServerRadar(&m_pGameServer->m_World, RADAR_REACTOR);
-		m_pBlackBoxRadar->Activate(m_BlackBoxPos);
+		m_ContractTarget = 1;
 	}
 	SendContractStatus();
 	m_pGameServer->SendChatTarget(-1, "Team contract started");
@@ -721,7 +717,7 @@ void CPveDirector::Tick()
 			SendContractStatus();
 		return;
 	}
-	if(Enabled() && !InIntermission() && m_ContractState == PVE_CONTRACT_STATE_ACTIVE &&
+	if(Enabled() && !InIntermission() && m_Mode != PVE_MODE_EXTRACTION && m_ContractState == PVE_CONTRACT_STATE_ACTIVE &&
 	   m_ActiveContract == PVE_CONTRACT_BLACK_BOX)
 		TickBlackBox();
 	if(Enabled())
@@ -1492,6 +1488,17 @@ void CPveDirector::OnCargoDelivered()
 	SendContractStatus();
 }
 
+void CPveDirector::OnExtractionLootDeposited(int Value)
+{
+	if(Value >= 50 && ActiveContract() == PVE_CONTRACT_BLACK_BOX)
+	{
+		m_ContractProgress = 1;
+		CompleteContract(true);
+	}
+	if(Value >= 50 && ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
+		OnCargoDelivered();
+}
+
 void CPveDirector::TickBlackBox()
 {
 	bool Occupied = false;
@@ -1598,6 +1605,21 @@ void CPveDirector::RewardResearch(int Amount, int Reason, int HighestInvasion)
 	}
 	if(Amount > 0)
 		m_pGameServer->SendChatTarget(-1, "Research reward: +%d point(s)", Amount);
+}
+
+void CPveDirector::RewardResearchPlayer(int ClientID, int Amount, int Reason)
+{
+	if(!Enabled() || !IsEligiblePlayer(ClientID) || Amount <= 0 || g_Config.m_SvTutorialMode)
+		return;
+	CPlayerRun &Run = m_aPlayers[ClientID];
+	Run.m_ResearchPoints = clamp(Run.m_ResearchPoints + Amount, 0, 999);
+	const int Checkpoint = Run.m_HighestInvasion >= 10 ? (Run.m_HighestInvasion / 10) * 10 + 1 : 1;
+	CNetMsg_Sv_PveResearchReward Msg;
+	Msg.m_Amount = Amount;
+	Msg.m_Reason = Reason;
+	Msg.m_HighestInvasion = Run.m_HighestInvasion;
+	Msg.m_UnlockedCheckpoint = Checkpoint;
+	m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
 
 int CPveDirector::PerkStacks(int ClientID, int CardID) const
@@ -2711,6 +2733,10 @@ float CPveDirector::MovementMultiplier(int ClientID) const
 	const CGameControllerExtract *pExtract = dynamic_cast<const CGameControllerExtract *>(m_pGameServer->m_pController);
 	CCharacter *pCharacter = m_pGameServer->GetPlayerChar(ClientID);
 	float Result = 1.0f;
+	if(pExtract && pExtract->CarriedValue(ClientID) > 0)
+		Result -= 0.10f;
+	if(pExtract && pExtract->CarriedValue(ClientID) >= 50 && ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
+		Result -= 0.20f;
 	if(pCharacter && pCharacter->IsBombCarrier())
 	{
 		if(m_aPlayers[ClientID].m_aStacks[PVE_CARD_COURIER])

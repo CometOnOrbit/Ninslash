@@ -891,6 +891,34 @@
         {
             "key": "Finished in %d:%02d.%02d",
             "value": "完成时间 %d:%02d.%02d"
+        },
+        {
+            "key": "Dropship arrived — board now",
+            "value": "撤离艇已抵达——立即登艇"
+        },
+        {
+            "key": "Dropship called — hold the extraction zone",
+            "value": "已呼叫撤离艇——守住撤离区"
+        },
+        {
+            "key": "Extraction — recover valuables and meet the quota",
+            "value": "撤离任务——回收战利品并达成配额"
+        },
+        {
+            "key": "Outpost alerted — hostiles incoming",
+            "value": "据点警戒——敌方增援正在接近"
+        },
+        {
+            "key": "Recover valuables, meet the quota and evacuate",
+            "value": "回收战利品、达成配额并撤离"
+        },
+        {
+            "key": "Recovered value %d/%d",
+            "value": "已回收价值 %d/%d"
+        },
+        {
+            "key": "Extraction map has insufficient loot markers",
+            "value": "撤离地图的战利品标记不足"
         }
     ]
 }

@@ -83,6 +83,7 @@ class CEntity
 	virtual ~CEntity();
 
 	int GetType() { return m_ObjType; }
+	int GetID() const { return m_ID; }
 
 	// bool Store();
 

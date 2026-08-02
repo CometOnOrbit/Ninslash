@@ -11,6 +11,7 @@
 #include <game/server/bosspool.h>
 #include <game/server/entities/droid_crawler.h>
 #include <game/server/entities/radar.h>
+#include <game/server/entities/extraction_object.h>
 #include <game/server/pve_bots.h>
 #include <game/server/pve_director.h>
 
@@ -54,6 +55,37 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer) 
 	m_EliteContractSpawned = false;
 	m_pMidBoss = 0;
 	m_pDoor = new CServerRadar(&GameServer()->m_World, RADAR_DOOR);
+	m_pEvacObject = 0;
+	m_EvacPos = vec2(0, 0);
+	m_NumLootCandidates = 0;
+	m_NumOutposts = 0;
+	m_NumGuardSpawnPos = 0;
+	m_Quota = 75;
+	m_DepositedValue = 0;
+	m_AlertLevel = 0;
+	m_PhaseEndTick = 0;
+	for(int i = 0; i < MAX_EXTRACTION_LOOT; i++)
+	{
+		m_apLoot[i] = 0;
+		m_aLootCandidate[i] = vec2(0, 0);
+	}
+	for(int i = 0; i < MAX_EXTRACTION_OUTPOSTS; i++)
+	{
+		m_apOutposts[i] = 0;
+		m_aOutpostPos[i] = vec2(0, 0);
+	}
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		m_apRevive[i] = 0;
+		m_aCarriedValue[i] = 0;
+		m_aInteractionTarget[i] = -1;
+		m_aInteractionTicks[i] = 0;
+		m_aInteractionHeld[i] = false;
+		m_aBoarded[i] = false;
+		m_aEliminated[i] = false;
+		m_aDownCount[i] = 0;
+		m_aBleedoutTick[i] = 0;
+	}
 
 	g_Config.m_SvOneHitKill = 0;
 	g_Config.m_SvWarmup = 0;
@@ -90,8 +122,21 @@ bool CGameControllerExtract::OnEntity(int Index, vec2 Pos)
 		}
 		return true;
 	}
-	if(Index == ENTITY_SWITCH)
-		m_AvailableSwitches++;
+	if(Index == ENTITY_EXTRACTION_LOOT_CANDIDATE && m_NumLootCandidates < MAX_EXTRACTION_LOOT)
+	{
+		m_aLootCandidate[m_NumLootCandidates++] = Pos;
+		return true;
+	}
+	if(Index == ENTITY_EXTRACTION_OUTPOST && m_NumOutposts < MAX_EXTRACTION_OUTPOSTS)
+	{
+		m_aOutpostPos[m_NumOutposts++] = Pos;
+		return true;
+	}
+	if(Index == ENTITY_EXTRACTION_GUARD_SPAWN && m_NumGuardSpawnPos < MAX_ENEMIES)
+	{
+		m_aGuardSpawnPos[m_NumGuardSpawnPos++] = Pos;
+		return true;
+	}
 	return IGameController::OnEntity(Index, Pos);
 }
 
@@ -293,7 +338,15 @@ int CGameControllerExtract::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKill
 		pVictim->GetPlayer()->m_ToBeKicked = true;
 	}
 	else if(!pVictim->m_IsBot)
-		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
+	{
+		const int CID = pVictim->GetPlayer()->GetCID();
+		DropCarriedLoot(CID, pVictim->m_Pos);
+		m_aDownCount[CID]++;
+		const int Seconds = max(10, 30 - m_aDownCount[CID] * 5);
+		m_aBleedoutTick[CID] = Server()->Tick() + Server()->TickSpeed() * Seconds;
+		m_apRevive[CID] = new CExtractionObject(&GameServer()->m_World, this, pVictim->m_Pos, CExtractionObject::TYPE_REVIVE, 0, CID);
+		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * 3600;
+	}
 
 	return 0;
 }
@@ -333,8 +386,274 @@ void CGameControllerExtract::OnDroidKilled(CDroid *pDroid)
 
 void CGameControllerExtract::DisplayExit(vec2 Pos)
 {
+	m_EvacPos = Pos;
+	if(!m_pEvacObject)
+		m_pEvacObject = new CExtractionObject(&GameServer()->m_World, this, Pos, CExtractionObject::TYPE_EVAC);
 	if(m_pDoor)
 		m_pDoor->Activate(Pos);
+}
+
+CExtractionObject *CGameControllerExtract::FindExtractionObject(int ID) const
+{
+	for(CEntity *pEntity = GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_SCRIPTED); pEntity; pEntity = pEntity->TypeNext())
+	{
+		CExtractionObject *pObject = dynamic_cast<CExtractionObject *>(pEntity);
+		if(pObject && pObject->GetID() == ID)
+			return pObject;
+	}
+	return 0;
+}
+
+void CGameControllerExtract::SpawnLoot()
+{
+	const int Players = max(1, CountHumanPlayersLocal());
+	m_Quota = 75 + 45 * (Players - 1);
+	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_LOCKED_ROUTE)
+	{
+		m_Quota = (m_Quota * 13 + 9) / 10;
+		m_AlertLevel = 1;
+	}
+	// Static maps made before scavenging markers fall back to their enemy anchors.
+	if(m_NumOutposts < 2)
+		for(int i = 0; i < m_NumEnemySpawnPos && m_NumOutposts < 2; i++)
+		{
+			const vec2 Pos = m_aEnemySpawnPos[i];
+			if(distance(Pos, m_EvacPos) < 24.0f * 32.0f)
+				continue;
+			bool FarEnough = true;
+			for(int j = 0; j < m_NumOutposts; j++)
+				if(distance(Pos, m_aOutpostPos[j]) < 28.0f * 32.0f)
+					FarEnough = false;
+			if(FarEnough)
+				m_aOutpostPos[m_NumOutposts++] = Pos;
+		}
+	if(m_NumLootCandidates < 12)
+		for(int i = 0; i < m_NumEnemySpawnPos && m_NumLootCandidates < 12; i++)
+		{
+			const vec2 Pos = m_aEnemySpawnPos[i] + vec2((i & 1) ? 48.0f : -48.0f, 0.0f);
+			if(distance(Pos, m_EvacPos) < 10.0f * 32.0f || GameServer()->Collision()->CheckPoint(Pos))
+				continue;
+			m_aLootCandidate[m_NumLootCandidates++] = Pos;
+		}
+	int Total = 0;
+	for(int i = 0; i < m_NumOutposts; i++)
+		m_apOutposts[i] = new CExtractionObject(&GameServer()->m_World, this, m_aOutpostPos[i], CExtractionObject::TYPE_OUTPOST);
+	for(int i = 0; i < m_NumLootCandidates && Total < (m_Quota * 3 + 1) / 2; i++)
+	{
+		int Value = 10;
+		for(int j = 0; j < m_NumOutposts; j++)
+			if(distance(m_aLootCandidate[i], m_aOutpostPos[j]) <= 10.0f * 32.0f)
+				Value = (i + j) % 3 == 0 ? 50 : 25;
+		if(Value == 10 && i % 3 == 0)
+			Value = 25;
+		if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_BLACK_BOX && i == 0)
+			Value = 50;
+		m_apLoot[i] = new CExtractionObject(&GameServer()->m_World, this, m_aLootCandidate[i], CExtractionObject::TYPE_LOOT, Value);
+		Total += Value;
+	}
+	// A marked static layout may still have too little nominal value. Upgrade
+	// its farthest remaining candidates before allowing an impossible quota.
+	for(int i = 0; i < m_NumLootCandidates && Total < m_Quota; i++)
+		if(!m_apLoot[i])
+		{
+			m_apLoot[i] = new CExtractionObject(&GameServer()->m_World, this, m_aLootCandidate[i], CExtractionObject::TYPE_LOOT, 50);
+			Total += 50;
+		}
+	if(Total < m_Quota)
+	{
+		dbg_msg("extract", "layout disabled: loot value %d below quota %d", Total, m_Quota);
+		GameServer()->SendBroadcast("Extraction map has insufficient loot markers", -1);
+		m_RoundOverTick = Server()->Tick();
+		m_Win = false;
+	}
+	dbg_msg("extract", "scavenge quota=%d generated_value=%d candidates=%d outposts=%d", m_Quota, Total, m_NumLootCandidates, m_NumOutposts);
+}
+
+void CGameControllerExtract::DropCarriedLoot(int ClientID, vec2 Pos)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_aCarriedValue[ClientID] <= 0)
+		return;
+	for(int i = 0; i < MAX_EXTRACTION_LOOT; i++)
+		if(!m_apLoot[i] || m_apLoot[i]->State() == 3)
+		{
+			m_apLoot[i] = new CExtractionObject(&GameServer()->m_World, this, Pos, CExtractionObject::TYPE_LOOT, m_aCarriedValue[ClientID]);
+			break;
+		}
+	m_aCarriedValue[ClientID] = 0;
+}
+
+void CGameControllerExtract::TriggerOutpost(CExtractionObject *pOutpost)
+{
+	if(!pOutpost || pOutpost->State() != 0)
+		return;
+	pOutpost->SetState(1);
+	m_AlertLevel = min(3, m_AlertLevel + 1);
+	const int SpawnCount = min(4 + CountHumanPlayersLocal(), max(0, 18 - CountBots()));
+	for(int i = 0; i < SpawnCount; i++)
+	{
+		m_EnemiesLeft++;
+		GameServer()->AddBot();
+	}
+	TriggerAllBotAI(GameServer(), 8 + m_AlertLevel * 2);
+	GameServer()->SendBroadcast("Outpost alerted — hostiles incoming", -1);
+}
+
+void CGameControllerExtract::OnInteract(int ClientID, int Target, bool Pressed)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_RoundOverTick || m_aBoarded[ClientID] || m_aEliminated[ClientID])
+		return;
+	m_aInteractionHeld[ClientID] = Pressed;
+	if(!Pressed)
+	{
+		m_aInteractionTarget[ClientID] = -1;
+		m_aInteractionTicks[ClientID] = 0;
+		return;
+	}
+	m_aInteractionTarget[ClientID] = Target;
+	m_aInteractionTicks[ClientID] = 0;
+}
+
+void CGameControllerExtract::OnClientDrop(int ClientID)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return;
+	CCharacter *pChr = GameServer()->GetPlayerChar(ClientID);
+	DropCarriedLoot(ClientID, pChr ? pChr->m_Pos : m_EvacPos);
+	m_aEliminated[ClientID] = true;
+	m_aInteractionHeld[ClientID] = false;
+}
+
+bool CGameControllerExtract::WantsInventoryInteraction(int ClientID) const
+{
+	return ClientID >= 0 && ClientID < MAX_CLIENTS && m_aInteractionHeld[ClientID];
+}
+
+void CGameControllerExtract::TickInteractions()
+{
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+	{
+		if(!m_aInteractionHeld[ClientID])
+			continue;
+		CCharacter *pChr = GameServer()->GetPlayerChar(ClientID);
+		CExtractionObject *pObject = FindExtractionObject(m_aInteractionTarget[ClientID]);
+		if(!pChr || !pChr->IsAlive() || !pObject || pObject->State() == 3 || distance(pChr->m_Pos, pObject->m_Pos) > 96.0f ||
+		   GameServer()->Collision()->IntersectLine(pChr->m_Pos, pObject->m_Pos, 0, 0))
+		{
+			m_aInteractionHeld[ClientID] = false;
+			m_aInteractionTicks[ClientID] = 0;
+			continue;
+		}
+		const float Speed = GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->InteractionSpeedBonus(ClientID) : 1.0f;
+		m_aInteractionTicks[ClientID] += max(1, (int)(Speed + frandom()));
+		int Required = Server()->TickSpeed();
+		if(pObject->ObjectType() == CExtractionObject::TYPE_REVIVE)
+			Required *= 3;
+		else if(pObject->ObjectType() == CExtractionObject::TYPE_EVAC)
+			Required *= 2;
+		pObject->SetProgress(m_aInteractionTicks[ClientID] * 100 / max(1, Required));
+		if(m_aInteractionTicks[ClientID] < Required)
+			continue;
+
+		if(pObject->ObjectType() == CExtractionObject::TYPE_LOOT && m_Phase == 1 && m_aCarriedValue[ClientID] == 0)
+		{
+			m_aCarriedValue[ClientID] = pObject->Value();
+			pObject->SetState(3);
+			for(int i = 0; i < m_NumOutposts; i++)
+				if(m_apOutposts[i] && distance(m_apOutposts[i]->m_Pos, pObject->m_Pos) <= 10.0f * 32.0f)
+					TriggerOutpost(m_apOutposts[i]);
+			GameServer()->CreateSound(pObject->m_Pos, SOUND_PICKUP_ARMOR);
+		}
+		else if(pObject->ObjectType() == CExtractionObject::TYPE_EVAC)
+		{
+			if(m_aCarriedValue[ClientID] > 0)
+			{
+				const int Deposited = m_aCarriedValue[ClientID];
+				m_DepositedValue += m_aCarriedValue[ClientID];
+				m_aCarriedValue[ClientID] = 0;
+				if(GameServer()->m_pPveDirector)
+					GameServer()->m_pPveDirector->OnExtractionLootDeposited(Deposited);
+				GameServer()->SendBroadcastFormat(-1, false, "Recovered value %d/%d", m_DepositedValue, m_Quota);
+			}
+			else if(m_Phase == 1 && m_DepositedValue >= m_Quota)
+				BeginEvacuation();
+		}
+		else if(pObject->ObjectType() == CExtractionObject::TYPE_REVIVE)
+		{
+			const int Owner = pObject->Owner();
+			if(Owner >= 0 && Owner < MAX_CLIENTS && m_aBleedoutTick[Owner] > Server()->Tick() && GameServer()->m_apPlayers[Owner] &&
+			   GameServer()->m_apPlayers[Owner]->ForceRespawn(pObject->m_Pos))
+			{
+				if(GameServer()->GetPlayerChar(Owner))
+					GameServer()->GetPlayerChar(Owner)->SetHealth(max(1, GameServer()->GetPlayerChar(Owner)->m_MaxHealth / 4));
+				m_aBleedoutTick[Owner] = 0;
+				m_apRevive[Owner] = 0;
+				pObject->SetState(3);
+				Server()->SendPlatformEvent(ClientID, PLATFORM_EVENT_COOP_RESCUE);
+			}
+		}
+		m_aInteractionHeld[ClientID] = false;
+		m_aInteractionTicks[ClientID] = 0;
+		pObject->SetProgress(0);
+	}
+}
+
+void CGameControllerExtract::BeginBoarding()
+{
+	if(m_Phase != 2)
+		return;
+	m_Phase = 3;
+	m_PhaseEndTick = Server()->Tick() + Server()->TickSpeed() * 20;
+	TriggerEscape();
+	if(m_pEvacObject)
+		m_pEvacObject->SetState(2);
+	GameServer()->SendBroadcast("Dropship arrived — board now", -1);
+}
+
+void CGameControllerExtract::FinishExtraction()
+{
+	if(m_RoundOverTick)
+		return;
+	m_Win = m_Evacuated > 0;
+	m_Phase = 4;
+	m_RoundOverTick = Server()->Tick();
+	if(GameServer()->m_pPveDirector)
+	{
+		GameServer()->m_pPveDirector->OnStageComplete(m_Win);
+		if(m_Win)
+		{
+			for(int i = 0; i < MAX_CLIENTS; i++)
+				if(m_aBoarded[i])
+					GameServer()->m_pPveDirector->RewardResearchPlayer(i, 2 + min(3, max(0, m_DepositedValue - m_Quota) / 50), PVE_REWARD_EXTRACTION);
+		}
+		else
+			GameServer()->m_pPveDirector->CompleteContract(false);
+	}
+	GameServer()->SendBroadcast(m_Win ? "Extraction complete!" : "Extraction failed — nobody boarded", -1);
+	if(m_Win)
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(m_aBoarded[i] && GameServer()->m_apPlayers[i] && !GameServer()->m_apPlayers[i]->m_IsBot)
+			{
+				Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_EXTRACTION);
+				Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_COOP_COMPLETE);
+				Server()->SendPlatformEvent(i, PLATFORM_EVENT_STAT_COOP_COMPLETIONS, 1);
+			}
+}
+
+void CGameControllerExtract::SendExtractionState(int ClientID)
+{
+	if(!GameServer()->m_apPlayers[ClientID] || GameServer()->m_apPlayers[ClientID]->m_IsBot)
+		return;
+	CNetMsg_Sv_ExtractionState Msg;
+	Msg.m_Phase = clamp(m_Phase, 0, 4);
+	Msg.m_Deposited = m_DepositedValue;
+	Msg.m_Quota = m_Quota;
+	Msg.m_CarriedValue = m_aCarriedValue[ClientID];
+	Msg.m_Alert = m_AlertLevel;
+	Msg.m_PhaseEndTick = m_PhaseEndTick;
+	Msg.m_Downed = m_aBleedoutTick[ClientID] > Server()->Tick();
+	Msg.m_BleedoutSeconds = Msg.m_Downed ? max(0, (m_aBleedoutTick[ClientID] - Server()->Tick()) / Server()->TickSpeed()) : 0;
+	Msg.m_Boarded = m_aBoarded[ClientID];
+	Server()->SendPackMsg(&Msg, 0, ClientID);
 }
 
 void CGameControllerExtract::BeginEvacuation()
@@ -344,8 +663,8 @@ void CGameControllerExtract::BeginEvacuation()
 	m_DoorChoicePending = false;
 	m_DoorChoiceStarted = false;
 	m_DoorOpen = true;
-	m_Phase = 1;
-	TriggerEscape();
+	m_Phase = 2;
+	m_PhaseEndTick = Server()->Tick() + Server()->TickSpeed() * 25;
 	m_EvacNeeded = max(1, CountHumans());
 	m_Evacuated = 0;
 	if(GameServer()->m_pPveDirector)
@@ -354,12 +673,12 @@ void CGameControllerExtract::BeginEvacuation()
 		GameServer()->m_pPveDirector->OnEvacuationStarted();
 	}
 	SpawnEscapePressure();
-	GameServer()->SendBroadcast("Door open — evacuate!", -1);
+	GameServer()->SendBroadcast("Dropship called — hold the extraction zone", -1);
 }
 
 void CGameControllerExtract::NextLevel(int CID)
 {
-	if(!m_DoorOpen || m_RoundOverTick)
+	if(m_Phase != 3 || m_RoundOverTick)
 		return;
 
 	CPlayer *pPlayer = GameServer()->m_apPlayers[CID];
@@ -376,28 +695,10 @@ void CGameControllerExtract::NextLevel(int CID)
 	}
 
 	pPlayer->GetCharacter()->Warp();
+	m_aBoarded[CID] = true;
 	m_Evacuated++;
 	GameServer()->SendBroadcastFormat(-1, false, "Evacuated %d/%d", m_Evacuated, m_EvacNeeded);
 
-	if(m_Evacuated >= m_EvacNeeded)
-	{
-		m_Win = true;
-		m_RoundOverTick = Server()->Tick();
-		if(GameServer()->m_pPveDirector)
-		{
-			GameServer()->m_pPveDirector->OnStageComplete(true);
-			GameServer()->m_pPveDirector->RewardResearch(2, PVE_REWARD_EXTRACTION);
-		}
-		GameServer()->SendBroadcast("Extraction complete!", -1);
-		for(int i = 0; i < MAX_CLIENTS; i++)
-			if(GameServer()->m_apPlayers[i] && !GameServer()->m_apPlayers[i]->m_IsBot)
-			{
-				Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_EXTRACTION);
-				Server()->SendPlatformEvent(i, PLATFORM_EVENT_FIRST_COOP_COMPLETE);
-				Server()->SendPlatformEvent(i, PLATFORM_EVENT_STAT_COOP_COMPLETIONS, 1);
-			}
-		// no sv_mapgen_level++
-	}
 }
 
 void CGameControllerExtract::Tick()
@@ -417,6 +718,26 @@ void CGameControllerExtract::Tick()
 	}
 	if(m_DoorChoiceStarted)
 		BeginEvacuation();
+	TickInteractions();
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+	{
+		if(m_aBleedoutTick[ClientID] > 0 && m_aBleedoutTick[ClientID] <= Server()->Tick())
+		{
+			m_aBleedoutTick[ClientID] = 0;
+			m_aEliminated[ClientID] = true;
+			if(m_apRevive[ClientID])
+			{
+				m_apRevive[ClientID]->SetState(3);
+				m_apRevive[ClientID] = 0;
+			}
+		}
+		if(Server()->Tick() % max(1, Server()->TickSpeed() / 5) == 0)
+			SendExtractionState(ClientID);
+	}
+	if(m_Phase == 2 && m_PhaseEndTick <= Server()->Tick())
+		BeginBoarding();
+	if(m_Phase == 3 && m_PhaseEndTick <= Server()->Tick())
+		FinishExtraction();
 	if(m_EliteContractSpawned && GameServer()->m_pPveDirector && CountAliveBosses(&GameServer()->m_World) <= 0)
 	{
 		m_EliteContractSpawned = false;
@@ -452,40 +773,15 @@ void CGameControllerExtract::Tick()
 				GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->DeadlineMultiplier() : 1.0f;
 			m_DeadlineTick =
 				Server()->Tick() + (int)(Server()->TickSpeed() * 60 * max(1, g_Config.m_SvTimelimit) * DeadlineScale);
-			const int ExtraSwitches = GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->ActiveContract() ==
-																		  PVE_CONTRACT_LOCKED_ROUTE
-										  ? 2
-										  : 0;
-			if(ExtraSwitches > 0)
-				for(int Extra = 0; Extra < ExtraSwitches; Extra++)
-				{
-					vec2 Pos;
-					if(!GetSpawnPos(0, &Pos))
-						Pos = vec2(4000.0f + Extra * 96.0f, 4000.0f);
-					new CBuilding(&GameServer()->m_World, Pos, BUILDING_SWITCH, TEAM_NEUTRAL);
-					m_AvailableSwitches++;
-					CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
-					pRadar->Activate(Pos);
-				}
-			// Use the authoritative number actually placed on this generated map.
-			// Requiring an artificial minimum of two softlocked rare layouts where
-			// map generation could only place one; zero keeps the timed boss fallback.
-			m_SwitchesRequired = m_AvailableSwitches;
+			m_Phase = 1;
+			vec2 ExitPos;
+			if(FindEscape(&ExitPos))
+				DisplayExit(ExitPos);
+			SpawnLoot();
 			SpawnInitialEnemies();
-			if(GameServer()->m_pPveDirector &&
-			   GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
-				for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
-				{
-					CCharacter *pCharacter = GameServer()->GetPlayerChar(ClientID);
-					if(pCharacter && !pCharacter->m_IsBot && pCharacter->IsAlive())
-					{
-						pCharacter->GiveBomb();
-						break;
-					}
-				}
 			m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * 5;
 			m_TriggerTick = Server()->Tick() + Server()->TickSpeed() * 2;
-			GameServer()->SendBroadcast("Extraction — activate switches, then escape", -1);
+			GameServer()->SendBroadcast("Extraction — recover valuables and meet the quota", -1);
 		}
 		return;
 	}
@@ -494,7 +790,7 @@ void CGameControllerExtract::Tick()
 	if(HumansAlive > 0)
 		m_HadHumanAlive = true;
 
-	if(g_Config.m_SvSurvivalMode && !m_RoundOverTick && m_HadHumanAlive && HumansAlive <= 0 &&
+	if(!m_RoundOverTick && m_HadHumanAlive && HumansAlive <= 0 && m_Evacuated <= 0 &&
 	   CountHumanPlayersLocal() > 0)
 	{
 		GameServer()->SendBroadcast("Extraction failed — team wiped", -1);
@@ -507,11 +803,11 @@ void CGameControllerExtract::Tick()
 	// reinforce while fighting / evacuating
 	if(m_BotSpawnTick && m_BotSpawnTick <= Server()->Tick() && !m_RoundOverTick)
 	{
-		m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * (m_Phase == 0 ? 5 : 4);
+		m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * (m_Phase <= 1 ? 7 : 4);
 		const float Pressure = m_Phase == 1 && GameServer()->m_pPveDirector
 								   ? GameServer()->m_pPveDirector->ReinforcementMultiplier()
 								   : 1.0f;
-		const int Cap = (int)((m_Phase == 0 ? 16 : 18) * Pressure);
+		const int Cap = (int)((m_Phase <= 1 ? 12 : 18) * Pressure);
 		if(CountBots() < Cap)
 		{
 			const int Count = max(1, (int)(3 * Pressure));
@@ -521,7 +817,7 @@ void CGameControllerExtract::Tick()
 		}
 	}
 
-	if(m_Phase == 0 && m_MidBossSpawned && !m_MidBossPerkOffered && !m_pMidBoss)
+	if(false && m_Phase == 0 && m_MidBossSpawned && !m_MidBossPerkOffered && !m_pMidBoss)
 	{
 		m_MidBossPerkOffered = true;
 		if(GameServer()->m_pPveDirector)
@@ -531,7 +827,7 @@ void CGameControllerExtract::Tick()
 				return;
 		}
 	}
-	if(m_Phase == 0 && m_DoorChoicePending && m_MidBossPerkOffered && !m_DoorChoiceStarted)
+	if(false && m_Phase == 0 && m_DoorChoicePending && m_MidBossPerkOffered && !m_DoorChoiceStarted)
 	{
 		m_DoorChoiceStarted = true;
 		if(GameServer()->m_pPveDirector)
@@ -544,7 +840,7 @@ void CGameControllerExtract::Tick()
 	}
 
 	// no switches on map: after 25s mid boss then door
-	if(m_Phase == 0 && !m_DoorOpen && m_AvailableSwitches <= 0 && m_StartTick &&
+	if(false && m_Phase == 0 && !m_DoorOpen && m_AvailableSwitches <= 0 && m_StartTick &&
 	   Server()->Tick() > m_StartTick + Server()->TickSpeed() * 25)
 	{
 		if(!m_MidBossSpawned)
@@ -595,10 +891,10 @@ void CGameControllerExtract::Snap(int SnappingClient)
 	if(!pGameDataObj)
 		return;
 
-	if(m_Phase == 0)
+	if(m_Phase <= 1)
 	{
 		pGameDataObj->m_TeamscoreRed = QUEST_EXTRACT;
-		pGameDataObj->m_TeamscoreBlue = max(0, m_SwitchesRequired - m_SwitchesActivated);
+		pGameDataObj->m_TeamscoreBlue = max(0, m_Quota - m_DepositedValue);
 	}
 	else
 	{
@@ -610,5 +906,5 @@ void CGameControllerExtract::Snap(int SnappingClient)
 	if(m_DeadlineTick > Server()->Tick())
 		SecLeft = (m_DeadlineTick - Server()->Tick()) / Server()->TickSpeed();
 	pGameDataObj->m_FlagCarrierRed = SecLeft;
-	pGameDataObj->m_FlagCarrierBlue = (m_Phase << 8) | (m_Win ? 1 : 0);
+	pGameDataObj->m_FlagCarrierBlue = (min(3, m_Phase) << 8) | (m_Win ? 1 : 0);
 }

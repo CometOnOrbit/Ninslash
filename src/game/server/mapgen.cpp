@@ -870,6 +870,88 @@ void CMapGen::GenerateBossEnemySpawn(CGenLayer *pTiles)
 	pTiles->Use(p.x, p.y);
 }
 
+void CMapGen::GenerateExtractionLayout(CGenLayer *pTiles)
+{
+	struct SCandidate
+	{
+		ivec2 m_Pos;
+		int m_Score;
+	};
+	SCandidate aCandidates[4096];
+	bool aReserved[4096] = {};
+	int NumCandidates = 0;
+	const ivec2 Exit = pTiles->m_EndPos;
+	for(int y = 5; y < pTiles->Height() - 4 && NumCandidates < 4096; y++)
+		for(int x = 4; x < pTiles->Width() - 4 && NumCandidates < 4096; x++)
+		{
+			bool Clear = !pTiles->Get(x, y) && !pTiles->Get(x, y - 1) && !pTiles->Get(x, y - 2);
+			bool Floor = pTiles->Get(x - 1, y + 1) && pTiles->Get(x, y + 1) && pTiles->Get(x + 1, y + 1);
+			if(!Clear || !Floor || pTiles->Used(x, y) || pTiles->IsNearSlope(x, y))
+				continue;
+			const int ExitDistance = abs(x - Exit.x) + abs(y - Exit.y);
+			if(Exit.x && ExitDistance < 12)
+				continue;
+			aCandidates[NumCandidates++] = {ivec2(x, y), ExitDistance};
+		}
+
+	// Farthest broad regions become outposts. Each receives local guard and loot markers.
+	ivec2 aOutposts[3] = {};
+	int NumOutposts = 0;
+	for(int Slot = 0; Slot < 3; Slot++)
+	{
+		int Best = -1;
+		for(int i = 0; i < NumCandidates; i++)
+		{
+			bool FarEnough = true;
+			for(int j = 0; j < NumOutposts; j++)
+				if(abs(aCandidates[i].m_Pos.x - aOutposts[j].x) + abs(aCandidates[i].m_Pos.y - aOutposts[j].y) < 28)
+					FarEnough = false;
+			if(!aReserved[i] && FarEnough && (Best < 0 || aCandidates[i].m_Score > aCandidates[Best].m_Score))
+				Best = i;
+		}
+		if(Best < 0)
+			break;
+		const ivec2 Center = aCandidates[Best].m_Pos;
+		aReserved[Best] = true;
+		aOutposts[NumOutposts++] = Center;
+		ModifTile(Center, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_EXTRACTION_OUTPOST);
+		pTiles->Use(Center.x, Center.y);
+		int Guards = 0;
+		for(int i = 0; i < NumCandidates && Guards < 3; i++)
+		{
+			const ivec2 Pos = aCandidates[i].m_Pos;
+			const int Dist = abs(Pos.x - Center.x) + abs(Pos.y - Center.y);
+			if(Dist >= 3 && Dist <= 9 && !aReserved[i])
+			{
+				ModifTile(Pos, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_EXTRACTION_GUARD_SPAWN);
+				pTiles->Use(Pos.x, Pos.y);
+				aReserved[i] = true;
+				Guards++;
+			}
+		}
+	}
+
+	int LootPlaced = 0;
+	for(int Pass = 0; Pass < 2 && LootPlaced < 18; Pass++)
+		for(int i = 0; i < NumCandidates && LootPlaced < 18; i++)
+		{
+			const ivec2 Pos = aCandidates[i].m_Pos;
+			if(aReserved[i])
+				continue;
+			bool NearOutpost = false;
+			for(int j = 0; j < NumOutposts; j++)
+				if(abs(Pos.x - aOutposts[j].x) + abs(Pos.y - aOutposts[j].y) <= 10)
+					NearOutpost = true;
+			if((Pass == 0) != NearOutpost)
+				continue;
+			ModifTile(Pos, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_EXTRACTION_LOOT_CANDIDATE);
+			pTiles->Use(Pos.x, Pos.y);
+			aReserved[i] = true;
+			LootPlaced++;
+		}
+	dbg_msg("mapgen", "extract layout outposts=%d loot_candidates=%d", NumOutposts, LootPlaced);
+}
+
 void CMapGen::GenerateFiretrap(CGenLayer *pTiles)
 {
 	ivec2 p = pTiles->GetWall();
@@ -1427,63 +1509,7 @@ void CMapGen::GenerateLevel()
 	}
 	else if(ExtractMode)
 	{
-		// 3–5 switches, spread across the maze
-		auto PlaceSwitchAt = [&](ivec2 p) -> bool
-		{
-			if(p.x == 0)
-				return false;
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SWITCH);
-			pTiles->Use(p.x, p.y);
-			dbg_msg("mapgen", "extract switch at %d,%d", p.x, p.y);
-			return true;
-		};
-
-		auto FarEnough = [&](ivec2 Cand, const ivec2 *aPlaced, int Count, int MinDist) -> bool
-		{
-			for(int i = 0; i < Count; i++)
-			{
-				if(abs(Cand.x - aPlaced[i].x) + abs(Cand.y - aPlaced[i].y) < MinDist)
-					return false;
-			}
-			return true;
-		};
-
-		const int Wanted = 3 + rand() % 3; // 3–5
-		const int MinDist = max(28, min(pTiles->Width(), pTiles->Height()) / 5);
-		ivec2 aPlaced[8];
-		int Placed = 0;
-
-		// seed corners / extremes first
-		ivec2 Seeds[4] = {
-			pTiles->GetLeftPlatform(), pTiles->GetRightPlatform(), pTiles->GetBotPlatform(), pTiles->GetMedPlatform()};
-		for(int s = 0; s < 4 && Placed < Wanted; s++)
-		{
-			ivec2 p = Seeds[s];
-			if(p.x == 0)
-				continue;
-			if(FarEnough(p, aPlaced, Placed, MinDist) && PlaceSwitchAt(p))
-				aPlaced[Placed++] = p;
-		}
-
-		for(int tries = 0; tries < 40 && Placed < Wanted; tries++)
-		{
-			ivec2 Cand = pTiles->GetPlatform();
-			if(Cand.x == 0)
-				Cand = pTiles->GetMedPlatform();
-			if(Cand.x == 0)
-				Cand = FindStandableFallback(pTiles, false);
-			if(Cand.x == 0)
-				continue;
-			if(!FarEnough(Cand, aPlaced, Placed, MinDist))
-				continue;
-			if(PlaceSwitchAt(Cand))
-				aPlaced[Placed++] = Cand;
-		}
-
-		while(Placed < 2 && GenerateSwitch(pTiles))
-			Placed++;
-
-		dbg_msg("mapgen", "extract placed %d/%d switches (minDist=%d)", Placed, Wanted, MinDist);
+		GenerateExtractionLayout(pTiles);
 	}
 	else if(Theme == INVASION_THEME_DUAL_SWITCHES)
 	{

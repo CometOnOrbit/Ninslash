@@ -618,6 +618,16 @@ Objects = [
 		NetIntAny("m_Time"),
 		NetIntRange("m_Checkpoint", 0, 64),
 	]),
+
+	# Extraction scavenging objects. Appended to preserve legacy IDs.
+	NetObject("ExtractionObject", [
+		NetIntAny("m_X"),
+		NetIntAny("m_Y"),
+		NetIntRange("m_Type", 0, 3),
+		NetIntRange("m_Value", 0, 99),
+		NetIntRange("m_State", 0, 3),
+		NetIntRange("m_Progress", 0, 100),
+	]),
 ]
 
 # todo: remove unnecessary ones
@@ -986,5 +996,23 @@ Messages = [
 		NetIntRange("m_Action", 0, 4),
 		NetIntAny("m_Nonce"),
 		NetIntAny("m_Value"),
+	]),
+
+	# Extraction scavenging protocol extension.
+	NetMessage("Sv_ExtractionState", [
+		NetIntRange("m_Phase", 0, 4),
+		NetIntRange("m_Deposited", 0, 9999),
+		NetIntRange("m_Quota", 0, 9999),
+		NetIntRange("m_CarriedValue", 0, 99),
+		NetIntRange("m_Alert", 0, 3),
+		NetIntAny("m_PhaseEndTick"),
+		NetIntRange("m_Downed", 0, 1),
+		NetIntRange("m_BleedoutSeconds", 0, 99),
+		NetIntRange("m_Boarded", 0, 1),
+	]),
+
+	NetMessage("Cl_ExtractionInteract", [
+		NetIntRange("m_Target", -1, 4095),
+		NetIntRange("m_Pressed", 0, 1),
 	]),
 ]

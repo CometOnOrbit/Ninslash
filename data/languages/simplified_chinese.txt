@@ -5052,3 +5052,60 @@ Keyboard & mouse
 
 Controller & advanced
 == 手柄与高级输入
+
+Recover valuables and extract
+== 回收战利品并撤离
+
+Reach the extraction zone
+== 前往撤离区
+
+value remaining
+== 剩余价值
+
+SCAVENGE
+== 搜索回收
+
+DROPSHIP INBOUND
+== 撤离艇正在接近
+
+BOARD NOW
+== 立即登艇
+
+Carrying %d value · return to extraction
+== 携带价值 %d · 返回撤离区
+
+DOWNED · %d seconds
+== 已倒地 · 剩余 %d 秒
+
+Quota met · hold E at extraction
+== 已达成配额 · 在撤离区按住 E
+
+Find valuables and bring them back
+== 搜索战利品并带回撤离区
+
+ALERT %d
+== 警戒 %d
+
+Recover valuables, meet the team quota and survive the final extraction.
+== 回收战利品，达成团队配额并在最终撤离中存活。
+
+Scavenge  ·  Co-op rescue  ·  Extraction
+== 搜索回收  ·  合作救援  ·  撤离
+
+Recover a marked 50-value object from an alerted outpost.
+== 从警戒据点回收标记的 50 价值物件。
+
+Marked high-value recovery
+== 标记的高价值回收任务
+
+High-value cargo slows its carrier by an additional 20% until deposited.
+== 高价值货物在存入前会让携带者额外减速 20%。
+
+The recovery quota is increased by 30% and outposts begin at alert level one.
+== 回收配额提高 30%，且据点初始为一级警戒。
+
+Higher quota and alert
+== 更高配额与警戒
+
+EXTRACTION
+== 撤离

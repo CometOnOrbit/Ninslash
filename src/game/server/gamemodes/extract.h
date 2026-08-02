@@ -3,13 +3,15 @@
 #include <game/server/gamecontroller.h>
 
 #define MAX_ENEMIES 512
+#define MAX_EXTRACTION_LOOT 32
+#define MAX_EXTRACTION_OUTPOSTS 4
 
 class CGameControllerExtract : public IGameController
 {
   private:
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 
-	int m_Phase; // 0 fight/switches, 1 evacuate, 2 won/lost
+	int m_Phase; // briefing, scavenge, called, boarding, result
 	int m_SwitchesRequired;
 	int m_SwitchesActivated;
 	int m_AvailableSwitches;
@@ -38,11 +40,42 @@ class CGameControllerExtract : public IGameController
 	bool m_EliteContractSpawned;
 	class CDroid *m_pMidBoss;
 	class CServerRadar *m_pDoor;
+	class CExtractionObject *m_apLoot[MAX_EXTRACTION_LOOT];
+	class CExtractionObject *m_apOutposts[MAX_EXTRACTION_OUTPOSTS];
+	class CExtractionObject *m_apRevive[MAX_CLIENTS];
+	vec2 m_aLootCandidate[MAX_EXTRACTION_LOOT];
+	vec2 m_aOutpostPos[MAX_EXTRACTION_OUTPOSTS];
+	vec2 m_aGuardSpawnPos[MAX_ENEMIES];
+	vec2 m_EvacPos;
+	class CExtractionObject *m_pEvacObject;
+	int m_NumLootCandidates;
+	int m_NumOutposts;
+	int m_NumGuardSpawnPos;
+	int m_Quota;
+	int m_DepositedValue;
+	int m_AlertLevel;
+	int m_PhaseEndTick;
+	int m_aCarriedValue[MAX_CLIENTS];
+	int m_aInteractionTarget[MAX_CLIENTS];
+	int m_aInteractionTicks[MAX_CLIENTS];
+	bool m_aInteractionHeld[MAX_CLIENTS];
+	bool m_aBoarded[MAX_CLIENTS];
+	bool m_aEliminated[MAX_CLIENTS];
+	int m_aDownCount[MAX_CLIENTS];
+	int m_aBleedoutTick[MAX_CLIENTS];
 
 	void SpawnInitialEnemies();
 	void SpawnMidBoss();
 	void SpawnEscapePressure();
 	void BeginEvacuation();
+	void BeginBoarding();
+	void FinishExtraction();
+	void SpawnLoot();
+	void TickInteractions();
+	void SendExtractionState(int ClientID);
+	void TriggerOutpost(class CExtractionObject *pOutpost);
+	void DropCarriedLoot(int ClientID, vec2 Pos);
+	class CExtractionObject *FindExtractionObject(int ID) const;
 	int CountHumanPlayersLocal() const;
 	int CountHumansAliveLocal() const;
 	int EnemyLevel() const;
@@ -63,7 +96,11 @@ class CGameControllerExtract : public IGameController
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);
 	virtual void DisplayExit(vec2 Pos);
-	bool Evacuating() const { return m_Phase == 1 && !m_RoundOverTick; }
+	void OnInteract(int ClientID, int Target, bool Pressed);
+	void OnClientDrop(int ClientID);
+	bool WantsInventoryInteraction(int ClientID) const;
+	int CarriedValue(int ClientID) const { return ClientID >= 0 && ClientID < MAX_CLIENTS ? m_aCarriedValue[ClientID] : 0; }
+	bool Evacuating() const { return (m_Phase == 2 || m_Phase == 3) && !m_RoundOverTick; }
 
 	enum GameState
 	{

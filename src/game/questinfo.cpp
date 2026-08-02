@@ -23,7 +23,7 @@ const char *GetQuestDisplayName(int Quest)
 		case QUEST_HORDE:
 			return "Survive the horde";
 		case QUEST_EXTRACT:
-			return "Activate switches to extract";
+			return "Recover valuables and extract";
 		case QUEST_DESTROY_TURRETS:
 			return "Destroy the turrets";
 		case QUEST_HOLD_ZONE:

@@ -891,6 +891,34 @@
         {
             "key": "Finished in %d:%02d.%02d",
             "value": "Finished in %d:%02d.%02d"
+        },
+        {
+            "key": "Dropship arrived — board now",
+            "value": "Dropship arrived — board now"
+        },
+        {
+            "key": "Dropship called — hold the extraction zone",
+            "value": "Dropship called — hold the extraction zone"
+        },
+        {
+            "key": "Extraction — recover valuables and meet the quota",
+            "value": "Extraction — recover valuables and meet the quota"
+        },
+        {
+            "key": "Outpost alerted — hostiles incoming",
+            "value": "Outpost alerted — hostiles incoming"
+        },
+        {
+            "key": "Recover valuables, meet the quota and evacuate",
+            "value": "Recover valuables, meet the quota and evacuate"
+        },
+        {
+            "key": "Recovered value %d/%d",
+            "value": "Recovered value %d/%d"
+        },
+        {
+            "key": "Extraction map has insufficient loot markers",
+            "value": "Extraction map has insufficient loot markers"
         }
     ]
 }

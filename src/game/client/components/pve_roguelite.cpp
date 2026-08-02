@@ -12,6 +12,7 @@
 #include <game/client/components/build_placement.h>
 #include <game/client/components/effects.h>
 #include <game/client/components/menus.h>
+#include <game/client/components/scoreboard.h>
 #include <game/client/gameclient.h>
 #include <game/client/pve_progress_storage.h>
 #include <game/client/skelebank.h>
@@ -570,6 +571,16 @@ void CPveRoguelite::OnReset()
 	m_TutorialProgress = 0;
 	m_TutorialTarget = 1;
 	m_TutorialFlags = 0;
+	m_ExtractionPhase = -1;
+	m_ExtractionDeposited = 0;
+	m_ExtractionQuota = 0;
+	m_ExtractionCarried = 0;
+	m_ExtractionAlert = 0;
+	m_ExtractionPhaseEndTick = 0;
+	m_ExtractionDowned = false;
+	m_ExtractionBleedout = 0;
+	m_ExtractionBoarded = false;
+	m_ExtractionInteractTarget = -1;
 	if(m_DebugChoiceScreenshotFrames <= 0)
 	{
 		m_ChoiceActive = false;
@@ -2892,6 +2903,7 @@ void CPveRoguelite::OnRender()
 		}
 	}
 	DrawTutorialHud();
+	DrawExtractionHud();
 	DrawDroneWheel();
 }
 
@@ -3148,6 +3160,20 @@ bool CPveRoguelite::OnMouseMove(float x, float y)
 
 void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 {
+	if(MsgType == NETMSGTYPE_SV_EXTRACTIONSTATE)
+	{
+		const CNetMsg_Sv_ExtractionState *pMsg = static_cast<const CNetMsg_Sv_ExtractionState *>(pRawMsg);
+		m_ExtractionPhase = pMsg->m_Phase;
+		m_ExtractionDeposited = pMsg->m_Deposited;
+		m_ExtractionQuota = pMsg->m_Quota;
+		m_ExtractionCarried = pMsg->m_CarriedValue;
+		m_ExtractionAlert = pMsg->m_Alert;
+		m_ExtractionPhaseEndTick = pMsg->m_PhaseEndTick;
+		m_ExtractionDowned = pMsg->m_Downed != 0;
+		m_ExtractionBleedout = pMsg->m_BleedoutSeconds;
+		m_ExtractionBoarded = pMsg->m_Boarded != 0;
+		return;
+	}
 	if(MsgType == NETMSGTYPE_SV_TUTORIALSTATE)
 	{
 		const CNetMsg_Sv_TutorialState *pMsg = (const CNetMsg_Sv_TutorialState *)pRawMsg;
@@ -3393,5 +3419,117 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		CNetMsg_Sv_PveValidation *pMsg = (CNetMsg_Sv_PveValidation *)pRawMsg;
 		m_ValidationCode = pMsg->m_Code;
 		m_ValidationUntil = time_get() + time_freq() * 3;
+	}
+}
+
+bool CPveRoguelite::ExtractionInteract(bool Pressed)
+{
+	if(m_ExtractionPhase < 0 || Client()->State() != IClient::STATE_ONLINE || !m_pClient->m_Snap.m_pLocalCharacter)
+		return false;
+	if(Pressed)
+	{
+		m_ExtractionInteractTarget = -1;
+		float BestDistance = 96.0f;
+		for(int i = 0; i < Client()->SnapNumItems(IClient::SNAP_CURRENT); i++)
+		{
+			IClient::CSnapItem Item;
+			const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
+			if(Item.m_Type != NETOBJTYPE_EXTRACTIONOBJECT)
+				continue;
+			const CNetObj_ExtractionObject *pObject = static_cast<const CNetObj_ExtractionObject *>(pData);
+			const float Dist = distance(m_pClient->m_LocalCharacterPos, vec2(pObject->m_X, pObject->m_Y));
+			if(Dist >= BestDistance || pObject->m_State == 3)
+				continue;
+			const bool Useful = (pObject->m_Type == 0 && m_ExtractionCarried == 0 && m_ExtractionPhase == 1) ||
+				(pObject->m_Type == 2 && (m_ExtractionCarried > 0 || (m_ExtractionPhase == 1 && m_ExtractionDeposited >= m_ExtractionQuota))) ||
+				pObject->m_Type == 3;
+			if(Useful)
+			{
+				BestDistance = Dist;
+				m_ExtractionInteractTarget = Item.m_ID;
+			}
+		}
+		if(m_ExtractionInteractTarget < 0)
+			return false;
+	}
+	else if(m_ExtractionInteractTarget < 0)
+		return false;
+	CNetMsg_Cl_ExtractionInteract Msg;
+	Msg.m_Target = m_ExtractionInteractTarget;
+	Msg.m_Pressed = Pressed ? 1 : 0;
+	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+	if(!Pressed)
+		m_ExtractionInteractTarget = -1;
+	return true;
+}
+
+void CPveRoguelite::DrawExtractionObjects()
+{
+	if(m_ExtractionPhase < 0)
+		return;
+	float ScreenX0, ScreenY0, ScreenX1, ScreenY1;
+	Graphics()->GetScreen(&ScreenX0, &ScreenY0, &ScreenX1, &ScreenY1);
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	for(int i = 0; i < Client()->SnapNumItems(IClient::SNAP_CURRENT); i++)
+	{
+		IClient::CSnapItem Item;
+		const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
+		if(Item.m_Type != NETOBJTYPE_EXTRACTIONOBJECT)
+			continue;
+		const CNetObj_ExtractionObject *pObject = static_cast<const CNetObj_ExtractionObject *>(pData);
+		if(pObject->m_State == 3)
+			continue;
+		vec4 Color = pObject->m_Type == 0 ? vec4(0.95f, 0.76f, 0.20f, 0.85f) :
+			pObject->m_Type == 1 ? vec4(0.95f, 0.22f, 0.16f, 0.60f) :
+			pObject->m_Type == 2 ? vec4(0.18f, 0.82f, 0.72f, 0.75f) : vec4(0.35f, 0.72f, 1.0f, 0.85f);
+		if(pObject->m_State == 1)
+			Color.a *= 0.55f;
+		Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+		const float Size = pObject->m_Type == 1 ? 46.0f : pObject->m_Type == 2 ? 56.0f : 26.0f;
+		IGraphics::CQuadItem Quad(pObject->m_X, pObject->m_Y - Size * 0.5f, Size, Size);
+		Graphics()->QuadsDraw(&Quad, 1);
+		if(pObject->m_Progress > 0)
+		{
+			Graphics()->SetColor(1, 1, 1, 0.9f);
+			IGraphics::CQuadItem Progress(pObject->m_X - Size * 0.5f + Size * pObject->m_Progress / 200.0f,
+				pObject->m_Y - Size - 5.0f, Size * pObject->m_Progress / 100.0f, 4.0f);
+			Graphics()->QuadsDraw(&Progress, 1);
+		}
+	}
+	Graphics()->QuadsEnd();
+	Graphics()->MapScreen(ScreenX0, ScreenY0, ScreenX1, ScreenY1);
+}
+
+void CPveRoguelite::DrawExtractionHud()
+{
+	if(m_ExtractionPhase < 0 || !g_Config.m_ClShowhud || m_pClient->m_pScoreboard->Active())
+		return;
+	const float Width = 300.0f * Graphics()->ScreenAspect();
+	Graphics()->MapScreen(0, 0, Width, 300.0f);
+	CUIRect Panel = {Width - 113.0f, 47.0f, 105.0f, 37.0f};
+	DrawPanel(Panel, vec4(0.035f, 0.045f, 0.055f, 0.88f), 5.0f);
+	const vec4 Accent = m_ExtractionAlert > 0 ? vec4(1.0f, 0.30f, 0.20f, 1.0f) : vec4(0.20f, 0.85f, 0.70f, 1.0f);
+	char aTitle[96], aDetail[128];
+	const char *pPhase = m_ExtractionPhase == 1 ? Localize("SCAVENGE") : m_ExtractionPhase == 2 ? Localize("DROPSHIP INBOUND") :
+		m_ExtractionPhase == 3 ? Localize("BOARD NOW") : Localize("EXTRACTION");
+	str_format(aTitle, sizeof(aTitle), "%s · %d/%d", pPhase, m_ExtractionDeposited, m_ExtractionQuota);
+	DrawText(Panel.x + 7.0f, Panel.y + 6.0f, 5.8f, aTitle, Accent);
+	if(m_ExtractionCarried > 0)
+		str_format(aDetail, sizeof(aDetail), Localize("Carrying %d value · return to extraction"), m_ExtractionCarried);
+	else if(m_ExtractionDowned)
+		str_format(aDetail, sizeof(aDetail), Localize("DOWNED · %d seconds"), m_ExtractionBleedout);
+	else if(m_ExtractionPhase == 1 && m_ExtractionDeposited >= m_ExtractionQuota)
+		str_copy(aDetail, Localize("Quota met · hold E at extraction"), sizeof(aDetail));
+	else if(m_ExtractionPhase == 2 || m_ExtractionPhase == 3)
+		str_format(aDetail, sizeof(aDetail), Localize("%d seconds remaining"), max(0, (m_ExtractionPhaseEndTick - Client()->GameTick()) / max(1, Client()->GameTickSpeed())));
+	else
+		str_copy(aDetail, Localize("Find valuables and bring them back"), sizeof(aDetail));
+	DrawText(Panel.x + 7.0f, Panel.y + 18.0f, 5.0f, aDetail, vec4(0.9f, 0.92f, 0.94f, 1.0f), Panel.w - 14.0f);
+	if(m_ExtractionAlert > 0)
+	{
+		char aAlert[48];
+		str_format(aAlert, sizeof(aAlert), Localize("ALERT %d"), m_ExtractionAlert);
+		DrawText(Panel.x + 7.0f, Panel.y + 27.0f, 4.8f, aAlert, Accent);
 	}
 }
