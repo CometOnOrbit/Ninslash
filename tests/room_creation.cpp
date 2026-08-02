@@ -35,8 +35,7 @@ int main()
 	assert(RoomModeDefaults(LOCAL_MODE_ROAM).m_Bots == 4);
 	assert(RoomModeDefaults(LOCAL_MODE_ROAM).m_Rule == 24);
 	assert(LocalGameMode(LOCAL_MODE_ROAM).m_Rule == LOCAL_RULE_ROAM_CHECKPOINTS);
-	assert((int)(sizeof(s_aLocalPveModes) / sizeof(s_aLocalPveModes[0])) == 4);
-	assert((int)(sizeof(s_aLocalPvpModes) / sizeof(s_aLocalPvpModes[0])) == 9);
+	assert((int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0])) == 13);
 	assert(str_comp(LocalGameMode(LOCAL_MODE_REACTOR_DEFENSE).m_pGameVoteImage, "reactor_def1") == 0);
 	assert(!LocalGameModeUsesTeamPopulation(LOCAL_MODE_DM));
 	assert(!LocalGameModeUsesTeamPopulation(LOCAL_MODE_BATTLE_ROYALE));

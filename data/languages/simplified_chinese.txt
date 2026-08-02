@@ -1,6 +1,2296 @@
 
 ##### translated strings #####
 
+%d Bytes
+== %d 字节
+
+%d Research Points
+== %d 研究点
+
+%d checkpoints
+== %d 个检查点
+
+%d human slots
+== %d 个人类玩家槽位
+
+%d min
+== %d 分钟
+
+%d of %d servers, %d players
+== %d / %d 个服务器, %d 个玩家
+
+%d players per team
+== 每队 %d 人
+
+%d seconds remaining
+== 剩余 %d 秒
+
+%d seconds • %d/%d
+== %d 秒 • %d/%d
+
+%d votes
+== %d 票
+
+%d waves
+== %d 波
+
+%d · %s · Lv. %d/%d
+== %d · %s · 等级 %d/%d
+
+%d · Supply
+== %d · 补给
+
+%d%% loaded
+== 已加载 %d%%
+
+%ds left
+== %ds 秒
+
+%i minute left
+== 还剩下 %i 分钟
+
+%i minutes left
+== 还剩下 %i 分钟
+
+%i second left
+== 还剩下 %i 秒钟
+
+%i seconds left
+== 还剩下 %i 秒钟
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Community room · Unverified
+== %s  ·  %s  ·  %s  ·  %d 个真人槽位  ·  %s  ·  社区房间 · 未验证
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  Community room · Unverified
+== %s  ·  %s  ·  %s  ·  %d 个人类玩家槽位  ·  社区房间 · 未验证
+
+%s did not succumb.
+== %s 没有屈服！
+
+%s modes · %d choices
+== %s · %d 个模式
+
+%s wins!
+== %s 胜利!
+
+%s • TIER %d • COST %d
+== %s • 第 %d 阶 • 费用 %d
+
+%s: %d
+== %s：%d
+
+'%s' called for vote to kick you
+== '%s' 发起投票要把你踢出服务器
+
++%d more perks
+== 另有 %d 项强化
+
+-Page %d-
+== -第 %d 页-
+
+A tie or no votes grants one final retry.
+== 平票或无人投票时获得一次最终重试。
+
+Abort
+== 取消
+
+Acid escape
+== 酸液逃生
+
+Activate
+== 启用
+
+Activate switches to extract
+== 激活开关以撤离
+
+Active • %d/%d
+== 进行中 • %d/%d
+
+Add
+== 添加
+
+Add Friend
+== 添加好友
+
+Address
+== 地址
+
+Advanced filters
+== 高级过滤
+
+Aim and fire with %s
+== 使用 %s 瞄准并射击
+
+Aim assist strength
+== 瞄准辅助强度
+
+Aim deadzone
+== 瞄准死区
+
+Aim response curve
+== 瞄准响应曲线
+
+Aim sensitivity
+== 瞄准灵敏度
+
+Alien wave cleared
+== 外星人被歼灭了！
+
+Aliens
+== 外星人
+
+Aliens terminated
+== 外星人被全部击退！
+
+All
+== 全部
+
+Allow LAN players
+== 允许局域网玩家加入
+
+Alpha
+== 透明度
+
+Always
+== 始终显示
+
+Always show
+== 始终显示
+
+Ammo
+== 弹药
+
+Angle:
+== 角度:
+
+Anonymous connection
+== 匿名连接
+
+AntiPing
+== 延迟补偿
+
+Are you sure that you want to delete the demo?
+== 你确定要删除这个回放吗?
+
+Are you sure that you want to quit?
+== 你确定要退出吗?
+
+Are you sure that you want to remove the player from your friends list?
+== 你确定要把这个玩家从好友列表中删除吗?
+
+Area Shield
+== 小型防御盾
+
+Arrows / D-pad: select and adjust · Enter / A: confirm
+== 方向键 / 十字键：选择和调整 · 回车 / A：确认
+
+Authenticating with Steam
+== 正在通过 Steam 验证
+
+Authentication
+== 验证
+
+Author
+== 作者
+
+Automatic
+== 自动
+
+Automatic by Invasion floor
+== 由入侵楼层自动选择
+
+Available
+== 已解锁
+
+Back to Play
+== 返回玩法中心
+
+Back to main menu
+== 回到主菜单
+
+Barrel
+== 油桶
+
+Barrier
+== 壁垒
+
+Base cards are always available • Rare and Epic perks are unique
+== 基础卡始终可用 • 稀有与史诗强化不可叠加
+
+Bind Ready in Settings
+== 请在设置中绑定“准备”按键
+
+Black
+== 黑色
+
+Bleed
+== 流血
+
+Block
+== 方块
+
+Blood amount
+== 游戏中血液数量
+
+Blood color
+== 血液颜色
+
+Blue team
+== 蓝队
+
+Blue team wins!
+== 蓝队胜利!
+
+Bodies
+== 身体部分
+
+Body
+== 身体
+
+Bomb (for destroying reactors)
+== 炸弹(用于摧毁反应堆)
+
+Borderless window
+== 无边框窗口
+
+Boss assault
+== Boss 突袭
+
+Browse Workshop
+== 浏览创意工坊
+
+Browse rooms
+== 浏览房间
+
+Build a defense and survive the controlled wave.
+== 建造防御设施并撑过受控敌潮。
+
+Build menu
+== 建造菜单
+
+Buy
+== 购买
+
+CHAPTER %d/6 · %s · %d/%d
+== 第 %d/6 章 · %s · %d/%d
+
+COMMUNITY
+== 社区
+
+CP %d/%d
+== 检查点 %d/%d
+
+Call vote
+== 发起投票
+
+Camera
+== 镜头
+
+Cancel
+== 取消
+
+Change color of
+== 改变颜色
+
+Change mode
+== 更换模式
+
+Change settings
+== 改变设置
+
+Change skin of
+== 改变皮肤
+
+Chapter %d
+== 第 %d 章
+
+Charge
+== 蓄力
+
+Chat
+== 聊天
+
+Chat messages
+== 聊天消息来源
+
+Checkpoint %d
+== 检查点 %d
+
+Choose a game or server
+== 选择游戏或服务器
+
+Choose a mode, expand a category, then start and join in one click.
+== 选择模式并展开设置分类，然后一键启动并加入。
+
+Choose how to deploy
+== 选择部署方式
+
+Choose material below
+== 从下方选择材料
+
+Choose target below
+== 从下方选择目标武器
+
+Choose the next mode
+== 选择下一局模式
+
+Clan
+== 团队
+
+Click to vote
+== 点击投票
+
+Close
+== 关闭
+
+Collect the marked sandbox materials.
+== 收集标记的沙盒材料。
+
+Common filters
+== 常用过滤
+
+Community / Report
+== 社区页面 / 举报
+
+Community leaderboard · Unverified
+== 社区榜 · 未验证
+
+Community page / Report
+== 社区页面 / 举报
+
+Compatible version
+== 兼容的版本
+
+Complete chapter %d first
+== 请先完成第 %d 章
+
+Complete more floors to unlock
+== 完成更多楼层后解锁
+
+Completed
+== 已完成
+
+Confirm
+== 确认
+
+Confirm purchase
+== 确认购买
+
+Connect
+== 连接
+
+Connected
+== 已连接
+
+Connecting to server
+== 正在连接服务器
+
+Connection Problems...
+== 连接异常...
+
+Console
+== 控制台
+
+Content directory
+== 内容目录
+
+Content rating
+== 内容分级
+
+Continue
+== 继续
+
+Contract completed
+== 契约完成
+
+Contract failed
+== 契约失败
+
+Controller & advanced
+== 手柄与高级输入
+
+Controller bindings
+== 手柄键位
+
+Controls
+== 控制
+
+Copy
+== 复制
+
+Core
+== 核心
+
+Core research improves universal attack, survival, and logistics perks.
+== 核心研究强化通用的攻击、生存与后勤卡牌。
+
+Cost
+== 花费
+
+Count players only
+== 只统计玩家数
+
+Country
+== 国家/地区
+
+Crc:
+== Crc校验码:
+
+Create a private party or invite a friend to begin.
+== 创建私人小队，或邀请好友开始组队。
+
+Create item
+== 创建物品
+
+Create party
+== 创建小队
+
+Create simulated room
+== 创建模拟房间
+
+Created:
+== 已创建:
+
+Current Run
+== 当前构筑
+
+Current version: %s  |  Servers: %d
+== 当前版本: %s  |  服务器: %d
+
+Current: %dx%d (%d:%d)
+== 当前: %dx%d (%d:%d)
+
+Customize
+== 自定义皮肤
+
+Cyborg wave cleared
+== 赛博格被歼灭了！
+
+Cyborgs
+== 赛博格
+
+Cyborgs terminated
+== 赛博格被全部击退！
+
+Damage
+== 伤害
+
+Deadzone
+== 死区
+
+Dedicated servers, LAN, Favorites and Steam rooms
+== 专用服务器、局域网、收藏和 Steam 房间
+
+Defend the reactor
+== 防守反应堆
+
+Delete
+== 删除
+
+Delete demo
+== 删除回放
+
+Demo details
+== 回放详细信息
+
+Demofile: %s
+== 回放: %s
+
+Demos
+== 回放
+
+Description
+== 说明
+
+Desktop notifications
+== 桌面通知
+
+Details
+== 详情
+
+Difficulty
+== 难度
+
+Difficulty %d
+== 难度 %d
+
+Disable
+== 禁用
+
+Disable whisper
+== 禁用私聊
+
+Disconnect
+== 断开连接
+
+Disconnect before replacing an enabled Mod.
+== 请先断开连接，再替换已启用的模组。
+
+Disconnected
+== 连接已断开
+
+Done
+== 完成
+
+Downloading content
+== 正在下载内容
+
+Downloading map
+== 正在下载地图
+
+Draw!
+== 平局!
+
+Drone
+== 无人机
+
+Drone integrity
+== 无人机完整度
+
+Drone module not owned
+== 尚未拥有该无人机模块
+
+Drone switch cooling down
+== 无人机切换仍在冷却
+
+Drone wheel
+== 无人机指令轮盘
+
+Drop
+== 丢弃
+
+Drop weapon
+== 丢弃武器
+
+Dual switches
+== 双开关
+
+Dynamic Camera
+== 动态镜头
+
+Dynamic lighting
+== 环境光源
+
+Earn points from PvE stages and contracts.
+== 完成 PvE 阶段与团队契约可获得研究点。
+
+Effect
+== 效果
+
+Electric grenade
+== 电极榴弹炮
+
+Electric wall
+== 电子墙
+
+Electrowall
+== 离子墙
+
+Elite wave
+== 精英波次
+
+Emoticon
+== 表情
+
+Empty slot
+== 空槽位
+
+Enable
+== 启用
+
+Endless
+== 无尽
+
+Enemies terminated
+== 敌人被全部击退！
+
+Enemy scaling
+== 敌人强度
+
+Energy shield
+== 能量护盾
+
+Enter
+== 进入
+
+Enter the full path to a ZIP package.
+== 输入 ZIP 内容包的完整路径。
+
+Environmental sounds
+== 环境音效
+
+Equip
+== 装备
+
+Equipment
+== 装备栏
+
+Error
+== 错误
+
+Error loading demo
+== 读取回放错误
+
+Everyone
+== 所有人
+
+Exit and save
+== 保存并退出
+
+Explosive
+== 爆炸
+
+Eyes
+== 眼睛部分
+
+FPS counter
+== 帧率计数器
+
+FPS:
+== 帧率:
+
+FRIEND
+== 好友
+
+FSAA samples
+== 全屏抗锯齿(FSAA)采样倍数
+
+Failed to start video render. Is FFmpeg installed?
+== 无法开始视频渲染。是否已安装 FFmpeg？
+
+Favorite
+== 收藏
+
+Favorites
+== 收藏夹
+
+Feet
+== 脚
+
+File name:
+== 文件名:
+
+Filter
+== 过滤器
+
+Fire
+== 开火
+
+Five failures. Decide the fate of this run.
+== 五次失败。决定这次远征的命运。
+
+Flamer
+== 火焰发射器
+
+Floor %d
+== 第 %d 层
+
+Floor 1
+== 从第 1 层开始
+
+Folder
+== 文件夹
+
+Follow factor
+== 跟随系数
+
+Force vote
+== 强制投票
+
+Forge
+== 锻造
+
+Forge complete
+== 锻造完成
+
+Forge disabled
+== 锻造已禁用
+
+Forging...
+== 锻造中...
+
+Free-View
+== 自由视角
+
+Friend
+== 好友
+
+Friend marks
+== 好友标记
+
+Friend room
+== 好友房间
+
+Friends
+== 好友
+
+Friends and Public require Steam.
+== 好友和公开房间需要 Steam。
+
+Friends only
+== 仅好友
+
+Fullscreen
+== 全屏幕
+
+Furries
+== 兽人
+
+Furries terminated
+== 兽人被全部击退！
+
+Furry wave cleared
+== 兽人被歼灭了！
+
+Game info
+== 游戏信息
+
+Game over
+== 游戏结束
+
+Game paused
+== 游戏已暂停
+
+Game type
+== 游戏类型
+
+Game types:
+== 游戏类型:
+
+General
+== 常规
+
+Go
+== 开始
+
+Gold
+== 金币
+
+Graphics
+== 图像
+
+Green
+== 绿色
+
+Grenade
+== 手榴弹
+
+Guided solo mission
+== 单人引导任务
+
+Gyroscope sensitivity
+== 陀螺仪灵敏度
+
+HUD
+== HUD
+
+Hair / hat
+== 头发 / 帽子
+
+Hammer
+== 锤子
+
+Handle rendering async from updates
+== 同步更新
+
+Hands
+== 手
+
+Hard block
+== 坚硬方块
+
+Has people playing
+== 有人在玩
+
+Head
+== 头
+
+Heads
+== 头部
+
+Health + Ammo
+== 生命 + 弹药
+
+Hide player's score
+== 隐藏自己的分数
+
+High Detail
+== 高细节
+
+Hit feedback strength
+== 命中反馈强度
+
+Hold %s, choose a drone module, then release to switch.
+== 按住 %s，选择一个无人机模块，然后松开以切换。
+
+Hold %s: drone command wheel
+== 按住 %s：无人机指令轮盘
+
+Hold out against the wave
+== 坚守敌潮
+
+Hold the line
+== 守住阵线
+
+Hook
+== 钩子
+
+Host
+== 房主
+
+Host address
+== 连接地址
+
+How Research Works
+== 研究规则
+
+Hue
+== 色相
+
+Human slots
+== 人类玩家槽位
+
+ID
+== ID
+
+Import
+== 导入
+
+Import ZIP
+== 导入 ZIP
+
+In your party
+== 已在你的小队中
+
+Infinite
+== 无限
+
+Info
+== 信息
+
+Invalid Demo
+== 无效的回放
+
+Invalid recipe
+== 配方无效
+
+Invalid slots
+== 槽位无效
+
+Invasion
+== 入侵模式
+
+Inventory
+== 打开物品栏
+
+Inventory roll
+== 切换物品栏(手中物品)
+
+Invert gamepad vertical aim
+== 反转手柄垂直瞄准
+
+Invert gyroscope vertical aim
+== 反转陀螺仪垂直瞄准
+
+Invisibility device
+== 隐身科技
+
+Invite
+== 邀请
+
+Invite only
+== 仅限邀请
+
+Invite to party
+== 邀请加入小队
+
+Item slot 1
+== 切换到第1个物品
+
+Item slot 3
+== 切换到第3个物品
+
+Item slot 4
+== 切换到第4个物品
+
+Join
+== 加入
+
+Join blue
+== 加入蓝队
+
+Join friend
+== 加入好友
+
+Join game
+== 加入游戏
+
+Join red
+== 加入红队
+
+Join simulated room
+== 加入模拟房间
+
+Joinable
+== 可加入
+
+Joining room
+== 正在加入房间
+
+Jump
+== 跳跃
+
+Jump:
+== 跳跃:
+
+Keyboard & mouse
+== 键盘与鼠标
+
+Kick player
+== 踢除玩家
+
+Kill messages
+== 击杀消息
+
+Kits
+== 建造套件
+
+Language
+== 语言
+
+Laser
+== 激光
+
+Last survivor
+== 最后生还者
+
+Leave
+== 离开
+
+Leave party
+== 离开小队
+
+Leave training?
+== 退出训练？
+
+Legendary
+== 传奇
+
+Length:
+== 长度:
+
+Level
+== 关卡
+
+Level %d
+== 关卡 %d
+
+Lht.
+== 明度
+
+Loading
+== 载入中
+
+Loading Workshop content…
+== 正在加载创意工坊内容…
+
+Loading map
+== 正在加载地图
+
+Local game
+== 本地游戏
+
+Local server did not become ready in time
+== 本地服务器未能及时就绪
+
+Local server log
+== 本地服务器日志
+
+Local server stopped unexpectedly
+== 本地服务器意外停止
+
+Log
+== 日志
+
+MOTD
+== 公告
+
+Map
+== 地图
+
+Map preset
+== 地图预设
+
+Map seed
+== 地图种子
+
+Map selection
+== 地图选择
+
+Map:
+== 地图:
+
+Mask of melee
+== 战神面具
+
+Mask of plenty
+== 丰盛面具
+
+Mask of protection
+== 护体面具
+
+Mask of regeneration
+== 恢复面具
+
+Mask of speed
+== 速度面具
+
+Material
+== 素材
+
+Max distance
+== 最大距离
+
+Maximum ping:
+== 最高延迟:
+
+Melee
+== 近战
+
+Menu opacity
+== 菜单不透明度
+
+Misc
+== 杂项
+
+Miscellaneous
+== 杂项
+
+Mod installed
+== 模组已安装
+
+Mod manager
+== 模组管理器
+
+Mod manager is unavailable.
+== 模组管理器不可用。
+
+Mode research unlocks perks that appear only in the matching PvE mode.
+== 模式研究解锁仅在对应 PvE 模式中出现的卡牌。
+
+Modes
+== 模式
+
+Mods
+== 模组
+
+Mouse sens.
+== 鼠标灵敏度
+
+Mouse • Arrow Keys • 1–2 • Gamepad
+== 鼠标 • 方向键 • 1–2 • 手柄
+
+Mouse • Arrow Keys • 1–3 • Gamepad
+== 鼠标 • 方向键 • 1–3 • 手柄
+
+Move closer to a screen
+== 请靠近锻造屏幕
+
+Move left
+== 向左移动
+
+Move player to spectators
+== 移动玩家为旁观
+
+Move right
+== 向右移动
+
+Move with %s, then jump with %s
+== 使用 %s 移动，然后使用 %s 跳跃
+
+Movement
+== 移动
+
+Movement deadzone
+== 移动死区
+
+Movement feedback strength
+== 移动反馈强度
+
+Multi framebuffering (requires restart)
+== 多帧缓冲（需要重新启动游戏）
+
+Multiplayer room practice
+== 多人房间练习
+
+Mute when not active
+== 失去焦点时禁音
+
+Name
+== 名字
+
+Nameplates
+== 名字板
+
+Netversion:
+== 网络协议版本
+
+Never listed publicly
+== 永不公开列出
+
+New
+== 新建
+
+New layout every launch
+== 每次启动生成新地图
+
+New name:
+== 新名字:
+
+Next weapon
+== 下一个武器
+
+Nickname
+== 昵称
+
+Ninslash %s is out! Download it at www.ninslash.com!
+== Ninslash %s 已经发布！请访问 www.ninslash.com 下载最新版本！
+
+Ninslash Training Room
+== Ninslash 训练房间
+
+No
+== 否
+
+No bots
+== 不添加机器人
+
+No description provided.
+== 暂无说明。
+
+No free local server port was found
+== 未找到可用的本地服务器端口
+
+No one
+== 无人
+
+No password
+== 无密码
+
+No perks selected
+== 尚未选择强化
+
+No prerequisite
+== 无前置节点
+
+No servers found
+== 找不到任何服务器
+
+No servers match your filter criteria
+== 没有任何服务器匹配你的过滤器
+
+No valid result
+== 无有效合成结果
+
+None
+== 无
+
+Not enough gold
+== 金币不足
+
+Not ready
+== 未准备
+
+OFFICIAL
+== 官方
+
+OK
+== 确定
+
+Objective
+== 任务目标
+
+Objective %d/%d
+== 目标 %d/%d
+
+Off
+== 关
+
+Offline
+== 离线
+
+Ok
+== 确定
+
+On
+== 开
+
+Online
+== 在线
+
+Only team chat
+== 仅队伍聊天
+
+Open
+== 打开
+
+Open Forge with %s and craft the recommended weapon.
+== 使用 %s 打开锻炉并制作推荐武器。
+
+Open Steam controller configuration
+== 打开 Steam 控制器配置
+
+Other
+== 其他
+
+Own name plate
+== 显示自己的名字
+
+Parent Folder
+== 上级目录
+
+Part 2 transplant
+== 零件 2 移植
+
+Password
+== 密码
+
+Password (optional)
+== 密码（可选）
+
+Password incorrect
+== 密码错误
+
+Perks, resources and research
+== 启用卡牌、资源与研究
+
+Ping
+== 延迟
+
+Pistol
+== 手枪
+
+Place material
+== 放入材料
+
+Place target
+== 放入目标武器
+
+Play
+== 开始游戏
+
+Play background music
+== 播放背景音乐
+
+Player
+== 玩家
+
+Player angle
+== 玩家角度
+
+Player country:
+== 包含此旗帜的玩家:
+
+Player options
+== 玩家选项
+
+Player position
+== 玩家位置
+
+Player speed
+== 玩家速度
+
+Players
+== 玩家数
+
+Playing Ninslash
+== 正在玩 Ninslash
+
+Please balance teams!
+== 请平衡团队人数!
+
+Please enter a filename for the sliced demo:
+== 请输入切片回放的文件名:
+
+Port
+== 端口
+
+Position:
+== 位置:
+
+Power barrel
+== 储电桶
+
+Preset
+== 预设
+
+Press %s to open forge
+== 按 %s 打开武器锻造
+
+Press Enter to vote
+== 按回车投票
+
+Preview file
+== 预览文件
+
+Price
+== 价格
+
+Primary color
+== 主色
+
+Processed aim
+== 处理后瞄准
+
+Profile
+== 个人资料
+
+Protocol
+== 协议
+
+Public
+== 公开
+
+Publish update
+== 发布更新
+
+Purge
+== 清剿
+
+PvE objective display
+== PvE 任务显示
+
+PvE: slowdown and light magnetism · PvP: slowdown only
+== PvE：减速与轻微吸附 · PvP：仅减速
+
+Quality Textures
+== 高品质纹理
+
+Quick search:
+== 快速搜索:
+
+Quit
+== 退出
+
+Quit anyway?
+== 无论如何都要退出吗?
+
+REC %3d:%02d
+== REC %3d:%02d
+
+RECOMMENDED ACTION
+== 推荐行动
+
+RISK • %d VOTES
+== 风险 • %d 票
+
+Random map seed
+== 随机地图种子
+
+Random seed
+== 随机种子
+
+Rating
+== 评分
+
+Reach the door
+== 进入下一层
+
+Reactor defense
+== 反应堆防守
+
+Ready
+== 准备
+
+Ready to forge
+== 可以锻造
+
+Ready to start
+== 可以启动
+
+Reason:
+== 理由:
+
+Recommended
+== 推荐
+
+Recommended: %s players  ·  %s  ·  %s difficulty
+== 推荐 %s 人  ·  %s  ·  %s难度
+
+Red
+== 红色
+
+Red team
+== 红队
+
+Red team wins!
+== 红队胜利!
+
+Refresh
+== 刷新
+
+Refreshing
+== 刷新中
+
+Refreshing master servers
+== 刷新列表服务器中
+
+Region
+== 地区
+
+Remote console
+== 远程控制台
+
+Remove
+== 移除
+
+Remove friend
+== 删除好友
+
+Rename
+== 重命名
+
+Rename demo
+== 重命名回放
+
+Render
+== 渲染
+
+Render video
+== 渲染视频
+
+Repair tool
+== 修复工具
+
+Replace
+== 替换
+
+Replace local Mod?
+== 替换本地模组？
+
+Required
+== 必需
+
+Requires FFmpeg in PATH. Output is saved under videos/.
+== 需要系统 PATH 中有 FFmpeg。输出保存到 videos/ 目录。
+
+Requires:
+== 前置：
+
+Research
+== 研究
+
+Research Details
+== 研究详情
+
+Research Progress
+== 研究进度
+
+Research unlocks perk cards; select them during a run to activate their effects.
+== 研究只负责解锁强化卡；还需在当前局的三选一中选中，效果才会生效。
+
+Reset controller defaults
+== 重置手柄默认设置
+
+Reset filter
+== 重置过滤器
+
+Reset theme to defaults
+== 恢复主题默认
+
+Reset to defaults
+== 恢复默认设置
+
+Resolution
+== 分辨率
+
+Resolve conflict
+== 解决冲突
+
+Respawn
+== 重生
+
+Respawn device
+== 复活器
+
+Restart
+== 重启
+
+Restart local
+== 重启本地服
+
+Result
+== 产物
+
+Result would not change
+== 产物不会发生变化
+
+Review room rules, visibility and password before creating the room.
+== 创建房间前，请检查房间规则、可见性和密码。
+
+Reward: 1 Research Point
+== 奖励：1 研究点
+
+Ricochet
+== 跳弹
+
+Rifle
+== 激光枪
+
+Rising acid
+== 酸液上涨
+
+Robot wave cleared
+== 机器人被歼灭了！
+
+Robots
+== 机器人
+
+Robots terminated
+== 机器人被全部击退！
+
+Roguelite Director
+== 肉鸽构筑系统
+
+Room creation failed. Your settings were kept; retry or open the log.
+== 房间创建失败。设置已保留；请重试或打开日志。
+
+Room details
+== 房间信息
+
+Room name
+== 房间名称
+
+Room preset applied
+== 已应用房间预设
+
+Room visibility
+== 房间可见性
+
+Rooms
+== 房间
+
+Round
+== 回合
+
+Rules apply the next time the server starts.
+== 规则将在下次启动服务器时生效。
+
+Sample rate
+== 采样率
+
+Sat.
+== 饱和度
+
+Save
+== 保存
+
+Score
+== 分数
+
+Score %d
+== 得分上限 %d
+
+Score board
+== 得分榜
+
+Score limit
+== 分数限制
+
+Scoreboard
+== 得分榜
+
+Screenshot
+== 截图
+
+Search
+== 搜索
+
+Secondary color
+== 副色
+
+See you next time.
+== 下次见。
+
+Seed %d
+== 种子 %d
+
+Seek the door
+== 找到通往下一层的门
+
+Select a material weapon
+== 请选择素材武器
+
+Select a target weapon
+== 请选择目标武器
+
+Select target and material
+== 选择目标武器和材料
+
+Selected
+== 已选择
+
+Semi-auto
+== 半自动
+
+Server address:
+== 服务器地址:
+
+Server details
+== 服务器详细信息
+
+Server executable was not found or could not be started
+== 未找到服务器程序或无法启动
+
+Server filter
+== 服务器筛选
+
+Server info
+== 服务器信息
+
+Server is changing map
+== 服务器正在切换地图
+
+Server name
+== 服务器名称
+
+Server not full
+== 服务器未满
+
+Session members
+== 当前成员
+
+Set End
+== 设为结束
+
+Shield generator
+== 能量护盾发生器
+
+Shotgun
+== 霰弹枪
+
+Show IDs
+== 显示 ID
+
+Show chat
+== 显示聊天
+
+Show clan
+== 显示团队
+
+Show friends only
+== 只显示好友
+
+Show ingame HUD
+== 显示游戏内 HUD
+
+Show input diagnostics
+== 显示输入诊断
+
+Show name plates
+== 显示名字板
+
+Show social data
+== 显示社交信息
+
+Show user IDs
+== 显示玩家 ID
+
+Size
+== 大小
+
+Size:
+== 尺寸:
+
+Skeleton wave cleared
+== 骷髅被歼灭了！
+
+Skeletons
+== 骷髅
+
+Skeletons terminated
+== 骷髅被全部击退！
+
+Skin
+== 皮肤
+
+Skins
+== 皮肤
+
+Slice
+== 切片
+
+Slice demo
+== 切片回放
+
+Slice...
+== 切片...
+
+Slide / down
+== 滑铲 / 下蹲
+
+Smoothness
+== 平滑度
+
+Sound
+== 声音
+
+Sound error
+== 声音出现错误
+
+Sound volume
+== 音量
+
+Source
+== 来源
+
+Spectate
+== 旁观
+
+Spectate previous
+== 观看前一个
+
+Spectate smooth
+== 旁观平滑
+
+Spectator count
+== 旁观者数量
+
+Spectator mode
+== 旁观者模式
+
+Spectators
+== 旁观者
+
+Speed:
+== 速度:
+
+Spin
+== 回旋融合
+
+Stabilizing
+== 稳定中
+
+Stack limit: %d
+== 叠层上限：%d
+
+Stand by
+== 待命
+
+Standalone network
+== 独立网络
+
+Standard gametype
+== 标准游戏类型
+
+Standard map
+== 标准地图
+
+Standard wave
+== 标准波次
+
+Start
+== 开始
+
+Start and join
+== 启动并加入
+
+Starting floor
+== 起始层数
+
+Starting local server and waiting for readiness...
+== 正在启动本地服务器并等待就绪……
+
+Starting point
+== 起始方式
+
+Steam
+== Steam
+
+Steam Cloud
+== Steam 云存档
+
+Steam Cloud conflict
+== Steam 云存档冲突
+
+Steam Input gyroscope aiming
+== Steam Input 陀螺仪瞄准
+
+Steam Input vibration
+== Steam Input 震动
+
+Steam Workshop is unavailable. Installed game data remains unchanged.
+== Steam 创意工坊不可用。已安装的游戏数据不会改变。
+
+Steam friends
+== Steam 好友
+
+Steam friends are unavailable in standalone mode.
+== 独立模式下无法使用 Steam 好友。
+
+Steam member
+== Steam 成员
+
+Steam party
+== Steam 小队
+
+Steam room
+== Steam 房间
+
+Steam room selected
+== 已选择 Steam 房间
+
+Steam rooms
+== Steam 房间
+
+Steam unavailable
+== Steam 不可用
+
+Steam unavailable — dedicated servers, Favorites and direct connection remain available.
+== Steam 不可用——专用服务器、收藏夹和直连仍可使用。
+
+Step %d of %d
+== 步骤 %d/%d
+
+Stop
+== 停止
+
+Stop local
+== 停止本地服
+
+Stopping local server...
+== 正在停止本地服务器……
+
+Streamer mode
+== 直播模式
+
+Strict gametype filter
+== 严格过滤游戏类型
+
+Sudden Death
+== 加时赛
+
+Supply grenade
+== 手榴弹
+
+Survival mode
+== 生存模式
+
+Survive the horde
+== 在无尽波次中存活
+
+Survive the wave of enemies
+== 在敌人的攻势下活下去
+
+Switch weapon on pickup
+== 拾取武器时自动装备
+
+Switch weapons and hit the training target.
+== 切换武器并击中训练目标。
+
+Sync now
+== 立即同步
+
+Synchronizing Workshop content
+== 正在同步创意工坊内容
+
+System messages
+== 系统消息
+
+TACTICAL COMMAND
+== 战术指挥
+
+Tab / LB / RB: category · Arrows / Wheel: mode · A / Enter: vote
+== Tab / LB / RB 切换分类 · 方向键 / 滚轮选择 · A / 回车投票
+
+Target
+== 目标
+
+Target %d active players
+== 目标在场人数 %d
+
+Team
+== 团队
+
+Team colors
+== 队伍颜色
+
+Team contracts
+== 团队契约
+
+Terminate the aliens
+== 击杀所有外星人
+
+Terminate the cyborgs
+== 击杀所有赛博格
+
+Terminate the enemies
+== 歼灭所有敌人
+
+Terminate the furries
+== 击杀所有兽人
+
+Terminate the skeletons
+== 击杀所有骷髅
+
+Teslacoil
+== 特斯拉线圈
+
+Texture Compression
+== 纹理压缩
+
+The Cure
+== 回复药剂
+
+The Dead
+== 感染者
+
+The Living
+== 幸存者
+
+The Mod change will apply after reconnecting.
+== 模组更改将在重新连接后生效。
+
+The audio device couldn't be initialised.
+== 无法初始化音频设备
+
+The expedition has reached its limit
+== 远征已到极限
+
+The preferred port and the next nine ports are already in use.
+== 首选端口及后续九个端口均已被占用。
+
+The server is running a non-standard tuning on a pure game type.
+== 此服务器运行着经过调整的非标准游戏类型
+
+The server rejected that selection.
+== 服务器拒绝了该选择。
+
+The team
+== 全队
+
+Theme
+== 主题
+
+This Mod version is already installed.
+== 已安装此版本的模组。
+
+This device
+== 此设备
+
+This practice does not publish a real room or contact external services.
+== 此练习不会发布真实房间，也不会连接外部服务。
+
+Threaded rendering
+== 线程化渲染
+
+Threaded sound loading
+== 线程化音效加载
+
+Throw
+== 投掷
+
+Time
+== 时间
+
+Time limit
+== 时间限制
+
+Time limit: %d min
+== 时间限制: %d 分钟
+
+Timed survive
+== 限时生存
+
+Timer
+== 计时器
+
+Training Room · Tutorial rules · 4 slots
+== 训练房间 · 教程规则 · 4 个位置
+
+Training is available from the Play hub.
+== 教学模式可从玩法中心的训练入口启动。
+
+Training · chapter %d/6
+== 训练 · 第 %d/6 章
+
+Trap run
+== 陷阱穿越
+
+Try again
+== 重试
+
+Turret stand
+== 炮塔支架
+
+Tutorial chapters
+== 教程章节
+
+Tutorial · 1/4 players · local simulation
+== 教程 · 1/4 玩家 · 本地模拟
+
+Type
+== 类型
+
+Type:
+== 类型:
+
+UDP available
+== UDP 可用
+
+UI Color
+== 界面颜色
+
+Unable to apply preset
+== 无法应用预设
+
+Unable to delete the demo
+== 无法删除这个回放
+
+Unable to import Mod
+== 无法导入模组
+
+Unable to rename the demo
+== 无法重命名这个回放
+
+Unable to start Steam Workshop query.
+== 无法启动 Steam 创意工坊查询。
+
+Unable to start community leaderboard request.
+== 无法启动社区排行榜请求。
+
+Unable to start the Mod import.
+== 无法启动模组导入。
+
+Unable to update Steam party target. Retry or recreate the party.
+== 无法更新 Steam 小队目标。请重试或重新创建小队。
+
+Unable to update the enabled Mod collection.
+== 无法更新已启用的模组集合。
+
+Unique perk
+== 唯一强化
+
+Unknown
+== 未知
+
+Unknown author
+== 未知作者
+
+Unknown item
+== 未知物品
+
+Unlock connected nodes in order.
+== 研究节点需沿连接路线依次解锁。
+
+Unlocked cards join future perk choices.
+== 已解锁卡牌会加入之后的强化选项。
+
+Unsubscribe
+== 取消订阅
+
+Upgrade
+== 强化
+
+Use +/- keys to zoom (rebindable in Controls)
+== 使用 +/- 键缩放（可在控制设置中重绑）
+
+Use Steam Cloud
+== 使用 Steam 云存档
+
+Use collection
+== 使用此集合
+
+Use sounds
+== 开启声音
+
+Use this device
+== 使用此设备
+
+V-Sync
+== 垂直同步
+
+Version
+== 版本
+
+Version:
+== 版本:
+
+Video render cancelled.
+== 已取消视频渲染。
+
+Video render complete. Saved under videos/.
+== 视频渲染完成，已保存到 videos/ 目录。
+
+Visibility
+== 可见性
+
+Vote command:
+== 投票命令:
+
+Vote description:
+== 投票描述:
+
+Vote ends in %d...
+== 投票将在 %d 秒后结束
+
+Vote no
+== 否决
+
+Vote yes
+== 赞成
+
+Voted
+== 已投票
+
+Voting
+== 投票
+
+Vulnerable
+== 破绽
+
+Waiting for server
+== 等待服务器确认
+
+Warmup
+== 热身
+
+Wave
+== 波次
+
+Wave of cyborgs incoming
+== 赛博格来袭！
+
+Wave of robots incoming
+== 机器人来袭！
+
+Wave of skeletons incoming
+== 骷髅来袭！
+
+Weapon forge
+== 武器锻造
+
+Weapon inventory
+== 武器库存
+
+Weapon is busy
+== 武器正忙
+
+Weapon level
+== 武器等级
+
+Weapon research unlocks specialization perks matched to your current weapon.
+== 武器研究解锁与当前武器类型匹配的专精卡牌。
+
+Weapon upgrade
+== 升级套件
+
+Weapons
+== 武器
+
+Weapons & Items
+== 武器与物品
+
+Welcome to Ninslash
+== 欢迎来到Ninslash！
+
+What a pity...
+== 真是可惜...
+
+When ready, press <%s>
+== 准备好后按 <%s>
+
+Whisper
+== 私聊
+
+Wide menu
+== 宽屏菜单
+
+Workshop content
+== 创意工坊内容
+
+Workshop details
+== 创意工坊详情
+
+Workshop map selected
+== 已选择创意工坊地图
+
+Yes
+== 是
+
+You
+== 你
+
+You must restart the game for all settings to take effect.
+== 你必须重启游戏才能让所有设置起效
+
+You must wait %d seconds before making another vote
+== 你必须等待 %d 秒后才能发起另一投票
+
+Z-sector wave
+== Z 形战区
+
+Zombie claw
+== 僵尸爪
+
+Zoom
+== 缩放
+
+Zoom in
+== 放大
+
+Zoom with + / - keys
+== 使用 + / - 键缩放
+
+blue
+== 蓝
+
+bosses remaining
+== 剩余首领
+
+enemies remaining
+== 剩余敌人
+
+friends
+== 位好友
+
+highest floor
+== 最高层
+
+kills
+== 击杀
+
+red
+== 红
+
+seconds remaining
+== 剩余时间
+
+switches remaining
+== 剩余开关
+
+to evacuate
+== 人待撤离
+
+turrets remaining
+== 座炮台剩余
+
+##### needs translation #####
+
+Progress, appearance, portable preferences and custom key bindings are synchronized. 
+== 
+
+Your last completed checkpoint is saved locally. You can continue now, return to 
+== 
+
+##### old translations #####
+
+Progress, appearance, portable preferences and custom key bindings are synchronized.
+== 
+
+Your last completed checkpoint is saved locally. You can continue now, return to
+== 
+
 Not enough kits
 == 工具包不足
 
@@ -25,27 +2315,6 @@ Needs a ceiling anchor
 Blocked by force field
 == 受力场限制
 
-Choose material below
-== 从下方选择材料
-
-Choose target below
-== 从下方选择目标武器
-
-No valid result
-== 无有效合成结果
-
-Place material
-== 放入材料
-
-Place target
-== 放入目标武器
-
-Select target and material
-== 选择目标武器和材料
-
-Weapon inventory
-== 武器库存
-
 Rapid-fire barrel
 == 速射枪管
 
@@ -60,9 +2329,6 @@ Charge core
 
 Charged blade
 == 蓄能刀刃
-
-Cost
-== 花费
 
 Energy blade
 == 能量刀刃
@@ -112,80 +2378,26 @@ Standard barrel
 Overcharge capacitor
 == 过载电容
 
-Activate
-== 启用
-
-Automatic
-== 自动
-
 Build
 == 建造
 
 Burst pistol
 == 连发手枪
 
-Buy
-== 购买
-
 Chainsaw
 == 链锯
-
-Charge
-== 蓄力
 
 Cluster grenade
 == 集束手雷
 
-Confirm
-== 确认
-
-Confirm purchase
-== 确认购买
-
-Damage
-== 伤害
-
-Drop
-== 丢弃
-
-Empty slot
-== 空槽位
-
-Equip
-== 装备
-
-Equipment
-== 装备栏
-
 Esc / B  Cancel
 == Esc / B  取消
-
-Explosive
-== 爆炸
 
 Flamethrower
 == 火焰喷射器
 
-Gold
-== 金币
-
-Infinite
-== 无限
-
-Kits
-== 建造套件
-
-Laser
-== 激光
-
 Placing
 == 放置中
-
-Price
-== 价格
-
-Ricochet
-== 跳弹
 
 Ricochet gun
 == 跳弹枪
@@ -196,20 +2408,11 @@ Rocket launcher
 Select items
 == 选择物品
 
-Semi-auto
-== 半自动
-
 Shop
 == 商店
 
 Shuriken
 == 手里剑
-
-Throw
-== 投掷
-
-Unknown item
-== 未知物品
 
 Waiting
 == 等待中
@@ -271,9 +2474,6 @@ Instagib  ·  Flags  ·  Teams
 Goal target
 == 进球目标
 
-Last survivor
-== 最后生还者
-
 Arena I
 == 竞技场 I
 
@@ -291,15 +2491,6 @@ Eight competitive modes with adjustable match population.
 
 8 PVP MODES · SOLO / LAN / STEAM
 == 8 种 PVP 玩法 · 单人 / 局域网 / STEAM
-
-TACTICAL COMMAND
-== 战术指挥
-
-Choose how to deploy
-== 选择部署方式
-
-RECOMMENDED ACTION
-== 推荐行动
 
 Create a room
 == 创建房间
@@ -327,9 +2518,6 @@ Open server status while the mission is prepared.
 
 Resume chapter %d of 6 from your latest step.
 == 从最近步骤继续第 %d/6 章。
-
-Training · chapter %d/6
-== 训练 · 第 %d/6 章
 
 Training · complete
 == 训练 · 已完成
@@ -433,14 +2621,8 @@ DM · TDM · CTF · bots
 Practice with bots
 == 与机器人练习
 
-Leave training?
-== 退出训练？
-
 Your last completed checkpoint is saved locally. You can continue now, return to the hub, or skip training.
 == 最近完成的检查点已保存在本地。你可以继续、返回玩法中心或跳过训练。
-
-Exit and save
-== 保存并退出
 
 Return to hub
 == 返回玩法中心
@@ -450,9 +2632,6 @@ Defeat nearby enemies: %d/3. Health and ammo pickups keep you moving.
 
 Choose one run perk. Run choices help this mission; research persists between missions.
 == 选择一个局内增益。局内选择帮助本次任务，研究则会在任务之间保留。
-
-Aim and fire with %s
-== 使用 %s 瞄准并射击
 
 Clear the nearby enemies. Health and ammo pickups keep you moving.
 == 清理附近敌人。生命和弹药补给能让你继续前进。
@@ -466,17 +2645,8 @@ Continue training
 Follow the radar marker to the objective.
 == 跟随雷达标记前往目标。
 
-Guided solo mission
-== 单人引导任务
-
-Move with %s, then jump with %s
-== 使用 %s 移动，然后使用 %s 跳跃
-
 Open Forge with %s and combine a recommended weapon.
 == 使用 %s 打开锻炉并组合推荐武器。
-
-Open Forge with %s and craft the recommended weapon.
-== 使用 %s 打开锻炉并制作推荐武器。
 
 Open your build with %s. Run choices help this mission; research persists between missions.
 == 使用 %s 打开构筑。局内选择只帮助本次任务；研究会在任务之间保留。
@@ -502,350 +2672,20 @@ TRAINING
 Training complete. Return to the hub to choose co-op PvE, PvP practice, or online servers.
 == 训练完成。返回中心以选择合作 PvE、PvP 练习或在线服务器。
 
-Connected
-== 已连接
-
-Copy
-== 复制
-
-Dedicated servers, LAN, Favorites and Steam rooms
-== 专用服务器、局域网、收藏和 Steam 房间
-
-Details
-== 详情
-
-Refreshing
-== 刷新中
-
-Search
-== 搜索
-
 Unfavorite
 == 取消收藏
-
-%d Bytes
-== %d 字节
-
-%d of %d servers, %d players
-== %d / %d 个服务器, %d 个玩家
-
-%d%% loaded
-== 已加载 %d%%
-
-%ds left
-== %ds 秒
-
-%i minute left
-== 还剩下 %i 分钟
-
-%i minutes left
-== 还剩下 %i 分钟
-
-%i second left
-== 还剩下 %i 秒钟
-
-%i seconds left
-== 还剩下 %i 秒钟
-
-%s wins!
-== %s 胜利!
-
-'%s' called for vote to kick you
-== '%s' 发起投票要把你踢出服务器
-
--Page %d-
-== -第 %d 页-
-
-Abort
-== 取消
-
-Add
-== 添加
-
-Add Friend
-== 添加好友
-
-Address
-== 地址
-
-Alien wave cleared
-== 外星人被歼灭了！
-
-Aliens terminated
-== 外星人被全部击退！
-
-All
-== 全部
-
-Alpha
-== 透明度
-
-Always
-== 始终显示
-
-Always show
-== 始终显示
-
-Angle:
-== 角度:
-
-AntiPing
-== 延迟补偿
-
-Are you sure that you want to delete the demo?
-== 你确定要删除这个回放吗?
-
-Are you sure that you want to quit?
-== 你确定要退出吗?
-
-Are you sure that you want to remove the player from your friends list?
-== 你确定要把这个玩家从好友列表中删除吗?
-
-Area Shield
-== 小型防御盾
 
 As this is the first time you launch the game, please enter your nick name below. It's recommended that you check the settings to adjust them to your liking before joining a server.
 == 这是你第一次运行游戏，请在下方输入你的昵称。建议你在进入服务器前，先检查游戏设置是否符合个人习惯
 
-Back to main menu
-== 回到主菜单
-
-Barrel
-== 油桶
-
-Black
-== 黑色
-
-Block
-== 方块
-
-Blood amount
-== 游戏中血液数量
-
-Blood color
-== 血液颜色
-
-Hit feedback strength
-== 命中反馈强度
-
-Movement feedback strength
-== 移动反馈强度
-
-Blue team
-== 蓝队
-
-Blue team wins!
-== 蓝队胜利!
-
-Bodies
-== 身体部分
-
-Body
-== 身体
-
-Bomb (for destroying reactors)
-== 炸弹(用于摧毁反应堆)
-
-Borderless window
-== 无边框窗口
-
-Build menu
-== 建造菜单
-
-Call vote
-== 发起投票
-
-Camera
-== 镜头
-
-Change color of
-== 改变颜色
-
-Change settings
-== 改变设置
-
-Change skin of
-== 改变皮肤
-
-Chat
-== 聊天
-
-Chat messages
-== 聊天消息来源
-
-Clan
-== 团队
-
-Close
-== 关闭
-
-Compatible version
-== 兼容的版本
-
-Connect
-== 连接
-
 Connecting to
 == 正在连接到
-
-Connection Problems...
-== 连接异常...
-
-Console
-== 控制台
-
-Controls
-== 控制
-
-Count players only
-== 只统计玩家数
-
-Country
-== 国家/地区
-
-Crc:
-== Crc校验码:
-
-Created:
-== 已创建:
-
-Current version: %s  |  Servers: %d
-== 当前版本: %s  |  服务器: %d
-
-Current: %dx%d (%d:%d)
-== 当前: %dx%d (%d:%d)
-
-Customize
-== 自定义皮肤
-
-Cyborg wave cleared
-== 赛博格被歼灭了！
-
-Cyborgs terminated
-== 赛博格被全部击退！
-
-Deadzone
-== 死区
-
-Delete
-== 删除
-
-Delete demo
-== 删除回放
-
-Demo details
-== 回放详细信息
-
-Demofile: %s
-== 回放: %s
-
-Demos
-== 回放
-
-Desktop notifications
-== 桌面通知
-
-Disable whisper
-== 禁用私聊
-
-Disconnect
-== 断开连接
-
-Disconnected
-== 连接已断开
-
-Downloading map
-== 正在下载地图
-
-Draw!
-== 平局!
-
-Drop weapon
-== 丢弃武器
-
-Dynamic Camera
-== 动态镜头
-
-Dynamic lighting
-== 环境光源
-
-Electric grenade
-== 电极榴弹炮
-
-Electric wall
-== 电子墙
-
-Electrowall
-== 离子墙
-
-Emoticon
-== 表情
-
-Enemies terminated
-== 敌人被全部击退！
-
-Energy shield
-== 能量护盾
-
-Enter
-== 进入
-
-Environmental sounds
-== 环境音效
-
-Error
-== 错误
-
-Error loading demo
-== 读取回放错误
-
-Everyone
-== 所有人
-
-Eyes
-== 眼睛部分
-
-FPS counter
-== 帧率计数器
-
-FPS:
-== 帧率:
-
-FSAA samples
-== 全屏抗锯齿(FSAA)采样倍数
-
-Failed to start video render. Is FFmpeg installed?
-== 无法开始视频渲染。是否已安装 FFmpeg？
-
-Favorite
-== 收藏
-
-Favorites
-== 收藏夹
-
-Feet
-== 脚
-
-File name:
-== 文件名:
-
-Filter
-== 过滤器
-
-Fire
-== 开火
-
-Flamer
-== 火焰发射器
 
 Flip attack & hook
 == 攻击 & 钩子
 
 Flip move & aim axis
 == 移动 & 瞄准
-
-Folder
-== 文件夹
 
 Roam Race
 == Roam 竞速
@@ -855,12 +2695,6 @@ Race through a generated modular course with a selectable number of checkpoints.
 
 Race  ·  Checkpoints  ·  Modular course
 == 竞速  ·  检查点  ·  模块化赛道
-
-CP %d/%d
-== 检查点 %d/%d
-
-Time
-== 时间
 
 Steam could not inspect the invitation. Ask the host to send a new invite.
 == Steam 无法检查邀请。请让房主发送新的邀请。
@@ -880,806 +2714,41 @@ Steam invitation data is unavailable or invalid. Ask the host to send a new invi
 Checkpoints
 == 检查点
 
-%d checkpoints
-== %d 个检查点
-
-Enter the full path to a ZIP package.
-== 输入 ZIP 内容包的完整路径。
-
-Import
-== 导入
-
 Unsubscribe from this Workshop item before installing a different local package with the same ID.
 == 请先取消订阅此创意工坊项目，再安装具有相同 ID 的其他本地内容包。
-
-Follow factor
-== 跟随系数
-
-Force vote
-== 强制投票
-
-Free-View
-== 自由视角
-
-Friend marks
-== 好友标记
-
-Friends
-== 好友
-
-Friends only
-== 仅好友
-
-Fullscreen
-== 全屏幕
-
-Furries terminated
-== 兽人被全部击退！
-
-Furry wave cleared
-== 兽人被歼灭了！
 
 Game
 == 游戏
 
-Game info
-== 游戏信息
-
-Game over
-== 游戏结束
-
-Game paused
-== 游戏已暂停
-
-Game type
-== 游戏类型
-
-Game types:
-== 游戏类型:
-
-General
-== 常规
-
-Go
-== 开始
-
-Graphics
-== 图像
-
-Green
-== 绿色
-
-Grenade
-== 手榴弹
-
-HUD
-== HUD
-
-Hair / hat
-== 头发 / 帽子
-
-Hammer
-== 锤子
-
-Handle rendering async from updates
-== 同步更新
-
-Hands
-== 手
-
-Hard block
-== 坚硬方块
-
-Has people playing
-== 有人在玩
-
-Head
-== 头
-
-Heads
-== 头部
-
-Health + Ammo
-== 生命 + 弹药
-
-Hide player's score
-== 隐藏自己的分数
-
-High Detail
-== 高细节
-
-Hook
-== 钩子
-
-Host address
-== 连接地址
-
-Hue
-== 色调
-
-ID
-== ID
-
-Info
-== 信息
-
 Internet
 == 互联网
-
-Invalid Demo
-== 无效的回放
-
-Inventory
-== 打开物品栏
-
-Inventory roll
-== 切换物品栏(手中物品)
-
-Invisibility device
-== 隐身科技
-
-Item slot 1
-== 切换到第1个物品
 
 Item slot 2
 == 切换到第2个物品
 
-Item slot 3
-== 切换到第3个物品
-
-Item slot 4
-== 切换到第4个物品
-
-Join
-== 加入
-
-Join blue
-== 加入蓝队
-
-Join game
-== 加入游戏
-
-Join red
-== 加入红队
-
-Jump
-== 跳跃
-
-Jump:
-== 跳跃:
-
-Kick player
-== 踢除玩家
-
-Kill messages
-== 击杀消息
-
 LAN
 == 局域网
-
-Language
-== 语言
-
-Length:
-== 长度:
-
-Lht.
-== 亮度
-
-Loading
-== 载入中
-
-MOTD
-== 公告
 
 Main menu
 == 主菜单
 
-Map
-== 地图
-
-Map:
-== 地图:
-
-Mask of melee
-== 战神面具
-
-Mask of plenty
-== 丰盛面具
-
-Mask of protection
-== 护体面具
-
-Mask of regeneration
-== 恢复面具
-
-Mask of speed
-== 速度面具
-
-Max distance
-== 最大距离
-
-Maximum ping:
-== 最高延迟:
-
-Menu opacity
-== 菜单不透明度
-
-Misc
-== 杂项
-
-Miscellaneous
-== 杂项
-
-Mouse sens.
-== 鼠标灵敏度
-
-Move left
-== 向左移动
-
-Move player to spectators
-== 移动玩家为旁观
-
-Move right
-== 向右移动
-
-Movement
-== 移动
-
-Multi framebuffering (requires restart)
-== 多帧缓冲（需要重新启动游戏）
-
-Mute when not active
-== 失去焦点时禁音
-
-Name
-== 名字
-
-Nameplates
-== 名字板
-
-Netversion:
-== 网络协议版本
-
-New name:
-== 新名字:
-
-Next weapon
-== 下一个武器
-
-Nickname
-== 昵称
-
-Ninslash %s is out! Download it at www.ninslash.com!
-== Ninslash %s 已经发布！请访问 www.ninslash.com 下载最新版本！
-
-No
-== 否
-
-No one
-== 无人
-
-No password
-== 无密码
-
-No servers found
-== 找不到任何服务器
-
-No servers match your filter criteria
-== 没有任何服务器匹配你的过滤器
-
-Objective
-== 任务目标
-
-Off
-== 关
-
-Ok
-== 确定
-
-On
-== 开
-
-Only team chat
-== 仅队伍聊天
-
-Open
-== 打开
-
-Other
-== 其他
-
-Own name plate
-== 显示自己的名字
-
-Parent Folder
-== 上级目录
-
-Password
-== 密码
-
-Password incorrect
-== 密码错误
-
-Ping
-== 延迟
-
-Pistol
-== 手枪
-
-Play
-== 开始游戏
-
-Play background music
-== 播放背景音乐
-
-Player
-== 玩家
-
-Player angle
-== 玩家角度
-
-Player country:
-== 包含此旗帜的玩家:
-
-Player options
-== 玩家选项
-
-Player position
-== 玩家位置
-
-Player speed
-== 玩家速度
-
-Players
-== 玩家数
-
-Please balance teams!
-== 请平衡团队人数!
-
-Please enter a filename for the sliced demo:
-== 请输入切片回放的文件名:
-
-Position:
-== 位置:
-
-Power barrel
-== 储电桶
-
 Prev. weapon
 == 上一个武器
-
-Quality Textures
-== 高品质纹理
-
-Quick search:
-== 快速搜索:
-
-Quit
-== 退出
-
-Quit anyway?
-== 无论如何都要退出吗?
-
-REC %3d:%02d
-== REC %3d:%02d
-
-Reach the door
-== 进入下一层
-
-Ready
-== 准备
-
-Bind Ready in Settings
-== 请在设置中绑定“准备”按键
-
-Reason:
-== 理由:
-
-Recommended
-== 推荐
-
-Red
-== 红色
-
-Red team
-== 红队
-
-Red team wins!
-== 红队胜利!
-
-Refresh
-== 刷新
-
-Refreshing master servers
-== 刷新列表服务器中
-
-Remote console
-== 远程控制台
-
-Remove
-== 移除
-
-Remove friend
-== 删除好友
-
-Rename
-== 重命名
-
-Rename demo
-== 重命名回放
-
-Render
-== 渲染
-
-Render video
-== 渲染视频
-
-Repair tool
-== 修复工具
-
-Requires FFmpeg in PATH. Output is saved under videos/.
-== 需要系统 PATH 中有 FFmpeg。输出保存到 videos/ 目录。
-
-Reset filter
-== 重置过滤器
-
-Reset to defaults
-== 恢复默认设置
-
-Reset theme to defaults
-== 恢复主题默认
-
-Resolution
-== 分辨率
-
-Respawn
-== 重生
-
-Respawn device
-== 复活器
-
-Rifle
-== 激光枪
-
-Robot wave cleared
-== 机器人被歼灭了！
-
-Robots terminated
-== 机器人被全部击退！
-
-Round
-== 回合
-
-Sample rate
-== 采样率
-
-Sat.
-== 饱和度
-
-Score
-== 分数
-
-Score board
-== 得分榜
-
-Score limit
-== 分数限制
-
-Scoreboard
-== 得分榜
-
-Screenshot
-== 截图
-
-Seek the door
-== 找到通往下一层的门
-
-Server address:
-== 服务器地址:
-
-Server details
-== 服务器详细信息
-
-Server filter
-== 服务器筛选
-
-Server info
-== 服务器信息
-
-Server is changing map
-== 服务器正在切换地图
-
-Server not full
-== 服务器未满
-
-Set End
-== 设为结束
 
 Settings
 == 设置
 
-Shield generator
-== 能量护盾发生器
-
-Shotgun
-== 霰弹枪
-
-Show IDs
-== 显示 ID
-
-Show chat
-== 显示聊天
-
-Show clan
-== 显示团队
-
-Show friends only
-== 只显示好友
-
-Show ingame HUD
-== 显示游戏内 HUD
-
-Show name plates
-== 显示名字板
-
-Show social data
-== 显示社交信息
-
-Show user IDs
-== 显示玩家 ID
-
-Size
-== 大小
-
-Size:
-== 尺寸:
-
-Skeleton wave cleared
-== 骷髅被歼灭了！
-
-Skeletons terminated
-== 骷髅被全部击退！
-
-Skin
-== 皮肤
-
-Skins
-== 皮肤
-
-Slice
-== 切片
-
-Slice demo
-== 切片回放
-
-Slice...
-== 切片...
-
-Slide / down
-== 滑铲 / 下蹲
-
-Smoothness
-== 平滑度
-
-Sound
-== 声音
-
-Sound error
-== 声音出现错误
-
-Sound volume
-== 音量
-
-Spectate
-== 旁观
-
 Spectate next
 == 观看后一个
-
-Spectate previous
-== 观看前一个
-
-Spectate smooth
-== 旁观平滑
-
-Spectator count
-== 旁观者数量
-
-Spectator mode
-== 旁观者模式
-
-Spectators
-== 旁观者
-
-Speed:
-== 速度:
-
-Stabilizing
-== 稳定中
-
-Standard gametype
-== 标准游戏类型
-
-Standard map
-== 标准地图
-
-Start
-== 开始
-
-Streamer mode
-== 直播模式
-
-Strict gametype filter
-== 严格过滤游戏类型
-
-Sudden Death
-== 加时赛
-
-Supply grenade
-== 手榴弹
-
-Survival mode
-== 生存模式
-
-Survive the wave of enemies
-== 在敌人的攻势下活下去
-
-Switch weapon on pickup
-== 拾取武器时自动装备
-
-System messages
-== 系统消息
-
-Team
-== 团队
 
 Team chat
 == 团队聊天
 
-Team colors
-== 队伍颜色
-
-Terminate the aliens
-== 击杀所有外星人
-
-Terminate the cyborgs
-== 击杀所有赛博格
-
-Terminate the enemies
-== 歼灭所有敌人
-
-Terminate the furries
-== 击杀所有兽人
-
 Terminate the robots
 == 击杀所有机器人
 
-Terminate the skeletons
-== 击杀所有骷髅
-
-Teslacoil
-== 特斯拉线圈
-
-Texture Compression
-== 纹理压缩
-
-The Cure
-== 回复药剂
-
-The Dead
-== 感染者
-
-The Living
-== 幸存者
-
-The audio device couldn't be initialised.
-== 无法初始化音频设备
-
-The server is running a non-standard tuning on a pure game type.
-== 此服务器运行着经过调整的非标准游戏类型
-
 There's an unsaved map in the editor, you might want to save it before you quit the game.
 == 编辑器中的地图尚未保存，或许你应该在退出游戏之前保存一下
-
-Threaded rendering
-== 线程化渲染
-
-Threaded sound loading
-== 线程化音效加载
-
-Time limit
-== 时间限制
-
-Time limit: %d min
-== 时间限制: %d 分钟
-
-Timer
-== 计时器
-
-Try again
-== 重试
-
-Turret stand
-== 炮塔支架
-
-Type
-== 类型
-
-Type:
-== 类型:
-
-UI Color
-== 界面颜色
-
-Theme
-== 主题
-
-Primary color
-== 主色
-
-Secondary color
-== 副色
-
-Hue
-== 色相
-
-Sat.
-== 饱和度
-
-Lht.
-== 明度
-
-Alpha
-== 透明度
-
-Unable to delete the demo
-== 无法删除这个回放
-
-Unable to rename the demo
-== 无法重命名这个回放
-
-Use +/- keys to zoom (rebindable in Controls)
-== 使用 +/- 键缩放（可在控制设置中重绑）
-
-Use sounds
-== 开启声音
-
-V-Sync
-== 垂直同步
-
-Version
-== 版本
-
-Version:
-== 版本:
-
-Video render cancelled.
-== 已取消视频渲染。
-
-Video render complete. Saved under videos/.
-== 视频渲染完成，已保存到 videos/ 目录。
-
-Vote command:
-== 投票命令:
-
-Vote description:
-== 投票描述:
-
-Vote ends in %d...
-== 投票将在 %d 秒后结束
-
-Vote no
-== 否决
-
-Vote yes
-== 赞成
-
-Voting
-== 投票
-
-Warmup
-== 热身
 
 Wave incoming
 == 敌人正在逼近！
@@ -1687,71 +2756,11 @@ Wave incoming
 Wave of aliens incoming
 == 外星人来袭！
 
-Wave of cyborgs incoming
-== 赛博格来袭！
-
 Wave of furries incoming
 == 兽人来袭！
 
-Wave of robots incoming
-== 机器人来袭！
-
-Wave of skeletons incoming
-== 骷髅来袭！
-
-Weapon upgrade
-== 升级套件
-
-Weapons & Items
-== 武器与物品
-
-Welcome to Ninslash
-== 欢迎来到Ninslash！
-
-When ready, press <%s>
-== 准备好后按 <%s>
-
-Whisper
-== 私聊
-
-Wide menu
-== 宽屏菜单
-
-Yes
-== 是
-
-You must restart the game for all settings to take effect.
-== 你必须重启游戏才能让所有设置起效
-
-You must wait %d seconds before making another vote
-== 你必须等待 %d 秒后才能发起另一投票
-
-Zombie claw
-== 僵尸爪
-
-Zoom
-== 缩放
-
-Zoom in
-== 放大
-
 Zoom out
 == 缩小
-
-Zoom with + / - keys
-== 使用 + / - 键缩放
-
-blue
-== 蓝
-
-enemies remaining
-== 剩余敌人
-
-red
-== 红
-
-seconds remaining
-== 剩余时间
 
 xbox 360 controller support
 == xbox360手柄支持
@@ -1767,18 +2776,12 @@ Switch activated
 
 Rising acid! Reach the exit
 == 酸液上涨！逃到出口
+
 Door open
 == 门已开启
 
-
-Rising acid
-== 酸液上涨
-
 Destroy the boss
 == 摧毁首领
-
-Defend the reactor
-== 防守反应堆
 
 Activate the switches
 == 激活开关
@@ -1795,12 +2798,6 @@ Reactor secured
 All switches activated
 == 所有开关已激活
 
-bosses remaining
-== 剩余首领
-
-switches remaining
-== 剩余开关
-
 Reactor destroyed
 == 反应堆已摧毁
 
@@ -1809,8 +2806,6 @@ Mouse / Arrow Keys / 1-2 / Gamepad
 
 remaining
 == 剩余
-
-
 
 Survive timed cyborg waves and purge their commander. Enemies are faster but fewer.
 == 挺过限时机械人攻势并清除其指挥官。敌军更快，但数量更少。
@@ -1832,8 +2827,6 @@ Crack the route seals. Switches are easier and the exit timer is kinder.
 
 Take the hard corridor. More enemies come through, but rewards scale up.
 == 选择高风险通道。敌军数量增加，但奖励也会提高。
-
-##### needs translation #####
 
 All damage is 8% higher for each stack, up to three stacks.
 == 每层使所有伤害提高 8%，最多叠加 3 层。
@@ -2135,8 +3128,6 @@ Interactions are 10% faster per stack, up to 60%.
 Entering evacuation restores 30% ammo and grants 20 Barrier once.
 == 进入撤离区时恢复 30% 弹药并获得 20 点壁垒，每次撤离阶段一次。
 
-##### old translations #####
-
 Always show name plates
 == 显示玩家名称
 
@@ -2203,130 +3194,20 @@ Waiting for server...
 Wave cleared
 == 攻势清空
 
-Wave
-== 波次
-
-kills
-== 击杀
-
-Survive the horde
-== 在无尽波次中存活
-
 Horde incoming
 == 尸潮来袭
-
-Activate switches to extract
-== 激活开关以撤离
 
 Extraction ready
 == 可以撤离
 
-Aliens
-== 外星人
-
-Robots
-== 机器人
-
-Skeletons
-== 骷髅
-
-Furries
-== 兽人
-
-Cyborgs
-== 赛博格
-
-to evacuate
-== 人待撤离
-
 no limit
 == 无限制
-
-Level
-== 关卡
-
-Objective %d/%d
-== 目标 %d/%d
-
-Boss assault
-== Boss 突袭
-
-Purge
-== 清剿
-
-Standard wave
-== 标准波次
-
-Dual switches
-== 双开关
-
-Reactor defense
-== 反应堆防守
-
-Timed survive
-== 限时生存
-
-Trap run
-== 陷阱穿越
-
-Elite wave
-== 精英波次
-
-Z-sector wave
-== Z 形战区
-
-Acid escape
-== 酸液逃生
-
-Invasion
-== 入侵模式
 
 Select
 == 选择
 
-Selected
-== 已选择
-
-Choose the next mode
-== 选择下一局模式
-
 Left / Right · Wheel · A / Enter · %d / %d
 == 左右选择 · 滚轮 · A / 回车确认 · %d / %d
-
-##### PvE Roguelite #####
-
-Research
-== 研究
-
-Research unlocks perk cards; select them during a run to activate their effects.
-== 研究只负责解锁强化卡；还需在当前局的三选一中选中，效果才会生效。
-
-Base cards are always available • Rare and Epic perks are unique
-== 基础卡始终可用 • 稀有与史诗强化不可叠加
-
-Core research improves universal attack, survival, and logistics perks.
-== 核心研究强化通用的攻击、生存与后勤卡牌。
-
-Weapon research unlocks specialization perks matched to your current weapon.
-== 武器研究解锁与当前武器类型匹配的专精卡牌。
-
-Mode research unlocks perks that appear only in the matching PvE mode.
-== 模式研究解锁仅在对应 PvE 模式中出现的卡牌。
-
-Research Details
-== 研究详情
-
-How Research Works
-== 研究规则
-
-Earn points from PvE stages and contracts.
-== 完成 PvE 阶段与团队契约可获得研究点。
-
-Unlock connected nodes in order.
-== 研究节点需沿连接路线依次解锁。
-
-Unlocked cards join future perk choices.
-== 已解锁卡牌会加入之后的强化选项。
 
 Team Contract
 == 团队契约
@@ -2334,41 +3215,14 @@ Team Contract
 Choose a Perk
 == 选择强化
 
-%d seconds remaining
-== 剩余 %d 秒
-
-%d seconds • %d/%d
-== %d 秒 • %d/%d
-
 %s • LEVEL %d/%d
 == %s • 等级 %d/%d
-
-%s • TIER %d • COST %d
-== %s • 第 %d 阶 • 费用 %d
-
-RISK • %d VOTES
-== 风险 • %d 票
-
-Reward: 1 Research Point
-== 奖励：1 研究点
-
-Mouse • Arrow Keys • 1–3 • Gamepad
-== 鼠标 • 方向键 • 1–3 • 手柄
-
-The server rejected that selection.
-== 服务器拒绝了该选择。
 
 After selection: level %d/%d
 == 选择后：等级 %d/%d
 
 Immediate effect
 == 即时生效
-
-Unique perk
-== 唯一强化
-
-Stack limit: %d
-== 叠层上限：%d
 
 Attack
 == 攻击
@@ -2388,9 +3242,6 @@ Explosives
 Electric
 == 电能
 
-Melee
-== 近战
-
 Horde
 == 尸潮模式
 
@@ -2399,27 +3250,6 @@ Extraction
 
 Purchase rejected
 == 购买被拒绝
-
-Contract completed
-== 契约完成
-
-Contract failed
-== 契约失败
-
-Active • %d/%d
-== 进行中 • %d/%d
-
-%d Research Points
-== %d 研究点
-
-Core
-== 核心
-
-Weapons
-== 武器
-
-Modes
-== 模式
 
 PURCHASED
 == 已购买
@@ -2442,26 +3272,8 @@ Purchase
 Locked
 == 未解锁
 
-Current Run
-== 当前构筑
-
-Effect
-== 效果
-
-Research Progress
-== 研究进度
-
-No perks selected
-== 尚未选择强化
-
-+%d more perks
-== 另有 %d 项强化
-
 Requires: %s
 == 前置：%s
-
-No prerequisite
-== 无前置节点
 
 Common
 == 普通
@@ -2471,9 +3283,6 @@ Rare
 
 Epic
 == 史诗
-
-Voted
-== 已投票
 
 Unknown contract
 == 未知契约
@@ -2541,6 +3350,9 @@ Health and armor recovery +20% per stack.
 Quick Hands
 == 快手
 
+Quick match
+== 快速比赛
+
 Weapon attack cooldown -8% per stack (maximum -30%).
 == 每层武器攻击冷却 -8%（最多 -30%）。
 
@@ -2601,9 +3413,6 @@ Shop prices -10% per stack (maximum -40%).
 Premium Stock
 == 精品库存
 
-Shops offer one additional high-tier item.
-== 商店额外提供一件高阶物品。
-
 Engineer
 == 工程师
 
@@ -2612,9 +3421,6 @@ Building costs -20% and repairs +25%.
 
 Recycler
 == 回收专家
-
-Destroyed friendly buildings refund 40% of their kit cost.
-== 友方建筑摧毁时返还其 40% 工具包费用。
 
 Firearm Damage
 == 枪械伤害
@@ -2661,14 +3467,8 @@ Electric damage +12% per stack.
 Arc Conductor
 == 电弧导体
 
-Electric hits arc to one nearby enemy for 35% damage.
-== 电能命中会向附近一名敌人传导 35% 伤害。
-
 Capacitor
 == 电容器
-
-Every fifth electric hit deals double damage.
-== 每第 5 次电能命中造成双倍伤害。
 
 Melee Damage
 == 近战伤害
@@ -2679,14 +3479,8 @@ Melee damage +12% per stack.
 Blood Drive
 == 血性驱动
 
-Melee kills restore 4 health.
-== 近战击杀恢复 4 点生命。
-
 Shockwave
 == 冲击波
-
-Heavy melee hits release a damaging shockwave.
-== 重型近战命中会释放伤害冲击波。
 
 Delver
 == 深潜者
@@ -2738,9 +3532,6 @@ Gain +15% movement speed while evacuating.
 
 No One Left
 == 不落一人
-
-Reviving an ally grants both players 20 armor.
-== 复活队友时双方获得 20 护甲。
 
 Glass Cannon
 == 玻璃大炮
@@ -2850,19 +3641,6 @@ Evacuation reinforcement size and active cap are doubled.
 Overwhelming evacuation pressure
 == 撤离压力极高
 
-Checkpoint %d
-== 检查点 %d
-
-#### PvE Roguelite v2
-Requires:
-== 前置：
-
-Legendary
-== 传奇
-
-Barrier
-== 壁垒
-
 Focus
 == 专注
 
@@ -2874,18 +3652,6 @@ Voltage
 
 Fury
 == 近战怒气
-
-Vulnerable
-== 破绽
-
-Bleed
-== 流血
-
-Drone
-== 无人机
-
-None
-== 无
 
 Assault
 == 攻击
@@ -3046,9 +3812,6 @@ Reduce the Focus trigger threshold by 1 per stack, to a minimum of 7.
 Pinpoint Burst
 == 精准爆发
 
-Consuming Focus applies Vulnerable for 5 seconds.
-== 消耗专注时施加 5 秒破绽。
-
 Perfect Sequence
 == 完美序列
 
@@ -3081,9 +3844,6 @@ Reduce the empowered blast threshold by 1 per stack, to a minimum of 3.
 
 Breach Charge
 == 破障炸药
-
-Empowered explosions apply Vulnerable for 5 seconds.
-== 强化爆炸施加 5 秒破绽。
 
 Cataclysm
 == 大灾变
@@ -3136,9 +3896,6 @@ Electric kills refund 2 Voltage per stack.
 Static Shield
 == 静电护盾
 
-Consuming Voltage grants 10 Barrier.
-== 消耗电荷时获得 10 点壁垒。
-
 Grid Link
 == 电网链路
 
@@ -3153,9 +3910,6 @@ Gain 1 extra Fury per stack on hit, up to 4 Fury per hit.
 
 Open Wound
 == 开放伤口
-
-Consuming Fury applies 3 Bleed stacks.
-== 消耗怒气时施加 3 层流血。
 
 Avatar of War
 == 战争化身
@@ -3177,9 +3931,6 @@ When a bleeding enemy dies, restore 5 health, capped at 15 per event.
 
 Kinetic Return
 == 动能回流
-
-Each enemy hit by a shockwave grants 1 Fury and 2 Barrier.
-== 冲击波每命中一个敌人获得 1 点怒气和 2 点壁垒。
 
 Cartographer
 == 制图师
@@ -3325,26 +4076,11 @@ Activate two additional radar-marked switches before the exit opens.
 Two extra route switches
 == 两个额外路线开关
 
-Drone module not owned
-== 尚未拥有该无人机模块
-
-Drone switch cooling down
-== 无人机切换仍在冷却
-
 Local
 == 本地
 
-Local game
-== 本地游戏
-
 Choose a mode, adjust the essentials, then start and join in one click.
 == 选择模式并调整常用设置，然后一键启动并加入。
-
-Choose a mode, expand a category, then start and join in one click.
-== 选择模式并展开设置分类，然后一键启动并加入。
-
-Arrows / D-pad: select and adjust · Enter / A: confirm
-== 方向键 / 十字键：选择和调整 · 回车 / A：确认
 
 ROGUELITE PVE
 == 肉鸽 PvE
@@ -3362,10 +4098,10 @@ Capture the flag
 == 夺旗
 
 Explore generated floors, complete objectives and keep your build between maps.
-== 探索生成楼层、完成任务，并在跨图时保留本局构筑。
+== 探索生成楼层、完成目标，并在地图之间保留你的构筑。
 
 Defend, build and survive increasingly dangerous enemy waves.
-== 建造防线，抵御威胁不断升级的敌人波次。
+== 防守、建造，并在越来越危险的敌潮中生存。
 
 Finish the mission and reach the extraction zone before time runs out.
 == 完成任务，并在时间耗尽前抵达撤离区。
@@ -3424,15 +4160,6 @@ PvE rules
 Match rules
 == 对战规则
 
-Roguelite Director
-== 肉鸽构筑系统
-
-Perks, resources and research
-== 启用卡牌、资源与研究
-
-Team contracts
-== 团队契约
-
 Offer optional team challenges
 == 提供可选的团队挑战
 
@@ -3445,38 +4172,11 @@ Target waves
 Mission time
 == 任务时限
 
-Endless
-== 无尽
-
-%d min
-== %d 分钟
-
-Random map seed
-== 随机地图种子
-
-New layout every launch
-== 每次启动生成新地图
-
-Map seed
-== 地图种子
-
 Advanced rules apply the next time the server starts.
 == 高级规则将在下次启动服务器时生效。
 
-Rules apply the next time the server starts.
-== 规则将在下次启动服务器时生效。
-
-Server name
-== 服务器名称
-
-Password (optional)
-== 密码（可选）
-
-Map preset
-== 地图预设
-
-Starting floor
-== 起始层数
+Rules
+== 规则
 
 Map difficulty
 == 地图难度
@@ -3493,9 +4193,6 @@ Health, elites and party size
 AI difficulty
 == AI 难度
 
-Enemy scaling
-== 敌人强度
-
 Automatic for this mode
 == 由当前模式自动调整
 
@@ -3505,56 +4202,14 @@ Target active players
 Target players per team
 == 每队目标人数
 
-Human slots
-== 人类玩家槽位
-
-Port
-== 端口
-
-Allow LAN players
-== 允许局域网玩家加入
-
-Never listed publicly
-== 永不公开列出
-
-Ready to start
-== 可以启动
-
 Starting local server...
 == 正在启动本地服务器……
 
 Local server is running
 == 本地服务器正在运行
 
-Stopping local server...
-== 正在停止本地服务器……
-
 Server executable was not found
 == 未找到服务器程序
-
-No free local server port was found
-== 未找到可用的本地服务器端口
-
-Local server stopped unexpectedly
-== 本地服务器意外停止
-
-Start and join
-== 启动并加入
-
-Restart
-== 重启
-
-Stop
-== 停止
-
-Cancel
-== 取消
-
-Stop local
-== 停止本地服
-
-Restart local
-== 重启本地服
 
 Combat Foundation
 == 战斗基础
@@ -3640,9 +4295,6 @@ Final Evacuation
 Signal Control
 == 信号控制
 
-Co-op PvE
-== 合作 PvE
-
 Team PvP
 == 团队竞技
 
@@ -3652,21 +4304,6 @@ Free-for-all
 Arcade
 == 趣味模式
 
-Press Enter to vote
-== 按回车投票
-
-Click to vote
-== 点击投票
-
-%s modes · %d choices
-== %s · %d 个模式
-
-Tab / LB / RB: category · Arrows / Wheel: mode · A / Enter: vote
-== Tab / LB / RB 切换分类 · 方向键 / 滚轮选择 · A / 回车投票
-
-PvE objective display
-== PvE 任务显示
-
 With scoreboard
 == 打开计分板时显示
 
@@ -3675,18 +4312,6 @@ Always visible
 
 On objective updates
 == 任务更新时短暂显示
-
-The expedition has reached its limit
-== 远征已到极限
-
-Five failures. Decide the fate of this run.
-== 五次失败。决定这次远征的命运。
-
-Floor %d
-== 第 %d 层
-
-%d votes
-== %d 票
 
 Retry Current Floor
 == 再次尝试
@@ -3709,31 +4334,14 @@ Equipment and build will be cleared
 Vote
 == 投票
 
-Mouse • Arrow Keys • 1–2 • Gamepad
-== 鼠标 • 方向键 • 1–2 • 手柄
-
 A tie or no votes returns the team to Floor 1.
 == 平票或无人投票时，全队回到第 1 层。
-
-%s did not succumb.
-== %s 没有屈服！
-
-The team
-== 全队
-
-What a pity...
-== 真是可惜...
-
-See you next time.
-== 下次见。
 
 The expedition continues.
 == 远征继续。
 
 Returning all players to Floor 1.
 == 全体玩家即将回到第 1 层。
-Drone integrity
-== 无人机完整度
 
 EMP disabled
 == EMP 禁用
@@ -3741,25 +4349,12 @@ EMP disabled
 Rebuilding
 == 重建中
 
-Hold %s: drone command wheel
-== 按住 %s：无人机指令轮盘
-
 Release to switch
 == 松开以切换
+
 Foundry
 == 铸造厂
 
-Drone wheel
-== 无人机指令轮盘
-
-Hold out against the wave
-== 坚守敌潮
-
-Hold the line
-== 守住阵线
-
-Stand by
-== 待命
 Destroy the turrets
 == 摧毁炮台
 
@@ -3784,9 +4379,6 @@ Turret sweep
 Signal hold
 == 信号坚守
 
-turrets remaining
-== 座炮台剩余
-
 Turrets missing — survive the wave instead
 == 炮台缺失 — 改为存活敌潮
 
@@ -3799,101 +4391,11 @@ Holding signal...
 Signal hold interrupted
 == 信号占领中断
 
-Weapon forge
-== 武器锻造
-
-Target
-== 目标
-
-Material
-== 素材
-
-Result
-== 产物
-
-Weapon level
-== 武器等级
-
-Ammo
-== 弹药
-
-Part 2 transplant
-== 零件 2 移植
-
-Spin
-== 回旋融合
-
-Upgrade
-== 强化
-
-Forge
-== 锻造
-
-Forging...
-== 锻造中...
-
-Waiting for server
-== 等待服务器确认
-
-Forge complete
-== 锻造完成
-
-Forge disabled
-== 锻造已禁用
-
-Move closer to a screen
-== 请靠近锻造屏幕
-
-Not enough gold
-== 金币不足
-
-Weapon is busy
-== 武器正忙
-
-Invalid slots
-== 槽位无效
-
-Invalid recipe
-== 配方无效
-
-Result would not change
-== 产物不会发生变化
-
-Select a target weapon
-== 请选择目标武器
-
-Select a material weapon
-== 请选择素材武器
-
-Ready to forge
-== 可以锻造
-
-Press %s to open forge
-== 按 %s 打开武器锻造
-
-Starting point
-== 起始方式
-
 Team checkpoint
 == 继续团队检查点
 
-Floor 1
-== 从第 1 层开始
-
 Custom floor
 == 自定义楼层
-
-Complete more floors to unlock
-== 完成更多楼层后解锁
-
-Difficulty %d
-== 难度 %d
-
-%d waves
-== %d 波
-
-Score %d
-== 得分上限 %d
 
 Roguelite
 == 肉鸽构筑
@@ -3901,85 +4403,17 @@ Roguelite
 Classic PvE
 == 经典 PvE
 
-Random seed
-== 随机种子
-
-Seed %d
-== 种子 %d
-
-%d human slots
-== %d 个人类玩家槽位
-
-%d players per team
-== 每队 %d 人
-
-Target %d active players
-== 目标在场人数 %d
-
-Starting local server and waiting for readiness...
-== 正在启动本地服务器并等待就绪……
-
 Local server is ready; joining...
 == 本地服务器已就绪，正在加入……
 
-Server executable was not found or could not be started
-== 未找到服务器程序或无法启动
-
-Local server did not become ready in time
-== 本地服务器未能及时就绪
-
-The preferred port and the next nine ports are already in use.
-== 首选端口及后续九个端口均已被占用。
-
-Local server log
-== 本地服务器日志
-
-Log
-== 日志
-
-OK
-== 确定
-
-Map selection
-== 地图选择
-
-Automatic by Invasion floor
-== 由入侵楼层自动选择
 Active
 == 已启用
-
-Authenticating with Steam
-== 正在通过 Steam 验证
-
-Authentication
-== 验证
-
-Browse Workshop
-== 浏览创意工坊
 
 CHECK REQUIRED
 == 需要检查
 
-COMMUNITY
-== 社区
-
-Community / Report
-== 社区页面 / 举报
-
-Community page / Report
-== 社区页面 / 举报
-
-Connecting to server
-== 正在连接服务器
-
-Content directory
-== 内容目录
-
 Create Steam room
 == 创建 Steam 房间
-
-Create item
-== 创建物品
 
 Create local game
 == 创建本地游戏
@@ -3990,17 +4424,11 @@ Current collection
 Dedicated servers and Steam rooms
 == 专用服务器与 Steam 房间
 
-Disable
-== 禁用
-
 Disable Mod
 == 停用模组
 
 Downloading Mod
 == 正在下载模组
-
-Enable
-== 启用
 
 Enable Mod
 == 启用模组
@@ -4008,53 +4436,14 @@ Enable Mod
 Enabled
 == 已启用
 
-FRIEND
-== 好友
-
-Friend room
-== 好友房间
-
-Host
-== 房主
-
 Inactive
 == 未启用
-
-Invite
-== 邀请
-
-Invite only
-== 仅限邀请
-
-Leave
-== 离开
-
-Level %d
-== 关卡 %d
-
-Loading map
-== 正在加载地图
 
 Local / LAN game
 == 本地 / 局域网游戏
 
 Local Mods
 == 本地模组
-
-Mods
-== 模组
-
-Mod manager
-== 模组管理器
-
-Mod manager is unavailable.
-== 模组管理器不可用。
-
-The Mod change will apply after reconnecting.
-== 模组更改将在重新连接后生效。
-
-Unable to update the enabled Mod collection.
-== 无法更新已启用的模组集合。
 
 No Mods in this category.
 == 此分类中没有模组。
@@ -4065,38 +4454,14 @@ Not verified
 Invalid Mod
 == 无效模组
 
-OFFICIAL
-== 官方
-
 Player Mods
 == 玩家模组
-
-Preview file
-== 预览文件
 
 Protocol / content hash
 == 协议 / 内容哈希
 
-Public
-== 公开
-
-Publish update
-== 发布更新
-
 Refresh LAN
 == 刷新局域网
-
-Region
-== 地区
-
-Required
-== 必需
-
-Room name
-== 房间名称
-
-Rooms
-== 房间
 
 STEAM
 == STEAM
@@ -4104,41 +4469,15 @@ STEAM
 Select a room to see address, region, version, Mods and join requirements.
 == 选择房间以查看地址、地区、版本、模组及加入要求。
 
-Source
-== 来源
-
-Steam Workshop is unavailable. Installed game data remains unchanged.
-== Steam 创意工坊不可用。已安装的游戏数据不会改变。
-
 Steam hosting is unavailable. Start Steam or create a LAN game.
 == Steam 托管不可用。请启动 Steam 或创建局域网游戏。
-
-Steam room
-== Steam 房间
-
-Steam rooms
-== Steam 房间
-
-Steam unavailable
-== Steam 不可用
-
-Steam unavailable — dedicated servers, Favorites and direct connection remain available.
-== Steam 不可用——专用服务器、收藏夹和直连仍可使用。
-
-Synchronizing Workshop content
-== 正在同步创意工坊内容
-
-Unsubscribe
-== 取消订阅
-
-Use collection
-== 使用此集合
 
 VALID
 == 有效
 
 Verified for this build
 == 已通过当前版本验证
+
 Character
 == 角色
 
@@ -4148,11 +4487,26 @@ Progress
 Replays
 == 回放
 
-Browse rooms
-== 浏览房间
+Browse
+== 浏览
+
+MULTIPLAYER · COMMUNITY
+== 多人游戏 · 社区
+
+Join existing games hosted by other players.
+== 加入其他玩家创建的游戏。
 
 Create room
 == 创建房间
+
+Choose mode
+== 选择模式
+
+14 GAME MODES · SOLO / LAN / STEAM
+== 14 种游戏模式 · 单人 / 局域网 / Steam
+
+Choose from every game mode and configure to your liking.
+== 从所有游戏模式中选择并按需配置。
 
 LAN & direct
 == 局域网与直连
@@ -4165,9 +4519,6 @@ Needs update
 
 Disabled
 == 已禁用
-
-Continue
-== 继续
 
 Server
 == 服务器
@@ -4192,6 +4543,7 @@ Steam rejected room creation. Check your connection and retry.
 
 One or more Workshop items failed validation. Open Workshop for details.
 == 一个或多个创意工坊项目验证失败。请打开创意工坊查看详情。
+
 Steam rejected the room join request. Refresh rooms and try again.
 == Steam 拒绝加入房间。请刷新房间列表后重试。
 
@@ -4209,8 +4561,6 @@ Required Workshop content is downloading. Open Workshop, wait for validation, th
 
 This room requires a different Mod collection. Open Workshop and enable the required content.
 == 此房间需要其他模组集合。请打开创意工坊并启用所需内容。
-Joining room
-== 正在加入房间
 
 Choose a game mode
 == 选择玩法
@@ -4233,18 +4583,6 @@ PVP
 Solo
 == 单人
 
-Change mode
-== 更换模式
-
-Visibility
-== 可见性
-
-Friends and Public require Steam.
-== 好友和公开房间需要 Steam。
-
-Room details
-== 房间信息
-
 Advanced settings
 == 高级设置
 
@@ -4259,24 +4597,6 @@ Managed automatically
 
 LAN binding
 == 局域网绑定
-
-Training is available from the Play hub.
-== 教学模式可从玩法中心的训练入口启动。
-
-Room creation failed. Your settings were kept; retry or open the log.
-== 房间创建失败。设置已保留；请重试或打开日志。
-
-%s  ·  %s  ·  %s  ·  %d human slots  ·  Community room · Unverified
-== %s  ·  %s  ·  %s  ·  %d 个人类玩家槽位  ·  社区房间 · 未验证
-
-Explore generated floors, complete objectives and keep your build between maps.
-== 探索生成楼层、完成目标，并在地图之间保留你的构筑。
-
-Defend, build and survive increasingly dangerous enemy waves.
-== 防守、建造，并在越来越危险的敌潮中生存。
-
-Finish the mission and reach the extraction zone before time runs out.
-== 完成任务，并在时间耗尽前抵达撤离区。
 
 Fight every player and reach the score limit first.
 == 击败所有对手，率先达到分数限制。
@@ -4341,9 +4661,6 @@ Build and Growth
 Multiplayer Ready
 == 多人准备
 
-Switch weapons and hit the training target.
-== 切换武器并击中训练目标。
-
 Defeat the marked enemies and watch your ammunition.
 == 击败标记敌人，并留意弹药。
 
@@ -4377,20 +4694,11 @@ Track mission progress on the HUD.
 Reach the extraction area.
 == 抵达撤离区域。
 
-Collect the marked sandbox materials.
-== 收集标记的沙盒材料。
-
-Build a defense and survive the controlled wave.
-== 建造防御设施并撑过受控敌潮。
-
 Choose a run perk for this mission.
 == 为本次任务选择一个局内增益。
 
 Choose one of the three run perks.
 == 从三个局内增益中选择一个。
-
-Hold %s, choose a drone module, then release to switch.
-== 按住 %s，选择一个无人机模块，然后松开以切换。
 
 Purchase the highlighted sandbox research node. Tutorial points do not affect your save.
 == 购买高亮的沙盒研究节点。教程点数不会影响你的存档。
@@ -4410,23 +4718,11 @@ Configure and create the simulated room.
 Filter the simulated room list and join a room.
 == 筛选模拟房间列表并加入房间。
 
-Multiplayer room practice
-== 多人房间练习
-
 Configure a simulated room, then create it.
 == 配置一个模拟房间，然后创建它。
 
 Filter the simulated room list, then join the training room.
 == 筛选模拟房间列表，然后加入训练房间。
-
-Room visibility
-== 房间可见性
-
-Training Room · Tutorial rules · 4 slots
-== 训练房间 · 教程规则 · 4 个位置
-
-Create simulated room
-== 创建模拟房间
 
 All rooms
 == 全部房间
@@ -4434,50 +4730,14 @@ All rooms
 Low ping
 == 低延迟
 
-Ninslash Training Room
-== Ninslash 训练房间
-
-Tutorial · 1/4 players · local simulation
-== 教程 · 1/4 玩家 · 本地模拟
-
-Join simulated room
-== 加入模拟房间
-
-This practice does not publish a real room or contact external services.
-== 此练习不会发布真实房间，也不会连接外部服务。
-
 Choose chapter
 == 选择章节
-
-Tutorial chapters
-== 教程章节
-
-Back to Play
-== 返回玩法中心
-
-Chapter %d
-== 第 %d 章
-
-CHAPTER %d/6 · %s · %d/%d
-== 第 %d/6 章 · %s · %d/%d
-
-Step %d of %d
-== 步骤 %d/%d
-
-Completed
-== 已完成
-
-Available
-== 已解锁
 
 Replay
 == 重玩
 
 Replay chapter
 == 重玩章节
-
-Complete chapter %d first
-== 请先完成第 %d 章
 
 Movement, weapons and the training target.
 == 移动、武器与训练靶。
@@ -4539,18 +4799,6 @@ Objectives  ·  Forge  ·  Builds
 Six guided solo chapters for controls, combat, objectives, forging, builds and rooms.
 == 六章单人引导教程，涵盖操作、战斗、目标、锻造、建造与房间。
 
-No bots
-== 不添加机器人
-
-%s: %d
-== %s：%d
-
-%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Community room · Unverified
-== %s  ·  %s  ·  %s  ·  %d 个真人槽位  ·  %s  ·  社区房间 · 未验证
-
-Recommended: %s players  ·  %s  ·  %s difficulty
-== 推荐 %s 人  ·  %s  ·  %s难度
-
 Official
 == 官方
 
@@ -4566,37 +4814,12 @@ Aim to select
 Training
 == 训练
 
-Online
-== 在线
-
-Standalone network
-== 独立网络
-
-UDP available
-== UDP 可用
-
 Starting local game
 == 正在启动本地游戏
 
 Stopping local game
 == 正在停止本地游戏
-Preset
-== 预设
 
-Common filters
-== 常用过滤
-
-Advanced filters
-== 高级过滤
-
-New
-== 新建
-
-Done
-== 完成
-
-Save
-== 保存
 Steam room creation timed out. Check Steam connection and retry.
 == Steam 房间创建超时。请检查 Steam 连接后重试。
 
@@ -4615,83 +4838,14 @@ Steam room service is busy. Wait a moment and retry.
 Steam could not start room creation. Restart Steam and retry.
 == Steam 无法启动房间创建。请重启 Steam 后重试。
 
-Steam Cloud
-== Steam 云存档
-
-Steam
-== Steam
-
 Steam Cloud is unavailable
 == Steam 云存档不可用
-
-Steam Cloud conflict
-== Steam 云存档冲突
-
-This device
-== 此设备
-
-highest floor
-== 最高层
-
-Use this device
-== 使用此设备
-
-Use Steam Cloud
-== 使用 Steam 云存档
-
-Resolve conflict
-== 解决冲突
-
-Sync now
-== 立即同步
 
 Progress, appearance, portable preferences and custom key bindings are synchronized. Display, device and local network settings stay on this device.
 == 同步游戏进度、角色外观、可携带偏好和自定义按键。显示器、设备及本地网络设置仅保留在此设备。
 
-Steam friends
-== Steam 好友
-
-Steam friends are unavailable in standalone mode.
-== 独立模式下无法使用 Steam 好友。
-
 Overlay invite
 == Steam 界面邀请
-
-Joinable
-== 可加入
-
-Playing Ninslash
-== 正在玩 Ninslash
-
-Offline
-== 离线
-
-Join friend
-== 加入好友
-
-Profile
-== 个人资料
-
-friends
-== 位好友
-
-Session members
-== 当前成员
-
-Steam member
-== Steam 成员
-
-Anonymous connection
-== 匿名连接
-
-You
-== 你
-
-Friend
-== 好友
-
-Unknown
-== 未知
 
 Infection
 == 感染模式
@@ -4702,17 +4856,8 @@ Roam
 Gun game
 == 枪械升级战
 
-Invite to party
-== 邀请加入小队
-
-In your party
-== 已在你的小队中
-
 In party
 == 已在小队
-
-Steam party
-== Steam 小队
 
 Steam party · not in a party
 == Steam 小队 · 尚未加入小队
@@ -4720,29 +4865,11 @@ Steam party · not in a party
 Creating party...
 == 正在创建小队……
 
-Create party
-== 创建小队
-
-Create a private party or invite a friend to begin.
-== 创建私人小队，或邀请好友开始组队。
-
 Leader
 == 队长
 
 Member
 == 成员
-
-Steam room selected
-== 已选择 Steam 房间
-
-Choose a game or server
-== 选择游戏或服务器
-
-Not ready
-== 未准备
-
-Leave party
-== 离开小队
 
 Start party
 == 全队开始
@@ -4765,46 +4892,20 @@ My Library
 Workshop
 == 创意工坊
 
-Workshop content
-== 创意工坊内容
-
 Most subscribed
 == 订阅最多
 
 Not subscribed
 == 未订阅
 
-Unknown author
-== 未知作者
-
-Content rating
-== 内容分级
-
-Description
-== 说明
-
-No description provided.
-== 暂无说明。
-
-Workshop details
-== 创意工坊详情
-
 Select Workshop content to view details.
 == 选择一项创意工坊内容以查看详情。
-
-Loading Workshop content…
-== 正在加载创意工坊内容…
 
 No Workshop content matches these filters.
 == 没有符合当前筛选条件的创意工坊内容。
 
 Retry download
 == 重试下载
-
-Community leaderboard · Unverified
-== 社区榜 · 未验证
-Author
-== 作者
 
 CHALLENGE
 == 挑战
@@ -4821,17 +4922,8 @@ Discover
 Downloading
 == 正在下载
 
-Downloading content
-== 正在下载内容
-
-Gyroscope sensitivity
-== 陀螺仪灵敏度
-
 Invalid
 == 无效
-
-Invert gyroscope vertical aim
-== 反转陀螺仪垂直瞄准
 
 Latest
 == 最新
@@ -4848,23 +4940,11 @@ Maps
 Mod
 == 模组
 
-Open Steam controller configuration
-== 打开 Steam 控制器配置
-
 PRESET
 == 预设
 
 Popular
 == 热门
-
-Protocol
-== 协议
-
-Rating
-== 评分
-
-Review room rules, visibility and password before creating the room.
-== 创建房间前，请检查房间规则、可见性和密码。
 
 Room Preset
 == 房间预设
@@ -4872,20 +4952,6 @@ Room Preset
 Room Presets
 == 房间预设
 
-Room preset applied
-== 已应用房间预设
-
-Steam Input gyroscope aiming
-== Steam Input 陀螺仪瞄准
-
-Steam Input vibration
-== Steam Input 震动
-
-Unable to apply preset
-== 无法应用预设
-
-Workshop map selected
-== 已选择创意工坊地图
 Cloud profile is too large
 == 云档案过大
 
@@ -4915,13 +4981,9 @@ Steam Cloud profile is invalid; local progress was kept
 
 Steam Cloud upload failed; local progress is safe
 == Steam 云存档上传失败；本地进度未受影响
-Unable to start Steam Workshop query.
-== 无法启动 Steam 创意工坊查询。
+
 Loading community leaderboard…
 == 正在加载社区排行榜……
-
-Unable to start community leaderboard request.
-== 无法启动社区排行榜请求。
 
 Community leaderboard is unavailable
 == 社区排行榜不可用
@@ -4934,6 +4996,7 @@ Community score upload failed
 
 Community leaderboard download failed
 == 社区排行榜下载失败
+
 Steam room interfaces became unavailable. Restart Steam and retry.
 == Steam 房间接口已不可用。请重启 Steam 后重试。
 
@@ -4945,10 +5008,10 @@ Steam could not publish room data. The local server was stopped; retry creating 
 
 Steam could not publish the party room target. The local server was stopped; retry creating the room.
 == Steam 无法发布小队房间目标。本地服务器已停止；请重新创建房间。
-Unable to update Steam party target. Retry or recreate the party.
-== 无法更新 Steam 小队目标。请重试或重新创建小队。
+
 Enable to use
 == 启用后使用
+
 Steam could not start joining the party. Restart Steam and retry.
 == Steam 无法开始加入小队。请重启 Steam 后重试。
 
@@ -4963,10 +5026,10 @@ The party target requires a different Mod collection.
 
 This party uses an incompatible game version.
 == 此小队使用不兼容的游戏版本。
+
 Unable to join the Steam room
 == 无法加入 Steam 房间
 
-#### Compact Perk descriptions
 +25 armor now
 == 立即获得25护甲
 
@@ -4976,79 +5039,6 @@ Refill all ammo now
 +5 kits now
 == 立即获得5工具包
 
-%d · %s · Lv. %d/%d
-== %d · %s · 等级 %d/%d
-
-%d · Supply
-== %d · 补给
-
-A tie or no votes grants one final retry.
-== 平票或无人投票时获得一次最终重试。
-
-Import ZIP
-== 导入 ZIP
-
-Replace local Mod?
-== 替换本地模组？
-
-Replace
-== 替换
-
-Unable to import Mod
-== 无法导入模组
-
-Unable to start the Mod import.
-== 无法启动模组导入。
-
 Unable to open the ZIP importer.
 == 无法打开 ZIP 导入器。
 
-This Mod version is already installed.
-== 已安装此版本的模组。
-
-Disconnect before replacing an enabled Mod.
-== 请先断开连接，再替换已启用的模组。
-
-Mod installed
-== 模组已安装
-
-Folder
-== 文件夹
-Aim sensitivity
-== 瞄准灵敏度
-
-Movement deadzone
-== 移动死区
-
-Aim deadzone
-== 瞄准死区
-
-Aim response curve
-== 瞄准响应曲线
-
-Aim assist strength
-== 瞄准辅助强度
-
-PvE: slowdown and light magnetism · PvP: slowdown only
-== PvE：减速与轻微吸附 · PvP：仅减速
-
-Invert gamepad vertical aim
-== 反转手柄垂直瞄准
-
-Show input diagnostics
-== 显示输入诊断
-
-Processed aim
-== 处理后瞄准
-
-Reset controller defaults
-== 重置手柄默认设置
-
-Controller bindings
-== 手柄键位
-
-Keyboard & mouse
-== 键盘与鼠标
-
-Controller & advanced
-== 手柄与高级输入

@@ -1,6 +1,2296 @@
 
 ##### translated strings #####
 
+%d Bytes
+== %d 字節
+
+%d Research Points
+== %d 研究點
+
+%d checkpoints
+== %d 個檢查點
+
+%d human slots
+== %d 個真人玩家欄位
+
+%d min
+== %d 分鐘
+
+%d of %d servers, %d players
+== %d / %d 個服務器, %d 個玩家
+
+%d players per team
+== 每隊 %d 人
+
+%d seconds remaining
+== 剩餘 %d 秒
+
+%d seconds • %d/%d
+== %d 秒 • %d/%d
+
+%d votes
+== %d 票
+
+%d waves
+== %d 波
+
+%d · %s · Lv. %d/%d
+== %d · %s · 等級 %d/%d
+
+%d · Supply
+== %d · 補給
+
+%d%% loaded
+== 已加載 %d%%
+
+%ds left
+== %ds 秒
+
+%i minute left
+== 還剩下 %i 分鐘
+
+%i minutes left
+== 還剩下 %i 分鐘
+
+%i second left
+== 還剩下 %i 秒鐘
+
+%i seconds left
+== 還剩下 %i 秒鐘
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Community room · Unverified
+== %s  ·  %s  ·  %s  ·  %d 個真人欄位  ·  %s  ·  社群房間 · 未驗證
+
+%s  ·  %s  ·  %s  ·  %d human slots  ·  Community room · Unverified
+== %s  ·  %s  ·  %s  ·  %d 個真人玩家欄位  ·  社群房間 · 未驗證
+
+%s did not succumb.
+== %s 沒有屈服！
+
+%s modes · %d choices
+== %s · %d 個模式
+
+%s wins!
+== %s 勝利!
+
+%s • TIER %d • COST %d
+== %s • 第 %d 階 • 費用 %d
+
+%s: %d
+== %s：%d
+
+'%s' called for vote to kick you
+== '%s' 發起投票要把你踢出服務器
+
++%d more perks
+== 另有 %d 項強化
+
+-Page %d-
+== -第 %d 頁-
+
+A tie or no votes grants one final retry.
+== 平票或無人投票時獲得一次最終重試。
+
+Abort
+== 取消
+
+Acid escape
+== 酸液逃生
+
+Activate
+== 啟用
+
+Activate switches to extract
+== 啟動開關以撤離
+
+Active • %d/%d
+== 進行中 • %d/%d
+
+Add
+== 添加
+
+Add Friend
+== 添加好友
+
+Address
+== 地址
+
+Advanced filters
+== 進階過濾
+
+Aim and fire with %s
+== 使用 %s 瞄準並射擊
+
+Aim assist strength
+== 瞄準輔助強度
+
+Aim deadzone
+== 瞄準死區
+
+Aim response curve
+== 瞄準響應曲線
+
+Aim sensitivity
+== 瞄準靈敏度
+
+Alien wave cleared
+== 外星人被殲滅了！
+
+Aliens
+== 外星人
+
+Aliens terminated
+== 外星人被全部擊退！
+
+All
+== 全部
+
+Allow LAN players
+== 允許區域網路玩家加入
+
+Alpha
+== 透明度
+
+Always
+== 始終顯示
+
+Always show
+== 始終顯示
+
+Ammo
+== 彈藥
+
+Angle:
+== 角度:
+
+Anonymous connection
+== 匿名連線
+
+AntiPing
+== 延遲補償
+
+Are you sure that you want to delete the demo?
+== 你確定要刪除這個回放嗎?
+
+Are you sure that you want to quit?
+== 你確定要退出嗎?
+
+Are you sure that you want to remove the player from your friends list?
+== 你確定要把這個玩家從好友列表中刪除嗎?
+
+Area Shield
+== 小型防御盾
+
+Arrows / D-pad: select and adjust · Enter / A: confirm
+== 方向鍵 / 十字鍵：選擇和調整 · Enter / A：確認
+
+Authenticating with Steam
+== 正在透過 Steam 驗證
+
+Authentication
+== 驗證
+
+Author
+== 作者
+
+Automatic
+== 自動
+
+Automatic by Invasion floor
+== 由入侵樓層自動選擇
+
+Available
+== 已解鎖
+
+Back to Play
+== 返回玩法中心
+
+Back to main menu
+== 回到主菜單
+
+Barrel
+== 油桶
+
+Barrier
+== 壁壘
+
+Base cards are always available • Rare and Epic perks are unique
+== 基礎卡始終可用 • 稀有與史詩強化不可疊加
+
+Bind Ready in Settings
+== 請在設定中綁定「準備」按鍵
+
+Black
+== 黑色
+
+Bleed
+== 流血
+
+Block
+== 方塊
+
+Blood amount
+== 遊戲中血液數量
+
+Blood color
+== 血液顏色
+
+Blue team
+== 藍隊
+
+Blue team wins!
+== 藍隊勝利!
+
+Bodies
+== 身體部分
+
+Body
+== 身體
+
+Bomb (for destroying reactors)
+== 炸彈(用於摧毀反應堆)
+
+Borderless window
+== 無邊框窗口
+
+Boss assault
+== Boss 突襲
+
+Browse Workshop
+== 瀏覽工作坊
+
+Browse rooms
+== 瀏覽房間
+
+Build a defense and survive the controlled wave.
+== 建造防禦設施並撐過受控敵潮。
+
+Build menu
+== 建造菜單
+
+Buy
+== 購買
+
+CHAPTER %d/6 · %s · %d/%d
+== 第 %d/6 章 · %s · %d/%d
+
+COMMUNITY
+== 社群
+
+CP %d/%d
+== 檢查點 %d/%d
+
+Call vote
+== 發起投票
+
+Camera
+== 鏡頭
+
+Cancel
+== 取消
+
+Change color of
+== 改變顏色
+
+Change mode
+== 更換模式
+
+Change settings
+== 改變設置
+
+Change skin of
+== 改變皮膚
+
+Chapter %d
+== 第 %d 章
+
+Charge
+== 蓄力
+
+Chat
+== 聊天
+
+Chat messages
+== 聊天消息來源
+
+Checkpoint %d
+== 檢查點 %d
+
+Choose a game or server
+== 選擇遊戲或伺服器
+
+Choose a mode, expand a category, then start and join in one click.
+== 選擇模式並展開設定分類，然後一鍵啟動並加入。
+
+Choose how to deploy
+== 選擇部署方式
+
+Choose material below
+== 從下方選擇材料
+
+Choose target below
+== 從下方選擇目標武器
+
+Choose the next mode
+== 選擇下一局模式
+
+Clan
+== 團隊
+
+Click to vote
+== 點擊投票
+
+Close
+== 關閉
+
+Collect the marked sandbox materials.
+== 收集標記的沙盒材料。
+
+Common filters
+== 常用過濾
+
+Community / Report
+== 社群頁面 / 檢舉
+
+Community leaderboard · Unverified
+== 社群榜 · 未驗證
+
+Community page / Report
+== 社群頁面 / 檢舉
+
+Compatible version
+== 兼容的版本
+
+Complete chapter %d first
+== 請先完成第 %d 章
+
+Complete more floors to unlock
+== 完成更多樓層後解鎖
+
+Completed
+== 已完成
+
+Confirm
+== 確認
+
+Confirm purchase
+== 確認購買
+
+Connect
+== 連接
+
+Connected
+== 已連線
+
+Connecting to server
+== 正在連線至伺服器
+
+Connection Problems...
+== 連接異常...
+
+Console
+== 控製台
+
+Content directory
+== 內容目錄
+
+Content rating
+== 內容分級
+
+Continue
+== 繼續
+
+Contract completed
+== 契約完成
+
+Contract failed
+== 契約失敗
+
+Controller & advanced
+== 手把與進階輸入
+
+Controller bindings
+== 手把按鍵
+
+Controls
+== 控製
+
+Copy
+== 複製
+
+Core
+== 核心
+
+Core research improves universal attack, survival, and logistics perks.
+== 核心研究強化通用的攻擊、生存與後勤卡牌。
+
+Cost
+== 花費
+
+Count players only
+== 只統計玩家數
+
+Country
+== 國家/地區
+
+Crc:
+== Crc校驗碼:
+
+Create a private party or invite a friend to begin.
+== 建立私人小隊，或邀請好友開始組隊。
+
+Create item
+== 建立物品
+
+Create party
+== 建立小隊
+
+Create simulated room
+== 建立模擬房間
+
+Created:
+== 已創建:
+
+Current Run
+== 當前構築
+
+Current version: %s  |  Servers: %d
+== 當前版本: %s  |  服務器: %d
+
+Current: %dx%d (%d:%d)
+== 當前: %dx%d (%d:%d)
+
+Customize
+== 自定義皮膚
+
+Cyborg wave cleared
+== 賽博格被殲滅了！
+
+Cyborgs
+== 賽博格
+
+Cyborgs terminated
+== 賽博格被全部擊退！
+
+Damage
+== 傷害
+
+Deadzone
+== 死區
+
+Dedicated servers, LAN, Favorites and Steam rooms
+== 專用伺服器、區域網路、收藏和 Steam 房間
+
+Defend the reactor
+== 防守反應堆
+
+Delete
+== 刪除
+
+Delete demo
+== 刪除回放
+
+Demo details
+== 回放詳細信息
+
+Demofile: %s
+== 回放: %s
+
+Demos
+== 回放
+
+Description
+== 說明
+
+Desktop notifications
+== 桌面通知
+
+Details
+== 詳情
+
+Difficulty
+== 難度
+
+Difficulty %d
+== 難度 %d
+
+Disable
+== 停用
+
+Disable whisper
+== 禁用私聊
+
+Disconnect
+== 斷開連接
+
+Disconnect before replacing an enabled Mod.
+== 請先中斷連線，再取代已啟用的模組。
+
+Disconnected
+== 連接已斷開
+
+Done
+== 完成
+
+Downloading content
+== 正在下載內容
+
+Downloading map
+== 正在下載地圖
+
+Draw!
+== 平局!
+
+Drone
+== 無人機
+
+Drone integrity
+== 無人機完整度
+
+Drone module not owned
+== 尚未擁有該無人機模組
+
+Drone switch cooling down
+== 無人機切換仍在冷卻
+
+Drone wheel
+== 無人機指令輪盤
+
+Drop
+== 丟棄
+
+Drop weapon
+== 丟棄武器
+
+Dual switches
+== 雙開關
+
+Dynamic Camera
+== 動態鏡頭
+
+Dynamic lighting
+== 環境光源
+
+Earn points from PvE stages and contracts.
+== 完成 PvE 階段與團隊契約可獲得研究點。
+
+Effect
+== 效果
+
+Electric grenade
+== 電極榴彈炮
+
+Electric wall
+== 電子牆
+
+Electrowall
+== 離子牆
+
+Elite wave
+== 精英波次
+
+Emoticon
+== 表情
+
+Empty slot
+== 空欄位
+
+Enable
+== 啟用
+
+Endless
+== 無盡
+
+Enemies terminated
+== 敵人被全部擊退！
+
+Enemy scaling
+== 敵人強度
+
+Energy shield
+== 能量護盾
+
+Enter
+== 進入
+
+Enter the full path to a ZIP package.
+== 輸入 ZIP 內容包的完整路徑。
+
+Environmental sounds
+== 環境音效
+
+Equip
+== 裝備
+
+Equipment
+== 裝備欄
+
+Error
+== 錯誤
+
+Error loading demo
+== 讀取回放錯誤
+
+Everyone
+== 所有人
+
+Exit and save
+== 儲存並離開
+
+Explosive
+== 爆炸
+
+Eyes
+== 眼睛部分
+
+FPS counter
+== 幀率計數器
+
+FPS:
+== 幀率:
+
+FRIEND
+== 好友
+
+FSAA samples
+== 全屏抗鋸齒(FSAA)采樣倍數
+
+Failed to start video render. Is FFmpeg installed?
+== 無法開始影片渲染。是否已安裝 FFmpeg？
+
+Favorite
+== 收藏
+
+Favorites
+== 收藏夾
+
+Feet
+== 腳
+
+File name:
+== 檔案名稱:
+
+Filter
+== 過濾器
+
+Fire
+== 開火
+
+Five failures. Decide the fate of this run.
+== 五次失敗。決定這次遠征的命運。
+
+Flamer
+== 火焰發射器
+
+Floor %d
+== 第 %d 層
+
+Floor 1
+== 從第 1 層開始
+
+Folder
+== 資料夾
+
+Follow factor
+== 跟隨系數
+
+Force vote
+== 強製投票
+
+Forge
+== 鍛造
+
+Forge complete
+== 鍛造完成
+
+Forge disabled
+== 鍛造已停用
+
+Forging...
+== 鍛造中...
+
+Free-View
+== 自由視角
+
+Friend
+== 好友
+
+Friend marks
+== 好友標記
+
+Friend room
+== 好友房間
+
+Friends
+== 好友
+
+Friends and Public require Steam.
+== 好友和公開房間需要 Steam。
+
+Friends only
+== 僅好友
+
+Fullscreen
+== 全螢幕
+
+Furries
+== 獸人
+
+Furries terminated
+== 獸人被全部擊退！
+
+Furry wave cleared
+== 獸人被殲滅了！
+
+Game info
+== 遊戲信息
+
+Game over
+== 遊戲結束
+
+Game paused
+== 遊戲已暫停
+
+Game type
+== 遊戲類型
+
+Game types:
+== 遊戲類型:
+
+General
+== 常規
+
+Go
+== 開始
+
+Gold
+== 金幣
+
+Graphics
+== 圖像
+
+Green
+== 綠色
+
+Grenade
+== 手榴彈
+
+Guided solo mission
+== 單人引導任務
+
+Gyroscope sensitivity
+== 陀螺儀靈敏度
+
+HUD
+== HUD
+
+Hair / hat
+== 頭發 / 帽子
+
+Hammer
+== 錘子
+
+Handle rendering async from updates
+== 同步更新
+
+Hands
+== 手
+
+Hard block
+== 堅硬方塊
+
+Has people playing
+== 有人在玩
+
+Head
+== 頭
+
+Heads
+== 頭部
+
+Health + Ammo
+== 生命 + 彈藥
+
+Hide player's score
+== 隱藏自己的分數
+
+High Detail
+== 高細節
+
+Hit feedback strength
+== 命中反饋強度
+
+Hold %s, choose a drone module, then release to switch.
+== 按住 %s，選擇一個無人機模組，然後放開以切換。
+
+Hold %s: drone command wheel
+== 按住 %s：無人機指令輪盤
+
+Hold out against the wave
+== 堅守敵潮
+
+Hold the line
+== 守住陣線
+
+Hook
+== 鉤子
+
+Host
+== 房主
+
+Host address
+== 連接地址
+
+How Research Works
+== 研究規則
+
+Hue
+== 色相
+
+Human slots
+== 真人玩家欄位
+
+ID
+== ID
+
+Import
+== 匯入
+
+Import ZIP
+== 匯入 ZIP
+
+In your party
+== 已在你的小隊中
+
+Infinite
+== 無限
+
+Info
+== 信息
+
+Invalid Demo
+== 無效的回放
+
+Invalid recipe
+== 配方無效
+
+Invalid slots
+== 欄位無效
+
+Invasion
+== 入侵模式
+
+Inventory
+== 打開物品欄
+
+Inventory roll
+== 切換物品欄(手中物品)
+
+Invert gamepad vertical aim
+== 反轉手把垂直瞄準
+
+Invert gyroscope vertical aim
+== 反轉陀螺儀垂直瞄準
+
+Invisibility device
+== 隱身科技
+
+Invite
+== 邀請
+
+Invite only
+== 僅限邀請
+
+Invite to party
+== 邀請加入小隊
+
+Item slot 1
+== 切換到第1個物品
+
+Item slot 3
+== 切換到第3個物品
+
+Item slot 4
+== 切換到第4個物品
+
+Join
+== 加入
+
+Join blue
+== 加入藍隊
+
+Join friend
+== 加入好友
+
+Join game
+== 加入遊戲
+
+Join red
+== 加入紅隊
+
+Join simulated room
+== 加入模擬房間
+
+Joinable
+== 可加入
+
+Joining room
+== 正在加入房間
+
+Jump
+== 跳躍
+
+Jump:
+== 跳躍:
+
+Keyboard & mouse
+== 鍵盤與滑鼠
+
+Kick player
+== 踢除玩家
+
+Kill messages
+== 擊殺消息
+
+Kits
+== 建造套件
+
+Language
+== 語言
+
+Laser
+== 雷射
+
+Last survivor
+== 最後生還者
+
+Leave
+== 離開
+
+Leave party
+== 離開小隊
+
+Leave training?
+== 離開訓練？
+
+Legendary
+== 传奇
+
+Length:
+== 長度:
+
+Level
+== 關卡
+
+Level %d
+== 關卡 %d
+
+Lht.
+== 明度
+
+Loading
+== 載入中
+
+Loading Workshop content…
+== 正在載入工作坊內容…
+
+Loading map
+== 正在載入地圖
+
+Local game
+== 本機遊戲
+
+Local server did not become ready in time
+== 本機伺服器未能及時就緒
+
+Local server log
+== 本機伺服器日誌
+
+Local server stopped unexpectedly
+== 本機伺服器意外停止
+
+Log
+== 日誌
+
+MOTD
+== 公告
+
+Map
+== 地圖
+
+Map preset
+== 地圖預設
+
+Map seed
+== 地圖種子
+
+Map selection
+== 地圖選擇
+
+Map:
+== 地圖:
+
+Mask of melee
+== 戰神面具
+
+Mask of plenty
+== 豐盛面具
+
+Mask of protection
+== 護體面具
+
+Mask of regeneration
+== 恢複面具
+
+Mask of speed
+== 速度面具
+
+Material
+== 素材
+
+Max distance
+== 最大距離
+
+Maximum ping:
+== 最高延遲:
+
+Melee
+== 近戰
+
+Menu opacity
+== 菜單不透明度
+
+Misc
+== 雜項
+
+Miscellaneous
+== 雜項
+
+Mod installed
+== 模組已安裝
+
+Mod manager
+== 模組管理器
+
+Mod manager is unavailable.
+== 模組管理器無法使用。
+
+Mode research unlocks perks that appear only in the matching PvE mode.
+== 模式研究解鎖僅在對應 PvE 模式中出現的卡牌。
+
+Modes
+== 模式
+
+Mods
+== 模組
+
+Mouse sens.
+== 鼠標靈敏度
+
+Mouse • Arrow Keys • 1–2 • Gamepad
+== 滑鼠 • 方向鍵 • 1–2 • 手把
+
+Mouse • Arrow Keys • 1–3 • Gamepad
+== 滑鼠 • 方向鍵 • 1–3 • 手掣
+
+Move closer to a screen
+== 請靠近鍛造螢幕
+
+Move left
+== 向左移動
+
+Move player to spectators
+== 移動玩家為旁觀
+
+Move right
+== 向右移動
+
+Move with %s, then jump with %s
+== 使用 %s 移動，然後使用 %s 跳躍
+
+Movement
+== 移動
+
+Movement deadzone
+== 移動死區
+
+Movement feedback strength
+== 移動反饋強度
+
+Multi framebuffering (requires restart)
+== 多幀緩衝（需要重新啟動遊戲）
+
+Multiplayer room practice
+== 多人房間練習
+
+Mute when not active
+== 失去焦點時禁音
+
+Name
+== 名字
+
+Nameplates
+== 名字板
+
+Netversion:
+== 網絡協議版本
+
+Never listed publicly
+== 永不公開列出
+
+New
+== 新建
+
+New layout every launch
+== 每次啟動產生新地圖
+
+New name:
+== 新名字:
+
+Next weapon
+== 下一個武器
+
+Nickname
+== 昵稱
+
+Ninslash %s is out! Download it at www.ninslash.com!
+== Ninslash %s 已經發布！請訪問 www.ninslash.com 下載最新版本！
+
+Ninslash Training Room
+== Ninslash 訓練房間
+
+No
+== 否
+
+No bots
+== 不加入機器人
+
+No description provided.
+== 暫無說明。
+
+No free local server port was found
+== 找不到可用的本機伺服器連接埠
+
+No one
+== 無人
+
+No password
+== 無密碼
+
+No perks selected
+== 尚未選擇強化
+
+No prerequisite
+== 無前置節點
+
+No servers found
+== 找不到任何服務器
+
+No servers match your filter criteria
+== 沒有任何服務器匹配你的過濾器
+
+No valid result
+== 無有效合成結果
+
+None
+== 無
+
+Not enough gold
+== 金幣不足
+
+Not ready
+== 未準備
+
+OFFICIAL
+== 官方
+
+OK
+== 確定
+
+Objective
+== 任務目標
+
+Objective %d/%d
+== 目標 %d/%d
+
+Off
+== 關
+
+Offline
+== 離線
+
+Ok
+== 確定
+
+On
+== 開
+
+Online
+== 線上
+
+Only team chat
+== 僅隊伍聊天
+
+Open
+== 打開
+
+Open Forge with %s and craft the recommended weapon.
+== 使用 %s 開啟鍛爐並製作推薦武器。
+
+Open Steam controller configuration
+== 開啟 Steam 控制器設定
+
+Other
+== 其他
+
+Own name plate
+== 顯示自己的名字
+
+Parent Folder
+== 上級目錄
+
+Part 2 transplant
+== 零件 2 移植
+
+Password
+== 密碼
+
+Password (optional)
+== 密碼（可選）
+
+Password incorrect
+== 密碼錯誤
+
+Perks, resources and research
+== 啟用卡牌、資源與研究
+
+Ping
+== 延遲
+
+Pistol
+== 手槍
+
+Place material
+== 放入材料
+
+Place target
+== 放入目標武器
+
+Play
+== 開始遊戲
+
+Play background music
+== 播放背景音樂
+
+Player
+== 玩家
+
+Player angle
+== 玩家角度
+
+Player country:
+== 包含此旗幟的玩家:
+
+Player options
+== 玩家選項
+
+Player position
+== 玩家位置
+
+Player speed
+== 玩家速度
+
+Players
+== 玩家數
+
+Playing Ninslash
+== 正在玩 Ninslash
+
+Please balance teams!
+== 請平衡團隊人數!
+
+Please enter a filename for the sliced demo:
+== 請輸入切片回放的檔案名稱:
+
+Port
+== 連接埠
+
+Position:
+== 位置:
+
+Power barrel
+== 儲電桶
+
+Preset
+== 預設
+
+Press %s to open forge
+== 按 %s 開啟武器鍛造
+
+Press Enter to vote
+== 按 Enter 投票
+
+Preview file
+== 預覽檔案
+
+Price
+== 價格
+
+Primary color
+== 主色
+
+Processed aim
+== 處理後瞄準
+
+Profile
+== 個人資料
+
+Protocol
+== 通訊協定
+
+Public
+== 公開
+
+Publish update
+== 發佈更新
+
+Purge
+== 清剿
+
+PvE objective display
+== PvE 任務顯示
+
+PvE: slowdown and light magnetism · PvP: slowdown only
+== PvE：減速與輕微吸附 · PvP：僅減速
+
+Quality Textures
+== 高品質紋理
+
+Quick search:
+== 快速搜索:
+
+Quit
+== 退出
+
+Quit anyway?
+== 無論如何都要退出嗎?
+
+REC %3d:%02d
+== REC %3d:%02d
+
+RECOMMENDED ACTION
+== 建議行動
+
+RISK • %d VOTES
+== 風險 • %d 票
+
+Random map seed
+== 隨機地圖種子
+
+Random seed
+== 隨機種子
+
+Rating
+== 評分
+
+Reach the door
+== 進入下一層
+
+Reactor defense
+== 反應堆防守
+
+Ready
+== 準備
+
+Ready to forge
+== 可以鍛造
+
+Ready to start
+== 可以啟動
+
+Reason:
+== 理由:
+
+Recommended
+== 推薦
+
+Recommended: %s players  ·  %s  ·  %s difficulty
+== 建議 %s 人  ·  %s  ·  %s難度
+
+Red
+== 紅色
+
+Red team
+== 紅隊
+
+Red team wins!
+== 紅隊勝利!
+
+Refresh
+== 刷新
+
+Refreshing
+== 重新整理中
+
+Refreshing master servers
+== 刷新列表服務器中
+
+Region
+== 地區
+
+Remote console
+== 遠程控製台
+
+Remove
+== 移除
+
+Remove friend
+== 刪除好友
+
+Rename
+== 重命名
+
+Rename demo
+== 重命名回放
+
+Render
+== 渲染
+
+Render video
+== 渲染影片
+
+Repair tool
+== 修複工具
+
+Replace
+== 取代
+
+Replace local Mod?
+== 取代本機模組？
+
+Required
+== 必要
+
+Requires FFmpeg in PATH. Output is saved under videos/.
+== 需要系統 PATH 中有 FFmpeg。輸出儲存到 videos/ 目錄。
+
+Requires:
+== 前置：
+
+Research
+== 研究
+
+Research Details
+== 研究詳情
+
+Research Progress
+== 研究進度
+
+Research unlocks perk cards; select them during a run to activate their effects.
+== 研究只負責解鎖強化卡；還需在當前局的三選一中選中，效果才會生效。
+
+Reset controller defaults
+== 重設手把預設設定
+
+Reset filter
+== 重置過濾器
+
+Reset theme to defaults
+== 恢複主題預設
+
+Reset to defaults
+== 恢複預設設置
+
+Resolution
+== 分辨率
+
+Resolve conflict
+== 解決衝突
+
+Respawn
+== 重生
+
+Respawn device
+== 複活器
+
+Restart
+== 重新啟動
+
+Restart local
+== 重啟本機服
+
+Result
+== 產物
+
+Result would not change
+== 產物不會發生變化
+
+Review room rules, visibility and password before creating the room.
+== 建立房間前，請檢查房間規則、可見性與密碼。
+
+Reward: 1 Research Point
+== 獎勵：1 研究點
+
+Ricochet
+== 跳彈
+
+Rifle
+== 激光槍
+
+Rising acid
+== 酸液上漲
+
+Robot wave cleared
+== 機器人被殲滅了！
+
+Robots
+== 機器人
+
+Robots terminated
+== 機器人被全部擊退！
+
+Roguelite Director
+== Roguelite 構築系統
+
+Room creation failed. Your settings were kept; retry or open the log.
+== 房間建立失敗。設定已保留；請重試或開啟記錄。
+
+Room details
+== 房間資訊
+
+Room name
+== 房間名稱
+
+Room preset applied
+== 已套用房間預設
+
+Room visibility
+== 房間可見性
+
+Rooms
+== 房間
+
+Round
+== 回合
+
+Rules apply the next time the server starts.
+== 規則將在下次啟動伺服器時生效。
+
+Sample rate
+== 采樣率
+
+Sat.
+== 飽和度
+
+Save
+== 儲存
+
+Score
+== 分數
+
+Score %d
+== 得分上限 %d
+
+Score board
+== 得分榜
+
+Score limit
+== 分數限製
+
+Scoreboard
+== 得分榜
+
+Screenshot
+== 截圖
+
+Search
+== 搜尋
+
+Secondary color
+== 副色
+
+See you next time.
+== 下次見。
+
+Seed %d
+== 種子 %d
+
+Seek the door
+== 找到通往下一層的門
+
+Select a material weapon
+== 請選擇素材武器
+
+Select a target weapon
+== 請選擇目標武器
+
+Select target and material
+== 選擇目標武器和材料
+
+Selected
+== 已選擇
+
+Semi-auto
+== 半自動
+
+Server address:
+== 服務器地址:
+
+Server details
+== 服務器詳細信息
+
+Server executable was not found or could not be started
+== 未找到伺服器程式或無法啟動
+
+Server filter
+== 服務器篩選
+
+Server info
+== 服務器信息
+
+Server is changing map
+== 服務器正在切換地圖
+
+Server name
+== 伺服器名稱
+
+Server not full
+== 服務器未滿
+
+Session members
+== 目前成員
+
+Set End
+== 設為結束
+
+Shield generator
+== 能量護盾發生器
+
+Shotgun
+== 霰彈槍
+
+Show IDs
+== 顯示 ID
+
+Show chat
+== 顯示聊天
+
+Show clan
+== 顯示團隊
+
+Show friends only
+== 只顯示好友
+
+Show ingame HUD
+== 顯示遊戲內 HUD
+
+Show input diagnostics
+== 顯示輸入診斷
+
+Show name plates
+== 顯示名字板
+
+Show social data
+== 顯示社交信息
+
+Show user IDs
+== 顯示玩家 ID
+
+Size
+== 大小
+
+Size:
+== 尺寸:
+
+Skeleton wave cleared
+== 骷髏被殲滅了！
+
+Skeletons
+== 骷髏
+
+Skeletons terminated
+== 骷髏被全部擊退！
+
+Skin
+== 皮膚
+
+Skins
+== 皮膚
+
+Slice
+== 切片
+
+Slice demo
+== 切片回放
+
+Slice...
+== 切片...
+
+Slide / down
+== 滑鏟 / 下蹲
+
+Smoothness
+== 平滑度
+
+Sound
+== 聲音
+
+Sound error
+== 聲音出現錯誤
+
+Sound volume
+== 音量
+
+Source
+== 來源
+
+Spectate
+== 旁觀
+
+Spectate previous
+== 觀看前一個
+
+Spectate smooth
+== 旁觀平滑
+
+Spectator count
+== 旁觀者數量
+
+Spectator mode
+== 旁觀者模式
+
+Spectators
+== 旁觀者
+
+Speed:
+== 速度:
+
+Spin
+== 迴旋融合
+
+Stabilizing
+== 穩定中
+
+Stack limit: %d
+== 疊層上限：%d
+
+Stand by
+== 待命
+
+Standalone network
+== 獨立網路
+
+Standard gametype
+== 標準遊戲類型
+
+Standard map
+== 標準地圖
+
+Standard wave
+== 標準波次
+
+Start
+== 開始
+
+Start and join
+== 啟動並加入
+
+Starting floor
+== 起始樓層
+
+Starting local server and waiting for readiness...
+== 正在啟動本機伺服器並等待就緒……
+
+Starting point
+== 起始方式
+
+Steam
+== Steam
+
+Steam Cloud
+== Steam 雲端存檔
+
+Steam Cloud conflict
+== Steam 雲端存檔衝突
+
+Steam Input gyroscope aiming
+== Steam Input 陀螺儀瞄準
+
+Steam Input vibration
+== Steam Input 震動
+
+Steam Workshop is unavailable. Installed game data remains unchanged.
+== Steam 工作坊無法使用。已安裝的遊戲資料不會變更。
+
+Steam friends
+== Steam 好友
+
+Steam friends are unavailable in standalone mode.
+== 獨立模式下無法使用 Steam 好友。
+
+Steam member
+== Steam 成員
+
+Steam party
+== Steam 小隊
+
+Steam room
+== Steam 房間
+
+Steam room selected
+== 已選擇 Steam 房間
+
+Steam rooms
+== Steam 房間
+
+Steam unavailable
+== Steam 無法使用
+
+Steam unavailable — dedicated servers, Favorites and direct connection remain available.
+== Steam 無法使用——專用伺服器、我的最愛與直接連線仍可使用。
+
+Step %d of %d
+== 步驟 %d/%d
+
+Stop
+== 停止
+
+Stop local
+== 停止本機服
+
+Stopping local server...
+== 正在停止本機伺服器……
+
+Streamer mode
+== 直播模式
+
+Strict gametype filter
+== 嚴格過濾遊戲類型
+
+Sudden Death
+== 加時賽
+
+Supply grenade
+== 手榴彈
+
+Survival mode
+== 生存模式
+
+Survive the horde
+== 在無盡波次中存活
+
+Survive the wave of enemies
+== 在敵人的攻勢下活下去
+
+Switch weapon on pickup
+== 拾取武器時自動裝備
+
+Switch weapons and hit the training target.
+== 切換武器並擊中訓練目標。
+
+Sync now
+== 立即同步
+
+Synchronizing Workshop content
+== 正在同步工作坊內容
+
+System messages
+== 系統消息
+
+TACTICAL COMMAND
+== 戰術指揮
+
+Tab / LB / RB: category · Arrows / Wheel: mode · A / Enter: vote
+== Tab / LB / RB 切換分類 · 方向鍵 / 滾輪選擇 · A / Enter 投票
+
+Target
+== 目標
+
+Target %d active players
+== 目標在場人數 %d
+
+Team
+== 團隊
+
+Team colors
+== 隊伍顏色
+
+Team contracts
+== 團隊契約
+
+Terminate the aliens
+== 擊殺所有外星人
+
+Terminate the cyborgs
+== 擊殺所有賽博格
+
+Terminate the enemies
+== 殲滅所有敵人
+
+Terminate the furries
+== 擊殺所有獸人
+
+Terminate the skeletons
+== 擊殺所有骷髏
+
+Teslacoil
+== 特斯拉線圈
+
+Texture Compression
+== 紋理壓縮
+
+The Cure
+== 回複藥劑
+
+The Dead
+== 感染者
+
+The Living
+== 幸存者
+
+The Mod change will apply after reconnecting.
+== 模組變更將在重新連線後生效。
+
+The audio device couldn't be initialised.
+== 無法初始化音頻設備
+
+The expedition has reached its limit
+== 遠征已到極限
+
+The preferred port and the next nine ports are already in use.
+== 首選連接埠及後續九個連接埠均已被佔用。
+
+The server is running a non-standard tuning on a pure game type.
+== 此服務器運行着經過調整的非標準遊戲類型
+
+The server rejected that selection.
+== 伺服器拒絕了該選擇。
+
+The team
+== 全隊
+
+Theme
+== 主題
+
+This Mod version is already installed.
+== 已安裝此版本的模組。
+
+This device
+== 此裝置
+
+This practice does not publish a real room or contact external services.
+== 此練習不會發布真實房間，也不會連線外部服務。
+
+Threaded rendering
+== 線程化渲染
+
+Threaded sound loading
+== 線程化音效加載
+
+Throw
+== 投擲
+
+Time
+== 時間
+
+Time limit
+== 時間限製
+
+Time limit: %d min
+== 時間限製: %d 分鐘
+
+Timed survive
+== 限時生存
+
+Timer
+== 計時器
+
+Training Room · Tutorial rules · 4 slots
+== 訓練房間 · 教程規則 · 4 個位置
+
+Training is available from the Play hub.
+== 教學模式可從玩法中心的訓練入口啟動。
+
+Training · chapter %d/6
+== 訓練 · 第 %d/6 章
+
+Trap run
+== 陷阱穿越
+
+Try again
+== 重試
+
+Turret stand
+== 炮塔支架
+
+Tutorial chapters
+== 教程章節
+
+Tutorial · 1/4 players · local simulation
+== 教程 · 1/4 玩家 · 本機模擬
+
+Type
+== 類型
+
+Type:
+== 類型:
+
+UDP available
+== UDP 可用
+
+UI Color
+== 界面顏色
+
+Unable to apply preset
+== 無法套用預設
+
+Unable to delete the demo
+== 無法刪除這個回放
+
+Unable to import Mod
+== 無法匯入模組
+
+Unable to rename the demo
+== 無法重命名這個回放
+
+Unable to start Steam Workshop query.
+== 無法啟動 Steam 工作坊查詢。
+
+Unable to start community leaderboard request.
+== 無法啟動社群排行榜請求。
+
+Unable to start the Mod import.
+== 無法啟動模組匯入。
+
+Unable to update Steam party target. Retry or recreate the party.
+== 無法更新 Steam 隊伍目標。請重試或重新建立隊伍。
+
+Unable to update the enabled Mod collection.
+== 無法更新已啟用的模組集合。
+
+Unique perk
+== 唯一強化
+
+Unknown
+== 未知
+
+Unknown author
+== 未知作者
+
+Unknown item
+== 未知物品
+
+Unlock connected nodes in order.
+== 研究節點需沿連接路線依次解鎖。
+
+Unlocked cards join future perk choices.
+== 已解鎖卡牌會加入之後的強化選項。
+
+Unsubscribe
+== 取消訂閱
+
+Upgrade
+== 強化
+
+Use +/- keys to zoom (rebindable in Controls)
+== 使用 +/- 鍵縮放（可在控製設置中重綁）
+
+Use Steam Cloud
+== 使用 Steam 雲端存檔
+
+Use collection
+== 使用此集合
+
+Use sounds
+== 開啟聲音
+
+Use this device
+== 使用此裝置
+
+V-Sync
+== 垂直同步
+
+Version
+== 版本
+
+Version:
+== 版本:
+
+Video render cancelled.
+== 已取消影片渲染。
+
+Video render complete. Saved under videos/.
+== 影片渲染完成，已儲存到 videos/ 目錄。
+
+Visibility
+== 可見性
+
+Vote command:
+== 投票命令:
+
+Vote description:
+== 投票描述:
+
+Vote ends in %d...
+== 投票將在 %d 秒後結束
+
+Vote no
+== 否決
+
+Vote yes
+== 贊成
+
+Voted
+== 已投票
+
+Voting
+== 投票
+
+Vulnerable
+== 破绽
+
+Waiting for server
+== 等待伺服器確認
+
+Warmup
+== 熱身
+
+Wave
+== 波次
+
+Wave of cyborgs incoming
+== 賽博格來襲！
+
+Wave of robots incoming
+== 機器人來襲！
+
+Wave of skeletons incoming
+== 骷髏來襲！
+
+Weapon forge
+== 武器鍛造
+
+Weapon inventory
+== 武器庫存
+
+Weapon is busy
+== 武器正忙
+
+Weapon level
+== 武器等級
+
+Weapon research unlocks specialization perks matched to your current weapon.
+== 武器研究解鎖與當前武器類型匹配的專精卡牌。
+
+Weapon upgrade
+== 升級套件
+
+Weapons
+== 武器
+
+Weapons & Items
+== 武器與物品
+
+Welcome to Ninslash
+== 歡迎來到Ninslash！
+
+What a pity...
+== 真是可惜...
+
+When ready, press <%s>
+== 準備好後按 <%s>
+
+Whisper
+== 私聊
+
+Wide menu
+== 寬屏菜單
+
+Workshop content
+== 工作坊內容
+
+Workshop details
+== 工作坊詳情
+
+Workshop map selected
+== 已選擇工作坊地圖
+
+Yes
+== 是
+
+You
+== 你
+
+You must restart the game for all settings to take effect.
+== 你必須重啟遊戲才能讓所有設置起效
+
+You must wait %d seconds before making another vote
+== 你必須等待 %d 秒後才能發起另一投票
+
+Z-sector wave
+== Z 形戰區
+
+Zombie claw
+== 僵屍爪
+
+Zoom
+== 縮放
+
+Zoom in
+== 放大
+
+Zoom with + / - keys
+== 使用 + / - 鍵縮放
+
+blue
+== 藍
+
+bosses remaining
+== 剩餘首領
+
+enemies remaining
+== 剩餘敵人
+
+friends
+== 位好友
+
+highest floor
+== 最高層
+
+kills
+== 擊殺
+
+red
+== 紅
+
+seconds remaining
+== 剩餘時間
+
+switches remaining
+== 剩餘開關
+
+to evacuate
+== 人待撤離
+
+turrets remaining
+== 座砲塔剩餘
+
+##### needs translation #####
+
+Progress, appearance, portable preferences and custom key bindings are synchronized. 
+== 
+
+Your last completed checkpoint is saved locally. You can continue now, return to 
+== 
+
+##### old translations #####
+
+Progress, appearance, portable preferences and custom key bindings are synchronized.
+== 
+
+Your last completed checkpoint is saved locally. You can continue now, return to
+== 
+
 Not enough kits
 == 工具包不足
 
@@ -25,27 +2315,6 @@ Needs a ceiling anchor
 Blocked by force field
 == 受力場限制
 
-Choose material below
-== 從下方選擇材料
-
-Choose target below
-== 從下方選擇目標武器
-
-No valid result
-== 無有效合成結果
-
-Place material
-== 放入材料
-
-Place target
-== 放入目標武器
-
-Select target and material
-== 選擇目標武器和材料
-
-Weapon inventory
-== 武器庫存
-
 Rapid-fire barrel
 == 速射槍管
 
@@ -60,9 +2329,6 @@ Charge core
 
 Charged blade
 == 蓄能刀刃
-
-Cost
-== 花費
 
 Energy blade
 == 能量刀刃
@@ -112,80 +2378,26 @@ Standard barrel
 Overcharge capacitor
 == 過載電容
 
-Activate
-== 啟用
-
-Automatic
-== 自動
-
 Build
 == 建造
 
 Burst pistol
 == 連發手槍
 
-Buy
-== 購買
-
 Chainsaw
 == 鏈鋸
-
-Charge
-== 蓄力
 
 Cluster grenade
 == 集束手榴彈
 
-Confirm
-== 確認
-
-Confirm purchase
-== 確認購買
-
-Damage
-== 傷害
-
-Drop
-== 丟棄
-
-Empty slot
-== 空欄位
-
-Equip
-== 裝備
-
-Equipment
-== 裝備欄
-
 Esc / B  Cancel
 == Esc / B  取消
-
-Explosive
-== 爆炸
 
 Flamethrower
 == 火焰噴射器
 
-Gold
-== 金幣
-
-Infinite
-== 無限
-
-Kits
-== 建造套件
-
-Laser
-== 雷射
-
 Placing
 == 放置中
-
-Price
-== 價格
-
-Ricochet
-== 跳彈
 
 Ricochet gun
 == 跳彈槍
@@ -196,20 +2408,11 @@ Rocket launcher
 Select items
 == 選擇物品
 
-Semi-auto
-== 半自動
-
 Shop
 == 商店
 
 Shuriken
 == 手裏劍
-
-Throw
-== 投擲
-
-Unknown item
-== 未知物品
 
 Waiting
 == 等待中
@@ -271,9 +2474,6 @@ Instagib  ·  Flags  ·  Teams
 Goal target
 == 進球目標
 
-Last survivor
-== 最後生還者
-
 Arena I
 == 競技場 I
 
@@ -291,15 +2491,6 @@ Eight competitive modes with adjustable match population.
 
 8 PVP MODES · SOLO / LAN / STEAM
 == 8 種 PVP 玩法 · 單人 / 區域網路 / STEAM
-
-TACTICAL COMMAND
-== 戰術指揮
-
-Choose how to deploy
-== 選擇部署方式
-
-RECOMMENDED ACTION
-== 建議行動
 
 Create a room
 == 建立房間
@@ -327,9 +2518,6 @@ Open server status while the mission is prepared.
 
 Resume chapter %d of 6 from your latest step.
 == 從最近步驟繼續第 %d/6 章。
-
-Training · chapter %d/6
-== 訓練 · 第 %d/6 章
 
 Training · complete
 == 訓練 · 已完成
@@ -433,14 +2621,8 @@ DM · TDM · CTF · bots
 Practice with bots
 == 與機器人練習
 
-Leave training?
-== 離開訓練？
-
 Your last completed checkpoint is saved locally. You can continue now, return to the hub, or skip training.
 == 最近完成的檢查點已儲存在本機。你可以繼續、返回玩法中心或跳過訓練。
-
-Exit and save
-== 儲存並離開
 
 Return to hub
 == 返回玩法中心
@@ -450,9 +2632,6 @@ Defeat nearby enemies: %d/3. Health and ammo pickups keep you moving.
 
 Choose one run perk. Run choices help this mission; research persists between missions.
 == 選擇一個局內增益。局內選擇協助本次任務，研究則會在任務之間保留。
-
-Aim and fire with %s
-== 使用 %s 瞄準並射擊
 
 Clear the nearby enemies. Health and ammo pickups keep you moving.
 == 清理附近敵人。生命和彈藥補給能讓你繼續前進。
@@ -466,17 +2645,8 @@ Continue training
 Follow the radar marker to the objective.
 == 跟隨雷達標記前往目標。
 
-Guided solo mission
-== 單人引導任務
-
-Move with %s, then jump with %s
-== 使用 %s 移動，然後使用 %s 跳躍
-
 Open Forge with %s and combine a recommended weapon.
 == 使用 %s 開啟鍛爐並組合推薦武器。
-
-Open Forge with %s and craft the recommended weapon.
-== 使用 %s 開啟鍛爐並製作推薦武器。
 
 Open your build with %s. Run choices help this mission; research persists between missions.
 == 使用 %s 開啟構築。局內選擇只幫助本次任務；研究會在任務之間保留。
@@ -502,341 +2672,14 @@ TRAINING
 Training complete. Return to the hub to choose co-op PvE, PvP practice, or online servers.
 == 訓練完成。返回中心以選擇合作 PvE、PvP 練習或線上伺服器。
 
-Connected
-== 已連線
-
-Copy
-== 複製
-
-Dedicated servers, LAN, Favorites and Steam rooms
-== 專用伺服器、區域網路、收藏和 Steam 房間
-
-Details
-== 詳情
-
-Refreshing
-== 重新整理中
-
-Search
-== 搜尋
-
 Unfavorite
 == 取消收藏
-
-%d Bytes
-== %d 字節
-
-%d of %d servers, %d players
-== %d / %d 個服務器, %d 個玩家
-
-%d%% loaded
-== 已加載 %d%%
-
-%ds left
-== %ds 秒
-
-%i minute left
-== 還剩下 %i 分鐘
-
-%i minutes left
-== 還剩下 %i 分鐘
-
-%i second left
-== 還剩下 %i 秒鐘
-
-%i seconds left
-== 還剩下 %i 秒鐘
-
-%s wins!
-== %s 勝利!
-
-'%s' called for vote to kick you
-== '%s' 發起投票要把你踢出服務器
-
--Page %d-
-== -第 %d 頁-
-
-Abort
-== 取消
-
-Add
-== 添加
-
-Add Friend
-== 添加好友
-
-Address
-== 地址
-
-Alien wave cleared
-== 外星人被殲滅了！
-
-Aliens terminated
-== 外星人被全部擊退！
-
-All
-== 全部
-
-Alpha
-== 透明度
-
-Always
-== 始終顯示
-
-Always show
-== 始終顯示
-
-Angle:
-== 角度:
-
-AntiPing
-== 延遲補償
-
-Are you sure that you want to delete the demo?
-== 你確定要刪除這個回放嗎?
-
-Are you sure that you want to quit?
-== 你確定要退出嗎?
-
-Are you sure that you want to remove the player from your friends list?
-== 你確定要把這個玩家從好友列表中刪除嗎?
-
-Area Shield
-== 小型防御盾
 
 As this is the first time you launch the game, please enter your nick name below. It's recommended that you check the settings to adjust them to your liking before joining a server.
 == 這是你第一次運行遊戲，請在下方輸入你的昵稱。建議你在進入服務器前，先檢查遊戲設置是否符合個人習慣
 
-Back to main menu
-== 回到主菜單
-
-Barrel
-== 油桶
-
-Black
-== 黑色
-
-Block
-== 方塊
-
-Blood amount
-== 遊戲中血液數量
-
-Blood color
-== 血液顏色
-
-Hit feedback strength
-== 命中反饋強度
-
-Movement feedback strength
-== 移動反饋強度
-
-Blue team
-== 藍隊
-
-Blue team wins!
-== 藍隊勝利!
-
-Bodies
-== 身體部分
-
-Body
-== 身體
-
-Bomb (for destroying reactors)
-== 炸彈(用於摧毀反應堆)
-
-Borderless window
-== 無邊框窗口
-
-Build menu
-== 建造菜單
-
-Call vote
-== 發起投票
-
-Camera
-== 鏡頭
-
-Change color of
-== 改變顏色
-
-Change settings
-== 改變設置
-
-Change skin of
-== 改變皮膚
-
-Chat
-== 聊天
-
-Chat messages
-== 聊天消息來源
-
-Clan
-== 團隊
-
-Close
-== 關閉
-
-Compatible version
-== 兼容的版本
-
-Connect
-== 連接
-
 Connecting to
 == 正在連接到
-
-Connection Problems...
-== 連接異常...
-
-Console
-== 控製台
-
-Controls
-== 控製
-
-Count players only
-== 只統計玩家數
-
-Country
-== 國家/地區
-
-Crc:
-== Crc校驗碼:
-
-Created:
-== 已創建:
-
-Current version: %s  |  Servers: %d
-== 當前版本: %s  |  服務器: %d
-
-Current: %dx%d (%d:%d)
-== 當前: %dx%d (%d:%d)
-
-Customize
-== 自定義皮膚
-
-Cyborg wave cleared
-== 賽博格被殲滅了！
-
-Cyborgs terminated
-== 賽博格被全部擊退！
-
-Deadzone
-== 死區
-
-Delete
-== 刪除
-
-Delete demo
-== 刪除回放
-
-Demo details
-== 回放詳細信息
-
-Demofile: %s
-== 回放: %s
-
-Demos
-== 回放
-
-Desktop notifications
-== 桌面通知
-
-Disable whisper
-== 禁用私聊
-
-Disconnect
-== 斷開連接
-
-Disconnected
-== 連接已斷開
-
-Downloading map
-== 正在下載地圖
-
-Draw!
-== 平局!
-
-Drop weapon
-== 丟棄武器
-
-Dynamic Camera
-== 動態鏡頭
-
-Dynamic lighting
-== 環境光源
-
-Electric grenade
-== 電極榴彈炮
-
-Electric wall
-== 電子牆
-
-Electrowall
-== 離子牆
-
-Emoticon
-== 表情
-
-Enemies terminated
-== 敵人被全部擊退！
-
-Energy shield
-== 能量護盾
-
-Enter
-== 進入
-
-Environmental sounds
-== 環境音效
-
-Error
-== 錯誤
-
-Error loading demo
-== 讀取回放錯誤
-
-Everyone
-== 所有人
-
-Eyes
-== 眼睛部分
-
-FPS counter
-== 幀率計數器
-
-FPS:
-== 幀率:
-
-FSAA samples
-== 全屏抗鋸齒(FSAA)采樣倍數
-
-Failed to start video render. Is FFmpeg installed?
-== 無法開始影片渲染。是否已安裝 FFmpeg？
-
-Favorite
-== 收藏
-
-Favorites
-== 收藏夾
-
-Feet
-== 腳
-
-File name:
-== 檔案名稱:
-
-Filter
-== 過濾器
-
-Fire
-== 開火
-
-Flamer
-== 火焰發射器
 
 Flip attack & hook
 == 攻擊 & 鉤子
@@ -844,797 +2687,38 @@ Flip attack & hook
 Flip move & aim axis
 == 移動 & 瞄準
 
-Folder
-== 檔案夾
-
-Follow factor
-== 跟隨系數
-
-Force vote
-== 強製投票
-
-Free-View
-== 自由視角
-
-Friend marks
-== 好友標記
-
-Friends
-== 好友
-
-Friends only
-== 僅好友
-
-Fullscreen
-== 全螢幕
-
-Furries terminated
-== 獸人被全部擊退！
-
-Furry wave cleared
-== 獸人被殲滅了！
-
 Game
 == 遊戲
-
-Game info
-== 遊戲信息
-
-Game over
-== 遊戲結束
-
-Game paused
-== 遊戲已暫停
-
-Game type
-== 遊戲類型
-
-Game types:
-== 遊戲類型:
-
-General
-== 常規
-
-Go
-== 開始
-
-Graphics
-== 圖像
-
-Green
-== 綠色
-
-Grenade
-== 手榴彈
-
-HUD
-== HUD
-
-Hair / hat
-== 頭發 / 帽子
-
-Hammer
-== 錘子
-
-Handle rendering async from updates
-== 同步更新
-
-Hands
-== 手
-
-Hard block
-== 堅硬方塊
-
-Has people playing
-== 有人在玩
-
-Head
-== 頭
-
-Heads
-== 頭部
-
-Health + Ammo
-== 生命 + 彈藥
-
-Hide player's score
-== 隱藏自己的分數
-
-High Detail
-== 高細節
-
-Hook
-== 鉤子
-
-Host address
-== 連接地址
-
-Hue
-== 色調
-
-ID
-== ID
-
-Info
-== 信息
 
 Internet
 == 互聯網
 
-Invalid Demo
-== 無效的回放
-
-Inventory
-== 打開物品欄
-
-Inventory roll
-== 切換物品欄(手中物品)
-
-Invisibility device
-== 隱身科技
-
-Item slot 1
-== 切換到第1個物品
-
 Item slot 2
 == 切換到第2個物品
-
-Item slot 3
-== 切換到第3個物品
-
-Item slot 4
-== 切換到第4個物品
-
-Join
-== 加入
-
-Join blue
-== 加入藍隊
-
-Join game
-== 加入遊戲
-
-Join red
-== 加入紅隊
-
-Jump
-== 跳躍
-
-Jump:
-== 跳躍:
-
-Kick player
-== 踢除玩家
-
-Kill messages
-== 擊殺消息
 
 LAN
 == 區域網路
 
-Language
-== 語言
-
-Length:
-== 長度:
-
-Lht.
-== 亮度
-
-Loading
-== 載入中
-
-MOTD
-== 公告
-
 Main menu
 == 主菜單
-
-Map
-== 地圖
-
-Map:
-== 地圖:
-
-Mask of melee
-== 戰神面具
-
-Mask of plenty
-== 豐盛面具
-
-Mask of protection
-== 護體面具
-
-Mask of regeneration
-== 恢複面具
-
-Mask of speed
-== 速度面具
-
-Max distance
-== 最大距離
-
-Maximum ping:
-== 最高延遲:
-
-Menu opacity
-== 菜單不透明度
-
-Misc
-== 雜項
-
-Miscellaneous
-== 雜項
-
-Mouse sens.
-== 鼠標靈敏度
-
-Move left
-== 向左移動
-
-Move player to spectators
-== 移動玩家為旁觀
-
-Move right
-== 向右移動
-
-Movement
-== 移動
-
-Multi framebuffering (requires restart)
-== 多幀緩衝（需要重新啟動遊戲）
-
-Mute when not active
-== 失去焦點時禁音
-
-Name
-== 名字
-
-Nameplates
-== 名字板
-
-Netversion:
-== 網絡協議版本
-
-New name:
-== 新名字:
-
-Next weapon
-== 下一個武器
-
-Nickname
-== 昵稱
-
-Ninslash %s is out! Download it at www.ninslash.com!
-== Ninslash %s 已經發布！請訪問 www.ninslash.com 下載最新版本！
-
-No
-== 否
-
-No one
-== 無人
-
-No password
-== 無密碼
-
-No servers found
-== 找不到任何服務器
-
-No servers match your filter criteria
-== 沒有任何服務器匹配你的過濾器
-
-Objective
-== 任務目標
-
-Off
-== 關
-
-Ok
-== 確定
-
-On
-== 開
-
-Only team chat
-== 僅隊伍聊天
-
-Open
-== 打開
-
-Other
-== 其他
-
-Own name plate
-== 顯示自己的名字
-
-Parent Folder
-== 上級目錄
-
-Password
-== 密碼
-
-Password incorrect
-== 密碼錯誤
-
-Ping
-== 延遲
-
-Pistol
-== 手槍
-
-Play
-== 開始遊戲
-
-Play background music
-== 播放背景音樂
-
-Player
-== 玩家
-
-Player angle
-== 玩家角度
-
-Player country:
-== 包含此旗幟的玩家:
-
-Player options
-== 玩家選項
-
-Player position
-== 玩家位置
-
-Player speed
-== 玩家速度
-
-Players
-== 玩家數
-
-Please balance teams!
-== 請平衡團隊人數!
-
-Please enter a filename for the sliced demo:
-== 請輸入切片回放的檔案名稱:
-
-Position:
-== 位置:
-
-Power barrel
-== 儲電桶
 
 Prev. weapon
 == 上一個武器
 
-Quality Textures
-== 高品質紋理
-
-Quick search:
-== 快速搜索:
-
-Quit
-== 退出
-
-Quit anyway?
-== 無論如何都要退出嗎?
-
-REC %3d:%02d
-== REC %3d:%02d
-
-Reach the door
-== 進入下一層
-
-Ready
-== 準備
-
-Bind Ready in Settings
-== 請在設定中綁定「準備」按鍵
-
-Reason:
-== 理由:
-
-Recommended
-== 推薦
-
-Red
-== 紅色
-
-Red team
-== 紅隊
-
-Red team wins!
-== 紅隊勝利!
-
-Refresh
-== 刷新
-
-Refreshing master servers
-== 刷新列表服務器中
-
-Remote console
-== 遠程控製台
-
-Remove
-== 移除
-
-Remove friend
-== 刪除好友
-
-Rename
-== 重命名
-
-Rename demo
-== 重命名回放
-
-Render
-== 渲染
-
-Render video
-== 渲染影片
-
-Repair tool
-== 修複工具
-
-Requires FFmpeg in PATH. Output is saved under videos/.
-== 需要系統 PATH 中有 FFmpeg。輸出儲存到 videos/ 目錄。
-
-Reset filter
-== 重置過濾器
-
-Reset to defaults
-== 恢複預設設置
-
-Reset theme to defaults
-== 恢複主題預設
-
-Resolution
-== 分辨率
-
-Respawn
-== 重生
-
-Respawn device
-== 複活器
-
-Rifle
-== 激光槍
-
-Robot wave cleared
-== 機器人被殲滅了！
-
-Robots terminated
-== 機器人被全部擊退！
-
-Round
-== 回合
-
-Sample rate
-== 采樣率
-
-Sat.
-== 飽和度
-
-Score
-== 分數
-
-Score board
-== 得分榜
-
-Score limit
-== 分數限製
-
-Scoreboard
-== 得分榜
-
-Screenshot
-== 截圖
-
-Seek the door
-== 找到通往下一層的門
-
-Server address:
-== 服務器地址:
-
-Server details
-== 服務器詳細信息
-
-Server filter
-== 服務器篩選
-
-Server info
-== 服務器信息
-
-Server is changing map
-== 服務器正在切換地圖
-
-Server not full
-== 服務器未滿
-
-Set End
-== 設為結束
-
 Settings
 == 設置
-
-Shield generator
-== 能量護盾發生器
-
-Shotgun
-== 霰彈槍
-
-Show IDs
-== 顯示 ID
-
-Show chat
-== 顯示聊天
-
-Show clan
-== 顯示團隊
-
-Show friends only
-== 只顯示好友
-
-Show ingame HUD
-== 顯示遊戲內 HUD
-
-Show name plates
-== 顯示名字板
-
-Show social data
-== 顯示社交信息
-
-Show user IDs
-== 顯示玩家 ID
-
-Size
-== 大小
-
-Size:
-== 尺寸:
-
-Skeleton wave cleared
-== 骷髏被殲滅了！
-
-Skeletons terminated
-== 骷髏被全部擊退！
-
-Skin
-== 皮膚
-
-Skins
-== 皮膚
-
-Slice
-== 切片
-
-Slice demo
-== 切片回放
-
-Slice...
-== 切片...
-
-Slide / down
-== 滑鏟 / 下蹲
-
-Smoothness
-== 平滑度
-
-Sound
-== 聲音
-
-Sound error
-== 聲音出現錯誤
-
-Sound volume
-== 音量
-
-Spectate
-== 旁觀
 
 Spectate next
 == 觀看後一個
 
-Spectate previous
-== 觀看前一個
-
-Spectate smooth
-== 旁觀平滑
-
-Spectator count
-== 旁觀者數量
-
-Spectator mode
-== 旁觀者模式
-
-Spectators
-== 旁觀者
-
-Speed:
-== 速度:
-
-Stabilizing
-== 穩定中
-
-Standard gametype
-== 標準遊戲類型
-
-Standard map
-== 標準地圖
-
-Start
-== 開始
-
-Streamer mode
-== 直播模式
-
-Strict gametype filter
-== 嚴格過濾遊戲類型
-
-Sudden Death
-== 加時賽
-
-Supply grenade
-== 手榴彈
-
-Survival mode
-== 生存模式
-
-Survive the wave of enemies
-== 在敵人的攻勢下活下去
-
-Switch weapon on pickup
-== 拾取武器時自動裝備
-
-System messages
-== 系統消息
-
-Team
-== 團隊
-
 Team chat
 == 團隊聊天
-
-Team colors
-== 隊伍顏色
-
-Terminate the aliens
-== 擊殺所有外星人
-
-Terminate the cyborgs
-== 擊殺所有賽博格
-
-Terminate the enemies
-== 殲滅所有敵人
-
-Terminate the furries
-== 擊殺所有獸人
 
 Terminate the robots
 == 擊殺所有機器人
 
-Terminate the skeletons
-== 擊殺所有骷髏
-
-Teslacoil
-== 特斯拉線圈
-
-Texture Compression
-== 紋理壓縮
-
-The Cure
-== 回複藥劑
-
-The Dead
-== 感染者
-
-The Living
-== 幸存者
-
-The audio device couldn't be initialised.
-== 無法初始化音頻設備
-
-The server is running a non-standard tuning on a pure game type.
-== 此服務器運行着經過調整的非標準遊戲類型
-
 There's an unsaved map in the editor, you might want to save it before you quit the game.
 == 編輯器中的地圖尚未保存，或許你應該在退出遊戲之前保存一下
-
-Threaded rendering
-== 線程化渲染
-
-Threaded sound loading
-== 線程化音效加載
-
-Time limit
-== 時間限製
-
-Time limit: %d min
-== 時間限製: %d 分鐘
-
-Timer
-== 計時器
-
-Try again
-== 重試
-
-Turret stand
-== 炮塔支架
-
-Type
-== 類型
-
-Type:
-== 類型:
-
-UI Color
-== 界面顏色
-
-Theme
-== 主題
-
-Primary color
-== 主色
-
-Secondary color
-== 副色
-
-Hue
-== 色相
-
-Sat.
-== 飽和度
-
-Lht.
-== 明度
-
-Alpha
-== 透明度
-
-Unable to delete the demo
-== 無法刪除這個回放
-
-Unable to rename the demo
-== 無法重命名這個回放
-
-Use +/- keys to zoom (rebindable in Controls)
-== 使用 +/- 鍵縮放（可在控製設置中重綁）
-
-Use sounds
-== 開啟聲音
-
-V-Sync
-== 垂直同步
-
-Version
-== 版本
-
-Version:
-== 版本:
-
-Video render cancelled.
-== 已取消影片渲染。
-
-Video render complete. Saved under videos/.
-== 影片渲染完成，已儲存到 videos/ 目錄。
-
-Vote command:
-== 投票命令:
-
-Vote description:
-== 投票描述:
-
-Vote ends in %d...
-== 投票將在 %d 秒後結束
-
-Vote no
-== 否決
-
-Vote yes
-== 贊成
-
-Voting
-== 投票
-
-Warmup
-== 熱身
 
 Wave incoming
 == 敵人正在逼近！
@@ -1642,71 +2726,11 @@ Wave incoming
 Wave of aliens incoming
 == 外星人來襲！
 
-Wave of cyborgs incoming
-== 賽博格來襲！
-
 Wave of furries incoming
 == 獸人來襲！
 
-Wave of robots incoming
-== 機器人來襲！
-
-Wave of skeletons incoming
-== 骷髏來襲！
-
-Weapon upgrade
-== 升級套件
-
-Weapons & Items
-== 武器與物品
-
-Welcome to Ninslash
-== 歡迎來到Ninslash！
-
-When ready, press <%s>
-== 準備好後按 <%s>
-
-Whisper
-== 私聊
-
-Wide menu
-== 寬屏菜單
-
-Yes
-== 是
-
-You must restart the game for all settings to take effect.
-== 你必須重啟遊戲才能讓所有設置起效
-
-You must wait %d seconds before making another vote
-== 你必須等待 %d 秒後才能發起另一投票
-
-Zombie claw
-== 僵屍爪
-
-Zoom
-== 縮放
-
-Zoom in
-== 放大
-
 Zoom out
 == 縮小
-
-Zoom with + / - keys
-== 使用 + / - 鍵縮放
-
-blue
-== 藍
-
-enemies remaining
-== 剩餘敵人
-
-red
-== 紅
-
-seconds remaining
-== 剩餘時間
 
 xbox 360 controller support
 == xbox360手柄支持
@@ -1722,18 +2746,12 @@ Switch activated
 
 Rising acid! Reach the exit
 == 酸液上漲！逃到出口
+
 Door open
 == 門已開啟
 
-
-Rising acid
-== 酸液上漲
-
 Destroy the boss
 == 摧毀首領
-
-Defend the reactor
-== 防守反應堆
 
 Activate the switches
 == 啟動開關
@@ -1750,130 +2768,14 @@ Reactor secured
 All switches activated
 == 所有開關已啟動
 
-bosses remaining
-== 剩餘首領
-
-switches remaining
-== 剩餘開關
-
 Reactor destroyed
 == 反應堆已摧毀
-
-Wave
-== 波次
-
-kills
-== 擊殺
-
-to evacuate
-== 人待撤離
-
-Survive the horde
-== 在無盡波次中存活
-
-Activate switches to extract
-== 啟動開關以撤離
-
-Aliens
-== 外星人
-
-Robots
-== 機器人
-
-Skeletons
-== 骷髏
-
-Furries
-== 獸人
-
-Cyborgs
-== 賽博格
-
-Level
-== 關卡
-
-Objective %d/%d
-== 目標 %d/%d
-
-Boss assault
-== Boss 突襲
-
-Purge
-== 清剿
-
-Standard wave
-== 標準波次
-
-Dual switches
-== 雙開關
-
-Reactor defense
-== 反應堆防守
-
-Timed survive
-== 限時生存
-
-Trap run
-== 陷阱穿越
-
-Elite wave
-== 精英波次
-
-Z-sector wave
-== Z 形戰區
-
-Acid escape
-== 酸液逃生
-
-Invasion
-== 入侵模式
 
 Select
 == 選擇
 
-Selected
-== 已選擇
-
-Choose the next mode
-== 選擇下一局模式
-
 Left / Right · Wheel · A / Enter · %d / %d
 == 左右選擇 · 滾輪 · A / Enter 確認 · %d / %d
-
-##### PvE Roguelite #####
-
-Research
-== 研究
-
-Research unlocks perk cards; select them during a run to activate their effects.
-== 研究只負責解鎖強化卡；還需在當前局的三選一中選中，效果才會生效。
-
-Base cards are always available • Rare and Epic perks are unique
-== 基礎卡始終可用 • 稀有與史詩強化不可疊加
-
-Core research improves universal attack, survival, and logistics perks.
-== 核心研究強化通用的攻擊、生存與後勤卡牌。
-
-Weapon research unlocks specialization perks matched to your current weapon.
-== 武器研究解鎖與當前武器類型匹配的專精卡牌。
-
-Mode research unlocks perks that appear only in the matching PvE mode.
-== 模式研究解鎖僅在對應 PvE 模式中出現的卡牌。
-
-Research Details
-== 研究詳情
-
-How Research Works
-== 研究規則
-
-Earn points from PvE stages and contracts.
-== 完成 PvE 階段與團隊契約可獲得研究點。
-
-Unlock connected nodes in order.
-== 研究節點需沿連接路線依次解鎖。
-
-Unlocked cards join future perk choices.
-== 已解鎖卡牌會加入之後的強化選項。
 
 Team Contract
 == 團隊契約
@@ -1881,41 +2783,14 @@ Team Contract
 Choose a Perk
 == 選擇強化
 
-%d seconds remaining
-== 剩餘 %d 秒
-
-%d seconds • %d/%d
-== %d 秒 • %d/%d
-
 %s • LEVEL %d/%d
 == %s • 等級 %d/%d
-
-%s • TIER %d • COST %d
-== %s • 第 %d 階 • 費用 %d
-
-RISK • %d VOTES
-== 風險 • %d 票
-
-Reward: 1 Research Point
-== 獎勵：1 研究點
-
-Mouse • Arrow Keys • 1–3 • Gamepad
-== 滑鼠 • 方向鍵 • 1–3 • 手掣
-
-The server rejected that selection.
-== 伺服器拒絕了該選擇。
 
 After selection: level %d/%d
 == 選擇後：等級 %d/%d
 
 Immediate effect
 == 即時生效
-
-Unique perk
-== 唯一強化
-
-Stack limit: %d
-== 疊層上限：%d
 
 Attack
 == 攻擊
@@ -1935,9 +2810,6 @@ Explosives
 Electric
 == 電能
 
-Melee
-== 近戰
-
 Horde
 == 屍潮模式
 
@@ -1946,27 +2818,6 @@ Extraction
 
 Purchase rejected
 == 購買被拒絕
-
-Contract completed
-== 契約完成
-
-Contract failed
-== 契約失敗
-
-Active • %d/%d
-== 進行中 • %d/%d
-
-%d Research Points
-== %d 研究點
-
-Core
-== 核心
-
-Weapons
-== 武器
-
-Modes
-== 模式
 
 PURCHASED
 == 已購買
@@ -1989,26 +2840,8 @@ Purchase
 Locked
 == 未解鎖
 
-Current Run
-== 當前構築
-
-Effect
-== 效果
-
-Research Progress
-== 研究進度
-
-No perks selected
-== 尚未選擇強化
-
-+%d more perks
-== 另有 %d 項強化
-
 Requires: %s
 == 前置：%s
-
-No prerequisite
-== 無前置節點
 
 Common
 == 普通
@@ -2018,9 +2851,6 @@ Rare
 
 Epic
 == 史詩
-
-Voted
-== 已投票
 
 Unknown contract
 == 未知契約
@@ -2087,6 +2917,9 @@ Health and armor recovery +20% per stack.
 
 Quick Hands
 == 快手
+
+Quick match
+== 快速比賽
 
 Weapon attack cooldown -8% per stack (maximum -30%).
 == 每層武器攻擊冷卻 -8%（最多 -30%）。
@@ -2397,19 +3230,6 @@ Evacuation reinforcement size and active cap are doubled.
 Overwhelming evacuation pressure
 == 撤離壓力極高
 
-Checkpoint %d
-== 檢查點 %d
-
-#### PvE Roguelite v2
-Requires:
-== 前置：
-
-Legendary
-== 传奇
-
-Barrier
-== 壁壘
-
 Focus
 == 专注
 
@@ -2421,18 +3241,6 @@ Voltage
 
 Fury
 == 近戰怒氣
-
-Vulnerable
-== 破绽
-
-Bleed
-== 流血
-
-Drone
-== 無人機
-
-None
-== 無
 
 Assault
 == 攻擊
@@ -2872,26 +3680,11 @@ Activate two additional radar-marked switches before the exit opens.
 Two extra route switches
 == 兩個額外路線開關
 
-Drone module not owned
-== 尚未擁有該無人機模組
-
-Drone switch cooling down
-== 無人機切換仍在冷卻
-
 Local
 == 本機
 
-Local game
-== 本機遊戲
-
 Choose a mode, adjust the essentials, then start and join in one click.
 == 選擇模式並調整常用設定，然後一鍵啟動並加入。
-
-Choose a mode, expand a category, then start and join in one click.
-== 選擇模式並展開設定分類，然後一鍵啟動並加入。
-
-Arrows / D-pad: select and adjust · Enter / A: confirm
-== 方向鍵 / 十字鍵：選擇和調整 · Enter / A：確認
 
 ROGUELITE PVE
 == Roguelite PvE
@@ -2909,10 +3702,10 @@ Capture the flag
 == 奪旗
 
 Explore generated floors, complete objectives and keep your build between maps.
-== 探索生成樓層、完成任務，並在跨圖時保留本局構築。
+== 探索生成樓層、完成目標，並在地圖之間保留你的構築。
 
 Defend, build and survive increasingly dangerous enemy waves.
-== 建造防線，抵禦威脅不斷升級的敵人波次。
+== 防守、建造，並在越來越危險的敵潮中生存。
 
 Finish the mission and reach the extraction zone before time runs out.
 == 完成任務，並在時間耗盡前抵達撤離區。
@@ -2971,15 +3764,6 @@ PvE rules
 Match rules
 == 對戰規則
 
-Roguelite Director
-== Roguelite 構築系統
-
-Perks, resources and research
-== 啟用卡牌、資源與研究
-
-Team contracts
-== 團隊契約
-
 Offer optional team challenges
 == 提供可選的團隊挑戰
 
@@ -2992,38 +3776,11 @@ Target waves
 Mission time
 == 任務時限
 
-Endless
-== 無盡
-
-%d min
-== %d 分鐘
-
-Random map seed
-== 隨機地圖種子
-
-New layout every launch
-== 每次啟動產生新地圖
-
-Map seed
-== 地圖種子
-
 Advanced rules apply the next time the server starts.
 == 進階規則將在下次啟動伺服器時生效。
 
-Rules apply the next time the server starts.
-== 規則將在下次啟動伺服器時生效。
-
-Server name
-== 伺服器名稱
-
-Password (optional)
-== 密碼（可選）
-
-Map preset
-== 地圖預設
-
-Starting floor
-== 起始樓層
+Rules
+== 規則
 
 Map difficulty
 == 地圖難度
@@ -3040,9 +3797,6 @@ Health, elites and party size
 AI difficulty
 == AI 難度
 
-Enemy scaling
-== 敵人強度
-
 Automatic for this mode
 == 由目前模式自動調整
 
@@ -3052,56 +3806,14 @@ Target active players
 Target players per team
 == 每隊目標人數
 
-Human slots
-== 真人玩家欄位
-
-Port
-== 連接埠
-
-Allow LAN players
-== 允許區域網路玩家加入
-
-Never listed publicly
-== 永不公開列出
-
-Ready to start
-== 可以啟動
-
 Starting local server...
 == 正在啟動本機伺服器……
 
 Local server is running
 == 本機伺服器正在運行
 
-Stopping local server...
-== 正在停止本機伺服器……
-
 Server executable was not found
 == 找不到伺服器程式
-
-No free local server port was found
-== 找不到可用的本機伺服器連接埠
-
-Local server stopped unexpectedly
-== 本機伺服器意外停止
-
-Start and join
-== 啟動並加入
-
-Restart
-== 重新啟動
-
-Stop
-== 停止
-
-Cancel
-== 取消
-
-Stop local
-== 停止本機服
-
-Restart local
-== 重啟本機服
 
 Combat Foundation
 == 戰鬥基礎
@@ -3187,9 +3899,6 @@ Final Evacuation
 Signal Control
 == 訊號控制
 
-Co-op PvE
-== 合作 PvE
-
 Team PvP
 == 團隊競技
 
@@ -3199,21 +3908,6 @@ Free-for-all
 Arcade
 == 趣味模式
 
-Press Enter to vote
-== 按 Enter 投票
-
-Click to vote
-== 點擊投票
-
-%s modes · %d choices
-== %s · %d 個模式
-
-Tab / LB / RB: category · Arrows / Wheel: mode · A / Enter: vote
-== Tab / LB / RB 切換分類 · 方向鍵 / 滾輪選擇 · A / Enter 投票
-
-PvE objective display
-== PvE 任務顯示
-
 With scoreboard
 == 開啟計分板時顯示
 
@@ -3222,18 +3916,6 @@ Always visible
 
 On objective updates
 == 任務更新時短暫顯示
-
-The expedition has reached its limit
-== 遠征已到極限
-
-Five failures. Decide the fate of this run.
-== 五次失敗。決定這次遠征的命運。
-
-Floor %d
-== 第 %d 層
-
-%d votes
-== %d 票
 
 Retry Current Floor
 == 再次嘗試
@@ -3256,23 +3938,8 @@ Equipment and build will be cleared
 Vote
 == 投票
 
-Mouse • Arrow Keys • 1–2 • Gamepad
-== 滑鼠 • 方向鍵 • 1–2 • 手把
-
 A tie or no votes returns the team to Floor 1.
 == 平票或無人投票時，全隊回到第 1 層。
-
-%s did not succumb.
-== %s 沒有屈服！
-
-The team
-== 全隊
-
-What a pity...
-== 真是可惜...
-
-See you next time.
-== 下次見。
 
 The expedition continues.
 == 遠征繼續。
@@ -3280,14 +3947,11 @@ The expedition continues.
 Returning all players to Floor 1.
 == 全體玩家即將回到第 1 層。
 
-
 Mouse / Arrow Keys / 1-2 / Gamepad
 == 滑鼠 / 方向鍵 / 1-2 / 手把
 
 remaining
 == 剩餘
-
-
 
 Survive timed cyborg waves and purge their commander. Enemies are faster but fewer.
 == 挺過限時機械人攻勢並清除其指揮官。敵軍更快，但數量更少。
@@ -3309,8 +3973,6 @@ Crack the route seals. Switches are easier and the exit timer is kinder.
 
 Take the hard corridor. More enemies come through, but rewards scale up.
 == 選擇高風險通道。敵軍數量增加，但獎勵也會提高。
-
-##### needs translation #####
 
 All damage is 8% higher for each stack, up to three stacks.
 == 每層使所有傷害提高 8%，最多疊加 3 層。
@@ -3360,14 +4022,8 @@ Once each stage, survive lethal damage with 1 health.
 Shop prices are 10% lower for each stack, up to 40%.
 == 每層商店價格 -10%（最多 -40%）。
 
-Shops offer one additional high-tier item.
-== 商店額外提供一件高階物品。
-
 Buildings cost 20% less and repairs restore 25% more.
 == 建造費用降低 20%，維修效果提高 25%。
-
-Destroyed friendly buildings refund 40% of their kit cost.
-== 友方建築摧毀時返還其 40% 工具包費用。
 
 Firearm damage is 12% higher for each stack.
 == 每層使槍械傷害提高 12%。
@@ -3390,20 +4046,8 @@ Explosive kills can trigger a secondary blast.
 Electric damage is 12% higher for each stack.
 == 每層使電能傷害提高 12%。
 
-Electric hits arc to one nearby enemy for 35% damage.
-== 電能命中會向附近一名敵人傳導 35% 傷害。
-
-Every fifth electric hit deals double damage.
-== 每第 5 次電能命中造成雙倍傷害。
-
 Melee damage is 12% higher for each stack.
 == 每層使近戰傷害提高 12%。
-
-Melee kills restore 4 health.
-== 近戰擊殺恢復 4 點生命。
-
-Heavy melee hits release a damaging shockwave.
-== 重型近戰命中會釋放傷害衝擊波。
 
 Invasion stage-start supplies are 25% higher for each stack.
 == 每層使入侵模式的階段開始補給提高 25%。
@@ -3428,9 +4072,6 @@ Extraction interactions are 25% faster for each stack.
 
 Move 15% faster while evacuating.
 == 撤離期間移動速度提高 15%。
-
-Reviving an ally grants both players 20 armor.
-== 復活隊友時雙方獲得 20 護甲。
 
 Six direct hits apply Vulnerable for 4 seconds. Each stack adds 3% damage.
 == 对同一敵人直接命中 6 次後施加 4 秒破绽；每層使其承傷增加 3%，总上限 25%。
@@ -3507,9 +4148,6 @@ Current drone module efficiency is 50% higher. Disabled drones recover after 5 s
 Focus needs 1 fewer hit per stack, to a minimum of 7.
 == 专注觸發阈值每層降低 1，最低為 7。
 
-Consuming Focus applies Vulnerable for 5 seconds.
-== 消耗专注時施加 5 秒破绽。
-
 After consuming Focus, the next magazine's first 6 shots deal 35% more damage.
 == 每次消耗专注後，下一弹匣前 6 發傷害增加 35%。
 
@@ -3524,9 +4162,6 @@ Against the assault drone target, players deal 15% more damage and the drone 50%
 
 Empowered blasts need 1 fewer hit per stack, to a minimum of 3.
 == 强化爆炸觸發阈值每層降低 1，最低為 3。
-
-Empowered explosions apply Vulnerable for 5 seconds.
-== 强化爆炸施加 5 秒破绽。
 
 Every third empowered explosion creates a delayed blast for 60% damage.
 == 每第 3 次强化爆炸产生一次延迟二次爆炸，造成 60% 傷害。
@@ -3552,17 +4187,11 @@ Every third full Voltage release calls lightning for 100% damage.
 Electric kills restore 2 Voltage for each stack.
 == 電能擊殺返還每層 2 點電荷。
 
-Consuming Voltage grants 10 Barrier.
-== 消耗電荷時獲得 10 點壁壘。
-
 Above 5 Voltage, current drone module efficiency is 35% higher.
 == 電荷超過 5 時，無人機當前模組效率提高 35%。
 
 Gain 1 extra Fury per stack on hit, up to 4 per hit.
 == 命中獲得怒氣時每層額外獲得 1 點，单次最多獲得 4 點。
-
-Consuming Fury applies 3 Bleed stacks.
-== 消耗怒氣時施加 3 層流血。
 
 After full Fury, deal 40% more melee damage and take 20% less damage for 6 seconds.
 == 消耗滿怒氣後 6 秒内近戰傷害增加 40%，承傷减少 20%。
@@ -3572,9 +4201,6 @@ Heavy hits extend Vulnerable by 2 seconds per stack, up to 6 seconds.
 
 When a bleeding enemy dies, restore 5 health, up to 15 each event.
 == 流血敵人死亡時恢復 5 點生命，单次最多 15 點。
-
-Each enemy hit by a shockwave grants 1 Fury and 2 Barrier.
-== 衝擊波每命中一個敵人獲得 1 點怒氣和 2 點壁壘。
 
 Objectives show direction and distance. Interactions are 15% faster.
 == 任務目標始终顯示方向與距離，互動速度提高 15%。
@@ -3612,35 +4238,18 @@ Interactions are 10% faster per stack, up to 60%.
 Entering evacuation restores 30% ammo and grants 20 Barrier once.
 == 進入撤離区時恢復 30% 彈藥并獲得 20 點壁壘，每次撤離階段一次。
 
-##### old translations #####
-Drone integrity
-== 無人機完整度
-
 EMP disabled
 == EMP 停用
 
 Rebuilding
 == 重建中
 
-Hold %s: drone command wheel
-== 按住 %s：無人機指令輪盤
-
 Release to switch
 == 鬆開以切換
+
 Foundry
 == 鑄造廠
 
-Drone wheel
-== 無人機指令輪盤
-
-Hold out against the wave
-== 堅守敵潮
-
-Hold the line
-== 守住陣線
-
-Stand by
-== 待命
 Destroy the turrets
 == 摧毀砲塔
 
@@ -3665,9 +4274,6 @@ Turret sweep
 Signal hold
 == 信號堅守
 
-turrets remaining
-== 座砲塔剩餘
-
 Turrets missing — survive the wave instead
 == 砲塔缺失 — 改為存活敵潮
 
@@ -3680,101 +4286,11 @@ Holding signal...
 Signal hold interrupted
 == 信號佔領中斷
 
-Weapon forge
-== 武器鍛造
-
-Target
-== 目標
-
-Material
-== 素材
-
-Result
-== 產物
-
-Weapon level
-== 武器等級
-
-Ammo
-== 彈藥
-
-Part 2 transplant
-== 零件 2 移植
-
-Spin
-== 迴旋融合
-
-Upgrade
-== 強化
-
-Forge
-== 鍛造
-
-Forging...
-== 鍛造中...
-
-Waiting for server
-== 等待伺服器確認
-
-Forge complete
-== 鍛造完成
-
-Forge disabled
-== 鍛造已停用
-
-Move closer to a screen
-== 請靠近鍛造螢幕
-
-Not enough gold
-== 金幣不足
-
-Weapon is busy
-== 武器正忙
-
-Invalid slots
-== 欄位無效
-
-Invalid recipe
-== 配方無效
-
-Result would not change
-== 產物不會發生變化
-
-Select a target weapon
-== 請選擇目標武器
-
-Select a material weapon
-== 請選擇素材武器
-
-Ready to forge
-== 可以鍛造
-
-Press %s to open forge
-== 按 %s 開啟武器鍛造
-
-Starting point
-== 起始方式
-
 Team checkpoint
 == 繼續團隊檢查點
 
-Floor 1
-== 從第 1 層開始
-
 Custom floor
 == 自訂樓層
-
-Complete more floors to unlock
-== 完成更多樓層後解鎖
-
-Difficulty %d
-== 難度 %d
-
-%d waves
-== %d 波
-
-Score %d
-== 得分上限 %d
 
 Roguelite
 == 肉鴿構築
@@ -3782,85 +4298,17 @@ Roguelite
 Classic PvE
 == 經典 PvE
 
-Random seed
-== 隨機種子
-
-Seed %d
-== 種子 %d
-
-%d human slots
-== %d 個真人玩家欄位
-
-%d players per team
-== 每隊 %d 人
-
-Target %d active players
-== 目標在場人數 %d
-
-Starting local server and waiting for readiness...
-== 正在啟動本機伺服器並等待就緒……
-
 Local server is ready; joining...
 == 本機伺服器已就緒，正在加入……
 
-Server executable was not found or could not be started
-== 未找到伺服器程式或無法啟動
-
-Local server did not become ready in time
-== 本機伺服器未能及時就緒
-
-The preferred port and the next nine ports are already in use.
-== 首選連接埠及後續九個連接埠均已被佔用。
-
-Local server log
-== 本機伺服器日誌
-
-Log
-== 日誌
-
-OK
-== 確定
-
-Map selection
-== 地圖選擇
-
-Automatic by Invasion floor
-== 由入侵樓層自動選擇
 Active
 == 已啟用
-
-Authenticating with Steam
-== 正在透過 Steam 驗證
-
-Authentication
-== 驗證
-
-Browse Workshop
-== 瀏覽工作坊
 
 CHECK REQUIRED
 == 需要檢查
 
-COMMUNITY
-== 社群
-
-Community / Report
-== 社群頁面 / 檢舉
-
-Community page / Report
-== 社群頁面 / 檢舉
-
-Connecting to server
-== 正在連線至伺服器
-
-Content directory
-== 內容目錄
-
 Create Steam room
 == 建立 Steam 房間
-
-Create item
-== 建立物品
 
 Create local game
 == 建立本機遊戲
@@ -3871,17 +4319,11 @@ Current collection
 Dedicated servers and Steam rooms
 == 專用伺服器與 Steam 房間
 
-Disable
-== 停用
-
 Disable Mod
 == 停用模組
 
 Downloading Mod
 == 正在下載模組
-
-Enable
-== 啟用
 
 Enable Mod
 == 啟用模組
@@ -3889,53 +4331,14 @@ Enable Mod
 Enabled
 == 已啟用
 
-FRIEND
-== 好友
-
-Friend room
-== 好友房間
-
-Host
-== 房主
-
 Inactive
 == 未啟用
-
-Invite
-== 邀請
-
-Invite only
-== 僅限邀請
-
-Leave
-== 離開
-
-Level %d
-== 關卡 %d
-
-Loading map
-== 正在載入地圖
 
 Local / LAN game
 == 本機 / 區域網路遊戲
 
 Local Mods
 == 本機模組
-
-Mods
-== 模組
-
-Mod manager
-== 模組管理器
-
-Mod manager is unavailable.
-== 模組管理器無法使用。
-
-The Mod change will apply after reconnecting.
-== 模組變更將在重新連線後生效。
-
-Unable to update the enabled Mod collection.
-== 無法更新已啟用的模組集合。
 
 No Mods in this category.
 == 此分類中沒有模組。
@@ -3946,38 +4349,14 @@ Not verified
 Invalid Mod
 == 無效模組
 
-OFFICIAL
-== 官方
-
 Player Mods
 == 玩家模組
-
-Preview file
-== 預覽檔案
 
 Protocol / content hash
 == 協定 / 內容雜湊
 
-Public
-== 公開
-
-Publish update
-== 發佈更新
-
 Refresh LAN
 == 重新整理區域網路
-
-Region
-== 地區
-
-Required
-== 必要
-
-Room name
-== 房間名稱
-
-Rooms
-== 房間
 
 STEAM
 == STEAM
@@ -3985,41 +4364,15 @@ STEAM
 Select a room to see address, region, version, Mods and join requirements.
 == 選擇房間以查看位址、地區、版本、模組及加入需求。
 
-Source
-== 來源
-
-Steam Workshop is unavailable. Installed game data remains unchanged.
-== Steam 工作坊無法使用。已安裝的遊戲資料不會變更。
-
 Steam hosting is unavailable. Start Steam or create a LAN game.
 == Steam 託管無法使用。請啟動 Steam 或建立區域網路遊戲。
-
-Steam room
-== Steam 房間
-
-Steam rooms
-== Steam 房間
-
-Steam unavailable
-== Steam 無法使用
-
-Steam unavailable — dedicated servers, Favorites and direct connection remain available.
-== Steam 無法使用——專用伺服器、我的最愛與直接連線仍可使用。
-
-Synchronizing Workshop content
-== 正在同步工作坊內容
-
-Unsubscribe
-== 取消訂閱
-
-Use collection
-== 使用此集合
 
 VALID
 == 有效
 
 Verified for this build
 == 已通過目前版本驗證
+
 Character
 == 角色
 
@@ -4029,11 +4382,26 @@ Progress
 Replays
 == 回放
 
-Browse rooms
-== 瀏覽房間
+Browse
+== 瀏覽
+
+MULTIPLAYER · COMMUNITY
+== 多人遊戲 · 社群
+
+Join existing games hosted by other players.
+== 加入其他玩家建立的遊戲。
 
 Create room
 == 建立房間
+
+Choose mode
+== 選擇模式
+
+14 GAME MODES · SOLO / LAN / STEAM
+== 14 種遊戲模式 · 單人 / 區域網路 / Steam
+
+Choose from every game mode and configure to your liking.
+== 從所有遊戲模式中選擇並自由配置。
 
 LAN & direct
 == 區域網路與直接連線
@@ -4046,9 +4414,6 @@ Needs update
 
 Disabled
 == 已停用
-
-Continue
-== 繼續
 
 Server
 == 伺服器
@@ -4073,6 +4438,7 @@ Steam rejected room creation. Check your connection and retry.
 
 One or more Workshop items failed validation. Open Workshop for details.
 == 一個或多個工作坊項目驗證失敗。請開啟工作坊查看詳情。
+
 Steam rejected the room join request. Refresh rooms and try again.
 == Steam 拒絕加入房間。請重新整理房間清單後再試。
 
@@ -4090,8 +4456,6 @@ Required Workshop content is downloading. Open Workshop, wait for validation, th
 
 This room requires a different Mod collection. Open Workshop and enable the required content.
 == 此房間需要其他模組集合。請開啟工作坊並啟用所需內容。
-Joining room
-== 正在加入房間
 
 Choose a game mode
 == 選擇玩法
@@ -4114,18 +4478,6 @@ PVP
 Solo
 == 單人
 
-Change mode
-== 更換模式
-
-Visibility
-== 可見性
-
-Friends and Public require Steam.
-== 好友和公開房間需要 Steam。
-
-Room details
-== 房間資訊
-
 Advanced settings
 == 進階設定
 
@@ -4140,24 +4492,6 @@ Managed automatically
 
 LAN binding
 == 區域網路綁定
-
-Training is available from the Play hub.
-== 教學模式可從玩法中心的訓練入口啟動。
-
-Room creation failed. Your settings were kept; retry or open the log.
-== 房間建立失敗。設定已保留；請重試或開啟記錄。
-
-%s  ·  %s  ·  %s  ·  %d human slots  ·  Community room · Unverified
-== %s  ·  %s  ·  %s  ·  %d 個真人玩家欄位  ·  社群房間 · 未驗證
-
-Explore generated floors, complete objectives and keep your build between maps.
-== 探索生成樓層、完成目標，並在地圖之間保留你的構築。
-
-Defend, build and survive increasingly dangerous enemy waves.
-== 防守、建造，並在越來越危險的敵潮中生存。
-
-Finish the mission and reach the extraction zone before time runs out.
-== 完成任務，並在時間耗盡前抵達撤離區。
 
 Fight every player and reach the score limit first.
 == 擊敗所有對手，率先達到分數限制。
@@ -4222,9 +4556,6 @@ Build and Growth
 Multiplayer Ready
 == 多人準備
 
-Switch weapons and hit the training target.
-== 切換武器並擊中訓練目標。
-
 Defeat the marked enemies and watch your ammunition.
 == 擊敗標記敵人，並留意彈藥。
 
@@ -4258,20 +4589,11 @@ Track mission progress on the HUD.
 Reach the extraction area.
 == 抵達撤離區域。
 
-Collect the marked sandbox materials.
-== 收集標記的沙盒材料。
-
-Build a defense and survive the controlled wave.
-== 建造防禦設施並撐過受控敵潮。
-
 Choose a run perk for this mission.
 == 為本次任務選擇一個局內增益。
 
 Choose one of the three run perks.
 == 從三個局內增益中選擇一個。
-
-Hold %s, choose a drone module, then release to switch.
-== 按住 %s，選擇一個無人機模組，然後放開以切換。
 
 Purchase the highlighted sandbox research node. Tutorial points do not affect your save.
 == 購買高亮的沙盒研究節點。教程點數不會影響你的存檔。
@@ -4291,23 +4613,11 @@ Configure and create the simulated room.
 Filter the simulated room list and join a room.
 == 篩選模擬房間列表並加入房間。
 
-Multiplayer room practice
-== 多人房間練習
-
 Configure a simulated room, then create it.
 == 設定一個模擬房間，然後建立它。
 
 Filter the simulated room list, then join the training room.
 == 篩選模擬房間列表，然後加入訓練房間。
-
-Room visibility
-== 房間可見性
-
-Training Room · Tutorial rules · 4 slots
-== 訓練房間 · 教程規則 · 4 個位置
-
-Create simulated room
-== 建立模擬房間
 
 All rooms
 == 全部房間
@@ -4315,50 +4625,14 @@ All rooms
 Low ping
 == 低延遲
 
-Ninslash Training Room
-== Ninslash 訓練房間
-
-Tutorial · 1/4 players · local simulation
-== 教程 · 1/4 玩家 · 本機模擬
-
-Join simulated room
-== 加入模擬房間
-
-This practice does not publish a real room or contact external services.
-== 此練習不會發布真實房間，也不會連線外部服務。
-
 Choose chapter
 == 選擇章節
-
-Tutorial chapters
-== 教程章節
-
-Back to Play
-== 返回玩法中心
-
-Chapter %d
-== 第 %d 章
-
-CHAPTER %d/6 · %s · %d/%d
-== 第 %d/6 章 · %s · %d/%d
-
-Step %d of %d
-== 步驟 %d/%d
-
-Completed
-== 已完成
-
-Available
-== 已解鎖
 
 Replay
 == 重玩
 
 Replay chapter
 == 重玩章節
-
-Complete chapter %d first
-== 請先完成第 %d 章
 
 Movement, weapons and the training target.
 == 移動、武器與訓練靶。
@@ -4420,18 +4694,6 @@ Objectives  ·  Forge  ·  Builds
 Six guided solo chapters for controls, combat, objectives, forging, builds and rooms.
 == 六章單人引導教程，涵蓋操作、戰鬥、目標、鍛造、建造與房間。
 
-No bots
-== 不加入機器人
-
-%s: %d
-== %s：%d
-
-%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Community room · Unverified
-== %s  ·  %s  ·  %s  ·  %d 個真人欄位  ·  %s  ·  社群房間 · 未驗證
-
-Recommended: %s players  ·  %s  ·  %s difficulty
-== 建議 %s 人  ·  %s  ·  %s難度
-
 Official
 == 官方
 
@@ -4447,37 +4709,12 @@ Aim to select
 Training
 == 訓練
 
-Online
-== 線上
-
-Standalone network
-== 獨立網路
-
-UDP available
-== UDP 可用
-
 Starting local game
 == 正在啟動本機遊戲
 
 Stopping local game
 == 正在停止本機遊戲
-Preset
-== 預設
 
-Common filters
-== 常用過濾
-
-Advanced filters
-== 進階過濾
-
-New
-== 新建
-
-Done
-== 完成
-
-Save
-== 儲存
 Steam room creation timed out. Check Steam connection and retry.
 == Steam 房間建立逾時。請檢查 Steam 連線後重試。
 
@@ -4496,83 +4733,14 @@ Steam room service is busy. Wait a moment and retry.
 Steam could not start room creation. Restart Steam and retry.
 == Steam 無法啟動房間建立。請重新啟動 Steam 後重試。
 
-Steam Cloud
-== Steam 雲端存檔
-
-Steam
-== Steam
-
 Steam Cloud is unavailable
 == Steam 雲端存檔無法使用
-
-Steam Cloud conflict
-== Steam 雲端存檔衝突
-
-This device
-== 此裝置
-
-highest floor
-== 最高層
-
-Use this device
-== 使用此裝置
-
-Use Steam Cloud
-== 使用 Steam 雲端存檔
-
-Resolve conflict
-== 解決衝突
-
-Sync now
-== 立即同步
 
 Progress, appearance, portable preferences and custom key bindings are synchronized. Display, device and local network settings stay on this device.
 == 同步遊戲進度、角色外觀、可攜式偏好和自訂按鍵。顯示器、裝置及本機網路設定只保留在此裝置。
 
-Steam friends
-== Steam 好友
-
-Steam friends are unavailable in standalone mode.
-== 獨立模式下無法使用 Steam 好友。
-
 Overlay invite
 == Steam 介面邀請
-
-Joinable
-== 可加入
-
-Playing Ninslash
-== 正在玩 Ninslash
-
-Offline
-== 離線
-
-Join friend
-== 加入好友
-
-Profile
-== 個人資料
-
-friends
-== 位好友
-
-Session members
-== 目前成員
-
-Steam member
-== Steam 成員
-
-Anonymous connection
-== 匿名連線
-
-You
-== 你
-
-Friend
-== 好友
-
-Unknown
-== 未知
 
 Infection
 == 感染模式
@@ -4583,17 +4751,8 @@ Roam
 Gun game
 == 槍械升級戰
 
-Invite to party
-== 邀請加入小隊
-
-In your party
-== 已在你的小隊中
-
 In party
 == 已在小隊
-
-Steam party
-== Steam 小隊
 
 Steam party · not in a party
 == Steam 小隊 · 尚未加入小隊
@@ -4601,29 +4760,11 @@ Steam party · not in a party
 Creating party...
 == 正在建立小隊……
 
-Create party
-== 建立小隊
-
-Create a private party or invite a friend to begin.
-== 建立私人小隊，或邀請好友開始組隊。
-
 Leader
 == 隊長
 
 Member
 == 成員
-
-Steam room selected
-== 已選擇 Steam 房間
-
-Choose a game or server
-== 選擇遊戲或伺服器
-
-Not ready
-== 未準備
-
-Leave party
-== 離開小隊
 
 Start party
 == 全隊開始
@@ -4646,46 +4787,20 @@ My Library
 Workshop
 == 工作坊
 
-Workshop content
-== 工作坊內容
-
 Most subscribed
 == 訂閱最多
 
 Not subscribed
 == 未訂閱
 
-Unknown author
-== 未知作者
-
-Content rating
-== 內容分級
-
-Description
-== 說明
-
-No description provided.
-== 暫無說明。
-
-Workshop details
-== 工作坊詳情
-
 Select Workshop content to view details.
 == 選擇一項工作坊內容以查看詳情。
-
-Loading Workshop content…
-== 正在載入工作坊內容…
 
 No Workshop content matches these filters.
 == 沒有符合目前篩選條件的工作坊內容。
 
 Retry download
 == 重試下載
-
-Community leaderboard · Unverified
-== 社群榜 · 未驗證
-Author
-== 作者
 
 CHALLENGE
 == 挑戰
@@ -4702,17 +4817,8 @@ Discover
 Downloading
 == 正在下載
 
-Downloading content
-== 正在下載內容
-
-Gyroscope sensitivity
-== 陀螺儀靈敏度
-
 Invalid
 == 無效
-
-Invert gyroscope vertical aim
-== 反轉陀螺儀垂直瞄準
 
 Latest
 == 最新
@@ -4729,23 +4835,11 @@ Maps
 Mod
 == 模組
 
-Open Steam controller configuration
-== 開啟 Steam 控制器設定
-
 PRESET
 == 預設
 
 Popular
 == 熱門
-
-Protocol
-== 通訊協定
-
-Rating
-== 評分
-
-Review room rules, visibility and password before creating the room.
-== 建立房間前，請檢查房間規則、可見性與密碼。
 
 Room Preset
 == 房間預設
@@ -4753,20 +4847,6 @@ Room Preset
 Room Presets
 == 房間預設
 
-Room preset applied
-== 已套用房間預設
-
-Steam Input gyroscope aiming
-== Steam Input 陀螺儀瞄準
-
-Steam Input vibration
-== Steam Input 震動
-
-Unable to apply preset
-== 無法套用預設
-
-Workshop map selected
-== 已選擇工作坊地圖
 Cloud profile is too large
 == 雲端設定檔過大
 
@@ -4796,13 +4876,9 @@ Steam Cloud profile is invalid; local progress was kept
 
 Steam Cloud upload failed; local progress is safe
 == Steam 雲端存檔上傳失敗；本機進度未受影響
-Unable to start Steam Workshop query.
-== 無法啟動 Steam 工作坊查詢。
+
 Loading community leaderboard…
 == 正在載入社群排行榜……
-
-Unable to start community leaderboard request.
-== 無法啟動社群排行榜請求。
 
 Community leaderboard is unavailable
 == 社群排行榜無法使用
@@ -4815,6 +4891,7 @@ Community score upload failed
 
 Community leaderboard download failed
 == 社群排行榜下載失敗
+
 Steam room interfaces became unavailable. Restart Steam and retry.
 == Steam 房間介面已無法使用。請重新啟動 Steam 後再試。
 
@@ -4826,10 +4903,10 @@ Steam could not publish room data. The local server was stopped; retry creating 
 
 Steam could not publish the party room target. The local server was stopped; retry creating the room.
 == Steam 無法發佈隊伍房間目標。本機伺服器已停止；請重新建立房間。
-Unable to update Steam party target. Retry or recreate the party.
-== 無法更新 Steam 隊伍目標。請重試或重新建立隊伍。
+
 Enable to use
 == 啟用後使用
+
 Steam could not start joining the party. Restart Steam and retry.
 == Steam 無法開始加入隊伍。請重新啟動 Steam 後再試。
 
@@ -4844,10 +4921,10 @@ The party target requires a different Mod collection.
 
 This party uses an incompatible game version.
 == 此隊伍使用不相容的遊戲版本。
+
 Unable to join the Steam room
 == 無法加入 Steam 房間
 
-#### Compact Perk descriptions
 +25 armor now
 == 立即獲得25護甲
 
@@ -4857,50 +4934,8 @@ Refill all ammo now
 +5 kits now
 == 立即獲得5工具包
 
-%d · %s · Lv. %d/%d
-== %d · %s · 等級 %d/%d
-
-%d · Supply
-== %d · 補給
-
-A tie or no votes grants one final retry.
-== 平票或無人投票時獲得一次最終重試。
-
-Import ZIP
-== 匯入 ZIP
-
-Replace local Mod?
-== 取代本機模組？
-
-Replace
-== 取代
-
-Unable to import Mod
-== 無法匯入模組
-
-Unable to start the Mod import.
-== 無法啟動模組匯入。
-
 Unable to open the ZIP importer.
 == 無法開啟 ZIP 匯入器。
-
-This Mod version is already installed.
-== 已安裝此版本的模組。
-
-Disconnect before replacing an enabled Mod.
-== 請先中斷連線，再取代已啟用的模組。
-
-Mod installed
-== 模組已安裝
-
-Folder
-== 資料夾
-
-Enter the full path to a ZIP package.
-== 輸入 ZIP 內容包的完整路徑。
-
-Import
-== 匯入
 
 Unsubscribe from this Workshop item before installing a different local package with the same ID.
 == 請先取消訂閱此工作坊項目，再安裝具有相同 ID 的其他本機內容包。
@@ -4913,12 +4948,6 @@ Race through a generated modular course with a selectable number of checkpoints.
 
 Race  ·  Checkpoints  ·  Modular course
 == 競速  ·  檢查點  ·  模組化賽道
-
-CP %d/%d
-== 檢查點 %d/%d
-
-Time
-== 時間
 
 Steam could not inspect the invitation. Ask the host to send a new invite.
 == Steam 無法檢查邀請。請讓房主傳送新的邀請。
@@ -4938,43 +4967,3 @@ Steam invitation data is unavailable or invalid. Ask the host to send a new invi
 Checkpoints
 == 檢查點
 
-%d checkpoints
-== %d 個檢查點
-Aim sensitivity
-== 瞄準靈敏度
-
-Movement deadzone
-== 移動死區
-
-Aim deadzone
-== 瞄準死區
-
-Aim response curve
-== 瞄準響應曲線
-
-Aim assist strength
-== 瞄準輔助強度
-
-PvE: slowdown and light magnetism · PvP: slowdown only
-== PvE：減速與輕微吸附 · PvP：僅減速
-
-Invert gamepad vertical aim
-== 反轉手把垂直瞄準
-
-Show input diagnostics
-== 顯示輸入診斷
-
-Processed aim
-== 處理後瞄準
-
-Reset controller defaults
-== 重設手把預設設定
-
-Controller bindings
-== 手把按鍵
-
-Keyboard & mouse
-== 鍵盤與滑鼠
-
-Controller & advanced
-== 手把與進階輸入

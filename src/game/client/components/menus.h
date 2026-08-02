@@ -619,7 +619,7 @@ class CMenus : public CComponent
 	void StartLocalServer(bool AutoJoin);
 	void StopLocalServer(bool Restart);
 	void StartTutorial(int Chapter = 1, bool Resume = true);
-	void StartPvpPractice();
+	void StartQuickMatch();
 	void JoinLocalServer();
 	bool IsConnectedToLocalServer() const;
 	void RefreshLocalServerErrorDetail();

@@ -31,7 +31,7 @@ enum
 
 static const char *GameVoteCategoryName(int Category)
 {
-	static const char *s_apNames[NUM_GAMEVOTE_CATEGORIES] = {"Co-op PvE", "Team PvP", "Free-for-all", "Arcade"};
+	static const char *s_apNames[NUM_GAMEVOTE_CATEGORIES] = {"Co-op", "Team", "Free-for-all", "Arcade"};
 	return s_apNames[clamp(Category, 0, NUM_GAMEVOTE_CATEGORIES - 1)];
 }
 

@@ -55,6 +55,8 @@ struct CLocalGameMode
 	const char *const *m_ppMapCommands;
 	int m_MapCount;
 	int m_Rule;
+	bool m_HasBots;
+	bool m_HasRoguelite;
 };
 
 static const char *s_apLocalMaps[] = {
@@ -90,10 +92,12 @@ static const char *s_apLocalReactorAssaultMapCommands[] = {"reactor1"};
 						 Selectable,                                                                                   \
 						 Maps,                                                                                         \
 						 Commands,                                                                                     \
-						 Rule)                                                                                         \
+						 Rule,																						   \
+						 HasBots,																					   \
+						 HasRoguelite)                                                                                 \
 	{                                                                                                                  \
 		Name, Description, RecommendedPlayers, Duration, Difficulty, Mechanics, Config, GameType, VoteImage, Pve,      \
-			MapGen, Selectable, Maps, Commands, (int)(sizeof(Maps) / sizeof(Maps[0])), Rule                            \
+			MapGen, Selectable, Maps, Commands, (int)(sizeof(Maps) / sizeof(Maps[0])), Rule, HasBots, HasRoguelite       \
 	}
 
 static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
@@ -111,7 +115,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 false,
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
-					 LOCAL_RULE_FIXED),
+					 LOCAL_RULE_FIXED, false, false),
 	LOCAL_MODE_ENTRY("Invasion",
 					 "Explore generated floors, complete objectives and keep your build between maps.",
 					 "1-4",
@@ -126,7 +130,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 false,
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
-					 LOCAL_RULE_INVASION),
+					 LOCAL_RULE_INVASION, false, true),
 	LOCAL_MODE_ENTRY("Horde",
 					 "Defend, build and survive increasingly dangerous enemy waves.",
 					 "1-6",
@@ -141,7 +145,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
-					 LOCAL_RULE_HORDE),
+					 LOCAL_RULE_HORDE, false, true),
 	LOCAL_MODE_ENTRY("Extraction",
 					 "Finish the mission and reach the extraction zone before time runs out.",
 					 "1-4",
@@ -156,7 +160,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
-					 LOCAL_RULE_EXTRACTION),
+					 LOCAL_RULE_EXTRACTION, false, true),
 	LOCAL_MODE_ENTRY("Deathmatch",
 					 "Fight every player and reach the score limit first.",
 					 "2-8",
@@ -171,7 +175,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
-					 LOCAL_RULE_DM_SCORE),
+					 LOCAL_RULE_DM_SCORE, true, false),
 	LOCAL_MODE_ENTRY("Team deathmatch",
 					 "Coordinate with your team to win the score race.",
 					 "4-10",
@@ -186,7 +190,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
-					 LOCAL_RULE_TDM_SCORE),
+					 LOCAL_RULE_TDM_SCORE, true, false),
 	LOCAL_MODE_ENTRY("Capture the flag",
 					 "Steal the enemy flag while defending your own base.",
 					 "4-10",
@@ -201,7 +205,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalCtfMaps,
 					 s_apLocalCtfMapCommands,
-					 LOCAL_RULE_CTF_SCORE),
+					 LOCAL_RULE_CTF_SCORE, true, false),
 	LOCAL_MODE_ENTRY("Reactor Defense",
 					 "Fortify the reactor and survive waves of hostile machines.",
 					 "1-4",
@@ -216,7 +220,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalReactorDefenseMaps,
 					 s_apLocalReactorDefenseMapCommands,
-					 LOCAL_RULE_FIXED),
+					 LOCAL_RULE_FIXED, false, true),
 	LOCAL_MODE_ENTRY("Reactor Assault",
 					 "Plant or disarm the bomb in round-based reactor combat.",
 					 "4-10",
@@ -231,7 +235,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalReactorAssaultMaps,
 					 s_apLocalReactorAssaultMapCommands,
-					 LOCAL_RULE_REACTOR_SCORE),
+					 LOCAL_RULE_REACTOR_SCORE, true, false),
 	LOCAL_MODE_ENTRY("Ball",
 					 "Carry the ball into the enemy goal while defending your own.",
 					 "4-10",
@@ -246,7 +250,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalBallMaps,
 					 s_apLocalBallMapCommands,
-					 LOCAL_RULE_BALL_SCORE),
+					 LOCAL_RULE_BALL_SCORE, true, false),
 	LOCAL_MODE_ENTRY("Battle Royale",
 					 "Outlast every opponent in a single-life survival match.",
 					 "2-9",
@@ -261,7 +265,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
-					 LOCAL_RULE_FIXED),
+					 LOCAL_RULE_FIXED, true, false),
 	LOCAL_MODE_ENTRY("Grenade DM",
 					 "Fight a fast free-for-all with unlimited grenades.",
 					 "2-8",
@@ -276,7 +280,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
-					 LOCAL_RULE_DM_SCORE),
+					 LOCAL_RULE_DM_SCORE, true, false),
 	LOCAL_MODE_ENTRY("Instagib CTF",
 					 "Capture the flag with lethal precision weapons and instant kills.",
 					 "4-10",
@@ -291,7 +295,7 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalCtfMaps,
 					 s_apLocalCtfMapCommands,
-					 LOCAL_RULE_CTF_SCORE),
+					 LOCAL_RULE_CTF_SCORE, true, false),
 	LOCAL_MODE_ENTRY("Roam Race",
 					 "Race through a generated modular course with a selectable number of checkpoints.",
 					 "1-8",
@@ -306,20 +310,15 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 true,
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
-					 LOCAL_RULE_ROAM_CHECKPOINTS),
+					 LOCAL_RULE_ROAM_CHECKPOINTS, false, false),
 };
 
-static const int s_aLocalPveModes[] = {
-	LOCAL_MODE_INVASION, LOCAL_MODE_HORDE, LOCAL_MODE_EXTRACTION, LOCAL_MODE_REACTOR_DEFENSE};
-static const int s_aLocalPvpModes[] = {LOCAL_MODE_DM,
-									   LOCAL_MODE_TDM,
-									   LOCAL_MODE_CTF,
-									   LOCAL_MODE_REACTOR_ASSAULT,
-									   LOCAL_MODE_BALL,
-									   LOCAL_MODE_BATTLE_ROYALE,
-									   LOCAL_MODE_GRENADE_DM,
-									   LOCAL_MODE_INSTAGIB_CTF,
-									   LOCAL_MODE_ROAM};
+static const int s_aAllLocalModes[] = {
+	LOCAL_MODE_INVASION, LOCAL_MODE_HORDE, LOCAL_MODE_EXTRACTION, LOCAL_MODE_REACTOR_DEFENSE,
+	LOCAL_MODE_DM, LOCAL_MODE_TDM, LOCAL_MODE_CTF,
+	LOCAL_MODE_REACTOR_ASSAULT, LOCAL_MODE_BALL,
+	LOCAL_MODE_BATTLE_ROYALE, LOCAL_MODE_GRENADE_DM, LOCAL_MODE_INSTAGIB_CTF, LOCAL_MODE_ROAM
+};
 
 #undef LOCAL_MODE_ENTRY
 

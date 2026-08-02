@@ -2230,7 +2230,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 	}
 	pSettings->m_Port = clamp(g_Config.m_ClLocalServerPort, 1024, 65535);
 	pSettings->m_MaxClients = clamp(g_Config.m_ClLocalServerMaxClients, 1, 16);
-	pSettings->m_Bots = pSettings->m_pMode->m_Pve ? 0 : clamp(g_Config.m_ClLocalServerBots, 0, 16);
+	pSettings->m_Bots = pSettings->m_pMode->m_HasBots ? clamp(g_Config.m_ClLocalServerBots, 0, 16) : 0;
 	pSettings->m_Difficulty = clamp(g_Config.m_ClLocalServerDifficulty, 1, 50);
 	pSettings->m_BotLevel = clamp(pSettings->m_Difficulty, 1, 30);
 	pSettings->m_InvasionStart = clamp(
@@ -2241,7 +2241,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 	pSettings->m_RandomSeed = g_Config.m_ClLocalServerRandomSeed != 0;
 	pSettings->m_MapGen = pSettings->m_pMode->m_MapGen && !g_Config.m_ClLocalServerWorkshopMap[0];
 	pSettings->m_Seed = clamp(g_Config.m_ClLocalServerSeed, 0, 32767);
-	pSettings->m_Roguelite = pSettings->m_pMode->m_Pve && g_Config.m_ClLocalServerRoguelite != 0;
+	pSettings->m_Roguelite = pSettings->m_pMode->m_HasRoguelite && g_Config.m_ClLocalServerRoguelite != 0;
 	pSettings->m_Contracts = pSettings->m_Roguelite && g_Config.m_ClLocalServerContracts != 0;
 	pSettings->m_MapLevel = pSettings->m_Difficulty;
 	pSettings->m_ModeRule = RoomModeDefaults(pSettings->m_Mode).m_Rule;
@@ -2342,13 +2342,13 @@ FormatLocalServerSummary(const CLocalServerLaunchSettings &Settings, int Port, c
 	else if(Settings.m_Mode == LOCAL_MODE_ROAM)
 		str_format(aRule, sizeof(aRule), Localize("%d checkpoints"), Settings.m_ModeRule);
 	else
-		str_copy(aRule, Localize(Settings.m_Roguelite ? "Roguelite" : "Classic PvE"), sizeof(aRule));
+		str_copy(aRule, Localize(Settings.m_Roguelite ? "Roguelite" : "Classic"), sizeof(aRule));
 	if(Settings.m_RandomSeed)
 		str_copy(aSeed, Localize("Random seed"), sizeof(aSeed));
 	else
 		str_format(aSeed, sizeof(aSeed), Localize("Seed %d"), Settings.m_Seed);
 	str_format(aSlots, sizeof(aSlots), Localize("%d human slots"), Settings.m_MaxClients);
-	if(!Settings.m_pMode->m_Pve)
+	if(Settings.m_pMode->m_HasBots)
 	{
 		if(Settings.m_Bots <= 0)
 			str_copy(aPopulation, Localize("No bots"), sizeof(aPopulation));
@@ -2574,7 +2574,8 @@ void CMenus::StartTutorial(int Chapter, bool Resume)
 	StartLocalServer(true);
 }
 
-void CMenus::StartPvpPractice()
+// TODO
+void CMenus::StartQuickMatch()
 {
 	g_Config.m_ClTutorialActive = 0;
 	g_Config.m_ClLocalServerMode = LOCAL_MODE_DM;
@@ -2583,7 +2584,7 @@ void CMenus::StartPvpPractice()
 	g_Config.m_ClLocalServerBots = 4;
 	g_Config.m_ClLocalServerDifficulty = 3;
 	g_Config.m_ClLocalServerDmScore = 15;
-	str_copy(g_Config.m_ClLocalServerName, "Local PvP", sizeof(g_Config.m_ClLocalServerName));
+	str_copy(g_Config.m_ClLocalServerName, "Quick match", sizeof(g_Config.m_ClLocalServerName));
 	StartLocalServer(true);
 }
 
@@ -3101,26 +3102,23 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			}
 			if(m_CreateRoomStep == CREATE_ROOM_CHOOSE_MODE)
 			{
-				m_LocalServerFocus = clamp(m_LocalServerFocus, (int)LOCAL_MODE_INVASION, (int)LOCAL_MODE_COUNT - 1);
+				const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
+				m_LocalServerFocus = clamp(m_LocalServerFocus, (int)s_aAllLocalModes[0], (int)s_aAllLocalModes[AllCount - 1]);
+				int FocusIndex = 0;
+				while(FocusIndex < AllCount && s_aAllLocalModes[FocusIndex] != m_LocalServerFocus)
+					FocusIndex++;
 				if(Left || Right || Up || Down)
 				{
-					const bool InPve = LocalGameMode(m_LocalServerFocus).m_Pve;
-					const int *pModes = InPve ? s_aLocalPveModes : s_aLocalPvpModes;
-					const int Count = InPve ? (int)(sizeof(s_aLocalPveModes) / sizeof(s_aLocalPveModes[0]))
-											: (int)(sizeof(s_aLocalPvpModes) / sizeof(s_aLocalPvpModes[0]));
-					int Index = 0;
-					while(Index + 1 < Count && pModes[Index] != m_LocalServerFocus)
-						Index++;
-					if(Up || Down)
-						m_LocalServerFocus = pModes[clamp(Index + (Down ? 1 : -1), 0, Count - 1)];
-					else
-					{
-						const int *pOther = InPve ? s_aLocalPvpModes : s_aLocalPveModes;
-						const int OtherCount = InPve ? (int)(sizeof(s_aLocalPvpModes) / sizeof(s_aLocalPvpModes[0]))
-													 : (int)(sizeof(s_aLocalPveModes) / sizeof(s_aLocalPveModes[0]));
-						if((InPve && Right) || (!InPve && Left))
-							m_LocalServerFocus = pOther[min(Index, OtherCount - 1)];
-					}
+					const int cols = (MainView.w >= 650.0f) ? 2 : 1;
+					if(Up)
+						FocusIndex = max(0, FocusIndex - cols);
+					else if(Down)
+						FocusIndex = min(AllCount - 1, FocusIndex + cols);
+					else if(Left)
+						FocusIndex = max(0, FocusIndex - 1);
+					else if(Right)
+						FocusIndex = min(AllCount - 1, FocusIndex + 1);
+					m_LocalServerFocus = s_aAllLocalModes[FocusIndex];
 				}
 				else if(Confirm)
 				{
@@ -3163,6 +3161,15 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	if(fabs(m_CreateRoomTransition - 1.0f) < 0.001f)
 		m_CreateRoomTransition = 1.0f;
 
+	static float s_CardAnimTimer = 1.0f;
+	static int s_CardAnimLastStep = CREATE_ROOM_CONFIGURE;
+	if(m_CreateRoomStep != s_CardAnimLastStep)
+	{
+		s_CardAnimLastStep = m_CreateRoomStep;
+		s_CardAnimTimer = 0.0f;
+	}
+	s_CardAnimTimer = SmoothToward(s_CardAnimTimer, 1.0f, StepDt, 6.0f);
+
 	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
 	MainView.Margin(L(12.0f), &MainView);
 	CUIRect Header, Body, Footer;
@@ -3201,59 +3208,65 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 		s_ModeScrollRegion.Begin(&Body, &ScrollOffset, &ScrollParams);
 		ModeContent.y += ScrollOffset.y;
 		ModeContent.VSplitRight(L(20.0f), &ModeContent, 0);
-		CUIRect Pve = ModeContent, Pvp;
-		const int PveCount = (int)(sizeof(s_aLocalPveModes) / sizeof(s_aLocalPveModes[0]));
-		const int PvpCount = (int)(sizeof(s_aLocalPvpModes) / sizeof(s_aLocalPvpModes[0]));
-		const float PveHeight = L(26.0f + PveCount * 94.0f);
-		const float PvpHeight = L(26.0f + PvpCount * 94.0f);
-		if(SingleColumn)
+		const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
+		const int Cols = SingleColumn ? 1 : 2;
+		const int Rows = (AllCount + Cols - 1) / Cols;
+		const float CardHeight = L(88.0f);
+		const float Gap = L(6.0f);
+		const float ColGap = L(4.0f);
+		CUIRect Group = ModeContent;
+		for(int Row = 0; Row < Rows; Row++)
 		{
-			ModeContent.HSplitTop(PveHeight, &Pve, &Pvp);
-			Pvp.HSplitTop(L(12.0f), 0, &Pvp);
-		}
-		else
-		{
-			ModeContent.VSplitMid(&Pve, &Pvp);
-			Pve.VSplitRight(L(4.0f), &Pve, 0);
-			Pvp.VSplitLeft(L(4.0f), 0, &Pvp);
-		}
-		auto DrawModeGroup = [&](CUIRect Group, const char *pGroupName, const int *pModes, int Count)
-		{
-			CUIRect GroupTitle;
-			Group.HSplitTop(L(26.0f), &GroupTitle, &Group);
-			UI()->DoLabelScaled(&GroupTitle, Localize(pGroupName), 14.0f, -1);
-			for(int Index = 0; Index < Count; Index++)
+			CUIRect RowRect, LeftCard, RightCard;
+			Group.HSplitTop(CardHeight, &RowRect, &Group);
+			Group.HSplitTop(Gap, 0, &Group);
+			if(Cols == 2)
 			{
-				const int Mode = pModes[Index];
-				CUIRect Card, Top, Description, Meta, Mechanics, Select;
-				Group.HSplitTop(L(88.0f), &Card, &Group);
-				Group.HSplitTop(L(6.0f), 0, &Group);
-				DrawMenuInset(&Card, CUI::CORNER_ALL);
-				Card.Margin(L(7.0f), &Card);
-				CUIRect Preview, Content;
-				Card.VSplitLeft(L(88.0f), &Preview, &Content);
-				const float PreviewHeight = min(Preview.h, L(44.0f));
-				Preview.y += (Preview.h - PreviewHeight) * 0.5f;
-				Preview.h = PreviewHeight;
-				DrawModeVoteImage(Preview, s_aLocalGameModes[Mode].m_pGameVoteImage, m_LocalServerFocus == Mode);
-				Content.VSplitLeft(L(8.0f), 0, &Card);
-				Card.HSplitTop(L(20.0f), &Top, &Card);
-				Top.VSplitRight(L(76.0f), &Top, &Select);
-				UI()->DoLabelScaled(&Top, Localize(s_aLocalGameModes[Mode].m_pName), 14.0f, -1);
-				if(DoButton_Menu(&s_aModeButtons[Mode],
-								 Localize("Select"),
-								 m_LocalServerFocus == Mode,
-								 &Select,
-								 BUTTONSTYLE_ACCENT))
+				CUIRect Junk;
+				RowRect.VSplitMid(&LeftCard, &RightCard);
+				LeftCard.VSplitRight(ColGap * .5f, &LeftCard, &Junk);
+				RightCard.VSplitLeft(ColGap * .5f, &Junk, &RightCard);
+			}
+			for(int Col = 0; Col < Cols; Col++)
+			{
+				int Index = Row * Cols + Col;
+				if(Index >= AllCount)
+					break;
+				const int Mode = s_aAllLocalModes[Index];
+				CUIRect Card = (Cols == 1) ? RowRect : (Col == 0 ? LeftCard : RightCard);
+				const bool Selected = m_LocalServerFocus == Mode;
+
+				// staggered fade-in + slide-up
+				float Fade = clamp((s_CardAnimTimer - Index * 0.03f) * 2.5f, 0.0f, 1.0f);
+				float Hover = AnimHover(&s_aModeButtons[Mode]);
+				Card.y += (1.0f - Fade) * L(10.0f);
+
+				// button underneath, renders selection border when focused
+				if(DoButton_Menu(&s_aModeButtons[Mode], "", Selected, &Card, BUTTONSTYLE_ACCENT))
 				{
 					ApplyLocalGameModeDefaults(Mode);
 					m_CreateRoomPreviousSlots = g_Config.m_ClLocalServerMaxClients;
 					m_CreateRoomStep = CREATE_ROOM_CONFIGURE;
 				}
-				Card.HSplitTop(L(25.0f), &Description, &Card);
-				UI()->DoLabelScaled(
-					&Description, Localize(s_aLocalGameModes[Mode].m_pDescription), 9.0f, -1, (int)Description.w);
-				Card.HSplitTop(L(16.0f), &Meta, &Card);
+
+				// card visual on top
+				CUIRect Inner = Card;
+				DrawMenuInset(&Inner, CUI::CORNER_ALL);
+				float HoverMargin = L(7.0f - Hover * 1.5f);
+				Inner.Margin(HoverMargin, &Inner);
+				CUIRect Preview, Content;
+				Inner.VSplitLeft(L(88.0f), &Preview, &Content);
+				const float PreviewHeight = min(Preview.h, L(44.0f));
+				Preview.y += (Preview.h - PreviewHeight) * 0.5f;
+				Preview.h = PreviewHeight;
+				DrawModeVoteImage(Preview, s_aLocalGameModes[Mode].m_pGameVoteImage, Selected);
+				Content.VSplitLeft(L(8.0f), 0, &Inner);
+				CUIRect Top;
+				Inner.HSplitTop(L(20.0f), &Top, &Inner);
+				UI()->DoLabelScaled(&Top, Localize(s_aLocalGameModes[Mode].m_pName), 14.0f, -1);
+				Inner.HSplitTop(L(25.0f), &Top, &Inner);
+				UI()->DoLabelScaled(&Top, Localize(s_aLocalGameModes[Mode].m_pDescription), 9.0f, -1, (int)Top.w);
+				Inner.HSplitTop(L(16.0f), &Top, &Inner);
 				char aMeta[160];
 				str_format(aMeta,
 						   sizeof(aMeta),
@@ -3261,15 +3274,13 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 						   s_aLocalGameModes[Mode].m_pRecommendedPlayers,
 						   Localize(s_aLocalGameModes[Mode].m_pDuration),
 						   Localize(s_aLocalGameModes[Mode].m_pRecommendedDifficulty));
-				UI()->DoLabelScaled(&Meta, aMeta, 8.5f, -1);
-				Card.HSplitTop(L(15.0f), &Mechanics, &Card);
-				UI()->DoLabelScaled(&Mechanics, Localize(s_aLocalGameModes[Mode].m_pMechanics), 8.5f, -1);
+				UI()->DoLabelScaled(&Top, aMeta, 8.5f, -1);
+				Inner.HSplitTop(L(15.0f), &Top, &Inner);
+				UI()->DoLabelScaled(&Top, Localize(s_aLocalGameModes[Mode].m_pMechanics), 8.5f, -1);
 			}
-		};
-		DrawModeGroup(Pve, "PVE", s_aLocalPveModes, PveCount);
-		DrawModeGroup(Pvp, "PVP", s_aLocalPvpModes, PvpCount);
+		}
 		CUIRect ScrollContent = ModeContent;
-		ScrollContent.h = SingleColumn ? PveHeight + L(12.0f) + PvpHeight : max(PveHeight, PvpHeight);
+		ScrollContent.h = Rows * (CardHeight + Gap) - Gap;
 		s_ModeScrollRegion.AddRect(ScrollContent);
 		s_ModeScrollRegion.End();
 		DrawMenuInset(&Footer, CUI::CORNER_ALL);
@@ -3314,12 +3325,12 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	CUIRect MainSettings, Identity;
 	// Reserve the optional custom-floor row for Invasion as well, so changing
 	// the starting point cannot make the panel overlap for a single frame.
-	const int MainRows = 3 + (!ModeDef.m_Pve ? 1 : 0) +
+	const int MainRows = 3 + (ModeDef.m_HasBots ? 1 : 0) +
 						 (Mode == LOCAL_MODE_INVASION			? 2
 						  : LocalModeRuleConfig(ModeDef.m_Rule) ? 1
 																: 0);
 	const bool AdvancedExpanded = g_Config.m_ClLocalServerAdvanced != 0;
-	const int AdvancedRows = AdvancedExpanded ? 2 + (ModeDef.m_Pve ? 1 : 0) : 0;
+	const int AdvancedRows = AdvancedExpanded ? 2 + (ModeDef.m_HasRoguelite ? 1 : 0) : 0;
 	const CRoomConfigureLayout ConfigureLayout =
 		RoomConfigureLayout(ConfigBody.w, UI()->Scale(), SteamAvailable, MainRows, AdvancedRows, AdvancedExpanded);
 	if(ConfigureLayout.m_SingleColumn)
@@ -3416,12 +3427,12 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 		g_Config.m_ClLocalServerMaxClients = 1;
 
 	SplitRow(MainSettings, &Label, &Control);
-	UI()->DoLabelScaled(&Label, Localize(ModeDef.m_Pve ? "Mission difficulty" : "AI difficulty"), 11.0f, -1);
+	UI()->DoLabelScaled(&Label, Localize("Difficulty"), 11.0f, -1);
 	str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerDifficulty);
 	Delta = Stepper(Control, &s_DifficultyPrevious, &s_DifficultyNext, aLabel);
 	g_Config.m_ClLocalServerDifficulty = clamp(g_Config.m_ClLocalServerDifficulty + Delta, 1, 50);
 
-	if(!ModeDef.m_Pve)
+	if(ModeDef.m_HasBots)
 	{
 		SplitRow(MainSettings, &Label, &Control);
 		UI()->DoLabelScaled(&Label, Localize(LocalGamePopulationLabel(Mode)), 11.0f, -1);
@@ -3515,7 +3526,7 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			if(DoEditBox(s_aSeedText, &Control, s_aSeedText, sizeof(s_aSeedText), 10.0f, &s_SeedOffset))
 				g_Config.m_ClLocalServerSeed = clamp(str_toint(s_aSeedText), 0, 32767);
 		}
-		if(ModeDef.m_Pve)
+		if(ModeDef.m_HasRoguelite)
 		{
 			SplitRow(Identity, &Label, &Control);
 			if(DoButton_CheckBox(
@@ -3554,33 +3565,36 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	Footer.VSplitRight(L(164.0f), &Status, &Action);
 	const char *pVisibility = apVisibility[g_Config.m_ClRoomVisibility];
 	char aFinalSummary[512];
-	if(Preview.m_pMode->m_Pve)
-		str_format(aFinalSummary,
-				   sizeof(aFinalSummary),
-				   Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  Community room · Unverified"),
-				   Localize(Preview.m_pMode->m_pName),
-				   Localize(pVisibility),
-				   Localize(Preview.m_pMapName),
-				   Preview.m_MaxClients);
-	else
 	{
 		char aPopulation[96];
-		if(Preview.m_Bots <= 0)
-			str_copy(aPopulation, Localize("No bots"), sizeof(aPopulation));
-		else
+		if(Preview.m_pMode->m_HasBots && Preview.m_Bots > 0)
 			str_format(aPopulation,
 					   sizeof(aPopulation),
 					   Localize("%s: %d"),
 					   Localize(LocalGamePopulationLabel(Mode)),
 					   Preview.m_Bots);
-		str_format(aFinalSummary,
-				   sizeof(aFinalSummary),
-				   Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Community room · Unverified"),
-				   Localize(Preview.m_pMode->m_pName),
-				   Localize(pVisibility),
-				   Localize(Preview.m_pMapName),
-				   Preview.m_MaxClients,
-				   aPopulation);
+		else if(Preview.m_pMode->m_HasBots)
+			str_copy(aPopulation, Localize("No bots"), sizeof(aPopulation));
+		else
+			aPopulation[0] = '\0';
+
+		if(aPopulation[0])
+			str_format(aFinalSummary,
+					   sizeof(aFinalSummary),
+					   Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  %s  ·  Community room · Unverified"),
+					   Localize(Preview.m_pMode->m_pName),
+					   Localize(pVisibility),
+					   Localize(Preview.m_pMapName),
+					   Preview.m_MaxClients,
+					   aPopulation);
+		else
+			str_format(aFinalSummary,
+					   sizeof(aFinalSummary),
+					   Localize("%s  ·  %s  ·  %s  ·  %d human slots  ·  Community room · Unverified"),
+					   Localize(Preview.m_pMode->m_pName),
+					   Localize(pVisibility),
+					   Localize(Preview.m_pMapName),
+					   Preview.m_MaxClients);
 	}
 	UI()->DoLabelScaled(&Status,
 						aFinalSummary,
@@ -3708,7 +3722,6 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	auto FocusAvailable = [&](int Focus)
 	{
 		const int Mode = clamp(g_Config.m_ClLocalServerMode, 0, LocalGameModeCount() - 1);
-		const bool Pve = LocalGameMode(Mode).m_Pve;
 		if(Focus == FOCUS_SECTION_SERVER || Focus == FOCUS_SECTION_MAP || Focus == FOCUS_SECTION_RULES)
 			return true;
 		if(Focus >= FOCUS_SLOTS && Focus <= FOCUS_LAN)
@@ -3727,7 +3740,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			if(Focus == FOCUS_DIFFICULTY)
 				return Mode != LOCAL_MODE_INVASION && Mode != LOCAL_MODE_TUTORIAL;
 			if(Focus == FOCUS_BOTS)
-				return !Pve;
+				return LocalGameMode(Mode).m_HasBots;
 			if(Focus == FOCUS_SEED)
 				return !g_Config.m_ClLocalServerRandomSeed;
 		}
@@ -3736,7 +3749,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			if(s_LocalSection != 2)
 				return false;
 			if(Focus == FOCUS_ROGUELITE || Focus == FOCUS_CONTRACTS)
-				return Pve;
+				return LocalGameMode(Mode).m_HasRoguelite;
 			if(Focus == FOCUS_MODE_RULE)
 				return Mode != LOCAL_MODE_INVASION && Mode != LOCAL_MODE_TUTORIAL;
 		}
@@ -3937,16 +3950,8 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	Settings.Margin(L(10.0f), &Settings);
 
 	CUIRect Row;
-	Modes.HSplitTop(L(20.0f), &Row, &Modes);
-	UI()->DoLabelScaled(&Row, Localize("ROGUELITE PVE"), 12.0f, -1);
-	for(int i = 0; i < LocalGameModeCount(); i++)
+	for(int i = 1; i < LocalGameModeCount(); i++)
 	{
-		if(i == LOCAL_MODE_DM)
-		{
-			Modes.HSplitTop(L(8.0f), 0, &Modes);
-			Modes.HSplitTop(L(20.0f), &Row, &Modes);
-			UI()->DoLabelScaled(&Row, Localize("COMPETITIVE"), 12.0f, -1);
-		}
 		Modes.HSplitTop(L(30.0f), &Row, &Modes);
 		if(DoButton_Menu(&s_aModeButtons[i],
 						 Localize(s_aLocalGameModes[i].m_pName),
@@ -4129,7 +4134,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		{
 			SplitSettingRow(&Label, &Control);
 			DrawFocusMarker(Label, FOCUS_DIFFICULTY);
-			const char *pDifficultyLabel = ModeDef.m_Pve ? "Mission difficulty" : "AI difficulty";
+			const char *pDifficultyLabel = "Difficulty";
 			str_format(
 				aLabel, sizeof(aLabel), "%s: %d", Localize(pDifficultyLabel), g_Config.m_ClLocalServerDifficulty);
 			UI()->DoLabelScaled(&Label, aLabel, 12.0f, -1);
@@ -4143,18 +4148,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		}
 
 		SplitSettingRow(&Label, &Control);
-		if(ModeDef.m_Pve)
-		{
-			UI()->DoLabelScaled(&Label, Localize("Enemy scaling"), 12.0f, -1);
-			UI()->DoLabelScaled(&Control,
-								Localize(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION ||
-												 g_Config.m_ClLocalServerMode == LOCAL_MODE_TUTORIAL
-											 ? "Automatic by floor and party size"
-											 : "Health, elites and party size"),
-								11.0f,
-								-1);
-		}
-		else
+		if(ModeDef.m_HasBots)
 		{
 			DrawFocusMarker(Label, FOCUS_BOTS);
 			g_Config.m_ClLocalServerBots = clamp(g_Config.m_ClLocalServerBots, 0, 16);
@@ -4181,6 +4175,17 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 						  0.5f);
 			else
 				g_Config.m_ClLocalServerBots = 0;
+		}
+		else
+		{
+			UI()->DoLabelScaled(&Label, Localize("Enemy scaling"), 12.0f, -1);
+			UI()->DoLabelScaled(&Control,
+								Localize(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION ||
+												 g_Config.m_ClLocalServerMode == LOCAL_MODE_TUTORIAL
+											 ? "Automatic by floor and party size"
+											 : "Health, elites and party size"),
+								11.0f,
+								-1);
 		}
 
 		SplitSettingRow(&Label, &Control);
@@ -4210,9 +4215,9 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		}
 	}
 
-	if(DrawSectionHeader(2, ModeDef.m_Pve ? "PvE rules" : "Match rules", FOCUS_SECTION_RULES))
+	if(DrawSectionHeader(2, "Rules", FOCUS_SECTION_RULES))
 	{
-		if(ModeDef.m_Pve)
+		if(ModeDef.m_HasRoguelite)
 		{
 			SplitSettingRow(&Label, &Control);
 			DrawFocusMarker(Label, FOCUS_ROGUELITE);
@@ -4536,7 +4541,7 @@ void CMenus::RenderFront(CUIRect MainView)
 		}
 	}
 
-	static int s_Training, s_Pve, s_Pvp;
+	static int s_Training, s_CreateRoom, s_BrowseRooms;
 	auto Card = [&](CUIRect Rect,
 					int Mode,
 					const vec4 &Color,
@@ -4569,12 +4574,17 @@ void CMenus::RenderFront(CUIRect MainView)
 		{
 			if(Action == 1)
 				OpenTutorialChapterSelect();
-			else if(Action == 2 || Action == 3)
+			else if(Action == 2)
 			{
 				m_PlayTab = 1;
 				m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
-				m_LocalServerFocus = Action == 2 ? LOCAL_MODE_INVASION : LOCAL_MODE_DM;
+				m_LocalServerFocus = LOCAL_MODE_INVASION;
 				g_Config.m_UiPage = PAGE_LOCAL_SERVER;
+			}
+			else if(Action == 3)
+			{
+				m_PlayTab = 0;
+				g_Config.m_UiPage = PAGE_INTERNET;
 			}
 		}
 	};
@@ -4590,20 +4600,20 @@ void CMenus::RenderFront(CUIRect MainView)
 	Card(CardRects[1],
 		 1,
 		 ms_ColorAccentDim,
-		 "Co-op PvE",
-		 "Invasion, Horde, Extraction and Reactor Defense.",
-		 "4 PVE MODES · CO-OP",
-		 &s_Pve,
-		 "Configure PvE",
+		 "Create room",
+		 "Choose from every game mode and configure to your liking.",
+		 "14 GAME MODES · SOLO / LAN / STEAM",
+		 &s_CreateRoom,
+		 "Choose mode",
 		 2);
 	Card(CardRects[2],
 		 2,
-		 vec4(.78f, .32f, .28f, 1.0f),
-		 "Local PvP",
-		 "Eight competitive modes with adjustable match population.",
-		 "8 PVP MODES · SOLO / LAN / STEAM",
-		 &s_Pvp,
-		 "Choose PvP mode",
+		 vec4(.35f, .55f, .88f, 1.0f),
+		 "Browse rooms",
+		 "Join existing games hosted by other players.",
+		 "MULTIPLAYER · COMMUNITY",
+		 &s_BrowseRooms,
+		 "Browse",
 		 3);
 	if(HomeScrollActive)
 	{
