@@ -1,12 +1,25 @@
 #include <engine/engine.h>
 #include <engine/sound.h>
 #include <engine/shared/config.h>
+#include <engine/storage.h>
 #include <generated/game_data.h>
 #include <generated/protocol.h>
 #include <game/client/gameclient.h>
 #include <game/client/components/camera.h>
 #include <game/client/components/menus.h>
 #include "sounds.h"
+
+// Configurable music layer sound mapping.
+// TODO
+static int s_aMusicLayerSounds[4] = {SOUND_BG1, SOUND_BG2, SOUND_BG3, SOUND_BG4};
+
+static void LoadMusicLayerConfig(IStorage *pStorage)
+{
+	IOHANDLE File = pStorage->OpenFile("music_layers.cfg", IOFLAG_READ, IStorage::TYPE_ALL);
+	if(!File)
+		return;
+	// TODO!
+}
 
 struct CUserData
 {
@@ -65,11 +78,11 @@ void CSounds::OnInit()
 	Sound()->SetChannel(CSounds::CHN_GLOBAL, 1.0f, 0.0f);
 	Sound()->SetChannel(CSounds::CHN_HIT, g_Config.m_ClHitFeedback / 100.0f, 0.0f);
 
-	// dynamic music layers start silent, engine controls their volume
-	Sound()->SetChannel(CSounds::CHN_MUSIC_CALM, 0.0f, 0.0f);
-	Sound()->SetChannel(CSounds::CHN_MUSIC_TENSION, 0.0f, 0.0f);
-	Sound()->SetChannel(CSounds::CHN_MUSIC_COMBAT, 0.0f, 0.0f);
-	Sound()->SetChannel(CSounds::CHN_MUSIC_BOSS, 0.0f, 0.0f);
+	// dynamic music layers at max - engine Mix() controls per-sample volume
+	Sound()->SetChannel(CSounds::CHN_MUSIC_CALM, 1.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_TENSION, 1.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_COMBAT, 1.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_BOSS, 1.0f, 0.0f);
 
 	// tell engine which channels to control
 	Sound()->ConfigureMusicLayer(0, CHN_MUSIC_CALM, -1);
@@ -143,11 +156,9 @@ void CSounds::OnRender()
 	// start music layers once sounds are loaded
 	if(!m_MusicInitialized && Client()->State() >= IClient::STATE_ONLINE && g_Config.m_SndMusic)
 	{
-		// TODO: Use real bgm
-		Play(CHN_MUSIC_CALM, SOUND_BG1, 1.0f);
-		Play(CHN_MUSIC_TENSION, SOUND_BG2, 1.0f);
-		Play(CHN_MUSIC_COMBAT, SOUND_BG3, 1.0f);
-		Play(CHN_MUSIC_BOSS, SOUND_BG4, 1.0f);
+		LoadMusicLayerConfig(Storage());
+		for(int i = 0; i < 4; i++)
+			Play(CHN_MUSIC_CALM + i, s_aMusicLayerSounds[i], 1.0f);
 		Sound()->SetMusicEnabled(true);
 		m_MusicInitialized = true;
 	}

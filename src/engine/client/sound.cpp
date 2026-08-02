@@ -8,7 +8,7 @@
 
 #include <engine/shared/config.h>
 
-#include <engine/ifloat.h>
+#include <base/audio_math.h>
 
 #include <SDL3/SDL.h>
 
@@ -81,6 +81,8 @@ static SMusicLayer s_aMusicLayers[NUM_MUSIC_LAYERS];
 static IFloat s_MusicState;
 static float s_MusicTarget = 0.0f;
 static bool s_MusicEnabled = true;
+static AttackRelease s_MusicAR;
+static int s_aMusicVol[4][NUM_SAMPLES];
 
 // TODO: there should be a faster way todo this
 static short Int2Short(int i)
@@ -110,34 +112,43 @@ static void Mix(short *pFinalOut, unsigned Frames)
 
 	MasterVol = m_SoundVolume;
 
-	// update dynamic music layer volumes
+	// dynamic music: AttackRelease + per-sample table + two-phase interpolation
+	mem_zero(s_aMusicVol, sizeof(s_aMusicVol));
 	if(s_MusicEnabled)
 	{
+		float t0 = s_MusicAR.get();
 		s_MusicState.set(s_MusicTarget, 12);
-		float t = s_MusicState.next();
-		if(t < 0.0f)
-			t = 0.0f;
-		
-		if(t > 1.0f)
-			t = 1.0f;
+		float t1Raw = s_MusicState.next();
+		float t1 = s_MusicAR.step(t1Raw, 0.3f, 0.05f);
+		t0 = clamp(t0, 0.0f, 1.0f);
+		t1 = clamp(t1, 0.0f, 1.0f);
 
-		float aVol[NUM_MUSIC_LAYERS] = {};
-		float segSize = 1.0f / (NUM_MUSIC_LAYERS - 1);
-		int seg = (int)(t / segSize);	
-		if(seg < 0)
-			seg = 0;
-		if(seg >= NUM_MUSIC_LAYERS - 1)
-			seg = NUM_MUSIC_LAYERS - 2;
+		const float segSize = 1.0f / (NUM_MUSIC_LAYERS - 1);
+		const unsigned itime = min(64u, Frames);
 
-		float segT = (t - seg * segSize) / segSize;
-		
-		aVol[seg] = Crossfade<CrossfadeType::Smooth>(1.0f, 0.0f, segT);
-		aVol[seg + 1] = Crossfade<CrossfadeType::Smooth>(0.0f, 1.0f, segT);
-
-		for(int i = 0; i < NUM_MUSIC_LAYERS; i++)
+		for(unsigned s = 0; s < itime; s++)
 		{
-			if(s_aMusicLayers[i].m_Channel >= 0)
-				m_aChannels[s_aMusicLayers[i].m_Channel].m_Vol = (int)(aVol[i] * 255.0f);
+			float tp = t0 + (t1 - t0) * ((float)s / (float)itime);
+			tp = clamp(tp, 0.0f, 1.0f);
+			int seg = (int)(tp / segSize);
+			if(seg < 0) seg = 0;
+			if(seg >= NUM_MUSIC_LAYERS - 1) seg = NUM_MUSIC_LAYERS - 2;
+			float segT = (tp - seg * segSize) / segSize;
+
+			s_aMusicVol[seg][s]     = (int)(Crossfade<CrossfadeType::Smooth>(1.0f, 0.0f, segT) * 255.0f);
+			s_aMusicVol[seg + 1][s] = (int)(Crossfade<CrossfadeType::Smooth>(0.0f, 1.0f, segT) * 255.0f);
+		}
+		{
+			int seg1 = (int)(t1 / segSize);
+			if(seg1 < 0) seg1 = 0;
+			if(seg1 >= NUM_MUSIC_LAYERS - 1) seg1 = NUM_MUSIC_LAYERS - 2;
+			float segT1 = (t1 - seg1 * segSize) / segSize;
+
+			for(unsigned s = itime; s < Frames; s++)
+			{
+				s_aMusicVol[seg1][s]     = (int)(Crossfade<CrossfadeType::Smooth>(1.0f, 0.0f, segT1) * 255.0f);
+				s_aMusicVol[seg1 + 1][s] = (int)(Crossfade<CrossfadeType::Smooth>(0.0f, 1.0f, segT1) * 255.0f);
+			}
 		}
 	}
 
@@ -194,11 +205,31 @@ static void Mix(short *pFinalOut, unsigned Frames)
 				}
 			}
 
+			// check if this voice is a music layer
+			int MusicLayer = -1;
+			for(int j = 0; j < NUM_MUSIC_LAYERS; j++)
+			{
+				if(s_aMusicLayers[j].m_Channel >= 0 &&
+					v->m_pChannel == &m_aChannels[s_aMusicLayers[j].m_Channel])
+				{
+					MusicLayer = j;
+					break;
+				}
+			}
+
 			// process all frames
 			for(unsigned s = 0; s < End; s++)
 			{
-				*pOut++ += (*pInL) * Lvol;
-				*pOut++ += (*pInR) * Rvol;
+				int l = Lvol;
+				int r = Rvol;
+				if(MusicLayer >= 0)
+				{
+					int mv = s_aMusicVol[MusicLayer][s];
+					l = (l * mv) / 255;
+					r = (r * mv) / 255;
+				}
+				*pOut++ += (*pInL) * l;
+				*pOut++ += (*pInR) * r;
 				pInL += Step;
 				pInR += Step;
 				v->m_Tick++;
