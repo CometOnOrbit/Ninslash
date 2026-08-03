@@ -48,6 +48,7 @@ MACRO_CONFIG_INT(ClShowChatFriends,
 MACRO_CONFIG_INT(ClShowfps, cl_showfps, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show ingame FPS counter")
 MACRO_CONFIG_INT(
 	ClHitFeedback, cl_hit_feedback, 70, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE | CFGFLAG_CLOUD, "Hit feedback strength")
+MACRO_CONFIG_INT(SndMusicVolume, snd_musicvolume, 100, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Music volume")
 MACRO_CONFIG_INT(ClMovementFeedback,
 				 cl_movement_feedback,
 				 60,

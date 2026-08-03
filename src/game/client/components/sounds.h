@@ -51,6 +51,7 @@ class CSounds : public CComponent
 	void PlayAt(int Channel, int SetId, float Vol, vec2 Pos);
 	void PlayAndRecord(int Channel, int SetId, float Vol, vec2 Pos);
 	void SetHitFeedbackVolume(float Volume);
+	void SetMusicVolume(float Volume);
 	void Stop(int SetId);
 };
 

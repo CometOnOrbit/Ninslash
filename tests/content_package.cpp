@@ -54,7 +54,10 @@ int main()
 	WriteFile(aManifestPath, aJson);
 	assert(ContentPackageValidate(aRoot, "42", "test", &Manifest, aError, sizeof(aError)));
 	char aWorkshop[300], aStaged[400];
-	str_format(aWorkshop, sizeof(aWorkshop), "%s/workshop", aRoot);
+	// Stage outside aRoot: ContentPackageValidate(aRoot) scans recursively and
+	// would otherwise hit the staged copy as undeclared files (or mask the
+	// symlink error below).
+	str_format(aWorkshop, sizeof(aWorkshop), "/tmp/ninslash-workshop-%lld", (long long)time_get());
 	assert(ContentPackageStage(
 		aRoot, aWorkshop, "42", "test", &Manifest, aStaged, sizeof(aStaged), aError, sizeof(aError)));
 	assert(str_length(aStaged) >= 3 && str_comp(aStaged + str_length(aStaged) - 3, "/42") == 0);

@@ -29,6 +29,11 @@ CDroid *SpawnSpecialist(CGameWorld *pWorld, vec2 Pos, int Type);
 // but bosses are never selected by ordinary-batch replacement.
 int DroidThreatCost(int Type);
 
+// Music-threat weight of a droid type for the dynamic music system. Kept
+// separate from DroidThreatCost (spawn budget); audio feedback uses its own
+// scale.
+float DroidSoundThreat(int Type);
+
 struct SThreatBudgetResult
 {
 	int m_ThreatSpent;

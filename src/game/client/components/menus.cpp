@@ -2574,7 +2574,6 @@ void CMenus::StartTutorial(int Chapter, bool Resume)
 	StartLocalServer(true);
 }
 
-// TODO
 void CMenus::StartQuickMatch()
 {
 	g_Config.m_ClTutorialActive = 0;
@@ -4504,25 +4503,36 @@ void CMenus::RenderFront(CUIRect MainView)
 	const float ResponsiveWidth = UI()->Screen()->w / max(1.0f, UI()->Scale());
 	const bool Wide = ResponsiveWidth >= 1050.0f;
 	const bool Medium = !Wide && ResponsiveWidth >= 700.0f;
-	CUIRect CardRects[3];
+	CUIRect CardRects[4];
 	static CScrollRegion s_HomeScroll;
 	bool HomeScrollActive = false;
 	if(Wide)
 	{
-		CUIRect Remaining = Cards;
-		Remaining.VSplitLeft((Remaining.w - Gap * 2.0f) / 3.0f, &CardRects[0], &Remaining);
-		Remaining.VSplitLeft(Gap, 0, &Remaining);
-		Remaining.VSplitLeft((Remaining.w - Gap) / 2.0f, &CardRects[1], &Remaining);
-		Remaining.VSplitLeft(Gap, 0, &Remaining);
-		CardRects[2] = Remaining;
+		CUIRect TopRow, BottomRow, Remaining = Cards;
+		Remaining.HSplitTop((Remaining.h - Gap) * 0.5f, &TopRow, &BottomRow);
+		BottomRow.HSplitTop(Gap, 0, &BottomRow);
+		CUIRect TopRemain = TopRow;
+		TopRemain.VSplitLeft((TopRemain.w - Gap) * 0.5f, &CardRects[0], &TopRemain);
+		TopRemain.VSplitLeft(Gap, 0, &TopRemain);
+		CardRects[1] = TopRemain;
+		CUIRect BottomRemain = BottomRow;
+		BottomRemain.VSplitLeft((BottomRemain.w - Gap) * 0.5f, &CardRects[2], &BottomRemain);
+		BottomRemain.VSplitLeft(Gap, 0, &BottomRemain);
+		CardRects[3] = BottomRemain;
 	}
 	else if(Medium)
 	{
-		Cards.HSplitTop((Cards.h - Gap) * .54f, &CardRects[0], &CardRects[2]);
-		CUIRect FirstRow = CardRects[0];
-		FirstRow.VSplitLeft((FirstRow.w - Gap) * .5f, &CardRects[0], &CardRects[1]);
-		CardRects[1].VSplitLeft(Gap, 0, &CardRects[1]);
-		CardRects[2].HSplitTop(Gap, 0, &CardRects[2]);
+		CUIRect FirstRow, SecondRow;
+		Cards.HSplitTop((Cards.h - Gap) * 0.54f, &FirstRow, &SecondRow);
+		SecondRow.HSplitTop(Gap, 0, &SecondRow);
+		CUIRect FirstRemain = FirstRow;
+		FirstRemain.VSplitLeft((FirstRemain.w - Gap) * 0.5f, &CardRects[0], &FirstRemain);
+		FirstRemain.VSplitLeft(Gap, 0, &FirstRemain);
+		CardRects[1] = FirstRemain;
+		CUIRect SecondRemain = SecondRow;
+		SecondRemain.VSplitLeft((SecondRemain.w - Gap) * 0.5f, &CardRects[2], &SecondRemain);
+		SecondRemain.VSplitLeft(Gap, 0, &SecondRemain);
+		CardRects[3] = SecondRemain;
 	}
 	else
 	{
@@ -4534,14 +4544,14 @@ void CMenus::RenderFront(CUIRect MainView)
 		HomeScrollActive = true;
 		Cards.y += ScrollOffset.y;
 		Cards.VSplitRight(L(18.0f), &Cards, 0);
-		for(int i = 0; i < 3; i++)
+		for(int i = 0; i < 4; i++)
 		{
 			Cards.HSplitTop(L(150.0f), &CardRects[i], &Cards);
 			Cards.HSplitTop(Gap, 0, &Cards);
 		}
 	}
 
-	static int s_Training, s_CreateRoom, s_BrowseRooms;
+	static int s_Training, s_CreateRoom, s_BrowseRooms, s_QuickMatch;
 	auto Card = [&](CUIRect Rect,
 					int Mode,
 					const vec4 &Color,
@@ -4586,6 +4596,8 @@ void CMenus::RenderFront(CUIRect MainView)
 				m_PlayTab = 0;
 				g_Config.m_UiPage = PAGE_INTERNET;
 			}
+			else if(Action == 4)
+				StartQuickMatch();
 		}
 	};
 	Card(CardRects[0],
@@ -4602,7 +4614,7 @@ void CMenus::RenderFront(CUIRect MainView)
 		 ms_ColorAccentDim,
 		 "Create room",
 		 "Choose from every game mode and configure to your liking.",
-		 "14 GAME MODES · SOLO / LAN / STEAM",
+		 "13 GAME MODES · SOLO / LAN / STEAM",
 		 &s_CreateRoom,
 		 "Choose mode",
 		 2);
@@ -4615,10 +4627,19 @@ void CMenus::RenderFront(CUIRect MainView)
 		 &s_BrowseRooms,
 		 "Browse",
 		 3);
+	Card(CardRects[3],
+		 3,
+		 vec4(.95f, .72f, .35f, 1.0f),
+		 "Quick match",
+		 "Jump straight into a bot deathmatch — no setup.",
+		 "SOLO · 1 CLICK",
+		 &s_QuickMatch,
+		 "Play now",
+		 4);
 	if(HomeScrollActive)
 	{
 		CUIRect ScrollContent = CardRects[0];
-		ScrollContent.h = CardRects[2].y + CardRects[2].h - CardRects[0].y;
+		ScrollContent.h = CardRects[3].y + CardRects[3].h - CardRects[0].y;
 		s_HomeScroll.AddRect(ScrollContent);
 		s_HomeScroll.End();
 	}
@@ -7598,6 +7619,13 @@ int CMenus::Render()
 			pButtonText = Localize("Ok");
 			ExtraAlign = -1;
 		}
+		else if(m_Popup == POPUP_TUTORIAL_PROMPT)
+		{
+			pTitle = Localize("Learn the basics?");
+			pExtraText = Localize("Ninslash has a short guided tutorial covering movement, combat, objectives, "
+								  "forging and building. Training is optional and always replayable.");
+			ExtraAlign = -1;
+		}
 
 		CUIRect Box, Part;
 		Box = Screen;
@@ -7913,7 +7941,7 @@ int CMenus::Render()
 
 			static int s_Button = 0;
 			if(DoButton_Menu(&s_Button, Localize("Ok"), 0, &Part) || m_EscapePressed || m_EnterPressed)
-				m_Popup = POPUP_FIRST_LAUNCH;
+				m_Popup = g_Config.m_ClTutorialPromptHandled ? POPUP_FIRST_LAUNCH : POPUP_TUTORIAL_PROMPT;
 		}
 		else if(m_Popup == POPUP_COUNTRY)
 		{
@@ -8217,6 +8245,28 @@ int CMenus::Render()
 			UI()->DoLabel(&Label, Localize("File name:"), 18.0f, -1);
 			static float s_Offset = 0.0f;
 			DoEditBox(&s_Offset, &TextBox, m_aVideoOutputName, sizeof(m_aVideoOutputName), 12.0f, &s_Offset);
+		}
+		else if(m_Popup == POPUP_TUTORIAL_PROMPT)
+		{
+			CUIRect Start, Skip;
+			Box.HSplitBottom(28.0f, &Box, &Part);
+			Part.VMargin(24.0f, &Part);
+			Part.VSplitMid(&Start, &Skip);
+			Start.VMargin(6.0f, &Start);
+			Skip.VMargin(6.0f, &Skip);
+
+			static int s_StartTraining, s_SkipTraining;
+			if(DoButton_Menu(&s_StartTraining, Localize("Start training"), 0, &Start) || m_EnterPressed)
+			{
+				g_Config.m_ClTutorialPromptHandled = 1;
+				m_Popup = POPUP_NONE;
+				StartTutorial(1, false);
+			}
+			if(DoButton_Menu(&s_SkipTraining, Localize("Skip"), 0, &Skip) || m_EscapePressed)
+			{
+				g_Config.m_ClTutorialPromptHandled = 1;
+				m_Popup = POPUP_FIRST_LAUNCH;
+			}
 		}
 		else if(m_Popup == POPUP_FIRST_LAUNCH)
 		{

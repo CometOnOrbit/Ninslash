@@ -1834,21 +1834,6 @@ void CGameContext::SwapTeams()
 	(void)m_pController->CheckTeamBalance();
 }
 
-static float DroidSoundThreat(int Type)
-{
-	switch(Type)
-	{
-		case DROIDTYPE_WALKER: return 2.5f;
-		case DROIDTYPE_STAR: return 2.0f;
-		case DROIDTYPE_CRAWLER: return 1.5f;
-		case DROIDTYPE_BOSSCRAWLER: return 6.0f;
-		case DROIDTYPE_BOSSSTAR: return 7.5f;
-		case DROIDTYPE_BOSSWALKER: return 7.5f;
-		case DROIDTYPE_BOSSSPLITTER: return 8.0f;
-		default: return 1.0f;
-	}
-}
-
 void CGameContext::SendMusicThreat(int ClientID)
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_apPlayers[ClientID])

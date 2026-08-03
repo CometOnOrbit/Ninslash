@@ -1060,6 +1060,9 @@ Melee
 Menu opacity
 == 菜单不透明度
 
+Interface scale
+== 界面缩放
+
 Misc
 == 杂项
 
@@ -1740,6 +1743,9 @@ Sound error
 
 Sound volume
 == 音量
+
+Music volume
+== 音乐音量
 
 Source
 == 来源
@@ -2552,6 +2558,15 @@ Six guided chapters, always replayable.
 SOLO · 30–45 MIN
 == 单人 · 30–45 分钟
 
+SOLO · 1 CLICK
+== 单人 · 一键
+
+Play now
+== 立即开始
+
+Jump straight into a bot deathmatch — no setup.
+== 直接进入机器人死亡竞赛，无需任何设置。
+
 Invasion, Horde and Extraction missions.
 == Invasion、Horde 与 Extraction 任务。
 
@@ -2662,6 +2677,15 @@ Skip training
 
 Start training
 == 开始训练
+
+Skip
+== 跳过
+
+Learn the basics?
+== 想先学习基础操作吗？
+
+Ninslash has a short guided tutorial covering movement, combat, objectives, forging and building. Training is optional and always replayable.
+== Ninslash 提供一节简短的新手引导，涵盖移动、战斗、目标、锻造与建造。训练是可选的，随时可以重玩。
 
 Replay training
 == 重玩训练
@@ -4400,6 +4424,9 @@ Custom floor
 Roguelite
 == 肉鸽构筑
 
+Classic
+== 经典
+
 Classic PvE
 == 经典 PvE
 
@@ -4502,8 +4529,8 @@ Create room
 Choose mode
 == 选择模式
 
-14 GAME MODES · SOLO / LAN / STEAM
-== 14 种游戏模式 · 单人 / 局域网 / Steam
+13 GAME MODES · SOLO / LAN / STEAM
+== 13 种游戏模式 · 单人 / 局域网 / Steam
 
 Choose from every game mode and configure to your liking.
 == 从所有游戏模式中选择并按需配置。

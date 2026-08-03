@@ -170,6 +170,21 @@ int DroidThreatCost(int Type)
 	}
 }
 
+float DroidSoundThreat(int Type)
+{
+	switch(Type)
+	{
+		case DROIDTYPE_WALKER: return 2.5f;
+		case DROIDTYPE_STAR: return 2.0f;
+		case DROIDTYPE_CRAWLER: return 1.5f;
+		case DROIDTYPE_BOSSCRAWLER: return 6.0f;
+		case DROIDTYPE_BOSSSTAR: return 7.5f;
+		case DROIDTYPE_BOSSWALKER: return 7.5f;
+		case DROIDTYPE_BOSSSPLITTER: return 8.0f;
+		default: return 1.0f;
+	}
+}
+
 SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld,
 												 const vec2 *pSpawnPoints,
 												 int NumSpawnPoints,

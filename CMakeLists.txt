@@ -502,6 +502,22 @@ add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/src/generated/official_weapons.
   DEPENDS scripts/embed_binary.py data/weapons/official_manifest.txt ${OFFICIAL_WEAPON_FILES}
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
+add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/src/generated/pve_cards.inc"
+  COMMAND ${Python3_EXECUTABLE} scripts/embed_binary.py
+    data/pve/pve_cards.json
+    gs_aPveCardsJson
+    > "${PROJECT_BINARY_DIR}/src/generated/pve_cards.inc"
+  DEPENDS scripts/embed_binary.py data/pve/pve_cards.json
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
+add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/src/generated/pve_contracts.inc"
+  COMMAND ${Python3_EXECUTABLE} scripts/embed_binary.py
+    data/pve/pve_contracts.json
+    gs_aPveContractsJson
+    > "${PROJECT_BINARY_DIR}/src/generated/pve_contracts.inc"
+  DEPENDS scripts/embed_binary.py data/pve/pve_contracts.json
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
 
 
 ########################################################################
@@ -673,6 +689,8 @@ set(GAME_GENERATED_SHARED
   src/generated/game_data.h
   ${PROJECT_BINARY_DIR}/src/generated/official_weapons.inc
   ${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc
+  ${PROJECT_BINARY_DIR}/src/generated/pve_cards.inc
+  ${PROJECT_BINARY_DIR}/src/generated/pve_contracts.inc
 )
 
 set(DEPS ${DEP_JSON} ${ZLIB_DEP})

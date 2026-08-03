@@ -481,6 +481,15 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 		static int s_WideviewButton = 0;
 		if(DoButton_CheckBox(&s_WideviewButton, Localize("Wide menu"), g_Config.m_UiWideview, &Button))
 			g_Config.m_UiWideview ^= 1;
+
+		Right.HSplitTop(4.0f, 0, &Right);
+		Right.HSplitTop(16.0f, &Label, &Right);
+		Right.HSplitTop(16.0f, &Button, &Right);
+		str_format(aBuf, sizeof(aBuf), "%s: %i%%", Localize("Interface scale"), g_Config.m_UiScale);
+		UI()->DoLabelScaled(&Label, aBuf, 12.0f, -1);
+		Button.HMargin(1.0f, &Button);
+		g_Config.m_UiScale = (int)(
+			DoScrollbarH(&g_Config.m_UiScale, &Button, (g_Config.m_UiScale - 50) / 150.0f) * 150.0f + 50.0f + 0.1f);
 	}
 }
 
@@ -2494,6 +2503,20 @@ void CMenus::RenderSettingsSound(CUIRect MainView)
 			else
 				m_pClient->m_pSounds->Stop(SOUND_MENU);
 		}
+	}
+
+	// music volume slider
+	{
+		CUIRect Button, Label;
+		MainView.HSplitTop(5.0f, &Button, &MainView);
+		MainView.HSplitTop(20.0f, &Button, &MainView);
+		Button.VSplitLeft(190.0f, &Label, &Button);
+		Button.HMargin(2.0f, &Button);
+		UI()->DoLabelScaled(&Label, Localize("Music volume"), 14.0f, -1);
+		g_Config.m_SndMusicVolume =
+			(int)(DoScrollbarH(&g_Config.m_SndMusicVolume, &Button, g_Config.m_SndMusicVolume / 100.0f) * 100.0f);
+		m_pClient->m_pSounds->SetMusicVolume(g_Config.m_SndMusicVolume / 100.0f);
+		MainView.HSplitTop(20.0f, 0, &MainView);
 	}
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);

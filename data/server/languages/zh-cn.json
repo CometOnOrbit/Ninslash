@@ -891,6 +891,14 @@
         {
             "key": "Finished in %d:%02d.%02d",
             "value": "完成时间 %d:%02d.%02d"
+        },
+        {
+            "key": "Roam Race",
+            "value": "Roam 竞速"
+        },
+        {
+            "key": "Race through a generated modular course",
+            "value": "在自动生成的模块化赛道上竞速"
         }
     ]
 }

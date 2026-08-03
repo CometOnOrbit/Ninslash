@@ -1,0 +1,142 @@
+[
+  {
+    "id": 0,
+    "name": "Glass Cannon",
+    "rule": "Team damage +25%; damage taken +35%.",
+    "risk": "Extreme incoming damage",
+    "mode": 0
+  },
+  {
+    "id": 1,
+    "name": "Elite Hunt",
+    "rule": "An additional boss spawns two levels above the stage.",
+    "risk": "Extra high-level boss",
+    "mode": 0
+  },
+  {
+    "id": 2,
+    "name": "Resource Drought",
+    "rule": "Gold income is halved and shop prices are increased by 50%.",
+    "risk": "Severely limited economy",
+    "mode": 0
+  },
+  {
+    "id": 3,
+    "name": "Speed Clear",
+    "rule": "Complete the Invasion floor within 150 seconds.",
+    "risk": "Strict time limit",
+    "mode": 1
+  },
+  {
+    "id": 4,
+    "name": "Flawless",
+    "rule": "Complete the floor without any player dying.",
+    "risk": "One death fails the contract",
+    "mode": 1
+  },
+  {
+    "id": 5,
+    "name": "Purge Protocol",
+    "rule": "Enemy count is increased by 35% for this floor.",
+    "risk": "Much larger enemy force",
+    "mode": 1
+  },
+  {
+    "id": 6,
+    "name": "Double Wave",
+    "rule": "Enemy count is increased by 50% for the next four waves.",
+    "risk": "Four reinforced waves",
+    "mode": 2
+  },
+  {
+    "id": 7,
+    "name": "Boss Rush",
+    "rule": "An additional boss appears in waves two and four of the section.",
+    "risk": "Two additional bosses",
+    "mode": 2
+  },
+  {
+    "id": 8,
+    "name": "No Respawn",
+    "rule": "Players cannot respawn during the next four waves.",
+    "risk": "Deaths last for the section",
+    "mode": 2
+  },
+  {
+    "id": 9,
+    "name": "Tight Deadline",
+    "rule": "The Extraction time limit is reduced by 30%.",
+    "risk": "Less evacuation time",
+    "mode": 3
+  },
+  {
+    "id": 10,
+    "name": "Black Box",
+    "rule": "Recover the marked objective by remaining at it for 3 seconds.",
+    "risk": "Additional recovery objective",
+    "mode": 3
+  },
+  {
+    "id": 11,
+    "name": "Overrun",
+    "rule": "Evacuation reinforcement size and active cap are doubled.",
+    "risk": "Overwhelming evacuation pressure",
+    "mode": 3
+  },
+  {
+    "id": 12,
+    "name": "Attrition",
+    "rule": "Health, armor and Barrier recovery are reduced by 50%.",
+    "risk": "Halved recovery",
+    "mode": 0
+  },
+  {
+    "id": 13,
+    "name": "Overclocked Hostiles",
+    "rule": "Enemies move 15% faster and deal 25% more damage.",
+    "risk": "Faster, harder-hitting enemies",
+    "mode": 0
+  },
+  {
+    "id": 14,
+    "name": "Sealed Supplies",
+    "rule": "Shops and stage supplies are disabled for the current floor.",
+    "risk": "No resupply",
+    "mode": 1
+  },
+  {
+    "id": 15,
+    "name": "Elite Guard",
+    "rule": "Each objective gains one elite guard a level above it; all guards must be killed.",
+    "risk": "Additional objective guards",
+    "mode": 1
+  },
+  {
+    "id": 16,
+    "name": "Fortification Tax",
+    "rule": "Building and repair costs are increased by 75% for the next four waves.",
+    "risk": "Expensive fortifications",
+    "mode": 2
+  },
+  {
+    "id": 17,
+    "name": "Rising Tide",
+    "rule": "Enemy count rises by 15%, 30%, 45% and 60%; final-wave enemies gain 25% health.",
+    "risk": "Escalating four-wave assault",
+    "mode": 2
+  },
+  {
+    "id": 18,
+    "name": "Heavy Cargo",
+    "rule": "Carry spawned cargo into extraction; the carrier moves 20% slower and may drop it.",
+    "risk": "Slower cargo carrier",
+    "mode": 3
+  },
+  {
+    "id": 19,
+    "name": "Locked Route",
+    "rule": "Activate two additional radar-marked switches before the exit opens.",
+    "risk": "Two extra route switches",
+    "mode": 3
+  }
+]

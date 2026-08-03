@@ -79,10 +79,7 @@ void CSounds::OnInit()
 	Sound()->SetChannel(CSounds::CHN_HIT, g_Config.m_ClHitFeedback / 100.0f, 0.0f);
 
 	// dynamic music layers at max - engine Mix() controls per-sample volume
-	Sound()->SetChannel(CSounds::CHN_MUSIC_CALM, 1.0f, 0.0f);
-	Sound()->SetChannel(CSounds::CHN_MUSIC_TENSION, 1.0f, 0.0f);
-	Sound()->SetChannel(CSounds::CHN_MUSIC_COMBAT, 1.0f, 0.0f);
-	Sound()->SetChannel(CSounds::CHN_MUSIC_BOSS, 1.0f, 0.0f);
+	SetMusicVolume(g_Config.m_SndMusicVolume / 100.0f);
 
 	// tell engine which channels to control
 	Sound()->ConfigureMusicLayer(0, CHN_MUSIC_CALM, -1);
@@ -116,6 +113,16 @@ void CSounds::OnInit()
 void CSounds::SetHitFeedbackVolume(float Volume)
 {
 	Sound()->SetChannel(CSounds::CHN_HIT, clamp(Volume, 0.0f, 1.0f), 0.0f);
+}
+
+void CSounds::SetMusicVolume(float Volume)
+{
+	const float V = clamp(Volume, 0.0f, 1.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC, V, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_CALM, V, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_TENSION, V, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_COMBAT, V, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC_BOSS, V, 0.0f);
 }
 
 void CSounds::OnReset()
