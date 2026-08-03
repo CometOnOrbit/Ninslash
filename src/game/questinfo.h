@@ -58,6 +58,21 @@ inline int InvasionThemeFromLevel(int Level)
 	return Level % INVASION_THEME_CYCLE;
 }
 
+// Server game-vote config names. The vote only runs outside Invasion rooms
+// (Invasion keeps its campaign going instead of voting), so the mode vote must
+// offer only the base Invasion tier: voting into Invasion always starts at
+// floor 1 instead of inheriting another mode's sv_mapgen_level (which other
+// modes use for difficulty / map generation).
+inline bool IsInvasionVoteConfig(const char *pConfig)
+{
+	return str_comp_num(pConfig, "cfg/invasion", 12) == 0;
+}
+
+inline bool IsBaseInvasionVoteConfig(const char *pConfig)
+{
+	return str_comp(pConfig, "cfg/invasion1") == 0;
+}
+
 // Mapgen layouts that need player spawn + enemy spawn (Invasion-style).
 inline bool IsCoopMapGenGametype(const char *pType)
 {

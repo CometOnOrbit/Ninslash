@@ -1880,6 +1880,12 @@ void IGameController::ResetGameVotes()
 
 void IGameController::BeginPostRoundTransition()
 {
+	// PvP controllers leave sv_mapgen_level at 0. A vote that can select a PvE
+	// mode must never hand it floor 0: Invasion is a floor-based campaign and
+	// treats the level as the current floor. Normalize before the vote options
+	// and the winner are computed so a freshly voted Invasion starts at floor 1
+	// while an ongoing campaign keeps its current floor.
+	g_Config.m_SvMapGenLevel = max(1, g_Config.m_SvMapGenLevel);
 	m_GameVote = 1;
 	m_GameVoteEndTick = Server()->Tick() + Server()->TickSpeed() * 60;
 	SendGameVotes();
@@ -1963,11 +1969,11 @@ void IGameController::Tick()
 				GameServer()->CalculateVoteWinnerConfig();
 				if(GameServer()->m_WinnerVote >= 0)
 				{
+					const CGameVote &Vote = GameServer()->m_aGameVote[GameServer()->m_WinnerVote];
+					if(IsInvasionVoteConfig(Vote.m_aConfig))
+						GameServer()->Console()->ExecuteLine("sv_mapgen_level 1");
 					char aBuf[128];
-					str_format(aBuf,
-							   sizeof(aBuf),
-							   "exec %s.cfg",
-							   GameServer()->m_aGameVote[GameServer()->m_WinnerVote].m_aConfig);
+					str_format(aBuf, sizeof(aBuf), "exec %s.cfg", Vote.m_aConfig);
 					GameServer()->Console()->ExecuteLine(aBuf);
 				}
 				// GameServer()->Console()->ExecuteLine(GameServer()->GetVoteWinnerConfig());

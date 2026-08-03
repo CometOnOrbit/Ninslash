@@ -1,6 +1,8 @@
 #ifndef GAME_CLIENT_LOCAL_GAME_MODES_H
 #define GAME_CLIENT_LOCAL_GAME_MODES_H
 
+#include <base/system.h>
+
 #include <game/client/room_creation.h>
 
 enum ELocalGameMode
@@ -356,6 +358,69 @@ inline const char *LocalGameRuleLabel(int Rule)
 	if(Rule == LOCAL_RULE_ROAM_CHECKPOINTS)
 		return "Checkpoints";
 	return "Score limit";
+}
+
+// Game-vote categories shared between the in-game mode vote overlay and the
+// room-creation mode picker. Category assignment follows the local mode
+// definitions instead of guessing from thumbnail file names.
+enum EGameVoteCategory
+{
+	GAMEVOTE_CATEGORY_PVE = 0,
+	GAMEVOTE_CATEGORY_TEAM,
+	GAMEVOTE_CATEGORY_SOLO,
+	GAMEVOTE_CATEGORY_ARCADE,
+	NUM_GAMEVOTE_CATEGORIES,
+};
+
+// Category a local game mode belongs to in the mode vote overlay.
+inline int LocalGameModeVoteCategory(int Mode)
+{
+	if(Mode < 0 || Mode >= LOCAL_MODE_COUNT)
+		return GAMEVOTE_CATEGORY_ARCADE;
+	if(s_aLocalGameModes[Mode].m_Pve)
+		return GAMEVOTE_CATEGORY_PVE;
+	if(LocalGameModeUsesTeamPopulation(Mode))
+		return GAMEVOTE_CATEGORY_TEAM;
+	if(Mode == LOCAL_MODE_ROAM)
+		return GAMEVOTE_CATEGORY_ARCADE;
+	return GAMEVOTE_CATEGORY_SOLO;
+}
+
+// Resolves a server game-vote thumbnail name to the local mode it belongs to.
+// Extra map variants shipped as separate .vot files map onto their base mode.
+inline int LocalGameModeFromImage(const char *pImage)
+{
+	static const struct
+	{
+		const char *m_pImage;
+		int m_Mode;
+	} s_aImageAliases[] = {
+		{"invasion2", LOCAL_MODE_INVASION},
+		{"invasion3", LOCAL_MODE_INVASION},
+		{"invasion4", LOCAL_MODE_INVASION},
+		{"invasion5", LOCAL_MODE_INVASION},
+		{"invasion-endless", LOCAL_MODE_INVASION},
+		{"ball2", LOCAL_MODE_BALL},
+	};
+	for(unsigned i = 0; i < sizeof(s_aImageAliases) / sizeof(s_aImageAliases[0]); i++)
+		if(str_comp(pImage, s_aImageAliases[i].m_pImage) == 0)
+			return s_aImageAliases[i].m_Mode;
+	for(int i = 1; i < LOCAL_MODE_COUNT; i++)
+		if(str_comp(pImage, s_aLocalGameModes[i].m_pGameVoteImage) == 0)
+			return i;
+	return -1;
+}
+
+// Display order key: index inside s_aAllLocalModes so the vote overlay lists
+// modes in the same order as the room-creation mode picker. Modes that are not
+// part of the picker list sort after every listed mode.
+inline int LocalGameModeSortKey(int Mode)
+{
+	const int Count = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
+	for(int i = 0; i < Count; i++)
+		if(s_aAllLocalModes[i] == Mode)
+			return i;
+	return Count;
 }
 
 #endif

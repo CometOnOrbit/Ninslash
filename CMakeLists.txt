@@ -893,6 +893,12 @@ if(NINSLASH_BUILD_TESTS)
   add_test(NAME room_creation COMMAND ninslash_test_room_creation)
   set_tests_properties(room_creation PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
+  add_executable(ninslash_test_gamevote tests/gamevote.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_gamevote PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_gamevote ${LIBS})
+  add_test(NAME gamevote COMMAND ninslash_test_gamevote)
+  set_tests_properties(gamevote PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+
   add_executable(ninslash_test_inventory_logic tests/inventory_logic.cpp)
   target_include_directories(ninslash_test_inventory_logic PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_inventory_logic ${LIBS})

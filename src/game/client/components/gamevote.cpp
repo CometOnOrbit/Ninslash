@@ -7,6 +7,7 @@
 
 #include <game/client/gameclient.h>
 #include <game/client/components/menus.h>
+#include <game/client/local_game_modes.h>
 
 #include <game/client/components/motd.h>
 #include <game/client/components/scoreboard.h>
@@ -20,14 +21,37 @@
 
 #include <math.h>
 
-enum
+static int GameVoteLocalModeByName(const char *pName)
 {
-	GAMEVOTE_CATEGORY_PVE = 0,
-	GAMEVOTE_CATEGORY_TEAM,
-	GAMEVOTE_CATEGORY_SOLO,
-	GAMEVOTE_CATEGORY_ARCADE,
-	NUM_GAMEVOTE_CATEGORIES
-};
+	static const struct
+	{
+		const char *m_pName;
+		int m_Mode;
+	} s_aNameAliases[] = {
+		{"Reactor Bomber", LOCAL_MODE_REACTOR_ASSAULT},
+		{"Reactor Defence", LOCAL_MODE_REACTOR_DEFENSE},
+		{"Horde Survival", LOCAL_MODE_HORDE},
+		{"Instakill CTF", LOCAL_MODE_INSTAGIB_CTF},
+		{"Grenade Deathmatch", LOCAL_MODE_GRENADE_DM},
+	};
+	for(unsigned i = 0; i < sizeof(s_aNameAliases) / sizeof(s_aNameAliases[0]); i++)
+		if(str_comp(pName, Localize(s_aNameAliases[i].m_pName)) == 0)
+			return s_aNameAliases[i].m_Mode;
+	for(int i = 1; i < LOCAL_MODE_COUNT; i++)
+		if(str_comp(pName, Localize(s_aLocalGameModes[i].m_pName)) == 0)
+			return i;
+	return -1;
+}
+
+// Resolves a server game-vote entry to a local mode, preferring the localized
+// name and falling back to the thumbnail name.
+static int GameVoteLocalMode(const char *pName, const char *pImage)
+{
+	int Mode = GameVoteLocalModeByName(pName);
+	if(Mode < 0)
+		Mode = LocalGameModeFromImage(pImage);
+	return Mode;
+}
 
 static const char *GameVoteCategoryName(int Category)
 {
@@ -46,6 +70,8 @@ void CGameVoteDisplay::OnReset()
 		return;
 
 	m_GameVoteCount = 0;
+	m_DisplayCount = 0;
+	m_PageCapacity = 4;
 
 	for(int i = 0; i < MAX_GAME_VOTES; i++)
 	{
@@ -83,28 +109,43 @@ void CGameVoteDisplay::ConDebugPreview(IConsole::IResult *pResult, void *pUserDa
 	static const char *s_apNames[] = {"Invasion",
 									  "Horde Survival",
 									  "Extraction",
+									  "Reactor Defence",
+									  "Deathmatch",
 									  "Team deathmatch",
 									  "Capture the flag",
-									  "Instakill CTF",
-									  "Deathmatch",
-									  "Grenade Deathmatch",
-									  "Battle Royale",
+									  "Reactor Bomber",
 									  "Ball",
-									  "Reactor Bomber"};
+									  "Battle Royale",
+									  "Grenade Deathmatch",
+									  "Instakill CTF",
+									  "Roam Race"};
 	static const char *s_apDescriptions[] = {"Roguelite expedition",
 											 "Endless defense",
 											 "Activate and evacuate",
+											 "Fortify the reactor",
+											 "Generated arena",
 											 "Two-team battle",
 											 "Objective combat",
-											 "One-shot team combat",
-											 "Generated arena",
-											 "Explosive free-for-all",
-											 "Last survivor wins",
+											 "Protect the reactor",
 											 "Team ball sport",
-											 "Protect the reactor"};
-	static const char *s_apImages[] = {
-		"invasion1", "invasion7", "invasion6", "tdm1", "ctf1", "ictf1", "dm1", "grenade1", "br1", "ball1", "reactor1"};
-	pSelf->m_GameVoteCount = 11;
+											 "Last survivor wins",
+											 "Explosive free-for-all",
+											 "One-shot team combat",
+											 "Race through a modular course"};
+	static const char *s_apImages[] = {"invasion1",
+									   "invasion7",
+									   "invasion6",
+									   "reactor_def1",
+									   "dm1",
+									   "tdm1",
+									   "ctf1",
+									   "reactor1",
+									   "ball1",
+									   "br1",
+									   "grenade1",
+									   "ictf1",
+									   "invasion1"};
+	pSelf->m_GameVoteCount = 13;
 	for(int i = 0; i < pSelf->m_GameVoteCount; i++)
 	{
 		pSelf->m_aGameVoteDetails[i].m_Valid = true;
@@ -127,6 +168,7 @@ void CGameVoteDisplay::ConDebugPreview(IConsole::IResult *pResult, void *pUserDa
 	pSelf->m_VoteDuration = 30;
 	pSelf->m_LastVoteMessageTime = time_get();
 	pSelf->m_SelectorMouse = vec2(150.0f, 150.0f);
+	pSelf->RebuildDisplayOrder();
 	pSelf->m_DebugScreenshotFrames = pResult->NumArguments() && pResult->GetInteger(0) != 0 ? 20 : 0;
 }
 
@@ -135,7 +177,14 @@ int CGameVoteDisplay::VoteCategory(int Vote) const
 	if(Vote < 0 || Vote >= m_GameVoteCount || !m_aGameVoteDetails[Vote].m_Valid)
 		return GAMEVOTE_CATEGORY_ARCADE;
 
-	const char *pImage = m_aGameVoteDetails[Vote].m_aImage;
+	const CGameVoteDetails &Details = m_aGameVoteDetails[Vote];
+	const int Mode = GameVoteLocalMode(Details.m_aName, Details.m_aImage);
+	if(Mode >= 0)
+		return LocalGameModeVoteCategory(Mode);
+
+	// Fallback for vote entries that do not map to any local mode: infer the
+	// category from the thumbnail file name.
+	const char *pImage = Details.m_aImage;
 	if(str_find_nocase(pImage, "invasion") || str_find_nocase(pImage, "horde") || str_find_nocase(pImage, "extract"))
 		return GAMEVOTE_CATEGORY_PVE;
 	if(str_find_nocase(pImage, "tdm") || str_find_nocase(pImage, "ctf"))
@@ -148,17 +197,23 @@ int CGameVoteDisplay::VoteCategory(int Vote) const
 int CGameVoteDisplay::CategoryVoteCount(int Category) const
 {
 	int Count = 0;
-	for(int i = 0; i < m_GameVoteCount; i++)
+	for(int d = 0; d < m_DisplayCount; d++)
+	{
+		const int i = m_aDisplayOrder[d];
 		if(m_aGameVoteDetails[i].m_Valid && VoteCategory(i) == Category)
 			Count++;
+	}
 	return Count;
 }
 
 int CGameVoteDisplay::FirstVoteInCategory(int Category) const
 {
-	for(int i = 0; i < m_GameVoteCount; i++)
+	for(int d = 0; d < m_DisplayCount; d++)
+	{
+		const int i = m_aDisplayOrder[d];
 		if(m_aGameVoteDetails[i].m_Valid && VoteCategory(i) == Category)
 			return i;
+	}
 	return -1;
 }
 
@@ -183,8 +238,9 @@ void CGameVoteDisplay::MoveFocus(int Direction)
 	int aVotes[MAX_GAME_VOTES];
 	int Count = 0;
 	int Position = 0;
-	for(int i = 0; i < m_GameVoteCount; i++)
+	for(int d = 0; d < m_DisplayCount; d++)
 	{
+		const int i = m_aDisplayOrder[d];
 		if(!m_aGameVoteDetails[i].m_Valid || VoteCategory(i) != m_ActiveCategory)
 			continue;
 		if(i == m_Focused)
@@ -195,6 +251,42 @@ void CGameVoteDisplay::MoveFocus(int Direction)
 		return;
 	Position = (Position + Direction + Count) % Count;
 	m_Focused = aVotes[Position];
+}
+
+int CGameVoteDisplay::DisplaySortKey(int Vote) const
+{
+	const CGameVoteDetails &Details = m_aGameVoteDetails[Vote];
+	const int Mode = GameVoteLocalMode(Details.m_aName, Details.m_aImage);
+	return LocalGameModeSortKey(Mode < 0 ? -1 : Mode);
+}
+
+void CGameVoteDisplay::RebuildDisplayOrder()
+{
+	m_DisplayCount = 0;
+	for(int i = 0; i < m_GameVoteCount; i++)
+		if(m_aGameVoteDetails[i].m_Valid)
+			m_aDisplayOrder[m_DisplayCount++] = i;
+
+	// Stable insertion sort by local-mode order; same-mode variants keep
+	// their relative order. Sort keys are cached to avoid re-parsing the
+	// vote name and image on every comparison.
+	int aKeys[MAX_GAME_VOTES];
+	for(int i = 0; i < m_DisplayCount; i++)
+		aKeys[i] = DisplaySortKey(m_aDisplayOrder[i]);
+	for(int i = 1; i < m_DisplayCount; i++)
+	{
+		const int Key = aKeys[i];
+		int j = i;
+		while(j > 0 && aKeys[j - 1] > Key)
+		{
+			const int Tmp = m_aDisplayOrder[j - 1];
+			m_aDisplayOrder[j - 1] = m_aDisplayOrder[j];
+			m_aDisplayOrder[j] = Tmp;
+			aKeys[j - 1] = aKeys[j];
+			aKeys[j] = Key;
+			j--;
+		}
+	}
 }
 
 bool CGameVoteDisplay::OnInput(IInput::CEvent Event)
@@ -230,13 +322,34 @@ bool CGameVoteDisplay::OnInput(IInput::CEvent Event)
 			DirectChoice = Event.m_Key - KEY_1;
 		else if(Event.m_Key >= KEY_KP_1 && Event.m_Key <= KEY_KP_9)
 			DirectChoice = Event.m_Key - KEY_KP_1;
-		if(DirectChoice >= 0 && DirectChoice < m_GameVoteCount && m_aGameVoteDetails[DirectChoice].m_Valid)
+		if(DirectChoice >= 0)
 		{
-			m_ActiveCategory = VoteCategory(DirectChoice);
-			m_Focused = DirectChoice;
-			m_Selected = DirectChoice;
-			SendVote();
-			return true;
+			// Number shortcuts select the card at the same slot on the visible
+			// page, matching the per-card labels.
+			int aVotes[MAX_GAME_VOTES];
+			int Count = 0;
+			int FocusPosition = 0;
+			for(int d = 0; d < m_DisplayCount; d++)
+			{
+				const int i = m_aDisplayOrder[d];
+				if(!m_aGameVoteDetails[i].m_Valid || VoteCategory(i) != m_ActiveCategory)
+					continue;
+				if(i == m_Focused)
+					FocusPosition = Count;
+				aVotes[Count++] = i;
+			}
+			const int Page = Count > 0 ? FocusPosition / m_PageCapacity : 0;
+			const int PageStart = Page * m_PageCapacity;
+			const int PageCount = min(m_PageCapacity, max(0, Count - PageStart));
+			if(DirectChoice < PageCount)
+			{
+				const int Vote = aVotes[PageStart + DirectChoice];
+				m_ActiveCategory = VoteCategory(Vote);
+				m_Focused = Vote;
+				m_Selected = Vote;
+				SendVote();
+				return true;
+			}
 		}
 
 		if((Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A) &&
@@ -477,11 +590,13 @@ void CGameVoteDisplay::OnRender()
 	const bool WideLayout = Content.w >= 440.0f;
 	const int Columns = WideLayout ? 3 : 2;
 	const int PageCapacity = Columns * 2;
+	m_PageCapacity = PageCapacity;
 	int aVotes[MAX_GAME_VOTES];
 	int VoteCount = 0;
 	int FocusPosition = 0;
-	for(int i = 0; i < m_GameVoteCount; i++)
+	for(int d = 0; d < m_DisplayCount; d++)
 	{
+		const int i = m_aDisplayOrder[d];
 		if(!m_aGameVoteDetails[i].m_Valid || VoteCategory(i) != m_ActiveCategory)
 			continue;
 		if(i == m_Focused)
@@ -510,6 +625,22 @@ void CGameVoteDisplay::OnRender()
 			HoveredVote = aVotes[PageStart + Slot];
 	}
 
+	// Page controls let mouse users browse every playable mode in the category
+	// instead of being stuck on the first page of cards.
+	const int TotalPages = max(1, (VoteCount + PageCapacity - 1) / PageCapacity);
+	CUIRect PageLeftRect = {0, 0, 0, 0};
+	CUIRect PageRightRect = {0, 0, 0, 0};
+	bool PageLeftHovered = false;
+	bool PageRightHovered = false;
+	if(VoteCount > PageCapacity)
+	{
+		const float PageY = Stage.y + Stage.h - 28.0f;
+		PageLeftRect = {Stage.x + Stage.w - 76.0f, PageY, 16.0f, 16.0f};
+		PageRightRect = {Stage.x + Stage.w - 24.0f, PageY, 16.0f, 16.0f};
+		PageLeftHovered = MouseInside(PageLeftRect);
+		PageRightHovered = MouseInside(PageRightRect);
+	}
+
 	if(m_MouseTrigger)
 	{
 		if(HoveredCategory >= 0)
@@ -525,6 +656,13 @@ void CGameVoteDisplay::OnRender()
 			m_Focused = HoveredVote;
 			m_Selected = HoveredVote;
 			SendVote();
+		}
+		else if(VoteCount > PageCapacity)
+		{
+			if(PageLeftHovered && Page > 0)
+				m_Focused = aVotes[(Page - 1) * PageCapacity];
+			else if(PageRightHovered && Page + 1 < TotalPages)
+				m_Focused = aVotes[min(VoteCount - 1, (Page + 1) * PageCapacity)];
 		}
 		m_MouseTrigger = false;
 	}
@@ -668,9 +806,9 @@ void CGameVoteDisplay::OnRender()
 					vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, Appear));
 
 		char aShortcut[8];
-		if(Vote < 9)
+		if(Slot < 9)
 		{
-			str_format(aShortcut, sizeof(aShortcut), "%d", Vote + 1);
+			str_format(aShortcut, sizeof(aShortcut), "%d", Slot + 1);
 			DrawCenteredText(Card.x + Card.w - 8.0f,
 							 Card.y + 7.0f,
 							 4.8f,
@@ -706,9 +844,43 @@ void CGameVoteDisplay::OnRender()
 
 	if(VoteCount > PageCapacity)
 	{
+		const float PageY = Stage.y + Stage.h - 28.0f;
+		const float PageButtonSize = 16.0f;
+		CUIRect PageLeft = {Stage.x + Stage.w - 76.0f, PageY, PageButtonSize, PageButtonSize};
+		CUIRect PageRight = {Stage.x + Stage.w - 24.0f, PageY, PageButtonSize, PageButtonSize};
+		const bool LeftEnabled = Page > 0;
+		const bool RightEnabled = Page + 1 < TotalPages;
+		DrawRect(PageLeft,
+				 vec4(ColorBgDeep.r,
+					  ColorBgDeep.g,
+					  ColorBgDeep.b,
+					  (PageLeftHovered && LeftEnabled ? 0.94f : 0.72f) * Appear),
+				 4.0f);
+		DrawRect(PageRight,
+				 vec4(ColorBgDeep.r,
+					  ColorBgDeep.g,
+					  ColorBgDeep.b,
+					  (PageRightHovered && RightEnabled ? 0.94f : 0.72f) * Appear),
+				 4.0f);
+		DrawCenteredText(PageLeft.x + PageLeft.w * 0.5f,
+						 PageLeft.y + 1.0f,
+						 6.5f,
+						 "<",
+						 vec4((LeftEnabled ? ColorText : ColorMuted).r,
+							  (LeftEnabled ? ColorText : ColorMuted).g,
+							  (LeftEnabled ? ColorText : ColorMuted).b,
+							  Appear));
+		DrawCenteredText(PageRight.x + PageRight.w * 0.5f,
+						 PageRight.y + 1.0f,
+						 6.5f,
+						 ">",
+						 vec4((RightEnabled ? ColorText : ColorMuted).r,
+							  (RightEnabled ? ColorText : ColorMuted).g,
+							  (RightEnabled ? ColorText : ColorMuted).b,
+							  Appear));
 		char aPage[32];
-		str_format(aPage, sizeof(aPage), "%d / %d", Page + 1, (VoteCount + PageCapacity - 1) / PageCapacity);
-		DrawCenteredText(Stage.x + Stage.w - 25.0f,
+		str_format(aPage, sizeof(aPage), "%d / %d", Page + 1, TotalPages);
+		DrawCenteredText(Stage.x + Stage.w - 50.0f,
 						 Stage.y + Stage.h - 23.0f,
 						 5.5f,
 						 aPage,
@@ -798,5 +970,7 @@ void CGameVoteDisplay::OnMessage(int MsgType, void *pRawMsg)
 			TextRender()->TextEx(&Cursor, "0", -1);
 			m_aGameVoteDetails[i].m_VotesWidth = Cursor.m_X / 2;
 		}
+
+		RebuildDisplayOrder();
 	}
 }

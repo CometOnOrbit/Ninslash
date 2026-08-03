@@ -31,6 +31,13 @@ class CGameVoteDisplay : public CComponent
 {
 	int m_GameVoteCount;
 	CGameVoteDetails m_aGameVoteDetails[MAX_GAME_VOTES];
+	// Server vote indices in display order (sorted by local mode, matching the
+	// room-creation mode picker). Voting still uses the server indices.
+	int m_aDisplayOrder[MAX_GAME_VOTES];
+	int m_DisplayCount;
+	// Cards per page (Columns * 2), refreshed each frame so number shortcuts
+	// in OnInput match the visible page layout.
+	int m_PageCapacity;
 
 	int m_Selected;
 	int m_Focused;
@@ -53,6 +60,8 @@ class CGameVoteDisplay : public CComponent
 	int FirstVoteInCategory(int Category) const;
 	void ChangeCategory(int Direction);
 	void MoveFocus(int Direction);
+	int DisplaySortKey(int Vote) const;
+	void RebuildDisplayOrder();
 	static void ConDebugPreview(IConsole::IResult *pResult, void *pUserData);
 
   public:

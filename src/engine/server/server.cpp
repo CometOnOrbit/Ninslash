@@ -889,6 +889,17 @@ bool CServer::GetGameVote(CGameVote *pGameVote, int Players)
 
 	auto Eligible = [&](int Index)
 	{
+		// The vote only ever runs outside Invasion rooms (Invasion keeps its
+		// campaign going instead of voting). Offer only the base Invasion
+		// tier, gated by player count alone: sv_mapgen_level here carries
+		// another mode's difficulty / mapgen value, never an Invasion floor.
+		if(IsInvasionVoteConfig(m_aGameVote[Index].m_aConfig))
+		{
+			if(!IsBaseInvasionVoteConfig(m_aGameVote[Index].m_aConfig))
+				return false;
+			return !m_aGameVoteUsed[Index] && m_aGameVote[Index].m_MinPlayers <= Players &&
+				   m_aGameVote[Index].m_MaxPlayers >= Players;
+		}
 		return !m_aGameVoteUsed[Index] && m_aGameVote[Index].m_MinPlayers <= Players &&
 			   m_aGameVote[Index].m_MaxPlayers >= Players &&
 			   m_aGameVote[Index].m_MinLevel <= g_Config.m_SvMapGenLevel &&
