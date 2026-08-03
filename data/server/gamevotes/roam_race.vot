@@ -1,0 +1,6 @@
+name: Roam Race
+description: Race through a generated modular course
+config: cfg/roam_mapgen
+image: invasion1
+min-players: 0
+max-players: 8
