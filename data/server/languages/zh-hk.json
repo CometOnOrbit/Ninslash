@@ -301,6 +301,10 @@
             "value": "撤離完成！"
         },
         {
+            "key": "Extraction complete — rating %s",
+            "value": "撤離完成 — 評價 %s"
+        },
+        {
             "key": "Extraction failed — team wiped",
             "value": "撤離失敗 — 隊伍全滅"
         },
@@ -899,6 +903,50 @@
         {
             "key": "Race through a generated modular course",
             "value": "在自動生成的模組化賽道上競速"
+        },
+        {
+            "key": "Task %d/%d: activate %d switches",
+            "value": "任務 %d/%d：啟動 %d 個開關"
+        },
+        {
+            "key": "Task %d/%d: clear %d enemies in time",
+            "value": "任務 %d/%d：限時消滅 %d 個敵人"
+        },
+        {
+            "key": "Task %d/%d: out of time, clear %d enemies",
+            "value": "任務 %d/%d：超時，消滅 %d 個敵人"
+        },
+        {
+            "key": "Task %d/%d complete",
+            "value": "任務 %d/%d 完成"
+        },
+        {
+            "key": "Event: Elite ambush!",
+            "value": "事件：精英伏擊！"
+        },
+        {
+            "key": "Event: Trap zone ahead!",
+            "value": "事件：前方陷阱區！"
+        },
+        {
+            "key": "Event: Boss rush!",
+            "value": "事件：Boss 突襲！"
+        },
+        {
+            "key": "Evacuation route blocked — sector %d",
+            "value": "撤離路線封鎖 — 區域 %d"
+        },
+        {
+            "key": "Task %d/%d: eliminate %d enemies",
+            "value": "任務 %d/%d：消滅 %d 個敵人"
+        },
+        {
+            "key": "Task %d/%d: defend the marked zone for %d seconds",
+            "value": "任務 %d/%d：防守標記區域 %d 秒"
+        },
+        {
+            "key": "Task %d/%d: reach the marked supply point",
+            "value": "任務 %d/%d：抵達標記補給點"
         }
     ]
 }

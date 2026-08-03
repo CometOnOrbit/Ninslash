@@ -47,6 +47,7 @@ class CMapGen
 	void GenerateBossCrawlerDroid(class CGenLayer *pTiles);
 	void GenerateEnemySpawn(class CGenLayer *pTiles);
 	void GenerateBossEnemySpawn(class CGenLayer *pTiles);
+	void GenerateExtractZone(class CGenLayer *pTiles);
 	void GenerateHearts(class CGenLayer *pTiles);
 	void GenerateAmmo(class CGenLayer *pTiles);
 	void GenerateArmor(class CGenLayer *pTiles);

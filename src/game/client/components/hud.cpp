@@ -507,9 +507,21 @@ void CHud::RenderObjective()
 		}
 		else if(Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND || Quest == QUEST_HOLD_ZONE)
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("seconds remaining"));
-		else if(Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH ||
-				(Quest == QUEST_EXTRACT && ExtractStage == 0))
+		else if(Quest == QUEST_ACTIVATE_SWITCHES || Quest == QUEST_FIND_SWITCH)
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("switches remaining"));
+		else if(Quest == QUEST_EXTRACT && ExtractStage == 0)
+		{
+			// Task type is packed into the WaveType bits by the extract
+			// controller: 1=switches, 2=eliminate, 3=defend, 4=collect, 5=timed.
+			const char *pRemaining = "enemies remaining";
+			if(WaveType == 1)
+				pRemaining = "switches remaining";
+			else if(WaveType == 3)
+				pRemaining = "seconds remaining";
+			else if(WaveType == 4)
+				pRemaining = "supplies remaining";
+			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize(pRemaining));
+		}
 		else if(Quest == QUEST_EXTRACT)
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, Localize("to evacuate"));
 

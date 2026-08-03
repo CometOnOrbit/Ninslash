@@ -45,6 +45,28 @@ CGameControllerExtract::CGameControllerExtract(class CGameContext *pGameServer) 
 	m_Win = false;
 	m_EscapePressure = false;
 	m_HadHumanAlive = false;
+	m_HumanDeaths = 0;
+	m_TasksCompleted = 0;
+	m_TasksTotal = 0;
+	m_ActiveTask = -1;
+	m_TaskCount = 0;
+	m_TaskZonesCollected = 0;
+	m_TaskTimerTick = 0;
+	m_ActiveEvent = EXTRACT_EVT_NONE;
+	m_EventActionTick = 0;
+	m_LastEventTask = -1;
+	m_pTaskRadar = 0;
+	m_EscapeWave = 0;
+	m_EscapeWaveTick = 0;
+	m_ReinforceTick = 0;
+	for(int i = 0; i < MAX_EXTRACT_TASKS; i++)
+	{
+		m_aTaskType[i] = EXTRACT_TASK_NONE;
+		m_aTaskProgress[i] = 0;
+		m_aTaskTarget[i] = 0;
+		m_aTaskZone[i] = vec2(0.0f, 0.0f);
+		m_aTaskZones[i] = -1;
+	}
 	m_RogueliteStarted = false;
 	m_RogueliteWaitTick = Server()->Tick() + Server()->TickSpeed() * 2;
 	m_RogueliteStageStarted = false;
@@ -92,6 +114,12 @@ bool CGameControllerExtract::OnEntity(int Index, vec2 Pos)
 	}
 	if(Index == ENTITY_SWITCH)
 		m_AvailableSwitches++;
+	if(Index == ENTITY_EXTRACT_ZONE && m_TaskZonesCollected < MAX_EXTRACT_TASKS)
+	{
+		m_aTaskZone[m_TaskZonesCollected] = Pos;
+		m_TaskZonesCollected++;
+		return true;
+	}
 	return IGameController::OnEntity(Index, Pos);
 }
 
@@ -259,6 +287,376 @@ int CGameControllerExtract::EnemyLevel() const
 	return min(10, max(3, 3 + m_SwitchesActivated + Mins + m_Phase * 2 + DifficultyTier));
 }
 
+int CGameControllerExtract::ComputeRating() const
+{
+	const int TotalTicks = m_DeadlineTick - m_StartTick;
+	const int TimeLeft = max(0, (m_DeadlineTick - Server()->Tick()) / Server()->TickSpeed());
+	const float Ratio = TotalTicks > 0 ? TimeLeft / (float)max(1, TotalTicks / Server()->TickSpeed()) : 0.0f;
+	const bool NoDeaths = m_HumanDeaths == 0;
+	const bool AllTasks = m_TasksCompleted >= m_TasksTotal;
+	if(NoDeaths && AllTasks && Ratio > 0.25f)
+		return 3; // S
+	if(NoDeaths && AllTasks)
+		return 2; // A
+	if(Ratio < 0.10f || !NoDeaths)
+		return 0; // C
+	return 1; // B
+}
+
+bool CGameControllerExtract::PlayerInRadius(const vec2 &Center, float Radius) const
+{
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if(!pPlayer || pPlayer->m_IsBot || pPlayer->GetTeam() == TEAM_SPECTATORS)
+			continue;
+		CCharacter *pChar = pPlayer->GetCharacter();
+		if(pChar && distance(pChar->m_Pos, Center) <= Radius)
+			return true;
+	}
+	return false;
+}
+
+void CGameControllerExtract::PickTasks()
+{
+	static const struct
+	{
+		int m_Type;
+		int m_Weight;
+	} s_aPool[] = {
+		{EXTRACT_TASK_SWITCHES, 30},
+		{EXTRACT_TASK_ELIMINATE, 22},
+		{EXTRACT_TASK_DEFEND, 18},
+		{EXTRACT_TASK_COLLECT, 15},
+		{EXTRACT_TASK_TIMED_CLEAR, 15},
+	};
+	const bool LockedRoute = GameServer()->m_pPveDirector &&
+							 GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_LOCKED_ROUTE;
+	const int Num = CountHumans() > 1 ? 3 : 2;
+	m_TaskCount = 0;
+	for(int t = 0; t < Num; t++)
+	{
+		int Chosen = -1;
+		if(t == 0 && LockedRoute)
+			Chosen = EXTRACT_TASK_SWITCHES;
+		else
+		{
+			auto ZoneAvailable = [&](int Type)
+			{
+				// DEFEND/COLLECT need a zone anchor; without one they can
+				// never complete (mapgen may fail to place any zone).
+				if(Type != EXTRACT_TASK_DEFEND && Type != EXTRACT_TASK_COLLECT)
+					return true;
+				return m_TaskZonesCollected > m_TaskCount;
+			};
+			int Total = 0;
+			for(int i = 0; i < 5; i++)
+			{
+				bool Used = false;
+				for(int k = 0; k < m_TaskCount; k++)
+					if(m_aTaskType[k] == s_aPool[i].m_Type)
+						Used = true;
+				if(Used || !ZoneAvailable(s_aPool[i].m_Type))
+					continue;
+				Total += s_aPool[i].m_Weight;
+			}
+			if(Total > 0)
+			{
+				int Pick = rand() % Total;
+				for(int i = 0; i < 5; i++)
+				{
+					bool Used = false;
+					for(int k = 0; k < m_TaskCount; k++)
+						if(m_aTaskType[k] == s_aPool[i].m_Type)
+							Used = true;
+					if(Used || !ZoneAvailable(s_aPool[i].m_Type))
+						continue;
+					if(Pick < s_aPool[i].m_Weight)
+					{
+						Chosen = s_aPool[i].m_Type;
+						break;
+					}
+					Pick -= s_aPool[i].m_Weight;
+				}
+			}
+			if(Chosen < 0)
+				Chosen = EXTRACT_TASK_SWITCHES;
+		}
+		m_aTaskType[m_TaskCount] = Chosen;
+		m_aTaskProgress[m_TaskCount] = 0;
+		m_aTaskTarget[m_TaskCount] = 0;
+		m_aTaskZones[m_TaskCount] = m_TaskZonesCollected > m_TaskCount ? m_TaskCount : -1;
+		m_TaskCount++;
+	}
+	m_TasksTotal = m_TaskCount;
+	m_ActiveTask = 0;
+	StartTask();
+}
+
+void CGameControllerExtract::StartTask()
+{
+	if(m_ActiveTask < 0 || m_ActiveTask >= m_TaskCount)
+		return;
+	const int Type = m_aTaskType[m_ActiveTask];
+	m_aTaskProgress[m_ActiveTask] = 0;
+	m_TaskTimerTick = 0;
+	const int DifficultyTier = max(0, (g_Config.m_SvMapGenLevel - 1) / 10);
+	// Guide players to the zone anchor with a radar marker.
+	const int TaskZone = m_aTaskZones[m_ActiveTask];
+	if(TaskZone >= 0)
+	{
+		if(!m_pTaskRadar)
+			m_pTaskRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
+		m_pTaskRadar->Activate(m_aTaskZone[TaskZone]);
+	}
+	else if(m_pTaskRadar)
+	{
+		GameServer()->m_World.DestroyEntity(m_pTaskRadar);
+		m_pTaskRadar = 0;
+	}
+	switch(Type)
+	{
+		case EXTRACT_TASK_SWITCHES:
+			// Count only switches not yet activated (earlier tasks may have
+			// triggered some already).
+			m_aTaskTarget[m_ActiveTask] = max(0, m_SwitchesRequired - m_SwitchesActivated);
+			GameServer()->SendBroadcastFormat(
+				-1, false, "Task %d/%d: activate %d switches", m_ActiveTask + 1, m_TaskCount, m_aTaskTarget[m_ActiveTask]);
+			break;
+		case EXTRACT_TASK_ELIMINATE:
+			m_aTaskTarget[m_ActiveTask] = min(2 + CountHumans(), 4);
+			GameServer()->SendBroadcastFormat(-1,
+											  false,
+											  "Task %d/%d: eliminate %d enemies",
+											  m_ActiveTask + 1,
+											  m_TaskCount,
+											  m_aTaskTarget[m_ActiveTask]);
+			break;
+		case EXTRACT_TASK_DEFEND:
+			m_aTaskTarget[m_ActiveTask] = 6 + min(4, DifficultyTier);
+			GameServer()->SendBroadcastFormat(-1,
+											  false,
+											  "Task %d/%d: defend the marked zone for %d seconds",
+											  m_ActiveTask + 1,
+											  m_TaskCount,
+											  m_aTaskTarget[m_ActiveTask]);
+			break;
+		case EXTRACT_TASK_COLLECT:
+			m_aTaskTarget[m_ActiveTask] = 1;
+			GameServer()->SendBroadcastFormat(
+				-1, false, "Task %d/%d: reach the marked supply point", m_ActiveTask + 1, m_TaskCount);
+			break;
+		case EXTRACT_TASK_TIMED_CLEAR:
+			m_aTaskTarget[m_ActiveTask] = min(8 + g_Config.m_SvMapGenLevel * 2, 40);
+			m_TaskTimerTick = Server()->Tick() + Server()->TickSpeed() * max(60, 90 - min(30, DifficultyTier * 5));
+			GameServer()->SendBroadcastFormat(-1,
+											  false,
+											  "Task %d/%d: clear %d enemies in time",
+											  m_ActiveTask + 1,
+											  m_TaskCount,
+											  m_aTaskTarget[m_ActiveTask]);
+			break;
+		default:
+			break;
+	}
+	// A zero-target task is already satisfied (e.g. all switches activated in
+	// an earlier task); complete it immediately.
+	if(m_aTaskTarget[m_ActiveTask] <= 0)
+	{
+		CompleteTask(m_ActiveTask);
+		return;
+	}
+	PickEvent();
+}
+
+void CGameControllerExtract::CompleteTask(int Index)
+{
+	if(m_Phase != 0 || Index != m_ActiveTask)
+		return;
+	m_aTaskProgress[Index] = m_aTaskTarget[Index];
+	if(m_pTaskRadar)
+	{
+		GameServer()->m_World.DestroyEntity(m_pTaskRadar);
+		m_pTaskRadar = 0;
+	}
+	if(GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnObjectiveComplete();
+	m_TasksCompleted = Index + 1;
+	GameServer()->SendBroadcastFormat(-1, false, "Task %d/%d complete", Index + 1, m_TaskCount);
+	if(Index + 1 >= m_TaskCount)
+	{
+		// All tasks done: spawn the mid boss; the door opens once it falls
+		// (existing m_DoorChoicePending + m_MidBossPerkOffered chain).
+		if(!m_MidBossSpawned)
+			SpawnMidBoss();
+		m_DoorChoicePending = true;
+	}
+	else
+	{
+		m_ActiveTask = Index + 1;
+		StartTask();
+	}
+}
+
+void CGameControllerExtract::UpdateTask()
+{
+	if(m_Phase != 0 || m_ActiveTask < 0 || m_ActiveTask >= m_TaskCount)
+		return;
+	const int Type = m_aTaskType[m_ActiveTask];
+	const int Zone = m_aTaskZones[m_ActiveTask];
+	switch(Type)
+	{
+		case EXTRACT_TASK_DEFEND:
+			if(Zone >= 0 && PlayerInRadius(m_aTaskZone[Zone], 300.0f))
+			{
+				m_aTaskProgress[m_ActiveTask]++;
+				if(m_aTaskProgress[m_ActiveTask] >= m_aTaskTarget[m_ActiveTask])
+					CompleteTask(m_ActiveTask);
+			}
+			break;
+		case EXTRACT_TASK_COLLECT:
+			if(Zone >= 0 && PlayerInRadius(m_aTaskZone[Zone], 150.0f))
+			{
+				m_aTaskProgress[m_ActiveTask] = 1;
+				CompleteTask(m_ActiveTask);
+			}
+			break;
+		case EXTRACT_TASK_TIMED_CLEAR:
+			if(m_TaskTimerTick && Server()->Tick() > m_TaskTimerTick)
+			{
+				// Out of time: reset progress and retry with a fresh timer.
+				m_aTaskProgress[m_ActiveTask] = 0;
+				const int DifficultyTier = max(0, (g_Config.m_SvMapGenLevel - 1) / 10);
+				m_TaskTimerTick =
+					Server()->Tick() + Server()->TickSpeed() * max(60, 90 - min(30, DifficultyTier * 5));
+				GameServer()->SendBroadcastFormat(-1,
+												  false,
+												  "Task %d/%d: out of time, clear %d enemies",
+												  m_ActiveTask + 1,
+												  m_TaskCount,
+												  m_aTaskTarget[m_ActiveTask]);
+			}
+			break;
+		default:
+			break;
+	}
+}
+
+void CGameControllerExtract::PickEvent()
+{
+	m_ActiveEvent = EXTRACT_EVT_NONE;
+	if(m_ActiveTask <= 0 || m_ActiveTask - m_LastEventTask < 1)
+		return;
+	if(rand() % 100 >= 35)
+		return;
+
+	static const struct
+	{
+		int m_Event;
+		int m_Weight;
+	} s_aEvents[] = {
+		{EXTRACT_EVT_REINFORCEMENTS, 12},
+		{EXTRACT_EVT_ELITE_AMBUSH, 10},
+		{EXTRACT_EVT_SUPPLY_DROP, 12},
+		{EXTRACT_EVT_TRAP_ZONE, 10},
+		{EXTRACT_EVT_BOSS_RUSH, 8},
+	};
+	const bool LastWave = m_ActiveTask + 1 >= m_TaskCount;
+	auto Excluded = [&](int Event)
+	{
+		return LastWave && (Event == EXTRACT_EVT_TRAP_ZONE || Event == EXTRACT_EVT_BOSS_RUSH);
+	};
+	int Total = 0;
+	for(int i = 0; i < 5; i++)
+		if(!Excluded(s_aEvents[i].m_Event))
+			Total += s_aEvents[i].m_Weight;
+	if(Total <= 0)
+		return;
+	int Pick = rand() % Total;
+	for(int i = 0; i < 5; i++)
+	{
+		if(Excluded(s_aEvents[i].m_Event))
+			continue;
+		if(Pick < s_aEvents[i].m_Weight)
+		{
+			m_ActiveEvent = s_aEvents[i].m_Event;
+			break;
+		}
+		Pick -= s_aEvents[i].m_Weight;
+	}
+	if(m_ActiveEvent != EXTRACT_EVT_NONE)
+	{
+		m_LastEventTask = m_ActiveTask;
+		m_EventActionTick = Server()->Tick() + Server()->TickSpeed() * 2;
+	}
+}
+
+void CGameControllerExtract::RunEvent()
+{
+	// Events belong to the task phase; drop any scheduled for evacuation.
+	if(m_Phase != 0)
+	{
+		m_ActiveEvent = EXTRACT_EVT_NONE;
+		return;
+	}
+	switch(m_ActiveEvent)
+	{
+		case EXTRACT_EVT_REINFORCEMENTS:
+		{
+			const int Count = 3 + rand() % 4;
+			for(int i = 0; i < Count; i++)
+				GameServer()->AddBot();
+			GameServer()->SendBroadcast("Event: Reinforcements inbound!", -1);
+			break;
+		}
+		case EXTRACT_EVT_ELITE_AMBUSH:
+		{
+			vec2 p;
+			if(GetBossSpawnPos(&p))
+				SpawnBoss(&GameServer()->m_World, p, EnemyLevel());
+			GameServer()->SendBroadcast("Event: Elite ambush!", -1);
+			break;
+		}
+		case EXTRACT_EVT_SUPPLY_DROP:
+		{
+			for(int i = 0; i < MAX_CLIENTS; i++)
+			{
+				CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+				if(!pPlayer || pPlayer->m_IsBot || pPlayer->GetTeam() == TEAM_SPECTATORS)
+					continue;
+				CCharacter *pChar = pPlayer->GetCharacter();
+				if(pChar)
+				{
+					pChar->IncreaseHealth(15);
+					pChar->IncreaseArmor(10);
+				}
+			}
+			GameServer()->SendBroadcast("Event: Supply drop!", -1);
+			break;
+		}
+		case EXTRACT_EVT_TRAP_ZONE:
+		{
+			// Traps are baked into the generated maze; pressure rises instead.
+			const int Count = 4 + rand() % 3;
+			for(int i = 0; i < Count; i++)
+				GameServer()->AddBot();
+			GameServer()->SendBroadcast("Event: Trap zone ahead!", -1);
+			break;
+		}
+		case EXTRACT_EVT_BOSS_RUSH:
+		{
+			vec2 p;
+			if(GetBossSpawnPos(&p))
+				SpawnBoss(&GameServer()->m_World, p, max(3, EnemyLevel() - 1));
+			GameServer()->SendBroadcast("Event: Boss rush!", -1);
+			break;
+		}
+		default:
+			break;
+	}
+	m_ActiveEvent = EXTRACT_EVT_NONE;
+}
+
 void CGameControllerExtract::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 {
 	IGameController::OnCharacterSpawn(pChr);
@@ -290,10 +688,23 @@ int CGameControllerExtract::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKill
 	{
 		if(pKiller && !pKiller->m_IsBot && GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->OnEnemyKilled(Source, pVictim->m_Pos, pVictim);
+		// Kill-type tasks (eliminate elites / timed clear) advance on any
+		// AI enemy death during phase 0.
+		if(m_Phase == 0 && m_ActiveTask >= 0 && m_ActiveTask < m_TaskCount &&
+		   (m_aTaskType[m_ActiveTask] == EXTRACT_TASK_ELIMINATE ||
+			m_aTaskType[m_ActiveTask] == EXTRACT_TASK_TIMED_CLEAR))
+		{
+			m_aTaskProgress[m_ActiveTask]++;
+			if(m_aTaskProgress[m_ActiveTask] >= m_aTaskTarget[m_ActiveTask])
+				CompleteTask(m_ActiveTask);
+		}
 		pVictim->GetPlayer()->m_ToBeKicked = true;
 	}
 	else if(!pVictim->m_IsBot)
+	{
+		m_HumanDeaths++;
 		pVictim->GetPlayer()->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
+	}
 
 	return 0;
 }
@@ -310,18 +721,12 @@ void CGameControllerExtract::OnSwitchTriggered()
 	m_TriggerLevel = max(m_TriggerLevel, 6 + m_SwitchesActivated * 2);
 	TriggerAllBotAI(GameServer(), m_TriggerLevel);
 
-	// First switch already brings mid-boss pressure
-	if(!m_MidBossSpawned && m_SwitchesActivated >= 1)
-		SpawnMidBoss();
-
-	if(m_SwitchesActivated >= m_SwitchesRequired)
+	// Mid boss and door opening are driven by the task pool (CompleteTask).
+	if(m_ActiveTask >= 0 && m_ActiveTask < m_TaskCount && m_aTaskType[m_ActiveTask] == EXTRACT_TASK_SWITCHES)
 	{
-		if(GameServer()->m_pPveDirector)
-			GameServer()->m_pPveDirector->OnObjectiveComplete();
-		if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->Enabled())
-			m_DoorChoicePending = true;
-		else
-			BeginEvacuation();
+		m_aTaskProgress[m_ActiveTask]++;
+		if(m_aTaskProgress[m_ActiveTask] >= m_aTaskTarget[m_ActiveTask])
+			CompleteTask(m_ActiveTask);
 	}
 }
 
@@ -354,6 +759,11 @@ void CGameControllerExtract::BeginEvacuation()
 		GameServer()->m_pPveDirector->OnEvacuationStarted();
 	}
 	SpawnEscapePressure();
+	// Evacuation pressure escalates: reinforcement waves every 20 s and
+	// route blockades at 30-45 s intervals (docs §6.1/§6.2).
+	m_EscapeWave = 0;
+	m_EscapeWaveTick = Server()->Tick() + Server()->TickSpeed() * 30;
+	m_ReinforceTick = Server()->Tick() + Server()->TickSpeed() * 20;
 	GameServer()->SendBroadcast("Door open — evacuate!", -1);
 }
 
@@ -377,18 +787,24 @@ void CGameControllerExtract::NextLevel(int CID)
 
 	pPlayer->GetCharacter()->Warp();
 	m_Evacuated++;
+	// Each evacuee tightens the pressure on those still running.
+	m_ReinforceTick = min(m_ReinforceTick, Server()->Tick() + Server()->TickSpeed() * 8);
 	GameServer()->SendBroadcastFormat(-1, false, "Evacuated %d/%d", m_Evacuated, m_EvacNeeded);
 
 	if(m_Evacuated >= m_EvacNeeded)
 	{
 		m_Win = true;
 		m_RoundOverTick = Server()->Tick();
+		const int Rating = ComputeRating();
 		if(GameServer()->m_pPveDirector)
 		{
 			GameServer()->m_pPveDirector->OnStageComplete(true);
-			GameServer()->m_pPveDirector->RewardResearch(2, PVE_REWARD_EXTRACTION);
+			// Research points scale with the exit rating (S=3, A=2, B/C=1).
+			GameServer()->m_pPveDirector->RewardResearch(Rating >= 2 ? Rating : 1, PVE_REWARD_EXTRACTION);
 		}
-		GameServer()->SendBroadcast("Extraction complete!", -1);
+		static const char *s_apRatingNames[4] = {"C", "B", "A", "S"};
+		GameServer()->SendBroadcastFormat(
+			-1, false, "Extraction complete — rating %s", s_apRatingNames[clamp(Rating, 0, 3)]);
 		for(int i = 0; i < MAX_CLIENTS; i++)
 			if(GameServer()->m_apPlayers[i] && !GameServer()->m_apPlayers[i]->m_IsBot)
 			{
@@ -417,6 +833,30 @@ void CGameControllerExtract::Tick()
 	}
 	if(m_DoorChoiceStarted)
 		BeginEvacuation();
+	UpdateTask();
+	if(m_ActiveEvent != EXTRACT_EVT_NONE && m_EventActionTick && Server()->Tick() >= m_EventActionTick)
+		RunEvent();
+	if(m_Phase == 1 && !m_RoundOverTick && m_DoorOpen)
+	{
+		// Regular reinforcement pressure while evacuating.
+		if(m_ReinforceTick && Server()->Tick() >= m_ReinforceTick)
+		{
+			const int Count = 2 + rand() % 3;
+			for(int i = 0; i < Count; i++)
+				GameServer()->AddBot();
+			m_ReinforceTick = Server()->Tick() + Server()->TickSpeed() * 20;
+		}
+		// Route blockade waves (up to three) at tightening intervals.
+		if(m_EscapeWaveTick && m_EscapeWave < 3 && Server()->Tick() >= m_EscapeWaveTick)
+		{
+			m_EscapeWave++;
+			GameServer()->SendBroadcastFormat(-1, false, "Evacuation route blocked — sector %d", m_EscapeWave);
+			const int Count = 4 + m_EscapeWave * 2;
+			for(int i = 0; i < Count; i++)
+				GameServer()->AddBot();
+			m_EscapeWaveTick = Server()->Tick() + Server()->TickSpeed() * (45 - m_EscapeWave * 5);
+		}
+	}
 	if(m_EliteContractSpawned && GameServer()->m_pPveDirector && CountAliveBosses(&GameServer()->m_World) <= 0)
 	{
 		m_EliteContractSpawned = false;
@@ -471,6 +911,9 @@ void CGameControllerExtract::Tick()
 			// Requiring an artificial minimum of two softlocked rare layouts where
 			// map generation could only place one; zero keeps the timed boss fallback.
 			m_SwitchesRequired = m_AvailableSwitches;
+			// Tasks need the authoritative switch count (incl. LOCKED_ROUTE
+			// extras) so a SWITCHES target matches the placed map.
+			PickTasks();
 			SpawnInitialEnemies();
 			if(GameServer()->m_pPveDirector &&
 			   GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_HEAVY_CARGO)
@@ -598,7 +1041,11 @@ void CGameControllerExtract::Snap(int SnappingClient)
 	if(m_Phase == 0)
 	{
 		pGameDataObj->m_TeamscoreRed = QUEST_EXTRACT;
-		pGameDataObj->m_TeamscoreBlue = max(0, m_SwitchesRequired - m_SwitchesActivated);
+		if(m_ActiveTask >= 0 && m_ActiveTask < m_TaskCount)
+			pGameDataObj->m_TeamscoreBlue =
+				max(0, m_aTaskTarget[m_ActiveTask] - m_aTaskProgress[m_ActiveTask]);
+		else
+			pGameDataObj->m_TeamscoreBlue = max(0, m_SwitchesRequired - m_SwitchesActivated);
 	}
 	else
 	{
@@ -610,5 +1057,11 @@ void CGameControllerExtract::Snap(int SnappingClient)
 	if(m_DeadlineTick > Server()->Tick())
 		SecLeft = (m_DeadlineTick - Server()->Tick()) / Server()->TickSpeed();
 	pGameDataObj->m_FlagCarrierRed = SecLeft;
-	pGameDataObj->m_FlagCarrierBlue = (m_Phase << 8) | (m_Win ? 1 : 0);
+	// WaveType bits carry the active task type during phase 0 so the client HUD
+	// can label the remaining counter (switches / enemies / seconds / supplies).
+	pGameDataObj->m_FlagCarrierBlue =
+		(m_Phase << 8) | (m_Win ? 1 : 0) |
+		((m_Phase == 0 && m_ActiveTask >= 0 && m_ActiveTask < m_TaskCount)
+				? (m_aTaskType[m_ActiveTask] << 4)
+				: 0);
 }

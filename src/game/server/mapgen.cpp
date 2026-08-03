@@ -854,6 +854,23 @@ void CMapGen::GenerateEnemySpawn(CGenLayer *pTiles)
 	pTiles->Use(p.x, p.y);
 }
 
+void CMapGen::GenerateExtractZone(CGenLayer *pTiles)
+{
+	// Task anchor for Extraction objectives (elite spawn / defend zone /
+	// supply point / timed-clear point). Open areas are preferred so runtime
+	// effects have room; Get* consume used points, which provides spacing.
+	ivec2 p = pTiles->GetOpenArea();
+	if(p.x == 0)
+		p = pTiles->GetPlatform();
+	if(p.x == 0)
+		p = pTiles->GetMedPlatform();
+	if(p.x == 0)
+		return;
+
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_EXTRACT_ZONE);
+	pTiles->Use(p.x, p.y);
+}
+
 void CMapGen::GenerateBossEnemySpawn(CGenLayer *pTiles)
 {
 	// Reserve one generic enemy marker in a genuinely open 7x7-tile area.
@@ -1584,6 +1601,16 @@ void CMapGen::GenerateLevel()
 			GenerateMine(pTiles);
 	}
 
+	// Extraction mazes get a light trap layer for the dynamic event pool
+	// (EVT_TRAP_ZONE picks among these).
+	if(ExtractMode)
+	{
+		for(int i = 0; i < 3; i++)
+			GenerateMine(pTiles);
+		for(int i = 0; i < 2; i++)
+			GenerateFiretrap(pTiles);
+	}
+
 	// lightning walls
 	if(Level > 1)
 	{
@@ -1722,6 +1749,12 @@ void CMapGen::GenerateLevel()
 	// more enemy spawn positions
 	for(int i = 0; i < min(Level, 10); i++)
 		GenerateEnemySpawn(pTiles);
+
+	// Extraction task anchors (zone markers). Fixed count of 3; unused zones
+	// stay idle when the runtime task pool picks fewer tasks.
+	if(str_comp(g_Config.m_SvGametype, "extract") == 0)
+		for(int i = 0; i < 3; i++)
+			GenerateExtractZone(pTiles);
 
 	if(pRoom)
 		delete pRoom;

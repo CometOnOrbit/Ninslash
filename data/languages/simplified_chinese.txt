@@ -2257,6 +2257,9 @@ bosses remaining
 enemies remaining
 == 剩余敌人
 
+supplies remaining
+== 剩余补给
+
 friends
 == 位好友
 

@@ -301,6 +301,10 @@
             "value": "Extraction complete!"
         },
         {
+            "key": "Extraction complete — rating %s",
+            "value": "Extraction complete — rating %s"
+        },
+        {
             "key": "Extraction failed — team wiped",
             "value": "Extraction failed — team wiped"
         },
@@ -899,6 +903,50 @@
         {
             "key": "Race through a generated modular course",
             "value": "Race through a generated modular course"
+        },
+        {
+            "key": "Task %d/%d: activate %d switches",
+            "value": "Task %d/%d: activate %d switches"
+        },
+        {
+            "key": "Task %d/%d: clear %d enemies in time",
+            "value": "Task %d/%d: clear %d enemies in time"
+        },
+        {
+            "key": "Task %d/%d: out of time, clear %d enemies",
+            "value": "Task %d/%d: out of time, clear %d enemies"
+        },
+        {
+            "key": "Task %d/%d complete",
+            "value": "Task %d/%d complete"
+        },
+        {
+            "key": "Event: Elite ambush!",
+            "value": "Event: Elite ambush!"
+        },
+        {
+            "key": "Event: Trap zone ahead!",
+            "value": "Event: Trap zone ahead!"
+        },
+        {
+            "key": "Event: Boss rush!",
+            "value": "Event: Boss rush!"
+        },
+        {
+            "key": "Evacuation route blocked — sector %d",
+            "value": "Evacuation route blocked — sector %d"
+        },
+        {
+            "key": "Task %d/%d: eliminate %d enemies",
+            "value": "Task %d/%d: eliminate %d enemies"
+        },
+        {
+            "key": "Task %d/%d: defend the marked zone for %d seconds",
+            "value": "Task %d/%d: defend the marked zone for %d seconds"
+        },
+        {
+            "key": "Task %d/%d: reach the marked supply point",
+            "value": "Task %d/%d: reach the marked supply point"
         }
     ]
 }
