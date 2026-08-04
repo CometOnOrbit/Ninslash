@@ -675,6 +675,13 @@ void CWeapon::Move()
 		GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, vec2(18.0f, 18.0f), 0.5f);
 	const bool Collided = ((OldVel.x < 0 && m_Vel.x >= 0) || (OldVel.x > 0 && m_Vel.x <= 0) ||
 						   (OldVel.y < 0 && m_Vel.y >= 0) || (OldVel.y > 0 && m_Vel.y <= 0));
+	if(Collided && WeaponHasBehavior(m_WeaponProfile.m_Definition, WEAPON_BEHAVIOR_VISION_GRENADE))
+	{
+		// Let Tick() route the detonation through SelfDestruct so the same path
+		// is used for wall impact and fuse expiry and the event is emitted once.
+		m_DestructionTick = Server()->Tick();
+		return;
+	}
 	const char *pStableId = CWeaponCatalog::StableId(m_WeaponSpec);
 	if(Collided && pStableId && CWeaponScriptRuntime::HasHandler(pStableId, EWeaponScriptEvent::Collision))
 	{

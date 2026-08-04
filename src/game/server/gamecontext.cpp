@@ -393,6 +393,68 @@ void CGameContext::CreateHitConfirm(vec2 Pos, const CAttackSource &Source, int D
 	pEvent->m_WeaponLevel = Source.m_Weapon.m_Level;
 }
 
+void CGameContext::CreateVisionBurst(vec2 Pos, int Kind, float Radius)
+{
+	const int EventKind = clamp(Kind, 0, 1);
+	const int EventRadius = clamp((int)Radius, 1, 2048);
+	CNetEvent_VisionBurst *pEvent =
+		(CNetEvent_VisionBurst *)m_Events.Create(NETEVENTTYPE_VISIONBURST, sizeof(CNetEvent_VisionBurst));
+	if(pEvent)
+	{
+		pEvent->m_X = (int)Pos.x;
+		pEvent->m_Y = (int)Pos.y;
+		pEvent->m_Kind = EventKind;
+		pEvent->m_Radius = EventRadius;
+	}
+
+	// The source itself is intentionally not filtered from this pass. A flash
+	// is a global light pulse, and the client-side cl_lighting preference must
+	// not be able to hide a server-authored gameplay effect.
+	const float EffectRadius = clamp(Radius, 1.0f, 2048.0f);
+	const int DurationTicks = EventKind == 0 ? (int)(3.0f * Server()->TickSpeed()) :
+		(int)(5.0f * Server()->TickSpeed());
+
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ++ClientID)
+	{
+		CPlayer *pPlayer = m_apPlayers[ClientID];
+		CCharacter *pCharacter = pPlayer ? pPlayer->GetCharacter() : 0;
+		if(!pPlayer || !pCharacter || !pCharacter->IsAlive())
+			continue;
+
+		const float Distance = distance(Pos, pCharacter->m_Pos);
+		if(Distance > EffectRadius)
+			continue;
+
+		// Platforms are deliberately transparent to vision effects. Solid walls,
+		// ramps and dynamic blocks still stop the ray, matching gameplay lighting.
+		if(Collision()->IntersectLine(Pos,
+			pCharacter->m_Pos,
+			0,
+			0,
+			false,
+			false,
+			true) != 0)
+			continue;
+
+		const float Falloff = clamp(1.0f - Distance / EffectRadius, 0.0f, 1.0f);
+		if(EventKind == 0)
+		{
+			// Keep the pulse strongest at the epicentre and shorten it at the edge;
+			// the maximum duration is exactly three seconds.
+			const int FlashTicks = max(1, (int)(DurationTicks * Falloff));
+			const int Alpha = clamp((int)(255.0f * Falloff), 24, 255);
+			pPlayer->ApplyFlashEffect(FlashTicks, Alpha);
+		}
+		else
+		{
+			pPlayer->ApplyBlindEffect(DurationTicks);
+		}
+
+		if(pPlayer->m_pAI)
+			pPlayer->m_pAI->SetVisionSuppressed(true);
+	}
+}
+
 void CGameContext::CreateRepairInd(vec2 Pos)
 {
 	CNetEvent_Repair *pEvent = (CNetEvent_Repair *)m_Events.Create(NETEVENTTYPE_REPAIR, sizeof(CNetEvent_Repair));

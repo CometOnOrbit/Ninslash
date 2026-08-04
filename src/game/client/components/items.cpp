@@ -36,6 +36,7 @@ struct CRenderProjectile : public CNetObj_Projectile
 	CWeaponCombatProfile m_Combat;
 	CWeaponVisualProfile m_Visual;
 	uint32_t m_BehaviorFlags;
+	EWeaponVisionKind m_VisionKind;
 	int m_Level;
 	int m_MaxLevel;
 };
@@ -51,6 +52,7 @@ bool DecodeProjectile(const CNetObj_Projectile &Net, CRenderProjectile *pRender)
 	if(!CWeaponCatalog::TryResolveAttack(Source, &pRender->m_Combat, &pRender->m_Visual))
 		return false;
 	pRender->m_BehaviorFlags = 0;
+	pRender->m_VisionKind = WEAPON_VISION_NONE;
 	pRender->m_Level = 0;
 	pRender->m_MaxLevel = 0;
 	if(Source.m_Kind == EAttackSourceKind::PlayerWeapon)
@@ -59,6 +61,7 @@ bool DecodeProjectile(const CNetObj_Projectile &Net, CRenderProjectile *pRender)
 		if(CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition))
 		{
 			pRender->m_BehaviorFlags = Definition.m_BehaviorFlags;
+			pRender->m_VisionKind = Definition.m_VisionKind;
 			pRender->m_Level = Source.m_Weapon.m_Level;
 			pRender->m_MaxLevel = Definition.m_MaxLevel;
 		}
@@ -176,6 +179,8 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pNet, int ItemID)
 	}
 
 	const int CustomProjectileTexture = g_WeaponResources.ProjectileTexture(pCurrent->m_Source.m_Weapon);
+	if(pCurrent->m_VisionKind != WEAPON_VISION_NONE)
+		RenderTools()->SetShadersForWeapon(pCurrent->m_Source.m_Weapon);
 	Graphics()->TextureSet(CustomProjectileTexture >= 0 ? CustomProjectileTexture
 														: g_pData->m_aImages[IMAGE_PROJECTILES].m_Id);
 	Graphics()->QuadsBegin();
@@ -194,7 +199,17 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pNet, int ItemID)
 	// contribution should not consume one of the expensive shadow passes.
 	vec4 ProjectileLightColor(0.95f, 0.9f, 0.65f, 0.32f);
 	float ProjectileLightWidth = 78.0f;
-	if(pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_FLAMER)
+	if(pCurrent->m_VisionKind == WEAPON_VISION_FLASH)
+	{
+		ProjectileLightColor = vec4(1.0f, 1.0f, 1.0f, 0.9f);
+		ProjectileLightWidth = 160.0f;
+	}
+	else if(pCurrent->m_VisionKind == WEAPON_VISION_BLIND)
+	{
+		ProjectileLightColor = vec4(0.16f, 0.16f, 0.18f, 0.35f);
+		ProjectileLightWidth = 110.0f;
+	}
+	else if(pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_FLAMER)
 	{
 		ProjectileLightColor = vec4(1.0f, 0.45f, 0.12f, 0.5f);
 		ProjectileLightWidth = 156.0f;

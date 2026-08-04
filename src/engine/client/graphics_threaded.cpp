@@ -486,7 +486,14 @@ void CGraphics_Threaded::BallShaderBegin(float Speed, float Speed2)
 }
 
 void CGraphics_Threaded::PlayerShaderBegin(
-	float colorG, float colorB, float Charge, float Visibility, float Electro, float Damage, float Deathray)
+	float colorG,
+	float colorB,
+	float Charge,
+	float Visibility,
+	float Electro,
+	float Damage,
+	float Deathray,
+	float WeaponTint)
 {
 	CCommandBuffer::SCommand_ShaderBegin Cmd;
 	Cmd.m_Shader = SHADER_PLAYER;
@@ -497,6 +504,7 @@ void CGraphics_Threaded::PlayerShaderBegin(
 	Cmd.m_Damage = Damage;
 	Cmd.m_Deathray = Deathray;
 	Cmd.m_WeaponCharge = Charge;
+	Cmd.m_WeaponTint = WeaponTint;
 	m_pCommandBuffer->AddCommand(Cmd);
 }
 
@@ -822,10 +830,10 @@ void CGraphics_Threaded::Clear(float r, float g, float b)
 	m_pCommandBuffer->AddCommand(Cmd);
 }
 
-void CGraphics_Threaded::ClearBufferTexture(bool DarkVision)
+void CGraphics_Threaded::ClearBufferTexture(float LightingBrightness)
 {
 	CCommandBuffer::SCommand_ClearBufferTexture Cmd;
-	Cmd.m_DarkVision = DarkVision ? 1 : 0;
+	Cmd.m_LightingBrightness = clamp(LightingBrightness, 0.0f, 1.0f);
 	m_pCommandBuffer->AddCommand(Cmd);
 }
 

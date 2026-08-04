@@ -191,8 +191,8 @@ class CCommandBuffer
 
 	struct SCommand_ClearBufferTexture : public SCommand
 	{
-		SCommand_ClearBufferTexture() : SCommand(CMD_CLEARBUFFERTEXTURE), m_DarkVision(0) {}
-		int m_DarkVision;
+		SCommand_ClearBufferTexture() : SCommand(CMD_CLEARBUFFERTEXTURE), m_LightingBrightness(1.0f) {}
+		float m_LightingBrightness;
 	};
 
 	struct SCommand_Signal : public SCommand
@@ -255,13 +255,17 @@ class CCommandBuffer
 
 	struct SCommand_ShaderBegin : public SCommand
 	{
-		SCommand_ShaderBegin() : SCommand(CMD_SHADERBEGIN), m_ExtraTexture(-1), m_LightCenterX(0.0f), m_LightCenterY(0.0f), m_LightRadius(0.0f), m_CollisionWidth(0.0f), m_CollisionHeight(0.0f), m_ViewTLX(0.0f), m_ViewTLY(0.0f), m_ViewBRX(0.0f), m_ViewBRY(0.0f), m_TargetWidth(0.0f), m_TargetHeight(0.0f) {}
+		SCommand_ShaderBegin() : SCommand(CMD_SHADERBEGIN), m_WeaponTint(0.0f), m_ExtraTexture(-1), m_LightCenterX(0.0f), m_LightCenterY(0.0f), m_LightRadius(0.0f), m_CollisionWidth(0.0f), m_CollisionHeight(0.0f), m_ViewTLX(0.0f), m_ViewTLY(0.0f), m_ViewBRX(0.0f), m_ViewBRY(0.0f), m_TargetWidth(0.0f), m_TargetHeight(0.0f) {}
 
 		int m_Shader;
 		float m_Intensity;
 		float m_ColorSwap;
 		float m_Damage;
 		float m_WeaponCharge;
+		// Player shader tint mode: 0 preserves the authored texture, 1 is a
+		// textured white tint, and 2 is a textured dark-gray tint. Other shaders
+		// ignore this field.
+		float m_WeaponTint;
 		float m_Visibility;
 		float m_Electro;
 		float m_Deathray;
@@ -529,7 +533,8 @@ class CGraphics_Threaded : public IEngineGraphics
 								   float Visibility = 1.0f,
 								   float Electro = 0.0f,
 								   float Damage = 0.0f,
-								   float Deathray = 0.0f);
+								   float Deathray = 0.0f,
+								   float WeaponTint = 0.0f);
 	virtual void BallShaderBegin(float Speed, float Speed2);
 	virtual void ShaderEnd();
 
@@ -553,7 +558,7 @@ class CGraphics_Threaded : public IEngineGraphics
 	virtual void RenderToTexture(int RenderBuffer);
 
 	virtual void Clear(float r, float g, float b);
-	virtual void ClearBufferTexture(bool DarkVision);
+	virtual void ClearBufferTexture(float LightingBrightness);
 
 	virtual void QuadsBegin();
 	virtual void QuadsEnd();

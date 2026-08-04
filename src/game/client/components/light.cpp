@@ -72,18 +72,21 @@ void CLight::OnReset()
 	*/
 
 	m_LightCount = 0;
+	m_ForceLights = false;
 }
 
-void CLight::AddSimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow)
+void CLight::AddSimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow, bool Force)
 {
 	// cl_lighting only controls optional local light sources. DarkVision is a
 	// server-authoritative render rule and must keep its camera/light pool even
 	// when a player disables ordinary dynamic lighting.
-	if(!g_Config.m_ClLighting && !m_pClient->DarkVisionEnabled())
+	if(!Force && !g_Config.m_ClLighting && !m_pClient->DarkVisionEnabled())
 		return;
 
 	if(m_LightCount >= MAX_LIGHTSOURCES)
 		return;
+	if(Force)
+		m_ForceLights = true;
 
 	CastShadow = CastShadow && (Size.x > 32.0f || Size.y > 32.0f);
 	const int Image = (Size.x <= 32.0f && Size.y <= 32.0f) ? IMAGE_SMALLLIGHT : IMAGE_LIGHTS;
@@ -268,12 +271,13 @@ void CLight::RenderCpuVisibility(const SLightSource &Source, float Radius)
 void CLight::RenderGroupRefactored(int Group)
 {
 	const bool DarkVision = m_pClient->DarkVisionEnabled();
-	if(!g_Config.m_ClLighting && !DarkVision)
+	if(!g_Config.m_ClLighting && !DarkVision && !m_ForceLights)
 		return;
 
 	if(!Client()->IsGameWorldActive() || !g_Config.m_GfxMultiBuffering)
 	{
 		m_LightCount = 0;
+		m_ForceLights = false;
 		return;
 	}
 
@@ -281,15 +285,18 @@ void CLight::RenderGroupRefactored(int Group)
 	Graphics()->GetScreen(&Screen.x, &Screen.y, &Screen.w, &Screen.h);
 	const bool UseShaderLight = g_Config.m_GfxShaders && g_Config.m_GfxMultiBuffering &&
 		Graphics()->IsShaderAvailable(SHADER_LIGHT) && m_CollisionTexture >= 0;
+	const float LightingBrightness = clamp(m_pClient->LightingBrightness(), 0.0f, 1.0f);
+	const float DarkFactor = 1.0f - LightingBrightness;
 	// Dark vision keeps the world outside the player's immediate pool black,
 	// but the smaller pool made shader mode illuminate little more than the
 	// player's own body. Keep a 4:3 pool large enough for nearby movement and
 	// aiming while retaining a clearly bounded dark-vision area.
-const vec2 CameraLightSize = DarkVision ? vec2(720.0f, 540.0f) : vec2(1100.0f, 850.0f);
+	const vec2 CameraLightSize = vec2(1100.0f, 850.0f) * (1.0f - DarkFactor) +
+		vec2(720.0f, 540.0f) * DarkFactor;
 	// The shadow radius must cover the complete light quad. Keeping this
 	// relationship explicit prevents bright rectangular corners if the camera
 	// light size is tuned later.
-const float CameraRadius = max(DarkVision ? 560.0f : 700.0f,
+	const float CameraRadius = max(700.0f * (1.0f - DarkFactor) + 560.0f * DarkFactor,
 		length(CameraLightSize * 0.5f) + 8.0f);
 	const int TargetWidth = Graphics()->ScreenWidth();
 	const int TargetHeight = Graphics()->ScreenHeight();
@@ -365,7 +372,7 @@ const float CameraRadius = max(DarkVision ? 560.0f : 700.0f,
 
 	SLightSource CameraLight;
 	CameraLight.Set(m_pClient->m_pCamera->m_TargetCenter,
-		vec4(1.0f, 1.0f, 1.0f, DarkVision ? 0.78f : 0.55f),
+		vec4(1.0f, 1.0f, 1.0f, 0.55f + 0.23f * DarkFactor),
 		CameraLightSize,
 		0.0f,
 		IMAGE_LIGHTS,
@@ -417,6 +424,7 @@ const float CameraRadius = max(DarkVision ? 560.0f : 700.0f,
 	Graphics()->QuadsEnd();
 
 	m_LightCount = 0;
+	m_ForceLights = false;
 
 	Graphics()->RenderToScreen();
 	Graphics()->BlendLight();

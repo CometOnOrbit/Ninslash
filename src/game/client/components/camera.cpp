@@ -26,7 +26,12 @@ CCamera::CCamera()
 
 void CCamera::OnRender()
 {
-	m_TargetZoom = g_Config.m_ClZoom / 10.0f;
+	// Gameplay zoom is server-authoritative. Only a server-granted spectator
+	// may use the local preference; all other clients follow the snapshotted
+	// value so a player cannot change their view independently.
+	const float ZoomValue = m_pClient->LocalZoomAllowed() ?
+		(float)g_Config.m_ClZoom : (float)m_pClient->ServerZoom();
+	m_TargetZoom = ZoomValue / 10.0f;
 	if(m_TargetZoom < 0.1f)
 		m_TargetZoom = 0.1f;
 

@@ -139,6 +139,52 @@ weapon.override_visuals("official:static:grenade3", {
   screenshake_amount = 0,
 })
 
+weapon.override_visuals("official:static:flash_grenade", {
+  visual_size = {2, 3},
+  visual_size2 = {0, 0},
+  render_offset = {4, 0},
+  muzzle_offset = {0, 0},
+  projectile_offset = {0, 0},
+  hand_offset = {-26, 8},
+  color_swap = {0, 0},
+  render_type = 3,
+  render_recoil = 0,
+  projectile_size = 2.5,
+  projectile_sprite = 0,
+  projectile_trace_type = 4,
+  trace_threshold = 0,
+  explosion_sprite = 0,
+  explosion_sound = 0,
+  fire_sound = -1,
+  fire_sound2 = -1,
+  muzzle_type = 0,
+  muzzle_amount = 10,
+  screenshake_amount = 0,
+})
+
+weapon.override_visuals("official:static:blind_grenade", {
+  visual_size = {2, 3},
+  visual_size2 = {0, 0},
+  render_offset = {4, 0},
+  muzzle_offset = {0, 0},
+  projectile_offset = {0, 0},
+  hand_offset = {-26, 8},
+  color_swap = {0, 0},
+  render_type = 3,
+  render_recoil = 0,
+  projectile_size = 2.5,
+  projectile_sprite = 0,
+  projectile_trace_type = 5,
+  trace_threshold = 0,
+  explosion_sprite = 0,
+  explosion_sound = 0,
+  fire_sound = -1,
+  fire_sound2 = -1,
+  muzzle_type = 0,
+  muzzle_amount = 10,
+  screenshake_amount = 0,
+})
+
 weapon.override_visuals("official:static:bazooka", {
   visual_size = {6, 3},
   visual_size2 = {0, 0},

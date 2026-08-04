@@ -267,6 +267,13 @@ int main()
 		   ImpactProfile.m_Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_ELECTRIC);
 	assert(CWeaponCatalog::TryResolve(CWeaponCatalog::Modular(PART1_BASE6, PART2_BARREL1), &ImpactProfile) &&
 		   ImpactProfile.m_Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_NONE);
+	CResolvedWeaponProfile FlashGrenade, BlindGrenade;
+	assert(CWeaponCatalog::TryResolve(CWeaponCatalog::Static(SW_FLASH_GRENADE), &FlashGrenade) &&
+		   FlashGrenade.m_Definition.m_VisionKind == WEAPON_VISION_FLASH &&
+		   FlashGrenade.m_Visual.m_StaticSprite == 3);
+	assert(CWeaponCatalog::TryResolve(CWeaponCatalog::Static(SW_BLIND_GRENADE), &BlindGrenade) &&
+		   BlindGrenade.m_Definition.m_VisionKind == WEAPON_VISION_BLIND &&
+		   BlindGrenade.m_Visual.m_StaticSprite == 3);
 	CWeaponVisualProfile AttackVisual;
 	assert(CWeaponCatalog::TryResolveAttack(CAttackSource::Droid(-1, DROIDTYPE_WALKER), 0, &AttackVisual) &&
 		   AttackVisual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_ELECTRIC);
@@ -289,12 +296,12 @@ int main()
 	ValidateLegacyRangedMechanics();
 	const uint64_t CombatDigest = OfficialCombatDigest();
 	const uint64_t VisualDigest = OfficialVisualDigest();
-	if(CombatDigest != 0xfa806e27e32f243bULL)
+	if(CombatDigest != 0x2f6cfef427476e33ULL)
 		fprintf(stderr, "official combat digest: 0x%016llx\n", (unsigned long long)CombatDigest);
-	assert(CombatDigest == 0xfa806e27e32f243bULL);
-	if(VisualDigest != 0x693f729a52451906ULL)
+	assert(CombatDigest == 0x2f6cfef427476e33ULL);
+	if(VisualDigest != 0x754f9622f831a49aULL)
 		fprintf(stderr, "official visual digest: 0x%016llx\n", (unsigned long long)VisualDigest);
-	assert(VisualDigest == 0x693f729a52451906ULL);
+	assert(VisualDigest == 0x754f9622f831a49aULL);
 	CResolvedWeaponProfile HeavyStandard, HeavyScatter, HeavyLong, HeavyAutomatic, HeavyCharge;
 	assert(CWeaponCatalog::TryResolve(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL1), &HeavyStandard));
 	assert(CWeaponCatalog::TryResolve(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL2), &HeavyScatter));

@@ -42,7 +42,8 @@ MECHANIC_FIELDS = (
 	"projectile_pos_type", "laser_range", "laser_charge", "projectile_bounces",
 )
 STATIC_IDS = (
-	"tool", "gun1", "gun2", "grenade1", "grenade2", "grenade3", "bazooka", "bouncer",
+	"tool", "gun1", "gun2", "grenade1", "grenade2", "grenade3", "flash_grenade", "blind_grenade",
+	"bazooka", "bouncer",
 	"chainsaw", "flamer", "upgrade", "shield", "respawner", "mask1", "mask2", "mask3",
 	"mask4", "mask5", "invis", "electrowall", "areashield", "syringe", "cluster",
 	"shuriken", "claw", "bomb", "ball",
@@ -138,7 +139,7 @@ def baseline_player_profiles(root):
 		values = [float(value.strip()) for value in match.group(1).split(",")]
 		if len(values) == len(VISUAL_FIELDS):
 			rows.append(values)
-	if len(rows) != 81 * 16:
+	if len(rows) != len(STATIC_IDS + MODULAR_IDS) * 16:
 		raise ValueError("invalid checked-in player visual baseline")
 	ids = [*(f"official:static:{name}" for name in STATIC_IDS), *(f"official:modular:{name}" for name in MODULAR_IDS)]
 	return [

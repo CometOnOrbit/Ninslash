@@ -468,6 +468,12 @@ Objects = [
 		NetIntRange("m_KillStreak", 0, 65535),
 		NetIntRange("m_BestKillStreak", 0, 65535),
 		NetIntRange("m_Gold", 0, 999),
+
+		# Server-authoritative camera zoom. Clients may only use their local
+		# preference when the server explicitly grants that permission (normally
+		# while spectating).
+		NetIntRange("m_Zoom", 1, 30),
+		NetIntRange("m_ZoomAllowed", 0, 1),
 	]),
 
 	NetObject("ClientInfo", [
@@ -638,6 +644,27 @@ Objects = [
 		NetIntAny("m_PlayerState2"), NetIntAny("m_PlayerState3"),
 		NetIntAny("m_Checksum"),
 		NetIntRange("m_Owner", -1, 'MAX_CLIENTS-1'),
+	]),
+
+	# Server-authoritative per-player vision effects and lighting target. The
+	# object is emitted for every active player so transitions back to normal
+	# brightness are also delivered reliably.
+	NetObject("VisionStatus", [
+		NetTick("m_FlashStartTick"),
+		NetTick("m_FlashEndTick"),
+		NetTick("m_BlindEndTick"),
+		NetIntRange("m_FlashAlpha", 0, 255),
+		NetIntRange("m_Owner", 0, 'MAX_CLIENTS-1'),
+		# 255 is normal lighting; lower values are authoritative DarkVision
+		# brightness targets and are interpolated by the client.
+		NetIntRange("m_LightingBrightness", 0, 255),
+	]),
+
+	# Appended visual event for flash/blind grenade detonation. It is broadcast
+	# to all clients; only affected players receive the per-player status above.
+	NetEvent("VisionBurst:Common", [
+		NetIntRange("m_Kind", 0, 1),
+		NetIntRange("m_Radius", 1, 2048),
 	]),
 ]
 

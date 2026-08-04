@@ -62,6 +62,7 @@ class CAI
 	CPlayer *Player() const { return m_pPlayer; }
 
 	class CPlayer *m_pTargetPlayer;
+	bool m_VisionSuppressed;
 
 	int m_MoveReactTime;
 
@@ -241,6 +242,9 @@ class CAI
 	void Reset();
 	void Tick();
 	void UpdateInput(int *Data); // MAX_INPUT_SIZE
+	// Vision grenades are server-authoritative. While suppressed, the AI must
+	// not reacquire a target or send an attack input every reaction tick.
+	void SetVisionSuppressed(bool Suppressed);
 
 	bool SeekBombArea();
 

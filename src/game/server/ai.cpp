@@ -36,6 +36,22 @@ CAI::~CAI()
 		delete m_pPath;
 }
 
+void CAI::SetVisionSuppressed(bool Suppressed)
+{
+	m_VisionSuppressed = Suppressed;
+	if(Suppressed)
+	{
+		m_pTargetPlayer = 0;
+		m_PlayerSpotTimer = 0;
+		m_TargetTimer = 0;
+		m_AttackTimer = 0;
+		m_Attack = 0;
+		m_Hook = 0;
+		m_ChargeStartTick = 0;
+		m_InputChanged = true;
+	}
+}
+
 void CAI::Reset()
 {
 	if(m_pPath)
@@ -106,6 +122,7 @@ void CAI::Reset()
 	m_HookReleaseTimer = 0;
 
 	m_pTargetPlayer = 0;
+	m_VisionSuppressed = false;
 	m_PlayerPos = vec2(0, 0);
 	m_TargetPos = vec2(0, 0);
 	m_PlayerSpotTimer = 0;
@@ -2084,6 +2101,18 @@ void CAI::Tick()
 		m_Pos = m_pPlayer->GetCharacter()->m_Pos;
 	else
 		return;
+
+	if(m_VisionSuppressed)
+	{
+		m_pTargetPlayer = 0;
+		m_Attack = 0;
+		m_Hook = 0;
+		m_ChargeStartTick = 0;
+		m_InputChanged = true;
+		m_SendAttack = 0;
+		m_SendTurbo = 0;
+		return;
+	}
 
 	// skip if sleeping or stunned
 	if(m_Sleep > 0 || m_Stun > 0)

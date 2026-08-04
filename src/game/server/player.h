@@ -88,6 +88,19 @@ class CPlayer
 	// bomb planting & defusing
 	int m_ActionTimer;
 
+	// Server-authoritative temporary vision effects. These are snapshotted so
+	// clients can render their own flash/Blind state without trusting local
+	// configuration.
+	int m_FlashStartTick;
+	int m_FlashEndTick;
+	int m_BlindEndTick;
+	int m_FlashAlpha;
+
+	void ClearVisionEffects();
+	void ApplyFlashEffect(int DurationTicks, int Alpha);
+	void ApplyBlindEffect(int DurationTicks);
+	bool VisionSuppressed() const;
+
 	//---------------------------------------------------------
 	// this is used for snapping so we know how we can clip the view for the player
 	vec2 m_ViewPos;

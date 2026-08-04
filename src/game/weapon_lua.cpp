@@ -324,6 +324,7 @@ const CField gs_aVisualFields[] = {
 	VISUAL_INT("muzzle_amount", m_MuzzleAmount),
 	VISUAL_FLOAT("screenshake_amount", m_ScreenshakeAmount),
 	VISUAL_INT("impact_effect", m_ImpactEffect),
+	VISUAL_INT("static_sprite", m_StaticSprite),
 };
 #undef VISUAL_INT
 #undef VISUAL_FLOAT
@@ -769,7 +770,9 @@ bool ValidProfile(const CWeaponCombatProfile &Combat, const CWeaponVisualProfile
 	   Visual.m_ExplosionSprite >= NUM_SPRITES || Visual.m_MuzzleType < 0 || Visual.m_MuzzleType > 2 ||
 	   Visual.m_MuzzleAmount < 0 || Visual.m_MuzzleAmount > 1024 || !BoundedOffset(Visual.m_ScreenshakeAmount))
 		return false;
-	if(Visual.m_ImpactEffect < WEAPON_IMPACT_EFFECT_NONE || Visual.m_ImpactEffect >= NUM_WEAPON_IMPACT_EFFECTS)
+	if(Visual.m_ImpactEffect < WEAPON_IMPACT_EFFECT_NONE || Visual.m_ImpactEffect >= NUM_WEAPON_IMPACT_EFFECTS ||
+	   Visual.m_StaticSprite < -1 ||
+	   (Visual.m_StaticSprite >= 0 && SPRITE_WEAPON_STATIC1 + Visual.m_StaticSprite >= NUM_SPRITES))
 		return false;
 	return Visual.m_FireSound >= -1 && Visual.m_FireSound < NUM_SOUNDS && Visual.m_FireSound2 >= -1 &&
 		   Visual.m_FireSound2 < NUM_SOUNDS && Visual.m_ExplosionSound >= -1 && Visual.m_ExplosionSound < NUM_SOUNDS;
@@ -873,7 +876,10 @@ bool ApplyProfileTable(lua_State *pState,
 		if(lua_isnil(pState, -1))
 		{
 			lua_pop(pState, 1);
-			if(RequireAll)
+			// static_sprite is a player-rendering hint and is intentionally
+			// omitted from legacy droid/building attack tables. Their caller
+			// initializes it to -1, which preserves the normal fallback.
+			if(RequireAll && str_comp(pFields[FieldIndex].m_pName, "static_sprite") != 0)
 			{
 				lua_pop(pState, 1);
 				char aError[256];
@@ -1045,41 +1051,45 @@ bool ApplyBehavior(
 	{
 		const char *m_pName;
 		EWeaponBehaviorFlag m_Flag;
+		EWeaponVisionKind m_VisionKind;
 	};
 	const CBehaviorName aNames[] = {
-		{"tool", WEAPON_BEHAVIOR_TOOL},
-		{"claw", WEAPON_BEHAVIOR_CLAW},
-		{"chainsaw", WEAPON_BEHAVIOR_CHAINSAW},
-		{"flamer", WEAPON_BEHAVIOR_FLAMER},
-		{"grenade_timed", WEAPON_BEHAVIOR_GRENADE_TIMED},
-		{"grenade_laser", WEAPON_BEHAVIOR_GRENADE_LASER},
-		{"grenade_drop", WEAPON_BEHAVIOR_GRENADE_DROP},
-		{"upgrade", WEAPON_BEHAVIOR_UPGRADE},
-		{"controller_activate", WEAPON_BEHAVIOR_CONTROLLER_ACTIVATE},
-		{"electrowall", WEAPON_BEHAVIOR_ELECTROWALL},
-		{"area_shield", WEAPON_BEHAVIOR_AREA_SHIELD},
-		{"shuriken", WEAPON_BEHAVIOR_SHURIKEN},
-		{"bomb", WEAPON_BEHAVIOR_BOMB},
-		{"ball", WEAPON_BEHAVIOR_BALL},
-		{"cluster", WEAPON_BEHAVIOR_CLUSTER},
-		{"bazooka", WEAPON_BEHAVIOR_BAZOOKA},
-		{"electric_gun", WEAPON_BEHAVIOR_ELECTRIC_GUN},
-		{"compact_gun_hands", WEAPON_BEHAVIOR_COMPACT_GUN_HANDS},
-		{"charged_burst", WEAPON_BEHAVIOR_CHARGED_BURST},
-		{"spin_reflect", WEAPON_BEHAVIOR_SPIN_REFLECT},
-		{"impact_spark", WEAPON_BEHAVIOR_IMPACT_SPARK},
-		{"explosion_smoke", WEAPON_BEHAVIOR_EXPLOSION_SMOKE},
-		{"green_explosion", WEAPON_BEHAVIOR_GREEN_EXPLOSION},
-		{"activate_invis", WEAPON_BEHAVIOR_ACTIVATE_INVIS},
-		{"activate_shield", WEAPON_BEHAVIOR_ACTIVATE_SHIELD},
-		{"activate_respawner", WEAPON_BEHAVIOR_ACTIVATE_RESPAWNER},
-		{"melee", WEAPON_BEHAVIOR_MELEE},
-		{"charged_blade", WEAPON_BEHAVIOR_CHARGED_BLADE},
-		{"capacitor", WEAPON_BEHAVIOR_CAPACITOR},
-		{"rail", WEAPON_BEHAVIOR_RAIL},
-		{"hammer_impact", WEAPON_BEHAVIOR_HAMMER_IMPACT},
+		{"tool", WEAPON_BEHAVIOR_TOOL, WEAPON_VISION_NONE},
+		{"claw", WEAPON_BEHAVIOR_CLAW, WEAPON_VISION_NONE},
+		{"chainsaw", WEAPON_BEHAVIOR_CHAINSAW, WEAPON_VISION_NONE},
+		{"flamer", WEAPON_BEHAVIOR_FLAMER, WEAPON_VISION_NONE},
+		{"grenade_timed", WEAPON_BEHAVIOR_GRENADE_TIMED, WEAPON_VISION_NONE},
+		{"grenade_laser", WEAPON_BEHAVIOR_GRENADE_LASER, WEAPON_VISION_NONE},
+		{"grenade_drop", WEAPON_BEHAVIOR_GRENADE_DROP, WEAPON_VISION_NONE},
+		{"upgrade", WEAPON_BEHAVIOR_UPGRADE, WEAPON_VISION_NONE},
+		{"controller_activate", WEAPON_BEHAVIOR_CONTROLLER_ACTIVATE, WEAPON_VISION_NONE},
+		{"electrowall", WEAPON_BEHAVIOR_ELECTROWALL, WEAPON_VISION_NONE},
+		{"area_shield", WEAPON_BEHAVIOR_AREA_SHIELD, WEAPON_VISION_NONE},
+		{"shuriken", WEAPON_BEHAVIOR_SHURIKEN, WEAPON_VISION_NONE},
+		{"bomb", WEAPON_BEHAVIOR_BOMB, WEAPON_VISION_NONE},
+		{"ball", WEAPON_BEHAVIOR_BALL, WEAPON_VISION_NONE},
+		{"cluster", WEAPON_BEHAVIOR_CLUSTER, WEAPON_VISION_NONE},
+		{"bazooka", WEAPON_BEHAVIOR_BAZOOKA, WEAPON_VISION_NONE},
+		{"electric_gun", WEAPON_BEHAVIOR_ELECTRIC_GUN, WEAPON_VISION_NONE},
+		{"compact_gun_hands", WEAPON_BEHAVIOR_COMPACT_GUN_HANDS, WEAPON_VISION_NONE},
+		{"charged_burst", WEAPON_BEHAVIOR_CHARGED_BURST, WEAPON_VISION_NONE},
+		{"spin_reflect", WEAPON_BEHAVIOR_SPIN_REFLECT, WEAPON_VISION_NONE},
+		{"impact_spark", WEAPON_BEHAVIOR_IMPACT_SPARK, WEAPON_VISION_NONE},
+		{"explosion_smoke", WEAPON_BEHAVIOR_EXPLOSION_SMOKE, WEAPON_VISION_NONE},
+		{"green_explosion", WEAPON_BEHAVIOR_GREEN_EXPLOSION, WEAPON_VISION_NONE},
+		{"activate_invis", WEAPON_BEHAVIOR_ACTIVATE_INVIS, WEAPON_VISION_NONE},
+		{"activate_shield", WEAPON_BEHAVIOR_ACTIVATE_SHIELD, WEAPON_VISION_NONE},
+		{"activate_respawner", WEAPON_BEHAVIOR_ACTIVATE_RESPAWNER, WEAPON_VISION_NONE},
+		{"melee", WEAPON_BEHAVIOR_MELEE, WEAPON_VISION_NONE},
+		{"charged_blade", WEAPON_BEHAVIOR_CHARGED_BLADE, WEAPON_VISION_NONE},
+		{"capacitor", WEAPON_BEHAVIOR_CAPACITOR, WEAPON_VISION_NONE},
+		{"rail", WEAPON_BEHAVIOR_RAIL, WEAPON_VISION_NONE},
+		{"hammer_impact", WEAPON_BEHAVIOR_HAMMER_IMPACT, WEAPON_VISION_NONE},
+		{"vision_flash", WEAPON_BEHAVIOR_VISION_GRENADE, WEAPON_VISION_FLASH},
+		{"vision_blind", WEAPON_BEHAVIOR_VISION_GRENADE, WEAPON_VISION_BLIND},
 	};
 	uint32_t Flags = 0;
+	EWeaponVisionKind VisionKind = WEAPON_VISION_NONE;
 	int Count = 0;
 	if(!DenseArrayLength(pState, -1, sizeof(aNames) / sizeof(aNames[0]), &Count))
 	{
@@ -1094,9 +1104,13 @@ bool ApplyBehavior(
 		if(pName && static_cast<size_t>(str_length(pName)) != NameLength)
 			pName = 0;
 		uint32_t Flag = 0;
+		EWeaponVisionKind CurrentVisionKind = WEAPON_VISION_NONE;
 		for(const CBehaviorName &Name : aNames)
 			if(pName && str_comp(pName, Name.m_pName) == 0)
+			{
 				Flag = static_cast<uint32_t>(Name.m_Flag);
+				CurrentVisionKind = Name.m_VisionKind;
+			}
 		lua_pop(pState, 1);
 		if(!Flag || (Flags & Flag))
 		{
@@ -1104,8 +1118,18 @@ bool ApplyBehavior(
 			return Error(pContext, "unknown or duplicate behavior tag");
 		}
 		Flags |= Flag;
+		if(CurrentVisionKind != WEAPON_VISION_NONE)
+		{
+			if(VisionKind != WEAPON_VISION_NONE)
+			{
+				lua_pop(pState, 1);
+				return Error(pContext, "behavior may contain only one vision effect tag");
+			}
+			VisionKind = CurrentVisionKind;
+		}
 	}
 	pDefinition->m_BehaviorFlags = Flags;
+	pDefinition->m_VisionKind = VisionKind;
 	lua_pop(pState, 1);
 	return true;
 }
@@ -1785,6 +1809,8 @@ int LuaDefineAttack(lua_State *pState)
 		return luaL_error(pState, "invalid or duplicate attack profile type");
 	CWeaponCombatProfile aCombat[WEAPON_SPEC_LEVEL_COUNT]{};
 	CWeaponVisualProfile aVisual[WEAPON_SPEC_LEVEL_COUNT]{};
+	for(auto &Visual : aVisual)
+		Visual.m_StaticSprite = -1;
 	if(!ApplyProfileTable(pState,
 						  1,
 						  "combat",

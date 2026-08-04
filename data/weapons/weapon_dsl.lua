@@ -95,6 +95,7 @@ local visual_defaults = {
   muzzle_amount = 10,
   screenshake_amount = 0,
   impact_effect = 0,
+  static_sprite = -1,
 }
 
 local function expand(defaults, template_value, overrides, template_name)
@@ -157,6 +158,7 @@ weapon.static = {
   shield = 11, respawner = 12, mask1 = 13, mask2 = 14, mask3 = 15,
   mask4 = 16, mask5 = 17, invis = 18, electrowall = 19, areashield = 20,
   syringe = 21, cluster = 22, shuriken = 23, claw = 24, bomb = 25, ball = 26,
+  flash_grenade = 27, blind_grenade = 28,
 }
 weapon.part1 = {base1 = 1, base2 = 2, base3 = 3, base4 = 4, base5 = 5, base6 = 6, melee = 7, spin = 8}
 weapon.part2 = {

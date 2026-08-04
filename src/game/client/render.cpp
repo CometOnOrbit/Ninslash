@@ -2255,8 +2255,16 @@ void CRenderTools::SetShadersForWeapon(
 	}
 	if(Profile.m_Definition.m_MaxLevel > 0 && Charge <= 0.0f)
 		Charge = -Weapon.m_Level / float(Profile.m_Definition.m_MaxLevel);
+	const float WeaponTint = static_cast<float>(Profile.m_Definition.m_VisionKind);
 	Graphics()->PlayerShaderBegin(
-		Profile.m_Visual.m_ColorSwap.x, Profile.m_Visual.m_ColorSwap.y, Charge, Visibility, Electro, Damage, Deathray);
+		Profile.m_Visual.m_ColorSwap.x,
+		Profile.m_Visual.m_ColorSwap.y,
+		Charge,
+		Visibility,
+		Electro,
+		Damage,
+		Deathray,
+		WeaponTint);
 }
 
 void CRenderTools::RenderForegroundHand(CPlayerInfo *PlayerInfo)
@@ -2505,7 +2513,13 @@ void CRenderTools::RenderWeapon(const CWeaponSpec &Weapon,
 			Graphics()->SetColor(1, 1, 1, OverallAlpha);
 		}
 
-		SelectSprite(SPRITE_WEAPON_STATIC1 + Definition.m_StaticType,
+		// A definition may explicitly reuse a legacy atlas sprite. The vision
+		// grenades use this path because the atlas has no dedicated entries;
+		// their Lua vision kind drives the white/dark shader tint.
+		int StaticSpriteType = Definition.m_StaticType;
+		if(Profile.m_Visual.m_StaticSprite >= 0)
+			StaticSpriteType = Profile.m_Visual.m_StaticSprite;
+		SelectSprite(SPRITE_WEAPON_STATIC1 + StaticSpriteType,
 					 NoFlags ? Flags : ((Dir.x < 0 ? SPRITE_FLAG_FLIP_Y : 0) ^ Flags));
 		// DrawSprite(Pos.x, Pos.y, Size);
 		IGraphics::CQuadItem QuadItem(Pos.x, Pos.y, Size * WSize.x, Size * WSize.y);

@@ -116,10 +116,10 @@ class IGraphics : public IInterface
 	float ScreenAspect() const { return (float)ScreenWidth() / (float)ScreenHeight(); }
 
 	virtual void Clear(float r, float g, float b) = 0;
-	// Clear the intermediate render targets. DarkVision is supplied by the
-	// game client for this frame; the render backend must not consult local
-	// challenge configuration directly because remote servers are authoritative.
-	virtual void ClearBufferTexture(bool DarkVision) = 0;
+	// Clear the intermediate buffers using the server-authoritative lighting
+	// brightness (0 = DarkVision black, 1 = normal ambient light). The render
+	// backend must not consult local challenge configuration directly.
+	virtual void ClearBufferTexture(float LightingBrightness) = 0;
 
 	virtual void ClipEnable(int x, int y, int w, int h) = 0;
 	virtual void ClipDisable() = 0;
@@ -166,7 +166,8 @@ class IGraphics : public IInterface
 								   float Visibility = 1.0f,
 								   float Electro = 0.0f,
 								   float Damage = 0.0f,
-								   float Deathray = 0.0f) = 0;
+								   float Deathray = 0.0f,
+								   float WeaponTint = 0.0f) = 0;
 	virtual void BallShaderBegin(float Speed, float Speed2) = 0;
 	virtual void ShaderEnd() = 0;
 

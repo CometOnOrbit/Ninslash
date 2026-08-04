@@ -222,6 +222,13 @@ MACRO_CONFIG_INT(
 	SvExternalPort, sv_external_port, 0, 0, 0, CFGFLAG_SERVER, "External port to report to the master servers")
 MACRO_CONFIG_STR(SvMap, sv_map, 128, "generate_city1", CFGFLAG_SERVER, "Map to use on the server")
 MACRO_CONFIG_STR(SvInvMap, sv_dont_use_j92tka9j, 128, "", CFGFLAG_SERVER, "Latest invasion map")
+MACRO_CONFIG_INT(SvZoom,
+				 sv_zoom,
+				 10,
+				 1,
+				 30,
+				 CFGFLAG_SERVER,
+				 "Authoritative gameplay zoom (1..30); spectators may use local zoom")
 MACRO_CONFIG_INT(SvMaxClients,
 				 sv_max_clients,
 				 64,

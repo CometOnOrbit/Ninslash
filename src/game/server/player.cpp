@@ -46,6 +46,7 @@ CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, int Team)
 	m_LastForgeRequestTick = -1;
 
 	m_ActionTimer = 0;
+	ClearVisionEffects();
 
 	m_InterestPoints = 0;
 	m_BroadcastingCaptureStatus = false;
@@ -66,6 +67,36 @@ CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, int Team)
 
 	// warm welcome awaits
 	m_Welcomed = false;
+}
+
+void CPlayer::ClearVisionEffects()
+{
+	m_FlashStartTick = 0;
+	m_FlashEndTick = 0;
+	m_BlindEndTick = 0;
+	m_FlashAlpha = 0;
+}
+
+void CPlayer::ApplyFlashEffect(int DurationTicks, int Alpha)
+{
+	const int Now = Server()->Tick();
+	const int EndTick = Now + max(1, DurationTicks);
+	if(m_FlashEndTick <= Now)
+		m_FlashAlpha = 0;
+	m_FlashStartTick = Now;
+	m_FlashEndTick = max(m_FlashEndTick, EndTick);
+	m_FlashAlpha = max(m_FlashAlpha, clamp(Alpha, 0, 255));
+}
+
+void CPlayer::ApplyBlindEffect(int DurationTicks)
+{
+	const int EndTick = Server()->Tick() + max(1, DurationTicks);
+	m_BlindEndTick = max(m_BlindEndTick, EndTick);
+}
+
+bool CPlayer::VisionSuppressed() const
+{
+	return m_FlashEndTick > Server()->Tick() || m_BlindEndTick > Server()->Tick();
 }
 
 CPlayer::~CPlayer()
@@ -104,6 +135,7 @@ void CPlayer::NewRound()
 	m_Deaths = 0;
 	m_KillStreak = 0;
 	m_BestKillStreak = 0;
+	ClearVisionEffects();
 
 	m_InterestPoints = 0;
 }
@@ -380,6 +412,10 @@ void CPlayer::Snap(int SnappingClient)
 	pPlayerInfo->m_KillStreak = 0;
 	pPlayerInfo->m_BestKillStreak = 0;
 	pPlayerInfo->m_Gold = 0;
+	pPlayerInfo->m_Zoom = clamp(g_Config.m_SvZoom, 1, 30);
+	// The server grants local zoom controls only to spectators. Everyone else
+	// receives and must use the authoritative gameplay value above.
+	pPlayerInfo->m_ZoomAllowed = Spectating() ? 1 : 0;
 	int *apDefinitionIds[] = {&pPlayerInfo->m_Weapon1DefinitionId,
 							  &pPlayerInfo->m_Weapon2DefinitionId,
 							  &pPlayerInfo->m_Weapon3DefinitionId,
@@ -408,6 +444,23 @@ void CPlayer::Snap(int SnappingClient)
 	pPlayerInfo->m_KillStreak = m_KillStreak;
 	pPlayerInfo->m_BestKillStreak = m_BestKillStreak;
 	pPlayerInfo->m_Gold = m_Gold;
+
+	const bool BlindActive = m_BlindEndTick > Server()->Tick();
+	{
+		CNetObj_VisionStatus *pVision = static_cast<CNetObj_VisionStatus *>(
+			Server()->SnapNewItem(NETOBJTYPE_VISIONSTATUS, m_ClientID, sizeof(CNetObj_VisionStatus)));
+		if(pVision)
+		{
+			pVision->m_FlashStartTick = m_FlashStartTick;
+			pVision->m_FlashEndTick = m_FlashEndTick;
+			pVision->m_BlindEndTick = m_BlindEndTick;
+			pVision->m_FlashAlpha = m_FlashEndTick > Server()->Tick() ? clamp(m_FlashAlpha, 0, 255) : 0;
+			pVision->m_Owner = m_ClientID;
+			// Zero is the actual DarkVision target. The client interpolates toward it
+			// over several frames instead of toggling the whole light pass.
+			pVision->m_LightingBrightness = BlindActive ? 0 : 255;
+		}
+	}
 
 	if(GetCharacter())
 	{
@@ -474,6 +527,7 @@ bool CPlayer::Spectating()
 
 void CPlayer::OnDisconnect(const char *pReason)
 {
+	ClearVisionEffects();
 	KillCharacter();
 
 	if(Server()->ClientIngame(m_ClientID))
@@ -562,6 +616,7 @@ void CPlayer::KillCharacter()
 
 void CPlayer::KillCharacter(const CAttackSource &Source)
 {
+	ClearVisionEffects();
 	if(m_pCharacter)
 	{
 		m_pCharacter->Die(Source);
@@ -707,7 +762,10 @@ void CPlayer::SetCustomSkin(int Type)
 void CPlayer::AITick()
 {
 	if(m_pAI)
+	{
+		m_pAI->SetVisionSuppressed(m_BlindEndTick > Server()->Tick() || m_FlashEndTick > Server()->Tick());
 		m_pAI->Tick();
+	}
 }
 
 bool CPlayer::AIInputChanged()

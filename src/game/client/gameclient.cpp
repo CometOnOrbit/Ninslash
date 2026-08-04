@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <math.h>
 #include <memory>
 #include <string.h>
 
@@ -267,8 +268,116 @@ void CGameClient::EnsureDarkVisionRenderBuffers()
 	{
 		Graphics()->CreateTextureBuffer(Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
 		m_TextureBuffersCreated = true;
-		Graphics()->ClearBufferTexture(true);
+		Graphics()->ClearBufferTexture(LightingBrightness());
 	}
+}
+
+void CGameClient::UpdateLocalVisionStatus()
+{
+	m_LocalVisionOwner = m_Snap.m_LocalClientID;
+	if(m_Snap.m_SpecInfo.m_Active && m_Snap.m_SpecInfo.m_SpectatorID >= 0 &&
+		m_Snap.m_SpecInfo.m_SpectatorID < MAX_CLIENTS)
+	{
+		m_LocalVisionOwner = m_Snap.m_SpecInfo.m_SpectatorID;
+	}
+	else if(m_LocalVisionOwner < 0 || m_LocalVisionOwner >= MAX_CLIENTS)
+	{
+		m_LocalVisionOwner = -1;
+	}
+
+	m_LocalFlashStartTick = 0;
+	m_LocalFlashEndTick = 0;
+	m_LocalBlindEndTick = 0;
+	m_LocalFlashAlpha = 0;
+	m_LocalLightingTarget = 255;
+	if(m_LocalVisionOwner >= 0 && m_LocalVisionOwner < MAX_CLIENTS)
+	{
+		const SVisionStatus &Status = m_aVisionStatus[m_LocalVisionOwner];
+		m_LocalFlashStartTick = Status.m_FlashStartTick;
+		m_LocalFlashEndTick = Status.m_FlashEndTick;
+		m_LocalBlindEndTick = Status.m_BlindEndTick;
+		m_LocalFlashAlpha = Status.m_FlashAlpha;
+		m_LocalLightingTarget = clamp(Status.m_LightingBrightness, 0, 255);
+	}
+}
+
+void CGameClient::UpdateVisionLighting()
+{
+	const bool ChallengeDark = m_ChallengeInfoReceived &&
+		ChallengeVariantEnabled(m_ChallengeVariantMask, CHALLENGE_DARK);
+	const float Target = ChallengeDark ? 0.0f : clamp(m_LocalLightingTarget, 0, 255) / 255.0f;
+	if(!m_pClient || Client()->State() < IClient::STATE_ONLINE)
+	{
+		m_LocalLightingBrightness = Target;
+		return;
+	}
+
+	// Exponential-style frame-rate independent easing. The target comes from the
+	// server, while this interpolation keeps a grenade effect from popping the
+	// entire light buffer on a snapshot boundary.
+	const float Factor = clamp(Client()->RenderFrameTime() * 8.0f, 0.0f, 1.0f);
+	m_LocalLightingBrightness += (Target - m_LocalLightingBrightness) * Factor;
+	if(fabs(Target - m_LocalLightingBrightness) < 0.001f)
+		m_LocalLightingBrightness = Target;
+}
+
+bool CGameClient::LocalZoomAllowed() const
+{
+	if(!m_pClient || (Client()->State() != IClient::STATE_ONLINE &&
+		Client()->State() != IClient::STATE_DEMOPLAYBACK))
+		return true;
+	return !m_Snap.m_pLocalInfo || m_Snap.m_pLocalInfo->m_ZoomAllowed != 0;
+}
+
+int CGameClient::ServerZoom() const
+{
+	if(m_Snap.m_pLocalInfo)
+		return clamp(m_Snap.m_pLocalInfo->m_Zoom, 1, 30);
+	return clamp(g_Config.m_SvZoom, 1, 30);
+}
+
+float CGameClient::FlashOverlayAlpha() const
+{
+	if(!m_pClient || m_LocalFlashEndTick <= m_LocalFlashStartTick || m_LocalFlashAlpha <= 0)
+		return 0.0f;
+
+	const float Now = m_pClient->GameTick() + m_pClient->IntraGameTick();
+	if(Now < m_LocalFlashStartTick || Now >= m_LocalFlashEndTick)
+		return 0.0f;
+
+	const float Duration = (float)(m_LocalFlashEndTick - m_LocalFlashStartTick);
+	const float Elapsed = Now - m_LocalFlashStartTick;
+	const float Progress = clamp(Elapsed / max(Duration, 1.0f), 0.0f, 1.0f);
+	// A short attack followed by a long, smooth fade keeps the flash readable
+	// without making the first frame pop harshly at low tick rates.
+	const float FadeIn = clamp(Progress / 0.08f, 0.0f, 1.0f);
+	const float FadeOut = clamp((1.0f - Progress) / 0.18f, 0.0f, 1.0f);
+	return (m_LocalFlashAlpha / 255.0f) * min(FadeIn, FadeOut);
+}
+
+void CGameClient::RenderVisionOverlay()
+{
+	const float Alpha = FlashOverlayAlpha();
+	if(Alpha <= 0.001f || !Graphics())
+		return;
+
+	float ScreenX = 0.0f;
+	float ScreenY = 0.0f;
+	float ScreenW = 0.0f;
+	float ScreenH = 0.0f;
+	Graphics()->GetScreen(&ScreenX, &ScreenY, &ScreenW, &ScreenH);
+	Graphics()->MapScreen(0, 0, Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
+	Graphics()->TextureClear();
+	Graphics()->BlendNormal();
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1.0f, 1.0f, 1.0f, Alpha);
+	IGraphics::CQuadItem Fullscreen(Graphics()->ScreenWidth() * 0.5f,
+		Graphics()->ScreenHeight() * 0.5f,
+		(float)Graphics()->ScreenWidth(),
+		(float)Graphics()->ScreenHeight());
+	Graphics()->QuadsDraw(&Fullscreen, 1);
+	Graphics()->QuadsEnd();
+	Graphics()->MapScreen(ScreenX, ScreenY, ScreenW, ScreenH);
 }
 
 void CGameClient::RestoreDarkVisionRenderBuffers()
@@ -774,7 +883,7 @@ void CGameClient::OnInit()
 	{
 		Graphics()->CreateTextureBuffer(Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
 		m_TextureBuffersCreated = true;
-		Graphics()->ClearBufferTexture(DarkVisionEnabled());
+		Graphics()->ClearBufferTexture(LightingBrightness());
 	}
 
 	Client()->LoadReady();
@@ -918,7 +1027,17 @@ void CGameClient::OnReset()
 	m_ChallengeVariantMask = 0;
 	m_ChallengeSeed = 0;
 	m_ChallengeInfoReceived = false;
+	mem_zero(m_aVisionStatus, sizeof(m_aVisionStatus));
+	m_LocalVisionOwner = -1;
+	m_LocalFlashStartTick = 0;
+	m_LocalFlashEndTick = 0;
+	m_LocalBlindEndTick = 0;
+	m_LocalFlashAlpha = 0;
+	m_LocalLightingTarget = 255;
+	m_LocalLightingBrightness = 1.0f;
 	mem_zero(&g_GameClient.m_Snap, sizeof(g_GameClient.m_Snap));
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+		m_aVisionStatus[i].m_LightingBrightness = 255;
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		m_aClients[i].Reset();
@@ -1065,17 +1184,25 @@ void CGameClient::OnRender()
 
 	// update the local character and spectate position
 	UpdatePositions();
+	UpdateVisionLighting();
+	if(!DarkVisionEnabled())
+		RestoreDarkVisionRenderBuffers();
 
 	// dispatch all input to systems
 	DispatchInput();
 
 	EnsureDarkVisionRenderBuffers();
-	Graphics()->ClearBufferTexture(DarkVisionEnabled());
+	Graphics()->ClearBufferTexture(LightingBrightness());
 	// Graphics()->ShaderBegin(SHADER_TEST);
 
 	// render all systems
 	for(int i = 0; i < m_All.m_Num; i++)
 		m_All.m_paComponents[i]->OnRender();
+
+	// This is intentionally after the world/light pass. The server-authoritative
+	// flash must cover both the map and local HUD-independent world rendering,
+	// and it must work even when cl_lighting is disabled.
+	RenderVisionOverlay();
 
 	// Graphics()->ShaderEnd();
 
@@ -1373,6 +1500,29 @@ void CGameClient::ProcessEvents()
 			m_pSounds->PlayAt(CSounds::CHN_WORLD, SOUND_METAL_HIT, 1.0f, vec2(ev->m_X, ev->m_Y));
 		}
 
+		if(Item.m_Type == NETEVENTTYPE_VISIONBURST)
+		{
+			const CNetEvent_VisionBurst *pEvent = (const CNetEvent_VisionBurst *)pData;
+			const vec2 Pos((float)pEvent->m_X, (float)pEvent->m_Y);
+			const float Radius = clamp((float)pEvent->m_Radius, 64.0f, 1024.0f);
+			if(pEvent->m_Kind == 0)
+			{
+				m_pEffects->SimpleLight(Pos,
+					vec4(1.0f, 1.0f, 1.0f, 1.0f),
+					vec2(Radius * 2.0f, Radius * 1.5f),
+					true,
+					true);
+			}
+			else
+			{
+				m_pEffects->SimpleLight(Pos,
+					vec4(0.12f, 0.12f, 0.14f, 0.45f),
+					vec2(Radius * 1.35f, Radius),
+					true,
+					true);
+			}
+		}
+
 		if(Item.m_Type == NETEVENTTYPE_FLAMEHIT)
 		{
 			CNetEvent_BuildingHit *ev = (CNetEvent_BuildingHit *)pData;
@@ -1550,6 +1700,9 @@ void CGameClient::OnNewSnapshot()
 
 	// clear out the invalid pointers
 	mem_zero(&g_GameClient.m_Snap, sizeof(g_GameClient.m_Snap));
+	mem_zero(m_aVisionStatus, sizeof(m_aVisionStatus));
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+		m_aVisionStatus[i].m_LightingBrightness = 255;
 	m_Snap.m_LocalClientID = -1;
 
 	// secure snapshot
@@ -1790,6 +1943,19 @@ void CGameClient::OnNewSnapshot()
 				if(pRuntime->m_Owner >= 0 && pRuntime->m_Owner < MAX_CLIENTS)
 					m_Snap.m_apChallengeRuntimes[pRuntime->m_Owner] = pRuntime;
 			}
+			else if(Item.m_Type == NETOBJTYPE_VISIONSTATUS)
+			{
+				const CNetObj_VisionStatus *pStatus = (const CNetObj_VisionStatus *)pData;
+				if(pStatus->m_Owner >= 0 && pStatus->m_Owner < MAX_CLIENTS)
+				{
+					SVisionStatus &Status = m_aVisionStatus[pStatus->m_Owner];
+					Status.m_FlashStartTick = pStatus->m_FlashStartTick;
+					Status.m_FlashEndTick = pStatus->m_FlashEndTick;
+					Status.m_BlindEndTick = pStatus->m_BlindEndTick;
+					Status.m_FlashAlpha = pStatus->m_FlashAlpha;
+					Status.m_LightingBrightness = pStatus->m_LightingBrightness;
+				}
+			}
 			else if(Item.m_Type == NETOBJTYPE_BALL)
 			{
 				const void *pOld = Client()->SnapFindItem(IClient::SNAP_PREV, NETOBJTYPE_BALL, 0);
@@ -1938,6 +2104,8 @@ void CGameClient::OnNewSnapshot()
 		else
 			m_Snap.m_SpecInfo.m_SpectatorID = SPEC_FREEVIEW;
 	}
+
+	UpdateLocalVisionStatus();
 
 	// clear out unneeded client data
 	for(int i = 0; i < MAX_CLIENTS; ++i)

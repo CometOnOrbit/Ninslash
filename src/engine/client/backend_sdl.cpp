@@ -574,6 +574,10 @@ void CCommandProcessorFragment_OpenGL::Cmd_ShaderBegin(const CCommandBuffer::SCo
 	if(location >= 0)
 		glUniform1fARB(location, GLfloat(pCommand->m_WeaponCharge));
 
+	location = pShader->getUniformLocation("weapon_tint");
+	if(location >= 0)
+		glUniform1fARB(location, GLfloat(pCommand->m_WeaponTint));
+
 	location = pShader->getUniformLocation("visibility");
 	if(location >= 0)
 		glUniform1fARB(location, GLfloat(pCommand->m_Visibility));
@@ -704,14 +708,14 @@ void CCommandProcessorFragment_OpenGL::Cmd_ClearBufferTexture(
 		if(i == RENDERBUFFER_LIGHT)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, textureBuffer[i]);
-			// DarkVision is decided by the server and copied into this render
-			// command by CGameClient. Never read cl_challenge_variants here: that
-			// setting only describes the local listen-server preset and would let
-			// a remote player's local configuration change their view.
-			if(pCommand->m_DarkVision)
-				glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-			else
-				glClearColor(m_AmbientR, m_AmbientG, m_AmbientB, 1.0f);
+			// The brightness target originates at the server and is interpolated by
+			// the client. Scaling the ambient clear color here keeps the transition
+			// smooth even outside the camera light quad.
+			const float Brightness = clamp(pCommand->m_LightingBrightness, 0.0f, 1.0f);
+			glClearColor(m_AmbientR * Brightness,
+				m_AmbientG * Brightness,
+				m_AmbientB * Brightness,
+				1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			continue;
 		}

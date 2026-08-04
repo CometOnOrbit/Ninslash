@@ -2462,6 +2462,12 @@ Teams  ·  Bomb  ·  Reactor
 Ball
 == 球赛
 
+Blind grenade
+== 致盲弹
+
+Flash grenade
+== 闪光弹
+
 Carry the ball into the enemy goal while defending your own.
 == 将球带入敌方球门，同时守住己方球门。
 

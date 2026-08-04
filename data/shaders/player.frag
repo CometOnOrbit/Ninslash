@@ -14,6 +14,9 @@ uniform float visibility;
 uniform float electro;
 uniform float damage;
 uniform float deathray;
+// Weapon-only palette override: 1 = white flash, 2 = dark-gray blind
+// grenade. A zero value keeps the normal channel-swap behavior.
+uniform float weapon_tint;
 
 float rand(vec2 n) { 
 	return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
@@ -131,8 +134,23 @@ void main (void)
 	vec4 c = texture2D(texture, gl_TexCoord[0].st) * gl_Color;
 	vec4 c2 = c;
 	
-	c.xy = ColorSwap(c.xy, colorswap);
-	c.xz = ColorSwap(vec2(mix(c.x, c2.x, intensity), c2.z), intensity);
+	if (weapon_tint > 0.5f && weapon_tint < 1.5f)
+	{
+		// Keep the grenade's authored shading and silhouette visible. A full
+		// replacement made the flash grenade look like a featureless white box.
+		c.rgb = mix(c.rgb, vec3(1.0f, 1.0f, 1.0f), 0.58f);
+	}
+	else if (weapon_tint >= 1.5f)
+	{
+		// The blind grenade is dark, but it still needs enough contrast to read as
+		// the same grenade sprite rather than a black rectangle.
+		c.rgb = mix(c.rgb, vec3(0.12f, 0.12f, 0.14f), 0.58f);
+	}
+	else
+	{
+		c.xy = ColorSwap(c.xy, colorswap);
+		c.xz = ColorSwap(vec2(mix(c.x, c2.x, intensity), c2.z), intensity);
+	}
 	
 	//if (zombie > -10.0f)
 	//	c = Zombie(c);

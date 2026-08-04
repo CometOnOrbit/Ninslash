@@ -107,6 +107,23 @@ class CGameClient : public IGameClient
 	bool m_DarkVisionForcedMultiBuffering;
 	bool m_DarkVisionPreviousMultiBuffering;
 
+	struct SVisionStatus
+	{
+		int m_FlashStartTick;
+		int m_FlashEndTick;
+		int m_BlindEndTick;
+		int m_FlashAlpha;
+		int m_LightingBrightness;
+	};
+	SVisionStatus m_aVisionStatus[MAX_CLIENTS];
+	int m_LocalVisionOwner = -1;
+	int m_LocalFlashStartTick = 0;
+	int m_LocalFlashEndTick = 0;
+	int m_LocalBlindEndTick = 0;
+	int m_LocalFlashAlpha = 0;
+	int m_LocalLightingTarget = 255;
+	float m_LocalLightingBrightness = 1.0f;
+
 	IKernel *Kernel() { return IInterface::Kernel(); }
 	IEngine *Engine() const { return m_pEngine; }
 	class IGraphics *Graphics() const { return m_pGraphics; }
@@ -142,8 +159,22 @@ class CGameClient : public IGameClient
 	int ChallengeVariantMask() const { return m_ChallengeInfoReceived ? m_ChallengeVariantMask : 0; }
 	bool DarkVisionEnabled() const
 	{
-		return m_ChallengeInfoReceived && ChallengeVariantEnabled(m_ChallengeVariantMask, CHALLENGE_DARK);
+		const bool ChallengeDark = m_ChallengeInfoReceived &&
+			ChallengeVariantEnabled(m_ChallengeVariantMask, CHALLENGE_DARK);
+		const bool ServerDark = m_LocalLightingTarget < 255 || m_LocalLightingBrightness < 0.999f;
+		return ChallengeDark || ServerDark;
 	}
+	// The value is server-authored and interpolated locally. It is also used for
+	// the ambient clear color, so the whole lighting pass fades coherently.
+	float LightingBrightness() const
+	{
+		const bool ChallengeDark = m_ChallengeInfoReceived &&
+			ChallengeVariantEnabled(m_ChallengeVariantMask, CHALLENGE_DARK);
+		return ChallengeDark ? 0.0f : clamp(m_LocalLightingBrightness, 0.0f, 1.0f);
+	}
+	bool LocalZoomAllowed() const;
+	int ServerZoom() const;
+	float FlashOverlayAlpha() const;
 	class CSkelebank *Skelebank() { return m_pSkelebank; }
 
 	int NetobjNumCorrections() { return m_NetObjHandler.NumObjCorrections(); }
@@ -319,6 +350,9 @@ class CGameClient : public IGameClient
 	bool LoadChallengeScript(const CNetMsg_Sv_ChallengeInfo &Info);
 	void EnsureDarkVisionRenderBuffers();
 	void RestoreDarkVisionRenderBuffers();
+	void UpdateLocalVisionStatus();
+	void UpdateVisionLighting();
+	void RenderVisionOverlay();
 
 	void OnReset();
 

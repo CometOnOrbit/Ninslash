@@ -38,7 +38,7 @@ class CLight : public CComponent
 
 	CLight();
 
-	void AddSimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow = true);
+	void AddSimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow = true, bool Force = false);
 	void AddBoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot = 0.0f);
 
 	virtual void OnReset();
@@ -57,6 +57,7 @@ class CLight : public CComponent
 	};
 
 	int m_LightCount;
+	bool m_ForceLights;
 	SLightSource m_aLights[MAX_LIGHTSOURCES];
 
 	void RenderLight(vec2 Pos, vec2 Size, vec4 Color);

@@ -53,6 +53,7 @@ class CEffects : public CComponent
 	void SimpleLight(vec2 Pos, vec4 Color, float Size);
 	void SimpleLight(vec2 Pos, vec4 Color, vec2 Size);
 	void SimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow);
+	void SimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow, bool Force);
 	void BoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot = 0.0f);
 	void Electrospark(vec2 Pos, float Size, vec2 Vel = vec2(0, 0));
 	void Repair(vec2 Pos);

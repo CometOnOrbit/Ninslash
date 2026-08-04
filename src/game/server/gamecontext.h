@@ -197,6 +197,10 @@ class CGameContext : public IGameServer
 	void CreateBuildingHit(vec2 Pos);
 	void CreateDamageInd(vec2 Pos, float AngleMod, int Damage, int ClientID);
 	void CreateHitConfirm(vec2 Pos, const CAttackSource &Source, int Damage, int TargetType, bool Killed);
+	// Detonate a server-authoritative flash/blind grenade. The event is
+	// broadcast for the one-frame light pulse while each affected player keeps
+	// its own status in CPlayer and the regular snapshot.
+	void CreateVisionBurst(vec2 Pos, int Kind, float Radius);
 	void CreateRepairInd(vec2 Pos);
 	void CreateExplosion(vec2 Pos, const CAttackSource &Source, float DamageScale = 1.0f);
 	void SendEffect(int ClientID, int EffectID);

@@ -39,6 +39,8 @@
 ---| 'capacitor'
 ---| 'rail'
 ---| 'hammer_impact'
+---| 'vision_flash'
+---| 'vision_blind'
 
 ---@class WeaponNumberCurve: table<integer, number>
 ---@class WeaponIntegerCurve: table<integer, integer>
@@ -138,6 +140,7 @@
 ---@field muzzle_amount? WeaponInteger
 ---@field screenshake_amount? WeaponNumber
 ---@field impact_effect? WeaponInteger Use a value from `weapon.impact`.
+---@field static_sprite? WeaponInteger Relative legacy static-atlas sprite index; `-1` keeps `static_type`.
 
 ---@class WeaponAssets
 ---@field held_image? string Package-relative PNG resource path.

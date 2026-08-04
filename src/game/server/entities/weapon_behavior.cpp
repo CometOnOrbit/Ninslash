@@ -288,6 +288,13 @@ bool CWeaponBehaviorExecutor::Throw(CWeapon &Weapon)
 
 	Weapon.m_Charge = 0;
 	Weapon.m_Released = true;
+	if(WeaponHasBehavior(Weapon.m_WeaponProfile.m_Definition, WEAPON_BEHAVIOR_VISION_GRENADE))
+	{
+		// A vision grenade detonates on its first solid collision or after a
+		// bounded fuse. It has no damage/explosion profile of its own.
+		Weapon.m_DestructionTick = Weapon.Server()->Tick() + 3 * Weapon.Server()->TickSpeed();
+		Weapon.m_AttackTick = Weapon.Server()->Tick();
+	}
 	return true;
 }
 
@@ -410,5 +417,11 @@ void CWeaponBehaviorExecutor::SelfDestruct(CWeapon &Weapon)
 	}
 	else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_ELECTROWALL))
 		Weapon.GameServer()->CreateEffect(FX_SMALLELECTRIC, Weapon.m_Pos);
+	else if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_VISION_GRENADE))
+	{
+		const int Kind = Definition.m_VisionKind == WEAPON_VISION_BLIND ? 1 : 0;
+		const float Radius = Kind == 0 ? 768.0f : 640.0f;
+		Weapon.GameServer()->CreateVisionBurst(Weapon.m_Pos, Kind, Radius);
+	}
 	Weapon.GameServer()->m_World.DestroyEntity(&Weapon);
 }

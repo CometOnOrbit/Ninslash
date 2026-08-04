@@ -247,6 +247,8 @@ void CControls::ConZoomPlus(IConsole::IResult *pResult, void *pUserData)
 	if(pControls->Client()->State() != IClient::STATE_ONLINE &&
 	   pControls->Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
+	if(!pControls->m_pClient->LocalZoomAllowed())
+		return;
 	if(g_Config.m_ClZoom < 30)
 		g_Config.m_ClZoom++;
 	if(g_Config.m_ClZoom < 1)
@@ -262,6 +264,8 @@ void CControls::ConZoomMinus(IConsole::IResult *pResult, void *pUserData)
 		return;
 	if(pControls->Client()->State() != IClient::STATE_ONLINE &&
 	   pControls->Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		return;
+	if(!pControls->m_pClient->LocalZoomAllowed())
 		return;
 	if(g_Config.m_ClZoom > 1)
 		g_Config.m_ClZoom--;

@@ -94,6 +94,16 @@ enum EWeaponBehaviorFlag : uint32_t
 	WEAPON_BEHAVIOR_CAPACITOR = 1u << 28,
 	WEAPON_BEHAVIOR_RAIL = 1u << 29,
 	WEAPON_BEHAVIOR_HAMMER_IMPACT = 1u << 30,
+	WEAPON_BEHAVIOR_VISION_GRENADE = 1u << 31,
+};
+
+// Validated by the Lua behavior tag. This distinguishes the two vision
+// grenade effects without coupling execution to numeric static weapon IDs.
+enum EWeaponVisionKind
+{
+	WEAPON_VISION_NONE = 0,
+	WEAPON_VISION_FLASH,
+	WEAPON_VISION_BLIND,
 };
 
 enum EWeaponImpactEffect
@@ -119,6 +129,7 @@ struct CWeaponDefinition
 	uint8_t m_Part2;
 	uint8_t m_MaxLevel;
 	uint32_t m_BehaviorFlags;
+	EWeaponVisionKind m_VisionKind;
 	bool m_Custom;
 	// Stable registry handles. Zero means the definition has no declared module.
 	uint16_t m_FrameModule;
@@ -231,6 +242,10 @@ struct CWeaponVisualProfile
 	int m_MuzzleAmount;
 	float m_ScreenshakeAmount;
 	int m_ImpactEffect;
+	// Relative index in the legacy static weapon atlas. -1 keeps the
+	// definition's static type, while official weapons may reuse an existing
+	// atlas sprite without inventing an out-of-range generated sprite.
+	int m_StaticSprite;
 };
 
 struct CResolvedWeaponProfile

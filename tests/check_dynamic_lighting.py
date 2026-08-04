@@ -42,8 +42,9 @@ def main() -> int:
         (light, r"!g_Config\.m_ClLighting && !m_pClient->DarkVisionEnabled\(\)", "DarkVision bypass of local cl_lighting"),
         (backend, r"m_aShader\[SHADER_LIGHT\].*light\.frag", "light shader loading"),
         (backend, r"glActiveTextureARB\(GL_TEXTURE1\)[\s\S]*glUniform1iARB\(location, 1\)", "collision texture unit binding"),
-        (backend, r"pCommand->m_DarkVision", "server-authoritative DarkVision clear flag"),
-        (gameclient, r"ClearBufferTexture\(DarkVisionEnabled\(\)\)", "effective DarkVision passed to the render thread"),
+        (backend, r"pCommand->m_LightingBrightness", "server-authoritative lighting brightness"),
+        (gameclient, r"ClearBufferTexture\(LightingBrightness\(\)\)", "effective lighting brightness passed to the render thread"),
+        (gameclient_header, r"m_LocalLightingTarget|m_LocalLightingBrightness", "smooth client-side lighting transition state"),
         (gameclient, r"EnsureDarkVisionRenderBuffers\(\)[\s\S]*m_GfxMultiBuffering = 1", "DarkVision render buffers override local buffering preference"),
         (gameclient_header, r"m_ChallengeInfoReceived \? m_ChallengeVariantMask : 0", "no local Challenge fallback before server handshake"),
     ]

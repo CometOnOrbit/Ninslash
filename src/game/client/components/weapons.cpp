@@ -89,6 +89,16 @@ void CWeapons::RenderWeapon(const CNetObj_Weapon *pPrev, const CNetObj_Weapon *p
 	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_BALL))
 		ChargeLevel = 0;
 
+	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_VISION_GRENADE))
+	{
+		const bool Blind = Definition.m_VisionKind == WEAPON_VISION_BLIND;
+		m_pClient->m_pEffects->SimpleLight(Pos,
+			Blind ? vec4(0.16f, 0.16f, 0.18f, 0.35f) : vec4(1.0f, 1.0f, 1.0f, 0.9f),
+			Blind ? vec2(118.0f, 88.0f) : vec2(142.0f, 106.0f),
+			false,
+			true);
+	}
+
 	// Graphics()->ShaderBegin(SHADER_COLORSWAP, 1.0f, 0.0f, ChargeLevel);
 	RenderTools()->SetShadersForWeapon(WeaponSpec, ChargeLevel);
 	Graphics()->QuadsBegin();

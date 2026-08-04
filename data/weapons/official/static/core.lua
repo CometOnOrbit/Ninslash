@@ -188,6 +188,62 @@ weapon.define {
 }
 
 weapon.define {
+  id = "official:static:flash_grenade",
+  schema = 4,
+  behavior = {"vision_flash"},
+  kind = weapon.kind.static,
+  static_type = weapon.static.flash_grenade,
+  max_level = 0,
+
+  combat_template = weapon.combat.throw,
+  visual_template = weapon.visual.item,
+
+  combat = {
+    full_auto = true,
+    ai_attack_range = 760,
+    throw_force = 1,
+    cost = 8,
+    auto_pick = true,
+  },
+  visuals = {
+    visual_size = {2, 3},
+    render_offset_x = 4,
+    projectile_size = 2.5,
+    projectile_trace_type = 4,
+    color_swap = {0, 0},
+    static_sprite = 3,
+  },
+}
+
+weapon.define {
+  id = "official:static:blind_grenade",
+  schema = 4,
+  behavior = {"vision_blind"},
+  kind = weapon.kind.static,
+  static_type = weapon.static.blind_grenade,
+  max_level = 0,
+
+  combat_template = weapon.combat.throw,
+  visual_template = weapon.visual.item,
+
+  combat = {
+    full_auto = true,
+    ai_attack_range = 640,
+    throw_force = 1,
+    cost = 8,
+    auto_pick = true,
+  },
+  visuals = {
+    visual_size = {2, 3},
+    render_offset_x = 4,
+    projectile_size = 2.5,
+    projectile_trace_type = 5,
+    color_swap = {0, 0},
+    static_sprite = 3,
+  },
+}
+
+weapon.define {
   id = "official:static:bazooka",
   schema = 4,
   behavior = {"bazooka"},

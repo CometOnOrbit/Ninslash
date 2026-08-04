@@ -88,7 +88,9 @@ static const char *s_TipText[NUM_STATIC_WEAPONS] = {"Repair tool",
 													"Shuriken",
 													"Zombie claw",
 													"Bomb (for destroying reactors)",
-													"Ball"};
+													"Ball",
+													"Flash grenade",
+													"Blind grenade"};
 
 static const char *WeaponDisplayName(const CWeaponSpec &Spec, char *pBuffer, int BufferSize)
 {
