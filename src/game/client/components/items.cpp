@@ -189,6 +189,40 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pNet, int ItemID)
 
 	vec2 Vel = Pos - PrevPos;
 
+	// Every visible projectile gets a small glow. Projectile lights are
+	// deliberately non-shadow-casting: bullets can be numerous, and their
+	// contribution should not consume one of the expensive shadow passes.
+	vec4 ProjectileLightColor(0.95f, 0.9f, 0.65f, 0.32f);
+	float ProjectileLightWidth = 78.0f;
+	if(pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_FLAMER)
+	{
+		ProjectileLightColor = vec4(1.0f, 0.45f, 0.12f, 0.5f);
+		ProjectileLightWidth = 156.0f;
+	}
+	else if((pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_ELECTRIC_GUN) ||
+		pCurrent->m_Combat.m_ElectroAmount > 0.0f)
+	{
+		ProjectileLightColor = vec4(0.25f, 0.75f, 1.0f, 0.48f);
+		ProjectileLightWidth = 132.0f;
+	}
+	else if((pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_BAZOOKA) ||
+		pCurrent->m_Combat.m_ExplosiveProjectile)
+	{
+		ProjectileLightColor = vec4(1.0f, 0.5f, 0.16f, 0.46f);
+		ProjectileLightWidth = 144.0f;
+	}
+	else if(pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_GREEN_EXPLOSION)
+	{
+		ProjectileLightColor = vec4(0.35f, 1.0f, 0.4f, 0.42f);
+		ProjectileLightWidth = 112.0f;
+	}
+	const float ProjectileScale = clamp(pCurrent->m_Visual.m_ProjectileSize, 0.6f, 2.0f);
+	m_pClient->m_pEffects->SimpleLight(
+		Pos,
+		ProjectileLightColor,
+		vec2(ProjectileLightWidth, ProjectileLightWidth * 0.72f) * ProjectileScale,
+		false);
+
 	// add force to fluids
 	m_pClient->AddFluidForce(Pos, Vel * 5);
 
@@ -274,6 +308,8 @@ void CItems::RenderScriptEntity(const CNetObj_ScriptEntity *pCurrent, int ItemID
 	const vec2 From(pCurrent->m_FromX, pCurrent->m_FromY);
 	if(pCurrent->m_Kind == 1) // ray
 	{
+		m_pClient->m_pEffects->SimpleLight(
+			(From + Pos) * 0.5f, vec4(0.35f, 0.85f, 1.0f, 0.35f), vec2(128.0f, 96.0f), false);
 		Graphics()->TextureClear();
 		Graphics()->LinesBegin();
 		Graphics()->SetColor(0.35f, 0.85f, 1.0f, 0.8f);
@@ -287,6 +323,8 @@ void CItems::RenderScriptEntity(const CNetObj_ScriptEntity *pCurrent, int ItemID
 		const int Segments = 20;
 		IGraphics::CLineItem aLines[Segments];
 		const float Radius = max(1, pCurrent->m_Radius);
+		m_pClient->m_pEffects->SimpleLight(
+			Pos, vec4(0.3f, 1.0f, 0.55f, 0.32f), vec2(max(96.0f, Radius), max(72.0f, Radius * 0.75f)), false);
 		for(int i = 0; i < Segments; ++i)
 		{
 			const float A = i * 2.0f * pi / Segments;
@@ -310,6 +348,8 @@ void CItems::RenderScriptEntity(const CNetObj_ScriptEntity *pCurrent, int ItemID
 	else
 		RenderTools()->SelectSprite(SPRITE_PROJECTILE1_1);
 	const vec2 Velocity(pCurrent->m_VelX / 100.0f, pCurrent->m_VelY / 100.0f);
+	m_pClient->m_pEffects->SimpleLight(
+		Pos, vec4(0.35f, 0.95f, 0.75f, 0.38f), vec2(120.0f, 90.0f), false);
 	Graphics()->QuadsSetRotation(length(Velocity) > 0.001f ? GetAngle(Velocity) : 0.0f);
 	const float Radius = max(6, pCurrent->m_Radius);
 	IGraphics::CQuadItem Quad(Pos.x - Radius, Pos.y - Radius, Radius * 2.0f, Radius * 2.0f);
@@ -327,6 +367,8 @@ void CItems::RenderPredictedScriptEntities()
 			continue;
 		if(Entity.m_Kind == WEAPON_SCRIPT_SPAWN_RAY)
 		{
+			m_pClient->m_pEffects->SimpleLight(
+				(Entity.m_From + Entity.m_Pos) * 0.5f, vec4(0.4f, 0.9f, 1.0f, 0.3f), vec2(120.0f, 90.0f), false);
 			Graphics()->TextureClear();
 			Graphics()->LinesBegin();
 			Graphics()->SetColor(0.5f, 0.9f, 1.0f, 0.45f);
@@ -335,6 +377,8 @@ void CItems::RenderPredictedScriptEntities()
 			Graphics()->LinesEnd();
 			continue;
 		}
+		m_pClient->m_pEffects->SimpleLight(
+			Entity.m_Pos, vec4(0.35f, 0.95f, 0.75f, 0.32f), vec2(112.0f, 84.0f), false);
 		Graphics()->TextureClear();
 		Graphics()->QuadsBegin();
 		Graphics()->SetColor(0.45f, 0.9f, 1.0f, 0.55f);
@@ -422,6 +466,34 @@ void CItems::RenderPickup(const CNetObj_Pickup *pPrev, const CNetObj_Pickup *pCu
 	}
 
 	s_LastLocalTime = Client()->LocalTime();
+
+	// Pickups are deliberately non-shadow-casting glows: they are numerous and
+	// should remain visible without adding a shader shadow pass each frame.
+	vec4 PickupLightColor(1.0f, 1.0f, 1.0f, 0.28f);
+	float PickupLightWidth = 96.0f;
+	switch(pCurrent->m_Type)
+	{
+		case POWERUP_HEALTH:
+			PickupLightColor = vec4(0.35f, 1.0f, 0.45f, 0.34f);
+			break;
+		case POWERUP_AMMO:
+			PickupLightColor = vec4(1.0f, 0.78f, 0.25f, 0.32f);
+			break;
+		case POWERUP_WEAPON:
+			PickupLightColor = vec4(0.55f, 0.8f, 1.0f, 0.4f);
+			PickupLightWidth = 128.0f;
+			break;
+		case POWERUP_ARMOR:
+			PickupLightColor = vec4(0.35f, 0.65f, 1.0f, 0.34f);
+			break;
+		case POWERUP_COIN:
+			PickupLightColor = vec4(1.0f, 0.75f, 0.2f, 0.36f);
+			break;
+		default:
+			break;
+	}
+	m_pClient->m_pEffects->SimpleLight(
+		Pos, PickupLightColor, vec2(PickupLightWidth, PickupLightWidth * 0.75f), false);
 
 	if(pCurrent->m_Type == POWERUP_WEAPON)
 		RenderTools()->RenderWeapon(
@@ -554,6 +626,13 @@ void CItems::RenderLaser(const struct CNetObj_Laser *pCurrent)
 	vec2 Pos = vec2(pCurrent->m_X, pCurrent->m_Y);
 	vec2 From = vec2(pCurrent->m_FromX, pCurrent->m_FromY);
 	vec2 Dir = normalize(Pos - From);
+	const vec2 LaserMid = (From + Pos) * 0.5f;
+	const float LaserLength = distance(From, Pos);
+	// Electric/laser beams illuminate their nearby surroundings without
+	// becoming shadow casters for every segment of a long beam.
+	m_pClient->m_pEffects->SimpleLight(
+		LaserMid, vec4(0.3f, 0.75f, 1.0f, 0.34f),
+		vec2(clamp(120.0f + LaserLength * 0.08f, 120.0f, 260.0f), 96.0f), false);
 
 	float Ticks = Client()->GameTick() + Client()->IntraGameTick() - pCurrent->m_StartTick;
 	float Ms = (Ticks / 50.0f) * 1000.0f;

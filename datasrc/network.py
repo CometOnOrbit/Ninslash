@@ -460,6 +460,14 @@ Objects = [
 		*WeaponSpecFields("m_Weapon4"),
 		
 		NetIntRange("m_Kits", 0, 99),
+
+		# Appended for the spectator statistics panel. Keep the legacy weapon and
+		# kit fields above in place so existing object layouts remain stable.
+		NetIntRange("m_Kills", 0, 65535),
+		NetIntRange("m_Deaths", 0, 65535),
+		NetIntRange("m_KillStreak", 0, 65535),
+		NetIntRange("m_BestKillStreak", 0, 65535),
+		NetIntRange("m_Gold", 0, 999),
 	]),
 
 	NetObject("ClientInfo", [
@@ -617,6 +625,19 @@ Objects = [
 		NetTick("m_StartTick"),
 		NetIntAny("m_Time"),
 		NetIntRange("m_Checkpoint", 0, 64),
+	]),
+
+	# Appended challenge state. One object is emitted per owner so the server
+	# can correct global and per-player deterministic Lua state independently.
+	NetObject("ChallengeRuntime", [
+		NetTick("m_Tick"),
+		NetIntAny("m_RandomState"),
+		NetIntAny("m_State0"), NetIntAny("m_State1"), NetIntAny("m_State2"), NetIntAny("m_State3"),
+		NetIntAny("m_State4"), NetIntAny("m_State5"), NetIntAny("m_State6"), NetIntAny("m_State7"),
+		NetIntAny("m_PlayerState0"), NetIntAny("m_PlayerState1"),
+		NetIntAny("m_PlayerState2"), NetIntAny("m_PlayerState3"),
+		NetIntAny("m_Checksum"),
+		NetIntRange("m_Owner", -1, 'MAX_CLIENTS-1'),
 	]),
 ]
 
@@ -990,5 +1011,22 @@ Messages = [
 
 	NetMessage("Sv_MusicThreat", [
 		NetIntRange("m_Threat", 0, 255),
+	]),
+
+	# Challenge script negotiation is appended to preserve all legacy message
+	# IDs. The hash is the canonical content-package hash, not a user filename.
+	NetMessage("Sv_ChallengeInfo", [
+		NetIntRange("m_ApiVersion", 0, 999),
+		NetStringStrict("m_pContentHash"),
+		NetIntAny("m_FixedSeed"),
+		NetIntRange("m_VariantMask", 0, 255),
+		NetIntRange("m_Active", 0, 1),
+	]),
+
+	NetMessage("Sv_ChallengeEvent", [
+		NetIntRange("m_Event", 0, 9),
+		NetIntRange("m_ClientID", -1, 'MAX_CLIENTS-1'),
+		NetIntAny("m_Value"),
+		NetTick("m_Tick"),
 	]),
 ]

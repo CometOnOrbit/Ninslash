@@ -182,6 +182,7 @@ CGraphics_Threaded::CGraphics_Threaded()
 	m_InvalidTexture = 0;
 
 	m_TextureMemoryUsage = 0;
+	mem_zero((void *)m_aShaderAvailable, sizeof(m_aShaderAvailable));
 
 	m_RenderEnable = true;
 	m_ScreenshotRequestCount = 0;
@@ -420,7 +421,17 @@ void CGraphics_Threaded::CreateTextureBuffer(int Width, int Height)
 void CGraphics_Threaded::LoadShaders()
 {
 	CCommandBuffer::SCommand_LoadShaders Cmd;
+	Cmd.m_pAvailable = m_aShaderAvailable;
 	m_pCommandBuffer->AddCommand(Cmd);
+	// Shader availability is consumed by the game render path. Make the
+	// result visible before texture buffers and the first frame are queued.
+	KickCommandBuffer();
+	WaitForIdle();
+}
+
+bool CGraphics_Threaded::IsShaderAvailable(int Shader) const
+{
+	return Shader >= 0 && Shader < NUM_SHADERS && m_aShaderAvailable[Shader] != 0;
 }
 
 void CGraphics_Threaded::ShaderBegin(int Shader, float Intensity, float ColorSwap, float WeaponCharge)
@@ -430,6 +441,38 @@ void CGraphics_Threaded::ShaderBegin(int Shader, float Intensity, float ColorSwa
 	Cmd.m_Intensity = Intensity;
 	Cmd.m_ColorSwap = ColorSwap;
 	Cmd.m_WeaponCharge = WeaponCharge;
+	m_pCommandBuffer->AddCommand(Cmd);
+}
+
+void CGraphics_Threaded::LightShaderBegin(
+	int CollisionTexture,
+	float LightCenterX,
+	float LightCenterY,
+	float LightRadius,
+	float CollisionWidth,
+	float CollisionHeight,
+	float ViewTLX,
+	float ViewTLY,
+	float ViewBRX,
+	float ViewBRY,
+	float TargetWidth,
+	float TargetHeight)
+{
+	CCommandBuffer::SCommand_ShaderBegin Cmd;
+	Cmd.m_Shader = SHADER_LIGHT;
+	Cmd.m_Intensity = 1.0f;
+	Cmd.m_ExtraTexture = CollisionTexture;
+	Cmd.m_LightCenterX = LightCenterX;
+	Cmd.m_LightCenterY = LightCenterY;
+	Cmd.m_LightRadius = LightRadius;
+	Cmd.m_CollisionWidth = CollisionWidth;
+	Cmd.m_CollisionHeight = CollisionHeight;
+	Cmd.m_ViewTLX = ViewTLX;
+	Cmd.m_ViewTLY = ViewTLY;
+	Cmd.m_ViewBRX = ViewBRX;
+	Cmd.m_ViewBRY = ViewBRY;
+	Cmd.m_TargetWidth = TargetWidth;
+	Cmd.m_TargetHeight = TargetHeight;
 	m_pCommandBuffer->AddCommand(Cmd);
 }
 
@@ -496,7 +539,11 @@ int CGraphics_Threaded::LoadTextureRaw(int Width, int Height, int Format, const 
 	Cmd.m_Flags = 0;
 	if(Flags & IGraphics::TEXLOAD_NOMIPMAPS)
 		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_NOMIPMAPS;
-	if(g_Config.m_GfxTextureCompression)
+	if(Flags & IGraphics::TEXLOAD_NEAREST)
+		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_NEAREST;
+	if(Flags & IGraphics::TEXLOAD_NOCOMPRESSION)
+		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_NOCOMPRESSION;
+	if(g_Config.m_GfxTextureCompression && !(Flags & IGraphics::TEXLOAD_NOCOMPRESSION))
 		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_COMPRESSED;
 	if(g_Config.m_GfxTextureQuality || Flags & TEXLOAD_NORESAMPLE)
 		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_QUALITY;
@@ -775,9 +822,10 @@ void CGraphics_Threaded::Clear(float r, float g, float b)
 	m_pCommandBuffer->AddCommand(Cmd);
 }
 
-void CGraphics_Threaded::ClearBufferTexture()
+void CGraphics_Threaded::ClearBufferTexture(bool DarkVision)
 {
 	CCommandBuffer::SCommand_ClearBufferTexture Cmd;
+	Cmd.m_DarkVision = DarkVision ? 1 : 0;
 	m_pCommandBuffer->AddCommand(Cmd);
 }
 

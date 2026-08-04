@@ -75,6 +75,16 @@ class CUI
 	class IInput *m_pInput;
 	class CRenderTools *m_pRenderTools;
 
+	// Nested clip support: DoEditBox and similar enable/disable their own
+	// scissor rect. Without a stack the inner ClipDisable drops the enclosing
+	// scroll-region clip, leaking text outside the scroll area.
+	enum
+	{
+		MAX_CLIP_DEPTH = 8,
+	};
+	CUIRect m_aClipStack[MAX_CLIP_DEPTH];
+	int m_ClipDepth;
+
   public:
 	void SetGraphics(class IGraphics *pGraphics, class ITextRender *pTextRender);
 	void SetClient(class IClient *pClient) { m_pClient = pClient; }

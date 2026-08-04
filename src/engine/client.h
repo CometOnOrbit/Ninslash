@@ -58,6 +58,8 @@ struct CHostGameSettings
 	char m_aConfig[128];
 	char m_aModHash[65];
 	char m_aModIDs[1024];
+	char m_aChallengeScript[256];
+	char m_aChallengeContentHash[65];
 };
 
 class IClient : public IInterface

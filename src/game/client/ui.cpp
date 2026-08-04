@@ -67,6 +67,7 @@ CUI::CUI()
 	m_pLastActiveItem = 0;
 	m_pBecommingHotItem = 0;
 	m_ActiveItemValid = false;
+	m_ClipDepth = 0;
 	m_pClient = 0;
 	m_pInput = 0;
 	m_pRenderTools = 0;
@@ -97,6 +98,9 @@ void CUI::SetGraphics(IGraphics *pGraphics, ITextRender *pTextRender)
 
 int CUI::Update(float Mx, float My, float Mwx, float Mwy, int Buttons)
 {
+	// Each frame starts with a clean clip stack (scroll regions and widgets
+	// enable/disable their own clips during rendering).
+	m_ClipDepth = 0;
 	m_MouseX = Mx;
 	m_MouseY = My;
 	m_MouseWorldX = Mwx;
@@ -169,14 +173,45 @@ float CUIRect::Scale() const
 
 void CUI::ClipEnable(const CUIRect *r)
 {
+	// Nested clips intersect: an inner clip (e.g. an EditBox scissor) must not
+	// widen the visible area beyond the enclosing scroll-region clip, or text
+	// would still render after scrolling out of the region.
+	CUIRect Effective = *r;
+	if(m_ClipDepth > 0)
+	{
+		const CUIRect &Outer = m_aClipStack[m_ClipDepth - 1];
+		Effective.x = max(r->x, Outer.x);
+		Effective.y = max(r->y, Outer.y);
+		Effective.w = min(r->x + r->w, Outer.x + Outer.w) - Effective.x;
+		Effective.h = min(r->y + r->h, Outer.y + Outer.h) - Effective.y;
+		if(Effective.w < 0.0f)
+			Effective.w = 0.0f;
+		if(Effective.h < 0.0f)
+			Effective.h = 0.0f;
+	}
+	if(m_ClipDepth < MAX_CLIP_DEPTH)
+		m_aClipStack[m_ClipDepth++] = Effective;
 	float XScale = Graphics()->ScreenWidth() / Screen()->w;
 	float YScale = Graphics()->ScreenHeight() / Screen()->h;
-	Graphics()->ClipEnable((int)(r->x * XScale), (int)(r->y * YScale), (int)(r->w * XScale), (int)(r->h * YScale));
+	Graphics()->ClipEnable(
+		(int)(Effective.x * XScale), (int)(Effective.y * YScale), (int)(Effective.w * XScale), (int)(Effective.h * YScale));
 }
 
 void CUI::ClipDisable()
 {
-	Graphics()->ClipDisable();
+	if(m_ClipDepth > 0)
+		m_ClipDepth--;
+	if(m_ClipDepth > 0)
+	{
+		// Restore the enclosing clip instead of clearing it, so nested widgets
+		// (e.g. DoEditBox) do not drop an outer scroll-region clip.
+		const CUIRect &r = m_aClipStack[m_ClipDepth - 1];
+		float XScale = Graphics()->ScreenWidth() / Screen()->w;
+		float YScale = Graphics()->ScreenHeight() / Screen()->h;
+		Graphics()->ClipEnable((int)(r.x * XScale), (int)(r.y * YScale), (int)(r.w * XScale), (int)(r.h * YScale));
+	}
+	else
+		Graphics()->ClipDisable();
 }
 
 void CUIRect::HSplitMid(CUIRect *pTop, CUIRect *pBottom) const

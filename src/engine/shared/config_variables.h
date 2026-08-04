@@ -312,7 +312,7 @@ MACRO_CONFIG_INT(DbgResizable, dbg_resizable, 0, 0, 0, CFGFLAG_CLIENT, "Enables 
 // MapGen
 MACRO_CONFIG_INT(SvMapGen, sv_mapgen, 1, 0, 1, CFGFLAG_SERVER, "Map Generation Status")
 MACRO_CONFIG_INT(SvMapGenLevel, sv_mapgen_level, 1, 1, 9999, CFGFLAG_SERVER, "Map Difficulty")
-MACRO_CONFIG_INT(SvMapGenSeed, sv_mapgen_seed, 0, 0, 32767, CFGFLAG_SERVER, "Map generation seed")
+MACRO_CONFIG_INT(SvMapGenSeed, sv_mapgen_seed, 0, 0, 0x7FFFFFFF, CFGFLAG_SERVER, "Map generation seed")
 MACRO_CONFIG_INT(SvMapGenRandSeed, sv_mapgen_random_seed, 1, 0, 1, CFGFLAG_SERVER, "Random map generation seed")
 MACRO_CONFIG_INT(SvRoamCheckpoints,
 				 sv_roam_checkpoints,
@@ -481,7 +481,7 @@ MACRO_CONFIG_INT(ClLocalServerSeed,
 				 cl_local_server_seed,
 				 0,
 				 0,
-				 32767,
+				 0x7FFFFFFF,
 				 CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_CLOUD,
 				 "Fixed local game map seed")
 MACRO_CONFIG_INT(ClLocalServerRoguelite,

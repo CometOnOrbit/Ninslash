@@ -836,6 +836,10 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 
 				// smoke
 				m_pClient->m_pEffects->ChainsawSmoke(p);
+				// A running chainsaw gives a small local glow. A confirmed enemy hit
+				// adds the larger impact flash in CGameClient::ProcessEvents.
+				m_pClient->m_pEffects->SimpleLight(
+					p + Dir * 48.0f, vec4(1.0f, 0.58f, 0.16f, 0.42f), vec2(176.0f, 132.0f));
 
 				// sparks to walls
 				vec2 To = p + Dir * 32;
@@ -1059,8 +1063,14 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 						NoCol = false;
 
 					if(NoCol)
+					{
+						const vec2 LightPos = (p1 + p2 + p3 + p4) / 4 + vec2(0, 8);
+						const float LightWidth = 112.0f + i * 14.0f;
 						m_pClient->m_pEffects->SimpleLight(
-							(p1 + p2 + p3 + p4) / 4 + vec2(0, 8), vec4(1.0f, 0.75f, 0.5f, 0.3f), 60 + i * 6);
+							LightPos,
+							vec4(1.0f, 0.68f + i * 0.015f, 0.22f, 0.38f),
+							vec2(LightWidth, LightWidth * 0.78f));
+					}
 
 					FinalPos = (p3 + p4) / 2;
 
@@ -1195,13 +1205,17 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 		}
 	}
 
-	// body on flame
-	int s = Player.m_Status;
-	if(s & (1 << STATUS_AFLAME))
-		m_pClient->m_pEffects->Flame(Position +
-										 vec2((frandom() - frandom()) * 8.0f, (frandom() - frandom()) * 14.0f - 4.0f),
-									 vec2(Vel.x * 50, Vel.y * 50 - 100),
-									 0.7f);
+		// body on flame
+		int s = Player.m_Status;
+		if(s & (1 << STATUS_AFLAME))
+		{
+			m_pClient->m_pEffects->SimpleLight(
+				Position + vec2(0, -10), vec4(1.0f, 0.35f, 0.08f, 0.3f), vec2(120.0f, 92.0f), false);
+			m_pClient->m_pEffects->Flame(Position +
+											 vec2((frandom() - frandom()) * 8.0f, (frandom() - frandom()) * 14.0f - 4.0f),
+										 vec2(Vel.x * 50, Vel.y * 50 - 100),
+										 0.7f);
+		}
 
 	pCustomPlayerInfo->Animation()->m_FlipBody = false;
 

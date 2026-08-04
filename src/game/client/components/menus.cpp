@@ -24,6 +24,7 @@
 #include <engine/platform_services.h>
 
 #include <game/version.h>
+#include <game/challenge_variant.h>
 #include <generated/protocol.h>
 
 #include <generated/game_data.h>
@@ -1966,6 +1967,100 @@ enum ECreateRoomStep
 	CREATE_ROOM_CONFIGURE,
 };
 
+// Challenge code format: MODE-DIFF-SEED-VARIANTS, e.g. "INV-15-1234567-3"
+// (mode short name, difficulty, mapgen seed, variant bitmask).
+static const char *ChallengeModeCode(int Mode)
+{
+	switch(Mode)
+	{
+		case LOCAL_MODE_TUTORIAL: return "TUT";
+		case LOCAL_MODE_INVASION: return "INV";
+		case LOCAL_MODE_HORDE: return "HOR";
+		case LOCAL_MODE_EXTRACTION: return "EXT";
+		case LOCAL_MODE_DM: return "DM";
+		case LOCAL_MODE_TDM: return "TDM";
+		case LOCAL_MODE_CTF: return "CTF";
+		case LOCAL_MODE_REACTOR_DEFENSE: return "RDEF";
+		case LOCAL_MODE_REACTOR_ASSAULT: return "RASS";
+		case LOCAL_MODE_BALL: return "BAL";
+		case LOCAL_MODE_BATTLE_ROYALE: return "BR";
+		case LOCAL_MODE_GRENADE_DM: return "GDM";
+		case LOCAL_MODE_INSTAGIB_CTF: return "ICTF";
+		case LOCAL_MODE_ROAM: return "ROAM";
+		default: return "INV";
+	}
+}
+
+static bool ChallengeModeFromCode(const char *pCode, int *pMode)
+{
+	static const struct
+	{
+		const char *m_pCode;
+		int m_Mode;
+	} s_aModes[] = {{"TUT", LOCAL_MODE_TUTORIAL},
+		{"INV", LOCAL_MODE_INVASION},
+		{"HOR", LOCAL_MODE_HORDE},
+		{"EXT", LOCAL_MODE_EXTRACTION},
+		{"DM", LOCAL_MODE_DM},
+		{"TDM", LOCAL_MODE_TDM},
+		{"CTF", LOCAL_MODE_CTF},
+		{"RDEF", LOCAL_MODE_REACTOR_DEFENSE},
+		{"RASS", LOCAL_MODE_REACTOR_ASSAULT},
+		{"BAL", LOCAL_MODE_BALL},
+		{"BR", LOCAL_MODE_BATTLE_ROYALE},
+		{"GDM", LOCAL_MODE_GRENADE_DM},
+		{"ICTF", LOCAL_MODE_INSTAGIB_CTF},
+		{"ROAM", LOCAL_MODE_ROAM}};
+	for(const auto &Mode : s_aModes)
+		if(str_comp_nocase(pCode, Mode.m_pCode) == 0)
+		{
+			*pMode = Mode.m_Mode;
+			return true;
+		}
+	return false;
+}
+
+static bool ChallengeModeAllowed(int Mode)
+{
+	return Mode != LOCAL_MODE_BALL && Mode != LOCAL_MODE_ROAM;
+}
+
+static bool ParseChallengeCode(const char *pCode, int *pMode, int *pDifficulty, int *pSeed, int *pVariants)
+{
+	char aCode[128];
+	str_copy(aCode, pCode, sizeof(aCode));
+	char *apParts[4] = {0};
+	int Count = 0;
+	char *pCursor = aCode;
+	while(Count < 4)
+	{
+		char *pDash = (char *)str_find(pCursor, "-");
+		apParts[Count++] = pCursor;
+		if(!pDash)
+			break;
+		*pDash = 0;
+		pCursor = pDash + 1;
+	}
+	if(Count < 4)
+		return false;
+	if(str_find(apParts[3], "-"))
+		return false;
+
+	if(!ChallengeModeFromCode(apParts[0], pMode))
+		return false;
+
+	*pDifficulty = clamp(str_toint(apParts[1]), 1, 50);
+	*pSeed = clamp(str_toint(apParts[2]), 0, 0x7FFFFFFF);
+	*pVariants = clamp(str_toint(apParts[3]), 0, 255);
+	return true;
+}
+
+// Renders a challenge code from the current settings, e.g. "INV-15-84721-3".
+static void FormatChallengeCode(char *pBuf, int Size, int Mode, int Difficulty, int Seed, int Variants)
+{
+	str_format(pBuf, Size, "%s-%d-%d-%d", ChallengeModeCode(Mode), Difficulty, Seed, Variants);
+}
+
 static void ApplyLocalGameModeDefaults(int Mode)
 {
 	Mode = clamp(Mode, (int)LOCAL_MODE_INVASION, (int)LOCAL_MODE_COUNT - 1);
@@ -2167,7 +2262,7 @@ static bool ApplyWorkshopRoomPreset(const CRoomPreset &Preset, int PartySize, ch
 	g_Config.m_ClLocalServerDifficulty = clamp(Preset.m_Difficulty, 1, 50);
 	g_Config.m_ClLocalServerBots = clamp(Preset.m_Bots, 0, max(0, g_Config.m_ClLocalServerMaxClients - 1));
 	g_Config.m_ClLocalServerRandomSeed = Preset.m_RandomSeed;
-	g_Config.m_ClLocalServerSeed = clamp(Preset.m_Seed, 0, 32767);
+	g_Config.m_ClLocalServerSeed = clamp(Preset.m_Seed, 0, 0x7FFFFFFF);
 	g_Config.m_ClLocalServerRoguelite = Preset.m_Roguelite;
 	g_Config.m_ClLocalServerContracts = Preset.m_Contracts;
 	g_Config.m_ClLocalServerInvasionStart = Preset.m_InvasionStart;
@@ -2240,7 +2335,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 	pSettings->m_Lan = g_Config.m_ClLocalServerLan != 0;
 	pSettings->m_RandomSeed = g_Config.m_ClLocalServerRandomSeed != 0;
 	pSettings->m_MapGen = pSettings->m_pMode->m_MapGen && !g_Config.m_ClLocalServerWorkshopMap[0];
-	pSettings->m_Seed = clamp(g_Config.m_ClLocalServerSeed, 0, 32767);
+	pSettings->m_Seed = clamp(g_Config.m_ClLocalServerSeed, 0, 0x7FFFFFFF);
 	pSettings->m_Roguelite = pSettings->m_pMode->m_HasRoguelite && g_Config.m_ClLocalServerRoguelite != 0;
 	pSettings->m_Contracts = pSettings->m_Roguelite && g_Config.m_ClLocalServerContracts != 0;
 	pSettings->m_MapLevel = pSettings->m_Difficulty;
@@ -2714,6 +2809,11 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	char aBotLevel[64];
 	char aRandomSeed[64];
 	char aSeed[64];
+	char aChallenge[64];
+	char aChallengeScript[320];
+	char aChallengeHash[100];
+	char aChallengeScriptValue[320];
+	char aChallengeHashValue[100];
 	char aRoguelite[64];
 	char aContracts[64];
 	char aCheckpoint[64];
@@ -2739,6 +2839,22 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	str_format(aBotLevel, sizeof(aBotLevel), "sv_botlevel %d", Settings.m_BotLevel);
 	str_format(aRandomSeed, sizeof(aRandomSeed), "sv_mapgen_random_seed %d", Settings.m_RandomSeed);
 	str_format(aSeed, sizeof(aSeed), "sv_mapgen_seed %d", Settings.m_Seed);
+	str_format(aChallenge,
+		 sizeof(aChallenge),
+		 "sv_challenge_variants %d",
+		 ChallengeModeAllowed(Settings.m_Mode) ? g_Config.m_ClChallengeVariants : 0);
+	aChallengeScript[0] = 0;
+	aChallengeHash[0] = 0;
+	if(g_Config.m_ClChallengeScript[0])
+	{
+		EscapeLocalServerValue(g_Config.m_ClChallengeScript, aChallengeScriptValue, sizeof(aChallengeScriptValue));
+		str_format(aChallengeScript, sizeof(aChallengeScript), "sv_challenge_script %s", aChallengeScriptValue);
+	}
+	if(g_Config.m_ClChallengeContentHash[0])
+	{
+		EscapeLocalServerValue(g_Config.m_ClChallengeContentHash, aChallengeHashValue, sizeof(aChallengeHashValue));
+		str_format(aChallengeHash, sizeof(aChallengeHash), "sv_challenge_content_hash %s", aChallengeHashValue);
+	}
 	str_format(aRoguelite, sizeof(aRoguelite), "sv_pve_roguelite %d", Settings.m_Roguelite);
 	str_format(aContracts, sizeof(aContracts), "sv_pve_contracts %d", Settings.m_Contracts);
 	str_format(aCheckpoint, sizeof(aCheckpoint), "sv_invasion_use_checkpoint %d", Settings.m_UseCheckpoint);
@@ -2762,7 +2878,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	str_format(aPassword, sizeof(aPassword), "password %s", aPasswordValue);
 	str_format(aLog, sizeof(aLog), "logfile %s", aLogValue);
 
-	const char *apArguments[34];
+	const char *apArguments[40];
 	int NumArguments = 0;
 	apArguments[NumArguments++] = aExecutable;
 	apArguments[NumArguments++] = "-s";
@@ -2785,6 +2901,11 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	apArguments[NumArguments++] = aBotLevel;
 	apArguments[NumArguments++] = aRandomSeed;
 	apArguments[NumArguments++] = aSeed;
+	apArguments[NumArguments++] = aChallenge;
+	if(aChallengeScript[0])
+		apArguments[NumArguments++] = aChallengeScript;
+	if(aChallengeHash[0])
+		apArguments[NumArguments++] = aChallengeHash;
 	apArguments[NumArguments++] = aRoguelite;
 	apArguments[NumArguments++] = aContracts;
 	apArguments[NumArguments++] = aCheckpoint;
@@ -3057,6 +3178,10 @@ void CMenus::CreateConfiguredRoom()
 	str_copy(Settings.m_aConfig, Preview.m_pConfig, sizeof(Settings.m_aConfig));
 	str_copy(Settings.m_aModHash, g_Config.m_ClModHash, sizeof(Settings.m_aModHash));
 	str_copy(Settings.m_aModIDs, g_Config.m_ClModIds, sizeof(Settings.m_aModIDs));
+	str_copy(Settings.m_aChallengeScript, g_Config.m_ClChallengeScript, sizeof(Settings.m_aChallengeScript));
+	str_copy(Settings.m_aChallengeContentHash,
+		g_Config.m_ClChallengeContentHash,
+		sizeof(Settings.m_aChallengeContentHash));
 	Client()->StartSteamHostedGame(Settings);
 }
 
@@ -3073,6 +3198,13 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	static float s_NameOffset, s_PasswordOffset, s_SeedOffset;
 	static char s_aSeedText[8] = "0";
 	static int s_SeedTextValue = -1;
+	static float s_ChallengeOffset;
+	static char s_aChallengeText[64];
+	static int s_ChallengeTextMode = -1;
+	static int s_ChallengeTextDifficulty = -1;
+	static int s_ChallengeTextSeed = -1;
+	static int s_ChallengeTextVariants = -1;
+	static int s_ChVLowGrav, s_ChVNoBuild, s_ChVMelee, s_ChVDark;
 	const float LayoutDivisor = max(1.0f, UI()->Scale());
 	auto L = [LayoutDivisor](float Value)
 	{
@@ -3329,7 +3461,10 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 						  : LocalModeRuleConfig(ModeDef.m_Rule) ? 1
 																: 0);
 	const bool AdvancedExpanded = g_Config.m_ClLocalServerAdvanced != 0;
-	const int AdvancedRows = AdvancedExpanded ? 2 + (ModeDef.m_HasRoguelite ? 1 : 0) : 0;
+	// Challenge section (code input + 4 variant rows + live code) adds six
+	// rows to the advanced area; without this the fixed Identity height clips
+	// them out of the panel.
+	const int AdvancedRows = AdvancedExpanded ? 2 + (ModeDef.m_HasRoguelite ? 1 : 0) + 6 : 0;
 	const CRoomConfigureLayout ConfigureLayout =
 		RoomConfigureLayout(ConfigBody.w, UI()->Scale(), SteamAvailable, MainRows, AdvancedRows, AdvancedExpanded);
 	if(ConfigureLayout.m_SingleColumn)
@@ -3500,8 +3635,7 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			  g_Config.m_ClLocalServerPassword,
 			  sizeof(g_Config.m_ClLocalServerPassword),
 			  11.0f,
-			  &s_PasswordOffset,
-			  true);
+			  &s_PasswordOffset);
 	Identity.HSplitTop(L(7.0f), 0, &Identity);
 	Identity.HSplitTop(L(31.0f), &Row, &Identity);
 	if(DoButton_Menu(&s_Advanced,
@@ -3523,8 +3657,74 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 				s_SeedTextValue = g_Config.m_ClLocalServerSeed;
 			}
 			if(DoEditBox(s_aSeedText, &Control, s_aSeedText, sizeof(s_aSeedText), 10.0f, &s_SeedOffset))
-				g_Config.m_ClLocalServerSeed = clamp(str_toint(s_aSeedText), 0, 32767);
+				g_Config.m_ClLocalServerSeed = clamp(str_toint(s_aSeedText), 0, 0x7FFFFFFF);
 		}
+		SplitRow(Identity, &Label, &Control);
+		UI()->DoLabelScaled(&Label, Localize("Challenge code"), 9.0f, -1);
+		const bool ChallengeCodeChanged = s_ChallengeTextMode != g_Config.m_ClLocalServerMode ||
+			s_ChallengeTextDifficulty != g_Config.m_ClLocalServerDifficulty ||
+			s_ChallengeTextSeed != g_Config.m_ClLocalServerSeed ||
+			s_ChallengeTextVariants != g_Config.m_ClChallengeVariants;
+		if(ChallengeCodeChanged && !CLineInput::GetActiveInput())
+		{
+			FormatChallengeCode(s_aChallengeText,
+				sizeof(s_aChallengeText),
+				g_Config.m_ClLocalServerMode,
+				g_Config.m_ClLocalServerDifficulty,
+				g_Config.m_ClLocalServerSeed,
+				ChallengeModeAllowed(g_Config.m_ClLocalServerMode) ? g_Config.m_ClChallengeVariants : 0);
+			s_ChallengeTextMode = g_Config.m_ClLocalServerMode;
+			s_ChallengeTextDifficulty = g_Config.m_ClLocalServerDifficulty;
+			s_ChallengeTextSeed = g_Config.m_ClLocalServerSeed;
+			s_ChallengeTextVariants = g_Config.m_ClChallengeVariants;
+		}
+		if(DoEditBox(s_aChallengeText, &Control, s_aChallengeText, sizeof(s_aChallengeText), 10.0f, &s_ChallengeOffset))
+		{
+			int Mode, Difficulty, Seed, Variants;
+			if(ParseChallengeCode(s_aChallengeText, &Mode, &Difficulty, &Seed, &Variants))
+			{
+				m_LocalServerFocus = Mode;
+				ApplyLocalGameModeDefaults(Mode);
+				g_Config.m_ClLocalServerDifficulty = Difficulty;
+				g_Config.m_ClLocalServerSeed = Seed;
+				g_Config.m_ClLocalServerRandomSeed = 0;
+				g_Config.m_ClChallengeVariants = ChallengeModeAllowed(Mode) ? Variants : 0;
+				s_SeedTextValue = -1;
+				s_ChallengeTextMode = -1;
+				s_ChallengeTextDifficulty = -1;
+				s_ChallengeTextSeed = -1;
+				s_ChallengeTextVariants = -1;
+			}
+		}
+		// Challenge variant checkboxes (settings-page row style). Ball and Roam
+		// intentionally remain outside the challenge system.
+		if(ChallengeModeAllowed(Mode))
+		{
+			auto ChallengeVariantRow = [&](int Variant, const char *pName, const char *pDesc, int *pButton)
+			{
+				SplitRow(Identity, &Label, &Control);
+				if(DoButton_CheckBox(
+					   pButton, Localize(pName), ChallengeVariantEnabled(g_Config.m_ClChallengeVariants, Variant), &Label))
+					g_Config.m_ClChallengeVariants ^= 1 << Variant;
+				UI()->DoLabelScaled(&Control, Localize(pDesc), 9.0f, -1, (int)Control.w);
+			};
+			ChallengeVariantRow(CHALLENGE_LOW_GRAVITY, "Low gravity", "Weaker gravity", &s_ChVLowGrav);
+			ChallengeVariantRow(CHALLENGE_NO_BUILD, "No building", "Construction disabled", &s_ChVNoBuild);
+			ChallengeVariantRow(
+				CHALLENGE_ONLY_MELEE, "Melee only", "Firearms disabled; other items allowed", &s_ChVMelee);
+			ChallengeVariantRow(CHALLENGE_DARK, "Dark vision", "Darker screen", &s_ChVDark);
+		}
+		// Live challenge code for sharing (clamped to the column width).
+		SplitRow(Identity, &Label, &Control);
+		UI()->DoLabelScaled(&Label, Localize("Code"), 9.0f, -1);
+		char aChallengeCode[64];
+		FormatChallengeCode(aChallengeCode,
+			sizeof(aChallengeCode),
+			g_Config.m_ClLocalServerMode,
+			g_Config.m_ClLocalServerDifficulty,
+			g_Config.m_ClLocalServerSeed,
+			ChallengeModeAllowed(g_Config.m_ClLocalServerMode) ? g_Config.m_ClChallengeVariants : 0);
+		UI()->DoLabelScaled(&Control, aChallengeCode, 9.0f, -1, (int)Control.w);
 		if(ModeDef.m_HasRoguelite)
 		{
 			SplitRow(Identity, &Label, &Control);
@@ -3705,6 +3905,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		FOCUS_BOTS,
 		FOCUS_RANDOM_SEED,
 		FOCUS_SEED,
+		FOCUS_CHALLENGE,
 		FOCUS_SECTION_RULES,
 		FOCUS_ROGUELITE,
 		FOCUS_CONTRACTS,
@@ -3725,7 +3926,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			return true;
 		if(Focus >= FOCUS_SLOTS && Focus <= FOCUS_LAN)
 			return s_LocalSection == 0;
-		if(Focus >= FOCUS_MAP && Focus <= FOCUS_SEED)
+		if(Focus >= FOCUS_MAP && Focus <= FOCUS_CHALLENGE)
 		{
 			if(s_LocalSection != 1)
 				return false;
@@ -3868,7 +4069,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 				else if(m_LocalServerFocus == FOCUS_RANDOM_SEED)
 					g_Config.m_ClLocalServerRandomSeed = Right;
 				else if(m_LocalServerFocus == FOCUS_SEED)
-					g_Config.m_ClLocalServerSeed = clamp(g_Config.m_ClLocalServerSeed + Direction, 0, 32767);
+					g_Config.m_ClLocalServerSeed = clamp(g_Config.m_ClLocalServerSeed + Direction, 0, 0x7FFFFFFF);
 				continue;
 			}
 			if(!Confirm)
@@ -4206,7 +4407,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			}
 			if(DoEditBox(s_aSeedText, &Control, s_aSeedText, sizeof(s_aSeedText), 12.0f, &s_SeedOffset))
 			{
-				g_Config.m_ClLocalServerSeed = clamp(str_toint(s_aSeedText), 0, 32767);
+				g_Config.m_ClLocalServerSeed = clamp(str_toint(s_aSeedText), 0, 0x7FFFFFFF);
 				s_SeedTextValue = g_Config.m_ClLocalServerSeed;
 			}
 			if(!CLineInput::GetActiveInput() && !s_aSeedText[0])
@@ -6995,6 +7196,36 @@ void CMenus::RenderMods(CUIRect MainView)
 			if(LoadWorkshopRoomPreset(Info, &Preset, aMessage, sizeof(aMessage)) &&
 			   ApplyWorkshopRoomPreset(Preset, max(1, pPlatform->PartyMemberCount()), aMessage, sizeof(aMessage)))
 			{
+				// A challenge's optional Lua file is loaded by both the managed
+				// server and the client prediction runtime. Use the installed
+				// absolute path and the canonical package hash so a mismatched
+				// script is never executed silently.
+				g_Config.m_ClChallengeScript[0] = 0;
+				g_Config.m_ClChallengeContentHash[0] = 0;
+				if(Info.m_ContentType == CONTENT_TYPE_CHALLENGE)
+				{
+					char aID[32], aError[256];
+					str_format(aID, sizeof(aID), "%llu", Info.m_PublishedFileID);
+					CContentManifest Manifest;
+					if(ContentPackageValidate(Info.m_aInstallPath, aID, GAME_NETVERSION, &Manifest, aError, sizeof(aError)))
+					{
+						for(int FileIndex = 0; FileIndex < Manifest.m_FileCount; ++FileIndex)
+						{
+							const CContentDeclaredFile &File = Manifest.m_aFiles[FileIndex];
+							if(File.m_Type != CONTENT_FILE_SCRIPT)
+								continue;
+							str_format(g_Config.m_ClChallengeScript,
+								 sizeof(g_Config.m_ClChallengeScript),
+								 "%s/%s",
+								 Info.m_aInstallPath,
+								 File.m_aPath);
+							str_copy(g_Config.m_ClChallengeContentHash,
+								 Manifest.m_aContentHash,
+								 sizeof(g_Config.m_ClChallengeContentHash));
+							break;
+						}
+					}
+				}
 				CPlatformPartyState Party;
 				if(pPlatform->PartyState(&Party) && Party.m_LocalOwner &&
 				   Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE)

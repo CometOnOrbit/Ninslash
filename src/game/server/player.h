@@ -108,6 +108,10 @@ class CPlayer
 	bool m_ActionSpectator;
 
 	int m_Gold;
+	int m_Kills;
+	int m_Deaths;
+	int m_KillStreak;
+	int m_BestKillStreak;
 	int m_LastForgeRequestTick;
 
 	int GetGold() { return m_Gold; }

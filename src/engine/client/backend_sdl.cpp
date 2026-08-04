@@ -156,6 +156,15 @@ void *CCommandProcessorFragment_OpenGL::Rescale(
 
 void CCommandProcessorFragment_OpenGL::SetState(const CCommandBuffer::SState &State)
 {
+	// The light shader temporarily uses texture unit 1 for the collision map.
+	// Keep the fixed-function state machine deterministic by always selecting
+	// unit 0 before binding the source texture for a draw. Without this, a
+	// previous shader command can leave unit 1 active and the light pass then
+	// samples whatever stale texture happens to be bound on unit 0 (typically
+	// the 1x1 white fallback), which produces a completely white frame.
+	if(glActiveTextureARB)
+		glActiveTextureARB(GL_TEXTURE0);
+
 	// blend
 	switch(State.m_BlendMode)
 	{
@@ -357,8 +366,9 @@ void CCommandProcessorFragment_OpenGL::Cmd_Texture_Create(const CCommandBuffer::
 
 	if(pCommand->m_Flags & CCommandBuffer::TEXFLAG_NOMIPMAPS)
 	{
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		const GLint Filter = (pCommand->m_Flags & CCommandBuffer::TEXFLAG_NEAREST) ? GL_NEAREST : GL_LINEAR;
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, Filter);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, Filter);
 		glTexImage2D(GL_TEXTURE_2D, 0, StoreOglformat, Width, Height, 0, Oglformat, GL_UNSIGNED_BYTE, pTexData);
 	}
 	else
@@ -384,14 +394,8 @@ void CCommandProcessorFragment_OpenGL::Cmd_Texture_Create(const CCommandBuffer::
 void CCommandProcessorFragment_OpenGL::Cmd_CreateTextureBuffer(
 	const CCommandBuffer::SCommand_CreateTextureBuffer *pCommand)
 {
-	if(!m_ShadersLoaded)
-	{
-		g_Config.m_GfxMultiBuffering = 0;
-		return;
-	}
-
 	dbg_msg("render", "creating texture buffers");
-	dbg_msg("render", "glew ready");
+	dbg_msg("render", "creating render buffers (shader=%d)", m_ShadersLoaded ? 1 : 0);
 
 	int Width = pCommand->m_Width;
 	int Height = pCommand->m_Height;
@@ -474,13 +478,15 @@ static bool ShaderFunctionsAvailable()
 	return GLEW_VERSION_2_0 && glAttachObjectARB && glCompileShaderARB && glCreateProgramObjectARB &&
 		   glCreateShaderObjectARB && glDeleteObjectARB && glGetInfoLogARB && glGetObjectParameterivARB &&
 		   glGetUniformLocationARB && glLinkProgramARB && glShaderSourceARB && glUniform1iARB && glUniform1fARB &&
-		   glUniform2fv && glUniform4fv && glUseProgramObjectARB;
+		   glUniform2fv && glUniform4fv && glUseProgramObjectARB && glActiveTextureARB;
 }
 
 void CCommandProcessorFragment_OpenGL::Cmd_LoadShaders(const CCommandBuffer::SCommand_LoadShaders *pCommand)
 {
-	g_Config.m_GfxShaders = 0;
 	m_ShadersLoaded = false;
+	if(pCommand->m_pAvailable)
+		for(int i = 0; i < NUM_SHADERS; i++)
+			pCommand->m_pAvailable[i] = 0;
 	if(!ShaderFunctionsAvailable())
 	{
 		dbg_msg("gfx", "shader loading skipped: required OpenGL 2.0 functions unavailable");
@@ -502,6 +508,7 @@ void CCommandProcessorFragment_OpenGL::Cmd_LoadShaders(const CCommandBuffer::SCo
 	m_aShader[SHADER_ACID] = LoadShader("data/shaders/basic.vert", "data/shaders/acid.frag");
 	m_aShader[SHADER_GRAYSCALE] = LoadShader("data/shaders/basic.vert", "data/shaders/grayscale.frag");
 	m_aShader[SHADER_MENU] = LoadShader("data/shaders/basic.vert", "data/shaders/menu.frag");
+	m_aShader[SHADER_LIGHT] = LoadShader("data/shaders/basic.vert", "data/shaders/light.frag");
 	for(int i = 0; i < NUM_SHADERS; i++)
 		if(!m_aShader[i].Handle())
 		{
@@ -509,7 +516,9 @@ void CCommandProcessorFragment_OpenGL::Cmd_LoadShaders(const CCommandBuffer::SCo
 			return;
 		}
 
-	g_Config.m_GfxShaders = 1;
+	if(pCommand->m_pAvailable)
+		for(int i = 0; i < NUM_SHADERS; i++)
+			pCommand->m_pAvailable[i] = 1;
 	m_ShadersLoaded = true;
 }
 
@@ -528,13 +537,21 @@ float CCommandProcessorFragment_OpenGL::GetTime()
 
 void CCommandProcessorFragment_OpenGL::Cmd_ShaderBegin(const CCommandBuffer::SCommand_ShaderBegin *pCommand)
 {
-	if(!m_ShadersLoaded)
+	if(!m_ShadersLoaded || pCommand->m_Shader < 0 || pCommand->m_Shader >= NUM_SHADERS ||
+	   !m_aShader[pCommand->m_Shader].Handle())
 		return;
 
 	CShader *pShader = &(m_aShader[pCommand->m_Shader]);
+	glActiveTextureARB(GL_TEXTURE0);
 	glUseProgramObjectARB(pShader->Handle());
 
-	GLint location = pShader->getUniformLocation("rnd");
+	// Every shader in the legacy pipeline samples its source from unit 0. Set
+	// this explicitly because the light pass also uses unit 1.
+	GLint location = pShader->getUniformLocation("texture");
+	if(location >= 0)
+		glUniform1iARB(location, 0);
+
+	location = pShader->getUniformLocation("rnd");
 	if(location >= 0)
 		glUniform1fARB(location, GLfloat(frandom()));
 
@@ -588,14 +605,77 @@ void CCommandProcessorFragment_OpenGL::Cmd_ShaderBegin(const CCommandBuffer::SCo
 	location = pShader->getUniformLocation("cameray");
 	if(location >= 0)
 		glUniform1iARB(location, GLint(m_CameraY));
+
+	// SHADER_LIGHT extras: light center/radius and the collision texture on
+	// unit 1 (the light buffer stays on unit 0).
+	location = pShader->getUniformLocation("lightcenter");
+	if(location >= 0)
+	{
+		const GLfloat aLightCenter[2] = {pCommand->m_LightCenterX, pCommand->m_LightCenterY};
+		glUniform2fv(location, 1, aLightCenter);
+	}
+
+	location = pShader->getUniformLocation("lightradius");
+	if(location >= 0)
+		glUniform1fARB(location, GLfloat(pCommand->m_LightRadius));
+
+	location = pShader->getUniformLocation("collisionsize");
+	if(location >= 0)
+	{
+		const GLfloat aCollisionSize[2] = {pCommand->m_CollisionWidth, pCommand->m_CollisionHeight};
+		glUniform2fv(location, 1, aCollisionSize);
+	}
+
+	location = pShader->getUniformLocation("collision");
+	if(location >= 0)
+	{
+		if(pCommand->m_ExtraTexture >= 0 && pCommand->m_ExtraTexture < CCommandBuffer::MAX_TEXTURES)
+		{
+			glActiveTextureARB(GL_TEXTURE1);
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, m_aTextures[pCommand->m_ExtraTexture].m_Tex);
+			glUniform1iARB(location, 1);
+			glActiveTextureARB(GL_TEXTURE0);
+		}
+		else
+			glUniform1iARB(location, -1);
+	}
+
+	location = pShader->getUniformLocation("viewtl");
+	if(location >= 0)
+	{
+		const GLfloat aView[2] = {pCommand->m_ViewTLX, pCommand->m_ViewTLY};
+		glUniform2fv(location, 1, aView);
+	}
+
+	location = pShader->getUniformLocation("viewbr");
+	if(location >= 0)
+	{
+		const GLfloat aView[2] = {pCommand->m_ViewBRX, pCommand->m_ViewBRY};
+		glUniform2fv(location, 1, aView);
+	}
+
+	location = pShader->getUniformLocation("targetsize");
+	if(location >= 0)
+	{
+		const GLfloat aTarget[2] = {pCommand->m_TargetWidth, pCommand->m_TargetHeight};
+		glUniform2fv(location, 1, aTarget);
+	}
 }
 
 void CCommandProcessorFragment_OpenGL::Cmd_ShaderEnd(const CCommandBuffer::SCommand_ShaderEnd *pCommand)
 {
-	if(!m_ShadersLoaded)
-		return;
-
-	glUseProgramObjectARB(0);
+	if(glUseProgramObjectARB)
+		glUseProgramObjectARB(0);
+	// The collision sampler is bound on a separate fixed-function texture
+	// unit. Always restore that unit, including when shader loading failed.
+	if(glActiveTextureARB)
+	{
+		glActiveTextureARB(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glDisable(GL_TEXTURE_2D);
+		glActiveTextureARB(GL_TEXTURE0);
+	}
 }
 
 GLint CCommandProcessorFragment_OpenGL::CShader::getUniformLocation(const GLcharARB *pName)
@@ -624,7 +704,14 @@ void CCommandProcessorFragment_OpenGL::Cmd_ClearBufferTexture(
 		if(i == RENDERBUFFER_LIGHT)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, textureBuffer[i]);
-			glClearColor(m_AmbientR, m_AmbientG, m_AmbientB, 1.0f);
+			// DarkVision is decided by the server and copied into this render
+			// command by CGameClient. Never read cl_challenge_variants here: that
+			// setting only describes the local listen-server preset and would let
+			// a remote player's local configuration change their view.
+			if(pCommand->m_DarkVision)
+				glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			else
+				glClearColor(m_AmbientR, m_AmbientG, m_AmbientB, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			continue;
 		}

@@ -102,6 +102,8 @@ class CCommandBuffer
 		TEXFLAG_NOMIPMAPS = 1,
 		TEXFLAG_COMPRESSED = 2,
 		TEXFLAG_QUALITY = 4,
+		TEXFLAG_NEAREST = 8,
+		TEXFLAG_NOCOMPRESSION = 16,
 	};
 
 	enum
@@ -189,7 +191,8 @@ class CCommandBuffer
 
 	struct SCommand_ClearBufferTexture : public SCommand
 	{
-		SCommand_ClearBufferTexture() : SCommand(CMD_CLEARBUFFERTEXTURE) {}
+		SCommand_ClearBufferTexture() : SCommand(CMD_CLEARBUFFERTEXTURE), m_DarkVision(0) {}
+		int m_DarkVision;
 	};
 
 	struct SCommand_Signal : public SCommand
@@ -246,12 +249,13 @@ class CCommandBuffer
 
 	struct SCommand_LoadShaders : public SCommand
 	{
-		SCommand_LoadShaders() : SCommand(CMD_LOADSHADERS) {}
+		SCommand_LoadShaders() : SCommand(CMD_LOADSHADERS), m_pAvailable(0) {}
+		volatile int *m_pAvailable;
 	};
 
 	struct SCommand_ShaderBegin : public SCommand
 	{
-		SCommand_ShaderBegin() : SCommand(CMD_SHADERBEGIN) {}
+		SCommand_ShaderBegin() : SCommand(CMD_SHADERBEGIN), m_ExtraTexture(-1), m_LightCenterX(0.0f), m_LightCenterY(0.0f), m_LightRadius(0.0f), m_CollisionWidth(0.0f), m_CollisionHeight(0.0f), m_ViewTLX(0.0f), m_ViewTLY(0.0f), m_ViewBRX(0.0f), m_ViewBRY(0.0f), m_TargetWidth(0.0f), m_TargetHeight(0.0f) {}
 
 		int m_Shader;
 		float m_Intensity;
@@ -261,6 +265,19 @@ class CCommandBuffer
 		float m_Visibility;
 		float m_Electro;
 		float m_Deathray;
+		// SHADER_LIGHT extras.
+		int m_ExtraTexture;
+		float m_LightCenterX;
+		float m_LightCenterY;
+		float m_LightRadius;
+		float m_CollisionWidth;
+		float m_CollisionHeight;
+		float m_ViewTLX;
+		float m_ViewTLY;
+		float m_ViewBRX;
+		float m_ViewBRY;
+		float m_TargetWidth;
+		float m_TargetHeight;
 	};
 
 	struct SCommand_ShaderEnd : public SCommand
@@ -449,6 +466,7 @@ class CGraphics_Threaded : public IEngineGraphics
 	int m_aTextureIndices[MAX_TEXTURES];
 	int m_FirstFreeTexture;
 	int m_TextureMemoryUsage;
+	volatile int m_aShaderAvailable[NUM_SHADERS];
 
 	void FlushVertices();
 	void AddVertices(int Count);
@@ -490,7 +508,21 @@ class CGraphics_Threaded : public IEngineGraphics
 	virtual void CreateTextureBuffer(int Width, int Height);
 
 	virtual void LoadShaders();
+	virtual bool IsShaderAvailable(int Shader) const;
 	virtual void ShaderBegin(int Shader, float Intensity = 1.0f, float ColorSwap = 0.0f, float WeaponCharge = 0.0f);
+	virtual void LightShaderBegin(
+		int CollisionTexture,
+		float LightCenterX,
+		float LightCenterY,
+		float LightRadius,
+		float CollisionWidth,
+		float CollisionHeight,
+		float ViewTLX,
+		float ViewTLY,
+		float ViewBRX,
+		float ViewBRY,
+		float TargetWidth,
+		float TargetHeight);
 	virtual void PlayerShaderBegin(float colorG,
 								   float colorB,
 								   float Charge = 0.0f,
@@ -521,7 +553,7 @@ class CGraphics_Threaded : public IEngineGraphics
 	virtual void RenderToTexture(int RenderBuffer);
 
 	virtual void Clear(float r, float g, float b);
-	virtual void ClearBufferTexture();
+	virtual void ClearBufferTexture(bool DarkVision);
 
 	virtual void QuadsBegin();
 	virtual void QuadsEnd();

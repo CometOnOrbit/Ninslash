@@ -93,6 +93,15 @@
 ---@field charge_controls_laser? WeaponBoolean
 ---@field direct_melee? WeaponBoolean
 
+---@class WeaponPvp
+---@field damage_scale? WeaponNumber Multiplier applied only in non-cooperative PvP modes.
+---@field explosion_damage_scale? WeaponNumber
+---@field fire_rate_scale? WeaponNumber Cooldown multiplier; values below 1 fire faster.
+---@field ammo_scale? WeaponNumber
+---@field projectile_speed_scale? WeaponNumber
+---@field melee_range_scale? WeaponNumber
+---@field knockback_scale? WeaponNumber
+
 ---@class WeaponVisuals
 ---@field render_type? WeaponInteger Use a value from `weapon.visual`.
 ---@field visual_size? WeaponVector Shorthand for `visual_size_x` and `visual_size_y`.
@@ -158,6 +167,7 @@
 ---@field combat_template? integer Definition DSL convenience field; use `weapon.combat`.
 ---@field visual_template? integer Definition DSL convenience field; use `weapon.visual`.
 ---@field combat? WeaponCombat Sparse for inherited definitions, complete after template expansion otherwise.
+---@field pvp? WeaponPvp Optional PvP-only combat multipliers; omitted fields default to 1.
 ---@field visuals? WeaponVisuals Sparse for inherited definitions, complete after template expansion otherwise.
 ---@field assets? WeaponAssets Workshop-only resource overrides.
 ---@field localization? WeaponLocalization Workshop-only localization keys.
@@ -189,6 +199,7 @@
 ---@field combat_template? integer Use a value from `weapon.combat`.
 ---@field visual_template? integer Use a value from `weapon.visual`.
 ---@field combat WeaponCombat
+---@field pvp? WeaponPvp Optional PvP-only combat multipliers.
 ---@field visuals WeaponVisuals
 ---@field assets? WeaponAssets
 ---@field localization WeaponLocalization

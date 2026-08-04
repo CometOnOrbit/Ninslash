@@ -1165,6 +1165,7 @@ void IGameController::EndRound()
 		}
 	}
 	Server()->DispatchModEvent(MOD_EVENT_ROUND_END);
+	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::RoundEnd);
 
 	GameServer()->m_World.m_Paused = true;
 	m_GameOverTick = Server()->Tick();
@@ -1242,6 +1243,7 @@ const char *IGameController::GetTeamMoveAllMessage(int Team)
 void IGameController::StartRound()
 {
 	Server()->DispatchModEvent(MOD_EVENT_ROUND_START);
+	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::RoundStart);
 	ResetGame();
 
 	ClearRisingAcid();
@@ -1408,6 +1410,9 @@ void IGameController::OnPlayerInfoChange(class CPlayer *pP)
 
 int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
+	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::PlayerDeath,
+		pVictim ? pVictim->GetPlayer()->GetCID() : -1,
+		pKiller ? pKiller->GetCID() : -1);
 	if(GameServer()->m_pTutorialDirector)
 	{
 		if(!pVictim->m_IsBot)
@@ -1511,6 +1516,8 @@ int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *
 	}
 
 	pVictim->ReleaseWeapons();
+	pVictim->GetPlayer()->m_Deaths++;
+	pVictim->GetPlayer()->m_KillStreak = 0;
 
 	// for active spectator mode
 	if(pKiller && (pKiller->GetTeam() != pVictim->GetPlayer()->GetTeam() || !IsTeamplay()))
@@ -1529,6 +1536,7 @@ int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *
 
 	if(pKiller == pVictim->GetPlayer())
 	{
+		pKiller->m_KillStreak = 0;
 		if(!(IsInfection() && pVictim->GetPlayer()->GetTeam() == TEAM_BLUE) && g_Config.m_SvSelfKillPenalty)
 			pVictim->GetPlayer()->m_Score--; // suicide
 	}
@@ -1536,11 +1544,17 @@ int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *
 	{
 		if(IsTeamplay() && pVictim->GetPlayer()->GetTeam() == pKiller->GetTeam())
 		{
+			pKiller->m_KillStreak = 0;
 			if(g_Config.m_SvSelfKillPenalty)
 				pKiller->m_Score--; // teamkill
 		}
 		else
+		{
+			pKiller->m_Kills++;
+			pKiller->m_KillStreak++;
+			pKiller->m_BestKillStreak = max(pKiller->m_BestKillStreak, pKiller->m_KillStreak);
 			pKiller->m_Score++; // normal kill
+		}
 	}
 
 	return 0;

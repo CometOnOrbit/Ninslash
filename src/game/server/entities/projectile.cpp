@@ -69,7 +69,10 @@ void CProjectile::UpdateStats()
 {
 	CWeaponCombatProfile Combat{};
 	CWeaponVisualProfile Visual{};
-	CWeaponCatalog::TryResolveAttack(m_Source, &Combat, &Visual);
+	CWeaponCatalog::TryResolveAttack(m_Source,
+		&Combat,
+		&Visual,
+		GameServer()->m_pController && !GameServer()->m_pController->IsCoop());
 	m_Speed = Combat.m_ProjectileSpeed;
 	m_Curvature = Combat.m_ProjectileCurvature;
 	m_ProjectilePosType = Combat.m_ProjectilePosType;

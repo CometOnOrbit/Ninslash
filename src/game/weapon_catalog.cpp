@@ -402,9 +402,24 @@ CAttackSource CAttackSource::World(int Type, int Owner)
 	return Source;
 }
 
+void ApplyPvpProfile(CWeaponCombatProfile *pCombat, const CWeaponPvpProfile &Pvp)
+{
+	if(!pCombat)
+		return;
+	pCombat->m_ProjectileDamage *= Pvp.m_DamageScale;
+	pCombat->m_ExplosionDamage *= Pvp.m_ExplosionDamageScale;
+	pCombat->m_FireRate *= Pvp.m_FireRateScale;
+	pCombat->m_MaxAmmo = max(0, (int)(pCombat->m_MaxAmmo * Pvp.m_AmmoScale + 0.5f));
+	pCombat->m_ProjectileSpeed *= Pvp.m_ProjectileSpeedScale;
+	pCombat->m_MeleeHitRadius *= Pvp.m_MeleeRangeScale;
+	pCombat->m_ProjectileKnockback *= Pvp.m_KnockbackScale;
+	pCombat->m_WeaponKnockback *= Pvp.m_KnockbackScale;
+}
+
 bool CWeaponCatalog::TryResolveAttack(const CAttackSource &Source,
 									  CWeaponCombatProfile *pCombat,
-									  CWeaponVisualProfile *pVisual)
+									  CWeaponVisualProfile *pVisual,
+									  bool ApplyPvp)
 {
 	if(Source.m_Kind == EAttackSourceKind::PlayerWeapon)
 	{
@@ -412,7 +427,11 @@ bool CWeaponCatalog::TryResolveAttack(const CAttackSource &Source,
 		if(!TryResolve(Source.m_Weapon, &Profile))
 			return false;
 		if(pCombat)
+		{
 			*pCombat = Profile.m_Combat;
+			if(ApplyPvp)
+				::ApplyPvpProfile(pCombat, Profile.m_Pvp);
+		}
 		if(pVisual)
 			*pVisual = Profile.m_Visual;
 		return true;

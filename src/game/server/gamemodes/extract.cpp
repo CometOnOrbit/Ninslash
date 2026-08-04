@@ -1,6 +1,8 @@
 #include <engine/shared/config.h>
 #include <engine/platform_events.h>
 
+#include <game/challenge_variant.h>
+#include <game/deterministic_random.h>
 #include <game/questinfo.h>
 #include <game/mapitems.h>
 #include <game/weapons.h>
@@ -362,7 +364,10 @@ void CGameControllerExtract::PickTasks()
 			}
 			if(Total > 0)
 			{
-				int Pick = rand() % Total;
+				// Deterministic per-seed stream so challenge runs with the same
+				// seed pick the same task set (docs §3.2).
+				CDeterministicRandom TaskRng(DeterministicSeed((unsigned long long)g_Config.m_SvMapGenSeed, "extract_tasks"));
+				int Pick = TaskRng.NextInt(Total);
 				for(int i = 0; i < 5; i++)
 				{
 					bool Used = false;
@@ -547,9 +552,9 @@ void CGameControllerExtract::PickEvent()
 	m_ActiveEvent = EXTRACT_EVT_NONE;
 	if(m_ActiveTask <= 0 || m_ActiveTask - m_LastEventTask < 1)
 		return;
-	if(rand() % 100 >= 35)
+	CDeterministicRandom EventRng(DeterministicSeed((unsigned long long)g_Config.m_SvMapGenSeed, "extract_events"));
+	if(EventRng.NextInt(100) >= 35)
 		return;
-
 	static const struct
 	{
 		int m_Event;
@@ -572,7 +577,7 @@ void CGameControllerExtract::PickEvent()
 			Total += s_aEvents[i].m_Weight;
 	if(Total <= 0)
 		return;
-	int Pick = rand() % Total;
+	int Pick = EventRng.NextInt(Total);
 	for(int i = 0; i < 5; i++)
 	{
 		if(Excluded(s_aEvents[i].m_Event))

@@ -186,6 +186,15 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 				  0.1f);
 
 		Right.HSplitTop(4.0f, 0, &Right);
+		Right.HSplitTop(18.0f, &Button, &Right);
+		static int s_SpectatorDirector = 0;
+		if(DoButton_CheckBox(&s_SpectatorDirector,
+				Localize("Automatic director"),
+				g_Config.m_ClSpectatorDirector,
+				&Button))
+			g_Config.m_ClSpectatorDirector ^= 1;
+
+		Right.HSplitTop(4.0f, 0, &Right);
 		Right.HSplitTop(16.0f, &Label, &Right);
 		Right.HSplitTop(16.0f, &Button, &Right);
 		str_format(aBuf, sizeof(aBuf), "%s: %.1fx", Localize("Zoom"), g_Config.m_ClZoom / 10.0f);

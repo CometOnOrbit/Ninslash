@@ -176,6 +176,7 @@ class IGameController
 
 	//
 	const char *m_pGameType;
+	const char *GameType() const { return m_pGameType; }
 
 	int GetAliveCID(int Team = -1);
 	int CountPlayersAlive(int Team = -1, bool IgnoreBots = false);

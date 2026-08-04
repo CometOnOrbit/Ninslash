@@ -189,6 +189,25 @@ struct CWeaponCombatProfile
 	bool m_DirectMelee;
 };
 
+// Optional PvP-only tuning. Values are multipliers over the resolved combat
+// profile and default to one, so PvE and existing servers retain their
+// original behavior when no pvp table is declared by a weapon.
+struct CWeaponPvpProfile
+{
+	float m_DamageScale;
+	float m_ExplosionDamageScale;
+	float m_FireRateScale;
+	float m_AmmoScale;
+	float m_ProjectileSpeedScale;
+	float m_MeleeRangeScale;
+	float m_KnockbackScale;
+};
+
+// Applies the authored PvP multipliers to a resolved combat profile. Keeping
+// this operation in the shared catalog prevents server attack paths from
+// accidentally using the unscaled Lua profile after CWeapon has resolved it.
+void ApplyPvpProfile(CWeaponCombatProfile *pCombat, const CWeaponPvpProfile &Pvp);
+
 struct CWeaponVisualProfile
 {
 	int m_RenderType;
@@ -219,6 +238,7 @@ struct CResolvedWeaponProfile
 	CWeaponDefinition m_Definition;
 	CWeaponSpec m_Spec;
 	CWeaponCombatProfile m_Combat;
+	CWeaponPvpProfile m_Pvp;
 	CWeaponVisualProfile m_Visual;
 };
 
@@ -261,7 +281,10 @@ class CWeaponCatalog
 	static bool Validate();
 	static bool TryFromProtocol(int DefinitionId, int Level, CWeaponSpec *pSpec);
 	static bool
-	TryResolveAttack(const CAttackSource &Source, CWeaponCombatProfile *pCombat, CWeaponVisualProfile *pVisual = 0);
+	TryResolveAttack(const CAttackSource &Source,
+		CWeaponCombatProfile *pCombat,
+		CWeaponVisualProfile *pVisual = 0,
+		bool ApplyPvp = false);
 	static bool TryAttackSourceFromProtocol(int Kind, int Type, int DefinitionId, int Level, CAttackSource *pSource);
 };
 

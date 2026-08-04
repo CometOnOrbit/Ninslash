@@ -651,6 +651,8 @@ set_src(GAME_SHARED GLOB src/game
   collision.h
   forge.cpp
   forge.h
+  challenge_script_runtime.cpp
+  challenge_script_runtime.h
   gamevote.h
   gamecore.cpp
   gamecore.h
@@ -781,6 +783,17 @@ if(NINSLASH_BUILD_TESTS)
   target_link_libraries(ninslash_test_weapon_script_runtime ${LIBS})
   add_test(NAME weapon_script_runtime COMMAND ninslash_test_weapon_script_runtime)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_weapon_script_runtime)
+
+  add_executable(ninslash_test_challenge_script_runtime
+    tests/challenge_script_runtime.cpp
+    $<TARGET_OBJECTS:game-shared>
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_challenge_script_runtime PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_challenge_script_runtime ${LIBS})
+  add_test(NAME challenge_script_runtime COMMAND ninslash_test_challenge_script_runtime)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_challenge_script_runtime)
   add_executable(ninslash_test_weapon_presentation_runtime tests/weapon_presentation_runtime.cpp $<TARGET_OBJECTS:game-shared> $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
   target_include_directories(ninslash_test_weapon_presentation_runtime PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_weapon_presentation_runtime ${LIBS})
@@ -802,6 +815,9 @@ if(NINSLASH_BUILD_TESTS)
 	set_tests_properties(weapon_visual_baseline PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 	add_test(NAME graphics_batch_order
 		COMMAND ${Python3_EXECUTABLE} tests/check_graphics_batch_order.py)
+	add_test(NAME dynamic_lighting_static
+		COMMAND ${Python3_EXECUTABLE} tests/check_dynamic_lighting.py)
+	set_tests_properties(dynamic_lighting_static PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 	set_tests_properties(graphics_batch_order PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 	add_test(NAME steam_platform_render
 		COMMAND ${Python3_EXECUTABLE} tests/check_steam_platform_render.py)
@@ -1395,8 +1411,7 @@ set_src(ENGINE_SERVER GLOB src/engine/server
 set_src(GAME_SERVER GLOB_RECURSE src/game/server
   ai/def/def_alien1_ai.cpp
   ai/def/def_alien1_ai.h
-  ai/def/def_alien2_ai.cpp
-  ai/def/def_alien2_ai.h
+  ai/def/def_alien2_ai.cpp  ai/def/def_alien2_ai.h
   ai/def/def_bunny1_ai.cpp
   ai/def/def_bunny1_ai.h
   ai/def/def_bunny2_ai.cpp
@@ -1581,6 +1596,10 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   tutorial_director.cpp
   tutorial_director.h
 )
+# Explicitly listed: GLOB_RECURSE does not pick up newly added files without a
+# fresh configure, which silently dropped challenge_variant.cpp from some
+# builds (undefined reference to ApplyChallengeVariants).
+list(APPEND GAME_SERVER src/game/server/challenge_variant.cpp)
 
 set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER})
 if(TARGET_OS STREQUAL "windows")

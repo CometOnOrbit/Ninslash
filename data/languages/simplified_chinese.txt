@@ -1024,6 +1024,15 @@ Map preset
 Map seed
 == 地图种子
 
+Challenge code
+== 挑战码
+
+Code
+== 代码
+
+variant mask %d
+== 变体掩码 %d
+
 Map selection
 == 地图选择
 
@@ -1764,6 +1773,12 @@ Spectator count
 
 Spectator mode
 == 旁观者模式
+
+Spectator stats
+== 观战统计
+
+K/D   Streak   Gold/Kits   Weapon
+== 击杀/死亡   连杀   金币/工具包   武器
 
 Spectators
 == 旁观者
@@ -3379,6 +3394,33 @@ Quick Hands
 
 Quick match
 == 快速比赛
+
+Community rules and shared seeds — compare runs with friends.
+== 社区规则与共享种子 — 与好友比拼成绩。
+VARIANT RULES · SHARED SEEDS
+== 变体规则 · 共享种子
+Set up
+== 设置
+Challenge setup
+== 挑战设置
+Start challenge
+== 开始挑战
+Low gravity
+== 低重力
+No building
+== 无建造
+Melee only
+== 近战限定
+Firearms disabled; other items allowed
+== 已禁用枪械；允许其他物品
+Dark vision
+== 黑暗视野
+Weaker gravity
+== 更弱的重力
+Construction disabled
+== 建造已禁用
+Darker screen
+== 屏幕变暗
 
 Weapon attack cooldown -8% per stack (maximum -30%).
 == 每层武器攻击冷却 -8%（最多 -30%）。
@@ -5071,4 +5113,5 @@ Refill all ammo now
 
 Unable to open the ZIP importer.
 == 无法打开 ZIP 导入器。
-
+Automatic director
+== 自动导演

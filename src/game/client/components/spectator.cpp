@@ -10,6 +10,8 @@
 
 #include <game/client/render.h>
 #include <game/client/customstuff.h>
+#include <game/localization.h>
+#include <game/weapon_catalog.h>
 
 #include "spectator.h"
 
@@ -170,6 +172,20 @@ void CSpectator::OnRelease()
 
 void CSpectator::OnRender()
 {
+	// Highlight the killer briefly, then return to the view that was active
+	// before the automatic director took over.
+	if(m_AutoDirectorActive && Client()->GameTick() >= m_AutoDirectorEndTick)
+	{
+		const int ReturnID = m_AutoDirectorReturnID;
+		m_AutoDirectorActive = false;
+		m_AutoDirectorReturnID = NO_SELECTION;
+		if(ReturnID >= SPEC_FREEVIEW && ReturnID < MAX_CLIENTS)
+			SpectateInternal(ReturnID, true);
+	}
+
+	if(m_pClient->m_Snap.m_SpecInfo.m_Active)
+		RenderStatsPanel();
+
 	if(!m_Active)
 	{
 		if(m_WasActive)
@@ -309,10 +325,23 @@ void CSpectator::OnReset()
 	m_WasActive = false;
 	m_Active = false;
 	m_SelectedSpectatorID = NO_SELECTION;
+	m_AutoDirectorActive = false;
+	m_AutoDirectorEndTick = 0;
+	m_AutoDirectorReturnID = NO_SELECTION;
 }
 
-void CSpectator::Spectate(int SpectatorID)
+void CSpectator::CancelAutoDirector()
 {
+	m_AutoDirectorActive = false;
+	m_AutoDirectorEndTick = 0;
+	m_AutoDirectorReturnID = NO_SELECTION;
+}
+
+void CSpectator::SpectateInternal(int SpectatorID, bool Automatic)
+{
+	if(!Automatic)
+		CancelAutoDirector();
+
 	if(Client()->State() == IClient::STATE_DEMOPLAYBACK)
 	{
 		m_pClient->m_DemoSpecID = clamp(SpectatorID, (int)SPEC_FREEVIEW, MAX_CLIENTS - 1);
@@ -325,4 +354,118 @@ void CSpectator::Spectate(int SpectatorID)
 	CNetMsg_Cl_SetSpectatorMode Msg;
 	Msg.m_SpectatorID = SpectatorID;
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+}
+
+void CSpectator::Spectate(int SpectatorID)
+{
+	SpectateInternal(SpectatorID, false);
+}
+
+void CSpectator::OnKillEvent(const CNetMsg_Sv_KillMsg *pMsg)
+{
+	if(!pMsg || !g_Config.m_ClSpectatorDirector || !m_pClient->m_Snap.m_SpecInfo.m_Active)
+		return;
+	const int Killer = pMsg->m_Killer;
+	if(Killer < 0 || Killer >= MAX_CLIENTS || Killer == pMsg->m_Victim ||
+	   !m_pClient->m_Snap.m_paPlayerInfos[Killer] ||
+	   m_pClient->m_Snap.m_paPlayerInfos[Killer]->m_Team == TEAM_SPECTATORS ||
+	   m_pClient->m_Snap.m_paPlayerInfos[Killer]->m_Spectating)
+		return;
+
+	const int Current = m_pClient->m_Snap.m_SpecInfo.m_SpectatorID;
+	if(!m_AutoDirectorActive)
+		m_AutoDirectorReturnID = Current;
+	m_AutoDirectorActive = true;
+	m_AutoDirectorEndTick = Client()->GameTick() + max(1, Client()->GameTickSpeed() * 2);
+	SpectateInternal(Killer, true);
+}
+
+void CSpectator::RenderStatsPanel()
+{
+	float Width = 400 * 3.0f * Graphics()->ScreenAspect();
+	float Height = 400 * 3.0f;
+	const float PanelW = min(360.0f, Width * 0.29f);
+	const float RowH = 25.0f;
+	const float HeaderH = 34.0f;
+	const int MaxRows = max(1, min((int)MAX_CLIENTS, (int)((Height - 28.0f) / RowH) - 1));
+	int RowCount = 0;
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		const CNetObj_PlayerInfo *pInfo = m_pClient->m_Snap.m_paPlayerInfos[i];
+		// Keep eliminated players in the table: their K/D and streak values are
+		// still authoritative and should remain visible while they wait to respawn.
+		if(pInfo && pInfo->m_Team != TEAM_SPECTATORS)
+			RowCount++;
+	}
+	if(RowCount <= 0)
+		return;
+
+	const float PanelH = HeaderH + min(RowCount, MaxRows) * RowH + 14.0f;
+	const float X = Width - PanelW - 16.0f;
+	const float Y = 14.0f;
+	Graphics()->MapScreen(0, 0, Width, Height);
+	Graphics()->BlendNormal();
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.42f);
+	RenderTools()->DrawRoundRect(X + 3.0f, Y + 4.0f, PanelW, PanelH, 12.0f);
+	Graphics()->SetColor(0.05f, 0.07f, 0.10f, 0.94f);
+	RenderTools()->DrawRoundRect(X, Y, PanelW, PanelH, 12.0f);
+	Graphics()->SetColor(0.20f, 0.65f, 0.95f, 0.85f);
+	RenderTools()->DrawRoundRect(X, Y, 3.0f, PanelH, 1.5f);
+	Graphics()->QuadsEnd();
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.95f);
+	TextRender()->Text(0, X + 12.0f, Y + 8.0f, 17.0f, Localize("Spectator stats"), PanelW - 24.0f);
+	TextRender()->TextColor(0.65f, 0.76f, 0.86f, 0.9f);
+	TextRender()->Text(0, X + 12.0f, Y + 27.0f, 10.0f, Localize("K/D   Streak   Gold/Kits   Weapon"), PanelW - 24.0f);
+
+	int Row = 0;
+	for(int i = 0; i < MAX_CLIENTS && Row < MaxRows; ++i)
+	{
+		const CNetObj_PlayerInfo *pInfo = m_pClient->m_Snap.m_paPlayerInfos[i];
+		if(!pInfo || pInfo->m_Team == TEAM_SPECTATORS)
+			continue;
+		const float RowY = Y + HeaderH + Row * RowH;
+		if(i == m_pClient->m_Snap.m_SpecInfo.m_SpectatorID)
+		{
+			Graphics()->TextureSet(-1);
+			Graphics()->QuadsBegin();
+			Graphics()->SetColor(0.18f, 0.45f, 0.65f, 0.48f);
+			RenderTools()->DrawRoundRect(X + 7.0f, RowY, PanelW - 14.0f, RowH - 2.0f, 5.0f);
+			Graphics()->QuadsEnd();
+		}
+		char aWeapon[64] = "-";
+		int DefinitionId = 0;
+		int Level = 0;
+		switch(clamp(pInfo->m_WeaponSlot, 0, 3))
+		{
+			case 0: DefinitionId = pInfo->m_Weapon1DefinitionId; Level = pInfo->m_Weapon1Level; break;
+			case 1: DefinitionId = pInfo->m_Weapon2DefinitionId; Level = pInfo->m_Weapon2Level; break;
+			case 2: DefinitionId = pInfo->m_Weapon3DefinitionId; Level = pInfo->m_Weapon3Level; break;
+			default: DefinitionId = pInfo->m_Weapon4DefinitionId; Level = pInfo->m_Weapon4Level; break;
+		}
+		CWeaponSpec Spec;
+		CWeaponDefinition Definition;
+		if(CWeaponCatalog::TryFromProtocol(DefinitionId, Level, &Spec) &&
+		   CWeaponCatalog::TryGetDefinition(Spec.m_DefinitionId, &Definition))
+			str_format(aWeapon, sizeof(aWeapon), "%s L%d", Localize(Definition.m_aNameKey), Level);
+		char aLine[256];
+		char aName[MAX_NAME_LENGTH + 1];
+		const char *pLabel = m_pClient->GetPlayerLabel(i, aName, sizeof(aName));
+		str_format(aLine,
+			 sizeof(aLine),
+			 "%s  %d/%d  %d/%d  G%d K%d  %s",
+			 pLabel,
+			 pInfo->m_Kills,
+			 pInfo->m_Deaths,
+			 pInfo->m_KillStreak,
+			 pInfo->m_BestKillStreak,
+			 pInfo->m_Gold,
+			 pInfo->m_Kits,
+			 aWeapon);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, i == m_pClient->m_Snap.m_SpecInfo.m_SpectatorID ? 1.0f : 0.76f);
+		TextRender()->Text(0, X + 12.0f, RowY + 5.0f, 11.5f, aLine, PanelW - 24.0f);
+		Row++;
+	}
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }

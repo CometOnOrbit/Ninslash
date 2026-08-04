@@ -56,7 +56,7 @@ void ReadFile(const char *pPath, char *pBuffer, int BufferSize)
 
 int main()
 {
-	const char *pProtocol = "0.5.1 abc123-luaweapons5";
+	const char *pProtocol = "0.5.1 abc123-luaweapons6-pvp-spectator-challenge";
 	char aError[256];
 	CContentManifest SourceManifest;
 	assert(ContentPackageValidate(

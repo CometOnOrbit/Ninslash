@@ -287,6 +287,7 @@ void CEffects::Spark(vec2 Pos)
 
 void CEffects::HitSpark(vec2 Pos, vec4 Color)
 {
+	SimpleLight(Pos, vec4(Color.r, Color.g, Color.b, 0.28f), vec2(64.0f, 52.0f), false);
 	CSinglespark Spark;
 	Spark.SetDefault();
 	Spark.m_Pos = Pos + RandomDir() * frandom() * 4.0f;
@@ -318,6 +319,25 @@ void CEffects::Muzzle(vec2 Pos, vec2 Dir, const CWeaponSpec &Weapon)
 	CResolvedWeaponProfile Profile;
 	if(!CWeaponCatalog::TryResolve(Weapon, &Profile))
 		return;
+
+	// A muzzle flash is also a short-lived light source. Muzzle() is called
+	// once per newly observed attack tick, so this does not leave a persistent
+	// light behind automatic weapons between shots.
+	vec4 LightColor;
+	switch(Profile.m_Visual.m_MuzzleType)
+	{
+		case 1:
+			LightColor = vec4(0.35f, 0.75f, 1.0f, 0.65f);
+			break;
+		case 2:
+			LightColor = vec4(0.45f, 1.0f, 0.45f, 0.65f);
+			break;
+		default:
+			LightColor = vec4(1.0f, 0.55f, 0.18f, 0.7f);
+			break;
+	}
+	SimpleLight(Pos, LightColor, vec2(128.0f, 104.0f));
+
 	int s = Profile.m_Visual.m_MuzzleAmount;
 	for(int i = 0; i < s; i++)
 	{
@@ -474,6 +494,11 @@ void CEffects::SimpleLight(vec2 Pos, vec4 Color, float Size)
 void CEffects::SimpleLight(vec2 Pos, vec4 Color, vec2 Size)
 {
 	m_pClient->m_pLight->AddSimpleLight(Pos, Color, Size);
+}
+
+void CEffects::SimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow)
+{
+	m_pClient->m_pLight->AddSimpleLight(Pos, Color, Size, CastShadow);
 }
 
 void CEffects::BoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot)
@@ -1221,6 +1246,18 @@ void CEffects::Explosion(vec2 Pos, const CAttackSource &Source)
 	const float ExplosionSize = Combat.m_ExplosionSize;
 	const int ExplosionSprite = Visual.m_ExplosionSprite;
 	const float ProjectileSize = Visual.m_ProjectileSize;
+	// Explosions are visible to every client, so their light is registered at
+	// the same networked impact position as the existing explosion effect.
+	vec4 ExplosionLightColor(1.0f, 0.5f, 0.14f, 0.62f);
+	if(Combat.m_ElectroAmount > 0.0f ||
+	   Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_ELECTRIC ||
+	   Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_ELECTRIC_AREA)
+		ExplosionLightColor = vec4(0.25f, 0.8f, 1.0f, 0.58f);
+	else if(Visual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_GREEN)
+		ExplosionLightColor = vec4(0.35f, 1.0f, 0.35f, 0.55f);
+	const float ExplosionLightWidth = clamp(max(180.0f, ExplosionSize * 1.35f), 180.0f, 420.0f);
+	SimpleLight(Pos, ExplosionLightColor, vec2(ExplosionLightWidth, ExplosionLightWidth * 0.78f));
+
 	// add to flow
 	/*
 	if (ExplosionSprite)
@@ -1516,6 +1553,7 @@ void CEffects::ChainsawSmoke(vec2 Pos)
 
 void CEffects::FlameExplosion(vec2 Pos)
 {
+	SimpleLight(Pos, vec4(1.0f, 0.45f, 0.12f, 0.68f), vec2(300.0f, 232.0f));
 	// add the smoke and flame
 	for(int i = 0; i < 9; i++)
 	{

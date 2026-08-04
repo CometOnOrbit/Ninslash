@@ -420,6 +420,7 @@ void CPickup::Tick()
 					   m_Type,
 					   m_Subtype);
 			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
+			GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Pickup, pChr->GetPlayer()->GetCID(), m_Type);
 			m_SpawnTick = Server()->Tick() + Server()->TickSpeed() * RespawnTime;
 			ClearWeapon();
 		}

@@ -200,11 +200,23 @@ MACRO_CONFIG_STR(ClModHash,
 				 CFGFLAG_CLIENT | CFGFLAG_SAVE,
 				 "Installed Workshop mod collection hash sent during connection")
 MACRO_CONFIG_STR(ClModIds,
-				 cl_mod_ids,
-				 1024,
-				 "",
-				 CFGFLAG_CLIENT | CFGFLAG_SAVE,
-				 "Comma-separated enabled Workshop root PublishedFileIDs")
+					 cl_mod_ids,
+					 1024,
+					 "",
+					 CFGFLAG_CLIENT | CFGFLAG_SAVE,
+					 "Comma-separated enabled Workshop root PublishedFileIDs")
+MACRO_CONFIG_STR(ClChallengeScript,
+					 cl_challenge_script,
+					 256,
+					 "",
+					 CFGFLAG_CLIENT | CFGFLAG_SAVE,
+					 "Local restricted Lua challenge script used for prediction")
+MACRO_CONFIG_STR(ClChallengeContentHash,
+					 cl_challenge_content_hash,
+					 65,
+					 "",
+					 CFGFLAG_CLIENT | CFGFLAG_SAVE,
+					 "Canonical hash of the local challenge script package")
 MACRO_CONFIG_INT(ClAutoScreenshotSteam,
 				 cl_auto_screenshot_steam,
 				 0,
@@ -312,6 +324,18 @@ MACRO_CONFIG_INT(SvRegisterSteam,
 				 "Advertise this UDP server in the Steam GameServer list when Steamworks is available")
 MACRO_CONFIG_STR(SvModHash, sv_mod_hash, 65, "", 0, "Internal derived Mod collection hash")
 MACRO_CONFIG_STR(SvModIds, sv_mod_ids, 1024, "", 0, "Internal derived root Mod PublishedFileIDs")
+MACRO_CONFIG_STR(SvChallengeScript,
+					 sv_challenge_script,
+					 256,
+					 "",
+					 CFGFLAG_SERVER,
+					 "Restricted Lua challenge script path")
+MACRO_CONFIG_STR(SvChallengeContentHash,
+					 sv_challenge_content_hash,
+					 65,
+					 "",
+					 CFGFLAG_SERVER,
+					 "Canonical challenge content-package hash")
 MACRO_CONFIG_STR(SvModWhitelist,
 				 sv_mod_whitelist,
 				 1024,
@@ -332,6 +356,12 @@ MACRO_CONFIG_STR(SvGametype,
 				 "dm",
 				 CFGFLAG_SERVER,
 				 "Game type (dm, tdm, ctf, base, coop, tutorial, horde, extract, ball, roam)")
+MACRO_CONFIG_STR(SvPvpProfile,
+				 sv_pvp_profile,
+				 32,
+				 "",
+				 CFGFLAG_SERVER,
+				 "PvP balance profile (empty selects the controller game type)")
 MACRO_CONFIG_INT(SvTournamentMode,
 				 sv_tournament_mode,
 				 0,
@@ -406,6 +436,8 @@ MACRO_CONFIG_INT(SvNull, sv_null, 0, 0, 100, CFGFLAG_SERVER, "does nothing")
 MACRO_CONFIG_INT(SvDebugMessages, sv_debugmessages, 0, 0, 1, CFGFLAG_SERVER, "Enable debug messages for crash fixing")
 
 MACRO_CONFIG_INT(SvEnableBuilding, sv_enablebuilding, 0, 0, 1, CFGFLAG_SERVER, "Enable building")
+MACRO_CONFIG_INT(SvChallengeVariants, sv_challenge_variants, 0, 0, 255, CFGFLAG_SERVER, "Challenge variant bitmask")
+MACRO_CONFIG_INT(ClChallengeVariants, cl_challenge_variants, 0, 0, 255, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Challenge variant bitmask (local games)")
 MACRO_CONFIG_INT(SvRandomWeapons, sv_randomweapons, 0, 0, 1, CFGFLAG_SERVER, "Enable random weapons")
 MACRO_CONFIG_INT(SvWeaponSpawns, sv_weaponspawns, 1, 0, 1, CFGFLAG_SERVER, "Enable weapon spawning")
 MACRO_CONFIG_INT(SvLaserWeapon, sv_laserweapon, 0, 0, 1, CFGFLAG_SERVER, "Give laser weapon on spawn")
@@ -515,10 +547,17 @@ MACRO_CONFIG_INT(ClDebugWeaponWheel,
 				 "Log mouse-wheel weapon switch input and confirmed slots")
 
 MACRO_CONFIG_INT(ClZoom,
-				 cl_zoom,
-				 10,
-				 0,
-				 30,
-				 CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_CLOUD,
-				 "Camera zoom level (10 = default, lower = more zoomed in)")
+					 cl_zoom,
+					 10,
+					 0,
+					 30,
+					 CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_CLOUD,
+					 "Camera zoom level (10 = default, lower = more zoomed in)")
+MACRO_CONFIG_INT(ClSpectatorDirector,
+					 cl_spectator_director,
+					 0,
+					 0,
+					 1,
+					 CFGFLAG_SAVE | CFGFLAG_CLIENT,
+					 "Automatically follow the killer while spectating")
 #endif

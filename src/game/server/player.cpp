@@ -39,6 +39,10 @@ CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, int Team)
 
 	m_Score = 0;
 	m_Gold = 0;
+	m_Kills = 0;
+	m_Deaths = 0;
+	m_KillStreak = 0;
+	m_BestKillStreak = 0;
 	m_LastForgeRequestTick = -1;
 
 	m_ActionTimer = 0;
@@ -96,6 +100,10 @@ void CPlayer::SaveData()
 void CPlayer::NewRound()
 {
 	m_Score = 0;
+	m_Kills = 0;
+	m_Deaths = 0;
+	m_KillStreak = 0;
+	m_BestKillStreak = 0;
 
 	m_InterestPoints = 0;
 }
@@ -367,6 +375,11 @@ void CPlayer::Snap(int SnappingClient)
 	pPlayerInfo->m_Spectating = 0;
 
 	pPlayerInfo->m_Kits = 0;
+	pPlayerInfo->m_Kills = 0;
+	pPlayerInfo->m_Deaths = 0;
+	pPlayerInfo->m_KillStreak = 0;
+	pPlayerInfo->m_BestKillStreak = 0;
+	pPlayerInfo->m_Gold = 0;
 	int *apDefinitionIds[] = {&pPlayerInfo->m_Weapon1DefinitionId,
 							  &pPlayerInfo->m_Weapon2DefinitionId,
 							  &pPlayerInfo->m_Weapon3DefinitionId,
@@ -390,6 +403,11 @@ void CPlayer::Snap(int SnappingClient)
 	};
 	for(int Slot = 0; Slot < 4; ++Slot)
 		SetWeaponSlot(Slot, {});
+	pPlayerInfo->m_Kills = m_Kills;
+	pPlayerInfo->m_Deaths = m_Deaths;
+	pPlayerInfo->m_KillStreak = m_KillStreak;
+	pPlayerInfo->m_BestKillStreak = m_BestKillStreak;
+	pPlayerInfo->m_Gold = m_Gold;
 
 	if(GetCharacter())
 	{
@@ -426,8 +444,17 @@ void CPlayer::Snap(int SnappingClient)
 		if(m_SpectatorID >= 0)
 		{
 			CPlayerSpecData d = GameServer()->GetPlayerSpecData(m_SpectatorID);
+			CPlayer *pTarget = GameServer()->m_apPlayers[m_SpectatorID];
 
 			pPlayerInfo->m_Kits = d.m_Kits;
+			if(pTarget)
+			{
+				pPlayerInfo->m_Kills = pTarget->m_Kills;
+				pPlayerInfo->m_Deaths = pTarget->m_Deaths;
+				pPlayerInfo->m_KillStreak = pTarget->m_KillStreak;
+				pPlayerInfo->m_BestKillStreak = pTarget->m_BestKillStreak;
+				pPlayerInfo->m_Gold = pTarget->m_Gold;
+			}
 			pPlayerInfo->m_WeaponSlot = d.m_WeaponSlot;
 
 			for(int Slot = 0; Slot < 4; ++Slot)

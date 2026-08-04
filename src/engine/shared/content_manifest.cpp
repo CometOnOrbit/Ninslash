@@ -41,6 +41,12 @@ bool HasUnsafeExtension(const char *pPath)
 	return false;
 }
 
+bool IsLuaScriptPath(const char *pPath)
+{
+	const int Length = str_length(pPath);
+	return Length >= 4 && str_comp_nocase(pPath + Length - 4, ".lua") == 0;
+}
+
 bool ValidatePathArray(const json_value &Value)
 {
 	if(Value.type == json_none)
@@ -246,7 +252,18 @@ bool ContentManifestParse(const char *pJson,
 				ValidatePathArray((*pRoot)["scripts"]) && ValidatePathArray((*pRoot)["definitions"]);
 	if(Valid && Type == CONTENT_TYPE_MOD)
 		Valid = ReadApiDescriptor(*pRoot, &pManifest->m_Api);
-	if(Valid && Type != CONTENT_TYPE_MOD && (*pRoot)["scripts"].type != json_none &&
+	if(Valid && Type == CONTENT_TYPE_CHALLENGE && (*pRoot)["scripts"].type != json_none &&
+	   (*pRoot)["scripts"].u.array.length != 0)
+	{
+		// A challenge may carry at most one Lua gameplay script. It must opt into
+		// the narrow gameplay_rules capability; all other capabilities would let a
+		// package request resources or weapon APIs outside the challenge sandbox.
+		Valid = (*pRoot)["scripts"].u.array.length == 1 &&
+				IsLuaScriptPath((const char *)(*pRoot)["scripts"][0]) && ReadApiDescriptor(*pRoot, &pManifest->m_Api) &&
+				(pManifest->m_Api.m_Capabilities & MOD_CAPABILITY_GAMEPLAY_RULES) != 0 &&
+				(pManifest->m_Api.m_Capabilities & ~MOD_CAPABILITY_GAMEPLAY_RULES) == 0;
+	}
+	if(Valid && Type != CONTENT_TYPE_MOD && Type != CONTENT_TYPE_CHALLENGE && (*pRoot)["scripts"].type != json_none &&
 	   (*pRoot)["scripts"].u.array.length != 0)
 		Valid = false;
 	if(Valid)

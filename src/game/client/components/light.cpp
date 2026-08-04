@@ -9,6 +9,10 @@
 #include <generated/game_data.h>
 #include <game/client/render.h>
 #include <game/gamecore.h>
+#include <game/collision.h>
+#include <algorithm>
+#include <cmath>
+#include <vector>
 #include "light.h"
 
 CLight::CLight()
@@ -17,8 +21,41 @@ CLight::CLight()
 	m_RenderLight.m_pParts = this;
 }
 
+void CLight::OnMapLoad()
+{
+	if(m_CollisionTexture >= 0)
+	{
+		Graphics()->UnloadTexture(m_CollisionTexture);
+		m_CollisionTexture = -1;
+	}
+
+	// Build the GPU collision texture (1 byte per tile, COLFLAG incl. ramps)
+	// for the shader lighting pass; the client collision already stores the
+	// flags in CTile::m_Index.
+	CCollision *pCollision = m_pClient->Collision();
+	const int Width = pCollision ? pCollision->GetWidth() : 0;
+	const int Height = pCollision ? pCollision->GetHeight() : 0;
+	m_CollisionWidth = (float)Width;
+	m_CollisionHeight = (float)Height;
+	if(!pCollision || Width <= 0 || Height <= 0)
+	{
+		return;
+	}
+	static std::vector<unsigned char> s_aFlags;
+	s_aFlags.resize(Width * Height);
+	const CTile *pTiles = pCollision->GetTiles();
+	for(int i = 0; i < Width * Height; i++)
+		s_aFlags[i] = pTiles[i].m_Index;
+	m_CollisionTexture = Graphics()->LoadTextureRaw(
+		Width, Height, CImageInfo::FORMAT_ALPHA, s_aFlags.data(), CImageInfo::FORMAT_ALPHA,
+		IGraphics::TEXLOAD_NOMIPMAPS | IGraphics::TEXLOAD_NORESAMPLE | IGraphics::TEXLOAD_NEAREST |
+			IGraphics::TEXLOAD_NOCOMPRESSION);
+}
+
 void CLight::OnReset()
 {
+	// The collision texture is owned by OnMapLoad and must survive this reset
+	// (OnConnected calls OnMapLoad then OnReset); do not invalidate it here.
 	/*
 	for(int i = 0; i < MAX_LIGHTSOURCES; i++)
 	{
@@ -34,41 +71,34 @@ void CLight::OnReset()
 		m_aFirstPart[i] = -1;
 	*/
 
-	m_Count = 0;
-	m_SmallCount = 0;
-	m_BoxCount = 0;
+	m_LightCount = 0;
 }
 
-void CLight::AddSimpleLight(vec2 Pos, vec4 Color, vec2 Size)
+void CLight::AddSimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow)
 {
-	if(!g_Config.m_ClLighting)
+	// cl_lighting only controls optional local light sources. DarkVision is a
+	// server-authoritative render rule and must keep its camera/light pool even
+	// when a player disables ordinary dynamic lighting.
+	if(!g_Config.m_ClLighting && !m_pClient->DarkVisionEnabled())
 		return;
 
-	if(Size.x <= 32 && Size.y <= 32)
-	{
-		if(m_SmallCount >= MAX_LIGHTSOURCES)
-			return;
+	if(m_LightCount >= MAX_LIGHTSOURCES)
+		return;
 
-		m_aSmallSimpleLight[m_SmallCount++].Set(Pos, Color, Size);
-	}
-	else
-	{
-		if(m_Count >= MAX_LIGHTSOURCES)
-			return;
-
-		m_aSimpleLight[m_Count++].Set(Pos, Color, Size);
-	}
+	CastShadow = CastShadow && (Size.x > 32.0f || Size.y > 32.0f);
+	const int Image = (Size.x <= 32.0f && Size.y <= 32.0f) ? IMAGE_SMALLLIGHT : IMAGE_LIGHTS;
+	m_aLights[m_LightCount++].Set(Pos, Color, Size, 0.0f, Image, CastShadow, CastShadow ? 1 : 0);
 }
 
 void CLight::AddBoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot)
 {
-	if(!g_Config.m_ClLighting)
+	if(!g_Config.m_ClLighting && !m_pClient->DarkVisionEnabled())
 		return;
 
-	if(m_BoxCount >= MAX_LIGHTSOURCES)
+	if(m_LightCount >= MAX_LIGHTSOURCES)
 		return;
 
-	m_aBoxLight[m_BoxCount++].Set(Pos, Color, Size, Rot);
+	m_aLights[m_LightCount++].Set(Pos, Color, Size, Rot, IMAGE_BOXLIGHT, true, 2);
 }
 
 void CLight::Update(float TimePassed)
@@ -128,321 +158,287 @@ void CLight::RenderLight(vec2 Pos1, vec2 Pos2, vec2 Pos3, vec2 Pos4, vec4 Color)
 	Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
 }
 
-void CLight::RenderGroup(int Group)
+void CLight::RenderCpuVisibility(const SLightSource &Source, float Radius)
 {
-	if(!g_Config.m_ClLighting)
+	if(Radius <= 32.0f || !Collision()->GetTiles())
 		return;
 
-	if(!Client()->IsGameWorldActive())
+	const vec2 Center = Source.m_Pos;
+	// Build a visibility polygon in world coordinates. Each ray ends immediately
+	// before its first blocker, so the resulting fan describes the illuminated
+	// area directly. This avoids subtractive shadow quads, whose orientation was
+	// easy to invert when CFreeformItem reordered its last two vertices.
+	// Use a denser angular budget around wall corners. The previous 0.5*Radius
+	// budget could skip a thin wall at a corner, leaving a bright rectangular
+	// slit between two adjacent shadow sectors.
+	const int RayCount = clamp((int)(Radius * 0.75f), 256, 768);
+	const float TwoPi = 6.28318530717958647692f;
+	struct SRay
+	{
+		vec2 m_VisibleEnd;
+	};
+	std::vector<SRay> aRays;
+	aRays.resize(RayCount);
+	for(int i = 0; i < RayCount; i++)
+	{
+		const float Angle = TwoPi * (float)i / (float)RayCount;
+		const vec2 Direction(std::cos(Angle), std::sin(Angle));
+		const vec2 End = Center + Direction * Radius;
+		vec2 Hit = End;
+		vec2 BeforeHit = End;
+		int HitFlag = Collision()->IntersectLine(Center,
+			End,
+			&Hit,
+			&BeforeHit,
+			false,
+			false,
+			true);
+		bool Blocked = HitFlag != 0;
+		if(Blocked && (HitFlag == CCollision::COLFLAG_RAMP_LEFT ||
+				HitFlag == CCollision::COLFLAG_RAMP_RIGHT ||
+				HitFlag == CCollision::COLFLAG_ROOFSLOPE_LEFT ||
+				HitFlag == CCollision::COLFLAG_ROOFSLOPE_RIGHT) &&
+			distance(Center, Hit) < 20.0f && Collision()->CheckPoint(Center))
+		{
+			// Match the shader's origin-tile bias. A light centered on a player
+			// standing on a ramp must not turn the ramp's own half-plane into a
+			// dark stripe directly under the player.
+			const vec2 BiasedOrigin = Center + Direction * 20.0f;
+			Hit = End;
+			BeforeHit = End;
+			HitFlag = Collision()->IntersectLine(BiasedOrigin,
+				End,
+				&Hit,
+				&BeforeHit,
+				false,
+				false,
+				true);
+			Blocked = HitFlag != 0;
+		}
+		vec2 VisibleEnd = Blocked ? BeforeHit : End;
+		if(distance(Center, VisibleEnd) < 2.0f)
+			VisibleEnd = Center + Direction * 2.0f;
+		aRays[i] = {VisibleEnd};
+	}
+
+	// Draw the light texture directly on the visibility fan. Sampling the whole
+	// LIGHT2 framebuffer on a source-sized quad used to scale unrelated parts of
+	// the screen into the light and produced the large bright wedges at both
+	// sides. Inverse rotation converts each world vertex into the same UV space
+	// as a regular rotated source quad.
+	const float CosRotation = std::cos(Source.m_Rot);
+	const float SinRotation = std::sin(Source.m_Rot);
+	const float InvWidth = 1.0f / max(std::fabs(Source.m_Size.x), 1.0f);
+	const float InvHeight = 1.0f / max(std::fabs(Source.m_Size.y), 1.0f);
+	auto TextureCoord = [&](vec2 World) {
+		const vec2 Delta = World - Center;
+		const vec2 Local(Delta.x * CosRotation + Delta.y * SinRotation,
+			-Delta.x * SinRotation + Delta.y * CosRotation);
+		return vec2(Local.x * InvWidth + 0.5f, Local.y * InvHeight + 0.5f);
+	};
+	const vec2 CenterUv = TextureCoord(Center);
+	Graphics()->SetColor(Source.m_Color.r, Source.m_Color.g, Source.m_Color.b, Source.m_Color.a);
+	for(int i = 0; i < RayCount; i++)
+	{
+		const int Next = (i + 1) % RayCount;
+		const vec2 RayUv = TextureCoord(aRays[i].m_VisibleEnd);
+		const vec2 NextRayUv = TextureCoord(aRays[Next].m_VisibleEnd);
+		Graphics()->QuadsSetSubsetFree(CenterUv.x,
+			CenterUv.y,
+			RayUv.x,
+			RayUv.y,
+			CenterUv.x,
+			CenterUv.y,
+			NextRayUv.x,
+			NextRayUv.y);
+		// Input order is TL, TR, BL, BR. The repeated center becomes the
+		// fourth backend vertex, yielding the triangle Center -> A -> B.
+		IGraphics::CFreeformItem VisibleTriangle(Center.x,
+			Center.y,
+			aRays[i].m_VisibleEnd.x,
+			aRays[i].m_VisibleEnd.y,
+			Center.x,
+			Center.y,
+			aRays[Next].m_VisibleEnd.x,
+			aRays[Next].m_VisibleEnd.y);
+		Graphics()->QuadsDrawFreeform(&VisibleTriangle, 1);
+	}
+}
+
+void CLight::RenderGroupRefactored(int Group)
+{
+	const bool DarkVision = m_pClient->DarkVisionEnabled();
+	if(!g_Config.m_ClLighting && !DarkVision)
 		return;
+
+	if(!Client()->IsGameWorldActive() || !g_Config.m_GfxMultiBuffering)
+	{
+		m_LightCount = 0;
+		return;
+	}
 
 	CUIRect Screen;
 	Graphics()->GetScreen(&Screen.x, &Screen.y, &Screen.w, &Screen.h);
+	const bool UseShaderLight = g_Config.m_GfxShaders && g_Config.m_GfxMultiBuffering &&
+		Graphics()->IsShaderAvailable(SHADER_LIGHT) && m_CollisionTexture >= 0;
+	// Dark vision keeps the world outside the player's immediate pool black,
+	// but the smaller pool made shader mode illuminate little more than the
+	// player's own body. Keep a 4:3 pool large enough for nearby movement and
+	// aiming while retaining a clearly bounded dark-vision area.
+const vec2 CameraLightSize = DarkVision ? vec2(720.0f, 540.0f) : vec2(1100.0f, 850.0f);
+	// The shadow radius must cover the complete light quad. Keeping this
+	// relationship explicit prevents bright rectangular corners if the camera
+	// light size is tuned later.
+const float CameraRadius = max(DarkVision ? 560.0f : 700.0f,
+		length(CameraLightSize * 0.5f) + 8.0f);
+	const int TargetWidth = Graphics()->ScreenWidth();
+	const int TargetHeight = Graphics()->ScreenHeight();
+	// CPU visibility fans are intentionally budgeted more tightly than the GPU
+	// path. Non-selected sources still keep their soft contribution, but do not
+	// pay for a shadow fan this frame.
+	const int MaxShadowCasters = UseShaderLight ? 12 : 8;
 
-	Graphics()->RenderToTexture(RENDERBUFFER_LIGHT);
-	Graphics()->BlendAdditive();
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_LIGHTS].m_Id);
-	Graphics()->QuadsBegin();
+	auto DrawSource = [&](const SLightSource &Source, float ShadowRadius) {
+		const float CullingRadius = max(ShadowRadius, max(Source.m_Size.x, Source.m_Size.y) * 0.5f);
+		if(Source.m_Pos.x + CullingRadius < Screen.x || Source.m_Pos.x - CullingRadius > Screen.w ||
+		   Source.m_Pos.y + CullingRadius < Screen.y || Source.m_Pos.y - CullingRadius > Screen.h)
+			return;
 
-	// m_pClient->m_pParticles->RenderLights();
-
-	/*
-	// render light sources to texture buffer
-	for (int i = 0; i < m_Count; i++)
-	{
-		vec2 p = m_aLightsource[i].m_Pos;
-		float Size = m_aLightsource[i].m_Size;
-
-		Graphics()->SetColor(0.4f, 0.4f, 1, 1);
-
-		IGraphics::CQuadItem QuadItem(p.x, p.y, Size, Size);
-		Graphics()->QuadsDraw(&QuadItem, 1);
-	}
-	*/
-
-	// camera center light
-	RenderLight(m_pClient->m_pCamera->m_TargetCenter, vec2(900, 700), vec4(1, 1, 1, 0.4f));
-
-	// render light sources to texture buffer
-	for(int i = 0; i < m_Count; i++)
-	{
-		const vec4 c = m_aSimpleLight[i].m_Color;
-		Graphics()->SetColor(c.r, c.g, c.b, c.a);
-
-		IGraphics::CQuadItem QuadItem(m_aSimpleLight[i].m_Pos.x,
-									  m_aSimpleLight[i].m_Pos.y,
-									  m_aSimpleLight[i].m_Size.x,
-									  m_aSimpleLight[i].m_Size.y);
-		Graphics()->QuadsDraw(&QuadItem, 1);
-	}
-
-	Graphics()->QuadsEnd();
-
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_SMALLLIGHT].m_Id);
-	Graphics()->QuadsBegin();
-
-	// render small light sources to texture buffer
-	for(int i = 0; i < m_SmallCount; i++)
-	{
-		const vec4 c = m_aSmallSimpleLight[i].m_Color;
-		Graphics()->SetColor(c.r, c.g, c.b, c.a);
-
-		IGraphics::CQuadItem QuadItem(m_aSmallSimpleLight[i].m_Pos.x,
-									  m_aSmallSimpleLight[i].m_Pos.y,
-									  m_aSmallSimpleLight[i].m_Size.x,
-									  m_aSmallSimpleLight[i].m_Size.y);
-		Graphics()->QuadsDraw(&QuadItem, 1);
-	}
-
-	Graphics()->QuadsEnd();
-
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_BOXLIGHT].m_Id);
-	Graphics()->QuadsBegin();
-
-	// render box light sources to texture buffer
-	for(int i = 0; i < m_BoxCount; i++)
-	{
-		Graphics()->QuadsSetRotation(m_aBoxLight[i].m_Rot);
-		const vec4 c = m_aBoxLight[i].m_Color;
-		Graphics()->SetColor(c.r, c.g, c.b, c.a);
-
-		IGraphics::CQuadItem QuadItem(
-			m_aBoxLight[i].m_Pos.x, m_aBoxLight[i].m_Pos.y, m_aBoxLight[i].m_Size.x, m_aBoxLight[i].m_Size.y);
-		Graphics()->QuadsDraw(&QuadItem, 1);
-	}
-
-	Graphics()->QuadsEnd();
-
-	m_Count = 0;
-	m_SmallCount = 0;
-	m_BoxCount = 0;
-
-	/*
-	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
-	for(int i = 0; i < Num; i++)
-	{
-		IClient::CSnapItem Item;
-		const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
-
-		if (Item.m_Type == NETOBJTYPE_BUILDING)
+		if(!Source.m_CastShadow)
 		{
-			const struct CNetObj_Building *pBuilding = (const CNetObj_Building *)pData;
-
-			if (pBuilding->m_Type == BUILDING_SCREEN)
-			{
-				vec4 c;
-				switch (int(pBuilding->m_X/32)%4)
-				{
-					case 0: c = vec4(0.5f, 0.7f, 1.0f, 1); break;
-					case 1: c = vec4(0.4f, 1.0f, 0.4f, 1); break;
-					case 2: c = vec4(1.0f, 0.5f, 0.5f, 1); break;
-					case 3: c = vec4(0.2f, 1.0f, 1.0f, 1); break;
-					default: c = vec4(0.5f, 0.7f, 1.0f, 1); break;
-				}
-				RenderLight(vec2(pBuilding->m_X, pBuilding->m_Y-96), vec2(500, 320), c);
-			}
-			else if (pBuilding->m_Type == BUILDING_REACTOR)
-			{
-				//float r = 1.0f + sin(CustomStuff()->m_SawbladeAngle*0.5f)*0.25f;
-				RenderLight(vec2(pBuilding->m_X, pBuilding->m_Y-32), vec2(300, 420), vec4(0.25f, 0.75f, 1.0f, 1.0f));
-				//RenderLight(vec2(pBuilding->m_X, pBuilding->m_Y-32), vec2(300, 420)*r, vec4(0.75f, 1.0f, 1.0f, 1.0f));
-			}
+			Graphics()->RenderToTexture(RENDERBUFFER_LIGHT);
+			Graphics()->BlendAdditive();
+			Graphics()->TextureSet(g_pData->m_aImages[Source.m_Image].m_Id);
+			Graphics()->QuadsBegin();
+			Graphics()->QuadsSetRotation(Source.m_Rot);
+			Graphics()->SetColor(Source.m_Color.r, Source.m_Color.g, Source.m_Color.b, Source.m_Color.a);
+			IGraphics::CQuadItem Quad(Source.m_Pos.x, Source.m_Pos.y, Source.m_Size.x, Source.m_Size.y);
+			Graphics()->QuadsDraw(&Quad, 1);
+			Graphics()->QuadsEnd();
+			return;
 		}
 
-		if(Item.m_Type == NETOBJTYPE_PICKUP)
+		if(UseShaderLight)
 		{
-			const void *pPrev = Client()->SnapFindItem(IClient::SNAP_PREV, Item.m_Type, Item.m_ID);
-
-			if(pPrev)
-			{
-				const CNetObj_Pickup *pCurrent2 = (const CNetObj_Pickup *)pData;
-				const CNetObj_Pickup *pPrev2= (const CNetObj_Pickup *)pPrev;
-
-				const vec2 Pos = mix(vec2(pPrev2->m_X, pPrev2->m_Y), vec2(pCurrent2->m_X, pCurrent2->m_Y),
-	Client()->IntraGameTick());
-
-				RenderLight(Pos, 140.0f, vec4(1, 1, 1, 0.4f));
-			}
-		}
-		*/
-	//}
-
-	// raycasting
-	Graphics()->TextureSet(-1);
-	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 1.0f, 1.0f);
-
-	vec2 Center = m_pClient->m_pCamera->m_TargetCenter / 32;
-	float ScreenX0, ScreenY0, ScreenX1, ScreenY1;
-	Graphics()->GetScreen(&ScreenX0, &ScreenY0, &ScreenX1, &ScreenY1);
-
-	int w = int(ScreenX1 - ScreenX0) / 64 + 2;
-	int h = int(ScreenY1 - ScreenY0) / 64 + 2;
-
-	int x1 = int(Center.x) - w;
-	int x2 = int(Center.x) + w;
-	int y1 = int(Center.y) - h;
-	int y2 = int(Center.y) + h;
-
-	vec2 aLights[199];
-	int LightCount = 0;
-
-	// get light endpoints
-	for(int x = x1; x <= x2; x++)
-	{
-		for(int y = y1; y <= y2; y++)
-		{
-			int t = Collision()->GetLightRay(ivec2(x * 32, y * 32));
-			if(t > 0 || ((t == -1 || t == -3) && (y == y1 || y == y2)) ||
-			   ((t == -2 || t == -3) && (x == x1 || x == x2)) || ((x == x1 || x == x2) && (y == y1 || y == y2)))
-			{
-				vec2 p = vec2(x, y) * 32;
-
-				if(t > 0)
-				{
-					for(int i = 0; i < 3; i++)
-						if(LightCount < 199)
-							aLights[LightCount++] = vec2(atan2(m_pClient->m_pCamera->m_TargetCenter.x - p.x,
-															   m_pClient->m_pCamera->m_TargetCenter.y - p.y) -
-															 (i - 1) * 0.025f,
-														 0);
-				}
-				else
-				{
-					if(LightCount < 199)
-						aLights[LightCount++] = vec2(atan2(m_pClient->m_pCamera->m_TargetCenter.x - p.x,
-														   m_pClient->m_pCamera->m_TargetCenter.y - p.y),
-													 0);
-				}
-
-				// render light endpoints
-				/*
-			   IGraphics::CFreeformItem FreeFormItem(
-			   m_pClient->m_pCamera->m_TargetCenter.x, m_pClient->m_pCamera->m_TargetCenter.y,
-			   m_pClient->m_pCamera->m_TargetCenter.x, m_pClient->m_pCamera->m_TargetCenter.y, p.x+Offset.x-2,
-			   p.y+Offset.y-2, p.x+Offset.x+2, p.y+Offset.y+2); Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-			   */
-			}
-		}
-	}
-
-	// sort light array
-	if(LightCount > 1)
-	{
-		int min;
-		vec2 temp;
-
-		for(int i = 0; i < LightCount - 1; i++)
-		{
-			min = i;
-			for(int j = i + 1; j < LightCount; j++)
-				if(aLights[j].x < aLights[min].x)
-					min = j;
-
-			temp = aLights[i];
-			aLights[i] = aLights[min];
-			aLights[min] = temp;
-		}
-	}
-
-	// render lights
-	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 0.5f);
-	for(int i = 0; i < LightCount; i++)
-	{
-		vec2 p =
-			m_pClient->m_pCamera->m_TargetCenter - vec2(sin(aLights[i].x), cos(aLights[i].x)) * 2000; // aLights[i].y
-
-		int next = i + 1;
-		if(next >= LightCount)
-			next = 0;
-
-		vec2 p2 = m_pClient->m_pCamera->m_TargetCenter -
-				  vec2(sin(aLights[next].x), cos(aLights[next].x)) * 2000; // *aLights[next].y
-
-		Collision()->IntersectLine(m_pClient->m_pCamera->m_TargetCenter, p, 0x0, &p, false, false, false);
-		Collision()->IntersectLine(m_pClient->m_pCamera->m_TargetCenter, p2, 0x0, &p2, false, false, false);
-
-		p -= vec2(sin(aLights[i].x), cos(aLights[i].x)) * 32;
-		p2 -= vec2(sin(aLights[next].x), cos(aLights[next].x)) * 32;
-
-		IGraphics::CColorVertex aColors[4] = {IGraphics::CColorVertex(0, 1.0f, 1.0f, 1.0f, 0.5f),
-											  IGraphics::CColorVertex(1, 1.0f, 1.0f, 1.0f, 0.5f),
-											  IGraphics::CColorVertex(2, 0.7f, 0.7f, 0.7f, 0.5f),
-											  IGraphics::CColorVertex(3, 0.7f, 0.7f, 0.7f, 0.5f)};
-
-		Graphics()->SetColorVertex(aColors, 4);
-
-		IGraphics::CFreeformItem FreeFormItem(m_pClient->m_pCamera->m_TargetCenter.x,
-											  m_pClient->m_pCamera->m_TargetCenter.y,
-											  m_pClient->m_pCamera->m_TargetCenter.x,
-											  m_pClient->m_pCamera->m_TargetCenter.y,
-											  p2.x,
-											  p2.y,
-											  p.x,
-											  p.y);
-
-		Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-	}
-
-	Graphics()->QuadsEnd();
-
-	Graphics()->TextureSet(-1);
-	Graphics()->QuadsBegin();
-
-	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
-	for(int i = 0; i < Num; i++)
-	{
-		IClient::CSnapItem Item;
-		const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
-
-		/*
-		if (Item.m_Type == NETOBJTYPE_BUILDING)
-		{
-			const struct CNetObj_Building *pBuilding = (const CNetObj_Building *)pData;
-
-			if (pBuilding->m_Type == BUILDING_STAND)
-				RenderLight(ivec2(pBuilding->m_X, pBuilding->m_Y));
+			// Sample the source image directly in the light shader. The previous
+			// implementation first rendered it into the full-screen LIGHT2 buffer
+			// and then sampled that whole buffer on a source-sized quad, shrinking
+			// the apparent light and wasting an extra pass.
+			Graphics()->RenderToTexture(RENDERBUFFER_LIGHT);
+			Graphics()->BlendAdditive();
+			Graphics()->WrapClamp();
+			Graphics()->TextureSet(g_pData->m_aImages[Source.m_Image].m_Id);
+			Graphics()->LightShaderBegin(m_CollisionTexture,
+				Source.m_Pos.x,
+				Source.m_Pos.y,
+				ShadowRadius,
+				m_CollisionWidth,
+				m_CollisionHeight,
+				Screen.x,
+				Screen.y,
+				Screen.w,
+				Screen.h,
+				TargetWidth,
+				TargetHeight);
+			Graphics()->QuadsBegin();
+			Graphics()->QuadsSetRotation(Source.m_Rot);
+			Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+			IGraphics::CQuadItem VisibleQuad(Source.m_Pos.x, Source.m_Pos.y, Source.m_Size.x, Source.m_Size.y);
+			Graphics()->QuadsDraw(&VisibleQuad, 1);
+			Graphics()->QuadsEnd();
+			Graphics()->ShaderEnd();
 		}
 		else
-		*/
-		if(Item.m_Type == NETOBJTYPE_POWERUPPER)
 		{
-			const struct CNetObj_Powerupper *pBuilding = (const CNetObj_Powerupper *)pData;
-
-			// float r = 1.0f + sin(CustomStuff()->m_SawbladeAngle*0.5f)*0.25f;
-			// RenderLight(vec2(pBuilding->m_X, pBuilding->m_Y-32), vec2(300, 420), vec4(0.25f, 0.75f, 1.0f, 1.0f));
-			const vec2 p = vec2(pBuilding->m_X, pBuilding->m_Y - 22);
-			RenderLight(
-				p + vec2(-10, 0), p + vec2(+10, 0), p + vec2(-40, -70), p + vec2(+40, -70), vec4(0.25f, 1.0f, 0.5f, 1));
+			// Fixed-function fallback: clip the textured source directly with the
+			// CPU visibility fan. Keeping geometry and UVs in one pass avoids every
+			// render-target origin conversion and any whole-buffer resampling.
+			Graphics()->RenderToTexture(RENDERBUFFER_LIGHT);
+			Graphics()->BlendAdditive();
+			Graphics()->WrapClamp();
+			Graphics()->TextureSet(g_pData->m_aImages[Source.m_Image].m_Id);
+			Graphics()->QuadsBegin();
+			RenderCpuVisibility(Source, ShadowRadius);
+			Graphics()->QuadsEnd();
 		}
+	};
+
+	SLightSource CameraLight;
+	CameraLight.Set(m_pClient->m_pCamera->m_TargetCenter,
+		vec4(1.0f, 1.0f, 1.0f, DarkVision ? 0.78f : 0.55f),
+		CameraLightSize,
+		0.0f,
+		IMAGE_LIGHTS,
+		true,
+		3);
+	DrawSource(CameraLight, CameraRadius);
+
+	std::vector<bool> aCastShadow(m_LightCount, false);
+	std::vector<int> aShadowIndices;
+	for(int i = 0; i < m_LightCount; i++)
+		if(m_aLights[i].m_CastShadow)
+			aShadowIndices.push_back(i);
+	std::sort(aShadowIndices.begin(), aShadowIndices.end(), [&](int A, int B) {
+		if(m_aLights[A].m_Priority != m_aLights[B].m_Priority)
+			return m_aLights[A].m_Priority > m_aLights[B].m_Priority;
+		return distance(m_aLights[A].m_Pos, CameraLight.m_Pos) < distance(m_aLights[B].m_Pos, CameraLight.m_Pos);
+	});
+	if((int)aShadowIndices.size() > MaxShadowCasters)
+		aShadowIndices.resize(MaxShadowCasters);
+	for(const int Index : aShadowIndices)
+		aCastShadow[Index] = true;
+
+	for(int i = 0; i < m_LightCount; i++)
+	{
+		SLightSource Source = m_aLights[i];
+		Source.m_CastShadow = aCastShadow[i];
+		DrawSource(Source, max(Source.m_Size.x, Source.m_Size.y) * 0.75f);
 	}
 
+	// Powerupper is an existing custom freeform light. Keep it additive; it is
+	// not a registered radial source and therefore has no per-source shader
+	// shadow pass.
+	Graphics()->RenderToTexture(RENDERBUFFER_LIGHT);
+	Graphics()->BlendAdditive();
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	const int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
+	for(int i = 0; i < Num; i++)
+	{
+		IClient::CSnapItem Item;
+		const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
+		if(Item.m_Type == NETOBJTYPE_POWERUPPER)
+		{
+			const CNetObj_Powerupper *pBuilding = (const CNetObj_Powerupper *)pData;
+			const vec2 p = vec2(pBuilding->m_X, pBuilding->m_Y - 22);
+			RenderLight(p + vec2(-10, 0), p + vec2(+10, 0), p + vec2(-40, -70), p + vec2(+40, -70), vec4(0.25f, 1.0f, 0.5f, 1.0f));
+		}
+	}
 	Graphics()->QuadsEnd();
+
+	m_LightCount = 0;
+
 	Graphics()->RenderToScreen();
-
 	Graphics()->BlendLight();
-
-	// render buffer to screen using special blending
 	Graphics()->MapScreen(0, 0, Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
+	Graphics()->WrapClamp();
 	Graphics()->TextureSet(-2, RENDERBUFFER_LIGHT);
-
 	Graphics()->QuadsBegin();
 	Graphics()->QuadsSetRotation(0);
 	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
-
-	{
-		IGraphics::CQuadItem QuadItem(Graphics()->ScreenWidth() / 2,
-									  Graphics()->ScreenHeight() / 2,
-									  Graphics()->ScreenWidth(),
-									  -Graphics()->ScreenHeight());
-		Graphics()->QuadsDraw(&QuadItem, 1);
-	}
-
+	IGraphics::CQuadItem QuadItem(Graphics()->ScreenWidth() / 2,
+		Graphics()->ScreenHeight() / 2,
+		Graphics()->ScreenWidth(),
+		-Graphics()->ScreenHeight());
+	Graphics()->QuadsDraw(&QuadItem, 1);
 	Graphics()->QuadsEnd();
-
 	Graphics()->BlendNormal();
+	Graphics()->WrapNormal();
 	Graphics()->TextureSet(-1);
-
-	// reset the screen like it was before
 	Graphics()->MapScreen(Screen.x, Screen.y, Screen.w, Screen.h);
+}
+
+void CLight::RenderGroup(int Group)
+{
+	RenderGroupRefactored(Group);
 }

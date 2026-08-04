@@ -1,6 +1,7 @@
 #include <new>
 #include <engine/shared/config.h>
 #include <engine/platform_events.h>
+#include <game/challenge_variant.h>
 #include <game/server/gamecontext.h>
 #include <game/input_buffer.h>
 #include <game/mapitems.h>
@@ -43,6 +44,25 @@ int StaticType(const CWeapon *pWeapon)
 bool HasWeaponBehavior(const CWeapon *pWeapon, EWeaponBehaviorFlag Flag)
 {
 	return pWeapon && WeaponHasBehavior(pWeapon->GetWeaponProfile().m_Definition, Flag);
+}
+
+// The melee-only challenge excludes firearms, but still permits melee weapons
+// and utility/throwable items (grenades, shields, upgrades, etc.). Modular
+// BASE frames are the ranged firearm family; static GUN1/GUN2 and custom
+// definitions carrying the compact-gun behavior are firearms as well.
+bool IsFirearmWeapon(const CWeapon *pWeapon)
+{
+	if(!pWeapon)
+		return false;
+
+	const CWeaponDefinition &Definition = pWeapon->GetWeaponProfile().m_Definition;
+	if(WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_COMPACT_GUN_HANDS))
+		return true;
+
+	if(Definition.m_Kind == EWeaponDefinitionKind::Static)
+		return Definition.m_StaticType == SW_GUN1 || Definition.m_StaticType == SW_GUN2;
+
+	return Definition.m_Part1 >= PART1_BASE1 && Definition.m_Part1 <= PART1_BASE6;
 }
 
 } // namespace
@@ -207,6 +227,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	}
 
 	GameServer()->m_pController->OnCharacterSpawn(this, pPlayer->m_IsBot);
+	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::PlayerSpawn, pPlayer->GetCID(), 0);
 
 	if(pPlayer->m_pAI)
 	{
@@ -328,6 +349,12 @@ void CCharacter::SaveData()
 bool CCharacter::GiveWeapon(CWeapon *pWeapon)
 {
 	if(!pWeapon)
+		return false;
+
+	// Challenge variant: players cannot receive firearms, while melee weapons
+	// and all non-firearm items remain available. Enemies keep their loadout.
+	if(!m_IsBot && ChallengeVariantEnabled(g_Config.m_SvChallengeVariants, CHALLENGE_ONLY_MELEE) &&
+	   IsFirearmWeapon(pWeapon))
 		return false;
 
 	if(m_WeaponSlot < 0 || m_WeaponSlot > NUM_SLOTS)
@@ -744,6 +771,7 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 		GameServer()->m_pTutorialDirector->OnGameplayProgress(GetPlayer()->GetCID(), TUTORIAL_EVENT_FORGE);
 	Server()->SendPlatformEvent(GetPlayer()->GetCID(), PLATFORM_EVENT_FIRST_FORGE);
 	Server()->DispatchModEvent(MOD_EVENT_FORGE, GetPlayer()->GetCID(), Recipe.m_Operation);
+	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Forge, GetPlayer()->GetCID(), Recipe.m_Operation);
 }
 
 bool CCharacter::TriggerWeapon(CWeapon *pWeapon)
@@ -804,6 +832,12 @@ bool CCharacter::PickWeapon(CWeapon *pWeapon)
 {
 	// cs | reactor defense
 	if(HasWeaponBehavior(pWeapon, WEAPON_BEHAVIOR_BOMB) && GetPlayer()->GetTeam() != TEAM_RED)
+		return false;
+
+	// Challenge variant: players cannot pick up firearms, while melee weapons
+	// and all non-firearm items remain available. Enemies keep their loadout.
+	if(!m_IsBot && ChallengeVariantEnabled(g_Config.m_SvChallengeVariants, CHALLENGE_ONLY_MELEE) &&
+	   IsFirearmWeapon(pWeapon))
 		return false;
 
 	if(IsZombie())
@@ -1293,6 +1327,14 @@ void CCharacter::GiveStartWeapon()
 		return;
 	}
 
+	// Challenge variant: melee-only — players start with MELEE1 and cannot
+	// receive firearms (enemies keep their own loadout).
+	if(!m_IsBot && ChallengeVariantEnabled(g_Config.m_SvChallengeVariants, CHALLENGE_ONLY_MELEE))
+	{
+		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1, 1));
+		return;
+	}
+
 	if(!m_IsBot && str_comp(g_Config.m_SvGametype, "base") == 0)
 	{
 		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_TOOL));
@@ -1561,6 +1603,7 @@ void CCharacter::UseKit(int Kit, vec2 Pos)
 			GameServer()->CreateSound(Pos, SOUND_BUILD);
 			Server()->SendPlatformEvent(GetPlayer()->GetCID(), PLATFORM_EVENT_FIRST_BUILD);
 			Server()->DispatchModEvent(MOD_EVENT_BUILD, GetPlayer()->GetCID(), Kit);
+			GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Build, GetPlayer()->GetCID(), Kit);
 			if(GameServer()->m_pTutorialDirector)
 				GameServer()->m_pTutorialDirector->OnGameplayProgress(GetPlayer()->GetCID(), TUTORIAL_EVENT_BUILD);
 		}
@@ -2412,6 +2455,7 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 
 	if(From >= 0)
 		m_DamagedByPlayer = true;
+	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Damage, m_pPlayer->GetCID(), Dmg);
 
 	// disable self damage if weapon is forced
 	// if (g_Config.m_SvForceWeapon && From == m_pPlayer->GetCID())

@@ -4,14 +4,19 @@
 #include <base/vmath.h>
 #include <engine/client.h>
 #include <engine/console.h>
+#include <engine/shared/config.h>
 #include <game/layers.h>
 #include <game/gamecore.h>
 #include <game/weapon_catalog.h>
+#include <game/challenge_variant.h>
+#include <game/challenge_script_runtime.h>
 #include "render.h"
 
 struct CNetObj_WeaponRuntime;
 struct CNetObj_RaceInfo;
 struct CNetObj_RacePlayer;
+struct CNetObj_ChallengeRuntime;
+struct CNetMsg_Sv_ChallengeInfo;
 
 class CGameClient : public IGameClient
 {
@@ -90,6 +95,18 @@ class CGameClient : public IGameClient
 	CPredictedScriptEntity m_aPredictedScriptEntities[64];
 	int m_NumPredictedScriptEntities;
 
+	// Community challenge Lua is optional. The server snapshot remains the
+	// authority and overwrites this state whenever a correction arrives.
+	CChallengeScriptRuntime m_ChallengeScript;
+	bool m_ChallengeScriptLoaded;
+	char m_aChallengeContentHash[65];
+	int m_ChallengeVariantMask;
+	int m_ChallengeSeed;
+	bool m_ChallengeInfoReceived;
+	bool m_TextureBuffersCreated;
+	bool m_DarkVisionForcedMultiBuffering;
+	bool m_DarkVisionPreviousMultiBuffering;
+
 	IKernel *Kernel() { return IInterface::Kernel(); }
 	IEngine *Engine() const { return m_pEngine; }
 	class IGraphics *Graphics() const { return m_pGraphics; }
@@ -118,6 +135,15 @@ class CGameClient : public IGameClient
 
 	class IFriends *Friends() { return m_pFriends; }
 	class CCustomStuff *CustomStuff() { return m_pCustomStuff; }
+	// Challenge rules are server-authoritative. Before the server's challenge
+	// handshake arrives, expose no variants so a stale local preset cannot
+	// affect a remote game. cl_challenge_variants is only used when starting a
+	// local listen server (the menu copies it to sv_challenge_variants).
+	int ChallengeVariantMask() const { return m_ChallengeInfoReceived ? m_ChallengeVariantMask : 0; }
+	bool DarkVisionEnabled() const
+	{
+		return m_ChallengeInfoReceived && ChallengeVariantEnabled(m_ChallengeVariantMask, CHALLENGE_DARK);
+	}
 	class CSkelebank *Skelebank() { return m_pSkelebank; }
 
 	int NetobjNumCorrections() { return m_NetObjHandler.NumObjCorrections(); }
@@ -185,6 +211,7 @@ class CGameClient : public IGameClient
 
 		const CNetObj_PlayerInfo *m_paPlayerInfos[MAX_CLIENTS];
 		const CNetObj_WeaponRuntime *m_apWeaponRuntimes[MAX_CLIENTS];
+		const CNetObj_ChallengeRuntime *m_apChallengeRuntimes[MAX_CLIENTS];
 		const CNetObj_PlayerInfo *m_paInfoByScore[MAX_CLIENTS];
 		const CNetObj_PlayerInfo *m_paInfoByTeam[MAX_CLIENTS];
 
@@ -289,6 +316,9 @@ class CGameClient : public IGameClient
 	CRenderTools m_RenderTools;
 
 	void AddPlayerSplatter(vec2 Pos, vec4 Color);
+	bool LoadChallengeScript(const CNetMsg_Sv_ChallengeInfo &Info);
+	void EnsureDarkVisionRenderBuffers();
+	void RestoreDarkVisionRenderBuffers();
 
 	void OnReset();
 

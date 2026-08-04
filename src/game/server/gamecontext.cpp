@@ -12,6 +12,8 @@
 #include <engine/platform_events.h>
 #include "gamecontext.h"
 #include <game/version.h>
+#include <game/challenge_variant.h>
+#include <game/server/pvp_balance.h>
 #include <game/collision.h>
 #include <game/gamecore.h>
 #include <game/weapon_catalog.h>
@@ -85,6 +87,10 @@ void CGameContext::Construct(int Resetting)
 	m_LockTeams = 0;
 	m_NumGameVotes = 0;
 	m_WinnerVote = -1;
+	m_aChallengeContentHash[0] = 0;
+	m_ChallengeApi.m_ApiVersion = 0;
+	m_ChallengeApi.m_Capabilities = 0;
+	m_ChallengeScriptLoaded = false;
 
 	ClearFlameHits();
 
@@ -155,6 +161,112 @@ CPlayerSpecData CGameContext::GetPlayerSpecData(int ClientID)
 	}
 
 	return data;
+}
+
+bool CGameContext::LoadChallengeScript()
+{
+	m_ChallengeScriptLoaded = false;
+	m_ChallengeScript.Deactivate();
+	str_copy(m_aChallengeContentHash, "none", sizeof(m_aChallengeContentHash));
+	m_ChallengeApi.m_ApiVersion = 0;
+	m_ChallengeApi.m_Capabilities = 0;
+	if(!g_Config.m_SvChallengeScript[0])
+		return true;
+
+	char aPath[1024];
+	IOHANDLE File = Storage()->OpenFile(g_Config.m_SvChallengeScript, IOFLAG_READ, IStorage::TYPE_ALL, aPath, sizeof(aPath));
+	if(!File && (g_Config.m_SvChallengeScript[0] == '/' ||
+				(g_Config.m_SvChallengeScript[0] && g_Config.m_SvChallengeScript[1] == ':')))
+	{
+		str_copy(aPath, g_Config.m_SvChallengeScript, sizeof(aPath));
+		File = io_open(aPath, IOFLAG_READ);
+	}
+	if(!File)
+	{
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "challenge", "unable to open challenge script");
+		return false;
+	}
+	const long Size = io_length(File);
+	if(Size <= 0 || Size > 1024 * 1024)
+	{
+		io_close(File);
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "challenge", "challenge script size limit exceeded");
+		return false;
+	}
+	char *pSource = (char *)mem_alloc((unsigned)Size, 1);
+	const unsigned Read = io_read(File, pSource, (unsigned)Size);
+	io_close(File);
+	if(Read != (unsigned)Size)
+	{
+		mem_free(pSource);
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "challenge", "unable to read challenge script");
+		return false;
+	}
+
+	m_ChallengeApi.m_ApiVersion = ModApiCurrentVersion();
+	m_ChallengeApi.m_Capabilities = MOD_CAPABILITY_GAMEPLAY_RULES;
+	char aError[256];
+	const bool Activated = m_ChallengeScript.Activate(
+		m_ChallengeApi, (uint32_t)g_Config.m_SvMapGenSeed, aError, sizeof(aError));
+	const bool Loaded = Activated && m_ChallengeScript.LoadScript(
+		g_Config.m_SvChallengeScript, pSource, (int)Size, aError, sizeof(aError));
+	mem_free(pSource);
+	if(!Loaded)
+	{
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "challenge", aError);
+		m_ChallengeScript.Deactivate();
+		return false;
+	}
+	str_copy(m_aChallengeContentHash,
+		g_Config.m_SvChallengeContentHash[0] ? g_Config.m_SvChallengeContentHash : "none",
+		sizeof(m_aChallengeContentHash));
+	m_ChallengeScriptLoaded = true;
+	return true;
+}
+
+void CGameContext::DispatchChallengeEvent(EChallengeScriptEvent Event, int ClientID, int Value)
+{
+	if(!m_ChallengeScriptLoaded)
+		return;
+	m_ChallengeScript.SetTick(Server()->Tick());
+	char aError[256];
+	if(!m_ChallengeScript.Dispatch(Event, ClientID, Value, aError, sizeof(aError)))
+	{
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "challenge", aError);
+		m_ChallengeScriptLoaded = false;
+		m_ChallengeScript.Deactivate();
+	}
+	if(m_ChallengeScriptLoaded && Event != EChallengeScriptEvent::Tick)
+	{
+		CNetMsg_Sv_ChallengeEvent Msg;
+		Msg.m_Event = static_cast<int>(Event);
+		Msg.m_ClientID = clamp(ClientID, -1, MAX_CLIENTS - 1);
+		Msg.m_Value = Value;
+		Msg.m_Tick = Server()->Tick();
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+	}
+	for(int i = 0; i < m_ChallengeScript.CommandCount(); ++i)
+	{
+		const CChallengeScriptCommand *pCommand = m_ChallengeScript.CommandAt(i);
+		if(!pCommand || pCommand->m_Kind != CHALLENGE_COMMAND_ADD_SCORE ||
+		   pCommand->m_ClientID < 0 || pCommand->m_ClientID >= MAX_CLIENTS || !m_apPlayers[pCommand->m_ClientID])
+			continue;
+		m_apPlayers[pCommand->m_ClientID]->m_Score = clamp(
+			m_apPlayers[pCommand->m_ClientID]->m_Score + pCommand->m_Arg0, -999999, 999999);
+	}
+}
+
+void CGameContext::SendChallengeInfo(int ClientID)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return;
+	CNetMsg_Sv_ChallengeInfo Msg;
+	Msg.m_ApiVersion = m_ChallengeScriptLoaded ? m_ChallengeApi.m_ApiVersion : 0;
+	Msg.m_pContentHash = m_ChallengeScriptLoaded ? m_aChallengeContentHash : "none";
+	Msg.m_FixedSeed = g_Config.m_SvMapGenSeed;
+	Msg.m_VariantMask = g_Config.m_SvChallengeVariants;
+	Msg.m_Active = m_ChallengeScriptLoaded ? 1 : 0;
+	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 }
 
 bool CGameContext::RespawnAlly(vec2 Pos, int Team, int Reviver)
@@ -585,7 +697,8 @@ void CGameContext::CreateMeleeHit(
 	const int DamageOwner = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
 	CWeaponVisualProfile Visual{};
-	CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual);
+	CWeaponCatalog::TryResolveAttack(
+		Source, &Combat, &Visual, m_pController && !m_pController->IsCoop());
 	CWeaponDefinition Definition{};
 	const bool HasDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
 							   CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition);
@@ -784,7 +897,8 @@ void CGameContext::CreateProjectile(
 	const int DamageOwner = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
 	CWeaponVisualProfile Visual{};
-	CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual);
+	CWeaponCatalog::TryResolveAttack(
+		Source, &Combat, &Visual, m_pController && !m_pController->IsCoop());
 	CWeaponDefinition Definition{};
 	const bool HasDefinition = Source.m_Kind == EAttackSourceKind::PlayerWeapon &&
 							   CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition);
@@ -979,7 +1093,8 @@ void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source, float 
 	const int Owner = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
 	CWeaponVisualProfile Visual{};
-	if(!CWeaponCatalog::TryResolveAttack(Source, &Combat, &Visual))
+	if(!CWeaponCatalog::TryResolveAttack(
+		Source, &Combat, &Visual, m_pController && !m_pController->IsCoop()))
 		return;
 	float Dmg2 = 1.0f;
 	const int BaseExplosionDamage = Combat.m_ExplosionDamage;
@@ -1926,6 +2041,7 @@ void CGameContext::OnTick()
 			m_apPlayers[i]->PostTick();
 		}
 	}
+	DispatchChallengeEvent(EChallengeScriptEvent::Tick);
 
 	// dynamic music threat - send to human players every 30 ticks
 	{
@@ -2099,6 +2215,7 @@ void CGameContext::OnClientEnter(int ClientID)
 {
 	// world.insert_entity(&players[client_id]);
 	m_apPlayers[ClientID]->Respawn();
+	SendChallengeInfo(ClientID);
 	if(m_pPveDirector)
 		m_pPveDirector->OnClientEnter(ClientID);
 	if(m_pTutorialDirector)
@@ -3784,6 +3901,12 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	else
 		m_pController = new CGameControllerDM(this);
 
+	// Apply challenge variants once, after the controller has set its baseline
+	// config (variants override it, e.g. no building).
+	ApplyChallengeVariants(this);
+	ApplyPvpModeBalance(this);
+	LoadChallengeScript();
+
 	m_pPveDirector = new CPveDirector(this);
 	if(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
 		m_pTutorialDirector = new CTutorialDirector(this);
@@ -3930,6 +4053,36 @@ void CGameContext::OnSnap(int ClientID)
 	{
 		if(m_apPlayers[i])
 			m_apPlayers[i]->Snap(ClientID);
+	}
+
+	if(m_ChallengeScriptLoaded)
+	{
+		const CChallengeScriptState &State = m_ChallengeScript.State();
+		for(int Owner = 0; Owner < MAX_CLIENTS; ++Owner)
+		{
+			if(!m_apPlayers[Owner])
+				continue;
+			CNetObj_ChallengeRuntime *pRuntime = static_cast<CNetObj_ChallengeRuntime *>(
+				Server()->SnapNewItem(NETOBJTYPE_CHALLENGERUNTIME, Owner, sizeof(CNetObj_ChallengeRuntime)));
+			if(!pRuntime)
+				continue;
+			pRuntime->m_Tick = State.m_Tick;
+			pRuntime->m_RandomState = (int)State.m_RandomState;
+			pRuntime->m_State0 = State.m_aGlobal[0];
+			pRuntime->m_State1 = State.m_aGlobal[1];
+			pRuntime->m_State2 = State.m_aGlobal[2];
+			pRuntime->m_State3 = State.m_aGlobal[3];
+			pRuntime->m_State4 = State.m_aGlobal[4];
+			pRuntime->m_State5 = State.m_aGlobal[5];
+			pRuntime->m_State6 = State.m_aGlobal[6];
+			pRuntime->m_State7 = State.m_aGlobal[7];
+			pRuntime->m_PlayerState0 = State.m_aPlayer[Owner][0];
+			pRuntime->m_PlayerState1 = State.m_aPlayer[Owner][1];
+			pRuntime->m_PlayerState2 = State.m_aPlayer[Owner][2];
+			pRuntime->m_PlayerState3 = State.m_aPlayer[Owner][3];
+			pRuntime->m_Checksum = (int)State.m_Checksum;
+			pRuntime->m_Owner = Owner;
+		}
 	}
 }
 void CGameContext::OnPreSnap()

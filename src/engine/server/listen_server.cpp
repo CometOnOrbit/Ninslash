@@ -43,6 +43,10 @@ void CaptureSettings(CListenServerSettings *pSettings)
 	str_copy(pSettings->m_aModHash, g_Config.m_SvModHash, sizeof(pSettings->m_aModHash));
 	str_copy(pSettings->m_aModIDs, g_Config.m_SvModIds, sizeof(pSettings->m_aModIDs));
 	str_copy(pSettings->m_aModWhitelist, g_Config.m_SvModWhitelist, sizeof(pSettings->m_aModWhitelist));
+	str_copy(pSettings->m_aChallengeScript, g_Config.m_SvChallengeScript, sizeof(pSettings->m_aChallengeScript));
+	str_copy(pSettings->m_aChallengeContentHash,
+		g_Config.m_SvChallengeContentHash,
+		sizeof(pSettings->m_aChallengeContentHash));
 }
 
 void ApplySettings(const CListenServerSettings &Settings)
@@ -73,6 +77,10 @@ void ApplySettings(const CListenServerSettings &Settings)
 	str_copy(g_Config.m_SvModHash, Settings.m_aModHash, sizeof(g_Config.m_SvModHash));
 	str_copy(g_Config.m_SvModIds, Settings.m_aModIDs, sizeof(g_Config.m_SvModIds));
 	str_copy(g_Config.m_SvModWhitelist, Settings.m_aModWhitelist, sizeof(g_Config.m_SvModWhitelist));
+	str_copy(g_Config.m_SvChallengeScript, Settings.m_aChallengeScript, sizeof(g_Config.m_SvChallengeScript));
+	str_copy(g_Config.m_SvChallengeContentHash,
+		Settings.m_aChallengeContentHash,
+		sizeof(g_Config.m_SvChallengeContentHash));
 }
 
 class CListenServerRuntime : public IListenServerRuntime

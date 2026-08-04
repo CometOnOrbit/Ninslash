@@ -6,6 +6,8 @@
 
 #include <game/client/component.h>
 
+struct CNetMsg_Sv_KillMsg;
+
 class CSpectator : public CComponent
 {
 	enum
@@ -19,10 +21,18 @@ class CSpectator : public CComponent
 	int m_SelectedSpectatorID;
 	vec2 m_SelectorMouse;
 
+	bool m_AutoDirectorActive;
+	int m_AutoDirectorEndTick;
+	int m_AutoDirectorReturnID;
+
 	static void ConKeySpectator(IConsole::IResult *pResult, void *pUserData);
 	static void ConSpectate(IConsole::IResult *pResult, void *pUserData);
 	static void ConSpectateNext(IConsole::IResult *pResult, void *pUserData);
 	static void ConSpectatePrevious(IConsole::IResult *pResult, void *pUserData);
+
+	void CancelAutoDirector();
+	void SpectateInternal(int SpectatorID, bool Automatic);
+	void RenderStatsPanel();
 
   public:
 	CSpectator();
@@ -34,6 +44,7 @@ class CSpectator : public CComponent
 	virtual void OnReset();
 
 	void Spectate(int SpectatorID);
+	void OnKillEvent(const CNetMsg_Sv_KillMsg *pMsg);
 	bool IsActive() const { return m_Active; }
 };
 

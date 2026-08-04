@@ -193,6 +193,9 @@ class CCollision
 
 	int GetWidth() { return m_Width; };
 	int GetHeight() { return m_Height; };
+	// Raw collision tile flags (COLFLAG bytes incl. ramps), one byte per tile,
+	// used to build the GPU collision texture for shader lighting.
+	const class CTile *GetTiles() const { return m_pTiles; };
 	int FastIntersectLine(vec2 Pos0, vec2 Pos1);
 	int IntersectLine(vec2 Pos0,
 					  vec2 Pos1,

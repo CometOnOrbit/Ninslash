@@ -11,6 +11,7 @@
 #include <game/layers.h>
 #include <game/voting.h>
 #include <game/weapon_catalog.h>
+#include <game/challenge_script_runtime.h>
 
 #include "eventhandler.h"
 #include "gamecontroller.h"
@@ -146,6 +147,15 @@ class CGameContext : public IGameServer
 	CGameWorld m_World;
 
 	CPlayerSpecData GetPlayerSpecData(int ClientID);
+
+	CChallengeScriptRuntime m_ChallengeScript;
+	char m_aChallengeContentHash[65];
+	CModApiDescriptor m_ChallengeApi;
+	bool m_ChallengeScriptLoaded;
+
+	bool LoadChallengeScript();
+	void DispatchChallengeEvent(EChallengeScriptEvent Event, int ClientID = -1, int Value = 0);
+	void SendChallengeInfo(int ClientID);
 
 	int m_aMostInterestingPlayer[2];
 

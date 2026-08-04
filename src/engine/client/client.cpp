@@ -2864,6 +2864,10 @@ void CClient::Con_SteamLobbyCreate(IConsole::IResult *pResult, void *pUserData)
 	str_copy(Settings.m_aGameType, g_Config.m_SvGametype, sizeof(Settings.m_aGameType));
 	str_copy(Settings.m_aModHash, g_Config.m_ClModHash, sizeof(Settings.m_aModHash));
 	str_copy(Settings.m_aModIDs, g_Config.m_ClModIds, sizeof(Settings.m_aModIDs));
+	str_copy(Settings.m_aChallengeScript, g_Config.m_ClChallengeScript, sizeof(Settings.m_aChallengeScript));
+	str_copy(Settings.m_aChallengeContentHash,
+		g_Config.m_ClChallengeContentHash,
+		sizeof(Settings.m_aChallengeContentHash));
 	if(pClient->StartSteamHostedGame(Settings))
 		pClient->m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "steam", "Creating Steam Lobby...");
 	else
@@ -2922,7 +2926,7 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	Settings.m_SteamAuth = 1;
 	Settings.m_MapGen = Host.m_MapGen;
 	Settings.m_MapGenLevel = max(1, Host.m_Difficulty);
-	Settings.m_MapGenSeed = clamp(Host.m_Seed, 0, 32767);
+	Settings.m_MapGenSeed = clamp(Host.m_Seed, 0, 0x7FFFFFFF);
 	Settings.m_MapGenRandomSeed = Host.m_RandomSeed;
 	// Bots occupy logical high client IDs and do not consume Relay connection
 	// slots. sv_bots is a population target, not a count bounded by human slots.
@@ -2945,6 +2949,10 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	str_copy(Settings.m_aConfig, Host.m_aConfig, sizeof(Settings.m_aConfig));
 	str_copy(Settings.m_aModHash, Host.m_aModHash, sizeof(Settings.m_aModHash));
 	str_copy(Settings.m_aModIDs, Host.m_aModIDs, sizeof(Settings.m_aModIDs));
+	str_copy(Settings.m_aChallengeScript, Host.m_aChallengeScript, sizeof(Settings.m_aChallengeScript));
+	str_copy(Settings.m_aChallengeContentHash,
+		Host.m_aChallengeContentHash,
+		sizeof(Settings.m_aChallengeContentHash));
 	if(!m_pListenServer->Start(m_pPlatformServices->RelayListenTransport(), Settings))
 	{
 		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;

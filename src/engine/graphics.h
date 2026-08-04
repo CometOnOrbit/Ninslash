@@ -12,6 +12,7 @@ enum RenderBuffers
 	RENDERBUFFER_BLOOD,
 	RENDERBUFFER_ACID,
 	RENDERBUFFER_LIGHT,
+	RENDERBUFFER_LIGHT2,
 	RENDERBUFFER_MENU,
 	NUM_RENDERBUFFERS
 };
@@ -33,6 +34,7 @@ enum Shaders
 	SHADER_ACID,
 	SHADER_GRAYSCALE,
 	SHADER_MENU,
+	SHADER_LIGHT,
 	NUM_SHADERS
 };
 
@@ -92,6 +94,8 @@ class IGraphics : public IInterface
 	{
 		TEXLOAD_NORESAMPLE = 1,
 		TEXLOAD_NOMIPMAPS = 2,
+		TEXLOAD_NEAREST = 4,
+		TEXLOAD_NOCOMPRESSION = 8,
 	};
 
 	class CTextureHandle
@@ -112,7 +116,10 @@ class IGraphics : public IInterface
 	float ScreenAspect() const { return (float)ScreenWidth() / (float)ScreenHeight(); }
 
 	virtual void Clear(float r, float g, float b) = 0;
-	virtual void ClearBufferTexture() = 0;
+	// Clear the intermediate render targets. DarkVision is supplied by the
+	// game client for this frame; the render backend must not consult local
+	// challenge configuration directly because remote servers are authoritative.
+	virtual void ClearBufferTexture(bool DarkVision) = 0;
 
 	virtual void ClipEnable(int x, int y, int w, int h) = 0;
 	virtual void ClipDisable() = 0;
@@ -133,7 +140,26 @@ class IGraphics : public IInterface
 	virtual void CreateTextureBuffer(int Width, int Height) = 0;
 
 	virtual void LoadShaders() = 0;
+	// Returns whether a shader program was successfully compiled and linked on
+	// the render backend. This is deliberately separate from gfx_shaders: the
+	// latter is a user preference, while this value reflects actual GPU state.
+	virtual bool IsShaderAvailable(int Shader) const = 0;
 	virtual void ShaderBegin(int Shade, float Intensity = 1.0f, float ColorSwap = 0.0f, float WeaponCharge = 0.0f) = 0;
+	// Light pass: samples the light buffer on unit 0 and the collision texture
+	// on unit 1 (extra texture id). The view rectangle is in world coordinates
+	// and the target size is the actual drawable/FBO size in pixels.
+	virtual void LightShaderBegin(int CollisionTexture,
+								  float LightCenterX,
+								  float LightCenterY,
+								  float LightRadius,
+								  float CollisionWidth,
+								  float CollisionHeight,
+								  float ViewTLX,
+								  float ViewTLY,
+								  float ViewBRX,
+								  float ViewBRY,
+								  float TargetWidth,
+								  float TargetHeight) = 0;
 	virtual void PlayerShaderBegin(float colorG,
 								   float colorB,
 								   float Charge = 0.0f,

@@ -21,6 +21,7 @@
 #include <generated/game_data.h>
 
 #include <game/localization.h>
+#include <game/challenge_variant.h>
 #include <game/client/lineinput.h>
 #include <game/version.h>
 #include <game/weapon_catalog.h>
@@ -178,6 +179,105 @@ CGameClient g_GameClient;
 inline vec2 RandomDir()
 {
 	return normalize(vec2(frandom() - 0.5f, frandom() - 0.5f));
+}
+
+bool CGameClient::LoadChallengeScript(const CNetMsg_Sv_ChallengeInfo &Info)
+{
+	m_ChallengeScriptLoaded = false;
+	m_ChallengeScript.Deactivate();
+	m_ChallengeVariantMask = Info.m_VariantMask;
+	m_ChallengeSeed = Info.m_FixedSeed;
+	m_ChallengeInfoReceived = true;
+	str_copy(m_aChallengeContentHash, Info.m_pContentHash, sizeof(m_aChallengeContentHash));
+	EnsureDarkVisionRenderBuffers();
+	if(!Info.m_Active)
+		return true;
+	if(!g_Config.m_ClChallengeScript[0])
+	{
+		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "challenge", "challenge prediction script is not installed");
+		return false;
+	}
+	if(g_Config.m_ClChallengeContentHash[0] && str_comp(Info.m_pContentHash, "none") != 0 &&
+	   str_comp_nocase(g_Config.m_ClChallengeContentHash, Info.m_pContentHash) != 0)
+	{
+		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "challenge", "challenge script content hash mismatch");
+		return false;
+	}
+	char aPath[1024];
+	IOHANDLE File = Storage()->OpenFile(g_Config.m_ClChallengeScript, IOFLAG_READ, IStorage::TYPE_ALL, aPath, sizeof(aPath));
+	if(!File && (g_Config.m_ClChallengeScript[0] == '/' ||
+				(g_Config.m_ClChallengeScript[0] && g_Config.m_ClChallengeScript[1] == ':')))
+	{
+		str_copy(aPath, g_Config.m_ClChallengeScript, sizeof(aPath));
+		File = io_open(aPath, IOFLAG_READ);
+	}
+	if(!File)
+		return false;
+	const long Size = io_length(File);
+	if(Size <= 0 || Size > 1024 * 1024)
+	{
+		io_close(File);
+		return false;
+	}
+	char *pSource = (char *)mem_alloc((unsigned)Size, 1);
+	const unsigned Read = io_read(File, pSource, (unsigned)Size);
+	io_close(File);
+	if(Read != (unsigned)Size)
+	{
+		mem_free(pSource);
+		return false;
+	}
+	CModApiDescriptor Descriptor;
+	Descriptor.m_ApiVersion = Info.m_ApiVersion;
+	Descriptor.m_Capabilities = MOD_CAPABILITY_GAMEPLAY_RULES;
+	char aError[256];
+	const bool Loaded = m_ChallengeScript.Activate(Descriptor, (uint32_t)Info.m_FixedSeed, aError, sizeof(aError)) &&
+		m_ChallengeScript.LoadScript(g_Config.m_ClChallengeScript, pSource, (int)Size, aError, sizeof(aError));
+	mem_free(pSource);
+	if(!Loaded)
+	{
+		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "challenge", aError);
+		m_ChallengeScript.Deactivate();
+		return false;
+	}
+	m_ChallengeScriptLoaded = true;
+	return true;
+}
+
+void CGameClient::EnsureDarkVisionRenderBuffers()
+{
+	if(!DarkVisionEnabled())
+		return;
+
+	// DarkVision is a server-authoritative visual rule. It cannot be disabled
+	// by a local gfx_multibuffering preference because the light composition
+	// pass requires these render targets. Keep the user's value so it can be
+	// restored when this server session ends.
+	if(!g_Config.m_GfxMultiBuffering)
+	{
+		if(!m_DarkVisionForcedMultiBuffering)
+		{
+			m_DarkVisionPreviousMultiBuffering = g_Config.m_GfxMultiBuffering != 0;
+			m_DarkVisionForcedMultiBuffering = true;
+		}
+		g_Config.m_GfxMultiBuffering = 1;
+	}
+
+	if(!m_TextureBuffersCreated)
+	{
+		Graphics()->CreateTextureBuffer(Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
+		m_TextureBuffersCreated = true;
+		Graphics()->ClearBufferTexture(true);
+	}
+}
+
+void CGameClient::RestoreDarkVisionRenderBuffers()
+{
+	if(!m_DarkVisionForcedMultiBuffering)
+		return;
+
+	g_Config.m_GfxMultiBuffering = m_DarkVisionPreviousMultiBuffering ? 1 : 0;
+	m_DarkVisionForcedMultiBuffering = false;
 }
 
 // instanciate all systems
@@ -554,6 +654,10 @@ void CGameClient::AddFluidForce(vec2 Pos, vec2 Vel)
 
 void CGameClient::OnInit()
 {
+	m_TextureBuffersCreated = false;
+	m_DarkVisionForcedMultiBuffering = false;
+	m_DarkVisionPreviousMultiBuffering = false;
+
 	char aWorkshopRoot[1024], aWeaponError[256];
 	Storage()->CreateFolder("workshop", IStorage::TYPE_SAVE);
 	Storage()->GetCompletePath(IStorage::TYPE_SAVE, "workshop", aWorkshopRoot, sizeof(aWorkshopRoot));
@@ -669,7 +773,8 @@ void CGameClient::OnInit()
 	if(g_Config.m_GfxMultiBuffering)
 	{
 		Graphics()->CreateTextureBuffer(Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
-		Graphics()->ClearBufferTexture();
+		m_TextureBuffersCreated = true;
+		Graphics()->ClearBufferTexture(DarkVisionEnabled());
 	}
 
 	Client()->LoadReady();
@@ -791,6 +896,8 @@ void CGameClient::OnConnected()
 
 void CGameClient::OnReset()
 {
+	RestoreDarkVisionRenderBuffers();
+
 	// clear out the invalid pointers
 	m_PredictedTick = -1;
 	m_LastNewPredictedTick = -1;
@@ -805,6 +912,12 @@ void CGameClient::OnReset()
 	m_PredictedPrevBall.Reset();
 	m_NumPredictedScriptEntities = 0;
 	mem_zero(m_aPredictedScriptEntities, sizeof(m_aPredictedScriptEntities));
+	m_ChallengeScript.Deactivate();
+	m_ChallengeScriptLoaded = false;
+	m_aChallengeContentHash[0] = 0;
+	m_ChallengeVariantMask = 0;
+	m_ChallengeSeed = 0;
+	m_ChallengeInfoReceived = false;
 	mem_zero(&g_GameClient.m_Snap, sizeof(g_GameClient.m_Snap));
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
@@ -956,7 +1069,8 @@ void CGameClient::OnRender()
 	// dispatch all input to systems
 	DispatchInput();
 
-	Graphics()->ClearBufferTexture();
+	EnsureDarkVisionRenderBuffers();
+	Graphics()->ClearBufferTexture(DarkVisionEnabled());
 	// Graphics()->ShaderBegin(SHADER_TEST);
 
 	// render all systems
@@ -1066,6 +1180,27 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 	// TODO: this should be done smarter
 	for(int i = 0; i < m_All.m_Num; i++)
 		m_All.m_paComponents[i]->OnMessage(MsgId, pRawMsg);
+	if(MsgId == NETMSGTYPE_SV_KILLMSG)
+		gs_Spectator.OnKillEvent(static_cast<const CNetMsg_Sv_KillMsg *>(pRawMsg));
+	else if(MsgId == NETMSGTYPE_SV_CHALLENGEINFO)
+	{
+		const CNetMsg_Sv_ChallengeInfo *pMsg = static_cast<const CNetMsg_Sv_ChallengeInfo *>(pRawMsg);
+		LoadChallengeScript(*pMsg);
+	}
+	else if(MsgId == NETMSGTYPE_SV_CHALLENGEEVENT && m_ChallengeScriptLoaded)
+	{
+		const CNetMsg_Sv_ChallengeEvent *pMsg = static_cast<const CNetMsg_Sv_ChallengeEvent *>(pRawMsg);
+		char aError[128];
+		if(!m_ChallengeScript.Dispatch(static_cast<EChallengeScriptEvent>(pMsg->m_Event),
+			pMsg->m_ClientID,
+			pMsg->m_Value,
+			aError,
+			sizeof(aError)))
+		{
+			Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "challenge", aError);
+			m_ChallengeScriptLoaded = false;
+		}
+	}
 
 	if(MsgId == NETMSGTYPE_SV_READYTOENTER)
 	{
@@ -1171,6 +1306,7 @@ void CGameClient::OnStateChange(int NewState, int OldState)
 
 void CGameClient::OnShutdown()
 {
+	RestoreDarkVisionRenderBuffers();
 	if(m_pMenus)
 		m_pMenus->ShutdownLocalServer();
 }
@@ -1254,10 +1390,38 @@ void CGameClient::ProcessEvents()
 			if(CWeaponCatalog::TryAttackSourceFromProtocol(pEvent->m_SourceKind,
 														   pEvent->m_SourceType,
 														   pEvent->m_WeaponDefinitionId,
-														   pEvent->m_WeaponLevel,
-														   &Source))
-				m_pHud->OnHitConfirm(
-					vec2(pEvent->m_X, pEvent->m_Y), pEvent->m_Damage, pEvent->m_TargetType, pEvent->m_Killed != 0);
+															   pEvent->m_WeaponLevel,
+															   &Source))
+			{
+				const vec2 HitPos(pEvent->m_X, pEvent->m_Y);
+				m_pHud->OnHitConfirm(HitPos, pEvent->m_Damage, pEvent->m_TargetType, pEvent->m_Killed != 0);
+
+				// HitConfirm is emitted only for actual positive damage, so melee
+				// light is intentionally created here instead of on the swing
+				// animation. Chainsaw contacts use a larger flash than ordinary
+				// melee hits while the running glow is supplied by CPlayers.
+				if(Source.m_Kind == EAttackSourceKind::PlayerWeapon)
+				{
+					CWeaponDefinition Definition{};
+					CWeaponCombatProfile Combat{};
+					if(CWeaponCatalog::TryGetDefinition(Source.m_Weapon.m_DefinitionId, &Definition) &&
+						CWeaponCatalog::TryResolveAttack(Source, &Combat))
+					{
+						const bool IsChainsaw = WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_CHAINSAW);
+						const bool IsMelee = Combat.m_FiringType == WFT_MELEE ||
+							WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_MELEE) ||
+							WeaponHasBehavior(Definition, WEAPON_BEHAVIOR_CLAW) || IsChainsaw;
+						if(IsMelee)
+						{
+							const float LightWidth = IsChainsaw ? 360.0f : 240.0f;
+							const vec4 LightColor = IsChainsaw ? vec4(1.0f, 0.55f, 0.12f, 0.72f) :
+								vec4(0.72f, 1.0f, 0.42f, 0.65f);
+							m_pEffects->SimpleLight(
+								HitPos, LightColor, vec2(LightWidth, LightWidth * 0.78f));
+						}
+					}
+				}
+			}
 		}
 
 		if(Item.m_Type == NETEVENTTYPE_DAMAGEIND)
@@ -1620,6 +1784,12 @@ void CGameClient::OnNewSnapshot()
 				if(pRuntime->m_Owner >= 0 && pRuntime->m_Owner < MAX_CLIENTS)
 					m_Snap.m_apWeaponRuntimes[pRuntime->m_Owner] = pRuntime;
 			}
+			else if(Item.m_Type == NETOBJTYPE_CHALLENGERUNTIME)
+			{
+				const CNetObj_ChallengeRuntime *pRuntime = static_cast<const CNetObj_ChallengeRuntime *>(pData);
+				if(pRuntime->m_Owner >= 0 && pRuntime->m_Owner < MAX_CLIENTS)
+					m_Snap.m_apChallengeRuntimes[pRuntime->m_Owner] = pRuntime;
+			}
 			else if(Item.m_Type == NETOBJTYPE_BALL)
 			{
 				const void *pOld = Client()->SnapFindItem(IClient::SNAP_PREV, NETOBJTYPE_BALL, 0);
@@ -1703,6 +1873,42 @@ void CGameClient::OnNewSnapshot()
 					m_Snap.m_ImpactCount++;
 				}
 			}
+		}
+	}
+
+	// Apply the most recent authoritative challenge state after all owner
+	// objects have been collected. The global slots are duplicated in each
+	// object; per-player slots are taken from their corresponding owner.
+	if(m_ChallengeScriptLoaded)
+	{
+		const CNetObj_ChallengeRuntime *pFirst = 0;
+		for(int Owner = 0; Owner < MAX_CLIENTS && !pFirst; ++Owner)
+			pFirst = m_Snap.m_apChallengeRuntimes[Owner];
+		if(pFirst)
+		{
+			CChallengeScriptState State = m_ChallengeScript.State();
+			State.m_Tick = pFirst->m_Tick;
+			State.m_RandomState = (uint32_t)pFirst->m_RandomState;
+			State.m_aGlobal[0] = pFirst->m_State0;
+			State.m_aGlobal[1] = pFirst->m_State1;
+			State.m_aGlobal[2] = pFirst->m_State2;
+			State.m_aGlobal[3] = pFirst->m_State3;
+			State.m_aGlobal[4] = pFirst->m_State4;
+			State.m_aGlobal[5] = pFirst->m_State5;
+			State.m_aGlobal[6] = pFirst->m_State6;
+			State.m_aGlobal[7] = pFirst->m_State7;
+			for(int Owner = 0; Owner < MAX_CLIENTS; ++Owner)
+			{
+				const CNetObj_ChallengeRuntime *pRuntime = m_Snap.m_apChallengeRuntimes[Owner];
+				if(!pRuntime)
+					continue;
+				State.m_aPlayer[Owner][0] = pRuntime->m_PlayerState0;
+				State.m_aPlayer[Owner][1] = pRuntime->m_PlayerState1;
+				State.m_aPlayer[Owner][2] = pRuntime->m_PlayerState2;
+				State.m_aPlayer[Owner][3] = pRuntime->m_PlayerState3;
+				State.m_Checksum = (uint32_t)pRuntime->m_Checksum;
+			}
+			m_ChallengeScript.ApplyAuthoritativeState(State);
 		}
 	}
 
@@ -1961,6 +2167,15 @@ void CGameClient::OnPredict()
 
 	for(int Tick = Client()->GameTick() + 1; Tick <= PredGameTick; Tick++)
 	{
+		if(m_ChallengeScriptLoaded)
+		{
+			char aChallengeError[128];
+			if(!m_ChallengeScript.Dispatch(EChallengeScriptEvent::Tick, -1, 0, aChallengeError, sizeof(aChallengeError)))
+			{
+				Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "challenge", aChallengeError);
+				m_ChallengeScriptLoaded = false;
+			}
+		}
 		// Keep the interpolation pair adjacent even when AntiPing extends the
 		// prediction horizon. Pairing an old state with the extended final state
 		// amplifies landing corrections into visible backwards movement.

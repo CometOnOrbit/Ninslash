@@ -1024,6 +1024,15 @@ Map preset
 Map seed
 == 地圖種子
 
+Challenge code
+== 挑戰碼
+
+Code
+== 代碼
+
+variant mask %d
+== 變體掩碼 %d
+
 Map selection
 == 地圖選擇
 
@@ -1764,6 +1773,12 @@ Spectator count
 
 Spectator mode
 == 旁觀者模式
+
+Spectator stats
+== 觀戰統計
+
+K/D   Streak   Gold/Kits   Weapon
+== 擊殺/死亡   連殺   金幣/工具包   武器
 
 Spectators
 == 旁觀者
@@ -2947,6 +2962,36 @@ Quick Hands
 
 Quick match
 == 快速比賽
+
+Challenge
+== 挑戰
+
+Community rules and shared seeds — compare runs with friends.
+== 社區規則與共享種子 — 與好友比拼成績。
+VARIANT RULES · SHARED SEEDS
+== 變體規則 · 共享種子
+Set up
+== 設置
+Challenge setup
+== 挑戰設置
+Start challenge
+== 開始挑戰
+Low gravity
+== 低重力
+No building
+== 無建造
+Melee only
+== 近戰限定
+Firearms disabled; other items allowed
+== 已停用槍械；允許其他物品
+Dark vision
+== 黑暗視野
+Weaker gravity
+== 更弱的重力
+Construction disabled
+== 建造已停用
+Darker screen
+== 螢幕變暗
 
 Weapon attack cooldown -8% per stack (maximum -30%).
 == 每層武器攻擊冷卻 -8%（最多 -30%）。
@@ -4996,4 +5041,5 @@ Steam invitation data is unavailable or invalid. Ask the host to send a new invi
 
 Checkpoints
 == 檢查點
-
+Automatic director
+== 自動導演

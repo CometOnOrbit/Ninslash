@@ -275,7 +275,13 @@ void CWeapon::UpdateStats()
 	m_WeaponSpec.m_Level = m_PowerLevel;
 	dbg_assert(CWeaponCatalog::TryResolve(m_WeaponSpec, &m_WeaponProfile), "failed to resolve player weapon");
 	m_MaxLevel = m_WeaponProfile.m_Definition.m_MaxLevel;
-	const CWeaponCombatProfile &Combat = m_WeaponProfile.m_Combat;
+	CWeaponCombatProfile Combat = m_WeaponProfile.m_Combat;
+	// PvP profiles are deliberately applied after Lua resolution so the same
+	// resolved values are used by projectile, melee, laser and explosion paths.
+	// Cooperative/PvE controllers keep the authored combat profile untouched.
+	if(GameServer()->m_pController && !GameServer()->m_pController->IsCoop())
+		ApplyPvpProfile(&Combat, m_WeaponProfile.m_Pvp);
+	m_WeaponProfile.m_Combat = Combat;
 	m_FireRate = Combat.m_FireRate;
 	m_KnockBack = Combat.m_WeaponKnockback;
 	m_FireSound = m_WeaponProfile.m_Visual.m_FireSound;

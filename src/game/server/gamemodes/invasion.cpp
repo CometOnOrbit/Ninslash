@@ -2,6 +2,7 @@
 #include <engine/platform_events.h>
 
 #include <game/mapitems.h>
+#include <game/deterministic_random.h>
 #include <game/questinfo.h>
 #include <game/pve_roguelite.h>
 #include <game/weapons.h>
@@ -124,11 +125,11 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 
 	if(g_Config.m_SvMapGenRandSeed)
 	{
-		g_Config.m_SvMapGenSeed = rand() % 32767;
+		g_Config.m_SvMapGenSeed = rand() % 0x7FFFFFFF;
 		g_Config.m_SvMapGenRandSeed = 0;
 	}
 
-	srand(g_Config.m_SvMapGenLevel + g_Config.m_SvMapGenSeed);
+	srand((unsigned)g_Config.m_SvMapGenSeed + (unsigned)g_Config.m_SvMapGenLevel);
 
 	for(int i = 0; i < MAX_ENEMIES; i++)
 		m_aEnemySpawnPos[i] = vec2(0, 0);
@@ -644,7 +645,7 @@ void CGameControllerInvasion::FinishRetryResult()
 	// The next controller consumes this marker before checkpoint selection, so
 	// a preferred deep checkpoint cannot override the team's reset decision.
 	g_Config.m_SvInvFails = INV_FORCE_FLOOR_ONE;
-	g_Config.m_SvMapGenSeed = rand() % 32767;
+	g_Config.m_SvMapGenSeed = rand() % 0x7FFFFFFF;
 	RegenerateMapFromTemplate();
 }
 
@@ -799,7 +800,8 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 		int WaveUnlocked = min(NUM_WAVES - 1, max(2, Level / 5 + 1));
 		if(Level > 8 && frandom() < 0.2f)
 			WaveUnlocked = min(NUM_WAVES - 1, WaveUnlocked + 1);
-		m_QuestWaveType = rand() % WaveUnlocked + 1;
+		CDeterministicRandom WaveRng(DeterministicSeed((unsigned long long)g_Config.m_SvMapGenSeed, "invasion_wave"));
+		m_QuestWaveType = WaveRng.NextInt(WaveUnlocked) + 1;
 	}
 	if(m_LevelTheme == INVASION_THEME_ELITE_WAVE)
 		m_QuestWaveType = WAVE_CYBORGS;
@@ -2052,7 +2054,7 @@ void CGameControllerInvasion::Tick()
 			m_AutoRestart = false;
 
 			if(g_Config.m_SvMapGenRandSeed)
-				g_Config.m_SvMapGenSeed = rand() % 32767;
+				g_Config.m_SvMapGenSeed = rand() % 0x7FFFFFFF;
 
 			FirstMap();
 		}
@@ -2132,6 +2134,7 @@ void CGameControllerInvasion::Tick()
 					pPlayer->IncreaseGold(10 + CompletedLevel / 3);
 				}
 				Server()->DispatchModEvent(MOD_EVENT_PVE_FLOOR_COMPLETE, -1, CompletedLevel);
+				GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::FloorComplete, -1, CompletedLevel);
 
 				// The next floor offers its perk after the new map and client state
 				// are ready, avoiding a selection crossing the map-load boundary.

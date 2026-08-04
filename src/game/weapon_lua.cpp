@@ -107,6 +107,7 @@ struct CWeaponEntry
 {
 	CWeaponDefinition m_Definition;
 	CWeaponCombatProfile m_aCombat[WEAPON_SPEC_LEVEL_COUNT];
+	CWeaponPvpProfile m_aPvp[WEAPON_SPEC_LEVEL_COUNT];
 	CWeaponVisualProfile m_aVisual[WEAPON_SPEC_LEVEL_COUNT];
 };
 
@@ -262,6 +263,21 @@ const CField gs_aCombatFields[] = {
 #undef COMBAT_INT
 #undef COMBAT_FLOAT
 #undef COMBAT_BOOL
+
+#define PVP_FLOAT(Name, Member)                                                                                       \
+	{                                                                                                                  \
+		Name, offsetof(CWeaponPvpProfile, Member), STORAGE_FLOAT                                                         \
+	}
+const CField gs_aPvpFields[] = {
+	PVP_FLOAT("damage_scale", m_DamageScale),
+	PVP_FLOAT("explosion_damage_scale", m_ExplosionDamageScale),
+	PVP_FLOAT("fire_rate_scale", m_FireRateScale),
+	PVP_FLOAT("ammo_scale", m_AmmoScale),
+	PVP_FLOAT("projectile_speed_scale", m_ProjectileSpeedScale),
+	PVP_FLOAT("melee_range_scale", m_MeleeRangeScale),
+	PVP_FLOAT("knockback_scale", m_KnockbackScale),
+};
+#undef PVP_FLOAT
 
 #define VISUAL_INT(Name, Member)                                                                                       \
 	{                                                                                                                  \
@@ -759,6 +775,21 @@ bool ValidProfile(const CWeaponCombatProfile &Combat, const CWeaponVisualProfile
 		   Visual.m_FireSound2 < NUM_SOUNDS && Visual.m_ExplosionSound >= -1 && Visual.m_ExplosionSound < NUM_SOUNDS;
 }
 
+void ResetPvpProfile(CWeaponPvpProfile *pProfiles)
+{
+	for(int Level = 0; Level < WEAPON_SPEC_LEVEL_COUNT; ++Level)
+		pProfiles[Level] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+}
+
+bool ValidPvpProfile(const CWeaponPvpProfile &Pvp)
+{
+	const float *pValues = &Pvp.m_DamageScale;
+	for(int Index = 0; Index < 7; ++Index)
+		if(!std::isfinite(pValues[Index]) || pValues[Index] <= 0.0f || pValues[Index] > 16.0f)
+			return false;
+	return true;
+}
+
 bool ReadFieldValue(lua_State *pState, int ValueIndex, int Level, double *pValue, bool *pBoolean)
 {
 	ValueIndex = lua_absindex(pState, ValueIndex);
@@ -1224,6 +1255,7 @@ int LuaDefineWeapon(lua_State *pState)
 		return luaL_error(pState, "weapon id is required");
 
 	CWeaponEntry Entry{};
+	ResetPvpProfile(Entry.m_aPvp);
 	int DefinitionId = 0;
 	bool Inherited = false;
 	auto ApplyDeclaredKind = [&]() -> bool
@@ -1356,8 +1388,17 @@ int LuaDefineWeapon(lua_State *pState)
 						  gs_aCombatFields,
 						  sizeof(gs_aCombatFields) / sizeof(gs_aCombatFields[0]),
 						  Entry.m_aCombat,
-						  sizeof(Entry.m_aCombat[0]),
-						  RequireComplete,
+						   sizeof(Entry.m_aCombat[0]),
+						   RequireComplete,
+						   pContext) ||
+	   !ApplyProfileTable(pState,
+						  1,
+						  "pvp",
+						  gs_aPvpFields,
+						  sizeof(gs_aPvpFields) / sizeof(gs_aPvpFields[0]),
+						  Entry.m_aPvp,
+						  sizeof(Entry.m_aPvp[0]),
+						  false,
 						  pContext) ||
 	   !ApplyProfileTable(pState,
 						  1,
@@ -1372,7 +1413,7 @@ int LuaDefineWeapon(lua_State *pState)
 	   !ApplyLocalization(pState, 1, &Entry.m_Definition, !pContext->m_Official && !Inherited, pContext))
 		return luaL_error(pState, "%s", pContext->m_aError);
 	for(int Level = 0; Level < WEAPON_SPEC_LEVEL_COUNT; ++Level)
-		if(!ValidProfile(Entry.m_aCombat[Level], Entry.m_aVisual[Level]))
+		if(!ValidProfile(Entry.m_aCombat[Level], Entry.m_aVisual[Level]) || !ValidPvpProfile(Entry.m_aPvp[Level]))
 			return luaL_error(pState,
 							  "resolved weapon profile %s level %d is outside engine limits",
 							  Entry.m_Definition.m_aStableId,
@@ -3103,7 +3144,11 @@ bool WeaponLuaTryResolve(const CWeaponSpec &Spec, CResolvedWeaponProfile *pProfi
 	if(Value <= 0 || Value >= (int)(sizeof(gs_apById) / sizeof(gs_apById[0])) || !gs_apById[Value])
 		return false;
 	CWeaponEntry *pEntry = gs_apById[Value];
-	*pProfile = {pEntry->m_Definition, Spec, pEntry->m_aCombat[Spec.m_Level], pEntry->m_aVisual[Spec.m_Level]};
+	*pProfile = {pEntry->m_Definition,
+		Spec,
+		pEntry->m_aCombat[Spec.m_Level],
+		pEntry->m_aPvp[Spec.m_Level],
+		pEntry->m_aVisual[Spec.m_Level]};
 	return true;
 }
 

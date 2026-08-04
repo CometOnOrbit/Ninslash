@@ -324,7 +324,7 @@ void CMapGen::FillMap()
 	{
 		if(g_Config.m_SvMapGenRandSeed)
 			g_Config.m_SvMapGenSeed = (int)(time_get() % 32768);
-		srand(g_Config.m_SvMapGenLevel + g_Config.m_SvMapGenSeed);
+		srand((unsigned)g_Config.m_SvMapGenSeed + (unsigned)g_Config.m_SvMapGenLevel);
 		GenerateRoamLevel();
 	}
 	else if(IsCoopMapGenGametype(g_Config.m_SvGametype))
