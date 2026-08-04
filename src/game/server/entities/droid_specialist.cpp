@@ -103,7 +103,7 @@ bool CSpecialistDroid::ConsumeThreshold(int Threshold, int Bit)
 
 void CSpecialistDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos)
 {
-	if(m_Type == DROIDTYPE_BULWARK && TargetCharacter())
+	if((m_Type == DROIDTYPE_BULWARK || m_Type == DROIDTYPE_REEF_SENTINEL) && TargetCharacter())
 	{
 		const vec2 Incoming = Pos - (m_Pos + m_Center);
 		if(Incoming.x * m_Dir < 0.0f)
@@ -147,6 +147,7 @@ vec2 CSpecialistDroid::CollisionSize() const
 	switch(m_Type)
 	{
 		case DROIDTYPE_BULWARK:
+		case DROIDTYPE_REEF_SENTINEL:
 			return vec2(94.0f, 92.0f);
 		case DROIDTYPE_ASSEMBLER:
 			return vec2(82.0f, 88.0f);
@@ -194,7 +195,7 @@ void CSpecialistDroid::MovementTick(CCharacter *pTarget)
 			PreferredRange = 300.0f;
 			Drive = 1.35f;
 		}
-		else if(m_Type == DROIDTYPE_BULWARK)
+		else if(m_Type == DROIDTYPE_BULWARK || m_Type == DROIDTYPE_REEF_SENTINEL)
 		{
 			PreferredRange = TacticalGoal ? 165.0f : 190.0f;
 			Drive = 1.20f;

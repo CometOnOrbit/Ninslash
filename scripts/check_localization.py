@@ -295,7 +295,8 @@ PVE_UI_KEYS = {
     "Purchase rejected",
 	"Legendary", "Barrier", "Focus", "Blast Charge", "Voltage", "Fury",
 	"Vulnerable", "Bleed", "Drone", "None", "Assault", "Guardian", "Repair",
-	"Drone module not owned", "Drone switch cooling down",
+    "Drone module not owned", "Drone switch cooling down",
+    "Tide: Calm", "Tide: Warning", "Tide: Dark", "Tide: Recovery",
 }
 
 

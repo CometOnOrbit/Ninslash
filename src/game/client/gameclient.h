@@ -17,6 +17,7 @@ struct CNetObj_RaceInfo;
 struct CNetObj_RacePlayer;
 struct CNetObj_ChallengeRuntime;
 struct CNetMsg_Sv_ChallengeInfo;
+struct CNetObj_PveEnvironmentStatus;
 
 class CGameClient : public IGameClient
 {
@@ -123,6 +124,11 @@ class CGameClient : public IGameClient
 	int m_LocalFlashAlpha = 0;
 	int m_LocalLightingTarget = 255;
 	float m_LocalLightingBrightness = 1.0f;
+	int m_PveEnvironmentBiome = 0;
+	int m_PveEnvironmentPhase = 0;
+	int m_PveEnvironmentBossPhase = 0;
+	int m_PveEnvironmentLevel = 0;
+	int m_PveEnvironmentPhaseEndTick = 0;
 
 	IKernel *Kernel() { return IInterface::Kernel(); }
 	IEngine *Engine() const { return m_pEngine; }
@@ -174,6 +180,11 @@ class CGameClient : public IGameClient
 	}
 	bool LocalZoomAllowed() const;
 	int ServerZoom() const;
+	int PveEnvironmentBiome() const { return m_PveEnvironmentBiome; }
+	int PveEnvironmentPhase() const { return m_PveEnvironmentPhase; }
+	int PveEnvironmentBossPhase() const { return m_PveEnvironmentBossPhase; }
+	int PveEnvironmentLevel() const { return m_PveEnvironmentLevel; }
+	int PveEnvironmentPhaseEndTick() const { return m_PveEnvironmentPhaseEndTick; }
 	float FlashOverlayAlpha() const;
 	class CSkelebank *Skelebank() { return m_pSkelebank; }
 

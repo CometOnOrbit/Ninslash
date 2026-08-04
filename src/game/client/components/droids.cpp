@@ -226,12 +226,14 @@ void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCu
 									  pDroidAnim);
 	RenderTools()->Graphics()->ShaderEnd();
 
-	if(pCurrent->m_Type == DROIDTYPE_CRAWLER && pCurrent->m_Status == DROIDSTATUS_TERMINATED)
+	if((pCurrent->m_Type == DROIDTYPE_CRAWLER || pCurrent->m_Type == DROIDTYPE_LUMINOUS_PREDATOR) &&
+		pCurrent->m_Status == DROIDSTATUS_TERMINATED)
 		m_pClient->m_pEffects->Electrospark(Pos + vec2(frandom() - frandom(), frandom() - frandom()) * frandom() * 90,
 											32 + frandom() * 32,
 											vec2(frandom() - frandom(), frandom() - frandom()) * 10.0f);
 
-	if(pCurrent->m_Type == DROIDTYPE_BOSSCRAWLER && pCurrent->m_Status == DROIDSTATUS_TERMINATED)
+	if((pCurrent->m_Type == DROIDTYPE_BOSSCRAWLER || pCurrent->m_Type == DROIDTYPE_ABYSSAL_HEART) &&
+		pCurrent->m_Status == DROIDSTATUS_TERMINATED)
 		m_pClient->m_pEffects->Electrospark(Pos + vec2(frandom() - frandom(), frandom() - frandom()) * frandom() * 140,
 											64 + frandom() * 64,
 											vec2(frandom() - frandom(), frandom() - frandom()) * 20.0f);
@@ -241,7 +243,19 @@ void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCu
 											48 + frandom() * 48,
 											vec2(frandom() - frandom(), frandom() - frandom()) * 16.0f);
 
-	m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -26), vec4(0.5f, 1.0f, 1.0f, 0.5f), 100);
+	vec4 DroidLight(0.5f, 1.0f, 1.0f, 0.5f);
+	float DroidLightSize = 100.0f;
+	if(pCurrent->m_Type == DROIDTYPE_LUMINOUS_PREDATOR)
+	{
+		DroidLight = vec4(0.22f, 0.95f, 0.78f, 0.72f);
+		DroidLightSize = 128.0f;
+	}
+	else if(pCurrent->m_Type == DROIDTYPE_ABYSSAL_HEART)
+	{
+		DroidLight = vec4(0.35f, 0.65f, 1.0f, 0.86f);
+		DroidLightSize = 220.0f;
+	}
+	m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -26), DroidLight, DroidLightSize);
 }
 
 void CDroids::OnRender()
@@ -256,6 +270,7 @@ void CDroids::OnRender()
 		switch(pCurrent->m_Type)
 		{
 			case DROIDTYPE_BULWARK:
+			case DROIDTYPE_REEF_SENTINEL:
 				Atlas = ATLAS_LOST_PROTOCOL_BULWARK;
 				RenderYOffset = -26.0f;
 				break;
@@ -415,6 +430,8 @@ void CDroids::OnRender()
 					RenderStar(pDroidPrev, pDroid, Item.m_ID);
 					break;
 				case DROIDTYPE_CRAWLER:
+				case DROIDTYPE_LUMINOUS_PREDATOR:
+				case DROIDTYPE_ABYSSAL_HEART:
 					RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
 					break;
 				case DROIDTYPE_BOSSCRAWLER:
@@ -428,6 +445,7 @@ void CDroids::OnRender()
 					RenderWalker(pDroidPrev, pDroid, Item.m_ID);
 					break;
 				case DROIDTYPE_BULWARK:
+				case DROIDTYPE_REEF_SENTINEL:
 				case DROIDTYPE_ASSEMBLER:
 				case DROIDTYPE_SABOTEUR:
 				case DROIDTYPE_RAILGUNNER:

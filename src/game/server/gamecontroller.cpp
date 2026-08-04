@@ -20,6 +20,7 @@
 #include "entities/droid_walker.h"
 #include "entities/droid_star.h"
 #include "entities/droid_crawler.h"
+#include "entities/droid_bulwark.h"
 #include "entities/droid_bosscrawler.h"
 #include "entities/droid_bossstar.h"
 #include "entities/droid_bosswalker.h"
@@ -767,8 +768,25 @@ void IGameController::RestoreEntity(int ObjType, int Type, int Subtype, int x, i
 			new CStar(&GameServer()->m_World, vec2(x, y));
 		else if(Type == DROIDTYPE_CRAWLER)
 			new CCrawler(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_LUMINOUS_PREDATOR)
+		{
+			CDroid *pPredator = new CCrawler(&GameServer()->m_World, vec2(x, y));
+			pPredator->m_Type = DROIDTYPE_LUMINOUS_PREDATOR;
+		}
+		else if(Type == DROIDTYPE_REEF_SENTINEL)
+		{
+			CDroid *pSentinel = new CBulwark(&GameServer()->m_World, vec2(x, y));
+			pSentinel->m_Type = DROIDTYPE_REEF_SENTINEL;
+		}
 		else if(Type == DROIDTYPE_BOSSCRAWLER)
 			new CBossCrawler(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_ABYSSAL_HEART)
+		{
+			CDroid *pBoss = new CBossCrawler(&GameServer()->m_World, vec2(x, y));
+			pBoss->m_Type = DROIDTYPE_ABYSSAL_HEART;
+			pBoss->m_Health = (int)(pBoss->m_Health * 1.35f);
+			pBoss->m_MaxHealth = pBoss->m_Health;
+		}
 		else if(Type == DROIDTYPE_BOSSSTAR)
 			new CBossStar(&GameServer()->m_World, vec2(x, y));
 		else if(Type == DROIDTYPE_BOSSSPLITTER)

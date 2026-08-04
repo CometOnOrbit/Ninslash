@@ -342,6 +342,13 @@ MACRO_CONFIG_INT(SvInvasionUseCheckpoint,
 // Co-op PvE Roguelite Director
 MACRO_CONFIG_INT(SvPveRoguelite, sv_pve_roguelite, 1, 0, 1, CFGFLAG_SERVER, "Enable the shared PvE Roguelite Director")
 MACRO_CONFIG_INT(SvPveContracts, sv_pve_contracts, 1, 0, 1, CFGFLAG_SERVER, "Enable PvE team contracts")
+MACRO_CONFIG_INT(SvPveBiome,
+				 sv_pve_biome,
+				 0,
+				 0,
+				 1,
+				 CFGFLAG_SERVER,
+				 "PvE environment theme (0=standard, 1=Blue Planet luminous tide)")
 MACRO_CONFIG_INT(
 	SvPveChoiceTime, sv_pve_choice_time, 10, 3, 60, CFGFLAG_SERVER, "Seconds allowed for an individual perk choice")
 MACRO_CONFIG_INT(SvPveContractVoteTime,
@@ -361,12 +368,12 @@ MACRO_CONFIG_INT(ClPveProgressVersion,
 				 CFGFLAG_CLIENT | CFGFLAG_CLOUD,
 				 "Legacy PvE progression format version; migrated to pve_progress.json")
 MACRO_CONFIG_INT(ClPveResearchPoints,
-				 cl_pve_research_points,
+					 cl_pve_research_points,
 				 0,
 				 0,
 				 999,
-				 CFGFLAG_CLIENT | CFGFLAG_CLOUD,
-				 "Legacy PvE research points; migrated to pve_progress.json")
+					 CFGFLAG_CLIENT | CFGFLAG_CLOUD,
+					 "Legacy PvE research points; migrated to pve_progress.json")
 MACRO_CONFIG_STR(ClPveResearchMask,
 				 cl_pve_research_mask,
 				 33,

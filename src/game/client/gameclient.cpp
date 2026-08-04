@@ -26,6 +26,7 @@
 #include <game/client/lineinput.h>
 #include <game/version.h>
 #include <game/weapon_catalog.h>
+#include <game/pve_environment.h>
 #include <game/weapon_packages.h>
 #include <game/weapon_presentation_runtime.h>
 #include <game/weapon_script_runtime.h>
@@ -1035,6 +1036,11 @@ void CGameClient::OnReset()
 	m_LocalFlashAlpha = 0;
 	m_LocalLightingTarget = 255;
 	m_LocalLightingBrightness = 1.0f;
+	m_PveEnvironmentBiome = 0;
+	m_PveEnvironmentPhase = 0;
+	m_PveEnvironmentBossPhase = 0;
+	m_PveEnvironmentLevel = 0;
+	m_PveEnvironmentPhaseEndTick = 0;
 	mem_zero(&g_GameClient.m_Snap, sizeof(g_GameClient.m_Snap));
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 		m_aVisionStatus[i].m_LightingBrightness = 255;
@@ -1703,6 +1709,11 @@ void CGameClient::OnNewSnapshot()
 	mem_zero(m_aVisionStatus, sizeof(m_aVisionStatus));
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 		m_aVisionStatus[i].m_LightingBrightness = 255;
+	m_PveEnvironmentBiome = 0;
+	m_PveEnvironmentPhase = 0;
+	m_PveEnvironmentBossPhase = 0;
+	m_PveEnvironmentLevel = 0;
+	m_PveEnvironmentPhaseEndTick = 0;
 	m_Snap.m_LocalClientID = -1;
 
 	// secure snapshot
@@ -1955,6 +1966,15 @@ void CGameClient::OnNewSnapshot()
 					Status.m_FlashAlpha = pStatus->m_FlashAlpha;
 					Status.m_LightingBrightness = pStatus->m_LightingBrightness;
 				}
+			}
+			else if(Item.m_Type == NETOBJTYPE_PVEENVIRONMENTSTATUS)
+			{
+				const CNetObj_PveEnvironmentStatus *pEnvironment = (const CNetObj_PveEnvironmentStatus *)pData;
+				m_PveEnvironmentBiome = pEnvironment->m_Biome;
+				m_PveEnvironmentPhase = pEnvironment->m_Phase;
+				m_PveEnvironmentBossPhase = pEnvironment->m_BossPhase;
+				m_PveEnvironmentLevel = pEnvironment->m_Level;
+				m_PveEnvironmentPhaseEndTick = pEnvironment->m_PhaseEndTick;
 			}
 			else if(Item.m_Type == NETOBJTYPE_BALL)
 			{

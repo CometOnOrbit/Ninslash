@@ -2503,10 +2503,10 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 										   pMsg->m_ResearchPoints,
 										   pMsg->m_ResearchMask0,
 										   pMsg->m_ResearchMask1,
-										   pMsg->m_ResearchMask2,
-										   pMsg->m_ResearchMask3,
-										   pMsg->m_HighestInvasion,
-										   pMsg->m_PreferredCheckpoint);
+							   pMsg->m_ResearchMask2,
+							   pMsg->m_ResearchMask3,
+							   pMsg->m_HighestInvasion,
+							   pMsg->m_PreferredCheckpoint);
 		}
 		else if(MsgID == NETMSGTYPE_CL_PVECHOICE)
 		{
@@ -4109,6 +4109,8 @@ void CGameContext::OnSnap(int ClientID)
 
 	m_World.Snap(ClientID);
 	m_pController->Snap(ClientID);
+	if(m_pPveDirector)
+		m_pPveDirector->Snap(ClientID);
 	m_Events.Snap(ClientID);
 
 	for(int i = 0; i < MAX_CLIENTS; i++)

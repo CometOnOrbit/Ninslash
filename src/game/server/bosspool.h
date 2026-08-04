@@ -10,7 +10,8 @@ class CDroid;
 inline bool IsBossDroidType(int Type)
 {
 	return Type == DROIDTYPE_BOSSCRAWLER || Type == DROIDTYPE_BOSSSTAR || Type == DROIDTYPE_BOSSWALKER ||
-		   Type == DROIDTYPE_BOSSSPLITTER || Type == DROIDTYPE_SIEGE_ENGINE || Type == DROIDTYPE_OVERSEER_CORE;
+		   Type == DROIDTYPE_BOSSSPLITTER || Type == DROIDTYPE_SIEGE_ENGINE || Type == DROIDTYPE_OVERSEER_CORE ||
+		   Type == DROIDTYPE_ABYSSAL_HEART;
 }
 
 // Depth unlocks more boss kinds (Invasion level / Horde wave).

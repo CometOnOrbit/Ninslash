@@ -2121,14 +2121,18 @@ struct CLocalServerLaunchSettings
 
 static const char *LocalInvasionConfigForFloor(int Floor)
 {
-	if(Floor <= 10)
-		return "cfg/invasion1.cfg";
-	if(Floor <= 20)
-		return "cfg/invasion2.cfg";
-	if(Floor <= 30)
-		return "cfg/invasion3.cfg";
-	if(Floor <= 40)
-		return "cfg/invasion4.cfg";
+	static const char *s_aConfigs[] = {
+		"cfg/invasion1.cfg",
+		"cfg/invasion2.cfg",
+		"cfg/invasion3.cfg",
+		"cfg/invasion4.cfg",
+		"cfg/invasion5.cfg",
+		"cfg/invasion6.cfg",
+		"cfg/invasion7.cfg",
+	};
+	const int ConfigIndex = (max(1, Floor) - 1) / 10;
+	if(ConfigIndex < (int)(sizeof(s_aConfigs) / sizeof(s_aConfigs[0])))
+		return s_aConfigs[ConfigIndex];
 	return "cfg/invasion-endless.cfg";
 }
 

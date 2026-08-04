@@ -58,7 +58,8 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 	{
 		const bool Boss = m_Type == DROIDTYPE_BOSSCRAWLER || m_Type == DROIDTYPE_BOSSSTAR ||
 						  m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER ||
-						  m_Type == DROIDTYPE_SIEGE_ENGINE || m_Type == DROIDTYPE_OVERSEER_CORE;
+						  m_Type == DROIDTYPE_SIEGE_ENGINE || m_Type == DROIDTYPE_OVERSEER_CORE ||
+						  m_Type == DROIDTYPE_ABYSSAL_HEART;
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, Boss, this);
 	}
 	// A living Bulwark projects 35% cover to mechanical allies within 300 units. Keep this in
@@ -70,7 +71,8 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 			GameServer()->m_World.FindEntities(m_Pos, 300.0f, (CEntity **)apDroids, 16, CGameWorld::ENTTYPE_DROID);
 		for(int i = 0; i < Num; i++)
 		{
-			if(apDroids[i] && apDroids[i]->m_Type == DROIDTYPE_BULWARK && apDroids[i]->m_Health > 0)
+			if(apDroids[i] && (apDroids[i]->m_Type == DROIDTYPE_BULWARK ||
+				apDroids[i]->m_Type == DROIDTYPE_REEF_SENTINEL) && apDroids[i]->m_Health > 0)
 			{
 				Dmg = max(1, Dmg * 65 / 100);
 				break;

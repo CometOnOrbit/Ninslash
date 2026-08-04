@@ -1437,6 +1437,7 @@ void CMapGen::GenerateLevel()
 	const int Theme = InvasionThemeFromLevel(Level);
 	const int HazardDiv = (Level >= 5 && Level <= 15) ? 2 : 1;
 	const bool ExtractMode = str_comp(g_Config.m_SvGametype, "extract") == 0;
+	const bool InvasionMode = str_comp(g_Config.m_SvGametype, "coop") == 0;
 	if(Theme == INVASION_THEME_ACID_ESCAPE && !ExtractMode)
 	{
 		if(!GenerateSwitch(pTiles))
@@ -1580,18 +1581,39 @@ void CMapGen::GenerateLevel()
 	for(int i = 0; i < 4; i++)
 		GenerateScreen(pTiles);
 
-	if(Theme == INVASION_THEME_BOSS_ASSAULT)
-		for(int i = 0; i < min(12, Level / 3); i++)
-			GenerateCrawlerDroid(pTiles);
-	else if(Level > 3)
-		for(int i = 0; i < min(15, 1 + Level / 4); i++)
+	if(InvasionMode)
+	{
+		// Keep the first 20 floors unchanged. After that, crawler density grows
+		// at roughly half the old rate so later maps do not become spawn rooms.
+		int CrawlerCount = 0;
+		if(Theme == INVASION_THEME_BOSS_ASSAULT)
+			CrawlerCount = Level <= 20 ? min(12, Level / 3) : min(8, 1 + Level / 5);
+		else if(Level > 3)
+			CrawlerCount = Level <= 20 ? min(15, 1 + Level / 4) : min(10, 4 + (Level - 20) / 6);
+		for(int i = 0; i < CrawlerCount; i++)
 			GenerateCrawlerDroid(pTiles);
 
-	if(Theme != INVASION_THEME_BOSS_ASSAULT && (Level % 20 == 0))
-		GenerateBossCrawlerDroid(pTiles);
-	else if(Level > 20)
-		for(int i = 0; i < min(3, Level / 5 - 3); i++)
+		// A Boss Crawler is now a milestone encounter rather than a regular
+		// post-floor-20 map decoration: one every 20 floors outside boss assault.
+		if(Theme != INVASION_THEME_BOSS_ASSAULT && Level % 20 == 0)
 			GenerateBossCrawlerDroid(pTiles);
+	}
+	else
+	{
+		// Preserve the existing droid density for Horde and other generators.
+		if(Theme == INVASION_THEME_BOSS_ASSAULT)
+			for(int i = 0; i < min(12, Level / 3); i++)
+				GenerateCrawlerDroid(pTiles);
+		else if(Level > 3)
+			for(int i = 0; i < min(15, 1 + Level / 4); i++)
+				GenerateCrawlerDroid(pTiles);
+
+		if(Theme != INVASION_THEME_BOSS_ASSAULT && (Level % 20 == 0))
+			GenerateBossCrawlerDroid(pTiles);
+		else if(Level > 20)
+			for(int i = 0; i < min(3, Level / 5 - 3); i++)
+				GenerateBossCrawlerDroid(pTiles);
+	}
 
 	// trap theme: sprinkle mines
 	if(Theme == INVASION_THEME_TRAP_RUN)

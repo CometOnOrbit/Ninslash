@@ -7,6 +7,18 @@
 %d Research Points
 == %d 研究点
 
+Tide: Calm
+== 潮汐：平静
+
+Tide: Warning
+== 潮汐：预警
+
+Tide: Dark
+== 潮汐：暗潮
+
+Tide: Recovery
+== 潮汐：恢复
+
 %d checkpoints
 == %d 个检查点
 

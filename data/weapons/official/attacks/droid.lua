@@ -396,3 +396,67 @@ define {
     projectile_trace_type = -3,
   },
 }
+
+define {
+  schema = 4,
+  kind = "droid",
+  type = 14,
+  name = "luminous_predator",
+  combat_template = weapon.combat.melee,
+  visual_template = weapon.visual.melee_small,
+  combat = {
+    fire_rate = 260,
+    full_auto = true,
+    projectile_damage = 9,
+    projectile_knockback = 30,
+    melee_hit_radius = 48,
+    burst_reload = 1,
+    electro_amount = 0.8,
+    cost = 10,
+    auto_pick = true,
+  },
+  visuals = {visual_size = {4, 2}, render_recoil = 12, projectile_size = 0},
+}
+
+define {
+  schema = 4,
+  kind = "droid",
+  type = 15,
+  name = "reef_sentinel",
+  combat_template = weapon.combat.melee,
+  visual_template = weapon.visual.melee_small,
+  combat = {
+    fire_rate = 340,
+    full_auto = true,
+    projectile_speed = 900,
+    projectile_life = 0.8,
+    projectile_damage = 16,
+    projectile_knockback = 3,
+    burst_reload = 1,
+    electro_amount = 0.6,
+    cost = 10,
+    auto_pick = true,
+  },
+  visuals = {visual_size = {4, 2}, render_recoil = 12, projectile_sprite = 7, projectile_trace_type = -3},
+}
+
+define {
+  schema = 4,
+  kind = "droid",
+  type = 16,
+  name = "abyssal_heart",
+  combat_template = weapon.combat.melee,
+  visual_template = weapon.visual.melee_small,
+  combat = {
+    fire_rate = 240,
+    full_auto = true,
+    projectile_damage = 22,
+    projectile_knockback = 40,
+    melee_hit_radius = 86,
+    burst_reload = 1,
+    electro_amount = 1,
+    cost = 10,
+    auto_pick = true,
+  },
+  visuals = {visual_size = {4, 2}, render_recoil = 12, projectile_size = 0},
+}

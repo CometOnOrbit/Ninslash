@@ -13,6 +13,7 @@
 #include <game/weapons.h>
 #include <game/weapon_catalog.h>
 #include <game/buildables.h>
+#include <game/pve_environment.h>
 
 #include "controls.h"
 #include "camera.h"
@@ -589,6 +590,34 @@ void CHud::RenderObjective()
 				  4.0f,
 				  aProgress,
 				  Quest == QUEST_REACHDOOR && m_pClient->SurvivalAcid() ? Accent : Text);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
+void CHud::RenderPveEnvironment()
+{
+	if(m_pClient->PveEnvironmentBiome() != PVE_BIOME_BLUE_PLANET || !g_Config.m_ClShowhud)
+		return;
+	const char *pPhase = "Tide: Calm";
+	vec4 Accent(0.35f, 0.95f, 1.0f, 1.0f);
+	switch(m_pClient->PveEnvironmentPhase())
+	{
+		case PVE_ENV_PHASE_WARNING: pPhase = "Tide: Warning"; Accent = vec4(1.0f, 0.78f, 0.25f, 1.0f); break;
+		case PVE_ENV_PHASE_DARK: pPhase = "Tide: Dark"; Accent = vec4(0.35f, 0.35f, 0.55f, 1.0f); break;
+		case PVE_ENV_PHASE_RECOVERY: pPhase = "Tide: Recovery"; Accent = vec4(0.55f, 0.9f, 1.0f, 1.0f); break;
+		default: break;
+	}
+	char aText[96];
+	const int Seconds = max(0, (m_pClient->PveEnvironmentPhaseEndTick() - Client()->GameTick()) /
+		max(1, Client()->GameTickSpeed()));
+	str_format(aText, sizeof(aText), "%s  %ds", Localize(pPhase), Seconds);
+	const float Width = min(130.0f, m_Width * 0.30f);
+	// The team-contract HUD occupies the left column at y=112..147.
+	CUIRect Panel = {6.0f, 151.0f, Width, 17.0f};
+	RenderTools()->DrawUIRect(&Panel, vec4(0.03f, 0.10f, 0.14f, 0.82f), CUI::CORNER_ALL, 4.0f);
+	CUIRect Edge = {Panel.x, Panel.y + 3.0f, 2.0f, Panel.h - 6.0f};
+	RenderTools()->DrawUIRect(&Edge, Accent, CUI::CORNER_ALL, 1.0f);
+	TextRender()->TextColor(Accent.r, Accent.g, Accent.b, 1.0f);
+	TextRender()->Text(0, Panel.x + 7.0f, Panel.y + 4.0f, 5.0f, aText, -1);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
@@ -1709,6 +1738,7 @@ void CHud::OnRender()
 			RenderRaceTimer();
 		else
 			RenderGameTimer();
+		RenderPveEnvironment();
 		RenderSuddenDeath();
 		RenderScoreHud();
 		if(!m_pClient->m_pScoreboard->Active() && !m_pClient->m_pInventory->IsVisible())

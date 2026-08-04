@@ -33,7 +33,8 @@ Damagetypes = ["NORMAL", "FLAME", "ELECTRIC", "FLUID"]
 
 Droidstatus = ["IDLE", "HURT", "ELECTRIC", "TERMINATED"]
 Droidtype = ["WALKER", "STAR", "CRAWLER", "BOSSCRAWLER", "FLY", "BOSSSTAR", "BOSSWALKER", "BOSSSPLITTER",
-	"BULWARK", "ASSEMBLER", "SABOTEUR", "RAILGUNNER", "SIEGE_ENGINE", "OVERSEER_CORE"]
+	"BULWARK", "ASSEMBLER", "SABOTEUR", "RAILGUNNER", "SIEGE_ENGINE", "OVERSEER_CORE",
+	"LUMINOUS_PREDATOR", "REEF_SENTINEL", "ABYSSAL_HEART"]
 Buildingtype = ["NONE", "SAWBLADE", "MINE1", "MINE2", "BARREL", "BARREL2", "BARREL3", "TURRET", "LAZER", "POWERUPPER",
 	"BASE", "STAND", "FLAMETRAP", "JUMPPAD", "SWITCH", "DOOR1", "GENERATOR", "POWERBARREL", "POWERBARREL2",
 	"LIGHTNINGWALL", "LIGHTNINGWALL2", "REACTOR", "REACTOR_DESTROYED", "TESLACOIL", "SCREEN", "SHOP", "PVE_SHIELD_NODE"]
@@ -658,6 +659,16 @@ Objects = [
 		# 255 is normal lighting; lower values are authoritative DarkVision
 		# brightness targets and are interpolated by the client.
 		NetIntRange("m_LightingBrightness", 0, 255),
+	]),
+
+	# Shared server-authoritative Blue Planet environment state. The per-player
+	# VisionStatus still carries the final brightness after blind/flash effects.
+	NetObject("PveEnvironmentStatus", [
+		NetIntRange("m_Biome", 0, 1),
+		NetIntRange("m_Phase", 0, 3),
+		NetTick("m_PhaseEndTick"),
+		NetIntRange("m_BossPhase", 0, 3),
+		NetIntRange("m_Level", 0, 9999),
 	]),
 
 	# Appended visual event for flash/blind grenade detonation. It is broadcast

@@ -76,6 +76,7 @@ class CHud : public CComponent
   public:
 	CHud();
 	void RenderObjective();
+	void RenderPveEnvironment();
 	void OnHitConfirm(vec2 Pos, int Damage, int TargetType, bool Killed);
 
 	virtual void OnReset();

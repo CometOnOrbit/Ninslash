@@ -147,6 +147,11 @@ CPveDirector::CPveDirector(CGameContext *pGameServer)
 	m_AnyStageDeath = false;
 	mem_zero(m_aPendingBlasts, sizeof(m_aPendingBlasts));
 	m_PendingBlastCount = 0;
+	m_EnvironmentBiome = clamp(g_Config.m_SvPveBiome, 0, 1);
+	m_EnvironmentPhase = PVE_ENV_PHASE_CALM;
+	m_EnvironmentBossPhase = PVE_ENV_BOSS_PHASE_NONE;
+	m_EnvironmentPhaseEndTick = 0;
+	m_EnvironmentLevel = max(0, g_Config.m_SvMapGenLevel);
 
 	char aError[128];
 	if(!PveValidateDefinitions(aError, sizeof(aError)))
@@ -373,6 +378,75 @@ void CPveDirector::SendProgress(int ClientID)
 	Msg.m_HighestInvasion = clamp(Run.m_HighestInvasion, 0, 9999);
 	Msg.m_PreferredCheckpoint = max(1, Run.m_PreferredCheckpoint);
 	m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+}
+
+int CPveDirector::EnvironmentBrightness() const
+{
+	if(m_EnvironmentBiome != PVE_BIOME_BLUE_PLANET)
+		return 255;
+	switch(m_EnvironmentPhase)
+	{
+		case PVE_ENV_PHASE_WARNING: return 128;
+		case PVE_ENV_PHASE_DARK: return 0;
+		case PVE_ENV_PHASE_RECOVERY: return 192;
+		default: return 255;
+	}
+}
+
+void CPveDirector::UpdateEnvironment()
+{
+	const int Now = m_pGameServer->Server()->Tick();
+	const int NewLevel = max(0, g_Config.m_SvMapGenLevel);
+	const int NewBiome = clamp(g_Config.m_SvPveBiome, 0, 1);
+	if(!Enabled() || m_TutorialSandbox || NewBiome != PVE_BIOME_BLUE_PLANET)
+	{
+		m_EnvironmentBiome = NewBiome;
+		m_EnvironmentLevel = NewLevel;
+		m_EnvironmentPhase = PVE_ENV_PHASE_CALM;
+		m_EnvironmentBossPhase = PVE_ENV_BOSS_PHASE_NONE;
+		m_EnvironmentPhaseEndTick = Now + m_pGameServer->Server()->TickSpeed();
+		return;
+	}
+	if(m_EnvironmentBiome != NewBiome || m_EnvironmentLevel != NewLevel || m_EnvironmentPhaseEndTick <= 0)
+	{
+		m_EnvironmentBiome = NewBiome;
+		m_EnvironmentLevel = NewLevel;
+		m_EnvironmentPhase = PVE_ENV_PHASE_CALM;
+		m_EnvironmentPhaseEndTick = Now + m_pGameServer->Server()->TickSpeed() * 12;
+	}
+	static const int s_aPhaseDuration[] = {12, 7, 9, 8};
+	while(Now >= m_EnvironmentPhaseEndTick)
+	{
+		m_EnvironmentPhase = (m_EnvironmentPhase + 1) % 4;
+		m_EnvironmentPhaseEndTick += m_pGameServer->Server()->TickSpeed() * s_aPhaseDuration[m_EnvironmentPhase];
+	}
+	if(m_EnvironmentLevel >= 30)
+	{
+		const int CycleTick = max(0, Now - (m_EnvironmentPhaseEndTick - m_pGameServer->Server()->TickSpeed() *
+			s_aPhaseDuration[m_EnvironmentPhase]));
+		const int Cycle = max(0, m_pGameServer->Server()->TickSpeed() * 28);
+		m_EnvironmentBossPhase = CycleTick < Cycle / 3 ? PVE_ENV_BOSS_PHASE_ONE :
+			(CycleTick < Cycle * 2 / 3 ? PVE_ENV_BOSS_PHASE_TWO : PVE_ENV_BOSS_PHASE_THREE);
+	}
+	else
+		m_EnvironmentBossPhase = PVE_ENV_BOSS_PHASE_NONE;
+}
+
+void CPveDirector::Snap(int SnappingClient)
+{
+	if(!Enabled())
+		return;
+	CNetObj_PveEnvironmentStatus *pEnvironment = static_cast<CNetObj_PveEnvironmentStatus *>(
+		m_pGameServer->Server()->SnapNewItem(NETOBJTYPE_PVEENVIRONMENTSTATUS, 0, sizeof(CNetObj_PveEnvironmentStatus)));
+	if(pEnvironment)
+	{
+		pEnvironment->m_Biome = m_EnvironmentBiome;
+		pEnvironment->m_Phase = m_EnvironmentPhase;
+		pEnvironment->m_PhaseEndTick = m_EnvironmentPhaseEndTick;
+		pEnvironment->m_BossPhase = m_EnvironmentBossPhase;
+		pEnvironment->m_Level = m_EnvironmentLevel;
+	}
+	(void)SnappingClient;
 }
 
 void CPveDirector::SendValidation(int ClientID, int Code)
@@ -677,6 +751,7 @@ void CPveDirector::StartIntermission(bool ContractVote, bool PerkChoice)
 
 void CPveDirector::Tick()
 {
+	UpdateEnvironment();
 	if(!Enabled())
 	{
 		const bool RogueliteIntermission =
@@ -1595,6 +1670,7 @@ void CPveDirector::RewardResearch(int Amount, int Reason, int HighestInvasion)
 		Msg.m_HighestInvasion = Run.m_HighestInvasion;
 		Msg.m_UnlockedCheckpoint = Checkpoint;
 		m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+		SendProgress(ClientID);
 	}
 	if(Amount > 0)
 		m_pGameServer->SendChatTarget(-1, "Research reward: +%d point(s)", Amount);

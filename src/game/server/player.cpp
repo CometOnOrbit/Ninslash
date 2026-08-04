@@ -456,9 +456,12 @@ void CPlayer::Snap(int SnappingClient)
 			pVision->m_BlindEndTick = m_BlindEndTick;
 			pVision->m_FlashAlpha = m_FlashEndTick > Server()->Tick() ? clamp(m_FlashAlpha, 0, 255) : 0;
 			pVision->m_Owner = m_ClientID;
-			// Zero is the actual DarkVision target. The client interpolates toward it
-			// over several frames instead of toggling the whole light pass.
-			pVision->m_LightingBrightness = BlindActive ? 0 : 255;
+			// The director owns the ambient tide brightness. Blindness can only
+			// reduce it further; the client interpolates the resulting target.
+			const int EnvironmentBrightness = GameServer()->m_pPveDirector
+				? GameServer()->m_pPveDirector->EnvironmentBrightness()
+				: 255;
+			pVision->m_LightingBrightness = BlindActive ? 0 : EnvironmentBrightness;
 		}
 	}
 

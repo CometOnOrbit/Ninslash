@@ -89,6 +89,15 @@ static_assert(InvasionReactorDefenseSeconds(30) == 30, "reactor defense scaling 
 static_assert(InvasionReactorDefenseSeconds(60) == 60, "reactor defense maximum duration changed");
 static_assert(InvasionReactorDefenseSeconds(61) == 60, "reactor defense duration must stay capped");
 
+// Keep the first 20 floors on their established curve. Beyond that point the
+// campaign is already difficult enough that every additional floor should not
+// add a full extra floor's worth of enemies.
+static int InvasionEffectiveLevel(int Level)
+{
+	Level = max(0, Level);
+	return min(Level, 20) + max(0, Level - 20) / 2;
+}
+
 static int InvasionDepthQuests(int Level)
 {
 	if(Level >= 21)
@@ -98,12 +107,14 @@ static int InvasionDepthQuests(int Level)
 
 static int InvasionOpeningEnemies(int Level)
 {
-	return min(18, max(7, 6 + Level));
+	const int EffectiveLevel = InvasionEffectiveLevel(Level);
+	return min(Level > 20 ? 16 : 18, max(7, 6 + EffectiveLevel));
 }
 
 static int InvasionWaveCap(int Level, int Players)
 {
-	return min(28, 10 + Level / 2 + Players);
+	const int EffectiveLevel = InvasionEffectiveLevel(Level);
+	return min(Level > 20 ? 24 : 28, 10 + EffectiveLevel / 2 + max(1, Players));
 }
 
 CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer) : IGameController(pGameServer)
@@ -251,7 +262,9 @@ void CGameControllerInvasion::SetupLevelTheme()
 	{
 		case INVASION_THEME_BOSS_ASSAULT:
 			m_LevelQuestsLeft = max(2, DepthQuests);
-			m_BossesLeft = 1 + Level / 25;
+			// Keep one boss for the regular assault floors. Very deep endless
+			// floors may add another, but not every 25 floors.
+			m_BossesLeft = 1 + max(0, Level - 60) / 30;
 			break;
 		case INVASION_THEME_DUAL_SWITCHES:
 			m_LevelQuestsLeft = max(2, DepthQuests);
@@ -278,6 +291,12 @@ void CGameControllerInvasion::SetupLevelTheme()
 			m_LevelQuestsLeft = max(2, DepthQuests);
 			break;
 	}
+	// Floor 30 is the Blue Planet chapter finale. Keep its normal rotating
+	// theme for the preceding objectives, then replace the final trap-run
+	// objective with the chapter boss without changing the global 12-floor
+	// theme cycle.
+	if(Level == 30)
+		m_BossesLeft = 1;
 
 	if(m_EscapeLevel)
 	{
@@ -408,7 +427,11 @@ bool CGameControllerInvasion::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 		vec2 Pos = GetBotSpawnPos();
 		*pOutPos = Pos;
 
-		m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.1f, 0.5f - g_Config.m_SvMapGenLevel * 0.01f);
+		const int Level = max(0, g_Config.m_SvMapGenLevel);
+		const int EarlyLevel = min(Level, 20);
+		const int LateLevel = max(0, Level - 20);
+		m_BotSpawnTick = Server()->Tick() +
+			Server()->TickSpeed() * max(0.25f, 0.5f - EarlyLevel * 0.01f - LateLevel * 0.0025f);
 
 		return true;
 	}
@@ -822,7 +845,9 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	else if(m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_DEFEND)
 	{
 		m_QuestWaveEndTick = 0;
-		m_QuestWaveEnemiesLeft = min(int(8 + Level * 2), 50) * (1.0f + (Players - 1) * 0.2f);
+		const int EffectiveLevel = InvasionEffectiveLevel(Level);
+		m_QuestWaveEnemiesLeft =
+			min(int(8 + EffectiveLevel * 2), Level > 20 ? 42 : 50) * (1.0f + (Players - 1) * 0.2f);
 		if(m_LevelTheme == INVASION_THEME_Z_SECTOR)
 			m_QuestWaveEnemiesLeft = (int)(m_QuestWaveEnemiesLeft * 1.25f + 0.5f);
 		if(GameServer()->m_pPveDirector)
@@ -844,7 +869,8 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	if(AddBots)
 	{
 		RandomGroupSpawnPos();
-		const int ThreatDivisor = m_LevelTheme == INVASION_THEME_ELITE_WAVE ? 3 : 6;
+		const int ThreatDivisor = m_LevelTheme == INVASION_THEME_ELITE_WAVE ? (Level > 20 ? 5 : 3) :
+			(Level > 20 ? 8 : 6);
 		const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
 																				   m_aEnemySpawnPos,
 																				   m_NumEnemySpawnPos,
@@ -1305,8 +1331,12 @@ void CGameControllerInvasion::TickObjectivePressure()
 		return;
 	if(m_BotSpawnTick >= Server()->Tick())
 		return;
-	m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * max(0.45f, 0.9f - g_Config.m_SvMapGenLevel * 0.012f);
-	const int Cap = max(4, min(10, 6 + g_Config.m_SvMapGenLevel / 8));
+	const int Level = max(0, g_Config.m_SvMapGenLevel);
+	const int EarlyLevel = min(Level, 20);
+	const int LateLevel = max(0, Level - 20);
+	m_BotSpawnTick = Server()->Tick() +
+		Server()->TickSpeed() * max(0.65f, 0.9f - EarlyLevel * 0.012f - LateLevel * 0.003f);
+	const int Cap = max(4, min(8, 6 + EarlyLevel / 8 + LateLevel / 16));
 	if(CountBots() >= Cap)
 		return;
 	if(m_EnemiesLeft <= 0)
@@ -1466,6 +1496,12 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 	const int Done = m_QuestsCompleted;
 	const int LastSlot = max(1, m_LevelQuestsLeft - 1);
 	int Next = QUEST_SURVIVEWAVE;
+	if(g_Config.m_SvMapGenLevel == 30 && Done >= LastSlot)
+	{
+		Next = QUEST_KILL_BOSS;
+		ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
+		return;
+	}
 
 	switch(m_LevelTheme)
 	{
@@ -1713,8 +1749,10 @@ void CGameControllerInvasion::Tick()
 			if(m_Quest == QUEST_KILL_BOSS)
 			{
 				SpawnBosses(max(1, m_BossesLeft));
-				m_EnemiesLeft = min(16, 6 + g_Config.m_SvMapGenLevel / 3);
-				m_QuestWaveSize = min(20, 10 + g_Config.m_SvMapGenLevel / 4);
+				const int Level = max(0, g_Config.m_SvMapGenLevel);
+				const int EffectiveLevel = InvasionEffectiveLevel(Level);
+				m_EnemiesLeft = min(Level > 20 ? 12 : 16, 6 + (Level > 20 ? EffectiveLevel / 4 : Level / 3));
+				m_QuestWaveSize = min(Level > 20 ? 16 : 20, 10 + (Level > 20 ? EffectiveLevel / 5 : Level / 4));
 				RandomGroupSpawnPos();
 				const int SpawnCount = min(m_EnemiesLeft, max(0, m_QuestWaveSize - CountBots()));
 				for(int i = 0; i < SpawnCount; i++)
@@ -1851,7 +1889,7 @@ void CGameControllerInvasion::Tick()
 			// still have enemies queued in m_EnemiesLeft. This let the counter show
 			// zero before the purge encounter had reached a stable completion state.
 			// Use one value for both rendering and completion.
-			const int Remaining = max(0, m_EnemiesLeft) + CountBotsAlive();
+			const int Remaining = max(0, m_EnemiesLeft) + CountBotsAlive() + CountAliveSpecialists(&GameServer()->m_World);
 			m_QuestProgressCounter = Remaining;
 			if(Remaining == 0)
 				CompleteCurrentQuest();
@@ -1909,8 +1947,11 @@ void CGameControllerInvasion::Tick()
 			}
 			else if(!m_DefendPrepEndTick && m_BotSpawnTick < Server()->Tick())
 			{
-				m_BotSpawnTick =
-					Server()->Tick() + Server()->TickSpeed() * max(0.22f, 0.7f - g_Config.m_SvMapGenLevel * 0.012f);
+				const int Level = max(0, g_Config.m_SvMapGenLevel);
+				const int EarlyLevel = min(Level, 20);
+				const int LateLevel = max(0, Level - 20);
+				m_BotSpawnTick = Server()->Tick() +
+					Server()->TickSpeed() * max(0.4f, 0.7f - EarlyLevel * 0.012f - LateLevel * 0.003f);
 				if(CountBots() < m_QuestWaveSize)
 				{
 					// Infinite reinforce while the defend timer runs: CanSpawn
@@ -1942,8 +1983,11 @@ void CGameControllerInvasion::Tick()
 		{
 			if(m_BotSpawnTick < Server()->Tick())
 			{
-				m_BotSpawnTick =
-					Server()->Tick() + Server()->TickSpeed() * max(0.35f, 1.1f - g_Config.m_SvMapGenLevel * 0.015f);
+				const int Level = max(0, g_Config.m_SvMapGenLevel);
+				const int EarlyLevel = min(Level, 20);
+				const int LateLevel = max(0, Level - 20);
+				m_BotSpawnTick = Server()->Tick() +
+					Server()->TickSpeed() * max(0.55f, 1.1f - EarlyLevel * 0.015f - LateLevel * 0.005f);
 				if(CountBots() < m_QuestWaveSize)
 				{
 					RandomGroupSpawnPos();

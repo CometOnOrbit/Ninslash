@@ -3,6 +3,7 @@
 
 #include <base/vmath.h>
 #include <game/pve_roguelite.h>
+#include <game/pve_environment.h>
 #include <game/weapon_catalog.h>
 
 class CGameContext;
@@ -137,6 +138,11 @@ class CPveDirector
 	bool m_AnyStageDeath;
 	CPendingBlast m_aPendingBlasts[32];
 	int m_PendingBlastCount;
+	int m_EnvironmentBiome;
+	int m_EnvironmentPhase;
+	int m_EnvironmentBossPhase;
+	int m_EnvironmentPhaseEndTick;
+	int m_EnvironmentLevel;
 
 	bool IsEligiblePlayer(int ClientID) const;
 	int EligiblePlayerCount() const;
@@ -154,6 +160,7 @@ class CPveDirector
 	void SendContractVote(int ClientID = -1);
 	void SendContractStatus(int ClientID = -1);
 	void SendProgress(int ClientID);
+	void UpdateEnvironment();
 	void SendValidation(int ClientID, int Code);
 	bool AllChoicesComplete() const;
 	bool AllContractVotesComplete() const;
@@ -231,6 +238,7 @@ class CPveDirector
 	void RegisterEliteContractBoss(CDroid *pBoss);
 	void CompleteContract(bool Success);
 	void RewardResearch(int Amount, int Reason, int HighestInvasion = 0);
+	void Snap(int SnappingClient);
 
 	int ModifyDamage(const CAttackSource &Source, int To, int Damage);
 	int ModifyDroidDamage(const CAttackSource &Source, int Damage, bool Boss, CDroid *pTarget);
@@ -261,6 +269,13 @@ class CPveDirector
 	int TeamCheckpoint() const;
 	bool ProgressReady() const;
 	void ClearRun();
+
+	int EnvironmentBiome() const { return m_EnvironmentBiome; }
+	int EnvironmentPhase() const { return m_EnvironmentPhase; }
+	int EnvironmentBossPhase() const { return m_EnvironmentBossPhase; }
+	int EnvironmentPhaseEndTick() const { return m_EnvironmentPhaseEndTick; }
+	int EnvironmentLevel() const { return m_EnvironmentLevel; }
+	int EnvironmentBrightness() const;
 };
 
 #endif
