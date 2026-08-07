@@ -937,6 +937,7 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_inventory_logic PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_inventory_logic ${LIBS})
   add_test(NAME inventory_logic COMMAND ninslash_test_inventory_logic)
+  set_tests_properties(inventory_logic PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
   add_executable(ninslash_test_build_placement_logic tests/build_placement_logic.cpp)
   target_include_directories(ninslash_test_build_placement_logic PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)

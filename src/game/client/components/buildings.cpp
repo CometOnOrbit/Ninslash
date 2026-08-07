@@ -142,22 +142,26 @@ void CBuildings::RenderScreen(const struct CNetObj_Building *pCurrent)
 	switch(int(pCurrent->m_X / 32) % 4)
 	{
 		case 0:
-			c = vec4(0.5f, 0.7f, 1.0f, 0.75f);
+			c = vec4(0.5f, 0.7f, 1.0f, 0.95f);
 			break;
 		case 1:
-			c = vec4(0.4f, 1.0f, 0.4f, 0.75f);
+			c = vec4(0.4f, 1.0f, 0.4f, 0.95f);
 			break;
 		case 2:
-			c = vec4(1.0f, 0.5f, 0.5f, 0.75f);
+			c = vec4(1.0f, 0.5f, 0.5f, 0.95f);
 			break;
 		case 3:
-			c = vec4(0.2f, 1.0f, 1.0f, 0.75f);
+			c = vec4(0.2f, 1.0f, 1.0f, 0.95f);
 			break;
 		default:
-			c = vec4(0.5f, 0.7f, 1.0f, 0.75f);
+			c = vec4(0.5f, 0.7f, 1.0f, 0.95f);
 			break;
 	}
-	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y - 96), c, vec2(500, 320));
+	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y - 96), c, vec2(620, 400));
+	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y - 88),
+		vec4(c.r, c.g, c.b, 0.48f),
+		vec2(260, 170),
+		false);
 
 	const CNetObj_GameInfo *pGameInfo = m_pClient->m_Snap.m_pGameInfoObj;
 	const vec2 ScreenPos(pCurrent->m_X, pCurrent->m_Y);
@@ -191,7 +195,7 @@ void CBuildings::RenderShop(const CNetObj_Shop *pCurrent)
 								  0);
 
 	m_pClient->m_pEffects->SimpleLight(
-		vec2(pCurrent->m_X, pCurrent->m_Y - 74), vec4(0.5f, 0.75f, 1.0f, 0.5f), vec2(240, 340));
+		vec2(pCurrent->m_X, pCurrent->m_Y - 74), vec4(0.5f, 0.75f, 1.0f, 0.82f), vec2(360, 460));
 
 	// shop items rendered in inventory.cpp
 }
@@ -211,6 +215,7 @@ void CBuildings::RenderGenerator(const struct CNetObj_Building *pCurrent, const 
 	RenderTools()->DrawSprite(Pos.x, Pos.y, 192);
 
 	float c = sin(CustomStuff()->m_SawbladeAngle * 0.25f) * 0.3f + 0.7f;
+	vec4 GeneratorColor(0.5f, c, 1.0f, 1.0f);
 
 	// team color
 	if(m_pClient->m_Snap.m_pGameInfoObj)
@@ -221,20 +226,17 @@ void CBuildings::RenderGenerator(const struct CNetObj_Building *pCurrent, const 
 		if((Flags & GAMEFLAG_TEAMS) && !(Flags & GAMEFLAG_INFECTION))
 		{
 			if(Team == TEAM_RED)
-				Graphics()->SetColor(1, c, 0, 1);
+				GeneratorColor = vec4(1.0f, c, 0.0f, 1.0f);
 			else if(Team == TEAM_BLUE)
-				Graphics()->SetColor(0, c, 1, 1);
+				GeneratorColor = vec4(0.0f, c, 1.0f, 1.0f);
 		}
 		else if(Team == TEAM_RED)
 		{
 			vec4 pc = CustomStuff()->m_LocalColor;
-			Graphics()->SetColor(pc.r, pc.g, pc.b, 1);
+			GeneratorColor = vec4(pc.r, pc.g, pc.b, 1.0f);
 		}
-		else
-			Graphics()->SetColor(0.5f, c, 1, 1);
 	}
-	else
-		Graphics()->SetColor(0.5f, c, 1, 1);
+	Graphics()->SetColor(GeneratorColor.r, GeneratorColor.g, GeneratorColor.b, GeneratorColor.a);
 
 	RenderTools()->SelectSprite(SPRITE_GENERATOR_COLOR);
 	RenderTools()->DrawSprite(Pos.x, Pos.y, 192);
@@ -267,8 +269,11 @@ void CBuildings::RenderGenerator(const struct CNetObj_Building *pCurrent, const 
 		Graphics()->QuadsEnd();
 	}
 
+	const vec2 GeneratorLightPos = Pos + vec2(0, -96);
 	m_pClient->m_pEffects->SimpleLight(
-		vec2(pCurrent->m_X, pCurrent->m_Y - 96), vec4(0.2f, 1.0f, 1.0f, 0.75f), vec2(600, 600));
+		GeneratorLightPos, vec4(GeneratorColor.r, GeneratorColor.g, GeneratorColor.b, 0.95f), vec2(720, 720));
+	m_pClient->m_pEffects->SimpleLight(
+		GeneratorLightPos, vec4(GeneratorColor.r, GeneratorColor.g, GeneratorColor.b, 0.42f), vec2(300, 300), false);
 }
 
 void CBuildings::RenderOverseerShieldNode(const CNetObj_Building *pCurrent)
@@ -294,7 +299,9 @@ void CBuildings::RenderOverseerShieldNode(const CNetObj_Building *pCurrent)
 	Graphics()->QuadsEnd();
 	Graphics()->ShaderEnd();
 
-	m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -16), vec4(Accent.r, Accent.g, Accent.b, 0.8f), 150.0f);
+	m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -16), vec4(Accent.r, Accent.g, Accent.b, 0.95f), 260.0f);
+	m_pClient->m_pEffects->SimpleLight(
+		Pos + vec2(0, -16), vec4(Accent.r, Accent.g, Accent.b, 0.48f), vec2(130, 130), false);
 }
 
 void CBuildings::RenderSwitch(const struct CNetObj_Building *pCurrent)
@@ -445,9 +452,14 @@ void CBuildings::RenderReactor(const struct CNetObj_Building *pCurrent)
 		Time += CustomStuff()->m_SawbladeAngle * 0.15f;
 
 	const float ObjectivePulse = 0.5f + 0.5f * sinf((float)Client()->LocalTime() * 4.0f);
+	const vec4 ReactorLightColor(0.25f, 0.85f, 1.0f, 1.0f);
 	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y - 30),
-									   vec4(0.25f, 0.75f, 1.0f, 1.0f),
-									   Objective ? 480 + ObjectivePulse * 80 : 320);
+		ReactorLightColor,
+		Objective ? 640 + ObjectivePulse * 100 : 440);
+	m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y - 24),
+		vec4(ReactorLightColor.r, ReactorLightColor.g, ReactorLightColor.b, 0.52f),
+		Objective ? vec2(320, 280) : vec2(240, 210),
+		false);
 	// m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, pCurrent->m_Y-0), 320);
 
 	if(Objective)
@@ -587,8 +599,9 @@ void CBuildings::RenderTeslacoil(const CNetObj_Building *pCurrent, const CNetObj
 											20 + frandom() * 20,
 											vec2(0, 0));
 
-	m_pClient->m_pEffects->SimpleLight(
-		vec2(pCurrent->m_X, pCurrent->m_Y - 80 * FlipY), vec4(1.0f, 0.3f, 0.6f, 0.75f), vec2(300, 300));
+	const vec2 TeslaLightPos(pCurrent->m_X, pCurrent->m_Y - 80 * FlipY);
+	m_pClient->m_pEffects->SimpleLight(TeslaLightPos, vec4(1.0f, 0.3f, 0.6f, 0.95f), vec2(440, 440));
+	m_pClient->m_pEffects->SimpleLight(TeslaLightPos, vec4(1.0f, 0.3f, 0.6f, 0.5f), vec2(180, 180), false);
 }
 
 void CBuildings::RenderDestroyedReactor(const struct CNetObj_Building *pCurrent)

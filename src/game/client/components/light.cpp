@@ -15,6 +15,14 @@
 #include <vector>
 #include "light.h"
 
+namespace
+{
+int MedianShadowDistance(int A, int B, int C)
+{
+	return A + B + C - min(A, min(B, C)) - max(A, max(B, C));
+}
+}
+
 CLight::CLight()
 {
 	OnReset();
@@ -28,6 +36,15 @@ void CLight::OnMapLoad()
 		Graphics()->UnloadTexture(m_CollisionTexture);
 		m_CollisionTexture = -1;
 	}
+	if(m_ShadowAtlasTexture >= 0)
+	{
+		Graphics()->UnloadTexture(m_ShadowAtlasTexture);
+		m_ShadowAtlasTexture = -1;
+	}
+	std::fill(m_aShadowAtlas.begin(), m_aShadowAtlas.end(), 0xff);
+	mem_zero(m_aPolarShadowCache, sizeof(m_aPolarShadowCache));
+	for(auto &Cache : m_aPolarShadowCache)
+		Cache.m_SourceIndex = -1;
 
 	// Build the GPU collision texture (1 byte per tile, COLFLAG incl. ramps)
 	// for the shader lighting pass; the client collision already stores the
@@ -50,6 +67,7 @@ void CLight::OnMapLoad()
 		Width, Height, CImageInfo::FORMAT_ALPHA, s_aFlags.data(), CImageInfo::FORMAT_ALPHA,
 		IGraphics::TEXLOAD_NOMIPMAPS | IGraphics::TEXLOAD_NORESAMPLE | IGraphics::TEXLOAD_NEAREST |
 			IGraphics::TEXLOAD_NOCOMPRESSION);
+	EnsurePolarShadowAtlas();
 }
 
 void CLight::OnReset()
@@ -73,6 +91,25 @@ void CLight::OnReset()
 
 	m_LightCount = 0;
 	m_ForceLights = false;
+	m_ShadowFrame = 0;
+	m_ShadowUpdateBudget = 0;
+	std::fill(m_aShadowAtlas.begin(), m_aShadowAtlas.end(), 0xff);
+	if(m_ShadowAtlasTexture >= 0)
+		Graphics()->LoadTextureRawSub(m_ShadowAtlasTexture,
+			0,
+			0,
+			POLAR_SHADOW_SAMPLES,
+			POLAR_SHADOW_ROWS,
+			CImageInfo::FORMAT_RGBA,
+			m_aShadowAtlas.data());
+	for(auto &Cache : m_aPolarShadowCache)
+	{
+		Cache.m_SourceIndex = -1;
+		Cache.m_Pos = vec2(0.0f, 0.0f);
+		Cache.m_Radius = 0.0f;
+		Cache.m_LastUpdateFrame = -1;
+		Cache.m_Valid = false;
+	}
 }
 
 void CLight::AddSimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow, bool Force)
@@ -93,7 +130,7 @@ void CLight::AddSimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow, bo
 	m_aLights[m_LightCount++].Set(Pos, Color, Size, 0.0f, Image, CastShadow, CastShadow ? 1 : 0);
 }
 
-void CLight::AddBoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot)
+void CLight::AddBoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot, bool CastShadow)
 {
 	if(!g_Config.m_ClLighting && !m_pClient->DarkVisionEnabled())
 		return;
@@ -101,7 +138,7 @@ void CLight::AddBoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot)
 	if(m_LightCount >= MAX_LIGHTSOURCES)
 		return;
 
-	m_aLights[m_LightCount++].Set(Pos, Color, Size, Rot, IMAGE_BOXLIGHT, true, 2);
+	m_aLights[m_LightCount++].Set(Pos, Color, Size, Rot, IMAGE_BOXLIGHT, CastShadow, CastShadow ? 2 : 0);
 }
 
 void CLight::Update(float TimePassed)
@@ -159,6 +196,130 @@ void CLight::RenderLight(vec2 Pos1, vec2 Pos2, vec2 Pos3, vec2 Pos4, vec4 Color)
 	IGraphics::CFreeformItem FreeFormItem(Pos1.x, Pos1.y, Pos2.x, Pos2.y, Pos3.x, Pos3.y, Pos4.x, Pos4.y);
 
 	Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
+}
+
+float CLight::VisibleDistance(vec2 Center, vec2 End) const
+{
+	const vec2 Direction = normalize(End - Center);
+	vec2 Hit = End;
+	vec2 BeforeHit = End;
+	int HitFlag = Collision()->IntersectLine(Center, End, &Hit, &BeforeHit, false, false, true);
+	bool Blocked = HitFlag != 0;
+	if(Blocked && (HitFlag == CCollision::COLFLAG_RAMP_LEFT ||
+			HitFlag == CCollision::COLFLAG_RAMP_RIGHT ||
+			HitFlag == CCollision::COLFLAG_ROOFSLOPE_LEFT ||
+			HitFlag == CCollision::COLFLAG_ROOFSLOPE_RIGHT) &&
+		distance(Center, Hit) < 20.0f && Collision()->CheckPoint(Center))
+	{
+		const vec2 BiasedOrigin = Center + Direction * 20.0f;
+		Hit = End;
+		BeforeHit = End;
+		HitFlag = Collision()->IntersectLine(BiasedOrigin, End, &Hit, &BeforeHit, false, false, true);
+		Blocked = HitFlag != 0;
+	}
+	return max(distance(Center, Blocked ? BeforeHit : End), 2.0f);
+}
+
+void CLight::EnsurePolarShadowAtlas()
+{
+	if(m_ShadowAtlasTexture >= 0)
+		return;
+	m_ShadowAtlasTexture = Graphics()->LoadTextureRaw(POLAR_SHADOW_SAMPLES,
+		POLAR_SHADOW_ROWS,
+		CImageInfo::FORMAT_RGBA,
+		m_aShadowAtlas.data(),
+		CImageInfo::FORMAT_RGBA,
+		IGraphics::TEXLOAD_NOMIPMAPS | IGraphics::TEXLOAD_NORESAMPLE | IGraphics::TEXLOAD_NEAREST |
+			IGraphics::TEXLOAD_NOCOMPRESSION);
+}
+
+void CLight::UpdatePolarShadow(int Row, int SourceIndex, const SLightSource &Source, float Radius)
+{
+	if(Row < 0 || Row >= POLAR_SHADOW_ROWS || Radius <= 32.0f || !Collision()->GetTiles())
+		return;
+	EnsurePolarShadowAtlas();
+	if(m_ShadowAtlasTexture < 0)
+		return;
+	unsigned char *pRow = m_aShadowAtlas.data() + Row * POLAR_SHADOW_SAMPLES * 4;
+	const float TwoPi = 6.28318530717958647692f;
+	std::array<int, POLAR_SHADOW_SAMPLES> aRawDistances;
+	for(int Sample = 0; Sample < POLAR_SHADOW_SAMPLES; Sample++)
+	{
+		const float Angle = TwoPi * (float)Sample / (float)POLAR_SHADOW_SAMPLES;
+		const vec2 Direction(std::cos(Angle), std::sin(Angle));
+		const float Visible = clamp(VisibleDistance(Source.m_Pos, Source.m_Pos + Direction * Radius) / Radius, 0.0f, 1.0f);
+		aRawDistances[Sample] = clamp((int)(Visible * 65535.0f + 0.5f), 0, 65535);
+	}
+	for(int Sample = 0; Sample < POLAR_SHADOW_SAMPLES; Sample++)
+	{
+		const int Previous = (Sample + POLAR_SHADOW_SAMPLES - 1) % POLAR_SHADOW_SAMPLES;
+		const int Next = (Sample + 1) % POLAR_SHADOW_SAMPLES;
+		const int Encoded = MedianShadowDistance(aRawDistances[Previous], aRawDistances[Sample], aRawDistances[Next]);
+		pRow[Sample * 4] = (unsigned char)(Encoded & 0xff);
+		pRow[Sample * 4 + 1] = (unsigned char)((Encoded >> 8) & 0xff);
+		pRow[Sample * 4 + 2] = 0xff;
+		pRow[Sample * 4 + 3] = 0xff;
+	}
+	Graphics()->LoadTextureRawSub(m_ShadowAtlasTexture,
+		0,
+		Row,
+		POLAR_SHADOW_SAMPLES,
+		1,
+		CImageInfo::FORMAT_RGBA,
+		pRow);
+	SPolarShadowCache &Cache = m_aPolarShadowCache[Row];
+	Cache.m_SourceIndex = SourceIndex;
+	Cache.m_Pos = Source.m_Pos;
+	Cache.m_Radius = Radius;
+	Cache.m_LastUpdateFrame = m_ShadowFrame;
+	Cache.m_Valid = true;
+}
+
+int CLight::AcquirePolarShadowRow(int SourceIndex)
+{
+	for(int Row = 1; Row < POLAR_SHADOW_ROWS; Row++)
+		if(m_aPolarShadowCache[Row].m_SourceIndex == SourceIndex)
+			return Row;
+	int Candidate = 1;
+	for(int Row = 1; Row < POLAR_SHADOW_ROWS; Row++)
+	{
+		if(!m_aPolarShadowCache[Row].m_Valid)
+			return Row;
+		if(m_aPolarShadowCache[Row].m_LastUpdateFrame < m_aPolarShadowCache[Candidate].m_LastUpdateFrame)
+			Candidate = Row;
+	}
+	m_aPolarShadowCache[Candidate].m_SourceIndex = SourceIndex;
+	m_aPolarShadowCache[Candidate].m_Valid = false;
+	EnsurePolarShadowAtlas();
+	if(m_ShadowAtlasTexture >= 0)
+	{
+		unsigned char *pRow = m_aShadowAtlas.data() + Candidate * POLAR_SHADOW_SAMPLES * 4;
+		for(int Sample = 0; Sample < POLAR_SHADOW_SAMPLES; Sample++)
+		{
+			pRow[Sample * 4] = 0xff;
+			pRow[Sample * 4 + 1] = 0xff;
+			pRow[Sample * 4 + 2] = 0xff;
+			pRow[Sample * 4 + 3] = 0xff;
+		}
+		Graphics()->LoadTextureRawSub(m_ShadowAtlasTexture,
+			0,
+			Candidate,
+			POLAR_SHADOW_SAMPLES,
+			1,
+			CImageInfo::FORMAT_RGBA,
+			pRow);
+	}
+	return Candidate;
+}
+
+bool CLight::PolarShadowNeedsUpdate(int Row, int SourceIndex, vec2 Pos, float Radius) const
+{
+	if(Row <= 0 || Row >= POLAR_SHADOW_ROWS)
+		return true;
+	const SPolarShadowCache &Cache = m_aPolarShadowCache[Row];
+	if(!Cache.m_Valid || Cache.m_SourceIndex != SourceIndex)
+		return true;
+	return distance(Cache.m_Pos, Pos) > 8.0f || fabs(Cache.m_Radius - Radius) > max(4.0f, Radius * 0.02f);
 }
 
 void CLight::RenderCpuVisibility(const SLightSource &Source, float Radius)
@@ -287,25 +448,24 @@ void CLight::RenderGroupRefactored(int Group)
 		Graphics()->IsShaderAvailable(SHADER_LIGHT) && m_CollisionTexture >= 0;
 	const float LightingBrightness = clamp(m_pClient->LightingBrightness(), 0.0f, 1.0f);
 	const float DarkFactor = 1.0f - LightingBrightness;
-	// Dark vision keeps the world outside the player's immediate pool black,
-	// but the smaller pool made shader mode illuminate little more than the
-	// player's own body. Keep a 4:3 pool large enough for nearby movement and
-	// aiming while retaining a clearly bounded dark-vision area.
-	const vec2 CameraLightSize = vec2(1100.0f, 850.0f) * (1.0f - DarkFactor) +
-		vec2(720.0f, 540.0f) * DarkFactor;
+	const vec2 CameraLightSize = vec2(900.0f, 680.0f) * (1.0f - DarkFactor) +
+		vec2(600.0f, 450.0f) * DarkFactor;
 	// The shadow radius must cover the complete light quad. Keeping this
 	// relationship explicit prevents bright rectangular corners if the camera
 	// light size is tuned later.
-	const float CameraRadius = max(700.0f * (1.0f - DarkFactor) + 560.0f * DarkFactor,
+	const float CameraRadius = max(600.0f * (1.0f - DarkFactor) + 460.0f * DarkFactor,
 		length(CameraLightSize * 0.5f) + 8.0f);
-	const int TargetWidth = Graphics()->ScreenWidth();
-	const int TargetHeight = Graphics()->ScreenHeight();
+	const int TargetWidth = max(1, Graphics()->ScreenWidth() / LIGHT_RENDER_SCALE);
+	const int TargetHeight = max(1, Graphics()->ScreenHeight() / LIGHT_RENDER_SCALE);
+	const bool UsePolarShadow = UseShaderLight && Graphics()->IsShaderAvailable(SHADER_LIGHT_POLAR) &&
+		m_ShadowAtlasTexture >= 0;
 	// CPU visibility fans are intentionally budgeted more tightly than the GPU
 	// path. Non-selected sources still keep their soft contribution, but do not
 	// pay for a shadow fan this frame.
-	const int MaxShadowCasters = UseShaderLight ? 12 : 8;
+	const int MaxShadowCasters = UsePolarShadow ? 8 : (UseShaderLight ? 12 : 8);
+	std::vector<int> aShadowRows(m_LightCount, -1);
 
-	auto DrawSource = [&](const SLightSource &Source, float ShadowRadius) {
+	auto DrawSource = [&](const SLightSource &Source, float ShadowRadius, int SourceIndex) {
 		const float CullingRadius = max(ShadowRadius, max(Source.m_Size.x, Source.m_Size.y) * 0.5f);
 		if(Source.m_Pos.x + CullingRadius < Screen.x || Source.m_Pos.x - CullingRadius > Screen.w ||
 		   Source.m_Pos.y + CullingRadius < Screen.y || Source.m_Pos.y - CullingRadius > Screen.h)
@@ -335,6 +495,7 @@ void CLight::RenderGroupRefactored(int Group)
 			Graphics()->BlendAdditive();
 			Graphics()->WrapClamp();
 			Graphics()->TextureSet(g_pData->m_aImages[Source.m_Image].m_Id);
+			const int ShadowRow = SourceIndex < 0 ? 0 : aShadowRows[SourceIndex];
 			Graphics()->LightShaderBegin(m_CollisionTexture,
 				Source.m_Pos.x,
 				Source.m_Pos.y,
@@ -346,10 +507,15 @@ void CLight::RenderGroupRefactored(int Group)
 				Screen.w,
 				Screen.h,
 				TargetWidth,
-				TargetHeight);
+				TargetHeight,
+				UsePolarShadow && ShadowRow >= 0 ? m_ShadowAtlasTexture : -1,
+				ShadowRow,
+				POLAR_SHADOW_ROWS,
+				POLAR_SHADOW_SAMPLES,
+				UsePolarShadow && ShadowRow >= 0);
 			Graphics()->QuadsBegin();
 			Graphics()->QuadsSetRotation(Source.m_Rot);
-			Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+			Graphics()->SetColor(Source.m_Color.r, Source.m_Color.g, Source.m_Color.b, Source.m_Color.a);
 			IGraphics::CQuadItem VisibleQuad(Source.m_Pos.x, Source.m_Pos.y, Source.m_Size.x, Source.m_Size.y);
 			Graphics()->QuadsDraw(&VisibleQuad, 1);
 			Graphics()->QuadsEnd();
@@ -372,13 +538,18 @@ void CLight::RenderGroupRefactored(int Group)
 
 	SLightSource CameraLight;
 	CameraLight.Set(m_pClient->m_pCamera->m_TargetCenter,
-		vec4(1.0f, 1.0f, 1.0f, 0.55f + 0.23f * DarkFactor),
+		vec4(1.0f, 1.0f, 1.0f, 1.0f),
 		CameraLightSize,
 		0.0f,
 		IMAGE_LIGHTS,
 		true,
 		3);
-	DrawSource(CameraLight, CameraRadius);
+	if(UsePolarShadow)
+	{
+		m_ShadowFrame++;
+		UpdatePolarShadow(0, -1, CameraLight, CameraRadius);
+	}
+	DrawSource(CameraLight, CameraRadius, -1);
 
 	std::vector<bool> aCastShadow(m_LightCount, false);
 	std::vector<int> aShadowIndices;
@@ -394,12 +565,45 @@ void CLight::RenderGroupRefactored(int Group)
 		aShadowIndices.resize(MaxShadowCasters);
 	for(const int Index : aShadowIndices)
 		aCastShadow[Index] = true;
+	if(UsePolarShadow)
+	{
+		m_ShadowUpdateBudget = 2;
+		std::vector<int> Pending;
+		for(const int Index : aShadowIndices)
+		{
+			const float Radius = max(m_aLights[Index].m_Size.x, m_aLights[Index].m_Size.y) * 0.75f;
+			const int Row = AcquirePolarShadowRow(Index);
+			aShadowRows[Index] = Row;
+			const bool NeedsUpdate = PolarShadowNeedsUpdate(Row, Index, m_aLights[Index].m_Pos, Radius);
+			const bool LargeMove = m_aPolarShadowCache[Row].m_Valid &&
+				distance(m_aPolarShadowCache[Row].m_Pos, m_aLights[Index].m_Pos) > 128.0f;
+			if(NeedsUpdate && LargeMove)
+				UpdatePolarShadow(Row, Index, m_aLights[Index], Radius);
+			else if(NeedsUpdate)
+				Pending.push_back(Index);
+		}
+		std::sort(Pending.begin(), Pending.end(), [&](int A, int B) {
+			return m_aPolarShadowCache[aShadowRows[A]].m_LastUpdateFrame <
+				m_aPolarShadowCache[aShadowRows[B]].m_LastUpdateFrame;
+		});
+		for(const int Index : Pending)
+		{
+			if(m_ShadowUpdateBudget <= 0)
+				break;
+			const int Row = aShadowRows[Index];
+			UpdatePolarShadow(Row,
+				Index,
+				m_aLights[Index],
+				max(m_aLights[Index].m_Size.x, m_aLights[Index].m_Size.y) * 0.75f);
+			m_ShadowUpdateBudget--;
+		}
+	}
 
 	for(int i = 0; i < m_LightCount; i++)
 	{
 		SLightSource Source = m_aLights[i];
 		Source.m_CastShadow = aCastShadow[i];
-		DrawSource(Source, max(Source.m_Size.x, Source.m_Size.y) * 0.75f);
+		DrawSource(Source, max(Source.m_Size.x, Source.m_Size.y) * 0.75f, i);
 	}
 
 	// Powerupper is an existing custom freeform light. Keep it additive; it is
@@ -431,6 +635,9 @@ void CLight::RenderGroupRefactored(int Group)
 	Graphics()->MapScreen(0, 0, Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
 	Graphics()->WrapClamp();
 	Graphics()->TextureSet(-2, RENDERBUFFER_LIGHT);
+	const bool UseCompositeShader = g_Config.m_GfxShaders && Graphics()->IsShaderAvailable(SHADER_LIGHT_COMPOSITE);
+	if(UseCompositeShader)
+		Graphics()->LightCompositeShaderBegin(TargetWidth, TargetHeight);
 	Graphics()->QuadsBegin();
 	Graphics()->QuadsSetRotation(0);
 	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -440,6 +647,8 @@ void CLight::RenderGroupRefactored(int Group)
 		-Graphics()->ScreenHeight());
 	Graphics()->QuadsDraw(&QuadItem, 1);
 	Graphics()->QuadsEnd();
+	if(UseCompositeShader)
+		Graphics()->ShaderEnd();
 	Graphics()->BlendNormal();
 	Graphics()->WrapNormal();
 	Graphics()->TextureSet(-1);

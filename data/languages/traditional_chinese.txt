@@ -172,6 +172,15 @@ Always show
 Ammo
 == 彈藥
 
+Armor
+== 護甲
+
+Fuel
+== 燃料
+
+Health
+== 生命
+
 Angle:
 == 角度:
 

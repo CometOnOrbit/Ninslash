@@ -18,6 +18,7 @@
 #include <game/questinfo.h>
 #include <game/tutorial.h>
 
+#include "hud_layout.h"
 #include "pve_roguelite.h"
 
 namespace
@@ -1615,13 +1616,34 @@ void CPveRoguelite::DrawBuildHud()
 		str_copy(aaLines[Lines++], Localize("Drone module not owned"), sizeof(aaLines[0]));
 	else if(m_ValidationCode == PVE_VALIDATION_MODULE_COOLDOWN && time_get() < m_ValidationUntil)
 		str_copy(aaLines[Lines++], Localize("Drone switch cooling down"), sizeof(aaLines[0]));
-	const float Width = 130.0f;
-	CUIRect Hud = {ScreenWidth - Width - 10.0f, 10.0f, Width, 12.0f + Lines * 12.0f};
-	DrawPanel(Hud, vec4(Panel.r, Panel.g, Panel.b, 0.90f), 8.0f);
-	CUIRect Edge = {Hud.x + Hud.w - 2.0f, Hud.y, 2.0f, Hud.h};
-	DrawPanel(Edge, Accent, 1.0f);
+	const int Columns = max(1, min(Lines, HudLayout::BuildEffectsColumns));
+	float MaxTextWidth = 0.0f;
 	for(int i = 0; i < Lines; i++)
-		DrawText(Hud.x + 8.0f, Hud.y + 6.0f + i * 12.0f, 5.8f, aaLines[i], Text, Hud.w - 16.0f, -1);
+		MaxTextWidth = max(MaxTextWidth, TextRender()->TextWidth(0, 5.8f, aaLines[i], -1));
+	const float MaxWidth = min(HudLayout::BuildEffectsWidth, ScreenWidth - HudLayout::BuildEffectsLeft * 2.0f);
+	const float PreferredWidth = 16.0f + Columns * (MaxTextWidth + 6.0f);
+	const float Width = clamp(PreferredWidth, min(78.0f, MaxWidth), MaxWidth);
+	const int Rows = (Lines + Columns - 1) / Columns;
+	CUIRect Hud = {HudLayout::BuildEffectsLeft,
+		HudLayout::BuildEffectsTop,
+		Width,
+		12.0f + Rows * HudLayout::BuildEffectsRowHeight};
+	DrawPanel(Hud, vec4(Panel.r, Panel.g, Panel.b, 0.90f), 8.0f);
+	CUIRect Edge = {Hud.x, Hud.y, 2.0f, Hud.h};
+	DrawPanel(Edge, Accent, 1.0f);
+	const float ColumnWidth = (Hud.w - 16.0f) / Columns;
+	for(int i = 0; i < Lines; i++)
+	{
+		const int Column = i % Columns;
+		const int Row = i / Columns;
+		DrawText(Hud.x + 8.0f + Column * ColumnWidth,
+			Hud.y + 6.0f + Row * HudLayout::BuildEffectsRowHeight,
+			5.8f,
+			aaLines[i],
+			Text,
+			ColumnWidth - 6.0f,
+			-1);
+	}
 }
 
 void CPveRoguelite::DrawDrones()

@@ -103,6 +103,8 @@ class CCommandProcessorFragment_OpenGL
 
 	GLuint textureBuffer[NUM_RENDERBUFFERS];
 	GLuint renderedTexture[NUM_RENDERBUFFERS];
+	int m_aRenderBufferWidth[NUM_RENDERBUFFERS];
+	int m_aRenderBufferHeight[NUM_RENDERBUFFERS];
 
 	bool m_MultiBuffering;
 

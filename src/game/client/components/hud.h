@@ -56,6 +56,7 @@ class CHud : public CComponent
 	void RenderReadyUpNotification();
 	void RenderTeambalanceWarning();
 	void RenderVoting();
+	void RenderLowHealthVignette(const CNetObj_Character *pCharacter);
 	void RenderHealthAndAmmo(const CNetObj_Character *pCharacter);
 	void RenderGameTimer();
 	void RenderRaceTimer();

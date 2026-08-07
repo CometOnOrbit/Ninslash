@@ -17,6 +17,16 @@ enum ETab
 	NUM_TABS,
 };
 
+inline bool ForgeTabVisible(int ForgeMode)
+{
+	return ForgeMode != 0;
+}
+
+inline bool ForgeUsable(int ForgeMode, bool ScreenNear)
+{
+	return ForgeMode == 1 || (ForgeMode == 2 && ScreenNear);
+}
+
 struct CLayout
 {
 	float m_X;
@@ -34,6 +44,18 @@ SidebarLayout(float ScreenWidth, float ScreenHeight, float UiScale, float Appear
 	const float Margin = 8.0f;
 	const float Slide = 18.0f * (1.0f - clamp(AppearAmount, 0.0f, 1.0f));
 	return {ScreenWidth - Width - Margin + Slide, Margin, Width, ScreenHeight - Margin * 2.0f};
+}
+
+inline CLayout
+BottomOverlayLayout(float ScreenWidth, float ScreenHeight, float UiScale, float AppearAmount, bool Workbench)
+{
+	const float Scale = clamp(UiScale, 1.0f, 1.5f);
+	const float BaseWidth = Workbench ? 320.0f : 260.0f;
+	const float Width = min(BaseWidth * Scale, min(BaseWidth, ScreenWidth - 24.0f));
+	const float Height = min(Workbench ? 284.0f : 235.0f, ScreenHeight - 16.0f);
+	const float Margin = 8.0f;
+	const float Slide = 18.0f * (1.0f - clamp(AppearAmount, 0.0f, 1.0f));
+	return {(ScreenWidth - Width) * 0.5f, ScreenHeight - Height - Margin + Slide, Width, Height};
 }
 
 inline int NavigateGrid(int Current, int Count, int Columns, int DeltaX, int DeltaY)

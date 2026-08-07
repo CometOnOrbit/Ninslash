@@ -197,12 +197,12 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pNet, int ItemID)
 	// Every visible projectile gets a small glow. Projectile lights are
 	// deliberately non-shadow-casting: bullets can be numerous, and their
 	// contribution should not consume one of the expensive shadow passes.
-	vec4 ProjectileLightColor(0.95f, 0.9f, 0.65f, 0.32f);
-	float ProjectileLightWidth = 78.0f;
+	vec4 ProjectileLightColor(0.95f, 0.9f, 0.65f, 0.52f);
+	float ProjectileLightWidth = 108.0f;
 	if(pCurrent->m_VisionKind == WEAPON_VISION_FLASH)
 	{
 		ProjectileLightColor = vec4(1.0f, 1.0f, 1.0f, 0.9f);
-		ProjectileLightWidth = 160.0f;
+		ProjectileLightWidth = 190.0f;
 	}
 	else if(pCurrent->m_VisionKind == WEAPON_VISION_BLIND)
 	{
@@ -211,25 +211,25 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pNet, int ItemID)
 	}
 	else if(pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_FLAMER)
 	{
-		ProjectileLightColor = vec4(1.0f, 0.45f, 0.12f, 0.5f);
-		ProjectileLightWidth = 156.0f;
+		ProjectileLightColor = vec4(1.0f, 0.45f, 0.12f, 0.72f);
+		ProjectileLightWidth = 190.0f;
 	}
 	else if((pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_ELECTRIC_GUN) ||
 		pCurrent->m_Combat.m_ElectroAmount > 0.0f)
 	{
-		ProjectileLightColor = vec4(0.25f, 0.75f, 1.0f, 0.48f);
-		ProjectileLightWidth = 132.0f;
+		ProjectileLightColor = vec4(0.25f, 0.8f, 1.0f, 0.72f);
+		ProjectileLightWidth = 176.0f;
 	}
 	else if((pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_BAZOOKA) ||
 		pCurrent->m_Combat.m_ExplosiveProjectile)
 	{
-		ProjectileLightColor = vec4(1.0f, 0.5f, 0.16f, 0.46f);
-		ProjectileLightWidth = 144.0f;
+		ProjectileLightColor = vec4(1.0f, 0.5f, 0.16f, 0.68f);
+		ProjectileLightWidth = 180.0f;
 	}
 	else if(pCurrent->m_BehaviorFlags & WEAPON_BEHAVIOR_GREEN_EXPLOSION)
 	{
-		ProjectileLightColor = vec4(0.35f, 1.0f, 0.4f, 0.42f);
-		ProjectileLightWidth = 112.0f;
+		ProjectileLightColor = vec4(0.35f, 1.0f, 0.4f, 0.62f);
+		ProjectileLightWidth = 152.0f;
 	}
 	const float ProjectileScale = clamp(pCurrent->m_Visual.m_ProjectileSize, 0.6f, 2.0f);
 	m_pClient->m_pEffects->SimpleLight(
@@ -643,11 +643,11 @@ void CItems::RenderLaser(const struct CNetObj_Laser *pCurrent)
 	vec2 Dir = normalize(Pos - From);
 	const vec2 LaserMid = (From + Pos) * 0.5f;
 	const float LaserLength = distance(From, Pos);
-	// Electric/laser beams illuminate their nearby surroundings without
-	// becoming shadow casters for every segment of a long beam.
-	m_pClient->m_pEffects->SimpleLight(
+	m_pClient->m_pEffects->BoxLight(
 		LaserMid, vec4(0.3f, 0.75f, 1.0f, 0.34f),
-		vec2(clamp(120.0f + LaserLength * 0.08f, 120.0f, 260.0f), 96.0f), false);
+		vec2(72.0f, LaserLength + 96.0f),
+		atan2(Dir.y, Dir.x) + pi / 2,
+		false);
 
 	float Ticks = Client()->GameTick() + Client()->IntraGameTick() - pCurrent->m_StartTick;
 	float Ms = (Ticks / 50.0f) * 1000.0f;

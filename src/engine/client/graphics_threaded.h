@@ -279,7 +279,7 @@ class CCommandBuffer
 
 	struct SCommand_ShaderBegin : public SCommand
 	{
-		SCommand_ShaderBegin() : SCommand(CMD_SHADERBEGIN), m_WeaponTint(0.0f), m_ExtraTexture(-1), m_LightCenterX(0.0f), m_LightCenterY(0.0f), m_LightRadius(0.0f), m_CollisionWidth(0.0f), m_CollisionHeight(0.0f), m_ViewTLX(0.0f), m_ViewTLY(0.0f), m_ViewBRX(0.0f), m_ViewBRY(0.0f), m_TargetWidth(0.0f), m_TargetHeight(0.0f) {}
+		SCommand_ShaderBegin() : SCommand(CMD_SHADERBEGIN), m_WeaponTint(0.0f), m_ExtraTexture(-1), m_LightCenterX(0.0f), m_LightCenterY(0.0f), m_LightRadius(0.0f), m_CollisionWidth(0.0f), m_CollisionHeight(0.0f), m_ViewTLX(0.0f), m_ViewTLY(0.0f), m_ViewBRX(0.0f), m_ViewBRY(0.0f), m_TargetWidth(0.0f), m_TargetHeight(0.0f), m_ShadowTexture(-1), m_ShadowRow(0), m_ShadowRows(1), m_ShadowSamples(0), m_PolarShadow(false) {}
 
 		int m_Shader;
 		float m_Intensity;
@@ -306,6 +306,11 @@ class CCommandBuffer
 		float m_ViewBRY;
 		float m_TargetWidth;
 		float m_TargetHeight;
+		int m_ShadowTexture;
+		int m_ShadowRow;
+		int m_ShadowRows;
+		int m_ShadowSamples;
+		bool m_PolarShadow;
 	};
 
 	struct SCommand_ShaderEnd : public SCommand
@@ -567,7 +572,13 @@ class CGraphics_Threaded : public IEngineGraphics
 		float ViewBRX,
 		float ViewBRY,
 		float TargetWidth,
-		float TargetHeight);
+		float TargetHeight,
+		int ShadowTexture = -1,
+		int ShadowRow = 0,
+		int ShadowRows = 1,
+		int ShadowSamples = 0,
+		bool PolarShadow = false);
+	virtual void LightCompositeShaderBegin(float TargetWidth, float TargetHeight);
 	virtual void PlayerShaderBegin(float colorG,
 								   float colorB,
 								   float Charge = 0.0f,

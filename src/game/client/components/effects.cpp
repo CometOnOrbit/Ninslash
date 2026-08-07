@@ -506,9 +506,9 @@ void CEffects::SimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow, boo
 	m_pClient->m_pLight->AddSimpleLight(Pos, Color, Size, CastShadow, Force);
 }
 
-void CEffects::BoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot)
+void CEffects::BoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot, bool CastShadow)
 {
-	m_pClient->m_pLight->AddBoxLight(Pos, Color, Size, Rot);
+	m_pClient->m_pLight->AddBoxLight(Pos, Color, Size, Rot, CastShadow);
 }
 
 void CEffects::SmokeTrail(vec2 Pos, vec2 Vel)

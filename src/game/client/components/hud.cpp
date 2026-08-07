@@ -19,6 +19,7 @@
 #include "camera.h"
 #include "effects.h"
 #include "hud.h"
+#include "hud_layout.h"
 #include "inventory.h"
 #include "menus.h"
 #include "pve_roguelite.h"
@@ -409,8 +410,8 @@ void CHud::RenderObjective()
 		const float ObjectiveIn = clamp(ObjectiveAge / 0.22f, 0.0f, 1.0f);
 		const float ObjectiveEased = 1.0f - (1.0f - ObjectiveIn) * (1.0f - ObjectiveIn) * (1.0f - ObjectiveIn);
 		const float CardRight = m_Width - 6.0f + (1.0f - ObjectiveEased) * 10.0f;
-		CUIRect Shadow = {CardRight - CardWidth + 1.2f, 83.2f, CardWidth, CardHeight};
-		CUIRect Card = {CardRight - CardWidth, 82.0f, CardWidth, CardHeight};
+		CUIRect Shadow = {CardRight - CardWidth + 1.2f, HudLayout::ObjectiveTop + 1.2f, CardWidth, CardHeight};
+		CUIRect Card = {CardRight - CardWidth, HudLayout::ObjectiveTop, CardWidth, CardHeight};
 		const vec4 Panel = CMenus::ThemeBgPanel();
 		const vec4 Inset = CMenus::ThemeBgInset();
 		const vec4 Accent = CMenus::ThemeAccent();
@@ -556,8 +557,8 @@ void CHud::RenderObjective()
 	const float ObjectiveIn = clamp(ObjectiveAge / 0.22f, 0.0f, 1.0f);
 	const float ObjectiveEased = 1.0f - (1.0f - ObjectiveIn) * (1.0f - ObjectiveIn) * (1.0f - ObjectiveIn);
 	const float CardRight = m_Width - 6.0f + (1.0f - ObjectiveEased) * 10.0f;
-	CUIRect Shadow = {CardRight - CardWidth + 1.2f, 83.2f, CardWidth, CardHeight};
-	CUIRect Card = {CardRight - CardWidth, 82.0f, CardWidth, CardHeight};
+	CUIRect Shadow = {CardRight - CardWidth + 1.2f, HudLayout::ObjectiveTop + 1.2f, CardWidth, CardHeight};
+	CUIRect Card = {CardRight - CardWidth, HudLayout::ObjectiveTop, CardWidth, CardHeight};
 	const vec4 Panel = CMenus::ThemeBgPanel();
 	const vec4 Inset = CMenus::ThemeBgInset();
 	const vec4 Accent = CMenus::ThemeAccent();
@@ -1136,307 +1137,244 @@ void CHud::DrawCircular(float x, float y, float r, int Segments, int FillAmount,
 		m_pClient->Graphics()->QuadsDrawFreeform(Array, NumItems);
 }
 
+void CHud::RenderLowHealthVignette(const CNetObj_Character *pCharacter)
+{
+	if(!g_Config.m_ClShowhudHealthAmmo || !pCharacter || m_pClient->m_pInventory->IsVisible())
+		return;
+	const float DangerAmount = HudLayout::LowHealthAmount(pCharacter->m_Health);
+	if(DangerAmount <= 0.0f)
+		return;
+
+	if(g_Config.m_GfxShaders && Graphics()->IsShaderAvailable(SHADER_LOW_HEALTH))
+	{
+		Graphics()->CameraToShaders(Graphics()->ScreenWidth(), Graphics()->ScreenHeight(), 0, 0);
+		Graphics()->ShaderBegin(SHADER_LOW_HEALTH, DangerAmount);
+		Graphics()->TextureSet(-1);
+		Graphics()->BlendNormal();
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+		IGraphics::CQuadItem Quad(0.0f, 0.0f, m_Width, m_Height);
+		Graphics()->QuadsDrawTL(&Quad, 1);
+		Graphics()->QuadsEnd();
+		Graphics()->ShaderEnd();
+		return;
+	}
+
+	const float CriticalAmount = HudLayout::CriticalHealthAmount(pCharacter->m_Health);
+	float EntryAmount = clamp(DangerAmount / 0.10f, 0.0f, 1.0f);
+	EntryAmount = EntryAmount * EntryAmount * (3.0f - 2.0f * EntryAmount);
+	const float Time = time_get() / (double)time_freq();
+	const float Pulse = 0.72f + 0.28f * (0.5f + 0.5f * sinf(Time * (5.2f + CriticalAmount * 2.8f)));
+	const float BaseAlpha = (0.16f + 0.35f * DangerAmount + 0.12f * CriticalAmount) * Pulse * EntryAmount;
+	const vec4 Danger = CMenus::ThemeDanger();
+	for(int Band = 0; Band < 8; ++Band)
+	{
+		const float Inset = Band * 3.2f;
+		const float Alpha = BaseAlpha * (1.0f - Band * 0.105f);
+		const vec4 Color(Danger.r, Danger.g, Danger.b, Alpha);
+		const float Thickness = 4.0f + DangerAmount * 3.0f;
+		CUIRect Top = {Inset, Inset, m_Width - Inset * 2.0f, Thickness};
+		CUIRect Bottom = {Inset, m_Height - Inset - Thickness, m_Width - Inset * 2.0f, Thickness};
+		CUIRect Left = {Inset, Inset, Thickness, m_Height - Inset * 2.0f};
+		CUIRect Right = {m_Width - Inset - Thickness, Inset, Thickness, m_Height - Inset * 2.0f};
+		RenderTools()->DrawUIRect(&Top, Color, CUI::CORNER_ALL, 0.0f);
+		RenderTools()->DrawUIRect(&Bottom, Color, CUI::CORNER_ALL, 0.0f);
+		RenderTools()->DrawUIRect(&Left, Color, CUI::CORNER_ALL, 0.0f);
+		RenderTools()->DrawUIRect(&Right, Color, CUI::CORNER_ALL, 0.0f);
+	}
+
+	if(CriticalAmount > 0.0f)
+	{
+		const float TunnelAlpha = (0.12f + CriticalAmount * 0.18f) * Pulse;
+		const float TunnelDepth = 24.0f + CriticalAmount * 28.0f;
+		const vec4 TunnelColor(0.10f, 0.0f, 0.015f, TunnelAlpha);
+		CUIRect Top = {0.0f, 0.0f, m_Width, TunnelDepth};
+		CUIRect Bottom = {0.0f, m_Height - TunnelDepth, m_Width, TunnelDepth};
+		CUIRect Left = {0.0f, TunnelDepth, TunnelDepth, m_Height - TunnelDepth * 2.0f};
+		CUIRect Right = {m_Width - TunnelDepth, TunnelDepth, TunnelDepth, m_Height - TunnelDepth * 2.0f};
+		RenderTools()->DrawUIRect(&Top, TunnelColor, CUI::CORNER_ALL, 0.0f);
+		RenderTools()->DrawUIRect(&Bottom, TunnelColor, CUI::CORNER_ALL, 0.0f);
+		RenderTools()->DrawUIRect(&Left, TunnelColor, CUI::CORNER_ALL, 0.0f);
+		RenderTools()->DrawUIRect(&Right, TunnelColor, CUI::CORNER_ALL, 0.0f);
+	}
+}
+
 void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 {
-	if(!g_Config.m_ClShowhudHealthAmmo)
+	if(!g_Config.m_ClShowhudHealthAmmo || !pCharacter || m_pClient->m_pInventory->IsVisible())
 		return;
-	if(!pCharacter)
-		return;
-	CWeaponSpec WeaponSpec;
-	CResolvedWeaponProfile WeaponProfile{};
-	if(CWeaponCatalog::TryFromProtocol(pCharacter->m_WeaponDefinitionId, pCharacter->m_WeaponLevel, &WeaponSpec))
-		CWeaponCatalog::TryResolve(WeaponSpec, &WeaponProfile);
 
-	// vec2 Area1Pos = vec2(0, 0);
-	vec2 Area2Pos = vec2(8, 5);
+	CWeaponSpec ActiveWeapon;
+	CResolvedWeaponProfile ActiveProfile{};
+	const bool HasActiveWeapon =
+		CWeaponCatalog::TryFromProtocol(pCharacter->m_WeaponDefinitionId, pCharacter->m_WeaponLevel, &ActiveWeapon);
+	const bool HasActiveProfile = HasActiveWeapon && CWeaponCatalog::TryResolve(ActiveWeapon, &ActiveProfile);
+	const vec4 Deep = CMenus::ThemeBgDeep();
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Inset = CMenus::ThemeBgInset();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 AccentDim = CMenus::ThemeAccentDim();
+	const vec4 Danger = CMenus::ThemeDanger();
+	const vec4 Text = CMenus::ThemeText();
+	const vec4 Muted = CMenus::ThemeTextMuted();
+	const vec4 ArmorColor(0.96f, 0.80f, 0.16f, 1.0f);
+	const vec4 OverlapColor(0.22f, 0.82f, 0.34f, 1.0f);
 
-	float x = Area2Pos.x; // 16
-	float y = 5;
-
-	// render gui stuff
-
-	// new health bar, healthbar, render health
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_HP].m_Id);
-	Graphics()->QuadsBegin();
-
-	vec2 HpSize = vec2(120, 12);
-	vec2 FuelSize = vec2(60, 12);
-
-	float hpf = min(pCharacter->m_Health, 100) / 100.0f;
-
-	{ // hp fill
-		Graphics()->SetColor(1, 0, 0, 1);
-		Graphics()->QuadsSetSubsetFree(0, 0.5f, 1 * hpf, 0.5f, 0, 1, 1 * hpf, 1);
-
-		IGraphics::CFreeformItem FreeFormItem(
-			x, y, x + hpf * HpSize.x, y, x, y + HpSize.y, x + hpf * HpSize.x, y + HpSize.y);
-
-		Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-	}
-
-	{ // armor fill
-		float armorf = min(pCharacter->m_Armor, 100) / 100.0f;
-
-		if(armorf + hpf <= 1.0f)
+	auto Box = [this](const CUIRect &Rect, vec4 Color, float Radius)
+	{
+		RenderTools()->DrawUIRect(&Rect, Color, CUI::CORNER_ALL, Radius);
+	};
+	auto TechShape = [&](const CUIRect &Rect, vec4 Color, float Cut)
+	{
+		if(Rect.w <= 0.0f || Rect.h <= 0.0f)
+			return;
+		Cut = clamp(Cut, 0.0f, min(Rect.w, Rect.h) * 0.45f);
+		IGraphics::CFreeformItem aParts[3] = {
+			IGraphics::CFreeformItem(Rect.x,
+				Rect.y + Cut,
+				Rect.x + Cut,
+				Rect.y,
+				Rect.x,
+				Rect.y + Rect.h - Cut,
+				Rect.x + Cut,
+				Rect.y + Rect.h),
+			IGraphics::CFreeformItem(Rect.x + Cut,
+				Rect.y,
+				Rect.x + Rect.w - Cut,
+				Rect.y,
+				Rect.x + Cut,
+				Rect.y + Rect.h,
+				Rect.x + Rect.w - Cut,
+				Rect.y + Rect.h),
+			IGraphics::CFreeformItem(Rect.x + Rect.w - Cut,
+				Rect.y,
+				Rect.x + Rect.w,
+				Rect.y + Cut,
+				Rect.x + Rect.w - Cut,
+				Rect.y + Rect.h,
+				Rect.x + Rect.w,
+				Rect.y + Rect.h - Cut)};
+		Graphics()->TextureClear();
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+		Graphics()->QuadsDrawFreeform(aParts, 3);
+		Graphics()->QuadsEnd();
+	};
+	auto SmokedGlass = [&](const CUIRect &Rect, vec4 EdgeColor, bool Active, float Cut)
+	{
+		CUIRect Shadow = {Rect.x + 0.7f, Rect.y + 1.1f, Rect.w, Rect.h};
+		TechShape(Shadow, vec4(0.0f, 0.008f, 0.014f, 0.32f), Cut);
+		EdgeColor.a = Active ? 0.48f : 0.24f;
+		TechShape(Rect, EdgeColor, Cut);
+		CUIRect Inner = {Rect.x + 0.8f, Rect.y + 0.8f, Rect.w - 1.6f, Rect.h - 1.6f};
+		const vec4 SmokedFill(Deep.r * 0.58f + Panel.r * 0.42f,
+			Deep.g * 0.58f + Panel.g * 0.42f,
+			Deep.b * 0.58f + Panel.b * 0.42f,
+			Active ? 0.62f : 0.50f);
+		TechShape(Inner, SmokedFill, max(0.0f, Cut - 0.8f));
+		IGraphics::CLineItem aSurfaceLines[4] = {
+			IGraphics::CLineItem(Rect.x + Cut + 1.0f, Rect.y + 0.7f, Rect.x + Rect.w * 0.48f, Rect.y + 0.7f),
+			IGraphics::CLineItem(Rect.x + Rect.w - Cut - 8.0f, Rect.y + Rect.h - 0.7f, Rect.x + Rect.w - Cut, Rect.y + Rect.h - 0.7f),
+			IGraphics::CLineItem(Inner.x + Cut, Inner.y + Inner.h * 0.38f, Inner.x + Inner.w - Cut, Inner.y + Inner.h * 0.38f),
+			IGraphics::CLineItem(Inner.x + Cut, Inner.y + Inner.h * 0.72f, Inner.x + Inner.w - Cut, Inner.y + Inner.h * 0.72f)};
+		Graphics()->TextureClear();
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(0.66f, 0.86f, 0.92f, Active ? 0.18f : 0.10f);
+		Graphics()->LinesDraw(aSurfaceLines, 1);
+		Graphics()->SetColor(0.0f, 0.01f, 0.018f, 0.38f);
+		Graphics()->LinesDraw(aSurfaceLines + 1, 1);
+		Graphics()->SetColor(0.52f, 0.72f, 0.78f, 0.035f);
+		Graphics()->LinesDraw(aSurfaceLines + 2, 2);
+		Graphics()->LinesEnd();
+	};
+	auto Label = [&](const CUIRect &Rect, const char *pText, float Size, int Align, vec4 Color)
+	{
+		const float Width = TextRender()->TextWidth(0, Size, pText, -1);
+		float X = Rect.x;
+		if(Align == 0)
+			X = Rect.x + (Rect.w - Width) * 0.5f;
+		else if(Align > 0)
+			X = Rect.x + Rect.w - Width;
+		TextRender()->TextColor(Color.r, Color.g, Color.b, Color.a);
+		TextRender()->Text(0, X, Rect.y + (Rect.h - Size) * 0.5f - 0.5f, Size, pText, Rect.w);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	};
+	auto Bar = [&](const CUIRect &Rect, float Amount, vec4 Color)
+	{
+		Box(Rect, vec4(0.0f, 0.010f, 0.016f, 0.90f), 0.0f);
+		const float WellInset = Rect.h >= 4.0f ? 0.55f : 0.40f;
+		CUIRect Well = {Rect.x + WellInset,
+			Rect.y + WellInset,
+			max(0.0f, Rect.w - WellInset * 2.0f),
+			max(0.0f, Rect.h - WellInset * 2.0f)};
+		Box(Well, vec4(Inset.r * 0.45f, Inset.g * 0.45f, Inset.b * 0.45f, 0.68f), 0.0f);
+		Amount = clamp(Amount, 0.0f, 1.0f);
+		if(Amount > 0.0f)
 		{
-			Graphics()->SetColor(1.0f, 1.0f, 0.0f, 1.0f);
-			Graphics()->QuadsSetSubsetFree(hpf, 0.5f, hpf + armorf, 0.5f, hpf, 1, hpf + armorf, 1);
-
-			IGraphics::CFreeformItem FreeFormItem(x + hpf * HpSize.x,
-												  y,
-												  x + (hpf + armorf) * HpSize.x,
-												  y,
-												  x + hpf * HpSize.x,
-												  y + HpSize.y,
-												  x + (hpf + armorf) * HpSize.x,
-												  y + HpSize.y);
-
-			Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
+			CUIRect Fill = Well;
+			Fill.w *= Amount;
+			Box(Fill, vec4(Color.r, Color.g, Color.b, 0.52f), 0.0f);
+			const float CoreInset = min(0.65f, Fill.h * 0.22f);
+			CUIRect EnergyCore = {Fill.x,
+				Fill.y + CoreInset,
+				Fill.w,
+				max(0.45f, Fill.h - CoreInset * 2.0f)};
+			Box(EnergyCore, vec4(Color.r, Color.g, Color.b, 0.92f), 0.0f);
+			CUIRect Highlight = {Fill.x + 0.35f,
+				Fill.y + 0.25f,
+				max(0.0f, Fill.w - 0.70f),
+				min(0.42f, max(0.25f, Fill.h * 0.16f))};
+			Box(Highlight, vec4(0.90f, 0.97f, 1.0f, 0.14f), 0.0f);
 		}
-		else
+		if(Rect.h >= 4.5f)
 		{
+			for(int Segment = 1; Segment < 4; ++Segment)
 			{
-				Graphics()->SetColor(0.9f, 0.9f, 0.0f, 1.0f);
-				Graphics()->QuadsSetSubsetFree(hpf, 0.5f, 1, 0.5f, hpf, 1, 1, 1);
-
-				IGraphics::CFreeformItem FreeFormItem(x + (hpf)*HpSize.x,
-													  y,
-													  x + 1 * HpSize.x,
-													  y,
-													  x + (hpf)*HpSize.x,
-													  y + HpSize.y,
-													  x + 1 * HpSize.x,
-													  y + HpSize.y);
-
-				Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
+				CUIRect Tick = {Rect.x + Rect.w * Segment * 0.25f,
+					Rect.y + 0.8f,
+					0.35f,
+					max(1.0f, Rect.h - 1.6f)};
+				Box(Tick, vec4(0.0f, 0.012f, 0.018f, 0.48f), 0.0f);
 			}
-
-			{
-				Graphics()->SetColor(0.0f, 0.7f, 0.0f, 1.0f);
-				Graphics()->QuadsSetSubsetFree(1 - armorf, 0.5f, hpf, 0.5f, 1 - armorf, 1, hpf, 1);
-
-				IGraphics::CFreeformItem FreeFormItem(x + (1 - armorf) * HpSize.x,
-													  y,
-													  x + hpf * HpSize.x,
-													  y,
-													  x + (1 - armorf) * HpSize.x,
-													  y + HpSize.y,
-													  x + hpf * HpSize.x,
-													  y + HpSize.y);
-
-				Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-			}
-
-			/*
-			Graphics()->SetColor(0.7f, 0.7f, 0.0f, 1.0f);
-			Graphics()->QuadsSetSubsetFree(	1-armorf, 0.5f,
-											1, 0.5f,
-											1-armorf, 1,
-											1, 1);
-
-			IGraphics::CFreeformItem FreeFormItem(
-				x+(1-armorf)*HpSize.x, y,
-				x+1*HpSize.x, y,
-				x+(1-armorf)*HpSize.x, y+HpSize.y,
-				x+1*HpSize.x, y+HpSize.y);
-
-			Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-			*/
 		}
-
-		/*
-		if (armorf > hpf)
-		{
-			Graphics()->QuadsSetSubsetFree(0, 0.5f, 1*armorf, 0.5f, 0, 1, 1*armorf, 1);
-
-			IGraphics::CFreeformItem FreeFormItem(
-				x, y,
-				x+armorf*HpSize.x, y,
-				x, y+HpSize.y,
-				x+armorf*HpSize.x, y+HpSize.y);
-
-			Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-		}
-		else
-		{
-			Graphics()->QuadsSetSubsetFree(	hpf-armorf, 0.5f,
-											hpf, 0.5f,
-											hpf-armorf, 1,
-											hpf, 1);
-
-			IGraphics::CFreeformItem FreeFormItem(
-				x+(hpf-armorf)*HpSize.x, y,
-				x+hpf*HpSize.x, y,
-				x+(hpf-armorf)*HpSize.x, y+HpSize.y,
-				x+hpf*HpSize.x, y+HpSize.y);
-
-			Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-		}
-		*/
-	}
-
-	{ // hp frame
-		Graphics()->SetColor(1, 1, 1, 1);
-		Graphics()->QuadsSetSubsetFree(0, 0, 1, 0, 0, 0.5f, 1, 0.5f); // nice way to pick a sprite
-
-		IGraphics::CFreeformItem FreeFormItem(x, y, x + HpSize.x, y, x, y + HpSize.y, x + HpSize.x, y + HpSize.y);
-
-		Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-	}
-
-	// render jetpack
+	};
+	auto RingSegment = [&](vec2 Center,
+		float InnerRadius,
+		float OuterRadius,
+		float StartAmount,
+		float EndAmount,
+		vec4 Color)
 	{
-		float Fuel = min(pCharacter->m_JetpackPower / 2, 100) / 100.0f;
-		y += 16;
-		// x += 4;
-
-		// fill
+		const int Segments = 64;
+		const float StartAngle = pi * 0.75f;
+		const float AngleSpan = pi * 1.5f;
+		StartAmount = clamp(StartAmount, 0.0f, 1.0f);
+		EndAmount = clamp(EndAmount, 0.0f, 1.0f);
+		if(EndAmount <= StartAmount)
+			return;
+		IGraphics::CFreeformItem aSegments[Segments];
+		int Count = 0;
+		for(int Segment = 0; Segment < Segments; ++Segment)
 		{
-			Graphics()->SetColor(0.5f, 0.8f, 1, 1);
-			Graphics()->QuadsSetSubsetFree(0, 0.5f, 1 * Fuel, 0.5f, 0, 1, 1 * Fuel, 1);
-
-			IGraphics::CFreeformItem FreeFormItem(
-				x, y, x + Fuel * FuelSize.x, y, x, y + FuelSize.y, x + Fuel * FuelSize.x, y + FuelSize.y);
-
-			Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
+			const float T0 = max(StartAmount, Segment / (float)Segments);
+			const float T1 = min(EndAmount, (Segment + 1) / (float)Segments);
+			if(T1 <= T0)
+				continue;
+			const float A0 = StartAngle + AngleSpan * T0;
+			const float A1 = StartAngle + AngleSpan * T1;
+			const vec2 Inner0 = Center + vec2(cosf(A0), sinf(A0)) * InnerRadius;
+			const vec2 Outer0 = Center + vec2(cosf(A0), sinf(A0)) * OuterRadius;
+			const vec2 Inner1 = Center + vec2(cosf(A1), sinf(A1)) * InnerRadius;
+			const vec2 Outer1 = Center + vec2(cosf(A1), sinf(A1)) * OuterRadius;
+			aSegments[Count++] = IGraphics::CFreeformItem(
+				Inner0.x, Inner0.y, Outer0.x, Outer0.y, Inner1.x, Inner1.y, Outer1.x, Outer1.y);
 		}
-
-		// frame
-		{
-			Graphics()->SetColor(1, 1, 1, 1);
-			Graphics()->QuadsSetSubsetFree(0, 0, 1, 0, 0, 0.5f, 1, 0.5f); // nice way to pick a sprite
-
-			IGraphics::CFreeformItem FreeFormItem(
-				x, y, x + FuelSize.x, y, x, y + FuelSize.y, x + FuelSize.x, y + FuelSize.y);
-
-			Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-		}
-		y -= 12;
-		// x -= 4;
-	}
-
-	Graphics()->QuadsEnd();
-
-	// new jetpack meter
-	x = -1;
-	y = -1;
-
-	// vec2 FrameSize = vec2(38, 38);
-	// int Fuel = pCharacter->m_JetpackPower/2;
-
-	// buff duration
-	x = -1;
-	y = -1;
-
-	// int BuffTime = 100 - (Client()->GameTick() - CustomStuff()->m_Local.m_BuffStartTick)*5.0f /
-	// Client()->GameTickSpeed();
-
-	// if (CustomStuff()->m_Local.m_Buff < 0)
-	//	BuffTime = -1;
-
-	/*
-	Graphics()->TextureSet(-1);
-	Graphics()->QuadsBegin();
-	Graphics()->SetColor(1, Fuel*0.01f, 0, 1);
-	DrawCircular(x+19, y+19, 12.5f, 64, 100-Fuel, 100);
-	*/
-
-	/*
-	if (BuffTime < 0)
-		DrawCircular(x+19, y+19, 12.5f, 64, 100-Fuel, 100, true);
-	else
-	{
-		Graphics()->SetColor(0.15f, 0.5f+BuffTime*0.005f, 0.3f, 1);
-		DrawCircular(x+19, y+19, 12.5f, 64, 100-BuffTime, 100, true);
-	}
-	*/
-
-	// Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUINUMBERS].m_Id);
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-
-	x += 80;
-	y += 4;
-
-	if(WeaponProfile.m_Combat.m_UsesAmmo)
-	{
-		int n1 = pCharacter->m_AmmoCount;
-		int n2 = 0;
-
-		while(n1 >= 10)
-		{
-			n1 -= 10;
-			n2++;
-		}
-
+		Graphics()->TextureClear();
 		Graphics()->QuadsBegin();
-		Graphics()->SetColor(0.9f, 0.9f, 0.9f, 1);
-		RenderTools()->SelectSprite(SPRITE_GUINUMBER_0 + n2);
-		RenderTools()->DrawSprite(x, y + 24, 20);
-		RenderTools()->SelectSprite(SPRITE_GUINUMBER_0 + n1);
-		RenderTools()->DrawSprite(x + 10, y + 24, 20);
+		Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+		Graphics()->QuadsDrawFreeform(aSegments, Count);
 		Graphics()->QuadsEnd();
-	}
-	else
-	{
-		Graphics()->QuadsBegin();
-		Graphics()->SetColor(0.9f, 0.9f, 0.9f, 1);
-		RenderTools()->SelectSprite(SPRITE_GUINUMBER_LINE);
-		RenderTools()->DrawSprite(x + 5, y + 24, 20);
-		Graphics()->QuadsEnd();
-	}
-
-	// Graphics()->QuadsEnd();
-
-	// frame
-	/*
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_FUEL].m_Id);
-	Graphics()->QuadsBegin();
-	{
-		Graphics()->SetColor(1, 1, 1, 1);
-		Graphics()->QuadsSetSubsetFree(0, 0, 1, 0, 0, 1, 1, 1);
-
-		IGraphics::CFreeformItem FreeFormItem(
-			x, y,
-			x+FrameSize.x, y,
-			x, y+FrameSize.y,
-			x+FrameSize.x, y+FrameSize.y);
-
-		Graphics()->QuadsDrawFreeform(&FreeFormItem, 1);
-	}
-	Graphics()->QuadsEnd();
-	*/
-
-	/*
-
-	if (BuffTime > 0)
-	{
-		x = Area1Pos.x+18.5f; // 16
-		y = Area1Pos.y+18.5f;
-
-		// buff
-		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_ITEMS].m_Id);
-		Graphics()->QuadsBegin();
-
-		Graphics()->SetColor(1, 1, 1, 1);
-
-		RenderTools()->SelectSprite(SPRITE_ITEM1+CustomStuff()->m_Local.m_Buff);
-		RenderTools()->DrawSprite(x, y, 18);
-
-		Graphics()->QuadsEnd();
-	}
-	*/
-
-	x = Area2Pos.x; // 16
-	y = Area2Pos.y;
-
-	x += 14;
-	// y += 6;
-
-	y += 24;
-
-	// weapons
-	float Size = 0.2f;
-	// int iw = pCharacter->m_Weapon;
+	};
 
 	if(m_pClient->m_pControls->m_SignalWeapon >= 0)
 	{
@@ -1445,117 +1383,176 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 		m_pClient->m_pControls->m_SignalWeapon = -1;
 	}
 
-	// weapons 1 - 4
+	const float X = 6.0f;
+	const float Y = HudLayout::BottomStatusTop(m_Height);
+	const float CoreY = HudLayout::VitalCoreTop(m_Height);
+	const int Health = max(0, pCharacter->m_Health);
+	const int Armor = max(0, pCharacter->m_Armor);
+	const int Fuel = clamp(pCharacter->m_JetpackPower / 2, 0, 100);
+	const vec4 HealthColor =
+		Health <= 25 ? Danger : vec4(0.92f, 0.22f, 0.18f, 1.0f);
+	const float HealthAmount = clamp(Health / 100.0f, 0.0f, 1.0f);
+	const float ArmorAmount = clamp(Armor / 100.0f, 0.0f, 1.0f);
+	const float CombinedAmount = HudLayout::VitalCombinedAmount(HealthAmount, ArmorAmount);
+	const float HealthOnlyEnd = HudLayout::VitalHealthOnlyEnd(HealthAmount, ArmorAmount);
+	const float DangerAmount = HudLayout::LowHealthAmount(Health);
+	const float DangerPulse = 0.5f + 0.5f * sinf((float)Client()->LocalTime() * 6.0f);
+	const vec4 CoreEdge(AccentDim.r + (Danger.r - AccentDim.r) * DangerAmount,
+		AccentDim.g + (Danger.g - AccentDim.g) * DangerAmount,
+		AccentDim.b + (Danger.b - AccentDim.b) * DangerAmount,
+		1.0f);
 
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-
-	x += 60 * Size;
-	y += 18;
-
-	for(int i = 0; i < 4; i++)
+	CUIRect VitalPanel = {X + 25.0f, CoreY + 2.0f, 151.0f, 46.0f};
+	SmokedGlass(VitalPanel, CoreEdge, false, 5.0f);
+	const vec2 CoreCenter(X + 27.0f, CoreY + 25.0f);
+	CUIRect CoreGlow = {CoreCenter.x - 24.0f, CoreCenter.y - 24.0f, 48.0f, 48.0f};
+	Box(CoreGlow,
+		vec4(CoreEdge.r, CoreEdge.g, CoreEdge.b, DangerAmount * (0.08f + DangerPulse * 0.10f)),
+		24.0f);
+	CUIRect CoreMetal = {CoreCenter.x - 19.0f, CoreCenter.y - 19.0f, 38.0f, 38.0f};
+	Box(CoreMetal, vec4(0.075f, 0.095f, 0.105f, 0.98f), 19.0f);
+	CUIRect CoreDisc = {CoreCenter.x - 15.5f, CoreCenter.y - 15.5f, 31.0f, 31.0f};
+	Box(CoreDisc, vec4(Deep.r * 0.72f, Deep.g * 0.72f, Deep.b * 0.72f, 0.98f), 15.5f);
+	RingSegment(CoreCenter,
+		18.2f,
+		22.0f,
+		0.0f,
+		1.0f,
+		vec4(0.16f, 0.19f, 0.20f, 0.98f));
+	const float EnergyRingInnerRadius = 18.7f;
+	const float EnergyRingOuterRadius = 21.5f;
+	RingSegment(CoreCenter,
+		EnergyRingInnerRadius,
+		EnergyRingOuterRadius,
+		0.0f,
+		HealthOnlyEnd,
+		vec4(HealthColor.r, HealthColor.g, HealthColor.b, 0.92f + DangerAmount * DangerPulse * 0.08f));
+	RingSegment(CoreCenter,
+		EnergyRingInnerRadius,
+		EnergyRingOuterRadius,
+		HealthOnlyEnd,
+		HealthAmount,
+		vec4(OverlapColor.r, OverlapColor.g, OverlapColor.b, 0.94f));
+	RingSegment(CoreCenter,
+		EnergyRingInnerRadius,
+		EnergyRingOuterRadius,
+		HealthAmount,
+		CombinedAmount,
+		vec4(ArmorColor.r, ArmorColor.g, ArmorColor.b, 0.94f));
+	IGraphics::CLineItem aCoreTicks[13];
+	for(int Tick = 0; Tick < 13; ++Tick)
 	{
-		const CWeaponSpec &Weapon = CustomStuff()->m_aSnapWeapon[i];
+		const float Angle = pi * 0.75f + pi * 1.5f * Tick / 12.0f;
+		const vec2 Direction(cosf(Angle), sinf(Angle));
+		const vec2 TickStart = CoreCenter + Direction * 22.7f;
+		const vec2 TickEnd = CoreCenter + Direction * (Tick % 3 == 0 ? 25.0f : 24.1f);
+		aCoreTicks[Tick] = IGraphics::CLineItem(TickStart.x, TickStart.y, TickEnd.x, TickEnd.y);
+	}
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(CoreEdge.r, CoreEdge.g, CoreEdge.b, 0.22f + DangerAmount * DangerPulse * 0.24f);
+	Graphics()->LinesDraw(aCoreTicks, 13);
+	Graphics()->LinesEnd();
 
-		// order num.
+	char aBuf[64];
+	str_format(aBuf, sizeof(aBuf), "%d", Health);
+	Label({CoreCenter.x - 15.0f, CoreCenter.y - 7.0f, 30.0f, 14.0f}, aBuf, 11.5f, 0, Text);
 
+	const float DataX = X + 59.0f;
+	const float DataW = 111.0f;
+	Label({DataX, CoreY + 4.0f, 56.0f, 5.0f}, Localize("Health"), 4.1f, -1, HealthColor);
+	Label({DataX + 60.0f, CoreY + 4.0f, DataW - 60.0f, 5.0f}, "/ 100", 3.8f, 1, Muted);
+	Bar({DataX, CoreY + 10.0f, DataW, 5.0f}, HealthAmount, HealthColor);
+
+	Label({DataX, CoreY + 17.0f, 58.0f, 5.0f}, Localize("Armor"), 3.9f, -1, Armor > 0 ? ArmorColor : Muted);
+	str_format(aBuf, sizeof(aBuf), "%d", Armor);
+	Label({DataX + 62.0f, CoreY + 17.0f, DataW - 62.0f, 5.0f}, aBuf, 4.0f, 1, Armor > 0 ? ArmorColor : Muted);
+	Bar({DataX, CoreY + 23.0f, DataW, 3.0f}, ArmorAmount, ArmorColor);
+
+	Label({DataX, CoreY + 28.0f, 58.0f, 5.0f}, Localize("Fuel"), 3.9f, -1, Fuel <= 20 ? ArmorColor : Muted);
+	str_format(aBuf, sizeof(aBuf), "%d%%", Fuel);
+	Label({DataX + 62.0f, CoreY + 28.0f, DataW - 62.0f, 5.0f}, aBuf, 4.0f, 1, Fuel <= 20 ? ArmorColor : Accent);
+	Bar({DataX, CoreY + 34.0f, DataW, 3.0f}, Fuel / 100.0f, Fuel <= 20 ? ArmorColor : Accent);
+
+	CUIRect KitsCard = {DataX, CoreY + 39.0f, DataW, 7.0f};
+	TechShape(KitsCard, vec4(Deep.r, Deep.g, Deep.b, 0.88f), 1.4f);
+	Label({KitsCard.x + 3.0f, KitsCard.y, 58.0f, KitsCard.h}, Localize("Kits"), 3.7f, -1, Muted);
+	str_format(aBuf, sizeof(aBuf), "%d", clamp(CustomStuff()->m_LocalKits, 0, 99));
+	Label({KitsCard.x + 64.0f, KitsCard.y, KitsCard.w - 67.0f, KitsCard.h}, aBuf, 4.4f, 1, ArmorColor);
+
+	CUIRect WeaponCard = {m_Width - 100.0f, Y, 94.0f, 34.0f};
+	SmokedGlass(WeaponCard, Accent, HasActiveProfile, 4.0f);
+	Label({WeaponCard.x + 50.0f, WeaponCard.y + 3.0f, 39.0f, 8.0f}, Localize("Ammo"), 4.2f, 1, Muted);
+	if(HasActiveProfile && ActiveProfile.m_Combat.m_UsesAmmo)
+		str_format(aBuf, sizeof(aBuf), "%d", max(0, pCharacter->m_AmmoCount));
+	else
+		str_copy(aBuf, Localize("Infinite"), sizeof(aBuf));
+	Label({WeaponCard.x + 50.0f, WeaponCard.y + 12.0f, 39.0f, 14.0f}, aBuf, 7.0f, 1, Accent);
+	if(HasActiveWeapon)
+	{
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-		Graphics()->QuadsBegin();
-		Graphics()->SetColor(0.9f, 0.9f, 0.9f, 1);
-		RenderTools()->SelectSprite(SPRITE_GUINUMBER_1 + i);
-		if(i == CustomStuff()->m_WeaponSlot)
-			RenderTools()->DrawSprite(x - 20, y, 16);
-		else
-			RenderTools()->DrawSprite(x - 20, y, 12);
-		Graphics()->SetColor(1, 1, 1, 1);
-		Graphics()->QuadsEnd();
+		RenderTools()->SetShadersForWeapon(ActiveWeapon);
+		RenderTools()->RenderWeapon(ActiveWeapon,
+			vec2(WeaponCard.x + 27.0f, WeaponCard.y + 18.0f),
+			vec2(1, 0),
+			6.6f,
+			true,
+			0,
+			1.0f,
+			false,
+			false,
+			false,
+			1.0f);
+		Graphics()->ShaderEnd();
+	}
 
-		if(Weapon.IsValid())
+	const float SlotGap = 3.0f;
+	const float CombatBarW = 128.0f;
+	const float SlotW = (CombatBarW - SlotGap * 3.0f) / 4.0f;
+	const float SlotX = (m_Width - CombatBarW) * 0.5f;
+	const float SlotY = HudLayout::CombatBarTop(m_Height);
+	for(int Slot = 0; Slot < 4; ++Slot)
+	{
+		const bool Selected = Slot == CustomStuff()->m_WeaponSlot;
+		CUIRect Cell = {SlotX + Slot * (SlotW + SlotGap),
+			SlotY - (Selected ? 1.0f : 0.0f),
+			SlotW,
+			Selected ? 27.0f : 25.0f};
+		SmokedGlass(Cell, Selected ? Accent : AccentDim, Selected, 2.5f);
+		if(Selected)
+			TechShape({Cell.x + 4.0f, Cell.y + Cell.h - 2.0f, Cell.w - 8.0f, 2.0f}, Accent, 0.7f);
+		str_format(aBuf, sizeof(aBuf), "%d", Slot + 1);
+		Label({Cell.x + 3.0f, Cell.y + 2.0f, 7.0f, 7.0f}, aBuf, Selected ? 5.0f : 4.2f, -1, Selected ? Accent : Muted);
+
+		const CWeaponSpec &Weapon = CustomStuff()->m_aSnapWeapon[Slot];
+		if(!Weapon.IsValid())
 		{
-			// pickup icon
-			/*
-			if (CustomStuff()->m_WeaponpickTimer > 0.0f)
-			{
-				int pw = clamp(CustomStuff()->m_WeaponpickWeapon, 0, NUM_WEAPONS-1);
-				if (i == pw)
-				{
-					Graphics()->QuadsBegin();
-					float a = sin(CustomStuff()->m_WeaponpickTimer*pi)*sin(CustomStuff()->m_WeaponpickTimer*pi);
-
-					Graphics()->SetColor(1, 1, 1, a);
-
-					RenderTools()->SelectSprite(SPRITE_WEAPON_PICKUP);
-					RenderTools()->DrawSprite(x, y, 32);
-					Graphics()->QuadsEnd();
-				}
-			}
-			*/
-
-			// selected weapon / item
-			if(i == CustomStuff()->m_WeaponSlot)
-			{
-				Graphics()->ShaderBegin(SHADER_GRAYSCALE, 0.0f);
-				// RenderTools()->SelectSprite(SPRITE_WEAPON_SLOT);
-
-				// RenderTools()->RenderWeapon(w, vec2(x, y), vec2(1, 0), 24.0f);
-				RenderTools()->RenderWeapon(Weapon, vec2(x - 0.5f, y - 0.5f), vec2(1, 0), WEAPON_GAME_SIZE / 3, true);
-				RenderTools()->RenderWeapon(Weapon, vec2(x + 0.5f, y - 0.5f), vec2(1, 0), WEAPON_GAME_SIZE / 3, true);
-				RenderTools()->RenderWeapon(Weapon, vec2(x - 0.5f, y + 0.5f), vec2(1, 0), WEAPON_GAME_SIZE / 3, true);
-				RenderTools()->RenderWeapon(Weapon, vec2(x + 0.5f, y + 0.5f), vec2(1, 0), WEAPON_GAME_SIZE / 3, true);
-			}
-
-			RenderTools()->SetShadersForWeapon(Weapon);
-
-			// weapon
-			RenderTools()->RenderWeapon(Weapon, vec2(x, y), vec2(1, 0), WEAPON_GAME_SIZE / 3, true);
-
-			/*
-			if (i == CustomStuff()->m_WeaponSlot)
-				RenderTools()->DrawSprite(x, y, g_pData->m_Weapons.m_aId[w].m_VisualSize * Size * 1.7f);
-			else
-				RenderTools()->DrawSprite(x, y, g_pData->m_Weapons.m_aId[w].m_VisualSize * Size);
-			*/
+			Label({Cell.x + 8.0f, Cell.y + 7.0f, Cell.w - 12.0f, 11.0f}, "--", 5.0f, 0, Muted);
+			continue;
 		}
 
-		// x += 140*Size;
-		y += 14;
+		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
+		RenderTools()->SetShadersForWeapon(Weapon);
+		RenderTools()->RenderWeapon(Weapon,
+			vec2(Cell.x + Cell.w * 0.53f, Cell.y + 11.5f),
+			vec2(1, 0),
+			Selected ? 4.9f : 4.7f,
+			true,
+			0,
+			1.0f,
+			false,
+			false,
+			false,
+			1.0f);
+		Graphics()->ShaderEnd();
+
+		CResolvedWeaponProfile SlotProfile{};
+		if(CWeaponCatalog::TryResolve(Weapon, &SlotProfile) && SlotProfile.m_Combat.m_UsesAmmo)
+			str_format(aBuf, sizeof(aBuf), "%d", max(0, CustomStuff()->m_aItemAmmo[Slot]));
+		else
+			str_copy(aBuf, "--", sizeof(aBuf));
+		Label({Cell.x + Cell.w - 15.0f, Cell.y + Cell.h - 8.0f, 12.0f, 6.0f}, aBuf, 3.8f, 1, Selected ? Text : Muted);
 	}
-
-	Graphics()->ShaderEnd();
-
-	x = 110;
-	y = 27;
-
-	// kits & building
-
-	int LocalKits = clamp(CustomStuff()->m_LocalKits, 0, 99);
-
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-	Graphics()->QuadsBegin();
-
-	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 0.5f);
-	RenderTools()->SelectSprite(SPRITE_PICKUP_KIT);
-	RenderTools()->DrawSprite(x, y, 26);
-
-	float KitSize = 18.0f;
-
-	Graphics()->SetColor(0.9f, 0.9f, 0.9f, 1.0f);
-	if(LocalKits < 10)
-	{
-		RenderTools()->SelectSprite(SPRITE_GUINUMBER_0 + LocalKits);
-		RenderTools()->DrawSprite(x, y, KitSize);
-	}
-	else
-	{
-		int Kits1 = (LocalKits - (LocalKits % 10)) / 10;
-		int Kits2 = LocalKits % 10;
-
-		RenderTools()->SelectSprite(SPRITE_GUINUMBER_0 + Kits1);
-		RenderTools()->DrawSprite(x - 4, y, KitSize - 2.0f);
-		RenderTools()->SelectSprite(SPRITE_GUINUMBER_0 + Kits2);
-		RenderTools()->DrawSprite(x + 4, y, KitSize - 2.0f);
-	}
-
-	Graphics()->QuadsEnd();
 }
 
 void CHud::RenderSpectatorHud()
@@ -1597,7 +1594,7 @@ float CHud::ScoreHudTop() const
 	// Compact two-row score HUD sits against the bottom safe area.
 	if(g_Config.m_ClShowhudScore && m_pClient->m_Snap.m_pGameInfoObj &&
 	   !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
-		return m_Height - BottomReservedHeight() - 39.0f;
+		return m_Height - BottomReservedHeight() - 39.0f - (g_Config.m_ClShowhudHealthAmmo ? 42.0f : 0.0f);
 	return m_Height - BottomReservedHeight();
 }
 
@@ -1729,11 +1726,17 @@ void CHud::OnRender()
 	{
 		if(m_pClient->m_Snap.m_pLocalCharacter &&
 		   !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
+		{
 			RenderHealthAndAmmo(m_pClient->m_Snap.m_pLocalCharacter);
+			RenderLowHealthVignette(m_pClient->m_Snap.m_pLocalCharacter);
+		}
 		else if(m_pClient->m_Snap.m_SpecInfo.m_Active)
 		{
 			if(m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW)
+			{
 				RenderHealthAndAmmo(&m_pClient->m_Snap.m_aCharacters[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID].m_Cur);
+				RenderLowHealthVignette(&m_pClient->m_Snap.m_aCharacters[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID].m_Cur);
+			}
 			RenderSpectatorHud();
 		}
 

@@ -17,6 +17,8 @@ enum RenderBuffers
 	NUM_RENDERBUFFERS
 };
 
+constexpr int LIGHT_RENDER_SCALE = 2;
+
 enum Shaders
 {
 	SHADER_PLAYER,
@@ -35,6 +37,9 @@ enum Shaders
 	SHADER_GRAYSCALE,
 	SHADER_MENU,
 	SHADER_LIGHT,
+	SHADER_LIGHT_POLAR,
+	SHADER_LIGHT_COMPOSITE,
+	SHADER_LOW_HEALTH,
 	NUM_SHADERS
 };
 
@@ -161,7 +166,13 @@ class IGraphics : public IInterface
 								  float ViewBRX,
 								  float ViewBRY,
 								  float TargetWidth,
-								  float TargetHeight) = 0;
+								  float TargetHeight,
+								  int ShadowTexture = -1,
+								  int ShadowRow = 0,
+								  int ShadowRows = 1,
+									  int ShadowSamples = 0,
+									  bool PolarShadow = false) = 0;
+	virtual void LightCompositeShaderBegin(float TargetWidth, float TargetHeight) = 0;
 	virtual void PlayerShaderBegin(float colorG,
 								   float colorB,
 								   float Charge = 0.0f,

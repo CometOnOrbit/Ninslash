@@ -21,6 +21,8 @@
 #include <generated/game_data.h>
 
 #include "chat.h"
+#include "hud_layout.h"
+#include "inventory.h"
 
 CChat::CChat()
 {
@@ -523,10 +525,13 @@ void CChat::OnRender()
 		--m_PendingChatCounter;
 	}
 
+	if(m_pClient->m_pInventory->IsVisible())
+		return;
+
 	float Width = 300.0f * Graphics()->ScreenAspect();
 	Graphics()->MapScreen(0.0f, 0.0f, Width, 300.0f);
 	float x = 5.0f;
-	float y = 300.0f - 20.0f;
+	float y = HudLayout::ChatInputTop(300.0f);
 	if(m_Mode != MODE_NONE)
 	{
 		// render chat input

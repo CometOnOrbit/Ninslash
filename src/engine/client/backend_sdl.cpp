@@ -194,7 +194,10 @@ void CCommandProcessorFragment_OpenGL::SetState(const CCommandBuffer::SState &St
 	// clip
 	if(State.m_ClipEnable)
 	{
-		glScissor(State.m_ClipX, State.m_ClipY, State.m_ClipW, State.m_ClipH);
+		const bool LightTarget = State.m_RenderTarget == CCommandBuffer::RENDERTARGET_TEXTURE &&
+			State.m_RenderBuffer == RENDERBUFFER_LIGHT;
+		const int Scale = LightTarget ? LIGHT_RENDER_SCALE : 1;
+		glScissor(State.m_ClipX / Scale, State.m_ClipY / Scale, State.m_ClipW / Scale, State.m_ClipH / Scale);
 		glEnable(GL_SCISSOR_TEST);
 	}
 	else
@@ -206,10 +209,12 @@ void CCommandProcessorFragment_OpenGL::SetState(const CCommandBuffer::SState &St
 		if(State.m_RenderTarget == CCommandBuffer::RENDERTARGET_SCREEN)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glViewport(0, 0, m_ScreenWidth, m_ScreenHeight);
 		}
 		if(State.m_RenderTarget == CCommandBuffer::RENDERTARGET_TEXTURE)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, textureBuffer[State.m_RenderBuffer]);
+			glViewport(0, 0, m_aRenderBufferWidth[State.m_RenderBuffer], m_aRenderBufferHeight[State.m_RenderBuffer]);
 		}
 	}
 	else
@@ -271,9 +276,9 @@ void CCommandProcessorFragment_OpenGL::Cmd_Init(const SCommand_Init *pCommand)
 	m_CameraX = 0;
 	m_CameraY = 0;
 	m_ShadersLoaded = false;
-	m_AmbientR = 0.27f;
-	m_AmbientG = 0.27f;
-	m_AmbientB = 0.32f;
+	m_AmbientR = 0.18f;
+	m_AmbientG = 0.18f;
+	m_AmbientB = 0.22f;
 }
 
 void CCommandProcessorFragment_OpenGL::Cmd_SetViewport(const CCommandBuffer::SCommand_SetViewport *pCommand)
@@ -428,6 +433,8 @@ void CCommandProcessorFragment_OpenGL::DestroyTextureBuffers()
 			glDeleteTextures(1, &renderedTexture[i]);
 		textureBuffer[i] = 0;
 		renderedTexture[i] = 0;
+		m_aRenderBufferWidth[i] = 0;
+		m_aRenderBufferHeight[i] = 0;
 	}
 	if(m_PixelTexture)
 	{
@@ -467,6 +474,10 @@ void CCommandProcessorFragment_OpenGL::Cmd_CreateTextureBuffer(
 	// create texture buffers
 	for(int i = 0; i < NUM_RENDERBUFFERS - 1; i++)
 	{
+		const int BufferWidth = i == RENDERBUFFER_LIGHT ? max(1, Width / LIGHT_RENDER_SCALE) : Width;
+		const int BufferHeight = i == RENDERBUFFER_LIGHT ? max(1, Height / LIGHT_RENDER_SCALE) : Height;
+		m_aRenderBufferWidth[i] = BufferWidth;
+		m_aRenderBufferHeight[i] = BufferHeight;
 		textureBuffer[i] = 0;
 		glGenFramebuffers(1, &textureBuffer[i]);
 		glBindFramebuffer(GL_FRAMEBUFFER, textureBuffer[i]);
@@ -475,7 +486,7 @@ void CCommandProcessorFragment_OpenGL::Cmd_CreateTextureBuffer(
 		glGenTextures(1, &renderedTexture[i]);
 		glBindTexture(GL_TEXTURE_2D, renderedTexture[i]);
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Width, Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, BufferWidth, BufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -495,6 +506,8 @@ void CCommandProcessorFragment_OpenGL::Cmd_CreateTextureBuffer(
 	// menu buffer, smaller one
 	int i = NUM_RENDERBUFFERS - 1;
 	{
+		m_aRenderBufferWidth[i] = max(1, Width / 4);
+		m_aRenderBufferHeight[i] = max(1, Height / 4);
 		textureBuffer[i] = 0;
 		glGenFramebuffers(1, &textureBuffer[i]);
 		glBindFramebuffer(GL_FRAMEBUFFER, textureBuffer[i]);
@@ -503,7 +516,7 @@ void CCommandProcessorFragment_OpenGL::Cmd_CreateTextureBuffer(
 		glGenTextures(1, &renderedTexture[i]);
 		glBindTexture(GL_TEXTURE_2D, renderedTexture[i]);
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Width / 4, Height / 4, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_aRenderBufferWidth[i], m_aRenderBufferHeight[i], 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -563,6 +576,9 @@ void CCommandProcessorFragment_OpenGL::Cmd_LoadShaders(const CCommandBuffer::SCo
 	m_aShader[SHADER_GRAYSCALE] = LoadShader("data/shaders/basic.vert", "data/shaders/grayscale.frag");
 	m_aShader[SHADER_MENU] = LoadShader("data/shaders/basic.vert", "data/shaders/menu.frag");
 	m_aShader[SHADER_LIGHT] = LoadShader("data/shaders/basic.vert", "data/shaders/light.frag");
+	m_aShader[SHADER_LIGHT_POLAR] = LoadShader("data/shaders/basic.vert", "data/shaders/light_polar.frag");
+	m_aShader[SHADER_LIGHT_COMPOSITE] = LoadShader("data/shaders/basic.vert", "data/shaders/light_composite.frag");
+	m_aShader[SHADER_LOW_HEALTH] = LoadShader("data/shaders/basic.vert", "data/shaders/low_health.frag");
 	for(int i = 0; i < NUM_SHADERS; i++)
 		if(!m_aShader[i].Handle())
 		{
@@ -699,6 +715,35 @@ void CCommandProcessorFragment_OpenGL::Cmd_ShaderBegin(const CCommandBuffer::SCo
 			glUniform1iARB(location, -1);
 	}
 
+	location = pShader->getUniformLocation("shadowmap");
+	if(location >= 0)
+	{
+		if(pCommand->m_ShadowTexture >= 0 && pCommand->m_ShadowTexture < CCommandBuffer::MAX_TEXTURES)
+		{
+			glActiveTextureARB(GL_TEXTURE2);
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, m_aTextures[pCommand->m_ShadowTexture].m_Tex);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glUniform1iARB(location, 2);
+			glActiveTextureARB(GL_TEXTURE0);
+		}
+		else
+			glUniform1iARB(location, -1);
+	}
+
+	location = pShader->getUniformLocation("shadowrow");
+	if(location >= 0)
+		glUniform1fARB(location, GLfloat(pCommand->m_ShadowRow));
+
+	location = pShader->getUniformLocation("shadowrows");
+	if(location >= 0)
+		glUniform1fARB(location, GLfloat(pCommand->m_ShadowRows));
+
+	location = pShader->getUniformLocation("shadowsamples");
+	if(location >= 0)
+		glUniform1fARB(location, GLfloat(pCommand->m_ShadowSamples));
+
 	location = pShader->getUniformLocation("viewtl");
 	if(location >= 0)
 	{
@@ -729,6 +774,9 @@ void CCommandProcessorFragment_OpenGL::Cmd_ShaderEnd(const CCommandBuffer::SComm
 	// unit. Always restore that unit, including when shader loading failed.
 	if(glActiveTextureARB)
 	{
+		glActiveTextureARB(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glDisable(GL_TEXTURE_2D);
 		glActiveTextureARB(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glDisable(GL_TEXTURE_2D);
@@ -856,6 +904,8 @@ CCommandProcessorFragment_OpenGL::CCommandProcessorFragment_OpenGL()
 	mem_zero(renderedTexture, sizeof(renderedTexture));
 	m_pTextureMemoryUsage = 0;
 	m_PixelTexture = 0;
+	mem_zero(m_aRenderBufferWidth, sizeof(m_aRenderBufferWidth));
+	mem_zero(m_aRenderBufferHeight, sizeof(m_aRenderBufferHeight));
 }
 
 bool CCommandProcessorFragment_OpenGL::RunCommand(const CCommandBuffer::SCommand *pBaseCommand)

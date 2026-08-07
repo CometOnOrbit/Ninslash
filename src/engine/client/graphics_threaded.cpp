@@ -561,10 +561,15 @@ void CGraphics_Threaded::LightShaderBegin(
 	float ViewBRX,
 	float ViewBRY,
 	float TargetWidth,
-	float TargetHeight)
+	float TargetHeight,
+	int ShadowTexture,
+	int ShadowRow,
+	int ShadowRows,
+	int ShadowSamples,
+	bool PolarShadow)
 {
 	CCommandBuffer::SCommand_ShaderBegin Cmd;
-	Cmd.m_Shader = SHADER_LIGHT;
+	Cmd.m_Shader = PolarShadow ? SHADER_LIGHT_POLAR : SHADER_LIGHT;
 	Cmd.m_Intensity = 1.0f;
 	Cmd.m_ExtraTexture = CollisionTexture;
 	Cmd.m_LightCenterX = LightCenterX;
@@ -576,6 +581,21 @@ void CGraphics_Threaded::LightShaderBegin(
 	Cmd.m_ViewTLY = ViewTLY;
 	Cmd.m_ViewBRX = ViewBRX;
 	Cmd.m_ViewBRY = ViewBRY;
+	Cmd.m_TargetWidth = TargetWidth;
+	Cmd.m_TargetHeight = TargetHeight;
+	Cmd.m_ShadowTexture = ShadowTexture;
+	Cmd.m_ShadowRow = ShadowRow;
+	Cmd.m_ShadowRows = ShadowRows;
+	Cmd.m_ShadowSamples = ShadowSamples;
+	Cmd.m_PolarShadow = PolarShadow;
+	m_pCommandBuffer->AddCommand(Cmd);
+}
+
+void CGraphics_Threaded::LightCompositeShaderBegin(float TargetWidth, float TargetHeight)
+{
+	CCommandBuffer::SCommand_ShaderBegin Cmd;
+	Cmd.m_Shader = SHADER_LIGHT_COMPOSITE;
+	Cmd.m_Intensity = 1.0f;
 	Cmd.m_TargetWidth = TargetWidth;
 	Cmd.m_TargetHeight = TargetHeight;
 	m_pCommandBuffer->AddCommand(Cmd);

@@ -1,5 +1,6 @@
 #ifndef GAME_CLIENT_COMPONENTS_LIGHT_H
 #define GAME_CLIENT_COMPONENTS_LIGHT_H
+#include <array>
 #include <base/vmath.h>
 #include <game/client/component.h>
 
@@ -39,7 +40,7 @@ class CLight : public CComponent
 	CLight();
 
 	void AddSimpleLight(vec2 Pos, vec4 Color, vec2 Size, bool CastShadow = true, bool Force = false);
-	void AddBoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot = 0.0f);
+	void AddBoxLight(vec2 Pos, vec4 Color, vec2 Size, float Rot = 0.0f, bool CastShadow = true);
 
 	virtual void OnReset();
 	virtual void OnMapLoad();
@@ -54,16 +55,36 @@ class CLight : public CComponent
 	enum
 	{
 		MAX_LIGHTSOURCES = 1024 * 2,
+		POLAR_SHADOW_SAMPLES = 512,
+		POLAR_SHADOW_ROWS = 17,
+	};
+	struct SPolarShadowCache
+	{
+		int m_SourceIndex;
+		vec2 m_Pos;
+		float m_Radius;
+		int m_LastUpdateFrame;
+		bool m_Valid;
 	};
 
 	int m_LightCount;
 	bool m_ForceLights;
 	SLightSource m_aLights[MAX_LIGHTSOURCES];
+	int m_ShadowAtlasTexture = -1;
+	int m_ShadowFrame = 0;
+	int m_ShadowUpdateBudget = 0;
+	SPolarShadowCache m_aPolarShadowCache[POLAR_SHADOW_ROWS];
+	std::array<unsigned char, POLAR_SHADOW_SAMPLES * POLAR_SHADOW_ROWS * 4> m_aShadowAtlas{};
 
 	void RenderLight(vec2 Pos, vec2 Size, vec4 Color);
 	void RenderLight(ivec2 Pos);
 	void RenderLight(vec2 Pos1, vec2 Pos2, vec2 Pos3, vec2 Pos4, vec4 Color);
 	void RenderCpuVisibility(const SLightSource &Source, float Radius);
+	float VisibleDistance(vec2 Center, vec2 End) const;
+	void EnsurePolarShadowAtlas();
+	void UpdatePolarShadow(int Row, int SourceIndex, const SLightSource &Source, float Radius);
+	int AcquirePolarShadowRow(int SourceIndex);
+	bool PolarShadowNeedsUpdate(int Row, int SourceIndex, vec2 Pos, float Radius) const;
 
 	int m_FirstFree;
 	int m_aFirstPart[NUM_GROUPS];

@@ -125,7 +125,7 @@ float RayVisibility(vec2 Origin, vec2 Target)
 
 void main()
 {
-	vec4 Light = texture2D(texture, gl_TexCoord[0].xy);
+	vec4 Light = texture2D(texture, gl_TexCoord[0].xy) * gl_Color;
 	if(Light.a <= 0.0 || lightradius <= 0.0 || targetsize.x <= 0.0 || targetsize.y <= 0.0)
 	{
 		gl_FragColor = Light;

@@ -499,7 +499,7 @@ MACRO_CONFIG_INT(SvRobots, sv_robots, 0, 0, 1, CFGFLAG_SERVER, "Robot bot skins"
 MACRO_CONFIG_INT(SvStartGold, sv_startgold, 0, 0, 999, CFGFLAG_SERVER, "Starting gold")
 MACRO_CONFIG_INT(SvForgeMode,
 				 sv_forge_mode,
-				 0,
+				 1,
 				 0,
 				 2,
 				 CFGFLAG_SERVER,
