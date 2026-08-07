@@ -154,14 +154,17 @@ class CCommandProcessorFragment_OpenGL
 	static unsigned char
 	Sample(int w, int h, const unsigned char *pData, int u, int v, int Offset, int ScaleW, int ScaleH, int Bpp);
 	static void *Rescale(int Width, int Height, int NewWidth, int NewHeight, int Format, const unsigned char *pData);
+	void DestroyTextureBuffers();
 
 	void SetState(const CCommandBuffer::SState &State);
 
 	void Cmd_Init(const SCommand_Init *pCommand);
+	void Cmd_SetViewport(const CCommandBuffer::SCommand_SetViewport *pCommand);
 	void Cmd_Texture_Update(const CCommandBuffer::SCommand_Texture_Update *pCommand);
 	void Cmd_Texture_Destroy(const CCommandBuffer::SCommand_Texture_Destroy *pCommand);
 	void Cmd_Texture_Create(const CCommandBuffer::SCommand_Texture_Create *pCommand);
 	void Cmd_CreateTextureBuffer(const CCommandBuffer::SCommand_CreateTextureBuffer *pCommand);
+	void Cmd_DestroyTextureBuffer(const CCommandBuffer::SCommand_DestroyTextureBuffer *pCommand);
 	void Cmd_LoadShaders(const CCommandBuffer::SCommand_LoadShaders *pCommand);
 	void Cmd_ShaderBegin(const CCommandBuffer::SCommand_ShaderBegin *pCommand);
 	void Cmd_ShaderEnd(const CCommandBuffer::SCommand_ShaderEnd *pCommand);
@@ -198,6 +201,7 @@ class CCommandProcessorFragment_SDL
 		SCommand_Init() : SCommand(CMD_INIT) {}
 		SDL_GLContext m_GLContext;
 		SDL_Window *m_pWindow;
+		bool m_VSync;
 	};
 
 	struct SCommand_Shutdown : public CCommandBuffer::SCommand
@@ -209,6 +213,7 @@ class CCommandProcessorFragment_SDL
 	void Cmd_Init(const SCommand_Init *pCommand);
 	void Cmd_Shutdown(const SCommand_Shutdown *pCommand);
 	void Cmd_Swap(const CCommandBuffer::SCommand_Swap *pCommand);
+	void Cmd_SetVSync(const CCommandBuffer::SCommand_SetVSync *pCommand);
 	void Cmd_VideoModes(const CCommandBuffer::SCommand_VideoModes *pCommand);
 
   public:
@@ -252,6 +257,7 @@ class CGraphicsBackend_SDL_OpenGL : public CGraphicsBackend_Threaded
 					 int *pDesktopWidth,
 					 int *pDesktopHeight);
 	virtual int Shutdown();
+	virtual bool ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless);
 
 	virtual int MemoryUsage() const;
 

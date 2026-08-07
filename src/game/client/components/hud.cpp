@@ -1714,6 +1714,9 @@ void CHud::RenderMovementInformation()
 
 void CHud::OnRender()
 {
+	if(m_pClient->m_pMenus->IsResearchPageActive())
+		return;
+
 	if(!m_pClient->m_Snap.m_pGameInfoObj)
 		return;
 

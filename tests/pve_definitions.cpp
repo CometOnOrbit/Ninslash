@@ -30,6 +30,9 @@ int main()
 	const CPveCardDef *pBlast = PveCardDef(PVE_CARD_BLAST_BATTERY);
 	const CPveCardDef *pVoltage = PveCardDef(PVE_CARD_VOLTAGE_BANK);
 	const CPveCardDef *pFury = PveCardDef(PVE_CARD_FURY_METER);
+	const CPveCardDef *pBossHunter = PveCardDef(PVE_CARD_BOSS_HUNTER);
+	const CPveCardDef *pKillChain = PveCardDef(PVE_CARD_KILL_CHAIN);
+	const CPveCardDef *pCoordinatedFirmware = PveCardDef(PVE_CARD_COORDINATED_FIRMWARE);
 	assert(std::strcmp(pCombatTraining->m_pName, "All Damage") == 0);
 	assert(std::strcmp(pCombatTraining->m_pShortDescription,
 					   "All damage is 8% higher for each stack, up to three stacks.") == 0);
@@ -45,6 +48,13 @@ int main()
 	assert(std::strcmp(pFury->m_pName, "Bonus Melee Damage") == 0);
 	assert(std::strcmp(pFury->m_pShortDescription,
 					   "Every 10 melee hits, the next hit deals 20% more damage per stack.") == 0);
+	if(pBossHunter->m_NumPrerequisites != 1 || pBossHunter->m_aPrerequisites[0] != PVE_CARD_FINISHER ||
+	   pKillChain->m_NumPrerequisites != 1 || pKillChain->m_aPrerequisites[0] != PVE_CARD_BOSS_HUNTER ||
+	   pCoordinatedFirmware->m_NumPrerequisites != 3 ||
+	   pCoordinatedFirmware->m_aPrerequisites[0] != PVE_CARD_ASSAULT_MODULE ||
+	   pCoordinatedFirmware->m_aPrerequisites[1] != PVE_CARD_GUARDIAN_MODULE ||
+	   pCoordinatedFirmware->m_aPrerequisites[2] != PVE_CARD_REPAIR_MODULE)
+		return 1;
 
 	assert(PveChoiceDescription(PVE_SUPPLY_ARMOR)[0]);
 	assert(PveChoiceDescription(PVE_SUPPLY_AMMO)[0]);

@@ -273,6 +273,67 @@ void CGameClient::EnsureDarkVisionRenderBuffers()
 	}
 }
 
+void CGameClient::RefreshTextureBuffers()
+{
+	if(m_TextureBuffersCreated)
+	{
+		Graphics()->DestroyTextureBuffer();
+		m_TextureBuffersCreated = false;
+	}
+
+	if(g_Config.m_GfxMultiBuffering)
+	{
+		Graphics()->CreateTextureBuffer(Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
+		m_TextureBuffersCreated = true;
+		Graphics()->ClearBufferTexture(LightingBrightness());
+	}
+}
+
+void CGameClient::ApplyMultiBuffering()
+{
+	RefreshTextureBuffers();
+}
+
+bool CGameClient::ApplyWindowSettings()
+{
+	IEngineGraphics *pEngineGraphics = Kernel()->RequestInterface<IEngineGraphics>();
+	if(!pEngineGraphics || !pEngineGraphics->ApplyWindowSettings(g_Config.m_GfxScreenWidth,
+		g_Config.m_GfxScreenHeight,
+		g_Config.m_GfxScreen,
+		g_Config.m_GfxFullscreen != 0,
+		g_Config.m_GfxBorderless != 0))
+		return false;
+
+	RefreshTextureBuffers();
+	return true;
+}
+
+bool CGameClient::ApplyVSync()
+{
+	IEngineGraphics *pEngineGraphics = Kernel()->RequestInterface<IEngineGraphics>();
+	return pEngineGraphics && pEngineGraphics->ApplyVSync(g_Config.m_GfxVsync != 0);
+}
+
+bool CGameClient::ApplyTextureSettings()
+{
+	return Graphics()->ReloadTextureSettings();
+}
+
+bool CGameClient::ApplySoundSettings()
+{
+	IEngineSound *pEngineSound = Kernel()->RequestInterface<IEngineSound>();
+	if(!pEngineSound)
+		return false;
+
+	Sound()->StopAll();
+	pEngineSound->Shutdown();
+	if(pEngineSound->Init() != 0)
+		return false;
+
+	m_pSounds->ApplySettings();
+	return true;
+}
+
 void CGameClient::UpdateLocalVisionStatus()
 {
 	m_LocalVisionOwner = m_Snap.m_LocalClientID;
@@ -1202,8 +1263,19 @@ void CGameClient::OnRender()
 	// Graphics()->ShaderBegin(SHADER_TEST);
 
 	// render all systems
+	const bool ResearchPageActive = m_pMenus->IsResearchPageActive();
 	for(int i = 0; i < m_All.m_Num; i++)
-		m_All.m_paComponents[i]->OnRender();
+	{
+		CComponent *pComponent = m_All.m_paComponents[i];
+		if(ResearchPageActive &&
+		   (pComponent == m_pRadar || pComponent == m_pInventory || pComponent == &gs_Hud ||
+			pComponent == &gs_WeaponPresentation || pComponent == m_pBuildPlacement ||
+			pComponent == &gs_Spectator || pComponent == &gs_Picker || pComponent == &gs_KillMessages ||
+			pComponent == m_pChat || pComponent == &gs_Broadcast || pComponent == &gs_DebugHud ||
+			pComponent == &gs_Scoreboard || pComponent == m_pMotd || pComponent == &gs_GameVoteDisplay))
+			continue;
+		pComponent->OnRender();
+	}
 
 	// This is intentionally after the world/light pass. The server-authoritative
 	// flash must cover both the map and local HUD-independent world rendering,

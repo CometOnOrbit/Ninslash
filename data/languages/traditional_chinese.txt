@@ -220,6 +220,9 @@ Back to Play
 Back to main menu
 == 回到主菜單
 
+Back
+== 返回
+
 Barrel
 == 油桶
 
@@ -1144,6 +1147,9 @@ Movement feedback strength
 Multi framebuffering (requires restart)
 == 多幀緩衝（需要重新啟動遊戲）
 
+Multi framebuffering
+== 多幀緩衝
+
 Multiplayer room practice
 == 多人房間練習
 
@@ -1504,8 +1510,29 @@ Requires:
 Research
 == 研究
 
+SELECT A BRANCH
+== 選擇分支
+
+SELECT A PERK
+== 選擇研究項
+
+HOVER TO PREVIEW
+== 懸停查看詳情
+
+HOVER OR CLICK FOR DETAILS
+== 懸停或點擊查看詳情
+
+CLICK TO INSPECT
+== 點擊查看詳情
+
+NEURAL CONSTELLATION
+== 神經星圖
+
 Research Details
 == 研究詳情
+
+ROOT
+== 根節點
 
 Research Progress
 == 研究進度
@@ -4086,7 +4113,7 @@ Weapon attacks recharge 8% faster for each stack, up to 30%.
 == 每層武器攻擊冷卻 -8%（最多 -30%）。
 
 Deal 20% more damage per stack to enemies below 30% health.
-== 對生命低於 30% 的敵人，每層造成 20% 更多傷害。
+== 對生命低於 30% 的敵人，每層傷害 +20%。
 
 Deal 25% more damage to bosses.
 == 對首領造成 25% 更多傷害。

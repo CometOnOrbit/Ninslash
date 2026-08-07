@@ -1739,6 +1739,7 @@ void CMenus::RenderCustomization(CUIRect MainView)
 		m_NeedSendinfo = true;
 	}
 	*/
+
 }
 
 void CMenus::SaveSkin()
@@ -2229,30 +2230,28 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 		s_LastScreen = g_Config.m_GfxScreen;
 	}
 
-	static int s_GfxScreenWidth = g_Config.m_GfxScreenWidth;
-	static int s_GfxScreenHeight = g_Config.m_GfxScreenHeight;
-	static int s_GfxColorDepth = g_Config.m_GfxColorDepth;
-	static int s_GfxBorderless = g_Config.m_GfxBorderless;
-	static int s_GfxFullscreen = g_Config.m_GfxFullscreen;
-	static int s_GfxVsync = g_Config.m_GfxVsync;
 	static int s_GfxFsaaSamples = g_Config.m_GfxFsaaSamples;
 	static int s_GfxTextureQuality = g_Config.m_GfxTextureQuality;
-	static int s_GfxTextureCompression = g_Config.m_GfxTextureCompression;
-	static int s_GfxThreaded = g_Config.m_GfxThreaded;
 
+	const bool Compact = MainView.w < 560.0f;
 	CUIRect ModeList;
-	MainView.VSplitLeft(300.0f, &MainView, &ModeList);
-	ModeList.VSplitLeft(10.0f, 0, &ModeList);
+	CUIRect CompactCanvas;
+	CUIRect CompactResolution;
+	static bool s_CompactResolutionOpen = false;
+	static int s_CompactResolutionButton = 0;
+	static float s_RecScroll = 0.0f;
+	static float s_OthScroll = 0.0f;
+	static int s_RecScrollId = 0;
+	static int s_OthScrollId = 0;
 
-	// resolution lists — Teeworlds style: Recommended / Other
-	{
+	const auto RenderResolutionPicker = [&](CUIRect Picker) {
 		CUIRect Header, HeaderLeft, HeaderRight, ListRec, ListOth, Footer;
-		ModeList.HSplitTop(20.0f, &Header, &ModeList);
+		Picker.HSplitTop(20.0f, &Header, &Picker);
 		DrawSectionHeader(&Header, CUI::CORNER_T);
 		UI()->DoLabel(&Header, Localize("Resolution"), min(Header.h * ms_FontmodHeight, 12.0f), 0);
 
-		ModeList.HSplitTop(4.0f, 0, &ModeList);
-		ModeList.HSplitTop(20.0f, &Header, &ModeList);
+		Picker.HSplitTop(4.0f, 0, &Picker);
+		Picker.HSplitTop(20.0f, &Header, &Picker);
 		Header.VSplitMid(&HeaderLeft, &HeaderRight);
 		HeaderRight.VSplitLeft(3.0f, 0, &HeaderRight);
 		DrawSectionHeader(&HeaderLeft, CUI::CORNER_T);
@@ -2260,54 +2259,115 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 		UI()->DoLabel(&HeaderLeft, Localize("Recommended"), min(HeaderLeft.h * ms_FontmodHeight, 11.0f), 0);
 		UI()->DoLabel(&HeaderRight, Localize("Other"), min(HeaderRight.h * ms_FontmodHeight, 11.0f), 0);
 
-		ModeList.HSplitBottom(20.0f, &ModeList, &Footer);
-		ModeList.HSplitBottom(4.0f, &ModeList, 0);
-		ModeList.VSplitMid(&ListRec, &ListOth);
+		Picker.HSplitBottom(20.0f, &Picker, &Footer);
+		Picker.HSplitBottom(4.0f, &Picker, 0);
+		Picker.VSplitMid(&ListRec, &ListOth);
 		ListOth.VSplitLeft(3.0f, 0, &ListOth);
 
-		static float s_RecScroll = 0.0f;
-		static float s_OthScroll = 0.0f;
-		static int s_RecScrollId = 0;
-		static int s_OthScrollId = 0;
-		CheckSettings |= DoResolutionList(&ListRec, &s_RecScrollId, &s_RecScroll, m_lRecommendedVideoModes);
-		CheckSettings |= DoResolutionList(&ListOth, &s_OthScrollId, &s_OthScroll, m_lOtherVideoModes);
+		const int OldWidth = g_Config.m_GfxScreenWidth;
+		const int OldHeight = g_Config.m_GfxScreenHeight;
+		const int OldColorDepth = g_Config.m_GfxColorDepth;
+		const bool RecommendedChanged = DoResolutionList(&ListRec, &s_RecScrollId, &s_RecScroll, m_lRecommendedVideoModes);
+		const bool OtherChanged = DoResolutionList(&ListOth, &s_OthScrollId, &s_OthScroll, m_lOtherVideoModes);
+		const bool ResolutionChanged = RecommendedChanged || OtherChanged;
+		if(ResolutionChanged)
+		{
+			if(!m_pClient->ApplyWindowSettings())
+			{
+				g_Config.m_GfxScreenWidth = OldWidth;
+				g_Config.m_GfxScreenHeight = OldHeight;
+				g_Config.m_GfxColorDepth = OldColorDepth;
+			}
+			else
+				CheckSettings = true;
+		}
 
 		DrawMenuInset(&Footer, CUI::CORNER_B);
-		const int G = gcd(s_GfxScreenWidth, s_GfxScreenHeight);
+		const int G = gcd(g_Config.m_GfxScreenWidth, g_Config.m_GfxScreenHeight);
 		str_format(aBuf,
 				   sizeof(aBuf),
 				   Localize("Current: %dx%d (%d:%d)"),
-				   s_GfxScreenWidth,
-				   s_GfxScreenHeight,
-				   s_GfxScreenWidth / G,
-				   s_GfxScreenHeight / G);
+				   g_Config.m_GfxScreenWidth,
+				   g_Config.m_GfxScreenHeight,
+				   g_Config.m_GfxScreenWidth / G,
+				   g_Config.m_GfxScreenHeight / G);
 		UI()->DoLabel(&Footer, aBuf, min(Footer.h * ms_FontmodHeight, 11.0f), 0);
+		return ResolutionChanged;
+	};
+
+	if(Compact)
+	{
+		CompactCanvas = MainView;
+		MainView.HSplitTop(30.0f, &CompactResolution, &MainView);
+		const int G = gcd(g_Config.m_GfxScreenWidth, g_Config.m_GfxScreenHeight);
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "%s  %dx%d (%d:%d)",
+				   Localize("Resolution"),
+				   g_Config.m_GfxScreenWidth,
+				   g_Config.m_GfxScreenHeight,
+				   g_Config.m_GfxScreenWidth / G,
+				   g_Config.m_GfxScreenHeight / G);
+		if(DoButton_Menu(&s_CompactResolutionButton,
+				 aBuf,
+				 s_CompactResolutionOpen,
+				 &CompactResolution,
+				 s_CompactResolutionOpen ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST))
+			s_CompactResolutionOpen = !s_CompactResolutionOpen;
+		MainView.HSplitTop(8.0f, 0, &MainView);
+	}
+	else
+	{
+		MainView.VSplitLeft(300.0f, &MainView, &ModeList);
+		ModeList.VSplitLeft(10.0f, 0, &ModeList);
+		RenderResolutionPicker(ModeList);
+		s_CompactResolutionOpen = false;
 	}
 
 	// switches
 	MainView.HSplitTop(20.0f, &Button, &MainView);
 	if(DoButton_CheckBox(&g_Config.m_GfxBorderless, Localize("Borderless window"), g_Config.m_GfxBorderless, &Button))
 	{
+		const int OldBorderless = g_Config.m_GfxBorderless;
+		const int OldFullscreen = g_Config.m_GfxFullscreen;
 		g_Config.m_GfxBorderless ^= 1;
 		if(g_Config.m_GfxBorderless && g_Config.m_GfxFullscreen)
 			g_Config.m_GfxFullscreen = 0;
-		CheckSettings = true;
+		if(!m_pClient->ApplyWindowSettings())
+		{
+			g_Config.m_GfxBorderless = OldBorderless;
+			g_Config.m_GfxFullscreen = OldFullscreen;
+		}
+		else
+			CheckSettings = true;
 	}
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
 	if(DoButton_CheckBox(&g_Config.m_GfxFullscreen, Localize("Fullscreen"), g_Config.m_GfxFullscreen, &Button))
 	{
+		const int OldBorderless = g_Config.m_GfxBorderless;
+		const int OldFullscreen = g_Config.m_GfxFullscreen;
 		g_Config.m_GfxFullscreen ^= 1;
 		if(g_Config.m_GfxFullscreen && g_Config.m_GfxBorderless)
 			g_Config.m_GfxBorderless = 0;
-		CheckSettings = true;
+		if(!m_pClient->ApplyWindowSettings())
+		{
+			g_Config.m_GfxBorderless = OldBorderless;
+			g_Config.m_GfxFullscreen = OldFullscreen;
+		}
+		else
+			CheckSettings = true;
 	}
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
 	if(DoButton_CheckBox(&g_Config.m_GfxVsync, Localize("V-Sync"), g_Config.m_GfxVsync, &Button))
 	{
+		const int OldVsync = g_Config.m_GfxVsync;
 		g_Config.m_GfxVsync ^= 1;
-		CheckSettings = true;
+		if(!m_pClient->ApplyVSync())
+			g_Config.m_GfxVsync = OldVsync;
+		else
+			CheckSettings = true;
 	}
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
@@ -2355,8 +2415,15 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 						 g_Config.m_GfxTextureCompression,
 						 &Button))
 	{
+		const int OldCompression = g_Config.m_GfxTextureCompression;
 		g_Config.m_GfxTextureCompression ^= 1;
-		CheckSettings = true;
+		if(!m_pClient->ApplyTextureSettings())
+		{
+			g_Config.m_GfxTextureCompression = OldCompression;
+			m_pClient->ApplyTextureSettings();
+		}
+		else
+			CheckSettings = true;
 	}
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
@@ -2366,7 +2433,7 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 	MainView.HSplitTop(20.0f, &Button, &MainView);
 	MainView.HSplitTop(20.0f, &Button, &MainView);
 	if(DoButton_CheckBox(&g_Config.m_GfxMultiBuffering,
-						 Localize("Multi framebuffering (requires restart)"),
+						 Localize("Multi framebuffering"),
 						 g_Config.m_GfxMultiBuffering,
 						 &Button))
 	{
@@ -2375,6 +2442,7 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 			g_Config.m_ClLighting = 0;
 		else
 			g_Config.m_ClLighting = 1;
+		m_pClient->ApplyMultiBuffering();
 	}
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
@@ -2384,16 +2452,8 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 
 	// check if the new settings require a restart
 	if(CheckSettings)
-	{
-		if(s_GfxScreenWidth == g_Config.m_GfxScreenWidth && s_GfxScreenHeight == g_Config.m_GfxScreenHeight &&
-		   s_GfxColorDepth == g_Config.m_GfxColorDepth && s_GfxBorderless == g_Config.m_GfxBorderless &&
-		   s_GfxFullscreen == g_Config.m_GfxFullscreen && s_GfxVsync == g_Config.m_GfxVsync &&
-		   s_GfxFsaaSamples == g_Config.m_GfxFsaaSamples && s_GfxTextureQuality == g_Config.m_GfxTextureQuality &&
-		   s_GfxTextureCompression == g_Config.m_GfxTextureCompression && s_GfxThreaded == g_Config.m_GfxThreaded)
-			m_NeedRestartGraphics = false;
-		else
-			m_NeedRestartGraphics = true;
-	}
+		m_NeedRestartGraphics = s_GfxFsaaSamples != g_Config.m_GfxFsaaSamples ||
+			s_GfxTextureQuality != g_Config.m_GfxTextureQuality;
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
 
@@ -2471,27 +2531,44 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 		UI()->DoLabelScaled(&Text, paLabels[s], 15.0f, -1);
 	}
 	*/
+
+	if(Compact && s_CompactResolutionOpen)
+	{
+		CUIRect Popup = CompactCanvas;
+		Popup.y += 36.0f;
+		Popup.h -= 36.0f;
+		Popup.Margin(4.0f, &Popup);
+		DrawMenuPanel(&Popup, CUI::CORNER_ALL);
+		Popup.Margin(6.0f, &Popup);
+		if(RenderResolutionPicker(Popup))
+			s_CompactResolutionOpen = false;
+	}
 }
 
 void CMenus::RenderSettingsSound(CUIRect MainView)
 {
 	CUIRect Button;
 	MainView.VSplitMid(&MainView, 0);
-	static int s_SndEnable = g_Config.m_SndEnable;
-	static int s_SndRate = g_Config.m_SndRate;
+	static int s_AppliedSndRate = g_Config.m_SndRate;
+	static bool s_SndRatePending = false;
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
 	if(DoButton_CheckBox(&g_Config.m_SndEnable, Localize("Use sounds"), g_Config.m_SndEnable, &Button))
 	{
+		const int OldEnable = g_Config.m_SndEnable;
 		g_Config.m_SndEnable ^= 1;
-		if(g_Config.m_SndEnable)
+		if(!m_pClient->ApplySoundSettings())
+		{
+			g_Config.m_SndEnable = OldEnable;
+			m_pClient->ApplySoundSettings();
+		}
+		else if(g_Config.m_SndEnable)
 		{
 			if(g_Config.m_SndMusic)
 				m_pClient->m_pSounds->Play(CSounds::CHN_MUSIC, SOUND_MENU, 1.0f);
 		}
 		else
 			m_pClient->m_pSounds->Stop(SOUND_MENU);
-		m_NeedRestartSound = g_Config.m_SndEnable && (!s_SndEnable || s_SndRate != g_Config.m_SndRate);
 	}
 
 	if(!g_Config.m_SndEnable)
@@ -2548,9 +2625,23 @@ void CMenus::RenderSettingsSound(CUIRect MainView)
 		UI()->DoLabelScaled(&Button, Localize("Sample rate"), 14.0f, -1);
 		Button.VSplitLeft(190.0f, 0, &Button);
 		static float Offset = 0.0f;
-		DoEditBox(&g_Config.m_SndRate, &Button, aBuf, sizeof(aBuf), 14.0f, &Offset);
+		const int OldRate = g_Config.m_SndRate;
+		const bool Edited = DoEditBox(&g_Config.m_SndRate, &Button, aBuf, sizeof(aBuf), 14.0f, &Offset) != 0;
 		g_Config.m_SndRate = max(1, str_toint(aBuf));
-		m_NeedRestartSound = !s_SndEnable || s_SndRate != g_Config.m_SndRate;
+		if(Edited && OldRate != g_Config.m_SndRate)
+			s_SndRatePending = true;
+		if(s_SndRatePending && !UI()->ActiveItem())
+		{
+			const int PendingRate = g_Config.m_SndRate;
+			if(!m_pClient->ApplySoundSettings())
+			{
+				g_Config.m_SndRate = s_AppliedSndRate;
+				m_pClient->ApplySoundSettings();
+			}
+			else
+				s_AppliedSndRate = PendingRate;
+			s_SndRatePending = false;
+		}
 	}
 
 	// volume slider
@@ -3450,15 +3541,21 @@ void CMenus::RenderSettingsCloud(CUIRect MainView)
 
 void CMenus::RenderSettings(CUIRect MainView)
 {
-	CUIRect TabBar, Content, RestartWarning;
+	CUIRect ModuleRail, Content, RestartWarning;
 	MainView.HSplitBottom(18.0f, &MainView, &RestartWarning);
-	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
-	MainView.Margin(6.0f, &MainView);
-
-	MainView.HSplitTop(26.0f, &TabBar, &Content);
-	Content.HSplitTop(4.0f, 0, &Content);
-	DrawMenuInset(&Content, CUI::CORNER_ALL);
-	Content.Margin(8.0f, &Content);
+	DrawOpenPageFrame(&MainView);
+	MainView.Margin(8.0f, &MainView);
+	CUIRect Header, Workbench;
+	MainView.HSplitTop(38.0f, &Header, &Workbench);
+	UI()->DoLabelScaled(&Header, Localize("Settings"), 20.0f, -1);
+	DrawAccentUnderline(&Header);
+	Workbench.HSplitTop(6.0f, 0, &Workbench);
+	Workbench.VSplitLeft(246.0f, &ModuleRail, &Content);
+	Content.VSplitLeft(8.0f, 0, &Content);
+	DrawTechShape(&ModuleRail, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .22f), ms_PanelRounding);
+	DrawTechShape(&Content, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .14f), ms_PanelRounding);
+	ModuleRail.Margin(8.0f, &ModuleRail);
+	Content.Margin(10.0f, &Content);
 
 	const char *aTabs[] = {Localize("Language"),
 						   Localize("General"),
@@ -3469,22 +3566,23 @@ void CMenus::RenderSettings(CUIRect MainView)
 						   Localize("Sound"),
 						   Localize("Steam")};
 
-	int NumTabs = (int)(sizeof(aTabs) / sizeof(*aTabs));
-	CUIRect Tab;
-	// VSplitLeft applies UI scale internally. Divide it out so seven equal tabs
-	// stay inside the centered settings panel at UI scales above 100%.
-	float TabW = TabBar.w / NumTabs / max(0.01f, UI()->Scale());
-	for(int i = 0; i < NumTabs; i++)
+	static int s_aModuleButtons[8];
+	for(int RowIndex = 0; RowIndex < 4; RowIndex++)
 	{
-		TabBar.VSplitLeft(TabW, &Tab, &TabBar);
-		Tab.VMargin(1.5f, &Tab);
-		int Corners = CUI::CORNER_T;
-		if(i == 0)
-			Corners = CUI::CORNER_TL;
-		else if(i == NumTabs - 1)
-			Corners = CUI::CORNER_TR;
-		if(DoButton_MenuTab(aTabs[i], aTabs[i], g_Config.m_UiSettingsPage == i, &Tab, Corners))
-			g_Config.m_UiSettingsPage = i;
+		CUIRect Row;
+		ModuleRail.HSplitTop(42.0f, &Row, &ModuleRail);
+		Row.HSplitBottom(6.0f, &Row, 0);
+		for(int Column = 0; Column < 2; Column++)
+		{
+			CUIRect Tile;
+			Row.VSplitLeft(Row.w / (2 - Column), &Tile, &Row);
+			Tile.VMargin(Column == 0 ? 3.0f : 0.0f, &Tile);
+			const int Index = RowIndex * 2 + Column;
+			const bool Selected = g_Config.m_UiSettingsPage == Index;
+			if(DoButton_Menu(&s_aModuleButtons[Index], aTabs[Index], Selected, &Tile,
+							Selected ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST))
+				g_Config.m_UiSettingsPage = Index;
+		}
 	}
 
 	if(g_Config.m_UiSettingsPage == 0)
@@ -3504,7 +3602,7 @@ void CMenus::RenderSettings(CUIRect MainView)
 	else if(g_Config.m_UiSettingsPage == 7)
 		RenderSettingsCloud(Content);
 
-	if(m_NeedRestartGraphics || m_NeedRestartSound)
+	if(m_NeedRestartGraphics)
 	{
 		TextRender()->TextColor(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 1.0f);
 		UI()->DoLabel(

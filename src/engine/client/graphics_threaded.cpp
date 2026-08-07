@@ -183,6 +183,7 @@ CGraphics_Threaded::CGraphics_Threaded()
 
 	m_TextureMemoryUsage = 0;
 	mem_zero((void *)m_aShaderAvailable, sizeof(m_aShaderAvailable));
+	mem_zero(m_aTextureSources, sizeof(m_aTextureSources));
 
 	m_RenderEnable = true;
 	m_ScreenshotRequestCount = 0;
@@ -353,6 +354,8 @@ int CGraphics_Threaded::UnloadTexture(int Index)
 	if(Index < 0)
 		return 0;
 
+	FreeTextureSource(Index);
+
 	CCommandBuffer::SCommand_Texture_Destroy Cmd;
 	Cmd.m_Slot = Index;
 	m_pCommandBuffer->AddCommand(Cmd);
@@ -386,9 +389,80 @@ static int ImageFormatToPixelSize(int Format)
 	}
 }
 
+void CGraphics_Threaded::FreeTextureSource(int Index)
+{
+	if(Index < 0 || Index >= MAX_TEXTURES || !m_aTextureSources[Index].m_pData)
+		return;
+
+	mem_free(m_aTextureSources[Index].m_pData);
+	mem_zero(&m_aTextureSources[Index], sizeof(m_aTextureSources[Index]));
+}
+
+int CGraphics_Threaded::TextureCommandFlags(int Flags) const
+{
+	int CommandFlags = 0;
+	if(Flags & IGraphics::TEXLOAD_NOMIPMAPS)
+		CommandFlags |= CCommandBuffer::TEXFLAG_NOMIPMAPS;
+	if(Flags & IGraphics::TEXLOAD_NEAREST)
+		CommandFlags |= CCommandBuffer::TEXFLAG_NEAREST;
+	if(Flags & IGraphics::TEXLOAD_NOCOMPRESSION)
+		CommandFlags |= CCommandBuffer::TEXFLAG_NOCOMPRESSION;
+	if(g_Config.m_GfxTextureCompression && !(Flags & IGraphics::TEXLOAD_NOCOMPRESSION))
+		CommandFlags |= CCommandBuffer::TEXFLAG_COMPRESSED;
+	if(g_Config.m_GfxTextureQuality || Flags & IGraphics::TEXLOAD_NORESAMPLE)
+		CommandFlags |= CCommandBuffer::TEXFLAG_QUALITY;
+	return CommandFlags;
+}
+
+bool CGraphics_Threaded::QueueTextureCreate(int Slot, const STextureSource &Source)
+{
+	if(!m_pCommandBuffer || !Source.m_pData || Slot < 0 || Slot >= MAX_TEXTURES)
+		return false;
+
+	CCommandBuffer::SCommand_Texture_Create Cmd;
+	Cmd.m_Slot = Slot;
+	Cmd.m_Width = Source.m_Width;
+	Cmd.m_Height = Source.m_Height;
+	Cmd.m_PixelSize = ImageFormatToPixelSize(Source.m_Format);
+	Cmd.m_Format = ImageFormatToTexFormat(Source.m_Format);
+	Cmd.m_StoreFormat = ImageFormatToTexFormat(Source.m_StoreFormat);
+	Cmd.m_Flags = TextureCommandFlags(Source.m_Flags);
+	const int MemSize = Source.m_Width * Source.m_Height * Cmd.m_PixelSize;
+	void *pTmpData = mem_alloc(MemSize, sizeof(void *));
+	if(!pTmpData)
+		return false;
+	mem_copy(pTmpData, Source.m_pData, MemSize);
+	Cmd.m_pData = pTmpData;
+
+	if(!m_pCommandBuffer->AddCommand(Cmd))
+	{
+		KickCommandBuffer();
+		if(!m_pCommandBuffer->AddCommand(Cmd))
+		{
+			mem_free(pTmpData);
+			return false;
+		}
+	}
+	return true;
+}
+
 int CGraphics_Threaded::LoadTextureRawSub(
 	int TextureID, int x, int y, int Width, int Height, int Format, const void *pData)
 {
+	if(TextureID >= 0 && TextureID < MAX_TEXTURES && pData && m_aTextureSources[TextureID].m_pData &&
+		m_aTextureSources[TextureID].m_Format == Format && x >= 0 && y >= 0 && Width >= 0 && Height >= 0 &&
+		x + Width <= m_aTextureSources[TextureID].m_Width && y + Height <= m_aTextureSources[TextureID].m_Height)
+	{
+		const int PixelSize = ImageFormatToPixelSize(Format);
+		for(int Row = 0; Row < Height; Row++)
+		{
+			unsigned char *pDst = static_cast<unsigned char *>(m_aTextureSources[TextureID].m_pData) +
+				((y + Row) * m_aTextureSources[TextureID].m_Width + x) * PixelSize;
+			const unsigned char *pSrc = static_cast<const unsigned char *>(pData) + Row * Width * PixelSize;
+			mem_copy(pDst, pSrc, Width * PixelSize);
+		}
+	}
+
 	CCommandBuffer::SCommand_Texture_Update Cmd;
 	Cmd.m_Slot = TextureID;
 	Cmd.m_X = x;
@@ -416,6 +490,37 @@ void CGraphics_Threaded::CreateTextureBuffer(int Width, int Height)
 	Cmd.m_Width = Width;
 	Cmd.m_Height = Height;
 	m_pCommandBuffer->AddCommand(Cmd);
+}
+
+void CGraphics_Threaded::DestroyTextureBuffer()
+{
+	CCommandBuffer::SCommand_DestroyTextureBuffer Cmd;
+	m_pCommandBuffer->AddCommand(Cmd);
+}
+
+bool CGraphics_Threaded::ReloadTextureSettings()
+{
+	if(!m_pCommandBuffer)
+		return false;
+
+	bool Success = true;
+	int Reloaded = 0;
+	for(int i = 0; i < MAX_TEXTURES; i++)
+	{
+		if(!m_aTextureSources[i].m_pData)
+			continue;
+		if(!QueueTextureCreate(i, m_aTextureSources[i]))
+			Success = false;
+		else
+			Reloaded++;
+	}
+
+	if(Reloaded > 0)
+	{
+		KickCommandBuffer();
+		WaitForIdle();
+	}
+	return Success;
 }
 
 void CGraphics_Threaded::LoadShaders()
@@ -535,35 +640,28 @@ int CGraphics_Threaded::LoadTextureRaw(int Width, int Height, int Format, const 
 	m_FirstFreeTexture = m_aTextureIndices[Tex];
 	m_aTextureIndices[Tex] = -1;
 
-	CCommandBuffer::SCommand_Texture_Create Cmd;
-	Cmd.m_Slot = Tex;
-	Cmd.m_Width = Width;
-	Cmd.m_Height = Height;
-	Cmd.m_PixelSize = ImageFormatToPixelSize(Format);
-	Cmd.m_Format = ImageFormatToTexFormat(Format);
-	Cmd.m_StoreFormat = ImageFormatToTexFormat(StoreFormat);
-
-	// flags
-	Cmd.m_Flags = 0;
-	if(Flags & IGraphics::TEXLOAD_NOMIPMAPS)
-		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_NOMIPMAPS;
-	if(Flags & IGraphics::TEXLOAD_NEAREST)
-		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_NEAREST;
-	if(Flags & IGraphics::TEXLOAD_NOCOMPRESSION)
-		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_NOCOMPRESSION;
-	if(g_Config.m_GfxTextureCompression && !(Flags & IGraphics::TEXLOAD_NOCOMPRESSION))
-		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_COMPRESSED;
-	if(g_Config.m_GfxTextureQuality || Flags & TEXLOAD_NORESAMPLE)
-		Cmd.m_Flags |= CCommandBuffer::TEXFLAG_QUALITY;
-
-	// copy texture data
-	int MemSize = Width * Height * Cmd.m_PixelSize;
-	void *pTmpData = mem_alloc(MemSize, sizeof(void *));
-	mem_copy(pTmpData, pData, MemSize);
-	Cmd.m_pData = pTmpData;
-
-	//
-	m_pCommandBuffer->AddCommand(Cmd);
+	STextureSource &Source = m_aTextureSources[Tex];
+	Source.m_Width = Width;
+	Source.m_Height = Height;
+	Source.m_Format = Format;
+	Source.m_StoreFormat = StoreFormat;
+	Source.m_Flags = Flags;
+	const int MemSize = Width * Height * ImageFormatToPixelSize(Format);
+	Source.m_pData = mem_alloc(MemSize, sizeof(void *));
+	if(!Source.m_pData)
+	{
+		m_aTextureIndices[Tex] = m_FirstFreeTexture;
+		m_FirstFreeTexture = Tex;
+		return m_InvalidTexture;
+	}
+	mem_copy(Source.m_pData, pData, MemSize);
+	if(!QueueTextureCreate(Tex, Source))
+	{
+		FreeTextureSource(Tex);
+		m_aTextureIndices[Tex] = m_FirstFreeTexture;
+		m_FirstFreeTexture = Tex;
+		return m_InvalidTexture;
+	}
 
 	return Tex;
 }
@@ -1201,10 +1299,63 @@ void CGraphics_Threaded::Shutdown()
 	m_pBackend->Shutdown();
 	delete m_pBackend;
 	m_pBackend = 0x0;
+	for(int i = 0; i < MAX_TEXTURES; i++)
+		FreeTextureSource(i);
 
 	// delete the command buffers
 	for(int i = 0; i < NUM_CMDBUFFERS; i++)
 		delete m_apCommandBuffers[i];
+}
+
+bool CGraphics_Threaded::ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless)
+{
+	if(!m_pBackend)
+		return false;
+
+	KickCommandBuffer();
+	WaitForIdle();
+	if(!m_pBackend->ApplyWindowSettings(Width, Height, Screen, Fullscreen, Borderless))
+		return false;
+
+	m_pBackend->GetViewportSize(&m_ScreenWidth, &m_ScreenHeight);
+	if(m_ScreenWidth <= 0 || m_ScreenHeight <= 0)
+	{
+		m_ScreenWidth = Width;
+		m_ScreenHeight = Height;
+	}
+
+	CCommandBuffer::SCommand_SetViewport Cmd;
+	Cmd.m_Width = m_ScreenWidth;
+	Cmd.m_Height = m_ScreenHeight;
+	if(!m_pCommandBuffer->AddCommand(Cmd))
+	{
+		KickCommandBuffer();
+		if(!m_pCommandBuffer->AddCommand(Cmd))
+			return false;
+	}
+	KickCommandBuffer();
+	WaitForIdle();
+	return true;
+}
+
+bool CGraphics_Threaded::ApplyVSync(bool Enabled)
+{
+	if(!m_pCommandBuffer)
+		return false;
+
+	bool Success = false;
+	CCommandBuffer::SCommand_SetVSync Cmd;
+	Cmd.m_Enabled = Enabled;
+	Cmd.m_pSuccess = &Success;
+	if(!m_pCommandBuffer->AddCommand(Cmd))
+	{
+		KickCommandBuffer();
+		if(!m_pCommandBuffer->AddCommand(Cmd))
+			return false;
+	}
+	KickCommandBuffer();
+	WaitForIdle();
+	return Success;
 }
 
 void CGraphics_Threaded::Minimize()

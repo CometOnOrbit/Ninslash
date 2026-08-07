@@ -44,6 +44,7 @@ class CSounds : public CComponent
 	virtual void OnStateChange(int NewState, int OldState);
 	virtual void OnRender();
 	virtual void OnMessage(int MsgType, void *pRawMsg);
+	void ApplySettings();
 
 	void ClearQueue();
 	void Enqueue(int Channel, int SetId);

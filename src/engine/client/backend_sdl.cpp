@@ -276,6 +276,13 @@ void CCommandProcessorFragment_OpenGL::Cmd_Init(const SCommand_Init *pCommand)
 	m_AmbientB = 0.32f;
 }
 
+void CCommandProcessorFragment_OpenGL::Cmd_SetViewport(const CCommandBuffer::SCommand_SetViewport *pCommand)
+{
+	m_ScreenWidth = max(1, pCommand->m_Width);
+	m_ScreenHeight = max(1, pCommand->m_Height);
+	glViewport(0, 0, m_ScreenWidth, m_ScreenHeight);
+}
+
 void CCommandProcessorFragment_OpenGL::Cmd_Texture_Update(const CCommandBuffer::SCommand_Texture_Update *pCommand)
 {
 	glBindTexture(GL_TEXTURE_2D, m_aTextures[pCommand->m_Slot].m_Tex);
@@ -293,12 +300,32 @@ void CCommandProcessorFragment_OpenGL::Cmd_Texture_Update(const CCommandBuffer::
 
 void CCommandProcessorFragment_OpenGL::Cmd_Texture_Destroy(const CCommandBuffer::SCommand_Texture_Destroy *pCommand)
 {
-	glDeleteTextures(1, &m_aTextures[pCommand->m_Slot].m_Tex);
-	*m_pTextureMemoryUsage -= m_aTextures[pCommand->m_Slot].m_MemSize;
+	if(pCommand->m_Slot < 0 || pCommand->m_Slot >= CCommandBuffer::MAX_TEXTURES)
+		return;
+	if(m_aTextures[pCommand->m_Slot].m_Tex)
+		glDeleteTextures(1, &m_aTextures[pCommand->m_Slot].m_Tex);
+	if(m_pTextureMemoryUsage)
+		*m_pTextureMemoryUsage -= m_aTextures[pCommand->m_Slot].m_MemSize;
+	m_aTextures[pCommand->m_Slot].m_Tex = 0;
+	m_aTextures[pCommand->m_Slot].m_MemSize = 0;
 }
 
 void CCommandProcessorFragment_OpenGL::Cmd_Texture_Create(const CCommandBuffer::SCommand_Texture_Create *pCommand)
 {
+	if(pCommand->m_Slot < 0 || pCommand->m_Slot >= CCommandBuffer::MAX_TEXTURES)
+	{
+		mem_free(pCommand->m_pData);
+		return;
+	}
+	if(m_aTextures[pCommand->m_Slot].m_Tex)
+	{
+		glDeleteTextures(1, &m_aTextures[pCommand->m_Slot].m_Tex);
+		if(m_pTextureMemoryUsage)
+			*m_pTextureMemoryUsage -= m_aTextures[pCommand->m_Slot].m_MemSize;
+		m_aTextures[pCommand->m_Slot].m_Tex = 0;
+		m_aTextures[pCommand->m_Slot].m_MemSize = 0;
+	}
+
 	int Width = pCommand->m_Width;
 	int Height = pCommand->m_Height;
 	void *pTexData = pCommand->m_pData;
@@ -391,11 +418,38 @@ void CCommandProcessorFragment_OpenGL::Cmd_Texture_Create(const CCommandBuffer::
 	mem_free(pTexData);
 }
 
+void CCommandProcessorFragment_OpenGL::DestroyTextureBuffers()
+{
+	for(int i = 0; i < NUM_RENDERBUFFERS; i++)
+	{
+		if(textureBuffer[i])
+			glDeleteFramebuffers(1, &textureBuffer[i]);
+		if(renderedTexture[i])
+			glDeleteTextures(1, &renderedTexture[i]);
+		textureBuffer[i] = 0;
+		renderedTexture[i] = 0;
+	}
+	if(m_PixelTexture)
+	{
+		glDeleteTextures(1, &m_PixelTexture);
+		m_PixelTexture = 0;
+	}
+	m_MultiBuffering = false;
+}
+
+void CCommandProcessorFragment_OpenGL::Cmd_DestroyTextureBuffer(
+	const CCommandBuffer::SCommand_DestroyTextureBuffer *pCommand)
+{
+	(void)pCommand;
+	DestroyTextureBuffers();
+}
+
 void CCommandProcessorFragment_OpenGL::Cmd_CreateTextureBuffer(
 	const CCommandBuffer::SCommand_CreateTextureBuffer *pCommand)
 {
 	dbg_msg("render", "creating texture buffers");
 	dbg_msg("render", "creating render buffers (shader=%d)", m_ShadersLoaded ? 1 : 0);
+	DestroyTextureBuffers();
 
 	int Width = pCommand->m_Width;
 	int Height = pCommand->m_Height;
@@ -798,6 +852,8 @@ void CCommandProcessorFragment_OpenGL::Cmd_Screenshot(const CCommandBuffer::SCom
 CCommandProcessorFragment_OpenGL::CCommandProcessorFragment_OpenGL()
 {
 	mem_zero(m_aTextures, sizeof(m_aTextures));
+	mem_zero(textureBuffer, sizeof(textureBuffer));
+	mem_zero(renderedTexture, sizeof(renderedTexture));
 	m_pTextureMemoryUsage = 0;
 	m_PixelTexture = 0;
 }
@@ -808,6 +864,9 @@ bool CCommandProcessorFragment_OpenGL::RunCommand(const CCommandBuffer::SCommand
 	{
 		case CMD_INIT:
 			Cmd_Init(static_cast<const SCommand_Init *>(pBaseCommand));
+			break;
+		case CCommandBuffer::CMD_SETVIEWPORT:
+			Cmd_SetViewport(static_cast<const CCommandBuffer::SCommand_SetViewport *>(pBaseCommand));
 			break;
 		case CCommandBuffer::CMD_TEXTURE_CREATE:
 			Cmd_Texture_Create(static_cast<const CCommandBuffer::SCommand_Texture_Create *>(pBaseCommand));
@@ -832,6 +891,9 @@ bool CCommandProcessorFragment_OpenGL::RunCommand(const CCommandBuffer::SCommand
 			break;
 		case CCommandBuffer::CMD_CREATETEXTUREBUFFER:
 			Cmd_CreateTextureBuffer(static_cast<const CCommandBuffer::SCommand_CreateTextureBuffer *>(pBaseCommand));
+			break;
+		case CCommandBuffer::CMD_DESTROYTEXTUREBUFFER:
+			Cmd_DestroyTextureBuffer(static_cast<const CCommandBuffer::SCommand_DestroyTextureBuffer *>(pBaseCommand));
 			break;
 		case CCommandBuffer::CMD_LOADSHADERS:
 			Cmd_LoadShaders(static_cast<const CCommandBuffer::SCommand_LoadShaders *>(pBaseCommand));
@@ -859,6 +921,8 @@ void CCommandProcessorFragment_SDL::Cmd_Init(const SCommand_Init *pCommand)
 	m_GLContext = pCommand->m_GLContext;
 	m_pWindow = pCommand->m_pWindow;
 	SDL_GL_MakeCurrent(m_pWindow, m_GLContext);
+	if(!SDL_GL_SetSwapInterval(pCommand->m_VSync ? 1 : 0))
+		dbg_msg("gfx", "unable to set initial V-Sync interval: %s", SDL_GetError());
 
 	// set some default settings
 	glEnable(GL_BLEND);
@@ -898,6 +962,13 @@ void CCommandProcessorFragment_SDL::Cmd_Init(const SCommand_Init *pCommand)
 	{
 		dbg_msg("gfx", "unable to init shaders");
 	}
+}
+
+void CCommandProcessorFragment_SDL::Cmd_SetVSync(const CCommandBuffer::SCommand_SetVSync *pCommand)
+{
+	*pCommand->m_pSuccess = SDL_GL_SetSwapInterval(pCommand->m_Enabled ? 1 : 0);
+	if(!*pCommand->m_pSuccess)
+		dbg_msg("gfx", "unable to set V-Sync interval: %s", SDL_GetError());
 }
 
 void CCommandProcessorFragment_SDL::Cmd_Shutdown(const SCommand_Shutdown *pCommand)
@@ -972,6 +1043,9 @@ bool CCommandProcessorFragment_SDL::RunCommand(const CCommandBuffer::SCommand *p
 	{
 		case CCommandBuffer::CMD_SWAP:
 			Cmd_Swap(static_cast<const CCommandBuffer::SCommand_Swap *>(pBaseCommand));
+			break;
+		case CCommandBuffer::CMD_SETVSYNC:
+			Cmd_SetVSync(static_cast<const CCommandBuffer::SCommand_SetVSync *>(pBaseCommand));
 			break;
 		case CCommandBuffer::CMD_VIDEOMODES:
 			Cmd_VideoModes(static_cast<const CCommandBuffer::SCommand_VideoModes *>(pBaseCommand));
@@ -1228,6 +1302,7 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName,
 	CCommandProcessorFragment_SDL::SCommand_Init CmdSDL;
 	CmdSDL.m_GLContext = m_GLContext;
 	CmdSDL.m_pWindow = m_pWindow;
+	CmdSDL.m_VSync = (Flags & IGraphicsBackend::INITFLAG_VSYNC) != 0;
 	CmdBuffer.AddCommand(CmdSDL);
 	RunBuffer(&CmdBuffer);
 	WaitForIdle();
@@ -1260,6 +1335,129 @@ int CGraphicsBackend_SDL_OpenGL::Shutdown()
 	m_pWindow = 0;
 	SDL_QuitSubSystem(SDL_INIT_VIDEO);
 	return 0;
+}
+
+bool CGraphicsBackend_SDL_OpenGL::ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless)
+{
+	if(!m_pWindow || m_OffscreenCapture)
+		return false;
+
+	const int ResolvedScreen = ResolveScreenIndex(Screen);
+	const SDL_WindowFlags WindowFlags = SDL_GetWindowFlags(m_pWindow);
+	const bool WasFullscreen = (WindowFlags & SDL_WINDOW_FULLSCREEN) != 0;
+	const bool WasBorderless = (WindowFlags & SDL_WINDOW_BORDERLESS) != 0;
+	int PreviousWidth = 0;
+	int PreviousHeight = 0;
+	SDL_GetWindowSize(m_pWindow, &PreviousWidth, &PreviousHeight);
+	const SDL_DisplayMode *pPreviousMode = SDL_GetWindowFullscreenMode(m_pWindow);
+	SDL_DisplayMode PreviousMode = {};
+	const bool HadPreviousMode = pPreviousMode != nullptr;
+	if(HadPreviousMode)
+		PreviousMode = *pPreviousMode;
+
+	if(Fullscreen)
+		Borderless = false;
+	SDL_DisplayMode FullscreenMode = {};
+	if(Fullscreen &&
+		!SDL_GetClosestFullscreenDisplayMode(
+			DisplayIDFromIndex(ResolvedScreen), max(1, Width), max(1, Height), 0.0f, false, &FullscreenMode))
+	{
+		dbg_msg("gfx", "unable to find fullscreen mode %dx%d: %s", Width, Height, SDL_GetError());
+		return false;
+	}
+	const SDL_DisplayMode *pDesktopMode = Fullscreen ? SDL_GetDesktopDisplayMode(DisplayIDFromIndex(ResolvedScreen)) : nullptr;
+	const bool UseDesktopFullscreen = Fullscreen && pDesktopMode && pDesktopMode->w == FullscreenMode.w &&
+		pDesktopMode->h == FullscreenMode.h;
+	const SDL_DisplayMode *pTargetMode = Fullscreen && !UseDesktopFullscreen ? &FullscreenMode : nullptr;
+
+	auto SyncWindow = [&]() { return SDL_SyncWindow(m_pWindow); };
+	auto RestoreWindow = [&]() {
+		bool Restored = true;
+		if(SDL_GetWindowFlags(m_pWindow) & SDL_WINDOW_FULLSCREEN)
+		{
+			Restored = SDL_SetWindowFullscreen(m_pWindow, false);
+			if(Restored)
+				Restored = SyncWindow();
+		}
+		if(WasFullscreen)
+		{
+			if(Restored)
+				Restored = SDL_SetWindowFullscreenMode(m_pWindow, HadPreviousMode ? &PreviousMode : nullptr);
+			if(Restored)
+				Restored = SDL_SetWindowFullscreen(m_pWindow, true);
+		}
+		else
+		{
+			if(Restored)
+				Restored = SDL_SetWindowBordered(m_pWindow, !WasBorderless);
+			if(Restored)
+				Restored = SDL_SetWindowSize(m_pWindow, max(1, PreviousWidth), max(1, PreviousHeight));
+		}
+		if(Restored)
+			Restored = SyncWindow();
+		return Restored;
+	};
+	auto Fail = [&]() {
+		RestoreWindow();
+		return false;
+	};
+
+	if(WasFullscreen && !SDL_SetWindowFullscreen(m_pWindow, false))
+	{
+		dbg_msg("gfx", "unable to leave fullscreen: %s", SDL_GetError());
+		return Fail();
+	}
+	if(WasFullscreen && !SyncWindow())
+	{
+		dbg_msg("gfx", "unable to synchronize windowed transition: %s", SDL_GetError());
+		return Fail();
+	}
+
+	SDL_SetWindowPosition(
+		m_pWindow, SDL_WINDOWPOS_UNDEFINED_DISPLAY(ResolvedScreen), SDL_WINDOWPOS_UNDEFINED);
+
+	if(Fullscreen)
+	{
+		if(!SDL_SetWindowFullscreenMode(m_pWindow, pTargetMode))
+		{
+			dbg_msg("gfx", "unable to set fullscreen mode %dx%d: %s", FullscreenMode.w, FullscreenMode.h, SDL_GetError());
+			return Fail();
+		}
+		if(!SDL_SetWindowFullscreen(m_pWindow, true))
+		{
+			dbg_msg("gfx", "unable to enter fullscreen: %s", SDL_GetError());
+			return Fail();
+		}
+	}
+	else
+	{
+		if(!SDL_SetWindowBordered(m_pWindow, !Borderless) || !SDL_SetWindowSize(m_pWindow, max(1, Width), max(1, Height)))
+		{
+			dbg_msg("gfx", "unable to resize window to %dx%d: %s", Width, Height, SDL_GetError());
+			return Fail();
+		}
+	}
+
+	if(!SyncWindow())
+	{
+		dbg_msg("gfx", "unable to synchronize window settings: %s", SDL_GetError());
+		return Fail();
+	}
+
+	int ActualWidth = 0;
+	int ActualHeight = 0;
+	SDL_GetWindowSizeInPixels(m_pWindow, &ActualWidth, &ActualHeight);
+	if(Fullscreen && (ActualWidth != FullscreenMode.w || ActualHeight != FullscreenMode.h))
+	{
+		dbg_msg("gfx",
+				"fullscreen mode stayed at %dx%d after requesting %dx%d",
+				ActualWidth,
+				ActualHeight,
+				FullscreenMode.w,
+				FullscreenMode.h);
+		return Fail();
+	}
+	return true;
 }
 
 int CGraphicsBackend_SDL_OpenGL::MemoryUsage() const

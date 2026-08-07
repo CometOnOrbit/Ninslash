@@ -4,10 +4,12 @@
 #define ENGINE_CLIENT_SOUND_H
 
 #include <engine/sound.h>
+#include <SDL3/SDL_audio.h>
 
 class CSound : public IEngineSound
 {
 	int m_SoundEnabled;
+	SDL_AudioStream *m_pStream = 0;
 
   public:
 	IEngineGraphics *m_pGraphics;

@@ -163,7 +163,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_FINISHER"
+      7
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -184,7 +184,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_BOSS_HUNTER"
+      8
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -205,7 +205,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_KILL_CHAIN"
+      9
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -245,7 +245,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_DAMAGE_DAMPENER"
+      11
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -266,7 +266,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_EMERGENCY_PLATING"
+      12
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -287,7 +287,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_GUARDIAN"
+      13
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -327,7 +327,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_QUARTERMASTER"
+      15
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -348,7 +348,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_PREMIUM_STOCK"
+      16
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -369,7 +369,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_ENGINEER"
+      17
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -409,7 +409,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_HOLLOW_POINT"
+      19
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -430,7 +430,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_SUSTAINED_FIRE"
+      20
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -470,7 +470,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_DEMOLITION"
+      22
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -491,7 +491,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_WIDE_BLAST"
+      23
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -531,7 +531,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_OVERCHARGE"
+      25
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -552,7 +552,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_ARC_CONDUCTOR"
+      26
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -592,7 +592,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_BERSERKER"
+      28
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -613,7 +613,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_BLOOD_DRIVE"
+      29
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -653,7 +653,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_DELVER"
+      31
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -674,7 +674,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_OBJECTIVE_SPECIALIST"
+      32
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -714,7 +714,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_BREATHING_ROOM"
+      34
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -735,7 +735,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_REAPER"
+      35
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -775,7 +775,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_SABOTEUR"
+      37
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -796,7 +796,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_ESCAPE_ARTIST"
+      38
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1045,7 +1045,7 @@
     "legendary": false,
     "keywords": 1,
     "prerequisites": [
-      "PVE_CARD_GLASS_EDGE"
+      10
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1066,7 +1066,7 @@
     "legendary": false,
     "keywords": 1,
     "prerequisites": [
-      "PVE_CARD_PREDATOR"
+      52
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1087,7 +1087,7 @@
     "legendary": false,
     "keywords": 2,
     "prerequisites": [
-      "PVE_CARD_LAST_STAND"
+      14
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1108,7 +1108,7 @@
     "legendary": false,
     "keywords": 2,
     "prerequisites": [
-      "PVE_CARD_BARRIER_REFIT"
+      54
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1129,7 +1129,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_RECYCLER"
+      18
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1150,7 +1150,7 @@
     "legendary": false,
     "keywords": 2,
     "prerequisites": [
-      "PVE_CARD_LIQUID_ASSETS"
+      56
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1190,7 +1190,7 @@
     "legendary": false,
     "keywords": 128,
     "prerequisites": [
-      "PVE_CARD_SERVO_LINK"
+      58
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1211,7 +1211,7 @@
     "legendary": false,
     "keywords": 128,
     "prerequisites": [
-      "PVE_CARD_SERVO_LINK"
+      58
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1232,7 +1232,7 @@
     "legendary": false,
     "keywords": 128,
     "prerequisites": [
-      "PVE_CARD_SERVO_LINK"
+      58
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1253,9 +1253,9 @@
     "legendary": false,
     "keywords": 128,
     "prerequisites": [
-      "PVE_CARD_ASSAULT_MODULE",
-      "PVE_CARD_GUARDIAN_MODULE",
-      "PVE_CARD_REPAIR_MODULE"
+      59,
+      60,
+      61
     ],
     "num_prerequisites": 3,
     "tab": 0,
@@ -1276,7 +1276,7 @@
     "legendary": true,
     "keywords": 128,
     "prerequisites": [
-      "PVE_CARD_COORDINATED_FIRMWARE"
+      62
     ],
     "num_prerequisites": 1,
     "tab": 0,
@@ -1297,7 +1297,7 @@
     "legendary": false,
     "keywords": 8,
     "prerequisites": [
-      "PVE_CARD_GUNSLINGER"
+      21
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1318,7 +1318,7 @@
     "legendary": false,
     "keywords": 9,
     "prerequisites": [
-      "PVE_CARD_CALIBRATION"
+      64
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1339,7 +1339,7 @@
     "legendary": true,
     "keywords": 8,
     "prerequisites": [
-      "PVE_CARD_PINPOINT_BURST"
+      65
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1360,7 +1360,7 @@
     "legendary": false,
     "keywords": 1,
     "prerequisites": [
-      "PVE_CARD_HOLLOW_POINT"
+      19
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1381,7 +1381,7 @@
     "legendary": false,
     "keywords": 8,
     "prerequisites": [
-      "PVE_CARD_ARMOR_PIERCER"
+      67
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1402,7 +1402,7 @@
     "legendary": false,
     "keywords": 128,
     "prerequisites": [
-      "PVE_CARD_TACTICAL_RELOAD"
+      68
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1423,7 +1423,7 @@
     "legendary": false,
     "keywords": 16,
     "prerequisites": [
-      "PVE_CARD_CHAIN_REACTION"
+      24
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1444,7 +1444,7 @@
     "legendary": false,
     "keywords": 17,
     "prerequisites": [
-      "PVE_CARD_PACKED_CHARGE"
+      70
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1465,7 +1465,7 @@
     "legendary": true,
     "keywords": 16,
     "prerequisites": [
-      "PVE_CARD_BREACH_CHARGE"
+      71
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1486,7 +1486,7 @@
     "legendary": false,
     "keywords": 4,
     "prerequisites": [
-      "PVE_CARD_DEMOLITION"
+      22
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1507,7 +1507,7 @@
     "legendary": false,
     "keywords": 16,
     "prerequisites": [
-      "PVE_CARD_SHRAPNEL"
+      73
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1528,7 +1528,7 @@
     "legendary": false,
     "keywords": 16,
     "prerequisites": [
-      "PVE_CARD_CONTROLLED_FUSE"
+      74
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1549,7 +1549,7 @@
     "legendary": false,
     "keywords": 32,
     "prerequisites": [
-      "PVE_CARD_CAPACITOR"
+      27
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1570,7 +1570,7 @@
     "legendary": false,
     "keywords": 32,
     "prerequisites": [
-      "PVE_CARD_CHARGE_COIL"
+      76
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1591,7 +1591,7 @@
     "legendary": true,
     "keywords": 32,
     "prerequisites": [
-      "PVE_CARD_CONDUCTIVE"
+      77
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1612,7 +1612,7 @@
     "legendary": false,
     "keywords": 32,
     "prerequisites": [
-      "PVE_CARD_OVERCHARGE"
+      25
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1633,7 +1633,7 @@
     "legendary": false,
     "keywords": 34,
     "prerequisites": [
-      "PVE_CARD_FEEDBACK"
+      79
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1654,7 +1654,7 @@
     "legendary": false,
     "keywords": 160,
     "prerequisites": [
-      "PVE_CARD_STATIC_SHIELD"
+      80
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1675,7 +1675,7 @@
     "legendary": false,
     "keywords": 64,
     "prerequisites": [
-      "PVE_CARD_SHOCKWAVE"
+      30
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1696,7 +1696,7 @@
     "legendary": false,
     "keywords": 68,
     "prerequisites": [
-      "PVE_CARD_FURY_ENGINE"
+      82
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1717,7 +1717,7 @@
     "legendary": true,
     "keywords": 64,
     "prerequisites": [
-      "PVE_CARD_OPEN_WOUND"
+      83
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1738,7 +1738,7 @@
     "legendary": false,
     "keywords": 1,
     "prerequisites": [
-      "PVE_CARD_BERSERKER"
+      28
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1759,7 +1759,7 @@
     "legendary": false,
     "keywords": 4,
     "prerequisites": [
-      "PVE_CARD_GUARD_BREAKER"
+      85
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1780,7 +1780,7 @@
     "legendary": false,
     "keywords": 66,
     "prerequisites": [
-      "PVE_CARD_BLOOD_TEMPER"
+      86
     ],
     "num_prerequisites": 1,
     "tab": 1,
@@ -1801,7 +1801,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_ADAPTATION"
+      33
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1822,7 +1822,7 @@
     "legendary": true,
     "keywords": 2,
     "prerequisites": [
-      "PVE_CARD_CARTOGRAPHER"
+      88
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1843,7 +1843,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_DELVER"
+      31
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1864,7 +1864,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_RELIC_SCANNER"
+      90
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1885,7 +1885,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_SIEGE_MASTER"
+      36
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1906,7 +1906,7 @@
     "legendary": true,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_WAVE_DIVIDEND"
+      92
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1927,7 +1927,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_BREATHING_ROOM"
+      34
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1948,7 +1948,7 @@
     "legendary": false,
     "keywords": 128,
     "prerequisites": [
-      "PVE_CARD_FORTIFIED_CYCLE"
+      94
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1969,7 +1969,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_NO_ONE_LEFT"
+      39
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -1990,7 +1990,7 @@
     "legendary": true,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_COURIER"
+      96
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -2011,7 +2011,7 @@
     "legendary": false,
     "keywords": 0,
     "prerequisites": [
-      "PVE_CARD_SABOTEUR"
+      37
     ],
     "num_prerequisites": 1,
     "tab": 2,
@@ -2032,7 +2032,7 @@
     "legendary": false,
     "keywords": 2,
     "prerequisites": [
-      "PVE_CARD_SIGNAL_HACKER"
+      98
     ],
     "num_prerequisites": 1,
     "tab": 2,

@@ -71,27 +71,14 @@ int CSounds::GetSampleId(int SetId)
 
 void CSounds::OnInit()
 {
-	// setup sound channels
-	Sound()->SetChannel(CSounds::CHN_GUI, 1.0f, 0.0f);
-	Sound()->SetChannel(CSounds::CHN_MUSIC, 1.0f, 0.0f);
-	Sound()->SetChannel(CSounds::CHN_WORLD, 0.9f, 1.0f);
-	Sound()->SetChannel(CSounds::CHN_GLOBAL, 1.0f, 0.0f);
-	Sound()->SetChannel(CSounds::CHN_HIT, g_Config.m_ClHitFeedback / 100.0f, 0.0f);
+	ApplySettings();
 
-	// dynamic music layers at max - engine Mix() controls per-sample volume
-	SetMusicVolume(g_Config.m_SndMusicVolume / 100.0f);
-
-	// tell engine which channels to control
 	Sound()->ConfigureMusicLayer(0, CHN_MUSIC_CALM, -1);
 	Sound()->ConfigureMusicLayer(1, CHN_MUSIC_TENSION, -1);
 	Sound()->ConfigureMusicLayer(2, CHN_MUSIC_COMBAT, -1);
 	Sound()->ConfigureMusicLayer(3, CHN_MUSIC_BOSS, -1);
 
 	Sound()->SetListenerPos(0.0f, 0.0f);
-
-	m_MusicInitialized = false;
-
-	ClearQueue();
 
 	// load sounds
 	if(g_Config.m_ClThreadsoundloading)
@@ -108,6 +95,21 @@ void CSounds::OnInit()
 		LoadSoundsThread(&g_UserData);
 		m_WaitForSoundJob = false;
 	}
+}
+
+void CSounds::ApplySettings()
+{
+	Sound()->SetChannel(CSounds::CHN_GUI, 1.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_MUSIC, 1.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_WORLD, 0.9f, 1.0f);
+	Sound()->SetChannel(CSounds::CHN_GLOBAL, 1.0f, 0.0f);
+	Sound()->SetChannel(CSounds::CHN_HIT, g_Config.m_ClHitFeedback / 100.0f, 0.0f);
+
+	// dynamic music layers at max - engine Mix() controls per-sample volume
+	SetMusicVolume(g_Config.m_SndMusicVolume / 100.0f);
+
+	ClearQueue();
+	m_MusicInitialized = false;
 }
 
 void CSounds::SetHitFeedbackVolume(float Volume)

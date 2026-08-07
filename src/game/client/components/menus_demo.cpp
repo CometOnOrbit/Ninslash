@@ -833,8 +833,9 @@ void CMenus::RenderDemoList(CUIRect MainView)
 		}
 	}
 
-	// render background
-	RenderTools()->DrawUIRect(&MainView, ms_ColorTabbarActive, CUI::CORNER_ALL, 10.0f);
+	// Keep the replay browser on the same open tactical canvas as the other
+	// secondary pages; lists and details provide their own local surfaces.
+	DrawOpenPageFrame(&MainView);
 	MainView.Margin(10.0f, &MainView);
 
 	CUIRect ButtonBar, RefreshRect, PlayRect, DeleteRect, RenameRect, RenderRect, FileIcon, ListBox;

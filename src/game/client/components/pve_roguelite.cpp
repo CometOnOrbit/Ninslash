@@ -147,9 +147,9 @@ const char *PveResearchRouteName(int Tab, int Branch, int Route)
 										 {"Logistics Foundation", "War Economy"},
 										 {"Drone Modules", "Drone Firmware"}};
 	static const char *s_apWeapon[4][3] = {{"Firearm Foundation", "Focus Mastery", "Vulnerable Tactics"},
-										   {"Explosive Foundation", "Blast Mastery", "Siege Tactics"},
-										   {"Electric Foundation", "Voltage Mastery", "Grid Tactics"},
-										   {"Melee Foundation", "Fury Mastery", "Wound Tactics"}};
+											 {"Explosive Foundation", "Blast Mastery", "Siege Tactics"},
+											 {"Electric Foundation", "Voltage Mastery", "Grid Tactics"},
+											 {"Melee Foundation", "Fury Mastery", "Wound Tactics"}};
 	static const char *s_apMode[3][3] = {{"Invasion Foundation", "Deep Run", "Exploration"},
 										 {"Horde Foundation", "Endless Defense", "Fortification"},
 										 {"Extraction Foundation", "Final Evacuation", "Signal Control"}};
@@ -234,11 +234,16 @@ CPveRoguelite::CPveRoguelite()
 	for(int i = 0; i < 3; i++)
 		m_aTabButtonIDs[i] = i;
 	for(int i = 0; i < 4; i++)
+	{
 		m_aBranchButtonIDs[i] = i;
-	for(int i = 0; i < 3; i++)
-		m_aRouteButtonIDs[i] = i;
+		m_aModuleButtonIDs[i] = 100 + i;
+	}
+	for(int Branch = 0; Branch < 4; Branch++)
+		for(int Route = 0; Route < 3; Route++)
+			m_aRouteButtonIDs[Branch][Route] = Branch * 3 + Route;
 	m_BuyButtonID = 0;
 	m_CheckpointButtonID = 0;
+	m_ResearchBackButtonID = 0;
 	m_DebugChoiceScreenshotFrames = 0;
 	m_DebugResearchScreenshotFrames = 0;
 	m_DebugBuildScreenshotFrames = 0;
@@ -982,8 +987,21 @@ void CPveRoguelite::DrawText(float X, float Y, float Size, const char *pText, ve
 	float ActualSize = Size;
 	while(ActualSize > Size * 0.72f && TextRender()->TextWidth(0, ActualSize, pText, -1) > MaxWidth * 2.0f)
 		ActualSize -= 0.3f;
+	float CursorX = X;
+	const float TextWidth = TextRender()->TextWidth(0, ActualSize, pText, -1);
+	if(TextWidth <= MaxWidth)
+	{
+		if(Align == 0)
+			CursorX -= TextWidth * 0.5f;
+		else if(Align > 0)
+			CursorX -= TextWidth;
+	}
+	else if(Align == 0)
+		CursorX -= MaxWidth * 0.5f;
+	else if(Align > 0)
+		CursorX -= MaxWidth;
 	CTextCursor Cursor;
-	TextRender()->SetCursor(&Cursor, X, Y, ActualSize, TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
+	TextRender()->SetCursor(&Cursor, CursorX, Y, ActualSize, TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
 	Cursor.m_LineWidth = MaxWidth;
 	TextRender()->TextEx(&Cursor, pText, -1);
 }
@@ -994,8 +1012,11 @@ void CPveRoguelite::DrawWrappedText(
 	TextRender()->TextColor(Color.r, Color.g, Color.b, Color.a);
 	TextRender()->TextOutlineColor(
 		CMenus::ThemeBgDeep().r, CMenus::ThemeBgDeep().g, CMenus::ThemeBgDeep().b, 0.45f * Color.a);
+	float ActualSize = Size;
+	while(ActualSize > Size * 0.76f && TextRender()->TextLineCount(0, ActualSize, pText, MaxWidth) > MaxLines)
+		ActualSize -= 0.25f;
 	CTextCursor Cursor;
-	TextRender()->SetCursor(&Cursor, X, Y, Size, TEXTFLAG_RENDER);
+	TextRender()->SetCursor(&Cursor, X, Y, ActualSize, TEXTFLAG_RENDER);
 	Cursor.m_LineWidth = MaxWidth;
 	Cursor.m_MaxLines = MaxLines;
 	TextRender()->TextEx(&Cursor, pText, -1);
@@ -1910,6 +1931,912 @@ void CPveRoguelite::CycleCheckpoint()
 
 void CPveRoguelite::RenderResearch(CUIRect MainView)
 {
+	if(MainView.w < 720.0f || MainView.h < 430.0f)
+	{
+		RenderResearchLegacy(MainView);
+		return;
+	}
+	RenderResearchCommandCenter(MainView);
+}
+
+void CPveRoguelite::RenderResearchCommandCenter(CUIRect MainView)
+{
+	m_ResearchVisible = true;
+	const float Dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	m_SelectionPulse = max(0.0f, m_SelectionPulse - Dt * 4.0f);
+	m_ResearchAppearAmount += (1.0f - m_ResearchAppearAmount) * (1.0f - expf(-10.0f * Dt));
+	const float Alpha = clamp(m_ResearchAppearAmount, 0.0f, 1.0f);
+	const float Time = (float)time_get() / (float)time_freq();
+	const float Wave = 0.5f + 0.5f * sinf(Time * 2.2f);
+	const float WaveFast = 0.5f + 0.5f * sinf(Time * 4.0f);
+	const float Scale = clamp(min(MainView.w / 1180.0f, MainView.h / 680.0f), 0.84f, 1.10f);
+	const float LayoutScale = Scale / max(0.01f, UI()->Scale());
+	const bool Compact = MainView.w < 1120.0f || MainView.h < 660.0f || UI()->Scale() > 1.15f;
+	const float Font = Compact ? 1.14f : 1.20f;
+	const vec4 Deep = CMenus::ThemeBgDeep();
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Inset = CMenus::ThemeBgInset();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 AccentDim = CMenus::ThemeAccentDim();
+	const vec4 Text = CMenus::ThemeText();
+	const vec4 Danger = CMenus::ThemeDanger();
+	const vec4 PurchasedColor = AccentDim;
+	const vec4 AvailableColor = CMenus::ThemeResearchAvailable();
+	const vec4 LockedColor = CMenus::ThemeResearchLocked();
+	const vec4 MutedText = CMenus::ThemeTextMuted();
+	auto Fade = [&](const vec4 &Color, float Opacity)
+	{
+		return vec4(Color.r, Color.g, Color.b, Color.a * Opacity * Alpha);
+	};
+	auto Mix = [&](const vec4 &A, const vec4 &B, float Amount)
+	{
+		return vec4(A.r + (B.r - A.r) * Amount,
+			A.g + (B.g - A.g) * Amount,
+			A.b + (B.b - A.b) * Amount,
+			A.a + (B.a - A.a) * Amount);
+	};
+	auto ResearchText = [&](float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth = -1.0f, int Align = -1)
+	{
+		DrawText(X, Y, Size * Font, pText, Color, MaxWidth, Align);
+	};
+	auto ResearchWrapped = [&](float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth, int MaxLines)
+	{
+		DrawWrappedText(X, Y, Size * Font, pText, Color, MaxWidth, MaxLines);
+	};
+	auto DrawHint = [&](const CUIRect &Rect, const char *pText, const vec4 &Color)
+	{
+		DrawPanel(Rect, Fade(Inset, 0.48f + 0.08f * WaveFast), 8.0f * Scale);
+		CUIRect Edge = Rect;
+		Edge.h = 1.0f * Scale;
+		DrawPanel(Edge, Fade(Color, 0.54f + 0.16f * WaveFast), 0.5f * Scale);
+		ResearchText(Rect.x + 8.0f * Scale,
+			Rect.y + 4.0f * Scale,
+			6.7f,
+			pText,
+			Fade(Color, 0.90f),
+			Rect.w - 16.0f * Scale);
+	};
+	auto DrawSprite = [&](const CPveUiIcon &Icon, float X, float Y, float Size, const vec4 &Color, float Opacity)
+	{
+		DrawIcon(Icon.m_Image,
+			Icon.m_Sprite,
+			X,
+			Y,
+			Size * Icon.m_Scale,
+			vec4(Color.r, Color.g, Color.b, Color.a * Opacity * Alpha));
+	};
+	const char *apTabs[3] = {Localize("Core"), Localize("Weapons"), Localize("Modes")};
+	const char *apBranchNames[4];
+	if(m_ResearchTab == PVE_TAB_CORE)
+	{
+		const char *apNames[4] = {"Attack", "Survival", "Logistics", "Drone"};
+		for(int Branch = 0; Branch < 4; Branch++)
+			apBranchNames[Branch] = apNames[Branch];
+	}
+	else if(m_ResearchTab == PVE_TAB_WEAPON)
+	{
+		const char *apNames[4] = {"Firearms", "Explosives", "Electric", "Melee"};
+		for(int Branch = 0; Branch < 4; Branch++)
+			apBranchNames[Branch] = apNames[Branch];
+	}
+	else
+	{
+		const char *apNames[3] = {"Invasion", "Horde", "Extraction"};
+		for(int Branch = 0; Branch < 3; Branch++)
+			apBranchNames[Branch] = apNames[Branch];
+	}
+
+	const CPveResearchMask Mask = TutorialResearchActive() ? CPveResearchMask() : ParseResearchMask();
+	int BranchCount = 0;
+	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+		if(!PveCardIsBase(ID) && PveCardDef(ID)->m_Tab == m_ResearchTab)
+			BranchCount = max(BranchCount, PveCardDef(ID)->m_Branch + 1);
+	BranchCount = max(1, BranchCount);
+	m_ResearchBranch = clamp(m_ResearchBranch, 0, BranchCount - 1);
+	int aBranchCount[4] = {};
+	int aBranchBought[4] = {};
+	int aBranchPreview[4];
+	for(int Branch = 0; Branch < 4; Branch++)
+		aBranchPreview[Branch] = -1;
+	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+	{
+		const CPveCardDef *pDef = PveCardDef(ID);
+		if(pDef->m_Base || pDef->m_Tab != m_ResearchTab)
+			continue;
+		const int Branch = clamp(pDef->m_Branch, 0, 3);
+		aBranchCount[Branch]++;
+		if(PveCardIsUnlocked(ID, Mask))
+			aBranchBought[Branch]++;
+		const int Rank = CanBuyResearch(ID, Mask) ? 0 : (PveCardIsUnlocked(ID, Mask) ? 2 : 1);
+		if(aBranchPreview[Branch] < 0)
+			aBranchPreview[Branch] = ID;
+		else
+		{
+			const CPveCardDef *pCurrent = PveCardDef(aBranchPreview[Branch]);
+			const int CurrentRank = CanBuyResearch(aBranchPreview[Branch], Mask)
+				? 0
+				: (PveCardIsUnlocked(aBranchPreview[Branch], Mask) ? 2 : 1);
+			if(Rank < CurrentRank || (Rank == CurrentRank && pDef->m_Tier < pCurrent->m_Tier))
+				aBranchPreview[Branch] = ID;
+		}
+	}
+
+	auto SelectResearchRoute = [&](int Branch, int Route)
+	{
+		m_ResearchBranch = clamp(Branch, 0, BranchCount - 1);
+		m_ResearchRoute = Route;
+		int BestID = -1;
+		int BestRank = 3;
+		int BestTier = 999;
+		for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+		{
+			const CPveCardDef *pDef = PveCardDef(ID);
+			if(pDef->m_Base || pDef->m_Tab != m_ResearchTab || pDef->m_Branch != Branch ||
+				PveResearchRoute(pDef) != Route)
+				continue;
+			const int Rank = CanBuyResearch(ID, Mask) ? 0 : (PveCardIsUnlocked(ID, Mask) ? 2 : 1);
+			if(BestID < 0 || Rank < BestRank || (Rank == BestRank && pDef->m_Tier < BestTier))
+			{
+				BestID = ID;
+				BestRank = Rank;
+				BestTier = pDef->m_Tier;
+			}
+		}
+		if(BestID >= 0)
+			m_SelectedResearch = BestID;
+		m_SelectionPulse = 0.65f;
+	};
+	if(m_SelectedResearch < 0 || !PveCardDef(m_SelectedResearch) || PveCardDef(m_SelectedResearch)->m_Tab != m_ResearchTab)
+		SelectResearchRoute(m_ResearchBranch, 0);
+
+	MainView.y += (1.0f - Alpha) * 10.0f * Scale;
+	DrawPanel(MainView, Fade(Deep, 0.22f), 0.0f);
+	CUIRect Canvas = MainView;
+	Canvas.Margin(16.0f * LayoutScale, &Canvas);
+	CUIRect Header, Body;
+	Canvas.HSplitTop(72.0f * LayoutScale, &Header, &Body);
+	DrawPanel(Header, Fade(Panel, 0.48f), 12.0f * Scale);
+	CUIRect HeaderEdge = {Header.x + 16.0f * Scale,
+		Header.y + Header.h - 2.0f * Scale,
+		Header.w - 32.0f * Scale,
+		2.0f * Scale};
+	DrawPanel(HeaderEdge, Fade(Accent, 0.58f + 0.25f * Wave), 1.0f * Scale);
+
+	CUIRect Back = {Header.x + 10.0f * Scale,
+		Header.y + 16.0f * Scale,
+		120.0f * Scale,
+		36.0f * Scale};
+	const float BackHover = m_pClient->m_pMenus->AnimHover(&m_ResearchBackButtonID);
+	DrawPanel(Back, Fade(BackHover > 0.2f ? AccentDim : Inset, 0.74f + BackHover * 0.18f), 12.0f * Scale);
+	CUIRect BackEdge = Back;
+	BackEdge.w = 2.0f * Scale;
+	DrawPanel(BackEdge, Fade(BackHover > 0.2f ? Accent : AccentDim, 0.86f), 1.0f * Scale);
+	ResearchText(Back.x + 60.0f * Scale,
+		Back.y + 8.0f * Scale,
+		8.8f,
+		Localize("Back"),
+		Fade(BackHover > 0.2f ? Text : AccentDim, 1.0f),
+		-1.0f,
+		0);
+	if(UI()->DoButtonLogic(&m_ResearchBackButtonID, &Back))
+		m_pClient->m_pMenus->CloseResearchPage();
+
+	ResearchText(Header.x + 154.0f * Scale, Header.y + 9.0f * Scale, 18.0f, Localize("Research"), Fade(Text, 1.0f));
+	ResearchText(Header.x + 154.0f * Scale,
+		Header.y + 34.0f * Scale,
+		8.6f,
+		Localize("NEURAL CONSTELLATION"),
+		Fade(Accent, 0.92f));
+	ResearchText(Header.x + 154.0f * Scale,
+		Header.y + 49.0f * Scale,
+		7.8f,
+		apTabs[m_ResearchTab],
+		Fade(Text, 0.78f));
+
+	char aPoints[64];
+	str_format(aPoints,
+		sizeof(aPoints),
+		Localize("%d Research Points"),
+		TutorialResearchActive() ? 99 : g_Config.m_ClPveResearchPoints);
+	const float PointsW = clamp(188.0f * Scale, 166.0f * Scale, 224.0f * Scale);
+	CUIRect Points = {Header.x + Header.w - PointsW - 12.0f * Scale,
+		Header.y + 16.0f * Scale,
+		PointsW,
+		36.0f * Scale};
+	DrawPanel(Points, Fade(AccentDim, 0.34f + 0.14f * Wave), 14.0f * Scale);
+	CUIRect PointsInner = Points;
+	PointsInner.Margin(1.2f * LayoutScale, &PointsInner);
+	DrawPanel(PointsInner, Fade(Inset, 0.94f), 13.0f * Scale);
+	DrawSprite(CPveUiIcon(IMAGE_WEAPONS, SPRITE_PICKUP_BIGCOIN),
+		Points.x + 17.0f * Scale,
+		Points.y + Points.h * 0.5f,
+		16.0f * Scale * (1.0f + 0.04f * WaveFast),
+		Accent,
+		0.92f);
+	ResearchText(Points.x + Points.w * 0.58f,
+		Points.y + 8.0f * Scale,
+		9.4f,
+		aPoints,
+		Fade(Accent, 1.0f),
+		-1.0f,
+		0);
+	if(m_ResearchTab == PVE_TAB_MODE)
+	{
+		CUIRect Checkpoint = {Points.x - 132.0f * Scale,
+			Points.y + 3.0f * Scale,
+			122.0f * Scale,
+			30.0f * Scale};
+		DrawPanel(Checkpoint, Fade(Inset, 0.86f), 12.0f * Scale);
+		char aCheckpoint[64];
+		str_format(aCheckpoint, sizeof(aCheckpoint), Localize("Checkpoint %d"), g_Config.m_ClPvePreferredCheckpoint);
+		ResearchText(Checkpoint.x + Checkpoint.w * 0.5f,
+			Checkpoint.y + 7.0f * Scale,
+			8.3f,
+			aCheckpoint,
+			Fade(Accent, 1.0f),
+			-1.0f,
+			0);
+		if(UI()->DoButtonLogic(&m_CheckpointButtonID, &Checkpoint))
+			CycleCheckpoint();
+	}
+
+	Body.HSplitTop(10.0f * LayoutScale, 0, &Body);
+	Body.HSplitBottom(42.0f * LayoutScale, &Body, &Canvas);
+	CUIRect Footer = Canvas;
+	DrawPanel(Footer, Fade(Panel, 0.38f), 10.0f * Scale);
+	ResearchText(Footer.x + 16.0f * Scale,
+		Footer.y + 9.0f * Scale,
+		8.2f,
+		Localize("HOVER OR CLICK FOR DETAILS"),
+		Fade(MutedText, 0.86f));
+	const char *apLegend[] = {"PURCHASED", "AVAILABLE", "LOCKED"};
+	const vec4 aLegendColors[3] = {PurchasedColor, AvailableColor, LockedColor};
+	float LegendX = Footer.x + Footer.w - 254.0f * Scale;
+	for(int i = 0; i < 3; i++)
+	{
+		CUIRect Dot = {LegendX, Footer.y + 14.0f * Scale, 6.0f * Scale, 6.0f * Scale};
+		DrawPanel(Dot, Fade(aLegendColors[i], 0.92f), 3.0f * Scale);
+		ResearchText(LegendX + 12.0f * Scale,
+			Footer.y + 8.0f * Scale,
+			7.0f,
+			Localize(apLegend[i]),
+			Fade(aLegendColors[i], 0.88f));
+		LegendX += 78.0f * Scale;
+	}
+
+	CUIRect Workspace = Body;
+	const float SidebarW = clamp((Compact ? 178.0f : 202.0f) * Scale, 166.0f * Scale, 218.0f * Scale);
+	const float DetailsW = clamp((Compact ? 286.0f : 318.0f) * Scale, 266.0f * Scale, 338.0f * Scale);
+	CUIRect Sidebar, Center, Details;
+	Workspace.VSplitLeft(SidebarW / max(0.01f, UI()->Scale()), &Sidebar, &Center);
+	Center.VSplitRight(DetailsW / max(0.01f, UI()->Scale()), &Center, &Details);
+	Sidebar.Margin(4.0f * LayoutScale, &Sidebar);
+	Center.Margin(4.0f * LayoutScale, &Center);
+	Details.Margin(4.0f * LayoutScale, &Details);
+
+	DrawPanel(Sidebar, Fade(Panel, 0.60f), 12.0f * Scale);
+	CUIRect SidebarInner = Sidebar;
+	SidebarInner.Margin(10.0f * LayoutScale, &SidebarInner);
+	CUIRect SidebarTitle, SidebarBody;
+	SidebarInner.HSplitTop(30.0f * LayoutScale, &SidebarTitle, &SidebarBody);
+	ResearchText(SidebarTitle.x + 2.0f * Scale,
+		SidebarTitle.y + 3.0f * Scale,
+		10.5f,
+		Localize("Research"),
+		Fade(Text, 0.96f));
+	for(int Tab = 0; Tab < 3; Tab++)
+	{
+		CUIRect TabRect;
+		SidebarBody.HSplitTop(38.0f * LayoutScale, &TabRect, &SidebarBody);
+		const bool Selected = Tab == m_ResearchTab;
+		const float Hover = m_pClient->m_pMenus->AnimHover(&m_aTabButtonIDs[Tab]);
+		const float Selection = m_pClient->m_pMenus->AnimSelected(&m_aTabButtonIDs[Tab], Selected, 14.0f);
+		DrawPanel(TabRect,
+			Fade(Mix(Inset, AccentDim, Selection * 0.72f + Hover * 0.10f), 0.54f + Selection * 0.18f + Hover * 0.10f),
+			11.0f * Scale);
+		CUIRect TabEdge = TabRect;
+		TabEdge.w = 2.0f * Scale;
+		DrawPanel(TabEdge, Fade(Mix(AccentDim, Accent, max(Selection, Hover * 0.72f)), 0.46f + Selection * 0.46f), 1.0f * Scale);
+		ResearchText(TabRect.x + 14.0f * Scale,
+			TabRect.y + 9.0f * Scale,
+			9.6f,
+			apTabs[Tab],
+			Fade(Mix(AccentDim, Text, Selection), 1.0f));
+		if(UI()->DoButtonLogic(&m_aTabButtonIDs[Tab], &TabRect))
+		{
+			m_ResearchTab = Tab;
+			m_ResearchBranch = 0;
+			m_ResearchRoute = 0;
+			for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+				if(!PveCardIsBase(ID) && PveCardDef(ID)->m_Tab == Tab)
+				{
+					m_SelectedResearch = ID;
+					break;
+				}
+		}
+	}
+	CUIRect RailDivider = SidebarBody;
+	RailDivider.h = 1.0f * Scale;
+	DrawPanel(RailDivider, Fade(AccentDim, 0.40f), 0.5f * Scale);
+	SidebarBody.y += 8.0f * Scale;
+	SidebarBody.h -= 8.0f * Scale;
+	for(int Branch = 0; Branch < BranchCount; Branch++)
+	{
+		CUIRect BranchRect;
+		SidebarBody.HSplitTop((Compact ? 52.0f : 58.0f) * LayoutScale, &BranchRect, &SidebarBody);
+		const bool Selected = Branch == m_ResearchBranch;
+		const float Hover = m_pClient->m_pMenus->AnimHover(&m_aBranchButtonIDs[Branch]);
+		const float Selection = m_pClient->m_pMenus->AnimSelected(&m_aBranchButtonIDs[Branch], Selected, 12.0f);
+		DrawPanel(BranchRect,
+			Fade(Mix(Deep, Inset, Selection * 0.78f + Hover * 0.08f), 0.54f + Selection * 0.26f + Hover * 0.10f),
+			10.0f * Scale);
+		CUIRect BranchEdge = BranchRect;
+		BranchEdge.w = 2.0f * Scale;
+		DrawPanel(BranchEdge,
+			Fade(Mix(AccentDim, Accent, max(Selection, Hover * 0.72f)), 0.42f + Selection * 0.52f + Hover * 0.14f),
+			1.0f * Scale);
+		DrawSprite(PveBranchIcon(m_ResearchTab, Branch),
+			BranchRect.x + 19.0f * Scale,
+			BranchRect.y + 19.0f * Scale,
+			16.0f * Scale,
+			Mix(AccentDim, Accent, Selection),
+			0.75f + Selection * 0.25f + Hover * 0.16f);
+		ResearchText(BranchRect.x + 35.0f * Scale,
+			BranchRect.y + 8.0f * Scale,
+			9.3f,
+			Localize(apBranchNames[Branch]),
+			Fade(Mix(AccentDim, Text, Selection), 1.0f),
+			BranchRect.w - 86.0f * Scale);
+		char aProgress[24];
+		str_format(aProgress, sizeof(aProgress), "%d / %d", aBranchBought[Branch], aBranchCount[Branch]);
+		ResearchText(BranchRect.x + BranchRect.w - 10.0f * Scale,
+			BranchRect.y + 10.0f * Scale,
+			7.5f,
+			aProgress,
+			Fade(Mix(AccentDim, Accent, Selection), 0.92f),
+			-1.0f,
+			1);
+		if(aBranchPreview[Branch] >= 0)
+		{
+			const CPveCardDef *pPreview = PveCardDef(aBranchPreview[Branch]);
+			ResearchText(BranchRect.x + 35.0f * Scale,
+				BranchRect.y + 31.0f * Scale,
+				7.3f,
+				Localize(pPreview->m_pName),
+				Fade(PveCardIsUnlocked(aBranchPreview[Branch], Mask) ? PurchasedColor :
+					(CanBuyResearch(aBranchPreview[Branch], Mask) ? AvailableColor : MutedText),
+					0.90f),
+				BranchRect.w - 45.0f * Scale);
+		}
+		ResearchText(BranchRect.x + BranchRect.w - 9.0f * Scale,
+			BranchRect.y + BranchRect.h - 10.0f * Scale,
+			7.2f,
+			">",
+			Fade(Mix(AccentDim, Accent, max(Selection, Hover * 0.72f)), 0.72f + Hover * 0.20f),
+			-1.0f,
+			1);
+		if(UI()->DoButtonLogic(&m_aBranchButtonIDs[Branch], &BranchRect))
+			SelectResearchRoute(Branch, 0);
+	}
+
+	CUIRect ModuleBay, RouteDeck;
+	Center.HSplitTop((Compact ? 198.0f : 210.0f) * LayoutScale, &ModuleBay, &RouteDeck);
+	DrawPanel(ModuleBay, Fade(Panel, 0.58f), 12.0f * Scale);
+	CUIRect ModuleHeader, ModuleCanvas;
+	ModuleBay.HSplitTop(30.0f * LayoutScale, &ModuleHeader, &ModuleCanvas);
+	ResearchText(ModuleHeader.x + 12.0f * Scale,
+		ModuleHeader.y + 5.0f * Scale,
+		10.2f,
+		Localize("NEURAL CONSTELLATION"),
+		Fade(Text, 0.96f));
+	const float BranchHintW = min(112.0f * Scale, ModuleHeader.w * 0.36f);
+	CUIRect BranchHint = {ModuleHeader.x + ModuleHeader.w - BranchHintW - 12.0f * Scale,
+		ModuleHeader.y + 4.0f * Scale,
+		BranchHintW,
+		20.0f * Scale};
+	DrawHint(BranchHint, Localize("SELECT A BRANCH"), Accent);
+	ModuleCanvas.Margin(8.0f * LayoutScale, &ModuleCanvas);
+	const float ScanY = ModuleCanvas.y + fmodf(Time * 28.0f, max(1.0f, ModuleCanvas.h));
+	CUIRect ScanLine = {ModuleCanvas.x, ScanY, ModuleCanvas.w, 1.0f * Scale};
+	UI()->ClipEnable(&ModuleCanvas);
+	DrawPanel(ScanLine, Fade(Accent, 0.05f + 0.03f * WaveFast), 0.5f * Scale);
+	UI()->ClipDisable();
+	const float CoreX = ModuleCanvas.x + ModuleCanvas.w * 0.5f;
+	const float CoreY = ModuleCanvas.y + ModuleCanvas.h * 0.5f;
+	const float CoreSize = min(64.0f * Scale, ModuleCanvas.h * 0.42f);
+	IGraphics::CLineItem aModuleLinks[4];
+	int ModuleLinkCount = 0;
+	CUIRect aModuleRects[4];
+	const float ModuleW = min(184.0f * Scale, ModuleCanvas.w * 0.31f);
+	const float ModuleH = min(48.0f * Scale, ModuleCanvas.h * 0.30f);
+	for(int Branch = 0; Branch < BranchCount; Branch++)
+	{
+		float X = ModuleCanvas.x + 8.0f * Scale;
+		float Y = ModuleCanvas.y + ModuleCanvas.h * 0.5f - ModuleH * 0.5f;
+		if(Branch == 0)
+		{
+			X = CoreX - ModuleW * 0.5f;
+			Y = ModuleCanvas.y;
+		}
+		else if(Branch == 1)
+		{
+			X = ModuleCanvas.x + ModuleCanvas.w - ModuleW;
+		}
+		else if(Branch == 2)
+		{
+			X = ModuleCanvas.x;
+		}
+		else
+		{
+			X = CoreX - ModuleW * 0.5f;
+			Y = ModuleCanvas.y + ModuleCanvas.h - ModuleH;
+		}
+		aModuleRects[Branch] = {X, Y, ModuleW, ModuleH};
+		const CUIRect &Module = aModuleRects[Branch];
+		const float ModuleCx = Module.x + Module.w * 0.5f;
+		const float ModuleCy = Module.y + Module.h * 0.5f;
+		aModuleLinks[ModuleLinkCount++] = IGraphics::CLineItem(CoreX, CoreY, ModuleCx, ModuleCy);
+	}
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	for(int Branch = 0; Branch < ModuleLinkCount; Branch++)
+	{
+		const float Selection = m_pClient->m_pMenus->AnimSelected(
+			&m_aModuleButtonIDs[Branch], Branch == m_ResearchBranch, 12.0f);
+		const float Hover = m_pClient->m_pMenus->AnimHover(&m_aModuleButtonIDs[Branch]);
+		const vec4 LinkColor = Mix(AccentDim, Accent, max(Selection, Hover * 0.72f));
+		Graphics()->SetColor(LinkColor.r,
+			LinkColor.g,
+			LinkColor.b,
+			(0.20f + Selection * 0.42f + Hover * 0.10f) * Alpha);
+		Graphics()->LinesDraw(&aModuleLinks[Branch], 1);
+	}
+	Graphics()->LinesEnd();
+
+	const float CoreGlow = CoreSize * 1.42f;
+	CUIRect CoreGlowRect = {CoreX - CoreGlow * 0.5f, CoreY - CoreGlow * 0.5f, CoreGlow, CoreGlow};
+	DrawPanel(CoreGlowRect, Fade(Accent, 0.10f + 0.08f * Wave), CoreGlow * 0.5f);
+	CUIRect CoreRect = {CoreX - CoreSize * 0.5f, CoreY - CoreSize * 0.5f, CoreSize, CoreSize};
+	DrawPanel(CoreRect, Fade(Accent, 0.78f + 0.12f * WaveFast), CoreSize * 0.5f);
+	CUIRect CoreInner = CoreRect;
+	CoreInner.Margin(3.0f * LayoutScale, &CoreInner);
+	DrawPanel(CoreInner, Fade(Deep, 0.96f), CoreInner.w * 0.5f);
+	ResearchText(CoreX, CoreY - 8.0f * Scale, 9.4f, apTabs[m_ResearchTab], Fade(Text, 0.98f), -1.0f, 0);
+	char aCoreProgress[32];
+	int TabBought = 0;
+	int TabCards = 0;
+	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+		if(!PveCardIsBase(ID) && PveCardDef(ID)->m_Tab == m_ResearchTab)
+		{
+			TabCards++;
+			if(PveCardIsUnlocked(ID, Mask))
+				TabBought++;
+		}
+	str_format(aCoreProgress, sizeof(aCoreProgress), "%d / %d", TabBought, TabCards);
+	ResearchText(CoreX, CoreY + 9.0f * Scale, 7.6f, aCoreProgress, Fade(Accent, 0.94f), -1.0f, 0);
+
+	for(int Branch = 0; Branch < BranchCount; Branch++)
+	{
+		const CUIRect &Module = aModuleRects[Branch];
+		const bool Selected = Branch == m_ResearchBranch;
+		const float Hover = m_pClient->m_pMenus->AnimHover(&m_aModuleButtonIDs[Branch]);
+		const float Selection = m_pClient->m_pMenus->AnimSelected(&m_aModuleButtonIDs[Branch], Selected, 12.0f);
+		const int PreviewID = aBranchPreview[Branch];
+		const bool Available = PreviewID >= 0 && CanBuyResearch(PreviewID, Mask);
+		const bool Bought = PreviewID >= 0 && PveCardIsUnlocked(PreviewID, Mask);
+		const vec4 StateColor = Bought ? PurchasedColor : (Available ? AvailableColor : LockedColor);
+		const vec4 FocusColor = Mix(StateColor, Accent, Selection * 0.72f + Hover * 0.18f);
+		CUIRect Glow = Module;
+		Glow.Margin(-2.0f * Scale, &Glow);
+		DrawPanel(Glow, Fade(FocusColor, 0.08f + Selection * 0.16f + Hover * 0.08f), 13.0f * Scale);
+		DrawPanel(Module, Fade(Mix(Inset, Panel, Selection * 0.76f), 0.84f + Selection * 0.08f), 12.0f * Scale);
+		CUIRect Edge = Module;
+		Edge.w = 2.0f * Scale;
+		DrawPanel(Edge, Fade(FocusColor, 0.60f + Selection * 0.36f + Hover * 0.18f), 1.0f * Scale);
+		DrawSprite(PveBranchIcon(m_ResearchTab, Branch),
+			Module.x + 20.0f * Scale,
+			Module.y + Module.h * 0.5f,
+			20.0f * Scale,
+			FocusColor,
+			0.86f + 0.14f * max(Selection, Hover));
+		ResearchText(Module.x + 38.0f * Scale,
+			Module.y + 8.0f * Scale,
+			9.7f,
+			Localize(apBranchNames[Branch]),
+			Fade(Mix(AccentDim, Text, Selection), 1.0f),
+			Module.w - 86.0f * Scale);
+		char aModuleProgress[24];
+		str_format(aModuleProgress, sizeof(aModuleProgress), "%d / %d", aBranchBought[Branch], aBranchCount[Branch]);
+		ResearchText(Module.x + Module.w - 10.0f * Scale,
+			Module.y + 9.0f * Scale,
+			7.3f,
+			aModuleProgress,
+			Fade(StateColor, 0.96f),
+			-1.0f,
+			1);
+		if(PreviewID >= 0)
+		{
+			ResearchText(Module.x + 38.0f * Scale,
+				Module.y + 31.0f * Scale,
+				7.7f,
+				Localize(PveCardDef(PreviewID)->m_pName),
+				Fade(Mix(StateColor, Accent, Selection * 0.36f), 0.92f),
+				Module.w - 48.0f * Scale);
+		}
+		ResearchText(Module.x + Module.w - 9.0f * Scale,
+			Module.y + Module.h - 10.0f * Scale,
+			7.2f,
+			">",
+			Fade(FocusColor, 0.72f + Hover * 0.20f),
+			-1.0f,
+			1);
+		CUIRect ModuleHit = Module;
+		if(UI()->DoButtonLogic(&m_aModuleButtonIDs[Branch], &ModuleHit))
+			SelectResearchRoute(Branch, 0);
+	}
+
+	RouteDeck.Margin(6.0f * LayoutScale, &RouteDeck);
+	DrawPanel(RouteDeck, Fade(Panel, 0.56f), 12.0f * Scale);
+	CUIRect DeckHeader, DeckColumns;
+	RouteDeck.HSplitTop(30.0f * LayoutScale, &DeckHeader, &DeckColumns);
+	ResearchText(DeckHeader.x + 12.0f * Scale,
+		DeckHeader.y + 5.0f * Scale,
+		10.0f,
+		Localize(apBranchNames[m_ResearchBranch]),
+		Fade(Text, 0.96f));
+	const float PerkHintW = min(98.0f * Scale, DeckHeader.w * 0.32f);
+	CUIRect PerkHint = {DeckHeader.x + DeckHeader.w - PerkHintW - 12.0f * Scale,
+		DeckHeader.y + 4.0f * Scale,
+		PerkHintW,
+		20.0f * Scale};
+	DrawHint(PerkHint, Localize("SELECT A PERK"), AvailableColor);
+	ResearchText(DeckHeader.x + 12.0f * Scale,
+		DeckHeader.y + 18.0f * Scale,
+		7.4f,
+		Localize("Research unlocks perk cards; select them during a run to activate their effects."),
+		Fade(MutedText, 0.70f),
+		DeckHeader.w - PerkHintW - 36.0f * Scale);
+	const int RouteCount = PveResearchRouteCount(m_ResearchTab, m_ResearchBranch);
+	int aRouteCards[3][16] = {};
+	int aRouteCardCount[3] = {};
+	for(int Tier = 0; Tier < 16; Tier++)
+		for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+		{
+			const CPveCardDef *pDef = PveCardDef(ID);
+			if(pDef->m_Base || pDef->m_Tab != m_ResearchTab || pDef->m_Branch != m_ResearchBranch || pDef->m_Tier != Tier)
+				continue;
+			const int Route = clamp(PveResearchRoute(pDef), 0, RouteCount - 1);
+			if(aRouteCardCount[Route] < 16)
+				aRouteCards[Route][aRouteCardCount[Route]++] = ID;
+		}
+	int MaxRouteCards = 1;
+	for(int Route = 0; Route < RouteCount; Route++)
+		MaxRouteCards = max(MaxRouteCards, aRouteCardCount[Route]);
+	const float ColumnGap = 7.0f * Scale;
+	const float ColumnW = (DeckColumns.w - ColumnGap * (RouteCount - 1)) / (float)RouteCount;
+	const float RouteHeaderH = 24.0f * Scale;
+	const float CardGap = 3.0f * Scale;
+	const float CardH = clamp((DeckColumns.h - RouteHeaderH - 8.0f * Scale) / MaxRouteCards - CardGap,
+		25.0f * Scale,
+		44.0f * Scale);
+	for(int Route = 0; Route < RouteCount; Route++)
+	{
+		CUIRect Column = {DeckColumns.x + Route * (ColumnW + ColumnGap), DeckColumns.y, ColumnW, DeckColumns.h};
+		const bool RouteSelected = Route == m_ResearchRoute;
+		const float RouteHover = m_pClient->m_pMenus->AnimHover(&m_aRouteButtonIDs[m_ResearchBranch][Route]);
+		const float RouteSelection = m_pClient->m_pMenus->AnimSelected(
+			&m_aRouteButtonIDs[m_ResearchBranch][Route], RouteSelected, 12.0f);
+		DrawPanel(Column, Fade(Deep, 0.38f), 9.0f * Scale);
+		CUIRect ColumnGlow = Column;
+		ColumnGlow.Margin(-1.0f * Scale, &ColumnGlow);
+		DrawPanel(ColumnGlow,
+			Fade(Mix(AccentDim, Accent, RouteSelection * 0.72f + RouteHover * 0.18f),
+				0.018f + RouteSelection * 0.045f + RouteHover * 0.018f),
+			9.0f * Scale);
+		CUIRect ColumnEdge = Column;
+		ColumnEdge.w = 1.0f * Scale;
+		DrawPanel(ColumnEdge,
+			Fade(Mix(AccentDim, Accent, RouteSelection * 0.72f + RouteHover * 0.18f),
+				0.18f + RouteSelection * 0.34f + RouteHover * 0.16f),
+			0.5f * Scale);
+		CUIRect RouteLabel = {Column.x + 5.0f * Scale, Column.y + 5.0f * Scale, Column.w - 10.0f * Scale, RouteHeaderH - 4.0f * Scale};
+		DrawPanel(RouteLabel,
+			Fade(Mix(Inset, Accent, RouteSelection * 0.54f + RouteHover * 0.12f),
+				0.56f + RouteSelection * 0.18f + RouteHover * 0.08f),
+			8.0f * Scale);
+		ResearchText(RouteLabel.x + 8.0f * Scale,
+			RouteLabel.y + 4.0f * Scale,
+			8.2f,
+			Localize(PveResearchRouteName(m_ResearchTab, m_ResearchBranch, Route)),
+			Fade(Mix(AccentDim, Text, max(RouteSelection, RouteHover)), 1.0f),
+			RouteLabel.w - 28.0f * Scale);
+		ResearchText(RouteLabel.x + RouteLabel.w - 8.0f * Scale,
+			RouteLabel.y + 4.0f * Scale,
+			7.2f,
+			">",
+			Fade(Mix(AccentDim, Accent, max(RouteSelection, RouteHover)), 0.76f + RouteHover * 0.16f),
+			-1.0f,
+			1);
+		if(UI()->DoButtonLogic(&m_aRouteButtonIDs[m_ResearchBranch][Route], &RouteLabel))
+			SelectResearchRoute(m_ResearchBranch, Route);
+		for(int CardIndex = 0; CardIndex < aRouteCardCount[Route]; CardIndex++)
+		{
+			const int ID = aRouteCards[Route][CardIndex];
+			const CPveCardDef *pDef = PveCardDef(ID);
+			const bool Bought = PveCardIsUnlocked(ID, Mask);
+			const bool Available = CanBuyResearch(ID, Mask);
+			const bool Selected = ID == m_SelectedResearch;
+			const vec4 StateColor = Bought ? PurchasedColor : (Available ? AvailableColor : LockedColor);
+			const float Selection = m_pClient->m_pMenus->AnimSelected(&m_aNodeButtonIDs[ID], Selected, 14.0f);
+			CUIRect Card = {Column.x + 5.0f * Scale,
+				Column.y + RouteHeaderH + 8.0f * Scale + CardIndex * (CardH + CardGap),
+				Column.w - 10.0f * Scale,
+				CardH};
+			const float Hover = m_pClient->m_pMenus->AnimHover(&m_aNodeButtonIDs[ID]);
+			const float Pressed = m_pClient->m_pMenus->AnimPressed(&m_aNodeButtonIDs[ID]);
+			const vec4 FocusColor = Mix(StateColor, Accent, Selection * 0.76f + Hover * 0.20f);
+			CUIRect Glow = Card;
+			Glow.Margin(-1.2f * Scale, &Glow);
+			DrawPanel(Glow,
+				Fade(FocusColor, 0.05f + Selection * 0.18f + (Available ? 0.05f : 0.0f) + Hover * 0.05f),
+				8.0f * Scale);
+			const vec4 CardSurface = Mix(Bought ? Mix(Inset, PurchasedColor, 0.24f) : Deep,
+				Panel,
+				Selection * 0.52f + Hover * 0.10f);
+			DrawPanel(Card,
+				Fade(CardSurface, 0.82f + Selection * 0.08f - Pressed * 0.04f),
+				8.0f * Scale);
+			CUIRect Edge = Card;
+			Edge.w = 2.0f * Scale;
+			DrawPanel(Edge, Fade(FocusColor, 0.54f + Selection * 0.42f + Hover * 0.20f), 1.0f * Scale);
+			const float IconSize = min(20.0f * Scale, Card.h - 8.0f * Scale);
+			CUIRect IconTile = {Card.x + 8.0f * Scale,
+				Card.y + (Card.h - IconSize) * 0.5f,
+				IconSize,
+				IconSize};
+			DrawPanel(IconTile, Fade(Deep, 0.86f), 6.0f * Scale);
+			DrawSprite(PveCardIcon(pDef),
+				IconTile.x + IconTile.w * 0.5f,
+				IconTile.y + IconTile.h * 0.5f,
+				IconSize * 0.70f,
+				Text,
+				Bought ? 0.92f : 0.68f);
+			ResearchText(Card.x + 34.0f * Scale,
+				Card.y + 6.0f * Scale,
+				Compact ? 8.0f : 8.6f,
+				Localize(pDef->m_pName),
+				Fade(Mix(Bought ? Text : MutedText, Text, Selection), 1.0f),
+				Card.w - 64.0f * Scale);
+			char aTier[12];
+			str_format(aTier, sizeof(aTier), "T%d", pDef->m_Tier);
+			ResearchText(Card.x + Card.w - 8.0f * Scale,
+				Card.y + 6.0f * Scale,
+				7.0f,
+				aTier,
+				Fade(StateColor, 0.92f),
+				-1.0f,
+				1);
+			char aStatus[24];
+			str_copy(aStatus, Bought ? "✓" : (Available ? "+" : "×"), sizeof(aStatus));
+			ResearchText(Card.x + 34.0f * Scale,
+				Card.y + Card.h - 9.0f * Scale,
+				7.0f,
+				aStatus,
+				Fade(StateColor, 0.95f));
+			ResearchText(Card.x + Card.w - 8.0f * Scale,
+				Card.y + Card.h - 9.0f * Scale,
+				7.2f,
+				">",
+				Fade(FocusColor, 0.72f + Hover * 0.20f),
+				-1.0f,
+				1);
+			if(UI()->DoButtonLogic(&m_aNodeButtonIDs[ID], &Card))
+			{
+				m_SelectedResearch = ID;
+				m_ResearchBranch = pDef->m_Branch;
+				m_ResearchRoute = Route;
+				m_SelectionPulse = 0.7f;
+			}
+		}
+	}
+
+	DrawPanel(Details, Fade(Panel, 0.72f), 12.0f * Scale);
+	CUIRect Detail = Details;
+	Detail.Margin(12.0f * LayoutScale, &Detail);
+	const CPveCardDef *pSelected = PveCardDef(m_SelectedResearch);
+	if(pSelected)
+	{
+		const bool Bought = PveCardIsUnlocked(m_SelectedResearch, Mask);
+		const bool Available = CanBuyResearch(m_SelectedResearch, Mask);
+		const vec4 StateColor = Bought ? PurchasedColor : (Available ? AvailableColor : LockedColor);
+		const float DetailTransition = 1.0f - clamp(m_SelectionPulse / 0.7f, 0.0f, 1.0f);
+		const vec4 DetailStateColor = Mix(Accent, StateColor, DetailTransition);
+		char aState[48];
+		str_format(aState,
+			sizeof(aState),
+			"%s  %s",
+			Bought ? "✓" : (Available ? "+" : "×"),
+			Localize(Bought ? "PURCHASED" : (Available ? "AVAILABLE" : "LOCKED")));
+		CUIRect DetailHeader, DetailBody;
+		Detail.HSplitTop(28.0f * LayoutScale, &DetailHeader, &DetailBody);
+		ResearchText(DetailHeader.x,
+			DetailHeader.y + 3.0f * Scale,
+			11.0f,
+			Localize("Research Details"),
+			Fade(Text, 0.98f));
+		CUIRect StatePill = {DetailHeader.x + DetailHeader.w - 128.0f * Scale,
+			DetailHeader.y,
+			128.0f * Scale,
+			24.0f * Scale};
+		DrawPanel(StatePill, Fade(Inset, 0.90f), 10.0f * Scale);
+		CUIRect StateEdge = StatePill;
+		StateEdge.w = 2.0f * Scale;
+		DrawPanel(StateEdge, Fade(DetailStateColor, 0.94f), 1.0f * Scale);
+		ResearchText(StatePill.x + StatePill.w * 0.5f,
+			StatePill.y + 5.0f * Scale,
+			7.6f,
+			aState,
+			Fade(DetailStateColor, 1.0f),
+			-1.0f,
+			0);
+
+		CUIRect Hero;
+		DetailBody.HSplitTop(92.0f * LayoutScale, &Hero, &DetailBody);
+		DrawPanel(Hero, Fade(Inset, 0.82f), 10.0f * Scale);
+		CUIRect HeroEdge = Hero;
+		HeroEdge.w = 2.0f * Scale;
+		DrawPanel(HeroEdge, Fade(DetailStateColor, 0.92f), 1.0f * Scale);
+		CUIRect HeroIcon = {Hero.x + 12.0f * Scale, Hero.y + 15.0f * Scale, 58.0f * Scale, 58.0f * Scale};
+		DrawPanel(HeroIcon, Fade(Deep, 0.88f), 10.0f * Scale);
+		DrawSprite(PveCardIcon(pSelected),
+			HeroIcon.x + HeroIcon.w * 0.5f,
+			HeroIcon.y + HeroIcon.h * 0.5f,
+			42.0f * Scale,
+			Text,
+			0.94f);
+		const float HeroTextX = HeroIcon.x + HeroIcon.w + 12.0f * Scale;
+		ResearchText(HeroTextX,
+			Hero.y + 15.0f * Scale,
+			11.5f,
+			Localize(pSelected->m_pName),
+			Fade(Text, 1.0f),
+			Hero.x + Hero.w - HeroTextX - 10.0f * Scale);
+		char aMeta[96];
+		str_format(aMeta,
+			sizeof(aMeta),
+			Localize("%s • TIER %d • COST %d"),
+			Localize(PveRarityName(pSelected->m_Rarity)),
+			pSelected->m_Tier,
+			pSelected->m_ResearchCost);
+		ResearchText(HeroTextX,
+			Hero.y + 49.0f * Scale,
+			8.2f,
+			aMeta,
+			Fade(Accent, 0.96f),
+			Hero.x + Hero.w - HeroTextX - 10.0f * Scale);
+
+		DetailBody.HSplitTop(8.0f * LayoutScale, 0, &DetailBody);
+		ResearchText(DetailBody.x,
+			DetailBody.y + 2.0f * Scale,
+			9.4f,
+			Localize("Effect"),
+			Fade(Accent, 1.0f));
+		DetailBody.y += 22.0f * Scale;
+		CUIRect Effect;
+		DetailBody.HSplitTop(82.0f * LayoutScale, &Effect, &DetailBody);
+		DrawPanel(Effect, Fade(Inset, 0.68f), 9.0f * Scale);
+		const char *pEffectText = Localize(Compact ? pSelected->m_pShortDescription : pSelected->m_pDescription);
+		ResearchWrapped(Effect.x + 12.0f * Scale,
+			Effect.y + 10.0f * Scale,
+			8.4f,
+			pEffectText,
+			Fade(MutedText, 0.92f),
+			Effect.w - 20.0f * Scale,
+			3);
+		DetailBody.HSplitTop(8.0f * LayoutScale, 0, &DetailBody);
+		CUIRect Rules;
+		DetailBody.HSplitTop(62.0f * LayoutScale, &Rules, &DetailBody);
+		DrawPanel(Rules, Fade(Deep, 0.56f), 9.0f * Scale);
+		char aRule[64];
+		if(pSelected->m_MaxStacks == 1)
+			str_copy(aRule, Localize("Unique perk"), sizeof(aRule));
+		else
+			str_format(aRule, sizeof(aRule), Localize("Stack limit: %d"), pSelected->m_MaxStacks);
+		ResearchText(Rules.x + 12.0f * Scale,
+			Rules.y + 9.0f * Scale,
+			8.7f,
+			aRule,
+			Fade(Accent, 0.96f));
+		char aPrerequisite[128];
+		if(pSelected->m_NumPrerequisites > 0)
+		{
+			str_copy(aPrerequisite, Localize("Requires:"), sizeof(aPrerequisite));
+			str_append(aPrerequisite, " ", sizeof(aPrerequisite));
+			for(int i = 0; i < pSelected->m_NumPrerequisites; i++)
+			{
+				if(i > 0)
+					str_append(aPrerequisite, ", ", sizeof(aPrerequisite));
+				str_append(aPrerequisite,
+					Localize(PveCardDef(pSelected->m_aPrerequisites[i])->m_pName),
+					sizeof(aPrerequisite));
+			}
+		}
+		else
+			str_copy(aPrerequisite, Localize("No prerequisite"), sizeof(aPrerequisite));
+		ResearchWrapped(Rules.x + 12.0f * Scale,
+			Rules.y + 31.0f * Scale,
+			8.0f,
+			aPrerequisite,
+			Fade(Available || Bought ? Accent : Danger, 0.94f),
+			Rules.w - 24.0f * Scale,
+			2);
+
+		int UnlockedResearch = 0;
+		for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+			if(!PveCardIsBase(ID) && PveCardIsUnlocked(ID, Mask))
+				UnlockedResearch++;
+		const float ProgressRatio = UnlockedResearch / (float)max(1, (int)NUM_PVE_RESEARCH_CARDS);
+		const float BuyHeight = 42.0f * Scale;
+		CUIRect Buy = {Detail.x,
+			Detail.y + Detail.h - BuyHeight,
+			Detail.w,
+			BuyHeight};
+		CUIRect Progress = {Detail.x,
+			Buy.y - 54.0f * Scale,
+			Detail.w,
+			46.0f * Scale};
+		DrawPanel(Progress, Fade(Inset, 0.60f), 9.0f * Scale);
+		ResearchText(Progress.x + 12.0f * Scale,
+			Progress.y + 8.0f * Scale,
+			8.2f,
+			Localize("Research Progress"),
+			Fade(Accent, 0.96f));
+		char aProgress[32];
+		str_format(aProgress, sizeof(aProgress), "%d / %d", UnlockedResearch, NUM_PVE_RESEARCH_CARDS);
+		ResearchText(Progress.x + Progress.w - 12.0f * Scale,
+			Progress.y + 8.0f * Scale,
+			8.2f,
+			aProgress,
+			Fade(Text, 0.86f),
+			-1.0f,
+			1);
+		CUIRect ProgressBar = {Progress.x + 12.0f * Scale,
+			Progress.y + 29.0f * Scale,
+			Progress.w - 24.0f * Scale,
+			4.0f * Scale};
+		DrawPanel(ProgressBar, Fade(Deep, 0.82f), 2.0f * Scale);
+		CUIRect ProgressFill = ProgressBar;
+		ProgressFill.w *= clamp(ProgressRatio, 0.0f, 1.0f);
+		if(ProgressFill.w > 0.0f)
+			DrawPanel(ProgressFill, Fade(Accent, 0.88f), 2.0f * Scale);
+
+		const float BuyHover = Available ? m_pClient->m_pMenus->AnimHover(&m_BuyButtonID) : 0.0f;
+		const float BuyPressed = Available ? m_pClient->m_pMenus->AnimPressed(&m_BuyButtonID) : 0.0f;
+		CUIRect BuyBorder = Buy;
+		BuyBorder.Margin((-1.2f - BuyHover * 0.8f + BuyPressed * 0.8f) * LayoutScale, &BuyBorder);
+		const vec4 BuyStateColor = Available ? Accent : (Bought ? AccentDim : Danger);
+		DrawPanel(BuyBorder,
+			Fade(BuyStateColor, Available ? 0.56f + BuyHover * 0.28f : 0.34f),
+			BuyBorder.h * 0.5f);
+		DrawPanel(Buy,
+			Fade(Mix(Inset, BuyStateColor, Available ? 0.78f + BuyHover * 0.16f : 0.0f),
+				Available ? 0.82f + BuyHover * 0.12f - BuyPressed * 0.06f : 0.76f),
+			Buy.h * 0.5f);
+		ResearchText(Buy.x + Buy.w * 0.5f,
+			Buy.y + 10.0f * Scale,
+			11.0f,
+			Localize(Bought ? "Unlocked for future choices" : (Available ? "Purchase" : "Locked")),
+			Fade(m_ValidationCode && time_get() < m_ValidationUntil ? Danger : Text, 1.0f),
+			-1.0f,
+			0);
+		if(Available && UI()->DoButtonLogic(&m_BuyButtonID, &Buy))
+			BuySelectedResearch();
+	}
+	TextRender()->TextColor(1, 1, 1, 1);
+}
+
+void CPveRoguelite::RenderResearchLegacy(CUIRect MainView)
+{
 	m_ResearchVisible = true;
 	const float Dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
 	m_SelectionPulse = max(0.0f, m_SelectionPulse - Dt * 4.0f);
@@ -1944,6 +2871,10 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 	const vec4 AccentDim = CMenus::ThemeAccentDim();
 	const vec4 Text = CMenus::ThemeText();
 	const vec4 Danger = CMenus::ThemeDanger();
+	const vec4 PurchasedColor = AccentDim;
+	const vec4 AvailableColor = CMenus::ThemeResearchAvailable();
+	const vec4 LockedColor = CMenus::ThemeResearchLocked();
+	const vec4 MutedText = CMenus::ThemeTextMuted();
 	auto Fade = [&](const vec4 &Color, float Opacity)
 	{
 		return vec4(Color.r, Color.g, Color.b, Color.a * Opacity * Alpha);
@@ -1983,17 +2914,21 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 	};
 
 	MainView.y += (1.0f - Alpha) * 8.0f * Scale;
-	DrawPanel(MainView, Fade(AccentDim, 0.24f + 0.10f * Wave), 12.0f * Scale);
-	MainView.Margin(1.4f * LayoutScale, &MainView);
-	DrawPanel(MainView, Fade(Deep, 0.99f), 10.5f * Scale);
+	// Research now lives on the shared open secondary-page canvas. Keep only
+	// restrained corner/edge depth here instead of enclosing the whole page in
+	// another opaque panel.
+	DrawPanel(MainView, Fade(AccentDim, 0.11f + 0.06f * Wave), 12.0f * Scale);
+	MainView.Margin(1.0f * LayoutScale, &MainView);
+	const float UnderlayScrim = Client()->State() == IClient::STATE_ONLINE ? 0.62f : 0.20f;
+	DrawPanel(MainView, Fade(Deep, UnderlayScrim), 10.5f * Scale);
 
 	CUIRect Header, Body;
 	MainView.Margin(8.0f * LayoutScale, &MainView);
 	MainView.HSplitTop((Compact ? 102.0f : 116.0f) * LayoutScale, &Header, &Body);
 	CUIRect HeaderShadow = Header;
 	HeaderShadow.y += 2.0f * Scale;
-	DrawPanel(HeaderShadow, Fade(Deep, 0.62f), 10.0f * Scale);
-	DrawPanel(Header, Fade(Panel, 0.98f), 9.0f * Scale);
+	DrawPanel(HeaderShadow, Fade(Deep, 0.24f), 10.0f * Scale);
+	DrawPanel(Header, Fade(Panel, 0.58f), 9.0f * Scale);
 	CUIRect HeaderEdge = {
 		Header.x + 12.0f * Scale, Header.y + Header.h - 1.5f * Scale, Header.w - 24.0f * Scale, 1.5f * Scale};
 	DrawPanel(HeaderEdge, Fade(Accent, 0.52f + 0.28f * Wave), 0.75f * Scale);
@@ -2048,19 +2983,31 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 				 -1);
 
 	const char *apTabs[3] = {Localize("Core"), Localize("Weapons"), Localize("Modes")};
-	const CPveUiIcon aTabIcons[3] = {CPveUiIcon(IMAGE_WEAPONS, SPRITE_PICKUP_ARMOR),
-									 PveSpecializationIcon(PVE_SPECIALIZATION_FIREARM),
-									 CPveUiIcon(IMAGE_WEAPONS, SPRITE_PICKUP_KIT)};
-	const float TabsX = Header.x + 12.0f * Scale;
-	const float TabsRight = Header.x + Header.w - 10.0f * Scale;
-	const float TabGap = 6.0f * Scale;
-	const float TabWidth = (TabsRight - TabsX - TabGap * 2.0f) / 3.0f;
+	const float TabStart = Header.x + 18.0f * Scale;
+	const float TabAreaWidth = min(Header.w * 0.58f, 430.0f * Scale);
+	const float TabGap = 8.0f * Scale;
+	const float TabWidth = (TabAreaWidth - TabGap * 2.0f) / 3.0f;
+	const float MapY = Header.y + (Compact ? 65.0f : 72.0f) * Scale;
+	IGraphics::CLineItem aMapLines[2] = {
+		IGraphics::CLineItem(TabStart + TabWidth,
+							 MapY + 12.0f * Scale,
+							 TabStart + TabWidth + TabGap,
+							 MapY + 12.0f * Scale),
+		IGraphics::CLineItem(TabStart + TabWidth * 2.0f + TabGap,
+							 MapY + 12.0f * Scale,
+							 TabStart + TabWidth * 2.0f + TabGap * 2.0f,
+							 MapY + 12.0f * Scale)};
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(AccentDim.r, AccentDim.g, AccentDim.b, 0.42f * Alpha);
+	Graphics()->LinesDraw(aMapLines, 2);
+	Graphics()->LinesEnd();
 	for(int Tab = 0; Tab < 3; Tab++)
 	{
-		CUIRect TabRect = {TabsX + Tab * (TabWidth + TabGap),
-						   Header.y + (Compact ? 68.0f : 78.0f) * Scale,
+		CUIRect TabRect = {TabStart + Tab * (TabWidth + TabGap),
+						   MapY,
 						   TabWidth,
-						   (Compact ? 26.0f : 29.0f) * Scale};
+						   (Compact ? 24.0f : 27.0f) * Scale};
 		const bool Selected = Tab == m_ResearchTab;
 		const float Hover = m_pClient->m_pMenus->AnimHover(&m_aTabButtonIDs[Tab]);
 		const float Lift = (Selected ? 1.2f : 0.0f) + Hover * 1.4f;
@@ -2069,28 +3016,29 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 		TabBorder.Margin((-1.0f - Hover * 0.4f) * LayoutScale, &TabBorder);
 		DrawPanel(TabBorder,
 				  Fade(Selected || Hover > 0.2f ? Accent : AccentDim, Selected ? 0.78f : (0.18f + Hover * 0.42f)),
-				  7.0f * Scale);
-		DrawPanel(TabRect, Fade(Selected ? AccentDim : Inset, Selected ? 0.62f : 0.96f), 6.0f * Scale);
-		DrawSprite(aTabIcons[Tab],
-				   TabRect.x + 18.0f * Scale,
-				   TabRect.y + TabRect.h * 0.5f,
-				   (14.0f + Hover) * Scale,
-				   Selected ? Accent : Text,
-				   Selected ? 1.0f : (0.55f + Hover * 0.25f));
-		ResearchText(TabRect.x + TabRect.w * 0.54f,
-					 TabRect.y + 5.8f * Scale,
-					 9.2f * Scale,
-					 apTabs[Tab],
+				  11.0f * Scale);
+		DrawPanel(TabRect, Fade(Selected ? AccentDim : Inset, Selected ? 0.62f : 0.96f), 10.0f * Scale);
+		const float TabGutter = 18.0f * Scale;
+		CUIRect StatusDot = {TabRect.x + 7.0f * Scale,
+							 TabRect.y + TabRect.h * 0.5f - 4.0f * Scale,
+							 8.0f * Scale,
+							 8.0f * Scale};
+		DrawPanel(StatusDot,
+				  Fade(Selected ? Accent : AccentDim, Selected ? 1.0f : (0.55f + Hover * 0.25f)),
+				  4.0f * Scale);
+		ResearchText(TabRect.x + TabGutter + 8.0f * Scale,
+						 TabRect.y + (Compact ? 5.0f : 6.2f) * Scale,
+						 (Compact ? 8.0f : 9.2f) * Scale,
+						 apTabs[Tab],
 					 Fade(Selected ? Text : AccentDim, 1.0f),
 					 -1.0f,
 					 0);
 		if(Selected)
 		{
-			const float LineWidth = (TabRect.w - 20.0f * Scale) * (0.72f + 0.28f * Wave);
-			CUIRect SelectedLine = {TabRect.x + (TabRect.w - LineWidth) * 0.5f,
-									TabRect.y + TabRect.h - 1.5f * Scale,
-									LineWidth,
-									1.5f * Scale};
+			CUIRect SelectedLine = {TabRect.x + TabGutter + 4.0f * Scale,
+									 TabRect.y + TabRect.h - 1.5f * Scale,
+									 TabRect.w - TabGutter - 10.0f * Scale,
+									 1.5f * Scale};
 			DrawPanel(SelectedLine, Fade(Accent, 0.85f + 0.15f * WaveFast), 0.75f * Scale);
 		}
 		if(UI()->DoButtonLogic(&m_aTabButtonIDs[Tab], &TabRect))
@@ -2115,7 +3063,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 							  CheckpointWidth,
 							  (Compact ? 26.0f : 30.0f) * Scale};
 		const bool Hovered = UI()->HotItem() == &m_CheckpointButtonID;
-		DrawPanel(Checkpoint, Fade(Hovered ? AccentDim : Inset, 0.98f), 8.0f * Scale);
+		DrawPanel(Checkpoint, Fade(Hovered ? AccentDim : Inset, 0.98f), Checkpoint.h * 0.5f);
 		char aCheckpoint[64];
 		str_format(aCheckpoint, sizeof(aCheckpoint), Localize("Checkpoint %d"), g_Config.m_ClPvePreferredCheckpoint);
 		ResearchText(Checkpoint.x + Checkpoint.w * 0.5f,
@@ -2131,388 +3079,608 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 
 	Body.HSplitTop(8.0f * LayoutScale, 0, &Body);
 	CUIRect Tree, Details;
-	const float DetailWidth = clamp(Body.w * 0.32f, 250.0f * Scale, 294.0f * Scale);
+	const float DetailWidth = clamp(Body.w * 0.30f, 244.0f * Scale, 282.0f * Scale);
 	Body.VSplitRight(DetailWidth / max(0.01f, UI()->Scale()), &Tree, &Details);
 	Tree.VSplitRight(8.0f * LayoutScale, &Tree, 0);
-	DrawPanel(Tree, Fade(Panel, 0.96f), 9.0f * Scale);
+	DrawPanel(Tree, Fade(Panel, 0.68f), 9.0f * Scale);
 	DrawPanel(Details, Fade(Panel, 0.96f), 9.0f * Scale);
 	const char *apTabDescriptions[3] = {
 		Localize("Core research improves universal attack, survival, and logistics perks."),
 		Localize("Weapon research unlocks specialization perks matched to your current weapon."),
 		Localize("Mode research unlocks perks that appear only in the matching PvE mode.")};
-	const float TreeIntroHeight = (Compact ? 36.0f : 42.0f) * Scale;
-	CUIRect TreeIntro = {Tree.x + 8.0f * Scale, Tree.y + 7.0f * Scale, Tree.w - 16.0f * Scale, TreeIntroHeight};
-	DrawPanel(TreeIntro, Fade(Inset, 0.84f), 7.0f * Scale);
-	CUIRect TreeIntroMark = {TreeIntro.x, TreeIntro.y + 7.0f * Scale, 2.0f * Scale, TreeIntro.h - 14.0f * Scale};
-	DrawPanel(TreeIntroMark, Fade(Accent, 0.72f + 0.20f * Wave), 1.0f * Scale);
-	ResearchText(
-		TreeIntro.x + 10.0f * Scale, TreeIntro.y + 4.0f * Scale, 9.0f * Scale, apTabs[m_ResearchTab], Fade(Text, 1.0f));
-	ResearchText(TreeIntro.x + 10.0f * Scale,
-				 TreeIntro.y + (Compact ? 16.5f : 19.5f) * Scale,
-				 8.2f * Scale,
-				 apTabDescriptions[m_ResearchTab],
-				 Fade(Text, 0.80f),
-				 TreeIntro.w - 20.0f * Scale,
-				 -1);
-	const float BranchOffset = (Compact ? 46.0f : 52.0f) * Scale;
-	CUIRect BranchArea = {Tree.x, Tree.y + BranchOffset, Tree.w, Tree.h - BranchOffset};
+	const CPveResearchMask Mask = TutorialResearchActive() ? CPveResearchMask() : ParseResearchMask();
+
+	CUIRect StarMap = Tree;
+	StarMap.Margin(7.0f * LayoutScale, &StarMap);
+	CUIRect MapHeader, MapCanvas;
+	StarMap.HSplitTop((Compact ? 48.0f : 56.0f) * Scale, &MapHeader, &MapCanvas);
+	DrawPanel(MapHeader, Fade(Inset, 0.72f), 8.0f * Scale);
+	CUIRect HeaderMark = {MapHeader.x + 9.0f * Scale,
+						 MapHeader.y + 8.0f * Scale,
+						 2.0f * Scale,
+						 MapHeader.h - 16.0f * Scale};
+	DrawPanel(HeaderMark, Fade(Accent, 0.76f + 0.20f * WaveFast), 1.0f * Scale);
+	ResearchText(MapHeader.x + 17.0f * Scale,
+				 MapHeader.y + 5.0f * Scale,
+				 9.8f * Scale,
+				 Localize("NEURAL CONSTELLATION"),
+				 Fade(Text, 0.98f));
+	ResearchWrapped(MapHeader.x + 17.0f * Scale,
+					 MapHeader.y + (Compact ? 21.0f : 27.0f) * Scale,
+					 7.4f * Scale,
+					 apTabDescriptions[m_ResearchTab],
+					 Fade(Text, 0.72f),
+					 MapHeader.w - 192.0f * Scale,
+					 2);
+	CUIRect Legend = {MapHeader.x + MapHeader.w - 174.0f * Scale,
+					 MapHeader.y + 7.0f * Scale,
+					 164.0f * Scale,
+					 MapHeader.h - 14.0f * Scale};
+	const char *apLegend[] = {"PURCHASED", "AVAILABLE", "LOCKED"};
+	const vec4 aLegendColors[3] = {PurchasedColor, AvailableColor, LockedColor};
+	for(int LegendIndex = 0; LegendIndex < 3; LegendIndex++)
+	{
+		CUIRect LegendRow;
+		Legend.HSplitTop(Legend.h / (3 - LegendIndex), &LegendRow, &Legend);
+		CUIRect LegendDot = {LegendRow.x, LegendRow.y + LegendRow.h * 0.5f - 2.0f * Scale, 4.0f * Scale, 4.0f * Scale};
+		DrawPanel(LegendDot, Fade(aLegendColors[LegendIndex], 0.86f), 2.0f * Scale);
+		ResearchText(LegendRow.x + 9.0f * Scale,
+					 LegendRow.y + 1.0f * Scale,
+					 6.5f * Scale,
+					 Localize(apLegend[LegendIndex]),
+					 Fade(aLegendColors[LegendIndex], 0.90f));
+	}
+
+	MapCanvas.Margin(5.0f * LayoutScale, &MapCanvas);
+	DrawPanel(MapCanvas, Fade(Deep, 0.64f), 8.0f * Scale);
+	const float CanvasLeft = MapCanvas.x + 10.0f * Scale;
+	const float CanvasTop = MapCanvas.y + 8.0f * Scale;
+	const float CanvasRight = MapCanvas.x + MapCanvas.w - 10.0f * Scale;
+	const float CanvasBottom = MapCanvas.y + MapCanvas.h - 8.0f * Scale;
+	const float CanvasWidth = CanvasRight - CanvasLeft;
+	const float CanvasHeight = CanvasBottom - CanvasTop;
+	const float NetworkLeft = CanvasLeft + CanvasWidth * 0.29f;
+	const float NetworkWidth = CanvasRight - NetworkLeft - 6.0f * Scale;
+	const float CenterX = CanvasLeft + (Compact ? 8.0f : 10.0f) * Scale;
+	const float CenterY = CanvasTop + CanvasHeight * 0.50f;
+	const float MapRadius = min(CanvasWidth * 0.31f, CanvasHeight * 0.44f);
+	const float NodeDiameter = (Compact ? 21.0f : 24.0f) * Scale;
+	const float NodeRadius = NodeDiameter * 0.5f;
+
+	for(int Star = 0; Star < 26; Star++)
+	{
+		const float StarX = CanvasLeft + fmodf((float)(Star * 47 + 19), max(1.0f, CanvasRight - CanvasLeft));
+		const float StarY = CanvasTop + fmodf((float)(Star * 73 + 11), max(1.0f, CanvasBottom - CanvasTop));
+		const float StarSize = (Star % 5 == 0 ? 2.0f : 1.0f) * Scale;
+		CUIRect StarDot = {StarX, StarY, StarSize, StarSize};
+		DrawPanel(StarDot, Fade(AccentDim, Star % 5 == 0 ? 0.26f : 0.12f), StarSize * 0.5f);
+	}
+
 	int BranchCount = 0;
 	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
 		if(!PveCardIsBase(ID) && PveCardDef(ID)->m_Tab == m_ResearchTab)
 			BranchCount = max(BranchCount, PveCardDef(ID)->m_Branch + 1);
 	BranchCount = max(1, BranchCount);
 	m_ResearchBranch = clamp(m_ResearchBranch, 0, BranchCount - 1);
-	const CPveResearchMask Mask = TutorialResearchActive() ? CPveResearchMask() : ParseResearchMask();
-	const float BranchGap = (Compact ? 3.5f : 5.0f) * Scale;
-	const float BranchHeaderHeight = (Compact ? 29.0f : 33.0f) * Scale;
-	const float ExpandedHeight =
-		max(BranchHeaderHeight, BranchArea.h - 8.0f * Scale - (BranchCount - 1) * (BranchHeaderHeight + BranchGap));
-	float BranchExpandSum = 0.0f;
-	for(int Branch = 0; Branch < BranchCount; Branch++)
-		BranchExpandSum += m_aBranchExpand[clamp(Branch, 0, 3)];
-	float BranchY = BranchArea.y + 4.0f * Scale;
+	int aTierCounts[4][16] = {};
+	int aTierSlots[4][16] = {};
+	int aRouteCounts[4][3] = {};
+	int aRouteBoughtCounts[4][3] = {};
+	int aRouteMinTier[4][3];
+	int aRouteMaxTier[4][3];
+	for(int Branch = 0; Branch < 4; Branch++)
+		for(int Route = 0; Route < 3; Route++)
+		{
+			aRouteMinTier[Branch][Route] = 99;
+			aRouteMaxTier[Branch][Route] = 0;
+		}
+	int MaxTier = 1;
+	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+	{
+		const CPveCardDef *pDef = PveCardDef(ID);
+		if(!pDef->m_Base && pDef->m_Tab == m_ResearchTab)
+		{
+			const int Branch = clamp(pDef->m_Branch, 0, 3);
+			const int Tier = clamp(pDef->m_Tier, 0, 15);
+			const int Route = clamp(PveResearchRoute(pDef), 0, 2);
+			aTierCounts[Branch][Tier]++;
+			aRouteCounts[Branch][Route]++;
+			aRouteMinTier[Branch][Route] = min(aRouteMinTier[Branch][Route], pDef->m_Tier);
+			aRouteMaxTier[Branch][Route] = max(aRouteMaxTier[Branch][Route], pDef->m_Tier);
+			if(PveCardIsUnlocked(ID, Mask))
+				aRouteBoughtCounts[Branch][Route]++;
+			MaxTier = max(MaxTier, pDef->m_Tier);
+		}
+	}
+
+	const float InnerRadius = MapRadius * 0.22f;
+	const float LaneSpacing = CanvasHeight / (BranchCount + 1.0f);
+	CUIRect aNodeRects[NUM_PVE_CARDS];
+	bool aNodeVisible[NUM_PVE_CARDS] = {};
+	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+	{
+		const CPveCardDef *pDef = PveCardDef(ID);
+		if(pDef->m_Base || pDef->m_Tab != m_ResearchTab)
+			continue;
+		const int Branch = clamp(pDef->m_Branch, 0, 3);
+		const int RouteCount = PveResearchRouteCount(m_ResearchTab, Branch);
+		const int Route = clamp(PveResearchRoute(pDef), 0, RouteCount - 1);
+		const float TierAmount = (pDef->m_Tier - 1) / (float)max(1, MaxTier - 1);
+		const int TierSlot = aTierSlots[Branch][clamp(pDef->m_Tier, 0, 15)]++;
+		const int TierCount = aTierCounts[Branch][clamp(pDef->m_Tier, 0, 15)];
+		const float LaneY = CanvasTop + CanvasHeight * (Branch + 1) / (BranchCount + 1.0f);
+		const float RouteOffset = (Route - (RouteCount - 1) * 0.5f) * NodeDiameter * 0.74f;
+		const float SlotOffset = (TierSlot - (TierCount - 1) * 0.5f) * NodeDiameter * 0.45f;
+		const float StaggerX = ((pDef->m_Tier + Branch) % 2 ? NodeDiameter * 0.42f : 0.0f);
+		const float TierX = NetworkLeft + (NetworkWidth - NodeDiameter) * TierAmount + StaggerX;
+		float X = TierX - NodeRadius;
+		float Y = LaneY + RouteOffset + SlotOffset - NodeRadius;
+		X = clamp(X, NetworkLeft - NodeRadius, CanvasRight - NodeDiameter);
+		Y = clamp(Y, CanvasTop, CanvasBottom - NodeDiameter);
+		aNodeRects[ID] = {X, Y, NodeDiameter, NodeDiameter};
+		aNodeVisible[ID] = true;
+	}
+
+	for(int Ring = 1; Ring <= 3; Ring++)
+	{
+		const float Radius = InnerRadius + MapRadius * 0.24f * Ring;
+		IGraphics::CLineItem aRing[48];
+		const int Segments = 24;
+		for(int Segment = 0; Segment < Segments; Segment++)
+		{
+			const float A0 = -pi * 0.5f + pi * Segment / Segments;
+			const float A1 = -pi * 0.5f + pi * (Segment + 1) / Segments;
+			aRing[Segment * 2] = IGraphics::CLineItem(CenterX + cosf(A0) * Radius,
+													 CenterY + sinf(A0) * Radius,
+													 CenterX + cosf(A1) * Radius,
+													 CenterY + sinf(A1) * Radius);
+		}
+		Graphics()->TextureClear();
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(AccentDim.r, AccentDim.g, AccentDim.b, (0.10f + Ring * 0.025f) * Alpha);
+		Graphics()->LinesDraw(aRing, Segments * 2);
+		Graphics()->LinesEnd();
+	}
+	IGraphics::CLineItem aSpokes[4];
+	int SpokeCount = 0;
 	for(int Branch = 0; Branch < BranchCount; Branch++)
 	{
-		int aNodes[NUM_PVE_CARDS];
-		int Count = 0;
-		int BoughtCount = 0;
+		const float LaneY = CanvasTop + CanvasHeight * (Branch + 1) / (BranchCount + 1.0f);
+		aSpokes[SpokeCount++] = IGraphics::CLineItem(CenterX + NodeRadius,
+													 CenterY,
+													 NetworkLeft - 8.0f * Scale,
+													 LaneY);
+	}
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(AccentDim.r, AccentDim.g, AccentDim.b, 0.18f * Alpha);
+	Graphics()->LinesDraw(aSpokes, SpokeCount);
+	Graphics()->LinesEnd();
+	IGraphics::CLineItem aLaneLines[4];
+	int LaneCount = 0;
+	for(int Branch = 0; Branch < BranchCount; Branch++)
+	{
+		const float LaneY = CanvasTop + CanvasHeight * (Branch + 1) / (BranchCount + 1.0f);
+		aLaneLines[LaneCount++] = IGraphics::CLineItem(NetworkLeft,
+													 LaneY,
+													 CanvasRight,
+													 LaneY);
+	}
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(AccentDim.r, AccentDim.g, AccentDim.b, 0.08f * Alpha);
+	Graphics()->LinesDraw(aLaneLines, LaneCount);
+	Graphics()->LinesEnd();
+
+	IGraphics::CLineItem aLockedLinks[NUM_PVE_CARDS * 3];
+	IGraphics::CLineItem aAvailableLinks[NUM_PVE_CARDS * 3];
+	IGraphics::CLineItem aPurchasedLinks[NUM_PVE_CARDS * 3];
+	int LinkCount = 0;
+	int AvailableLinkCount = 0;
+	int PurchasedLinkCount = 0;
+	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+	{
+		if(!aNodeVisible[ID])
+			continue;
+		const CPveCardDef *pDef = PveCardDef(ID);
+		for(int Prerequisite = 0; Prerequisite < pDef->m_NumPrerequisites; Prerequisite++)
+		{
+			const int PreviousID = pDef->m_aPrerequisites[Prerequisite];
+			const CUIRect Previous = aNodeVisible[PreviousID] ? aNodeRects[PreviousID]
+																		 : CUIRect{CenterX - 1.0f, CenterY - 1.0f, 2.0f, 2.0f};
+			const CUIRect Current = aNodeRects[ID];
+			const IGraphics::CLineItem Link(Previous.x + Previous.w * 0.5f,
+										 Previous.y + Previous.h * 0.5f,
+										 Current.x + Current.w * 0.5f,
+										 Current.y + Current.h * 0.5f);
+			if(PveCardIsUnlocked(ID, Mask))
+			{
+				if(PurchasedLinkCount < (int)(sizeof(aPurchasedLinks) / sizeof(aPurchasedLinks[0])))
+					aPurchasedLinks[PurchasedLinkCount++] = Link;
+			}
+			else if(CanBuyResearch(ID, Mask))
+			{
+				if(AvailableLinkCount < (int)(sizeof(aAvailableLinks) / sizeof(aAvailableLinks[0])))
+					aAvailableLinks[AvailableLinkCount++] = Link;
+			}
+			else if(LinkCount < (int)(sizeof(aLockedLinks) / sizeof(aLockedLinks[0])))
+				aLockedLinks[LinkCount++] = Link;
+		}
+	}
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(LockedColor.r, LockedColor.g, LockedColor.b, 0.28f * Alpha);
+	Graphics()->LinesDraw(aLockedLinks, LinkCount);
+	Graphics()->SetColor(AvailableColor.r, AvailableColor.g, AvailableColor.b, (0.70f + 0.18f * WaveFast) * Alpha);
+	Graphics()->LinesDraw(aAvailableLinks, AvailableLinkCount);
+	Graphics()->SetColor(PurchasedColor.r, PurchasedColor.g, PurchasedColor.b, (0.66f + 0.22f * WaveFast) * Alpha);
+	Graphics()->LinesDraw(aPurchasedLinks, PurchasedLinkCount);
+	Graphics()->LinesEnd();
+
+	const char *pBranchNames[4];
+	if(m_ResearchTab == PVE_TAB_CORE)
+	{
+		const char *apNames[4] = {"Attack", "Survival", "Logistics", "Drone"};
+		for(int Branch = 0; Branch < 4; Branch++)
+			pBranchNames[Branch] = apNames[Branch];
+	}
+	else if(m_ResearchTab == PVE_TAB_WEAPON)
+	{
+		const char *apNames[4] = {"Firearms", "Explosives", "Electric", "Melee"};
+		for(int Branch = 0; Branch < 4; Branch++)
+			pBranchNames[Branch] = apNames[Branch];
+	}
+	else
+	{
+		const char *apNames[3] = {"Invasion", "Horde", "Extraction"};
+		for(int Branch = 0; Branch < 3; Branch++)
+			pBranchNames[Branch] = apNames[Branch];
+	}
+	const float RouteTagHeight = (Compact ? 13.0f : 15.0f) * Scale;
+	const float BranchRailHeight = min(LaneSpacing - 8.0f * Scale, (Compact ? 72.0f : 78.0f) * Scale);
+	const auto TierCenterX = [&](int Tier)
+	{
+		const float TierAmount = (Tier - 1) / (float)max(1, MaxTier - 1);
+		return NetworkLeft + (NetworkWidth - NodeDiameter) * TierAmount;
+	};
+	const auto SelectResearchRoute = [&](int Branch, int Route)
+	{
+		m_ResearchBranch = Branch;
+		m_ResearchRoute = Route;
+		int BestID = -1;
+		int BestRank = 3;
+		int BestTier = 999;
 		for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
 		{
 			const CPveCardDef *pDef = PveCardDef(ID);
-			if(!pDef->m_Base && pDef->m_Tab == m_ResearchTab && pDef->m_Branch == Branch)
+			if(pDef->m_Base || pDef->m_Tab != m_ResearchTab || pDef->m_Branch != Branch ||
+				PveResearchRoute(pDef) != Route)
+				continue;
+			const int Rank = CanBuyResearch(ID, Mask) ? 0 : (PveCardIsUnlocked(ID, Mask) ? 2 : 1);
+			if(BestID < 0 || Rank < BestRank || (Rank == BestRank && pDef->m_Tier < BestTier))
 			{
-				aNodes[Count++] = ID;
-				BoughtCount += PveCardIsUnlocked(ID, Mask);
+				BestID = ID;
+				BestRank = Rank;
+				BestTier = pDef->m_Tier;
 			}
 		}
-		if(Count <= 0)
-			continue;
-		const char *pBranchName = "";
-		if(m_ResearchTab == PVE_TAB_CORE)
-		{
-			const char *apNames[4] = {"Attack", "Survival", "Logistics", "Drone"};
-			pBranchName = apNames[clamp(Branch, 0, 3)];
-		}
-		else if(m_ResearchTab == PVE_TAB_WEAPON)
-		{
-			const char *apNames[4] = {"Firearms", "Explosives", "Electric", "Melee"};
-			pBranchName = apNames[Branch];
-		}
-		else
-		{
-			const char *apNames[3] = {"Invasion", "Horde", "Extraction"};
-			pBranchName = apNames[Branch];
-		}
-		const bool Expanded = Branch == m_ResearchBranch;
-		const float BranchOpen =
-			BranchExpandSum > 0.001f ? m_aBranchExpand[clamp(Branch, 0, 3)] / BranchExpandSum : 0.0f;
+		if(BestID >= 0)
+			m_SelectedResearch = BestID;
+		m_SelectionPulse = 0.55f;
+	};
+	for(int Branch = 0; Branch < BranchCount; Branch++)
+	{
+		const float LaneY = CanvasTop + LaneSpacing * (Branch + 1);
+		CUIRect BranchRail = {CanvasLeft + 3.0f * Scale,
+						  LaneY - BranchRailHeight * 0.5f,
+						  NetworkLeft - CanvasLeft - 14.0f * Scale,
+						  BranchRailHeight};
+		const bool BranchSelected = Branch == m_ResearchBranch;
 		const float BranchHover = m_pClient->m_pMenus->AnimHover(&m_aBranchButtonIDs[Branch]);
-		const float BranchHeight = BranchHeaderHeight + (ExpandedHeight - BranchHeaderHeight) * BranchOpen;
-		CUIRect BranchPanel = {BranchArea.x + 8.0f * Scale, BranchY, BranchArea.w - 16.0f * Scale, BranchHeight};
-		DrawPanel(BranchPanel, Fade(BranchOpen > 0.08f ? Inset : Deep, 0.68f + 0.16f * BranchOpen), 8.0f * Scale);
-		CUIRect BranchHeader = {BranchPanel.x, BranchPanel.y, BranchPanel.w, BranchHeaderHeight};
-		if(BranchOpen > 0.08f)
-		{
-			const float HeaderLineW =
-				(BranchHeader.w - 16.0f * Scale) * (0.78f + 0.22f * Wave) * clamp(BranchOpen * 1.4f, 0.0f, 1.0f);
-			CUIRect HeaderLine = {BranchHeader.x + (BranchHeader.w - HeaderLineW) * 0.5f,
-								  BranchHeader.y + BranchHeader.h - 1.5f * Scale,
-								  HeaderLineW,
-								  1.5f * Scale};
-			DrawPanel(HeaderLine, Fade(Accent, (0.78f + 0.18f * WaveFast) * BranchOpen), 0.75f * Scale);
-		}
+		DrawPanel(BranchRail,
+				  Fade(BranchSelected ? Inset : Deep, 0.70f + BranchHover * 0.12f),
+				  BranchRail.h * 0.34f);
+		CUIRect BranchEdge = BranchRail;
+		BranchEdge.w = 2.0f * Scale;
+		DrawPanel(BranchEdge,
+				  Fade(BranchSelected || BranchHover > 0.2f ? Accent : AccentDim,
+					   BranchSelected ? 0.92f : 0.52f + BranchHover * 0.28f),
+				  Scale);
+		CUIRect BranchHeader = {BranchRail.x + 8.0f * Scale,
+								BranchRail.y + 4.0f * Scale,
+								BranchRail.w - 16.0f * Scale,
+								17.0f * Scale};
 		DrawSprite(PveBranchIcon(m_ResearchTab, Branch),
-				   BranchHeader.x + 17.0f * Scale,
-				   BranchHeader.y + BranchHeader.h * 0.5f,
-				   (15.0f + BranchHover) * Scale,
-				   Expanded || BranchOpen > 0.5f ? Accent : AccentDim,
-				   0.72f + 0.28f * BranchOpen);
-		ResearchText(BranchHeader.x + 34.0f * Scale,
-					 BranchHeader.y + 7.0f * Scale,
-					 9.0f * Scale,
-					 Localize(pBranchName),
-					 Fade(Text, 0.78f + 0.22f * BranchOpen));
+					   BranchHeader.x + 7.0f * Scale,
+					   BranchHeader.y + BranchHeader.h * 0.5f,
+					   (11.0f + BranchHover) * Scale,
+					   BranchSelected ? Accent : AccentDim,
+					   0.76f + 0.24f * (BranchSelected ? 1.0f : BranchHover));
+		ResearchText(BranchHeader.x + 17.0f * Scale,
+					 BranchHeader.y + 2.0f * Scale,
+					 (Compact ? 7.1f : 7.8f) * Scale,
+					 Localize(pBranchNames[Branch]),
+					 Fade(BranchSelected ? Text : AccentDim, 0.96f),
+					 BranchHeader.w - 36.0f * Scale,
+					 -1);
+		int BranchCountBought = 0;
+		int BranchNodeCount = 0;
+		for(int Route = 0; Route < 3; Route++)
+		{
+			BranchCountBought += aRouteBoughtCounts[Branch][Route];
+			BranchNodeCount += aRouteCounts[Branch][Route];
+		}
 		char aBranchProgress[32];
-		str_format(aBranchProgress, sizeof(aBranchProgress), "%d / %d", BoughtCount, Count);
-		ResearchText(BranchHeader.x + BranchHeader.w - 34.0f * Scale,
-					 BranchHeader.y + 7.0f * Scale,
-					 8.0f * Scale,
+		str_format(aBranchProgress, sizeof(aBranchProgress), "%d / %d", BranchCountBought, BranchNodeCount);
+		ResearchText(BranchHeader.x + BranchHeader.w,
+					 BranchHeader.y + 3.0f * Scale,
+					 5.8f * Scale,
 					 aBranchProgress,
-					 Fade(Accent, 0.90f),
+					 Fade(Accent, 0.84f),
 					 -1.0f,
 					 1);
-		ResearchText(BranchHeader.x + BranchHeader.w - 13.0f * Scale,
-					 BranchHeader.y + 6.2f * Scale,
-					 9.0f * Scale,
-					 Expanded ? "−" : "+",
-					 Fade(Expanded ? Accent : Text, 0.90f),
+		CUIRect BranchHit = BranchHeader;
+		BranchHit.y -= 2.0f * Scale;
+		BranchHit.h += 4.0f * Scale;
+		if(UI()->DoButtonLogic(&m_aBranchButtonIDs[Branch], &BranchHit))
+		{
+			SelectResearchRoute(Branch, 0);
+		}
+
+		int PreviewID = -1;
+		int PreviewRank = 3;
+		int PreviewTier = 999;
+		for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+		{
+			const CPveCardDef *pDef = PveCardDef(ID);
+			if(pDef->m_Base || pDef->m_Tab != m_ResearchTab || pDef->m_Branch != Branch)
+				continue;
+			const int Rank = CanBuyResearch(ID, Mask) ? 0 : (PveCardIsUnlocked(ID, Mask) ? 2 : 1);
+			if(PreviewID < 0 || Rank < PreviewRank || (Rank == PreviewRank && pDef->m_Tier < PreviewTier))
+			{
+				PreviewID = ID;
+				PreviewRank = Rank;
+				PreviewTier = pDef->m_Tier;
+			}
+		}
+		if(PreviewID >= 0)
+		{
+			const CPveCardDef *pPreview = PveCardDef(PreviewID);
+			const bool PreviewBought = PveCardIsUnlocked(PreviewID, Mask);
+			const bool PreviewAvailable = CanBuyResearch(PreviewID, Mask);
+			const bool PreviewSelected = PreviewID == m_SelectedResearch;
+			const float PreviewHover = m_pClient->m_pMenus->AnimHover(&m_aNodeButtonIDs[PreviewID]);
+			const vec4 PreviewState = PreviewBought ? PurchasedColor : (PreviewAvailable ? AvailableColor : LockedColor);
+			const float PreviewTop = BranchRail.y + 22.0f * Scale;
+			const float PreviewHeight = max(18.0f * Scale, BranchRail.y + BranchRail.h - PreviewTop - 3.0f * Scale);
+			const float PreviewLeftInset = (Compact ? 18.0f : 25.0f) * Scale;
+			CUIRect Preview = {BranchRail.x + PreviewLeftInset,
+								PreviewTop,
+								BranchRail.w - PreviewLeftInset - 7.0f * Scale,
+								PreviewHeight};
+			CUIRect PreviewGlow = Preview;
+			PreviewGlow.Margin(-2.0f * Scale, &PreviewGlow);
+			DrawPanel(PreviewGlow,
+					  Fade(PreviewSelected ? Accent : PreviewState,
+						   PreviewSelected ? 0.24f : (PreviewAvailable ? 0.16f : 0.08f)),
+					  Preview.h * 0.26f);
+			CUIRect PreviewBorder = Preview;
+			PreviewBorder.Margin(-0.8f * LayoutScale, &PreviewBorder);
+			DrawPanel(PreviewBorder,
+					  Fade(PreviewSelected || PreviewHover > 0.15f ? Accent : PreviewState,
+						   PreviewSelected ? 0.90f : (PreviewAvailable ? 0.72f : 0.46f)),
+					  Preview.h * 0.26f);
+			DrawPanel(Preview, Fade(PreviewAvailable ? Panel : Inset, PreviewAvailable ? 0.98f : 0.94f), Preview.h * 0.26f);
+			const float PreviewIconSize = min(12.0f * Scale, max(8.0f * Scale, Preview.h - 8.0f * Scale));
+			CUIRect PreviewIcon = {Preview.x + 4.0f * Scale,
+									Preview.y + 4.0f * Scale,
+									PreviewIconSize,
+									PreviewIconSize};
+			DrawPanel(PreviewIcon, Fade(Deep, 0.86f), PreviewIcon.w * 0.26f);
+			DrawSprite(PveCardIcon(pPreview),
+					   PreviewIcon.x + PreviewIcon.w * 0.5f,
+					   PreviewIcon.y + PreviewIcon.h * 0.5f,
+					   PreviewIcon.w * 0.72f,
+					   Text,
+					   0.92f);
+			const float PreviewTextX = PreviewIcon.x + PreviewIcon.w + 4.0f * Scale;
+			const float PreviewTextWidth = Preview.x + Preview.w - PreviewTextX - 4.0f * Scale;
+			ResearchText(PreviewTextX,
+							 Preview.y + 3.0f * Scale,
+							 6.6f * Scale,
+							 Localize(pPreview->m_pName),
+							 Fade(Text, 1.0f),
+							 PreviewTextWidth,
+							 -1);
+			const float PreviewFooterY = Preview.y + Preview.h - 4.8f * Scale;
+			const float PreviewBodyY = Preview.y + 15.5f * Scale;
+			const float PreviewBodyLineHeight = 3.8f * Scale * Font;
+			const float PreviewBodyHeight = PreviewFooterY - PreviewBodyY - 2.0f * Scale;
+			const int PreviewBodyLines = clamp((int)(PreviewBodyHeight / max(0.01f, PreviewBodyLineHeight)), 0, 2);
+			if(PreviewBodyLines > 0)
+			{
+				ResearchWrapped(PreviewTextX,
+								 PreviewBodyY,
+								 3.8f * Scale,
+								 Localize(pPreview->m_pShortDescription),
+								 Fade(Text, 0.70f),
+								 PreviewTextWidth,
+								 PreviewBodyLines);
+			}
+			char aPreviewCost[48];
+			str_format(aPreviewCost, sizeof(aPreviewCost), Localize("%d Research Points"), pPreview->m_ResearchCost);
+			const float PreviewFooterWidth = max(20.0f * Scale, (Preview.w - 18.0f * Scale) * 0.5f);
+			ResearchText(Preview.x + 6.0f * Scale,
+							 PreviewFooterY,
+							 4.2f * Scale,
+							 aPreviewCost,
+							 Fade(PreviewAvailable ? AvailableColor : AccentDim, 0.92f),
+							 PreviewFooterWidth,
+							 -1);
+			ResearchText(Preview.x + Preview.w - 10.0f * Scale,
+							 PreviewFooterY,
+							 4.2f * Scale,
+							 Localize(PreviewBought ? "PURCHASED" : (PreviewAvailable ? "AVAILABLE" : "LOCKED")),
+							 Fade(PreviewState, 1.0f),
+							 PreviewFooterWidth,
+							 1);
+			if(UI()->DoButtonLogic(&m_aNodeButtonIDs[PreviewID], &Preview))
+			{
+				m_SelectedResearch = PreviewID;
+				m_ResearchBranch = Branch;
+				m_ResearchRoute = PveResearchRoute(pPreview);
+				m_SelectionPulse = 0.7f;
+			}
+		}
+
+		const int RouteCount = PveResearchRouteCount(m_ResearchTab, Branch);
+		for(int Route = 0; Route < RouteCount; Route++)
+		{
+			if(aRouteCounts[Branch][Route] <= 0)
+				continue;
+			const float RouteStart = max(NetworkLeft, TierCenterX(aRouteMinTier[Branch][Route]) - NodeRadius - 2.0f * Scale);
+			const float RouteEnd = min(CanvasRight, TierCenterX(aRouteMaxTier[Branch][Route]) + NodeRadius + 2.0f * Scale);
+			CUIRect RouteTag = {RouteStart,
+								LaneY - LaneSpacing * 0.38f - RouteTagHeight * 0.5f,
+														max(44.0f * Scale, RouteEnd - RouteStart),
+														RouteTagHeight};
+			const bool RouteSelected = BranchSelected && Route == m_ResearchRoute;
+			const float RouteHover = m_pClient->m_pMenus->AnimHover(&m_aRouteButtonIDs[Branch][Route]);
+			DrawPanel(RouteTag,
+					  Fade(RouteSelected ? AccentDim : (RouteHover > 0.18f ? Panel : Inset),
+						   RouteSelected ? 0.64f : (0.48f + RouteHover * 0.18f)),
+					  RouteTagHeight * 0.5f);
+			CUIRect RouteEdge = RouteTag;
+			RouteEdge.h = 1.0f * Scale;
+			DrawPanel(RouteEdge,
+					  Fade(RouteSelected || RouteHover > 0.18f ? Accent : AccentDim,
+						   RouteSelected ? 0.90f : 0.42f + RouteHover * 0.32f),
+					  0.5f * Scale);
+			ResearchText(RouteTag.x + 6.0f * Scale,
+						 RouteTag.y + (Compact ? 2.2f : 3.2f) * Scale,
+						 6.2f * Scale,
+						 Localize(PveResearchRouteName(m_ResearchTab, Branch, Route)),
+						 Fade(RouteSelected || RouteHover > 0.18f ? Text : AccentDim, 0.92f),
+						 RouteTag.w - 12.0f * Scale,
+						 -1);
+			if(UI()->DoButtonLogic(&m_aRouteButtonIDs[Branch][Route], &RouteTag))
+				SelectResearchRoute(Branch, Route);
+		}
+	}
+
+	const float HubGlowDiameter = NodeDiameter * 1.35f;
+	CUIRect HubGlow = {CenterX - HubGlowDiameter * 0.5f,
+						 CenterY - HubGlowDiameter * 0.5f,
+						 HubGlowDiameter,
+						 HubGlowDiameter};
+	DrawPanel(HubGlow, Fade(Accent, 0.12f + 0.08f * Wave), HubGlow.w * 0.5f);
+	CUIRect Hub = {CenterX - NodeRadius, CenterY - NodeRadius, NodeDiameter, NodeDiameter};
+	DrawPanel(Hub, Fade(Accent, 0.72f + 0.16f * WaveFast), Hub.w * 0.5f);
+	CUIRect HubInner = Hub;
+	HubInner.Margin(2.5f * Scale, &HubInner);
+	DrawPanel(HubInner, Fade(Deep, 0.96f), HubInner.w * 0.5f);
+	ResearchText(CenterX,
+				 CenterY - 3.8f * Scale,
+				 6.6f * Scale,
+				 apTabs[m_ResearchTab],
+				 Fade(Text, 0.96f),
+				 -1.0f,
+				 0);
+	IGraphics::CLineItem RootConnector(CenterX,
+									 CenterY + NodeRadius,
+									 CenterX,
+									 CenterY + NodeRadius + 7.0f * Scale);
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(Accent.r, Accent.g, Accent.b, 0.72f * Alpha);
+	Graphics()->LinesDraw(&RootConnector, 1);
+	Graphics()->LinesEnd();
+	ResearchText(CenterX,
+				 CenterY + NodeRadius + 9.0f * Scale,
+				 5.8f * Scale,
+				 Localize("ROOT"),
+				 Fade(Accent, 0.88f),
+				 -1.0f,
+				 0);
+
+	UI()->ClipEnable(&MapCanvas);
+	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+	{
+		if(!aNodeVisible[ID])
+			continue;
+		const CPveCardDef *pDef = PveCardDef(ID);
+		const CUIRect Anchor = aNodeRects[ID];
+		const bool Bought = PveCardIsUnlocked(ID, Mask);
+		const bool Available = CanBuyResearch(ID, Mask);
+		const bool Selected = ID == m_SelectedResearch;
+		const float Hover = m_pClient->m_pMenus->AnimHover(&m_aNodeButtonIDs[ID]);
+		const float Pulse = Selected ? 0.78f + 0.22f * WaveFast : 1.0f;
+		const float NodeScale = 1.0f + Hover * 0.06f + (Selected ? m_SelectionPulse * 0.025f : 0.0f);
+		CUIRect Node = Anchor;
+		Node.x -= Node.w * (NodeScale - 1.0f) * 0.5f;
+		Node.y -= Node.h * (NodeScale - 1.0f) * 0.5f + Hover * 1.5f * Scale;
+		Node.w *= NodeScale;
+		Node.h *= NodeScale;
+		const vec4 StateColor = Bought ? PurchasedColor : (Available ? AvailableColor : LockedColor);
+		CUIRect Glow = Node;
+		Glow.Margin(-4.0f * Scale, &Glow);
+		DrawPanel(Glow,
+				  Fade(Selected ? Accent : StateColor,
+					   Selected ? 0.34f * Pulse : (Bought ? 0.14f : 0.08f)),
+				  Glow.w * 0.5f);
+		DrawPanel(Node,
+				  Fade(Bought ? Mix(Inset, PurchasedColor, 0.46f) : Deep, 0.96f),
+				  Node.w * 0.5f);
+		CUIRect Ring = Node;
+		Ring.Margin(-1.3f * LayoutScale, &Ring);
+		DrawPanel(Ring,
+				  Fade(Selected || Hover > 0.15f ? Accent : StateColor,
+					   Selected ? 0.96f * Pulse : (Bought ? 0.72f : 0.42f)),
+				  Ring.w * 0.5f);
+		DrawSprite(PveCardIcon(pDef),
+				   Node.x + Node.w * 0.5f,
+				   Node.y + Node.h * 0.5f,
+				   Node.w * 0.58f,
+				   Text,
+				   Bought ? 0.88f : 0.62f);
+		char aTier[8];
+		str_format(aTier, sizeof(aTier), "T%d", pDef->m_Tier);
+		ResearchText(Node.x + Node.w * 0.5f,
+					 Node.y + Node.h + 2.0f * Scale,
+					 5.6f * Scale,
+					 aTier,
+					 Fade(StateColor, 0.88f),
 					 -1.0f,
 					 0);
-		if(UI()->DoButtonLogic(&m_aBranchButtonIDs[Branch], &BranchHeader))
-		{
-			m_ResearchBranch = Branch;
-			m_ResearchRoute = 0;
-			for(int i = 0; i < 3; i++)
-				m_aRouteExpand[i] = 0.0f;
-			m_SelectionPulse = 0.55f;
-			int Best = aNodes[0];
-			for(int n = 1; n < Count; n++)
-				if(PveResearchRoute(PveCardDef(aNodes[n])) == 0 &&
-				   PveCardDef(aNodes[n])->m_Tier < PveCardDef(Best)->m_Tier)
-					Best = aNodes[n];
-			m_SelectedResearch = Best;
-		}
-
-		if(BranchHeight <= BranchHeaderHeight + 6.0f * Scale)
-		{
-			BranchY += BranchHeight + BranchGap;
-			continue;
-		}
-
-		CUIRect RouteArea = {BranchPanel.x + 7.0f * Scale,
-							 BranchHeader.y + BranchHeader.h + 6.0f * Scale,
-							 BranchPanel.w - 14.0f * Scale,
-							 BranchPanel.h - BranchHeader.h - 13.0f * Scale};
-		const int RouteCount = PveResearchRouteCount(m_ResearchTab, Branch);
-		m_ResearchRoute = clamp(m_ResearchRoute, 0, RouteCount - 1);
-		const float RouteGap = (Compact ? 2.5f : 4.0f) * Scale;
-		const float RouteHeaderHeight = (Compact ? 21.0f : 26.0f) * Scale;
-		const float ExpandedRouteHeight =
-			max(RouteHeaderHeight, RouteArea.h - (RouteCount - 1) * (RouteHeaderHeight + RouteGap));
-		float RouteExpandSum = 0.0f;
-		for(int Route = 0; Route < RouteCount; Route++)
-			RouteExpandSum += m_aRouteExpand[clamp(Route, 0, 2)];
-		float RouteY = RouteArea.y;
-		for(int Route = 0; Route < RouteCount; Route++)
-		{
-			int aRouteNodes[NUM_PVE_CARDS];
-			int RouteNodeCount = 0;
-			int RouteBoughtCount = 0;
-			for(int n = 0; n < Count; n++)
-				if(PveResearchRoute(PveCardDef(aNodes[n])) == Route)
-				{
-					aRouteNodes[RouteNodeCount++] = aNodes[n];
-					RouteBoughtCount += PveCardIsUnlocked(aNodes[n], Mask);
-				}
-			if(RouteNodeCount <= 0)
-				continue;
-			const bool RouteExpanded = Route == m_ResearchRoute;
-			const float RouteOpen =
-				RouteExpandSum > 0.001f ? m_aRouteExpand[clamp(Route, 0, 2)] / RouteExpandSum : 0.0f;
-			const float RouteHover = m_pClient->m_pMenus->AnimHover(&m_aRouteButtonIDs[Route]);
-			const float RouteHeight = RouteHeaderHeight + (ExpandedRouteHeight - RouteHeaderHeight) * RouteOpen;
-			CUIRect RoutePanel = {RouteArea.x, RouteY, RouteArea.w, RouteHeight};
-			DrawPanel(RoutePanel, Fade(RouteOpen > 0.08f ? Panel : Deep, 0.58f + 0.20f * RouteOpen), 7.0f * Scale);
-			CUIRect RouteHeader = {RoutePanel.x, RoutePanel.y, RoutePanel.w, RouteHeaderHeight};
-			if(RouteOpen > 0.08f)
-			{
-				const float RouteLineW =
-					(RouteHeader.w - 18.0f * Scale) * (0.76f + 0.24f * Wave) * clamp(RouteOpen * 1.4f, 0.0f, 1.0f);
-				CUIRect RouteLine = {RouteHeader.x + (RouteHeader.w - RouteLineW) * 0.5f,
-									 RouteHeader.y + RouteHeader.h - Scale,
-									 RouteLineW,
-									 Scale};
-				DrawPanel(RouteLine, Fade(Accent, (0.62f + 0.22f * WaveFast) * RouteOpen), 0.5f * Scale);
-			}
-			ResearchText(RouteHeader.x + 10.0f * Scale,
-						 RouteHeader.y + (Compact ? 3.0f : 5.4f) * Scale,
-						 8.2f * Scale,
-						 Localize(PveResearchRouteName(m_ResearchTab, Branch, Route)),
-						 Fade(RouteExpanded || RouteOpen > 0.5f ? Text : AccentDim, 0.90f + RouteHover * 0.08f));
-			char aRouteProgress[32];
-			str_format(aRouteProgress, sizeof(aRouteProgress), "%d / %d", RouteBoughtCount, RouteNodeCount);
-			ResearchText(RouteHeader.x + RouteHeader.w - 30.0f * Scale,
-						 RouteHeader.y + (Compact ? 3.2f : 5.6f) * Scale,
-						 7.4f * Scale,
-						 aRouteProgress,
-						 Fade(Accent, 0.88f),
-						 -1.0f,
-						 1);
-			ResearchText(RouteHeader.x + RouteHeader.w - 12.0f * Scale,
-						 RouteHeader.y + (Compact ? 2.4f : 4.8f) * Scale,
-						 8.2f * Scale,
-						 RouteExpanded ? "−" : "+",
-						 Fade(RouteExpanded ? Accent : Text, 0.88f),
-						 -1.0f,
+		if(Bought && Hover > 0.25f)
+			ResearchText(Node.x + Node.w * 0.5f,
+						 Node.y - 9.0f * Scale,
+						 5.9f * Scale,
+						 Localize(pDef->m_pName),
+						 Fade(Text, 0.82f),
+						 72.0f * Scale,
 						 0);
-			if(UI()->DoButtonLogic(&m_aRouteButtonIDs[Route], &RouteHeader))
-			{
-				m_ResearchRoute = Route;
-				m_SelectionPulse = 0.5f;
-				int Best = aRouteNodes[0];
-				for(int n = 1; n < RouteNodeCount; n++)
-					if(PveCardDef(aRouteNodes[n])->m_Tier < PveCardDef(Best)->m_Tier)
-						Best = aRouteNodes[n];
-				m_SelectedResearch = Best;
-			}
-			if(RouteHeight <= RouteHeaderHeight + 5.0f * Scale)
-			{
-				RouteY += RouteHeight + RouteGap;
-				continue;
-			}
-
-			CUIRect NodeArea = {RoutePanel.x + 5.0f * Scale,
-								RouteHeader.y + RouteHeader.h + 4.0f * Scale,
-								RoutePanel.w - 10.0f * Scale,
-								RoutePanel.h - RouteHeader.h - 9.0f * Scale};
-			DrawPanel(NodeArea, Fade(Deep, 0.62f * clamp(RouteOpen * 1.5f, 0.0f, 1.0f)), 6.0f * Scale);
-			NodeArea.x += 6.0f * Scale;
-			NodeArea.w -= 12.0f * Scale;
-			NodeArea.y += 5.0f * Scale;
-			NodeArea.h -= 10.0f * Scale;
-			const bool DroneModules = m_ResearchTab == PVE_TAB_CORE && Branch == 3 && Route == 0;
-			const int Rows = DroneModules || RouteNodeCount > 4 ? 2 : 1;
-			const int Columns = (RouteNodeCount + Rows - 1) / Rows;
-			const float NodeGap = 6.0f * Scale;
-			const float NodeWidth = min(110.0f * Scale, (NodeArea.w - NodeGap * (Columns - 1)) / Columns);
-			const float NodeHeight = min(70.0f * Scale, (NodeArea.h - NodeGap * (Rows - 1)) / Rows);
-			auto NodeRect = [&](int Index)
-			{
-				const int GridRow = Index / Columns;
-				const int GridColumn = Index % Columns;
-				const int ItemsInRow = min(Columns, RouteNodeCount - GridRow * Columns);
-				const float RowWidth = ItemsInRow * NodeWidth + (ItemsInRow - 1) * NodeGap;
-				const float StartX = NodeArea.x + (NodeArea.w - RowWidth) * 0.5f;
-				const float UsedHeight = Rows * NodeHeight + (Rows - 1) * NodeGap;
-				const float StartY = NodeArea.y + (NodeArea.h - UsedHeight) * 0.5f;
-				CUIRect Result = {StartX + GridColumn * (NodeWidth + NodeGap),
-								  StartY + GridRow * (NodeHeight + NodeGap),
-								  NodeWidth,
-								  NodeHeight};
-				return Result;
-			};
-			const float ContentFade = clamp(RouteOpen * 1.6f, 0.0f, 1.0f) * clamp(BranchOpen * 1.4f, 0.0f, 1.0f);
-			for(int n = 0; n < RouteNodeCount; n++)
-			{
-				const CPveCardDef *pNodeDef = PveCardDef(aRouteNodes[n]);
-				for(int Prerequisite = 0; Prerequisite < pNodeDef->m_NumPrerequisites; Prerequisite++)
-				{
-					int PreviousIndex = -1;
-					for(int Candidate = 0; Candidate < RouteNodeCount; Candidate++)
-						if(aRouteNodes[Candidate] == pNodeDef->m_aPrerequisites[Prerequisite])
-							PreviousIndex = Candidate;
-					if(PreviousIndex < 0)
-						continue;
-					const CUIRect Previous = NodeRect(PreviousIndex);
-					const CUIRect Current = NodeRect(n);
-					const bool PrerequisiteBought = PveCardIsUnlocked(aRouteNodes[PreviousIndex], Mask);
-					const vec4 LinkColor = PrerequisiteBought ? Accent : AccentDim;
-					const float LinkAlpha = (PrerequisiteBought ? (0.72f + 0.24f * WaveFast) : 0.34f) * ContentFade;
-					if(PreviousIndex / Columns == n / Columns && Previous.x < Current.x)
-					{
-						CUIRect Link = {Previous.x + Previous.w,
-										Previous.y + Previous.h * 0.5f - Scale,
-										max(0.0f, Current.x - Previous.x - Previous.w),
-										2.0f * Scale};
-						DrawPanel(Link, Fade(LinkColor, LinkAlpha), Scale);
-					}
-					else
-					{
-						const float PreviousX = Previous.x + Previous.w * 0.5f;
-						const float CurrentX = Current.x + Current.w * 0.5f;
-						const float MidY = (Previous.y + Previous.h + Current.y) * 0.5f;
-						CUIRect LinkA = {PreviousX - Scale,
-										 Previous.y + Previous.h,
-										 2.0f * Scale,
-										 max(0.0f, MidY - Previous.y - Previous.h)};
-						CUIRect LinkB = {min(PreviousX, CurrentX),
-										 MidY - Scale,
-										 max(2.0f * Scale, abs(CurrentX - PreviousX)),
-										 2.0f * Scale};
-						CUIRect LinkC = {CurrentX - Scale, MidY, 2.0f * Scale, max(0.0f, Current.y - MidY)};
-						DrawPanel(LinkA, Fade(LinkColor, LinkAlpha), Scale);
-						DrawPanel(LinkB, Fade(LinkColor, LinkAlpha), Scale);
-						DrawPanel(LinkC, Fade(LinkColor, LinkAlpha), Scale);
-					}
-				}
-			}
-			UI()->ClipEnable(&NodeArea);
-			for(int n = 0; n < RouteNodeCount; n++)
-			{
-				const int ID = aRouteNodes[n];
-				const CPveCardDef *pDef = PveCardDef(ID);
-				CUIRect Node = NodeRect(n);
-				const bool Bought = PveCardIsUnlocked(ID, Mask);
-				const bool Available = CanBuyResearch(ID, Mask);
-				const bool Selected = ID == m_SelectedResearch;
-				const float Hover = m_pClient->m_pMenus->AnimHover(&m_aNodeButtonIDs[ID]);
-				const float NodeIn = ContentFade;
-				const float SelectBreath = Selected ? (0.70f + 0.30f * WaveFast) : 1.0f;
-				const float AvailableGlow = Available && !Bought ? (0.78f + 0.22f * Wave) : 1.0f;
-				const float NodeScale = 1.0f + Hover * 0.028f + (Selected ? m_SelectionPulse * 0.02f : 0.0f);
-				Node.x -= Node.w * (NodeScale - 1.0f) * 0.5f;
-				Node.y -= Node.h * (NodeScale - 1.0f) * 0.5f + Hover * 1.8f * Scale;
-				Node.w *= NodeScale;
-				Node.h *= NodeScale;
-				CUIRect Shadow = Node;
-				Shadow.y += (2.0f + Hover) * Scale;
-				DrawPanel(Shadow, Fade(Deep, 0.72f * NodeIn), 8.0f * Scale);
-				CUIRect Border = Node;
-				Border.Margin((-1.2f - Hover * 0.6f - (Selected ? m_SelectionPulse * 1.2f : 0.0f)) * LayoutScale,
-							  &Border);
-				const vec4 StateColor = Bought || Available ? Accent : Danger;
-				DrawPanel(
-					Border,
-					Fade(Selected || Hover > 0.2f ? Accent : StateColor,
-						 (Selected ? 0.98f * SelectBreath : (Hover > 0.2f ? 0.76f : 0.42f * AvailableGlow)) * NodeIn),
-					8.0f * Scale);
-				DrawPanel(Node,
-						  Fade(Bought ? Mix(Inset, AccentDim, 0.42f) : (Available ? Panel : Deep),
-							   (Bought ? 0.98f : 0.94f) * NodeIn),
-						  7.0f * Scale);
-				if(Selected || Hover > 0.15f)
-				{
-					const float LineW = (Node.w - 14.0f * Scale) * (Selected ? (0.82f + 0.18f * Wave) : 1.0f);
-					CUIRect NodeLine = {Node.x + (Node.w - LineW) * 0.5f, Node.y + 2.5f * Scale, LineW, 1.4f * Scale};
-					DrawPanel(NodeLine, Fade(Accent, (Selected ? SelectBreath : 0.65f) * NodeIn), 0.7f * Scale);
-				}
-				char aState[32];
-				str_copy(aState, Localize(Bought ? "PURCHASED" : (Available ? "AVAILABLE" : "LOCKED")), sizeof(aState));
-				ResearchText(Node.x + 7.0f * Scale,
-							 Node.y + 5.8f * Scale,
-							 8.5f * Scale,
-							 Bought ? "✓" : (Available ? "+" : "×"),
-							 Fade(StateColor, NodeIn));
-				char aCost[16];
-				str_format(aCost, sizeof(aCost), "%d", pDef->m_ResearchCost);
-				CUIRect Cost = {Node.x + Node.w - 26.0f * Scale, Node.y + 6.0f * Scale, 20.0f * Scale, 15.0f * Scale};
-				DrawPanel(Cost, Fade(Inset, 0.96f * NodeIn), 6.5f * Scale);
-				ResearchText(Cost.x + Cost.w * 0.5f,
-							 Cost.y + 2.4f * Scale,
-							 7.7f * Scale,
-							 aCost,
-							 Fade(Accent, 0.95f * NodeIn),
-							 -1.0f,
-							 0);
-				const char *pName = Localize(pDef->m_pName);
-				const float NameWidth = Node.w - 13.0f * Scale;
-				float NodeNameSize = 8.8f * Scale;
-				while(NodeNameSize > 5.0f * Scale &&
-					  TextRender()->TextWidth(0, NodeNameSize * Font, pName, -1) > NameWidth)
-					NodeNameSize -= 0.2f * Scale;
-				ResearchText(
-					Node.x + Node.w * 0.5f, Node.y + 23.8f * Scale, NodeNameSize, pName, Fade(Text, NodeIn), -1.0f, 0);
-				CUIRect StateBadge = {
-					Node.x + 6.0f * Scale, Node.y + Node.h - 19.0f * Scale, Node.w - 12.0f * Scale, 14.0f * Scale};
-				DrawPanel(StateBadge, Fade(Inset, (Bought || Available ? 0.82f : 0.55f) * NodeIn), 6.0f * Scale);
-				ResearchText(StateBadge.x + StateBadge.w * 0.5f,
-							 StateBadge.y + 1.7f * Scale,
-							 8.0f * Scale,
-							 aState,
-							 Fade(StateColor, 0.95f * NodeIn),
-							 -1.0f,
-							 0);
-				if(UI()->DoButtonLogic(&m_aNodeButtonIDs[ID], &Node))
-				{
-					m_SelectedResearch = ID;
-					m_SelectionPulse = 0.7f;
-				}
-			}
-			UI()->ClipDisable();
-			RouteY += RouteHeight + RouteGap;
-		}
-		BranchY += BranchHeight + BranchGap;
 	}
+	UI()->ClipDisable();
+
+	UI()->ClipEnable(&MapCanvas);
+	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+	{
+		if(!aNodeVisible[ID])
+			continue;
+		const CPveCardDef *pDef = PveCardDef(ID);
+		const CUIRect Anchor = aNodeRects[ID];
+		CUIRect InputRect = Anchor;
+		InputRect.Margin(-3.0f * Scale, &InputRect);
+		if(UI()->DoButtonLogic(&m_aNodeButtonIDs[ID], &InputRect))
+		{
+			m_SelectedResearch = ID;
+			m_ResearchBranch = pDef->m_Branch;
+			m_ResearchRoute = PveResearchRoute(pDef);
+			m_SelectionPulse = 0.7f;
+		}
+	}
+	UI()->ClipDisable();
 
 	const CPveCardDef *pSelected = PveCardDef(m_SelectedResearch);
 	if(pSelected)
@@ -2520,7 +3688,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 		Details.Margin((Compact ? 7.0f : 9.0f) * LayoutScale, &Details);
 		const bool Bought = PveCardIsUnlocked(m_SelectedResearch, Mask);
 		const bool Available = CanBuyResearch(m_SelectedResearch, Mask);
-		const vec4 StateColor = Bought || Available ? Accent : Danger;
+		const vec4 StateColor = Bought ? PurchasedColor : (Available ? AvailableColor : LockedColor);
 		char aState[48];
 		str_format(aState,
 				   sizeof(aState),
@@ -2600,7 +3768,7 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 						Effect.y + 7.5f * Scale,
 						8.7f * Scale,
 						Localize(pSelected->m_pDescription),
-						vec4(0.72f, 0.74f, 0.76f, 0.65f),
+						vec4(MutedText.r, MutedText.g, MutedText.b, MutedText.a * 0.65f),
 						Effect.w - 20.0f * Scale,
 						5);
 		SectionY = Effect.y + Effect.h + (Compact ? 4.0f : 7.0f) * Scale;
@@ -2698,10 +3866,10 @@ void CPveRoguelite::RenderResearch(CUIRect MainView)
 		BuyBorder.Margin((-1.2f - BuyHover * 0.8f) * LayoutScale, &BuyBorder);
 		DrawPanel(BuyBorder,
 				  Fade(Available ? Accent : (Bought ? AccentDim : Danger), (Available ? 0.90f * BuyPulse : 0.34f)),
-				  9.0f * Scale);
+				  BuyBorder.h * 0.5f);
 		DrawPanel(Buy,
 				  Fade(Available ? (BuyHover > 0.35f ? AccentDim : Accent) : Inset, (Available ? 0.96f : 0.76f)),
-				  8.0f * Scale);
+				  Buy.h * 0.5f);
 		const bool PurchaseRejected = m_ValidationCode && time_get() < m_ValidationUntil;
 		ResearchText(Buy.x + Buy.w * 0.5f,
 					 Buy.y + (Compact ? 4.3f : 5.5f) * Scale,
@@ -2871,6 +4039,9 @@ void CPveRoguelite::OnRender()
 			m_DebugGameScreenshotEarliestTime = 0;
 		}
 	}
+	if(m_pClient->m_pMenus->IsResearchPageActive())
+		return;
+
 	if(m_InvasionRetryResultActive)
 		DrawInvasionRetryResult();
 	else if(m_InvasionRetryVoteActive)

@@ -84,6 +84,9 @@ class CCommandBuffer
 		CMD_SCREENSHOT,
 		CMD_VIDEOMODES,
 		CMD_CREATETEXTUREBUFFER,
+		CMD_DESTROYTEXTUREBUFFER,
+		CMD_SETVSYNC,
+		CMD_SETVIEWPORT,
 
 		// shaders
 		CMD_LOADSHADERS,
@@ -247,6 +250,27 @@ class CCommandBuffer
 		int m_Height;
 	};
 
+	struct SCommand_DestroyTextureBuffer : public SCommand
+	{
+		SCommand_DestroyTextureBuffer() : SCommand(CMD_DESTROYTEXTUREBUFFER) {}
+	};
+
+	struct SCommand_SetVSync : public SCommand
+	{
+		SCommand_SetVSync() : SCommand(CMD_SETVSYNC), m_Enabled(false), m_pSuccess(0) {}
+
+		bool m_Enabled;
+		bool *m_pSuccess;
+	};
+
+	struct SCommand_SetViewport : public SCommand
+	{
+		SCommand_SetViewport() : SCommand(CMD_SETVIEWPORT), m_Width(0), m_Height(0) {}
+
+		int m_Width;
+		int m_Height;
+	};
+
 	struct SCommand_LoadShaders : public SCommand
 	{
 		SCommand_LoadShaders() : SCommand(CMD_LOADSHADERS), m_pAvailable(0) {}
@@ -399,8 +423,9 @@ class IGraphicsBackend
 					 int FsaaSamples,
 					 int Flags,
 					 int *pDesktopWidth,
-					 int *pDesktopHeight) = 0;
+						 int *pDesktopHeight) = 0;
 	virtual int Shutdown() = 0;
+	virtual bool ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless) = 0;
 
 	virtual int MemoryUsage() const = 0;
 
@@ -472,9 +497,23 @@ class CGraphics_Threaded : public IEngineGraphics
 	int m_TextureMemoryUsage;
 	volatile int m_aShaderAvailable[NUM_SHADERS];
 
+	struct STextureSource
+	{
+		void *m_pData;
+		int m_Width;
+		int m_Height;
+		int m_Format;
+		int m_StoreFormat;
+		int m_Flags;
+	};
+	STextureSource m_aTextureSources[MAX_TEXTURES];
+
 	void FlushVertices();
 	void AddVertices(int Count);
 	void Rotate4(const CCommandBuffer::SPoint &rCenter, CCommandBuffer::SVertex *pPoints);
+	void FreeTextureSource(int Index);
+	int TextureCommandFlags(int Flags) const;
+	bool QueueTextureCreate(int Slot, const STextureSource &Source);
 
 	void KickCommandBuffer();
 
@@ -510,6 +549,8 @@ class CGraphics_Threaded : public IEngineGraphics
 	virtual void TrianglesDraw(const CTriangleItem *pArray, int Num);
 
 	virtual void CreateTextureBuffer(int Width, int Height);
+	virtual void DestroyTextureBuffer();
+	virtual bool ReloadTextureSettings();
 
 	virtual void LoadShaders();
 	virtual bool IsShaderAvailable(int Shader) const;
@@ -585,6 +626,8 @@ class CGraphics_Threaded : public IEngineGraphics
 
 	virtual int Init();
 	virtual void Shutdown();
+	virtual bool ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless);
+	virtual bool ApplyVSync(bool Enabled);
 
 	virtual unsigned TakeScreenshot(const char *pFilename);
 	virtual bool ConsumeScreenshotResult(CScreenshotResult *pResult, unsigned RequestID = 0);

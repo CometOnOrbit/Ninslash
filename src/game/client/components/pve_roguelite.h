@@ -72,9 +72,11 @@ class CPveRoguelite : public CComponent
 	int m_aNodeButtonIDs[NUM_PVE_CARDS];
 	int m_aTabButtonIDs[3];
 	int m_aBranchButtonIDs[4];
-	int m_aRouteButtonIDs[3];
+	int m_aModuleButtonIDs[4];
+	int m_aRouteButtonIDs[4][3];
 	int m_BuyButtonID;
 	int m_CheckpointButtonID;
+	int m_ResearchBackButtonID;
 	vec2 m_SelectorMouse;
 	float m_AppearAmount;
 	float m_ResearchAppearAmount;
@@ -120,6 +122,8 @@ class CPveRoguelite : public CComponent
 	bool TutorialResearchActive() const;
 	void BuySelectedResearch();
 	void CycleCheckpoint();
+	void RenderResearchCommandCenter(CUIRect MainView);
+	void RenderResearchLegacy(CUIRect MainView);
 	static void ConDebugChoice(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugContract(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugInvasionRetry(IConsole::IResult *pResult, void *pUserData);

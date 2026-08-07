@@ -306,17 +306,24 @@ int CSound::Init()
 	if(!SDL_InitSubSystem(SDL_INIT_AUDIO))
 	{
 		dbg_msg("gfx", "unable to init SDL audio: %s", SDL_GetError());
+		lock_destroy(m_SoundLock);
+		m_SoundLock = 0;
 		return -1;
 	}
 
 	m_MixingRate = g_Config.m_SndRate;
+	for(int i = 0; i < NUM_SAMPLES; i++)
+		RateConvert(i);
 
 	const SDL_AudioSpec Format = {SDL_AUDIO_S16, 2, g_Config.m_SndRate};
-	SDL_AudioStream *pStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &Format, SDLNewCallback, 0);
+	m_pStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &Format, SDLNewCallback, 0);
 	// Open the audio device and start playing sound!
-	if(!pStream)
+	if(!m_pStream)
 	{
 		dbg_msg("client/sound", "unable to open audio: %s", SDL_GetError());
+		SDL_QuitSubSystem(SDL_INIT_AUDIO);
+		lock_destroy(m_SoundLock);
+		m_SoundLock = 0;
 		return -1;
 	}
 	else
@@ -325,7 +332,7 @@ int CSound::Init()
 	m_MaxFrames = g_Config.m_SndBufferSize * 2;
 	m_pMixBuffer = (int *)mem_alloc(m_MaxFrames * 2 * sizeof(int), 1);
 
-	SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(pStream));
+	SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(m_pStream));
 
 	m_SoundEnabled = 1;
 	Update(); // update the volume
@@ -352,8 +359,21 @@ int CSound::Update()
 
 int CSound::Shutdown()
 {
+	m_SoundEnabled = 0;
+	if(m_pStream)
+	{
+		const SDL_AudioDeviceID Device = SDL_GetAudioStreamDevice(m_pStream);
+		if(Device)
+			SDL_PauseAudioDevice(Device);
+		SDL_DestroyAudioStream(m_pStream);
+		m_pStream = 0;
+	}
 	SDL_QuitSubSystem(SDL_INIT_AUDIO);
-	lock_destroy(m_SoundLock);
+	if(m_SoundLock)
+	{
+		lock_destroy(m_SoundLock);
+		m_SoundLock = 0;
+	}
 	if(m_pMixBuffer)
 	{
 		mem_free(m_pMixBuffer);
@@ -410,6 +430,7 @@ void CSound::RateConvert(int SampleID)
 	mem_free(pSample->m_pData);
 	pSample->m_pData = pNewData;
 	pSample->m_NumFrames = NumFrames;
+	pSample->m_Rate = m_MixingRate;
 }
 
 int CSound::ReadData(void *pBuffer, int Size)
@@ -591,6 +612,8 @@ void CSound::Stop(int SampleID)
 void CSound::StopAll()
 {
 	// TODO: a nice fade out
+	if(!m_SoundLock)
+		return;
 	lock_wait(m_SoundLock);
 	for(int i = 0; i < NUM_VOICES; i++)
 	{

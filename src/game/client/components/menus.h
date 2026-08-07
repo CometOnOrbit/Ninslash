@@ -81,14 +81,16 @@ class CMenus : public CComponent
 	static vec4 ms_ColorTabbarInactive;
 	static vec4 ms_ColorTabbarActive;
 
-	// dark-punk palette
+	// Frosted tactical-glass palette.
 	static vec4 ms_ColorBgDeep;
 	static vec4 ms_ColorBgPanel;
 	static vec4 ms_ColorBgInset;
 	static vec4 ms_ColorAccent;
 	static vec4 ms_ColorAccentDim;
+	static vec4 ms_ColorAccentWarm;
 	static vec4 ms_ColorDanger;
 	static vec4 ms_ColorText;
+	static vec4 ms_ColorGlassLine;
 	static float ms_PanelRounding;
 	static float ms_ControlRounding;
 
@@ -97,13 +99,19 @@ class CMenus : public CComponent
 		BUTTONSTYLE_NORMAL = 0,
 		BUTTONSTYLE_ACCENT = 1,
 		BUTTONSTYLE_DANGER = 2,
+		BUTTONSTYLE_GHOST = 3,
 	};
 
 	vec4 ButtonColorMul(const void *pID);
 	float MenuAlpha() const;
+	void DrawTechShape(const CUIRect *pRect, const vec4 &Color, float Cut);
+	void DrawTechOutline(const CUIRect *pRect, const vec4 &Top, const vec4 &Bottom, float Cut);
+	void DrawGlassSurface(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, float Cut, float Depth = 0.0f);
+	void DrawTechBrackets(const CUIRect *pRect, const vec4 &Color, float Length, float Inset = 0.0f);
 	void DrawMenuPanel(const CUIRect *pRect, int Corners = CUI::CORNER_ALL);
 	void DrawMenuInset(const CUIRect *pRect, int Corners = CUI::CORNER_ALL);
 	void DrawSectionHeader(const CUIRect *pRect, int Corners = CUI::CORNER_T);
+	void DrawOpenPageFrame(const CUIRect *pRect);
 	void DrawAccentUnderline(const CUIRect *pRect);
 	void DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding);
 	void ConfigureScrollRegion(CScrollRegionParams *pParams) const;
@@ -114,8 +122,6 @@ class CMenus : public CComponent
 	void DrawStatusBadge(CUIRect Rect, const char *pText, const vec4 &Color);
 	const char *DisplayGameType(const char *pGameType) const;
 
-	float AnimSelected(const void *pID, bool Selected, float Speed = 12.0f);
-	float AnimPressed(const void *pID, float Speed = 20.0f);
 	static vec4 MixColor(const vec4 &A, const vec4 &B, float t);
 
 	int64 m_LastUpdate;
@@ -263,6 +269,8 @@ class CMenus : public CComponent
 	};
 
 	int m_GamePage;
+	int m_ResearchReturnPage;
+	int m_ResearchReturnGamePage;
 	int m_Popup;
 	bool m_CloudInitialized;
 	bool m_CloudConflict;
@@ -299,6 +307,7 @@ class CMenus : public CComponent
 	float m_PlayFilterTransition;
 	float m_MenuOpenTransition;
 	int m_NavigationFocus;
+	int m_HomeActionFocus;
 	int m_LastInputDevice;
 	int m_PlayTab;
 	int m_CreateRoomStep;
@@ -361,7 +370,6 @@ class CMenus : public CComponent
 
 	// for settings
 	bool m_NeedRestartGraphics;
-	bool m_NeedRestartSound;
 	bool m_NeedSendinfo;
 	int m_SettingPlayerPage;
 
@@ -651,8 +659,15 @@ class CMenus : public CComponent
 	static vec4 ThemeAccentDim();
 	static vec4 ThemeDanger();
 	static vec4 ThemeText();
+	static vec4 ThemeTextMuted();
+	static vec4 ThemeResearchAvailable();
+	static vec4 ThemeResearchLocked();
 	float AnimHover(const void *pID, float Speed = 14.0f);
+	float AnimSelected(const void *pID, bool Selected, float Speed = 12.0f);
+	float AnimPressed(const void *pID, float Speed = 20.0f);
+	bool IsResearchPageActive() const;
 	void OpenResearchPage();
+	void CloseResearchPage();
 	void OpenTutorialChapterSelect();
 	void HandleTutorialChapterCompleted(int Chapter, int CompletedMask);
 	void FinishTutorial();

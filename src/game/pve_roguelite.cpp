@@ -45,8 +45,14 @@ static bool PveLoadCard(const json_value &Entry, int Index)
 	Def.m_Keywords = (json_int_t)Entry["keywords"];
 	Def.m_NumPrerequisites = 0;
 	const json_value &Prereqs = Entry["prerequisites"];
+	if(Prereqs.type != json_array)
+		return false;
 	for(int i = 0; i < 3 && i < (int)Prereqs.u.array.length; i++)
+	{
+		if(Prereqs[i].type != json_integer)
+			return false;
 		Def.m_aPrerequisites[Def.m_NumPrerequisites++] = (json_int_t)Prereqs[i];
+	}
 	Def.m_Tab = (json_int_t)Entry["tab"];
 	Def.m_Branch = (json_int_t)Entry["branch"];
 	Def.m_Tier = (json_int_t)Entry["tier"];

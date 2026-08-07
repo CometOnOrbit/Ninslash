@@ -53,15 +53,17 @@ vec4 CMenus::ms_ColorTabbarActive = vec4(0.04f, 0.05f, 0.06f, 0.88f);
 vec4 CMenus::ms_ColorTabbarInactiveIngame;
 vec4 CMenus::ms_ColorTabbarActiveIngame;
 
-vec4 CMenus::ms_ColorBgDeep = vec4(0.012f, 0.014f, 0.017f, 0.96f);
-vec4 CMenus::ms_ColorBgPanel = vec4(0.044f, 0.048f, 0.058f, 0.96f);
-vec4 CMenus::ms_ColorBgInset = vec4(0.026f, 0.028f, 0.034f, 0.92f);
-vec4 CMenus::ms_ColorAccent = vec4(0.95f, 0.58f, 0.18f, 1.0f);
-vec4 CMenus::ms_ColorAccentDim = vec4(0.18f, 0.66f, 0.46f, 1.0f);
+vec4 CMenus::ms_ColorBgDeep = vec4(0.008f, 0.020f, 0.038f, 0.92f);
+vec4 CMenus::ms_ColorBgPanel = vec4(0.030f, 0.067f, 0.098f, 0.78f);
+vec4 CMenus::ms_ColorBgInset = vec4(0.018f, 0.045f, 0.071f, 0.72f);
+vec4 CMenus::ms_ColorAccent = vec4(0.22f, 0.88f, 1.00f, 1.0f);
+vec4 CMenus::ms_ColorAccentDim = vec4(0.42f, 0.96f, 0.72f, 1.0f);
+vec4 CMenus::ms_ColorAccentWarm = vec4(1.00f, 0.69f, 0.24f, 1.0f);
 vec4 CMenus::ms_ColorDanger = vec4(0.92f, 0.24f, 0.30f, 1.0f);
-vec4 CMenus::ms_ColorText = vec4(0.97f, 0.97f, 0.95f, 1.0f);
-float CMenus::ms_PanelRounding = 4.0f;
-float CMenus::ms_ControlRounding = 3.0f;
+vec4 CMenus::ms_ColorText = vec4(0.92f, 0.97f, 1.00f, 1.0f);
+vec4 CMenus::ms_ColorGlassLine = vec4(0.72f, 0.94f, 1.00f, 0.18f);
+float CMenus::ms_PanelRounding = 12.0f;
+float CMenus::ms_ControlRounding = 6.0f;
 
 float CMenus::ms_ButtonHeight = 25.0f;
 float CMenus::ms_ListheaderHeight = 14.0f;
@@ -191,6 +193,8 @@ CMenus::CMenus()
 	m_Popup = POPUP_NONE;
 	m_ActivePage = PAGE_FRONT;
 	m_GamePage = PAGE_GAME;
+	m_ResearchReturnPage = PAGE_FRONT;
+	m_ResearchReturnGamePage = PAGE_GAME;
 	m_LastAnimatedPage = PAGE_FRONT;
 	m_LastAnimatedPopup = POPUP_NONE;
 	m_LastCreateRoomStep = 0;
@@ -207,6 +211,7 @@ CMenus::CMenus()
 	m_PlayFilterTransition = 1.0f;
 	m_MenuOpenTransition = 0.0f;
 	m_NavigationFocus = 0;
+	m_HomeActionFocus = 0;
 	m_LastInputDevice = 0;
 	m_PlayTab = 0;
 	m_CreateRoomStep = 0;
@@ -216,7 +221,6 @@ CMenus::CMenus()
 	g_Config.m_UiPage = PAGE_FRONT;
 
 	m_NeedRestartGraphics = false;
-	m_NeedRestartSound = false;
 	m_NeedSendinfo = false;
 	m_MenuActive = true;
 	m_UseMouseButtons = true;
@@ -618,20 +622,164 @@ vec4 CMenus::ThemeText()
 {
 	return ms_ColorText;
 }
+vec4 CMenus::ThemeTextMuted()
+{
+	return vec4(0.72f, 0.74f, 0.76f, 1.0f);
+}
+vec4 CMenus::ThemeResearchAvailable()
+{
+	return vec4(1.0f, 0.70f, 0.22f, 1.0f);
+}
+vec4 CMenus::ThemeResearchLocked()
+{
+	return vec4(0.42f, 0.48f, 0.60f, 1.0f);
+}
 
 void CMenus::OpenResearchPage()
 {
 	s_ResetMenu = false;
 	m_Popup = POPUP_NONE;
 	if(Client()->State() == IClient::STATE_OFFLINE)
+	{
+		if(g_Config.m_UiPage != PAGE_RESEARCH)
+			m_ResearchReturnPage = g_Config.m_UiPage > 0 ? g_Config.m_UiPage : PAGE_FRONT;
 		g_Config.m_UiPage = PAGE_RESEARCH;
+	}
 	else
+	{
+		if(m_GamePage != PAGE_RESEARCH)
+			m_ResearchReturnGamePage = m_GamePage > 0 ? m_GamePage : PAGE_GAME;
 		m_GamePage = PAGE_RESEARCH;
+	}
 	SetActive(true);
+}
+
+void CMenus::CloseResearchPage()
+{
+	if(Client()->State() == IClient::STATE_OFFLINE)
+		g_Config.m_UiPage = m_ResearchReturnPage == PAGE_RESEARCH ? PAGE_FRONT : m_ResearchReturnPage;
+	else
+		m_GamePage = m_ResearchReturnGamePage == PAGE_RESEARCH ? PAGE_GAME : m_ResearchReturnGamePage;
+}
+
+bool CMenus::IsResearchPageActive() const
+{
+	if(!m_MenuActive)
+		return false;
+	const bool Offline = Client()->State() == IClient::STATE_OFFLINE;
+	return Offline ? g_Config.m_UiPage == PAGE_RESEARCH : m_GamePage == PAGE_RESEARCH;
+}
+
+void CMenus::DrawTechShape(const CUIRect *pRect, const vec4 &Color, float Cut)
+{
+	if(!pRect || pRect->w <= 0.0f || pRect->h <= 0.0f || Color.a <= 0.0f)
+		return;
+
+	Cut = clamp(Cut, 0.0f, min(pRect->w, pRect->h) * 0.45f);
+	if(Cut < 0.25f)
+	{
+		RenderTools()->DrawUIRect(pRect, Color, 0, 0.0f);
+		return;
+	}
+
+	const float x = pRect->x;
+	const float y = pRect->y;
+	const float w = pRect->w;
+	const float h = pRect->h;
+	IGraphics::CFreeformItem aShape[3] = {
+		IGraphics::CFreeformItem(x, y + Cut, x + Cut, y, x, y + h - Cut, x + Cut, y + h),
+		IGraphics::CFreeformItem(x + Cut, y, x + w - Cut, y, x + Cut, y + h, x + w - Cut, y + h),
+		IGraphics::CFreeformItem(x + w - Cut, y, x + w, y + Cut, x + w - Cut, y + h, x + w, y + h - Cut)};
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+	Graphics()->QuadsDrawFreeform(aShape, 3);
+	Graphics()->QuadsEnd();
+}
+
+void CMenus::DrawTechOutline(const CUIRect *pRect, const vec4 &Top, const vec4 &Bottom, float Cut)
+{
+	if(!pRect || pRect->w <= 0.0f || pRect->h <= 0.0f)
+		return;
+	Cut = clamp(Cut, 0.0f, min(pRect->w, pRect->h) * 0.45f);
+	const float x = pRect->x;
+	const float y = pRect->y;
+	const float w = pRect->w;
+	const float h = pRect->h;
+	IGraphics::CLineItem aTop[3] = {IGraphics::CLineItem(x, y + Cut, x + Cut, y),
+									IGraphics::CLineItem(x + Cut, y, x + w - Cut, y),
+									IGraphics::CLineItem(x + w - Cut, y, x + w, y + Cut)};
+	IGraphics::CLineItem aBottom[3] = {IGraphics::CLineItem(x, y + h - Cut, x + Cut, y + h),
+									   IGraphics::CLineItem(x + Cut, y + h, x + w - Cut, y + h),
+									   IGraphics::CLineItem(x + w - Cut, y + h, x + w, y + h - Cut)};
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(Top.r, Top.g, Top.b, Top.a);
+	Graphics()->LinesDraw(aTop, 3);
+	Graphics()->SetColor(Bottom.r, Bottom.g, Bottom.b, Bottom.a);
+	Graphics()->LinesDraw(aBottom, 3);
+	Graphics()->LinesEnd();
+}
+
+void CMenus::DrawGlassSurface(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, float Cut, float Depth)
+{
+	if(!pRect || pRect->w <= 0.0f || pRect->h <= 0.0f)
+		return;
+	Cut = clamp(Cut, 0.0f, min(pRect->w, pRect->h) * 0.45f);
+	if(Depth > 0.0f)
+	{
+		CUIRect Shadow = *pRect;
+		Shadow.x += Depth * 0.45f;
+		Shadow.y += Depth;
+		DrawTechShape(&Shadow, vec4(0.0f, 0.006f, 0.015f, min(0.52f, 0.24f + Depth * 0.07f)), Cut);
+	}
+
+	DrawTechShape(pRect, Border, Cut);
+	CUIRect Inner = *pRect;
+	Inner.Margin(1.0f, &Inner);
+	if(Inner.w <= 0.0f || Inner.h <= 0.0f)
+		return;
+	DrawTechShape(&Inner, Fill, max(0.0f, Cut - 1.0f));
+
+	CUIRect Frost = Inner;
+	Frost.Margin(1.0f, &Frost);
+	Frost.h = min(Frost.h * 0.38f, 18.0f);
+	if(Frost.w > 2.0f && Frost.h > 2.0f)
+		DrawTechShape(&Frost, vec4(0.70f, 0.92f, 1.0f, 0.035f), max(1.0f, Cut * 0.55f));
+
+	vec4 Highlight = ms_ColorGlassLine;
+	Highlight.a = max(0.04f, min(Highlight.a, Border.a * 0.28f));
+	const float BottomAlpha = min(0.60f, max(0.08f, Border.a * 0.70f));
+	DrawTechOutline(pRect, Highlight, vec4(0.0f, 0.015f, 0.030f, BottomAlpha), Cut);
+}
+
+void CMenus::DrawTechBrackets(const CUIRect *pRect, const vec4 &Color, float Length, float Inset)
+{
+	if(!pRect || pRect->w <= 0.0f || pRect->h <= 0.0f || Color.a <= 0.0f)
+		return;
+	Length = min(Length, min(pRect->w, pRect->h) * 0.28f);
+	const float x0 = pRect->x + Inset;
+	const float y0 = pRect->y + Inset;
+	const float x1 = pRect->x + pRect->w - Inset;
+	const float y1 = pRect->y + pRect->h - Inset;
+	IGraphics::CLineItem aLines[4] = {IGraphics::CLineItem(x0, y0 + Length, x0, y0),
+									  IGraphics::CLineItem(x0, y0, x0 + Length, y0),
+									  IGraphics::CLineItem(x1 - Length, y1, x1, y1),
+									  IGraphics::CLineItem(x1, y1, x1, y1 - Length)};
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+	Graphics()->LinesDraw(aLines, 4);
+	Graphics()->LinesEnd();
 }
 
 void CMenus::DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding)
 {
+	if(Corners == CUI::CORNER_ALL && pRect->w >= 10.0f && pRect->h >= 8.0f)
+	{
+		DrawGlassSurface(pRect, Fill, Border, max(1.5f, Rounding));
+		return;
+	}
 	RenderTools()->DrawUIRect(pRect, Border, Corners, Rounding);
 	CUIRect Inner = *pRect;
 	Inner.Margin(1.0f, &Inner);
@@ -640,27 +788,84 @@ void CMenus::DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &
 
 void CMenus::DrawMenuPanel(const CUIRect *pRect, int Corners)
 {
+	const CUIRect *pScreen = UI()->Screen();
+	const bool CanvasSurface =
+		Corners == CUI::CORNER_ALL && pScreen && pRect->w >= pScreen->w * 0.52f && pRect->h >= pScreen->h * 0.48f;
+	if(CanvasSurface)
+	{
+		DrawOpenPageFrame(pRect);
+		return;
+	}
+
 	vec4 Fill = ms_ColorBgPanel;
-	Fill.a = max(Fill.a * MenuAlpha(), 0.82f);
-	vec4 Border = vec4(0.18f, 0.20f, 0.24f, max(0.80f, 0.92f * MenuAlpha()));
-	DrawMenuBorder(pRect, Fill, Border, Corners, ms_PanelRounding);
+	Fill.a = max(Fill.a * MenuAlpha(), 0.62f);
+	vec4 Border = vec4(0.22f, 0.53f, 0.65f, max(0.62f, 0.82f * MenuAlpha()));
+	if(Corners == CUI::CORNER_ALL)
+	{
+		DrawGlassSurface(pRect, Fill, Border, ms_PanelRounding, 3.2f);
+		vec4 Bracket = ms_ColorAccent;
+		Bracket.a = 0.19f;
+		DrawTechBrackets(pRect, Bracket, 18.0f, 6.0f);
+	}
+	else
+		DrawMenuBorder(pRect, Fill, Border, Corners, ms_PanelRounding);
 }
 
 void CMenus::DrawMenuInset(const CUIRect *pRect, int Corners)
 {
+	const CUIRect *pScreen = UI()->Screen();
+	const bool ContentCanvas = Corners == CUI::CORNER_ALL && pScreen && pRect->w >= pScreen->w * .50f &&
+		pRect->h >= pScreen->h * .42f;
+	if(ContentCanvas)
+	{
+		vec4 Fill = ms_ColorBgInset;
+		Fill.a = .20f * MenuAlpha();
+		DrawTechShape(pRect, Fill, min(ms_ControlRounding + 1.0f, pRect->h * .025f));
+		vec4 Bracket = ms_ColorAccent;
+		Bracket.a = .10f;
+		DrawTechBrackets(pRect, Bracket, 16.0f, 3.0f);
+		return;
+	}
 	vec4 Fill = ms_ColorBgInset;
-	Fill.a = max(Fill.a * MenuAlpha(), 0.78f);
-	vec4 Border = vec4(0.16f, 0.18f, 0.22f, max(0.70f, 0.85f * MenuAlpha()));
-	DrawMenuBorder(pRect, Fill, Border, Corners, ms_ControlRounding);
+	Fill.a = max(Fill.a * MenuAlpha(), 0.42f);
+	vec4 Border = vec4(0.16f, 0.37f, 0.47f, max(0.38f, 0.62f * MenuAlpha()));
+	if(Corners == CUI::CORNER_ALL)
+		DrawGlassSurface(pRect, Fill, Border, ms_ControlRounding + 1.0f, 1.4f);
+	else
+		DrawMenuBorder(pRect, Fill, Border, Corners, ms_ControlRounding);
 }
 
 void CMenus::DrawSectionHeader(const CUIRect *pRect, int Corners)
 {
 	vec4 Fill = ms_ColorBgDeep;
-	Fill.a = max(0.9f * MenuAlpha(), 0.82f);
-	vec4 Border = vec4(0.18f, 0.20f, 0.24f, max(0.75f, 0.88f * MenuAlpha()));
-	DrawMenuBorder(pRect, Fill, Border, Corners, ms_ControlRounding);
+	Fill.a = max(0.78f * MenuAlpha(), 0.64f);
+	vec4 Border = vec4(0.20f, 0.48f, 0.58f, max(0.56f, 0.76f * MenuAlpha()));
+	if(Corners == CUI::CORNER_ALL)
+		DrawGlassSurface(pRect, Fill, Border, ms_ControlRounding, 1.0f);
+	else
+		DrawMenuBorder(pRect, Fill, Border, Corners, ms_ControlRounding);
 	DrawAccentUnderline(pRect);
+}
+
+void CMenus::DrawOpenPageFrame(const CUIRect *pRect)
+{
+	if(!pRect || pRect->w <= 0.0f || pRect->h <= 0.0f)
+		return;
+	vec4 Ambient = ms_ColorBgDeep;
+	Ambient.a = 0.055f * MenuAlpha();
+	DrawTechShape(pRect, Ambient, min(ms_PanelRounding, pRect->h * .035f));
+	vec4 Bracket = ms_ColorAccent;
+	Bracket.a = .18f * MenuAlpha();
+	DrawTechBrackets(pRect, Bracket, min(24.0f, pRect->h * .06f), 4.0f);
+	const float y = pRect->y + 1.0f;
+	IGraphics::CLineItem aLines[2] = {
+		IGraphics::CLineItem(pRect->x + 18.0f, y, pRect->x + min(210.0f, pRect->w * .24f), y),
+		IGraphics::CLineItem(pRect->x + pRect->w - min(84.0f, pRect->w * .10f), y, pRect->x + pRect->w - 18.0f, y)};
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .20f * MenuAlpha());
+	Graphics()->LinesDraw(aLines, 2);
+	Graphics()->LinesEnd();
 }
 
 void CMenus::ConfigureScrollRegion(CScrollRegionParams *pParams) const
@@ -675,9 +880,16 @@ void CMenus::ConfigureScrollRegion(CScrollRegionParams *pParams) const
 
 void CMenus::DrawAccentUnderline(const CUIRect *pRect)
 {
-	CUIRect Line = *pRect;
-	Line.HSplitBottom(2.0f, 0, &Line);
-	RenderTools()->DrawUIRect(&Line, ms_ColorAccent, 0, 0.0f);
+	const float y = pRect->y + pRect->h - 1.0f;
+	const float Break = pRect->x + pRect->w * 0.68f;
+	IGraphics::CLineItem aLines[2] = {
+		IGraphics::CLineItem(pRect->x + 5.0f, y, Break, y),
+		IGraphics::CLineItem(Break + 5.0f, y, min(pRect->x + pRect->w - 5.0f, Break + 22.0f), y)};
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, ms_ColorAccent.a);
+	Graphics()->LinesDraw(aLines, 2);
+	Graphics()->LinesEnd();
 }
 
 void CMenus::LayoutCenterPanel(CUIRect *pScreen, CUIRect *pOut)
@@ -870,51 +1082,88 @@ int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const
 	const float Hover = AnimHover(pID);
 	const float Selected = AnimSelected(pID, Checked != 0);
 	const float Press = AnimPressed(pID);
+	const float Activity = max(Hover, Selected);
+	const bool Ghost = Style == BUTTONSTYLE_GHOST;
 	CUIRect VisualRect = *pRect;
-	VisualRect.Margin(Press * 0.7f, &VisualRect);
-	VisualRect.y += Press * 0.45f;
+	VisualRect.x += Hover * 0.8f;
+	VisualRect.y -= Hover * 0.55f;
+	VisualRect.Margin(Press * 0.75f, &VisualRect);
+	VisualRect.y += Press * 0.8f;
 
-	vec4 FillBase = vec4(0.09f, 0.10f, 0.12f, 0.96f);
-	vec4 FillHot = vec4(0.15f, 0.16f, 0.19f, 0.98f);
-	vec4 BorderBase = vec4(0.22f, 0.24f, 0.28f, 0.95f);
+	vec4 FillBase = vec4(0.022f, 0.070f, 0.103f, 0.82f);
+	vec4 FillHot = vec4(0.040f, 0.160f, 0.215f, 0.91f);
+	vec4 BorderBase = vec4(0.16f, 0.36f, 0.44f, 0.88f);
 	vec4 BorderHot = ms_ColorAccent;
 
 	if(Style == BUTTONSTYLE_DANGER)
 	{
-		FillBase = vec4(0.20f, 0.06f, 0.08f, 0.96f);
-		FillHot = vec4(0.32f, 0.10f, 0.12f, 0.98f);
+		FillBase = vec4(0.20f, 0.035f, 0.070f, 0.88f);
+		FillHot = vec4(0.37f, 0.070f, 0.115f, 0.95f);
 		BorderBase = ms_ColorDanger;
 		BorderHot = ms_ColorDanger;
 	}
 	else if(Style == BUTTONSTYLE_ACCENT)
 	{
-		FillBase = vec4(0.16f, 0.12f, 0.04f, 0.96f);
-		FillHot = vec4(0.28f, 0.20f, 0.06f, 0.98f);
+		FillBase = vec4(0.015f, 0.155f, 0.205f, 0.90f);
+		FillHot = vec4(0.025f, 0.285f, 0.355f, 0.97f);
 		BorderBase = ms_ColorAccent;
 		BorderHot = ms_ColorAccent;
 	}
-
-	vec4 Fill = MixColor(FillBase, FillHot, max(Hover, Selected * 0.55f));
-	vec4 Border = MixColor(BorderBase, BorderHot, max(Hover, Selected * 0.82f));
-	if(Press > 0.0f)
-		Fill = MixColor(Fill, vec4(Fill.r * 0.82f, Fill.g * 0.82f, Fill.b * 0.82f, Fill.a), Press);
-
-	DrawMenuBorder(&VisualRect, Fill, Border, CUI::CORNER_ALL, ms_ControlRounding);
-
-	const float EdgeAlpha = (Style == BUTTONSTYLE_ACCENT || Style == BUTTONSTYLE_DANGER) ? 1.0f : max(Hover, Selected);
-	if(EdgeAlpha > 0.02f)
+	else if(Ghost)
 	{
-		CUIRect Edge = VisualRect;
-		Edge.HSplitBottom(2.0f, 0, &Edge);
-		vec4 EdgeCol = Style == BUTTONSTYLE_DANGER ? ms_ColorDanger : ms_ColorAccent;
-		EdgeCol.a *= EdgeAlpha;
-		RenderTools()->DrawUIRect(&Edge, EdgeCol, CUI::CORNER_B, 0.0f);
+		FillBase = vec4(0.012f, 0.050f, 0.076f, 0.08f);
+		FillHot = vec4(0.025f, 0.145f, 0.190f, 0.54f);
+		BorderBase = vec4(0.18f, 0.50f, 0.60f, 0.10f);
+		BorderHot = ms_ColorAccent;
+	}
+
+	vec4 Fill = MixColor(FillBase, FillHot, max(Hover, Selected * 0.62f));
+	vec4 Border = MixColor(BorderBase, BorderHot, max(Hover, Selected * 0.88f));
+	if(Press > 0.0f)
+		Fill = MixColor(Fill, vec4(Fill.r * 0.72f, Fill.g * 0.76f, Fill.b * 0.80f, Fill.a), Press);
+
+	const float Cut = min(max(3.0f, VisualRect.h * 0.22f), min(VisualRect.w, VisualRect.h) * 0.34f);
+	if(Activity > 0.015f)
+	{
+		const float Expand = 1.0f + Activity * 1.8f;
+		CUIRect Glow = VisualRect;
+		Glow.x -= Expand;
+		Glow.y -= Expand;
+		Glow.w += Expand * 2.0f;
+		Glow.h += Expand * 2.0f;
+		vec4 GlowColor = Style == BUTTONSTYLE_DANGER ? ms_ColorDanger : ms_ColorAccent;
+		GlowColor.a = (0.045f + 0.095f * Activity) * (1.0f - Press * 0.55f);
+		DrawTechShape(&Glow, GlowColor, Cut + Expand);
+	}
+	const float Depth =
+		Ghost ? max(0.0f, Activity * 1.4f - Press * 0.9f) : max(0.35f, 2.2f + Hover * 0.7f - Press * 1.7f);
+	DrawGlassSurface(&VisualRect, Fill, Border, Cut, Depth);
+
+	const float SignalAlpha = (Style == BUTTONSTYLE_ACCENT || Style == BUTTONSTYLE_DANGER) ? 0.92f : Activity * 0.86f;
+	if(SignalAlpha > 0.02f)
+	{
+		vec4 Signal = Style == BUTTONSTYLE_DANGER ? ms_ColorDanger : ms_ColorAccent;
+		Signal.a *= SignalAlpha;
+		const float NodeSize = min(6.0f, VisualRect.h * 0.18f);
+		CUIRect Node = {
+			VisualRect.x + Cut * 0.62f, VisualRect.y + (VisualRect.h - NodeSize) * 0.5f, NodeSize, NodeSize};
+		DrawTechShape(&Node, Signal, NodeSize * 0.46f);
+		IGraphics::CLineItem SignalLine(Node.x + Node.w + 3.0f,
+										Node.y + Node.h * 0.5f,
+										min(VisualRect.x + VisualRect.w * 0.34f, Node.x + Node.w + 20.0f),
+										Node.y + Node.h * 0.5f);
+		Graphics()->TextureClear();
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(Signal.r, Signal.g, Signal.b, Signal.a * 0.55f);
+		Graphics()->LinesDraw(&SignalLine, 1);
+		Graphics()->LinesEnd();
 	}
 
 	CUIRect Temp;
-	VisualRect.HMargin(VisualRect.h >= 20.0f ? 2.0f : 1.0f, &Temp);
+	VisualRect.HMargin(VisualRect.h >= 20.0f ? 2.5f : 1.0f, &Temp);
+	Temp.VMargin(min(10.0f, Cut + 1.0f), &Temp);
 	float FontSize = min(Temp.h * ms_FontmodHeight, 14.0f);
-	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w - 8.0f);
+	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	UI()->DoLabel(&Temp, pText, FontSize, 0);
 	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
@@ -923,59 +1172,84 @@ int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const
 void CMenus::DoButton_KeySelect(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
 {
 	const float Hover = AnimHover(pID);
-	vec4 Fill = MixColor(vec4(0.08f, 0.09f, 0.11f, 0.96f), vec4(0.14f, 0.16f, 0.19f, 0.98f), Hover);
-	vec4 Border = MixColor(vec4(0.20f, 0.22f, 0.26f, 0.95f), ms_ColorAccent, Hover);
-	DrawMenuBorder(pRect, Fill, Border, CUI::CORNER_ALL, ms_ControlRounding);
+	vec4 Fill = MixColor(vec4(0.02f, 0.07f, 0.10f, 0.80f), vec4(0.04f, 0.16f, 0.21f, 0.91f), Hover);
+	vec4 Border = MixColor(vec4(0.16f, 0.35f, 0.43f, 0.88f), ms_ColorAccent, Hover);
+	const float Cut = min(max(3.0f, pRect->h * 0.20f), min(pRect->w, pRect->h) * 0.34f);
+	DrawGlassSurface(pRect, Fill, Border, Cut, 1.0f + Hover);
 	CUIRect Temp;
 	pRect->HMargin(1.0f, &Temp);
+	Temp.VMargin(min(8.0f, Cut), &Temp);
 	float FontSize = min(Temp.h * ms_FontmodHeight, 13.0f);
-	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w - 8.0f);
+	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	UI()->DoLabel(&Temp, pText, FontSize, 0);
 }
 
 int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Corners)
 {
+	(void)Corners;
 	const bool IsQuit = str_comp(pText, Localize("Quit")) == 0;
 	const float Hover = AnimHover(pID);
 	const float Sel = AnimSelected(pID, Checked);
 	const float Press = AnimPressed(pID);
 	CUIRect VisualRect = *pRect;
+	VisualRect.x += Hover * 0.6f;
+	VisualRect.y -= Hover * 0.35f;
 	VisualRect.Margin(Press * 0.55f, &VisualRect);
-	VisualRect.y += Press * 0.35f;
+	VisualRect.y += Press * 0.65f;
 
-	vec4 FillIdle = IsQuit ? vec4(0.22f, 0.07f, 0.09f, 0.92f) : vec4(0.08f, 0.09f, 0.11f, 0.92f);
-	vec4 FillOn = IsQuit ? vec4(0.34f, 0.11f, 0.13f, 0.96f) : vec4(0.12f, 0.13f, 0.16f, 0.98f);
-	vec4 FillHot = IsQuit ? vec4(0.28f, 0.09f, 0.11f, 0.95f) : vec4(0.16f, 0.18f, 0.22f, 0.96f);
+	vec4 FillIdle = IsQuit ? vec4(0.20f, 0.035f, 0.070f, 0.84f) : vec4(0.018f, 0.060f, 0.090f, 0.76f);
+	vec4 FillOn = IsQuit ? vec4(0.35f, 0.065f, 0.105f, 0.94f) : vec4(0.025f, 0.170f, 0.220f, 0.92f);
+	vec4 FillHot = IsQuit ? vec4(0.29f, 0.050f, 0.090f, 0.91f) : vec4(0.040f, 0.135f, 0.185f, 0.88f);
 
-	vec4 BorderIdle = IsQuit ? ms_ColorDanger : vec4(0.20f, 0.22f, 0.26f, 0.9f);
+	vec4 BorderIdle = IsQuit ? ms_ColorDanger : vec4(0.14f, 0.32f, 0.40f, 0.84f);
 	vec4 BorderOn = IsQuit ? ms_ColorDanger : ms_ColorAccent;
 
 	vec4 Fill = MixColor(FillIdle, FillOn, Sel);
 	Fill = MixColor(Fill, FillHot, Hover * (1.0f - Sel * 0.5f));
 	vec4 Border = MixColor(BorderIdle, BorderOn, max(Sel, Hover * 0.85f));
 
-	DrawMenuBorder(&VisualRect, Fill, Border, Corners, ms_PanelRounding);
-
-	if(!IsQuit && Sel > 0.02f)
+	const float Cut = min(max(3.0f, VisualRect.h * 0.22f), min(VisualRect.w, VisualRect.h) * 0.34f);
+	const float Activity = max(Sel, Hover);
+	if(Activity > 0.02f)
 	{
-		CUIRect Line = VisualRect;
-		Line.HSplitBottom(2.0f, 0, &Line);
+		CUIRect Glow = VisualRect;
+		Glow.x -= 1.0f;
+		Glow.y -= 1.0f;
+		Glow.w += 2.0f;
+		Glow.h += 2.0f;
+		vec4 GlowColor = IsQuit ? ms_ColorDanger : ms_ColorAccent;
+		GlowColor.a = Activity * 0.09f;
+		DrawTechShape(&Glow, GlowColor, Cut + 1.0f);
+	}
+	DrawGlassSurface(&VisualRect, Fill, Border, Cut, max(0.25f, 1.7f + Hover * 0.5f - Press * 1.2f));
+
+	if(!IsQuit && Activity > 0.02f)
+	{
 		vec4 Accent = ms_ColorAccent;
-		Accent.a *= Sel;
-		RenderTools()->DrawUIRect(&Line, Accent, 0, 0.0f);
+		Accent.a *= Activity;
+		IGraphics::CLineItem Line(VisualRect.x + Cut,
+								  VisualRect.y + VisualRect.h - 1.0f,
+								  VisualRect.x + VisualRect.w * (0.38f + 0.35f * Sel),
+								  VisualRect.y + VisualRect.h - 1.0f);
+		Graphics()->TextureClear();
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(Accent.r, Accent.g, Accent.b, Accent.a);
+		Graphics()->LinesDraw(&Line, 1);
+		Graphics()->LinesEnd();
 	}
 	else if(IsQuit)
 	{
-		CUIRect Edge = VisualRect;
-		Edge.HSplitBottom(2.0f, 0, &Edge);
-		RenderTools()->DrawUIRect(&Edge, ms_ColorDanger, 0, 0.0f);
+		vec4 Danger = ms_ColorDanger;
+		Danger.a = 0.85f;
+		DrawTechBrackets(&VisualRect, Danger, min(8.0f, VisualRect.h * 0.28f), 3.0f);
 	}
 
 	CUIRect Temp;
 	VisualRect.HMargin(2.0f, &Temp);
+	Temp.VMargin(min(9.0f, Cut + 1.0f), &Temp);
 	float FontSize = min(Temp.h * ms_FontmodHeight, 13.0f);
-	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w - 8.0f);
+	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w);
 	TextRender()->TextColor(0.96f + 0.02f * Sel, 0.96f + 0.01f * Sel, 0.94f - 0.01f * Sel, 1.0f);
 	UI()->DoLabel(&Temp, pText, FontSize, 0);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1427,22 +1701,25 @@ void CMenus::DrawNavigationIcon(const CUIRect &Rect, int Icon, bool Active)
 void CMenus::DrawPlayArtwork(const CUIRect &Rect, int Mode, const vec4 &Color)
 {
 	CUIRect Art = Rect;
-	RenderTools()->DrawUIRect(
-		&Art, vec4(Color.r * .10f, Color.g * .10f, Color.b * .10f, .96f), CUI::CORNER_T, ms_ControlRounding);
+	const vec4 ArtFill = vec4(0.010f + Color.r * .055f, 0.024f + Color.g * .055f, 0.040f + Color.b * .055f, .86f);
+	const vec4 ArtBorder = vec4(Color.r, Color.g, Color.b, .52f);
+	DrawGlassSurface(&Art, ArtFill, ArtBorder, min(9.0f, Art.h * .18f), .8f);
+	CUIRect Grid = Art;
+	Grid.Margin(4.0f, &Grid);
 	Graphics()->TextureClear();
 	Graphics()->LinesBegin();
-	Graphics()->SetColor(Color.r, Color.g, Color.b, .16f);
+	Graphics()->SetColor(Color.r, Color.g, Color.b, .14f);
 	IGraphics::CLineItem aGrid[18];
 	int Num = 0;
 	for(int i = 1; i < 9; i++)
 	{
-		const float gx = Art.x + Art.w * i / 9.0f;
-		aGrid[Num++] = IGraphics::CLineItem(gx, Art.y, gx, Art.y + Art.h);
+		const float gx = Grid.x + Grid.w * i / 9.0f;
+		aGrid[Num++] = IGraphics::CLineItem(gx, Grid.y, gx, Grid.y + Grid.h);
 	}
 	for(int i = 1; i < 5; i++)
 	{
-		const float gy = Art.y + Art.h * i / 5.0f;
-		aGrid[Num++] = IGraphics::CLineItem(Art.x, gy, Art.x + Art.w, gy);
+		const float gy = Grid.y + Grid.h * i / 5.0f;
+		aGrid[Num++] = IGraphics::CLineItem(Grid.x, gy, Grid.x + Grid.w, gy);
 	}
 	Graphics()->LinesDraw(aGrid, Num);
 	Graphics()->SetColor(Color.r, Color.g, Color.b, .82f);
@@ -1486,9 +1763,14 @@ void CMenus::DrawPlayArtwork(const CUIRect &Rect, int Mode, const vec4 &Color)
 	Graphics()->QuadsDrawTL(&AtlasSprite, 1);
 	Graphics()->QuadsEnd();
 	CUIRect Scan = Art;
+	Scan.x += 5.0f;
+	Scan.w -= 10.0f;
 	Scan.y += fmodf(Client()->LocalTime() * 18.0f, max(1.0f, Art.h));
 	Scan.h = 1.0f;
 	RenderTools()->DrawUIRect(&Scan, vec4(Color.r, Color.g, Color.b, .30f), 0, 0.0f);
+	vec4 Bracket = Color;
+	Bracket.a = .34f;
+	DrawTechBrackets(&Art, Bracket, min(10.0f, Art.h * .22f), 4.0f);
 }
 
 void CMenus::DrawModeVoteImage(const CUIRect &Rect, const char *pImage, bool Active)
@@ -1524,10 +1806,19 @@ void CMenus::DrawModeVoteImage(const CUIRect &Rect, const char *pImage, bool Act
 
 void CMenus::DrawStatusBadge(CUIRect Rect, const char *pText, const vec4 &Color)
 {
-	RenderTools()->DrawUIRect(&Rect, vec4(Color.r * .18f, Color.g * .18f, Color.b * .18f, .96f), CUI::CORNER_ALL, 8.0f);
+	const vec4 Fill = vec4(0.014f + Color.r * .05f, 0.035f + Color.g * .05f, 0.052f + Color.b * .05f, .22f);
+	const float Cut = min(6.0f, Rect.h * .22f);
+	DrawTechShape(&Rect, Fill, Cut);
+	DrawTechOutline(&Rect, vec4(Color.r, Color.g, Color.b, .18f), vec4(0.0f, 0.015f, 0.030f, .12f), Cut);
+	CUIRect Content = Rect;
+	Content.Margin(3.0f, &Content);
+	CUIRect Node;
+	Content.VSplitLeft(min(12.0f, Content.h), &Node, &Content);
+	Node.Margin(max(2.0f, Node.h * .28f), &Node);
+	DrawTechShape(&Node, Color, min(Node.w, Node.h) * .45f);
 	TextRender()->TextColor(Color.r, Color.g, Color.b, 1.0f);
 	UI()->DoLabelScaled(
-		&Rect, pText, FitScaledLabelFontSize(TextRender(), pText, 9.0f, Rect.w - 12.0f, UI()->Scale()), 0);
+		&Content, pText, FitScaledLabelFontSize(TextRender(), pText, 9.0f, Content.w - 5.0f, UI()->Scale()), 0);
 	TextRender()->TextColor(1, 1, 1, 1);
 }
 
@@ -1540,22 +1831,23 @@ int CMenus::RenderMenubar(CUIRect r)
 	}
 	const bool Offline = Client()->State() == IClient::STATE_OFFLINE;
 	m_ActivePage = Offline ? g_Config.m_UiPage : m_GamePage;
-	const bool Compact = UI()->Screen()->w < 900.0f;
+	const bool Compact = r.w < 142.0f;
 	CClientAsyncStatus SteamHostStatus;
 	Client()->SteamHostedGameStatus(&SteamHostStatus);
 	const bool ManagedLocalGameActive =
 		m_LocalServerState == LOCAL_SERVER_STARTING || m_LocalServerState == LOCAL_SERVER_RUNNING;
 	const bool SteamHostedGameActive =
 		SteamHostStatus.m_State == CLIENT_ASYNC_WORKING || SteamHostStatus.m_State == CLIENT_ASYNC_SUCCEEDED;
-	const char *apOfflineLabels[] = {"Play", "Character", "Progress", "Workshop", "Demos", "Settings"};
-	const int aOfflinePages[] = {PAGE_FRONT, PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS};
+	const char *apOfflineLabels[] = {"Play", "Training", "Character", "Research", "Workshop", "Demos", "Settings"};
+	const int aOfflinePages[] = {
+		PAGE_LOCAL_SERVER, PAGE_TUTORIAL_SELECT, PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS};
 	const char *apGameLabels[] = {"Continue",
 								  "Game",
 								  InGameRoomActionLabel(ManagedLocalGameActive, SteamHostedGameActive),
 								  "Players",
 								  "Server",
 								  "Vote",
-								  "Progress",
+							  "Research",
 								  "Settings",
 								  "Leave"};
 	const int aGamePages[] = {-2,
@@ -1567,92 +1859,91 @@ int CMenus::RenderMenubar(CUIRect r)
 							  PAGE_RESEARCH,
 							  PAGE_SETTINGS,
 							  -3};
-	const int aOfflineIcons[] = {0, 1, 2, 3, 4, 5};
-	const int aGameIcons[] = {4, 0, 7, 1, 3, 2, 2, 5, 6};
 	const char **apLabels = Offline ? apOfflineLabels : apGameLabels;
 	const int *pPages = Offline ? aOfflinePages : aGamePages;
-	const int Count = Offline ? 6 : 9;
+	const int Count = Offline ? 7 : 9;
 	static int s_aNavigationButtons[9];
+	static int s_BackToHome;
+	static int s_QuitButton;
 
 	for(int i = 0; i < m_NumInputEvents; i++)
 	{
 		const IInput::CEvent &Event = m_aInputEvents[i];
 		if(!(Event.m_Flags & IInput::FLAG_PRESS))
 			continue;
-		if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT)
+		const bool Up = Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP ||
+			Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT;
+		const bool Down = Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN ||
+			Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT;
+		if(Up || Down)
 			m_NavigationHasFocus = true;
-		if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT)
-			m_NavigationHasFocus = false;
-		if(m_NavigationHasFocus && (Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP))
+		if(m_NavigationHasFocus && Up)
 			m_NavigationFocus = (m_NavigationFocus + Count - 1) % Count;
-		if(m_NavigationHasFocus && (Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN))
+		if(m_NavigationHasFocus && Down)
 			m_NavigationFocus = (m_NavigationFocus + 1) % Count;
 	}
 	m_NavigationFocus = clamp(m_NavigationFocus, 0, Count - 1);
 
-	DrawMenuPanel(&r, CUI::CORNER_ALL);
-	CUIRect Box = r;
-	Box.Margin(8.0f, &Box);
-	CUIRect Brand;
-	Box.HSplitTop(46.0f, &Brand, &Box);
-	UI()->DoLabelScaled(&Brand, Compact ? "N" : "NINSLASH", Compact ? 22.0f : 16.0f, 0);
-	Box.HSplitTop(8.0f, 0, &Box);
+	CUIRect Rail = r;
+	Rail.HMargin(2.0f, &Rail);
+	vec4 RailFill = ms_ColorBgDeep;
+	RailFill.a = (m_ActivePage == PAGE_RESEARCH ? .82f : .28f) * MenuAlpha();
+	DrawTechShape(&Rail, RailFill, min(10.0f, Rail.h * .03f));
+	vec4 RailLine = ms_ColorAccent;
+	RailLine.a = .22f * MenuAlpha();
+	DrawTechOutline(&Rail, RailLine, vec4(0.0f, 0.02f, 0.04f, .18f), min(10.0f, Rail.h * .03f));
+
+	CUIRect Header, NavigationItems, StatusArea;
+	Rail.HSplitTop(58.0f, &Header, &NavigationItems);
+	NavigationItems.HSplitBottom(72.0f, &NavigationItems, &StatusArea);
+	Header.Margin(8.0f, &Header);
+	if(Offline)
+	{
+		if(DoButton_Menu(&s_BackToHome, Localize("Back to main menu"), 0, &Header, BUTTONSTYLE_GHOST))
+			g_Config.m_UiPage = PAGE_FRONT;
+	}
+	else
+	{
+		TextRender()->TextColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 1.0f);
+		UI()->DoLabelScaled(&Header, Compact ? "NS" : "NINSLASH", Compact ? 11.0f : 10.0f, -1);
+		TextRender()->TextColor(1, 1, 1, 1);
+	}
+
+	NavigationItems.Margin(6.0f, &NavigationItems);
 	int NewPage = -1;
-	const char *pTooltip = 0;
-	CUIRect TooltipAnchor;
 	for(int i = 0; i < Count; i++)
 	{
-		if((Offline && (i == 3 || i == 5)) || (!Offline && (i == 1 || i == 6)))
-		{
-			CUIRect Group;
-			Box.HSplitTop(Compact ? 8.0f : 20.0f, &Group, &Box);
-			if(!Compact)
-			{
-				const char *pGroup = Offline ? (i == 3 ? "CONTENT" : "SYSTEM") : (i == 1 ? "SESSION" : "PROFILE");
-				TextRender()->TextColor(.48f, .52f, .58f, 1.0f);
-				UI()->DoLabelScaled(&Group, Localize(pGroup), 8.0f, -1);
-				TextRender()->TextColor(1, 1, 1, 1);
-			}
-			else
-			{
-				Group.HMargin(3.0f, &Group);
-				RenderTools()->DrawUIRect(&Group, vec4(.20f, .22f, .26f, .65f), 0, 0.0f);
-			}
-		}
 		CUIRect Button;
-		Box.HSplitTop(36.0f, &Button, &Box);
-		const char *pText = Compact ? "" : Localize(apLabels[i]);
+		const float Height = min(44.0f, NavigationItems.h / max(1, Count - i));
+		NavigationItems.HSplitTop(Height, &Button, &NavigationItems);
+		Button.VMargin(1.5f, &Button);
+		const char *pText = Localize(apLabels[i]);
 		const bool Focused = m_NavigationHasFocus && m_NavigationFocus == i;
-		const bool PageSelected =
-			pPages[i] == m_ActivePage || (pPages[i] == PAGE_FRONT && m_ActivePage == PAGE_TUTORIAL_SELECT);
+		const bool PageSelected = pPages[i] == m_ActivePage;
 		const bool Activated = DoButton_Menu(&s_aNavigationButtons[i],
 											 pText,
 											 PageSelected || Focused,
 											 &Button,
-											 pPages[i] == -3 ? BUTTONSTYLE_DANGER : BUTTONSTYLE_NORMAL) ||
+											 pPages[i] == -3 ? BUTTONSTYLE_DANGER : BUTTONSTYLE_GHOST) ||
 							   (Focused && m_LastInputDevice != 0 && m_EnterPressed);
 		const float SelectedAmount = AnimSelected(&s_aNavigationButtons[i], PageSelected || Focused, 0.0f);
 		if(SelectedAmount > 0.01f)
 		{
 			CUIRect Indicator = Button;
-			Indicator.w = 3.0f;
-			const float FullHeight = max(0.0f, Indicator.h - 14.0f);
-			Indicator.h = FullHeight * MenuEaseOutCubic(SelectedAmount);
-			Indicator.y = Button.y + (Button.h - Indicator.h) * 0.5f;
+			Indicator.VSplitLeft(2.0f, &Indicator, 0);
+			Indicator.Margin(2.0f, &Indicator);
+			Indicator.h *= MenuEaseOutCubic(SelectedAmount);
 			vec4 IndicatorColor = ms_ColorAccent;
 			IndicatorColor.a *= SelectedAmount;
-			RenderTools()->DrawUIRect(&Indicator, IndicatorColor, CUI::CORNER_R, 2.0f);
+			DrawTechShape(&Indicator, IndicatorColor, min(1.5f, Indicator.w * .45f));
 		}
-		if(Compact)
-		{
-			const int Icon = Offline ? aOfflineIcons[i] : aGameIcons[i];
-			DrawNavigationIcon(Button, Icon, PageSelected || Focused);
-			if(UI()->MouseInside(&Button))
-			{
-				pTooltip = Localize(apLabels[i]);
-				TooltipAnchor = Button;
-			}
-		}
+		CUIRect Index = Button;
+		Index.VSplitLeft(24.0f, &Index, &Button);
+		char aIndex[8];
+		str_format(aIndex, sizeof(aIndex), "%02d", i + 1);
+		TextRender()->TextColor(ms_ColorAccentDim.r, ms_ColorAccentDim.g, ms_ColorAccentDim.b, PageSelected || Focused ? 1.0f : .56f);
+		UI()->DoLabelScaled(&Index, aIndex, Compact ? 7.0f : 7.5f, -1);
+		TextRender()->TextColor(1, 1, 1, 1);
 		if(Activated)
 		{
 			m_EnterPressed = false;
@@ -1675,59 +1966,47 @@ int CMenus::RenderMenubar(CUIRect r)
 			else
 				NewPage = pPages[i];
 		}
-		Box.HSplitTop(5.0f, 0, &Box);
-	}
-	if(pTooltip)
-	{
-		CUIRect Tip = TooltipAnchor;
-		Tip.x = r.x + r.w + 7.0f;
-		Tip.w = max(92.0f, TextRender()->TextWidth(0, 10.0f, pTooltip, -1) + 20.0f);
-		DrawMenuBorder(&Tip,
-					   ms_ColorBgDeep,
-					   vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .75f),
-					   CUI::CORNER_ALL,
-					   3.0f);
-		UI()->DoLabelScaled(&Tip, pTooltip, 10.0f, 0);
 	}
 
-	CUIRect Footer;
-	r.HSplitBottom(104.0f, 0, &Footer);
-	Footer.Margin(10.0f, &Footer);
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
 	char aIdentity[128];
 	if(pPlatform && pPlatform->Available())
 	{
-		if(Compact)
-			str_copy(aIdentity, "STEAM\nONLINE", sizeof(aIdentity));
-		else
-			str_format(
-				aIdentity, sizeof(aIdentity), "%s  %llu\n%s", "Steam", pPlatform->LocalUserID(), Localize("Online"));
+		str_copy(aIdentity, Localize("Steam · online"), sizeof(aIdentity));
 	}
-	else if(Compact)
-		str_copy(aIdentity, "NET\nUDP", sizeof(aIdentity));
 	else
-		str_format(aIdentity, sizeof(aIdentity), "%s\n%s", Localize("Standalone network"), Localize("UDP available"));
-	TextRender()->TextColor(ms_ColorAccentDim.r, ms_ColorAccentDim.g, ms_ColorAccentDim.b, 1.0f);
-	UI()->DoLabelScaled(&Footer, aIdentity, Compact ? 8.0f : 9.0f, -1);
-	TextRender()->TextColor(1, 1, 1, 1);
+		str_copy(aIdentity, Localize("Standalone · UDP ready"), sizeof(aIdentity));
+	StatusArea.Margin(6.0f, &StatusArea);
+	CUIRect Status, Quit;
+	StatusArea.HSplitTop(28.0f, &Status, &Quit);
+	DrawStatusBadge(Status, aIdentity, ms_ColorAccentDim);
 	if(Offline)
 	{
-		CUIRect Quit;
-		Footer.HSplitBottom(30.0f, 0, &Quit);
-		static int s_QuitButton;
-		if(DoButton_Menu(&s_QuitButton, Compact ? "" : Localize("Quit"), 0, &Quit, BUTTONSTYLE_DANGER))
+		if(DoButton_Menu(&s_QuitButton, Localize("Quit"), 0, &Quit, BUTTONSTYLE_GHOST))
 			m_Popup = POPUP_QUIT;
-		if(Compact)
-			DrawNavigationIcon(Quit, 6, false);
 	}
 
-	if(NewPage != -1)
-	{
-		if(Client()->State() == IClient::STATE_OFFLINE)
-			g_Config.m_UiPage = NewPage;
-		else
+		if(NewPage != -1)
 		{
-			m_GamePage = NewPage;
+			if(Client()->State() == IClient::STATE_OFFLINE)
+			{
+				if(NewPage == PAGE_RESEARCH)
+					OpenResearchPage();
+				else
+					g_Config.m_UiPage = NewPage;
+			if(NewPage == PAGE_LOCAL_SERVER)
+			{
+				m_PlayTab = 1;
+				m_CreateRoomStep = 0;
+				m_LocalServerFocus = g_Config.m_ClLocalServerMode;
+			}
+		}
+			else
+			{
+				if(NewPage == PAGE_RESEARCH)
+					OpenResearchPage();
+				else
+					m_GamePage = NewPage;
 			if(NewPage == PAGE_LOCAL_SERVER)
 			{
 				m_PlayTab = 1;
@@ -1942,8 +2221,6 @@ void CMenus::PopupMessage(const char *pTopic, const char *pBody, const char *pBu
 	str_copy(m_aMessageButton, pButton, sizeof(m_aMessageButton));
 	m_Popup = POPUP_MESSAGE;
 }
-
-static int gs_TextureLogo = -1;
 
 namespace
 {
@@ -3305,6 +3582,47 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	}
 	s_CardAnimTimer = SmoothToward(s_CardAnimTimer, 1.0f, StepDt, 6.0f);
 
+	CUIRect StepRail, Workspace;
+	const float StepRailWidth = L(150.0f);
+	MainView.VSplitLeft(StepRailWidth, &StepRail, &Workspace);
+	Workspace.VSplitLeft(L(10.0f), 0, &Workspace);
+	DrawTechShape(&StepRail, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .20f), 10.0f);
+	DrawTechOutline(&StepRail,
+					vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .24f),
+					vec4(0.0f, 0.02f, 0.04f, .18f),
+					10.0f);
+	StepRail.Margin(L(9.0f), &StepRail);
+	CUIRect StepTitle, StepBody;
+	StepRail.HSplitTop(L(34.0f), &StepTitle, &StepBody);
+	UI()->DoLabelScaled(&StepTitle, Localize("Create room"), 14.0f, -1);
+	DrawAccentUnderline(&StepTitle);
+	static int s_StepModeButton, s_StepConfigureButton;
+	const char *apStepNames[] = {Localize("Choose a game mode"), Localize("Configure room")};
+	int *pStepIDs[] = {&s_StepModeButton, &s_StepConfigureButton};
+	for(int Step = 0; Step < 2; Step++)
+	{
+		CUIRect StepRect;
+		StepBody.HSplitTop(L(44.0f), &StepRect, &StepBody);
+		StepRect.HSplitBottom(L(5.0f), &StepRect, 0);
+		char aStepLabel[128];
+		str_format(aStepLabel, sizeof(aStepLabel), "%02d  %s", Step + 1, apStepNames[Step]);
+		const bool Selected = m_CreateRoomStep == Step;
+		const bool Enabled = Step == 0 || m_CreateRoomStep == CREATE_ROOM_CONFIGURE;
+		if(DoButton_Menu(pStepIDs[Step], aStepLabel, Selected, &StepRect,
+						 Enabled ? (Selected ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST) : BUTTONSTYLE_GHOST) &&
+			Enabled)
+		{
+			m_CreateRoomStep = Step;
+		}
+	}
+	StepBody.HSplitTop(L(10.0f), 0, &StepBody);
+	if(m_CreateRoomStep == CREATE_ROOM_CONFIGURE)
+	{
+		const int RailMode = clamp(g_Config.m_ClLocalServerMode, (int)LOCAL_MODE_INVASION, (int)LOCAL_MODE_COUNT - 1);
+		DrawStatusBadge(StepBody, Localize(LocalGameMode(RailMode).m_pName), ms_ColorAccentDim);
+	}
+
+	MainView = Workspace;
 	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
 	MainView.Margin(L(12.0f), &MainView);
 	CUIRect Header, Body, Footer;
@@ -3332,15 +3650,30 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	if(m_CreateRoomStep == CREATE_ROOM_CHOOSE_MODE)
 	{
 		Body.HMargin(L(6.0f), &Body);
-		const bool SingleColumn = Body.w < 650.0f;
+		CUIRect ModeGrid, ModePreview;
+		const bool HasPreview = Body.w >= 660.0f;
+		if(HasPreview)
+		{
+			Body.VSplitRight(L(244.0f), &ModeGrid, &ModePreview);
+			ModeGrid.VSplitRight(L(8.0f), &ModeGrid, 0);
+			ModePreview.VSplitLeft(L(8.0f), 0, &ModePreview);
+			DrawTechShape(&ModePreview, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .16f), 9.0f);
+			DrawTechOutline(&ModePreview,
+							vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .18f),
+							vec4(0.0f, 0.02f, 0.04f, .12f),
+							9.0f);
+		}
+		else
+			ModeGrid = Body;
+		const bool SingleColumn = ModeGrid.w < 650.0f;
 		static CScrollRegion s_ModeScrollRegion;
 		vec2 ScrollOffset(0.0f, 0.0f);
-		CUIRect ModeContent = Body;
+		CUIRect ModeContent = ModeGrid;
 		CScrollRegionParams ScrollParams;
 		ConfigureScrollRegion(&ScrollParams);
 		ScrollParams.m_ClipBgColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
 		ScrollParams.m_ScrollUnit = L(94.0f);
-		s_ModeScrollRegion.Begin(&Body, &ScrollOffset, &ScrollParams);
+		s_ModeScrollRegion.Begin(&ModeGrid, &ScrollOffset, &ScrollParams);
 		ModeContent.y += ScrollOffset.y;
 		ModeContent.VSplitRight(L(20.0f), &ModeContent, 0);
 		const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
@@ -3421,6 +3754,46 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 		DrawMenuInset(&Footer, CUI::CORNER_ALL);
 		Footer.Margin(L(9.0f), &Footer);
 		UI()->DoLabelScaled(&Footer, Localize("Training is available from the Play hub."), 10.0f, -1);
+		if(HasPreview)
+		{
+			const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
+			int PreviewIndex = 0;
+			for(int Index = 0; Index < AllCount; Index++)
+				if(s_aAllLocalModes[Index] == m_LocalServerFocus)
+				{
+					PreviewIndex = Index;
+					break;
+				}
+			const int PreviewMode = s_aAllLocalModes[PreviewIndex];
+			const CLocalGameMode &Preview = LocalGameMode(PreviewMode);
+			CUIRect PreviewContent = ModePreview;
+			PreviewContent.Margin(L(12.0f), &PreviewContent);
+			CUIRect PreviewTitle;
+			PreviewContent.HSplitTop(L(26.0f), &PreviewTitle, &PreviewContent);
+			UI()->DoLabelScaled(&PreviewTitle, Localize("Choose a game mode"), 12.0f, -1);
+			CUIRect PreviewImage;
+			PreviewContent.HSplitTop(L(112.0f), &PreviewImage, &PreviewContent);
+			DrawModeVoteImage(PreviewImage, Preview.m_pGameVoteImage, true);
+			PreviewContent.HSplitTop(L(12.0f), 0, &PreviewContent);
+			CUIRect PreviewName;
+			PreviewContent.HSplitTop(L(25.0f), &PreviewName, &PreviewContent);
+			UI()->DoLabelScaled(&PreviewName, Localize(Preview.m_pName), 15.0f, -1);
+			CUIRect PreviewDescription;
+			PreviewContent.HSplitTop(L(42.0f), &PreviewDescription, &PreviewContent);
+			UI()->DoLabelScaled(&PreviewDescription,
+								Localize(Preview.m_pDescription),
+								9.0f,
+								-1,
+								(int)PreviewDescription.w);
+			char aPreviewMeta[160];
+			str_format(aPreviewMeta,
+						   sizeof(aPreviewMeta),
+						   Localize("Recommended: %s players  ·  %s  ·  %s difficulty"),
+						   Preview.m_pRecommendedPlayers,
+						   Localize(Preview.m_pDuration),
+						   Localize(Preview.m_pRecommendedDifficulty));
+			UI()->DoLabelScaled(&PreviewContent, aPreviewMeta, 8.5f, -1, (int)PreviewContent.w);
+		}
 		return;
 	}
 
@@ -4578,65 +4951,220 @@ void CMenus::RenderFront(CUIRect MainView)
 	{
 		return Value / ScaleDivisor;
 	};
-	CUIRect Screen = MainView;
-	DrawMenuPanel(&Screen, CUI::CORNER_ALL);
-	Screen.Margin(L(14.0f), &Screen);
-	CUIRect Header, Hero, Status, Cards;
-	Screen.HSplitTop(L(46.0f), &Header, &Screen);
-	if(gs_TextureLogo == -1)
-		gs_TextureLogo = Graphics()->LoadTexture("logo.png", IStorage::TYPE_ALL, CImageInfo::FORMAT_AUTO, 0);
-	Graphics()->TextureSet(gs_TextureLogo);
-	Graphics()->QuadsBegin();
-	Graphics()->SetColor(1, 1, 1, 1);
-	IGraphics::CQuadItem Logo(Header.x, Header.y + L(2.0f), min(L(226.0f), Header.w * 0.34f), L(34.0f));
-	Graphics()->QuadsDrawTL(&Logo, 1);
-	Graphics()->QuadsEnd();
-	CUIRect HeaderText;
-	Header.VSplitLeft(min(L(245.0f), Header.w * 0.37f), 0, &HeaderText);
-	UI()->DoLabelScaled(&HeaderText, Localize("TACTICAL COMMAND"), L(9.0f), -1);
-	HeaderText.HSplitTop(L(17.0f), 0, &HeaderText);
-	UI()->DoLabelScaled(&HeaderText, Localize("Choose how to deploy"), L(15.0f), -1);
-	DrawAccentUnderline(&Header);
+	const float dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	const float ResponsiveWidth = UI()->Screen()->w / max(1.0f, UI()->Scale());
+	const bool Compact = ResponsiveWidth < 760.0f || MainView.h < L(480.0f);
+	CUIRect Canvas = MainView;
+	Canvas.Margin(L(12.0f), &Canvas);
 
-	Screen.HSplitTop(L(8.0f), 0, &Screen);
-	Screen.HSplitTop(L(126.0f), &Hero, &Screen);
-	DrawMenuInset(&Hero, CUI::CORNER_ALL);
-	CUIRect HeroAccent = Hero;
-	HeroAccent.w = L(5.0f);
-	RenderTools()->DrawUIRect(&HeroAccent, ms_ColorAccent, CUI::CORNER_L, ms_ControlRounding);
-	Hero.Margin(L(16.0f), &Hero);
 	CMenuHomeState HomeState = {m_LocalServerState == LOCAL_SERVER_STARTING,
 								m_LocalServerState == LOCAL_SERVER_RUNNING,
 								IsConnectedToLocalServer(),
 								g_Config.m_ClTutorialState == 1,
 								g_Config.m_ClTutorialChapter};
 	const CMenuHomePrimary Primary = ResolveMenuHomePrimary(HomeState);
-	CUIRect HeroActions, HeroCopy = Hero;
-	Hero.VSplitRight(min(L(238.0f), Hero.w * .38f), &HeroCopy, &HeroActions);
-	CUIRect Eyebrow, Title, Description;
-	HeroCopy.HSplitTop(L(18.0f), &Eyebrow, &HeroCopy);
+
+	// A slim edge header replaces the previous full-width hero panel so the
+	// shader remains the visual centre of gravity.
+	CUIRect TopRail, Body, BottomRail;
+	Canvas.HSplitTop(L(54.0f), &TopRail, &Body);
+	Body.HSplitBottom(L(42.0f), &Body, &BottomRail);
+	CUIRect Brand, NetworkRail;
+	TopRail.VSplitLeft(Compact ? min(L(190.0f), TopRail.w * .42f) : min(L(245.0f), TopRail.w * .34f), &Brand, &NetworkRail);
+	NetworkRail.VSplitLeft(L(16.0f), 0, &NetworkRail);
+	CUIRect BrandCode = Brand;
+	BrandCode.y += L(18.0f);
+	BrandCode.h = L(13.0f);
 	TextRender()->TextColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 1.0f);
-	UI()->DoLabelScaled(&Eyebrow, Localize("RECOMMENDED ACTION"), L(8.5f), -1);
+	UI()->DoLabelScaled(&BrandCode, "NINSLASH (NEED A NEW LOGO VERSION)", L(7.0f), -1);
 	TextRender()->TextColor(1, 1, 1, 1);
-	HeroCopy.HSplitTop(L(31.0f), &Title, &Description);
-	UI()->DoLabelScaled(&Title, Localize(Primary.m_pTitle), L(21.0f), -1);
-	char aDescription[192];
-	if(Primary.m_Chapter)
-		str_format(aDescription, sizeof(aDescription), Localize(Primary.m_pDescription), Primary.m_Chapter);
-	else
-		str_copy(aDescription, Localize(Primary.m_pDescription), sizeof(aDescription));
-	UI()->DoLabelScaled(&Description, aDescription, L(10.0f), -1, (int)Description.w);
-	HeroActions.VSplitLeft(L(10.0f), 0, &HeroActions);
-	CUIRect PrimaryButton, SecondaryButton;
-	HeroActions.HSplitTop(L(42.0f), &PrimaryButton, &HeroActions);
-	HeroActions.HSplitTop(L(7.0f), 0, &HeroActions);
-	HeroActions.HSplitTop(L(31.0f), &SecondaryButton, &HeroActions);
-	static int s_Primary, s_Browse;
-	const bool KeyboardActivate = !m_NavigationHasFocus && m_LastInputDevice != 0 && m_EnterPressed;
-	if(DoButton_Menu(&s_Primary, Localize(Primary.m_pTitle), true, &PrimaryButton, BUTTONSTYLE_ACCENT) ||
-	   KeyboardActivate)
+
+	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
+	const bool PlatformOnline = pPlatform && pPlatform->Available();
+	const char *pServerStatus = m_LocalServerState == LOCAL_SERVER_RUNNING	  ? "Local server · running"
+								: m_LocalServerState == LOCAL_SERVER_STARTING ? "Local server · starting"
+								: m_LocalServerState == LOCAL_SERVER_FAILED	  ? "Local server · attention"
+																	  : "Local server · idle";
+	const vec4 ServerColor = m_LocalServerState == LOCAL_SERVER_FAILED
+								 ? ms_ColorDanger
+								 : (m_LocalServerState == LOCAL_SERVER_RUNNING ? ms_ColorAccentDim : vec4(.62f, .72f, .78f, 1.0f));
+	CUIRect NetworkBadge, ServerBadge;
+	if(Compact)
 	{
+		NetworkRail.VSplitRight(min(L(116.0f), NetworkRail.w), 0, &NetworkBadge);
+	}
+	else
+	{
+		NetworkRail.VSplitRight(min(L(154.0f), NetworkRail.w * .48f), &NetworkRail, &NetworkBadge);
+		NetworkRail.VSplitRight(L(7.0f), &NetworkRail, 0);
+		NetworkRail.VSplitRight(min(L(166.0f), NetworkRail.w), 0, &ServerBadge);
+	}
+	DrawStatusBadge(NetworkBadge,
+					Localize(PlatformOnline ? "Steam · online" : "Standalone · UDP ready"),
+					ms_ColorAccentDim);
+	if(!Compact)
+		DrawStatusBadge(ServerBadge, Localize(pServerStatus), ServerColor);
+
+	// Keyboard and gamepad focus belongs to the four deployment actions. Mouse
+	// movement switches back to hover-only disclosure through OnMouseMove().
+	for(int EventIndex = 0; EventIndex < m_NumInputEvents; EventIndex++)
+	{
+		const IInput::CEvent &Event = m_aInputEvents[EventIndex];
+		if(!(Event.m_Flags & IInput::FLAG_PRESS))
+			continue;
+		if(Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP)
+			m_HomeActionFocus = (m_HomeActionFocus + 3) % 4;
+		else if(Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN)
+			m_HomeActionFocus = (m_HomeActionFocus + 1) % 4;
+	}
+	m_HomeActionFocus = clamp(m_HomeActionFocus, 0, 3);
+
+	CUIRect ActionRegion, DetailRegion;
+	Body.VSplitLeft(Compact ? min(Body.w * .54f, L(330.0f)) : min(Body.w * .39f, L(410.0f)), &ActionRegion, &DetailRegion);
+	ActionRegion.VSplitLeft(L(18.0f), 0, &ActionRegion);
+	ActionRegion.VSplitRight(L(12.0f), &ActionRegion, 0);
+	CUIRect ActionHeading, ActionList;
+	ActionRegion.HSplitTop(L(57.0f), &ActionHeading, &ActionList);
+	CUIRect HeadingKicker, HeadingTitle;
+	ActionHeading.HSplitTop(L(15.0f), &HeadingKicker, &HeadingTitle);
+	TextRender()->TextColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .90f);
+	UI()->DoLabelScaled(&HeadingKicker, Localize("TACTICAL COMMAND"), L(7.5f), -1);
+	TextRender()->TextColor(1, 1, 1, 1);
+	UI()->DoLabelScaled(&HeadingTitle, Localize("Choose how to deploy"), L(16.0f), -1);
+
+	static int s_aActionButtons[4];
+	const char *apTitles[4] = {Primary.m_pTitle, "Browse rooms", "Quick match", "Training"};
+	const char *apCategories[4] = {"RECOMMENDED ACTION", "MULTIPLAYER · COMMUNITY", "SOLO · 1 CLICK", "SOLO · 30–45 MIN"};
+	const char *apDescriptions[4] = {Primary.m_pDescription,
+								  "Dedicated servers, LAN, Favorites and Steam rooms",
+								  "Jump straight into a bot deathmatch — no setup.",
+								  "Six guided chapters, always replayable."};
+	const vec4 aActionColors[4] = {ms_ColorAccent, vec4(.42f, .64f, 1.0f, 1.0f), ms_ColorAccentWarm, ms_ColorAccentDim};
+
+	// TODO: Reintroduce a right-side information panel when a real live-data source exists.
+
+	const float RowHeight = min(L(62.0f), max(L(42.0f), (ActionList.h - L(16.0f)) / 4.0f));
+	const float RowGap = min(L(8.0f), max(L(3.0f), (ActionList.h - RowHeight * 4.0f) / 3.0f));
+	CUIRect aActionRects[4];
+	bool aActionClicks[4] = {false, false, false, false};
+	int HoveredAction = -1;
+	for(int i = 0; i < 4; i++)
+	{
+		aActionRects[i] = {ActionList.x, ActionList.y + i * (RowHeight + RowGap), ActionList.w, RowHeight};
+		const bool KeyboardSelected = m_LastInputDevice != 0 && m_HomeActionFocus == i;
+		const bool MouseInside = m_LastInputDevice == 0 && UI()->MouseInside(&aActionRects[i]);
+		if(MouseInside)
+			HoveredAction = i;
+		const bool Selected = KeyboardSelected || MouseInside;
+		const float Select = AnimSelected(&s_aActionButtons[i], Selected, 15.0f);
+		const float Hover = AnimHover(&s_aActionButtons[i], 16.0f);
+		const float Press = AnimPressed(&s_aActionButtons[i], 22.0f);
+		const float Reveal = max(Select, Hover);
+		CUIRect Visual = aActionRects[i];
+		Visual.x += L(7.0f) * MenuEaseOutCubic(Reveal);
+		Visual.y += Press * L(1.0f);
+
+		const vec4 &Color = aActionColors[i];
+		CUIRect Node = {Visual.x, Visual.y + Visual.h * .5f - L(3.0f), L(6.0f), L(6.0f)};
+		vec4 NodeColor = Color;
+		NodeColor.a = .48f + Reveal * .52f;
+		DrawTechShape(&Node, NodeColor, L(2.8f));
+		IGraphics::CLineItem Signal(Node.x + Node.w + L(4.0f),
+								 Node.y + Node.h * .5f,
+								 Node.x + Node.w + L(18.0f + 19.0f * Reveal),
+								 Node.y + Node.h * .5f);
+		Graphics()->TextureClear();
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(Color.r, Color.g, Color.b, .32f + Reveal * .55f);
+		Graphics()->LinesDraw(&Signal, 1);
+		Graphics()->LinesEnd();
+		if(Reveal > .01f)
+		{
+			CUIRect SelectionWash = Visual;
+			SelectionWash.x -= L(5.0f);
+			SelectionWash.w = min(SelectionWash.w, L(250.0f));
+			vec4 Fill = vec4(Color.r * .05f, Color.g * .09f, Color.b * .10f, Reveal * .16f);
+			DrawTechShape(&SelectionWash, Fill, min(L(8.0f), SelectionWash.h * .16f));
+		}
+
+		CUIRect Index, Title;
+		Visual.VSplitLeft(L(39.0f), &Index, &Title);
+		Title.VSplitLeft(L(8.0f), 0, &Title);
+		char aIndex[8];
+		str_format(aIndex, sizeof(aIndex), "%02d", i + 1);
+		TextRender()->TextColor(Color.r, Color.g, Color.b, .50f + Reveal * .50f);
+		UI()->DoLabelScaled(&Index, aIndex, L(8.5f), 1);
+		TextRender()->TextColor(.76f + Reveal * .24f, .82f + Reveal * .18f, .86f + Reveal * .14f, 1.0f);
+		const char *pTitle = Localize(apTitles[i]);
+		UI()->DoLabelScaled(&Title,
+						pTitle,
+						FitScaledLabelFontSize(TextRender(), pTitle, L(17.0f), Title.w, UI()->Scale()),
+						-1);
+		TextRender()->TextColor(1, 1, 1, 1);
+		aActionClicks[i] = UI()->DoButtonLogic(&s_aActionButtons[i], pTitle, 0, &aActionRects[i]) != 0;
+	}
+
+	const int DetailAction = m_LastInputDevice == 0 ? HoveredAction : m_HomeActionFocus;
+	static int s_LastDetailAction = 0;
+	static float s_DetailReveal = 0.0f;
+	if(DetailAction >= 0)
+		s_LastDetailAction = DetailAction;
+	s_DetailReveal = SmoothToward(s_DetailReveal, DetailAction >= 0 ? 1.0f : 0.0f, dt, DetailAction >= 0 ? 14.0f : 10.0f);
+	if(fabs(s_DetailReveal - (DetailAction >= 0 ? 1.0f : 0.0f)) < .001f)
+		s_DetailReveal = DetailAction >= 0 ? 1.0f : 0.0f;
+	s_LastDetailAction = clamp(s_LastDetailAction, 0, 3);
+
+	// Details occupy only the lower-right corner and disappear completely when
+	// the mouse leaves the action list.
+	if(s_DetailReveal > .01f)
+	{
+		const float DetailWidth = Compact ? min(DetailRegion.w - L(8.0f), L(292.0f)) : min(DetailRegion.w * .70f, L(410.0f));
+		const float DetailHeight = Compact ? min(DetailRegion.h * .52f, L(205.0f)) : min(DetailRegion.h * .48f, L(220.0f));
+		CUIRect Detail = {DetailRegion.x + DetailRegion.w - DetailWidth - L(10.0f),
+						  DetailRegion.y + DetailRegion.h - DetailHeight - L(10.0f),
+						  DetailWidth,
+						  DetailHeight};
+		Detail.x += (1.0f - MenuEaseOutCubic(s_DetailReveal)) * L(13.0f);
+		const vec4 &Color = aActionColors[s_LastDetailAction];
+		DrawGlassSurface(&Detail,
+						 vec4(.010f, .044f, .066f, .23f * s_DetailReveal),
+						 vec4(Color.r, Color.g, Color.b, .25f * s_DetailReveal),
+						 min(L(12.0f), Detail.h * .08f),
+						 L(.7f) * s_DetailReveal);
+		vec4 Brackets = Color;
+		Brackets.a = .36f * s_DetailReveal;
+		DrawTechBrackets(&Detail, Brackets, L(15.0f), L(6.0f));
+		Detail.Margin(L(16.0f), &Detail);
+		CUIRect Category, DetailTitle, Description;
+		Detail.HSplitTop(L(16.0f), &Category, &Detail);
+		Detail.HSplitTop(L(34.0f), &DetailTitle, &Detail);
+		Detail.HSplitBottom(L(20.0f), &Description, 0);
+		TextRender()->TextColor(Color.r, Color.g, Color.b, s_DetailReveal);
+		UI()->DoLabelScaled(&Category, Localize(apCategories[s_LastDetailAction]), L(7.5f), -1);
+		TextRender()->TextColor(1, 1, 1, s_DetailReveal);
+		const char *pDetailTitle = Localize(apTitles[s_LastDetailAction]);
+		UI()->DoLabelScaled(&DetailTitle,
+						pDetailTitle,
+						FitScaledLabelFontSize(TextRender(), pDetailTitle, L(19.0f), DetailTitle.w, UI()->Scale()),
+						-1);
+		char aDescription[192];
+		if(s_LastDetailAction == 0 && Primary.m_Chapter)
+			str_format(aDescription, sizeof(aDescription), Localize(apDescriptions[0]), Primary.m_Chapter);
+		else
+			str_copy(aDescription, Localize(apDescriptions[s_LastDetailAction]), sizeof(aDescription));
+		TextRender()->TextColor(.76f, .84f, .88f, s_DetailReveal);
+		UI()->DoLabelScaled(&Description, aDescription, L(8.5f), -1, (int)Description.w);
+		TextRender()->TextColor(1, 1, 1, 1);
+	}
+
+	if(m_LastInputDevice != 0 && m_EnterPressed)
+	{
+		aActionClicks[m_HomeActionFocus] = true;
 		m_EnterPressed = false;
+	}
+
+	if(aActionClicks[0])
+	{
 		if(Primary.m_Action == MENU_HOME_JOIN_LOCAL)
 			JoinLocalServer();
 		else if(Primary.m_Action == MENU_HOME_SHOW_LOCAL)
@@ -4654,200 +5182,97 @@ void CMenus::RenderFront(CUIRect MainView)
 		else
 		{
 			m_PlayTab = 1;
+			m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
+			m_LocalServerFocus = LOCAL_MODE_INVASION;
 			g_Config.m_UiPage = PAGE_LOCAL_SERVER;
 		}
 	}
-	if(DoButton_Menu(&s_Browse, Localize("Browse rooms"), 0, &SecondaryButton))
+	else if(aActionClicks[1])
 	{
 		m_PlayTab = 0;
 		ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
 		g_Config.m_UiPage = PAGE_INTERNET;
 	}
+	else if(aActionClicks[2])
+		StartQuickMatch();
+	else if(aActionClicks[3])
+		OpenTutorialChapterSelect();
 
-	Screen.HSplitTop(L(8.0f), 0, &Screen);
-	Screen.HSplitTop(L(28.0f), &Status, &Screen);
-	const float BadgeGap = L(6.0f);
-	CUIRect TutorialBadge, ServerBadge, NetworkBadge;
-	Status.VSplitLeft((Status.w - BadgeGap * 2.0f) / 3.0f, &TutorialBadge, &Status);
-	Status.VSplitLeft(BadgeGap, 0, &Status);
-	Status.VSplitLeft((Status.w - BadgeGap) / 2.0f, &ServerBadge, &Status);
-	Status.VSplitLeft(BadgeGap, 0, &Status);
-	NetworkBadge = Status;
-	char aTutorial[96];
-	if(g_Config.m_ClTutorialState == 1)
-		str_format(aTutorial,
-				   sizeof(aTutorial),
-				   Localize("Training · chapter %d/6"),
-				   clamp(g_Config.m_ClTutorialChapter, 1, 6));
-	else
-		str_copy(aTutorial,
-				 Localize(g_Config.m_ClTutorialState == 2	? "Training · complete"
-						  : g_Config.m_ClTutorialState == 3 ? "Training · skipped"
-															: "Training · not started"),
-				 sizeof(aTutorial));
-	DrawStatusBadge(TutorialBadge, aTutorial, g_Config.m_ClTutorialState == 2 ? ms_ColorAccentDim : ms_ColorAccent);
-	const char *pServerStatus = m_LocalServerState == LOCAL_SERVER_RUNNING	  ? "Local server · running"
-								: m_LocalServerState == LOCAL_SERVER_STARTING ? "Local server · starting"
-								: m_LocalServerState == LOCAL_SERVER_FAILED	  ? "Local server · attention"
-																			  : "Local server · idle";
-	DrawStatusBadge(
-		ServerBadge,
-		Localize(pServerStatus),
-		m_LocalServerState == LOCAL_SERVER_FAILED
-			? ms_ColorDanger
-			: (m_LocalServerState == LOCAL_SERVER_RUNNING ? ms_ColorAccentDim : vec4(.62f, .66f, .72f, 1.0f)));
-	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
-	DrawStatusBadge(NetworkBadge,
-					Localize(pPlatform && pPlatform->Available() ? "Steam · online" : "Standalone · UDP ready"),
-					ms_ColorAccentDim);
-
-	Screen.HSplitTop(L(8.0f), 0, &Cards);
-	const float Gap = L(8.0f);
-	// Use effective width so raising UI scale selects the same denser layout as
-	// a physically smaller window.
-	const float ResponsiveWidth = UI()->Screen()->w / max(1.0f, UI()->Scale());
-	const bool Wide = ResponsiveWidth >= 1050.0f;
-	const bool Medium = !Wide && ResponsiveWidth >= 700.0f;
-	CUIRect CardRects[4];
-	static CScrollRegion s_HomeScroll;
-	bool HomeScrollActive = false;
-	if(Wide)
+	// Secondary destinations become a quiet bottom-edge command strip. They
+	// have generous hit targets but no permanent button containers.
+	static int s_aUtilityButtons[6];
+	const char *apUtilityLabels[6] = {"Character", "Research", "Workshop", "Demos", "Settings", "Quit"};
+	const int aUtilityPages[6] = {PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS, -1};
+	BottomRail.VSplitLeft(L(18.0f), 0, &BottomRail);
+	BottomRail.VSplitRight(L(8.0f), &BottomRail, 0);
+	const float UtilityGap = L(4.0f);
+	for(int i = 0; i < 6; i++)
 	{
-		CUIRect TopRow, BottomRow, Remaining = Cards;
-		Remaining.HSplitTop((Remaining.h - Gap) * 0.5f, &TopRow, &BottomRow);
-		BottomRow.HSplitTop(Gap, 0, &BottomRow);
-		CUIRect TopRemain = TopRow;
-		TopRemain.VSplitLeft((TopRemain.w - Gap) * 0.5f, &CardRects[0], &TopRemain);
-		TopRemain.VSplitLeft(Gap, 0, &TopRemain);
-		CardRects[1] = TopRemain;
-		CUIRect BottomRemain = BottomRow;
-		BottomRemain.VSplitLeft((BottomRemain.w - Gap) * 0.5f, &CardRects[2], &BottomRemain);
-		BottomRemain.VSplitLeft(Gap, 0, &BottomRemain);
-		CardRects[3] = BottomRemain;
-	}
-	else if(Medium)
-	{
-		CUIRect FirstRow, SecondRow;
-		Cards.HSplitTop((Cards.h - Gap) * 0.54f, &FirstRow, &SecondRow);
-		SecondRow.HSplitTop(Gap, 0, &SecondRow);
-		CUIRect FirstRemain = FirstRow;
-		FirstRemain.VSplitLeft((FirstRemain.w - Gap) * 0.5f, &CardRects[0], &FirstRemain);
-		FirstRemain.VSplitLeft(Gap, 0, &FirstRemain);
-		CardRects[1] = FirstRemain;
-		CUIRect SecondRemain = SecondRow;
-		SecondRemain.VSplitLeft((SecondRemain.w - Gap) * 0.5f, &CardRects[2], &SecondRemain);
-		SecondRemain.VSplitLeft(Gap, 0, &SecondRemain);
-		CardRects[3] = SecondRemain;
-	}
-	else
-	{
-		vec2 ScrollOffset(0.0f, 0.0f);
-		CScrollRegionParams Params;
-		ConfigureScrollRegion(&Params);
-		Params.m_ScrollUnit = L(116.0f);
-		s_HomeScroll.Begin(&Cards, &ScrollOffset, &Params);
-		HomeScrollActive = true;
-		Cards.y += ScrollOffset.y;
-		Cards.VSplitRight(L(18.0f), &Cards, 0);
-		for(int i = 0; i < 4; i++)
+		const float Width = (BottomRail.w - UtilityGap * (5 - i)) / (6 - i);
+		CUIRect Utility;
+		BottomRail.VSplitLeft(Width, &Utility, &BottomRail);
+		if(i < 5)
+			BottomRail.VSplitLeft(UtilityGap, 0, &BottomRail);
+		const float Hover = AnimHover(&s_aUtilityButtons[i], 18.0f);
+		const vec4 Color = i == 5 ? ms_ColorDanger : ms_ColorAccent;
+		CUIRect UtilityNode = {Utility.x + L(5.0f), Utility.y + Utility.h * .5f - L(2.0f), L(4.0f), L(4.0f)};
+		vec4 UtilityNodeColor = Color;
+		UtilityNodeColor.a = .42f + Hover * .58f;
+		DrawTechShape(&UtilityNode, UtilityNodeColor, L(1.8f));
+		const float ChevronX = Utility.x + Utility.w - L(8.0f);
+		const float ChevronY = Utility.y + Utility.h * .5f;
+		IGraphics::CLineItem aChevron[2] = {
+			IGraphics::CLineItem(ChevronX - L(3.0f), ChevronY - L(3.0f), ChevronX, ChevronY),
+			IGraphics::CLineItem(ChevronX, ChevronY, ChevronX - L(3.0f), ChevronY + L(3.0f))};
+		Graphics()->TextureClear();
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(Color.r, Color.g, Color.b, .35f + Hover * .55f);
+		Graphics()->LinesDraw(aChevron, 2);
+		Graphics()->LinesEnd();
+		if(Hover > .01f)
 		{
-			Cards.HSplitTop(L(150.0f), &CardRects[i], &Cards);
-			Cards.HSplitTop(Gap, 0, &Cards);
+			CUIRect Signal = Utility;
+			Signal.HSplitBottom(L(2.0f), 0, &Signal);
+			Signal.VMargin(L(7.0f), &Signal);
+			vec4 SignalColor = Color;
+			SignalColor.a *= Hover;
+			DrawTechShape(&Signal, SignalColor, min(L(1.0f), Signal.h * .45f));
 		}
-	}
-
-	static int s_Training, s_CreateRoom, s_BrowseRooms, s_QuickMatch;
-	auto Card = [&](CUIRect Rect,
-					int Mode,
-					const vec4 &Color,
-					const char *pTitle,
-					const char *pBody,
-					const char *pMeta,
-					const void *pButtonID,
-					const char *pButton,
-					int Action)
-	{
-		DrawMenuInset(&Rect, CUI::CORNER_ALL);
-		CUIRect Art, Content = Rect;
-		const float ArtHeight = min(L(58.0f), Rect.h * .37f);
-		Content.HSplitTop(ArtHeight, &Art, &Content);
-		DrawPlayArtwork(Art, Mode, Color);
-		Content.Margin(L(9.0f), &Content);
-		CUIRect Line, Button;
-		Content.HSplitTop(L(19.0f), &Line, &Content);
-		UI()->DoLabelScaled(&Line, Localize(pTitle), L(13.0f), -1);
-		Content.HSplitTop(L(15.0f), &Line, &Content);
-		TextRender()->TextColor(Color.r, Color.g, Color.b, 1.0f);
-		UI()->DoLabelScaled(&Line,
-							Localize(pMeta),
-							FitScaledLabelFontSize(TextRender(), Localize(pMeta), L(8.5f), Line.w, UI()->Scale()),
-							-1);
+		TextRender()->TextColor(.62f + Hover * .38f, .69f + Hover * .28f, .73f + Hover * .27f, 1.0f);
+		const char *pLabel = Localize(apUtilityLabels[i]);
+		UI()->DoLabelScaled(&Utility,
+						pLabel,
+						FitScaledLabelFontSize(TextRender(), pLabel, L(8.5f), Utility.w - L(3.0f), UI()->Scale()),
+						0);
 		TextRender()->TextColor(1, 1, 1, 1);
-		Content.HSplitBottom(L(28.0f), &Line, &Button);
-		UI()->DoLabelScaled(&Line, Localize(pBody), L(8.5f), -1, (int)Line.w);
-		if(DoButton_Menu(pButtonID, Localize(pButton), 0, &Button))
+		if(UI()->DoButtonLogic(&s_aUtilityButtons[i], pLabel, 0, &Utility))
 		{
-			if(Action == 1)
-				OpenTutorialChapterSelect();
-			else if(Action == 2)
+			if(aUtilityPages[i] >= 0)
 			{
-				m_PlayTab = 1;
-				m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
-				m_LocalServerFocus = LOCAL_MODE_INVASION;
-				g_Config.m_UiPage = PAGE_LOCAL_SERVER;
+				if(aUtilityPages[i] == PAGE_RESEARCH)
+					OpenResearchPage();
+				else
+					g_Config.m_UiPage = aUtilityPages[i];
 			}
-			else if(Action == 3)
-			{
-				m_PlayTab = 0;
-				g_Config.m_UiPage = PAGE_INTERNET;
-			}
-			else if(Action == 4)
-				StartQuickMatch();
+			else
+				m_Popup = POPUP_QUIT;
 		}
-	};
-	Card(CardRects[0],
-		 0,
-		 ms_ColorAccent,
-		 "Training",
-		 "Six guided chapters, always replayable.",
-		 "SOLO · 30–45 MIN",
-		 &s_Training,
-		 "Choose chapter",
-		 1);
-	Card(CardRects[1],
-		 1,
-		 ms_ColorAccentDim,
-		 "Create room",
-		 "Choose from every game mode and configure to your liking.",
-		 "13 GAME MODES · SOLO / LAN / STEAM",
-		 &s_CreateRoom,
-		 "Choose mode",
-		 2);
-	Card(CardRects[2],
-		 2,
-		 vec4(.35f, .55f, .88f, 1.0f),
-		 "Browse rooms",
-		 "Join existing games hosted by other players.",
-		 "MULTIPLAYER · COMMUNITY",
-		 &s_BrowseRooms,
-		 "Browse",
-		 3);
-	Card(CardRects[3],
-		 3,
-		 vec4(.95f, .72f, .35f, 1.0f),
-		 "Quick match",
-		 "Jump straight into a bot deathmatch — no setup.",
-		 "SOLO · 1 CLICK",
-		 &s_QuickMatch,
-		 "Play now",
-		 4);
-	if(HomeScrollActive)
-	{
-		CUIRect ScrollContent = CardRects[0];
-		ScrollContent.h = CardRects[3].y + CardRects[3].h - CardRects[0].y;
-		s_HomeScroll.AddRect(ScrollContent);
-		s_HomeScroll.End();
 	}
+
+	// Minimal edge marks visually lock the interface to the viewport without
+	// placing a frame over the animated background.
+	vec4 Edge = ms_ColorAccent;
+	Edge.a = .22f;
+	IGraphics::CLineItem aEdgeLines[4] = {
+		IGraphics::CLineItem(Canvas.x, Canvas.y + L(49.0f), Canvas.x + L(46.0f), Canvas.y + L(49.0f)),
+		IGraphics::CLineItem(Canvas.x, Canvas.y + L(49.0f), Canvas.x, Canvas.y + L(70.0f)),
+		IGraphics::CLineItem(Canvas.x + Canvas.w - L(46.0f), Canvas.y + Canvas.h - L(3.0f), Canvas.x + Canvas.w, Canvas.y + Canvas.h - L(3.0f)),
+		IGraphics::CLineItem(Canvas.x + Canvas.w, Canvas.y + Canvas.h - L(24.0f), Canvas.x + Canvas.w, Canvas.y + Canvas.h - L(3.0f))};
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(Edge.r, Edge.g, Edge.b, Edge.a);
+	Graphics()->LinesDraw(aEdgeLines, 4);
+	Graphics()->LinesEnd();
 }
 
 void CMenus::RenderTutorialChapterSelect(CUIRect MainView)
@@ -7605,9 +8030,14 @@ int CMenus::Render()
 
 	CUIRect Navigation;
 	CUIRect MainView;
+	const int RequestedPage = Client()->State() == IClient::STATE_OFFLINE ? g_Config.m_UiPage : m_GamePage;
+	const bool FullscreenResearch = RequestedPage == PAGE_RESEARCH;
 
-	Screen.Margin(g_Config.m_UiWideview ? 6.0f : 10.0f, &Screen);
-	LayoutCenterPanel(&Screen, &Screen);
+	if(!FullscreenResearch)
+	{
+		Screen.Margin(g_Config.m_UiWideview ? 6.0f : 10.0f, &Screen);
+		LayoutCenterPanel(&Screen, &Screen);
+	}
 
 	static bool s_SoundCheck = false;
 	if(!s_SoundCheck && m_Popup == POPUP_NONE)
@@ -7618,7 +8048,6 @@ int CMenus::Render()
 	}
 
 	const float MenuDt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
-	const int RequestedPage = Client()->State() == IClient::STATE_OFFLINE ? g_Config.m_UiPage : m_GamePage;
 	if(RequestedPage != m_LastAnimatedPage)
 	{
 		m_LastAnimatedPage = RequestedPage;
@@ -7638,9 +8067,18 @@ int CMenus::Render()
 
 	if(m_Popup == POPUP_NONE)
 	{
-		const float NavigationWidth = Screen.w < 900.0f ? 62.0f : 172.0f;
-		Screen.VSplitLeft(NavigationWidth, &Navigation, &MainView);
-		MainView.VSplitLeft(8.0f, 0, &MainView);
+		const bool FrontCanvas = Client()->State() == IClient::STATE_OFFLINE && g_Config.m_UiPage == PAGE_FRONT;
+		if(FrontCanvas || FullscreenResearch)
+			MainView = Screen;
+		else
+		{
+			const float NavigationWidth = Screen.w < 900.0f ? 126.0f : 154.0f;
+			Screen.VSplitLeft(NavigationWidth, &Navigation, &MainView);
+			MainView.VSplitLeft(10.0f, 0, &MainView);
+			MainView.HMargin(2.0f, &MainView);
+		}
+		if(!FrontCanvas && !FullscreenResearch)
+			DrawOpenPageFrame(&MainView);
 		const CUIRect PageBounds = MainView;
 		const float PageEase = MenuEaseOutCubic(m_PageTransition);
 		const float PageOffset = (1.0f - PageEase) * 14.0f / max(1.0f, UI()->Scale());
@@ -7700,7 +8138,8 @@ int CMenus::Render()
 		}
 
 		// Draw navigation last so compact hover labels can float over the page.
-		RenderMenubar(Navigation);
+		if(!FrontCanvas && !FullscreenResearch)
+			RenderMenubar(Navigation);
 	}
 	else
 	{
@@ -8843,21 +9282,23 @@ void CMenus::OnRender()
 		return;
 	}
 
-	// update colors — higher-contrast dark punk
-	ms_GuiColor = vec4(0.04f, 0.05f, 0.06f, 0.95f);
+	// Update the shared tactical-glass design tokens.
+	ms_GuiColor = vec4(0.008f, 0.020f, 0.038f, 0.95f);
 	const float A = MenuAlpha();
-	ms_ColorBgDeep = vec4(0.012f, 0.014f, 0.017f, 0.96f * A);
-	ms_ColorBgPanel = vec4(0.044f, 0.048f, 0.058f, 0.96f * A);
-	ms_ColorBgInset = vec4(0.026f, 0.028f, 0.034f, 0.92f * A);
-	ms_ColorAccent = vec4(0.96f, 0.67f, 0.20f, 1.0f);	 // warm industrial yellow
-	ms_ColorAccentDim = vec4(0.18f, 0.72f, 0.78f, 1.0f); // trusted/online cyan
-	ms_ColorDanger = vec4(0.92f, 0.24f, 0.30f, 1.0f);
-	ms_ColorText = vec4(0.97f, 0.97f, 0.95f, 1.0f);
+	ms_ColorBgDeep = vec4(0.008f, 0.020f, 0.038f, 0.92f * A);
+	ms_ColorBgPanel = vec4(0.030f, 0.067f, 0.098f, 0.78f * A);
+	ms_ColorBgInset = vec4(0.018f, 0.045f, 0.071f, 0.72f * A);
+	ms_ColorAccent = vec4(0.22f, 0.88f, 1.00f, 1.0f);	  // primary interaction / focus
+	ms_ColorAccentDim = vec4(0.42f, 0.96f, 0.72f, 1.0f);  // online / trusted state
+	ms_ColorAccentWarm = vec4(1.00f, 0.69f, 0.24f, 1.0f); // tactical warning / high energy
+	ms_ColorDanger = vec4(1.00f, 0.25f, 0.38f, 1.0f);
+	ms_ColorText = vec4(0.92f, 0.97f, 1.00f, 1.0f);
+	ms_ColorGlassLine = vec4(0.72f, 0.94f, 1.00f, 0.18f);
 
-	ms_ColorTabbarInactiveOutgame = vec4(0.08f, 0.09f, 0.11f, 0.92f * A);
-	ms_ColorTabbarActiveOutgame = vec4(0.12f, 0.13f, 0.16f, 0.98f * A);
-	ms_ColorTabbarInactiveIngame = vec4(0.08f, 0.09f, 0.11f, 0.94f * A);
-	ms_ColorTabbarActiveIngame = vec4(0.12f, 0.13f, 0.16f, 0.98f * A);
+	ms_ColorTabbarInactiveOutgame = vec4(0.018f, 0.060f, 0.090f, 0.76f * A);
+	ms_ColorTabbarActiveOutgame = vec4(0.025f, 0.170f, 0.220f, 0.92f * A);
+	ms_ColorTabbarInactiveIngame = vec4(0.018f, 0.060f, 0.090f, 0.80f * A);
+	ms_ColorTabbarActiveIngame = vec4(0.025f, 0.170f, 0.220f, 0.94f * A);
 
 	// update the ui
 	CUIRect *pScreen = UI()->Screen();
@@ -8961,21 +9402,13 @@ void CMenus::RenderBackground()
 	// render background color
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	// vec4 Bottom(ms_GuiColor.r, ms_GuiColor.g, ms_GuiColor.b, 1.0f);
-	// vec4 Top(ms_GuiColor.r, ms_GuiColor.g, ms_GuiColor.b, 1.0f);
-
-	/*
-	vec4 Bottom(0.2f, 0.25f, 0.3f, 1.0f);
-	vec4 Top(0.2f, 0.25f, 0.3f, 1.0f);
-	IGraphics::CColorVertex Array[4] = {
-		IGraphics::CColorVertex(0, Top.r, Top.g, Top.b, Top.a),
-		IGraphics::CColorVertex(1, Top.r, Top.g, Top.b, Top.a),
-		IGraphics::CColorVertex(2, Bottom.r, Bottom.g, Bottom.b, Bottom.a),
-		IGraphics::CColorVertex(3, Bottom.r, Bottom.g, Bottom.b, Bottom.a)};
+	vec4 Top(0.006f, 0.018f, 0.038f, 1.0f);
+	vec4 Bottom(0.002f, 0.008f, 0.020f, 1.0f);
+	IGraphics::CColorVertex Array[4] = {IGraphics::CColorVertex(0, Top.r, Top.g, Top.b, Top.a),
+										IGraphics::CColorVertex(1, Top.r, Top.g, Top.b, Top.a),
+										IGraphics::CColorVertex(2, Bottom.r, Bottom.g, Bottom.b, Bottom.a),
+										IGraphics::CColorVertex(3, Bottom.r, Bottom.g, Bottom.b, Bottom.a)};
 	Graphics()->SetColorVertex(Array, 4);
-		*/
-
-	Graphics()->SetColor(0.2f, 0.25f, 0.3f, 1.0f);
 	IGraphics::CQuadItem QuadItem(0, 0, s.x, s.y);
 	Graphics()->QuadsDrawTL(&QuadItem, 1);
 	Graphics()->QuadsEnd();
@@ -8989,6 +9422,49 @@ void CMenus::RenderBackground()
 		Graphics()->QuadsDrawTL(&QuadItem, 1);
 		Graphics()->QuadsEnd();
 	}
+
+	// Modular translucent planes echo construction blocks, while the angled
+	// cuts maintain the interface's tactical rhythm without external assets.
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .035f);
+	IGraphics::CFreeformItem LeftPlane(0.0f, s.y * .62f, s.x * .18f, s.y * .47f, 0.0f, s.y, s.x * .46f, s.y);
+	Graphics()->QuadsDrawFreeform(&LeftPlane, 1);
+	Graphics()->SetColor(ms_ColorAccentWarm.r, ms_ColorAccentWarm.g, ms_ColorAccentWarm.b, .022f);
+	IGraphics::CFreeformItem RightPlane(s.x * .72f, 0.0f, s.x, 0.0f, s.x * .56f, s.y * .34f, s.x, s.y * .19f);
+	Graphics()->QuadsDrawFreeform(&RightPlane, 1);
+	Graphics()->QuadsEnd();
+
+	const float Drift = fmodf(Client()->LocalTime() * 2.4f, 18.0f);
+	IGraphics::CLineItem aGrid[96];
+	int GridNum = 0;
+	for(float x = -18.0f + Drift; x < s.x && GridNum < 96; x += 18.0f)
+		aGrid[GridNum++] = IGraphics::CLineItem(x, 0.0f, x, s.y);
+	for(float y = -18.0f + Drift * .42f; y < s.y && GridNum < 96; y += 18.0f)
+		aGrid[GridNum++] = IGraphics::CLineItem(0.0f, y, s.x, y);
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .045f);
+	Graphics()->LinesDraw(aGrid, GridNum);
+	Graphics()->LinesEnd();
+
+	GridNum = 0;
+	for(float x = -72.0f + Drift; x < s.x && GridNum < 96; x += 72.0f)
+		aGrid[GridNum++] = IGraphics::CLineItem(x, 0.0f, x, s.y);
+	for(float y = -72.0f + Drift * .42f; y < s.y && GridNum < 96; y += 72.0f)
+		aGrid[GridNum++] = IGraphics::CLineItem(0.0f, y, s.x, y);
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .085f);
+	Graphics()->LinesDraw(aGrid, GridNum);
+	Graphics()->LinesEnd();
+
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .055f);
+	const float ScanY = fmodf(Client()->LocalTime() * 5.0f, max(1.0f, s.y));
+	IGraphics::CQuadItem Scan(0.0f, ScanY, s.x, 0.45f);
+	Graphics()->QuadsDrawTL(&Scan, 1);
+	Graphics()->QuadsEnd();
 
 	// restore screen
 	{

@@ -160,11 +160,11 @@ def main():
 		if arity == 0:
 			tab, branch, tier, mode, spec = rest
 		elif arity == 1:
-			prereqs = [unquote(rest[0])]
+			prereqs = [eval_arg(unquote(rest[0]), enums)]
 			num_prereqs = 1
 			tab, branch, tier, mode, spec = rest[1:]
 		else:
-			prereqs = [unquote(r) for r in rest[:3]]
+			prereqs = [eval_arg(unquote(r), enums) for r in rest[:3]]
 			num_prereqs = 3
 			tab, branch, tier, mode, spec = rest[3:]
 		cards.append(

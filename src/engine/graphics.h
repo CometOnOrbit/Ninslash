@@ -138,6 +138,8 @@ class IGraphics : public IInterface
 	virtual int MemoryUsage() const = 0;
 
 	virtual void CreateTextureBuffer(int Width, int Height) = 0;
+	virtual void DestroyTextureBuffer() = 0;
+	virtual bool ReloadTextureSettings() = 0;
 
 	virtual void LoadShaders() = 0;
 	// Returns whether a shader program was successfully compiled and linked on
@@ -286,6 +288,8 @@ class IEngineGraphics : public IGraphics
   public:
 	virtual int Init() = 0;
 	virtual void Shutdown() = 0;
+	virtual bool ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless) = 0;
+	virtual bool ApplyVSync(bool Enabled) = 0;
 
 	virtual void Minimize() = 0;
 	virtual void Maximize() = 0;

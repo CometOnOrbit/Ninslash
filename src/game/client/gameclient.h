@@ -65,6 +65,7 @@ class CGameClient : public IGameClient
 	void DispatchInput();
 	void ProcessEvents();
 	void UpdatePositions();
+	void RefreshTextureBuffers();
 
 	int m_PredictedTick;
 	int m_LastNewPredictedTick;
@@ -134,6 +135,11 @@ class CGameClient : public IGameClient
 	IEngine *Engine() const { return m_pEngine; }
 	class IGraphics *Graphics() const { return m_pGraphics; }
 	class IClient *Client() const { return m_pClient; }
+	bool ApplyWindowSettings();
+	bool ApplyVSync();
+	bool ApplyTextureSettings();
+	void ApplyMultiBuffering();
+	bool ApplySoundSettings();
 	// Returns centiseconds. While a racer is active this is the live elapsed
 	// time; after finishing it is the frozen server result.
 	int RaceTime(int ClientID) const;
