@@ -839,6 +839,8 @@ if(NINSLASH_BUILD_TESTS)
   add_executable(ninslash_test_pve_definitions
     tests/pve_definitions.cpp
     src/game/pve_roguelite.cpp
+    "${PROJECT_BINARY_DIR}/src/generated/pve_cards.inc"
+    "${PROJECT_BINARY_DIR}/src/generated/pve_contracts.inc"
     $<TARGET_OBJECTS:engine-shared>
     $<TARGET_OBJECTS:json>
   )

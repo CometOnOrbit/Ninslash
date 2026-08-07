@@ -154,6 +154,8 @@ game_content_source = ContentCompile("game_content_source", "src/generated/game_
 game_content_header = ContentCompile("game_content_header", "src/generated/game_data.h")
 weapon_dsl = EmbedBinary("data/weapons/weapon_dsl.lua", "src/generated/weapon_dsl.inc", "gs_aWeaponDslLua")
 official_weapons = EmbedManifest("data/weapons/official_manifest.txt", "src/generated/official_weapons.inc", "gs_aOfficialWeaponsLua")
+pve_cards = EmbedBinary("data/pve/pve_cards.json", "src/generated/pve_cards.inc", "gs_aPveCardsJson")
+pve_contracts = EmbedBinary("data/pve/pve_contracts.json", "src/generated/pve_contracts.inc", "gs_aPveContractsJson")
 
 AddDependency(network_source, network_header)
 AddDependency(game_content_source, game_content_header)
@@ -367,6 +369,8 @@ function build(settings)
 	for _, object in ipairs(game_shared) do
 		AddDependency(object, official_weapons)
 		AddDependency(object, weapon_dsl)
+		AddDependency(object, pve_cards)
+		AddDependency(object, pve_contracts)
 	end
 	game_client = Compile(settings, CollectRecursive("src/game/client/*.cpp"))
 	game_server = Compile(settings, CollectRecursive("src/game/server/*.cpp"))

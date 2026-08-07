@@ -66,8 +66,3 @@ rules.ninja
 MinSizeRel/mastersrv.exe
 MinSizeRel/versionsrv.exe
 *.code-workspace
-
-# Vibe Coding
-AGENTS.md
-CLAUDE.md
-REASONIX.md

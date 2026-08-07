@@ -23,12 +23,35 @@ list(LENGTH BAM_SERVICE_JSON_LINKS BAM_SERVICE_JSON_LINK_COUNT)
 if(BAM_SERVICE_JSON_LINK_COUNT LESS 2)
 	message(FATAL_ERROR "Bam version and master servers must also link json_parser")
 endif()
+foreach(PVE_BAM_REQUIREMENT
+	"pve_cards = EmbedBinary(\"data/pve/pve_cards.json\""
+	"pve_contracts = EmbedBinary(\"data/pve/pve_contracts.json\""
+	"AddDependency(object, pve_cards)"
+	"AddDependency(object, pve_contracts)"
+)
+	string(FIND "${BAM_CONFIG}" "${PVE_BAM_REQUIREMENT}" PVE_BAM_REQUIREMENT_POS)
+	if(PVE_BAM_REQUIREMENT_POS EQUAL -1)
+		message(FATAL_ERROR "Bam PvE embed dependency is missing: ${PVE_BAM_REQUIREMENT}")
+	endif()
+endforeach()
 
 file(READ "${NINSLASH_SOURCE_DIR}/src/base/system.c" BASE_SYSTEM_SOURCE)
 string(FIND "${BASE_SYSTEM_SOURCE}" "module_offset=%p" WINDOWS_U64_FORMAT_POS)
 if(WINDOWS_U64_FORMAT_POS EQUAL -1)
 	message(FATAL_ERROR "Windows crash logging must use a compiler-compatible pointer format")
 endif()
+
+file(READ "${NINSLASH_SOURCE_DIR}/src/engine/client/backend_sdl.cpp" GRAPHICS_BACKEND_SOURCE)
+foreach(FRAMEBUFFER_GUARD_REQUIREMENT
+	"static bool FramebufferFunctionsAvailable()"
+	"if(!FramebufferFunctionsAvailable())"
+	"framebuffer creation skipped"
+)
+	string(FIND "${GRAPHICS_BACKEND_SOURCE}" "${FRAMEBUFFER_GUARD_REQUIREMENT}" FRAMEBUFFER_GUARD_POS)
+	if(FRAMEBUFFER_GUARD_POS EQUAL -1)
+		message(FATAL_ERROR "OpenGL framebuffer capability guard is missing: ${FRAMEBUFFER_GUARD_REQUIREMENT}")
+	endif()
+endforeach()
 
 file(READ "${NINSLASH_SOURCE_DIR}/.github/workflows/build.yaml" BUILD_WORKFLOW)
 foreach(STEAM_BETA_WORKFLOW_REQUIREMENT
@@ -49,6 +72,14 @@ foreach(STEAM_BETA_WORKFLOW_REQUIREMENT
 endforeach()
 
 file(READ "${NINSLASH_SOURCE_DIR}/CMakeLists.txt" ROOT_CMAKE)
+string(REGEX MATCH
+	"add_executable\\(ninslash_test_pve_definitions[^\\)]*pve_cards\\.inc[^\\)]*pve_contracts\\.inc"
+	PVE_DEFINITIONS_GENERATED_SOURCES
+	"${ROOT_CMAKE}"
+)
+if(NOT PVE_DEFINITIONS_GENERATED_SOURCES)
+	message(FATAL_ERROR "ninslash_test_pve_definitions must depend on both generated PvE embeds")
+endif()
 file(READ "${NINSLASH_SOURCE_DIR}/packaging/steam/app_build.vdf.in" STEAM_CLIENT_BUILD)
 file(READ "${NINSLASH_SOURCE_DIR}/packaging/steam/tool_build.vdf.in" STEAM_SERVER_BUILD)
 foreach(MACOS_DEPOT_REQUIREMENT

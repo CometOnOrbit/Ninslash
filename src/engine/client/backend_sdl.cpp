@@ -427,7 +427,7 @@ void CCommandProcessorFragment_OpenGL::DestroyTextureBuffers()
 {
 	for(int i = 0; i < NUM_RENDERBUFFERS; i++)
 	{
-		if(textureBuffer[i])
+		if(textureBuffer[i] && glDeleteFramebuffers)
 			glDeleteFramebuffers(1, &textureBuffer[i]);
 		if(renderedTexture[i])
 			glDeleteTextures(1, &renderedTexture[i]);
@@ -444,6 +444,12 @@ void CCommandProcessorFragment_OpenGL::DestroyTextureBuffers()
 	m_MultiBuffering = false;
 }
 
+static bool FramebufferFunctionsAvailable()
+{
+	return glGenFramebuffers && glBindFramebuffer && glDeleteFramebuffers && glFramebufferTexture2D &&
+		glDrawBuffers && glCheckFramebufferStatus;
+}
+
 void CCommandProcessorFragment_OpenGL::Cmd_DestroyTextureBuffer(
 	const CCommandBuffer::SCommand_DestroyTextureBuffer *pCommand)
 {
@@ -457,6 +463,11 @@ void CCommandProcessorFragment_OpenGL::Cmd_CreateTextureBuffer(
 	dbg_msg("render", "creating texture buffers");
 	dbg_msg("render", "creating render buffers (shader=%d)", m_ShadersLoaded ? 1 : 0);
 	DestroyTextureBuffers();
+	if(!FramebufferFunctionsAvailable())
+	{
+		dbg_msg("render", "framebuffer creation skipped: required OpenGL functions unavailable");
+		return;
+	}
 
 	int Width = pCommand->m_Width;
 	int Height = pCommand->m_Height;
