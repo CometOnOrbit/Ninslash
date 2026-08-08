@@ -20,6 +20,8 @@
 #include <game/client/render.h>
 #include <game/client/ui.h>
 #include <game/collision.h>
+#include <game/nodes.h>
+#include <game/nodes_collision.h>
 
 #include "build_placement.h"
 
@@ -33,7 +35,77 @@ static const char *s_apBuildNames[NUM_BUILDABLES] = {"Block",
 													 "Flamer",
 													 "Electric wall",
 													 "Teslacoil",
-													 "Shield generator"};
+						 "Shield generator"};
+
+static int BuildCount(const CGameClient *pClient)
+{
+	return pClient->IsNodes() ? (int)NODES_BUILDING_COUNT : (int)NUM_BUILDABLES;
+}
+
+static const char *BuildName(const CGameClient *pClient, int Building)
+{
+	if(pClient->IsNodes())
+		return g_aNodesBuildingInfo[clamp(Building, 0, NODES_BUILDING_COUNT - 1)].m_pName;
+	return s_apBuildNames[clamp(Building, 0, NUM_BUILDABLES - 1)];
+}
+
+static int BuildSprite(const CGameClient *pClient, int Building)
+{
+	if(!pClient->IsNodes())
+		return SPRITE_KIT_BLOCK1 + Building;
+	switch(Building)
+	{
+		case NODES_REACTOR: return SPRITE_REACTOR_DESTROYED;
+		case NODES_SPAWN: return SPRITE_KIT_GENERATOR;
+		case NODES_REPEATER: return SPRITE_GENERATOR;
+		case NODES_SHIELD: return SPRITE_SHIELD1;
+		case NODES_TURRET_GUN:
+		case NODES_TURRET_SHOTGUN: return SPRITE_KIT_TURRET;
+		default: return SPRITE_POWERUPPER;
+	}
+}
+
+static int NodesBuildingImage(int Building, int Team)
+{
+	if(Team != TEAM_BLUE)
+		Team = TEAM_RED;
+	switch(Building)
+	{
+		case NODES_REACTOR: return Team == TEAM_BLUE ? IMAGE_BUILDING_REACTOR_BLUE : IMAGE_BUILDING_REACTOR_RED;
+		case NODES_SPAWN: return Team == TEAM_BLUE ? IMAGE_BUILDING_SPAWN_BLUE : IMAGE_BUILDING_SPAWN_RED;
+		case NODES_AMMO_SHOTGUN: return Team == TEAM_BLUE ? IMAGE_BUILDING_AMMO1_BLUE : IMAGE_BUILDING_AMMO1_RED;
+		case NODES_HEALTH: return Team == TEAM_BLUE ? IMAGE_BUILDING_HEALTH_BLUE : IMAGE_BUILDING_HEALTH_RED;
+		case NODES_REPEATER: return Team == TEAM_BLUE ? IMAGE_BUILDING_REPEATER_BLUE : IMAGE_BUILDING_REPEATER_RED;
+		case NODES_SHIELD: return Team == TEAM_BLUE ? IMAGE_BUILDING_SHIELD_BLUE : IMAGE_BUILDING_SHIELD_RED;
+		case NODES_AMMO_GRENADE: return Team == TEAM_BLUE ? IMAGE_BUILDING_AMMO2_BLUE : IMAGE_BUILDING_AMMO2_RED;
+		case NODES_TELEPORT: return Team == TEAM_BLUE ? IMAGE_BUILDING_TELEPORT_BLUE : IMAGE_BUILDING_TELEPORT_RED;
+		case NODES_ARMOR: return Team == TEAM_BLUE ? IMAGE_BUILDING_ARMOR_BLUE : IMAGE_BUILDING_ARMOR_RED;
+		case NODES_AMMO_LASER: return Team == TEAM_BLUE ? IMAGE_BUILDING_AMMO3_BLUE : IMAGE_BUILDING_AMMO3_RED;
+		default: return IMAGE_BUILDINGS;
+	}
+}
+
+static int NodesBuildingSprite(int Building, int Team)
+{
+	if(Team != TEAM_BLUE)
+		Team = TEAM_RED;
+	switch(Building)
+	{
+		case NODES_REACTOR: return Team == TEAM_BLUE ? SPRITE_BUILDING_REACTOR_BLUE : SPRITE_BUILDING_REACTOR_RED;
+		case NODES_SPAWN: return Team == TEAM_BLUE ? SPRITE_BUILDING_SPAWN_BLUE : SPRITE_BUILDING_SPAWN_RED;
+		case NODES_AMMO_SHOTGUN: return Team == TEAM_BLUE ? SPRITE_BUILDING_AMMO1_BLUE : SPRITE_BUILDING_AMMO1_RED;
+		case NODES_HEALTH: return Team == TEAM_BLUE ? SPRITE_BUILDING_HEALTH_BLUE : SPRITE_BUILDING_HEALTH_RED;
+		case NODES_REPEATER: return Team == TEAM_BLUE ? SPRITE_BUILDING_REPEATER_BLUE : SPRITE_BUILDING_REPEATER_RED;
+		case NODES_SHIELD: return Team == TEAM_BLUE ? SPRITE_BUILDING_SHIELD_BLUE : SPRITE_BUILDING_SHIELD_RED;
+		case NODES_AMMO_GRENADE: return Team == TEAM_BLUE ? SPRITE_BUILDING_AMMO2_BLUE : SPRITE_BUILDING_AMMO2_RED;
+		case NODES_TELEPORT: return Team == TEAM_BLUE ? SPRITE_BUILDING_TELEPORT_BLUE : SPRITE_BUILDING_TELEPORT_RED;
+		case NODES_ARMOR: return Team == TEAM_BLUE ? SPRITE_BUILDING_ARMOR_BLUE : SPRITE_BUILDING_ARMOR_RED;
+		case NODES_AMMO_LASER: return Team == TEAM_BLUE ? SPRITE_BUILDING_AMMO3_BLUE : SPRITE_BUILDING_AMMO3_RED;
+		case NODES_TURRET_GUN:
+		case NODES_TURRET_SHOTGUN: return SPRITE_STAND;
+		default: return SPRITE_POWERUPPER;
+	}
+}
 
 static bool IsBlock(int Building)
 {
@@ -50,14 +122,14 @@ static bool IsForceFieldExempt(int Building)
 	return Building == BUILDABLE_BARREL || Building == BUILDABLE_POWERBARREL;
 }
 
-static float WheelAngle(int Building)
+static float WheelAngle(int Building, int Count)
 {
-	return -pi / 2.0f + 2.0f * pi * Building / NUM_BUILDABLES;
+	return -pi / 2.0f + 2.0f * pi * Building / Count;
 }
 
-static vec2 WheelItemPosition(vec2 Center, float Radius, int Building)
+static vec2 WheelItemPosition(vec2 Center, float Radius, int Building, int Count)
 {
-	const float Angle = WheelAngle(Building);
+	const float Angle = WheelAngle(Building, Count);
 	return Center + vec2(cosf(Angle), sinf(Angle)) * Radius;
 }
 
@@ -148,12 +220,14 @@ int CBuildPlacement::SelectedBuilding() const
 
 int CBuildPlacement::BuildingPrice(int Building) const
 {
+	if(m_pClient->IsNodes())
+		return Building >= 0 && Building < NODES_BUILDING_COUNT ? g_aNodesBuildingInfo[Building].m_Price : 0;
 	return m_pClient->m_pPveRoguelite->BuildingCost(BuildableCost[Building]);
 }
 
 bool CBuildPlacement::CanAfford(int Building) const
 {
-	return Building >= 0 && Building < NUM_BUILDABLES && CustomStuff()->m_LocalKits >= BuildingPrice(Building);
+	return Building >= 0 && Building < BuildCount(m_pClient) && CustomStuff()->m_LocalKits >= BuildingPrice(Building);
 }
 
 void CBuildPlacement::OpenWheel()
@@ -176,7 +250,7 @@ void CBuildPlacement::ReleaseWheel()
 {
 	if(m_State.State() != STATE_WHEEL)
 		return;
-	const int Hovered = WheelSector(m_WheelCursor, 38.0f, NUM_BUILDABLES);
+	const int Hovered = WheelSector(m_WheelCursor, 38.0f, BuildCount(m_pClient));
 	const bool Affordable = CanAfford(Hovered);
 	if(Hovered >= 0 && !Affordable)
 		m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_GUI_DENIED1, 0);
@@ -265,9 +339,42 @@ void CBuildPlacement::EvaluatePlacement()
 {
 	const int Selected = SelectedBuilding();
 	m_Result = CBuildPlacementResult{};
-	if(Selected < 0 || Selected >= NUM_BUILDABLES)
+	if(Selected < 0 || Selected >= BuildCount(m_pClient))
 		return;
 	m_Result.m_Price = BuildingPrice(Selected);
+	if(m_pClient->IsNodes())
+	{
+		const CNodesBuildingInfo &Info = g_aNodesBuildingInfo[Selected];
+		const vec2 Requested = m_pClient->m_pControls->m_TargetPos;
+		vec2 Pos(Requested.x, Requested.y);
+		Pos.x = floorf(Pos.x / 32.0f) * 32.0f + 16.0f;
+		vec2 Ground;
+		if(NodesBuildingFindGround(Collision(), Requested, Info, &Pos, &Ground))
+		{
+			m_Result.m_HasAnchor = true;
+			m_Result.m_AnchorPosition = Ground;
+		}
+		m_Result.m_PreviewPosition = Pos;
+		m_Result.m_Position = Pos;
+		m_Result.m_MinimumDistance = Info.m_Radius + 28.0f;
+		const CNodesBuildingBounds Bounds = NodesBuildingBounds(Pos, Info);
+		const bool InBounds = NodesBuildingInBounds(Collision(), Bounds);
+		const bool Clear = !NodesBuildingSpaceOccupied(Collision(), Bounds);
+		const bool Grounded = m_Result.m_HasAnchor && NodesBuildingHasGroundSupport(Collision(), Bounds);
+		const bool TooClose = m_pClient->BuildingNear(Pos, m_Result.m_MinimumDistance);
+		m_Result.m_Valid = InBounds && Clear && Grounded && !TooClose && CanAfford(Selected);
+		if(m_Result.m_Valid)
+			m_Result.m_Reason = INVALID_NONE;
+		else if(!CanAfford(Selected))
+			m_Result.m_Reason = INVALID_NO_KITS;
+		else if(TooClose)
+			m_Result.m_Reason = INVALID_TOO_CLOSE;
+		else if(!m_Result.m_HasAnchor || !Grounded)
+			m_Result.m_Reason = INVALID_NO_SUPPORT;
+		else
+			m_Result.m_Reason = INVALID_OCCUPIED;
+		return;
+	}
 	m_Result.m_MinimumDistance = Selected == BUILDABLE_TESLACOIL ? 74.0f : (IsBlock(Selected) ? 32.0f : 48.0f);
 	vec2 Pos = m_pClient->m_pControls->m_TargetPos;
 	bool Valid = false;
@@ -436,13 +543,13 @@ void CBuildPlacement::SendPlacement()
 	if(!m_Result.m_Valid || m_DebugBuilding >= 0)
 		return;
 	const int Selected = m_State.Selected();
-	const bool Continuous = IsBlock(Selected);
+	const bool Continuous = !m_pClient->IsNodes() && IsBlock(Selected);
 	const int GridX = round_to_int(m_Result.m_Position.x / 32.0f);
 	const int GridY = round_to_int(m_Result.m_Position.y / 32.0f);
 	if(!m_Trigger.ShouldSend(Continuous, m_ConfirmPressed, GridX, GridY))
 		return;
 	CNetMsg_Cl_UseKit Msg;
-	Msg.m_Kit = Selected;
+	Msg.m_Kit = m_pClient->IsNodes() ? NodesBuildingKit(Selected) : Selected;
 	Msg.m_X = round_to_int(m_Result.m_Position.x);
 	Msg.m_Y = round_to_int(m_Result.m_Position.y);
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
@@ -483,7 +590,7 @@ const char *CBuildPlacement::InvalidReasonText(EInvalidReason Reason) const
 void CBuildPlacement::RenderPlacement()
 {
 	const int Selected = SelectedBuilding();
-	if(Selected < 0 || Selected >= NUM_BUILDABLES)
+	if(Selected < 0 || Selected >= BuildCount(m_pClient))
 		return;
 	MapGameGroup();
 	const vec4 Color = m_Result.m_Valid ? vec4(0.16f, 0.92f, 0.40f, 0.9f) : vec4(0.95f, 0.18f, 0.16f, 0.9f);
@@ -512,7 +619,8 @@ void CBuildPlacement::RenderPlacement()
 	Graphics()->LinesDraw(aRange, 32);
 	Graphics()->LinesEnd();
 
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_BUILDINGS].m_Id);
+	const int LocalTeam = m_pClient->m_Snap.m_pLocalInfo ? m_pClient->m_Snap.m_pLocalInfo->m_Team : TEAM_RED;
+	Graphics()->TextureSet(g_pData->m_aImages[m_pClient->IsNodes() ? NodesBuildingImage(Selected, LocalTeam) : IMAGE_BUILDINGS].m_Id);
 	Graphics()->ShaderBegin(SHADER_GRAYSCALE, 0.0f);
 	Graphics()->QuadsBegin();
 	Graphics()->SetColor(Color.r, Color.g, Color.b, 0.92f);
@@ -521,8 +629,20 @@ void CBuildPlacement::RenderPlacement()
 		Flags |= SPRITE_FLAG_FLIP_X;
 	if(m_Result.m_FlipVertical)
 		Flags |= SPRITE_FLAG_FLIP_Y;
-	RenderTools()->SelectSprite(SPRITE_KIT_BLOCK1 + Selected, Flags);
-	RenderTools()->DrawSprite(m_Result.m_PreviewPosition.x, m_Result.m_PreviewPosition.y, BuildableSize[Selected]);
+	RenderTools()->SelectSprite(m_pClient->IsNodes() ? NodesBuildingSprite(Selected, LocalTeam) : BuildSprite(m_pClient, Selected), Flags);
+	if(m_pClient->IsNodes())
+	{
+		const CNodesBuildingVisualInfo Visual = NodesBuildingPlacementVisualInfo(Selected);
+		const float Size = 64.0f;
+		const float Scale = 0.5f;
+		const float Width = Visual.m_Width * Size * Scale;
+		const float Height = Visual.m_Height * Size * Scale;
+		const float PosY = m_Result.m_PreviewPosition.y + Size * 0.25f;
+		IGraphics::CQuadItem Preview(m_Result.m_PreviewPosition.x, PosY - Height * 0.5f, Width, Height);
+		Graphics()->QuadsDraw(&Preview, 1);
+	}
+	else
+		RenderTools()->DrawSprite(m_Result.m_PreviewPosition.x, m_Result.m_PreviewPosition.y, BuildableSize[Selected]);
 	Graphics()->QuadsEnd();
 	Graphics()->ShaderEnd();
 
@@ -545,14 +665,15 @@ void CBuildPlacement::RenderWheel()
 	const vec2 Center(W * 0.5f, H * 0.5f);
 	const float Radius = clamp(112.0f * UI()->Scale(), 112.0f, 132.0f);
 	const float Inner = 48.0f;
-	const int Hovered = WheelSector(m_WheelCursor, 38.0f, NUM_BUILDABLES);
+	const int Hovered = WheelSector(m_WheelCursor, 38.0f, BuildCount(m_pClient));
 	Graphics()->MapScreen(0, 0, W, H);
 	CUIRect Dim = {0, 0, W, H};
 	RenderTools()->DrawUIRect(&Dim, vec4(0.015f, 0.02f, 0.024f, 0.48f), CUI::CORNER_ALL, 0.0f);
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
 	DrawDisc(Graphics(), Center, Radius + 5.0f, vec4(0.025f, 0.032f, 0.038f, 0.96f));
-	for(int Sector = 0; Sector < NUM_BUILDABLES; ++Sector)
+	const int Count = BuildCount(m_pClient);
+	for(int Sector = 0; Sector < Count; ++Sector)
 	{
 		const bool Affordable = CanAfford(Sector);
 		const vec4 Color =
@@ -562,8 +683,8 @@ void CBuildPlacement::RenderWheel()
 		Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
 		for(int Slice = 0; Slice < 5; ++Slice)
 		{
-			const float A0 = -pi / 2.0f + 2.0f * pi * (Sector - 0.5f + Slice / 5.0f) / NUM_BUILDABLES;
-			const float A1 = -pi / 2.0f + 2.0f * pi * (Sector - 0.5f + (Slice + 1) / 5.0f) / NUM_BUILDABLES;
+			const float A0 = -pi / 2.0f + 2.0f * pi * (Sector - 0.5f + Slice / 5.0f) / Count;
+			const float A1 = -pi / 2.0f + 2.0f * pi * (Sector - 0.5f + (Slice + 1) / 5.0f) / Count;
 			IGraphics::CFreeformItem Quad(Center.x + cosf(A0) * Inner,
 										  Center.y + sinf(A0) * Inner,
 										  Center.x + cosf(A0) * Radius,
@@ -580,33 +701,35 @@ void CBuildPlacement::RenderWheel()
 
 	Graphics()->LinesBegin();
 	Graphics()->SetColor(0.40f, 0.46f, 0.48f, 0.42f);
-	IGraphics::CLineItem aSeparators[NUM_BUILDABLES];
-	for(int Sector = 0; Sector < NUM_BUILDABLES; ++Sector)
+	IGraphics::CLineItem aSeparators[NODES_BUILDING_COUNT];
+	for(int Sector = 0; Sector < Count; ++Sector)
 	{
-		const float Angle = WheelAngle(Sector) - pi / NUM_BUILDABLES;
+		const float Angle = WheelAngle(Sector, Count) - pi / Count;
 		aSeparators[Sector] = IGraphics::CLineItem(Center.x + cosf(Angle) * (Inner + 2.0f),
 												   Center.y + sinf(Angle) * (Inner + 2.0f),
 												   Center.x + cosf(Angle) * (Radius - 2.0f),
 												   Center.y + sinf(Angle) * (Radius - 2.0f));
 	}
-	Graphics()->LinesDraw(aSeparators, NUM_BUILDABLES);
+	Graphics()->LinesDraw(aSeparators, Count);
 	Graphics()->LinesEnd();
 
-	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_BUILDINGS].m_Id);
-	Graphics()->QuadsBegin();
-	for(int Sector = 0; Sector < NUM_BUILDABLES; ++Sector)
+	const int LocalTeam = m_pClient->m_Snap.m_pLocalInfo ? m_pClient->m_Snap.m_pLocalInfo->m_Team : TEAM_RED;
+	for(int Sector = 0; Sector < Count; ++Sector)
 	{
-		const vec2 Pos = WheelItemPosition(Center, Inner + (Radius - Inner) * 0.42f, Sector);
+		const vec2 Pos = WheelItemPosition(Center, Inner + (Radius - Inner) * 0.42f, Sector, Count);
 		const bool Affordable = CanAfford(Sector);
+		Graphics()->TextureSet(m_pClient->IsNodes() ? g_pData->m_aImages[NodesBuildingImage(Sector, LocalTeam)].m_Id
+																	 : g_pData->m_aImages[IMAGE_BUILDINGS].m_Id);
+		Graphics()->QuadsBegin();
 		Graphics()->SetColor(1, 1, 1, Affordable ? 1.0f : 0.34f);
-		RenderTools()->SelectSprite(SPRITE_KIT_BLOCK1 + Sector);
+		RenderTools()->SelectSprite(m_pClient->IsNodes() ? NodesBuildingSprite(Sector, LocalTeam) : BuildSprite(m_pClient, Sector));
 		RenderTools()->DrawSprite(Pos.x, Pos.y - 2.0f, Sector == Hovered ? 31.0f : 26.0f);
+		Graphics()->QuadsEnd();
 	}
-	Graphics()->QuadsEnd();
 
-	for(int Sector = 0; Sector < NUM_BUILDABLES; ++Sector)
+	for(int Sector = 0; Sector < Count; ++Sector)
 	{
-		const vec2 Pos = WheelItemPosition(Center, Radius - 15.0f, Sector);
+		const vec2 Pos = WheelItemPosition(Center, Radius - 15.0f, Sector, Count);
 		const bool Affordable = CanAfford(Sector);
 		char aCost[16];
 		str_format(aCost, sizeof(aCost), "%d", BuildingPrice(Sector));
@@ -625,7 +748,7 @@ void CBuildPlacement::RenderWheel()
 	char aCenter[64];
 	CUIRect NameLabel = {Center.x - Inner + 4.0f, Center.y - 27.0f, Inner * 2.0f - 8.0f, 12.0f};
 	TextRender()->TextColor(0.97f, 0.98f, 0.98f, 1.0f);
-	UI()->DoLabel(&NameLabel, Localize(s_apBuildNames[Display]), 7.0f, 0);
+	UI()->DoLabel(&NameLabel, Localize(BuildName(m_pClient, Display)), 7.0f, 0);
 	str_format(aCenter, sizeof(aCenter), "%s  %d", Localize("Cost"), BuildingPrice(Display));
 	CUIRect CostLabel = {Center.x - Inner + 4.0f, Center.y - 12.0f, Inner * 2.0f - 8.0f, 10.0f};
 	TextRender()->TextColor(

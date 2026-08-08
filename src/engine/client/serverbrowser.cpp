@@ -180,8 +180,9 @@ void CServerBrowser::Filter()
 											str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "CTF") != 0 &&
 											str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "Capture the flag") != 0 &&
 											str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "Extraction") != 0 &&
-											str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "Horde") != 0 &&
-											str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "Roam") != 0))
+																		str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "Horde") != 0 &&
+																		str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "Roam") != 0 &&
+																		str_comp(m_ppServerlist[i]->m_Info.m_aGameType, "Nodes") != 0))
 		{
 			Filtered = 1;
 		}

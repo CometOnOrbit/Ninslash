@@ -51,6 +51,7 @@ int main()
 	CHECK(!Trigger.ShouldSend(true, false, 1, 1));
 	CHECK(Trigger.ShouldSend(true, false, 2, 1));
 	Trigger.SetDown(false);
+	CHECK(Trigger.ShouldSend(false, true, 2, 1));
 	Trigger.SetDown(true);
 	CHECK(Trigger.ShouldSend(true, true, 2, 1));
 	return 0;

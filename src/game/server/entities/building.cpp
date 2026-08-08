@@ -4,6 +4,7 @@
 #include <game/questinfo.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
+#include <game/server/gamemodes/nodes.h>
 
 #include <game/weapons.h>
 #include <game/server/player.h>
@@ -17,6 +18,18 @@
 CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	: CEntity(pGameWorld, CGameWorld::ENTTYPE_BUILDING)
 {
+	m_NodesMode = false;
+	m_NodesType = -1;
+	m_NodesOwner = -1;
+	m_NodesHealth = 0;
+	m_NodesMaxHealth = 0;
+	m_NodesAlive = false;
+	m_NodesPower = false;
+	m_NodesFree = false;
+	m_NodesDeconstruction = false;
+	m_NodesDestroyed = false;
+	m_NodesAttackTick = 0;
+	m_NodesAnimationFrame = 0;
 	m_SetTimer = 0;
 	m_Center = vec2(0, 0);
 	m_Collision = true;
@@ -248,13 +261,43 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 		CreateLightningWallTop();
 }
 
+CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int NodesType, int Team, int Owner, int Health, bool Alive, bool Free)
+	: CBuilding(pGameWorld, Pos, BUILDING_BASE, Team)
+{
+	dbg_assert(NodesType >= 0 && NodesType < NODES_BUILDING_COUNT, "invalid Nodes building type");
+	m_NodesMode = true;
+	m_NodesType = NodesType;
+	m_NodesOwner = Owner;
+	m_NodesMaxHealth = g_aNodesBuildingInfo[NodesType].m_MaxHealth;
+	m_NodesHealth = clamp(Health, 0, m_NodesMaxHealth);
+	m_NodesAlive = Alive;
+	m_NodesPower = NodesType == NODES_REACTOR;
+	m_NodesFree = Free;
+	m_NodesDeconstruction = false;
+	m_NodesDestroyed = false;
+	m_NodesAttackTick = 0;
+	m_ProximityRadius = g_aNodesBuildingInfo[NodesType].m_Radius;
+	m_Life = m_NodesHealth;
+	m_MaxLife = m_NodesMaxHealth;
+	m_Collision = true;
+	m_DamageOwner = Owner;
+}
+
 void CBuilding::Reset()
 {
+	if(m_NodesMode)
+	{
+		Destroy();
+		return;
+	}
 	// GameServer()->m_World.DestroyEntity(this);
 }
 
 void CBuilding::SurvivalReset()
 {
+	if(m_NodesMode)
+		return;
+
 	if(m_Type == BUILDING_REACTOR_DESTROYED)
 	{
 		if(!m_DestructionTriggered)
@@ -265,6 +308,14 @@ void CBuilding::SurvivalReset()
 
 		Destroy();
 	}
+}
+
+void CBuilding::TickNodes()
+{
+	CGameControllerNodes *pNodes = dynamic_cast<CGameControllerNodes *>(GameServer()->m_pController);
+	if(!pNodes)
+		return;
+	pNodes->TickBuilding(this);
 }
 
 void CBuilding::Move()
@@ -502,6 +553,14 @@ void CBuilding::SetPveReactorObjective(bool Active, int MaxLife)
 
 void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 {
+	if(m_NodesMode)
+	{
+		CGameControllerNodes *pNodes = dynamic_cast<CGameControllerNodes *>(GameServer()->m_pController);
+		if(pNodes)
+			pNodes->DamageBuilding(this, Damage, Source.m_Owner);
+		return;
+	}
+
 	const int Owner = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
 	CWeaponCatalog::TryResolveAttack(Source, &Combat);
@@ -642,6 +701,14 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 
 void CBuilding::Destroy()
 {
+	if(m_NodesMode)
+	{
+		CGameControllerNodes *pNodes = dynamic_cast<CGameControllerNodes *>(GameServer()->m_pController);
+		if(pNodes)
+			pNodes->DestroyBuilding(this);
+		return;
+	}
+
 	if(m_Stored)
 		return;
 	if(!m_PveRefunded && GameServer()->m_pPveDirector && m_PveBuilder >= 0 && m_PveKitCost > 0)
@@ -733,6 +800,12 @@ void CBuilding::Destroy()
 
 void CBuilding::Tick()
 {
+	if(m_NodesMode)
+	{
+		TickNodes();
+		return;
+	}
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, (m_Mirror ? 1 : 0) | (m_NonBlockingHazard ? 2 : 0), m_Pos.x, m_Pos.y))
@@ -960,6 +1033,32 @@ void CBuilding::TickPaused()
 
 void CBuilding::Snap(int SnappingClient)
 {
+	if(m_NodesMode)
+	{
+		if(NetworkClipped(SnappingClient))
+			return;
+
+		CNetObj_Building *pP = static_cast<CNetObj_Building *>(
+			Server()->SnapNewItem(NETOBJTYPE_BUILDING, m_ID, sizeof(CNetObj_Building)));
+		if(!pP)
+			return;
+
+		const int Health = m_NodesMaxHealth > 0 ? (m_NodesHealth * 255) / m_NodesMaxHealth : 0;
+		pP->m_X = (int)m_Pos.x;
+		pP->m_Y = (int)m_Pos.y;
+		pP->m_Status = Health & NODES_STATUS_HEALTH_MASK;
+		if(m_NodesPower)
+			pP->m_Status |= NODES_STATUS_POWER;
+		if(m_NodesAlive)
+			pP->m_Status |= NODES_STATUS_ALIVE;
+		if(m_NodesDeconstruction)
+			pP->m_Status |= NODES_STATUS_DECONSTRUCTION;
+		pP->m_Status |= m_NodesAnimationFrame << NODES_STATUS_ANIM_SHIFT;
+		pP->m_Type = NodesNetworkType(m_NodesType);
+		pP->m_Team = m_Team;
+		return;
+	}
+
 	if(m_Type == BUILDING_SWITCH && !m_PveSwitchActive)
 		return;
 	if(NetworkClipped(SnappingClient))

@@ -222,6 +222,7 @@ class CGameClient : public IGameClient
 
 	bool IsLocalUndead();
 	bool BuildingEnabled();
+	bool IsNodes() const;
 	bool Survival();
 	bool SurvivalAcid();
 	bool IsCoop();

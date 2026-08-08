@@ -11,6 +11,7 @@
 #include <game/weapon_catalog.h>
 #include <game/buildables.h>
 #include "gamemodes/texasrun.h"
+#include "gamemodes/nodes.h"
 
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
@@ -205,6 +206,12 @@ void CPlayer::SendForgeResult(int Result,
 
 void CPlayer::UseKit(int Kit, vec2 Pos)
 {
+	if(GameServer()->m_pController->IsNodes())
+	{
+		if(IsNodesBuildingKit(Kit) && GetCharacter())
+			GameServer()->m_pController->BuildNodes(Pos, NodesBuildingTypeFromKit(Kit), GetCID());
+		return;
+	}
 	if(GetCharacter() && Kit >= 0 && Kit < NUM_BUILDABLES)
 		GetCharacter()->UseKit(Kit, Pos);
 }
@@ -215,7 +222,7 @@ void CPlayer::DropWeapon()
 		GetCharacter()->DropWeapon();
 }
 
-int CPlayer::GetTeam()
+int CPlayer::GetTeam() const
 {
 	if(GameServer()->m_pController->IsCoop() && m_IsBot)
 		return TEAM_BLUE;
@@ -256,7 +263,6 @@ void CPlayer::Tick()
 			m_Latency.m_AccumMax = 0;
 		}
 	}
-
 	// if (m_ForceToSpectators)
 	//	ForceToSpectators();
 
@@ -476,6 +482,12 @@ void CPlayer::Snap(int SnappingClient)
 			SetWeaponSlot(Slot, pWeapon ? pWeapon->GetWeaponSpec() : CWeaponSpec{});
 		}
 	}
+	if(GameServer()->m_pController->IsNodes())
+	{
+		CGameControllerNodes *pNodes = dynamic_cast<CGameControllerNodes *>(GameServer()->m_pController);
+		if(pNodes && GetTeam() != TEAM_SPECTATORS)
+			pPlayerInfo->m_Kits = pNodes->BuildPoints(GetTeam());
+	}
 
 	if(m_ClientID == SnappingClient)
 		pPlayerInfo->m_Local = 1;
@@ -530,6 +542,8 @@ bool CPlayer::Spectating()
 
 void CPlayer::OnDisconnect(const char *pReason)
 {
+	if(GameServer()->m_pController->IsNodes())
+		static_cast<CGameControllerNodes *>(GameServer()->m_pController)->LeaveSpawnQueue(this);
 	ClearVisionEffects();
 	KillCharacter();
 
@@ -701,7 +715,12 @@ void CPlayer::TryRespawn()
 	if(!GameServer()->m_pController->CanCharacterSpawn(GetCID()))
 		return;
 
-	if(!GameServer()->m_pController->CanSpawn(m_Team, &SpawnPos, m_IsBot))
+	if(GameServer()->m_pController->IsNodes())
+	{
+		if(!GameServer()->m_pController->CanSpawnPlayer(this, &SpawnPos, m_IsBot))
+			return;
+	}
+	else if(!GameServer()->m_pController->CanSpawn(m_Team, &SpawnPos, m_IsBot))
 		return;
 
 	m_Spawning = false;

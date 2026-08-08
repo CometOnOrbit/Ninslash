@@ -114,10 +114,10 @@ class CPlacementTrigger
 
 	bool ShouldSend(bool Continuous, bool PressEdge, int GridX, int GridY)
 	{
-		if(!m_Down)
-			return false;
 		if(!Continuous)
 			return PressEdge;
+		if(!m_Down)
+			return false;
 		if(m_HasGrid && m_GridX == GridX && m_GridY == GridY)
 			return false;
 		m_HasGrid = true;

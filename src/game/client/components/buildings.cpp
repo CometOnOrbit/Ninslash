@@ -8,9 +8,11 @@
 #include <engine/shared/config.h>
 
 #include <game/gamecore.h> // get_angle
+#include <game/nodes.h>
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>
+#include <game/client/components/build_placement.h>
 
 #include <game/client/customstuff.h>
 
@@ -198,6 +200,159 @@ void CBuildings::RenderShop(const CNetObj_Shop *pCurrent)
 		vec2(pCurrent->m_X, pCurrent->m_Y - 74), vec4(0.5f, 0.75f, 1.0f, 0.82f), vec2(360, 460));
 
 	// shop items rendered in inventory.cpp
+}
+
+struct CNodesBuildingVisual
+{
+	int m_ImageRed;
+	int m_ImageBlue;
+	int m_SpriteRed;
+	int m_SpriteBlue;
+};
+
+static bool NodesBuildingVisual(int Type, CNodesBuildingVisual *pVisual)
+{
+	if(!pVisual)
+		return false;
+	switch(Type)
+	{
+		case NODES_REACTOR: *pVisual = {IMAGE_BUILDING_REACTOR_RED, IMAGE_BUILDING_REACTOR_BLUE, SPRITE_BUILDING_REACTOR_RED, SPRITE_BUILDING_REACTOR_BLUE}; return true;
+		case NODES_SPAWN: *pVisual = {IMAGE_BUILDING_SPAWN_RED, IMAGE_BUILDING_SPAWN_BLUE, SPRITE_BUILDING_SPAWN_RED, SPRITE_BUILDING_SPAWN_BLUE}; return true;
+		case NODES_AMMO_SHOTGUN: *pVisual = {IMAGE_BUILDING_AMMO1_RED, IMAGE_BUILDING_AMMO1_BLUE, SPRITE_BUILDING_AMMO1_RED, SPRITE_BUILDING_AMMO1_BLUE}; return true;
+		case NODES_HEALTH: *pVisual = {IMAGE_BUILDING_HEALTH_RED, IMAGE_BUILDING_HEALTH_BLUE, SPRITE_BUILDING_HEALTH_RED, SPRITE_BUILDING_HEALTH_BLUE}; return true;
+		case NODES_REPEATER: *pVisual = {IMAGE_BUILDING_REPEATER_RED, IMAGE_BUILDING_REPEATER_BLUE, SPRITE_BUILDING_REPEATER_RED, SPRITE_BUILDING_REPEATER_BLUE}; return true;
+		case NODES_SHIELD: *pVisual = {IMAGE_BUILDING_SHIELD_RED, IMAGE_BUILDING_SHIELD_BLUE, SPRITE_BUILDING_SHIELD_RED, SPRITE_BUILDING_SHIELD_BLUE}; return true;
+		case NODES_AMMO_GRENADE: *pVisual = {IMAGE_BUILDING_AMMO2_RED, IMAGE_BUILDING_AMMO2_BLUE, SPRITE_BUILDING_AMMO2_RED, SPRITE_BUILDING_AMMO2_BLUE}; return true;
+		case NODES_TELEPORT: *pVisual = {IMAGE_BUILDING_TELEPORT_RED, IMAGE_BUILDING_TELEPORT_BLUE, SPRITE_BUILDING_TELEPORT_RED, SPRITE_BUILDING_TELEPORT_BLUE}; return true;
+		case NODES_ARMOR: *pVisual = {IMAGE_BUILDING_ARMOR_RED, IMAGE_BUILDING_ARMOR_BLUE, SPRITE_BUILDING_ARMOR_RED, SPRITE_BUILDING_ARMOR_BLUE}; return true;
+		case NODES_AMMO_LASER: *pVisual = {IMAGE_BUILDING_AMMO3_RED, IMAGE_BUILDING_AMMO3_BLUE, SPRITE_BUILDING_AMMO3_RED, SPRITE_BUILDING_AMMO3_BLUE}; return true;
+		default: return false;
+	}
+}
+
+void CBuildings::RenderNodesPowerRange(vec2 Center, float Radius, vec4 Color)
+{
+	IGraphics::CLineItem aRange[96];
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(Color.r, Color.g, Color.b, 0.30f);
+	for(int i = 0; i < 96; ++i)
+	{
+		const float A0 = 2.0f * pi * i / 96.0f;
+		const float A1 = 2.0f * pi * (i + 1) / 96.0f;
+		aRange[i] = IGraphics::CLineItem(Center.x + cosf(A0) * Radius,
+			Center.y + sinf(A0) * Radius,
+			Center.x + cosf(A1) * Radius,
+			Center.y + sinf(A1) * Radius);
+	}
+	Graphics()->LinesDraw(aRange, 96);
+	Graphics()->LinesEnd();
+}
+
+void CBuildings::RenderNodesNoPower(vec2 Center, float Top, int Tick)
+{
+	if(Tick % 50 >= 25)
+		return;
+	const float IconY = Top - 20.0f;
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0.035f, 0.045f, 0.055f, 0.88f);
+	RenderTools()->DrawRoundRectExt(Center.x - 15.0f, IconY - 9.0f, 30.0f, 18.0f, 4.0f, CUI::CORNER_ALL);
+	Graphics()->QuadsEnd();
+
+	IGraphics::CLineItem aBolt[3] = {
+		{Center.x - 2.0f, IconY - 6.0f, Center.x + 3.0f, IconY - 1.0f},
+		{Center.x + 3.0f, IconY - 1.0f, Center.x - 1.0f, IconY - 1.0f},
+		{Center.x - 1.0f, IconY - 1.0f, Center.x + 2.0f, IconY + 6.0f},
+	};
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(1.0f, 0.72f, 0.16f, 0.96f);
+	Graphics()->LinesDraw(aBolt, 3);
+	Graphics()->LinesEnd();
+}
+
+void CBuildings::RenderNodesShieldEffect(vec2 Center, float Radius, bool Powered, int Tick)
+{
+	const float Pulse = Powered ? 0.75f + 0.2f * sinf(Tick * 0.08f) : 0.0f;
+	IGraphics::CLineItem aShield[32];
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(0.98f, 0.84f, 0.16f, 0.18f + Pulse * 0.22f);
+	for(int i = 0; i < 32; ++i)
+	{
+		const float A0 = 2.0f * pi * i / 32.0f;
+		const float A1 = 2.0f * pi * (i + 1) / 32.0f;
+		aShield[i] = IGraphics::CLineItem(Center.x + cosf(A0) * Radius,
+			Center.y + sinf(A0) * Radius,
+			Center.x + cosf(A1) * Radius,
+			Center.y + sinf(A1) * Radius);
+	}
+	Graphics()->LinesDraw(aShield, 32);
+	Graphics()->LinesEnd();
+}
+
+void CBuildings::RenderNodesBuilding(const struct CNetObj_Building *pCurrent)
+{
+	if(!IsNodesNetworkType(pCurrent->m_Type))
+		return;
+	const int Type = NodesBuildingTypeFromNetwork(pCurrent->m_Type);
+	const bool Alive = (pCurrent->m_Status & NODES_STATUS_ALIVE) != 0;
+	const bool Powered = (pCurrent->m_Status & NODES_STATUS_POWER) != 0;
+	const vec4 TeamColor = pCurrent->m_Team == TEAM_BLUE ? vec4(0.25f, 0.55f, 1.0f, 1.0f)
+																		 : vec4(1.0f, 0.28f, 0.32f, 1.0f);
+	CNodesBuildingVisual Visual;
+	if(!NodesBuildingVisual(Type, &Visual))
+		return;
+	const CNodesBuildingVisualInfo VisualInfo = NodesBuildingVisualInfo(Type);
+	const int Team = pCurrent->m_Team == TEAM_BLUE ? 1 : 0;
+	const int Frame = clamp(NodesStatusAnimationFrame(pCurrent->m_Status), 0, VisualInfo.m_Frames - 1);
+	const int Sprite = (Team ? Visual.m_SpriteBlue : Visual.m_SpriteRed) + Frame;
+	const int Image = Team ? Visual.m_ImageBlue : Visual.m_ImageRed;
+	const float Size = 64.0f;
+	const float Scale = 0.5f;
+	const float PosX = pCurrent->m_X;
+	const float PosY = pCurrent->m_Y + Size * 0.25f;
+	const float BuildingTop = PosY - VisualInfo.m_Height * Size * Scale;
+	const bool LocalTeam = m_pClient->m_Snap.m_pLocalInfo &&
+		(m_pClient->m_Snap.m_pLocalInfo->m_Team == pCurrent->m_Team || m_pClient->m_Snap.m_pLocalInfo->m_Team == TEAM_SPECTATORS);
+	if(LocalTeam && m_pClient->m_pBuildPlacement && m_pClient->m_pBuildPlacement->Active() && Alive &&
+		(Type == NODES_REACTOR || (Type == NODES_REPEATER && Powered)))
+	{
+		RenderNodesPowerRange(vec2(PosX, PosY), Type == NODES_REACTOR ? 750.0f : 500.0f, TeamColor);
+	}
+	Graphics()->TextureSet(g_pData->m_aImages[Image].m_Id);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1.0f, 1.0f, 1.0f, Alive ? 1.0f : 0.42f);
+	RenderTools()->SelectSprite(Sprite);
+	Graphics()->QuadsSetRotation(0.0f);
+	IGraphics::CQuadItem Building(PosX, PosY - VisualInfo.m_Height * Size * Scale * 0.5f,
+		VisualInfo.m_Width * Size * Scale, VisualInfo.m_Height * Size * Scale);
+	Graphics()->QuadsDraw(&Building, 1);
+	Graphics()->QuadsEnd();
+
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	const float Health = (pCurrent->m_Status & NODES_STATUS_HEALTH_MASK) / 255.0f;
+	Graphics()->SetColor(0.03f, 0.04f, 0.05f, 0.75f);
+	const float BarY = PosY - VisualInfo.m_Height * Size * Scale - 8.0f;
+	IGraphics::CQuadItem Back(pCurrent->m_X, BarY, 54.0f, 5.0f);
+	Graphics()->QuadsDraw(&Back, 1);
+	Graphics()->SetColor(TeamColor.r, TeamColor.g, TeamColor.b, Alive ? 0.95f : 0.35f);
+	IGraphics::CQuadItem Fill(pCurrent->m_X - 27.0f + 27.0f * Health, BarY, 54.0f * Health, 3.0f);
+	Graphics()->QuadsDrawTL(&Fill, 1);
+	Graphics()->QuadsEnd();
+	if(!Powered)
+		RenderNodesNoPower(vec2(PosX, PosY), BuildingTop, Client()->GameTick());
+	if(Type == NODES_SHIELD)
+	{
+		RenderNodesShieldEffect(vec2(PosX, PosY - 34.0f), max(48.0f, VisualInfo.m_Width * Size * Scale * 0.55f), Powered, Client()->GameTick());
+		if(Powered && Client()->GameTick() % 6 == 0)
+			m_pClient->m_pEffects->SimpleLight(vec2(PosX, PosY - 28.0f), vec4(1.0f, 0.82f, 0.16f, 0.42f), vec2(130.0f, 110.0f), false);
+	}
+	if(Alive && Health < 0.30f && Client()->GameTick() % max(Client()->GameTickSpeed() / 4, 1) == 0)
+		m_pClient->m_pEffects->SpriteSmoke(vec2(PosX, PosY - 24.0f), 16.0f, vec4(0.65f, 0.68f, 0.72f, 0.72f));
+	if(Powered && Alive)
+		m_pClient->m_pEffects->SimpleLight(vec2(pCurrent->m_X, PosY - 12.0f), TeamColor, vec2(150, 100), false);
 }
 
 void CBuildings::RenderGenerator(const struct CNetObj_Building *pCurrent, const CNetObj_Building *pPrev)
@@ -888,6 +1043,16 @@ void CBuildings::RenderTurret(const CNetObj_Turret *pCurrent, const CNetObj_Turr
 		RenderTools()->DrawSprite(Pos.x - (NoAmmo ? 24 : 0), Pos.y - 50 - 52 * FlipY, 52);
 		Graphics()->QuadsEnd();
 	}
+	if(IsNodesNetworkType(pCurrent->m_Type))
+	{
+		const bool NodesAlive = (pCurrent->m_Status & NODES_STATUS_ALIVE) != 0;
+		const bool NodesPowered = (pCurrent->m_Status & NODES_STATUS_POWER) != 0;
+		const float NodesHealth = (pCurrent->m_Status & NODES_STATUS_HEALTH_MASK) / 255.0f;
+		if(!NodesPowered)
+			RenderNodesNoPower(vec2(Pos.x, Pos.y), Pos.y - 70.0f, Client()->GameTick());
+		if(NodesAlive && NodesHealth < 0.30f && Client()->GameTick() % max(Client()->GameTickSpeed() / 4, 1) == 0)
+			m_pClient->m_pEffects->SpriteSmoke(vec2(Pos.x, Pos.y - 52.0f), 14.0f, vec4(0.65f, 0.68f, 0.72f, 0.72f));
+	}
 }
 
 void CBuildings::OnRender()
@@ -904,16 +1069,26 @@ void CBuildings::OnRender()
 		if(Item.m_Type == NETOBJTYPE_TURRET)
 		{
 			const struct CNetObj_Turret *pTurret = (const CNetObj_Turret *)pData;
+			if(!NodesBuildingPassAcceptsType(m_NodesPass, pTurret->m_Type))
+				continue;
 			const void *pPrev = Client()->SnapFindItem(IClient::SNAP_PREV, Item.m_Type, Item.m_ID);
 			RenderTurret(pTurret, pPrev ? (const CNetObj_Turret *)pPrev : pTurret);
 		}
 		else if(Item.m_Type == NETOBJTYPE_POWERUPPER)
-			RenderPowerupper((const CNetObj_Powerupper *)pData);
+		{
+			if(NodesBuildingPassAcceptsType(m_NodesPass, 0))
+				RenderPowerupper((const CNetObj_Powerupper *)pData);
+		}
 		else if(Item.m_Type == NETOBJTYPE_SHOP)
-			RenderShop((const CNetObj_Shop *)pData);
+		{
+			if(NodesBuildingPassAcceptsType(m_NodesPass, 0))
+				RenderShop((const CNetObj_Shop *)pData);
+		}
 		else if(Item.m_Type == NETOBJTYPE_BUILDING)
 		{
 			const struct CNetObj_Building *pBuilding = (const CNetObj_Building *)pData;
+			if(!NodesBuildingPassAcceptsType(m_NodesPass, pBuilding->m_Type))
+				continue;
 			const void *pPrev = Client()->SnapFindItem(IClient::SNAP_PREV, Item.m_Type, Item.m_ID);
 
 			switch(pBuilding->m_Type)
@@ -1003,7 +1178,9 @@ void CBuildings::OnRender()
 						break;
 						*/
 
-				default:;
+				default:
+					RenderNodesBuilding(pBuilding);
+					break;
 			};
 
 			// m_pClient->m_pEffects->Light(vec2(pBuilding->m_X, pBuilding->m_Y), 512);

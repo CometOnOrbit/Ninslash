@@ -2826,6 +2826,11 @@ bool CGameClient::BuildingEnabled()
 	return false;
 }
 
+bool CGameClient::IsNodes() const
+{
+	return m_Snap.m_pGameInfoObj && (m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_NODES);
+}
+
 bool CGameClient::Survival()
 {
 	if(m_Snap.m_pGameInfoObj)

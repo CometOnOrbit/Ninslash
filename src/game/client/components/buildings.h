@@ -5,6 +5,8 @@
 
 class CBuildings : public CComponent
 {
+	bool m_NodesPass;
+
 	void RenderTurret(const struct CNetObj_Turret *pCurrent, const struct CNetObj_Turret *pPrev);
 	void RenderPowerupper(const struct CNetObj_Powerupper *pCurrent);
 	void RenderSawblade(const struct CNetObj_Building *pCurrent);
@@ -28,8 +30,13 @@ class CBuildings : public CComponent
 	void RenderOverseerShieldNode(const struct CNetObj_Building *pCurrent);
 	void RenderScreen(const struct CNetObj_Building *pCurrent);
 	void RenderShop(const struct CNetObj_Shop *pCurrent);
+	void RenderNodesPowerRange(vec2 Center, float Radius, vec4 Color);
+	void RenderNodesNoPower(vec2 Center, float Top, int Tick);
+	void RenderNodesShieldEffect(vec2 Center, float Radius, bool Powered, int Tick);
+	void RenderNodesBuilding(const struct CNetObj_Building *pCurrent);
 
   public:
+	explicit CBuildings(bool NodesPass = false) : m_NodesPass(NodesPass) {}
 	virtual void OnReset();
 	virtual void OnRender();
 };

@@ -633,6 +633,7 @@ void CHud::RenderScoreHud()
 		int GameFlags = m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags;
 		float Whole = 300 * Graphics()->ScreenAspect();
 		const float StartY = ScoreHudTop();
+		const bool Nodes = (GameFlags & GAMEFLAG_NODES) != 0;
 
 		if(GameFlags & GAMEFLAG_TEAMS && !(GameFlags & GAMEFLAG_INFECTION) && m_pClient->m_Snap.m_pGameDataObj)
 		{
@@ -665,7 +666,8 @@ void CHud::RenderScoreHud()
 				const float ScoreWidth = max(16.0f, TextRender()->TextWidth(0, 8.0f, aScoreTeam[t], -1));
 				const float ScoreX = Card.x + Card.w - ScoreWidth - 4.0f;
 				TextRender()->Text(0, ScoreX, Card.y + 4.0f, 8.0f, aScoreTeam[t], -1);
-				const char *pLabel = Localize(t == TEAM_RED ? "Red team" : "Blue team");
+				const char *pLabel = Nodes ? Localize(t == TEAM_RED ? "Build points" : "Tech level")
+									 : Localize(t == TEAM_RED ? "Red team" : "Blue team");
 				if(GameFlags & GAMEFLAG_FLAGS)
 				{
 					int BlinkTimer =
@@ -693,7 +695,7 @@ void CHud::RenderScoreHud()
 					}
 				}
 				else
-					UI()->DoLabel(&TeamBadge, t == TEAM_RED ? "R" : "B", 5.5f, 0);
+					UI()->DoLabel(&TeamBadge, Nodes ? (t == TEAM_RED ? "BP" : "TL") : (t == TEAM_RED ? "R" : "B"), 5.0f, 0);
 				const float LabelX = Card.x + 20.0f;
 				const float LabelWidth = max(8.0f, ScoreX - LabelX - 4.0f);
 				float LabelSize = 6.0f;

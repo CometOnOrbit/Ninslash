@@ -3,7 +3,7 @@ import weapon_types
 
 Emotes = ["NORMAL", "PAIN", "HAPPY", "SURPRISE", "ANGRY", "BLINK"]
 PlayerFlags = ["PLAYING", "IN_MENU", "CHATTING", "SCOREBOARD", "READY"]
-GameFlags = ["TEAMS", "INFECTION", "COOP", "SURVIVAL", "BUILD", "FLAGS", "ACID"]
+GameFlags = ["TEAMS", "INFECTION", "COOP", "SURVIVAL", "BUILD", "FLAGS", "ACID", "NODES"]
 GameStateFlags = ["GAMEOVER", "SUDDENDEATH", "PAUSED"]
 
 Emoticons = ["OOP", "EXCLAMATION", "HEARTS", "DROP", "DOTDOT", "MUSIC", "SORRY", "GHOST", "SUSHI", "SPLATTEE", "DEVILTEE", "ZOMG", "ZZZ", "WTF", "EYES", "QUESTION"]
@@ -460,7 +460,7 @@ Objects = [
 		*WeaponSpecFields("m_Weapon3"),
 		*WeaponSpecFields("m_Weapon4"),
 		
-		NetIntRange("m_Kits", 0, 99),
+		NetIntRange("m_Kits", 0, 1000000),
 
 		# Appended for the spectator statistics panel. Keep the legacy weapon and
 		# kit fields above in place so existing object layouts remain stable.
@@ -867,7 +867,7 @@ Messages = [
 	]),
 	
 	NetMessage("Cl_UseKit", [
-		NetIntRange("m_Kit", 0, 99),
+		NetIntRange("m_Kit", 0, 111),
 		NetIntAny("m_X"),
 		NetIntAny("m_Y"),
 	]),

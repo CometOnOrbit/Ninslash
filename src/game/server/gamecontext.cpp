@@ -32,6 +32,7 @@
 #include "gamemodes/roam.h"
 #include <game/server/roam_mapgen_layout.h>
 #include "gamemodes/texasrun.h"
+#include "gamemodes/nodes.h"
 
 #include <game/server/entities/ball.h>
 #include <game/server/entities/block.h>
@@ -3960,6 +3961,8 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 		m_pController = new CGameControllerBall(this);
 	else if(str_comp(g_Config.m_SvGametype, "roam") == 0)
 		m_pController = new CGameControllerRoam(this);
+	else if(str_comp(g_Config.m_SvGametype, "nodes") == 0)
+		m_pController = new CGameControllerNodes(this);
 	else
 		m_pController = new CGameControllerDM(this);
 

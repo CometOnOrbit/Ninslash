@@ -56,7 +56,8 @@ class CPlayer
 	void SetTeam(int Team, bool DoChatMsg = true);
 
 	// int GetTeam() const { return m_Team; };
-	int GetTeam();
+	int GetTeam() const;
+	bool IsSpawning() const { return m_Spawning; }
 
 	bool Spectating();
 

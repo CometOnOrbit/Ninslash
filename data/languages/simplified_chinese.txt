@@ -2453,6 +2453,12 @@ Overcharge capacitor
 Build
 == 建造
 
+Build points
+== 建造点
+
+Tech level
+== 科技等级
+
 Burst pistol
 == 连发手枪
 

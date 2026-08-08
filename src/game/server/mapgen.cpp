@@ -15,6 +15,7 @@
 #include <game/server/gamecontext.h>
 #include <game/layers.h>
 #include <game/mapitems.h>
+#include <game/nodes.h>
 #include <game/questinfo.h>
 #include <game/tutorial.h>
 
@@ -1802,6 +1803,33 @@ void CMapGen::Mirror(CGenLayer *pTiles)
 		}
 }
 
+void CMapGen::GenerateNodesBase(CGenLayer *pTiles, ivec2 Pos, int Team, int Direction)
+{
+	if(!pTiles || Pos.x <= 0 || Pos.y <= 0 || (Team != TEAM_RED && Team != TEAM_BLUE))
+		return;
+
+	const int ReactorEntity = Team == TEAM_BLUE ? NODES_ENTITY_REACTOR_BLUE : NODES_ENTITY_REACTOR_RED;
+	const int SpawnEntity = Team == TEAM_BLUE ? NODES_ENTITY_SPAWN_BLUE : NODES_ENTITY_SPAWN_RED;
+	const int MinX = min(Pos.x - 2, Pos.x + Direction * 7);
+	const int MaxX = max(Pos.x + 2, Pos.x + Direction * 7);
+	for(int x = MinX; x <= MaxX; ++x)
+	{
+		ModifTile(ivec2(x, Pos.y), m_pLayers->GetGameLayerIndex(), TILE_AIR);
+		ModifTile(ivec2(x, Pos.y), m_pLayers->GetForegroundLayerIndex(), TILE_AIR);
+		ModifTile(ivec2(x, Pos.y + 1), m_pLayers->GetGameLayerIndex(), TILE_SOLID);
+		ModifTile(ivec2(x, Pos.y + 1), m_pLayers->GetForegroundLayerIndex(), 1);
+		pTiles->Use(x, Pos.y);
+		pTiles->Use(x, Pos.y + 1);
+	}
+
+	WriteBase(pTiles, Team == TEAM_RED ? 0 : 1, Pos, 8.0f);
+	ModifTile(Pos, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ReactorEntity);
+	for(const int Offset : {3, 5})
+		ModifTile(Pos + ivec2(Direction * Offset, 0),
+			m_pLayers->GetGameLayerIndex(),
+			ENTITY_OFFSET + SpawnEntity);
+}
+
 void CMapGen::FitRoamAtlasCanvas()
 {
 	if(str_comp(g_Config.m_SvGametype, "roam") != 0 || !m_pLayers || !m_pLayers->GameLayer() || !m_pLayers->Map())
@@ -2006,6 +2034,7 @@ void CMapGen::GeneratePVPLevel()
 		return;
 
 	CGenLayer *pTiles = new CGenLayer(w, h);
+	const bool Nodes = str_comp(g_Config.m_SvGametype, "nodes") == 0;
 
 	// generate room structure
 	CRoomGenerated *pRoom = new CRoomGenerated(3, 3, w - 6, h - 6);
@@ -2059,7 +2088,8 @@ void CMapGen::GeneratePVPLevel()
 	dbg_msg("mapgen", "Proceed tiles");
 	Proceed(pTiles, 0);
 
-	pTiles->GenerateBoxes();
+	if(NodesMapGenUsesRandomBoxes(Nodes))
+		pTiles->GenerateBoxes();
 	pTiles->GeneratePlatforms();
 
 	pTiles->GenerateFences();
@@ -2071,8 +2101,35 @@ void CMapGen::GeneratePVPLevel()
 	dbg_msg("mapgen", "Scanning level");
 	pTiles->Scan();
 
+	if(Nodes)
+	{
+		ivec2 RedBase = pTiles->GetLeftPlatform();
+		ivec2 BlueBase = pTiles->GetRightPlatform();
+		if(RedBase.x == 0)
+			RedBase = pTiles->GetPlatform();
+		if(BlueBase.x == 0 ||
+			(RedBase.x != 0 && abs(RedBase.x - BlueBase.x) < 10 && abs(RedBase.y - BlueBase.y) < 4))
+		{
+			for(int Attempt = 0; Attempt < 8 && BlueBase.x != 0; ++Attempt)
+			{
+				if(RedBase.x == 0 || abs(RedBase.x - BlueBase.x) >= 10 || abs(RedBase.y - BlueBase.y) >= 4)
+					break;
+				BlueBase = pTiles->GetRightPlatform();
+			}
+		}
+		if(BlueBase.x == 0)
+			BlueBase = pTiles->GetPlatform();
+
+		if(RedBase.x != 0 && BlueBase.x != 0)
+		{
+			GenerateNodesBase(pTiles, RedBase, TEAM_RED, 1);
+			GenerateNodesBase(pTiles, BlueBase, TEAM_BLUE, -1);
+		}
+		else
+			dbg_msg("mapgen", "Nodes base generation failed: red=%d blue=%d", RedBase.x, BlueBase.x);
+	}
 	// flags to ctf
-	if(str_comp(g_Config.m_SvGametype, "ctf") == 0)
+	else if(str_comp(g_Config.m_SvGametype, "ctf") == 0)
 	{
 		// left & rightmost tiles as spawns
 
@@ -2144,7 +2201,7 @@ void CMapGen::GeneratePVPLevel()
 				ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
 		}
 	}
-	else
+	else if(!Nodes)
 	// tdm & ctf
 	{
 		for(int i = 0; i < 6; i++)

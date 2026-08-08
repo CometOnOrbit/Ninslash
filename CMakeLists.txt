@@ -935,6 +935,12 @@ if(NINSLASH_BUILD_TESTS)
   add_test(NAME gamevote COMMAND ninslash_test_gamevote)
   set_tests_properties(gamevote PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
+  add_executable(ninslash_test_nodes_logic tests/nodes_logic.cpp src/game/server/nodes/nodes_runtime.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
+  target_include_directories(ninslash_test_nodes_logic PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_nodes_logic ${LIBS})
+  add_test(NAME nodes_logic COMMAND ninslash_test_nodes_logic)
+  set_tests_properties(nodes_logic PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+
   add_executable(ninslash_test_inventory_logic tests/inventory_logic.cpp)
   target_include_directories(ninslash_test_inventory_logic PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_inventory_logic ${LIBS})
@@ -1557,6 +1563,10 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   gamemodes/extract.h
   gamemodes/invasion.cpp
   gamemodes/invasion.h
+  gamemodes/nodes.cpp
+  gamemodes/nodes.h
+  nodes/nodes_runtime.cpp
+  nodes/nodes_runtime.h
   gamemodes/roam.cpp
   gamemodes/roam.h
   gamemodes/tdm.cpp

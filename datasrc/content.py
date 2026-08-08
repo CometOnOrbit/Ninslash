@@ -446,6 +446,26 @@ image_mask4 = Image("mask4", "skins/masks/mask4.png")
 image_mask5 = Image("mask5", "skins/masks/mask5.png")
 image_pve_shield_relay = Image("pve_shield_relay", "pve_shield_relay.png")
 
+nodes_building_specs = [
+	("reactor", 6, 8, 4),
+	("spawn", 6, 8, 10),
+	("ammo1", 4, 4, 4),
+	("health", 4, 4, 5),
+	("repeater", 4, 6, 2),
+	("turret1", 6, 6, 1),
+	("shield", 6, 6, 10),
+	("ammo2", 4, 4, 4),
+	("teleport", 6, 8, 10),
+	("armor", 4, 4, 5),
+	("ammo3", 4, 4, 4),
+	("turret2", 6, 6, 1),
+]
+nodes_building_images = {}
+for nodes_name, nodes_width, nodes_height, nodes_frames in nodes_building_specs:
+	for nodes_team in ("red", "blue"):
+		nodes_image_name = "building_" + nodes_name + "_" + nodes_team
+		nodes_image = Image(nodes_image_name, "nodes/buildings/" + nodes_team + "_" + nodes_name + ".png")
+		nodes_building_images[nodes_image_name] = nodes_image
 container.images.Add(image_null)
 container.images.Add(image_pixel)
 container.images.Add(image_radar)
@@ -532,6 +552,8 @@ container.images.Add(image_mask3)
 container.images.Add(image_mask4)
 container.images.Add(image_mask5)
 container.images.Add(image_pve_shield_relay)
+for nodes_image in nodes_building_images.values():
+	container.images.Add(nodes_image)
 
 container.pickups.Add(Pickup("health"))
 container.pickups.Add(Pickup("armor"))
@@ -605,6 +627,17 @@ set_pve_shield_relay = SpriteSet("pve_shield_relay", image_pve_shield_relay, 1, 
 
 set_gui_window1 = SpriteSet("gui_window1", image_gui_window1, 8, 8)
 set_hud = SpriteSet("hud", image_hp, 1, 2)
+
+nodes_building_sets = {}
+for nodes_name, nodes_width, nodes_height, nodes_frames in nodes_building_specs:
+	for nodes_team in ("red", "blue"):
+		nodes_set_name = "building_" + nodes_name + "_" + nodes_team
+		nodes_set = SpriteSet(nodes_set_name, nodes_building_images[nodes_set_name], nodes_width * nodes_frames, nodes_height)
+		nodes_building_sets[nodes_set_name] = nodes_set
+		container.spritesets.Add(nodes_set)
+		for nodes_frame in range(nodes_frames):
+			nodes_sprite_name = nodes_set_name if nodes_frame == 0 else nodes_set_name + "_" + str(nodes_frame + 1)
+			container.sprites.Add(Sprite(nodes_sprite_name, nodes_set, nodes_width * nodes_frame, 0, nodes_width, nodes_height))
 
 container.spritesets.Add(set_particles)
 container.spritesets.Add(set_gore)

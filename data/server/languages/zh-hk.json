@@ -137,6 +137,22 @@
             "value": "炸彈被解除 - 藍隊勝利"
         },
         {
+            "key": "Build a reactor first",
+            "value": "請先建造反應堆"
+        },
+        {
+            "key": "Your team can only have one reactor",
+            "value": "你的隊伍只能擁有一個反應堆"
+        },
+        {
+            "key": "Your team has insufficient build points",
+            "value": "你的隊伍建造點不足"
+        },
+        {
+            "key": "Your team needs a higher tech level for this building",
+            "value": "你的隊伍需要更高科技等級才能建造此建築"
+        },
+        {
             "key": "Boss destroyed",
             "value": "首領已摧毀"
         },

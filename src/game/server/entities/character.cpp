@@ -1327,6 +1327,12 @@ void CCharacter::GiveStartWeapon()
 		return;
 	}
 
+	if(GameServer()->m_pController->IsNodes())
+	{
+		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_TOOL));
+		return;
+	}
+
 	// Challenge variant: melee-only — players start with MELEE1 and cannot
 	// receive firearms (enemies keep their own loadout).
 	if(!m_IsBot && ChallengeVariantEnabled(g_Config.m_SvChallengeVariants, CHALLENGE_ONLY_MELEE))

@@ -4,6 +4,8 @@
 #include <base/vmath.h>
 #include <string>
 
+#include <game/weapon_catalog.h>
+
 #define MAX_PICKUPS 1024
 #define MAX_DROPPABLES 60
 
@@ -197,6 +199,7 @@ class IGameController
 	virtual void NextLevel(int CID = -1);
 
 	bool IsCoop() const;
+	virtual bool IsNodes() const { return false; }
 	bool IsSurvival() const;
 	bool IsTeamplay() const;
 	bool IsInfection() const;
@@ -298,6 +301,8 @@ class IGameController
 
 	//
 	virtual bool CanSpawn(int Team, vec2 *pPos, bool IsBot = false);
+	virtual bool CanSpawnPlayer(class CPlayer *pPlayer, vec2 *pPos, bool IsBot = false);
+	virtual bool BuildNodes(vec2 Pos, int Type, int Owner) { (void)Pos; (void)Type; (void)Owner; return false; }
 
 	/*
 

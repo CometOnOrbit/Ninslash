@@ -137,6 +137,22 @@
             "value": "Bomb disarmed - Blue team wins"
         },
         {
+            "key": "Build a reactor first",
+            "value": "Build a reactor first"
+        },
+        {
+            "key": "Your team can only have one reactor",
+            "value": "Your team can only have one reactor"
+        },
+        {
+            "key": "Your team has insufficient build points",
+            "value": "Your team has insufficient build points"
+        },
+        {
+            "key": "Your team needs a higher tech level for this building",
+            "value": "Your team needs a higher tech level for this building"
+        },
+        {
             "key": "Boss destroyed",
             "value": "Boss destroyed"
         },

@@ -17,6 +17,7 @@ class CMapGen
 
 	void GenerateLevel();
 	void GeneratePVPLevel();
+	void GenerateNodesBase(class CGenLayer *pTiles, ivec2 Pos, int Team, int Direction);
 	void GenerateRoamLevel();
 	void ExpandEscapeTowerCanvas();
 	void ExpandExtractMazeCanvas();

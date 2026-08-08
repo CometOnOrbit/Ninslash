@@ -180,6 +180,7 @@ const char *CMenus::DisplayGameType(const char *pGameType) const
 		{"tut", "Tutorial"},
 		{"tutorial", "Tutorial"},
 		{"roam", "Roam"},
+		{"nodes", "Nodes"},
 		{"gun", "Gun game"},
 	};
 	for(unsigned i = 0; i < sizeof(s_aNames) / sizeof(s_aNames[0]); i++)

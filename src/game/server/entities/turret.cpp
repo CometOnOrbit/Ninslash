@@ -1,6 +1,7 @@
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
+#include <game/server/gamemodes/nodes.h>
 
 #include <game/weapons.h>
 #include "building.h"
@@ -62,6 +63,15 @@ void CTurret::SetAngle(vec2 Direction)
 
 void CTurret::Tick()
 {
+	CGameControllerNodes *pNodes = m_NodesMode ? dynamic_cast<CGameControllerNodes *>(GameServer()->m_pController) : nullptr;
+	if(pNodes)
+	{
+		if(!pNodes->PrepareNodesTurret(this))
+			return;
+		m_Life = m_NodesHealth;
+		m_MaxLife = m_NodesMaxHealth;
+	}
+
 	if(m_Life < 30)
 		m_aStatus[BSTATUS_REPAIR] = 1;
 	else
@@ -72,6 +82,11 @@ void CTurret::Tick()
 		m_DeathTimer--;
 		if(m_Life <= 0 && m_DeathTimer <= 0)
 		{
+			if(pNodes)
+			{
+				pNodes->DestroyBuilding(this);
+				return;
+			}
 			GameServer()->CreateExplosion(m_Pos + vec2(0, -50 * m_FlipY),
 										  CAttackSource::Building(m_DamageOwner, m_Type));
 			GameServer()->CreateSound(m_Pos + vec2(0, -50 * m_FlipY), SOUND_GRENADE_EXPLODE);
@@ -255,6 +270,20 @@ void CTurret::Snap(int SnappingClient)
 	pP->m_X = (int)m_Pos.x;
 	pP->m_Y = (int)m_Pos.y;
 	pP->m_Angle = m_Angle;
+	if(m_NodesMode)
+	{
+		const int Health = m_NodesMaxHealth > 0 ? (m_NodesHealth * 255) / m_NodesMaxHealth : 0;
+		pP->m_Status = Health & NODES_STATUS_HEALTH_MASK;
+		if(m_NodesPower)
+			pP->m_Status |= NODES_STATUS_POWER;
+		if(m_NodesAlive)
+			pP->m_Status |= NODES_STATUS_ALIVE;
+		if(m_NodesDeconstruction)
+			pP->m_Status |= NODES_STATUS_DECONSTRUCTION;
+		pP->m_Status |= m_NodesAnimationFrame << NODES_STATUS_ANIM_SHIFT;
+		pP->m_Type = NodesNetworkType(m_NodesType);
+		pP->m_Team = m_Team;
+	}
 
 	/*
 	if (!GameServer()->m_pController->IsTeamplay() && SnappingClient == m_OwnerPlayer)
@@ -277,4 +306,18 @@ void CTurret::Snap(int SnappingClient)
 	pP->m_WeaponDefinitionId = static_cast<int>(m_pWeapon->GetWeaponSpec().m_DefinitionId);
 	pP->m_WeaponLevel = m_pWeapon->GetWeaponSpec().m_Level;
 	pP->m_AttackTick = m_AttackTick;
+	if(m_NodesMode)
+	{
+		const int Health = m_NodesMaxHealth > 0 ? (m_NodesHealth * 255) / m_NodesMaxHealth : 0;
+		pP->m_Status = Health & NODES_STATUS_HEALTH_MASK;
+		if(m_NodesPower)
+			pP->m_Status |= NODES_STATUS_POWER;
+		if(m_NodesAlive)
+			pP->m_Status |= NODES_STATUS_ALIVE;
+		if(m_NodesDeconstruction)
+			pP->m_Status |= NODES_STATUS_DECONSTRUCTION;
+		pP->m_Status |= m_NodesAnimationFrame << NODES_STATUS_ANIM_SHIFT;
+		pP->m_Type = NodesNetworkType(m_NodesType);
+		pP->m_Team = m_Team;
+	}
 }

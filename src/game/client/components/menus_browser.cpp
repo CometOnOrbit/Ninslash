@@ -775,7 +775,8 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 				   str_comp(pItem->m_aGameType, "Tutorial") == 0 ||
 				   str_comp(pItem->m_aGameType, "Capture the flag") == 0 ||
 				   str_comp(pItem->m_aGameType, "Extraction") == 0 || str_comp(pItem->m_aGameType, "Horde") == 0 ||
-				   str_comp(pItem->m_aGameType, "Roam") == 0)
+				   str_comp(pItem->m_aGameType, "Roam") == 0 ||
+				   str_comp(pItem->m_aGameType, "Nodes") == 0)
 				{
 					// pure server
 				}

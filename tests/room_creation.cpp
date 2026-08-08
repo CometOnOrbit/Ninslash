@@ -20,7 +20,8 @@ int main()
 										  {9, 8, 8, 25},
 										  {5, 3, 4, 15},
 										  {8, 3, 4, 500},
-										  {8, 8, 4, 24}};
+										  {8, 8, 4, 24},
+										  {8, 8, 4, 0}};
 	for(int Mode = 1; Mode < LOCAL_MODE_COUNT; Mode++)
 	{
 		const CRoomModeDefaults Actual = RoomModeDefaults(Mode);

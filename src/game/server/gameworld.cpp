@@ -273,6 +273,19 @@ bool CGameWorld::IsShielded(vec2 Pos0, vec2 Pos1, float Radius, int Team)
 		}
 	}
 
+	CBuilding *pBuilding = (CBuilding *)FindFirst(ENTTYPE_BUILDING);
+	for(; pBuilding; pBuilding = (CBuilding *)pBuilding->TypeNext())
+	{
+		if(!pBuilding->IsNodesBuilding() || pBuilding->NodesType() != NODES_SHIELD || !pBuilding->NodesAlive() ||
+			!pBuilding->NodesPower() || pBuilding->m_Team == Team)
+			continue;
+		const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, pBuilding->m_Pos);
+		const float ShieldRange = 180.0f + Radius;
+		if(DistanceSquared(pBuilding->m_Pos, IntersectPos) < ShieldRange * ShieldRange &&
+			DistanceSquared(pBuilding->m_Pos, Pos0) >= ShieldRange * ShieldRange)
+			return true;
+	}
+
 	return false;
 }
 

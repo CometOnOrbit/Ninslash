@@ -395,6 +395,11 @@ bool IGameController::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 	return Eval.m_Got;
 }
 
+bool IGameController::CanSpawnPlayer(CPlayer *pPlayer, vec2 *pOutPos, bool IsBot)
+{
+	return pPlayer && CanSpawn(pPlayer->GetTeam(), pOutPos, IsBot);
+}
+
 void IGameController::AddEnemy(vec2 Pos)
 {
 }

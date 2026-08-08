@@ -22,6 +22,7 @@ enum ELocalGameMode
 	LOCAL_MODE_GRENADE_DM,
 	LOCAL_MODE_INSTAGIB_CTF,
 	LOCAL_MODE_ROAM,
+	LOCAL_MODE_NODES,
 	LOCAL_MODE_COUNT,
 };
 
@@ -79,6 +80,8 @@ static const char *s_apLocalReactorDefenseMaps[] = {"Reactor Defense"};
 static const char *s_apLocalReactorDefenseMapCommands[] = {"reactor_pve1"};
 static const char *s_apLocalReactorAssaultMaps[] = {"Reactor Assault"};
 static const char *s_apLocalReactorAssaultMapCommands[] = {"reactor1"};
+static const char *s_apLocalNodesMaps[] = {"Nodes Small", "Nodes Medium"};
+static const char *s_apLocalNodesMapCommands[] = {"generate_ctf_small1", "generate_ctf_medium1"};
 
 #define LOCAL_MODE_ENTRY(Name,                                                                                         \
 						 Description,                                                                                  \
@@ -313,13 +316,29 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
 					 LOCAL_RULE_ROAM_CHECKPOINTS, false, false),
+	LOCAL_MODE_ENTRY("Nodes",
+					 "Capture territory through technology, powered structures and team respawn networks.",
+					 "2-12",
+					 "20-40 min",
+					 "Hard",
+					 "Teams  ·  Building  ·  Tech levels",
+					 "cfg/nodes.cfg",
+					 "nodes",
+					 "nodes1",
+					 false,
+					 true,
+					 true,
+					 s_apLocalNodesMaps,
+					 s_apLocalNodesMapCommands,
+					 LOCAL_RULE_FIXED, true, false),
 };
 
 static const int s_aAllLocalModes[] = {
 	LOCAL_MODE_INVASION, LOCAL_MODE_HORDE, LOCAL_MODE_EXTRACTION, LOCAL_MODE_REACTOR_DEFENSE,
 	LOCAL_MODE_DM, LOCAL_MODE_TDM, LOCAL_MODE_CTF,
 	LOCAL_MODE_REACTOR_ASSAULT, LOCAL_MODE_BALL,
-	LOCAL_MODE_BATTLE_ROYALE, LOCAL_MODE_GRENADE_DM, LOCAL_MODE_INSTAGIB_CTF, LOCAL_MODE_ROAM
+	LOCAL_MODE_BATTLE_ROYALE, LOCAL_MODE_GRENADE_DM, LOCAL_MODE_INSTAGIB_CTF, LOCAL_MODE_ROAM,
+	LOCAL_MODE_NODES
 };
 
 #undef LOCAL_MODE_ENTRY
@@ -339,7 +358,7 @@ inline int LocalGameModeCount()
 inline bool LocalGameModeUsesTeamPopulation(int Mode)
 {
 	return Mode == LOCAL_MODE_TDM || Mode == LOCAL_MODE_CTF || Mode == LOCAL_MODE_REACTOR_ASSAULT ||
-		   Mode == LOCAL_MODE_BALL || Mode == LOCAL_MODE_INSTAGIB_CTF;
+		   Mode == LOCAL_MODE_BALL || Mode == LOCAL_MODE_INSTAGIB_CTF || Mode == LOCAL_MODE_NODES;
 }
 
 inline const char *LocalGamePopulationLabel(int Mode)

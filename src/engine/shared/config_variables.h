@@ -6,6 +6,7 @@
 
 // TODO: remove this
 #include "././game/variables.h"
+#include "././game/nodes_variables.h"
 
 MACRO_CONFIG_STR(
 	PlayerName, player_name, 16, "bloodless", CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_CLOUD, "Name of the player")
