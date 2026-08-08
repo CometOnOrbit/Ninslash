@@ -127,7 +127,7 @@ jobs:
         run: |
           tar -cJf "${{ matrix.artifact }}" \
             cfg data ninslash ninslash_srv \
-            autoexec.cfg license.txt THIRD_PARTY_LICENSES.md README.md README_zh-CN.md storage.cfg
+            autoexec.cfg autoexec_client.cfg license.txt THIRD_PARTY_LICENSES.md README.md README_zh-CN.md storage.cfg
 
       - name: Package Release (Windows)
         if: contains(matrix.os, 'windows')
@@ -220,7 +220,7 @@ jobs:
         run: |
           pkg="ninslash-macos_arm64-release"
           mkdir -p "$pkg"
-          cp -R cfg data autoexec.cfg license.txt THIRD_PARTY_LICENSES.md README.md README_zh-CN.md storage.cfg "$pkg/"
+          cp -R cfg data autoexec.cfg autoexec_client.cfg license.txt THIRD_PARTY_LICENSES.md README.md README_zh-CN.md storage.cfg "$pkg/"
           cp build/ninslash build/ninslash_srv "$pkg/"
           if [ -f build/ninslash_srv-Launcher ]; then
             cp build/ninslash_srv-Launcher "$pkg/"
