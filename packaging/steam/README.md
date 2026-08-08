@@ -138,11 +138,11 @@ environment secrets:
   entire `config/` directory with its browser cache.
 
 First complete an interactive SteamCMD login with the publishing account.
-SteamCMD normally stores that login under `~/.steam/steam/config/`, rather than
+The standalone SteamCMD client stores that login under `~/Steam/config/`, rather than
 beside `steamcmd.sh`. Then, from any temporary working directory, run:
 
 ```bash
-auth_root="$HOME/.steam/steam"
+auth_root="$HOME/Steam"
 archive="$PWD/steamcmd-auth.tar.gz"
 (
   cd "$auth_root"

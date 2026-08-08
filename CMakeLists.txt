@@ -119,6 +119,51 @@ if(ENABLE_STEAMWORKS OR ENABLE_STEAM_GAMESERVER OR ENABLE_STEAM_LISTEN_SERVER)
   endif()
 endif()
 
+set(STEAMWORKS_WINDOWS_API_DLL)
+set(STEAMWORKS_WINDOWS_API_LIBRARY)
+set(STEAMWORKS_MINGW_IMPORT_TARGET)
+if(TARGET_OS STREQUAL "windows" AND (ENABLE_STEAMWORKS OR ENABLE_STEAM_GAMESERVER))
+  set(STEAMWORKS_WINDOWS_API_DLL "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.dll")
+  if(NOT EXISTS "${STEAMWORKS_WINDOWS_API_DLL}")
+    message(FATAL_ERROR "Steamworks SDK is missing redistributable_bin/win64/steam_api64.dll")
+  endif()
+
+  if(MINGW)
+    find_program(STEAMWORKS_GENDEF_EXECUTABLE NAMES gendef)
+    find_program(STEAMWORKS_DLLTOOL_EXECUTABLE NAMES x86_64-w64-mingw32-dlltool dlltool)
+    if(NOT STEAMWORKS_GENDEF_EXECUTABLE OR NOT STEAMWORKS_DLLTOOL_EXECUTABLE)
+      message(FATAL_ERROR
+        "MinGW Steam builds require gendef and x86_64-w64-mingw32-dlltool; "
+        "install the mingw-w64-tools and binutils-mingw-w64-x86-64 packages")
+    endif()
+
+    set(STEAMWORKS_MINGW_IMPORT_DIR "${PROJECT_BINARY_DIR}/steamworks-import")
+    set(STEAMWORKS_MINGW_IMPORT_DEF "${STEAMWORKS_MINGW_IMPORT_DIR}/steam_api64.def")
+    set(STEAMWORKS_MINGW_IMPORT_LIBRARY "${STEAMWORKS_MINGW_IMPORT_DIR}/libsteam_api64.a")
+    add_custom_command(
+      OUTPUT "${STEAMWORKS_MINGW_IMPORT_DEF}" "${STEAMWORKS_MINGW_IMPORT_LIBRARY}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${STEAMWORKS_MINGW_IMPORT_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E chdir "${STEAMWORKS_MINGW_IMPORT_DIR}"
+        "${STEAMWORKS_GENDEF_EXECUTABLE}" "${STEAMWORKS_WINDOWS_API_DLL}"
+      COMMAND "${STEAMWORKS_DLLTOOL_EXECUTABLE}"
+        --input-def "${STEAMWORKS_MINGW_IMPORT_DEF}"
+        --dllname steam_api64.dll
+        --output-lib "${STEAMWORKS_MINGW_IMPORT_LIBRARY}"
+      DEPENDS "${STEAMWORKS_WINDOWS_API_DLL}"
+      VERBATIM
+    )
+    add_custom_target(steamworks_mingw_import
+      DEPENDS "${STEAMWORKS_MINGW_IMPORT_LIBRARY}")
+    set(STEAMWORKS_WINDOWS_API_LIBRARY "${STEAMWORKS_MINGW_IMPORT_LIBRARY}")
+    set(STEAMWORKS_MINGW_IMPORT_TARGET steamworks_mingw_import)
+  else()
+    set(STEAMWORKS_WINDOWS_API_LIBRARY "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.lib")
+    if(NOT EXISTS "${STEAMWORKS_WINDOWS_API_LIBRARY}")
+      message(FATAL_ERROR "Steamworks SDK is missing redistributable_bin/win64/steam_api64.lib")
+    endif()
+  endif()
+endif()
+
 file(GLOB LUA_SOURCES "${PROJECT_SOURCE_DIR}/other/lua/src/*.c")
 list(REMOVE_ITEM LUA_SOURCES
   "${PROJECT_SOURCE_DIR}/other/lua/src/lua.c"
@@ -1323,10 +1368,13 @@ if(CLIENT)
     target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_STEAMWORKS STEAM_APP_ID=${STEAM_APP_ID} STEAM_GAMESERVER_APP_ID=${STEAM_GAMESERVER_APP_ID})
     target_include_directories(${TARGET_CLIENT} PRIVATE "${STEAMWORKS_SDK_ROOT}/public/steam")
     if(TARGET_OS STREQUAL "windows")
-      target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.lib")
+      if(STEAMWORKS_MINGW_IMPORT_TARGET)
+        add_dependencies(${TARGET_CLIENT} ${STEAMWORKS_MINGW_IMPORT_TARGET})
+      endif()
+      target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_WINDOWS_API_LIBRARY}")
       add_custom_command(TARGET ${TARGET_CLIENT} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.dll"
+          "${STEAMWORKS_WINDOWS_API_DLL}"
           "$<TARGET_FILE_DIR:${TARGET_CLIENT}>")
     elseif(TARGET_OS STREQUAL "linux")
       target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so")
@@ -1650,10 +1698,13 @@ if(ENABLE_STEAM_GAMESERVER)
   target_compile_definitions(${TARGET_SERVER} PRIVATE CONF_STEAMWORKS_GAMESERVER STEAM_APP_ID=${STEAM_APP_ID} STEAM_GAMESERVER_APP_ID=${STEAM_GAMESERVER_APP_ID})
   target_include_directories(${TARGET_SERVER} PRIVATE "${STEAMWORKS_SDK_ROOT}/public/steam")
   if(TARGET_OS STREQUAL "windows")
-    target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.lib")
+    if(STEAMWORKS_MINGW_IMPORT_TARGET)
+      add_dependencies(${TARGET_SERVER} ${STEAMWORKS_MINGW_IMPORT_TARGET})
+    endif()
+    target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_WINDOWS_API_LIBRARY}")
     add_custom_command(TARGET ${TARGET_SERVER} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.dll"
+        "${STEAMWORKS_WINDOWS_API_DLL}"
         "$<TARGET_FILE_DIR:${TARGET_SERVER}>")
   elseif(TARGET_OS STREQUAL "linux")
     target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so")

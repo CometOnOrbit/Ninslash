@@ -83,11 +83,11 @@ python3 scripts/stage_steam_build.py --platform macos --kind client \
 - `STEAM_ACCOUNT`：对两个 AppID 具有编辑、发布以及修改 `beta` live 分支权限的 Steam Partner 构建账号。
 - `STEAMCMD_AUTH_B64`：在可信 Linux 机器上完成 SteamCMD 交互登录后，将 SteamCMD 的 `config/config.vdf` 及可选的 `ssfn*` 文件打包并进行 base64 编码的内容。不得将该档案提交到仓库，也不要打包包含浏览器缓存的整个 `config/` 目录。
 
-先使用发布账号完成一次 SteamCMD 交互登录。SteamCMD 通常将登录状态写入
-`~/.steam/steam/config/`，而不是 `steamcmd.sh` 所在目录。随后在任意临时目录执行：
+先使用发布账号完成一次 SteamCMD 交互登录。独立版 SteamCMD 会将登录状态写入
+`~/Steam/config/`，而不是 `steamcmd.sh` 所在目录。随后在任意临时目录执行：
 
 ```bash
-auth_root="$HOME/.steam/steam"
+auth_root="$HOME/Steam"
 archive="$PWD/steamcmd-auth.tar.gz"
 (
   cd "$auth_root"
