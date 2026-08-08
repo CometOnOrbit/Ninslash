@@ -345,18 +345,107 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  steam-beta:
-    name: Publish Steam beta
+  steam-windows-depots:
+    name: Build Steam Windows depots
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: release-readiness-tests
+    runs-on: windows-latest
+    timeout-minutes: 60
+    environment: steam-beta
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Checkout Steamworks SDK
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.STEAMWORKS_SDK_REPOSITORY }}
+          token: ${{ secrets.STEAMWORKS_SDK_TOKEN }}
+          path: steamworks-sdk
+          persist-credentials: false
+
+      - name: Locate Steamworks SDK
+        shell: pwsh
+        run: |
+          $checkoutRoot = Join-Path $env:GITHUB_WORKSPACE "steamworks-sdk"
+          $rootManifest = Join-Path $checkoutRoot "public/steam/steam_api.h"
+          $nestedRoot = Join-Path $checkoutRoot "sdk"
+          $nestedManifest = Join-Path $nestedRoot "public/steam/steam_api.h"
+          if (Test-Path $rootManifest) {
+            $sdkRoot = $checkoutRoot
+          } elseif (Test-Path $nestedManifest) {
+            $sdkRoot = $nestedRoot
+          } else {
+            throw "Steamworks SDK checkout must contain public/steam/steam_api.h"
+          }
+          "STEAMWORKS_SDK_ROOT=$sdkRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build Steam-enabled Windows release
+        shell: pwsh
+        run: |
+          cmake -S . -B build-steam-windows -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DENABLE_STEAMWORKS=ON `
+            -DENABLE_STEAM_GAMESERVER=ON `
+            -DENABLE_STEAM_LISTEN_SERVER=ON `
+            -DENABLE_LUA_MODS=ON `
+            "-DSTEAMWORKS_SDK_ROOT=$env:STEAMWORKS_SDK_ROOT" `
+            -DSTEAM_APP_ID=1812700 `
+            -DSTEAM_GAMESERVER_APP_ID=5016790 `
+            -DSTEAM_WINDOWS_CLIENT_DEPOT_ID=1812702 `
+            -DSTEAM_LINUX_CLIENT_DEPOT_ID=1812703 `
+            -DSTEAM_MACOS_CLIENT_DEPOT_ID=1812704 `
+            -DSTEAM_WINDOWS_SERVER_DEPOT_ID=5016792 `
+            -DSTEAM_LINUX_SERVER_DEPOT_ID=5016793 `
+            -DSTEAM_MACOS_SERVER_DEPOT_ID=5016794
+          cmake --build build-steam-windows --config Release --parallel
+
+      - name: Verify native Windows Steam binaries
+        shell: pwsh
+        run: |
+          python -m pip install pefile
+          $release = (Resolve-Path "build-steam-windows/Release").Path
+          python scripts/verify_steam_release.py `
+            --standalone-windows-client "$release/ninslash.exe" `
+            --standalone-windows-server "$release/ninslash_srv.exe"
+
+      - name: Prepare Windows Steam build artifact
+        shell: pwsh
+        run: |
+          $artifact = "steam-windows-build"
+          New-Item -ItemType Directory -Force -Path $artifact | Out-Null
+          Copy-Item "build-steam-windows/CMakeCache.txt" "$artifact/CMakeCache.txt"
+          Get-ChildItem -Path "build-steam-windows/Release" -File | Copy-Item -Destination $artifact -Force
+          if (-not (Test-Path "$artifact/ninslash.exe") -or
+              -not (Test-Path "$artifact/ninslash_srv.exe") -or
+              -not (Test-Path "$artifact/steam_api64.dll")) {
+            throw "Native Steam Windows build artifact is incomplete"
+          }
+
+      - name: Upload Windows Steam build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ninslash-steam-windows-build
+          path: steam-windows-build
+          if-no-files-found: error
+          retention-days: 7
+
+  steam-internal:
+    name: Publish Steam internal
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     needs:
       - release-readiness-tests
       - build
       - steam-macos-depots
+      - steam-windows-depots
     runs-on: ubuntu-latest
     timeout-minutes: 90
     environment: steam-beta
     concurrency:
-      group: steam-beta
+      group: steam-internal
       cancel-in-progress: false
     permissions:
       contents: read
@@ -396,7 +485,7 @@ jobs:
       - name: Install Steam build dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y build-essential cmake curl python3 mingw-w64 mingw-w64-tools binutils-mingw-w64-x86-64 lib32gcc-s1 \
+          sudo apt-get install -y build-essential cmake curl python3 binutils-mingw-w64-x86-64 lib32gcc-s1 \
             libasound2-dev libpulse-dev libaudio-dev libjack-dev libsndio-dev \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
             libwayland-dev libxkbcommon-dev libdrm-dev libgbm-dev \
@@ -407,6 +496,26 @@ jobs:
           sudo cmake --build SDL/build -j"$(nproc)"
           sudo cmake --install SDL/build
           sudo ldconfig
+
+      - name: Build Steam-enabled Linux release
+        shell: bash
+        run: |
+          cmake -S . -B build-steam-linux \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_STEAMWORKS=ON \
+            -DENABLE_STEAM_GAMESERVER=ON \
+            -DENABLE_STEAM_LISTEN_SERVER=ON \
+            -DENABLE_LUA_MODS=ON \
+            -DSTEAMWORKS_SDK_ROOT="$STEAMWORKS_SDK_ROOT" \
+            -DSTEAM_APP_ID=1812700 \
+            -DSTEAM_GAMESERVER_APP_ID=5016790 \
+            -DSTEAM_WINDOWS_CLIENT_DEPOT_ID=1812702 \
+            -DSTEAM_LINUX_CLIENT_DEPOT_ID=1812703 \
+            -DSTEAM_MACOS_CLIENT_DEPOT_ID=1812704 \
+            -DSTEAM_WINDOWS_SERVER_DEPOT_ID=5016792 \
+            -DSTEAM_LINUX_SERVER_DEPOT_ID=5016793 \
+            -DSTEAM_MACOS_SERVER_DEPOT_ID=5016794
+          cmake --build build-steam-linux --parallel "$(nproc)"
 
       - name: Install SteamCMD and restore cached login
         shell: bash
@@ -436,7 +545,13 @@ jobs:
           name: ninslash-steam-macos-depots
           path: dist/steam-macos
 
-      - name: Build, verify and publish Steam beta
+      - name: Download Windows Steam build
+        uses: actions/download-artifact@v4
+        with:
+          name: ninslash-steam-windows-build
+          path: build-steam-windows
+
+      - name: Verify and publish Steam internal
         env:
           STEAM_ACCOUNT: ${{ secrets.STEAM_ACCOUNT }}
           STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
@@ -448,9 +563,10 @@ jobs:
             --macos-client-depot dist/steam-macos/macos-client \
             --macos-server-depot dist/steam-macos/macos-server \
             --sdk-root "$STEAMWORKS_SDK_ROOT" \
-            --output-root dist/steam-beta \
+            --output-root dist/steam-internal \
+            --no-build \
             --strict-assets \
             --upload \
-            --set-live beta \
+            --set-live internal \
             --steam-account "$STEAM_ACCOUNT" \
             --steamcmd "$STEAMCMD"

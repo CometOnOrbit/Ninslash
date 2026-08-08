@@ -72,15 +72,15 @@ python3 scripts/stage_steam_build.py --platform macos --kind client \
 
 上传前，对渲染后的清单、已暂存的 Steam Depot 和独立版二进制运行 `scripts/verify_steam_release.py`。`sv_register_steam` 只控制 Steam 广告；`sv_register` 保留开放的旧主列表通道。
 
-## GitHub Actions 自动发布 beta
+## GitHub Actions 自动发布 internal
 
-每次成功推送到 Git 的 `dev` 分支后，`Publish Steam beta` Job 会等待发行测试以及 Linux、Windows、macOS 三个平台全部构建成功，在原生 runner 上生成并汇总六个 Steam Depot，完成离线校验、上传两个 AppID，并将新 Build 设为 Steam `beta` 分支的 live 版本。PR、标签和其他 Git 分支都不会上传 Steam。
+每次成功推送到 Git 的 `dev` 分支后，`Publish Steam internal` Job 会等待发行测试以及 Linux、Windows、macOS 三个平台全部构建成功，在原生 runner 上生成并汇总六个 Steam Depot，完成离线校验、上传两个 AppID，并将新 Build 设为 Steam `internal` 分支的 live 版本。PR、标签和其他 Git 分支都不会上传 Steam。
 
 请新建受保护的 GitHub Environment `steam-beta`，并配置以下 Environment Secrets：
 
 - `STEAMWORKS_SDK_REPOSITORY`：存放 Steamworks SDK 的私有 GitHub 仓库，格式为 `owner/repo`；SDK 可位于仓库根目录或 `sdk/`。
 - `STEAMWORKS_SDK_TOKEN`：仅具有该私有仓库读取权限的 fine-grained token。
-- `STEAM_ACCOUNT`：对两个 AppID 具有编辑、发布以及修改 `beta` live 分支权限的 Steam Partner 构建账号。
+- `STEAM_ACCOUNT`：对两个 AppID 具有编辑、发布以及修改 `internal` live 分支权限的 Steam Partner 构建账号。
 - `STEAMCMD_AUTH_B64`：在可信 Linux 机器上完成 SteamCMD 交互登录后，将 SteamCMD 的 `config/config.vdf` 及可选的 `ssfn*` 文件打包并进行 base64 编码的内容。不得将该档案提交到仓库，也不要打包包含浏览器缓存的整个 `config/` 目录。
 
 先使用发布账号完成一次 SteamCMD 交互登录。独立版 SteamCMD 会将登录状态写入

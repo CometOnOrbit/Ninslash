@@ -114,13 +114,13 @@ Run `scripts/verify_steam_release.py` against rendered manifests, staged Steam
 depots and standalone binaries before upload. `sv_register_steam` controls only
 Steam advertising; `sv_register` preserves the open legacy master-list route.
 
-## GitHub Actions beta publishing
+## GitHub Actions internal publishing
 
-The `Publish Steam beta` job runs after every successful push to the Git `dev`
+The `Publish Steam internal` job runs after every successful push to the Git `dev`
 branch. It waits for the release-readiness suite and all Linux, Windows, and
 macOS release builds, creates all six Steam depots on their native builders,
 verifies them, uploads both AppIDs, and sets the resulting builds live on the
-Steam branch named `beta`. Pull requests, tags, and all other Git branches do
+Steam branch named `internal`. Pull requests, tags, and all other Git branches do
 not upload to Steam.
 
 Create a protected GitHub Environment named `steam-beta` and configure these
@@ -131,7 +131,7 @@ environment secrets:
 - `STEAMWORKS_SDK_TOKEN`: read-only fine-grained token for that private
   repository.
 - `STEAM_ACCOUNT`: Steam partner build account with edit/publish access to both
-  AppIDs and permission to set the `beta` branch live.
+  AppIDs and permission to set the `internal` branch live.
 - `STEAMCMD_AUTH_B64`: base64-encoded gzip tar containing SteamCMD's
   `config/config.vdf` and any `ssfn*` files after an interactive login on a
   trusted Linux machine. Do not commit this archive, and do not include the
