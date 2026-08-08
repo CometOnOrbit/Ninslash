@@ -409,8 +409,8 @@ jobs:
           python -m pip install pefile
           $release = (Resolve-Path "build-steam-windows/Release").Path
           python scripts/verify_steam_release.py `
-            --standalone-windows-client "$release/ninslash.exe" `
-            --standalone-windows-server "$release/ninslash_srv.exe"
+            --steam-windows-client "$release/ninslash.exe" `
+            --steam-windows-server "$release/ninslash_srv.exe"
 
       - name: Prepare Windows Steam build artifact
         shell: pwsh

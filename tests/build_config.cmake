@@ -65,6 +65,8 @@ foreach(STEAM_INTERNAL_WORKFLOW_REQUIREMENT
 	"runs-on: windows-latest"
 	"cmake -S . -B build-steam-windows -A x64"
 	"ninslash-steam-windows-build"
+	"--steam-windows-client"
+	"--steam-windows-server"
 	"--no-build"
 	"--platform macos"
 	"1812704"

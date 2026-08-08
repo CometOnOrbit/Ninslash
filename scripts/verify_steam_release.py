@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Literal
 
 
 APP_IDS = ("1812700", "5016790")
@@ -392,6 +393,33 @@ def verify_standalone(binary_text, platform, errors):
         errors.append(f"{binary}: standalone dependency inspection failed: {exc}")
 
 
+def verify_steam_windows_binary(binary_text: str | None, kind: Literal["client", "server"], errors: list[str]) -> None:
+    if not binary_text:
+        return
+    binary = Path(binary_text).resolve()
+    if not binary.is_file():
+        errors.append(f"{binary}: Steam Windows binary missing")
+        return
+    steam_api = binary.parent / "steam_api64.dll"
+    if not steam_api.is_file():
+        errors.append(f"{binary.parent}: missing steam_api64.dll")
+    try:
+        image, imports = inspect_windows_imports(binary)
+        if "pei-x86-64" not in image:
+            errors.append(f"{binary}: Windows Steam binary is not x86-64")
+        if "steam_api64.dll" not in imports:
+            errors.append(f"{binary}: missing steam_api64.dll import")
+        expected_subsystems, description = {
+            "client": (("windows gui", "subsystem-2"), "GUI"),
+            "server": (("windows cui", "subsystem-3"), "console"),
+        }[kind]
+        if not any(subsystem in image for subsystem in expected_subsystems):
+            errors.append(f"{binary}: Windows {kind} must use the {description} subsystem")
+        verify_windows_dependency_closure(binary.parent, [binary], errors)
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
+        errors.append(f"{binary}: Steam Windows dependency inspection failed: {exc}")
+
+
 def verify_vdfs(directory_text, platforms, errors):
     if not directory_text:
         return
@@ -430,6 +458,8 @@ def main():
     parser.add_argument("--standalone-linux-server")
     parser.add_argument("--standalone-windows-client")
     parser.add_argument("--standalone-windows-server")
+    parser.add_argument("--steam-windows-client")
+    parser.add_argument("--steam-windows-server")
     args = parser.parse_args()
 
     errors = []
@@ -449,6 +479,8 @@ def main():
     verify_standalone(args.standalone_linux_server, "linux", errors)
     verify_standalone(args.standalone_windows_client, "windows", errors)
     verify_standalone(args.standalone_windows_server, "windows", errors)
+    verify_steam_windows_binary(args.steam_windows_client, "client", errors)
+    verify_steam_windows_binary(args.steam_windows_server, "server", errors)
     if errors:
         for error in errors:
             print(f"ERROR: {error}")
