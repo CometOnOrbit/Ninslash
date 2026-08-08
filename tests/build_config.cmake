@@ -54,20 +54,25 @@ foreach(FRAMEBUFFER_GUARD_REQUIREMENT
 endforeach()
 
 file(READ "${NINSLASH_SOURCE_DIR}/.github/workflows/build.yaml" BUILD_WORKFLOW)
-foreach(STEAM_BETA_WORKFLOW_REQUIREMENT
-	"steam-beta:"
+foreach(STEAM_INTERNAL_WORKFLOW_REQUIREMENT
+	"steam-internal:"
 	"github.ref == 'refs/heads/dev'"
 	"environment: steam-beta"
-	"--set-live beta"
+	"--set-live internal"
 	"STEAMCMD_AUTH_B64"
 	"steam-macos-depots:"
+	"steam-windows-depots:"
+	"runs-on: windows-latest"
+	"cmake -S . -B build-steam-windows -A x64"
+	"ninslash-steam-windows-build"
+	"--no-build"
 	"--platform macos"
 	"1812704"
 	"5016794"
 )
-	string(FIND "${BUILD_WORKFLOW}" "${STEAM_BETA_WORKFLOW_REQUIREMENT}" STEAM_BETA_WORKFLOW_POS)
-	if(STEAM_BETA_WORKFLOW_POS EQUAL -1)
-		message(FATAL_ERROR "Steam beta workflow is missing: ${STEAM_BETA_WORKFLOW_REQUIREMENT}")
+	string(FIND "${BUILD_WORKFLOW}" "${STEAM_INTERNAL_WORKFLOW_REQUIREMENT}" STEAM_INTERNAL_WORKFLOW_POS)
+	if(STEAM_INTERNAL_WORKFLOW_POS EQUAL -1)
+		message(FATAL_ERROR "Steam internal workflow is missing: ${STEAM_INTERNAL_WORKFLOW_REQUIREMENT}")
 	endif()
 endforeach()
 
