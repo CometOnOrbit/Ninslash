@@ -27,12 +27,14 @@ LOGIN_PROMPT_TIMEOUT = 60.0
 
 
 class SteamUploadError(RuntimeError):
-    def __init__(self, returncode, attempts, transient_http_statuses=(), output=""):
-        super().__init__(f"SteamCMD exited with {returncode}")
+    def __init__(self, returncode, attempts, transient_http_statuses=(), output="", job_label=""):
+        label = f" ({job_label})" if job_label else ""
+        super().__init__(f"SteamCMD exited with {returncode}{label}")
         self.returncode = returncode
         self.attempts = attempts
         self.transient_http_statuses = tuple(sorted(set(transient_http_statuses)))
         self.output = output or ""
+        self.job_label = job_label or ""
 
 
 class SteamInteractionError(RuntimeError):
@@ -216,7 +218,7 @@ def transient_steampipe_http_statuses(logs):
     return statuses
 
 
-def upload_with_retry(command, build_output, attempts, retry_delay, password=None):
+def upload_with_retry(command, build_output, attempts, retry_delay, password=None, job_label=""):
     transient_statuses = set()
     for attempt in range(1, attempts + 1):
         before = steam_log_snapshot(build_output)
@@ -238,6 +240,7 @@ def upload_with_retry(command, build_output, attempts, retry_delay, password=Non
                     attempt,
                     transient_statuses if is_transient else (),
                     getattr(exc, "output", "") or "",
+                    job_label,
                 ) from exc
             delay = retry_delay * (2 ** (attempt - 1))
             statuses = ", ".join(f"HTTP {status}" for status in sorted(current_statuses))
@@ -385,7 +388,7 @@ def main():
     parser.add_argument("--no-build", action="store_true", help="Use existing binaries without invoking CMake")
     parser.add_argument("--strict-assets", action="store_true", help="Require every shipped asset to be release-approved")
     parser.add_argument("--upload", action="store_true", help="Upload the selected app builds with SteamCMD after verification")
-    parser.add_argument("--upload-target", choices=("all", "client", "server", "playtest"), default="all", help="Select which verified app build to upload")
+    parser.add_argument("--upload-target", choices=("all", "client", "server"), default="all", help="Select which verified app build to upload")
     parser.add_argument("--set-live", metavar="BRANCH", help="Set uploaded target builds live on this Steam branch (use default for public)")
     parser.add_argument("--playtest-app-id", default="1812730", help="Steam Playtest AppID that shares the client depots (default: 1812730)")
     parser.add_argument("--steam-account", default=os.environ.get("STEAM_ACCOUNT"), help="Steam partner account name")
@@ -495,8 +498,6 @@ def main():
     version = git_value("describe", "--tags", "--always", "--dirty", default="local")
     commit = git_value("rev-parse", "HEAD")
     client_set_live = (args.set_live or "") if args.upload_target in ("all", "client") else ""
-    # Playtest reuses the same client depots; setlive follows client uploads by default.
-    playtest_set_live = (args.set_live or "") if args.upload_target in ("all", "client", "playtest") else ""
     server_set_live = (args.set_live or "") if args.upload_target in ("all", "server") else ""
     if not re.fullmatch(r"[0-9]{1,10}", str(args.playtest_app_id)):
         raise SystemExit("--playtest-app-id must be a numeric Steam AppID")
@@ -516,7 +517,7 @@ def main():
         "--version", version,
         "--git-commit", commit,
         "--client-set-live", client_set_live,
-        "--playtest-set-live", playtest_set_live,
+        "--playtest-set-live", "",
         "--server-set-live", server_set_live,
         "--playtest-app-id", args.playtest_app_id,
     ])
@@ -554,16 +555,21 @@ def main():
     if not steamcmd:
         raise SystemExit(f"SteamCMD executable not found: {args.steamcmd}")
 
-    # Upload one AppID per SteamCMD session. Shared Playtest depots are owned by
-    # the main client app — playtest only creates a setlive association build
-    # without re-uploading depot 1812702/3/4 (that causes "I/O Operation Failed").
+    # Shared client depots are owned by the main AppID. SteamPipe cannot create
+    # Playtest builds for them (FileMapping and DepotFromApp both fail server init).
     upload_jobs = []
     if args.upload_target in ("all", "client"):
         upload_jobs.append(("client", manifests / "app_build.vdf", build_output / "client"))
-    if args.upload_target in ("all", "client", "playtest"):
-        upload_jobs.append(("playtest", manifests / "playtest_app_build.vdf", build_output / "playtest"))
     if args.upload_target in ("all", "server"):
         upload_jobs.append(("server", manifests / "tool_build.vdf", build_output / "server"))
+
+    if args.upload_target in ("all", "client"):
+        print(
+            "Playtest AppID 1812730 is not uploaded via SteamPipe (shared depots are owned by "
+            "1812700). After the client Build succeeds, promote Playtest internal manually in "
+            "Steamworks → App Admin → Builds.",
+            flush=True,
+        )
 
     password = os.environ.pop(args.steam_password_env, None) or None
     try:
@@ -572,7 +578,8 @@ def main():
             job_output.mkdir(parents=True, exist_ok=True)
             upload = [steamcmd, "+login", args.steam_account, "+run_app_build", manifest, "+quit"]
             upload_with_retry(
-                upload, job_output, args.upload_attempts, args.upload_retry_delay, password=password,
+                upload, job_output, args.upload_attempts, args.upload_retry_delay,
+                password=password, job_label=label,
             )
             # Password is only needed for interactive first login; subsequent
             # builds in this process use the cached SteamCMD session on disk.
@@ -600,12 +607,10 @@ def main():
                 "SteamPipe rejected the build. Check that the build account can edit and publish the target AppID, "
                 "that its depots are saved and published, and that those depots belong to an account-owned package."
             )
-            if "I/O Operation Failed" in log_hint or "initialize build on server" in log_hint:
+            if exc.job_label == "client" and ("I/O Operation Failed" in log_hint or "initialize build on server" in log_hint):
                 detail += (
-                    " 'I/O Operation Failed' on a client depot usually means Steam refuses the build init: depot "
-                    "ownership/publish state is wrong, the Partner package does not include that depot, or a "
-                    "Playtest app tried to re-upload Shared Depots owned by the main AppID (content is only "
-                    "uploaded via app_build for 1812700; Playtest only setlive)."
+                    " Check depot ownership/publish state and that the build account can edit depots "
+                    "1812702/1812703/1812704 on AppID 1812700."
                 )
             if args.set_live:
                 detail += (
@@ -616,7 +621,7 @@ def main():
         else:
             detail = "Fix SteamCMD login/network access and retry."
         raise SystemExit(
-            f"SteamCMD upload failed with exit code {exc.returncode}. "
+            f"SteamCMD upload failed for {exc.job_label or 'unknown target'} with exit code {exc.returncode}. "
             f"{detail} The verified manifests remain in {manifests}."
         ) from None
     print(f"SteamPipe upload completed. Output: {build_output}")

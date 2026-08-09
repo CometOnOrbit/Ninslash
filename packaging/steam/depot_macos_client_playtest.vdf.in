@@ -1,0 +1,5 @@
+"DepotBuildConfig"
+{
+    "DepotID" "@MACOS_CLIENT_DEPOT_ID@"
+    "DepotFromApp" "@APP_ID@"
+}

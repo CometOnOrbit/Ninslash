@@ -1,0 +1,5 @@
+"DepotBuildConfig"
+{
+    "DepotID" "@WINDOWS_CLIENT_DEPOT_ID@"
+    "DepotFromApp" "@APP_ID@"
+}

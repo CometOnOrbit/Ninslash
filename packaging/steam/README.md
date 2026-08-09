@@ -47,10 +47,11 @@ CDN failures. The wrapper retries up to three times only when logs written by
 the current attempt contain HTTP 5xx; stale logs and permission/configuration
 errors do not trigger a retry. Override this with `--upload-attempts` and
 `--upload-retry-delay` when necessary.
-Use `--upload-target client`, `--upload-target playtest`, or
-`--upload-target server` to retry only one AppID without creating another build
-for an AppID that already succeeded. `client` also uploads Playtest because they
-share the client depots; use `playtest` to retry only AppID `1812730`.
+Use `--upload-target client` or `--upload-target server` to retry only one AppID
+without creating another build for an AppID that already succeeded. Playtest
+`1812730` cannot be uploaded via SteamPipe (shared depots are owned by main AppID
+`1812700`); promote Playtest `internal` manually in Steamworks after the client
+Build succeeds.
 On a Linux workstation without a macOS toolchain, use
 `--platforms linux,windows`; the rendered app manifests then contain only the
 four selected depots.
@@ -122,19 +123,30 @@ Steam advertising; `sv_register` preserves the open legacy master-list route.
 The `Publish Steam internal` job runs after every successful push to the Git `dev`
 branch. It waits for the release-readiness suite and all Linux, Windows, and
 macOS release builds, creates all six Steam depots on their native builders,
-verifies them, uploads the main client AppID, the Playtest AppID (same client
-depots), and the dedicated-server Tool AppID, and sets the resulting builds live
-on the Steam branch named `internal`. Pull requests, tags, and all other Git
-branches do not upload to Steam.
+verifies them, uploads the main client AppID and the dedicated-server Tool AppID.
+Playtest is not uploaded by default because shared client depot content is
+written by the main client build. By default CI **does not** change live
+branches; set the repository variable `STEAM_SET_LIVE_BRANCH` to `internal`
+once the build account can publish on AppIDs `1812700`, `1812730`, and
+`5016790`. Pull requests, tags, and all other Git branches do not upload to
+Steam.
 
-In Steamworks, configure Playtest `1812730` with **Add Shared Depot** for the
-three client depots owned by `1812700`. Content is uploaded only through the main
-client `app_build` (depots `1812702`/`1812703`/`1812704`). The Playtest upload is
-an association build that sets the `internal` branch live and must **not**
-re-upload those depots — SteamPipe returns `I/O Operation Failed` /
-`Failed to initialize build on server` when a non-owner AppID tries to build them.
-The build account needs edit/publish permission on AppIDs `1812700`, `1812730`,
-and `5016790`, plus permission to set the `internal` branch live on each.
+In Steamworks, configure Playtest `1812730` with **Add Shared Depot** for client
+depots `1812702`/`1812703`/`1812704` from main AppID `1812700`, then **publish**
+the Playtest SteamPipe settings. CI/scripts upload only the main client and
+dedicated-server Tool AppIDs. Promote Playtest manually after the client Build
+succeeds:
+
+1. Open Playtest `1812730` → **SteamPipe → Builds**
+2. Select the `internal` branch (or create a beta branch)
+3. Promote it to a Build that references the latest manifests for depots
+   `1812702`/`1812703`/`1812704` (the UI usually lets you create a Build from the
+   shared depot manifests)
+
+SteamPipe rejects Playtest uploads with both `FileMapping` and `DepotFromApp`
+(`I/O Operation Failed`). That is a Valve shared-depot limitation, not a script
+misconfiguration. The build account needs edit/publish permission on AppIDs
+`1812700`, `1812730`, and `5016790`.
 
 The Steam Linux build runs on the pinned `ubuntu-22.04` runner so the executable
 and bundled SDL3/C++ runtime remain compatible with Steam users on older glibc
@@ -152,8 +164,9 @@ environment secrets:
 - `STEAMWORKS_SDK_TOKEN`: read-only fine-grained token for that private
   repository.
 - `STEAM_ACCOUNT`: Steam partner build account with edit/publish access to the
-  main, Playtest, and dedicated-server AppIDs and permission to set the
-  `internal` branch live.
+  main, Playtest, and dedicated-server AppIDs. Upload permission is enough for
+  CI; changing live branches additionally requires publish permission on each
+  AppID (enable via `STEAM_SET_LIVE_BRANCH`, see below).
 - `STEAMCMD_AUTH_B64`: base64-encoded gzip tar containing SteamCMD's
   `config/config.vdf` and any `ssfn*` files after an interactive login on a
   trusted Linux machine. Do not commit this archive, and do not include the
@@ -184,3 +197,10 @@ the large `config/htmlcache/`. Inspect the archive with
 `steamcmd-auth.txt` as `STEAMCMD_AUTH_B64`, then delete both local export files.
 Environment protection rules can require approval before each upload without
 changing the workflow.
+
+Optional repository variable (Settings → Secrets and variables → Actions →
+Variables):
+
+- `STEAM_SET_LIVE_BRANCH`: when set to `internal`, CI passes `--set-live
+  internal` after each successful upload. Leave unset while diagnosing upload
+  failures or when the account can create builds but cannot publish branches.

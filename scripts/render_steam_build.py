@@ -56,7 +56,6 @@ def main():
         # Separate SteamPipe working dirs per app so simultaneous depot IDs
         # (shared playtest) and sequential builds do not clobber each other.
         "CLIENT_BUILD_OUTPUT": str(build_output / "client"),
-        "PLAYTEST_BUILD_OUTPUT": str(build_output / "playtest"),
         "SERVER_BUILD_OUTPUT": str(build_output / "server"),
         "CONTENT_ROOT": args.content_root,
         "WINDOWS_CLIENT_ROOT": args.windows_client_root,
@@ -73,7 +72,6 @@ def main():
     })
     for path in (
         values["CLIENT_BUILD_OUTPUT"],
-        values["PLAYTEST_BUILD_OUTPUT"],
         values["SERVER_BUILD_OUTPUT"],
     ):
         Path(path).mkdir(parents=True, exist_ok=True)

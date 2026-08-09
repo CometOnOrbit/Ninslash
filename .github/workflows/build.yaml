@@ -485,18 +485,29 @@ jobs:
         env:
           STEAM_ACCOUNT: ${{ secrets.STEAM_ACCOUNT }}
           STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
+          # Optional repository variable. Leave unset to upload builds only; promote
+          # BuildIDs to internal in Steamworks manually. Set to "internal" once the
+          # build account has publish permission on all three AppIDs.
+          STEAM_SET_LIVE_BRANCH: ${{ vars.STEAM_SET_LIVE_BRANCH }}
         run: |
           test -n "$STEAM_ACCOUNT" || { echo "Missing STEAM_ACCOUNT secret" >&2; exit 1; }
-          python3 scripts/publish_steam_depots.py \
-            --linux-build-dir build-steam-linux \
-            --windows-build-dir build-steam-windows \
-            --macos-client-depot dist/steam-macos/macos-client \
-            --macos-server-depot dist/steam-macos/macos-server \
-            --sdk-root "$STEAMWORKS_SDK_ROOT" \
-            --output-root dist/steam-internal \
-            --no-build \
-            --strict-assets \
-            --upload \
-            --set-live internal \
-            --steam-account "$STEAM_ACCOUNT" \
+          publish_args=(
+            --linux-build-dir build-steam-linux
+            --windows-build-dir build-steam-windows
+            --macos-client-depot dist/steam-macos/macos-client
+            --macos-server-depot dist/steam-macos/macos-server
+            --sdk-root "$STEAMWORKS_SDK_ROOT"
+            --output-root dist/steam-internal
+            --no-build
+            --strict-assets
+            --upload
+            --steam-account "$STEAM_ACCOUNT"
             --steamcmd "$STEAMCMD"
+          )
+          if [[ -n "${STEAM_SET_LIVE_BRANCH:-}" ]]; then
+            echo "Will set live branch: $STEAM_SET_LIVE_BRANCH"
+            publish_args+=(--set-live "$STEAM_SET_LIVE_BRANCH")
+          else
+            echo "STEAM_SET_LIVE_BRANCH is unset; uploading builds without changing live branches"
+          fi
+          python3 scripts/publish_steam_depots.py "${publish_args[@]}"

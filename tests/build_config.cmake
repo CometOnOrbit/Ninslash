@@ -59,7 +59,7 @@ foreach(STEAM_INTERNAL_WORKFLOW_REQUIREMENT
 	"github.ref == 'refs/heads/dev'"
 	"environment: steam-beta"
 	"runs-on: ubuntu-22.04"
-	"--set-live internal"
+	"STEAM_SET_LIVE_BRANCH"
 	"STEAMCMD_AUTH_B64"
 	"steam-macos-depots:"
 	"steam-windows-depots:"
