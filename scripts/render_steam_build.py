@@ -7,6 +7,7 @@ from pathlib import Path
 
 DEFAULTS = {
     "APP_ID": "1812700",
+    "PLAYTEST_APP_ID": "1812730",
     "SERVER_TOOL_APP_ID": "5016790",
     "WINDOWS_CLIENT_DEPOT_ID": "1812702",
     "LINUX_CLIENT_DEPOT_ID": "1812703",
@@ -33,7 +34,9 @@ def main():
     parser.add_argument("--version", default="local")
     parser.add_argument("--git-commit", default="unknown")
     parser.add_argument("--client-set-live", default="")
+    parser.add_argument("--playtest-set-live", default="")
     parser.add_argument("--server-set-live", default="")
+    parser.add_argument("--playtest-app-id", default=DEFAULTS["PLAYTEST_APP_ID"])
     args = parser.parse_args()
 
     platforms = {platform.strip().lower() for platform in args.platforms.split(",") if platform.strip()}
@@ -47,6 +50,7 @@ def main():
 
     values = dict(DEFAULTS)
     values.update({
+        "PLAYTEST_APP_ID": args.playtest_app_id,
         "BUILD_OUTPUT": args.build_output,
         "CONTENT_ROOT": args.content_root,
         "WINDOWS_CLIENT_ROOT": args.windows_client_root,
@@ -58,6 +62,7 @@ def main():
         "VERSION": args.version,
         "GIT_COMMIT": args.git_commit,
         "CLIENT_SET_LIVE": args.client_set_live,
+        "PLAYTEST_SET_LIVE": args.playtest_set_live,
         "SERVER_SET_LIVE": args.server_set_live,
     })
     root = Path(__file__).resolve().parents[1] / "packaging" / "steam"

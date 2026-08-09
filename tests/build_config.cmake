@@ -74,12 +74,28 @@ foreach(STEAM_INTERNAL_WORKFLOW_REQUIREMENT
 	"--platform macos"
 	"1812704"
 	"5016794"
+	"STEAM_PLAYTEST_APP_ID=1812730"
 )
 	string(FIND "${BUILD_WORKFLOW}" "${STEAM_INTERNAL_WORKFLOW_REQUIREMENT}" STEAM_INTERNAL_WORKFLOW_POS)
 	if(STEAM_INTERNAL_WORKFLOW_POS EQUAL -1)
 		message(FATAL_ERROR "Steam internal workflow is missing: ${STEAM_INTERNAL_WORKFLOW_REQUIREMENT}")
 	endif()
 endforeach()
+
+file(READ "${NINSLASH_SOURCE_DIR}/scripts/publish_steam_depots.py" STEAM_PUBLISH_SCRIPT)
+foreach(STEAM_PLAYTEST_PUBLISH_REQUIREMENT
+	"playtest_app_build.vdf"
+	"1812730"
+	"--playtest-app-id"
+)
+	string(FIND "${STEAM_PUBLISH_SCRIPT}" "${STEAM_PLAYTEST_PUBLISH_REQUIREMENT}" STEAM_PLAYTEST_PUBLISH_POS)
+	if(STEAM_PLAYTEST_PUBLISH_POS EQUAL -1)
+		message(FATAL_ERROR "Steam playtest publish support is missing: ${STEAM_PLAYTEST_PUBLISH_REQUIREMENT}")
+	endif()
+endforeach()
+if(NOT EXISTS "${NINSLASH_SOURCE_DIR}/packaging/steam/playtest_app_build.vdf.in")
+	message(FATAL_ERROR "Missing packaging/steam/playtest_app_build.vdf.in for shared-depot Playtest uploads")
+endif()
 
 file(READ "${NINSLASH_SOURCE_DIR}/CMakeLists.txt" ROOT_CMAKE)
 string(REGEX MATCH

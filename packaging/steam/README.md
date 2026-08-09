@@ -2,7 +2,8 @@
 
 **English · [简体中文](README_zh-CN.md)**
 
-Ninslash uses AppID `1812700`; Ninslash Dedicated Server uses Tool AppID
+Ninslash uses AppID `1812700`; Ninslash Playtest uses AppID `1812730` and
+shares the same client depots; Ninslash Dedicated Server uses Tool AppID
 `5016790`. The assigned Windows/Linux/macOS client depots are
 `1812702`/`1812703`/`1812704`; the dedicated server depots are
 `5016792`/`5016793`/`5016794`. Do not commit Steam
@@ -46,8 +47,10 @@ CDN failures. The wrapper retries up to three times only when logs written by
 the current attempt contain HTTP 5xx; stale logs and permission/configuration
 errors do not trigger a retry. Override this with `--upload-attempts` and
 `--upload-retry-delay` when necessary.
-Use `--upload-target client` or `--upload-target server` to retry only one AppID
-without creating another build for an AppID that already succeeded.
+Use `--upload-target client`, `--upload-target playtest`, or
+`--upload-target server` to retry only one AppID without creating another build
+for an AppID that already succeeded. `client` also uploads Playtest because they
+share the client depots; use `playtest` to retry only AppID `1812730`.
 On a Linux workstation without a macOS toolchain, use
 `--platforms linux,windows`; the rendered app manifests then contain only the
 four selected depots.
@@ -73,7 +76,7 @@ before retrying an account. Fake-IP/TUN proxy software must either route the
 SteamCMD process and Steam TCP/UDP traffic, or be disabled temporarily so Steam
 hostnames resolve to real addresses instead of `198.18.0.0/15`. A failed upload
 does not invalidate the rendered manifests; after fixing connectivity, rerun
-the two `+run_app_build` commands directly.
+the corresponding `+run_app_build` commands directly.
 
 Render upload-ready templates with the tracked IDs and private absolute paths:
 
@@ -119,15 +122,24 @@ Steam advertising; `sv_register` preserves the open legacy master-list route.
 The `Publish Steam internal` job runs after every successful push to the Git `dev`
 branch. It waits for the release-readiness suite and all Linux, Windows, and
 macOS release builds, creates all six Steam depots on their native builders,
-verifies them, uploads both AppIDs, and sets the resulting builds live on the
-Steam branch named `internal`. Pull requests, tags, and all other Git branches do
-not upload to Steam.
+verifies them, uploads the main client AppID, the Playtest AppID (same client
+depots), and the dedicated-server Tool AppID, and sets the resulting builds live
+on the Steam branch named `internal`. Pull requests, tags, and all other Git
+branches do not upload to Steam.
+
+In Steamworks, configure Playtest `1812730` with **Add Shared Depot** for the
+three client depots owned by `1812700`. The upload reuses those depot IDs; it
+does not create separate Playtest-only content depots. The build account needs
+edit/publish permission on AppIDs `1812700`, `1812730`, and `5016790`, plus
+permission to set the `internal` branch live on each.
 
 The Steam Linux build runs on the pinned `ubuntu-22.04` runner so the executable
 and bundled SDL3/C++ runtime remain compatible with Steam users on older glibc
 systems. Keep this pin unless the Linux runtime baseline is deliberately raised.
 
 To be honest, will anyone else watch this except for me six months from now?
+
+Nope.
 
 Create a protected GitHub Environment named `steam-beta` and configure these
 environment secrets:
@@ -136,8 +148,9 @@ environment secrets:
   its root (or `sdk/`) must contain the Steamworks SDK.
 - `STEAMWORKS_SDK_TOKEN`: read-only fine-grained token for that private
   repository.
-- `STEAM_ACCOUNT`: Steam partner build account with edit/publish access to both
-  AppIDs and permission to set the `internal` branch live.
+- `STEAM_ACCOUNT`: Steam partner build account with edit/publish access to the
+  main, Playtest, and dedicated-server AppIDs and permission to set the
+  `internal` branch live.
 - `STEAMCMD_AUTH_B64`: base64-encoded gzip tar containing SteamCMD's
   `config/config.vdf` and any `ssfn*` files after an interactive login on a
   trusted Linux machine. Do not commit this archive, and do not include the

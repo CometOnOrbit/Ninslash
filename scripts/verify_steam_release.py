@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 
-APP_IDS = ("1812700", "5016790")
+APP_IDS = ("1812700", "1812730", "5016790")
 PLATFORM_DEPOT_IDS = {
     "windows": ("1812702", "5016792"),
     "linux": ("1812703", "5016793"),

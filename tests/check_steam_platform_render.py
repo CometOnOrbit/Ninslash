@@ -29,12 +29,13 @@ def main():
             "--windows-client-root", content / "windows-client",
             "--windows-server-root", content / "windows-server",
             "--client-set-live", "internal",
+            "--playtest-set-live", "internal",
             "--server-set-live", "internal",
         ], cwd=ROOT, check=True)
 
         names = {path.name for path in output.glob("*.vdf")}
         expected = {
-            "app_build.vdf", "tool_build.vdf",
+            "app_build.vdf", "playtest_app_build.vdf", "tool_build.vdf",
             "depot_linux_client.vdf", "depot_linux_server.vdf",
             "depot_windows_client.vdf", "depot_windows_server.vdf",
         }
@@ -42,9 +43,14 @@ def main():
             raise SystemExit(f"unexpected Linux/Windows Steam manifests: {sorted(names)}")
 
         combined = "\n".join(path.read_text(encoding="utf-8") for path in output.glob("*.vdf"))
-        for required in ("1812702", "1812703", "5016792", "5016793", '"setlive" "internal"'):
+        for required in ("1812700", "1812730", "1812702", "1812703", "5016792", "5016793", '"setlive" "internal"'):
             if required not in combined:
                 raise SystemExit(f"missing Linux/Windows Steam manifest value: {required}")
+        playtest = (output / "playtest_app_build.vdf").read_text(encoding="utf-8")
+        if '"appid" "1812730"' not in playtest or '"setlive" "internal"' not in playtest:
+            raise SystemExit("playtest app build must target AppID 1812730 with setlive=internal")
+        if "1812702" not in playtest or "1812703" not in playtest:
+            raise SystemExit("playtest app build must reuse the shared client depot IDs")
         for forbidden in ("1812704", "5016794", "depot_macos"):
             if forbidden in combined:
                 raise SystemExit(f"Linux/Windows Steam manifests reference macOS: {forbidden}")

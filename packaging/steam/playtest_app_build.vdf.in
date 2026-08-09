@@ -1,0 +1,15 @@
+"appbuild"
+{
+    "appid" "@PLAYTEST_APP_ID@"
+    "desc" "Ninslash Playtest @VERSION@ @GIT_COMMIT@"
+    "buildoutput" "@BUILD_OUTPUT@"
+    "contentroot" "@CONTENT_ROOT@"
+    "setlive" "@PLAYTEST_SET_LIVE@"
+    "preview" "0"
+    "depots"
+    {
+        "@WINDOWS_CLIENT_DEPOT_ID@" "depot_windows_client.vdf"
+        "@LINUX_CLIENT_DEPOT_ID@" "depot_linux_client.vdf"
+        "@MACOS_CLIENT_DEPOT_ID@" "depot_macos_client.vdf"
+    }
+}

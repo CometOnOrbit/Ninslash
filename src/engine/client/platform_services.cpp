@@ -38,6 +38,35 @@
 
 #if defined(CONF_STEAMWORKS)
 #include <steam_api.h>
+#include <stdlib.h>
+
+namespace
+{
+bool SteamAppIdIsOurs(AppId_t Id)
+{
+	if(Id == (AppId_t)STEAM_APP_ID)
+		return true;
+#if defined(STEAM_PLAYTEST_APP_ID)
+	if(Id == (AppId_t)STEAM_PLAYTEST_APP_ID)
+		return true;
+#endif
+	return false;
+}
+
+AppId_t SteamPreferredLaunchAppId()
+{
+	// Shared client depots launch under either the main AppID or Playtest.
+	// Steam sets SteamAppId when it starts the process; honor that so
+	// RestartAppIfNecessary does not bounce Playtest users onto the main app.
+	if(const char *pEnv = getenv("SteamAppId"))
+	{
+		const unsigned long EnvId = strtoul(pEnv, 0, 10);
+		if(EnvId && SteamAppIdIsOurs((AppId_t)EnvId))
+			return (AppId_t)EnvId;
+	}
+	return (AppId_t)STEAM_APP_ID;
+}
+}
 #endif
 
 namespace
@@ -1237,17 +1266,17 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	void OnWorkshopDownloaded(DownloadItemResult_t *pResult);
 	void OnWorkshopSubscribed(RemoteStoragePublishedFileSubscribed_t *pResult)
 	{
-		if(pResult && pResult->m_nAppID == STEAM_APP_ID)
+		if(pResult && SteamAppIdIsOurs(pResult->m_nAppID))
 			RefreshWorkshopItems();
 	}
 	void OnWorkshopUnsubscribed(RemoteStoragePublishedFileUnsubscribed_t *pResult)
 	{
-		if(pResult && pResult->m_nAppID == STEAM_APP_ID)
+		if(pResult && SteamAppIdIsOurs(pResult->m_nAppID))
 			RefreshWorkshopItems();
 	}
 	void OnWorkshopDeleted(RemoteStoragePublishedFileDeleted_t *pResult)
 	{
-		if(pResult && pResult->m_nAppID == STEAM_APP_ID)
+		if(pResult && SteamAppIdIsOurs(pResult->m_nAppID))
 			RefreshWorkshopItems();
 	}
 	void OnWorkshopCreated(CreateItemResult_t *pResult, bool IOError);
@@ -1270,7 +1299,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 	}
 	void OnInputConfigurationLoaded(SteamInputConfigurationLoaded_t *pResult)
 	{
-		if(pResult && pResult->m_unAppID == STEAM_APP_ID)
+		if(pResult && SteamAppIdIsOurs(pResult->m_unAppID))
 		{
 			m_GlyphController = 0;
 			mem_zero(m_aaInputGlyphs, sizeof(m_aaInputGlyphs));
@@ -1581,13 +1610,14 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 		LoadEventQueue();
 		if(m_Initialized)
 			return true;
-		if(SteamAPI_RestartAppIfNecessary((AppId_t)STEAM_APP_ID))
+		const AppId_t LaunchAppId = SteamPreferredLaunchAppId();
+		if(SteamAPI_RestartAppIfNecessary(LaunchAppId))
 		{
-			dbg_msg("steam", "relaunching AppID %d through Steam", STEAM_APP_ID);
+			dbg_msg("steam", "relaunching AppID %u through Steam", (unsigned)LaunchAppId);
 			m_ExitRequested = true;
 			return false;
 		}
-		dbg_msg("steam", "initializing Steam API for AppID %d", STEAM_APP_ID);
+		dbg_msg("steam", "initializing Steam API for AppID %u", (unsigned)LaunchAppId);
 		SteamErrMsg aInitError;
 		mem_zero(aInitError, sizeof(aInitError));
 #if defined(CONF_FAMILY_WINDOWS)
@@ -2374,7 +2404,7 @@ class CSteamPlatformServices : public IPlatformServices, public ISteamMatchmakin
 				 sizeof(pInfo->m_aName));
 		FriendGameInfo_t GameInfo;
 		mem_zero(&GameInfo, sizeof(GameInfo));
-		if(SteamFriends()->GetFriendGamePlayed(User, &GameInfo) && GameInfo.m_gameID.AppID() == (AppId_t)STEAM_APP_ID)
+		if(SteamFriends()->GetFriendGamePlayed(User, &GameInfo) && SteamAppIdIsOurs(GameInfo.m_gameID.AppID()))
 		{
 			pInfo->m_PlayingThisGame = true;
 			if(GameInfo.m_steamIDLobby.IsValid())
@@ -3515,7 +3545,7 @@ void CSteamPlatformServices::PumpEventQueue()
 
 void CSteamPlatformServices::OnUserStatsStored(UserStatsStored_t *pResult)
 {
-	if(!m_StatsStorePending || !pResult || pResult->m_nGameID != CGameID((AppId_t)STEAM_APP_ID).ToUint64())
+	if(!m_StatsStorePending || !pResult || !SteamAppIdIsOurs(CGameID(pResult->m_nGameID).AppID()))
 		return;
 	m_StatsStorePending = false;
 	if(pResult->m_eResult == k_EResultOK)
@@ -3814,7 +3844,7 @@ void CSteamPlatformServices::OnLobbyList(LobbyMatchList_t *pResult, bool IOError
 
 void CSteamPlatformServices::OnWorkshopDownloaded(DownloadItemResult_t *pResult)
 {
-	if(!pResult || pResult->m_unAppID != STEAM_APP_ID)
+	if(!pResult || !SteamAppIdIsOurs(pResult->m_unAppID))
 		return;
 	if(pResult->m_eResult == k_EResultOK)
 	{

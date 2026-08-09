@@ -91,6 +91,7 @@ option(ENABLE_LUA_MODS "Build the sandboxed Lua gameplay Mod runtime" ON)
 option(NINSLASH_BUILD_TESTS "Build focused release-readiness tests" OFF)
 set(STEAMWORKS_SDK_ROOT "" CACHE PATH "Steamworks SDK root containing public/steam and redistributable_bin")
 set(STEAM_APP_ID "1812700" CACHE STRING "Steam AppID used by the release build")
+set(STEAM_PLAYTEST_APP_ID "1812730" CACHE STRING "Steam Playtest AppID that shares client depots with STEAM_APP_ID")
 set(STEAM_GAMESERVER_APP_ID "5016790" CACHE STRING "Steam Dedicated Server Tool AppID")
 set(STEAM_WINDOWS_CLIENT_DEPOT_ID "1812702" CACHE STRING "Steam Windows client DepotID")
 set(STEAM_LINUX_CLIENT_DEPOT_ID "1812703" CACHE STRING "Steam Linux client DepotID")
@@ -1403,7 +1404,11 @@ if(CLIENT)
   endif()
 
   if(ENABLE_STEAMWORKS)
-    target_compile_definitions(${TARGET_CLIENT} PRIVATE CONF_STEAMWORKS STEAM_APP_ID=${STEAM_APP_ID} STEAM_GAMESERVER_APP_ID=${STEAM_GAMESERVER_APP_ID})
+    target_compile_definitions(${TARGET_CLIENT} PRIVATE
+      CONF_STEAMWORKS
+      STEAM_APP_ID=${STEAM_APP_ID}
+      STEAM_PLAYTEST_APP_ID=${STEAM_PLAYTEST_APP_ID}
+      STEAM_GAMESERVER_APP_ID=${STEAM_GAMESERVER_APP_ID})
     target_include_directories(${TARGET_CLIENT} PRIVATE "${STEAMWORKS_SDK_ROOT}/public/steam")
     if(TARGET_OS STREQUAL "windows")
       if(STEAMWORKS_MINGW_IMPORT_TARGET)

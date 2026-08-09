@@ -313,6 +313,7 @@ def verify_steam_build(cache, description):
         "ENABLE_STEAM_LISTEN_SERVER:BOOL=ON",
         "ENABLE_LUA_MODS:BOOL=ON",
         "STEAM_APP_ID:STRING=1812700",
+        "STEAM_PLAYTEST_APP_ID:STRING=1812730",
         "STEAM_GAMESERVER_APP_ID:STRING=5016790",
         "STEAM_MACOS_CLIENT_DEPOT_ID:STRING=1812704",
         "STEAM_MACOS_SERVER_DEPOT_ID:STRING=5016794",
@@ -350,6 +351,7 @@ def configure_steam_build(build_dir, sdk_root, windows, windows_bits="64"):
         "-DENABLE_LUA_MODS=ON",
         f"-DSTEAMWORKS_SDK_ROOT={sdk_root}",
         "-DSTEAM_APP_ID=1812700",
+        "-DSTEAM_PLAYTEST_APP_ID=1812730",
         "-DSTEAM_GAMESERVER_APP_ID=5016790",
         "-DSTEAM_WINDOWS_CLIENT_DEPOT_ID=1812702",
         "-DSTEAM_LINUX_CLIENT_DEPOT_ID=1812703",
@@ -381,8 +383,9 @@ def main():
     parser.add_argument("--no-build", action="store_true", help="Use existing binaries without invoking CMake")
     parser.add_argument("--strict-assets", action="store_true", help="Require every shipped asset to be release-approved")
     parser.add_argument("--upload", action="store_true", help="Upload the selected app builds with SteamCMD after verification")
-    parser.add_argument("--upload-target", choices=("all", "client", "server"), default="all", help="Select which verified app build to upload")
+    parser.add_argument("--upload-target", choices=("all", "client", "server", "playtest"), default="all", help="Select which verified app build to upload")
     parser.add_argument("--set-live", metavar="BRANCH", help="Set uploaded target builds live on this Steam branch (use default for public)")
+    parser.add_argument("--playtest-app-id", default="1812730", help="Steam Playtest AppID that shares the client depots (default: 1812730)")
     parser.add_argument("--steam-account", default=os.environ.get("STEAM_ACCOUNT"), help="Steam partner account name")
     parser.add_argument("--steam-password-env", default="STEAM_PASSWORD",
                         help="Environment variable containing the Steam password for prompt automation")
@@ -490,7 +493,11 @@ def main():
     version = git_value("describe", "--tags", "--always", "--dirty", default="local")
     commit = git_value("rev-parse", "HEAD")
     client_set_live = (args.set_live or "") if args.upload_target in ("all", "client") else ""
+    # Playtest reuses the same client depots; setlive follows client uploads by default.
+    playtest_set_live = (args.set_live or "") if args.upload_target in ("all", "client", "playtest") else ""
     server_set_live = (args.set_live or "") if args.upload_target in ("all", "server") else ""
+    if not re.fullmatch(r"[0-9]{1,10}", str(args.playtest_app_id)):
+        raise SystemExit("--playtest-app-id must be a numeric Steam AppID")
     run([
         sys.executable,
         ROOT / "scripts/render_steam_build.py",
@@ -507,7 +514,9 @@ def main():
         "--version", version,
         "--git-commit", commit,
         "--client-set-live", client_set_live,
+        "--playtest-set-live", playtest_set_live,
         "--server-set-live", server_set_live,
+        "--playtest-app-id", args.playtest_app_id,
     ])
 
     verify = [
@@ -545,6 +554,8 @@ def main():
     upload = [steamcmd, "+login", args.steam_account]
     if args.upload_target in ("all", "client"):
         upload.extend(["+run_app_build", manifests / "app_build.vdf"])
+    if args.upload_target in ("all", "client", "playtest"):
+        upload.extend(["+run_app_build", manifests / "playtest_app_build.vdf"])
     if args.upload_target in ("all", "server"):
         upload.extend(["+run_app_build", manifests / "tool_build.vdf"])
     upload.append("+quit")
