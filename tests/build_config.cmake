@@ -80,19 +80,31 @@ foreach(STEAM_INTERNAL_WORKFLOW_REQUIREMENT
 	endif()
 endforeach()
 
+file(READ "${NINSLASH_SOURCE_DIR}/scripts/render_steam_build.py" STEAM_RENDER_SCRIPT)
+foreach(STEAM_PLAYTEST_RENDER_REQUIREMENT
+	"PLAYTEST_APP_ID"
+	"--playtest-app-id"
+	"1812730"
+)
+	string(FIND "${STEAM_RENDER_SCRIPT}" "${STEAM_PLAYTEST_RENDER_REQUIREMENT}" STEAM_PLAYTEST_RENDER_POS)
+	if(STEAM_PLAYTEST_RENDER_POS EQUAL -1)
+		message(FATAL_ERROR "Steam playtest manifest support is missing: ${STEAM_PLAYTEST_RENDER_REQUIREMENT}")
+	endif()
+endforeach()
+
 file(READ "${NINSLASH_SOURCE_DIR}/scripts/publish_steam_depots.py" STEAM_PUBLISH_SCRIPT)
 foreach(STEAM_PLAYTEST_PUBLISH_REQUIREMENT
-	"playtest_app_build.vdf"
 	"1812730"
 	"--playtest-app-id"
+	"not uploaded via SteamPipe"
 )
 	string(FIND "${STEAM_PUBLISH_SCRIPT}" "${STEAM_PLAYTEST_PUBLISH_REQUIREMENT}" STEAM_PLAYTEST_PUBLISH_POS)
 	if(STEAM_PLAYTEST_PUBLISH_POS EQUAL -1)
-		message(FATAL_ERROR "Steam playtest publish support is missing: ${STEAM_PLAYTEST_PUBLISH_REQUIREMENT}")
+		message(FATAL_ERROR "Steam playtest publish wiring is missing: ${STEAM_PLAYTEST_PUBLISH_REQUIREMENT}")
 	endif()
 endforeach()
 if(NOT EXISTS "${NINSLASH_SOURCE_DIR}/packaging/steam/playtest_app_build.vdf.in")
-	message(FATAL_ERROR "Missing packaging/steam/playtest_app_build.vdf.in for shared-depot Playtest uploads")
+	message(FATAL_ERROR "Missing packaging/steam/playtest_app_build.vdf.in for shared-depot Playtest manifests")
 endif()
 
 file(READ "${NINSLASH_SOURCE_DIR}/CMakeLists.txt" ROOT_CMAKE)
