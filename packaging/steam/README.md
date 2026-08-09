@@ -128,10 +128,13 @@ on the Steam branch named `internal`. Pull requests, tags, and all other Git
 branches do not upload to Steam.
 
 In Steamworks, configure Playtest `1812730` with **Add Shared Depot** for the
-three client depots owned by `1812700`. The upload reuses those depot IDs; it
-does not create separate Playtest-only content depots. The build account needs
-edit/publish permission on AppIDs `1812700`, `1812730`, and `5016790`, plus
-permission to set the `internal` branch live on each.
+three client depots owned by `1812700`. Content is uploaded only through the main
+client `app_build` (depots `1812702`/`1812703`/`1812704`). The Playtest upload is
+an association build that sets the `internal` branch live and must **not**
+re-upload those depots — SteamPipe returns `I/O Operation Failed` /
+`Failed to initialize build on server` when a non-owner AppID tries to build them.
+The build account needs edit/publish permission on AppIDs `1812700`, `1812730`,
+and `5016790`, plus permission to set the `internal` branch live on each.
 
 The Steam Linux build runs on the pinned `ubuntu-22.04` runner so the executable
 and bundled SDL3/C++ runtime remain compatible with Steam users on older glibc

@@ -21,7 +21,8 @@ DEFAULTS = {
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
-    parser.add_argument("--build-output", required=True)
+    parser.add_argument("--build-output", required=True,
+                        help="Base SteamPipe output directory; per-app subdirs are created")
     parser.add_argument("--content-root", required=True)
     parser.add_argument("--windows-client-root", default="")
     parser.add_argument("--linux-client-root", default="")
@@ -48,10 +49,15 @@ def main():
             if not getattr(args, f"{platform}_{kind}_root"):
                 parser.error(f"--platforms including {platform} requires --{platform}-{kind}-root")
 
+    build_output = Path(args.build_output)
     values = dict(DEFAULTS)
     values.update({
         "PLAYTEST_APP_ID": args.playtest_app_id,
-        "BUILD_OUTPUT": args.build_output,
+        # Separate SteamPipe working dirs per app so simultaneous depot IDs
+        # (shared playtest) and sequential builds do not clobber each other.
+        "CLIENT_BUILD_OUTPUT": str(build_output / "client"),
+        "PLAYTEST_BUILD_OUTPUT": str(build_output / "playtest"),
+        "SERVER_BUILD_OUTPUT": str(build_output / "server"),
         "CONTENT_ROOT": args.content_root,
         "WINDOWS_CLIENT_ROOT": args.windows_client_root,
         "LINUX_CLIENT_ROOT": args.linux_client_root,
@@ -65,6 +71,13 @@ def main():
         "PLAYTEST_SET_LIVE": args.playtest_set_live,
         "SERVER_SET_LIVE": args.server_set_live,
     })
+    for path in (
+        values["CLIENT_BUILD_OUTPUT"],
+        values["PLAYTEST_BUILD_OUTPUT"],
+        values["SERVER_BUILD_OUTPUT"],
+    ):
+        Path(path).mkdir(parents=True, exist_ok=True)
+
     root = Path(__file__).resolve().parents[1] / "packaging" / "steam"
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)

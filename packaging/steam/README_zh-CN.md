@@ -76,7 +76,7 @@ python3 scripts/stage_steam_build.py --platform macos --kind client \
 
 每次成功推送到 Git 的 `dev` 分支后，`Publish Steam internal` Job 会等待发行测试以及 Linux、Windows、macOS 三个平台全部构建成功，在原生 runner 上生成并汇总六个 Steam Depot，完成离线校验，上传主客户端 AppID、Playtest AppID（共用同一套客户端 Depot）以及专用服务器 Tool AppID，并将新 Build 设为 Steam `internal` 分支的 live 版本。PR、标签和其他 Git 分支都不会上传 Steam。
 
-请在 Steamworks 中为 Playtest `1812730` 使用 **Add Shared Depot**，挂载主应用 `1812700` 名下的三个客户端 Depot。上传脚本复用这些 Depot ID，不会另建 Playtest 专属内容 Depot。构建账号需要对 AppID `1812700`、`1812730`、`5016790` 具备编辑/发布权限，并能将各应用的 `internal` 分支设为 live。
+请在 Steamworks 中为 Playtest `1812730` 使用 **Add Shared Depot**，挂载主应用 `1812700` 名下的三个客户端 Depot。内容只通过主客户端的 `app_build` 上传（Depot `1812702`/`1812703`/`1812704`）。Playtest 上传只做关联构建并 `setlive`，**不要**再次 FileMap 上传这些 Depot——非所有者 AppID 去 build 它们时 SteamPipe 会报 `I/O Operation Failed` / `Failed to initialize build on server`。构建账号需要对 AppID `1812700`、`1812730`、`5016790` 具备编辑/发布权限，并能将各应用的 `internal` 分支设为 live。
 
 Steam Linux 构建固定使用 `ubuntu-22.04` runner，确保可执行文件及随 Depot 打包的 SDL3/C++ 运行库兼容较旧 glibc 的 Steam 用户。除非有意提高 Linux 运行时基线，否则不要改回滚动的 `ubuntu-latest`。
 

@@ -49,8 +49,20 @@ def main():
         playtest = (output / "playtest_app_build.vdf").read_text(encoding="utf-8")
         if '"appid" "1812730"' not in playtest or '"setlive" "internal"' not in playtest:
             raise SystemExit("playtest app build must target AppID 1812730 with setlive=internal")
-        if "1812702" not in playtest or "1812703" not in playtest:
-            raise SystemExit("playtest app build must reuse the shared client depot IDs")
+        # Shared client depots are owned/uploaded by the main AppID only. The Playtest
+        # app_build is association+setlive; re-listing FileMapped depots causes SteamPipe
+        # "I/O Operation Failed" when initializing builds for non-owned depots.
+        if "depot_windows_client.vdf" in playtest or "depot_linux_client.vdf" in playtest:
+            raise SystemExit("playtest app build must not re-upload shared client depot content")
+        if "1812702" in playtest or "1812703" in playtest:
+            raise SystemExit("playtest app build must not reference owned client depot FileMaps")
+        client = (output / "app_build.vdf").read_text(encoding="utf-8")
+        if "1812702" not in client or "depot_windows_client.vdf" not in client:
+            raise SystemExit("main client app build must still upload shared Windows client depot")
+        if "/playtest" not in playtest:
+            raise SystemExit("playtest SteamPipe buildoutput should be isolated under .../playtest")
+        if "/client" not in client:
+            raise SystemExit("client SteamPipe buildoutput should be isolated under .../client")
         for forbidden in ("1812704", "5016794", "depot_macos"):
             if forbidden in combined:
                 raise SystemExit(f"Linux/Windows Steam manifests reference macOS: {forbidden}")
