@@ -4144,17 +4144,19 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 	}
 	if(!ChoiceActive() && !m_ResearchVisible)
 		return false;
-	if(!(Event.m_Flags & IInput::FLAG_PRESS))
+	if(!(Event.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT)))
+		return ChoiceActive();
+	if(!(Event.m_Flags & IInput::FLAG_PRESS) && !m_ResearchVisible)
 		return ChoiceActive();
 	if(m_InvasionRetryResultActive)
 		return true;
 	if(m_InvasionRetryVoteActive)
 	{
 		int Direction = 0;
-		if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT ||
+		if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT || Event.m_Key == KEY_GAMEPAD_AXIS_LEFT ||
 		   Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT)
 			Direction = -1;
-		else if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT ||
+		else if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT || Event.m_Key == KEY_GAMEPAD_AXIS_RIGHT ||
 				Event.m_Key == KEY_GAMEPAD_SHOULDER_RIGHT)
 			Direction = 1;
 		if(Direction)
@@ -4169,7 +4171,8 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 			m_FocusedChoice = PVE_INVASION_RESET;
 			SendInvasionRetryVote(PVE_INVASION_RESET);
 		}
-		else if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A)
+		else if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A ||
+				 Event.m_Key == KEY_GAMEPAD_BUTTON_START)
 			SendInvasionRetryVote(m_FocusedChoice);
 		else if(Event.m_Key == KEY_MOUSE_1)
 			m_MouseTrigger = true;
@@ -4182,15 +4185,17 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 		const CPveCardDef *pSelected = PveCardDef(m_SelectedResearch);
 		const int OldTab = m_ResearchTab;
 		bool Handled = true;
-		if(Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT)
+		if(Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT && (Event.m_Flags & IInput::FLAG_PRESS))
 			m_ResearchTab = (m_ResearchTab + 2) % 3;
-		else if(Event.m_Key == KEY_GAMEPAD_SHOULDER_RIGHT)
+		else if(Event.m_Key == KEY_GAMEPAD_SHOULDER_RIGHT && (Event.m_Flags & IInput::FLAG_PRESS))
 			m_ResearchTab = (m_ResearchTab + 1) % 3;
 		else if(Event.m_Key == KEY_TAB)
 			m_ResearchTab = (m_ResearchTab + 1) % 3;
 		else if(m_ResearchTab == PVE_TAB_MODE && (Event.m_Key == KEY_C || Event.m_Key == KEY_GAMEPAD_BUTTON_Y))
 			CycleCheckpoint();
-		else if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A)
+		else if((Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A ||
+				  Event.m_Key == KEY_GAMEPAD_BUTTON_START) &&
+			(Event.m_Flags & IInput::FLAG_PRESS))
 			BuySelectedResearch();
 		else if(Event.m_Key == KEY_MOUSE_WHEEL_UP || Event.m_Key == KEY_MOUSE_WHEEL_DOWN)
 		{
@@ -4204,11 +4209,14 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 			int TargetRoute = PveResearchRoute(pSelected);
 			int TargetTier = pSelected->m_Tier;
 			bool Navigate = true;
-			if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT)
+			if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT ||
+				Event.m_Key == KEY_GAMEPAD_AXIS_LEFT)
 				TargetTier--;
-			else if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT)
+			else if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT ||
+					Event.m_Key == KEY_GAMEPAD_AXIS_RIGHT)
 				TargetTier++;
-			else if(Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP)
+			else if(Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP ||
+					Event.m_Key == KEY_GAMEPAD_AXIS_UP)
 			{
 				if(TargetRoute > 0)
 					TargetRoute--;
@@ -4218,7 +4226,8 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 					TargetRoute = TargetBranch >= 0 ? PveResearchRouteCount(m_ResearchTab, TargetBranch) - 1 : 0;
 				}
 			}
-			else if(Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN)
+			else if(Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN ||
+					Event.m_Key == KEY_GAMEPAD_AXIS_DOWN)
 			{
 				if(TargetRoute + 1 < PveResearchRouteCount(m_ResearchTab, TargetBranch))
 					TargetRoute++;
@@ -4277,10 +4286,10 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 	}
 	const int Count = m_ContractVoteActive ? 2 : 3;
 	int Direction = 0;
-	if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT ||
+	if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT || Event.m_Key == KEY_GAMEPAD_AXIS_LEFT ||
 	   Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT)
 		Direction = -1;
-	else if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT ||
+	else if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT || Event.m_Key == KEY_GAMEPAD_AXIS_RIGHT ||
 			Event.m_Key == KEY_GAMEPAD_SHOULDER_RIGHT)
 		Direction = 1;
 	if(Direction)
@@ -4306,7 +4315,8 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 		m_FocusedChoice = 2;
 		SendChoice(2);
 	}
-	else if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A)
+	else if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A ||
+			Event.m_Key == KEY_GAMEPAD_BUTTON_START)
 	{
 		if(m_ContractVoteActive)
 			SendContractVote(m_FocusedChoice);

@@ -609,17 +609,18 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 		DoScrollbarV(&s_ScrollBar, &Scroll, 0);
 	}
 
-	if(m_SelectedIndex > -1)
+	if(NumServers > 0)
 	{
 		for(int i = 0; i < m_NumInputEvents; i++)
 		{
 			int NewIndex = -1;
-			if(m_aInputEvents[i].m_Flags & IInput::FLAG_PRESS)
+			if(m_aInputEvents[i].m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT))
 			{
-				if(m_aInputEvents[i].m_Key == KEY_DOWN)
-					NewIndex = m_SelectedIndex + 1;
-				if(m_aInputEvents[i].m_Key == KEY_UP)
-					NewIndex = m_SelectedIndex - 1;
+				const int Action = ControllerInputAction(m_aInputEvents[i]);
+				if(Action == MENU_CONTROLLER_DOWN)
+					NewIndex = m_SelectedIndex < 0 ? 0 : m_SelectedIndex + 1;
+				if(Action == MENU_CONTROLLER_UP)
+					NewIndex = m_SelectedIndex < 0 ? NumServers - 1 : m_SelectedIndex - 1;
 			}
 			if(NewIndex > -1 && NewIndex < NumServers)
 			{

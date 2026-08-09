@@ -686,11 +686,12 @@ CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected,
 				for(int i = 0; i < m_NumInputEvents; i++)
 				{
 					int NewIndex = -1;
-					if(m_aInputEvents[i].m_Flags & IInput::FLAG_PRESS)
+					if(m_aInputEvents[i].m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT))
 					{
-						if(m_aInputEvents[i].m_Key == KEY_DOWN)
+						const int Action = ControllerInputAction(m_aInputEvents[i]);
+						if(Action == MENU_CONTROLLER_DOWN)
 							NewIndex = gs_ListBoxNewSelected + 1;
-						if(m_aInputEvents[i].m_Key == KEY_UP)
+						if(Action == MENU_CONTROLLER_UP)
 							NewIndex = gs_ListBoxNewSelected - 1;
 					}
 					if(NewIndex > -1 && NewIndex < gs_ListBoxNumItems)

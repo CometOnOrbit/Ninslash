@@ -148,6 +148,51 @@ class CMenus : public CComponent
 	int
 	DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Interactive = true);
 
+	enum
+	{
+		CONTROLLER_FOCUS_BUTTON = 0,
+		CONTROLLER_FOCUS_SLIDER_H,
+		CONTROLLER_FOCUS_SLIDER_V,
+		CONTROLLER_FOCUS_EDIT,
+	};
+
+	enum EControllerInputAction
+	{
+		MENU_CONTROLLER_NONE = 0,
+		MENU_CONTROLLER_UP,
+		MENU_CONTROLLER_DOWN,
+		MENU_CONTROLLER_LEFT,
+		MENU_CONTROLLER_RIGHT,
+		MENU_CONTROLLER_CONFIRM,
+		MENU_CONTROLLER_BACK,
+		MENU_CONTROLLER_PREVIOUS,
+		MENU_CONTROLLER_NEXT,
+	};
+
+	struct CControllerFocusItem
+	{
+		const void *m_pID;
+		CUIRect m_Rect;
+		int m_Type;
+	};
+
+	enum
+	{
+		MAX_CONTROLLER_FOCUS_ITEMS = 512,
+	};
+
+	int ControllerContext() const;
+	bool ControllerUsesWidgetFocus() const;
+	void ControllerBeginFrame();
+	void ControllerCommitFrame();
+	void ControllerRegisterFocus(const void *pID, const CUIRect *pRect, int Type = CONTROLLER_FOCUS_BUTTON);
+	void ControllerSetPreferredFocus(const void *pID);
+	bool ControllerIsFocused(const void *pID) const;
+	bool ControllerConsumeActivation(const void *pID);
+	bool ControllerConsumeAdjustment(const void *pID, int *pDirection);
+	bool ControllerHandleInput(const IInput::CEvent &Event);
+	int ControllerInputAction(const IInput::CEvent &Event) const;
+
 	// static void ui_draw_browse_icon(int what, const CUIRect *r);
 	// static void ui_draw_grid_header(const void *id, const char *text, int checked, const CUIRect *r, const void
 	// *extra);
@@ -309,6 +354,19 @@ class CMenus : public CComponent
 	int m_NavigationFocus;
 	int m_HomeActionFocus;
 	int m_LastInputDevice;
+	int m_ControllerFocusContext;
+	int m_ControllerNextFocusContext;
+	int m_NumControllerFocusItems;
+	int m_NumControllerNextFocusItems;
+	int m_ControllerAdjustDirection;
+	int m_ControllerTabDirection;
+	bool m_ControllerFocusRegistrationEnabled;
+	const void *m_pControllerFocusID;
+	const void *m_pControllerActivationID;
+	const void *m_pControllerPreferredFocus;
+	const void *m_pControllerNextPreferredFocus;
+	CControllerFocusItem m_aControllerFocusItems[MAX_CONTROLLER_FOCUS_ITEMS];
+	CControllerFocusItem m_aControllerNextFocusItems[MAX_CONTROLLER_FOCUS_ITEMS];
 	int m_PlayTab;
 	int m_CreateRoomStep;
 	int m_CreateRoomPreviousSlots;

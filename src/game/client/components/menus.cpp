@@ -213,6 +213,17 @@ CMenus::CMenus()
 	m_NavigationFocus = 0;
 	m_HomeActionFocus = 0;
 	m_LastInputDevice = 0;
+	m_ControllerFocusContext = -1;
+	m_ControllerNextFocusContext = -1;
+	m_NumControllerFocusItems = 0;
+	m_NumControllerNextFocusItems = 0;
+	m_ControllerAdjustDirection = 0;
+	m_ControllerTabDirection = 0;
+	m_ControllerFocusRegistrationEnabled = false;
+	m_pControllerFocusID = 0;
+	m_pControllerActivationID = 0;
+	m_pControllerPreferredFocus = 0;
+	m_pControllerNextPreferredFocus = 0;
 	m_PlayTab = 0;
 	m_CreateRoomStep = 0;
 	m_CreateRoomPreviousSlots = 8;
@@ -993,6 +1004,301 @@ float MenuAnimDt(CMenuAnimSlot *pSlot, float Now)
 
 } // namespace
 
+int CMenus::ControllerContext() const
+{
+	const int Page = Client()->State() == IClient::STATE_OFFLINE ? g_Config.m_UiPage : m_GamePage;
+	if(m_Popup != POPUP_NONE)
+		return 10000 + m_Popup;
+	if(Page == PAGE_LOCAL_SERVER)
+		return Page * 8 + m_CreateRoomStep * 2 + (Client()->State() == IClient::STATE_OFFLINE ? m_PlayTab : 0);
+	return Page;
+}
+
+bool CMenus::ControllerUsesWidgetFocus() const
+{
+	if(!IsActive())
+		return false;
+	if(m_Popup != POPUP_NONE)
+		return true;
+
+	const int Page = Client()->State() == IClient::STATE_OFFLINE ? g_Config.m_UiPage : m_GamePage;
+	if(Page == PAGE_LOCAL_SERVER)
+	{
+		// The offline Play hub owns the tab bar. The mode picker itself is a
+		// content-only controller surface; the online room page starts there too.
+		return m_CreateRoomStep == 0 && (Client()->State() != IClient::STATE_OFFLINE || m_PlayTab == 1);
+	}
+
+	switch(Page)
+	{
+	case PAGE_FRONT:
+	case PAGE_TUTORIAL_SELECT:
+	case PAGE_SETTINGS:
+	case PAGE_CUSTOMIZE:
+	case PAGE_MODS:
+	case PAGE_STEAM:
+	case PAGE_GAME:
+	case PAGE_PLAYERS:
+	case PAGE_SERVER_INFO:
+		return true;
+	default:
+		// Play lists, demos, callvote and research have their own selection
+		// models. They still use the same key mapping, but keep their list
+		// selection local to the page.
+		return false;
+	}
+}
+
+void CMenus::ControllerBeginFrame()
+{
+	m_NumControllerNextFocusItems = 0;
+	m_ControllerNextFocusContext = ControllerContext();
+	m_pControllerNextPreferredFocus = 0;
+	m_ControllerAdjustDirection = 0;
+	m_ControllerFocusRegistrationEnabled = ControllerUsesWidgetFocus();
+	if(m_ControllerFocusContext != m_ControllerNextFocusContext)
+	{
+		m_pControllerFocusID = 0;
+		m_pControllerActivationID = 0;
+		m_pControllerPreferredFocus = 0;
+	}
+}
+
+void CMenus::ControllerCommitFrame()
+{
+	m_NumControllerFocusItems = m_NumControllerNextFocusItems;
+	if(m_NumControllerFocusItems > 0)
+		mem_copy(m_aControllerFocusItems,
+			m_aControllerNextFocusItems,
+			sizeof(CControllerFocusItem) * m_NumControllerFocusItems);
+	m_ControllerFocusContext = m_ControllerNextFocusContext;
+	m_pControllerPreferredFocus = m_pControllerNextPreferredFocus;
+	m_pControllerNextPreferredFocus = 0;
+
+	bool FocusStillVisible = false;
+	for(int i = 0; i < m_NumControllerFocusItems; i++)
+		if(m_aControllerFocusItems[i].m_pID == m_pControllerFocusID)
+		{
+			FocusStillVisible = true;
+			break;
+		}
+	if(!FocusStillVisible)
+		m_pControllerFocusID = 0;
+	m_pControllerActivationID = 0;
+	m_ControllerFocusRegistrationEnabled = false;
+}
+
+void CMenus::ControllerRegisterFocus(const void *pID, const CUIRect *pRect, int Type)
+{
+	if(!m_ControllerFocusRegistrationEnabled || !pID || !pRect || pRect->w <= 0.0f || pRect->h <= 0.0f)
+		return;
+	if(m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(*pRect))
+		return;
+
+	for(int i = 0; i < m_NumControllerNextFocusItems; i++)
+		if(m_aControllerNextFocusItems[i].m_pID == pID)
+		{
+			m_aControllerNextFocusItems[i].m_Rect = *pRect;
+			m_aControllerNextFocusItems[i].m_Type = Type;
+			return;
+		}
+	if(m_NumControllerNextFocusItems >= MAX_CONTROLLER_FOCUS_ITEMS)
+		return;
+	CControllerFocusItem &Item = m_aControllerNextFocusItems[m_NumControllerNextFocusItems++];
+	Item.m_pID = pID;
+	Item.m_Rect = *pRect;
+	Item.m_Type = Type;
+}
+
+void CMenus::ControllerSetPreferredFocus(const void *pID)
+{
+	if(m_ControllerFocusRegistrationEnabled && pID)
+		m_pControllerNextPreferredFocus = pID;
+}
+
+bool CMenus::ControllerIsFocused(const void *pID) const
+{
+	return m_ControllerFocusRegistrationEnabled && m_LastInputDevice != 0 &&
+		m_ControllerFocusContext == ControllerContext() && m_pControllerFocusID == pID;
+}
+
+bool CMenus::ControllerConsumeActivation(const void *pID)
+{
+	if(m_pControllerActivationID != pID)
+		return false;
+	m_pControllerActivationID = 0;
+	return true;
+}
+
+bool CMenus::ControllerConsumeAdjustment(const void *pID, int *pDirection)
+{
+	if(!pDirection || !ControllerIsFocused(pID) || !m_ControllerAdjustDirection)
+		return false;
+	*pDirection = m_ControllerAdjustDirection;
+	m_ControllerAdjustDirection = 0;
+	return true;
+}
+
+int CMenus::ControllerInputAction(const IInput::CEvent &Event) const
+{
+	if(!(Event.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT)))
+		return MENU_CONTROLLER_NONE;
+	const int Key = Event.m_Key;
+	if(Key == KEY_UP || Key == KEY_GAMEPAD_BUTTON_DPAD_UP || Key == KEY_GAMEPAD_AXIS_UP)
+		return MENU_CONTROLLER_UP;
+	if(Key == KEY_DOWN || Key == KEY_TAB || Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN || Key == KEY_GAMEPAD_AXIS_DOWN)
+		return MENU_CONTROLLER_DOWN;
+	if(Key == KEY_LEFT || Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT || Key == KEY_GAMEPAD_AXIS_LEFT)
+		return MENU_CONTROLLER_LEFT;
+	if(Key == KEY_RIGHT || Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT || Key == KEY_GAMEPAD_AXIS_RIGHT)
+		return MENU_CONTROLLER_RIGHT;
+	if(Key == KEY_RETURN || Key == KEY_KP_ENTER || Key == KEY_GAMEPAD_BUTTON_A || Key == KEY_GAMEPAD_BUTTON_START)
+		return MENU_CONTROLLER_CONFIRM;
+	if(Key == KEY_ESCAPE || Key == KEY_GAMEPAD_BUTTON_B || Key == KEY_GAMEPAD_BUTTON_BACK)
+		return MENU_CONTROLLER_BACK;
+	if(Key == KEY_GAMEPAD_SHOULDER_LEFT)
+		return MENU_CONTROLLER_PREVIOUS;
+	if(Key == KEY_GAMEPAD_SHOULDER_RIGHT)
+		return MENU_CONTROLLER_NEXT;
+	return MENU_CONTROLLER_NONE;
+}
+
+bool CMenus::ControllerHandleInput(const IInput::CEvent &Event)
+{
+	if(!ControllerUsesWidgetFocus())
+		return false;
+
+	const int Action = ControllerInputAction(Event);
+	if(Action == MENU_CONTROLLER_NONE || Action == MENU_CONTROLLER_BACK || Action == MENU_CONTROLLER_PREVIOUS ||
+		Action == MENU_CONTROLLER_NEXT)
+		return false;
+	if(m_ControllerFocusContext != ControllerContext() || m_NumControllerFocusItems <= 0)
+		return false;
+
+	int FocusIndex = -1;
+	for(int i = 0; i < m_NumControllerFocusItems; i++)
+		if(m_aControllerFocusItems[i].m_pID == m_pControllerFocusID)
+		{
+			FocusIndex = i;
+			break;
+		}
+
+	if(FocusIndex < 0)
+	{
+		if(m_pControllerPreferredFocus)
+			for(int i = 0; i < m_NumControllerFocusItems; i++)
+				if(m_aControllerFocusItems[i].m_pID == m_pControllerPreferredFocus)
+				{
+					FocusIndex = i;
+					break;
+				}
+		if(FocusIndex < 0)
+			FocusIndex = 0;
+		m_pControllerFocusID = m_aControllerFocusItems[FocusIndex].m_pID;
+		if(Action == MENU_CONTROLLER_CONFIRM)
+			m_pControllerActivationID = m_pControllerFocusID;
+		return true;
+	}
+
+	if(Action == MENU_CONTROLLER_CONFIRM)
+	{
+		m_pControllerActivationID = m_pControllerFocusID;
+		return true;
+	}
+
+	const int Direction = Action == MENU_CONTROLLER_UP    ? 0
+						  : Action == MENU_CONTROLLER_DOWN  ? 1
+						  : Action == MENU_CONTROLLER_LEFT  ? 2
+						  : Action == MENU_CONTROLLER_RIGHT ? 3
+																													 : -1;
+	CControllerFocusItem &Current = m_aControllerFocusItems[FocusIndex];
+	if((Current.m_Type == CONTROLLER_FOCUS_SLIDER_H && (Direction == 2 || Direction == 3)) ||
+		(Current.m_Type == CONTROLLER_FOCUS_SLIDER_V && (Direction == 0 || Direction == 1)))
+	{
+		m_ControllerAdjustDirection = (Direction == 0 || Direction == 2) ? -1 : 1;
+		return true;
+	}
+
+	const float CurrentX = Current.m_Rect.x + Current.m_Rect.w * 0.5f;
+	const float CurrentY = Current.m_Rect.y + Current.m_Rect.h * 0.5f;
+	int NextIndex = -1;
+	float BestScore = 0.0f;
+	for(int i = 0; i < m_NumControllerFocusItems; i++)
+	{
+		if(i == FocusIndex)
+			continue;
+		const CControllerFocusItem &Candidate = m_aControllerFocusItems[i];
+		const float CandidateX = Candidate.m_Rect.x + Candidate.m_Rect.w * 0.5f;
+		const float CandidateY = Candidate.m_Rect.y + Candidate.m_Rect.h * 0.5f;
+		float Primary = 0.0f;
+		float Secondary = 0.0f;
+		if(Direction == 0)
+		{
+			if(CandidateY >= CurrentY - 0.1f)
+				continue;
+			Primary = CurrentY - CandidateY;
+			Secondary = fabsf(CurrentX - CandidateX);
+		}
+		else if(Direction == 1)
+		{
+			if(CandidateY <= CurrentY + 0.1f)
+				continue;
+			Primary = CandidateY - CurrentY;
+			Secondary = fabsf(CurrentX - CandidateX);
+		}
+		else if(Direction == 2)
+		{
+			if(CandidateX >= CurrentX - 0.1f)
+				continue;
+			Primary = CurrentX - CandidateX;
+			Secondary = fabsf(CurrentY - CandidateY);
+		}
+		else
+		{
+			if(CandidateX <= CurrentX + 0.1f)
+				continue;
+			Primary = CandidateX - CurrentX;
+			Secondary = fabsf(CurrentY - CandidateY);
+		}
+		const bool CrossesAxis = Direction < 2
+			? Candidate.m_Rect.x < Current.m_Rect.x + Current.m_Rect.w &&
+				Candidate.m_Rect.x + Candidate.m_Rect.w > Current.m_Rect.x
+			: Candidate.m_Rect.y < Current.m_Rect.y + Current.m_Rect.h &&
+				Candidate.m_Rect.y + Candidate.m_Rect.h > Current.m_Rect.y;
+		const float Score = Primary + Secondary * (CrossesAxis ? 0.15f : 1.0f);
+		if(NextIndex < 0 || Score < BestScore)
+		{
+			NextIndex = i;
+			BestScore = Score;
+		}
+	}
+	if(NextIndex < 0)
+	{
+		// Wrap at the edge, which is less surprising on a controller than a
+		// direction that silently stops responding.
+		const bool MaximizeEdge = Direction == 0 || Direction == 2;
+		float BestEdge = MaximizeEdge ? -1e30f : 1e30f;
+		for(int i = 0; i < m_NumControllerFocusItems; i++)
+		{
+			if(i == FocusIndex)
+				continue;
+			const CControllerFocusItem &Candidate = m_aControllerFocusItems[i];
+			const float CandidateX = Candidate.m_Rect.x + Candidate.m_Rect.w * 0.5f;
+			const float CandidateY = Candidate.m_Rect.y + Candidate.m_Rect.h * 0.5f;
+			const float CandidateEdge = Direction < 2 ? CandidateY : CandidateX;
+			if(NextIndex < 0 || (MaximizeEdge && CandidateEdge > BestEdge) ||
+				(!MaximizeEdge && CandidateEdge < BestEdge))
+			{
+				NextIndex = i;
+				BestEdge = CandidateEdge;
+			}
+		}
+	}
+	if(NextIndex >= 0)
+		m_pControllerFocusID = m_aControllerFocusItems[NextIndex].m_pID;
+	return true;
+}
+
 float CMenus::AnimHover(const void *pID, float Speed)
 {
 	CMenuAnimSlot *pSlot = MenuAnimSlot(pID);
@@ -1055,6 +1361,9 @@ int CMenus::DoButton_Icon(int ImageId, int SpriteId, const CUIRect *pRect)
 
 int CMenus::DoButton_Toggle(const void *pID, int Checked, const CUIRect *pRect, bool Active)
 {
+	if(Active)
+		ControllerRegisterFocus(pID, pRect);
+	const bool Focused = Active && ControllerIsFocused(pID);
 	const float Hover = Active ? AnimHover(pID) : 0.0f;
 	Graphics()->TextureSet(g_pData->m_aImages[IMAGE_GUIBUTTONS].m_Id);
 	Graphics()->QuadsBegin();
@@ -1074,13 +1383,23 @@ int CMenus::DoButton_Toggle(const void *pID, int Checked, const CUIRect *pRect, 
 	}
 	Graphics()->QuadsEnd();
 
-	return Active ? UI()->DoButtonLogic(pID, "", Checked, pRect) : 0;
+	if(Focused)
+	{
+		vec4 FocusColor = ms_ColorAccent;
+		FocusColor.a = 0.45f;
+		CUIRect FocusRect = *pRect;
+		FocusRect.Margin(1.0f, &FocusRect);
+		DrawMenuBorder(&FocusRect, vec4(0, 0, 0, 0), FocusColor, CUI::CORNER_ALL, ms_ControlRounding);
+	}
+	return Active ? UI()->DoButtonLogic(pID, "", Checked, pRect) || ControllerConsumeActivation(pID) : 0;
 }
 
 int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Style)
 {
+	ControllerRegisterFocus(pID, pRect);
+	const bool Focused = ControllerIsFocused(pID);
 	const float Hover = AnimHover(pID);
-	const float Selected = AnimSelected(pID, Checked != 0);
+	const float Selected = AnimSelected(pID, Checked != 0 || Focused);
 	const float Press = AnimPressed(pID);
 	const float Activity = max(Hover, Selected);
 	const bool Ghost = Style == BUTTONSTYLE_GHOST;
@@ -1166,14 +1485,16 @@ int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const
 	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	UI()->DoLabel(&Temp, pText, FontSize, 0);
-	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
+	return UI()->DoButtonLogic(pID, pText, Checked, pRect) || ControllerConsumeActivation(pID);
 }
 
 void CMenus::DoButton_KeySelect(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
 {
+	ControllerRegisterFocus(pID, pRect);
 	const float Hover = AnimHover(pID);
-	vec4 Fill = MixColor(vec4(0.02f, 0.07f, 0.10f, 0.80f), vec4(0.04f, 0.16f, 0.21f, 0.91f), Hover);
-	vec4 Border = MixColor(vec4(0.16f, 0.35f, 0.43f, 0.88f), ms_ColorAccent, Hover);
+	const float Selected = ControllerIsFocused(pID) ? 1.0f : 0.0f;
+	vec4 Fill = MixColor(vec4(0.02f, 0.07f, 0.10f, 0.80f), vec4(0.04f, 0.16f, 0.21f, 0.91f), max(Hover, Selected));
+	vec4 Border = MixColor(vec4(0.16f, 0.35f, 0.43f, 0.88f), ms_ColorAccent, max(Hover, Selected));
 	const float Cut = min(max(3.0f, pRect->h * 0.20f), min(pRect->w, pRect->h) * 0.34f);
 	DrawGlassSurface(pRect, Fill, Border, Cut, 1.0f + Hover);
 	CUIRect Temp;
@@ -1183,14 +1504,22 @@ void CMenus::DoButton_KeySelect(const void *pID, const char *pText, int Checked,
 	FontSize = FitLabelFontSize(TextRender(), pText, FontSize, Temp.w);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	UI()->DoLabel(&Temp, pText, FontSize, 0);
+	if(ControllerConsumeActivation(pID))
+	{
+		m_Binder.m_TakeKey = true;
+		m_Binder.m_GotKey = false;
+		UI()->SetActiveItem(pID);
+	}
 }
 
 int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Corners)
 {
 	(void)Corners;
+	ControllerRegisterFocus(pID, pRect);
+	const bool Focused = ControllerIsFocused(pID);
 	const bool IsQuit = str_comp(pText, Localize("Quit")) == 0;
 	const float Hover = AnimHover(pID);
-	const float Sel = AnimSelected(pID, Checked);
+	const float Sel = AnimSelected(pID, Checked || Focused);
 	const float Press = AnimPressed(pID);
 	CUIRect VisualRect = *pRect;
 	VisualRect.x += Hover * 0.6f;
@@ -1254,12 +1583,14 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 	UI()->DoLabel(&Temp, pText, FontSize, 0);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
+	return UI()->DoButtonLogic(pID, pText, Checked, pRect) || ControllerConsumeActivation(pID);
 }
 
 int CMenus::DoButton_GridHeader(const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Interactive)
 {
-	const float Sel = AnimSelected(pID, Checked);
+	if(Interactive)
+		ControllerRegisterFocus(pID, pRect);
+	const float Sel = AnimSelected(pID, Checked || ControllerIsFocused(pID));
 	const float Hover = AnimHover(pID);
 	if(Sel > 0.02f || Hover > 0.02f)
 	{
@@ -1280,11 +1611,12 @@ int CMenus::DoButton_GridHeader(const void *pID, const char *pText, int Checked,
 	pRect->VSplitLeft(5.0f, 0, &t);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	UI()->DoLabel(&t, pText, min(pRect->h * ms_FontmodHeight, 12.0f), -1);
-	return Interactive ? UI()->DoButtonLogic(pID, pText, Checked, pRect) : 0;
+	return Interactive ? UI()->DoButtonLogic(pID, pText, Checked, pRect) || ControllerConsumeActivation(pID) : 0;
 }
 
 int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect)
 {
+	ControllerRegisterFocus(pID, pRect);
 	CUIRect c = *pRect;
 	CUIRect t = *pRect;
 	c.w = c.h;
@@ -1294,7 +1626,7 @@ int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const c
 
 	const float Hover = AnimHover(pID);
 	const bool Checked = pBoxText[0] == 'X';
-	const float Sel = AnimSelected(pID, Checked);
+	const float Sel = AnimSelected(pID, Checked || ControllerIsFocused(pID));
 
 	c.Margin(2.0f, &c);
 	vec4 BoxFill = vec4(0.05f, 0.06f, 0.08f, 0.95f);
@@ -1316,7 +1648,7 @@ int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const c
 	TextRender()->TextColor(0.96f, 0.96f, 0.94f, 1.0f);
 	UI()->DoLabel(&t, pText, min(pRect->h * ms_FontmodHeight * 0.8f, 13.0f), -1);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
-	return UI()->DoButtonLogic(pID, pText, 0, pRect);
+	return UI()->DoButtonLogic(pID, pText, 0, pRect) || ControllerConsumeActivation(pID);
 }
 
 int CMenus::DoButton_CheckBox(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
@@ -1378,11 +1710,16 @@ int CMenus::DoEditBox(void *pID,
 	if(!pLineInput)
 		return 0;
 
+	ControllerRegisterFocus(pID, pRect, CONTROLLER_FOCUS_EDIT);
+	if(ControllerConsumeActivation(pID))
+		UI()->SetActiveItem(pLineInput);
+
 	pLineInput->SetHidden(Hidden);
 	if(Offset)
 		pLineInput->SetScrollOffset(*Offset);
 
-	const float Focus = max(AnimHover(pID), UI()->LastActiveItem() == pLineInput ? 1.0f : 0.0f);
+	const float Focus = max(AnimHover(pID), max(ControllerIsFocused(pID) ? 1.0f : 0.0f,
+		UI()->LastActiveItem() == pLineInput ? 1.0f : 0.0f));
 	vec4 EditFill = vec4(0.04f, 0.05f, 0.06f, 0.95f);
 	vec4 EditBorder = MixColor(vec4(0.18f, 0.20f, 0.24f, 0.95f), ms_ColorAccent, Focus);
 	DrawMenuBorder(pRect, EditFill, EditBorder, Corners, ms_ControlRounding);
@@ -1398,6 +1735,7 @@ int CMenus::DoEditBox(void *pID,
 
 float CMenus::DoScrollbarV(const void *pID, const CUIRect *pRect, float Current)
 {
+	ControllerRegisterFocus(pID, pRect, CONTROLLER_FOCUS_SLIDER_V);
 	CUIRect Handle;
 	static float OffsetY;
 	pRect->HSplitTop(33, &Handle, 0);
@@ -1430,6 +1768,9 @@ float CMenus::DoScrollbarV(const void *pID, const CUIRect *pRect, float Current)
 			OffsetY = UI()->MouseY() - Handle.y;
 		}
 	}
+	int ControllerDirection = 0;
+	if(ControllerConsumeAdjustment(pID, &ControllerDirection))
+		ReturnValue = clamp(Current + ControllerDirection * 0.05f, 0.0f, 1.0f);
 
 	if(Inside)
 		UI()->SetHotItem(pID);
@@ -1459,6 +1800,7 @@ float CMenus::DoScrollbarV(const void *pID, const CUIRect *pRect, float Current)
 
 float CMenus::DoScrollbarH(const void *pID, const CUIRect *pRect, float Current)
 {
+	ControllerRegisterFocus(pID, pRect, CONTROLLER_FOCUS_SLIDER_H);
 	CUIRect Handle;
 	static float OffsetX;
 	pRect->VSplitLeft(33, &Handle, 0);
@@ -1491,6 +1833,9 @@ float CMenus::DoScrollbarH(const void *pID, const CUIRect *pRect, float Current)
 			OffsetX = UI()->MouseX() - Handle.x;
 		}
 	}
+	int ControllerDirection = 0;
+	if(ControllerConsumeAdjustment(pID, &ControllerDirection))
+		ReturnValue = clamp(Current + ControllerDirection * 0.05f, 0.0f, 1.0f);
 
 	if(Inside)
 		UI()->SetHotItem(pID);
@@ -1524,6 +1869,7 @@ float CMenus::DoIndependentDropdownMenu(
 	CUIRect View = *pRect;
 	CUIRect Header;
 	View.HSplitTop(HeaderHeight, &Header, &View);
+	ControllerRegisterFocus(pID, &Header);
 
 	RenderTools()->DrawUIRect(
 		&Header, vec4(0.06f, 0.07f, 0.09f, 0.95f), *pActive ? CUI::CORNER_T : CUI::CORNER_ALL, ms_ControlRounding);
@@ -1545,7 +1891,8 @@ float CMenus::DoIndependentDropdownMenu(
 	UI()->DoLabel(&Header, pStr, min(HeaderHeight * 0.65f, 12.0f), -1);
 
 	const bool HeaderClipped = m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(Header);
-	if(!HeaderClipped && UI()->DoButtonLogic(pID, &Header))
+	if(!HeaderClipped &&
+		(UI()->DoButtonLogic(pID, &Header) || ControllerConsumeActivation(pID)))
 		*pActive ^= 1;
 
 	if(*pActive)
@@ -1862,25 +2209,57 @@ int CMenus::RenderMenubar(CUIRect r)
 	const char **apLabels = Offline ? apOfflineLabels : apGameLabels;
 	const int *pPages = Offline ? aOfflinePages : aGamePages;
 	const int Count = Offline ? 7 : 9;
+	// Directional input belongs to the page content. The rail remains a mouse
+	// target, while LB/RB provide a predictable controller route between pages.
+	const bool ControllerOwnsContent = m_LastInputDevice != 0;
 	static int s_aNavigationButtons[9];
 	static int s_BackToHome;
 	static int s_QuitButton;
-
-	for(int i = 0; i < m_NumInputEvents; i++)
+	int NewPage = -1;
+	m_ControllerFocusRegistrationEnabled = false;
+	auto NavigationIndexForPage = [&]()
 	{
-		const IInput::CEvent &Event = m_aInputEvents[i];
-		if(!(Event.m_Flags & IInput::FLAG_PRESS))
-			continue;
-		const bool Up = Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP ||
-			Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT;
-		const bool Down = Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN ||
-			Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT;
-		if(Up || Down)
-			m_NavigationHasFocus = true;
-		if(m_NavigationHasFocus && Up)
-			m_NavigationFocus = (m_NavigationFocus + Count - 1) % Count;
-		if(m_NavigationHasFocus && Down)
-			m_NavigationFocus = (m_NavigationFocus + 1) % Count;
+		for(int i = 0; i < Count; i++)
+			if(pPages[i] == m_ActivePage)
+				return i;
+		// The offline Play tabs share one top-level destination in the rail.
+		if(Offline && pPages[0] == PAGE_LOCAL_SERVER &&
+			(m_ActivePage == PAGE_INTERNET || m_ActivePage == PAGE_LAN || m_ActivePage == PAGE_FAVORITES))
+			return 0;
+		if(Offline && pPages[4] == PAGE_MODS && m_ActivePage == PAGE_STEAM)
+			return 4;
+		return -1;
+	};
+
+	if(m_ControllerTabDirection)
+	{
+		m_NavigationHasFocus = true;
+		const int CurrentNavigation = NavigationIndexForPage();
+		if(CurrentNavigation >= 0)
+			m_NavigationFocus = CurrentNavigation;
+		m_NavigationFocus = (m_NavigationFocus + (m_ControllerTabDirection > 0 ? 1 : Count - 1)) % Count;
+		NewPage = pPages[m_NavigationFocus];
+		m_ControllerTabDirection = 0;
+	}
+
+	if(!ControllerOwnsContent)
+	{
+		for(int i = 0; i < m_NumInputEvents; i++)
+		{
+			const IInput::CEvent &Event = m_aInputEvents[i];
+			if(!(Event.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT)))
+				continue;
+			const bool Up = Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP ||
+				Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT;
+			const bool Down = Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN ||
+				Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT;
+			if(Up || Down)
+				m_NavigationHasFocus = true;
+			if(m_NavigationHasFocus && Up)
+				m_NavigationFocus = (m_NavigationFocus + Count - 1) % Count;
+			if(m_NavigationHasFocus && Down)
+				m_NavigationFocus = (m_NavigationFocus + 1) % Count;
+		}
 	}
 	m_NavigationFocus = clamp(m_NavigationFocus, 0, Count - 1);
 
@@ -1910,7 +2289,6 @@ int CMenus::RenderMenubar(CUIRect r)
 	}
 
 	NavigationItems.Margin(6.0f, &NavigationItems);
-	int NewPage = -1;
 	for(int i = 0; i < Count; i++)
 	{
 		CUIRect Button;
@@ -1918,14 +2296,14 @@ int CMenus::RenderMenubar(CUIRect r)
 		NavigationItems.HSplitTop(Height, &Button, &NavigationItems);
 		Button.VMargin(1.5f, &Button);
 		const char *pText = Localize(apLabels[i]);
-		const bool Focused = m_NavigationHasFocus && m_NavigationFocus == i;
+		const bool Focused = !ControllerOwnsContent && m_NavigationHasFocus && m_NavigationFocus == i;
 		const bool PageSelected = pPages[i] == m_ActivePage;
 		const bool Activated = DoButton_Menu(&s_aNavigationButtons[i],
 											 pText,
 											 PageSelected || Focused,
 											 &Button,
-											 pPages[i] == -3 ? BUTTONSTYLE_DANGER : BUTTONSTYLE_GHOST) ||
-							   (Focused && m_LastInputDevice != 0 && m_EnterPressed);
+															pPages[i] == -3 ? BUTTONSTYLE_DANGER : BUTTONSTYLE_GHOST) ||
+							   (!ControllerOwnsContent && Focused && m_LastInputDevice != 0 && m_EnterPressed);
 		const float SelectedAmount = AnimSelected(&s_aNavigationButtons[i], PageSelected || Focused, 0.0f);
 		if(SelectedAmount > 0.01f)
 		{
@@ -1980,20 +2358,31 @@ int CMenus::RenderMenubar(CUIRect r)
 	CUIRect Status, Quit;
 	StatusArea.HSplitTop(28.0f, &Status, &Quit);
 	DrawStatusBadge(Status, aIdentity, ms_ColorAccentDim);
+	if(m_LastInputDevice != 0)
+	{
+		CUIRect Hints;
+		Quit.HSplitBottom(22.0f, &Quit, &Hints);
+		CUIRect SelectHint, PageHint;
+		Hints.HSplitTop(11.0f, &SelectHint, &PageHint);
+		TextRender()->TextColor(ms_ColorAccentDim.r, ms_ColorAccentDim.g, ms_ColorAccentDim.b, .82f);
+		UI()->DoLabelScaled(&SelectHint, Localize("A Select / B Back"), 6.5f, -1);
+		UI()->DoLabelScaled(&PageHint, Localize("LB/RB Pages"), 6.5f, -1);
+		TextRender()->TextColor(1, 1, 1, 1);
+	}
 	if(Offline)
 	{
 		if(DoButton_Menu(&s_QuitButton, Localize("Quit"), 0, &Quit, BUTTONSTYLE_GHOST))
 			m_Popup = POPUP_QUIT;
 	}
 
-		if(NewPage != -1)
+	if(NewPage != -1)
+	{
+		if(Client()->State() == IClient::STATE_OFFLINE)
 		{
-			if(Client()->State() == IClient::STATE_OFFLINE)
-			{
-				if(NewPage == PAGE_RESEARCH)
-					OpenResearchPage();
-				else
-					g_Config.m_UiPage = NewPage;
+			if(NewPage == PAGE_RESEARCH)
+				OpenResearchPage();
+			else
+				g_Config.m_UiPage = NewPage;
 			if(NewPage == PAGE_LOCAL_SERVER)
 			{
 				m_PlayTab = 1;
@@ -2001,12 +2390,12 @@ int CMenus::RenderMenubar(CUIRect r)
 				m_LocalServerFocus = g_Config.m_ClLocalServerMode;
 			}
 		}
+		else
+		{
+			if(NewPage == PAGE_RESEARCH)
+				OpenResearchPage();
 			else
-			{
-				if(NewPage == PAGE_RESEARCH)
-					OpenResearchPage();
-				else
-					m_GamePage = NewPage;
+				m_GamePage = NewPage;
 			if(NewPage == PAGE_LOCAL_SERVER)
 			{
 				m_PlayTab = 1;
@@ -3486,6 +3875,11 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	static int s_ChallengeTextSeed = -1;
 	static int s_ChallengeTextVariants = -1;
 	static int s_ChVLowGrav, s_ChVNoBuild, s_ChVMelee, s_ChVDark;
+	auto ConfirmMode = [&]() {
+		ApplyLocalGameModeDefaults(m_LocalServerFocus);
+		m_CreateRoomPreviousSlots = g_Config.m_ClLocalServerMaxClients;
+		m_CreateRoomStep = CREATE_ROOM_CONFIGURE;
+	};
 	const float LayoutDivisor = max(1.0f, UI()->Scale());
 	auto L = [LayoutDivisor](float Value)
 	{
@@ -3493,19 +3887,19 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	};
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
 	const bool SteamAvailable = pPlatform && pPlatform->Available();
-	if(!CLineInput::GetActiveInput())
+	if(!CLineInput::GetActiveInput() && !ControllerUsesWidgetFocus())
 	{
 		for(int EventIndex = 0; EventIndex < m_NumInputEvents; EventIndex++)
 		{
 			const IInput::CEvent &Event = m_aInputEvents[EventIndex];
-			if(!(Event.m_Flags & IInput::FLAG_PRESS))
+			if(!(Event.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT)))
 				continue;
-			const bool Left = Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT;
-			const bool Right = Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT;
-			const bool Up = Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP;
-			const bool Down = Event.m_Key == KEY_DOWN || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN;
-			const bool Confirm =
-				Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A;
+			const int Action = ControllerInputAction(Event);
+			const bool Left = Action == MENU_CONTROLLER_LEFT;
+			const bool Right = Action == MENU_CONTROLLER_RIGHT;
+			const bool Up = Action == MENU_CONTROLLER_UP;
+			const bool Down = Action == MENU_CONTROLLER_DOWN;
+			const bool Confirm = Action == MENU_CONTROLLER_CONFIRM;
 			if(Event.m_Key == KEY_GAMEPAD_BUTTON_B)
 			{
 				if(m_CreateRoomStep == CREATE_ROOM_CONFIGURE)
@@ -3534,9 +3928,8 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 				}
 				else if(Confirm)
 				{
-					ApplyLocalGameModeDefaults(m_LocalServerFocus);
-					m_CreateRoomPreviousSlots = g_Config.m_ClLocalServerMaxClients;
-					m_CreateRoomStep = CREATE_ROOM_CONFIGURE;
+					ConfirmMode();
+					m_EnterPressed = false;
 				}
 			}
 			else if(Left || Right)
@@ -3561,6 +3954,10 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	{
 		if(m_CreateRoomStep == CREATE_ROOM_CONFIGURE)
 			m_CreateRoomStep = CREATE_ROOM_CHOOSE_MODE;
+		else if(Client()->State() == IClient::STATE_OFFLINE)
+			g_Config.m_UiPage = PAGE_INTERNET;
+		else
+			m_GamePage = PAGE_GAME;
 		m_EscapePressed = false;
 	}
 	if(m_CreateRoomStep != m_LastCreateRoomStep)
@@ -3582,42 +3979,44 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	}
 	s_CardAnimTimer = SmoothToward(s_CardAnimTimer, 1.0f, StepDt, 6.0f);
 
+	const bool ChoosingMode = m_CreateRoomStep == CREATE_ROOM_CHOOSE_MODE;
 	CUIRect StepRail, Workspace;
-	const float StepRailWidth = L(150.0f);
-	MainView.VSplitLeft(StepRailWidth, &StepRail, &Workspace);
-	Workspace.VSplitLeft(L(10.0f), 0, &Workspace);
-	DrawTechShape(&StepRail, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .20f), 10.0f);
-	DrawTechOutline(&StepRail,
-					vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .24f),
-					vec4(0.0f, 0.02f, 0.04f, .18f),
-					10.0f);
-	StepRail.Margin(L(9.0f), &StepRail);
-	CUIRect StepTitle, StepBody;
-	StepRail.HSplitTop(L(34.0f), &StepTitle, &StepBody);
-	UI()->DoLabelScaled(&StepTitle, Localize("Create room"), 14.0f, -1);
-	DrawAccentUnderline(&StepTitle);
-	static int s_StepModeButton, s_StepConfigureButton;
-	const char *apStepNames[] = {Localize("Choose a game mode"), Localize("Configure room")};
-	int *pStepIDs[] = {&s_StepModeButton, &s_StepConfigureButton};
-	for(int Step = 0; Step < 2; Step++)
+	Workspace = MainView;
+	if(!ChoosingMode)
 	{
-		CUIRect StepRect;
-		StepBody.HSplitTop(L(44.0f), &StepRect, &StepBody);
-		StepRect.HSplitBottom(L(5.0f), &StepRect, 0);
-		char aStepLabel[128];
-		str_format(aStepLabel, sizeof(aStepLabel), "%02d  %s", Step + 1, apStepNames[Step]);
-		const bool Selected = m_CreateRoomStep == Step;
-		const bool Enabled = Step == 0 || m_CreateRoomStep == CREATE_ROOM_CONFIGURE;
-		if(DoButton_Menu(pStepIDs[Step], aStepLabel, Selected, &StepRect,
-						 Enabled ? (Selected ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST) : BUTTONSTYLE_GHOST) &&
-			Enabled)
+		const float StepRailWidth = L(150.0f);
+		MainView.VSplitLeft(StepRailWidth, &StepRail, &Workspace);
+		Workspace.VSplitLeft(L(10.0f), 0, &Workspace);
+		DrawTechShape(&StepRail, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .20f), 10.0f);
+		DrawTechOutline(&StepRail,
+						vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .24f),
+						vec4(0.0f, 0.02f, 0.04f, .18f),
+						10.0f);
+		StepRail.Margin(L(9.0f), &StepRail);
+		CUIRect StepTitle, StepBody;
+		StepRail.HSplitTop(L(34.0f), &StepTitle, &StepBody);
+		UI()->DoLabelScaled(&StepTitle, Localize("Create room"), 14.0f, -1);
+		DrawAccentUnderline(&StepTitle);
+		static int s_StepModeButton, s_StepConfigureButton;
+		const char *apStepNames[] = {Localize("Choose a game mode"), Localize("Configure room")};
+		int *pStepIDs[] = {&s_StepModeButton, &s_StepConfigureButton};
+		for(int Step = 0; Step < 2; Step++)
 		{
-			m_CreateRoomStep = Step;
+			CUIRect StepRect;
+			StepBody.HSplitTop(L(44.0f), &StepRect, &StepBody);
+			StepRect.HSplitBottom(L(5.0f), &StepRect, 0);
+			char aStepLabel[128];
+			str_format(aStepLabel, sizeof(aStepLabel), "%02d  %s", Step + 1, apStepNames[Step]);
+			const bool Selected = m_CreateRoomStep == Step;
+			const bool Enabled = Step == 0 || m_CreateRoomStep == CREATE_ROOM_CONFIGURE;
+			if(DoButton_Menu(pStepIDs[Step], aStepLabel, Selected, &StepRect,
+							 Enabled ? (Selected ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST) : BUTTONSTYLE_GHOST) &&
+				Enabled)
+			{
+				m_CreateRoomStep = Step;
+			}
 		}
-	}
-	StepBody.HSplitTop(L(10.0f), 0, &StepBody);
-	if(m_CreateRoomStep == CREATE_ROOM_CONFIGURE)
-	{
+		StepBody.HSplitTop(L(10.0f), 0, &StepBody);
 		const int RailMode = clamp(g_Config.m_ClLocalServerMode, (int)LOCAL_MODE_INVASION, (int)LOCAL_MODE_COUNT - 1);
 		DrawStatusBadge(StepBody, Localize(LocalGameMode(RailMode).m_pName), ms_ColorAccentDim);
 	}
@@ -3649,6 +4048,11 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 
 	if(m_CreateRoomStep == CREATE_ROOM_CHOOSE_MODE)
 	{
+		ControllerSetPreferredFocus(&s_aModeButtons[clamp(m_LocalServerFocus, 0, LOCAL_MODE_COUNT - 1)]);
+		CUIRect Hint;
+		Body.HSplitTop(L(22.0f), &Hint, &Body);
+		UI()->DoLabelScaled(&Hint, Localize("Select a mode, then continue."), 10.0f, -1);
+		Body.HSplitTop(L(4.0f), 0, &Body);
 		Body.HMargin(L(6.0f), &Body);
 		CUIRect ModeGrid, ModePreview;
 		const bool HasPreview = Body.w >= 660.0f;
@@ -3710,12 +4114,9 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 				Card.y += (1.0f - Fade) * L(10.0f);
 
 				// button underneath, renders selection border when focused
-				if(DoButton_Menu(&s_aModeButtons[Mode], "", Selected, &Card, BUTTONSTYLE_ACCENT))
-				{
-					ApplyLocalGameModeDefaults(Mode);
-					m_CreateRoomPreviousSlots = g_Config.m_ClLocalServerMaxClients;
-					m_CreateRoomStep = CREATE_ROOM_CONFIGURE;
-				}
+				if(DoButton_Menu(&s_aModeButtons[Mode], "", Selected, &Card,
+								Selected ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+					m_LocalServerFocus = Mode;
 
 				// card visual on top
 				CUIRect Inner = Card;
@@ -3753,7 +4154,28 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 		s_ModeScrollRegion.End();
 		DrawMenuInset(&Footer, CUI::CORNER_ALL);
 		Footer.Margin(L(9.0f), &Footer);
-		UI()->DoLabelScaled(&Footer, Localize("Training is available from the Play hub."), 10.0f, -1);
+		if(ChoosingMode)
+		{
+			CUIRect FooterHint, FooterAction;
+			Footer.VSplitRight(L(132.0f), &FooterHint, &FooterAction);
+			CUIRect SelectionLabel, TrainingLabel;
+			FooterHint.HSplitTop(L(22.0f), &SelectionLabel, &TrainingLabel);
+			char aSelection[96];
+			str_format(aSelection,
+					   sizeof(aSelection),
+					   "%s: %s",
+					   Localize("Selected"),
+					   Localize(LocalGameMode(m_LocalServerFocus).m_pName));
+			UI()->DoLabelScaled(&SelectionLabel, aSelection, 11.0f, -1);
+			TrainingLabel.VMargin(L(2.0f), &TrainingLabel);
+			UI()->DoLabelScaled(&TrainingLabel, Localize("Training is available from the Play hub."), 9.0f, -1);
+			FooterAction.VMargin(L(4.0f), &FooterAction);
+			static int s_ContinueMode;
+			if(DoButton_Menu(&s_ContinueMode, Localize("Continue"), 0, &FooterAction, BUTTONSTYLE_ACCENT))
+				ConfirmMode();
+		}
+		else
+			UI()->DoLabelScaled(&Footer, Localize("Training is available from the Play hub."), 10.0f, -1);
 		if(HasPreview)
 		{
 			const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
@@ -4370,15 +4792,14 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		for(int EventIndex = 0; EventIndex < m_NumInputEvents; EventIndex++)
 		{
 			const IInput::CEvent &Event = m_aInputEvents[EventIndex];
-			if(!(Event.m_Flags & IInput::FLAG_PRESS))
+			if(!(Event.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT)))
 				continue;
-			const bool Up = Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP;
-			const bool Down =
-				Event.m_Key == KEY_DOWN || Event.m_Key == KEY_TAB || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN;
-			const bool Left = Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT;
-			const bool Right = Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT;
-			const bool Confirm = Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER ||
-								 Event.m_Key == KEY_GAMEPAD_BUTTON_A || Event.m_Key == KEY_GAMEPAD_BUTTON_START;
+			const int Action = ControllerInputAction(Event);
+			const bool Up = Action == MENU_CONTROLLER_UP;
+			const bool Down = Action == MENU_CONTROLLER_DOWN;
+			const bool Left = Action == MENU_CONTROLLER_LEFT;
+			const bool Right = Action == MENU_CONTROLLER_RIGHT;
+			const bool Confirm = Action == MENU_CONTROLLER_CONFIRM;
 			if(Event.m_Key == KEY_GAMEPAD_BUTTON_B)
 			{
 				if(s_LocalSection != 0)
@@ -4877,7 +5298,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 							   ? aPreviewSummary
 							   : m_aLocalServerSummary;
 	UI()->DoLabelScaled(&SummaryLine, pSummary, 8.5f, -1, (int)SummaryLine.w);
-	const char *pDetail = Localize("Arrows / D-pad: select and adjust · Enter / A: confirm");
+	const char *pDetail = Localize("D-pad / arrows: move  A / Enter: select  B / Esc: back");
 	if(m_LocalServerState == LOCAL_SERVER_FAILED)
 	{
 		if(m_LocalServerExitCode == LOCAL_SERVER_ERROR_PORT)
@@ -4954,6 +5375,11 @@ void CMenus::RenderFront(CUIRect MainView)
 	const float dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
 	const float ResponsiveWidth = UI()->Screen()->w / max(1.0f, UI()->Scale());
 	const bool Compact = ResponsiveWidth < 760.0f || MainView.h < L(480.0f);
+	if(m_ControllerTabDirection)
+	{
+		m_HomeActionFocus = (m_HomeActionFocus + (m_ControllerTabDirection > 0 ? 1 : 3)) % 4;
+		m_ControllerTabDirection = 0;
+	}
 	CUIRect Canvas = MainView;
 	Canvas.Margin(L(12.0f), &Canvas);
 
@@ -5005,12 +5431,13 @@ void CMenus::RenderFront(CUIRect MainView)
 	if(!Compact)
 		DrawStatusBadge(ServerBadge, Localize(pServerStatus), ServerColor);
 
-	// Keyboard and gamepad focus belongs to the four deployment actions. Mouse
-	// movement switches back to hover-only disclosure through OnMouseMove().
+	// The global controller focus owns the four deployment actions. Keep the
+	// local fallback for a mouse/keyboard-only build or the first frame.
+	if(!ControllerUsesWidgetFocus())
 	for(int EventIndex = 0; EventIndex < m_NumInputEvents; EventIndex++)
 	{
 		const IInput::CEvent &Event = m_aInputEvents[EventIndex];
-		if(!(Event.m_Flags & IInput::FLAG_PRESS))
+		if(!(Event.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT)))
 			continue;
 		if(Event.m_Key == KEY_UP || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_UP)
 			m_HomeActionFocus = (m_HomeActionFocus + 3) % 4;
@@ -5033,6 +5460,7 @@ void CMenus::RenderFront(CUIRect MainView)
 	UI()->DoLabelScaled(&HeadingTitle, Localize("Choose how to deploy"), L(16.0f), -1);
 
 	static int s_aActionButtons[4];
+	ControllerSetPreferredFocus(&s_aActionButtons[clamp(m_HomeActionFocus, 0, 3)]);
 	const char *apTitles[4] = {Primary.m_pTitle, "Browse rooms", "Quick match", "Training"};
 	const char *apCategories[4] = {"RECOMMENDED ACTION", "MULTIPLAYER · COMMUNITY", "SOLO · 1 CLICK", "SOLO · 30–45 MIN"};
 	const char *apDescriptions[4] = {Primary.m_pDescription,
@@ -5051,7 +5479,8 @@ void CMenus::RenderFront(CUIRect MainView)
 	for(int i = 0; i < 4; i++)
 	{
 		aActionRects[i] = {ActionList.x, ActionList.y + i * (RowHeight + RowGap), ActionList.w, RowHeight};
-		const bool KeyboardSelected = m_LastInputDevice != 0 && m_HomeActionFocus == i;
+		const bool KeyboardSelected = ControllerUsesWidgetFocus() ? ControllerIsFocused(&s_aActionButtons[i])
+																				: m_LastInputDevice != 0 && m_HomeActionFocus == i;
 		const bool MouseInside = m_LastInputDevice == 0 && UI()->MouseInside(&aActionRects[i]);
 		if(MouseInside)
 			HoveredAction = i;
@@ -5101,7 +5530,10 @@ void CMenus::RenderFront(CUIRect MainView)
 						FitScaledLabelFontSize(TextRender(), pTitle, L(17.0f), Title.w, UI()->Scale()),
 						-1);
 		TextRender()->TextColor(1, 1, 1, 1);
-		aActionClicks[i] = UI()->DoButtonLogic(&s_aActionButtons[i], pTitle, 0, &aActionRects[i]) != 0;
+		aActionClicks[i] = UI()->DoButtonLogic(&s_aActionButtons[i], pTitle, 0, &aActionRects[i]) != 0 ||
+			ControllerConsumeActivation(&s_aActionButtons[i]);
+		if(KeyboardSelected)
+			m_HomeActionFocus = i;
 	}
 
 	const int DetailAction = m_LastInputDevice == 0 ? HoveredAction : m_HomeActionFocus;
@@ -5157,7 +5589,7 @@ void CMenus::RenderFront(CUIRect MainView)
 		TextRender()->TextColor(1, 1, 1, 1);
 	}
 
-	if(m_LastInputDevice != 0 && m_EnterPressed)
+	if(!ControllerUsesWidgetFocus() && m_LastInputDevice != 0 && m_EnterPressed)
 	{
 		aActionClicks[m_HomeActionFocus] = true;
 		m_EnterPressed = false;
@@ -5213,7 +5645,9 @@ void CMenus::RenderFront(CUIRect MainView)
 		BottomRail.VSplitLeft(Width, &Utility, &BottomRail);
 		if(i < 5)
 			BottomRail.VSplitLeft(UtilityGap, 0, &BottomRail);
-		const float Hover = AnimHover(&s_aUtilityButtons[i], 18.0f);
+		ControllerRegisterFocus(&s_aUtilityButtons[i], &Utility);
+		const bool Focused = ControllerIsFocused(&s_aUtilityButtons[i]);
+		const float Hover = max(AnimHover(&s_aUtilityButtons[i], 18.0f), Focused ? 1.0f : 0.0f);
 		const vec4 Color = i == 5 ? ms_ColorDanger : ms_ColorAccent;
 		CUIRect UtilityNode = {Utility.x + L(5.0f), Utility.y + Utility.h * .5f - L(2.0f), L(4.0f), L(4.0f)};
 		vec4 UtilityNodeColor = Color;
@@ -5245,7 +5679,8 @@ void CMenus::RenderFront(CUIRect MainView)
 						FitScaledLabelFontSize(TextRender(), pLabel, L(8.5f), Utility.w - L(3.0f), UI()->Scale()),
 						0);
 		TextRender()->TextColor(1, 1, 1, 1);
-		if(UI()->DoButtonLogic(&s_aUtilityButtons[i], pLabel, 0, &Utility))
+		if(UI()->DoButtonLogic(&s_aUtilityButtons[i], pLabel, 0, &Utility) ||
+			ControllerConsumeActivation(&s_aUtilityButtons[i]))
 		{
 			if(aUtilityPages[i] >= 0)
 			{
@@ -6118,6 +6553,26 @@ void CMenus::RenderPlay(CUIRect MainView)
 	static float s_Scroll = 0.0f;
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
 
+	// Browse, create and friends are one Play surface. Left/right changes the
+	// visible Play tab; up/down enters the room list and keeps the rail out of
+	// the content focus chain.
+	if(m_PlayTab == 0 && m_LastInputDevice != 0 && !CLineInput::GetActiveInput() && !m_PlayFiltersOpen)
+		m_PlayListHasFocus = true;
+	if(m_PlayTab != 1 && m_LastInputDevice != 0 && !CLineInput::GetActiveInput())
+	{
+		for(int EventIndex = 0; EventIndex < m_NumInputEvents; EventIndex++)
+		{
+			const int Action = ControllerInputAction(m_aInputEvents[EventIndex]);
+			if(Action == MENU_CONTROLLER_UP || Action == MENU_CONTROLLER_DOWN)
+				m_PlayListHasFocus = true;
+			else if(Action == MENU_CONTROLLER_LEFT || Action == MENU_CONTROLLER_RIGHT)
+			{
+				m_PlayListHasFocus = false;
+				m_PlayTab = (m_PlayTab + (Action == MENU_CONTROLLER_RIGHT ? 1 : 2)) % 3;
+			}
+		}
+	}
+
 	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
 	MainView.Margin(10.0f, &MainView);
 	const CUIRect PageBounds = MainView;
@@ -6454,12 +6909,12 @@ void CMenus::RenderPlay(CUIRect MainView)
 	const int SelectionBeforeKeyboard = s_Selected;
 	if(m_PlayListHasFocus && !m_PlayFiltersOpen)
 		for(int i = 0; i < m_NumInputEvents; i++)
-			if(m_aInputEvents[i].m_Flags & IInput::FLAG_PRESS)
+			if(m_aInputEvents[i].m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT))
 			{
-				const int Key = m_aInputEvents[i].m_Key;
-				if((Key == KEY_UP || Key == KEY_GAMEPAD_BUTTON_DPAD_UP) && s_Selected > 0)
+				const int Action = ControllerInputAction(m_aInputEvents[i]);
+				if(Action == MENU_CONTROLLER_UP && s_Selected > 0)
 					s_Selected--;
-				if((Key == KEY_DOWN || Key == KEY_GAMEPAD_BUTTON_DPAD_DOWN) && s_Selected + 1 < EntryCount)
+				if(Action == MENU_CONTROLLER_DOWN && s_Selected + 1 < EntryCount)
 					s_Selected++;
 			}
 	if(s_Selected >= 0 && s_Selected != SelectionBeforeKeyboard)
@@ -6757,6 +7212,11 @@ void CMenus::RenderPlay(CUIRect MainView)
 			m_PlayDetailOpen = false;
 			m_EscapePressed = false;
 		}
+	}
+	if(m_EscapePressed && !m_PlayFiltersOpen && !m_PlayDetailOpen)
+	{
+		g_Config.m_UiPage = PAGE_FRONT;
+		m_EscapePressed = false;
 	}
 
 	if(m_PlayFiltersOpen)
@@ -7983,6 +8443,8 @@ void CMenus::RenderMods(CUIRect MainView)
 
 int CMenus::Render()
 {
+	ControllerBeginFrame();
+	const int OfflinePageBeforeRender = Client()->State() == IClient::STATE_OFFLINE ? g_Config.m_UiPage : -1;
 	CUIRect Screen = *UI()->Screen();
 	Graphics()->MapScreen(Screen.x, Screen.y, Screen.w, Screen.h);
 	const float OpenDt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
@@ -8129,6 +8591,15 @@ int CMenus::Render()
 			RenderMods(MainView);
 		else if(g_Config.m_UiPage == PAGE_CUSTOMIZE)
 			RenderCustomize(MainView);
+
+		// Pages with their own list model may consume B/Esc themselves. If they
+		// leave it pending, apply the global parent-page fallback here.
+		if(m_EscapePressed && OfflinePageBeforeRender >= 0 && m_Popup == POPUP_NONE &&
+			g_Config.m_UiPage == OfflinePageBeforeRender && g_Config.m_UiPage != PAGE_FRONT)
+		{
+			g_Config.m_UiPage = PAGE_FRONT;
+			m_EscapePressed = false;
+		}
 
 		if(m_PageTransition < 0.999f)
 		{
@@ -8986,6 +9457,10 @@ int CMenus::Render()
 			UI()->SetActiveItem(0);
 	}
 
+	// Shoulder navigation is a one-frame command. Pages without the shared rail
+	// (popups and fullscreen research) must not leak it into the next screen.
+	m_ControllerTabDirection = 0;
+	ControllerCommitFrame();
 	return 0;
 }
 
@@ -9062,6 +9537,11 @@ void CMenus::SetActive(bool Active)
 		m_EscapePressed = false;
 		m_EnterPressed = false;
 		m_DeletePressed = false;
+		m_pControllerFocusID = 0;
+		m_pControllerActivationID = 0;
+		m_pControllerPreferredFocus = 0;
+		m_pControllerNextPreferredFocus = 0;
+		m_ControllerTabDirection = 0;
 		m_NumInputEvents = 0;
 
 		if(m_NeedSendinfo)
@@ -9099,6 +9579,8 @@ bool CMenus::OnMouseMove(float x, float y)
 	m_LastInput = time_get();
 	m_LastInputDevice = 0;
 	m_NavigationHasFocus = false;
+	m_pControllerFocusID = 0;
+	m_pControllerActivationID = 0;
 
 	if(!m_MenuActive)
 		return false;
@@ -9127,7 +9609,7 @@ bool CMenus::OnInput(IInput::CEvent e)
 	// special handle esc and enter for popup purposes
 	if(e.m_Flags & IInput::FLAG_PRESS)
 	{
-		if(e.m_Key == KEY_GAMEPAD_BUTTON_B && IsActive())
+		if((e.m_Key == KEY_GAMEPAD_BUTTON_B || e.m_Key == KEY_GAMEPAD_BUTTON_BACK) && IsActive())
 		{
 			m_EscapePressed = true;
 			const bool LocalGameSubpage =
@@ -9135,8 +9617,19 @@ bool CMenus::OnInput(IInput::CEvent e)
 				!(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER);
 			// Popups consume B/Escape first. Their render handlers clear or dismiss
 			// themselves below, so a confirmation cannot accidentally close the menu.
-			if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE && !LocalGameSubpage)
+			if(m_Popup == POPUP_NONE && IsResearchPageActive())
+			{
+				CloseResearchPage();
+				m_EscapePressed = false;
+			}
+			else if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE && !LocalGameSubpage)
 				SetActive(false);
+			else if(m_Popup == POPUP_NONE && Client()->State() == IClient::STATE_OFFLINE &&
+				g_Config.m_UiPage != PAGE_FRONT && !LocalGameSubpage)
+			{
+				if(g_Config.m_UiPage != PAGE_LOCAL_SERVER && ControllerUsesWidgetFocus())
+					g_Config.m_UiPage = PAGE_FRONT;
+			}
 			return true;
 		}
 		if(e.m_Key == KEY_ESCAPE && !CustomStuff()->m_Inventory)
@@ -9155,8 +9648,19 @@ bool CMenus::OnInput(IInput::CEvent e)
 				const bool LocalGameSubpage =
 					m_GamePage == PAGE_LOCAL_SERVER && m_CreateRoomStep == CREATE_ROOM_CONFIGURE &&
 					!(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER);
-				if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE && !LocalGameSubpage)
+				if(m_Popup == POPUP_NONE && IsResearchPageActive())
+				{
+					CloseResearchPage();
+					m_EscapePressed = false;
+				}
+				else if(m_Popup == POPUP_NONE && Client()->State() != IClient::STATE_OFFLINE && !LocalGameSubpage)
 					SetActive(false);
+				else if(m_Popup == POPUP_NONE && Client()->State() == IClient::STATE_OFFLINE &&
+					g_Config.m_UiPage != PAGE_FRONT && !LocalGameSubpage)
+				{
+					if(g_Config.m_UiPage != PAGE_LOCAL_SERVER && ControllerUsesWidgetFocus())
+						g_Config.m_UiPage = PAGE_FRONT;
+				}
 			}
 			else
 				SetActive(true);
@@ -9169,13 +9673,27 @@ bool CMenus::OnInput(IInput::CEvent e)
 		if(UI()->OnInput(e))
 			return true;
 
-		if(e.m_Flags & IInput::FLAG_PRESS)
+		if(e.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT))
 		{
+			const int ControllerAction = ControllerInputAction(e);
+			if((e.m_Flags & IInput::FLAG_PRESS) &&
+				(ControllerAction == MENU_CONTROLLER_PREVIOUS || ControllerAction == MENU_CONTROLLER_NEXT))
+			{
+				m_ControllerTabDirection = ControllerAction == MENU_CONTROLLER_NEXT ? 1 : -1;
+				return true;
+			}
+			if(ControllerHandleInput(e))
+				return true;
+
 			// special for popups
-			if(e.m_Key == KEY_RETURN || e.m_Key == KEY_KP_ENTER || e.m_Key == KEY_GAMEPAD_BUTTON_A)
-				m_EnterPressed = true;
-			else if(e.m_Key == KEY_DELETE)
-				m_DeletePressed = true;
+			if(e.m_Flags & IInput::FLAG_PRESS)
+			{
+				if(e.m_Key == KEY_RETURN || e.m_Key == KEY_KP_ENTER || e.m_Key == KEY_GAMEPAD_BUTTON_A ||
+					e.m_Key == KEY_GAMEPAD_BUTTON_START)
+					m_EnterPressed = true;
+				else if(e.m_Key == KEY_DELETE)
+					m_DeletePressed = true;
+			}
 		}
 
 		if(m_NumInputEvents < MAX_INPUTEVENTS)

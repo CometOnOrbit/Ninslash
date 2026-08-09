@@ -205,6 +205,15 @@ Area Shield
 Arrows / D-pad: select and adjust · Enter / A: confirm
 == 方向键 / 十字键：选择和调整 · 回车 / A：确认
 
+A Select / B Back
+== A 选择 / B 返回
+
+LB/RB Pages
+== LB/RB 切换页面
+
+D-pad / arrows: move  A / Enter: select  B / Esc: back
+== 十字键 / 方向键：移动  A / 回车：选择  B / Esc：返回
+
 Authenticating with Steam
 == 正在通过 Steam 验证
 
@@ -4720,6 +4729,9 @@ Configure room
 
 Step 1 of 2
 == 第 1 步，共 2 步
+
+Select a mode, then continue.
+== 选择一个模式，然后继续。
 
 Step 2 of 2
 == 第 2 步，共 2 步
