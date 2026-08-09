@@ -290,6 +290,21 @@ def cmake_configured_cxx_compiler(build_dir):
     return None
 
 
+def cmake_target_bits(build_dir):
+    cache = build_dir / "CMakeCache.txt"
+    contents = cache.read_text(encoding="utf-8", errors="replace")
+    match = re.search(r"^CMAKE_SIZEOF_VOID_P:INTERNAL=(4|8)$", contents, re.MULTILINE)
+    if match:
+        return {"4": "32", "8": "64"}[match.group(1)]
+    compiler_files = sorted((build_dir / "CMakeFiles").glob("*/CMakeCCompiler.cmake"))
+    for compiler_file in compiler_files:
+        compiler_contents = compiler_file.read_text(encoding="utf-8", errors="replace")
+        match = re.search(r'set\(CMAKE_C_SIZEOF_DATA_PTR "(4|8)"\)', compiler_contents)
+        if match:
+            return {"4": "32", "8": "64"}[match.group(1)]
+    return None
+
+
 def verify_steam_build(cache, description):
     contents = cache.read_text(encoding="utf-8", errors="replace")
     required = (
@@ -307,11 +322,17 @@ def verify_steam_build(cache, description):
         raise SystemExit(f"{description} is not a complete Steam release build; missing: {', '.join(missing)}")
 
 
-def configure_steam_build(build_dir, sdk_root, windows):
+def configure_steam_build(build_dir, sdk_root, windows, windows_bits="64"):
     if windows:
-        compiler = shutil.which("x86_64-w64-mingw32-g++-posix")
+        if windows_bits == "32":
+            compiler_names = ("i686-w64-mingw32-g++", "i686-w64-mingw32-g++-posix")
+            toolchain_name = "mingw32.toolchain"
+        else:
+            compiler_names = ("x86_64-w64-mingw32-g++-posix",)
+            toolchain_name = "mingw64.toolchain"
+        compiler = next((shutil.which(name) for name in compiler_names if shutil.which(name)), None)
         if not compiler:
-            raise SystemExit("Missing POSIX-thread MinGW64 compiler: x86_64-w64-mingw32-g++-posix")
+            raise SystemExit(f"Missing MinGW{windows_bits} C++ compiler: {compiler_names[0]}")
         cache = build_dir / "CMakeCache.txt"
         if cache.is_file():
             configured_compiler = cmake_configured_cxx_compiler(build_dir)
@@ -338,7 +359,7 @@ def configure_steam_build(build_dir, sdk_root, windows):
         "-DSTEAM_MACOS_SERVER_DEPOT_ID=5016794",
     ]
     if windows:
-        toolchain = required_file(ROOT / "cmake/toolchains/mingw64.toolchain", "MinGW64 CMake toolchain")
+        toolchain = required_file(ROOT / f"cmake/toolchains/{toolchain_name}", f"MinGW{windows_bits} CMake toolchain")
         command.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain}")
     run(command)
     cache = required_file(build_dir / "CMakeCache.txt", f"{'Windows' if windows else 'Linux'} CMake cache")
@@ -349,6 +370,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--linux-build-dir", default="build", help="Steam-enabled Linux CMake build directory")
     parser.add_argument("--windows-build-dir", default="build-windows-steam", help="Steam-enabled Windows CMake build directory")
+    parser.add_argument("--windows-bits", choices=("32", "64"), help="Windows Steam build width when configuring locally (default: 64)")
     parser.add_argument("--macos-client-depot", help="Pre-staged macOS client depot from a macOS builder")
     parser.add_argument("--macos-server-depot", help="Pre-staged macOS dedicated server depot from a macOS builder")
     parser.add_argument("--platforms", default="windows,linux,macos",
@@ -403,7 +425,20 @@ def main():
     build_output = output / "steampipe-output"
 
     linux_api = required_file(sdk_root / "redistributable_bin/linux64/libsteam_api.so", "Linux Steam API") if "linux" in platforms else None
-    windows_api = required_file(sdk_root / "redistributable_bin/win64/steam_api64.dll", "Windows Steam API") if "windows" in platforms else None
+    windows_bits = args.windows_bits or "64"
+    if "windows" in platforms and args.no_build:
+        windows_cache = required_file(windows_build / "CMakeCache.txt", "Windows CMake cache")
+        configured_bits = cmake_target_bits(windows_build)
+        if configured_bits:
+            if args.windows_bits and args.windows_bits != configured_bits:
+                raise SystemExit(
+                    f"--windows-bits {args.windows_bits} does not match the Windows CMake cache ({configured_bits}-bit)"
+                )
+            windows_bits = configured_bits
+    windows_api = required_file(
+        sdk_root / ("redistributable_bin/steam_api.dll" if windows_bits == "32" else "redistributable_bin/win64/steam_api64.dll"),
+        "Windows Steam API",
+    ) if "windows" in platforms else None
 
     if args.no_build:
         if "linux" in platforms:
@@ -417,7 +452,7 @@ def main():
             configure_steam_build(linux_build, sdk_root, windows=False)
             run(["cmake", "--build", linux_build, "--parallel", args.jobs])
         if "windows" in platforms:
-            configure_steam_build(windows_build, sdk_root, windows=True)
+            configure_steam_build(windows_build, sdk_root, windows=True, windows_bits=windows_bits)
             run(["cmake", "--build", windows_build, "--parallel", args.jobs])
 
     stage_script = ROOT / "scripts/stage_steam_build.py"

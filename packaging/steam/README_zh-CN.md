@@ -76,6 +76,10 @@ python3 scripts/stage_steam_build.py --platform macos --kind client \
 
 每次成功推送到 Git 的 `dev` 分支后，`Publish Steam internal` Job 会等待发行测试以及 Linux、Windows、macOS 三个平台全部构建成功，在原生 runner 上生成并汇总六个 Steam Depot，完成离线校验、上传两个 AppID，并将新 Build 设为 Steam `internal` 分支的 live 版本。PR、标签和其他 Git 分支都不会上传 Steam。
 
+Steam Linux 构建固定使用 `ubuntu-22.04` runner，确保可执行文件及随 Depot 打包的 SDL3/C++ 运行库兼容较旧 glibc 的 Steam 用户。除非有意提高 Linux 运行时基线，否则不要改回滚动的 `ubuntu-latest`。
+
+说真的会有除了半年后的我以外的人看这个吗？
+
 请新建受保护的 GitHub Environment `steam-beta`，并配置以下 Environment Secrets：
 
 - `STEAMWORKS_SDK_REPOSITORY`：存放 Steamworks SDK 的私有 GitHub 仓库，格式为 `owner/repo`；SDK 可位于仓库根目录或 `sdk/`。

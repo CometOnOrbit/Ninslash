@@ -42,10 +42,12 @@ set(ORIGINAL_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
 set(OWN_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_MODULE_PATH ${OWN_CMAKE_MODULE_PATH})
 
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  set(TARGET_BITS "64")
-elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+if(CMAKE_SIZEOF_VOID_P EQUAL 4)
   set(TARGET_BITS "32")
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(TARGET_BITS "64")
+else()
+  message(FATAL_ERROR "Ninslash requires a 32-bit or 64-bit target")
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -56,12 +58,9 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(TARGET_OS "mac")
 endif()
 
-if(TARGET_OS STREQUAL "windows" AND NOT TARGET_BITS STREQUAL "64")
-  message(FATAL_ERROR "Ninslash supports Windows x86-64 builds only")
-endif()
-
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
+include(CheckCSourceCompiles)
 include(CheckSymbolExists)
 
 # MinGW otherwise routes printf/scanf through the legacy MSVCRT dialect, which
@@ -122,24 +121,38 @@ endif()
 set(STEAMWORKS_WINDOWS_API_DLL)
 set(STEAMWORKS_WINDOWS_API_LIBRARY)
 set(STEAMWORKS_MINGW_IMPORT_TARGET)
+set(STEAMWORKS_LINUX_API)
 if(TARGET_OS STREQUAL "windows" AND (ENABLE_STEAMWORKS OR ENABLE_STEAM_GAMESERVER))
-  set(STEAMWORKS_WINDOWS_API_DLL "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.dll")
+  if(TARGET_BITS STREQUAL "32")
+    set(STEAMWORKS_WINDOWS_API_BASENAME "steam_api")
+    set(STEAMWORKS_WINDOWS_API_DIRECTORY "")
+    set(STEAMWORKS_MINGW_TOOL_PREFIX "i686-w64-mingw32")
+  elseif(TARGET_BITS STREQUAL "64")
+    set(STEAMWORKS_WINDOWS_API_BASENAME "steam_api64")
+    set(STEAMWORKS_WINDOWS_API_DIRECTORY "win64")
+    set(STEAMWORKS_MINGW_TOOL_PREFIX "x86_64-w64-mingw32")
+  else()
+    message(FATAL_ERROR "Unsupported Windows target width for Steamworks: ${TARGET_BITS}")
+  endif()
+
+  set(STEAMWORKS_WINDOWS_API_DLL "${STEAMWORKS_SDK_ROOT}/redistributable_bin/${STEAMWORKS_WINDOWS_API_DIRECTORY}/${STEAMWORKS_WINDOWS_API_BASENAME}.dll")
   if(NOT EXISTS "${STEAMWORKS_WINDOWS_API_DLL}")
-    message(FATAL_ERROR "Steamworks SDK is missing redistributable_bin/win64/steam_api64.dll")
+    message(FATAL_ERROR "Steamworks SDK is missing ${STEAMWORKS_WINDOWS_API_DLL}")
   endif()
 
   if(MINGW)
     find_program(STEAMWORKS_GENDEF_EXECUTABLE NAMES gendef)
-    find_program(STEAMWORKS_DLLTOOL_EXECUTABLE NAMES x86_64-w64-mingw32-dlltool dlltool)
+    find_program(STEAMWORKS_DLLTOOL_EXECUTABLE NAMES ${STEAMWORKS_MINGW_TOOL_PREFIX}-dlltool dlltool)
     if(NOT STEAMWORKS_GENDEF_EXECUTABLE OR NOT STEAMWORKS_DLLTOOL_EXECUTABLE)
       message(FATAL_ERROR
-        "MinGW Steam builds require gendef and x86_64-w64-mingw32-dlltool; "
-        "install the mingw-w64-tools and binutils-mingw-w64-x86-64 packages")
+        "MinGW ${TARGET_BITS}-bit Steam builds require gendef and "
+        "${STEAMWORKS_MINGW_TOOL_PREFIX}-dlltool; install the matching "
+        "mingw-w64-tools and binutils-mingw-w64 package")
     endif()
 
     set(STEAMWORKS_MINGW_IMPORT_DIR "${PROJECT_BINARY_DIR}/steamworks-import")
-    set(STEAMWORKS_MINGW_IMPORT_DEF "${STEAMWORKS_MINGW_IMPORT_DIR}/steam_api64.def")
-    set(STEAMWORKS_MINGW_IMPORT_LIBRARY "${STEAMWORKS_MINGW_IMPORT_DIR}/libsteam_api64.a")
+    set(STEAMWORKS_MINGW_IMPORT_DEF "${STEAMWORKS_MINGW_IMPORT_DIR}/${STEAMWORKS_WINDOWS_API_BASENAME}.def")
+    set(STEAMWORKS_MINGW_IMPORT_LIBRARY "${STEAMWORKS_MINGW_IMPORT_DIR}/lib${STEAMWORKS_WINDOWS_API_BASENAME}.a")
     add_custom_command(
       OUTPUT "${STEAMWORKS_MINGW_IMPORT_DEF}" "${STEAMWORKS_MINGW_IMPORT_LIBRARY}"
       COMMAND ${CMAKE_COMMAND} -E make_directory "${STEAMWORKS_MINGW_IMPORT_DIR}"
@@ -147,7 +160,7 @@ if(TARGET_OS STREQUAL "windows" AND (ENABLE_STEAMWORKS OR ENABLE_STEAM_GAMESERVE
         "${STEAMWORKS_GENDEF_EXECUTABLE}" "${STEAMWORKS_WINDOWS_API_DLL}"
       COMMAND "${STEAMWORKS_DLLTOOL_EXECUTABLE}"
         --input-def "${STEAMWORKS_MINGW_IMPORT_DEF}"
-        --dllname steam_api64.dll
+        --dllname "${STEAMWORKS_WINDOWS_API_BASENAME}.dll"
         --output-lib "${STEAMWORKS_MINGW_IMPORT_LIBRARY}"
       DEPENDS "${STEAMWORKS_WINDOWS_API_DLL}"
       VERBATIM
@@ -157,10 +170,22 @@ if(TARGET_OS STREQUAL "windows" AND (ENABLE_STEAMWORKS OR ENABLE_STEAM_GAMESERVE
     set(STEAMWORKS_WINDOWS_API_LIBRARY "${STEAMWORKS_MINGW_IMPORT_LIBRARY}")
     set(STEAMWORKS_MINGW_IMPORT_TARGET steamworks_mingw_import)
   else()
-    set(STEAMWORKS_WINDOWS_API_LIBRARY "${STEAMWORKS_SDK_ROOT}/redistributable_bin/win64/steam_api64.lib")
+    set(STEAMWORKS_WINDOWS_API_LIBRARY "${STEAMWORKS_SDK_ROOT}/redistributable_bin/${STEAMWORKS_WINDOWS_API_DIRECTORY}/${STEAMWORKS_WINDOWS_API_BASENAME}.lib")
     if(NOT EXISTS "${STEAMWORKS_WINDOWS_API_LIBRARY}")
-      message(FATAL_ERROR "Steamworks SDK is missing redistributable_bin/win64/steam_api64.lib")
+      message(FATAL_ERROR "Steamworks SDK is missing ${STEAMWORKS_WINDOWS_API_LIBRARY}")
     endif()
+  endif()
+endif()
+if(TARGET_OS STREQUAL "linux" AND (ENABLE_STEAMWORKS OR ENABLE_STEAM_GAMESERVER))
+  if(TARGET_BITS STREQUAL "32")
+    set(STEAMWORKS_LINUX_API "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux32/libsteam_api.so")
+  elseif(TARGET_BITS STREQUAL "64")
+    set(STEAMWORKS_LINUX_API "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so")
+  else()
+    message(FATAL_ERROR "Unsupported Linux target width for Steamworks: ${TARGET_BITS}")
+  endif()
+  if(NOT EXISTS "${STEAMWORKS_LINUX_API}")
+    message(FATAL_ERROR "Steamworks SDK is missing ${STEAMWORKS_LINUX_API}")
   endif()
 endif()
 
@@ -255,6 +280,13 @@ if(NOT MSVC)
 
   if(TARGET_ARCH STREQUAL "x86")
     add_c_compiler_flag_if_supported(OUR_FLAGS -ffloat-store)
+
+    # Older x86 MinGW toolchains cannot emit _mm_pause without SSE2 enabled.
+    # Keep the probe compile-only so this also works when cross-compiling.
+    check_c_source_compiles("#include <immintrin.h>\nint main(void) { _mm_pause(); return 0; }" MM_PAUSE_WORKS_WITHOUT_MSSE2)
+    if(NOT MM_PAUSE_WORKS_WITHOUT_MSSE2)
+      add_c_compiler_flag_if_supported(OUR_FLAGS -msse2)
+    endif()
   endif()
 
   if(TARGET_OS STREQUAL "mac")
@@ -862,7 +894,13 @@ if(NINSLASH_BUILD_TESTS)
 		COMMAND ${Python3_EXECUTABLE} tests/check_graphics_batch_order.py)
 	add_test(NAME dynamic_lighting_static
 		COMMAND ${Python3_EXECUTABLE} tests/check_dynamic_lighting.py)
+	add_test(NAME menu_shader_static
+		COMMAND ${Python3_EXECUTABLE} tests/check_menu_shader.py)
+	add_test(NAME multibuffering_transition_static
+		COMMAND ${Python3_EXECUTABLE} tests/check_multibuffering_transition.py)
 	set_tests_properties(dynamic_lighting_static PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	set_tests_properties(menu_shader_static PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	set_tests_properties(multibuffering_transition_static PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 	set_tests_properties(graphics_batch_order PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 	add_test(NAME steam_platform_render
 		COMMAND ${Python3_EXECUTABLE} tests/check_steam_platform_render.py)
@@ -1377,11 +1415,11 @@ if(CLIENT)
           "${STEAMWORKS_WINDOWS_API_DLL}"
           "$<TARGET_FILE_DIR:${TARGET_CLIENT}>")
     elseif(TARGET_OS STREQUAL "linux")
-      target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so")
+      target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_LINUX_API}")
       set_target_properties(${TARGET_CLIENT} PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE INSTALL_RPATH "\$ORIGIN")
       add_custom_command(TARGET ${TARGET_CLIENT} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so"
+          "${STEAMWORKS_LINUX_API}"
           "$<TARGET_FILE_DIR:${TARGET_CLIENT}>")
     elseif(TARGET_OS STREQUAL "mac")
       target_link_libraries(${TARGET_CLIENT} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/osx/libsteam_api.dylib")
@@ -1707,11 +1745,11 @@ if(ENABLE_STEAM_GAMESERVER)
         "${STEAMWORKS_WINDOWS_API_DLL}"
         "$<TARGET_FILE_DIR:${TARGET_SERVER}>")
   elseif(TARGET_OS STREQUAL "linux")
-    target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so")
+    target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_LINUX_API}")
     set_target_properties(${TARGET_SERVER} PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE INSTALL_RPATH "\$ORIGIN")
     add_custom_command(TARGET ${TARGET_SERVER} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${STEAMWORKS_SDK_ROOT}/redistributable_bin/linux64/libsteam_api.so"
+        "${STEAMWORKS_LINUX_API}"
         "$<TARGET_FILE_DIR:${TARGET_SERVER}>")
   elseif(TARGET_OS STREQUAL "mac")
     target_link_libraries(${TARGET_SERVER} "${STEAMWORKS_SDK_ROOT}/redistributable_bin/osx/libsteam_api.dylib")

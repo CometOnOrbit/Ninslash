@@ -13,7 +13,7 @@ float hash21(vec2 p)
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
-float noise2(vec2 p)
+float menuNoise2(vec2 p)
 {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
@@ -37,7 +37,7 @@ void main (void)
 	p.x *= resolution.x / resolution.y;
 	float t = time * 0.0016;
 
-	float atmosphere = noise2(p * 1.45 + vec2(t * 0.07, -t * 0.025));
+	float atmosphere = menuNoise2(p * 1.45 + vec2(t * 0.07, -t * 0.025));
 	float fineNoise = hash21(gl_FragCoord.xy + rnd * 137.0) - 0.5;
 	float minorGrid = gridMask(uv + vec2(t * 0.0025, 0.0), vec2(24.0, 14.0));
 	float majorGrid = gridMask(uv + vec2(t * 0.0012, 0.0), vec2(6.0, 3.5));

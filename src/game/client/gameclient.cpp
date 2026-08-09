@@ -1259,6 +1259,12 @@ void CGameClient::OnRender()
 	DispatchInput();
 
 	EnsureDarkVisionRenderBuffers();
+	if(g_Config.m_GfxMultiBuffering && !m_TextureBuffersCreated)
+	{
+		Graphics()->CreateTextureBuffer(Graphics()->ScreenWidth(), Graphics()->ScreenHeight());
+		m_TextureBuffersCreated = true;
+		Graphics()->ClearBufferTexture(LightingBrightness());
+	}
 	Graphics()->ClearBufferTexture(LightingBrightness());
 	// Graphics()->ShaderBegin(SHADER_TEST);
 

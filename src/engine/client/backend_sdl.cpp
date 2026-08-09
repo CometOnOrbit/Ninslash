@@ -219,13 +219,13 @@ void CCommandProcessorFragment_OpenGL::SetState(const CCommandBuffer::SState &St
 	}
 	else
 	{
-		/*
-		if (State.m_RenderTarget == CCommandBuffer::RENDERTARGET_SCREEN ||
+		if((State.m_RenderTarget == CCommandBuffer::RENDERTARGET_SCREEN ||
 			State.m_RenderTarget == CCommandBuffer::RENDERTARGET_TEXTURE)
+			&& glBindFramebuffer)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glViewport(0, 0, m_ScreenWidth, m_ScreenHeight);
 		}
-		*/
 	}
 
 	// screen texture buffer

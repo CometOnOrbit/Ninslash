@@ -35,6 +35,11 @@ WINDOWS_SYSTEM_DLLS = {
 WINDOWS_FORBIDDEN_RUNTIME_DLLS = {
     "msvcr100.dll", "msvcp100.dll", "atl100.dll", "mfc100.dll", "mfc100u.dll",
 }
+WINDOWS_STEAM_API_NAMES = {"steam_api.dll", "steam_api64.dll"}
+WINDOWS_STEAM_API_BY_ARCHITECTURE = {
+    "pei-i386": "steam_api.dll",
+    "pei-x86-64": "steam_api64.dll",
+}
 LINUX_SYSTEM_LIBRARIES = {
     "ld-linux-x86-64.so.2", "libc.so.6", "libdl.so.2", "libm.so.6",
     "libpthread.so.0", "librt.so.1", "libGL.so.1", "libGLX.so.0",
@@ -218,28 +223,51 @@ def verify_lua_mod_runtime(executable, errors):
 
 
 def inspect_windows_imports(path):
-    objdump = shutil.which("x86_64-w64-mingw32-objdump")
+    objdump = next(
+        (
+            shutil.which(name)
+            for name in ("x86_64-w64-mingw32-objdump", "i686-w64-mingw32-objdump", "objdump")
+            if shutil.which(name)
+        ),
+        None,
+    )
     if objdump:
         output = command_output([objdump, "-p", str(path)]).lower()
         return output, set(re.findall(r"dll name:\s*([^\r\n]+)", output))
     try:
         import pefile
     except ImportError as exc:
-        raise RuntimeError("install pefile or x86_64-w64-mingw32-objdump to inspect Windows dependencies") from exc
+        raise RuntimeError("install pefile or an objdump capable of inspecting Windows binaries") from exc
     pe = pefile.PE(str(path), fast_load=True)
     pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_IMPORT"]])
     imports = {
         entry.dll.decode("ascii", errors="replace").lower()
         for entry in getattr(pe, "DIRECTORY_ENTRY_IMPORT", [])
     }
-    architecture = ("pei-x86-64" if pe.FILE_HEADER.Machine == 0x8664 else f"machine-{pe.FILE_HEADER.Machine:#x}") + f" subsystem-{pe.OPTIONAL_HEADER.Subsystem}"
+    architecture = {
+        0x014C: "pei-i386",
+        0x8664: "pei-x86-64",
+    }.get(pe.FILE_HEADER.Machine, f"machine-{pe.FILE_HEADER.Machine:#x}") + f" subsystem-{pe.OPTIONAL_HEADER.Subsystem}"
     return architecture, imports
+
+
+def windows_architecture(image):
+    for architecture in WINDOWS_STEAM_API_BY_ARCHITECTURE:
+        if architecture in image:
+            return architecture
+    return None
+
+
+def windows_steam_api_name(image):
+    architecture = windows_architecture(image)
+    return WINDOWS_STEAM_API_BY_ARCHITECTURE.get(architecture)
 
 
 def verify_windows_dependency_closure(root, entrypoints, errors):
     bundled = {path.name.lower(): path for path in root.glob("*.dll")}
     queue = list(entrypoints)
     visited = set()
+    expected_architecture = None
     while queue:
         path = queue.pop(0)
         key = path.resolve()
@@ -251,15 +279,20 @@ def verify_windows_dependency_closure(root, entrypoints, errors):
         except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
             errors.append(f"{path}: dependency inspection failed: {exc}")
             continue
-        if "pei-x86-64" not in output:
-            errors.append(f"{path}: Windows release binary is not x86-64")
+        architecture = windows_architecture(output)
+        if architecture is None:
+            errors.append(f"{path}: Windows release binary must be PE32 or PE32+")
+        elif expected_architecture is None:
+            expected_architecture = architecture
+        elif architecture != expected_architecture:
+            errors.append(f"{path}: Windows dependency architecture does not match {expected_architecture}")
         forbidden = sorted(imports & WINDOWS_FORBIDDEN_RUNTIME_DLLS)
         if forbidden:
             errors.append(f"{path}: forbidden legacy VC runtime dependency: {', '.join(forbidden)}")
-        missing = sorted(imports - WINDOWS_SYSTEM_DLLS - set(bundled))
+        missing = sorted(imports - WINDOWS_SYSTEM_DLLS - WINDOWS_STEAM_API_NAMES - set(bundled))
         if missing:
             errors.append(f"{path}: missing imported runtime DLLs: {', '.join(missing)}")
-        for imported in sorted(imports - WINDOWS_SYSTEM_DLLS):
+        for imported in sorted(imports - WINDOWS_SYSTEM_DLLS - WINDOWS_STEAM_API_NAMES):
             dependency = bundled.get(imported)
             if dependency:
                 queue.append(dependency)
@@ -290,8 +323,11 @@ def verify_depot_executable(root, executable, steam_api, platform, errors):
                     errors.append(f"{executable}: {library} is not resolved from its depot root")
         elif platform == "windows":
             image, imports = inspect_windows_imports(executable)
-            if "steam_api64.dll" not in imports:
-                errors.append(f"{executable}: missing steam_api64.dll import")
+            steam_api_name = windows_steam_api_name(image)
+            if steam_api_name is None:
+                errors.append(f"{executable}: unsupported Windows PE architecture")
+            elif steam_api_name not in imports:
+                errors.append(f"{executable}: missing {steam_api_name} import")
             is_client = executable.name.lower() == "ninslash.exe"
             if is_client and "windows gui" not in image.lower() and "subsystem-2" not in image.lower():
                 errors.append(f"{executable}: Windows client must use the GUI subsystem")
@@ -337,7 +373,7 @@ def verify_depot(root_text, platform, kind, errors):
     executable_names = ["ninslash", "ninslash_srv"] if kind == "client" else ["ninslash_srv"]
     executables = [root / f"{name}{suffix}" for name in executable_names]
     steam_api = root / {
-        "windows": "steam_api64.dll",
+        "windows": "steam_api64.dll" if (root / "steam_api64.dll").is_file() else "steam_api.dll",
         "linux": "libsteam_api.so",
         "macos": "libsteam_api.dylib",
     }[platform]
@@ -400,15 +436,17 @@ def verify_steam_windows_binary(binary_text: str | None, kind: Literal["client",
     if not binary.is_file():
         errors.append(f"{binary}: Steam Windows binary missing")
         return
-    steam_api = binary.parent / "steam_api64.dll"
-    if not steam_api.is_file():
-        errors.append(f"{binary.parent}: missing steam_api64.dll")
     try:
         image, imports = inspect_windows_imports(binary)
-        if "pei-x86-64" not in image:
-            errors.append(f"{binary}: Windows Steam binary is not x86-64")
-        if "steam_api64.dll" not in imports:
-            errors.append(f"{binary}: missing steam_api64.dll import")
+        steam_api_name = windows_steam_api_name(image)
+        if steam_api_name is None:
+            errors.append(f"{binary}: unsupported Windows PE architecture")
+            return
+        steam_api = binary.parent / steam_api_name
+        if not steam_api.is_file():
+            errors.append(f"{binary.parent}: missing {steam_api_name}")
+        if steam_api_name not in imports:
+            errors.append(f"{binary}: missing {steam_api_name} import")
         expected_subsystems, description = {
             "client": (("windows gui", "subsystem-2"), "GUI"),
             "server": (("windows cui", "subsystem-3"), "console"),

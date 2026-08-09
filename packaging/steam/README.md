@@ -123,6 +123,12 @@ verifies them, uploads both AppIDs, and sets the resulting builds live on the
 Steam branch named `internal`. Pull requests, tags, and all other Git branches do
 not upload to Steam.
 
+The Steam Linux build runs on the pinned `ubuntu-22.04` runner so the executable
+and bundled SDL3/C++ runtime remain compatible with Steam users on older glibc
+systems. Keep this pin unless the Linux runtime baseline is deliberately raised.
+
+To be honest, will anyone else watch this except for me six months from now?
+
 Create a protected GitHub Environment named `steam-beta` and configure these
 environment secrets:
 

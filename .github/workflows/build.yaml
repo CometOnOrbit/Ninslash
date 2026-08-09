@@ -194,6 +194,13 @@ jobs:
             throw "Windows client did not reach the menu and produce an offscreen screenshot"
           }
 
+          $shaderFailurePattern = 'shader loading skipped|shader initialization incomplete|unable to init shaders|couldn''t load the shader file|Could not compile (vertex|fragment) shader|Could not link shaders'
+          if(Select-String -Path $log -Pattern $shaderFailurePattern -Quiet) {
+            $details = (Get-Content $log -Tail 80) -join "`n"
+            Write-CiError "Windows shader initialization failed" $details
+            throw "Windows client reached the menu with shader initialization errors"
+          }
+
           $env:NINSLASH_TEST_FORCE_WINDOW_FAILURE = "1"
           $env:NINSLASH_TEST_NO_MESSAGEBOX = "1"
           try {
@@ -214,6 +221,31 @@ jobs:
             Write-CiError "Windows graphics fallback smoke test failed" $details
             throw "Forced window failure was not handled by the graphics fallback path"
           }
+
+      - name: Collect native Windows main-menu evidence
+        if: always() && contains(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          $evidence = "ninslash-windows-smoke-evidence"
+          Remove-Item -Recurse -Force $evidence -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path "$evidence/screenshots" | Out-Null
+          $log = Join-Path $env:APPDATA "Ninslash/logs/startup.log"
+          if(Test-Path $log) {
+            Copy-Item $log "$evidence/startup.log" -Force
+          }
+          $screenshots = Join-Path $env:APPDATA "Ninslash/screenshots"
+          if(Test-Path $screenshots) {
+            Copy-Item "$screenshots/*" "$evidence/screenshots" -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Upload native Windows main-menu evidence
+        if: always() && contains(matrix.os, 'windows')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ninslash-windows-smoke-evidence
+          path: ninslash-windows-smoke-evidence
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Package Release (macOS)
         if: contains(matrix.os, 'macos')
@@ -441,7 +473,7 @@ jobs:
       - build
       - steam-macos-depots
       - steam-windows-depots
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 90
     environment: steam-beta
     concurrency:

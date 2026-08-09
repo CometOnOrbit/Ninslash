@@ -10,7 +10,8 @@ FreeType = {
 			option.lib_path = nil
 
 			if platform == "win32" then
-				error("Ninslash supports Windows x86-64 builds only")
+				option.value = true
+				option.use_winlib = 32
 			elseif platform == "win64" then
 				option.value = true
 				option.use_winlib = 64

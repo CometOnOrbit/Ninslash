@@ -9383,8 +9383,10 @@ void CMenus::RenderBackground()
 	// menu background effect
 	vec2 s = vec2(Graphics()->ScreenWidth(), Graphics()->ScreenHeight()) / 8;
 	Graphics()->MapScreen(0, 0, s.x, s.y);
+	const bool UseMenuShader = g_Config.m_GfxMultiBuffering && Client()->Loaded() &&
+		Graphics()->IsShaderAvailable(SHADER_MENU);
 
-	if(g_Config.m_GfxMultiBuffering && Client()->Loaded())
+	if(UseMenuShader)
 	{
 		// render background shader
 		Graphics()->RenderToTexture(RENDERBUFFER_MENU);
@@ -9398,6 +9400,7 @@ void CMenus::RenderBackground()
 		Graphics()->ShaderEnd();
 		Graphics()->RenderToScreen();
 	}
+	Graphics()->RenderToScreen();
 
 	// render background color
 	Graphics()->TextureSet(-1);
@@ -9413,7 +9416,7 @@ void CMenus::RenderBackground()
 	Graphics()->QuadsDrawTL(&QuadItem, 1);
 	Graphics()->QuadsEnd();
 
-	if(g_Config.m_GfxMultiBuffering && Client()->Loaded())
+	if(UseMenuShader)
 	{
 		Graphics()->TextureSet(-2, RENDERBUFFER_MENU);
 		Graphics()->QuadsBegin();

@@ -18,6 +18,11 @@ WINDOWS_SYSTEM_DLLS = {
     "userenv.dll", "version.dll", "winmm.dll", "ws2_32.dll",
 }
 WINDOWS_FORBIDDEN_RUNTIME_DLLS = {"msvcr100.dll", "msvcp100.dll", "atl100.dll", "mfc100.dll", "mfc100u.dll"}
+WINDOWS_STEAM_API_NAMES = {"steam_api.dll", "steam_api64.dll"}
+WINDOWS_STEAM_API_BY_ARCHITECTURE = {
+    "pei-i386": "steam_api.dll",
+    "pei-x86-64": "steam_api64.dll",
+}
 
 
 def copy_tree(source: Path, target: Path):
@@ -32,6 +37,31 @@ def copy_required(source: Path, target: Path):
     shutil.copy2(source, target)
 
 
+def windows_objdump():
+    for name in ("x86_64-w64-mingw32-objdump", "i686-w64-mingw32-objdump", "objdump"):
+        executable = shutil.which(name)
+        if executable:
+            return executable
+    raise RuntimeError("install an objdump capable of inspecting Windows binaries")
+
+
+def inspect_windows_imports(path: Path):
+    inspection = subprocess.run(
+        [windows_objdump(), "-p", str(path)],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    ).stdout.lower()
+    imports = {match.group(1).lower() for match in re.finditer(r"dll name:\s*([^\r\n]+)", inspection, re.IGNORECASE)}
+    return inspection, imports
+
+
+def windows_steam_api_name(path: Path):
+    inspection, _imports = inspect_windows_imports(path)
+    for architecture, api_name in WINDOWS_STEAM_API_BY_ARCHITECTURE.items():
+        if architecture in inspection:
+            return api_name
+    raise RuntimeError(f"unsupported Windows PE architecture: {path}")
+
+
 def copy_windows_runtime_dependencies(executable: Path, build_dir: Path, output: Path):
     local_dlls = {path.name.lower(): path for path in build_dir.glob("*.dll")}
     queue = [executable]
@@ -42,17 +72,13 @@ def copy_windows_runtime_dependencies(executable: Path, build_dir: Path, output:
         if key in visited:
             continue
         visited.add(key)
-        inspection = subprocess.run(
-            ["x86_64-w64-mingw32-objdump", "-p", str(current)],
-            check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-        ).stdout
-        if "pei-x86-64" not in inspection.lower():
-            raise RuntimeError(f"Windows release binary is not x86-64: {current}")
-        imports = {match.group(1).lower() for match in re.finditer(r"DLL Name:\s*([^\r\n]+)", inspection, re.IGNORECASE)}
+        inspection, imports = inspect_windows_imports(current)
+        if not any(architecture in inspection for architecture in WINDOWS_STEAM_API_BY_ARCHITECTURE):
+            raise RuntimeError(f"Windows release binary must be PE32 or PE32+: {current}")
         forbidden = imports & WINDOWS_FORBIDDEN_RUNTIME_DLLS
         if forbidden:
             raise RuntimeError(f"forbidden legacy VC runtime imported by {current}: {', '.join(sorted(forbidden))}")
-        for imported in sorted(imports - WINDOWS_SYSTEM_DLLS - {"steam_api64.dll"}):
+        for imported in sorted(imports - WINDOWS_SYSTEM_DLLS - WINDOWS_STEAM_API_NAMES):
             source = local_dlls.get(imported)
             if not source:
                 raise RuntimeError(f"unable to resolve Windows runtime library {imported} for {current}")
@@ -188,11 +214,13 @@ def main():
 
     if args.steam_api:
         api = Path(args.steam_api)
-        expected = {
-            "windows": "steam_api64.dll",
-            "linux": "libsteam_api.so",
-            "macos": "libsteam_api.dylib",
-        }[args.platform]
+        if args.platform == "windows":
+            expected = windows_steam_api_name(staged_executables[0])
+        else:
+            expected = {
+                "linux": "libsteam_api.so",
+                "macos": "libsteam_api.dylib",
+            }[args.platform]
         if api.name != expected:
             raise ValueError(f"expected {expected}, got {api.name}")
         copy_required(api, output / expected)
