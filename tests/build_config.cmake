@@ -66,8 +66,6 @@ foreach(STEAM_INTERNAL_WORKFLOW_REQUIREMENT
 	"runs-on: windows-latest"
 	"cmake -S . -B build-steam-windows -A x64"
 	"ninslash-steam-windows-build"
-	"shader initialization incomplete"
-	"NINSLASH_OFFSCREEN"
 	"--steam-windows-client"
 	"--steam-windows-server"
 	"--no-build"
