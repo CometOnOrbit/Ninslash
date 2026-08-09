@@ -909,7 +909,8 @@ void CHud::RenderFps()
 		m_AverageFPS = (m_AverageFPS * (1.0f - (1.0f / m_AverageFPS))) + (FPS * (1.0f / m_AverageFPS));
 		char Buf[512];
 		str_format(Buf, sizeof(Buf), "%d", (int)m_AverageFPS);
-		TextRender()->Text(0, m_Width - 10 - TextRender()->TextWidth(0, 12, Buf, -1), 5, 12, Buf, -1);
+		const float Margin = HudLayout::SafeMargin(m_Width);
+		TextRender()->Text(0, m_Width - Margin - TextRender()->TextWidth(0, 12, Buf, -1), Margin, 12, Buf, -1);
 	}
 }
 
@@ -1383,7 +1384,7 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 		m_pClient->m_pControls->m_SignalWeapon = -1;
 	}
 
-	const float X = 6.0f;
+	const float X = HudLayout::SafeMargin(m_Width);
 	const float Y = HudLayout::BottomStatusTop(m_Height);
 	const float CoreY = HudLayout::VitalCoreTop(m_Height);
 	const int Health = max(0, pCharacter->m_Health);
@@ -1480,7 +1481,7 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 	str_format(aBuf, sizeof(aBuf), "%d", clamp(CustomStuff()->m_LocalKits, 0, 99));
 	Label({KitsCard.x + 64.0f, KitsCard.y, KitsCard.w - 67.0f, KitsCard.h}, aBuf, 4.4f, 1, ArmorColor);
 
-	CUIRect WeaponCard = {m_Width - 100.0f, Y, 94.0f, 34.0f};
+	CUIRect WeaponCard = {m_Width - HudLayout::SafeMargin(m_Width) - 94.0f, Y, 94.0f, 34.0f};
 	SmokedGlass(WeaponCard, Accent, HasActiveProfile, 4.0f);
 	Label({WeaponCard.x + 50.0f, WeaponCard.y + 3.0f, 39.0f, 8.0f}, Localize("Ammo"), 4.2f, 1, Muted);
 	if(HasActiveProfile && ActiveProfile.m_Combat.m_UsesAmmo)
@@ -1566,7 +1567,8 @@ void CHud::RenderSpectatorHud()
 		vec4 Panel = CMenus::ThemeBgPanel();
 		Graphics()->SetColor(Panel.r, Panel.g, Panel.b, 0.90f);
 	}
-	RenderTools()->DrawRoundRectExt(m_Width - 180.0f, m_Height - 15.0f, 180.0f, 15.0f, 5.0f, CUI::CORNER_TL);
+	const float Margin = HudLayout::SafeMargin(m_Width);
+	RenderTools()->DrawRoundRectExt(m_Width - Margin - 180.0f, m_Height - 15.0f, 180.0f, 15.0f, 5.0f, CUI::CORNER_TL);
 	Graphics()->QuadsEnd();
 
 	// draw the text
@@ -1578,7 +1580,7 @@ void CHud::RenderSpectatorHud()
 			   m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW
 				   ? m_pClient->m_aClients[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID].m_aName
 				   : Localize("Free-View"));
-	TextRender()->Text(0, m_Width - 174.0f, m_Height - 13.0f, 8.0f, aBuf, -1);
+	TextRender()->Text(0, m_Width - Margin - 174.0f, m_Height - 13.0f, 8.0f, aBuf, -1);
 }
 
 float CHud::BottomReservedHeight() const
@@ -1648,7 +1650,8 @@ void CHud::RenderMovementInformation()
 
 	// BR stack (bottom → top): spectator bar → score HUD → movement info.
 	// Place movement immediately above the score HUD (or free bottom if score off).
-	float StartX = m_Width - BoxWidth;
+	const float Margin = HudLayout::SafeMargin(m_Width);
+	float StartX = m_Width - Margin - BoxWidth;
 	float StartY = ScoreHudTop() - BoxHeight - 4.0f;
 	if(StartY < 20.0f)
 		StartY = 20.0f;
@@ -1665,7 +1668,7 @@ void CHud::RenderMovementInformation()
 	char aBuf[64];
 	float y = StartY + 2.0f;
 	const float LeftX = StartX + 2.0f;
-	const float RightEdge = m_Width - 2.0f;
+	const float RightEdge = m_Width - Margin - 2.0f;
 
 	if(ShowPos)
 	{
@@ -1727,15 +1730,15 @@ void CHud::OnRender()
 		if(m_pClient->m_Snap.m_pLocalCharacter &&
 		   !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
 		{
-			RenderHealthAndAmmo(m_pClient->m_Snap.m_pLocalCharacter);
 			RenderLowHealthVignette(m_pClient->m_Snap.m_pLocalCharacter);
+			RenderHealthAndAmmo(m_pClient->m_Snap.m_pLocalCharacter);
 		}
 		else if(m_pClient->m_Snap.m_SpecInfo.m_Active)
 		{
 			if(m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW)
 			{
-				RenderHealthAndAmmo(&m_pClient->m_Snap.m_aCharacters[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID].m_Cur);
 				RenderLowHealthVignette(&m_pClient->m_Snap.m_aCharacters[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID].m_Cur);
+				RenderHealthAndAmmo(&m_pClient->m_Snap.m_aCharacters[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID].m_Cur);
 			}
 			RenderSpectatorHud();
 		}

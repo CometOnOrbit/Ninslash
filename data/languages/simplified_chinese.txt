@@ -2810,6 +2810,30 @@ Steam invitation data is unavailable or invalid. Ask the host to send a new invi
 Checkpoints
 == 检查点
 
+Advanced options
+== 高级选项
+
+Balanced
+== 平衡
+
+Full
+== 完整
+
+Graphics quality
+== 图形质量
+
+HUD preset
+== HUD 预设
+
+High
+== 高
+
+Low
+== 低
+
+Minimal
+== 极简
+
 Unsubscribe from this Workshop item before installing a different local package with the same ID.
 == 请先取消订阅此创意工坊项目，再安装具有相同 ID 的其他本地内容包。
 

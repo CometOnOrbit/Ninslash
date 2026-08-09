@@ -631,7 +631,7 @@ MACRO_CONFIG_INT(ClShowhudScore, cl_showhud_score, 1, 0, 1, CFGFLAG_SAVE | CFGFL
 MACRO_CONFIG_INT(ClShowhudTimer, cl_showhud_timer, 1, 0, 1, CFGFLAG_SAVE | CFGFLAG_CLIENT, "Show ingame HUD (Timer)")
 MACRO_CONFIG_INT(ClShowhudSpectatorCount,
 				 cl_showhud_spectator_count,
-				 1,
+				 0,
 				 0,
 				 1,
 				 CFGFLAG_SAVE | CFGFLAG_CLIENT,

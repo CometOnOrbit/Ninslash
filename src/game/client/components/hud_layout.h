@@ -4,6 +4,12 @@
 namespace HudLayout
 {
 constexpr float ObjectiveTop = 82.0f;
+
+constexpr float SafeMargin(float ScreenWidth)
+{
+	return ScreenWidth >= 500.0f ? 8.0f : 6.0f;
+}
+
 constexpr float BuildEffectsLeft = 10.0f;
 constexpr float BuildEffectsTop = 10.0f;
 constexpr float BuildEffectsWidth = 220.0f;

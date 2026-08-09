@@ -5095,5 +5095,29 @@ Steam invitation data is unavailable or invalid. Ask the host to send a new invi
 
 Checkpoints
 == 檢查點
+
+Advanced options
+== 進階選項
+
+Balanced
+== 平衡
+
+Full
+== 完整
+
+Graphics quality
+== 圖形品質
+
+HUD preset
+== HUD 預設
+
+High
+== 高
+
+Low
+== 低
+
+Minimal
+== 極簡
 Automatic director
 == 自動導演

@@ -40,6 +40,95 @@ static void ResetThemeDefaults()
 	g_Config.m_UiColorAlpha2 = 190;
 }
 
+namespace
+{
+const char *HudPresetLabel(int Preset)
+{
+	static const char *const s_apLabels[] = {"Minimal", "Standard", "Full"};
+	return s_apLabels[clamp(Preset, 0, 2)];
+}
+
+int CurrentHudPreset()
+{
+	if(g_Config.m_ClShowhud && g_Config.m_ClShowhudHealthAmmo && !g_Config.m_ClShowhudScore &&
+	   g_Config.m_ClShowhudTimer && !g_Config.m_ClShowhudSpectatorCount && !g_Config.m_ClShowfps &&
+	   !g_Config.m_ClShowhudPlayerPosition && !g_Config.m_ClShowhudPlayerSpeed && !g_Config.m_ClShowhudPlayerAngle &&
+	   g_Config.m_ClPveObjectiveDisplay == 2)
+		return 0;
+	if(g_Config.m_ClShowhud && g_Config.m_ClShowhudHealthAmmo && g_Config.m_ClShowhudScore &&
+	   g_Config.m_ClShowhudTimer && !g_Config.m_ClShowhudSpectatorCount && !g_Config.m_ClShowfps &&
+	   !g_Config.m_ClShowhudPlayerPosition && !g_Config.m_ClShowhudPlayerSpeed && !g_Config.m_ClShowhudPlayerAngle &&
+	   g_Config.m_ClPveObjectiveDisplay == 2)
+		return 1;
+	if(g_Config.m_ClShowhud && g_Config.m_ClShowhudHealthAmmo && g_Config.m_ClShowhudScore &&
+	   g_Config.m_ClShowhudTimer && g_Config.m_ClShowhudSpectatorCount && g_Config.m_ClShowfps &&
+	   g_Config.m_ClShowhudPlayerPosition && g_Config.m_ClShowhudPlayerSpeed && g_Config.m_ClShowhudPlayerAngle &&
+	   g_Config.m_ClPveObjectiveDisplay == 1)
+		return 2;
+	return -1;
+}
+
+void ApplyHudPreset(int Preset)
+{
+	Preset = clamp(Preset, 0, 2);
+	g_Config.m_ClShowhud = 1;
+	g_Config.m_ClShowhudHealthAmmo = 1;
+	g_Config.m_ClShowhudTimer = 1;
+	g_Config.m_ClShowhudScore = Preset != 0;
+	g_Config.m_ClShowhudSpectatorCount = Preset == 2;
+	g_Config.m_ClShowfps = Preset == 2;
+	g_Config.m_ClShowhudPlayerPosition = Preset == 2;
+	g_Config.m_ClShowhudPlayerSpeed = Preset == 2;
+	g_Config.m_ClShowhudPlayerAngle = Preset == 2;
+	g_Config.m_ClPveObjectiveDisplay = Preset == 2 ? 1 : 2;
+}
+
+const char *GraphicsQualityPresetLabel(int Preset)
+{
+	static const char *const s_apLabels[] = {"Low", "Balanced", "High"};
+	return s_apLabels[clamp(Preset, 0, 2)];
+}
+
+int CurrentGraphicsQualityPreset()
+{
+	if(!g_Config.m_GfxTextureQuality && !g_Config.m_GfxHighDetail && !g_Config.m_GfxFsaaSamples &&
+	   !g_Config.m_GfxAsyncRender && !g_Config.m_GfxMultiBuffering && g_Config.m_GfxTextureCompression)
+		return 0;
+	if(g_Config.m_GfxTextureQuality && g_Config.m_GfxHighDetail && !g_Config.m_GfxFsaaSamples &&
+	   !g_Config.m_GfxAsyncRender && g_Config.m_GfxMultiBuffering && !g_Config.m_GfxTextureCompression)
+		return 1;
+	if(g_Config.m_GfxTextureQuality && g_Config.m_GfxHighDetail && g_Config.m_GfxFsaaSamples == 4 &&
+	   g_Config.m_GfxAsyncRender && g_Config.m_GfxMultiBuffering && !g_Config.m_GfxTextureCompression)
+		return 2;
+	return -1;
+}
+
+void ApplyGraphicsQualityPreset(int Preset)
+{
+	Preset = clamp(Preset, 0, 2);
+	if(Preset == 0)
+	{
+		g_Config.m_GfxTextureQuality = 0;
+		g_Config.m_GfxTextureCompression = 1;
+		g_Config.m_GfxHighDetail = 0;
+		g_Config.m_GfxFsaaSamples = 0;
+		g_Config.m_GfxAsyncRender = 0;
+		g_Config.m_GfxMultiBuffering = 0;
+		g_Config.m_ClLighting = 0;
+	}
+	else
+	{
+		g_Config.m_GfxTextureQuality = 1;
+		g_Config.m_GfxTextureCompression = 0;
+		g_Config.m_GfxHighDetail = 1;
+		g_Config.m_GfxFsaaSamples = Preset == 2 ? 4 : 0;
+		g_Config.m_GfxAsyncRender = Preset == 2;
+		g_Config.m_GfxMultiBuffering = 1;
+		g_Config.m_ClLighting = 1;
+	}
+}
+} // namespace
+
 CMenusKeyBinder::CMenusKeyBinder()
 {
 	m_TakeKey = false;
@@ -210,6 +299,26 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 	}
 	else if(s_GeneralSubPage == 1) // HUD
 	{
+		const bool Advanced = g_Config.m_UiAdvancedSettings != 0;
+		static int s_aHudPresetButtons[3];
+		const int ActivePreset = CurrentHudPreset();
+		Left.HSplitTop(16.0f, &Label, &Left);
+		UI()->DoLabelScaled(&Label, Localize("HUD preset"), 12.0f, -1);
+		Left.HSplitTop(28.0f, &Button, &Left);
+		for(int Preset = 0; Preset < 3; Preset++)
+		{
+			CUIRect PresetButton;
+			Button.VSplitLeft(Button.w / (3 - Preset), &PresetButton, &Button);
+			PresetButton.VMargin(Preset == 0 ? 0.0f : 2.0f, &PresetButton);
+			if(DoButton_Menu(&s_aHudPresetButtons[Preset],
+							 Localize(HudPresetLabel(Preset)),
+							 ActivePreset == Preset,
+							 &PresetButton,
+							 ActivePreset == Preset ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+				ApplyHudPreset(Preset);
+		}
+		Left.HSplitTop(8.0f, 0, &Left);
+
 		Left.HSplitTop(18.0f, &Button, &Left);
 		if(DoButton_CheckBox(&g_Config.m_ClShowhud, Localize("Show ingame HUD"), g_Config.m_ClShowhud, &Button))
 			g_Config.m_ClShowhud ^= 1;
@@ -244,47 +353,52 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 		if(DoButton_CheckBox(&s_ShowhudTimer, Localize("Timer"), g_Config.m_ClShowhudTimer, &Button))
 			g_Config.m_ClShowhudTimer ^= 1;
 
-		Right.HSplitTop(18.0f, &Button, &Right);
-		static int s_ShowhudSpectatorCount = 0;
-		if(DoButton_CheckBox(
-			   &s_ShowhudSpectatorCount, Localize("Spectator count"), g_Config.m_ClShowhudSpectatorCount, &Button))
-			g_Config.m_ClShowhudSpectatorCount ^= 1;
+		if(Advanced)
+		{
+			Right.HSplitTop(18.0f, &Button, &Right);
+			static int s_ShowhudSpectatorCount = 0;
+			if(DoButton_CheckBox(
+				   &s_ShowhudSpectatorCount, Localize("Spectator count"), g_Config.m_ClShowhudSpectatorCount, &Button))
+				g_Config.m_ClShowhudSpectatorCount ^= 1;
 
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_ClShowfps, Localize("FPS counter"), g_Config.m_ClShowfps, &Button))
-			g_Config.m_ClShowfps ^= 1;
+			Right.HSplitTop(4.0f, 0, &Right);
+			Right.HSplitTop(18.0f, &Button, &Right);
+			if(DoButton_CheckBox(&g_Config.m_ClShowfps, Localize("FPS counter"), g_Config.m_ClShowfps, &Button))
+				g_Config.m_ClShowfps ^= 1;
 
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		static int s_ShowhudPlayerPosition = 0;
-		if(DoButton_CheckBox(
-			   &s_ShowhudPlayerPosition, Localize("Player position"), g_Config.m_ClShowhudPlayerPosition, &Button))
-			g_Config.m_ClShowhudPlayerPosition ^= 1;
+			Right.HSplitTop(4.0f, 0, &Right);
+			Right.HSplitTop(18.0f, &Button, &Right);
+			static int s_ShowhudPlayerPosition = 0;
+			if(DoButton_CheckBox(
+				   &s_ShowhudPlayerPosition, Localize("Player position"), g_Config.m_ClShowhudPlayerPosition, &Button))
+				g_Config.m_ClShowhudPlayerPosition ^= 1;
 
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		static int s_ShowhudPlayerSpeed = 0;
-		if(DoButton_CheckBox(&s_ShowhudPlayerSpeed, Localize("Player speed"), g_Config.m_ClShowhudPlayerSpeed, &Button))
-			g_Config.m_ClShowhudPlayerSpeed ^= 1;
+			Right.HSplitTop(4.0f, 0, &Right);
+			Right.HSplitTop(18.0f, &Button, &Right);
+			static int s_ShowhudPlayerSpeed = 0;
+			if(DoButton_CheckBox(
+				   &s_ShowhudPlayerSpeed, Localize("Player speed"), g_Config.m_ClShowhudPlayerSpeed, &Button))
+				g_Config.m_ClShowhudPlayerSpeed ^= 1;
 
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		static int s_ShowhudPlayerAngle = 0;
-		if(DoButton_CheckBox(&s_ShowhudPlayerAngle, Localize("Player angle"), g_Config.m_ClShowhudPlayerAngle, &Button))
-			g_Config.m_ClShowhudPlayerAngle ^= 1;
+			Right.HSplitTop(4.0f, 0, &Right);
+			Right.HSplitTop(18.0f, &Button, &Right);
+			static int s_ShowhudPlayerAngle = 0;
+			if(DoButton_CheckBox(
+				   &s_ShowhudPlayerAngle, Localize("Player angle"), g_Config.m_ClShowhudPlayerAngle, &Button))
+				g_Config.m_ClShowhudPlayerAngle ^= 1;
 
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(
-			   &g_Config.m_ClHideSelfScore, Localize("Hide player's score"), g_Config.m_ClHideSelfScore, &Button))
-			g_Config.m_ClHideSelfScore ^= 1;
+			Left.HSplitTop(4.0f, 0, &Left);
+			Left.HSplitTop(18.0f, &Button, &Left);
+			if(DoButton_CheckBox(
+				   &g_Config.m_ClHideSelfScore, Localize("Hide player's score"), g_Config.m_ClHideSelfScore, &Button))
+				g_Config.m_ClHideSelfScore ^= 1;
 
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(
-			   &g_Config.m_ClScoreboardUserId, Localize("Show user IDs"), g_Config.m_ClScoreboardUserId, &Button))
-			g_Config.m_ClScoreboardUserId ^= 1;
+			Left.HSplitTop(4.0f, 0, &Left);
+			Left.HSplitTop(18.0f, &Button, &Left);
+			if(DoButton_CheckBox(
+				   &g_Config.m_ClScoreboardUserId, Localize("Show user IDs"), g_Config.m_ClScoreboardUserId, &Button))
+				g_Config.m_ClScoreboardUserId ^= 1;
+		}
 	}
 	else if(s_GeneralSubPage == 2) // Chat
 	{
@@ -2233,6 +2347,7 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 	static int s_GfxFsaaSamples = g_Config.m_GfxFsaaSamples;
 	static int s_GfxTextureQuality = g_Config.m_GfxTextureQuality;
 
+	const bool Advanced = g_Config.m_UiAdvancedSettings != 0;
 	const bool Compact = MainView.w < 560.0f;
 	CUIRect ModeList;
 	CUIRect CompactCanvas;
@@ -2368,6 +2483,57 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 			g_Config.m_GfxVsync = OldVsync;
 		else
 			CheckSettings = true;
+	}
+
+	if(!Advanced)
+	{
+		static int s_aQualityButtons[3];
+		const int ActivePreset = CurrentGraphicsQualityPreset();
+		MainView.HSplitTop(10.0f, 0, &MainView);
+		MainView.HSplitTop(18.0f, &Button, &MainView);
+		UI()->DoLabelScaled(&Button, Localize("Graphics quality"), 12.0f, -1);
+		MainView.HSplitTop(30.0f, &Button, &MainView);
+		for(int Preset = 0; Preset < 3; Preset++)
+		{
+			CUIRect PresetButton;
+			Button.VSplitLeft(Button.w / (3 - Preset), &PresetButton, &Button);
+			PresetButton.VMargin(Preset == 0 ? 0.0f : 2.0f, &PresetButton);
+			if(DoButton_Menu(&s_aQualityButtons[Preset],
+							 Localize(GraphicsQualityPresetLabel(Preset)),
+							 ActivePreset == Preset,
+							 &PresetButton,
+							 ActivePreset == Preset ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+			{
+				const int OldCompression = g_Config.m_GfxTextureCompression;
+				const int OldMultiBuffering = g_Config.m_GfxMultiBuffering;
+				ApplyGraphicsQualityPreset(Preset);
+				if(OldCompression != g_Config.m_GfxTextureCompression && !m_pClient->ApplyTextureSettings())
+				{
+					g_Config.m_GfxTextureCompression = OldCompression;
+					m_pClient->ApplyTextureSettings();
+				}
+				if(OldMultiBuffering != g_Config.m_GfxMultiBuffering)
+					m_pClient->ApplyMultiBuffering();
+				CheckSettings = true;
+			}
+		}
+
+		if(Compact && s_CompactResolutionOpen)
+		{
+			CUIRect Popup = CompactCanvas;
+			Popup.y += 36.0f;
+			Popup.h -= 36.0f;
+			Popup.Margin(4.0f, &Popup);
+			DrawMenuPanel(&Popup, CUI::CORNER_ALL);
+			Popup.Margin(6.0f, &Popup);
+			if(RenderResolutionPicker(Popup))
+				s_CompactResolutionOpen = false;
+		}
+
+		if(CheckSettings)
+			m_NeedRestartGraphics =
+				s_GfxFsaaSamples != g_Config.m_GfxFsaaSamples || s_GfxTextureQuality != g_Config.m_GfxTextureQuality;
+		return;
 	}
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
@@ -3547,8 +3713,16 @@ void CMenus::RenderSettings(CUIRect MainView)
 	MainView.Margin(8.0f, &MainView);
 	CUIRect Header, Workbench;
 	MainView.HSplitTop(38.0f, &Header, &Workbench);
-	UI()->DoLabelScaled(&Header, Localize("Settings"), 20.0f, -1);
-	DrawAccentUnderline(&Header);
+	CUIRect HeaderTitle, AdvancedToggle;
+	Header.VSplitRight(170.0f, &HeaderTitle, &AdvancedToggle);
+	UI()->DoLabelScaled(&HeaderTitle, Localize("Settings"), 20.0f, -1);
+	DrawAccentUnderline(&HeaderTitle);
+	AdvancedToggle.VMargin(2.0f, &AdvancedToggle);
+	if(DoButton_CheckBox(&g_Config.m_UiAdvancedSettings,
+						 Localize("Advanced options"),
+						 g_Config.m_UiAdvancedSettings,
+						 &AdvancedToggle))
+		g_Config.m_UiAdvancedSettings ^= 1;
 	Workbench.HSplitTop(6.0f, 0, &Workbench);
 	Workbench.VSplitLeft(246.0f, &ModuleRail, &Content);
 	Content.VSplitLeft(8.0f, 0, &Content);

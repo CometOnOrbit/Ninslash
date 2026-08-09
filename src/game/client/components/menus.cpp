@@ -1838,7 +1838,7 @@ int CMenus::RenderMenubar(CUIRect r)
 		m_LocalServerState == LOCAL_SERVER_STARTING || m_LocalServerState == LOCAL_SERVER_RUNNING;
 	const bool SteamHostedGameActive =
 		SteamHostStatus.m_State == CLIENT_ASYNC_WORKING || SteamHostStatus.m_State == CLIENT_ASYNC_SUCCEEDED;
-	const char *apOfflineLabels[] = {"Play", "Training", "Character", "Research", "Workshop", "Demos", "Settings"};
+	const char *apOfflineLabels[] = {"Play", "Training", "Customize", "Research", "Workshop", "Demos", "Settings"};
 	const int aOfflinePages[] = {
 		PAGE_LOCAL_SERVER, PAGE_TUTORIAL_SELECT, PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS};
 	const char *apGameLabels[] = {"Continue",
@@ -5201,7 +5201,7 @@ void CMenus::RenderFront(CUIRect MainView)
 	// Secondary destinations become a quiet bottom-edge command strip. They
 	// have generous hit targets but no permanent button containers.
 	static int s_aUtilityButtons[6];
-	const char *apUtilityLabels[6] = {"Character", "Research", "Workshop", "Demos", "Settings", "Quit"};
+	const char *apUtilityLabels[6] = {"Customize", "Research", "Workshop", "Demos", "Settings", "Quit"};
 	const int aUtilityPages[6] = {PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS, -1};
 	BottomRail.VSplitLeft(L(18.0f), 0, &BottomRail);
 	BottomRail.VSplitRight(L(8.0f), &BottomRail, 0);
