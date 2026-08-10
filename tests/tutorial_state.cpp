@@ -56,6 +56,10 @@ int main()
 	Ok &= Expect(TutorialNextChapter(6, 63, false) == 0, "final chapter returns to selection");
 	for(int Chapter = 1; Chapter <= NUM_TUTORIAL_CHAPTERS; Chapter++)
 		Ok &= Expect(TutorialFixedSeed(Chapter) == 4241 + Chapter, "chapter seed is fixed");
+	Ok &= Expect(TutorialChapterForcesBuilding(TUTORIAL_CHAPTER_FORGE),
+				 "forge tutorial forces building kits even when server defaults disable building");
+	Ok &= Expect(!TutorialChapterForcesBuilding(TUTORIAL_CHAPTER_BUILD),
+				 "build-and-growth chapter keeps the existing building policy");
 	Ok &= Expect(TutorialGameplayEventMatches(TUTORIAL_CHAPTER_COMBAT, 0, TUTORIAL_EVENT_KILL),
 				 "combat kills advance encounter");
 	Ok &= Expect(TutorialGameplayEventMatches(TUTORIAL_CHAPTER_COMBAT, 1, TUTORIAL_EVENT_RECOVER),

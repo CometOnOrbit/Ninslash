@@ -28,8 +28,10 @@ CGameControllerTutorial::CGameControllerTutorial(CGameContext *pGameServer)
 	m_pGameType = "Tutorial";
 	const int Chapter = clamp(g_Config.m_SvTutorialChapter, 1, (int)NUM_TUTORIAL_CHAPTERS);
 	g_Config.m_SvTutorialMode = 1;
+	if(TutorialChapterForcesBuilding(Chapter))
+		g_Config.m_SvEnableBuilding = 1;
 	m_GameFlags = Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 0 : GAMEFLAG_COOP;
-	if(g_Config.m_SvEnableBuilding || Chapter == TUTORIAL_CHAPTER_FORGE)
+	if(g_Config.m_SvEnableBuilding || TutorialChapterForcesBuilding(Chapter))
 		m_GameFlags |= GAMEFLAG_BUILD;
 	g_Config.m_SvDisablePVP = Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 0 : 1;
 	g_Config.m_SvSurvivalMode = 0;

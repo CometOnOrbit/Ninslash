@@ -39,6 +39,11 @@ inline int TutorialFixedSeed(int Chapter)
 	return 4241 + Chapter;
 }
 
+inline bool TutorialChapterForcesBuilding(int Chapter)
+{
+	return Chapter == TUTORIAL_CHAPTER_FORGE;
+}
+
 inline int TutorialCompletedMaskLimit()
 {
 	return (1 << NUM_TUTORIAL_CHAPTERS) - 1;
