@@ -205,14 +205,6 @@
             "value": "Destroy the boss"
         },
         {
-            "key": "Destroy the enemy turrets",
-            "value": "Destroy the enemy turrets"
-        },
-        {
-            "key": "Destroy the turrets",
-            "value": "Destroy the turrets"
-        },
-        {
             "key": "Disarming bomb... %d",
             "value": "Disarming bomb... %d"
         },
@@ -755,18 +747,6 @@
         {
             "key": "Time out - Blue team wins",
             "value": "Time out - Blue team wins"
-        },
-        {
-            "key": "Turret sweep",
-            "value": "Turret sweep"
-        },
-        {
-            "key": "Turrets destroyed",
-            "value": "Turrets destroyed"
-        },
-        {
-            "key": "Turrets missing — survive the wave instead",
-            "value": "Turrets missing — survive the wave instead"
         },
         {
             "key": "Vote aborted",

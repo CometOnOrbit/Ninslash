@@ -52,6 +52,7 @@ int main()
 	Check(ForgeTabVisible(1) && ForgeTabVisible(2));
 	Check(ForgeUsable(1, false));
 	Check(!ForgeUsable(2, false) && ForgeUsable(2, true));
+	Check(!ForgeUsable(3, false) && ForgeUsable(3, true));
 	Check(HudLayout::BottomStatusTop(300.0f) == 262.0f);
 	Check(HudLayout::BottomStatusBottom(300.0f) == 296.0f);
 	Check(HudLayout::VitalCoreHeight == 50.0f);

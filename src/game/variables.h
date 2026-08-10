@@ -508,9 +508,9 @@ MACRO_CONFIG_INT(SvForgeMode,
 				 sv_forge_mode,
 				 1,
 				 0,
-				 2,
+				 3,
 				 CFGFLAG_SERVER,
-				 "Forge mode (0=legacy inventory, 1=available anywhere, 2=screen proximity only)")
+				 "Forge mode (0=legacy inventory, 1=available anywhere, 2=screen proximity only, 3=screen proximity with inventory upgrade drag)")
 MACRO_CONFIG_INT(SvForgeBaseCost, sv_forge_base_cost, 5, -999, 999, CFGFLAG_SERVER, "Base gold cost for forging")
 MACRO_CONFIG_INT(SvForgeLevelCost,
 				 sv_forge_level_cost,

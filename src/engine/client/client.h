@@ -73,6 +73,7 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	int64 m_NextPlatformPresenceUpdate;
 	IListenServerRuntime *m_pListenServer;
 	CClientAsyncStatus m_SteamHostStatus;
+	int64 m_SteamHostStatusStartTime;
 	CClientAsyncStatus m_ConnectionAsyncStatus;
 
 	enum

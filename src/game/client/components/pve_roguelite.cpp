@@ -1272,7 +1272,7 @@ void CPveRoguelite::DrawInvasionRetryVote()
 
 	CUIRect Screen = {0, 0, ScreenWidth, 300.0f};
 	DrawPanel(Screen, vec4(Deep.r, Deep.g, Deep.b, 0.96f * Alpha), 0.0f);
-	CUIRect Stage = {10.0f, 51.0f + EntryOffset * 0.35f, ScreenWidth - 20.0f, 207.0f};
+	CUIRect Stage = {10.0f, 51.0f + EntryOffset * 0.35f, ScreenWidth - 20.0f, 171.0f};
 	DrawPanel(Stage, vec4(Inset.r, Inset.g, Inset.b, 0.97f * Alpha), 13.0f);
 	CUIRect TopLine = {Stage.x + 13.0f, Stage.y + 9.0f, (Stage.w - 26.0f) * Entry, 1.2f};
 	DrawPanel(TopLine, vec4(Danger.r, Danger.g, Danger.b, 0.68f * Alpha), 0.6f);
@@ -1314,14 +1314,14 @@ void CPveRoguelite::DrawInvasionRetryVote()
 			 -1.0f,
 			 0);
 
-	const float Gap = 16.0f;
+	const float Gap = 10.0f;
 	const float CardWidth = min(195.0f, (Stage.w - 30.0f - Gap) * 0.5f);
 	const float StartX = ScreenWidth * 0.5f - CardWidth - Gap * 0.5f;
 	int Hovered = -1;
 	for(int i = 0; i < 2; i++)
 	{
 		const float CardEntry = UiStagger(Alpha, i);
-		CUIRect Hit = {StartX + i * (CardWidth + Gap), 88.0f + (1.0f - CardEntry) * 9.0f, CardWidth, 145.0f};
+		CUIRect Hit = {StartX + i * (CardWidth + Gap), 85.0f + (1.0f - CardEntry) * 6.0f, CardWidth, 54.0f};
 		if(m_SelectorMouse.x >= Hit.x && m_SelectorMouse.x <= Hit.x + Hit.w && m_SelectorMouse.y >= Hit.y &&
 		   m_SelectorMouse.y <= Hit.y + Hit.h)
 			Hovered = i;
@@ -1339,9 +1339,6 @@ void CPveRoguelite::DrawInvasionRetryVote()
 		m_FocusedChoice = Hovered;
 
 	const char *apNames[2] = {"Retry Current Floor", "Return to Floor 1"};
-	const char *apDescriptions[2] = {"Keep equipment and build. Retry this floor.",
-									 "Clear this run and start again from Floor 1."};
-	const char *apConsequences[2] = {"One final attempt", "Equipment and build will be cleared"};
 	for(int i = 0; i < 2; i++)
 	{
 		const bool Focused = i == m_FocusedChoice;
@@ -1353,10 +1350,10 @@ void CPveRoguelite::DrawInvasionRetryVote()
 		const float Scale = 1.0f + FocusAmount * 0.018f + (Selected ? ConfirmPulse * 0.012f : 0.0f);
 		const vec4 ChoiceColor = i == PVE_INVASION_RETRY ? Accent : Danger;
 		CUIRect Card = {StartX + i * (CardWidth + Gap) - CardWidth * (Scale - 1.0f) * 0.5f,
-						88.0f + (1.0f - CardEntry) * 9.0f - FocusAmount * 2.0f -
-							(Selected ? ConfirmPulse * 0.8f : 0.0f),
-						CardWidth * Scale,
-						145.0f * Scale};
+							85.0f + (1.0f - CardEntry) * 6.0f - FocusAmount * 1.0f -
+								(Selected ? ConfirmPulse * 0.4f : 0.0f),
+							CardWidth * Scale,
+							54.0f * Scale};
 		CUIRect Border = Card;
 		Border.Margin(-1.5f, &Border);
 		const float BorderAlpha = Selected ? 0.92f : (Focused ? 0.78f : 0.24f);
@@ -1368,7 +1365,7 @@ void CPveRoguelite::DrawInvasionRetryVote()
 		DrawPanel(Card, vec4(Panel.r, Panel.g, Panel.b, 0.98f * CardAlpha), 9.0f);
 		char aVotes[64];
 		str_format(aVotes, sizeof(aVotes), Localize("%d votes"), m_aInvasionRetryVotes[i]);
-		CUIRect VoteBadge = {Card.x + 9.0f, Card.y + 8.0f, 58.0f, 14.0f};
+		CUIRect VoteBadge = {Card.x + 8.0f, Card.y + 8.0f, 48.0f, 14.0f};
 		DrawPanel(VoteBadge, vec4(Inset.r, Inset.g, Inset.b, 0.96f * CardAlpha), 7.0f);
 		DrawText(VoteBadge.x + VoteBadge.w * 0.5f,
 				 VoteBadge.y + 3.8f,
@@ -1382,32 +1379,23 @@ void CPveRoguelite::DrawInvasionRetryVote()
 		CUIRect Key = {Card.x + Card.w - 25.0f, Card.y + 8.0f, 16.0f, 14.0f};
 		DrawPanel(Key, vec4(Inset.r, Inset.g, Inset.b, 0.96f * CardAlpha), 6.0f);
 		DrawText(Key.x + Key.w * 0.5f, Key.y + 3.8f, 5.8f, aKey, vec4(Text.r, Text.g, Text.b, CardAlpha), -1.0f, 0);
-		float NameSize = 9.2f + FocusAmount * 0.8f;
+		float NameSize = 7.8f + FocusAmount * 0.5f;
 		const char *pName = Localize(apNames[i]);
-		while(NameSize > 6.7f && TextRender()->TextWidth(0, NameSize, pName, -1) > Card.w - 18.0f)
+		while(NameSize > 6.2f && TextRender()->TextWidth(0, NameSize, pName, -1) > Card.w - 92.0f)
 			NameSize -= 0.3f;
-		DrawText(
-			Card.x + Card.w * 0.5f, Card.y + 31.0f, NameSize, pName, vec4(Text.r, Text.g, Text.b, CardAlpha), -1.0f, 0);
-		DrawWrappedText(Card.x + 12.0f,
-						Card.y + 52.0f,
-						6.5f,
-						Localize(apDescriptions[i]),
-						vec4(Text.r, Text.g, Text.b, 0.78f * CardAlpha),
-						Card.w - 24.0f,
-						3);
-		DrawText(Card.x + 12.0f,
-				 Card.y + 87.0f,
-				 5.8f,
-				 Localize(apConsequences[i]),
-				 vec4(ChoiceColor.r, ChoiceColor.g, ChoiceColor.b, 0.92f * CardAlpha),
-				 Card.w - 24.0f,
+		DrawText(Card.x + 66.0f,
+				 Card.y + 10.0f,
+				 NameSize,
+				 pName,
+				 vec4(Text.r, Text.g, Text.b, CardAlpha),
+				 Card.w - 94.0f,
 				 -1);
-		CUIRect Button = {Card.x + 10.0f, Card.y + Card.h - 27.0f, Card.w - 20.0f, 18.0f};
+		CUIRect Button = {Card.x + Card.w - 54.0f, Card.y + 29.0f, 46.0f, 17.0f};
 		const vec4 ButtonColor = Focused || Selected ? ChoiceColor : AccentDim;
 		DrawPanel(Button, vec4(ButtonColor.r, ButtonColor.g, ButtonColor.b, 0.94f * CardAlpha), 7.0f);
 		DrawText(Button.x + Button.w * 0.5f,
 				 Button.y + 5.0f,
-				 6.5f + (Selected ? ConfirmPulse * 0.3f : 0.0f),
+			 5.8f + (Selected ? ConfirmPulse * 0.3f : 0.0f),
 				 Localize(Selected ? "Voted" : "Vote"),
 				 vec4(Text.r, Text.g, Text.b, CardAlpha),
 				 -1.0f,
@@ -1415,17 +1403,10 @@ void CPveRoguelite::DrawInvasionRetryVote()
 	}
 
 	DrawText(ScreenWidth * 0.5f,
-			 270.0f,
-			 6.4f,
-			 Localize("Mouse • Arrow Keys • 1–2 • Gamepad"),
-			 vec4(Text.r, Text.g, Text.b, 0.65f * Alpha),
-			 -1.0f,
-			 0);
-	DrawText(ScreenWidth * 0.5f,
-			 284.0f,
-			 5.8f,
-			 Localize("A tie or no votes grants one final retry."),
-			 vec4(Text.r, Text.g, Text.b, 0.72f * Alpha),
+			 240.0f,
+			 6.0f,
+			 Localize("Choose 1 or 2  ·  Arrows / gamepad  ·  Enter / A to vote"),
+			 vec4(Text.r, Text.g, Text.b, 0.68f * Alpha),
 			 -1.0f,
 			 0);
 
@@ -1455,19 +1436,14 @@ void CPveRoguelite::DrawInvasionRetryResult()
 
 	CUIRect Screen = {0, 0, ScreenWidth, 300.0f};
 	DrawPanel(Screen, vec4(Deep.r, Deep.g, Deep.b, 0.97f * Alpha), 0.0f);
-	CUIRect Glow = {ScreenWidth * 0.5f - min(245.0f, ScreenWidth - 34.0f) * 0.5f,
-					103.0f + (1.0f - Entry) * 8.0f,
-					min(245.0f, ScreenWidth - 34.0f),
-					94.0f};
+	CUIRect Glow = {ScreenWidth * 0.5f - min(230.0f, ScreenWidth - 42.0f) * 0.5f,
+					111.0f + (1.0f - Entry) * 6.0f,
+					min(230.0f, ScreenWidth - 42.0f),
+					76.0f};
 	DrawPanel(Glow, vec4(ResultColor.r, ResultColor.g, ResultColor.b, 0.14f * Pulse * Alpha), 18.0f);
 	CUIRect Core = Glow;
 	Core.Margin(4.0f, &Core);
 	DrawPanel(Core, vec4(Panel.r, Panel.g, Panel.b, 0.95f * Alpha), 15.0f);
-	const float LineWidth = (Glow.w - 36.0f) * Entry;
-	CUIRect LineTop = {ScreenWidth * 0.5f - LineWidth * 0.5f, Glow.y - 12.0f, LineWidth, 1.5f};
-	CUIRect LineBottom = {ScreenWidth * 0.5f - LineWidth * 0.5f, Glow.y + Glow.h + 10.0f, LineWidth, 1.5f};
-	DrawPanel(LineTop, vec4(ResultColor.r, ResultColor.g, ResultColor.b, Pulse * Alpha), 0.7f);
-	DrawPanel(LineBottom, vec4(ResultColor.r, ResultColor.g, ResultColor.b, Pulse * Alpha), 0.7f);
 
 	char aHeadline[128];
 	if(Retry)
@@ -1479,11 +1455,11 @@ void CPveRoguelite::DrawInvasionRetryResult()
 		str_copy(aHeadline, Localize("What a pity..."), sizeof(aHeadline));
 	else
 		str_copy(aHeadline, Localize("See you next time."), sizeof(aHeadline));
-	float HeadlineSize = Retry ? 25.0f : 29.0f;
+	float HeadlineSize = Retry ? 18.0f : 21.0f;
 	while(HeadlineSize > 14.0f && TextRender()->TextWidth(0, HeadlineSize, aHeadline, -1) > Glow.w - 20.0f)
 		HeadlineSize -= 0.5f;
 	DrawText(ScreenWidth * 0.5f,
-			 Glow.y + 25.0f,
+			 Glow.y + 20.0f,
 			 HeadlineSize,
 			 aHeadline,
 			 vec4(ResultColor.r, ResultColor.g, ResultColor.b, Alpha),
@@ -1491,7 +1467,7 @@ void CPveRoguelite::DrawInvasionRetryResult()
 			 0);
 	const char *pSubtitle = Retry ? "The expedition continues." : "Returning all players to Floor 1.";
 	DrawText(ScreenWidth * 0.5f,
-			 Glow.y + 66.0f,
+			 Glow.y + 51.0f,
 			 6.8f,
 			 Localize(pSubtitle),
 			 vec4(Text.r, Text.g, Text.b, 0.72f * Alpha),

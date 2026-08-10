@@ -36,7 +36,6 @@ CBuilding::CBuilding(CGameWorld *pGameWorld, vec2 Pos, int Type, int Team)
 	m_PveRefunded = false;
 	m_PveSwitchActive = true;
 	m_PveReactorObjective = false;
-	m_PveDestroyObjective = false;
 	m_SwitchHoldTicks = 0;
 
 	m_Status = 0;

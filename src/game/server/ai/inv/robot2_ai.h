@@ -1,20 +1,15 @@
 #ifndef GAME_SERVER_AI_ROBOT2_AI_H
 #define GAME_SERVER_AI_ROBOT2_AI_H
-#include <game/server/ai.h>
-#include <game/server/gamecontext.h>
 
-class CAIrobot2 : public CAI
+#include "invasion_ai.h"
+
+class CAIrobot2 : public CInvasionAI
 {
   public:
-	CAIrobot2(CGameContext *pGameServer, CPlayer *pPlayer);
+	CAIrobot2(CGameContext *pGameServer, CPlayer *pPlayer, int Level = 0,
+		EInvasionSkinId ProfileId = INVASION_SKIN_CYBORG_GUNNER);
 
-	virtual void DoBehavior();
-	void OnCharacterSpawn(class CCharacter *pChr);
-
-  private:
-	int m_SkipMoveUpdate;
-	bool m_Triggered;
-	vec2 m_StartPos;
+	void DoBehavior() override;
 };
 
 #endif

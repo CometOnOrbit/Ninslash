@@ -24,8 +24,6 @@ const char *GetQuestDisplayName(int Quest)
 			return "Survive the horde";
 		case QUEST_EXTRACT:
 			return "Activate switches to extract";
-		case QUEST_DESTROY_TURRETS:
-			return "Destroy the turrets";
 		case QUEST_HOLD_ZONE:
 			return "Hold the signal point";
 		default:
@@ -95,8 +93,6 @@ const char *GetQuestStartMessage(int Quest, int WaveType)
 			return "Horde incoming";
 		case QUEST_EXTRACT:
 			return "Find and activate the switches";
-		case QUEST_DESTROY_TURRETS:
-			return "Destroy the enemy turrets";
 		case QUEST_HOLD_ZONE:
 			return "Hold the marked signal point";
 		default:
@@ -160,8 +156,6 @@ const char *GetQuestCompletedMessage(int Quest, int WaveType)
 			return "Wave cleared";
 		case QUEST_EXTRACT:
 			return "Extraction ready";
-		case QUEST_DESTROY_TURRETS:
-			return "Turrets destroyed";
 		case QUEST_HOLD_ZONE:
 			return "Signal secured";
 		default:
@@ -193,10 +187,6 @@ const char *GetThemeDisplayName(int Theme)
 			return "Z-sector wave";
 		case INVASION_THEME_ACID_ESCAPE:
 			return "Acid escape";
-		case INVASION_THEME_TURRET_SWEEP:
-			return "Turret sweep";
-		case INVASION_THEME_SIGNAL_HOLD:
-			return "Signal hold";
 		default:
 			return "Invasion";
 	}

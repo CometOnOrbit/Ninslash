@@ -1222,7 +1222,9 @@ typedef long long int64;
 
 	void dbg_logger_stdout();
 	void dbg_logger_debugger();
+	void dbg_logger_ring();
 	void dbg_logger_file(const char *filename);
+	void dbg_log_dump(IOHANDLE file);
 
 #if defined(CONF_FAMILY_WINDOWS)
 	/* Initializes the persistent early-startup log and crash dump handler.

@@ -231,6 +231,7 @@ class CCharacter : public CEntity
 	bool m_DamagedByPlayer;
 
 	int GetArmor() const { return m_Armor; }
+	int GetHealth() const { return m_Health; }
 
 	// inventory
 	void InventoryRoll(int Slot);

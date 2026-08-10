@@ -24,7 +24,7 @@ inline bool ForgeTabVisible(int ForgeMode)
 
 inline bool ForgeUsable(int ForgeMode, bool ScreenNear)
 {
-	return ForgeMode == 1 || (ForgeMode == 2 && ScreenNear);
+	return ForgeMode == 1 || (ForgeMode >= 2 && ScreenNear);
 }
 
 struct CLayout

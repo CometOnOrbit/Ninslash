@@ -20,6 +20,8 @@ class CInventory : public CComponent
 	int TabItemCount() const;
 	void ResetInteractionState();
 	void Close();
+	bool SubmitForgeSlots(int TargetSlot, int MaterialSlot);
+	bool SubmitUpgradeDrag(int TargetSlot, int MaterialSlot);
 
 	bool m_WasActive;
 	bool m_Active;

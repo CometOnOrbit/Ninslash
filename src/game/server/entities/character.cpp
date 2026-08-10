@@ -679,7 +679,7 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 		Reject(FORGERESULT_DISABLED);
 		return;
 	}
-	if(g_Config.m_SvForgeMode == 2)
+	if(g_Config.m_SvForgeMode >= 2)
 	{
 		bool ScreenNear = false;
 		for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING);

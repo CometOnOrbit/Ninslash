@@ -205,14 +205,6 @@
             "value": "摧毁首领"
         },
         {
-            "key": "Destroy the enemy turrets",
-            "value": "摧毁敌方炮台"
-        },
-        {
-            "key": "Destroy the turrets",
-            "value": "摧毁炮台"
-        },
-        {
             "key": "Disarming bomb... %d",
             "value": "C4拆除中... %d"
         },
@@ -755,18 +747,6 @@
         {
             "key": "Time out - Blue team wins",
             "value": "时间到 - 蓝队胜利"
-        },
-        {
-            "key": "Turret sweep",
-            "value": "炮台清扫"
-        },
-        {
-            "key": "Turrets destroyed",
-            "value": "炮台已摧毁"
-        },
-        {
-            "key": "Turrets missing — survive the wave instead",
-            "value": "炮台缺失 — 改为存活敌潮"
         },
         {
             "key": "Vote aborted",

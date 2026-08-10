@@ -1751,6 +1751,8 @@ int CMenus::DoEditBox(void *pID,
 		return 0;
 
 	ControllerRegisterFocus(pID, pRect, CONTROLLER_FOCUS_EDIT);
+	if(UI()->ActiveItem() == pID)
+		UI()->SetActiveItem(pLineInput);
 	if(ControllerConsumeActivation(pID))
 		UI()->SetActiveItem(pLineInput);
 
@@ -3535,6 +3537,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	char aChallengeHash[100];
 	char aChallengeScriptValue[320];
 	char aChallengeHashValue[100];
+	char aForgeMode[64];
 	char aRoguelite[64];
 	char aContracts[64];
 	char aCheckpoint[64];
@@ -3579,6 +3582,9 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	str_format(aRoguelite, sizeof(aRoguelite), "sv_pve_roguelite %d", Settings.m_Roguelite);
 	str_format(aContracts, sizeof(aContracts), "sv_pve_contracts %d", Settings.m_Contracts);
 	str_format(aCheckpoint, sizeof(aCheckpoint), "sv_invasion_use_checkpoint %d", Settings.m_UseCheckpoint);
+	aForgeMode[0] = 0;
+	if(Settings.m_Mode == LOCAL_MODE_INVASION)
+		str_copy(aForgeMode, "sv_forge_mode 3", sizeof(aForgeMode));
 	str_format(aTutorialChapter, sizeof(aTutorialChapter), "sv_tutorial_chapter %d", g_Config.m_ClTutorialChapter);
 	str_format(aTutorialStep, sizeof(aTutorialStep), "sv_tutorial_step %d", g_Config.m_ClTutorialStep);
 	str_format(aTutorialMode, sizeof(aTutorialMode), "sv_tutorial_mode %d", g_Config.m_ClTutorialActive ? 1 : 0);
@@ -3605,6 +3611,8 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	apArguments[NumArguments++] = "-s";
 	apArguments[NumArguments++] = "-f";
 	apArguments[NumArguments++] = Settings.m_pConfig;
+	if(aForgeMode[0])
+		apArguments[NumArguments++] = aForgeMode;
 	apArguments[NumArguments++] = "sv_register 0";
 	apArguments[NumArguments++] = "sv_register_steam 0";
 	// This managed process is a local/LAN game. Steam Relay rooms use the
@@ -3869,6 +3877,10 @@ void CMenus::CreateConfiguredRoom()
 	CPlatformPartyState Party;
 	if(pPlatform->PartyState(&Party) && !Party.m_LocalOwner)
 		return;
+	CClientAsyncStatus SteamHostStatus;
+	Client()->SteamHostedGameStatus(&SteamHostStatus);
+	if(SteamHostStatus.m_State == CLIENT_ASYNC_WORKING || SteamHostStatus.m_State == CLIENT_ASYNC_SUCCEEDED)
+		Client()->StopSteamHostedGame();
 	// A managed local process and the in-process Steam listen server otherwise
 	// compete for cl_local_server_port when the player changes visibility.
 	// Stop the old host synchronously before handing the room to Steam Relay.
@@ -7486,7 +7498,6 @@ void CMenus::RenderPlay(CUIRect MainView)
 			if(!s_PlayFilterScrollRegion.IsRectClipped(PingBox))
 			{
 				DoEditBox(&g_Config.m_BrFilterPing, &PingBox, aPing, sizeof(aPing), 10.0f, &s_PingOffset);
-				UI()->ClipEnable(&FilterContent);
 			}
 			g_Config.m_BrFilterPing = clamp(str_toint(aPing), 0, 999);
 			s_PlayFilterScrollRegion.AddRect(PingRow);
@@ -7535,7 +7546,6 @@ void CMenus::RenderPlay(CUIRect MainView)
 						UI()->DoLabelScaled(&Label, Localize(pLabel), 10.0f, -1);
 						if(DoEditBox(pID, &Edit, pBuffer, BufferSize, 10.0f, pOffset))
 							Client()->ServerBrowserUpdate();
-						UI()->ClipEnable(&FilterContent);
 					}
 					s_PlayFilterScrollRegion.AddRect(Row);
 				};
@@ -9769,7 +9779,6 @@ void CMenus::OnStateChange(int NewState, int OldState)
 			if(str_find(Client()->ErrorString(), "password"))
 			{
 				m_Popup = POPUP_PASSWORD;
-				UI()->SetHotItem(&g_Config.m_Password);
 				UI()->SetActiveItem(&g_Config.m_Password);
 			}
 			else

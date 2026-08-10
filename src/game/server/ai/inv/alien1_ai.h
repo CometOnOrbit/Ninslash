@@ -1,25 +1,15 @@
 #ifndef GAME_SERVER_AI_ALIEN1_AI_H
 #define GAME_SERVER_AI_ALIEN1_AI_H
-#include <game/server/ai.h>
-#include <game/server/gamecontext.h>
 
-class CAIalien1 : public CAI
+#include "invasion_ai.h"
+
+class CAIalien1 : public CInvasionAI
 {
   public:
-	CAIalien1(CGameContext *pGameServer, CPlayer *pPlayer, int Level);
+	CAIalien1(CGameContext *pGameServer, CPlayer *pPlayer, int Level,
+		EInvasionSkinId ProfileId = INVASION_SKIN_ALIEN1);
 
-	virtual void DoBehavior();
-	void OnCharacterSpawn(class CCharacter *pChr);
-	void ReceiveDamage(int CID, int Dmg);
-
-  private:
-	int m_SkipMoveUpdate;
-	vec2 m_StartPos;
-
-	int m_ShockTimer;
-	int m_Skin;
-
-	int m_Level;
+	void DoBehavior() override;
 };
 
 #endif

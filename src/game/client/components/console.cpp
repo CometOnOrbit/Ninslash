@@ -681,6 +681,133 @@ void CGameConsole::Dump(int Type)
 	}
 }
 
+void CGameConsole::DumpBugReport()
+{
+	Storage()->CreateFolder("logs", IStorage::TYPE_SAVE);
+	char aTimestamp[32];
+	char aFilename[128];
+	char aCompletePath[512];
+	str_timestamp(aTimestamp, sizeof(aTimestamp));
+	str_format(aFilename, sizeof(aFilename), "logs/bugreport_%s_%06d.txt", aTimestamp, (int)(time_get() % 1000000));
+	IOHANDLE File = Storage()->OpenFile(aFilename, IOFLAG_WRITE, IStorage::TYPE_SAVE);
+	if(!File)
+	{
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", "Could not create the bug report file.");
+		return;
+	}
+
+	aCompletePath[0] = 0;
+	Storage()->GetCompletePath(IStorage::TYPE_SAVE, aFilename, aCompletePath, sizeof(aCompletePath));
+	aCompletePath[sizeof(aCompletePath) - 1] = 0;
+	auto WriteLine = [File](const char *pLine) {
+		io_write(File, pLine, str_length(pLine));
+		io_write_newline(File);
+	};
+	auto WriteInt = [&WriteLine](const char *pName, int Value) {
+		char aLine[256];
+		str_format(aLine, sizeof(aLine), "%s: %d", pName, Value);
+		WriteLine(aLine);
+	};
+
+	WriteLine("Ninslash bug report");
+	WriteLine("===================");
+	char aLine[512];
+	str_format(aLine, sizeof(aLine), "Generated: %s", aTimestamp);
+	WriteLine(aLine);
+	str_format(aLine, sizeof(aLine), "Build: %s", GAME_VERSION);
+	WriteLine(aLine);
+	str_format(aLine,
+			   sizeof(aLine),
+			   "Platform: %s-%s-%s",
+			   CONF_FAMILY_STRING,
+			   CONF_PLATFORM_STRING,
+			   CONF_ARCH_STRING);
+	WriteLine(aLine);
+	str_format(aLine, sizeof(aLine), "Network version: %s", m_pClient->NetVersion());
+	WriteLine(aLine);
+	str_format(aLine, sizeof(aLine), "Connect address: %s", Client()->GetConnectAddress());
+	WriteLine(aLine);
+	WriteInt("Client state", Client()->State());
+	WriteInt("Game tick", Client()->GameTick());
+	WriteInt("Game tick speed", Client()->GameTickSpeed());
+	WriteInt("Connection problems", Client()->ConnectionProblems() ? 1 : 0);
+	str_format(aLine, sizeof(aLine), "Client error: %s", Client()->ErrorString());
+	WriteLine(aLine);
+	WriteInt("Map download amount", Client()->MapDownloadAmount());
+	WriteInt("Map download total", Client()->MapDownloadTotalsize());
+	WriteInt("Sound init failed", Client()->SoundInitFailed() ? 1 : 0);
+	WriteInt("Sound enabled", g_Config.m_SndEnable);
+	WriteInt("Sound rate", g_Config.m_SndRate);
+	WriteInt("Sound volume", g_Config.m_SndVolume);
+	WriteInt("Screen width", g_Config.m_GfxScreenWidth);
+	WriteInt("Screen height", g_Config.m_GfxScreenHeight);
+	WriteInt("Fullscreen", g_Config.m_GfxFullscreen);
+	WriteInt("VSync", g_Config.m_GfxVsync);
+	WriteInt("Shaders", g_Config.m_GfxShaders);
+	WriteInt("Threaded graphics", g_Config.m_GfxThreaded);
+	WriteInt("Multibuffering", g_Config.m_GfxMultiBuffering);
+	WriteInt("HUD enabled", g_Config.m_ClShowhud);
+	WriteInt("Health and ammo HUD", g_Config.m_ClShowhudHealthAmmo);
+	WriteInt("Local server mode", g_Config.m_ClLocalServerMode);
+	WriteInt("Local server difficulty", g_Config.m_ClLocalServerDifficulty);
+	WriteInt("Local server seed", g_Config.m_ClLocalServerSeed);
+	WriteInt("Local server random seed", g_Config.m_ClLocalServerRandomSeed);
+	str_format(aLine, sizeof(aLine), "Installed mod hash: %s", g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "<none>");
+	WriteLine(aLine);
+
+	WriteLine("");
+	WriteLine("Snapshot");
+	WriteLine("--------");
+	WriteInt("Local client ID", m_pClient->m_Snap.m_LocalClientID);
+	WriteInt("Players in snapshot", m_pClient->m_Snap.m_NumPlayers);
+	if(m_pClient->m_Snap.m_pGameInfoObj)
+	{
+		WriteInt("Game flags", m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags);
+		WriteInt("Game state flags", m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags);
+	}
+	else
+		WriteLine("Game info: <none>");
+	if(m_pClient->m_Snap.m_pLocalCharacter)
+	{
+		WriteInt("Local health", m_pClient->m_Snap.m_pLocalCharacter->m_Health);
+		WriteInt("Local armor", m_pClient->m_Snap.m_pLocalCharacter->m_Armor);
+		WriteInt("Local weapon definition", m_pClient->m_Snap.m_pLocalCharacter->m_WeaponDefinitionId);
+		WriteInt("Local weapon level", m_pClient->m_Snap.m_pLocalCharacter->m_WeaponLevel);
+		WriteInt("Local ammo", m_pClient->m_Snap.m_pLocalCharacter->m_AmmoCount);
+	}
+	else
+		WriteLine("Local character: <none>");
+
+	WriteLine("");
+	WriteLine("Engine log ring (chronological order)");
+	WriteLine("------------------------------------------------------------");
+	dbg_log_dump(File);
+	WriteLine("");
+	WriteLine("Client console backlog");
+	WriteLine("----------------------");
+	for(CInstance::CBacklogEntry *pEntry = m_LocalConsole.m_Backlog.First(); pEntry;
+		pEntry = m_LocalConsole.m_Backlog.Next(pEntry))
+	{
+		io_write(File, pEntry->m_aText, str_length(pEntry->m_aText));
+		io_write_newline(File);
+	}
+	WriteLine("");
+	WriteLine("Remote console backlog");
+	WriteLine("-----------------------");
+	for(CInstance::CBacklogEntry *pEntry = m_RemoteConsole.m_Backlog.First(); pEntry;
+		pEntry = m_RemoteConsole.m_Backlog.Next(pEntry))
+	{
+		io_write(File, pEntry->m_aText, str_length(pEntry->m_aText));
+		io_write_newline(File);
+	}
+	io_close(File);
+
+	char aMessage[640];
+	str_format(aMessage, sizeof(aMessage), "Bug report exported to %s", aCompletePath[0] ? aCompletePath : aFilename);
+	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", aMessage);
+	dbg_msg("client", "%s", aMessage);
+}
+
 void CGameConsole::ConToggleLocalConsole(IConsole::IResult *pResult, void *pUserData)
 {
 	((CGameConsole *)pUserData)->Toggle(CONSOLETYPE_LOCAL);
@@ -709,6 +836,11 @@ void CGameConsole::ConDumpLocalConsole(IConsole::IResult *pResult, void *pUserDa
 void CGameConsole::ConDumpRemoteConsole(IConsole::IResult *pResult, void *pUserData)
 {
 	((CGameConsole *)pUserData)->Dump(CONSOLETYPE_REMOTE);
+}
+
+void CGameConsole::ConExportLog(IConsole::IResult *pResult, void *pUserData)
+{
+	((CGameConsole *)pUserData)->DumpBugReport();
 }
 
 void CGameConsole::ClientConsolePrintCallback(const char *pStr, void *pUserData)
@@ -757,6 +889,7 @@ void CGameConsole::OnConsoleInit()
 		"clear_remote_console", "", CFGFLAG_CLIENT, ConClearRemoteConsole, this, "Clear remote console");
 	Console()->Register("dump_local_console", "", CFGFLAG_CLIENT, ConDumpLocalConsole, this, "Dump local console");
 	Console()->Register("dump_remote_console", "", CFGFLAG_CLIENT, ConDumpRemoteConsole, this, "Dump remote console");
+	Console()->Register("export_log", "", CFGFLAG_CLIENT, ConExportLog, this, "Export a detailed bug report");
 
 	Console()->Chain("console_output_level", ConchainConsoleOutputLevelUpdate, this);
 }

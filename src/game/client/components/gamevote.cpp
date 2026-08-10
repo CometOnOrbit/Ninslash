@@ -685,11 +685,7 @@ void CGameVoteDisplay::OnRender()
 		}
 
 		char aCategory[64];
-		str_format(aCategory,
-				   sizeof(aCategory),
-				   "%s  %d",
-				   Localize(GameVoteCategoryName(Category)),
-				   CategoryVoteCount(Category));
+		str_copy(aCategory, Localize(GameVoteCategoryName(Category)), sizeof(aCategory));
 		float CategoryFontSize = 6.7f;
 		while(CategoryFontSize > 5.0f && TextRender()->TextWidth(0, CategoryFontSize, aCategory, -1) > Tab.w - 8.0f)
 			CategoryFontSize -= 0.25f;
@@ -797,14 +793,6 @@ void CGameVoteDisplay::OnRender()
 					5.4f,
 					Details.m_aName,
 					vec4(ColorText.r, ColorText.g, ColorText.b, Appear));
-		DrawFitText(TextX,
-					Card.y + 23.0f,
-					max(10.0f, TextRight - TextX),
-					5.3f,
-					4.0f,
-					Details.m_aDescription,
-					vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, Appear));
-
 		char aShortcut[8];
 		if(Slot < 9)
 		{
@@ -816,31 +804,7 @@ void CGameVoteDisplay::OnRender()
 							 vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, 0.82f * Appear));
 		}
 
-		const char *pState =
-			Selected ? Localize("Voted") : (Focused ? Localize("Press Enter to vote") : Localize("Click to vote"));
-		DrawFitText(TextX,
-					Card.y + Card.h - 16.0f,
-					max(10.0f, TextRight - TextX),
-					5.2f,
-					4.0f,
-					pState,
-					Selected ? vec4(Accent.r, Accent.g, Accent.b, Appear)
-							 : vec4(ColorMuted.r, ColorMuted.g, ColorMuted.b, Appear));
 	}
-
-	char aSection[96];
-	str_format(aSection,
-			   sizeof(aSection),
-			   Localize("%s modes · %d choices"),
-			   Localize(GameVoteCategoryName(m_ActiveCategory)),
-			   VoteCount);
-	DrawFitText(Stage.x + 10.0f,
-				Stage.y + Stage.h - 23.0f,
-				Stage.w * 0.46f,
-				6.0f,
-				4.6f,
-				aSection,
-				vec4(ActiveAccent.r, ActiveAccent.g, ActiveAccent.b, Appear));
 
 	if(VoteCount > PageCapacity)
 	{

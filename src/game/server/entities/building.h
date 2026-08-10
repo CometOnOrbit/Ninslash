@@ -70,7 +70,6 @@ class CBuilding : public CEntity
 	bool m_PveRefunded;
 	bool m_PveSwitchActive;
 	bool m_PveReactorObjective;
-	bool m_PveDestroyObjective;
 	int m_SwitchHoldTicks;
 
 	bool m_DestructionTriggered;

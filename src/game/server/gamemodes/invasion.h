@@ -36,14 +36,9 @@ class CGameControllerInvasion : public IGameController
 	void QueueNextObjectiveQuest();
 	void SpawnEliteContractGuard();
 	void SpawnBosses(int Count);
-	int SpawnObjectiveTurrets(int Count);
-	void ClearObjectiveTurrets();
-	void RefreshObjectiveTurretRadars();
-	int CountAliveObjectiveTurrets() const;
 	void StartHoldZone();
 	void ClearHoldZone();
 	void TickHoldZone();
-	void TickDestroyTurrets();
 	void TickObjectivePressure();
 	int CountBossesAlive() const;
 	int CountBuildingsOfType(int Type) const;
@@ -134,11 +129,6 @@ class CGameControllerInvasion : public IGameController
 	class CServerRadar *m_apSwitchRadar[8];
 	int m_NumSwitchRadars;
 
-	static const int MAX_OBJECTIVE_TURRETS = 4;
-	class CServerRadar *m_apTurretRadar[MAX_OBJECTIVE_TURRETS];
-	int m_ObjectiveTurretCount;
-	bool m_DestroyTurretsActive;
-	int m_DestroyFxTick;
 	vec2 m_HoldZonePos;
 	int m_HoldTicks;
 	int m_HoldRequiredTicks;

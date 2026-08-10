@@ -76,6 +76,12 @@ extern "C"
 	static DBG_LOGGER loggers[16];
 	static int num_loggers = 0;
 
+	#define DBG_LOG_RING_LINES 1024
+	#define DBG_LOG_RING_LINE_LENGTH 2048
+	static char s_aLogRing[DBG_LOG_RING_LINES][DBG_LOG_RING_LINE_LENGTH];
+	static int s_LogRingNext = 0;
+	static int s_LogRingCount = 0;
+
 	static NETSTATS network_stats = {0};
 	static MEMSTATS memory_stats = {0};
 
@@ -176,6 +182,14 @@ extern "C"
 		io_flush(logfile);
 	}
 
+	static void logger_ring(const char *line)
+	{
+		str_copy(s_aLogRing[s_LogRingNext], line, sizeof(s_aLogRing[s_LogRingNext]));
+		s_LogRingNext = (s_LogRingNext + 1) % DBG_LOG_RING_LINES;
+		if(s_LogRingCount < DBG_LOG_RING_LINES)
+			s_LogRingCount++;
+	}
+
 	void dbg_logger_stdout()
 	{
 		dbg_logger(logger_stdout);
@@ -184,6 +198,10 @@ extern "C"
 	{
 		dbg_logger(logger_debugger);
 	}
+	void dbg_logger_ring()
+	{
+		dbg_logger(logger_ring);
+	}
 	void dbg_logger_file(const char *filename)
 	{
 		logfile = io_open(filename, IOFLAG_WRITE);
@@ -191,6 +209,21 @@ extern "C"
 			dbg_logger(logger_file);
 		else
 			dbg_msg("dbg/logger", "failed to open '%s' for logging", filename);
+	}
+	void dbg_log_dump(IOHANDLE file)
+	{
+		int First;
+		int i;
+		int Index;
+		if(!file)
+			return;
+		First = (s_LogRingNext - s_LogRingCount + DBG_LOG_RING_LINES) % DBG_LOG_RING_LINES;
+		for(i = 0; i < s_LogRingCount; ++i)
+		{
+			Index = (First + i) % DBG_LOG_RING_LINES;
+			io_write(file, s_aLogRing[Index], strlen(s_aLogRing[Index]));
+			io_write_newline(file);
+		}
 	}
 	/* */
 

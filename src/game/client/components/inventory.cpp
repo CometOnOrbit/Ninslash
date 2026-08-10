@@ -57,6 +57,38 @@ static bool WeaponDefinition(const CWeaponSpec &Spec, CWeaponDefinition *pDefini
 	return Spec.IsValid() && CWeaponCatalog::TryGetDefinition(Spec.m_DefinitionId, pDefinition);
 }
 
+static int WeaponRankSprite(const CWeaponSpec &Spec)
+{
+	if(!Spec.IsValid() || Spec.m_Level <= 0)
+		return -1;
+	CResolvedWeaponProfile Profile{};
+	if(!CWeaponCatalog::TryResolve(Spec, &Profile) ||
+	   WeaponHasBehavior(Profile.m_Definition, WEAPON_BEHAVIOR_UPGRADE))
+		return -1;
+	const int MaxLevel = max(1, (int)Profile.m_Definition.m_MaxLevel);
+	const int Level = min((int)Spec.m_Level, MaxLevel);
+	const int Rank = 1 + (Level - 1) * 6 / max(1, MaxLevel - 1);
+	return SPRITE_WEAPONRANK1 + clamp(Rank, 1, 7) - 1;
+}
+
+static void DrawWeaponRankIcon(IGraphics *pGraphics,
+	CRenderTools *pRenderTools,
+	const CWeaponSpec &Spec,
+	vec2 Pos,
+	float Size,
+	float Alpha)
+{
+	const int RankSprite = WeaponRankSprite(Spec);
+	if(RankSprite < 0)
+		return;
+	pGraphics->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
+	pGraphics->QuadsBegin();
+	pGraphics->SetColor(1.0f, 1.0f, 1.0f, Alpha);
+	pRenderTools->SelectSprite(RankSprite);
+	pRenderTools->DrawSprite(Pos.x, Pos.y, Size);
+	pGraphics->QuadsEnd();
+}
+
 static int ShopWeaponCost(const CNetObj_Shop *pShop, int Slot)
 {
 	CResolvedWeaponProfile Profile;
@@ -376,7 +408,7 @@ void CInventory::OnConsoleInit()
 						CFGFLAG_CLIENT,
 						ConDebugInventory,
 						this,
-						"Force inventory preview: 0 off, 1 inventory, 2 forge");
+						"Force inventory preview: 0 off, 1 inventory, 2 forge, 3 inventory drag forge");
 }
 
 void CInventory::ResetInteractionState()
@@ -472,7 +504,7 @@ bool CInventory::OnMouseMove(float x, float y)
 	}
 	else if(!m_Moved)
 	{
-		if(abs(length(m_SelectorMouse - m_MoveStartPos)) > 16.0f)
+		if(abs(length(m_SelectorMouse - m_MoveStartPos)) > 1.0f)
 		{
 			m_Moved = true;
 			m_MoveTrigger = true;
@@ -599,33 +631,55 @@ void CInventory::Swap(int Item1, int Item2)
 	m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV1, 0);
 }
 
-void CInventory::SubmitForge()
+bool CInventory::SubmitForgeSlots(int TargetSlot, int MaterialSlot)
 {
-	if(m_ForgePending || m_ForgeTargetSlot < 0 || m_ForgeTargetSlot >= 12 || m_ForgeMaterialSlot < 0 ||
-	   m_ForgeMaterialSlot >= 12 || m_ForgeTargetSlot == m_ForgeMaterialSlot ||
+	if(m_ForgePending || TargetSlot < 0 || TargetSlot >= 12 || MaterialSlot < 0 || MaterialSlot >= 12 ||
+	   TargetSlot == MaterialSlot ||
 	   !InventoryLogic::ForgeUsable(ForgeMode(), ForgeScreenNear()))
-		return;
+		return false;
 	const CNetObj_GameInfo *pGameInfo = m_pClient->m_Snap.m_pGameInfoObj;
 	if(!pGameInfo)
-		return;
-	const CForgeRecipe Recipe = CForge::Resolve(CustomStuff()->m_aItem[m_ForgeTargetSlot],
-												CustomStuff()->m_aItem[m_ForgeMaterialSlot],
-												CustomStuff()->m_aItemAmmo[m_ForgeTargetSlot],
-												pGameInfo->m_ForgeBaseCost,
-												pGameInfo->m_ForgeLevelCost,
-												CustomStuff()->m_aItemAmmo[m_ForgeMaterialSlot]);
+		return false;
+	const CWeaponSpec Target = CustomStuff()->m_aItem[TargetSlot];
+	const CWeaponSpec Material = CustomStuff()->m_aItem[MaterialSlot];
+	const CForgeRecipe Recipe = CForge::Resolve(Target,
+		Material,
+		CustomStuff()->m_aItemAmmo[TargetSlot],
+		pGameInfo->m_ForgeBaseCost,
+		pGameInfo->m_ForgeLevelCost,
+		CustomStuff()->m_aItemAmmo[MaterialSlot]);
 	if(Recipe.m_Result != FORGERESULT_SUCCESS || CustomStuff()->m_Gold < Recipe.m_Cost)
-		return;
+		return false;
 
 	CNetMsg_Cl_InventoryAction Msg;
 	Msg.m_Type = INVENTORYACTION_COMBINE;
 	Msg.m_Slot = FORGEOP_AUTO;
-	Msg.m_Item1 = m_ForgeTargetSlot;
-	Msg.m_Item2 = m_ForgeMaterialSlot;
+	Msg.m_Item1 = TargetSlot;
+	Msg.m_Item2 = MaterialSlot;
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
 	m_ForgePending = true;
 	m_ForgeLastResult = -1;
 	m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV2, 0);
+	return true;
+}
+
+bool CInventory::SubmitUpgradeDrag(int TargetSlot, int MaterialSlot)
+{
+	if(ForgeMode() != 3 || !ForgeScreenNear() || TargetSlot < 0 || TargetSlot >= 12 || MaterialSlot < 0 ||
+	   MaterialSlot >= 12 || TargetSlot == MaterialSlot)
+		return false;
+
+	CResolvedWeaponProfile MaterialProfile{};
+	if(!CWeaponCatalog::TryResolve(CustomStuff()->m_aItem[MaterialSlot], &MaterialProfile) ||
+	   !WeaponHasBehavior(MaterialProfile.m_Definition, WEAPON_BEHAVIOR_UPGRADE))
+		return false;
+
+	return SubmitForgeSlots(TargetSlot, MaterialSlot);
+}
+
+void CInventory::SubmitForge()
+{
+	SubmitForgeSlots(m_ForgeTargetSlot, m_ForgeMaterialSlot);
 }
 
 void CInventory::RenderMouse()
@@ -638,7 +692,7 @@ void CInventory::RenderMouse()
 		{
 			RenderTools()->SetShadersForWeapon(w);
 			RenderTools()->RenderWeapon(
-				w, m_SelectorMouse, vec2(1, 0), 9.0f, true, 0, 1.0f, false, false, false, m_AppearAmount);
+				w, m_SelectorMouse, vec2(1, 0), 15.0f, true, 0, 1.0f, false, false, false, m_AppearAmount);
 			Graphics()->ShaderEnd();
 		}
 	}
@@ -1045,6 +1099,12 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 			const CWeaponSpec Spec = CustomStuff()->m_aItem[Slot];
 			if(Spec.IsValid() && Slot != m_DragItem)
 			{
+				DrawWeaponRankIcon(Graphics(),
+					RenderTools(),
+					Spec,
+					vec2(CellRect.x + CellRect.w * 0.5f, CellRect.y + 6.5f),
+					11.0f,
+					Alpha);
 				Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 				RenderTools()->SetShadersForWeapon(Spec);
 				RenderTools()->RenderWeapon(Spec,
@@ -1161,6 +1221,12 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 			const CWeaponSpec Spec = CustomStuff()->m_aItem[Slot];
 			if(Spec.IsValid() && Slot != m_DragItem)
 			{
+				DrawWeaponRankIcon(Graphics(),
+					RenderTools(),
+					Spec,
+					vec2(CellRect.x + CellRect.w * 0.5f, CellRect.y + 8.5f),
+					12.0f,
+					Alpha);
 				Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 				RenderTools()->SetShadersForWeapon(Spec);
 				RenderTools()->RenderWeapon(Spec,
@@ -1200,7 +1266,10 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 		if(m_MouseTrigger && !m_Mouse1 && m_DragItem >= 0)
 		{
 			if(m_Moved && Hovered >= 0 && Hovered != m_DragItem && m_Tab == InventoryLogic::TAB_INVENTORY)
-				Swap(m_DragItem, Hovered);
+			{
+				if(!SubmitUpgradeDrag(Hovered, m_DragItem))
+					Swap(m_DragItem, Hovered);
+			}
 			else if(InventoryLogic::ShouldDropOutsideInventory(m_DragItem,
 														 CustomStuff()->m_aItem[m_DragItem].IsValid(),
 														 m_Moved,
@@ -1408,6 +1477,12 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 			const CWeaponSpec Spec = CustomStuff()->m_aItem[Slot];
 			if(Spec.IsValid())
 			{
+				DrawWeaponRankIcon(Graphics(),
+					RenderTools(),
+					Spec,
+					vec2(Cell.x + Cell.w * 0.5f, Cell.y + 7.5f),
+					11.0f,
+					Alpha);
 				Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 				RenderTools()->SetShadersForWeapon(Spec);
 				RenderTools()->RenderWeapon(Spec,

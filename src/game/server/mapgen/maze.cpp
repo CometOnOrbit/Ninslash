@@ -376,49 +376,6 @@ void CMaze::Generate()
 			return;
 		}
 
-		// Turret sweep — open dual-lane layout for hunting marked turrets
-		if(Theme == INVASION_THEME_TURRET_SWEEP)
-		{
-			int r = min(20, Level / 3);
-			float s = 0.11f + frandom() * 0.15f;
-			float sy = 0.4f + frandom() * 0.15f;
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f - s), m_H * (0.5f - s * sy));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f + s), m_H * (0.5f - s * sy));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f + s), m_H * (0.5f));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f), m_H * (0.5f));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f), m_H * (0.5f + s * sy));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f + s * 2), m_H * (0.5f + s * sy));
-			for(int i = 0; i < m_Rooms - 1; i++)
-				Connect(m_aRoom[i], m_aRoom[i + 1]);
-			for(int i = 0; i < r; i++)
-				GenerateRoom();
-			ConnectRooms();
-			ConnectEverything();
-			return;
-		}
-
-		// Signal hold — stacked platforms around a central hold point
-		if(Theme == INVASION_THEME_SIGNAL_HOLD)
-		{
-			float s = 0.08f + frandom() * 0.05f;
-			for(int i = 0; i < 4; i++)
-			{
-				float y = 0.25f + i * 0.15f;
-				Connect(vec2(m_W * (0.5f - s), m_H * y), vec2(m_W * (0.5f + s), m_H * y));
-			}
-			for(int i = 0; i < 3; i++)
-			{
-				float y1 = 0.25f + i * 0.15f;
-				float y2 = 0.25f + (i + 1) * 0.15f;
-				Connect(vec2(m_W * 0.5f, m_H * y1), vec2(m_W * 0.5f, m_H * y2));
-			}
-			for(int i = 0; i < min(8, Level / 3); i++)
-				GenerateRoom();
-			ConnectRooms();
-			ConnectEverything();
-			return;
-		}
-
 		// default coop layout
 		m_aRoom[m_Rooms++] = vec2(m_W * 0.4f, m_H * (0.05f + frandom() * 0.8f));
 		m_aRoom[m_Rooms++] = vec2(m_W * 0.6f, m_aRoom[0].y);

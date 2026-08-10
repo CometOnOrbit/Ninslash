@@ -23,6 +23,7 @@
 
 #include <game/server/playerdata.h>
 #include <game/server/ai.h>
+#include <game/server/ai/inv/invasion_profile.h>
 #include <game/server/ai/inv/robot1_ai.h>
 #include <game/server/ai/inv/robot2_ai.h>
 #include <game/server/ai/inv/alien1_ai.h>
@@ -32,41 +33,37 @@
 #include <game/server/ai/inv/pyro1_ai.h>
 #include <game/server/ai/inv/pyro2_ai.h>
 
-static CAI *CreateAIalien1(CGameContext *pGameServer, CPlayer *pPlayer, int Level)
+static CAI *CreateAIalien1(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIalien1(pGameServer, pPlayer, Level);
+	return new CAIalien1(pGameServer, pPlayer, Level, ProfileId);
 }
-static CAI *CreateAIrobot1(CGameContext *pGameServer, CPlayer *pPlayer, int Level)
+static CAI *CreateAIrobot1(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIrobot1(pGameServer, pPlayer, Level);
+	return new CAIrobot1(pGameServer, pPlayer, Level, ProfileId);
 }
-static CAI *CreateAIpyro1(CGameContext *pGameServer, CPlayer *pPlayer, int Level)
+static CAI *CreateAIpyro1(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIpyro1(pGameServer, pPlayer, Level);
+	return new CAIpyro1(pGameServer, pPlayer, Level, ProfileId);
 }
-static CAI *CreateAIbunny1(CGameContext *pGameServer, CPlayer *pPlayer, int Level)
+static CAI *CreateAIbunny1(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIbunny1(pGameServer, pPlayer, Level);
+	return new CAIbunny1(pGameServer, pPlayer, Level, ProfileId);
 }
-static CAI *CreateAIrobot2(CGameContext *pGameServer, CPlayer *pPlayer, int Level)
+static CAI *CreateAIrobot2(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
 {
-	(void)Level;
-	return new CAIrobot2(pGameServer, pPlayer);
+	return new CAIrobot2(pGameServer, pPlayer, Level, ProfileId);
 }
-static CAI *CreateAIalien2(CGameContext *pGameServer, CPlayer *pPlayer, int Level)
+static CAI *CreateAIalien2(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
 {
-	(void)Level;
-	return new CAIalien2(pGameServer, pPlayer);
+	return new CAIalien2(pGameServer, pPlayer, Level, ProfileId);
 }
-static CAI *CreateAIbunny2(CGameContext *pGameServer, CPlayer *pPlayer, int Level)
+static CAI *CreateAIbunny2(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
 {
-	(void)Level;
-	return new CAIbunny2(pGameServer, pPlayer);
+	return new CAIbunny2(pGameServer, pPlayer, Level, ProfileId);
 }
-static CAI *CreateAIpyro2(CGameContext *pGameServer, CPlayer *pPlayer, int Level)
+static CAI *CreateAIpyro2(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
 {
-	(void)Level;
-	return new CAIpyro2(pGameServer, pPlayer);
+	return new CAIpyro2(pGameServer, pPlayer, Level, ProfileId);
 }
 
 static const float INV_QUEST_QUEUE_TIME = 1.5f;
@@ -103,6 +100,21 @@ static int InvasionDepthQuests(int Level)
 	if(Level >= 21)
 		return min(2 + Level / 12, 3);
 	return 2;
+}
+
+static bool InvasionRandomObjectiveFloor(int Level)
+{
+	const int Theme = InvasionThemeFromLevel(Level);
+	return Theme == INVASION_THEME_STANDARD_WAVE || Theme == INVASION_THEME_Z_SECTOR;
+}
+
+static int InvasionRandomObjective(int Level, int Seed)
+{
+	static const int aObjectives[] = {QUEST_SURVIVEWAVE, QUEST_SURVIVEWAVETIME, QUEST_HOLD_ZONE};
+	const unsigned long long StreamSeed =
+		DeterministicSeed((unsigned long long)(unsigned int)Seed, "invasion_objective") + (unsigned long long)max(0, Level);
+	CDeterministicRandom Rng(StreamSeed);
+	return aObjectives[Rng.NextInt((int)(sizeof(aObjectives) / sizeof(aObjectives[0])))];
 }
 
 static int InvasionOpeningEnemies(int Level)
@@ -227,11 +239,6 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_NumSwitchRadars = 0;
 	for(int i = 0; i < 8; i++)
 		m_apSwitchRadar[i] = 0;
-	m_ObjectiveTurretCount = 0;
-	m_DestroyTurretsActive = false;
-	m_DestroyFxTick = 0;
-	for(int i = 0; i < MAX_OBJECTIVE_TURRETS; i++)
-		m_apTurretRadar[i] = 0;
 	m_HoldZonePos = vec2(0, 0);
 	m_HoldTicks = 0;
 	m_HoldRequiredTicks = 0;
@@ -272,12 +279,6 @@ void CGameControllerInvasion::SetupLevelTheme()
 		case INVASION_THEME_REACTOR_DEFEND:
 			m_LevelQuestsLeft = max(2, DepthQuests);
 			break;
-		case INVASION_THEME_TURRET_SWEEP:
-			m_LevelQuestsLeft = max(2, DepthQuests);
-			break;
-		case INVASION_THEME_SIGNAL_HOLD:
-			m_LevelQuestsLeft = max(2, DepthQuests);
-			break;
 		case INVASION_THEME_TIMED_SURVIVE:
 			m_LevelQuestsLeft = max(2, DepthQuests);
 			break;
@@ -293,7 +294,7 @@ void CGameControllerInvasion::SetupLevelTheme()
 	}
 	// Floor 30 is the Blue Planet chapter finale. Keep its normal rotating
 	// theme for the preceding objectives, then replace the final trap-run
-	// objective with the chapter boss without changing the global 12-floor
+	// objective with the chapter boss without changing the global 10-floor
 	// theme cycle.
 	if(Level == 30)
 		m_BossesLeft = 1;
@@ -743,7 +744,7 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 			pChr->GetPlayer()->SetAISkin();
 			pChr->m_IsBot = true;
 
-			typedef CAI *(*AIFactory)(CGameContext *, CPlayer *, int);
+			typedef CAI *(*AIFactory)(CGameContext *, CPlayer *, int, EInvasionSkinId);
 			// Aligned with WaveTypes in questinfo.h
 			static const AIFactory s_aAIFactories[] = {
 				0,				// WAVE_NONE (0)
@@ -766,14 +767,15 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 			bool UseElite = m_EliteWave && frandom() < 0.45f;
 			if(!UseElite && g_Config.m_SvMapGenLevel > 15 && frandom() < 0.15f)
 				UseElite = frandom() < 0.45f;
+			const EInvasionSkinId Profile = InvasionSkinForWave(m_QuestWaveType, Level, UseElite);
 			AIFactory Factory = 0;
 			if(m_QuestWaveType >= 0 && m_QuestWaveType < s_NumFactories)
 				Factory = UseElite ? s_aEliteFactories[m_QuestWaveType] : s_aAIFactories[m_QuestWaveType];
 
 			if(Factory)
-				pChr->GetPlayer()->m_pAI = Factory(GameServer(), pChr->GetPlayer(), Level);
+				pChr->GetPlayer()->m_pAI = Factory(GameServer(), pChr->GetPlayer(), Level, Profile);
 			else
-				pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), Level);
+				pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), Level, Profile);
 
 			pChr->GetPlayer()->m_IsBot = true;
 			pChr->GetPlayer()->m_TeeInfos.m_IsBot = true;
@@ -785,7 +787,8 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 
 		if(!Found)
 		{
-			pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), g_Config.m_SvMapGenLevel);
+			pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), g_Config.m_SvMapGenLevel,
+				INVASION_SKIN_ALIEN1);
 			pChr->GetPlayer()->m_IsBot = true;
 			pChr->GetPlayer()->m_TeeInfos.m_IsBot = true;
 			pChr->GetPlayer()->m_ToBeKicked = true;
@@ -916,7 +919,7 @@ bool CGameControllerInvasion::IsObjectiveTarget(bool Boss) const
 	if(m_Quest == QUEST_KILL_BOSS)
 		return Boss;
 	return m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME || m_Quest == QUEST_KILLREMAININGENEMIES ||
-		   m_Quest == QUEST_DEFEND || m_Quest == QUEST_DESTROY_TURRETS || m_Quest == QUEST_HOLD_ZONE;
+		   m_Quest == QUEST_DEFEND || m_Quest == QUEST_HOLD_ZONE;
 }
 
 int CGameControllerInvasion::CountBuildingsOfType(int Type) const
@@ -1001,139 +1004,6 @@ void CGameControllerInvasion::SetSwitchesActive(bool Active)
 		RefreshSwitchRadars();
 	else
 		ClearSwitchRadars();
-}
-
-void CGameControllerInvasion::ClearObjectiveTurrets()
-{
-	for(int i = 0; i < MAX_OBJECTIVE_TURRETS; i++)
-	{
-		if(m_apTurretRadar[i])
-		{
-			m_apTurretRadar[i]->Deactivate();
-			GameServer()->m_World.DestroyEntity(m_apTurretRadar[i]);
-			m_apTurretRadar[i] = 0;
-		}
-	}
-	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding;)
-	{
-		CBuilding *pNext = (CBuilding *)pBuilding->TypeNext();
-		if(pBuilding->m_PveDestroyObjective)
-			GameServer()->m_World.DestroyEntity(pBuilding);
-		pBuilding = pNext;
-	}
-	m_ObjectiveTurretCount = 0;
-	m_DestroyTurretsActive = false;
-	m_DestroyFxTick = 0;
-}
-
-void CGameControllerInvasion::RefreshObjectiveTurretRadars()
-{
-	for(int i = 0; i < MAX_OBJECTIVE_TURRETS; i++)
-	{
-		if(m_apTurretRadar[i])
-		{
-			m_apTurretRadar[i]->Deactivate();
-			GameServer()->m_World.DestroyEntity(m_apTurretRadar[i]);
-			m_apTurretRadar[i] = 0;
-		}
-	}
-	int RadarCount = 0;
-	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding;
-		pBuilding = (CBuilding *)pBuilding->TypeNext())
-	{
-		if(!pBuilding->m_PveDestroyObjective || pBuilding->m_Life <= 0 || pBuilding->m_Type != BUILDING_TURRET)
-			continue;
-		if(RadarCount >= MAX_OBJECTIVE_TURRETS)
-			break;
-		CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
-		pRadar->Activate(pBuilding->m_Pos);
-		m_apTurretRadar[RadarCount++] = pRadar;
-	}
-}
-
-int CGameControllerInvasion::CountAliveObjectiveTurrets() const
-{
-	int Alive = 0;
-	for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING); pBuilding;
-		pBuilding = (CBuilding *)pBuilding->TypeNext())
-	{
-		if(pBuilding->m_PveDestroyObjective && pBuilding->m_Type == BUILDING_TURRET && pBuilding->m_Life > 0)
-			Alive++;
-	}
-	return Alive;
-}
-
-int CGameControllerInvasion::SpawnObjectiveTurrets(int Count)
-{
-	ClearObjectiveTurrets();
-	Count = clamp(Count, 1, MAX_OBJECTIVE_TURRETS);
-	vec2 aPlaced[MAX_OBJECTIVE_TURRETS];
-	int Placed = 0;
-	for(int Attempt = 0; Attempt < Count * 8 && Placed < Count; Attempt++)
-	{
-		vec2 Pos;
-		if(!GetBossSpawnPos(&Pos) && !GetSpawnPos(0, &Pos))
-			break;
-		bool TooClose = false;
-		for(int i = 0; i < Placed; i++)
-		{
-			if(distance(aPlaced[i], Pos) < 280.0f)
-			{
-				TooClose = true;
-				break;
-			}
-		}
-		if(TooClose)
-			continue;
-		CWeapon *pWeapon = GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL1));
-		if(!pWeapon)
-			continue;
-		CTurret *pTurret = new CTurret(&GameServer()->m_World, Pos, -1, pWeapon);
-		pTurret->m_Team = -1;
-		pTurret->m_PveDestroyObjective = true;
-		pTurret->m_Life = min(120, 60 + g_Config.m_SvMapGenLevel * 2);
-		pTurret->m_MaxLife = pTurret->m_Life;
-		aPlaced[Placed++] = Pos;
-	}
-	m_ObjectiveTurretCount = Placed;
-	m_DestroyTurretsActive = Placed > 0;
-	m_DestroyFxTick = Server()->Tick();
-	RefreshObjectiveTurretRadars();
-	if(Placed > 0)
-		GameServer()->CreateSoundGlobal(SOUND_WEAPON_SPAWN);
-	return Placed;
-}
-
-void CGameControllerInvasion::TickDestroyTurrets()
-{
-	if(!m_DestroyTurretsActive)
-		return;
-	const int Alive = CountAliveObjectiveTurrets();
-	if(Alive != m_QuestProgressCounter)
-		RefreshObjectiveTurretRadars();
-	m_QuestProgressCounter = Alive;
-
-	if(m_DestroyFxTick <= Server()->Tick())
-	{
-		m_DestroyFxTick = Server()->Tick() + Server()->TickSpeed() * 0.7f;
-		for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING);
-			pBuilding;
-			pBuilding = (CBuilding *)pBuilding->TypeNext())
-		{
-			if(!pBuilding->m_PveDestroyObjective || pBuilding->m_Type != BUILDING_TURRET || pBuilding->m_Life <= 0)
-				continue;
-			GameServer()->CreateEffect(FX_SMALLELECTRIC, pBuilding->m_Pos + vec2(0, -36));
-			GameServer()->CreateBuildingHit(pBuilding->m_Pos + vec2(0, -20));
-		}
-	}
-
-	if(Alive <= 0)
-	{
-		GameServer()->CreateSoundGlobal(SOUND_PICKUP_ARMOR);
-		ClearObjectiveTurrets();
-		m_EnemiesLeft = 0;
-		CompleteCurrentQuest();
-	}
 }
 
 void CGameControllerInvasion::ClearHoldZone()
@@ -1327,7 +1197,7 @@ void CGameControllerInvasion::TickHoldZone()
 
 void CGameControllerInvasion::TickObjectivePressure()
 {
-	if(m_Quest != QUEST_DESTROY_TURRETS && m_Quest != QUEST_HOLD_ZONE)
+	if(m_Quest != QUEST_HOLD_ZONE)
 		return;
 	if(m_BotSpawnTick >= Server()->Tick())
 		return;
@@ -1382,7 +1252,9 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim,
 	{
 		if(pKiller && !pKiller->m_IsBot && GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->OnEnemyKilled(Source, pVictim->m_Pos, pVictim);
-		if(m_EnemiesLeft <= 0 || m_EscapeSpawnActive || m_DefendLevel)
+		// Ordinary waves use the dead bot slot to consume m_EnemiesLeft on respawn.
+		// Reactor defense has a separate reinforcement loop, so its bots are kicked.
+		if(m_EnemiesLeft <= 0 || m_EscapeSpawnActive || m_Quest == QUEST_DEFEND)
 			pVictim->GetPlayer()->m_ToBeKicked = true;
 
 		if(pKiller)
@@ -1468,8 +1340,6 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 	m_DefendPrepEndTick = 0;
 	if(m_Quest == QUEST_ACTIVATE_SWITCHES || m_Quest == QUEST_FIND_SWITCH)
 		SetSwitchesActive(false);
-	if(m_Quest == QUEST_DESTROY_TURRETS)
-		ClearObjectiveTurrets();
 	if(m_Quest == QUEST_HOLD_ZONE)
 		ClearHoldZone();
 	SendQuestCompletedMessage(m_Quest);
@@ -1499,6 +1369,12 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 	if(g_Config.m_SvMapGenLevel == 30 && Done >= LastSlot)
 	{
 		Next = QUEST_KILL_BOSS;
+		ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
+		return;
+	}
+	if(Done >= LastSlot && InvasionRandomObjectiveFloor(g_Config.m_SvMapGenLevel))
+	{
+		Next = InvasionRandomObjective(g_Config.m_SvMapGenLevel, g_Config.m_SvMapGenSeed);
 		ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
 		return;
 	}
@@ -1563,18 +1439,6 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 					Next = QUEST_SURVIVEWAVE;
 				}
 			}
-			else
-				Next = QUEST_SURVIVEWAVE;
-			break;
-		case INVASION_THEME_TURRET_SWEEP:
-			if(Done >= LastSlot)
-				Next = QUEST_DESTROY_TURRETS;
-			else
-				Next = QUEST_SURVIVEWAVE;
-			break;
-		case INVASION_THEME_SIGNAL_HOLD:
-			if(Done >= LastSlot)
-				Next = QUEST_HOLD_ZONE;
 			else
 				Next = QUEST_SURVIVEWAVE;
 			break;
@@ -1796,29 +1660,6 @@ void CGameControllerInvasion::Tick()
 				TriggerEscape();
 			}
 
-			if(m_Quest == QUEST_DESTROY_TURRETS)
-			{
-				const int Spawned = SpawnObjectiveTurrets(2);
-				if(Spawned <= 0)
-				{
-					dbg_msg("inv", "turret sweep: failed to spawn turrets, fallback wave");
-					GameServer()->SendBroadcast("Turrets missing — survive the wave instead", -1);
-					m_Quest = QUEST_NONE;
-					ChangeQuest(QUEST_SURVIVEWAVE, 0.5f);
-				}
-				else
-				{
-					m_QuestProgressCounter = Spawned;
-					m_QuestWaveSize = min(10, 6 + g_Config.m_SvMapGenLevel / 6);
-					m_EnemiesLeft = max(4, m_QuestWaveSize / 2);
-					m_BotSpawnTick = Server()->Tick();
-					RandomGroupSpawnPos();
-					const int SpawnCount = min(m_EnemiesLeft, max(0, m_QuestWaveSize - CountBots()));
-					for(int i = 0; i < SpawnCount; i++)
-						GameServer()->AddBot();
-				}
-			}
-
 			if(m_Quest == QUEST_HOLD_ZONE)
 			{
 				StartHoldZone();
@@ -1969,9 +1810,6 @@ void CGameControllerInvasion::Tick()
 
 		if(m_Quest == QUEST_FIND_SWITCH)
 			m_QuestProgressCounter = max(0, 1 - m_SwitchesActivated);
-
-		if(m_Quest == QUEST_DESTROY_TURRETS)
-			TickDestroyTurrets();
 
 		if(m_Quest == QUEST_HOLD_ZONE)
 			TickHoldZone();

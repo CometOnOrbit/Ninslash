@@ -1578,7 +1578,7 @@ void CMapGen::GenerateLevel()
 
 	// if (Level > 3 && frandom() < 0.75f)
 
-	for(int i = 0; i < 4; i++)
+	for(int i = 0; i < 6; i++)
 		GenerateScreen(pTiles);
 
 	if(InvasionMode)
@@ -2191,7 +2191,7 @@ void CMapGen::GeneratePVPLevel()
 	for(int i = 0; i < c; i++)
 		GenerateHangables(pTiles);
 
-	for(int i = 0; i < 4; i++)
+	for(int i = 0; i < 6; i++)
 		GenerateScreen(pTiles);
 
 	int Obs = 3; // 1 + pTiles->NumPlatforms() / 4.0f;

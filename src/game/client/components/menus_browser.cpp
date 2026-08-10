@@ -1078,7 +1078,6 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 				 FontSize,
 				 &Offset))
 		Client()->ServerBrowserUpdate();
-	UI()->ClipEnable(&ScrollArea);
 	s_FilterScrollRegion.AddRect(Button);
 
 	{
@@ -1092,7 +1091,6 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 		str_format(aBuf, sizeof(aBuf), "%d", g_Config.m_BrFilterPing);
 		static float Offset = 0.0f;
 		DoEditBox(&g_Config.m_BrFilterPing, &EditBox, aBuf, sizeof(aBuf), FontSize, &Offset);
-		UI()->ClipEnable(&ScrollArea);
 		g_Config.m_BrFilterPing = clamp(str_toint(aBuf), 0, 999);
 		s_FilterScrollRegion.AddRect(Button);
 		s_FilterScrollRegion.AddRect(EditBox);
@@ -1111,7 +1109,6 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 				 FontSize,
 				 &OffsetAddr))
 		Client()->ServerBrowserUpdate();
-	UI()->ClipEnable(&ScrollArea);
 	s_FilterScrollRegion.AddRect(Button);
 
 	// player country

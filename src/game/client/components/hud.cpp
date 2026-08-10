@@ -499,12 +499,9 @@ void CHud::RenderObjective()
 		char aDetail[96];
 		aDetail[0] = 0;
 		if(Quest == QUEST_KILLREMAININGENEMIES || Quest == QUEST_SURVIVEWAVE || Quest == QUEST_KILL_BOSS ||
-		   Quest == QUEST_HORDE || Quest == QUEST_DESTROY_TURRETS)
+		   Quest == QUEST_HORDE)
 		{
-			const char *pText =
-				Quest == QUEST_KILL_BOSS
-					? Localize("bosses remaining")
-					: (Quest == QUEST_DESTROY_TURRETS ? Localize("turrets remaining") : Localize("enemies remaining"));
+			const char *pText = Quest == QUEST_KILL_BOSS ? Localize("bosses remaining") : Localize("enemies remaining");
 			str_format(aDetail, sizeof(aDetail), "%d %s", QuestProgressCounter, pText);
 		}
 		else if(Quest == QUEST_SURVIVEWAVETIME || Quest == QUEST_DEFEND || Quest == QUEST_HOLD_ZONE)

@@ -70,6 +70,7 @@ class CGameConsole : public CComponent
 
 	void Toggle(int Type);
 	void Dump(int Type);
+	void DumpBugReport();
 
 	static void PossibleCommandsRenderCallback(const char *pStr, void *pUser);
 	static void ClientConsolePrintCallback(const char *pStr, void *pUserData);
@@ -79,6 +80,7 @@ class CGameConsole : public CComponent
 	static void ConClearRemoteConsole(IConsole::IResult *pResult, void *pUserData);
 	static void ConDumpLocalConsole(IConsole::IResult *pResult, void *pUserData);
 	static void ConDumpRemoteConsole(IConsole::IResult *pResult, void *pUserData);
+	static void ConExportLog(IConsole::IResult *pResult, void *pUserData);
 	static void ConchainConsoleOutputLevelUpdate(IConsole::IResult *pResult,
 												 void *pUserData,
 												 IConsole::FCommandCallback pfnCallback,

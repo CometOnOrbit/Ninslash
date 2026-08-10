@@ -817,6 +817,17 @@ if(NINSLASH_BUILD_TESTS)
   target_link_libraries(ninslash_test_weapon_lua ${LIBS})
   add_test(NAME weapon_lua COMMAND ninslash_test_weapon_lua)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_weapon_lua)
+  add_executable(ninslash_test_invasion_skin_profiles
+    tests/invasion_skin_profiles.cpp
+    src/game/server/ai/inv/invasion_profile.cpp
+    $<TARGET_OBJECTS:game-shared>
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_invasion_skin_profiles PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_invasion_skin_profiles ${LIBS})
+  add_test(NAME invasion_skin_profiles COMMAND ninslash_test_invasion_skin_profiles)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_invasion_skin_profiles)
   add_executable(ninslash_test_weapon_lua_components
     tests/weapon_lua_components.cpp
     "${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc"

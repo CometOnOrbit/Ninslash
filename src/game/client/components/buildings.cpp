@@ -165,7 +165,7 @@ void CBuildings::RenderScreen(const struct CNetObj_Building *pCurrent)
 
 	const CNetObj_GameInfo *pGameInfo = m_pClient->m_Snap.m_pGameInfoObj;
 	const vec2 ScreenPos(pCurrent->m_X, pCurrent->m_Y);
-	if(pGameInfo && pGameInfo->m_ForgeMode == 2 && CustomStuff()->m_LocalAlive &&
+	if(pGameInfo && pGameInfo->m_ForgeMode >= 2 && CustomStuff()->m_LocalAlive &&
 	   distance(CustomStuff()->m_LocalPos, ScreenPos) <= FORGE_SCREEN_RANGE)
 	{
 		char aInventoryKeys[64];

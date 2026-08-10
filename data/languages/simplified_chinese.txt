@@ -4517,32 +4517,17 @@ Release to switch
 Foundry
 == 铸造厂
 
-Destroy the turrets
-== 摧毁炮台
-
 Hold the signal point
 == 坚守信号点
-
-Destroy the enemy turrets
-== 摧毁敌方炮台
 
 Hold the marked signal point
 == 坚守标记的信号点
 
-Turrets destroyed
-== 炮台已摧毁
-
 Signal secured
 == 信号点已确保
 
-Turret sweep
-== 炮台清扫
-
 Signal hold
 == 信号坚守
-
-Turrets missing — survive the wave instead
-== 炮台缺失 — 改为存活敌潮
 
 Signal missing — survive the wave instead
 == 信号点缺失 — 改为存活敌潮

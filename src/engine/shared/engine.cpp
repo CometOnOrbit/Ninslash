@@ -57,6 +57,7 @@ class CEngine : public IEngine
 	{
 		if(RegisterLoggers)
 		{
+			dbg_logger_ring();
 			dbg_logger_stdout();
 			dbg_logger_debugger();
 		}

@@ -301,6 +301,7 @@ CClient::CClient() : m_DemoPlayer(&m_SnapshotDelta), m_DemoRecorder(&m_SnapshotD
 	m_NextPlatformPresenceUpdate = 0;
 	m_pListenServer = 0;
 	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
+	m_SteamHostStatusStartTime = 0;
 	mem_zero(&m_ConnectionAsyncStatus, sizeof(m_ConnectionAsyncStatus));
 #if defined(CONF_STEAM_LISTEN_SERVER)
 	m_pListenServer = CreateListenServerRuntime();
@@ -2222,6 +2223,17 @@ void CClient::Run()
 		if(m_pPlatformServices)
 		{
 			m_pPlatformServices->RunCallbacks();
+			if(m_SteamHostStatus.m_State == CLIENT_ASYNC_WORKING &&
+				m_SteamHostStatus.m_Stage == CLIENT_STAGE_CREATING_ROOM && m_SteamHostStatusStartTime &&
+				time_get() - m_SteamHostStatusStartTime > time_freq() * 20)
+			{
+				dbg_msg("steam", "room creation timed out; stopping listen server");
+				StopSteamHostedGame();
+				m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
+				str_copy(m_SteamHostStatus.m_aErrorKey,
+						 "Steam room creation timed out. Check Steam connection and retry.",
+						 sizeof(m_SteamHostStatus.m_aErrorKey));
+			}
 			for(int i = 0; i < m_PendingScreenshotContextCount;)
 			{
 				IGraphics::CScreenshotResult Screenshot;
@@ -2877,6 +2889,7 @@ void CClient::Con_SteamLobbyCreate(IConsole::IResult *pResult, void *pUserData)
 bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 {
 	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
+	m_SteamHostStatusStartTime = 0;
 	if(!m_pPlatformServices || !m_pPlatformServices->Available() || !m_pListenServer ||
 	   !m_pPlatformServices->RelayListenTransport())
 	{
@@ -2974,6 +2987,7 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	}
 	m_SteamHostStatus.m_Progress = 0.65f;
 	m_SteamHostStatus.m_Stage = CLIENT_STAGE_CREATING_ROOM;
+	m_SteamHostStatusStartTime = time_get();
 	if(!m_pPlatformServices->CreateLobby((EPlatformLobbyVisibility)clamp(Host.m_Visibility,
 																		 (int)PLATFORM_LOBBY_INVITE_ONLY,
 																		 (int)PLATFORM_LOBBY_PUBLIC),
@@ -2983,6 +2997,7 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 		CPlatformOperationStatus LobbyFailure;
 		m_pPlatformServices->LobbyOperationStatus(&LobbyFailure);
 		m_pListenServer->Stop();
+		m_SteamHostStatusStartTime = 0;
 		m_SteamHostStatus.m_State = CLIENT_ASYNC_FAILED;
 		str_copy(m_SteamHostStatus.m_aErrorKey,
 				 LobbyFailure.m_State == CLIENT_ASYNC_FAILED && LobbyFailure.m_aErrorKey[0]
@@ -3006,6 +3021,7 @@ void CClient::StopSteamHostedGame()
 	if(m_pListenServer)
 		m_pListenServer->Stop();
 	mem_zero(&m_SteamHostStatus, sizeof(m_SteamHostStatus));
+	m_SteamHostStatusStartTime = 0;
 }
 
 void CClient::SteamHostedGameStatus(CClientAsyncStatus *pStatus) const
