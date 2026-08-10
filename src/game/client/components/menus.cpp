@@ -91,6 +91,36 @@ FitScaledLabelFontSize(ITextRender *pTextRender, const char *pText, float FontSi
 	return FitLabelFontSize(pTextRender, pText, FontSize, MaxWidth / max(Scale, 0.01f));
 }
 
+static bool IsGamepadInputKey(int Key)
+{
+	switch(Key)
+	{
+	case KEY_GAMEPAD_BUTTON_A:
+	case KEY_GAMEPAD_BUTTON_B:
+	case KEY_GAMEPAD_BUTTON_X:
+	case KEY_GAMEPAD_BUTTON_Y:
+	case KEY_GAMEPAD_BUTTON_BACK:
+	case KEY_GAMEPAD_BUTTON_START:
+	case KEY_GAMEPAD_AXIS_UP:
+	case KEY_GAMEPAD_AXIS_LEFT:
+	case KEY_GAMEPAD_AXIS_RIGHT:
+	case KEY_GAMEPAD_BUTTON_DPAD_UP:
+	case KEY_GAMEPAD_BUTTON_DPAD_DOWN:
+	case KEY_GAMEPAD_BUTTON_DPAD_LEFT:
+	case KEY_GAMEPAD_BUTTON_DPAD_RIGHT:
+	case KEY_GAMEPAD_SHOULDER_LEFT:
+	case KEY_GAMEPAD_SHOULDER_RIGHT:
+	case KEY_GAMEPAD_TRIGGER_LEFT:
+	case KEY_GAMEPAD_TRIGGER_RIGHT:
+	case KEY_GAMEPAD_BUTTON_LEFTSTICK:
+	case KEY_GAMEPAD_BUTTON_RIGHTSTICK:
+	case KEY_GAMEPAD_AXIS_DOWN:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool ModCollectionContains(const char *pIds, unsigned long long ID)
 {
 	if(!pIds || !ID)
@@ -212,7 +242,7 @@ CMenus::CMenus()
 	m_MenuOpenTransition = 0.0f;
 	m_NavigationFocus = 0;
 	m_HomeActionFocus = 0;
-	m_LastInputDevice = 0;
+	m_LastInputDevice = MENU_INPUT_MOUSE;
 	m_ControllerFocusContext = -1;
 	m_ControllerNextFocusContext = -1;
 	m_NumControllerFocusItems = 0;
@@ -1014,6 +1044,16 @@ int CMenus::ControllerContext() const
 	return Page;
 }
 
+bool CMenus::UsesNonMouseInput() const
+{
+	return m_LastInputDevice != MENU_INPUT_MOUSE;
+}
+
+bool CMenus::UsesGamepadInput() const
+{
+	return m_LastInputDevice == MENU_INPUT_GAMEPAD;
+}
+
 bool CMenus::ControllerUsesWidgetFocus() const
 {
 	if(!IsActive())
@@ -1118,7 +1158,7 @@ void CMenus::ControllerSetPreferredFocus(const void *pID)
 
 bool CMenus::ControllerIsFocused(const void *pID) const
 {
-	return m_ControllerFocusRegistrationEnabled && m_LastInputDevice != 0 &&
+	return m_ControllerFocusRegistrationEnabled && UsesNonMouseInput() &&
 		m_ControllerFocusContext == ControllerContext() && m_pControllerFocusID == pID;
 }
 
@@ -2211,7 +2251,7 @@ int CMenus::RenderMenubar(CUIRect r)
 	const int Count = Offline ? 7 : 9;
 	// Directional input belongs to the page content. The rail remains a mouse
 	// target, while LB/RB provide a predictable controller route between pages.
-	const bool ControllerOwnsContent = m_LastInputDevice != 0;
+	const bool ControllerOwnsContent = UsesNonMouseInput();
 	static int s_aNavigationButtons[9];
 	static int s_BackToHome;
 	static int s_QuitButton;
@@ -2303,7 +2343,7 @@ int CMenus::RenderMenubar(CUIRect r)
 											 PageSelected || Focused,
 											 &Button,
 															pPages[i] == -3 ? BUTTONSTYLE_DANGER : BUTTONSTYLE_GHOST) ||
-							   (!ControllerOwnsContent && Focused && m_LastInputDevice != 0 && m_EnterPressed);
+											   (!ControllerOwnsContent && Focused && UsesNonMouseInput() && m_EnterPressed);
 		const float SelectedAmount = AnimSelected(&s_aNavigationButtons[i], PageSelected || Focused, 0.0f);
 		if(SelectedAmount > 0.01f)
 		{
@@ -2358,7 +2398,7 @@ int CMenus::RenderMenubar(CUIRect r)
 	CUIRect Status, Quit;
 	StatusArea.HSplitTop(28.0f, &Status, &Quit);
 	DrawStatusBadge(Status, aIdentity, ms_ColorAccentDim);
-	if(m_LastInputDevice != 0)
+	if(UsesGamepadInput())
 	{
 		CUIRect Hints;
 		Quit.HSplitBottom(22.0f, &Quit, &Hints);
@@ -2367,6 +2407,17 @@ int CMenus::RenderMenubar(CUIRect r)
 		TextRender()->TextColor(ms_ColorAccentDim.r, ms_ColorAccentDim.g, ms_ColorAccentDim.b, .82f);
 		UI()->DoLabelScaled(&SelectHint, Localize("A Select / B Back"), 6.5f, -1);
 		UI()->DoLabelScaled(&PageHint, Localize("LB/RB Pages"), 6.5f, -1);
+		TextRender()->TextColor(1, 1, 1, 1);
+	}
+	else if(UsesNonMouseInput())
+	{
+		CUIRect Hints;
+		Quit.HSplitBottom(22.0f, &Quit, &Hints);
+		CUIRect SelectHint, PageHint;
+		Hints.HSplitTop(11.0f, &SelectHint, &PageHint);
+		TextRender()->TextColor(ms_ColorAccentDim.r, ms_ColorAccentDim.g, ms_ColorAccentDim.b, .82f);
+		UI()->DoLabelScaled(&SelectHint, Localize("Enter Select / Esc Back"), 6.5f, -1);
+		UI()->DoLabelScaled(&PageHint, Localize("Arrow keys navigate"), 6.5f, -1);
 		TextRender()->TextColor(1, 1, 1, 1);
 	}
 	if(Offline)
@@ -5480,8 +5531,8 @@ void CMenus::RenderFront(CUIRect MainView)
 	{
 		aActionRects[i] = {ActionList.x, ActionList.y + i * (RowHeight + RowGap), ActionList.w, RowHeight};
 		const bool KeyboardSelected = ControllerUsesWidgetFocus() ? ControllerIsFocused(&s_aActionButtons[i])
-																				: m_LastInputDevice != 0 && m_HomeActionFocus == i;
-		const bool MouseInside = m_LastInputDevice == 0 && UI()->MouseInside(&aActionRects[i]);
+																: UsesNonMouseInput() && m_HomeActionFocus == i;
+		const bool MouseInside = !UsesNonMouseInput() && UI()->MouseInside(&aActionRects[i]);
 		if(MouseInside)
 			HoveredAction = i;
 		const bool Selected = KeyboardSelected || MouseInside;
@@ -5536,7 +5587,7 @@ void CMenus::RenderFront(CUIRect MainView)
 			m_HomeActionFocus = i;
 	}
 
-	const int DetailAction = m_LastInputDevice == 0 ? HoveredAction : m_HomeActionFocus;
+	const int DetailAction = !UsesNonMouseInput() ? HoveredAction : m_HomeActionFocus;
 	static int s_LastDetailAction = 0;
 	static float s_DetailReveal = 0.0f;
 	if(DetailAction >= 0)
@@ -5589,7 +5640,7 @@ void CMenus::RenderFront(CUIRect MainView)
 		TextRender()->TextColor(1, 1, 1, 1);
 	}
 
-	if(!ControllerUsesWidgetFocus() && m_LastInputDevice != 0 && m_EnterPressed)
+	if(!ControllerUsesWidgetFocus() && UsesNonMouseInput() && m_EnterPressed)
 	{
 		aActionClicks[m_HomeActionFocus] = true;
 		m_EnterPressed = false;
@@ -6556,9 +6607,9 @@ void CMenus::RenderPlay(CUIRect MainView)
 	// Browse, create and friends are one Play surface. Left/right changes the
 	// visible Play tab; up/down enters the room list and keeps the rail out of
 	// the content focus chain.
-	if(m_PlayTab == 0 && m_LastInputDevice != 0 && !CLineInput::GetActiveInput() && !m_PlayFiltersOpen)
+	if(m_PlayTab == 0 && UsesNonMouseInput() && !CLineInput::GetActiveInput() && !m_PlayFiltersOpen)
 		m_PlayListHasFocus = true;
-	if(m_PlayTab != 1 && m_LastInputDevice != 0 && !CLineInput::GetActiveInput())
+	if(m_PlayTab != 1 && UsesNonMouseInput() && !CLineInput::GetActiveInput())
 	{
 		for(int EventIndex = 0; EventIndex < m_NumInputEvents; EventIndex++)
 		{
@@ -9577,7 +9628,7 @@ void CMenus::OnReset()
 bool CMenus::OnMouseMove(float x, float y)
 {
 	m_LastInput = time_get();
-	m_LastInputDevice = 0;
+	m_LastInputDevice = MENU_INPUT_MOUSE;
 	m_NavigationHasFocus = false;
 	m_pControllerFocusID = 0;
 	m_pControllerActivationID = 0;
@@ -9601,10 +9652,10 @@ bool CMenus::OnMouseMove(float x, float y)
 bool CMenus::OnInput(IInput::CEvent e)
 {
 	m_LastInput = time_get();
-	if(e.m_Key >= KEY_GAMEPAD_BUTTON_A && e.m_Key < KEY_LAST)
-		m_LastInputDevice = 2;
+	if(IsGamepadInputKey(e.m_Key))
+		m_LastInputDevice = MENU_INPUT_GAMEPAD;
 	else if(e.m_Key < KEY_MOUSE_1 || e.m_Key > KEY_MOUSE_WHEEL_DOWN)
-		m_LastInputDevice = 1;
+		m_LastInputDevice = MENU_INPUT_KEYBOARD;
 
 	// special handle esc and enter for popup purposes
 	if(e.m_Flags & IInput::FLAG_PRESS)

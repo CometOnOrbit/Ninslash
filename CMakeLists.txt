@@ -566,6 +566,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 list(TRANSFORM OFFICIAL_WEAPON_FILES PREPEND "data/weapons/")
 add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc"
   COMMAND ${Python3_EXECUTABLE} scripts/embed_binary.py
+    --normalize-lf
     data/weapons/weapon_dsl.lua
     gs_aWeaponDslLua
     > "${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc"
@@ -574,6 +575,7 @@ add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc"
 )
 add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/src/generated/official_weapons.inc"
   COMMAND ${Python3_EXECUTABLE} scripts/embed_binary.py
+    --normalize-lf
     @data/weapons/official_manifest.txt
     gs_aOfficialWeaponsLua
     > "${PROJECT_BINARY_DIR}/src/generated/official_weapons.inc"

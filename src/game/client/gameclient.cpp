@@ -1418,6 +1418,7 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 		const CNetMsg_Sv_ReadyToEnter *pMsg = static_cast<const CNetMsg_Sv_ReadyToEnter *>(pRawMsg);
 		if(str_comp_nocase(pMsg->m_pWeaponContentHash, CWeaponCatalog::OfficialContentHash()) != 0)
 		{
+			dbg_msg("weapon-debug", "%s %s", pMsg->m_pWeaponContentHash, CWeaponCatalog::OfficialContentHash());
 			Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon", "official weapon content hash mismatch");
 			Client()->Disconnect();
 			return;

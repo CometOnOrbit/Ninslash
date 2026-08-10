@@ -551,11 +551,13 @@ int CInput::Update()
 					break;
 				// handle keys
 				case SDL_EVENT_KEY_DOWN:
+					m_UsingGamepad = false;
 					Key = SDL_GetScancodeFromName(SDL_GetKeyName(Event.key.key));
 					if(Event.key.repeat)
 						Action = IInput::FLAG_REPEAT;
 					break;
 				case SDL_EVENT_KEY_UP:
+					m_UsingGamepad = false;
 					Action = IInput::FLAG_RELEASE;
 					Key = SDL_GetScancodeFromName(SDL_GetKeyName(Event.key.key));
 					break;

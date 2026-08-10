@@ -6,12 +6,14 @@ import pathlib
 import subprocess
 import sys
 
+from embed_binary import canonicalize_lua_bytes
+
 
 def main() -> int:
 	if len(sys.argv) != 2:
 		raise SystemExit("usage: check_official_weapon_hash.py <hash-executable>")
 	root = pathlib.Path(__file__).resolve().parents[1]
-	dsl = (root / "data/weapons/weapon_dsl.lua").read_bytes()
+	dsl = canonicalize_lua_bytes((root / "data/weapons/weapon_dsl.lua").read_bytes())
 	manifest = root / "data/weapons/official_manifest.txt"
 	chunks = []
 	seen = set()
@@ -23,7 +25,8 @@ def main() -> int:
 		if path in seen or not path.is_file():
 			raise SystemExit(f"invalid official manifest entry: {line}")
 		seen.add(path)
-		chunks.append(b"-- source: " + line.encode("utf-8") + b"\n" + path.read_bytes())
+		data = canonicalize_lua_bytes(path.read_bytes())
+		chunks.append(b"-- source: " + line.encode("utf-8") + b"\n" + data)
 	embedded = b"\n".join(chunks)
 	expected = hashlib.sha256(dsl + embedded).hexdigest()
 	actual = subprocess.check_output([sys.argv[1]], text=True).strip()

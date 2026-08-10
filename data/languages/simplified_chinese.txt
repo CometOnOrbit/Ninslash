@@ -208,6 +208,12 @@ Arrows / D-pad: select and adjust · Enter / A: confirm
 A Select / B Back
 == A 选择 / B 返回
 
+Enter Select / Esc Back
+== 回车选择 / Esc 返回
+
+Arrow keys navigate
+== 方向键导航
+
 LB/RB Pages
 == LB/RB 切换页面
 

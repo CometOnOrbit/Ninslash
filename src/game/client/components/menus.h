@@ -156,6 +156,13 @@ class CMenus : public CComponent
 		CONTROLLER_FOCUS_EDIT,
 	};
 
+	enum EMenuInputDevice
+	{
+		MENU_INPUT_MOUSE = 0,
+		MENU_INPUT_KEYBOARD,
+		MENU_INPUT_GAMEPAD,
+	};
+
 	enum EControllerInputAction
 	{
 		MENU_CONTROLLER_NONE = 0,
@@ -192,6 +199,8 @@ class CMenus : public CComponent
 	bool ControllerConsumeAdjustment(const void *pID, int *pDirection);
 	bool ControllerHandleInput(const IInput::CEvent &Event);
 	int ControllerInputAction(const IInput::CEvent &Event) const;
+	bool UsesNonMouseInput() const;
+	bool UsesGamepadInput() const;
 
 	// static void ui_draw_browse_icon(int what, const CUIRect *r);
 	// static void ui_draw_grid_header(const void *id, const char *text, int checked, const CUIRect *r, const void
