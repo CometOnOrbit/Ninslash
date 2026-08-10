@@ -91,6 +91,11 @@ class IInput : public IInterface
 		MOUSE_MODE_NO_MOUSE = 1 << 1
 	};
 
+	static bool ShouldGrabMouse(int modes, bool WindowFocused)
+	{
+		return WindowFocused && (modes & MOUSE_MODE_WARP_CENTER) && !(modes & MOUSE_MODE_NO_MOUSE);
+	}
+
 	//
 	virtual void SetMouseModes(int modes) = 0;
 	virtual int GetMouseModes() = 0;

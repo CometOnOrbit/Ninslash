@@ -248,6 +248,11 @@ int CInput::ShowCursor(bool show)
 	return show ? SDL_ShowCursor() : SDL_HideCursor();
 }
 
+void CInput::UpdateMouseGrab(bool WindowFocused)
+{
+	m_pGraphics->GrabWindow(IInput::ShouldGrabMouse(m_MouseModes, WindowFocused));
+}
+
 void CInput::SetMouseModes(int modes)
 {
 	if((m_MouseModes & MOUSE_MODE_WARP_CENTER) && !(modes & MOUSE_MODE_WARP_CENTER))
@@ -256,6 +261,7 @@ void CInput::SetMouseModes(int modes)
 		m_FirstWarp = true;
 
 	m_MouseModes = modes;
+	UpdateMouseGrab(Graphics()->WindowActive());
 }
 
 int CInput::GetMouseModes()
@@ -756,10 +762,12 @@ int CInput::Update()
 						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", "window mouse-leave");
 					break;
 				case SDL_EVENT_WINDOW_FOCUS_GAINED:
+					UpdateMouseGrab(true);
 					if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
 						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", "window focus-gained");
 					break;
 				case SDL_EVENT_WINDOW_FOCUS_LOST:
+					UpdateMouseGrab(false);
 					if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
 						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", "window focus-lost");
 					break;

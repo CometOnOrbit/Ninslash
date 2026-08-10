@@ -1,4 +1,5 @@
 #include <engine/input_processing.h>
+#include <engine/input.h>
 #include <game/input_buffer.h>
 
 #include <cassert>
@@ -24,6 +25,10 @@ int main()
 	assert(SwitchInputBufferTicks(0, 50) == 3);
 	assert(SwitchInputBufferTicks(12, 50) == 15);
 	assert(SwitchInputBufferTicks(80, 50) == 50);
+	assert(IInput::ShouldGrabMouse(IInput::MOUSE_MODE_WARP_CENTER, true));
+	assert(!IInput::ShouldGrabMouse(IInput::MOUSE_MODE_WARP_CENTER, false));
+	assert(!IInput::ShouldGrabMouse(IInput::MOUSE_MODE_NONE, true));
+	assert(!IInput::ShouldGrabMouse(IInput::MOUSE_MODE_NO_MOUSE, true));
 
 	CDiscreteInputPulse WeaponPulse;
 	WeaponPulse.Queue(2);

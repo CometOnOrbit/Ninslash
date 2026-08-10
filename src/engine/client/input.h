@@ -38,6 +38,7 @@ class CInput : public IEngineInput
 	void ResetGamepad();
 	void UpdateSteamInput();
 	void SetSteamVirtualKey(int Key, bool Down, bool *pPrevious);
+	void UpdateMouseGrab(bool WindowFocused);
 
 	SDL_Surface *m_pCursorSurface;
 	SDL_Cursor *m_pCursor;
