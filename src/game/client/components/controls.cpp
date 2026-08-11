@@ -231,7 +231,8 @@ static void ConKeyInputNextPrevWeapon(IConsole::IResult *pResult, void *pUserDat
 {
 	CInputSet *pSet = (CInputSet *)pUserData;
 	const int Before = *pSet->m_pVariable;
-	ConKeyInputCounter(pResult, pSet->m_pVariable);
+	if(pResult->GetInteger(0))
+		*pSet->m_pVariable = (*pSet->m_pVariable + 2) & INPUT_STATE_MASK;
 	pSet->m_pControls->DebugWeaponWheelEvent(
 		pSet->m_pVariable, pResult->GetInteger(0) != 0, Before, *pSet->m_pVariable);
 	pSet->m_pControls->CancelQueuedWeaponSlot();

@@ -13,11 +13,10 @@ bool CBinds::CBindsSpecial::OnInput(IInput::CEvent Event)
 	{
 		if(!(Event.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_RELEASE)))
 			return false;
-		int Stroke = 0;
 		if(Event.m_Flags & IInput::FLAG_PRESS)
-			Stroke = 1;
-
-		m_pBinds->GetConsole()->ExecuteLineStroked(Stroke, m_pBinds->m_aaKeyBindings[Event.m_Key]);
+			m_pBinds->GetConsole()->ExecuteLineStroked(1, m_pBinds->m_aaKeyBindings[Event.m_Key]);
+		if(Event.m_Flags & IInput::FLAG_RELEASE)
+			m_pBinds->GetConsole()->ExecuteLineStroked(0, m_pBinds->m_aaKeyBindings[Event.m_Key]);
 		return true;
 	}
 
@@ -52,10 +51,10 @@ bool CBinds::OnInput(IInput::CEvent e)
 	if(!(e.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_RELEASE)))
 		return false;
 
-	int Stroke = 0;
 	if(e.m_Flags & IInput::FLAG_PRESS)
-		Stroke = 1;
-	Console()->ExecuteLineStroked(Stroke, m_aaKeyBindings[e.m_Key]);
+		Console()->ExecuteLineStroked(1, m_aaKeyBindings[e.m_Key]);
+	if(e.m_Flags & IInput::FLAG_RELEASE)
+		Console()->ExecuteLineStroked(0, m_aaKeyBindings[e.m_Key]);
 	return true;
 }
 

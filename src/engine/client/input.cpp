@@ -45,7 +45,10 @@ CInput::CInput()
 	m_InputCurrent = 0;
 	m_InputDispatched = false;
 
-	m_FirstWarp = false;
+	m_IgnoreNextRelative = false;
+	m_PendingRelX = 0;
+	m_PendingRelY = 0;
+	m_WheelAccumY = 0;
 	m_LastMousePosX = 0;
 	m_LastMousePosY = 0;
 
@@ -250,18 +253,59 @@ int CInput::ShowCursor(bool show)
 
 void CInput::UpdateMouseGrab(bool WindowFocused)
 {
-	m_pGraphics->GrabWindow(IInput::ShouldGrabMouse(m_MouseModes, WindowFocused));
+	// Relative mode already grabs via SDL_UpdateWindowGrab → X11_SetWindowMouseGrab.
+	// Calling SDL_SetWindowMouseGrab again (our old GrabWindow path) re-runs
+	// XUngrabPointer + XGrabPointer(owner_events=False), which races XI2 and
+	// drops mousewheel notches under grab — same class of bug as
+	// libsdl-org/sdl2-compat#596 / SDL#15553 (DDNet wheel-on-X11).
+
+	SDL_Window *pWindow = Window();
+	if(!pWindow)
+		return;
+
+	const bool WantRelative = IInput::ShouldGrabMouse(m_MouseModes, WindowFocused);
+	const bool IsRelative = SDL_GetWindowRelativeMouseMode(pWindow);
+	if(WantRelative && !IsRelative)
+	{
+		// Clear any leftover explicit grab flag from older builds; relative owns grab.
+		if(SDL_GetWindowMouseGrab(pWindow))
+			SDL_SetWindowMouseGrab(pWindow, false);
+
+		SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_MODE_CENTER, g_Config.m_InpGrab ? "1" : "0");
+		SDL_SetWindowRelativeMouseMode(pWindow, true);
+		SDL_GetRelativeMouseState(NULL, NULL);
+		m_IgnoreNextRelative = true;
+		m_PendingRelX = 0;
+		m_PendingRelY = 0;
+	}
+	else if(!WantRelative && IsRelative)
+	{
+		SDL_SetWindowRelativeMouseMode(pWindow, false);
+	}
 }
 
 void CInput::SetMouseModes(int modes)
 {
-	if((m_MouseModes & MOUSE_MODE_WARP_CENTER) && !(modes & MOUSE_MODE_WARP_CENTER))
-		m_pGraphics->WarpMouse(m_LastMousePosX, m_LastMousePosY);
-	else if(!(m_MouseModes & MOUSE_MODE_WARP_CENTER) && (modes & MOUSE_MODE_WARP_CENTER))
-		m_FirstWarp = true;
+	if(m_MouseModes == modes)
+		return;
+
+	const bool WindowFocused = Graphics()->WindowActive();
+	const bool WasRelative = IInput::ShouldGrabMouse(m_MouseModes, WindowFocused);
+	const bool WantRelative = IInput::ShouldGrabMouse(modes, WindowFocused);
+
+	if(!WasRelative && WantRelative)
+	{
+		float nx = 0, ny = 0;
+		SDL_GetMouseState(&nx, &ny);
+		m_LastMousePosX = (int)nx;
+		m_LastMousePosY = (int)ny;
+	}
 
 	m_MouseModes = modes;
-	UpdateMouseGrab(Graphics()->WindowActive());
+	UpdateMouseGrab(WindowFocused);
+
+	if(WasRelative && !WantRelative)
+		m_pGraphics->WarpMouse(m_LastMousePosX, m_LastMousePosY);
 }
 
 int CInput::GetMouseModes()
@@ -271,15 +315,6 @@ int CInput::GetMouseModes()
 
 void CInput::GetMousePosition(float *x, float *y)
 {
-	/*
-	if (m_UsingGamepad)
-	{
-		*x = m_GamepadAimX;
-		*y = m_GamepadAimY;
-		return;
-	}
-	*/
-
 	if(GetMouseModes() & MOUSE_MODE_NO_MOUSE)
 		return;
 
@@ -287,42 +322,12 @@ void CInput::GetMousePosition(float *x, float *y)
 	float nx = 0, ny = 0;
 	SDL_GetMouseState(&nx, &ny);
 
-	if(m_FirstWarp)
-	{
-		m_LastMousePosX = (int)nx;
-		m_LastMousePosY = (int)ny;
-		m_FirstWarp = false;
-	}
-
 	*x = nx * Sens;
 	*y = ny * Sens;
-
-	// SDL mouse coords are in window (logical) space. ScreenWidth()/Height() are
-	// drawable pixels and diverge under HiDPI — warping there breaks aim sens.
-	if(GetMouseModes() & MOUSE_MODE_WARP_CENTER)
-	{
-		int WindowW = 0;
-		int WindowH = 0;
-		SDL_Window *pWindow = (SDL_Window *)m_pGraphics->GetWindowHandle();
-		if(pWindow)
-			SDL_GetWindowSize(pWindow, &WindowW, &WindowH);
-		if(WindowW <= 0)
-			WindowW = max(1, g_Config.m_GfxScreenWidth);
-		if(WindowH <= 0)
-			WindowH = max(1, g_Config.m_GfxScreenHeight);
-		m_pGraphics->WarpMouse(WindowW / 2, WindowH / 2);
-	}
 }
 
 void CInput::GetRelativePosition(float *x, float *y)
 {
-	if(m_FirstWarp)
-	{
-		*x = 0;
-		*y = 0;
-		return;
-	}
-
 	if(m_UsingGamepad)
 	{
 		float AimX = 0.0f, AimY = 0.0f;
@@ -337,32 +342,26 @@ void CInput::GetRelativePosition(float *x, float *y)
 	}
 	m_LastGamepadRelativeTime = 0;
 
-	// GetMousePosition pre-scales by InpMousesens for the absolute menu path.
-	// Undo that so callers get raw window-space deltas (teeworlds MouseRelative).
+	// Raw window-space deltas from MouseMoved (teeworlds MouseRelative).
 	// In-game sensitivity is applied by the component (InpMousesens/100).
-	if(g_Config.m_InpMousesens > 0)
-	{
-		*x *= 100.0f / g_Config.m_InpMousesens;
-		*y *= 100.0f / g_Config.m_InpMousesens;
-	}
-
-	int WindowW = 0;
-	int WindowH = 0;
-	SDL_Window *pWindow = (SDL_Window *)m_pGraphics->GetWindowHandle();
-	if(pWindow)
-		SDL_GetWindowSize(pWindow, &WindowW, &WindowH);
-	if(WindowW <= 0)
-		WindowW = max(1, g_Config.m_GfxScreenWidth);
-	if(WindowH <= 0)
-		WindowH = max(1, g_Config.m_GfxScreenHeight);
-	*x -= WindowW / 2.0f;
-	*y -= WindowH / 2.0f;
+	*x = m_PendingRelX;
+	*y = m_PendingRelY;
+	m_PendingRelX = 0;
+	m_PendingRelY = 0;
 }
 
 bool CInput::MouseMoved()
 {
 	float x = 0, y = 0;
 	SDL_GetRelativeMouseState(&x, &y);
+	if(m_IgnoreNextRelative)
+	{
+		m_IgnoreNextRelative = false;
+		x = 0;
+		y = 0;
+	}
+	m_PendingRelX = x;
+	m_PendingRelY = y;
 	const bool Moved = round_to_int(x) != 0 || round_to_int(y) != 0;
 	if(Moved)
 		m_UsingGamepad = false;
@@ -738,7 +737,7 @@ int CInput::Update()
 						char aBuf[256];
 						str_format(aBuf,
 								   sizeof(aBuf),
-								   "raw time_ns=%llu mouse=%u x=%.3f y=%.3f integer_x=%d integer_y=%d direction=%u events=%d/%d composition=%d input_frame=%d",
+								   "raw time_ns=%llu mouse=%u x=%.3f y=%.3f integer_x=%d integer_y=%d direction=%u accum=%.3f events=%d/%d",
 								   (unsigned long long)Event.wheel.timestamp,
 								   (unsigned)Event.wheel.which,
 								   Event.wheel.x,
@@ -746,38 +745,63 @@ int CInput::Update()
 								   Event.wheel.integer_x,
 								   Event.wheel.integer_y,
 								   (unsigned)Event.wheel.direction,
+								   m_WheelAccumY,
 								   m_NumEvents,
-								   INPUT_BUFFER_SIZE,
-								   HasComposition() ? 1 : 0,
-								   m_InputCurrent);
+								   INPUT_BUFFER_SIZE);
 						m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
 					}
-					if(Event.wheel.y > 0)
-						Key = KEY_MOUSE_WHEEL_UP; // ignore_convention
-					else if(Event.wheel.y < 0)
-						Key = KEY_MOUSE_WHEEL_DOWN; // ignore_convention
-					if(Key != -1 && !HasComposition())
 					{
+						float Wy = Event.wheel.y;
+						int TickY = Event.wheel.integer_y;
+						if(Event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED)
+						{
+							Wy = -Wy;
+							TickY = -TickY;
+						}
+						// See DDNet #12381.
+						int Steps = TickY;
+						if(Steps == 0 && Wy != 0.0f)
+						{
+							if((m_WheelAccumY > 0.0f && Wy < 0.0f) || (m_WheelAccumY < 0.0f && Wy > 0.0f))
+								m_WheelAccumY = 0.0f;
+							m_WheelAccumY += Wy;
+							Steps = (int)m_WheelAccumY;
+							m_WheelAccumY -= (float)Steps;
+						}
+						else if(Steps != 0)
+							m_WheelAccumY = 0.0f;
+
+						if(Steps == 0)
+						{
+							if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
+								m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", "raw-drop no-integer-step");
+							break;
+						}
+
+						Key = Steps > 0 ? KEY_MOUSE_WHEEL_UP : KEY_MOUSE_WHEEL_DOWN; // ignore_convention
+						Action = IInput::FLAG_PRESS | IInput::FLAG_RELEASE;
 						if(g_Config.m_ClDebugWeaponWheel && m_pConsole)
 						{
 							char aBuf[192];
 							str_format(aBuf,
 									   sizeof(aBuf),
-									   "raw-map key=%d name=%s press_count=%d release_count=%d queued_before=%d",
+									   "raw-map key=%d name=%s steps=%d accum=%.3f queued_before=%d",
 									   Key,
 									   KeyName(Key),
-									   m_aInputCount[m_InputCurrent][Key].m_Presses,
-									   m_aInputCount[m_InputCurrent][Key].m_Releases,
+									   Steps,
+									   m_WheelAccumY,
 									   m_NumEvents);
 							m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapon-wheel", aBuf);
 						}
-						// Emit PRESS now; common path below records and emits RELEASE.
-						m_aInputCount[m_InputCurrent][Key].m_Presses++;
-						AddEvent(0, Key, Action);
-						Action = IInput::FLAG_RELEASE;
+						for(int Extra = 1; Extra < absolute(Steps); Extra++)
+						{
+							if(Action & IInput::FLAG_PRESS)
+								m_aInputCount[m_InputCurrent][Key].m_Presses++;
+							if(Action & IInput::FLAG_RELEASE)
+								m_aInputCount[m_InputCurrent][Key].m_Releases++;
+							AddEvent(0, Key, Action);
+						}
 					}
-					else
-						Key = -1;
 					break;
 
 				case SDL_EVENT_WINDOW_MOUSE_ENTER:
@@ -808,12 +832,12 @@ int CInput::Update()
 			//
 			if(Key != -1 && !HasComposition())
 			{
-				if(Action == IInput::FLAG_PRESS)
+				if(Action & IInput::FLAG_PRESS)
 				{
 					m_aInputCount[m_InputCurrent][Key].m_Presses++;
 					m_aInputState[m_InputCurrent][Key] = 1;
 				}
-				else if(Action == IInput::FLAG_RELEASE)
+				if(Action & IInput::FLAG_RELEASE)
 				{
 					m_aInputCount[m_InputCurrent][Key].m_Releases++;
 					m_aInputState[m_InputCurrent][Key] = 0;

@@ -13,7 +13,10 @@ class CInput : public IEngineInput
 
 	int m_LastMousePosX;
 	int m_LastMousePosY;
-	bool m_FirstWarp;
+	bool m_IgnoreNextRelative;
+	float m_PendingRelX;
+	float m_PendingRelY;
+	float m_WheelAccumY;
 	char *m_pClipboardText;
 	bool m_MouseLeft;
 	bool m_MouseEntered;
