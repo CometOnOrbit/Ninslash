@@ -1401,6 +1401,25 @@ void CServer::SendRconLine(int ClientID, const char *pLine)
 	SendMsgEx(&Msg, MSGFLAG_VITAL, ClientID, true);
 }
 
+void CServer::GrantRconAdmin(int ClientID)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || m_aClients[ClientID].m_Authed == AUTHED_ADMIN)
+		return;
+
+	CMsgPacker Msg(NETMSG_RCON_AUTH_STATUS);
+	Msg.AddInt(1); // authed
+	Msg.AddInt(1); // cmdlist
+	SendMsgEx(&Msg, MSGFLAG_VITAL, ClientID, true);
+
+	m_aClients[ClientID].m_Authed = AUTHED_ADMIN;
+	m_aClients[ClientID].m_pRconCmdToSend =
+		Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
+	SendRconLine(ClientID, "Local host authentication successful. Full remote console access granted.");
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "ClientID=%d authed (admin, local host)", ClientID);
+	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+}
+
 void CServer::SendRconLineAuthed(const char *pLine, void *pUser)
 {
 	CServer *pThis = (CServer *)pUser;
@@ -1791,6 +1810,27 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 				m_aClients[ClientID].m_State = CClient::STATE_INGAME;
 				GameServer()->OnClientEnter(ClientID);
+				const NETADDR *pPeerAddress = m_NetServer.ClientAddr(ClientID);
+				const bool PeerUsesSteamTransport = pPeerAddress && pPeerAddress->type == NETTYPE_STEAM;
+				bool PeerIsLoopback = false;
+				if(pPeerAddress && pPeerAddress->type == NETTYPE_IPV4)
+					PeerIsLoopback = pPeerAddress->ip[0] == 127;
+				else if(pPeerAddress && pPeerAddress->type == NETTYPE_IPV6)
+				{
+					PeerIsLoopback = true;
+					for(int i = 0; i < 15; i++)
+					{
+						if(pPeerAddress->ip[i] != 0)
+						{
+							PeerIsLoopback = false;
+							break;
+						}
+					}
+					PeerIsLoopback = PeerIsLoopback && pPeerAddress->ip[15] == 1;
+				}
+				if(PlatformConnectionGrantsHostAdmin(
+					   m_pListenTransport != 0, PeerUsesSteamTransport, PeerIsLoopback))
+					GrantRconAdmin(ClientID);
 				for(int i = 0; i < MAX_CLIENTS; i++)
 				{
 					if(m_aClients[i].m_State != CClient::STATE_INGAME)

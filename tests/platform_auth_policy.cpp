@@ -39,6 +39,11 @@ int main()
 	assert(PlatformConnectionAcceptsLocalHostIdentity(true, false));
 	assert(!PlatformConnectionAcceptsLocalHostIdentity(false, false));
 	assert(!PlatformConnectionAcceptsLocalHostIdentity(true, true));
+	assert(PlatformConnectionGrantsHostAdmin(true, false, true));  // Steam room host over loopback.
+	assert(PlatformConnectionGrantsHostAdmin(true, false, false)); // Listen transport still identifies host.
+	assert(!PlatformConnectionGrantsHostAdmin(true, true, false)); // Remote Relay peer.
+	assert(PlatformConnectionGrantsHostAdmin(false, false, true)); // Managed local/LAN host.
+	assert(!PlatformConnectionGrantsHostAdmin(false, false, false));
 	assert(PlatformAuthTimeoutAllowsAnonymous(0, false));
 	assert(PlatformAuthTimeoutAllowsAnonymous(1, false));
 	assert(!PlatformAuthTimeoutAllowsAnonymous(2, false));

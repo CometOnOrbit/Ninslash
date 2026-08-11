@@ -69,6 +69,17 @@ inline bool PlatformConnectionAcceptsLocalHostIdentity(bool ServerHasRelayListen
 	return ServerHasRelayListener && !PeerUsesSteamTransport;
 }
 
+inline bool PlatformConnectionGrantsHostAdmin(bool ServerHasRelayListener,
+											 bool PeerUsesSteamTransport,
+											 bool PeerIsLoopback)
+{
+	if(PeerUsesSteamTransport)
+		return false;
+	if(ServerHasRelayListener)
+		return true;
+	return PeerIsLoopback;
+}
+
 inline bool PlatformAuthTimeoutAllowsAnonymous(int AuthPolicy, bool Relay)
 {
 	return AuthPolicy < 2 && !Relay;
