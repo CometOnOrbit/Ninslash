@@ -648,6 +648,19 @@ int CServer::LoadGameVote(const char *pFilename, const char *pFoldername, int St
 			if(!str_comp_num(pLine, "image:", 6))
 				sscanf(pLine, "image: %31s", GameVote.m_aImage);
 
+			else if(!str_comp_num(pLine, "gametype:", 9))
+			{
+				// Value may contain spaces ("Capture the flag"), so parse
+				// the remainder of the line instead of using %s.
+				const char *pValue = pLine + 9;
+				while(*pValue == ' ' || *pValue == '	')
+					pValue++;
+				str_copy(GameVote.m_aGameType, pValue, sizeof(GameVote.m_aGameType));
+				int Len = str_length(GameVote.m_aGameType);
+				while(Len > 0 && (GameVote.m_aGameType[Len - 1] == ' ' || GameVote.m_aGameType[Len - 1] == '	' ||
+								  GameVote.m_aGameType[Len - 1] == '\r' || GameVote.m_aGameType[Len - 1] == '\n'))
+					GameVote.m_aGameType[--Len] = 0;
+			}
 			else if(!str_comp_num(pLine, "min-players:", 12))
 				sscanf(pLine, "min-players: %d", &GameVote.m_MinPlayers);
 			else if(!str_comp_num(pLine, "max-players:", 12))

@@ -242,6 +242,7 @@ CMenus::CMenus()
 	m_MenuOpenTransition = 0.0f;
 	m_NavigationFocus = 0;
 	m_HomeActionFocus = 0;
+	m_HomeMoreExpanded = false;
 	m_LastInputDevice = MENU_INPUT_MOUSE;
 	m_ControllerFocusContext = -1;
 	m_ControllerNextFocusContext = -1;
@@ -5663,6 +5664,9 @@ void CMenus::RenderFront(CUIRect MainView)
 		m_EnterPressed = false;
 	}
 
+	if(aActionClicks[0] || aActionClicks[1] || aActionClicks[2] || aActionClicks[3])
+		m_HomeMoreExpanded = false;
+
 	if(aActionClicks[0])
 	{
 		if(Primary.m_Action == MENU_HOME_JOIN_LOCAL)
@@ -5699,24 +5703,24 @@ void CMenus::RenderFront(CUIRect MainView)
 		OpenTutorialChapterSelect();
 
 	// Secondary destinations become a quiet bottom-edge command strip. They
-	// have generous hit targets but no permanent button containers.
-	static int s_aUtilityButtons[6];
-	const char *apUtilityLabels[6] = {"Customize", "Research", "Workshop", "Demos", "Settings", "Quit"};
-	const int aUtilityPages[6] = {PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS, -1};
+
+	static int s_aUtilityButtons[5];
+	const char *apUtilityLabels[5] = {"Customize", "Research", "More", "Settings", "Quit"};
+	const int aUtilityPages[5] = {PAGE_CUSTOMIZE, PAGE_RESEARCH, -1, PAGE_SETTINGS, -1};
 	BottomRail.VSplitLeft(L(18.0f), 0, &BottomRail);
 	BottomRail.VSplitRight(L(8.0f), &BottomRail, 0);
 	const float UtilityGap = L(4.0f);
-	for(int i = 0; i < 6; i++)
+	for(int i = 0; i < 5; i++)
 	{
-		const float Width = (BottomRail.w - UtilityGap * (5 - i)) / (6 - i);
+		const float Width = (BottomRail.w - UtilityGap * (4 - i)) / (5 - i);
 		CUIRect Utility;
 		BottomRail.VSplitLeft(Width, &Utility, &BottomRail);
-		if(i < 5)
+		if(i < 4)
 			BottomRail.VSplitLeft(UtilityGap, 0, &BottomRail);
 		ControllerRegisterFocus(&s_aUtilityButtons[i], &Utility);
 		const bool Focused = ControllerIsFocused(&s_aUtilityButtons[i]);
 		const float Hover = max(AnimHover(&s_aUtilityButtons[i], 18.0f), Focused ? 1.0f : 0.0f);
-		const vec4 Color = i == 5 ? ms_ColorDanger : ms_ColorAccent;
+		const vec4 Color = i == 4 ? ms_ColorDanger : ms_ColorAccent;
 		CUIRect UtilityNode = {Utility.x + L(5.0f), Utility.y + Utility.h * .5f - L(2.0f), L(4.0f), L(4.0f)};
 		vec4 UtilityNodeColor = Color;
 		UtilityNodeColor.a = .42f + Hover * .58f;
@@ -5750,15 +5754,66 @@ void CMenus::RenderFront(CUIRect MainView)
 		if(UI()->DoButtonLogic(&s_aUtilityButtons[i], pLabel, 0, &Utility) ||
 			ControllerConsumeActivation(&s_aUtilityButtons[i]))
 		{
-			if(aUtilityPages[i] >= 0)
+			if(i == 2)
 			{
-				if(aUtilityPages[i] == PAGE_RESEARCH)
-					OpenResearchPage();
-				else
-					g_Config.m_UiPage = aUtilityPages[i];
+				m_HomeMoreExpanded = !m_HomeMoreExpanded;
 			}
 			else
-				m_Popup = POPUP_QUIT;
+			{
+				m_HomeMoreExpanded = false;
+				if(aUtilityPages[i] >= 0)
+				{
+					if(aUtilityPages[i] == PAGE_RESEARCH)
+						OpenResearchPage();
+					else
+						g_Config.m_UiPage = aUtilityPages[i];
+				}
+				else
+					m_Popup = POPUP_QUIT;
+			}
+		}
+
+		if(i == 2 && m_HomeMoreExpanded)
+		{
+			static int s_aMoreButtons[2];
+			const char *apMoreLabels[2] = {"Workshop", "Demos"};
+			const int aMorePages[2] = {PAGE_MODS, PAGE_DEMOS};
+			const float PanelW = max(L(170.0f), Utility.w + L(24.0f));
+			const float PanelH = L(64.0f);
+			const float PanelGap = L(8.0f);
+			CUIRect Panel = {Utility.x + Utility.w * 0.5f - PanelW * 0.5f,
+							 Utility.y - PanelH - PanelGap,
+							 PanelW,
+							 PanelH};
+			DrawMenuPanel(&Panel, CUI::CORNER_ALL);
+			CUIRect Row = Panel;
+			Row.Margin(L(5.0f), &Row);
+			for(int m = 0; m < 2; m++)
+			{
+				CUIRect MoreBtn;
+				Row.HSplitTop((Row.h - L(4.0f)) * 0.5f, &MoreBtn, &Row);
+				if(m == 0)
+					Row.HSplitTop(L(4.0f), 0, &Row);
+				MoreBtn.Margin(L(2.0f), &MoreBtn);
+				ControllerRegisterFocus(&s_aMoreButtons[m], &MoreBtn);
+				const bool MoreFocused = ControllerIsFocused(&s_aMoreButtons[m]);
+				const float MoreHover = max(AnimHover(&s_aMoreButtons[m], 14.0f), MoreFocused ? 1.0f : 0.0f);
+				if(MoreHover > 0.01f)
+				{
+					vec4 MoreBg = ms_ColorAccent;
+					MoreBg.a = 0.16f * MoreHover;
+					RenderTools()->DrawUIRect(&MoreBtn, MoreBg, CUI::CORNER_ALL, 4.0f);
+				}
+				TextRender()->TextColor(.70f + MoreHover * .30f, .78f + MoreHover * .20f, .82f + MoreHover * .18f, 1.0f);
+				UI()->DoLabelScaled(&MoreBtn, Localize(apMoreLabels[m]), L(7.5f), 0);
+				TextRender()->TextColor(1, 1, 1, 1);
+				if(UI()->DoButtonLogic(&s_aMoreButtons[m], apMoreLabels[m], 0, &MoreBtn) ||
+					ControllerConsumeActivation(&s_aMoreButtons[m]))
+				{
+					m_HomeMoreExpanded = false;
+					g_Config.m_UiPage = aMorePages[m];
+				}
+			}
 		}
 	}
 

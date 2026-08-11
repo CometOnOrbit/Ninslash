@@ -5205,3 +5205,15 @@ Unable to open the ZIP importer.
 == 无法打开 ZIP 导入器。
 Automatic director
 == 自动导演
+
+Mini games
+== 小游戏
+
+Show all modes
+== 显示全部模式
+
+Back to recommended
+== 返回推荐
+
+CONTINUE
+== 继续

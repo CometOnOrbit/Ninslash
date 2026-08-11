@@ -362,6 +362,7 @@ class CMenus : public CComponent
 	float m_MenuOpenTransition;
 	int m_NavigationFocus;
 	int m_HomeActionFocus;
+	bool m_HomeMoreExpanded;
 	int m_LastInputDevice;
 	int m_ControllerFocusContext;
 	int m_ControllerNextFocusContext;

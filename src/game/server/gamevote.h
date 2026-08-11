@@ -9,12 +9,16 @@ struct CGameVote
 	char m_aDescription[64];
 	char m_aConfig[32];
 	char m_aImage[32];
+	char m_aGameType[24];
 
 	bool m_Valid;
 	int m_MinPlayers;
 	int m_MaxPlayers;
 	bool m_AlwaysOn;
 	bool m_DisplayLevel;
+
+	int m_RecommendedRank;
+	bool m_IsCurrentMode;
 
 	// invasion
 	int m_MinLevel;
@@ -29,6 +33,9 @@ struct CGameVote
 		m_MaxPlayers = 0;
 		m_MinLevel = 0;
 		m_MaxLevel = 9999;
+		m_RecommendedRank = 0;
+		m_IsCurrentMode = false;
+		m_aGameType[0] = 0;
 	}
 };
 

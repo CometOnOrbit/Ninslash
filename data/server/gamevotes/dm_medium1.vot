@@ -2,5 +2,6 @@ name: Deathmatch
 description: generated map
 config: cfg/dm_medium1
 image: dm1
+gametype: Deathmatch
 min-players: 11
 max-players: 100

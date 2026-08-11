@@ -698,6 +698,8 @@ Messages = [
 		NetString("m_pPlayers"),
 		NetIntAny("m_Index"),
 		NetIntAny("m_TimeLeft"),
+		NetIntRange("m_RecommendedRank", 0, 3),
+		NetIntRange("m_IsCurrentMode", 0, 1),
 	]),
 
 	NetMessage("Sv_GameVoteStatus", [

@@ -259,6 +259,7 @@ class CGameContext : public IGameServer
 	void SendBroadcast(const char *pText, int ClientID, bool Lock = false);
 	void SendBroadcastFormat(int ClientID, bool Lock, const char *pText, ...);
 	void SendGameVotes(int ClientID = -1);
+	void SelectRecommendedModes();
 
 	void ResetGameVotes();
 

@@ -2,5 +2,6 @@ name: Capture the flag
 description: generated map
 config: cfg/ctf_small1
 image: ctf1
+gametype: Capture the flag
 min-players: 0
 max-players: 10

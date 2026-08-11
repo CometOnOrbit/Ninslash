@@ -2,5 +2,6 @@ name: Instakill CTF
 description: generated map
 config: cfg/ictf_small1
 image: ictf1
+gametype: Capture the flag
 min-players: 0
 max-players: 12

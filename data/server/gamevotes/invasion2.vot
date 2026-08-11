@@ -2,6 +2,7 @@ name: Invasion
 description: PvE
 config: cfg/invasion2
 image: invasion2
+gametype: Invasion
 min-players: 0
 max-players: 16
 min-level: 11

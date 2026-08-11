@@ -1505,6 +1505,50 @@ void CGameContext::ResetGameVotes()
 		m_aGameVote[m_NumGameVotes] = Vote;
 		m_NumGameVotes++;
 	}
+
+	SelectRecommendedModes();
+}
+
+void CGameContext::SelectRecommendedModes()
+{
+	for(int i = 0; i < m_NumGameVotes; i++)
+	{
+		m_aGameVote[i].m_RecommendedRank = 0;
+		m_aGameVote[i].m_IsCurrentMode = false;
+	}
+
+	if(m_pController && m_pController->m_pGameType[0])
+	{
+		for(int i = 0; i < m_NumGameVotes; i++)
+		{
+			if(!m_aGameVote[i].m_Valid || m_aGameVote[i].m_aGameType[0] == 0)
+				continue;
+			if(str_comp(m_aGameVote[i].m_aGameType, m_pController->m_pGameType) == 0)
+			{
+				m_aGameVote[i].m_IsCurrentMode = true;
+				break;
+			}
+		}
+	}
+
+	const int Count = m_NumGameVotes;
+	int aCandidates[MAX_GAME_VOTES];
+	int CandidateCount = 0;
+	for(int i = 0; i < Count; i++)
+		if(m_aGameVote[i].m_Valid && !m_aGameVote[i].m_IsCurrentMode)
+			aCandidates[CandidateCount++] = i;
+
+	for(int i = CandidateCount - 1; i > 0; i--)
+	{
+		const int j = rand() % (i + 1);
+		const int Tmp = aCandidates[i];
+		aCandidates[i] = aCandidates[j];
+		aCandidates[j] = Tmp;
+	}
+
+	const int Want = min(3, CandidateCount);
+	for(int i = 0; i < Want; i++)
+		m_aGameVote[aCandidates[i]].m_RecommendedRank = i + 1;
 }
 
 void CGameContext::RegisterGameVote(int ClientID, int Vote)
@@ -1648,6 +1692,8 @@ void CGameContext::SendGameVotes(int ClientID)
 					Msg.m_pPlayers = "";
 					Msg.m_Index = i;
 					Msg.m_TimeLeft = m_pController->GetVoteTime();
+					Msg.m_RecommendedRank = m_aGameVote[i].m_RecommendedRank;
+					Msg.m_IsCurrentMode = m_aGameVote[i].m_IsCurrentMode ? 1 : 0;
 					Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, j);
 				}
 			}
@@ -1661,6 +1707,8 @@ void CGameContext::SendGameVotes(int ClientID)
 				Msg.m_pPlayers = "";
 				Msg.m_Index = i;
 				Msg.m_TimeLeft = m_pController->GetVoteTime();
+				Msg.m_RecommendedRank = m_aGameVote[i].m_RecommendedRank;
+				Msg.m_IsCurrentMode = m_aGameVote[i].m_IsCurrentMode ? 1 : 0;
 				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
 			}
 			// Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "GameContext", "Sending gamevote");

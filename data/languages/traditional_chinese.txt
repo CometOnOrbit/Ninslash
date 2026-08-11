@@ -5133,3 +5133,15 @@ Minimal
 == 極簡
 Automatic director
 == 自動導演
+
+Mini games
+== 小遊戲
+
+Show all modes
+== 顯示全部模式
+
+Back to recommended
+== 返回推薦
+
+CONTINUE
+== 繼續

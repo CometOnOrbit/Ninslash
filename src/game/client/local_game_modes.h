@@ -366,8 +366,7 @@ inline const char *LocalGameRuleLabel(int Rule)
 enum EGameVoteCategory
 {
 	GAMEVOTE_CATEGORY_PVE = 0,
-	GAMEVOTE_CATEGORY_TEAM,
-	GAMEVOTE_CATEGORY_SOLO,
+	GAMEVOTE_CATEGORY_PVP,
 	GAMEVOTE_CATEGORY_ARCADE,
 	NUM_GAMEVOTE_CATEGORIES,
 };
@@ -379,11 +378,10 @@ inline int LocalGameModeVoteCategory(int Mode)
 		return GAMEVOTE_CATEGORY_ARCADE;
 	if(s_aLocalGameModes[Mode].m_Pve)
 		return GAMEVOTE_CATEGORY_PVE;
-	if(LocalGameModeUsesTeamPopulation(Mode))
-		return GAMEVOTE_CATEGORY_TEAM;
-	if(Mode == LOCAL_MODE_ROAM)
+	if(s_aLocalGameModes[Mode].m_Rule == LOCAL_RULE_BALL_SCORE ||
+		s_aLocalGameModes[Mode].m_Rule == LOCAL_RULE_ROAM_CHECKPOINTS)
 		return GAMEVOTE_CATEGORY_ARCADE;
-	return GAMEVOTE_CATEGORY_SOLO;
+	return GAMEVOTE_CATEGORY_PVP;
 }
 
 // Resolves a server game-vote thumbnail name to the local mode it belongs to.
