@@ -207,7 +207,7 @@ MACRO_CONFIG_INT(GfxShaders, gfx_shaders, 1, 0, 1, CFGFLAG_SAVE | CFGFLAG_CLIENT
 MACRO_CONFIG_INT(
 	GfxMultiBuffering, gfx_multibuffering, 1, 0, 1, CFGFLAG_SAVE | CFGFLAG_CLIENT, "Use multiple screen buffers")
 
-MACRO_CONFIG_INT(InpMousesens, inp_mousesens, 100, 5, 100000, CFGFLAG_SAVE | CFGFLAG_CLIENT, "Mouse sensitivity")
+MACRO_CONFIG_INT(InpMousesens, inp_mousesens, 100, 1, 100000, CFGFLAG_SAVE | CFGFLAG_CLIENT, "In-game mouse sensitivity")
 MACRO_CONFIG_INT(InpHWCursor, inp_hw_cursor, 0, 0, 1, CFGFLAG_SAVE | CFGFLAG_CLIENT, "Use a hardware cursor")
 
 MACRO_CONFIG_STR(SvName, sv_name, 128, "unnamed server", CFGFLAG_SERVER, "Server name")

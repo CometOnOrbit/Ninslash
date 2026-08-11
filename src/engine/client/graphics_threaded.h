@@ -430,7 +430,7 @@ class IGraphicsBackend
 					 int *pDesktopWidth,
 						 int *pDesktopHeight) = 0;
 	virtual int Shutdown() = 0;
-	virtual bool ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless) = 0;
+	virtual bool ApplyWindowSettings(int *pWidth, int *pHeight, int Screen, bool Fullscreen, bool Borderless) = 0;
 
 	virtual int MemoryUsage() const = 0;
 
@@ -637,7 +637,7 @@ class CGraphics_Threaded : public IEngineGraphics
 
 	virtual int Init();
 	virtual void Shutdown();
-	virtual bool ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless);
+	virtual bool ApplyWindowSettings(int *pWidth, int *pHeight, int Screen, bool Fullscreen, bool Borderless);
 	virtual bool ApplyVSync(bool Enabled);
 
 	virtual unsigned TakeScreenshot(const char *pFilename);

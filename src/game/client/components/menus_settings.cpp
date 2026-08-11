@@ -2093,7 +2093,7 @@ float CMenus::RenderSettingsControlsMovement(CUIRect View)
 	Button.HMargin(2.0f, &Button);
 	if(!(m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(Button)))
 		g_Config.m_InpMousesens =
-			(int)(DoScrollbarH(&g_Config.m_InpMousesens, &Button, (g_Config.m_InpMousesens - 5) / 500.0f) * 500.0f) + 5;
+			(int)(DoScrollbarH(&g_Config.m_InpMousesens, &Button, (g_Config.m_InpMousesens - 1) / 500.0f) * 500.0f) + 1;
 	View.HSplitTop(10.0f, 0, &View);
 	UiDoGetButtons(START_MOVEMENT, START_WEAPONS, View);
 	return 30.0f + (START_WEAPONS - START_MOVEMENT) * 25.0f;

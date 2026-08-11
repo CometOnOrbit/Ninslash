@@ -297,14 +297,24 @@ void CGameClient::ApplyMultiBuffering()
 bool CGameClient::ApplyWindowSettings()
 {
 	IEngineGraphics *pEngineGraphics = Kernel()->RequestInterface<IEngineGraphics>();
-	if(!pEngineGraphics || !pEngineGraphics->ApplyWindowSettings(g_Config.m_GfxScreenWidth,
-		g_Config.m_GfxScreenHeight,
+	if(!pEngineGraphics)
+		return false;
+
+	const int PrevWidth = Graphics()->ScreenWidth();
+	const int PrevHeight = Graphics()->ScreenHeight();
+	int Width = g_Config.m_GfxScreenWidth;
+	int Height = g_Config.m_GfxScreenHeight;
+	if(!pEngineGraphics->ApplyWindowSettings(&Width,
+		&Height,
 		g_Config.m_GfxScreen,
 		g_Config.m_GfxFullscreen != 0,
 		g_Config.m_GfxBorderless != 0))
 		return false;
 
-	RefreshTextureBuffers();
+	g_Config.m_GfxScreenWidth = Width;
+	g_Config.m_GfxScreenHeight = Height;
+	if(Graphics()->ScreenWidth() != PrevWidth || Graphics()->ScreenHeight() != PrevHeight)
+		RefreshTextureBuffers();
 	return true;
 }
 

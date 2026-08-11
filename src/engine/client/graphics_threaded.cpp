@@ -1284,6 +1284,15 @@ int CGraphics_Threaded::Init()
 		m_apCommandBuffers[i] = new CCommandBuffer(128 * 1024, 2 * 1024 * 1024);
 	m_pCommandBuffer = m_apCommandBuffers[0];
 
+	{
+		CCommandBuffer::SCommand_SetViewport Cmd;
+		Cmd.m_Width = m_ScreenWidth;
+		Cmd.m_Height = m_ScreenHeight;
+		m_pCommandBuffer->AddCommand(Cmd);
+		KickCommandBuffer();
+		WaitForIdle();
+	}
+
 	// create null texture, will get id=0
 	static const unsigned char aNullTextureData[] = {
 		0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
@@ -1325,21 +1334,21 @@ void CGraphics_Threaded::Shutdown()
 		delete m_apCommandBuffers[i];
 }
 
-bool CGraphics_Threaded::ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless)
+bool CGraphics_Threaded::ApplyWindowSettings(int *pWidth, int *pHeight, int Screen, bool Fullscreen, bool Borderless)
 {
-	if(!m_pBackend)
+	if(!m_pBackend || !pWidth || !pHeight)
 		return false;
 
 	KickCommandBuffer();
 	WaitForIdle();
-	if(!m_pBackend->ApplyWindowSettings(Width, Height, Screen, Fullscreen, Borderless))
+	if(!m_pBackend->ApplyWindowSettings(pWidth, pHeight, Screen, Fullscreen, Borderless))
 		return false;
 
 	m_pBackend->GetViewportSize(&m_ScreenWidth, &m_ScreenHeight);
 	if(m_ScreenWidth <= 0 || m_ScreenHeight <= 0)
 	{
-		m_ScreenWidth = Width;
-		m_ScreenHeight = Height;
+		m_ScreenWidth = max(1, *pWidth);
+		m_ScreenHeight = max(1, *pHeight);
 	}
 
 	CCommandBuffer::SCommand_SetViewport Cmd;

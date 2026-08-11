@@ -289,16 +289,29 @@ void CInput::GetMousePosition(float *x, float *y)
 
 	if(m_FirstWarp)
 	{
-		m_LastMousePosX = nx;
-		m_LastMousePosY = ny;
+		m_LastMousePosX = (int)nx;
+		m_LastMousePosY = (int)ny;
 		m_FirstWarp = false;
 	}
 
 	*x = nx * Sens;
 	*y = ny * Sens;
 
+	// SDL mouse coords are in window (logical) space. ScreenWidth()/Height() are
+	// drawable pixels and diverge under HiDPI — warping there breaks aim sens.
 	if(GetMouseModes() & MOUSE_MODE_WARP_CENTER)
-		m_pGraphics->WarpMouse(Graphics()->ScreenWidth() / 2, Graphics()->ScreenHeight() / 2);
+	{
+		int WindowW = 0;
+		int WindowH = 0;
+		SDL_Window *pWindow = (SDL_Window *)m_pGraphics->GetWindowHandle();
+		if(pWindow)
+			SDL_GetWindowSize(pWindow, &WindowW, &WindowH);
+		if(WindowW <= 0)
+			WindowW = max(1, g_Config.m_GfxScreenWidth);
+		if(WindowH <= 0)
+			WindowH = max(1, g_Config.m_GfxScreenHeight);
+		m_pGraphics->WarpMouse(WindowW / 2, WindowH / 2);
+	}
 }
 
 void CInput::GetRelativePosition(float *x, float *y)
@@ -324,10 +337,26 @@ void CInput::GetRelativePosition(float *x, float *y)
 	}
 	m_LastGamepadRelativeTime = 0;
 
-	*x *= (float)100 / g_Config.m_InpMousesens;
-	*y *= (float)100 / g_Config.m_InpMousesens;
-	*x -= Graphics()->ScreenWidth() / 2;
-	*y -= Graphics()->ScreenHeight() / 2;
+	// GetMousePosition pre-scales by InpMousesens for the absolute menu path.
+	// Undo that so callers get raw window-space deltas (teeworlds MouseRelative).
+	// In-game sensitivity is applied by the component (InpMousesens/100).
+	if(g_Config.m_InpMousesens > 0)
+	{
+		*x *= 100.0f / g_Config.m_InpMousesens;
+		*y *= 100.0f / g_Config.m_InpMousesens;
+	}
+
+	int WindowW = 0;
+	int WindowH = 0;
+	SDL_Window *pWindow = (SDL_Window *)m_pGraphics->GetWindowHandle();
+	if(pWindow)
+		SDL_GetWindowSize(pWindow, &WindowW, &WindowH);
+	if(WindowW <= 0)
+		WindowW = max(1, g_Config.m_GfxScreenWidth);
+	if(WindowH <= 0)
+		WindowH = max(1, g_Config.m_GfxScreenHeight);
+	*x -= WindowW / 2.0f;
+	*y -= WindowH / 2.0f;
 }
 
 bool CInput::MouseMoved()

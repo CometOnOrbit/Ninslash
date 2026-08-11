@@ -589,7 +589,8 @@ bool CControls::OnMouseMove(float x, float y)
 	{
 		Input()->GetRelativePosition(&x, &y);
 		m_LastGamepadAimTime = 0;
-		m_MousePos += vec2(x, y) * ((200.0f + g_Config.m_InpMousesens) / 150.0f);
+		// teeworlds: raw relative delta * (inp_mousesens / 100)
+		m_MousePos += vec2(x, y) * (g_Config.m_InpMousesens / 100.0f);
 	}
 	ClampMousePos();
 

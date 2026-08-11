@@ -2,7 +2,7 @@
 #include <engine/platform_events.h>
 
 #include <game/challenge_variant.h>
-#include <game/deterministic_random.h>
+#include <base/deterministic_random.h>
 #include <game/questinfo.h>
 #include <game/mapitems.h>
 #include <game/weapons.h>

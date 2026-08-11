@@ -259,7 +259,7 @@ class CGraphicsBackend_SDL_OpenGL : public CGraphicsBackend_Threaded
 					 int *pDesktopWidth,
 					 int *pDesktopHeight);
 	virtual int Shutdown();
-	virtual bool ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless);
+	virtual bool ApplyWindowSettings(int *pWidth, int *pHeight, int Screen, bool Fullscreen, bool Borderless);
 
 	virtual int MemoryUsage() const;
 

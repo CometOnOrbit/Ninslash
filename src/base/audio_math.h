@@ -1,5 +1,4 @@
 // Audio math utilities from https://gitlab.com/obani/sound_exp
-// Audio math utilities from https://gitlab.com/obani/sound_exp
 // Pure algorithm layer — no engine / game dependencies
 #ifndef BASE_AUDIO_MATH_H
 #define BASE_AUDIO_MATH_H

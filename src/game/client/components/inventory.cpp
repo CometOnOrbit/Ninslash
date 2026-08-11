@@ -490,7 +490,7 @@ bool CInventory::OnMouseMove(float x, float y)
 	{
 		m_LastGamepadCursorTime = 0;
 		Input()->GetRelativePosition(&x, &y);
-		const float AimScale = (200.0f + g_Config.m_InpMousesens) / 150.0f;
+		const float AimScale = g_Config.m_InpMousesens / 100.0f;
 		m_WorldMouse += vec2(x, y) * AimScale;
 		const float HudScale = 300.0f / max(1, Graphics()->ScreenHeight());
 		m_SelectorMouse += vec2(x, y) * HudScale;

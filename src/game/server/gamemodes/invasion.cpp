@@ -2,7 +2,7 @@
 #include <engine/platform_events.h>
 
 #include <game/mapitems.h>
-#include <game/deterministic_random.h>
+#include <base/deterministic_random.h>
 #include <game/questinfo.h>
 #include <game/pve_roguelite.h>
 #include <game/weapons.h>

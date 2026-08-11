@@ -1,13 +1,6 @@
 #ifndef GAME_DETERMINISTIC_RANDOM_H
 #define GAME_DETERMINISTIC_RANDOM_H
 
-// Deterministic, cross-platform PRNG (splitmix64) for content generation.
-// Independent of the global rand() state, so a challenge run with the same
-// seed reproduces the same content stream (enemy line-ups, tasks, events).
-// Micro-behaviour (AI movement, bullet spread) intentionally keeps using the
-// global rand(); only content selection goes through this stream.
-//
-// See docs/playability_design.md §3.2.
 class CDeterministicRandom
 {
 	unsigned long long m_State;

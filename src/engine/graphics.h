@@ -299,7 +299,7 @@ class IEngineGraphics : public IGraphics
   public:
 	virtual int Init() = 0;
 	virtual void Shutdown() = 0;
-	virtual bool ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless) = 0;
+	virtual bool ApplyWindowSettings(int *pWidth, int *pHeight, int Screen, bool Fullscreen, bool Borderless) = 0;
 	virtual bool ApplyVSync(bool Enabled) = 0;
 
 	virtual void Minimize() = 0;

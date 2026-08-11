@@ -605,8 +605,8 @@ void CCommandProcessorFragment_OpenGL::Cmd_LoadShaders(const CCommandBuffer::SCo
 
 void CCommandProcessorFragment_OpenGL::Cmd_CameraToShaders(const CCommandBuffer::SCommand_CameraToShaders *pCommand)
 {
-	m_ScreenWidth = pCommand->m_ScreenWidth;
-	m_ScreenHeight = pCommand->m_ScreenHeight;
+	(void)pCommand->m_ScreenWidth;
+	(void)pCommand->m_ScreenHeight;
 	m_CameraX = pCommand->m_CameraX;
 	m_CameraY = pCommand->m_CameraY;
 }
@@ -1223,17 +1223,13 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName,
 	m_OffscreenCapture = pOffscreenCapture && pOffscreenCapture[0] && SDL_strcmp(pOffscreenCapture, "0") != 0;
 
 #if defined(CONF_PLATFORM_LINUX)
-	// SDL otherwise prefers X11 when both backends are available. Prefer the
-	// native Wayland backend for a Wayland session, unless the user selected a
-	// driver explicitly (including x11 or offscreen for tests).
-	// AND THIS IS CRAZY U KNOW??? OVER FIVE YEARS IM TRACINGGGGGGGGGGGG WHAT GOING ON AND ANSWER IS VIDEODRIVER????
-	const char *pVideoDriver = SDL_getenv("SDL_VIDEODRIVER");
-	const char *pWaylandDisplay = SDL_getenv("WAYLAND_DISPLAY");
-	if((!pVideoDriver || !pVideoDriver[0]) && pWaylandDisplay && pWaylandDisplay[0])
-	{
-		if(SDL_setenv_unsafe("SDL_VIDEODRIVER", "wayland", 0) == 0)
-			dbg_msg("gfx", "Wayland session detected, selecting SDL Wayland video driver");
-	}
+	// Do not force SDL_VIDEODRIVER=wayland. SDL defaults to X11 (XWayland) on a
+	// Wayland session — same as Teeworlds — where SetWindowPosition can center
+	// windowed/borderless windows after a resize. Native Wayland rejects
+	// client-side moves for normal toplevels ("wayland cannot position
+	// non-popup windows"), so borderless resolution changes keep the old
+	// top-left and never look centered.
+	// Opt into native Wayland only when needed: SDL_VIDEODRIVER=wayland.
 #endif
 
 	if(!SDL_WasInit(SDL_INIT_VIDEO))
@@ -1244,6 +1240,8 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName,
 			return -1;
 		}
 	}
+
+	dbg_msg("gfx", "SDL video driver: %s", SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "(none)");
 
 	SDL_Rect ScreenPos;
 	int NumScreens = GetNumScreens();
@@ -1328,8 +1326,19 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName,
 		CleanupFailedInit();
 		return -1;
 	}
-	SDL_SetWindowPosition(
-		m_pWindow, SDL_WINDOWPOS_UNDEFINED_DISPLAY(*pScreen), SDL_WINDOWPOS_UNDEFINED_DISPLAY(*pScreen));
+	// teeworlds: center windowed/borderless on the selected display when the
+	// desktop is larger than the window; otherwise pin to the display origin.
+	{
+		int OffsetX = 0;
+		int OffsetY = 0;
+		if(!(Flags & IGraphicsBackend::INITFLAG_FULLSCREEN) && *pDesktopWidth > *Width &&
+			*pDesktopHeight > *Height)
+		{
+			OffsetX = (*pDesktopWidth - *Width) / 2;
+			OffsetY = (*pDesktopHeight - *Height) / 2;
+		}
+		SDL_SetWindowPosition(m_pWindow, ScreenPos.x + OffsetX, ScreenPos.y + OffsetY);
+	}
 	if(m_OffscreenCapture)
 		dbg_msg("gfx", "using hidden SDL OpenGL context for offscreen capture");
 
@@ -1398,12 +1407,17 @@ int CGraphicsBackend_SDL_OpenGL::Shutdown()
 	return 0;
 }
 
-bool CGraphicsBackend_SDL_OpenGL::ApplyWindowSettings(int Width, int Height, int Screen, bool Fullscreen, bool Borderless)
+bool CGraphicsBackend_SDL_OpenGL::ApplyWindowSettings(int *pWidth, int *pHeight, int Screen, bool Fullscreen, bool Borderless)
 {
-	if(!m_pWindow || m_OffscreenCapture)
+	if(!m_pWindow || m_OffscreenCapture || !pWidth || !pHeight)
 		return false;
 
 	const int ResolvedScreen = ResolveScreenIndex(Screen);
+	const int WantWidth = max(1, *pWidth);
+	const int WantHeight = max(1, *pHeight);
+	if(Fullscreen)
+		Borderless = false;
+
 	const SDL_WindowFlags WindowFlags = SDL_GetWindowFlags(m_pWindow);
 	const bool WasFullscreen = (WindowFlags & SDL_WINDOW_FULLSCREEN) != 0;
 	const bool WasBorderless = (WindowFlags & SDL_WINDOW_BORDERLESS) != 0;
@@ -1416,17 +1430,15 @@ bool CGraphicsBackend_SDL_OpenGL::ApplyWindowSettings(int Width, int Height, int
 	if(HadPreviousMode)
 		PreviousMode = *pPreviousMode;
 
-	if(Fullscreen)
-		Borderless = false;
+	const SDL_DisplayID DisplayID = DisplayIDFromIndex(ResolvedScreen);
 	SDL_DisplayMode FullscreenMode = {};
 	if(Fullscreen &&
-		!SDL_GetClosestFullscreenDisplayMode(
-			DisplayIDFromIndex(ResolvedScreen), max(1, Width), max(1, Height), 0.0f, false, &FullscreenMode))
+		!SDL_GetClosestFullscreenDisplayMode(DisplayID, WantWidth, WantHeight, 0.0f, false, &FullscreenMode))
 	{
-		dbg_msg("gfx", "unable to find fullscreen mode %dx%d: %s", Width, Height, SDL_GetError());
+		dbg_msg("gfx", "unable to find fullscreen mode %dx%d: %s", WantWidth, WantHeight, SDL_GetError());
 		return false;
 	}
-	const SDL_DisplayMode *pDesktopMode = Fullscreen ? SDL_GetDesktopDisplayMode(DisplayIDFromIndex(ResolvedScreen)) : nullptr;
+	const SDL_DisplayMode *pDesktopMode = Fullscreen ? SDL_GetDesktopDisplayMode(DisplayID) : nullptr;
 	const bool UseDesktopFullscreen = Fullscreen && pDesktopMode && pDesktopMode->w == FullscreenMode.w &&
 		pDesktopMode->h == FullscreenMode.h;
 	const SDL_DisplayMode *pTargetMode = Fullscreen && !UseDesktopFullscreen ? &FullscreenMode : nullptr;
@@ -1463,22 +1475,23 @@ bool CGraphicsBackend_SDL_OpenGL::ApplyWindowSettings(int Width, int Height, int
 		return false;
 	};
 
-	if(WasFullscreen && !SDL_SetWindowFullscreen(m_pWindow, false))
+	// Match teeworlds: leaving exclusive fullscreen is a dedicated step.
+	if(WasFullscreen && !Fullscreen)
 	{
-		dbg_msg("gfx", "unable to leave fullscreen: %s", SDL_GetError());
-		return Fail();
+		if(!SDL_SetWindowFullscreen(m_pWindow, false) || !SyncWindow())
+		{
+			dbg_msg("gfx", "unable to leave fullscreen: %s", SDL_GetError());
+			return Fail();
+		}
 	}
-	if(WasFullscreen && !SyncWindow())
-	{
-		dbg_msg("gfx", "unable to synchronize windowed transition: %s", SDL_GetError());
-		return Fail();
-	}
-
-	SDL_SetWindowPosition(
-		m_pWindow, SDL_WINDOWPOS_UNDEFINED_DISPLAY(ResolvedScreen), SDL_WINDOWPOS_UNDEFINED);
 
 	if(Fullscreen)
 	{
+		if(!WasFullscreen || SDL_GetDisplayForWindow(m_pWindow) != DisplayID)
+		{
+			SDL_SetWindowPosition(
+				m_pWindow, SDL_WINDOWPOS_UNDEFINED_DISPLAY(ResolvedScreen), SDL_WINDOWPOS_UNDEFINED);
+		}
 		if(!SDL_SetWindowFullscreenMode(m_pWindow, pTargetMode))
 		{
 			dbg_msg("gfx", "unable to set fullscreen mode %dx%d: %s", FullscreenMode.w, FullscreenMode.h, SDL_GetError());
@@ -1492,10 +1505,51 @@ bool CGraphicsBackend_SDL_OpenGL::ApplyWindowSettings(int Width, int Height, int
 	}
 	else
 	{
-		if(!SDL_SetWindowBordered(m_pWindow, !Borderless) || !SDL_SetWindowSize(m_pWindow, max(1, Width), max(1, Height)))
+		// teeworlds split: borderless is only SetWindowBordered; resolution is
+		// only SetWindowSize. Position uses the same centering rule as Init —
+		// never SDL_WINDOWPOS_UNDEFINED (that caused focus geometry bugs).
+		const bool WantBorderless = Borderless;
+		const bool SizeChanged = PreviousWidth != WantWidth || PreviousHeight != WantHeight || WasFullscreen;
+		const bool BorderChanged = WasBorderless != WantBorderless;
+		const bool ScreenChanged = SDL_GetDisplayForWindow(m_pWindow) != DisplayID;
+
+		if(!SDL_SetWindowBordered(m_pWindow, !WantBorderless))
 		{
-			dbg_msg("gfx", "unable to resize window to %dx%d: %s", Width, Height, SDL_GetError());
+			dbg_msg("gfx", "unable to set window border: %s", SDL_GetError());
 			return Fail();
+		}
+		if(SizeChanged)
+		{
+			if(!SDL_SetWindowSize(m_pWindow, WantWidth, WantHeight))
+			{
+				dbg_msg("gfx", "unable to resize window to %dx%d: %s", WantWidth, WantHeight, SDL_GetError());
+				return Fail();
+			}
+		}
+		if(SizeChanged || BorderChanged || ScreenChanged)
+		{
+			SDL_Rect Bounds = {};
+			const SDL_DisplayMode *pDesk = SDL_GetDesktopDisplayMode(DisplayID);
+			if(SDL_GetDisplayBounds(DisplayID, &Bounds) && pDesk)
+			{
+				int OffsetX = 0;
+				int OffsetY = 0;
+				if(pDesk->w > WantWidth && pDesk->h > WantHeight)
+				{
+					OffsetX = (pDesk->w - WantWidth) / 2;
+					OffsetY = (pDesk->h - WantHeight) / 2;
+				}
+				const int PosX = Bounds.x + OffsetX;
+				const int PosY = Bounds.y + OffsetY;
+				if(!SDL_SetWindowPosition(m_pWindow, PosX, PosY))
+				{
+					dbg_msg("gfx",
+							"unable to center window at %d,%d (%s) — on Wayland set SDL_VIDEODRIVER=x11 for Teeworlds-like positioning",
+							PosX,
+							PosY,
+							SDL_GetError());
+				}
+			}
 		}
 	}
 
@@ -1518,6 +1572,17 @@ bool CGraphicsBackend_SDL_OpenGL::ApplyWindowSettings(int Width, int Height, int
 				FullscreenMode.h);
 		return Fail();
 	}
+
+	// Write back the logical size the WM actually gave us (may be clamped).
+	int LogicalWidth = 0;
+	int LogicalHeight = 0;
+	if(!SDL_GetWindowSize(m_pWindow, &LogicalWidth, &LogicalHeight) || LogicalWidth <= 0 || LogicalHeight <= 0)
+	{
+		LogicalWidth = WantWidth;
+		LogicalHeight = WantHeight;
+	}
+	*pWidth = LogicalWidth;
+	*pHeight = LogicalHeight;
 	return true;
 }
 

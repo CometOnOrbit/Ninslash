@@ -146,5 +146,5 @@ void CCamera::OnRender()
 
 	m_PrevCenter = m_Center;
 
-	Graphics()->CameraToShaders(g_Config.m_GfxScreenWidth, g_Config.m_GfxScreenHeight, m_Center.x, m_Center.y);
+	Graphics()->CameraToShaders(Graphics()->ScreenWidth(), Graphics()->ScreenHeight(), m_Center.x, m_Center.y);
 }

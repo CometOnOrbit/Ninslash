@@ -387,7 +387,7 @@ int CPveDirector::EnvironmentBrightness() const
 	switch(m_EnvironmentPhase)
 	{
 		case PVE_ENV_PHASE_WARNING: return 128;
-		case PVE_ENV_PHASE_DARK: return 0;
+		case PVE_ENV_PHASE_DARK: return 16;
 		case PVE_ENV_PHASE_RECOVERY: return 192;
 		default: return 255;
 	}
