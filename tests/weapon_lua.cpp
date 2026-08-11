@@ -296,12 +296,12 @@ int main()
 	ValidateLegacyRangedMechanics();
 	const uint64_t CombatDigest = OfficialCombatDigest();
 	const uint64_t VisualDigest = OfficialVisualDigest();
-	if(CombatDigest != 0x805fcf6bff80769aULL)
+	if(CombatDigest != 0x243a5ec52d8a38e6ULL)
 		fprintf(stderr, "official combat digest: 0x%016llx\n", (unsigned long long)CombatDigest);
-	assert(CombatDigest == 0x805fcf6bff80769aULL);
-	if(VisualDigest != 0x4dec80c5cb23f43dULL)
+	assert(CombatDigest == 0x243a5ec52d8a38e6ULL);
+	if(VisualDigest != 0x0b5b8ff4aa7ebe31ULL)
 		fprintf(stderr, "official visual digest: 0x%016llx\n", (unsigned long long)VisualDigest);
-	assert(VisualDigest == 0x4dec80c5cb23f43dULL);
+	assert(VisualDigest == 0x0b5b8ff4aa7ebe31ULL);
 	CResolvedWeaponProfile HeavyStandard, HeavyScatter, HeavyLong, HeavyAutomatic, HeavyCharge;
 	assert(CWeaponCatalog::TryResolve(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL1), &HeavyStandard));
 	assert(CWeaponCatalog::TryResolve(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL2), &HeavyScatter));

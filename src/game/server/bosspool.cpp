@@ -10,13 +10,15 @@
 #include <game/server/entities/droid_bossstar.h>
 #include <game/server/entities/droid_bosswalker.h>
 #include <game/server/entities/droid_bosssplitter.h>
-#include <game/server/entities/droid_bulwark.h>
-#include <game/server/entities/droid_assembler.h>
-#include <game/server/entities/droid_saboteur.h>
-#include <game/server/entities/droid_railgunner.h>
-#include <game/server/entities/droid_siege_engine.h>
-#include <game/server/entities/droid_overseer_core.h>
-#include <game/server/entities/droid_crawler.h>
+#include <game/server/entities/droid_cyclonecrawler.h>
+#include <game/server/entities/droid_kamikazestar.h>
+#include <game/server/entities/droid_mendercrawler.h>
+#include <game/server/entities/droid_railstar.h>
+#include <game/server/entities/droid_siegebreakercrawler.h>
+#include <game/server/entities/droid_splitcrawler.h>
+#include <game/server/entities/droid_stalkercrawler.h>
+#include <game/server/entities/droid_tempeststar.h>
+#include <game/server/entities/droid_teslastar.h>
 
 #include "bosspool.h"
 
@@ -67,10 +69,6 @@ bool TryBossLanding(CGameWorld *pWorld, vec2 Probe, vec2 *pOutPos)
 
 int SelectBossType(int Depth)
 {
-	if(Depth >= 30)
-		return DROIDTYPE_ABYSSAL_HEART;
-	// Classic bosses only — Lost Protocol Siege/Overseer stay disabled while
-	// that kit is still rough.
 	int Types[4];
 	int Count = 0;
 	Types[Count++] = DROIDTYPE_BOSSCRAWLER;
@@ -118,22 +116,11 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 		Pos = SafePos;
 
 	int Type = TypeHint;
-	// Remap unfinished Lost Protocol bosses onto the classic pool.
-	if(Type == DROIDTYPE_SIEGE_ENGINE || Type == DROIDTYPE_OVERSEER_CORE)
-		Type = -1;
-	if(Type < 0 || !IsBossDroidType(Type) || Type == DROIDTYPE_SIEGE_ENGINE || Type == DROIDTYPE_OVERSEER_CORE)
+	if(Type < 0 || !IsBossDroidType(Type))
 		Type = SelectBossType(Depth);
 
 	switch(Type)
 	{
-		case DROIDTYPE_ABYSSAL_HEART:
-		{
-			CDroid *pBoss = new CBossCrawler(pWorld, Pos);
-			pBoss->m_Type = DROIDTYPE_ABYSSAL_HEART;
-			pBoss->m_Health = (int)(pBoss->m_Health * 1.35f);
-			pBoss->m_MaxHealth = pBoss->m_Health;
-			return pBoss;
-		}
 		case DROIDTYPE_BOSSSTAR:
 			return new CBossStar(pWorld, Pos);
 		case DROIDTYPE_BOSSSPLITTER:
@@ -145,46 +132,37 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 
 CDroid *SpawnSpecialist(CGameWorld *pWorld, vec2 Pos, int Type)
 {
-	if(Type == DROIDTYPE_LUMINOUS_PREDATOR)
+	switch(Type)
 	{
-		CDroid *pPredator = new CCrawler(pWorld, Pos);
-		pPredator->m_Type = DROIDTYPE_LUMINOUS_PREDATOR;
-		pPredator->m_Health = (int)(pPredator->m_Health * 0.85f);
-		pPredator->m_MaxHealth = pPredator->m_Health;
-		return pPredator;
+		case DROIDTYPE_SIEGEBREAKERCRAWLER: return new CSiegeBreakerCrawler(pWorld, Pos);
+		case DROIDTYPE_TEMPESTSTAR: return new CTempestStar(pWorld, Pos);
+		case DROIDTYPE_SPLITCRAWLER: return new CSplitCrawler(pWorld, Pos);
+		case DROIDTYPE_KAMIKAZESTAR: return new CKamikazeStar(pWorld, Pos);
+		case DROIDTYPE_RAILSTAR: return new CRailstar(pWorld, Pos);
+		case DROIDTYPE_MENDERCRAWLER: return new CMenderCrawler(pWorld, Pos);
+		case DROIDTYPE_STALKERCRAWLER: return new CStalkerCrawler(pWorld, Pos);
+		case DROIDTYPE_TESLASTAR: return new CTeslaStar(pWorld, Pos);
+		case DROIDTYPE_CYCLONECRAWLER: return new CCycloneCrawler(pWorld, Pos);
+		default: return 0;
 	}
-	if(Type == DROIDTYPE_REEF_SENTINEL)
-	{
-		CDroid *pSentinel = new CBulwark(pWorld, Pos);
-		pSentinel->m_Type = DROIDTYPE_REEF_SENTINEL;
-		return pSentinel;
-	}
-	// Legacy specialist types remain opt-in only until their standalone spawn
-	// budgets are enabled by a mode controller.
-	(void)pWorld;
-	(void)Pos;
-	return 0;
 }
 
 int DroidThreatCost(int Type)
 {
 	switch(Type)
 	{
-		case DROIDTYPE_RAILGUNNER:
-		case DROIDTYPE_SABOTEUR:
-			return 3;
-		case DROIDTYPE_BULWARK:
-		case DROIDTYPE_ASSEMBLER:
-			return 4;
-		case DROIDTYPE_SIEGE_ENGINE:
-		case DROIDTYPE_OVERSEER_CORE:
-			return 10;
-		case DROIDTYPE_ABYSSAL_HEART:
-			return 14;
-		case DROIDTYPE_REEF_SENTINEL:
-			return 4;
-		case DROIDTYPE_LUMINOUS_PREDATOR:
+		case DROIDTYPE_SPLITCRAWLER:
+		case DROIDTYPE_KAMIKAZESTAR:
 			return 2;
+		case DROIDTYPE_SIEGEBREAKERCRAWLER:
+		case DROIDTYPE_TEMPESTSTAR:
+		case DROIDTYPE_MENDERCRAWLER:
+		case DROIDTYPE_STALKERCRAWLER:
+			return 3;
+		case DROIDTYPE_RAILSTAR:
+		case DROIDTYPE_TESLASTAR:
+		case DROIDTYPE_CYCLONECRAWLER:
+			return 4;
 		default:
 			return 1;
 	}
@@ -201,9 +179,18 @@ float DroidSoundThreat(int Type)
 		case DROIDTYPE_BOSSSTAR: return 7.5f;
 		case DROIDTYPE_BOSSWALKER: return 7.5f;
 		case DROIDTYPE_BOSSSPLITTER: return 8.0f;
-		case DROIDTYPE_ABYSSAL_HEART: return 11.0f;
-		case DROIDTYPE_REEF_SENTINEL: return 3.5f;
-		case DROIDTYPE_LUMINOUS_PREDATOR: return 2.0f;
+		case DROIDTYPE_SPLITCRAWLER:
+		case DROIDTYPE_KAMIKAZESTAR:
+			return 2.0f;
+		case DROIDTYPE_SIEGEBREAKERCRAWLER:
+		case DROIDTYPE_TEMPESTSTAR:
+		case DROIDTYPE_MENDERCRAWLER:
+		case DROIDTYPE_STALKERCRAWLER:
+			return 2.5f;
+		case DROIDTYPE_RAILSTAR:
+		case DROIDTYPE_TESLASTAR:
+		case DROIDTYPE_CYCLONECRAWLER:
+			return 3.0f;
 		default: return 1.0f;
 	}
 }
@@ -225,14 +212,29 @@ SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld,
 	const int SpendLimit = min(OrdinaryThreat, max(2, OrdinaryThreat / ThreatDivisor));
 	while(Result.m_EntitiesSpawned < MaxEntities && Result.m_ThreatSpent + 2 <= SpendLimit)
 	{
-		int aTypes[2];
+		int aTypes[9];
 		int NumTypes = 0;
-		aTypes[NumTypes++] = DROIDTYPE_LUMINOUS_PREDATOR;
+		aTypes[NumTypes++] = DROIDTYPE_SIEGEBREAKERCRAWLER;
+		aTypes[NumTypes++] = DROIDTYPE_SPLITCRAWLER;
+		if(Depth >= 23)
+		{
+			aTypes[NumTypes++] = DROIDTYPE_TEMPESTSTAR;
+			aTypes[NumTypes++] = DROIDTYPE_MENDERCRAWLER;
+		}
 		if(Depth >= 25)
-			aTypes[NumTypes++] = DROIDTYPE_REEF_SENTINEL;
+		{
+			aTypes[NumTypes++] = DROIDTYPE_KAMIKAZESTAR;
+			aTypes[NumTypes++] = DROIDTYPE_STALKERCRAWLER;
+		}
+		if(Depth >= 27)
+		{
+			aTypes[NumTypes++] = DROIDTYPE_RAILSTAR;
+			aTypes[NumTypes++] = DROIDTYPE_TESLASTAR;
+			aTypes[NumTypes++] = DROIDTYPE_CYCLONECRAWLER;
+		}
 
-		int Type = aTypes[rand() % NumTypes];
-		int Cost = DroidThreatCost(Type);
+		const int Type = aTypes[rand() % NumTypes];
+		const int Cost = DroidThreatCost(Type);
 		if(Result.m_ThreatSpent + Cost > SpendLimit)
 			break;
 
@@ -256,11 +258,24 @@ int CountAliveSpecialists(CGameWorld *pWorld)
 	const int Num = pWorld->FindEntities(vec2(0, 0), 0.0f, (CEntity **)apEnts, 256, CGameWorld::ENTTYPE_DROID);
 	int Specialists = 0;
 	for(int i = 0; i < Num; i++)
-		if(apEnts[i] && apEnts[i]->m_Health > 0 &&
-		   (apEnts[i]->m_Type == DROIDTYPE_BULWARK || apEnts[i]->m_Type == DROIDTYPE_ASSEMBLER ||
-			apEnts[i]->m_Type == DROIDTYPE_SABOTEUR || apEnts[i]->m_Type == DROIDTYPE_RAILGUNNER ||
-			apEnts[i]->m_Type == DROIDTYPE_LUMINOUS_PREDATOR || apEnts[i]->m_Type == DROIDTYPE_REEF_SENTINEL))
-			Specialists++;
+	{
+		if(!apEnts[i] || apEnts[i]->m_Health <= 0)
+			continue;
+		switch(apEnts[i]->m_Type)
+		{
+			case DROIDTYPE_SIEGEBREAKERCRAWLER:
+			case DROIDTYPE_TEMPESTSTAR:
+			case DROIDTYPE_SPLITCRAWLER:
+			case DROIDTYPE_KAMIKAZESTAR:
+			case DROIDTYPE_RAILSTAR:
+			case DROIDTYPE_MENDERCRAWLER:
+			case DROIDTYPE_STALKERCRAWLER:
+			case DROIDTYPE_TESLASTAR:
+			case DROIDTYPE_CYCLONECRAWLER:
+				Specialists++;
+				break;
+		}
+	}
 	return Specialists;
 }
 

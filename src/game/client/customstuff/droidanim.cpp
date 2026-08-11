@@ -60,7 +60,19 @@ void CDroidAnim::Tick()
 	m_aLegTargetPos[3] = m_Pos + vec2(50, 120);
 	*/
 
-	const float Scale = (m_Type == DROIDTYPE_BOSSCRAWLER) ? 2.0f : (m_Type == DROIDTYPE_BOSSSPLITTER ? 1.6f : 1.0f);
+	float Scale = 1.0f;
+	if(m_Type == DROIDTYPE_BOSSCRAWLER)
+		Scale = 2.0f;
+	else if(m_Type == DROIDTYPE_BOSSSPLITTER)
+		Scale = 1.6f;
+	else if(m_Type == DROIDTYPE_SIEGEBREAKERCRAWLER)
+		Scale = 1.35f;
+	else if(m_Type == DROIDTYPE_CYCLONECRAWLER)
+		Scale = 1.15f;
+	else if(m_Type == DROIDTYPE_SPLITCRAWLER)
+		Scale = 0.85f;
+	else if(m_Type == DROIDTYPE_STALKERCRAWLER)
+		Scale = 0.90f;
 
 	const float la = m_Angle * 1.4f;
 	const float la2 = m_Angle * 1.4f + pi;

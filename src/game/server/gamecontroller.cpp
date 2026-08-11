@@ -20,11 +20,19 @@
 #include "entities/droid_walker.h"
 #include "entities/droid_star.h"
 #include "entities/droid_crawler.h"
-#include "entities/droid_bulwark.h"
 #include "entities/droid_bosscrawler.h"
 #include "entities/droid_bossstar.h"
 #include "entities/droid_bosswalker.h"
 #include "entities/droid_bosssplitter.h"
+#include "entities/droid_siegebreakercrawler.h"
+#include "entities/droid_tempeststar.h"
+#include "entities/droid_splitcrawler.h"
+#include "entities/droid_kamikazestar.h"
+#include "entities/droid_railstar.h"
+#include "entities/droid_mendercrawler.h"
+#include "entities/droid_stalkercrawler.h"
+#include "entities/droid_teslastar.h"
+#include "entities/droid_cyclonecrawler.h"
 #include "gamecontroller.h"
 #include "gamecontext.h"
 #include "pve_director.h"
@@ -768,29 +776,30 @@ void IGameController::RestoreEntity(int ObjType, int Type, int Subtype, int x, i
 			new CStar(&GameServer()->m_World, vec2(x, y));
 		else if(Type == DROIDTYPE_CRAWLER)
 			new CCrawler(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_LUMINOUS_PREDATOR)
-		{
-			CDroid *pPredator = new CCrawler(&GameServer()->m_World, vec2(x, y));
-			pPredator->m_Type = DROIDTYPE_LUMINOUS_PREDATOR;
-		}
-		else if(Type == DROIDTYPE_REEF_SENTINEL)
-		{
-			CDroid *pSentinel = new CBulwark(&GameServer()->m_World, vec2(x, y));
-			pSentinel->m_Type = DROIDTYPE_REEF_SENTINEL;
-		}
 		else if(Type == DROIDTYPE_BOSSCRAWLER)
 			new CBossCrawler(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_ABYSSAL_HEART)
-		{
-			CDroid *pBoss = new CBossCrawler(&GameServer()->m_World, vec2(x, y));
-			pBoss->m_Type = DROIDTYPE_ABYSSAL_HEART;
-			pBoss->m_Health = (int)(pBoss->m_Health * 1.35f);
-			pBoss->m_MaxHealth = pBoss->m_Health;
-		}
 		else if(Type == DROIDTYPE_BOSSSTAR)
 			new CBossStar(&GameServer()->m_World, vec2(x, y));
 		else if(Type == DROIDTYPE_BOSSSPLITTER)
 			new CBossSplitter(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_SIEGEBREAKERCRAWLER)
+			new CSiegeBreakerCrawler(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_TEMPESTSTAR)
+			new CTempestStar(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_SPLITCRAWLER)
+			new CSplitCrawler(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_KAMIKAZESTAR)
+			new CKamikazeStar(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_RAILSTAR)
+			new CRailstar(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_MENDERCRAWLER)
+			new CMenderCrawler(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_STALKERCRAWLER)
+			new CStalkerCrawler(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_TESLASTAR)
+			new CTeslaStar(&GameServer()->m_World, vec2(x, y));
+		else if(Type == DROIDTYPE_CYCLONECRAWLER)
+			new CCycloneCrawler(&GameServer()->m_World, vec2(x, y));
 	}
 }
 

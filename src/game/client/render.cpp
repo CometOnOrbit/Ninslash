@@ -1355,8 +1355,17 @@ void CRenderTools::RenderStarDroid(
 	dbg_assert(pSkeleton != 0x0, "missing skeleton information");
 
 	vec2 Scale = vec2(1.0f, 1.0f) * 0.6f;
-	if(pDroidAnim && pDroidAnim->m_Type == DROIDTYPE_BOSSSTAR)
+	const int Type = pDroidAnim ? pDroidAnim->m_Type : -1;
+	if(Type == DROIDTYPE_BOSSSTAR)
 		Scale *= 1.7f;
+	else if(Type == DROIDTYPE_TEMPESTSTAR)
+		Scale *= 1.15f;
+	else if(Type == DROIDTYPE_TESLASTAR)
+		Scale *= 1.10f;
+	else if(Type == DROIDTYPE_RAILSTAR)
+		Scale *= 1.05f;
+	else if(Type == DROIDTYPE_KAMIKAZESTAR)
+		Scale *= 0.80f;
 
 	if(Dir == 1)
 		Scale.x *= -1;
@@ -1460,6 +1469,22 @@ void CRenderTools::RenderStarDroid(
 
 					Graphics()->QuadsBegin();
 
+					if(SubsetType != 2)
+					{
+						if(Type == DROIDTYPE_TEMPESTSTAR)
+							Graphics()->SetColor(0.75f, 0.40f, 1.00f, 1);
+						else if(Type == DROIDTYPE_TESLASTAR)
+							Graphics()->SetColor(0.25f, 0.55f, 1.00f, 1);
+						else if(Type == DROIDTYPE_RAILSTAR)
+							Graphics()->SetColor(0.55f, 0.95f, 1.00f, 1);
+						else if(Type == DROIDTYPE_KAMIKAZESTAR)
+							Graphics()->SetColor(1.00f, 0.20f, 0.12f, 1);
+						else
+							Graphics()->SetColor(1, 1, 1, 1);
+					}
+					else
+						Graphics()->SetColor(1, 1, 1, 1);
+
 					if(SubsetType == 1)
 					{
 						Graphics()->QuadsSetSubsetFree(0, 0, 1, 0, 0, 1, 1, 1);
@@ -1515,6 +1540,14 @@ void CRenderTools::RenderCrawlerDroid(
 		Scale *= 2.0f;
 	else if(Type == DROIDTYPE_BOSSSPLITTER)
 		Scale *= 1.6f;
+	else if(Type == DROIDTYPE_SIEGEBREAKERCRAWLER)
+		Scale *= 1.35f;
+	else if(Type == DROIDTYPE_CYCLONECRAWLER)
+		Scale *= 1.15f;
+	else if(Type == DROIDTYPE_SPLITCRAWLER)
+		Scale *= 0.85f;
+	else if(Type == DROIDTYPE_STALKERCRAWLER)
+		Scale *= 0.90f;
 
 	if(Dir == 1)
 		Scale.x *= -1;
@@ -1615,6 +1648,16 @@ void CRenderTools::RenderCrawlerDroid(
 							Graphics()->SetColor(0.3f, 0.3f, 0.3f, 1);
 						else if(Type == DROIDTYPE_BOSSSPLITTER)
 							Graphics()->SetColor(0.85f, 0.4f, 0.3f, 1);
+						else if(Type == DROIDTYPE_SIEGEBREAKERCRAWLER)
+							Graphics()->SetColor(0.90f, 0.35f, 0.15f, 1);
+						else if(Type == DROIDTYPE_CYCLONECRAWLER)
+							Graphics()->SetColor(1.00f, 0.70f, 0.20f, 1);
+						else if(Type == DROIDTYPE_SPLITCRAWLER)
+							Graphics()->SetColor(0.75f, 1.00f, 0.35f, 1);
+						else if(Type == DROIDTYPE_MENDERCRAWLER)
+							Graphics()->SetColor(0.30f, 0.95f, 0.40f, 1);
+						else if(Type == DROIDTYPE_STALKERCRAWLER)
+							Graphics()->SetColor(0.45f, 0.25f, 0.70f, 1);
 						else
 							Graphics()->SetColor(1, 1, 1, 1);
 
@@ -1667,7 +1710,19 @@ void CRenderTools::RenderCrawlerLegs(CDroidAnim *pDroidAnim)
 	int Dir = pDroidAnim->m_Dir;
 
 	const int Type = pDroidAnim->m_Type;
-	const float Scale = (Type == DROIDTYPE_BOSSCRAWLER) ? 2.0f : (Type == DROIDTYPE_BOSSSPLITTER ? 1.6f : 1.0f);
+	float Scale = 1.0f;
+	if(Type == DROIDTYPE_BOSSCRAWLER)
+		Scale = 2.0f;
+	else if(Type == DROIDTYPE_BOSSSPLITTER)
+		Scale = 1.6f;
+	else if(Type == DROIDTYPE_SIEGEBREAKERCRAWLER)
+		Scale = 1.35f;
+	else if(Type == DROIDTYPE_CYCLONECRAWLER)
+		Scale = 1.15f;
+	else if(Type == DROIDTYPE_SPLITCRAWLER)
+		Scale = 0.85f;
+	else if(Type == DROIDTYPE_STALKERCRAWLER)
+		Scale = 0.90f;
 	const vec2 Offset = vec2(0, -32) * Scale * (0.8f + Scale * 0.2f);
 
 	if(abs(pDroidAnim->m_aVectorValue[CDroidAnim::ATTACH1_POS].x - pDroidAnim->m_aLegPos[0].x) > 300 ||
@@ -1681,6 +1736,16 @@ void CRenderTools::RenderCrawlerLegs(CDroidAnim *pDroidAnim)
 		Graphics()->SetColor(0.6f, 0.6f, 0.6f, 1);
 	else if(Type == DROIDTYPE_BOSSSPLITTER)
 		Graphics()->SetColor(0.85f, 0.45f, 0.35f, 1);
+	else if(Type == DROIDTYPE_SIEGEBREAKERCRAWLER)
+		Graphics()->SetColor(0.95f, 0.45f, 0.25f, 1);
+	else if(Type == DROIDTYPE_CYCLONECRAWLER)
+		Graphics()->SetColor(1.00f, 0.78f, 0.30f, 1);
+	else if(Type == DROIDTYPE_SPLITCRAWLER)
+		Graphics()->SetColor(0.75f, 1.00f, 0.35f, 1);
+	else if(Type == DROIDTYPE_MENDERCRAWLER)
+		Graphics()->SetColor(0.40f, 1.00f, 0.50f, 1);
+	else if(Type == DROIDTYPE_STALKERCRAWLER)
+		Graphics()->SetColor(0.55f, 0.35f, 0.80f, 1);
 	else
 		Graphics()->SetColor(1, 1, 1, 1);
 
@@ -1726,6 +1791,16 @@ void CRenderTools::RenderCrawlerLegs(CDroidAnim *pDroidAnim)
 		Graphics()->SetColor(0.6f, 0.6f, 0.6f, 1);
 	else if(Type == DROIDTYPE_BOSSSPLITTER)
 		Graphics()->SetColor(0.85f, 0.45f, 0.35f, 1);
+	else if(Type == DROIDTYPE_SIEGEBREAKERCRAWLER)
+		Graphics()->SetColor(0.95f, 0.45f, 0.25f, 1);
+	else if(Type == DROIDTYPE_CYCLONECRAWLER)
+		Graphics()->SetColor(1.00f, 0.78f, 0.30f, 1);
+	else if(Type == DROIDTYPE_SPLITCRAWLER)
+		Graphics()->SetColor(0.75f, 1.00f, 0.35f, 1);
+	else if(Type == DROIDTYPE_MENDERCRAWLER)
+		Graphics()->SetColor(0.40f, 1.00f, 0.50f, 1);
+	else if(Type == DROIDTYPE_STALKERCRAWLER)
+		Graphics()->SetColor(0.55f, 0.35f, 0.80f, 1);
 	else
 		Graphics()->SetColor(1, 1, 1, 1);
 

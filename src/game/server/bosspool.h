@@ -10,8 +10,7 @@ class CDroid;
 inline bool IsBossDroidType(int Type)
 {
 	return Type == DROIDTYPE_BOSSCRAWLER || Type == DROIDTYPE_BOSSSTAR || Type == DROIDTYPE_BOSSWALKER ||
-		   Type == DROIDTYPE_BOSSSPLITTER || Type == DROIDTYPE_SIEGE_ENGINE || Type == DROIDTYPE_OVERSEER_CORE ||
-		   Type == DROIDTYPE_ABYSSAL_HEART;
+		   Type == DROIDTYPE_BOSSSPLITTER;
 }
 
 // Depth unlocks more boss kinds (Invasion level / Horde wave).
@@ -42,7 +41,7 @@ struct SThreatBudgetResult
 };
 
 // Replaces part of an ordinary-enemy batch with specialists. One ordinary
-// enemy is one threat point; specialists cost 2 or 3 points but occupy only
+// enemy is one threat point; specialists cost 2 to 4 points but occupy only
 // one of the batch's original concurrent slots.
 // ThreatDivisor: spend OrdinaryThreat/ThreatDivisor on specialists (default 4 => ~25%).
 // Small batches that cannot afford the specialist cost spawn none.

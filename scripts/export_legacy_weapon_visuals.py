@@ -2,12 +2,9 @@
 """Export the final pre-Lua player weapon visuals as compact Lua overrides."""
 
 import argparse
-import math
 import pathlib
 import re
 import struct
-import subprocess
-import sys
 
 
 FLOAT_FIELDS = {
@@ -16,8 +13,6 @@ FLOAT_FIELDS = {
 	"color_swap_x", "color_swap_y", "render_recoil", "projectile_size",
 	"projectile_sprite", "trace_threshold", "screenshake_amount",
 }
-MELEE_STATIC = {"TOOL", "CHAINSAW", "CLAW"}
-EXPLOSIVE_STATIC = {"GRENADE1", "GRENADE2", "GRENADE3", "BAZOOKA", "BOUNCER", "CLUSTER", "BOMB"}
 PAIR_FIELDS = (
 	("visual_size", "visual_size_x", "visual_size_y"),
 	("visual_size2", "visual_size2_x", "visual_size2_y"),
@@ -34,12 +29,6 @@ VISUAL_FIELDS = (
 	"color_swap_x", "color_swap_y", "render_recoil", "projectile_size", "projectile_sprite",
 	"projectile_trace_type", "trace_threshold", "explosion_sprite", "explosion_sound",
 	"fire_sound", "fire_sound2", "muzzle_type", "muzzle_amount", "screenshake_amount",
-)
-MECHANIC_FIELDS = (
-	"firing_type", "full_auto", "uses_ammo", "shot_spread", "projectile_spread",
-	"projectile_curvature", "burst_count", "burst_reload", "valid_for_turret",
-	"electro_amount", "explosive_projectile", "laser_weapon", "aimline",
-	"projectile_pos_type", "laser_range", "laser_charge", "projectile_bounces",
 )
 STATIC_IDS = (
 	"tool", "gun1", "gun2", "grenade1", "grenade2", "grenade3", "flash_grenade", "blind_grenade",
@@ -73,34 +62,6 @@ def number(value):
 	if isinstance(value, int) or float(value).is_integer():
 		return str(int(value))
 	return format(float(value), ".7g")
-
-
-def load_legacy(root):
-	source = subprocess.check_output(
-		["git", "show", "HEAD:datasrc/weapon_profiles.py"], cwd=root, text=True)
-	sys.path.insert(0, str(root / "datasrc"))
-	namespace = {"__name__": "legacy_weapon_profiles"}
-	exec(compile(source, "legacy_weapon_profiles.py", "exec"), namespace)
-	return namespace
-
-
-def final_value(api, profile, key, field, level):
-	value = api["resolve"](profile.values.get(field, 0), level)
-	if field != "render_recoil" or not value:
-		return value
-	if key[0] == "modular" or key[1] in MELEE_STATIC:
-		melee = key[0] == "modular" and key[1] in api["MELEE_PART1_NAMES"] or key[1] in MELEE_STATIC
-	else:
-		melee = False
-	if melee:
-		factor = 1.10
-	elif api["resolve"](profile.values.get("explosive_projectile", 0), level) or (key[0] == "static" and key[1] in EXPLOSIVE_STATIC):
-		factor = 1.15
-	elif api["resolve"](profile.values.get("full_auto", 0), level):
-		factor = 1.05
-	else:
-		factor = 1.15
-	return min(20.0, f32(float(value) * factor))
 
 
 def curve(values, max_level):
@@ -170,41 +131,87 @@ def generate(root):
 	return "\n".join(lines)
 
 
+def lua_block(text, opening):
+	depth = 0
+	quote = ""
+	for index in range(opening, len(text)):
+		character = text[index]
+		if quote:
+			if character == quote and text[index - 1] != "\\":
+				quote = ""
+			continue
+		if character in "'\"":
+			quote = character
+		elif character == "{":
+			depth += 1
+		elif character == "}":
+			depth -= 1
+			if depth == 0:
+				return text[opening + 1:index]
+	raise ValueError("unclosed Lua table")
+
+
+def lua_number(text, field):
+	match = re.search(rf"\b{field}\s*=\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\b", text)
+	if not match:
+		raise ValueError(f"missing Lua visual field: {field}")
+	return float(match.group(1))
+
+
+def droid_visual_rows(root, filename):
+	text = (root / "data" / "weapons" / "official" / "attacks" / filename).read_text(encoding="utf-8")
+	defaults_text = (root / "data" / "weapons" / "weapon_dsl.lua").read_text(encoding="utf-8")
+	defaults = {field: lua_number(defaults_text.split("local visual_defaults = {", 1)[1], field) for field in VISUAL_FIELDS}
+	templates = defaults_text.split("weapon.visual = {", 1)[1].split("}", 1)[0]
+	template_values = {name: int(value) for name, value in re.findall(r"\b(\w+)\s*=\s*(\d+)", templates)}
+	rows = {}
+	for match in re.finditer(r"(?:attack_profile\.)?define\s*\{", text):
+		body = lua_block(text, match.end() - 1)
+		type_match = re.search(r"\btype\s*=\s*(\d+)\b", body)
+		name_match = re.search(r"\bname\s*=\s*[\"']([a-z0-9_]+)[\"']", body)
+		template_match = re.search(r"\bvisual_template\s*=\s*weapon\.visual\.(\w+)", body)
+		if not type_match or not name_match or not template_match:
+			raise ValueError(f"incomplete droid visual profile in {filename}")
+		visuals_start = body.index("visuals")
+		visuals_opening = body.index("{", visuals_start)
+		visuals = lua_block(body, visuals_opening)
+		values = defaults.copy()
+		values["render_type"] = float(template_values[template_match.group(1)])
+		for name, x_field, y_field in PAIR_FIELDS:
+			pair = re.search(rf"\b{name}\s*=\s*\{{\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\}}", visuals)
+			if pair:
+				values[x_field], values[y_field] = float(pair.group(1)), float(pair.group(2))
+		for field in VISUAL_FIELDS:
+			if field in {x for _, x, _ in PAIR_FIELDS} or field in {y for _, _, y in PAIR_FIELDS}:
+				continue
+			match = re.search(rf"\b{field}\s*=\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\b", visuals)
+			if match:
+				values[field] = float(match.group(1))
+		type_id = int(type_match.group(1))
+		if type_id in rows:
+			raise ValueError(f"duplicate droid visual type: {type_id}")
+		rows[type_id] = [values[field] for field in VISUAL_FIELDS]
+	if sorted(rows) != list(range(17)):
+		raise ValueError(f"expected droid visual types 0-16 in {filename}")
+	return [rows[type_id] for type_id in range(17)]
+
+
+def replace_droid_visual_array(text, symbol, rows):
+	marker = f"static const float gs_aLegacy{symbol}Visuals[17][27] = {{"
+	start = text.index(marker)
+	end = text.index("\n};", start) + len("\n};")
+	array = marker + "\n" + "\n".join(
+		"\t{" + ", ".join(number(value) for value in row) + "}," for row in rows
+	) + "\n};"
+	return text[:start] + array + text[end:]
+
+
 def generate_header(root):
-	api = load_legacy(root)
-	fields = api["VISUAL_FIELDS"]
-	rows = []
-	for key, profile in api["ordered_player_profiles"]():
-		for level in range(16):
-			values = [final_value(api, profile, key, field, level) for field in fields]
-			rows.append("\t{" + ", ".join(number(value) for value in values) + "},")
-	lines = [
-		"// Generated by scripts/export_legacy_weapon_visuals.py. Do not edit.",
-		"static const float gs_aLegacyPlayerVisuals[WEAPON_PROFILE_COUNT][27] = {",
-		*rows,
-		"};",
-		"",
-	]
-	for symbol, names, profiles in (
-		("Droid", api["DROID_NAMES"], api["DROID_PROFILES"]),
-		("DroidDeath", api["DROID_NAMES"], api["DROID_DEATH_PROFILES"]),
-		("Building", api["BUILDING_NAMES"], api["BUILDING_PROFILES"]),
-	):
-		lines.append(f"static const float gs_aLegacy{symbol}Visuals[{len(names)}][27] = {{")
-		for name in names:
-			profile = profiles[name]
-			values = [api["resolve"](profile.values.get(field, 0), 0) for field in api["VISUAL_FIELDS"]]
-			lines.append("\t{" + ", ".join(number(value) for value in values) + "},")
-		lines.extend(("};", ""))
-	lines.append(f"static const float gs_aLegacyRangedMechanics[{42 * 16}][{len(MECHANIC_FIELDS)}] = {{")
-	for part1 in (f"BASE{index}" for index in range(1, 7)):
-		for part2 in ("BARREL1", "BARREL2", "BARREL3", "BARREL4", "CHARGE", "CAPACITOR", "RAIL"):
-			profile = api["PLAYER_PROFILES"][("modular", part1, part2)]
-			for level in range(16):
-				values = [api["resolve"](profile.values.get(field, 0), level) for field in MECHANIC_FIELDS]
-				lines.append("\t{" + ", ".join(number(value) for value in values) + "},")
-	lines.extend(("};", ""))
-	return "\n".join(lines)
+	header_path = root / "tests" / "weapon_visual_baseline.inc"
+	generated = header_path.read_text(encoding="utf-8")
+	for symbol, filename in (("Droid", "droid.lua"), ("DroidDeath", "droid_death.lua")):
+		generated = replace_droid_visual_array(generated, symbol, droid_visual_rows(root, filename))
+	return generated
 
 
 def main():

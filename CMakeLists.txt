@@ -1587,26 +1587,30 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/droid_bosssplitter.h
   entities/droid_crawler.cpp
   entities/droid_crawler.h
+  entities/droid_cyclonecrawler.cpp
+  entities/droid_cyclonecrawler.h
+  entities/droid_kamikazestar.cpp
+  entities/droid_kamikazestar.h
+  entities/droid_mendercrawler.cpp
+  entities/droid_mendercrawler.h
+  entities/droid_railstar.cpp
+  entities/droid_railstar.h
+  entities/droid_siegebreakercrawler.cpp
+  entities/droid_siegebreakercrawler.h
+  entities/droid_splitcrawler.cpp
+  entities/droid_splitcrawler.h
+  entities/droid_stalkercrawler.cpp
+  entities/droid_stalkercrawler.h
   entities/droid_star.cpp
   entities/droid_star.h
+  entities/droid_tempeststar.cpp
+  entities/droid_tempeststar.h
+  entities/droid_teslastar.cpp
+  entities/droid_teslastar.h
   entities/droid_walker.cpp
   entities/droid_walker.h
   entities/droid.cpp
   entities/droid.h
-  entities/droid_specialist.cpp
-  entities/droid_specialist.h
-  entities/droid_bulwark.cpp
-  entities/droid_bulwark.h
-  entities/droid_assembler.cpp
-  entities/droid_assembler.h
-  entities/droid_saboteur.cpp
-  entities/droid_saboteur.h
-  entities/droid_railgunner.cpp
-  entities/droid_railgunner.h
-  entities/droid_siege_engine.cpp
-  entities/droid_siege_engine.h
-  entities/droid_overseer_core.cpp
-  entities/droid_overseer_core.h
   bosspool.cpp
   bosspool.h
   entities/electro.cpp
