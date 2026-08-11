@@ -665,8 +665,10 @@ bool CInventory::SubmitForgeSlots(int TargetSlot, int MaterialSlot)
 
 bool CInventory::SubmitUpgradeDrag(int TargetSlot, int MaterialSlot)
 {
-	if(ForgeMode() != 3 || !ForgeScreenNear() || TargetSlot < 0 || TargetSlot >= 12 || MaterialSlot < 0 ||
+	if(ForgeMode() < 1 || TargetSlot < 0 || TargetSlot >= 12 || MaterialSlot < 0 ||
 	   MaterialSlot >= 12 || TargetSlot == MaterialSlot)
+		return false;
+	if(ForgeMode() == 2 && !ForgeScreenNear())
 		return false;
 
 	CResolvedWeaponProfile MaterialProfile{};
