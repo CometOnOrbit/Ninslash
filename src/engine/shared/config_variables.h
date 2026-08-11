@@ -659,7 +659,7 @@ MACRO_CONFIG_INT(ClShowhudPlayerAngle,
 				 "Show ingame HUD (Player Aim Angle)")
 MACRO_CONFIG_INT(ClPveObjectiveDisplay,
 				 cl_pve_objective_display,
-				 2,
+				 1,
 				 0,
 				 2,
 				 CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_CLOUD,

@@ -38,6 +38,7 @@ CHud::CHud()
 	m_DebugStatusUntil = 0;
 	m_DebugStatusScreenshotFrames = 0;
 	m_LastObjectiveSignature = -1;
+	m_LastObjectiveQuest = QUEST_NONE;
 	m_ObjectiveTransitionStart = 0;
 	m_ObjectiveNoticeUntil = 0;
 	m_LastHitEvent = 0;
@@ -53,6 +54,7 @@ CHud::CHud()
 void CHud::OnReset()
 {
 	m_LastObjectiveSignature = -1;
+	m_LastObjectiveQuest = QUEST_NONE;
 	m_ObjectiveTransitionStart = 0;
 	m_ObjectiveNoticeUntil = 0;
 	m_LastHitEvent = 0;
@@ -381,9 +383,10 @@ void CHud::RenderObjective()
 		if(GapSignature != m_LastObjectiveSignature)
 		{
 			m_LastObjectiveSignature = GapSignature;
-			m_ObjectiveTransitionStart = time_get();
+			// Stand-by is not a new objective — keep the panel, skip the slide-in.
 			m_ObjectiveNoticeUntil = time_get() + time_freq() * 4;
 		}
+		m_LastObjectiveQuest = QUEST_NONE;
 
 		const bool ScoreboardVisible = m_pClient->m_pScoreboard->Active();
 		if((g_Config.m_ClPveObjectiveDisplay == 0 && !ScoreboardVisible) ||
@@ -460,10 +463,15 @@ void CHud::RenderObjective()
 		ObjectiveSignature = (((ObjectiveSignature * 31 + Theme) * 31 + WaveType) * 31 + QuestsDone) * 31 + QuestsTotal;
 	if(ObjectiveSignature != m_LastObjectiveSignature)
 	{
+		// Slide-in only when an objective appears after having none. Progress
+		// ticks (defend / timed survive countdown) still refresh notice mode.
+		const bool PlayEntranceAnim = (m_LastObjectiveQuest == QUEST_NONE);
 		m_LastObjectiveSignature = ObjectiveSignature;
-		m_ObjectiveTransitionStart = time_get();
+		if(PlayEntranceAnim)
+			m_ObjectiveTransitionStart = time_get();
 		m_ObjectiveNoticeUntil = time_get() + time_freq() * 4;
 	}
+	m_LastObjectiveQuest = Quest;
 
 	const bool ScoreboardVisible = m_pClient->m_pScoreboard->Active();
 	if((g_Config.m_ClPveObjectiveDisplay == 0 && !ScoreboardVisible) ||

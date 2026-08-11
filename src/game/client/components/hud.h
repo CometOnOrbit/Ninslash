@@ -27,6 +27,7 @@ class CHud : public CComponent
 	int64 m_DebugStatusUntil;
 	int m_DebugStatusScreenshotFrames;
 	int m_LastObjectiveSignature;
+	int m_LastObjectiveQuest;
 	int64 m_ObjectiveTransitionStart;
 	int64 m_ObjectiveNoticeUntil;
 	int64 m_LastHitEvent;

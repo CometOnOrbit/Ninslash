@@ -106,6 +106,9 @@ A tie or no votes grants one final retry.
 Abort
 == 取消
 
+A / D: mode · Space: vote · Tab: all modes
+== A / D：模式 · 空格：投票 · Tab：全部模式
+
 Acid escape
 == 酸液逃生
 
@@ -1143,6 +1146,9 @@ Modes
 
 Mods
 == 模组
+
+More
+== 更多
 
 Mouse sens.
 == 鼠标灵敏度
@@ -2247,6 +2253,9 @@ Waiting for server
 
 Warmup
 == 热身
+
+W / S: browse · A / D: column · Space: vote · Tab: back
+== W / S：浏览 · A / D：切换列 · 空格：投票 · Tab：返回
 
 Wave
 == 波次
