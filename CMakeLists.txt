@@ -1005,6 +1005,9 @@ if(NINSLASH_BUILD_TESTS)
   add_executable(ninslash_test_platform_auth_policy tests/platform_auth_policy.cpp)
   target_include_directories(ninslash_test_platform_auth_policy PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   add_test(NAME platform_auth_policy COMMAND ninslash_test_platform_auth_policy)
+  add_executable(ninslash_test_invasion_map_bands tests/invasion_map_bands.cpp)
+  target_include_directories(ninslash_test_invasion_map_bands PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME invasion_map_bands COMMAND ninslash_test_invasion_map_bands)
   add_executable(ninslash_test_cloud_profile_policy tests/cloud_profile_policy.cpp)
   target_include_directories(ninslash_test_cloud_profile_policy PRIVATE ${PROJECT_SOURCE_DIR}/src)
   add_test(NAME cloud_profile_policy COMMAND ninslash_test_cloud_profile_policy)
@@ -1159,6 +1162,7 @@ if(NINSLASH_BUILD_TESTS)
     ninslash_test_platform_event_queue
     ninslash_test_platform_server_metadata
     ninslash_test_platform_auth_policy
+    ninslash_test_invasion_map_bands
     ninslash_test_platform_ban
     ninslash_test_sha256
     ninslash_test_content_package

@@ -70,6 +70,20 @@ inline bool IsBaseInvasionVoteConfig(const char *pConfig)
 	return str_comp(pConfig, "cfg/invasion1") == 0;
 }
 
+inline int InvasionMapBandIndex(int Level)
+{
+	if(Level < 1)
+		Level = 1;
+	return (Level - 1) / 10;
+}
+
+inline int InvasionMapsListPickIndex(int Level, int Count)
+{
+	if(Count <= 0)
+		return 0;
+	return InvasionMapBandIndex(Level) % Count;
+}
+
 // Mapgen layouts that need player spawn + enemy spawn (Invasion-style).
 inline bool IsCoopMapGenGametype(const char *pType)
 {

@@ -675,10 +675,17 @@ void CGameControllerInvasion::FinishRetryResult()
 
 void CGameControllerInvasion::RegenerateMapFromTemplate()
 {
-	// A generated map must never be used as the next generation template.
-	// Load the original modular source first; OnInit then produces generated.map
-	// and the server performs the normal second map hand-off to clients.
-	if(g_Config.m_SvMapGen && g_Config.m_SvInvMap[0] && str_comp(g_Config.m_SvInvMap, "generated") != 0)
+	char aTemplate[128];
+	int Biome = 0;
+	if(Server()->FindInvasionMapForLevel(g_Config.m_SvMapGenLevel, aTemplate, sizeof(aTemplate), &Biome))
+	{
+		g_Config.m_SvPveBiome = Biome;
+		str_copy(g_Config.m_SvMap, aTemplate, sizeof(g_Config.m_SvMap));
+		str_copy(g_Config.m_SvInvMap, aTemplate, sizeof(g_Config.m_SvInvMap));
+		str_copy(Server()->m_aMapInUse, aTemplate, sizeof(Server()->m_aMapInUse));
+		Server()->m_MapGenerated = false;
+	}
+	else if(g_Config.m_SvMapGen && g_Config.m_SvInvMap[0] && str_comp(g_Config.m_SvInvMap, "generated") != 0)
 	{
 		str_copy(g_Config.m_SvMap, g_Config.m_SvInvMap, sizeof(g_Config.m_SvMap));
 		Server()->m_MapGenerated = false;

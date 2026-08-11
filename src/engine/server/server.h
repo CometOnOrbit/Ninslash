@@ -339,6 +339,7 @@ class CServer : public IServer
 
 	virtual void ResetGameVoting();
 	virtual bool GetGameVote(CGameVote *pGameVote, int Players);
+	virtual bool FindInvasionMapForLevel(int Level, char *pMap, int MapSize, int *pBiome);
 
 	void KickBots();
 };

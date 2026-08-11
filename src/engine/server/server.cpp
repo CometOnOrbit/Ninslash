@@ -947,6 +947,129 @@ bool CServer::GetGameVote(CGameVote *pGameVote, int Players)
 	return true;
 }
 
+static void StripCfgToken(char *pToken)
+{
+	int Len = str_length(pToken);
+	while(Len > 0 && (pToken[Len - 1] == ';' || pToken[Len - 1] == '\r' || pToken[Len - 1] == '\n' ||
+					  pToken[Len - 1] == ' ' || pToken[Len - 1] == '\t'))
+	{
+		pToken[Len - 1] = 0;
+		Len--;
+	}
+}
+
+bool CServer::FindInvasionMapForLevel(int Level, char *pMap, int MapSize, int *pBiome)
+{
+	if(!pMap || MapSize <= 0)
+		return false;
+	pMap[0] = 0;
+	if(pBiome)
+		*pBiome = 0;
+	if(Level < 1)
+		Level = 1;
+
+	int BestIndex = -1;
+	int BestSpan = 0x7fffffff;
+	for(int i = 0; i < m_GameVoteCount; i++)
+	{
+		if(!IsInvasionVoteConfig(m_aGameVote[i].m_aConfig))
+			continue;
+		if(Level < m_aGameVote[i].m_MinLevel || Level > m_aGameVote[i].m_MaxLevel)
+			continue;
+		const int Span = m_aGameVote[i].m_MaxLevel - m_aGameVote[i].m_MinLevel;
+		if(Span < BestSpan)
+		{
+			BestSpan = Span;
+			BestIndex = i;
+		}
+	}
+	if(BestIndex < 0)
+		return false;
+
+	char aPath[256];
+	const char *pConfig = m_aGameVote[BestIndex].m_aConfig;
+	const int ConfigLen = str_length(pConfig);
+	if(ConfigLen > 4 && str_comp(pConfig + ConfigLen - 4, ".cfg") == 0)
+		str_copy(aPath, pConfig, sizeof(aPath));
+	else
+		str_format(aPath, sizeof(aPath), "%s.cfg", pConfig);
+
+	IOHANDLE File = Storage()->OpenFile(aPath, IOFLAG_READ, IStorage::TYPE_ALL);
+	if(!File)
+		return false;
+
+	char aSingleMap[128] = {0};
+	char aMapsList[512] = {0};
+	int Biome = 0;
+
+	CLineReader LineReader;
+	LineReader.Init(File);
+	while(char *pLine = LineReader.Get())
+	{
+		if(str_length(pLine) <= 0 || pLine[0] == '#' || pLine[0] == '\n' || pLine[0] == '\r')
+			continue;
+		if(!str_comp_num(pLine, "sv_map ", 7) || !str_comp_num(pLine, "sv_map\t", 7))
+		{
+			char aToken[128];
+			str_copy(aToken, pLine + 7, sizeof(aToken));
+			StripCfgToken(aToken);
+			const char *pTok = aToken;
+			while(*pTok == ' ' || *pTok == '\t')
+				pTok++;
+			if(*pTok && str_comp(pTok, "generated") != 0)
+				str_copy(aSingleMap, pTok, sizeof(aSingleMap));
+		}
+		else if(!str_comp_num(pLine, "sv_maps_list ", 13) || !str_comp_num(pLine, "sv_maps_list\t", 13))
+		{
+			str_copy(aMapsList, pLine + 13, sizeof(aMapsList));
+			StripCfgToken(aMapsList);
+		}
+		else if(!str_comp_num(pLine, "sv_pve_biome ", 13) || !str_comp_num(pLine, "sv_pve_biome\t", 13))
+		{
+			Biome = str_toint(pLine + 13);
+		}
+	}
+	io_close(File);
+
+	if(aMapsList[0])
+	{
+		char aMapsCopy[512];
+		str_copy(aMapsCopy, aMapsList, sizeof(aMapsCopy));
+		char *apMaps[32];
+		int Count = 0;
+		char *pCursor = aMapsCopy;
+		while(*pCursor && Count < 32)
+		{
+			while(*pCursor == ' ' || *pCursor == '\t')
+				pCursor++;
+			if(!*pCursor)
+				break;
+			apMaps[Count++] = pCursor;
+			while(*pCursor && *pCursor != ' ' && *pCursor != '\t')
+				pCursor++;
+			if(*pCursor)
+			{
+				*pCursor = 0;
+				pCursor++;
+			}
+		}
+		if(Count > 0)
+		{
+			str_copy(pMap, apMaps[InvasionMapsListPickIndex(Level, Count)], MapSize);
+			if(pBiome)
+				*pBiome = Biome;
+			return pMap[0] != 0;
+		}
+	}
+
+	if(!aSingleMap[0])
+		return false;
+	str_copy(pMap, aSingleMap, MapSize);
+	if(pBiome)
+		*pBiome = Biome;
+	return true;
+}
+
 void CServer::SetRconCID(int ClientID)
 {
 	m_RconClientID = ClientID;

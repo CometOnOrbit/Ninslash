@@ -78,6 +78,7 @@ class IServer : public IInterface
 
 	virtual void ResetGameVoting() = 0;
 	virtual bool GetGameVote(class CGameVote *pGameVote, int Players) = 0;
+	virtual bool FindInvasionMapForLevel(int Level, char *pMap, int MapSize, int *pBiome = 0) = 0;
 
 	virtual class CPlayerData *GetPlayerData(int ClientID, int ColorID) = 0;
 	virtual int GetHighScore() = 0;

@@ -72,7 +72,8 @@ void ApplySettings(const CListenServerSettings &Settings)
 	str_copy(g_Config.m_Bindaddr, Settings.m_aBindAddress, sizeof(g_Config.m_Bindaddr));
 	str_copy(g_Config.m_SvName, Settings.m_aName, sizeof(g_Config.m_SvName));
 	str_copy(g_Config.m_Password, Settings.m_aPassword, sizeof(g_Config.m_Password));
-	str_copy(g_Config.m_SvMap, Settings.m_aMap, sizeof(g_Config.m_SvMap));
+	if(Settings.m_aMap[0])
+		str_copy(g_Config.m_SvMap, Settings.m_aMap, sizeof(g_Config.m_SvMap));
 	str_copy(g_Config.m_SvGametype, Settings.m_aGameType, sizeof(g_Config.m_SvGametype));
 	str_copy(g_Config.m_SvModHash, Settings.m_aModHash, sizeof(g_Config.m_SvModHash));
 	str_copy(g_Config.m_SvModIds, Settings.m_aModIDs, sizeof(g_Config.m_SvModIds));

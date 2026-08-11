@@ -3906,7 +3906,12 @@ void CMenus::CreateConfiguredRoom()
 	Settings.m_UseCheckpoint = Preview.m_UseCheckpoint;
 	str_copy(Settings.m_aName, Preview.m_aName, sizeof(Settings.m_aName));
 	str_copy(Settings.m_aPassword, Preview.m_aPassword, sizeof(Settings.m_aPassword));
-	str_copy(Settings.m_aMap, Preview.m_pMode->m_ppMapCommands[Preview.m_Map], sizeof(Settings.m_aMap));
+	// Invasion (and other non-selectable modes) leave the map to the floor cfg.
+	// Overwriting with the shared UI map list would undo LocalInvasionConfigForFloor.
+	if(Preview.m_pMapCommand)
+		str_copy(Settings.m_aMap, Preview.m_pMapCommand, sizeof(Settings.m_aMap));
+	else
+		Settings.m_aMap[0] = 0;
 	str_copy(Settings.m_aGameType, Preview.m_pMode->m_pGameType, sizeof(Settings.m_aGameType));
 	str_copy(Settings.m_aConfig, Preview.m_pConfig, sizeof(Settings.m_aConfig));
 	str_copy(Settings.m_aModHash, g_Config.m_ClModHash, sizeof(Settings.m_aModHash));
