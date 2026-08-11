@@ -373,6 +373,23 @@ def configure_steam_build(build_dir, sdk_root, windows, windows_bits="64"):
     verify_steam_build(cache, f"{'Windows' if windows else 'Linux'} build")
 
 
+def steam_cached_login():
+    """True when SteamCMD has a cached login for the current user.
+
+    Newer SteamCMD clients store login state under ~/.steam/steam/config/,
+    older ones under ~/Steam/config/ (see packaging/steam/README.md). A cached
+    login lets `+login <account>` succeed without a password; sending a
+    password anyway would re-issue Steam Guard and invalidate the cache,
+    forcing interactive verification every time.
+    """
+    home = Path.home()
+    candidates = (
+        home / ".steam" / "steam" / "config" / "config.vdf",
+        home / "Steam" / "config" / "config.vdf",
+    )
+    return any(candidate.is_file() for candidate in candidates)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--linux-build-dir", default="build", help="Steam-enabled Linux CMake build directory")
@@ -572,6 +589,24 @@ def main():
         )
 
     password = os.environ.pop(args.steam_password_env, None) or None
+    if steam_cached_login():
+        if password:
+            print(
+                "SteamCMD cached login found; ignoring "
+                f"{args.steam_password_env} (a password login would re-issue "
+                "Steam Guard and invalidate the cached session)",
+                file=sys.stderr,
+                flush=True,
+            )
+            password = None
+    elif password is None:
+        raise SystemExit(
+            "No cached SteamCMD login under ~/Steam/config and no "
+            f"{args.steam_password_env} set. The first login must be "
+            "interactive; afterwards export a fresh STEAMCMD_AUTH_B64 "
+            "(see packaging/steam/README.md) so unattended uploads can use "
+            "the cached session."
+        )
     try:
         for label, manifest, job_output in upload_jobs:
             print(f"Uploading Steam {label} app build: {manifest}", flush=True)

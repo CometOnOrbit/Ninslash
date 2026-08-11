@@ -2087,16 +2087,33 @@ void CMenus::UiDoGetButtons(int Start, int Stop, CUIRect View)
 float CMenus::RenderSettingsControlsMovement(CUIRect View)
 {
 	CUIRect Button, Label;
+	char aBuf[64];
+
 	View.HSplitTop(20.0f, &Button, &View);
-	Button.VSplitLeft(135.0f, &Label, &Button);
-	UI()->DoLabel(&Label, Localize("Mouse sens."), 14.0f * UI()->Scale(), -1);
+	Button.VSplitLeft(200.0f, &Label, &Button);
+	str_format(aBuf, sizeof(aBuf), "%s: %i", Localize("In-game mouse sens."), g_Config.m_InpMousesens);
+	UI()->DoLabel(&Label, aBuf, 14.0f * UI()->Scale(), -1);
 	Button.HMargin(2.0f, &Button);
 	if(!(m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(Button)))
 		g_Config.m_InpMousesens =
 			(int)(DoScrollbarH(&g_Config.m_InpMousesens, &Button, (g_Config.m_InpMousesens - 1) / 500.0f) * 500.0f) + 1;
+
+	View.HSplitTop(5.0f, 0, &View);
+	View.HSplitTop(20.0f, &Button, &View);
+	Button.VSplitLeft(200.0f, &Label, &Button);
+	str_format(aBuf, sizeof(aBuf), "%s: %i", Localize("Menu mouse sens."), g_Config.m_UiMousesens);
+	UI()->DoLabel(&Label, aBuf, 14.0f * UI()->Scale(), -1);
+	Button.HMargin(2.0f, &Button);
+	if(!(m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(Button)))
+	{
+		const int Sens =
+			(int)(DoScrollbarH(&g_Config.m_UiMousesens, &Button, (g_Config.m_UiMousesens - 1) / 500.0f) * 500.0f) + 1;
+		g_Config.m_UiMousesens = Sens < 5 ? 5 : Sens;
+	}
+
 	View.HSplitTop(10.0f, 0, &View);
 	UiDoGetButtons(START_MOVEMENT, START_WEAPONS, View);
-	return 30.0f + (START_WEAPONS - START_MOVEMENT) * 25.0f;
+	return 55.0f + (START_WEAPONS - START_MOVEMENT) * 25.0f;
 }
 
 float CMenus::RenderSettingsControlsWeapons(CUIRect View)

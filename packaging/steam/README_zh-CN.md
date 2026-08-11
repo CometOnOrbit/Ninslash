@@ -27,7 +27,7 @@ python3 scripts/publish_steam_depots.py \
   --upload --steam-account YOUR_PARTNER_ACCOUNT
 ```
 
-默认由 SteamCMD 处理密码和 Steam Guard 交互。本机包装脚本可通过临时 `STEAM_PASSWORD` 环境变量提供密码；密码不会进入命令行参数或日志。需要时可设置环境变量 `STEAM_ACCOUNT` 和 `STEAMCMD`；使用 `--no-build` 打包已有二进制，使用 `--strict-assets` 执行最终公开发行素材门禁。
+默认由 SteamCMD 处理密码和 Steam Guard 交互，但已有缓存登录时**绝不能**再提供密码：SteamCMD 会重新签发 Steam Guard，使缓存会话失效，导致每次上传都要交互验证。上传脚本会检查 `~/.steam/steam/config/config.vdf` 或 `~/Steam/config/config.vdf` 是否存在缓存登录；存在时忽略 `STEAM_PASSWORD`（并打印提示），两者皆无时直接报错并提示刷新 `STEAMCMD_AUTH_B64`。密码仅用于某台机器上的首次交互登录。密码不会进入命令行参数或日志。需要时可设置环境变量 `STEAM_ACCOUNT` 和 `STEAMCMD`；使用 `--no-build` 打包已有二进制，使用 `--strict-assets` 执行最终公开发行素材门禁。CI 通过 `STEAMCMD_AUTH_B64` 还原缓存登录（两个可能的目录都会还原），**不得同时设置 `STEAM_PASSWORD`**。
 SteamCMD 对永久拒绝和临时 SteamPipe CDN 故障都会返回退出码 6。包装器现在仅在本次上传新写入的日志明确包含 HTTP 5xx 时重试，默认最多三次；旧日志、权限错误和配置错误不会触发重试。需要时可用 `--upload-attempts` 和 `--upload-retry-delay` 调整。
 使用 `--upload-target client` 或 `--upload-target server` 可以只重试一个 AppID，避免为已经成功的 AppID 再创建一次构建。Playtest `1812730` **不能**通过 SteamPipe 上传（共用 Depot 归主应用 `1812700` 所有）；主客户端 Build 成功后，在 Steamworks 手动提升 Playtest `internal`。
 在没有 macOS 工具链的 Linux 工作站上使用 `--platforms linux,windows`；生成的 App manifest 将只包含四个所选 Depot。
@@ -102,10 +102,18 @@ Steam Linux 构建固定使用 `ubuntu-22.04` runner，确保可执行文件及�
 - `STEAM_SET_LIVE_BRANCH`：设为 `internal` 时，CI 会在上传成功后执行 `--set-live internal`。排查上传失败或账号仅能创建 Build、不能发布分支时，请保持未设置。
 
 先使用发布账号完成一次 SteamCMD 交互登录。独立版 SteamCMD 会将登录状态写入
-`~/Steam/config/`，而不是 `steamcmd.sh` 所在目录。随后在任意临时目录执行：
+`~/.steam/steam/config/`（新版客户端）或 `~/Steam/config/`（旧版客户端），
+而不是 `steamcmd.sh` 所在目录。随后在任意临时目录执行：
 
 ```bash
-auth_root="$HOME/Steam"
+if [ -d "$HOME/.steam/steam/config" ]; then
+  auth_root="$HOME/.steam/steam"
+elif [ -d "$HOME/Steam/config" ]; then
+  auth_root="$HOME/Steam"
+else
+  echo "SteamCMD 登录状态未找到；请先交互登录一次" >&2
+  exit 1
+fi
 archive="$PWD/steamcmd-auth.tar.gz"
 (
   cd "$auth_root"

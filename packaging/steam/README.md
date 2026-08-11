@@ -36,12 +36,19 @@ python3 scripts/publish_steam_depots.py \
   --upload --steam-account YOUR_PARTNER_ACCOUNT
 ```
 
-By default SteamCMD handles password and Steam Guard interaction itself. Local
-wrappers may provide a password through the transient `STEAM_PASSWORD`
-environment variable; it is never placed in command arguments or logs. Set
-`STEAM_ACCOUNT` and `STEAMCMD` in the environment when desired; use `--no-build`
-to package existing binaries and `--strict-assets` for the final public-release
-asset gate.
+By default SteamCMD handles password and Steam Guard interaction itself, but an
+upload must never send a password while a cached login exists: SteamCMD then
+re-issues Steam Guard, invalidates the cached session and forces interactive
+verification on every upload. The upload script checks for a cached login under
+`~/.steam/steam/config/config.vdf` or `~/Steam/config/config.vdf` and ignores
+`STEAM_PASSWORD` when one is found (printing a notice); if neither a cache nor
+a password is available it fails with a hint to refresh `STEAMCMD_AUTH_B64`.
+Use the password only for the very first interactive login on a machine. The
+password never appears in command arguments or logs. Set `STEAM_ACCOUNT` and
+`STEAMCMD` in the environment when desired; use `--no-build` to package
+existing binaries and `--strict-assets` for the final public-release asset
+gate. CI restores the cached login from `STEAMCMD_AUTH_B64` to both possible
+data directories and must not set `STEAM_PASSWORD` at the same time.
 SteamCMD uses exit code 6 for both permanent rejection and temporary SteamPipe
 CDN failures. The wrapper retries up to three times only when logs written by
 the current attempt contain HTTP 5xx; stale logs and permission/configuration
@@ -173,11 +180,19 @@ environment secrets:
   entire `config/` directory with its browser cache.
 
 First complete an interactive SteamCMD login with the publishing account.
-The standalone SteamCMD client stores that login under `~/Steam/config/`, rather than
-beside `steamcmd.sh`. Then, from any temporary working directory, run:
+The standalone SteamCMD client stores that login under `~/.steam/steam/config/`
+(newer clients) or `~/Steam/config/` (older clients), rather than beside
+`steamcmd.sh`. Then, from any temporary working directory, run:
 
 ```bash
-auth_root="$HOME/Steam"
+if [ -d "$HOME/.steam/steam/config" ]; then
+  auth_root="$HOME/.steam/steam"
+elif [ -d "$HOME/Steam/config" ]; then
+  auth_root="$HOME/Steam"
+else
+  echo "SteamCMD login state not found; run an interactive +login first" >&2
+  exit 1
+fi
 archive="$PWD/steamcmd-auth.tar.gz"
 (
   cd "$auth_root"

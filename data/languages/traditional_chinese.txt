@@ -907,6 +907,9 @@ Infinite
 Info
 == 信息
 
+In-game mouse sens.
+== 遊戲內靈敏度
+
 Invalid Demo
 == 無效的回放
 
@@ -1104,6 +1107,9 @@ Maximum ping:
 
 Melee
 == 近戰
+
+Menu mouse sens.
+== 菜單靈敏度
 
 Menu opacity
 == 菜單不透明度

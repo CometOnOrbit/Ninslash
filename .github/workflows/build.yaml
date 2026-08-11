@@ -455,18 +455,24 @@ jobs:
           test -n "$STEAMCMD_AUTH_B64" || { echo "Missing STEAMCMD_AUTH_B64 secret" >&2; exit 1; }
           steamcmd_root="$RUNNER_TEMP/steamcmd"
           steamcmd_home="$HOME/Steam"
+          steamcmd_home_new="$HOME/.steam/steam"
           mkdir -p "$steamcmd_root"
           mkdir -p "$steamcmd_home"
+          mkdir -p "$steamcmd_home_new"
           curl -fsSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
             | tar -xz -C "$steamcmd_root"
           "$steamcmd_root/steamcmd.sh" +quit
+          # SteamCMD's data dir depends on its version: older clients read
+          # $HOME/Steam/config, newer ones $HOME/.steam/steam/config. Restore
+          # the cached login to both so the current client always finds it.
           printf '%s' "$STEAMCMD_AUTH_B64" | base64 --decode | tar -xz -C "$steamcmd_home"
-          test -f "$steamcmd_home/config/config.vdf" || {
+          printf '%s' "$STEAMCMD_AUTH_B64" | base64 --decode | tar -xz -C "$steamcmd_home_new"
+          test -f "$steamcmd_home_new/config/config.vdf" || test -f "$steamcmd_home/config/config.vdf" || {
             echo "STEAMCMD_AUTH_B64 must contain config/config.vdf and any ssfn files" >&2
             exit 1
           }
-          chmod -R go-rwx "$steamcmd_home/config"
-          echo "SteamCMD cached login restored under $steamcmd_home/config"
+          chmod -R go-rwx "$steamcmd_home/config" "$steamcmd_home_new/config" 2>/dev/null || true
+          echo "SteamCMD cached login restored under $steamcmd_home/config and $steamcmd_home_new/config"
           echo "STEAMCMD=$steamcmd_root/steamcmd.sh" >> "$GITHUB_ENV"
 
       - name: Download macOS Steam depots
@@ -484,7 +490,12 @@ jobs:
       - name: Verify and publish Steam internal
         env:
           STEAM_ACCOUNT: ${{ secrets.STEAM_ACCOUNT }}
-          STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
+          # Do NOT provide STEAM_PASSWORD here. With STEAMCMD_AUTH_B64
+          # restored above, SteamCMD logs in from the cached session; passing a
+          # password would re-issue Steam Guard, invalidate that cache and
+          # force interactive verification on every upload. The upload script
+          # ignores the password environment variable while a cached login
+          # exists, and fails with a refresh hint when neither is present.
           # Optional repository variable. Leave unset to upload builds only; promote
           # BuildIDs to internal in Steamworks manually. Set to "internal" once the
           # build account has publish permission on all three AppIDs.
