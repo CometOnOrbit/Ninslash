@@ -830,6 +830,7 @@ if(NINSLASH_BUILD_TESTS)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_invasion_skin_profiles)
   add_executable(ninslash_test_weapon_lua_components
     tests/weapon_lua_components.cpp
+    src/generated/game_data.h
     "${PROJECT_BINARY_DIR}/src/generated/weapon_dsl.inc"
     "${PROJECT_BINARY_DIR}/src/generated/official_weapons.inc"
     $<TARGET_OBJECTS:engine-shared>
