@@ -355,6 +355,9 @@ Chat messages
 Checkpoint %d
 == 檢查點 %d
 
+Choose 1 or 2  ·  Arrows / gamepad  ·  Enter / A to vote
+== 選擇 1 或 2  · 方向鍵/手把  · Enter/A 投票
+
 Choose a game or server
 == 選擇遊戲或伺服器
 
