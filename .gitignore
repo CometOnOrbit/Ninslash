@@ -4,11 +4,6 @@
 /config.lua
 /dist
 /objs
-/other/*/include
-/other/*/lib
-/other/*/linux
-/other/*/mac
-/other/*/windows
 __pycache__/
 *.dll
 *.dmg
