@@ -407,14 +407,15 @@ void CPveDirector::UpdateEnvironment()
 		m_EnvironmentPhaseEndTick = Now + m_pGameServer->Server()->TickSpeed();
 		return;
 	}
+	static const int s_aPhaseDuration[] = {30, 10, 10, 8};
 	if(m_EnvironmentBiome != NewBiome || m_EnvironmentLevel != NewLevel || m_EnvironmentPhaseEndTick <= 0)
 	{
 		m_EnvironmentBiome = NewBiome;
 		m_EnvironmentLevel = NewLevel;
 		m_EnvironmentPhase = PVE_ENV_PHASE_CALM;
-		m_EnvironmentPhaseEndTick = Now + m_pGameServer->Server()->TickSpeed() * 12;
+		m_EnvironmentPhaseEndTick =
+			Now + m_pGameServer->Server()->TickSpeed() * s_aPhaseDuration[PVE_ENV_PHASE_CALM];
 	}
-	static const int s_aPhaseDuration[] = {12, 7, 9, 8};
 	while(Now >= m_EnvironmentPhaseEndTick)
 	{
 		m_EnvironmentPhase = (m_EnvironmentPhase + 1) % 4;
@@ -424,7 +425,9 @@ void CPveDirector::UpdateEnvironment()
 	{
 		const int CycleTick = max(0, Now - (m_EnvironmentPhaseEndTick - m_pGameServer->Server()->TickSpeed() *
 			s_aPhaseDuration[m_EnvironmentPhase]));
-		const int Cycle = max(0, m_pGameServer->Server()->TickSpeed() * 28);
+		const int Cycle = max(0, m_pGameServer->Server()->TickSpeed() *
+			(s_aPhaseDuration[PVE_ENV_PHASE_CALM] + s_aPhaseDuration[PVE_ENV_PHASE_WARNING] +
+			 s_aPhaseDuration[PVE_ENV_PHASE_DARK]));
 		m_EnvironmentBossPhase = CycleTick < Cycle / 3 ? PVE_ENV_BOSS_PHASE_ONE :
 			(CycleTick < Cycle * 2 / 3 ? PVE_ENV_BOSS_PHASE_TWO : PVE_ENV_BOSS_PHASE_THREE);
 	}
