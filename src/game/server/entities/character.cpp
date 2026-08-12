@@ -1350,6 +1350,11 @@ void CCharacter::GiveStartWeapon()
 		m_apWeapon[0] = GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL1));
 		m_apWeapon[1] = GameServer()->NewWeapon(CWeaponCatalog::Modular(PART1_BASE1, PART2_BARREL2));
 		GetPlayer()->m_Gold = max(GetPlayer()->m_Gold, 80);
+		// Forge chapter needs kits for the build step. Mapgen placement can miss
+		// on some libc rand() sequences (notably MSVC), so grant a starter pack.
+		if(g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_FORGE ||
+		   g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_BUILD)
+			m_Kits = max(m_Kits, 10);
 		return;
 	}
 

@@ -470,29 +470,31 @@ void CMapGen::GenerateWeapon(CGenLayer *pTiles, int Weapon)
 
 		pTiles->Use(p.x, p.y);
 		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + Weapon);
+		return;
 	}
-	else
+
+	p = pTiles->GetCeiling();
+	if(p.x != 0)
 	{
-		p = pTiles->GetCeiling();
-
-		if(p.x != 0)
-		{
-			p.y += 1;
-
-			pTiles->Use(p.x, p.y);
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + Weapon);
-		}
-		else
-		{
-			p = pTiles->GetPlatform();
-
-			if(p.x == 0)
-				return;
-
-			pTiles->Use(p.x, p.y);
-			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + Weapon);
-		}
+		p.y += 1;
+		pTiles->Use(p.x, p.y);
+		ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + Weapon);
+		return;
 	}
+
+	p = pTiles->GetPlatform();
+	if(p.x == 0)
+		p = pTiles->GetMedPlatform();
+	if(p.x == 0)
+		p = FindStandableFallback(pTiles, false);
+	if(p.x == 0)
+	{
+		dbg_msg("mapgen", "GenerateWeapon(%d) failed: no standable tile", Weapon);
+		return;
+	}
+
+	pTiles->Use(p.x, p.y);
+	ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + Weapon);
 }
 
 void CMapGen::GenerateBarrel(CGenLayer *pTiles)

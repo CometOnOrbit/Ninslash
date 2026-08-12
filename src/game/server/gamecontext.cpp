@@ -4017,6 +4017,11 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	ApplyPvpModeBalance(this);
 	LoadChallengeScript();
 
+	// Tutorial forge/build need kits; restore building if a challenge cleared it.
+	if(str_comp(g_Config.m_SvGametype, "tutorial") == 0 &&
+	   TutorialChapterForcesBuilding(g_Config.m_SvTutorialChapter))
+		g_Config.m_SvEnableBuilding = 1;
+
 	m_pPveDirector = new CPveDirector(this);
 	if(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
 		m_pTutorialDirector = new CTutorialDirector(this);
