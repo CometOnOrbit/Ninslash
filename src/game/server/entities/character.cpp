@@ -723,11 +723,12 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 		Reject(Recipe.m_Result, Recipe.m_Product);
 		return;
 	}
-	if(GetPlayer()->GetGold() < Recipe.m_Cost)
+	const int Cost = CForge::EffectiveCost(Recipe, g_Config.m_SvForgeMode);
+	if(GetPlayer()->GetGold() < Cost)
 	{
 		Reject(FORGERESULT_NOT_ENOUGH_GOLD,
 			   Recipe.m_Product,
-			   Recipe.m_Cost,
+			   Cost,
 			   Recipe.m_ProductAmmo,
 			   Recipe.m_ProductMaxAmmo);
 		return;
@@ -741,9 +742,9 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 	GameServer()->m_World.DestroyEntity(pMaterial);
 	m_apWeapon[Item1] = pProduct;
 	m_apWeapon[Item2] = 0;
-	GetPlayer()->ReduceGold(Recipe.m_Cost);
+	GetPlayer()->ReduceGold(Cost);
 	if(GameServer()->m_pPveDirector)
-		GameServer()->m_pPveDirector->OnGoldSpent(GetPlayer()->GetCID(), Recipe.m_Cost);
+		GameServer()->m_pPveDirector->OnGoldSpent(GetPlayer()->GetCID(), Cost);
 
 	int SelectedSlot = -1;
 	if(Item1 < 4 && m_apWeapon[Item1])
@@ -765,7 +766,7 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 								 Recipe.m_Operation,
 								 Item1,
 								 Item2,
-								 Recipe.m_Cost,
+								 Cost,
 								 Recipe.m_Product,
 								 Recipe.m_ProductAmmo,
 								 Recipe.m_ProductMaxAmmo);

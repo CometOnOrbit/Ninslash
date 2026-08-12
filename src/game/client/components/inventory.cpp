@@ -25,6 +25,7 @@
 #include <game/client/components/sounds.h>
 #include "inventory.h"
 #include "menus.h"
+#include <game/client/weapon_rank_icon.h>
 
 static CWeaponSpec ShopWeapon(const CNetObj_Shop *pShop, int Slot)
 {
@@ -55,38 +56,6 @@ static CWeaponSpec ShopWeapon(const CNetObj_Shop *pShop, int Slot)
 static bool WeaponDefinition(const CWeaponSpec &Spec, CWeaponDefinition *pDefinition)
 {
 	return Spec.IsValid() && CWeaponCatalog::TryGetDefinition(Spec.m_DefinitionId, pDefinition);
-}
-
-static int WeaponRankSprite(const CWeaponSpec &Spec)
-{
-	if(!Spec.IsValid() || Spec.m_Level <= 0)
-		return -1;
-	CResolvedWeaponProfile Profile{};
-	if(!CWeaponCatalog::TryResolve(Spec, &Profile) ||
-	   WeaponHasBehavior(Profile.m_Definition, WEAPON_BEHAVIOR_UPGRADE))
-		return -1;
-	const int MaxLevel = max(1, (int)Profile.m_Definition.m_MaxLevel);
-	const int Level = min((int)Spec.m_Level, MaxLevel);
-	const int Rank = 1 + (Level - 1) * 6 / max(1, MaxLevel - 1);
-	return SPRITE_WEAPONRANK1 + clamp(Rank, 1, 7) - 1;
-}
-
-static void DrawWeaponRankIcon(IGraphics *pGraphics,
-	CRenderTools *pRenderTools,
-	const CWeaponSpec &Spec,
-	vec2 Pos,
-	float Size,
-	float Alpha)
-{
-	const int RankSprite = WeaponRankSprite(Spec);
-	if(RankSprite < 0)
-		return;
-	pGraphics->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-	pGraphics->QuadsBegin();
-	pGraphics->SetColor(1.0f, 1.0f, 1.0f, Alpha);
-	pRenderTools->SelectSprite(RankSprite);
-	pRenderTools->DrawSprite(Pos.x, Pos.y, Size);
-	pGraphics->QuadsEnd();
 }
 
 static int ShopWeaponCost(const CNetObj_Shop *pShop, int Slot)
@@ -231,7 +200,6 @@ void CInventory::Close()
 	m_Render = false;
 	m_DragItem = -1;
 	m_DropConfirmSlot = -1;
-	m_ShopConfirmSlot = -1;
 	CustomStuff()->m_Inventory = false;
 }
 
@@ -239,67 +207,78 @@ void CInventory::SetTab(int Tab)
 {
 	if(Tab < 0 || Tab >= InventoryLogic::NUM_TABS)
 		return;
-	if(Tab == InventoryLogic::TAB_FORGE && !InventoryLogic::ForgeTabVisible(ForgeMode()))
-		return;
+	if(Tab == InventoryLogic::TAB_FORGE)
+		Tab = InventoryLogic::TAB_INVENTORY;
 	if(Tab == InventoryLogic::TAB_SHOP && !NearbyShop())
 		return;
 	m_Tab = Tab;
-	m_SelectedSlot = 0;
+	m_ManualSelection = Tab == InventoryLogic::TAB_SHOP;
+	m_SelectedSlot = Tab == InventoryLogic::TAB_SHOP ? 0 : clamp(CustomStuff()->m_WeaponSlot, 0, 3);
 	m_KeyboardFocus = 0;
 	m_DragItem = -1;
 	m_DropConfirmSlot = -1;
-	m_ShopConfirmSlot = -1;
+}
+
+void CInventory::SyncHeldSelection()
+{
+	if(m_ManualSelection || m_Tab == InventoryLogic::TAB_SHOP)
+		return;
+	m_SelectedSlot = clamp(CustomStuff()->m_WeaponSlot, 0, 3);
 }
 
 int CInventory::TabItemCount() const
 {
 	if(m_Tab == InventoryLogic::TAB_SHOP)
-		return 5;
-	return 12;
+		return InventoryLogic::NUM_SHOP_SLOTS;
+	return InventoryLogic::NUM_SLOTS;
+}
+
+void CInventory::PurchaseShopSlot(int Slot)
+{
+	const CNetObj_Shop *pShop = NearbyShop();
+	if(!pShop || Slot < 0 || Slot >= InventoryLogic::NUM_SHOP_SLOTS || !ShopWeapon(pShop, Slot).IsValid())
+	{
+		SetActionFeedback(Localize("Empty slot"), true);
+		return;
+	}
+	const int Price = m_pClient->m_pPveRoguelite->ShopCost(ShopWeaponCost(pShop, Slot));
+	if(CustomStuff()->m_Gold < Price)
+	{
+		SetActionFeedback(Localize("Not enough gold"), true);
+		return;
+	}
+	CNetMsg_Cl_InventoryAction Msg;
+	Msg.m_Type = INVENTORYACTION_SHOP;
+	Msg.m_Slot = Slot;
+	Msg.m_Item1 = 0;
+	Msg.m_Item2 = 0;
+	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+	m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV4, 0);
+	SetActionFeedback(Localize("Purchase sent"), false);
+}
+
+void CInventory::SetActionFeedback(const char *pText, bool Danger)
+{
+	str_copy(m_aActionFeedback, pText ? pText : "", sizeof(m_aActionFeedback));
+	m_ActionFeedbackUntil = time_get() + time_freq() * 2;
+	m_ActionFeedbackDanger = Danger;
 }
 
 void CInventory::ActivateSelection()
 {
-	if(m_Tab == InventoryLogic::TAB_INVENTORY)
+	if(m_Tab == InventoryLogic::TAB_SHOP)
 	{
-		if(m_SelectedSlot < 0 || m_SelectedSlot >= 12 || !CustomStuff()->m_aItem[m_SelectedSlot].IsValid())
-			return;
-		const int Target = InventoryLogic::EquipTarget(m_SelectedSlot, CustomStuff()->m_WeaponSlot);
-		if(m_SelectedSlot < 4)
-			m_pClient->m_pControls->QueueWeaponSlot(Target + 2);
-		else if(Target >= 0)
-			Swap(m_SelectedSlot, Target);
-		m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV4, 0);
+		PurchaseShopSlot(m_SelectedSlot);
+		return;
 	}
-	else if(m_Tab == InventoryLogic::TAB_FORGE)
-	{
-		if(m_SelectedSlot < 0 || m_SelectedSlot >= 12 || !CustomStuff()->m_aItem[m_SelectedSlot].IsValid())
-			return;
-		InventoryLogic::CForgeSlots Slots{m_ForgeTargetSlot, m_ForgeMaterialSlot};
-		Slots = InventoryLogic::AssignForgeSlot(
-			Slots, m_SelectedSlot, m_ForgeTargetSlot < 0 || m_ForgeTargetSlot == m_SelectedSlot);
-		m_ForgeTargetSlot = Slots.m_Target;
-		m_ForgeMaterialSlot = Slots.m_Material;
-		m_ForgeLastResult = -1;
-	}
-	else if(m_Tab == InventoryLogic::TAB_SHOP)
-	{
-		const CNetObj_Shop *pShop = NearbyShop();
-		if(!pShop || m_SelectedSlot < 0 || m_SelectedSlot >= 5 || !ShopWeapon(pShop, m_SelectedSlot).IsValid())
-			return;
-		if(m_ShopConfirmSlot != m_SelectedSlot)
-		{
-			m_ShopConfirmSlot = m_SelectedSlot;
-			return;
-		}
-		CNetMsg_Cl_InventoryAction Msg;
-		Msg.m_Type = INVENTORYACTION_SHOP;
-		Msg.m_Slot = m_SelectedSlot;
-		Msg.m_Item1 = 0;
-		Msg.m_Item2 = 0;
-		Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
-		m_ShopConfirmSlot = -1;
-	}
+	if(m_SelectedSlot < 0 || m_SelectedSlot >= 12 || !CustomStuff()->m_aItem[m_SelectedSlot].IsValid())
+		return;
+	const int Target = InventoryLogic::EquipTarget(m_SelectedSlot, CustomStuff()->m_WeaponSlot);
+	if(m_SelectedSlot < 4)
+		m_pClient->m_pControls->QueueWeaponSlot(Target + 2);
+	else if(Target >= 0)
+		Swap(m_SelectedSlot, Target);
+	m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV4, 0);
 }
 
 void CInventory::RequestDrop()
@@ -328,8 +307,8 @@ void CInventory::ConKeyInventory(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
 	{
-		const int OpenTab = pSelf->ForgeMode() >= 2 && pSelf->ForgeScreenNear() ? InventoryLogic::TAB_FORGE
-																				: InventoryLogic::TAB_INVENTORY;
+		const int OpenTab = InventoryLogic::ResolveOpenTab(
+			pSelf->NearbyShop() != 0, pSelf->ForgeMode(), pSelf->ForgeScreenNear());
 		if(!pSelf->m_Render || pSelf->m_Tab == OpenTab)
 		{
 			pSelf->m_Active = pResult->GetInteger(0) != 0;
@@ -353,10 +332,9 @@ void CInventory::ConDebugInventory(IConsole::IResult *pResult, void *pUserData)
 	CInventory *pSelf = static_cast<CInventory *>(pUserData);
 	pSelf->m_DebugTab = clamp(pResult->GetInteger(0), 0, 2);
 	pSelf->m_DebugVisible = pSelf->m_DebugTab != 0;
-	if(pSelf->m_DebugTab == 1)
+	// 1 = inventory, 2 = inventory with forge slots prefilled
+	if(pSelf->m_DebugTab != 0)
 		pSelf->m_Tab = InventoryLogic::TAB_INVENTORY;
-	else if(pSelf->m_DebugTab == 2)
-		pSelf->m_Tab = InventoryLogic::TAB_FORGE;
 	if(!pSelf->m_DebugVisible)
 	{
 		pSelf->ClearForgeSelection();
@@ -435,12 +413,15 @@ void CInventory::OnReset()
 	m_LastAnimationTime = time_get();
 	m_Tab = InventoryLogic::TAB_INVENTORY;
 	m_SelectedSlot = 0;
+	m_ManualSelection = false;
 	m_KeyboardFocus = 0;
 	m_LastClickTime = 0;
 	m_LastClickSlot = -1;
 	m_DropConfirmSlot = -1;
 	m_DropConfirmDeadline = 0;
-	m_ShopConfirmSlot = -1;
+	m_aActionFeedback[0] = 0;
+	m_ActionFeedbackUntil = 0;
+	m_ActionFeedbackDanger = false;
 	m_SelectorMouse = vec2(0, 0);
 	m_WorldMouse = vec2(0, 0);
 	m_LastGamepadCursorTime = 0;
@@ -466,6 +447,19 @@ void CInventory::OnMessage(int MsgType, void *pRawMsg)
 	{
 		ClearForgeSelection();
 		m_pClient->m_pEffects->Repair(CustomStuff()->m_LocalPos);
+		SetActionFeedback(Localize("Forge complete"), false);
+	}
+	else
+	{
+		static const char *s_apResultText[NUM_FORGERESULTS] = {"Forge complete",
+															   "Forge disabled",
+															   "Stand next to a Screen to forge",
+															   "Not enough gold",
+															   "Weapon is busy",
+															   "Invalid slots",
+															   "Invalid recipe",
+															   "Result would not change"};
+		SetActionFeedback(Localize(s_apResultText[clamp(pMsg->m_Result, 0, NUM_FORGERESULTS - 1)]), true);
 	}
 }
 
@@ -555,12 +549,10 @@ bool CInventory::OnInput(IInput::CEvent Event)
 	if(!Press)
 		return true;
 
-	const bool ForgeAvailable = m_DebugTab == 2 || InventoryLogic::ForgeTabVisible(ForgeMode());
-	const bool ShopAvailable = NearbyShop() != 0;
 	if(Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT || Event.m_Key == KEY_GAMEPAD_SHOULDER_RIGHT)
 	{
-		SetTab(InventoryLogic::NextAvailableTab(
-			m_Tab, Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT ? -1 : 1, ForgeAvailable, ShopAvailable));
+		if(m_Tab == InventoryLogic::TAB_SHOP)
+			SetTab(InventoryLogic::TAB_INVENTORY);
 		return true;
 	}
 	const bool Left = Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT;
@@ -571,9 +563,9 @@ bool CInventory::OnInput(IInput::CEvent Event)
 	{
 		const int Columns = m_Tab == InventoryLogic::TAB_SHOP ? 1 : 4;
 		m_SelectedSlot = InventoryLogic::NavigateGrid(m_SelectedSlot, TabItemCount(), Columns, Right - Left, Down - Up);
+		m_ManualSelection = true;
 		m_KeyboardFocus = 1;
 		m_DropConfirmSlot = -1;
-		m_ShopConfirmSlot = -1;
 		return true;
 	}
 	if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A)
@@ -657,7 +649,8 @@ bool CInventory::SubmitForgeSlots(int TargetSlot, int MaterialSlot)
 		pGameInfo->m_ForgeBaseCost,
 		pGameInfo->m_ForgeLevelCost,
 		CustomStuff()->m_aItemAmmo[MaterialSlot]);
-	if(Recipe.m_Result != FORGERESULT_SUCCESS || CustomStuff()->m_Gold < Recipe.m_Cost)
+	const int Cost = CForge::EffectiveCost(Recipe, ForgeMode());
+	if(Recipe.m_Result != FORGERESULT_SUCCESS || CustomStuff()->m_Gold < Cost)
 		return false;
 
 	CNetMsg_Cl_InventoryAction Msg;
@@ -672,13 +665,70 @@ bool CInventory::SubmitForgeSlots(int TargetSlot, int MaterialSlot)
 	return true;
 }
 
+bool CInventory::IsUpgradeSlot(int Slot) const
+{
+	if(Slot < 0 || Slot >= InventoryLogic::NUM_SLOTS)
+		return false;
+	CResolvedWeaponProfile Profile{};
+	return CWeaponCatalog::TryResolve(CustomStuff()->m_aItem[Slot], &Profile) &&
+		   WeaponHasBehavior(Profile.m_Definition, WEAPON_BEHAVIOR_UPGRADE);
+}
+
+bool CInventory::TryUpgradeCombine(int SlotA, int SlotB)
+{
+	if(SubmitUpgradeDrag(SlotA, SlotB) || SubmitUpgradeDrag(SlotB, SlotA))
+	{
+		ClearForgeSelection();
+		return true;
+	}
+	return false;
+}
+
+void CInventory::NotifyUpgradeFailed(int TargetSlot, int MaterialSlot)
+{
+	if(ForgeMode() < 1)
+	{
+		SetActionFeedback(Localize("Forge disabled"), true);
+		return;
+	}
+	if(ForgeMode() == 2 && !ForgeScreenNear())
+	{
+		SetActionFeedback(Localize("Move closer to a screen"), true);
+		return;
+	}
+	if(TargetSlot < 0 || MaterialSlot < 0 || TargetSlot == MaterialSlot || IsUpgradeSlot(TargetSlot) ||
+	   !IsUpgradeSlot(MaterialSlot))
+	{
+		SetActionFeedback(Localize("Select a target weapon"), true);
+		return;
+	}
+	const CNetObj_GameInfo *pGameInfo = m_pClient->m_Snap.m_pGameInfoObj;
+	if(!pGameInfo)
+	{
+		SetActionFeedback(Localize("Invalid recipe"), true);
+		return;
+	}
+	const CForgeRecipe Recipe = CForge::Resolve(CustomStuff()->m_aItem[TargetSlot],
+												CustomStuff()->m_aItem[MaterialSlot],
+												CustomStuff()->m_aItemAmmo[TargetSlot],
+												pGameInfo->m_ForgeBaseCost,
+												pGameInfo->m_ForgeLevelCost,
+												CustomStuff()->m_aItemAmmo[MaterialSlot]);
+	if(Recipe.m_Result == FORGERESULT_SUCCESS && CustomStuff()->m_Gold < CForge::EffectiveCost(Recipe, ForgeMode()))
+		SetActionFeedback(Localize("Not enough gold"), true);
+	else if(Recipe.m_Result == FORGERESULT_NO_CHANGE)
+		SetActionFeedback(Localize("Result would not change"), true);
+	else
+		SetActionFeedback(Localize("Invalid recipe"), true);
+}
+
 bool CInventory::SubmitUpgradeDrag(int TargetSlot, int MaterialSlot)
 {
 	if(ForgeMode() < 1 || TargetSlot < 0 || TargetSlot >= 12 || MaterialSlot < 0 ||
 	   MaterialSlot >= 12 || TargetSlot == MaterialSlot)
 		return false;
 
-	// Mode 2 needs a forge screen; mode 3 allows Upgrade drag anywhere.
+	// Mode 2 needs a forge screen; mode 1/3 allow upgrade drag without a screen.
 	if(ForgeMode() == 2 && !ForgeScreenNear())
 		return false;
 
@@ -705,7 +755,7 @@ void CInventory::RenderMouse()
 		{
 			RenderTools()->SetShadersForWeapon(w);
 			RenderTools()->RenderWeapon(
-				w, m_SelectorMouse, vec2(1, 0), 15.0f, true, 0, 1.0f, false, false, false, m_AppearAmount);
+				w, m_SelectorMouse, vec2(1, 0), 7.5f, true, 0, 1.0f, false, false, false, m_AppearAmount);
 			Graphics()->ShaderEnd();
 		}
 	}
@@ -723,24 +773,25 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 {
 	const float ScreenW = 300.0f * Graphics()->ScreenAspect();
 	const float ScreenH = 300.0f;
-	const InventoryLogic::CLayout Layout = InventoryLogic::BottomOverlayLayout(
-		ScreenW,
-		ScreenH,
-		UI()->Scale(),
-		m_AppearAmount,
-		m_Tab == InventoryLogic::TAB_FORGE || m_Tab == InventoryLogic::TAB_SHOP);
+	const bool ForgeAvailable = m_DebugTab == 2 || InventoryLogic::ForgeTabVisible(ForgeMode());
+	const int CurrentForgeMode = ForgeMode();
+	const bool NeedScreen =
+		ForgeAvailable && CurrentForgeMode >= 2 && m_DebugTab != 2 && !ForgeScreenNear();
 	const float Alpha = m_AppearAmount;
-	vec4 Graphite = CMenus::ThemeBgDeep();
-	Graphite.a = 0.82f * Alpha;
-	vec4 Surface = CMenus::ThemeBgPanel();
-	Surface.a = 0.74f * Alpha;
-	vec4 Border = CMenus::ThemeAccentDim();
-	Border.a = 0.82f * Alpha;
-	const vec4 Amber(0.95f, 0.63f, 0.16f, 0.92f * Alpha);
-	vec4 Cyan = CMenus::ThemeAccent();
-	Cyan.a = 0.92f * Alpha;
+
+	const vec4 Deep = CMenus::ThemeBgDeep();
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	vec4 Accent = CMenus::ThemeAccent();
+	Accent.a = 1.0f;
+	vec4 AccentDim = CMenus::ThemeAccentDim();
+	AccentDim.a = 1.0f;
 	vec4 Danger = CMenus::ThemeDanger();
-	Danger.a = 0.92f * Alpha;
+	Danger.a = 1.0f;
+	const vec4 Amber(0.95f, 0.63f, 0.16f, 1.0f);
+	const vec4 Text = CMenus::ThemeText();
+	const vec4 Muted = CMenus::ThemeTextMuted();
+	const vec4 OnAccent(0.05f, 0.08f, 0.10f, 1.0f);
+
 	const bool Click = m_MouseTrigger && !m_Mouse1 && !m_Moved;
 	const bool Press = m_MouseTrigger && m_Mouse1;
 	auto Inside = [this](const CUIRect &Rect)
@@ -748,77 +799,276 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 		return m_SelectorMouse.x >= Rect.x && m_SelectorMouse.x <= Rect.x + Rect.w && m_SelectorMouse.y >= Rect.y &&
 			   m_SelectorMouse.y <= Rect.y + Rect.h;
 	};
-	auto Box = [this](const CUIRect &Rect, vec4 Color, float Radius = 3.0f)
+	auto TechShape = [&](const CUIRect &Rect, vec4 Color, float Cut)
 	{
-		RenderTools()->DrawUIRect(&Rect, Color, CUI::CORNER_ALL, Radius);
+		if(Rect.w <= 0.0f || Rect.h <= 0.0f)
+			return;
+		Cut = clamp(Cut, 0.0f, min(Rect.w, Rect.h) * 0.45f);
+		IGraphics::CFreeformItem aParts[3] = {
+			IGraphics::CFreeformItem(Rect.x, Rect.y + Cut, Rect.x + Cut, Rect.y, Rect.x, Rect.y + Rect.h - Cut, Rect.x + Cut, Rect.y + Rect.h),
+			IGraphics::CFreeformItem(Rect.x + Cut, Rect.y, Rect.x + Rect.w - Cut, Rect.y, Rect.x + Cut, Rect.y + Rect.h, Rect.x + Rect.w - Cut, Rect.y + Rect.h),
+			IGraphics::CFreeformItem(Rect.x + Rect.w - Cut, Rect.y, Rect.x + Rect.w, Rect.y + Cut, Rect.x + Rect.w - Cut, Rect.y + Rect.h, Rect.x + Rect.w, Rect.y + Rect.h - Cut)};
+		Graphics()->TextureClear();
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a * Alpha);
+		Graphics()->QuadsDrawFreeform(aParts, 3);
+		Graphics()->QuadsEnd();
 	};
-	auto Label = [this, Alpha](const CUIRect &Rect,
-							   const char *pText,
-							   float Size,
-							   int Align = -1,
-							   vec4 Color = vec4(0.96f, 0.97f, 0.98f, 1.0f))
+	auto SmokedGlass = [&](const CUIRect &Rect, vec4 EdgeColor, bool Active, float Cut)
 	{
+		CUIRect Shadow = {Rect.x + 0.7f, Rect.y + 1.1f, Rect.w, Rect.h};
+		TechShape(Shadow, vec4(0.0f, 0.008f, 0.014f, 0.32f), Cut);
+		EdgeColor.a = (Active ? 0.48f : 0.24f);
+		TechShape(Rect, EdgeColor, Cut);
+		CUIRect Inner = {Rect.x + 0.8f, Rect.y + 0.8f, Rect.w - 1.6f, Rect.h - 1.6f};
+		const vec4 SmokedFill(Deep.r * 0.58f + Panel.r * 0.42f,
+			Deep.g * 0.58f + Panel.g * 0.42f,
+			Deep.b * 0.58f + Panel.b * 0.42f,
+			Active ? 0.62f : 0.50f);
+		TechShape(Inner, SmokedFill, max(0.0f, Cut - 0.8f));
+	};
+	auto Label = [this, Alpha](const CUIRect &Rect, const char *pText, float Size, int Align, vec4 Color)
+	{
+		const float Width = TextRender()->TextWidth(0, Size, pText, -1);
+		float X = Rect.x;
+		if(Align == 0)
+			X = Rect.x + (Rect.w - Width) * 0.5f;
+		else if(Align > 0)
+			X = Rect.x + Rect.w - Width;
 		TextRender()->TextColor(Color.r, Color.g, Color.b, Color.a * Alpha);
-		UI()->DoLabel(&Rect, pText, Size, Align);
-		TextRender()->TextColor(1, 1, 1, 1);
+		TextRender()->Text(0, X, Rect.y + (Rect.h - Size) * 0.5f - 0.5f, Size, pText, Rect.w);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	};
+	auto DrawWeapon = [&](const CWeaponSpec &Spec, vec2 Pos, float Size)
+	{
+		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
+		RenderTools()->SetShadersForWeapon(Spec);
+		RenderTools()->RenderWeapon(Spec, Pos, vec2(1, 0), Size, true, 0, 1.0f, false, false, false, Alpha);
+		Graphics()->ShaderEnd();
+	};
+	auto ToRect = [](const InventoryLogic::CLayout &L) -> CUIRect {
+		return {L.m_X, L.m_Y, L.m_W, L.m_H};
 	};
 
-	CUIRect Dim = {0, 0, ScreenW, ScreenH};
-	Box(Dim, vec4(0.0f, 0.0f, 0.0f, 0.22f * Alpha), 0.0f);
-	CUIRect Panel = {Layout.m_X, Layout.m_Y, Layout.m_W, Layout.m_H};
-	Box(Panel, Graphite, 4.0f);
-	CUIRect Edge = {Panel.x, Panel.y, 2.0f, Panel.h};
-	Box(Edge, Amber, 0.0f);
+	char aBuf[256];
+	char aName[128];
 
-	const bool ForgeAvailable = m_DebugTab == 2 || InventoryLogic::ForgeTabVisible(ForgeMode());
-	const bool ShopAvailable = pShop != 0;
-	const int aCandidateTabs[] = {InventoryLogic::TAB_INVENTORY, InventoryLogic::TAB_FORGE, InventoryLogic::TAB_SHOP};
-	const char *s_apCandidateNames[] = {"Inventory", "Forge", "Shop"};
-	int aTabs[3];
-	const char *apTabNames[3];
-	int NumTabs = 0;
-	for(int i = 0; i < 3; ++i)
-		if((aCandidateTabs[i] != InventoryLogic::TAB_FORGE || ForgeAvailable) &&
-		   (aCandidateTabs[i] != InventoryLogic::TAB_SHOP || ShopAvailable))
-		{
-			aTabs[NumTabs] = aCandidateTabs[i];
-			apTabNames[NumTabs++] = s_apCandidateNames[i];
-		}
-	const float InnerX = Panel.x + 6.0f;
-	const float InnerW = Panel.w - 12.0f;
-	const float TabGap = 2.0f;
-	const float TabW = (InnerW - TabGap * (NumTabs - 1)) / NumTabs;
-	for(int i = 0; i < NumTabs; ++i)
+	if(m_Tab == InventoryLogic::TAB_SHOP && pShop)
 	{
-		CUIRect TabRect = {InnerX + i * (TabW + TabGap), Panel.y + 6.0f, TabW, 18.0f};
-		Box(TabRect, aTabs[i] == m_Tab ? Amber : Surface, 3.0f);
-		Label(TabRect,
-			  Localize(apTabNames[i]),
-			  5.8f,
-			  0,
-			  aTabs[i] == m_Tab ? vec4(0.09f, 0.08f, 0.05f, 1) : vec4(0.86f, 0.89f, 0.90f, 1));
-		if(Click && Inside(TabRect))
-			SetTab(aTabs[i]);
+		const InventoryLogic::CLayout Layout =
+			InventoryLogic::PanelLayout(ScreenW, ScreenH, UI()->Scale(), m_AppearAmount, InventoryLogic::PANEL_SHOP);
+		CUIRect ShopPanel = ToRect(Layout);
+		SmokedGlass(ShopPanel, AccentDim, true, 4.0f);
+		const float InnerX = ShopPanel.x + 5.0f;
+		const float InnerW = ShopPanel.w - 10.0f;
+		Label({InnerX, ShopPanel.y + 3.0f, InnerW * 0.5f, 10.0f}, Localize("Shop"), 5.6f, -1, Accent);
+		str_format(aBuf, sizeof(aBuf), "%s %d", Localize("Gold"), CustomStuff()->m_Gold);
+		Label({InnerX + InnerW * 0.45f, ShopPanel.y + 3.0f, InnerW * 0.55f, 10.0f}, aBuf, 4.8f, 1, Amber);
+		const float RowH = 16.0f;
+		const float BuyW = 36.0f;
+		const float ListY = ShopPanel.y + 14.0f;
+		const float DetailH = InventoryLogic::DetailH;
+		CUIRect Detail = {InnerX, ShopPanel.y + ShopPanel.h - DetailH - 4.0f, InnerW, DetailH};
+		for(int Slot = 0; Slot < InventoryLogic::NUM_SHOP_SLOTS; ++Slot)
+		{
+			const CWeaponSpec Spec = ShopWeapon(pShop, Slot);
+			const bool Valid = Spec.IsValid();
+			const int Price = m_pClient->m_pPveRoguelite->ShopCost(ShopWeaponCost(pShop, Slot));
+			const bool CanAfford = Valid && CustomStuff()->m_Gold >= Price;
+			const bool Selected = Slot == m_SelectedSlot;
+			CUIRect Row = {InnerX, ListY + Slot * (RowH + 2.0f), InnerW, RowH};
+			CUIRect Buy = {Row.x + Row.w - BuyW, Row.y + 1.0f, BuyW - 1.0f, RowH - 2.0f};
+			SmokedGlass(Row, Selected ? Accent : AccentDim, Selected, 2.0f);
+			if(Valid)
+			{
+				const vec2 WeaponPos(Row.x + 14.0f, Row.y + Row.h * 0.62f);
+				const float WeaponSize = 3.4f;
+				DrawWeaponRankOverWeapon(Graphics(), RenderTools(), Spec, WeaponPos, WeaponSize, Alpha);
+				DrawWeapon(Spec, WeaponPos, WeaponSize);
+				Label({Row.x + 26.0f, Row.y + 1.0f, Row.w - BuyW - 30.0f, Row.h - 2.0f},
+					  WeaponDisplayName(Spec, aName, sizeof(aName)),
+					  4.4f,
+					  -1,
+					  Text);
+			}
+			else
+				Label({Row.x + 6.0f, Row.y, Row.w - BuyW - 8.0f, Row.h}, Localize("Empty"), 4.4f, -1, Muted);
+			SmokedGlass(Buy, CanAfford ? Accent : AccentDim, CanAfford, 2.0f);
+			Label(Buy, Localize("Buy"), 4.2f, 0, CanAfford ? OnAccent : Muted);
+			if(Click && Inside(Buy) && CanAfford)
+			{
+				m_SelectedSlot = Slot;
+				m_ManualSelection = true;
+				PurchaseShopSlot(Slot);
+			}
+			else if(Click && Inside(Row) && !Inside(Buy))
+			{
+				const int64 Now = time_get();
+				const bool DoubleClick = Slot == m_LastClickSlot && Now - m_LastClickTime <= time_freq() * 350 / 1000;
+				m_SelectedSlot = Slot;
+				m_ManualSelection = true;
+				m_LastClickSlot = Slot;
+				m_LastClickTime = Now;
+				if(DoubleClick && CanAfford)
+					PurchaseShopSlot(Slot);
+			}
+		}
+
+		SmokedGlass(Detail, AccentDim, true, 2.5f);
+		{
+			const CWeaponSpec SelectedSpec =
+				m_SelectedSlot >= 0 && m_SelectedSlot < InventoryLogic::NUM_SHOP_SLOTS ? ShopWeapon(pShop, m_SelectedSlot)
+																					  : CWeaponSpec{};
+			CResolvedWeaponProfile Profile{};
+			const bool HasProfile = CWeaponCatalog::TryResolve(SelectedSpec, &Profile);
+			Label({Detail.x + 5.0f, Detail.y + 2.0f, Detail.w - 10.0f, 9.0f},
+				  SelectedSpec.IsValid() ? WeaponDisplayName(SelectedSpec, aName, sizeof(aName)) : Localize("Empty slot"),
+				  5.4f,
+				  -1,
+				  Text);
+			if(HasProfile)
+			{
+				const float Damage = max(Profile.m_Combat.m_ProjectileDamage,
+										 max(Profile.m_Combat.m_ExplosionDamage, Profile.m_Combat.m_WeaponKnockback));
+				char aMaxAmmo[32];
+				if(Profile.m_Combat.m_UsesAmmo)
+					str_format(aMaxAmmo, sizeof(aMaxAmmo), "%d", Profile.m_Combat.m_MaxAmmo);
+				else
+					str_copy(aMaxAmmo, Localize("Infinite"), sizeof(aMaxAmmo));
+				const int Price = m_pClient->m_pPveRoguelite->ShopCost(ShopWeaponCost(pShop, m_SelectedSlot));
+				str_format(aBuf,
+						   sizeof(aBuf),
+						   "%s %d   %s %s   %s %d",
+						   Localize("Weapon level"),
+						   SelectedSpec.m_Level,
+						   Localize("Ammo"),
+						   aMaxAmmo,
+						   Localize("Cost"),
+						   Price);
+				Label({Detail.x + 5.0f, Detail.y + 12.0f, Detail.w - 10.0f, 8.0f}, aBuf, 4.4f, -1, Accent);
+				str_format(aBuf,
+						   sizeof(aBuf),
+						   "%s %.0f   %s",
+						   Localize("Damage"),
+						   Damage,
+						   FiringModeName(Profile.m_Combat.m_FiringType, Profile.m_Combat.m_FullAuto));
+				Label({Detail.x + 5.0f, Detail.y + 21.0f, Detail.w - 10.0f, 8.0f}, aBuf, 4.4f, -1, Text);
+				const char *pTrait1 = Profile.m_Combat.m_ExplosiveProjectile
+										  ? Localize("Explosive")
+										  : (Profile.m_Combat.m_LaserWeapon ? Localize("Laser") : 0);
+				const char *pTrait2 = Profile.m_Combat.m_ProjectileBounces > 0
+										  ? Localize("Ricochet")
+										  : (Profile.m_Combat.m_FiringType == WFT_MELEE ? Localize("Melee") : 0);
+				str_format(aBuf,
+						   sizeof(aBuf),
+						   "%s%s%s",
+						   pTrait1 ? pTrait1 : "",
+						   pTrait1 && pTrait2 ? " · " : "",
+						   pTrait2 ? pTrait2 : "");
+				if(aBuf[0])
+					Label({Detail.x + 5.0f, Detail.y + 29.0f, Detail.w - 10.0f, 8.0f}, aBuf, 4.2f, -1, Amber);
+			}
+		}
+		m_MouseTrigger = false;
+		return;
 	}
 
-	CUIRect ResourceBar = {InnerX, Panel.y + 27.0f, InnerW, 13.0f};
-	Box(ResourceBar, vec4(0.07f, 0.085f, 0.092f, 0.98f * Alpha), 3.0f);
-	char aBuf[256];
-	str_format(aBuf, sizeof(aBuf), "%s  %d", Localize("Gold"), CustomStuff()->m_Gold);
-	Label({ResourceBar.x + 5.0f, ResourceBar.y, ResourceBar.w * 0.5f - 5.0f, ResourceBar.h}, aBuf, 5.8f, -1, Amber);
-	str_format(aBuf, sizeof(aBuf), "%s  %d", Localize("Kits"), CustomStuff()->m_LocalKits);
-	Label({ResourceBar.x + ResourceBar.w * 0.5f, ResourceBar.y, ResourceBar.w * 0.5f - 5.0f, ResourceBar.h},
-		  aBuf,
-		  5.8f,
-		  1,
-		  Cyan);
+	const InventoryLogic::CHammerLayout Hammer =
+		InventoryLogic::HammerLayout(ScreenW, ScreenH, m_AppearAmount, ForgeAvailable);
+	CUIRect BagPanel = ToRect(Hammer.m_Bag);
+	CUIRect Resource = ToRect(Hammer.m_Resource);
+	CUIRect Detail = ToRect(Hammer.m_Detail);
+	SmokedGlass(Resource, AccentDim, true, 2.0f);
+	SmokedGlass(Detail, AccentDim, true, 2.5f);
+	SmokedGlass(BagPanel, AccentDim, true, 3.0f);
+	Label({BagPanel.x + 2.0f, BagPanel.y + 1.0f, BagPanel.w - 4.0f, InventoryLogic::SectionTitleH},
+		  Localize("Inventory"),
+		  4.4f,
+		  0,
+		  Accent);
 
-	const float ContentY = Panel.y + 44.0f;
-	if(m_Tab == InventoryLogic::TAB_FORGE)
+	str_format(aBuf, sizeof(aBuf), "%s  %d", Localize("Gold"), CustomStuff()->m_Gold);
+	Label({Resource.x + 5.0f, Resource.y, Resource.w * 0.5f - 5.0f, Resource.h}, aBuf, 4.8f, -1, Amber);
+	str_format(aBuf, sizeof(aBuf), "%s  %d", Localize("Kits"), CustomStuff()->m_LocalKits);
+	Label({Resource.x + Resource.w * 0.5f, Resource.y, Resource.w * 0.5f - 5.0f, Resource.h}, aBuf, 4.8f, 1, Accent);
+
+	CWeaponSpec SelectedSpec =
+		m_SelectedSlot >= 0 && m_SelectedSlot < 12 ? CustomStuff()->m_aItem[m_SelectedSlot] : CWeaponSpec{};
+	CResolvedWeaponProfile Profile{};
+	const bool HasProfile = CWeaponCatalog::TryResolve(SelectedSpec, &Profile);
+	Label({Detail.x + 5.0f, Detail.y + 2.0f, Detail.w - 10.0f, 9.0f},
+		  SelectedSpec.IsValid() ? WeaponDisplayName(SelectedSpec, aName, sizeof(aName)) : Localize("Empty slot"),
+		  5.4f,
+		  -1,
+		  Text);
+	if(HasProfile)
 	{
+		const float Damage = max(Profile.m_Combat.m_ProjectileDamage,
+								 max(Profile.m_Combat.m_ExplosionDamage, Profile.m_Combat.m_WeaponKnockback));
+		char aMaxAmmo[32];
+		if(Profile.m_Combat.m_UsesAmmo)
+			str_format(aMaxAmmo, sizeof(aMaxAmmo), "%d", Profile.m_Combat.m_MaxAmmo);
+		else
+			str_copy(aMaxAmmo, Localize("Infinite"), sizeof(aMaxAmmo));
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "%s %d   %s %d/%s",
+				   Localize("Weapon level"),
+				   SelectedSpec.m_Level,
+				   Localize("Ammo"),
+				   max(0, CustomStuff()->m_aItemAmmo[m_SelectedSlot]),
+				   aMaxAmmo);
+		Label({Detail.x + 5.0f, Detail.y + 12.0f, Detail.w - 10.0f, 8.0f}, aBuf, 4.4f, -1, Accent);
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "%s %.0f   %s",
+				   Localize("Damage"),
+				   Damage,
+				   FiringModeName(Profile.m_Combat.m_FiringType, Profile.m_Combat.m_FullAuto));
+		Label({Detail.x + 5.0f, Detail.y + 21.0f, Detail.w - 10.0f, 8.0f}, aBuf, 4.4f, -1, Text);
+		const char *pTrait1 = Profile.m_Combat.m_ExplosiveProjectile
+								  ? Localize("Explosive")
+								  : (Profile.m_Combat.m_LaserWeapon ? Localize("Laser") : 0);
+		const char *pTrait2 = Profile.m_Combat.m_ProjectileBounces > 0
+								  ? Localize("Ricochet")
+								  : (Profile.m_Combat.m_FiringType == WFT_MELEE ? Localize("Melee") : 0);
+		str_format(aBuf,
+				   sizeof(aBuf),
+				   "%s%s%s",
+				   pTrait1 ? pTrait1 : "",
+				   pTrait1 && pTrait2 ? " · " : "",
+				   pTrait2 ? pTrait2 : "");
+		if(aBuf[0])
+			Label({Detail.x + 5.0f, Detail.y + 29.0f, Detail.w - 10.0f, 8.0f}, aBuf, 4.2f, -1, Amber);
+	}
+
+	CUIRect FrameSlot = {};
+	CUIRect BarrelSlot = {};
+	CUIRect PreviewSlot = {};
+	if(ForgeAvailable)
+	{
+		CUIRect ForgePanel = ToRect(Hammer.m_Forge);
+		SmokedGlass(ForgePanel, Accent, true, 3.5f);
+		Label({ForgePanel.x + 2.0f, ForgePanel.y + 1.0f, ForgePanel.w - 4.0f, InventoryLogic::SectionTitleH},
+			  Localize("Forge"),
+			  4.6f,
+			  0,
+			  Accent);
+		const float Gap = 4.0f;
+		const float Pad = 3.0f;
+		const float TitlePad = InventoryLogic::SectionTitleH + 1.0f;
+		const float InnerW = ForgePanel.w - Pad * 2.0f - Gap * 2.0f;
+		const float SideW = InnerW * 0.28f;
+		const float CenterW = InnerW - SideW * 2.0f;
+		const float FullH = ForgePanel.h - Pad - TitlePad;
+		const float SideH = max(22.0f, FullH - InventoryLogic::ForgeSideLift);
+		const float SideY = ForgePanel.y + TitlePad + InventoryLogic::ForgeSideLift;
+		// Result box sits higher (top-aligned); material slots sit lower beside it.
+		FrameSlot = {ForgePanel.x + Pad, SideY, SideW, SideH};
+		PreviewSlot = {FrameSlot.x + SideW + Gap, ForgePanel.y + TitlePad, CenterW, FullH};
+		BarrelSlot = {PreviewSlot.x + CenterW + Gap, SideY, SideW, SideH};
+
 		const CNetObj_GameInfo *pGameInfo = m_pClient->m_Snap.m_pGameInfoObj;
-		const CWeaponSpec SelectedSpec =
-			m_SelectedSlot >= 0 && m_SelectedSlot < 12 ? CustomStuff()->m_aItem[m_SelectedSlot] : CWeaponSpec{};
 		const CWeaponSpec TargetSpec = m_ForgeTargetSlot >= 0 && m_ForgeTargetSlot < 12
 										   ? CustomStuff()->m_aItem[m_ForgeTargetSlot]
 										   : CWeaponSpec{};
@@ -833,187 +1083,15 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 									 pGameInfo->m_ForgeBaseCost,
 									 pGameInfo->m_ForgeLevelCost,
 									 CustomStuff()->m_aItemAmmo[m_ForgeMaterialSlot]);
+		const int RecipeCost = CForge::EffectiveCost(Recipe, CurrentForgeMode);
+		const bool CanAfford = CustomStuff()->m_Gold >= RecipeCost;
+		const bool ForgeUsable = m_DebugTab == 2 || InventoryLogic::ForgeUsable(CurrentForgeMode, ForgeScreenNear());
+		const bool CanForge = Recipe.m_Result == FORGERESULT_SUCCESS && CanAfford && ForgeUsable && !m_ForgePending;
 		const bool HasTarget = TargetSpec.IsValid();
 		const bool HasMaterial = MaterialSpec.IsValid();
-		const bool CanAfford = CustomStuff()->m_Gold >= Recipe.m_Cost;
-		const bool ForgeUsable = m_DebugTab == 2 || InventoryLogic::ForgeUsable(ForgeMode(), ForgeScreenNear());
-		const bool CanForge = Recipe.m_Result == FORGERESULT_SUCCESS && CanAfford && ForgeUsable && !m_ForgePending;
 
-		auto DrawWeaponFrame = [&](const CUIRect &Frame,
-								   const char *pTitle,
-								   const CWeaponSpec &Spec,
-								   vec4 AccentColor,
-								   const char *pEmptyText)
-		{
-			Box(Frame, Border, 4.0f);
-			CUIRect Inner = {Frame.x + 1.0f, Frame.y + 1.0f, Frame.w - 2.0f, Frame.h - 2.0f};
-			Box(Inner, vec4(Surface.r, Surface.g, Surface.b, 0.96f * Alpha), 3.0f);
-			CUIRect Mark = {Frame.x, Frame.y + 7.0f, 2.0f, Frame.h - 14.0f};
-			Box(Mark, AccentColor, 1.0f);
-			Label({Frame.x + 5.0f, Frame.y + 3.0f, Frame.w - 10.0f, 7.0f}, pTitle, 5.2f, -1, AccentColor);
-			if(Spec.IsValid())
-			{
-				Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-				RenderTools()->SetShadersForWeapon(Spec);
-				RenderTools()->RenderWeapon(Spec,
-											vec2(Frame.x + Frame.w * 0.5f, Frame.y + 22.0f),
-											vec2(1, 0),
-											5.5f,
-											true,
-											0,
-											1.0f,
-											false,
-											false,
-											false,
-											Alpha);
-				Graphics()->ShaderEnd();
-				char aName[128];
-				Label({Frame.x + 4.0f, Frame.y + 33.0f, Frame.w - 8.0f, 8.0f},
-					  WeaponDisplayName(Spec, aName, sizeof(aName)),
-					  4.7f,
-					  0);
-				str_format(aBuf, sizeof(aBuf), "%s %d", Localize("Weapon level"), Spec.m_Level);
-				Label({Frame.x + 4.0f, Frame.y + 42.0f, Frame.w - 8.0f, 7.0f},
-					  aBuf,
-					  4.0f,
-					  0,
-					  vec4(0.72f, 0.76f, 0.78f, 1.0f));
-			}
-			else
-				Label({Frame.x + 4.0f, Frame.y + 18.0f, Frame.w - 8.0f, 20.0f},
-					  pEmptyText,
-					  4.8f,
-					  0,
-					  vec4(0.68f, 0.72f, 0.74f, 1.0f));
-		};
-
-		const float InputGap = 3.0f;
-		const float CoreW = 42.0f;
-		const float InputW = (InnerW - CoreW - InputGap * 2.0f) * 0.5f;
-		CUIRect TargetFrame = {InnerX, ContentY + 2.0f, InputW, 52.0f};
-		CUIRect CoreFrame = {InnerX + InputW + InputGap, ContentY + 2.0f, CoreW, 52.0f};
-		CUIRect MaterialFrame = {CoreFrame.x + CoreW + InputGap, ContentY + 2.0f, InputW, 52.0f};
-		const bool DraggingWeapon = m_Moved && m_DragItem >= 0 && m_DragItem < InventoryLogic::NUM_SLOTS &&
-									CustomStuff()->m_aItem[m_DragItem].IsValid();
-		const bool TargetDropHovered = DraggingWeapon && Inside(TargetFrame);
-		const bool MaterialDropHovered = DraggingWeapon && Inside(MaterialFrame);
-		char aTargetTitle[64];
-		char aMaterialTitle[64];
-		str_format(aTargetTitle, sizeof(aTargetTitle), "1  %s", Localize("Target"));
-		str_format(aMaterialTitle, sizeof(aMaterialTitle), "2  %s", Localize("Material"));
-		DrawWeaponFrame(TargetFrame, aTargetTitle, TargetSpec, Cyan, Localize("Place target"));
-		DrawWeaponFrame(MaterialFrame, aMaterialTitle, MaterialSpec, Amber, Localize("Place material"));
-		const vec4 CoreAccent = CanForge ? Cyan : (HasTarget || HasMaterial ? Amber : Border);
-		Box(CoreFrame, CoreAccent, 5.0f);
-		Box({CoreFrame.x + 1.0f, CoreFrame.y + 1.0f, CoreFrame.w - 2.0f, CoreFrame.h - 2.0f},
-			vec4(Graphite.r, Graphite.g, Graphite.b, 0.86f * Alpha),
-			4.0f);
-		Box({CoreFrame.x + 7.0f, CoreFrame.y + 16.0f, CoreFrame.w - 14.0f, CoreFrame.h - 23.0f},
-			vec4(CoreAccent.r, CoreAccent.g, CoreAccent.b, 0.14f * Alpha),
-			4.0f);
-		const float CoreScanPhase = fmod(time_get() / (double)time_freq() * 0.6f, 1.0f);
-		Box({CoreFrame.x + 8.0f,
-				 CoreFrame.y + 17.0f + CoreScanPhase * (CoreFrame.h - 25.0f),
-				 CoreFrame.w - 16.0f,
-				 1.0f},
-			vec4(CoreAccent.r, CoreAccent.g, CoreAccent.b, 0.34f * Alpha),
-			0.0f);
-		Box({CoreFrame.x + CoreFrame.w * 0.5f - 1.0f, CoreFrame.y + 20.0f, 2.0f, 16.0f}, CoreAccent, 1.0f);
-		Box({CoreFrame.x + 13.0f, CoreFrame.y + 27.0f, CoreFrame.w - 26.0f, 2.0f}, CoreAccent, 1.0f);
-		Label({CoreFrame.x + 4.0f, CoreFrame.y + 3.0f, CoreFrame.w - 8.0f, 8.0f},
-			  Localize("Weapon forge"),
-			  4.3f,
-			  0,
-			  CoreAccent);
-		Label({CoreFrame.x + 3.0f, CoreFrame.y + 38.0f, CoreFrame.w - 6.0f, 8.0f},
-			  CanForge ? Localize("Ready") : (HasTarget || HasMaterial ? Localize("Selected") : Localize("Forge")),
-			  4.0f,
-			  0,
-			  CoreAccent);
-		Box({TargetFrame.x + TargetFrame.w, CoreFrame.y + 27.0f, InputGap, 2.0f},
-			vec4(Cyan.r, Cyan.g, Cyan.b, (HasTarget ? 0.82f : 0.26f) * Alpha),
-			0.0f);
-		Box({CoreFrame.x + CoreW, CoreFrame.y + 27.0f, InputGap, 2.0f},
-			vec4(Amber.r, Amber.g, Amber.b, (HasMaterial ? 0.82f : 0.26f) * Alpha),
-			0.0f);
-		if(TargetDropHovered)
-			Box(TargetFrame, vec4(Cyan.r, Cyan.g, Cyan.b, 0.30f * Alpha), 4.0f);
-		if(MaterialDropHovered)
-			Box(MaterialFrame, vec4(Amber.r, Amber.g, Amber.b, 0.30f * Alpha), 4.0f);
-		if(Click && Inside(TargetFrame) && SelectedSpec.IsValid() && m_SelectedSlot != m_ForgeMaterialSlot)
-		{
-			const InventoryLogic::CForgeSlots Slots =
-				InventoryLogic::AssignForgeSlot({m_ForgeTargetSlot, m_ForgeMaterialSlot}, m_SelectedSlot, true);
-			m_ForgeTargetSlot = Slots.m_Target;
-			m_ForgeMaterialSlot = Slots.m_Material;
-			m_ForgeLastResult = -1;
-		}
-		if(Click && Inside(MaterialFrame) && SelectedSpec.IsValid() && m_SelectedSlot != m_ForgeTargetSlot)
-		{
-			const InventoryLogic::CForgeSlots Slots =
-				InventoryLogic::AssignForgeSlot({m_ForgeTargetSlot, m_ForgeMaterialSlot}, m_SelectedSlot, false);
-			m_ForgeTargetSlot = Slots.m_Target;
-			m_ForgeMaterialSlot = Slots.m_Material;
-			m_ForgeLastResult = -1;
-		}
-
-		CUIRect ResultFrame = {InnerX, ContentY + 57.0f, InnerW, 50.0f};
-		Box(ResultFrame, Recipe.m_Product.IsValid() ? vec4(Cyan.r, Cyan.g, Cyan.b, 0.55f * Alpha) : Border, 4.0f);
-		CUIRect ResultInner = {ResultFrame.x + 1.0f, ResultFrame.y + 1.0f, ResultFrame.w - 2.0f, ResultFrame.h - 2.0f};
-		Box(ResultInner, Surface, 3.0f);
-		Label({ResultFrame.x + 5.0f, ResultFrame.y + 3.0f, ResultFrame.w - 10.0f, 8.0f},
-			  Localize("Result"),
-			  5.2f,
-			  -1,
-			  Cyan);
-		if(Recipe.m_Product.IsValid())
-		{
-			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-			RenderTools()->SetShadersForWeapon(Recipe.m_Product);
-			RenderTools()->RenderWeapon(Recipe.m_Product,
-										vec2(ResultFrame.x + 29.0f, ResultFrame.y + 28.0f),
-										vec2(1, 0),
-										6.0f,
-										true,
-										0,
-										1.0f,
-										false,
-										false,
-										false,
-										Alpha);
-			Graphics()->ShaderEnd();
-			char aName[128];
-			Label({ResultFrame.x + 55.0f, ResultFrame.y + 13.0f, ResultFrame.w - 60.0f, 9.0f},
-				  WeaponDisplayName(Recipe.m_Product, aName, sizeof(aName)),
-				  5.3f,
-				  -1);
-			str_format(aBuf,
-					   sizeof(aBuf),
-					   "%s %d   %s %d/%d",
-					   Localize("Weapon level"),
-					   Recipe.m_Product.m_Level,
-					   Localize("Ammo"),
-					   Recipe.m_ProductAmmo,
-					   Recipe.m_ProductMaxAmmo);
-			Label({ResultFrame.x + 55.0f, ResultFrame.y + 24.0f, ResultFrame.w - 60.0f, 8.0f}, aBuf, 4.6f, -1, Cyan);
-			if(Recipe.m_Cost > 0)
-			{
-				str_format(aBuf, sizeof(aBuf), "%s  %d %s", Localize("Cost"), Recipe.m_Cost, Localize("Gold"));
-				Label({ResultFrame.x + 55.0f, ResultFrame.y + 34.0f, ResultFrame.w - 60.0f, 8.0f},
-					  aBuf,
-					  4.8f,
-					  -1,
-					  CanAfford ? Amber : Danger);
-			}
-		}
-		else
-			Label({ResultFrame.x + 6.0f, ResultFrame.y + 15.0f, ResultFrame.w - 12.0f, 18.0f},
-				  HasTarget ? (HasMaterial ? Localize("No valid result") : Localize("Choose material below"))
-							: Localize("Choose target below"),
-				  5.0f,
-				  0,
-				  vec4(0.52f, 0.57f, 0.59f, 1.0f));
-
+		CUIRect Status = ToRect(Hammer.m_Status);
+		const bool HasFeedback = m_aActionFeedback[0] && time_get() <= m_ActionFeedbackUntil;
 		const char *pOperation = 0;
 		if(Recipe.m_Operation == FORGEOP_REPLACE_PART2)
 			pOperation = Localize("Part 2 transplant");
@@ -1024,16 +1102,25 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 		else if(Recipe.m_Operation == FORGEOP_MOD_RECIPE && Recipe.m_aRecipeName[0])
 			pOperation = Localize(Recipe.m_aRecipeName);
 		const char *pStatus = Localize("Select target and material");
-		vec4 StatusColor = vec4(0.65f, 0.69f, 0.71f, 1.0f);
-		if(!ForgeUsable)
+		vec4 StatusColor = Muted;
+		bool StatusAlert = false;
+		if(HasFeedback)
+		{
+			pStatus = m_aActionFeedback;
+			StatusColor = m_ActionFeedbackDanger ? Danger : Accent;
+			StatusAlert = m_ActionFeedbackDanger;
+			pOperation = 0;
+		}
+		else if(!ForgeUsable)
 		{
 			pStatus = Localize("Move closer to a screen");
 			StatusColor = Danger;
+			StatusAlert = true;
 		}
 		else if(m_ForgePending)
 		{
 			pStatus = Localize("Waiting for server");
-			StatusColor = Cyan;
+			StatusColor = Accent;
 		}
 		else if(m_ForgeLastResult >= 0 && Client()->GameTick() <= m_ForgeResultEndTick)
 		{
@@ -1046,7 +1133,8 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 																   "Invalid recipe",
 																   "Result would not change"};
 			pStatus = Localize(s_apResultText[clamp(m_ForgeLastResult, 0, NUM_FORGERESULTS - 1)]);
-			StatusColor = m_ForgeLastResult == FORGERESULT_SUCCESS ? Cyan : Danger;
+			StatusColor = m_ForgeLastResult == FORGERESULT_SUCCESS ? Accent : Danger;
+			StatusAlert = m_ForgeLastResult != FORGERESULT_SUCCESS;
 		}
 		else if(HasTarget && !HasMaterial)
 			pStatus = Localize("Select a material weapon");
@@ -1056,488 +1144,292 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 		{
 			pStatus = Localize("Result would not change");
 			StatusColor = Danger;
+			StatusAlert = true;
 		}
 		else if(HasTarget && HasMaterial && Recipe.m_Result != FORGERESULT_SUCCESS)
 		{
 			pStatus = Localize("Invalid recipe");
 			StatusColor = Danger;
+			StatusAlert = true;
 		}
 		else if(Recipe.m_Result == FORGERESULT_SUCCESS && !CanAfford)
 		{
 			pStatus = Localize("Not enough gold");
 			StatusColor = Danger;
+			StatusAlert = true;
 		}
 		else if(Recipe.m_Result == FORGERESULT_SUCCESS)
 		{
 			pStatus = Localize("Ready to forge");
-			StatusColor = Cyan;
+			StatusColor = Accent;
 		}
 		str_format(aBuf, sizeof(aBuf), "%s%s%s", pOperation ? pOperation : "", pOperation ? "  ·  " : "", pStatus);
-		CUIRect StatusBar = {InnerX, ContentY + 110.0f, InnerW, 14.0f};
-		Box(StatusBar, vec4(StatusColor.r, StatusColor.g, StatusColor.b, 0.15f * Alpha), 3.0f);
-		const vec4 StatusMark = !HasTarget && !HasMaterial && !m_ForgePending && m_ForgeLastResult < 0
-									? vec4(0.38f, 0.42f, 0.44f, 0.75f * Alpha)
-									: StatusColor;
-		Box({StatusBar.x, StatusBar.y + 3.0f, 2.0f, StatusBar.h - 6.0f}, StatusMark, 1.0f);
-		Label({StatusBar.x + 5.0f, StatusBar.y, StatusBar.w - 10.0f, StatusBar.h}, aBuf, 4.9f, 0, StatusColor);
+		SmokedGlass(Status, StatusAlert ? Danger : AccentDim, StatusAlert || HasFeedback, 2.0f);
+		Label({Status.x + 4.0f, Status.y, Status.w - 8.0f, Status.h}, aBuf, 4.4f, 0, StatusColor);
 
-		Label({InnerX, ContentY + 127.0f, InnerW * 0.5f, 8.0f}, Localize("Equipment"), 5.1f, -1, Cyan);
-		Label({InnerX + InnerW * 0.5f, ContentY + 127.0f, InnerW * 0.5f, 8.0f}, Localize("Inventory"), 4.8f, 1, vec4(0.70f, 0.75f, 0.77f, 1.0f));
-		Box({InnerX + 1.0f, ContentY + 135.0f, InnerW - 2.0f, 1.0f}, vec4(Cyan.r, Cyan.g, Cyan.b, 0.24f * Alpha), 0.0f);
-		const float GridGap = 3.0f;
-		const float CellW = (InnerW - GridGap * 3.0f) / 4.0f;
-		const float CellH = 23.0f;
-		int Hovered = -1;
-		for(int Slot = 0; Slot < 12; ++Slot)
+		auto DrawMat = [&](const CUIRect &Cell, const char *pEmpty, const CWeaponSpec &Spec, vec4 Edge)
 		{
-			const int Row = Slot < 4 ? 2 : (Slot - 4) / 4;
-			const int Column = Slot % 4;
-			CUIRect CellRect = {
-				InnerX + Column * (CellW + GridGap), ContentY + 137.0f + Row * (CellH + GridGap), CellW, CellH};
-			const bool Selected = Slot == m_SelectedSlot;
-			Box(CellRect, Selected ? vec4(Amber.r, Amber.g, Amber.b, 0.48f * Alpha) : Surface, 3.0f);
-			if(Selected)
-				Box({CellRect.x + 3.0f, CellRect.y + CellRect.h - 2.0f, CellRect.w - 6.0f, 2.0f}, Amber, 1.0f);
-			if(Slot == m_ForgeTargetSlot || Slot == m_ForgeMaterialSlot)
+			SmokedGlass(Cell, Edge, Spec.IsValid() || Inside(Cell), 2.2f);
+			if(Spec.IsValid())
 			{
-				const vec4 RoleColor = Slot == m_ForgeTargetSlot ? Cyan : Amber;
-				CUIRect Mark = {CellRect.x, CellRect.y, CellRect.w, 2.0f};
-				Box(Mark, RoleColor, 0.0f);
-				Label({CellRect.x + 2.0f, CellRect.y + 1.0f, 7.0f, 7.0f},
-					  Slot == m_ForgeTargetSlot ? "1" : "2",
-					  4.4f,
-					  -1,
-					  RoleColor);
+				char aItemName[128];
+				Label({Cell.x + 1.0f, Cell.y + 1.0f, Cell.w - 2.0f, 7.0f},
+					  WeaponDisplayName(Spec, aItemName, sizeof(aItemName)),
+					  3.6f,
+					  0,
+					  Text);
+				const vec2 WeaponPos(Cell.x + Cell.w * 0.5f, Cell.y + Cell.h * 0.62f);
+				const float WeaponSize = 4.6f;
+				DrawWeaponRankOverWeapon(Graphics(), RenderTools(), Spec, WeaponPos, WeaponSize, Alpha);
+				DrawWeapon(Spec, WeaponPos, WeaponSize);
 			}
-			const CWeaponSpec Spec = CustomStuff()->m_aItem[Slot];
-			if(Spec.IsValid() && Slot != m_DragItem)
+			else
 			{
-				DrawWeaponRankIcon(Graphics(),
-					RenderTools(),
-					Spec,
-					vec2(CellRect.x + CellRect.w * 0.5f, CellRect.y + 6.5f),
-					11.0f,
-					Alpha);
-				Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-				RenderTools()->SetShadersForWeapon(Spec);
-				RenderTools()->RenderWeapon(Spec,
-											vec2(CellRect.x + CellRect.w * 0.5f, CellRect.y + CellRect.h * 0.54f),
-											vec2(1, 0),
-											5.0f,
-											true,
-											0,
-											1.0f,
-											false,
-											false,
-											false,
-											Alpha);
-				Graphics()->ShaderEnd();
+				Label({Cell.x + 1.0f, Cell.y + 2.0f, Cell.w - 2.0f, 7.0f},
+					  Localize("Put a weapon here"),
+					  3.2f,
+					  0,
+					  Muted);
+				Label({Cell.x + 1.0f, Cell.y + Cell.h * 0.42f, Cell.w - 2.0f, 12.0f}, pEmpty, 5.0f, 0, Accent);
 			}
-			if(Inside(CellRect))
-				Hovered = Slot;
-		}
-		Box({InnerX + 1.0f, ContentY + 137.0f + 2.0f * (CellH + GridGap) - 2.0f, InnerW - 2.0f, 1.0f},
-			vec4(Amber.r, Amber.g, Amber.b, 0.32f * Alpha),
-			0.0f);
-		if(Press && Hovered >= 0 && CustomStuff()->m_aItem[Hovered].IsValid())
+		};
+		DrawMat(FrameSlot, Localize("Part 1"), TargetSpec, Accent);
+		DrawMat(BarrelSlot, Localize("Part 2"), MaterialSpec, Amber);
+
+		SmokedGlass(PreviewSlot, CanForge ? Accent : AccentDim, Recipe.m_Product.IsValid() || CanForge, 2.5f);
+		if(Recipe.m_Product.IsValid())
 		{
-			m_SelectedSlot = Hovered;
-			m_DragItem = Hovered;
+			char aProductName[128];
+			Label({PreviewSlot.x + 2.0f, PreviewSlot.y + 1.0f, PreviewSlot.w - 4.0f, 8.0f},
+				  WeaponDisplayName(Recipe.m_Product, aProductName, sizeof(aProductName)),
+				  4.0f,
+				  0,
+				  Text);
+			DrawWeaponRankOverWeapon(Graphics(),
+									 RenderTools(),
+									 Recipe.m_Product,
+									 vec2(PreviewSlot.x + PreviewSlot.w * 0.5f, PreviewSlot.y + PreviewSlot.h * 0.52f),
+									 5.4f,
+									 Alpha);
+			DrawWeapon(Recipe.m_Product, vec2(PreviewSlot.x + PreviewSlot.w * 0.5f, PreviewSlot.y + PreviewSlot.h * 0.52f), 5.4f);
+			str_format(aBuf, sizeof(aBuf), "%s  %d %s", Localize("Cost"), RecipeCost, Localize("Gold"));
+			Label({PreviewSlot.x + 2.0f, PreviewSlot.y + PreviewSlot.h - 9.0f, PreviewSlot.w - 4.0f, 8.0f},
+				  aBuf,
+				  3.8f,
+				  0,
+				  CanAfford ? Amber : Danger);
+			if(CanForge)
+				TechShape({PreviewSlot.x + 4.0f, PreviewSlot.y + PreviewSlot.h - 2.2f, PreviewSlot.w - 8.0f, 1.6f}, Accent, 0.6f);
+			else if(NeedScreen)
+				Label({PreviewSlot.x + 2.0f, PreviewSlot.y + PreviewSlot.h - 17.0f, PreviewSlot.w - 4.0f, 8.0f},
+					  Localize("Need Screen"),
+					  3.6f,
+					  0,
+					  Danger);
 		}
-		bool ReleasedClick = false;
-		if(m_MouseTrigger && !m_Mouse1 && m_DragItem >= 0)
+		else
+			Label({PreviewSlot.x + 2.0f, PreviewSlot.y + PreviewSlot.h * 0.28f, PreviewSlot.w - 4.0f, 18.0f},
+				  HasTarget ? (HasMaterial ? Localize("No valid result") : Localize("Choose material below"))
+							: "?",
+				  HasTarget ? 4.2f : 7.0f,
+				  0,
+				  Muted);
+
+		if(Click && Inside(FrameSlot) && SelectedSpec.IsValid() && m_SelectedSlot != m_ForgeMaterialSlot)
 		{
-			if(m_Moved)
+			const InventoryLogic::CForgeSlots Spots =
+				InventoryLogic::AssignForgeSlot({m_ForgeTargetSlot, m_ForgeMaterialSlot}, m_SelectedSlot, true);
+			m_ForgeTargetSlot = Spots.m_Target;
+			m_ForgeMaterialSlot = Spots.m_Material;
+			m_ForgeLastResult = -1;
+		}
+		if(Click && Inside(BarrelSlot) && SelectedSpec.IsValid() && m_SelectedSlot != m_ForgeTargetSlot)
+		{
+			const InventoryLogic::CForgeSlots Spots =
+				InventoryLogic::AssignForgeSlot({m_ForgeTargetSlot, m_ForgeMaterialSlot}, m_SelectedSlot, false);
+			m_ForgeTargetSlot = Spots.m_Target;
+			m_ForgeMaterialSlot = Spots.m_Material;
+			m_ForgeLastResult = -1;
+		}
+		if(Click && Inside(PreviewSlot))
+		{
+			if(CanForge)
+				SubmitForge();
+			else if(NeedScreen)
+				SetActionFeedback(Localize("Stand next to a Screen to forge"), true);
+			else if(Recipe.m_Product.IsValid())
 			{
-				const InventoryLogic::EForgeDropTarget DropTarget =
-					Inside(TargetFrame)		? InventoryLogic::FORGE_DROP_TARGET
-					: Inside(MaterialFrame) ? InventoryLogic::FORGE_DROP_MATERIAL
-											: InventoryLogic::FORGE_DROP_NONE;
-				const InventoryLogic::CForgeSlots Slots =
-					InventoryLogic::DropForgeItem({m_ForgeTargetSlot, m_ForgeMaterialSlot}, m_DragItem, DropTarget);
-				if(Slots.m_Target != m_ForgeTargetSlot || Slots.m_Material != m_ForgeMaterialSlot)
+				if(!CanAfford)
+					SetActionFeedback(Localize("Not enough gold"), true);
+				else if(m_ForgePending)
+					SetActionFeedback(Localize("Waiting for server"), true);
+			}
+			else
+				SetActionFeedback(Localize("Select materials"), true);
+		}
+	}
+
+	const float Cell = InventoryLogic::BagCellSize();
+	const float GridGap = InventoryLogic::BagRowGap;
+	// Grid matches combat-bar slots; BagPad keeps cell borders inside the Inventory frame.
+	const float GridX = Hammer.m_Bag.m_X + InventoryLogic::BagPad;
+	const float GridY = Hammer.m_Bag.m_Y + InventoryLogic::BagPad + InventoryLogic::SectionTitleH;
+	const float Pitch = HudLayout::CombatBarSlotWidth() + HudLayout::CombatBarSlotGap;
+	int HoveredBag = -1;
+	for(int Bag = 0; Bag < InventoryLogic::NUM_BAG_SLOTS; ++Bag)
+	{
+		const int Slot = Bag + InventoryLogic::NUM_EQUIPMENT_SLOTS;
+		const int Row = Bag / 4;
+		const int Column = Bag % 4;
+		CUIRect CellRect = {GridX + Column * Pitch, GridY + Row * (Cell + GridGap), Cell, Cell};
+		const bool Selected = Slot == m_SelectedSlot;
+		const bool Hover = Inside(CellRect);
+		SmokedGlass(CellRect, Selected ? Accent : AccentDim, Selected || Hover, 2.2f);
+		if(Slot == m_ForgeTargetSlot || Slot == m_ForgeMaterialSlot)
+			TechShape({CellRect.x + 2.0f, CellRect.y + CellRect.h - 2.0f, CellRect.w - 4.0f, 1.5f},
+					  Slot == m_ForgeTargetSlot ? Accent : Amber,
+					  0.5f);
+		const CWeaponSpec Spec = CustomStuff()->m_aItem[Slot];
+		if(Spec.IsValid() && Slot != m_DragItem)
+		{
+			const vec2 WeaponPos(CellRect.x + CellRect.w * 0.5f, CellRect.y + CellRect.h * 0.55f);
+			const float WeaponSize = 4.8f;
+			DrawWeaponRankOverWeapon(Graphics(), RenderTools(), Spec, WeaponPos, WeaponSize, Alpha);
+			DrawWeapon(Spec, WeaponPos, WeaponSize);
+		}
+		if(Hover)
+			HoveredBag = Slot;
+	}
+
+	const int HoveredCombat = InventoryLogic::HitCombatSlot(
+		ScreenW, ScreenH, m_SelectorMouse.x, m_SelectorMouse.y, CustomStuff()->m_WeaponSlot);
+	int Hovered = HoveredBag >= 0 ? HoveredBag : HoveredCombat;
+
+	if(m_DragItem >= 0 || HoveredCombat >= 0)
+	{
+		for(int Slot = 0; Slot < InventoryLogic::NUM_EQUIPMENT_SLOTS; ++Slot)
+		{
+			if(Slot != HoveredCombat)
+				continue;
+			const InventoryLogic::CLayout Cell =
+				InventoryLogic::CombatSlotLayout(ScreenW, ScreenH, Slot, Slot == CustomStuff()->m_WeaponSlot);
+			TechShape({Cell.m_X - 1.0f, Cell.m_Y - 1.0f, Cell.m_W + 2.0f, Cell.m_H + 2.0f},
+					  vec4(Accent.r, Accent.g, Accent.b, 0.35f),
+					  2.5f);
+		}
+	}
+
+	if(Press && Hovered >= 0 && CustomStuff()->m_aItem[Hovered].IsValid())
+	{
+		m_SelectedSlot = Hovered;
+		m_ManualSelection = true;
+		m_DragItem = Hovered;
+	}
+
+	bool ReleasedClick = false;
+	if(m_MouseTrigger && !m_Mouse1 && m_DragItem >= 0)
+	{
+		if(m_Moved)
+		{
+			InventoryLogic::EForgeDropTarget DropTarget = InventoryLogic::FORGE_DROP_NONE;
+			if(ForgeAvailable)
+			{
+				if(Inside(FrameSlot))
+					DropTarget = InventoryLogic::FORGE_DROP_TARGET;
+				else if(Inside(BarrelSlot))
+					DropTarget = InventoryLogic::FORGE_DROP_MATERIAL;
+			}
+			if(DropTarget != InventoryLogic::FORGE_DROP_NONE)
+			{
+				// Dragging an upgrade card onto forge slots should upgrade, not replace the weapon.
+				if(IsUpgradeSlot(m_DragItem))
 				{
+					int TargetSlot = m_ForgeTargetSlot;
+					if(DropTarget == InventoryLogic::FORGE_DROP_TARGET && TargetSlot >= 0 &&
+					   TargetSlot != m_DragItem && !IsUpgradeSlot(TargetSlot))
+					{
+						if(!TryUpgradeCombine(TargetSlot, m_DragItem))
+							NotifyUpgradeFailed(TargetSlot, m_DragItem);
+					}
+					else
+					{
+						m_ForgeMaterialSlot = m_DragItem;
+						if(m_ForgeTargetSlot >= 0 && m_ForgeTargetSlot != m_DragItem &&
+						   !IsUpgradeSlot(m_ForgeTargetSlot))
+						{
+							if(!TryUpgradeCombine(m_ForgeTargetSlot, m_DragItem))
+								NotifyUpgradeFailed(m_ForgeTargetSlot, m_DragItem);
+						}
+						else
+							m_ForgeLastResult = -1;
+					}
+				}
+				else
+				{
+					const InventoryLogic::CForgeSlots Slots =
+						InventoryLogic::DropForgeItem({m_ForgeTargetSlot, m_ForgeMaterialSlot}, m_DragItem, DropTarget);
 					m_ForgeTargetSlot = Slots.m_Target;
 					m_ForgeMaterialSlot = Slots.m_Material;
 					m_ForgeLastResult = -1;
+					if(m_ForgeTargetSlot >= 0 && m_ForgeMaterialSlot >= 0 && IsUpgradeSlot(m_ForgeMaterialSlot))
+					{
+						if(!TryUpgradeCombine(m_ForgeTargetSlot, m_ForgeMaterialSlot))
+							NotifyUpgradeFailed(m_ForgeTargetSlot, m_ForgeMaterialSlot);
+					}
 				}
 			}
-			ReleasedClick = !m_Moved && Hovered >= 0;
-			m_DragItem = -1;
-			m_Moved = false;
-			m_MoveTrigger = false;
-		}
-		if((Click || ReleasedClick) && Hovered >= 0)
-		{
-			const int64 Now = time_get();
-			const bool DoubleClick = Hovered == m_LastClickSlot && Now - m_LastClickTime <= time_freq() * 350 / 1000;
-			m_SelectedSlot = Hovered;
-			m_LastClickSlot = Hovered;
-			m_LastClickTime = Now;
-			if(DoubleClick && CustomStuff()->m_aItem[Hovered].IsValid())
-				ActivateSelection();
-		}
-
-		CUIRect ForgeButton = {InnerX, Panel.y + Panel.h - 25.0f, InnerW, 18.0f};
-		Box(ForgeButton, CanForge ? Amber : vec4(Border.r, Border.g, Border.b, 0.65f * Alpha), 3.0f);
-		if(Recipe.m_Result == FORGERESULT_SUCCESS)
-			str_format(aBuf,
-					   sizeof(aBuf),
-					   "%s   %d %s",
-					   m_ForgePending ? Localize("Forging...") : Localize("Forge"),
-					   Recipe.m_Cost,
-					   Localize("Gold"));
-		else
-			str_copy(aBuf, Localize("Forge"), sizeof(aBuf));
-		Label(ForgeButton, aBuf, 6.2f, 0, CanForge ? vec4(0.09f, 0.07f, 0.03f, 1.0f) : vec4(0.68f, 0.71f, 0.72f, 1.0f));
-		if(Click && Inside(ForgeButton) && CanForge)
-			SubmitForge();
-		m_MouseTrigger = false;
-		return;
-	}
-	if(m_Tab == InventoryLogic::TAB_INVENTORY)
-	{
-		const float Gap = 3.0f;
-		const float Cell = (InnerW - Gap * 3.0f) / 4.0f;
-		const float CellH = min(34.0f, Cell * 0.82f);
-		const float ActionY = ContentY + 46.0f;
-		const float GridTop = Panel.y + Panel.h - 3.0f * (CellH + Gap);
-		CUIRect Section = {InnerX, GridTop - 9.0f, InnerW, 8.0f};
-		Label({Section.x, Section.y, Section.w * 0.5f, Section.h}, Localize("Equipment"), 6.0f, -1, Cyan);
-		Label({Section.x + Section.w * 0.5f, Section.y, Section.w * 0.5f, Section.h},
-			  Localize("Inventory"),
-			  5.2f,
-			  1,
-			  vec4(0.70f, 0.75f, 0.77f, 1.0f));
-		int Hovered = -1;
-		for(int Slot = 0; Slot < 12; ++Slot)
-		{
-			const int Row = Slot < 4 ? 2 : (Slot - 4) / 4;
-			const int Column = Slot % 4;
-			CUIRect CellRect = {InnerX + Column * (Cell + Gap), GridTop + Row * (CellH + Gap), Cell, CellH};
-			const bool Selected = Slot == m_SelectedSlot;
-			const bool Active =
-				m_Tab == InventoryLogic::TAB_INVENTORY && Slot < 4 && Slot == CustomStuff()->m_WeaponSlot;
-			Box(CellRect, Selected ? vec4(Amber.r, Amber.g, Amber.b, 0.48f * Alpha) : Surface, 3.0f);
-			if(Selected)
-				Box({CellRect.x + 3.0f, CellRect.y + CellRect.h - 2.0f, CellRect.w - 6.0f, 2.0f}, Amber, 1.0f);
-			if(Active)
+			else if(HoveredCombat >= 0 || HoveredBag >= 0)
 			{
-				CUIRect Mark = {CellRect.x, CellRect.y, 2.0f, CellRect.h};
-				Box(Mark, Cyan, 0.0f);
+				const int DropSlot = HoveredCombat >= 0 ? HoveredCombat : HoveredBag;
+				if(m_DragItem != DropSlot)
+				{
+					// Upgrade cards only combine onto a real weapon; empty slots just take the move/swap.
+					if(IsUpgradeSlot(m_DragItem) || IsUpgradeSlot(DropSlot))
+					{
+						const int TargetSlot = IsUpgradeSlot(m_DragItem) ? DropSlot : m_DragItem;
+						const int MaterialSlot = IsUpgradeSlot(m_DragItem) ? m_DragItem : DropSlot;
+						const bool TargetOk = TargetSlot >= 0 && TargetSlot < InventoryLogic::NUM_SLOTS &&
+											  CustomStuff()->m_aItem[TargetSlot].IsValid() &&
+											  !IsUpgradeSlot(TargetSlot);
+						if(TargetOk)
+						{
+							if(!TryUpgradeCombine(TargetSlot, MaterialSlot))
+								NotifyUpgradeFailed(TargetSlot, MaterialSlot);
+						}
+						else
+							Swap(m_DragItem, DropSlot);
+					}
+					else
+						Swap(m_DragItem, DropSlot);
+				}
 			}
-			if(Slot < 4)
-			{
-				str_format(aBuf, sizeof(aBuf), "%d", Slot + 1);
-				Label({CellRect.x + 2, CellRect.y + 1, 8, 7}, aBuf, 5.0f, -1, Cyan);
-			}
-			const CWeaponSpec Spec = CustomStuff()->m_aItem[Slot];
-			if(Spec.IsValid() && Slot != m_DragItem)
-			{
-				DrawWeaponRankIcon(Graphics(),
-					RenderTools(),
-					Spec,
-					vec2(CellRect.x + CellRect.w * 0.5f, CellRect.y + 8.5f),
-					12.0f,
-					Alpha);
-				Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-				RenderTools()->SetShadersForWeapon(Spec);
-				RenderTools()->RenderWeapon(Spec,
-											vec2(CellRect.x + CellRect.w * 0.5f, CellRect.y + CellRect.h * 0.55f),
-											vec2(1, 0),
-											5.0f,
-											true,
-											0,
-											1.0f,
-											false,
-											false,
-											false,
-											Alpha);
-				Graphics()->ShaderEnd();
-				const int Ammo = CustomStuff()->m_aItemAmmo[Slot];
-				CResolvedWeaponProfile SlotProfile{};
-				const bool InfiniteAmmo =
-					CWeaponCatalog::TryResolve(Spec, &SlotProfile) && !SlotProfile.m_Combat.m_UsesAmmo;
-				if(Ammo < 0 || InfiniteAmmo)
-					str_copy(aBuf, Localize("Infinite"), sizeof(aBuf));
-				else
-					str_format(aBuf, sizeof(aBuf), "%d", Ammo);
-				Label({CellRect.x + CellRect.w - 13, CellRect.y + CellRect.h - 8, 11, 7}, aBuf, 4.8f, 1);
-			}
-			if(Inside(CellRect))
-				Hovered = Slot;
-		}
-		Box({InnerX + 1.0f, GridTop + 2.0f * (CellH + Gap) - 2.0f, InnerW - 2.0f, 1.0f},
-			vec4(Amber.r, Amber.g, Amber.b, 0.32f * Alpha),
-			0.0f);
-		if(Press && Hovered >= 0 && CustomStuff()->m_aItem[Hovered].IsValid())
-		{
-			m_SelectedSlot = Hovered;
-			m_DragItem = Hovered;
-		}
-		bool ReleasedClick = false;
-		if(m_MouseTrigger && !m_Mouse1 && m_DragItem >= 0)
-		{
-			if(m_Moved && Hovered >= 0 && Hovered != m_DragItem && m_Tab == InventoryLogic::TAB_INVENTORY)
-			{
-				if(!SubmitUpgradeDrag(Hovered, m_DragItem))
-					Swap(m_DragItem, Hovered);
-			}
-			else if(InventoryLogic::ShouldDropOutsideInventory(m_DragItem,
-														 CustomStuff()->m_aItem[m_DragItem].IsValid(),
-														 m_Moved,
-														 Hovered,
-														 Inside(Panel)))
+			else if(InventoryLogic::ShouldDropOutsideInventory(
+						m_DragItem,
+						CustomStuff()->m_aItem[m_DragItem].IsValid(),
+						m_Moved,
+						Hovered,
+						InventoryLogic::PointInLayout(Hammer.m_Bounds, m_SelectorMouse.x, m_SelectorMouse.y) ||
+							HoveredCombat >= 0))
 				Drop(m_DragItem);
-			ReleasedClick = !m_Moved && Hovered >= 0;
-			m_DragItem = -1;
-			m_Moved = false;
-			m_MoveTrigger = false;
 		}
-		if((Click || ReleasedClick) && Hovered >= 0)
-		{
-			const int64 Now = time_get();
-			const bool DoubleClick = Hovered == m_LastClickSlot && Now - m_LastClickTime <= time_freq() * 350 / 1000;
-			m_SelectedSlot = Hovered;
-			m_LastClickSlot = Hovered;
-			m_LastClickTime = Now;
-			m_DropConfirmSlot = -1;
-			if(DoubleClick)
-				ActivateSelection();
-		}
-
-		CWeaponSpec SelectedSpec;
-		if(m_SelectedSlot >= 0 && m_SelectedSlot < 12)
-			SelectedSpec = CustomStuff()->m_aItem[m_SelectedSlot];
-		CResolvedWeaponProfile Profile{};
-		const bool HasProfile = CWeaponCatalog::TryResolve(SelectedSpec, &Profile);
-		CUIRect Detail = {InnerX, ContentY, InnerW, max(43.0f, ActionY - ContentY - 3.0f)};
-		Box(Detail, Surface, 3.0f);
-		char aName[128];
-		Label({Detail.x + 5, Detail.y + 3, Detail.w - 10, 9},
-			  SelectedSpec.IsValid() ? WeaponDisplayName(SelectedSpec, aName, sizeof(aName)) : Localize("Empty slot"),
-			  6.4f,
-			  -1);
-		if(HasProfile)
-		{
-			const float Damage = max(Profile.m_Combat.m_ProjectileDamage,
-									 max(Profile.m_Combat.m_ExplosionDamage, Profile.m_Combat.m_WeaponKnockback));
-			char aMaxAmmo[32];
-			if(Profile.m_Combat.m_UsesAmmo)
-				str_format(aMaxAmmo, sizeof(aMaxAmmo), "%d", Profile.m_Combat.m_MaxAmmo);
-			else
-				str_copy(aMaxAmmo, Localize("Infinite"), sizeof(aMaxAmmo));
-			str_format(aBuf,
-					   sizeof(aBuf),
-					   "%s %d   %s %d/%s",
-					   Localize("Weapon level"),
-					   SelectedSpec.m_Level,
-					   Localize("Ammo"),
-					   max(0, CustomStuff()->m_aItemAmmo[m_SelectedSlot]),
-					   aMaxAmmo);
-			Label({Detail.x + 5, Detail.y + 14, Detail.w - 10, 8}, aBuf, 5.1f, -1, Cyan);
-			str_format(aBuf,
-					   sizeof(aBuf),
-					   "%s %.0f   %s",
-					   Localize("Damage"),
-					   Damage,
-					   FiringModeName(Profile.m_Combat.m_FiringType, Profile.m_Combat.m_FullAuto));
-			Label({Detail.x + 5, Detail.y + 23, Detail.w - 10, 8}, aBuf, 5.1f, -1);
-			const char *pTrait1 = Profile.m_Combat.m_ExplosiveProjectile
-									  ? Localize("Explosive")
-									  : (Profile.m_Combat.m_LaserWeapon ? Localize("Laser") : 0);
-			const char *pTrait2 = Profile.m_Combat.m_ProjectileBounces > 0
-									  ? Localize("Ricochet")
-									  : (Profile.m_Combat.m_FiringType == WFT_MELEE ? Localize("Melee") : 0);
-			str_format(aBuf,
-					   sizeof(aBuf),
-					   "%s%s%s",
-					   pTrait1 ? pTrait1 : "",
-					   pTrait1 && pTrait2 ? " · " : "",
-					   pTrait2 ? pTrait2 : "");
-			Label({Detail.x + 5, Detail.y + 32, Detail.w - 10, 8}, aBuf, 4.8f, -1, Amber);
-		}
-
-		CUIRect Equip = {InnerX, ActionY, (InnerW - 3) * 0.58f, 18};
-		CUIRect DropButton = {Equip.x + Equip.w + 3, ActionY, InnerW - Equip.w - 3, 18};
-		Box(Equip, Amber, 3.0f);
-		const bool ConfirmDrop = InventoryLogic::DropConfirmationActive(
-			m_DropConfirmSlot, m_SelectedSlot, time_get(), m_DropConfirmDeadline);
-		Box(DropButton, ConfirmDrop ? Danger : vec4(Danger.r, Danger.g, Danger.b, 0.35f * Alpha), 3.0f);
-		Label(Equip, Localize("Equip"), 6.2f, 0, vec4(0.08f, 0.07f, 0.04f, 1));
-		Label(DropButton, ConfirmDrop ? Localize("Confirm") : Localize("Drop"), 5.8f, 0);
-		if(Click && Inside(Equip))
-			ActivateSelection();
-		if(Click && Inside(DropButton))
-			RequestDrop();
+		ReleasedClick = !m_Moved && Hovered >= 0;
+		m_DragItem = -1;
+		m_Moved = false;
+		m_MoveTrigger = false;
 	}
-	else if(m_Tab == InventoryLogic::TAB_SHOP && pShop)
+	if((Click || ReleasedClick) && Hovered >= 0)
 	{
-		const int FeaturedSlot = clamp(m_SelectedSlot, 0, 4);
-		const CWeaponSpec FeaturedSpec = ShopWeapon(pShop, FeaturedSlot);
-		const bool FeaturedValid = FeaturedSpec.IsValid();
-		const int FeaturedPrice = m_pClient->m_pPveRoguelite->ShopCost(ShopWeaponCost(pShop, FeaturedSlot));
-		const bool CanAfford = CustomStuff()->m_Gold >= FeaturedPrice;
-		const bool ConfirmPurchase = m_ShopConfirmSlot == FeaturedSlot;
-		const float CoreY = ContentY + 2.0f;
-		const float CoreH = 76.0f;
-		const float SelectorW = 17.0f;
-		CUIRect Prev = {InnerX, CoreY + 27.0f, SelectorW, 22.0f};
-		CUIRect Next = {InnerX + InnerW - SelectorW, CoreY + 27.0f, SelectorW, 22.0f};
-		CUIRect Featured = {InnerX + SelectorW + 3.0f,
-			CoreY,
-			InnerW - SelectorW * 2.0f - 6.0f,
-			CoreH};
-		const vec4 CoreAccent = FeaturedValid ? (CanAfford ? Cyan : Danger) : Border;
-		Box(Featured, CoreAccent, 5.0f);
-		Box({Featured.x + 1.0f, Featured.y + 1.0f, Featured.w - 2.0f, Featured.h - 2.0f},
-			vec4(Graphite.r, Graphite.g, Graphite.b, 0.86f * Alpha),
-			4.0f);
-		const float FeaturedScanPhase = fmod(time_get() / (double)time_freq() * 0.45f, 1.0f);
-		Box({Featured.x + 8.0f,
-				 Featured.y + 13.0f + FeaturedScanPhase * (Featured.h - 29.0f),
-				 Featured.w - 16.0f,
-				 1.0f},
-			vec4(CoreAccent.r, CoreAccent.g, CoreAccent.b, 0.24f * Alpha),
-			0.0f);
-		Label({Featured.x + 5.0f, Featured.y + 3.0f, Featured.w - 10.0f, 8.0f},
-			  Localize("Shop"),
-			  4.6f,
-			  -1,
-			  CoreAccent);
-		if(FeaturedValid)
-		{
-			Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-			RenderTools()->SetShadersForWeapon(FeaturedSpec);
-			RenderTools()->RenderWeapon(FeaturedSpec,
-										vec2(Featured.x + Featured.w * 0.5f, Featured.y + 29.0f),
-										vec2(1, 0),
-										7.0f,
-										true,
-										0,
-										1.0f,
-										false,
-										false,
-										false,
-										Alpha);
-			Graphics()->ShaderEnd();
-			char aName[128];
-			Label({Featured.x + 5.0f, Featured.y + 45.0f, Featured.w - 10.0f, 9.0f},
-				  WeaponDisplayName(FeaturedSpec, aName, sizeof(aName)),
-				  5.6f,
-				  0);
-			str_format(aBuf,
-					   sizeof(aBuf),
-					   "%s %d   %s %d",
-					   Localize("Weapon level"),
-					   FeaturedSpec.m_Level,
-					   Localize("Price"),
-					   FeaturedPrice);
-			Label({Featured.x + 5.0f, Featured.y + 57.0f, Featured.w - 10.0f, 8.0f},
-				  aBuf,
-				  4.7f,
-				  0,
-				  CanAfford ? Amber : Danger);
-		}
-		else
-			Label({Featured.x + 5.0f, Featured.y + 29.0f, Featured.w - 10.0f, 16.0f},
-				  Localize("Empty slot"),
-				  5.0f,
-				  0,
-				  vec4(0.66f, 0.70f, 0.72f, 1.0f));
-		const vec4 PrevColor = Cyan;
-		const vec4 NextColor = Cyan;
-		Box(Prev, Surface, 4.0f);
-		Box(Next, Surface, 4.0f);
-		Box({Prev.x + Prev.w - 2.0f, Prev.y + 4.0f, 2.0f, Prev.h - 8.0f}, PrevColor, 1.0f);
-		Box({Next.x, Next.y + 4.0f, 2.0f, Next.h - 8.0f}, NextColor, 1.0f);
-		Label(Prev, "<", 8.0f, 0, PrevColor);
-		Label(Next, ">", 8.0f, 0, NextColor);
-		for(int Slot = 0; Slot < 5; ++Slot)
-		{
-			const float DotW = Slot == FeaturedSlot ? 7.0f : 3.0f;
-			const float DotX = Featured.x + Featured.w * 0.5f + (Slot - 2) * 8.0f - DotW * 0.5f;
-			Box({DotX, Featured.y + 70.0f, DotW, 2.0f},
-				Slot == FeaturedSlot ? CoreAccent : vec4(Border.r, Border.g, Border.b, 0.72f * Alpha),
-				1.0f);
-		}
-		auto SelectShopSlot = [&](int Slot)
-		{
-			m_SelectedSlot = (Slot + 5) % 5;
-			m_ShopConfirmSlot = -1;
-		};
-		if(Click && Inside(Prev))
-			SelectShopSlot(FeaturedSlot - 1);
-		if(Click && Inside(Next))
-			SelectShopSlot(FeaturedSlot + 1);
-		if(Click && Inside(Featured))
-			m_ShopConfirmSlot = -1;
-
-		const float GridGap = 3.0f;
-		const float CellW = (InnerW - GridGap * 3.0f) / 4.0f;
-		const float CellH = 25.0f;
-		const float GridY = CoreY + CoreH + 15.0f;
-		Label({InnerX, GridY - 9.0f, InnerW, 8.0f}, Localize("Inventory"), 5.0f, -1, Cyan);
-		for(int Slot = 0; Slot < 12; ++Slot)
-		{
-			const int Row = Slot < 4 ? 2 : (Slot - 4) / 4;
-			const int Column = Slot % 4;
-			CUIRect Cell = {InnerX + Column * (CellW + GridGap), GridY + Row * (CellH + GridGap), CellW, CellH};
-			const bool CombatSlot = Slot < 4;
-			Box(Cell, CombatSlot ? vec4(Cyan.r, Cyan.g, Cyan.b, 0.13f * Alpha) : Surface, 3.0f);
-			str_format(aBuf, sizeof(aBuf), "%d", Slot + 1);
-			Label({Cell.x + 2.0f, Cell.y + 1.0f, 9.0f, 7.0f}, aBuf, 4.1f, -1, CombatSlot ? Cyan : Border);
-			const CWeaponSpec Spec = CustomStuff()->m_aItem[Slot];
-			if(Spec.IsValid())
-			{
-				DrawWeaponRankIcon(Graphics(),
-					RenderTools(),
-					Spec,
-					vec2(Cell.x + Cell.w * 0.5f, Cell.y + 7.5f),
-					11.0f,
-					Alpha);
-				Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
-				RenderTools()->SetShadersForWeapon(Spec);
-				RenderTools()->RenderWeapon(Spec,
-					vec2(Cell.x + Cell.w * 0.5f, Cell.y + Cell.h * 0.55f),
-					vec2(1, 0),
-					5.0f,
-					true,
-					0,
-					1.0f,
-					false,
-					false,
-					false,
-					Alpha);
-				Graphics()->ShaderEnd();
-			}
-		}
-		Box({InnerX + 1.0f, GridY + 2.0f * (CellH + GridGap) - 2.0f, InnerW - 2.0f, 1.0f},
-			vec4(Amber.r, Amber.g, Amber.b, 0.32f * Alpha),
-			0.0f);
-
-		CUIRect PriceRail = {InnerX, GridY + 3.0f * (CellH + GridGap) + 1.0f, InnerW, 13.0f};
-		Box(PriceRail, vec4(CoreAccent.r, CoreAccent.g, CoreAccent.b, 0.12f * Alpha), 3.0f);
-		str_format(aBuf,
-				   sizeof(aBuf),
-				   "%s  %d %s",
-				   Localize("Price"),
-				   FeaturedPrice,
-				   Localize("Gold"));
-		Label(PriceRail, aBuf, 4.7f, 0, FeaturedValid ? (CanAfford ? Amber : Danger) : Border);
-		CUIRect Buy = {InnerX, Panel.y + Panel.h - 25.0f, InnerW, 18.0f};
-		const bool BuyEnabled = FeaturedValid && CanAfford;
-		Box(Buy,
-			ConfirmPurchase ? Amber : (BuyEnabled ? Cyan : vec4(Border.r, Border.g, Border.b, 0.64f * Alpha)),
-			4.0f);
-		Label(Buy,
-			  ConfirmPurchase ? Localize("Confirm purchase") : Localize("Buy"),
-			  6.0f,
-			  0,
-			  ConfirmPurchase || BuyEnabled ? vec4(0.06f, 0.08f, 0.08f, 1.0f) : vec4(0.68f, 0.71f, 0.72f, 1.0f));
-		if(Click && Inside(Buy) && BuyEnabled)
+		const int64 Now = time_get();
+		const bool DoubleClick = Hovered == m_LastClickSlot && Now - m_LastClickTime <= time_freq() * 350 / 1000;
+		m_SelectedSlot = Hovered;
+		m_ManualSelection = true;
+		m_LastClickSlot = Hovered;
+		m_LastClickTime = Now;
+		m_DropConfirmSlot = -1;
+		if(DoubleClick)
 			ActivateSelection();
 	}
+
 	m_MouseTrigger = false;
 }
 
@@ -1549,7 +1441,7 @@ void CInventory::OnRender()
 	{
 		m_Render = true;
 		m_AppearAmount = 1.0f;
-		m_Tab = m_DebugTab == 2 ? InventoryLogic::TAB_FORGE : InventoryLogic::TAB_INVENTORY;
+		m_Tab = InventoryLogic::TAB_INVENTORY;
 		if(m_DebugTab == 2 && (m_ForgeTargetSlot < 0 || m_ForgeMaterialSlot < 0))
 		{
 			ClearForgeSelection();
@@ -1587,15 +1479,12 @@ void CInventory::OnRender()
 		m_Render = false;
 		return;
 	}
-	const int CurrentForgeMode = ForgeMode();
-	if(m_DebugTab != 2 && (m_Tab == InventoryLogic::TAB_FORGE || m_WantedTab == InventoryLogic::TAB_FORGE) &&
-	   !InventoryLogic::ForgeTabVisible(CurrentForgeMode))
-	{
-		ClearForgeSelection();
+	if(m_Tab == InventoryLogic::TAB_FORGE)
 		m_Tab = InventoryLogic::TAB_INVENTORY;
-		m_WantedTab = -1;
-	}
-	// m_Render = m_Active;
+	if(m_WantedTab == InventoryLogic::TAB_FORGE)
+		m_WantedTab = InventoryLogic::TAB_INVENTORY;
+	if(m_DebugTab != 2 && !InventoryLogic::ForgeTabVisible(ForgeMode()))
+		ClearForgeSelection();
 
 	if(m_WantedTab < 0)
 	{
@@ -1608,11 +1497,19 @@ void CInventory::OnRender()
 				m_DragItem = -1;
 				m_Moved = false;
 				m_MoveTrigger = false;
+				ClearForgeSelection();
 			}
 			if(m_Render)
 			{
-				m_SelectorMouse = vec2(150.0f * Graphics()->ScreenAspect(),
-					m_Tab == InventoryLogic::TAB_INVENTORY ? 245.0f : 82.0f);
+				m_ManualSelection = m_Tab == InventoryLogic::TAB_SHOP;
+				SyncHeldSelection();
+				const float HudW = 300.0f * Graphics()->ScreenAspect();
+				const InventoryLogic::EPanelKind Kind = m_Tab == InventoryLogic::TAB_SHOP
+															? InventoryLogic::PANEL_SHOP
+															: InventoryLogic::PANEL_INVENTORY;
+				const InventoryLogic::CLayout Dock =
+					InventoryLogic::PanelLayout(HudW, 300.0f, 1.0f, 1.0f, Kind);
+				m_SelectorMouse = vec2(Dock.m_X + Dock.m_W * 0.5f, Dock.m_Y + 48.0f);
 				m_pClient->m_pControls->CancelQueuedWeaponSlot();
 			}
 		}
@@ -1637,30 +1534,22 @@ void CInventory::OnRender()
 	m_LastAnimationTime = Now;
 
 	CustomStuff()->m_Inventory = m_Render;
+	if(m_Render)
+		SyncHeldSelection();
 	if(!m_Render && m_AppearAmount < 0.01f)
 		return;
 
 	const CNetObj_Shop *pShop = NearbyShop();
 	if(m_Tab == InventoryLogic::TAB_SHOP && !pShop)
 	{
-		m_Tab = InventoryLogic::TAB_INVENTORY;
-		m_SelectedSlot = 0;
-		m_ShopConfirmSlot = -1;
+		Close();
+		return;
 	}
-	if(m_DebugTab != 2 && m_Tab == InventoryLogic::TAB_FORGE &&
-	   !InventoryLogic::ForgeTabVisible(ForgeMode()))
-	{
-		m_Tab = InventoryLogic::TAB_INVENTORY;
-		m_SelectedSlot = 0;
-		ClearForgeSelection();
-		m_ForgePending = false;
-	}
-
 	Graphics()->BlendNormal();
 	const float HudW = 300.0f * Graphics()->ScreenAspect();
 	Graphics()->MapScreen(0, 0, HudW, 300.0f);
 	m_SelectorMouse.x = clamp(m_SelectorMouse.x, 0.0f, HudW - 8.0f);
-	m_SelectorMouse.y = clamp(m_SelectorMouse.y, 0.0f, 292.0f);
+	m_SelectorMouse.y = clamp(m_SelectorMouse.y, 0.0f, 300.0f - 8.0f);
 	if(!m_Mouse1)
 		m_Mouse1Loaded = true;
 	DrawSidebar(pShop);

@@ -744,8 +744,8 @@ void CGameClient::OnConsoleInit()
 	m_All.Add(m_pDamageind);
 	m_All.Add(&m_pLight->m_RenderLight);
 	m_All.Add(m_pRadar);
-	m_All.Add(m_pInventory);
 	m_All.Add(&gs_Hud);
+	m_All.Add(m_pInventory);
 	m_All.Add(&gs_WeaponPresentation);
 	m_All.Add(m_pBuildPlacement);
 	m_All.Add(&gs_Spectator);

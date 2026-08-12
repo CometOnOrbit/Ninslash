@@ -637,6 +637,9 @@ Elite wave
 Emoticon
 == 表情
 
+Empty
+== 空
+
 Empty slot
 == 空槽位
 
@@ -1201,6 +1204,9 @@ Name
 Nameplates
 == 名字板
 
+Need Screen
+== 需要屏幕
+
 Netversion:
 == 网络协议版本
 
@@ -1318,6 +1324,12 @@ Own name plate
 Parent Folder
 == 上级目录
 
+Part 1
+== 零件 1
+
+Part 2
+== 零件 2
+
 Part 2 transplant
 == 零件 2 移植
 
@@ -1396,6 +1408,9 @@ Preset
 Press %s to open forge
 == 按 %s 打开武器锻造
 
+Press %s to open shop
+== 按 %s 打开商店
+
 Press Enter to vote
 == 按回车投票
 
@@ -1416,6 +1431,9 @@ Profile
 
 Protocol
 == 协议
+
+Put a weapon here
+== 将武器放在这里
 
 Public
 == 公开
@@ -1714,6 +1732,9 @@ Select a material weapon
 Select a target weapon
 == 请选择目标武器
 
+Select materials
+== 请选择材料
+
 Select target and material
 == 选择目标武器和材料
 
@@ -1875,6 +1896,9 @@ Stack limit: %d
 
 Stand by
 == 待命
+
+Stand next to a Screen to forge
+== 靠近屏幕才能锻造
 
 Standalone network
 == 独立网络
@@ -3403,6 +3427,9 @@ Extraction
 
 Purchase rejected
 == 购买被拒绝
+
+Purchase sent
+== 已发送购买请求
 
 PURCHASED
 == 已购买

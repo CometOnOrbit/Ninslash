@@ -3,11 +3,28 @@
 
 #include <base/math.h>
 
+#include "hud_layout.h"
+
 namespace InventoryLogic
 {
 constexpr int NUM_SLOTS = 12;
 constexpr int NUM_EQUIPMENT_SLOTS = 4;
 constexpr int GRID_COLUMNS = 4;
+constexpr int NUM_BAG_SLOTS = NUM_SLOTS - NUM_EQUIPMENT_SLOTS;
+constexpr int NUM_SHOP_SLOTS = 5;
+
+constexpr float TrayGapAboveCombat = 4.0f;
+constexpr float HammerPartGap = 3.0f;
+constexpr float ForgeHeadOverhang = 40.0f;
+constexpr float ForgeHeadH = 52.0f;
+constexpr float ForgeSideLift = 14.0f;
+constexpr float BagRowGap = 2.5f;
+constexpr float BagPad = 4.0f;
+constexpr float SectionTitleH = 8.0f;
+constexpr float ResourceH = 11.0f;
+constexpr float DetailH = 38.0f;
+constexpr float StatusH = 14.0f;
+constexpr float TrayShopH = 156.0f;
 
 enum ETab
 {
@@ -15,6 +32,13 @@ enum ETab
 	TAB_FORGE,
 	TAB_SHOP,
 	NUM_TABS,
+};
+
+enum EPanelKind
+{
+	PANEL_INVENTORY,
+	PANEL_FORGE,
+	PANEL_SHOP,
 };
 
 inline bool ForgeTabVisible(int ForgeMode)
@@ -27,6 +51,15 @@ inline bool ForgeUsable(int ForgeMode, bool ScreenNear)
 	return ForgeMode == 1 || (ForgeMode >= 2 && ScreenNear);
 }
 
+inline int ResolveOpenTab(bool NearShop, int ForgeMode, bool ForgeScreenNear)
+{
+	(void)ForgeMode;
+	(void)ForgeScreenNear;
+	if(NearShop)
+		return TAB_SHOP;
+	return TAB_INVENTORY;
+}
+
 struct CLayout
 {
 	float m_X;
@@ -35,27 +68,124 @@ struct CLayout
 	float m_H;
 };
 
+struct CHammerLayout
+{
+	CLayout m_Bounds;
+	CLayout m_Forge;
+	CLayout m_Bag;
+	CLayout m_Resource; // gold / kits
+	CLayout m_Detail;	// weapon info
+	CLayout m_Status;	// forge hints only
+};
+
+inline float BagCellSize()
+{
+	return HudLayout::CombatBarSlotWidth();
+}
+
+inline float BagHeight()
+{
+	return BagPad * 2.0f + SectionTitleH + BagCellSize() * 2.0f + BagRowGap;
+}
+
+inline CHammerLayout HammerLayout(float ScreenWidth, float ScreenHeight, float AppearAmount, bool ForgeStrip)
+{
+	const float Slide = 8.0f * (1.0f - clamp(AppearAmount, 0.0f, 1.0f));
+	const float CombatTop = HudLayout::CombatBarTop(ScreenHeight);
+	const float GridW = HudLayout::CombatBarWidth;
+	const float GridX = HudLayout::CombatBarLeft(ScreenWidth);
+	const float BagW = GridW + BagPad * 2.0f;
+	const float BagX = GridX - BagPad;
+	const float BagH = BagHeight();
+	const float BagY = CombatTop - TrayGapAboveCombat - BagH + Slide * 0.15f;
+
+	CLayout Bag = {BagX, BagY, BagW, BagH};
+	const float StripW = ForgeStrip ? (BagW + ForgeHeadOverhang * 2.0f) : max(BagW, BagW + 40.0f);
+	const float StripX = (ScreenWidth - StripW) * 0.5f;
+
+	const float DetailY = BagY - HammerPartGap - DetailH;
+	CLayout Detail = {StripX, DetailY, StripW, DetailH};
+	const float ResourceY = DetailY - HammerPartGap - ResourceH;
+	CLayout Resource = {StripX, ResourceY, StripW, ResourceH};
+
+	CLayout Status = {};
+	CLayout Forge = {};
+	if(ForgeStrip)
+	{
+		const float StatusY = ResourceY - HammerPartGap - StatusH;
+		Status = {StripX, StatusY, StripW, StatusH};
+		const float ForgeY = StatusY - HammerPartGap - ForgeHeadH;
+		Forge = {StripX, ForgeY, StripW, ForgeHeadH};
+	}
+
+	const float BoundsX = ForgeStrip ? Forge.m_X : Resource.m_X;
+	const float BoundsY = ForgeStrip ? Forge.m_Y : Resource.m_Y;
+	const float BoundsW = ForgeStrip ? Forge.m_W : Resource.m_W;
+	const float BoundsH = (Bag.m_Y + Bag.m_H) - BoundsY;
+	return {{BoundsX, BoundsY, BoundsW, BoundsH}, Forge, Bag, Resource, Detail, Status};
+}
+
+inline CLayout PanelLayout(float ScreenWidth,
+						   float ScreenHeight,
+						   float UiScale,
+						   float AppearAmount,
+						   EPanelKind Kind,
+						   bool ForgeStrip = true)
+{
+	(void)UiScale;
+	if(Kind == PANEL_SHOP)
+	{
+		const float CombatTop = HudLayout::CombatBarTop(ScreenHeight);
+		const float Width = HudLayout::CombatBarWidth + 40.0f;
+		const float Height = min(TrayShopH, CombatTop - TrayGapAboveCombat - 36.0f);
+		const float X = (ScreenWidth - Width) * 0.5f;
+		const float Y = CombatTop - TrayGapAboveCombat - Height;
+		return {X, Y, Width, Height};
+	}
+	return HammerLayout(ScreenWidth, ScreenHeight, AppearAmount, ForgeStrip).m_Bounds;
+}
+
+inline CLayout CombatSlotLayout(float ScreenWidth, float ScreenHeight, int Slot, bool Selected)
+{
+	const float H = Selected ? HudLayout::CombatBarSelectedHeight : HudLayout::CombatBarSlotHeight;
+	const float Y = HudLayout::CombatBarTop(ScreenHeight) - (Selected ? 1.0f : 0.0f);
+	return {HudLayout::CombatBarSlotX(ScreenWidth, Slot), Y, HudLayout::CombatBarSlotWidth(), H};
+}
+
+inline int HitCombatSlot(float ScreenWidth, float ScreenHeight, float CursorX, float CursorY, int SelectedWeaponSlot)
+{
+	for(int Slot = 0; Slot < NUM_EQUIPMENT_SLOTS; ++Slot)
+	{
+		const CLayout Cell = CombatSlotLayout(ScreenWidth, ScreenHeight, Slot, Slot == SelectedWeaponSlot);
+		// Include the gap under the bag tray so upgrades can be dropped onto HUD weapons easily.
+		const float HitY = Cell.m_Y - TrayGapAboveCombat - 2.0f;
+		const float HitH = Cell.m_H + TrayGapAboveCombat + 2.0f;
+		if(CursorX >= Cell.m_X && CursorX <= Cell.m_X + Cell.m_W && CursorY >= HitY && CursorY <= HitY + HitH)
+			return Slot;
+	}
+	return -1;
+}
+
+inline bool PointInLayout(const CLayout &Layout, float X, float Y)
+{
+	return X >= Layout.m_X && X <= Layout.m_X + Layout.m_W && Y >= Layout.m_Y && Y <= Layout.m_Y + Layout.m_H;
+}
+
 inline CLayout
 SidebarLayout(float ScreenWidth, float ScreenHeight, float UiScale, float AppearAmount, bool Wide = false)
 {
-	const float Scale = clamp(UiScale, 1.0f, 1.5f);
-	const float BaseWidth = Wide ? 190.0f : 154.0f;
-	const float Width = clamp(BaseWidth * Scale, BaseWidth, min(190.0f, ScreenWidth - 24.0f));
-	const float Margin = 8.0f;
-	const float Slide = 18.0f * (1.0f - clamp(AppearAmount, 0.0f, 1.0f));
-	return {ScreenWidth - Width - Margin + Slide, Margin, Width, ScreenHeight - Margin * 2.0f};
+	return PanelLayout(ScreenWidth,
+		ScreenHeight,
+		UiScale,
+		AppearAmount,
+		Wide ? PANEL_SHOP : PANEL_INVENTORY);
 }
 
 inline CLayout
 BottomOverlayLayout(float ScreenWidth, float ScreenHeight, float UiScale, float AppearAmount, bool Workbench)
 {
-	const float Scale = clamp(UiScale, 1.0f, 1.5f);
-	const float BaseWidth = Workbench ? 320.0f : 260.0f;
-	const float Width = min(BaseWidth * Scale, min(BaseWidth, ScreenWidth - 24.0f));
-	const float Height = min(Workbench ? 284.0f : 235.0f, ScreenHeight - 16.0f);
-	const float Margin = 8.0f;
-	const float Slide = 18.0f * (1.0f - clamp(AppearAmount, 0.0f, 1.0f));
-	return {(ScreenWidth - Width) * 0.5f, ScreenHeight - Height - Margin + Slide, Width, Height};
+	(void)Workbench;
+	return PanelLayout(ScreenWidth, ScreenHeight, UiScale, AppearAmount, PANEL_INVENTORY);
 }
 
 inline int NavigateGrid(int Current, int Count, int Columns, int DeltaX, int DeltaY)
@@ -77,14 +207,12 @@ inline int NavigateGrid(int Current, int Count, int Columns, int DeltaX, int Del
 	return Result;
 }
 
-inline int NextAvailableTab(int Current, int Direction, bool ForgeAvailable, bool ShopAvailable)
+inline int NextAvailableTab(int Current, int Direction, bool ForgeAvailable)
 {
-	for(int Step = 1; Step <= NUM_TABS; ++Step)
-	{
-		const int Candidate = (Current + Direction * Step + NUM_TABS * 2) % NUM_TABS;
-		if((Candidate != TAB_FORGE || ForgeAvailable) && (Candidate != TAB_SHOP || ShopAvailable))
-			return Candidate;
-	}
+	(void)Direction;
+	(void)ForgeAvailable;
+	if(Current == TAB_SHOP)
+		return TAB_INVENTORY;
 	return TAB_INVENTORY;
 }
 

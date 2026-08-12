@@ -27,6 +27,7 @@
 #include "sounds.h"
 #include "voting.h"
 #include "binds.h"
+#include <game/client/weapon_rank_icon.h>
 
 #define RAD 0.017453292519943295769236907684886f
 
@@ -629,8 +630,7 @@ void CHud::RenderPveEnvironment()
 
 void CHud::RenderScoreHud()
 {
-	if(!g_Config.m_ClShowhudScore || m_pClient->m_pScoreboard->Active() || m_pClient->m_pVoting->IsVoting() ||
-	   m_pClient->m_pInventory->IsVisible())
+	if(!g_Config.m_ClShowhudScore || m_pClient->m_pScoreboard->Active() || m_pClient->m_pVoting->IsVoting())
 		return;
 	// render small score hud
 	if(!(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
@@ -905,8 +905,6 @@ void CHud::MapscreenToGroup(float CenterX, float CenterY, CMapItemGroup *pGroup)
 
 void CHud::RenderFps()
 {
-	if(m_pClient->m_pInventory->IsVisible())
-		return;
 	if(g_Config.m_ClShowfps)
 	{
 		// calculate avg. fps
@@ -1145,7 +1143,7 @@ void CHud::DrawCircular(float x, float y, float r, int Segments, int FillAmount,
 
 void CHud::RenderLowHealthVignette(const CNetObj_Character *pCharacter)
 {
-	if(!g_Config.m_ClShowhudHealthAmmo || !pCharacter || m_pClient->m_pInventory->IsVisible())
+	if(!g_Config.m_ClShowhudHealthAmmo || !pCharacter)
 		return;
 	const float DangerAmount = HudLayout::LowHealthAmount(pCharacter->m_Health);
 	if(DangerAmount <= 0.0f)
@@ -1207,7 +1205,7 @@ void CHud::RenderLowHealthVignette(const CNetObj_Character *pCharacter)
 
 void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 {
-	if(!g_Config.m_ClShowhudHealthAmmo || !pCharacter || m_pClient->m_pInventory->IsVisible())
+	if(!g_Config.m_ClShowhudHealthAmmo || !pCharacter)
 		return;
 
 	CWeaponSpec ActiveWeapon;
@@ -1496,12 +1494,15 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 	Label({WeaponCard.x + 50.0f, WeaponCard.y + 12.0f, 39.0f, 14.0f}, aBuf, 7.0f, 1, Accent);
 	if(HasActiveWeapon)
 	{
+		const vec2 WeaponPos(WeaponCard.x + 27.0f, WeaponCard.y + 20.0f);
+		const float WeaponSize = 6.2f;
+		DrawWeaponRankOverWeapon(Graphics(), RenderTools(), ActiveWeapon, WeaponPos, WeaponSize, 1.0f);
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 		RenderTools()->SetShadersForWeapon(ActiveWeapon);
 		RenderTools()->RenderWeapon(ActiveWeapon,
-			vec2(WeaponCard.x + 27.0f, WeaponCard.y + 18.0f),
+			WeaponPos,
 			vec2(1, 0),
-			6.6f,
+			WeaponSize,
 			true,
 			0,
 			1.0f,
@@ -1512,10 +1513,9 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 		Graphics()->ShaderEnd();
 	}
 
-	const float SlotGap = 3.0f;
-	const float CombatBarW = 128.0f;
-	const float SlotW = (CombatBarW - SlotGap * 3.0f) / 4.0f;
-	const float SlotX = (m_Width - CombatBarW) * 0.5f;
+	const float SlotGap = HudLayout::CombatBarSlotGap;
+	const float SlotW = HudLayout::CombatBarSlotWidth();
+	const float SlotX = HudLayout::CombatBarLeft(m_Width);
 	const float SlotY = HudLayout::CombatBarTop(m_Height);
 	for(int Slot = 0; Slot < 4; ++Slot)
 	{
@@ -1523,7 +1523,7 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 		CUIRect Cell = {SlotX + Slot * (SlotW + SlotGap),
 			SlotY - (Selected ? 1.0f : 0.0f),
 			SlotW,
-			Selected ? 27.0f : 25.0f};
+			Selected ? HudLayout::CombatBarSelectedHeight : HudLayout::CombatBarSlotHeight};
 		SmokedGlass(Cell, Selected ? Accent : AccentDim, Selected, 2.5f);
 		if(Selected)
 			TechShape({Cell.x + 4.0f, Cell.y + Cell.h - 2.0f, Cell.w - 8.0f, 2.0f}, Accent, 0.7f);
@@ -1537,12 +1537,15 @@ void CHud::RenderHealthAndAmmo(const CNetObj_Character *pCharacter)
 			continue;
 		}
 
+		const vec2 WeaponPos(Cell.x + Cell.w * 0.53f, Cell.y + 11.5f);
+		const float WeaponSize = Selected ? 4.9f : 4.7f;
+		DrawWeaponRankOverWeapon(Graphics(), RenderTools(), Weapon, WeaponPos, WeaponSize, 1.0f);
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
 		RenderTools()->SetShadersForWeapon(Weapon);
 		RenderTools()->RenderWeapon(Weapon,
-			vec2(Cell.x + Cell.w * 0.53f, Cell.y + 11.5f),
+			WeaponPos,
 			vec2(1, 0),
-			Selected ? 4.9f : 4.7f,
+			WeaponSize,
 			true,
 			0,
 			1.0f,
@@ -1607,8 +1610,6 @@ float CHud::ScoreHudTop() const
 
 void CHud::RenderMovementInformation()
 {
-	if(m_pClient->m_pInventory->IsVisible())
-		return;
 	const bool ShowPos = g_Config.m_ClShowhudPlayerPosition != 0;
 	const bool ShowSpeed = g_Config.m_ClShowhudPlayerSpeed != 0;
 	const bool ShowAngle = g_Config.m_ClShowhudPlayerAngle != 0;
@@ -1755,7 +1756,7 @@ void CHud::OnRender()
 		RenderPveEnvironment();
 		RenderSuddenDeath();
 		RenderScoreHud();
-		if(!m_pClient->m_pScoreboard->Active() && !m_pClient->m_pInventory->IsVisible())
+		if(!m_pClient->m_pScoreboard->Active())
 			RenderObjective();
 		RenderStartCountdown();
 		RenderPauseNotification();

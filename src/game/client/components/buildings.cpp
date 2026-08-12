@@ -197,7 +197,20 @@ void CBuildings::RenderShop(const CNetObj_Shop *pCurrent)
 	m_pClient->m_pEffects->SimpleLight(
 		vec2(pCurrent->m_X, pCurrent->m_Y - 74), vec4(0.5f, 0.75f, 1.0f, 0.82f), vec2(360, 460));
 
-	// shop items rendered in inventory.cpp
+	if(CustomStuff()->m_LocalAlive &&
+	   abs(CustomStuff()->m_LocalPos.x - pCurrent->m_X) <= 100 &&
+	   abs(CustomStuff()->m_LocalPos.y - pCurrent->m_Y) <= 100)
+	{
+		char aInventoryKeys[64];
+		m_pClient->m_pBinds->GetKeys("+inventory", aInventoryKeys, sizeof(aInventoryKeys));
+		char aHint[128];
+		str_format(aHint, sizeof(aHint), Localize("Press %s to open shop"), aInventoryKeys[0] ? aInventoryKeys : "?");
+		const float FontSize = 18.0f;
+		const float TextWidth = TextRender()->TextWidth(0, FontSize, aHint, -1);
+		TextRender()->TextColor(0.35f, 0.75f, 1.0f, 1.0f);
+		TextRender()->Text(0, pCurrent->m_X - TextWidth * 0.5f, pCurrent->m_Y - 120.0f, FontSize, aHint, -1);
+		TextRender()->TextColor(1, 1, 1, 1);
+	}
 }
 
 void CBuildings::RenderGenerator(const struct CNetObj_Building *pCurrent, const CNetObj_Building *pPrev)

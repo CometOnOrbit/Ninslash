@@ -48,6 +48,26 @@ constexpr float CombatBarTop(float ScreenHeight)
 	return ScreenHeight - 30.0f;
 }
 
+constexpr float CombatBarWidth = 128.0f;
+constexpr float CombatBarSlotGap = 3.0f;
+constexpr float CombatBarSlotHeight = 25.0f;
+constexpr float CombatBarSelectedHeight = 27.0f;
+
+constexpr float CombatBarSlotWidth()
+{
+	return (CombatBarWidth - CombatBarSlotGap * 3.0f) / 4.0f;
+}
+
+constexpr float CombatBarLeft(float ScreenWidth)
+{
+	return (ScreenWidth - CombatBarWidth) * 0.5f;
+}
+
+constexpr float CombatBarSlotX(float ScreenWidth, int Slot)
+{
+	return CombatBarLeft(ScreenWidth) + Slot * (CombatBarSlotWidth() + CombatBarSlotGap);
+}
+
 constexpr float ChatInputHeight = 16.0f;
 constexpr float ChatStatusGap = 4.0f;
 

@@ -15,13 +15,19 @@ class CInventory : public CComponent
 	void ClearForgeSelection();
 	void SubmitForge();
 	void ActivateSelection();
+	void PurchaseShopSlot(int Slot);
+	void SetActionFeedback(const char *pText, bool Danger);
 	void RequestDrop();
 	void SetTab(int Tab);
 	int TabItemCount() const;
+	void SyncHeldSelection();
 	void ResetInteractionState();
 	void Close();
 	bool SubmitForgeSlots(int TargetSlot, int MaterialSlot);
 	bool SubmitUpgradeDrag(int TargetSlot, int MaterialSlot);
+	bool IsUpgradeSlot(int Slot) const;
+	bool TryUpgradeCombine(int SlotA, int SlotB);
+	void NotifyUpgradeFailed(int TargetSlot, int MaterialSlot);
 
 	bool m_WasActive;
 	bool m_Active;
@@ -36,12 +42,15 @@ class CInventory : public CComponent
 
 	int m_Tab;
 	int m_SelectedSlot;
+	bool m_ManualSelection; // false: follow held weapon until player picks another item
 	int m_KeyboardFocus;
 	int64 m_LastClickTime;
 	int m_LastClickSlot;
 	int m_DropConfirmSlot;
 	int64 m_DropConfirmDeadline;
-	int m_ShopConfirmSlot;
+	char m_aActionFeedback[96];
+	int64 m_ActionFeedbackUntil;
+	bool m_ActionFeedbackDanger;
 	bool m_DebugVisible;
 	int m_DebugTab;
 

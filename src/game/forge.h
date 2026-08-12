@@ -29,6 +29,14 @@ class CForge
 								int LevelCost,
 								int MaterialAmmo = 0);
 	static bool Validate();
+
+	// Mode 3: upgrade cards are free; other forge recipes still use Recipe.m_Cost.
+	static int EffectiveCost(const CForgeRecipe &Recipe, int ForgeMode)
+	{
+		if(ForgeMode == 3 && Recipe.m_Operation == FORGEOP_UPGRADE)
+			return 0;
+		return Recipe.m_Cost;
+	}
 };
 
 #endif
