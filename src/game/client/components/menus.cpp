@@ -4101,10 +4101,12 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	MainView.Margin(L(12.0f), &MainView);
 	CUIRect Header, Body, Footer;
 	const float LargeScale = max(0.0f, UI()->Scale() - 1.0f);
-	const float HeaderHeight = L(48.0f + LargeScale * 84.0f);
-	const float StepOffset = L(27.0f + LargeScale * 66.0f);
+	// Choose-mode needs vertical room for the right-hand detail panel; keep configure-step header roomy.
+	const float HeaderHeight = ChoosingMode ? L(40.0f) : L(48.0f + LargeScale * 84.0f);
+	const float StepOffset = ChoosingMode ? L(22.0f) : L(27.0f + LargeScale * 66.0f);
+	const float FooterHeight = ChoosingMode ? L(56.0f) : L(72.0f);
 	MainView.HSplitTop(HeaderHeight, &Header, &Body);
-	Body.HSplitBottom(L(72.0f), &Body, &Footer);
+	Body.HSplitBottom(FooterHeight, &Body, &Footer);
 	const float StepEase = MenuEaseOutCubic(m_CreateRoomTransition);
 	const float StepOffsetX = (1.0f - StepEase) * L(14.0f);
 	Header.x += StepOffsetX;
@@ -4128,23 +4130,19 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 		Body.HSplitTop(L(22.0f), &Hint, &Body);
 		UI()->DoLabelScaled(&Hint, Localize("Select a mode, then continue."), 10.0f, -1);
 		Body.HSplitTop(L(4.0f), 0, &Body);
-		Body.HMargin(L(6.0f), &Body);
-		CUIRect ModeGrid, ModePreview;
-		const bool HasPreview = Body.w >= 660.0f;
+		Body.HMargin(L(4.0f), &Body);
+		CUIRect ModeGrid, PreviewColumn;
+		const float PreviewW = clamp(Body.w * 0.38f, L(260.0f), L(340.0f));
+		const bool HasPreview = Body.w >= PreviewW + L(300.0f) && Body.h >= L(220.0f);
 		if(HasPreview)
 		{
-			Body.VSplitRight(L(244.0f), &ModeGrid, &ModePreview);
-			ModeGrid.VSplitRight(L(8.0f), &ModeGrid, 0);
-			ModePreview.VSplitLeft(L(8.0f), 0, &ModePreview);
-			DrawTechShape(&ModePreview, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .16f), 9.0f);
-			DrawTechOutline(&ModePreview,
-							vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .18f),
-							vec4(0.0f, 0.02f, 0.04f, .12f),
-							9.0f);
+			Body.VSplitRight(PreviewW, &ModeGrid, &PreviewColumn);
+			ModeGrid.VSplitRight(L(10.0f), &ModeGrid, 0);
+			PreviewColumn.VSplitLeft(L(6.0f), 0, &PreviewColumn);
 		}
 		else
 			ModeGrid = Body;
-		const bool SingleColumn = ModeGrid.w < 650.0f;
+		const bool SingleColumn = ModeGrid.w < L(560.0f);
 		static CScrollRegion s_ModeScrollRegion;
 		vec2 ScrollOffset(0.0f, 0.0f);
 		CUIRect ModeContent = ModeGrid;
@@ -4158,9 +4156,9 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 		const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
 		const int Cols = SingleColumn ? 1 : 2;
 		const int Rows = (AllCount + Cols - 1) / Cols;
-		const float CardHeight = L(88.0f);
-		const float Gap = L(6.0f);
-		const float ColGap = L(4.0f);
+		const float CardHeight = ModeGrid.h >= L(360.0f) ? L(100.0f) : L(92.0f);
+		const float Gap = L(8.0f);
+		const float ColGap = L(6.0f);
 		CUIRect Group = ModeContent;
 		for(int Row = 0; Row < Rows; Row++)
 		{
@@ -4253,9 +4251,9 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			UI()->DoLabelScaled(&Footer, Localize("Training is available from the Play hub."), 10.0f, -1);
 		if(HasPreview)
 		{
-			const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
+			const int PreviewAllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
 			int PreviewIndex = 0;
-			for(int Index = 0; Index < AllCount; Index++)
+			for(int Index = 0; Index < PreviewAllCount; Index++)
 				if(s_aAllLocalModes[Index] == m_LocalServerFocus)
 				{
 					PreviewIndex = Index;
@@ -4263,20 +4261,52 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 				}
 			const int PreviewMode = s_aAllLocalModes[PreviewIndex];
 			const CLocalGameMode &Preview = LocalGameMode(PreviewMode);
+			// gamevotes/*.png are 512x256 — keep that 2:1 ratio; panel height follows content.
+			const float Pad = L(12.0f);
+			const float TitleH = L(24.0f);
+			const float NameH = L(24.0f);
+			const float DescH = L(42.0f);
+			const float MetaH = L(34.0f);
+			const float MechH = L(18.0f);
+			const float GapH = L(10.0f);
+			const float InnerW = max(1.0f, PreviewColumn.w - Pad * 2.0f);
+			const float ImageAspect = 2.0f;
+			const float NaturalImageH = InnerW / ImageAspect;
+			const float FixedH = Pad * 2.0f + TitleH + GapH + NameH + DescH + MetaH + MechH;
+			const float ImageH = min(NaturalImageH, max(L(48.0f), PreviewColumn.h - FixedH));
+			CUIRect ModePreview = PreviewColumn;
+			ModePreview.h = min(FixedH + ImageH, PreviewColumn.h);
+			DrawTechShape(&ModePreview, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .16f), 9.0f);
+			DrawTechOutline(&ModePreview,
+							vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, .18f),
+							vec4(0.0f, 0.02f, 0.04f, .12f),
+							9.0f);
 			CUIRect PreviewContent = ModePreview;
-			PreviewContent.Margin(L(12.0f), &PreviewContent);
+			PreviewContent.Margin(Pad, &PreviewContent);
 			CUIRect PreviewTitle;
-			PreviewContent.HSplitTop(L(26.0f), &PreviewTitle, &PreviewContent);
-			UI()->DoLabelScaled(&PreviewTitle, Localize("Choose a game mode"), 12.0f, -1);
-			CUIRect PreviewImage;
-			PreviewContent.HSplitTop(L(112.0f), &PreviewImage, &PreviewContent);
+			PreviewContent.HSplitTop(TitleH, &PreviewTitle, &PreviewContent);
+			UI()->DoLabelScaled(&PreviewTitle, Localize("Detail"), 12.0f, -1);
+			CUIRect ImageSlot;
+			PreviewContent.HSplitTop(ImageH, &ImageSlot, &PreviewContent);
+			// Letterbox inside the slot so the bitmap is never stretched.
+			CUIRect PreviewImage = ImageSlot;
+			if(ImageSlot.h > 0.0f && ImageSlot.w / ImageSlot.h > ImageAspect)
+			{
+				PreviewImage.w = ImageSlot.h * ImageAspect;
+				PreviewImage.x = ImageSlot.x + (ImageSlot.w - PreviewImage.w) * 0.5f;
+			}
+			else if(ImageSlot.w > 0.0f)
+			{
+				PreviewImage.h = ImageSlot.w / ImageAspect;
+				PreviewImage.y = ImageSlot.y + (ImageSlot.h - PreviewImage.h) * 0.5f;
+			}
 			DrawModeVoteImage(PreviewImage, Preview.m_pGameVoteImage, true);
-			PreviewContent.HSplitTop(L(12.0f), 0, &PreviewContent);
+			PreviewContent.HSplitTop(GapH, 0, &PreviewContent);
 			CUIRect PreviewName;
-			PreviewContent.HSplitTop(L(25.0f), &PreviewName, &PreviewContent);
+			PreviewContent.HSplitTop(NameH, &PreviewName, &PreviewContent);
 			UI()->DoLabelScaled(&PreviewName, Localize(Preview.m_pName), 15.0f, -1);
 			CUIRect PreviewDescription;
-			PreviewContent.HSplitTop(L(42.0f), &PreviewDescription, &PreviewContent);
+			PreviewContent.HSplitTop(DescH, &PreviewDescription, &PreviewContent);
 			UI()->DoLabelScaled(&PreviewDescription,
 								Localize(Preview.m_pDescription),
 								9.0f,
@@ -4284,12 +4314,18 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 								(int)PreviewDescription.w);
 			char aPreviewMeta[160];
 			str_format(aPreviewMeta,
-						   sizeof(aPreviewMeta),
-						   Localize("Recommended: %s players  ·  %s  ·  %s difficulty"),
-						   Preview.m_pRecommendedPlayers,
-						   Localize(Preview.m_pDuration),
-						   Localize(Preview.m_pRecommendedDifficulty));
-			UI()->DoLabelScaled(&PreviewContent, aPreviewMeta, 8.5f, -1, (int)PreviewContent.w);
+					   sizeof(aPreviewMeta),
+					   Localize("Recommended: %s players  ·  %s  ·  %s difficulty"),
+					   Preview.m_pRecommendedPlayers,
+					   Localize(Preview.m_pDuration),
+					   Localize(Preview.m_pRecommendedDifficulty));
+			CUIRect PreviewMeta;
+			PreviewContent.HSplitTop(MetaH, &PreviewMeta, &PreviewContent);
+			UI()->DoLabelScaled(&PreviewMeta, aPreviewMeta, 8.5f, -1, (int)PreviewMeta.w);
+			CUIRect Mechanics;
+			PreviewContent.HSplitTop(MechH, &Mechanics, &PreviewContent);
+			if(Mechanics.h > L(8.0f))
+				UI()->DoLabelScaled(&Mechanics, Localize(Preview.m_pMechanics), 8.5f, -1, (int)Mechanics.w);
 		}
 		return;
 	}
