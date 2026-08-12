@@ -136,16 +136,11 @@ bool CUI::KeyPress(int Key) const
 
 void CUI::ConvertMouseMove(float *x, float *y)
 {
-	// GetMousePosition pre-scales by InpMousesens. Undo that and apply menu
-	// sensitivity the teeworlds way: ui_mousesens / 100.
 	if(g_Config.m_InpMousesens > 0)
 	{
 		*x *= 100.0f / g_Config.m_InpMousesens;
 		*y *= 100.0f / g_Config.m_InpMousesens;
 	}
-	float Fac = g_Config.m_UiMousesens / 100.0f;
-	*x = *x * Fac;
-	*y = *y * Fac;
 }
 
 CUIRect *CUI::Screen()

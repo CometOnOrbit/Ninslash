@@ -9755,15 +9755,26 @@ bool CMenus::OnMouseMove(float x, float y)
 	if(!m_MenuActive)
 		return false;
 
-	Input()->SetMouseModes(0);
 	Input()->ShowCursor(g_Config.m_InpHWCursor);
 
 	// prev mouse position
 	m_PrevMousePos = m_MousePos;
 
-	UI()->ConvertMouseMove(&x, &y);
-	m_MousePos.x = x;
-	m_MousePos.y = y;
+	if(g_Config.m_InpHWCursor)
+	{
+		Input()->SetMouseModes(0);
+		UI()->ConvertMouseMove(&x, &y);
+		m_MousePos.x = x;
+		m_MousePos.y = y;
+	}
+	else
+	{
+		Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
+		Input()->GetRelativePosition(&x, &y);
+		const float Fac = g_Config.m_UiMousesens / 100.0f;
+		m_MousePos.x = clamp(m_MousePos.x + x * Fac, 0.0f, (float)Graphics()->ScreenWidth() - 1.0f);
+		m_MousePos.y = clamp(m_MousePos.y + y * Fac, 0.0f, (float)Graphics()->ScreenHeight() - 1.0f);
+	}
 
 	return true;
 }

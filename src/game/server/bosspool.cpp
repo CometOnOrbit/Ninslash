@@ -255,7 +255,7 @@ int CountAliveSpecialists(CGameWorld *pWorld)
 {
 	if(!pWorld)
 		return 0;
-	return 0 // For now.
+	return 0; // For now.
 	/*
 	CDroid *apEnts[256];
 	const int Num = pWorld->FindEntities(vec2(0, 0), 0.0f, (CEntity **)apEnts, 256, CGameWorld::ENTTYPE_DROID);

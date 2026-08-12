@@ -18,6 +18,8 @@
 #include <game/questinfo.h>
 #include <game/tutorial.h>
 
+static ivec2 FindStandableFallback(CGenLayer *pTiles, bool PreferBottom);
+
 CMapGen::CMapGen()
 {
 	m_pLayers = 0x0;
