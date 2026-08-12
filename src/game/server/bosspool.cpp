@@ -250,10 +250,13 @@ SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld,
 	return Result;
 }
 
+// TODO
 int CountAliveSpecialists(CGameWorld *pWorld)
 {
 	if(!pWorld)
 		return 0;
+	return 0 // For now.
+	/*
 	CDroid *apEnts[256];
 	const int Num = pWorld->FindEntities(vec2(0, 0), 0.0f, (CEntity **)apEnts, 256, CGameWorld::ENTTYPE_DROID);
 	int Specialists = 0;
@@ -276,7 +279,7 @@ int CountAliveSpecialists(CGameWorld *pWorld)
 				break;
 		}
 	}
-	return Specialists;
+	return Specialists;*/
 }
 
 int CountAliveBosses(CGameWorld *pWorld)

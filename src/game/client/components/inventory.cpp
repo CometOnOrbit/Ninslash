@@ -696,8 +696,8 @@ void CInventory::NotifyUpgradeFailed(int TargetSlot, int MaterialSlot)
 		SetActionFeedback(Localize("Move closer to a screen"), true);
 		return;
 	}
-	if(TargetSlot < 0 || MaterialSlot < 0 || TargetSlot == MaterialSlot || IsUpgradeSlot(TargetSlot) ||
-	   !IsUpgradeSlot(MaterialSlot))
+	if(TargetSlot < 0 || MaterialSlot < 0 || TargetSlot == MaterialSlot || !IsUpgradeSlot(MaterialSlot) ||
+	   !CustomStuff()->m_aItem[TargetSlot].IsValid())
 	{
 		SetActionFeedback(Localize("Select a target weapon"), true);
 		return;
@@ -1346,7 +1346,7 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 				{
 					int TargetSlot = m_ForgeTargetSlot;
 					if(DropTarget == InventoryLogic::FORGE_DROP_TARGET && TargetSlot >= 0 &&
-					   TargetSlot != m_DragItem && !IsUpgradeSlot(TargetSlot))
+					   TargetSlot != m_DragItem && CustomStuff()->m_aItem[TargetSlot].IsValid())
 					{
 						if(!TryUpgradeCombine(TargetSlot, m_DragItem))
 							NotifyUpgradeFailed(TargetSlot, m_DragItem);
@@ -1355,7 +1355,7 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 					{
 						m_ForgeMaterialSlot = m_DragItem;
 						if(m_ForgeTargetSlot >= 0 && m_ForgeTargetSlot != m_DragItem &&
-						   !IsUpgradeSlot(m_ForgeTargetSlot))
+						   CustomStuff()->m_aItem[m_ForgeTargetSlot].IsValid())
 						{
 							if(!TryUpgradeCombine(m_ForgeTargetSlot, m_DragItem))
 								NotifyUpgradeFailed(m_ForgeTargetSlot, m_DragItem);
@@ -1383,14 +1383,13 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 				const int DropSlot = HoveredCombat >= 0 ? HoveredCombat : HoveredBag;
 				if(m_DragItem != DropSlot)
 				{
-					// Upgrade cards only combine onto a real weapon; empty slots just take the move/swap.
+					// Upgrade cards combine onto weapons or another upgrade kit; empty slots swap/move.
 					if(IsUpgradeSlot(m_DragItem) || IsUpgradeSlot(DropSlot))
 					{
 						const int TargetSlot = IsUpgradeSlot(m_DragItem) ? DropSlot : m_DragItem;
 						const int MaterialSlot = IsUpgradeSlot(m_DragItem) ? m_DragItem : DropSlot;
 						const bool TargetOk = TargetSlot >= 0 && TargetSlot < InventoryLogic::NUM_SLOTS &&
-											  CustomStuff()->m_aItem[TargetSlot].IsValid() &&
-											  !IsUpgradeSlot(TargetSlot);
+											  CustomStuff()->m_aItem[TargetSlot].IsValid();
 						if(TargetOk)
 						{
 							if(!TryUpgradeCombine(TargetSlot, MaterialSlot))
