@@ -328,7 +328,7 @@ void CInventory::ConKeyInventory(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
 	{
-		const int OpenTab = pSelf->ForgeMode() == 2 && pSelf->ForgeScreenNear() ? InventoryLogic::TAB_FORGE
+		const int OpenTab = pSelf->ForgeMode() >= 2 && pSelf->ForgeScreenNear() ? InventoryLogic::TAB_FORGE
 																				: InventoryLogic::TAB_INVENTORY;
 		if(!pSelf->m_Render || pSelf->m_Tab == OpenTab)
 		{
@@ -634,9 +634,18 @@ void CInventory::Swap(int Item1, int Item2)
 bool CInventory::SubmitForgeSlots(int TargetSlot, int MaterialSlot)
 {
 	if(m_ForgePending || TargetSlot < 0 || TargetSlot >= 12 || MaterialSlot < 0 || MaterialSlot >= 12 ||
-	   TargetSlot == MaterialSlot ||
-	   !InventoryLogic::ForgeUsable(ForgeMode(), ForgeScreenNear()))
+	   TargetSlot == MaterialSlot)
 		return false;
+
+	CResolvedWeaponProfile MaterialProfile{};
+	const bool MaterialIsUpgrade =
+		CWeaponCatalog::TryResolve(CustomStuff()->m_aItem[MaterialSlot], &MaterialProfile) &&
+		WeaponHasBehavior(MaterialProfile.m_Definition, WEAPON_BEHAVIOR_UPGRADE);
+	// Mode 3: Upgrade drag works anywhere; other forge still needs a screen.
+	if(!InventoryLogic::ForgeUsable(ForgeMode(), ForgeScreenNear()) &&
+	   !(ForgeMode() == 3 && MaterialIsUpgrade))
+		return false;
+
 	const CNetObj_GameInfo *pGameInfo = m_pClient->m_Snap.m_pGameInfoObj;
 	if(!pGameInfo)
 		return false;
@@ -668,6 +677,8 @@ bool CInventory::SubmitUpgradeDrag(int TargetSlot, int MaterialSlot)
 	if(ForgeMode() < 1 || TargetSlot < 0 || TargetSlot >= 12 || MaterialSlot < 0 ||
 	   MaterialSlot >= 12 || TargetSlot == MaterialSlot)
 		return false;
+
+	// Mode 2 needs a forge screen; mode 3 allows Upgrade drag anywhere.
 	if(ForgeMode() == 2 && !ForgeScreenNear())
 		return false;
 

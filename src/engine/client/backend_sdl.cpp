@@ -1080,6 +1080,9 @@ void CCommandProcessorFragment_SDL::Cmd_VideoModes(const CCommandBuffer::SComman
 		if(Skip)
 			continue;
 
+		if(ppModes[i]->w <= 0 || ppModes[i]->h <= 0)
+			continue;
+
 		if(NumModes >= pCommand->m_MaxModes)
 			break;
 

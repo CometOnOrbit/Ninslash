@@ -679,7 +679,9 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 		Reject(FORGERESULT_DISABLED);
 		return;
 	}
-	if(g_Config.m_SvForgeMode >= 2)
+	// Mode 3: Upgrade materials can forge anywhere; other recipes still need a screen.
+	if(g_Config.m_SvForgeMode == 2 ||
+	   (g_Config.m_SvForgeMode == 3 && !HasWeaponBehavior(pMaterial, WEAPON_BEHAVIOR_UPGRADE)))
 	{
 		bool ScreenNear = false;
 		for(CBuilding *pBuilding = (CBuilding *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_BUILDING);

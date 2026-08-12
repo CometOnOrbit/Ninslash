@@ -2531,15 +2531,21 @@ void CMenus::UpdatedFilteredVideoModes()
 	m_lRecommendedVideoModes.clear();
 	m_lOtherVideoModes.clear();
 
-	const int DesktopG = gcd(Graphics()->DesktopWidth(), Graphics()->DesktopHeight());
-	const int DesktopWidthG = Graphics()->DesktopWidth() / DesktopG;
-	const int DesktopHeightG = Graphics()->DesktopHeight() / DesktopG;
+	const int DesktopW = Graphics()->DesktopWidth();
+	const int DesktopH = Graphics()->DesktopHeight();
+	const int DesktopG = gcd(DesktopW, DesktopH);
+	const int DesktopWidthG = DesktopG > 0 ? DesktopW / DesktopG : 0;
+	const int DesktopHeightG = DesktopG > 0 ? DesktopH / DesktopG : 0;
 
 	for(int i = 0; i < m_NumModes; i++)
 	{
+		if(m_aModes[i].m_Width <= 0 || m_aModes[i].m_Height <= 0)
+			continue;
+
 		const int G = gcd(m_aModes[i].m_Width, m_aModes[i].m_Height);
-		if(m_aModes[i].m_Width / G == DesktopWidthG && m_aModes[i].m_Height / G == DesktopHeightG &&
-		   m_aModes[i].m_Width <= Graphics()->DesktopWidth() && m_aModes[i].m_Height <= Graphics()->DesktopHeight())
+		if(G > 0 && DesktopG > 0 && m_aModes[i].m_Width / G == DesktopWidthG &&
+		   m_aModes[i].m_Height / G == DesktopHeightG && m_aModes[i].m_Width <= DesktopW &&
+		   m_aModes[i].m_Height <= DesktopH)
 		{
 			m_lRecommendedVideoModes.add(m_aModes[i]);
 		}
@@ -8601,6 +8607,7 @@ int CMenus::Render()
 
 	if(Client()->State() == IClient::STATE_ONLINE)
 	{
+		RenderIngameBackdrop(m_MenuOpenTransition);
 		ms_ColorTabbarInactive = ms_ColorTabbarInactiveIngame;
 		ms_ColorTabbarActive = ms_ColorTabbarActiveIngame;
 	}
@@ -9990,6 +9997,23 @@ void CMenus::OnRender()
 }
 
 static float s_ShaderIntensity = 0.1f;
+
+void CMenus::RenderIngameBackdrop(float Amount)
+{
+	const float A = clamp(Amount, 0.0f, 1.0f);
+	if(A <= 0.001f)
+		return;
+
+	CUIRect Full = *UI()->Screen();
+	Graphics()->MapScreen(Full.x, Full.y, Full.w, Full.h);
+
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0.01f, 0.015f, 0.02f, 0.78f * A);
+	IGraphics::CQuadItem Backdrop(Full.x, Full.y, Full.w, Full.h);
+	Graphics()->QuadsDrawTL(&Backdrop, 1);
+	Graphics()->QuadsEnd();
+}
 
 void CMenus::RenderBackground()
 {

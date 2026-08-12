@@ -712,6 +712,7 @@ class CMenus : public CComponent
 
   public:
 	void RenderBackground();
+	void RenderIngameBackdrop(float Amount);
 	void RenderTutorialChapterSelect(CUIRect MainView);
 
 	void UseMouseButtons(bool Use) { m_UseMouseButtons = Use; }
