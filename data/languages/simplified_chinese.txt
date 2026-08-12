@@ -235,9 +235,6 @@ Author
 Automatic
 == 自动
 
-Automatic by Invasion floor
-== 由入侵楼层自动选择
-
 Available
 == 已解锁
 
@@ -549,6 +546,9 @@ Description
 
 Desktop notifications
 == 桌面通知
+
+Detail
+== 详情
 
 Details
 == 详情

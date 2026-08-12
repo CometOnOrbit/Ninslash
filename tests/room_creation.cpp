@@ -9,7 +9,7 @@
 int main()
 {
 	const CRoomModeDefaults Expected[] = {{4, 5, 0, 0},
-										  {6, 5, 0, 20},
+										  {6, 5, 0, 0},
 										  {4, 5, 0, 4},
 										  {5, 3, 4, 20},
 										  {8, 8, 4, 50},

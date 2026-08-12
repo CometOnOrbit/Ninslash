@@ -71,7 +71,7 @@ inline CRoomModeDefaults RoomModeDefaults(int Mode)
 	static const CRoomModeDefaults s_aDefaults[] = {
 		{1, 1, 0, 0}, // Tutorial, unavailable in normal room creation.
 		{4, 5, 0, 0},
-		{6, 5, 0, 20},
+		{6, 5, 0, 0},
 		{4, 5, 0, 4},
 		{5, 3, 4, 20},
 		{8, 8, 4, 50},

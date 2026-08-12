@@ -3045,7 +3045,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 	pSettings->m_pConfig = pSettings->m_pMode->m_pConfig;
 	pSettings->m_Map = clamp(g_Config.m_ClLocalServerMap, 0, pSettings->m_pMode->m_MapCount - 1);
 	pSettings->m_pMapName = pSettings->m_pMode->m_SelectableMap ? pSettings->m_pMode->m_ppMapNames[pSettings->m_Map]
-																: "Automatic by Invasion floor";
+																: "Automatic";
 	pSettings->m_pMapCommand =
 		pSettings->m_pMode->m_SelectableMap ? pSettings->m_pMode->m_ppMapCommands[pSettings->m_Map] : 0;
 	if(g_Config.m_ClLocalServerWorkshopMap[0])
@@ -4454,7 +4454,7 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 						&s_MapPrevious,
 						&s_MapNext,
 						Localize(ModeDef.m_SelectableMap ? ModeDef.m_ppMapNames[g_Config.m_ClLocalServerMap]
-														 : "Automatic by Invasion floor"));
+														 : "Automatic"));
 	if(ModeDef.m_SelectableMap && Delta)
 		g_Config.m_ClLocalServerMap = (g_Config.m_ClLocalServerMap + Delta + ModeDef.m_MapCount) % ModeDef.m_MapCount;
 
@@ -4513,7 +4513,13 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	{
 		SplitRow(MainSettings, &Label, &Control);
 		UI()->DoLabelScaled(&Label, Localize(LocalGameRuleLabel(ModeDef.m_Rule)), 11.0f, -1);
-		str_format(aLabel, sizeof(aLabel), ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? Localize("%d min") : "%d", *pRule);
+		if(ModeDef.m_Rule == LOCAL_RULE_HORDE && *pRule == 0)
+			str_copy(aLabel, Localize("Endless"), sizeof(aLabel));
+		else
+			str_format(aLabel,
+					   sizeof(aLabel),
+					   ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? Localize("%d min") : "%d",
+					   *pRule);
 		Delta = Stepper(Control, &s_RulePrevious, &s_RuleNext, aLabel);
 		int Step = ModeDef.m_Rule == LOCAL_RULE_CTF_SCORE ? 25 : ModeDef.m_Rule >= LOCAL_RULE_DM_SCORE ? 5 : 1;
 		int Minimum = ModeDef.m_Rule == LOCAL_RULE_HORDE ? 0 : ModeDef.m_Rule == LOCAL_RULE_EXTRACTION ? 2 : 1;
@@ -5193,7 +5199,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		else if(g_Config.m_ClLocalServerMode != LOCAL_MODE_TUTORIAL)
 		{
 			UI()->DoLabelScaled(&Label, Localize("Map selection"), 12.0f, -1);
-			UI()->DoLabelScaled(&Control, Localize("Automatic by Invasion floor"), 11.0f, -1);
+			UI()->DoLabelScaled(&Control, Localize("Automatic"), 11.0f, -1);
 		}
 
 		if(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION)
@@ -5362,7 +5368,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			if(DoButton_Menu(&s_RuleNext, "+", 0, &Next))
 				AdjustModeRule(1);
 			if(g_Config.m_ClLocalServerMode == LOCAL_MODE_HORDE && g_Config.m_ClLocalServerHordeWaves == 0)
-				str_copy(aLabel, Localize("Endless"), sizeof(aLabel));
+				str_copy(aLabel, Localize("Infinite"), sizeof(aLabel));
 			else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_HORDE)
 				str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerHordeWaves);
 			else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_EXTRACTION)
