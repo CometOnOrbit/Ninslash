@@ -115,7 +115,7 @@ void CMaze::Generate()
 			}
 
 			// a few side pockets keep the maze readable without opening huge arenas
-			const int Extra = 2 + rand() % 3;
+			const int Extra = 2 + irandom(3);
 			for(int i = 0; i < Extra; i++)
 				GenerateRoom(true);
 
@@ -550,9 +550,9 @@ void CMaze::GenerateRoom(bool AutoConnect, bool MirrorMode)
 				Connect(p, GetClosestRoom(p));
 
 			m_aRoom[m_Rooms] = p;
-			Open(m_aRoom[m_Rooms], 1 + rand() % 4);
+			Open(m_aRoom[m_Rooms], 1 + irandom(4));
 
-			//	Connect(p, m_aRoom[rand()%m_Rooms]);
+			//	Connect(p, m_aRoom[irandom()%m_Rooms]);
 
 			m_Rooms++;
 			return;
@@ -565,8 +565,8 @@ void CMaze::ConnectRandomRooms()
 	if(m_Rooms < 2)
 		return;
 
-	const int r0 = rand() % m_Rooms;
-	int r1 = rand() % (m_Rooms - 1);
+	const int r0 = irandom(m_Rooms);
+	int r1 = irandom(m_Rooms - 1);
 	if(r1 >= r0)
 		r1++;
 	Connect(m_aRoom[r0], m_aRoom[r1]);
@@ -633,7 +633,7 @@ ivec2 CMaze::GetUnconnected()
 	// check random spots
 	while(Looping && i++ < 1000)
 	{
-		ivec2 p = ivec2(1 + rand() % (m_W - 2), 1 + rand() % (m_H - 2));
+		ivec2 p = ivec2(1 + irandom(m_W - 2), 1 + irandom(m_H - 2));
 		if(m_aOpen[p.x + p.y * m_W] && !m_aConnected[p.x + p.y * m_W])
 			return p;
 	}

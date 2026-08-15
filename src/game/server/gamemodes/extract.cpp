@@ -608,7 +608,7 @@ void CGameControllerExtract::RunEvent()
 	{
 		case EXTRACT_EVT_REINFORCEMENTS:
 		{
-			const int Count = 3 + rand() % 4;
+			const int Count = 3 + irandom(4);
 			for(int i = 0; i < Count; i++)
 				GameServer()->AddBot();
 			GameServer()->SendBroadcast("Event: Reinforcements inbound!", -1);
@@ -642,7 +642,7 @@ void CGameControllerExtract::RunEvent()
 		case EXTRACT_EVT_TRAP_ZONE:
 		{
 			// Traps are baked into the generated maze; pressure rises instead.
-			const int Count = 4 + rand() % 3;
+			const int Count = 4 + irandom(3);
 			for(int i = 0; i < Count; i++)
 				GameServer()->AddBot();
 			GameServer()->SendBroadcast("Event: Trap zone ahead!", -1);
@@ -846,7 +846,7 @@ void CGameControllerExtract::Tick()
 		// Regular reinforcement pressure while evacuating.
 		if(m_ReinforceTick && Server()->Tick() >= m_ReinforceTick)
 		{
-			const int Count = 2 + rand() % 3;
+			const int Count = 2 + irandom(3);
 			for(int i = 0; i < Count; i++)
 				GameServer()->AddBot();
 			m_ReinforceTick = Server()->Tick() + Server()->TickSpeed() * 20;

@@ -1,5 +1,3 @@
-#include <random>
-
 #include <stdio.h> // sscanf
 #include <base/system.h>
 #include <base/math.h>
@@ -284,8 +282,15 @@ void CMapGen::FillMap()
 	m_HasModularInfo = false;
 	m_HasPathInfo = false;
 
-	for(int i = 0; i < g_Config.m_SvMapGenLevel; i++)
-		rand();
+	if(g_Config.m_SvMapGenRandSeed)
+	{
+		g_Config.m_SvMapGenSeed = (int)((unsigned long long)time_get() % 0x7FFFFFFFull);
+		if(g_Config.m_SvMapGenSeed <= 0)
+			g_Config.m_SvMapGenSeed = 1;
+		g_Config.m_SvMapGenRandSeed = 0;
+	}
+	seed_random(DeterministicSeed((unsigned long long)(unsigned)g_Config.m_SvMapGenSeed, "mapgen") +
+				(unsigned long long)(unsigned)g_Config.m_SvMapGenLevel);
 
 	FitTutorialCanvas();
 	FitRoamAtlasCanvas();
@@ -323,12 +328,7 @@ void CMapGen::FillMap()
 	ProcessTime = time_get();
 
 	if(str_comp(g_Config.m_SvGametype, "roam") == 0)
-	{
-		if(g_Config.m_SvMapGenRandSeed)
-			g_Config.m_SvMapGenSeed = (int)(time_get() % 32768);
-		srand((unsigned)g_Config.m_SvMapGenSeed + (unsigned)g_Config.m_SvMapGenLevel);
 		GenerateRoamLevel();
-	}
 	else if(IsCoopMapGenGametype(g_Config.m_SvGametype))
 		GenerateLevel();
 	else
@@ -1201,13 +1201,13 @@ void CMapGen::GenerateLevel()
 	// Extraction mazes get extra platforms for vertical complexity.
 	if(str_comp(g_Config.m_SvGametype, "extract") == 0)
 	{
-		const int Platforms = max(3, n / 3) + rand() % 2;
+		const int Platforms = max(3, n / 3) + irandom(2);
 		pTiles->GenerateAirPlatforms(Platforms);
 	}
 	else if(InvasionThemeFromLevel(Level) != INVASION_THEME_ACID_ESCAPE)
 	{
 		if(n > 1)
-			pTiles->GenerateAirPlatforms(n / 2 + rand() % (n / 2));
+			pTiles->GenerateAirPlatforms(n / 2 + irandom(n / 2));
 		else
 			pTiles->GenerateAirPlatforms(n);
 	}
@@ -1414,20 +1414,39 @@ void CMapGen::GenerateLevel()
 			for(int i = 0; i < 3; i++)
 				GenerateAmmo(pTiles);
 		}
-		else if(Chapter == TUTORIAL_CHAPTER_FORGE)
+		else if(Chapter == TUTORIAL_CHAPTER_FORGE || Chapter == TUTORIAL_CHAPTER_BUILD)
 		{
-			for(int i = 0; i < 4; i++)
-				GenerateAmmo(pTiles);
-			for(int i = 0; i < 4; i++)
-				GenerateArmor(pTiles);
-			for(int i = 0; i < 4; i++)
-				GenerateWeapon(pTiles, ENTITY_KIT);
-		}
-		else if(Chapter == TUTORIAL_CHAPTER_BUILD)
-		{
-			GeneratePowerupper(pTiles);
-			for(int i = 0; i < 3; i++)
-				GenerateWeapon(pTiles, ENTITY_KIT);
+			const int WantedKits = Chapter == TUTORIAL_CHAPTER_FORGE ? 4 : 3;
+			const int W = pTiles->Width();
+			const int H = pTiles->Height();
+			unsigned char *pSolid = (unsigned char *)mem_alloc(W * H, 1);
+			int Kits = 0;
+			if(pSolid)
+			{
+				for(int y = 0; y < H; y++)
+					for(int x = 0; x < W; x++)
+						pSolid[y * W + x] = pTiles->Get(x, y) ? 1 : 0;
+				int aX[8];
+				int aY[8];
+				Kits = TutorialPickKitSpots(pSolid, W, H, WantedKits, aX, aY);
+				for(int i = 0; i < Kits; i++)
+				{
+					ModifTile(ivec2(aX[i], aY[i]), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_KIT);
+					pTiles->Use(aX[i], aY[i]);
+					dbg_msg("mapgen", "tutorial kit %d/%d at %d,%d", i + 1, Kits, aX[i], aY[i]);
+				}
+				mem_free(pSolid);
+			}
+			dbg_msg("mapgen", "tutorial kits placed %d/%d", Kits, WantedKits);
+			if(Chapter == TUTORIAL_CHAPTER_FORGE)
+			{
+				for(int i = 0; i < 4; i++)
+					GenerateAmmo(pTiles);
+				for(int i = 0; i < 4; i++)
+					GenerateArmor(pTiles);
+			}
+			else
+				GeneratePowerupper(pTiles);
 		}
 
 		delete pRoom;
@@ -1470,7 +1489,7 @@ void CMapGen::GenerateLevel()
 			return true;
 		};
 
-		const int Wanted = 3 + rand() % 3; // 3–5
+		const int Wanted = 3 + irandom(3); // 3–5
 		const int MinDist = max(28, min(pTiles->Width(), pTiles->Height()) / 5);
 		ivec2 aPlaced[8];
 		int Placed = 0;
@@ -1537,7 +1556,7 @@ void CMapGen::GenerateLevel()
 
 	// conveyor belts
 	{
-		int c = rand() % (min(6, 1 + Level / 2));
+		int c = irandom(min(6, 1 + Level / 2));
 		c = (c + HazardDiv - 1) / HazardDiv;
 		for(int i = 0; i < c; i++)
 			GenerateConveyorBelt(pTiles);
@@ -1545,7 +1564,7 @@ void CMapGen::GenerateLevel()
 
 	// hangables
 	{
-		int c = 1 + rand() % (min(11, 1 + Level / 4));
+		int c = 1 + irandom(min(11, 1 + Level / 4));
 		c = (c + HazardDiv - 1) / HazardDiv;
 		for(int i = 0; i < c; i++)
 			GenerateHangables(pTiles);
@@ -1640,7 +1659,7 @@ void CMapGen::GenerateLevel()
 	// lightning walls
 	if(Level > 1)
 	{
-		int l = 1 + rand() % min(10, 1 + Level / 2);
+		int l = 1 + irandom(min(10, 1 + Level / 2));
 		for(int i = 0; i < l; i++)
 			GenerateLightningWall(pTiles);
 	}
@@ -1656,7 +1675,7 @@ void CMapGen::GenerateLevel()
 	// pickups
 	// for (int i = 0; i < (pTiles->Size()-Level*5)/700; i++)
 
-	// w = 2 + rand()%3 + (Level > 15 ? 1 : 0);
+	// w = 2 + irandom()%3 + (Level > 15 ? 1 : 0);
 
 	w = 4 + min(4, Level / 3);
 	if(ExtractMode || str_comp(g_Config.m_SvGametype, "horde") == 0)
@@ -1719,7 +1738,7 @@ void CMapGen::GenerateLevel()
 	/*
 	if (Level%3 == 0 || Level%7 == 0 || Level%13 == 0 || Level%17 == 0)
 	{
-		int w = 1+rand()%(1+min(Level/4, 4));
+		int w = 1 + irandom(1 + min(Level / 4, 4));
 
 		for (int i = 0; i < w; i++)
 			GenerateWalker(pTiles);
@@ -1744,7 +1763,7 @@ void CMapGen::GenerateLevel()
 		GenerateStarDroid(pTiles);
 
 	// barrels
-	int b = max(4, 15 - Level / 3) + rand() % 3;
+	int b = max(4, 15 - Level / 3) + irandom(3);
 
 	for(int i = 0; i < (pTiles->NumPlatforms() + pTiles->NumMedPlatforms()) / b; i++)
 		GenerateBarrel(pTiles);
@@ -1754,7 +1773,7 @@ void CMapGen::GenerateLevel()
 	if (Level > 5)
 		if (Level%4 == 0 || Level%7 == 0 || Level%11 == 0 || Level%17 == 0)
 		{
-			int w = 1+rand()%(1+min(Level/4, 4));
+			int w = 1 + irandom(1 + min(Level / 4, 4));
 
 			for (int i = 0; i < w; i++)
 				GenerateStarDroid(pTiles);
@@ -2056,7 +2075,7 @@ void CMapGen::GeneratePVPLevel()
 	pTiles->GenerateMoreBackground();
 
 	if(n > 1)
-		pTiles->GenerateAirPlatforms(n / 2 + rand() % (n / 2));
+		pTiles->GenerateAirPlatforms(n / 2 + irandom(n / 2));
 	else
 		pTiles->GenerateAirPlatforms(n);
 
@@ -2185,13 +2204,13 @@ void CMapGen::GeneratePVPLevel()
 
 	// conveyor belts
 	{
-		int c = 2 + rand() % 8;
+		int c = 2 + irandom(8);
 		for(int i = 0; i < c; i++)
 			GenerateConveyorBelt(pTiles);
 	}
 
 	// hangables
-	int c = 2 + rand() % 4;
+	int c = 2 + irandom(4);
 	for(int i = 0; i < c; i++)
 		GenerateHangables(pTiles);
 
@@ -2207,7 +2226,7 @@ void CMapGen::GeneratePVPLevel()
 		GeneratePowerupper(pTiles);
 
 	// barrels
-	int b = 5 + rand() % 3;
+	int b = 5 + irandom(3);
 
 	for(int i = 0; i < (pTiles->NumPlatforms() + pTiles->NumMedPlatforms()) / b; i++)
 		GenerateBarrel(pTiles);
@@ -2233,7 +2252,7 @@ void CMapGen::GeneratePVPLevel()
 
 	while(Obs-- > 0)
 	{
-		switch(rand() % 6)
+		switch(irandom(6))
 		{
 			case 0:
 			case 1:
@@ -2498,7 +2517,7 @@ void CMapGen::Proceed(CGenLayer *pTiles, int ConfigID)
 
 					if(RespectRules && aRuleYMatches[i] &&
 					   (pIndexRule->m_RandomValue <= 1 ||
-						(int)((float)rand() / ((float)RAND_MAX + 1) * pIndexRule->m_RandomValue) == 1))
+						irandom(pIndexRule->m_RandomValue) == 1))
 					{
 						pLayerTiles[TileIndex] = pIndexRule->m_ID;
 						pLayerFlags[TileIndex] = pIndexRule->m_Flag;

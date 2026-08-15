@@ -39,7 +39,6 @@ CGameControllerTutorial::CGameControllerTutorial(CGameContext *pGameServer)
 	g_Config.m_SvMapGenLevel = Chapter;
 	g_Config.m_SvMapGenSeed = TutorialFixedSeed(Chapter);
 	g_Config.m_SvMapGenRandSeed = 0;
-	srand(g_Config.m_SvMapGenSeed);
 	dbg_msg("tutorial",
 			"TUT controller chapter=%d seed=%d pvp=%d",
 			Chapter,

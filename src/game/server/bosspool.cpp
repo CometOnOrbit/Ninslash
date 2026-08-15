@@ -76,7 +76,7 @@ int SelectBossType(int Depth)
 		Types[Count++] = DROIDTYPE_BOSSSTAR;
 	if(Depth >= 8) // I like this one so... Uuu
 		Types[Count++] = DROIDTYPE_BOSSSPLITTER;
-	return Types[rand() % Count];
+	return Types[irandom(Count)];
 }
 
 bool FindBossSpawnPosition(
@@ -233,7 +233,7 @@ SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld,
 			aTypes[NumTypes++] = DROIDTYPE_CYCLONECRAWLER;
 		}
 
-		const int Type = aTypes[rand() % NumTypes];
+		const int Type = aTypes[irandom(NumTypes)];
 		const int Cost = DroidThreatCost(Type);
 		if(Result.m_ThreatSpent + Cost > SpendLimit)
 			break;

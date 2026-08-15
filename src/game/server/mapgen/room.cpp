@@ -31,9 +31,9 @@ CRoomGenerated::CRoomGenerated(int x, int y, int w, int h)
 	m_pChild1 = 0;
 	m_pChild2 = 0;
 
-	int RoomSize = 7 + rand() % 6;
+	int RoomSize = 7 + irandom(6);
 	if(str_comp(g_Config.m_SvGametype, "extract") == 0)
-		RoomSize = 5 + rand() % 3;
+		RoomSize = 5 + irandom(3);
 
 	if(m_H < m_W)
 	{
@@ -73,10 +73,10 @@ void CRoomGenerated::Split(bool Vertical)
 			const int SplitRange = m_H - 6;
 			if(SplitRange <= 0)
 				return;
-			m_H = 3 + rand() % SplitRange;
+			m_H = 3 + irandom(SplitRange);
 		}
 		else
-			m_H = m_H / (2 + rand() % 2);
+			m_H = m_H / (2 + irandom(2));
 
 		if(!m_pChild1)
 			m_pChild1 = new CRoomGenerated(m_X, m_Y, m_W, m_H);
@@ -93,10 +93,10 @@ void CRoomGenerated::Split(bool Vertical)
 			const int SplitRange = m_W - 6;
 			if(SplitRange <= 0)
 				return;
-			m_W = 3 + rand() % SplitRange;
+			m_W = 3 + irandom(SplitRange);
 		}
 		else
-			m_W = m_W / (2 + rand() % 2);
+			m_W = m_W / (2 + irandom(2));
 
 		if(!m_pChild1)
 			m_pChild1 = new CRoomGenerated(m_X, m_Y, m_W, m_H);

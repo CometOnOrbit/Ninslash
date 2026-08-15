@@ -117,7 +117,7 @@ CPveDirector::CPveDirector(CGameContext *pGameServer)
 	m_EndTick = 0;
 	m_LastIntermissionSyncTick = 0;
 	m_PerkTargetChoices = 0;
-	m_NextNonce = 1 + rand();
+	m_NextNonce = 1 + irandom();
 	m_WasWorldPaused = false;
 	m_PerkAfterContract = false;
 	m_aContractOptions[0] = -1;
@@ -260,13 +260,13 @@ int CPveDirector::DrawCard(int ClientID, const bool *pExcluded, int RequiredSpec
 			WeightTotal += aRarityWeights[Rarity];
 	if(WeightTotal <= 0)
 		return -1;
-	int Pick = rand() % WeightTotal;
+	int Pick = irandom(WeightTotal);
 	for(int Rarity = 0; Rarity < 4; Rarity++)
 	{
 		if(aCount[Rarity] <= 0)
 			continue;
 		if(Pick < aRarityWeights[Rarity])
-			return aaEligible[Rarity][rand() % aCount[Rarity]];
+			return aaEligible[Rarity][irandom(aCount[Rarity])];
 		Pick -= aRarityWeights[Rarity];
 	}
 	return -1;
@@ -484,10 +484,10 @@ void CPveDirector::BeginContractVote(bool PerkAfterContract)
 			FinishIntermission();
 		return;
 	}
-	const int Pick0 = rand() % Count;
+	const int Pick0 = irandom(Count);
 	m_aContractOptions[0] = aPool[Pick0];
 	aPool[Pick0] = aPool[--Count];
-	m_aContractOptions[1] = aPool[rand() % Count];
+	m_aContractOptions[1] = aPool[irandom(Count)];
 	m_UsedContracts |= (1 << m_aContractOptions[0]) | (1 << m_aContractOptions[1]);
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		if(IsEligiblePlayer(i))
@@ -546,7 +546,7 @@ void CPveDirector::FinishContractVote()
 		else if(m_aPlayers[i].m_ContractVote == m_aContractOptions[1])
 			aVotes[1]++;
 	}
-	const int Winner = aVotes[0] == aVotes[1] ? rand() % 2 : (aVotes[1] > aVotes[0]);
+	const int Winner = aVotes[0] == aVotes[1] ? irandom(2) : (aVotes[1] > aVotes[0]);
 	m_ActiveContract = m_aContractOptions[Winner];
 	m_ContractState = PVE_CONTRACT_STATE_ACTIVE;
 	m_ContractStartTick = 0;
@@ -842,7 +842,7 @@ void CPveDirector::Tick()
 				continue;
 			while(m_aPlayers[i].m_Choices < m_PerkTargetChoices)
 			{
-				const int Slot = rand() % 3;
+				const int Slot = irandom(3);
 				ApplyChoice(i, m_aPlayers[i].m_aOffered[Slot]);
 				if(m_aPlayers[i].m_Choices < m_PerkTargetChoices)
 				{

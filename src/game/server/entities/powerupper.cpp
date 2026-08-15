@@ -1,3 +1,4 @@
+#include <base/math.h>
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
@@ -61,7 +62,7 @@ void CPowerupper::Tick()
 		while (m_Item < 0 || m_Item == PLAYERITEM_FILL || m_Item == PLAYERITEM_LANDMINE || m_Item ==
 		PLAYERITEM_ELECTROMINE || (m_Item == PLAYERITEM_FUEL && g_Config.m_SvUnlimitedTurbo))
 		{
-			m_Item = rand()%NUM_PLAYERITEMS;
+			m_Item = irandom(NUM_PLAYERITEMS);
 			if (frandom() < 0.4f)
 				m_Item = PLAYERITEM_UPGRADE;
 		}

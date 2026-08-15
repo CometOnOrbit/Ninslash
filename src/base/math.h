@@ -4,6 +4,7 @@
 #define BASE_MATH_H
 
 #include <stdlib.h>
+#include <base/deterministic_random.h>
 
 const float invsqrt2 = 0.7071067811865475244f;
 
@@ -35,7 +36,7 @@ template <typename T, typename TB> inline T mix(const T a, const T b, TB amount)
 
 inline float frandom()
 {
-	return rand() / (float)(RAND_MAX);
+	return GameRandom().NextFloat();
 }
 
 // float to fixed

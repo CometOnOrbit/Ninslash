@@ -1,5 +1,5 @@
-#ifndef GAME_DETERMINISTIC_RANDOM_H
-#define GAME_DETERMINISTIC_RANDOM_H
+#ifndef BASE_DETERMINISTIC_RANDOM_H
+#define BASE_DETERMINISTIC_RANDOM_H
 
 class CDeterministicRandom
 {
@@ -14,10 +14,13 @@ class CDeterministicRandom
 	}
 
   public:
-	CDeterministicRandom(unsigned long long Seed)
+	CDeterministicRandom() { Seed(0x9E3779B97F4A7C15ull); }
+	explicit CDeterministicRandom(unsigned long long Seed) { this->Seed(Seed); }
+
+	void Seed(unsigned long long Seed)
 	{
 		m_State = Seed ? Seed : 0x9E3779B97F4A7C15ull;
-		SplitMix64(m_State); // warm up
+		SplitMix64(m_State);
 	}
 
 	// [0, Max)
@@ -49,6 +52,28 @@ inline unsigned long long DeterministicSeed(unsigned long long Base, const char 
 	for(; *pDomain; pDomain++)
 		h = h * 131 + (unsigned char)*pDomain;
 	return h;
+}
+
+// Process-wide content stream. Same seed => same irandom/frandom on every libc.
+inline CDeterministicRandom &GameRandom()
+{
+	static CDeterministicRandom s_Rng;
+	return s_Rng;
+}
+
+inline void seed_random(unsigned long long Seed)
+{
+	GameRandom().Seed(Seed);
+}
+
+inline int irandom(int Max)
+{
+	return GameRandom().NextInt(Max);
+}
+
+inline int irandom()
+{
+	return GameRandom().NextInt(0x7fffffff);
 }
 
 #endif

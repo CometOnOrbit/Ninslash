@@ -90,5 +90,30 @@ int main()
 	Tutorial.Start(99, 99, 0);
 	Ok &= Expect(Tutorial.State().m_Chapter == TUTORIAL_CHAPTER_DEPLOYMENT && Tutorial.State().m_Step == 0,
 				 "sanitize resume state");
+
+	Ok &= Expect(TutorialPickupSpotOk(0, 1) && !TutorialPickupSpotOk(0, 0) && !TutorialPickupSpotOk(1, 1),
+				 "kit spots are empty tiles on a floor");
+	{
+		// 8x4 corridor: reserved-looking walkable air must still accept kits.
+		const int W = 8;
+		const int H = 4;
+		unsigned char aSolid[32];
+		for(int i = 0; i < 32; i++)
+			aSolid[i] = 0;
+		for(int x = 0; x < W; x++)
+		{
+			aSolid[0 * W + x] = 1;
+			aSolid[3 * W + x] = 1;
+		}
+		int aX[4];
+		int aY[4];
+		Ok &= Expect(TutorialPickKitSpots(aSolid, W, H, 4, aX, aY) == 4, "low corridor still places four kits");
+		for(int i = 0; i < 4; i++)
+			Ok &= Expect(aY[i] == 2 && TutorialPickupSpotOk(aSolid[aY[i] * W + aX[i]], aSolid[(aY[i] + 1) * W + aX[i]]),
+						 "kits sit on the floor row");
+		for(int i = 0; i < 32; i++)
+			aSolid[i] = 1;
+		Ok &= Expect(TutorialPickKitSpots(aSolid, W, H, 4, aX, aY) == 0, "solid grid places no kits");
+	}
 	return Ok ? 0 : 1;
 }

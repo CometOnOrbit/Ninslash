@@ -172,22 +172,22 @@ CWeaponSpec IGameController::GetRandomWeapon()
 
 	if(str_comp(g_Config.m_SvGametype, "ball") == 0)
 	{
-		if(rand() % BALL_WEAPON_ROLL_SIDES < BALL_PRIMARY_WEIGHT)
-			return CWeaponCatalog::Modular(PART1_BASE4, PART2_BARREL1 + rand() % STANDARD_BARREL_VARIANTS);
-		if(rand() % BALL_WEAPON_ROLL_SIDES < BALL_SECONDARY_WEIGHT)
-			return CWeaponCatalog::Modular(PART1_BASE2, PART2_BARREL1 + rand() % STANDARD_BARREL_VARIANTS);
+		if(irandom(BALL_WEAPON_ROLL_SIDES) < BALL_PRIMARY_WEIGHT)
+			return CWeaponCatalog::Modular(PART1_BASE4, PART2_BARREL1 + irandom(STANDARD_BARREL_VARIANTS));
+		if(irandom(BALL_WEAPON_ROLL_SIDES) < BALL_SECONDARY_WEIGHT)
+			return CWeaponCatalog::Modular(PART1_BASE2, PART2_BARREL1 + irandom(STANDARD_BARREL_VARIANTS));
 		return CWeaponCatalog::Static(SW_BAZOOKA);
 	}
 
-	if(rand() % RANGED_WEAPON_ROLL_SIDES < RANGED_WEAPON_WEIGHT)
-		return CWeaponCatalog::Modular(PART1_BASE1 + rand() % RANGED_BASE_VARIANTS,
-									   aRandomRangedPart2[rand() % RANDOM_RANGED_PART2_VARIANTS]);
-	if(rand() % MELEE_WEAPON_ROLL_SIDES < MELEE_WEAPON_WEIGHT)
-		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + rand() % MELEE_BLADE_VARIANTS);
+	if(irandom(RANGED_WEAPON_ROLL_SIDES) < RANGED_WEAPON_WEIGHT)
+		return CWeaponCatalog::Modular(PART1_BASE1 + irandom(RANGED_BASE_VARIANTS),
+									   aRandomRangedPart2[irandom(RANDOM_RANGED_PART2_VARIANTS)]);
+	if(irandom(MELEE_WEAPON_ROLL_SIDES) < MELEE_WEAPON_WEIGHT)
+		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + irandom(MELEE_BLADE_VARIANTS));
 
 	while(true)
 	{
-		const auto Type = static_cast<StaticWeaponType>(rand() % NUM_STATIC_WEAPONS);
+		const auto Type = static_cast<StaticWeaponType>(irandom(NUM_STATIC_WEAPONS));
 		if(Type == SW_SHURIKEN || Type == SW_CLAW || Type == SW_BOMB || Type == SW_BALL || Type == SW_SYRINGE)
 			continue;
 		if(!g_Config.m_SvSurvivalMode && Type == SW_RESPAWNER)
@@ -211,10 +211,10 @@ CWeaponSpec IGameController::GetRandomModularWeapon()
 	};
 	constexpr int RANDOM_RANGED_PART2_VARIANTS = sizeof(aRandomRangedPart2) / sizeof(aRandomRangedPart2[0]);
 	if(frandom() < MELEE_WEAPON_CHANCE)
-		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + rand() % MELEE_BLADE_VARIANTS);
+		return CWeaponCatalog::Modular(PART1_MELEE, PART2_MELEE1 + irandom(MELEE_BLADE_VARIANTS));
 
-	return CWeaponCatalog::Modular(PART1_BASE1 + rand() % RANGED_BASE_VARIANTS,
-								   aRandomRangedPart2[rand() % RANDOM_RANGED_PART2_VARIANTS]);
+	return CWeaponCatalog::Modular(PART1_BASE1 + irandom(RANGED_BASE_VARIANTS),
+								   aRandomRangedPart2[irandom(RANDOM_RANGED_PART2_VARIANTS)]);
 }
 
 bool IGameController::TriggerWeapon(class CWeapon *pWeapon)
@@ -382,7 +382,7 @@ bool IGameController::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 	else
 	{
 		// pick random spawn point in dm, from any of the different types
-		int i = rand() % 3;
+		int i = irandom(3);
 
 		for(int c = 0; c < 3; c++)
 		{
@@ -590,7 +590,7 @@ void IGameController::DeathMessage()
 {
 	GameServer()->CreateSoundGlobal(SOUND_GAMEOVER);
 
-	switch(rand() % 5)
+	switch(irandom(5))
 	{
 		case 0:
 			GameServer()->SendBroadcast("All hope is lost", -1);
@@ -819,12 +819,12 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 	}
 	else if(Index == ENTITY_BARREL)
 	{
-		new CBuilding(&GameServer()->m_World, Pos + vec2(0, -12), BUILDING_BARREL + rand() % 3, TEAM_NEUTRAL);
+		new CBuilding(&GameServer()->m_World, Pos + vec2(0, -12), BUILDING_BARREL + irandom(3), TEAM_NEUTRAL);
 		return true;
 	}
 	else if(Index == ENTITY_POWERBARREL)
 	{
-		new CBuilding(&GameServer()->m_World, Pos + vec2(0, -12), BUILDING_POWERBARREL + rand() % 2, TEAM_NEUTRAL);
+		new CBuilding(&GameServer()->m_World, Pos + vec2(0, -12), BUILDING_POWERBARREL + irandom(2), TEAM_NEUTRAL);
 		return true;
 	}
 	else if(Index == ENTITY_LIGHTNINGWALL)
@@ -974,7 +974,7 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 	}
 	else if(Index == ENTITY_KIT)
 	{
-		if(!g_Config.m_SvEnableBuilding)
+		if(!g_Config.m_SvEnableBuilding && !IsTutorialGametype(g_Config.m_SvGametype))
 			return true;
 
 		Type = POWERUP_KIT;
@@ -1309,7 +1309,7 @@ void IGameController::CycleMap()
 	char aNextMap[64];
 
 	if(g_Config.m_SvRandomMaps == 1)
-		str_copy(aNextMap, Server()->m_aMapLists[rand() % Server()->m_aMapLists.size()].c_str(), sizeof(aNextMap));
+		str_copy(aNextMap, Server()->m_aMapLists[irandom((int)Server()->m_aMapLists.size())].c_str(), sizeof(aNextMap));
 	else
 	{
 		for(int i = 0; i < Server()->m_aMapLists.size(); i++)
@@ -1367,7 +1367,7 @@ void IGameController::FirstMap()
 	char aNextMap[64];
 
 	if(g_Config.m_SvRandomMaps == 1)
-		str_copy(aNextMap, Server()->m_aMapLists[rand() % Server()->m_aMapLists.size()].c_str(), sizeof(aNextMap));
+		str_copy(aNextMap, Server()->m_aMapLists[irandom((int)Server()->m_aMapLists.size())].c_str(), sizeof(aNextMap));
 	else
 	{
 		for(int i = 0; i < Server()->m_aMapLists.size(); i++)
@@ -2336,7 +2336,7 @@ int IGameController::GetAutoTeam(int NotThisID)
 		if(aNumplayers[TEAM_RED] == aNumplayers[TEAM_BLUE])
 		{
 			if(aNumbots[TEAM_RED] == aNumbots[TEAM_BLUE])
-				Team = rand() % 2 == 0 ? TEAM_BLUE : TEAM_RED;
+				Team = irandom(2) == 0 ? TEAM_BLUE : TEAM_RED;
 			else
 				Team = aNumbots[TEAM_RED] < aNumbots[TEAM_BLUE] ? TEAM_BLUE : TEAM_RED;
 		}

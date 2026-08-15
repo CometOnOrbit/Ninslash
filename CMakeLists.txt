@@ -616,6 +616,7 @@ set_src(BASE GLOB_RECURSE src/base
   tl/threading.h 
   detect.h
   math.h
+  deterministic_random.h
   system.c
   system.h
   vmath.h
@@ -938,6 +939,10 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_sound_mix PRIVATE ${PROJECT_SOURCE_DIR}/src)
   add_test(NAME sound_mix COMMAND ninslash_test_sound_mix)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_sound_mix)
+  add_executable(ninslash_test_deterministic_random tests/deterministic_random.cpp)
+  target_include_directories(ninslash_test_deterministic_random PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME deterministic_random COMMAND ninslash_test_deterministic_random)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_deterministic_random)
   add_executable(ninslash_test_pve_definitions
     tests/pve_definitions.cpp
     src/game/pve_roguelite.cpp

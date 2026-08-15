@@ -312,7 +312,7 @@ void CGameControllerHorde::RollWaveEvent()
 	if(Total <= 0)
 		return;
 
-	int Roll = rand() % Total;
+	int Roll = irandom(Total);
 	int Picked = HORDE_EVENT_NONE;
 	for(int i = 0; i < Count; i++)
 	{

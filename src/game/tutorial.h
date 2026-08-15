@@ -44,6 +44,79 @@ inline bool TutorialChapterForcesBuilding(int Chapter)
 	return Chapter == TUTORIAL_CHAPTER_FORGE;
 }
 
+// Pickups only need air on a floor. Player-height clearance (two empty tiles)
+// fails in compact tutorial corridors.
+inline bool TutorialPickupSpotOk(int Tile, int Below)
+{
+	return Tile == 0 && Below != 0;
+}
+
+inline int TutorialPickKitSpots(const unsigned char *pSolid, int W, int H, int Wanted, int *pOutX, int *pOutY)
+{
+	int Placed = 0;
+	if(!pSolid || !pOutX || !pOutY || W < 3 || H < 3 || Wanted <= 0)
+		return 0;
+	const int MinSep = 4;
+	for(int Pass = 0; Pass < 2 && Placed < Wanted; Pass++)
+	{
+		for(int Slot = Placed; Slot < Wanted; Slot++)
+		{
+			const int DesiredX = (Slot + 1) * W / (Wanted + 1);
+			int BestX = -1;
+			int BestY = -1;
+			int BestScore = 0x7fffffff;
+			for(int y = 1; y < H - 1; y++)
+				for(int x = 1; x < W - 1; x++)
+				{
+					if(!TutorialPickupSpotOk(pSolid[y * W + x], pSolid[(y + 1) * W + x]))
+						continue;
+					bool Taken = false;
+					for(int i = 0; i < Placed; i++)
+						if(pOutX[i] == x && pOutY[i] == y)
+						{
+							Taken = true;
+							break;
+						}
+					if(Taken)
+						continue;
+					if(Pass == 0)
+					{
+						bool Far = true;
+						for(int i = 0; i < Placed; i++)
+						{
+							int Dx = pOutX[i] - x;
+							if(Dx < 0)
+								Dx = -Dx;
+							if(Dx < MinSep)
+							{
+								Far = false;
+								break;
+							}
+						}
+						if(!Far)
+							continue;
+					}
+					int Dx = x - DesiredX;
+					if(Dx < 0)
+						Dx = -Dx;
+					const int Score = Dx * 100 + y;
+					if(Score < BestScore)
+					{
+						BestX = x;
+						BestY = y;
+						BestScore = Score;
+					}
+				}
+			if(BestX < 0)
+				continue;
+			pOutX[Placed] = BestX;
+			pOutY[Placed] = BestY;
+			Placed++;
+		}
+	}
+	return Placed;
+}
+
 inline int TutorialCompletedMaskLimit()
 {
 	return (1 << NUM_TUTORIAL_CHAPTERS) - 1;

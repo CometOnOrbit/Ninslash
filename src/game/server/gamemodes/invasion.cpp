@@ -1,3 +1,4 @@
+#include <base/system.h>
 #include <engine/shared/config.h>
 #include <engine/platform_events.h>
 
@@ -148,11 +149,11 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 
 	if(g_Config.m_SvMapGenRandSeed)
 	{
-		g_Config.m_SvMapGenSeed = rand() % 0x7FFFFFFF;
+		g_Config.m_SvMapGenSeed = (int)((unsigned long long)time_get() % 0x7FFFFFFFull);
+		if(g_Config.m_SvMapGenSeed <= 0)
+			g_Config.m_SvMapGenSeed = 1;
 		g_Config.m_SvMapGenRandSeed = 0;
 	}
-
-	srand((unsigned)g_Config.m_SvMapGenSeed + (unsigned)g_Config.m_SvMapGenLevel);
 
 	for(int i = 0; i < MAX_ENEMIES; i++)
 		m_aEnemySpawnPos[i] = vec2(0, 0);
@@ -395,7 +396,7 @@ void CGameControllerInvasion::RandomGroupSpawnPos()
 {
 	if(!m_NumEnemySpawnPos)
 		return;
-	m_GroupSpawnPos = m_aEnemySpawnPos[rand() % m_NumEnemySpawnPos];
+	m_GroupSpawnPos = m_aEnemySpawnPos[irandom(m_NumEnemySpawnPos)];
 	m_pEnemySpawn->Activate(m_GroupSpawnPos, Server()->Tick() + Server()->TickSpeed() * 5);
 }
 
@@ -669,7 +670,9 @@ void CGameControllerInvasion::FinishRetryResult()
 	// The next controller consumes this marker before checkpoint selection, so
 	// a preferred deep checkpoint cannot override the team's reset decision.
 	g_Config.m_SvInvFails = INV_FORCE_FLOOR_ONE;
-	g_Config.m_SvMapGenSeed = rand() % 0x7FFFFFFF;
+	g_Config.m_SvMapGenSeed = (int)((unsigned long long)time_get() % 0x7FFFFFFFull);
+	if(g_Config.m_SvMapGenSeed <= 0)
+		g_Config.m_SvMapGenSeed = 1;
 	RegenerateMapFromTemplate();
 }
 
@@ -742,11 +745,11 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 					Level++;
 
 			if(frandom() < 0.7f && Level > 2)
-				Level = rand() % (Level - 1);
+				Level = irandom(Level - 1);
 
 			GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin,
 									false,
-									1 + rand() % (max(1, 1 + g_Config.m_SvMapGenLevel / 4 - m_QuestWaveType * 3)),
+									1 + irandom(max(1, 1 + g_Config.m_SvMapGenLevel / 4 - m_QuestWaveType * 3)),
 									m_QuestWaveType);
 			pChr->GetPlayer()->SetAISkin();
 			pChr->m_IsBot = true;
@@ -1943,7 +1946,11 @@ void CGameControllerInvasion::Tick()
 			m_AutoRestart = false;
 
 			if(g_Config.m_SvMapGenRandSeed)
-				g_Config.m_SvMapGenSeed = rand() % 0x7FFFFFFF;
+			{
+				g_Config.m_SvMapGenSeed = (int)((unsigned long long)time_get() % 0x7FFFFFFFull);
+				if(g_Config.m_SvMapGenSeed <= 0)
+					g_Config.m_SvMapGenSeed = 1;
+			}
 
 			FirstMap();
 		}

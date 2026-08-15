@@ -668,7 +668,7 @@ bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner, int PaidCost)
 
 	if(Kit == BUILDABLE_BARREL)
 	{
-		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_BARREL + rand() % 3, TEAM_NEUTRAL);
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_BARREL + irandom(3), TEAM_NEUTRAL);
 		pBuilding->m_PveBuilder = Owner;
 		pBuilding->m_PveKitCost = PaidCost;
 		return true;
@@ -676,7 +676,7 @@ bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner, int PaidCost)
 
 	if(Kit == BUILDABLE_POWERBARREL)
 	{
-		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_POWERBARREL + rand() % 2, TEAM_NEUTRAL);
+		CBuilding *pBuilding = new CBuilding(&m_World, Pos, BUILDING_POWERBARREL + irandom(2), TEAM_NEUTRAL);
 		pBuilding->m_PveBuilder = Owner;
 		pBuilding->m_PveKitCost = PaidCost;
 		return true;
@@ -1540,7 +1540,7 @@ void CGameContext::SelectRecommendedModes()
 
 	for(int i = CandidateCount - 1; i > 0; i--)
 	{
-		const int j = rand() % (i + 1);
+		const int j = irandom(i + 1);
 		const int Tmp = aCandidates[i];
 		aCandidates[i] = aCandidates[j];
 		aCandidates[j] = Tmp;
@@ -1605,7 +1605,7 @@ void CGameContext::CalculateVoteWinnerConfig()
 		if(aVotes[i] == Biggest)
 			Tied++;
 
-	int Pick = rand() % Tied;
+	int Pick = irandom(Tied);
 	for(int i = 0; i < m_NumGameVotes; i++)
 	{
 		if(aVotes[i] != Biggest)
@@ -3352,7 +3352,7 @@ void CGameContext::ConShuffleTeams(IConsole::IResult *pResult, void *pUserData)
 				pSelf->m_apPlayers[i]->SetTeam(TEAM_RED, false);
 			else
 			{
-				if(rand() % 2)
+				if(irandom(2))
 				{
 					pSelf->m_apPlayers[i]->SetTeam(TEAM_BLUE, false);
 					++CounterBlue;

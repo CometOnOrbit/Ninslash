@@ -1,4 +1,5 @@
 #include <base/system.h>
+#include <base/math.h>
 #include <engine/shared/config.h>
 #include <game/questinfo.h>
 
@@ -126,12 +127,12 @@ void CGenLayer::CleanTiles()
 
 void CGenLayer::GenerateBoxes()
 {
-	int n = 3 + rand() % 12;
+	int n = 3 + irandom(12);
 
 	for(int k = 0; k < 5000; k++)
 	{
-		int wx = 10 + rand() % (m_Width - 20);
-		int wy = 10 + rand() % (m_Height - 20);
+		int wx = 10 + irandom(m_Width - 20);
+		int wy = 10 + irandom(m_Height - 20);
 
 		int i = 100;
 
@@ -145,8 +146,8 @@ void CGenLayer::GenerateBoxes()
 
 		while(i-- > 0 && n > 0)
 		{
-			int x = wx + rand() % 20 - rand() % 20;
-			int y = wy + rand() % 20 - rand() % 20;
+			int x = wx + irandom(20) - irandom(20);
+			int y = wy + irandom(20) - irandom(20);
 
 			int l = 5;
 			// to the floor
@@ -224,8 +225,8 @@ void CGenLayer::GeneratePlatforms()
 {
 	for(int k = 0; k < Size() / 16; k++)
 	{
-		int x = 10 + rand() % (m_Width - 20);
-		int y = 10 + rand() % (m_Height - 20);
+		int x = 10 + irandom(m_Width - 20);
+		int y = 10 + irandom(m_Height - 20);
 
 		if(Used(x, y))
 			continue;
@@ -275,7 +276,7 @@ void CGenLayer::GeneratePlatforms()
 			break;
 			*/
 
-			if((Create && l > 1) || l > 3 + rand() % 25)
+			if((Create && l > 1) || l > 3 + irandom(25))
 			{
 				Set(14 * 16 + 1, x, y, Dir == 1 ? 0 : 1, FGOBJECTS); // TILEFLAG_VFLIP
 
@@ -447,8 +448,8 @@ void CGenLayer::GenerateAirPlatforms(int Num)
 
 	while(Num > 0 && i++ < 10000)
 	{
-		x = b + rand() % (m_Width - b * 2);
-		y = b + rand() % (m_Height - b * 2);
+		x = b + irandom(m_Width - b * 2);
+		y = b + irandom(m_Height - b * 2);
 
 		if(!Used(x, y) && (abs(m_EndPos.x - x) > 10 || x + 10 < m_EndPos.y))
 		{
@@ -466,7 +467,7 @@ void CGenLayer::GenerateAirPlatforms(int Num)
 			if(Valid)
 			{
 				Num--;
-				int s = 3 + rand() % 3;
+				int s = 3 + irandom(3);
 				for(int xx = -s; xx < s - 1; xx++)
 				{
 					Set(-1, x + xx, y - 1);
@@ -558,7 +559,7 @@ void CGenLayer::GenerateSlopes()
 			if(Get(x, y) && frandom() < 0.5f)
 			{
 				int s = 0;
-				int MaxSize = 70 + rand() % 8;
+				int MaxSize = 70 + irandom(8);
 				const int MaxCandidateSize = max(2, min(MaxSize, min(m_Width - x, y)));
 
 				for(int i = MaxSize - MaxCandidateSize; i < MaxSize - 1; i++)
@@ -605,7 +606,7 @@ void CGenLayer::GenerateSlopes()
 			if(!Found && Get(x, y) && frandom() < 0.75f)
 			{
 				int s = 0;
-				int MaxSize = 7 + rand() % 8;
+				int MaxSize = 7 + irandom(8);
 				const int MaxCandidateSize = max(2, min(MaxSize, min(x, y)));
 
 				for(int i = MaxSize - MaxCandidateSize; i < MaxSize - 1; i++)
@@ -656,7 +657,7 @@ void CGenLayer::GenerateSlopes()
 			if(Get(x, y) && frandom() < 0.75f)
 			{
 				int s = 0;
-				int MaxSize = 7 + rand() % 8;
+				int MaxSize = 7 + irandom(8);
 				const int MaxCandidateSize = max(2, min(MaxSize, min(m_Width - x, m_Height - y)));
 
 				for(int i = MaxSize - MaxCandidateSize; i < MaxSize - 1; i++)
@@ -703,7 +704,7 @@ void CGenLayer::GenerateSlopes()
 			if(!Found && Get(x, y) && frandom() < 0.75f)
 			{
 				int s = 0;
-				int MaxSize = 7 + rand() % 8;
+				int MaxSize = 7 + irandom(8);
 				const int MaxCandidateSize = max(2, min(MaxSize, min(x, m_Height - y)));
 
 				for(int i = MaxSize - MaxCandidateSize; i < MaxSize - 1; i++)
@@ -1135,10 +1136,10 @@ ivec3 CGenLayer::GetLongPlatform()
 		return ivec3(0, 0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumLongPlatforms;
+	int i = irandom(m_NumLongPlatforms);
 
 	while(m_aLongPlatform[i].x == 0 && n++ < 9999)
-		i = rand() % m_NumLongPlatforms;
+		i = irandom(m_NumLongPlatforms);
 
 	if(n >= 9999)
 		return ivec3(0, 0, 0);
@@ -1162,10 +1163,10 @@ ivec2 CGenLayer::GetMedPlatform()
 		return ivec2(0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumMedPlatforms;
+	int i = irandom(m_NumMedPlatforms);
 
 	while(m_aMedPlatform[i].x == 0 && n++ < 999)
-		i = rand() % m_NumMedPlatforms;
+		i = irandom(m_NumMedPlatforms);
 
 	if(n >= 9999)
 		return ivec2(0, 0);
@@ -1182,10 +1183,10 @@ ivec2 CGenLayer::GetPlatform()
 		return ivec2(0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumPlatforms;
+	int i = irandom(m_NumPlatforms);
 
 	while(m_aPlatform[i].x == 0 && n++ < 999)
-		i = rand() % m_NumPlatforms;
+		i = irandom(m_NumPlatforms);
 
 	if(n >= 9999)
 		return ivec2(0, 0);
@@ -1282,10 +1283,10 @@ ivec2 CGenLayer::GetOpenArea()
 		return ivec2(0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumOpenAreas;
+	int i = irandom(m_NumOpenAreas);
 
 	while(m_aOpenArea[i].x == 0 && n++ < 999)
-		i = rand() % m_NumOpenAreas;
+		i = irandom(m_NumOpenAreas);
 
 	if(n >= 9999)
 		return ivec2(0, 0);
@@ -1302,10 +1303,10 @@ ivec3 CGenLayer::GetLongCeiling()
 		return ivec3(0, 0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumLongCeilings;
+	int i = irandom(m_NumLongCeilings);
 
 	while(m_aLongCeiling[i].x == 0 && n++ < 999)
-		i = rand() % m_NumLongCeilings;
+		i = irandom(m_NumLongCeilings);
 
 	if(n >= 9999)
 		return ivec3(0, 0, 0);
@@ -1330,10 +1331,10 @@ ivec2 CGenLayer::GetCeiling()
 		return ivec2(0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumCeilings;
+	int i = irandom(m_NumCeilings);
 
 	while(m_aCeiling[i].x == 0 && n++ < 999)
-		i = rand() % m_NumCeilings;
+		i = irandom(m_NumCeilings);
 
 	if(n >= 9999)
 		return ivec2(0, 0);
@@ -1390,10 +1391,10 @@ ivec2 CGenLayer::GetWall()
 		return ivec2(0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumWalls;
+	int i = irandom(m_NumWalls);
 
 	while(m_aWall[i].x == 0 && n++ < 999)
-		i = rand() % m_NumWalls;
+		i = irandom(m_NumWalls);
 
 	if(n >= 9999)
 		return ivec2(0, 0);
@@ -1410,11 +1411,11 @@ ivec4 CGenLayer::GetPit()
 		return ivec4(0, 0, 0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumPits;
+	int i = irandom(m_NumPits);
 
 	// try random
 	while(m_aPit[i].x == 0 && n++ < 99)
-		i = rand() % m_NumPits;
+		i = irandom(m_NumPits);
 
 	if(m_aPit[i].x == 0)
 	{
@@ -1442,10 +1443,10 @@ ivec2 CGenLayer::GetTopCorner()
 		return ivec2(0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumTopCorners;
+	int i = irandom(m_NumTopCorners);
 
 	while(m_aTopCorner[i].x == 0 && n++ < 999)
-		i = rand() % m_NumTopCorners;
+		i = irandom(m_NumTopCorners);
 
 	if(n >= 9999)
 		return ivec2(0, 0);
@@ -1462,10 +1463,10 @@ ivec2 CGenLayer::GetSharpCorner()
 		return ivec2(0, 0);
 
 	int n = 0;
-	int i = rand() % m_NumCorners;
+	int i = irandom(m_NumCorners);
 
 	while(m_aTopCorner[i].x == 0 && n++ < 999)
-		i = rand() % m_NumCorners;
+		i = irandom(m_NumCorners);
 
 	if(n >= 9999)
 		return ivec2(0, 0);
