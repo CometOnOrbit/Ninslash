@@ -461,10 +461,10 @@ void CPlayerInfo::PhysicsTick(vec2 PlayerVel, vec2 PrevVel)
 	}
 	vec2 VelocityDelta = PlayerVel - m_LastPhysicsVelocity;
 	m_LastPhysicsVelocity = PlayerVel;
-	// Snapshot velocity is stored at 1/256 units. Limit only the visual
-	// impulse so extreme landings cannot throw the skeleton across the player.
-	VelocityDelta.x = clamp(VelocityDelta.x, -4096.0f, 4096.0f);
-	VelocityDelta.y = clamp(VelocityDelta.y, -6144.0f, 6144.0f);
+	// Snapshot velocity is 1/256 units. Cap teleports/respawns only; keep
+	// ordinary landings loose so the skeleton still looks about to fall apart.
+	VelocityDelta.x = clamp(VelocityDelta.x, -8192.0f, 8192.0f);
+	VelocityDelta.y = clamp(VelocityDelta.y, -12288.0f, 12288.0f);
 
 	// weapon charge
 	if(m_Charge > 0)
@@ -619,16 +619,16 @@ void CPlayerInfo::PhysicsTick(vec2 PlayerVel, vec2 PrevVel)
 
 	if(Anim != PANIM_SLIDE && Anim != PANIM_SLIDEDOWN && Anim != PANIM_SLIDEUP && Anim != PANIM_SLIDEKICK)
 	{
-		const float VisualVelocityX = clamp(PlayerVel.x, -4800.0f, 4800.0f);
+		const float Tilt = clamp(PlayerVel.x * 0.000075f, -0.9f, 0.9f);
 		if(Animation()->m_Flip)
 		{
-			Animation()->m_BodyTilt = -VisualVelocityX * 0.000075f;
-			Animation()->m_HeadTiltCorrect = +VisualVelocityX * 0.000035f;
+			Animation()->m_BodyTilt = -Tilt;
+			Animation()->m_HeadTiltCorrect = +PlayerVel.x * 0.000035f;
 		}
 		else
 		{
-			Animation()->m_BodyTilt = VisualVelocityX * 0.000075f;
-			Animation()->m_HeadTiltCorrect = -VisualVelocityX * 0.000035f;
+			Animation()->m_BodyTilt = Tilt;
+			Animation()->m_HeadTiltCorrect = -PlayerVel.x * 0.000035f;
 		}
 	}
 
@@ -661,13 +661,8 @@ void CPlayerInfo::PhysicsTick(vec2 PlayerVel, vec2 PrevVel)
 	// inair feet physics
 	m_FeetRecoilVel -= m_FeetRecoil / 14.0f;
 	m_FeetRecoilVel *= 0.95f;
-
-	m_FeetRecoilVel += VelocityDelta / 1200.0f;
-	if(length(m_FeetRecoilVel) > 6.0f)
-		m_FeetRecoilVel = normalize(m_FeetRecoilVel) * 6.0f;
 	m_FeetRecoil += m_FeetRecoilVel;
-	if(length(m_FeetRecoil) > 18.0f)
-		m_FeetRecoil = normalize(m_FeetRecoil) * 18.0f;
+	m_FeetRecoilVel += VelocityDelta / 1200.0f;
 
 	// Animation()->m_FeetDir = vec2(m_FeetRecoil.y, m_FeetRecoil.x);
 	Animation()->m_FeetDir = m_FeetRecoil;
