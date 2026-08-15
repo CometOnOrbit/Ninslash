@@ -12,6 +12,7 @@
 #include <game/voting.h>
 #include <game/weapon_catalog.h>
 #include <game/challenge_script_runtime.h>
+#include <game/expedition_save.h>
 
 #include "eventhandler.h"
 #include "gamecontroller.h"
@@ -123,6 +124,10 @@ class CGameContext : public IGameServer
 	ILocalization *Localization() { return m_pLocalization; }
 
 	bool GetRoamSpawnPos(vec2 *Pos);
+	void WriteExpeditionSave(bool SnapshotCharacters = true);
+
+	CExpeditionSave m_ExpeditionSave;
+	bool m_ExpeditionReady;
 
 	CBlockEntities *m_pBlockEntities;
 	void CreateEntitiesForBlock(int block);

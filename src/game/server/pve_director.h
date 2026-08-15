@@ -269,6 +269,8 @@ class CPveDirector
 	int TeamCheckpoint() const;
 	bool ProgressReady() const;
 	void ClearRun();
+	void ImportUsedContracts(int Mask) { m_UsedContracts |= Mask; }
+	int UsedContracts() const { return m_UsedContracts; }
 
 	int EnvironmentBiome() const { return m_EnvironmentBiome; }
 	int EnvironmentPhase() const { return m_EnvironmentPhase; }

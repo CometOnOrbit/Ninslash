@@ -23,6 +23,7 @@ struct CListenServerSettings
 	int m_PveRoguelite;
 	int m_PveContracts;
 	int m_InvasionUseCheckpoint;
+	int m_ExpeditionSlot;
 	char m_aBindAddress[128];
 	char m_aName[128];
 	char m_aPassword[128];

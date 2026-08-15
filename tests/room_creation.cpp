@@ -20,7 +20,8 @@ int main()
 										  {9, 8, 8, 25},
 										  {5, 3, 4, 15},
 										  {8, 3, 4, 500},
-										  {8, 8, 4, 24}};
+										  {8, 8, 4, 24},
+										  {4, 5, 0, 0}};
 	for(int Mode = 1; Mode < LOCAL_MODE_COUNT; Mode++)
 	{
 		const CRoomModeDefaults Actual = RoomModeDefaults(Mode);
@@ -35,7 +36,9 @@ int main()
 	assert(RoomModeDefaults(LOCAL_MODE_ROAM).m_Bots == 4);
 	assert(RoomModeDefaults(LOCAL_MODE_ROAM).m_Rule == 24);
 	assert(LocalGameMode(LOCAL_MODE_ROAM).m_Rule == LOCAL_RULE_ROAM_CHECKPOINTS);
-	assert((int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0])) == 13);
+	assert((int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0])) == 14);
+	assert(LocalGameModeIsExpedition(LOCAL_MODE_EXPEDITION));
+	assert(str_comp(LocalGameMode(LOCAL_MODE_EXPEDITION).m_pGameType, "coop") == 0);
 	assert(str_comp(LocalGameMode(LOCAL_MODE_REACTOR_DEFENSE).m_pGameVoteImage, "reactor_def1") == 0);
 	assert(!LocalGameModeUsesTeamPopulation(LOCAL_MODE_DM));
 	assert(!LocalGameModeUsesTeamPopulation(LOCAL_MODE_BATTLE_ROYALE));

@@ -51,6 +51,7 @@ struct CHostGameSettings
 	bool m_Roguelite;
 	bool m_Contracts;
 	bool m_UseCheckpoint;
+	int m_ExpeditionSlot;
 	char m_aName[128];
 	char m_aPassword[128];
 	char m_aMap[128];

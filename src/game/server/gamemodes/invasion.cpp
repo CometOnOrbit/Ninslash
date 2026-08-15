@@ -673,6 +673,7 @@ void CGameControllerInvasion::FinishRetryResult()
 	g_Config.m_SvMapGenSeed = (int)((unsigned long long)time_get() % 0x7FFFFFFFull);
 	if(g_Config.m_SvMapGenSeed <= 0)
 		g_Config.m_SvMapGenSeed = 1;
+	GameServer()->WriteExpeditionSave(false);
 	RegenerateMapFromTemplate();
 }
 
@@ -2048,6 +2049,7 @@ void CGameControllerInvasion::Tick()
 				if(pPlayer)
 					pPlayer->SaveData();
 			}
+			GameServer()->WriteExpeditionSave();
 
 			EndRound();
 		}

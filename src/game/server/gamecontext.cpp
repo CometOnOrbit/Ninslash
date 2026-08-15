@@ -46,6 +46,7 @@
 #include <game/server/entities/weapon.h>
 
 #include <game/server/playerdata.h>
+#include <game/pve_roguelite.h>
 #include <game/server/pve_director.h>
 #include <game/server/bosspool.h>
 #include <game/server/tutorial_director.h>
@@ -80,6 +81,8 @@ void CGameContext::Construct(int Resetting)
 	m_pController = 0;
 	m_pPveDirector = 0;
 	m_pTutorialDirector = 0;
+	m_ExpeditionReady = false;
+	m_ExpeditionSave.Reset();
 	m_VoteCloseTime = 0;
 	m_pVoteOptionFirst = 0;
 	m_pVoteOptionLast = 0;
@@ -2321,9 +2324,22 @@ void CGameContext::OnClientPredictedInput(int ClientID, void *pInput)
 		m_apPlayers[ClientID]->OnPredictedInput((CNetObj_PlayerInput *)pInput);
 }
 
+static void ExpeditionCopyToPlayerData(CPlayerData *pData, const CExpeditionPlayer &Src);
+
 void CGameContext::OnClientEnter(int ClientID)
 {
 	// world.insert_entity(&players[client_id]);
+	if(m_ExpeditionReady && m_apPlayers[ClientID] && !m_apPlayers[ClientID]->m_IsBot)
+	{
+		const int ColorID = m_apPlayers[ClientID]->GetColorID();
+		const int Index = m_ExpeditionSave.FindPlayer(Server()->ClientName(ClientID), ColorID);
+		if(Index >= 0)
+		{
+			CPlayerData *pData = Server()->GetPlayerData(ClientID, ColorID);
+			if(pData)
+				ExpeditionCopyToPlayerData(pData, m_ExpeditionSave.m_aPlayers[Index]);
+		}
+	}
 	m_apPlayers[ClientID]->Respawn();
 	SendChallengeInfo(ClientID);
 	if(m_pPveDirector)
@@ -3958,6 +3974,102 @@ void CGameContext::RestoreEntity(int ObjType, int Type, int Subtype, int x, int 
 	m_pController->RestoreEntity(ObjType, Type, Subtype, x, y);
 }
 
+static void ExpeditionCopyFromPlayerData(CExpeditionPlayer *pDst, const CPlayerData *pData, const char *pName, int ColorID)
+{
+	mem_zero(pDst, sizeof(*pDst));
+	str_copy(pDst->m_aName, pName, sizeof(pDst->m_aName));
+	pDst->m_ColorID = ColorID;
+	pDst->m_Kits = pData->m_Kits;
+	pDst->m_Armor = pData->m_Armor;
+	pDst->m_Score = pData->m_Score;
+	pDst->m_Gold = pData->m_Gold;
+	for(int i = 0; i < EXPEDITION_WEAPON_SLOTS; i++)
+	{
+		pDst->m_aWeaponDefinitionId[i] = pData->m_aWeaponDefinitionId[i];
+		pDst->m_aWeaponLevel[i] = pData->m_aWeaponLevel[i];
+		pDst->m_aWeaponAmmo[i] = pData->m_aWeaponAmmo[i];
+	}
+	for(int i = 0; i < NUM_PVE_CARDS; i++)
+		pDst->m_aPvePerks[i] = pData->m_aPvePerks[i];
+	pDst->m_PveChoices = pData->m_PveChoices;
+	pDst->m_PveUsedContracts = pData->m_PveUsedContracts;
+	pDst->m_PveInvasionFloors = pData->m_PveInvasionFloors;
+	pDst->m_PvePendingArmor = pData->m_PvePendingArmor;
+	pDst->m_PvePendingKits = pData->m_PvePendingKits;
+	pDst->m_PvePendingAmmo = pData->m_PvePendingAmmo;
+	pDst->m_PveLegendaryCard = pData->m_PveLegendaryCard;
+	for(int i = 0; i < 4; i++)
+		pDst->m_aPveWeaponResources[i] = pData->m_aPveWeaponResources[i];
+	pDst->m_PveBarrier = pData->m_PveBarrier;
+	pDst->m_PveDroneModule = pData->m_PveDroneModule;
+	pDst->m_PveDeathlessFloors = pData->m_PveDeathlessFloors;
+}
+
+static void ExpeditionCopyToPlayerData(CPlayerData *pData, const CExpeditionPlayer &Src)
+{
+	pData->m_Kits = Src.m_Kits;
+	pData->m_Armor = Src.m_Armor;
+	pData->m_Score = Src.m_Score;
+	pData->m_Gold = Src.m_Gold;
+	for(int i = 0; i < EXPEDITION_WEAPON_SLOTS; i++)
+	{
+		pData->m_aWeaponDefinitionId[i] = Src.m_aWeaponDefinitionId[i];
+		pData->m_aWeaponLevel[i] = Src.m_aWeaponLevel[i];
+		pData->m_aWeaponAmmo[i] = Src.m_aWeaponAmmo[i];
+	}
+	for(int i = 0; i < NUM_PVE_CARDS; i++)
+		pData->m_aPvePerks[i] = Src.m_aPvePerks[i];
+	pData->m_PveChoices = Src.m_PveChoices;
+	pData->m_PveUsedContracts = Src.m_PveUsedContracts;
+	pData->m_PveInvasionFloors = Src.m_PveInvasionFloors;
+	pData->m_PvePendingArmor = Src.m_PvePendingArmor;
+	pData->m_PvePendingKits = Src.m_PvePendingKits;
+	pData->m_PvePendingAmmo = Src.m_PvePendingAmmo;
+	pData->m_PveLegendaryCard = Src.m_PveLegendaryCard;
+	for(int i = 0; i < 4; i++)
+		pData->m_aPveWeaponResources[i] = Src.m_aPveWeaponResources[i];
+	pData->m_PveBarrier = Src.m_PveBarrier;
+	pData->m_PveDroneModule = Src.m_PveDroneModule;
+	pData->m_PveDeathlessFloors = Src.m_PveDeathlessFloors;
+	pData->m_PveRunMode = PVE_MODE_INVASION;
+}
+
+void CGameContext::WriteExpeditionSave(bool SnapshotCharacters)
+{
+	if(!CExpeditionSaveStorage::SlotValid(g_Config.m_SvExpeditionSlot) || !m_pStorage)
+		return;
+	if(!m_ExpeditionReady)
+		CExpeditionSaveStorage::Load(m_pStorage, g_Config.m_SvExpeditionSlot, &m_ExpeditionSave);
+	m_ExpeditionSave.m_Floor = max(1, g_Config.m_SvMapGenLevel);
+	m_ExpeditionSave.m_Seed = max(1, g_Config.m_SvMapGenSeed);
+	if(m_pPveDirector)
+		m_ExpeditionSave.m_UsedContracts = m_pPveDirector->UsedContracts();
+	if(!SnapshotCharacters)
+		m_ExpeditionSave.m_NumPlayers = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = m_apPlayers[i];
+		if(!pPlayer || pPlayer->m_IsBot)
+			continue;
+		if(SnapshotCharacters && pPlayer->GetCharacter())
+			pPlayer->SaveData();
+		CPlayerData *pData = Server()->GetPlayerData(i, pPlayer->GetColorID());
+		if(!pData)
+			continue;
+		CExpeditionPlayer Row;
+		ExpeditionCopyFromPlayerData(&Row, pData, Server()->ClientName(i), pPlayer->GetColorID());
+		Row.m_PveUsedContracts = m_ExpeditionSave.m_UsedContracts;
+		m_ExpeditionSave.UpsertPlayer(Row);
+	}
+	CExpeditionSaveStorage::Save(m_pStorage, g_Config.m_SvExpeditionSlot, m_ExpeditionSave);
+	m_ExpeditionReady = true;
+	dbg_msg("expedition",
+			"saved slot %d floor %d players %d",
+			g_Config.m_SvExpeditionSlot,
+			m_ExpeditionSave.m_Floor,
+			m_ExpeditionSave.m_NumPlayers);
+}
+
 void CGameContext::OnInit(/*class IKernel *pKernel*/)
 {
 	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
@@ -3966,6 +4078,27 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>(); // MapGen
 	m_pLocalization = Kernel()->RequestInterface<ILocalization>();
+	if(CExpeditionSaveStorage::SlotValid(g_Config.m_SvExpeditionSlot) && m_pStorage)
+	{
+		const EExpeditionLoadResult Result =
+			CExpeditionSaveStorage::Load(m_pStorage, g_Config.m_SvExpeditionSlot, &m_ExpeditionSave);
+		if(Result == EXPEDITION_LOAD_OK)
+		{
+			g_Config.m_SvMapGenLevel = m_ExpeditionSave.m_Floor;
+			g_Config.m_SvMapGenSeed = m_ExpeditionSave.m_Seed;
+			g_Config.m_SvMapGenRandSeed = 0;
+			g_Config.m_SvInvasionUseCheckpoint = 0;
+			m_ExpeditionReady = true;
+			dbg_msg("expedition",
+					"loaded slot %d floor %d seed %d players %d",
+					g_Config.m_SvExpeditionSlot,
+					m_ExpeditionSave.m_Floor,
+					m_ExpeditionSave.m_Seed,
+					m_ExpeditionSave.m_NumPlayers);
+		}
+		else
+			dbg_msg("expedition", "slot %d load result %d", g_Config.m_SvExpeditionSlot, Result);
+	}
 	m_World.SetGameServer(this);
 	m_Events.SetGameServer(this);
 
@@ -4023,6 +4156,8 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 		g_Config.m_SvEnableBuilding = 1;
 
 	m_pPveDirector = new CPveDirector(this);
+	if(m_ExpeditionReady)
+		m_pPveDirector->ImportUsedContracts(m_ExpeditionSave.m_UsedContracts);
 	if(str_comp(g_Config.m_SvGametype, "tutorial") == 0)
 		m_pTutorialDirector = new CTutorialDirector(this);
 

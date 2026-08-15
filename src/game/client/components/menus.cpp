@@ -32,6 +32,7 @@
 #include <game/client/gameclient.h>
 #include <game/client/lineinput.h>
 #include <game/client/local_game_modes.h>
+#include <game/expedition_save.h>
 #include <game/client/menu_home.h>
 #include <game/client/room_creation.h>
 #include <game/client/skelebank.h>
@@ -2713,6 +2714,7 @@ static const char *ChallengeModeCode(int Mode)
 		case LOCAL_MODE_GRENADE_DM: return "GDM";
 		case LOCAL_MODE_INSTAGIB_CTF: return "ICTF";
 		case LOCAL_MODE_ROAM: return "ROAM";
+		case LOCAL_MODE_EXPEDITION: return "EXP";
 		default: return "INV";
 	}
 }
@@ -2736,7 +2738,8 @@ static bool ChallengeModeFromCode(const char *pCode, int *pMode)
 		{"BR", LOCAL_MODE_BATTLE_ROYALE},
 		{"GDM", LOCAL_MODE_GRENADE_DM},
 		{"ICTF", LOCAL_MODE_INSTAGIB_CTF},
-		{"ROAM", LOCAL_MODE_ROAM}};
+		{"ROAM", LOCAL_MODE_ROAM},
+		{"EXP", LOCAL_MODE_EXPEDITION}};
 	for(const auto &Mode : s_aModes)
 		if(str_comp_nocase(pCode, Mode.m_pCode) == 0)
 		{
@@ -2799,6 +2802,8 @@ static void ApplyLocalGameModeDefaults(int Mode)
 	g_Config.m_ClLocalServerBots = min(Defaults.m_Bots, Defaults.m_Players - 1);
 	if(Mode == LOCAL_MODE_INVASION)
 		g_Config.m_ClLocalServerInvasionStart = LOCAL_INVASION_TEAM_CHECKPOINT;
+	else if(Mode == LOCAL_MODE_EXPEDITION)
+		g_Config.m_ClExpeditionSlot = clamp(g_Config.m_ClExpeditionSlot, 1, (int)EXPEDITION_SLOTS);
 	else if(Mode == LOCAL_MODE_HORDE)
 		g_Config.m_ClLocalServerHordeWaves = Defaults.m_Rule;
 	else if(Mode == LOCAL_MODE_EXTRACTION)
@@ -2829,6 +2834,7 @@ struct CLocalServerLaunchSettings
 	int m_BotLevel;
 	int m_InvasionStart;
 	int m_InvasionFloor;
+	int m_ExpeditionSlot;
 	int m_Seed;
 	int m_ModeRule;
 	bool m_Lan;
@@ -3037,7 +3043,7 @@ static bool LocalRuleUsesScoreLimit(int Rule)
 		   Rule == LOCAL_RULE_CTF_SCORE || Rule == LOCAL_RULE_REACTOR_SCORE || Rule == LOCAL_RULE_BALL_SCORE;
 }
 
-static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings)
+static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings, IStorage *pStorage)
 {
 	mem_zero(pSettings, sizeof(*pSettings));
 	pSettings->m_Mode = clamp(g_Config.m_ClLocalServerMode, 0, LocalGameModeCount() - 1);
@@ -3062,6 +3068,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 		g_Config.m_ClLocalServerInvasionStart, (int)LOCAL_INVASION_TEAM_CHECKPOINT, (int)LOCAL_INVASION_CUSTOM_FLOOR);
 	pSettings->m_InvasionFloor =
 		clamp(g_Config.m_ClLocalServerInvasionFloor, 1, max(1, g_Config.m_ClPveHighestInvasion));
+	pSettings->m_ExpeditionSlot = 0;
 	pSettings->m_Lan = g_Config.m_ClLocalServerLan != 0;
 	pSettings->m_RandomSeed = g_Config.m_ClLocalServerRandomSeed != 0;
 	pSettings->m_MapGen = pSettings->m_pMode->m_MapGen && !g_Config.m_ClLocalServerWorkshopMap[0];
@@ -3099,6 +3106,39 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 			TemplateFloor = clamp(g_Config.m_ClPvePreferredCheckpoint, 1, MaxCheckpoint);
 		}
 		pSettings->m_pConfig = LocalInvasionConfigForFloor(TemplateFloor);
+	}
+	if(pSettings->m_Mode == LOCAL_MODE_EXPEDITION)
+	{
+		pSettings->m_ExpeditionSlot = clamp(g_Config.m_ClExpeditionSlot, 1, (int)EXPEDITION_SLOTS);
+		pSettings->m_UseCheckpoint = false;
+		pSettings->m_RandomSeed = false;
+		pSettings->m_Roguelite = true;
+		pSettings->m_Contracts = g_Config.m_ClLocalServerContracts != 0;
+		CExpeditionSave Save;
+		const EExpeditionLoadResult Result =
+			pStorage ? CExpeditionSaveStorage::Load(pStorage, pSettings->m_ExpeditionSlot, &Save) :
+					   EXPEDITION_LOAD_MISSING;
+		if(Result == EXPEDITION_LOAD_OK)
+		{
+			pSettings->m_MapLevel = Save.m_Floor;
+			pSettings->m_Seed = Save.m_Seed;
+		}
+		else
+		{
+			pSettings->m_MapLevel = 1;
+			pSettings->m_Seed = (int)((unsigned long long)time_get() % 0x7FFFFFFFull);
+			if(pSettings->m_Seed <= 0)
+				pSettings->m_Seed = 1;
+			if(pStorage && Result == EXPEDITION_LOAD_MISSING)
+			{
+				Save.Reset();
+				Save.m_Floor = 1;
+				Save.m_Seed = pSettings->m_Seed;
+				CExpeditionSaveStorage::Save(pStorage, pSettings->m_ExpeditionSlot, Save);
+			}
+		}
+		pSettings->m_pConfig = LocalInvasionConfigForFloor(pSettings->m_MapLevel);
+		g_Config.m_ClExpeditionSlot = pSettings->m_ExpeditionSlot;
 	}
 	int *pRule = LocalModeRuleConfig(pSettings->m_pMode->m_Rule);
 	if(pRule)
@@ -3146,6 +3186,8 @@ FormatLocalServerSummary(const CLocalServerLaunchSettings &Settings, int Port, c
 		else
 			str_copy(aStart, Localize(LocalInvasionStartName(Settings.m_InvasionStart)), sizeof(aStart));
 	}
+	else if(Settings.m_Mode == LOCAL_MODE_EXPEDITION)
+		str_format(aStart, sizeof(aStart), Localize("Slot %d · Floor %d"), Settings.m_ExpeditionSlot, Settings.m_MapLevel);
 	else
 		str_format(aStart, sizeof(aStart), Localize("Difficulty %d"), Settings.m_Difficulty);
 
@@ -3485,7 +3527,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	}
 
 	CLocalServerLaunchSettings Settings;
-	BuildLocalServerLaunchSettings(&Settings);
+	BuildLocalServerLaunchSettings(&Settings, Storage());
 	m_LocalServerActualPort = 0;
 	mem_zero(&m_LocalServerAddress, sizeof(m_LocalServerAddress));
 	m_aLocalServerJoinAddress[0] = 0;
@@ -3558,6 +3600,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	char aTutorialStep[64];
 	char aTutorialMode[64];
 	char aTutorialCompleted[64];
+	char aExpedition[64];
 	char aModeRule[64];
 	char aNameValue[160];
 	char aPasswordValue[96];
@@ -3595,8 +3638,9 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	str_format(aRoguelite, sizeof(aRoguelite), "sv_pve_roguelite %d", Settings.m_Roguelite);
 	str_format(aContracts, sizeof(aContracts), "sv_pve_contracts %d", Settings.m_Contracts);
 	str_format(aCheckpoint, sizeof(aCheckpoint), "sv_invasion_use_checkpoint %d", Settings.m_UseCheckpoint);
+	str_format(aExpedition, sizeof(aExpedition), "sv_expedition_slot %d", Settings.m_ExpeditionSlot);
 	aForgeMode[0] = 0;
-	if(Settings.m_Mode == LOCAL_MODE_INVASION)
+	if(Settings.m_Mode == LOCAL_MODE_INVASION || Settings.m_Mode == LOCAL_MODE_EXPEDITION)
 		str_copy(aForgeMode, "sv_forge_mode 3", sizeof(aForgeMode));
 	str_format(aTutorialChapter, sizeof(aTutorialChapter), "sv_tutorial_chapter %d", g_Config.m_ClTutorialChapter);
 	str_format(aTutorialStep, sizeof(aTutorialStep), "sv_tutorial_step %d", g_Config.m_ClTutorialStep);
@@ -3618,7 +3662,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	str_format(aPassword, sizeof(aPassword), "password %s", aPasswordValue);
 	str_format(aLog, sizeof(aLog), "logfile %s", aLogValue);
 
-	const char *apArguments[40];
+	const char *apArguments[42];
 	int NumArguments = 0;
 	apArguments[NumArguments++] = aExecutable;
 	apArguments[NumArguments++] = "-s";
@@ -3651,6 +3695,8 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	apArguments[NumArguments++] = aRoguelite;
 	apArguments[NumArguments++] = aContracts;
 	apArguments[NumArguments++] = aCheckpoint;
+	if(Settings.m_ExpeditionSlot)
+		apArguments[NumArguments++] = aExpedition;
 	if(g_Config.m_ClTutorialActive)
 	{
 		apArguments[NumArguments++] = aTutorialMode;
@@ -3901,7 +3947,7 @@ void CMenus::CreateConfiguredRoom()
 		ShutdownLocalServer();
 
 	CLocalServerLaunchSettings Preview;
-	BuildLocalServerLaunchSettings(&Preview);
+	BuildLocalServerLaunchSettings(&Preview, Storage());
 	CHostGameSettings Settings;
 	mem_zero(&Settings, sizeof(Settings));
 	Settings.m_Visibility = Visibility == ROOM_VISIBILITY_FRIENDS ? PLATFORM_LOBBY_FRIENDS : PLATFORM_LOBBY_PUBLIC;
@@ -3917,6 +3963,7 @@ void CMenus::CreateConfiguredRoom()
 	Settings.m_Roguelite = Preview.m_Roguelite;
 	Settings.m_Contracts = Preview.m_Contracts;
 	Settings.m_UseCheckpoint = Preview.m_UseCheckpoint;
+	Settings.m_ExpeditionSlot = Preview.m_ExpeditionSlot;
 	str_copy(Settings.m_aName, Preview.m_aName, sizeof(Settings.m_aName));
 	str_copy(Settings.m_aPassword, Preview.m_aPassword, sizeof(Settings.m_aPassword));
 	// Invasion (and other non-selectable modes) leave the map to the floor cfg.
@@ -3943,6 +3990,7 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	static int s_ChangeMode, s_MapPrevious, s_MapNext, s_SlotsPrevious, s_SlotsNext;
 	static int s_DifficultyPrevious, s_DifficultyNext, s_BotsPrevious, s_BotsNext;
 	static int s_RulePrevious, s_RuleNext, s_InvasionPrevious, s_InvasionNext, s_FloorPrevious, s_FloorNext;
+	static int s_ExpeditionPrevious, s_ExpeditionNext, s_ExpeditionDelete;
 	static int s_PortPrevious, s_PortNext;
 	static int s_Advanced, s_RandomSeed, s_Roguelite, s_Contracts;
 	static int s_Create, s_Log, s_Stop;
@@ -4373,9 +4421,9 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	// Reserve the optional custom-floor row for Invasion as well, so changing
 	// the starting point cannot make the panel overlap for a single frame.
 	const int MainRows = 3 + (ModeDef.m_HasBots ? 1 : 0) +
-						 (Mode == LOCAL_MODE_INVASION			? 2
-						  : LocalModeRuleConfig(ModeDef.m_Rule) ? 1
-																: 0);
+						 (Mode == LOCAL_MODE_INVASION || Mode == LOCAL_MODE_EXPEDITION ? 2
+						  : LocalModeRuleConfig(ModeDef.m_Rule)						  ? 1
+																					  : 0);
 	const bool AdvancedExpanded = g_Config.m_ClLocalServerAdvanced != 0;
 	// Challenge section (code input + 4 variant rows + live code) adds six
 	// rows to the advanced area; without this the fixed Identity height clips
@@ -4513,6 +4561,27 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerInvasionFloor);
 			Delta = Stepper(Control, &s_FloorPrevious, &s_FloorNext, aLabel);
 			g_Config.m_ClLocalServerInvasionFloor = clamp(g_Config.m_ClLocalServerInvasionFloor + Delta, 1, MaxFloor);
+		}
+	}
+	else if(Mode == LOCAL_MODE_EXPEDITION)
+	{
+		g_Config.m_ClExpeditionSlot = clamp(g_Config.m_ClExpeditionSlot, 1, (int)EXPEDITION_SLOTS);
+		CExpeditionSave SlotSave;
+		const EExpeditionLoadResult SlotResult =
+			CExpeditionSaveStorage::Load(Storage(), g_Config.m_ClExpeditionSlot, &SlotSave);
+		SplitRow(MainSettings, &Label, &Control);
+		UI()->DoLabelScaled(&Label, Localize("Save slot"), 11.0f, -1);
+		if(SlotResult == EXPEDITION_LOAD_OK)
+			str_format(aLabel, sizeof(aLabel), Localize("Slot %d · Floor %d"), g_Config.m_ClExpeditionSlot, SlotSave.m_Floor);
+		else
+			str_format(aLabel, sizeof(aLabel), Localize("Slot %d · Empty"), g_Config.m_ClExpeditionSlot);
+		Delta = Stepper(Control, &s_ExpeditionPrevious, &s_ExpeditionNext, aLabel);
+		g_Config.m_ClExpeditionSlot = ((g_Config.m_ClExpeditionSlot - 1 + Delta + EXPEDITION_SLOTS) % EXPEDITION_SLOTS) + 1;
+		if(SlotResult == EXPEDITION_LOAD_OK)
+		{
+			SplitRow(MainSettings, &Label, &Control);
+			if(DoButton_Menu(&s_ExpeditionDelete, Localize("Delete save"), 0, &Control))
+				CExpeditionSaveStorage::Remove(Storage(), g_Config.m_ClExpeditionSlot);
 		}
 	}
 	else if(int *pRule = LocalModeRuleConfig(ModeDef.m_Rule))
@@ -4679,7 +4748,7 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	s_ConfigScrollRegion.End();
 
 	CLocalServerLaunchSettings Preview;
-	BuildLocalServerLaunchSettings(&Preview);
+	BuildLocalServerLaunchSettings(&Preview, Storage());
 	DrawMenuInset(&Footer, CUI::CORNER_ALL);
 	Footer.Margin(L(8.0f), &Footer);
 	CUIRect Status, Action;
@@ -4794,6 +4863,8 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	static int s_InvasionStartNext = 0;
 	static int s_InvasionFloorPrevious = 0;
 	static int s_InvasionFloorNext = 0;
+	static int s_ExpeditionPrevious = 0;
+	static int s_ExpeditionNext = 0;
 	static int s_RulePrevious = 0;
 	static int s_RuleNext = 0;
 	static int s_StartButton = 0;
@@ -4855,7 +4926,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			if(Focus == FOCUS_MAP)
 				return LocalGameMode(Mode).m_SelectableMap;
 			if(Focus == FOCUS_INVASION_START)
-				return Mode == LOCAL_MODE_INVASION;
+				return Mode == LOCAL_MODE_INVASION || Mode == LOCAL_MODE_EXPEDITION;
 			if(Focus == FOCUS_INVASION_FLOOR)
 				return Mode == LOCAL_MODE_INVASION &&
 					   g_Config.m_ClLocalServerInvasionStart == LOCAL_INVASION_CUSTOM_FLOOR;
@@ -5034,7 +5105,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		}
 	}
 	CLocalServerLaunchSettings PreviewSettings;
-	BuildLocalServerLaunchSettings(&PreviewSettings);
+	BuildLocalServerLaunchSettings(&PreviewSettings, Storage());
 	char aPreviewSummary[512];
 	FormatLocalServerSummary(PreviewSettings, PreviewSettings.m_Port, aPreviewSummary, sizeof(aPreviewSummary));
 	if((m_LocalServerProcess || m_LocalServerState == LOCAL_SERVER_FAILED) && !m_LocalServerSummaryLocalized)
@@ -5208,7 +5279,28 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 			UI()->DoLabelScaled(&Control, Localize("Automatic"), 11.0f, -1);
 		}
 
-		if(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION)
+		if(g_Config.m_ClLocalServerMode == LOCAL_MODE_EXPEDITION)
+		{
+			g_Config.m_ClExpeditionSlot = clamp(g_Config.m_ClExpeditionSlot, 1, (int)EXPEDITION_SLOTS);
+			CExpeditionSave SlotSave;
+			const EExpeditionLoadResult SlotResult =
+				CExpeditionSaveStorage::Load(Storage(), g_Config.m_ClExpeditionSlot, &SlotSave);
+			SplitSettingRow(&Label, &Control);
+			DrawFocusMarker(Label, FOCUS_INVASION_START);
+			UI()->DoLabelScaled(&Label, Localize("Save slot"), 12.0f, -1);
+			Control.VSplitLeft(L(30.0f), &Previous, &Value);
+			Value.VSplitRight(L(30.0f), &Value, &Next);
+			if(DoButton_Menu(&s_ExpeditionPrevious, "<", 0, &Previous))
+				g_Config.m_ClExpeditionSlot = g_Config.m_ClExpeditionSlot > 1 ? g_Config.m_ClExpeditionSlot - 1 : EXPEDITION_SLOTS;
+			if(DoButton_Menu(&s_ExpeditionNext, ">", 0, &Next))
+				g_Config.m_ClExpeditionSlot = g_Config.m_ClExpeditionSlot < EXPEDITION_SLOTS ? g_Config.m_ClExpeditionSlot + 1 : 1;
+			if(SlotResult == EXPEDITION_LOAD_OK)
+				str_format(aLabel, sizeof(aLabel), Localize("Slot %d · Floor %d"), g_Config.m_ClExpeditionSlot, SlotSave.m_Floor);
+			else
+				str_format(aLabel, sizeof(aLabel), Localize("Slot %d · Empty"), g_Config.m_ClExpeditionSlot);
+			UI()->DoLabelScaled(&Value, aLabel, 11.0f, 0);
+		}
+		else if(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION)
 		{
 			SplitSettingRow(&Label, &Control);
 			DrawFocusMarker(Label, FOCUS_INVASION_START);

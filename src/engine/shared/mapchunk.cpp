@@ -80,7 +80,6 @@ void CMapChunk::DestroyChain(CMapChunk *pAny)
 
 CMapChunk *CMapChunk::GetMapChunk(int X)
 {
-	// ponytail: reject one-shot teleports over 128 chunks. Continuous movement
 	// remains unbounded; a sparse indexed chain can replace this ceiling if needed.
 	const int MaxLookupChunks = 128;
 	const int64 Delta = X < m_X ? (int64)m_X - X :

@@ -931,6 +931,30 @@ Invalid slots
 Invasion
 == 入侵模式
 
+Expedition Invasion
+== 遠征入侵
+
+A persistent Invasion campaign with three host-side save slots. Invite friends and keep every player's loadout between sessions.
+== 持久的入侵遠征，房主本地三個存檔。可邀請好友，並保留每名玩家的裝備與進度。
+
+Saves  ·  Co-op  ·  Invasion
+== 存檔  ·  合作  ·  入侵
+
+Long
+== 長線
+
+Save slot
+== 存檔欄位
+
+Slot %d · Empty
+== 欄位 %d · 空
+
+Slot %d · Floor %d
+== 欄位 %d · 第 %d 層
+
+Delete save
+== 刪除存檔
+
 Inventory
 == 打開物品欄
 

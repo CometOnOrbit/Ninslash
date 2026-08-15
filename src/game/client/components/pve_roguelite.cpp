@@ -161,7 +161,6 @@ const char *PveResearchRouteName(int Tab, int Branch, int Route)
 	return s_apMode[clamp(Branch, 0, 2)][clamp(Route, 0, 2)];
 }
 
-// ponytail: local copies of picker DrawCircle + pie fan; no need to open picker.cpp
 void DrawDroneWheelCircle(IGraphics *pGraphics, float x, float y, float r, int Segments)
 {
 	IGraphics::CFreeformItem Array[32];

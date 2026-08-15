@@ -2954,6 +2954,7 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	Settings.m_PveRoguelite = Host.m_Roguelite;
 	Settings.m_PveContracts = Host.m_Contracts;
 	Settings.m_InvasionUseCheckpoint = Host.m_UseCheckpoint;
+	Settings.m_ExpeditionSlot = Host.m_ExpeditionSlot;
 	str_copy(Settings.m_aBindAddress, "127.0.0.1", sizeof(Settings.m_aBindAddress));
 	str_copy(Settings.m_aName, Host.m_aName, sizeof(Settings.m_aName));
 	str_copy(Settings.m_aPassword, Host.m_aPassword, sizeof(Settings.m_aPassword));

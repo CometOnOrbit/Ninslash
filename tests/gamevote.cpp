@@ -58,7 +58,7 @@ int main()
 	// The count is intentionally coupled to s_aAllLocalModes: it must change
 	// when modes are added/removed from the picker.
 	const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
-	assert(AllCount == 13);
+	assert(AllCount == 14);
 	for(int i = 0; i < AllCount; i++)
 		assert(LocalGameModeSortKey(s_aAllLocalModes[i]) == i);
 	// Modes outside the picker list sort after every listed mode.
@@ -67,8 +67,8 @@ int main()
 	assert(LocalGameModeSortKey(LOCAL_MODE_COUNT) == AllCount);
 
 	// Every local mode thumbnail ships in data/gamevotes/ and maps back to its
-	// own mode, except Roam Race which deliberately shares the invasion1
-	// thumbnail with Invasion (the client disambiguates by vote name).
+	// own mode, except Roam Race and Expedition Invasion which share invasion1
+	// with Invasion (the client disambiguates by vote name).
 	for(int Mode = 1; Mode < LOCAL_MODE_COUNT; Mode++)
 	{
 		const CLocalGameMode &Spec = LocalGameMode(Mode);
@@ -78,7 +78,7 @@ int main()
 		assert(pImage);
 		fclose(pImage);
 		const int Mapped = LocalGameModeFromImage(Spec.m_pGameVoteImage);
-		if(Mode == LOCAL_MODE_ROAM)
+		if(Mode == LOCAL_MODE_ROAM || Mode == LOCAL_MODE_EXPEDITION)
 			assert(Mapped == LOCAL_MODE_INVASION);
 		else
 			assert(Mapped == Mode);

@@ -30,6 +30,7 @@ Localize("Boss assault"),Localize("Purge"),Localize("Standard wave"),Localize("D
 Localize("Reactor defense"),Localize("Timed survive"),Localize("Trap run"),Localize("Elite wave"),
 Localize("Z-sector wave"),Localize("Acid escape"),Localize("Aliens"),Localize("Robots"),
 Localize("Skeletons"),Localize("Furries"),Localize("Cyborgs"),Localize("Invasion"),
+Localize("Expedition Invasion"),Localize("Save slot"),Localize("Delete save"),
 Localize("Weapon forge"),Localize("Target"),Localize("Material"),Localize("Result"),Localize("Weapon
 level"),Localize("Ammo"), Localize("Part 2
 transplant"),Localize("Spin"),Localize("Upgrade"),Localize("Forge"),Localize("Forging..."), Localize("Waiting for

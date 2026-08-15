@@ -744,6 +744,8 @@ set_src(GAME_SHARED GLOB src/game
   mapitems.h
   pathfinding.cpp
   pathfinding.h
+  expedition_save.cpp
+  expedition_save.h
   pve_roguelite.cpp
   pve_roguelite.h
   questinfo.cpp
@@ -973,6 +975,22 @@ if(NINSLASH_BUILD_TESTS)
   set_tests_properties(pve_progress_storage PROPERTIES
     ENVIRONMENT "HOME=${PROJECT_BINARY_DIR}/test-home"
   )
+  add_executable(ninslash_test_expedition_save
+    tests/expedition_save.cpp
+    src/game/expedition_save.cpp
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_expedition_save PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_BINARY_DIR}/src
+  )
+  target_link_libraries(ninslash_test_expedition_save ${LIBS})
+  add_test(NAME expedition_save COMMAND ninslash_test_expedition_save)
+  set_tests_properties(expedition_save PROPERTIES
+    ENVIRONMENT "HOME=${PROJECT_BINARY_DIR}/test-home"
+  )
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_expedition_save)
   add_executable(ninslash_test_content_manifest
     tests/content_manifest.cpp
     $<TARGET_OBJECTS:engine-shared>

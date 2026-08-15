@@ -338,6 +338,13 @@ MACRO_CONFIG_INT(SvInvasionUseCheckpoint,
 				 1,
 				 CFGFLAG_SERVER,
 				 "Allow synchronized player progress to select the initial Invasion checkpoint")
+MACRO_CONFIG_INT(SvExpeditionSlot,
+				 sv_expedition_slot,
+				 0,
+				 0,
+				 3,
+				 CFGFLAG_SERVER,
+				 "Expedition Invasion save slot (0=off, 1-3=host-local slot)")
 
 // Co-op PvE Roguelite Director
 MACRO_CONFIG_INT(SvPveRoguelite, sv_pve_roguelite, 1, 0, 1, CFGFLAG_SERVER, "Enable the shared PvE Roguelite Director")
@@ -407,9 +414,16 @@ MACRO_CONFIG_INT(ClLocalServerMode,
 				 cl_local_server_mode,
 				 1,
 				 0,
-				 12,
+				 15,
 				 CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_CLOUD,
 				 "Selected local game mode")
+MACRO_CONFIG_INT(ClExpeditionSlot,
+				 cl_expedition_slot,
+				 1,
+				 1,
+				 3,
+				 CFGFLAG_SAVE | CFGFLAG_CLIENT,
+				 "Selected Expedition Invasion save slot")
 MACRO_CONFIG_INT(ClRoomVisibility,
 				 cl_room_visibility,
 				 0,

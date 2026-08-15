@@ -191,7 +191,6 @@ CBlockEntities *CBlockEntities::FreeOutside(CGameContext *pGameServer, int LowX,
 	while(pLeft->m_pPrev)
 		pLeft = pLeft->m_pPrev;
 
-	// ponytail: activated chunks retain persistent entity state; only empty
 	// speculative tails are safe to reclaim until that state has an archive.
 	while(pLeft != pKeep && pLeft->m_X + pLeft->m_SizeX < LowX &&
 		  !pLeft->m_EntitiesCreated && !pLeft->m_pStoredEntities)

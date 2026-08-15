@@ -22,6 +22,7 @@ enum ELocalGameMode
 	LOCAL_MODE_GRENADE_DM,
 	LOCAL_MODE_INSTAGIB_CTF,
 	LOCAL_MODE_ROAM,
+	LOCAL_MODE_EXPEDITION,
 	LOCAL_MODE_COUNT,
 };
 
@@ -313,10 +314,25 @@ static const CLocalGameMode s_aLocalGameModes[LOCAL_MODE_COUNT] = {
 					 s_apLocalMaps,
 					 s_apLocalMapCommands,
 					 LOCAL_RULE_ROAM_CHECKPOINTS, false, false),
+	LOCAL_MODE_ENTRY("Expedition Invasion",
+					 "A persistent Invasion campaign with three host-side save slots. Invite friends and keep every player's loadout between sessions.",
+					 "1-4",
+					 "Long",
+					 "Normal",
+					 "Saves  ·  Co-op  ·  Invasion",
+					 "cfg/invasion_root.cfg",
+					 "coop",
+					 "invasion1",
+					 true,
+					 true,
+					 false,
+					 s_apLocalMaps,
+					 s_apLocalMapCommands,
+					 LOCAL_RULE_INVASION, false, true),
 };
 
 static const int s_aAllLocalModes[] = {
-	LOCAL_MODE_INVASION, LOCAL_MODE_HORDE, LOCAL_MODE_EXTRACTION, LOCAL_MODE_REACTOR_DEFENSE,
+	LOCAL_MODE_INVASION, LOCAL_MODE_EXPEDITION, LOCAL_MODE_HORDE, LOCAL_MODE_EXTRACTION, LOCAL_MODE_REACTOR_DEFENSE,
 	LOCAL_MODE_DM, LOCAL_MODE_TDM, LOCAL_MODE_CTF,
 	LOCAL_MODE_REACTOR_ASSAULT, LOCAL_MODE_BALL,
 	LOCAL_MODE_BATTLE_ROYALE, LOCAL_MODE_GRENADE_DM, LOCAL_MODE_INSTAGIB_CTF, LOCAL_MODE_ROAM
@@ -329,6 +345,11 @@ inline const CLocalGameMode &LocalGameMode(int Mode)
 	if(Mode < 0 || Mode >= LOCAL_MODE_COUNT)
 		Mode = LOCAL_MODE_INVASION;
 	return s_aLocalGameModes[Mode];
+}
+
+inline bool LocalGameModeIsExpedition(int Mode)
+{
+	return Mode == LOCAL_MODE_EXPEDITION;
 }
 
 inline int LocalGameModeCount()
