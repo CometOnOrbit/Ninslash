@@ -73,9 +73,26 @@ int main()
 	Ok &= Expect(TutorialGameplayEventMatches(TUTORIAL_CHAPTER_BUILD, 1, TUTORIAL_EVENT_DRONE),
 				 "build chapter drone switch advances second step");
 	Ok &= Expect(TutorialGameplayEventMatches(TUTORIAL_CHAPTER_BUILD, 2, TUTORIAL_EVENT_RESEARCH),
-				 "build chapter research advances final step");
+				 "build chapter research advances research step");
 	Ok &= Expect(!TutorialGameplayEventMatches(TUTORIAL_CHAPTER_BUILD, 1, TUTORIAL_EVENT_PERK),
 				 "build chapter rejects an event from another step");
+	for(int Chapter = TUTORIAL_CHAPTER_DEPLOYMENT; Chapter <= NUM_TUTORIAL_CHAPTERS; Chapter++)
+	{
+		const int Last = TutorialLastStep(Chapter);
+		Ok &= Expect(TutorialStepIsDoor(Chapter, Last), "last step of every chapter is the door");
+		Ok &= Expect(TutorialGameplayEventMatches(Chapter, Last, TUTORIAL_EVENT_DOOR),
+					 "door event matches the last step");
+		Ok &= Expect(!TutorialGameplayEventMatches(Chapter, Last, TUTORIAL_EVENT_OBJECTIVE),
+					 "earlier events cannot finish the door step");
+		Ok &= Expect(!TutorialStepIsDoor(Chapter, Last - 1), "penultimate step is not the door");
+	}
+	Ok &= Expect(!TutorialGameplayEventMatches(TUTORIAL_CHAPTER_OBJECTIVES, 4, TUTORIAL_EVENT_OBJECTIVE),
+				 "a fifth switch cannot complete the objectives chapter");
+	Tutorial.Start(TUTORIAL_CHAPTER_DEPLOYMENT, TutorialLastStep(TUTORIAL_CHAPTER_DEPLOYMENT), 0);
+	int DoorNonce = Tutorial.State().m_Nonce;
+	Ok &= Expect(!Tutorial.OnAction(TUTORIAL_ACTION_UI_CONTINUE, DoorNonce) && Tutorial.State().m_Active,
+				 "continue cannot skip the door");
+	Ok &= Expect(Tutorial.AddProgress() && !Tutorial.State().m_Active, "door progress completes the chapter");
 	Tutorial.Start(TUTORIAL_CHAPTER_MULTIPLAYER, 1, 31);
 	int RoomNonce = Tutorial.State().m_Nonce;
 	Ok &= Expect(!Tutorial.OnAction(TUTORIAL_ACTION_UI_ROOM_JOIN, RoomNonce) && Tutorial.State().m_Step == 1,
@@ -85,8 +102,14 @@ int main()
 	RoomNonce = Tutorial.State().m_Nonce;
 	Ok &= Expect(!Tutorial.OnAction(TUTORIAL_ACTION_UI_ROOM_CREATE, RoomNonce) && Tutorial.State().m_Step == 2,
 				 "room creation cannot replace room join");
-	Ok &= Expect(Tutorial.OnAction(TUTORIAL_ACTION_UI_ROOM_JOIN, RoomNonce) && !Tutorial.State().m_Active,
-				 "room join completes multiplayer chapter");
+	Tutorial.OnAction(TUTORIAL_ACTION_UI_ROOM_JOIN, RoomNonce);
+	Ok &= Expect(Tutorial.State().m_Active &&
+					 Tutorial.State().m_Step == TutorialLastStep(TUTORIAL_CHAPTER_MULTIPLAYER),
+				 "room join advances to the door");
+	RoomNonce = Tutorial.State().m_Nonce;
+	Ok &= Expect(!Tutorial.OnAction(TUTORIAL_ACTION_UI_CONTINUE, RoomNonce) && Tutorial.State().m_Active,
+				 "continue cannot skip the multiplayer door");
+	Ok &= Expect(Tutorial.AddProgress() && !Tutorial.State().m_Active, "door completes multiplayer chapter");
 	Tutorial.Start(99, 99, 0);
 	Ok &= Expect(Tutorial.State().m_Chapter == TUTORIAL_CHAPTER_DEPLOYMENT && Tutorial.State().m_Step == 0,
 				 "sanitize resume state");
@@ -114,6 +137,92 @@ int main()
 		for(int i = 0; i < 32; i++)
 			aSolid[i] = 1;
 		Ok &= Expect(TutorialPickKitSpots(aSolid, W, H, 4, aX, aY) == 0, "solid grid places no kits");
+		Ok &= Expect(TutorialPickKitSpots(aSolid, W, H, 4, aX, aY, 2) == 0, "solid grid places no standable spots");
+	}
+	{
+		const int W = 8;
+		const int H = 4;
+		unsigned char aSolid[32];
+		for(int i = 0; i < 32; i++)
+			aSolid[i] = 0;
+		for(int x = 0; x < W; x++)
+		{
+			aSolid[0 * W + x] = 1;
+			aSolid[3 * W + x] = 1;
+		}
+		int aX[4];
+		int aY[4];
+		Ok &= Expect(TutorialPickKitSpots(aSolid, W, H, 2, aX, aY, 2) == 0,
+					 "one-tile corridor is not a player spawn");
+	}
+	{
+		const int W = 8;
+		const int H = 6;
+		unsigned char aSolid[48];
+		for(int i = 0; i < 48; i++)
+			aSolid[i] = 0;
+		for(int x = 0; x < W; x++)
+		{
+			aSolid[0 * W + x] = 1;
+			aSolid[5 * W + x] = 1;
+		}
+		int aX[2];
+		int aY[2];
+		Ok &= Expect(TutorialPickKitSpots(aSolid, W, H, 2, aX, aY, 2) == 2, "tall corridor places standable spots");
+		for(int i = 0; i < 2; i++)
+			Ok &= Expect(aY[i] == 4 && TutorialDoorSpotOk(aSolid[aY[i] * W + aX[i]], aSolid[(aY[i] + 1) * W + aX[i]],
+														 aSolid[(aY[i] - 1) * W + aX[i]],
+														 aSolid[(aY[i] - 2) * W + aX[i]]),
+						 "standable spots sit on the floor with headroom");
+	}
+	{
+		// Floor air that is actually a crate (FGOBJECTS) must not be a player spawn,
+		// and the 32px-wide player must not clip the crate from the next tile.
+		const int W = 12;
+		const int H = 8;
+		unsigned char aSolid[96];
+		for(int i = 0; i < 96; i++)
+			aSolid[i] = 0;
+		for(int x = 0; x < W; x++)
+		{
+			aSolid[0 * W + x] = 1;
+			aSolid[7 * W + x] = 1;
+		}
+		for(int yy = 4; yy <= 6; yy++)
+			for(int xx = 4; xx <= 6; xx++)
+				aSolid[yy * W + xx] = 1;
+		int aX[2];
+		int aY[2];
+		const int N = TutorialPickKitSpots(aSolid, W, H, 2, aX, aY, 2);
+		Ok &= Expect(N == 2, "crate on the floor still leaves standable spots");
+		for(int i = 0; i < N; i++)
+		{
+			const bool InsideCrate = aX[i] >= 4 && aX[i] <= 6 && aY[i] >= 4 && aY[i] <= 6;
+			Ok &= Expect(!InsideCrate && aSolid[aY[i] * W + aX[i]] == 0, "player spawn is not inside the crate");
+			if(aY[i] == 6)
+				Ok &= Expect(aX[i] < 3 || aX[i] > 7, "floor spawn stays a tile away from the crate");
+		}
+	}
+	{
+		const int W = 8;
+		const int H = 6;
+		unsigned char aSolid[48];
+		for(int i = 0; i < 48; i++)
+			aSolid[i] = 0;
+		for(int x = 0; x < W; x++)
+		{
+			aSolid[0 * W + x] = 1;
+			aSolid[5 * W + x] = 1;
+		}
+		int DoorX = -1;
+		int DoorY = -1;
+		Ok &= Expect(TutorialPickDoorSpot(aSolid, W, H, &DoorX, &DoorY), "low corridor still places a door");
+		Ok &= Expect(DoorY == 4 && TutorialDoorSpotOk(aSolid[DoorY * W + DoorX], aSolid[(DoorY + 1) * W + DoorX],
+													 aSolid[(DoorY - 1) * W + DoorX], aSolid[(DoorY - 2) * W + DoorX]),
+					 "door sits on the floor with player-height air");
+		for(int i = 0; i < 48; i++)
+			aSolid[i] = 1;
+		Ok &= Expect(!TutorialPickDoorSpot(aSolid, W, H, &DoorX, &DoorY), "solid grid places no door");
 	}
 	return Ok ? 0 : 1;
 }

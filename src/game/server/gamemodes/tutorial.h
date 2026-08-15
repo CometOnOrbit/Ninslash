@@ -16,6 +16,8 @@ class CGameControllerTutorial : public IGameController
 	bool m_aRespawnNearTarget[MAX_CLIENTS];
 	class CServerRadar *m_apObjectiveRadars[4];
 	int m_NumObjectiveRadars;
+	class CServerRadar *m_pDoor;
+	bool m_DoorOpened;
 
 	int DesiredBots() const;
 	void UpdateControlledBots();
@@ -23,6 +25,7 @@ class CGameControllerTutorial : public IGameController
 	bool GetRespawnNearTarget(vec2 *pOutPos) const;
 	void ClearObjectiveRadars();
 	void RefreshObjectiveRadars();
+	void OpenDoorIfReady();
 
   public:
 	explicit CGameControllerTutorial(class CGameContext *pGameServer);
@@ -33,6 +36,8 @@ class CGameControllerTutorial : public IGameController
 	void OnCharacterSpawn(class CCharacter *pChr, bool RequestAI = false) override;
 	int OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source) override;
 	void OnSwitchTriggered() override;
+	void DisplayExit(vec2 Pos) override;
+	void NextLevel(int CID = -1) override;
 	void Tick() override;
 };
 

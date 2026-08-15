@@ -3451,6 +3451,12 @@ void CMenus::OpenTutorialRoomPractice()
 	SetActive(true);
 }
 
+void CMenus::ReturnToGameplay()
+{
+	CloseResearchPage();
+	SetActive(false);
+}
+
 void CMenus::OpenPlayHub()
 {
 	g_Config.m_UiPage = PAGE_FRONT;
@@ -8721,7 +8727,8 @@ int CMenus::Render()
 		if(Client()->State() != IClient::STATE_OFFLINE)
 		{
 			if(m_GamePage == PAGE_LOCAL_SERVER && g_Config.m_ClTutorialActive &&
-			   g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER && g_Config.m_ClTutorialStep >= 1)
+			   g_Config.m_ClTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER && g_Config.m_ClTutorialStep >= 1 &&
+			   !TutorialStepIsDoor(g_Config.m_ClTutorialChapter, g_Config.m_ClTutorialStep))
 				RenderTutorialRoomPractice(MainView);
 			else if(m_GamePage == PAGE_LOCAL_SERVER)
 				RenderCreateRoom(MainView);

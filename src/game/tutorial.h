@@ -16,7 +16,7 @@ enum ETutorialChapter
 
 enum
 {
-	TUTORIAL_CONTENT_VERSION = 2
+	TUTORIAL_CONTENT_VERSION = 3
 };
 
 inline int TutorialChapterFromLegacy(int LegacyState, int LegacyCheckpoint)
@@ -51,12 +51,20 @@ inline bool TutorialPickupSpotOk(int Tile, int Below)
 	return Tile == 0 && Below != 0;
 }
 
-inline int TutorialPickKitSpots(const unsigned char *pSolid, int W, int H, int Wanted, int *pOutX, int *pOutY)
+// Door / player spawn need player-height air. Compact tutorial corridors still qualify.
+inline bool TutorialDoorSpotOk(int Tile, int Below, int Above1, int Above2)
+{
+	return Tile == 0 && Below != 0 && Above1 == 0 && Above2 == 0;
+}
+
+inline int TutorialPickKitSpots(const unsigned char *pSolid, int W, int H, int Wanted, int *pOutX, int *pOutY,
+							   int Headroom = 0)
 {
 	int Placed = 0;
 	if(!pSolid || !pOutX || !pOutY || W < 3 || H < 3 || Wanted <= 0)
 		return 0;
 	const int MinSep = 4;
+	const int Y0 = 1 + (Headroom > 0 ? Headroom : 0);
 	for(int Pass = 0; Pass < 2 && Placed < Wanted; Pass++)
 	{
 		for(int Slot = Placed; Slot < Wanted; Slot++)
@@ -65,10 +73,21 @@ inline int TutorialPickKitSpots(const unsigned char *pSolid, int W, int H, int W
 			int BestX = -1;
 			int BestY = -1;
 			int BestScore = 0x7fffffff;
-			for(int y = 1; y < H - 1; y++)
+			for(int y = Y0; y < H - 1; y++)
 				for(int x = 1; x < W - 1; x++)
 				{
-					if(!TutorialPickupSpotOk(pSolid[y * W + x], pSolid[(y + 1) * W + x]))
+					if(Headroom >= 2)
+					{
+						// Player box is 32x74; one tile of air next to a crate still clips.
+						bool Clear = true;
+						for(int dx = -1; dx <= 1 && Clear; dx++)
+							if(!TutorialDoorSpotOk(pSolid[y * W + x + dx], pSolid[(y + 1) * W + x + dx],
+												   pSolid[(y - 1) * W + x + dx], pSolid[(y - 2) * W + x + dx]))
+								Clear = false;
+						if(!Clear)
+							continue;
+					}
+					else if(!TutorialPickupSpotOk(pSolid[y * W + x], pSolid[(y + 1) * W + x]))
 						continue;
 					bool Taken = false;
 					for(int i = 0; i < Placed; i++)
@@ -115,6 +134,38 @@ inline int TutorialPickKitSpots(const unsigned char *pSolid, int W, int H, int W
 		}
 	}
 	return Placed;
+}
+
+inline bool TutorialPickDoorSpot(const unsigned char *pSolid, int W, int H, int *pOutX, int *pOutY)
+{
+	if(!pSolid || !pOutX || !pOutY || W < 5 || H < 5)
+		return false;
+	int BestX = -1;
+	int BestY = -1;
+	int BestScore = 0x7fffffff;
+	const int DesiredX = W * 3 / 4;
+	for(int y = 2; y < H - 1; y++)
+		for(int x = 2; x < W - 2; x++)
+		{
+			if(!TutorialDoorSpotOk(pSolid[y * W + x], pSolid[(y + 1) * W + x], pSolid[(y - 1) * W + x],
+								   pSolid[(y - 2) * W + x]))
+				continue;
+			int Dx = x - DesiredX;
+			if(Dx < 0)
+				Dx = -Dx;
+			const int Score = Dx * 100 + (H - y);
+			if(Score < BestScore)
+			{
+				BestX = x;
+				BestY = y;
+				BestScore = Score;
+			}
+		}
+	if(BestX < 0)
+		return false;
+	*pOutX = BestX;
+	*pOutY = BestY;
+	return true;
 }
 
 inline int TutorialCompletedMaskLimit()
@@ -181,10 +232,29 @@ enum ETutorialGameplayEvent
 	TUTORIAL_EVENT_RESEARCH,
 	TUTORIAL_EVENT_WEAPON_SWITCH,
 	TUTORIAL_EVENT_TARGET_HIT,
+	TUTORIAL_EVENT_DOOR,
 };
+
+inline int TutorialStepCount(int Chapter)
+{
+	static const int s_aSteps[] = {0, 4, 4, 5, 4, 4, 4};
+	return Chapter >= TUTORIAL_CHAPTER_DEPLOYMENT && Chapter <= NUM_TUTORIAL_CHAPTERS ? s_aSteps[Chapter] : 0;
+}
+
+inline int TutorialLastStep(int Chapter)
+{
+	return TutorialStepCount(Chapter) - 1;
+}
+
+inline bool TutorialStepIsDoor(int Chapter, int Step)
+{
+	return TutorialStepCount(Chapter) > 0 && Step == TutorialLastStep(Chapter);
+}
 
 inline bool TutorialGameplayEventMatches(int Chapter, int Step, int Event, bool CombatRespawnReady = false)
 {
+	if(TutorialStepIsDoor(Chapter, Step))
+		return Event == TUTORIAL_EVENT_DOOR;
 	if(Chapter == TUTORIAL_CHAPTER_COMBAT)
 		return (Step == 0 && Event == TUTORIAL_EVENT_KILL) || (Step == 1 && Event == TUTORIAL_EVENT_RECOVER) ||
 			   (Step == 2 && CombatRespawnReady && Event == TUTORIAL_EVENT_KILL);
@@ -218,24 +288,19 @@ struct CTutorialState
 	}
 };
 
-inline int TutorialStepCount(int Chapter)
-{
-	static const int s_aSteps[] = {0, 3, 3, 4, 3, 3, 3};
-	return Chapter >= TUTORIAL_CHAPTER_DEPLOYMENT && Chapter <= NUM_TUTORIAL_CHAPTERS ? s_aSteps[Chapter] : 0;
-}
-
 inline int TutorialTargetForStep(int Chapter, int Step)
 {
 	// Targets are intentionally modest and deterministic. World-specific hooks
-	// feed progress; UI-only room actions use the final multiplayer steps.
-	static const int s_aaTargets[7][4] = {
-		{0, 0, 0, 0},
-		{1, 1, 2, 0},
-		{3, 1, 1, 0},
-		{1, 1, 1, 1},
-		{1, 1, 1, 0},
-		{1, 1, 1, 0},
-		{1, 1, 1, 0},
+	// feed progress; UI-only room actions use the multiplayer middle steps.
+	// The last step of every chapter is always the door.
+	static const int s_aaTargets[7][5] = {
+		{0, 0, 0, 0, 0},
+		{1, 1, 2, 1, 0},
+		{3, 1, 1, 1, 0},
+		{1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 0},
+		{1, 1, 1, 1, 0},
+		{1, 1, 1, 1, 0},
 	};
 	if(Chapter < TUTORIAL_CHAPTER_DEPLOYMENT || Chapter > NUM_TUTORIAL_CHAPTERS || Step < 0 ||
 	   Step >= TutorialStepCount(Chapter))
@@ -287,13 +352,14 @@ class CTutorialStateMachine
 	{
 		if(!m_State.m_Active || Nonce != m_State.m_Nonce)
 			return false;
-		const bool IsRoomStep = m_State.m_Chapter == TUTORIAL_CHAPTER_MULTIPLAYER && m_State.m_Step >= 1;
+		const bool IsDoorStep = TutorialStepIsDoor(m_State.m_Chapter, m_State.m_Step);
+		const bool IsRoomStep = m_State.m_Chapter == TUTORIAL_CHAPTER_MULTIPLAYER && m_State.m_Step >= 1 && !IsDoorStep;
 		if((Action == TUTORIAL_ACTION_UI_READY && m_State.m_Step == 0) ||
 		   (m_State.m_Chapter == TUTORIAL_CHAPTER_MULTIPLAYER && m_State.m_Step == 1 &&
 			Action == TUTORIAL_ACTION_UI_ROOM_CREATE) ||
 		   (m_State.m_Chapter == TUTORIAL_CHAPTER_MULTIPLAYER && m_State.m_Step == 2 &&
 			Action == TUTORIAL_ACTION_UI_ROOM_JOIN) ||
-		   (!IsRoomStep && Action == TUTORIAL_ACTION_UI_CONTINUE))
+		   (!IsRoomStep && !IsDoorStep && Action == TUTORIAL_ACTION_UI_CONTINUE))
 			return AddProgress();
 		return false;
 	}

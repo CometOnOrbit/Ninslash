@@ -17,7 +17,7 @@
 
 CGameControllerTutorial::CGameControllerTutorial(CGameContext *pGameServer)
 	: IGameController(pGameServer), m_NumTargetSpawnPoints(0), m_TargetSpawnRotation(0), m_TargetSlotsReported(false),
-	  m_CurrentTargetPos(0, 0), m_NumObjectiveRadars(0)
+	  m_CurrentTargetPos(0, 0), m_NumObjectiveRadars(0), m_pDoor(0), m_DoorOpened(false)
 {
 	for(int i = 0; i < MAX_TUTORIAL_TARGET_SLOTS; i++)
 		m_aTargetSpawnPoints[i] = vec2(0, 0);
@@ -25,6 +25,7 @@ CGameControllerTutorial::CGameControllerTutorial(CGameContext *pGameServer)
 		m_aRespawnNearTarget[i] = false;
 	for(int i = 0; i < 4; i++)
 		m_apObjectiveRadars[i] = 0;
+	m_pDoor = new CServerRadar(&GameServer()->m_World, RADAR_DOOR);
 	m_pGameType = "Tutorial";
 	const int Chapter = clamp(g_Config.m_SvTutorialChapter, 1, (int)NUM_TUTORIAL_CHAPTERS);
 	g_Config.m_SvTutorialMode = 1;
@@ -261,6 +262,38 @@ int CGameControllerTutorial::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKil
 	return IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 }
 
+void CGameControllerTutorial::OpenDoorIfReady()
+{
+	if(m_DoorOpened || !GameServer()->m_pTutorialDirector)
+		return;
+	const CTutorialState &State = GameServer()->m_pTutorialDirector->State();
+	if(!State.m_Active || !TutorialStepIsDoor(State.m_Chapter, State.m_Step))
+		return;
+	m_DoorOpened = TriggerEscape();
+}
+
+void CGameControllerTutorial::DisplayExit(vec2 Pos)
+{
+	if(m_pDoor)
+		m_pDoor->Activate(Pos);
+}
+
+void CGameControllerTutorial::NextLevel(int CID)
+{
+	if(IsGameOver())
+		return;
+	if(!GameServer()->m_pTutorialDirector)
+		return;
+	const CTutorialState &State = GameServer()->m_pTutorialDirector->State();
+	if(!TutorialStepIsDoor(State.m_Chapter, State.m_Step))
+		return;
+	GameServer()->m_pTutorialDirector->OnGameplayProgress(CID, TUTORIAL_EVENT_DOOR);
+	CPlayer *pPlayer = CID >= 0 && CID < MAX_CLIENTS ? GameServer()->m_apPlayers[CID] : 0;
+	if(pPlayer && pPlayer->GetCharacter() && !pPlayer->GetCharacter()->IgnoreCollision())
+		pPlayer->GetCharacter()->Warp();
+	EndRound();
+}
+
 void CGameControllerTutorial::Tick()
 {
 	IGameController::Tick();
@@ -269,6 +302,7 @@ void CGameControllerTutorial::Tick()
 		dbg_msg("tutorial", "registered %d controlled target spawn slots", m_NumTargetSpawnPoints);
 		m_TargetSlotsReported = true;
 	}
+	OpenDoorIfReady();
 	if(Server()->Tick() % max(1, Server()->TickSpeed() / 2) == 0)
 		UpdateControlledBots();
 	GameServer()->UpdateAI();

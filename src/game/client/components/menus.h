@@ -742,6 +742,7 @@ class CMenus : public CComponent
 	void FinishTutorial();
 	void ShutdownLocalServer();
 	void OpenTutorialRoomPractice();
+	void ReturnToGameplay();
 	void OpenPlayHub();
 
 	void RenderLoading();

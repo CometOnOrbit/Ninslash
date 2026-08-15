@@ -576,6 +576,9 @@ void CPveRoguelite::OnReset()
 	m_TutorialProgress = 0;
 	m_TutorialTarget = 1;
 	m_TutorialFlags = 0;
+	m_TutorialChapterPending = false;
+	m_TutorialPendingChapter = 0;
+	m_TutorialPendingMask = 0;
 	if(m_DebugChoiceScreenshotFrames <= 0)
 	{
 		m_ChoiceActive = false;
@@ -701,6 +704,19 @@ void CPveRoguelite::SendTutorialAction(int Action, int Value)
 
 void CPveRoguelite::TickTutorial()
 {
+	if(m_TutorialChapterPending && m_pClient->m_Snap.m_pGameInfoObj &&
+	   (m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
+	{
+		FinishPendingTutorialChapter();
+		return;
+	}
+	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 2 &&
+	   Client()->State() == IClient::STATE_ONLINE && m_pClient->m_Snap.m_pGameInfoObj &&
+	   (m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
+	{
+		m_pClient->m_pMenus->FinishTutorial();
+		return;
+	}
 	if(!g_Config.m_ClTutorialActive || g_Config.m_ClTutorialState != 1 || Client()->State() != IClient::STATE_ONLINE)
 		return;
 	if(g_Config.m_ClTutorialCheckpoint != 3 || !m_pClient->m_Snap.m_pGameDataObj)
@@ -720,13 +736,16 @@ void CPveRoguelite::TickTutorial()
 		AdvanceTutorial();
 }
 
+void CPveRoguelite::FinishPendingTutorialChapter()
+{
+	if(!m_TutorialChapterPending)
+		return;
+	m_TutorialChapterPending = false;
+	m_pClient->m_pMenus->HandleTutorialChapterCompleted(m_TutorialPendingChapter, m_TutorialPendingMask);
+}
+
 void CPveRoguelite::OnGameOver()
 {
-	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 2)
-	{
-		m_pClient->m_pMenus->FinishTutorial();
-		return;
-	}
 	if(g_Config.m_ClTutorialActive && g_Config.m_ClTutorialState == 1)
 		dbg_msg("tutorial", "mission ended at checkpoint %d", g_Config.m_ClTutorialCheckpoint);
 }
@@ -760,8 +779,11 @@ void CPveRoguelite::DrawTutorialHud()
 	char aText[256];
 	const int Chapter = clamp(g_Config.m_ClTutorialChapter, 1, 6);
 	const int Step = clamp(g_Config.m_ClTutorialStep, 0, 9);
-	switch(Chapter)
-	{
+	if(TutorialStepIsDoor(Chapter, Step))
+		str_copy(aText, Localize("Reach the door"), sizeof(aText));
+	else
+		switch(Chapter)
+		{
 		case 1:
 			str_format(aText,
 					   sizeof(aText),
@@ -812,7 +834,7 @@ void CPveRoguelite::DrawTutorialHud()
 										  : "Filter the simulated room list and join a room."),
 					 sizeof(aText));
 			break;
-	}
+		}
 	const vec4 Panel = CMenus::ThemeBgPanel();
 	const vec4 Accent = CMenus::ThemeAccent();
 	const vec4 Text = CMenus::ThemeText();
@@ -4339,8 +4361,12 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_TutorialFlags = pMsg->m_Flags;
 		if(pMsg->m_Flags & 2)
 		{
-			m_pClient->m_pMenus->HandleTutorialChapterCompleted(pMsg->m_Chapter, pMsg->m_CompletedMask);
+			m_TutorialChapterPending = true;
+			m_TutorialPendingChapter = pMsg->m_Chapter;
+			m_TutorialPendingMask = pMsg->m_CompletedMask;
 		}
+		else if(TutorialStepIsDoor(pMsg->m_Chapter, pMsg->m_Step))
+			m_pClient->m_pMenus->ReturnToGameplay();
 		else if(pMsg->m_Chapter == TUTORIAL_CHAPTER_MULTIPLAYER && pMsg->m_Step >= 1)
 		{
 			m_pClient->m_pMenus->OpenTutorialRoomPractice();

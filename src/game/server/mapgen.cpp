@@ -18,6 +18,16 @@
 
 static ivec2 FindStandableFallback(CGenLayer *pTiles, bool PreferBottom);
 
+static void TutorialFillSolid(CGenLayer *pTiles, unsigned char *pSolid)
+{
+	const int W = pTiles->Width();
+	const int H = pTiles->Height();
+	for(int y = 0; y < H; y++)
+		for(int x = 0; x < W; x++)
+			pSolid[y * W + x] =
+				(pTiles->Get(x, y) || pTiles->Get(x, y, CGenLayer::FGOBJECTS)) ? 1 : 0;
+}
+
 CMapGen::CMapGen()
 {
 	m_pLayers = 0x0;
@@ -1293,53 +1303,45 @@ void CMapGen::GenerateLevel()
 
 	// start pos — skip invalid (0,0) so we never stamp ENTITY_SPAWN into solids
 	int TutorialPlayerSpawns = 0;
-	for(int i = 0; i < 4; i++)
+	if(!IsTutorialGametype(g_Config.m_SvGametype))
 	{
-		ivec2 p = pTiles->GetPlayerSpawn();
-		if(p.x <= 1 || p.y <= 1)
-			continue;
-		ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
-		ModifTile(p + ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
-		TutorialPlayerSpawns += 2;
+		for(int i = 0; i < 4; i++)
+		{
+			ivec2 p = pTiles->GetPlayerSpawn();
+			if(p.x <= 1 || p.y <= 1)
+				continue;
+			ModifTile(p + ivec2(-1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
+			ModifTile(p + ivec2(+1, 0), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
+			TutorialPlayerSpawns += 2;
+		}
 	}
 
 	if(IsTutorialGametype(g_Config.m_SvGametype))
 	{
 		const int Chapter = clamp(g_Config.m_SvTutorialChapter, 1, 6);
-		if(TutorialPlayerSpawns == 0)
-		{
-			ivec2 Best(0, 0);
-			int BestScore = 0x7fffffff;
-			const int DesiredX = pTiles->Width() / 3;
-			for(int y = 4; y < pTiles->Height() - 4; y++)
-				for(int x = 3; x < pTiles->Width() - 3; x++)
-				{
-					bool Clear = true;
-					for(int dx = -1; dx <= 1 && Clear; dx++)
-					{
-						if(!pTiles->Get(x + dx, y + 1))
-							Clear = false;
-						for(int dy = -2; dy <= 0 && Clear; dy++)
-							if(pTiles->Get(x + dx, y + dy))
-								Clear = false;
-					}
-					if(!Clear)
-						continue;
-					const int Score = abs(x - DesiredX) * 100 + (pTiles->Height() - y);
-					if(Score < BestScore)
-					{
-						Best = ivec2(x, y);
-						BestScore = Score;
-					}
-				}
-			if(Best.x != 0)
+		const int W = pTiles->Width();
+		const int H = pTiles->Height();
+		unsigned char *pSolid = (unsigned char *)mem_alloc(W * H, 1);
+		auto PlaceOnFloor = [&](int Entity, int Wanted, int Headroom) -> int {
+			if(!pSolid || Wanted <= 0)
+				return 0;
+			TutorialFillSolid(pTiles, pSolid);
+			int aX[16];
+			int aY[16];
+			const int N = TutorialPickKitSpots(pSolid, W, H, Wanted, aX, aY, Headroom);
+			int Placed = 0;
+			for(int i = 0; i < N; i++)
 			{
-				ModifTile(Best, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SPAWN);
-				pTiles->Use(Best.x, Best.y);
-				TutorialPlayerSpawns = 1;
-				dbg_msg("mapgen", "tutorial fallback player spawn placed at %d,%d", Best.x, Best.y);
+				if(pTiles->Get(aX[i], aY[i]) || pTiles->Get(aX[i], aY[i], CGenLayer::FGOBJECTS) ||
+				   pTiles->IsNearSlope(aX[i], aY[i] + 1))
+					continue;
+				ModifTile(ivec2(aX[i], aY[i]), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + Entity);
+				pTiles->Use(aX[i], aY[i]);
+				Placed++;
 			}
-		}
+			return Placed;
+		};
+		TutorialPlayerSpawns = PlaceOnFloor(ENTITY_SPAWN, 2, 2);
 		dbg_msg("mapgen", "tutorial player spawns placed: %d", TutorialPlayerSpawns);
 		// Objective switches need scarce platform slots more than the optional
 		// controlled-target anchors do. Distribute them across the map so holding
@@ -1348,7 +1350,7 @@ void CMapGen::GenerateLevel()
 		{
 			ivec2 aPlaced[4];
 			int NumPlaced = 0;
-			const int SwitchCount = TutorialStepCount(Chapter);
+			const int SwitchCount = TutorialLastStep(Chapter);
 			for(int Slot = 0; Slot < SwitchCount; Slot++)
 			{
 				const int DesiredX = (Slot + 1) * pTiles->Width() / (SwitchCount + 1);
@@ -1400,54 +1402,47 @@ void CMapGen::GenerateLevel()
 		// Explicit target slots. Runtime ownership stays with the tutorial
 		// controller/director; the generator only supplies stable locations.
 		const int EnemySlots = Chapter == TUTORIAL_CHAPTER_MULTIPLAYER ? 6 : 4;
-		for(int i = 0; i < EnemySlots; i++)
-			GenerateEnemySpawn(pTiles);
+		dbg_msg("mapgen", "tutorial enemy slots placed %d/%d", PlaceOnFloor(ENTITY_ENEMYSPAWN, EnemySlots, 2),
+				EnemySlots);
 		if(Chapter == TUTORIAL_CHAPTER_DEPLOYMENT)
-		{
-			GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
-			GenerateWeapon(pTiles, ENTITY_RANDOM_WEAPON);
-		}
+			dbg_msg("mapgen", "tutorial weapons placed %d/2", PlaceOnFloor(ENTITY_RANDOM_WEAPON, 2, 0));
 		else if(Chapter == TUTORIAL_CHAPTER_COMBAT)
 		{
-			for(int i = 0; i < 3; i++)
-				GenerateHearts(pTiles);
-			for(int i = 0; i < 3; i++)
-				GenerateAmmo(pTiles);
+			dbg_msg("mapgen", "tutorial hearts placed %d/3", PlaceOnFloor(ENTITY_HEALTH_1, 3, 0));
+			dbg_msg("mapgen", "tutorial ammo placed %d/3", PlaceOnFloor(ENTITY_AMMO_1, 3, 0));
 		}
 		else if(Chapter == TUTORIAL_CHAPTER_FORGE || Chapter == TUTORIAL_CHAPTER_BUILD)
 		{
 			const int WantedKits = Chapter == TUTORIAL_CHAPTER_FORGE ? 4 : 3;
-			const int W = pTiles->Width();
-			const int H = pTiles->Height();
-			unsigned char *pSolid = (unsigned char *)mem_alloc(W * H, 1);
-			int Kits = 0;
-			if(pSolid)
-			{
-				for(int y = 0; y < H; y++)
-					for(int x = 0; x < W; x++)
-						pSolid[y * W + x] = pTiles->Get(x, y) ? 1 : 0;
-				int aX[8];
-				int aY[8];
-				Kits = TutorialPickKitSpots(pSolid, W, H, WantedKits, aX, aY);
-				for(int i = 0; i < Kits; i++)
-				{
-					ModifTile(ivec2(aX[i], aY[i]), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_KIT);
-					pTiles->Use(aX[i], aY[i]);
-					dbg_msg("mapgen", "tutorial kit %d/%d at %d,%d", i + 1, Kits, aX[i], aY[i]);
-				}
-				mem_free(pSolid);
-			}
+			const int Kits = PlaceOnFloor(ENTITY_KIT, WantedKits, 0);
 			dbg_msg("mapgen", "tutorial kits placed %d/%d", Kits, WantedKits);
 			if(Chapter == TUTORIAL_CHAPTER_FORGE)
 			{
-				for(int i = 0; i < 4; i++)
-					GenerateAmmo(pTiles);
-				for(int i = 0; i < 4; i++)
-					GenerateArmor(pTiles);
+				PlaceOnFloor(ENTITY_AMMO_1, 4, 0);
+				PlaceOnFloor(ENTITY_ARMOR_1, 4, 0);
 			}
 			else
 				GeneratePowerupper(pTiles);
 		}
+
+		if(pTiles->m_EndPos.x == 0 && pSolid)
+		{
+			TutorialFillSolid(pTiles, pSolid);
+			int DoorX = 0;
+			int DoorY = 0;
+			if(TutorialPickDoorSpot(pSolid, W, H, &DoorX, &DoorY) && !pTiles->Get(DoorX, DoorY) &&
+			   !pTiles->Get(DoorX, DoorY, CGenLayer::FGOBJECTS))
+			{
+				ModifTile(ivec2(DoorX, DoorY), m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_DOOR1);
+				pTiles->m_EndPos = ivec2(DoorX, DoorY);
+				pTiles->Use(DoorX, DoorY);
+				dbg_msg("mapgen", "tutorial fallback door placed at %d,%d", DoorX, DoorY);
+			}
+			if(pTiles->m_EndPos.x == 0)
+				dbg_msg("mapgen", "tutorial door missing after GenerateEnd and fallback");
+		}
+		if(pSolid)
+			mem_free(pSolid);
 
 		delete pRoom;
 		delete pTiles;

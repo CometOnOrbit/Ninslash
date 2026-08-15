@@ -855,8 +855,9 @@ void CGenLayer::Scan()
 			}
 		}
 
-	// find player spawn spots
-	if(IsCoopMapGenGametype(g_Config.m_SvGametype))
+	// find player spawn spots. Tutorial places its own standable tiles and
+	// cannot afford the 41x41 reservation on a 140x80 canvas.
+	if(IsCoopMapGenGametype(g_Config.m_SvGametype) && !IsTutorialGametype(g_Config.m_SvGametype))
 	{
 		if(str_comp(g_Config.m_SvGametype, "coop") == 0 &&
 		   InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)

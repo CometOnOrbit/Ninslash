@@ -2092,11 +2092,16 @@ void CGameClient::OnNewSnapshot()
 			{
 				static bool s_GameOver = 0;
 				m_Snap.m_pGameInfoObj = (const CNetObj_GameInfo *)pData;
-				if(!s_GameOver && m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER)
+				const int GameStateFlags = m_Snap.m_pGameInfoObj->m_GameStateFlags;
+				if(!s_GameOver && (GameStateFlags & GAMESTATEFLAG_GAMEOVER))
 					OnGameOver();
-				else if(s_GameOver && !(m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
+				else if(s_GameOver && !(GameStateFlags & GAMESTATEFLAG_GAMEOVER))
 					OnStartGame();
-				s_GameOver = m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER;
+				s_GameOver = GameStateFlags & GAMESTATEFLAG_GAMEOVER;
+				// OnGameOver may disconnect (tutorial chapter complete) and OnReset
+				// the snap. Do not keep walking this snapshot.
+				if(!m_Snap.m_pGameInfoObj)
+					return;
 			}
 			else if(Item.m_Type == NETOBJTYPE_RACEINFO)
 				m_Snap.m_pRaceInfo = (const CNetObj_RaceInfo *)pData;

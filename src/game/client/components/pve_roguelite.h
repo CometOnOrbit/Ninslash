@@ -95,6 +95,9 @@ class CPveRoguelite : public CComponent
 	int m_TutorialProgress;
 	int m_TutorialTarget;
 	int m_TutorialFlags;
+	bool m_TutorialChapterPending;
+	int m_TutorialPendingChapter;
+	int m_TutorialPendingMask;
 
 	CPveResearchMask ParseResearchMask() const;
 	void StoreResearchMask(CPveResearchMask Mask);
@@ -113,6 +116,7 @@ class CPveRoguelite : public CComponent
 	void DrawTutorialHud();
 	void AdvanceTutorial();
 	void TickTutorial();
+	void FinishPendingTutorialChapter();
 	void DrawDroneWheel();
 	void DrawText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth = -1.0f, int Align = -1);
 	void DrawWrappedText(float X, float Y, float Size, const char *pText, vec4 Color, float MaxWidth, int MaxLines);
