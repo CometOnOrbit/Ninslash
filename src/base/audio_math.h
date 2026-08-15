@@ -94,4 +94,24 @@ public:
 	void jump(float v) { m_State = v; }
 };
 
+enum
+{
+	SOUND_MUSIC_VOL_RAMP = 64,
+};
+
+inline int SoundMusicVolIndex(unsigned Frame)
+{
+	if(Frame < (unsigned)SOUND_MUSIC_VOL_RAMP)
+		return (int)Frame;
+	return SOUND_MUSIC_VOL_RAMP;
+}
+
+inline int SoundMixSpan(int Tick, int NumFrames, int Remaining)
+{
+	if(Tick < 0 || NumFrames <= 0 || Tick >= NumFrames || Remaining <= 0)
+		return 0;
+	int Left = NumFrames - Tick;
+	return Left < Remaining ? Left : Remaining;
+}
+
 #endif // BASE_AUDIO_MATH_H

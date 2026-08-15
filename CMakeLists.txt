@@ -934,6 +934,10 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_input_processing PRIVATE ${PROJECT_SOURCE_DIR}/src)
   add_test(NAME input_processing COMMAND ninslash_test_input_processing)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_input_processing)
+  add_executable(ninslash_test_sound_mix tests/sound_mix.cpp)
+  target_include_directories(ninslash_test_sound_mix PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME sound_mix COMMAND ninslash_test_sound_mix)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_sound_mix)
   add_executable(ninslash_test_pve_definitions
     tests/pve_definitions.cpp
     src/game/pve_roguelite.cpp

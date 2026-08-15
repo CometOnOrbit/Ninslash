@@ -82,7 +82,7 @@ static IFloat s_MusicState;
 static float s_MusicTarget = 0.0f;
 static bool s_MusicEnabled = true;
 static AttackRelease s_MusicAR;
-static int s_aMusicVol[4][NUM_SAMPLES];
+static int s_aMusicVol[NUM_MUSIC_LAYERS][SOUND_MUSIC_VOL_RAMP + 1];
 
 // TODO: there should be a faster way todo this
 static short Int2Short(int i)
@@ -124,7 +124,7 @@ static void Mix(short *pFinalOut, unsigned Frames)
 		t1 = clamp(t1, 0.0f, 1.0f);
 
 		const float segSize = 1.0f / (NUM_MUSIC_LAYERS - 1);
-		const unsigned itime = min(64u, Frames);
+		const unsigned itime = min((unsigned)SOUND_MUSIC_VOL_RAMP, Frames);
 
 		for(unsigned s = 0; s < itime; s++)
 		{
@@ -135,7 +135,7 @@ static void Mix(short *pFinalOut, unsigned Frames)
 			if(seg >= NUM_MUSIC_LAYERS - 1) seg = NUM_MUSIC_LAYERS - 2;
 			float segT = (tp - seg * segSize) / segSize;
 
-			s_aMusicVol[seg][s]     = (int)(Crossfade<CrossfadeType::Smooth>(1.0f, 0.0f, segT) * 255.0f);
+			s_aMusicVol[seg][s] = (int)(Crossfade<CrossfadeType::Smooth>(1.0f, 0.0f, segT) * 255.0f);
 			s_aMusicVol[seg + 1][s] = (int)(Crossfade<CrossfadeType::Smooth>(0.0f, 1.0f, segT) * 255.0f);
 		}
 		{
@@ -143,12 +143,8 @@ static void Mix(short *pFinalOut, unsigned Frames)
 			if(seg1 < 0) seg1 = 0;
 			if(seg1 >= NUM_MUSIC_LAYERS - 1) seg1 = NUM_MUSIC_LAYERS - 2;
 			float segT1 = (t1 - seg1 * segSize) / segSize;
-
-			for(unsigned s = itime; s < Frames; s++)
-			{
-				s_aMusicVol[seg1][s]     = (int)(Crossfade<CrossfadeType::Smooth>(1.0f, 0.0f, segT1) * 255.0f);
-				s_aMusicVol[seg1 + 1][s] = (int)(Crossfade<CrossfadeType::Smooth>(0.0f, 1.0f, segT1) * 255.0f);
-			}
+			s_aMusicVol[seg1][SOUND_MUSIC_VOL_RAMP] = (int)(Crossfade<CrossfadeType::Smooth>(1.0f, 0.0f, segT1) * 255.0f);
+			s_aMusicVol[seg1 + 1][SOUND_MUSIC_VOL_RAMP] = (int)(Crossfade<CrossfadeType::Smooth>(0.0f, 1.0f, segT1) * 255.0f);
 		}
 	}
 
@@ -158,24 +154,8 @@ static void Mix(short *pFinalOut, unsigned Frames)
 		{
 			// mix voice
 			CVoice *v = &m_aVoices[i];
-			int *pOut = m_pMixBuffer;
-
-			int Step = v->m_pSample->m_Channels; // setup input sources
-			short *pInL = &v->m_pSample->m_pData[v->m_Tick * Step];
-			short *pInR = &v->m_pSample->m_pData[v->m_Tick * Step + 1];
-
-			unsigned End = v->m_pSample->m_NumFrames - v->m_Tick;
-
 			int Rvol = v->m_pChannel->m_Vol;
 			int Lvol = v->m_pChannel->m_Vol;
-
-			// make sure that we don't go outside the sound data
-			if(Frames < End)
-				End = Frames;
-
-			// check if we have a mono sound
-			if(v->m_pSample->m_Channels == 1)
-				pInR = pInL;
 
 			// volume calculation
 			if(v->m_Flags & ISound::FLAG_POS && v->m_pChannel->m_Pan)
@@ -217,31 +197,53 @@ static void Mix(short *pFinalOut, unsigned Frames)
 				}
 			}
 
-			// process all frames
-			for(unsigned s = 0; s < End; s++)
+			unsigned Out = 0;
+			while(Out < Frames && v->m_pSample)
 			{
-				int l = Lvol;
-				int r = Rvol;
-				if(MusicLayer >= 0)
+				int Span = SoundMixSpan(v->m_Tick, v->m_pSample->m_NumFrames, (int)(Frames - Out));
+				if(Span <= 0)
 				{
-					int mv = s_aMusicVol[MusicLayer][s];
-					l = (l * mv) / 255;
-					r = (r * mv) / 255;
-				}
-				*pOut++ += (*pInL) * l;
-				*pOut++ += (*pInR) * r;
-				pInL += Step;
-				pInR += Step;
-				v->m_Tick++;
-			}
-
-			// free voice if not used any more
-			if(v->m_Tick == v->m_pSample->m_NumFrames)
-			{
-				if(v->m_Flags & ISound::FLAG_LOOP)
-					v->m_Tick = 0;
-				else
+					if((v->m_Flags & ISound::FLAG_LOOP) && v->m_pSample->m_NumFrames > 0 && v->m_Tick != 0)
+					{
+						v->m_Tick = 0;
+						continue;
+					}
 					v->m_pSample = 0;
+					break;
+				}
+
+				int Step = v->m_pSample->m_Channels;
+				short *pInL = &v->m_pSample->m_pData[v->m_Tick * Step];
+				short *pInR = &v->m_pSample->m_pData[v->m_Tick * Step + 1];
+				if(v->m_pSample->m_Channels == 1)
+					pInR = pInL;
+
+				int *pOut = m_pMixBuffer + Out * 2;
+				for(int s = 0; s < Span; s++)
+				{
+					int l = Lvol;
+					int r = Rvol;
+					if(MusicLayer >= 0)
+					{
+						int mv = s_aMusicVol[MusicLayer][SoundMusicVolIndex(Out + (unsigned)s)];
+						l = (l * mv) / 255;
+						r = (r * mv) / 255;
+					}
+					*pOut++ += (*pInL) * l;
+					*pOut++ += (*pInR) * r;
+					pInL += Step;
+					pInR += Step;
+					v->m_Tick++;
+				}
+				Out += (unsigned)Span;
+
+				if(v->m_Tick >= v->m_pSample->m_NumFrames)
+				{
+					if(v->m_Flags & ISound::FLAG_LOOP)
+						v->m_Tick = 0;
+					else
+						v->m_pSample = 0;
+				}
 			}
 		}
 	}
@@ -271,7 +273,23 @@ static void Mix(short *pFinalOut, unsigned Frames)
 static void SDLCallback(void *pUnused, Uint8 *pStream, int Len)
 {
 	(void)pUnused;
-	Mix((short *)pStream, Len / 2 / 2);
+	if(Len <= 0)
+		return;
+	mem_zero(pStream, Len);
+	if(!m_MaxFrames || !m_pMixBuffer)
+		return;
+
+	unsigned Frames = (unsigned)Len / 2 / 2;
+	short *pOut = (short *)pStream;
+	while(Frames)
+	{
+		unsigned Chunk = Frames;
+		if(Chunk > m_MaxFrames)
+			Chunk = m_MaxFrames;
+		Mix(pOut, Chunk);
+		pOut += Chunk * 2;
+		Frames -= Chunk;
+	}
 }
 
 static void SDLNewCallback(void *pUnused, SDL_AudioStream *pStream, int AdditionalAmount, int TotalAmount)

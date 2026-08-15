@@ -144,6 +144,8 @@ void CSounds::OnStateChange(int NewState, int OldState)
 	else if(OldState >= IClient::STATE_ONLINE && NewState < IClient::STATE_ONLINE)
 	{
 		Sound()->SetMusicEnabled(false);
+		for(int i = 0; i < 4; i++)
+			Stop(s_aMusicLayerSounds[i]);
 		m_MusicInitialized = false;
 	}
 }
@@ -175,6 +177,8 @@ void CSounds::OnRender()
 	if(!g_Config.m_SndMusic && m_MusicInitialized)
 	{
 		Sound()->SetMusicEnabled(false);
+		for(int i = 0; i < 4; i++)
+			Stop(s_aMusicLayerSounds[i]);
 		m_MusicInitialized = false;
 	}
 
