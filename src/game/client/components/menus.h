@@ -18,6 +18,8 @@
 #include <game/client/ui.h>
 #include <game/client/ui_scrollregion.h>
 
+struct CExpeditionSlotCard;
+
 // compnent to fetch keypresses, override all other input
 class CMenusKeyBinder : public CComponent
 {
@@ -81,7 +83,7 @@ class CMenus : public CComponent
 	static vec4 ms_ColorTabbarInactive;
 	static vec4 ms_ColorTabbarActive;
 
-	// Frosted tactical-glass palette.
+	// Quiet slate + ice palette.
 	static vec4 ms_ColorBgDeep;
 	static vec4 ms_ColorBgPanel;
 	static vec4 ms_ColorBgInset;
@@ -107,12 +109,14 @@ class CMenus : public CComponent
 	void DrawTechShape(const CUIRect *pRect, const vec4 &Color, float Cut);
 	void DrawTechOutline(const CUIRect *pRect, const vec4 &Top, const vec4 &Bottom, float Cut);
 	void DrawGlassSurface(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, float Cut, float Depth = 0.0f);
-	void DrawTechBrackets(const CUIRect *pRect, const vec4 &Color, float Length, float Inset = 0.0f);
 	void DrawMenuPanel(const CUIRect *pRect, int Corners = CUI::CORNER_ALL);
 	void DrawMenuInset(const CUIRect *pRect, int Corners = CUI::CORNER_ALL);
 	void DrawSectionHeader(const CUIRect *pRect, int Corners = CUI::CORNER_T);
 	void DrawOpenPageFrame(const CUIRect *pRect);
 	void DrawAccentUnderline(const CUIRect *pRect);
+	bool OfflineFrontCanvas() const;
+	void RenderOfflineBackButton(CUIRect *pHeader);
+	void RenderPageHeader(CUIRect *pView, const char *pTitle);
 	void DrawMenuBorder(const CUIRect *pRect, const vec4 &Fill, const vec4 &Border, int Corners, float Rounding);
 	void ConfigureScrollRegion(CScrollRegionParams *pParams) const;
 	void LayoutCenterPanel(CUIRect *pScreen, CUIRect *pOut);
@@ -129,8 +133,12 @@ class CMenus : public CComponent
 	int DoButton_DemoPlayer(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
 	int DoButton_Sprite(const void *pID, int ImageID, int SpriteID, int Checked, const CUIRect *pRect, int Corners);
 	int DoButton_Toggle(const void *pID, int Checked, const CUIRect *pRect, bool Active);
-	int DoButton_Menu(
-		const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Style = BUTTONSTYLE_NORMAL);
+	int DoButton_Menu(const void *pID,
+					  const char *pText,
+					  int Checked,
+					  const CUIRect *pRect,
+					  int Style = BUTTONSTYLE_NORMAL,
+					  const char *pHint = 0);
 	int DoButton_MenuTab(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Corners);
 
 	int DoButton_CheckBox_Common(const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect);
@@ -311,6 +319,7 @@ class CMenus : public CComponent
 		PAGE_STEAM,
 		PAGE_MODS,
 		PAGE_TUTORIAL_SELECT,
+		PAGE_EXPEDITION,
 	};
 
 	enum
@@ -379,6 +388,8 @@ class CMenus : public CComponent
 	CControllerFocusItem m_aControllerNextFocusItems[MAX_CONTROLLER_FOCUS_ITEMS];
 	int m_PlayTab;
 	int m_CreateRoomStep;
+	int m_ExpeditionStep;
+	int m_ExpeditionDeleteArmed;
 	int m_CreateRoomPreviousSlots;
 	bool m_NavigationHasFocus;
 	bool m_MenuActive;
@@ -688,6 +699,11 @@ class CMenus : public CComponent
 	void RenderSettings(CUIRect MainView);
 	void RenderCustomize(CUIRect MainView);
 	void RenderFront(CUIRect MainView);
+	void RenderExpedition(CUIRect MainView);
+	void RenderExpeditionInvite(CUIRect MainView);
+	bool RenderExpeditionSlotCard(const CUIRect &Card, const CExpeditionSlotCard &View, void *pID, void *pDeleteID);
+	void OpenExpedition(int Slot = 0);
+	void StartExpedition();
 	void RenderTutorialRoomPractice(CUIRect MainView);
 	void RenderLocalServer(CUIRect MainView);
 	void RenderCreateRoom(CUIRect MainView);

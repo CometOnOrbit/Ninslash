@@ -301,7 +301,7 @@ bool CExpeditionSaveStorage::Save(IStorage *pStorage, int Slot, const CExpeditio
 
 	char aJson[64 * 1024];
 	int Offset = 0;
-	char aLine[256];
+	char aLine[1024];
 	str_format(aLine,
 			   sizeof(aLine),
 			   "{\n  \"schema_version\": %d,\n  \"floor\": %d,\n  \"seed\": %d,\n  \"used_contracts\": %d,\n  \"players\": [\n",
@@ -341,6 +341,8 @@ bool CExpeditionSaveStorage::Save(IStorage *pStorage, int Slot, const CExpeditio
 				   Player.m_aPveWeaponResources[1],
 				   Player.m_aPveWeaponResources[2],
 				   Player.m_aPveWeaponResources[3]);
+		if(str_length(aLine) >= (int)sizeof(aLine) - 1)
+			return false;
 		Offset = Append(aJson, sizeof(aJson), Offset, aLine);
 		for(int w = 0; w < EXPEDITION_WEAPON_SLOTS && Offset >= 0; w++)
 		{

@@ -21,8 +21,8 @@ int main()
 	const CMenuHomePrimary Tutorial = ResolveMenuHomePrimary({false, false, false, true, 9});
 	Ok &= Expect(Tutorial.m_Action == MENU_HOME_CONTINUE_TUTORIAL && Tutorial.m_Chapter == 6,
 				 "tutorial chapter is sanitized");
-	Ok &= Expect(ResolveMenuHomePrimary({false, false, false, false, 0}).m_Action == MENU_HOME_CREATE_ROOM,
-				 "idle state creates a room");
+	Ok &= Expect(ResolveMenuHomePrimary({false, false, false, false, 0}).m_Action == MENU_HOME_EXPEDITION,
+				 "idle state opens expedition");
 	Ok &= Expect(ResolveMenuHomePrimary({true, true, false, false, 0}).m_Action == MENU_HOME_JOIN_LOCAL,
 				 "running state is stable during exceptional transition");
 	return Ok ? 0 : 1;

@@ -955,6 +955,96 @@ Slot %d · Floor %d
 Delete save
 == 刪除存檔
 
+Pick a save, invite friends, then start.
+== 選一個存檔，邀請好友，然後開始。
+
+Campaign
+== 戰役
+
+Your expeditions
+== 你的遠征
+
+Save unreadable
+== 存檔無法讀取
+
+Continue floor %d
+== 繼續第 %d 層
+
+Empty save
+== 空存檔
+
+No squad saved yet
+== 還沒有儲存過小隊
+
+Play rooms
+== 房間
+
+News
+== 新聞
+
+Other modes and public rooms
+== 其他模式和公開房間
+
+Local game running
+== 本機遊戲進行中
+
+Local game starting
+== 本機遊戲啟動中
+
+Local game needs attention
+== 本機遊戲需要處理
+
+Ready to play
+== 可以開始
+
+Save %d
+== 存檔 %d
+
+New expedition
+== 新遠征
+
+Starts on floor 1
+== 從第 1 層開始
+
+Confirm delete
+== 確認刪除
+
+Invite friends
+== 邀請好友
+
+No friends are online.
+== 沒有好友在線。
+
+You can start solo. Steam is needed to invite friends.
+== 可以先單人開始。邀請好友需要 Steam。
+
+Invite, then start
+== 邀請好友，然後開始
+
+Back to saves
+== 返回存檔
+
+Choose a save
+== 選擇存檔
+
+Invite friends now, or start and invite later.
+== 現在邀請好友，或先開始再邀請。
+
+Join local game
+== 加入本機遊戲
+
+Continue expedition
+== 繼續遠征
+
+Start expedition
+== 開始遠征
+
+Cloud
+== 雲端存檔
+
+Expedition
+== 遠征
+
 Inventory
 == 打開物品欄
 

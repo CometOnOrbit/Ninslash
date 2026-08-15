@@ -3113,20 +3113,9 @@ void CMenus::RenderCustomize(CUIRect MainView)
 	MainView.HSplitTop(10.0f, 0, &MainView);
 	*/
 
-	// MainView.HSplitTop(10.0f, 0, &MainView);
-
-	// back to menu button
-	CUIRect BackButton;
-	MainView.HSplitTop(30, &BackButton, &MainView);
-
-	BackButton.VSplitLeft(300, 0, &BackButton);
-	BackButton.VSplitRight(300, &BackButton, 0);
-
-	static int s_FrontPageButton = 0;
-	if(DoButton_Menu(&s_FrontPageButton, Localize("Back to main menu"), 0, &BackButton))
-		g_Config.m_UiPage = PAGE_INTERNET;
-
-	MainView.HSplitTop(20.0f, 0, &MainView);
+	DrawMenuPanel(&MainView, CUI::CORNER_ALL);
+	MainView.Margin(16.0f, &MainView);
+	RenderPageHeader(&MainView, "Customize");
 
 	CUIRect LeftView;
 	MainView.VSplitMid(&LeftView, &MainView);
@@ -3729,7 +3718,8 @@ void CMenus::RenderSettings(CUIRect MainView)
 	DrawOpenPageFrame(&MainView);
 	MainView.Margin(8.0f, &MainView);
 	CUIRect Header, Workbench;
-	MainView.HSplitTop(38.0f, &Header, &Workbench);
+	MainView.HSplitTop(44.0f, &Header, &Workbench);
+	RenderOfflineBackButton(&Header);
 	CUIRect HeaderTitle, AdvancedToggle;
 	Header.VSplitRight(170.0f, &HeaderTitle, &AdvancedToggle);
 	UI()->DoLabelScaled(&HeaderTitle, Localize("Settings"), 20.0f, -1);
@@ -3741,7 +3731,7 @@ void CMenus::RenderSettings(CUIRect MainView)
 						 &AdvancedToggle))
 		g_Config.m_UiAdvancedSettings ^= 1;
 	Workbench.HSplitTop(6.0f, 0, &Workbench);
-	Workbench.VSplitLeft(246.0f, &ModuleRail, &Content);
+	Workbench.VSplitLeft(168.0f, &ModuleRail, &Content);
 	Content.VSplitLeft(8.0f, 0, &Content);
 	DrawTechShape(&ModuleRail, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .22f), ms_PanelRounding);
 	DrawTechShape(&Content, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .14f), ms_PanelRounding);
@@ -3755,25 +3745,22 @@ void CMenus::RenderSettings(CUIRect MainView)
 						   Localize("Controls"),
 						   Localize("Graphics"),
 						   Localize("Sound"),
-						   Localize("Steam")};
+						   Localize("Cloud")};
 
 	static int s_aModuleButtons[8];
-	for(int RowIndex = 0; RowIndex < 4; RowIndex++)
+	const int NumTabs = 8;
+	const float ModuleGap = 6.0f;
+	const float ModuleH = max(28.0f, (ModuleRail.h - ModuleGap * (NumTabs - 1)) / NumTabs);
+	for(int i = 0; i < NumTabs; i++)
 	{
-		CUIRect Row;
-		ModuleRail.HSplitTop(42.0f, &Row, &ModuleRail);
-		Row.HSplitBottom(6.0f, &Row, 0);
-		for(int Column = 0; Column < 2; Column++)
-		{
-			CUIRect Tile;
-			Row.VSplitLeft(Row.w / (2 - Column), &Tile, &Row);
-			Tile.VMargin(Column == 0 ? 3.0f : 0.0f, &Tile);
-			const int Index = RowIndex * 2 + Column;
-			const bool Selected = g_Config.m_UiSettingsPage == Index;
-			if(DoButton_Menu(&s_aModuleButtons[Index], aTabs[Index], Selected, &Tile,
-							Selected ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST))
-				g_Config.m_UiSettingsPage = Index;
-		}
+		CUIRect Tile = {ModuleRail.x, ModuleRail.y + i * (ModuleH + ModuleGap), ModuleRail.w, ModuleH};
+		const bool Selected = g_Config.m_UiSettingsPage == i;
+		if(DoButton_Menu(&s_aModuleButtons[i],
+						 aTabs[i],
+						 Selected,
+						 &Tile,
+						 Selected ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST))
+			g_Config.m_UiSettingsPage = i;
 	}
 
 	if(g_Config.m_UiSettingsPage == 0)

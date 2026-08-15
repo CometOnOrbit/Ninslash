@@ -6,7 +6,7 @@ enum EMenuHomeAction
 	MENU_HOME_JOIN_LOCAL,
 	MENU_HOME_SHOW_LOCAL,
 	MENU_HOME_CONTINUE_TUTORIAL,
-	MENU_HOME_CREATE_ROOM,
+	MENU_HOME_EXPEDITION,
 };
 
 struct CMenuHomeState
@@ -49,7 +49,10 @@ inline CMenuHomePrimary ResolveMenuHomePrimary(const CMenuHomeState &State)
 				State.m_TutorialChapter < 1	  ? 1
 				: State.m_TutorialChapter > 6 ? 6
 											  : State.m_TutorialChapter};
-	return {MENU_HOME_CREATE_ROOM, "Create a room", "Choose a mode, configure the mission and invite your squad.", 0};
+	return {MENU_HOME_EXPEDITION,
+			"Expedition Invasion",
+			"Pick a save, invite friends, then start.",
+			0};
 }
 
 #endif

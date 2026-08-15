@@ -58,11 +58,12 @@ int main()
 	// The count is intentionally coupled to s_aAllLocalModes: it must change
 	// when modes are added/removed from the picker.
 	const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
-	assert(AllCount == 14);
+	assert(AllCount == 13);
 	for(int i = 0; i < AllCount; i++)
 		assert(LocalGameModeSortKey(s_aAllLocalModes[i]) == i);
 	// Modes outside the picker list sort after every listed mode.
 	assert(LocalGameModeSortKey(LOCAL_MODE_TUTORIAL) == AllCount);
+	assert(LocalGameModeSortKey(LOCAL_MODE_EXPEDITION) == AllCount);
 	assert(LocalGameModeSortKey(-1) == AllCount);
 	assert(LocalGameModeSortKey(LOCAL_MODE_COUNT) == AllCount);
 

@@ -834,10 +834,9 @@ void CMenus::RenderDemoList(CUIRect MainView)
 		}
 	}
 
-	// Keep the replay browser on the same open tactical canvas as the other
-	// secondary pages; lists and details provide their own local surfaces.
 	DrawOpenPageFrame(&MainView);
-	MainView.Margin(10.0f, &MainView);
+	MainView.Margin(16.0f, &MainView);
+	RenderPageHeader(&MainView, "Demos");
 
 	CUIRect ButtonBar, RefreshRect, PlayRect, DeleteRect, RenameRect, RenderRect, FileIcon, ListBox;
 	MainView.HSplitBottom(ms_ButtonHeight + 5.0f, &MainView, &ButtonBar);

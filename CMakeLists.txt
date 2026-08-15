@@ -1078,6 +1078,10 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_menu_home PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   add_test(NAME menu_home COMMAND ninslash_test_menu_home)
 
+  add_executable(ninslash_test_menu_expedition tests/menu_expedition.cpp)
+  target_include_directories(ninslash_test_menu_expedition PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME menu_expedition COMMAND ninslash_test_menu_expedition)
+
   add_executable(ninslash_test_tutorial_state tests/tutorial_state.cpp)
   target_include_directories(ninslash_test_tutorial_state PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   add_test(NAME tutorial_state COMMAND ninslash_test_tutorial_state)

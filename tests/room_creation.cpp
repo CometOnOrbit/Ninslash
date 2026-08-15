@@ -36,7 +36,7 @@ int main()
 	assert(RoomModeDefaults(LOCAL_MODE_ROAM).m_Bots == 4);
 	assert(RoomModeDefaults(LOCAL_MODE_ROAM).m_Rule == 24);
 	assert(LocalGameMode(LOCAL_MODE_ROAM).m_Rule == LOCAL_RULE_ROAM_CHECKPOINTS);
-	assert((int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0])) == 14);
+	assert((int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0])) == 13);
 	assert(LocalGameModeIsExpedition(LOCAL_MODE_EXPEDITION));
 	assert(str_comp(LocalGameMode(LOCAL_MODE_EXPEDITION).m_pGameType, "coop") == 0);
 	assert(str_comp(LocalGameMode(LOCAL_MODE_REACTOR_DEFENSE).m_pGameVoteImage, "reactor_def1") == 0);

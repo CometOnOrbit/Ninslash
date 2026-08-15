@@ -31,6 +31,10 @@ Localize("Reactor defense"),Localize("Timed survive"),Localize("Trap run"),Local
 Localize("Z-sector wave"),Localize("Acid escape"),Localize("Aliens"),Localize("Robots"),
 Localize("Skeletons"),Localize("Furries"),Localize("Cyborgs"),Localize("Invasion"),
 Localize("Expedition Invasion"),Localize("Save slot"),Localize("Delete save"),
+Localize("Pick a save, invite friends, then start."),Localize("Your expeditions"),
+Localize("New expedition"),Localize("Continue floor %d"),Localize("Empty save"),
+Localize("Invite friends"),Localize("Start expedition"),Localize("Continue expedition"),
+Localize("Choose a save"),Localize("Invite, then start"),Localize("Back to saves"),
 Localize("Weapon forge"),Localize("Target"),Localize("Material"),Localize("Result"),Localize("Weapon
 level"),Localize("Ammo"), Localize("Part 2
 transplant"),Localize("Spin"),Localize("Upgrade"),Localize("Forge"),Localize("Forging..."), Localize("Waiting for
