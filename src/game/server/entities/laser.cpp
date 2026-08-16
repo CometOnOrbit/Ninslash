@@ -50,7 +50,7 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	if(!pHit)
 		return false;
 
-	if(pHit->GetCID() == m_IgnoreScythe)
+	if(pHit->CoreIndex() == m_IgnoreScythe)
 		return false;
 
 	m_From = From;
@@ -70,7 +70,7 @@ bool CLaser::HitScythe(vec2 From, vec2 To)
 	if(!pHit)
 		return false;
 
-	if(pHit->GetCID() == m_IgnoreScythe)
+	if(pHit->CoreIndex() == m_IgnoreScythe)
 		return false;
 
 	m_From = From;
@@ -85,7 +85,7 @@ bool CLaser::HitScythe(vec2 From, vec2 To)
 	m_Dir = GameServer()->Collision()->Reflect(m_Dir, normalize(d));
 
 	GameServer()->CreateBuildingHit(m_Pos);
-	m_IgnoreScythe = pHit->GetCID();
+	m_IgnoreScythe = pHit->CoreIndex();
 
 	return true;
 }
