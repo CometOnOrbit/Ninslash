@@ -152,7 +152,7 @@ void CProjectile::Tick()
 	int Team = m_Owner;
 
 	if(OwnerChar && GameServer()->m_pController->IsTeamplay())
-		Team = OwnerChar->GetPlayer()->GetTeam();
+		Team = OwnerChar->GetTeam();
 
 	CBuilding *TargetBuilding = 0;
 

@@ -7,7 +7,7 @@
 
 #include "def_robot2_ai.h"
 
-CAIdefrobot2::CAIdefrobot2(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAIdefrobot2::CAIdefrobot2(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
 	Player()->SetCustomSkin(3);

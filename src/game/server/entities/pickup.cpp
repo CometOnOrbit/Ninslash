@@ -313,7 +313,7 @@ void CPickup::Tick()
 						   ? GameServer()->m_World.ClosestCharacter(m_Pos, 20.0f, 0)
 						   : 0;
 	if(pChr && pChr->IsAlive() && pChr->m_SkipPickups <= 0 &&
-	   (!g_Config.m_SvBotsSkipPickups || !pChr->GetPlayer()->m_IsBot)) // && !pChr->GetPlayer()->m_pAI)
+	   (!g_Config.m_SvBotsSkipPickups || !pChr->m_IsBot))
 	{
 		// player picked us up, is someone was hooking us, let them go
 		int RespawnTime = -1;
@@ -327,8 +327,8 @@ void CPickup::Tick()
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 					m_Life = 0;
 					m_Flashing = false;
-					if(GameServer()->m_pTutorialDirector)
-						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetPlayer()->GetCID(),
+					if(GameServer()->m_pTutorialDirector && pChr->GetCID() >= 0)
+						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetCID(),
 																			  TUTORIAL_EVENT_RECOVER);
 				}
 				break;
@@ -340,8 +340,8 @@ void CPickup::Tick()
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 					m_Life = 0;
 					m_Flashing = false;
-					if(GameServer()->m_pTutorialDirector)
-						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetPlayer()->GetCID(),
+					if(GameServer()->m_pTutorialDirector && pChr->GetCID() >= 0)
+						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetCID(),
 																			  TUTORIAL_EVENT_MATERIAL);
 				}
 				break;
@@ -353,14 +353,14 @@ void CPickup::Tick()
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 					m_Life = 0;
 					m_Flashing = false;
-					if(GameServer()->m_pTutorialDirector)
-						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetPlayer()->GetCID(),
+					if(GameServer()->m_pTutorialDirector && pChr->GetCID() >= 0)
+						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetCID(),
 																			  TUTORIAL_EVENT_MATERIAL);
 				}
 				break;
 
 			case POWERUP_COIN:
-				if(pChr->GetPlayer()->IncreaseGold(1))
+				if(pChr->GetPlayer() && pChr->GetPlayer()->IncreaseGold(1))
 				{
 					GameServer()->CreateSound(m_Pos, SOUND_PICKUP_ARMOR);
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
@@ -415,12 +415,13 @@ void CPickup::Tick()
 			str_format(aBuf,
 					   sizeof(aBuf),
 					   "pickup player='%d:%s' item=%d/%d",
-					   pChr->GetPlayer()->GetCID(),
-					   Server()->ClientName(pChr->GetPlayer()->GetCID()),
+					   pChr->GetCID(),
+					   pChr->GetCID() >= 0 ? Server()->ClientName(pChr->GetCID()) : "npc",
 					   m_Type,
 					   m_Subtype);
 			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
-			GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Pickup, pChr->GetPlayer()->GetCID(), m_Type);
+			if(pChr->GetCID() >= 0)
+				GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Pickup, pChr->GetCID(), m_Type);
 			m_SpawnTick = Server()->Tick() + Server()->TickSpeed() * RespawnTime;
 			ClearWeapon();
 		}

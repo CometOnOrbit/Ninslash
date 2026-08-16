@@ -257,11 +257,12 @@ class CGameClient : public IGameClient
 		const CNetObj_RacePlayer *m_apRacePlayers[MAX_CLIENTS];
 		int m_GameDataSnapID;
 
-		const CNetObj_PlayerInfo *m_paPlayerInfos[MAX_CLIENTS];
+		const CNetObj_PlayerInfo *m_paPlayerInfos[MAX_CHARACTERS];
 		const CNetObj_WeaponRuntime *m_apWeaponRuntimes[MAX_CLIENTS];
 		const CNetObj_ChallengeRuntime *m_apChallengeRuntimes[MAX_CLIENTS];
-		const CNetObj_PlayerInfo *m_paInfoByScore[MAX_CLIENTS];
+		const CNetObj_PlayerInfo *m_paInfoByScore[MAX_CHARACTERS];
 		const CNetObj_PlayerInfo *m_paInfoByTeam[MAX_CLIENTS];
+		CNetObj_PlayerInfo m_aNpcPlayerInfos[MAX_NPCS];
 
 		int m_LocalClientID;
 		int m_NumPlayers;
@@ -293,7 +294,7 @@ class CGameClient : public IGameClient
 			vec2 m_Position;
 		};
 
-		CCharacterInfo m_aCharacters[MAX_CLIENTS];
+		CCharacterInfo m_aCharacters[MAX_CHARACTERS];
 
 		//
 		struct CBallInfo
@@ -356,10 +357,20 @@ class CGameClient : public IGameClient
 		bool m_PlatformPlayedWithReported;
 
 		void UpdateRenderInfo();
+		void RefreshSkin();
 		void Reset();
 	};
 
 	CClientData m_aClients[MAX_CLIENTS];
+	CClientData m_aNpcClients[MAX_NPCS];
+	CClientData *ClientData(int Index)
+	{
+		if(Index >= 0 && Index < MAX_CLIENTS)
+			return &m_aClients[Index];
+		if(Index >= MAX_CLIENTS && Index < MAX_CHARACTERS)
+			return &m_aNpcClients[Index - MAX_CLIENTS];
+		return 0;
+	}
 
 	CRenderTools m_RenderTools;
 

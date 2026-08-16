@@ -7,10 +7,10 @@
 
 #include "dm_ai.h"
 
-CAIdm::CAIdm(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAIdm::CAIdm(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
-	pPlayer->SetRandomSkin();
+	pCharacter->SetRandomSkin();
 }
 
 void CAIdm::OnCharacterSpawn(CCharacter *pChr)
@@ -35,7 +35,7 @@ void CAIdm::ReceiveDamage(int CID, int Dmg)
 	if(!pPlayer)
 		return;
 
-	if(pPlayer == Player())
+	if(IsSelf(pPlayer))
 		return;
 
 	CCharacter *pCharacter = pPlayer->GetCharacter();

@@ -146,6 +146,23 @@ class CGameContext : public IGameServer
 	CEventHandler m_Events;
 	CPlayer *m_apPlayers[MAX_CLIENTS];
 
+	struct CNpcSlot
+	{
+		class CCharacter *m_pCharacter;
+		bool m_Used;
+		bool m_ToBeKicked;
+		bool m_Spawning;
+		int m_Team;
+		int m_RespawnTick;
+		int m_Score;
+		CAISkin m_AISkin;
+	};
+	CNpcSlot m_aNpcs[MAX_NPCS];
+	void TickNpcs();
+	void TrySpawnNpc(int Slot);
+	void SnapNpcs(int SnappingClient);
+	void TriggerBotAI(int TriggerLevel);
+
 	IGameController *m_pController;
 	class CPveDirector *m_pPveDirector;
 	class CTutorialDirector *m_pTutorialDirector;
@@ -168,6 +185,13 @@ class CGameContext : public IGameServer
 
 	// helper functions
 	class CCharacter *GetPlayerChar(int ClientID);
+	class CCharacter *GetCoreChar(int Index);
+	class CPlayer *GetClientPlayer(int ClientID)
+	{
+		if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+			return 0;
+		return m_apPlayers[ClientID];
+	}
 
 	int m_LockTeams;
 
@@ -244,7 +268,7 @@ class CGameContext : public IGameServer
 
 	void ClearFlameHits();
 
-	bool m_aFlameHit[MAX_CLIENTS];
+	bool m_aFlameHit[MAX_CHARACTERS];
 
 	void Repair(vec2 Pos);
 	void AmmoFill(vec2 Pos, int Weapon);
@@ -333,6 +357,7 @@ class CGameContext : public IGameServer
 	void AddBot();
 	void KickBots();
 	void KickBot(int ClientID);
+	void KickOneBot(int Team = -1);
 
 	bool IsBot(int ClientID);
 	bool IsHuman(int ClientID);

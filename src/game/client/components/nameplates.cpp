@@ -66,7 +66,8 @@ void CNamePlates::RenderNameplate(const CNetObj_Character *pPrevChar,
 		char aDisplayName[96];
 		char aNameBuf[MAX_NAME_LENGTH];
 		const char *pPlayerName = m_pClient->GetPlayerLabel(ClientID, aNameBuf, sizeof(aNameBuf));
-		if(g_Config.m_ClShowsocial && g_Config.m_ClNamePlatesFriendMark && m_pClient->m_aClients[ClientID].m_Friend)
+		if(g_Config.m_ClShowsocial && g_Config.m_ClNamePlatesFriendMark && ClientID >= 0 && ClientID < MAX_CLIENTS &&
+		   m_pClient->m_aClients[ClientID].m_Friend)
 			str_format(aDisplayName, sizeof(aDisplayName), "\xe2\x99\xa5 %s", pPlayerName);
 		else
 			str_copy(aDisplayName, pPlayerName, sizeof(aDisplayName));
@@ -114,7 +115,8 @@ void CNamePlates::RenderNameplate(const CNetObj_Character *pPrevChar,
 
 		TextRender()->Text(0, Position.x - tw / 2.0f, NameY, FontSize, pName, -1);
 
-		if(g_Config.m_ClShowsocial && g_Config.m_ClNamePlatesClan && m_pClient->m_aClients[ClientID].m_aClan[0])
+		if(g_Config.m_ClShowsocial && g_Config.m_ClNamePlatesClan && ClientID >= 0 && ClientID < MAX_CLIENTS &&
+		   m_pClient->m_aClients[ClientID].m_aClan[0])
 		{
 			float ClanFontSize = FontSize * g_Config.m_ClNamePlatesClanSize / 100.0f;
 			TextRender()->TextOutlineColor(0.0f, 0.0f, 0.0f, 0.5f * a);
@@ -139,18 +141,17 @@ void CNamePlates::OnRender()
 	if(!g_Config.m_ClNameplates)
 		return;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		if(!m_pClient->m_Snap.m_aCharacters[i].m_Active)
 			continue;
 
-		const void *pInfo = Client()->SnapFindItem(IClient::SNAP_CURRENT, NETOBJTYPE_PLAYERINFO, i);
-
+		const CNetObj_PlayerInfo *pInfo = m_pClient->m_Snap.m_paPlayerInfos[i];
 		if(pInfo)
 		{
 			RenderNameplate(&m_pClient->m_Snap.m_aCharacters[i].m_Prev,
 							&m_pClient->m_Snap.m_aCharacters[i].m_Cur,
-							(const CNetObj_PlayerInfo *)pInfo);
+							pInfo);
 		}
 	}
 }

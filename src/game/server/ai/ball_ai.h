@@ -6,7 +6,7 @@
 class CAIball : public CAI
 {
   public:
-	CAIball(CGameContext *pGameServer, CPlayer *pPlayer);
+	CAIball(CGameContext *pGameServer, CCharacter *pCharacter);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);

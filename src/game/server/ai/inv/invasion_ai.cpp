@@ -31,8 +31,8 @@ float DistanceScore(EInvasionTargetStrategy Strategy, const CCharacter *pCharact
 }
 }
 
-CInvasionAI::CInvasionAI(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId) :
-	CAI(pGameServer, pPlayer),
+CInvasionAI::CInvasionAI(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId) :
+	CAI(pGameServer, pCharacter),
 	m_ProfileId(IsValidInvasionSkinProfile(ProfileId) ? ProfileId : INVASION_SKIN_ALIEN1),
 	m_pProfile(&InvasionSkinProfile(m_ProfileId)),
 	m_Level(max(0, Level)),
@@ -64,7 +64,7 @@ void CInvasionAI::OnCharacterSpawn(CCharacter *pChr)
 	pChr->SetHealth(Health);
 	pChr->SetArmor(Armor);
 
-	if(frandom() < 0.4f)
+	if(frandom() < 0.4f && pChr->GetPlayer())
 		pChr->GetPlayer()->IncreaseGold(4 + (Profile().m_Family == INVASION_FAMILY_PYRO ? 2 : 0));
 
 	// A profile may describe alternatives. Only one primary is equipped so
@@ -122,7 +122,7 @@ bool CInvasionAI::SelectProfileTarget()
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer || pPlayer == Player())
+		if(!pPlayer || IsSelf(pPlayer))
 			continue;
 		if(pPlayer->GetTeam() == Player()->GetTeam() && GameServer()->m_pController->IsTeamplay())
 			continue;
@@ -145,7 +145,7 @@ bool CInvasionAI::SelectProfileTarget()
 			for(int j = 0; j < MAX_CLIENTS; ++j)
 			{
 				CPlayer *pOther = GameServer()->m_apPlayers[j];
-				if(!pOther || pOther == Player() || pOther->m_IsBot)
+				if(!pOther || IsSelf(pOther) || pOther->m_IsBot)
 					continue;
 				CCharacter *pOtherCharacter = pOther->GetCharacter();
 				if(pOtherCharacter && pOtherCharacter->IsAlive() &&

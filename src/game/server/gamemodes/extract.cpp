@@ -674,10 +674,10 @@ void CGameControllerExtract::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 			return;
 		m_EnemiesLeft--;
 		const int Level = EnemyLevel();
-		GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, false, Level);
-		pChr->GetPlayer()->SetAISkin();
-		pChr->GetPlayer()->m_pAI = CreatePveBotAI(GameServer(), pChr->GetPlayer(), Level);
-		pChr->GetPlayer()->m_IsBot = true;
+		GameServer()->GetAISkin(&pChr->m_AISkin, false, Level);
+		pChr->SetAISkin();
+		pChr->m_pAI = CreatePveBotAI(GameServer(), pChr, Level);
+		pChr->m_IsBot = true;
 		pChr->m_IsBot = true;
 		pChr->m_SkipPickups = 999;
 	}
@@ -703,7 +703,7 @@ int CGameControllerExtract::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKill
 			if(m_aTaskProgress[m_ActiveTask] >= m_aTaskTarget[m_ActiveTask])
 				CompleteTask(m_ActiveTask);
 		}
-		pVictim->GetPlayer()->m_ToBeKicked = true;
+		pVictim->MarkToBeKicked();
 	}
 	else if(!pVictim->m_IsBot)
 	{

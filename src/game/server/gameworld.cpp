@@ -539,10 +539,10 @@ CCharacter *CGameWorld::GetFriendlyCharacterInBox(vec2 TopLeft, vec2 BotRight, i
 		{
 			if(GameServer()->m_pController->IsTeamplay())
 			{
-				if(Team != p->GetPlayer()->GetTeam())
+				if(Team != p->GetTeam())
 					continue;
 			}
-			else if(Team != p->GetPlayer()->GetCID())
+			else if(p->GetCID() >= 0 && Team != p->GetCID())
 				continue;
 		}
 

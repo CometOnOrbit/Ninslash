@@ -7,7 +7,7 @@
 
 #include "def_pyro2_ai.h"
 
-CAIdefpyro2::CAIdefpyro2(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAIdefpyro2::CAIdefpyro2(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
 	Player()->SetCustomSkin(10);

@@ -54,24 +54,27 @@ void CGameControllerRoam::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	// init AI
 	if(RequestAI)
 	{
-		GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, false);
+		GameServer()->GetAISkin(&pChr->m_AISkin, false);
 
 		// pChr->GetPlayer()->m_AISkin = GameServer()->GetAISkin(false);
-		pChr->GetPlayer()->m_pAI = new CAIroam(GameServer(), pChr->GetPlayer(), g_Config.m_SvBotLevel);
-		pChr->GetPlayer()->SetAISkin();
+		pChr->m_pAI = new CAIroam(GameServer(), pChr, g_Config.m_SvBotLevel);
+		pChr->SetAISkin();
 
 		// m_Skin = SKIN_ALIEN1;
 		// Player()->SetCustomSkin(m_Skin);
 	}
 
-	const int ClientID = pChr->GetPlayer()->GetCID();
+	CPlayer *pPlayer = pChr->GetPlayer();
+	if(!pPlayer)
+		return;
+	const int ClientID = pPlayer->GetCID();
 	if(!m_aRace[ClientID].m_Active || m_aRace[ClientID].m_FinishTick >= 0)
 	{
 		ResetRace(ClientID);
 		m_aRace[ClientID].m_StartTick = Server()->Tick();
 		m_aRace[ClientID].m_Active = true;
 	}
-	pChr->GetPlayer()->m_Score = -9999999;
+	pPlayer->m_Score = -9999999;
 	m_aRace[ClientID].m_PreviousPos = pChr->m_Pos;
 	m_aRace[ClientID].m_HasPreviousPos = true;
 }

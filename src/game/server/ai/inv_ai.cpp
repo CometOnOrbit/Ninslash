@@ -7,7 +7,7 @@
 
 #include "inv_ai.h"
 
-CAIinvasion::CAIinvasion(CGameContext *pGameServer, CPlayer *pPlayer, int Level) : CAI(pGameServer, pPlayer)
+CAIinvasion::CAIinvasion(CGameContext *pGameServer, CCharacter *pCharacter, int Level) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
 	m_StartPos = vec2(0, 0);
@@ -34,7 +34,7 @@ void CAIinvasion::OnCharacterSpawn(CCharacter *pChr)
 	m_StartPos = Player()->GetCharacter()->m_Pos;
 	m_TargetPos = Player()->GetCharacter()->m_Pos;
 
-	if(frandom() < 0.4f)
+	if(frandom() < 0.4f && pChr->GetPlayer())
 		pChr->GetPlayer()->IncreaseGold(frandom() * 4);
 
 	if(m_Skin == SKIN_ALIEN3)

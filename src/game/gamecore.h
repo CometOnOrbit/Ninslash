@@ -359,7 +359,7 @@ class CWorldCore
 	}
 
 	CTuningParams m_Tuning;
-	class CCharacterCore *m_apCharacters[MAX_CLIENTS];
+	class CCharacterCore *m_apCharacters[MAX_CHARACTERS];
 	class CBallCore *m_pBall;
 
 	// jumppad impact to gore

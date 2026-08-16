@@ -6,7 +6,7 @@
 class CAIdef : public CAI
 {
   public:
-	CAIdef(CGameContext *pGameServer, CPlayer *pPlayer);
+	CAIdef(CGameContext *pGameServer, CCharacter *pCharacter);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);

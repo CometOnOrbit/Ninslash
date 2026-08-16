@@ -482,7 +482,7 @@ void CWeapon::Tick()
 	   (WeaponHasBehavior(m_WeaponProfile.m_Definition, WEAPON_BEHAVIOR_BALL) && m_Released))
 	{
 		CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, 18.0f, 0);
-		if(pChr && pChr->IsAlive() && (pChr->GetPlayer()->GetCID() != m_Owner || m_SkipPickTick < Server()->Tick()))
+		if(pChr && pChr->IsAlive() && (pChr->GetCID() != m_Owner || m_SkipPickTick < Server()->Tick()))
 		{
 			if(pChr->PickWeapon(this))
 			{
@@ -578,14 +578,15 @@ void CWeapon::Tick()
 				bool Found = false;
 
 				CCharacter *pChr = GameServer()->m_World.ClosestCharacter(m_Pos, 32.0f, 0);
-				if(pChr && pChr->IsAlive() && pChr->GetPlayer()->GetTeam() == TEAM_BLUE)
+				if(pChr && pChr->IsAlive() && pChr->GetTeam() == TEAM_BLUE)
 				{
 					Found = true;
 
 					if(m_BombCounter-- < 0)
 					{
-						if(m_Owner >= 0 && (m_BombDisarmCounter == 0 || m_BombDisarmCounter % 2 == 0))
-							GameServer()->SendBroadcastFormat(pChr->GetPlayer()->GetCID(),
+						if(m_Owner >= 0 && pChr->GetCID() >= 0 &&
+						   (m_BombDisarmCounter == 0 || m_BombDisarmCounter % 2 == 0))
+							GameServer()->SendBroadcastFormat(pChr->GetCID(),
 															  false,
 															  "Disarming bomb... %d",
 															  8 - m_BombDisarmCounter / 2);

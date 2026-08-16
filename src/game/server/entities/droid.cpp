@@ -83,9 +83,12 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 
 	const int HealthBefore = m_Health;
 	m_Health -= Dmg;
-	if(GameServer()->m_pTutorialDirector && From >= 0 && From < MAX_CLIENTS && GameServer()->m_apPlayers[From] &&
-	   !GameServer()->m_apPlayers[From]->m_IsBot)
-		GameServer()->m_pTutorialDirector->OnGameplayProgress(From, TUTORIAL_EVENT_TARGET_HIT);
+	if(GameServer()->m_pTutorialDirector)
+	{
+		CPlayer *pFromPlayer = GameServer()->GetClientPlayer(From);
+		if(pFromPlayer && !pFromPlayer->m_IsBot)
+			GameServer()->m_pTutorialDirector->OnGameplayProgress(From, TUTORIAL_EVENT_TARGET_HIT);
+	}
 	GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
 
 	// check for death
@@ -94,12 +97,9 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 		if(GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->OnDroidKilled(this, Source);
 		// set attacker's face to happy (taunt!)
-		if(From >= 0 && GameServer()->m_apPlayers[From])
-		{
-			CCharacter *pChr = GameServer()->m_apPlayers[From]->GetCharacter();
-			if(pChr)
-				pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
-		}
+		CCharacter *pChr = GameServer()->GetPlayerChar(From);
+		if(pChr)
+			pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
 
 		GameServer()->CreateExplosion(m_Pos + m_Center, CAttackSource::Droid(TEAM_NEUTRAL, m_Type, true));
 		m_DeathTick = Server()->Tick();
@@ -259,5 +259,5 @@ void CDroid::Snap(int SnappingClient)
 	pP->m_AttackTick = m_Health <= 0 ? m_DeathTick : m_AttackTick;
 	pP->m_Anim = m_Anim;
 	pP->m_Dir = m_Dir;
-	pP->m_Angle = GetAngle(vec2(abs(m_Target.x), m_Target.y)) * (180 / pi);
+	pP->m_Angle = GetAngle(vec2(abs(m_Target.x), -m_Target.y)) * (180 / pi);
 }

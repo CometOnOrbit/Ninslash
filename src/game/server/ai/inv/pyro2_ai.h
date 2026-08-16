@@ -6,7 +6,7 @@
 class CAIpyro2 : public CInvasionAI
 {
   public:
-	CAIpyro2(CGameContext *pGameServer, CPlayer *pPlayer, int Level = 0,
+	CAIpyro2(CGameContext *pGameServer, CCharacter *pCharacter, int Level = 0,
 		EInvasionSkinId ProfileId = INVASION_SKIN_ELITE_PYRO_SIEGE);
 
 	void DoBehavior() override;

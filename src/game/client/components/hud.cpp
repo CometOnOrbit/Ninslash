@@ -724,16 +724,16 @@ void CHud::RenderScoreHud()
 			int LocalPosition = 0;
 			int NumRows = 0;
 			int Position = 0;
-			for(int i = 0; i < MAX_CLIENTS && m_pClient->m_Snap.m_paInfoByScore[i]; i++)
+			for(int i = 0; i < MAX_CHARACTERS && m_pClient->m_Snap.m_paInfoByScore[i]; i++)
 			{
 				const CNetObj_PlayerInfo *pInfo = m_pClient->m_Snap.m_paInfoByScore[i];
 				if(pInfo->m_Team == TEAM_SPECTATORS)
 					continue;
 				const int ClientID = pInfo->m_ClientID;
-				if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+				CGameClient::CClientData *pClient = m_pClient->ClientData(ClientID);
+				if(!pClient)
 					continue;
-				if((GameFlags & GAMEFLAG_COOP) && !m_pClient->m_Snap.m_pRaceInfo &&
-				   m_pClient->m_aClients[ClientID].m_IsBot)
+				if((GameFlags & GAMEFLAG_COOP) && !m_pClient->m_Snap.m_pRaceInfo && pClient->m_IsBot)
 					continue;
 				Position++;
 				if(NumRows < 2)
@@ -785,7 +785,10 @@ void CHud::RenderScoreHud()
 				str_format(aBuf, sizeof(aBuf), "%d.", aPosition[Row]);
 				UI()->DoLabel(&Rank, aBuf, 6.0f, 0);
 
-				CTeeRenderInfo Info = m_pClient->m_aClients[ID].m_RenderInfo;
+				CGameClient::CClientData *pClient = m_pClient->ClientData(ID);
+				if(!pClient)
+					continue;
+				CTeeRenderInfo Info = pClient->m_RenderInfo;
 				Info.m_Size = 11.5f;
 				RenderTools()->RenderPortrait(
 					&Info, vec2(Card.x + 24.0f, Card.y + Card.h * 0.5f + Info.m_Size * 0.55f + 1.5f), 0);
@@ -799,7 +802,7 @@ void CHud::RenderScoreHud()
 				const float ScoreX = Card.x + Card.w - ScoreWidth - 4.0f;
 				TextRender()->Text(0, ScoreX, Card.y + 4.0f, 8.0f, aScore, -1);
 
-				const char *pName = m_pClient->m_aClients[ID].m_aName;
+				const char *pName = pClient->m_aName;
 				const float NameX = Card.x + 32.0f;
 				const float NameWidth = max(8.0f, ScoreX - NameX - 4.0f);
 				float NameSize = 6.5f;

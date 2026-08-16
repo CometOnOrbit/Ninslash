@@ -1,6 +1,7 @@
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
 #include "building.h"
+#include "character.h"
 #include "lightning.h"
 #include "teslacoil.h"
 
@@ -76,20 +77,14 @@ void CTeslacoil::Fire()
 
 	bool Sound = false;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(CCharacter *pCharacter = (CCharacter *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER);
+		pCharacter;
+		pCharacter = (CCharacter *)pCharacter->TypeNext())
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
+		if(pCharacter->GetTeam() == m_Team && GameServer()->m_pController->IsTeamplay())
 			continue;
 
-		if(pPlayer->GetTeam() == m_Team && GameServer()->m_pController->IsTeamplay())
-			continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
-		if(!pCharacter)
-			continue;
-
-		if((!pCharacter->IsAlive() || pCharacter->GetPlayer()->GetCID() == m_OwnerPlayer) &&
+		if((!pCharacter->IsAlive() || pCharacter->GetCID() == m_OwnerPlayer) &&
 		   !GameServer()->m_pController->IsTeamplay())
 			continue;
 

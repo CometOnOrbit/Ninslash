@@ -6,7 +6,7 @@
 class CAItdm : public CAI
 {
   public:
-	CAItdm(CGameContext *pGameServer, CPlayer *pPlayer);
+	CAItdm(CGameContext *pGameServer, CCharacter *pCharacter);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);

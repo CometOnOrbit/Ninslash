@@ -6,7 +6,7 @@
 class CAIdefbunny2 : public CAI
 {
   public:
-	CAIdefbunny2(CGameContext *pGameServer, CPlayer *pPlayer);
+	CAIdefbunny2(CGameContext *pGameServer, CCharacter *pCharacter);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);

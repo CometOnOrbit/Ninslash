@@ -6,7 +6,7 @@
 class CAIdefpyro2 : public CAI
 {
   public:
-	CAIdefpyro2(CGameContext *pGameServer, CPlayer *pPlayer);
+	CAIdefpyro2(CGameContext *pGameServer, CCharacter *pCharacter);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);

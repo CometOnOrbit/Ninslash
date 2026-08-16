@@ -1,7 +1,7 @@
 #include "robot1_ai.h"
 
-CAIrobot1::CAIrobot1(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId) :
-	CInvasionAI(pGameServer, pPlayer, Level, ProfileId)
+CAIrobot1::CAIrobot1(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId) :
+	CInvasionAI(pGameServer, pCharacter, Level, ProfileId)
 {
 }
 

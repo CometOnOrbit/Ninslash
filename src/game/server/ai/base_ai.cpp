@@ -7,7 +7,7 @@
 
 #include "base_ai.h"
 
-CAIbase::CAIbase(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAIbase::CAIbase(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
 }
@@ -34,7 +34,7 @@ void CAIbase::ReceiveDamage(int CID, int Dmg)
 	if(!pPlayer)
 		return;
 
-	if(pPlayer == Player())
+	if(IsSelf(pPlayer))
 		return;
 
 	CCharacter *pCharacter = pPlayer->GetCharacter();

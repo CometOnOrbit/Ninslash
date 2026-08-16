@@ -2353,21 +2353,22 @@ void CPveDirector::OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Dama
 	}
 }
 
-int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
+int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage, CCharacter *pVictim)
 {
 	const int From = Source.m_Owner;
 	if(!Enabled() || Damage <= 0 || m_ApplyingSecondaryEffect)
 		return Damage;
 	float Multiplier = 1.0f;
-	CCharacter *pOutgoingTarget = 0;
-	if(IsEligiblePlayer(From) && (To == -2 || m_pGameServer->IsBot(To)))
+	CCharacter *pOutgoingTarget = pVictim;
+	if(IsEligiblePlayer(From) && (To == -2 || m_pGameServer->IsBot(To) || (pOutgoingTarget && pOutgoingTarget->m_IsBot)))
 	{
 		CPlayerRun &Run = m_aPlayers[From];
 		const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon
 									   ? WeaponSpecialization(Source.m_Weapon)
 									   : PVE_SPECIALIZATION_NONE;
 		Run.m_LastEmpoweredSpecialization = PVE_SPECIALIZATION_NONE;
-		pOutgoingTarget = To >= 0 ? m_pGameServer->GetPlayerChar(To) : 0;
+		if(!pOutgoingTarget && To >= 0)
+			pOutgoingTarget = m_pGameServer->GetPlayerChar(To);
 		Multiplier += Run.m_aStacks[PVE_CARD_COMBAT_TRAINING] * 0.08f;
 		if(pOutgoingTarget && pOutgoingTarget->m_MaxHealth > 0 &&
 		   pOutgoingTarget->m_HiddenHealth * 100 <= pOutgoingTarget->m_MaxHealth * 30)
@@ -2514,8 +2515,12 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 			if(pExtract && pExtract->Evacuating())
 				Multiplier += 0.30f;
 		}
-		if(Run.m_aStacks[PVE_CARD_LIQUID_ASSETS] && m_pGameServer->m_apPlayers[From])
-			Multiplier += min(0.20f, (m_pGameServer->m_apPlayers[From]->GetGold() / 50) * 0.02f);
+		if(Run.m_aStacks[PVE_CARD_LIQUID_ASSETS])
+		{
+			CPlayer *pFromPlayer = m_pGameServer->GetClientPlayer(From);
+			if(pFromPlayer)
+				Multiplier += min(0.20f, (pFromPlayer->GetGold() / 50) * 0.02f);
+		}
 		if(ActiveContract() == PVE_CONTRACT_GLASS_CANNON)
 			Multiplier *= 1.25f;
 	}

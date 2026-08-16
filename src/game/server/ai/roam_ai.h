@@ -6,7 +6,7 @@
 class CAIroam : public CAI
 {
   public:
-	CAIroam(CGameContext *pGameServer, CPlayer *pPlayer, int Level);
+	CAIroam(CGameContext *pGameServer, CCharacter *pCharacter, int Level);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);

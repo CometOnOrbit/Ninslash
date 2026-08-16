@@ -162,12 +162,9 @@ void CKamikazeStar::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source,
 
 	if(GameServer()->m_pPveDirector)
 		GameServer()->m_pPveDirector->OnDroidKilled(this, Source);
-	if(From >= 0 && From < MAX_CLIENTS && GameServer()->m_apPlayers[From])
-	{
-		CCharacter *pCharacter = GameServer()->m_apPlayers[From]->GetCharacter();
-		if(pCharacter)
-			pCharacter->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
-	}
+	CCharacter *pCharacter = GameServer()->GetPlayerChar(From);
+	if(pCharacter)
+		pCharacter->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
 
 	Detonate();
 }

@@ -24,6 +24,9 @@
 #include <game/server/playerdata.h>
 #include <game/server/pve_director.h>
 #include <game/server/tutorial_director.h>
+#include <game/server/player.h>
+#include <game/server/ai.h>
+#include <game/npc.h>
 #include <game/pve_roguelite.h>
 #include <game/questinfo.h>
 
@@ -102,7 +105,7 @@ static CInputCount CountInput(int Prev, int Cur)
 	return c;
 }
 
-MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CLIENTS)
+MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CHARACTERS)
 
 // Character, "physical" player's part
 CCharacter::CCharacter(CGameWorld *pWorld) : CEntity(pWorld, CGameWorld::ENTTYPE_CHARACTER)
@@ -131,14 +134,85 @@ CCharacter::CCharacter(CGameWorld *pWorld) : CEntity(pWorld, CGameWorld::ENTTYPE
 	m_DeathrayTick = 0;
 
 	m_Type = CCharacter::PLAYER;
+	m_pPlayer = 0;
+	m_pAI = 0;
+	m_NpcSlot = -1;
+	m_Team = 0;
+	m_ToBeKicked = false;
 }
 
-void CCharacter::Reset()
+CCharacter::~CCharacter()
 {
-	Destroy();
+	if(m_pAI)
+	{
+		delete m_pAI;
+		m_pAI = 0;
+	}
 }
 
-bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
+int CCharacter::GetCID() const
+{
+	return m_pPlayer ? m_pPlayer->GetCID() : -1;
+}
+
+int CCharacter::GetTeam()
+{
+	if(m_pPlayer)
+		return m_pPlayer->GetTeam();
+	if(GameServer()->m_pController && GameServer()->m_pController->IsCoop() && m_IsBot)
+		return TEAM_BLUE;
+	return m_Team;
+}
+
+int CCharacter::CoreIndex() const
+{
+	if(m_pPlayer)
+		return GetCID();
+	if(m_NpcSlot >= 0)
+		return NpcCoreIndex(m_NpcSlot);
+	return -1;
+}
+
+void CCharacter::MarkToBeKicked()
+{
+	m_ToBeKicked = true;
+	if(m_pPlayer)
+		m_pPlayer->m_ToBeKicked = true;
+}
+
+bool CCharacter::ToBeKicked() const
+{
+	if(m_pPlayer)
+		return m_pPlayer->m_ToBeKicked;
+	return m_ToBeKicked;
+}
+
+void CCharacter::SetAISkin()
+{
+	str_copy(m_TeeInfos.m_HeadName, m_AISkin.m_aHead, 24);
+	str_copy(m_TeeInfos.m_BodyName, m_AISkin.m_aBody, 24);
+	str_copy(m_TeeInfos.m_HandName, m_AISkin.m_aHand, 24);
+	str_copy(m_TeeInfos.m_FootName, m_AISkin.m_aFoot, 24);
+	str_copy(m_TeeInfos.m_TopperName, m_AISkin.m_aTopper, 24);
+	str_copy(m_TeeInfos.m_EyeName, m_AISkin.m_aEye, 24);
+
+	m_TeeInfos.m_ColorSkin = m_AISkin.m_ColorSkin;
+	m_TeeInfos.m_ColorBody = m_AISkin.m_ColorBody;
+	m_TeeInfos.m_ColorTopper = m_AISkin.m_ColorTopper;
+	m_TeeInfos.m_ColorFeet = m_AISkin.m_ColorFoot;
+	m_TeeInfos.m_BloodColor = m_AISkin.m_ColorBlood;
+	m_TeeInfos.m_IsBot = true;
+}
+
+void CCharacter::SetCustomSkin(int)
+{
+}
+
+void CCharacter::SetRandomSkin()
+{
+}
+
+void CCharacter::InitBody(vec2 Pos)
 {
 	m_GrenadeGiveCooldown = 0;
 	m_Spawned = true;
@@ -146,6 +220,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_DamagedByPlayer = false;
 	m_PickedWeaponSlot = 0;
 	m_MaskEffectTick = 0;
+	m_ToBeKicked = false;
 
 	for(int i = 0; i < NUM_PLAYERITEMS; i++)
 		m_aItem[i] = 0;
@@ -185,7 +260,6 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_DeathTileTimer = 0;
 	m_DelayedKill = false;
 	m_WeaponPicked = false;
-	m_IsBot = false;
 	m_EmoteStop = -1;
 	m_LastAction = -1;
 	m_LastBlink = -1;
@@ -196,26 +270,36 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 
 	m_PainSoundTimer = 0;
 
-	m_pPlayer = pPlayer;
 	m_Pos = Pos;
-
 	m_ChargeTick = 0;
 	m_FireBufferEndTick = 0;
 	m_SwitchBufferEndTick = 0;
-
 	m_SpawnPos = Pos;
-
 	m_LatestHitVel = vec2(0, 0);
 
 	m_Core.Reset();
 	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision());
 	m_Core.m_Pos = m_Pos;
 
-	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = &m_Core;
-
 	m_ReckoningTick = 0;
 	mem_zero(&m_SendCore, sizeof(m_SendCore));
 	mem_zero(&m_ReckoningCore, sizeof(m_ReckoningCore));
+}
+
+void CCharacter::Reset()
+{
+	Destroy();
+}
+
+bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
+{
+	InitBody(Pos);
+	m_IsBot = false;
+	m_pPlayer = pPlayer;
+	m_NpcSlot = -1;
+	m_Team = pPlayer->GetTeam();
+
+	GameServer()->m_World.m_Core.m_apCharacters[pPlayer->GetCID()] = &m_Core;
 
 	GameServer()->m_World.InsertEntity(this);
 	m_Alive = true;
@@ -225,15 +309,34 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 		delete pPlayer->m_pAI;
 		pPlayer->m_pAI = 0;
 	}
+	if(m_pAI)
+	{
+		delete m_pAI;
+		m_pAI = 0;
+	}
 
 	GameServer()->m_pController->OnCharacterSpawn(this, pPlayer->m_IsBot);
 	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::PlayerSpawn, pPlayer->GetCID(), 0);
 
-	if(pPlayer->m_pAI)
+	if(m_pAI)
 	{
 		m_IsBot = true;
+		m_TeeInfos.m_IsBot = true;
 		pPlayer->m_TeeInfos.m_IsBot = true;
-		pPlayer->m_pAI->OnCharacterSpawn(this);
+		m_pAI->OnCharacterSpawn(this);
+		pPlayer->m_IsBot = true;
+
+		if(GameServer()->m_pController->IsCoop())
+			m_Silent = true;
+	}
+	else if(pPlayer->m_pAI)
+	{
+		m_pAI = pPlayer->m_pAI;
+		pPlayer->m_pAI = 0;
+		m_IsBot = true;
+		m_TeeInfos.m_IsBot = true;
+		pPlayer->m_TeeInfos.m_IsBot = true;
+		m_pAI->OnCharacterSpawn(this);
 		pPlayer->m_IsBot = true;
 
 		if(GameServer()->m_pController->IsCoop())
@@ -246,10 +349,49 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	return true;
 }
 
+bool CCharacter::SpawnNpc(int Slot, int Team, vec2 Pos)
+{
+	InitBody(Pos);
+	m_IsBot = true;
+	m_pPlayer = 0;
+	m_NpcSlot = Slot;
+	m_Team = Team;
+	m_Silent = GameServer()->m_pController && GameServer()->m_pController->IsCoop();
+	m_TeeInfos.m_IsBot = true;
+
+	if(m_pAI)
+	{
+		delete m_pAI;
+		m_pAI = 0;
+	}
+
+	GameServer()->m_World.m_Core.m_apCharacters[NpcCoreIndex(Slot)] = &m_Core;
+
+	GameServer()->m_World.InsertEntity(this);
+	m_Alive = true;
+
+	GameServer()->m_pController->OnCharacterSpawn(this, true);
+
+	CGameContext::CNpcSlot *pSlot = &GameServer()->m_aNpcs[Slot];
+	if(pSlot->m_AISkin.m_Valid)
+	{
+		m_AISkin = pSlot->m_AISkin;
+		SetAISkin();
+	}
+	else if(m_AISkin.m_Valid)
+		pSlot->m_AISkin = m_AISkin;
+
+	if(m_pAI)
+		m_pAI->OnCharacterSpawn(this);
+
+	GiveStartWeapon();
+	return true;
+}
+
 bool CCharacter::GiveBomb()
 {
 	int Slot = FreeSlot();
-	if(Slot >= 0 && GetPlayer()->GetTeam() == TEAM_RED)
+	if(Slot >= 0 && GetTeam() == TEAM_RED)
 	{
 		m_apWeapon[Slot] = GameServer()->NewWeapon(CWeaponCatalog::Static(SW_BOMB));
 		SendInventory();
@@ -318,7 +460,7 @@ void CCharacter::SaveData()
 	if(g_Config.m_SvTutorialMode || m_IsBot || !m_Spawned || !GameServer()->m_pController->IsCoop())
 		return;
 
-	CPlayerData *pData = GameServer()->Server()->GetPlayerData(GetPlayer()->GetCID(), GetPlayer()->GetColorID());
+	CPlayerData *pData = GameServer()->Server()->GetPlayerData(GetCID(), GetPlayer()->GetColorID());
 
 	pData->m_Kits = m_Kits;
 	pData->m_Armor = m_Armor;
@@ -408,12 +550,12 @@ bool CCharacter::SetLandmine()
 	if(GameServer()->Collision()->GetCollisionAt(m_Pos.x - 16, m_Pos.y + 24) & CCollision::COLFLAG_SOLID &&
 	   GameServer()->Collision()->GetCollisionAt(m_Pos.x + 16, m_Pos.y + 24) & CCollision::COLFLAG_SOLID)
 	{
-		// new CLandmine(&GameServer()->m_World, m_Pos + vec2(0, 16), m_pPlayer->GetCID());
+		// new CLandmine(&GameServer()->m_World, m_Pos + vec2(0, 16), GetCID());
 		CBuilding *b = new CBuilding(&GameServer()->m_World,
 									 m_Pos + vec2(0, 6),
 									 BUILDING_MINE1,
-									 GameServer()->m_pController->IsTeamplay() ? m_pPlayer->GetTeam() : TEAM_NEUTRAL);
-		b->m_DamageOwner = GetPlayer()->GetCID();
+									 GameServer()->m_pController->IsTeamplay() ? GetTeam() : TEAM_NEUTRAL);
+		b->m_DamageOwner = GetCID();
 		GameServer()->CreateSound(m_Pos, SOUND_BODY_LAND);
 		return true;
 	}
@@ -425,12 +567,12 @@ bool CCharacter::SetElectromine()
 	if(GameServer()->Collision()->GetCollisionAt(m_Pos.x - 16, m_Pos.y + 24) & CCollision::COLFLAG_SOLID &&
 	   GameServer()->Collision()->GetCollisionAt(m_Pos.x + 16, m_Pos.y + 24) & CCollision::COLFLAG_SOLID)
 	{
-		// new CLandmine(&GameServer()->m_World, m_Pos + vec2(0, 16), m_pPlayer->GetCID());
+		// new CLandmine(&GameServer()->m_World, m_Pos + vec2(0, 16), GetCID());
 		CBuilding *b = new CBuilding(&GameServer()->m_World,
 									 m_Pos + vec2(0, 6),
 									 BUILDING_MINE2,
-									 GameServer()->m_pController->IsTeamplay() ? m_pPlayer->GetTeam() : TEAM_NEUTRAL);
-		b->m_DamageOwner = GetPlayer()->GetCID();
+									 GameServer()->m_pController->IsTeamplay() ? GetTeam() : TEAM_NEUTRAL);
+		b->m_DamageOwner = GetCID();
 		GameServer()->CreateSound(m_Pos, SOUND_BODY_LAND);
 		return true;
 	}
@@ -447,19 +589,21 @@ void CCharacter::Teleport(vec2 Pos)
 	m_Pos = Pos;
 	m_Core.m_Pos = m_Pos;
 
-	if(GetPlayer()->m_pAI)
-		GetPlayer()->m_pAI->StandStill(15);
+	if(m_pAI)
+		m_pAI->StandStill(15);
 }
 
 void CCharacter::Destroy()
 {
-	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = 0;
+	const int Index = CoreIndex();
+	if(Index >= 0 && Index < MAX_CHARACTERS)
+		GameServer()->m_World.m_Core.m_apCharacters[Index] = 0;
 	m_Alive = false;
 }
 
 void CCharacter::SendInventory()
 {
-	if(m_IsBot)
+	if(m_IsBot || !m_pPlayer)
 		return;
 
 	CNetMsg_Sv_Inventory Msg;
@@ -483,7 +627,7 @@ void CCharacter::SendInventory()
 	FillWeapon(10, Msg.m_Item11DefinitionId, Msg.m_Item11Level, Msg.m_Item11Ammo);
 	FillWeapon(11, Msg.m_Item12DefinitionId, Msg.m_Item12Level, Msg.m_Item12Ammo);
 	Msg.m_Gold = GetPlayer()->GetGold();
-	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, GetPlayer()->GetCID());
+	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, GetCID());
 }
 
 void CCharacter::InventoryRoll(int Slot)
@@ -637,6 +781,8 @@ void CCharacter::SwapItem(int Item1, int Item2)
 
 void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 {
+	if(!m_pPlayer)
+		return;
 	int ResultOperation = Operation;
 	auto Reject = [this, &ResultOperation, Item1, Item2](int Result,
 														 const CWeaponSpec &Product = CWeaponSpec(),
@@ -645,7 +791,7 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 														 int ProductMaxAmmo = 0)
 	{
 		GetPlayer()->SendForgeResult(Result, ResultOperation, Item1, Item2, Cost, Product, ProductAmmo, ProductMaxAmmo);
-		GameServer()->CreateSoundGlobal(SOUND_GUI_DENIED1, GetPlayer()->GetCID());
+		GameServer()->CreateSoundGlobal(SOUND_GUI_DENIED1, GetCID());
 	};
 
 	if(!IsAlive() || IsZombie() || GameServer()->m_World.m_Paused)
@@ -744,7 +890,7 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 	m_apWeapon[Item2] = 0;
 	GetPlayer()->ReduceGold(Cost);
 	if(GameServer()->m_pPveDirector)
-		GameServer()->m_pPveDirector->OnGoldSpent(GetPlayer()->GetCID(), Cost);
+		GameServer()->m_pPveDirector->OnGoldSpent(GetCID(), Cost);
 
 	int SelectedSlot = -1;
 	if(Item1 < 4 && m_apWeapon[Item1])
@@ -771,10 +917,10 @@ void CCharacter::CombineItem(int Item1, int Item2, int Operation)
 								 Recipe.m_ProductAmmo,
 								 Recipe.m_ProductMaxAmmo);
 	if(GameServer()->m_pTutorialDirector)
-		GameServer()->m_pTutorialDirector->OnGameplayProgress(GetPlayer()->GetCID(), TUTORIAL_EVENT_FORGE);
-	Server()->SendPlatformEvent(GetPlayer()->GetCID(), PLATFORM_EVENT_FIRST_FORGE);
-	Server()->DispatchModEvent(MOD_EVENT_FORGE, GetPlayer()->GetCID(), Recipe.m_Operation);
-	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Forge, GetPlayer()->GetCID(), Recipe.m_Operation);
+		GameServer()->m_pTutorialDirector->OnGameplayProgress(GetCID(), TUTORIAL_EVENT_FORGE);
+	Server()->SendPlatformEvent(GetCID(), PLATFORM_EVENT_FIRST_FORGE);
+	Server()->DispatchModEvent(MOD_EVENT_FORGE, GetCID(), Recipe.m_Operation);
+	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Forge, GetCID(), Recipe.m_Operation);
 }
 
 bool CCharacter::TriggerWeapon(CWeapon *pWeapon)
@@ -793,7 +939,7 @@ bool CCharacter::TriggerWeapon(CWeapon *pWeapon)
 		return GiveBuff(PLAYERITEM_SHIELD);
 	if(HasWeaponBehavior(pWeapon, WEAPON_BEHAVIOR_ACTIVATE_RESPAWNER) &&
 	   (!GameServer()->m_pController->IsCoop() || !m_IsBot))
-		return GameServer()->RespawnAlly(m_Pos, GetPlayer()->GetTeam(), GetPlayer()->GetCID());
+		return GameServer()->RespawnAlly(m_Pos, GetTeam(), GetCID());
 	return false;
 }
 
@@ -834,7 +980,7 @@ bool CCharacter::IsBombCarrier()
 bool CCharacter::PickWeapon(CWeapon *pWeapon)
 {
 	// cs | reactor defense
-	if(HasWeaponBehavior(pWeapon, WEAPON_BEHAVIOR_BOMB) && GetPlayer()->GetTeam() != TEAM_RED)
+	if(HasWeaponBehavior(pWeapon, WEAPON_BEHAVIOR_BOMB) && GetTeam() != TEAM_RED)
 		return false;
 
 	// Challenge variant: players cannot pick up firearms, while melee weapons
@@ -848,7 +994,7 @@ bool CCharacter::PickWeapon(CWeapon *pWeapon)
 
 	if(!GetWeapon())
 	{
-		pWeapon->SetOwner(GetPlayer()->GetCID());
+		pWeapon->SetOwner(CoreIndex());
 		m_apWeapon[GetWeaponSlot()] = pWeapon;
 		m_PickedWeaponSlot = GetWeaponSlot();
 		SendInventory();
@@ -908,7 +1054,7 @@ bool CCharacter::PickWeapon(CWeapon *pWeapon)
 		{
 			if(!m_apWeapon[i])
 			{
-				pWeapon->SetOwner(GetPlayer()->GetCID());
+				pWeapon->SetOwner(CoreIndex());
 				m_apWeapon[i] = pWeapon;
 				m_PickedWeaponSlot = i;
 				SendInventory();
@@ -957,7 +1103,7 @@ bool CCharacter::UpgradeTurret(vec2 Pos, vec2 Dir, int Slot)
 	{
 		int Cost = GetWeapon(Slot)->GetPowerLevel() + 1;
 		if(GameServer()->m_pPveDirector)
-			Cost = GameServer()->m_pPveDirector->ModifyBuildingCost(GetPlayer()->GetCID(), Cost);
+			Cost = GameServer()->m_pPveDirector->ModifyBuildingCost(GetCID(), Cost);
 		if(m_Kits < Cost)
 			return false;
 
@@ -967,16 +1113,16 @@ bool CCharacter::UpgradeTurret(vec2 Pos, vec2 Dir, int Slot)
 		const int OriginalKitCost = pNear->m_PveKitCost;
 		GameServer()->m_World.DestroyEntity(pNear);
 
-		int Team = GetPlayer()->GetTeam();
+		int Team = GetTeam();
 		if(!GameServer()->m_pController->IsTeamplay())
-			Team = GetPlayer()->GetCID();
+			Team = GetCID();
 
 		// clone the weapon in use and link it to turret
 		CWeapon *pWeapon = GameServer()->NewWeapon(GetWeapon(Slot)->GetWeaponSpec());
 
-		pWeapon->SetOwner(GetPlayer()->GetCID());
+		pWeapon->SetOwner(CoreIndex());
 		CTurret *pTurret = new CTurret(&GameServer()->m_World, p, Team, pWeapon);
-		pTurret->m_PveBuilder = GetPlayer()->GetCID();
+		pTurret->m_PveBuilder = GetCID();
 		pTurret->m_PveKitCost = OriginalKitCost + Cost;
 		pTurret->SetAngle(Dir);
 
@@ -1072,7 +1218,7 @@ void CCharacter::DoWeaponSwitch()
 		m_FireBufferEndTick = 0;
 		m_AttackTick = 0;
 		if(GameServer()->m_pTutorialDirector && !m_IsBot)
-			GameServer()->m_pTutorialDirector->OnGameplayProgress(GetPlayer()->GetCID(), TUTORIAL_EVENT_WEAPON_SWITCH);
+			GameServer()->m_pTutorialDirector->OnGameplayProgress(GetCID(), TUTORIAL_EVENT_WEAPON_SWITCH);
 	}
 }
 
@@ -1149,7 +1295,7 @@ void CCharacter::HandleWeaponSwitch()
 		str_format(aBuf,
 				   sizeof(aBuf),
 				   "server cid=%d tick=%d start=%d pending_start=%d next=%d prev=%d counters next=%d->%d prev=%d->%d wanted=%d result=%d buffer_end=%d",
-				   GetPlayer()->GetCID(),
+				   GetCID(),
 				   Server()->Tick(),
 				   StartSlot,
 				   PendingRequest ? 1 : 0,
@@ -1203,7 +1349,7 @@ void CCharacter::FireWeapon()
 
 	vec2 Direction = normalize(vec2(m_LatestInput.m_TargetX, m_LatestInput.m_TargetY));
 	GetWeapon()->SetPos(m_Pos, m_Core.m_Vel, Direction, m_ProximityRadius);
-	GetWeapon()->SetOwner(GetPlayer()->GetCID());
+	GetWeapon()->SetOwner(CoreIndex());
 
 	const int FiringType = GetWeapon()->GetWeaponProfile().m_Combat.m_FiringType;
 	if(FiringType == WFT_CHARGE || FiringType == WFT_THROW)
@@ -1364,7 +1510,7 @@ void CCharacter::GiveStartWeapon()
 			return;
 
 		// load saved weapons
-		CPlayerData *pData = GameServer()->Server()->GetPlayerData(GetPlayer()->GetCID(), GetPlayer()->GetColorID());
+		CPlayerData *pData = GameServer()->Server()->GetPlayerData(GetCID(), GetPlayer()->GetColorID());
 		if(pData->m_WeaponDataVersion != WEAPON_DATA_VERSION)
 		{
 			char aBuf[128];
@@ -1553,7 +1699,7 @@ void CCharacter::OnDirectInput(CNetObj_PlayerInput *pNewInput)
 	if(m_LatestInput.m_TargetX == 0 && m_LatestInput.m_TargetY == 0)
 		m_LatestInput.m_TargetY = -1;
 
-	if(m_NumInputs > 2 && m_pPlayer->GetTeam() != TEAM_SPECTATORS)
+	if(m_NumInputs > 2 && GetTeam() != TEAM_SPECTATORS)
 	{
 		HandleWeaponSwitch();
 		FireWeapon();
@@ -1597,23 +1743,23 @@ bool CCharacter::Invisible()
 
 void CCharacter::UseKit(int Kit, vec2 Pos)
 {
-	if(Kit < 0 || Kit >= NUM_BUILDABLES)
+	if(!m_pPlayer || Kit < 0 || Kit >= NUM_BUILDABLES)
 		return;
 
 	int Cost = BuildableCost[Kit];
 	if(GameServer()->m_pPveDirector)
-		Cost = GameServer()->m_pPveDirector->ModifyBuildingCost(GetPlayer()->GetCID(), Cost);
+		Cost = GameServer()->m_pPveDirector->ModifyBuildingCost(GetCID(), Cost);
 	if(m_Kits >= Cost)
 	{
-		if(GameServer()->AddBuilding(Kit, Pos, GetPlayer()->GetCID(), Cost))
+		if(GameServer()->AddBuilding(Kit, Pos, GetCID(), Cost))
 		{
 			m_Kits -= Cost;
 			GameServer()->CreateSound(Pos, SOUND_BUILD);
-			Server()->SendPlatformEvent(GetPlayer()->GetCID(), PLATFORM_EVENT_FIRST_BUILD);
-			Server()->DispatchModEvent(MOD_EVENT_BUILD, GetPlayer()->GetCID(), Kit);
-			GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Build, GetPlayer()->GetCID(), Kit);
+			Server()->SendPlatformEvent(GetCID(), PLATFORM_EVENT_FIRST_BUILD);
+			Server()->DispatchModEvent(MOD_EVENT_BUILD, GetCID(), Kit);
+			GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Build, GetCID(), Kit);
 			if(GameServer()->m_pTutorialDirector)
-				GameServer()->m_pTutorialDirector->OnGameplayProgress(GetPlayer()->GetCID(), TUTORIAL_EVENT_BUILD);
+				GameServer()->m_pTutorialDirector->OnGameplayProgress(GetCID(), TUTORIAL_EVENT_BUILD);
 		}
 	}
 }
@@ -1798,6 +1944,19 @@ void CCharacter::UpdateCoreStatus()
 		m_aStatus[STATUS_AFLAME]--;
 }
 
+void CCharacter::TickNpcAI()
+{
+	if(!m_pAI)
+		return;
+
+	m_pAI->Tick();
+	CNetObj_PlayerInput Input;
+	mem_zero(&Input, sizeof(Input));
+	m_pAI->UpdateInput((int *)&Input);
+	OnDirectInput(&Input);
+	OnPredictedInput(&Input);
+}
+
 void CCharacter::Tick()
 {
 	// GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "debug", "Tick");
@@ -1813,11 +1972,13 @@ void CCharacter::Tick()
 	// frandom()-frandom()*1.4f)*14.0f, 0); GameServer()->m_pController->DropPickup(m_Pos, POWERUP_HEALTH,
 	// vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0);
 
+	TickNpcAI();
+
 	if(m_IsBot && !GameServer()->Collision()->IsMapPath() && m_SnapTick &&
 	   m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 15.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
-			GetPlayer()->m_ToBeKicked = true;
+			MarkToBeKicked();
 	}
 
 	if(m_ElectroWallCooldown > 0)
@@ -1893,8 +2054,8 @@ void CCharacter::Tick()
 	{
 		char Buf[128];
 		str_format(Buf, sizeof(Buf), "You were moved to %s due to team balancing",
-	GameServer()->m_pController->GetTeamName(m_pPlayer->GetTeam())); GameServer()->SendBroadcast(Buf,
-	m_pPlayer->GetCID());
+	GameServer()->m_pController->GetTeamName(GetTeam())); GameServer()->SendBroadcast(Buf,
+	GetCID());
 
 		m_pPlayer->m_ForceBalanced = false;
 	}
@@ -1906,8 +2067,14 @@ void CCharacter::Tick()
 		return;
 
 	m_Core.m_Input = m_Input;
-	m_Core.m_MoveSpeedMultiplier =
-		GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->MovementMultiplier(GetPlayer()->GetCID()) : 1.0f;
+	m_Core.m_MoveSpeedMultiplier = 1.0f;
+	if(GameServer()->m_pPveDirector)
+	{
+		if(m_IsBot)
+			m_Core.m_MoveSpeedMultiplier = GameServer()->m_pPveDirector->EnemySpeedMultiplier();
+		else
+			m_Core.m_MoveSpeedMultiplier = GameServer()->m_pPveDirector->MovementMultiplier(GetCID());
+	}
 
 	float RecoilCap = 17.5f;
 
@@ -1924,11 +2091,11 @@ void CCharacter::Tick()
 		GameServer()->CreateSound(m_Pos, SOUND_KICKHIT);
 	}
 
-	m_Core.m_ClientID = GetPlayer()->GetCID();
+	m_Core.m_ClientID = CoreIndex();
 	m_Core.Tick(true);
 
-	if(m_Core.m_BallHitVel.x != 0.0f || m_Core.m_BallHitVel.y != 0.0f)
-		GameServer()->m_pController->m_LastBallToucher = GetPlayer()->GetCID();
+	if((m_Core.m_BallHitVel.x != 0.0f || m_Core.m_BallHitVel.y != 0.0f) && CoreIndex() >= 0)
+		GameServer()->m_pController->m_LastBallToucher = CoreIndex();
 
 	// anti head stuck
 	if(GameServer()->Collision()->CheckPoint(m_Pos.x, m_Pos.y - m_ProximityRadius / 3.f - 42) &&
@@ -1984,12 +2151,12 @@ void CCharacter::Tick()
 	   GameServer()->Collision()->GetCollisionAt(m_Pos.x - m_ProximityRadius / 3.f, m_Pos.y + m_ProximityRadius / 3.f) &
 		   CCollision::COLFLAG_INSTADEATH)
 	{
-		Die(CAttackSource::World(DEATHTYPE_SPIKE, m_pPlayer->GetCID()));
+		Die(CAttackSource::World(DEATHTYPE_SPIKE, GetCID()));
 	}
 
 	// leaving gamelayer (ignore going right)
 	if(GameLayerClipped(vec2(min(0.0f, m_Pos.x), m_Pos.y)))
-		Die(CAttackSource::World(DEATHTYPE_SPIKE, m_pPlayer->GetCID()));
+		Die(CAttackSource::World(DEATHTYPE_SPIKE, GetCID()));
 
 	// delayed death ray
 	if(m_DeathrayTick > 0 && m_DeathrayTick <= Server()->Tick())
@@ -1997,7 +2164,7 @@ void CCharacter::Tick()
 
 	if(m_DelayedKill)
 	{
-		Die(CAttackSource::World(WEAPON_WORLD, m_pPlayer->GetCID()));
+		Die(CAttackSource::World(WEAPON_WORLD, GetCID()));
 		m_LatestHitVel = vec2(0, 0);
 	}
 
@@ -2071,7 +2238,7 @@ void CCharacter::TickDefered()
 	*/
 
 	int Events = m_Core.m_TriggeredEvents;
-	int64 Mask = CmaskAllExceptOne(m_pPlayer->GetCID());
+	int64 Mask = GetCID() >= 0 ? CmaskAllExceptOne(GetCID()) : CmaskAll();
 
 	if(Events & COREEVENT_HOOK_ATTACH_PLAYER)
 		GameServer()->CreateSound(m_Pos, SOUND_HOOK_ATTACH_PLAYER, Mask);
@@ -2083,7 +2250,7 @@ void CCharacter::TickDefered()
 	if(Events & COREEVENT_GROUND_JUMP)
 		GameServer()->CreateSound(m_Pos, SOUND_PLAYER_JUMP, Mask);
 
-	if(m_pPlayer->GetTeam() == TEAM_SPECTATORS)
+	if(GetTeam() == TEAM_SPECTATORS)
 	{
 		m_Pos.x = m_Input.m_TargetX;
 		m_Pos.y = m_Input.m_TargetY;
@@ -2149,7 +2316,7 @@ bool CCharacter::IncreaseHealth(int Amount)
 	if(GetMask() == 4)
 		Amount *= 2;
 	if(GameServer()->m_pPveDirector && !m_IsBot)
-		Amount = GameServer()->m_pPveDirector->ModifyRecovery(GetPlayer()->GetCID(), Amount, true);
+		Amount = GameServer()->m_pPveDirector->ModifyRecovery(GetCID(), Amount, true);
 
 	m_HiddenHealth = clamp(m_HiddenHealth + Amount, 0, m_MaxHealth);
 
@@ -2160,7 +2327,7 @@ bool CCharacter::IncreaseHealth(int Amount)
 
 bool CCharacter::AddKits(int Amount)
 {
-	if(GameServer()->m_pController->IsInfection() && GetPlayer()->GetTeam() == TEAM_BLUE)
+	if(GameServer()->m_pController->IsInfection() && GetTeam() == TEAM_BLUE)
 		return false;
 
 	if(m_Kits < 99)
@@ -2174,7 +2341,7 @@ bool CCharacter::AddKits(int Amount)
 
 bool CCharacter::AddKit()
 {
-	if(GameServer()->m_pController->IsInfection() && GetPlayer()->GetTeam() == TEAM_BLUE)
+	if(GameServer()->m_pController->IsInfection() && GetTeam() == TEAM_BLUE)
 		return false;
 
 	if(m_Kits < 99)
@@ -2222,7 +2389,7 @@ bool CCharacter::IncreaseArmor(int Amount)
 	if(GetMask() == 4)
 		Amount *= 2;
 	if(GameServer()->m_pPveDirector && !m_IsBot)
-		Amount = GameServer()->m_pPveDirector->ModifyRecovery(GetPlayer()->GetCID(), Amount, false);
+		Amount = GameServer()->m_pPveDirector->ModifyRecovery(GetCID(), Amount, false);
 
 	m_Armor = clamp(m_Armor + Amount, 0, 100);
 	return true;
@@ -2258,22 +2425,25 @@ void CCharacter::Die(const CAttackSource &Source, bool SkipKillMessage, bool IsT
 
 	SaveData();
 
-	m_pPlayer->m_DeathTick = Server()->Tick();
+	if(m_pPlayer)
+	{
+		m_pPlayer->m_DeathTick = Server()->Tick();
 
-	if(g_Config.m_SvSurvivalMode)
-		m_pPlayer->m_RespawnTick = Server()->Tick();
-	else
-		m_pPlayer->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
+		if(g_Config.m_SvSurvivalMode)
+			m_pPlayer->m_RespawnTick = Server()->Tick();
+		else
+			m_pPlayer->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
+	}
 
 	if(Killer == NEUTRAL_BASE)
-		Killer = GetPlayer()->GetCID();
+		Killer = GetCID();
 
-	if(!SkipKillMessage && Killer >= 0)
+	if(!SkipKillMessage && Killer >= 0 && Killer < MAX_CLIENTS)
 	{
 		int ModeSpecial =
 			GameServer()->m_pController->OnCharacterDeath(this, GameServer()->m_apPlayers[Killer], Source);
 
-		if(!m_IsBot)
+		if(!m_IsBot && GetCID() >= 0)
 		{
 			char aBuf[256];
 			str_format(aBuf,
@@ -2281,8 +2451,8 @@ void CCharacter::Die(const CAttackSource &Source, bool SkipKillMessage, bool IsT
 					   "kill killer='%d:%s' victim='%d:%s' source=%d:%d special=%d",
 					   Killer,
 					   Server()->ClientName(Killer),
-					   m_pPlayer->GetCID(),
-					   Server()->ClientName(m_pPlayer->GetCID()),
+					   GetCID(),
+					   Server()->ClientName(GetCID()),
 					   static_cast<int>(Source.m_Kind),
 					   Source.m_Type,
 					   ModeSpecial);
@@ -2290,11 +2460,11 @@ void CCharacter::Die(const CAttackSource &Source, bool SkipKillMessage, bool IsT
 		}
 
 		// send the kill message
-		if(!GameSource)
+		if(!GameSource && GetCID() >= 0)
 		{
 			CNetMsg_Sv_KillMsg Msg;
 			Msg.m_Killer = Killer;
-			Msg.m_Victim = m_pPlayer->GetCID();
+			Msg.m_Victim = GetCID();
 			Msg.m_SourceKind = static_cast<int>(Source.m_Kind);
 			Msg.m_SourceType = Source.m_Type;
 			Msg.m_WeaponDefinitionId = static_cast<int>(Source.m_Weapon.m_DefinitionId);
@@ -2309,22 +2479,25 @@ void CCharacter::Die(const CAttackSource &Source, bool SkipKillMessage, bool IsT
 	// a nice sound
 	GameServer()->CreateSound(m_Pos, SOUND_PLAYER_DIE);
 
-	// this is for auto respawn after 3 secs
-	m_pPlayer->m_DieTick = Server()->Tick();
+	if(m_pPlayer)
+		m_pPlayer->m_DieTick = Server()->Tick();
 
 	ReleaseWeapons();
 
 	m_Alive = false;
 	GameServer()->m_World.RemoveEntity(this);
-	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = 0;
+	const int Index = CoreIndex();
+	if(Index >= 0 && Index < MAX_CHARACTERS)
+		GameServer()->m_World.m_Core.m_apCharacters[Index] = 0;
 
-	if((Killer >= 0 && !GameSource) || !m_IsBot)
-		GameServer()->CreateDeath(m_Pos, m_pPlayer->GetCID());
+	if(CoreIndex() >= 0 && ((Killer >= 0 && !GameSource) || !m_IsBot))
+		GameServer()->CreateDeath(m_Pos, CoreIndex());
 
-	if(Killer >= 0 && !GameSource && Source.m_Kind != EAttackSourceKind::Building)
+	if(Killer >= 0 && Killer < MAX_CLIENTS && !GameSource && Source.m_Kind != EAttackSourceKind::Building)
 		GameServer()->CreateSoundGlobal(SOUND_KILL, Killer);
 
-	GameServer()->CreateSoundGlobal(SOUND_DEATH, GetPlayer()->GetCID());
+	if(GetCID() >= 0)
+		GameServer()->CreateSoundGlobal(SOUND_DEATH, GetCID());
 }
 
 void CCharacter::Cry()
@@ -2393,7 +2566,8 @@ void CCharacter::SetAflame(float Duration, const CAttackSource &Source)
 	if(IgnoreCollision())
 		return;
 
-	if(GameServer()->m_pController->IsFriendlyFire(m_pPlayer->GetCID(), Source.m_Owner) && !g_Config.m_SvTeamdamage)
+	if(CoreIndex() >= 0 && GameServer()->m_pController->IsFriendlyFire(CoreIndex(), Source.m_Owner) &&
+	   !g_Config.m_SvTeamdamage)
 		return;
 
 	if(m_aStatus[STATUS_AFLAME] < Duration * Server()->TickSpeed())
@@ -2437,10 +2611,10 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 		m_Recoil += Force / 2;
 
 	// signal AI
-	if(Dmg > 0 && GetPlayer()->m_pAI && HasCombatProfile)
-		GetPlayer()->m_pAI->ReceiveDamage(From, Dmg);
+	if(Dmg > 0 && m_pAI && HasCombatProfile)
+		m_pAI->ReceiveDamage(From, Dmg);
 
-	if(GameServer()->m_pController->IsFriendlyFire(m_pPlayer->GetCID(), From) && !g_Config.m_SvTeamdamage)
+	if(CoreIndex() >= 0 && GameServer()->m_pController->IsFriendlyFire(CoreIndex(), From) && !g_Config.m_SvTeamdamage)
 		return false;
 
 	float Flame = Combat.m_FlameAmount;
@@ -2451,9 +2625,9 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 		Dmg = max(1, Dmg / 2);
 
 	if(Dmg > 0 && GameServer()->m_pPveDirector)
-		Dmg = GameServer()->m_pPveDirector->ModifyDamage(Source, m_pPlayer->GetCID(), Dmg);
+		Dmg = GameServer()->m_pPveDirector->ModifyDamage(Source, m_IsBot ? -2 : GetCID(), Dmg, this);
 
-	if(From == m_pPlayer->GetCID())
+	if(CoreIndex() >= 0 && From == CoreIndex())
 	{
 		if(GameServer()->m_pController->IsCoop())
 			Dmg = max(1, Dmg / 4);
@@ -2463,10 +2637,10 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 
 	if(From >= 0)
 		m_DamagedByPlayer = true;
-	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Damage, m_pPlayer->GetCID(), Dmg);
+	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::Damage, GetCID(), Dmg);
 
 	// disable self damage if weapon is forced
-	// if (g_Config.m_SvForceWeapon && From == m_pPlayer->GetCID())
+	// if (g_Config.m_SvForceWeapon && From == GetCID())
 	//	return false;
 
 	m_DamageTaken++;
@@ -2489,12 +2663,12 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 		{
 			if(Server()->Tick() < m_DamageTakenTick + 25)
 				GameServer()->CreateDamageInd(
-					DmgPos, GetAngle(-Force), Dmg * (m_Type == CCharacter::ROBOT ? -1 : 1), m_pPlayer->GetCID());
+					DmgPos, GetAngle(-Force), Dmg * (m_Type == CCharacter::ROBOT ? -1 : 1), CoreIndex());
 			else
 			{
 				m_DamageTaken = 0;
 				GameServer()->CreateDamageInd(
-					DmgPos, GetAngle(-Force), Dmg * (m_Type == CCharacter::ROBOT ? -1 : 1), m_pPlayer->GetCID());
+					DmgPos, GetAngle(-Force), Dmg * (m_Type == CCharacter::ROBOT ? -1 : 1), CoreIndex());
 			}
 
 			if(m_Type == CCharacter::ROBOT && m_DamageSoundTimer <= 0)
@@ -2502,7 +2676,7 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 		}
 		else
 		{
-			GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, m_pPlayer->GetCID());
+			GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, CoreIndex());
 		}
 
 		if(SourceBehavior & WEAPON_BEHAVIOR_CHAINSAW)
@@ -2516,13 +2690,13 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 		{
 			if (Type == DAMAGETYPE_ELECTRIC)
 			{
-				//GameServer()->SendEffect(m_pPlayer->GetCID(), EFFECT_ELECTRODAMAGE);
+				//GameServer()->SendEffect(GetCID(), EFFECT_ELECTRODAMAGE);
 				m_aStatus[STATUS_ELECTRIC] = 1.0f*Server()->TickSpeed();
 			}
 
 			// damage indicator but no blood
 			if (Type != DAMAGETYPE_FLAME)
-				GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, m_pPlayer->GetCID());
+				GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, GetCID());
 		}
 		*/
 	}
@@ -2535,7 +2709,7 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 			GameServer()->CreateEffect(FX_SHIELDHIT, DmgPos);
 			const int ShieldDamage = min(Dmg + (g_Config.m_SvOneHitKill ? 1000 : 0), m_ShieldHealth);
 			m_ShieldHealth -= Dmg + (g_Config.m_SvOneHitKill ? 1000 : 0);
-			if(From != m_pPlayer->GetCID())
+			if(From != CoreIndex())
 				GameServer()->CreateHitConfirm(DmgPos, Source, ShieldDamage, HIT_TARGET_SHIELD, false);
 
 			return false;
@@ -2549,17 +2723,20 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 				m_Armor -= ArmorDmg;
 				Dmg -= ArmorDmg;
 			}
-			if(Dmg >= m_HiddenHealth && GameServer()->m_pPveDirector &&
-			   GameServer()->m_pPveDirector->UseLastStand(m_pPlayer->GetCID()))
+			if(Dmg >= m_HiddenHealth && !m_IsBot && GameServer()->m_pPveDirector &&
+			   GameServer()->m_pPveDirector->UseLastStand(GetCID()))
 				Dmg = max(0, m_HiddenHealth - 1);
 
 			const int HealthBefore = m_HiddenHealth;
 			m_HiddenHealth -= Dmg + (g_Config.m_SvOneHitKill ? 1000 : 0);
-			if(GameServer()->m_pTutorialDirector && m_IsBot && From >= 0 && From < MAX_CLIENTS &&
-			   GameServer()->m_apPlayers[From] && !GameServer()->m_apPlayers[From]->m_IsBot)
-				GameServer()->m_pTutorialDirector->OnGameplayProgress(From, TUTORIAL_EVENT_TARGET_HIT);
+			if(GameServer()->m_pTutorialDirector && m_IsBot)
+			{
+				CPlayer *pFromPlayer = GameServer()->GetClientPlayer(From);
+				if(pFromPlayer && !pFromPlayer->m_IsBot)
+					GameServer()->m_pTutorialDirector->OnGameplayProgress(From, TUTORIAL_EVENT_TARGET_HIT);
+			}
 			const int TargetType = m_Type == CCharacter::ROBOT ? HIT_TARGET_METAL : HIT_TARGET_FLESH;
-			if(From != m_pPlayer->GetCID())
+			if(From != CoreIndex())
 				GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), TargetType, m_HiddenHealth <= 0);
 
 			// if (Type == DAMAGETYPE_NORMAL)
@@ -2567,14 +2744,17 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 			m_LatestHitVel = Force;
 
 			if(Flame > 0.0f)
-				GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, m_pPlayer->GetCID());
+				GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, CoreIndex());
 
 			m_Core.m_DamageTick = Server()->Tick();
 		}
 	}
 
-	GetPlayer()->m_ActionTimer = 0;
-	GetPlayer()->m_InterestPoints += Dmg * 4;
+	if(m_pPlayer)
+	{
+		m_pPlayer->m_ActionTimer = 0;
+		m_pPlayer->m_InterestPoints += Dmg * 4;
+	}
 
 	m_DamageTakenTick = Server()->Tick();
 
@@ -2582,10 +2762,11 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 	if(!(Source.m_Kind == EAttackSourceKind::Building && Source.m_Type == BUILDING_TESLACOIL) &&
 	   m_DamageSoundTimer <= 0)
 	{
-		if(From >= 0 && From != m_pPlayer->GetCID() && GameServer()->m_apPlayers[From])
+		CPlayer *pFromPlayer = GameServer()->GetClientPlayer(From);
+		if(pFromPlayer && From != CoreIndex())
 		{
 			m_DamageSoundTimer = 2;
-			GameServer()->m_apPlayers[From]->m_InterestPoints += Dmg * 5;
+			pFromPlayer->m_InterestPoints += Dmg * 5;
 
 			int64 Mask = CmaskOne(From);
 			for(int i = 0; i < MAX_CLIENTS; i++)
@@ -2604,9 +2785,9 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 		Die(Source, false, false);
 
 		// set attacker's face to happy (taunt!)
-		if(From >= 0 && From != m_pPlayer->GetCID() && GameServer()->m_apPlayers[From])
+		if(From >= 0 && From != CoreIndex())
 		{
-			CCharacter *pChr = GameServer()->m_apPlayers[From]->GetCharacter();
+			CCharacter *pChr = GameServer()->GetPlayerChar(From);
 			if(pChr)
 			{
 				pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
@@ -2650,7 +2831,7 @@ void CCharacter::TakeSawbladeDamage(vec2 SawbladePos)
 	GameServer()->CreateDamageInd((m_Pos + SawbladePos) / 2.0f,
 								  GetAngle(normalize(vec2(frandom() - 0.5f, frandom() - 0.5f))),
 								  3,
-								  m_pPlayer->GetCID());
+								  CoreIndex());
 
 	m_Core.m_Vel += normalize(m_Pos - SawbladePos) * 2.0f;
 
@@ -2667,7 +2848,7 @@ void CCharacter::TakeSawbladeDamage(vec2 SawbladePos)
 	// check for death
 	if(m_HiddenHealth <= 0)
 	{
-		Die(CAttackSource::World(DEATHTYPE_SAWBLADE, m_pPlayer->GetCID()));
+		Die(CAttackSource::World(DEATHTYPE_SAWBLADE, GetCID()));
 		return;
 	}
 
@@ -2675,14 +2856,14 @@ void CCharacter::TakeSawbladeDamage(vec2 SawbladePos)
 
 	SetEmote(EMOTE_PAIN, Server()->Tick() + 500 * Server()->TickSpeed() / 1000);
 
-	if(GetPlayer()->m_pAI)
-		GetPlayer()->m_pAI->ReceiveDamage(-1, 5);
+	if(m_pAI)
+		m_pAI->ReceiveDamage(-1, 5);
 }
 
 void CCharacter::TakeDeathrayDamage()
 {
 	m_DamageTaken++;
-	Die(CAttackSource::World(DEATHTYPE_DEATHRAY, m_pPlayer->GetCID()));
+	Die(CAttackSource::World(DEATHTYPE_DEATHRAY, GetCID()));
 }
 
 void CCharacter::TakeDeathtileDamage()
@@ -2712,12 +2893,12 @@ void CCharacter::TakeDeathtileDamage()
 	{
 		// make sure that the damage indicators doesn't group together
 		GameServer()->CreateDamageInd(
-			m_Pos, GetAngle(normalize(vec2(frandom() - 0.5f, frandom() - 0.5f))), 3, m_pPlayer->GetCID());
+			m_Pos, GetAngle(normalize(vec2(frandom() - 0.5f, frandom() - 0.5f))), 3, CoreIndex());
 	}
 	else
 	{
 		GameServer()->CreateDamageInd(
-			m_Pos, GetAngle(normalize(vec2(frandom() - 0.5f, frandom() - 0.5f))), 3, m_pPlayer->GetCID());
+			m_Pos, GetAngle(normalize(vec2(frandom() - 0.5f, frandom() - 0.5f))), 3, CoreIndex());
 	}
 
 	m_HiddenHealth -= 10;
@@ -2727,7 +2908,7 @@ void CCharacter::TakeDeathtileDamage()
 	// check for death
 	if(m_HiddenHealth <= 0)
 	{
-		Die(CAttackSource::World(DEATHTYPE_SPIKE, m_pPlayer->GetCID()));
+		Die(CAttackSource::World(DEATHTYPE_SPIKE, GetCID()));
 		return;
 	}
 
@@ -2735,27 +2916,16 @@ void CCharacter::TakeDeathtileDamage()
 
 	SetEmote(EMOTE_PAIN, Server()->Tick() + 500 * Server()->TickSpeed() / 1000);
 
-	if(GetPlayer()->m_pAI)
-		GetPlayer()->m_pAI->ReceiveDamage(-1, 10);
+	if(m_pAI)
+		m_pAI->ReceiveDamage(-1, 10);
 }
 
-void CCharacter::Snap(int SnappingClient)
+void CCharacter::FillCharacterSnap(CNetObj_Character *pCharacter, int SnappingClient)
 {
-	if(NetworkClipped(SnappingClient))
-		return;
-
-	CNetObj_Character *pCharacter = static_cast<CNetObj_Character *>(
-		Server()->SnapNewItem(NETOBJTYPE_CHARACTER, m_pPlayer->GetCID(), sizeof(CNetObj_Character)));
-	if(!pCharacter)
-		return;
-
 	m_SnapTick = Server()->Tick();
 
-	// write down the m_Core
 	if(!m_ReckoningTick || GameServer()->m_World.m_Paused)
 	{
-		// no dead reckoning when paused because the client doesn't know
-		// how far to perform the reckoning
 		pCharacter->m_Tick = 0;
 		m_Core.Write(pCharacter);
 	}
@@ -2765,7 +2935,6 @@ void CCharacter::Snap(int SnappingClient)
 		m_SendCore.Write(pCharacter);
 	}
 
-	// set emote
 	if(m_EmoteStop < Server()->Tick())
 	{
 		m_EmoteType = EMOTE_NORMAL;
@@ -2778,7 +2947,6 @@ void CCharacter::Snap(int SnappingClient)
 		pCharacter->m_Movement = 0;
 
 	pCharacter->m_Emote = m_EmoteType;
-
 	pCharacter->m_AmmoCount = 0;
 	pCharacter->m_Health = 0;
 	pCharacter->m_Armor = 0;
@@ -2794,13 +2962,73 @@ void CCharacter::Snap(int SnappingClient)
 	}
 
 	pCharacter->m_AttackTick = m_AttackTick;
-	if(GetWeapon())
+	pCharacter->m_Direction = m_Input.m_Direction;
+	pCharacter->m_Health = m_HiddenHealth;
+	pCharacter->m_PlayerFlags = m_pPlayer ? m_pPlayer->m_PlayerFlags : PLAYERFLAG_PLAYING;
+
+	const bool ShowPrivate = GetCID() >= 0 &&
+							 (GetCID() == SnappingClient || SnappingClient == -1 ||
+							  (!g_Config.m_SvStrictSpectateMode && SnappingClient >= 0 &&
+							   GameServer()->m_apPlayers[SnappingClient] &&
+							   GetCID() == GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID));
+	if(ShowPrivate)
+	{
+		pCharacter->m_Armor = m_Armor;
+		pCharacter->m_AmmoCount = GetWeapon() ? GetWeapon()->GetAmmo() : 0;
+	}
+
+	if(m_LastBlink < Server()->Tick())
+	{
+		if(m_LastBlink + 5 < Server()->Tick())
+			m_LastBlink = Server()->Tick() + Server()->TickSpeed() * (frandom() * 15.0f);
+
+		if(pCharacter->m_Emote == EMOTE_NORMAL)
+			pCharacter->m_Emote = EMOTE_BLINK;
+	}
+}
+
+void CCharacter::Snap(int SnappingClient)
+{
+	if(NetworkClipped(SnappingClient))
+		return;
+
+	if(IsNpc())
+	{
+		CNetObj_Npc *pNpc = static_cast<CNetObj_Npc *>(
+			Server()->SnapNewItem(NETOBJTYPE_NPC, m_NpcSlot, sizeof(CNetObj_Npc)));
+		if(!pNpc)
+			return;
+
+		FillCharacterSnap(pNpc, SnappingClient);
+		pNpc->m_Team = GetTeam();
+		StrToInts(&pNpc->m_Topper0, 6, m_TeeInfos.m_TopperName);
+		StrToInts(&pNpc->m_Eye0, 6, m_TeeInfos.m_EyeName);
+		StrToInts(&pNpc->m_Head0, 6, m_TeeInfos.m_HeadName);
+		StrToInts(&pNpc->m_Body0, 6, m_TeeInfos.m_BodyName);
+		StrToInts(&pNpc->m_Hand0, 6, m_TeeInfos.m_HandName);
+		StrToInts(&pNpc->m_Foot0, 6, m_TeeInfos.m_FootName);
+		pNpc->m_ColorBody = m_TeeInfos.m_ColorBody;
+		pNpc->m_ColorFeet = m_TeeInfos.m_ColorFeet;
+		pNpc->m_ColorTopper = m_TeeInfos.m_ColorTopper;
+		pNpc->m_ColorSkin = m_TeeInfos.m_ColorSkin;
+		pNpc->m_BloodColor = m_TeeInfos.m_BloodColor;
+		return;
+	}
+
+	CNetObj_Character *pCharacter = static_cast<CNetObj_Character *>(
+		Server()->SnapNewItem(NETOBJTYPE_CHARACTER, GetCID(), sizeof(CNetObj_Character)));
+	if(!pCharacter)
+		return;
+
+	FillCharacterSnap(pCharacter, SnappingClient);
+
+	if(GetWeapon() && GetCID() >= 0)
 	{
 		CNetObj_WeaponRuntime *pRuntime = static_cast<CNetObj_WeaponRuntime *>(
-			Server()->SnapNewItem(NETOBJTYPE_WEAPONRUNTIME, m_pPlayer->GetCID(), sizeof(CNetObj_WeaponRuntime)));
+			Server()->SnapNewItem(NETOBJTYPE_WEAPONRUNTIME, GetCID(), sizeof(CNetObj_WeaponRuntime)));
 		if(pRuntime)
 		{
-			pRuntime->m_Owner = m_pPlayer->GetCID();
+			pRuntime->m_Owner = GetCID();
 			pRuntime->m_WeaponDefinitionId = static_cast<int>(GetWeapon()->GetWeaponSpec().m_DefinitionId);
 			pRuntime->m_WeaponLevel = GetWeapon()->GetWeaponSpec().m_Level;
 			pRuntime->m_RandomState = static_cast<int>(GetWeapon()->ScriptRandomState());
@@ -2814,43 +3042,4 @@ void CCharacter::Snap(int SnappingClient)
 			pRuntime->m_State7 = GetWeapon()->ScriptStateGet(7);
 		}
 	}
-
-	pCharacter->m_Direction = m_Input.m_Direction;
-	pCharacter->m_Health = m_HiddenHealth;
-
-	if(m_pPlayer->GetCID() == SnappingClient || SnappingClient == -1 ||
-	   (!g_Config.m_SvStrictSpectateMode &&
-		m_pPlayer->GetCID() == GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID))
-	{
-
-		pCharacter->m_Armor = m_Armor;
-
-		if(GetWeapon())
-			pCharacter->m_AmmoCount = GetWeapon()->GetAmmo();
-		else
-			pCharacter->m_AmmoCount = 0;
-	}
-
-	/*
-		if(pCharacter->m_Emote == EMOTE_NORMAL)
-		{
-			if(250 - ((Server()->Tick() - m_LastAction)%(250)) < 5)
-				pCharacter->m_Emote = EMOTE_BLINK;
-		}
-		*/
-
-	if(m_LastBlink < Server()->Tick())
-	{
-		if(m_LastBlink + 5 < Server()->Tick())
-			m_LastBlink = Server()->Tick() + Server()->TickSpeed() * (frandom() * 15.0f);
-
-		if(pCharacter->m_Emote == EMOTE_NORMAL)
-			pCharacter->m_Emote = EMOTE_BLINK;
-	}
-
-	// fake AI chatter flag
-	// if (GetPlayer()->m_pAI && GetPlayer()->m_pAI->m_ChatterStartTick < Server()->Tick() &&
-	// GetPlayer()->m_pAI->m_ChatterEndTick > Server()->Tick()) 	pCharacter->m_PlayerFlags = PLAYERFLAG_CHATTING;
-	// else
-	pCharacter->m_PlayerFlags = GetPlayer()->m_PlayerFlags;
 }

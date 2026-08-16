@@ -526,17 +526,20 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 		if(GameServer()->m_pPveDirector->PerkStacks(Owner, PVE_CARD_SIEGE_PAYLOAD) && Combat.m_ExplosiveProjectile)
 			Damage = max(1, Damage * 130 / 100);
 	}
-	if(m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON] && Owner >= 0 && GameServer()->m_apPlayers[Owner] &&
-	   !GameServer()->m_apPlayers[Owner]->m_IsBot)
+	if(m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON])
 	{
-		// Coop PvE switches are hold-to-activate so interaction-speed cards matter.
-		if(IsCoopMapGenGametype(g_Config.m_SvGametype))
+		CPlayer *pSwitchOwner = GameServer()->GetClientPlayer(Owner);
+		if(pSwitchOwner && !pSwitchOwner->m_IsBot)
+		{
+			// Coop PvE switches are hold-to-activate so interaction-speed cards matter.
+			if(IsCoopMapGenGametype(g_Config.m_SvGametype))
+				return;
+			m_aStatus[BSTATUS_ON] = 1;
+			GameServer()->CreateEffect(FX_ELECTRIC, m_Pos + vec2(0, -14));
+			GameServer()->CreateSound(m_Pos, SOUND_WEAPON_SPAWN);
+			GameServer()->m_pController->TriggerSwitch(m_Pos);
 			return;
-		m_aStatus[BSTATUS_ON] = 1;
-		GameServer()->CreateEffect(FX_ELECTRIC, m_Pos + vec2(0, -14));
-		GameServer()->CreateSound(m_Pos, SOUND_WEAPON_SPAWN);
-		GameServer()->m_pController->TriggerSwitch(m_Pos);
-		return;
+		}
 	}
 
 	// reactor defense
@@ -579,7 +582,7 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 		CCharacter *OwnerChar = GameServer()->GetPlayerChar(Owner);
 
 		if(OwnerChar && GameServer()->m_pController->IsTeamplay())
-			Team = OwnerChar->GetPlayer()->GetTeam();
+			Team = OwnerChar->GetTeam();
 
 		if(m_Team == Team && Damage >= 0)
 			return;
@@ -790,7 +793,7 @@ void CBuilding::Tick()
 
 			if(pChr && pChr->IsAlive() && !pChr->m_IsBot)
 			{
-				GameServer()->m_pController->NextLevel(pChr->GetPlayer()->GetCID());
+				GameServer()->m_pController->NextLevel(pChr->GetCID());
 			}
 		}
 	}
@@ -941,7 +944,7 @@ void CBuilding::Tick()
 			}
 			else
 			{
-				if(pChr->GetPlayer()->GetTeam() != m_Team || !GameServer()->m_pController->IsTeamplay())
+				if(pChr->GetTeam() != m_Team || !GameServer()->m_pController->IsTeamplay())
 				{
 					m_DeathTimer = 1;
 					m_Life = 0;

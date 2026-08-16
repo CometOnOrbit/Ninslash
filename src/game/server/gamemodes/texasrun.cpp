@@ -31,9 +31,9 @@ void CGameControllerTexasRun::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 
 	// init AI
 	if(RequestAI)
-		pChr->GetPlayer()->m_pAI = new CAItexas(GameServer(), pChr->GetPlayer());
+		pChr->m_pAI = new CAItexas(GameServer(), pChr);
 
-	if(pChr->GetPlayer()->GetTeam() == TEAM_BLUE && CountPlayers(TEAM_BLUE) < 3)
+	if(pChr->GetTeam() == TEAM_BLUE && CountPlayers(TEAM_BLUE) < 3)
 		pChr->GiveRandomBuff();
 }
 
@@ -57,8 +57,9 @@ int CGameControllerTexasRun::OnCharacterDeath(class CCharacter *pVictim,
 		*/
 	}
 
-	pVictim->GetPlayer()->m_RespawnTick =
-		max(pVictim->GetPlayer()->m_RespawnTick, Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay);
+	if(CPlayer *pVictimPlayer = pVictim->GetPlayer())
+		pVictimPlayer->m_RespawnTick =
+			max(pVictimPlayer->m_RespawnTick, Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay);
 
 	return 0;
 }

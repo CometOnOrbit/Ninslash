@@ -209,10 +209,10 @@ void CGameControllerHorde::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 
 		m_EnemiesLeft--;
 		const int Level = EnemyLevel();
-		GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, false, Level);
-		pChr->GetPlayer()->SetAISkin();
-		pChr->GetPlayer()->m_pAI = CreatePveBotAI(GameServer(), pChr->GetPlayer(), Level);
-		pChr->GetPlayer()->m_IsBot = true;
+		GameServer()->GetAISkin(&pChr->m_AISkin, false, Level);
+		pChr->SetAISkin();
+		pChr->m_pAI = CreatePveBotAI(GameServer(), pChr, Level);
+		pChr->m_IsBot = true;
 		pChr->m_IsBot = true;
 		pChr->m_SkipPickups = 999;
 	}
@@ -485,7 +485,7 @@ int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller
 
 	if(pVictim->m_IsBot)
 	{
-		if(!pVictim->GetPlayer()->m_ToBeKicked)
+		if(!pVictim->ToBeKicked())
 			m_Deaths = max(0, m_Deaths - 1);
 		if(pKiller && !pKiller->m_IsBot)
 		{
@@ -493,7 +493,7 @@ int CGameControllerHorde::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller
 			if(GameServer()->m_pPveDirector)
 				GameServer()->m_pPveDirector->OnEnemyKilled(Source, pVictim->m_Pos, pVictim);
 		}
-		pVictim->GetPlayer()->m_ToBeKicked = true;
+		pVictim->MarkToBeKicked();
 	}
 	else if(HumanVictim && g_Config.m_SvSurvivalMode && !m_RoundOverTick &&
 			CountHumansAlive(pVictimPlayer->GetCID()) <= 0)

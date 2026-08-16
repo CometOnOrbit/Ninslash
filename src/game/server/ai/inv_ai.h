@@ -6,7 +6,7 @@
 class CAIinvasion : public CAI
 {
   public:
-	CAIinvasion(CGameContext *pGameServer, CPlayer *pPlayer, int Level);
+	CAIinvasion(CGameContext *pGameServer, CCharacter *pCharacter, int Level);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);

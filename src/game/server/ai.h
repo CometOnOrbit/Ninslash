@@ -44,7 +44,7 @@ enum Events
 class CAI
 {
 	class CGameContext *m_pGameServer;
-	class CPlayer *m_pPlayer;
+	class CCharacter *m_pCharacter;
 
 	int m_UnstuckCount;
 	vec2 m_StuckPos;
@@ -59,7 +59,7 @@ class CAI
 
   protected:
 	CGameContext *GameServer() const { return m_pGameServer; }
-	CPlayer *Player() const { return m_pPlayer; }
+	CCharacter *Player() const { return m_pCharacter; }
 
 	class CPlayer *m_pTargetPlayer;
 	bool m_VisionSuppressed;
@@ -228,7 +228,10 @@ class CAI
 	bool m_Triggered;
 
   public:
-	CAI(class CGameContext *pGameServer, class CPlayer *pPlayer);
+	CAI(class CGameContext *pGameServer, class CCharacter *pCharacter);
+
+	bool IsSelf(class CPlayer *pPlayer) const;
+	bool IsSelf(class CCharacter *pChr) const;
 
 	virtual ~CAI();
 

@@ -393,7 +393,7 @@ Objects = [
 		NetIntAny("m_Movement1"),
 		
 		NetIntRange("m_Health", 0, 100),
-		NetIntRange("m_HookedPlayer", 0, 'MAX_CLIENTS-1'),
+		NetIntRange("m_HookedPlayer", -1, 'MAX_CHARACTERS-1'),
 		NetIntRange("m_HookState", -1, 6),
 		NetTick("m_HookTick"),
 
@@ -563,7 +563,7 @@ Objects = [
 	]),
 
 	NetEvent("Death:Common", [
-		NetIntRange("m_ClientID", 0, 'MAX_CLIENTS-1'),
+		NetIntRange("m_ClientID", 0, 'MAX_CHARACTERS-1'),
 	]),
 
 	NetEvent("SoundGlobal:Common", [ #TODO 0.7: remove me
@@ -581,7 +581,7 @@ Objects = [
 	NetEvent("DamageInd:Common", [
 		NetIntAny("m_Angle"),
 		NetIntAny("m_Damage"),
-		NetIntRange("m_ClientID", -1, 'MAX_CLIENTS-1'),
+		NetIntRange("m_ClientID", -1, 'MAX_CHARACTERS-1'),
 	]),
 	
 	NetEvent("Effect:Common", [
@@ -677,6 +677,38 @@ Objects = [
 		NetIntRange("m_Kind", 0, 1),
 		NetIntRange("m_Radius", 1, 2048),
 	]),
+
+	# Humanoid NPCs are not fake clients. They reuse Character physics/animation
+	# fields and carry their own tee skin so they do not occupy ClientInfo slots.
+	NetObject("Npc:Character", [
+		NetIntRange("m_Team", 'TEAM_SPECTATORS', 'TEAM_BLUE'),
+		NetIntAny("m_Topper0"), NetIntAny("m_Topper1"), NetIntAny("m_Topper2"),
+		NetIntAny("m_Topper3"), NetIntAny("m_Topper4"), NetIntAny("m_Topper5"),
+		NetIntAny("m_Eye0"), NetIntAny("m_Eye1"), NetIntAny("m_Eye2"),
+		NetIntAny("m_Eye3"), NetIntAny("m_Eye4"), NetIntAny("m_Eye5"),
+		NetIntAny("m_Head0"), NetIntAny("m_Head1"), NetIntAny("m_Head2"),
+		NetIntAny("m_Head3"), NetIntAny("m_Head4"), NetIntAny("m_Head5"),
+		NetIntAny("m_Body0"), NetIntAny("m_Body1"), NetIntAny("m_Body2"),
+		NetIntAny("m_Body3"), NetIntAny("m_Body4"), NetIntAny("m_Body5"),
+		NetIntAny("m_Hand0"), NetIntAny("m_Hand1"), NetIntAny("m_Hand2"),
+		NetIntAny("m_Hand3"), NetIntAny("m_Hand4"), NetIntAny("m_Hand5"),
+		NetIntAny("m_Foot0"), NetIntAny("m_Foot1"), NetIntAny("m_Foot2"),
+		NetIntAny("m_Foot3"), NetIntAny("m_Foot4"), NetIntAny("m_Foot5"),
+		NetIntAny("m_ColorBody"),
+		NetIntAny("m_ColorFeet"),
+		NetIntAny("m_ColorTopper"),
+		NetIntAny("m_ColorSkin"),
+		NetIntRange("m_BloodColor", 0, 3),
+	]),
+
+	# Always-on identity for humanoid NPCs (name/score). Not a ClientInfo slot,
+	# so the ESC player list never sees them.
+	NetObject("NpcInfo", [
+		NetIntAny("m_Name0"), NetIntAny("m_Name1"), NetIntAny("m_Name2"),
+		NetIntAny("m_Name3"),
+		NetIntAny("m_Score"),
+		NetIntRange("m_Team", 'TEAM_SPECTATORS', 'TEAM_BLUE'),
+	]),
 ]
 
 # todo: remove unnecessary ones
@@ -732,7 +764,7 @@ Messages = [
 	]),
 
 	NetMessage("Sv_Emoticon", [
-		NetIntRange("m_ClientID", 0, 'MAX_CLIENTS-1'),
+		NetIntRange("m_ClientID", 0, 'MAX_CHARACTERS-1'),
 		NetIntRange("m_Emoticon", 0, 'NUM_EMOTICONS-1'),
 	]),
 

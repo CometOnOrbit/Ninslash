@@ -9,7 +9,7 @@
 
 #include "def_ai.h"
 
-CAIdef::CAIdef(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAIdef::CAIdef(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
 	m_State = AISTATE_IDLE;
@@ -119,7 +119,10 @@ void CAIdef::DoBehavior()
 
 			// shop
 			if(!m_Shopped && m_StateTimer > ShopTime / 2)
-				m_Shopped = GameServer()->Shop(Player(), m_StateTimer % 4, true);
+			{
+				if(CPlayer *pShopPlayer = Player()->GetPlayer())
+					m_Shopped = GameServer()->Shop(pShopPlayer, m_StateTimer % 4, true);
+			}
 
 			if(m_StateTimer++ > ShopTime)
 			{

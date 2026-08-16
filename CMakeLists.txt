@@ -831,6 +831,12 @@ if(NINSLASH_BUILD_TESTS)
   target_link_libraries(ninslash_test_invasion_skin_profiles ${LIBS})
   add_test(NAME invasion_skin_profiles COMMAND ninslash_test_invasion_skin_profiles)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_invasion_skin_profiles)
+  add_executable(ninslash_test_npc_slots
+    tests/npc_slots.cpp
+  )
+  target_include_directories(ninslash_test_npc_slots PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  add_test(NAME npc_slots COMMAND ninslash_test_npc_slots)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_npc_slots)
   add_executable(ninslash_test_weapon_lua_components
     tests/weapon_lua_components.cpp
     src/generated/game_data.h

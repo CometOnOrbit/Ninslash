@@ -4,6 +4,7 @@
 
 #include <game/weapons.h>
 #include "building.h"
+#include "character.h"
 #include "turret.h"
 #include "projectile.h"
 #include "laser.h"
@@ -160,9 +161,9 @@ bool CTurret::Target()
 {
 	vec2 TurretPos = m_Pos + vec2(0, -50 * m_FlipY);
 
-	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CLIENTS)
+	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CHARACTERS)
 	{
-		CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
+		CCharacter *pCharacter = GameServer()->GetCoreChar(m_TargetIndex);
 		if(!pCharacter)
 			return false;
 
@@ -190,20 +191,14 @@ bool CTurret::FindTarget()
 	int ClosestDistance = 0;
 	vec2 TurretPos = m_Pos + vec2(0, -50 * m_FlipY);
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(CCharacter *pCharacter = (CCharacter *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_CHARACTER);
+		pCharacter;
+		pCharacter = (CCharacter *)pCharacter->TypeNext())
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
+		if(pCharacter->GetTeam() == m_Team && GameServer()->m_pController->IsTeamplay())
 			continue;
 
-		if(pPlayer->GetTeam() == m_Team && GameServer()->m_pController->IsTeamplay())
-			continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
-		if(!pCharacter)
-			continue;
-
-		if((!pCharacter->IsAlive() || pCharacter->GetPlayer()->GetCID() == m_OwnerPlayer) &&
+		if((!pCharacter->IsAlive() || pCharacter->GetCID() == m_OwnerPlayer) &&
 		   !GameServer()->m_pController->IsTeamplay())
 			continue;
 
@@ -227,7 +222,7 @@ bool CTurret::FindTarget()
 			{
 				pClosestCharacter = pCharacter;
 				ClosestDistance = Distance;
-				m_TargetIndex = i;
+				m_TargetIndex = pCharacter->CoreIndex();
 			}
 		}
 	}
