@@ -1,5 +1,6 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
+#include <game/droid_control.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
 #include "droid_walker.h"
@@ -144,8 +145,16 @@ void CWalker::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 
 	m_DamageTakenTick = Server()->Tick();
 }
 
+bool CWalker::TickControlled()
+{
+	return TickWalkerControl(40);
+}
+
 void CWalker::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
@@ -358,12 +367,12 @@ void CWalker::Fire()
 
 		GameServer()->CreateSound(m_Pos, SOUND_WALKER_FIRE);
 
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 32.0f,
 									   m_Target * -1,
 									   TurretPos);
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 32.0f + vec2(m_Dir * 4, -8),
 									   m_Target * -1,

@@ -5,6 +5,10 @@
 #include "player.h"
 #include "pve_director.h"
 #include "entities/weapon.h"
+#include "entities/droid.h"
+#include "entities/droid_bossstar.h"
+
+#include <game/droid_control.h>
 
 #include <game/weapons.h>
 #include <game/forge.h>
@@ -27,6 +31,9 @@ CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, int Team)
 	m_DieTick = Server()->Tick();
 	m_ScoreStartTick = Server()->Tick();
 	m_pCharacter = 0;
+	m_pDroid = 0;
+	mem_zero(&m_DroidInput, sizeof(m_DroidInput));
+	m_DroidInput.m_TargetY = -1;
 	m_ClientID = ClientID;
 	m_Team = GameServer()->m_pController->ClampTeam(Team);
 	m_SpectatorID = SPEC_FREEVIEW;
@@ -101,6 +108,7 @@ bool CPlayer::VisionSuppressed() const
 
 CPlayer::~CPlayer()
 {
+	ReleaseDroid();
 	if(m_pAI)
 		delete m_pAI;
 
@@ -531,6 +539,7 @@ bool CPlayer::Spectating()
 void CPlayer::OnDisconnect(const char *pReason)
 {
 	ClearVisionEffects();
+	ReleaseDroid();
 	KillCharacter();
 
 	if(Server()->ClientIngame(m_ClientID))
@@ -563,6 +572,14 @@ void CPlayer::OnPredictedInput(CNetObj_PlayerInput *NewInput)
 	if((m_PlayerFlags & PLAYERFLAG_CHATTING) && (NewInput->m_PlayerFlags & PLAYERFLAG_CHATTING))
 		return;
 
+	if(m_pDroid)
+	{
+		mem_copy(&m_DroidInput, NewInput, sizeof(m_DroidInput));
+		if(m_DroidInput.m_TargetX == 0 && m_DroidInput.m_TargetY == 0)
+			m_DroidInput.m_TargetY = -1;
+		return;
+	}
+
 	if(m_pCharacter)
 		m_pCharacter->OnPredictedInput(NewInput);
 }
@@ -588,7 +605,14 @@ void CPlayer::OnDirectInput(CNetObj_PlayerInput *NewInput)
 	if(m_pAI)
 		m_PlayerFlags = PLAYERFLAG_PLAYING;
 
-	if(m_pCharacter)
+	if(m_pDroid)
+	{
+		m_PlayerFlags |= PLAYERFLAG_DROID;
+		mem_copy(&m_DroidInput, NewInput, sizeof(m_DroidInput));
+		if(m_DroidInput.m_TargetX == 0 && m_DroidInput.m_TargetY == 0)
+			m_DroidInput.m_TargetY = -1;
+	}
+	else if(m_pCharacter)
 		m_pCharacter->OnDirectInput(NewInput);
 
 	if(!m_pCharacter && m_Team != TEAM_SPECTATORS && (NewInput->m_Fire & 1))
@@ -605,11 +629,84 @@ void CPlayer::OnDirectInput(CNetObj_PlayerInput *NewInput)
 	}
 }
 
-CCharacter *CPlayer::GetCharacter()
+CCharacter *CPlayer::GetBody()
 {
 	if(m_pCharacter && m_pCharacter->IsAlive())
 		return m_pCharacter;
 	return 0;
+}
+
+CCharacter *CPlayer::GetCharacter()
+{
+	return GetBody();
+}
+
+void CPlayer::ReleaseDroid()
+{
+	CDroid *pDroid = m_pDroid;
+	if(!pDroid)
+		return;
+	const int Health = pDroid->m_Health;
+	const vec2 Pos = pDroid->m_Pos;
+	m_pDroid = 0;
+	if(pDroid->Controller() == m_ClientID)
+		pDroid->SetController(-1);
+	if(m_pCharacter && m_pCharacter->IsAlive())
+	{
+		m_pCharacter->Teleport(Pos);
+		m_pCharacter->SetDroidPawn(false);
+		if(Health <= 0)
+			m_pCharacter->Die(CAttackSource::World(WEAPON_WORLD, m_ClientID));
+	}
+}
+
+// Test function
+void CPlayer::ToggleDroidControl()
+{
+	if(m_pDroid)
+	{
+		ReleaseDroid();
+		return;
+	}
+
+	CCharacter *pChr = GetBody();
+	if(!pChr)
+		return;
+
+	CDroid *apDroid[64];
+	vec2 aPos[64];
+	int aHealth[64];
+	int aController[64];
+	int n = 0;
+	for(CDroid *p = (CDroid *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); p && n < 64;
+		p = (CDroid *)p->TypeNext())
+	{
+		apDroid[n] = p;
+		aPos[n] = p->m_Pos;
+		aHealth[n] = p->m_Health;
+		aController[n] = p->Controller();
+		n++;
+	}
+
+	int i = DroidPickNearest(aPos, aHealth, aController, n, pChr->m_Pos, 800.0f);
+	CDroid *pBest = i >= 0 ? apDroid[i] : 0;
+	if(!pBest)
+	{
+		vec2 Pos = pChr->m_Pos;
+		vec2 Hit;
+		const int HitFound =
+			GameServer()->Collision()->IntersectLine(Pos, Pos + vec2(0, 800), &Hit, 0);
+		pBest = new CBossStar(&GameServer()->m_World, Hit);
+	}
+	if(!pBest || pBest->m_Health <= 0 || pBest->Controller() >= 0)
+		return;
+
+	m_pDroid = pBest;
+	pBest->SetController(m_ClientID);
+	pChr->Teleport(pBest->m_Pos);
+	pChr->SetDroidPawn(true);
+	mem_zero(&m_DroidInput, sizeof(m_DroidInput));
+	m_DroidInput.m_TargetY = -1;
 }
 
 void CPlayer::KillCharacter()
@@ -619,6 +716,7 @@ void CPlayer::KillCharacter()
 
 void CPlayer::KillCharacter(const CAttackSource &Source)
 {
+	ReleaseDroid();
 	ClearVisionEffects();
 	if(m_pCharacter)
 	{

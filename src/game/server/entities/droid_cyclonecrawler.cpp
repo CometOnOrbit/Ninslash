@@ -117,6 +117,9 @@ void CCycloneCrawler::CreateLandingImpact()
 
 void CCycloneCrawler::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_Health <= 0)
 	{
 		CCrawler::Tick();

@@ -1,9 +1,31 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
+#include <game/droid_control.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
 #include <game/server/tutorial_director.h>
 #include "droid.h"
+
+static int DroidControlKindForType(int Type)
+{
+	if(Type == DROIDTYPE_STAR || Type == DROIDTYPE_FLY || Type == DROIDTYPE_BOSSSTAR ||
+	   Type == DROIDTYPE_TEMPESTSTAR || Type == DROIDTYPE_KAMIKAZESTAR || Type == DROIDTYPE_RAILSTAR ||
+	   Type == DROIDTYPE_TESLASTAR)
+		return DROIDCONTROL_FLY;
+	return DROIDCONTROL_GROUND;
+}
+
+static vec2 DroidControlBox(int Type, float Radius)
+{
+	if(Type == DROIDTYPE_WALKER || Type == DROIDTYPE_BOSSWALKER)
+		return vec2(78.0f, 64.0f);
+	if(DroidControlKindForType(Type) == DROIDCONTROL_FLY)
+		return vec2(96.0f, 128.0f);
+	if(Type == DROIDTYPE_BOSSCRAWLER)
+		return vec2(90.0f, 100.0f);
+	float Size = max(Radius, 60.0f);
+	return vec2(Size, Size);
+}
 
 CDroid::CDroid(CGameWorld *pGameWorld, vec2 Pos, int Type) : CEntity(pGameWorld, CGameWorld::ENTTYPE_DROID)
 {
@@ -39,6 +61,7 @@ void CDroid::Reset()
 	m_FireDelay = 0;
 	m_FireCount = 0;
 	m_AttackTimer = 0;
+	m_Controller = -1;
 }
 
 void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos)
@@ -134,6 +157,286 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 	}
 
 	m_DamageTakenTick = Server()->Tick();
+}
+
+CDroid::~CDroid()
+{
+	DropController();
+}
+
+void CDroid::DropController()
+{
+	if(m_Controller < 0)
+		return;
+	CPlayer *pPlayer = GameServer()->GetClientPlayer(m_Controller);
+	m_Controller = -1;
+	if(pPlayer && pPlayer->GetDroid() == this)
+		pPlayer->ReleaseDroid();
+}
+
+CAttackSource CDroid::ShotSource() const
+{
+	return CAttackSource::Droid(m_Controller >= 0 ? m_Controller : NEUTRAL_BASE, m_Type);
+}
+
+bool CDroid::TakeControl()
+{
+	if(m_Controller < 0)
+		return false;
+
+	if(m_Health <= 0)
+	{
+		DropController();
+		return false;
+	}
+
+	CPlayer *pPlayer = GameServer()->GetClientPlayer(m_Controller);
+	if(!pPlayer || !pPlayer->GetCharacter())
+	{
+		DropController();
+		return false;
+	}
+
+	return true;
+}
+
+bool CDroid::TickWalkerControl(int CoreRad)
+{
+	if(!TakeControl())
+		return false;
+
+	CPlayer *pPlayer = GameServer()->GetClientPlayer(m_Controller);
+	const CNetObj_PlayerInput *pIn = &pPlayer->m_DroidInput;
+	vec2 Aim = vec2(pIn->m_TargetX, pIn->m_TargetY);
+	if(Aim.x == 0 && Aim.y == 0)
+		Aim.y = -1;
+
+	const int StepDir = pIn->m_Direction;
+	const int Firing = pIn->m_Fire & 1;
+	m_Dir = DroidWalkerFace(StepDir, (int)Aim.x, Firing, m_Dir);
+	m_Anim = DroidWalkerAnim(StepDir);
+	m_State = StepDir ? MOVE : IDLE;
+	m_NextState = m_State;
+
+	const int OnFloor = GameServer()->Collision()->IsTileSolid(m_Pos.x, m_Pos.y + DROIDWALKER_FLOOR);
+	m_Pos.y += DroidWalkerFall(OnFloor, 8.0f);
+
+	if(StepDir == -1 || StepDir == 1)
+	{
+		const int Wall = GameServer()->Collision()->IsTileSolid(m_Pos.x + StepDir * 46, m_Pos.y - 8);
+		const int Floor = GameServer()->Collision()->IsTileSolid(m_Pos.x + StepDir * 55, m_Pos.y + 18);
+		if(DroidWalkerCanStep(StepDir, Wall, Floor))
+			m_Pos.x += StepDir * 6.0f;
+	}
+
+	if(Firing)
+	{
+		m_NewTarget = Aim * -1.0f;
+		m_Target += (m_NewTarget - m_Target) / 6.0f;
+		if(--m_FireDelay < 0)
+		{
+			m_FireDelay = 0;
+			Fire();
+		}
+	}
+	else
+	{
+		m_FireDelay = min(m_FireDelay + 2, 20);
+		m_Target += (vec2(m_Dir * 50, 0) - m_Target) / 6.0f;
+	}
+
+	if(GameServer()->Collision()->IsInFluid(m_Pos.x, m_Pos.y))
+		TakeDamage(vec2(0, 0), 2, CAttackSource::World(DAMAGETYPE_FLUID), vec2(0, 0));
+
+	if(m_Health <= 0)
+	{
+		DropController();
+		return false;
+	}
+
+	if(Server()->Tick() > m_DamageTakenTick + 15)
+		m_Status = DROIDSTATUS_IDLE;
+
+	GameServer()->m_World.m_Core.AddDroid(m_ID, m_Pos, m_Vel, CoreRad);
+	return true;
+}
+
+bool CDroid::TickCrawlerControl(const CDroidCrawlerControl &Control,
+							   int *pMove,
+							   int *pJumpTick,
+							   float *pJumpForce,
+							   int *pAttackCount)
+{
+	if(!TakeControl() || !pMove || !pJumpTick || !pJumpForce || !pAttackCount)
+		return false;
+
+	CPlayer *pPlayer = GameServer()->GetClientPlayer(m_Controller);
+	const CNetObj_PlayerInput *pIn = &pPlayer->m_DroidInput;
+	vec2 Aim = vec2(pIn->m_TargetX, pIn->m_TargetY);
+	if(Aim.x == 0 && Aim.y == 0)
+		Aim.y = -1;
+
+	const int Firing = pIn->m_Fire & 1;
+	*pMove = pIn->m_Direction;
+	m_Dir = DroidWalkerFace(*pMove, (int)Aim.x, Firing, m_Dir);
+	m_Target = Aim;
+
+	m_Vel += GameServer()->m_World.m_Core.FindDroidHookImpactVel(m_ID) * Control.m_Hook;
+	m_Vel.y += 0.8f;
+	m_Vel *= 0.99f;
+	GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, vec2(Control.m_BoxX, Control.m_BoxY), 0, false);
+	GameServer()->m_World.m_Core.AddDroid(m_ID, m_Pos, m_Vel, Control.m_CoreRad);
+
+	const int Jumping = *pJumpForce < -0.1f ? 1 : 0;
+	const int OffY = Jumping ? Control.m_OffYJump : Control.m_OffYGround;
+	vec2 To = m_Pos + vec2(0, OffY);
+	const int Grounded = GameServer()->Collision()->IntersectLine(m_Pos, To, 0x0, &To, false, true) ? 1 : 0;
+
+	if(Grounded)
+	{
+		float VelY = m_Pos.y - (To.y - OffY) * 0.0002f;
+		if(VelY > 0.0f && !Jumping)
+		{
+			m_Vel.y -= min(1.4f, VelY);
+			m_Vel.y *= 0.99f;
+		}
+
+		m_Vel.x *= Control.m_Friction;
+		const float Cap = DroidCrawlerSpeedCapOf(Control, Firing);
+		if(abs(m_Vel.x) < Cap)
+			m_Vel.x += *pMove * DroidCrawlerAccelOf(Control, Firing);
+
+		if(DroidCrawlerCanJump(pIn->m_Jump, Grounded, Jumping))
+			*pJumpForce = Control.m_JumpForce;
+
+		m_Vel.y += *pJumpForce;
+		m_Vel.x -= *pJumpForce * *pMove * 0.25f;
+	}
+	else if(*pJumpTick && *pJumpTick < Server()->Tick())
+		*pJumpTick = 0;
+
+	m_Vel.x -= *pJumpForce * *pMove * 0.1f;
+	*pJumpForce *= 0.9f;
+	m_Anim = DroidCrawlerAnim(Firing, *pJumpForce < -0.1f ? 1 : 0);
+
+	if(Firing && (m_Anim == DROIDCRAWLER_ANIM_JUMPATTACK || m_Anim == DROIDCRAWLER_ANIM_ATTACK))
+	{
+		if((*pAttackCount)++ > 3)
+		{
+			*pAttackCount = 0;
+			const int ShotDir = *pMove ? *pMove : m_Dir;
+			vec2 ProjPos = To + vec2(ShotDir * Control.m_ProjX, Control.m_ProjY);
+			GameServer()->CreateProjectile(ShotSource(), 0, ProjPos, normalize(m_Pos - ProjPos), m_Pos);
+			m_AttackTick = Server()->Tick();
+		}
+	}
+	else
+		*pAttackCount = 0;
+
+	if(Server()->Tick() > m_DamageTakenTick + 15)
+		m_Status = DROIDSTATUS_IDLE;
+
+	return true;
+}
+
+bool CDroid::TickFlyerControl(vec2 Box, int CoreRad)
+{
+	if(!TakeControl())
+		return false;
+
+	CPlayer *pPlayer = GameServer()->GetClientPlayer(m_Controller);
+	const CNetObj_PlayerInput *pIn = &pPlayer->m_DroidInput;
+	vec2 Aim = vec2(pIn->m_TargetX, pIn->m_TargetY);
+	if(Aim.x == 0 && Aim.y == 0)
+		Aim.y = -1;
+
+	const int Firing = pIn->m_Fire & 1;
+	m_Dir = DroidWalkerFace(pIn->m_Direction, (int)Aim.x, Firing, m_Dir);
+	m_Anim = pIn->m_Direction || pIn->m_Jump || pIn->m_Down ? 1 : 0;
+
+	m_Vel += GameServer()->m_World.m_Core.FindDroidHookImpactVel(m_ID);
+	DroidControlVel(&m_Vel, pIn->m_Direction, pIn->m_Jump, pIn->m_Down, DROIDCONTROL_FLY, 0);
+	GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, Box, 0, false, true);
+	GameServer()->m_World.m_Core.AddDroid(m_ID, m_Pos, m_Vel, CoreRad);
+
+	if(GameServer()->Collision()->IsInFluid(m_Pos.x, m_Pos.y))
+		TakeDamage(vec2(0, -0.5f), 2, CAttackSource::World(DAMAGETYPE_FLUID), vec2(0, 0));
+
+	if(m_Health <= 0)
+	{
+		DropController();
+		return false;
+	}
+
+	if(Firing)
+	{
+		m_NewTarget = Aim * -1.0f;
+		m_Target += (m_NewTarget - m_Target) / 6.0f;
+		if(--m_FireDelay < 0)
+		{
+			m_FireDelay = 0;
+			Fire();
+		}
+	}
+	else
+	{
+		m_FireDelay = min(m_FireDelay + 2, 20);
+		m_Target += (vec2(m_Dir * 50, 0) - m_Target) / 6.0f;
+	}
+
+	if(Server()->Tick() > m_DamageTakenTick + 15)
+		m_Status = DROIDSTATUS_IDLE;
+
+	return true;
+}
+
+bool CDroid::TickControlled()
+{
+	if(m_Type == DROIDTYPE_BOSSWALKER)
+		return TickWalkerControl(80);
+	if(m_Type == DROIDTYPE_STAR || m_Type == DROIDTYPE_BOSSSTAR)
+		return TickFlyerControl(vec2(96.0f, 128.0f), 40);
+
+	if(!TakeControl())
+		return false;
+
+	CPlayer *pPlayer = GameServer()->GetClientPlayer(m_Controller);
+	const CNetObj_PlayerInput *pIn = &pPlayer->m_DroidInput;
+	vec2 Aim = vec2(pIn->m_TargetX, pIn->m_TargetY);
+	if(Aim.x == 0 && Aim.y == 0)
+		Aim.y = -1;
+	m_Target = Aim * -1.0f;
+	m_NewTarget = m_Target;
+	m_Dir = pIn->m_Direction ? pIn->m_Direction : (Aim.x < 0 ? -1 : 1);
+	m_Anim = pIn->m_Direction ? 1 : 0;
+
+	const int Kind = DroidControlKindForType(m_Type);
+	const vec2 Box = DroidControlBox(m_Type, m_ProximityRadius);
+	m_Vel += GameServer()->m_World.m_Core.FindDroidHookImpactVel(m_ID);
+	const bool Grounded = GameServer()->Collision()->CheckPoint(m_Pos.x, m_Pos.y + Box.y * 0.5f + 5);
+	DroidControlVel(&m_Vel, pIn->m_Direction, pIn->m_Jump, pIn->m_Down, Kind, Grounded ? 1 : 0);
+	if(Kind == DROIDCONTROL_FLY)
+		GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, Box, 0, false, true);
+	else
+		GameServer()->Collision()->MoveBox(&m_Pos, &m_Vel, Box, 0, false);
+	GameServer()->m_World.m_Core.AddDroid(m_ID, m_Pos, m_Vel, 40);
+
+	if(GameServer()->Collision()->IsInFluid(m_Pos.x, m_Pos.y))
+		TakeDamage(vec2(0, 0), 2, CAttackSource::World(DAMAGETYPE_FLUID), vec2(0, 0));
+
+	if(m_Health <= 0)
+	{
+		DropController();
+		return false;
+	}
+
+	if(pIn->m_Fire & 1)
+		Fire();
+
+	if(Server()->Tick() > m_DamageTakenTick + 15)
+		m_Status = DROIDSTATUS_IDLE;
+
+	return true;
 }
 
 void CDroid::Fire()

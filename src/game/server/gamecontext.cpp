@@ -2709,6 +2709,24 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				SkipSending = true;
 			}
 
+			if(strcmp(pMsg->m_pMessage, "/droid") == 0)
+			{
+				if(pPlayer->GetDroid())
+				{
+					pPlayer->ToggleDroidControl();
+					SendChatTarget(ClientID, "droid control released");
+				}
+				else if(!pPlayer->GetBody())
+					SendChatTarget(ClientID, "need a living character");
+				else
+				{
+					pPlayer->ToggleDroidControl();
+					if(pPlayer->GetDroid())
+						SendChatTarget(ClientID, "controlling droid");
+				}
+				SkipSending = true;
+			}
+
 			if(!SkipSending)
 			{
 				if(Mode == CHATMODE_WHISPER)

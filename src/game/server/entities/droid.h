@@ -10,11 +10,19 @@ class CDroid : public CEntity
 {
   public:
 	CDroid(CGameWorld *pGameWorld, vec2 Pos, int Type);
+	virtual ~CDroid();
 
 	virtual void Reset();
 	virtual void Tick();
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
+
+	int Controller() const { return m_Controller; }
+	bool IsPlayerAvatar() const { return m_Controller >= 0; }
+	void SetController(int ClientID) { m_Controller = ClientID; }
+	void DropController();
+	vec2 GetVel() const { return m_Vel; }
+	CAttackSource ShotSource() const;
 
 	virtual void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos);
 	int m_Health;
@@ -66,6 +74,17 @@ class CDroid : public CEntity
 	virtual bool Target();
 	virtual void Fire();
 
+	bool TakeControl();
+	virtual bool TickControlled();
+	bool TickWalkerControl(int CoreRad);
+	bool TickCrawlerControl(const struct CDroidCrawlerControl &Control,
+							int *pMove,
+							int *pJumpTick,
+							float *pJumpForce,
+							int *pAttackCount);
+	bool TickFlyerControl(vec2 Box, int CoreRad);
+
+	int m_Controller;
 	int m_TargetIndex;
 	int m_AttackTick;
 	int m_TargetTimer;

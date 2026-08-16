@@ -43,6 +43,8 @@ class CCharacter : public CEntity
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
 
+	void SetDroidPawn(bool On);
+
 	bool IsGrounded();
 	bool IsZombie() { return m_Zombie; }
 

@@ -145,6 +145,9 @@ void CBossWalker::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, v
 
 void CBossWalker::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
@@ -363,12 +366,12 @@ void CBossWalker::Fire()
 
 		GameServer()->CreateSound(m_Pos, SOUND_WALKER_FIRE);
 
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 32.0f,
 									   m_Target * -1,
 									   TurretPos);
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 32.0f + vec2(m_Dir * 4, -8),
 									   m_Target * -1,
@@ -384,8 +387,11 @@ void CBossWalker::Fire()
 	{
 		m_FireCount = 0;
 		m_FireDelay = 20;
-		for(int i = 0; i < 2; i++)
-			new CCrawler(GameWorld(), m_Pos + vec2((i ? 1 : -1) * 40.0f, -20));
+		if(m_Controller < 0)
+		{
+			for(int i = 0; i < 2; i++)
+				new CCrawler(GameWorld(), m_Pos + vec2((i ? 1 : -1) * 40.0f, -20));
+		}
 	}
 }
 

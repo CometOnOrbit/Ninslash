@@ -117,6 +117,9 @@ void CStar::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Po
 
 void CStar::Tick()
 {
+	if(TickControlled())
+		return;
+
 	vec2 To = m_Pos + vec2(frandom() - frandom(), frandom() - frandom()) * 500;
 
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
@@ -263,12 +266,12 @@ void CStar::Fire()
 
 		GameServer()->CreateSound(m_Pos, SOUND_STAR_FIRE);
 
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 30.0f,
 									   m_Target * -1,
 									   TurretPos);
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 30.0f + vec2(-m_Dir * 64, 0),
 									   m_Target * -1,

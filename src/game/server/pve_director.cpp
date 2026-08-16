@@ -1798,7 +1798,7 @@ void CPveDirector::TickTargetStatuses()
 		if(Status.m_pTarget->GetType() == CGameWorld::ENTTYPE_DROID)
 		{
 			CDroid *pDroid = static_cast<CDroid *>(Status.m_pTarget);
-			if(pDroid->m_Health > 0)
+			if(pDroid->m_Health > 0 && !pDroid->IsPlayerAvatar())
 			{
 				CAttackSource StatusSource = Status.m_BleedSource;
 				StatusSource.m_HitFeedback = false;
@@ -1873,7 +1873,8 @@ void CPveDirector::TickPendingBlasts()
 				pCharacter->TakeDamage(Blast.m_Source, Blast.m_Damage, vec2(0, 0), pCharacter->m_Pos);
 		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
 			pDroid = (CDroid *)pDroid->TypeNext())
-			if(pDroid->m_Health > 0 && distance(Blast.m_Pos, pDroid->m_Pos + pDroid->m_Center) <= 170.0f)
+			if(pDroid->m_Health > 0 && !pDroid->IsPlayerAvatar() &&
+			   distance(Blast.m_Pos, pDroid->m_Pos + pDroid->m_Center) <= 170.0f)
 				pDroid->TakeDamage(vec2(0, 0), Blast.m_Damage, Blast.m_Source, pDroid->m_Pos);
 		m_ApplyingSecondaryEffect = false;
 		Blast.m_Tick = 0;
@@ -2044,7 +2045,7 @@ void CPveDirector::TickDrone(int ClientID)
 			}
 		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
 			pDroid = (CDroid *)pDroid->TypeNext())
-			if(pDroid->m_Health > 0)
+			if(pDroid->m_Health > 0 && !pDroid->IsPlayerAvatar())
 			{
 				const vec2 Delta = Run.m_pDrone->m_Pos - (pDroid->m_Pos + pDroid->m_Center);
 				const float DistanceSquared = dot(Delta, Delta);
@@ -2338,7 +2339,8 @@ void CPveDirector::OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Dama
 		}
 	CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID);
 	for(; pDroid; pDroid = (CDroid *)pDroid->TypeNext())
-		if(pDroid->m_Health > 0 && distance(Pos, pDroid->m_Pos + pDroid->m_Center) <= 190.0f)
+		if(pDroid->m_Health > 0 && !pDroid->IsPlayerAvatar() &&
+		   distance(Pos, pDroid->m_Pos + pDroid->m_Center) <= 190.0f)
 		{
 			pDroid->TakeDamage(
 				normalize(pDroid->m_Pos + pDroid->m_Center - Pos) * 4.0f, max(1, Damage / 2), Source, pDroid->m_Pos);

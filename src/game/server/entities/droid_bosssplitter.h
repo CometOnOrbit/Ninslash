@@ -16,6 +16,7 @@ class CBossSplitter : public CDroid
 	virtual void TickPaused();
 
 	void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos) override;
+	bool TickControlled() override;
 
   private:
 	bool FindTarget();

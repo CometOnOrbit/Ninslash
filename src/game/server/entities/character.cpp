@@ -1675,6 +1675,16 @@ void CCharacter::SetEmoteFor(int Emote, int Ticks, int LockEmote, bool UseTime)
 	}
 }
 
+void CCharacter::SetDroidPawn(bool On)
+{
+	m_IgnoreCollision = On;
+	const int Index = CoreIndex();
+	if(Index >= 0 && Index < MAX_CHARACTERS)
+		GameServer()->m_World.m_Core.m_apCharacters[Index] = On ? 0 : &m_Core;
+	if(On)
+		m_ReckoningTick = 0;
+}
+
 void CCharacter::OnPredictedInput(CNetObj_PlayerInput *pNewInput)
 {
 	// check for changes
@@ -1959,18 +1969,8 @@ void CCharacter::TickNpcAI()
 
 void CCharacter::Tick()
 {
-	// GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "debug", "Tick");
-
-	/*
-	GameServer()->m_pController->DropPickup(m_Pos, POWERUP_HEALTH, vec2(frandom()-frandom(),
-	frandom()-frandom()*1.4f)*14.0f, 0); GameServer()->m_pController->DropPickup(m_Pos, POWERUP_ARMOR,
-	vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0); GameServer()->m_pController->DropPickup(m_Pos,
-	POWERUP_AMMO, vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0);
-	*/
-
-	// GameServer()->m_pController->DropPickup(m_Pos, POWERUP_COIN, vec2(frandom()-frandom(),
-	// frandom()-frandom()*1.4f)*14.0f, 0); GameServer()->m_pController->DropPickup(m_Pos, POWERUP_HEALTH,
-	// vec2(frandom()-frandom(), frandom()-frandom()*1.4f)*14.0f, 0);
+	if(m_pPlayer && m_pPlayer->GetDroid())
+		return;
 
 	TickNpcAI();
 
@@ -2189,6 +2189,18 @@ void CCharacter::Tick()
 
 void CCharacter::TickDefered()
 {
+	if(m_pPlayer && m_pPlayer->GetDroid())
+	{
+		CDroid *pDroid = m_pPlayer->GetDroid();
+		m_Pos = pDroid->m_Pos;
+		m_Core.m_Pos = m_Pos;
+		m_Core.m_Vel = vec2(0, 0);
+		m_SendCore = m_Core;
+		m_ReckoningCore = m_Core;
+		m_ReckoningTick = 0;
+		return;
+	}
+
 	// advance the dummy
 	{
 		CWorldCore TempWorld;
@@ -2592,6 +2604,8 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 	// skip everything while spawning
 	if(m_aStatus[STATUS_SPAWNING] > 0.0f)
 		return false;
+	if(m_IgnoreCollision)
+		return false;
 
 	if((SourceBehavior & WEAPON_BEHAVIOR_ELECTROWALL) && m_ElectroWallCooldown <= 0)
 	{
@@ -2817,6 +2831,9 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 
 void CCharacter::TakeSawbladeDamage(vec2 SawbladePos)
 {
+	if(IgnoreCollision())
+		return;
+
 	if(m_ShieldHealth > 0)
 	{
 		GameServer()->CreateEffect(FX_SHIELDHIT, (m_Pos + SawbladePos) / 2.0f);
@@ -2965,6 +2982,13 @@ void CCharacter::FillCharacterSnap(CNetObj_Character *pCharacter, int SnappingCl
 	pCharacter->m_Direction = m_Input.m_Direction;
 	pCharacter->m_Health = m_HiddenHealth;
 	pCharacter->m_PlayerFlags = m_pPlayer ? m_pPlayer->m_PlayerFlags : PLAYERFLAG_PLAYING;
+	if(m_pPlayer && m_pPlayer->GetDroid())
+	{
+		CDroid *pDroid = m_pPlayer->GetDroid();
+		pCharacter->m_PlayerFlags |= PLAYERFLAG_DROID;
+		if(pDroid->m_MaxHealth > 0)
+			pCharacter->m_Health = clamp((pDroid->m_Health * 100) / pDroid->m_MaxHealth, 0, 100);
+	}
 
 	const bool ShowPrivate = GetCID() >= 0 &&
 							 (GetCID() == SnappingClient || SnappingClient == -1 ||

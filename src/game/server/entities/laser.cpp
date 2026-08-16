@@ -98,7 +98,7 @@ bool CLaser::HitMonster(vec2 From, vec2 To)
 		return false;
 
 	CDroid *pHit = GameServer()->m_World.IntersectWalker(m_Pos, To, 8.0f, At);
-	if(!pHit)
+	if(!pHit || (m_Owner >= 0 && pHit->Controller() == m_Owner))
 		return false;
 
 	m_From = From;
@@ -168,6 +168,8 @@ bool CLaser::HitPenetratingTargets(vec2 From, vec2 To)
 		vec2 DroidAt = To;
 		CDroid *pDroid =
 			pOwnerChar ? GameServer()->m_World.IntersectWalker(SearchFrom, To, 8.0f, DroidAt, pIgnoredDroid) : 0;
+		if(pDroid && m_Owner >= 0 && pDroid->Controller() == m_Owner)
+			pDroid = 0;
 
 		vec2 BuildingAt = To;
 		CBuilding *pBuilding =

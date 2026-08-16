@@ -8,6 +8,7 @@ class CDroids : public CComponent
 	void RenderWalker(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID);
 	void RenderStar(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID);
 	void RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID);
+	vec2 MixPos(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent);
 
   public:
 	virtual void OnReset();

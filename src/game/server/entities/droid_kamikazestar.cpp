@@ -174,6 +174,9 @@ void CKamikazeStar::Tick()
 	if(m_Detonated)
 		return;
 
+	if(TickControlled())
+		return;
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))

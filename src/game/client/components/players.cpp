@@ -254,6 +254,13 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 							const CNetObj_PlayerInfo *pPrevInfo,
 							const CNetObj_PlayerInfo *pPlayerInfo)
 {
+	if(pPlayerChar->m_PlayerFlags & PLAYERFLAG_DROID)
+	{
+		if(pPlayerInfo->m_Local)
+			CustomStuff()->m_LocalAlive = true;
+		return;
+	}
+
 	CRenderCharacter Prev;
 	CRenderCharacter Player;
 	Prev = *pPrevChar;

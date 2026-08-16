@@ -117,6 +117,9 @@ void CBossStar::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec
 
 void CBossStar::Tick()
 {
+	if(TickControlled())
+		return;
+
 	vec2 To = m_Pos + vec2(frandom() - frandom(), frandom() - frandom()) * 500;
 
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
@@ -259,12 +262,12 @@ void CBossStar::Fire()
 
 		GameServer()->CreateSound(m_Pos, SOUND_STAR_FIRE);
 
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 30.0f,
 									   m_Target * -1,
 									   TurretPos);
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 30.0f + vec2(-m_Dir * 64, 0),
 									   m_Target * -1,
@@ -278,8 +281,7 @@ void CBossStar::Fire()
 				continue;
 			float A = Base + i * 0.18f;
 			vec2 D = vec2(cosf(A), sinf(A));
-			GameServer()->CreateProjectile(
-				CAttackSource::Droid(NEUTRAL_BASE, m_Type), 0, TurretPos + D * 30.0f, D, TurretPos);
+			GameServer()->CreateProjectile(ShotSource(), 0, TurretPos + D * 30.0f, D, TurretPos);
 		}
 
 		m_AttackTick = Server()->Tick();

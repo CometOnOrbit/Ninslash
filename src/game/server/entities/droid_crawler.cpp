@@ -1,5 +1,6 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
+#include <game/droid_control.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
 #include "staticlaser.h"
@@ -105,6 +106,12 @@ void CCrawler::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2
 	m_DamageTakenTick = Server()->Tick();
 }
 
+bool CCrawler::TickControlled()
+{
+	CDroidCrawlerControl Control = DroidCrawlerControlNormal();
+	return TickCrawlerControl(Control, &m_Move, &m_JumpTick, &m_JumpForce, &m_AttackCount);
+}
+
 void CCrawler::MoveDead()
 {
 }
@@ -115,6 +122,9 @@ void CCrawler::Move()
 
 void CCrawler::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))

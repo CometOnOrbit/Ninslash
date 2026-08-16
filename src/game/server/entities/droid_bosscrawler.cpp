@@ -1,5 +1,6 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
+#include <game/droid_control.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
 #include "staticlaser.h"
@@ -114,8 +115,17 @@ void CBossCrawler::Move()
 {
 }
 
+bool CBossCrawler::TickControlled()
+{
+	CDroidCrawlerControl Control = DroidCrawlerControlBoss();
+	return TickCrawlerControl(Control, &m_Move, &m_JumpTick, &m_JumpForce, &m_AttackCount);
+}
+
 void CBossCrawler::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))

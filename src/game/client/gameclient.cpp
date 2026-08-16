@@ -1136,8 +1136,10 @@ void CGameClient::OnReset()
 void CGameClient::UpdatePositions()
 {
 	// local character position
-	if(g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK && m_PredictedChar.IsReady() &&
-	   m_PredictedPrevChar.IsReady())
+	const bool DroidPawn =
+		m_Snap.m_pLocalCharacter && (m_Snap.m_pLocalCharacter->m_PlayerFlags & PLAYERFLAG_DROID);
+	if(!DroidPawn && g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK &&
+	   m_PredictedChar.IsReady() && m_PredictedPrevChar.IsReady())
 	{
 		if(!m_Snap.m_pLocalCharacter ||
 		   (m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
@@ -2343,6 +2345,19 @@ void CGameClient::OnPredict()
 		return;
 	}
 	*/
+
+	// don't predict tee physics while the local pawn is a droid
+	if(m_Snap.m_pLocalCharacter && (m_Snap.m_pLocalCharacter->m_PlayerFlags & PLAYERFLAG_DROID))
+	{
+		m_PredictedChar.Init(0, Collision());
+		m_PredictedChar.Read(m_Snap.m_pLocalCharacter);
+		if(m_Snap.m_pLocalPrevCharacter)
+		{
+			m_PredictedPrevChar.Init(0, Collision());
+			m_PredictedPrevChar.Read(m_Snap.m_pLocalPrevCharacter);
+		}
+		return;
+	}
 
 	// don't predict anything if we are paused
 	if(m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED)

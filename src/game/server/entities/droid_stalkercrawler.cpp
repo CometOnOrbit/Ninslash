@@ -110,6 +110,9 @@ void CStalkerCrawler::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Sourc
 
 void CStalkerCrawler::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
