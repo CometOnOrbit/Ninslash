@@ -845,6 +845,14 @@
             "value": "blue"
         },
         {
+            "key": "controlling droid",
+            "value": "controlling droid"
+        },
+        {
+            "key": "droid control released",
+            "value": "droid control released"
+        },
+        {
             "key": "generated map",
             "value": "generated map"
         },
@@ -855,6 +863,10 @@
         {
             "key": "generated match",
             "value": "generated match"
+        },
+        {
+            "key": "need a living character",
+            "value": "need a living character"
         },
         {
             "key": "reactor1.map - survival mode PvP",

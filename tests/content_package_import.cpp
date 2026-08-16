@@ -1,5 +1,6 @@
 #include <engine/shared/content_package.h>
 #include <engine/shared/content_package_import.h>
+#include <game/version.h>
 
 #include <base/system.h>
 
@@ -10,7 +11,7 @@ int main(int argc, char **argv)
 {
 	assert(argc == 2);
 	const char *pFixtures = argv[1];
-	const char *pProtocol = "0.5.1 abc123-luaweapons5";
+	const char *pProtocol = GAME_NETVERSION;
 	char aRoot[512], aArchive[512], aError[256];
 	str_format(aRoot, sizeof(aRoot), "/tmp/ninslash-content-import-%lld", (long long)time_get());
 	assert(fs_makedir(aRoot) == 0);

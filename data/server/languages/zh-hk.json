@@ -845,6 +845,14 @@
             "value": "藍"
         },
         {
+            "key": "controlling droid",
+            "value": "正在操控機甲"
+        },
+        {
+            "key": "droid control released",
+            "value": "已解除機甲操控"
+        },
+        {
             "key": "generated map",
             "value": "自動生成地圖"
         },
@@ -855,6 +863,10 @@
         {
             "key": "generated match",
             "value": "自動生成地圖"
+        },
+        {
+            "key": "need a living character",
+            "value": "需要存活的角色"
         },
         {
             "key": "reactor1.map - survival mode PvP",
