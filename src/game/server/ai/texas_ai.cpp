@@ -7,10 +7,10 @@
 
 #include "texas_ai.h"
 
-CAItexas::CAItexas(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAItexas::CAItexas(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
-	pPlayer->SetRandomSkin();
+	pCharacter->SetRandomSkin();
 }
 
 void CAItexas::OnCharacterSpawn(CCharacter *pChr)

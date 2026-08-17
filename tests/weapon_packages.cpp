@@ -3,6 +3,7 @@
 #include <game/weapon_packages.h>
 #include <game/weapon_script_runtime.h>
 #include <game/weapon_presentation_runtime.h>
+#include <game/version.h>
 #include <engine/shared/content_package.h>
 #include <engine/shared/content_package_index.h>
 #include <engine/shared/content_collection.h>
@@ -56,7 +57,7 @@ void ReadFile(const char *pPath, char *pBuffer, int BufferSize)
 
 int main()
 {
-	const char *pProtocol = "0.5.1 abc123-luaweapons6-pvp-spectator-challenge";
+	const char *pProtocol = GAME_NETVERSION;
 	char aError[256];
 	CContentManifest SourceManifest;
 	assert(ContentPackageValidate(

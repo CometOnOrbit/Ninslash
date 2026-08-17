@@ -282,7 +282,7 @@ float IGameController::EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos)
 	{
 		// team mates are not as dangerous as enemies
 		float Scoremod = 1.0f;
-		if(pEval->m_FriendlyTeam != -1 && pC->GetPlayer()->GetTeam() == pEval->m_FriendlyTeam)
+		if(pEval->m_FriendlyTeam != -1 && pC->GetTeam() == pEval->m_FriendlyTeam)
 			Scoremod = 0.5f;
 
 		float d = distance(Pos, pC->m_Pos);
@@ -307,9 +307,9 @@ void IGameController::EvaluateSpawnType(CSpawnEval *pEval, int Type)
 			i = 0;
 
 		// check if the position is occupado
-		CCharacter *aEnts[MAX_CLIENTS];
+		CCharacter *aEnts[MAX_CHARACTERS];
 		int Num = GameServer()->m_World.FindEntities(
-			m_aaSpawnPoints[Type][i], 64, (CEntity **)aEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+			m_aaSpawnPoints[Type][i], 64, (CEntity **)aEnts, MAX_CHARACTERS, CGameWorld::ENTTYPE_CHARACTER);
 		vec2 Positions[5] = {vec2(0.0f, 0.0f),
 							 vec2(-32.0f, 0.0f),
 							 vec2(0.0f, -32.0f),
@@ -412,19 +412,7 @@ void IGameController::AutoBalance()
 	// no bots
 	if(g_Config.m_SvNumBots == 0)
 	{
-		int Bots = 0;
-
-		for(int i = 0; i < MAX_CLIENTS; i++)
-		{
-			CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-			if(!pPlayer)
-				continue;
-
-			if(pPlayer->m_IsBot)
-				Bots++;
-		}
-
-		if(Bots > 0)
+		if(GameServer()->CountBots() > 0)
 			GameServer()->KickBots();
 
 		return;
@@ -432,10 +420,8 @@ void IGameController::AutoBalance()
 
 	if(!IsTeamplay() || IsInfection())
 	{
-		int Players = 0, Bots = 0, Spectators = 0;
-		int BotID = -1;
+		int Players = 0, Spectators = 0;
 
-		// count players
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			CPlayer *pPlayer = GameServer()->m_apPlayers[i];
@@ -443,24 +429,18 @@ void IGameController::AutoBalance()
 				continue;
 
 			if(pPlayer->GetTeam() != TEAM_SPECTATORS)
-			{
-				if(!pPlayer->m_IsBot)
-					Players++;
-				else
-				{
-					BotID = i;
-					Bots++;
-				}
-			}
+				Players++;
 			else
 				Spectators++;
 		}
+
+		const int Bots = GameServer()->CountBots();
 
 		// kick bots if there's no players
 		if(Players == 0 && Spectators == 0)
 		{
 			if(Bots > 0)
-				GameServer()->KickBot(BotID);
+				GameServer()->KickBots();
 
 			return;
 		}
@@ -474,7 +454,7 @@ void IGameController::AutoBalance()
 		// kick bots
 		if(Players + Bots > g_Config.m_SvNumBots && Bots > 0)
 		{
-			GameServer()->KickBot(BotID);
+			GameServer()->KickOneBot();
 		}
 	}
 	else
@@ -485,10 +465,6 @@ void IGameController::AutoBalance()
 
 		int Spectators = 0;
 
-		int RedBotID = -1;
-		int BlueBotID = -1;
-
-		// count players
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			CPlayer *pPlayer = GameServer()->m_apPlayers[i];
@@ -496,29 +472,21 @@ void IGameController::AutoBalance()
 				continue;
 
 			if(pPlayer->GetTeam() == TEAM_RED)
-			{
-				if(!pPlayer->m_IsBot)
-					Red++;
-				else
-				{
-					RedBotID = i;
-					RedBots++;
-				}
-			}
-
-			if(pPlayer->GetTeam() == TEAM_BLUE)
-			{
-				if(!pPlayer->m_IsBot)
-					Blue++;
-				else
-				{
-					BlueBotID = i;
-					BlueBots++;
-				}
-			}
-
-			if(pPlayer->GetTeam() == TEAM_SPECTATORS)
+				Red++;
+			else if(pPlayer->GetTeam() == TEAM_BLUE)
+				Blue++;
+			else if(pPlayer->GetTeam() == TEAM_SPECTATORS)
 				Spectators++;
+		}
+
+		for(int i = 0; i < MAX_NPCS; i++)
+		{
+			if(!GameServer()->m_aNpcs[i].m_Used)
+				continue;
+			if(GameServer()->m_aNpcs[i].m_Team == TEAM_RED)
+				RedBots++;
+			else if(GameServer()->m_aNpcs[i].m_Team == TEAM_BLUE)
+				BlueBots++;
 		}
 
 		// kick bots if there's no players
@@ -537,10 +505,10 @@ void IGameController::AutoBalance()
 				GameServer()->AddBot();
 
 			if(RedBots > 0)
-				GameServer()->KickBot(RedBotID);
+				GameServer()->KickOneBot(TEAM_RED);
 
 			if(Blue + BlueBots > g_Config.m_SvNumBots)
-				GameServer()->KickBot(BlueBotID);
+				GameServer()->KickOneBot(TEAM_BLUE);
 		}
 		else if(g_Config.m_SvNoBotTeam == TEAM_BLUE)
 		{
@@ -549,10 +517,10 @@ void IGameController::AutoBalance()
 				GameServer()->AddBot();
 
 			if(BlueBots > 0)
-				GameServer()->KickBot(BlueBotID);
+				GameServer()->KickOneBot(TEAM_BLUE);
 
 			if(Red + RedBots > g_Config.m_SvNumBots)
-				GameServer()->KickBot(RedBotID);
+				GameServer()->KickOneBot(TEAM_RED);
 		}
 		else
 		{
@@ -561,14 +529,14 @@ void IGameController::AutoBalance()
 
 			// unbalanced teams
 			if(Red + RedBots > Blue + BlueBots && Red + RedBots > g_Config.m_SvNumBots && RedBots > 0)
-				GameServer()->KickBot(RedBotID);
+				GameServer()->KickOneBot(TEAM_RED);
 			if(Red + RedBots < Blue + BlueBots && Blue + BlueBots > g_Config.m_SvNumBots && BlueBots > 0)
-				GameServer()->KickBot(BlueBotID);
+				GameServer()->KickOneBot(TEAM_BLUE);
 
 			if(Red + RedBots == Blue + BlueBots && Red + RedBots > g_Config.m_SvNumBots && RedBots > 0 && BlueBots > 0)
 			{
-				GameServer()->KickBot(RedBotID);
-				GameServer()->KickBot(BlueBotID);
+				GameServer()->KickOneBot(TEAM_RED);
+				GameServer()->KickOneBot(TEAM_BLUE);
 			}
 		}
 	}
@@ -1117,36 +1085,12 @@ int IGameController::GetAliveCID(int Team)
 
 int IGameController::CountBots()
 {
-	int Num = 0;
-
-	for(int i = 0; i < MAX_CLIENTS; i++)
-	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		if(pPlayer->m_IsBot)
-			Num++;
-	}
-
-	return Num;
+	return GameServer()->CountBots();
 }
 
 int IGameController::CountBotsAlive()
 {
-	int Num = 0;
-
-	for(int i = 0; i < MAX_CLIENTS; i++)
-	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		if(pPlayer->m_IsBot && pPlayer->GetCharacter() && pPlayer->GetCharacter()->IsAlive())
-			Num++;
-	}
-
-	return Num;
+	return GameServer()->CountBotsAlive();
 }
 
 void IGameController::EndRound()
@@ -1209,7 +1153,7 @@ void IGameController::ResetGame()
 
 int IGameController::GetLockedWeapon(CCharacter *pCharacter)
 {
-	if(IsInfection() && pCharacter->GetPlayer()->GetTeam() == TEAM_BLUE)
+	if(IsInfection() && pCharacter->GetTeam() == TEAM_BLUE)
 		return WEAPON_CHAINSAW;
 	return -1;
 }
@@ -1405,6 +1349,8 @@ void IGameController::PostReset()
 				Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
 		}
 	}
+	for(int i = 0; i < MAX_NPCS; i++)
+		GameServer()->m_aNpcs[i].m_Score = 0;
 }
 
 void IGameController::OnPlayerInfoChange(class CPlayer *pP)
@@ -1438,24 +1384,24 @@ void IGameController::OnPlayerInfoChange(class CPlayer *pP)
 int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *pKiller, const CAttackSource &Source)
 {
 	GameServer()->DispatchChallengeEvent(EChallengeScriptEvent::PlayerDeath,
-		pVictim ? pVictim->GetPlayer()->GetCID() : -1,
+		pVictim && pVictim->GetCID() >= 0 ? pVictim->GetCID() : -1,
 		pKiller ? pKiller->GetCID() : -1);
 	if(GameServer()->m_pTutorialDirector)
 	{
-		if(!pVictim->m_IsBot)
+		if(!pVictim->m_IsBot && pVictim->GetPlayer())
 			GameServer()->m_pTutorialDirector->OnDeath(pVictim->GetPlayer()->GetCID());
 		else if(pKiller && !pKiller->m_IsBot)
 			GameServer()->m_pTutorialDirector->OnGameplayProgress(pKiller->GetCID(), TUTORIAL_EVENT_KILL);
 	}
-	if(pVictim->m_IsBot && pVictim->GetPlayer()->m_pAI)
-		pVictim->GetPlayer()->m_pAI->OnCharacterDeath();
+	if(pVictim->m_IsBot && pVictim->m_pAI)
+		pVictim->m_pAI->OnCharacterDeath();
 
 	if(g_Config.m_SvSurvivalMode)
 	{
 		// update spectator modes
 		for(int i = 0; i < MAX_CLIENTS; ++i)
 		{
-			if(GameServer()->m_apPlayers[i] &&
+			if(GameServer()->m_apPlayers[i] && pVictim->GetPlayer() &&
 			   GameServer()->m_apPlayers[i]->m_SpectatorID == pVictim->GetPlayer()->GetCID())
 			{
 				GameServer()->m_apPlayers[i]->m_LastSetSpectatorMode =
@@ -1525,7 +1471,7 @@ int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *
 
 			for(int i = 0; i < 5; i++)
 			{
-				if(pVictim->GetPlayer()->GetGold() > 0)
+				if(pVictim->GetPlayer() && pVictim->GetPlayer()->GetGold() > 0)
 				{
 					pVictim->GetPlayer()->ReduceGold(1);
 					DropPickup(pVictim->m_Pos,
@@ -1543,45 +1489,69 @@ int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *
 	}
 
 	pVictim->ReleaseWeapons();
-	pVictim->GetPlayer()->m_Deaths++;
-	pVictim->GetPlayer()->m_KillStreak = 0;
+	if(CPlayer *pVictimPlayer = pVictim->GetPlayer())
+	{
+		pVictimPlayer->m_Deaths++;
+		pVictimPlayer->m_KillStreak = 0;
+	}
 
 	// for active spectator mode
-	if(pKiller && (pKiller->GetTeam() != pVictim->GetPlayer()->GetTeam() || !IsTeamplay()))
+	if(pKiller && (!pVictim->GetPlayer() || pKiller->GetTeam() != pVictim->GetPlayer()->GetTeam() || !IsTeamplay()))
 	{
 		// pKiller->m_Score++;
 		pKiller->m_InterestPoints += 60;
 	}
 
 	// give or take scores
-	if(!pKiller || (Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME))
+	if(Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME)
 		return 0;
 
 	// no kill scores for ball modes
 	if(m_pBall)
 		return 0;
 
-	if(pKiller == pVictim->GetPlayer())
+	CCharacter *pKillerChr = pKiller ? pKiller->GetCharacter() : GameServer()->GetCoreChar(Source.m_Owner);
+	if(!pKiller && !pKillerChr)
+		return 0;
+
+	const int KillerCore = pKiller ? pKiller->GetCID() : pKillerChr->CoreIndex();
+	const int VictimCore = pVictim->CoreIndex();
+	const int KillerTeam = pKiller ? pKiller->GetTeam() : pKillerChr->GetTeam();
+	const int VictimTeam = pVictim->GetTeam();
+
+	if(KillerCore == VictimCore)
 	{
-		pKiller->m_KillStreak = 0;
-		if(!(IsInfection() && pVictim->GetPlayer()->GetTeam() == TEAM_BLUE) && g_Config.m_SvSelfKillPenalty)
-			pVictim->GetPlayer()->m_Score--; // suicide
+		if(pKiller)
+		{
+			pKiller->m_KillStreak = 0;
+			if(!(IsInfection() && pKiller->GetTeam() == TEAM_BLUE) && g_Config.m_SvSelfKillPenalty)
+				pKiller->m_Score--; // suicide
+		}
+		else if(pVictim->IsNpc() && g_Config.m_SvSelfKillPenalty)
+			GameServer()->m_aNpcs[pVictim->NpcSlot()].m_Score--;
 	}
-	else
+	else if(IsTeamplay() && KillerTeam == VictimTeam)
 	{
-		if(IsTeamplay() && pVictim->GetPlayer()->GetTeam() == pKiller->GetTeam())
+		if(pKiller)
 		{
 			pKiller->m_KillStreak = 0;
 			if(g_Config.m_SvSelfKillPenalty)
 				pKiller->m_Score--; // teamkill
 		}
-		else
+		else if(pKillerChr->IsNpc() && g_Config.m_SvSelfKillPenalty)
+			GameServer()->m_aNpcs[pKillerChr->NpcSlot()].m_Score--;
+	}
+	else
+	{
+		if(pKiller)
 		{
 			pKiller->m_Kills++;
 			pKiller->m_KillStreak++;
 			pKiller->m_BestKillStreak = max(pKiller->m_BestKillStreak, pKiller->m_KillStreak);
 			pKiller->m_Score++; // normal kill
 		}
+		else if(pKillerChr->IsNpc())
+			GameServer()->m_aNpcs[pKillerChr->NpcSlot()].m_Score++;
 	}
 
 	return 0;
@@ -1598,8 +1568,8 @@ void IGameController::OnCharacterSpawn(class CCharacter *pChr, bool RequestAI)
 	// default health
 	pChr->SetHealth(100);
 
-	if(pChr->GetPlayer()->m_pAI)
-		pChr->GetPlayer()->m_pAI->Reset();
+	if(pChr->m_pAI)
+		pChr->m_pAI->Reset();
 }
 
 vec2 IGameController::GetFlagPos(int Team)
@@ -1705,36 +1675,36 @@ bool IGameController::IsFriendlyFire(int ClientID1, int ClientID2)
 	if(ClientID1 == ClientID2)
 		return false;
 
+	CCharacter *p1 = GameServer()->GetPlayerChar(ClientID1);
+
 	if(ClientID2 < 0)
 	{
-		if(!GameServer()->m_apPlayers[ClientID1])
+		if(!p1)
 			return false;
 
 		if(IsTeamplay())
 		{
-			if(GameServer()->m_apPlayers[ClientID1]->GetTeam() == TEAM_RED && ClientID2 == RED_BASE)
+			if(p1->GetTeam() == TEAM_RED && ClientID2 == RED_BASE)
 				return true;
 
-			if(GameServer()->m_apPlayers[ClientID1]->GetTeam() == TEAM_BLUE && ClientID2 == BLUE_BASE)
+			if(p1->GetTeam() == TEAM_BLUE && ClientID2 == BLUE_BASE)
 				return true;
 		}
 
 		return false;
 	}
 
+	CCharacter *p2 = GameServer()->GetPlayerChar(ClientID2);
 	if(IsTeamplay() || g_Config.m_SvDisablePVP)
 	{
-		if(!GameServer()->m_apPlayers[ClientID1] || !GameServer()->m_apPlayers[ClientID2])
+		if(!p1 || !p2)
 			return false;
 
-		if(g_Config.m_SvDisablePVP && !GameServer()->IsBot(ClientID1) && !GameServer()->IsBot(ClientID2))
+		if(g_Config.m_SvDisablePVP && !p1->m_IsBot && !p2->m_IsBot)
 			return true;
 
-		if(IsTeamplay())
-		{
-			if(GameServer()->m_apPlayers[ClientID1]->GetTeam() == GameServer()->m_apPlayers[ClientID2]->GetTeam())
-				return true;
-		}
+		if(IsTeamplay() && p1->GetTeam() == p2->GetTeam())
+			return true;
 	}
 
 	return false;
@@ -1747,8 +1717,8 @@ bool IGameController::ArePlayersEnemies(int ClientA, int ClientB) const
 	if(ClientA < 0 || ClientB < 0)
 		return false;
 
-	CPlayer *pA = GameServer()->m_apPlayers[ClientA];
-	CPlayer *pB = GameServer()->m_apPlayers[ClientB];
+	CCharacter *pA = GameServer()->GetPlayerChar(ClientA);
+	CCharacter *pB = GameServer()->GetPlayerChar(ClientB);
 	if(!pA || !pB)
 		return false;
 	if(pA->GetTeam() == TEAM_SPECTATORS || pB->GetTeam() == TEAM_SPECTATORS)
@@ -2322,6 +2292,18 @@ int IGameController::GetAutoTeam(int NotThisID)
 		}
 	}
 
+	for(int i = 0; i < MAX_NPCS; i++)
+	{
+		if(!GameServer()->m_aNpcs[i].m_Used)
+			continue;
+		const int Team = GameServer()->m_aNpcs[i].m_Team;
+		if(Team >= TEAM_RED && Team <= TEAM_BLUE)
+		{
+			aNumplayers[Team]++;
+			aNumbots[Team]++;
+		}
+	}
+
 	if(IsInfection())
 	{
 		// if (aNumplayers[TEAM_BLUE] > 0)
@@ -2496,6 +2478,18 @@ void IGameController::DoWincheck()
 					else if(GameServer()->m_apPlayers[i]->m_Score == Topscore)
 						TopscoreCount++;
 				}
+			}
+			for(int i = 0; i < MAX_NPCS; i++)
+			{
+				if(!GameServer()->m_aNpcs[i].m_Used)
+					continue;
+				if(GameServer()->m_aNpcs[i].m_Score > Topscore)
+				{
+					Topscore = GameServer()->m_aNpcs[i].m_Score;
+					TopscoreCount = 1;
+				}
+				else if(GameServer()->m_aNpcs[i].m_Score == Topscore)
+					TopscoreCount++;
 			}
 
 			// check score win condition

@@ -571,10 +571,31 @@ void CPveDirector::FinishContractVote()
 	if(m_ActiveContract == PVE_CONTRACT_BLACK_BOX)
 	{
 		m_ContractTarget = 3;
-		m_BlackBoxPos = m_pGameServer->GetFarHumanSpawnPos(true);
+		vec2 From = vec2(0, 0);
+		int Humans = 0;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+		{
+			if(!IsEligiblePlayer(i))
+				continue;
+			CCharacter *pChr = m_pGameServer->GetPlayerChar(i);
+			if(!pChr || !pChr->IsAlive())
+				continue;
+			From += pChr->m_Pos;
+			Humans++;
+		}
+		if(Humans > 0)
+			From /= Humans;
+		m_BlackBoxPos = m_pGameServer->GetFarSafeStandPos(From);
+		if(!m_pGameServer->Collision()->IsSafeStandPos(m_BlackBoxPos))
+			m_BlackBoxPos = m_pGameServer->Collision()->SnapToStandPos(m_pGameServer->GetFarHumanSpawnPos(true));
+		if(!m_pGameServer->Collision()->IsSafeStandPos(m_BlackBoxPos) && Humans > 0)
+			m_BlackBoxPos = From;
 		m_BlackBoxHoldTicks = 0;
-		m_pBlackBoxRadar = new CServerRadar(&m_pGameServer->m_World, RADAR_REACTOR);
-		m_pBlackBoxRadar->Activate(m_BlackBoxPos);
+		if(m_pGameServer->Collision()->IsSafeStandPos(m_BlackBoxPos) || Humans > 0)
+		{
+			m_pBlackBoxRadar = new CServerRadar(&m_pGameServer->m_World, RADAR_REACTOR);
+			m_pBlackBoxRadar->Activate(m_BlackBoxPos);
+		}
 	}
 	SendContractStatus();
 	m_pGameServer->SendChatTarget(-1, "Team contract started");
@@ -1798,7 +1819,7 @@ void CPveDirector::TickTargetStatuses()
 		if(Status.m_pTarget->GetType() == CGameWorld::ENTTYPE_DROID)
 		{
 			CDroid *pDroid = static_cast<CDroid *>(Status.m_pTarget);
-			if(pDroid->m_Health > 0)
+			if(pDroid->m_Health > 0 && !pDroid->IsPlayerAvatar())
 			{
 				CAttackSource StatusSource = Status.m_BleedSource;
 				StatusSource.m_HitFeedback = false;
@@ -1873,7 +1894,8 @@ void CPveDirector::TickPendingBlasts()
 				pCharacter->TakeDamage(Blast.m_Source, Blast.m_Damage, vec2(0, 0), pCharacter->m_Pos);
 		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
 			pDroid = (CDroid *)pDroid->TypeNext())
-			if(pDroid->m_Health > 0 && distance(Blast.m_Pos, pDroid->m_Pos + pDroid->m_Center) <= 170.0f)
+			if(pDroid->m_Health > 0 && !pDroid->IsPlayerAvatar() &&
+			   distance(Blast.m_Pos, pDroid->m_Pos + pDroid->m_Center) <= 170.0f)
 				pDroid->TakeDamage(vec2(0, 0), Blast.m_Damage, Blast.m_Source, pDroid->m_Pos);
 		m_ApplyingSecondaryEffect = false;
 		Blast.m_Tick = 0;
@@ -2044,7 +2066,7 @@ void CPveDirector::TickDrone(int ClientID)
 			}
 		for(CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); pDroid;
 			pDroid = (CDroid *)pDroid->TypeNext())
-			if(pDroid->m_Health > 0)
+			if(pDroid->m_Health > 0 && !pDroid->IsPlayerAvatar())
 			{
 				const vec2 Delta = Run.m_pDrone->m_Pos - (pDroid->m_Pos + pDroid->m_Center);
 				const float DistanceSquared = dot(Delta, Delta);
@@ -2338,7 +2360,8 @@ void CPveDirector::OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Dama
 		}
 	CDroid *pDroid = (CDroid *)m_pGameServer->m_World.FindFirst(CGameWorld::ENTTYPE_DROID);
 	for(; pDroid; pDroid = (CDroid *)pDroid->TypeNext())
-		if(pDroid->m_Health > 0 && distance(Pos, pDroid->m_Pos + pDroid->m_Center) <= 190.0f)
+		if(pDroid->m_Health > 0 && !pDroid->IsPlayerAvatar() &&
+		   distance(Pos, pDroid->m_Pos + pDroid->m_Center) <= 190.0f)
 		{
 			pDroid->TakeDamage(
 				normalize(pDroid->m_Pos + pDroid->m_Center - Pos) * 4.0f, max(1, Damage / 2), Source, pDroid->m_Pos);
@@ -2353,21 +2376,22 @@ void CPveDirector::OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Dama
 	}
 }
 
-int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
+int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage, CCharacter *pVictim)
 {
 	const int From = Source.m_Owner;
 	if(!Enabled() || Damage <= 0 || m_ApplyingSecondaryEffect)
 		return Damage;
 	float Multiplier = 1.0f;
-	CCharacter *pOutgoingTarget = 0;
-	if(IsEligiblePlayer(From) && (To == -2 || m_pGameServer->IsBot(To)))
+	CCharacter *pOutgoingTarget = pVictim;
+	if(IsEligiblePlayer(From) && (To == -2 || m_pGameServer->IsBot(To) || (pOutgoingTarget && pOutgoingTarget->m_IsBot)))
 	{
 		CPlayerRun &Run = m_aPlayers[From];
 		const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon
 									   ? WeaponSpecialization(Source.m_Weapon)
 									   : PVE_SPECIALIZATION_NONE;
 		Run.m_LastEmpoweredSpecialization = PVE_SPECIALIZATION_NONE;
-		pOutgoingTarget = To >= 0 ? m_pGameServer->GetPlayerChar(To) : 0;
+		if(!pOutgoingTarget && To >= 0)
+			pOutgoingTarget = m_pGameServer->GetPlayerChar(To);
 		Multiplier += Run.m_aStacks[PVE_CARD_COMBAT_TRAINING] * 0.08f;
 		if(pOutgoingTarget && pOutgoingTarget->m_MaxHealth > 0 &&
 		   pOutgoingTarget->m_HiddenHealth * 100 <= pOutgoingTarget->m_MaxHealth * 30)
@@ -2514,8 +2538,12 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage)
 			if(pExtract && pExtract->Evacuating())
 				Multiplier += 0.30f;
 		}
-		if(Run.m_aStacks[PVE_CARD_LIQUID_ASSETS] && m_pGameServer->m_apPlayers[From])
-			Multiplier += min(0.20f, (m_pGameServer->m_apPlayers[From]->GetGold() / 50) * 0.02f);
+		if(Run.m_aStacks[PVE_CARD_LIQUID_ASSETS])
+		{
+			CPlayer *pFromPlayer = m_pGameServer->GetClientPlayer(From);
+			if(pFromPlayer)
+				Multiplier += min(0.20f, (pFromPlayer->GetGold() / 50) * 0.02f);
+		}
 		if(ActiveContract() == PVE_CONTRACT_GLASS_CANNON)
 			Multiplier *= 1.25f;
 	}

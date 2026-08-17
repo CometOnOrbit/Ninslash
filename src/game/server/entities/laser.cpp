@@ -50,7 +50,7 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	if(!pHit)
 		return false;
 
-	if(pHit->GetPlayer()->GetCID() == m_IgnoreScythe)
+	if(pHit->CoreIndex() == m_IgnoreScythe)
 		return false;
 
 	m_From = From;
@@ -70,7 +70,7 @@ bool CLaser::HitScythe(vec2 From, vec2 To)
 	if(!pHit)
 		return false;
 
-	if(pHit->GetPlayer()->GetCID() == m_IgnoreScythe)
+	if(pHit->CoreIndex() == m_IgnoreScythe)
 		return false;
 
 	m_From = From;
@@ -85,7 +85,7 @@ bool CLaser::HitScythe(vec2 From, vec2 To)
 	m_Dir = GameServer()->Collision()->Reflect(m_Dir, normalize(d));
 
 	GameServer()->CreateBuildingHit(m_Pos);
-	m_IgnoreScythe = pHit->GetPlayer()->GetCID();
+	m_IgnoreScythe = pHit->CoreIndex();
 
 	return true;
 }
@@ -98,7 +98,7 @@ bool CLaser::HitMonster(vec2 From, vec2 To)
 		return false;
 
 	CDroid *pHit = GameServer()->m_World.IntersectWalker(m_Pos, To, 8.0f, At);
-	if(!pHit)
+	if(!pHit || (m_Owner >= 0 && pHit->Controller() == m_Owner))
 		return false;
 
 	m_From = From;
@@ -117,7 +117,7 @@ bool CLaser::HitBuilding(vec2 From, vec2 To)
 		return false;
 
 	CBuilding *pHit = GameServer()->m_World.IntersectBuilding(
-		m_Pos, To, 8.0f, At, pOwnerChar->GetPlayer()->GetTeam(), m_OwnerBuilding);
+		m_Pos, To, 8.0f, At, pOwnerChar->GetTeam(), m_OwnerBuilding);
 	if(!pHit)
 		return false;
 
@@ -168,11 +168,13 @@ bool CLaser::HitPenetratingTargets(vec2 From, vec2 To)
 		vec2 DroidAt = To;
 		CDroid *pDroid =
 			pOwnerChar ? GameServer()->m_World.IntersectWalker(SearchFrom, To, 8.0f, DroidAt, pIgnoredDroid) : 0;
+		if(pDroid && m_Owner >= 0 && pDroid->Controller() == m_Owner)
+			pDroid = 0;
 
 		vec2 BuildingAt = To;
 		CBuilding *pBuilding =
 			pOwnerChar ? GameServer()->m_World.IntersectBuilding(
-							 SearchFrom, To, 8.0f, BuildingAt, pOwnerChar->GetPlayer()->GetTeam(), m_OwnerBuilding)
+							 SearchFrom, To, 8.0f, BuildingAt, pOwnerChar->GetTeam(), m_OwnerBuilding)
 					   : 0;
 
 		enum

@@ -9,6 +9,7 @@
 #include <game/gamecore.h>
 
 #include <game/weapons.h>
+#include <game/server/aiskin.h>
 
 enum
 {
@@ -33,6 +34,7 @@ class CCharacter : public CEntity
 	static const int ms_PhysSize = 28;
 
 	CCharacter(CGameWorld *pWorld);
+	virtual ~CCharacter();
 
 	virtual void Reset();
 	virtual void Destroy();
@@ -40,6 +42,8 @@ class CCharacter : public CEntity
 	virtual void TickDefered();
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
+
+	void SetDroidPawn(bool On);
 
 	bool IsGrounded();
 	bool IsZombie() { return m_Zombie; }
@@ -80,6 +84,7 @@ class CCharacter : public CEntity
 	vec2 m_SpawnPos;
 
 	bool Spawn(class CPlayer *pPlayer, vec2 Pos);
+	bool SpawnNpc(int Slot, int Team, vec2 Pos);
 	bool Remove();
 
 	void Teleport(vec2 Pos);
@@ -103,6 +108,37 @@ class CCharacter : public CEntity
 
 	bool IsAlive() const { return m_Alive; }
 	class CPlayer *GetPlayer() { return m_pPlayer; }
+	CCharacter *GetCharacter() { return m_Alive ? this : 0; }
+	int GetCID() const;
+	int GetTeam();
+	int CoreIndex() const;
+	int NpcSlot() const { return m_NpcSlot; }
+	bool IsNpc() const { return m_pPlayer == 0 && m_IsBot; }
+
+	CAISkin m_AISkin;
+	class CAI *m_pAI;
+	bool m_ToBeKicked;
+	void SetAISkin();
+	void SetCustomSkin(int Type);
+	void SetRandomSkin();
+	void MarkToBeKicked();
+	bool ToBeKicked() const;
+
+	struct
+	{
+		char m_TopperName[64];
+		char m_EyeName[64];
+		char m_HeadName[64];
+		char m_BodyName[64];
+		char m_HandName[64];
+		char m_FootName[64];
+		int m_ColorBody;
+		int m_ColorFeet;
+		int m_ColorTopper;
+		int m_ColorSkin;
+		bool m_IsBot;
+		int m_BloodColor;
+	} m_TeeInfos;
 
 	class CWeapon *GetWeapon(int Slot = -1)
 	{
@@ -247,8 +283,14 @@ class CCharacter : public CEntity
 	bool Deathrayed() const { return m_ElectroWallCooldown > 0; }
 
   private:
-	// player controlling this character
+	void InitBody(vec2 Pos);
+	void TickNpcAI();
+	void FillCharacterSnap(CNetObj_Character *pCharacter, int SnappingClient);
+
+	// player controlling this character; 0 for humanoid NPCs
 	class CPlayer *m_pPlayer;
+	int m_NpcSlot;
+	int m_Team;
 
 	class CWeapon *m_apWeapon[12];
 

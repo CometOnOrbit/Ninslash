@@ -9,6 +9,7 @@
 #include <generated/game_data.h>
 
 #include <game/gamecore.h> // get_angle
+#include <game/npc.h>
 #include <game/pve_roguelite.h>
 #include <game/weapon_catalog.h>
 #include <game/client/gameclient.h>
@@ -188,7 +189,9 @@ void CPlayers::RenderHook(const CNetObj_Character *pPrevChar,
 								  vec2(m_pClient->m_PredictedChar.m_Pos.x, m_pClient->m_PredictedChar.m_Pos.y),
 								  Client()->PredIntraGameTick());
 			}
-			else if(pInfo.m_Local)
+			else if(pInfo.m_Local && pPlayerChar->m_HookedPlayer >= 0 &&
+					pPlayerChar->m_HookedPlayer < MAX_CHARACTERS &&
+					m_pClient->m_Snap.m_aCharacters[pPlayerChar->m_HookedPlayer].m_Active)
 			{
 				HookPos = mix(vec2(m_pClient->m_Snap.m_aCharacters[pPlayerChar->m_HookedPlayer].m_Prev.m_X,
 								   m_pClient->m_Snap.m_aCharacters[pPlayerChar->m_HookedPlayer].m_Prev.m_Y),
@@ -251,6 +254,13 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 							const CNetObj_PlayerInfo *pPrevInfo,
 							const CNetObj_PlayerInfo *pPlayerInfo)
 {
+	if(pPlayerChar->m_PlayerFlags & PLAYERFLAG_DROID)
+	{
+		if(pPlayerInfo->m_Local)
+			CustomStuff()->m_LocalAlive = true;
+		return;
+	}
+
 	CRenderCharacter Prev;
 	CRenderCharacter Player;
 	Prev = *pPrevChar;
@@ -1608,15 +1618,15 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 		Graphics()->QuadsEnd();
 	}
 
-	if(m_pClient->m_aClients[pInfo.m_ClientID].m_EmoticonStart != -1 &&
-	   m_pClient->m_aClients[pInfo.m_ClientID].m_EmoticonStart + 2 * Client()->GameTickSpeed() > Client()->GameTick())
+	const CGameClient::CClientData *pEmote = m_pClient->ClientData(pInfo.m_ClientID);
+	if(pEmote && pEmote->m_EmoticonStart != -1 &&
+	   pEmote->m_EmoticonStart + 2 * Client()->GameTickSpeed() > Client()->GameTick())
 	{
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_EMOTICONS].m_Id);
 		Graphics()->QuadsBegin();
 
-		int SinceStart = Client()->GameTick() - m_pClient->m_aClients[pInfo.m_ClientID].m_EmoticonStart;
-		int FromEnd = m_pClient->m_aClients[pInfo.m_ClientID].m_EmoticonStart + 2 * Client()->GameTickSpeed() -
-					  Client()->GameTick();
+		int SinceStart = Client()->GameTick() - pEmote->m_EmoticonStart;
+		int FromEnd = pEmote->m_EmoticonStart + 2 * Client()->GameTickSpeed() - Client()->GameTick();
 
 		float a = 1;
 
@@ -1636,8 +1646,7 @@ void CPlayers::RenderPlayer(const CNetObj_Character *pPrevChar,
 		Graphics()->QuadsSetRotation(pi / 6 * WiggleAngle);
 
 		Graphics()->SetColor(1.0f, 1.0f, 1.0f, a);
-		// client_datas::emoticon is an offset from the first emoticon
-		RenderTools()->SelectSprite(SPRITE_OOP + m_pClient->m_aClients[pInfo.m_ClientID].m_Emoticon);
+		RenderTools()->SelectSprite(SPRITE_OOP + pEmote->m_Emoticon);
 		IGraphics::CQuadItem QuadItem(Position.x, Position.y - 64 - 32 * h, 64, 64 * h);
 		Graphics()->QuadsDraw(&QuadItem, 1);
 		Graphics()->QuadsEnd();
@@ -1661,6 +1670,8 @@ void CPlayers::OnRender()
 	{
 		m_aRenderInfo[i] = m_pClient->m_aClients[i].m_RenderInfo;
 	}
+	for(int i = 0; i < MAX_NPCS; ++i)
+		m_aRenderInfo[NpcCoreIndex(i)] = m_pClient->m_aNpcClients[i].m_RenderInfo;
 
 	CustomStuff()->m_LocalAlive = false;
 
@@ -1697,6 +1708,29 @@ void CPlayers::OnRender()
 				else
 					RenderPlayer(&PrevChar, &CurChar, pPrevPlayerInfo, (const CNetObj_PlayerInfo *)pInfo);
 			}
+		}
+
+		if((p % 2) == 1)
+			continue;
+		for(int Slot = 0; Slot < MAX_NPCS; Slot++)
+		{
+			const int i = NpcCoreIndex(Slot);
+			if(!m_pClient->m_Snap.m_aCharacters[i].m_Active)
+				continue;
+
+			CNetObj_PlayerInfo Info;
+			mem_zero(&Info, sizeof(Info));
+			Info.m_ClientID = i;
+			Info.m_Local = 0;
+			Info.m_Team = m_pClient->m_aNpcClients[Slot].m_Team;
+
+			CNetObj_Character PrevChar = m_pClient->m_Snap.m_aCharacters[i].m_Prev;
+			CNetObj_Character CurChar = m_pClient->m_Snap.m_aCharacters[i].m_Cur;
+			CPlayerInfo *pCustomPlayerInfo = &CustomStuff()->m_aPlayerInfo[i];
+			if((p < 2 && pCustomPlayerInfo->BackHook()) || (p >= 2 && !pCustomPlayerInfo->BackHook()))
+				RenderHook(&PrevChar, &CurChar, &Info, &Info);
+			else
+				RenderPlayer(&PrevChar, &CurChar, &Info, &Info);
 		}
 	}
 

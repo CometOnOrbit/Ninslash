@@ -7,9 +7,9 @@
 
 #include "ctf_ai.h"
 
-CAIctf::CAIctf(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAIctf::CAIctf(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
-	pPlayer->SetRandomSkin();
+	pCharacter->SetRandomSkin();
 }
 
 void CAIctf::OnCharacterSpawn(CCharacter *pChr)

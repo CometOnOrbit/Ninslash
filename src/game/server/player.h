@@ -73,6 +73,12 @@ class CPlayer
 
 	int GetCID() const { return m_ClientID; };
 
+	class CDroid *GetDroid() const { return m_pDroid; }
+	class CCharacter *GetBody();
+	void ToggleDroidControl();
+	void ReleaseDroid();
+	CNetObj_PlayerInput m_DroidInput;
+
 	void Tick();
 	void PostTick();
 	void Snap(int SnappingClient);
@@ -239,6 +245,7 @@ class CPlayer
 	bool m_GotSkin;
 
 	CCharacter *m_pCharacter;
+	class CDroid *m_pDroid;
 	CGameContext *m_pGameServer;
 
 	CGameContext *GameServer() const { return m_pGameServer; }

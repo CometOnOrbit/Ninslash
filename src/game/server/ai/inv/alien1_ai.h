@@ -6,7 +6,7 @@
 class CAIalien1 : public CInvasionAI
 {
   public:
-	CAIalien1(CGameContext *pGameServer, CPlayer *pPlayer, int Level,
+	CAIalien1(CGameContext *pGameServer, CCharacter *pCharacter, int Level,
 		EInvasionSkinId ProfileId = INVASION_SKIN_ALIEN1);
 
 	void DoBehavior() override;

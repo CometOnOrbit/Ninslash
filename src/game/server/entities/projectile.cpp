@@ -152,7 +152,7 @@ void CProjectile::Tick()
 	int Team = m_Owner;
 
 	if(OwnerChar && GameServer()->m_pController->IsTeamplay())
-		Team = OwnerChar->GetPlayer()->GetTeam();
+		Team = OwnerChar->GetTeam();
 
 	CBuilding *TargetBuilding = 0;
 
@@ -170,7 +170,9 @@ void CProjectile::Tick()
 
 	TargetMonster = GameServer()->m_World.IntersectWalker(PrevPos, CurPos, r, CurPos, m_pPenetratedDroid);
 
-	if(m_Owner == NEUTRAL_BASE)
+	if(TargetMonster && m_Owner >= 0 && TargetMonster->Controller() == m_Owner)
+		TargetMonster = 0;
+	else if(m_Owner == NEUTRAL_BASE && TargetMonster && TargetMonster->Controller() < 0)
 		TargetMonster = 0;
 
 	m_LifeSpan--;

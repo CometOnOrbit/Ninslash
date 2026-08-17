@@ -129,13 +129,13 @@ void CGameControllerBase::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 			if(m_Bosses > 0)
 				m_Bosses--;
 
-			GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, false, 1 + (m_Wave - 1) / 1.5f);
-			// GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, false, 1+frandom()*7);
-			pChr->GetPlayer()->SetAISkin();
-			pChr->GetPlayer()->m_pAI = new CAIbase(GameServer(), pChr->GetPlayer());
+			GameServer()->GetAISkin(&pChr->m_AISkin, false, 1 + (m_Wave - 1) / 1.5f);
+			// GameServer()->GetAISkin(&pChr->m_AISkin, false, 1+frandom()*7);
+			pChr->SetAISkin();
+			pChr->m_pAI = new CAIbase(GameServer(), pChr);
 			pChr->m_IsBot = true;
 
-			int level = pChr->GetPlayer()->m_AISkin.m_Level;
+			int level = pChr->m_AISkin.m_Level;
 
 			pChr->SetHealth(50 + min(level * 10.0f, 200.0f));
 			pChr->SetArmor(10 + min(level * 10.0f, 300.0f));
@@ -232,10 +232,10 @@ void CGameControllerBase::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 
 		if(!Found)
 		{
-			GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, false, 1 + (m_Wave - 1) / 1.5f);
-			pChr->GetPlayer()->SetAISkin();
-			pChr->GetPlayer()->m_pAI = new CAIbase(GameServer(), pChr->GetPlayer());
-			pChr->GetPlayer()->m_ToBeKicked = true;
+			GameServer()->GetAISkin(&pChr->m_AISkin, false, 1 + (m_Wave - 1) / 1.5f);
+			pChr->SetAISkin();
+			pChr->m_pAI = new CAIbase(GameServer(), pChr);
+			pChr->MarkToBeKicked();
 		}
 	}
 	else
@@ -254,7 +254,7 @@ int CGameControllerBase::OnCharacterDeath(class CCharacter *pVictim,
 {
 	IGameController::OnCharacterDeath(pVictim, pKiller, Source);
 
-	if(pVictim->m_IsBot && !pVictim->GetPlayer()->m_ToBeKicked)
+	if(pVictim->m_IsBot && !pVictim->ToBeKicked())
 	{
 		if(--m_Deaths <= 0 && CountPlayersAlive(-1, true) > 0 && !m_WaveStartTick && !m_RoundOverTick)
 		{
@@ -273,7 +273,7 @@ int CGameControllerBase::OnCharacterDeath(class CCharacter *pVictim,
 		}
 
 		if(m_EnemiesLeft <= 0)
-			pVictim->GetPlayer()->m_ToBeKicked = true;
+			pVictim->MarkToBeKicked();
 	}
 
 	if(g_Config.m_SvSurvivalMode && !pVictim->m_IsBot && CountPlayersAlive(-1, true) <= 1)

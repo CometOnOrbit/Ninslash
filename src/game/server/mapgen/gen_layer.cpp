@@ -855,9 +855,9 @@ void CGenLayer::Scan()
 			}
 		}
 
-	// find player spawn spots. Tutorial places its own standable tiles and
-	// cannot afford the 41x41 reservation on a 140x80 canvas.
-	if(IsCoopMapGenGametype(g_Config.m_SvGametype) && !IsTutorialGametype(g_Config.m_SvGametype))
+	// find player spawn spots. Tutorial uses the same 3-wide floor scan as
+	// Invasion, but skips the 41x41 reservation that would fill a small canvas.
+	if(IsCoopMapGenGametype(g_Config.m_SvGametype))
 	{
 		if(str_comp(g_Config.m_SvGametype, "coop") == 0 &&
 		   InvasionThemeFromLevel(g_Config.m_SvMapGenLevel) == INVASION_THEME_ACID_ESCAPE)
@@ -903,14 +903,17 @@ void CGenLayer::Scan()
 	}
 
 	// safe zonens
-	for(int i = 0; i < m_NumPlayerSpawns; i++)
+	if(!IsTutorialGametype(g_Config.m_SvGametype))
 	{
-		ivec2 p = m_aPlayerSpawn[i];
+		for(int i = 0; i < m_NumPlayerSpawns; i++)
+		{
+			ivec2 p = m_aPlayerSpawn[i];
 
-		for(int x = -20; x <= 20; x++)
-			for(int y = -20; y <= 20; y++)
-				if(!Used(p.x + x, p.y + y))
-					Set(-1, p.x + x, p.y + y);
+			for(int x = -20; x <= 20; x++)
+				for(int y = -20; y <= 20; y++)
+					if(!Used(p.x + x, p.y + y))
+						Set(-1, p.x + x, p.y + y);
+		}
 	}
 
 	// find long platforms (conveyor belts)
@@ -1436,6 +1439,18 @@ ivec4 CGenLayer::GetPit()
 
 	// :(
 	return ivec4(0, 0, 0, 0);
+}
+
+bool CGenLayer::InPit(int x, int y)
+{
+	for(int i = 0; i < m_NumPits; i++)
+	{
+		if(m_aPit[i].x == 0)
+			continue;
+		if(x >= m_aPit[i].x && x < m_aPit[i].z && y >= m_aPit[i].y && y < m_aPit[i].w)
+			return true;
+	}
+	return false;
 }
 
 ivec2 CGenLayer::GetTopCorner()

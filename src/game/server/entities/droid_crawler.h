@@ -17,10 +17,13 @@ class CCrawler : public CDroid
 
 	void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos) override;
 
+  protected:
+	bool TickControlled() override;
+
   private:
 	bool FindTarget();
 	bool Target();
-	void Fire();
+	void Fire() override;
 
 	void Move();
 	void MoveDead();

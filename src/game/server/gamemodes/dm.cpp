@@ -38,10 +38,10 @@ void CGameControllerDM::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	// init AI
 	if(RequestAI)
 	{
-		if(!pChr->GetPlayer()->m_AISkin.m_Valid)
-			GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, true);
-		pChr->GetPlayer()->SetAISkin();
-		pChr->GetPlayer()->m_pAI = new CAIdm(GameServer(), pChr->GetPlayer());
+		if(!pChr->m_AISkin.m_Valid)
+			GameServer()->GetAISkin(&pChr->m_AISkin, true);
+		pChr->SetAISkin();
+		pChr->m_pAI = new CAIdm(GameServer(), pChr);
 	}
 }
 

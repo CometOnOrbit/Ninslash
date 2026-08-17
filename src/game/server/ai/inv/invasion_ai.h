@@ -30,7 +30,7 @@ class CInvasionAI : public CAI
 	void RunProfileBehavior();
 
   public:
-	CInvasionAI(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId);
+	CInvasionAI(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId);
 
 	void OnCharacterSpawn(CCharacter *pChr) override;
 	void ReceiveDamage(int CID, int Dmg) override;

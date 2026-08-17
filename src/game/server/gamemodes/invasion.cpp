@@ -34,37 +34,37 @@
 #include <game/server/ai/inv/pyro1_ai.h>
 #include <game/server/ai/inv/pyro2_ai.h>
 
-static CAI *CreateAIalien1(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
+static CAI *CreateAIalien1(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIalien1(pGameServer, pPlayer, Level, ProfileId);
+	return new CAIalien1(pGameServer, pCharacter, Level, ProfileId);
 }
-static CAI *CreateAIrobot1(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
+static CAI *CreateAIrobot1(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIrobot1(pGameServer, pPlayer, Level, ProfileId);
+	return new CAIrobot1(pGameServer, pCharacter, Level, ProfileId);
 }
-static CAI *CreateAIpyro1(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
+static CAI *CreateAIpyro1(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIpyro1(pGameServer, pPlayer, Level, ProfileId);
+	return new CAIpyro1(pGameServer, pCharacter, Level, ProfileId);
 }
-static CAI *CreateAIbunny1(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
+static CAI *CreateAIbunny1(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIbunny1(pGameServer, pPlayer, Level, ProfileId);
+	return new CAIbunny1(pGameServer, pCharacter, Level, ProfileId);
 }
-static CAI *CreateAIrobot2(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
+static CAI *CreateAIrobot2(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIrobot2(pGameServer, pPlayer, Level, ProfileId);
+	return new CAIrobot2(pGameServer, pCharacter, Level, ProfileId);
 }
-static CAI *CreateAIalien2(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
+static CAI *CreateAIalien2(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIalien2(pGameServer, pPlayer, Level, ProfileId);
+	return new CAIalien2(pGameServer, pCharacter, Level, ProfileId);
 }
-static CAI *CreateAIbunny2(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
+static CAI *CreateAIbunny2(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIbunny2(pGameServer, pPlayer, Level, ProfileId);
+	return new CAIbunny2(pGameServer, pCharacter, Level, ProfileId);
 }
-static CAI *CreateAIpyro2(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId)
+static CAI *CreateAIpyro2(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId)
 {
-	return new CAIpyro2(pGameServer, pPlayer, Level, ProfileId);
+	return new CAIpyro2(pGameServer, pCharacter, Level, ProfileId);
 }
 
 static const float INV_QUEST_QUEUE_TIME = 1.5f;
@@ -748,14 +748,14 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 			if(frandom() < 0.7f && Level > 2)
 				Level = irandom(Level - 1);
 
-			GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin,
+			GameServer()->GetAISkin(&pChr->m_AISkin,
 									false,
 									1 + irandom(max(1, 1 + g_Config.m_SvMapGenLevel / 4 - m_QuestWaveType * 3)),
 									m_QuestWaveType);
-			pChr->GetPlayer()->SetAISkin();
+			pChr->SetAISkin();
 			pChr->m_IsBot = true;
 
-			typedef CAI *(*AIFactory)(CGameContext *, CPlayer *, int, EInvasionSkinId);
+			typedef CAI *(*AIFactory)(CGameContext *, CCharacter *, int, EInvasionSkinId);
 			// Aligned with WaveTypes in questinfo.h
 			static const AIFactory s_aAIFactories[] = {
 				0,				// WAVE_NONE (0)
@@ -784,12 +784,12 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 				Factory = UseElite ? s_aEliteFactories[m_QuestWaveType] : s_aAIFactories[m_QuestWaveType];
 
 			if(Factory)
-				pChr->GetPlayer()->m_pAI = Factory(GameServer(), pChr->GetPlayer(), Level, Profile);
+				pChr->m_pAI = Factory(GameServer(), pChr, Level, Profile);
 			else
-				pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), Level, Profile);
+				pChr->m_pAI = new CAIalien1(GameServer(), pChr, Level, Profile);
 
-			pChr->GetPlayer()->m_IsBot = true;
-			pChr->GetPlayer()->m_TeeInfos.m_IsBot = true;
+			pChr->m_IsBot = true;
+			pChr->m_TeeInfos.m_IsBot = true;
 
 			m_EnemyCount++;
 			pChr->m_SkipPickups = 999;
@@ -798,11 +798,11 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 
 		if(!Found)
 		{
-			pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), g_Config.m_SvMapGenLevel,
+			pChr->m_pAI = new CAIalien1(GameServer(), pChr, g_Config.m_SvMapGenLevel,
 				INVASION_SKIN_ALIEN1);
-			pChr->GetPlayer()->m_IsBot = true;
-			pChr->GetPlayer()->m_TeeInfos.m_IsBot = true;
-			pChr->GetPlayer()->m_ToBeKicked = true;
+			pChr->m_IsBot = true;
+			pChr->m_TeeInfos.m_IsBot = true;
+			pChr->MarkToBeKicked();
 			Trigger(false);
 		}
 	}
@@ -813,15 +813,7 @@ void CGameControllerInvasion::Trigger(bool IncreaseLevel)
 	if(IncreaseLevel)
 		m_TriggerLevel++;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
-	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		if(pPlayer->m_pAI)
-			pPlayer->m_pAI->Trigger(m_TriggerLevel);
-	}
+	GameServer()->TriggerBotAI(m_TriggerLevel);
 }
 
 void CGameControllerInvasion::SpawnNewWave(bool AddBots)
@@ -1033,39 +1025,12 @@ static const float INV_HOLD_ZONE_RY = 240.0f;
 
 static bool InvasionHoldPosStandable(CGameContext *pGameServer, vec2 Pos)
 {
-	return !pGameServer->Collision()->TestBox(Pos, vec2(28.0f, 50.0f)) &&
-		   pGameServer->Collision()->CheckPoint(Pos + vec2(0, 46));
+	return pGameServer->Collision()->IsSafeStandPos(Pos);
 }
 
 static vec2 InvasionSnapHoldPos(CGameContext *pGameServer, vec2 Pos)
 {
-	CCollision *pCol = pGameServer->Collision();
-	// Always drop to the floor — air waypoints are "empty" but not standable ground.
-	vec2 From = Pos - vec2(0, 120);
-	vec2 To = Pos + vec2(0, 1000);
-	vec2 Hit, Before;
-	if(!pCol->IntersectLine(From, To, &Hit, &Before))
-		return Pos;
-
-	vec2 Grounded = Before - vec2(0, 42);
-	if(InvasionHoldPosStandable(pGameServer, Grounded))
-		return Grounded;
-
-	for(int dx = -4; dx <= 4; dx++)
-	{
-		if(dx == 0)
-			continue;
-		vec2 Try = Grounded + vec2(dx * 20.0f, 0);
-		vec2 TryFrom = Try - vec2(0, 80);
-		vec2 TryTo = Try + vec2(0, 400);
-		vec2 TryHit, TryBefore;
-		if(!pCol->IntersectLine(TryFrom, TryTo, &TryHit, &TryBefore))
-			continue;
-		Try = TryBefore - vec2(0, 42);
-		if(InvasionHoldPosStandable(pGameServer, Try))
-			return Try;
-	}
-	return Grounded;
+	return pGameServer->Collision()->SnapToStandPos(Pos);
 }
 
 void CGameControllerInvasion::StartHoldZone()
@@ -1088,43 +1053,40 @@ void CGameControllerInvasion::StartHoldZone()
 	if(Humans > 0)
 		HumanAnchor /= Humans;
 
-	vec2 aCand[MAX_ENEMIES + 4];
-	int NumCand = 0;
-	for(int i = 0; i < m_NumEnemySpawnPos && NumCand < MAX_ENEMIES; i++)
-		aCand[NumCand++] = m_aEnemySpawnPos[i];
-
-	CSpawnEval Eval;
-	EvaluateSpawnType(&Eval, 0);
-	if(Eval.m_Got && NumCand < MAX_ENEMIES + 4)
-		aCand[NumCand++] = Eval.m_Pos;
-
-	vec2 Far = GameServer()->GetFarHumanSpawnPos(true);
-	if((Far.x != 0.0f || Far.y != 0.0f) && NumCand < MAX_ENEMIES + 4)
-		aCand[NumCand++] = Far;
-
+	CCollision *pCol = GameServer()->Collision();
 	vec2 BestPos = vec2(0, 0);
 	float BestScore = -1.0f;
-	for(int i = 0; i < NumCand; i++)
-	{
-		vec2 Cand = InvasionSnapHoldPos(GameServer(), aCand[i]);
+	auto Consider = [&](vec2 Raw) {
+		if(Raw.x == 0.0f && Raw.y == 0.0f)
+			return;
+		vec2 Cand = InvasionSnapHoldPos(GameServer(), Raw);
 		if(!InvasionHoldPosStandable(GameServer(), Cand))
-			continue;
-		// Prefer grounded points that are away from the party but still on a platform.
+			return;
 		float Score = Humans > 0 ? distance(Cand, HumanAnchor) : Cand.x;
 		if(Score > BestScore)
 		{
 			BestScore = Score;
 			BestPos = Cand;
 		}
-	}
+	};
+
+	for(int i = 0; i < m_NumEnemySpawnPos; i++)
+		Consider(m_aEnemySpawnPos[i]);
+
+	CSpawnEval Eval;
+	EvaluateSpawnType(&Eval, 0);
+	if(Eval.m_Got)
+		Consider(Eval.m_Pos);
+
+	Consider(GameServer()->GetFarHumanSpawnPos(true));
+	for(int i = 0; i < pCol->WaypointCount(); i++)
+		Consider(pCol->GetWaypointPos(i));
 
 	if(BestScore < 0.0f)
 	{
 		vec2 Fallback;
 		if(GetBossSpawnPos(&Fallback) || GetSpawnPos(0, &Fallback))
-			BestPos = InvasionSnapHoldPos(GameServer(), Fallback);
-		else
-			BestPos = InvasionSnapHoldPos(GameServer(), Far);
+			Consider(Fallback);
 	}
 
 	m_HoldZonePos = BestPos;
@@ -1132,8 +1094,7 @@ void CGameControllerInvasion::StartHoldZone()
 	m_HoldTicks = 0;
 	m_HoldWasOccupied = false;
 	m_HoldFxTick = Server()->Tick();
-	m_HoldZoneActive =
-		InvasionHoldPosStandable(GameServer(), m_HoldZonePos) || m_HoldZonePos.x != 0.0f || m_HoldZonePos.y != 0.0f;
+	m_HoldZoneActive = InvasionHoldPosStandable(GameServer(), m_HoldZonePos);
 	if(m_HoldZoneActive && m_pReactor)
 		m_pReactor->Activate(m_HoldZonePos);
 	if(m_HoldZoneActive)
@@ -1259,14 +1220,14 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim,
 	if(!pVictim->m_IsBot && GameServer()->m_pPveDirector)
 		GameServer()->m_pPveDirector->OnPlayerDeath(pVictim->GetPlayer()->GetCID());
 
-	if(pVictim->m_IsBot && !pVictim->GetPlayer()->m_ToBeKicked)
+	if(pVictim->m_IsBot && !pVictim->ToBeKicked())
 	{
 		if(pKiller && !pKiller->m_IsBot && GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->OnEnemyKilled(Source, pVictim->m_Pos, pVictim);
 		// Ordinary waves use the dead bot slot to consume m_EnemiesLeft on respawn.
 		// Reactor defense has a separate reinforcement loop, so its bots are kicked.
 		if(m_EnemiesLeft <= 0 || m_EscapeSpawnActive || m_Quest == QUEST_DEFEND)
-			pVictim->GetPlayer()->m_ToBeKicked = true;
+			pVictim->MarkToBeKicked();
 
 		if(pKiller)
 		{

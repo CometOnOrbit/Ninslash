@@ -240,7 +240,7 @@ class CPveDirector
 	void RewardResearch(int Amount, int Reason, int HighestInvasion = 0);
 	void Snap(int SnappingClient);
 
-	int ModifyDamage(const CAttackSource &Source, int To, int Damage);
+	int ModifyDamage(const CAttackSource &Source, int To, int Damage, class CCharacter *pVictim = 0);
 	int ModifyDroidDamage(const CAttackSource &Source, int Damage, bool Boss, CDroid *pTarget);
 	int ModifyGold(int ClientID, int Amount) const;
 	int ModifyShopCost(int ClientID, int Cost) const;

@@ -183,16 +183,19 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 	if(Team == TEAM_SPECTATORS)
 		return 0.0f;
 
-	const CNetObj_PlayerInfo *apPlayers[MAX_CLIENTS];
+	const CNetObj_PlayerInfo *apPlayers[MAX_CHARACTERS];
 	int PlayerCount = 0;
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		const CNetObj_PlayerInfo *pInfo = m_pClient->m_Snap.m_paInfoByScore[i];
-		if(!pInfo || pInfo->m_Team != Team || pInfo->m_ClientID < 0 || pInfo->m_ClientID >= MAX_CLIENTS)
+		if(!pInfo || pInfo->m_Team != Team || pInfo->m_ClientID < 0 || pInfo->m_ClientID >= MAX_CHARACTERS)
+			continue;
+		CGameClient::CClientData *pClient = m_pClient->ClientData(pInfo->m_ClientID);
+		if(!pClient)
 			continue;
 		if((m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags & GAMEFLAG_COOP) &&
 		   !m_pClient->m_Snap.m_pRaceInfo &&
-		   m_pClient->m_aClients[pInfo->m_ClientID].m_IsBot)
+		   pClient->m_IsBot)
 			continue;
 		apPlayers[PlayerCount++] = pInfo;
 	}
@@ -339,6 +342,9 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 				break;
 			const CNetObj_PlayerInfo *pInfo = apPlayers[Index];
 			const int ClientID = pInfo->m_ClientID;
+			CGameClient::CClientData *pClient = m_pClient->ClientData(ClientID);
+			if(!pClient)
+				continue;
 			const float RowY = HeaderY + TableHeaderHeight + Row * RowHeight;
 			const bool Focused = pInfo->m_Local || (m_pClient->m_Snap.m_SpecInfo.m_Active &&
 													ClientID == m_pClient->m_Snap.m_SpecInfo.m_SpectatorID);
@@ -390,7 +396,7 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 				Graphics()->QuadsDrawTL(&QuadItem, 1);
 				Graphics()->QuadsEnd();
 			}
-			CTeeRenderInfo TeeInfo = m_pClient->m_aClients[ClientID].m_RenderInfo;
+			CTeeRenderInfo TeeInfo = pClient->m_RenderInfo;
 			TeeInfo.m_Size = clamp(RowHeight - 8.0f, 16.0f, 40.0f);
 			RenderTools()->RenderPortrait(
 				&TeeInfo, vec2(TeeX + TeeW * 0.5f, RowY + RowHeight * 0.5f + TeeInfo.m_Size * 0.55f), 0);
@@ -419,15 +425,15 @@ float CScoreboard::RenderScoreboard(float x, float y, float w, int Team, const c
 				TextRender()->SetCursor(&Cursor, ClanX + 5.0f, TextY, FontSize, TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
 				Cursor.m_LineWidth = ClanW - 10.0f;
 				Cursor.m_MaxLines = 1;
-				TextRender()->TextEx(&Cursor, m_pClient->m_aClients[ClientID].m_aClan, -1);
+				TextRender()->TextEx(&Cursor, pClient->m_aClan, -1);
 			}
-			if(!m_pClient->m_aClients[ClientID].m_IsBot)
+			if(!pClient->m_IsBot)
 			{
 				if(CountryW > 0.0f)
 				{
 					vec4 FlagColor(1.0f, 1.0f, 1.0f, 0.68f * Dim);
 					const float FlagH = min(24.0f, RowHeight - 10.0f);
-					m_pClient->m_pCountryFlags->Render(m_pClient->m_aClients[ClientID].m_Country,
+					m_pClient->m_pCountryFlags->Render(pClient->m_Country,
 													   &FlagColor,
 													   CountryX + 5.0f,
 													   RowY + (RowHeight - FlagH) * 0.5f,
@@ -639,23 +645,23 @@ const char *CScoreboard::GetClanName(int Team)
 	int ClanPlayers = 0;
 	const char *pClanName = 0;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		const CNetObj_PlayerInfo *pInfo = m_pClient->m_Snap.m_paInfoByScore[i];
 		if(!pInfo || pInfo->m_Team != Team)
 			continue;
-		if(pInfo->m_ClientID < 0 || pInfo->m_ClientID >= MAX_CLIENTS ||
-		   m_pClient->m_aClients[pInfo->m_ClientID].m_IsBot)
+		CGameClient::CClientData *pClient = m_pClient->ClientData(pInfo->m_ClientID);
+		if(!pClient || pClient->m_IsBot)
 			continue;
 
 		if(!pClanName)
 		{
-			pClanName = m_pClient->m_aClients[pInfo->m_ClientID].m_aClan;
+			pClanName = pClient->m_aClan;
 			ClanPlayers++;
 		}
 		else
 		{
-			if(str_comp(m_pClient->m_aClients[pInfo->m_ClientID].m_aClan, pClanName) == 0)
+			if(str_comp(pClient->m_aClan, pClanName) == 0)
 				ClanPlayers++;
 			else
 				return 0;

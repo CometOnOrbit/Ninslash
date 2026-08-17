@@ -35,10 +35,10 @@ void CGameControllerTDM::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	// init AI
 	if(RequestAI)
 	{
-		if(!pChr->GetPlayer()->m_AISkin.m_Valid)
-			GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, true);
-		pChr->GetPlayer()->SetAISkin();
-		pChr->GetPlayer()->m_pAI = new CAItdm(GameServer(), pChr->GetPlayer());
+		if(!pChr->m_AISkin.m_Valid)
+			GameServer()->GetAISkin(&pChr->m_AISkin, true);
+		pChr->SetAISkin();
+		pChr->m_pAI = new CAItdm(GameServer(), pChr);
 	}
 }
 
@@ -48,14 +48,31 @@ int CGameControllerTDM::OnCharacterDeath(class CCharacter *pVictim, class CPlaye
 
 	if(pKiller && !(Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME))
 	{
-		// do team scoring
-		if(pKiller == pVictim->GetPlayer() || pKiller->GetTeam() == pVictim->GetPlayer()->GetTeam())
+		const int KillerTeam = pKiller->GetTeam();
+		const int VictimTeam = pVictim->GetTeam();
+		if(pKiller == pVictim->GetPlayer() || KillerTeam == VictimTeam)
 		{
 			if(!g_Config.m_SvSelfKillPenalty)
-				m_aTeamscore[pKiller->GetTeam() & 1]--;
+				m_aTeamscore[KillerTeam & 1]--;
 		}
 		else
-			m_aTeamscore[pKiller->GetTeam() & 1]++;
+			m_aTeamscore[KillerTeam & 1]++;
+	}
+	else if(!(Source.m_Kind == EAttackSourceKind::World && Source.m_Type == WEAPON_GAME))
+	{
+		CCharacter *pKillerChr = GameServer()->GetCoreChar(Source.m_Owner);
+		if(pKillerChr)
+		{
+			const int KillerTeam = pKillerChr->GetTeam();
+			const int VictimTeam = pVictim->GetTeam();
+			if(pKillerChr == pVictim || KillerTeam == VictimTeam)
+			{
+				if(!g_Config.m_SvSelfKillPenalty)
+					m_aTeamscore[KillerTeam & 1]--;
+			}
+			else
+				m_aTeamscore[KillerTeam & 1]++;
+		}
 	}
 
 	return 0;

@@ -88,10 +88,10 @@ void CGameControllerCTF::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	// init AI
 	if(RequestAI)
 	{
-		if(!pChr->GetPlayer()->m_AISkin.m_Valid)
-			GameServer()->GetAISkin(&pChr->GetPlayer()->m_AISkin, true);
-		pChr->GetPlayer()->SetAISkin();
-		pChr->GetPlayer()->m_pAI = new CAIctf(GameServer(), pChr->GetPlayer());
+		if(!pChr->m_AISkin.m_Valid)
+			GameServer()->GetAISkin(&pChr->m_AISkin, true);
+		pChr->SetAISkin();
+		pChr->m_pAI = new CAIctf(GameServer(), pChr);
 	}
 }
 
@@ -113,7 +113,7 @@ int CGameControllerCTF::OnCharacterDeath(class CCharacter *pVictim, class CPlaye
 			F->m_pCarryingCharacter = 0;
 			F->m_Vel = vec2(0, 0);
 
-			if(pKiller && pKiller->GetTeam() != pVictim->GetPlayer()->GetTeam())
+			if(pKiller && pKiller->GetTeam() != pVictim->GetTeam())
 				pKiller->m_Score++;
 
 			HadFlag |= 1;

@@ -6,7 +6,7 @@
 class CAIdefrobot1 : public CAI
 {
   public:
-	CAIdefrobot1(CGameContext *pGameServer, CPlayer *pPlayer);
+	CAIdefrobot1(CGameContext *pGameServer, CCharacter *pCharacter);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);

@@ -99,12 +99,9 @@ void CStalkerCrawler::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Sourc
 	{
 		if(GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->OnDroidKilled(this, Source);
-		if(From >= 0 && From < MAX_CLIENTS && GameServer()->m_apPlayers[From])
-		{
-			CCharacter *pChr = GameServer()->m_apPlayers[From]->GetCharacter();
-			if(pChr)
-				pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
-		}
+		CCharacter *pChr = GameServer()->GetPlayerChar(From);
+		if(pChr)
+			pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
 	}
 
 	m_DamageTakenTick = Server()->Tick();
@@ -113,6 +110,9 @@ void CStalkerCrawler::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Sourc
 
 void CStalkerCrawler::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
@@ -260,7 +260,7 @@ void CStalkerCrawler::Tick()
 
 bool CStalkerCrawler::Target()
 {
-	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CLIENTS)
+	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CHARACTERS)
 	{
 		m_Target = vec2(0, 0);
 		return false;
@@ -297,7 +297,7 @@ bool CStalkerCrawler::FindTarget()
 	CCharacter *pClosestCharacter = nullptr;
 	int ClosestDistance = 0;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())

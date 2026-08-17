@@ -7,7 +7,7 @@
 
 #include "def_alien2_ai.h"
 
-CAIdefalien2::CAIdefalien2(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAIdefalien2::CAIdefalien2(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
 	Player()->SetCustomSkin(5);

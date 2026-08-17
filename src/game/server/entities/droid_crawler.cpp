@@ -1,5 +1,6 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
+#include <game/droid_control.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
 #include "staticlaser.h"
@@ -97,15 +98,18 @@ void CCrawler::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2
 		if(GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->OnDroidKilled(this, Source);
 		// set attacker's face to happy (taunt!)
-		if(From >= 0 && GameServer()->m_apPlayers[From])
-		{
-			CCharacter *pChr = GameServer()->m_apPlayers[From]->GetCharacter();
-			if(pChr)
-				pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
-		}
+		CCharacter *pChr = GameServer()->GetPlayerChar(From);
+		if(pChr)
+			pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
 	}
 
 	m_DamageTakenTick = Server()->Tick();
+}
+
+bool CCrawler::TickControlled()
+{
+	CDroidCrawlerControl Control = DroidCrawlerControlNormal();
+	return TickCrawlerControl(Control, &m_Move, &m_JumpTick, &m_JumpForce, &m_AttackCount);
 }
 
 void CCrawler::MoveDead()
@@ -118,6 +122,9 @@ void CCrawler::Move()
 
 void CCrawler::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
@@ -313,7 +320,7 @@ void CCrawler::Fire()
 
 bool CCrawler::Target()
 {
-	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CLIENTS)
+	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CHARACTERS)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
 		if(!pCharacter)
@@ -353,7 +360,7 @@ bool CCrawler::FindTarget()
 	CCharacter *pClosestCharacter = 0;
 	int ClosestDistance = 0;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter)

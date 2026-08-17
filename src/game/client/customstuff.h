@@ -217,7 +217,7 @@ class CCustomStuff
 	void Tick(bool Paused);
 	void Update(bool Paused = false);
 
-	CPlayerInfo m_aPlayerInfo[MAX_CLIENTS];
+	CPlayerInfo m_aPlayerInfo[MAX_CHARACTERS];
 };
 
 #endif

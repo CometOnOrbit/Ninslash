@@ -208,14 +208,7 @@ void CGameControllerTutorial::UpdateControlledBots()
 	if(Current < Wanted)
 		GameServer()->AddBot();
 	else if(Current > Wanted)
-	{
-		for(int i = MAX_CLIENTS - 1; i >= 0; --i)
-			if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->m_IsBot)
-			{
-				GameServer()->KickBot(i);
-				break;
-			}
-	}
+		GameServer()->KickOneBot();
 }
 
 void CGameControllerTutorial::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
@@ -229,11 +222,11 @@ void CGameControllerTutorial::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	}
 
 	pChr->m_IsBot = true;
-	pChr->GetPlayer()->m_IsBot = true;
-	pChr->GetPlayer()->m_TeeInfos.m_IsBot = true;
+	pChr->m_IsBot = true;
+	pChr->m_TeeInfos.m_IsBot = true;
 	GameServer()->GetAISkin(
-		&pChr->GetPlayer()->m_AISkin, g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER, 1, 1);
-	pChr->GetPlayer()->SetAISkin();
+		&pChr->m_AISkin, g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER, 1, 1);
+	pChr->SetAISkin();
 	m_CurrentTargetPos = pChr->m_Pos;
 	dbg_msg("tutorial",
 			"spawned controlled %s at %.0f,%.0f",
@@ -244,16 +237,16 @@ void CGameControllerTutorial::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	if(g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_DEPLOYMENT)
 		return;
 	if(g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER)
-		pChr->GetPlayer()->m_pAI = new CAIdm(GameServer(), pChr->GetPlayer());
+		pChr->m_pAI = new CAIdm(GameServer(), pChr);
 	else
-		pChr->GetPlayer()->m_pAI = new CAIalien1(GameServer(), pChr->GetPlayer(), 1);
+		pChr->m_pAI = new CAIalien1(GameServer(), pChr, 1);
 }
 
 int CGameControllerTutorial::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, const CAttackSource &Source)
 {
 	if(pVictim && !pVictim->m_IsBot)
 	{
-		const int ClientID = pVictim->GetPlayer()->GetCID();
+		const int ClientID = pVictim->GetCID();
 		if(ClientID >= 0 && ClientID < MAX_CLIENTS)
 			m_aRespawnNearTarget[ClientID] = true;
 	}

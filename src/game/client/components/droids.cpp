@@ -20,9 +20,14 @@ void CDroids::OnReset()
 {
 }
 
+vec2 CDroids::MixPos(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent)
+{
+	return mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
+}
+
 void CDroids::RenderWalker(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID)
 {
-	vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
+	vec2 Pos = MixPos(pPrev, pCurrent);
 
 	if(pCurrent->m_Status != DROIDSTATUS_IDLE)
 	{
@@ -110,7 +115,7 @@ void CDroids::RenderWalker(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCur
 
 void CDroids::RenderStar(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID)
 {
-	vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
+	vec2 Pos = MixPos(pPrev, pCurrent);
 
 	CDroidAnim DroidAnim;
 
@@ -193,7 +198,7 @@ void CDroids::RenderStar(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurre
 
 void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID)
 {
-	vec2 Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), vec2(pCurrent->m_X, pCurrent->m_Y), Client()->IntraGameTick());
+	vec2 Pos = MixPos(pPrev, pCurrent);
 
 	CDroidAnim *pDroidAnim = CustomStuff()->GetDroidAnim(ItemID);
 

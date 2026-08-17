@@ -360,6 +360,6 @@ void CMapLayers::OnRender()
 	// RenderTools()->RenderFullScreenLayer();
 
 	// render players hand here ( wtf :D ) in some cases
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 		RenderTools()->RenderForegroundHand(&CustomStuff()->m_aPlayerInfo[i]);
 }

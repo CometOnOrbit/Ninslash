@@ -34,7 +34,7 @@ void CGameControllerBall::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 
 	// init AI
 	if(RequestAI)
-		pChr->GetPlayer()->m_pAI = new CAIball(GameServer(), pChr->GetPlayer());
+		pChr->m_pAI = new CAIball(GameServer(), pChr);
 }
 
 int CGameControllerBall::OnCharacterDeath(class CCharacter *pVictim,
@@ -129,10 +129,21 @@ void CGameControllerBall::Tick()
 			CCharacter *pChar = GameServer()->GetPlayerChar(m_LastBallToucher);
 			if(pChar)
 			{
-				if(pChar->GetPlayer()->GetTeam() == TEAM_BLUE)
-					pChar->GetPlayer()->m_Score++;
-				else
-					pChar->GetPlayer()->m_Score--;
+				const int Team = pChar->GetTeam();
+				if(CPlayer *pPlayer = pChar->GetPlayer())
+				{
+					if(Team == TEAM_BLUE)
+						pPlayer->m_Score++;
+					else
+						pPlayer->m_Score--;
+				}
+				else if(pChar->IsNpc())
+				{
+					if(Team == TEAM_BLUE)
+						GameServer()->m_aNpcs[pChar->NpcSlot()].m_Score++;
+					else
+						GameServer()->m_aNpcs[pChar->NpcSlot()].m_Score--;
+				}
 			}
 
 			GameServer()->CreateSoundGlobal(SOUND_CTF_CAPTURE);
@@ -151,10 +162,21 @@ void CGameControllerBall::Tick()
 			CCharacter *pChar = GameServer()->GetPlayerChar(m_LastBallToucher);
 			if(pChar)
 			{
-				if(pChar->GetPlayer()->GetTeam() == TEAM_RED)
-					pChar->GetPlayer()->m_Score++;
-				else
-					pChar->GetPlayer()->m_Score--;
+				const int Team = pChar->GetTeam();
+				if(CPlayer *pPlayer = pChar->GetPlayer())
+				{
+					if(Team == TEAM_RED)
+						pPlayer->m_Score++;
+					else
+						pPlayer->m_Score--;
+				}
+				else if(pChar->IsNpc())
+				{
+					if(Team == TEAM_RED)
+						GameServer()->m_aNpcs[pChar->NpcSlot()].m_Score++;
+					else
+						GameServer()->m_aNpcs[pChar->NpcSlot()].m_Score--;
+				}
 			}
 
 			GameServer()->CreateSoundGlobal(SOUND_CTF_CAPTURE);

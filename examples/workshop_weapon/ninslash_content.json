@@ -6,8 +6,8 @@
   "description": "Complete example Lua weapon with custom resources, combat behavior, HUD, and localization",
   "version": "1",
   "author": "Ninslash",
-  "target_protocol": "0.5.1 abc123-luaweapons6-pvp-spectator-challenge",
-  "content_hash": "b52f6bd3da308f0a4bdff502f47f3dd1f2429f777ce3b882b70c8298fc447fd4",
+  "target_protocol": "0.5.1 nonplayercharacter",
+  "content_hash": "1c9ea6b7bef5093e44063f08e02edd64857d497e81fe11005c791a788976e7cb",
   "content_rating": "everyone",
   "api_version": 1,
   "capabilities": [

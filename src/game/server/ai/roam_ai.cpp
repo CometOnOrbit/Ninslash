@@ -9,7 +9,7 @@
 
 #include "roam_ai.h"
 
-CAIroam::CAIroam(CGameContext *pGameServer, CPlayer *pPlayer, int Level) : CAI(pGameServer, pPlayer)
+CAIroam::CAIroam(CGameContext *pGameServer, CCharacter *pCharacter, int Level) : CAI(pGameServer, pCharacter)
 {
 	m_Level = clamp(Level, 1, 30);
 	m_ShockTimer = 0;

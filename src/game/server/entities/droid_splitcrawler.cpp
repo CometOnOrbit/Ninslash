@@ -109,12 +109,9 @@ void CSplitCrawler::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source,
 	{
 		if(GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->OnDroidKilled(this, Source);
-		if(From >= 0 && GameServer()->m_apPlayers[From])
-		{
-			CCharacter *pChr = GameServer()->m_apPlayers[From]->GetCharacter();
-			if(pChr)
-				pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
-		}
+		CCharacter *pChr = GameServer()->GetPlayerChar(From);
+		if(pChr)
+			pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
 	}
 
 	m_DamageTakenTick = Server()->Tick();
@@ -122,6 +119,9 @@ void CSplitCrawler::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source,
 
 void CSplitCrawler::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
@@ -276,7 +276,7 @@ void CSplitCrawler::Tick()
 
 bool CSplitCrawler::Target()
 {
-	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CLIENTS)
+	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CHARACTERS)
 		return false;
 
 	CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
@@ -305,7 +305,7 @@ bool CSplitCrawler::FindTarget()
 	CCharacter *pClosestCharacter = nullptr;
 	int ClosestDistance = 0;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())

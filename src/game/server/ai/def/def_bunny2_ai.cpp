@@ -7,7 +7,7 @@
 
 #include "def_bunny2_ai.h"
 
-CAIdefbunny2::CAIdefbunny2(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAIdefbunny2::CAIdefbunny2(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
 	Player()->SetCustomSkin(7);

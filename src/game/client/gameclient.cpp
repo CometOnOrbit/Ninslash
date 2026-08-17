@@ -25,6 +25,7 @@
 #include <game/challenge_variant.h>
 #include <game/client/lineinput.h>
 #include <game/version.h>
+#include <game/npc.h>
 #include <game/weapon_catalog.h>
 #include <game/pve_environment.h>
 #include <game/weapon_packages.h>
@@ -1118,6 +1119,8 @@ void CGameClient::OnReset()
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		m_aClients[i].Reset();
+	for(int i = 0; i < MAX_NPCS; i++)
+		m_aNpcClients[i].Reset();
 
 	for(int i = 0; i < m_All.m_Num; i++)
 		m_All.m_paComponents[i]->OnReset();
@@ -1133,8 +1136,10 @@ void CGameClient::OnReset()
 void CGameClient::UpdatePositions()
 {
 	// local character position
-	if(g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK && m_PredictedChar.IsReady() &&
-	   m_PredictedPrevChar.IsReady())
+	const bool DroidPawn =
+		m_Snap.m_pLocalCharacter && (m_Snap.m_pLocalCharacter->m_PlayerFlags & PLAYERFLAG_DROID);
+	if(!DroidPawn && g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK &&
+	   m_PredictedChar.IsReady() && m_PredictedPrevChar.IsReady())
 	{
 		if(!m_Snap.m_pLocalCharacter ||
 		   (m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
@@ -1438,10 +1443,12 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 	else if(MsgId == NETMSGTYPE_SV_EMOTICON)
 	{
 		CNetMsg_Sv_Emoticon *pMsg = (CNetMsg_Sv_Emoticon *)pRawMsg;
-
-		// apply
-		m_aClients[pMsg->m_ClientID].m_Emoticon = pMsg->m_Emoticon;
-		m_aClients[pMsg->m_ClientID].m_EmoticonStart = Client()->GameTick();
+		CClientData *pData = ClientData(pMsg->m_ClientID);
+		if(pData)
+		{
+			pData->m_Emoticon = pMsg->m_Emoticon;
+			pData->m_EmoticonStart = Client()->GameTick();
+		}
 	}
 	else if(MsgId == NETMSGTYPE_SV_INVENTORY)
 	{
@@ -1559,7 +1566,7 @@ void CGameClient::OnRconLine(const char *pLine)
 
 void CGameClient::AddPlayerSplatter(vec2 Pos, vec4 Color)
 {
-	for(int c = 0; c < MAX_CLIENTS; c++)
+	for(int c = 0; c < MAX_CHARACTERS; c++)
 	{
 		if(CustomStuff()->m_aPlayerInfo[c].m_InUse)
 		{
@@ -1767,8 +1774,11 @@ void CGameClient::ProcessEvents()
 		else if(Item.m_Type == NETEVENTTYPE_DEATH)
 		{
 			CNetEvent_Death *ev = (CNetEvent_Death *)pData;
-			g_GameClient.m_pEffects->PlayerDeath(vec2(ev->m_X, ev->m_Y), ev->m_ClientID);
-			CustomStuff()->m_aPlayerInfo[ev->m_ClientID].Reset();
+			if(ev->m_ClientID >= 0 && ev->m_ClientID < MAX_CHARACTERS)
+			{
+				g_GameClient.m_pEffects->PlayerDeath(vec2(ev->m_X, ev->m_Y), ev->m_ClientID);
+				CustomStuff()->m_aPlayerInfo[ev->m_ClientID].Reset();
+			}
 		}
 		else if(Item.m_Type == NETEVENTTYPE_SOUNDWORLD)
 		{
@@ -1884,116 +1894,13 @@ void CGameClient::OnNewSnapshot()
 
 				m_aClients[ClientID].m_IsBot = pInfo->m_IsBot;
 				m_aClients[ClientID].m_BloodColor = pInfo->m_BloodColor;
-
-				// prepare the info
-
-				if(m_aClients[ClientID].m_aTopperName[0] == 'x' || m_aClients[ClientID].m_aTopperName[1] == '_')
-					str_copy(m_aClients[ClientID].m_aTopperName, "default", 64);
-
-				if(m_aClients[ClientID].m_aEyeName[0] == 'x' || m_aClients[ClientID].m_aEyeName[1] == '_')
-					str_copy(m_aClients[ClientID].m_aEyeName, "default", 64);
-
-				if(m_aClients[ClientID].m_aHeadName[0] == 'x' || m_aClients[ClientID].m_aHeadName[1] == '_')
-					str_copy(m_aClients[ClientID].m_aHeadName, "default", 64);
-
-				if(m_aClients[ClientID].m_aBodyName[0] == 'x' || m_aClients[ClientID].m_aBodyName[1] == '_')
-					str_copy(m_aClients[ClientID].m_aBodyName, "default", 64);
-
-				if(m_aClients[ClientID].m_aFootName[0] == 'x' || m_aClients[ClientID].m_aFootName[1] == '_')
-					str_copy(m_aClients[ClientID].m_aFootName, "default", 64);
-
-				if(m_aClients[ClientID].m_aHandName[0] == 'x' || m_aClients[ClientID].m_aHandName[1] == '_')
-					str_copy(m_aClients[ClientID].m_aHandName, "default", 64);
-
-				m_aClients[ClientID].m_SkinInfo.m_ColorBody = m_pSkins->GetColorV4(m_aClients[ClientID].m_ColorBody);
-				m_aClients[ClientID].m_SkinInfo.m_ColorFeet = m_pSkins->GetColorV4(m_aClients[ClientID].m_ColorFeet);
-				m_aClients[ClientID].m_SkinInfo.m_ColorTopper =
-					m_pSkins->GetColorV4(m_aClients[ClientID].m_ColorTopper);
-				m_aClients[ClientID].m_SkinInfo.m_ColorSkin = m_pSkins->GetColorV4(m_aClients[ClientID].m_ColorSkin);
-				m_aClients[ClientID].m_SkinInfo.m_IsBot = pInfo->m_IsBot;
-				m_aClients[ClientID].m_SkinInfo.m_BloodColor = pInfo->m_BloodColor;
-				m_aClients[ClientID].m_SkinInfo.m_Size = 64;
-
-				// find new skin
-				m_aClients[ClientID].m_TopperID = g_GameClient.m_pSkins->FindTopper(m_aClients[ClientID].m_aTopperName);
-
-				if(m_aClients[ClientID].m_TopperID < 0)
-				{
-					m_aClients[ClientID].m_TopperID = g_GameClient.m_pSkins->FindTopper("default");
-					if(m_aClients[ClientID].m_TopperID < 0)
-						m_aClients[ClientID].m_TopperID = 0;
-				}
-
-				m_aClients[ClientID].m_EyeID = g_GameClient.m_pSkins->FindEye(m_aClients[ClientID].m_aEyeName);
-
-				if(m_aClients[ClientID].m_EyeID < 0)
-				{
-					m_aClients[ClientID].m_EyeID = g_GameClient.m_pSkins->FindEye("default");
-					if(m_aClients[ClientID].m_EyeID < 0)
-						m_aClients[ClientID].m_EyeID = 0;
-				}
-
-				m_aClients[ClientID].m_HeadID = g_GameClient.m_pSkins->FindHead(m_aClients[ClientID].m_aHeadName);
-
-				if(m_aClients[ClientID].m_HeadID < 0)
-				{
-					m_aClients[ClientID].m_HeadID = g_GameClient.m_pSkins->FindHead("default");
-					if(m_aClients[ClientID].m_HeadID < 0)
-						m_aClients[ClientID].m_HeadID = 0;
-				}
-
-				m_aClients[ClientID].m_BodyID = g_GameClient.m_pSkins->FindBody(m_aClients[ClientID].m_aBodyName);
-
-				if(m_aClients[ClientID].m_BodyID < 0)
-				{
-					m_aClients[ClientID].m_BodyID = g_GameClient.m_pSkins->FindBody("default");
-					if(m_aClients[ClientID].m_BodyID < 0)
-						m_aClients[ClientID].m_BodyID = 0;
-				}
-
-				m_aClients[ClientID].m_FootID = g_GameClient.m_pSkins->FindFoot(m_aClients[ClientID].m_aFootName);
-
-				if(m_aClients[ClientID].m_FootID < 0)
-				{
-					m_aClients[ClientID].m_FootID = g_GameClient.m_pSkins->FindFoot("default");
-					if(m_aClients[ClientID].m_FootID < 0)
-						m_aClients[ClientID].m_FootID = 0;
-				}
-
-				m_aClients[ClientID].m_HandID = g_GameClient.m_pSkins->FindHand(m_aClients[ClientID].m_aHandName);
-
-				if(m_aClients[ClientID].m_HandID < 0)
-				{
-					m_aClients[ClientID].m_HandID = g_GameClient.m_pSkins->FindHand("default");
-					if(m_aClients[ClientID].m_HandID < 0)
-						m_aClients[ClientID].m_HandID = 0;
-				}
-
-				m_aClients[ClientID].m_SkinInfo.m_TopperTexture =
-					g_GameClient.m_pSkins->GetTopper(m_aClients[ClientID].m_TopperID)->m_Texture;
-				m_aClients[ClientID].m_SkinInfo.m_EyeTexture =
-					g_GameClient.m_pSkins->GetEye(m_aClients[ClientID].m_EyeID)->m_Texture;
-				m_aClients[ClientID].m_SkinInfo.m_HeadTexture =
-					g_GameClient.m_pSkins->GetHead(m_aClients[ClientID].m_HeadID)->m_Texture;
-				m_aClients[ClientID].m_SkinInfo.m_BodyTexture =
-					g_GameClient.m_pSkins->GetBody(m_aClients[ClientID].m_BodyID)->m_Texture;
-				m_aClients[ClientID].m_SkinInfo.m_HandTexture =
-					g_GameClient.m_pSkins->GetHand(m_aClients[ClientID].m_HandID)->m_Texture;
-				m_aClients[ClientID].m_SkinInfo.m_FootTexture =
-					g_GameClient.m_pSkins->GetFoot(m_aClients[ClientID].m_FootID)->m_Texture;
-
-				/*
-					m_aClients[ClientID].m_SkinInfo.m_ColorBody = vec4(1,1,1,1);
-					m_aClients[ClientID].m_SkinInfo.m_ColorFeet = vec4(1,1,1,1);
-					m_aClients[ClientID].m_SkinInfo.m_ColorTopper = vec4(1,1,1,1);
-					m_aClients[ClientID].m_SkinInfo.m_ColorSkin = vec4(1,1,1,1);
-				*/
-
-				m_aClients[ClientID].UpdateRenderInfo();
+				m_aClients[ClientID].RefreshSkin();
 			}
 			else if(Item.m_Type == NETOBJTYPE_PLAYERINFO)
 			{
 				const CNetObj_PlayerInfo *pInfo = (const CNetObj_PlayerInfo *)pData;
+				if(pInfo->m_ClientID < 0 || pInfo->m_ClientID >= MAX_CLIENTS)
+					continue;
 
 				m_aClients[pInfo->m_ClientID].m_Team = pInfo->m_Team;
 				m_aClients[pInfo->m_ClientID].m_Active = true;
@@ -2018,6 +1925,8 @@ void CGameClient::OnNewSnapshot()
 			}
 			else if(Item.m_Type == NETOBJTYPE_CHARACTER)
 			{
+				if(Item.m_ID < 0 || Item.m_ID >= MAX_CLIENTS)
+					continue;
 				const void *pOld = Client()->SnapFindItem(IClient::SNAP_PREV, NETOBJTYPE_CHARACTER, Item.m_ID);
 				m_Snap.m_aCharacters[Item.m_ID].m_Cur = *((const CNetObj_Character *)pData);
 				if(pOld)
@@ -2030,6 +1939,60 @@ void CGameClient::OnNewSnapshot()
 					if(m_Snap.m_aCharacters[Item.m_ID].m_Cur.m_Tick)
 						Evolve(&m_Snap.m_aCharacters[Item.m_ID].m_Cur, Client()->GameTick());
 				}
+			}
+			else if(Item.m_Type == NETOBJTYPE_NPC)
+			{
+				if(Item.m_ID < 0 || Item.m_ID >= MAX_NPCS)
+					continue;
+				const int Index = NpcCoreIndex(Item.m_ID);
+				const CNetObj_Npc *pNpc = (const CNetObj_Npc *)pData;
+				const void *pOld = Client()->SnapFindItem(IClient::SNAP_PREV, NETOBJTYPE_NPC, Item.m_ID);
+				m_Snap.m_aCharacters[Index].m_Cur = *pNpc;
+				if(pOld)
+				{
+					m_Snap.m_aCharacters[Index].m_Active = true;
+					m_Snap.m_aCharacters[Index].m_Prev = *(const CNetObj_Character *)pOld;
+					if(m_Snap.m_aCharacters[Index].m_Prev.m_Tick)
+						Evolve(&m_Snap.m_aCharacters[Index].m_Prev, Client()->PrevGameTick());
+					if(m_Snap.m_aCharacters[Index].m_Cur.m_Tick)
+						Evolve(&m_Snap.m_aCharacters[Index].m_Cur, Client()->GameTick());
+				}
+
+				CClientData *pClient = &m_aNpcClients[Item.m_ID];
+				IntsToStr(&pNpc->m_Topper0, 6, pClient->m_aTopperName);
+				IntsToStr(&pNpc->m_Eye0, 6, pClient->m_aEyeName);
+				IntsToStr(&pNpc->m_Head0, 6, pClient->m_aHeadName);
+				IntsToStr(&pNpc->m_Body0, 6, pClient->m_aBodyName);
+				IntsToStr(&pNpc->m_Hand0, 6, pClient->m_aHandName);
+				IntsToStr(&pNpc->m_Foot0, 6, pClient->m_aFootName);
+				pClient->m_ColorBody = pNpc->m_ColorBody;
+				pClient->m_ColorFeet = pNpc->m_ColorFeet;
+				pClient->m_ColorTopper = pNpc->m_ColorTopper;
+				pClient->m_ColorSkin = pNpc->m_ColorSkin;
+				pClient->m_BloodColor = pNpc->m_BloodColor;
+				pClient->m_IsBot = true;
+				pClient->m_Team = pNpc->m_Team;
+				pClient->m_Active = true;
+				pClient->RefreshSkin();
+			}
+			else if(Item.m_Type == NETOBJTYPE_NPCINFO)
+			{
+				if(Item.m_ID < 0 || Item.m_ID >= MAX_NPCS)
+					continue;
+				const CNetObj_NpcInfo *pInfo = (const CNetObj_NpcInfo *)pData;
+				CClientData *pClient = &m_aNpcClients[Item.m_ID];
+				IntsToStr(&pInfo->m_Name0, 4, pClient->m_aName);
+				pClient->m_Team = pInfo->m_Team;
+				pClient->m_IsBot = true;
+				pClient->m_Active = true;
+				pClient->m_aClan[0] = 0;
+
+				CNetObj_PlayerInfo *pSynthetic = &m_Snap.m_aNpcPlayerInfos[Item.m_ID];
+				mem_zero(pSynthetic, sizeof(*pSynthetic));
+				pSynthetic->m_ClientID = NpcCoreIndex(Item.m_ID);
+				pSynthetic->m_Team = pInfo->m_Team;
+				pSynthetic->m_Score = pInfo->m_Score;
+				m_Snap.m_paPlayerInfos[NpcCoreIndex(Item.m_ID)] = pSynthetic;
 			}
 			else if(Item.m_Type == NETOBJTYPE_WEAPONRUNTIME)
 			{
@@ -2227,6 +2190,11 @@ void CGameClient::OnNewSnapshot()
 		if(!m_Snap.m_paPlayerInfos[i] && m_aClients[i].m_Active)
 			m_aClients[i].Reset();
 	}
+	for(int i = 0; i < MAX_NPCS; ++i)
+	{
+		if(!m_Snap.m_paPlayerInfos[NpcCoreIndex(i)] && m_aNpcClients[i].m_Active)
+			m_aNpcClients[i].Reset();
+	}
 
 	// update friend state
 	for(int i = 0; i < MAX_CLIENTS; ++i)
@@ -2240,7 +2208,7 @@ void CGameClient::OnNewSnapshot()
 
 	// sort player infos by score
 	int NumPlayerInfos = 0;
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		if(m_Snap.m_paPlayerInfos[i])
 			m_Snap.m_paInfoByScore[NumPlayerInfos++] = m_Snap.m_paPlayerInfos[i];
@@ -2251,8 +2219,14 @@ void CGameClient::OnNewSnapshot()
 			  {
 				  if(m_Snap.m_pRaceInfo)
 				  {
-					  const CNetObj_RacePlayer *pLeftRace = m_Snap.m_apRacePlayers[pLeft->m_ClientID];
-					  const CNetObj_RacePlayer *pRightRace = m_Snap.m_apRacePlayers[pRight->m_ClientID];
+					  const CNetObj_RacePlayer *pLeftRace =
+						  (pLeft->m_ClientID >= 0 && pLeft->m_ClientID < MAX_CLIENTS) ?
+							  m_Snap.m_apRacePlayers[pLeft->m_ClientID] :
+							  0;
+					  const CNetObj_RacePlayer *pRightRace =
+						  (pRight->m_ClientID >= 0 && pRight->m_ClientID < MAX_CLIENTS) ?
+							  m_Snap.m_apRacePlayers[pRight->m_ClientID] :
+							  0;
 					  const bool LeftFinished = pLeftRace && pLeftRace->m_Time >= 0;
 					  const bool RightFinished = pRightRace && pRightRace->m_Time >= 0;
 					  if(LeftFinished != RightFinished)
@@ -2269,7 +2243,7 @@ void CGameClient::OnNewSnapshot()
 				  return pLeft->m_ClientID < pRight->m_ClientID;
 			  });
 	mem_zero(m_Snap.m_paInfoByScore + NumPlayerInfos,
-			 (MAX_CLIENTS - NumPlayerInfos) * sizeof(m_Snap.m_paInfoByScore[0]));
+			 (MAX_CHARACTERS - NumPlayerInfos) * sizeof(m_Snap.m_paInfoByScore[0]));
 	// sort player infos by team
 	int Teams[3] = {TEAM_RED, TEAM_BLUE, TEAM_SPECTATORS};
 	int Index = 0;
@@ -2372,6 +2346,19 @@ void CGameClient::OnPredict()
 	}
 	*/
 
+	// don't predict tee physics while the local pawn is a droid
+	if(m_Snap.m_pLocalCharacter && (m_Snap.m_pLocalCharacter->m_PlayerFlags & PLAYERFLAG_DROID))
+	{
+		m_PredictedChar.Init(0, Collision());
+		m_PredictedChar.Read(m_Snap.m_pLocalCharacter);
+		if(m_Snap.m_pLocalPrevCharacter)
+		{
+			m_PredictedPrevChar.Init(0, Collision());
+			m_PredictedPrevChar.Read(m_Snap.m_pLocalPrevCharacter);
+		}
+		return;
+	}
+
 	// don't predict anything if we are paused
 	if(m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED)
 	{
@@ -2395,15 +2382,17 @@ void CGameClient::OnPredict()
 	CWorldCore World;
 	World.m_Tuning = m_Tuning;
 
-	// search for players
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	// search for characters
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		if(!m_Snap.m_aCharacters[i].m_Active)
 			continue;
-
-		g_GameClient.m_aClients[i].m_Predicted.Init(&World, Collision());
-		World.m_apCharacters[i] = &g_GameClient.m_aClients[i].m_Predicted;
-		g_GameClient.m_aClients[i].m_Predicted.Read(&m_Snap.m_aCharacters[i].m_Cur);
+		CClientData *pData = ClientData(i);
+		if(!pData)
+			continue;
+		pData->m_Predicted.Init(&World, Collision());
+		World.m_apCharacters[i] = &pData->m_Predicted;
+		pData->m_Predicted.Read(&m_Snap.m_aCharacters[i].m_Cur);
 	}
 
 	// search for jumppads
@@ -2704,6 +2693,86 @@ void CGameClient::CClientData::UpdateRenderInfo()
 	}
 }
 
+void CGameClient::CClientData::RefreshSkin()
+{
+	if(m_aTopperName[0] == 'x' || m_aTopperName[1] == '_')
+		str_copy(m_aTopperName, "default", 64);
+	if(m_aEyeName[0] == 'x' || m_aEyeName[1] == '_')
+		str_copy(m_aEyeName, "default", 64);
+	if(m_aHeadName[0] == 'x' || m_aHeadName[1] == '_')
+		str_copy(m_aHeadName, "default", 64);
+	if(m_aBodyName[0] == 'x' || m_aBodyName[1] == '_')
+		str_copy(m_aBodyName, "default", 64);
+	if(m_aFootName[0] == 'x' || m_aFootName[1] == '_')
+		str_copy(m_aFootName, "default", 64);
+	if(m_aHandName[0] == 'x' || m_aHandName[1] == '_')
+		str_copy(m_aHandName, "default", 64);
+
+	m_SkinInfo.m_ColorBody = g_GameClient.m_pSkins->GetColorV4(m_ColorBody);
+	m_SkinInfo.m_ColorFeet = g_GameClient.m_pSkins->GetColorV4(m_ColorFeet);
+	m_SkinInfo.m_ColorTopper = g_GameClient.m_pSkins->GetColorV4(m_ColorTopper);
+	m_SkinInfo.m_ColorSkin = g_GameClient.m_pSkins->GetColorV4(m_ColorSkin);
+	m_SkinInfo.m_IsBot = m_IsBot;
+	m_SkinInfo.m_BloodColor = m_BloodColor;
+	m_SkinInfo.m_Size = 64;
+
+	m_TopperID = g_GameClient.m_pSkins->FindTopper(m_aTopperName);
+	if(m_TopperID < 0)
+	{
+		m_TopperID = g_GameClient.m_pSkins->FindTopper("default");
+		if(m_TopperID < 0)
+			m_TopperID = 0;
+	}
+
+	m_EyeID = g_GameClient.m_pSkins->FindEye(m_aEyeName);
+	if(m_EyeID < 0)
+	{
+		m_EyeID = g_GameClient.m_pSkins->FindEye("default");
+		if(m_EyeID < 0)
+			m_EyeID = 0;
+	}
+
+	m_HeadID = g_GameClient.m_pSkins->FindHead(m_aHeadName);
+	if(m_HeadID < 0)
+	{
+		m_HeadID = g_GameClient.m_pSkins->FindHead("default");
+		if(m_HeadID < 0)
+			m_HeadID = 0;
+	}
+
+	m_BodyID = g_GameClient.m_pSkins->FindBody(m_aBodyName);
+	if(m_BodyID < 0)
+	{
+		m_BodyID = g_GameClient.m_pSkins->FindBody("default");
+		if(m_BodyID < 0)
+			m_BodyID = 0;
+	}
+
+	m_FootID = g_GameClient.m_pSkins->FindFoot(m_aFootName);
+	if(m_FootID < 0)
+	{
+		m_FootID = g_GameClient.m_pSkins->FindFoot("default");
+		if(m_FootID < 0)
+			m_FootID = 0;
+	}
+
+	m_HandID = g_GameClient.m_pSkins->FindHand(m_aHandName);
+	if(m_HandID < 0)
+	{
+		m_HandID = g_GameClient.m_pSkins->FindHand("default");
+		if(m_HandID < 0)
+			m_HandID = 0;
+	}
+
+	m_SkinInfo.m_TopperTexture = g_GameClient.m_pSkins->GetTopper(m_TopperID)->m_Texture;
+	m_SkinInfo.m_EyeTexture = g_GameClient.m_pSkins->GetEye(m_EyeID)->m_Texture;
+	m_SkinInfo.m_HeadTexture = g_GameClient.m_pSkins->GetHead(m_HeadID)->m_Texture;
+	m_SkinInfo.m_BodyTexture = g_GameClient.m_pSkins->GetBody(m_BodyID)->m_Texture;
+	m_SkinInfo.m_HandTexture = g_GameClient.m_pSkins->GetHand(m_HandID)->m_Texture;
+	m_SkinInfo.m_FootTexture = g_GameClient.m_pSkins->GetFoot(m_FootID)->m_Texture;
+	UpdateRenderInfo();
+}
+
 void CGameClient::CClientData::Reset()
 {
 	m_PlatformUserID = 0;
@@ -2914,7 +2983,7 @@ vec4 CGameClient::GetBloodColor(int ClientID)
 
 vec4 CGameClient::GetPlayerColor(int ClientID)
 {
-	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+	if(ClientID < 0 || ClientID >= MAX_CHARACTERS)
 		return vec4(1, 1, 1, 1);
 
 	return CustomStuff()->m_aPlayerInfo[ClientID].m_Color;
@@ -2922,15 +2991,21 @@ vec4 CGameClient::GetPlayerColor(int ClientID)
 
 const char *CGameClient::GetPlayerLabel(int ClientID, char *pBuf, int BufSize) const
 {
-	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_aClients[ClientID].m_aName[0])
+	const char *pName = 0;
+	if(ClientID >= 0 && ClientID < MAX_CLIENTS)
+		pName = m_aClients[ClientID].m_aName;
+	else if(ClientID >= MAX_CLIENTS && ClientID < MAX_CHARACTERS)
+		pName = m_aNpcClients[ClientID - MAX_CLIENTS].m_aName;
+
+	if(!pName || !pName[0])
 	{
 		if(BufSize > 0)
 			pBuf[0] = 0;
 		return pBuf;
 	}
 
-	if(g_Config.m_ClShowsocial)
-		return m_aClients[ClientID].m_aName;
+	if(g_Config.m_ClShowsocial || ClientID >= MAX_CLIENTS)
+		return pName;
 
 	str_format(pBuf, BufSize, "%d", ClientID);
 	return pBuf;

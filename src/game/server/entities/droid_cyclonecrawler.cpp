@@ -47,7 +47,7 @@ bool CCycloneCrawler::IsGrounded()
 
 bool CCycloneCrawler::UpdateTarget()
 {
-	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CLIENTS)
+	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CHARACTERS)
 	{
 		m_Target = vec2(0, 0);
 		return false;
@@ -72,7 +72,7 @@ bool CCycloneCrawler::FindTarget()
 	m_TargetIndex = -1;
 	float ClosestDistance = EngagementRange;
 
-	for(int ClientID = 0; ClientID < MAX_CLIENTS; ++ClientID)
+	for(int ClientID = 0; ClientID < MAX_CHARACTERS; ++ClientID)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(ClientID);
 		if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
@@ -117,6 +117,9 @@ void CCycloneCrawler::CreateLandingImpact()
 
 void CCycloneCrawler::Tick()
 {
+	if(TickControlled())
+		return;
+
 	if(m_Health <= 0)
 	{
 		CCrawler::Tick();

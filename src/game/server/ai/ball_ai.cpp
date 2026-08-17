@@ -8,10 +8,10 @@
 
 #include "ball_ai.h"
 
-CAIball::CAIball(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAIball::CAIball(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
-	pPlayer->SetRandomSkin();
+	pCharacter->SetRandomSkin();
 	m_aGoalPos[TEAM_RED] = GameServer()->m_pController->GetGoalArea(TEAM_RED);
 	m_aGoalPos[TEAM_BLUE] = GameServer()->m_pController->GetGoalArea(TEAM_BLUE);
 }

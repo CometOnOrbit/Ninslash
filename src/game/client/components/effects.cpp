@@ -693,6 +693,9 @@ void CEffects::PlayerSpawn(vec2 Pos)
 
 void CEffects::PlayerDeath(vec2 Pos, int ClientID)
 {
+	if(ClientID < 0 || ClientID >= MAX_CHARACTERS)
+		return;
+
 	CParticle p;
 	p.SetDefault();
 	// p.m_Special = CustomStuff()->m_aPlayerInfo[ClientID].m_RenderInfo.m_BloodColor;
@@ -718,9 +721,6 @@ void CEffects::PlayerDeath(vec2 Pos, int ClientID)
 	};
 
 	m_pClient->m_pParticles->Add(CParticles::GROUP_DEATH, &p);
-
-	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
-		return;
 
 	Guts(Pos, p.m_Color);
 	// Guts(Pos, vec2((frandom()-frandom())*1.5f, -1-frandom()*1.7f), p.m_Color);

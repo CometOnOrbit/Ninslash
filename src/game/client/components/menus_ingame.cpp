@@ -329,11 +329,13 @@ void CMenus::RenderPlayers(CUIRect MainView)
 		if(!m_pClient->m_Snap.m_paInfoByTeam[i])
 			continue;
 
-		// hide bots
-		if(m_pClient->m_aClients[i].m_IsBot)
+		int Index = m_pClient->m_Snap.m_paInfoByTeam[i]->m_ClientID;
+		if(Index < 0 || Index >= MAX_CLIENTS)
 			continue;
 
-		int Index = m_pClient->m_Snap.m_paInfoByTeam[i]->m_ClientID;
+		// hide bots
+		if(m_pClient->m_aClients[Index].m_IsBot)
+			continue;
 		if(Index == m_pClient->m_Snap.m_LocalClientID)
 			continue;
 
@@ -536,6 +538,8 @@ void CMenus::RenderServerControlKick(CUIRect MainView, bool FilterSpectators)
 			continue;
 
 		int Index = m_pClient->m_Snap.m_paInfoByTeam[i]->m_ClientID;
+		if(Index < 0 || Index >= MAX_CLIENTS || m_pClient->m_aClients[Index].m_IsBot)
+			continue;
 		if(Index == m_pClient->m_Snap.m_LocalClientID ||
 		   (FilterSpectators && m_pClient->m_Snap.m_paInfoByTeam[i]->m_Team == TEAM_SPECTATORS))
 			continue;

@@ -107,12 +107,9 @@ void CStar::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Po
 		if(GameServer()->m_pPveDirector)
 			GameServer()->m_pPveDirector->OnDroidKilled(this, Source);
 		// set attacker's face to happy (taunt!)
-		if(From >= 0 && GameServer()->m_apPlayers[From])
-		{
-			CCharacter *pChr = GameServer()->m_apPlayers[From]->GetCharacter();
-			if(pChr)
-				pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
-		}
+		CCharacter *pChr = GameServer()->GetPlayerChar(From);
+		if(pChr)
+			pChr->SetEmote(EMOTE_HAPPY, Server()->Tick() + Server()->TickSpeed());
 	}
 
 	m_DamageTakenTick = Server()->Tick();
@@ -120,6 +117,9 @@ void CStar::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Po
 
 void CStar::Tick()
 {
+	if(TickControlled())
+		return;
+
 	vec2 To = m_Pos + vec2(frandom() - frandom(), frandom() - frandom()) * 500;
 
 	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
@@ -266,12 +266,12 @@ void CStar::Fire()
 
 		GameServer()->CreateSound(m_Pos, SOUND_STAR_FIRE);
 
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 30.0f,
 									   m_Target * -1,
 									   TurretPos);
-		GameServer()->CreateProjectile(CAttackSource::Droid(NEUTRAL_BASE, m_Type),
+		GameServer()->CreateProjectile(ShotSource(),
 									   0,
 									   TurretPos + normalize(m_Target * -1) * 30.0f + vec2(-m_Dir * 64, 0),
 									   m_Target * -1,
@@ -291,13 +291,9 @@ bool CStar::Target()
 {
 	vec2 TurretPos = m_Pos + m_Center;
 
-	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CLIENTS)
+	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CHARACTERS)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[m_TargetIndex];
-		if(!pPlayer)
-			return false;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
+		CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
 		if(!pCharacter)
 			return false;
 
@@ -332,16 +328,9 @@ bool CStar::FindTarget()
 	int ClosestDistance = 0;
 	vec2 TurretPos = m_Pos + vec2(0, -67);
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		// if (pPlayer->GetTeam() == m_Team && GameServer()->m_pController->IsTeamplay())
-		//	continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
+		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter)
 			continue;
 

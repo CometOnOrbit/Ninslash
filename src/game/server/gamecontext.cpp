@@ -12,6 +12,7 @@
 #include <engine/platform_events.h>
 #include "gamecontext.h"
 #include <game/version.h>
+#include <game/npc.h>
 #include <game/challenge_variant.h>
 #include <game/server/pvp_balance.h>
 #include <game/collision.h>
@@ -76,6 +77,8 @@ void CGameContext::Construct(int Resetting)
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		m_apPlayers[i] = 0;
 
+	mem_zero(m_aNpcs, sizeof(m_aNpcs));
+
 	m_BroadcastLockTick = 0;
 
 	m_pController = 0;
@@ -120,6 +123,11 @@ CGameContext::~CGameContext()
 	m_pPveDirector = 0;
 	delete m_pTutorialDirector;
 	m_pTutorialDirector = 0;
+	for(int i = 0; i < MAX_NPCS; i++)
+	{
+		delete m_aNpcs[i].m_pCharacter;
+		m_aNpcs[i].m_pCharacter = 0;
+	}
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		delete m_apPlayers[i];
 	if(!m_Resetting)
@@ -321,10 +329,20 @@ bool CGameContext::RespawnAlly(vec2 Pos, int Team, int Reviver)
 
 class CCharacter *CGameContext::GetPlayerChar(int ClientID)
 {
-	if(ClientID < 0 || ClientID >= MAX_CLIENTS || !m_apPlayers[ClientID])
-		return 0;
+	if(ClientID >= 0 && ClientID < MAX_CLIENTS)
+		return m_apPlayers[ClientID] ? m_apPlayers[ClientID]->GetCharacter() : 0;
+	if(IsNpcCoreIndex(ClientID))
+		return m_aNpcs[NpcSlotFromCore(ClientID)].m_pCharacter;
+	return 0;
+}
 
-	return m_apPlayers[ClientID]->GetCharacter();
+class CCharacter *CGameContext::GetCoreChar(int Index)
+{
+	if(Index >= 0 && Index < MAX_CLIENTS)
+		return GetPlayerChar(Index);
+	if(Index >= MAX_CLIENTS && Index < MAX_CHARACTERS)
+		return m_aNpcs[Index - MAX_CLIENTS].m_pCharacter;
+	return 0;
 }
 
 void CGameContext::CreateBuildingHit(vec2 Pos)
@@ -529,7 +547,7 @@ bool CGameContext::BuildableSpot(vec2 Pos)
 			return false;
 	}
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GetPlayerChar(i);
 
@@ -543,7 +561,7 @@ bool CGameContext::BuildableSpot(vec2 Pos)
 void CGameContext::OnBlockChange(vec2 Pos)
 {
 	// force characters to update and send the core
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GetPlayerChar(i);
 
@@ -752,7 +770,7 @@ bool CGameContext::AddBuilding(int Kit, vec2 Pos, int Owner, int PaidCost)
 
 void CGameContext::ClearFlameHits()
 {
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 		m_aFlameHit[i] = false;
 }
 
@@ -796,15 +814,15 @@ void CGameContext::CreateMeleeHit(
 
 	// player collision
 	{
-		CCharacter *apEnts[MAX_CLIENTS];
+		CCharacter *apEnts[MAX_CHARACTERS];
 		int Num =
-			m_World.FindEntities(Pos, ProximityRadius, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+			m_World.FindEntities(Pos, ProximityRadius, (CEntity **)apEnts, MAX_CHARACTERS, CGameWorld::ENTTYPE_CHARACTER);
 
 		for(int i = 0; i < Num; ++i)
 		{
 			CCharacter *pTarget = apEnts[i];
 
-			if(pTarget->GetPlayer()->GetCID() == DamageOwner || pTarget->IgnoreCollision())
+			if(pTarget->CoreIndex() == DamageOwner || pTarget->IgnoreCollision())
 				continue;
 
 			if(Flamer && Collision()->IntersectLine(Pos, pTarget->m_Pos, 0, 0))
@@ -815,10 +833,13 @@ void CGameContext::CreateMeleeHit(
 
 			if(Flamer)
 			{
-				if(m_aFlameHit[pTarget->GetPlayer()->GetCID()])
+				const int HitIndex = pTarget->CoreIndex();
+				if(HitIndex < 0 || HitIndex >= MAX_CHARACTERS)
+					continue;
+				if(m_aFlameHit[HitIndex])
 					continue;
 
-				m_aFlameHit[pTarget->GetPlayer()->GetCID()] = true;
+				m_aFlameHit[HitIndex] = true;
 			}
 			else
 			{
@@ -1194,7 +1215,7 @@ void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source, float 
 	if(!ExplosionDamage)
 		return;
 
-	CCharacter *apEnts[MAX_CLIENTS];
+	CCharacter *apEnts[MAX_CHARACTERS];
 	float Radius = Combat.m_ExplosionSize * 0.7f;
 	if(m_pPveDirector)
 		Radius = m_pPveDirector->ModifyExplosionRadius(Owner, Radius);
@@ -1203,7 +1224,7 @@ void CGameContext::CreateExplosion(vec2 Pos, const CAttackSource &Source, float 
 
 	DamageBlocks(Pos, ExplosionDamage * 0.5f, Radius * 0.8f);
 
-	int Num = m_World.FindEntities(Pos, Radius, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+	int Num = m_World.FindEntities(Pos, Radius, (CEntity **)apEnts, MAX_CHARACTERS, CGameWorld::ENTTYPE_CHARACTER);
 	for(int i = 0; i < Num; i++)
 	{
 		vec2 Diff = apEnts[i]->m_Pos - Pos - vec2(0, 8);
@@ -1379,13 +1400,11 @@ void CGameContext::CreateSoundGlobal(int Sound, int Target)
 
 bool CGameContext::IsBot(int ClientID)
 {
+	if(IsNpcCoreIndex(ClientID))
+		return m_aNpcs[NpcSlotFromCore(ClientID)].m_Used;
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return false;
-
-	if(m_apPlayers[ClientID] && m_apPlayers[ClientID]->m_IsBot)
-		return true;
-
-	return false;
+	return m_apPlayers[ClientID] && m_apPlayers[ClientID]->m_IsBot;
 }
 
 bool CGameContext::IsHuman(int ClientID)
@@ -1480,6 +1499,9 @@ void CGameContext::SendChat(int ChatterClientID, int Mode, const char *pText, in
 
 void CGameContext::SendEmoticon(int ClientID, int Emoticon)
 {
+	if(ClientID < 0 || ClientID >= MAX_CHARACTERS)
+		return;
+
 	CNetMsg_Sv_Emoticon Msg;
 	Msg.m_ClientID = ClientID;
 	Msg.m_Emoticon = Emoticon;
@@ -2154,6 +2176,7 @@ void CGameContext::OnTick()
 			m_apPlayers[i]->PostTick();
 		}
 	}
+	TickNpcs();
 	DispatchChallengeEvent(EChallengeScriptEvent::Tick);
 
 	// dynamic music threat - send to human players every 30 ticks
@@ -2683,6 +2706,24 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			if(strcmp(pMsg->m_pMessage, "/playercount") == 0)
 			{
 				SendChatTarget(ClientID, "Number of player profiles in Invasion: %d", Server()->GetPlayerCount());
+				SkipSending = true;
+			}
+
+			if(strcmp(pMsg->m_pMessage, "/droid") == 0)
+			{
+				if(pPlayer->GetDroid())
+				{
+					pPlayer->ToggleDroidControl();
+					SendChatTarget(ClientID, "droid control released");
+				}
+				else if(!pPlayer->GetBody())
+					SendChatTarget(ClientID, "need a living character");
+				else
+				{
+					pPlayer->ToggleDroidControl();
+					if(pPlayer->GetDroid())
+						SendChatTarget(ClientID, "controlling droid");
+				}
 				SkipSending = true;
 			}
 
@@ -4307,6 +4348,8 @@ void CGameContext::OnSnap(int ClientID)
 			m_apPlayers[i]->Snap(ClientID);
 	}
 
+	SnapNpcs(ClientID);
+
 	if(m_ChallengeScriptLoaded)
 	{
 		const CChallengeScriptState &State = m_ChallengeScript.State();
@@ -4382,6 +4425,22 @@ void CGameContext::KickBots()
 		if(IsBot(i))
 			Server()->Kick(i, "");
 	}
+
+	for(int i = 0; i < MAX_NPCS; i++)
+	{
+		if(!m_aNpcs[i].m_Used)
+			continue;
+		if(m_aNpcs[i].m_pCharacter)
+		{
+			if(m_aNpcs[i].m_pCharacter->IsAlive())
+				m_aNpcs[i].m_pCharacter->Die(CAttackSource::World(WEAPON_WORLD, -1), true);
+			delete m_aNpcs[i].m_pCharacter;
+			m_aNpcs[i].m_pCharacter = 0;
+		}
+		m_aNpcs[i].m_Used = false;
+		m_aNpcs[i].m_Spawning = false;
+		m_aNpcs[i].m_ToBeKicked = false;
+	}
 }
 
 void CGameContext::KickBot(int ClientID)
@@ -4396,40 +4455,160 @@ void CGameContext::KickBot(int ClientID)
 		Server()->Kick(ClientID, "");
 }
 
+void CGameContext::KickOneBot(int Team)
+{
+	for(int i = MAX_NPCS - 1; i >= 0; i--)
+	{
+		if(!m_aNpcs[i].m_Used)
+			continue;
+		if(Team >= TEAM_RED && Team <= TEAM_BLUE && m_aNpcs[i].m_Team != Team)
+			continue;
+
+		if(m_aNpcs[i].m_pCharacter)
+		{
+			if(m_aNpcs[i].m_pCharacter->IsAlive())
+				m_aNpcs[i].m_pCharacter->Die(CAttackSource::World(WEAPON_WORLD, -1), true);
+			delete m_aNpcs[i].m_pCharacter;
+			m_aNpcs[i].m_pCharacter = 0;
+		}
+		m_aNpcs[i].m_Used = false;
+		m_aNpcs[i].m_Spawning = false;
+		m_aNpcs[i].m_ToBeKicked = false;
+		return;
+	}
+}
+
 void CGameContext::AddBot()
 {
-	// Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "engine", "Adding a bot...");
+	bool aUsed[MAX_NPCS];
+	for(int i = 0; i < MAX_NPCS; i++)
+		aUsed[i] = m_aNpcs[i].m_Used;
+	const int Slot = NpcAllocSlot(aUsed, MAX_NPCS);
+	if(Slot < 0)
+		return;
 
-	/*
-	// find first free slot
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	int Team = TEAM_BLUE;
+	if(m_pController && !m_pController->IsCoop())
+		Team = m_pController->GetAutoTeam(-1);
+
+	mem_zero(&m_aNpcs[Slot], sizeof(m_aNpcs[Slot]));
+	m_aNpcs[Slot].m_Used = true;
+	m_aNpcs[Slot].m_Team = Team;
+	m_aNpcs[Slot].m_Spawning = true;
+	m_aNpcs[Slot].m_RespawnTick = Server()->Tick();
+	TrySpawnNpc(Slot);
+}
+
+void CGameContext::TrySpawnNpc(int Slot)
+{
+	if(Slot < 0 || Slot >= MAX_NPCS)
+		return;
+
+	CNpcSlot *pSlot = &m_aNpcs[Slot];
+	if(!pSlot->m_Used || pSlot->m_pCharacter || !m_pController)
+		return;
+
+	vec2 SpawnPos = vec2(0, 0);
+	if(!m_pController->CanSpawn(pSlot->m_Team, &SpawnPos, true))
+		return;
+
+	CCharacter *pChr = new(NpcCoreIndex(Slot)) CCharacter(&m_World);
+	pChr->SpawnNpc(Slot, pSlot->m_Team, SpawnPos);
+	pSlot->m_pCharacter = pChr;
+	pSlot->m_Spawning = false;
+	CreatePlayerSpawn(SpawnPos);
+}
+
+void CGameContext::SnapNpcs(int SnappingClient)
+{
+	(void)SnappingClient;
+	for(int i = 0; i < MAX_NPCS; i++)
 	{
-		if(!m_apPlayers[i])
-		{
-			Server()->AddZombie(i);
-			return;
-		}
+		if(!m_aNpcs[i].m_Used)
+			continue;
+
+		CNetObj_NpcInfo *pInfo = static_cast<CNetObj_NpcInfo *>(
+			Server()->SnapNewItem(NETOBJTYPE_NPCINFO, i, sizeof(CNetObj_NpcInfo)));
+		if(!pInfo)
+			continue;
+
+		const char *pName = m_aNpcs[i].m_AISkin.m_aName;
+		if(m_aNpcs[i].m_pCharacter && m_aNpcs[i].m_pCharacter->m_AISkin.m_aName[0])
+			pName = m_aNpcs[i].m_pCharacter->m_AISkin.m_aName;
+		StrToInts(&pInfo->m_Name0, 4, pName);
+		pInfo->m_Score = m_aNpcs[i].m_Score;
+		pInfo->m_Team = m_aNpcs[i].m_Team;
 	}
-	*/
-	Server()->AddZombie();
+}
+
+void CGameContext::TickNpcs()
+{
+	for(int i = 0; i < MAX_NPCS; i++)
+	{
+		CNpcSlot *pSlot = &m_aNpcs[i];
+		if(!pSlot->m_Used)
+			continue;
+
+		if(pSlot->m_pCharacter && pSlot->m_pCharacter->ToBeKicked())
+			pSlot->m_ToBeKicked = true;
+
+		if(pSlot->m_pCharacter && !pSlot->m_pCharacter->IsAlive())
+		{
+			if(g_Config.m_SvSurvivalMode)
+				pSlot->m_RespawnTick = Server()->Tick();
+			else
+				pSlot->m_RespawnTick = Server()->Tick() + Server()->TickSpeed() * g_Config.m_SvRespawnDelay;
+			delete pSlot->m_pCharacter;
+			pSlot->m_pCharacter = 0;
+			pSlot->m_Spawning = !pSlot->m_ToBeKicked;
+		}
+
+		if(pSlot->m_ToBeKicked)
+		{
+			if(pSlot->m_pCharacter)
+			{
+				if(pSlot->m_pCharacter->IsAlive())
+					pSlot->m_pCharacter->Die(CAttackSource::World(WEAPON_WORLD, -1), true);
+				delete pSlot->m_pCharacter;
+				pSlot->m_pCharacter = 0;
+			}
+			pSlot->m_Used = false;
+			pSlot->m_Spawning = false;
+			pSlot->m_ToBeKicked = false;
+			continue;
+		}
+
+		if(pSlot->m_Spawning && pSlot->m_RespawnTick <= Server()->Tick())
+			TrySpawnNpc(i);
+	}
+}
+
+void CGameContext::TriggerBotAI(int TriggerLevel)
+{
+	for(int i = 0; i < MAX_NPCS; i++)
+	{
+		CCharacter *pChr = m_aNpcs[i].m_pCharacter;
+		if(pChr && pChr->m_pAI)
+			pChr->m_pAI->Trigger(TriggerLevel);
+	}
 }
 
 int CGameContext::CountBots(bool SkipSpecialTees)
 {
 	int n = 0;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_NPCS; i++)
 	{
-		if(IsBot(i))
+		if(!m_aNpcs[i].m_Used)
+			continue;
+		if(SkipSpecialTees)
 		{
-			if(SkipSpecialTees)
-			{
-				if(m_apPlayers[i]->m_pAI && m_apPlayers[i]->m_pAI->m_Special < 0)
-					n++;
-			}
-			else
+			CCharacter *pChr = m_aNpcs[i].m_pCharacter;
+			if(pChr && pChr->m_pAI && pChr->m_pAI->m_Special < 0)
 				n++;
 		}
+		else
+			n++;
 	}
 
 	return n;
@@ -4454,18 +4633,18 @@ int CGameContext::CountBotsAlive(bool SkipSpecialTees)
 {
 	int n = 0;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_NPCS; i++)
 	{
-		if(IsBot(i) && m_apPlayers[i]->GetCharacter() && m_apPlayers[i]->GetCharacter()->IsAlive())
+		CCharacter *pChr = m_aNpcs[i].m_pCharacter;
+		if(!pChr || !pChr->IsAlive())
+			continue;
+		if(SkipSpecialTees)
 		{
-			if(SkipSpecialTees)
-			{
-				if(m_apPlayers[i]->m_pAI && m_apPlayers[i]->m_pAI->m_Special < 0)
-					n++;
-			}
-			else
+			if(pChr->m_pAI && pChr->m_pAI->m_Special < 0)
 				n++;
 		}
+		else
+			n++;
 	}
 
 	return n;
@@ -4509,6 +4688,8 @@ vec2 CGameContext::GetNearHumanSpawnPos(bool AllowVision)
 	while(n++ < 50)
 	{
 		vec2 Pos = Collision()->GetRandomWaypointPos();
+		if(Collision()->IsInFluid(Pos.x, Pos.y) || Collision()->IsInFluid(Pos.x, Pos.y + 32.0f))
+			continue;
 
 		bool Valid = true;
 		int MinDist = 10000;
@@ -4557,6 +4738,8 @@ vec2 CGameContext::GetFarHumanSpawnPos(bool AllowVision)
 	while(n++ < 50)
 	{
 		vec2 Pos = Collision()->GetRandomWaypointPos();
+		if(Collision()->IsInFluid(Pos.x, Pos.y) || Collision()->IsInFluid(Pos.x, Pos.y + 32.0f))
+			continue;
 
 		bool Valid = true;
 		int MaxDist = 1;
@@ -4594,6 +4777,30 @@ vec2 CGameContext::GetFarHumanSpawnPos(bool AllowVision)
 		}
 	}
 	return ReturnPos;
+}
+
+vec2 CGameContext::GetFarSafeStandPos(vec2 From)
+{
+	CCollision *pCol = Collision();
+	vec2 Best = vec2(0, 0);
+	float BestScore = -1.0f;
+	const int Count = pCol->WaypointCount();
+	for(int i = 0; i < Count; i++)
+	{
+		vec2 Raw = pCol->GetWaypointPos(i);
+		if(Raw.x == 0.0f && Raw.y == 0.0f)
+			continue;
+		vec2 Cand = pCol->SnapToStandPos(Raw);
+		if(!pCol->IsSafeStandPos(Cand))
+			continue;
+		float Score = (From.x == 0.0f && From.y == 0.0f) ? Cand.x : distance(Cand, From);
+		if(Score > BestScore)
+		{
+			BestScore = Score;
+			Best = Cand;
+		}
+	}
+	return Best;
 }
 
 // MapGen

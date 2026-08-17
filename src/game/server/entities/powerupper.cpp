@@ -72,9 +72,9 @@ void CPowerupper::Tick()
 	// give buff to player
 	if(m_Item >= 0)
 	{
-		CCharacter *apEnts[MAX_CLIENTS];
+		CCharacter *apEnts[MAX_CHARACTERS];
 		int Num = GameServer()->m_World.FindEntities(
-			m_Pos + vec2(0, -24), 16.0f, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+			m_Pos + vec2(0, -24), 16.0f, (CEntity **)apEnts, MAX_CHARACTERS, CGameWorld::ENTTYPE_CHARACTER);
 
 		int Bots = 0;
 		bool Taken = false;

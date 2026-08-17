@@ -32,14 +32,10 @@ void CTeslaStar::Reset()
 
 CCharacter *CTeslaStar::ValidTarget(int ClientID)
 {
-	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+	if(ClientID < 0 || ClientID >= MAX_CHARACTERS)
 		return nullptr;
 
-	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
-	if(!pPlayer)
-		return nullptr;
-
-	CCharacter *pCharacter = pPlayer->GetCharacter();
+	CCharacter *pCharacter = GameServer()->GetPlayerChar(ClientID);
 	if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
 		return nullptr;
 
@@ -54,7 +50,7 @@ int CTeslaStar::FindNextTarget(const bool *pHit, const vec2 &From)
 	int BestClientID = -1;
 	float BestDistanceSquared = TESLASTAR_HOP_RANGE * TESLASTAR_HOP_RANGE;
 
-	for(int ClientID = 0; ClientID < MAX_CLIENTS; ++ClientID)
+	for(int ClientID = 0; ClientID < MAX_CHARACTERS; ++ClientID)
 	{
 		if(pHit[ClientID])
 			continue;
@@ -101,7 +97,7 @@ void CTeslaStar::Fire()
 		return;
 
 	const int BaseDamage = max(1, (int)(min(Combat.m_ProjectileDamage, (float)TESLASTAR_MAX_PROFILE_DAMAGE) + 0.5f));
-	bool aHit[MAX_CLIENTS] = {false};
+	bool aHit[MAX_CHARACTERS] = {false};
 	int ClientID = m_TargetIndex;
 	int Damage = BaseDamage;
 	vec2 From = Origin;

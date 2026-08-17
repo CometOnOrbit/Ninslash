@@ -75,7 +75,7 @@ void CCustomStuff::Reset()
 
 	m_LocalTeam = TEAM_SPECTATORS;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 		m_aPlayerInfo[i].Reset();
 
 	for(int i = 0; i < MAX_DROIDS; i++)
@@ -184,7 +184,7 @@ CDroidAnim *CCustomStuff::GetDroidAnim(int Index)
 
 bool CCustomStuff::IsBot(int ClientID)
 {
-	if(ClientID < 0 && ClientID >= MAX_CLIENTS)
+	if(ClientID < 0 || ClientID >= MAX_CHARACTERS)
 		return false;
 
 	return m_aPlayerInfo[ClientID].m_RenderInfo.m_IsBot;
@@ -192,10 +192,7 @@ bool CCustomStuff::IsBot(int ClientID)
 
 vec4 CCustomStuff::BloodColor(int ClientID)
 {
-	// if (ClientID >= 0 && ClientID < MAX_CLIENTS)
-	//	return m_aPlayerInfo[ClientID].m_RenderInfo.m_ColorSkin;
-
-	if(ClientID < 0 && ClientID >= MAX_CLIENTS)
+	if(ClientID < 0 || ClientID >= MAX_CHARACTERS)
 		return vec4(1, 0, 0, 1);
 
 	int c = m_aPlayerInfo[ClientID].m_RenderInfo.m_BloodColor;
@@ -254,7 +251,7 @@ void CCustomStuff::Tick(bool Paused)
 
 	if(!Paused)
 	{
-		for(int i = 0; i < MAX_CLIENTS; i++)
+		for(int i = 0; i < MAX_CHARACTERS; i++)
 			m_aPlayerInfo[i].Tick();
 
 		for(int i = 0; i < MAX_DROIDS; i++)

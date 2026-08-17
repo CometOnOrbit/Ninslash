@@ -74,6 +74,7 @@ class CChat : public CComponent
 	static void ConWhisper(IConsole::IResult *pResult, void *pUserData);
 	static void ConChat(IConsole::IResult *pResult, void *pUserData);
 	static void ConShowChat(IConsole::IResult *pResult, void *pUserData);
+	static void ConDroid(IConsole::IResult *pResult, void *pUserData);
 
   public:
 	CChat();

@@ -1,7 +1,7 @@
 #include "alien2_ai.h"
 
-CAIalien2::CAIalien2(CGameContext *pGameServer, CPlayer *pPlayer, int Level, EInvasionSkinId ProfileId) :
-	CInvasionAI(pGameServer, pPlayer, Level, ProfileId)
+CAIalien2::CAIalien2(CGameContext *pGameServer, CCharacter *pCharacter, int Level, EInvasionSkinId ProfileId) :
+	CInvasionAI(pGameServer, pCharacter, Level, ProfileId)
 {
 }
 

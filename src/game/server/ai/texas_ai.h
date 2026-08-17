@@ -6,7 +6,7 @@
 class CAItexas : public CAI
 {
   public:
-	CAItexas(CGameContext *pGameServer, CPlayer *pPlayer);
+	CAItexas(CGameContext *pGameServer, CCharacter *pCharacter);
 
 	virtual void DoBehavior();
 	void OnCharacterSpawn(class CCharacter *pChr);

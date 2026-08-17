@@ -7,10 +7,10 @@
 
 #include "tdm_ai.h"
 
-CAItdm::CAItdm(CGameContext *pGameServer, CPlayer *pPlayer) : CAI(pGameServer, pPlayer)
+CAItdm::CAItdm(CGameContext *pGameServer, CCharacter *pCharacter) : CAI(pGameServer, pCharacter)
 {
 	m_SkipMoveUpdate = 0;
-	pPlayer->SetRandomSkin();
+	pCharacter->SetRandomSkin();
 }
 
 void CAItdm::OnCharacterSpawn(CCharacter *pChr)

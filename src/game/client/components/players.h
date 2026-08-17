@@ -4,7 +4,7 @@
 
 class CPlayers : public CComponent
 {
-	CTeeRenderInfo m_aRenderInfo[MAX_CLIENTS];
+	CTeeRenderInfo m_aRenderInfo[MAX_CHARACTERS];
 	void RenderHand(class CTeeRenderInfo *pInfo, vec2 CenterPos, vec2 Dir, float AngleOffset, vec2 PostRotOffset);
 	void RenderPlayer(const CNetObj_Character *pPrevChar,
 					  const CNetObj_Character *pPlayerChar,

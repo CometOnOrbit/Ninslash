@@ -24,9 +24,10 @@ class CWalker : public CDroid
 	};
 
   private:
+	bool TickControlled() override;
 	bool FindTarget();
 	bool Target();
-	void Fire();
+	void Fire() override;
 };
 
 #endif

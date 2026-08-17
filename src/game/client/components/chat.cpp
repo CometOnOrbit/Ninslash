@@ -85,6 +85,11 @@ void CChat::ConSay(IConsole::IResult *pResult, void *pUserData)
 	((CChat *)pUserData)->Say(MODE_ALL, pResult->GetString(0));
 }
 
+void CChat::ConDroid(IConsole::IResult *pResult, void *pUserData)
+{
+	((CChat *)pUserData)->Say(MODE_ALL, "/droid");
+}
+
 void CChat::ConSayTeam(IConsole::IResult *pResult, void *pUserData)
 {
 	((CChat *)pUserData)->Say(MODE_TEAM, pResult->GetString(0));
@@ -122,6 +127,7 @@ void CChat::OnConsoleInit()
 	Console()->Register("whisper", "", CFGFLAG_CLIENT, ConWhisper, this, "Open whisper chat");
 	Console()->Register("chat", "s", CFGFLAG_CLIENT, ConChat, this, "Enable chat with all/team/whisper mode");
 	Console()->Register("+show_chat", "", CFGFLAG_CLIENT, ConShowChat, this, "Show chat");
+	Console()->Register("droid", "", CFGFLAG_CLIENT, ConDroid, this, "Possess or release a nearby droid");
 }
 
 bool CChat::OnInput(IInput::CEvent Event)

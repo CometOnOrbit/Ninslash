@@ -6,7 +6,7 @@
 class CAIrobot2 : public CInvasionAI
 {
   public:
-	CAIrobot2(CGameContext *pGameServer, CPlayer *pPlayer, int Level = 0,
+	CAIrobot2(CGameContext *pGameServer, CCharacter *pCharacter, int Level = 0,
 		EInvasionSkinId ProfileId = INVASION_SKIN_CYBORG_GUNNER);
 
 	void DoBehavior() override;

@@ -12,10 +12,25 @@
 #include <game/server/player.h>
 #include "gamecontext.h"
 
-CAI::CAI(CGameContext *pGameServer, CPlayer *pPlayer)
+namespace {
+
+bool SkipAiEnemy(CGameContext *pGame, CCharacter *pSelf, CCharacter *pCharacter)
+{
+	if(!pCharacter || pCharacter == pSelf || !pCharacter->IsAlive() || pCharacter->Invisible())
+		return true;
+	if(pGame->m_pController->IsTeamplay() && pCharacter->GetTeam() == pSelf->GetTeam())
+		return true;
+	if(pGame->m_pController->IsCoop() && pCharacter->m_IsBot)
+		return true;
+	return false;
+}
+
+} // namespace
+
+CAI::CAI(CGameContext *pGameServer, CCharacter *pCharacter)
 {
 	m_pGameServer = pGameServer;
-	m_pPlayer = pPlayer;
+	m_pCharacter = pCharacter;
 	m_pTargetPlayer = 0;
 
 	m_pPath = 0;
@@ -28,6 +43,17 @@ CAI::CAI(CGameContext *pGameServer, CPlayer *pPlayer)
 	ResetEvents();
 
 	Reset();
+}
+
+
+bool CAI::IsSelf(CPlayer *pPlayer) const
+{
+	return pPlayer && pPlayer->GetCharacter() == m_pCharacter;
+}
+
+bool CAI::IsSelf(CCharacter *pChr) const
+{
+	return pChr == m_pCharacter;
 }
 
 CAI::~CAI()
@@ -227,7 +253,7 @@ void CAI::Zzz(int Time)
 	{
 		m_Sleep = Time;
 		Player()->GetCharacter()->SetEmoteFor(EMOTE_HAPPY, Time * 17, Time * 17, true);
-		GameServer()->SendEmoticon(Player()->GetCID(), EMOTICON_ZZZ);
+		GameServer()->SendEmoticon(Player()->CoreIndex(), EMOTICON_ZZZ);
 	}
 }
 
@@ -1235,10 +1261,10 @@ void CAI::ReactToPlayer()
 		switch(rand() % 3)
 		{
 			case 0:
-				GameServer()->SendEmoticon(Player()->GetCID(), EMOTICON_SPLATTEE);
+				GameServer()->SendEmoticon(Player()->CoreIndex(), EMOTICON_SPLATTEE);
 				break;
 			case 1:
-				GameServer()->SendEmoticon(Player()->GetCID(), EMOTICON_EXCLAMATION);
+				GameServer()->SendEmoticon(Player()->CoreIndex(), EMOTICON_EXCLAMATION);
 				break;
 			default: /*__*/;
 		}
@@ -1249,10 +1275,10 @@ void CAI::ReactToPlayer()
 		switch(rand() % 3)
 		{
 			case 0:
-				GameServer()->SendEmoticon(Player()->GetCID(), EMOTICON_ZOMG);
+				GameServer()->SendEmoticon(Player()->CoreIndex(), EMOTICON_ZOMG);
 				break;
 			case 1:
-				GameServer()->SendEmoticon(Player()->GetCID(), EMOTICON_WTF);
+				GameServer()->SendEmoticon(Player()->CoreIndex(), EMOTICON_WTF);
 				break;
 			default: /*__*/;
 		}
@@ -1290,7 +1316,7 @@ void CAI::ShootAtBlocks()
 
 bool CAI::HasLineOfSight(CCharacter *pCharacter)
 {
-	if(!pCharacter || !pCharacter->GetPlayer())
+	if(!pCharacter)
 		return false;
 
 	const int Tick = GameServer()->Server()->Tick();
@@ -1300,7 +1326,7 @@ bool CAI::HasLineOfSight(CCharacter *pCharacter)
 		mem_zero(m_aLineOfSightCache, sizeof(m_aLineOfSightCache));
 	}
 
-	const int ClientID = pCharacter->GetPlayer()->GetCID();
+	const int ClientID = pCharacter->GetCID();
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos, m_LastPos);
 
@@ -1325,7 +1351,7 @@ void CAI::ShootAtClosestHuman()
 		if(!pPlayer)
 			continue;
 
-		if(pPlayer == Player())
+		if(IsSelf(pPlayer))
 			continue;
 
 		if(pPlayer->m_IsBot)
@@ -1393,26 +1419,10 @@ bool CAI::ShootAtClosestEnemy()
 	m_EnemyInLine = false;
 
 	// FIRST_BOT_ID, fix
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		if(pPlayer == Player())
-			continue;
-
-		if(pPlayer->GetTeam() == Player()->GetTeam() && GameServer()->m_pController->IsTeamplay())
-			continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
-		if(!pCharacter)
-			continue;
-
-		if(!pCharacter->IsAlive() || pCharacter->Invisible())
-			continue;
-
-		if(GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
+		CCharacter *pCharacter = GameServer()->GetCoreChar(i);
+		if(SkipAiEnemy(GameServer(), Player(), pCharacter))
 			continue;
 
 		const vec2 Delta = pCharacter->m_Pos - m_LastPos;
@@ -1668,7 +1678,7 @@ bool CAI::SeekRandomHuman()
 		if(!pPlayer)
 			continue;
 
-		if(pPlayer == Player())
+		if(IsSelf(pPlayer))
 			continue;
 
 		if(pPlayer->m_IsBot)
@@ -1710,7 +1720,7 @@ bool CAI::SeekRandomEnemy()
 		if(!pPlayer)
 			continue;
 
-		if(pPlayer == Player())
+		if(IsSelf(pPlayer))
 			continue;
 
 		if(pPlayer->GetTeam() == Player()->GetTeam() && GameServer()->m_pController->IsTeamplay())
@@ -1750,23 +1760,13 @@ bool CAI::SeekClosestFriend(bool OnlyUnharmed)
 	int ClosestDistance = 0;
 
 	// FIRST_BOT_ID, fix
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
+		CCharacter *pCharacter = GameServer()->GetCoreChar(i);
+		if(!pCharacter || IsSelf(pCharacter) || !pCharacter->IsAlive())
 			continue;
 
-		if(pPlayer == Player())
-			continue;
-
-		if(pPlayer->GetTeam() != Player()->GetTeam() || !GameServer()->m_pController->IsTeamplay())
-			continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
-		if(!pCharacter)
-			continue;
-
-		if(!pCharacter->IsAlive())
+		if(pCharacter->GetTeam() != Player()->GetTeam() || !GameServer()->m_pController->IsTeamplay())
 			continue;
 
 		if(OnlyUnharmed)
@@ -1878,7 +1878,7 @@ bool CAI::SeekClosestHuman()
 		if(!pPlayer)
 			continue;
 
-		if(pPlayer == Player() || GameServer()->IsBot(i))
+		if(IsSelf(pPlayer) || GameServer()->IsBot(i))
 			continue;
 
 		if(pPlayer->GetTeam() == Player()->GetTeam() && GameServer()->m_pController->IsTeamplay())
@@ -1916,26 +1916,10 @@ bool CAI::SeekClosestEnemy()
 	int ClosestDistance = 0;
 
 	// FIRST_BOT_ID, fix
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		if(pPlayer == Player())
-			continue;
-
-		if(pPlayer->GetTeam() == Player()->GetTeam() && GameServer()->m_pController->IsTeamplay())
-			continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
-		if(!pCharacter)
-			continue;
-
-		if(!pCharacter->IsAlive() || pCharacter->Invisible())
-			continue;
-
-		if(GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
+		CCharacter *pCharacter = GameServer()->GetCoreChar(i);
+		if(SkipAiEnemy(GameServer(), Player(), pCharacter))
 			continue;
 
 		int Distance = distance(pCharacter->m_Pos, m_LastPos);
@@ -1972,7 +1956,7 @@ bool CAI::SeekClosestHumanInSight()
 		if(!pPlayer)
 			continue;
 
-		if(pPlayer == Player())
+		if(IsSelf(pPlayer))
 			continue;
 
 		if(pPlayer->m_IsBot)
@@ -2024,26 +2008,10 @@ bool CAI::SeekClosestEnemyInSight()
 	m_EnemiesInSight = 0;
 
 	// FIRST_BOT_ID, fix
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		if(pPlayer == Player())
-			continue;
-
-		if(pPlayer->GetTeam() == Player()->GetTeam() && GameServer()->m_pController->IsTeamplay())
-			continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
-		if(!pCharacter)
-			continue;
-
-		if(!pCharacter->IsAlive() || pCharacter->Invisible())
-			continue;
-
-		if(GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
+		CCharacter *pCharacter = GameServer()->GetCoreChar(i);
+		if(SkipAiEnemy(GameServer(), Player(), pCharacter))
 			continue;
 
 		const vec2 Delta = pCharacter->m_Pos - m_LastPos;
@@ -2081,13 +2049,13 @@ void CAI::UseItems()
 	if(m_ItemUseTick < GameServer()->Server()->Tick())
 	{
 		m_ItemUseTick = GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * 5 * frandom();
-		// m_pPlayer->SelectItem(rand()%NUM_PLAYERITEMS);
+		// Player()->SelectItem(rand()%NUM_PLAYERITEMS);
 
-		if(m_pPlayer->GetCharacter())
-			m_pPlayer->GetCharacter()->RandomizeInventory();
+		if(Player()->GetCharacter())
+			Player()->GetCharacter()->RandomizeInventory();
 	}
 
-	if(m_pPlayer->GetCharacter() && !m_pPlayer->GetCharacter()->GetWeapon())
+	if(Player()->GetCharacter() && !Player()->GetCharacter()->GetWeapon())
 		m_ItemUseTick =
 			min(0.0f + m_ItemUseTick, GameServer()->Server()->Tick() + GameServer()->Server()->TickSpeed() * 0.5f);
 }
@@ -2097,8 +2065,8 @@ void CAI::Tick()
 	m_NextReaction--;
 
 	// character check & position update
-	if(m_pPlayer->GetCharacter())
-		m_Pos = m_pPlayer->GetCharacter()->m_Pos;
+	if(Player()->GetCharacter())
+		m_Pos = Player()->GetCharacter()->m_Pos;
 	else
 		return;
 
@@ -2180,8 +2148,8 @@ void CAI::Tick()
 			m_Down = 1;
 		}
 
-		if(m_pPlayer->GetCharacter())
-			m_LastPos = m_pPlayer->GetCharacter()->m_Pos;
+		if(Player()->GetCharacter())
+			m_LastPos = Player()->GetCharacter()->m_Pos;
 		m_LastMove = m_Move;
 		m_LastJump = m_Jump;
 		m_LastAttack = m_Attack;
