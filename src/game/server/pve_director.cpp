@@ -571,10 +571,31 @@ void CPveDirector::FinishContractVote()
 	if(m_ActiveContract == PVE_CONTRACT_BLACK_BOX)
 	{
 		m_ContractTarget = 3;
-		m_BlackBoxPos = m_pGameServer->GetFarHumanSpawnPos(true);
+		vec2 From = vec2(0, 0);
+		int Humans = 0;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+		{
+			if(!IsEligiblePlayer(i))
+				continue;
+			CCharacter *pChr = m_pGameServer->GetPlayerChar(i);
+			if(!pChr || !pChr->IsAlive())
+				continue;
+			From += pChr->m_Pos;
+			Humans++;
+		}
+		if(Humans > 0)
+			From /= Humans;
+		m_BlackBoxPos = m_pGameServer->GetFarSafeStandPos(From);
+		if(!m_pGameServer->Collision()->IsSafeStandPos(m_BlackBoxPos))
+			m_BlackBoxPos = m_pGameServer->Collision()->SnapToStandPos(m_pGameServer->GetFarHumanSpawnPos(true));
+		if(!m_pGameServer->Collision()->IsSafeStandPos(m_BlackBoxPos) && Humans > 0)
+			m_BlackBoxPos = From;
 		m_BlackBoxHoldTicks = 0;
-		m_pBlackBoxRadar = new CServerRadar(&m_pGameServer->m_World, RADAR_REACTOR);
-		m_pBlackBoxRadar->Activate(m_BlackBoxPos);
+		if(m_pGameServer->Collision()->IsSafeStandPos(m_BlackBoxPos) || Humans > 0)
+		{
+			m_pBlackBoxRadar = new CServerRadar(&m_pGameServer->m_World, RADAR_REACTOR);
+			m_pBlackBoxRadar->Activate(m_BlackBoxPos);
+		}
 	}
 	SendContractStatus();
 	m_pGameServer->SendChatTarget(-1, "Team contract started");

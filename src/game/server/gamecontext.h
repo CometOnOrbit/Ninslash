@@ -352,6 +352,7 @@ class CGameContext : public IGameServer
 
 	vec2 GetNearHumanSpawnPos(bool AllowVision = false);
 	vec2 GetFarHumanSpawnPos(bool AllowVision = false);
+	vec2 GetFarSafeStandPos(vec2 From);
 	int DistanceToHuman(vec2 Pos);
 
 	void AddBot();

@@ -678,8 +678,9 @@ static ivec2 FindStandableFallback(CGenLayer *pTiles, bool PreferBottom)
 	for(int y = yStart; (PreferBottom ? y > yEnd : y < yEnd) && p.x == 0; y += yStep)
 		for(int x = 3; x < w - 3; x++)
 		{
-			if(!pTiles->Get(x, y) && !pTiles->Used(x, y) && pTiles->Get(x, y + 1) && pTiles->Get(x - 1, y + 1) &&
-			   pTiles->Get(x + 1, y + 1) && !pTiles->Get(x, y - 1) && !pTiles->Get(x, y - 2))
+			if(!pTiles->Get(x, y) && !pTiles->Used(x, y) && !pTiles->InPit(x, y) && pTiles->Get(x, y + 1) &&
+			   pTiles->Get(x - 1, y + 1) && pTiles->Get(x + 1, y + 1) && !pTiles->Get(x, y - 1) &&
+			   !pTiles->Get(x, y - 2))
 			{
 				p = ivec2(x, y);
 				break;
@@ -688,30 +689,36 @@ static ivec2 FindStandableFallback(CGenLayer *pTiles, bool PreferBottom)
 	return p;
 }
 
+static bool SwitchSpotOk(CGenLayer *pTiles, ivec2 p)
+{
+	return p.x != 0 && !pTiles->InPit(p.x, p.y) && !pTiles->InPit(p.x, p.y + 1);
+}
+
 bool CMapGen::GenerateSwitch(CGenLayer *pTiles)
 {
 	ivec2 p = ivec2(0, 0);
 	const int Theme = InvasionThemeFromLevel(g_Config.m_SvMapGenLevel);
 
-	if(Theme == INVASION_THEME_ACID_ESCAPE)
-		p = pTiles->GetBotPlatform();
-	else
-		p = pTiles->GetPlatform();
+	for(int Tries = 0; Tries < 8 && !SwitchSpotOk(pTiles, p); Tries++)
+	{
+		if(Theme == INVASION_THEME_ACID_ESCAPE)
+			p = pTiles->GetBotPlatform();
+		else
+			p = pTiles->GetPlatform();
 
-	if(p.x == 0)
-		p = pTiles->GetPlatform();
-	if(p.x == 0)
-		p = pTiles->GetLeftPlatform();
-	if(p.x == 0)
-		p = pTiles->GetMedPlatform();
-	if(p.x == 0)
-		p = pTiles->GetBotPlatform();
+		if(!SwitchSpotOk(pTiles, p))
+			p = pTiles->GetPlatform();
+		if(!SwitchSpotOk(pTiles, p))
+			p = pTiles->GetLeftPlatform();
+		if(!SwitchSpotOk(pTiles, p))
+			p = pTiles->GetMedPlatform();
+		if(!SwitchSpotOk(pTiles, p))
+			p = pTiles->GetBotPlatform();
+		if(!SwitchSpotOk(pTiles, p))
+			p = FindStandableFallback(pTiles, Theme == INVASION_THEME_ACID_ESCAPE);
+	}
 
-	// last resort: scan for any standable tile (escape prefers bottom)
-	if(p.x == 0)
-		p = FindStandableFallback(pTiles, Theme == INVASION_THEME_ACID_ESCAPE);
-
-	if(p.x == 0)
+	if(!SwitchSpotOk(pTiles, p))
 	{
 		dbg_msg("mapgen", "GenerateSwitch failed: no platform found");
 		return false;
@@ -1146,6 +1153,20 @@ void CMapGen::GenerateAcid(CGenLayer *pTiles)
 	if(p.x == 0)
 		return;
 
+	const CTile *pGame = m_pCollision->GetTiles();
+	const int W = m_pCollision->GetWidth();
+	const int H = m_pCollision->GetHeight();
+	for(int x = p.x; x < p.z; x++)
+	{
+		for(int y = p.y; y < p.w; y++)
+		{
+			if(x < 0 || y < 0 || x >= W || y >= H)
+				continue;
+			if(pGame[y * W + x].m_Index >= ENTITY_OFFSET)
+				return;
+		}
+	}
+
 	for(int x = p.x; x < p.z; x++)
 		for(int y = p.y; y < p.w; y++)
 		{
@@ -1359,7 +1380,7 @@ void CMapGen::GenerateLevel()
 		// 3–5 switches, spread across the maze
 		auto PlaceSwitchAt = [&](ivec2 p) -> bool
 		{
-			if(p.x == 0)
+			if(!SwitchSpotOk(pTiles, p))
 				return false;
 			ModifTile(p, m_pLayers->GetGameLayerIndex(), ENTITY_OFFSET + ENTITY_SWITCH);
 			pTiles->Use(p.x, p.y);

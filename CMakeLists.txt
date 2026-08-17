@@ -837,6 +837,11 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_npc_slots PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   add_test(NAME npc_slots COMMAND ninslash_test_npc_slots)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_npc_slots)
+  add_executable(ninslash_test_objective_stand
+    tests/objective_stand.cpp
+  )
+  add_test(NAME objective_stand COMMAND ninslash_test_objective_stand)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_objective_stand)
   add_executable(ninslash_test_droid_control
     tests/droid_control.cpp
   )

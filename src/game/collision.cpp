@@ -198,6 +198,53 @@ vec2 CCollision::GetRandomWaypointPos()
 	return vec2(0, 0);
 }
 
+vec2 CCollision::GetWaypointPos(int Index)
+{
+	if(Index < 0 || Index >= m_WaypointCount || !m_apWaypoint[Index])
+		return vec2(0, 0);
+	return m_apWaypoint[Index]->m_Pos;
+}
+
+bool CCollision::IsSafeStandPos(vec2 Pos)
+{
+	if(TestBox(Pos, vec2(28.0f, 50.0f)))
+		return false;
+	if(!CheckPoint(Pos + vec2(0, 46)))
+		return false;
+	if(IsInFluid(Pos.x, Pos.y) || IsInFluid(Pos.x, Pos.y + 24.0f) || IsInFluid(Pos.x, Pos.y + 40.0f))
+		return false;
+	return true;
+}
+
+vec2 CCollision::SnapToStandPos(vec2 Pos)
+{
+	vec2 From = Pos - vec2(0, 120);
+	vec2 To = Pos + vec2(0, 1000);
+	vec2 Hit, Before;
+	if(!IntersectLine(From, To, &Hit, &Before))
+		return Pos;
+
+	vec2 Grounded = Before - vec2(0, 42);
+	if(IsSafeStandPos(Grounded))
+		return Grounded;
+
+	for(int dx = -4; dx <= 4; dx++)
+	{
+		if(dx == 0)
+			continue;
+		vec2 Try = Grounded + vec2(dx * 20.0f, 0);
+		vec2 TryFrom = Try - vec2(0, 80);
+		vec2 TryTo = Try + vec2(0, 400);
+		vec2 TryHit, TryBefore;
+		if(!IntersectLine(TryFrom, TryTo, &TryHit, &TryBefore))
+			continue;
+		Try = TryBefore - vec2(0, 42);
+		if(IsSafeStandPos(Try))
+			return Try;
+	}
+	return Pos;
+}
+
 void CCollision::ClearWaypoints()
 {
 	m_WaypointCount = 0;

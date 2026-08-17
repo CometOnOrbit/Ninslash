@@ -4688,6 +4688,8 @@ vec2 CGameContext::GetNearHumanSpawnPos(bool AllowVision)
 	while(n++ < 50)
 	{
 		vec2 Pos = Collision()->GetRandomWaypointPos();
+		if(Collision()->IsInFluid(Pos.x, Pos.y) || Collision()->IsInFluid(Pos.x, Pos.y + 32.0f))
+			continue;
 
 		bool Valid = true;
 		int MinDist = 10000;
@@ -4736,6 +4738,8 @@ vec2 CGameContext::GetFarHumanSpawnPos(bool AllowVision)
 	while(n++ < 50)
 	{
 		vec2 Pos = Collision()->GetRandomWaypointPos();
+		if(Collision()->IsInFluid(Pos.x, Pos.y) || Collision()->IsInFluid(Pos.x, Pos.y + 32.0f))
+			continue;
 
 		bool Valid = true;
 		int MaxDist = 1;
@@ -4773,6 +4777,30 @@ vec2 CGameContext::GetFarHumanSpawnPos(bool AllowVision)
 		}
 	}
 	return ReturnPos;
+}
+
+vec2 CGameContext::GetFarSafeStandPos(vec2 From)
+{
+	CCollision *pCol = Collision();
+	vec2 Best = vec2(0, 0);
+	float BestScore = -1.0f;
+	const int Count = pCol->WaypointCount();
+	for(int i = 0; i < Count; i++)
+	{
+		vec2 Raw = pCol->GetWaypointPos(i);
+		if(Raw.x == 0.0f && Raw.y == 0.0f)
+			continue;
+		vec2 Cand = pCol->SnapToStandPos(Raw);
+		if(!pCol->IsSafeStandPos(Cand))
+			continue;
+		float Score = (From.x == 0.0f && From.y == 0.0f) ? Cand.x : distance(Cand, From);
+		if(Score > BestScore)
+		{
+			BestScore = Score;
+			Best = Cand;
+		}
+	}
+	return Best;
 }
 
 // MapGen

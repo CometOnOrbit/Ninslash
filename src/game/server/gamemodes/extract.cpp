@@ -905,12 +905,20 @@ void CGameControllerExtract::Tick()
 				for(int Extra = 0; Extra < ExtraSwitches; Extra++)
 				{
 					vec2 Pos;
-					if(!GetSpawnPos(0, &Pos))
-						Pos = vec2(4000.0f + Extra * 96.0f, 4000.0f);
-					new CBuilding(&GameServer()->m_World, Pos, BUILDING_SWITCH, TEAM_NEUTRAL);
-					m_AvailableSwitches++;
-					CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
-					pRadar->Activate(Pos);
+					bool Placed = false;
+					for(int Tries = 0; Tries < m_NumEnemySpawnPos + 4 && !Placed; Tries++)
+					{
+						if(!GetSpawnPos(0, &Pos))
+							break;
+						Pos = GameServer()->Collision()->SnapToStandPos(Pos);
+						if(!GameServer()->Collision()->IsSafeStandPos(Pos))
+							continue;
+						new CBuilding(&GameServer()->m_World, Pos, BUILDING_SWITCH, TEAM_NEUTRAL);
+						m_AvailableSwitches++;
+						CServerRadar *pRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
+						pRadar->Activate(Pos);
+						Placed = true;
+					}
 				}
 			// Use the authoritative number actually placed on this generated map.
 			// Requiring an artificial minimum of two softlocked rare layouts where

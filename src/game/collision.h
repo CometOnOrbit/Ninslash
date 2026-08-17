@@ -120,6 +120,9 @@ class CCollision
 	void AddWeight(vec2 Pos, int Weight);
 
 	vec2 GetRandomWaypointPos();
+	vec2 GetWaypointPos(int Index);
+	bool IsSafeStandPos(vec2 Pos);
+	vec2 SnapToStandPos(vec2 Pos);
 
 	int m_Time;
 	bool m_GlobalAcid;

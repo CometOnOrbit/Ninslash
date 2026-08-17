@@ -1441,6 +1441,18 @@ ivec4 CGenLayer::GetPit()
 	return ivec4(0, 0, 0, 0);
 }
 
+bool CGenLayer::InPit(int x, int y)
+{
+	for(int i = 0; i < m_NumPits; i++)
+	{
+		if(m_aPit[i].x == 0)
+			continue;
+		if(x >= m_aPit[i].x && x < m_aPit[i].z && y >= m_aPit[i].y && y < m_aPit[i].w)
+			return true;
+	}
+	return false;
+}
+
 ivec2 CGenLayer::GetTopCorner()
 {
 	if(m_NumTopCorners <= 0)

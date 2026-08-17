@@ -193,6 +193,7 @@ class CGenLayer
 	ivec2 GetTopCorner();
 	ivec2 GetSharpCorner();
 	ivec4 GetPit();
+	bool InPit(int x, int y);
 
 	bool IsNearSlope(int x, int y);
 

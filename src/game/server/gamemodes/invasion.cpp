@@ -1025,39 +1025,12 @@ static const float INV_HOLD_ZONE_RY = 240.0f;
 
 static bool InvasionHoldPosStandable(CGameContext *pGameServer, vec2 Pos)
 {
-	return !pGameServer->Collision()->TestBox(Pos, vec2(28.0f, 50.0f)) &&
-		   pGameServer->Collision()->CheckPoint(Pos + vec2(0, 46));
+	return pGameServer->Collision()->IsSafeStandPos(Pos);
 }
 
 static vec2 InvasionSnapHoldPos(CGameContext *pGameServer, vec2 Pos)
 {
-	CCollision *pCol = pGameServer->Collision();
-	// Always drop to the floor — air waypoints are "empty" but not standable ground.
-	vec2 From = Pos - vec2(0, 120);
-	vec2 To = Pos + vec2(0, 1000);
-	vec2 Hit, Before;
-	if(!pCol->IntersectLine(From, To, &Hit, &Before))
-		return Pos;
-
-	vec2 Grounded = Before - vec2(0, 42);
-	if(InvasionHoldPosStandable(pGameServer, Grounded))
-		return Grounded;
-
-	for(int dx = -4; dx <= 4; dx++)
-	{
-		if(dx == 0)
-			continue;
-		vec2 Try = Grounded + vec2(dx * 20.0f, 0);
-		vec2 TryFrom = Try - vec2(0, 80);
-		vec2 TryTo = Try + vec2(0, 400);
-		vec2 TryHit, TryBefore;
-		if(!pCol->IntersectLine(TryFrom, TryTo, &TryHit, &TryBefore))
-			continue;
-		Try = TryBefore - vec2(0, 42);
-		if(InvasionHoldPosStandable(pGameServer, Try))
-			return Try;
-	}
-	return Grounded;
+	return pGameServer->Collision()->SnapToStandPos(Pos);
 }
 
 void CGameControllerInvasion::StartHoldZone()
@@ -1080,43 +1053,40 @@ void CGameControllerInvasion::StartHoldZone()
 	if(Humans > 0)
 		HumanAnchor /= Humans;
 
-	vec2 aCand[MAX_ENEMIES + 4];
-	int NumCand = 0;
-	for(int i = 0; i < m_NumEnemySpawnPos && NumCand < MAX_ENEMIES; i++)
-		aCand[NumCand++] = m_aEnemySpawnPos[i];
-
-	CSpawnEval Eval;
-	EvaluateSpawnType(&Eval, 0);
-	if(Eval.m_Got && NumCand < MAX_ENEMIES + 4)
-		aCand[NumCand++] = Eval.m_Pos;
-
-	vec2 Far = GameServer()->GetFarHumanSpawnPos(true);
-	if((Far.x != 0.0f || Far.y != 0.0f) && NumCand < MAX_ENEMIES + 4)
-		aCand[NumCand++] = Far;
-
+	CCollision *pCol = GameServer()->Collision();
 	vec2 BestPos = vec2(0, 0);
 	float BestScore = -1.0f;
-	for(int i = 0; i < NumCand; i++)
-	{
-		vec2 Cand = InvasionSnapHoldPos(GameServer(), aCand[i]);
+	auto Consider = [&](vec2 Raw) {
+		if(Raw.x == 0.0f && Raw.y == 0.0f)
+			return;
+		vec2 Cand = InvasionSnapHoldPos(GameServer(), Raw);
 		if(!InvasionHoldPosStandable(GameServer(), Cand))
-			continue;
-		// Prefer grounded points that are away from the party but still on a platform.
+			return;
 		float Score = Humans > 0 ? distance(Cand, HumanAnchor) : Cand.x;
 		if(Score > BestScore)
 		{
 			BestScore = Score;
 			BestPos = Cand;
 		}
-	}
+	};
+
+	for(int i = 0; i < m_NumEnemySpawnPos; i++)
+		Consider(m_aEnemySpawnPos[i]);
+
+	CSpawnEval Eval;
+	EvaluateSpawnType(&Eval, 0);
+	if(Eval.m_Got)
+		Consider(Eval.m_Pos);
+
+	Consider(GameServer()->GetFarHumanSpawnPos(true));
+	for(int i = 0; i < pCol->WaypointCount(); i++)
+		Consider(pCol->GetWaypointPos(i));
 
 	if(BestScore < 0.0f)
 	{
 		vec2 Fallback;
 		if(GetBossSpawnPos(&Fallback) || GetSpawnPos(0, &Fallback))
-			BestPos = InvasionSnapHoldPos(GameServer(), Fallback);
-		else
-			BestPos = InvasionSnapHoldPos(GameServer(), Far);
+			Consider(Fallback);
 	}
 
 	m_HoldZonePos = BestPos;
@@ -1124,8 +1094,7 @@ void CGameControllerInvasion::StartHoldZone()
 	m_HoldTicks = 0;
 	m_HoldWasOccupied = false;
 	m_HoldFxTick = Server()->Tick();
-	m_HoldZoneActive =
-		InvasionHoldPosStandable(GameServer(), m_HoldZonePos) || m_HoldZonePos.x != 0.0f || m_HoldZonePos.y != 0.0f;
+	m_HoldZoneActive = InvasionHoldPosStandable(GameServer(), m_HoldZonePos);
 	if(m_HoldZoneActive && m_pReactor)
 		m_pReactor->Activate(m_HoldZonePos);
 	if(m_HoldZoneActive)
