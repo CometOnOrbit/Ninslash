@@ -116,15 +116,17 @@ int CUI::Update(float Mx, float My, float Mwx, float Mwy, int Buttons)
 
 int CUI::MouseInside(const CUIRect *r)
 {
-	if(m_MouseX >= r->x && m_MouseX <= r->x + r->w && m_MouseY >= r->y && m_MouseY <= r->y + r->h)
-		return 1;
-	return 0;
+	return UiMouseInsideClipped(m_MouseX, m_MouseY, r, m_ClipDepth > 0 ? &m_aClipStack[m_ClipDepth - 1] : 0);
 }
 
 bool CUI::MouseHovered(const CUIRect *pRect) const
 {
-	return m_MouseX >= pRect->x && m_MouseX < pRect->x + pRect->w && m_MouseY >= pRect->y &&
-		   m_MouseY < pRect->y + pRect->h;
+	if(!(m_MouseX >= pRect->x && m_MouseX < pRect->x + pRect->w && m_MouseY >= pRect->y &&
+		   m_MouseY < pRect->y + pRect->h))
+		return false;
+	if(m_ClipDepth > 0 && !UiPointInRect(m_MouseX, m_MouseY, &m_aClipStack[m_ClipDepth - 1]))
+		return false;
+	return true;
 }
 
 bool CUI::KeyPress(int Key) const

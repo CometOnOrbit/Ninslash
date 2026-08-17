@@ -30,6 +30,20 @@ class CUIRect
 	void Draw(const vec4 &Color, float Rounding = 5.0f, int Corners = 0xF) const;
 };
 
+inline int UiPointInRect(float Mx, float My, const CUIRect *pRect)
+{
+	return Mx >= pRect->x && Mx <= pRect->x + pRect->w && My >= pRect->y && My <= pRect->y + pRect->h;
+}
+
+inline int UiMouseInsideClipped(float Mx, float My, const CUIRect *pRect, const CUIRect *pClip)
+{
+	if(!UiPointInRect(Mx, My, pRect))
+		return 0;
+	if(pClip && !UiPointInRect(Mx, My, pClip))
+		return 0;
+	return 1;
+}
+
 class CUI;
 
 class CUIElementBase
