@@ -34,6 +34,8 @@ Tide: Recovery
 %d players per team
 == 每队 %d 人
 
+%d seconds
+== %d 秒
 %d seconds remaining
 == 剩余 %d 秒
 

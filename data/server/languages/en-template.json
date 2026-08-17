@@ -939,6 +939,10 @@
         {
             "key": "Task %d/%d: reach the marked supply point",
             "value": "Task %d/%d: reach the marked supply point"
+        },
+        {
+            "key": "Choose a field order for this floor",
+            "value": "Choose a field order for this floor"
         }
     ]
 }

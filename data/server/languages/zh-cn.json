@@ -939,6 +939,10 @@
         {
             "key": "Task %d/%d: reach the marked supply point",
             "value": "任务 %d/%d：抵达标记补给点"
+        },
+        {
+            "key": "Choose a field order for this floor",
+            "value": "选择本层的作战指令"
         }
     ]
 }
