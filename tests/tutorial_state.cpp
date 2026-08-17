@@ -1,4 +1,5 @@
 #include <game/tutorial.h>
+#include <game/tutorial_map.h>
 #include <cstdio>
 
 static bool Expect(bool Value, const char *pWhat)
@@ -223,6 +224,47 @@ int main()
 		for(int i = 0; i < 48; i++)
 			aSolid[i] = 1;
 		Ok &= Expect(!TutorialPickDoorSpot(aSolid, W, H, &DoorX, &DoorY), "solid grid places no door");
+	}
+	{
+		unsigned char aSolid[TUTORIAL_MAP_W * TUTORIAL_MAP_H];
+		TutorialCarveHall(aSolid, TUTORIAL_MAP_W, TUTORIAL_MAP_H);
+		Ok &= Expect(aSolid[TUTORIAL_MAP_WALK_Y * TUTORIAL_MAP_W + 5] == 0 &&
+						 aSolid[(TUTORIAL_MAP_WALK_Y + 1) * TUTORIAL_MAP_W + 5] != 0,
+					 "authored hall has a walkable floor");
+		Ok &= Expect(TutorialDoorSpotOk(aSolid[TUTORIAL_MAP_WALK_Y * TUTORIAL_MAP_W + 5],
+										aSolid[(TUTORIAL_MAP_WALK_Y + 1) * TUTORIAL_MAP_W + 5],
+										aSolid[(TUTORIAL_MAP_WALK_Y - 1) * TUTORIAL_MAP_W + 5],
+										aSolid[(TUTORIAL_MAP_WALK_Y - 2) * TUTORIAL_MAP_W + 5]),
+					 "spawn tiles have player-height air");
+		for(int Chapter = TUTORIAL_CHAPTER_DEPLOYMENT; Chapter <= NUM_TUTORIAL_CHAPTERS; Chapter++)
+		{
+			CTutorialStamp aStamp[TUTORIAL_MAP_MAX_STAMPS];
+			const int N = TutorialMapStamps(Chapter, aStamp, TUTORIAL_MAP_MAX_STAMPS);
+			Ok &= Expect(N > 2, "each chapter stamps more than spawn and door");
+			Ok &= Expect(TutorialMapCountEntity(aStamp, N, ENTITY_SPAWN) >= 1, "each chapter stamps a player spawn");
+			Ok &= Expect(TutorialMapCountEntity(aStamp, N, ENTITY_DOOR1) == 1, "each chapter stamps one door");
+			for(int i = 0; i < N; i++)
+			{
+				Ok &= Expect(TutorialHallAir(aStamp[i].m_X, aStamp[i].m_Y, TUTORIAL_MAP_W, TUTORIAL_MAP_H),
+							 "stamps sit in hall air");
+				Ok &= Expect(TutorialPickupSpotOk(aSolid[aStamp[i].m_Y * TUTORIAL_MAP_W + aStamp[i].m_X],
+												  aSolid[(aStamp[i].m_Y + 1) * TUTORIAL_MAP_W + aStamp[i].m_X]),
+							 "stamps sit on the floor");
+				for(int j = i + 1; j < N; j++)
+					Ok &= Expect(aStamp[i].m_X != aStamp[j].m_X || aStamp[i].m_Y != aStamp[j].m_Y,
+								 "stamps do not overlap");
+			}
+		}
+		CTutorialStamp aForge[TUTORIAL_MAP_MAX_STAMPS];
+		const int ForgeN = TutorialMapStamps(TUTORIAL_CHAPTER_FORGE, aForge, TUTORIAL_MAP_MAX_STAMPS);
+		Ok &= Expect(TutorialMapCountEntity(aForge, ForgeN, ENTITY_KIT) == 4, "forge stamps four kits");
+		Ok &= Expect(TutorialMapCountEntity(aForge, ForgeN, ENTITY_AMMO_1) >= 1 &&
+						 TutorialMapCountEntity(aForge, ForgeN, ENTITY_ARMOR_1) >= 1,
+					 "forge stamps collectible materials");
+		CTutorialStamp aObj[TUTORIAL_MAP_MAX_STAMPS];
+		const int ObjN = TutorialMapStamps(TUTORIAL_CHAPTER_OBJECTIVES, aObj, TUTORIAL_MAP_MAX_STAMPS);
+		Ok &= Expect(TutorialMapCountEntity(aObj, ObjN, ENTITY_SWITCH) == TutorialLastStep(TUTORIAL_CHAPTER_OBJECTIVES),
+					 "objectives stamps one switch per step");
 	}
 	return Ok ? 0 : 1;
 }

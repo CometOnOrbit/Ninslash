@@ -16,6 +16,7 @@ class CMapGen
 	CCollision *m_pCollision;
 
 	void GenerateLevel();
+	void GenerateTutorialLevel();
 	void GeneratePVPLevel();
 	void GenerateRoamLevel();
 	void ExpandEscapeTowerCanvas();

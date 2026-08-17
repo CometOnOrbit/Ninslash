@@ -376,6 +376,9 @@ void CPickup::Tick()
 					RespawnTime = g_pData->m_aPickups[m_Type].m_Respawntime;
 					m_Life = 0;
 					m_Flashing = false;
+					if(GameServer()->m_pTutorialDirector && pChr->GetCID() >= 0)
+						GameServer()->m_pTutorialDirector->OnGameplayProgress(pChr->GetCID(),
+																			  TUTORIAL_EVENT_MATERIAL);
 				}
 				break;
 
