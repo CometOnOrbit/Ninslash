@@ -10,6 +10,7 @@ class CPveRoguelite : public CComponent
 	bool m_ContractVoteActive;
 	bool m_InvasionRetryVoteActive;
 	bool m_InvasionRetryResultActive;
+	bool m_FieldOrderActive;
 	bool m_ResearchVisible;
 	bool m_ProgressSent;
 	bool m_ProgressStorageWritable;
@@ -28,6 +29,12 @@ class CPveRoguelite : public CComponent
 	int m_InvasionRetryResult;
 	int m_InvasionRetryResultEndTick;
 	char m_aInvasionRetryPlayerName[64];
+	int m_FieldOrderNonce;
+	int m_FieldOrderEndTick;
+	int m_FieldOrderFloor;
+	int m_aFieldOrderPackages[3];
+	int m_aFieldOrderVotes[3];
+	int m_SelectedFieldOrder;
 	int m_aChoiceCards[3];
 	int m_aChoiceStacks[3];
 	int m_aContractOptions[2];
@@ -106,10 +113,12 @@ class CPveRoguelite : public CComponent
 	void SendChoice(int Slot);
 	void SendContractVote(int Slot);
 	void SendInvasionRetryVote(int Choice);
+	void SendFieldOrderVote(int Package);
 	void SendDroneModule(int Module);
 	void DrawSelectionOverlay(bool ContractVote);
 	void DrawInvasionRetryVote();
 	void DrawInvasionRetryResult();
+	void DrawFieldOrder();
 	void DrawContractHud();
 	void DrawBuildHud();
 	void DrawDrones();
@@ -131,6 +140,7 @@ class CPveRoguelite : public CComponent
 	static void ConDebugChoice(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugContract(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugInvasionRetry(IConsole::IResult *pResult, void *pUserData);
+	static void ConDebugFieldOrder(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugResearch(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugBuild(IConsole::IResult *pResult, void *pUserData);
 	static void ConDebugScreenshot(IConsole::IResult *pResult, void *pUserData);
@@ -160,7 +170,8 @@ class CPveRoguelite : public CComponent
 	int BuildingCost(int BaseCost) const;
 	bool ChoiceActive() const
 	{
-		return m_ChoiceActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive;
+		return m_ChoiceActive || m_ContractVoteActive || m_InvasionRetryVoteActive || m_InvasionRetryResultActive ||
+			   m_FieldOrderActive;
 	}
 	bool DroneWheelActive() const { return m_DroneWheelActive; }
 	void OnGameOver();

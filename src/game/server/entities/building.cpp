@@ -4,6 +4,7 @@
 #include <game/questinfo.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
+#include <game/server/gamemodes/invasion.h>
 
 #include <game/weapons.h>
 #include <game/server/player.h>
@@ -525,6 +526,11 @@ void CBuilding::TakeDamage(int Damage, const CAttackSource &Source, vec2 Force)
 		Damage = GameServer()->m_pPveDirector->ModifyDamage(Source, -2, Damage);
 		if(GameServer()->m_pPveDirector->PerkStacks(Owner, PVE_CARD_SIEGE_PAYLOAD) && Combat.m_ExplosiveProjectile)
 			Damage = max(1, Damage * 130 / 100);
+	}
+	if(Damage > 0)
+	{
+		if(CGameControllerInvasion *pInv = dynamic_cast<CGameControllerInvasion *>(GameServer()->m_pController))
+			Damage = max(1, (int)(Damage * pInv->FieldBuildingDamageTakenMultiplier() + 0.5f));
 	}
 	if(m_Type == BUILDING_SWITCH && !m_aStatus[BSTATUS_ON])
 	{

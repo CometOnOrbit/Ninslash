@@ -34,6 +34,7 @@ void CaptureSettings(CListenServerSettings *pSettings)
 	pSettings->m_TimeLimit = g_Config.m_SvTimelimit;
 	pSettings->m_PveRoguelite = g_Config.m_SvPveRoguelite;
 	pSettings->m_PveContracts = g_Config.m_SvPveContracts;
+	pSettings->m_FieldOrders = g_Config.m_SvInvFieldOrders;
 	pSettings->m_InvasionUseCheckpoint = g_Config.m_SvInvasionUseCheckpoint;
 	pSettings->m_ExpeditionSlot = g_Config.m_SvExpeditionSlot;
 	str_copy(pSettings->m_aBindAddress, g_Config.m_Bindaddr, sizeof(pSettings->m_aBindAddress));
@@ -69,6 +70,7 @@ void ApplySettings(const CListenServerSettings &Settings)
 	g_Config.m_SvTimelimit = Settings.m_TimeLimit;
 	g_Config.m_SvPveRoguelite = Settings.m_PveRoguelite;
 	g_Config.m_SvPveContracts = Settings.m_PveContracts;
+	g_Config.m_SvInvFieldOrders = Settings.m_FieldOrders;
 	g_Config.m_SvInvasionUseCheckpoint = Settings.m_InvasionUseCheckpoint;
 	g_Config.m_SvExpeditionSlot = Settings.m_ExpeditionSlot;
 	str_copy(g_Config.m_Bindaddr, Settings.m_aBindAddress, sizeof(g_Config.m_Bindaddr));

@@ -206,6 +206,22 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_GroupSpawnPos = vec2(0, 0);
 	m_EscapeSpawnActive = false;
 
+	m_FieldOrderState = FIELD_ORDER_IDLE;
+	m_FieldOrderNonce = 0;
+	m_FieldOrderEndTick = 0;
+	m_FieldOrderLastSyncTick = 0;
+	m_ActiveFieldOrder = FIELD_ORDER_STANDARD;
+	m_FieldOrderEffect = FIELD_EFFECT_NONE;
+	m_FieldOrderLevel = 0;
+	m_FieldOrderArmorySpawned = false;
+	for(int i = 0; i < 3; i++)
+	{
+		m_aFieldOrderPackages[i] = FIELD_ORDER_STANDARD;
+		m_aFieldOrderVotes[i] = 0;
+	}
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		m_aFieldOrderVoted[i] = -1;
+
 	SetupLevelTheme();
 
 	m_AutoRestart = false;
@@ -677,6 +693,181 @@ void CGameControllerInvasion::FinishRetryResult()
 	RegenerateMapFromTemplate();
 }
 
+void CGameControllerInvasion::StartFieldOrder()
+{
+	if(!g_Config.m_SvInvFieldOrders)
+	{
+		m_GameState = STATE_GAME;
+		m_FieldOrderState = FIELD_ORDER_APPLIED;
+		return;
+	}
+	m_GameState = STATE_FIELD_ORDER;
+	m_FieldOrderState = FIELD_ORDER_SELECTING;
+	m_FieldOrderLevel = g_Config.m_SvMapGenLevel;
+	m_FieldOrderNonce = max(1, Server()->Tick() + 2);
+	m_FieldOrderEndTick = Server()->Tick() + Server()->TickSpeed() * 10;
+	m_FieldOrderLastSyncTick = Server()->Tick() + Server()->TickSpeed();
+	m_ActiveFieldOrder = FIELD_ORDER_STANDARD;
+	m_FieldOrderEffect = FIELD_EFFECT_NONE;
+	m_FieldOrderArmorySpawned = false;
+	m_aFieldOrderPackages[0] = FIELD_ORDER_STANDARD;
+	m_aFieldOrderPackages[1] = FIELD_ORDER_STANDARD;
+	m_aFieldOrderPackages[2] = FIELD_ORDER_STANDARD;
+	m_aFieldOrderVotes[0] = 0;
+	m_aFieldOrderVotes[1] = 0;
+	m_aFieldOrderVotes[2] = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		m_aFieldOrderVoted[i] = -1;
+
+	int Humans = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+		if(IsRetryVoter(i))
+			Humans++;
+	// Solo runs pick the default immediately; the vote needs a team.
+	const int Count = InvasionFieldOrderCandidates(g_Config.m_SvMapGenLevel, m_aFieldOrderPackages, 3);
+	if(Humans <= 1 || Count < 2)
+	{
+		FinishFieldOrder();
+		return;
+	}
+	GameServer()->m_World.m_Paused = true;
+	SendFieldOrder();
+	GameServer()->SendBroadcast("Choose a field order for this floor", -1);
+}
+
+void CGameControllerInvasion::SendFieldOrder(int ClientID)
+{
+	if(m_GameState != STATE_FIELD_ORDER || m_FieldOrderNonce <= 0)
+		return;
+	if(ClientID < 0)
+	{
+		for(int i = 0; i < MAX_CLIENTS; i++)
+			if(IsRetryVoter(i))
+				SendFieldOrder(i);
+		return;
+	}
+	if(!IsRetryVoter(ClientID))
+		return;
+	CNetMsg_Sv_PveInvasionFieldOrder Msg;
+	Msg.m_Nonce = m_FieldOrderNonce;
+	Msg.m_EndTick = m_FieldOrderEndTick;
+	Msg.m_CurrentFloor = max(1, g_Config.m_SvMapGenLevel);
+	Msg.m_Closed = m_FieldOrderState == FIELD_ORDER_APPLIED ? 1 : 0;
+	Msg.m_Package0 = m_aFieldOrderPackages[0];
+	Msg.m_Package1 = m_aFieldOrderPackages[1];
+	Msg.m_Package2 = m_aFieldOrderPackages[2];
+	Msg.m_Votes0 = m_aFieldOrderVotes[0];
+	Msg.m_Votes1 = m_aFieldOrderVotes[1];
+	Msg.m_Votes2 = m_aFieldOrderVotes[2];
+	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+}
+
+void CGameControllerInvasion::OnFieldOrderVote(int ClientID, int Nonce, int Package)
+{
+	if(m_GameState != STATE_FIELD_ORDER || m_FieldOrderState != FIELD_ORDER_SELECTING || Nonce != m_FieldOrderNonce ||
+	   Server()->Tick() >= m_FieldOrderEndTick || !IsRetryVoter(ClientID) || Package < 0 || Package >= 3 ||
+	   m_aFieldOrderVoted[ClientID] != -1)
+		return;
+	m_aFieldOrderVoted[ClientID] = Package;
+	m_aFieldOrderVotes[Package]++;
+	SendFieldOrder();
+	int Voted = 0;
+	int Voters = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(!IsRetryVoter(i))
+			continue;
+		Voters++;
+		if(m_aFieldOrderVoted[i] >= 0)
+			Voted++;
+	}
+	if(Voters > 0 && Voted >= Voters)
+		FinishFieldOrder();
+}
+
+void CGameControllerInvasion::TickFieldOrder()
+{
+	if(Server()->Tick() >= m_FieldOrderEndTick)
+	{
+		FinishFieldOrder();
+		return;
+	}
+	int Voted = 0;
+	int Voters = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(!IsRetryVoter(i))
+			continue;
+		Voters++;
+		if(m_aFieldOrderVoted[i] >= 0)
+			Voted++;
+	}
+	if(Voters > 0 && Voted >= Voters)
+	{
+		FinishFieldOrder();
+		return;
+	}
+	if(Server()->Tick() >= m_FieldOrderLastSyncTick)
+	{
+		SendFieldOrder();
+		m_FieldOrderLastSyncTick = Server()->Tick() + Server()->TickSpeed();
+	}
+}
+
+void CGameControllerInvasion::FinishFieldOrder()
+{
+	if(m_GameState != STATE_FIELD_ORDER)
+		return;
+	int Best = 0;
+	for(int i = 1; i < 3; i++)
+		if(m_aFieldOrderVotes[i] > m_aFieldOrderVotes[Best])
+			Best = i;
+	ApplyFieldOrder(m_aFieldOrderPackages[Best]);
+	m_FieldOrderState = FIELD_ORDER_APPLIED;
+	SendFieldOrder();
+	m_GameState = STATE_GAME;
+	GameServer()->m_World.m_Paused = false;
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Field order: %s", GetFieldOrderDisplayName(m_ActiveFieldOrder));
+	GameServer()->SendBroadcast(aBuf, -1);
+	dbg_msg("inv",
+			"field order applied: %s (effect %d)",
+			GetFieldOrderDisplayName(m_ActiveFieldOrder),
+			m_FieldOrderEffect);
+}
+
+void CGameControllerInvasion::ApplyFieldOrder(int Package)
+{
+	m_ActiveFieldOrder = clamp(Package, 0, NUM_FIELD_ORDERS - 1);
+	m_FieldOrderEffect = FieldOrderEffect(m_ActiveFieldOrder);
+	if(m_FieldOrderEffect == FIELD_EFFECT_ARMORY)
+		SpawnFieldOrderUpgrades();
+}
+
+void CGameControllerInvasion::SpawnFieldOrderUpgrades()
+{
+	if(m_FieldOrderArmorySpawned)
+		return;
+	m_FieldOrderArmorySpawned = true;
+	int Dropped = 0;
+	for(int i = 0; i < MAX_CLIENTS && Dropped < 3; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if(!IsHumanCoopPlayer(pPlayer) || pPlayer->GetTeam() == TEAM_SPECTATORS)
+			continue;
+		CCharacter *pChr = pPlayer->GetCharacter();
+		if(!pChr || !pChr->IsAlive())
+			continue;
+		DropWeapon(pChr->m_Pos + vec2(0, -40 - Dropped * 16), vec2(0, 0), GameServer()->NewWeapon(CWeaponCatalog::Static(SW_UPGRADE)));
+		Dropped++;
+	}
+	// Nobody alive yet (joining mid-floor): leave the drops at the first spawn.
+	if(Dropped == 0 && m_NumEnemySpawnPos > 0)
+	{
+		DropWeapon(m_aEnemySpawnPos[0] + vec2(0, -60), vec2(0, 0), GameServer()->NewWeapon(CWeaponCatalog::Static(SW_UPGRADE)));
+	}
+}
+
 void CGameControllerInvasion::RegenerateMapFromTemplate()
 {
 	char aTemplate[128];
@@ -775,9 +966,10 @@ void CGameControllerInvasion::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 			};
 			static const int s_NumFactories = sizeof(s_aAIFactories) / sizeof(s_aAIFactories[0]);
 
-			bool UseElite = m_EliteWave && frandom() < 0.45f;
+			const float EliteMult = FieldEliteChanceMultiplier();
+			bool UseElite = m_EliteWave && frandom() < 0.45f * EliteMult;
 			if(!UseElite && g_Config.m_SvMapGenLevel > 15 && frandom() < 0.15f)
-				UseElite = frandom() < 0.45f;
+				UseElite = frandom() < 0.45f * EliteMult;
 			const EInvasionSkinId Profile = InvasionSkinForWave(m_QuestWaveType, Level, UseElite);
 			AIFactory Factory = 0;
 			if(m_QuestWaveType >= 0 && m_QuestWaveType < s_NumFactories)
@@ -820,7 +1012,7 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 {
 	int Level = g_Config.m_SvMapGenLevel;
 	const int Players = max(1, CountPlayers(0));
-	const int WaveCap = max(8, InvasionWaveCap(Level, Players) - m_WaveSizeNerf * 3);
+	const int WaveCap = max(8, (int)((InvasionWaveCap(Level, Players) - m_WaveSizeNerf * 3) * FieldWaveSizeMultiplier() + 0.5f));
 
 	if(m_ForcedWaveType > WAVE_NONE && m_ForcedWaveType < NUM_WAVES)
 		m_QuestWaveType = m_ForcedWaveType;
@@ -1233,11 +1425,11 @@ int CGameControllerInvasion::OnCharacterDeath(class CCharacter *pVictim,
 		{
 			Trigger(true);
 
-			if(frandom() < 0.013f)
+			if(frandom() < 0.013f * FieldDropRateMultiplier())
 				GameServer()->m_pController->DropWeapon(pVictim->m_Pos,
 														vec2(frandom() * 6.0 - frandom() * 6.0, 0 - frandom() * 14.0),
 														GameServer()->NewWeapon(CWeaponCatalog::Static(SW_UPGRADE)));
-			else if(frandom() < 0.013f)
+			else if(frandom() < 0.013f * FieldDropRateMultiplier())
 				GameServer()->m_pController->DropWeapon(pVictim->m_Pos,
 														vec2(frandom() * 6.0 - frandom() * 6.0, 0 - frandom() * 14.0),
 														GameServer()->NewWeapon(CWeaponCatalog::Static(SW_RESPAWNER)));
@@ -1364,7 +1556,8 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 			{
 				Next = QUEST_KILLREMAININGENEMIES;
 				m_EnemiesLeft = min(16, 8 + g_Config.m_SvMapGenLevel);
-				m_QuestWaveSize = InvasionWaveCap(g_Config.m_SvMapGenLevel, max(1, CountPlayers(0)));
+				m_QuestWaveSize = max(6,
+					(int)(InvasionWaveCap(g_Config.m_SvMapGenLevel, max(1, CountPlayers(0))) * FieldWaveSizeMultiplier() + 0.5f));
 				RandomGroupSpawnPos();
 				const int SpawnCount = min(m_EnemiesLeft, max(0, m_QuestWaveSize - CountBots()));
 				for(int i = 0; i < SpawnCount; i++)
@@ -1520,6 +1713,11 @@ void CGameControllerInvasion::Tick()
 		TickRetryResult();
 		return;
 	}
+	if(m_GameState == STATE_FIELD_ORDER)
+	{
+		TickFieldOrder();
+		return;
+	}
 	if(GameServer()->m_pPveDirector && GameServer()->m_pPveDirector->InIntermission())
 		return;
 
@@ -1588,7 +1786,8 @@ void CGameControllerInvasion::Tick()
 				const int Level = max(0, g_Config.m_SvMapGenLevel);
 				const int EffectiveLevel = InvasionEffectiveLevel(Level);
 				m_EnemiesLeft = min(Level > 20 ? 12 : 16, 6 + (Level > 20 ? EffectiveLevel / 4 : Level / 3));
-				m_QuestWaveSize = min(Level > 20 ? 16 : 20, 10 + (Level > 20 ? EffectiveLevel / 5 : Level / 4));
+				m_QuestWaveSize = max(6,
+					(int)(min(Level > 20 ? 16 : 20, 10 + (Level > 20 ? EffectiveLevel / 5 : Level / 4)) * FieldWaveSizeMultiplier() + 0.5f));
 				RandomGroupSpawnPos();
 				const int SpawnCount = min(m_EnemiesLeft, max(0, m_QuestWaveSize - CountBots()));
 				for(int i = 0; i < SpawnCount; i++)
@@ -1645,7 +1844,7 @@ void CGameControllerInvasion::Tick()
 				else
 				{
 					m_QuestProgressCounter = 8;
-					m_QuestWaveSize = min(10, 6 + g_Config.m_SvMapGenLevel / 6);
+					m_QuestWaveSize = max(4, (int)(min(10, 6 + g_Config.m_SvMapGenLevel / 6) * FieldWaveSizeMultiplier() + 0.5f));
 					m_EnemiesLeft = max(4, m_QuestWaveSize / 2);
 					m_BotSpawnTick = Server()->Tick();
 					RandomGroupSpawnPos();
@@ -1730,7 +1929,9 @@ void CGameControllerInvasion::Tick()
 				{
 					m_DefendPrepEndTick = 0;
 					m_DefendEndTick = Server()->Tick() +
-									  Server()->TickSpeed() * InvasionReactorDefenseSeconds(g_Config.m_SvMapGenLevel);
+									  (int)(Server()->TickSpeed() * InvasionReactorDefenseSeconds(g_Config.m_SvMapGenLevel) *
+											   FieldDefendTimeMultiplier() +
+										   0.5f);
 					SpawnNewWave();
 					// SpawnNewWave drains the enemy pool filling the concurrent cap.
 					// Keep a reinforce budget so CanSpawn can admit replacements
@@ -1884,7 +2085,8 @@ void CGameControllerInvasion::Tick()
 			m_TriggerTick = 0;
 			m_AutoRestart = true;
 
-			m_GameState = STATE_GAME;
+			// Opening enemies are spawned before the field order vote; the wave
+			// budget effects (stealth) apply from the first quest wave onward.
 			if(GameServer()->m_pPveDirector &&
 			   GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_ELITE_HUNT)
 			{
@@ -1902,6 +2104,8 @@ void CGameControllerInvasion::Tick()
 			const int SpawnCount = min(m_EnemiesLeft, max(0, 32 - CountBots()));
 			for(int i = 0; i < SpawnCount; i++)
 				GameServer()->AddBot();
+
+			StartFieldOrder();
 		}
 		else if((m_AutoRestart || g_Config.m_SvMapGenLevel > 1) && Server()->Tick() > Server()->TickSpeed() * 60.0f)
 		{

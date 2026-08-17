@@ -5364,3 +5364,66 @@ Back to recommended
 
 CONTINUE
 == 继续
+
+Field order
+== 作战指令
+
+Choose how this floor plays. Effects last until the door.
+== 选择本层的作战指令，效果持续到进入出口。
+
+Standard
+== 标准清剿
+
+Firepower
+== 火力压制
+
+Blitz
+== 闪电突袭
+
+Salvage
+== 回收协议
+
+Stealth
+== 静默潜入
+
+Fury
+== 狂怒
+
+Armory
+== 军备先行
+
+Bulwark
+== 城墙
+
+No modifiers
+== 无特殊效果
+
+Team damage +10%
+== 全队伤害 +10%
+
+Team speed +8%, enemy speed -8%
+== 全队移速 +8%，敌方移速 -8%
+
+Drops +50%, elite chance +20%
+== 掉落率 +50%，精英率 +20%
+
+Wave size -30%, defend time +50%
+== 波次规模 -30%，防守时间 +50%
+
+Fire rate +15%, max health -15%
+== 攻速 +15%，最大生命 -15%
+
+Start with 3 upgrade drops
+== 开局获得 3 个升级掉落
+
+Build cost -40%, buildings take -25% damage
+== 建造消耗 -40%，建筑受伤 -25%
+
+Choose 1, 2 or 3  ·  Arrows / gamepad  ·  Enter / A to vote
+== 选择 1、2 或 3  ·  方向键 / 手柄  ·  回车 / A 投票
+
+Field orders
+== 作战指令
+
+Tactical package vote each floor
+== 每层开局投票选择战术指令

@@ -2392,6 +2392,8 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage, 
 		Run.m_LastEmpoweredSpecialization = PVE_SPECIALIZATION_NONE;
 		if(!pOutgoingTarget && To >= 0)
 			pOutgoingTarget = m_pGameServer->GetPlayerChar(To);
+		if(CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pGameServer->m_pController))
+			Multiplier += pInvasion->FieldDamageMultiplier() - 1.0f;
 		Multiplier += Run.m_aStacks[PVE_CARD_COMBAT_TRAINING] * 0.08f;
 		if(pOutgoingTarget && pOutgoingTarget->m_MaxHealth > 0 &&
 		   pOutgoingTarget->m_HiddenHealth * 100 <= pOutgoingTarget->m_MaxHealth * 30)
@@ -2749,6 +2751,8 @@ int CPveDirector::ModifyBuildingCost(int ClientID, int Cost) const
 	float Multiplier = m_aPlayers[ClientID].m_aStacks[PVE_CARD_ENGINEER] ? 0.80f : 1.0f;
 	if(ActiveContract() == PVE_CONTRACT_FORTIFICATION_TAX)
 		Multiplier *= 1.75f;
+	if(CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pGameServer->m_pController))
+		Multiplier *= pInvasion->FieldBuildCostMultiplier();
 	return max(1, (int)(Cost * Multiplier + 0.99f));
 }
 
@@ -2806,6 +2810,8 @@ float CPveDirector::CooldownReduction(int ClientID, const CWeaponSpec &Weapon) c
 						 RenderType != WRT_MELEE && RenderType != WRT_MELEESMALL && RenderType != WRT_SPIN;
 	if(Firearm && Run.m_aStacks[PVE_CARD_GUNSLINGER])
 		Reduction += 0.20f;
+	if(CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pGameServer->m_pController))
+		Reduction += pInvasion->FieldCooldownReduction();
 	return min(0.30f, Reduction);
 }
 

@@ -2843,6 +2843,7 @@ struct CLocalServerLaunchSettings
 	bool m_MapGen;
 	bool m_Roguelite;
 	bool m_Contracts;
+	bool m_FieldOrders;
 	bool m_UseCheckpoint;
 	const CLocalGameMode *m_pMode;
 	const char *m_pConfig;
@@ -3076,6 +3077,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 	pSettings->m_Seed = clamp(g_Config.m_ClLocalServerSeed, 0, 0x7FFFFFFF);
 	pSettings->m_Roguelite = pSettings->m_pMode->m_HasRoguelite && g_Config.m_ClLocalServerRoguelite != 0;
 	pSettings->m_Contracts = pSettings->m_Roguelite && g_Config.m_ClLocalServerContracts != 0;
+	pSettings->m_FieldOrders = pSettings->m_Mode == LOCAL_MODE_INVASION && g_Config.m_ClLocalServerFieldOrders != 0;
 	pSettings->m_MapLevel = pSettings->m_Difficulty;
 	pSettings->m_ModeRule = RoomModeDefaults(pSettings->m_Mode).m_Rule;
 	pSettings->m_UseCheckpoint = false;
@@ -3092,6 +3094,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 		pSettings->m_Seed = TutorialFixedSeed(pSettings->m_MapLevel);
 		pSettings->m_Roguelite = true;
 		pSettings->m_Contracts = false;
+		pSettings->m_FieldOrders = false;
 	}
 	if(pSettings->m_Mode == LOCAL_MODE_INVASION)
 	{
@@ -3115,6 +3118,7 @@ static void BuildLocalServerLaunchSettings(CLocalServerLaunchSettings *pSettings
 		pSettings->m_RandomSeed = false;
 		pSettings->m_Roguelite = true;
 		pSettings->m_Contracts = g_Config.m_ClLocalServerContracts != 0;
+		pSettings->m_FieldOrders = false;
 		CExpeditionSave Save;
 		const EExpeditionLoadResult Result =
 			pStorage ? CExpeditionSaveStorage::Load(pStorage, pSettings->m_ExpeditionSlot, &Save) :
@@ -3643,6 +3647,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	char aForgeMode[64];
 	char aRoguelite[64];
 	char aContracts[64];
+	char aFieldOrders[64];
 	char aCheckpoint[64];
 	char aTutorialChapter[64];
 	char aTutorialStep[64];
@@ -3685,6 +3690,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 	}
 	str_format(aRoguelite, sizeof(aRoguelite), "sv_pve_roguelite %d", Settings.m_Roguelite);
 	str_format(aContracts, sizeof(aContracts), "sv_pve_contracts %d", Settings.m_Contracts);
+	str_format(aFieldOrders, sizeof(aFieldOrders), "sv_inv_field_orders %d", Settings.m_FieldOrders);
 	str_format(aCheckpoint, sizeof(aCheckpoint), "sv_invasion_use_checkpoint %d", Settings.m_UseCheckpoint);
 	str_format(aExpedition, sizeof(aExpedition), "sv_expedition_slot %d", Settings.m_ExpeditionSlot);
 	aForgeMode[0] = 0;
@@ -3742,6 +3748,7 @@ void CMenus::StartLocalServer(bool AutoJoin)
 		apArguments[NumArguments++] = aChallengeHash;
 	apArguments[NumArguments++] = aRoguelite;
 	apArguments[NumArguments++] = aContracts;
+	apArguments[NumArguments++] = aFieldOrders;
 	apArguments[NumArguments++] = aCheckpoint;
 	if(Settings.m_ExpeditionSlot)
 		apArguments[NumArguments++] = aExpedition;
@@ -4010,6 +4017,7 @@ void CMenus::CreateConfiguredRoom()
 	Settings.m_MapGen = Preview.m_MapGen;
 	Settings.m_Roguelite = Preview.m_Roguelite;
 	Settings.m_Contracts = Preview.m_Contracts;
+	Settings.m_FieldOrders = Preview.m_FieldOrders;
 	Settings.m_UseCheckpoint = Preview.m_UseCheckpoint;
 	Settings.m_ExpeditionSlot = Preview.m_ExpeditionSlot;
 	str_copy(Settings.m_aName, Preview.m_aName, sizeof(Settings.m_aName));
@@ -4039,7 +4047,7 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	static int s_DifficultyPrevious, s_DifficultyNext, s_BotsPrevious, s_BotsNext;
 	static int s_RulePrevious, s_RuleNext, s_InvasionPrevious, s_InvasionNext, s_FloorPrevious, s_FloorNext;
 	static int s_PortPrevious, s_PortNext;
-	static int s_Advanced, s_RandomSeed, s_Roguelite, s_Contracts;
+	static int s_Advanced, s_RandomSeed, s_Roguelite, s_Contracts, s_FieldOrders;
 	static int s_Create, s_Log, s_Stop;
 	static float s_NameOffset, s_PasswordOffset, s_SeedOffset;
 	static char s_aSeedText[8] = "0";
@@ -4722,6 +4730,14 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			   g_Config.m_ClLocalServerRoguelite)
 				g_Config.m_ClLocalServerContracts ^= 1;
 		}
+		if(Mode == LOCAL_MODE_INVASION)
+		{
+			SplitRow(Identity, &Label, &Control);
+			if(DoButton_CheckBox(
+				   &s_FieldOrders, Localize("Field orders"), g_Config.m_ClLocalServerFieldOrders, &Label))
+				g_Config.m_ClLocalServerFieldOrders ^= 1;
+			UI()->DoLabelScaled(&Control, Localize("Tactical package vote each floor"), 9.0f, -1);
+		}
 		SplitRow(Identity, &Label, &Control);
 		UI()->DoLabelScaled(&Label, Localize("Port"), 10.0f, -1);
 		str_format(aLabel, sizeof(aLabel), "%d", g_Config.m_ClLocalServerPort);
@@ -4851,6 +4867,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 	static int s_LanButton = 0;
 	static int s_RogueliteButton = 0;
 	static int s_ContractsButton = 0;
+	static int s_FieldOrdersButton = 0;
 	static int s_RandomSeedButton = 0;
 	static int s_InvasionStartPrevious = 0;
 	static int s_InvasionStartNext = 0;
@@ -4895,6 +4912,7 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 		FOCUS_SECTION_RULES,
 		FOCUS_ROGUELITE,
 		FOCUS_CONTRACTS,
+		FOCUS_FIELD_ORDERS,
 		FOCUS_MODE_RULE,
 		FOCUS_PRIMARY_ACTION,
 		FOCUS_RESTART,
@@ -4936,6 +4954,8 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 				return false;
 			if(Focus == FOCUS_ROGUELITE || Focus == FOCUS_CONTRACTS)
 				return LocalGameMode(Mode).m_HasRoguelite;
+			if(Focus == FOCUS_FIELD_ORDERS)
+				return Mode == LOCAL_MODE_INVASION;
 			if(Focus == FOCUS_MODE_RULE)
 				return Mode != LOCAL_MODE_INVASION && Mode != LOCAL_MODE_TUTORIAL;
 		}
@@ -5049,6 +5069,8 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 					g_Config.m_ClLocalServerRoguelite = Right;
 				else if(m_LocalServerFocus == FOCUS_CONTRACTS && g_Config.m_ClLocalServerRoguelite)
 					g_Config.m_ClLocalServerContracts = Right;
+				else if(m_LocalServerFocus == FOCUS_FIELD_ORDERS)
+					g_Config.m_ClLocalServerFieldOrders = Right;
 				else if(m_LocalServerFocus == FOCUS_MODE_RULE)
 					AdjustModeRule(Direction);
 				else if(m_LocalServerFocus == FOCUS_RANDOM_SEED)
@@ -5080,6 +5102,8 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 				g_Config.m_ClLocalServerRoguelite ^= 1;
 			else if(m_LocalServerFocus == FOCUS_CONTRACTS && g_Config.m_ClLocalServerRoguelite)
 				g_Config.m_ClLocalServerContracts ^= 1;
+			else if(m_LocalServerFocus == FOCUS_FIELD_ORDERS)
+				g_Config.m_ClLocalServerFieldOrders ^= 1;
 			else if(m_LocalServerFocus == FOCUS_RANDOM_SEED)
 				g_Config.m_ClLocalServerRandomSeed ^= 1;
 			else if(m_LocalServerFocus == FOCUS_PRIMARY_ACTION)
@@ -5445,6 +5469,16 @@ void CMenus::RenderLocalServer(CUIRect MainView)
 																		   : "Requires Roguelite Director"),
 								10.0f,
 								-1);
+		}
+
+		if(g_Config.m_ClLocalServerMode == LOCAL_MODE_INVASION)
+		{
+			SplitSettingRow(&Label, &Control);
+			DrawFocusMarker(Label, FOCUS_FIELD_ORDERS);
+			if(DoButton_CheckBox(
+				   &s_FieldOrdersButton, Localize("Field orders"), g_Config.m_ClLocalServerFieldOrders, &Label))
+				g_Config.m_ClLocalServerFieldOrders ^= 1;
+			UI()->DoLabelScaled(&Control, Localize("Tactical package vote each floor"), 10.0f, -1);
 		}
 
 		if(g_Config.m_ClLocalServerMode != LOCAL_MODE_INVASION && g_Config.m_ClLocalServerMode != LOCAL_MODE_TUTORIAL)

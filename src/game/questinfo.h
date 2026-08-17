@@ -96,6 +96,37 @@ inline bool IsTutorialGametype(const char *pType)
 	return str_comp(pType, "tutorial") == 0;
 }
 
+enum EFieldOrder
+{
+	FIELD_ORDER_STANDARD = 0, // default, always offered
+	FIELD_ORDER_FIREPOWER,	  // player damage +10%
+	FIELD_ORDER_BLITZ,		  // player speed +8%, enemy speed -8%
+	FIELD_ORDER_SALVAGE,	  // drop rate +50%, elite chance +20%
+	FIELD_ORDER_STEALTH,	  // wave size -30%, defend time +50%
+	FIELD_ORDER_FURY,		  // weapon cooldown -15%, max health -15%
+	FIELD_ORDER_ARMORY,		  // 3 upgrade drops at floor start
+	FIELD_ORDER_BULWARK,	  // build cost -40%, building damage taken -25%
+	NUM_FIELD_ORDERS,
+};
+
+enum EFieldOrderEffect
+{
+	FIELD_EFFECT_NONE = 0,
+	FIELD_EFFECT_DAMAGE,
+	FIELD_EFFECT_SPEED,
+	FIELD_EFFECT_SALVAGE,
+	FIELD_EFFECT_STEALTH,
+	FIELD_EFFECT_FURY,
+	FIELD_EFFECT_ARMORY,
+	FIELD_EFFECT_BULWARK,
+	NUM_FIELD_EFFECTS,
+};
+
+const char *GetFieldOrderDisplayName(int FieldOrder);
+const char *GetFieldOrderEffectText(int FieldOrder);
+int FieldOrderEffect(int FieldOrder);
+int InvasionFieldOrderCandidates(int Level, int *pPackages, int MaxPackages);
+
 const char *GetQuestDisplayName(int Quest);
 const char *GetQuestStartMessage(int Quest, int WaveType = WAVE_NONE);
 const char *GetQuestCompletedMessage(int Quest, int WaveType = WAVE_NONE);

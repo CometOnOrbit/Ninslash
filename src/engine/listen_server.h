@@ -22,6 +22,7 @@ struct CListenServerSettings
 	int m_TimeLimit;
 	int m_PveRoguelite;
 	int m_PveContracts;
+	int m_FieldOrders;
 	int m_InvasionUseCheckpoint;
 	int m_ExpeditionSlot;
 	char m_aBindAddress[128];

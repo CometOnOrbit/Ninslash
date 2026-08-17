@@ -2953,6 +2953,7 @@ bool CClient::StartSteamHostedGame(const CHostGameSettings &Host)
 	Settings.m_RoamCheckpoints = Roam ? clamp(ModeRule, 3, 63) : 23;
 	Settings.m_PveRoguelite = Host.m_Roguelite;
 	Settings.m_PveContracts = Host.m_Contracts;
+	Settings.m_FieldOrders = Host.m_FieldOrders;
 	Settings.m_InvasionUseCheckpoint = Host.m_UseCheckpoint;
 	Settings.m_ExpeditionSlot = Host.m_ExpeditionSlot;
 	str_copy(Settings.m_aBindAddress, "127.0.0.1", sizeof(Settings.m_aBindAddress));

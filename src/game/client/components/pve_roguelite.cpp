@@ -345,6 +345,12 @@ void CPveRoguelite::OnConsoleInit()
 						ConDebugInvasionRetry,
 						this,
 						"Preview the Invasion retry vote or result (state 0-3)");
+	Console()->Register("pve_debug_field_order",
+						"?i",
+						CFGFLAG_CLIENT,
+						ConDebugFieldOrder,
+						this,
+						"Preview the Invasion field order vote (state 0-1)");
 	Console()->Register("pve_debug_research",
 						"?i?i",
 						CFGFLAG_CLIENT,
@@ -428,6 +434,7 @@ void CPveRoguelite::ConDebugChoice(IConsole::IResult *pResult, void *pUserData)
 	pSelf->m_ContractVoteActive = false;
 	pSelf->m_InvasionRetryVoteActive = false;
 	pSelf->m_InvasionRetryResultActive = false;
+	pSelf->m_FieldOrderActive = false;
 	pSelf->m_ChoiceActive = true;
 	pSelf->m_ChoiceNonce = 1;
 	pSelf->m_ChoiceSequence = 1;
@@ -451,6 +458,7 @@ void CPveRoguelite::ConDebugContract(IConsole::IResult *pResult, void *pUserData
 	pSelf->m_ContractVoteActive = true;
 	pSelf->m_InvasionRetryVoteActive = false;
 	pSelf->m_InvasionRetryResultActive = false;
+	pSelf->m_FieldOrderActive = false;
 	pSelf->m_ContractNonce = 1;
 	const int State = pResult->NumArguments() > 1 ? clamp(pResult->GetInteger(1), 0, 3) : 0;
 	if(State > 0)
@@ -485,6 +493,7 @@ void CPveRoguelite::ConDebugInvasionRetry(IConsole::IResult *pResult, void *pUse
 	pSelf->m_ContractVoteActive = false;
 	pSelf->m_InvasionRetryVoteActive = State == 0;
 	pSelf->m_InvasionRetryResultActive = State != 0;
+	pSelf->m_FieldOrderActive = false;
 	pSelf->m_InvasionRetryNonce = 1;
 	pSelf->m_InvasionRetryEndTick = pSelf->Client()->GameTick() + pSelf->Client()->GameTickSpeed() * 15;
 	pSelf->m_InvasionRetryFloor = 12;
@@ -494,6 +503,32 @@ void CPveRoguelite::ConDebugInvasionRetry(IConsole::IResult *pResult, void *pUse
 	pSelf->m_InvasionRetryResult = State > 0 ? State - 1 : PVE_INVASION_RETRY_RESULT_RETRY;
 	pSelf->m_InvasionRetryResultEndTick = pSelf->Client()->GameTick() + pSelf->Client()->GameTickSpeed() * 5;
 	str_copy(pSelf->m_aInvasionRetryPlayerName, "Player", sizeof(pSelf->m_aInvasionRetryPlayerName));
+	pSelf->m_FocusedChoice = 0;
+	for(int i = 0; i < 3; i++)
+		pSelf->m_aCardFocus[i] = 0.0f;
+	pSelf->m_AppearAmount = 0.0f;
+	pSelf->m_DebugChoiceScreenshotFrames = 12;
+}
+
+void CPveRoguelite::ConDebugFieldOrder(IConsole::IResult *pResult, void *pUserData)
+{
+	CPveRoguelite *pSelf = (CPveRoguelite *)pUserData;
+	const int State = pResult->NumArguments() ? clamp(pResult->GetInteger(0), 0, 1) : 0;
+	pSelf->m_ChoiceActive = false;
+	pSelf->m_ContractVoteActive = false;
+	pSelf->m_InvasionRetryVoteActive = false;
+	pSelf->m_InvasionRetryResultActive = false;
+	pSelf->m_FieldOrderActive = State == 0;
+	pSelf->m_FieldOrderNonce = 1;
+	pSelf->m_FieldOrderEndTick = pSelf->Client()->GameTick() + pSelf->Client()->GameTickSpeed() * 10;
+	pSelf->m_FieldOrderFloor = 12;
+	pSelf->m_aFieldOrderPackages[0] = FIELD_ORDER_STANDARD;
+	pSelf->m_aFieldOrderPackages[1] = FIELD_ORDER_FIREPOWER;
+	pSelf->m_aFieldOrderPackages[2] = FIELD_ORDER_SALVAGE;
+	pSelf->m_aFieldOrderVotes[0] = 1;
+	pSelf->m_aFieldOrderVotes[1] = 2;
+	pSelf->m_aFieldOrderVotes[2] = 0;
+	pSelf->m_SelectedFieldOrder = -1;
 	pSelf->m_FocusedChoice = 0;
 	for(int i = 0; i < 3; i++)
 		pSelf->m_aCardFocus[i] = 0.0f;
@@ -612,6 +647,20 @@ void CPveRoguelite::OnReset()
 		m_InvasionRetryResult = PVE_INVASION_RETRY_RESULT_RESET;
 		m_InvasionRetryResultEndTick = 0;
 		m_aInvasionRetryPlayerName[0] = 0;
+	}
+	if(m_DebugChoiceScreenshotFrames <= 0)
+	{
+		m_FieldOrderActive = false;
+		m_FieldOrderNonce = 0;
+		m_FieldOrderEndTick = 0;
+		m_FieldOrderFloor = 1;
+		m_aFieldOrderPackages[0] = FIELD_ORDER_STANDARD;
+		m_aFieldOrderPackages[1] = FIELD_ORDER_STANDARD;
+		m_aFieldOrderPackages[2] = FIELD_ORDER_STANDARD;
+		m_aFieldOrderVotes[0] = 0;
+		m_aFieldOrderVotes[1] = 0;
+		m_aFieldOrderVotes[2] = 0;
+		m_SelectedFieldOrder = -1;
 	}
 	m_aContractOptions[0] = -1;
 	m_aContractOptions[1] = -1;
@@ -961,6 +1010,19 @@ void CPveRoguelite::SendInvasionRetryVote(int Choice)
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
 	m_SelectedInvasionRetry = Choice;
 	m_FocusedChoice = Choice;
+	m_SelectionPulse = 1.0f;
+}
+
+void CPveRoguelite::SendFieldOrderVote(int Package)
+{
+	if(!m_FieldOrderActive || m_FieldOrderNonce <= 0 || m_SelectedFieldOrder >= 0 || Package < 0 || Package >= 3)
+		return;
+	CNetMsg_Cl_PveInvasionFieldOrder Msg;
+	Msg.m_Nonce = m_FieldOrderNonce;
+	Msg.m_Package = Package;
+	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+	m_SelectedFieldOrder = Package;
+	m_FocusedChoice = Package;
 	m_SelectionPulse = 1.0f;
 }
 
@@ -1427,6 +1489,186 @@ void CPveRoguelite::DrawInvasionRetryVote()
 			 240.0f,
 			 6.0f,
 			 Localize("Choose 1 or 2  ·  Arrows / gamepad  ·  Enter / A to vote"),
+			 vec4(Text.r, Text.g, Text.b, 0.68f * Alpha),
+			 -1.0f,
+			 0);
+
+	Graphics()->TextureSet(-1);
+	CUIRect Cursor = {m_SelectorMouse.x, m_SelectorMouse.y, 5.0f, 5.0f};
+	DrawPanel(Cursor, vec4(Accent.r, Accent.g, Accent.b, Alpha), 2.5f);
+	TextRender()->TextColor(1, 1, 1, 1);
+}
+
+void CPveRoguelite::DrawFieldOrder()
+{
+	const float Aspect = Graphics()->ScreenAspect();
+	const float ScreenWidth = 300.0f * Aspect;
+	Graphics()->MapScreen(0, 0, ScreenWidth, 300.0f);
+	const float Dt = clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	m_AppearAmount += (1.0f - m_AppearAmount) * (1.0f - expf(-9.0f * Dt));
+	m_SelectionPulse = max(0.0f, m_SelectionPulse - Dt * 4.0f);
+	const float Alpha = clamp(m_AppearAmount, 0.0f, 1.0f);
+	const float Entry = UiEaseOutCubic(Alpha);
+	const float EntryOffset = (1.0f - Entry) * 10.0f;
+	const float ConfirmPulse = UiConfirmPulse(m_SelectionPulse);
+	const vec4 Deep = CMenus::ThemeBgDeep();
+	const vec4 Panel = CMenus::ThemeBgPanel();
+	const vec4 Inset = CMenus::ThemeBgInset();
+	const vec4 Accent = CMenus::ThemeAccent();
+	const vec4 AccentDim = CMenus::ThemeAccentDim();
+	const vec4 Text = CMenus::ThemeText();
+	const vec4 Danger = CMenus::ThemeDanger();
+
+	CUIRect Screen = {0, 0, ScreenWidth, 300.0f};
+	DrawPanel(Screen, vec4(Deep.r, Deep.g, Deep.b, 0.96f * Alpha), 0.0f);
+	CUIRect Stage = {10.0f, 56.0f + EntryOffset * 0.35f, ScreenWidth - 20.0f, 196.0f};
+	DrawPanel(Stage, vec4(Inset.r, Inset.g, Inset.b, 0.97f * Alpha), 13.0f);
+	CUIRect TopLine = {Stage.x + 13.0f, Stage.y + 9.0f, (Stage.w - 26.0f) * Entry, 1.2f};
+	DrawPanel(TopLine, vec4(Accent.r, Accent.g, Accent.b, 0.68f * Alpha), 0.6f);
+	DrawText(ScreenWidth * 0.5f,
+			 8.0f,
+			 12.5f,
+			 Localize("Field order"),
+			 vec4(Text.r, Text.g, Text.b, Alpha),
+			 -1.0f,
+			 0);
+	DrawText(ScreenWidth * 0.5f,
+			 26.0f,
+			 6.4f,
+			 Localize("Choose how this floor plays. Effects last until the door."),
+			 vec4(Text.r, Text.g, Text.b, 0.72f * Alpha),
+			 -1.0f,
+			 0);
+
+	CUIRect Floor = {Stage.x + 14.0f, Stage.y + 16.0f, 58.0f, 15.0f};
+	DrawPanel(Floor, vec4(Panel.r, Panel.g, Panel.b, 0.96f * Alpha), 7.0f);
+	char aFloor[48];
+	str_format(aFloor, sizeof(aFloor), Localize("Floor %d"), m_FieldOrderFloor);
+	DrawText(
+		Floor.x + Floor.w * 0.5f, Floor.y + 4.0f, 6.3f, aFloor, vec4(Accent.r, Accent.g, Accent.b, Alpha), -1.0f, 0);
+	const int Seconds = max(
+		0, (m_FieldOrderEndTick - Client()->GameTick() + Client()->GameTickSpeed() - 1) / Client()->GameTickSpeed());
+	char aTimer[64];
+	str_format(aTimer, sizeof(aTimer), Localize("%d seconds"), Seconds);
+	CUIRect Timer = {Stage.x + Stage.w - 92.0f, Stage.y + 16.0f, 78.0f, 15.0f};
+	DrawPanel(Timer, vec4(Panel.r, Panel.g, Panel.b, 0.96f * Alpha), 7.0f);
+	const float WarningPulse =
+		Seconds <= 3 ? 0.82f + 0.18f * sinf((float)time_get() / (float)time_freq() * 7.0f) : 1.0f;
+	const vec4 TimerColor = Seconds <= 3 ? Danger : Accent;
+	DrawText(Timer.x + Timer.w * 0.5f,
+			 Timer.y + 4.0f,
+			 6.0f,
+			 aTimer,
+			 vec4(TimerColor.r, TimerColor.g, TimerColor.b, Alpha * WarningPulse),
+			 -1.0f,
+			 0);
+
+	const float Gap = 10.0f;
+	const float CardWidth = min(185.0f, (Stage.w - 30.0f - Gap * 2.0f) / 3.0f);
+	const float StartX = ScreenWidth * 0.5f - CardWidth * 1.5f - Gap;
+	const float CardTop = 92.0f + (1.0f - Entry) * 6.0f;
+	const float CardH = 74.0f;
+	int Hovered = -1;
+	for(int i = 0; i < 3; i++)
+	{
+		const float CardEntry = UiStagger(Alpha, i);
+		CUIRect Hit = {StartX + i * (CardWidth + Gap), CardTop + (1.0f - CardEntry) * 6.0f, CardWidth, CardH};
+		if(m_SelectorMouse.x >= Hit.x && m_SelectorMouse.x <= Hit.x + Hit.w && m_SelectorMouse.y >= Hit.y &&
+		   m_SelectorMouse.y <= Hit.y + Hit.h)
+			Hovered = i;
+	}
+	if(m_MouseTrigger)
+	{
+		if(Hovered >= 0)
+		{
+			m_FocusedChoice = Hovered;
+			SendFieldOrderVote(Hovered);
+		}
+		m_MouseTrigger = false;
+	}
+	else if(Hovered >= 0)
+		m_FocusedChoice = Hovered;
+
+	for(int i = 0; i < 3; i++)
+	{
+		const bool Focused = i == m_FocusedChoice;
+		const bool Selected = i == m_SelectedFieldOrder;
+		m_aCardFocus[i] += ((Focused ? 1.0f : 0.0f) - m_aCardFocus[i]) * (1.0f - expf(-14.0f * Dt));
+		const float FocusAmount = clamp(m_aCardFocus[i], 0.0f, 1.0f);
+		const float CardEntry = UiStagger(Alpha, i);
+		const float CardAlpha = Alpha * CardEntry;
+		const float Scale = 1.0f + FocusAmount * 0.018f + (Selected ? ConfirmPulse * 0.012f : 0.0f);
+		const vec4 ChoiceColor = Accent;
+		CUIRect Card = {StartX + i * (CardWidth + Gap) - CardWidth * (Scale - 1.0f) * 0.5f,
+						CardTop + (1.0f - CardEntry) * 6.0f - FocusAmount * 1.0f -
+							(Selected ? ConfirmPulse * 0.4f : 0.0f),
+						CardWidth * Scale,
+						CardH * Scale};
+		CUIRect Border = Card;
+		Border.Margin(-1.5f, &Border);
+		const float BorderAlpha = Selected ? 0.92f : (Focused ? 0.78f : 0.24f);
+		DrawPanel(Border,
+				  vec4(ChoiceColor.r,
+					   ChoiceColor.g,
+					   ChoiceColor.b,
+					   min(1.0f, BorderAlpha + ConfirmPulse * 0.08f) * CardAlpha),
+				  11.0f);
+		DrawPanel(Card, vec4(Panel.r, Panel.g, Panel.b, 0.98f * CardAlpha), 9.0f);
+
+		char aVotes[64];
+		str_format(aVotes, sizeof(aVotes), Localize("%d votes"), m_aFieldOrderVotes[i]);
+		CUIRect VoteBadge = {Card.x + 8.0f, Card.y + 8.0f, 48.0f, 14.0f};
+		DrawPanel(VoteBadge, vec4(Inset.r, Inset.g, Inset.b, 0.96f * CardAlpha), 7.0f);
+		DrawText(VoteBadge.x + VoteBadge.w * 0.5f,
+				 VoteBadge.y + 3.8f,
+				 5.8f,
+				 aVotes,
+				 vec4(ChoiceColor.r, ChoiceColor.g, ChoiceColor.b, CardAlpha),
+				 -1.0f,
+				 0);
+		char aKey[8];
+		str_format(aKey, sizeof(aKey), "%d", i + 1);
+		CUIRect Key = {Card.x + Card.w - 25.0f, Card.y + 8.0f, 16.0f, 14.0f};
+		DrawPanel(Key, vec4(Inset.r, Inset.g, Inset.b, 0.96f * CardAlpha), 6.0f);
+		DrawText(Key.x + Key.w * 0.5f, Key.y + 3.8f, 5.8f, aKey, vec4(Text.r, Text.g, Text.b, CardAlpha), -1.0f, 0);
+
+		float NameSize = 8.2f + FocusAmount * 0.4f;
+		const char *pName = Localize(GetFieldOrderDisplayName(m_aFieldOrderPackages[i]));
+		while(NameSize > 6.4f && TextRender()->TextWidth(0, NameSize, pName, -1) > Card.w - 72.0f)
+			NameSize -= 0.3f;
+		DrawText(Card.x + 62.0f,
+				 Card.y + 9.0f,
+				 NameSize,
+				 pName,
+				 vec4(Text.r, Text.g, Text.b, CardAlpha),
+				 Card.w - 78.0f,
+				 -1);
+
+		const char *pEffect = Localize(GetFieldOrderEffectText(m_aFieldOrderPackages[i]));
+		DrawWrappedText(Card.x + 8.0f,
+						Card.y + 31.0f,
+						5.8f,
+						pEffect,
+						vec4(Text.r, Text.g, Text.b, 0.72f * CardAlpha),
+						Card.w - 16.0f,
+						2);
+
+		CUIRect Button = {Card.x + Card.w * 0.5f - 26.0f, Card.y + CardH - 19.0f, 52.0f, 15.0f};
+		const vec4 ButtonColor = Focused || Selected ? ChoiceColor : AccentDim;
+		DrawPanel(Button, vec4(ButtonColor.r, ButtonColor.g, ButtonColor.b, 0.94f * CardAlpha), 7.0f);
+		DrawText(Button.x + Button.w * 0.5f,
+				 Button.y + 4.0f,
+				 5.8f + (Selected ? ConfirmPulse * 0.3f : 0.0f),
+				 Localize(Selected ? "Voted" : "Vote"),
+				 vec4(Text.r, Text.g, Text.b, CardAlpha),
+				 -1.0f,
+				 0);
+	}
+
+	DrawText(ScreenWidth * 0.5f,
+			 258.0f,
+			 6.0f,
+			 Localize("Choose 1, 2 or 3  ·  Arrows / gamepad  ·  Enter / A to vote"),
 			 vec4(Text.r, Text.g, Text.b, 0.68f * Alpha),
 			 -1.0f,
 			 0);
@@ -4061,10 +4303,17 @@ void CPveRoguelite::OnRender()
 	if(m_pClient->m_pMenus->IsResearchPageActive())
 		return;
 
+	// Fallback: the server pushes a closed update, but never leave the overlay
+	// stuck if that message is lost around a map change.
+	if(m_FieldOrderActive && Client()->GameTick() > m_FieldOrderEndTick + Client()->GameTickSpeed())
+		m_FieldOrderActive = false;
+
 	if(m_InvasionRetryResultActive)
 		DrawInvasionRetryResult();
 	else if(m_InvasionRetryVoteActive)
 		DrawInvasionRetryVote();
+	else if(m_FieldOrderActive)
+		DrawFieldOrder();
 	else if(m_ContractVoteActive)
 		DrawSelectionOverlay(true);
 	else if(m_ChoiceActive)
@@ -4091,6 +4340,8 @@ void CPveRoguelite::RenderMenuDebugOverlay()
 		DrawInvasionRetryResult();
 	else if(Client()->State() != IClient::STATE_ONLINE && m_InvasionRetryVoteActive)
 		DrawInvasionRetryVote();
+	else if(Client()->State() != IClient::STATE_ONLINE && m_FieldOrderActive)
+		DrawFieldOrder();
 	else if(Client()->State() != IClient::STATE_ONLINE && m_ContractVoteActive)
 		DrawSelectionOverlay(true);
 	else if(Client()->State() != IClient::STATE_ONLINE && m_ChoiceActive)
@@ -4171,6 +4422,39 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 		else if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A ||
 				 Event.m_Key == KEY_GAMEPAD_BUTTON_START)
 			SendInvasionRetryVote(m_FocusedChoice);
+		else if(Event.m_Key == KEY_MOUSE_1)
+			m_MouseTrigger = true;
+		return true;
+	}
+	if(m_FieldOrderActive)
+	{
+		int Direction = 0;
+		if(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_LEFT || Event.m_Key == KEY_GAMEPAD_AXIS_LEFT ||
+		   Event.m_Key == KEY_GAMEPAD_SHOULDER_LEFT)
+			Direction = -1;
+		else if(Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_GAMEPAD_BUTTON_DPAD_RIGHT || Event.m_Key == KEY_GAMEPAD_AXIS_RIGHT ||
+				Event.m_Key == KEY_GAMEPAD_SHOULDER_RIGHT)
+			Direction = 1;
+		if(Direction)
+			m_FocusedChoice = (m_FocusedChoice + Direction + 3) % 3;
+		else if(Event.m_Key == KEY_1 || Event.m_Key == KEY_KP_1)
+		{
+			m_FocusedChoice = 0;
+			SendFieldOrderVote(0);
+		}
+		else if(Event.m_Key == KEY_2 || Event.m_Key == KEY_KP_2)
+		{
+			m_FocusedChoice = 1;
+			SendFieldOrderVote(1);
+		}
+		else if(Event.m_Key == KEY_3 || Event.m_Key == KEY_KP_3)
+		{
+			m_FocusedChoice = 2;
+			SendFieldOrderVote(2);
+		}
+		else if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A ||
+				 Event.m_Key == KEY_GAMEPAD_BUTTON_START)
+			SendFieldOrderVote(m_FocusedChoice);
 		else if(Event.m_Key == KEY_MOUSE_1)
 			m_MouseTrigger = true;
 		return true;
@@ -4429,6 +4713,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_ContractVoteActive = false;
 		m_InvasionRetryVoteActive = false;
 		m_InvasionRetryResultActive = false;
+		m_FieldOrderActive = false;
 		m_ChoiceNonce = pMsg->m_Nonce;
 		m_ChoiceSequence = pMsg->m_ChoiceSequence;
 		m_ChoiceEndTick = pMsg->m_EndTick;
@@ -4495,6 +4780,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_ChoiceActive = false;
 		m_InvasionRetryVoteActive = false;
 		m_InvasionRetryResultActive = false;
+		m_FieldOrderActive = false;
 		m_ContractNonce = pMsg->m_Nonce;
 		m_ContractEndTick = pMsg->m_EndTick;
 		m_aContractOptions[0] = pMsg->m_Contract0;
@@ -4555,6 +4841,7 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_ChoiceActive = false;
 		m_ContractVoteActive = false;
 		m_InvasionRetryResultActive = false;
+		m_FieldOrderActive = false;
 		m_InvasionRetryVoteActive = true;
 		m_InvasionRetryNonce = pMsg->m_Nonce;
 		m_InvasionRetryEndTick = pMsg->m_EndTick;
@@ -4566,6 +4853,43 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 			m_MouseTrigger = false;
 			m_SelectedInvasionRetry = -1;
 			m_FocusedChoice = PVE_INVASION_RETRY;
+			for(int i = 0; i < 3; i++)
+				m_aCardFocus[i] = 0.0f;
+			m_SelectorMouse = vec2(150.0f * Graphics()->ScreenAspect(), 150.0f);
+			m_AppearAmount = 0.0f;
+			m_SelectionPulse = 0.0f;
+		}
+	}
+	else if(MsgType == NETMSGTYPE_SV_PVEINVASIONFIELDORDER)
+	{
+		CNetMsg_Sv_PveInvasionFieldOrder *pMsg = (CNetMsg_Sv_PveInvasionFieldOrder *)pRawMsg;
+		if(pMsg->m_Closed)
+		{
+			// Vote finished: the floor is starting under the chosen package.
+			m_FieldOrderActive = false;
+			m_SelectedFieldOrder = -1;
+			return;
+		}
+		const bool NewVote = !m_FieldOrderActive || m_FieldOrderNonce != pMsg->m_Nonce;
+		m_ChoiceActive = false;
+		m_ContractVoteActive = false;
+		m_InvasionRetryVoteActive = false;
+		m_InvasionRetryResultActive = false;
+		m_FieldOrderActive = true;
+		m_FieldOrderNonce = pMsg->m_Nonce;
+		m_FieldOrderEndTick = pMsg->m_EndTick;
+		m_FieldOrderFloor = pMsg->m_CurrentFloor;
+		m_aFieldOrderPackages[0] = pMsg->m_Package0;
+		m_aFieldOrderPackages[1] = pMsg->m_Package1;
+		m_aFieldOrderPackages[2] = pMsg->m_Package2;
+		m_aFieldOrderVotes[0] = pMsg->m_Votes0;
+		m_aFieldOrderVotes[1] = pMsg->m_Votes1;
+		m_aFieldOrderVotes[2] = pMsg->m_Votes2;
+		if(NewVote)
+		{
+			m_MouseTrigger = false;
+			m_SelectedFieldOrder = -1;
+			m_FocusedChoice = 0;
 			for(int i = 0; i < 3; i++)
 				m_aCardFocus[i] = 0.0f;
 			m_SelectorMouse = vec2(150.0f * Graphics()->ScreenAspect(), 150.0f);

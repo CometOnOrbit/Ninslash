@@ -2626,6 +2626,13 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			if(pInvasion)
 				pInvasion->OnRetryVote(ClientID, pMsg->m_Nonce, pMsg->m_Choice);
 		}
+		else if(MsgID == NETMSGTYPE_CL_PVEINVASIONFIELDORDER)
+		{
+			CNetMsg_Cl_PveInvasionFieldOrder *pMsg = (CNetMsg_Cl_PveInvasionFieldOrder *)pRawMsg;
+			CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pController);
+			if(pInvasion)
+				pInvasion->OnFieldOrderVote(ClientID, pMsg->m_Nonce, pMsg->m_Package);
+		}
 		else if(MsgID == NETMSGTYPE_CL_TUTORIALACTION)
 		{
 			CNetMsg_Cl_TutorialAction *pMsg = (CNetMsg_Cl_TutorialAction *)pRawMsg;

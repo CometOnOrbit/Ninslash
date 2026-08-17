@@ -2075,6 +2075,8 @@ void CCharacter::Tick()
 		else
 			m_Core.m_MoveSpeedMultiplier = GameServer()->m_pPveDirector->MovementMultiplier(GetCID());
 	}
+	if(CGameControllerInvasion *pInv = dynamic_cast<CGameControllerInvasion *>(GameServer()->m_pController))
+		m_Core.m_MoveSpeedMultiplier *= m_IsBot ? pInv->FieldEnemySpeedMultiplier() : pInv->FieldPlayerSpeedMultiplier();
 
 	float RecoilCap = 17.5f;
 
@@ -2311,6 +2313,11 @@ void CCharacter::SetHealth(int Health)
 {
 	if(m_IsBot && GameServer()->m_pPveDirector)
 		Health = max(1, (int)(Health * GameServer()->m_pPveDirector->EnemyHealthMultiplier() + 0.5f));
+	if(!m_IsBot)
+	{
+		if(CGameControllerInvasion *pInv = dynamic_cast<CGameControllerInvasion *>(GameServer()->m_pController))
+			Health = max(1, (int)(Health * pInv->FieldMaxHealthMultiplier() + 0.5f));
+	}
 	m_MaxHealth = Health;
 	m_HiddenHealth = Health;
 }

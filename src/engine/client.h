@@ -50,6 +50,7 @@ struct CHostGameSettings
 	bool m_MapGen;
 	bool m_Roguelite;
 	bool m_Contracts;
+	bool m_FieldOrders;
 	bool m_UseCheckpoint;
 	int m_ExpeditionSlot;
 	char m_aName[128];

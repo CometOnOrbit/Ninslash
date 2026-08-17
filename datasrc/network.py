@@ -1101,4 +1101,24 @@ Messages = [
 		NetIntAny("m_Value"),
 		NetTick("m_Tick"),
 	]),
+
+	# Package ids map to EFieldOrder in questinfo.h; keep ranges in sync
+	# (NUM_FIELD_ORDERS - 1 == 7).
+	NetMessage("Sv_PveInvasionFieldOrder", [
+		NetIntAny("m_Nonce"),
+		NetIntAny("m_EndTick"),
+		NetIntRange("m_CurrentFloor", 1, 9999),
+		NetIntRange("m_Closed", 0, 1),
+		NetIntRange("m_Package0", 0, 7),
+		NetIntRange("m_Package1", 0, 7),
+		NetIntRange("m_Package2", 0, 7),
+		NetIntRange("m_Votes0", 0, 'MAX_CLIENTS'),
+		NetIntRange("m_Votes1", 0, 'MAX_CLIENTS'),
+		NetIntRange("m_Votes2", 0, 'MAX_CLIENTS'),
+	]),
+
+	NetMessage("Cl_PveInvasionFieldOrder", [
+		NetIntAny("m_Nonce"),
+		NetIntRange("m_Package", 0, 7),
+	]),
 ]
