@@ -389,9 +389,9 @@ void CBuilding::CreateLightningWallTop()
 
 bool CBuilding::Jumppad()
 {
-	CCharacter *apEnts[MAX_CLIENTS];
+	CCharacter *apEnts[MAX_CHARACTERS];
 	int Num = GameServer()->m_World.FindEntities(
-		m_Pos, m_ProximityRadius * 10.0f, (CEntity **)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
+		m_Pos, m_ProximityRadius * 10.0f, (CEntity **)apEnts, MAX_CHARACTERS, CGameWorld::ENTTYPE_CHARACTER);
 	bool ret = false;
 
 	for(int i = 0; i < Num; ++i)

@@ -2382,15 +2382,17 @@ void CGameClient::OnPredict()
 	CWorldCore World;
 	World.m_Tuning = m_Tuning;
 
-	// search for players
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	// search for characters
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		if(!m_Snap.m_aCharacters[i].m_Active)
 			continue;
-
-		g_GameClient.m_aClients[i].m_Predicted.Init(&World, Collision());
-		World.m_apCharacters[i] = &g_GameClient.m_aClients[i].m_Predicted;
-		g_GameClient.m_aClients[i].m_Predicted.Read(&m_Snap.m_aCharacters[i].m_Cur);
+		CClientData *pData = ClientData(i);
+		if(!pData)
+			continue;
+		pData->m_Predicted.Init(&World, Collision());
+		World.m_apCharacters[i] = &pData->m_Predicted;
+		pData->m_Predicted.Read(&m_Snap.m_aCharacters[i].m_Cur);
 	}
 
 	// search for jumppads

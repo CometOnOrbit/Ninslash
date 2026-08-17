@@ -260,7 +260,7 @@ void CStalkerCrawler::Tick()
 
 bool CStalkerCrawler::Target()
 {
-	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CLIENTS)
+	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CHARACTERS)
 	{
 		m_Target = vec2(0, 0);
 		return false;
@@ -297,7 +297,7 @@ bool CStalkerCrawler::FindTarget()
 	CCharacter *pClosestCharacter = nullptr;
 	int ClosestDistance = 0;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())

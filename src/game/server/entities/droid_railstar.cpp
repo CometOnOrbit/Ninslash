@@ -72,14 +72,10 @@ vec2 CRailstar::MuzzlePos() const
 
 bool CRailstar::ResolveTarget(vec2 *pDirection)
 {
-	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CLIENTS)
+	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CHARACTERS)
 		return false;
 
-	CPlayer *pPlayer = GameServer()->m_apPlayers[m_TargetIndex];
-	if(!pPlayer)
-		return false;
-
-	CCharacter *pCharacter = pPlayer->GetCharacter();
+	CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
 	if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
 		return false;
 
@@ -108,13 +104,9 @@ bool CRailstar::FindTarget()
 	float ClosestDistance = RAILSTAR_RANGE;
 	const vec2 Muzzle = MuzzlePos();
 
-	for(int i = 0; i < MAX_CLIENTS; ++i)
+	for(int i = 0; i < MAX_CHARACTERS; ++i)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
+		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
 			continue;
 

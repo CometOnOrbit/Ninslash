@@ -320,7 +320,7 @@ void CCrawler::Fire()
 
 bool CCrawler::Target()
 {
-	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CLIENTS)
+	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CHARACTERS)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
 		if(!pCharacter)
@@ -360,7 +360,7 @@ bool CCrawler::FindTarget()
 	CCharacter *pClosestCharacter = 0;
 	int ClosestDistance = 0;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter)

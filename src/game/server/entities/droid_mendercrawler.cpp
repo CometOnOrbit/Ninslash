@@ -140,7 +140,7 @@ bool CMenderCrawler::EvadePlayers()
 	CCharacter *pClosestCharacter = nullptr;
 	float ClosestDistanceSquared = PlayerAvoidRadius * PlayerAvoidRadius;
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())

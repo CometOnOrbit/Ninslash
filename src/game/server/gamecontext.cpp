@@ -547,7 +547,7 @@ bool CGameContext::BuildableSpot(vec2 Pos)
 			return false;
 	}
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GetPlayerChar(i);
 
@@ -561,7 +561,7 @@ bool CGameContext::BuildableSpot(vec2 Pos)
 void CGameContext::OnBlockChange(vec2 Pos)
 {
 	// force characters to update and send the core
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
 		CCharacter *pCharacter = GetPlayerChar(i);
 

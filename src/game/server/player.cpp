@@ -691,13 +691,7 @@ void CPlayer::ToggleDroidControl()
 	int i = DroidPickNearest(aPos, aHealth, aController, n, pChr->m_Pos, 800.0f);
 	CDroid *pBest = i >= 0 ? apDroid[i] : 0;
 	if(!pBest)
-	{
-		vec2 Pos = pChr->m_Pos;
-		vec2 Hit;
-		const int HitFound =
-			GameServer()->Collision()->IntersectLine(Pos, Pos + vec2(0, 800), &Hit, 0);
-		pBest = new CBossStar(&GameServer()->m_World, Hit);
-	}
+		pBest = new CBossStar(&GameServer()->m_World, pChr->m_Pos);
 	if(!pBest || pBest->m_Health <= 0 || pBest->Controller() >= 0)
 		return;
 

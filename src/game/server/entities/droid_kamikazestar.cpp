@@ -36,14 +36,10 @@ void CKamikazeStar::Reset()
 
 bool CKamikazeStar::ResolveTarget(vec2 *pTargetPos)
 {
-	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CLIENTS)
+	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CHARACTERS)
 		return false;
 
-	CPlayer *pPlayer = GameServer()->m_apPlayers[m_TargetIndex];
-	if(!pPlayer)
-		return false;
-
-	CCharacter *pCharacter = pPlayer->GetCharacter();
+	CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
 	if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
 		return false;
 
@@ -70,13 +66,9 @@ bool CKamikazeStar::FindTarget()
 	float ClosestDistance = KAMIKAZE_STAR_TARGET_RANGE;
 	const vec2 Origin = m_Pos + m_Center;
 
-	for(int i = 0; i < MAX_CLIENTS; ++i)
+	for(int i = 0; i < MAX_CHARACTERS; ++i)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
+		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
 			continue;
 

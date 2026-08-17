@@ -20,9 +20,19 @@ int main()
 	assert(!IsNpcCoreIndex(MAX_CHARACTERS));
 	assert(NpcSlotFromCore(NpcCoreIndex(5)) == 5);
 	assert(NpcCoreIndex(0) >= MAX_CLIENTS);
+	assert(NpcCoreIndex(0) < MAX_CHARACTERS);
 
 	bool aCount[3] = {true, false, true};
 	assert(NpcCountUsed(aCount, 3) == 2);
 	assert(NpcCountUsed(aUsed, 4) == 4);
+
+	bool aPresent[MAX_CHARACTERS];
+	for(int i = 0; i < MAX_CHARACTERS; i++)
+		aPresent[i] = i < MAX_CLIENTS;
+	assert(NpcCoreIndex(0) >= MAX_CLIENTS);
+	assert(!aPresent[NpcCoreIndex(0)]);
+	for(int i = 0; i < MAX_CHARACTERS; i++)
+		aPresent[i] = true;
+	assert(aPresent[NpcCoreIndex(0)]);
 	return 0;
 }

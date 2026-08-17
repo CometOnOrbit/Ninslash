@@ -106,7 +106,7 @@ bool CControls::FindAimAssistTarget(vec2 AimDirection, vec2 *pTargetDirection, f
 	{
 		const int LocalID = m_pClient->m_Snap.m_LocalClientID;
 		const int LocalTeam = m_pClient->m_Snap.m_pLocalInfo ? m_pClient->m_Snap.m_pLocalInfo->m_Team : TEAM_SPECTATORS;
-		for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+		for(int ClientID = 0; ClientID < MAX_CHARACTERS; ClientID++)
 		{
 			if(ClientID == LocalID || !m_pClient->m_Snap.m_aCharacters[ClientID].m_Active || !m_pClient->m_Snap.m_paPlayerInfos[ClientID])
 				continue;

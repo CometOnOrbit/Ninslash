@@ -2086,7 +2086,7 @@ void CCharacter::Tick()
 
 	m_Recoil *= 0.6f;
 
-	if(m_Core.m_KickDamage >= 0 && m_Core.m_KickDamage < MAX_CLIENTS)
+	if(m_Core.m_KickDamage >= 0 && m_Core.m_KickDamage < MAX_CHARACTERS)
 	{
 		GameServer()->CreateSound(m_Pos, SOUND_KICKHIT);
 	}
@@ -2115,7 +2115,7 @@ void CCharacter::Tick()
 	if(m_AcidTimer > 0)
 		m_AcidTimer--;
 
-	if(m_Core.m_KickDamage >= 0 && m_Core.m_KickDamage < MAX_CLIENTS)
+	if(m_Core.m_KickDamage >= 0 && m_Core.m_KickDamage < MAX_CHARACTERS)
 	{
 		GameServer()->CreateSound(m_Pos, SOUND_KICKHIT);
 	}

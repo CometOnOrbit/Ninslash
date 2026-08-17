@@ -451,13 +451,9 @@ bool CDroid::Target()
 {
 	vec2 TurretPos = m_Pos + m_Center;
 
-	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CLIENTS)
+	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CHARACTERS)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[m_TargetIndex];
-		if(!pPlayer)
-			return false;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
+		CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
 		if(!pCharacter)
 			return false;
 
@@ -492,16 +488,9 @@ bool CDroid::FindTarget()
 	int ClosestDistance = 0;
 	vec2 TurretPos = m_Pos + vec2(0, -67);
 
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; i < MAX_CHARACTERS; i++)
 	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(!pPlayer)
-			continue;
-
-		// if (pPlayer->GetTeam() == m_Team && GameServer()->m_pController->IsTeamplay())
-		//	continue;
-
-		CCharacter *pCharacter = pPlayer->GetCharacter();
+		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
 		if(!pCharacter)
 			continue;
 
