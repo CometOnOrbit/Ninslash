@@ -156,14 +156,8 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 	char aBuf[128];
 	CUIRect Label, Button, Left, Right, TabBar, Content;
 
-	// Sub-tabs keep each page within screen height.
 	static int s_GeneralSubPage = 0;
-	const char *apTabs[] = {Localize("Camera"),
-							Localize("HUD"),
-							Localize("Chat"),
-							Localize("Theme"),
-							Localize("Nameplates"),
-							Localize("Misc")};
+	const char *apTabs[] = {Localize("Language"), Localize("Chat"), Localize("Theme")};
 	const int NumTabs = (int)(sizeof(apTabs) / sizeof(apTabs[0]));
 
 	MainView.HSplitTop(24.0f, &TabBar, &MainView);
@@ -184,11 +178,263 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 
 	DrawMenuInset(&Content, CUI::CORNER_B | CUI::CORNER_TR);
 	Content.Margin(8.0f, &Content);
+	if(s_GeneralSubPage == 0)
+	{
+		RenderLanguageSelection(Content);
+		return;
+	}
+
 	Content.VSplitMid(&Left, &Right);
 	Left.VSplitRight(6.0f, &Left, 0);
 	Right.VMargin(6.0f, &Right);
 
-	if(s_GeneralSubPage == 0) // Camera
+	if(s_GeneralSubPage == 1) // Chat
+	{
+		Left.HSplitTop(18.0f, &Button, &Left);
+		static int s_ShowChatButton = 0;
+		static const char *s_apShowChat[] = {Localize("Off"), Localize("On"), Localize("Always")};
+		str_format(aBuf, sizeof(aBuf), "%s: %s", Localize("Show chat"), s_apShowChat[g_Config.m_ClShowChat]);
+		if(DoButton_Menu(&s_ShowChatButton, aBuf, 0, &Button))
+			g_Config.m_ClShowChat = (g_Config.m_ClShowChat + 1) % 3;
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
+		if(DoButton_CheckBox(&g_Config.m_ClShowsocial, Localize("Show social data"), g_Config.m_ClShowsocial, &Button))
+			g_Config.m_ClShowsocial ^= 1;
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
+		static int s_FilterChatButton = 0;
+		static const char *s_apFilterChat[] = {Localize("Everyone"), Localize("Friends only"), Localize("No one")};
+		str_format(aBuf, sizeof(aBuf), "%s: %s", Localize("Chat messages"), s_apFilterChat[g_Config.m_ClFilterchat]);
+		if(DoButton_Menu(&s_FilterChatButton, aBuf, 0, &Button))
+		{
+			g_Config.m_ClFilterchat = (g_Config.m_ClFilterchat + 1) % 3;
+			if(g_Config.m_ClFilterchat != 1)
+				g_Config.m_ClShowChatFriends = 0;
+		}
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
+		if(DoButton_CheckBox(&g_Config.m_ClShowChatTeamMembersOnly,
+							 Localize("Only team chat"),
+							 g_Config.m_ClShowChatTeamMembersOnly,
+							 &Button))
+			g_Config.m_ClShowChatTeamMembersOnly ^= 1;
+
+		Right.HSplitTop(18.0f, &Button, &Right);
+		if(DoButton_CheckBox(
+			   &g_Config.m_ClShowChatSystem, Localize("System messages"), g_Config.m_ClShowChatSystem, &Button))
+			g_Config.m_ClShowChatSystem ^= 1;
+
+		Right.HSplitTop(4.0f, 0, &Right);
+		Right.HSplitTop(18.0f, &Button, &Right);
+		if(DoButton_CheckBox(
+			   &g_Config.m_ClShowKillMessages, Localize("Kill messages"), g_Config.m_ClShowKillMessages, &Button))
+			g_Config.m_ClShowKillMessages ^= 1;
+
+		Right.HSplitTop(4.0f, 0, &Right);
+		Right.HSplitTop(18.0f, &Button, &Right);
+		if(DoButton_CheckBox(
+			   &g_Config.m_ClDisableWhisper, Localize("Disable whisper"), g_Config.m_ClDisableWhisper, &Button))
+			g_Config.m_ClDisableWhisper ^= 1;
+	}
+	else // Theme
+	{
+		CUIRect ThemeView = Content, ThemeFooter, ThemeLeft, ThemeRight, ThemeButton;
+		ThemeView.HSplitBottom(34.0f, &ThemeView, &ThemeFooter);
+		ThemeView.VSplitMid(&ThemeLeft, &ThemeRight);
+		ThemeLeft.VSplitRight(6.0f, &ThemeLeft, 0);
+		ThemeRight.VMargin(6.0f, &ThemeRight);
+
+		auto DrawThemeGroup = [&](CUIRect View, const char *pTitle, int *pHue, int *pSat, int *pLht, int *pAlpha)
+		{
+			CUIRect Label, Row, ItemLabel, Swatch;
+			View.HSplitTop(18.0f, &Label, &View);
+			UI()->DoLabelScaled(&Label, pTitle, 12.0f, -1);
+			View.HSplitTop(4.0f, 0, &View);
+
+			const char *apLabels[] = {Localize("Hue"), Localize("Sat."), Localize("Lht."), Localize("Alpha")};
+			int *apValues[] = {pHue, pSat, pLht, pAlpha};
+			for(int i = 0; i < 4; ++i)
+			{
+				View.HSplitTop(18.0f, &Row, &View);
+				Row.VSplitLeft(72.0f, &ItemLabel, &Row);
+				UI()->DoLabelScaled(&ItemLabel, apLabels[i], 11.0f, -1);
+				Row.HMargin(1.0f, &Row);
+				float k = (*apValues[i]) / 255.0f;
+				k = DoScrollbarH(apValues[i], &Row, k);
+				*apValues[i] = (int)(k * 255.0f + 0.5f);
+				View.HSplitTop(4.0f, 0, &View);
+			}
+
+			View.HSplitTop(18.0f, &Row, &View);
+			Row.VSplitRight(58.0f, &Row, &Swatch);
+			vec3 Rgb = HslToRgb(vec3(*pHue / 255.0f, *pSat / 255.0f, *pLht / 255.0f));
+			RenderTools()->DrawUIRect(&Swatch, vec4(Rgb.r, Rgb.g, Rgb.b, *pAlpha / 255.0f), CUI::CORNER_ALL, 4.0f);
+			UI()->DoLabelScaled(&Row, pTitle, 11.0f, -1);
+		};
+
+		DrawThemeGroup(ThemeLeft,
+					   Localize("Primary color"),
+					   &g_Config.m_UiColorHue,
+					   &g_Config.m_UiColorSat,
+					   &g_Config.m_UiColorLht,
+					   &g_Config.m_UiColorAlpha);
+		DrawThemeGroup(ThemeRight,
+					   Localize("Secondary color"),
+					   &g_Config.m_UiColorHue2,
+					   &g_Config.m_UiColorSat2,
+					   &g_Config.m_UiColorLht2,
+					   &g_Config.m_UiColorAlpha2);
+
+		ThemeFooter.HSplitTop(6.0f, 0, &ThemeFooter);
+		ThemeButton = ThemeFooter;
+		ThemeButton.VSplitLeft(220.0f, 0, &ThemeButton);
+		ThemeButton.VSplitRight(220.0f, &ThemeButton, 0);
+		ThemeButton.HSplitTop(18.0f, &ThemeButton, 0);
+		static int s_ResetThemeButton = 0;
+		if(DoButton_Menu(&s_ResetThemeButton, Localize("Reset theme to defaults"), 0, &ThemeButton))
+			ResetThemeDefaults();
+	}
+}
+
+void CMenus::RenderSettingsGameplay(CUIRect MainView)
+{
+	char aBuf[128];
+	CUIRect Label, Button, Left, Right, TabBar, Content;
+
+	static int s_GameplaySubPage = 0;
+	const char *apTabs[] = {Localize("General"), Localize("Camera"), Localize("HUD")};
+	const int NumTabs = (int)(sizeof(apTabs) / sizeof(apTabs[0]));
+
+	MainView.HSplitTop(24.0f, &TabBar, &MainView);
+	MainView.HSplitTop(6.0f, 0, &MainView);
+	Content = MainView;
+
+	{
+		CUIRect Tab;
+		float TabW = TabBar.w / NumTabs;
+		for(int i = 0; i < NumTabs; i++)
+		{
+			TabBar.VSplitLeft(TabW, &Tab, &TabBar);
+			Tab.VMargin(2.0f, &Tab);
+			if(DoButton_MenuTab(apTabs[i], apTabs[i], s_GameplaySubPage == i, &Tab, CUI::CORNER_T))
+				s_GameplaySubPage = i;
+		}
+	}
+
+	DrawMenuInset(&Content, CUI::CORNER_B | CUI::CORNER_TR);
+	Content.Margin(8.0f, &Content);
+	Content.VSplitMid(&Left, &Right);
+	Left.VSplitRight(6.0f, &Left, 0);
+	Right.VMargin(6.0f, &Right);
+
+	if(s_GameplaySubPage == 0) // General: nameplates + misc
+	{
+		Left.HSplitTop(18.0f, &Button, &Left);
+		if(DoButton_CheckBox(&g_Config.m_ClNameplates, Localize("Show name plates"), g_Config.m_ClNameplates, &Button))
+			g_Config.m_ClNameplates ^= 1;
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
+		if(DoButton_CheckBox(
+			   &g_Config.m_ClNameplatesAlways, Localize("Always show"), g_Config.m_ClNameplatesAlways, &Button))
+			g_Config.m_ClNameplatesAlways ^= 1;
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(16.0f, &Label, &Left);
+		Left.HSplitTop(16.0f, &Button, &Left);
+		str_format(aBuf, sizeof(aBuf), "%s: %i", Localize("Size"), g_Config.m_ClNameplatesSize);
+		UI()->DoLabelScaled(&Label, aBuf, 12.0f, -1);
+		Button.HMargin(1.0f, &Button);
+		g_Config.m_ClNameplatesSize =
+			(int)(DoScrollbarH(&g_Config.m_ClNameplatesSize, &Button, g_Config.m_ClNameplatesSize / 100.0f) * 100.0f +
+				  0.1f);
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
+		if(DoButton_CheckBox(
+			   &g_Config.m_ClNameplatesTeamcolors, Localize("Team colors"), g_Config.m_ClNameplatesTeamcolors, &Button))
+			g_Config.m_ClNameplatesTeamcolors ^= 1;
+
+		Right.HSplitTop(18.0f, &Button, &Right);
+		if(DoButton_CheckBox(
+			   &g_Config.m_ClNamePlatesOwn, Localize("Own name plate"), g_Config.m_ClNamePlatesOwn, &Button))
+			g_Config.m_ClNamePlatesOwn ^= 1;
+
+		Right.HSplitTop(4.0f, 0, &Right);
+		Right.HSplitTop(18.0f, &Button, &Right);
+		if(DoButton_CheckBox(&g_Config.m_ClNamePlatesFriendMark,
+							 Localize("Friend marks"),
+							 g_Config.m_ClNamePlatesFriendMark,
+							 &Button))
+			g_Config.m_ClNamePlatesFriendMark ^= 1;
+
+		Right.HSplitTop(4.0f, 0, &Right);
+		Right.HSplitTop(18.0f, &Button, &Right);
+		if(DoButton_CheckBox(&g_Config.m_ClNamePlatesClan, Localize("Show clan"), g_Config.m_ClNamePlatesClan, &Button))
+			g_Config.m_ClNamePlatesClan ^= 1;
+
+		Right.HSplitTop(4.0f, 0, &Right);
+		Right.HSplitTop(18.0f, &Button, &Right);
+		if(DoButton_CheckBox(&g_Config.m_ClNamePlatesIds, Localize("Show IDs"), g_Config.m_ClNamePlatesIds, &Button))
+			g_Config.m_ClNamePlatesIds ^= 1;
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
+		if(DoButton_CheckBox(&g_Config.m_ClAutoswitchWeapons,
+							 Localize("Switch weapon on pickup"),
+							 g_Config.m_ClAutoswitchWeapons,
+							 &Button))
+			g_Config.m_ClAutoswitchWeapons ^= 1;
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
+		if(DoButton_CheckBox(&g_Config.m_ClShowNotifications,
+							 Localize("Desktop notifications"),
+							 g_Config.m_ClShowNotifications,
+							 &Button))
+			g_Config.m_ClShowNotifications ^= 1;
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
+		if(DoButton_CheckBox(&g_Config.m_ClStreamerMode, Localize("Streamer mode"), g_Config.m_ClStreamerMode, &Button))
+			g_Config.m_ClStreamerMode ^= 1;
+
+		Left.HSplitTop(4.0f, 0, &Left);
+		Left.HSplitTop(18.0f, &Button, &Left);
+		if(DoButton_CheckBox(&g_Config.m_ClAntiPing, Localize("AntiPing"), g_Config.m_ClAntiPing, &Button))
+			g_Config.m_ClAntiPing ^= 1;
+
+		Right.HSplitTop(16.0f, &Label, &Right);
+		UI()->DoLabelScaled(&Label, Localize("Zoom with + / - keys"), 12.0f, -1);
+
+		Right.HSplitTop(8.0f, 0, &Right);
+		Right.HSplitTop(16.0f, &Label, &Right);
+		Right.HSplitTop(16.0f, &Button, &Right);
+		str_format(aBuf, sizeof(aBuf), "%s: %i%%", Localize("Menu opacity"), g_Config.m_ClMenuAlpha);
+		UI()->DoLabelScaled(&Label, aBuf, 12.0f, -1);
+		Button.HMargin(1.0f, &Button);
+		g_Config.m_ClMenuAlpha =
+			(int)(DoScrollbarH(&g_Config.m_ClMenuAlpha, &Button, g_Config.m_ClMenuAlpha / 100.0f) * 100.0f + 0.1f);
+
+		Right.HSplitTop(4.0f, 0, &Right);
+		Right.HSplitTop(18.0f, &Button, &Right);
+		static int s_WideviewButton = 0;
+		if(DoButton_CheckBox(&s_WideviewButton, Localize("Wide menu"), g_Config.m_UiWideview, &Button))
+			g_Config.m_UiWideview ^= 1;
+
+		Right.HSplitTop(4.0f, 0, &Right);
+		Right.HSplitTop(16.0f, &Label, &Right);
+		Right.HSplitTop(16.0f, &Button, &Right);
+		str_format(aBuf, sizeof(aBuf), "%s: %i%%", Localize("Interface scale"), g_Config.m_UiScale);
+		UI()->DoLabelScaled(&Label, aBuf, 12.0f, -1);
+		Button.HMargin(1.0f, &Button);
+		g_Config.m_UiScale = (int)(
+			DoScrollbarH(&g_Config.m_UiScale, &Button, (g_Config.m_UiScale - 50) / 150.0f) * 150.0f + 50.0f + 0.1f);
+	}
+	else if(s_GameplaySubPage == 1) // Camera
 	{
 		Left.HSplitTop(18.0f, &Button, &Left);
 		static int s_DynamicCameraButton = 0;
@@ -297,7 +543,7 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 		Right.HSplitTop(16.0f, &Label, &Right);
 		UI()->DoLabelScaled(&Label, Localize("Use +/- keys to zoom (rebindable in Controls)"), 12.0f, -1);
 	}
-	else if(s_GeneralSubPage == 1) // HUD
+	else // HUD
 	{
 		const bool Advanced = g_Config.m_UiAdvancedSettings != 0;
 		static int s_aHudPresetButtons[3];
@@ -400,224 +646,33 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 				g_Config.m_ClScoreboardUserId ^= 1;
 		}
 	}
-	else if(s_GeneralSubPage == 2) // Chat
-	{
-		Left.HSplitTop(18.0f, &Button, &Left);
-		static int s_ShowChatButton = 0;
-		static const char *s_apShowChat[] = {Localize("Off"), Localize("On"), Localize("Always")};
-		str_format(aBuf, sizeof(aBuf), "%s: %s", Localize("Show chat"), s_apShowChat[g_Config.m_ClShowChat]);
-		if(DoButton_Menu(&s_ShowChatButton, aBuf, 0, &Button))
-			g_Config.m_ClShowChat = (g_Config.m_ClShowChat + 1) % 3;
-
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_ClShowsocial, Localize("Show social data"), g_Config.m_ClShowsocial, &Button))
-			g_Config.m_ClShowsocial ^= 1;
-
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		static int s_FilterChatButton = 0;
-		static const char *s_apFilterChat[] = {Localize("Everyone"), Localize("Friends only"), Localize("No one")};
-		str_format(aBuf, sizeof(aBuf), "%s: %s", Localize("Chat messages"), s_apFilterChat[g_Config.m_ClFilterchat]);
-		if(DoButton_Menu(&s_FilterChatButton, aBuf, 0, &Button))
-		{
-			g_Config.m_ClFilterchat = (g_Config.m_ClFilterchat + 1) % 3;
-			if(g_Config.m_ClFilterchat != 1)
-				g_Config.m_ClShowChatFriends = 0;
-		}
-
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_ClShowChatTeamMembersOnly,
-							 Localize("Only team chat"),
-							 g_Config.m_ClShowChatTeamMembersOnly,
-							 &Button))
-			g_Config.m_ClShowChatTeamMembersOnly ^= 1;
-
-		Right.HSplitTop(18.0f, &Button, &Right);
-		if(DoButton_CheckBox(
-			   &g_Config.m_ClShowChatSystem, Localize("System messages"), g_Config.m_ClShowChatSystem, &Button))
-			g_Config.m_ClShowChatSystem ^= 1;
-
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		if(DoButton_CheckBox(
-			   &g_Config.m_ClShowKillMessages, Localize("Kill messages"), g_Config.m_ClShowKillMessages, &Button))
-			g_Config.m_ClShowKillMessages ^= 1;
-
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		if(DoButton_CheckBox(
-			   &g_Config.m_ClDisableWhisper, Localize("Disable whisper"), g_Config.m_ClDisableWhisper, &Button))
-			g_Config.m_ClDisableWhisper ^= 1;
-	}
-	else if(s_GeneralSubPage == 3) // Theme
-	{
-		CUIRect ThemeView = Content, ThemeFooter, ThemeLeft, ThemeRight, ThemeButton;
-		ThemeView.HSplitBottom(34.0f, &ThemeView, &ThemeFooter);
-		ThemeView.VSplitMid(&ThemeLeft, &ThemeRight);
-		ThemeLeft.VSplitRight(6.0f, &ThemeLeft, 0);
-		ThemeRight.VMargin(6.0f, &ThemeRight);
-
-		auto DrawThemeGroup = [&](CUIRect View, const char *pTitle, int *pHue, int *pSat, int *pLht, int *pAlpha)
-		{
-			CUIRect Label, Row, ItemLabel, Swatch;
-			View.HSplitTop(18.0f, &Label, &View);
-			UI()->DoLabelScaled(&Label, pTitle, 12.0f, -1);
-			View.HSplitTop(4.0f, 0, &View);
-
-			const char *apLabels[] = {Localize("Hue"), Localize("Sat."), Localize("Lht."), Localize("Alpha")};
-			int *apValues[] = {pHue, pSat, pLht, pAlpha};
-			for(int i = 0; i < 4; ++i)
-			{
-				View.HSplitTop(18.0f, &Row, &View);
-				Row.VSplitLeft(72.0f, &ItemLabel, &Row);
-				UI()->DoLabelScaled(&ItemLabel, apLabels[i], 11.0f, -1);
-				Row.HMargin(1.0f, &Row);
-				float k = (*apValues[i]) / 255.0f;
-				k = DoScrollbarH(apValues[i], &Row, k);
-				*apValues[i] = (int)(k * 255.0f + 0.5f);
-				View.HSplitTop(4.0f, 0, &View);
-			}
-
-			View.HSplitTop(18.0f, &Row, &View);
-			Row.VSplitRight(58.0f, &Row, &Swatch);
-			vec3 Rgb = HslToRgb(vec3(*pHue / 255.0f, *pSat / 255.0f, *pLht / 255.0f));
-			RenderTools()->DrawUIRect(&Swatch, vec4(Rgb.r, Rgb.g, Rgb.b, *pAlpha / 255.0f), CUI::CORNER_ALL, 4.0f);
-			UI()->DoLabelScaled(&Row, pTitle, 11.0f, -1);
-		};
-
-		DrawThemeGroup(ThemeLeft,
-					   Localize("Primary color"),
-					   &g_Config.m_UiColorHue,
-					   &g_Config.m_UiColorSat,
-					   &g_Config.m_UiColorLht,
-					   &g_Config.m_UiColorAlpha);
-		DrawThemeGroup(ThemeRight,
-					   Localize("Secondary color"),
-					   &g_Config.m_UiColorHue2,
-					   &g_Config.m_UiColorSat2,
-					   &g_Config.m_UiColorLht2,
-					   &g_Config.m_UiColorAlpha2);
-
-		ThemeFooter.HSplitTop(6.0f, 0, &ThemeFooter);
-		ThemeButton = ThemeFooter;
-		ThemeButton.VSplitLeft(220.0f, 0, &ThemeButton);
-		ThemeButton.VSplitRight(220.0f, &ThemeButton, 0);
-		ThemeButton.HSplitTop(18.0f, &ThemeButton, 0);
-		static int s_ResetThemeButton = 0;
-		if(DoButton_Menu(&s_ResetThemeButton, Localize("Reset theme to defaults"), 0, &ThemeButton))
-			ResetThemeDefaults();
-	}
-	else if(s_GeneralSubPage == 4) // Nameplates
-	{
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_ClNameplates, Localize("Show name plates"), g_Config.m_ClNameplates, &Button))
-			g_Config.m_ClNameplates ^= 1;
-
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(
-			   &g_Config.m_ClNameplatesAlways, Localize("Always show"), g_Config.m_ClNameplatesAlways, &Button))
-			g_Config.m_ClNameplatesAlways ^= 1;
-
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(16.0f, &Label, &Left);
-		Left.HSplitTop(16.0f, &Button, &Left);
-		str_format(aBuf, sizeof(aBuf), "%s: %i", Localize("Size"), g_Config.m_ClNameplatesSize);
-		UI()->DoLabelScaled(&Label, aBuf, 12.0f, -1);
-		Button.HMargin(1.0f, &Button);
-		g_Config.m_ClNameplatesSize =
-			(int)(DoScrollbarH(&g_Config.m_ClNameplatesSize, &Button, g_Config.m_ClNameplatesSize / 100.0f) * 100.0f +
-				  0.1f);
-
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(
-			   &g_Config.m_ClNameplatesTeamcolors, Localize("Team colors"), g_Config.m_ClNameplatesTeamcolors, &Button))
-			g_Config.m_ClNameplatesTeamcolors ^= 1;
-
-		Right.HSplitTop(18.0f, &Button, &Right);
-		if(DoButton_CheckBox(
-			   &g_Config.m_ClNamePlatesOwn, Localize("Own name plate"), g_Config.m_ClNamePlatesOwn, &Button))
-			g_Config.m_ClNamePlatesOwn ^= 1;
-
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_ClNamePlatesFriendMark,
-							 Localize("Friend marks"),
-							 g_Config.m_ClNamePlatesFriendMark,
-							 &Button))
-			g_Config.m_ClNamePlatesFriendMark ^= 1;
-
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_ClNamePlatesClan, Localize("Show clan"), g_Config.m_ClNamePlatesClan, &Button))
-			g_Config.m_ClNamePlatesClan ^= 1;
-
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		if(DoButton_CheckBox(&g_Config.m_ClNamePlatesIds, Localize("Show IDs"), g_Config.m_ClNamePlatesIds, &Button))
-			g_Config.m_ClNamePlatesIds ^= 1;
-	}
-	else // Misc
-	{
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_ClAutoswitchWeapons,
-							 Localize("Switch weapon on pickup"),
-							 g_Config.m_ClAutoswitchWeapons,
-							 &Button))
-			g_Config.m_ClAutoswitchWeapons ^= 1;
-
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_ClShowNotifications,
-							 Localize("Desktop notifications"),
-							 g_Config.m_ClShowNotifications,
-							 &Button))
-			g_Config.m_ClShowNotifications ^= 1;
-
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_ClStreamerMode, Localize("Streamer mode"), g_Config.m_ClStreamerMode, &Button))
-			g_Config.m_ClStreamerMode ^= 1;
-
-		Left.HSplitTop(4.0f, 0, &Left);
-		Left.HSplitTop(18.0f, &Button, &Left);
-		if(DoButton_CheckBox(&g_Config.m_ClAntiPing, Localize("AntiPing"), g_Config.m_ClAntiPing, &Button))
-			g_Config.m_ClAntiPing ^= 1;
-
-		Right.HSplitTop(16.0f, &Label, &Right);
-		UI()->DoLabelScaled(&Label, Localize("Zoom with + / - keys"), 12.0f, -1);
-
-		Right.HSplitTop(8.0f, 0, &Right);
-		Right.HSplitTop(16.0f, &Label, &Right);
-		Right.HSplitTop(16.0f, &Button, &Right);
-		str_format(aBuf, sizeof(aBuf), "%s: %i%%", Localize("Menu opacity"), g_Config.m_ClMenuAlpha);
-		UI()->DoLabelScaled(&Label, aBuf, 12.0f, -1);
-		Button.HMargin(1.0f, &Button);
-		g_Config.m_ClMenuAlpha =
-			(int)(DoScrollbarH(&g_Config.m_ClMenuAlpha, &Button, g_Config.m_ClMenuAlpha / 100.0f) * 100.0f + 0.1f);
-
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(18.0f, &Button, &Right);
-		static int s_WideviewButton = 0;
-		if(DoButton_CheckBox(&s_WideviewButton, Localize("Wide menu"), g_Config.m_UiWideview, &Button))
-			g_Config.m_UiWideview ^= 1;
-
-		Right.HSplitTop(4.0f, 0, &Right);
-		Right.HSplitTop(16.0f, &Label, &Right);
-		Right.HSplitTop(16.0f, &Button, &Right);
-		str_format(aBuf, sizeof(aBuf), "%s: %i%%", Localize("Interface scale"), g_Config.m_UiScale);
-		UI()->DoLabelScaled(&Label, aBuf, 12.0f, -1);
-		Button.HMargin(1.0f, &Button);
-		g_Config.m_UiScale = (int)(
-			DoScrollbarH(&g_Config.m_UiScale, &Button, (g_Config.m_UiScale - 50) / 150.0f) * 150.0f + 50.0f + 0.1f);
-	}
 }
 
 void CMenus::RenderSettingsPlayer(CUIRect MainView)
 {
+	static int s_PlayerSubPage = 0;
+	const char *apTabs[] = {Localize("Player"), Localize("Customize")};
+	const int NumTabs = (int)(sizeof(apTabs) / sizeof(apTabs[0]));
+	CUIRect TabBar;
+	MainView.HSplitTop(24.0f, &TabBar, &MainView);
+	MainView.HSplitTop(6.0f, 0, &MainView);
+	{
+		CUIRect Tab;
+		float TabW = TabBar.w / NumTabs;
+		for(int i = 0; i < NumTabs; i++)
+		{
+			TabBar.VSplitLeft(TabW, &Tab, &TabBar);
+			Tab.VMargin(2.0f, &Tab);
+			if(DoButton_MenuTab(apTabs[i], apTabs[i], s_PlayerSubPage == i, &Tab, CUI::CORNER_T))
+				s_PlayerSubPage = i;
+		}
+	}
+	if(s_PlayerSubPage == 1)
+	{
+		RenderCustomization(MainView);
+		return;
+	}
+
 	CUIRect Button, Label;
 	MainView.HSplitTop(10.0f, 0, &MainView);
 
@@ -2098,22 +2153,9 @@ float CMenus::RenderSettingsControlsMovement(CUIRect View)
 		g_Config.m_InpMousesens =
 			(int)(DoScrollbarH(&g_Config.m_InpMousesens, &Button, (g_Config.m_InpMousesens - 1) / 500.0f) * 500.0f) + 1;
 
-	View.HSplitTop(5.0f, 0, &View);
-	View.HSplitTop(20.0f, &Button, &View);
-	Button.VSplitLeft(200.0f, &Label, &Button);
-	str_format(aBuf, sizeof(aBuf), "%s: %i", Localize("Menu mouse sens."), g_Config.m_UiMousesens);
-	UI()->DoLabel(&Label, aBuf, 14.0f * UI()->Scale(), -1);
-	Button.HMargin(2.0f, &Button);
-	if(!(m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(Button)))
-	{
-		const int Sens =
-			(int)(DoScrollbarH(&g_Config.m_UiMousesens, &Button, (g_Config.m_UiMousesens - 1) / 500.0f) * 500.0f) + 1;
-		g_Config.m_UiMousesens = Sens < 5 ? 5 : Sens;
-	}
-
 	View.HSplitTop(10.0f, 0, &View);
 	UiDoGetButtons(START_MOVEMENT, START_WEAPONS, View);
-	return 55.0f + (START_WEAPONS - START_MOVEMENT) * 25.0f;
+	return 30.0f + (START_WEAPONS - START_MOVEMENT) * 25.0f;
 }
 
 float CMenus::RenderSettingsControlsWeapons(CUIRect View)
@@ -3738,17 +3780,15 @@ void CMenus::RenderSettings(CUIRect MainView)
 	ModuleRail.Margin(8.0f, &ModuleRail);
 	Content.Margin(10.0f, &Content);
 
-	const char *aTabs[] = {Localize("Language"),
-						   Localize("General"),
+	const char *aTabs[] = {Localize("General"),
+						   Localize("Gameplay"),
 						   Localize("Player"),
-						   Localize("Customize"),
 						   Localize("Controls"),
 						   Localize("Graphics"),
-						   Localize("Sound"),
-						   Localize("Cloud")};
+						   Localize("Sound")};
 
-	static int s_aModuleButtons[8];
-	const int NumTabs = 8;
+	static int s_aModuleButtons[6];
+	const int NumTabs = 6;
 	const float ModuleGap = 6.0f;
 	const float ModuleH = max(28.0f, (ModuleRail.h - ModuleGap * (NumTabs - 1)) / NumTabs);
 	for(int i = 0; i < NumTabs; i++)
@@ -3763,22 +3803,20 @@ void CMenus::RenderSettings(CUIRect MainView)
 			g_Config.m_UiSettingsPage = i;
 	}
 
+	if(g_Config.m_UiSettingsPage < 0 || g_Config.m_UiSettingsPage >= NumTabs)
+		g_Config.m_UiSettingsPage = 0;
 	if(g_Config.m_UiSettingsPage == 0)
-		RenderLanguageSelection(Content);
-	else if(g_Config.m_UiSettingsPage == 1)
 		RenderSettingsGeneral(Content);
+	else if(g_Config.m_UiSettingsPage == 1)
+		RenderSettingsGameplay(Content);
 	else if(g_Config.m_UiSettingsPage == 2)
 		RenderSettingsPlayer(Content);
 	else if(g_Config.m_UiSettingsPage == 3)
-		RenderCustomization(Content);
-	else if(g_Config.m_UiSettingsPage == 4)
 		RenderSettingsControls(Content);
-	else if(g_Config.m_UiSettingsPage == 5)
+	else if(g_Config.m_UiSettingsPage == 4)
 		RenderSettingsGraphics(Content);
-	else if(g_Config.m_UiSettingsPage == 6)
+	else
 		RenderSettingsSound(Content);
-	else if(g_Config.m_UiSettingsPage == 7)
-		RenderSettingsCloud(Content);
 
 	if(m_NeedRestartGraphics)
 	{

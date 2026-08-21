@@ -807,6 +807,9 @@ Game type
 Game types:
 == 遊戲類型:
 
+Gameplay
+== 玩法
+
 General
 == 常規
 

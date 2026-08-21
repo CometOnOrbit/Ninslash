@@ -688,6 +688,7 @@ class CMenus : public CComponent
 	// found in menus_settings.cpp
 	void RenderLanguageSelection(CUIRect MainView);
 	void RenderSettingsGeneral(CUIRect MainView);
+	void RenderSettingsGameplay(CUIRect MainView);
 	void RenderSettingsPlayer(CUIRect MainView);
 	void RenderCustomization(CUIRect MainView);
 	void RenderSettingsControls(CUIRect MainView);

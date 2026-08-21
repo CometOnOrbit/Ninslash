@@ -9985,9 +9985,8 @@ bool CMenus::OnMouseMove(float x, float y)
 	{
 		Input()->SetMouseModes(IInput::MOUSE_MODE_WARP_CENTER);
 		Input()->GetRelativePosition(&x, &y);
-		const float Fac = g_Config.m_UiMousesens / 100.0f;
-		m_MousePos.x = clamp(m_MousePos.x + x * Fac, 0.0f, (float)Graphics()->ScreenWidth() - 1.0f);
-		m_MousePos.y = clamp(m_MousePos.y + y * Fac, 0.0f, (float)Graphics()->ScreenHeight() - 1.0f);
+		m_MousePos.x = clamp(m_MousePos.x + x, 0.0f, (float)Graphics()->ScreenWidth() - 1.0f);
+		m_MousePos.y = clamp(m_MousePos.y + y, 0.0f, (float)Graphics()->ScreenHeight() - 1.0f);
 	}
 
 	return true;
