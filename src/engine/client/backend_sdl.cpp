@@ -1212,6 +1212,27 @@ SDL_DisplayID CGraphicsBackend_SDL_OpenGL::DisplayIDFromIndex(int Index) const
 	SDL_free(pDisplayIds);
 	return DisplayID;
 }
+an issue where ninslash is at a higher resolution
+static void ClampWindowSizeToDesktop(int *pWidth, int *pHeight, int DesktopWidth, int DesktopHeight)
+{
+	if(!pWidth || !pHeight || DesktopWidth <= 0 || DesktopHeight <= 0)
+		return;
+	const int OldWidth = *pWidth;
+	const int OldHeight = *pHeight;
+	if(*pWidth > DesktopWidth)
+		*pWidth = DesktopWidth;
+	if(*pHeight > DesktopHeight)
+		*pHeight = DesktopHeight;
+	if(OldWidth != *pWidth || OldHeight != *pHeight)
+		dbg_msg("gfx",
+				"clamped window size from %dx%d to %dx%d (desktop %dx%d)",
+				OldWidth,
+				OldHeight,
+				*pWidth,
+				*pHeight,
+				DesktopWidth,
+				DesktopHeight);
+}
 
 int CGraphicsBackend_SDL_OpenGL::Init(const char *pName,
 									  int *Width,
@@ -1274,6 +1295,8 @@ int CGraphicsBackend_SDL_OpenGL::Init(const char *pName,
 			*Width = *pDesktopWidth;
 			*Height = *pDesktopHeight;
 		}
+		if(!(Flags & IGraphicsBackend::INITFLAG_FULLSCREEN))
+			ClampWindowSizeToDesktop(Width, Height, *pDesktopWidth, *pDesktopHeight);
 	}
 	else
 	{
@@ -1416,10 +1439,16 @@ bool CGraphicsBackend_SDL_OpenGL::ApplyWindowSettings(int *pWidth, int *pHeight,
 		return false;
 
 	const int ResolvedScreen = ResolveScreenIndex(Screen);
-	const int WantWidth = max(1, *pWidth);
-	const int WantHeight = max(1, *pHeight);
+	int WantWidth = max(1, *pWidth);
+	int WantHeight = max(1, *pHeight);
 	if(Fullscreen)
 		Borderless = false;
+	else
+	{
+		const SDL_DisplayMode *pDesktopMode = SDL_GetDesktopDisplayMode(DisplayIDFromIndex(ResolvedScreen));
+		if(pDesktopMode)
+			ClampWindowSizeToDesktop(&WantWidth, &WantHeight, pDesktopMode->w, pDesktopMode->h);
+	}
 
 	const SDL_WindowFlags WindowFlags = SDL_GetWindowFlags(m_pWindow);
 	const bool WasFullscreen = (WindowFlags & SDL_WINDOW_FULLSCREEN) != 0;
