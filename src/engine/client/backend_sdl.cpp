@@ -1212,7 +1212,7 @@ SDL_DisplayID CGraphicsBackend_SDL_OpenGL::DisplayIDFromIndex(int Index) const
 	SDL_free(pDisplayIds);
 	return DisplayID;
 }
-an issue where ninslash is at a higher resolution
+
 static void ClampWindowSizeToDesktop(int *pWidth, int *pHeight, int DesktopWidth, int DesktopHeight)
 {
 	if(!pWidth || !pHeight || DesktopWidth <= 0 || DesktopHeight <= 0)
