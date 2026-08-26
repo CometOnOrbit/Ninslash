@@ -127,6 +127,22 @@ void ApplyGraphicsQualityPreset(int Preset)
 		g_Config.m_ClLighting = 1;
 	}
 }
+
+int CurrentGfxDisplayMode()
+{
+	if(g_Config.m_GfxFullscreen)
+		return 0;
+	if(g_Config.m_GfxBorderless)
+		return 1;
+	return 2;
+}
+
+void ApplyGfxDisplayMode(int Mode)
+{
+	Mode = clamp(Mode, 0, 2);
+	g_Config.m_GfxFullscreen = Mode == 0 ? 1 : 0;
+	g_Config.m_GfxBorderless = Mode == 1 ? 1 : 0;
+}
 } // namespace
 
 CMenusKeyBinder::CMenusKeyBinder()
@@ -2498,40 +2514,39 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 		s_CompactResolutionOpen = false;
 	}
 
-	// switches
-	MainView.HSplitTop(20.0f, &Button, &MainView);
-	if(DoButton_CheckBox(&g_Config.m_GfxBorderless, Localize("Borderless window"), g_Config.m_GfxBorderless, &Button))
+	// display mode
+	MainView.HSplitTop(18.0f, &Button, &MainView);
+	UI()->DoLabelScaled(&Button, Localize("Display mode"), 12.0f, -1);
+	MainView.HSplitTop(28.0f, &Button, &MainView);
+	static int s_aDisplayModeButtons[3];
+	const int ActiveDisplayMode = CurrentGfxDisplayMode();
+	for(int Mode = 0; Mode < 3; Mode++)
 	{
-		const int OldBorderless = g_Config.m_GfxBorderless;
-		const int OldFullscreen = g_Config.m_GfxFullscreen;
-		g_Config.m_GfxBorderless ^= 1;
-		if(g_Config.m_GfxBorderless && g_Config.m_GfxFullscreen)
-			g_Config.m_GfxFullscreen = 0;
-		if(!m_pClient->ApplyWindowSettings())
+		CUIRect ModeButton;
+		Button.VSplitLeft(Button.w / (3 - Mode), &ModeButton, &Button);
+		ModeButton.VMargin(Mode == 0 ? 0.0f : 2.0f, &ModeButton);
+		const char *pLabel = Mode == 0 ? Localize("Fullscreen")
+							 : Mode == 1 ? Localize("Borderless window")
+										 : Localize("Windowed");
+		if(DoButton_Menu(&s_aDisplayModeButtons[Mode],
+						 pLabel,
+						 ActiveDisplayMode == Mode,
+						 &ModeButton,
+						 ActiveDisplayMode == Mode ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
 		{
-			g_Config.m_GfxBorderless = OldBorderless;
-			g_Config.m_GfxFullscreen = OldFullscreen;
+			const int OldBorderless = g_Config.m_GfxBorderless;
+			const int OldFullscreen = g_Config.m_GfxFullscreen;
+			ApplyGfxDisplayMode(Mode);
+			if(!m_pClient->ApplyWindowSettings())
+			{
+				g_Config.m_GfxBorderless = OldBorderless;
+				g_Config.m_GfxFullscreen = OldFullscreen;
+			}
+			else
+				CheckSettings = true;
 		}
-		else
-			CheckSettings = true;
 	}
-
-	MainView.HSplitTop(20.0f, &Button, &MainView);
-	if(DoButton_CheckBox(&g_Config.m_GfxFullscreen, Localize("Fullscreen"), g_Config.m_GfxFullscreen, &Button))
-	{
-		const int OldBorderless = g_Config.m_GfxBorderless;
-		const int OldFullscreen = g_Config.m_GfxFullscreen;
-		g_Config.m_GfxFullscreen ^= 1;
-		if(g_Config.m_GfxFullscreen && g_Config.m_GfxBorderless)
-			g_Config.m_GfxBorderless = 0;
-		if(!m_pClient->ApplyWindowSettings())
-		{
-			g_Config.m_GfxBorderless = OldBorderless;
-			g_Config.m_GfxFullscreen = OldFullscreen;
-		}
-		else
-			CheckSettings = true;
-	}
+	MainView.HSplitTop(8.0f, 0, &MainView);
 
 	MainView.HSplitTop(20.0f, &Button, &MainView);
 	if(DoButton_CheckBox(&g_Config.m_GfxVsync, Localize("V-Sync"), g_Config.m_GfxVsync, &Button))

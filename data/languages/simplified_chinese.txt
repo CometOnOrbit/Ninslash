@@ -294,6 +294,12 @@ Bomb (for destroying reactors)
 Borderless window
 == 无边框窗口
 
+Display mode
+== 显示模式
+
+Windowed
+== 窗口化
+
 Boss assault
 == Boss 突袭
 
