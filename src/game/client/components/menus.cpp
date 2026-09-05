@@ -775,9 +775,9 @@ void CMenus::DrawGlassSurface(const CUIRect *pRect, const vec4 &Fill, const vec4
 	if(Depth > 0.0f)
 	{
 		CUIRect Shadow = *pRect;
-		Shadow.x += Depth * 0.12f;
-		Shadow.y += Depth * 0.40f;
-		DrawTechShape(&Shadow, vec4(0.0f, 0.0f, 0.0f, min(0.26f, 0.08f + Depth * 0.035f)), Cut);
+		Shadow.x += Depth * 0.14f;
+		Shadow.y += Depth * 0.48f;
+		DrawTechShape(&Shadow, vec4(0.0f, 0.0f, 0.0f, min(0.30f, 0.10f + Depth * 0.040f)), Cut);
 	}
 
 	DrawTechShape(pRect, Border, Cut);
@@ -788,8 +788,8 @@ void CMenus::DrawGlassSurface(const CUIRect *pRect, const vec4 &Fill, const vec4
 	DrawTechShape(&Inner, Fill, max(0.0f, Cut - 1.0f));
 
 	vec4 Highlight = ms_ColorGlassLine;
-	Highlight.a = max(0.03f, min(0.10f, Border.a * 0.22f));
-	const float BottomAlpha = min(0.32f, max(0.05f, Border.a * 0.38f));
+	Highlight.a = max(0.045f, min(0.14f, Border.a * 0.30f));
+	const float BottomAlpha = min(0.38f, max(0.07f, Border.a * 0.46f));
 	DrawTechOutline(pRect, Highlight, vec4(0.0f, 0.0f, 0.0f, BottomAlpha), Cut);
 }
 
@@ -819,9 +819,9 @@ void CMenus::DrawMenuPanel(const CUIRect *pRect, int Corners)
 
 	vec4 Fill = ms_ColorBgPanel;
 	Fill.a = max(Fill.a * MenuAlpha(), 0.58f);
-	vec4 Border = vec4(0.42f, 0.50f, 0.58f, max(0.26f, 0.38f * MenuAlpha()));
+	vec4 Border = vec4(0.46f, 0.54f, 0.62f, max(0.32f, 0.44f * MenuAlpha()));
 	if(Corners == CUI::CORNER_ALL)
-		DrawGlassSurface(pRect, Fill, Border, ms_PanelRounding, 1.6f);
+		DrawGlassSurface(pRect, Fill, Border, ms_PanelRounding, 1.8f);
 	else
 		DrawMenuBorder(pRect, Fill, Border, Corners, ms_PanelRounding);
 }
@@ -834,15 +834,19 @@ void CMenus::DrawMenuInset(const CUIRect *pRect, int Corners)
 	if(ContentCanvas)
 	{
 		vec4 Fill = ms_ColorBgInset;
-		Fill.a = .12f * MenuAlpha();
-		DrawTechShape(pRect, Fill, min(ms_ControlRounding, pRect->h * .02f));
+		Fill.a = .16f * MenuAlpha();
+		const float Cut = min(ms_ControlRounding, pRect->h * .02f);
+		DrawTechShape(pRect, Fill, Cut);
+		vec4 Top = ms_ColorGlassLine;
+		Top.a = 0.06f * MenuAlpha();
+		DrawTechOutline(pRect, Top, vec4(0.0f, 0.0f, 0.0f, 0.10f * MenuAlpha()), Cut);
 		return;
 	}
 	vec4 Fill = ms_ColorBgInset;
-	Fill.a = max(Fill.a * MenuAlpha(), 0.40f);
-	vec4 Border = vec4(0.34f, 0.40f, 0.48f, max(0.22f, 0.34f * MenuAlpha()));
+	Fill.a = max(Fill.a * MenuAlpha(), 0.44f);
+	vec4 Border = vec4(0.38f, 0.44f, 0.52f, max(0.28f, 0.40f * MenuAlpha()));
 	if(Corners == CUI::CORNER_ALL)
-		DrawGlassSurface(pRect, Fill, Border, ms_ControlRounding, 0.8f);
+		DrawGlassSurface(pRect, Fill, Border, ms_ControlRounding, 1.0f);
 	else
 		DrawMenuBorder(pRect, Fill, Border, Corners, ms_ControlRounding);
 }
@@ -863,9 +867,46 @@ void CMenus::DrawOpenPageFrame(const CUIRect *pRect)
 {
 	if(!pRect || pRect->w <= 0.0f || pRect->h <= 0.0f)
 		return;
+	const float A = MenuAlpha();
 	vec4 Ambient = ms_ColorBgDeep;
-	Ambient.a = 0.018f * MenuAlpha();
-	DrawTechShape(pRect, Ambient, min(ms_PanelRounding, pRect->h * .02f));
+	Ambient.a = 0.034f * A;
+	const float Cut = min(ms_PanelRounding, pRect->h * .02f);
+	DrawTechShape(pRect, Ambient, Cut);
+
+	const float x = pRect->x;
+	const float y = pRect->y;
+	const float w = pRect->w;
+	const float h = pRect->h;
+	const float Arm = clamp(min(w, h) * 0.028f, 8.0f, 18.0f);
+
+	Graphics()->TextureClear();
+	Graphics()->LinesBegin();
+
+	// Soft top accent edge (short bright segment, then faint span).
+	const float TopY = y + 0.5f;
+	const float TopAccent = min(w * 0.22f, 120.0f);
+	IGraphics::CLineItem TopBright(x + Cut, TopY, x + Cut + TopAccent, TopY);
+	IGraphics::CLineItem TopFaint(x + Cut + TopAccent, TopY, x + w - Cut, TopY);
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.22f * A);
+	Graphics()->LinesDraw(&TopBright, 1);
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.08f * A);
+	Graphics()->LinesDraw(&TopFaint, 1);
+
+	// Corner brackets — structural, not decorative noise.
+	vec4 Bracket = ms_ColorAccentDim;
+	Bracket.a = 0.28f * A;
+	Graphics()->SetColor(Bracket.r, Bracket.g, Bracket.b, Bracket.a);
+	IGraphics::CLineItem aCorners[8] = {
+		IGraphics::CLineItem(x, y + Arm, x, y),
+		IGraphics::CLineItem(x, y, x + Arm, y),
+		IGraphics::CLineItem(x + w - Arm, y, x + w, y),
+		IGraphics::CLineItem(x + w, y, x + w, y + Arm),
+		IGraphics::CLineItem(x, y + h - Arm, x, y + h),
+		IGraphics::CLineItem(x, y + h, x + Arm, y + h),
+		IGraphics::CLineItem(x + w - Arm, y + h, x + w, y + h),
+		IGraphics::CLineItem(x + w, y + h - Arm, x + w, y + h)};
+	Graphics()->LinesDraw(aCorners, 8);
+	Graphics()->LinesEnd();
 }
 
 bool CMenus::OfflineFrontCanvas() const
@@ -931,11 +972,26 @@ void CMenus::DrawAccentUnderline(const CUIRect *pRect)
 	if(!pRect || pRect->w <= 0.0f)
 		return;
 	const float y = pRect->y + pRect->h - 1.0f;
-	IGraphics::CLineItem Line(pRect->x, y, pRect->x + pRect->w, y);
+	const float AccentW = clamp(pRect->w * 0.18f, 28.0f, 96.0f);
+	const float Mid = pRect->x + AccentW;
+	const float End = pRect->x + pRect->w;
 	Graphics()->TextureClear();
 	Graphics()->LinesBegin();
-	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.28f);
-	Graphics()->LinesDraw(&Line, 1);
+	IGraphics::CLineItem Accent(pRect->x, y, Mid, y);
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.32f);
+	Graphics()->LinesDraw(&Accent, 1);
+	// Fade the rest in a few steps so it reads as structure, not a neon bar.
+	const int Steps = 4;
+	const float StepW = max(1.0f, (End - Mid) / Steps);
+	for(int i = 0; i < Steps; i++)
+	{
+		const float x0 = Mid + StepW * i;
+		const float x1 = min(End, x0 + StepW);
+		IGraphics::CLineItem Seg(x0, y, x1, y);
+		const float a = 0.18f * (1.0f - (i + 0.5f) / Steps);
+		Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, a);
+		Graphics()->LinesDraw(&Seg, 1);
+	}
 	Graphics()->LinesEnd();
 }
 
@@ -1462,7 +1518,7 @@ int CMenus::DoButton_Menu(
 
 	vec4 FillBase = vec4(0.038f, 0.048f, 0.062f, 0.78f);
 	vec4 FillHot = vec4(0.058f, 0.072f, 0.092f, 0.90f);
-	vec4 BorderBase = vec4(0.38f, 0.46f, 0.54f, 0.36f);
+	vec4 BorderBase = vec4(0.42f, 0.50f, 0.58f, 0.46f);
 	vec4 BorderHot = vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.70f);
 
 	if(Style == BUTTONSTYLE_DANGER)
@@ -1476,14 +1532,14 @@ int CMenus::DoButton_Menu(
 	{
 		FillBase = vec4(0.042f, 0.078f, 0.098f, 0.88f);
 		FillHot = vec4(0.055f, 0.110f, 0.135f, 0.94f);
-		BorderBase = vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.48f);
+		BorderBase = vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.52f);
 		BorderHot = ms_ColorAccent;
 	}
 	else if(Ghost)
 	{
 		FillBase = vec4(0.030f, 0.038f, 0.050f, 0.38f);
 		FillHot = vec4(0.048f, 0.060f, 0.078f, 0.64f);
-		BorderBase = vec4(0.40f, 0.48f, 0.56f, 0.20f);
+		BorderBase = vec4(0.44f, 0.52f, 0.60f, 0.30f);
 		BorderHot = vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.55f);
 	}
 
@@ -1590,7 +1646,7 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 	vec4 FillHot = IsQuit ? vec4(0.22f, 0.055f, 0.068f, 0.88f) : vec4(0.048f, 0.062f, 0.080f, 0.84f);
 
 	vec4 BorderIdle = IsQuit ? vec4(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 0.48f) :
-							   vec4(0.36f, 0.42f, 0.50f, 0.32f);
+							   vec4(0.42f, 0.50f, 0.58f, 0.42f);
 	vec4 BorderOn = IsQuit ? ms_ColorDanger : vec4(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.72f);
 
 	vec4 Fill = MixColor(FillIdle, FillOn, Sel);
@@ -1605,14 +1661,18 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 	{
 		vec4 Accent = IsQuit ? ms_ColorDanger : ms_ColorAccent;
 		Accent.a = 0.55f * Activity;
-		IGraphics::CLineItem Line(VisualRect.x + Cut,
-								  VisualRect.y + VisualRect.h - 1.0f,
-								  VisualRect.x + VisualRect.w - Cut,
-								  VisualRect.y + VisualRect.h - 1.0f);
+		const float UnderY = VisualRect.y + VisualRect.h - 1.0f;
+		const float Left = VisualRect.x + Cut;
+		const float Right = VisualRect.x + VisualRect.w - Cut;
+		const float AccentEnd = Left + min((Right - Left) * 0.35f, 48.0f);
 		Graphics()->TextureClear();
 		Graphics()->LinesBegin();
+		IGraphics::CLineItem Bright(Left, UnderY, AccentEnd, UnderY);
+		IGraphics::CLineItem Faint(AccentEnd, UnderY, Right, UnderY);
 		Graphics()->SetColor(Accent.r, Accent.g, Accent.b, Accent.a);
-		Graphics()->LinesDraw(&Line, 1);
+		Graphics()->LinesDraw(&Bright, 1);
+		Graphics()->SetColor(Accent.r, Accent.g, Accent.b, Accent.a * 0.35f);
+		Graphics()->LinesDraw(&Faint, 1);
 		Graphics()->LinesEnd();
 	}
 
@@ -10278,10 +10338,26 @@ void CMenus::RenderIngameBackdrop(float Amount)
 
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.01f, 0.015f, 0.02f, 0.78f * A);
+	Graphics()->SetColor(0.01f, 0.015f, 0.02f, 0.82f * A);
 	IGraphics::CQuadItem Backdrop(Full.x, Full.y, Full.w, Full.h);
 	Graphics()->QuadsDrawTL(&Backdrop, 1);
 	Graphics()->QuadsEnd();
+
+	// Quiet frame so the ESC overlay isn't a flat veil.
+	const float Arm = clamp(min(Full.w, Full.h) * 0.022f, 10.0f, 22.0f);
+	Graphics()->LinesBegin();
+	Graphics()->SetColor(ms_ColorAccent.r, ms_ColorAccent.g, ms_ColorAccent.b, 0.10f * A);
+	IGraphics::CLineItem aCorners[8] = {
+		IGraphics::CLineItem(Full.x + 8.0f, Full.y + 8.0f + Arm, Full.x + 8.0f, Full.y + 8.0f),
+		IGraphics::CLineItem(Full.x + 8.0f, Full.y + 8.0f, Full.x + 8.0f + Arm, Full.y + 8.0f),
+		IGraphics::CLineItem(Full.x + Full.w - 8.0f - Arm, Full.y + 8.0f, Full.x + Full.w - 8.0f, Full.y + 8.0f),
+		IGraphics::CLineItem(Full.x + Full.w - 8.0f, Full.y + 8.0f, Full.x + Full.w - 8.0f, Full.y + 8.0f + Arm),
+		IGraphics::CLineItem(Full.x + 8.0f, Full.y + Full.h - 8.0f - Arm, Full.x + 8.0f, Full.y + Full.h - 8.0f),
+		IGraphics::CLineItem(Full.x + 8.0f, Full.y + Full.h - 8.0f, Full.x + 8.0f + Arm, Full.y + Full.h - 8.0f),
+		IGraphics::CLineItem(Full.x + Full.w - 8.0f - Arm, Full.y + Full.h - 8.0f, Full.x + Full.w - 8.0f, Full.y + Full.h - 8.0f),
+		IGraphics::CLineItem(Full.x + Full.w - 8.0f, Full.y + Full.h - 8.0f - Arm, Full.x + Full.w - 8.0f, Full.y + Full.h - 8.0f)};
+	Graphics()->LinesDraw(aCorners, 8);
+	Graphics()->LinesEnd();
 }
 
 void CMenus::RenderBackground()
@@ -10336,8 +10412,8 @@ void CMenus::RenderBackground()
 	// render background color
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
-	vec4 Top(0.010f, 0.014f, 0.022f, 1.0f);
-	vec4 Bottom(0.004f, 0.006f, 0.012f, 1.0f);
+	vec4 Top(0.012f, 0.018f, 0.028f, 1.0f);
+	vec4 Bottom(0.003f, 0.005f, 0.010f, 1.0f);
 	IGraphics::CColorVertex Array[4] = {IGraphics::CColorVertex(0, Top.r, Top.g, Top.b, Top.a),
 										IGraphics::CColorVertex(1, Top.r, Top.g, Top.b, Top.a),
 										IGraphics::CColorVertex(2, Bottom.r, Bottom.g, Bottom.b, Bottom.a),

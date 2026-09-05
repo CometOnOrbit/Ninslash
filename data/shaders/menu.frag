@@ -51,15 +51,15 @@ void main (void)
 	float scan = smoothstep(0.035, 0.0, abs(fract(uv.y * 2.0 - t * 0.045) - 0.5));
 
 	vec3 c = vec3(0.004, 0.012, 0.026);
-	c += vec3(0.015, 0.095, 0.145) * (0.28 + atmosphere * 0.50);
-	c += vec3(0.020, 0.360, 0.480) * cyanBloom * 0.34;
-	c += vec3(0.060, 0.310, 0.220) * mintBloom * 0.24;
-	c += vec3(0.330, 0.145, 0.025) * amberBloom * 0.13;
-	c += vec3(0.070, 0.360, 0.440) * diagonal * 0.13;
-	c += vec3(0.060, 0.250, 0.310) * minorGrid * 0.055;
-	c += vec3(0.100, 0.430, 0.520) * majorGrid * 0.045;
-	c += vec3(0.055, 0.210, 0.250) * scan * 0.028;
-	c += fineNoise * 0.012;
+	c += vec3(0.015, 0.095, 0.145) * (0.26 + atmosphere * 0.42);
+	c += vec3(0.020, 0.360, 0.480) * cyanBloom * 0.26;
+	c += vec3(0.060, 0.310, 0.220) * mintBloom * 0.18;
+	c += vec3(0.330, 0.145, 0.025) * amberBloom * 0.08;
+	c += vec3(0.070, 0.360, 0.440) * diagonal * 0.09;
+	c += vec3(0.060, 0.250, 0.310) * minorGrid * 0.040;
+	c += vec3(0.100, 0.430, 0.520) * majorGrid * 0.032;
+	c += vec3(0.055, 0.210, 0.250) * scan * 0.018;
+	c += fineNoise * 0.010;
 
 	float vignette = 1.0 - smoothstep(0.48, 1.34, length(p));
 	c *= 0.56 + vignette * 0.62;
