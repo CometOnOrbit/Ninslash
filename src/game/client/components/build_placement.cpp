@@ -22,6 +22,7 @@
 #include <game/collision.h>
 
 #include "build_placement.h"
+#include "hud_layout.h"
 
 using namespace BuildPlacementLogic;
 
@@ -530,10 +531,15 @@ void CBuildPlacement::RenderPlacement()
 	{
 		const float W = 300.0f * Graphics()->ScreenAspect();
 		Graphics()->MapScreen(0, 0, W, 300.0f);
-		CUIRect Reason = {W * 0.5f - 90.0f, 255.0f, 180.0f, 18.0f};
+		const float ReasonW = min(180.0f, W - HudLayout::SafeMargin(W) * 2.0f);
+		CUIRect Reason = {W * 0.5f - ReasonW * 0.5f, 30.0f, ReasonW, 17.0f};
 		RenderTools()->DrawUIRect(&Reason, vec4(0.08f, 0.06f, 0.06f, 0.88f), CUI::CORNER_ALL, 3.0f);
 		TextRender()->TextColor(1.0f, 0.35f, 0.30f, 1.0f);
-		UI()->DoLabel(&Reason, InvalidReasonText(m_Result.m_Reason), 7.0f, 0);
+		float FontSize = 7.0f;
+		while(FontSize > 5.0f &&
+			  TextRender()->TextWidth(0, FontSize, InvalidReasonText(m_Result.m_Reason), -1) > Reason.w - 10.0f)
+			FontSize -= 0.25f;
+		UI()->DoLabel(&Reason, InvalidReasonText(m_Result.m_Reason), FontSize, 0, (int)Reason.w - 10);
 		TextRender()->TextColor(1, 1, 1, 1);
 	}
 }

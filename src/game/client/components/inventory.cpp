@@ -18,6 +18,7 @@
 #include <game/client/customstuff.h>
 #include <game/client/components/controls.h>
 #include <game/client/components/camera.h>
+#include <game/client/components/chat.h>
 #include <game/client/components/effects.h>
 #include <game/client/components/binds.h>
 #include <game/client/components/build_placement.h>
@@ -199,7 +200,7 @@ void CInventory::Close()
 	m_WasActive = false;
 	m_Render = false;
 	m_DragItem = -1;
-	m_DropConfirmSlot = -1;
+	ClearDropConfirmation();
 	CustomStuff()->m_Inventory = false;
 }
 
@@ -216,7 +217,7 @@ void CInventory::SetTab(int Tab)
 	m_SelectedSlot = Tab == InventoryLogic::TAB_SHOP ? 0 : clamp(CustomStuff()->m_WeaponSlot, 0, 3);
 	m_KeyboardFocus = 0;
 	m_DragItem = -1;
-	m_DropConfirmSlot = -1;
+	ClearDropConfirmation();
 }
 
 void CInventory::SyncHeldSelection()
@@ -281,21 +282,29 @@ void CInventory::ActivateSelection()
 	m_pClient->m_pSounds->Play(CSounds::CHN_GUI, SOUND_INV4, 0);
 }
 
-void CInventory::RequestDrop()
+void CInventory::ClearDropConfirmation()
 {
-	if(m_Tab != InventoryLogic::TAB_INVENTORY || m_SelectedSlot < 0 || m_SelectedSlot >= 12 ||
-	   !CustomStuff()->m_aItem[m_SelectedSlot].IsValid())
+	m_DropConfirmSlot = -1;
+	m_DropConfirmDeadline = 0;
+}
+
+void CInventory::RequestDrop(int Slot)
+{
+	if(m_Tab != InventoryLogic::TAB_INVENTORY || Slot < 0 || Slot >= InventoryLogic::NUM_SLOTS ||
+	   !CustomStuff()->m_aItem[Slot].IsValid())
 		return;
 	const int64 Now = time_get();
-	if(InventoryLogic::DropConfirmationActive(m_DropConfirmSlot, m_SelectedSlot, Now, m_DropConfirmDeadline))
+	if(InventoryLogic::DropConfirmationActive(m_DropConfirmSlot, Slot, Now, m_DropConfirmDeadline))
 	{
-		Drop(m_SelectedSlot);
-		m_DropConfirmSlot = -1;
+		Drop(Slot);
+		ClearDropConfirmation();
+		SetActionFeedback(Localize("Drop sent"), false);
 	}
 	else
 	{
-		m_DropConfirmSlot = m_SelectedSlot;
+		m_DropConfirmSlot = Slot;
 		m_DropConfirmDeadline = Now + time_freq() * 3;
+		SetActionFeedback(Localize("Press drop again to confirm"), true);
 	}
 }
 
@@ -304,6 +313,8 @@ void CInventory::ConKeyInventory(IConsole::IResult *pResult, void *pUserData)
 	CInventory *pSelf = (CInventory *)pUserData;
 	if(pResult->GetInteger(0) && pSelf->m_pClient->m_pBuildPlacement->Active())
 		return;
+	if(pResult->GetInteger(0) && pSelf->m_pClient->m_pChat->IsActive())
+		pSelf->m_pClient->m_pChat->Disable();
 
 	if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
 	{
@@ -397,6 +408,7 @@ void CInventory::ResetInteractionState()
 	m_Mouse1 = false;
 	m_MouseTrigger = false;
 	m_DragItem = -1;
+	ClearDropConfirmation();
 	m_MoveStartPos = vec2(0, 0);
 	m_Moved = false;
 	m_MoveTrigger = false;
@@ -565,7 +577,7 @@ bool CInventory::OnInput(IInput::CEvent Event)
 		m_SelectedSlot = InventoryLogic::NavigateGrid(m_SelectedSlot, TabItemCount(), Columns, Right - Left, Down - Up);
 		m_ManualSelection = true;
 		m_KeyboardFocus = 1;
-		m_DropConfirmSlot = -1;
+		ClearDropConfirmation();
 		return true;
 	}
 	if(Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A)
@@ -575,7 +587,7 @@ bool CInventory::OnInput(IInput::CEvent Event)
 	}
 	if(Event.m_Key == KEY_DELETE || Event.m_Key == KEY_GAMEPAD_BUTTON_X)
 	{
-		RequestDrop();
+		RequestDrop(m_SelectedSlot);
 		return true;
 	}
 
@@ -839,6 +851,21 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 		TextRender()->Text(0, X, Rect.y + (Rect.h - Size) * 0.5f - 0.5f, Size, pText, Rect.w);
 		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	};
+	auto DrawFeedback = [&](const CUIRect &Bounds)
+	{
+		if(!m_aActionFeedback[0] || time_get() > m_ActionFeedbackUntil)
+			return;
+		const float FeedbackW = min(220.0f, ScreenW - 12.0f);
+		const float FeedbackX = (ScreenW - FeedbackW) * 0.5f;
+		const float FeedbackY = max(4.0f, Bounds.y - 18.0f);
+		const vec4 Color = m_ActionFeedbackDanger ? Danger : Accent;
+		CUIRect Feedback = {FeedbackX, FeedbackY, FeedbackW, 14.0f};
+		SmokedGlass(Feedback, Color, true, 3.0f);
+		float FontSize = 5.0f;
+		while(FontSize > 4.0f && TextRender()->TextWidth(0, FontSize, m_aActionFeedback, -1) > FeedbackW - 10.0f)
+			FontSize -= 0.25f;
+		Label(Feedback, m_aActionFeedback, FontSize, 0, Color);
+	};
 	auto DrawWeapon = [&](const CWeaponSpec &Spec, vec2 Pos, float Size)
 	{
 		Graphics()->TextureSet(g_pData->m_aImages[IMAGE_WEAPONS].m_Id);
@@ -969,6 +996,7 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 					Label({Detail.x + 5.0f, Detail.y + 29.0f, Detail.w - 10.0f, 8.0f}, aBuf, 4.2f, -1, Amber);
 			}
 		}
+		DrawFeedback(ShopPanel);
 		m_MouseTrigger = false;
 		return;
 	}
@@ -1409,7 +1437,7 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 						Hovered,
 						InventoryLogic::PointInLayout(Hammer.m_Bounds, m_SelectorMouse.x, m_SelectorMouse.y) ||
 							HoveredCombat >= 0))
-				Drop(m_DragItem);
+				RequestDrop(m_DragItem);
 		}
 		ReleasedClick = !m_Moved && Hovered >= 0;
 		m_DragItem = -1;
@@ -1424,11 +1452,13 @@ void CInventory::DrawSidebar(const CNetObj_Shop *pShop)
 		m_ManualSelection = true;
 		m_LastClickSlot = Hovered;
 		m_LastClickTime = Now;
-		m_DropConfirmSlot = -1;
+		ClearDropConfirmation();
 		if(DoubleClick)
 			ActivateSelection();
 	}
 
+	if(!ForgeAvailable)
+		DrawFeedback(ToRect(Hammer.m_Bounds));
 	m_MouseTrigger = false;
 }
 
@@ -1436,6 +1466,10 @@ void CInventory::OnRender()
 {
 	if(!Client()->IsGameWorldActive())
 		return;
+	if(m_DropConfirmSlot >= 0 &&
+	   (m_DropConfirmSlot >= InventoryLogic::NUM_SLOTS || time_get() > m_DropConfirmDeadline ||
+		   !CustomStuff()->m_aItem[m_DropConfirmSlot].IsValid()))
+		ClearDropConfirmation();
 	if(m_DebugVisible)
 	{
 		m_Render = true;

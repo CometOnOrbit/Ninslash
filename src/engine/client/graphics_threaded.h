@@ -524,6 +524,17 @@ class CGraphics_Threaded : public IEngineGraphics
 
 	int IssueInit();
 	int InitWindow();
+	bool m_StartupConfigNeedsRestore;
+	int m_StartupGfxScreen;
+	int m_StartupGfxScreenWidth;
+	int m_StartupGfxScreenHeight;
+	int m_StartupGfxFullscreen;
+	int m_StartupGfxBorderless;
+	int m_FallbackGfxScreen;
+	int m_FallbackGfxScreenWidth;
+	int m_FallbackGfxScreenHeight;
+	int m_FallbackGfxFullscreen;
+	int m_FallbackGfxBorderless;
 
   public:
 	CGraphics_Threaded();

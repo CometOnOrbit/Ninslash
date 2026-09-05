@@ -97,6 +97,10 @@ int main()
 	assert(!RoomPrimaryActionEnabled(ROOM_PRIMARY_STOPPING_LOCAL));
 	assert(!RoomPrimaryActionEnabled(ROOM_PRIMARY_CREATING_STEAM));
 
+	const CRoomConfigureLayout Collapsed = RoomConfigureLayout(700.0f, 1.0f, true, 3, 0, false);
+	const CRoomConfigureLayout Expanded = RoomConfigureLayout(700.0f, 1.0f, true, 5, 9, true);
+	assert(Expanded.m_MainSettingsHeight == Collapsed.m_MainSettingsHeight + 2.0f * 35.0f);
+	assert(Expanded.m_IdentityHeight == Collapsed.m_IdentityHeight + 9.0f * 35.0f + 18.0f);
 	const CRoomConfigureLayout Narrow = RoomConfigureLayout(620.0f, 1.0f, true, 5, 3, true);
 	assert(Narrow.m_SingleColumn);
 	assert(Narrow.m_ContentHeight == 50.0f + Narrow.m_MainSettingsHeight + 8.0f + Narrow.m_IdentityHeight);

@@ -28,6 +28,7 @@ class CPveRoguelite : public CComponent
 	int m_SelectedInvasionRetry;
 	int m_InvasionRetryResult;
 	int m_InvasionRetryResultEndTick;
+	int64 m_InvasionRetryResultDismissAt;
 	char m_aInvasionRetryPlayerName[64];
 	int m_FieldOrderNonce;
 	int m_FieldOrderEndTick;
@@ -118,6 +119,7 @@ class CPveRoguelite : public CComponent
 	void DrawSelectionOverlay(bool ContractVote);
 	void DrawInvasionRetryVote();
 	void DrawInvasionRetryResult();
+	void DismissInvasionRetryResult();
 	void DrawFieldOrder();
 	void DrawContractHud();
 	void DrawBuildHud();

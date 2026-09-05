@@ -61,6 +61,7 @@ struct CPlayServerSnapshot
 	bool m_Official;
 	bool m_Modded;
 	bool m_Favorite;
+	bool m_Friend;
 	char m_aAddress[NETADDR_MAXSTRSIZE];
 	char m_aName[64];
 	char m_aGameType[16];
@@ -138,12 +139,15 @@ class CMenus : public CComponent
 					  int Checked,
 					  const CUIRect *pRect,
 					  int Style = BUTTONSTYLE_NORMAL,
-					  const char *pHint = 0);
+					  const char *pHint = 0,
+					  bool Active = true);
 	int DoButton_MenuTab(const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Corners);
 
-	int DoButton_CheckBox_Common(const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect);
-	int DoButton_CheckBox(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
-	int DoButton_CheckBox_Number(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
+	int DoButton_CheckBox_Common(
+		const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect, bool Active = true);
+	int DoButton_CheckBox(const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Active = true);
+	int DoButton_CheckBox_Number(
+		const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Active = true);
 
 	/*static void ui_draw_menu_button(const void *id, const char *text, int checked, const CUIRect *r, const void
 	*extra); static void ui_draw_keyselect_button(const void *id, const char *text, int checked, const CUIRect *r, const
@@ -162,6 +166,7 @@ class CMenus : public CComponent
 		CONTROLLER_FOCUS_SLIDER_H,
 		CONTROLLER_FOCUS_SLIDER_V,
 		CONTROLLER_FOCUS_EDIT,
+		CONTROLLER_FOCUS_LIST,
 	};
 
 	enum EMenuInputDevice
@@ -202,6 +207,7 @@ class CMenus : public CComponent
 	void ControllerCommitFrame();
 	void ControllerRegisterFocus(const void *pID, const CUIRect *pRect, int Type = CONTROLLER_FOCUS_BUTTON);
 	void ControllerSetPreferredFocus(const void *pID);
+	void ControllerSetFocus(const void *pID);
 	bool ControllerIsFocused(const void *pID) const;
 	bool ControllerConsumeActivation(const void *pID);
 	bool ControllerConsumeAdjustment(const void *pID, int *pDirection);
@@ -266,7 +272,8 @@ class CMenus : public CComponent
 						  int NumItems,
 						  int ItemsPerRow,
 						  int SelectedIndex,
-						  float ScrollValue);
+						  float ScrollValue,
+						  bool Interactive = true);
 	CListboxItem UiDoListboxNextItem(const void *pID, bool Selected = false, bool Interactive = true);
 	CListboxItem UiDoListboxNextRow();
 	int UiDoListboxEnd(float *pScrollValue, bool *pItemActivated);
@@ -627,6 +634,7 @@ class CMenus : public CComponent
 	bool m_PlayFiltersAdvanced;
 	bool m_FilterPresetMenuOpen;
 	bool m_PlayDetailOpen;
+	bool m_PartyExpanded;
 	bool m_PlayListHasFocus;
 	struct CSteamAvatarTexture
 	{

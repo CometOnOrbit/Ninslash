@@ -502,6 +502,7 @@ void CPveRoguelite::ConDebugInvasionRetry(IConsole::IResult *pResult, void *pUse
 	pSelf->m_SelectedInvasionRetry = -1;
 	pSelf->m_InvasionRetryResult = State > 0 ? State - 1 : PVE_INVASION_RETRY_RESULT_RETRY;
 	pSelf->m_InvasionRetryResultEndTick = pSelf->Client()->GameTick() + pSelf->Client()->GameTickSpeed() * 5;
+	pSelf->m_InvasionRetryResultDismissAt = time_get() + time_freq() * 5;
 	str_copy(pSelf->m_aInvasionRetryPlayerName, "Player", sizeof(pSelf->m_aInvasionRetryPlayerName));
 	pSelf->m_FocusedChoice = 0;
 	for(int i = 0; i < 3; i++)
@@ -646,6 +647,7 @@ void CPveRoguelite::OnReset()
 		m_SelectedInvasionRetry = -1;
 		m_InvasionRetryResult = PVE_INVASION_RETRY_RESULT_RESET;
 		m_InvasionRetryResultEndTick = 0;
+		m_InvasionRetryResultDismissAt = 0;
 		m_aInvasionRetryPlayerName[0] = 0;
 	}
 	if(m_DebugChoiceScreenshotFrames <= 0)
@@ -713,6 +715,17 @@ void CPveRoguelite::OnReset()
 	m_ResearchProgressDisplay = 0.0f;
 	m_SelectionPulse = 0.0f;
 	m_ResearchAnimTab = -1;
+}
+
+void CPveRoguelite::DismissInvasionRetryResult()
+{
+	m_InvasionRetryResultActive = false;
+	m_InvasionRetryResultEndTick = 0;
+	m_InvasionRetryResultDismissAt = 0;
+	m_InvasionRetryNonce = 0;
+	m_SelectedInvasionRetry = -1;
+	m_MouseTrigger = false;
+	m_SelectionPulse = 0.0f;
 }
 
 void CPveRoguelite::AdvanceTutorial()
@@ -1735,6 +1748,13 @@ void CPveRoguelite::DrawInvasionRetryResult()
 			 Localize(pSubtitle),
 			 vec4(Text.r, Text.g, Text.b, 0.72f * Alpha),
 			 -1.0f,
+			 0);
+	DrawText(ScreenWidth * 0.5f,
+			 211.0f,
+			 6.0f,
+			 Localize("Press Enter / A or click to continue"),
+			 vec4(Text.r, Text.g, Text.b, 0.72f * Alpha),
+			 ScreenWidth - 28.0f,
 			 0);
 	TextRender()->TextColor(1, 1, 1, 1);
 }
@@ -4261,6 +4281,18 @@ void CPveRoguelite::OnRender()
 		m_ChoiceSequence = 0;
 		m_ChoiceDismissAt = 0;
 	}
+	if(m_InvasionRetryResultActive && m_InvasionRetryResultDismissAt > 0 &&
+	   time_get() >= m_InvasionRetryResultDismissAt)
+		DismissInvasionRetryResult();
+	if(m_InvasionRetryVoteActive && m_InvasionRetryEndTick > 0 &&
+	   Client()->GameTick() > m_InvasionRetryEndTick + Client()->GameTickSpeed())
+	{
+		m_InvasionRetryVoteActive = false;
+		m_InvasionRetryNonce = 0;
+		m_InvasionRetryEndTick = 0;
+		m_SelectedInvasionRetry = -1;
+		m_MouseTrigger = false;
+	}
 	const bool WasResearchVisible = m_ResearchVisible;
 	m_ResearchVisible = false;
 	if(!WasResearchVisible)
@@ -4307,6 +4339,9 @@ void CPveRoguelite::OnRender()
 	// stuck if that message is lost around a map change.
 	if(m_FieldOrderActive && Client()->GameTick() > m_FieldOrderEndTick + Client()->GameTickSpeed())
 		m_FieldOrderActive = false;
+	if(m_InvasionRetryResultActive && m_InvasionRetryResultEndTick > 0 &&
+	   Client()->GameTick() >= m_InvasionRetryResultEndTick)
+		DismissInvasionRetryResult();
 
 	if(m_InvasionRetryResultActive)
 		DrawInvasionRetryResult();
@@ -4397,7 +4432,14 @@ bool CPveRoguelite::OnInput(IInput::CEvent Event)
 	if(!(Event.m_Flags & IInput::FLAG_PRESS) && !m_ResearchVisible)
 		return ChoiceActive();
 	if(m_InvasionRetryResultActive)
+	{
+		if(Event.m_Flags & IInput::FLAG_PRESS &&
+		   (Event.m_Key == KEY_ESCAPE || Event.m_Key == KEY_GAMEPAD_BUTTON_B ||
+			Event.m_Key == KEY_GAMEPAD_BUTTON_BACK || Event.m_Key == KEY_RETURN ||
+			Event.m_Key == KEY_KP_ENTER || Event.m_Key == KEY_GAMEPAD_BUTTON_A || Event.m_Key == KEY_MOUSE_1))
+			DismissInvasionRetryResult();
 		return true;
+	}
 	if(m_InvasionRetryVoteActive)
 	{
 		int Direction = 0;
@@ -4908,6 +4950,9 @@ void CPveRoguelite::OnMessage(int MsgType, void *pRawMsg)
 		m_InvasionRetryResultActive = true;
 		m_InvasionRetryResult = pMsg->m_Result;
 		m_InvasionRetryResultEndTick = pMsg->m_EndTick;
+		const int RemainingTicks = max(1, pMsg->m_EndTick - Client()->GameTick());
+		m_InvasionRetryResultDismissAt =
+			time_get() + time_freq() * (RemainingTicks + Client()->GameTickSpeed()) / Client()->GameTickSpeed();
 		str_copy(m_aInvasionRetryPlayerName, pMsg->m_pPlayerName, sizeof(m_aInvasionRetryPlayerName));
 		if(NewResult)
 		{

@@ -71,6 +71,13 @@ void CChat::OnRelease()
 	m_Show = false;
 }
 
+void CChat::Disable()
+{
+	m_Mode = MODE_NONE;
+	m_Input.Deactivate();
+	m_pHistoryEntry = 0;
+}
+
 void CChat::OnStateChange(int NewState, int OldState)
 {
 	if(NewState == IClient::STATE_CONNECTING && OldState != IClient::STATE_CONNECTING)
@@ -132,6 +139,11 @@ void CChat::OnConsoleInit()
 
 bool CChat::OnInput(IInput::CEvent Event)
 {
+	if(m_pClient->m_pInventory->IsVisible())
+	{
+		Disable();
+		return false;
+	}
 	if(m_Mode == MODE_NONE)
 		return false;
 
@@ -308,6 +320,9 @@ bool CChat::OnInput(IInput::CEvent Event)
 void CChat::EnableMode(int Mode)
 {
 	if(Client()->State() == IClient::STATE_DEMOPLAYBACK)
+		return;
+
+	if(m_pClient->m_pInventory->IsVisible())
 		return;
 
 	if(Mode == MODE_WHISPER && g_Config.m_ClDisableWhisper)
@@ -537,10 +552,21 @@ void CChat::OnRender()
 	float Width = 300.0f * Graphics()->ScreenAspect();
 	Graphics()->MapScreen(0.0f, 0.0f, Width, 300.0f);
 	float x = 5.0f;
-	float y = HudLayout::ChatInputTop(300.0f);
+	const float ChatRight = HudLayout::ChatInputRight(Width);
+	const float ChatWidth = max(4.0f, ChatRight - x);
+	const bool HasSpectatorTarget =
+		m_pClient->m_Snap.m_SpecInfo.m_Active && m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW;
+	const bool HasCharacter = m_pClient->m_Snap.m_pLocalCharacter || HasSpectatorTarget;
+	const bool Spectator = HasSpectatorTarget && g_Config.m_ClShowhudSpectatorCount;
+	const bool UseBottomStack = (g_Config.m_ClShowhudHealthAmmo && HasCharacter) || Spectator;
+	float y = UseBottomStack
+				  ? HudLayout::ChatInputTop(Width, 300.0f, Spectator)
+				  : HudLayout::ChatInputTop(300.0f);
 	if(m_Mode != MODE_NONE)
 	{
 		// render chat input
+		CUIRect InputRect = {x, y - 2.0f, ChatWidth, HudLayout::ChatInputHeight + 4.0f};
+		RenderTools()->DrawUIRect(&InputRect, vec4(0.02f, 0.03f, 0.04f, 0.76f), CUI::CORNER_ALL, 3.0f);
 		const char *pModeLabel = 0;
 		vec4 ModeColor = vec4(1.0f, 1.0f, 1.0f, 0.35f);
 		if(m_Mode == MODE_ALL)
@@ -561,13 +587,14 @@ void CChat::OnRender()
 		else
 			pModeLabel = Localize("Chat");
 
-		float ModeLabelWidth = TextRender()->TextWidth(0, 8.0f, pModeLabel, -1);
+		float ModeLabelWidth = min(ChatWidth - 4.0f, TextRender()->TextWidth(0, 8.0f, pModeLabel, -1));
 		CUIRect ModeRect = {x, y, ModeLabelWidth + 4.0f, 8.0f};
 		RenderTools()->DrawUIRect(&ModeRect, ModeColor, CUI::CORNER_ALL, 2.0f);
 
 		CTextCursor Cursor;
-		TextRender()->SetCursor(&Cursor, x + 2.0f, y, 8.0f, TEXTFLAG_RENDER);
-		Cursor.m_LineWidth = Width - 190.0f;
+		TextRender()->SetCursor(
+			&Cursor, x + 2.0f, y, 8.0f, TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
+		Cursor.m_LineWidth = max(1.0f, ChatWidth - 4.0f);
 		Cursor.m_MaxLines = 2;
 
 		TextRender()->TextEx(&Cursor, pModeLabel, -1);
@@ -674,7 +701,7 @@ void CChat::OnRender()
 
 		const float SbLeft = ScoreboardRect.x * ScaleX;
 		const float SbBottom = (ScoreboardRect.y + ScoreboardRect.h) * ScaleY;
-		const float ReducedLineWidth = min(SbLeft - 5.0f - x, LineWidth);
+		const float ReducedLineWidth = max(4.0f, min(SbLeft - 5.0f - x, LineWidth));
 		const float ReducedHeightLimit = max(SbBottom + 5.0f, HeightLimit);
 		if(ReducedLineWidth * (y - HeightLimit) >= LineWidth * (y - ReducedHeightLimit))
 			LineWidth = ReducedLineWidth;
@@ -779,7 +806,10 @@ void CChat::Say(int Mode, const char *pLine, int Target)
 	{
 		if(!str_comp_nocase_num(pLine, "/w ", 3) || !str_comp_nocase_num(pLine, "/whisper ", 10))
 		{
-			const char *pRest = pLine + (pLine[1] == 'w' ? 3 : 10);
+			const int PrefixLength = pLine[1] == 'w' ? 3 : 10;
+			if(str_length(pLine) < PrefixLength)
+				return;
+			const char *pRest = pLine + PrefixLength;
 			char aName[MAX_NAME_LENGTH];
 			const char *pSpace = str_find(pRest, " ");
 			if(!pSpace)

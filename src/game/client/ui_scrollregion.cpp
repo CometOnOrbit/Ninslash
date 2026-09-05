@@ -71,13 +71,13 @@ void CScrollRegion::End()
 	if(UI()->MouseHovered(&RegionRect))
 	{
 		const float ScrollUnit = IsPageScroll ? m_ClipRect.h : m_Params.m_ScrollUnit;
-		if(UI()->KeyPress(KEY_MOUSE_WHEEL_UP))
+		if(UI()->ConsumeKeyPress(KEY_MOUSE_WHEEL_UP))
 		{
 			m_AnimTime = AnimationDuration;
 			m_AnimInitScrollY = m_ScrollY;
 			m_AnimTargetScrollY -= ScrollUnit;
 		}
-		else if(UI()->KeyPress(KEY_MOUSE_WHEEL_DOWN))
+		else if(UI()->ConsumeKeyPress(KEY_MOUSE_WHEEL_DOWN))
 		{
 			m_AnimTime = AnimationDuration;
 			m_AnimInitScrollY = m_ScrollY;
@@ -85,12 +85,13 @@ void CScrollRegion::End()
 		}
 	}
 
-	const float SliderHeight = max(m_Params.m_SliderMinHeight, m_ClipRect.h / m_ContentH * m_RailRect.h);
+	const float SliderHeight =
+		min(m_RailRect.h, max(m_Params.m_SliderMinHeight, m_ClipRect.h / m_ContentH * m_RailRect.h));
 
 	CUIRect Slider = m_RailRect;
 	Slider.h = SliderHeight;
 
-	const float MaxSlider = m_RailRect.h - SliderHeight;
+	const float MaxSlider = max(0.0f, m_RailRect.h - SliderHeight);
 	const float MaxScroll = m_ContentH - m_ClipRect.h;
 
 	if(m_RequestScrollY >= 0)
@@ -124,7 +125,7 @@ void CScrollRegion::End()
 	const bool InsideSlider = UI()->MouseHovered(&Slider);
 	const bool InsideRail = UI()->MouseHovered(&m_RailRect);
 
-	if(UI()->CheckActiveItem(pID) && UI()->MouseButton(0))
+	if(UI()->CheckActiveItem(pID) && UI()->MouseButton(0) && MaxSlider > 0.0f)
 	{
 		float MouseY = UI()->MouseY();
 		m_ScrollY += (MouseY - (Slider.y + m_SliderGrabPos.y)) / MaxSlider * MaxScroll;
@@ -146,7 +147,7 @@ void CScrollRegion::End()
 		}
 		Hovered = true;
 	}
-	else if(InsideRail && UI()->MouseButtonClicked(0))
+	else if(InsideRail && UI()->MouseButtonClicked(0) && MaxSlider > 0.0f)
 	{
 		m_ScrollY += (UI()->MouseY() - (Slider.y + Slider.h / 2)) / MaxSlider * MaxScroll;
 		UI()->SetActiveItem(pID);
@@ -184,6 +185,12 @@ void CScrollRegion::AddRect(const CUIRect &Rect)
 
 void CScrollRegion::ScrollHere(int Option)
 {
+	ScrollHere(m_LastAddedRect, Option);
+}
+
+void CScrollRegion::ScrollHere(const CUIRect &Rect, int Option)
+{
+	m_LastAddedRect = Rect;
 	const float MinHeight = min(m_ClipRect.h, m_LastAddedRect.h);
 	const float TopScroll = m_LastAddedRect.y - (m_ClipRect.y + m_ContentScrollOff.y);
 

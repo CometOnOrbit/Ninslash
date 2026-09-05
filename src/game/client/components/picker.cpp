@@ -36,12 +36,15 @@ void CPicker::ConKeyEmote(IConsole::IResult *pResult, void *pUserData)
 void CPicker::ConKeyPicker(IConsole::IResult *pResult, void *pUserData)
 {
 	CPicker *pSelf = (CPicker *)pUserData;
+	(void)pResult;
 
 	if(pSelf->m_pClient->m_pBuildPlacement->Active())
 		return;
-	if(!pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active && pSelf->Client()->State() != IClient::STATE_DEMOPLAYBACK)
-		pSelf->m_Active = pResult->GetInteger(0) != 0;
-	pSelf->m_PickerType = PICKER_WEAPON;
+	// The weapon radial has no entries yet. Do not capture gameplay input with
+	// an empty picker; direct weaponpick commands remain available.
+	pSelf->m_Active = false;
+	pSelf->m_WasActive = false;
+	return;
 }
 
 void CPicker::ConLastWeaponpick(IConsole::IResult *pResult, void *pUserData)

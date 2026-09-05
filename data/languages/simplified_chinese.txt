@@ -3553,6 +3553,15 @@ Purchase rejected
 Purchase sent
 == 已发送购买请求
 
+Drop sent
+== 已发送丢弃请求
+
+Press drop again to confirm
+== 再次丢弃以确认
+
+Press Enter / A or click to continue
+== 按 Enter / A 或点击继续
+
 PURCHASED
 == 已购买
 
@@ -5205,6 +5214,9 @@ Select a room below, then wait for Ready.
 
 The leader selects the target.
 == 由队长选择目标。
+
+The leader must select a room first.
+== 队长必须先选择房间。
 
 My Library
 == 我的内容库

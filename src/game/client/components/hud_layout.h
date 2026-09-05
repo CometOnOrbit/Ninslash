@@ -10,6 +10,11 @@ constexpr float SafeMargin(float ScreenWidth)
 	return ScreenWidth >= 500.0f ? 8.0f : 6.0f;
 }
 
+constexpr bool CompactBottomHud(float ScreenWidth)
+{
+	return ScreenWidth < 420.0f;
+}
+
 constexpr float BuildEffectsLeft = 10.0f;
 constexpr float BuildEffectsTop = 10.0f;
 constexpr float BuildEffectsWidth = 220.0f;
@@ -48,6 +53,22 @@ constexpr float CombatBarTop(float ScreenHeight)
 	return ScreenHeight - 30.0f;
 }
 
+constexpr float WeaponCardWidth = 94.0f;
+constexpr float WeaponCardHeight = 34.0f;
+
+constexpr float WeaponCardTop(float ScreenWidth, float ScreenHeight)
+{
+	return CompactBottomHud(ScreenWidth) ? CombatBarTop(ScreenHeight) - WeaponCardHeight - 4.0f : BottomStatusTop(ScreenHeight);
+}
+
+constexpr float SpectatorBarHeight = 15.0f;
+
+constexpr float SpectatorBarTop(float ScreenWidth, float ScreenHeight)
+{
+	return WeaponCardTop(ScreenWidth, ScreenHeight) - SpectatorBarHeight -
+		   (CompactBottomHud(ScreenWidth) ? 3.0f : 2.0f);
+}
+
 constexpr float CombatBarWidth = 128.0f;
 constexpr float CombatBarSlotGap = 3.0f;
 constexpr float CombatBarSlotHeight = 25.0f;
@@ -71,9 +92,31 @@ constexpr float CombatBarSlotX(float ScreenWidth, int Slot)
 constexpr float ChatInputHeight = 16.0f;
 constexpr float ChatStatusGap = 4.0f;
 
+constexpr float ChatInputTop(float ScreenWidth, float ScreenHeight, bool Spectator)
+{
+	float Top = VitalCoreTop(ScreenHeight) - ChatStatusGap - ChatInputHeight;
+	const float WeaponTop = WeaponCardTop(ScreenWidth, ScreenHeight) - ChatStatusGap - ChatInputHeight;
+	if(Top > WeaponTop)
+		Top = WeaponTop;
+	if(Spectator)
+	{
+		const float SpectatorTop =
+			SpectatorBarTop(ScreenWidth, ScreenHeight) - ChatStatusGap - ChatInputHeight;
+		if(Top > SpectatorTop)
+			Top = SpectatorTop;
+	}
+	return Top;
+}
+
 constexpr float ChatInputTop(float ScreenHeight)
 {
 	return VitalCoreTop(ScreenHeight) - ChatStatusGap - ChatInputHeight;
+}
+
+constexpr float ChatInputRight(float ScreenWidth)
+{
+	const float ScoreWidth = CompactBottomHud(ScreenWidth) ? 82.0f : 96.0f;
+	return ScreenWidth - SafeMargin(ScreenWidth) - ScoreWidth - 7.0f;
 }
 
 constexpr int LowHealthThreshold = 60;

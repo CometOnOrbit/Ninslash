@@ -3100,6 +3100,15 @@ Purchase rejected
 Purchase sent
 == 已傳送購買請求
 
+Drop sent
+== 已傳送丟棄請求
+
+Press drop again to confirm
+== 再次丟棄以確認
+
+Press Enter / A or click to continue
+== 按 Enter / A 或點擊繼續
+
 PURCHASED
 == 已購買
 
@@ -5082,6 +5091,9 @@ Select a room below, then wait for Ready.
 
 The leader selects the target.
 == 由隊長選擇目標。
+
+The leader must select a room first.
+== 隊長必須先選擇房間。
 
 My Library
 == 我的內容庫

@@ -326,6 +326,7 @@ CMenus::CMenus()
 	m_PlayFiltersAdvanced = false;
 	m_FilterPresetMenuOpen = false;
 	m_PlayDetailOpen = false;
+	m_PartyExpanded = false;
 	m_PlayListHasFocus = false;
 	for(int i = 0; i < 128; i++)
 	{
@@ -616,6 +617,9 @@ void CMenus::UpdatePlaySnapshots()
 			Snapshot.m_Official = pInfo->m_Official;
 			Snapshot.m_Modded = pInfo->m_Modded;
 			Snapshot.m_Favorite = pInfo->m_Favorite;
+			Snapshot.m_Friend = pInfo->m_FriendState != IFriends::FRIEND_NO;
+			for(int Client = 0; Client < MAX_CLIENTS && !Snapshot.m_Friend; Client++)
+				Snapshot.m_Friend = pInfo->m_aClients[Client].m_FriendState != IFriends::FRIEND_NO;
 			str_copy(Snapshot.m_aAddress, pInfo->m_aAddress, sizeof(Snapshot.m_aAddress));
 			str_copy(Snapshot.m_aName, pInfo->m_aName, sizeof(Snapshot.m_aName));
 			str_copy(Snapshot.m_aGameType, pInfo->m_aGameType, sizeof(Snapshot.m_aGameType));
@@ -1197,8 +1201,12 @@ void CMenus::ControllerRegisterFocus(const void *pID, const CUIRect *pRect, int 
 {
 	if(!m_ControllerFocusRegistrationEnabled || !pID || !pRect || pRect->w <= 0.0f || pRect->h <= 0.0f)
 		return;
-	if(m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(*pRect))
+	const bool UiClipped = UI()->IsRectClipped(*pRect);
+	const bool ScrollClipped = m_pUiClipScrollRegion && m_pUiClipScrollRegion->IsRectClipped(*pRect);
+	if((UiClipped || ScrollClipped) && Type != CONTROLLER_FOCUS_LIST && !m_pUiClipScrollRegion)
 		return;
+	if(ScrollClipped && m_pControllerFocusID == pID)
+		m_pUiClipScrollRegion->ScrollHere(*pRect);
 
 	for(int i = 0; i < m_NumControllerNextFocusItems; i++)
 		if(m_aControllerNextFocusItems[i].m_pID == pID)
@@ -1219,6 +1227,12 @@ void CMenus::ControllerSetPreferredFocus(const void *pID)
 {
 	if(m_ControllerFocusRegistrationEnabled && pID)
 		m_pControllerNextPreferredFocus = pID;
+}
+
+void CMenus::ControllerSetFocus(const void *pID)
+{
+	if(m_ControllerFocusRegistrationEnabled && UsesNonMouseInput() && pID)
+		m_pControllerFocusID = pID;
 }
 
 bool CMenus::ControllerIsFocused(const void *pID) const
@@ -1317,6 +1331,8 @@ bool CMenus::ControllerHandleInput(const IInput::CEvent &Event)
 						  : Action == MENU_CONTROLLER_RIGHT ? 3
 																													 : -1;
 	CControllerFocusItem &Current = m_aControllerFocusItems[FocusIndex];
+	if(Current.m_Type == CONTROLLER_FOCUS_LIST)
+		return false;
 	if((Current.m_Type == CONTROLLER_FOCUS_SLIDER_H && (Direction == 2 || Direction == 3)) ||
 		(Current.m_Type == CONTROLLER_FOCUS_SLIDER_V && (Direction == 0 || Direction == 1)))
 	{
@@ -1500,13 +1516,20 @@ int CMenus::DoButton_Toggle(const void *pID, int Checked, const CUIRect *pRect, 
 }
 
 int CMenus::DoButton_Menu(
-	const void *pID, const char *pText, int Checked, const CUIRect *pRect, int Style, const char *pHint)
+	const void *pID,
+	const char *pText,
+	int Checked,
+	const CUIRect *pRect,
+	int Style,
+	const char *pHint,
+	bool Active)
 {
-	ControllerRegisterFocus(pID, pRect);
-	const bool Focused = ControllerIsFocused(pID);
-	const float Hover = AnimHover(pID);
-	const float Selected = AnimSelected(pID, Checked != 0 || Focused);
-	const float Press = AnimPressed(pID);
+	if(Active)
+		ControllerRegisterFocus(pID, pRect);
+	const bool Focused = Active && ControllerIsFocused(pID);
+	const float Hover = Active ? AnimHover(pID) : 0.0f;
+	const float Selected = Active ? AnimSelected(pID, Checked != 0 || Focused) : 0.0f;
+	const float Press = Active ? AnimPressed(pID) : 0.0f;
 	const float Activity = max(Hover, Selected);
 	const bool Ghost = Style == BUTTONSTYLE_GHOST;
 	const float Grow = Hover * 2.0f - Press * 1.4f;
@@ -1570,7 +1593,7 @@ int CMenus::DoButton_Menu(
 	Temp.VMargin(max(8.0f, Cut + 6.0f), &Temp);
 	const bool TwoLine = pHint && pHint[0] && Temp.h >= 34.0f;
 	const int Align = TwoLine ? -1 : 0;
-	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	TextRender()->TextColor(Active ? 1.0f : 0.52f, Active ? 1.0f : 0.55f, Active ? 1.0f : 0.60f, 1.0f);
 	if(TwoLine)
 	{
 		float TitleSize = clamp(Temp.h * 0.34f, 13.0f, 26.0f);
@@ -1588,7 +1611,7 @@ int CMenus::DoButton_Menu(
 		const vec4 Muted = ThemeTextMuted();
 		TextRender()->TextColor(Muted.r, Muted.g, Muted.b, 1.0f);
 		UI()->DoLabel(&Hint, pHint, HintSize, Align);
-		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		TextRender()->TextColor(Active ? 1.0f : 0.52f, Active ? 1.0f : 0.55f, Active ? 1.0f : 0.60f, 1.0f);
 	}
 	else
 	{
@@ -1599,7 +1622,8 @@ int CMenus::DoButton_Menu(
 		Label.h = FontSize;
 		UI()->DoLabel(&Label, pText, FontSize, Align);
 	}
-	return UI()->DoButtonLogic(pID, pText, Checked, pRect) || ControllerConsumeActivation(pID);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	return Active ? UI()->DoButtonLogic(pID, pText, Checked, pRect) || ControllerConsumeActivation(pID) : 0;
 }
 
 void CMenus::DoButton_KeySelect(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
@@ -1716,9 +1740,11 @@ int CMenus::DoButton_GridHeader(const void *pID, const char *pText, int Checked,
 	return Interactive ? UI()->DoButtonLogic(pID, pText, Checked, pRect) || ControllerConsumeActivation(pID) : 0;
 }
 
-int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect)
+int CMenus::DoButton_CheckBox_Common(
+	const void *pID, const char *pText, const char *pBoxText, const CUIRect *pRect, bool Active)
 {
-	ControllerRegisterFocus(pID, pRect);
+	if(Active)
+		ControllerRegisterFocus(pID, pRect);
 	CUIRect c = *pRect;
 	CUIRect t = *pRect;
 	c.w = c.h;
@@ -1726,13 +1752,14 @@ int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const c
 	t.w -= c.w;
 	t.VSplitLeft(5.0f, 0, &t);
 
-	const float Hover = AnimHover(pID);
+	const float Hover = Active ? AnimHover(pID) : 0.0f;
 	const bool Checked = pBoxText[0] == 'X';
-	const float Sel = AnimSelected(pID, Checked || ControllerIsFocused(pID));
+	const float Sel = Active ? AnimSelected(pID, Checked || ControllerIsFocused(pID)) : 0.0f;
 
 	c.Margin(2.0f, &c);
-	vec4 BoxFill = vec4(0.05f, 0.06f, 0.08f, 0.95f);
-	vec4 BoxBorder = MixColor(vec4(0.22f, 0.24f, 0.28f, 1.0f), ms_ColorAccent, max(Hover, Sel));
+	vec4 BoxFill = Active ? vec4(0.05f, 0.06f, 0.08f, 0.95f) : vec4(0.04f, 0.045f, 0.055f, 0.70f);
+	vec4 BoxBorder = Active ? MixColor(vec4(0.22f, 0.24f, 0.28f, 1.0f), ms_ColorAccent, max(Hover, Sel)) :
+							  vec4(0.16f, 0.18f, 0.22f, 0.75f);
 	DrawMenuBorder(&c, BoxFill, BoxBorder, CUI::CORNER_ALL, ms_ControlRounding);
 	if(Sel > 0.02f)
 	{
@@ -1744,25 +1771,26 @@ int CMenus::DoButton_CheckBox_Common(const void *pID, const char *pText, const c
 	}
 	else if(pBoxText[0] && pBoxText[0] != 'X')
 	{
-		TextRender()->TextColor(0.98f, 0.98f, 0.96f, 1.0f);
+		TextRender()->TextColor(Active ? 0.98f : 0.52f, Active ? 0.98f : 0.55f, Active ? 0.96f : 0.60f, 1.0f);
 		UI()->DoLabel(&c, pBoxText, min(pRect->h * ms_FontmodHeight * 0.6f, 12.0f), 0);
 	}
-	TextRender()->TextColor(0.96f, 0.96f, 0.94f, 1.0f);
+	TextRender()->TextColor(Active ? 0.96f : 0.52f, Active ? 0.96f : 0.55f, Active ? 0.94f : 0.60f, 1.0f);
 	UI()->DoLabel(&t, pText, min(pRect->h * ms_FontmodHeight * 0.8f, 13.0f), -1);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
-	return UI()->DoButtonLogic(pID, pText, 0, pRect) || ControllerConsumeActivation(pID);
+	return Active ? UI()->DoButtonLogic(pID, pText, 0, pRect) || ControllerConsumeActivation(pID) : 0;
 }
 
-int CMenus::DoButton_CheckBox(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
+int CMenus::DoButton_CheckBox(const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Active)
 {
-	return DoButton_CheckBox_Common(pID, pText, Checked ? "X" : "", pRect);
+	return DoButton_CheckBox_Common(pID, pText, Checked ? "X" : "", pRect, Active);
 }
 
-int CMenus::DoButton_CheckBox_Number(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
+int CMenus::DoButton_CheckBox_Number(
+	const void *pID, const char *pText, int Checked, const CUIRect *pRect, bool Active)
 {
 	char aBuf[16];
 	str_format(aBuf, sizeof(aBuf), "%d", Checked);
-	return DoButton_CheckBox_Common(pID, pText, aBuf, pRect);
+	return DoButton_CheckBox_Common(pID, pText, aBuf, pRect, Active);
 }
 
 int CMenus::DoEditBox(void *pID,
@@ -2023,7 +2051,8 @@ int CMenus::DoKeyReader(void *pID, const CUIRect *pRect, int Key)
 		if(m_Binder.m_GotKey)
 		{
 			// abort with escape key
-			if(m_Binder.m_Key.m_Key != KEY_ESCAPE)
+			if(m_Binder.m_Key.m_Key != KEY_ESCAPE && m_Binder.m_Key.m_Key != KEY_GAMEPAD_BUTTON_B &&
+			   m_Binder.m_Key.m_Key != KEY_GAMEPAD_BUTTON_BACK)
 				NewKey = m_Binder.m_Key.m_Key;
 			m_Binder.m_GotKey = false;
 			UI()->SetActiveItem(0);
@@ -4279,14 +4308,14 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 		CScrollRegionParams ScrollParams;
 		ConfigureScrollRegion(&ScrollParams);
 		ScrollParams.m_ClipBgColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
-		ScrollParams.m_ScrollUnit = L(94.0f);
+		ScrollParams.m_ScrollUnit = L(80.0f);
 		s_ModeScrollRegion.Begin(&ModeGrid, &ScrollOffset, &ScrollParams);
 		ModeContent.y += ScrollOffset.y;
 		ModeContent.VSplitRight(L(20.0f), &ModeContent, 0);
 		const int AllCount = (int)(sizeof(s_aAllLocalModes) / sizeof(s_aAllLocalModes[0]));
 		const int Cols = SingleColumn ? 1 : 2;
 		const int Rows = (AllCount + Cols - 1) / Cols;
-		const float CardHeight = ModeGrid.h >= L(360.0f) ? L(100.0f) : L(92.0f);
+		const float CardHeight = HasPreview ? L(72.0f) : L(92.0f);
 		const float Gap = L(8.0f);
 		const float ColGap = L(6.0f);
 		CUIRect Group = ModeContent;
@@ -4326,29 +4355,23 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 				DrawMenuInset(&Inner, CUI::CORNER_ALL);
 				float HoverMargin = L(7.0f - Hover * 1.5f);
 				Inner.Margin(HoverMargin, &Inner);
-				CUIRect Preview, Content;
-				Inner.VSplitLeft(L(88.0f), &Preview, &Content);
-				const float PreviewHeight = min(Preview.h, L(44.0f));
-				Preview.y += (Preview.h - PreviewHeight) * 0.5f;
-				Preview.h = PreviewHeight;
-				DrawModeVoteImage(Preview, s_aLocalGameModes[Mode].m_pGameVoteImage, Selected);
-				Content.VSplitLeft(L(8.0f), 0, &Inner);
 				CUIRect Top;
-				Inner.HSplitTop(L(20.0f), &Top, &Inner);
+				Inner.HSplitTop(L(22.0f), &Top, &Inner);
 				UI()->DoLabelScaled(&Top, Localize(s_aLocalGameModes[Mode].m_pName), 14.0f, -1);
-				Inner.HSplitTop(L(25.0f), &Top, &Inner);
+				Inner.HSplitTop(L(32.0f), &Top, &Inner);
 				UI()->DoLabelScaled(&Top, Localize(s_aLocalGameModes[Mode].m_pDescription), 9.0f, -1, (int)Top.w);
-				Inner.HSplitTop(L(16.0f), &Top, &Inner);
-				char aMeta[160];
-				str_format(aMeta,
-						   sizeof(aMeta),
-						   Localize("Recommended: %s players  ·  %s  ·  %s difficulty"),
-						   s_aLocalGameModes[Mode].m_pRecommendedPlayers,
-						   Localize(s_aLocalGameModes[Mode].m_pDuration),
-						   Localize(s_aLocalGameModes[Mode].m_pRecommendedDifficulty));
-				UI()->DoLabelScaled(&Top, aMeta, 8.5f, -1);
-				Inner.HSplitTop(L(15.0f), &Top, &Inner);
-				UI()->DoLabelScaled(&Top, Localize(s_aLocalGameModes[Mode].m_pMechanics), 8.5f, -1);
+				if(!HasPreview)
+				{
+					Inner.HSplitTop(L(18.0f), &Top, &Inner);
+					char aMeta[160];
+					str_format(aMeta,
+							   sizeof(aMeta),
+							   Localize("Recommended: %s players  ·  %s  ·  %s difficulty"),
+							   s_aLocalGameModes[Mode].m_pRecommendedPlayers,
+							   Localize(s_aLocalGameModes[Mode].m_pDuration),
+							   Localize(s_aLocalGameModes[Mode].m_pRecommendedDifficulty));
+					UI()->DoLabelScaled(&Top, aMeta, 8.5f, -1, (int)Top.w);
+				}
 			}
 		}
 		CUIRect ScrollContent = ModeContent;
@@ -4383,18 +4406,16 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			const int PreviewMode = s_aAllLocalModes[PreviewIndex];
 			const CLocalGameMode &Preview = LocalGameMode(PreviewMode);
 			// gamevotes/*.png are 512x256 — keep that 2:1 ratio; panel height follows content.
-			const float Pad = L(12.0f);
-			const float TitleH = L(24.0f);
-			const float NameH = L(24.0f);
-			const float DescH = L(42.0f);
-			const float MetaH = L(34.0f);
-			const float MechH = L(18.0f);
-			const float GapH = L(10.0f);
+			const float Pad = L(10.0f);
+			const float NameH = L(28.0f);
+			const float MetaH = L(24.0f);
+			const float MechH = L(20.0f);
+			const float GapH = L(8.0f);
 			const float InnerW = max(1.0f, PreviewColumn.w - Pad * 2.0f);
 			const float ImageAspect = 2.0f;
 			const float NaturalImageH = InnerW / ImageAspect;
-			const float FixedH = Pad * 2.0f + TitleH + GapH + NameH + DescH + MetaH + MechH;
-			const float ImageH = min(NaturalImageH, max(L(48.0f), PreviewColumn.h - FixedH));
+			const float FixedH = Pad * 2.0f + GapH + NameH + MetaH + MechH;
+			const float ImageH = min(NaturalImageH, max(L(96.0f), PreviewColumn.h - FixedH));
 			CUIRect ModePreview = PreviewColumn;
 			ModePreview.h = min(FixedH + ImageH, PreviewColumn.h);
 			DrawTechShape(&ModePreview, vec4(ms_ColorBgInset.r, ms_ColorBgInset.g, ms_ColorBgInset.b, .16f), 9.0f);
@@ -4404,9 +4425,6 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 							9.0f);
 			CUIRect PreviewContent = ModePreview;
 			PreviewContent.Margin(Pad, &PreviewContent);
-			CUIRect PreviewTitle;
-			PreviewContent.HSplitTop(TitleH, &PreviewTitle, &PreviewContent);
-			UI()->DoLabelScaled(&PreviewTitle, Localize("Detail"), 12.0f, -1);
 			CUIRect ImageSlot;
 			PreviewContent.HSplitTop(ImageH, &ImageSlot, &PreviewContent);
 			// Letterbox inside the slot so the bitmap is never stretched.
@@ -4426,13 +4444,6 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			CUIRect PreviewName;
 			PreviewContent.HSplitTop(NameH, &PreviewName, &PreviewContent);
 			UI()->DoLabelScaled(&PreviewName, Localize(Preview.m_pName), 15.0f, -1);
-			CUIRect PreviewDescription;
-			PreviewContent.HSplitTop(DescH, &PreviewDescription, &PreviewContent);
-			UI()->DoLabelScaled(&PreviewDescription,
-								Localize(Preview.m_pDescription),
-								9.0f,
-								-1,
-								(int)PreviewDescription.w);
 			char aPreviewMeta[160];
 			str_format(aPreviewMeta,
 					   sizeof(aPreviewMeta),
@@ -4487,16 +4498,18 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 	CUIRect MainSettings, Identity;
 	// Reserve the optional custom-floor row for Invasion as well, so changing
 	// the starting point cannot make the panel overlap for a single frame.
-	const int MainRows = 3 + (ModeDef.m_HasBots ? 1 : 0) +
-						 (Mode == LOCAL_MODE_INVASION ? 2
-						  : Mode == LOCAL_MODE_EXPEDITION							  ? 1
-						  : LocalModeRuleConfig(ModeDef.m_Rule)						  ? 1
-																					  : 0);
 	const bool AdvancedExpanded = g_Config.m_ClLocalServerAdvanced != 0;
+	const int OptionalModeRows = (ModeDef.m_HasBots ? 1 : 0) +
+								 (Mode == LOCAL_MODE_INVASION ? 2
+								  : Mode == LOCAL_MODE_EXPEDITION			 ? 1
+								  : LocalModeRuleConfig(ModeDef.m_Rule) ? 1
+																		   : 0);
+	const int MainRows = 3 + OptionalModeRows;
 	// Challenge section (code input + 4 variant rows + live code) adds six
 	// rows to the advanced area; without this the fixed Identity height clips
 	// them out of the panel.
-	const int AdvancedRows = AdvancedExpanded ? 2 + (ModeDef.m_HasRoguelite ? 1 : 0) + 6 : 0;
+	const int AdvancedRows =
+		AdvancedExpanded ? 9 + (ModeDef.m_HasRoguelite ? 1 : 0) + (Mode == LOCAL_MODE_INVASION ? 1 : 0) : 0;
 	const CRoomConfigureLayout ConfigureLayout =
 		RoomConfigureLayout(ConfigBody.w, UI()->Scale(), SteamAvailable, MainRows, AdvancedRows, AdvancedExpanded);
 	if(ConfigureLayout.m_SingleColumn)
@@ -4680,23 +4693,34 @@ void CMenus::RenderCreateRoom(CUIRect MainView)
 			  sizeof(g_Config.m_ClLocalServerName),
 			  11.0f,
 			  &s_NameOffset);
-	SplitRow(Identity, &Label, &Control);
-	UI()->DoLabelScaled(&Label, Localize("Password (optional)"), 11.0f, -1);
-	DoEditBox(g_Config.m_ClLocalServerPassword,
-			  &Control,
-			  g_Config.m_ClLocalServerPassword,
-			  sizeof(g_Config.m_ClLocalServerPassword),
-			  11.0f,
-			  &s_PasswordOffset);
 	Identity.HSplitTop(L(7.0f), 0, &Identity);
 	Identity.HSplitTop(L(31.0f), &Row, &Identity);
+	char aAdvancedLabel[96];
+	if(!AdvancedExpanded && g_Config.m_ClLocalServerPassword[0])
+		str_format(aAdvancedLabel,
+				   sizeof(aAdvancedLabel),
+				   "%s · %s",
+				   Localize("Advanced settings"),
+				   Localize("Password"));
+	else
+		str_copy(aAdvancedLabel,
+				 Localize(AdvancedExpanded ? "Hide advanced settings" : "Advanced settings"),
+				 sizeof(aAdvancedLabel));
 	if(DoButton_Menu(&s_Advanced,
-					 Localize(AdvancedExpanded ? "Hide advanced settings" : "Advanced settings"),
+					 aAdvancedLabel,
 					 AdvancedExpanded,
 					 &Row))
 		g_Config.m_ClLocalServerAdvanced ^= 1;
 	if(AdvancedExpanded)
 	{
+		SplitRow(Identity, &Label, &Control);
+		UI()->DoLabelScaled(&Label, Localize("Password (optional)"), 11.0f, -1);
+		DoEditBox(g_Config.m_ClLocalServerPassword,
+				  &Control,
+				  g_Config.m_ClLocalServerPassword,
+				  sizeof(g_Config.m_ClLocalServerPassword),
+				  11.0f,
+				  &s_PasswordOffset);
 		SplitRow(Identity, &Label, &Control);
 		if(DoButton_CheckBox(&s_RandomSeed, Localize("Random map seed"), g_Config.m_ClLocalServerRandomSeed, &Label))
 			g_Config.m_ClLocalServerRandomSeed ^= 1;
@@ -5854,12 +5878,12 @@ void CMenus::RenderFront(CUIRect MainView)
 		}
 	}
 
-	static int s_aUtilityButtons[5];
-	const char *apUtilityLabels[5] = {"Customize", "Research", "Workshop", "Settings", "Quit"};
-	const int aUtilityPages[5] = {PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_SETTINGS, -1};
+	static int s_aUtilityButtons[6];
+	const char *apUtilityLabels[6] = {"Customize", "Research", "Workshop", "Demos", "Settings", "Quit"};
+	const int aUtilityPages[6] = {PAGE_CUSTOMIZE, PAGE_RESEARCH, PAGE_MODS, PAGE_DEMOS, PAGE_SETTINGS, -1};
 	const float UtilityGap = 8.0f;
-	const float UtilityW = (BottomRail.w - UtilityGap * 4.0f) / 5.0f;
-	for(int i = 0; i < 5; i++)
+	const float UtilityW = (BottomRail.w - UtilityGap * 5.0f) / 6.0f;
+	for(int i = 0; i < 6; i++)
 	{
 		CUIRect Utility = {BottomRail.x + i * (UtilityW + UtilityGap), BottomRail.y, UtilityW, BottomRail.h};
 		if(DoButton_Menu(&s_aUtilityButtons[i],
@@ -6701,18 +6725,14 @@ void CMenus::RenderSteamFriends(CUIRect MainView)
 	static float s_SearchOffset = 0.0f;
 	static unsigned long long s_SelectedUser = 0;
 	static float s_Scroll = 0.0f;
-	CUIRect Toolbar, Content, Actions, SearchLabel, SearchBox, OverlayButton;
+	CUIRect Toolbar, Content, Actions, SearchLabel, SearchBox;
 	MainView.HSplitTop(30.0f, &Toolbar, &MainView);
-	Toolbar.VSplitRight(150.0f, &Toolbar, &OverlayButton);
 	Toolbar.VSplitLeft(54.0f, &SearchLabel, &Toolbar);
 	Toolbar.VSplitLeft(min(260.0f, Toolbar.w), &SearchBox, &Toolbar);
 	UI()->DoLabelScaled(&SearchLabel, Localize("Search"), 10.0f, -1);
 	DoEditBox(&s_aSearch, &SearchBox, s_aSearch, sizeof(s_aSearch), 10.0f, &s_SearchOffset);
-	static int s_OverlayInvite;
-	if(DoButton_Menu(&s_OverlayInvite, Localize("Invite to party"), 0, &OverlayButton))
-		pPlatform->OpenPartyInviteDialog();
 	MainView.HSplitTop(6.0f, 0, &MainView);
-	MainView.HSplitBottom(36.0f, &Content, &Actions);
+	MainView.HSplitBottom(42.0f, &Content, &Actions);
 
 	const int64 Now = time_get();
 	if(Now >= m_SteamFriendCacheNextRefresh)
@@ -6758,25 +6778,21 @@ void CMenus::RenderSteamFriends(CUIRect MainView)
 		s_SelectedUser = FriendAt(0).m_UserID;
 	}
 
-	CUIRect List = Content, Detail;
-	const bool Wide = Content.w > 650.0f;
-	if(Wide)
-	{
-		Content.VSplitRight(250.0f, &List, &Detail);
-		List.VSplitRight(8.0f, &List, 0);
-	}
+	CUIRect List = Content;
+	static bool s_DetailOpen = false;
 	static int s_ListID, s_aFriendIDs[512];
 	for(int i = 0; i < 512; i++)
 		s_aFriendIDs[i] = i;
-	UiDoListboxStart(&s_ListID, &List, 44.0f, Localize("Steam friends"), "", Count, 1, Selected, s_Scroll);
+	UiDoListboxStart(
+		&s_ListID, &List, 56.0f, Localize("Steam friends"), "", Count, 1, Selected, s_Scroll, !s_DetailOpen);
 	for(int i = 0; i < Count; i++)
 	{
-		CListboxItem Item = UiDoListboxNextItem(&s_aFriendIDs[i], i == Selected);
+		CListboxItem Item = UiDoListboxNextItem(&s_aFriendIDs[i], i == Selected, !s_DetailOpen);
 		if(!Item.m_Visible)
 			continue;
 		CUIRect Row = Item.m_Rect, Avatar, Text;
 		Row.Margin(4.0f, &Row);
-		Row.VSplitLeft(34.0f, &Avatar, &Text);
+		Row.VSplitLeft(44.0f, &Avatar, &Text);
 		Text.VSplitLeft(8.0f, 0, &Text);
 		CPlatformUserInfo &Friend = FriendAt(i);
 		DrawSteamAvatar(Avatar, Friend.m_UserID);
@@ -6787,7 +6803,7 @@ void CMenus::RenderSteamFriends(CUIRect MainView)
 														  : Localize("Offline");
 		char aLine[256];
 		str_format(aLine, sizeof(aLine), "%s\n%s", Friend.m_aName, pState);
-		UI()->DoLabelScaled(&Text, aLine, 10.0f, -1);
+		UI()->DoLabelScaled(&Text, aLine, 11.0f, -1);
 	}
 	const int NewSelected = UiDoListboxEnd(&s_Scroll, 0);
 	if(NewSelected >= 0 && NewSelected < Count)
@@ -6795,57 +6811,82 @@ void CMenus::RenderSteamFriends(CUIRect MainView)
 		Selected = NewSelected;
 		s_SelectedUser = FriendAt(Selected).m_UserID;
 	}
-	if(Wide)
-	{
-		DrawMenuInset(&Detail, CUI::CORNER_ALL);
-		Detail.Margin(10.0f, &Detail);
-		if(Selected >= 0)
-		{
-			CUIRect Avatar, Name;
-			Detail.HSplitTop(64.0f, &Avatar, &Detail);
-			Avatar.VSplitLeft(64.0f, &Avatar, &Name);
-			Name.VSplitLeft(10.0f, 0, &Name);
-			CPlatformUserInfo &Friend = FriendAt(Selected);
-			DrawSteamAvatar(Avatar, Friend.m_UserID);
-			char aText[320];
-			str_format(aText,
-					   sizeof(aText),
-					   "%s\n%s\nSteamID %llu",
-					   Friend.m_aName,
-					   Localize(Friend.m_PartyMember		 ? "In your party"
-								: Friend.m_Joinable			 ? "Joinable"
-								: Friend.m_PlayingThisGame	 ? "Playing Ninslash"
-								: Friend.m_PersonaState != 0 ? "Online"
-															 : "Offline"),
-					   Friend.m_UserID);
-			UI()->DoLabelScaled(&Name, aText, 10.0f, -1);
-		}
-	}
-
-	static int s_JoinFriend, s_InviteFriend, s_ProfileFriend;
-	CUIRect Join, Invite, Profile;
-	Actions.VSplitRight(110.0f, &Actions, &Join);
+	static int s_PrimaryFriend, s_DetailFriend, s_ProfileFriend, s_InviteFriend, s_CloseFriendDetail;
+	CUIRect Primary, DetailButton;
+	Actions.VSplitRight(126.0f, &Actions, &Primary);
 	Actions.VSplitRight(6.0f, &Actions, 0);
-	Actions.VSplitRight(110.0f, &Actions, &Invite);
-	Actions.VSplitRight(6.0f, &Actions, 0);
-	Actions.VSplitRight(110.0f, &Actions, &Profile);
+	Actions.VSplitRight(84.0f, &Actions, &DetailButton);
 	if(Selected >= 0)
 	{
 		CPlatformUserInfo &Friend = FriendAt(Selected);
-		if(DoButton_Menu(&s_JoinFriend, Localize("Join friend"), 0, &Join, BUTTONSTYLE_ACCENT) && Friend.m_Joinable)
-			pPlatform->JoinUser(Friend.m_UserID);
-		if(DoButton_Menu(&s_InviteFriend,
-						 Localize(Friend.m_PartyMember ? "In party" : "Invite to party"),
-						 Friend.m_PartyMember,
-						 &Invite) &&
-		   !Friend.m_PartyMember)
-			pPlatform->InvitePartyUser(Friend.m_UserID);
-		if(DoButton_Menu(&s_ProfileFriend, Localize("Profile"), 0, &Profile))
-			pPlatform->OpenUserProfile(Friend.m_UserID);
+		const bool CanInvite = !Friend.m_PartyMember;
+		const char *pPrimary = Friend.m_Joinable ? "Join friend" : CanInvite ? "Invite to party" : "In party";
+		if(DoButton_Menu(&s_PrimaryFriend,
+						 Localize(pPrimary),
+						 !Friend.m_Joinable && !CanInvite,
+						 &Primary,
+						 Friend.m_Joinable ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL,
+						 0,
+						 Friend.m_Joinable || CanInvite))
+		{
+			if(Friend.m_Joinable)
+				pPlatform->JoinUser(Friend.m_UserID);
+			else if(CanInvite)
+				pPlatform->InvitePartyUser(Friend.m_UserID);
+		}
+		if(DoButton_Menu(&s_DetailFriend, Localize("Details"), s_DetailOpen, &DetailButton))
+			s_DetailOpen = !s_DetailOpen;
 	}
 	char aCount[64];
 	str_format(aCount, sizeof(aCount), "%d %s", Count, Localize("friends"));
 	UI()->DoLabelScaled(&Actions, aCount, 10.0f, -1);
+	if(s_DetailOpen && Selected >= 0)
+	{
+		CUIRect Overlay = Content;
+		Overlay.Margin(8.0f, &Overlay);
+		DrawMenuInset(&Overlay, CUI::CORNER_ALL);
+		Overlay.Margin(12.0f, &Overlay);
+		CUIRect Header, Close, Avatar, Text, DetailActions, Profile, Invite;
+		Overlay.HSplitTop(28.0f, &Header, &Overlay);
+		Header.VSplitRight(28.0f, &Header, &Close);
+		UI()->DoLabelScaled(&Header, Localize("Details"), 13.0f, -1);
+		if(DoButton_Menu(&s_CloseFriendDetail, "x", 0, &Close))
+			s_DetailOpen = false;
+		Overlay.HSplitTop(76.0f, &Avatar, &Overlay);
+		Avatar.VSplitLeft(64.0f, &Avatar, &Text);
+		Text.VSplitLeft(12.0f, 0, &Text);
+		CPlatformUserInfo &Friend = FriendAt(Selected);
+		DrawSteamAvatar(Avatar, Friend.m_UserID);
+		char aText[320];
+		str_format(aText,
+				   sizeof(aText),
+				   "%s\n%s\nSteamID %llu",
+				   Friend.m_aName,
+				   Localize(Friend.m_PartyMember		 ? "In your party"
+							: Friend.m_Joinable			 ? "Joinable"
+							: Friend.m_PlayingThisGame	 ? "Playing Ninslash"
+							: Friend.m_PersonaState != 0 ? "Online"
+														 : "Offline"),
+				   Friend.m_UserID);
+		UI()->DoLabelScaled(&Text, aText, 11.0f, -1);
+		Overlay.HSplitTop(8.0f, 0, &Overlay);
+		Overlay.HSplitTop(32.0f, &DetailActions, &Overlay);
+		DetailActions.VSplitRight(104.0f, &DetailActions, &Profile);
+		if(DoButton_Menu(&s_ProfileFriend, Localize("Profile"), 0, &Profile))
+			pPlatform->OpenUserProfile(Friend.m_UserID);
+		if(!Friend.m_PartyMember)
+		{
+			DetailActions.VSplitRight(4.0f, &DetailActions, 0);
+			DetailActions.VSplitRight(118.0f, &DetailActions, &Invite);
+			if(DoButton_Menu(&s_InviteFriend, Localize("Invite to party"), 0, &Invite))
+				pPlatform->InvitePartyUser(Friend.m_UserID);
+		}
+		if(m_EscapePressed)
+		{
+			s_DetailOpen = false;
+			m_EscapePressed = false;
+		}
+	}
 }
 
 void CMenus::RenderPartyPanel(CUIRect *pMainView)
@@ -6853,40 +6894,60 @@ void CMenus::RenderPartyPanel(CUIRect *pMainView)
 	IPlatformServices *pPlatform = Kernel()->RequestInterface<IPlatformServices>();
 	if(!pMainView || !pPlatform || !pPlatform->Available())
 		return;
-	CUIRect Panel;
-	pMainView->HSplitTop(92.0f, &Panel, pMainView);
-	pMainView->HSplitTop(6.0f, 0, pMainView);
-	DrawMenuInset(&Panel, CUI::CORNER_ALL);
-	Panel.Margin(7.0f, &Panel);
 	CPlatformPartyState Party;
 	const bool InParty = pPlatform->PartyState(&Party);
 	CPlatformOperationStatus Status;
 	pPlatform->PartyOperationStatus(&Status);
-	CUIRect Header, Members, Actions;
-	Panel.HSplitTop(20.0f, &Header, &Panel);
-	Panel.HSplitBottom(25.0f, &Members, &Actions);
-	static int s_CreateParty, s_LeaveParty, s_Ready, s_Launch;
+	const int MemberCount = InParty ? pPlatform->PartyMemberCount() : 0;
+	CPlatformUserInfo LocalMember;
+	mem_zero(&LocalMember, sizeof(LocalMember));
+	bool AllReady = InParty && Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE;
+	int ReadyCount = 0;
+	if(InParty)
+	{
+		for(int i = 0; i < MemberCount; i++)
+		{
+			CPlatformUserInfo Member;
+			if(!pPlatform->PartyMemberInfo(i, &Member))
+				continue;
+			if(Member.m_Local)
+				LocalMember = Member;
+			if(Member.m_PartyReady)
+				ReadyCount++;
+			AllReady = AllReady && Member.m_PartyReady;
+		}
+	}
+
+	const bool Expanded = m_PartyExpanded;
+	CUIRect Panel;
+	pMainView->HSplitTop(InParty && Expanded ? 92.0f : 34.0f, &Panel, pMainView);
+	pMainView->HSplitTop(6.0f, 0, pMainView);
+	DrawMenuInset(&Panel, CUI::CORNER_ALL);
+	Panel.Margin(7.0f, &Panel);
+	static int s_CreateParty, s_LeaveParty, s_Ready, s_Launch, s_ExpandParty;
 	static bool s_ConfirmForce = false;
 	if(!InParty)
 	{
 		CUIRect Button;
-		Header.VSplitRight(126.0f, &Header, &Button);
+		Panel.VSplitRight(126.0f, &Panel, &Button);
+		const bool Failed = Status.m_State == CLIENT_ASYNC_FAILED;
+		const char *pStatus = Failed ? Status.m_aErrorKey
+									 : Status.m_State == CLIENT_ASYNC_WORKING ? "Creating party..."
+																			   : "Steam party · not in a party";
+		if(Failed)
+			TextRender()->TextColor(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 1.0f);
 		UI()->DoLabelScaled(
-			&Header,
-			Localize(Status.m_State == CLIENT_ASYNC_WORKING ? "Creating party..." : "Steam party · not in a party"),
-			10.5f,
+			&Panel,
+			Localize(pStatus),
+			FitScaledLabelFontSize(TextRender(), Localize(pStatus), 9.0f, Panel.w, UI()->Scale()),
 			-1);
+		if(Failed)
+			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 		if(Status.m_State != CLIENT_ASYNC_WORKING &&
 		   DoButton_Menu(&s_CreateParty, Localize("Create party"), 0, &Button, BUTTONSTYLE_ACCENT))
 			pPlatform->CreateParty();
-		if(Status.m_State == CLIENT_ASYNC_FAILED)
-		{
-			TextRender()->TextColor(ms_ColorDanger.r, ms_ColorDanger.g, ms_ColorDanger.b, 1.0f);
-			UI()->DoLabelScaled(&Members, Localize(Status.m_aErrorKey), 9.0f, -1);
-			TextRender()->TextColor(1, 1, 1, 1);
-		}
-		else
-			UI()->DoLabelScaled(&Members, Localize("Create a private party or invite a friend to begin."), 9.5f, -1);
+		m_PartyExpanded = false;
+		s_ConfirmForce = false;
 		return;
 	}
 
@@ -6896,27 +6957,66 @@ void CMenus::RenderPartyPanel(CUIRect *pMainView)
 																				 : Localize("Choose a game or server");
 	str_format(aHeader,
 			   sizeof(aHeader),
-			   "%s · %d/16 · %s: %s",
+			   "%s · %d/16 · %d %s · %s",
 			   Localize("Steam party"),
-			   pPlatform->PartyMemberCount(),
-			   Localize(Party.m_LocalOwner ? "Leader" : "Member"),
+			   MemberCount,
+			   ReadyCount,
+			   Localize("Ready"),
 			   pTarget);
+	CUIRect Header, Members, Actions, Expand;
+	if(Expanded)
+	{
+		Panel.HSplitTop(20.0f, &Header, &Panel);
+		Panel.HSplitBottom(25.0f, &Members, &Actions);
+	}
+	else
+		Header = Panel;
+	Header.VSplitRight(28.0f, &Header, &Expand);
+	Expand.VSplitLeft(4.0f, 0, &Expand);
+	if(DoButton_Menu(&s_ExpandParty, Expanded ? "-" : "+", Expanded, &Expand, BUTTONSTYLE_GHOST))
+		m_PartyExpanded = !m_PartyExpanded;
+
+	CUIRect Primary;
+	if(Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE)
+	{
+		Header.VSplitRight(Party.m_LocalOwner ? 142.0f : 108.0f, &Header, &Primary);
+		Primary.VSplitLeft(4.0f, 0, &Primary);
+		if(Party.m_LocalOwner)
+		{
+			const char *pLabel = AllReady ? "Start party" : s_ConfirmForce ? "Confirm force start" : "Force start";
+			if(DoButton_Menu(
+				   &s_Launch, Localize(pLabel), 0, &Primary, AllReady ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_DANGER))
+			{
+				if(AllReady || s_ConfirmForce)
+				{
+				pPlatform->LaunchParty(!AllReady);
+					s_ConfirmForce = false;
+				}
+				else
+					s_ConfirmForce = true;
+			}
+		}
+		else if(DoButton_Menu(&s_Ready,
+							 Localize(LocalMember.m_PartyReady ? "Not ready" : "Ready"),
+							 LocalMember.m_PartyReady,
+							 &Primary,
+							 LocalMember.m_PartyReady ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+			pPlatform->SetPartyReady(!LocalMember.m_PartyReady);
+	}
+	else
+		s_ConfirmForce = false;
 	UI()->DoLabelScaled(
 		&Header, aHeader, FitScaledLabelFontSize(TextRender(), aHeader, 10.5f, Header.w, UI()->Scale()), -1);
+	if(!Expanded)
+		return;
 
-	CPlatformUserInfo LocalMember;
-	mem_zero(&LocalMember, sizeof(LocalMember));
-	bool AllReady = Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE;
-	for(int i = 0; i < pPlatform->PartyMemberCount(); i++)
+	for(int i = 0; i < MemberCount; i++)
 	{
 		CPlatformUserInfo Member;
 		if(!pPlatform->PartyMemberInfo(i, &Member))
 			continue;
-		if(Member.m_Local)
-			LocalMember = Member;
-		AllReady = AllReady && Member.m_PartyReady;
 		CUIRect Cell, Avatar, Label;
-		Members.VSplitLeft(min(110.0f, Members.w), &Cell, &Members);
+		Members.VSplitLeft(min(124.0f, Members.w), &Cell, &Members);
 		Cell.VSplitLeft(26.0f, &Avatar, &Label);
 		Avatar.Margin(1.0f, &Avatar);
 		DrawSteamAvatar(Avatar, Member.m_UserID);
@@ -6933,44 +7033,16 @@ void CMenus::RenderPartyPanel(CUIRect *pMainView)
 			break;
 	}
 
-	CUIRect Leave, Ready, Launch;
+	CUIRect Leave;
 	Actions.VSplitRight(100.0f, &Actions, &Leave);
 	Leave.VSplitLeft(4.0f, 0, &Leave);
 	if(DoButton_Menu(&s_LeaveParty, Localize("Leave party"), 0, &Leave, BUTTONSTYLE_DANGER))
 	{
 		pPlatform->LeaveParty();
+		m_PartyExpanded = false;
 		s_ConfirmForce = false;
 		return;
 	}
-	if(Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE)
-	{
-		Actions.VSplitRight(108.0f, &Actions, &Ready);
-		Ready.VSplitLeft(4.0f, 0, &Ready);
-		if(DoButton_Menu(&s_Ready,
-						 Localize(LocalMember.m_PartyReady ? "Not ready" : "Ready"),
-						 LocalMember.m_PartyReady,
-						 &Ready,
-						 LocalMember.m_PartyReady ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
-			pPlatform->SetPartyReady(!LocalMember.m_PartyReady);
-	}
-	if(Party.m_LocalOwner && Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE)
-	{
-		Actions.VSplitRight(142.0f, &Actions, &Launch);
-		Launch.VSplitLeft(4.0f, 0, &Launch);
-		const char *pLabel = AllReady ? "Start party" : s_ConfirmForce ? "Confirm force start" : "Force start";
-		if(DoButton_Menu(&s_Launch, Localize(pLabel), 0, &Launch, AllReady ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_DANGER))
-		{
-			if(AllReady || s_ConfirmForce)
-			{
-				pPlatform->LaunchParty(!AllReady);
-				s_ConfirmForce = false;
-			}
-			else
-				s_ConfirmForce = true;
-		}
-	}
-	else
-		s_ConfirmForce = false;
 	UI()->DoLabelScaled(
 		&Actions,
 		Localize(Party.m_LocalOwner ? "Select a room below, then wait for Ready." : "The leader selects the target."),
@@ -6988,9 +7060,11 @@ void CMenus::RenderPlay(CUIRect MainView)
 	// Browse, create and friends are one Play surface. Left/right changes the
 	// visible Play tab; up/down enters the room list and keeps the rail out of
 	// the content focus chain.
-	if(m_PlayTab == 0 && UsesNonMouseInput() && !CLineInput::GetActiveInput() && !m_PlayFiltersOpen)
+	if(m_PlayTab == 0 && UsesNonMouseInput() && !CLineInput::GetActiveInput() && !m_PlayFiltersOpen &&
+	   !m_PlayDetailOpen)
 		m_PlayListHasFocus = true;
-	if(m_PlayTab != 1 && UsesNonMouseInput() && !CLineInput::GetActiveInput())
+	if(m_PlayTab != 1 && UsesNonMouseInput() && !CLineInput::GetActiveInput() && !m_PlayFiltersOpen &&
+	   !m_PlayDetailOpen)
 	{
 		for(int EventIndex = 0; EventIndex < m_NumInputEvents; EventIndex++)
 		{
@@ -7018,11 +7092,14 @@ void CMenus::RenderPlay(CUIRect MainView)
 	for(int i = 0; i < 3; i++)
 	{
 		CUIRect Button = {Tabs.x + i * (TabW + TabGap), Tabs.y, TabW, Tabs.h};
+		const bool TabsInteractive = !m_PlayDetailOpen && !m_PlayFiltersOpen;
 		if(DoButton_Menu(&s_aTabs[i],
 						 Localize(apTabs[i]),
 						 m_PlayTab == i,
 						 &Button,
-						 m_PlayTab == i ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+						 m_PlayTab == i ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL,
+						 0,
+						 TabsInteractive))
 		{
 			m_PlayTab = i;
 			if(i == 0)
@@ -7061,7 +7138,7 @@ void CMenus::RenderPlay(CUIRect MainView)
 	}
 
 	UpdatePlaySnapshots();
-	CUIRect StatusBar, Filters, List, Detail, Actions;
+	CUIRect StatusBar, Filters, List, Actions;
 	Body.HSplitTop(30.0f, &StatusBar, &Body);
 	CClientAsyncStatus Connection;
 	Client()->ConnectionStatus(&Connection);
@@ -7104,24 +7181,27 @@ void CMenus::RenderPlay(CUIRect MainView)
 
 	Body.HSplitTop(32.0f, &Filters, &Body);
 	const char *apFilters[] = {"All", "Official", "Community", "Friends", "Modded", "Favorites", "LAN"};
+	const int aPrimaryFilters[] = {0, 3, 5, 6};
 	static int s_aFilters[7], s_FilterButton;
 	CUIRect FilterTabs, FilterAnchor;
-	Filters.VSplitRight(96.0f, &FilterTabs, &FilterAnchor);
+	Filters.VSplitRight(132.0f, &FilterTabs, &FilterAnchor);
 	FilterTabs.VSplitRight(4.0f, &FilterTabs, 0);
 	const float FilterGap = 4.0f;
-	const float FilterW = (FilterTabs.w - FilterGap * 6.0f) / 7.0f;
-	for(int i = 0; i < 7; i++)
+	const int NumPrimaryFilters = (int)(sizeof(aPrimaryFilters) / sizeof(aPrimaryFilters[0]));
+	const float FilterW = (FilterTabs.w - FilterGap * (NumPrimaryFilters - 1)) / NumPrimaryFilters;
+	for(int i = 0; i < NumPrimaryFilters; i++)
 	{
+		const int Filter = aPrimaryFilters[i];
 		CUIRect FilterButton = {FilterTabs.x + i * (FilterW + FilterGap), FilterTabs.y, FilterW, FilterTabs.h};
-		if(DoButton_Menu(&s_aFilters[i],
-						 Localize(apFilters[i]),
-						 s_Filter == i,
+		if(DoButton_Menu(&s_aFilters[Filter],
+						 Localize(apFilters[Filter]),
+						 s_Filter == Filter,
 						 &FilterButton,
-						 s_Filter == i ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST))
+						 s_Filter == Filter ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST))
 		{
-			s_Filter = i;
-			m_PlayBrowserCollection = i == 6   ? PLAY_COLLECTION_LAN
-									  : i == 5 ? PLAY_COLLECTION_FAVORITES
+			s_Filter = Filter;
+			m_PlayBrowserCollection = Filter == 6   ? PLAY_COLLECTION_LAN
+									  : Filter == 5 ? PLAY_COLLECTION_FAVORITES
 											   : PLAY_COLLECTION_INTERNET;
 			ServerBrowser()->Refresh(m_PlayBrowserCollection == PLAY_COLLECTION_LAN ? IServerBrowser::TYPE_LAN
 									 : m_PlayBrowserCollection == PLAY_COLLECTION_FAVORITES
@@ -7138,15 +7218,26 @@ void CMenus::RenderPlay(CUIRect MainView)
 		(g_Config.m_BrFilterPing < 999) + (g_Config.m_BrFilterGametype[0] != 0) +
 		(g_Config.m_BrFilterServerAddress[0] != 0) + (g_Config.m_BrFilterCountry != 0);
 	char aFilterLabel[64];
-	if(ActiveFilterCount > 0)
+	const bool SecondaryFilter = s_Filter == 1 || s_Filter == 2 || s_Filter == 4;
+	if(SecondaryFilter && ActiveFilterCount > 0)
+		str_format(aFilterLabel,
+				   sizeof(aFilterLabel),
+				   "%s · %s · %d",
+				   Localize("Filter"),
+				   Localize(apFilters[s_Filter]),
+				   ActiveFilterCount);
+	else if(SecondaryFilter)
+		str_format(
+			aFilterLabel, sizeof(aFilterLabel), "%s · %s", Localize("Filter"), Localize(apFilters[s_Filter]));
+	else if(ActiveFilterCount > 0)
 		str_format(aFilterLabel, sizeof(aFilterLabel), "%s  %d", Localize("Filter"), ActiveFilterCount);
 	else
 		str_copy(aFilterLabel, Localize("Filter"), sizeof(aFilterLabel));
 	if(DoButton_Menu(&s_FilterButton,
 					 aFilterLabel,
-					 m_PlayFiltersOpen || ActiveFilterCount > 0,
+					 m_PlayFiltersOpen || ActiveFilterCount > 0 || SecondaryFilter,
 					 &FilterAnchor,
-					 ActiveFilterCount > 0 ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
+					 ActiveFilterCount > 0 || SecondaryFilter ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_NORMAL))
 	{
 		m_PlayFiltersOpen = !m_PlayFiltersOpen;
 		if(!m_PlayFiltersOpen)
@@ -7169,7 +7260,7 @@ void CMenus::RenderPlay(CUIRect MainView)
 		Client()->ServerBrowserUpdate();
 
 	Body.HSplitTop(6.0f, 0, &Body);
-	Body.HSplitBottom(72.0f, &Body, &Actions);
+	Body.HSplitBottom(78.0f, &Body, &Actions);
 	if(m_PlayFiltersOpen != m_LastPlayFiltersOpen)
 	{
 		m_LastPlayFiltersOpen = m_PlayFiltersOpen;
@@ -7179,6 +7270,7 @@ void CMenus::RenderPlay(CUIRect MainView)
 		m_PlayFilterTransition = SmoothToward(m_PlayFilterTransition, 1.0f, TabDt, 18.0f);
 	const float FilterEase = MenuEaseOutCubic(m_PlayFilterTransition);
 	CUIRect FilterPopup;
+	bool FilterDismissed = false;
 	if(m_PlayFiltersOpen)
 	{
 		int VisiblePresetCount = 0;
@@ -7188,7 +7280,7 @@ void CMenus::RenderPlay(CUIRect MainView)
 		const float PopupWidth = min(PageBounds.w, 420.0f * UI()->Scale());
 		const float PresetMenuHeight = min(350.0f, 130.0f + VisiblePresetCount * 22.0f);
 		const float DesiredHeight =
-			(m_FilterPresetMenuOpen ? PresetMenuHeight : (m_PlayFiltersAdvanced ? 376.0f : 224.0f)) * UI()->Scale();
+			(m_FilterPresetMenuOpen ? PresetMenuHeight : (m_PlayFiltersAdvanced ? 406.0f : 254.0f)) * UI()->Scale();
 		FilterPopup.w = PopupWidth;
 		FilterPopup.x =
 			clamp(FilterAnchor.x + FilterAnchor.w - PopupWidth, PageBounds.x, PageBounds.x + PageBounds.w - PopupWidth);
@@ -7200,6 +7292,7 @@ void CMenus::RenderPlay(CUIRect MainView)
 		if(UI()->MouseButtonClicked(0) && !UI()->MouseInside(&FilterPopup) && !UI()->MouseInside(&FilterAnchor))
 		{
 			m_PlayFiltersOpen = false;
+			FilterDismissed = true;
 			m_FilterPresetMenuOpen = false;
 			m_FilterPresetRenameSlot = -1;
 			UI()->SetActiveItem(0);
@@ -7216,18 +7309,8 @@ void CMenus::RenderPlay(CUIRect MainView)
 			UI()->SetActiveItem(0);
 		}
 	}
-	const bool BlockPlayListInput = m_PlayFiltersOpen && UI()->MouseInside(&FilterPopup);
-	const bool Compact = Body.w < 760.0f;
-	if(!Compact)
-	{
-		Body.VSplitRight(max(220.0f, Body.w * 0.30f), &List, &Detail);
-		List.VSplitRight(6.0f, &List, 0);
-	}
-	else
-	{
-		List = Body;
-		Detail = CUIRect();
-	}
+	const bool BlockPlayListInput = m_PlayFiltersOpen || m_PlayDetailOpen || FilterDismissed;
+	List = Body;
 
 	CPlayRoomEntry aEntries[512];
 	int EntryCount = 0;
@@ -7238,7 +7321,8 @@ void CMenus::RenderPlay(CUIRect MainView)
 		const bool Show = s_Filter == 0 || (s_Filter == 1 && pServer->m_Official) ||
 						  (s_Filter == 2 && !pServer->m_Official) || (s_Filter == 4 && pServer->m_Modded) ||
 						  (s_Filter == 5 && pServer->m_Favorite) ||
-						  (s_Filter == 6 && pServer->m_Collection == PLAY_COLLECTION_LAN);
+						  (s_Filter == 6 && pServer->m_Collection == PLAY_COLLECTION_LAN) ||
+						  (s_Filter == 3 && pServer->m_Friend);
 		if(!Show || (g_Config.m_BrFilterString[0] && !str_find_nocase(pServer->m_aName, g_Config.m_BrFilterString) &&
 					 !str_find_nocase(pServer->m_aMap, g_Config.m_BrFilterString) &&
 					 !str_find_nocase(pServer->m_aAddress, g_Config.m_BrFilterString)))
@@ -7355,44 +7439,35 @@ void CMenus::RenderPlay(CUIRect MainView)
 		SelectPlayEntry(s_Selected);
 
 	CUIRect Headers;
-	List.HSplitTop(20.0f, &Headers, &List);
+	List.HSplitTop(22.0f, &Headers, &List);
 	DrawSectionHeader(&Headers, CUI::CORNER_T);
-	struct CColumn
+	CUIRect ColumnArea = Headers, NameHeader, PlayersHeader, PingHeader;
+	ColumnArea.VSplitRight(15.0f, &ColumnArea, 0);
+	ColumnArea.VMargin(5.0f, &ColumnArea);
+	ColumnArea.VSplitRight(62.0f, &NameHeader, &PingHeader);
+	NameHeader.VSplitRight(76.0f, &NameHeader, &PlayersHeader);
+	struct CRoomHeader
 	{
 		const char *m_pName;
 		int m_Sort;
-		float m_Width;
-		CUIRect m_Rect;
+		CUIRect *m_pRect;
 	};
-	CColumn aColumns[] = {{"Source", -1, Compact ? 66.0f : 76.0f, {}},
-							  {"Name", IServerBrowser::SORT_NAME, 0.0f, {}},
-							  {"Type", IServerBrowser::SORT_GAMETYPE, Compact ? 92.0f : 120.0f, {}},
-							  {"Map", IServerBrowser::SORT_MAP, 0.0f, {}},
-							  {"Players", IServerBrowser::SORT_NUMPLAYERS, 62.0f, {}},
-							  {"Ping", IServerBrowser::SORT_PING, 56.0f, {}}};
-	CUIRect ColumnArea = Headers;
-	ColumnArea.VSplitRight(15.0f, &ColumnArea, 0);
-	ColumnArea.VMargin(5.0f, &ColumnArea);
-	CUIRect Remaining = ColumnArea;
-	Remaining.VSplitLeft(aColumns[0].m_Width, &aColumns[0].m_Rect, &Remaining);
-	Remaining.VSplitRight(aColumns[5].m_Width, &Remaining, &aColumns[5].m_Rect);
-	Remaining.VSplitRight(aColumns[4].m_Width, &Remaining, &aColumns[4].m_Rect);
-	Remaining.VSplitRight(aColumns[2].m_Width, &Remaining, &aColumns[2].m_Rect);
-	aColumns[1].m_Rect = Remaining;
-	for(int i = 0; i < 6; i++)
-		if(aColumns[i].m_Rect.w > 0.0f &&
-		   DoButton_GridHeader(&aColumns[i],
-							   Localize(aColumns[i].m_pName),
-							   g_Config.m_BrSort == aColumns[i].m_Sort,
-							   &aColumns[i].m_Rect,
-							   !BlockPlayListInput) &&
-		   aColumns[i].m_Sort >= 0)
+	CRoomHeader aHeaders[] = {
+		{"Name", IServerBrowser::SORT_NAME, &NameHeader},
+		{"Players", IServerBrowser::SORT_NUMPLAYERS, &PlayersHeader},
+		{"Ping", IServerBrowser::SORT_PING, &PingHeader}};
+	for(int i = 0; i < 3; i++)
+		if(DoButton_GridHeader(&aHeaders[i],
+							   Localize(aHeaders[i].m_pName),
+							   g_Config.m_BrSort == aHeaders[i].m_Sort,
+							   aHeaders[i].m_pRect,
+							   !BlockPlayListInput))
 		{
-			if(g_Config.m_BrSort == aColumns[i].m_Sort)
+			if(g_Config.m_BrSort == aHeaders[i].m_Sort)
 				g_Config.m_BrSortOrder ^= 1;
 			else
 			{
-				g_Config.m_BrSort = aColumns[i].m_Sort;
+				g_Config.m_BrSort = aHeaders[i].m_Sort;
 				g_Config.m_BrSortOrder = 0;
 			}
 		}
@@ -7411,7 +7486,16 @@ void CMenus::RenderPlay(CUIRect MainView)
 			}
 		}
 	}
-	UiDoListboxStart(&s_EntryListID, &List, 30.0f, Localize("Rooms"), "", EntryCount, 1, s_Selected, s_Scroll);
+	UiDoListboxStart(&s_EntryListID,
+					&List,
+					42.0f,
+					Localize("Rooms"),
+					"",
+					EntryCount,
+					1,
+					s_Selected,
+					s_Scroll,
+					!BlockPlayListInput);
 	for(int i = 0; i < EntryCount; i++)
 	{
 		CListboxItem Item = UiDoListboxNextItem(&s_aEntryIDs[i], s_Selected == i, !BlockPlayListInput);
@@ -7419,44 +7503,48 @@ void CMenus::RenderPlay(CUIRect MainView)
 			continue;
 		CUIRect Row = Item.m_Rect;
 		Row.HMargin(4.0f, &Row);
-		for(int Column = 0; Column < 6; Column++)
-		{
-			if(aColumns[Column].m_Rect.w <= 0.0f)
-				continue;
-			CUIRect Cell = aColumns[Column].m_Rect;
-			Cell.x = Row.x + (Cell.x - ColumnArea.x);
-			Cell.y = Row.y;
-			Cell.h = Row.h;
-			Cell.VMargin(4.0f, &Cell);
-			const CPlayRoomEntry &Entry = aEntries[i];
-			const CPlayServerSnapshot *pServer = Entry.m_pServer;
-			const CPlatformLobbyInfo *pLobby = Entry.m_pLobby ? &Entry.m_pLobby->m_Info : 0;
-			char aValue[128];
-			if(Column == 0)
-				str_copy(aValue,
-						 Entry.m_Source == CPlayRoomEntry::SOURCE_STEAM_LOBBY
-							 ? (pLobby->m_FriendHosted ? Localize("FRIEND") : "STEAM")
-						 : pServer->m_Collection == PLAY_COLLECTION_LAN ? "LAN"
-						 : pServer->m_Official							? Localize("OFFICIAL")
-																		: Localize("COMMUNITY"),
-						 sizeof(aValue));
-			else if(Column == 1)
-				str_copy(aValue, pServer ? pServer->m_aName : pLobby->m_aHostName, sizeof(aValue));
-			else if(Column == 2)
-				str_copy(aValue, DisplayGameType(pServer ? pServer->m_aGameType : pLobby->m_aGameType), sizeof(aValue));
-			else if(Column == 4)
-				str_format(aValue,
-						   sizeof(aValue),
-						   "%d/%d",
-						   pServer ? pServer->m_NumClients : pLobby->m_Members,
-						   pServer ? pServer->m_MaxClients : pLobby->m_MaxMembers);
-			else
-				str_copy(aValue, pServer ? (pServer->m_Latency >= 0 ? "" : "-") : "RELAY", sizeof(aValue));
-			if(Column == 5 && pServer && pServer->m_Latency >= 0)
-				str_format(aValue, sizeof(aValue), "%dms", pServer->m_Latency);
-			UI()->DoLabelScaled(
-				&Cell, aValue, FitScaledLabelFontSize(TextRender(), aValue, 10.0f, Cell.w, UI()->Scale()), -1);
-		}
+		CUIRect Name = Row, Players, Ping;
+		Name.VSplitRight(62.0f, &Name, &Ping);
+		Name.VSplitRight(76.0f, &Name, &Players);
+		Name.VSplitRight(6.0f, &Name, 0);
+		const CPlayRoomEntry &Entry = aEntries[i];
+		const CPlayServerSnapshot *pServer = Entry.m_pServer;
+		const CPlatformLobbyInfo *pLobby = Entry.m_pLobby ? &Entry.m_pLobby->m_Info : 0;
+		CUIRect Title, Meta;
+		Name.HSplitTop(19.0f, &Title, &Meta);
+		const char *pName = pServer ? pServer->m_aName : pLobby->m_aHostName;
+		UI()->DoLabelScaled(
+			&Title, pName, FitScaledLabelFontSize(TextRender(), pName, 11.0f, Title.w, UI()->Scale()), -1);
+		const char *pSource =
+			Entry.m_Source == CPlayRoomEntry::SOURCE_STEAM_LOBBY
+				? (pLobby->m_FriendHosted ? Localize("FRIEND") : "STEAM")
+				: pServer->m_Collection == PLAY_COLLECTION_LAN ? "LAN"
+				: pServer->m_Official							? Localize("OFFICIAL")
+																: Localize("COMMUNITY");
+		char aMeta[256];
+		str_format(aMeta,
+				   sizeof(aMeta),
+				   "%s · %s · %s",
+				   pSource,
+				   DisplayGameType(pServer ? pServer->m_aGameType : pLobby->m_aGameType),
+				   pServer ? pServer->m_aMap : pLobby->m_aMap);
+		const vec4 Muted = ThemeTextMuted();
+		TextRender()->TextColor(Muted.r, Muted.g, Muted.b, 1.0f);
+		UI()->DoLabelScaled(
+			&Meta, aMeta, FitScaledLabelFontSize(TextRender(), aMeta, 8.5f, Meta.w, UI()->Scale()), -1);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		char aPlayers[32], aPing[32];
+		str_format(aPlayers,
+				   sizeof(aPlayers),
+				   "%d/%d",
+				   pServer ? pServer->m_NumClients : pLobby->m_Members,
+				   pServer ? pServer->m_MaxClients : pLobby->m_MaxMembers);
+		if(pServer && pServer->m_Latency >= 0)
+			str_format(aPing, sizeof(aPing), "%dms", pServer->m_Latency);
+		else
+			str_copy(aPing, pServer ? "-" : "RELAY", sizeof(aPing));
+		UI()->DoLabelScaled(&Players, aPlayers, 10.5f, 0);
+		UI()->DoLabelScaled(&Ping, aPing, 10.0f, 0);
 	}
 	const int NewSelection = UiDoListboxEnd(&s_Scroll, 0);
 	if(NewSelection >= 0 && NewSelection < EntryCount)
@@ -7473,6 +7561,14 @@ void CMenus::RenderPlay(CUIRect MainView)
 	{
 		DrawMenuInset(&View, CUI::CORNER_ALL);
 		View.Margin(10.0f, &View);
+		CUIRect Header, Close, Tools;
+		View.HSplitTop(26.0f, &Header, &View);
+		Header.VSplitRight(26.0f, &Header, &Close);
+		UI()->DoLabelScaled(&Header, Localize("Details"), 13.0f, -1);
+		static int s_CloseDetail;
+		if(DoButton_Menu(&s_CloseDetail, "x", 0, &Close))
+			m_PlayDetailOpen = false;
+		View.HSplitBottom(38.0f, &View, &Tools);
 		if(s_Selected < 0)
 			UI()->DoLabelScaled(&View, Localize("No servers found"), 11.0f, -1);
 		else
@@ -7522,45 +7618,62 @@ void CMenus::RenderPlay(CUIRect MainView)
 			}
 			UI()->DoLabelScaled(&View, aDetail, 10.5f, -1);
 		}
+		CUIRect DetailActions = Tools;
+		if(s_Selected >= 0)
+		{
+			const bool Dedicated = aEntries[s_Selected].m_pServer != 0;
+			CUIRect Copy, Favorite;
+			DetailActions.VSplitRight(90.0f, &DetailActions, &Copy);
+			DetailActions.VSplitRight(4.0f, &DetailActions, 0);
+			if(Dedicated)
+				DetailActions.VSplitRight(100.0f, &DetailActions, &Favorite);
+			static int s_Copy, s_Favorite;
+			if(DoButton_Menu(&s_Copy, Localize("Copy"), 0, &Copy))
+				Input()->SetClipboardText(Dedicated ? aEntries[s_Selected].m_pServer->m_aAddress
+												   : aEntries[s_Selected].m_aStableID);
+			if(Dedicated &&
+			   DoButton_Menu(&s_Favorite,
+							 Localize(aEntries[s_Selected].m_pServer->m_Favorite ? "Unfavorite" : "Favorite"),
+							 0,
+							 &Favorite))
+			{
+				const CPlayServerSnapshot *pInfo = aEntries[s_Selected].m_pServer;
+				if(pInfo->m_Favorite)
+					ServerBrowser()->RemoveFavorite(pInfo->m_NetAddr);
+				else
+					ServerBrowser()->AddFavorite(pInfo->m_NetAddr);
+			}
+		}
 	};
-	if(!Compact)
-		RenderDetail(Detail);
 	Actions.HSplitTop(6.0f, 0, &Actions);
-	CUIRect Direct, ActionButtons;
+	CUIRect Direct, ActionButtons, DirectLabel, DirectBox;
 	Actions.HSplitTop(30.0f, &Direct, &ActionButtons);
-	CUIRect DirectLabel, DirectBox;
 	Direct.VSplitLeft(76.0f, &DirectLabel, &DirectBox);
 	UI()->DoLabelScaled(&DirectLabel, Localize("Host address"), 10.0f, -1);
 	static float s_DirectOffset;
-	if(!(BlockPlayListInput && UI()->MouseInside(&DirectBox)))
+	if(!m_PlayFiltersOpen)
 		DoEditBox(&g_Config.m_UiServerAddress,
 				  &DirectBox,
 				  g_Config.m_UiServerAddress,
 				  sizeof(g_Config.m_UiServerAddress),
 				  10.0f,
 				  &s_DirectOffset);
-	static int s_Join, s_Refresh, s_Copy, s_Favorite, s_Details;
-	CUIRect JoinButton, RefreshButton, CopyButton, FavoriteButton, DetailButton;
-	ActionButtons.VSplitRight(100.0f, &ActionButtons, &JoinButton);
+	static int s_Join, s_Refresh, s_Details;
+	CUIRect JoinButton, RefreshButton, DetailButton;
+	ActionButtons.VSplitRight(120.0f, &ActionButtons, &JoinButton);
 	ActionButtons.VSplitRight(4.0f, &ActionButtons, 0);
-	ActionButtons.VSplitRight(80.0f, &ActionButtons, &RefreshButton);
+	ActionButtons.VSplitRight(90.0f, &ActionButtons, &RefreshButton);
 	ActionButtons.VSplitRight(4.0f, &ActionButtons, 0);
-	ActionButtons.VSplitRight(70.0f, &ActionButtons, &CopyButton);
-	ActionButtons.VSplitRight(4.0f, &ActionButtons, 0);
-	ActionButtons.VSplitRight(92.0f, &ActionButtons, &FavoriteButton);
-	if(Compact)
-	{
-		ActionButtons.VSplitRight(4.0f, &ActionButtons, 0);
-		ActionButtons.VSplitRight(74.0f, &ActionButtons, &DetailButton);
-	}
-	const bool HasDedicated = s_Selected >= 0 && aEntries[s_Selected].m_pServer;
+	ActionButtons.VSplitRight(84.0f, &ActionButtons, &DetailButton);
 	const bool JoinBlocked = BlockPlayListInput && UI()->MouseInside(&JoinButton);
 	const bool RefreshBlocked = BlockPlayListInput && UI()->MouseInside(&RefreshButton);
-	const bool CopyBlocked = BlockPlayListInput && UI()->MouseInside(&CopyButton);
-	const bool FavoriteBlocked = BlockPlayListInput && UI()->MouseInside(&FavoriteButton);
 	const bool DetailBlocked = BlockPlayListInput && UI()->MouseInside(&DetailButton);
-	if((!JoinBlocked && DoButton_Menu(&s_Join, Localize("Join"), 0, &JoinButton, BUTTONSTYLE_ACCENT)) ||
-	   (!m_PlayFiltersOpen && m_PlayListHasFocus && m_EnterPressed && s_Selected >= 0))
+	CPlatformPartyState PartyPreview;
+	const bool InPartyPreview = pPlatform && pPlatform->PartyState(&PartyPreview);
+	const char *pJoinLabel = !InPartyPreview ? "Join" : PartyPreview.m_LocalOwner ? "Set target" : "Ready";
+	if((!JoinBlocked && DoButton_Menu(&s_Join, Localize(pJoinLabel), 0, &JoinButton, BUTTONSTYLE_ACCENT)) ||
+	   (!m_PlayFiltersOpen && !CLineInput::GetActiveInput() && m_PlayListHasFocus && m_EnterPressed &&
+		s_Selected >= 0))
 	{
 		CPlatformPartyState Party;
 		const bool InParty = pPlatform && pPlatform->PartyState(&Party);
@@ -7569,7 +7682,16 @@ void CMenus::RenderPlay(CUIRect MainView)
 			if(Party.m_LocalOwner)
 			{
 				bool TargetUpdated = false;
-				if(s_Selected >= 0)
+				const bool DirectAddress = g_Config.m_UiServerAddress[0] &&
+					(s_Selected < 0 || !aEntries[s_Selected].m_pServer ||
+					 str_comp(g_Config.m_UiServerAddress, aEntries[s_Selected].m_pServer->m_aAddress) != 0);
+				if(DirectAddress)
+					TargetUpdated = pPlatform->SetPartyTarget(
+						PLATFORM_PARTY_TARGET_ADDRESS,
+						0,
+						g_Config.m_UiServerAddress,
+						g_Config.m_ClModHash[0] ? g_Config.m_ClModHash : "none");
+				else if(s_Selected >= 0)
 				{
 					const CPlayRoomEntry &Entry = aEntries[s_Selected];
 					if(Entry.m_pServer)
@@ -7597,11 +7719,21 @@ void CMenus::RenderPlay(CUIRect MainView)
 								 Localize("Unable to update Steam party target. Retry or recreate the party."),
 								 Localize("OK"));
 			}
+			else if(Party.m_TargetType != PLATFORM_PARTY_TARGET_NONE)
+				pPlatform->SetPartyReady(true);
+			else
+				PopupMessage(Localize("Steam party"),
+							 Localize("The leader must select a room first."),
+							 Localize("OK"));
 		}
 		else if(s_Selected >= 0)
 		{
 			const CPlayRoomEntry &Entry = aEntries[s_Selected];
-			if(Entry.m_pServer)
+			const bool DirectAddress = g_Config.m_UiServerAddress[0] &&
+				(!Entry.m_pServer || str_comp(g_Config.m_UiServerAddress, Entry.m_pServer->m_aAddress) != 0);
+			if(DirectAddress)
+				Client()->Connect(g_Config.m_UiServerAddress);
+			else if(Entry.m_pServer)
 				Client()->Connect(Entry.m_pServer->m_aAddress);
 			else if(pPlatform)
 				pPlatform->JoinLobby(Entry.m_pLobby->m_Info.m_LobbyID);
@@ -7619,24 +7751,12 @@ void CMenus::RenderPlay(CUIRect MainView)
 		if(pPlatform && pPlatform->Available())
 			pPlatform->RefreshLobbyList();
 	}
-	if(!CopyBlocked && DoButton_Menu(&s_Copy, Localize("Copy"), 0, &CopyButton) && s_Selected >= 0)
-		Input()->SetClipboardText(HasDedicated ? aEntries[s_Selected].m_pServer->m_aAddress
-											   : aEntries[s_Selected].m_aStableID);
-	if(HasDedicated && !FavoriteBlocked &&
-	   DoButton_Menu(&s_Favorite,
-					 Localize(aEntries[s_Selected].m_pServer->m_Favorite ? "Unfavorite" : "Favorite"),
-					 0,
-					 &FavoriteButton))
-	{
-		const CPlayServerSnapshot *pInfo = aEntries[s_Selected].m_pServer;
-		if(pInfo->m_Favorite)
-			ServerBrowser()->RemoveFavorite(pInfo->m_NetAddr);
-		else
-			ServerBrowser()->AddFavorite(pInfo->m_NetAddr);
-	}
-	if(Compact && !DetailBlocked && DoButton_Menu(&s_Details, Localize("Details"), m_PlayDetailOpen, &DetailButton))
+	if(!DetailBlocked && DoButton_Menu(&s_Details, Localize("Details"), m_PlayDetailOpen, &DetailButton))
 		m_PlayDetailOpen = !m_PlayDetailOpen;
-	if(Compact && m_PlayDetailOpen)
+	char aRoomCount[64];
+	str_format(aRoomCount, sizeof(aRoomCount), "%d %s", EntryCount, Localize("Rooms"));
+	UI()->DoLabelScaled(&ActionButtons, aRoomCount, 10.0f, -1);
+	if(m_PlayDetailOpen)
 	{
 		CUIRect Overlay = Body;
 		Overlay.Margin(8.0f, &Overlay);
@@ -7663,7 +7783,7 @@ void CMenus::RenderPlay(CUIRect MainView)
 		CUIRect PopupContent = FilterPopup;
 		PopupContent.Margin(8.0f, &PopupContent);
 
-		CUIRect PopupHeader, PresetRow, FilterContent, Footer;
+		CUIRect PopupHeader, CategoryRow, PresetRow, FilterContent, Footer;
 		PopupContent.HSplitTop(24.0f, &PopupHeader, &PopupContent);
 		CUIRect CloseButton;
 		PopupHeader.VSplitRight(24.0f, &PopupHeader, &CloseButton);
@@ -7677,6 +7797,27 @@ void CMenus::RenderPlay(CUIRect MainView)
 			UI()->SetActiveItem(0);
 		}
 
+		PopupContent.HSplitTop(4.0f, 0, &PopupContent);
+		PopupContent.HSplitTop(26.0f, &CategoryRow, &PopupContent);
+		const int aSecondaryFilters[] = {1, 2, 4};
+		for(int i = 0; i < 3; i++)
+		{
+			const int Filter = aSecondaryFilters[i];
+			CUIRect Button;
+			CategoryRow.VSplitLeft(CategoryRow.w / (3 - i), &Button, &CategoryRow);
+			if(DoButton_Menu(&s_aFilters[Filter],
+							 Localize(apFilters[Filter]),
+							 s_Filter == Filter,
+							 &Button,
+							 s_Filter == Filter ? BUTTONSTYLE_ACCENT : BUTTONSTYLE_GHOST))
+			{
+				s_Filter = Filter;
+				m_PlayBrowserCollection = PLAY_COLLECTION_INTERNET;
+				ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
+				if(pPlatform && pPlatform->Available())
+					pPlatform->RefreshLobbyList();
+			}
+		}
 		PopupContent.HSplitTop(4.0f, 0, &PopupContent);
 		PopupContent.HSplitTop(26.0f, &PresetRow, &PopupContent);
 		const bool CustomPreset =
@@ -7984,7 +8125,12 @@ void CMenus::RenderPlay(CUIRect MainView)
 			g_Config.m_BrFilterPure = 0;
 			g_Config.m_BrFilterPureMap = 0;
 			g_Config.m_BrFilterCompatversion = 0;
+			s_Filter = 0;
+			m_PlayBrowserCollection = PLAY_COLLECTION_INTERNET;
 			m_ActiveFilterPreset = UI_FILTER_PRESET_ALL;
+			ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
+			if(pPlatform && pPlatform->Available())
+				pPlatform->RefreshLobbyList();
 			Client()->ServerBrowserUpdate();
 			SaveFilterPresets();
 		}
@@ -8221,7 +8367,7 @@ void CMenus::RenderMods(CUIRect MainView)
 	const bool SubmitSearch =
 		m_WorkshopDiscover &&
 		(DoButton_Menu(&s_SearchButton, Localize("Search"), 0, &SearchButton, BUTTONSTYLE_ACCENT) ||
-		 (m_EnterPressed && UI()->ActiveItem() == &s_aSearch));
+		 (m_EnterPressed && CLineInput::GetActiveInput()));
 	if(SubmitSearch)
 	{
 		m_EnterPressed = false;
@@ -10060,6 +10206,33 @@ bool CMenus::OnInput(IInput::CEvent e)
 	else if(e.m_Key < KEY_MOUSE_1 || e.m_Key > KEY_MOUSE_WHEEL_DOWN)
 		m_LastInputDevice = MENU_INPUT_KEYBOARD;
 
+	if(m_Binder.m_TakeKey)
+		return m_Binder.OnInput(e);
+
+	CLineInput *pActiveInput = IsActive() ? CLineInput::GetActiveInput() : 0;
+	if(pActiveInput && (e.m_Flags & IInput::FLAG_PRESS))
+	{
+		const bool Escape = e.m_Key == KEY_ESCAPE || e.m_Key == KEY_GAMEPAD_BUTTON_B ||
+			e.m_Key == KEY_GAMEPAD_BUTTON_BACK;
+		if(Escape)
+		{
+			pActiveInput->Deactivate();
+			UI()->SetActiveItem(0);
+			UI()->ClearLastActiveItem();
+			m_EscapePressed = false;
+			return true;
+		}
+		if(e.m_Key == KEY_RETURN || e.m_Key == KEY_KP_ENTER || e.m_Key == KEY_GAMEPAD_BUTTON_A ||
+		   e.m_Key == KEY_GAMEPAD_BUTTON_START)
+		{
+			m_EnterPressed = true;
+			return true;
+		}
+	}
+	if(pActiveInput && (e.m_Flags & (IInput::FLAG_PRESS | IInput::FLAG_REPEAT)) &&
+	   (e.m_Key == KEY_TAB || e.m_Key == KEY_UP || e.m_Key == KEY_DOWN))
+		return true;
+
 	// special handle esc and enter for popup purposes
 	if(e.m_Flags & IInput::FLAG_PRESS)
 	{
@@ -10250,6 +10423,7 @@ void CMenus::OnRender()
 
 	if(!IsActive())
 	{
+		UI()->ClearActiveItemIfUnclaimed();
 		m_EscapePressed = false;
 		m_EnterPressed = false;
 		m_DeletePressed = false;
@@ -10319,6 +10493,7 @@ void CMenus::OnRender()
 		TextRender()->TextEx(&Cursor, aBuf, -1);
 	}
 
+	UI()->ClearActiveItemIfUnclaimed();
 	m_EscapePressed = false;
 	m_EnterPressed = false;
 	m_DeletePressed = false;

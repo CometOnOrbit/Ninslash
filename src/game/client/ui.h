@@ -81,6 +81,7 @@ class CUI
 	float m_MouseWorldX, m_MouseWorldY;
 	unsigned m_MouseButtons;
 	unsigned m_LastMouseButtons;
+	bool m_MouseWheelConsumed;
 
 	CUIRect m_Screen;
 	class IGraphics *m_pGraphics;
@@ -98,6 +99,7 @@ class CUI
 	};
 	CUIRect m_aClipStack[MAX_CLIP_DEPTH];
 	int m_ClipDepth;
+	int m_ClipOverflowDepth;
 
   public:
 	void SetGraphics(class IGraphics *pGraphics, class ITextRender *pTextRender);
@@ -136,13 +138,19 @@ class CUI
 	float MouseWorldY() const { return m_MouseWorldY; }
 	int MouseButton(int Index) const { return (m_MouseButtons >> Index) & 1; }
 	int MouseButtonClicked(int Index) { return MouseButton(Index) && !((m_LastMouseButtons >> Index) & 1); }
+	bool ConsumeKeyPress(int Key);
 
 	void SetHotItem(const void *pID) { m_pBecommingHotItem = pID; }
 	void SetActiveItem(const void *pID)
 	{
 		m_pActiveItem = pID;
 		if(pID)
+		{
 			m_pLastActiveItem = pID;
+			m_ActiveItemValid = true;
+		}
+		else
+			m_ActiveItemValid = false;
 	}
 	void ClearLastActiveItem() { m_pLastActiveItem = 0; }
 	const void *HotItem() const { return m_pHotItem; }
@@ -158,9 +166,11 @@ class CUI
 		}
 		return false;
 	}
+	void ClearActiveItemIfUnclaimed();
 
 	int MouseInside(const CUIRect *pRect);
 	bool MouseHovered(const CUIRect *pRect) const;
+	bool IsRectClipped(const CUIRect &Rect) const;
 	bool KeyPress(int Key) const;
 	void ConvertMouseMove(float *x, float *y);
 

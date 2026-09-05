@@ -17,7 +17,8 @@ class CInventory : public CComponent
 	void ActivateSelection();
 	void PurchaseShopSlot(int Slot);
 	void SetActionFeedback(const char *pText, bool Danger);
-	void RequestDrop();
+	void RequestDrop(int Slot);
+	void ClearDropConfirmation();
 	void SetTab(int Tab);
 	int TabItemCount() const;
 	void SyncHeldSelection();

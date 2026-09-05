@@ -583,9 +583,9 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 			s_ScrollValue = s_ScrollTarget;
 			m_ScrollOffset = 0;
 		}
-		if(Input()->KeyPresses(KEY_MOUSE_WHEEL_UP) && UI()->MouseInside(&View))
+		if(UI()->MouseInside(&View) && UI()->ConsumeKeyPress(KEY_MOUSE_WHEEL_UP))
 			s_ScrollTarget -= 2.0f / ScrollNum;
-		if(Input()->KeyPresses(KEY_MOUSE_WHEEL_DOWN) && UI()->MouseInside(&View))
+		if(UI()->MouseInside(&View) && UI()->ConsumeKeyPress(KEY_MOUSE_WHEEL_DOWN))
 			s_ScrollTarget += 2.0f / ScrollNum;
 
 		s_ScrollTarget = clamp(s_ScrollTarget, 0.0f, 1.0f);

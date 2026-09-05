@@ -8,8 +8,11 @@
 #include <generated/game_data.h>
 
 #include <game/client/gameclient.h>
+#include <game/client/components/build_placement.h>
 #include <game/client/components/inventory.h>
+#include <game/client/components/scoreboard.h>
 #include <game/weapon_catalog.h>
+#include "hud_layout.h"
 #include "killmessages.h"
 
 void CKillMessages::OnReset()
@@ -101,7 +104,9 @@ void CKillMessages::OnMessage(int MsgType, void *pRawMsg)
 
 void CKillMessages::OnRender()
 {
-	if(!g_Config.m_ClShowKillMessages || m_pClient->m_pInventory->IsVisible())
+	if(!g_Config.m_ClShowKillMessages || m_pClient->m_pInventory->IsVisible() ||
+	   m_pClient->m_pScoreboard->Active() || m_pClient->m_pBuildPlacement->PlacementActive() ||
+	   m_pClient->m_Snap.m_SpecInfo.m_Active)
 		return;
 
 	float Width = 400 * 3.0f * Graphics()->ScreenAspect();
@@ -109,8 +114,9 @@ void CKillMessages::OnRender()
 
 	Graphics()->MapScreen(0, 0, Width * 1.5f, Height * 1.5f);
 	float StartX = Width * 1.5f - 10.0f;
-	// Leave room for FPS counter in the top-right (HUD y≈5–17 → kill-msg space ≈7.5–25.5).
-	float y = 36.0f;
+	// The kill-message map is 1.5x the 1200-unit HUD map. Start below FPS
+	// (18 logical units) and finish before the objective card at y=82.
+	float y = 108.0f;
 
 	for(int i = 1; i <= MAX_KILLMSGS; i++)
 	{
@@ -124,8 +130,19 @@ void CKillMessages::OnRender()
 		const float Eased = 1.0f - (1.0f - InAmount) * (1.0f - InAmount) * (1.0f - InAmount);
 
 		float FontSize = 36.0f;
-		float KillerNameW = TextRender()->TextWidth(0, FontSize, m_aKillmsgs[r].m_aKillerName, -1);
-		float VictimNameW = TextRender()->TextWidth(0, FontSize, m_aKillmsgs[r].m_aVictimName, -1);
+		const float MaxNameWidth = max(40.0f, min(300.0f, (Width * 1.5f - 260.0f) * 0.5f));
+		float KillerNameW = min(
+			MaxNameWidth, TextRender()->TextWidth(0, FontSize, m_aKillmsgs[r].m_aKillerName, -1));
+		float VictimNameW = min(
+			MaxNameWidth, TextRender()->TextWidth(0, FontSize, m_aKillmsgs[r].m_aVictimName, -1));
+		auto DrawName = [&](float X, const char *pName)
+		{
+			CTextCursor Cursor;
+			TextRender()->SetCursor(&Cursor, X, y, FontSize, TEXTFLAG_RENDER | TEXTFLAG_STOP_AT_END);
+			Cursor.m_LineWidth = MaxNameWidth;
+			Cursor.m_MaxLines = 1;
+			TextRender()->TextEx(&Cursor, pName, -1);
+		};
 
 		float x = StartX + (1.0f - Eased) * 28.0f;
 		TextRender()->TextColor(1.0f, 1.0f, 1.0f, Alpha);
@@ -144,7 +161,7 @@ void CKillMessages::OnRender()
 		// render victim name
 		x -= VictimNameW;
 
-		TextRender()->Text(0, x, y, FontSize, m_aKillmsgs[r].m_aVictimName, -1);
+		DrawName(x, m_aKillmsgs[r].m_aVictimName);
 
 		// render victim tee
 		x -= 32.0f;
@@ -251,7 +268,7 @@ void CKillMessages::OnRender()
 
 			// render killer name
 			x -= KillerNameW;
-			TextRender()->Text(0, x, y, FontSize, m_aKillmsgs[r].m_aKillerName, -1);
+			DrawName(x, m_aKillmsgs[r].m_aKillerName);
 		}
 
 		// y += 46.0f;

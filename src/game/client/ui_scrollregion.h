@@ -70,6 +70,7 @@ class CScrollRegion : private CUIElementBase
 	void End();
 	void AddRect(const CUIRect &Rect);
 	void ScrollHere(int Option = CScrollRegion::SCROLLHERE_KEEP_IN_VIEW);
+	void ScrollHere(const CUIRect &Rect, int Option = CScrollRegion::SCROLLHERE_KEEP_IN_VIEW);
 	bool IsRectClipped(const CUIRect &Rect) const;
 	bool IsScrollbarShown() const;
 	bool IsAnimating() const;

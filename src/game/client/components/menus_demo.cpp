@@ -12,6 +12,7 @@
 
 #include <game/client/render.h>
 #include <game/client/gameclient.h>
+#include <game/client/lineinput.h>
 #include <game/localization.h>
 
 #include <game/client/ui.h>
@@ -68,8 +69,9 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 		TotalHeight = SeekBarHeight + Margins * 2;
 
 	MainView.HSplitBottom(TotalHeight, 0, &MainView);
-	MainView.VSplitLeft(50.0f, 0, &MainView);
-	MainView.VSplitRight(450.0f, &MainView, 0);
+	const float Scale = max(1.0f, UI()->Scale());
+	MainView.VSplitLeft(min(50.0f, MainView.w / Scale), 0, &MainView);
+	MainView.VSplitRight(min(450.0f, MainView.w / Scale), &MainView, 0);
 
 	RenderTools()->DrawUIRect(&MainView, ms_ColorTabbarActive, CUI::CORNER_T, 10.0f);
 
@@ -78,7 +80,8 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 	CUIRect SeekBar, ButtonBar, JumpBar, NameBar;
 
 	int CurrentTick = pInfo->m_CurrentTick - pInfo->m_FirstTick;
-	int TotalTicks = pInfo->m_LastTick - pInfo->m_FirstTick;
+	const int RawTotalTicks = pInfo->m_LastTick - pInfo->m_FirstTick;
+	const int TotalTicks = max(1, RawTotalTicks);
 
 	if(m_MenuActive)
 	{
@@ -165,7 +168,7 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 			UI()->SetHotItem(id);
 	}
 
-	if(CurrentTick == TotalTicks)
+	if(RawTotalTicks > 0 && CurrentTick >= RawTotalTicks)
 	{
 		m_pClient->OnReset();
 		DemoPlayer()->Pause();
@@ -213,7 +216,7 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 		static int s_SlowDownButton = 0;
 		if(DoButton_Sprite(
 			   &s_SlowDownButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_SLOWER, 0, &Button, CUI::CORNER_ALL) ||
-		   Input()->KeyPresses(KEY_MOUSE_WHEEL_DOWN))
+		   (UI()->MouseHovered(&Button) && UI()->ConsumeKeyPress(KEY_MOUSE_WHEEL_DOWN)))
 			DecreaseDemoSpeed = true;
 
 		// fastforward
@@ -221,7 +224,8 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 		ButtonBar.VSplitLeft(ButtonbarHeight, &Button, &ButtonBar);
 		static int s_FastForwardButton = 0;
 		if(DoButton_Sprite(
-			   &s_FastForwardButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_FASTER, 0, &Button, CUI::CORNER_ALL))
+			   &s_FastForwardButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_FASTER, 0, &Button, CUI::CORNER_ALL) ||
+		   (UI()->MouseHovered(&Button) && UI()->ConsumeKeyPress(KEY_MOUSE_WHEEL_UP)))
 			IncreaseDemoSpeed = true;
 
 		// speed meter
@@ -334,8 +338,8 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 
 			static int s_GoButton = 0;
 			if((DoButton_DemoPlayer(&s_GoButton, Localize("Go"), 0, &GoButton) ||
-				(m_EnterPressed && UI()->ActiveItem() == &s_aTimeBuf)) &&
-			   TotalTicks > 0)
+				(m_EnterPressed && CLineInput::GetActiveInput())) &&
+			   RawTotalTicks > 0)
 			{
 				m_EnterPressed = false;
 				int mins = 0, secs = 0;
@@ -369,7 +373,7 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 	}
 
 	// number keys 0-9 for quick position jump (0%-90%)
-	if(m_MenuActive && !UI()->ActiveItem() && TotalTicks > 0)
+	if(m_MenuActive && !UI()->ActiveItem() && RawTotalTicks > 0)
 	{
 		for(int k = KEY_0; k <= KEY_9; k++)
 		{
@@ -387,7 +391,7 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 		}
 	}
 
-	if(IncreaseDemoSpeed || Input()->KeyPresses(KEY_MOUSE_WHEEL_UP))
+	if(IncreaseDemoSpeed)
 	{
 		if(pInfo->m_Speed < 0.1f)
 			DemoPlayer()->SetSpeed(0.1f);
@@ -406,7 +410,7 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 		else
 			DemoPlayer()->SetSpeed(8.0f);
 	}
-	else if(DecreaseDemoSpeed || Input()->KeyPresses(KEY_MOUSE_WHEEL_DOWN))
+	else if(DecreaseDemoSpeed)
 	{
 		if(pInfo->m_Speed > 4.0f)
 			DemoPlayer()->SetSpeed(4.0f);
@@ -442,6 +446,7 @@ static float gs_ListBoxAnimTime;
 static float gs_ListBoxAnimInit;
 static const void *gs_pListBoxScrollID;
 static bool gs_ListBoxItemActivated;
+static const void *gs_aListBoxItemIDs[512];
 
 void CMenus::UiDoListboxStart(const void *pID,
 							  const CUIRect *pRect,
@@ -451,7 +456,8 @@ void CMenus::UiDoListboxStart(const void *pID,
 							  int NumItems,
 							  int ItemsPerRow,
 							  int SelectedIndex,
-							  float ScrollValue)
+							  float ScrollValue,
+							  bool Interactive)
 {
 	CUIRect Scroll, Row;
 	CUIRect View = *pRect;
@@ -484,6 +490,7 @@ void CMenus::UiDoListboxStart(const void *pID,
 	gs_ListBoxItemsPerRow = ItemsPerRow;
 	gs_ListBoxDoneEvents = 0;
 	gs_ListBoxItemActivated = false;
+	mem_zero(gs_aListBoxItemIDs, sizeof(gs_aListBoxItemIDs));
 
 	if(gs_pListBoxScrollID != pID)
 	{
@@ -513,15 +520,15 @@ void CMenus::UiDoListboxStart(const void *pID,
 		const float MaxScrollPx = Num * Row.h;
 		const float ScrollUnitNorm = clamp(60.0f / MaxScrollPx, 0.05f, 1.0f);
 
-		if(UI()->MouseInside(&View))
+		if(Interactive && UI()->MouseInside(&View))
 		{
-			if(Input()->KeyPresses(KEY_MOUSE_WHEEL_UP))
+			if(UI()->ConsumeKeyPress(KEY_MOUSE_WHEEL_UP))
 			{
 				gs_ListBoxAnimTime = AnimDuration;
 				gs_ListBoxAnimInit = gs_ListBoxScrollValue;
 				gs_ListBoxScrollTarget -= ScrollUnitNorm;
 			}
-			if(Input()->KeyPresses(KEY_MOUSE_WHEEL_DOWN))
+			if(UI()->ConsumeKeyPress(KEY_MOUSE_WHEEL_DOWN))
 			{
 				gs_ListBoxAnimTime = AnimDuration;
 				gs_ListBoxAnimInit = gs_ListBoxScrollValue;
@@ -555,7 +562,9 @@ void CMenus::UiDoListboxStart(const void *pID,
 	gs_ListBoxScrollValue = clamp(gs_ListBoxScrollValue, 0.0f, 1.0f);
 
 	Scroll.HMargin(5.0f, &Scroll);
-	float BarValue = DoScrollbarV(pID, &Scroll, gs_ListBoxScrollValue);
+	float BarValue = gs_ListBoxScrollValue;
+	if(Interactive)
+		BarValue = DoScrollbarV(pID, &Scroll, gs_ListBoxScrollValue);
 	if(fabs(BarValue - gs_ListBoxScrollValue) > 0.0001f)
 	{
 		gs_ListBoxScrollValue = BarValue;
@@ -597,7 +606,7 @@ CMenus::CListboxItem CMenus::UiDoListboxNextRow()
 	if(Item.m_Rect.y + Item.m_Rect.h > gs_ListBoxOriginalView.y)
 	{
 
-		if(Item.m_HitRect.y < Item.m_HitRect.y) // clip the selection
+		if(Item.m_HitRect.y < gs_ListBoxOriginalView.y) // clip the selection
 		{
 			Item.m_HitRect.h -= gs_ListBoxOriginalView.y - Item.m_HitRect.y;
 			Item.m_HitRect.y = gs_ListBoxOriginalView.y;
@@ -617,6 +626,8 @@ CMenus::CListboxItem CMenus::UiDoListboxNextRow()
 CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected, bool Interactive)
 {
 	int ThisItemIndex = gs_ListBoxItemIndex;
+	if(ThisItemIndex < (int)(sizeof(gs_aListBoxItemIDs) / sizeof(gs_aListBoxItemIDs[0])))
+		gs_aListBoxItemIDs[ThisItemIndex] = pId;
 	if(Selected)
 	{
 		if(gs_ListBoxSelectedIndex == gs_ListBoxNewSelected)
@@ -625,6 +636,22 @@ CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected,
 	}
 
 	CListboxItem Item = UiDoListboxNextRow();
+
+	if(Interactive)
+	{
+		ControllerRegisterFocus(pId, &Item.m_HitRect, CONTROLLER_FOCUS_LIST);
+		if(gs_ListBoxSelectedIndex == ThisItemIndex)
+			ControllerSetPreferredFocus(pId);
+	}
+
+	const bool ControllerActivated = Interactive && ControllerConsumeActivation(pId);
+	if(ControllerActivated)
+	{
+		gs_ListBoxSelectedIndex = ThisItemIndex;
+		gs_ListBoxNewSelected = ThisItemIndex;
+		gs_ListBoxItemActivated = true;
+		UI()->SetActiveItem(0);
+	}
 
 	if(Item.m_Visible && Interactive)
 	{
@@ -642,7 +669,7 @@ CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected,
 	{
 		const bool IsSelected = gs_ListBoxSelectedIndex == ThisItemIndex;
 		const float Hover = Interactive ? AnimHover(pId, 16.0f) : 0.0f;
-		const float SelectedAmount = AnimSelected(pId, IsSelected, 14.0f);
+		const float SelectedAmount = AnimSelected(pId, IsSelected || ControllerIsFocused(pId), 14.0f);
 		const float Emphasis = max(SelectedAmount, Hover * 0.72f);
 		if(Emphasis > 0.01f)
 		{
@@ -670,13 +697,14 @@ CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected,
 	}
 
 	// process input, regard selected index
-	if(gs_ListBoxSelectedIndex == ThisItemIndex)
+	if(gs_ListBoxSelectedIndex == ThisItemIndex && (!UsesNonMouseInput() || ControllerIsFocused(pId)))
 	{
 		if(!gs_ListBoxDoneEvents)
 		{
 			gs_ListBoxDoneEvents = 1;
 
-			if(m_EnterPressed || (UI()->ActiveItem() == pId && Input()->MouseDoubleClick()))
+			if((!CLineInput::GetActiveInput() && m_EnterPressed) ||
+			   (UI()->ActiveItem() == pId && Input()->MouseDoubleClick()))
 			{
 				gs_ListBoxItemActivated = true;
 				UI()->SetActiveItem(0);
@@ -690,9 +718,15 @@ CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected,
 					{
 						const int Action = ControllerInputAction(m_aInputEvents[i]);
 						if(Action == MENU_CONTROLLER_DOWN)
-							NewIndex = gs_ListBoxNewSelected + 1;
+							NewIndex = gs_ListBoxNewSelected + gs_ListBoxItemsPerRow;
 						if(Action == MENU_CONTROLLER_UP)
+							NewIndex = gs_ListBoxNewSelected - gs_ListBoxItemsPerRow;
+						if(Action == MENU_CONTROLLER_LEFT && gs_ListBoxItemsPerRow > 1 &&
+						   gs_ListBoxNewSelected % gs_ListBoxItemsPerRow > 0)
 							NewIndex = gs_ListBoxNewSelected - 1;
+						if(Action == MENU_CONTROLLER_RIGHT && gs_ListBoxItemsPerRow > 1 &&
+						   gs_ListBoxNewSelected % gs_ListBoxItemsPerRow < gs_ListBoxItemsPerRow - 1)
+							NewIndex = gs_ListBoxNewSelected + 1;
 					}
 					if(NewIndex > -1 && NewIndex < gs_ListBoxNumItems)
 					{
@@ -726,7 +760,8 @@ CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected,
 								gs_ListBoxScrollTarget += (1.0f / ScrollNum) * Num;
 							}
 							gs_ListBoxScrollTarget = clamp(gs_ListBoxScrollTarget, 0.0f, 1.0f);
-							gs_ListBoxAnimTime = 0.5f;
+							gs_ListBoxScrollValue = gs_ListBoxScrollTarget;
+							gs_ListBoxAnimTime = 0.0f;
 							gs_ListBoxAnimInit = gs_ListBoxScrollValue;
 						}
 
@@ -748,6 +783,20 @@ CMenus::CListboxItem CMenus::UiDoListboxNextItem(const void *pId, bool Selected,
 int CMenus::UiDoListboxEnd(float *pScrollValue, bool *pItemActivated)
 {
 	UI()->ClipDisable();
+	bool ListHasFocus = false;
+	if(UsesNonMouseInput())
+		for(int i = 0; i < gs_ListBoxNumItems &&
+					 i < (int)(sizeof(gs_aListBoxItemIDs) / sizeof(gs_aListBoxItemIDs[0]));
+			i++)
+			if(gs_aListBoxItemIDs[i] && ControllerIsFocused(gs_aListBoxItemIDs[i]))
+			{
+				ListHasFocus = true;
+				break;
+			}
+	if(ListHasFocus && gs_ListBoxNewSelected >= 0 &&
+	   gs_ListBoxNewSelected < (int)(sizeof(gs_aListBoxItemIDs) / sizeof(gs_aListBoxItemIDs[0])) &&
+	   gs_aListBoxItemIDs[gs_ListBoxNewSelected])
+		ControllerSetFocus(gs_aListBoxItemIDs[gs_ListBoxNewSelected]);
 	if(pScrollValue)
 		*pScrollValue = gs_ListBoxScrollValue;
 	if(pItemActivated)

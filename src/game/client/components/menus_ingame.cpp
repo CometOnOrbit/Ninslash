@@ -44,29 +44,43 @@ void CMenus::RenderGame(CUIRect MainView)
 			   Localize("Connected"));
 	UI()->DoLabelScaled(&SessionHeader, aSession, 11.0f, -1);
 	MainView.HSplitTop(6.0f, 0, &MainView);
-	MainView.HSplitTop(40.0f, &ButtonBar, &MainView);
+	const bool HasLocalControls =
+		m_LocalServerProcess && m_LocalServerState != LOCAL_SERVER_FAILED && m_LocalServerState != LOCAL_SERVER_STOPPED;
+	const bool CompactActions = HasLocalControls && MainView.w < 620.0f;
+	MainView.HSplitTop(CompactActions ? 72.0f : 40.0f, &ButtonBar, &MainView);
 	DrawMenuPanel(&ButtonBar, CUI::CORNER_ALL);
 
 	// button bar
 	ButtonBar.HSplitTop(8.0f, 0, &ButtonBar);
-	ButtonBar.HSplitTop(24.0f, &ButtonBar, 0);
-	ButtonBar.VMargin(8.0f, &ButtonBar);
+	CUIRect LocalBar = ButtonBar, TeamBar = ButtonBar;
+	if(CompactActions)
+	{
+		ButtonBar.VMargin(8.0f, &ButtonBar);
+		ButtonBar.HSplitTop(24.0f, &LocalBar, &TeamBar);
+	}
+	else
+	{
+		ButtonBar.HSplitTop(24.0f, &ButtonBar, 0);
+		ButtonBar.VMargin(8.0f, &ButtonBar);
+		LocalBar = ButtonBar;
+		TeamBar = ButtonBar;
+	}
 
-	ButtonBar.VSplitRight(110.0f, &ButtonBar, &Button);
+	LocalBar.VSplitRight(110.0f, &LocalBar, &Button);
 	static int s_DisconnectButton = 0;
 	if(DoButton_Menu(&s_DisconnectButton, Localize("Disconnect"), 0, &Button, BUTTONSTYLE_DANGER))
 		Client()->Disconnect();
 
 	if(m_LocalServerProcess && m_LocalServerState != LOCAL_SERVER_FAILED && m_LocalServerState != LOCAL_SERVER_STOPPED)
 	{
-		ButtonBar.VSplitRight(8.0f, &ButtonBar, 0);
-		ButtonBar.VSplitRight(108.0f, &ButtonBar, &Button);
+		LocalBar.VSplitRight(8.0f, &LocalBar, 0);
+		LocalBar.VSplitRight(108.0f, &LocalBar, &Button);
 		static int s_StopLocalButton = 0;
 		if(DoButton_Menu(&s_StopLocalButton, Localize("Stop local"), 0, &Button, BUTTONSTYLE_DANGER))
 			StopLocalServer(false);
 
-		ButtonBar.VSplitRight(8.0f, &ButtonBar, 0);
-		ButtonBar.VSplitRight(108.0f, &ButtonBar, &Button);
+		LocalBar.VSplitRight(8.0f, &LocalBar, 0);
+		LocalBar.VSplitRight(108.0f, &LocalBar, &Button);
 		static int s_RestartLocalButton = 0;
 		if(DoButton_Menu(&s_RestartLocalButton, Localize("Restart local"), 0, &Button))
 			StopLocalServer(true);
@@ -76,8 +90,8 @@ void CMenus::RenderGame(CUIRect MainView)
 	{
 		if(m_pClient->m_Snap.m_pLocalInfo->m_Team != TEAM_SPECTATORS)
 		{
-			ButtonBar.VSplitLeft(8.0f, 0, &ButtonBar);
-			ButtonBar.VSplitLeft(110.0f, &Button, &ButtonBar);
+			TeamBar.VSplitLeft(8.0f, 0, &TeamBar);
+			TeamBar.VSplitLeft(110.0f, &Button, &TeamBar);
 			static int s_SpectateButton = 0;
 			if(DoButton_Menu(&s_SpectateButton, Localize("Spectate"), 0, &Button))
 			{
@@ -91,8 +105,8 @@ void CMenus::RenderGame(CUIRect MainView)
 		{
 			if(m_pClient->m_Snap.m_pLocalInfo->m_Team != TEAM_RED)
 			{
-				ButtonBar.VSplitLeft(8.0f, 0, &ButtonBar);
-				ButtonBar.VSplitLeft(110.0f, &Button, &ButtonBar);
+				TeamBar.VSplitLeft(8.0f, 0, &TeamBar);
+				TeamBar.VSplitLeft(110.0f, &Button, &TeamBar);
 				static int s_SpectateButton = 0;
 				if(DoButton_Menu(&s_SpectateButton, Localize("Join red"), 0, &Button))
 				{
@@ -103,8 +117,8 @@ void CMenus::RenderGame(CUIRect MainView)
 
 			if(m_pClient->m_Snap.m_pLocalInfo->m_Team != TEAM_BLUE)
 			{
-				ButtonBar.VSplitLeft(8.0f, 0, &ButtonBar);
-				ButtonBar.VSplitLeft(110.0f, &Button, &ButtonBar);
+				TeamBar.VSplitLeft(8.0f, 0, &TeamBar);
+				TeamBar.VSplitLeft(110.0f, &Button, &TeamBar);
 				static int s_SpectateButton = 0;
 				if(DoButton_Menu(&s_SpectateButton, Localize("Join blue"), 0, &Button))
 				{
@@ -119,8 +133,8 @@ void CMenus::RenderGame(CUIRect MainView)
 			{
 				if(m_pClient->m_Snap.m_pLocalInfo->m_Team == TEAM_SPECTATORS)
 				{
-					ButtonBar.VSplitLeft(8.0f, 0, &ButtonBar);
-					ButtonBar.VSplitLeft(110.0f, &Button, &ButtonBar);
+					TeamBar.VSplitLeft(8.0f, 0, &TeamBar);
+					TeamBar.VSplitLeft(110.0f, &Button, &TeamBar);
 					static int s_SpectateButton = 0;
 					if(DoButton_Menu(&s_SpectateButton, Localize("Join game"), 0, &Button, BUTTONSTYLE_ACCENT))
 					{
@@ -131,8 +145,8 @@ void CMenus::RenderGame(CUIRect MainView)
 			}
 			else if(m_pClient->m_Snap.m_pLocalInfo->m_Team != 0)
 			{
-				ButtonBar.VSplitLeft(8.0f, 0, &ButtonBar);
-				ButtonBar.VSplitLeft(110.0f, &Button, &ButtonBar);
+				TeamBar.VSplitLeft(8.0f, 0, &TeamBar);
+				TeamBar.VSplitLeft(110.0f, &Button, &TeamBar);
 				static int s_SpectateButton = 0;
 				if(DoButton_Menu(&s_SpectateButton, Localize("Join game"), 0, &Button, BUTTONSTYLE_ACCENT))
 				{
@@ -621,7 +635,15 @@ void CMenus::RenderServerControl(CUIRect MainView)
 		Bottom.VSplitRight(120.0f, &Bottom, &Button);
 
 		static int s_CallVoteButton = 0;
-		if(DoButton_Menu(&s_CallVoteButton, Localize("Call vote"), 0, &Button))
+		const bool CanCallVote =
+			s_ControlPage == 0 ? m_CallvoteSelectedOption >= 0 : m_CallvoteSelectedPlayer >= 0;
+		if(DoButton_Menu(&s_CallVoteButton,
+						Localize("Call vote"),
+						0,
+						&Button,
+						BUTTONSTYLE_ACCENT,
+						0,
+						CanCallVote))
 		{
 			if(s_ControlPage == 0)
 				m_pClient->m_pVoting->CallvoteOption(m_CallvoteSelectedOption, m_aCallvoteReason);

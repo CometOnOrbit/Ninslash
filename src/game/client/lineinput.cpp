@@ -212,9 +212,13 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 	const int OldCursorPos = m_CursorPos;
 	const bool Selecting = s_pInput->KeyPressed(KEY_LSHIFT) || s_pInput->KeyPressed(KEY_RSHIFT);
 	const int SelectionLength = GetSelectionLength();
+	bool Handled = false;
 
 	if(Event.m_Flags & IInput::FLAG_TEXT && !(KEY_LCTRL <= Event.m_Key && Event.m_Key <= KEY_RGUI))
+	{
 		SetRange(Event.m_aText, m_SelectionStart, m_SelectionEnd);
+		Handled = true;
+	}
 
 	if(Event.m_Flags & IInput::FLAG_PRESS)
 	{
@@ -229,6 +233,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 
 		if(Event.m_Key == KEY_BACKSPACE)
 		{
+			Handled = true;
 			if(SelectionLength)
 			{
 				SetRange("", m_SelectionStart, m_SelectionEnd);
@@ -246,6 +251,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 		}
 		else if(Event.m_Key == KEY_DELETE)
 		{
+			Handled = true;
 			if(SelectionLength)
 			{
 				SetRange("", m_SelectionStart, m_SelectionEnd);
@@ -263,6 +269,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 		}
 		else if(Event.m_Key == KEY_LEFT)
 		{
+			Handled = true;
 			if(SelectionLength && !Selecting)
 			{
 				m_CursorPos = m_SelectionStart;
@@ -284,6 +291,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 		}
 		else if(Event.m_Key == KEY_RIGHT)
 		{
+			Handled = true;
 			if(SelectionLength && !Selecting)
 			{
 				m_CursorPos = m_SelectionEnd;
@@ -305,6 +313,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 		}
 		else if(Event.m_Key == KEY_HOME)
 		{
+			Handled = true;
 			if(Selecting)
 			{
 				if(SelectionLength && m_CursorPos == m_SelectionEnd)
@@ -317,6 +326,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 		}
 		else if(Event.m_Key == KEY_END)
 		{
+			Handled = true;
 			if(Selecting)
 			{
 				if(SelectionLength && m_CursorPos == m_SelectionStart)
@@ -329,12 +339,14 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 		}
 		else if(CtrlPressed && !AltPressed && Event.m_Key == KEY_V)
 		{
+			Handled = true;
 			const char *pClipboardText = s_pInput->GetClipboardText();
 			if(pClipboardText)
 				SetRange(pClipboardText, m_SelectionStart, m_SelectionEnd);
 		}
 		else if(CtrlPressed && !AltPressed && (Event.m_Key == KEY_C || Event.m_Key == KEY_X) && SelectionLength)
 		{
+			Handled = true;
 			char *pSelection = m_pStr + m_SelectionStart;
 			char TempChar = pSelection[SelectionLength];
 			pSelection[SelectionLength] = '\0';
@@ -345,6 +357,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 		}
 		else if(CtrlPressed && !AltPressed && Event.m_Key == KEY_A)
 		{
+			Handled = true;
 			m_SelectionStart = 0;
 			m_SelectionEnd = m_CursorPos = m_Len;
 		}
@@ -352,7 +365,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 
 	m_WasChanged |= OldCursorPos != m_CursorPos;
 	m_WasChanged |= SelectionLength != GetSelectionLength();
-	return m_WasChanged;
+	return m_WasChanged || Handled;
 }
 
 void CLineInput::DrawSelection(

@@ -180,6 +180,17 @@ CGraphics_Threaded::CGraphics_Threaded()
 	m_Rotation = 0;
 	m_Drawing = 0;
 	m_InvalidTexture = 0;
+	m_StartupConfigNeedsRestore = false;
+	m_StartupGfxScreen = 0;
+	m_StartupGfxScreenWidth = 0;
+	m_StartupGfxScreenHeight = 0;
+	m_StartupGfxFullscreen = 0;
+	m_StartupGfxBorderless = 0;
+	m_FallbackGfxScreen = 0;
+	m_FallbackGfxScreenWidth = 0;
+	m_FallbackGfxScreenHeight = 0;
+	m_FallbackGfxFullscreen = 0;
+	m_FallbackGfxBorderless = 0;
 
 	m_TextureMemoryUsage = 0;
 	mem_zero((void *)m_aShaderAvailable, sizeof(m_aShaderAvailable));
@@ -1189,6 +1200,24 @@ int CGraphics_Threaded::IssueInit()
 
 int CGraphics_Threaded::InitWindow()
 {
+	const int StartupGfxScreen = g_Config.m_GfxScreen;
+	const int StartupGfxScreenWidth = g_Config.m_GfxScreenWidth;
+	const int StartupGfxScreenHeight = g_Config.m_GfxScreenHeight;
+	const int StartupGfxFullscreen = g_Config.m_GfxFullscreen;
+	const int StartupGfxBorderless = g_Config.m_GfxBorderless;
+	auto RememberStartupFallback = [&]() {
+		m_StartupConfigNeedsRestore = true;
+		m_StartupGfxScreen = StartupGfxScreen;
+		m_StartupGfxScreenWidth = StartupGfxScreenWidth;
+		m_StartupGfxScreenHeight = StartupGfxScreenHeight;
+		m_StartupGfxFullscreen = StartupGfxFullscreen;
+		m_StartupGfxBorderless = StartupGfxBorderless;
+		m_FallbackGfxScreen = g_Config.m_GfxScreen;
+		m_FallbackGfxScreenWidth = g_Config.m_GfxScreenWidth;
+		m_FallbackGfxScreenHeight = g_Config.m_GfxScreenHeight;
+		m_FallbackGfxFullscreen = g_Config.m_GfxFullscreen;
+		m_FallbackGfxBorderless = g_Config.m_GfxBorderless;
+	};
 	bool ForceSafeMode = false;
 #if defined(CONF_FAMILY_WINDOWS)
 	ForceSafeMode = windows_startup_recovery_requested() != 0;
@@ -1204,6 +1233,7 @@ int CGraphics_Threaded::InitWindow()
 		g_Config.m_GfxScreenHeight = 720;
 		if(IssueInit() == 0)
 		{
+			RememberStartupFallback();
 			dbg_msg("gfx", "safe graphics mode initialized successfully");
 			return 0;
 		}
@@ -1241,7 +1271,8 @@ int CGraphics_Threaded::InitWindow()
 	g_Config.m_GfxScreenHeight = 720;
 	if(IssueInit() == 0)
 	{
-		dbg_msg("gfx", "safe graphics mode initialized successfully; recovered settings will be saved");
+		RememberStartupFallback();
+		dbg_msg("gfx", "safe graphics mode initialized successfully; original display settings will be kept");
 		return 0;
 	}
 
@@ -1322,6 +1353,21 @@ int CGraphics_Threaded::Init()
 
 void CGraphics_Threaded::Shutdown()
 {
+	if(m_StartupConfigNeedsRestore &&
+	   g_Config.m_GfxScreen == m_FallbackGfxScreen &&
+	   g_Config.m_GfxScreenWidth == m_FallbackGfxScreenWidth &&
+	   g_Config.m_GfxScreenHeight == m_FallbackGfxScreenHeight &&
+	   g_Config.m_GfxFullscreen == m_FallbackGfxFullscreen &&
+	   g_Config.m_GfxBorderless == m_FallbackGfxBorderless)
+	{
+		g_Config.m_GfxScreen = m_StartupGfxScreen;
+		g_Config.m_GfxScreenWidth = m_StartupGfxScreenWidth;
+		g_Config.m_GfxScreenHeight = m_StartupGfxScreenHeight;
+		g_Config.m_GfxFullscreen = m_StartupGfxFullscreen;
+		g_Config.m_GfxBorderless = m_StartupGfxBorderless;
+	}
+	m_StartupConfigNeedsRestore = false;
+
 	// shutdown the backend
 	m_pBackend->Shutdown();
 	delete m_pBackend;

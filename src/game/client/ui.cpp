@@ -68,6 +68,7 @@ CUI::CUI()
 	m_pBecommingHotItem = 0;
 	m_ActiveItemValid = false;
 	m_ClipDepth = 0;
+	m_ClipOverflowDepth = 0;
 	m_pClient = 0;
 	m_pInput = 0;
 	m_pRenderTools = 0;
@@ -80,6 +81,7 @@ CUI::CUI()
 	m_MouseWorldY = 0;
 	m_MouseButtons = 0;
 	m_LastMouseButtons = 0;
+	m_MouseWheelConsumed = false;
 
 	m_Screen.x = 0;
 	m_Screen.y = 0;
@@ -101,12 +103,19 @@ int CUI::Update(float Mx, float My, float Mwx, float Mwy, int Buttons)
 	// Each frame starts with a clean clip stack (scroll regions and widgets
 	// enable/disable their own clips during rendering).
 	m_ClipDepth = 0;
+	if(m_pActiveItem && !m_ActiveItemValid)
+	{
+		m_pActiveItem = 0;
+		m_pLastActiveItem = 0;
+	}
+	m_ActiveItemValid = false;
 	m_MouseX = Mx;
 	m_MouseY = My;
 	m_MouseWorldX = Mwx;
 	m_MouseWorldY = Mwy;
 	m_LastMouseButtons = m_MouseButtons;
 	m_MouseButtons = Buttons;
+	m_MouseWheelConsumed = false;
 	m_pHotItem = m_pBecommingHotItem;
 	if(m_pActiveItem)
 		m_pHotItem = m_pActiveItem;
@@ -119,6 +128,15 @@ int CUI::MouseInside(const CUIRect *r)
 	return UiMouseInsideClipped(m_MouseX, m_MouseY, r, m_ClipDepth > 0 ? &m_aClipStack[m_ClipDepth - 1] : 0);
 }
 
+void CUI::ClearActiveItemIfUnclaimed()
+{
+	if(m_pActiveItem && !m_ActiveItemValid)
+	{
+		m_pActiveItem = 0;
+		m_pLastActiveItem = 0;
+	}
+}
+
 bool CUI::MouseHovered(const CUIRect *pRect) const
 {
 	if(!(m_MouseX >= pRect->x && m_MouseX < pRect->x + pRect->w && m_MouseY >= pRect->y &&
@@ -129,11 +147,28 @@ bool CUI::MouseHovered(const CUIRect *pRect) const
 	return true;
 }
 
+bool CUI::IsRectClipped(const CUIRect &Rect) const
+{
+	if(m_ClipDepth <= 0)
+		return false;
+	const CUIRect &Clip = m_aClipStack[m_ClipDepth - 1];
+	return Rect.x + Rect.w <= Clip.x || Rect.x >= Clip.x + Clip.w || Rect.y + Rect.h <= Clip.y ||
+		Rect.y >= Clip.y + Clip.h;
+}
+
 bool CUI::KeyPress(int Key) const
 {
 	if(!m_pInput)
 		return false;
 	return m_pInput->KeyPresses(Key) != 0;
+}
+
+bool CUI::ConsumeKeyPress(int Key)
+{
+	if(m_MouseWheelConsumed || !m_pInput || !m_pInput->KeyPresses(Key))
+		return false;
+	m_MouseWheelConsumed = true;
+	return true;
 }
 
 void CUI::ConvertMouseMove(float *x, float *y)
@@ -177,6 +212,11 @@ float CUIRect::Scale() const
 
 void CUI::ClipEnable(const CUIRect *r)
 {
+	if(m_ClipDepth >= MAX_CLIP_DEPTH)
+	{
+		m_ClipOverflowDepth++;
+		return;
+	}
 	// Nested clips intersect: an inner clip (e.g. an EditBox scissor) must not
 	// widen the visible area beyond the enclosing scroll-region clip, or text
 	// would still render after scrolling out of the region.
@@ -193,8 +233,7 @@ void CUI::ClipEnable(const CUIRect *r)
 		if(Effective.h < 0.0f)
 			Effective.h = 0.0f;
 	}
-	if(m_ClipDepth < MAX_CLIP_DEPTH)
-		m_aClipStack[m_ClipDepth++] = Effective;
+	m_aClipStack[m_ClipDepth++] = Effective;
 	float XScale = Graphics()->ScreenWidth() / Screen()->w;
 	float YScale = Graphics()->ScreenHeight() / Screen()->h;
 	Graphics()->ClipEnable(
@@ -203,6 +242,11 @@ void CUI::ClipEnable(const CUIRect *r)
 
 void CUI::ClipDisable()
 {
+	if(m_ClipOverflowDepth > 0)
+	{
+		m_ClipOverflowDepth--;
+		return;
+	}
 	if(m_ClipDepth > 0)
 		m_ClipDepth--;
 	if(m_ClipDepth > 0)
@@ -393,6 +437,7 @@ int CUI::DoButtonLogic(const void *pID, const char *pText, int Checked, const CU
 
 	if(ActiveItem() == pID)
 	{
+		CheckActiveItem(pID);
 		if(!MouseButton(ButtonUsed))
 		{
 			if(Inside && Checked >= 0)
@@ -496,7 +541,7 @@ bool CUI::OnInput(const IInput::CEvent &e)
 bool CUI::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize, int Corners, bool *pChanged)
 {
 	const bool Inside = MouseHovered(pRect);
-	const bool Active = LastActiveItem() == pLineInput;
+	bool Active = LastActiveItem() == pLineInput;
 	const bool Changed = pLineInput->WasChanged();
 	const char *pDisplayStr = pLineInput->GetDisplayedString();
 
@@ -511,6 +556,14 @@ bool CUI::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize
 	CUIRect Textbox = *pRect;
 	Textbox.VMargin(2.0f, &Textbox);
 	Textbox.HMargin(2.0f, &Textbox);
+
+	if(Active && MouseButtonClicked(0) && !Inside)
+	{
+		pLineInput->Deactivate();
+		SetActiveItem(0);
+		ClearLastActiveItem();
+		Active = false;
+	}
 
 	if(Active)
 	{

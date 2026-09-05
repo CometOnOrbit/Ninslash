@@ -56,7 +56,7 @@ inline CRoomConfigureLayout RoomConfigureLayout(
 	Layout.m_MainSettingsHeight =
 		(18.0f + 20.0f + 32.0f + 6.0f + (!SteamAvailable ? 22.0f : 0.0f) + MainRows * 35.0f) * InvScale;
 	Layout.m_IdentityHeight =
-		(18.0f + 20.0f + 35.0f + 35.0f + 7.0f + 31.0f + AdvancedRows * 35.0f + (AdvancedExpanded ? 18.0f : 0.0f)) *
+		(18.0f + 20.0f + 35.0f + 7.0f + 31.0f + AdvancedRows * 35.0f + (AdvancedExpanded ? 18.0f : 0.0f)) *
 		InvScale;
 	Layout.m_ContentHeight =
 		50.0f * InvScale + (Layout.m_SingleColumn

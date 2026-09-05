@@ -80,6 +80,8 @@ class CChat : public CComponent
 	CChat();
 
 	bool IsActive() const { return m_Mode != MODE_NONE; }
+	bool IsVisible() const { return m_Show || IsActive(); }
+	void Disable();
 
 	void AddLine(int ClientID, int Mode, const char *pLine);
 
