@@ -19,6 +19,24 @@ Tide: Dark
 Tide: Recovery
 == 潮汐：恢复
 
+Lockdown: Sector breach
+== 封锁：突破街区
+
+Blackout: Silent overload
+== 断电：静默过载
+
+Collapse Retreat: Keep moving
+== 崩塌回撤：继续前进
+
+Vertical Ruins: Climb route
+== 垂直废墟：向上推进
+
+Storm Front: Cross the front
+== 风暴前线：穿越前线
+
+Orbital: Airlock route
+== 轨道：气闸路线
+
 %d checkpoints
 == %d 个检查点
 
@@ -38,6 +56,12 @@ Tide: Recovery
 == %d 秒
 %d seconds remaining
 == 剩余 %d 秒
+
+forward points remaining
+== 剩余前线目标点
+
+Push the front line
+== 推进前线
 
 %d seconds • %d/%d
 == %d 秒 • %d/%d

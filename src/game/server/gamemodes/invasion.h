@@ -4,6 +4,9 @@
 #include <game/questinfo.h>
 
 #define MAX_ENEMIES 512
+#define INV_MAX_PUSH_POINTS 3
+
+class CBuilding;
 
 class CGameControllerInvasion : public IGameController
 {
@@ -40,6 +43,11 @@ class CGameControllerInvasion : public IGameController
 	void StartHoldZone();
 	void ClearHoldZone();
 	void TickHoldZone();
+	void ClearPushForward();
+	void ClearLockdownNode();
+	bool BuildPushForwardRoute();
+	void ActivatePushForwardGroup();
+	void TickPushForward();
 	void TickObjectivePressure();
 	int CountBossesAlive() const;
 	int CountBuildingsOfType(int Type) const;
@@ -47,6 +55,9 @@ class CGameControllerInvasion : public IGameController
 	int SwitchesAvailable() const;
 	void SetSwitchesActive(bool Active);
 	void SetReactorDefenseActive(bool Active);
+	void BuildRegionalBossArena();
+	void ApplyRegionalBossPhase(int Phase);
+	void TickRegionalBoss();
 	int CountHumansAlive(int ExcludeCID = -1) const;
 	void RewardQuestGold();
 
@@ -152,6 +163,8 @@ class CGameControllerInvasion : public IGameController
 	class CServerRadar *m_pDoor;
 	class CServerRadar *m_pEnemySpawn;
 	class CServerRadar *m_pReactor;
+	class CServerRadar *m_pPushRadar;
+	CBuilding *m_pLockdownNode;
 	class CServerRadar *m_apSwitchRadar[8];
 	int m_NumSwitchRadars;
 
@@ -161,6 +174,23 @@ class CGameControllerInvasion : public IGameController
 	bool m_HoldZoneActive;
 	bool m_HoldWasOccupied;
 	int m_HoldFxTick;
+
+	int m_MapTemplate;
+	int m_MapBiome;
+	bool m_MapSignatureQuestUsed;
+	vec2 m_aPushPoints[INV_MAX_PUSH_POINTS];
+	int m_PushPointCount;
+	int m_PushCompletedMask;
+	int m_PushActiveMask;
+	int m_PushPointEndTick;
+	bool m_PushForwardActive;
+	bool m_PushParallel;
+
+	vec2 m_aRegionalBossPoints[INV_MAX_PUSH_POINTS];
+	int m_RegionalBossPointCount;
+	class CDroid *m_pRegionalBoss;
+	int m_RegionalBossPhase;
+	int m_RegionalBossSupportSpawned;
 
 	void ClearSwitchRadars();
 	void RefreshSwitchRadars();

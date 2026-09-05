@@ -1301,6 +1301,30 @@ ivec2 CGenLayer::GetOpenArea()
 	return p;
 }
 
+ivec2 CGenLayer::GetBossArea()
+{
+	for(int x = 5; x < m_Width - 5; x++)
+		for(int y = 5; y < m_Height - 5; y++)
+		{
+			bool Valid = true;
+			for(int xx = -4; xx <= 4 && Valid; xx++)
+				for(int yy = -4; yy <= 4 && Valid; yy++)
+					if(Get(x + xx, y + yy) != 0 || Get(x + xx, y + yy, FGOBJECTS) != 0)
+						Valid = false;
+			if(!Valid)
+				continue;
+
+			for(int xx = -4; xx <= 4; xx++)
+				for(int yy = -4; yy <= 4; yy++)
+					Use(x + xx, y + yy);
+			for(int i = 0; i < m_NumOpenAreas; i++)
+				if(abs(m_aOpenArea[i].x - x) <= 4 && abs(m_aOpenArea[i].y - y) <= 4)
+					m_aOpenArea[i] = ivec2(0, 0);
+			return ivec2(x, y);
+		}
+	return ivec2(0, 0);
+}
+
 ivec3 CGenLayer::GetLongCeiling()
 {
 	if(m_NumLongCeilings <= 0)

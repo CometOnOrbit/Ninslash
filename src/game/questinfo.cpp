@@ -28,6 +28,8 @@ const char *GetQuestDisplayName(int Quest)
 			return "Activate switches to extract";
 		case QUEST_HOLD_ZONE:
 			return "Hold the signal point";
+		case QUEST_PUSH_FORWARD:
+			return "Push the front line";
 		default:
 			return "";
 	}
@@ -97,6 +99,8 @@ const char *GetQuestStartMessage(int Quest, int WaveType)
 			return "Find and activate the switches";
 		case QUEST_HOLD_ZONE:
 			return "Hold the marked signal point";
+		case QUEST_PUSH_FORWARD:
+			return "Reach the forward points";
 		default:
 			return "";
 	}
@@ -160,6 +164,8 @@ const char *GetQuestCompletedMessage(int Quest, int WaveType)
 			return "Extraction ready";
 		case QUEST_HOLD_ZONE:
 			return "Signal secured";
+		case QUEST_PUSH_FORWARD:
+			return "Front line advanced";
 		default:
 			return "";
 	}

@@ -652,6 +652,11 @@ void CBuilding::Destroy()
 {
 	if(m_Stored)
 		return;
+	if(m_PveTransient)
+	{
+		GameServer()->m_World.DestroyEntity(this);
+		return;
+	}
 	if(!m_PveRefunded && GameServer()->m_pPveDirector && m_PveBuilder >= 0 && m_PveKitCost > 0)
 	{
 		m_PveRefunded = true;
@@ -741,7 +746,7 @@ void CBuilding::Destroy()
 
 void CBuilding::Tick()
 {
-	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
+	if(!m_PveTransient && m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
 	{
 		if(GameServer()->StoreEntity(m_ObjType, m_Type, (m_Mirror ? 1 : 0) | (m_NonBlockingHazard ? 2 : 0), m_Pos.x, m_Pos.y))
 		{

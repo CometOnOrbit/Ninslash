@@ -360,9 +360,9 @@ MACRO_CONFIG_INT(SvPveBiome,
 				 sv_pve_biome,
 				 0,
 				 0,
-				 1,
+				 7,
 				 CFGFLAG_SERVER,
-				 "PvE environment theme (0=standard, 1=Blue Planet luminous tide)")
+				 "PvE environment theme (0=standard, 1=Blue Planet, 2-7=Invasion map biomes)")
 MACRO_CONFIG_INT(
 	SvPveChoiceTime, sv_pve_choice_time, 10, 3, 60, CFGFLAG_SERVER, "Seconds allowed for an individual perk choice")
 MACRO_CONFIG_INT(SvPveContractVoteTime,

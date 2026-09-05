@@ -19,6 +19,7 @@ enum Quests
 	QUEST_HORDE,
 	QUEST_EXTRACT,
 	QUEST_HOLD_ZONE = 12,
+	QUEST_PUSH_FORWARD,
 };
 
 enum WaveTypes
@@ -53,6 +54,30 @@ static const int INVASION_THEME_CYCLE = NUM_INVASION_THEMES;
 inline int InvasionThemeFromLevel(int Level)
 {
 	return Level % INVASION_THEME_CYCLE;
+}
+
+inline int InvasionThemeFinalQuest(int Theme)
+{
+	switch(Theme)
+	{
+		case INVASION_THEME_BOSS_ASSAULT: return QUEST_KILL_BOSS;
+		case INVASION_THEME_PURGE: return QUEST_KILLREMAININGENEMIES;
+		case INVASION_THEME_DUAL_SWITCHES: return QUEST_ACTIVATE_SWITCHES;
+		case INVASION_THEME_REACTOR_DEFEND: return QUEST_DEFEND;
+		case INVASION_THEME_TIMED_SURVIVE: return QUEST_SURVIVEWAVETIME;
+		case INVASION_THEME_TRAP_RUN: return QUEST_SURVIVEWAVETIME;
+		case INVASION_THEME_ELITE_WAVE: return QUEST_SURVIVEWAVE;
+		case INVASION_THEME_Z_SECTOR: return QUEST_SURVIVEWAVE;
+		case INVASION_THEME_ACID_ESCAPE: return QUEST_REACHDOOR;
+		default: return QUEST_SURVIVEWAVE;
+	}
+}
+
+inline bool InvasionThemeAllowsPushForward(int Theme, bool Deep)
+{
+	return Theme == INVASION_THEME_TRAP_RUN ||
+		(Deep && (Theme == INVASION_THEME_PURGE || Theme == INVASION_THEME_STANDARD_WAVE ||
+			Theme == INVASION_THEME_Z_SECTOR));
 }
 
 // Server game-vote config names. The vote only runs outside Invasion rooms

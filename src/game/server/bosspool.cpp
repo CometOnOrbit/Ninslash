@@ -24,9 +24,10 @@
 
 namespace
 {
-// BossSplitter can grow into the same 96x128 collision box as BossStar. Keep
-// a margin around that maximum so the boss can move after spawning.
-const vec2 s_BossClearanceSize(112.0f, 144.0f);
+// BossStar uses the largest live collision box. Keep a full tile of room
+// around it so the boss can move after spawning without clipping the room.
+const vec2 s_BossCollisionSize(96.0f, 128.0f);
+const vec2 s_BossClearanceSize(128.0f, 160.0f);
 
 bool TryBossLanding(CGameWorld *pWorld, vec2 Probe, vec2 *pOutPos)
 {
@@ -39,22 +40,23 @@ bool TryBossLanding(CGameWorld *pWorld, vec2 Probe, vec2 *pOutPos)
 	if(Probe.x < 128.0f || Probe.x > WorldWidth - 128.0f || Probe.y < 32.0f || Probe.y > WorldHeight - 64.0f)
 		return false;
 
-	vec2 FloorPos;
 	vec2 BeforeFloor;
-	if(!pCollision->IntersectLine(Probe, Probe + vec2(0.0f, 448.0f), &FloorPos, &BeforeFloor, false, true))
+	if(!pCollision->IntersectLine(Probe, Probe + vec2(0.0f, 448.0f), 0, &BeforeFloor, false, true))
 		return false;
 
-	const float HalfHeight = s_BossClearanceSize.y * 0.5f;
-	const vec2 Landing(Probe.x, FloorPos.y - HalfHeight - 3.0f);
-	if(Landing.y < HalfHeight || Landing.y > WorldHeight - HalfHeight)
+	const float HalfHeight = s_BossCollisionSize.y * 0.5f;
+	const vec2 Landing(BeforeFloor.x, BeforeFloor.y - HalfHeight - 3.0f);
+	const vec2 ClearanceOffset(0.0f, (s_BossCollisionSize.y - s_BossClearanceSize.y) * 0.5f);
+	if(Landing.y + ClearanceOffset.y < s_BossClearanceSize.y * 0.5f ||
+	   Landing.y + ClearanceOffset.y > WorldHeight - s_BossClearanceSize.y * 0.5f)
 		return false;
 
-	// The center and both side positions must fit. Together they reserve about
-	// eight tiles of horizontal space rather than accepting a body-sized pocket.
+	// The center and both side positions must fit. Together they reserve a
+	// movement lane instead of accepting a body-sized pocket.
 	static const float s_aMovementOffsets[] = {-64.0f, 0.0f, 64.0f};
 	for(float Offset : s_aMovementOffsets)
 	{
-		const vec2 TestPos = Landing + vec2(Offset, 0.0f);
+		const vec2 TestPos = Landing + vec2(Offset, 0.0f) + ClearanceOffset;
 		if(pCollision->TestBox(TestPos, s_BossClearanceSize))
 			return false;
 		if(pCollision->IsInFluid(TestPos.x, TestPos.y) ||
@@ -109,11 +111,14 @@ bool FindBossSpawnPosition(
 
 CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 {
-	// Legacy callers pass a point above an enemy marker. Correct it to a safe,
-	// settled landing when possible; mode controllers normally pass one already.
+	// Never allow a legacy fallback point to put a boss inside map geometry.
 	vec2 SafePos;
-	if(TryBossLanding(pWorld, Pos, &SafePos))
-		Pos = SafePos;
+	if(!TryBossLanding(pWorld, Pos, &SafePos))
+	{
+		dbg_msg("boss", "refused unsafe spawn at (%.0f,%.0f)", Pos.x, Pos.y);
+		return 0;
+	}
+	Pos = SafePos;
 
 	int Type = TypeHint;
 	if(Type < 0 || !IsBossDroidType(Type))

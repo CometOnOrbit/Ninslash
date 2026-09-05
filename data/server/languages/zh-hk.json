@@ -943,6 +943,46 @@
         {
             "key": "Choose a field order for this floor",
             "value": "選擇本層的作戰指令"
+        },
+        {
+            "key": "%s enters phase %d",
+            "value": "%s 進入第 %d 階段"
+        },
+        {
+            "key": "Front line advanced",
+            "value": "前線推進"
+        },
+        {
+            "key": "Lockdown: breach each marked sector",
+            "value": "封鎖：突破所有標記區域"
+        },
+        {
+            "key": "Reach the forward points",
+            "value": "抵達前線目標點"
+        },
+        {
+            "key": "The front line stalled — retreat failed",
+            "value": "前線停滯——撤退失敗"
+        },
+        {
+            "key": "The rear is collapsing — keep moving",
+            "value": "後方正在崩塌——繼續前進"
+        },
+        {
+            "key": "Blackout: enemy beacons are offline",
+            "value": "斷電：敵方信標已離線"
+        },
+        {
+            "key": "Vertical route: climb to the next beacon",
+            "value": "垂直路線：攀爬至下一個信標"
+        },
+        {
+            "key": "Storm front: cross before the window closes",
+            "value": "風暴前線：在窗口關閉前穿越"
+        },
+        {
+            "key": "Orbital route: reach the next airlock",
+            "value": "軌道路線：抵達下一個氣閘"
         }
     ]
 }

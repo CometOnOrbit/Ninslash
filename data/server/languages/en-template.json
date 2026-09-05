@@ -943,6 +943,46 @@
         {
             "key": "Choose a field order for this floor",
             "value": "Choose a field order for this floor"
+        },
+        {
+            "key": "%s enters phase %d",
+            "value": "%s enters phase %d"
+        },
+        {
+            "key": "Front line advanced",
+            "value": "Front line advanced"
+        },
+        {
+            "key": "Lockdown: breach each marked sector",
+            "value": "Lockdown: breach each marked sector"
+        },
+        {
+            "key": "Reach the forward points",
+            "value": "Reach the forward points"
+        },
+        {
+            "key": "The front line stalled — retreat failed",
+            "value": "The front line stalled — retreat failed"
+        },
+        {
+            "key": "The rear is collapsing — keep moving",
+            "value": "The rear is collapsing — keep moving"
+        },
+        {
+            "key": "Blackout: enemy beacons are offline",
+            "value": "Blackout: enemy beacons are offline"
+        },
+        {
+            "key": "Vertical route: climb to the next beacon",
+            "value": "Vertical route: climb to the next beacon"
+        },
+        {
+            "key": "Storm front: cross before the window closes",
+            "value": "Storm front: cross before the window closes"
+        },
+        {
+            "key": "Orbital route: reach the next airlock",
+            "value": "Orbital route: reach the next airlock"
         }
     ]
 }

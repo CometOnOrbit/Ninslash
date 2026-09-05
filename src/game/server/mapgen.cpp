@@ -887,13 +887,13 @@ void CMapGen::GenerateExtractZone(CGenLayer *pTiles)
 
 void CMapGen::GenerateBossEnemySpawn(CGenLayer *pTiles)
 {
-	// Reserve one generic enemy marker in a genuinely open 7x7-tile area.
-	// Runtime boss spawning recognizes it through collision checks, while
-	// normal enemies may continue using it like any other marker.
-	ivec2 p = pTiles->GetOpenArea();
+	// Reserve one generic enemy marker in a dedicated 9x9-tile room. The
+	// runtime boss clearance includes a movement lane, so a normal open-area
+	// marker is not wide enough.
+	ivec2 p = pTiles->GetBossArea();
 	if(p.x == 0)
 	{
-		GenerateEnemySpawn(pTiles);
+		dbg_msg("mapgen", "boss room: no 9x9 open area available");
 		return;
 	}
 

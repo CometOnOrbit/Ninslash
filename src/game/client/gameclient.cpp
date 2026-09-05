@@ -378,7 +378,21 @@ void CGameClient::UpdateVisionLighting()
 {
 	const bool ChallengeDark = m_ChallengeInfoReceived &&
 		ChallengeVariantEnabled(m_ChallengeVariantMask, CHALLENGE_DARK);
-	const float Target = ChallengeDark ? 0.0f : clamp(m_LocalLightingTarget, 0, 255) / 255.0f;
+	int EnvironmentBrightness = 255;
+	if(m_PveEnvironmentBiome == PVE_BIOME_CITY_BLACKOUT)
+		EnvironmentBrightness = PveBlackoutBrightness(m_PveEnvironmentLevel);
+	else if(m_PveEnvironmentBiome == PVE_BIOME_BLUE_PLANET)
+	{
+		switch(m_PveEnvironmentPhase)
+		{
+			case PVE_ENV_PHASE_WARNING: EnvironmentBrightness = 128; break;
+			case PVE_ENV_PHASE_DARK: EnvironmentBrightness = 16; break;
+			case PVE_ENV_PHASE_RECOVERY: EnvironmentBrightness = 192; break;
+			default: break;
+		}
+	}
+	const float Target = ChallengeDark ? 0.0f :
+		min(clamp(m_LocalLightingTarget, 0, 255), EnvironmentBrightness) / 255.0f;
 	if(!m_pClient || Client()->State() < IClient::STATE_ONLINE)
 	{
 		m_LocalLightingBrightness = Target;

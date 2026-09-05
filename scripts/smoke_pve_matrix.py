@@ -12,6 +12,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MODES = ("invasion", "horde", "extract")
+MODE_CONFIGS = {
+    "invasion": "invasion1.cfg",
+    "horde": "horde_foundry.cfg",
+    "extract": "extract_foundry.cfg",
+}
 DEFAULT_EXECUTABLES = (
     ROOT / "build-win" / "Release" / "ninslash_srv.exe",
     ROOT / "build-win-verify" / "Release" / "ninslash_srv.exe",
@@ -38,7 +43,7 @@ def find_executable(explicit: str | None) -> Path:
 
 
 def run_case(server: Path, mode: str, seed: int, depth: int, timeout: float, log_dir: Path, port: int | None) -> tuple[bool, str]:
-    config = ROOT / "cfg" / f"{mode}_foundry.cfg"
+    config = ROOT / "cfg" / MODE_CONFIGS[mode]
     if not config.is_file():
         return False, f"missing config: {config}"
     log_dir.mkdir(parents=True, exist_ok=True)

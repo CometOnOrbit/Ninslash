@@ -180,6 +180,7 @@ class CGenLayer
 
 	ivec2 GetPlayerSpawn();
 	ivec2 GetOpenArea();
+	ivec2 GetBossArea();
 	ivec2 GetLeftPlatform();
 	ivec2 GetRightPlatform();
 	ivec2 GetBotPlatform();

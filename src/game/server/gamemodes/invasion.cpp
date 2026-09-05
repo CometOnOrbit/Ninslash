@@ -5,6 +5,7 @@
 #include <game/mapitems.h>
 #include <base/deterministic_random.h>
 #include <game/questinfo.h>
+#include <game/pve_environment.h>
 #include <game/pve_roguelite.h>
 #include <game/weapons.h>
 
@@ -74,6 +75,103 @@ static const int INV_FORCE_FLOOR_ONE = 7;
 static const int INV_REACTOR_DEFEND_MIN_SECONDS = 10;
 static const int INV_REACTOR_DEFEND_MAX_SECONDS = 60;
 
+enum EInvasionMapTemplate
+{
+	INV_MAP_UNKNOWN = -1,
+	INV_MAP_CITY1,
+	INV_MAP_CITY2,
+	INV_MAP_BLUEPLANET,
+	INV_MAP_LARGE1,
+	INV_MAP_LARGE2,
+	INV_MAP_LARGE3,
+	INV_MAP_SPACE,
+};
+
+static int InvasionMapTemplateForName(const char *pMap)
+{
+	if(!pMap)
+		return INV_MAP_UNKNOWN;
+	if(str_comp(pMap, "generate_city1") == 0)
+		return INV_MAP_CITY1;
+	if(str_comp(pMap, "generate_city2") == 0)
+		return INV_MAP_CITY2;
+	if(str_comp(pMap, "generate_blueplanet1") == 0)
+		return INV_MAP_BLUEPLANET;
+	if(str_comp(pMap, "generate_large1") == 0)
+		return INV_MAP_LARGE1;
+	if(str_comp(pMap, "generate_large2") == 0)
+		return INV_MAP_LARGE2;
+	if(str_comp(pMap, "generate_large3") == 0)
+		return INV_MAP_LARGE3;
+	if(str_comp(pMap, "generate_space1") == 0)
+		return INV_MAP_SPACE;
+	return INV_MAP_UNKNOWN;
+}
+
+static int InvasionBiomeForMapTemplate(int MapTemplate)
+{
+	switch(MapTemplate)
+	{
+		case INV_MAP_CITY1: return PVE_BIOME_CITY_LOCKDOWN;
+		case INV_MAP_CITY2: return PVE_BIOME_CITY_BLACKOUT;
+		case INV_MAP_BLUEPLANET: return PVE_BIOME_BLUE_PLANET;
+		case INV_MAP_LARGE1: return PVE_BIOME_COLLAPSE_RETREAT;
+		case INV_MAP_LARGE2: return PVE_BIOME_VERTICAL_RUINS;
+		case INV_MAP_LARGE3: return PVE_BIOME_STORM_FRONT;
+		case INV_MAP_SPACE: return PVE_BIOME_ORBITAL;
+		default: return PVE_BIOME_NONE;
+	}
+}
+
+static int InvasionRegionalBossType(int MapTemplate)
+{
+	switch(MapTemplate)
+	{
+		case INV_MAP_CITY1:
+		case INV_MAP_LARGE3:
+			return DROIDTYPE_BOSSCRAWLER;
+		case INV_MAP_BLUEPLANET:
+		case INV_MAP_LARGE1:
+			return DROIDTYPE_BOSSSPLITTER;
+		case INV_MAP_CITY2:
+		case INV_MAP_LARGE2:
+		case INV_MAP_SPACE:
+			return DROIDTYPE_BOSSSTAR;
+		default:
+			return DROIDTYPE_BOSSCRAWLER;
+	}
+}
+
+static int InvasionRegionalSupportType(int MapTemplate, int Phase)
+{
+	switch(MapTemplate)
+	{
+		case INV_MAP_CITY1: return DROIDTYPE_SIEGEBREAKERCRAWLER;
+		case INV_MAP_CITY2: return DROIDTYPE_STALKERCRAWLER;
+		case INV_MAP_BLUEPLANET: return DROIDTYPE_TEMPESTSTAR;
+		case INV_MAP_LARGE1: return Phase == 1 ? DROIDTYPE_RAILSTAR : DROIDTYPE_SIEGEBREAKERCRAWLER;
+		case INV_MAP_LARGE2: return Phase == 1 ? DROIDTYPE_TEMPESTSTAR : DROIDTYPE_CYCLONECRAWLER;
+		case INV_MAP_LARGE3: return Phase == 1 ? DROIDTYPE_TESLASTAR : DROIDTYPE_RAILSTAR;
+		case INV_MAP_SPACE: return Phase == 1 ? DROIDTYPE_TEMPESTSTAR : DROIDTYPE_RAILSTAR;
+		default: return DROIDTYPE_SIEGEBREAKERCRAWLER;
+	}
+}
+
+static const char *InvasionMapTemplateName(int MapTemplate)
+{
+	switch(MapTemplate)
+	{
+		case INV_MAP_CITY1: return "City I";
+		case INV_MAP_CITY2: return "City II";
+		case INV_MAP_BLUEPLANET: return "Blueplanet";
+		case INV_MAP_LARGE1: return "Large I";
+		case INV_MAP_LARGE2: return "Large II";
+		case INV_MAP_LARGE3: return "Large III";
+		case INV_MAP_SPACE: return "Space";
+		default: return "Invasion";
+	}
+}
+
 static constexpr int InvasionReactorDefenseSeconds(int Level)
 {
 	return Level < INV_REACTOR_DEFEND_MIN_SECONDS
@@ -101,21 +199,6 @@ static int InvasionDepthQuests(int Level)
 	if(Level >= 21)
 		return min(2 + Level / 12, 3);
 	return 2;
-}
-
-static bool InvasionRandomObjectiveFloor(int Level)
-{
-	const int Theme = InvasionThemeFromLevel(Level);
-	return Theme == INVASION_THEME_STANDARD_WAVE || Theme == INVASION_THEME_Z_SECTOR;
-}
-
-static int InvasionRandomObjective(int Level, int Seed)
-{
-	static const int aObjectives[] = {QUEST_SURVIVEWAVE, QUEST_SURVIVEWAVETIME, QUEST_HOLD_ZONE};
-	const unsigned long long StreamSeed =
-		DeterministicSeed((unsigned long long)(unsigned int)Seed, "invasion_objective") + (unsigned long long)max(0, Level);
-	CDeterministicRandom Rng(StreamSeed);
-	return aObjectives[Rng.NextInt((int)(sizeof(aObjectives) / sizeof(aObjectives[0])))];
 }
 
 static int InvasionOpeningEnemies(int Level)
@@ -146,6 +229,13 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	}
 
 	m_BotSpawnTick = 0;
+	m_MapTemplate = InvasionMapTemplateForName(Server()->m_aMapInUse);
+	if(m_MapTemplate == INV_MAP_UNKNOWN)
+		m_MapTemplate = InvasionMapTemplateForName(g_Config.m_SvMap);
+	m_MapBiome = InvasionBiomeForMapTemplate(m_MapTemplate);
+	m_MapSignatureQuestUsed = false;
+	if(m_MapBiome != PVE_BIOME_NONE)
+		g_Config.m_SvPveBiome = m_MapBiome;
 
 	if(g_Config.m_SvMapGenRandSeed)
 	{
@@ -157,6 +247,11 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 
 	for(int i = 0; i < MAX_ENEMIES; i++)
 		m_aEnemySpawnPos[i] = vec2(0, 0);
+	for(int i = 0; i < INV_MAX_PUSH_POINTS; i++)
+	{
+		m_aPushPoints[i] = vec2(0, 0);
+		m_aRegionalBossPoints[i] = vec2(0, 0);
+	}
 
 	m_RoundOverTick = 0;
 	m_RoundWinTick = 0;
@@ -177,6 +272,16 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_SwitchesRequired = 0;
 	m_SwitchesActivated = 0;
 	m_BossesLeft = 0;
+	m_PushPointCount = 0;
+	m_PushCompletedMask = 0;
+	m_PushActiveMask = 0;
+	m_PushPointEndTick = 0;
+	m_PushForwardActive = false;
+	m_PushParallel = false;
+	m_RegionalBossPointCount = 0;
+	m_pRegionalBoss = 0;
+	m_RegionalBossPhase = -1;
+	m_RegionalBossSupportSpawned = 0;
 	m_DefendLevel = false;
 	m_SwitchCoopLevel = false;
 	m_ReactorCountCheckTick = 0;
@@ -253,6 +358,8 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_pDoor = new CServerRadar(&GameServer()->m_World, RADAR_DOOR);
 	m_pEnemySpawn = new CServerRadar(&GameServer()->m_World, RADAR_ENEMY);
 	m_pReactor = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
+	m_pPushRadar = new CServerRadar(&GameServer()->m_World, RADAR_REACTOR);
+	m_pLockdownNode = 0;
 	m_NumSwitchRadars = 0;
 	for(int i = 0; i < 8; i++)
 		m_apSwitchRadar[i] = 0;
@@ -272,6 +379,9 @@ void CGameControllerInvasion::SetupLevelTheme()
 {
 	int Level = g_Config.m_SvMapGenLevel;
 	m_LevelTheme = InvasionThemeFromLevel(Level);
+	m_MapSignatureQuestUsed = false;
+	if(m_MapBiome == PVE_BIOME_NONE)
+		m_MapBiome = clamp(g_Config.m_SvPveBiome, (int)PVE_BIOME_NONE, (int)PVE_BIOME_ORBITAL);
 	m_EscapeLevel = (m_LevelTheme == INVASION_THEME_ACID_ESCAPE);
 	m_DefendLevel = (m_LevelTheme == INVASION_THEME_REACTOR_DEFEND);
 	m_SwitchCoopLevel = (m_LevelTheme == INVASION_THEME_DUAL_SWITCHES);
@@ -286,9 +396,9 @@ void CGameControllerInvasion::SetupLevelTheme()
 	{
 		case INVASION_THEME_BOSS_ASSAULT:
 			m_LevelQuestsLeft = max(2, DepthQuests);
-			// Keep one boss for the regular assault floors. Very deep endless
-			// floors may add another, but not every 25 floors.
-			m_BossesLeft = 1 + max(0, Level - 60) / 30;
+			// Each map area has one signature boss. Endless floors keep the
+			// selected area's encounter instead of stacking another boss.
+			m_BossesLeft = 1;
 			break;
 		case INVASION_THEME_DUAL_SWITCHES:
 			m_LevelQuestsLeft = max(2, DepthQuests);
@@ -378,13 +488,8 @@ bool CGameControllerInvasion::GetSpawnPos(int Team, vec2 *pOutPos)
 
 bool CGameControllerInvasion::GetBossSpawnPos(vec2 *pOutPos)
 {
-	if(FindBossSpawnPosition(
-		   &GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
-		return true;
-	if(!GetSpawnPos(0, pOutPos))
-		return false;
-	*pOutPos += vec2(0.0f, -100.0f);
-	return true;
+	return FindBossSpawnPosition(
+		&GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos);
 }
 
 vec2 CGameControllerInvasion::GetBotSpawnPos()
@@ -413,7 +518,10 @@ void CGameControllerInvasion::RandomGroupSpawnPos()
 	if(!m_NumEnemySpawnPos)
 		return;
 	m_GroupSpawnPos = m_aEnemySpawnPos[irandom(m_NumEnemySpawnPos)];
-	m_pEnemySpawn->Activate(m_GroupSpawnPos, Server()->Tick() + Server()->TickSpeed() * 5);
+	if(m_MapBiome == PVE_BIOME_CITY_BLACKOUT)
+		m_pEnemySpawn->Deactivate();
+	else
+		m_pEnemySpawn->Activate(m_GroupSpawnPos, Server()->Tick() + Server()->TickSpeed() * 5);
 }
 
 bool CGameControllerInvasion::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
@@ -448,8 +556,10 @@ bool CGameControllerInvasion::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 		const int Level = max(0, g_Config.m_SvMapGenLevel);
 		const int EarlyLevel = min(Level, 20);
 		const int LateLevel = max(0, Level - 20);
-		m_BotSpawnTick = Server()->Tick() +
-			Server()->TickSpeed() * max(0.25f, 0.5f - EarlyLevel * 0.01f - LateLevel * 0.0025f);
+		float SpawnDelay = max(0.25f, 0.5f - EarlyLevel * 0.01f - LateLevel * 0.0025f);
+		if(m_MapBiome == PVE_BIOME_CITY_BLACKOUT)
+			SpawnDelay = max(0.22f, SpawnDelay - max(0, Level - 10) * 0.004f);
+		m_BotSpawnTick = Server()->Tick() + Server()->TickSpeed() * SpawnDelay;
 
 		return true;
 	}
@@ -827,13 +937,6 @@ void CGameControllerInvasion::FinishFieldOrder()
 	SendFieldOrder();
 	m_GameState = STATE_GAME;
 	GameServer()->m_World.m_Paused = false;
-	char aBuf[128];
-	str_format(aBuf, sizeof(aBuf), "Field order: %s", GetFieldOrderDisplayName(m_ActiveFieldOrder));
-	GameServer()->SendBroadcast(aBuf, -1);
-	dbg_msg("inv",
-			"field order applied: %s (effect %d)",
-			GetFieldOrderDisplayName(m_ActiveFieldOrder),
-			m_FieldOrderEffect);
 }
 
 void CGameControllerInvasion::ApplyFieldOrder(int Package)
@@ -1028,6 +1131,42 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 		m_QuestWaveType = WAVE_CYBORGS;
 	else if(m_LevelTheme == INVASION_THEME_Z_SECTOR)
 		m_QuestWaveType = WAVE_ALIENS;
+	else if(m_ForcedWaveType == WAVE_NONE)
+	{
+		const int EnvironmentPhase =
+			GameServer()->m_pPveDirector ? GameServer()->m_pPveDirector->EnvironmentPhase() : PVE_ENV_PHASE_CALM;
+		switch(m_MapBiome)
+		{
+			case PVE_BIOME_CITY_LOCKDOWN:
+				m_QuestWaveType = WAVE_ROBOTS;
+				break;
+			case PVE_BIOME_CITY_BLACKOUT:
+				// Blackout ramps from robots to cyborgs instead of borrowing
+				// Blueplanet's phase-driven wave changes.
+				m_QuestWaveType = Level < 20 ? WAVE_ROBOTS : WAVE_CYBORGS;
+				break;
+			case PVE_BIOME_BLUE_PLANET:
+				if(EnvironmentPhase == PVE_ENV_PHASE_DARK)
+					m_QuestWaveType = WAVE_ALIENS;
+				else if(EnvironmentPhase == PVE_ENV_PHASE_WARNING)
+					m_QuestWaveType = WAVE_ROBOTS;
+				break;
+			case PVE_BIOME_COLLAPSE_RETREAT:
+				m_QuestWaveType = WAVE_FURRIES;
+				break;
+			case PVE_BIOME_VERTICAL_RUINS:
+				m_QuestWaveType = WAVE_CYBORGS;
+				break;
+			case PVE_BIOME_STORM_FRONT:
+				m_QuestWaveType = WAVE_ROBOTS;
+				break;
+			case PVE_BIOME_ORBITAL:
+				m_QuestWaveType = WAVE_ALIENS;
+				break;
+			default:
+				break;
+		}
+	}
 
 	if(m_Quest == QUEST_SURVIVEWAVETIME || (m_Quest == QUEST_NONE && m_LevelTheme == INVASION_THEME_TIMED_SURVIVE) ||
 	   (m_LevelTheme == INVASION_THEME_TRAP_RUN && m_QuestsCompleted >= 1))
@@ -1054,6 +1193,13 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 		m_QuestWaveSize = WaveCap;
 		m_EnemiesLeft = m_QuestWaveEnemiesLeft;
 	}
+	else if(m_Quest == QUEST_PUSH_FORWARD)
+	{
+		m_QuestWaveEndTick = 0;
+		m_QuestWaveEnemiesLeft = 0;
+		m_QuestWaveSize = WaveCap;
+		m_EnemiesLeft = min(WaveCap, max(6, 8 + InvasionEffectiveLevel(Level) / 2));
+	}
 	else
 	{
 		m_QuestWaveEndTick = 0;
@@ -1067,8 +1213,10 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 	if(AddBots)
 	{
 		RandomGroupSpawnPos();
-		const int ThreatDivisor = m_LevelTheme == INVASION_THEME_ELITE_WAVE ? (Level > 20 ? 5 : 3) :
+		int ThreatDivisor = m_LevelTheme == INVASION_THEME_ELITE_WAVE ? (Level > 20 ? 5 : 3) :
 			(Level > 20 ? 8 : 6);
+		if(m_MapBiome == PVE_BIOME_CITY_BLACKOUT)
+			ThreatDivisor = max(3, 6 - max(0, Level - 10) / 8);
 		const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
 																				   m_aEnemySpawnPos,
 																				   m_NumEnemySpawnPos,
@@ -1094,14 +1242,33 @@ void CGameControllerInvasion::DisplayExit(vec2 Pos)
 
 void CGameControllerInvasion::SpawnBosses(int Count)
 {
+	m_pRegionalBoss = 0;
+	m_RegionalBossPhase = -1;
+	m_RegionalBossSupportSpawned = 0;
+	BuildRegionalBossArena();
+	int Spawned = 0;
 	for(int i = 0; i < Count; i++)
 	{
 		vec2 p;
-		if(!GetBossSpawnPos(&p))
-			p = vec2(4000, 4000);
-		SpawnBoss(&GameServer()->m_World, p, g_Config.m_SvMapGenLevel);
+		if(m_RegionalBossPointCount > 0)
+			p = m_aRegionalBossPoints[i % m_RegionalBossPointCount];
+		else if(!GetBossSpawnPos(&p))
+		{
+			dbg_msg("inv", "boss room unavailable; skipping unsafe regional boss spawn");
+			continue;
+		}
+		CDroid *pBoss = SpawnBoss(
+			&GameServer()->m_World,
+			p,
+			g_Config.m_SvMapGenLevel,
+			m_MapTemplate == INV_MAP_UNKNOWN ? -1 : InvasionRegionalBossType(m_MapTemplate));
+		if(!pBoss)
+			continue;
+		Spawned++;
+		if(!m_pRegionalBoss)
+			m_pRegionalBoss = pBoss;
 	}
-	m_BossesLeft = Count;
+	m_BossesLeft = Spawned;
 }
 
 int CGameControllerInvasion::CountBossesAlive() const
@@ -1114,7 +1281,7 @@ bool CGameControllerInvasion::IsObjectiveTarget(bool Boss) const
 	if(m_Quest == QUEST_KILL_BOSS)
 		return Boss;
 	return m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME || m_Quest == QUEST_KILLREMAININGENEMIES ||
-		   m_Quest == QUEST_DEFEND || m_Quest == QUEST_HOLD_ZONE;
+		   m_Quest == QUEST_DEFEND || m_Quest == QUEST_HOLD_ZONE || m_Quest == QUEST_PUSH_FORWARD;
 }
 
 int CGameControllerInvasion::CountBuildingsOfType(int Type) const
@@ -1210,6 +1377,316 @@ void CGameControllerInvasion::ClearHoldZone()
 	m_HoldFxTick = 0;
 	if(m_pReactor)
 		m_pReactor->Deactivate();
+}
+
+void CGameControllerInvasion::ClearPushForward()
+{
+	m_PushForwardActive = false;
+	m_PushPointCount = 0;
+	m_PushCompletedMask = 0;
+	m_PushActiveMask = 0;
+	m_PushPointEndTick = 0;
+	m_PushParallel = false;
+	if(m_pPushRadar)
+		m_pPushRadar->Deactivate();
+	ClearLockdownNode();
+	if(m_MapBiome == PVE_BIOME_COLLAPSE_RETREAT && !m_EscapeLevel && IsRisingAcid())
+		ClearRisingAcid();
+}
+
+void CGameControllerInvasion::ClearLockdownNode()
+{
+	if(m_pLockdownNode)
+	{
+		GameServer()->m_World.DestroyEntity(m_pLockdownNode);
+		m_pLockdownNode = 0;
+	}
+}
+
+static bool InvasionPushPointUsable(CGameContext *pGameServer, vec2 Raw, const vec2 *pPoints, int Count, vec2 *pOut)
+{
+	if(!pGameServer || !pOut || (Raw.x == 0.0f && Raw.y == 0.0f))
+		return false;
+	CCollision *pCollision = pGameServer->Collision();
+	const vec2 Candidate = pCollision->SnapToStandPos(Raw);
+	if(!pCollision->IsSafeStandPos(Candidate))
+		return false;
+	for(int i = 0; i < Count; i++)
+		if(distance(Candidate, pPoints[i]) < 280.0f)
+			return false;
+	*pOut = Candidate;
+	return true;
+}
+
+bool CGameControllerInvasion::BuildPushForwardRoute()
+{
+	ClearPushForward();
+	const int Desired = m_MapBiome == PVE_BIOME_COLLAPSE_RETREAT || m_MapTemplate == INV_MAP_LARGE1 ? 3 : 2;
+	const int Seed = max(0, g_Config.m_SvMapGenSeed) + max(0, g_Config.m_SvMapGenLevel) * 17 +
+		m_MapTemplate * 31;
+	const int Stride = max(1, m_NumEnemySpawnPos / max(1, Desired));
+	const bool RequireHeightVariation =
+		m_MapBiome == PVE_BIOME_VERTICAL_RUINS || m_MapBiome == PVE_BIOME_ORBITAL;
+
+	// ponytail: probe fixed candidate caps; authored route metadata can replace
+	// this if hand-built maps outgrow the bounded fallback.
+	const int SpawnChecks = min(m_NumEnemySpawnPos, 64);
+	for(int i = 0; i < SpawnChecks && m_PushPointCount < Desired; i++)
+	{
+		const int Index = (Seed + i * Stride) % m_NumEnemySpawnPos;
+		vec2 Candidate;
+		if(InvasionPushPointUsable(
+			   GameServer(), m_aEnemySpawnPos[Index], m_aPushPoints, m_PushPointCount, &Candidate))
+		{
+			if(RequireHeightVariation && m_PushPointCount > 0 &&
+			   abs(Candidate.y - m_aPushPoints[m_PushPointCount - 1].y) < 192.0f)
+				continue;
+			m_aPushPoints[m_PushPointCount++] = Candidate;
+		}
+	}
+
+	// Generated maps normally provide enemy markers. Keep a deterministic
+	// waypoint fallback for hand-authored maps without enough markers.
+	const int WaypointChecks = min(GameServer()->Collision()->WaypointCount(), 128);
+	for(int i = 0; i < WaypointChecks && m_PushPointCount < Desired; i++)
+	{
+		vec2 Candidate;
+		if(InvasionPushPointUsable(
+			   GameServer(), GameServer()->Collision()->GetWaypointPos(i), m_aPushPoints, m_PushPointCount, &Candidate))
+		{
+			if(RequireHeightVariation && m_PushPointCount > 0 &&
+			   abs(Candidate.y - m_aPushPoints[m_PushPointCount - 1].y) < 192.0f)
+				continue;
+			m_aPushPoints[m_PushPointCount++] = Candidate;
+		}
+	}
+
+	if(m_PushPointCount < 2)
+	{
+		ClearPushForward();
+		return false;
+	}
+
+	m_PushForwardActive = true;
+	m_PushParallel = m_MapTemplate == INV_MAP_LARGE1 && m_MapBiome != PVE_BIOME_COLLAPSE_RETREAT &&
+		CountHumansAlive() > 1 && m_PushPointCount > 2;
+	m_PushCompletedMask = 0;
+	ActivatePushForwardGroup();
+	return true;
+}
+
+void CGameControllerInvasion::ActivatePushForwardGroup()
+{
+	const int AllMask = (1 << m_PushPointCount) - 1;
+	const int Remaining = AllMask & ~m_PushCompletedMask;
+	if(!Remaining)
+	{
+		m_PushActiveMask = 0;
+		return;
+	}
+
+	if(m_PushParallel && !m_PushCompletedMask && m_PushPointCount > 1)
+		m_PushActiveMask = (1 << 0) | (1 << 1);
+	else
+	{
+		m_PushActiveMask = 0;
+		for(int i = 0; i < m_PushPointCount; i++)
+			if(Remaining & (1 << i))
+			{
+				m_PushActiveMask = 1 << i;
+				break;
+			}
+	}
+
+	const int Level = max(1, g_Config.m_SvMapGenLevel);
+	int WindowSeconds = 12 + min(8, Level / 10);
+	if(m_MapBiome == PVE_BIOME_BLUE_PLANET && GameServer()->m_pPveDirector)
+	{
+		const int Phase = GameServer()->m_pPveDirector->EnvironmentPhase();
+		if(Phase == PVE_ENV_PHASE_RECOVERY)
+			WindowSeconds += 3;
+	}
+	else if(m_MapBiome == PVE_BIOME_STORM_FRONT)
+		WindowSeconds = max(8, WindowSeconds - 3);
+	else if(m_MapBiome == PVE_BIOME_COLLAPSE_RETREAT)
+		WindowSeconds = max(10, WindowSeconds - 2);
+	m_PushPointEndTick = Server()->Tick() + Server()->TickSpeed() * WindowSeconds;
+	m_QuestProgressCounter = 0;
+	for(int i = 0; i < m_PushPointCount; i++)
+		if(!(m_PushCompletedMask & (1 << i)))
+			m_QuestProgressCounter++;
+
+	if(m_pPushRadar)
+	{
+		int ActivePoint = -1;
+		for(int i = 0; i < m_PushPointCount; i++)
+			if(m_PushActiveMask & (1 << i))
+			{
+				m_pPushRadar->Activate(m_aPushPoints[i]);
+				ActivePoint = i;
+				break;
+			}
+		if(ActivePoint >= 0)
+		{
+			GameServer()->CreateEffect(FX_ELECTRIC, m_aPushPoints[ActivePoint]);
+			GameServer()->CreateSound(m_aPushPoints[ActivePoint], SOUND_WEAPON_SPAWN);
+			if(m_MapBiome == PVE_BIOME_CITY_LOCKDOWN)
+			{
+				ClearLockdownNode();
+				m_pLockdownNode = new CBuilding(
+					&GameServer()->m_World, m_aPushPoints[ActivePoint], BUILDING_SCREEN, TEAM_NEUTRAL);
+				m_pLockdownNode->SetPveTransient(true);
+			}
+		}
+	}
+}
+
+void CGameControllerInvasion::TickPushForward()
+{
+	if(!m_PushForwardActive)
+		return;
+	if(m_PushPointEndTick <= Server()->Tick())
+	{
+		GameServer()->SendBroadcast("The front line stalled — retreat failed", -1);
+		ClearPushForward();
+		m_RoundOverTick = Server()->Tick();
+		return;
+	}
+
+	for(int Point = 0; Point < m_PushPointCount; Point++)
+	{
+		if(!(m_PushActiveMask & (1 << Point)) || (m_PushCompletedMask & (1 << Point)))
+			continue;
+		bool Reached = false;
+		for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+		{
+			CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
+			if(!IsHumanCoopPlayer(pPlayer) || pPlayer->GetTeam() == TEAM_SPECTATORS)
+				continue;
+			CCharacter *pChr = pPlayer->GetCharacter();
+			if(pChr && pChr->IsAlive() && distance(pChr->m_Pos, m_aPushPoints[Point]) < 190.0f)
+			{
+				Reached = true;
+				break;
+			}
+		}
+		if(Reached)
+		{
+			m_PushCompletedMask |= 1 << Point;
+			m_PushActiveMask &= ~(1 << Point);
+			GameServer()->CreateEffect(FX_GREEN_EXPLOSION, m_aPushPoints[Point]);
+			GameServer()->CreateSound(m_aPushPoints[Point], SOUND_PICKUP_ARMOR);
+		}
+	}
+
+	const int AllMask = (1 << m_PushPointCount) - 1;
+	if(m_PushCompletedMask == AllMask)
+	{
+		m_QuestProgressCounter = 0;
+		CompleteCurrentQuest();
+		return;
+	}
+	if(!m_PushActiveMask)
+		ActivatePushForwardGroup();
+	else
+	{
+		m_QuestProgressCounter = 0;
+		for(int i = 0; i < m_PushPointCount; i++)
+			if(!(m_PushCompletedMask & (1 << i)))
+				m_QuestProgressCounter++;
+		if(m_pPushRadar)
+			for(int i = 0; i < m_PushPointCount; i++)
+				if(m_PushActiveMask & (1 << i))
+				{
+					m_pPushRadar->Activate(m_aPushPoints[i]);
+					break;
+				}
+	}
+}
+
+void CGameControllerInvasion::BuildRegionalBossArena()
+{
+	m_RegionalBossPointCount = 0;
+	if(!BuildPushForwardRoute())
+		return;
+	for(int i = 0; i < m_PushPointCount && m_RegionalBossPointCount < INV_MAX_PUSH_POINTS; i++)
+	{
+		vec2 SafePoint;
+		int Rotation = -1;
+		if(!FindBossSpawnPosition(&GameServer()->m_World, &m_aPushPoints[i], 1, &Rotation, &SafePoint))
+			continue;
+		bool Duplicate = false;
+		for(int j = 0; j < m_RegionalBossPointCount; j++)
+			if(distance(SafePoint, m_aRegionalBossPoints[j]) < 192.0f)
+			{
+				Duplicate = true;
+				break;
+			}
+		if(!Duplicate)
+			m_aRegionalBossPoints[m_RegionalBossPointCount++] = SafePoint;
+	}
+	if(m_RegionalBossPointCount == 0)
+	{
+		vec2 SafePoint;
+		if(FindBossSpawnPosition(
+			   &GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, &SafePoint))
+			m_aRegionalBossPoints[m_RegionalBossPointCount++] = SafePoint;
+	}
+	ClearPushForward();
+}
+
+void CGameControllerInvasion::ApplyRegionalBossPhase(int Phase)
+{
+	if(!m_pRegionalBoss || m_pRegionalBoss->m_Health <= 0 || Phase <= m_RegionalBossPhase)
+		return;
+	m_RegionalBossPhase = Phase;
+	if(m_RegionalBossPointCount > 0)
+	{
+		const int Point = min(Phase, m_RegionalBossPointCount - 1);
+		m_pRegionalBoss->m_Pos = m_aRegionalBossPoints[Point];
+		if(m_pReactor)
+			m_pReactor->Activate(m_pRegionalBoss->m_Pos);
+	}
+
+	if(Phase > 0 && m_RegionalBossSupportSpawned < 2 && m_EnemiesLeft > 0)
+	{
+		const int Type = InvasionRegionalSupportType(m_MapTemplate, Phase);
+		const int Cost = DroidThreatCost(Type);
+		if(m_EnemiesLeft >= Cost)
+		{
+			vec2 Pos = m_pRegionalBoss->m_Pos + vec2(Phase == 1 ? -220.0f : 220.0f, -100.0f);
+			if(SpawnSpecialist(&GameServer()->m_World, Pos, Type))
+			{
+				m_EnemiesLeft -= Cost;
+				m_RegionalBossSupportSpawned++;
+			}
+		}
+	}
+
+	if(Phase > 0)
+		GameServer()->SendBroadcastFormat(
+			-1, false, "%s enters phase %d", InvasionMapTemplateName(m_MapTemplate), Phase + 1);
+}
+
+void CGameControllerInvasion::TickRegionalBoss()
+{
+	if(!m_pRegionalBoss || m_pRegionalBoss->m_Health <= 0)
+		return;
+	int Phase = 0;
+	if(m_pRegionalBoss->m_MaxHealth > 0)
+	{
+		if(m_pRegionalBoss->m_Health * 3 <= m_pRegionalBoss->m_MaxHealth * 2)
+			Phase = 1;
+		if(m_pRegionalBoss->m_Health * 3 <= m_pRegionalBoss->m_MaxHealth)
+			Phase = 2;
+	}
+	if(GameServer()->m_pPveDirector)
+	{
+		const int EnvironmentPhase = GameServer()->m_pPveDirector->EnvironmentBossPhase();
+		if(EnvironmentPhase >= PVE_ENV_BOSS_PHASE_ONE)
+			Phase = max(Phase, EnvironmentPhase - PVE_ENV_BOSS_PHASE_ONE);
+	}
+	ApplyRegionalBossPhase(Phase);
 }
 
 static const float INV_HOLD_ZONE_RX = 220.0f;
@@ -1488,6 +1965,18 @@ void CGameControllerInvasion::SendQuestStartMessage(int Quest)
 		GameServer()->SendBroadcast("Rising acid! Reach the exit", -1);
 	else if(m_DefendLevel && Quest == QUEST_DEFEND)
 		GameServer()->SendBroadcast("Reach the reactor — defense starts in 10s", -1);
+	else if(Quest == QUEST_PUSH_FORWARD && m_MapBiome == PVE_BIOME_CITY_LOCKDOWN)
+		GameServer()->SendBroadcast("Lockdown: breach each marked sector", -1);
+	else if(Quest == QUEST_PUSH_FORWARD && m_MapBiome == PVE_BIOME_COLLAPSE_RETREAT)
+		GameServer()->SendBroadcast("The rear is collapsing — keep moving", -1);
+	else if(Quest == QUEST_PUSH_FORWARD && m_MapBiome == PVE_BIOME_CITY_BLACKOUT)
+		GameServer()->SendBroadcast("Blackout: enemy beacons are offline", -1);
+	else if(Quest == QUEST_PUSH_FORWARD && m_MapBiome == PVE_BIOME_VERTICAL_RUINS)
+		GameServer()->SendBroadcast("Vertical route: climb to the next beacon", -1);
+	else if(Quest == QUEST_PUSH_FORWARD && m_MapBiome == PVE_BIOME_STORM_FRONT)
+		GameServer()->SendBroadcast("Storm front: cross before the window closes", -1);
+	else if(Quest == QUEST_PUSH_FORWARD && m_MapBiome == PVE_BIOME_ORBITAL)
+		GameServer()->SendBroadcast("Orbital route: reach the next airlock", -1);
 	else
 		GameServer()->SendBroadcast(GetQuestStartMessage(Quest, m_QuestWaveType), -1);
 }
@@ -1501,11 +1990,19 @@ void CGameControllerInvasion::CompleteCurrentQuest()
 {
 	if(m_Quest == QUEST_DEFEND)
 		SetReactorDefenseActive(false);
+	if(m_Quest == QUEST_KILL_BOSS)
+	{
+		m_pRegionalBoss = 0;
+		if(m_pReactor)
+			m_pReactor->Deactivate();
+	}
 	m_DefendPrepEndTick = 0;
 	if(m_Quest == QUEST_ACTIVATE_SWITCHES || m_Quest == QUEST_FIND_SWITCH)
 		SetSwitchesActive(false);
 	if(m_Quest == QUEST_HOLD_ZONE)
 		ClearHoldZone();
+	if(m_Quest == QUEST_PUSH_FORWARD)
+		ClearPushForward();
 	SendQuestCompletedMessage(m_Quest);
 	RewardQuestGold();
 	m_Quest = QUEST_NONE;
@@ -1536,10 +2033,17 @@ void CGameControllerInvasion::QueueNextObjectiveQuest()
 		ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
 		return;
 	}
-	if(Done >= LastSlot && InvasionRandomObjectiveFloor(g_Config.m_SvMapGenLevel))
+	const bool Deep = m_LevelQuestsLeft >= 3;
+	const bool MapSignatureSlot = !m_MapSignatureQuestUsed &&
+		m_MapBiome >= PVE_BIOME_CITY_LOCKDOWN && m_MapBiome <= PVE_BIOME_ORBITAL &&
+		Done >= LastSlot && m_LevelTheme != INVASION_THEME_BOSS_ASSAULT;
+	const bool PushSlot = MapSignatureSlot || (InvasionThemeAllowsPushForward(m_LevelTheme, Deep) &&
+		(Done < LastSlot || (m_LevelTheme == INVASION_THEME_TRAP_RUN && !Deep && Done == LastSlot)));
+	if(PushSlot && BuildPushForwardRoute())
 	{
-		Next = InvasionRandomObjective(g_Config.m_SvMapGenLevel, g_Config.m_SvMapGenSeed);
-		ChangeQuest(Next, INV_QUEST_QUEUE_TIME);
+		if(m_MapBiome >= PVE_BIOME_CITY_LOCKDOWN && m_MapBiome <= PVE_BIOME_ORBITAL)
+			m_MapSignatureQuestUsed = true;
+		ChangeQuest(QUEST_PUSH_FORWARD, INV_QUEST_QUEUE_TIME);
 		return;
 	}
 
@@ -1773,6 +2277,22 @@ void CGameControllerInvasion::Tick()
 
 			if(m_Quest == QUEST_SURVIVEWAVE || m_Quest == QUEST_SURVIVEWAVETIME)
 				SpawnNewWave();
+			else if(m_Quest == QUEST_PUSH_FORWARD)
+			{
+				if(!m_PushForwardActive || m_PushPointCount < 2)
+				{
+					dbg_msg("inv", "push-forward route disappeared, fallback to wave");
+					m_Quest = QUEST_NONE;
+					ChangeQuest(QUEST_SURVIVEWAVE, 0.5f);
+				}
+				else
+				{
+					ActivatePushForwardGroup();
+					if(m_MapBiome == PVE_BIOME_COLLAPSE_RETREAT)
+						BeginRisingAcid(50);
+					SpawnNewWave();
+				}
+			}
 			else if(m_Quest == QUEST_DEFEND && ReactorsLeft() > 0)
 			{
 				// Prep window: radar on, no waves until players reach the reactor.
@@ -1909,6 +2429,7 @@ void CGameControllerInvasion::Tick()
 
 		if(m_Quest == QUEST_KILL_BOSS)
 		{
+			TickRegionalBoss();
 			m_BossesLeft = CountBossesAlive();
 			m_QuestProgressCounter = m_BossesLeft;
 			if(m_BossesLeft <= 0)
@@ -1986,6 +2507,8 @@ void CGameControllerInvasion::Tick()
 
 		if(m_Quest == QUEST_HOLD_ZONE)
 			TickHoldZone();
+		if(m_Quest == QUEST_PUSH_FORWARD)
+			TickPushForward();
 
 		TickObjectivePressure();
 

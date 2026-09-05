@@ -133,13 +133,8 @@ bool CGameControllerHorde::GetSpawnPos(int Team, vec2 *pOutPos)
 
 bool CGameControllerHorde::GetBossSpawnPos(vec2 *pOutPos)
 {
-	if(FindBossSpawnPosition(
-		   &GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos))
-		return true;
-	if(!GetSpawnPos(0, pOutPos))
-		return false;
-	*pOutPos += vec2(0.0f, -100.0f);
-	return true;
+	return FindBossSpawnPosition(
+		&GameServer()->m_World, m_aEnemySpawnPos, m_NumEnemySpawnPos, &m_SpawnPosRotation, pOutPos);
 }
 
 bool CGameControllerHorde::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)

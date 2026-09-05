@@ -147,7 +147,7 @@ CPveDirector::CPveDirector(CGameContext *pGameServer)
 	m_AnyStageDeath = false;
 	mem_zero(m_aPendingBlasts, sizeof(m_aPendingBlasts));
 	m_PendingBlastCount = 0;
-	m_EnvironmentBiome = clamp(g_Config.m_SvPveBiome, 0, 1);
+	m_EnvironmentBiome = clamp(g_Config.m_SvPveBiome, (int)PVE_BIOME_NONE, (int)PVE_BIOME_ORBITAL);
 	m_EnvironmentPhase = PVE_ENV_PHASE_CALM;
 	m_EnvironmentBossPhase = PVE_ENV_BOSS_PHASE_NONE;
 	m_EnvironmentPhaseEndTick = 0;
@@ -382,6 +382,8 @@ void CPveDirector::SendProgress(int ClientID)
 
 int CPveDirector::EnvironmentBrightness() const
 {
+	if(m_EnvironmentBiome == PVE_BIOME_CITY_BLACKOUT)
+		return PveBlackoutBrightness(m_EnvironmentLevel);
 	if(m_EnvironmentBiome != PVE_BIOME_BLUE_PLANET)
 		return 255;
 	switch(m_EnvironmentPhase)
@@ -397,14 +399,23 @@ void CPveDirector::UpdateEnvironment()
 {
 	const int Now = m_pGameServer->Server()->Tick();
 	const int NewLevel = max(0, g_Config.m_SvMapGenLevel);
-	const int NewBiome = clamp(g_Config.m_SvPveBiome, 0, 1);
-	if(!Enabled() || m_TutorialSandbox || NewBiome != PVE_BIOME_BLUE_PLANET)
+	const int NewBiome = clamp(g_Config.m_SvPveBiome, (int)PVE_BIOME_NONE, (int)PVE_BIOME_ORBITAL);
+	if(!Enabled() || m_TutorialSandbox || NewBiome == PVE_BIOME_NONE)
 	{
 		m_EnvironmentBiome = NewBiome;
 		m_EnvironmentLevel = NewLevel;
 		m_EnvironmentPhase = PVE_ENV_PHASE_CALM;
 		m_EnvironmentBossPhase = PVE_ENV_BOSS_PHASE_NONE;
 		m_EnvironmentPhaseEndTick = Now + m_pGameServer->Server()->TickSpeed();
+		return;
+	}
+	if(!PveEnvironmentUsesPhaseCycle(NewBiome))
+	{
+		m_EnvironmentBiome = NewBiome;
+		m_EnvironmentLevel = NewLevel;
+		m_EnvironmentPhase = PVE_ENV_PHASE_CALM;
+		m_EnvironmentBossPhase = PVE_ENV_BOSS_PHASE_NONE;
+		m_EnvironmentPhaseEndTick = 0;
 		return;
 	}
 	static const int s_aPhaseDuration[] = {30, 10, 10, 8};
@@ -421,7 +432,7 @@ void CPveDirector::UpdateEnvironment()
 		m_EnvironmentPhase = (m_EnvironmentPhase + 1) % 4;
 		m_EnvironmentPhaseEndTick += m_pGameServer->Server()->TickSpeed() * s_aPhaseDuration[m_EnvironmentPhase];
 	}
-	if(m_EnvironmentLevel >= 30)
+	if(PveEnvironmentUsesPhaseCycle(m_EnvironmentBiome) && m_EnvironmentLevel >= 30)
 	{
 		const int CycleTick = max(0, Now - (m_EnvironmentPhaseEndTick - m_pGameServer->Server()->TickSpeed() *
 			s_aPhaseDuration[m_EnvironmentPhase]));

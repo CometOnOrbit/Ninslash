@@ -70,6 +70,7 @@ class CBuilding : public CEntity
 	bool m_PveRefunded;
 	bool m_PveSwitchActive;
 	bool m_PveReactorObjective;
+	bool m_PveTransient;
 	int m_SwitchHoldTicks;
 
 	bool m_DestructionTriggered;
@@ -78,6 +79,7 @@ class CBuilding : public CEntity
 	void Trigger();
 	void SetPveSwitchActive(bool Active);
 	void SetPveReactorObjective(bool Active, int MaxLife = 0);
+	void SetPveTransient(bool Transient) { m_PveTransient = Transient; }
 	virtual void TakeDamage(int Damage, const CAttackSource &Source, vec2 Force = vec2(0, 0));
 	void Destroy();
 
