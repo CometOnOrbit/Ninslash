@@ -1,4 +1,4 @@
-#include <game/challenge_variant.h>
+#include <game/challenge/challenge_variant.h>
 
 #include <engine/shared/config.h>
 

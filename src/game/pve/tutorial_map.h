@@ -2,7 +2,7 @@
 #define GAME_TUTORIAL_MAP_H
 
 #include <game/mapitems.h>
-#include <game/tutorial.h>
+#include <game/pve/tutorial.h>
 
 enum
 {

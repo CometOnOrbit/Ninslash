@@ -24,7 +24,7 @@
 #include <engine/platform_services.h>
 
 #include <game/version.h>
-#include <game/challenge_variant.h>
+#include <game/challenge/challenge_variant.h>
 #include <generated/protocol.h>
 
 #include <generated/game_data.h>
@@ -32,13 +32,13 @@
 #include <game/client/gameclient.h>
 #include <game/client/lineinput.h>
 #include <game/client/local_game_modes.h>
-#include <game/expedition_save.h>
+#include <game/pve/expedition_save.h>
 #include <game/client/menu_expedition.h>
 #include <game/client/menu_home.h>
 #include <game/client/room_creation.h>
 #include <game/client/skelebank.h>
 #include <game/localization.h>
-#include <game/tutorial.h>
+#include <game/pve/tutorial.h>
 #include <mastersrv/mastersrv.h>
 #include <game/client/customstuff.h>
 

@@ -10,8 +10,8 @@
 
 #include <game/gamecore.h> // get_angle
 #include <game/npc.h>
-#include <game/pve_roguelite.h>
-#include <game/weapon_catalog.h>
+#include <game/pve/pve_roguelite.h>
+#include <game/weapons/weapon_catalog.h>
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>

@@ -1,7 +1,7 @@
 #include <generated/protocol.h>
 #include <game/collision.h>
 #include <game/server/gamecontext.h>
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include "projectile.h"
 #include "ball.h"
 #include "building.h"

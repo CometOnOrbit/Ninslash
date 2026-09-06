@@ -9,7 +9,7 @@
 #include "entities/building.h"
 #include "entities/droid.h"
 
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include <engine/shared/config.h>
 
 static float DistanceSquared(vec2 A, vec2 B)

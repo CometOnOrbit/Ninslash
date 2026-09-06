@@ -22,16 +22,16 @@
 #include <generated/game_data.h>
 
 #include <game/localization.h>
-#include <game/challenge_variant.h>
+#include <game/challenge/challenge_variant.h>
 #include <game/client/lineinput.h>
 #include <game/version.h>
 #include <game/npc.h>
-#include <game/weapon_catalog.h>
-#include <game/pve_environment.h>
-#include <game/weapon_packages.h>
-#include <game/weapon_presentation_runtime.h>
-#include <game/weapon_script_runtime.h>
-#include <game/forge.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/pve/pve_environment.h>
+#include <game/weapons/weapon_packages.h>
+#include <game/weapons/weapon_presentation_runtime.h>
+#include <game/weapons/weapon_script_runtime.h>
+#include <game/weapons/forge.h>
 #include "render.h"
 
 #include "gameclient.h"

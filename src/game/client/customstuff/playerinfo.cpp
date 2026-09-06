@@ -31,7 +31,7 @@ vec2 CPlayerInfo::WeaponRenderOffset() const
 #include <base/math.h>
 
 #include <engine/graphics.h>
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include <game/client/render.h>
 #include <engine/shared/config.h>
 

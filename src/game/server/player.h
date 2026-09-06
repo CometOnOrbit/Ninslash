@@ -6,7 +6,7 @@
 #include "aiskin.h"
 #include "ai.h"
 
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 
 enum Skins
 {

@@ -2,7 +2,7 @@
 #include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
 
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include "building.h"
 #include "character.h"
 #include "turret.h"

@@ -1,7 +1,7 @@
 #ifndef GAME_CLIENT_WEAPON_RESOURCES_H
 #define GAME_CLIENT_WEAPON_RESOURCES_H
 
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 class IGraphics;
 class ISound;

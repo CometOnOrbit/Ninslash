@@ -3,7 +3,7 @@
 
 #include <base/system.h>
 
-#include <game/expedition_save.h>
+#include <game/pve/expedition_save.h>
 
 enum
 {

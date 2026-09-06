@@ -1,7 +1,7 @@
 #ifndef GAME_SERVER_TUTORIAL_DIRECTOR_H
 #define GAME_SERVER_TUTORIAL_DIRECTOR_H
 
-#include <game/tutorial.h>
+#include <game/pve/tutorial.h>
 
 class CGameContext;
 struct CNetObj_PlayerInput;

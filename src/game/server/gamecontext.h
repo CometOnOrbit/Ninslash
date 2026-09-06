@@ -10,9 +10,9 @@
 
 #include <game/layers.h>
 #include <game/voting.h>
-#include <game/weapon_catalog.h>
-#include <game/challenge_script_runtime.h>
-#include <game/expedition_save.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/challenge/challenge_script_runtime.h>
+#include <game/pve/expedition_save.h>
 
 #include "eventhandler.h"
 #include "gamecontroller.h"

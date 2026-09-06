@@ -7,7 +7,7 @@
 #include <base/tl/array.h>
 #include <engine/graphics.h>
 #include <game/mapitems.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 #include "ui.h"
 #include "spine.h"
 

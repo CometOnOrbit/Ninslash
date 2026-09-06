@@ -1,6 +1,6 @@
 #include <game/client/room_creation.h>
 #include <game/client/local_game_modes.h>
-#include <game/questinfo.h>
+#include <game/pve/questinfo.h>
 
 #include <base/system.h>
 

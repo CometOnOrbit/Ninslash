@@ -2,7 +2,7 @@
 #define GAME_SERVER_ENTITIES_SCRIPT_ENTITY_H
 
 #include <game/server/entity.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 // The only networked entity shape exposed to Workshop weapon scripts.  It is
 // deliberately small: Lua controls decisions through the runtime, while C++

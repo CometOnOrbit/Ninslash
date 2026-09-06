@@ -6,7 +6,7 @@
 
 #include <base/vmath.h>
 
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 
 constexpr int WEAPON_MODULAR_PART1_COUNT = NUM_PART1;
 constexpr int WEAPON_MODULAR_PART2_COUNT = NUM_PART2;

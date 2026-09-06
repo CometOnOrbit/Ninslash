@@ -1,5 +1,5 @@
-#include <game/tutorial.h>
-#include <game/tutorial_map.h>
+#include <game/pve/tutorial.h>
+#include <game/pve/tutorial_map.h>
 #include <cstdio>
 
 static bool Expect(bool Value, const char *pWhat)

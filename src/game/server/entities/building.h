@@ -2,7 +2,7 @@
 #define GAME_SERVER_ENTITIES_BUILDING_H
 
 #include <game/server/entity.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 const int BuildingPhysSize = 32;
 const int TurretPhysSize = 32;

@@ -14,9 +14,9 @@
 
 #include <game/client/customstuff.h>
 
-#include <game/weapons.h>
-#include <game/weapon_catalog.h>
-#include <game/forge.h>
+#include <game/weapons/weapons.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/weapons/forge.h>
 #include <game/client/components/flow.h>
 #include <game/client/components/effects.h>
 #include <game/client/components/sounds.h>

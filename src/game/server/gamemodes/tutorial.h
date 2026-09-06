@@ -2,7 +2,7 @@
 #define GAME_SERVER_GAMEMODES_TUTORIAL_H
 
 #include <engine/shared/protocol.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 #include <game/server/gamecontroller.h>
 
 class CGameControllerTutorial : public IGameController

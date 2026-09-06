@@ -2,9 +2,9 @@
 #define GAME_SERVER_PVE_DIRECTOR_H
 
 #include <base/vmath.h>
-#include <game/pve_roguelite.h>
-#include <game/pve_environment.h>
-#include <game/weapon_catalog.h>
+#include <game/pve/pve_roguelite.h>
+#include <game/pve/pve_environment.h>
+#include <game/weapons/weapon_catalog.h>
 
 class CGameContext;
 class CCharacter;

@@ -12,7 +12,7 @@
 #include <game/client/components/chat.h>
 #include <game/client/customstuff.h>
 #include <game/localization.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 #include "hud_layout.h"
 #include "spectator.h"

@@ -21,9 +21,9 @@ def report(name: str, expected: set[str], declared: set[str], failures: list[str
 def main() -> int:
 	root = pathlib.Path(__file__).resolve().parents[1]
 	api = (root / "data/weapons/ninslash_api.lua").read_text(encoding="utf-8")
-	loader = (root / "src/game/weapon_lua.cpp").read_text(encoding="utf-8")
-	runtime = (root / "src/game/weapon_script_runtime.cpp").read_text(encoding="utf-8")
-	presentation = (root / "src/game/weapon_presentation_runtime.cpp").read_text(encoding="utf-8")
+	loader = (root / "src/game/weapons/weapon_lua.cpp").read_text(encoding="utf-8")
+	runtime = (root / "src/game/weapons/weapon_script_runtime.cpp").read_text(encoding="utf-8")
+	presentation = (root / "src/game/weapons/weapon_presentation_runtime.cpp").read_text(encoding="utf-8")
 	failures: list[str] = []
 
 	combat = set(re.findall(r'COMBAT_(?:INT|FLOAT|BOOL)\("([^"]+)"', loader))

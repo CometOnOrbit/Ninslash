@@ -1,7 +1,7 @@
 #ifndef GAME_SERVER_PLAYERDATA_H
 #define GAME_SERVER_PLAYERDATA_H
 
-#include <game/pve_roguelite.h>
+#include <game/pve/pve_roguelite.h>
 
 enum
 {

@@ -1,7 +1,7 @@
 #ifndef GAME_EXPEDITION_SAVE_H
 #define GAME_EXPEDITION_SAVE_H
 
-#include <game/pve_roguelite.h>
+#include <game/pve/pve_roguelite.h>
 
 class IStorage;
 

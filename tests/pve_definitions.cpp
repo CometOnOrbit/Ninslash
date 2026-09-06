@@ -1,7 +1,7 @@
 #include <cassert>
 #include <cstring>
 
-#include <game/pve_roguelite.h>
+#include <game/pve/pve_roguelite.h>
 
 int main()
 {

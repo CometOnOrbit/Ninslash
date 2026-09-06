@@ -3,8 +3,8 @@
 #include <engine/shared/config.h>
 #include <engine/serverbrowser.h>
 
-#include <game/pve_roguelite.h>
-#include <game/weapons.h>
+#include <game/pve/pve_roguelite.h>
+#include <game/weapons/weapons.h>
 #include <generated/game_data.h>
 #include <game/client/render.h>
 

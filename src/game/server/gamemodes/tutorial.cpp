@@ -3,7 +3,7 @@
 #include <cstdlib>
 
 #include <engine/shared/config.h>
-#include <game/tutorial.h>
+#include <game/pve/tutorial.h>
 #include <game/server/ai.h>
 #include <game/server/ai/dm_ai.h>
 #include <game/server/ai/inv/alien1_ai.h>

@@ -1,4 +1,4 @@
-#include <game/weapon_presentation_runtime.h>
+#include <game/weapons/weapon_presentation_runtime.h>
 
 #include <assert.h>
 #include <string.h>

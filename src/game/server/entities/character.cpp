@@ -1,7 +1,7 @@
 #include <new>
 #include <engine/shared/config.h>
 #include <engine/platform_events.h>
-#include <game/challenge_variant.h>
+#include <game/challenge/challenge_variant.h>
 #include <game/server/gamecontext.h>
 #include <game/input_buffer.h>
 #include <game/mapitems.h>
@@ -16,9 +16,9 @@
 #include "laserfail.h"
 #include "staticlaser.h"
 
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include <game/buildables.h>
-#include <game/forge.h>
+#include <game/weapons/forge.h>
 
 #include <game/server/gamemodes/invasion.h>
 #include <game/server/playerdata.h>
@@ -27,8 +27,8 @@
 #include <game/server/player.h>
 #include <game/server/ai.h>
 #include <game/npc.h>
-#include <game/pve_roguelite.h>
-#include <game/questinfo.h>
+#include <game/pve/pve_roguelite.h>
+#include <game/pve/questinfo.h>
 
 inline vec2 RandomDir()
 {

@@ -2,8 +2,8 @@
 #define GAME_SERVER_ENTITIES_WEAPON_H
 
 #include <game/server/entity.h>
-#include <game/weapon_catalog.h>
-#include <game/weapon_script_runtime.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/weapons/weapon_script_runtime.h>
 
 class CWeapon : public CEntity, public IWeaponScriptHost
 {

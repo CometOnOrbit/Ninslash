@@ -2,7 +2,7 @@
 #define GAME_CLIENT_COMPONENTS_WEAPON_PRESENTATION_H
 
 #include <game/client/component.h>
-#include <game/weapon_presentation_runtime.h>
+#include <game/weapons/weapon_presentation_runtime.h>
 
 class CWeaponPresentation : public CComponent, public IWeaponPresentationHost
 {

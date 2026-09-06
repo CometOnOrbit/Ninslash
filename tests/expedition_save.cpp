@@ -1,6 +1,6 @@
 #include <base/system.h>
 #include <engine/storage.h>
-#include <game/expedition_save.h>
+#include <game/pve/expedition_save.h>
 
 namespace
 {

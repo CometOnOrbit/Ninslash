@@ -2,7 +2,7 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include "character.h"
 #include "building.h"
 #include "powerupper.h"

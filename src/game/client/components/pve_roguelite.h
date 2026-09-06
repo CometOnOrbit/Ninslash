@@ -2,7 +2,7 @@
 #define GAME_CLIENT_COMPONENTS_PVE_ROGUELITE_H
 
 #include <game/client/component.h>
-#include <game/pve_roguelite.h>
+#include <game/pve/pve_roguelite.h>
 
 class CPveRoguelite : public CComponent
 {

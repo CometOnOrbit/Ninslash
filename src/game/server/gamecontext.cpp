@@ -13,13 +13,13 @@
 #include "gamecontext.h"
 #include <game/version.h>
 #include <game/npc.h>
-#include <game/challenge_variant.h>
+#include <game/challenge/challenge_variant.h>
 #include <game/server/pvp_balance.h>
 #include <game/collision.h>
 #include <game/gamecore.h>
-#include <game/weapon_catalog.h>
-#include <game/weapon_packages.h>
-#include <game/forge.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/weapons/weapon_packages.h>
+#include <game/weapons/forge.h>
 #include "gamemodes/dm.h"
 #include "gamemodes/cs.h"
 #include "gamemodes/ball.h"
@@ -47,7 +47,7 @@
 #include <game/server/entities/weapon.h>
 
 #include <game/server/playerdata.h>
-#include <game/pve_roguelite.h>
+#include <game/pve/pve_roguelite.h>
 #include <game/server/pve_director.h>
 #include <game/server/bosspool.h>
 #include <game/server/tutorial_director.h>

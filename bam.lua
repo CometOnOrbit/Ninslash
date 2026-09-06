@@ -365,7 +365,11 @@ function build(settings)
 
 	versionserver = Compile(settings, Collect("src/versionsrv/*.cpp"))
 	masterserver = Compile(settings, Collect("src/mastersrv/*.cpp"))
-	game_shared = Compile(settings, Collect("src/game/*.cpp"), nethash, network_source, game_content_source)
+	game_shared = Compile(settings,
+		Collect("src/game/*.cpp", "src/game/weapons/*.cpp", "src/game/pve/*.cpp", "src/game/challenge/*.cpp"),
+		nethash,
+		network_source,
+		game_content_source)
 	for _, object in ipairs(game_shared) do
 		AddDependency(object, official_weapons)
 		AddDependency(object, weapon_dsl)

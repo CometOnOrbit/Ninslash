@@ -1,8 +1,8 @@
 #include <cassert>
 #include <cstdio>
 
-#include <game/questinfo.h>
-#include <game/weapon_catalog.h>
+#include <game/pve/questinfo.h>
+#include <game/weapons/weapon_catalog.h>
 #include <game/server/ai/inv/invasion_profile.h>
 
 static void CheckWeapon(const CWeaponSpec &Spec, bool RequireAttackRange)

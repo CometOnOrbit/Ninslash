@@ -11,7 +11,7 @@
 #include <game/client/components/build_placement.h>
 #include <game/client/components/inventory.h>
 #include <game/client/components/scoreboard.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 #include "hud_layout.h"
 #include "killmessages.h"
 

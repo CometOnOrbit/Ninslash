@@ -1,4 +1,4 @@
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 #include <cstdio>
 

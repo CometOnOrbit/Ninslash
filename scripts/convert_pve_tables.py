@@ -14,8 +14,8 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-H = ROOT / "src/game/pve_roguelite.h"
-CPP = ROOT / "src/game/pve_roguelite.cpp"
+H = ROOT / "src/game/pve/pve_roguelite.h"
+CPP = ROOT / "src/game/pve/pve_roguelite.cpp"
 OUT_DIR = ROOT / "data/pve"
 
 

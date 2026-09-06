@@ -6,8 +6,8 @@
 #include <generated/protocol.h>
 #include <generated/game_data.h>
 #include <game/client/gameclient.h>
-#include <game/weapons.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapons.h>
+#include <game/weapons/weapon_catalog.h>
 #include "customstuff/playerinfo.h"
 #include "customstuff/droidanim.h"
 

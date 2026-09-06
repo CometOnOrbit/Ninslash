@@ -1,7 +1,7 @@
 #include <cassert>
 
 #include <base/system.h>
-#include <game/challenge_script_runtime.h>
+#include <game/challenge/challenge_script_runtime.h>
 
 int main()
 {

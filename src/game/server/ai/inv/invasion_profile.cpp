@@ -1,7 +1,7 @@
 #include "invasion_profile.h"
 
-#include <game/questinfo.h>
-#include <game/weapons.h>
+#include <game/pve/questinfo.h>
+#include <game/weapons/weapons.h>
 
 namespace
 {

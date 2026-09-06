@@ -3,7 +3,7 @@
 #include <engine/platform_events.h>
 #include <generated/protocol.h>
 
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include <game/server/entities/character.h>
 #include <game/server/entities/droid.h>
 #include <game/server/entities/lightning.h>

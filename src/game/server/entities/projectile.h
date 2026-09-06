@@ -1,7 +1,7 @@
 #ifndef GAME_SERVER_ENTITIES_PROJECTILE_H
 #define GAME_SERVER_ENTITIES_PROJECTILE_H
 
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 enum ProjectileExtraInfo
 {

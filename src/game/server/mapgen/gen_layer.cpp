@@ -1,7 +1,7 @@
 #include <base/system.h>
 #include <base/math.h>
 #include <engine/shared/config.h>
-#include <game/questinfo.h>
+#include <game/pve/questinfo.h>
 
 #include "gen_layer.h"
 

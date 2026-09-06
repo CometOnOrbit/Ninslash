@@ -1,5 +1,5 @@
 #include <game/server/gamecontext.h>
-#include <game/weapon_script_runtime.h>
+#include <game/weapons/weapon_script_runtime.h>
 
 #include "electrowall.h"
 #include "laser.h"

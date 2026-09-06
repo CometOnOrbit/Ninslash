@@ -1,6 +1,6 @@
-#include <game/weapon_catalog.h>
-#include <game/forge.h>
-#include <game/weapon_lua.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/weapons/forge.h>
+#include <game/weapons/weapon_lua.h>
 #include <engine/shared/mod_api.h>
 #include <game/localization.h>
 

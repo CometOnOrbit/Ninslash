@@ -1,12 +1,12 @@
 #include <engine/shared/config.h>
 
 #include <generated/protocol.h>
-#include <game/questinfo.h>
+#include <game/pve/questinfo.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
 #include <game/server/gamemodes/invasion.h>
 
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include <game/server/player.h>
 #include "character.h"
 #include "droid.h"

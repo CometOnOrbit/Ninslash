@@ -4,7 +4,7 @@
 #include <engine/external/json-parser/json.h>
 #include <engine/shared/content_collection.h>
 #include <engine/shared/content_package_index.h>
-#include <game/weapon_packages.h>
+#include <game/weapons/weapon_packages.h>
 
 #include <algorithm>
 #include <memory>

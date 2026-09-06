@@ -8,7 +8,7 @@
 #include <game/server/entities/weapon.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 
 namespace
 {

@@ -1,5 +1,5 @@
-#include <game/questinfo.h>
-#include <game/pve_environment.h>
+#include <game/pve/questinfo.h>
+#include <game/pve/pve_environment.h>
 
 #include <assert.h>
 

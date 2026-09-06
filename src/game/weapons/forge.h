@@ -1,7 +1,7 @@
 #ifndef GAME_FORGE_H
 #define GAME_FORGE_H
 
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 constexpr float FORGE_SCREEN_RANGE = 128.0f;
 constexpr int FORGE_MAX_COST = 999;

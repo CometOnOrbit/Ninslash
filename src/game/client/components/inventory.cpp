@@ -9,9 +9,9 @@
 
 #include <game/client/gameclient.h>
 #include <game/gamecore.h> // get_angle
-#include <game/weapons.h>
-#include <game/weapon_catalog.h>
-#include <game/forge.h>
+#include <game/weapons/weapons.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/weapons/forge.h>
 #include <game/buildables.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>

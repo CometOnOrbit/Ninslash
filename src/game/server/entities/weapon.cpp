@@ -1,6 +1,6 @@
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include <base/system.h>
 #include "laser.h"
 #include "electrowall.h"

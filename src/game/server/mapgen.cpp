@@ -13,9 +13,9 @@
 #include <game/server/gamecontext.h>
 #include <game/layers.h>
 #include <game/mapitems.h>
-#include <game/questinfo.h>
-#include <game/tutorial.h>
-#include <game/tutorial_map.h>
+#include <game/pve/questinfo.h>
+#include <game/pve/tutorial.h>
+#include <game/pve/tutorial_map.h>
 
 static ivec2 FindStandableFallback(CGenLayer *pTiles, bool PreferBottom);
 

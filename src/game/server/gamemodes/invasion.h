@@ -1,7 +1,7 @@
 #ifndef GAME_SERVER_GAMEMODES_INVASION_H
 #define GAME_SERVER_GAMEMODES_INVASION_H
 #include <game/server/gamecontroller.h>
-#include <game/questinfo.h>
+#include <game/pve/questinfo.h>
 
 #define MAX_ENEMIES 512
 #define INV_MAX_PUSH_POINTS 3

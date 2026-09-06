@@ -10,9 +10,9 @@
 
 #include <game/droid_control.h>
 
-#include <game/weapons.h>
-#include <game/forge.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapons.h>
+#include <game/weapons/forge.h>
+#include <game/weapons/weapon_catalog.h>
 #include <game/buildables.h>
 #include "gamemodes/texasrun.h"
 

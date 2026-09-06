@@ -2,7 +2,7 @@
 #define GAME_CLIENT_COMPONENTS_TRACER_H
 #include <base/math.h>
 #include <base/vmath.h>
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include <game/client/component.h>
 #include <game/client/components/effects.h>
 

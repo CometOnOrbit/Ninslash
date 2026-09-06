@@ -730,10 +730,6 @@ set_src(GAME_SHARED GLOB src/game
   buildables.h
   collision.cpp
   collision.h
-  forge.cpp
-  forge.h
-  challenge_script_runtime.cpp
-  challenge_script_runtime.h
   gamevote.h
   gamecore.cpp
   gamecore.h
@@ -744,28 +740,15 @@ set_src(GAME_SHARED GLOB src/game
   mapitems.h
   pathfinding.cpp
   pathfinding.h
-  expedition_save.cpp
-  expedition_save.h
-  pve_roguelite.cpp
-  pve_roguelite.h
-  questinfo.cpp
-  questinfo.h
   tuning.h
   variables.h
   version.h
   voting.h
-  weapon_catalog.cpp
-  weapon_catalog.h
-  weapon_lua.cpp
-  weapon_lua.h
-	weapon_packages.cpp
-	weapon_packages.h
-	weapon_presentation_runtime.cpp
-	weapon_presentation_runtime.h
-	weapon_script_runtime.cpp
-	weapon_script_runtime.h
-	weapons.h
 )
+set_src(GAME_SHARED_WEAPONS GLOB src/game/weapons)
+set_src(GAME_SHARED_PVE GLOB src/game/pve)
+set_src(GAME_SHARED_CHALLENGE GLOB src/game/challenge)
+list(APPEND GAME_SHARED ${GAME_SHARED_WEAPONS} ${GAME_SHARED_PVE} ${GAME_SHARED_CHALLENGE})
 
 set(GAME_GENERATED_SHARED
   src/generated/nethash.cpp
@@ -964,7 +947,7 @@ if(NINSLASH_BUILD_TESTS)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_deterministic_random)
   add_executable(ninslash_test_pve_definitions
     tests/pve_definitions.cpp
-    src/game/pve_roguelite.cpp
+    src/game/pve/pve_roguelite.cpp
     "${PROJECT_BINARY_DIR}/src/generated/pve_cards.inc"
     "${PROJECT_BINARY_DIR}/src/generated/pve_contracts.inc"
     $<TARGET_OBJECTS:engine-shared>
@@ -994,7 +977,7 @@ if(NINSLASH_BUILD_TESTS)
   )
   add_executable(ninslash_test_expedition_save
     tests/expedition_save.cpp
-    src/game/expedition_save.cpp
+    src/game/pve/expedition_save.cpp
     $<TARGET_OBJECTS:engine-shared>
     $<TARGET_OBJECTS:json>
   )

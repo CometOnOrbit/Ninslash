@@ -8,8 +8,8 @@
 #include <generated/game_data.h>
 
 #include <game/gamecore.h> // get_angle
-#include <game/weapon_catalog.h>
-#include <game/weapon_script_runtime.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/weapons/weapon_script_runtime.h>
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/client/render.h>

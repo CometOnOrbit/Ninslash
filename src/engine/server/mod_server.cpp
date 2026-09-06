@@ -1,10 +1,10 @@
 #include "mod_server.h"
 
 #include <base/system.h>
-#include <game/weapon_packages.h>
-#include <game/weapon_catalog.h>
-#include <game/weapon_script_runtime.h>
-#include <game/weapon_presentation_runtime.h>
+#include <game/weapons/weapon_packages.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/weapons/weapon_script_runtime.h>
+#include <game/weapons/weapon_presentation_runtime.h>
 
 #if defined(CONF_LUA_MODS)
 #include <engine/shared/content_collection.h>

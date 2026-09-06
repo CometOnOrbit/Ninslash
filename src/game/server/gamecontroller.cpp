@@ -37,7 +37,7 @@
 #include "gamecontext.h"
 #include "pve_director.h"
 #include "tutorial_director.h"
-#include <game/questinfo.h>
+#include <game/pve/questinfo.h>
 
 IGameController::IGameController(class CGameContext *pGameServer)
 {

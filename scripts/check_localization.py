@@ -49,7 +49,7 @@ def extract_c_string_expressions(text: str) -> set[str]:
 
 
 def extract_quest_strings(function_names: tuple[str, ...]) -> set[str]:
-    quest_path = os.path.join(ROOT, "src/game/questinfo.cpp")
+    quest_path = os.path.join(ROOT, "src/game/pve/questinfo.cpp")
     with open(quest_path, encoding="utf-8") as f:
         text = f.read()
 
@@ -316,7 +316,7 @@ PVE_UI_KEYS = {
 
 
 def extract_pve_definition_strings() -> set[str]:
-    path = os.path.join(ROOT, "src/game/pve_roguelite.cpp")
+    path = os.path.join(ROOT, "src/game/pve/pve_roguelite.cpp")
     text = open(path, encoding="utf-8").read()
     strings: set[str] = set()
     for match in re.finditer(

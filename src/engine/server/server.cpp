@@ -28,10 +28,10 @@
 
 #include <mastersrv/mastersrv.h>
 
-#include <game/questinfo.h>
+#include <game/pve/questinfo.h>
 #include <game/server/ai.h>
 #include <game/server/playerdata.h>
-#include <game/weapon_packages.h>
+#include <game/weapons/weapon_packages.h>
 
 #include "register.h"
 #include "server.h"

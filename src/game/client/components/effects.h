@@ -3,7 +3,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_EFFECTS_H
 #define GAME_CLIENT_COMPONENTS_EFFECTS_H
 #include <game/client/component.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 class CEffects : public CComponent
 {

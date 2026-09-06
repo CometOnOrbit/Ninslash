@@ -2,7 +2,7 @@
 #include <engine/platform_events.h>
 
 #include <game/mapitems.h>
-#include <game/questinfo.h>
+#include <game/pve/questinfo.h>
 #include <game/server/entities/character.h>
 #include <game/server/player.h>
 #include <game/server/gamecontext.h>
@@ -12,7 +12,7 @@
 #include <game/server/ai/base_ai.h>
 #include <game/server/pve_bots.h>
 #include <game/server/pve_director.h>
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include <generated/protocol.h>
 
 #include "horde.h"

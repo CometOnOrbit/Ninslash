@@ -1,5 +1,5 @@
 #include <engine/shared/config.h>
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 
 #include "ai.h"
 #include "entities/pickup.h"

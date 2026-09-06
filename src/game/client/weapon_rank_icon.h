@@ -5,8 +5,8 @@
 #include <base/vmath.h>
 #include <engine/graphics.h>
 #include <game/client/render.h>
-#include <game/weapon_catalog.h>
-#include <game/weapons.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/weapons/weapons.h>
 #include <generated/game_data.h>
 
 inline int WeaponRankSpriteId(const CWeaponSpec &Spec)

@@ -15,8 +15,8 @@
 #include <game/client/gameclient.h>
 #include <game/client/pve_progress_storage.h>
 #include <game/client/skelebank.h>
-#include <game/questinfo.h>
-#include <game/tutorial.h>
+#include <game/pve/questinfo.h>
+#include <game/pve/tutorial.h>
 
 #include "hud_layout.h"
 #include "pve_roguelite.h"

@@ -7,7 +7,7 @@
 #include <engine/graphics.h>
 #include <game/client/gameclient.h>
 #include <game/client/animdata.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 enum MeleeState
 {

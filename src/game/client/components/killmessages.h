@@ -3,7 +3,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_KILLMESSAGES_H
 #define GAME_CLIENT_COMPONENTS_KILLMESSAGES_H
 #include <game/client/component.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 class CKillMessages : public CComponent
 {

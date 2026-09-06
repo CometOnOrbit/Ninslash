@@ -7,7 +7,7 @@
 
 #include <game/client/gameclient.h>
 #include <game/gamecore.h> // get_angle
-#include <game/weapons.h>  // get_angle
+#include <game/weapons/weapons.h>  // get_angle
 #include <game/client/ui.h>
 #include <game/client/render.h>
 #include <game/client/customstuff.h>

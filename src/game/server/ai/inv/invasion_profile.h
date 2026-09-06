@@ -1,7 +1,7 @@
 #ifndef GAME_SERVER_AI_INVASION_PROFILE_H
 #define GAME_SERVER_AI_INVASION_PROFILE_H
 
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 
 enum EInvasionSkinId
 {

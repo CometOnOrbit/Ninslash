@@ -1,8 +1,8 @@
-#include <game/weapon_catalog.h>
-#include <game/forge.h>
-#include <game/weapon_packages.h>
-#include <game/weapon_script_runtime.h>
-#include <game/weapon_presentation_runtime.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/weapons/forge.h>
+#include <game/weapons/weapon_packages.h>
+#include <game/weapons/weapon_script_runtime.h>
+#include <game/weapons/weapon_presentation_runtime.h>
 #include <game/version.h>
 #include <engine/shared/content_package.h>
 #include <engine/shared/content_package_index.h>

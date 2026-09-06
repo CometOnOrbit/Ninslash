@@ -10,7 +10,7 @@
 #include <generated/game_data.h>
 #include <generated/protocol.h>
 #include <game/layers.h>
-#include <game/pve_roguelite.h>
+#include <game/pve/pve_roguelite.h>
 #include "render.h"
 #include "weapon_resources.h"
 #include "skelebank.h"

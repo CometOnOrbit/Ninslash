@@ -7,9 +7,9 @@
 #include <engine/shared/config.h>
 #include <game/layers.h>
 #include <game/gamecore.h>
-#include <game/weapon_catalog.h>
-#include <game/challenge_variant.h>
-#include <game/challenge_script_runtime.h>
+#include <game/weapons/weapon_catalog.h>
+#include <game/challenge/challenge_variant.h>
+#include <game/challenge/challenge_script_runtime.h>
 #include "render.h"
 
 struct CNetObj_WeaponRuntime;

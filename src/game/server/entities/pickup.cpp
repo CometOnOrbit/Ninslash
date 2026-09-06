@@ -2,7 +2,7 @@
 #include <generated/protocol.h>
 #include <game/server/gamecontext.h>
 #include <game/server/tutorial_director.h>
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include "pickup.h"
 #include "weapon.h"
 #include "electro.h"

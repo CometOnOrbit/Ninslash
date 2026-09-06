@@ -2,13 +2,13 @@
 #define GAME_SERVER_ENTITIES_CHARACTER_H
 
 #include <game/server/entity.h>
-#include <game/weapon_catalog.h>
+#include <game/weapons/weapon_catalog.h>
 #include <generated/game_data.h>
 #include <generated/protocol.h>
 
 #include <game/gamecore.h>
 
-#include <game/weapons.h>
+#include <game/weapons/weapons.h>
 #include <game/server/aiskin.h>
 
 enum

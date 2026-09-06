@@ -9,11 +9,11 @@
 #include <game/client/render.h>
 #include <game/client/customstuff.h>
 
-#include <game/questinfo.h>
-#include <game/weapons.h>
-#include <game/weapon_catalog.h>
+#include <game/pve/questinfo.h>
+#include <game/weapons/weapons.h>
+#include <game/weapons/weapon_catalog.h>
 #include <game/buildables.h>
-#include <game/pve_environment.h>
+#include <game/pve/pve_environment.h>
 
 #include "controls.h"
 #include "camera.h"

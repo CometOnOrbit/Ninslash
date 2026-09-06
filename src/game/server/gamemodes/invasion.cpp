@@ -4,10 +4,10 @@
 
 #include <game/mapitems.h>
 #include <base/deterministic_random.h>
-#include <game/questinfo.h>
-#include <game/pve_environment.h>
-#include <game/pve_roguelite.h>
-#include <game/weapons.h>
+#include <game/pve/questinfo.h>
+#include <game/pve/pve_environment.h>
+#include <game/pve/pve_roguelite.h>
+#include <game/weapons/weapons.h>
 
 #include <game/server/entities/character.h>
 #include <game/server/entities/building.h>

@@ -5,7 +5,7 @@
 
 // Compile the loader into this isolated test executable so fault injection can
 // exercise anonymous-namespace state without adding a production reset API.
-#include "../src/game/weapon_lua.cpp"
+#include "../src/game/weapons/weapon_lua.cpp"
 
 namespace
 {
