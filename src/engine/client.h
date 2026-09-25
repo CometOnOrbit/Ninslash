@@ -159,6 +159,7 @@ class IClient : public IInterface
 	//
 	virtual int MapDownloadAmount() = 0;
 	virtual int MapDownloadTotalsize() = 0;
+	virtual const char *MapName() const = 0;
 
 	// input
 	virtual int *GetInput(int Tick) = 0;

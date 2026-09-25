@@ -139,7 +139,7 @@ void CLayerGroup::Render()
 	MapScreen();
 	IGraphics *pGraphics = m_pMap->m_pEditor->Graphics();
 
-	if(m_UseClipping)
+	if(m_UseClipping && m_pMap->m_pGameGroup)
 	{
 		float aPoints[4];
 		m_pMap->m_pGameGroup->Mapping(aPoints);
@@ -351,6 +351,7 @@ float CEditor::UiDoScrollbarV(const void *pID, const CUIRect *pRect, float Curre
 
 	if(UI()->ActiveItem() == pID)
 	{
+		UI()->CheckActiveItem(pID);
 		if(!UI()->MouseButton(0))
 			UI()->SetActiveItem(0);
 
@@ -629,6 +630,7 @@ int CEditor::UiDoValueSelector(void *pID,
 
 	if(UI()->ActiveItem() == pID)
 	{
+		UI()->CheckActiveItem(pID);
 		if(!UI()->MouseButton(0))
 		{
 			m_LockMouse = false;
@@ -1122,6 +1124,7 @@ void CEditor::DoQuad(CQuad *q, int Index)
 
 	if(UI()->ActiveItem() == pID)
 	{
+		UI()->CheckActiveItem(pID);
 		if(m_MouseDeltaWx * m_MouseDeltaWx + m_MouseDeltaWy * m_MouseDeltaWy > 0.5f)
 		{
 			// check if we only should move pivot
@@ -1327,6 +1330,7 @@ void CEditor::DoQuadPoint(CQuad *pQuad, int QuadIndex, int V)
 
 	if(UI()->ActiveItem() == pID)
 	{
+		UI()->CheckActiveItem(pID);
 		float dx = m_MouseDeltaWx;
 		float dy = m_MouseDeltaWy;
 		if(!s_Moved)
@@ -1639,6 +1643,7 @@ void CEditor::DoQuadEnvPoint(const CQuad *pQuad, int QIndex, int PIndex)
 
 	if(UI()->ActiveItem() == pID && s_ActQIndex == QIndex)
 	{
+		UI()->CheckActiveItem(pID);
 		if(s_Operation == OP_MOVE)
 		{
 			if(m_GridActive && !IgnoreGrid)
@@ -1737,7 +1742,8 @@ void CEditor::DoMapEditor(CUIRect View, CUIRect ToolBar)
 		}
 
 		// render the game above everything else
-		if(m_Map.m_pGameGroup->m_Visible && m_Map.m_pGameLayer->m_Visible)
+		if(m_Map.m_pGameGroup && m_Map.m_pGameLayer && m_Map.m_pGameGroup->m_Visible &&
+		   m_Map.m_pGameLayer->m_Visible)
 		{
 			m_Map.m_pGameGroup->MapScreen();
 			m_Map.m_pGameLayer->Render();
@@ -1758,6 +1764,9 @@ void CEditor::DoMapEditor(CUIRect View, CUIRect ToolBar)
 	}
 
 	static void *s_pEditorID = (void *)&s_pEditorID;
+	// UI drops an active drag unless the owner claims it every frame.
+	if(UI()->ActiveItem() == s_pEditorID)
+		UI()->CheckActiveItem(s_pEditorID);
 	int Inside = UI()->MouseInside(&View);
 
 	// fetch mouse position
@@ -3812,6 +3821,7 @@ void CEditor::RenderEnvelopeEditor(CUIRect View)
 
 					if(UI()->ActiveItem() == pID)
 					{
+						UI()->CheckActiveItem(pID);
 						if(!UI()->MouseButton(0))
 						{
 							m_SelectedQuadEnvelope = -1;
@@ -4197,6 +4207,9 @@ void CEditor::Render()
 		}
 	}
 	// basic start
+	// A gameplay scissor (HUD, vote, map clip) survives into this view and
+	// then only the panel that was clipped last frame accepts clicks.
+	Graphics()->ClipDisable();
 	Graphics()->Clear(1.0f, 0.0f, 1.0f);
 	CUIRect View = *UI()->Screen();
 	Graphics()->MapScreen(UI()->Screen()->x, UI()->Screen()->y, UI()->Screen()->w, UI()->Screen()->h);

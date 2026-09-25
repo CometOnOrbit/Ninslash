@@ -331,6 +331,7 @@ MACRO_CONFIG_INT(SvRoamCheckpoints,
 
 // Invasion
 MACRO_CONFIG_INT(SvInvFails, sv_inv_fails, 0, 0, 9, CFGFLAG_SERVER, "Invasion level fails")
+MACRO_CONFIG_INT(SvInvElevator, sv_inv_elevator, 0, 0, 1, CFGFLAG_SERVER, "Paste the static elevator layout onto the loaded venue map")
 MACRO_CONFIG_INT(SvInvasionUseCheckpoint,
 				 sv_invasion_use_checkpoint,
 				 1,

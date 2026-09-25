@@ -56,5 +56,10 @@ int main()
 	assert(PveSanitizeBiome(1) == PVE_BIOME_BLUE_PLANET);
 	assert(PveSanitizeBiome(2) == PVE_BIOME_NONE);
 	assert(PveSanitizeBiome(7) == PVE_BIOME_NONE);
+	assert(InvasionElevatorStop(10));
+	assert(InvasionElevatorStop(20));
+	assert(!InvasionElevatorStop(0));
+	assert(!InvasionElevatorStop(5));
+	assert(!InvasionElevatorStop(15));
 	return 0;
 }

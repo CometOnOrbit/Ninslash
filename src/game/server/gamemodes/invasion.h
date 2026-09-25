@@ -60,6 +60,10 @@ class CGameControllerInvasion : public IGameController
 	bool m_RoundWin;
 	int m_RoundWinTick;
 	int m_RoundOverTick;
+	int m_ElevatorEndTick;
+	bool m_ElevatorDoorOpen;
+	vec2 m_ElevatorDoorPos;
+	bool m_aElevatorSupplied[MAX_CLIENTS];
 
 	// enemy grouping
 	vec2 m_GroupSpawnPos;

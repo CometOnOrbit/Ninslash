@@ -421,6 +421,14 @@
             "value": "Level %d"
         },
         {
+            "key": "Supply elevator — %d",
+            "value": "Supply elevator — %d"
+        },
+        {
+            "key": "Enter the door",
+            "value": "Enter the door"
+        },
+        {
             "key": "Level %d - %s",
             "value": "Level %d - %s"
         },

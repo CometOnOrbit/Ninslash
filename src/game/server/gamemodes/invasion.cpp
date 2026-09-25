@@ -11,6 +11,7 @@
 #include <game/weapons/weapons.h>
 
 #include <game/server/entities/character.h>
+#include <game/server/entities/weapon.h>
 #include <game/server/entities/building.h>
 #include <game/server/entities/droid.h>
 #include <game/server/bosspool.h>
@@ -193,6 +194,10 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	m_RoundOverTick = 0;
 	m_RoundWinTick = 0;
 	m_RoundWin = false;
+	m_ElevatorEndTick = 0;
+	m_ElevatorDoorOpen = false;
+	m_ElevatorDoorPos = vec2(0, 0);
+	mem_zero(m_aElevatorSupplied, sizeof(m_aElevatorSupplied));
 	m_QuestsCompleted = 0;
 
 	m_QuestWaveSize = 0;
@@ -370,11 +375,9 @@ bool CGameControllerInvasion::GetBossSpawnPos(vec2 *pOutPos)
 vec2 CGameControllerInvasion::GetBotSpawnPos()
 {
 	if(m_GroupSpawnPos.x < 1.0f)
-	{
-		vec2 Pos(0, 0);
-		GetSpawnPos(0, &Pos);
-		return Pos;
-	}
+		RandomGroupSpawnPos();
+	if(m_GroupSpawnPos.x < 1.0f)
+		return vec2(0, 0);
 
 	vec2 Pos = m_GroupSpawnPos;
 
@@ -411,16 +414,11 @@ bool CGameControllerInvasion::CanSpawn(int Team, vec2 *pOutPos, bool IsBot)
 		if(m_BotSpawnTick > Server()->Tick())
 			return false;
 
+		// Unset group used to walk every enemy marker. Lock one group for the wave.
 		if(m_GroupSpawnPos.x < 1.0f)
-		{
-			if(GetSpawnPos(1, pOutPos))
-				return true;
-			EvaluateSpawnType(&Eval, 0);
-			if(!Eval.m_Got)
-				return false;
-			*pOutPos = Eval.m_Pos;
-			return true;
-		}
+			RandomGroupSpawnPos();
+		if(m_GroupSpawnPos.x < 1.0f)
+			return false;
 
 		vec2 Pos = GetBotSpawnPos();
 		*pOutPos = Pos;
@@ -697,6 +695,25 @@ void CGameControllerInvasion::BeginPostRoundTransition()
 {
 	// A cleared floor always continues the same expedition. The generic game
 	// vote would allow a successful run to switch modes between generated maps.
+	// Level is already the next floor; the stop is keyed off the floor just cleared.
+	if(InvasionElevatorStop(g_Config.m_SvMapGenLevel - 1))
+	{
+		char aTemplate[128];
+		int Biome = 0;
+		// Next floor's template supplies the parallax backdrop. The layout file
+		// is pasted on afterwards and is never overwritten.
+		if(Server()->FindInvasionMapForLevel(g_Config.m_SvMapGenLevel, aTemplate, sizeof(aTemplate), &Biome))
+		{
+			g_Config.m_SvPveBiome = Biome;
+			str_copy(g_Config.m_SvMap, aTemplate, sizeof(g_Config.m_SvMap));
+			str_copy(g_Config.m_SvInvMap, aTemplate, sizeof(g_Config.m_SvInvMap));
+			str_copy(Server()->m_aMapInUse, aTemplate, sizeof(Server()->m_aMapInUse));
+			Server()->m_MapGenerated = false;
+			g_Config.m_SvInvElevator = 1;
+			GameServer()->ReloadMap();
+			return;
+		}
+	}
 	RegenerateMapFromTemplate();
 }
 
@@ -823,9 +840,13 @@ void CGameControllerInvasion::SpawnNewWave(bool AddBots)
 		RandomGroupSpawnPos();
 		int ThreatDivisor = m_LevelTheme == INVASION_THEME_ELITE_WAVE ? (Level > 20 ? 5 : 3) :
 			(Level > 20 ? 8 : 6);
+		vec2 aGroupPos[1];
+		aGroupPos[0] = m_GroupSpawnPos;
+		const vec2 *pSpawnPoints = m_GroupSpawnPos.x >= 1.0f ? aGroupPos : m_aEnemySpawnPos;
+		const int NumSpawnPoints = m_GroupSpawnPos.x >= 1.0f ? 1 : m_NumEnemySpawnPos;
 		const SThreatBudgetResult ThreatReplacement = SpawnThreatBudgetSpecialists(&GameServer()->m_World,
-																				   m_aEnemySpawnPos,
-																				   m_NumEnemySpawnPos,
+																				   pSpawnPoints,
+																				   NumSpawnPoints,
 																				   &m_SpawnPosRotation,
 																				   Level,
 																				   m_EnemiesLeft,
@@ -1532,6 +1553,7 @@ void CGameControllerInvasion::OnSwitchTriggered()
 	{
 		BeginRisingAcid(50);
 		m_EscapeSpawnActive = true;
+		RandomGroupSpawnPos();
 		m_EnemiesLeft = InvasionEnemyBudget(INV_BUDGET_TIMED, g_Config.m_SvMapGenLevel, max(1, CountHumans()), m_LevelTheme, 1.0f);
 		m_QuestWaveSize = InvasionConcurrentCap(g_Config.m_SvMapGenLevel, max(1, CountHumans()), m_WaveSizeNerf);
 		m_BotSpawnTick = Server()->Tick();
@@ -1575,6 +1597,80 @@ void CGameControllerInvasion::Tick()
 
 	if(m_GameState == STATE_FAIL)
 		return;
+
+	if(!str_comp(g_Config.m_SvMap, "elevator"))
+	{
+		if(CountHumans() <= 0)
+			return;
+		for(int i = 0; i < MAX_CLIENTS; i++)
+		{
+			if(m_aElevatorSupplied[i])
+				continue;
+			CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+			if(!pPlayer || pPlayer->m_IsBot || pPlayer->GetTeam() == TEAM_SPECTATORS)
+				continue;
+			CCharacter *pChr = pPlayer->GetCharacter();
+			if(!pChr || !pChr->IsAlive())
+				continue;
+			pChr->RefillHealth();
+			pChr->SetArmor(100);
+			for(int Slot = 0; Slot < NUM_SLOTS; Slot++)
+			{
+				CWeapon *pWeapon = pChr->GetWeapon(Slot);
+				if(pWeapon && pWeapon->m_MaxAmmo > 0)
+					pWeapon->m_Ammo = pWeapon->m_MaxAmmo;
+			}
+			if(GameServer()->m_pPveDirector)
+				GameServer()->m_pPveDirector->AddBarrier(i, 30);
+			for(int n = 0; n < 6; n++)
+				GameServer()->CreateRepairInd(
+					pChr->m_Pos + vec2((frandom() - frandom()) * 24.0f, -8.0f - frandom() * 24.0f));
+			GameServer()->CreateSound(pChr->m_Pos, SOUND_PICKUP_HEALTH);
+			m_aElevatorSupplied[i] = true;
+		}
+		if(!m_ElevatorEndTick)
+		{
+			m_ElevatorEndTick = Server()->Tick() + Server()->TickSpeed() * 20;
+			GameServer()->SendBroadcastFormat(-1, false, "Supply elevator — %d", 20);
+		}
+		else if(!m_ElevatorDoorOpen)
+		{
+			if((m_ElevatorEndTick - Server()->Tick()) % Server()->TickSpeed() == 0)
+			{
+				const int Left = (m_ElevatorEndTick - Server()->Tick()) / Server()->TickSpeed();
+				if(Left > 0)
+					GameServer()->SendBroadcastFormat(-1, false, "Supply elevator — %d", Left);
+			}
+			if(Server()->Tick() >= m_ElevatorEndTick)
+			{
+				vec2 DoorPos;
+				if(TriggerEscape(&DoorPos))
+				{
+					m_ElevatorDoorPos = DoorPos;
+					m_ElevatorDoorOpen = true;
+					GameServer()->SendBroadcast("Enter the door", -1);
+				}
+			}
+		}
+		else
+		{
+			int Humans = 0;
+			int Waiting = 0;
+			for(int i = 0; i < MAX_CLIENTS; i++)
+			{
+				CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+				if(!pPlayer || pPlayer->m_IsBot || pPlayer->GetTeam() == TEAM_SPECTATORS)
+					continue;
+				Humans++;
+				CCharacter *pChr = pPlayer->GetCharacter();
+				if(!pChr || !pChr->IsAlive() || distance(pChr->m_Pos, m_ElevatorDoorPos) > 112.0f)
+					Waiting++;
+			}
+			if(Humans > 0 && Waiting == 0)
+				RegenerateMapFromTemplate();
+		}
+		return;
+	}
 
 	if(m_GameState == STATE_GAME)
 	{
@@ -1817,7 +1913,6 @@ void CGameControllerInvasion::Tick()
 					// rejects bots when m_EnemiesLeft hits 0.
 					if(m_EnemiesLeft <= 0)
 						m_EnemiesLeft = 1;
-					RandomGroupSpawnPos();
 					GameServer()->AddBot();
 				}
 			}
@@ -1844,7 +1939,6 @@ void CGameControllerInvasion::Tick()
 					Server()->TickSpeed() * max(0.55f, 1.1f - EarlyLevel * 0.015f - LateLevel * 0.005f);
 				if(CountBots() < m_QuestWaveSize)
 				{
-					RandomGroupSpawnPos();
 					GameServer()->AddBot();
 					if(m_EnemiesLeft > 0 && m_EnemiesLeft < 9000)
 						m_EnemiesLeft--;

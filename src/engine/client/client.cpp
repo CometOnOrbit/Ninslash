@@ -1300,12 +1300,13 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket)
 				else
 				{
 					// don't flood downloadedmaps folder with generated maps
-					if(str_comp(pMap, "generated") == 0)
+					if(str_comp(pMap, "generated") == 0 || str_comp(pMap, "elevator") == 0)
 					{
+						char aOld[256];
+						str_format(aOld, sizeof(aOld), "downloadedmaps/%s.map", pMap);
 						if(!m_DemoRecorder.IsRecording())
-							m_pStorage->RemoveFile("downloadedmaps/generated.map", IStorage::TYPE_SAVE);
-						str_format(
-							m_aMapdownloadFilename, sizeof(m_aMapdownloadFilename), "downloadedmaps/%s.map", pMap);
+							m_pStorage->RemoveFile(aOld, IStorage::TYPE_SAVE);
+						str_copy(m_aMapdownloadFilename, aOld, sizeof(m_aMapdownloadFilename));
 					}
 					else
 						str_format(m_aMapdownloadFilename,
@@ -2402,7 +2403,9 @@ void CClient::Run()
 			Input()->SetMouseModes(0);
 			m_MouseIsFree = true;
 		}
-		if(m_MouseIsFree && (Input()->MouseEntered() || Input()->KeyPressed(KEY_MOUSE_1)))
+		// The editor reads an absolute cursor. Restoring the gameplay grab here
+		// warps that cursor to the center, so only the middle of the view hits.
+		if(m_MouseIsFree && !g_Config.m_ClEditor && (Input()->MouseEntered() || Input()->KeyPressed(KEY_MOUSE_1)))
 		{
 			Input()->SetMouseModes(m_MouseModes);
 			m_MouseIsFree = false;
@@ -2437,11 +2440,11 @@ void CClient::Run()
 				{
 					GameClient()->OnActivateEditor();
 					m_MouseModes = Input()->GetMouseModes();
-					Input()->SetMouseModes(0);
 					m_ShowCursor = Input()->ShowCursor(0);
 					Input()->ShowCursor(0);
 					m_EditorActive = true;
 				}
+				Input()->SetMouseModes(0);
 			}
 			else if(m_EditorActive)
 			{

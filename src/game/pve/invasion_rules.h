@@ -8,6 +8,12 @@
 #include <game/pve/questinfo.h>
 
 // Checkpoint floors are 1, 11, 21, ... up to the band the player has cleared.
+// Shop stop after floors 10, 20, 30, ... The next combat floor still starts with its perk vote.
+inline bool InvasionElevatorStop(int CompletedLevel)
+{
+	return CompletedLevel > 0 && CompletedLevel % 10 == 0;
+}
+
 inline int PveCheckpointMax(int Highest)
 {
 	if(Highest < 10)

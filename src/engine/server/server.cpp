@@ -2343,9 +2343,9 @@ char *CServer::GetMapName()
 
 int CServer::LoadMap(const char *pMapName)
 {
-	if(str_comp(pMapName, "generated") != 0)
+	if(str_comp(pMapName, "generated") != 0 && str_comp(pMapName, "elevator") != 0)
 		m_MapGenerated = false;
-	else if(g_Config.m_SvMapGen && str_comp(m_aCurrentMap, "generated") != 0)
+	else if(g_Config.m_SvMapGen && str_comp(m_aCurrentMap, "generated") != 0 && str_comp(m_aCurrentMap, "elevator") != 0)
 		str_copy(g_Config.m_SvInvMap, m_aCurrentMap, sizeof(g_Config.m_SvInvMap));
 
 	KickBots();
@@ -2376,7 +2376,18 @@ int CServer::LoadMap(const char *pMapName)
 		StorageType = IStorage::TYPE_SAVE;
 	}
 	else
-		str_format(aBuf, sizeof(aBuf), "maps/%s.map", pMapName);
+	{
+		IOHANDLE Probe = 0;
+		if(str_comp(pMapName, "elevator") == 0)
+			Probe = Storage()->OpenFile("maps/elevator_run.map", IOFLAG_READ, IStorage::TYPE_ALL);
+		if(Probe)
+		{
+			io_close(Probe);
+			str_copy(aBuf, "maps/elevator_run.map", sizeof(aBuf));
+		}
+		else
+			str_format(aBuf, sizeof(aBuf), "maps/%s.map", pMapName);
+	}
 
 	// check for valid standard map
 	if(!m_MapChecker.ReadAndValidateMap(Storage(), aBuf, StorageType))
@@ -2651,7 +2662,8 @@ int CServer::Run()
 						// don't send map generation template files
 						// if (!g_Config.m_SvMapGen || str_comp(g_Config.m_SvGametype, "coop") != 0 ||
 						// str_comp(g_Config.m_SvMap, "generated") == 0)
-						if(!g_Config.m_SvMapGen || str_comp(g_Config.m_SvMap, "generated") == 0)
+						if(!g_Config.m_SvMapGen || str_comp(g_Config.m_SvMap, "generated") == 0 ||
+						   str_comp(g_Config.m_SvMap, "elevator") == 0)
 							SendMap(c);
 
 						m_aClients[c].Reset();

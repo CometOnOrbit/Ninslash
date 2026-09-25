@@ -421,6 +421,14 @@
             "value": "楼层 %d"
         },
         {
+            "key": "Supply elevator — %d",
+            "value": "补给电梯 — %d"
+        },
+        {
+            "key": "Enter the door",
+            "value": "进入门内"
+        },
+        {
             "key": "Level %d - %s",
             "value": "关卡 %d - %s"
         },

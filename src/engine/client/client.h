@@ -259,6 +259,7 @@ class CClient : public IClient, public CDemoPlayer::IListner
 
 	virtual bool Loaded();
 	virtual void LoadReady();
+	virtual const char *MapName() const { return m_aCurrentMap; }
 
 	virtual void Connect(const char *pAddress);
 	virtual bool StartSteamHostedGame(const CHostGameSettings &Settings);

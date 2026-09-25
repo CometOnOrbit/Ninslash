@@ -4111,6 +4111,226 @@ void CGameContext::WriteExpeditionSave(bool SnapshotCharacters)
 			m_ExpeditionSave.m_NumPlayers);
 }
 
+static void TileLayerName(const CMapItemLayerTilemap *pTile, int ItemSize, char *pBuf, int BufSize)
+{
+	pBuf[0] = 0;
+	if(!pTile || ItemSize < (int)sizeof(CMapItemLayerTilemap))
+		return;
+	char aName[16];
+	IntsToStr(pTile->m_aName, 3, aName);
+	str_copy(pBuf, aName, BufSize);
+}
+
+static void BlitTiles(CTile *pDst, int DW, int DH, const CTile *pSrc, int SW, int SH, int Fill)
+{
+	for(int i = 0; i < DW * DH; i++)
+	{
+		pDst[i].m_Index = Fill;
+		pDst[i].m_Flags = 0;
+		pDst[i].m_Skip = 0;
+		pDst[i].m_Reserved = 0;
+	}
+	if(!pSrc || SW <= 0 || SH <= 0)
+		return;
+	const int Ox = (DW - SW) / 2;
+	const int Oy = (DH - SH) / 2;
+	for(int y = 0; y < SH; y++)
+	{
+		const int Dy = Oy + y;
+		if(Dy < 0 || Dy >= DH)
+			continue;
+		for(int x = 0; x < SW; x++)
+		{
+			const int Dx = Ox + x;
+			if(Dx < 0 || Dx >= DW)
+				continue;
+			pDst[Dy * DW + Dx] = pSrc[y * SW + x];
+		}
+	}
+}
+
+// Layout file maps/elevator.map supplies collision, entities and tileset art.
+// The loaded venue template keeps its parallax quad images. Decorative tile
+// layers on that template are the maze, so they are replaced.
+// ponytail: skies in generate_* templates are quad groups. A template that
+// paints its sky as tiles would lose that sky.
+static bool StampElevatorLayout(CGameContext *pSelf)
+{
+	CMapItemLayerTilemap *pGame = pSelf->Layers()->GameLayer();
+	CTile *pGameTiles = pGame ? (CTile *)pSelf->Layers()->Map()->GetData(pGame->m_Data) : 0;
+	if(!pGame || !pGameTiles || pGame->m_Width <= 0 || pGame->m_Height <= 0)
+		return false;
+
+	CDataFileReader Layout;
+	if(!Layout.Open(pSelf->Storage(), "maps/elevator.map", IStorage::TYPE_ALL))
+	{
+		dbg_msg("elevator", "maps/elevator.map missing, skipping supply stop");
+		return false;
+	}
+
+	int Start, Count;
+	Layout.GetType(MAPITEMTYPE_LAYER, &Start, &Count);
+	CMapItemLayerTilemap *pLayoutGame = 0;
+	for(int i = 0; i < Count; i++)
+	{
+		int Type = 0;
+		CMapItemLayer *pLayer = (CMapItemLayer *)Layout.GetItem(Start + i, &Type, 0);
+		if(!pLayer || Type != MAPITEMTYPE_LAYER || pLayer->m_Type != LAYERTYPE_TILES)
+			continue;
+		CMapItemLayerTilemap *pTile = (CMapItemLayerTilemap *)pLayer;
+		if(pTile->m_Flags & TILESLAYERFLAG_GAME)
+		{
+			pLayoutGame = pTile;
+			break;
+		}
+	}
+	CTile *pLayoutGameTiles = pLayoutGame ? (CTile *)Layout.GetData(pLayoutGame->m_Data) : 0;
+	if(!pLayoutGameTiles)
+	{
+		dbg_msg("elevator", "maps/elevator.map has no game layer");
+		return false;
+	}
+
+	enum { MAX_VISUAL = 8 };
+	CMapItemLayerTilemap *apVisual[MAX_VISUAL];
+	int NumVisual = 0;
+	for(int g = 0; g < pSelf->Layers()->NumGroups() && NumVisual < MAX_VISUAL; g++)
+	{
+		CMapItemGroup *pGroup = pSelf->Layers()->GetGroup(g);
+		for(int l = 0; l < pGroup->m_NumLayers && NumVisual < MAX_VISUAL; l++)
+		{
+			CMapItemLayer *pLayer = pSelf->Layers()->GetLayer(pGroup->m_StartLayer + l);
+			if(!pLayer || pLayer->m_Type != LAYERTYPE_TILES)
+				continue;
+			CMapItemLayerTilemap *pTile = (CMapItemLayerTilemap *)pLayer;
+			if(pTile == pGame || (pTile->m_Flags & TILESLAYERFLAG_GAME))
+				continue;
+			CTile *pTiles = (CTile *)pSelf->Layers()->Map()->GetData(pTile->m_Data);
+			if(!pTiles)
+				continue;
+			for(int t = 0; t < pTile->m_Width * pTile->m_Height; t++)
+			{
+				pTiles[t].m_Index = TILE_AIR;
+				pTiles[t].m_Flags = 0;
+				pTiles[t].m_Skip = 0;
+				pTiles[t].m_Reserved = 0;
+			}
+			apVisual[NumVisual++] = pTile;
+		}
+	}
+
+	BlitTiles(pGameTiles, pGame->m_Width, pGame->m_Height, pLayoutGameTiles, pLayoutGame->m_Width, pLayoutGame->m_Height, TILE_SOLID);
+
+	bool aUsed[MAX_VISUAL] = {false};
+	for(int i = 0; i < Count; i++)
+	{
+		int Type = 0;
+		CMapItemLayer *pLayer = (CMapItemLayer *)Layout.GetItem(Start + i, &Type, 0);
+		if(!pLayer || Type != MAPITEMTYPE_LAYER || pLayer->m_Type != LAYERTYPE_TILES)
+			continue;
+		CMapItemLayerTilemap *pTile = (CMapItemLayerTilemap *)pLayer;
+		if(pTile->m_Flags & TILESLAYERFLAG_GAME)
+			continue;
+		CTile *pSrc = (CTile *)Layout.GetData(pTile->m_Data);
+		if(!pSrc)
+			continue;
+
+		char aName[16];
+		TileLayerName(pTile, Layout.GetItemSize(Start + i), aName, sizeof(aName));
+		int Slot = -1;
+		if(aName[0])
+		{
+			for(int v = 0; v < NumVisual; v++)
+			{
+				char aDest[16];
+				TileLayerName(apVisual[v], (int)sizeof(CMapItemLayerTilemap), aDest, sizeof(aDest));
+				if(!aUsed[v] && str_comp_nocase(aName, aDest) == 0)
+				{
+					Slot = v;
+					break;
+				}
+			}
+		}
+		if(Slot < 0)
+		{
+			for(int v = 0; v < NumVisual; v++)
+			{
+				if(!aUsed[v])
+				{
+					Slot = v;
+					break;
+				}
+			}
+		}
+		if(Slot < 0)
+			continue;
+		aUsed[Slot] = true;
+		CTile *pDst = (CTile *)pSelf->Layers()->Map()->GetData(apVisual[Slot]->m_Data);
+		if(!pDst)
+			continue;
+		BlitTiles(pDst, apVisual[Slot]->m_Width, apVisual[Slot]->m_Height, pSrc, pTile->m_Width, pTile->m_Height, TILE_AIR);
+		// Platforms live on the art layer. Game cells stay entities; empty cells under art become solid.
+		const int Ox = (pGame->m_Width - pTile->m_Width) / 2;
+		const int Oy = (pGame->m_Height - pTile->m_Height) / 2;
+		for(int y = 0; y < pTile->m_Height; y++)
+		{
+			const int Dy = Oy + y;
+			if(Dy < 0 || Dy >= pGame->m_Height)
+				continue;
+			for(int x = 0; x < pTile->m_Width; x++)
+			{
+				const int Dx = Ox + x;
+				if(Dx < 0 || Dx >= pGame->m_Width)
+					continue;
+				CTile *pCell = &pGameTiles[Dy * pGame->m_Width + Dx];
+				if(pCell->m_Index == TILE_AIR && pSrc[y * pTile->m_Width + x].m_Index != TILE_AIR)
+					pCell->m_Index = TILE_SOLID;
+			}
+		}
+	}
+
+	bool HasSpawn = false;
+	for(int i = 0; i < pLayoutGame->m_Width * pLayoutGame->m_Height; i++)
+	{
+		if(pLayoutGameTiles[i].m_Index == ENTITY_OFFSET + ENTITY_SPAWN)
+			HasSpawn = true;
+	}
+	if(!HasSpawn)
+	{
+		const int Ox = (pGame->m_Width - pLayoutGame->m_Width) / 2;
+		const int Oy = (pGame->m_Height - pLayoutGame->m_Height) / 2;
+		int BestX = -1;
+		int BestY = -1;
+		int BestScore = 1 << 30;
+		for(int y = 0; y < pLayoutGame->m_Height - 1; y++)
+		{
+			for(int x = 0; x < pLayoutGame->m_Width; x++)
+			{
+				const int Dx = Ox + x;
+				const int Dy = Oy + y;
+				if(Dx < 0 || Dy < 0 || Dx >= pGame->m_Width || Dy + 1 >= pGame->m_Height)
+					continue;
+				if(pGameTiles[Dy * pGame->m_Width + Dx].m_Index != TILE_AIR)
+					continue;
+				if(pGameTiles[(Dy + 1) * pGame->m_Width + Dx].m_Index != TILE_SOLID)
+					continue;
+				const int Score = absolute(x - pLayoutGame->m_Width / 2) + y;
+				if(Score < BestScore)
+				{
+					BestScore = Score;
+					BestX = Dx;
+					BestY = Dy;
+				}
+			}
+		}
+		if(BestX >= 0)
+			pGameTiles[BestY * pGame->m_Width + BestX].m_Index = ENTITY_OFFSET + ENTITY_SPAWN;
+	}
+
+	dbg_msg("elevator", "stamped %dx%d layout onto %s", pLayoutGame->m_Width, pLayoutGame->m_Height, g_Config.m_SvMap);
+	return true;
+}
+
 void CGameContext::OnInit(/*class IKernel *pKernel*/)
 {
 	dbg_assert(CWeaponCatalog::Validate(), "weapon catalog validation failed");
@@ -4209,10 +4429,19 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 	// if (str_comp(g_Config.m_SvGametype, "coop") == 0 && g_Config.m_SvMapGen && !m_pServer->m_MapGenerated)
 	if(g_Config.m_SvMapGen && !m_pServer->m_MapGenerated)
 	{
-		m_MapGen.FillMap();
-		SaveMap("");
-
-		str_copy(g_Config.m_SvMap, "generated", sizeof(g_Config.m_SvMap));
+		if(g_Config.m_SvInvElevator && StampElevatorLayout(this))
+		{
+			g_Config.m_SvInvElevator = 0;
+			SaveMap("maps/elevator_run.map");
+			str_copy(g_Config.m_SvMap, "elevator", sizeof(g_Config.m_SvMap));
+		}
+		else
+		{
+			g_Config.m_SvInvElevator = 0;
+			m_MapGen.FillMap();
+			SaveMap("");
+			str_copy(g_Config.m_SvMap, "generated", sizeof(g_Config.m_SvMap));
+		}
 		m_pServer->m_MapGenerated = true;
 	}
 
@@ -4813,7 +5042,10 @@ void CGameContext::SaveMap(const char *path)
 	CDataFileWriter fileWrite;
 	char aMapFile[512];
 	// str_format(aMapFile, sizeof(aMapFile), "maps/%s_%d.map", Server()->GetMapName(), g_Config.m_SvMapGenSeed);
-	str_format(aMapFile, sizeof(aMapFile), "maps/generated.map");
+	if(path && path[0])
+		str_copy(aMapFile, path, sizeof(aMapFile));
+	else
+		str_format(aMapFile, sizeof(aMapFile), "maps/generated.map");
 
 	// Map will be saved to current dir, not to ~/.ninslash/maps or to data/maps, so we need to create a dir for it
 	Storage()->CreateFolder("maps", IStorage::TYPE_SAVE);
