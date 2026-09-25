@@ -715,8 +715,6 @@ void CGameControllerExtract::OnSwitchTriggered()
 		return;
 
 	m_SwitchesActivated++;
-	if(GameServer()->m_pPveDirector)
-		GameServer()->m_pPveDirector->OnSwitchTriggered();
 	GameServer()->SendBroadcastFormat(-1, false, "Switch %d/%d activated", m_SwitchesActivated, m_SwitchesRequired);
 	m_TriggerLevel = max(m_TriggerLevel, 6 + m_SwitchesActivated * 2);
 	TriggerAllBotAI(GameServer(), m_TriggerLevel);

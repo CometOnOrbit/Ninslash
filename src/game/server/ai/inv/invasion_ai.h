@@ -25,7 +25,7 @@ class CInvasionAI : public CAI
 	bool ShootAtProfileTarget();
 	void SetProfileTargetPosition(bool HasTarget, bool Shooting);
 	void MoveWithProfileTarget();
-	virtual void ApplyFamilyTactics(bool HasTarget, bool Shooting);
+	void ApplyFamilyTactics(bool HasTarget, bool Shooting);
 
 	void RunProfileBehavior();
 
@@ -34,6 +34,7 @@ class CInvasionAI : public CAI
 
 	void OnCharacterSpawn(CCharacter *pChr) override;
 	void ReceiveDamage(int CID, int Dmg) override;
+	void DoBehavior() override;
 
 	EInvasionSkinId ProfileId() const { return m_ProfileId; }
 };

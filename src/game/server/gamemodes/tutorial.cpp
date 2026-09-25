@@ -6,7 +6,7 @@
 #include <game/pve/tutorial.h>
 #include <game/server/ai.h>
 #include <game/server/ai/dm_ai.h>
-#include <game/server/ai/inv/alien1_ai.h>
+#include <game/server/ai/inv/invasion_ai.h>
 #include <game/server/entities/character.h>
 #include <game/server/entities/building.h>
 #include <game/server/entities/radar.h>
@@ -239,7 +239,7 @@ void CGameControllerTutorial::OnCharacterSpawn(CCharacter *pChr, bool RequestAI)
 	if(g_Config.m_SvTutorialChapter == TUTORIAL_CHAPTER_MULTIPLAYER)
 		pChr->m_pAI = new CAIdm(GameServer(), pChr);
 	else
-		pChr->m_pAI = new CAIalien1(GameServer(), pChr, 1);
+		pChr->m_pAI = new CInvasionAI(GameServer(), pChr, 1, INVASION_SKIN_ALIEN1);
 }
 
 int CGameControllerTutorial::OnCharacterDeath(CCharacter *pVictim, CPlayer *pKiller, const CAttackSource &Source)

@@ -1,6 +1,7 @@
 #include "pve_progress_storage.h"
 
 #include <base/math.h>
+#include <game/pve/invasion_rules.h>
 #include <base/system.h>
 #include <engine/external/json-parser/json.h>
 #include <engine/storage.h>
@@ -62,8 +63,7 @@ void CPveProgressData::Sanitize()
 	if(!IsHexMask(m_aResearchMask))
 		str_copy(m_aResearchMask, "00000000000000000000000000000000", sizeof(m_aResearchMask));
 	m_HighestInvasion = clamp(m_HighestInvasion, 0, 9999);
-	const int MaxCheckpoint = m_HighestInvasion >= 10 ? (m_HighestInvasion / 10) * 10 + 1 : 1;
-	m_PreferredCheckpoint = clamp(m_PreferredCheckpoint, 1, MaxCheckpoint);
+	m_PreferredCheckpoint = PveClampCheckpoint(m_HighestInvasion, m_PreferredCheckpoint);
 }
 
 const char *CPveProgressStorage::Filename()

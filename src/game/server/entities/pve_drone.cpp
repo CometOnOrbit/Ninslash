@@ -30,7 +30,13 @@ bool CPveDrone::TakeDamage(int Damage)
 		return false;
 	m_Health = max(0, m_Health - Damage);
 	if(m_Health == 0)
-		m_DisabledUntilTick = Server()->Tick() + Server()->TickSpeed() * 12;
+	{
+		int RecoverSeconds = 12;
+		if(GameServer()->m_pPveDirector &&
+		   GameServer()->m_pPveDirector->PerkStacks(m_Owner, PVE_CARD_AUTONOMOUS_CORE) > 0)
+			RecoverSeconds = 5;
+		m_DisabledUntilTick = Server()->Tick() + Server()->TickSpeed() * RecoverSeconds;
+	}
 	return m_Health == 0;
 }
 

@@ -379,9 +379,7 @@ void CGameClient::UpdateVisionLighting()
 	const bool ChallengeDark = m_ChallengeInfoReceived &&
 		ChallengeVariantEnabled(m_ChallengeVariantMask, CHALLENGE_DARK);
 	int EnvironmentBrightness = 255;
-	if(m_PveEnvironmentBiome == PVE_BIOME_CITY_BLACKOUT)
-		EnvironmentBrightness = PveBlackoutBrightness(m_PveEnvironmentLevel);
-	else if(m_PveEnvironmentBiome == PVE_BIOME_BLUE_PLANET)
+	if(m_PveEnvironmentBiome == PVE_BIOME_BLUE_PLANET)
 	{
 		switch(m_PveEnvironmentPhase)
 		{

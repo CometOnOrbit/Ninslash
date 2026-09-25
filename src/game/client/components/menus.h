@@ -714,7 +714,6 @@ class CMenus : public CComponent
 	void OpenExpedition(int Slot = 0);
 	void StartExpedition();
 	void RenderTutorialRoomPractice(CUIRect MainView);
-	void RenderLocalServer(CUIRect MainView);
 	void RenderCreateRoom(CUIRect MainView);
 	void CreateConfiguredRoom();
 	void UpdateLocalServer();

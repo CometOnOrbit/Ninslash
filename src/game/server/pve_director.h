@@ -73,6 +73,8 @@ class CPveDirector
 		int m_InvasionFloorsCompleted;
 		bool m_StageSuppliesApplied;
 		bool m_EmergencyPlatingUsed;
+		int m_BloodTemperTick;
+		int m_BloodTemperHealed;
 		int m_PendingArmor;
 		int m_PendingKits;
 		bool m_PendingAmmo;
@@ -224,12 +226,13 @@ class CPveDirector
 	void OnPlayerSpawn(int ClientID);
 	void OnStageComplete(bool Success = true);
 	void OnPlayerDeath(int ClientID);
+	void TryEmergencyPlating(int ClientID);
 	void OnBossKilled(bool ContractBoss = false);
 	void OnEnemyKilled(const CAttackSource &Source, vec2 Pos, CEntity *pTarget = 0);
 	void OnDroidKilled(CDroid *pDroid, const CAttackSource &Source);
 	void OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Damage);
-	void OnSwitchTriggered();
 	void OnObjectiveComplete();
+	void GrantDeepSovereignBarrier();
 	void OnGoldSpent(int ClientID, int Amount);
 	void OnFullReload(int ClientID);
 	void OnEvacuationStarted();

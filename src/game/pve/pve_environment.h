@@ -6,13 +6,9 @@
 enum EPveEnvironmentBiome
 {
 	PVE_BIOME_NONE = 0,
-	PVE_BIOME_BLUE_PLANET,
-	PVE_BIOME_CITY_LOCKDOWN,
-	PVE_BIOME_CITY_BLACKOUT,
-	PVE_BIOME_COLLAPSE_RETREAT,
-	PVE_BIOME_VERTICAL_RUINS,
-	PVE_BIOME_STORM_FRONT,
-	PVE_BIOME_ORBITAL,
+	PVE_BIOME_BLUE_PLANET = 1,
+	// Ids 2-7 are retired biome designs. Do not reuse.
+	PVE_BIOME_ID_LIMIT = 8,
 };
 
 enum EPveEnvironmentPhase
@@ -36,11 +32,9 @@ inline bool PveEnvironmentUsesPhaseCycle(int Biome)
 	return Biome == PVE_BIOME_BLUE_PLANET;
 }
 
-inline int PveBlackoutBrightness(int Level)
+inline int PveSanitizeBiome(int Biome)
 {
-	const int Depth = Level > 10 ? Level - 10 : 0;
-	const int Brightness = 160 - Depth * 6;
-	return Brightness < 48 ? 48 : Brightness;
+	return Biome == PVE_BIOME_BLUE_PLANET ? PVE_BIOME_BLUE_PLANET : PVE_BIOME_NONE;
 }
 
 #endif

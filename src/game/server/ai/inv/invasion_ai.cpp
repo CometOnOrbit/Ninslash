@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include <base/deterministic_random.h>
+
 #include <engine/shared/config.h>
 
 #include <game/server/entities/character.h>
@@ -69,7 +71,7 @@ void CInvasionAI::OnCharacterSpawn(CCharacter *pChr)
 
 	// A profile may describe alternatives. Only one primary is equipped so
 	// every AI always attacks with the weapon its strategy was tuned for.
-	const int FirstChoice = Profile().m_PrimaryCount > 0 ? rand() % Profile().m_PrimaryCount : 0;
+	const int FirstChoice = Profile().m_PrimaryCount > 0 ? irandom(Profile().m_PrimaryCount) : 0;
 	for(int Attempt = 0; Attempt < Profile().m_PrimaryCount; ++Attempt)
 	{
 		const int Choice = (FirstChoice + Attempt) % Profile().m_PrimaryCount;
@@ -322,6 +324,11 @@ void CInvasionAI::ApplyFamilyTactics(bool HasTarget, bool Shooting)
 	else if(Profile().m_Family == INVASION_FAMILY_CYBORG && Shooting &&
 		(Profile().m_Movement == INVASION_MOVE_SIEGE || Profile().m_Movement == INVASION_MOVE_HOLD_RANGE))
 		m_Move = 0;
+}
+
+void CInvasionAI::DoBehavior()
+{
+	RunProfileBehavior();
 }
 
 void CInvasionAI::RunProfileBehavior()

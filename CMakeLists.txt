@@ -1573,22 +1573,6 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   ai/def/def_robot2_ai.h
   ai/def/def_robot3_ai.cpp
   ai/def/def_robot3_ai.h
-  ai/inv/alien1_ai.cpp
-  ai/inv/alien1_ai.h
-  ai/inv/alien2_ai.cpp
-  ai/inv/alien2_ai.h
-  ai/inv/bunny1_ai.cpp
-  ai/inv/bunny1_ai.h
-  ai/inv/bunny2_ai.cpp
-  ai/inv/bunny2_ai.h
-  ai/inv/pyro1_ai.cpp
-  ai/inv/pyro1_ai.h
-  ai/inv/pyro2_ai.cpp
-  ai/inv/pyro2_ai.h
-  ai/inv/robot1_ai.cpp
-  ai/inv/robot1_ai.h
-  ai/inv/robot2_ai.cpp
-  ai/inv/robot2_ai.h
   ai/ball_ai.cpp
   ai/ball_ai.h
   ai/base_ai.cpp
@@ -1599,8 +1583,6 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   ai/def_ai.h
   ai/dm_ai.cpp
   ai/dm_ai.h
-  ai/inv_ai.cpp
-  ai/inv_ai.h
   ai/roam_ai.cpp
   ai/roam_ai.h
   ai/tdm_ai.cpp

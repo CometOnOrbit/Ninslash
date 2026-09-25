@@ -22,7 +22,6 @@ class CGameControllerInvasion : public IGameController
 
 	int m_QuestWaveType;
 	int m_QuestWaveEndTick;
-	int m_QuestWaveEnemiesLeft;
 	int m_QuestWaveSize;
 
 	bool m_EliteWave;
@@ -40,15 +39,10 @@ class CGameControllerInvasion : public IGameController
 	void QueueNextObjectiveQuest();
 	void SpawnEliteContractGuard();
 	void SpawnBosses(int Count);
-	void StartHoldZone();
-	void ClearHoldZone();
-	void TickHoldZone();
 	void ClearPushForward();
-	void ClearLockdownNode();
 	bool BuildPushForwardRoute();
 	void ActivatePushForwardGroup();
 	void TickPushForward();
-	void TickObjectivePressure();
 	int CountBossesAlive() const;
 	int CountBuildingsOfType(int Type) const;
 	int ReactorsLeft();
@@ -63,7 +57,6 @@ class CGameControllerInvasion : public IGameController
 
 	vec2 m_aEnemySpawnPos[MAX_ENEMIES];
 
-	int m_Deaths;
 	bool m_RoundWin;
 	int m_RoundWinTick;
 	int m_RoundOverTick;
@@ -73,38 +66,11 @@ class CGameControllerInvasion : public IGameController
 
 	void SpawnNewWave(bool AddBots = true);
 
-	enum EFieldOrderState
-	{
-		FIELD_ORDER_IDLE,
-		FIELD_ORDER_SELECTING,
-		FIELD_ORDER_APPLIED,
-	};
-	EFieldOrderState m_FieldOrderState;
-	int m_FieldOrderNonce;
-	int m_FieldOrderEndTick;
-	int m_FieldOrderLastSyncTick;
-	int m_aFieldOrderPackages[3];
-	int m_aFieldOrderVotes[3];
-	int m_aFieldOrderVoted[MAX_CLIENTS];
-	int m_ActiveFieldOrder;
-	int m_FieldOrderEffect;
-	int m_FieldOrderLevel;
-	bool m_FieldOrderArmorySpawned;
-
-	void StartFieldOrder();
-	void SendFieldOrder(int ClientID = -1);
-	void TickFieldOrder();
-	void FinishFieldOrder();
-	void ApplyFieldOrder(int Package);
-	void SpawnFieldOrderUpgrades();
-
 	vec2 GetBotSpawnPos();
 	bool GetBossSpawnPos(vec2 *pOutPos);
 	void RandomGroupSpawnPos();
 	int m_BotSpawnTick;
 
-	// hordes of enemies
-	int m_EnemyCount;
 	int m_EnemiesLeft;
 
 	int m_BossesLeft;
@@ -164,20 +130,11 @@ class CGameControllerInvasion : public IGameController
 	class CServerRadar *m_pEnemySpawn;
 	class CServerRadar *m_pReactor;
 	class CServerRadar *m_pPushRadar;
-	CBuilding *m_pLockdownNode;
 	class CServerRadar *m_apSwitchRadar[8];
 	int m_NumSwitchRadars;
 
-	vec2 m_HoldZonePos;
-	int m_HoldTicks;
-	int m_HoldRequiredTicks;
-	bool m_HoldZoneActive;
-	bool m_HoldWasOccupied;
-	int m_HoldFxTick;
-
 	int m_MapTemplate;
 	int m_MapBiome;
-	bool m_MapSignatureQuestUsed;
 	vec2 m_aPushPoints[INV_MAX_PUSH_POINTS];
 	int m_PushPointCount;
 	int m_PushCompletedMask;
@@ -194,6 +151,7 @@ class CGameControllerInvasion : public IGameController
 
 	void ClearSwitchRadars();
 	void RefreshSwitchRadars();
+	void ShowCartographerObjectives();
 	bool AnyCartographer() const;
 
   public:
@@ -210,7 +168,6 @@ class CGameControllerInvasion : public IGameController
 	virtual void Snap(int SnappingClient);
 	virtual void OnSwitchTriggered();
 	void OnRetryVote(int ClientID, int Nonce, int Choice);
-	void OnFieldOrderVote(int ClientID, int Nonce, int Package);
 
 	void DisplayExit(vec2 Pos);
 
@@ -219,23 +176,9 @@ class CGameControllerInvasion : public IGameController
 	virtual bool IsReactorDefenseActive() const;
 	bool IsFinalObjective() const { return m_LevelQuestsLeft > 0 && m_QuestsCompleted >= m_LevelQuestsLeft - 1; }
 
-	int FieldOrderEffectActive() const { return m_FieldOrderEffect; }
-	float FieldDamageMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_DAMAGE ? 1.10f : 1.0f; }
-	float FieldPlayerSpeedMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_SPEED ? 1.08f : 1.0f; }
-	float FieldEnemySpeedMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_SPEED ? 0.92f : 1.0f; }
-	float FieldDropRateMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_SALVAGE ? 1.50f : 1.0f; }
-	float FieldEliteChanceMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_SALVAGE ? 1.20f : 1.0f; }
-	float FieldWaveSizeMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_STEALTH ? 0.70f : 1.0f; }
-	float FieldDefendTimeMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_STEALTH ? 1.50f : 1.0f; }
-	float FieldCooldownReduction() const { return m_FieldOrderEffect == FIELD_EFFECT_FURY ? 0.15f : 0.0f; }
-	float FieldMaxHealthMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_FURY ? 0.85f : 1.0f; }
-	float FieldBuildCostMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_BULWARK ? 0.60f : 1.0f; }
-	float FieldBuildingDamageTakenMultiplier() const { return m_FieldOrderEffect == FIELD_EFFECT_BULWARK ? 0.75f : 1.0f; }
-
 	enum GameState
 	{
 		STATE_STARTING,
-		STATE_FIELD_ORDER,
 		STATE_GAME,
 		STATE_RETRY_VOTE,
 		STATE_RETRY_RESULT,

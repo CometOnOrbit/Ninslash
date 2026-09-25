@@ -255,36 +255,19 @@ SThreatBudgetResult SpawnThreatBudgetSpecialists(CGameWorld *pWorld,
 	return Result;
 }
 
-// TODO
 int CountAliveSpecialists(CGameWorld *pWorld)
 {
 	if(!pWorld)
 		return 0;
-	return 0; // For now.
-	/*
 	CDroid *apEnts[256];
 	const int Num = pWorld->FindEntities(vec2(0, 0), 0.0f, (CEntity **)apEnts, 256, CGameWorld::ENTTYPE_DROID);
 	int Specialists = 0;
 	for(int i = 0; i < Num; i++)
 	{
-		if(!apEnts[i] || apEnts[i]->m_Health <= 0)
-			continue;
-		switch(apEnts[i]->m_Type)
-		{
-			case DROIDTYPE_SIEGEBREAKERCRAWLER:
-			case DROIDTYPE_TEMPESTSTAR:
-			case DROIDTYPE_SPLITCRAWLER:
-			case DROIDTYPE_KAMIKAZESTAR:
-			case DROIDTYPE_RAILSTAR:
-			case DROIDTYPE_MENDERCRAWLER:
-			case DROIDTYPE_STALKERCRAWLER:
-			case DROIDTYPE_TESLASTAR:
-			case DROIDTYPE_CYCLONECRAWLER:
-				Specialists++;
-				break;
-		}
+		if(apEnts[i] && apEnts[i]->m_Health > 0 && DroidThreatCost(apEnts[i]->m_Type) >= 2)
+			Specialists++;
 	}
-	return Specialists;*/
+	return Specialists;
 }
 
 int CountAliveBosses(CGameWorld *pWorld)

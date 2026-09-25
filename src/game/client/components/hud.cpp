@@ -605,64 +605,30 @@ void CHud::RenderObjective()
 
 void CHud::RenderPveEnvironment()
 {
-	if(m_pClient->PveEnvironmentBiome() == PVE_BIOME_NONE || !g_Config.m_ClShowhud)
+	if(m_pClient->PveEnvironmentBiome() != PVE_BIOME_BLUE_PLANET || !g_Config.m_ClShowhud)
 		return;
 	const char *pEnvironment = "Tide: Calm";
 	vec4 Accent(0.35f, 0.95f, 1.0f, 1.0f);
-	switch(m_pClient->PveEnvironmentBiome())
+	switch(m_pClient->PveEnvironmentPhase())
 	{
-		case PVE_BIOME_CITY_LOCKDOWN:
-			pEnvironment = "Lockdown: Sector breach";
-			Accent = vec4(1.0f, 0.45f, 0.25f, 1.0f);
+		case PVE_ENV_PHASE_WARNING:
+			pEnvironment = "Tide: Warning";
+			Accent = vec4(1.0f, 0.78f, 0.25f, 1.0f);
 			break;
-		case PVE_BIOME_CITY_BLACKOUT:
-			pEnvironment = "Blackout: Silent overload";
-			Accent = vec4(0.55f, 0.65f, 1.0f, 1.0f);
+		case PVE_ENV_PHASE_DARK:
+			pEnvironment = "Tide: Dark";
+			Accent = vec4(0.35f, 0.35f, 0.55f, 1.0f);
 			break;
-		case PVE_BIOME_COLLAPSE_RETREAT:
-			pEnvironment = "Collapse Retreat: Keep moving";
-			Accent = vec4(1.0f, 0.30f, 0.20f, 1.0f);
+		case PVE_ENV_PHASE_RECOVERY:
+			pEnvironment = "Tide: Recovery";
+			Accent = vec4(0.55f, 0.9f, 1.0f, 1.0f);
 			break;
-		case PVE_BIOME_VERTICAL_RUINS:
-			pEnvironment = "Vertical Ruins: Climb route";
-			Accent = vec4(0.75f, 0.55f, 0.95f, 1.0f);
-			break;
-		case PVE_BIOME_STORM_FRONT:
-			pEnvironment = "Storm Front: Cross the front";
-			Accent = vec4(0.45f, 0.75f, 1.0f, 1.0f);
-			break;
-		case PVE_BIOME_ORBITAL:
-			pEnvironment = "Orbital: Airlock route";
-			Accent = vec4(0.45f, 0.9f, 0.8f, 1.0f);
-			break;
-		default:
-			break;
+		default: break;
 	}
+	const int Seconds = max(0, (m_pClient->PveEnvironmentPhaseEndTick() - Client()->GameTick()) /
+		max(1, Client()->GameTickSpeed()));
 	char aText[96];
-	if(m_pClient->PveEnvironmentBiome() == PVE_BIOME_BLUE_PLANET)
-	{
-		switch(m_pClient->PveEnvironmentPhase())
-		{
-			case PVE_ENV_PHASE_WARNING:
-				pEnvironment = "Tide: Warning";
-				Accent = vec4(1.0f, 0.78f, 0.25f, 1.0f);
-				break;
-			case PVE_ENV_PHASE_DARK:
-				pEnvironment = "Tide: Dark";
-				Accent = vec4(0.35f, 0.35f, 0.55f, 1.0f);
-				break;
-			case PVE_ENV_PHASE_RECOVERY:
-				pEnvironment = "Tide: Recovery";
-				Accent = vec4(0.55f, 0.9f, 1.0f, 1.0f);
-				break;
-			default: break;
-		}
-		const int Seconds = max(0, (m_pClient->PveEnvironmentPhaseEndTick() - Client()->GameTick()) /
-			max(1, Client()->GameTickSpeed()));
-		str_format(aText, sizeof(aText), "%s  %ds", Localize(pEnvironment), Seconds);
-	}
-	else
-		str_copy(aText, Localize(pEnvironment), sizeof(aText));
+	str_format(aText, sizeof(aText), "%s  %ds", Localize(pEnvironment), Seconds);
 	const float Width = min(170.0f, m_Width * 0.45f);
 	// The team-contract HUD occupies the left column at y=112..147.
 	CUIRect Panel = {6.0f, 151.0f, Width, 17.0f};

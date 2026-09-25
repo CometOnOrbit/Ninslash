@@ -3,6 +3,7 @@
 #include <engine/platform_events.h>
 #include <generated/protocol.h>
 
+#include <game/pve/invasion_rules.h>
 #include <game/weapons/weapons.h>
 #include <game/server/entities/character.h>
 #include <game/server/entities/droid.h>
@@ -93,6 +94,8 @@ void CPveDirector::CPlayerRun::Reset()
 	m_InvasionFloorsCompleted = 0;
 	m_StageSuppliesApplied = false;
 	m_EmergencyPlatingUsed = false;
+	m_BloodTemperTick = 0;
+	m_BloodTemperHealed = 0;
 	m_PendingArmor = 0;
 	m_PendingKits = 0;
 	m_PendingAmmo = false;
@@ -147,7 +150,7 @@ CPveDirector::CPveDirector(CGameContext *pGameServer)
 	m_AnyStageDeath = false;
 	mem_zero(m_aPendingBlasts, sizeof(m_aPendingBlasts));
 	m_PendingBlastCount = 0;
-	m_EnvironmentBiome = clamp(g_Config.m_SvPveBiome, (int)PVE_BIOME_NONE, (int)PVE_BIOME_ORBITAL);
+	m_EnvironmentBiome = PveSanitizeBiome(g_Config.m_SvPveBiome);
 	m_EnvironmentPhase = PVE_ENV_PHASE_CALM;
 	m_EnvironmentBossPhase = PVE_ENV_BOSS_PHASE_NONE;
 	m_EnvironmentPhaseEndTick = 0;
@@ -369,7 +372,19 @@ void CPveDirector::SendProgress(int ClientID)
 		return;
 	const CPlayerRun &Run = m_aPlayers[ClientID];
 	CNetMsg_Sv_PveProgress Msg;
-	Msg.m_Version = 2;
+	Msg.m_Version = g_Config.m_SvTutorialMode ? 3 : 2;
+	if(g_Config.m_SvTutorialMode)
+	{
+		Msg.m_ResearchPoints = 99;
+		Msg.m_ResearchMask0 = 0;
+		Msg.m_ResearchMask1 = 0;
+		Msg.m_ResearchMask2 = 0;
+		Msg.m_ResearchMask3 = 0;
+		Msg.m_HighestInvasion = 0;
+		Msg.m_PreferredCheckpoint = 1;
+		m_pGameServer->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+		return;
+	}
 	Msg.m_ResearchPoints = clamp(Run.m_ResearchPoints, 0, 999);
 	Msg.m_ResearchMask0 = (int)(Run.m_ResearchMask.m_aWords[0] & 0xffffffffULL);
 	Msg.m_ResearchMask1 = (int)((Run.m_ResearchMask.m_aWords[0] >> 32) & 0xffffffffULL);
@@ -382,8 +397,6 @@ void CPveDirector::SendProgress(int ClientID)
 
 int CPveDirector::EnvironmentBrightness() const
 {
-	if(m_EnvironmentBiome == PVE_BIOME_CITY_BLACKOUT)
-		return PveBlackoutBrightness(m_EnvironmentLevel);
 	if(m_EnvironmentBiome != PVE_BIOME_BLUE_PLANET)
 		return 255;
 	switch(m_EnvironmentPhase)
@@ -399,7 +412,7 @@ void CPveDirector::UpdateEnvironment()
 {
 	const int Now = m_pGameServer->Server()->Tick();
 	const int NewLevel = max(0, g_Config.m_SvMapGenLevel);
-	const int NewBiome = clamp(g_Config.m_SvPveBiome, (int)PVE_BIOME_NONE, (int)PVE_BIOME_ORBITAL);
+	const int NewBiome = PveSanitizeBiome(g_Config.m_SvPveBiome);
 	if(!Enabled() || m_TutorialSandbox || NewBiome == PVE_BIOME_NONE)
 	{
 		m_EnvironmentBiome = NewBiome;
@@ -994,10 +1007,7 @@ void CPveDirector::OnProgress(int ClientID,
 	Run.m_ResearchMask = PveSanitizeResearchMask(CPveResearchMask(Low, High));
 	Run.m_ResearchPoints = clamp(Points, 0, 999);
 	Run.m_HighestInvasion = clamp(HighestInvasion, 0, 9999);
-	const int MaxCheckpoint = Run.m_HighestInvasion >= 10 ? (Run.m_HighestInvasion / 10) * 10 + 1 : 1;
-	Run.m_PreferredCheckpoint = clamp(PreferredCheckpoint, 1, MaxCheckpoint);
-	if((Run.m_PreferredCheckpoint - 1) % 10 != 0)
-		Run.m_PreferredCheckpoint = 1;
+	Run.m_PreferredCheckpoint = PveClampCheckpoint(Run.m_HighestInvasion, PreferredCheckpoint);
 	Run.m_ProgressSynced = Version == 1 || Version == 2;
 	if(g_Config.m_Debug)
 	{
@@ -1043,7 +1053,8 @@ void CPveDirector::OnResearchBuy(int ClientID, int Nonce, int CardID)
 	}
 	const CPveCardDef *pDef = PveCardDef(CardID);
 	if(!pDef || PveCardIsUnlocked(CardID, Run.m_ResearchMask) || Run.m_ResearchPoints < pDef->m_ResearchCost ||
-	   !Run.m_ResearchMask.PrerequisitesMet(CardID))
+	   !Run.m_ResearchMask.PrerequisitesMet(CardID) ||
+	   (pDef->m_Mode != PVE_MODE_ANY && pDef->m_Mode != m_Mode))
 	{
 		SendValidation(ClientID, PVE_VALIDATION_PROGRESS);
 		return;
@@ -1300,7 +1311,6 @@ void CPveDirector::OnStageComplete(bool Success)
 		return;
 	if(Success)
 	{
-		OnObjectiveComplete();
 		for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
 		{
 			if(!IsEligiblePlayer(ClientID))
@@ -1313,8 +1323,6 @@ void CPveDirector::OnStageComplete(bool Success)
 						pPlayer->m_Gold + min(30, pPlayer->GetGold() * Run.m_aStacks[PVE_CARD_RESERVE_FUND] * 5 / 100));
 			if(m_Mode == PVE_MODE_INVASION && !m_AnyStageDeath && Run.m_aStacks[PVE_CARD_FLOOR_MEMORY])
 				Run.m_DeathlessFloors = min(5, Run.m_DeathlessFloors + 1);
-			if(m_Mode == PVE_MODE_INVASION && Run.m_aStacks[PVE_CARD_DEEP_SOVEREIGN])
-				AddBarrier(ClientID, 20);
 			if(m_Mode == PVE_MODE_HORDE && !m_AnyStageDeath)
 			{
 				if(Run.m_aStacks[PVE_CARD_WAVE_DIVIDEND] && pPlayer)
@@ -1356,6 +1364,22 @@ void CPveDirector::OnStageComplete(bool Success)
 	   m_ContractProgress < m_ContractTarget)
 		Success = false;
 	CompleteContract(Success);
+}
+
+void CPveDirector::TryEmergencyPlating(int ClientID)
+{
+	if(!Enabled() || !IsEligiblePlayer(ClientID))
+		return;
+	CPlayerRun &Run = m_aPlayers[ClientID];
+	if(Run.m_EmergencyPlatingUsed || !Run.m_aStacks[PVE_CARD_EMERGENCY_PLATING])
+		return;
+	CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
+	if(!pChr || pChr->m_MaxHealth <= 0 || pChr->m_HiddenHealth <= 0)
+		return;
+	if(pChr->m_HiddenHealth * 100 > pChr->m_MaxHealth * 35)
+		return;
+	Run.m_EmergencyPlatingUsed = true;
+	pChr->IncreaseArmor(15);
 }
 
 void CPveDirector::OnPlayerDeath(int ClientID)
@@ -1402,7 +1426,7 @@ void CPveDirector::OnBossKilled(bool ContractBoss)
 	{
 		m_pEliteContractBoss = 0;
 		m_ContractProgress = 1;
-		CompleteContract(true);
+		SendContractStatus();
 	}
 	else if(ContractBoss && m_ContractState == PVE_CONTRACT_STATE_ACTIVE &&
 			m_ActiveContract == PVE_CONTRACT_ELITE_GUARD)
@@ -1432,9 +1456,19 @@ void CPveDirector::OnEnemyKilled(const CAttackSource &Source, vec2 Pos, CEntity 
 	CTargetStatus *pKilledStatus = TargetStatus(pTarget, false);
 	if(pKilledStatus && pKilledStatus->m_BleedStacks > 0 && Run.m_aStacks[PVE_CARD_BLOOD_TEMPER])
 	{
+		const int Now = m_pGameServer->Server()->Tick();
+		if(Run.m_BloodTemperTick != Now)
+		{
+			Run.m_BloodTemperTick = Now;
+			Run.m_BloodTemperHealed = 0;
+		}
+		const int Heal = min(5, 15 - Run.m_BloodTemperHealed);
 		CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
-		if(pChr)
-			pChr->IncreaseHealth(5);
+		if(pChr && Heal > 0)
+		{
+			pChr->IncreaseHealth(Heal);
+			Run.m_BloodTemperHealed += Heal;
+		}
 	}
 	Run.m_StageKills++;
 	if(Run.m_aStacks[PVE_CARD_SECOND_WIND] && Run.m_StageKills % 5 == 0 && Run.m_SecondWindTriggers < 3)
@@ -1488,17 +1522,8 @@ void CPveDirector::OnEnemyKilled(const CAttackSource &Source, vec2 Pos, CEntity 
 
 void CPveDirector::OnDroidKilled(CDroid *pDroid, const CAttackSource &Source)
 {
-	const int ClientID = Source.m_Owner;
 	if(!pDroid)
 		return;
-	CTargetStatus *pStatus = TargetStatus(pDroid, false);
-	if(!m_ApplyingSecondaryEffect && IsEligiblePlayer(ClientID) && pStatus && pStatus->m_BleedStacks > 0 &&
-	   m_aPlayers[ClientID].m_aStacks[PVE_CARD_BLOOD_TEMPER])
-	{
-		CCharacter *pChr = m_pGameServer->GetPlayerChar(ClientID);
-		if(pChr)
-			pChr->IncreaseHealth(5);
-	}
 	if(m_Mode == PVE_MODE_EXTRACTION)
 	{
 		CGameControllerExtract *pExtract = dynamic_cast<CGameControllerExtract *>(m_pGameServer->m_pController);
@@ -1522,8 +1547,19 @@ void CPveDirector::OnDroidKilled(CDroid *pDroid, const CAttackSource &Source)
 		}
 }
 
-void CPveDirector::OnSwitchTriggered()
+void CPveDirector::GrantDeepSovereignBarrier()
 {
+	if(!Enabled() || m_Mode != PVE_MODE_INVASION)
+		return;
+	bool Any = false;
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+		if(IsEligiblePlayer(ClientID) && m_aPlayers[ClientID].m_aStacks[PVE_CARD_DEEP_SOVEREIGN])
+			Any = true;
+	if(!Any)
+		return;
+	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+		if(IsEligiblePlayer(ClientID))
+			AddBarrier(ClientID, 20);
 }
 
 void CPveDirector::OnObjectiveComplete()
@@ -2097,7 +2133,7 @@ void CPveDirector::TickDrone(int ClientID)
 									   : 0.0f;
 			if(BaseDamage <= 0.0f)
 				BaseDamage = 10.0f;
-			float DamageScale = 0.45f * Efficiency;
+			float DamageScale = 0.20f * Efficiency;
 			if(Run.m_aStacks[PVE_CARD_CROSSFIRE])
 				DamageScale *= 1.50f;
 			const int Damage = max(1, (int)(BaseDamage * DamageScale + 0.5f));
@@ -2120,7 +2156,7 @@ void CPveDirector::TickDrone(int ClientID)
 		}
 		Run.m_DroneActionTick =
 			m_pGameServer->Server()->Tick() +
-			max(1, (int)(m_pGameServer->Server()->TickSpeed() * 0.55f * (1.0f - CooldownReduction)));
+			max(1, (int)(m_pGameServer->Server()->TickSpeed() * 1.2f * (1.0f - CooldownReduction)));
 	}
 	else if(Run.m_DroneModule == PVE_DRONE_REPAIR)
 	{
@@ -2136,7 +2172,7 @@ void CPveDirector::TickDrone(int ClientID)
 				LowestArmor = pCharacter->GetArmor();
 			}
 		}
-		const int Repair = max(1, (int)(5.0f * Efficiency + 0.5f));
+		const int Repair = max(1, (int)(2.0f * Efficiency + 0.5f));
 		if(pBest && LowestArmor < 100)
 		{
 			Run.m_pDroneTarget = pBest;
@@ -2168,7 +2204,7 @@ void CPveDirector::TickDrone(int ClientID)
 		}
 		Run.m_DroneActionTick =
 			m_pGameServer->Server()->Tick() +
-			max(1, (int)(m_pGameServer->Server()->TickSpeed() * 0.45f * (1.0f - CooldownReduction)));
+			max(1, (int)(m_pGameServer->Server()->TickSpeed() * 1.0f * (1.0f - CooldownReduction)));
 	}
 }
 
@@ -2403,8 +2439,6 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage, 
 		Run.m_LastEmpoweredSpecialization = PVE_SPECIALIZATION_NONE;
 		if(!pOutgoingTarget && To >= 0)
 			pOutgoingTarget = m_pGameServer->GetPlayerChar(To);
-		if(CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pGameServer->m_pController))
-			Multiplier += pInvasion->FieldDamageMultiplier() - 1.0f;
 		Multiplier += Run.m_aStacks[PVE_CARD_COMBAT_TRAINING] * 0.08f;
 		if(pOutgoingTarget && pOutgoingTarget->m_MaxHealth > 0 &&
 		   pOutgoingTarget->m_HiddenHealth * 100 <= pOutgoingTarget->m_MaxHealth * 30)
@@ -2694,8 +2728,6 @@ int CPveDirector::ModifyDroidDamage(const CAttackSource &Source, int Damage, boo
 			Result += (int)(Damage * Run.m_aStacks[PVE_CARD_OBJECTIVE_SPECIALIST] * 0.20f + 0.5f);
 			if(Run.m_aStacks[PVE_CARD_DEEP_SOVEREIGN] && pInvasion->IsFinalObjective())
 				Result += (int)(Damage * 0.50f + 0.5f);
-			if(Specialization == PVE_SPECIALIZATION_EXPLOSIVE && Run.m_aStacks[PVE_CARD_SIEGE_PAYLOAD])
-				Result += (int)(Damage * 0.30f + 0.5f);
 		}
 	}
 	Result = clamp(Result, max(1, (int)(Damage * 0.5f)), max(1, (int)(Damage * 2.5f)));
@@ -2762,8 +2794,6 @@ int CPveDirector::ModifyBuildingCost(int ClientID, int Cost) const
 	float Multiplier = m_aPlayers[ClientID].m_aStacks[PVE_CARD_ENGINEER] ? 0.80f : 1.0f;
 	if(ActiveContract() == PVE_CONTRACT_FORTIFICATION_TAX)
 		Multiplier *= 1.75f;
-	if(CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pGameServer->m_pController))
-		Multiplier *= pInvasion->FieldBuildCostMultiplier();
 	return max(1, (int)(Cost * Multiplier + 0.99f));
 }
 
@@ -2798,7 +2828,8 @@ float CPveDirector::ModifyExplosionRadius(int Owner, float Radius) const
 {
 	if(!Enabled() || !IsEligiblePlayer(Owner))
 		return Radius;
-	float Multiplier = m_aPlayers[Owner].m_aStacks[PVE_CARD_WIDE_BLAST] ? 1.25f : 1.0f;
+	const int WideStacks = m_aPlayers[Owner].m_aStacks[PVE_CARD_WIDE_BLAST];
+	float Multiplier = 1.0f + min(0.50f, WideStacks * 0.25f);
 	const CPlayerRun &Run = m_aPlayers[Owner];
 	const int Threshold = max(3, 5 - Run.m_aStacks[PVE_CARD_PACKED_CHARGE]);
 	if(Run.m_aStacks[PVE_CARD_CONTROLLED_FUSE] && Run.m_aWeaponResources[PVE_SPECIALIZATION_EXPLOSIVE - 1] >= Threshold)
@@ -2821,8 +2852,6 @@ float CPveDirector::CooldownReduction(int ClientID, const CWeaponSpec &Weapon) c
 						 RenderType != WRT_MELEE && RenderType != WRT_MELEESMALL && RenderType != WRT_SPIN;
 	if(Firearm && Run.m_aStacks[PVE_CARD_GUNSLINGER])
 		Reduction += 0.20f;
-	if(CGameControllerInvasion *pInvasion = dynamic_cast<CGameControllerInvasion *>(m_pGameServer->m_pController))
-		Reduction += pInvasion->FieldCooldownReduction();
 	return min(0.30f, Reduction);
 }
 

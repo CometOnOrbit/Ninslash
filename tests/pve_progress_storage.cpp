@@ -74,6 +74,15 @@ int main(int argc, const char **argv)
 	Second.Sanitize();
 	if(Second.m_PreferredCheckpoint != 1)
 		return Fail("checkpoint sanitation failed");
+	Second.m_HighestInvasion = 25;
+	Second.m_PreferredCheckpoint = 5;
+	Second.Sanitize();
+	if(Second.m_PreferredCheckpoint != 1)
+		return Fail("unaligned checkpoint was kept");
+	Second.m_PreferredCheckpoint = 11;
+	Second.Sanitize();
+	if(Second.m_PreferredCheckpoint != 11)
+		return Fail("aligned checkpoint was cleared");
 
 	dbg_msg("test", "pve progress storage: PASS");
 	delete pStorage;

@@ -331,13 +331,6 @@ MACRO_CONFIG_INT(SvRoamCheckpoints,
 
 // Invasion
 MACRO_CONFIG_INT(SvInvFails, sv_inv_fails, 0, 0, 9, CFGFLAG_SERVER, "Invasion level fails")
-MACRO_CONFIG_INT(SvInvFieldOrders,
-				 sv_inv_field_orders,
-				 0,
-				 0,
-				 1,
-				 CFGFLAG_SERVER,
-				 "Offer a per-floor field order vote at the start of each Invasion floor")
 MACRO_CONFIG_INT(SvInvasionUseCheckpoint,
 				 sv_invasion_use_checkpoint,
 				 1,
@@ -362,7 +355,7 @@ MACRO_CONFIG_INT(SvPveBiome,
 				 0,
 				 7,
 				 CFGFLAG_SERVER,
-				 "PvE environment theme (0=standard, 1=Blue Planet, 2-7=Invasion map biomes)")
+				 "PvE environment theme (0=none, 1=Blue Planet; 2-7 ignored)")
 MACRO_CONFIG_INT(
 	SvPveChoiceTime, sv_pve_choice_time, 10, 3, 60, CFGFLAG_SERVER, "Seconds allowed for an individual perk choice")
 MACRO_CONFIG_INT(SvPveContractVoteTime,
@@ -533,13 +526,6 @@ MACRO_CONFIG_INT(ClLocalServerContracts,
 				 1,
 				 CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_CLOUD,
 				 "Enable PvE contracts in local games")
-MACRO_CONFIG_INT(ClLocalServerFieldOrders,
-				 cl_local_server_field_orders,
-				 0,
-				 0,
-				 1,
-				 CFGFLAG_SAVE | CFGFLAG_CLIENT | CFGFLAG_CLOUD,
-				 "Enable per-floor field orders in local Invasion games")
 MACRO_CONFIG_INT(ClLocalServerHordeWaves,
 				 cl_local_server_horde_waves,
 				 0,

@@ -2075,8 +2075,6 @@ void CCharacter::Tick()
 		else
 			m_Core.m_MoveSpeedMultiplier = GameServer()->m_pPveDirector->MovementMultiplier(GetCID());
 	}
-	if(CGameControllerInvasion *pInv = dynamic_cast<CGameControllerInvasion *>(GameServer()->m_pController))
-		m_Core.m_MoveSpeedMultiplier *= m_IsBot ? pInv->FieldEnemySpeedMultiplier() : pInv->FieldPlayerSpeedMultiplier();
 
 	float RecoilCap = 17.5f;
 
@@ -2313,11 +2311,6 @@ void CCharacter::SetHealth(int Health)
 {
 	if(m_IsBot && GameServer()->m_pPveDirector)
 		Health = max(1, (int)(Health * GameServer()->m_pPveDirector->EnemyHealthMultiplier() + 0.5f));
-	if(!m_IsBot)
-	{
-		if(CGameControllerInvasion *pInv = dynamic_cast<CGameControllerInvasion *>(GameServer()->m_pController))
-			Health = max(1, (int)(Health * pInv->FieldMaxHealthMultiplier() + 0.5f));
-	}
 	m_MaxHealth = Health;
 	m_HiddenHealth = Health;
 }
@@ -2750,6 +2743,8 @@ bool CCharacter::TakeDamage(const CAttackSource &Source, int Dmg, vec2 Force, ve
 
 			const int HealthBefore = m_HiddenHealth;
 			m_HiddenHealth -= Dmg + (g_Config.m_SvOneHitKill ? 1000 : 0);
+			if(!m_IsBot && m_HiddenHealth > 0 && GameServer()->m_pPveDirector)
+				GameServer()->m_pPveDirector->TryEmergencyPlating(GetCID());
 			if(GameServer()->m_pTutorialDirector && m_IsBot)
 			{
 				CPlayer *pFromPlayer = GameServer()->GetClientPlayer(From);
