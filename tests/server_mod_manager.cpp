@@ -4,6 +4,7 @@
 #include <game/version.h>
 
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 static void WriteFile(const char *pPath, const char *pText)
@@ -111,7 +112,11 @@ int main(int argc, char **argv)
 	assert(!Importer.StartImport("friendly.zip", false, aError, sizeof(aError)));
 	while(Importer.PollImport() == CServerModManager::IMPORT_RUNNING)
 		thread_sleep(1);
-	assert(Importer.LastImportSucceeded() && Importer.LastImport().m_Status == CONTENT_IMPORT_INSTALLED);
+	if(!Importer.LastImportSucceeded() || Importer.LastImport().m_Status != CONTENT_IMPORT_INSTALLED)
+	{
+		fprintf(stderr, "%s\n", Importer.LastImportError());
+		assert(false);
+	}
 	assert(Importer.Profiles()[0].m_RootIds.empty()); // Import never implicitly enables a Mod.
 	assert(Importer.Enable("9000000001", 0, aError, sizeof(aError)));
 	char aIds[1024], aHash[65];

@@ -60,8 +60,12 @@ int main()
 	const char *pProtocol = GAME_NETVERSION;
 	char aError[256];
 	CContentManifest SourceManifest;
-	assert(ContentPackageValidate(
-		"examples/workshop_weapon", "9000000001", pProtocol, &SourceManifest, aError, sizeof(aError)));
+	if(!ContentPackageValidate(
+		   "examples/workshop_weapon", "9000000001", pProtocol, &SourceManifest, aError, sizeof(aError)))
+	{
+		fprintf(stderr, "%s\n", aError);
+		assert(false);
+	}
 	char aRoot[256], aWorkshop[300], aStaged[512];
 	str_format(aRoot, sizeof(aRoot), "/tmp/ninslash-weapon-package-%lld", (long long)time_get());
 	assert(fs_makedir(aRoot) == 0);
