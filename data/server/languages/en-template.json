@@ -857,6 +857,10 @@
             "value": "controlling droid"
         },
         {
+            "key": "droid control is admin only",
+            "value": "droid control is admin only"
+        },
+        {
             "key": "droid control released",
             "value": "droid control released"
         },

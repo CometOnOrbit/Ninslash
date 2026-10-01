@@ -857,6 +857,10 @@
             "value": "正在操控机甲"
         },
         {
+            "key": "droid control is admin only",
+            "value": "机甲操控仅限管理员"
+        },
+        {
             "key": "droid control released",
             "value": "已解除机甲操控"
         },
