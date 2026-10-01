@@ -216,13 +216,9 @@ void CExpeditionSaveStorage::Filename(int Slot, char *pBuf, int Size)
 	str_format(pBuf, Size, "expedition_%d.json", Slot);
 }
 
-EExpeditionLoadResult CExpeditionSaveStorage::Load(IStorage *pStorage, int Slot, CExpeditionSave *pData)
+static EExpeditionLoadResult LoadFile(IStorage *pStorage, const char *pFilename, CExpeditionSave *pData)
 {
-	if(!pStorage || !pData || !SlotValid(Slot))
-		return EXPEDITION_LOAD_CORRUPT;
-	char aFilename[64];
-	Filename(Slot, aFilename, sizeof(aFilename));
-	IOHANDLE File = pStorage->OpenFile(aFilename, IOFLAG_READ, IStorage::TYPE_SAVE);
+	IOHANDLE File = pStorage->OpenFile(pFilename, IOFLAG_READ, IStorage::TYPE_SAVE);
 	if(!File)
 		return EXPEDITION_LOAD_MISSING;
 	const long Length = io_length(File);
@@ -290,6 +286,28 @@ EExpeditionLoadResult CExpeditionSaveStorage::Load(IStorage *pStorage, int Slot,
 	Loaded.Sanitize();
 	*pData = Loaded;
 	return EXPEDITION_LOAD_OK;
+}
+
+EExpeditionLoadResult CExpeditionSaveStorage::Load(IStorage *pStorage, int Slot, CExpeditionSave *pData)
+{
+	if(!pStorage || !pData || !SlotValid(Slot))
+		return EXPEDITION_LOAD_CORRUPT;
+	char aFilename[64];
+	Filename(Slot, aFilename, sizeof(aFilename));
+	// Save() swaps files in two renames; after a crash the newest copy is in .tmp, the previous in .bak.
+	const char *apSuffixes[] = {"", ".tmp", ".bak"};
+	EExpeditionLoadResult Result = EXPEDITION_LOAD_MISSING;
+	for(const char *pSuffix : apSuffixes)
+	{
+		char aPath[80];
+		str_format(aPath, sizeof(aPath), "%s%s", aFilename, pSuffix);
+		const EExpeditionLoadResult FileResult = LoadFile(pStorage, aPath, pData);
+		if(FileResult == EXPEDITION_LOAD_OK || FileResult == EXPEDITION_LOAD_FUTURE_VERSION)
+			return FileResult;
+		if(FileResult == EXPEDITION_LOAD_CORRUPT)
+			Result = EXPEDITION_LOAD_CORRUPT;
+	}
+	return Result;
 }
 
 bool CExpeditionSaveStorage::Save(IStorage *pStorage, int Slot, const CExpeditionSave &Source)

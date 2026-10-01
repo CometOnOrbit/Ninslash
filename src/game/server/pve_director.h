@@ -171,7 +171,6 @@ class CPveDirector
 	void ApplyStageSupplies(int ClientID);
 	void ApplyArcConductor(const CAttackSource &Source, class CEntity *pOriginalTarget, vec2 Origin, int Damage);
 	CTargetStatus *TargetStatus(CEntity *pTarget, bool Create);
-	void ClearTargetStatus(CEntity *pTarget);
 	void ApplyVulnerable(CEntity *pTarget, int Percent, int Seconds);
 	void ApplyBleed(CEntity *pTarget, int Stacks, const CAttackSource &Source);
 	int VulnerablePercent(CEntity *pTarget);
@@ -230,6 +229,8 @@ class CPveDirector
 	void OnBossKilled(bool ContractBoss = false);
 	void OnEnemyKilled(const CAttackSource &Source, vec2 Pos, CEntity *pTarget = 0);
 	void OnDroidKilled(CDroid *pDroid, const CAttackSource &Source);
+	void ClearTargetStatus(CEntity *pTarget);
+	void OnDroneDestroyed(class CPveDrone *pDrone);
 	void OnMeleeAttack(const CAttackSource &Source, vec2 Pos, int Damage);
 	void OnObjectiveComplete();
 	void GrantDeepSovereignBarrier();

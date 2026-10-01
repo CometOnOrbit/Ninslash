@@ -2032,6 +2032,13 @@ void CPveDirector::DestroyDrone(int ClientID)
 	Run.m_pDroneTarget = 0;
 }
 
+void CPveDirector::OnDroneDestroyed(CPveDrone *pDrone)
+{
+	const int Owner = pDrone->Owner();
+	if(Owner >= 0 && Owner < MAX_CLIENTS && m_aPlayers[Owner].m_pDrone == pDrone)
+		m_aPlayers[Owner].m_pDrone = 0;
+}
+
 int CPveDirector::DroneSwitchReadyTick(int ClientID) const
 {
 	return Enabled() && ClientID >= 0 && ClientID < MAX_CLIENTS ? m_aPlayers[ClientID].m_DroneSwitchReadyTick : 0;

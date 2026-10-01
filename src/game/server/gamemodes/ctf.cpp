@@ -13,6 +13,19 @@
 #include <game/server/ai.h>
 #include <game/server/ai/ctf_ai.h>
 
+static void AddFlagScore(CGameContext *pGameServer, CCharacter *pChr, int Score)
+{
+	if(CPlayer *pPlayer = pChr->GetPlayer())
+		pPlayer->m_Score += Score;
+	else if(pChr->IsNpc())
+		pGameServer->m_aNpcs[pChr->NpcSlot()].m_Score += Score;
+}
+
+static const char *FlagHolderName(IServer *pServer, CCharacter *pChr)
+{
+	return pChr->GetPlayer() ? pServer->ClientName(pChr->GetCID()) : pChr->m_AISkin.m_aName;
+}
+
 CGameControllerCTF::CGameControllerCTF(class CGameContext *pGameServer) : IGameController(pGameServer)
 {
 	m_apFlags[0] = 0;
@@ -242,14 +255,14 @@ void CGameControllerCTF::Tick()
 				{
 					// CAPTURE! \o/
 					m_aTeamscore[fi ^ 1] += 100;
-					F->m_pCarryingCharacter->GetPlayer()->m_Score += 5;
+					AddFlagScore(GameServer(), F->m_pCarryingCharacter, 5);
 
 					char aBuf[512];
 					str_format(aBuf,
 							   sizeof(aBuf),
 							   "flag_capture player='%d:%s'",
-							   F->m_pCarryingCharacter->GetPlayer()->GetCID(),
-							   Server()->ClientName(F->m_pCarryingCharacter->GetPlayer()->GetCID()));
+							   F->m_pCarryingCharacter->GetCID(),
+							   FlagHolderName(Server(), F->m_pCarryingCharacter));
 					GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
 
 					float CaptureTime = (Server()->Tick() - F->m_GrabTick) / (float)Server()->TickSpeed();
@@ -260,7 +273,7 @@ void CGameControllerCTF::Tick()
 								i,
 								"The %s flag was captured by '%s' (%d.%s%d seconds)",
 								fi ? GameServer()->Localize("blue", i) : GameServer()->Localize("red", i),
-								Server()->ClientName(F->m_pCarryingCharacter->GetPlayer()->GetCID()),
+								FlagHolderName(Server(), F->m_pCarryingCharacter),
 								(int)CaptureTime % 60,
 								((int)(CaptureTime * 100) % 100) < 10 ? "0" : "",
 								(int)(CaptureTime * 100) % 100);
@@ -269,7 +282,7 @@ void CGameControllerCTF::Tick()
 								i,
 								"The %s flag was captured by '%s'",
 								fi ? GameServer()->Localize("blue", i) : GameServer()->Localize("red", i),
-								Server()->ClientName(F->m_pCarryingCharacter->GetPlayer()->GetCID()));
+								FlagHolderName(Server(), F->m_pCarryingCharacter));
 					}
 
 					for(int i = 0; i < 2; i++)
@@ -293,24 +306,24 @@ void CGameControllerCTF::Tick()
 			for(int i = 0; i < Num; i++)
 			{
 				if(!apCloseCCharacters[i]->IsAlive() ||
-				   apCloseCCharacters[i]->GetPlayer()->GetTeam() == TEAM_SPECTATORS ||
+				   apCloseCCharacters[i]->GetTeam() == TEAM_SPECTATORS ||
 				   GameServer()->Collision()->IntersectLine(F->m_Pos, apCloseCCharacters[i]->m_Pos, 0, 0))
 					continue;
 
-				if(apCloseCCharacters[i]->GetPlayer()->GetTeam() == F->m_Team)
+				if(apCloseCCharacters[i]->GetTeam() == F->m_Team)
 				{
 					// return the flag
 					if(!F->m_AtStand)
 					{
 						CCharacter *pChr = apCloseCCharacters[i];
-						pChr->GetPlayer()->m_Score += 1;
+						AddFlagScore(GameServer(), pChr, 1);
 
 						char aBuf[256];
 						str_format(aBuf,
 								   sizeof(aBuf),
 								   "flag_return player='%d:%s'",
-								   pChr->GetPlayer()->GetCID(),
-								   Server()->ClientName(pChr->GetPlayer()->GetCID()));
+								   pChr->GetCID(),
+								   FlagHolderName(Server(), pChr));
 						GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
 
 						GameServer()->CreateSoundGlobal(SOUND_CTF_RETURN);
@@ -328,14 +341,14 @@ void CGameControllerCTF::Tick()
 
 					F->m_AtStand = 0;
 					F->m_pCarryingCharacter = apCloseCCharacters[i];
-					F->m_pCarryingCharacter->GetPlayer()->m_Score += 1;
+					AddFlagScore(GameServer(), F->m_pCarryingCharacter, 1);
 
 					char aBuf[256];
 					str_format(aBuf,
 							   sizeof(aBuf),
 							   "flag_grab player='%d:%s'",
-							   F->m_pCarryingCharacter->GetPlayer()->GetCID(),
-							   Server()->ClientName(F->m_pCarryingCharacter->GetPlayer()->GetCID()));
+							   F->m_pCarryingCharacter->GetCID(),
+							   FlagHolderName(Server(), F->m_pCarryingCharacter));
 					GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
 
 					for(int c = 0; c < MAX_CLIENTS; c++)

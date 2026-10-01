@@ -984,7 +984,7 @@ void CGameControllerInvasion::ShowCartographerObjectives()
 	if(!AnyCartographer())
 		return;
 	RefreshSwitchRadars();
-	if(m_pRegionalBoss && m_pRegionalBoss->m_Health > 0 && m_pReactor)
+	if(RegionalBoss() && m_pRegionalBoss->m_Health > 0 && m_pReactor)
 		m_pReactor->Activate(m_pRegionalBoss->m_Pos);
 	else if(m_pReactor)
 	{
@@ -1236,6 +1236,16 @@ void CGameControllerInvasion::BuildRegionalBossArena()
 	ClearPushForward();
 }
 
+CDroid *CGameControllerInvasion::RegionalBoss()
+{
+	// Droids are deleted on death and when stored after going unseen, so the pointer can outlive its boss.
+	for(CEntity *p = GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_DROID); p; p = p->TypeNext())
+		if(p == m_pRegionalBoss)
+			return m_pRegionalBoss;
+	m_pRegionalBoss = 0;
+	return 0;
+}
+
 void CGameControllerInvasion::ApplyRegionalBossPhase(int Phase)
 {
 	if(!m_pRegionalBoss || m_pRegionalBoss->m_Health <= 0 || Phase <= m_RegionalBossPhase)
@@ -1271,7 +1281,7 @@ void CGameControllerInvasion::ApplyRegionalBossPhase(int Phase)
 
 void CGameControllerInvasion::TickRegionalBoss()
 {
-	if(!m_pRegionalBoss || m_pRegionalBoss->m_Health <= 0)
+	if(!RegionalBoss() || m_pRegionalBoss->m_Health <= 0)
 		return;
 	int Phase = 0;
 	if(m_pRegionalBoss->m_MaxHealth > 0)

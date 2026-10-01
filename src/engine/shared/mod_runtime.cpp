@@ -99,7 +99,7 @@ class CLuaModRuntime : public ILuaModRuntime
 			luaL_requiref(m_pState, aLibraries[i].m_pName, aLibraries[i].m_Open, 1);
 			lua_pop(m_pState, 1);
 		}
-		const char *apDisabled[] = {"io", "os", "debug", "package", "require", "loadfile", "dofile"};
+		const char *apDisabled[] = {"io", "os", "debug", "package", "require", "load", "loadfile", "dofile"};
 		for(unsigned i = 0; i < sizeof(apDisabled) / sizeof(apDisabled[0]); i++)
 		{
 			lua_pushnil(m_pState);

@@ -238,7 +238,7 @@ MACRO_CONFIG_INT(SvMaxClients,
 				 "Maximum number of clients that are allowed on a server")
 MACRO_CONFIG_INT(SvMaxClientsPerIP,
 				 sv_max_clients_per_ip,
-				 64,
+				 4,
 				 1,
 				 MAX_CLIENTS,
 				 CFGFLAG_SERVER,

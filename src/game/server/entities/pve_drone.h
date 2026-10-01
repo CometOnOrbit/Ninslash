@@ -7,6 +7,7 @@ class CPveDrone : public CEntity
 {
   public:
 	CPveDrone(CGameWorld *pGameWorld, int Owner);
+	~CPveDrone() override;
 
 	void Reset() override;
 	void Tick() override;

@@ -75,8 +75,17 @@ int main(int argc, const char **argv)
 	   Loaded.m_aPlayers[Host].m_aWeaponDefinitionId[0] != 3)
 		return Fail("player payload mismatch");
 
+	if(!pStorage->RenameFile("expedition_1.json", "expedition_1.json.tmp", IStorage::TYPE_SAVE) ||
+	   CExpeditionSaveStorage::Load(pStorage, 1, &Loaded) != EXPEDITION_LOAD_OK || Loaded.m_NumPlayers != 2)
+		return Fail("interrupted save did not recover the newest copy");
 	if(!WriteText(pStorage, "expedition_1.json", "{broken"))
 		return Fail("could not create corrupt fixture");
+	if(CExpeditionSaveStorage::Load(pStorage, 1, &Loaded) != EXPEDITION_LOAD_OK || Loaded.m_NumPlayers != 2)
+		return Fail("corrupt save did not fall back to the newest copy");
+	pStorage->RemoveFile("expedition_1.json.tmp", IStorage::TYPE_SAVE);
+	if(CExpeditionSaveStorage::Load(pStorage, 1, &Loaded) != EXPEDITION_LOAD_OK || Loaded.m_NumPlayers != 1)
+		return Fail("corrupt save did not fall back to the backup");
+	pStorage->RemoveFile("expedition_1.json.bak", IStorage::TYPE_SAVE);
 	if(CExpeditionSaveStorage::Load(pStorage, 1, &Loaded) != EXPEDITION_LOAD_CORRUPT)
 		return Fail("corrupt save was accepted");
 

@@ -2716,6 +2716,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 					pPlayer->ToggleDroidControl();
 					SendChatTarget(ClientID, "droid control released");
 				}
+				else if(!Server()->IsAuthed(ClientID))
+					SendChatTarget(ClientID, "droid control is admin only");
 				else if(!pPlayer->GetBody())
 					SendChatTarget(ClientID, "need a living character");
 				else
@@ -2768,12 +2770,9 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			int Timeleft = pPlayer->m_LastVoteCall + Server()->TickSpeed() * 60 - Now;
 			if(pPlayer->m_LastVoteCall && Timeleft > 0)
 			{
-				char aChatmsg[512] = {0};
-				str_format(aChatmsg,
-						   sizeof(aChatmsg),
-						   Localize("You must wait %d seconds before making another vote", ClientID),
-						   (Timeleft / Server()->TickSpeed()) + 1);
-				SendChatTarget(ClientID, aChatmsg);
+				SendChatTarget(ClientID,
+							   "You must wait %d seconds before making another vote",
+							   (Timeleft / Server()->TickSpeed()) + 1);
 				return;
 			}
 
@@ -2835,7 +2834,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				}
 
 				int KickID = str_toint(pMsg->m_Value);
-				if(KickID < 0 || !m_apPlayers[KickID])
+				if(KickID < 0 || KickID >= MAX_CLIENTS || !m_apPlayers[KickID])
 				{
 					SendChatTarget(ClientID, "Invalid client id to kick");
 					return;
@@ -2848,12 +2847,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				if(Server()->IsAuthed(KickID))
 				{
 					SendChatTarget(ClientID, "You can't kick admins");
-					char aBufKick[128];
-					str_format(aBufKick,
-							   sizeof(aBufKick),
-							   Localize("'%s' called for vote to kick you", ClientID),
-							   Server()->ClientName(ClientID));
-					SendChatTarget(KickID, aBufKick);
+					SendChatTarget(KickID, "'%s' called for vote to kick you", Server()->ClientName(ClientID));
 					return;
 				}
 
@@ -2870,6 +2864,11 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				{
 					char aAddrStr[NETADDR_MAXSTRSIZE] = {0};
 					Server()->GetClientAddr(KickID, aAddrStr, sizeof(aAddrStr));
+					if(!aAddrStr[0])
+					{
+						SendChatTarget(ClientID, "Invalid client id to kick");
+						return;
+					}
 					str_format(aCmd, sizeof(aCmd), "ban %s %d Banned by vote", aAddrStr, g_Config.m_SvVoteKickBantime);
 				}
 			}
@@ -3129,7 +3128,10 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		{
 			// limit players to 4 in invasion
 			if(m_pController->IsCoop() && m_pController->CountHumans() > 16)
+			{
 				Server()->Kick(ClientID, "Server full - max 16 players in co-op modes");
+				return;
+			}
 
 			if(pPlayer->m_IsReady)
 				return;
@@ -3594,9 +3596,7 @@ void CGameContext::ConForceVote(IConsole::IResult *pResult, void *pUserData)
 		}
 		else
 		{
-			char aAddrStr[NETADDR_MAXSTRSIZE] = {0};
-			pSelf->Server()->GetClientAddr(KickID, aAddrStr, sizeof(aAddrStr));
-			str_format(aBuf, sizeof(aBuf), "ban %s %d %s", aAddrStr, g_Config.m_SvVoteKickBantime, pReason);
+			str_format(aBuf, sizeof(aBuf), "ban %d %d %s", KickID, g_Config.m_SvVoteKickBantime, pReason);
 			pSelf->Console()->ExecuteLine(aBuf);
 		}
 	}
@@ -4079,8 +4079,10 @@ void CGameContext::WriteExpeditionSave(bool SnapshotCharacters)
 {
 	if(!CExpeditionSaveStorage::SlotValid(g_Config.m_SvExpeditionSlot) || !m_pStorage)
 		return;
-	if(!m_ExpeditionReady)
-		CExpeditionSaveStorage::Load(m_pStorage, g_Config.m_SvExpeditionSlot, &m_ExpeditionSave);
+	if(!m_ExpeditionReady &&
+	   CExpeditionSaveStorage::Load(m_pStorage, g_Config.m_SvExpeditionSlot, &m_ExpeditionSave) ==
+		   EXPEDITION_LOAD_FUTURE_VERSION)
+		return;
 	m_ExpeditionSave.m_Floor = max(1, g_Config.m_SvMapGenLevel);
 	m_ExpeditionSave.m_Seed = max(1, g_Config.m_SvMapGenSeed);
 	if(m_pPveDirector)

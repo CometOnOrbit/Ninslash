@@ -361,12 +361,41 @@ typedef struct MatchState {
   const char *p_end;  /* end ('\0') of pattern */
   lua_State *L;
   int matchdepth;  /* control for recursive depth (to avoid C stack overflow) */
+  int hookcount;  /* count-hook period; 0 when the state is unmetered */
+  size_t steps;  /* matcher steps not yet charged to the count hook */
   unsigned char level;  /* total number of captures (finished or unfinished) */
   struct {
     const char *init;
     ptrdiff_t len;
   } capture[LUA_MAXCAPTURES];
 } MatchState;
+
+
+/*
+** Ninslash: sandboxes bound scripts with a count hook, which never fires
+** inside C functions. Charge superlinear matcher work to that hook so one
+** pattern call cannot outrun the script's instruction budget. Hooks on such
+** states must ignore 'ar'.
+*/
+static void meterinit (MatchState *ms, lua_State *L) {
+  ms->L = L;
+  ms->steps = 0;
+  ms->hookcount = (lua_gethook(L) && (lua_gethookmask(L) & LUA_MASKCOUNT))
+                  ? lua_gethookcount(L) : 0;
+}
+
+
+static void meterstep (MatchState *ms, size_t n) {
+  if (ms->hookcount > 0 && (ms->steps += n) >= (size_t)ms->hookcount) {
+    lua_Debug ar;
+    ar.event = LUA_HOOKCOUNT;
+    while (ms->steps >= (size_t)ms->hookcount) {
+      lua_Hook hook = lua_gethook(ms->L);
+      ms->steps -= ms->hookcount;
+      if (hook) hook(ms->L, &ar);
+    }
+  }
+}
 
 
 /* recursive function */
@@ -469,6 +498,7 @@ static int matchbracketclass (int c, const char *p, const char *ec) {
 
 static int singlematch (MatchState *ms, const char *s, const char *p,
                         const char *ep) {
+  meterstep(ms, 1);
   if (s >= ms->src_end)
     return 0;
   else {
@@ -493,6 +523,7 @@ static const char *matchbalance (MatchState *ms, const char *s,
     int e = *(p+1);
     int cont = 1;
     while (++s < ms->src_end) {
+      meterstep(ms, 1);
       if (*s == e) {
         if (--cont == 0) return s+1;
       }
@@ -560,6 +591,7 @@ static const char *match_capture (MatchState *ms, const char *s, int l) {
   size_t len;
   l = check_capture(ms, l);
   len = ms->capture[l].len;
+  meterstep(ms, len);
   if ((size_t)(ms->src_end-s) >= len &&
       memcmp(ms->capture[l].init, s, len) == 0)
     return s+len;
@@ -568,6 +600,7 @@ static const char *match_capture (MatchState *ms, const char *s, int l) {
 
 
 static const char *match (MatchState *ms, const char *s, const char *p) {
+  meterstep(ms, 1);
   if (l_unlikely(ms->matchdepth-- == 0))
     luaL_error(ms->L, "pattern too complex");
   init: /* using goto to optimize tail recursion */
@@ -670,7 +703,7 @@ static const char *match (MatchState *ms, const char *s, const char *p) {
 
 
 
-static const char *lmemfind (const char *s1, size_t l1,
+static const char *lmemfind (MatchState *ms, const char *s1, size_t l1,
                                const char *s2, size_t l2) {
   if (l2 == 0) return s1;  /* empty strings are everywhere */
   else if (l2 > l1) return NULL;  /* avoids a negative 'l1' */
@@ -679,8 +712,11 @@ static const char *lmemfind (const char *s1, size_t l1,
     l2--;  /* 1st char will be checked by 'memchr' */
     l1 = l1-l2;  /* 's2' cannot be found after that */
     while (l1 > 0 && (init = (const char *)memchr(s1, *s2, l1)) != NULL) {
+      size_t k = 0;
       init++;   /* 1st char is already checked */
-      if (memcmp(init, s2+1, l2) == 0)
+      while (k < l2 && init[k] == s2[1+k]) k++;
+      meterstep(ms, k + 1);
+      if (k == l2)
         return init-1;
       else {  /* correct 'l1' and 's1' to try again */
         l1 -= init-s1;
@@ -756,7 +792,7 @@ static int nospecials (const char *p, size_t l) {
 
 static void prepstate (MatchState *ms, lua_State *L,
                        const char *s, size_t ls, const char *p, size_t lp) {
-  ms->L = L;
+  meterinit(ms, L);
   ms->matchdepth = MAXCCALLS;
   ms->src_init = s;
   ms->src_end = s + ls;
@@ -775,6 +811,7 @@ static int str_find_aux (lua_State *L, int find) {
   const char *s = luaL_checklstring(L, 1, &ls);
   const char *p = luaL_checklstring(L, 2, &lp);
   size_t init = posrelatI(luaL_optinteger(L, 3, 1), ls) - 1;
+  MatchState ms;
   if (init > ls) {  /* start after string's end? */
     luaL_pushfail(L);  /* cannot find anything */
     return 1;
@@ -782,7 +819,9 @@ static int str_find_aux (lua_State *L, int find) {
   /* explicit request or no special characters? */
   if (find && (lua_toboolean(L, 4) || nospecials(p, lp))) {
     /* do a plain search */
-    const char *s2 = lmemfind(s + init, ls - init, p, lp);
+    const char *s2;
+    meterinit(&ms, L);
+    s2 = lmemfind(&ms, s + init, ls - init, p, lp);
     if (s2) {
       lua_pushinteger(L, (s2 - s) + 1);
       lua_pushinteger(L, (s2 - s) + lp);
@@ -790,7 +829,6 @@ static int str_find_aux (lua_State *L, int find) {
     }
   }
   else {
-    MatchState ms;
     const char *s1 = s + init;
     int anchor = (*p == '^');
     if (anchor) {
@@ -838,7 +876,7 @@ typedef struct GMatchState {
 static int gmatch_aux (lua_State *L) {
   GMatchState *gm = (GMatchState *)lua_touserdata(L, lua_upvalueindex(3));
   const char *src;
-  gm->ms.L = L;
+  meterinit(&gm->ms, L);
   for (src = gm->src; src <= gm->ms.src_end; src++) {
     const char *e;
     reprepstate(&gm->ms);

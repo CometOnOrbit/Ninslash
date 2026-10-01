@@ -50,6 +50,7 @@ class CGameControllerInvasion : public IGameController
 	void SetSwitchesActive(bool Active);
 	void SetReactorDefenseActive(bool Active);
 	void BuildRegionalBossArena();
+	class CDroid *RegionalBoss();
 	void ApplyRegionalBossPhase(int Phase);
 	void TickRegionalBoss();
 	int CountHumansAlive(int ExcludeCID = -1) const;

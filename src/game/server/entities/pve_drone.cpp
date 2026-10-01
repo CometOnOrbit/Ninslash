@@ -19,6 +19,13 @@ CPveDrone::CPveDrone(CGameWorld *pGameWorld, int Owner)
 	GameWorld()->InsertEntity(this);
 }
 
+CPveDrone::~CPveDrone()
+{
+	// Reset() destroys the drone on world reset without going through CPveDirector::DestroyDrone.
+	if(GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->OnDroneDestroyed(this);
+}
+
 bool CPveDrone::Active()
 {
 	return m_Health > 0 && Server()->Tick() >= m_DisabledUntilTick;

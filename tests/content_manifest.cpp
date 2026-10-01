@@ -34,6 +34,14 @@ int main()
 					   "\"everyone\",\"maps\":[\"maps/main.map\"],\"resources\":[]}";
 	assert(ContentManifestParse(pMap, (int)strlen(pMap), "test", &Manifest, aError, sizeof(aError)) &&
 		   Manifest.m_ContentType == CONTENT_TYPE_MAP);
+	const char *pDuplicateMap =
+		"{\"schema_version\":1,\"content_type\":\"map\",\"published_file_id\":\"44\",\"name\":\"Map\","
+		"\"description\":\"A map\",\"version\":\"1\",\"author\":\"A\",\"target_protocol\":\"test\",\"content_hash\":"
+		"\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"content_rating\":"
+		"\"everyone\",\"maps\":[\"maps/main.map\"],\"resources\":[\"maps/main.map\"]}";
+	CContentManifest DuplicateManifest;
+	assert(!ContentManifestParse(
+		pDuplicateMap, (int)strlen(pDuplicateMap), "test", &DuplicateManifest, aError, sizeof(aError)));
 	const char *pUnknown = "{\"schema_version\":1,\"content_type\":\"save_game\",\"published_file_id\":\"44\"}";
 	assert(!ContentManifestValidateText(pUnknown, (int)strlen(pUnknown), "test", aError, sizeof(aError)));
 	const char *pMissingRating = "{\"schema_version\":1,\"content_type\":\"mod\",\"published_file_id\":\"42\",\"name\":"

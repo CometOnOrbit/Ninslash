@@ -206,7 +206,16 @@ bool CServerModManager::Init(
 	char aPath[1200];
 	str_format(aPath, sizeof(aPath), "%s/server_mods.json", m_SaveRoot.c_str());
 	std::string Data;
-	if(!ReadFile(aPath, Data))
+	// A crash between AtomicWrite's renames leaves only .tmp (newest) and .old.
+	bool Found = ReadFile(aPath, Data);
+	const char *apRecovery[] = {".tmp", ".old"};
+	for(int i = 0; i < 2 && !Found; ++i)
+	{
+		char aRecovery[1200];
+		str_format(aRecovery, sizeof(aRecovery), "%s%s", aPath, apRecovery[i]);
+		Found = ReadFile(aRecovery, Data);
+	}
+	if(!Found)
 	{
 		m_Profiles.clear();
 		CProfile Default;

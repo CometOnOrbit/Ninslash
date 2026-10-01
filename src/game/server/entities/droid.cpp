@@ -33,6 +33,7 @@ CDroid::CDroid(CGameWorld *pGameWorld, vec2 Pos, int Type) : CEntity(pGameWorld,
 
 	m_StartPos = Pos;
 	m_Type = Type;
+	m_Controller = -1;
 
 	Reset();
 	// GameWorld()->InsertEntity(this);
@@ -61,7 +62,7 @@ void CDroid::Reset()
 	m_FireDelay = 0;
 	m_FireCount = 0;
 	m_AttackTimer = 0;
-	m_Controller = -1;
+	DropController();
 }
 
 bool CDroid::DespawnIfUnsnapped()
@@ -305,6 +306,9 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 CDroid::~CDroid()
 {
 	DropController();
+	// Not every removal goes through OnDroidKilled (detonation, unseen storage).
+	if(GameServer()->m_pPveDirector)
+		GameServer()->m_pPveDirector->ClearTargetStatus(this);
 }
 
 void CDroid::DropController()

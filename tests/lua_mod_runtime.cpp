@@ -22,6 +22,21 @@ int main()
 	assert(pRuntime->LoadScript("loop", pLoop, (int)strlen(pLoop), aError, sizeof(aError)));
 	pRuntime->OnModEvent(MOD_EVENT_ROUND_START, 0, 0);
 	assert(!pRuntime->Active());
+	assert(pRuntime->Activate(Descriptor) == MOD_ACTIVATION_OK);
+	const char *pBytecode = "return load(string.dump(function() end))";
+	assert(!pRuntime->LoadScript("bytecode", pBytecode, (int)strlen(pBytecode), aError, sizeof(aError)));
+	assert(pRuntime->Activate(Descriptor) == MOD_ACTIVATION_OK);
+	const char *pPattern =
+		"function on_event() return string.rep('a', 40):match(string.rep('a*', 40) .. 'b') end";
+	assert(pRuntime->LoadScript("pattern", pPattern, (int)strlen(pPattern), aError, sizeof(aError)));
+	pRuntime->OnModEvent(MOD_EVENT_ROUND_START, 0, 0);
+	assert(!pRuntime->Active());
+	assert(pRuntime->Activate(Descriptor) == MOD_ACTIVATION_OK);
+	const char *pPlain =
+		"function on_event() local s = string.rep('a', 200000) return s:find(string.rep('a', 100000) .. 'b', 1, true) end";
+	assert(pRuntime->LoadScript("plain", pPlain, (int)strlen(pPlain), aError, sizeof(aError)));
+	pRuntime->OnModEvent(MOD_EVENT_ROUND_START, 0, 0);
+	assert(!pRuntime->Active());
 	delete pRuntime;
 	return 0;
 }

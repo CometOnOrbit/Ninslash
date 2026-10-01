@@ -1066,9 +1066,16 @@ bool CCharacter::PickWeapon(CWeapon *pWeapon)
 	return false;
 }
 
+// Default cursor reach (cl_mouse_max_distance 400) plus build snapping stays far inside this;
+// it only rejects forged map-wide positions from the client.
+static const float MAX_BUILD_REACH = 1000.0f;
+
 bool CCharacter::UpgradeTurret(vec2 Pos, vec2 Dir, int Slot)
 {
 	GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "character", "Upgrade turret");
+
+	if(distance(Pos, m_Pos) > MAX_BUILD_REACH)
+		return false;
 
 	if(Slot < 0)
 		Slot = GetWeaponSlot();
@@ -1753,7 +1760,7 @@ bool CCharacter::Invisible()
 
 void CCharacter::UseKit(int Kit, vec2 Pos)
 {
-	if(!m_pPlayer || Kit < 0 || Kit >= NUM_BUILDABLES)
+	if(!m_pPlayer || Kit < 0 || Kit >= NUM_BUILDABLES || distance(Pos, m_Pos) > MAX_BUILD_REACH)
 		return;
 
 	int Cost = BuildableCost[Kit];

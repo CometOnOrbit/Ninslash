@@ -312,9 +312,9 @@ bool ContentManifestParse(const char *pJson,
 			Definitions += pManifest->m_aFiles[i].m_Type == CONTENT_FILE_DEFINITION;
 		}
 		if(Type == CONTENT_TYPE_MAP)
-			Valid = Maps == 1;
+			Valid = Valid && Maps == 1;
 		if(Type == CONTENT_TYPE_ROOM_PRESET || Type == CONTENT_TYPE_CHALLENGE)
-			Valid = Definitions == 1;
+			Valid = Valid && Definitions == 1;
 	}
 	json_value_free(pRoot);
 	return Valid ? true : SetError(pError, ErrorSize, "missing, unsafe, or incompatible manifest field");

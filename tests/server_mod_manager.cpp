@@ -74,6 +74,24 @@ int main(int argc, char **argv)
 	CServerModManager Duplicate;
 	assert(!Duplicate.Init(aRoot, aWorkshop, "test", aError, sizeof(aError)));
 
+	char aTmp[330], aOld[330];
+	str_format(aTmp, sizeof(aTmp), "%s.tmp", aState);
+	str_format(aOld, sizeof(aOld), "%s.old", aState);
+	fs_remove(aState);
+	WriteFile(aTmp,
+			  "{\"schema_version\":1,\"selected_profile\":\"newer\",\"profiles\":[{\"name\":\"newer\",\"root_ids\":"
+			  "[]}]}\n");
+	WriteFile(aOld,
+			  "{\"schema_version\":1,\"selected_profile\":\"older\",\"profiles\":[{\"name\":\"older\",\"root_ids\":"
+			  "[]}]}\n");
+	CServerModManager FromTmp;
+	assert(FromTmp.Init(aRoot, aWorkshop, "test", aError, sizeof(aError)));
+	assert(str_comp(FromTmp.SelectedProfile(), "newer") == 0);
+	fs_remove(aTmp);
+	CServerModManager FromOld;
+	assert(FromOld.Init(aRoot, aWorkshop, "test", aError, sizeof(aError)));
+	assert(str_comp(FromOld.SelectedProfile(), "older") == 0);
+
 	assert(argc == 2);
 	char aImportRoot[256], aImportWorkshop[320], aInbox[320], aArchive[384];
 	str_format(aImportRoot, sizeof(aImportRoot), "/tmp/ninslash-server-mod-import-%lld", (long long)time_get());
