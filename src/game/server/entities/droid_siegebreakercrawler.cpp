@@ -67,29 +67,11 @@ void CSiegeBreakerCrawler::TakeDamage(vec2 Force, int Dmg, const CAttackSource &
 	if(GameServer()->m_pPveDirector)
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, false, this);
 
-	vec2 DmgPos = m_Pos + m_Center;
-	if(Combat.m_ElectroAmount > 0.0f)
-		m_Status = DROIDSTATUS_ELECTRIC;
-	else if(Combat.m_FlameAmount > 0.0f)
-		m_Status = DROIDSTATUS_HURT;
-	else
-	{
-		if(Pos.x != 0 && Pos.y != 0)
-			DmgPos = Pos;
-
-		GameServer()->CreateBuildingHit(DmgPos);
-		m_Status = DROIDSTATUS_HURT;
-	}
-
-	GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, -1);
-
+	vec2 DmgPos = PresentDamage(Combat, Force, Dmg, Pos);
 	m_Vel += Force * 0.30f;
 	if(length(m_Vel) > 8.0f)
 		m_Vel = normalize(m_Vel) * 8.0f;
-
-	const int HealthBefore = m_Health;
-	m_Health -= Dmg;
-	GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
+	CommitDamage(DmgPos, Dmg, Source);
 
 	if(m_Health <= 0)
 	{
@@ -126,14 +108,8 @@ void CSiegeBreakerCrawler::Tick()
 	if(TickControlled())
 		return;
 
-	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
-	{
-		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
-		{
-			GameServer()->m_World.DestroyEntity(this);
-			return;
-		}
-	}
+	if(DespawnIfUnsnapped())
+		return;
 
 	m_Vel += GameServer()->m_World.m_Core.FindDroidHookImpactVel(m_ID) * 0.2f;
 	m_Vel.y += 0.8f;
@@ -288,58 +264,12 @@ void CSiegeBreakerCrawler::Tick()
 
 bool CSiegeBreakerCrawler::Target()
 {
-	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CHARACTERS)
-		return false;
-
-	CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
-	if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
-		return false;
-
-	if(m_Move == -1 && pCharacter->m_Pos.x > m_Pos.x && frandom() < 0.15f)
-		m_Move = 1;
-	if(m_Move == 1 && pCharacter->m_Pos.x < m_Pos.x && frandom() < 0.15f)
-		m_Move = -1;
-
-	const int Distance = distance(pCharacter->m_Pos, m_Pos);
-	if(Distance < 700 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), m_Pos))
-	{
-		m_Target = pCharacter->m_Pos - m_Pos;
-		return true;
-	}
-
-	m_Target = vec2(0, 0);
-	return false;
+	return TrackCloseCrawler(m_Move);
 }
 
 bool CSiegeBreakerCrawler::FindTarget()
 {
-	m_TargetIndex = -1;
-	CCharacter *pClosestCharacter = 0;
-	int ClosestDistance = 0;
-
-	for(int i = 0; i < MAX_CHARACTERS; i++)
-	{
-		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
-		if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
-			continue;
-		if(GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
-			continue;
-
-		if(abs(m_Pos.x - pCharacter->m_Pos.x) >= 600 || abs(m_Pos.y - pCharacter->m_Pos.y) >= 220)
-			continue;
-		if(GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), m_Pos))
-			continue;
-
-		const int Distance = distance(pCharacter->m_Pos, m_Pos);
-		if(!pClosestCharacter || Distance < ClosestDistance)
-		{
-			pClosestCharacter = pCharacter;
-			ClosestDistance = Distance;
-			m_TargetIndex = i;
-		}
-	}
-
-	return pClosestCharacter != 0;
+	return FindCloseCrawlerTarget();
 }
 
 void CSiegeBreakerCrawler::TickPaused()

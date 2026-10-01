@@ -6,6 +6,9 @@
 #include <game/server/gamecontext.h>
 #include <game/server/gameworld.h>
 #include <game/server/entities/droid.h>
+#include <game/server/entities/droid_walker.h>
+#include <game/server/entities/droid_star.h>
+#include <game/server/entities/droid_crawler.h>
 #include <game/server/entities/droid_bosscrawler.h>
 #include <game/server/entities/droid_bossstar.h>
 #include <game/server/entities/droid_bosswalker.h>
@@ -109,6 +112,29 @@ bool FindBossSpawnPosition(
 	return false;
 }
 
+CDroid *SpawnDroid(CGameWorld *pWorld, vec2 Pos, int Type)
+{
+	switch(Type)
+	{
+		case DROIDTYPE_WALKER: return new CWalker(pWorld, Pos);
+		case DROIDTYPE_STAR: return new CStar(pWorld, Pos);
+		case DROIDTYPE_CRAWLER: return new CCrawler(pWorld, Pos);
+		case DROIDTYPE_BOSSCRAWLER: return new CBossCrawler(pWorld, Pos);
+		case DROIDTYPE_BOSSSTAR: return new CBossStar(pWorld, Pos);
+		case DROIDTYPE_BOSSSPLITTER: return new CBossSplitter(pWorld, Pos);
+		case DROIDTYPE_SIEGEBREAKERCRAWLER: return new CSiegeBreakerCrawler(pWorld, Pos);
+		case DROIDTYPE_TEMPESTSTAR: return new CTempestStar(pWorld, Pos);
+		case DROIDTYPE_SPLITCRAWLER: return new CSplitCrawler(pWorld, Pos);
+		case DROIDTYPE_KAMIKAZESTAR: return new CKamikazeStar(pWorld, Pos);
+		case DROIDTYPE_RAILSTAR: return new CRailstar(pWorld, Pos);
+		case DROIDTYPE_MENDERCRAWLER: return new CMenderCrawler(pWorld, Pos);
+		case DROIDTYPE_STALKERCRAWLER: return new CStalkerCrawler(pWorld, Pos);
+		case DROIDTYPE_TESLASTAR: return new CTeslaStar(pWorld, Pos);
+		case DROIDTYPE_CYCLONECRAWLER: return new CCycloneCrawler(pWorld, Pos);
+		default: return 0;
+	}
+}
+
 CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 {
 	// Never allow a legacy fallback point to put a boss inside map geometry.
@@ -124,30 +150,25 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 	if(Type < 0 || !IsBossDroidType(Type))
 		Type = SelectBossType(Depth);
 
-	switch(Type)
-	{
-		case DROIDTYPE_BOSSSTAR:
-			return new CBossStar(pWorld, Pos);
-		case DROIDTYPE_BOSSSPLITTER:
-			return new CBossSplitter(pWorld, Pos);
-		default:
-			return new CBossCrawler(pWorld, Pos);
-	}
+	if(Type != DROIDTYPE_BOSSSTAR && Type != DROIDTYPE_BOSSSPLITTER)
+		Type = DROIDTYPE_BOSSCRAWLER;
+	return SpawnDroid(pWorld, Pos, Type);
 }
 
 CDroid *SpawnSpecialist(CGameWorld *pWorld, vec2 Pos, int Type)
 {
 	switch(Type)
 	{
-		case DROIDTYPE_SIEGEBREAKERCRAWLER: return new CSiegeBreakerCrawler(pWorld, Pos);
-		case DROIDTYPE_TEMPESTSTAR: return new CTempestStar(pWorld, Pos);
-		case DROIDTYPE_SPLITCRAWLER: return new CSplitCrawler(pWorld, Pos);
-		case DROIDTYPE_KAMIKAZESTAR: return new CKamikazeStar(pWorld, Pos);
-		case DROIDTYPE_RAILSTAR: return new CRailstar(pWorld, Pos);
-		case DROIDTYPE_MENDERCRAWLER: return new CMenderCrawler(pWorld, Pos);
-		case DROIDTYPE_STALKERCRAWLER: return new CStalkerCrawler(pWorld, Pos);
-		case DROIDTYPE_TESLASTAR: return new CTeslaStar(pWorld, Pos);
-		case DROIDTYPE_CYCLONECRAWLER: return new CCycloneCrawler(pWorld, Pos);
+		case DROIDTYPE_SIEGEBREAKERCRAWLER:
+		case DROIDTYPE_TEMPESTSTAR:
+		case DROIDTYPE_SPLITCRAWLER:
+		case DROIDTYPE_KAMIKAZESTAR:
+		case DROIDTYPE_RAILSTAR:
+		case DROIDTYPE_MENDERCRAWLER:
+		case DROIDTYPE_STALKERCRAWLER:
+		case DROIDTYPE_TESLASTAR:
+		case DROIDTYPE_CYCLONECRAWLER:
+			return SpawnDroid(pWorld, Pos, Type);
 		default: return 0;
 	}
 }

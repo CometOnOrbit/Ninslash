@@ -1,4 +1,5 @@
 #include <game/client/gameclient.h>
+#include <game/client/droid_visual.h>
 #include "droidanim.h"
 
 CDroidAnim::CDroidAnim(CGameClient *pClient)
@@ -60,19 +61,8 @@ void CDroidAnim::Tick()
 	m_aLegTargetPos[3] = m_Pos + vec2(50, 120);
 	*/
 
-	float Scale = 1.0f;
-	if(m_Type == DROIDTYPE_BOSSCRAWLER)
-		Scale = 2.0f;
-	else if(m_Type == DROIDTYPE_BOSSSPLITTER)
-		Scale = 1.6f;
-	else if(m_Type == DROIDTYPE_SIEGEBREAKERCRAWLER)
-		Scale = 1.35f;
-	else if(m_Type == DROIDTYPE_CYCLONECRAWLER)
-		Scale = 1.15f;
-	else if(m_Type == DROIDTYPE_SPLITCRAWLER)
-		Scale = 0.85f;
-	else if(m_Type == DROIDTYPE_STALKERCRAWLER)
-		Scale = 0.90f;
+	const CDroidVisual &Visual = DroidVisual(m_Type);
+	float Scale = Visual.m_Draw == DROID_DRAW_CRAWLER ? Visual.m_Scale : 1.0f;
 
 	const float la = m_Angle * 1.4f;
 	const float la2 = m_Angle * 1.4f + pi;

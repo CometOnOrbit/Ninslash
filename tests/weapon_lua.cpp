@@ -284,6 +284,27 @@ int main()
 		   AttackCombat.m_DirectMelee);
 	assert(CWeaponCatalog::TryResolveAttack(CAttackSource::Droid(-1, DROIDTYPE_WALKER), &AttackCombat) &&
 		   !AttackCombat.m_DirectMelee);
+	for(int Type = 0; Type < WEAPON_DROID_PROFILE_COUNT; ++Type)
+	{
+		CWeaponCombatProfile Combat;
+		CWeaponCombatProfile Death;
+		assert(CWeaponCatalog::TryResolveAttack(CAttackSource::Droid(-1, Type), &Combat));
+		assert(CWeaponCatalog::TryResolveAttack(CAttackSource::Droid(-1, Type, true), &Death));
+		assert(Combat.m_FullAuto && Death.m_FullAuto);
+		assert(Combat.m_AutoPick && Death.m_AutoPick);
+		assert(Combat.m_Cost == 10 && Death.m_Cost == 10);
+		assert(Combat.m_BurstReload == 1.0f && Death.m_BurstReload == 1.0f);
+		const bool DirectMelee = Type == DROIDTYPE_CRAWLER || Type == DROIDTYPE_BOSSCRAWLER ||
+								 Type == DROIDTYPE_BOSSSPLITTER || Type == DROIDTYPE_SIEGEBREAKERCRAWLER ||
+								 Type == DROIDTYPE_SPLITCRAWLER || Type == DROIDTYPE_MENDERCRAWLER ||
+								 Type == DROIDTYPE_STALKERCRAWLER || Type == DROIDTYPE_CYCLONECRAWLER;
+		assert(Combat.m_DirectMelee == DirectMelee);
+		const bool Area = Type == DROIDTYPE_STAR || Type == DROIDTYPE_BOSSSTAR || Type == DROIDTYPE_TEMPESTSTAR ||
+						  Type == DROIDTYPE_RAILSTAR || Type == DROIDTYPE_TESLASTAR;
+		CWeaponVisualProfile Visual;
+		assert(CWeaponCatalog::TryResolveAttack(CAttackSource::Droid(-1, Type), 0, &Visual));
+		assert(Visual.m_ImpactEffect == (Area ? WEAPON_IMPACT_EFFECT_ELECTRIC_AREA : WEAPON_IMPACT_EFFECT_ELECTRIC));
+	}
 	assert(CWeaponCatalog::TryResolveAttack(CAttackSource::Building(-1, BUILDING_STAND), 0, &AttackVisual) &&
 		   AttackVisual.m_ImpactEffect == WEAPON_IMPACT_EFFECT_SPARKS);
 	assert(CWeaponCatalog::TryResolveAttack(CAttackSource::Building(-1, BUILDING_GENERATOR), 0, &AttackVisual) &&

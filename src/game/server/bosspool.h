@@ -21,6 +21,9 @@ int SelectBossType(int Depth);
 bool FindBossSpawnPosition(
 	CGameWorld *pWorld, const vec2 *pSpawnPoints, int NumSpawnPoints, int *pRotation, vec2 *pOutPos);
 
+// Construct one droid. Unknown types, including BossWalker, return 0.
+CDroid *SpawnDroid(CGameWorld *pWorld, vec2 Pos, int Type);
+
 // Spawn one boss at Pos. TypeHint < 0 => random from pool.
 CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth = 1, int TypeHint = -1);
 CDroid *SpawnSpecialist(CGameWorld *pWorld, vec2 Pos, int Type);

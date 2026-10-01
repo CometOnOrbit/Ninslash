@@ -64,8 +64,6 @@ void CBossStar::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec
 	if(GameServer()->m_pPveDirector)
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, true, this);
 
-	vec2 DmgPos = m_Pos + m_Center;
-
 	if(m_TargetIndex < 0 && frandom() < 0.3f)
 	{
 		SetState(CBossStar::TURN);
@@ -76,30 +74,11 @@ void CBossStar::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec
 			m_AttackTimer--;
 	}
 
-	// create damage indicator
-	if(Combat.m_ElectroAmount > 0.0f)
-		m_Status = DROIDSTATUS_ELECTRIC;
-	else if(Combat.m_FlameAmount > 0.0f)
-		m_Status = DROIDSTATUS_HURT;
-	else
-	{
-		if(Pos.x != 0 && Pos.y != 0)
-			DmgPos = Pos;
-
-		GameServer()->CreateBuildingHit(DmgPos);
-		m_Status = DROIDSTATUS_HURT;
-	}
-
-	GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, -1);
-
+	vec2 DmgPos = PresentDamage(Combat, Force, Dmg, Pos);
 	m_Vel += Force * 0.75f;
-
 	if(length(m_Vel) > 20.0f)
 		m_Vel = normalize(m_Vel) * 20.0f;
-
-	const int HealthBefore = m_Health;
-	m_Health -= Dmg;
-	GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
+	CommitDamage(DmgPos, Dmg, Source);
 
 	// check for death
 	if(m_Health <= 0)
@@ -122,14 +101,8 @@ void CBossStar::Tick()
 
 	vec2 To = m_Pos + vec2(frandom() - frandom(), frandom() - frandom()) * 500;
 
-	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
-	{
-		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
-		{
-			GameServer()->m_World.DestroyEntity(this);
-			return;
-		}
-	}
+	if(DespawnIfUnsnapped())
+		return;
 
 	if(m_Health <= 0)
 	{
@@ -296,77 +269,12 @@ void CBossStar::Fire()
 
 bool CBossStar::Target()
 {
-	vec2 TurretPos = m_Pos + m_Center;
-
-	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CHARACTERS)
-	{
-		CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
-		if(!pCharacter)
-			return false;
-
-		if(!pCharacter->IsAlive() || pCharacter->Invisible())
-			return false;
-
-		if((m_Dir < 0 && pCharacter->m_Pos.x > m_Pos.x) || (m_Dir > 0 && pCharacter->m_Pos.x < m_Pos.x))
-		{
-			m_Dir *= -1;
-			m_State = CBossStar::IDLE;
-			m_StateChangeTick = Server()->Tick() + Server()->TickSpeed() * (1 + frandom());
-		}
-
-		int Distance = distance(pCharacter->m_Pos, TurretPos);
-		if(Distance < 700 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), TurretPos))
-		{
-			vec2 r = vec2(sin(Server()->Tick() * 0.075f), cos(Server()->Tick() * 0.075f)) * Distance * 0.1f;
-			m_NewTarget = r + TurretPos - ((pCharacter->m_Pos + vec2(0, -24)) + pCharacter->GetCore().m_Vel * 2.0f);
-			return true;
-		}
-		else
-			return false;
-	}
-
-	return false;
+	return TargetStar();
 }
 
 bool CBossStar::FindTarget()
 {
-	m_TargetIndex = -1;
-	CCharacter *pClosestCharacter = 0;
-	int ClosestDistance = 0;
-	vec2 TurretPos = m_Pos + vec2(0, -67);
-
-	for(int i = 0; i < MAX_CHARACTERS; i++)
-	{
-		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
-		if(!pCharacter)
-			continue;
-
-		if(!pCharacter->IsAlive() || pCharacter->Invisible())
-			continue;
-
-		if(GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
-			continue;
-
-		// if ((m_Dir < 0 && pCharacter->m_Pos.x > m_Pos.x) ||
-		//	(m_Dir > 0 && pCharacter->m_Pos.x < m_Pos.x))
-		//	continue;
-
-		int Distance = distance(pCharacter->m_Pos, TurretPos);
-		if(Distance < 800 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), TurretPos))
-		{
-			if(!pClosestCharacter || Distance < ClosestDistance)
-			{
-				pClosestCharacter = pCharacter;
-				ClosestDistance = Distance;
-				m_TargetIndex = i;
-			}
-		}
-	}
-
-	if(pClosestCharacter)
-		return true;
-
-	return false;
+	return FindStarTarget();
 }
 
 void CBossStar::TickPaused()

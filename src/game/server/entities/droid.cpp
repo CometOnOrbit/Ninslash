@@ -64,6 +64,165 @@ void CDroid::Reset()
 	m_Controller = -1;
 }
 
+bool CDroid::DespawnIfUnsnapped()
+{
+	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
+	{
+		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
+		{
+			GameServer()->m_World.DestroyEntity(this);
+			return true;
+		}
+	}
+	return false;
+}
+
+vec2 CDroid::PresentDamage(const CWeaponCombatProfile &Combat, vec2 Force, int Dmg, vec2 Pos)
+{
+	vec2 DmgPos = m_Pos + m_Center;
+	if(Combat.m_ElectroAmount > 0.0f)
+		m_Status = DROIDSTATUS_ELECTRIC;
+	else if(Combat.m_FlameAmount > 0.0f)
+		m_Status = DROIDSTATUS_HURT;
+	else
+	{
+		if(Pos.x != 0 && Pos.y != 0)
+			DmgPos = Pos;
+		GameServer()->CreateBuildingHit(DmgPos);
+		m_Status = DROIDSTATUS_HURT;
+	}
+
+	GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, -1);
+	return DmgPos;
+}
+
+void CDroid::CommitDamage(vec2 DmgPos, int Dmg, const CAttackSource &Source)
+{
+	const int HealthBefore = m_Health;
+	m_Health -= Dmg;
+	GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
+}
+
+bool CDroid::FindCloseCrawlerTarget()
+{
+	m_TargetIndex = -1;
+	CCharacter *pClosestCharacter = 0;
+	int ClosestDistance = 0;
+
+	for(int i = 0; i < MAX_CHARACTERS; i++)
+	{
+		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
+		if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
+			continue;
+		if(GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
+			continue;
+		if(abs(m_Pos.x - pCharacter->m_Pos.x) >= 600 || abs(m_Pos.y - pCharacter->m_Pos.y) >= 220)
+			continue;
+		if(GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), m_Pos))
+			continue;
+
+		const int Distance = distance(pCharacter->m_Pos, m_Pos);
+		if(!pClosestCharacter || Distance < ClosestDistance)
+		{
+			pClosestCharacter = pCharacter;
+			ClosestDistance = Distance;
+			m_TargetIndex = i;
+		}
+	}
+
+	return pClosestCharacter != 0;
+}
+
+bool CDroid::TrackCloseCrawler(int &Move)
+{
+	if(m_TargetIndex < 0 || m_TargetIndex >= MAX_CHARACTERS)
+		return false;
+
+	CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
+	if(!pCharacter || !pCharacter->IsAlive() || pCharacter->Invisible())
+		return false;
+
+	if(Move == -1 && pCharacter->m_Pos.x > m_Pos.x && frandom() < 0.15f)
+		Move = 1;
+	if(Move == 1 && pCharacter->m_Pos.x < m_Pos.x && frandom() < 0.15f)
+		Move = -1;
+
+	const int Distance = distance(pCharacter->m_Pos, m_Pos);
+	if(Distance < 700 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), m_Pos))
+	{
+		m_Target = pCharacter->m_Pos - m_Pos;
+		return true;
+	}
+
+	m_Target = vec2(0, 0);
+	return false;
+}
+
+bool CDroid::FindStarTarget()
+{
+	m_TargetIndex = -1;
+	CCharacter *pClosestCharacter = 0;
+	int ClosestDistance = 0;
+	vec2 TurretPos = m_Pos + vec2(0, -67);
+
+	for(int i = 0; i < MAX_CHARACTERS; i++)
+	{
+		CCharacter *pCharacter = GameServer()->GetPlayerChar(i);
+		if(!pCharacter)
+			continue;
+		if(!pCharacter->IsAlive() || pCharacter->Invisible())
+			continue;
+		if(GameServer()->m_pController->IsCoop() && pCharacter->m_IsBot)
+			continue;
+
+		int Distance = distance(pCharacter->m_Pos, TurretPos);
+		if(Distance < 800 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), TurretPos))
+		{
+			if(!pClosestCharacter || Distance < ClosestDistance)
+			{
+				pClosestCharacter = pCharacter;
+				ClosestDistance = Distance;
+				m_TargetIndex = i;
+			}
+		}
+	}
+
+	return pClosestCharacter != 0;
+}
+
+bool CDroid::TargetStar()
+{
+	vec2 TurretPos = m_Pos + m_Center;
+
+	if(m_TargetIndex >= 0 && m_TargetIndex < MAX_CHARACTERS)
+	{
+		CCharacter *pCharacter = GameServer()->GetPlayerChar(m_TargetIndex);
+		if(!pCharacter)
+			return false;
+		if(!pCharacter->IsAlive() || pCharacter->Invisible())
+			return false;
+
+		if((m_Dir < 0 && pCharacter->m_Pos.x > m_Pos.x) || (m_Dir > 0 && pCharacter->m_Pos.x < m_Pos.x))
+		{
+			m_Dir *= -1;
+			m_State = IDLE;
+			m_StateChangeTick = Server()->Tick() + Server()->TickSpeed() * (1 + frandom());
+		}
+
+		int Distance = distance(pCharacter->m_Pos, TurretPos);
+		if(Distance < 700 && !GameServer()->Collision()->FastIntersectLine(pCharacter->m_Pos + vec2(0, -24), TurretPos))
+		{
+			vec2 r = vec2(sin(Server()->Tick() * 0.075f), cos(Server()->Tick() * 0.075f)) * Distance * 0.1f;
+			m_NewTarget = r + TurretPos - ((pCharacter->m_Pos + vec2(0, -24)) + pCharacter->GetCore().m_Vel * 2.0f);
+			return true;
+		}
+		else
+			return false;
+	}
+
+	return false;
+}
+
 void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos)
 {
 	const int From = Source.m_Owner;
@@ -84,23 +243,7 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, Boss, this);
 	}
 
-	vec2 DmgPos = m_Pos + m_Center;
-
-	// create damage indicator
-	if(Combat.m_ElectroAmount > 0.0f)
-		m_Status = DROIDSTATUS_ELECTRIC;
-	else if(Combat.m_FlameAmount > 0.0f)
-		m_Status = DROIDSTATUS_HURT;
-	else
-	{
-		if(Pos.x != 0 && Pos.y != 0)
-			DmgPos = Pos;
-
-		GameServer()->CreateBuildingHit(DmgPos);
-		m_Status = DROIDSTATUS_HURT;
-	}
-
-	GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, -1);
+	vec2 DmgPos = PresentDamage(Combat, Force, Dmg, Pos);
 
 	m_Vel += Force * 0.75f;
 

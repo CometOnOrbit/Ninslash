@@ -15,6 +15,7 @@
 #include <game/client/components/effects.h>
 
 #include "droids.h"
+#include <game/client/droid_visual.h>
 
 void CDroids::OnReset()
 {
@@ -169,31 +170,9 @@ void CDroids::RenderStar(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurre
 	m_pClient->m_pEffects->SmokeTrail(DroidAnim.m_aVectorValue[CDroidAnim::THRUST2_POS],
 									  DroidAnim.m_aVectorValue[CDroidAnim::THRUST2_VEL] * 600);
 
-	vec4 DroidLight;
-	float DroidLightSize = 0.0f;
-	switch(pCurrent->m_Type)
-	{
-		case DROIDTYPE_TEMPESTSTAR:
-			DroidLight = vec4(0.72f, 0.25f, 1.0f, 0.72f);
-			DroidLightSize = 125.0f;
-			break;
-		case DROIDTYPE_KAMIKAZESTAR:
-			DroidLight = vec4(1.0f, 0.08f, 0.04f, 0.85f);
-			DroidLightSize = 135.0f;
-			break;
-		case DROIDTYPE_RAILSTAR:
-			DroidLight = vec4(0.55f, 1.0f, 1.0f, 0.78f);
-			DroidLightSize = 140.0f;
-			break;
-		case DROIDTYPE_TESLASTAR:
-			DroidLight = vec4(0.12f, 0.55f, 1.0f, 0.88f);
-			DroidLightSize = 145.0f;
-			break;
-		default:
-			break;
-	}
-	if(DroidLightSize > 0.0f)
-		m_pClient->m_pEffects->SimpleLight(Pos, DroidLight, DroidLightSize);
+	const CDroidVisual &StarVisual = DroidVisual(pCurrent->m_Type);
+	if(StarVisual.m_LightSize > 0.0f)
+		m_pClient->m_pEffects->SimpleLight(Pos, StarVisual.m_Light, StarVisual.m_LightSize);
 }
 
 void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID)
@@ -208,7 +187,8 @@ void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCu
 		CustomStuff()->m_DroidDamageType[ItemID % MAX_DROIDS] = pCurrent->m_Status;
 	}
 
-	const bool Stalker = pCurrent->m_Type == DROIDTYPE_STALKERCRAWLER;
+	const CDroidVisual &CrawlerVisual = DroidVisual(pCurrent->m_Type);
+	const bool Stalker = CrawlerVisual.m_Stealth;
 	const float StealthAlpha = mix(
 		Stalker && pPrev->m_Status == DROIDSTATUS_STEALTH ? 0.35f : 1.0f,
 		Stalker && pCurrent->m_Status == DROIDSTATUS_STEALTH ? 0.35f : 1.0f,
@@ -242,7 +222,7 @@ void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCu
 	pDroidAnim->m_Status = pCurrent->m_Status;
 	pDroidAnim->m_Anim = pCurrent->m_Anim;
 	pDroidAnim->m_Type = pCurrent->m_Type;
-	const bool CycloneAirborne = pCurrent->m_Type == DROIDTYPE_CYCLONECRAWLER &&
+	const bool CycloneAirborne = CrawlerVisual.m_AirSpin &&
 		pCurrent->m_Anim == DROIDANIM_JUMPATTACK;
 	const float RenderAngle = CycloneAirborne ?
 		mix((float)pPrev->m_Angle, (float)pCurrent->m_Angle, Client()->IntraGameTick()) / (180.0f / pi) :
@@ -291,32 +271,17 @@ void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCu
 											48 + frandom() * 48,
 											vec2(frandom() - frandom(), frandom() - frandom()) * 16.0f);
 
-	vec4 DroidLight(0.5f, 1.0f, 1.0f, 0.5f);
-	float DroidLightSize = 100.0f;
-	switch(pCurrent->m_Type)
+	vec4 DroidLight = CrawlerVisual.m_Light;
+	float DroidLightSize = CrawlerVisual.m_LightSize;
+	if(CrawlerVisual.m_Stealth)
 	{
-		case DROIDTYPE_SIEGEBREAKERCRAWLER:
-			DroidLight = vec4(1.0f, 0.28f, 0.08f, 0.75f);
-			DroidLightSize = 145.0f;
-			break;
-		case DROIDTYPE_SPLITCRAWLER:
-			DroidLight = vec4(0.72f, 1.0f, 0.18f, 0.65f);
-			DroidLightSize = 110.0f;
-			break;
-		case DROIDTYPE_MENDERCRAWLER:
-			DroidLight = vec4(0.2f, 1.0f, 0.35f, 0.7f);
-			DroidLightSize = 120.0f;
-			break;
-		case DROIDTYPE_STALKERCRAWLER:
-			DroidLight = vec4(0.38f, 0.12f, 0.65f, 0.42f * StealthAlpha);
-			DroidLightSize = 105.0f;
-			break;
-		case DROIDTYPE_CYCLONECRAWLER:
-			DroidLight = vec4(1.0f, 0.62f, 0.08f, CycloneAirborne ? 0.95f : 0.78f);
-			DroidLightSize = CycloneAirborne ? 155.0f : 135.0f;
-			break;
-		default:
-			break;
+		DroidLight = vec4(0.38f, 0.12f, 0.65f, 0.42f * StealthAlpha);
+		DroidLightSize = 105.0f;
+	}
+	else if(CrawlerVisual.m_AirSpin)
+	{
+		DroidLight = vec4(1.0f, 0.62f, 0.08f, CycloneAirborne ? 0.95f : 0.78f);
+		DroidLightSize = CycloneAirborne ? 155.0f : 135.0f;
 	}
 	m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -26), DroidLight, DroidLightSize);
 }
@@ -338,35 +303,16 @@ void CDroids::OnRender()
 			const struct CNetObj_Droid *pDroid = (const CNetObj_Droid *)pData;
 			const CNetObj_Droid *pDroidPrev = pPrev ? (const CNetObj_Droid *)pPrev : pDroid;
 
-			switch(pDroid->m_Type)
+			switch(DroidVisual(pDroid->m_Type).m_Draw)
 			{
-				case DROIDTYPE_WALKER:
+				case DROID_DRAW_WALKER:
 					RenderWalker(pDroidPrev, pDroid, Item.m_ID);
 					break;
-				case DROIDTYPE_STAR:
-				case DROIDTYPE_TEMPESTSTAR:
-				case DROIDTYPE_KAMIKAZESTAR:
-				case DROIDTYPE_RAILSTAR:
-				case DROIDTYPE_TESLASTAR:
+				case DROID_DRAW_STAR:
 					RenderStar(pDroidPrev, pDroid, Item.m_ID);
 					break;
-				case DROIDTYPE_CRAWLER:
-				case DROIDTYPE_SIEGEBREAKERCRAWLER:
-				case DROIDTYPE_SPLITCRAWLER:
-				case DROIDTYPE_MENDERCRAWLER:
-				case DROIDTYPE_STALKERCRAWLER:
-				case DROIDTYPE_CYCLONECRAWLER:
+				case DROID_DRAW_CRAWLER:
 					RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
-					break;
-				case DROIDTYPE_BOSSCRAWLER:
-				case DROIDTYPE_BOSSSPLITTER:
-					RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
-					break;
-				case DROIDTYPE_BOSSSTAR:
-					RenderStar(pDroidPrev, pDroid, Item.m_ID);
-					break;
-				case DROIDTYPE_BOSSWALKER:
-					RenderWalker(pDroidPrev, pDroid, Item.m_ID);
 					break;
 				default:;
 			}

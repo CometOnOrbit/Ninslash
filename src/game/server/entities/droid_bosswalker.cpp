@@ -58,8 +58,6 @@ void CBossWalker::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, v
 	if(GameServer()->m_pPveDirector)
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, true, this);
 
-	vec2 DmgPos = m_Pos + m_Center;
-
 	if(m_TargetIndex < 0 && frandom() < 0.3f)
 	{
 		SetState(CBossWalker::TURN);
@@ -70,27 +68,9 @@ void CBossWalker::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, v
 			m_AttackTimer--;
 	}
 
-	// create damage indicator
-	if(Combat.m_ElectroAmount > 0.0f)
-		m_Status = DROIDSTATUS_ELECTRIC;
-	else if(Combat.m_FlameAmount > 0.0f)
-		m_Status = DROIDSTATUS_HURT;
-	else
-	{
-		if(Pos.x != 0 && Pos.y != 0)
-			DmgPos = Pos;
-
-		GameServer()->CreateBuildingHit(DmgPos);
-		m_Status = DROIDSTATUS_HURT;
-	}
-
-	GameServer()->CreateDamageInd(DmgPos, GetAngle(-Force), -Dmg, -1);
-
+	vec2 DmgPos = PresentDamage(Combat, Force, Dmg, Pos);
 	m_Vel += Force * 0.75f;
-
-	const int HealthBefore = m_Health;
-	m_Health -= Dmg;
-	GameServer()->CreateHitConfirm(DmgPos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
+	CommitDamage(DmgPos, Dmg, Source);
 
 	// check for death
 	if(m_Health <= 0)
@@ -148,14 +128,8 @@ void CBossWalker::Tick()
 	if(TickControlled())
 		return;
 
-	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5.0f)
-	{
-		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
-		{
-			GameServer()->m_World.DestroyEntity(this);
-			return;
-		}
-	}
+	if(DespawnIfUnsnapped())
+		return;
 
 	if(m_Health <= 0)
 	{

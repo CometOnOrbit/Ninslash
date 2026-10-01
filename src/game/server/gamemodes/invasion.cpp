@@ -1053,8 +1053,6 @@ bool CGameControllerInvasion::BuildPushForwardRoute()
 		m_MapTemplate * 31;
 	const int Stride = max(1, m_NumEnemySpawnPos / max(1, Desired));
 
-	// ponytail: probe fixed candidate caps; authored route metadata can replace
-	// this if hand-built maps outgrow the bounded fallback.
 	const int SpawnChecks = min(m_NumEnemySpawnPos, 64);
 	for(int i = 0; i < SpawnChecks && m_PushPointCount < Desired; i++)
 	{

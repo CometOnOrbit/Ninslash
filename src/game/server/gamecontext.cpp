@@ -4152,8 +4152,6 @@ static void BlitTiles(CTile *pDst, int DW, int DH, const CTile *pSrc, int SW, in
 // Layout file maps/elevator.map supplies collision, entities and tileset art.
 // The loaded venue template keeps its parallax quad images. Decorative tile
 // layers on that template are the maze, so they are replaced.
-// ponytail: skies in generate_* templates are quad groups. A template that
-// paints its sky as tiles would lose that sky.
 static bool StampElevatorLayout(CGameContext *pSelf)
 {
 	CMapItemLayerTilemap *pGame = pSelf->Layers()->GameLayer();

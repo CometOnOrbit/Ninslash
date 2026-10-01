@@ -125,27 +125,11 @@ void CKamikazeStar::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source,
 	if(GameServer()->m_pPveDirector)
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, false, this);
 
-	vec2 DamagePos = m_Pos + m_Center;
-	if(Combat.m_ElectroAmount > 0.0f)
-		m_Status = DROIDSTATUS_ELECTRIC;
-	else if(Combat.m_FlameAmount > 0.0f)
-		m_Status = DROIDSTATUS_HURT;
-	else
-	{
-		if(Pos.x != 0 && Pos.y != 0)
-			DamagePos = Pos;
-		GameServer()->CreateBuildingHit(DamagePos);
-		m_Status = DROIDSTATUS_HURT;
-	}
-
-	GameServer()->CreateDamageInd(DamagePos, GetAngle(-Force), -Dmg, -1);
+	vec2 DamagePos = PresentDamage(Combat, Force, Dmg, Pos);
 	m_Vel += Force * 0.75f;
 	if(length(m_Vel) > KAMIKAZE_STAR_MAX_SPEED)
 		m_Vel = normalize(m_Vel) * KAMIKAZE_STAR_MAX_SPEED;
-
-	const int HealthBefore = m_Health;
-	m_Health -= Dmg;
-	GameServer()->CreateHitConfirm(DamagePos, Source, min(Dmg, HealthBefore), HIT_TARGET_METAL, m_Health <= 0);
+	CommitDamage(DamagePos, Dmg, Source);
 	if(m_Health > 0)
 	{
 		m_DamageTakenTick = Server()->Tick();
@@ -169,14 +153,8 @@ void CKamikazeStar::Tick()
 	if(TickControlled())
 		return;
 
-	if(m_SnapTick && m_SnapTick < Server()->Tick() - Server()->TickSpeed() * 5)
-	{
-		if(GameServer()->StoreEntity(m_ObjType, m_Type, 0, m_Pos.x, m_Pos.y))
-		{
-			GameServer()->m_World.DestroyEntity(this);
-			return;
-		}
-	}
+	if(DespawnIfUnsnapped())
+		return;
 
 	if(m_Health <= 0)
 	{

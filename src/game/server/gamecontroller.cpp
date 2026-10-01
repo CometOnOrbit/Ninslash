@@ -17,22 +17,7 @@
 #include "entities/shop.h"
 #include "entities/deathray.h"
 #include "entities/powerupper.h"
-#include "entities/droid_walker.h"
-#include "entities/droid_star.h"
-#include "entities/droid_crawler.h"
-#include "entities/droid_bosscrawler.h"
-#include "entities/droid_bossstar.h"
-#include "entities/droid_bosswalker.h"
-#include "entities/droid_bosssplitter.h"
-#include "entities/droid_siegebreakercrawler.h"
-#include "entities/droid_tempeststar.h"
-#include "entities/droid_splitcrawler.h"
-#include "entities/droid_kamikazestar.h"
-#include "entities/droid_railstar.h"
-#include "entities/droid_mendercrawler.h"
-#include "entities/droid_stalkercrawler.h"
-#include "entities/droid_teslastar.h"
-#include "entities/droid_cyclonecrawler.h"
+#include "bosspool.h"
 #include "gamecontroller.h"
 #include "gamecontext.h"
 #include "pve_director.h"
@@ -738,36 +723,13 @@ void IGameController::RestoreEntity(int ObjType, int Type, int Subtype, int x, i
 	}
 	else if(ObjType == ENTTYPE_DROID)
 	{
-		if(Type == DROIDTYPE_WALKER)
-			new CWalker(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_STAR)
-			new CStar(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_CRAWLER)
-			new CCrawler(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_BOSSCRAWLER)
-			new CBossCrawler(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_BOSSSTAR)
-			new CBossStar(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_BOSSSPLITTER)
-			new CBossSplitter(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_SIEGEBREAKERCRAWLER)
-			new CSiegeBreakerCrawler(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_TEMPESTSTAR)
-			new CTempestStar(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_SPLITCRAWLER)
-			new CSplitCrawler(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_KAMIKAZESTAR)
-			new CKamikazeStar(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_RAILSTAR)
-			new CRailstar(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_MENDERCRAWLER)
-			new CMenderCrawler(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_STALKERCRAWLER)
-			new CStalkerCrawler(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_TESLASTAR)
-			new CTeslaStar(&GameServer()->m_World, vec2(x, y));
-		else if(Type == DROIDTYPE_CYCLONECRAWLER)
-			new CCycloneCrawler(&GameServer()->m_World, vec2(x, y));
+		if(Type == DROIDTYPE_WALKER || Type == DROIDTYPE_STAR || Type == DROIDTYPE_CRAWLER ||
+			Type == DROIDTYPE_BOSSCRAWLER || Type == DROIDTYPE_BOSSSTAR || Type == DROIDTYPE_BOSSSPLITTER ||
+			Type == DROIDTYPE_SIEGEBREAKERCRAWLER || Type == DROIDTYPE_TEMPESTSTAR ||
+			Type == DROIDTYPE_SPLITCRAWLER || Type == DROIDTYPE_KAMIKAZESTAR || Type == DROIDTYPE_RAILSTAR ||
+			Type == DROIDTYPE_MENDERCRAWLER || Type == DROIDTYPE_STALKERCRAWLER || Type == DROIDTYPE_TESLASTAR ||
+			Type == DROIDTYPE_CYCLONECRAWLER)
+			SpawnDroid(&GameServer()->m_World, vec2(x, y), Type);
 	}
 }
 
@@ -891,32 +853,32 @@ bool IGameController::OnEntity(int Index, vec2 Pos)
 	}
 	else if(Index == ENTITY_DROID_WALKER)
 	{
-		new CWalker(&GameServer()->m_World, Pos + vec2(0, 16));
+		SpawnDroid(&GameServer()->m_World, Pos + vec2(0, 16), DROIDTYPE_WALKER);
 		return true;
 	}
 	else if(Index == ENTITY_DROID_STAR)
 	{
-		new CStar(&GameServer()->m_World, Pos + vec2(0, -80));
+		SpawnDroid(&GameServer()->m_World, Pos + vec2(0, -80), DROIDTYPE_STAR);
 		return true;
 	}
 	else if(Index == ENTITY_DROID_CRAWLER)
 	{
-		new CCrawler(&GameServer()->m_World, Pos + vec2(0, -40));
+		SpawnDroid(&GameServer()->m_World, Pos + vec2(0, -40), DROIDTYPE_CRAWLER);
 		return true;
 	}
 	else if(Index == ENTITY_DROID_BOSSCRAWLER)
 	{
-		new CBossCrawler(&GameServer()->m_World, Pos + vec2(0, -40));
+		SpawnDroid(&GameServer()->m_World, Pos + vec2(0, -40), DROIDTYPE_BOSSCRAWLER);
 		return true;
 	}
 	else if(Index == ENTITY_DROID_BOSSSTAR)
 	{
-		new CBossStar(&GameServer()->m_World, Pos + vec2(0, -80));
+		SpawnDroid(&GameServer()->m_World, Pos + vec2(0, -80), DROIDTYPE_BOSSSTAR);
 		return true;
 	}
 	else if(Index == ENTITY_DROID_BOSSSPLITTER)
 	{
-		new CBossSplitter(&GameServer()->m_World, Pos + vec2(0, -40));
+		SpawnDroid(&GameServer()->m_World, Pos + vec2(0, -40), DROIDTYPE_BOSSSPLITTER);
 		return true;
 	}
 

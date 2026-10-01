@@ -70,6 +70,14 @@ class CDroid : public CEntity
 
 	void SetState(int State);
 
+	bool DespawnIfUnsnapped();
+	vec2 PresentDamage(const CWeaponCombatProfile &Combat, vec2 Force, int Dmg, vec2 Pos);
+	void CommitDamage(vec2 DmgPos, int Dmg, const CAttackSource &Source);
+	bool FindCloseCrawlerTarget();
+	bool TrackCloseCrawler(int &Move);
+	bool FindStarTarget();
+	bool TargetStar();
+
 	virtual bool FindTarget();
 	virtual bool Target();
 	virtual void Fire();
