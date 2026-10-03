@@ -840,6 +840,22 @@ if(NINSLASH_BUILD_TESTS)
   target_link_libraries(ninslash_test_droid_animation ${CMAKE_THREAD_LIBS_INIT} ${PLATFORM_LIBS})
   add_test(NAME droid_animation COMMAND ninslash_test_droid_animation)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_droid_animation)
+  add_executable(ninslash_test_foundry_warden
+    design/foundry-warden/validate_native.cpp
+    src/game/client/spine.cpp
+    src/base/system.c
+    src/engine/shared/config.cpp
+    src/engine/shared/linereader.cpp
+    src/engine/shared/stream.cpp
+    "${PROJECT_BINARY_DIR}/src/generated/protocol.h"
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_foundry_warden PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_foundry_warden ${CMAKE_THREAD_LIBS_INIT} ${PLATFORM_LIBS})
+  add_test(NAME foundry_warden_assets COMMAND ninslash_test_foundry_warden
+    "${PROJECT_SOURCE_DIR}/data/anim/foundry_warden" warden-motion-v2)
+  set_tests_properties(foundry_warden_assets PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_foundry_warden)
   add_executable(ninslash_test_weapon_lua_components
     tests/weapon_lua_components.cpp
     src/generated/game_data.h

@@ -1,0 +1,91 @@
+{
+  "name": "熔炉监工",
+  "english_name": "FOUNDRY WARDEN",
+  "version": 1,
+  "status": "design_and_animation_prototype_not_registered_in_game",
+  "coordinate_system": "Spine Y-up, root at floor, authored at world-unit scale",
+  "clips": {
+    "idle": {
+      "label": "待机",
+      "duration": 2.4,
+      "loop": true,
+      "hint": "承重关节缓动，双钳轻微开合。"
+    },
+    "walk": {
+      "label": "四足行走",
+      "duration": 1,
+      "loop": true,
+      "hint": "对角步态；支撑足锁地，摆动足抬起。"
+    },
+    "clamp_sweep": {
+      "label": "液压横扫",
+      "duration": 1.65,
+      "loop": false,
+      "tell": 0.64,
+      "active_end": 0.84,
+      "hint": "钳臂先抬高再扫落；越过前钳，或退至攻击范围外。"
+    },
+    "mortar_barrage": {
+      "label": "熔渣迫击",
+      "duration": 2.4,
+      "loop": false,
+      "tell": 0.7,
+      "active_end": 1.55,
+      "shots": [
+        0.7,
+        1.05,
+        1.4
+      ],
+      "hint": "三轮交替落点，持续横移；爆炸落点先显示预警。"
+    },
+    "furnace_slam": {
+      "label": "铸炉重踏",
+      "duration": 2,
+      "loop": false,
+      "tell": 1.05,
+      "active_end": 1.3,
+      "hint": "下蹲蓄力后跃起；落地冲击波需要跳跃躲避。"
+    },
+    "vent": {
+      "label": "过热开甲",
+      "duration": 2.4,
+      "loop": false,
+      "weak_start": 0.3,
+      "weak_end": 2.05,
+      "hint": "护甲张开，橙色反应堆暴露；集中火力的反击窗口。"
+    },
+    "stagger": {
+      "label": "受击硬直",
+      "duration": 0.55,
+      "loop": false,
+      "hint": "短促的后坐与回弹，不依赖全身闪白。"
+    },
+    "enrage": {
+      "label": "二阶段启动",
+      "duration": 1.45,
+      "loop": false,
+      "hint": "生命低于 45% 后启动；前摇保持，收招缩短，强制保留散热。"
+    },
+    "death": {
+      "label": "瘫毁",
+      "duration": 2.6,
+      "loop": false,
+      "hint": "炮管失压、四足外折，核心熄灭，最后一帧保持。"
+    }
+  },
+  "gameplay_proposal": {
+    "health": 4200,
+    "phase_two_health_ratio": 0.45,
+    "core_damage_multiplier": 1.6,
+    "clamp_damage": 18,
+    "mortar_damage": 12,
+    "slam_damage": 22,
+    "note": "Initial tuning proposal; not playtested."
+  },
+  "sockets": {
+    "left_muzzle": "cannon_l",
+    "right_muzzle": "cannon_r",
+    "weak_point": "core",
+    "impact": "root"
+  }
+}
