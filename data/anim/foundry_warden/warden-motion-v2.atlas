@@ -1,0 +1,187 @@
+foundry_warden/warden-motion-v2.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+shell_left
+  rotate: false
+  xy: 4, 4
+  size: 158, 306
+  orig: 158, 306
+  offset: 0, 0
+  index: -1
+shell_right
+  rotate: false
+  xy: 170, 4
+  size: 158, 306
+  orig: 158, 306
+  offset: 0, 0
+  index: -1
+chassis
+  rotate: false
+  xy: 336, 4
+  size: 358, 208
+  orig: 358, 208
+  offset: 0, 0
+  index: -1
+inner_ring
+  rotate: false
+  xy: 702, 4
+  size: 224, 208
+  orig: 224, 208
+  offset: 0, 0
+  index: -1
+core
+  rotate: false
+  xy: 4, 318
+  size: 168, 168
+  orig: 168, 168
+  offset: 0, 0
+  index: -1
+shoulder
+  rotate: false
+  xy: 180, 318
+  size: 132, 132
+  orig: 132, 132
+  offset: 0, 0
+  index: -1
+crusher
+  rotate: false
+  xy: 320, 318
+  size: 228, 118
+  orig: 228, 118
+  offset: 0, 0
+  index: -1
+eye
+  rotate: false
+  xy: 556, 318
+  size: 110, 110
+  orig: 110, 110
+  offset: 0, 0
+  index: -1
+vent
+  rotate: false
+  xy: 674, 318
+  size: 68, 104
+  orig: 68, 104
+  offset: 0, 0
+  index: -1
+barrel
+  rotate: false
+  xy: 750, 318
+  size: 184, 102
+  orig: 184, 102
+  offset: 0, 0
+  index: -1
+hazard
+  rotate: false
+  xy: 4, 494
+  size: 210, 102
+  orig: 210, 102
+  offset: 0, 0
+  index: -1
+shin
+  rotate: false
+  xy: 222, 494
+  size: 218, 96
+  orig: 218, 96
+  offset: 0, 0
+  index: -1
+chin
+  rotate: false
+  xy: 448, 494
+  size: 216, 78
+  orig: 216, 78
+  offset: 0, 0
+  index: -1
+upper_link
+  rotate: false
+  xy: 672, 494
+  size: 208, 72
+  orig: 208, 72
+  offset: 0, 0
+  index: -1
+brow
+  rotate: false
+  xy: 4, 604
+  size: 236, 68
+  orig: 236, 68
+  offset: 0, 0
+  index: -1
+foot
+  rotate: false
+  xy: 248, 604
+  size: 124, 58
+  orig: 124, 58
+  offset: 0, 0
+  index: -1
+core_glow
+  rotate: false
+  xy: 4, 704
+  size: 168, 168
+  orig: 168, 168
+  offset: 0, 0
+  index: -1
+core_housing
+  rotate: false
+  xy: 180, 704
+  size: 168, 168
+  orig: 168, 168
+  offset: 0, 0
+  index: -1
+eye_glow
+  rotate: false
+  xy: 356, 704
+  size: 110, 110
+  orig: 110, 110
+  offset: 0, 0
+  index: -1
+eye_housing
+  rotate: false
+  xy: 474, 704
+  size: 110, 110
+  orig: 110, 110
+  offset: 0, 0
+  index: -1
+rear_shin
+  rotate: false
+  xy: 592, 704
+  size: 218, 96
+  orig: 218, 96
+  offset: 0, 0
+  index: -1
+rear_upper_link
+  rotate: false
+  xy: 4, 880
+  size: 208, 72
+  orig: 208, 72
+  offset: 0, 0
+  index: -1
+heel
+  rotate: false
+  xy: 220, 880
+  size: 80, 58
+  orig: 80, 58
+  offset: 0, 0
+  index: -1
+rear_heel
+  rotate: false
+  xy: 308, 880
+  size: 80, 58
+  orig: 80, 58
+  offset: 0, 0
+  index: -1
+rear_toe
+  rotate: false
+  xy: 396, 880
+  size: 44, 58
+  orig: 44, 58
+  offset: 0, 0
+  index: -1
+toe
+  rotate: false
+  xy: 448, 880
+  size: 44, 58
+  orig: 44, 58
+  offset: 0, 0
+  index: -1
