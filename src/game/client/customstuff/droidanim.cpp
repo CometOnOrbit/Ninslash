@@ -74,7 +74,7 @@ void CDroidAnim::Tick()
 	const float OffX2 = -cos(la2) * 30;
 	const float OffY2 = sin(la2) * 50;
 
-	if(m_Anim == DROIDANIM_IDLE)
+	if(m_Anim == DROIDANIM_IDLE || m_Anim == DROIDANIM_MOVE)
 	{
 
 		m_aLegTargetPos[0] = m_Pos + vec2(-50 + OffX1, 64 + OffY1) * Scale;

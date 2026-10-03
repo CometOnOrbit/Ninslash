@@ -831,6 +831,15 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_droid_control PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   add_test(NAME droid_control COMMAND ninslash_test_droid_control)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_droid_control)
+  add_executable(ninslash_test_droid_animation
+    tests/droid_animation.cpp
+    src/base/system.c
+    "${PROJECT_BINARY_DIR}/src/generated/protocol.h"
+  )
+  target_include_directories(ninslash_test_droid_animation PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_droid_animation ${CMAKE_THREAD_LIBS_INIT} ${PLATFORM_LIBS})
+  add_test(NAME droid_animation COMMAND ninslash_test_droid_animation)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_droid_animation)
   add_executable(ninslash_test_weapon_lua_components
     tests/weapon_lua_components.cpp
     src/generated/game_data.h
