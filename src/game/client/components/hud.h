@@ -66,6 +66,7 @@ class CHud : public CComponent
 	void RenderScoreHud();
 	void RenderSpectatorHud();
 	void RenderMovementInformation();
+	void RenderBossBar();
 	void UpdateAnimations();
 	void RenderStatusNotice(const char *pText, float Y, vec4 AccentColor, float Amount);
 

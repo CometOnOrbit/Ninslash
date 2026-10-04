@@ -47,7 +47,7 @@ void CBossWalker::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, v
 	const int From = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
 	CWeaponCatalog::TryResolveAttack(Source, &Combat);
-	if(m_Health <= 0)
+	if(m_Health <= 0 || IgnoresMapObject(Source))
 		return;
 	// skip everything while spawning
 	// if (m_aStatus[STATUS_SPAWNING] > 0.0f)

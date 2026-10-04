@@ -18,8 +18,42 @@ bool CRoomGenerated::TooSmall() const
 	return m_W < MinSize() || m_H < MinSize();
 }
 
+CRoomGenerated *CRoomGenerated::Join(int x, int y, int w, int h, CRoomGenerated *pA, CRoomGenerated *pB)
+{
+	CRoomGenerated *p = new CRoomGenerated(x, y, w, h, ROOM_LEAF);
+	p->m_pChild1 = pA;
+	p->m_pChild2 = pB;
+	return p;
+}
+
+CRoomGenerated *CRoomGenerated::CreateBoss(int RoomX, int RoomY, int RoomW, int RoomH)
+{
+	int ArenaX, ArenaY, ArenaW, ArenaH;
+	if(!BossArenaRect(RoomX, RoomY, RoomW, RoomH, &ArenaX, &ArenaY, &ArenaW, &ArenaH))
+		return new CRoomGenerated(RoomX, RoomY, RoomW, RoomH);
+
+	CRoomGenerated *pBand = new CRoomGenerated(ArenaX, ArenaY, ArenaW, ArenaH, ROOM_LEAF);
+	const int LeftW = ArenaX - RoomX;
+	if(LeftW >= 8)
+		pBand = Join(RoomX, ArenaY, LeftW + ArenaW, ArenaH, new CRoomGenerated(RoomX, ArenaY, LeftW, ArenaH), pBand);
+	const int RightX = ArenaX + ArenaW;
+	const int RightW = RoomX + RoomW - RightX;
+	if(RightW >= 8)
+		pBand = Join(pBand->m_X, ArenaY, RoomX + RoomW - pBand->m_X, ArenaH, pBand, new CRoomGenerated(RightX, ArenaY, RightW, ArenaH));
+
+	CRoomGenerated *pAll = pBand;
+	const int TopH = ArenaY - RoomY;
+	if(TopH >= 8)
+		pAll = Join(RoomX, RoomY, RoomW, ArenaY + ArenaH - RoomY, new CRoomGenerated(RoomX, RoomY, RoomW, TopH), pAll);
+	const int BotY = ArenaY + ArenaH;
+	const int BotH = RoomY + RoomH - BotY;
+	if(BotH >= 8)
+		pAll = Join(RoomX, pAll->m_Y, RoomW, RoomY + RoomH - pAll->m_Y, pAll, new CRoomGenerated(RoomX, BotY, RoomW, BotH));
+	return pAll;
+}
+
 // bsp map, acts as template for rooms
-CRoomGenerated::CRoomGenerated(int x, int y, int w, int h)
+CRoomGenerated::CRoomGenerated(int x, int y, int w, int h, int Kind)
 {
 	m_Open = false;
 
@@ -30,6 +64,9 @@ CRoomGenerated::CRoomGenerated(int x, int y, int w, int h)
 
 	m_pChild1 = 0;
 	m_pChild2 = 0;
+
+	if(Kind == ROOM_LEAF)
+		return;
 
 	int RoomSize = 7 + irandom(6);
 	if(str_comp(g_Config.m_SvGametype, "extract") == 0)

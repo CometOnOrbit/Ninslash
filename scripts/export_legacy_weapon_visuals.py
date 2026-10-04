@@ -170,13 +170,19 @@ def droid_visual_rows(root, filename):
 		type_match = re.search(r"\btype\s*=\s*(\d+)\b", body)
 		name_match = re.search(r"\bname\s*=\s*[\"']([a-z0-9_]+)[\"']", body)
 		template_match = re.search(r"\bvisual_template\s*=\s*weapon\.visual\.(\w+)", body)
-		if not type_match or not name_match or not template_match:
+		if not type_match or not name_match:
 			raise ValueError(f"incomplete droid visual profile in {filename}")
+		# droid.lua's define() fills these when the table omits them.
+		template_name = template_match.group(1) if template_match else "melee_small"
 		visuals_start = body.index("visuals")
 		visuals_opening = body.index("{", visuals_start)
 		visuals = lua_block(body, visuals_opening)
 		values = defaults.copy()
-		values["render_type"] = float(template_values[template_match.group(1)])
+		values["render_type"] = float(template_values[template_name])
+		if "visual_size" not in visuals:
+			values["visual_size_x"], values["visual_size_y"] = 4.0, 2.0
+		if not re.search(r"\brender_recoil\s*=", visuals):
+			values["render_recoil"] = 12.0
 		for name, x_field, y_field in PAIR_FIELDS:
 			pair = re.search(rf"\b{name}\s*=\s*\{{\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\}}", visuals)
 			if pair:
@@ -191,14 +197,15 @@ def droid_visual_rows(root, filename):
 		if type_id in rows:
 			raise ValueError(f"duplicate droid visual type: {type_id}")
 		rows[type_id] = [values[field] for field in VISUAL_FIELDS]
-	if sorted(rows) != list(range(17)):
-		raise ValueError(f"expected droid visual types 0-16 in {filename}")
-	return [rows[type_id] for type_id in range(17)]
+	expected = list(range(max(rows) + 1))
+	if sorted(rows) != expected:
+		raise ValueError(f"expected droid visual types 0-{expected[-1]} in {filename}")
+	return [rows[type_id] for type_id in expected]
 
 
 def replace_droid_visual_array(text, symbol, rows):
-	marker = f"static const float gs_aLegacy{symbol}Visuals[17][27] = {{"
-	start = text.index(marker)
+	marker = f"static const float gs_aLegacy{symbol}Visuals[{len(rows)}][27] = {{"
+	start = text.index(f"static const float gs_aLegacy{symbol}Visuals[")
 	end = text.index("\n};", start) + len("\n};")
 	array = marker + "\n" + "\n".join(
 		"\t{" + ", ".join(number(value) for value in row) + "}," for row in rows

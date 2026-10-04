@@ -385,9 +385,8 @@ CDroid *CGameWorld::IntersectWalker(vec2 Pos0, vec2 Pos1, float Radius, vec2 &Ne
 		if(p == pNotThis || p->m_Health <= 0)
 			continue;
 
-		const vec2 IntersectPos = closest_point_on_line(Pos0, Pos1, p->m_Pos);
-		const float CollisionRange = p->m_ProximityRadius + Radius;
-		if(DistanceSquared(p->m_Pos + p->m_Center, IntersectPos) < CollisionRange * CollisionRange)
+		vec2 IntersectPos;
+		if(p->HitSegment(Pos0, Pos1, Radius, &IntersectPos))
 		{
 			const float AlongSegmentSquared = DistanceSquared(Pos0, IntersectPos);
 			if(AlongSegmentSquared < ClosestLenSquared)

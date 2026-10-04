@@ -205,21 +205,22 @@ void CMaze::Generate()
 			return;
 		}
 
-		// Boss ring layout
+		// Boss assault: open the unsplit center leaf, then corridors into the margins.
 		if(Theme == INVASION_THEME_BOSS_ASSAULT)
 		{
-			int r = min(20, Level / 3);
-			float s = 0.12f + frandom() * 0.15f;
-			float sy = 0.4f + frandom() * 0.15f;
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f - s), m_H * (0.5f + s * sy));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f), m_H * (0.5f + s * sy));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f), m_H * (0.5f - s * sy));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f + s), m_H * (0.5f - s * sy));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f + s), m_H * (0.5f));
-			m_aRoom[m_Rooms++] = vec2(m_W * (0.5f), m_H * (0.5f));
-			for(int i = 0; i < m_Rooms - 1; i++)
-				Connect(m_aRoom[i], m_aRoom[i + 1]);
-			for(int i = 0; i < r; i++)
+			int ArenaX, ArenaY, ArenaW, ArenaH;
+			if(BossArenaRect(3, 3, m_W - 6, m_H - 6, &ArenaX, &ArenaY, &ArenaW, &ArenaH))
+			{
+				const vec2 Center(ArenaX + ArenaW / 2, ArenaY + ArenaH / 2);
+				Open(Center);
+				m_aRoom[m_Rooms++] = vec2(ArenaX - 4, Center.y);
+				m_aRoom[m_Rooms++] = vec2(ArenaX + ArenaW + 4, Center.y);
+				m_aRoom[m_Rooms++] = vec2(Center.x, ArenaY - 4);
+				m_aRoom[m_Rooms++] = vec2(Center.x, ArenaY + ArenaH + 4);
+				for(int i = 0; i < m_Rooms; i++)
+					Connect(m_aRoom[i], Center);
+			}
+			for(int i = 0; i < min(8, Level / 2); i++)
 				GenerateRoom();
 			ConnectRooms();
 			ConnectEverything();

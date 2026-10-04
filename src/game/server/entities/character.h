@@ -65,6 +65,7 @@ class CCharacter : public CEntity
 	void Deathray(bool Kill = true);
 	void Electrocute(float Duration);
 	void Slow(float Duration);
+	void AddRecoil(vec2 Force) { m_Recoil += Force; }
 	void Jumppad();
 
 	void OnPredictedInput(CNetObj_PlayerInput *pNewInput);

@@ -6,8 +6,8 @@
   "description": "Complete example Lua weapon with custom resources, combat behavior, HUD, and localization",
   "version": "1",
   "author": "Ninslash",
-  "target_protocol": "0.5.1 nofieldorder",
-  "content_hash": "c3ecee446fd6fb449b3f7f7045c007754ef7db633d952530f70a9bfe379ece1a",
+  "target_protocol": "0.5.1 8b0f23016fb8aa0d",
+  "content_hash": "c7f90e3aa138644ef5ed6361047c8ca9ca0f829c440fe45e6ef328d5b69be333",
   "content_rating": "everyone",
   "api_version": 1,
   "capabilities": [

@@ -56,7 +56,7 @@ void CBossSplitter::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source,
 	const int From = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
 	CWeaponCatalog::TryResolveAttack(Source, &Combat);
-	if(m_Health <= 0)
+	if(m_Health <= 0 || IgnoresMapObject(Source))
 		return;
 	if(!Dmg)
 		return;

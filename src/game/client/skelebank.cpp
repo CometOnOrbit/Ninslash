@@ -73,6 +73,12 @@ void CSkelebank::Init(IStorage *pStorage)
 
 	AddSkeleton("data/anim/lost_protocol/pve_drone_repair.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/lost_protocol/pve_drone_repair.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/foundry_warden/warden-motion-v2.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/foundry_warden/warden-motion-v2.atlas", IStorage::STORAGETYPE_CLIENT);
+
+	AddSkeleton("data/anim/abyss_angler/abyss-angler.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/abyss_angler/abyss-angler.atlas", IStorage::STORAGETYPE_CLIENT);
 }
 
 CSkelebank::~CSkelebank()

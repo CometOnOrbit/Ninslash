@@ -5456,3 +5456,30 @@ Field orders
 
 Tactical package vote each floor
 == 每层开局投票选择战术指令
+
+Foundry Warden
+== 熔炉监工
+
+Phase %d
+== 第 %d 阶段
+
+Arms
+== 机械臂
+
+Legs
+== 腿部
+
+Mortar
+== 迫击炮
+
+Abyss Angler
+== 深渊鮟鱇
+
+Lure
+== 诱饵
+
+Fins
+== 鳍
+
+Jaw
+== 下颌

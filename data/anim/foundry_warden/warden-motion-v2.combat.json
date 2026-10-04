@@ -1,0 +1,132 @@
+{
+  "name": "熔炉监工",
+  "english_name": "FOUNDRY WARDEN",
+  "version": 2,
+  "status": "polished_animation_assets_not_registered_in_game",
+  "coordinate_system": "Spine Y-up, root at floor, authored at world-unit scale",
+  "clips": {
+    "idle": {
+      "label": "承重待机",
+      "duration": 3.6,
+      "loop": true,
+      "hint": "底盘承重，上身悬挂缓动；独眼巡视，钳指错相收放。"
+    },
+    "walk": {
+      "label": "四足重步",
+      "duration": 1.4,
+      "loop": true,
+      "stride": 44,
+      "stance": 0.68,
+      "hint": "对角承重、脚尖先离地，足底落稳后身体才跟进。地面同步滚动以展示足锁定。"
+    },
+    "clamp_sweep": {
+      "label": "液压钳击",
+      "duration": 2.05,
+      "loop": false,
+      "tell": 0.64,
+      "impact": 0.775,
+      "active_end": 0.9,
+      "hit_hold": 0.045,
+      "hint": "重心反向蓄力 → 肩肘甩出 → 钳指闭合 → 冲击停顿 → 惯性回收。"
+    },
+    "mortar_barrage": {
+      "label": "交替迫击",
+      "duration": 2.8,
+      "loop": false,
+      "tell": 0.72,
+      "active_end": 1.61,
+      "shots": [
+        0.72,
+        1.08,
+        1.44
+      ],
+      "shot_sides": [
+        "r",
+        "l",
+        "r"
+      ],
+      "hint": "左右炮交替开火；炮口先亮、炮管后坐，再传递到支架和躯干。"
+    },
+    "furnace_slam": {
+      "label": "跃起重踏",
+      "duration": 2.5,
+      "loop": false,
+      "tell": 1.12,
+      "impact": 1.12,
+      "active_end": 1.39,
+      "hit_hold": 0.06,
+      "hint": "压低重心，离地收腿；落地先压底盘，再压上身，护板与炮管最后收住。"
+    },
+    "vent": {
+      "label": "解锁散热",
+      "duration": 3.1,
+      "loop": false,
+      "weak_start": 0.52,
+      "weak_end": 2.55,
+      "hint": "先卸压，左右胸甲错开解锁；炉芯独立旋转，排气结束后依次合甲。"
+    },
+    "stagger": {
+      "label": "受击传导",
+      "duration": 0.85,
+      "loop": false,
+      "impact": 0.09,
+      "hint": "受击从躯干传到肩甲与钳臂；足部稳住，弹性逐步衰减。"
+    },
+    "enrage": {
+      "label": "过载启动",
+      "duration": 2.2,
+      "loop": false,
+      "hint": "压低身体、锁定双钳，炉芯加速；护甲和散热鳍依次响应过载。"
+    },
+    "death": {
+      "label": "失压瘫毁",
+      "duration": 3.6,
+      "loop": false,
+      "impacts": [
+        0.78,
+        1.56
+      ],
+      "hint": "先失衡，再失压折膝；炮管与钳臂分段落下，独眼最后熄灭。"
+    }
+  },
+  "gameplay_proposal": {
+    "health": 4200,
+    "phase_two_health_ratio": 0.45,
+    "core_damage_multiplier": 1.6,
+    "clamp_damage": 18,
+    "mortar_damage": 12,
+    "slam_damage": 22,
+    "note": "Initial tuning proposal; not playtested."
+  },
+  "sockets": {
+    "left_muzzle": "muzzle_l",
+    "right_muzzle": "muzzle_r",
+    "weak_point": "core",
+    "impact": "root",
+    "claw_tip": "claw_tip_r"
+  },
+  "baked_fps": 60,
+  "foot_contact_height": 10.5,
+  "rig_bones": 54,
+  "rig_slots": 49,
+  "atlas_regions": 26,
+  "motion_pass": {
+    "features": [
+      "independent pelvis and upper suspension",
+      "baked planted-foot IK",
+      "toe roll and alternating support",
+      "telescoping hydraulic links",
+      "overlapping secondary motion",
+      "split luminous rotors",
+      "authored easing and contact holds"
+    ],
+    "preview_only": [
+      "clip crossfade",
+      "impact particles",
+      "camera kick",
+      "emissive glow",
+      "contact shadows",
+      "walk ground scroll"
+    ]
+  }
+}

@@ -10,6 +10,8 @@ enum
 	DROID_DRAW_WALKER,
 	DROID_DRAW_STAR,
 	DROID_DRAW_CRAWLER,
+	DROID_DRAW_WARDEN,
+	DROID_DRAW_ANGLER,
 };
 
 struct CDroidVisual
@@ -47,6 +49,8 @@ inline const CDroidVisual &DroidVisual(int Type)
 		{DROID_DRAW_CRAWLER, 0.90f, vec4(0.45f, 0.25f, 0.70f, 1.0f), vec4(0.55f, 0.35f, 0.80f, 1.0f), NoLight, 0.0f, true, false},
 		{DROID_DRAW_STAR, 1.10f, vec4(0.25f, 0.55f, 1.00f, 1.0f), White, vec4(0.12f, 0.55f, 1.0f, 0.88f), 145.0f, false, false},
 		{DROID_DRAW_CRAWLER, 1.15f, vec4(1.00f, 0.70f, 0.20f, 1.0f), vec4(1.00f, 0.78f, 0.30f, 1.0f), NoLight, 0.0f, false, true},
+		{DROID_DRAW_WARDEN, 0.85f, White, White, vec4(1.0f, 0.42f, 0.12f, 0.85f), 170.0f, false, false},
+		{DROID_DRAW_ANGLER, 0.75f, White, White, vec4(0.3f, 0.85f, 1.0f, 0.55f), 190.0f, false, false},
 	};
 	static const CDroidVisual s_None = {DROID_DRAW_NONE, 1.0f, White, White, NoLight, 0.0f, false, false};
 	if(Type < 0 || Type >= NUM_DROIDTYPES)

@@ -1,6 +1,7 @@
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <game/droid_control.h>
+#include <game/server/bosspool.h>
 #include <game/server/gamecontext.h>
 #include <game/server/pve_director.h>
 #include <game/server/tutorial_director.h>
@@ -23,6 +24,10 @@ static vec2 DroidControlBox(int Type, float Radius)
 		return vec2(96.0f, 128.0f);
 	if(Type == DROIDTYPE_BOSSCRAWLER)
 		return vec2(90.0f, 100.0f);
+	if(Type == DROIDTYPE_BOSSWARDEN)
+		return vec2(96.0f, 128.0f);
+	if(Type == DROIDTYPE_BOSSANGLER)
+		return vec2(96.0f, 88.0f);
 	float Size = max(Radius, 60.0f);
 	return vec2(Size, Size);
 }
@@ -224,12 +229,25 @@ bool CDroid::TargetStar()
 	return false;
 }
 
+bool CDroid::HitSegment(vec2 Pos0, vec2 Pos1, float Radius, vec2 *pAt)
+{
+	*pAt = closest_point_on_line(Pos0, Pos1, m_Pos);
+	const float Range = m_ProximityRadius + Radius;
+	const vec2 d = m_Pos + m_Center - *pAt;
+	return d.x * d.x + d.y * d.y < Range * Range;
+}
+
+bool CDroid::IgnoresMapObject(const CAttackSource &Source) const
+{
+	return BossIgnoresMapObject(m_Type, Source);
+}
+
 void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos)
 {
 	const int From = Source.m_Owner;
 	CWeaponCombatProfile Combat{};
 	CWeaponCatalog::TryResolveAttack(Source, &Combat);
-	if(m_Health <= 0)
+	if(m_Health <= 0 || IgnoresMapObject(Source))
 		return;
 	// skip everything while spawning
 	// if (m_aStatus[STATUS_SPAWNING] > 0.0f)
@@ -240,7 +258,8 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 	if(GameServer()->m_pPveDirector)
 	{
 		const bool Boss = m_Type == DROIDTYPE_BOSSCRAWLER || m_Type == DROIDTYPE_BOSSSTAR ||
-						  m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER;
+						  m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER ||
+						  m_Type == DROIDTYPE_BOSSWARDEN || m_Type == DROIDTYPE_BOSSANGLER;
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, Boss, this);
 	}
 
@@ -681,7 +700,17 @@ void CDroid::TickPaused()
 
 void CDroid::Snap(int SnappingClient)
 {
-	if(NetworkClipped(SnappingClient))
+	// Boss bar reaches 2200. The type lives on this item, so it has to travel with the bar.
+	if(m_Type == DROIDTYPE_BOSSWARDEN || m_Type == DROIDTYPE_BOSSANGLER)
+	{
+		if(SnappingClient >= 0)
+		{
+			CPlayer *pPlayer = GameServer()->m_apPlayers[SnappingClient];
+			if(pPlayer && distance(pPlayer->m_ViewPos, m_Pos) > 2200.0f)
+				return;
+		}
+	}
+	else if(NetworkClipped(SnappingClient))
 		return;
 
 	m_SnapTick = Server()->Tick();

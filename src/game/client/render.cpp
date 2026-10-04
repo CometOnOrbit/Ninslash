@@ -20,6 +20,7 @@
 #include <game/client/customstuff.h>
 #include <game/client/customstuff/playerinfo.h>
 #include <game/client/customstuff/droidanim.h>
+#include <game/foundry_warden.h>
 
 static float gs_SpriteWScale;
 static float gs_SpriteHScale;
@@ -1036,6 +1037,85 @@ void CRenderTools::RenderPortrait(CTeeRenderInfo *pInfo, vec2 Pos, int EyeType)
 	}
 }
 
+static CAnimBone *FindAnimBone(CAnimSkeletonInfo *pSkeleton, const char *pName)
+{
+	for(int i = 0; i < pSkeleton->m_lBones.size(); i++)
+		if(strcmp(pSkeleton->m_lBones[i]->m_Name, pName) == 0)
+			return pSkeleton->m_lBones[i];
+	return 0;
+}
+
+static vec2 BoneToParent(const mat33 &Parent, vec2 Point)
+{
+	const float x = Point.x - Parent.m02;
+	const float y = Point.y - Parent.m12;
+	const float Det = Parent.m00 * Parent.m11 - Parent.m01 * Parent.m10;
+	if(Det > -0.0001f && Det < 0.0001f)
+		return vec2(x, y);
+	return vec2((Parent.m11 * x - Parent.m01 * y) / Det, (-Parent.m10 * x + Parent.m00 * y) / Det);
+}
+
+static void RebuildBone(CAnimBone *pBone, vec2 LocalPos, float LocalRot)
+{
+	pBone->m_Transform = CalcTransformationMatrix(LocalPos, vec2(1.0f, 1.0f), LocalRot);
+	if(pBone->m_pParent)
+		pBone->m_Transform = pBone->m_pParent->m_Transform * pBone->m_Transform;
+}
+
+static void PlantWardenLegs(CAnimSkeletonInfo *pSkeleton, CDroidAnim *pAnim, vec2 Origin, vec2 Scale)
+{
+	if(!pAnim || pAnim->m_Status == DROIDSTATUS_TERMINATED || Scale.x == 0.0f || Scale.y == 0.0f)
+		return;
+
+	// Body ride: everything under the pelvis moves with it. Mirroring flips the rotation sense.
+	CAnimBone *pPelvis = FindAnimBone(pSkeleton, "pelvis");
+	if(pPelvis)
+	{
+		const vec2 Shake = vec2(frandom() - frandom(), frandom() - frandom()) * pAnim->m_Shake * 7.0f;
+		const vec2 Offset((pAnim->m_BodyOffset.x + Shake.x) / Scale.x, (pAnim->m_BodyOffset.y + Shake.y) / Scale.y);
+		const float Rot = pAnim->m_BodyTilt * (Scale.x < 0.0f ? -1.0f : 1.0f) + Shake.x * 0.004f;
+		const vec2 Pivot(pPelvis->m_Transform.m02, pPelvis->m_Transform.m12);
+		const mat33 Ride = CalcTransformationMatrix(Pivot + Offset, vec2(1.0f, 1.0f), Rot) *
+						   CalcTransformationMatrix(-Pivot, vec2(1.0f, 1.0f), 0.0f);
+		for(int i = 0; i < pSkeleton->m_lBones.size(); i++)
+			if(pSkeleton->m_lBones[i]->m_pParent)
+				pSkeleton->m_lBones[i]->m_Transform = Ride * pSkeleton->m_lBones[i]->m_Transform;
+	}
+
+	static const char *s_aapName[4][4] = {
+		{"rear_l_hip", "rear_l_knee", "rear_l_foot", "rear_l_toe"},
+		{"front_l_hip", "front_l_knee", "front_l_foot", "front_l_toe"},
+		{"front_r_hip", "front_r_knee", "front_r_foot", "front_r_toe"},
+		{"rear_r_hip", "rear_r_knee", "rear_r_foot", "rear_r_toe"},
+	};
+
+	for(int i = 0; i < 4; i++)
+	{
+		CAnimBone *pHip = FindAnimBone(pSkeleton, s_aapName[i][0]);
+		CAnimBone *pKnee = FindAnimBone(pSkeleton, s_aapName[i][1]);
+		CAnimBone *pFoot = FindAnimBone(pSkeleton, s_aapName[i][2]);
+		CAnimBone *pToe = FindAnimBone(pSkeleton, s_aapName[i][3]);
+		if(!pHip || !pKnee || !pFoot || !pHip->m_pParent || pHip->m_Length < 1.0f || pKnee->m_Length < 1.0f)
+			continue;
+		const vec2 Foot = pAnim->m_aLegPos[i];
+		if(Foot.x == 0.0f && Foot.y == 0.0f)
+			continue;
+
+		const vec2 Skel((Foot.x - Origin.x) / Scale.x, (Foot.y - Origin.y) / Scale.y - WARDEN_FOOT_ABOVE_GROUND);
+		const vec2 HipWorld(pHip->m_Transform.m02, pHip->m_Transform.m12);
+		const vec2 HipLocal = BoneToParent(pHip->m_pParent->m_Transform, HipWorld);
+		const vec2 Target = BoneToParent(pHip->m_pParent->m_Transform, Skel);
+		float HipRot, KneeRot;
+		WardenSolveLegUp(HipLocal.x, HipLocal.y, Target.x, Target.y, pHip->m_Length, pKnee->m_Length, &HipRot, &KneeRot);
+		RebuildBone(pHip, HipLocal, HipRot);
+		RebuildBone(pKnee, vec2(pHip->m_Length, 0.0f), KneeRot);
+		// Setup feet are level; keep the heel flat on the floor whatever the shin angle.
+		RebuildBone(pFoot, vec2(pKnee->m_Length, 0.0f), -atan2f(pKnee->m_Transform.m10, pKnee->m_Transform.m00));
+		if(pToe)
+			RebuildBone(pToe, pToe->m_Position, pToe->m_Rotation);
+	}
+}
+
 void CRenderTools::RenderSkeleton(vec2 Pos,
 								  int Atlas,
 								  const char *Anim,
@@ -1045,7 +1125,8 @@ void CRenderTools::RenderSkeleton(vec2 Pos,
 								  float Angle,
 								  int Team,
 								  const char *pBaseAnim,
-								  float BaseTime)
+								  float BaseTime,
+								  CDroidAnim *pDroidAnim)
 {
 	vec2 Position = Pos;
 
@@ -1059,7 +1140,9 @@ void CRenderTools::RenderSkeleton(vec2 Pos,
 	if(Dir == 1)
 		Scale.x *= -1;
 
-	mat33 TransformationWorld = CalcTransformationMatrix(Position, Scale, 0.0f);
+	// The angler banks its whole body into the swim direction.
+	const bool Angler = pDroidAnim && DroidVisual(pDroidAnim->m_Type).m_Draw == DROID_DRAW_ANGLER;
+	mat33 TransformationWorld = CalcTransformationMatrix(Position, Scale, Angler ? pDroidAnim->m_BodyTilt : 0.0f);
 
 	CSpineAnimation *pAnimation = 0x0;
 	CSpineAnimation *pBaseAnimation = 0x0;
@@ -1077,6 +1160,8 @@ void CRenderTools::RenderSkeleton(vec2 Pos,
 	}
 
 	pSkeleton->UpdateBones(Time, pAnimation, 0, Angle, 0, pBaseAnimation, BaseTime);
+	if(pDroidAnim && DroidVisual(pDroidAnim->m_Type).m_Draw == DROID_DRAW_WARDEN)
+		PlantWardenLegs(pSkeleton, pDroidAnim, Position, Scale);
 
 	if(pAtlas)
 	{
@@ -1202,6 +1287,65 @@ void CRenderTools::RenderSkeleton(vec2 Pos,
 			}
 		}
 	}
+}
+
+vec2 CRenderTools::SkeletonBonePos(int Atlas, const char *pBone, vec2 Pos, vec2 Scale, int Dir, float Rot)
+{
+	CAnimSkeletonInfo *pSkeleton = Skelebank()->m_lSkeletons[Atlas];
+	CAnimBone *pFound = pSkeleton ? FindAnimBone(pSkeleton, pBone) : 0;
+	if(!pFound)
+		return Pos;
+	if(Dir == 1)
+		Scale.x *= -1;
+	const vec3 p = CalcTransformationMatrix(Pos, Scale, Rot) * pFound->m_Transform * vec3(0.0f, 0.0f, 1.0f);
+	return vec2(p.x, p.y);
+}
+
+void CRenderTools::RenderAtlasSprite(int Atlas, const char *pName, vec2 Pos, vec2 Size, float Angle)
+{
+	CTextureAtlas *pAtlas = Skelebank()->m_lAtlases[Atlas];
+	if(!pAtlas)
+		return;
+	auto SpriteIter = pAtlas->m_lSprites.find(pName);
+	if(SpriteIter == pAtlas->m_lSprites.end())
+		return;
+	const CTextureAtlasSprite &Sprite = SpriteIter->second;
+	const CTextureAtlasPage &Page = pAtlas->m_lPages[Sprite.m_PageId];
+	float x0 = Sprite.m_X / Page.m_Width, x1 = (Sprite.m_X + Sprite.m_Width) / Page.m_Width;
+	float y0 = Sprite.m_Y / Page.m_Height, y1 = (Sprite.m_Y + Sprite.m_Height) / Page.m_Height;
+	// Keep the art upright when it points left.
+	if(cosf(Angle) < 0.0f)
+	{
+		const float t = y0;
+		y0 = y1;
+		y1 = t;
+	}
+	Graphics()->TextureSet(Page.m_TexId);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1, 1, 1, 1);
+	Graphics()->QuadsSetSubset(x0, y0, x1, y1);
+	Graphics()->QuadsSetRotation(Angle);
+	IGraphics::CQuadItem Quad(Pos.x, Pos.y, Size.x, Size.y);
+	Graphics()->QuadsDraw(&Quad, 1);
+	Graphics()->QuadsEnd();
+}
+
+void CRenderTools::RenderWardenArm(vec2 From, vec2 To, float Scale)
+{
+	const vec2 Diff = To - From;
+	const float Len = length(Diff);
+	if(Len < 1.0f)
+		return;
+	const vec2 Dir = Diff / Len;
+	const float Angle = atan2f(Dir.y, Dir.x);
+	const float Step = 150.0f * Scale;
+	for(float s = 0.0f; s < Len; s += Step)
+	{
+		const float Piece = min(Step, Len - s);
+		RenderAtlasSprite(ATLAS_FOUNDRY_WARDEN, "upper_link", From + Dir * (s + Piece * 0.5f), vec2(Piece + 24.0f * Scale, 56.0f * Scale), Angle);
+	}
+	RenderAtlasSprite(ATLAS_FOUNDRY_WARDEN, "shoulder", From, vec2(90.0f, 90.0f) * Scale, Angle);
+	RenderAtlasSprite(ATLAS_FOUNDRY_WARDEN, "crusher", To + Dir * 40.0f * Scale, vec2(228.0f, 118.0f) * Scale, Angle);
 }
 
 void CRenderTools::RenderWalker(vec2 Pos, int Anim, float Time, int Dir, float Angle, int Status, int Type)

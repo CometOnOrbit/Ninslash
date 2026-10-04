@@ -25,6 +25,8 @@ class CDroid : public CEntity
 	CAttackSource ShotSource() const;
 
 	virtual void TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 Pos);
+	bool IgnoresMapObject(const CAttackSource &Source) const;
+	virtual bool HitSegment(vec2 Pos0, vec2 Pos1, float Radius, vec2 *pAt);
 	int m_Health;
 	int m_MaxHealth;
 

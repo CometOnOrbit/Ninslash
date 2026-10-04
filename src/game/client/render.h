@@ -211,7 +211,7 @@ class CAnimSkeletonInfo
 					 CSpineAnimation *pAnimation = 0x0,
 					 class CSkeletonAnimation *pAnimData = 0x0,
 					 int WeaponAngle = 0,
-					 struct CDroidAnim *pDroidAnim = 0x0,
+					 class CDroidAnim *pDroidAnim = 0x0,
 					 CSpineAnimation *pBaseAnimation = 0x0,
 					 float BaseTime = 0.0f);
 };
@@ -322,7 +322,7 @@ class CRenderTools
 
 	void RenderWalker(vec2 Pos, int Anim, float Time, int Dir, float Angle, int Status, int Type = 0);
 	void RenderStarDroid(
-		vec2 Pos, int Anim, float Time, int Dir, float Angle, int Status, struct CDroidAnim *pDroidAnim = 0x0);
+		vec2 Pos, int Anim, float Time, int Dir, float Angle, int Status, class CDroidAnim *pDroidAnim = 0x0);
 	void RenderCrawlerDroid(vec2 Pos,
 							int Anim,
 							float Time,
@@ -354,7 +354,12 @@ class CRenderTools
 						float Angle,
 						int Team = -1,
 						const char *pBaseAnim = 0x0,
-						float BaseTime = 0.0f);
+						float BaseTime = 0.0f,
+						class CDroidAnim *pDroidAnim = 0x0);
+	void RenderAtlasSprite(int Atlas, const char *pName, vec2 Pos, vec2 Size, float Angle);
+	// World position of a bone as posed by the last RenderSkeleton call on that atlas.
+	vec2 SkeletonBonePos(int Atlas, const char *pBone, vec2 Pos, vec2 Scale, int Dir, float Rot);
+	void RenderWardenArm(vec2 From, vec2 To, float Scale);
 
 	template <typename TKeyframe>
 	static void RenderEvalSkeletonAnim(TKeyframe *pKeyFrame,

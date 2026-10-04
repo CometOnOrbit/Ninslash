@@ -3,6 +3,7 @@
 
 #include <base/vmath.h>
 #include <generated/protocol.h>
+#include <game/weapons/weapon_catalog.h>
 
 class CGameWorld;
 class CDroid;
@@ -10,7 +11,38 @@ class CDroid;
 inline bool IsBossDroidType(int Type)
 {
 	return Type == DROIDTYPE_BOSSCRAWLER || Type == DROIDTYPE_BOSSSTAR || Type == DROIDTYPE_BOSSWALKER ||
-		   Type == DROIDTYPE_BOSSSPLITTER;
+		   Type == DROIDTYPE_BOSSSPLITTER || Type == DROIDTYPE_BOSSWARDEN || Type == DROIDTYPE_BOSSANGLER;
+}
+
+// Saws, barrels, mines and acid are map props. Turret shots stay Building-kind too, so those types are not listed.
+inline bool BossIgnoresMapObject(int DroidType, const CAttackSource &Source)
+{
+	if(!IsBossDroidType(DroidType))
+		return false;
+	if(Source.m_Kind == EAttackSourceKind::World)
+		return Source.m_Type == DAMAGETYPE_FLUID || Source.m_Type == WEAPON_ACID;
+	if(Source.m_Kind != EAttackSourceKind::Building)
+		return false;
+	switch(Source.m_Type)
+	{
+	case BUILDING_SAWBLADE:
+	case BUILDING_MINE1:
+	case BUILDING_MINE2:
+	case BUILDING_BARREL:
+	case BUILDING_BARREL2:
+	case BUILDING_BARREL3:
+	case BUILDING_POWERBARREL:
+	case BUILDING_POWERBARREL2:
+	case BUILDING_FLAMETRAP:
+	case BUILDING_LAZER:
+	case BUILDING_LIGHTNINGWALL:
+	case BUILDING_LIGHTNINGWALL2:
+	case BUILDING_REACTOR:
+	case BUILDING_REACTOR_DESTROYED:
+		return true;
+	default:
+		return false;
+	}
 }
 
 // Depth unlocks more boss kinds (Invasion level / Horde wave).

@@ -831,6 +831,48 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_droid_control PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   add_test(NAME droid_control COMMAND ninslash_test_droid_control)
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_droid_control)
+  add_executable(ninslash_test_droid_animation
+    tests/droid_animation.cpp
+    src/base/system.c
+    "${PROJECT_BINARY_DIR}/src/generated/protocol.h"
+  )
+  target_include_directories(ninslash_test_droid_animation PRIVATE ${PROJECT_BINARY_DIR}/src ${PROJECT_SOURCE_DIR}/src)
+  target_link_libraries(ninslash_test_droid_animation ${CMAKE_THREAD_LIBS_INIT} ${PLATFORM_LIBS})
+  add_test(NAME droid_animation COMMAND ninslash_test_droid_animation)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_droid_animation)
+  add_executable(ninslash_test_foundry_warden_boss
+    tests/foundry_warden.cpp
+    "${PROJECT_BINARY_DIR}/src/generated/protocol.h"
+  )
+  target_include_directories(ninslash_test_foundry_warden_boss PRIVATE ${PROJECT_BINARY_DIR}/src ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME foundry_warden_boss COMMAND ninslash_test_foundry_warden_boss)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_foundry_warden_boss)
+  add_executable(ninslash_test_foundry_warden
+    design/foundry-warden/validate_native.cpp
+    src/game/client/spine.cpp
+    src/base/system.c
+    src/engine/shared/config.cpp
+    src/engine/shared/linereader.cpp
+    src/engine/shared/stream.cpp
+    "${PROJECT_BINARY_DIR}/src/generated/protocol.h"
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_foundry_warden PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_foundry_warden ${CMAKE_THREAD_LIBS_INIT} ${PLATFORM_LIBS})
+  add_test(NAME foundry_warden_assets COMMAND ninslash_test_foundry_warden
+    "${PROJECT_SOURCE_DIR}/data/anim/foundry_warden" warden-motion-v2)
+  set_tests_properties(foundry_warden_assets PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  add_test(NAME abyss_angler_assets COMMAND ninslash_test_foundry_warden
+    "${PROJECT_SOURCE_DIR}/data/anim/abyss_angler" abyss-angler 9)
+  set_tests_properties(abyss_angler_assets PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_foundry_warden)
+  add_executable(ninslash_test_abyss_angler
+    tests/abyss_angler.cpp
+    "${PROJECT_BINARY_DIR}/src/generated/protocol.h"
+  )
+  target_include_directories(ninslash_test_abyss_angler PRIVATE ${PROJECT_BINARY_DIR}/src ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME abyss_angler_boss COMMAND ninslash_test_abyss_angler)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_abyss_angler)
   add_executable(ninslash_test_weapon_lua_components
     tests/weapon_lua_components.cpp
     src/generated/game_data.h
@@ -1607,6 +1649,10 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/droid_bosswalker.h
   entities/droid_bosssplitter.cpp
   entities/droid_bosssplitter.h
+  entities/droid_foundrywarden.cpp
+  entities/droid_foundrywarden.h
+  entities/droid_abyssangler.cpp
+  entities/droid_abyssangler.h
   entities/droid_crawler.cpp
   entities/droid_crawler.h
   entities/droid_cyclonecrawler.cpp

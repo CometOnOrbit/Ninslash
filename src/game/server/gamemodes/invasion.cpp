@@ -85,6 +85,7 @@ static int InvasionRegionalBossType(int MapTemplate)
 		case INV_MAP_LARGE3:
 			return DROIDTYPE_BOSSCRAWLER;
 		case INV_MAP_BLUEPLANET:
+			return DROIDTYPE_BOSSANGLER;
 		case INV_MAP_LARGE1:
 			return DROIDTYPE_BOSSSPLITTER;
 		case INV_MAP_CITY2:
@@ -169,9 +170,13 @@ CGameControllerInvasion::CGameControllerInvasion(class CGameContext *pGameServer
 	}
 
 	m_BotSpawnTick = 0;
-	m_MapTemplate = InvasionMapTemplateForName(Server()->m_aMapInUse);
-	if(m_MapTemplate == INV_MAP_UNKNOWN)
-		m_MapTemplate = InvasionMapTemplateForName(g_Config.m_SvMap);
+	// Mapgen reloads as "generated". The template name survives in sv_inv_map.
+	const char *pTemplate = Server()->m_aMapInUse;
+	if(InvasionMapTemplateForName(pTemplate) == INV_MAP_UNKNOWN)
+		pTemplate = g_Config.m_SvMap;
+	if(InvasionMapTemplateForName(pTemplate) == INV_MAP_UNKNOWN)
+		pTemplate = g_Config.m_SvInvMap;
+	m_MapTemplate = InvasionMapTemplateForName(pTemplate);
 	m_MapBiome = InvasionBiomeForMapTemplate(m_MapTemplate);
 	g_Config.m_SvPveBiome = m_MapBiome;
 
@@ -677,7 +682,7 @@ void CGameControllerInvasion::RegenerateMapFromTemplate()
 	int Biome = 0;
 	if(Server()->FindInvasionMapForLevel(g_Config.m_SvMapGenLevel, aTemplate, sizeof(aTemplate), &Biome))
 	{
-		g_Config.m_SvPveBiome = Biome;
+		g_Config.m_SvPveBiome = InvasionBiomeForMapTemplate(InvasionMapTemplateForName(aTemplate));
 		str_copy(g_Config.m_SvMap, aTemplate, sizeof(g_Config.m_SvMap));
 		str_copy(g_Config.m_SvInvMap, aTemplate, sizeof(g_Config.m_SvInvMap));
 		str_copy(Server()->m_aMapInUse, aTemplate, sizeof(Server()->m_aMapInUse));
@@ -704,7 +709,7 @@ void CGameControllerInvasion::BeginPostRoundTransition()
 		// is pasted on afterwards and is never overwritten.
 		if(Server()->FindInvasionMapForLevel(g_Config.m_SvMapGenLevel, aTemplate, sizeof(aTemplate), &Biome))
 		{
-			g_Config.m_SvPveBiome = Biome;
+			g_Config.m_SvPveBiome = InvasionBiomeForMapTemplate(InvasionMapTemplateForName(aTemplate));
 			str_copy(g_Config.m_SvMap, aTemplate, sizeof(g_Config.m_SvMap));
 			str_copy(g_Config.m_SvInvMap, aTemplate, sizeof(g_Config.m_SvInvMap));
 			str_copy(Server()->m_aMapInUse, aTemplate, sizeof(Server()->m_aMapInUse));
@@ -872,6 +877,26 @@ void CGameControllerInvasion::SpawnBosses(int Count)
 	m_RegionalBossPhase = -1;
 	m_RegionalBossSupportSpawned = 0;
 	BuildRegionalBossArena();
+	if(m_LevelTheme == INVASION_THEME_BOSS_ASSAULT)
+	{
+		CCollision *pCollision = GameServer()->Collision();
+		const vec2 Center(pCollision->GetWidth() * 16.0f, pCollision->GetHeight() * 16.0f);
+		const vec2 aProbe[3] = {Center, Center + vec2(-384.0f, 0.0f), Center + vec2(384.0f, 0.0f)};
+		vec2 aHall[3];
+		int HallCount = 0;
+		for(int i = 0; i < 3; i++)
+		{
+			vec2 Safe;
+			if(FindBossSpawnPosition(&GameServer()->m_World, &aProbe[i], 1, 0, &Safe))
+				aHall[HallCount++] = Safe;
+		}
+		if(HallCount > 0)
+		{
+			m_RegionalBossPointCount = HallCount;
+			for(int i = 0; i < HallCount; i++)
+				m_aRegionalBossPoints[i] = aHall[i];
+		}
+	}
 	int Spawned = 0;
 	for(int i = 0; i < Count; i++)
 	{
@@ -883,11 +908,12 @@ void CGameControllerInvasion::SpawnBosses(int Count)
 			dbg_msg("inv", "boss room unavailable; skipping unsafe regional boss spawn");
 			continue;
 		}
-		CDroid *pBoss = SpawnBoss(
-			&GameServer()->m_World,
-			p,
-			g_Config.m_SvMapGenLevel,
-			m_MapTemplate == INV_MAP_UNKNOWN ? -1 : InvasionRegionalBossType(m_MapTemplate));
+		int TypeHint = -1;
+		if(m_LevelTheme == INVASION_THEME_BOSS_ASSAULT)
+			TypeHint = m_MapBiome == PVE_BIOME_BLUE_PLANET ? DROIDTYPE_BOSSANGLER : DROIDTYPE_BOSSWARDEN;
+		else if(m_MapTemplate != INV_MAP_UNKNOWN)
+			TypeHint = InvasionRegionalBossType(m_MapTemplate);
+		CDroid *pBoss = SpawnBoss(&GameServer()->m_World, p, g_Config.m_SvMapGenLevel, TypeHint);
 		if(!pBoss)
 			continue;
 		Spawned++;
@@ -1251,7 +1277,9 @@ void CGameControllerInvasion::ApplyRegionalBossPhase(int Phase)
 	if(!m_pRegionalBoss || m_pRegionalBoss->m_Health <= 0 || Phase <= m_RegionalBossPhase)
 		return;
 	m_RegionalBossPhase = Phase;
-	if(m_RegionalBossPointCount > 0)
+	// The warden and angler play their own phase roar in place instead of jumping between hall points.
+	if(m_RegionalBossPointCount > 0 && m_pRegionalBoss->m_Type != DROIDTYPE_BOSSWARDEN &&
+	   m_pRegionalBoss->m_Type != DROIDTYPE_BOSSANGLER)
 	{
 		const int Point = min(Phase, m_RegionalBossPointCount - 1);
 		m_pRegionalBoss->m_Pos = m_aRegionalBossPoints[Point];
