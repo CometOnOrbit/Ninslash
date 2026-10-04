@@ -11,6 +11,7 @@ class CCollision
 {
   public:
 	void MoveBox(vec2 *pPos, vec2 *pVel, vec2, float, bool) { *pPos += *pVel; }
+	int IntersectLine(vec2, vec2, vec2 *, vec2 *, bool = false, bool = false, bool = true) { return 0; }
 };
 
 class CGameClient

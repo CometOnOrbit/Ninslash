@@ -16,6 +16,11 @@
 
 #include "droids.h"
 #include <game/client/droid_visual.h>
+#include <game/foundry_warden.h>
+#include <game/abyss_angler.h>
+
+static_assert((int)SKELETON_FOUNDRY_WARDEN == (int)ATLAS_FOUNDRY_WARDEN, "warden skeleton/atlas index");
+static_assert((int)SKELETON_ABYSS_ANGLER == (int)ATLAS_ABYSS_ANGLER, "angler skeleton/atlas index");
 
 void CDroids::OnReset()
 {
@@ -286,6 +291,145 @@ void CDroids::RenderCrawler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCu
 	m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -26), DroidLight, DroidLightSize);
 }
 
+void CDroids::RenderWarden(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID)
+{
+	vec2 Pos = MixPos(pPrev, pCurrent);
+	if(pCurrent->m_Status != DROIDSTATUS_IDLE && pCurrent->m_Status != DROIDSTATUS_TERMINATED)
+	{
+		CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS] = 1.0f;
+		CustomStuff()->m_DroidDamageType[ItemID % MAX_DROIDS] = pCurrent->m_Status;
+	}
+	if(CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS] > 0.0f)
+	{
+		if(CustomStuff()->m_DroidDamageType[ItemID % MAX_DROIDS] == DROIDSTATUS_ELECTRIC)
+			RenderTools()->Graphics()->ShaderBegin(SHADER_ELECTRIC,
+												   CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS]);
+		else
+			RenderTools()->Graphics()->ShaderBegin(SHADER_DAMAGE,
+												   CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS]);
+	}
+
+	CDroidAnim *pDroidAnim = CustomStuff()->GetDroidAnim(ItemID);
+	pDroidAnim->m_Dir = pCurrent->m_Dir * -1;
+	pDroidAnim->m_Pos = Pos;
+	pDroidAnim->m_Vel = vec2(pCurrent->m_X - pPrev->m_X, pCurrent->m_Y - pPrev->m_Y);
+	pDroidAnim->m_Status = pCurrent->m_Status;
+	pDroidAnim->m_Anim = pCurrent->m_Anim;
+	pDroidAnim->m_Type = pCurrent->m_Type;
+
+	const int Act = WardenActFromSnap(pCurrent->m_Anim, pCurrent->m_Status);
+	const float Time = WardenClipTime(Act, pCurrent->m_AttackTick, Client()->GameTick(), Client()->IntraGameTick());
+	pDroidAnim->OnWardenClip(Act, Time);
+	const float Scale = DroidVisual(pCurrent->m_Type).m_Scale;
+	RenderTools()->RenderSkeleton(Pos + vec2(0, 64),
+								  ATLAS_FOUNDRY_WARDEN,
+								  WardenAct(Act).m_pClip,
+								  Time,
+								  vec2(Scale, Scale),
+								  pCurrent->m_Dir * -1,
+								  0.0f,
+								  -1,
+								  0,
+								  0.0f,
+								  pDroidAnim);
+	RenderTools()->Graphics()->ShaderEnd();
+
+	const float JetSpeed = length(pDroidAnim->m_Vel);
+	const vec2 Jet = JetSpeed > 6.0f ? -pDroidAnim->m_Vel / JetSpeed : vec2(0.0f, 1.0f);
+	for(; pDroidAnim->m_JetPuffs > 0; pDroidAnim->m_JetPuffs--)
+		m_pClient->m_pEffects->Flame(pDroidAnim->m_aLegPos[rand() % 4], Jet * (500.0f + frandom() * 300.0f), 0.9f, true);
+	if(Act == WARDEN_ACT_CHARGE)
+		for(int i = 0; i < 4; i++)
+			m_pClient->m_pEffects->SimpleLight(pDroidAnim->m_aLegPos[i], vec4(1.0f, 0.55f, 0.15f, 0.7f), 70.0f);
+
+	const CNetObj_BossStatus *pStatus = (const CNetObj_BossStatus *)Client()->SnapFindItem(
+		IClient::SNAP_CURRENT, NETOBJTYPE_BOSSSTATUS, ItemID);
+	if(pStatus && pStatus->m_ArmOut)
+	{
+		const CNetObj_BossStatus *pPrevStatus = (const CNetObj_BossStatus *)Client()->SnapFindItem(
+			IClient::SNAP_PREV, NETOBJTYPE_BOSSSTATUS, ItemID);
+		vec2 Tip = vec2(pStatus->m_ArmX, pStatus->m_ArmY);
+		if(pPrevStatus && pPrevStatus->m_ArmOut)
+			Tip = mix(vec2(pPrevStatus->m_ArmX, pPrevStatus->m_ArmY), Tip, Client()->IntraGameTick());
+		RenderTools()->RenderWardenArm(Pos + vec2(pCurrent->m_Dir * 80.0f, -72.0f), Tip, Scale);
+	}
+
+	if(pCurrent->m_Status == DROIDSTATUS_TERMINATED)
+		m_pClient->m_pEffects->Electrospark(Pos + vec2(frandom() - frandom(), frandom() - frandom()) * frandom() * 140,
+											64 + frandom() * 64,
+											vec2(frandom() - frandom(), frandom() - frandom()) * 20.0f);
+
+	const CDroidVisual &Visual = DroidVisual(pCurrent->m_Type);
+	m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -20), Visual.m_Light, Visual.m_LightSize);
+}
+
+void CDroids::RenderAngler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID)
+{
+	vec2 Pos = MixPos(pPrev, pCurrent);
+	if(pCurrent->m_Status != DROIDSTATUS_IDLE && pCurrent->m_Status != DROIDSTATUS_TERMINATED)
+	{
+		CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS] = 1.0f;
+		CustomStuff()->m_DroidDamageType[ItemID % MAX_DROIDS] = pCurrent->m_Status;
+	}
+	if(CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS] > 0.0f)
+	{
+		if(CustomStuff()->m_DroidDamageType[ItemID % MAX_DROIDS] == DROIDSTATUS_ELECTRIC)
+			RenderTools()->Graphics()->ShaderBegin(SHADER_ELECTRIC,
+												   CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS]);
+		else
+			RenderTools()->Graphics()->ShaderBegin(SHADER_DAMAGE,
+												   CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS]);
+	}
+
+	CDroidAnim *pDroidAnim = CustomStuff()->GetDroidAnim(ItemID);
+	pDroidAnim->m_Dir = pCurrent->m_Dir * -1;
+	pDroidAnim->m_Pos = Pos;
+	pDroidAnim->m_Vel = vec2(pCurrent->m_X - pPrev->m_X, pCurrent->m_Y - pPrev->m_Y);
+	pDroidAnim->m_Status = pCurrent->m_Status;
+	pDroidAnim->m_Anim = pCurrent->m_Anim;
+	pDroidAnim->m_Type = pCurrent->m_Type;
+
+	const int Act = AnglerActFromSnap(pCurrent->m_Anim, pCurrent->m_Status);
+	const float Time = AnglerClipTime(Act, pCurrent->m_AttackTick, Client()->GameTick(), Client()->IntraGameTick());
+	pDroidAnim->OnAnglerClip(Act, Time);
+	const float Scale = DroidVisual(pCurrent->m_Type).m_Scale;
+	const vec2 Origin = Pos;
+	const vec2 DrawScale(Scale, Scale);
+	RenderTools()->RenderSkeleton(Origin,
+								  ATLAS_ABYSS_ANGLER,
+								  AnglerAct(Act).m_pClip,
+								  Time,
+								  DrawScale,
+								  pCurrent->m_Dir * -1,
+								  0.0f,
+								  -1,
+								  0,
+								  0.0f,
+								  pDroidAnim);
+	RenderTools()->Graphics()->ShaderEnd();
+
+	const vec2 Lure = RenderTools()->SkeletonBonePos(
+		ATLAS_ABYSS_ANGLER, "lure_tip", Origin, DrawScale, pCurrent->m_Dir * -1, pDroidAnim->m_BodyTilt);
+	const float Glow = Act == ANGLER_ACT_LURE || Act == ANGLER_ACT_ROAR ? 1.0f : 0.55f;
+	m_pClient->m_pEffects->SimpleLight(Lure, vec4(0.45f, 0.95f, 1.0f, Glow), 80.0f + Glow * 70.0f);
+
+	const CNetObj_BossStatus *pStatus = (const CNetObj_BossStatus *)Client()->SnapFindItem(
+		IClient::SNAP_CURRENT, NETOBJTYPE_BOSSSTATUS, ItemID);
+	if(pStatus && pStatus->m_ArmOut)
+		m_pClient->m_pEffects->SpriteSmoke(vec2(pStatus->m_ArmX, pStatus->m_ArmY) +
+											   vec2(frandom() - frandom(), frandom() - frandom()) * 18.0f,
+										   18.0f + frandom() * 10.0f,
+										   vec4(0.55f, 0.95f, 1.0f, 0.35f));
+
+	if(pCurrent->m_Status == DROIDSTATUS_TERMINATED)
+		m_pClient->m_pEffects->Electrospark(Pos + vec2(frandom() - frandom(), frandom() - frandom()) * frandom() * 120,
+											48 + frandom() * 48,
+											vec2(frandom() - frandom(), frandom() - frandom()) * 16.0f);
+
+	const CDroidVisual &Visual = DroidVisual(pCurrent->m_Type);
+	m_pClient->m_pEffects->SimpleLight(Pos, Visual.m_Light, Visual.m_LightSize);
+}
+
 void CDroids::OnRender()
 {
 	if(!Client()->IsGameWorldActive())
@@ -314,7 +458,35 @@ void CDroids::OnRender()
 				case DROID_DRAW_CRAWLER:
 					RenderCrawler(pDroidPrev, pDroid, Item.m_ID);
 					break;
+				case DROID_DRAW_WARDEN:
+					RenderWarden(pDroidPrev, pDroid, Item.m_ID);
+					break;
+				case DROID_DRAW_ANGLER:
+					RenderAngler(pDroidPrev, pDroid, Item.m_ID);
+					break;
 				default:;
+			}
+		}
+		else if(Item.m_Type == NETOBJTYPE_BOSSSHOT)
+		{
+			const CNetObj_BossShot *pShot = (const CNetObj_BossShot *)pData;
+			const CNetObj_BossShot *pPrev = (const CNetObj_BossShot *)Client()->SnapFindItem(
+				IClient::SNAP_PREV, Item.m_Type, Item.m_ID);
+			vec2 Pos = vec2(pShot->m_X, pShot->m_Y);
+			if(pPrev)
+				Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), Pos, Client()->IntraGameTick());
+			const vec2 Vel = vec2(pShot->m_VelX, pShot->m_VelY) / 100.0f;
+			if(pShot->m_Kind == 1)
+			{
+				const float Size = 36.0f + 6.0f * sinf(Client()->GameTick() * 0.2f + Item.m_ID);
+				RenderTools()->RenderAtlasSprite(ATLAS_ABYSS_ANGLER, "bubble", Pos, vec2(Size, Size), 0.0f);
+				m_pClient->m_pEffects->SimpleLight(Pos, vec4(0.4f, 0.9f, 1.0f, 0.7f), 70.0f);
+			}
+			else
+			{
+				RenderTools()->RenderAtlasSprite(ATLAS_FOUNDRY_WARDEN, "barrel", Pos, vec2(46.0f, 26.0f), atan2f(Vel.y, Vel.x));
+				m_pClient->m_pEffects->SmokeTrail(Pos - normalize(Vel) * 20.0f, Vel * -2.0f);
+				m_pClient->m_pEffects->SimpleLight(Pos, vec4(1.0f, 0.5f, 0.1f, 0.9f), 90.0f);
 			}
 		}
 	}

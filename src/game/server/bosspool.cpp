@@ -13,6 +13,8 @@
 #include <game/server/entities/droid_bossstar.h>
 #include <game/server/entities/droid_bosswalker.h>
 #include <game/server/entities/droid_bosssplitter.h>
+#include <game/server/entities/droid_foundrywarden.h>
+#include <game/server/entities/droid_abyssangler.h>
 #include <game/server/entities/droid_cyclonecrawler.h>
 #include <game/server/entities/droid_kamikazestar.h>
 #include <game/server/entities/droid_mendercrawler.h>
@@ -122,6 +124,8 @@ CDroid *SpawnDroid(CGameWorld *pWorld, vec2 Pos, int Type)
 		case DROIDTYPE_BOSSCRAWLER: return new CBossCrawler(pWorld, Pos);
 		case DROIDTYPE_BOSSSTAR: return new CBossStar(pWorld, Pos);
 		case DROIDTYPE_BOSSSPLITTER: return new CBossSplitter(pWorld, Pos);
+		case DROIDTYPE_BOSSWARDEN: return new CFoundryWarden(pWorld, Pos);
+		case DROIDTYPE_BOSSANGLER: return new CAbyssAngler(pWorld, Pos);
 		case DROIDTYPE_SIEGEBREAKERCRAWLER: return new CSiegeBreakerCrawler(pWorld, Pos);
 		case DROIDTYPE_TEMPESTSTAR: return new CTempestStar(pWorld, Pos);
 		case DROIDTYPE_SPLITCRAWLER: return new CSplitCrawler(pWorld, Pos);
@@ -150,7 +154,8 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 	if(Type < 0 || !IsBossDroidType(Type))
 		Type = SelectBossType(Depth);
 
-	if(Type != DROIDTYPE_BOSSSTAR && Type != DROIDTYPE_BOSSSPLITTER)
+	if(Type != DROIDTYPE_BOSSSTAR && Type != DROIDTYPE_BOSSSPLITTER && Type != DROIDTYPE_BOSSWARDEN &&
+	   Type != DROIDTYPE_BOSSANGLER)
 		Type = DROIDTYPE_BOSSCRAWLER;
 	return SpawnDroid(pWorld, Pos, Type);
 }
@@ -205,6 +210,8 @@ float DroidSoundThreat(int Type)
 		case DROIDTYPE_BOSSSTAR: return 7.5f;
 		case DROIDTYPE_BOSSWALKER: return 7.5f;
 		case DROIDTYPE_BOSSSPLITTER: return 8.0f;
+		case DROIDTYPE_BOSSWARDEN: return 8.5f;
+		case DROIDTYPE_BOSSANGLER: return 8.5f;
 		case DROIDTYPE_SPLITCRAWLER:
 		case DROIDTYPE_KAMIKAZESTAR:
 			return 2.0f;

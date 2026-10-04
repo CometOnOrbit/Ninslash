@@ -1226,10 +1226,11 @@ void CMapGen::GenerateLevel()
 	CGenLayer *pTiles = new CGenLayer(w, h);
 
 	// generate room structure
-	CRoomGenerated *pRoom = new CRoomGenerated(3, 3, w - 6, h - 6);
-	CMaze *pMaze = new CMaze(w, h);
-
 	int Level = g_Config.m_SvMapGenLevel;
+	const bool BossArena = str_comp(g_Config.m_SvGametype, "coop") == 0 &&
+						   InvasionThemeFromLevel(Level) == INVASION_THEME_BOSS_ASSAULT;
+	CRoomGenerated *pRoom = BossArena ? CRoomGenerated::CreateBoss(3, 3, w - 6, h - 6) : new CRoomGenerated(3, 3, w - 6, h - 6);
+	CMaze *pMaze = new CMaze(w, h);
 
 	pMaze->OpenRooms(pRoom);
 
@@ -1268,7 +1269,8 @@ void CMapGen::GenerateLevel()
 		const int Platforms = max(3, n / 3) + irandom(2);
 		pTiles->GenerateAirPlatforms(Platforms);
 	}
-	else if(InvasionThemeFromLevel(Level) != INVASION_THEME_ACID_ESCAPE)
+	else if(InvasionThemeFromLevel(Level) != INVASION_THEME_ACID_ESCAPE &&
+			InvasionThemeFromLevel(Level) != INVASION_THEME_BOSS_ASSAULT)
 	{
 		if(n > 1)
 			pTiles->GenerateAirPlatforms(n / 2 + irandom(n / 2));
@@ -1519,7 +1521,7 @@ void CMapGen::GenerateLevel()
 		// at roughly half the old rate so later maps do not become spawn rooms.
 		int CrawlerCount = 0;
 		if(Theme == INVASION_THEME_BOSS_ASSAULT)
-			CrawlerCount = Level <= 20 ? min(12, Level / 3) : min(8, 1 + Level / 5);
+			CrawlerCount = min(3, Level / 10);
 		else if(Level > 3)
 			CrawlerCount = Level <= 20 ? min(15, 1 + Level / 4) : min(10, 4 + (Level - 20) / 6);
 		for(int i = 0; i < CrawlerCount; i++)

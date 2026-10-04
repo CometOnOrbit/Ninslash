@@ -70,11 +70,26 @@ class CDroidAnim
 	float m_SmoothedAimAngle;
 	bool m_RenderInitialized;
 
+	// foundry warden: planted feet step in diagonal pairs, the body rides on them
+	vec2 m_aLegFrom[4];
+	float m_aLegStep[4];
+	vec2 m_BodyOffset;
+	vec2 m_BodyOffsetVel;
+	float m_BodyTilt;
+	float m_Shake;
+	float m_PrevVelX;
+	float m_ClipTime;
+	int m_JetPuffs; // thruster flames owed to the renderer, banked at the fixed tick rate
+
 	CDroidAnim(class CGameClient *pClient = 0);
 	~CDroidAnim();
 
 	void Reset();
 	void Tick();
+	void TickWarden();
+	void TickAngler();
+	void OnWardenClip(int Act, float Time);
+	void OnAnglerClip(int Act, float Time);
 };
 
 #endif

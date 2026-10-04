@@ -34,12 +34,12 @@ Damagetypes = ["NORMAL", "FLAME", "ELECTRIC", "FLUID"]
 Droidstatus = ["IDLE", "HURT", "ELECTRIC", "TERMINATED", "STEALTH"]
 Droidtype = ["WALKER", "STAR", "CRAWLER", "BOSSCRAWLER", "FLY", "BOSSSTAR", "BOSSWALKER", "BOSSSPLITTER",
 	"SIEGEBREAKERCRAWLER", "TEMPESTSTAR", "SPLITCRAWLER", "KAMIKAZESTAR", "RAILSTAR",
-	"MENDERCRAWLER", "STALKERCRAWLER", "TESLASTAR", "CYCLONECRAWLER"]
+	"MENDERCRAWLER", "STALKERCRAWLER", "TESLASTAR", "CYCLONECRAWLER", "BOSSWARDEN", "BOSSANGLER"]
 Buildingtype = ["NONE", "SAWBLADE", "MINE1", "MINE2", "BARREL", "BARREL2", "BARREL3", "TURRET", "LAZER", "POWERUPPER",
 	"BASE", "STAND", "FLAMETRAP", "JUMPPAD", "SWITCH", "DOOR1", "GENERATOR", "POWERBARREL", "POWERBARREL2",
 	"LIGHTNINGWALL", "LIGHTNINGWALL2", "REACTOR", "REACTOR_DESTROYED", "TESLACOIL", "SCREEN", "SHOP", "PVE_SHIELD_NODE"]
 BuildingEnum = "\n".join("\tBUILDING_%s%s," % (name, "=1" if index == 1 else "") for index, name in enumerate(Buildingtype) if index)
-Droidanim = ["IDLE", "MOVE", "ATTACK", "JUMPATTACK"]
+Droidanim = ["IDLE", "MOVE", "ATTACK", "JUMPATTACK", "MORTAR", "VENT", "ENRAGE", "STAGGER", "GRAB", "CHARGE"]
 
 CoreAction = ["IDLE", "JUMP", "WALLJUMP", "ROLL", "SLIDE", "SLIDEKICK", "FALL", "JUMPPAD", "HANG"]
 
@@ -293,9 +293,9 @@ Objects = [
 		NetIntAny("m_Angle"),
 		NetIntRange("m_AttackTick", 0, 'max_int'),
 
-		NetIntRange("m_Type", 0, 16),
+		NetIntRange("m_Type", 0, 17),
 		NetIntRange("m_Status", 0, 16),
-		NetIntRange("m_Anim", 0, 8),
+		NetIntRange("m_Anim", 0, 9),
 		NetIntRange("m_Dir", -1, 1),
 	]),
 
@@ -708,6 +708,30 @@ Objects = [
 		NetIntAny("m_Name3"),
 		NetIntAny("m_Score"),
 		NetIntRange("m_Team", 'TEAM_SPECTATORS', 'TEAM_BLUE'),
+	]),
+
+	# Multi-part boss state, snapped with the same ID as its Droid item.
+	# Part values are percent, part 0 is the core. ArmOut marks the warden's grapple tip as live.
+	NetObject("BossStatus", [
+		NetIntRange("m_Health", 0, 'max_int'),
+		NetIntRange("m_MaxHealth", 0, 'max_int'),
+		NetIntRange("m_Phase", 0, 2),
+		NetIntRange("m_Part0", 0, 100),
+		NetIntRange("m_Part1", 0, 100),
+		NetIntRange("m_Part2", 0, 100),
+		NetIntRange("m_Part3", 0, 100),
+		NetIntRange("m_ArmOut", 0, 1),
+		NetIntAny("m_ArmX"),
+		NetIntAny("m_ArmY"),
+	]),
+
+	# Boss projectile: 0 warden rocket, 1 angler bubble mine. Velocity is px/tick * 100.
+	NetObject("BossShot", [
+		NetIntAny("m_X"),
+		NetIntAny("m_Y"),
+		NetIntAny("m_VelX"),
+		NetIntAny("m_VelY"),
+		NetIntRange("m_Kind", 0, 1),
 	]),
 ]
 

@@ -1,6 +1,6 @@
 # Foundry Warden
 
-Boss design and animation assets, not registered as an in-game enemy yet.
+Invasion stage boss on boss-assault floors (every 10th floor). Spine clips are played by `DROIDTYPE_BOSSWARDEN`.
 
 - `warden-motion-v2.json`: 54 bones, 49 slots and nine animations using region attachments and ordinary translate/rotate/scale tracks.
 - `warden-motion-v2.atlas` / `.png`: 26 regions in a 1024×1024 RGBA texture. The atlas page path is relative to the engine's `data/anim/` root.

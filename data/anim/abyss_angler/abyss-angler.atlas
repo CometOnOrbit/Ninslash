@@ -1,0 +1,117 @@
+abyss_angler/abyss-angler.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+body
+  rotate: false
+  xy: 3, 3
+  size: 628, 420
+  orig: 628, 420
+  offset: 0, 0
+  index: -1
+maw
+  rotate: false
+  xy: 505, 426
+  size: 328, 232
+  orig: 328, 232
+  offset: 0, 0
+  index: -1
+teeth_upper
+  rotate: false
+  xy: 3, 880
+  size: 248, 136
+  orig: 248, 136
+  offset: 0, 0
+  index: -1
+jaw
+  rotate: false
+  xy: 634, 3
+  size: 364, 312
+  orig: 364, 312
+  offset: 0, 0
+  index: -1
+eye
+  rotate: false
+  xy: 409, 880
+  size: 80, 80
+  orig: 80, 80
+  offset: 0, 0
+  index: -1
+gill
+  rotate: false
+  xy: 836, 426
+  size: 120, 184
+  orig: 120, 184
+  offset: 0, 0
+  index: -1
+fin_dorsal
+  rotate: false
+  xy: 417, 693
+  size: 276, 180
+  orig: 276, 180
+  offset: 0, 0
+  index: -1
+fin_pec
+  rotate: false
+  xy: 3, 693
+  size: 204, 184
+  orig: 204, 184
+  offset: 0, 0
+  index: -1
+fin_pec_far
+  rotate: false
+  xy: 210, 693
+  size: 204, 184
+  orig: 204, 184
+  offset: 0, 0
+  index: -1
+tail_1
+  rotate: false
+  xy: 696, 693
+  size: 188, 168
+  orig: 188, 168
+  offset: 0, 0
+  index: -1
+tail_2
+  rotate: false
+  xy: 254, 880
+  size: 152, 120
+  orig: 152, 120
+  offset: 0, 0
+  index: -1
+tail_fin
+  rotate: false
+  xy: 3, 426
+  size: 240, 264
+  orig: 240, 264
+  offset: 0, 0
+  index: -1
+lure_stalk
+  rotate: false
+  xy: 666, 880
+  size: 146, 36
+  orig: 146, 36
+  offset: 0, 0
+  index: -1
+lure_bulb
+  rotate: false
+  xy: 575, 880
+  size: 88, 76
+  orig: 88, 76
+  offset: 0, 0
+  index: -1
+lure_glow
+  rotate: false
+  xy: 246, 426
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+bubble
+  rotate: false
+  xy: 492, 880
+  size: 80, 80
+  orig: 80, 80
+  offset: 0, 0
+  index: -1

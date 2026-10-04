@@ -640,6 +640,74 @@ void CHud::RenderPveEnvironment()
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
+void CHud::RenderBossBar()
+{
+	const CNetObj_BossStatus *pStatus = 0;
+	int StatusID = -1;
+	const int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
+	for(int i = 0; i < Num && !pStatus; i++)
+	{
+		IClient::CSnapItem Item;
+		const void *pData = Client()->SnapGetItem(IClient::SNAP_CURRENT, i, &Item);
+		if(Item.m_Type == NETOBJTYPE_BOSSSTATUS)
+		{
+			pStatus = (const CNetObj_BossStatus *)pData;
+			StatusID = Item.m_ID;
+		}
+	}
+	if(!pStatus || pStatus->m_Health <= 0 || pStatus->m_MaxHealth <= 0)
+		return;
+
+	const CNetObj_Droid *pDroid = (const CNetObj_Droid *)Client()->SnapFindItem(
+		IClient::SNAP_CURRENT, NETOBJTYPE_DROID, StatusID);
+	const bool Angler = pDroid && pDroid->m_Type == DROIDTYPE_BOSSANGLER;
+	const char *pName = Angler ? Localize("Abyss Angler") : Localize("Foundry Warden");
+	const char *apPart[4] = {
+		Localize("Core"),
+		Angler ? Localize("Lure") : Localize("Arms"),
+		Angler ? Localize("Fins") : Localize("Legs"),
+		Angler ? Localize("Jaw") : Localize("Mortar"),
+	};
+
+	const vec4 Danger = CMenus::ThemeDanger();
+	const vec4 Text = CMenus::ThemeText();
+	const float W = min(220.0f, m_Width * 0.5f);
+	const float X = (m_Width - W) * 0.5f;
+	const float Y = 24.0f;
+	CUIRect Panel = {X, Y, W, 30.0f};
+	RenderTools()->DrawUIRect(&Panel, vec4(0.05f, 0.04f, 0.04f, 0.82f), CUI::CORNER_ALL, 4.0f);
+
+	char aTitle[128];
+	char aPhase[32];
+	str_format(aPhase, sizeof(aPhase), Localize("Phase %d"), pStatus->m_Phase + 1);
+	str_format(aTitle, sizeof(aTitle), "%s · %s", pName, aPhase);
+	const float TitleW = TextRender()->TextWidth(0, 6.0f, aTitle, -1);
+	TextRender()->TextColor(Text.r, Text.g, Text.b, 1.0f);
+	TextRender()->Text(0, X + (W - TitleW) * 0.5f, Y + 2.5f, 6.0f, aTitle, -1);
+
+	CUIRect Bar = {X + 6.0f, Y + 11.0f, W - 12.0f, 6.0f};
+	RenderTools()->DrawUIRect(&Bar, vec4(0.0f, 0.0f, 0.0f, 0.6f), CUI::CORNER_ALL, 2.0f);
+	Bar.w *= clamp((float)pStatus->m_Health / pStatus->m_MaxHealth, 0.0f, 1.0f);
+	RenderTools()->DrawUIRect(&Bar, vec4(Danger.r, Danger.g, Danger.b, 0.95f), CUI::CORNER_ALL, 2.0f);
+
+	const char *apName[4] = {apPart[0], apPart[1], apPart[2], apPart[3]};
+	const int aValue[4] = {pStatus->m_Part0, pStatus->m_Part1, pStatus->m_Part2, pStatus->m_Part3};
+	const float PipW = (W - 12.0f) / 4.0f;
+	for(int i = 0; i < 4; i++)
+	{
+		const float PipX = X + 6.0f + PipW * i;
+		const bool Broken = aValue[i] <= 0;
+		CUIRect Pip = {PipX + 1.0f, Y + 25.0f, PipW - 2.0f, 2.0f};
+		RenderTools()->DrawUIRect(&Pip, vec4(0.0f, 0.0f, 0.0f, 0.6f), CUI::CORNER_ALL, 1.0f);
+		Pip.w *= aValue[i] / 100.0f;
+		RenderTools()->DrawUIRect(&Pip, vec4(1.0f, 0.62f, 0.15f, 0.95f), CUI::CORNER_ALL, 1.0f);
+		const float NameW = TextRender()->TextWidth(0, 4.5f, apName[i], -1);
+		TextRender()->TextColor(Text.r, Text.g, Text.b, Broken ? 0.35f : 0.9f);
+		TextRender()->Text(0, PipX + (PipW - NameW) * 0.5f, Y + 18.5f, 4.5f, apName[i], -1);
+	}
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
 void CHud::RenderScoreHud()
 {
 	if(!g_Config.m_ClShowhudScore || m_pClient->m_pScoreboard->Active() || m_pClient->m_pVoting->IsVoting())
@@ -1794,6 +1862,7 @@ void CHud::OnRender()
 		else
 			RenderGameTimer();
 		RenderPveEnvironment();
+		RenderBossBar();
 		RenderSuddenDeath();
 		RenderScoreHud();
 		if(!m_pClient->m_pScoreboard->Active())

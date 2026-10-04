@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 	if(!Check(Reader.Load(Json.c_str(), &Bones, &Slots, &Skins, &Animations), "Native JSON reader failed") ||
 	   !Check(Reader.LoadAtlas(AtlasText.c_str(), &Atlas), "Native atlas reader failed"))
 		return 1;
-	if(!Check(Bones.size() > 0 && Slots.size() > 0 && Animations.size() == 9, "Missing rig or animation data") ||
+	if(!Check(Bones.size() > 0 && Slots.size() > 0 && (int)Animations.size() == (argc > 3 ? str_toint(argv[3]) : 10), "Missing rig or animation data") ||
 	   !Check(Atlas.m_lPages.size() == 1 && Atlas.m_lPages[0].m_lRegions.size() > 0, "Unexpected atlas layout"))
 		return 1;
 	std::set<std::string> BoneNames, RegionNames;

@@ -728,7 +728,7 @@ void IGameController::RestoreEntity(int ObjType, int Type, int Subtype, int x, i
 			Type == DROIDTYPE_SIEGEBREAKERCRAWLER || Type == DROIDTYPE_TEMPESTSTAR ||
 			Type == DROIDTYPE_SPLITCRAWLER || Type == DROIDTYPE_KAMIKAZESTAR || Type == DROIDTYPE_RAILSTAR ||
 			Type == DROIDTYPE_MENDERCRAWLER || Type == DROIDTYPE_STALKERCRAWLER || Type == DROIDTYPE_TESLASTAR ||
-			Type == DROIDTYPE_CYCLONECRAWLER)
+			Type == DROIDTYPE_CYCLONECRAWLER || Type == DROIDTYPE_BOSSWARDEN || Type == DROIDTYPE_BOSSANGLER)
 			SpawnDroid(&GameServer()->m_World, vec2(x, y), Type);
 	}
 }

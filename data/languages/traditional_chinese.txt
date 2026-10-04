@@ -5387,3 +5387,30 @@ Field orders
 
 Tactical package vote each floor
 == 每層開局投票選擇戰術指令
+
+Foundry Warden
+== 熔爐監工
+
+Phase %d
+== 第 %d 階段
+
+Arms
+== 機械臂
+
+Legs
+== 腿部
+
+Mortar
+== 迫擊砲
+
+Abyss Angler
+== 深淵鮟鱇
+
+Lure
+== 誘餌
+
+Fins
+== 鰭
+
+Jaw
+== 下頜

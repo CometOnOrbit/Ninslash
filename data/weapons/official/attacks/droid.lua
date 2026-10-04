@@ -312,6 +312,48 @@ define {
 }
 
 define {
+  type = 17,
+  name = "foundrywarden",
+  combat = {
+    fire_rate = 200,
+    projectile_speed = 900,
+    projectile_life = 1.4,
+    projectile_damage = 12,
+    projectile_knockback = 6,
+    explosion_size = 120,
+    electro_amount = 0.25,
+    cursor_weapon = 6,
+  },
+  visuals = {
+    projectile_sprite = 7,
+    projectile_trace_type = -3,
+    explosion_sprite = 279,
+    explosion_sound = 11,
+  },
+}
+
+define {
+  type = 18,
+  name = "abyssangler",
+  combat = {
+    fire_rate = 200,
+    projectile_speed = 600,
+    projectile_life = 1.4,
+    projectile_damage = 12,
+    projectile_knockback = 5,
+    explosion_size = 120,
+    electro_amount = 0.25,
+    cursor_weapon = 6,
+  },
+  visuals = {
+    projectile_sprite = 7,
+    projectile_trace_type = -3,
+    explosion_sprite = 279,
+    explosion_sound = 11,
+  },
+}
+
+define {
   type = 7,
   name = "bosssplitter",
   combat = {
