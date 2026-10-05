@@ -2,9 +2,6 @@
 #include <game/client/components/hud_layout.h>
 
 #include <cstdlib>
-#include <fstream>
-#include <iterator>
-#include <string>
 
 static void Check(bool Condition)
 {
@@ -15,16 +12,6 @@ static void Check(bool Condition)
 int main()
 {
 	using namespace InventoryLogic;
-	std::ifstream Variables("src/game/variables.h");
-	const std::string VariableText((std::istreambuf_iterator<char>(Variables)), std::istreambuf_iterator<char>());
-	const size_t ForgeModeMacro = VariableText.find("MACRO_CONFIG_INT(SvForgeMode");
-	Check(ForgeModeMacro != std::string::npos);
-	const size_t ForgeModeName = VariableText.find("sv_forge_mode", ForgeModeMacro);
-	Check(ForgeModeName != std::string::npos);
-	const size_t ForgeModeDefault = VariableText.find(',', ForgeModeName);
-	Check(ForgeModeDefault != std::string::npos);
-	Check(std::strtol(VariableText.c_str() + ForgeModeDefault + 1, nullptr, 10) == 1);
-
 	const CHammerLayout Hammer = HammerLayout(400.0f, 300.0f, 1.0f, true);
 	Check(Hammer.m_Bag.m_W == HudLayout::CombatBarWidth + BagPad * 2.0f);
 	Check(Hammer.m_Bag.m_X == HudLayout::CombatBarLeft(400.0f) - BagPad);

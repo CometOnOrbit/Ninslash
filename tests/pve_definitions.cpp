@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstdio>
 #include <cstring>
 
 #include <game/pve/pve_roguelite.h>
@@ -6,7 +7,7 @@
 int main()
 {
 	char aError[256] = {0};
-	assert(PveValidateDefinitions(aError, sizeof(aError)));
+	if(!PveValidateDefinitions(aError, sizeof(aError))) { fprintf(stderr, "%s\n", aError); return 1; }
 
 	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
 	{

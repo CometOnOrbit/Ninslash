@@ -9,7 +9,7 @@ static int Fail(const char *pWhat)
 
 int main()
 {
-	if(DROIDTYPE_BOSSANGLER != 18 || NUM_DROIDTYPES != 19)
+	if(DROIDTYPE_BOSSANGLER != 18 || NUM_DROIDTYPES != 23)
 		return Fail("type id");
 	for(int Act = 0; Act < ANGLER_ACT_DEATH; Act++)
 		if(AnglerActFromSnap(AnglerAct(Act).m_Anim, DROIDSTATUS_IDLE) != Act)

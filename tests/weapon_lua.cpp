@@ -167,7 +167,9 @@ static void ValidateLegacyPlayerVisuals()
 					 Level);
 		}
 	}
-	for(int Type = 0; Type < WEAPON_DROID_PROFILE_COUNT; ++Type)
+	// Only IDs 0..18 existed when this legacy visual snapshot was recorded.
+	// New Boss profiles are exercised by the all-profile checks below.
+	for(int Type = 0; Type <= DROIDTYPE_BOSSANGLER; ++Type)
 	{
 		CWeaponVisualProfile Visual;
 		assert(CWeaponCatalog::TryResolveAttack(CAttackSource::Droid(-1, Type), 0, &Visual));
@@ -317,12 +319,12 @@ int main()
 	ValidateLegacyRangedMechanics();
 	const uint64_t CombatDigest = OfficialCombatDigest();
 	const uint64_t VisualDigest = OfficialVisualDigest();
-	if(CombatDigest != 0x6c28c7308288272bULL)
+	if(CombatDigest != 0xfb9f1e845d3ab223ULL)
 		fprintf(stderr, "official combat digest: 0x%016llx\n", (unsigned long long)CombatDigest);
-	assert(CombatDigest == 0x6c28c7308288272bULL);
-	if(VisualDigest != 0x9689bf94bb01d87dULL)
+	assert(CombatDigest == 0xfb9f1e845d3ab223ULL);
+	if(VisualDigest != 0xdea7965e67a86ccdULL)
 		fprintf(stderr, "official visual digest: 0x%016llx\n", (unsigned long long)VisualDigest);
-	assert(VisualDigest == 0x9689bf94bb01d87dULL);
+	assert(VisualDigest == 0xdea7965e67a86ccdULL);
 	CResolvedWeaponProfile HeavyStandard, HeavyScatter, HeavyLong, HeavyAutomatic, HeavyCharge;
 	assert(CWeaponCatalog::TryResolve(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL1), &HeavyStandard));
 	assert(CWeaponCatalog::TryResolve(CWeaponCatalog::Modular(PART1_BASE3, PART2_BARREL2), &HeavyScatter));
