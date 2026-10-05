@@ -1,0 +1,138 @@
+arc_conductor/arc-conductor.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+base
+  rotate: false
+  xy: 222, 162
+  size: 224, 68
+  orig: 224, 68
+  offset: 0, 0
+  index: -1
+torso
+  rotate: false
+  xy: 222, 4
+  size: 224, 150
+  orig: 224, 150
+  offset: 0, 0
+  index: -1
+torso_front
+  rotate: false
+  xy: 4, 4
+  size: 210, 170
+  orig: 210, 170
+  offset: 0, 0
+  index: -1
+core
+  rotate: false
+  xy: 794, 112
+  size: 88, 88
+  orig: 88, 88
+  offset: 0, 0
+  index: -1
+core_overdrive
+  rotate: false
+  xy: 890, 112
+  size: 88, 88
+  orig: 88, 88
+  offset: 0, 0
+  index: -1
+coil
+  rotate: false
+  xy: 454, 4
+  size: 80, 142
+  orig: 80, 142
+  offset: 0, 0
+  index: -1
+coil_far
+  rotate: false
+  xy: 542, 4
+  size: 80, 142
+  orig: 80, 142
+  offset: 0, 0
+  index: -1
+horn
+  rotate: false
+  xy: 938, 4
+  size: 40, 78
+  orig: 40, 78
+  offset: 0, 0
+  index: -1
+head
+  rotate: false
+  xy: 4, 182
+  size: 92, 62
+  orig: 92, 62
+  offset: 0, 0
+  index: -1
+head_front
+  rotate: false
+  xy: 454, 154
+  size: 80, 67
+  orig: 80, 67
+  offset: 0, 0
+  index: -1
+leg_upper
+  rotate: false
+  xy: 630, 4
+  size: 74, 108
+  orig: 74, 108
+  offset: 0, 0
+  index: -1
+leg_upper_far
+  rotate: false
+  xy: 712, 4
+  size: 74, 108
+  orig: 74, 108
+  offset: 0, 0
+  index: -1
+leg_lower
+  rotate: false
+  xy: 794, 4
+  size: 64, 100
+  orig: 64, 100
+  offset: 0, 0
+  index: -1
+leg_lower_far
+  rotate: false
+  xy: 866, 4
+  size: 64, 100
+  orig: 64, 100
+  offset: 0, 0
+  index: -1
+foot
+  rotate: false
+  xy: 104, 182
+  size: 88, 42
+  orig: 88, 42
+  offset: 0, 0
+  index: -1
+conductor_arm
+  rotate: false
+  xy: 542, 198
+  size: 120, 48
+  orig: 120, 48
+  offset: 0, 0
+  index: -1
+reactor
+  rotate: false
+  xy: 630, 120
+  size: 70, 70
+  orig: 70, 70
+  offset: 0, 0
+  index: -1
+scrap
+  rotate: false
+  xy: 708, 186
+  size: 56, 54
+  orig: 56, 54
+  offset: 0, 0
+  index: -1
+module_broken
+  rotate: false
+  xy: 708, 120
+  size: 62, 58
+  orig: 62, 58
+  offset: 0, 0
+  index: -1

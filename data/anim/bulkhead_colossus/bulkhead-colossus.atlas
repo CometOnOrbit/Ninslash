@@ -1,0 +1,145 @@
+bulkhead_colossus/bulkhead-colossus.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+pelvis
+  rotate: false
+  xy: 4, 949
+  size: 254, 68
+  orig: 254, 68
+  offset: 0, 0
+  index: -1
+torso
+  rotate: false
+  xy: 4, 790
+  size: 284, 151
+  orig: 284, 151
+  offset: 0, 0
+  index: -1
+torso_front
+  rotate: false
+  xy: 4, 616
+  size: 250, 166
+  orig: 250, 166
+  offset: 0, 0
+  index: -1
+head
+  rotate: false
+  xy: 224, 436
+  size: 96, 64
+  orig: 96, 64
+  offset: 0, 0
+  index: -1
+head_front
+  rotate: false
+  xy: 266, 949
+  size: 84, 68
+  orig: 84, 68
+  offset: 0, 0
+  index: -1
+core
+  rotate: false
+  xy: 130, 496
+  size: 86, 86
+  orig: 86, 86
+  offset: 0, 0
+  index: -1
+core_overdrive
+  rotate: false
+  xy: 208, 256
+  size: 86, 86
+  orig: 86, 86
+  offset: 0, 0
+  index: -1
+leg_upper
+  rotate: false
+  xy: 130, 4
+  size: 78, 118
+  orig: 78, 118
+  offset: 0, 0
+  index: -1
+leg_upper_far
+  rotate: false
+  xy: 130, 130
+  size: 78, 118
+  orig: 78, 118
+  offset: 0, 0
+  index: -1
+leg_lower
+  rotate: false
+  xy: 130, 256
+  size: 70, 112
+  orig: 70, 112
+  offset: 0, 0
+  index: -1
+leg_lower_far
+  rotate: false
+  xy: 130, 376
+  size: 70, 112
+  orig: 70, 112
+  offset: 0, 0
+  index: -1
+foot
+  rotate: false
+  xy: 328, 416
+  size: 102, 45
+  orig: 102, 45
+  offset: 0, 0
+  index: -1
+shield
+  rotate: false
+  xy: 4, 4
+  size: 118, 196
+  orig: 118, 196
+  offset: 0, 0
+  index: -1
+shield_far
+  rotate: false
+  xy: 4, 412
+  size: 118, 196
+  orig: 118, 196
+  offset: 0, 0
+  index: -1
+shield_broken
+  rotate: false
+  xy: 4, 208
+  size: 118, 196
+  orig: 118, 196
+  offset: 0, 0
+  index: -1
+shield_arm
+  rotate: false
+  xy: 294, 508
+  size: 122, 50
+  orig: 122, 50
+  offset: 0, 0
+  index: -1
+launcher
+  rotate: false
+  xy: 268, 350
+  size: 126, 58
+  orig: 126, 58
+  offset: 0, 0
+  index: -1
+exhaust
+  rotate: false
+  xy: 208, 350
+  size: 52, 78
+  orig: 52, 78
+  offset: 0, 0
+  index: -1
+scrap
+  rotate: false
+  xy: 262, 574
+  size: 56, 54
+  orig: 56, 54
+  offset: 0, 0
+  index: -1
+module_broken
+  rotate: false
+  xy: 224, 508
+  size: 62, 58
+  orig: 62, 58
+  offset: 0, 0
+  index: -1

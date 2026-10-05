@@ -1,0 +1,124 @@
+vault_overseer/vault-overseer.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+gantry
+  rotate: false
+  xy: 282, 165
+  size: 348, 72
+  orig: 348, 72
+  offset: 0, 0
+  index: -1
+hull
+  rotate: false
+  xy: 282, 4
+  size: 368, 153
+  orig: 368, 153
+  offset: 0, 0
+  index: -1
+hull_front
+  rotate: false
+  xy: 4, 4
+  size: 270, 183
+  orig: 270, 183
+  offset: 0, 0
+  index: -1
+vault_door
+  rotate: false
+  xy: 658, 4
+  size: 160, 130
+  orig: 160, 130
+  offset: 0, 0
+  index: -1
+core
+  rotate: false
+  xy: 732, 142
+  size: 86, 86
+  orig: 86, 86
+  offset: 0, 0
+  index: -1
+core_overdrive
+  rotate: false
+  xy: 826, 223
+  size: 86, 86
+  orig: 86, 86
+  offset: 0, 0
+  index: -1
+leg_upper
+  rotate: false
+  xy: 826, 4
+  size: 76, 105
+  orig: 76, 105
+  offset: 0, 0
+  index: -1
+leg_upper_far
+  rotate: false
+  xy: 910, 4
+  size: 76, 105
+  orig: 76, 105
+  offset: 0, 0
+  index: -1
+leg_lower
+  rotate: false
+  xy: 906, 117
+  size: 66, 98
+  orig: 66, 98
+  offset: 0, 0
+  index: -1
+leg_lower_far
+  rotate: false
+  xy: 658, 142
+  size: 66, 98
+  orig: 66, 98
+  offset: 0, 0
+  index: -1
+foot
+  rotate: false
+  xy: 272, 245
+  size: 93, 44
+  orig: 93, 44
+  offset: 0, 0
+  index: -1
+hoist_arm
+  rotate: false
+  xy: 128, 195
+  size: 136, 52
+  orig: 136, 52
+  offset: 0, 0
+  index: -1
+claw
+  rotate: false
+  xy: 826, 117
+  size: 72, 98
+  orig: 72, 98
+  offset: 0, 0
+  index: -1
+scanner
+  rotate: false
+  xy: 4, 195
+  size: 116, 62
+  orig: 116, 62
+  offset: 0, 0
+  index: -1
+scanner_front
+  rotate: false
+  xy: 920, 223
+  size: 90, 70
+  orig: 90, 70
+  offset: 0, 0
+  index: -1
+scrap
+  rotate: false
+  xy: 920, 301
+  size: 56, 54
+  orig: 56, 54
+  offset: 0, 0
+  index: -1
+module_broken
+  rotate: false
+  xy: 732, 236
+  size: 62, 58
+  orig: 62, 58
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,68 @@
+bastion_strider/bastion-strider.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+foot
+  rotate: false
+  xy: 276, 285
+  size: 130, 61
+  orig: 130, 61
+  offset: 0, 0
+  index: -1
+hull
+  rotate: false
+  xy: 326, 2
+  size: 400, 245
+  orig: 400, 245
+  offset: 0, 0
+  index: -1
+mortar
+  rotate: false
+  xy: 820, 2
+  size: 150, 157
+  orig: 150, 157
+  offset: 0, 0
+  index: -1
+shell
+  rotate: false
+  xy: 408, 285
+  size: 64, 60
+  orig: 64, 60
+  offset: 0, 0
+  index: -1
+shield
+  rotate: false
+  xy: 2, 2
+  size: 170, 281
+  orig: 170, 281
+  offset: 0, 0
+  index: -1
+shield_broken
+  rotate: false
+  xy: 174, 2
+  size: 150, 268
+  orig: 150, 268
+  offset: 0, 0
+  index: -1
+shin
+  rotate: false
+  xy: 728, 2
+  size: 90, 207
+  orig: 90, 207
+  offset: 0, 0
+  index: -1
+thigh
+  rotate: false
+  xy: 2, 285
+  size: 160, 145
+  orig: 160, 145
+  offset: 0, 0
+  index: -1
+thruster
+  rotate: false
+  xy: 164, 285
+  size: 110, 71
+  orig: 110, 71
+  offset: 0, 0
+  index: -1

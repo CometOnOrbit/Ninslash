@@ -1,0 +1,96 @@
+skitter_matriarch/skitter-matriarch.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+abdomen
+  rotate: false
+  xy: 2, 2
+  size: 260, 201
+  orig: 260, 201
+  offset: 0, 0
+  index: -1
+drop1
+  rotate: false
+  xy: 852, 346
+  size: 48, 25
+  orig: 48, 25
+  offset: 0, 0
+  index: -1
+egg
+  rotate: false
+  xy: 84, 205
+  size: 110, 132
+  orig: 110, 132
+  offset: 0, 0
+  index: -1
+glob
+  rotate: false
+  xy: 304, 346
+  size: 64, 60
+  orig: 64, 60
+  offset: 0, 0
+  index: -1
+head
+  rotate: false
+  xy: 788, 2
+  size: 200, 141
+  orig: 200, 141
+  offset: 0, 0
+  index: -1
+hip
+  rotate: false
+  xy: 730, 205
+  size: 80, 80
+  orig: 80, 80
+  offset: 0, 0
+  index: -1
+mandible
+  rotate: false
+  xy: 2, 205
+  size: 80, 139
+  orig: 80, 139
+  offset: 0, 0
+  index: -1
+puddle
+  rotate: false
+  xy: 370, 346
+  size: 480, 35
+  orig: 480, 35
+  offset: 0, 0
+  index: -1
+sac
+  rotate: false
+  xy: 666, 2
+  size: 120, 164
+  orig: 120, 164
+  offset: 0, 0
+  index: -1
+sac_broken
+  rotate: false
+  xy: 578, 205
+  size: 150, 94
+  orig: 150, 94
+  offset: 0, 0
+  index: -1
+shin
+  rotate: false
+  xy: 196, 205
+  size: 380, 109
+  orig: 380, 109
+  offset: 0, 0
+  index: -1
+thigh
+  rotate: false
+  xy: 2, 346
+  size: 300, 76
+  orig: 300, 76
+  offset: 0, 0
+  index: -1
+thorax
+  rotate: false
+  xy: 264, 2
+  size: 400, 166
+  orig: 400, 166
+  offset: 0, 0
+  index: -1

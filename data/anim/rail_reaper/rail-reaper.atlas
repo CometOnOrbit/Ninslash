@@ -1,0 +1,173 @@
+rail_reaper/rail-reaper.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+wheel_far
+  rotate: false
+  xy: 718, 228
+  size: 82, 82
+  orig: 82, 82
+  offset: 0, 0
+  index: -1
+wheel_near
+  rotate: false
+  xy: 618, 132
+  size: 92, 92
+  orig: 92, 92
+  offset: 0, 0
+  index: -1
+wheel_broken
+  rotate: false
+  xy: 858, 117
+  size: 92, 92
+  orig: 92, 92
+  offset: 0, 0
+  index: -1
+chassis
+  rotate: false
+  xy: 4, 156
+  size: 332, 74
+  orig: 332, 74
+  offset: 0, 0
+  index: -1
+hull
+  rotate: false
+  xy: 308, 4
+  size: 302, 124
+  orig: 302, 124
+  offset: 0, 0
+  index: -1
+hull_turn
+  rotate: false
+  xy: 618, 4
+  size: 232, 120
+  orig: 232, 120
+  offset: 0, 0
+  index: -1
+core
+  rotate: false
+  xy: 718, 132
+  size: 88, 88
+  orig: 88, 88
+  offset: 0, 0
+  index: -1
+core_overdrive
+  rotate: false
+  xy: 814, 217
+  size: 88, 88
+  orig: 88, 88
+  offset: 0, 0
+  index: -1
+core_shutter
+  rotate: false
+  xy: 472, 194
+  size: 118, 48
+  orig: 118, 48
+  offset: 0, 0
+  index: -1
+head
+  rotate: false
+  xy: 808, 313
+  size: 91, 62
+  orig: 91, 62
+  offset: 0, 0
+  index: -1
+head_turn
+  rotate: false
+  xy: 907, 381
+  size: 76, 62
+  orig: 76, 62
+  offset: 0, 0
+  index: -1
+antenna
+  rotate: false
+  xy: 998, 207
+  size: 20, 80
+  orig: 20, 80
+  offset: 0, 0
+  index: -1
+exhaust
+  rotate: false
+  xy: 958, 117
+  size: 55, 82
+  orig: 55, 82
+  offset: 0, 0
+  index: -1
+arm_upper
+  rotate: false
+  xy: 344, 194
+  size: 120, 50
+  orig: 120, 50
+  offset: 0, 0
+  index: -1
+arm_fore
+  rotate: false
+  xy: 472, 136
+  size: 120, 50
+  orig: 120, 50
+  offset: 0, 0
+  index: -1
+arm_far
+  rotate: false
+  xy: 344, 136
+  size: 120, 50
+  orig: 120, 50
+  offset: 0, 0
+  index: -1
+cutter
+  rotate: false
+  xy: 4, 4
+  size: 144, 144
+  orig: 144, 144
+  offset: 0, 0
+  index: -1
+cutter_broken
+  rotate: false
+  xy: 156, 4
+  size: 144, 144
+  orig: 144, 144
+  offset: 0, 0
+  index: -1
+cutter_guard
+  rotate: false
+  xy: 858, 4
+  size: 150, 105
+  orig: 150, 105
+  offset: 0, 0
+  index: -1
+shock
+  rotate: false
+  xy: 958, 207
+  size: 32, 80
+  orig: 32, 80
+  offset: 0, 0
+  index: -1
+brake_arm
+  rotate: false
+  xy: 910, 295
+  size: 44, 78
+  orig: 44, 78
+  offset: 0, 0
+  index: -1
+brake_foot
+  rotate: false
+  xy: 472, 250
+  size: 70, 38
+  orig: 70, 38
+  offset: 0, 0
+  index: -1
+muzzle
+  rotate: false
+  xy: 598, 232
+  size: 72, 42
+  orig: 72, 42
+  offset: 0, 0
+  index: -1
+scrap
+  rotate: false
+  xy: 962, 295
+  size: 52, 48
+  orig: 52, 48
+  offset: 0, 0
+  index: -1

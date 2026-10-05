@@ -1,0 +1,68 @@
+storm_seraph/storm-seraph.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+body
+  rotate: false
+  xy: 2, 2
+  size: 190, 297
+  orig: 190, 297
+  offset: 0, 0
+  index: -1
+core
+  rotate: false
+  xy: 2, 301
+  size: 100, 96
+  orig: 100, 96
+  offset: 0, 0
+  index: -1
+halo
+  rotate: false
+  xy: 274, 301
+  size: 150, 46
+  orig: 150, 46
+  offset: 0, 0
+  index: -1
+head
+  rotate: false
+  xy: 788, 2
+  size: 100, 116
+  orig: 100, 116
+  offset: 0, 0
+  index: -1
+node
+  rotate: false
+  xy: 104, 301
+  size: 70, 96
+  orig: 70, 96
+  offset: 0, 0
+  index: -1
+orb
+  rotate: false
+  xy: 176, 301
+  size: 96, 63
+  orig: 96, 63
+  offset: 0, 0
+  index: -1
+thruster
+  rotate: false
+  xy: 890, 2
+  size: 76, 111
+  orig: 76, 111
+  offset: 0, 0
+  index: -1
+wing
+  rotate: false
+  xy: 194, 2
+  size: 360, 243
+  orig: 360, 243
+  offset: 0, 0
+  index: -1
+wing2
+  rotate: false
+  xy: 556, 2
+  size: 230, 129
+  orig: 230, 129
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,61 @@
+siege_monolith/siege-monolith.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bomb
+  rotate: false
+  xy: 162, 445
+  size: 64, 40
+  orig: 64, 40
+  offset: 0, 0
+  index: -1
+hull
+  rotate: false
+  xy: 2, 2
+  size: 230, 441
+  orig: 230, 441
+  offset: 0, 0
+  index: -1
+launcher
+  rotate: false
+  xy: 860, 2
+  size: 128, 81
+  orig: 128, 81
+  offset: 0, 0
+  index: -1
+strut
+  rotate: false
+  xy: 234, 2
+  size: 130, 184
+  orig: 130, 184
+  offset: 0, 0
+  index: -1
+thruster
+  rotate: false
+  xy: 366, 2
+  size: 130, 152
+  orig: 130, 152
+  offset: 0, 0
+  index: -1
+turret
+  rotate: false
+  xy: 498, 2
+  size: 360, 110
+  orig: 360, 110
+  offset: 0, 0
+  index: -1
+vent
+  rotate: false
+  xy: 2, 445
+  size: 80, 78
+  orig: 80, 78
+  offset: 0, 0
+  index: -1
+vent_closed
+  rotate: false
+  xy: 84, 445
+  size: 76, 66
+  orig: 76, 66
+  offset: 0, 0
+  index: -1
