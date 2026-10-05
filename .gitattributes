@@ -16,6 +16,12 @@
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
 
+# Example package bytes are part of the content hash. Keep LF on every OS.
+examples/workshop_weapon/*.lua text eol=lf
+examples/workshop_weapon/*.md text eol=lf
+examples/workshop_weapon/*.json text eol=lf
+examples/workshop_weapon/localization/*.txt text eol=lf
+
 # Foundry Warden exports; edit the authoring scripts and source inputs.
 data/anim/foundry_warden/warden-motion-v2.json linguist-generated=true
 data/anim/foundry_warden/warden-motion-v2.atlas linguist-generated=true
