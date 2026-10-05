@@ -34,12 +34,12 @@ Damagetypes = ["NORMAL", "FLAME", "ELECTRIC", "FLUID"]
 Droidstatus = ["IDLE", "HURT", "ELECTRIC", "TERMINATED", "STEALTH"]
 Droidtype = ["WALKER", "STAR", "CRAWLER", "BOSSCRAWLER", "FLY", "BOSSSTAR", "BOSSWALKER", "BOSSSPLITTER",
 	"SIEGEBREAKERCRAWLER", "TEMPESTSTAR", "SPLITCRAWLER", "KAMIKAZESTAR", "RAILSTAR",
-	"MENDERCRAWLER", "STALKERCRAWLER", "TESLASTAR", "CYCLONECRAWLER", "BOSSWARDEN", "BOSSANGLER"]
+	"MENDERCRAWLER", "STALKERCRAWLER", "TESLASTAR", "CYCLONECRAWLER", "BOSSWARDEN", "BOSSANGLER", "BOSSRAIL", "BOSSBULKHEAD", "BOSSARC", "BOSSVAULT"]
 Buildingtype = ["NONE", "SAWBLADE", "MINE1", "MINE2", "BARREL", "BARREL2", "BARREL3", "TURRET", "LAZER", "POWERUPPER",
 	"BASE", "STAND", "FLAMETRAP", "JUMPPAD", "SWITCH", "DOOR1", "GENERATOR", "POWERBARREL", "POWERBARREL2",
 	"LIGHTNINGWALL", "LIGHTNINGWALL2", "REACTOR", "REACTOR_DESTROYED", "TESLACOIL", "SCREEN", "SHOP", "PVE_SHIELD_NODE"]
 BuildingEnum = "\n".join("\tBUILDING_%s%s," % (name, "=1" if index == 1 else "") for index, name in enumerate(Buildingtype) if index)
-Droidanim = ["IDLE", "MOVE", "ATTACK", "JUMPATTACK", "MORTAR", "VENT", "ENRAGE", "STAGGER", "GRAB", "CHARGE"]
+Droidanim = ["IDLE", "MOVE", "ATTACK", "JUMPATTACK", "MORTAR", "VENT", "ENRAGE", "STAGGER", "GRAB", "CHARGE", "TURN"]
 
 CoreAction = ["IDLE", "JUMP", "WALLJUMP", "ROLL", "SLIDE", "SLIDEKICK", "FALL", "JUMPPAD", "HANG"]
 
@@ -295,7 +295,7 @@ Objects = [
 
 		NetIntRange("m_Type", 0, 17),
 		NetIntRange("m_Status", 0, 16),
-		NetIntRange("m_Anim", 0, 9),
+		NetIntRange("m_Anim", 0, 10),
 		NetIntRange("m_Dir", -1, 1),
 	]),
 
@@ -674,7 +674,7 @@ Objects = [
 	# Appended visual event for flash/blind grenade detonation. It is broadcast
 	# to all clients; only affected players receive the per-player status above.
 	NetEvent("VisionBurst:Common", [
-		NetIntRange("m_Kind", 0, 1),
+		NetIntRange("m_Kind", 0, 9),
 		NetIntRange("m_Radius", 1, 2048),
 	]),
 
@@ -725,13 +725,14 @@ Objects = [
 		NetIntAny("m_ArmY"),
 	]),
 
-	# Boss projectile: 0 warden rocket, 1 angler bubble mine. Velocity is px/tick * 100.
+	# Boss projectile: 0 warden rocket, 1 angler bubble mine, 2-9 industrial, 10-12 matriarch glob/puddle/egg.
+	# Velocity is px/tick * 100 (matriarch puddles/eggs carry their timers there instead).
 	NetObject("BossShot", [
 		NetIntAny("m_X"),
 		NetIntAny("m_Y"),
 		NetIntAny("m_VelX"),
 		NetIntAny("m_VelY"),
-		NetIntRange("m_Kind", 0, 1),
+		NetIntRange("m_Kind", 0, 15),
 	]),
 ]
 

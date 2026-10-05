@@ -160,6 +160,10 @@ class CGameControllerInvasion : public IGameController
 	bool AnyCartographer() const;
 
   public:
+#if defined(CONF_DEBUG)
+	void DebugBossEncounter() { ChangeQuest(QUEST_KILL_BOSS, 0.1f); }
+	void DebugBossState(char *pBuffer, int Size);
+#endif
 	CGameControllerInvasion(class CGameContext *pGameServer);
 	virtual ~CGameControllerInvasion();
 

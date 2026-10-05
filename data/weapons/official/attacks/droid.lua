@@ -368,3 +368,91 @@ define {
     projectile_size = 0,
   },
 }
+
+-- Milestone Boss: movement and hit windows are server-authoritative.
+define {
+  type = 19,
+  name = "railreaper",
+  combat = {
+    fire_rate = 250,
+    projectile_speed = 850,
+    projectile_life = 2.2,
+    projectile_damage = 12,
+    projectile_knockback = 4,
+    explosion_size = 180,
+    explosion_damage = 0,
+    cursor_weapon = 6
+  },
+  visuals = {
+    projectile_sprite = 7,
+    projectile_trace_type = -3,
+    explosion_sprite = 279,
+    explosion_sound = 11
+  },
+}
+
+-- Milestone Boss: movement and hit windows are server-authoritative.
+define {
+  type = 20,
+  name = "bulkheadcolossus",
+  combat = {
+    fire_rate = 250,
+    projectile_speed = 850,
+    projectile_life = 2.2,
+    projectile_damage = 12,
+    projectile_knockback = 4,
+    explosion_size = 180,
+    explosion_damage = 0,
+    cursor_weapon = 6
+  },
+  visuals = {
+    projectile_sprite = 7,
+    projectile_trace_type = -3,
+    explosion_sprite = 279,
+    explosion_sound = 11
+  },
+}
+
+-- Milestone Boss: movement and hit windows are server-authoritative.
+define {
+  type = 21,
+  name = "arcconductor",
+  combat = {
+    fire_rate = 250,
+    projectile_speed = 850,
+    projectile_life = 2.2,
+    projectile_damage = 12,
+    projectile_knockback = 4,
+    explosion_size = 180,
+    explosion_damage = 0,
+    cursor_weapon = 6
+  },
+  visuals = {
+    projectile_sprite = 7,
+    projectile_trace_type = -3,
+    explosion_sprite = 279,
+    explosion_sound = 11
+  },
+}
+
+-- Milestone Boss: movement and hit windows are server-authoritative.
+define {
+  type = 22,
+  name = "vaultoverseer",
+  combat = {
+    fire_rate = 250,
+    projectile_speed = 850,
+    projectile_life = 2.2,
+    projectile_damage = 12,
+    projectile_knockback = 4,
+    explosion_size = 180,
+    explosion_damage = 0,
+    cursor_weapon = 6
+  },
+  visuals = {
+    projectile_sprite = 7,
+    projectile_trace_type = -3,
+    explosion_sprite = 279,
+    explosion_sound = 11
+  },
+}

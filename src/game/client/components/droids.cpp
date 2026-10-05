@@ -1,3 +1,4 @@
+#include <game/industrial_boss.h>
 #include <engine/graphics.h>
 #include <engine/demo.h>
 #include <engine/shared/config.h>
@@ -18,9 +19,13 @@
 #include <game/client/droid_visual.h>
 #include <game/foundry_warden.h>
 #include <game/abyss_angler.h>
+#include <game/skitter_matriarch.h>
+#include "matriarch_rig.h"
 
 static_assert((int)SKELETON_FOUNDRY_WARDEN == (int)ATLAS_FOUNDRY_WARDEN, "warden skeleton/atlas index");
 static_assert((int)SKELETON_ABYSS_ANGLER == (int)ATLAS_ABYSS_ANGLER, "angler skeleton/atlas index");
+
+static_assert((int)SKELETON_SKITTER_MATRIARCH == (int)ATLAS_SKITTER_MATRIARCH, "matriarch rig index");
 
 void CDroids::OnReset()
 {
@@ -430,11 +435,132 @@ void CDroids::RenderAngler(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCur
 	m_pClient->m_pEffects->SimpleLight(Pos, Visual.m_Light, Visual.m_LightSize);
 }
 
+static CMatriarchRig s_aMatriarchRig[MAX_DROIDS];
+
+void CDroids::RenderMatriarch(const CNetObj_Droid *pPrev, const CNetObj_Droid *pCurrent, int ItemID)
+{
+	const vec2 Pos = MixPos(pPrev, pCurrent);
+	CMatriarchRig &Rig = s_aMatriarchRig[ItemID % MAX_DROIDS];
+	if(Rig.m_ItemID != ItemID || Client()->GameTick() - Rig.m_LastTick > 25)
+	{
+		Rig.Reset();
+		Rig.m_ItemID = ItemID;
+	}
+	Rig.m_LastTick = Client()->GameTick();
+
+	if(pCurrent->m_Status != DROIDSTATUS_IDLE && pCurrent->m_Status != DROIDSTATUS_TERMINATED)
+	{
+		CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS] = 1.0f;
+		CustomStuff()->m_DroidDamageType[ItemID % MAX_DROIDS] = pCurrent->m_Status;
+	}
+
+	const CNetObj_BossStatus *pStatus = (const CNetObj_BossStatus *)Client()->SnapFindItem(
+		IClient::SNAP_CURRENT, NETOBJTYPE_BOSSSTATUS, ItemID);
+	const CNetObj_BossStatus *pPrevStatus = (const CNetObj_BossStatus *)Client()->SnapFindItem(
+		IClient::SNAP_PREV, NETOBJTYPE_BOSSSTATUS, ItemID);
+
+	CMatriarchRig::CInput In;
+	In.m_Pos = Pos;
+	In.m_Vel = vec2(pCurrent->m_X - pPrev->m_X, pCurrent->m_Y - pPrev->m_Y);
+	In.m_Dir = pCurrent->m_Dir >= 0 ? 1 : -1;
+	In.m_Act = MatriarchActFromSnap(pCurrent->m_Anim, pCurrent->m_Status);
+	const CMatriarchAct &Clip = MatriarchAct(In.m_Act);
+	In.m_Time = BossClipTime(Clip.m_Duration, Clip.m_Loop, pCurrent->m_AttackTick, Client()->GameTick(), Client()->IntraGameTick());
+	In.m_Exposed = pStatus && pStatus->m_ArmOut;
+	In.m_Aim = pStatus ? vec2(pStatus->m_ArmX, pStatus->m_ArmY) : Pos;
+	if(pStatus && pPrevStatus)
+		In.m_Aim = mix(vec2(pPrevStatus->m_ArmX, pPrevStatus->m_ArmY), In.m_Aim, Client()->IntraGameTick());
+	In.m_Phase = pStatus ? pStatus->m_Phase : 0;
+	In.m_FangsBroken = pStatus && pStatus->m_Part1 <= 0;
+	In.m_LegsBroken = pStatus && pStatus->m_Part2 <= 0;
+	In.m_SacBroken = pStatus && pStatus->m_Part3 <= 0;
+	// Bosses soak sustained fire; keep the flash readable instead of painting the whole rig red.
+	In.m_Hurt = CustomStuff()->m_DroidDamageIntensity[ItemID % MAX_DROIDS] * 0.55f;
+
+	Rig.Update(m_pClient->Collision(), In, Client()->RenderFrameTime());
+
+	if(In.m_Hurt > 0.0f)
+	{
+		if(CustomStuff()->m_DroidDamageType[ItemID % MAX_DROIDS] == DROIDSTATUS_ELECTRIC)
+			RenderTools()->Graphics()->ShaderBegin(SHADER_ELECTRIC, In.m_Hurt);
+		else
+			RenderTools()->Graphics()->ShaderBegin(SHADER_DAMAGE, In.m_Hurt);
+	}
+	Rig.Render(RenderTools(), Graphics(), ATLAS_SKITTER_MATRIARCH, In);
+	RenderTools()->Graphics()->ShaderEnd();
+
+	// Footfalls and landings kick up dust.
+	for(; Rig.m_Landed > 0; Rig.m_Landed--)
+		m_pClient->m_pEffects->SpriteSmoke(Rig.FootPos(rand() % 6) + vec2(frandom() - 0.5f, -0.2f) * 20.0f, 20.0f + frandom() * 14.0f,
+			vec4(0.45f, 0.42f, 0.38f, 0.35f));
+
+	const float Eye = In.m_Act == MATRIARCH_ACT_ROAR || In.m_Act == MATRIARCH_ACT_POUNCE ? 0.95f : 0.6f;
+	m_pClient->m_pEffects->SimpleLight(Rig.HeadPos(), vec4(0.55f, 1.0f, 0.3f, Eye), 70.0f + Eye * 40.0f);
+	if(!In.m_SacBroken)
+	{
+		const float Glow = In.m_Exposed ? 0.75f + 0.25f * sinf(Client()->LocalTime() * 14.0f) : 0.35f;
+		m_pClient->m_pEffects->SimpleLight(Rig.SacPos(), vec4(0.5f, 1.0f, 0.2f, Glow), In.m_Exposed ? 170.0f : 90.0f);
+		if(In.m_Exposed && frandom() < 0.3f)
+			m_pClient->m_pEffects->SpriteSmoke(Rig.SacPos() + vec2(frandom() - 0.5f, frandom() - 0.5f) * 30.0f, 14.0f, vec4(0.5f, 1.0f, 0.3f, 0.4f));
+	}
+	else if(frandom() < 0.2f)
+		m_pClient->m_pEffects->SpriteSmoke(Rig.SacPos(), 18.0f, vec4(0.25f, 0.25f, 0.25f, 0.35f));
+	if(In.m_Act == MATRIARCH_ACT_SPIT && frandom() < 0.5f)
+		m_pClient->m_pEffects->SpriteSmoke(Rig.MouthPos(), 10.0f + frandom() * 8.0f, vec4(0.55f, 1.0f, 0.25f, 0.5f));
+	if(In.m_Act == MATRIARCH_ACT_POUNCE && In.m_Time < 0.42f)
+		m_pClient->m_pEffects->SimpleLight(Rig.HeadPos(), vec4(1.0f, 0.95f, 0.3f, 0.6f), 120.0f);
+
+	if(pCurrent->m_Status == DROIDSTATUS_TERMINATED)
+		m_pClient->m_pEffects->Electrospark(Pos + vec2(frandom() - frandom(), frandom() - frandom()) * frandom() * 150,
+			48 + frandom() * 48, vec2(frandom() - frandom(), frandom() - frandom()) * 18.0f);
+
+	const CDroidVisual &Visual = DroidVisual(pCurrent->m_Type);
+	m_pClient->m_pEffects->SimpleLight(Pos, Visual.m_Light, Visual.m_LightSize);
+}
+
+void CDroids::RenderMatriarchShot(const CNetObj_BossShot *pShot, vec2 Pos, int ItemID)
+{
+	const vec2 Vel = vec2(pShot->m_VelX, pShot->m_VelY) / 100.0f;
+	const vec4 White(1.0f, 1.0f, 1.0f, 1.0f);
+	if(pShot->m_Kind == MATRIARCH_SHOT_GLOB)
+	{
+		const float Wobble = 1.0f + 0.12f * sinf(Client()->LocalTime() * 30.0f + ItemID);
+		RenderTools()->RenderAtlasSpriteEx(ATLAS_SKITTER_MATRIARCH, "glob", Pos, vec2(34.0f * Wobble, 32.0f / Wobble),
+			atan2f(Vel.y, Vel.x), false, false, White);
+		if(frandom() < 0.5f)
+			m_pClient->m_pEffects->SpriteSmoke(Pos - Vel * 1.5f, 10.0f, vec4(0.55f, 1.0f, 0.25f, 0.45f));
+		m_pClient->m_pEffects->SimpleLight(Pos, vec4(0.5f, 1.0f, 0.2f, 0.75f), 70.0f);
+	}
+	else if(pShot->m_Kind == MATRIARCH_SHOT_PUDDLE)
+	{
+		const float Life = (float)pShot->m_VelX;
+		const float Alpha = clamp(Life / 30.0f, 0.0f, 1.0f);
+		const float Grow = clamp((MATRIARCH_PUDDLE_LIFE - Life) / 8.0f, 0.3f, 1.0f);
+		const float W = (MATRIARCH_PUDDLE_RADIUS * 2.0f + 24.0f) * Grow;
+		RenderTools()->RenderAtlasSpriteEx(ATLAS_SKITTER_MATRIARCH, "puddle", Pos + vec2(0, -5.0f), vec2(W, 20.0f), 0.0f, false,
+			false, vec4(1.0f, 1.0f, 1.0f, Alpha));
+		if(frandom() < 0.12f * Alpha)
+			m_pClient->m_pEffects->SpriteSmoke(Pos + vec2((frandom() - 0.5f) * W, -10.0f), 12.0f, vec4(0.5f, 1.0f, 0.25f, 0.3f));
+		m_pClient->m_pEffects->SimpleLight(Pos + vec2(0, -10.0f), vec4(0.45f, 1.0f, 0.2f, 0.45f * Alpha), vec2(W * 1.4f, 60.0f));
+	}
+	else if(pShot->m_Kind == MATRIARCH_SHOT_EGG)
+	{
+		const float Life = (float)pShot->m_VelY;
+		const float Urgency = clamp(Life / MATRIARCH_EGG_HATCH, 0.0f, 1.0f);
+		const float Pulse = 1.0f + 0.08f * sinf(Client()->LocalTime() * (8.0f + Urgency * 30.0f));
+		const float Tilt = sinf(Client()->LocalTime() * (6.0f + Urgency * 24.0f)) * 0.15f * Urgency;
+		RenderTools()->RenderAtlasSpriteEx(ATLAS_SKITTER_MATRIARCH, "egg", Pos, vec2(36.0f * Pulse, 43.0f * Pulse), Tilt, false,
+			false, White);
+		m_pClient->m_pEffects->SimpleLight(Pos, vec4(0.5f, 1.0f, 0.25f, 0.4f + Urgency * 0.5f), 60.0f + Urgency * 40.0f);
+	}
+}
+
 void CDroids::OnRender()
 {
 	if(!Client()->IsGameWorldActive())
 		return;
 
+	BeginBossV5Frame();
 	int Num = Client()->SnapNumItems(IClient::SNAP_CURRENT);
 	for(int i = 0; i < Num; i++)
 	{
@@ -461,7 +587,13 @@ void CDroids::OnRender()
 				case DROID_DRAW_WARDEN:
 					RenderWarden(pDroidPrev, pDroid, Item.m_ID);
 					break;
-				case DROID_DRAW_ANGLER:
+				case DROID_DRAW_BOSSV5:
+					RenderBossV5(pDroidPrev, pDroid, Item.m_ID);
+					break;
+				case DROID_DRAW_MATRIARCH:
+					RenderMatriarch(pDroidPrev, pDroid, Item.m_ID);
+					break;
+                case DROID_DRAW_ANGLER:
 					RenderAngler(pDroidPrev, pDroid, Item.m_ID);
 					break;
 				default:;
@@ -476,7 +608,11 @@ void CDroids::OnRender()
 			if(pPrev)
 				Pos = mix(vec2(pPrev->m_X, pPrev->m_Y), Pos, Client()->IntraGameTick());
 			const vec2 Vel = vec2(pShot->m_VelX, pShot->m_VelY) / 100.0f;
-			if(pShot->m_Kind == 1)
+			if(pShot->m_Kind >= MATRIARCH_SHOT_GLOB && pShot->m_Kind <= MATRIARCH_SHOT_EGG)
+				RenderMatriarchShot(pShot, Pos, Item.m_ID);
+			else if(pShot->m_Kind >= 2)
+				RenderBossV5Shot(pShot, Pos, Item.m_ID);
+			else if(pShot->m_Kind == 1)
 			{
 				const float Size = 36.0f + 6.0f * sinf(Client()->GameTick() * 0.2f + Item.m_ID);
 				RenderTools()->RenderAtlasSprite(ATLAS_ABYSS_ANGLER, "bubble", Pos, vec2(Size, Size), 0.0f);
@@ -490,4 +626,5 @@ void CDroids::OnRender()
 			}
 		}
 	}
+	EndBossV5Frame();
 }

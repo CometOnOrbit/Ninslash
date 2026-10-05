@@ -1,3 +1,4 @@
+#include <game/industrial_boss.h>
 #include <base/system.h>
 #include <engine/shared/config.h>
 #include <engine/platform_events.h>
@@ -910,13 +911,16 @@ void CGameControllerInvasion::SpawnBosses(int Count)
 		}
 		int TypeHint = -1;
 		if(m_LevelTheme == INVASION_THEME_BOSS_ASSAULT)
-			TypeHint = m_MapBiome == PVE_BIOME_BLUE_PLANET ? DROIDTYPE_BOSSANGLER : DROIDTYPE_BOSSWARDEN;
+			TypeHint = m_MapTemplate != INV_MAP_UNKNOWN ? MilestoneBossForMapBand(m_MapTemplate) :
+                (m_MapBiome == PVE_BIOME_BLUE_PLANET ? DROIDTYPE_BOSSANGLER : DROIDTYPE_BOSSWARDEN);
 		else if(m_MapTemplate != INV_MAP_UNKNOWN)
 			TypeHint = InvasionRegionalBossType(m_MapTemplate);
 		CDroid *pBoss = SpawnBoss(&GameServer()->m_World, p, g_Config.m_SvMapGenLevel, TypeHint);
 		if(!pBoss)
 			continue;
 		Spawned++;
+		if(g_Config.m_Debug)
+			dbg_msg("boss", "milestone floor=%d mapband=%d type=%d", g_Config.m_SvMapGenLevel, m_MapTemplate, pBoss->m_Type);
 		if(!m_pRegionalBoss)
 			m_pRegionalBoss = pBoss;
 	}
@@ -1279,7 +1283,7 @@ void CGameControllerInvasion::ApplyRegionalBossPhase(int Phase)
 	m_RegionalBossPhase = Phase;
 	// The warden and angler play their own phase roar in place instead of jumping between hall points.
 	if(m_RegionalBossPointCount > 0 && m_pRegionalBoss->m_Type != DROIDTYPE_BOSSWARDEN &&
-	   m_pRegionalBoss->m_Type != DROIDTYPE_BOSSANGLER)
+	   m_pRegionalBoss->m_Type != DROIDTYPE_BOSSANGLER && !IsIndustrialBoss(m_pRegionalBoss->m_Type))
 	{
 		const int Point = min(Phase, m_RegionalBossPointCount - 1);
 		m_pRegionalBoss->m_Pos = m_aRegionalBossPoints[Point];
@@ -2207,3 +2211,12 @@ void CGameControllerInvasion::Snap(int SnappingClient)
 	pGameDataObj->m_FlagCarrierBlue =
 		m_LevelTheme | (m_QuestWaveType << 4) | (m_QuestsCompleted << 8) | (m_LevelQuestsLeft << 12);
 }
+
+#if defined(CONF_DEBUG)
+void CGameControllerInvasion::DebugBossState(char *pBuffer, int Size)
+{
+	str_format(pBuffer, Size, "quest=%d completed=%d bosses=%d gold0=%d gold1=%d", m_Quest, m_QuestsCompleted, CountBossesAlive(),
+		GameServer()->m_apPlayers[0] ? GameServer()->m_apPlayers[0]->GetGold() : -1,
+		GameServer()->m_apPlayers[1] ? GameServer()->m_apPlayers[1]->GetGold() : -1);
+}
+#endif

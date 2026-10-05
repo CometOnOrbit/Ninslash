@@ -1,3 +1,4 @@
+#include <game/industrial_boss.h>
 #ifndef GAME_SERVER_BOSSPOOL_H
 #define GAME_SERVER_BOSSPOOL_H
 
@@ -11,7 +12,7 @@ class CDroid;
 inline bool IsBossDroidType(int Type)
 {
 	return Type == DROIDTYPE_BOSSCRAWLER || Type == DROIDTYPE_BOSSSTAR || Type == DROIDTYPE_BOSSWALKER ||
-		   Type == DROIDTYPE_BOSSSPLITTER || Type == DROIDTYPE_BOSSWARDEN || Type == DROIDTYPE_BOSSANGLER;
+		   Type == DROIDTYPE_BOSSSPLITTER || Type == DROIDTYPE_BOSSWARDEN || Type == DROIDTYPE_BOSSANGLER || IsIndustrialBoss(Type);
 }
 
 // Saws, barrels, mines and acid are map props. Turret shots stay Building-kind too, so those types are not listed.

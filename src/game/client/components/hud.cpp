@@ -1,3 +1,8 @@
+#include <game/industrial_boss.h>
+#include <game/skitter_matriarch.h>
+#include <game/bastion_strider.h>
+#include <game/storm_seraph.h>
+#include <game/siege_monolith.h>
 #include <engine/graphics.h>
 #include <engine/textrender.h>
 #include <engine/shared/config.h>
@@ -658,10 +663,18 @@ void CHud::RenderBossBar()
 	if(!pStatus || pStatus->m_Health <= 0 || pStatus->m_MaxHealth <= 0)
 		return;
 
-	const CNetObj_Droid *pDroid = (const CNetObj_Droid *)Client()->SnapFindItem(
-		IClient::SNAP_CURRENT, NETOBJTYPE_DROID, StatusID);
+	const CNetObj_Droid *pDroid =
+		(const CNetObj_Droid *)Client()->SnapFindItem(IClient::SNAP_CURRENT, NETOBJTYPE_DROID, StatusID);
 	const bool Angler = pDroid && pDroid->m_Type == DROIDTYPE_BOSSANGLER;
-	const char *pName = Angler ? Localize("Abyss Angler") : Localize("Foundry Warden");
+	const bool Matriarch = pDroid && pDroid->m_Type == DROIDTYPE_BOSSRAIL;
+	const bool Strider = pDroid && pDroid->m_Type == DROIDTYPE_BOSSBULKHEAD;
+	const bool Seraph = pDroid && pDroid->m_Type == DROIDTYPE_BOSSARC;
+	const bool Monolith = pDroid && pDroid->m_Type == DROIDTYPE_BOSSVAULT;
+	const char *pName = Matriarch ? Localize("Skitter Matriarch") :
+		Strider ? Localize("Bastion Strider") :
+		Seraph ? Localize("Storm Seraph") :
+		Monolith ? Localize("Siege Monolith") :
+		(Angler ? Localize("Abyss Angler") : Localize("Foundry Warden"));
 	const char *apPart[4] = {
 		Localize("Core"),
 		Angler ? Localize("Lure") : Localize("Arms"),
@@ -669,11 +682,19 @@ void CHud::RenderBossBar()
 		Angler ? Localize("Jaw") : Localize("Mortar"),
 	};
 
+	const char *const *ppV5Parts = Strider ? s_apStriderPartName : (Seraph ? s_apSeraphPartName : (Monolith ? s_apMonolithPartName : 0));
+	if(ppV5Parts)
+		for(int i = 0; i < 4; i++)
+			apPart[i] = Localize(ppV5Parts[i]);
+	if(Matriarch)
+		for(int i = 0; i < 4; i++)
+			apPart[i] = Localize(s_apMatriarchPartName[i]);
 	const vec4 Danger = CMenus::ThemeDanger();
 	const vec4 Text = CMenus::ThemeText();
 	const float W = min(220.0f, m_Width * 0.5f);
 	const float X = (m_Width - W) * 0.5f;
-	const float Y = 24.0f;
+	// Below the centered objective announcement, not on top of it.
+	const float Y = 45.0f;
 	CUIRect Panel = {X, Y, W, 30.0f};
 	RenderTools()->DrawUIRect(&Panel, vec4(0.05f, 0.04f, 0.04f, 0.82f), CUI::CORNER_ALL, 4.0f);
 

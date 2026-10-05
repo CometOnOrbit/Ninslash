@@ -26,13 +26,18 @@
 #include <game/server/entities/droid_teslastar.h>
 
 #include "bosspool.h"
+#include <game/server/entities/droid_industrial.h>
+#include <game/server/entities/droid_skittermatriarch.h>
+#include <game/server/entities/droid_bastionstrider.h>
+#include <game/server/entities/droid_stormseraph.h>
+#include <game/server/entities/droid_siegemonolith.h>
 
 namespace
 {
 // BossStar uses the largest live collision box. Keep a full tile of room
 // around it so the boss can move after spawning without clipping the room.
-const vec2 s_BossCollisionSize(96.0f, 128.0f);
-const vec2 s_BossClearanceSize(128.0f, 160.0f);
+const vec2 s_BossCollisionSize(160.0f, 160.0f);
+const vec2 s_BossClearanceSize(192.0f, 192.0f);
 
 bool TryBossLanding(CGameWorld *pWorld, vec2 Probe, vec2 *pOutPos)
 {
@@ -126,6 +131,10 @@ CDroid *SpawnDroid(CGameWorld *pWorld, vec2 Pos, int Type)
 		case DROIDTYPE_BOSSSPLITTER: return new CBossSplitter(pWorld, Pos);
 		case DROIDTYPE_BOSSWARDEN: return new CFoundryWarden(pWorld, Pos);
 		case DROIDTYPE_BOSSANGLER: return new CAbyssAngler(pWorld, Pos);
+		case DROIDTYPE_BOSSRAIL: return new CSkitterMatriarch(pWorld, Pos);
+		case DROIDTYPE_BOSSBULKHEAD: return new CBastionStrider(pWorld, Pos);
+		case DROIDTYPE_BOSSARC: return new CStormSeraph(pWorld, Pos);
+		case DROIDTYPE_BOSSVAULT: return new CSiegeMonolith(pWorld, Pos);
 		case DROIDTYPE_SIEGEBREAKERCRAWLER: return new CSiegeBreakerCrawler(pWorld, Pos);
 		case DROIDTYPE_TEMPESTSTAR: return new CTempestStar(pWorld, Pos);
 		case DROIDTYPE_SPLITCRAWLER: return new CSplitCrawler(pWorld, Pos);
@@ -155,7 +164,7 @@ CDroid *SpawnBoss(CGameWorld *pWorld, vec2 Pos, int Depth, int TypeHint)
 		Type = SelectBossType(Depth);
 
 	if(Type != DROIDTYPE_BOSSSTAR && Type != DROIDTYPE_BOSSSPLITTER && Type != DROIDTYPE_BOSSWARDEN &&
-	   Type != DROIDTYPE_BOSSANGLER)
+	   Type != DROIDTYPE_BOSSANGLER && !IsIndustrialBoss(Type))
 		Type = DROIDTYPE_BOSSCRAWLER;
 	return SpawnDroid(pWorld, Pos, Type);
 }
@@ -212,6 +221,7 @@ float DroidSoundThreat(int Type)
 		case DROIDTYPE_BOSSSPLITTER: return 8.0f;
 		case DROIDTYPE_BOSSWARDEN: return 8.5f;
 		case DROIDTYPE_BOSSANGLER: return 8.5f;
+        case DROIDTYPE_BOSSRAIL: case DROIDTYPE_BOSSBULKHEAD: case DROIDTYPE_BOSSARC: case DROIDTYPE_BOSSVAULT: return 9.0f;
 		case DROIDTYPE_SPLITCRAWLER:
 		case DROIDTYPE_KAMIKAZESTAR:
 			return 2.0f;
@@ -304,10 +314,13 @@ int CountAliveBosses(CGameWorld *pWorld)
 		return 0;
 	CDroid *apEnts[256];
 	int Num = pWorld->FindEntities(vec2(0, 0), 0.0f, (CEntity **)apEnts, 256, CGameWorld::ENTTYPE_DROID);
+	// Industrial corpses remain encounter participants until their death animation
+	// and loot release finish. Do not advance the objective on the lethal hit.
 	int Bosses = 0;
 	for(int i = 0; i < Num; i++)
 	{
-		if(apEnts[i] && IsBossDroidType(apEnts[i]->m_Type) && apEnts[i]->m_Health > 0)
+		if(apEnts[i] && IsBossDroidType(apEnts[i]->m_Type) &&
+		   (apEnts[i]->m_Health > 0 || IsIndustrialBoss(apEnts[i]->m_Type)))
 			Bosses++;
 	}
 	return Bosses;

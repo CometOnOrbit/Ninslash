@@ -389,7 +389,8 @@ bool PveValidateDefinitions(char *pError, int ErrorSize)
 			str_format(pError, ErrorSize, "invalid short description for card %d", i);
 			return false;
 		}
-		if(Def.m_MaxStacks < 1 || Def.m_MaxStacks > 3 || (Def.m_Rarity != PVE_RARITY_COMMON && Def.m_MaxStacks != 1) ||
+		if(Def.m_MaxStacks < 1 || Def.m_MaxStacks > 3 || (Def.m_Rarity == PVE_RARITY_LEGENDARY && Def.m_MaxStacks != 1) ||
+            Def.m_Rarity < PVE_RARITY_COMMON || Def.m_Rarity > PVE_RARITY_LEGENDARY ||
 		   Def.m_Legendary != (Def.m_Rarity == PVE_RARITY_LEGENDARY))
 		{
 			str_format(pError, ErrorSize, "invalid rarity or stack rule for card %d", i);

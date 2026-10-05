@@ -1,3 +1,4 @@
+#include <game/server/entities/droid_industrial.h>
 #if defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wvarargs"
 #endif
@@ -3758,6 +3759,24 @@ void CGameContext::OnConsoleInit()
 	m_pServer = Kernel()->RequestInterface<IServer>();
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 
+	#if defined(CONF_DEBUG)
+	RegisterIndustrialBossDebug(this);
+    Console()->Register("ib_test_milestone_state", "", CFGFLAG_SERVER,
+        [](IConsole::IResult *,void *U) {
+            auto *G=static_cast<CGameContext *>(U);
+            if(g_Config.m_Debug && G->m_pController && str_comp(g_Config.m_SvGametype,"coop")==0) {
+                char Buffer[160];
+                static_cast<CGameControllerInvasion *>(G->m_pController)->DebugBossState(Buffer,sizeof(Buffer));
+                G->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD,"ib_test",Buffer);
+            }
+        },this,"DEBUG ONLY: inspect actual encounter completion");
+    Console()->Register("ib_test_milestone", "", CFGFLAG_SERVER,
+        [](IConsole::IResult *,void *U) {
+            auto *G=static_cast<CGameContext *>(U);
+            if(g_Config.m_Debug && G->m_pController && str_comp(g_Config.m_SvGametype,"coop")==0)
+                static_cast<CGameControllerInvasion *>(G->m_pController)->DebugBossEncounter();
+        },this,"DEBUG ONLY: enter the actual current-floor boss objective");
+#endif
 	Console()->Register("tune", "si", CFGFLAG_SERVER, ConTuneParam, this, "Tune variable to value");
 	Console()->Register("tune_reset", "", CFGFLAG_SERVER, ConTuneReset, this, "Reset tuning");
 	Console()->Register("tune_dump", "", CFGFLAG_SERVER, ConTuneDump, this, "Dump tuning");

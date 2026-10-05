@@ -211,6 +211,7 @@ void CDroidAnim::OnAnglerClip(int Act, float Time)
 
 void CDroidAnim::Tick()
 {
+    if(DroidVisual(m_Type).m_Draw == DROID_DRAW_BOSSV5 || DroidVisual(m_Type).m_Draw == DROID_DRAW_MATRIARCH) return;
 	if(!m_pClient || !m_Type)
 		return;
 	if(DroidVisual(m_Type).m_Draw == DROID_DRAW_WARDEN)

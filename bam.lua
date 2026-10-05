@@ -74,19 +74,6 @@ function ResCompile(scriptfile)
 	return output
 end
 
-function Dat2c(datafile, sourcefile, arrayname)
-	datafile = Path(datafile)
-	sourcefile = Path(sourcefile)
-
-	AddJob(
-		sourcefile,
-		"dat2c " .. PathFilename(sourcefile) .. " = " .. PathFilename(datafile),
-		Python("scripts/dat2c.py").. "\" " .. sourcefile .. " " .. datafile .. " " .. arrayname
-	)
-	AddDependency(sourcefile, datafile)
-	return sourcefile
-end
-
 function ContentCompile(action, output)
 	output = Path(output)
 	AddJob(

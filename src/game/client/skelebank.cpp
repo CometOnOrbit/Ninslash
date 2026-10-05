@@ -79,6 +79,16 @@ void CSkelebank::Init(IStorage *pStorage)
 
 	AddSkeleton("data/anim/abyss_angler/abyss-angler.json", IStorage::STORAGETYPE_CLIENT);
 	AddAtlas("data/anim/abyss_angler/abyss-angler.atlas", IStorage::STORAGETYPE_CLIENT);
+	AddSkeleton("data/anim/rail_reaper/rail-reaper.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/rail_reaper/rail-reaper.atlas", IStorage::STORAGETYPE_CLIENT);
+	AddSkeleton("data/anim/bastion_strider/bastion-strider.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/bastion_strider/bastion-strider.atlas", IStorage::STORAGETYPE_CLIENT);
+	AddSkeleton("data/anim/storm_seraph/storm-seraph.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/storm_seraph/storm-seraph.atlas", IStorage::STORAGETYPE_CLIENT);
+	AddSkeleton("data/anim/siege_monolith/siege-monolith.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/siege_monolith/siege-monolith.atlas", IStorage::STORAGETYPE_CLIENT);
+	AddSkeleton("data/anim/skitter_matriarch/skitter-matriarch.json", IStorage::STORAGETYPE_CLIENT);
+	AddAtlas("data/anim/skitter_matriarch/skitter-matriarch.atlas", IStorage::STORAGETYPE_CLIENT);
 }
 
 CSkelebank::~CSkelebank()

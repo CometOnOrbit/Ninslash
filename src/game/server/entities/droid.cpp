@@ -1,3 +1,8 @@
+#include <game/industrial_boss.h>
+#include <game/skitter_matriarch.h>
+#include <game/bastion_strider.h>
+#include <game/storm_seraph.h>
+#include <game/siege_monolith.h>
 #include <engine/shared/config.h>
 #include <generated/protocol.h>
 #include <game/droid_control.h>
@@ -26,6 +31,14 @@ static vec2 DroidControlBox(int Type, float Radius)
 		return vec2(90.0f, 100.0f);
 	if(Type == DROIDTYPE_BOSSWARDEN)
 		return vec2(96.0f, 128.0f);
+	if(Type == DROIDTYPE_BOSSRAIL)
+		return vec2(MATRIARCH_BOX_W, MATRIARCH_BOX_H);
+	if(Type == DROIDTYPE_BOSSBULKHEAD)
+		return vec2(STRIDER_BOX_W, STRIDER_BOX_H);
+	if(Type == DROIDTYPE_BOSSARC)
+		return vec2(SERAPH_BOX_W, SERAPH_BOX_H);
+	if(Type == DROIDTYPE_BOSSVAULT)
+		return vec2(MONOLITH_BOX_W, MONOLITH_BOX_H);
 	if(Type == DROIDTYPE_BOSSANGLER)
 		return vec2(96.0f, 88.0f);
 	float Size = max(Radius, 60.0f);
@@ -259,7 +272,7 @@ void CDroid::TakeDamage(vec2 Force, int Dmg, const CAttackSource &Source, vec2 P
 	{
 		const bool Boss = m_Type == DROIDTYPE_BOSSCRAWLER || m_Type == DROIDTYPE_BOSSSTAR ||
 						  m_Type == DROIDTYPE_BOSSWALKER || m_Type == DROIDTYPE_BOSSSPLITTER ||
-						  m_Type == DROIDTYPE_BOSSWARDEN || m_Type == DROIDTYPE_BOSSANGLER;
+						  m_Type == DROIDTYPE_BOSSWARDEN || m_Type == DROIDTYPE_BOSSANGLER || IsIndustrialBoss(m_Type);
 		Dmg = GameServer()->m_pPveDirector->ModifyDroidDamage(Source, Dmg, Boss, this);
 	}
 
@@ -701,7 +714,7 @@ void CDroid::TickPaused()
 void CDroid::Snap(int SnappingClient)
 {
 	// Boss bar reaches 2200. The type lives on this item, so it has to travel with the bar.
-	if(m_Type == DROIDTYPE_BOSSWARDEN || m_Type == DROIDTYPE_BOSSANGLER)
+	if(m_Type == DROIDTYPE_BOSSWARDEN || m_Type == DROIDTYPE_BOSSANGLER || IsIndustrialBoss(m_Type))
 	{
 		if(SnappingClient >= 0)
 		{

@@ -1330,6 +1330,40 @@ void CRenderTools::RenderAtlasSprite(int Atlas, const char *pName, vec2 Pos, vec
 	Graphics()->QuadsEnd();
 }
 
+void CRenderTools::RenderAtlasSpriteEx(int Atlas, const char *pName, vec2 Pos, vec2 Size, float Angle, bool FlipX, bool FlipY, vec4 Color)
+{
+	CTextureAtlas *pAtlas = Skelebank()->m_lAtlases[Atlas];
+	if(!pAtlas)
+		return;
+	auto SpriteIter = pAtlas->m_lSprites.find(pName);
+	if(SpriteIter == pAtlas->m_lSprites.end())
+		return;
+	const CTextureAtlasSprite &Sprite = SpriteIter->second;
+	const CTextureAtlasPage &Page = pAtlas->m_lPages[Sprite.m_PageId];
+	float x0 = Sprite.m_X / Page.m_Width, x1 = (Sprite.m_X + Sprite.m_Width) / Page.m_Width;
+	float y0 = Sprite.m_Y / Page.m_Height, y1 = (Sprite.m_Y + Sprite.m_Height) / Page.m_Height;
+	if(FlipX)
+	{
+		const float t = x0;
+		x0 = x1;
+		x1 = t;
+	}
+	if(FlipY)
+	{
+		const float t = y0;
+		y0 = y1;
+		y1 = t;
+	}
+	Graphics()->TextureSet(Page.m_TexId);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(Color.r, Color.g, Color.b, Color.a);
+	Graphics()->QuadsSetSubset(x0, y0, x1, y1);
+	Graphics()->QuadsSetRotation(Angle);
+	IGraphics::CQuadItem Quad(Pos.x, Pos.y, Size.x, Size.y);
+	Graphics()->QuadsDraw(&Quad, 1);
+	Graphics()->QuadsEnd();
+}
+
 void CRenderTools::RenderWardenArm(vec2 From, vec2 To, float Scale)
 {
 	const vec2 Diff = To - From;

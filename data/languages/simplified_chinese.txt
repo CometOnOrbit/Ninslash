@@ -5483,3 +5483,42 @@ Fins
 
 Jaw
 == 下颌
+
+Skitter Matriarch
+== 裂甲母巢
+
+Fangs
+== 毒牙
+
+Sac
+== 酸囊
+
+Bastion Strider
+== 堡垒行者
+
+Storm Seraph
+== 雷暴炽天使
+
+Siege Monolith
+== 攻城巨磑
+
+Shield
+== 护盾
+
+Nodes
+== 电弧节点
+
+Wings
+== 机翼
+
+Halo
+== 光环
+
+Turret
+== 炮塔
+
+Thrusters
+== 推进器
+
+Vents
+== 散热口

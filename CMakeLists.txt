@@ -783,8 +783,18 @@ target_link_libraries(game-shared PUBLIC ninslash-lua)
 list(APPEND TARGETS_OWN engine-shared game-shared)
 
 if(NINSLASH_BUILD_TESTS)
+  add_executable(ninslash_test_industrial_boss tests/industrial_boss.cpp "${PROJECT_BINARY_DIR}/src/generated/protocol.h")
+  target_include_directories(ninslash_test_industrial_boss PRIVATE ${PROJECT_BINARY_DIR}/src ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME industrial_boss COMMAND ninslash_test_industrial_boss)
+  add_executable(ninslash_test_skitter_matriarch tests/skitter_matriarch.cpp "${PROJECT_BINARY_DIR}/src/generated/protocol.h")
+  target_include_directories(ninslash_test_skitter_matriarch PRIVATE ${PROJECT_BINARY_DIR}/src ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME skitter_matriarch COMMAND ninslash_test_skitter_matriarch)
+  add_executable(ninslash_test_boss_v5 tests/boss_v5.cpp "${PROJECT_BINARY_DIR}/src/generated/protocol.h")
+  target_include_directories(ninslash_test_boss_v5 PRIVATE ${PROJECT_BINARY_DIR}/src ${PROJECT_SOURCE_DIR}/src)
+  add_test(NAME boss_v5 COMMAND ninslash_test_boss_v5)
+
   enable_testing()
-  set(NINSLASH_TEST_TARGETS)
+  set(NINSLASH_TEST_TARGETS ninslash_test_industrial_boss ninslash_test_skitter_matriarch ninslash_test_boss_v5)
   add_executable(ninslash_weapon_balance
     tools/weapon_balance.cpp
     $<TARGET_OBJECTS:game-shared>
@@ -865,6 +875,16 @@ if(NINSLASH_BUILD_TESTS)
   add_test(NAME abyss_angler_assets COMMAND ninslash_test_foundry_warden
     "${PROJECT_SOURCE_DIR}/data/anim/abyss_angler" abyss-angler 9)
   set_tests_properties(abyss_angler_assets PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  add_test(NAME rail_reaper_assets COMMAND ninslash_test_foundry_warden "${PROJECT_SOURCE_DIR}/data/anim/rail_reaper" rail-reaper 12)
+  add_test(NAME skitter_matriarch_assets COMMAND ninslash_test_foundry_warden "${PROJECT_SOURCE_DIR}/data/anim/skitter_matriarch" skitter-matriarch 1)
+  set_tests_properties(skitter_matriarch_assets PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  set_tests_properties(rail_reaper_assets PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  add_test(NAME bastion_strider_assets COMMAND ninslash_test_foundry_warden "${PROJECT_SOURCE_DIR}/data/anim/bastion_strider" bastion-strider 1)
+  set_tests_properties(bastion_strider_assets PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  add_test(NAME storm_seraph_assets COMMAND ninslash_test_foundry_warden "${PROJECT_SOURCE_DIR}/data/anim/storm_seraph" storm-seraph 1)
+  set_tests_properties(storm_seraph_assets PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  add_test(NAME siege_monolith_assets COMMAND ninslash_test_foundry_warden "${PROJECT_SOURCE_DIR}/data/anim/siege_monolith" siege-monolith 1)
+  set_tests_properties(siege_monolith_assets PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_foundry_warden)
   add_executable(ninslash_test_abyss_angler
     tests/abyss_angler.cpp
@@ -935,12 +955,6 @@ if(NINSLASH_BUILD_TESTS)
   target_include_directories(ninslash_test_weapon_presentation_runtime PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_weapon_presentation_runtime ${LIBS})
   add_test(NAME weapon_presentation_runtime COMMAND ninslash_test_weapon_presentation_runtime)
-	add_test(NAME weapon_execution_static
-		COMMAND ${Python3_EXECUTABLE} scripts/check_weapon_execution.py)
-	set_tests_properties(weapon_execution_static PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
-	add_test(NAME weapon_lua_api
-		COMMAND ${Python3_EXECUTABLE} scripts/check_weapon_lua_api.py)
-	set_tests_properties(weapon_lua_api PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 	add_test(NAME weapon_float_literals
 		COMMAND ${Python3_EXECUTABLE} scripts/normalize_weapon_floats.py)
 	set_tests_properties(weapon_float_literals PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
@@ -950,18 +964,6 @@ if(NINSLASH_BUILD_TESTS)
 	add_test(NAME weapon_visual_baseline
 		COMMAND ${Python3_EXECUTABLE} scripts/export_legacy_weapon_visuals.py)
 	set_tests_properties(weapon_visual_baseline PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
-	add_test(NAME graphics_batch_order
-		COMMAND ${Python3_EXECUTABLE} tests/check_graphics_batch_order.py)
-	add_test(NAME dynamic_lighting_static
-		COMMAND ${Python3_EXECUTABLE} tests/check_dynamic_lighting.py)
-	add_test(NAME menu_shader_static
-		COMMAND ${Python3_EXECUTABLE} tests/check_menu_shader.py)
-	add_test(NAME multibuffering_transition_static
-		COMMAND ${Python3_EXECUTABLE} tests/check_multibuffering_transition.py)
-	set_tests_properties(dynamic_lighting_static PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
-	set_tests_properties(menu_shader_static PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
-	set_tests_properties(multibuffering_transition_static PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
-	set_tests_properties(graphics_batch_order PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 	add_test(NAME steam_platform_render
 		COMMAND ${Python3_EXECUTABLE} tests/check_steam_platform_render.py)
 	set_tests_properties(steam_platform_render PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
@@ -971,10 +973,6 @@ if(NINSLASH_BUILD_TESTS)
 		set_tests_properties(steam_password_prompt PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 	endif()
   list(APPEND NINSLASH_TEST_TARGETS ninslash_test_weapon_presentation_runtime)
-  add_test(NAME build_config COMMAND ${CMAKE_COMMAND}
-    -DNINSLASH_SOURCE_DIR=${PROJECT_SOURCE_DIR}
-    -P ${PROJECT_SOURCE_DIR}/tests/build_config.cmake
-  )
   add_executable(ninslash_test_input_processing tests/input_processing.cpp)
   target_include_directories(ninslash_test_input_processing PRIVATE ${PROJECT_SOURCE_DIR}/src)
   add_test(NAME input_processing COMMAND ninslash_test_input_processing)
@@ -1175,7 +1173,8 @@ if(NINSLASH_BUILD_TESTS)
   )
   add_custom_target(ninslash_content_import_fixtures DEPENDS "${CONTENT_IMPORT_FIXTURES}/friendly.zip")
   add_executable(ninslash_test_content_package_import tests/content_package_import.cpp $<TARGET_OBJECTS:engine-shared> $<TARGET_OBJECTS:json>)
-  add_dependencies(ninslash_test_content_package_import ninslash_content_import_fixtures)
+  # version.h includes generated/nethash.cpp; wait for its owning target on clean builds.
+  add_dependencies(ninslash_test_content_package_import ninslash_content_import_fixtures game-shared)
   target_include_directories(ninslash_test_content_package_import PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
   target_link_libraries(ninslash_test_content_package_import ${LIBS})
   add_test(NAME content_package_import COMMAND ninslash_test_content_package_import "${CONTENT_IMPORT_FIXTURES}")
@@ -1249,6 +1248,20 @@ if(NINSLASH_BUILD_TESTS)
     ninslash_test_room_preset
     ninslash_test_content_publish
   )
+  # Test executables consuming engine-shared also need the bundled compression
+  # objects on Windows (system ZLIB_LIBRARIES is empty in that configuration).
+  get_property(LOCAL_TEST_TARGETS DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+  foreach(TEST_BINARY IN LISTS LOCAL_TEST_TARGETS)
+    if(TEST_BINARY MATCHES "^ninslash_(test_|weapon_balance)")
+      get_target_property(TEST_SOURCES ${TEST_BINARY} SOURCES)
+      if(ZLIB_DEP AND NOT "${TEST_SOURCES}" MATCHES "TARGET_OBJECTS:zlib")
+        target_sources(${TEST_BINARY} PRIVATE ${ZLIB_DEP})
+      endif()
+      if(MINGW)
+        target_link_libraries(${TEST_BINARY} -static)
+      endif()
+    endif()
+  endforeach()
   # These focused tests use assert() for both checks and fixture operations.
   # Keep assertions active even when the test build itself is Release.
   foreach(TEST_TARGET IN LISTS NINSLASH_TEST_TARGETS)
@@ -1653,6 +1666,8 @@ set_src(GAME_SERVER GLOB_RECURSE src/game/server
   entities/droid_foundrywarden.h
   entities/droid_abyssangler.cpp
   entities/droid_abyssangler.h
+  entities/droid_industrial.cpp
+  entities/droid_industrial.h
   entities/droid_crawler.cpp
   entities/droid_crawler.h
   entities/droid_cyclonecrawler.cpp

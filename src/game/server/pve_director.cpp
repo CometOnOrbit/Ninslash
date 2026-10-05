@@ -2437,8 +2437,12 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage, 
 		return Damage;
 	float Multiplier = 1.0f;
 	CCharacter *pOutgoingTarget = pVictim;
+	// Only a human player's hit on an enemy counts as outgoing; world/droid damage (From < 0) must
+	// never index m_aPlayers[From] below.
+	bool Outgoing = false;
 	if(IsEligiblePlayer(From) && (To == -2 || m_pGameServer->IsBot(To) || (pOutgoingTarget && pOutgoingTarget->m_IsBot)))
 	{
+		Outgoing = true;
 		CPlayerRun &Run = m_aPlayers[From];
 		const int Specialization = Source.m_Kind == EAttackSourceKind::PlayerWeapon
 									   ? WeaponSpecialization(Source.m_Weapon)
@@ -2666,7 +2670,7 @@ int CPveDirector::ModifyDamage(const CAttackSource &Source, int To, int Damage, 
 			SendBuildState(To, true);
 		}
 	}
-	if(pOutgoingTarget)
+	if(Outgoing && pOutgoingTarget)
 	{
 		CPlayerRun &Run = m_aPlayers[From];
 		ProcessHit(From, pOutgoingTarget, Result, true);

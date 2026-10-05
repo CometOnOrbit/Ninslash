@@ -12,6 +12,9 @@ enum
 	DROID_DRAW_CRAWLER,
 	DROID_DRAW_WARDEN,
 	DROID_DRAW_ANGLER,
+	DROID_DRAW_INDUSTRIAL,
+	DROID_DRAW_MATRIARCH,
+	DROID_DRAW_BOSSV5, // Bastion Strider, Storm Seraph, Siege Monolith
 };
 
 struct CDroidVisual
@@ -51,6 +54,11 @@ inline const CDroidVisual &DroidVisual(int Type)
 		{DROID_DRAW_CRAWLER, 1.15f, vec4(1.00f, 0.70f, 0.20f, 1.0f), vec4(1.00f, 0.78f, 0.30f, 1.0f), NoLight, 0.0f, false, true},
 		{DROID_DRAW_WARDEN, 0.85f, White, White, vec4(1.0f, 0.42f, 0.12f, 0.85f), 170.0f, false, false},
 		{DROID_DRAW_ANGLER, 0.75f, White, White, vec4(0.3f, 0.85f, 1.0f, 0.55f), 190.0f, false, false},
+		{DROID_DRAW_MATRIARCH, 1.0f, White, White, vec4(0.55f, 1.0f, 0.3f, 0.55f), 190.0f, false, false},
+		{DROID_DRAW_BOSSV5, 1.0f, White, White, vec4(1.0f, 0.55f, 0.18f, 0.45f), 190.0f, false, false},
+		{DROID_DRAW_BOSSV5, 1.0f, White, White, vec4(0.35f, 0.75f, 1.0f, 0.45f), 200.0f, false, false},
+		{DROID_DRAW_BOSSV5, 1.0f, White, White, vec4(1.0f, 0.3f, 0.2f, 0.40f), 200.0f, false, false},
+
 	};
 	static const CDroidVisual s_None = {DROID_DRAW_NONE, 1.0f, White, White, NoLight, 0.0f, false, false};
 	if(Type < 0 || Type >= NUM_DROIDTYPES)
