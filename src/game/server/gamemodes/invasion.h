@@ -174,6 +174,8 @@ class CGameControllerInvasion : public IGameController
 	void NextLevel(int CID = -1);
 	bool GetSpawnPos(int Team, vec2 *pOutPos);
 	virtual void Tick();
+	// Objectives and the exit door, not PvP score/time limits, advance the run.
+	void DoWincheck() override {}
 	virtual void Snap(int SnappingClient);
 	virtual void OnSwitchTriggered();
 	void OnRetryVote(int ClientID, int Nonce, int Choice);

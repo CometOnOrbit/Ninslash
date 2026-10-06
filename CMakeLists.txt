@@ -999,6 +999,18 @@ if(NINSLASH_BUILD_TESTS)
   )
   target_link_libraries(ninslash_test_pve_definitions ${LIBS})
   add_test(NAME pve_definitions COMMAND ninslash_test_pve_definitions)
+  add_executable(ninslash_test_pve_replay_rules
+    tests/pve_replay_rules.cpp
+    src/game/pve/pve_roguelite.cpp
+    "${PROJECT_BINARY_DIR}/src/generated/pve_cards.inc"
+    "${PROJECT_BINARY_DIR}/src/generated/pve_contracts.inc"
+    $<TARGET_OBJECTS:engine-shared>
+    $<TARGET_OBJECTS:json>
+  )
+  target_include_directories(ninslash_test_pve_replay_rules PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+  target_link_libraries(ninslash_test_pve_replay_rules ${LIBS})
+  add_test(NAME pve_replay_rules COMMAND ninslash_test_pve_replay_rules)
+  list(APPEND NINSLASH_TEST_TARGETS ninslash_test_pve_replay_rules)
   add_executable(ninslash_test_pve_progress
     tests/pve_progress_storage.cpp
     src/game/client/pve_progress_storage.cpp

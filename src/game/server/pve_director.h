@@ -27,6 +27,7 @@ class CPveDirector
 		int m_Choices;
 		int m_ChoiceNonce;
 		int m_LastChoiceNonce;
+		int m_LastChosenCard; // ephemeral offer history, not a save/protocol field
 		int m_aOffered[3];
 		int m_aStacks[NUM_PVE_CARDS];
 		int m_ContractVote;

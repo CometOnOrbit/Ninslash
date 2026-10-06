@@ -331,6 +331,7 @@ void CGameControllerExtract::PickTasks()
 							 GameServer()->m_pPveDirector->ActiveContract() == PVE_CONTRACT_LOCKED_ROUTE;
 	const int Num = CountHumans() > 1 ? 3 : 2;
 	m_TaskCount = 0;
+	CDeterministicRandom TaskRng(DeterministicSeed((unsigned long long)g_Config.m_SvMapGenSeed, "extract_tasks"));
 	for(int t = 0; t < Num; t++)
 	{
 		int Chosen = -1;
@@ -361,7 +362,6 @@ void CGameControllerExtract::PickTasks()
 			{
 				// Deterministic per-seed stream so challenge runs with the same
 				// seed pick the same task set (docs §3.2).
-				CDeterministicRandom TaskRng(DeterministicSeed((unsigned long long)g_Config.m_SvMapGenSeed, "extract_tasks"));
 				int Pick = TaskRng.NextInt(Total);
 				for(int i = 0; i < 5; i++)
 				{

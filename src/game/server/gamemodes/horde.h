@@ -50,6 +50,8 @@ class CGameControllerHorde : public IGameController
 
 	int m_ActiveEvent;
 	int m_LastEventWave;
+	int m_LastEvent;
+	int m_PreviousEvent;
 	int m_EventActionTick;
 	int m_EventWaveBudget;
 	float m_EventCountMod;
@@ -78,6 +80,8 @@ class CGameControllerHorde : public IGameController
 	bool GetSpawnPos(int Team, vec2 *pOutPos);
 	virtual bool CanSpawn(int Team, vec2 *pPos, bool IsBot = false);
 	virtual void Tick();
+	// Waves, not kill score, determine completion in Tick().
+	void DoWincheck() override {}
 	virtual void Snap(int SnappingClient);
 	bool InDefenseArea(vec2 Pos) const;
 

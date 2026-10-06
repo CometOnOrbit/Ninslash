@@ -1,7 +1,7 @@
 # Regression tests
 
-The reference Linux configuration registers **67 CTest cases**, down from 74
-before the 2026-10-06 test cleanup. The Steam password-prompt test is UNIX-only,
+The reference Linux configuration registers **68 CTest cases**: the 67 retained
+after the 2026-10-06 cleanup, plus the PvE replay behavior regression below. The Steam password-prompt test is UNIX-only,
 so the registered count can differ by platform. `NINSLASH_BUILD_TESTS` defaults
 to `OFF`: these are opt-in developer/CI targets, not work performed by the game.
 
@@ -55,3 +55,11 @@ The archived originals and exact change list are in
 `design/test-cleanup-20261006/`. Historical reports describing 74 tests or six
 source checks are snapshots, not the current inventory; two of the six Python
 `check_` files were always behavior tests and remain present.
+
+## PvE replay behavior
+
+`pve_replay_rules` executes the production selection rules against the current
+card/contract definitions. It covers deck exhaustion and refill, distinct and
+mode-valid offers, useful role alternatives, small/empty card pools, recent-event
+exclusion, event pacing, and cancellation of an empty-server reset on rejoin.
+It does not scan source text or require a particular implementation layout.

@@ -4,6 +4,7 @@
 #include <generated/protocol.h>
 
 #include <game/pve/invasion_rules.h>
+#include <game/pve/replay_rules.h>
 #include <game/weapons/weapons.h>
 #include <game/server/entities/character.h>
 #include <game/server/entities/droid.h>
@@ -44,6 +45,7 @@ void CPveDirector::CPlayerRun::Reset()
 	m_Choices = 0;
 	m_ChoiceNonce = 0;
 	m_LastChoiceNonce = 0;
+	m_LastChosenCard = -1;
 	for(int i = 0; i < 3; i++)
 		m_aOffered[i] = -1;
 	for(int i = 0; i < NUM_PVE_CARDS; i++)
@@ -277,25 +279,12 @@ int CPveDirector::DrawCard(int ClientID, const bool *pExcluded, int RequiredSpec
 
 void CPveDirector::GenerateChoices(int ClientID)
 {
-	bool aExcluded[NUM_PVE_CARDS] = {false};
-	const int Specialization = CurrentWeaponSpecialization(ClientID);
-	int First = DrawCard(ClientID, aExcluded, Specialization, false);
-	if(First < 0)
-		First = DrawCard(ClientID, aExcluded, PVE_SPECIALIZATION_NONE, false);
-	if(First >= 0)
-		aExcluded[First] = true;
-	m_aPlayers[ClientID].m_aOffered[0] = First;
-	for(int Slot = 1; Slot < 3; Slot++)
-	{
-		int ID = DrawCard(ClientID, aExcluded, PVE_SPECIALIZATION_NONE, false);
-		if(ID >= 0)
-			aExcluded[ID] = true;
-		m_aPlayers[ClientID].m_aOffered[Slot] = ID;
-	}
-	const int aFallbacks[3] = {PVE_SUPPLY_ARMOR, PVE_SUPPLY_AMMO, PVE_SUPPLY_KITS};
-	for(int Slot = 0; Slot < 3; Slot++)
-		if(m_aPlayers[ClientID].m_aOffered[Slot] < 0)
-			m_aPlayers[ClientID].m_aOffered[Slot] = aFallbacks[Slot];
+	bool aEligible[NUM_PVE_CARDS];
+	for(int ID = 0; ID < NUM_PVE_CARDS; ID++)
+		aEligible[ID] = CardEligible(ClientID, ID);
+	CPlayerRun &Run = m_aPlayers[ClientID];
+	PveReplayChoices(aEligible, Run.m_aOffered, Run.m_LastChosenCard,
+		CurrentWeaponSpecialization(ClientID), Run.m_aOffered, GameRandom());
 }
 
 void CPveDirector::SendChoice(int ClientID)
@@ -495,12 +484,7 @@ void CPveDirector::SendValidation(int ClientID, int Code)
 
 void CPveDirector::BeginContractVote(bool PerkAfterContract)
 {
-	int aPool[NUM_PVE_CONTRACTS];
-	int Count = 0;
-	for(int ID = 0; ID < NUM_PVE_CONTRACTS; ID++)
-		if(!(m_UsedContracts & (1 << ID)) && PveContractAvailableInMode(ID, m_Mode))
-			aPool[Count++] = ID;
-	if(Count < 2)
+	if(!PveContractOffers(m_Mode, m_UsedContracts, m_aContractOptions, m_aContractOptions, GameRandom()))
 	{
 		if(PerkAfterContract)
 			BeginPerkChoice();
@@ -508,11 +492,6 @@ void CPveDirector::BeginContractVote(bool PerkAfterContract)
 			FinishIntermission();
 		return;
 	}
-	const int Pick0 = irandom(Count);
-	m_aContractOptions[0] = aPool[Pick0];
-	aPool[Pick0] = aPool[--Count];
-	m_aContractOptions[1] = aPool[irandom(Count)];
-	m_UsedContracts |= (1 << m_aContractOptions[0]) | (1 << m_aContractOptions[1]);
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		if(IsEligiblePlayer(i))
 		{
@@ -664,8 +643,9 @@ bool CPveDirector::AllContractVotesComplete() const
 
 void CPveDirector::ApplyChoice(int ClientID, int CardID, bool Catchup)
 {
-	(void)Catchup;
 	CPlayerRun &Run = m_aPlayers[ClientID];
+	if(!Catchup)
+		Run.m_LastChosenCard = CardID;
 	if(CardID >= 0 && CardID < NUM_PVE_CARDS)
 	{
 		const CPveCardDef *pDef = PveCardDef(CardID);

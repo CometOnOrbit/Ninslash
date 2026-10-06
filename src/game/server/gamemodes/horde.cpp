@@ -3,6 +3,7 @@
 
 #include <game/mapitems.h>
 #include <game/pve/questinfo.h>
+#include <game/pve/replay_rules.h>
 #include <game/server/entities/character.h>
 #include <game/server/player.h>
 #include <game/server/gamecontext.h>
@@ -63,6 +64,8 @@ CGameControllerHorde::CGameControllerHorde(class CGameContext *pGameServer) : IG
 	m_DefenseAreaReady = false;
 	m_ActiveEvent = HORDE_EVENT_NONE;
 	m_LastEventWave = -1;
+	m_LastEvent = HORDE_EVENT_NONE;
+	m_PreviousEvent = HORDE_EVENT_NONE;
 	m_EventActionTick = 0;
 	m_EventWaveBudget = 0;
 	m_EventCountMod = 1.0f;
@@ -268,11 +271,7 @@ void CGameControllerHorde::ClearWaveEvent()
 void CGameControllerHorde::RollWaveEvent()
 {
 	ClearWaveEvent();
-	if(m_Wave < 3)
-		return;
-	if(m_LastEventWave >= 0 && m_Wave <= m_LastEventWave + 1)
-		return;
-	if(frandom() > 0.35f)
+	if(!PveHordeEventDue(m_Wave, m_LastEventWave, frandom()))
 		return;
 
 	const bool BossWave = m_Wave % 4 == 0;
@@ -301,27 +300,20 @@ void CGameControllerHorde::RollWaveEvent()
 			aTable[Count++] = {HORDE_EVENT_ROGUE_BOSS, Heavy ? 2 : 8};
 	}
 
-	int Total = 0;
-	for(int i = 0; i < Count; i++)
-		Total += aTable[i].m_Weight;
-	if(Total <= 0)
-		return;
-
-	int Roll = irandom(Total);
-	int Picked = HORDE_EVENT_NONE;
+	int aIDs[10];
+	int aWeights[10];
 	for(int i = 0; i < Count; i++)
 	{
-		Roll -= aTable[i].m_Weight;
-		if(Roll < 0)
-		{
-			Picked = aTable[i].m_Event;
-			break;
-		}
+		aIDs[i] = aTable[i].m_Event;
+		aWeights[i] = aTable[i].m_Weight;
 	}
-	if(Picked == HORDE_EVENT_NONE)
+	const int Picked = PveChooseRecentEvent(aIDs, aWeights, Count, m_LastEvent, m_PreviousEvent, GameRandom());
+	if(Picked < 0)
 		return;
 
 	m_ActiveEvent = Picked;
+	m_PreviousEvent = m_LastEvent;
+	m_LastEvent = Picked;
 	m_LastEventWave = m_Wave;
 	switch(Picked)
 	{
@@ -605,8 +597,8 @@ void CGameControllerHorde::Tick()
 		GameServer()->m_pPveDirector->OnBossKilled();
 	}
 
-	if(m_Wave > 0 && !m_NoPlayersTick && CountHumans() <= 0)
-		m_NoPlayersTick = Server()->Tick() + Server()->TickSpeed() * 10.0f;
+	if(m_Wave > 0)
+		m_NoPlayersTick = PveEmptyRunDeadline(Server()->Tick(), Server()->TickSpeed(), CountHumans() > 0, m_NoPlayersTick);
 
 	if(m_NoPlayersTick && m_NoPlayersTick < Server()->Tick())
 	{

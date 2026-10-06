@@ -116,6 +116,8 @@ class CGameControllerExtract : public IGameController
 	void OnDroidKilled(class CDroid *pDroid);
 	virtual void NextLevel(int CID = -1);
 	virtual void Tick();
+	// Mission/deadline/evacuation results, including rewards, are owned by Tick().
+	void DoWincheck() override {}
 	virtual void Snap(int SnappingClient);
 	virtual void DisplayExit(vec2 Pos);
 	bool Evacuating() const { return m_Phase == 1 && !m_RoundOverTick; }
